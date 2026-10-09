@@ -363,3 +363,17 @@ public class RouterTests
         Assert.False(t.Ctrl);
     }
 }
+
+public class ActionTextTests
+{
+    [Fact]
+    public void EveryActionHasItsOwnDescription()
+    {
+        foreach (var a in FlActions.All)
+        {
+            var d = a.Detail();
+            Assert.False(string.IsNullOrWhiteSpace(d));
+            Assert.NotEqual(a.Label, d);          // une phrase qui dit ce que fait l'action, pas le nom répété
+        }
+    }
+}

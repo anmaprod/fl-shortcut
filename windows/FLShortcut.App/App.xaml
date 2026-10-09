@@ -1,4 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- Styles Windows 11 (Fluent 2) : cartes 4 px comme Réglages, conteneurs 8 px, touches en relief,
+     dégradé de l'icône. Toutes les couleurs viennent des ressources du thème (clair, sombre, contraste élevé). -->
 <Application
     x:Class="FLShortcut.App.App"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
@@ -9,24 +11,50 @@
                 <XamlControlsResources xmlns="using:Microsoft.UI.Xaml.Controls" />
             </ResourceDictionary.MergedDictionaries>
 
+            <!-- Icône de l'appli : carré arrondi bleu en dégradé (même dessin que sur Mac). -->
+            <LinearGradientBrush x:Key="AppIconGradient" StartPoint="0,0" EndPoint="0.6,1">
+                <GradientStop Color="#FF5AC8FA" Offset="0" />
+                <GradientStop Color="#FF0A61FF" Offset="1" />
+            </LinearGradientBrush>
+
+            <!-- Touche de clavier : relief léger (bordure d'élévation des contrôles Windows 11). -->
             <Style x:Key="KeyCapBorder" TargetType="Border">
                 <Setter Property="MinWidth" Value="26" />
                 <Setter Property="Height" Value="26" />
                 <Setter Property="Padding" Value="8,0" />
-                <Setter Property="CornerRadius" Value="4" />
+                <Setter Property="CornerRadius" Value="5" />
                 <Setter Property="BorderThickness" Value="1,1,1,2" />
-                <Setter Property="BorderBrush" Value="{ThemeResource ControlStrokeColorDefaultBrush}" />
+                <Setter Property="BorderBrush" Value="{ThemeResource ControlStrokeColorSecondaryBrush}" />
                 <Setter Property="Background" Value="{ThemeResource ControlFillColorDefaultBrush}" />
             </Style>
 
+            <!-- Carte (bloc d'informations), comme dans Réglages. -->
+            <Style x:Key="Card" TargetType="Border">
+                <Setter Property="Padding" Value="16,14" />
+                <Setter Property="CornerRadius" Value="{StaticResource ControlCornerRadius}" />
+                <Setter Property="BorderThickness" Value="1" />
+                <Setter Property="Background" Value="{ThemeResource CardBackgroundFillColorDefaultBrush}" />
+                <Setter Property="BorderBrush" Value="{ThemeResource CardStrokeColorDefaultBrush}" />
+            </Style>
+
+            <!-- Ligne de raccourci : carte cliquable (survol et appui gérés par le modèle du bouton). -->
             <Style x:Key="RowButton" TargetType="Button">
                 <Setter Property="HorizontalAlignment" Value="Stretch" />
                 <Setter Property="HorizontalContentAlignment" Value="Stretch" />
-                <Setter Property="MinHeight" Value="60" />
-                <Setter Property="Padding" Value="16,8" />
-                <Setter Property="CornerRadius" Value="6" />
+                <Setter Property="MinHeight" Value="64" />
+                <Setter Property="Padding" Value="16,10" />
+                <Setter Property="CornerRadius" Value="{StaticResource ControlCornerRadius}" />
                 <Setter Property="Background" Value="{ThemeResource CardBackgroundFillColorDefaultBrush}" />
                 <Setter Property="BorderBrush" Value="{ThemeResource CardStrokeColorDefaultBrush}" />
+            </Style>
+
+            <!-- Bouton discret (fermer la notification). -->
+            <Style x:Key="QuietButton" TargetType="Button">
+                <Setter Property="Background" Value="Transparent" />
+                <Setter Property="BorderThickness" Value="0" />
+                <Setter Property="Padding" Value="8" />
+                <Setter Property="MinWidth" Value="0" />
+                <Setter Property="MinHeight" Value="0" />
             </Style>
         </ResourceDictionary>
     </Application.Resources>

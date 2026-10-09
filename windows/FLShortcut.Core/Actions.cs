@@ -70,6 +70,55 @@ public static class FlActions
     public static int? IdForKey(string key) => ByKey.TryGetValue(key, out var a) ? a.Id : null;
 }
 
+/// Ce que fait chaque action, en une phrase (tests utilisateurs : dire ce que fait l'action).
+/// Miroir de FLActionInfo.detail (Sources/FLShortcut/GlassStyle.swift).
+public static class FlActionDetails
+{
+    private static readonly Dictionary<string, string> ByKey = new()
+    {
+        ["play"] = "Lance ou met en pause la lecture",
+        ["stop"] = "Arrête la lecture",
+        ["rec"] = "Démarre ou arrête l'enregistrement",
+        ["metro"] = "Active ou coupe le métronome",
+        ["count"] = "Décompte avant l'enregistrement",
+        ["loop"] = "Enchaîne les prises sur la boucle",
+        ["wait"] = "Le REC démarre à la première note jouée",
+        ["marker"] = "Repère « bonne prise » à la position de lecture",
+        ["arm"] = "Prépare la piste du Mixer sélectionnée à enregistrer",
+        ["tap"] = "Tape le tempo en rythme",
+        ["newpat"] = "Crée un pattern vide et ouvre le Piano Roll",
+        ["clone"] = "Duplique le pattern en cours pour une variation",
+        ["pnext"] = "Passe au pattern suivant",
+        ["pprev"] = "Revient au pattern précédent",
+        ["chnext"] = "Instrument suivant, sans quitter le Piano Roll",
+        ["chprev"] = "Instrument précédent, sans quitter le Piano Roll",
+        ["snap"] = "Change le magnétisme : 1/4, 1/8, triolets…",
+        ["quant"] = "Aligne les notes de l'instrument sélectionné",
+        ["presetnext"] = "Preset suivant du plugin ouvert",
+        ["presetprev"] = "Preset précédent du plugin ouvert",
+        ["mute"] = "Coupe la piste du Mixer sélectionnée",
+        ["solo"] = "Écoute seulement la piste sélectionnée",
+        ["unsolo"] = "Réécoute tout le morceau",
+        ["bypass"] = "Compare la piste avec et sans effets",
+        ["mono"] = "Vérifie que le mix tient en mono",
+        ["trnext"] = "Sélectionne la piste suivante du Mixer",
+        ["trprev"] = "Sélectionne la piste précédente du Mixer",
+        ["volup"] = "Monte la piste sélectionnée",
+        ["voldn"] = "Baisse la piste sélectionnée",
+        ["pl"] = "Affiche la Playlist",
+        ["cr"] = "Affiche le Channel Rack",
+        ["pr"] = "Affiche le Piano Roll",
+        ["mx"] = "Affiche le Mixer",
+        ["br"] = "Affiche le Browser",
+        ["plmx"] = "Bascule entre la Playlist et le Mixer",
+        ["undo"] = "Annule la dernière action",
+        ["redo"] = "Rétablit l'action annulée",
+        ["save"] = "Sauvegarde le projet",
+    };
+
+    public static string Detail(this FlActionInfo info) => ByKey.TryGetValue(info.Key, out var d) ? d : info.Label;
+}
+
 /// Version de FL Studio (lue dans les informations de version de FL64.exe).
 public sealed class FlVersion : IComparable<FlVersion>, IEquatable<FlVersion>
 {

@@ -1,5 +1,6 @@
-// Fenêtre principale Windows 11 (Mica, Fluent), d'après la simulation validée :
-// accueil en 2 étapes (ports, lien FL), liste par rubriques, fiche d'édition, notification « Annuler ».
+// Fenêtre principale Windows 11 (Mica, Fluent 2), d'après la simulation validée :
+// accueil en 2 étapes (ports, lien FL), volet de rubriques à gauche comme Réglages, cartes, fiche d'édition,
+// notification acrylique « Annuler ». Animations : voir Motion.cs (désactivées si Windows les coupe).
 // Audit 05 : vocabulaire simple, nom des touches en clair, avertissements au moment de l'assignation,
 // pause visible. SEC-05 : import et changement de profil confirmés.
 using System.ComponentModel;
@@ -13,6 +14,7 @@ using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Controls.Primitives;
 using Microsoft.UI.Xaml.Input;
+using Microsoft.UI.Composition.SystemBackdrops;
 using Microsoft.UI.Xaml.Media;
 using Windows.Storage.Pickers;
 using Windows.System;
@@ -32,19 +34,32 @@ public sealed partial class MainWindow : Window
     private bool _quitting;
     private enum LinkStep { Idle, Waiting, Linked }
     private LinkStep _linkStep = LinkStep.Idle;
+    private string _navFilter = "";                       // "" = toutes les rubriques
+    private HashSet<Guid> _shownRows = new();             // pour n'animer que les lignes nouvelles
+    private bool _animateNextBuild = true;
+    private StatusKind? _shownStatus;
+    private bool? _shownPortsOk;
+    private bool _toastLeaving;
 
     public MainWindow()
     {
         InitializeComponent();
         _hwnd = WinRT.Interop.WindowNative.GetWindowHandle(this);
 
-        SystemBackdrop = new MicaBackdrop();
-        // Windows 10 : pas de Mica, la grille racine (sans fond) laisserait la fenêtre noire.
-        if (!Microsoft.UI.Composition.SystemBackdrops.MicaController.IsSupported())
-            Root.Background = (Brush)Application.Current.Resources["ApplicationPageBackgroundThemeBrush"];
+        // Windows 11 : Mica. Windows 10 : acrylique du bureau. Sinon fond uni (sans fond, la fenêtre serait noire).
+        if (MicaController.IsSupported())
+            SystemBackdrop = new MicaBackdrop { Kind = MicaKind.Base };
+        else if (DesktopAcrylicController.IsSupported())
+            SystemBackdrop = new DesktopAcrylicBackdrop();
+        else
+            Root.Background = Res<Brush>("ApplicationPageBackgroundThemeBrush");
         ExtendsContentIntoTitleBar = true;
         SetTitleBar(AppTitleBar);
-        AppWindow.Resize(new Windows.Graphics.SizeInt32(1100, 780));
+        if (AppWindowTitleBar.IsCustomizationSupported())
+            AppWindow.TitleBar.PreferredHeightOption = TitleBarHeightOption.Tall;   // boutons de fenêtre alignés sur la barre de 48 px
+        AppWindow.Resize(new Windows.Graphics.SizeInt32(1180, 800));
+        Toast.Shadow = new ThemeShadow();
+        Toast.Translation = new System.Numerics.Vector3(0, 0, 32);
         AppWindow.Closing += OnClosing;
 
         foreach (var cap in new[] { "Ctrl", "Maj", "4" }) ExampleCaps.Children.Add(KeyCap(cap));
@@ -126,7 +141,29 @@ public sealed partial class MainWindow : Window
         MainView.Visibility = main ? Visibility.Visible : Visibility.Collapsed;
         StepPorts.Visibility = main ? Visibility.Collapsed : Visibility.Visible;
         StepLink.Visibility = Visibility.Collapsed;
-        if (main) { BuildGroups(); UpdateStatus(); } else UpdatePortsStep();
+        if (main)
+        {
+            _animateNextBuild = true;
+            BuildGroups();
+            UpdateStatus();
+            Motion.Enter(MainContent, fromY: 24);
+        }
+        else
+        {
+            UpdatePortsStep();
+            UpdateBackLinks();
+            Motion.Enter(StepPortsContent, fromY: 24);
+        }
+    }
+
+    private void OnBackToMain(object sender, RoutedEventArgs e) => ShowScreen();
+
+    /// « Retour aux raccourcis » seulement quand l'accueil a déjà été fait (réparation).
+    private void UpdateBackLinks()
+    {
+        var v = _app.Onboarded ? Visibility.Visible : Visibility.Collapsed;
+        PortsBack.Visibility = v;
+        LinkBack.Visibility = v;
     }
 
     // ---------- Accueil ----------
@@ -134,9 +171,12 @@ public sealed partial class MainWindow : Window
     private void UpdatePortsStep()
     {
         var ok = MidiLink.PortsExist();
-        PortsIcon.Glyph = ok ? "" : "";
-        PortsIcon.Foreground = ok ? (Brush)Application.Current.Resources["SystemFillColorSuccessBrush"]
-                                  : (Brush)Application.Current.Resources["TextFillColorSecondaryBrush"];
+        PortsIcon.Glyph = ok ? "\uE73E" : "\uE895";
+        var tint = ok ? Res<Brush>("SystemFillColorSuccessBrush") : Res<Brush>("AccentTextFillColorPrimaryBrush");
+        PortsIcon.Foreground = tint;
+        PortsHalo.Fill = tint;
+        if (_shownPortsOk is { } before && before != ok) Motion.Pop(PortsIcon);
+        _shownPortsOk = ok;
         PortsText.Text = ok
             ? "Prêts : « FL Shortcut » et « FL Shortcut Retour »."
             : "FL Shortcut parle à FL Studio par deux ports MIDI virtuels. Ouvre loopMIDI et crée deux ports nommés exactement « FL Shortcut » et « FL Shortcut Retour ». FL Shortcut les détecte tout seul.";
@@ -151,6 +191,8 @@ public sealed partial class MainWindow : Window
         StepLink.Visibility = Visibility.Visible;
         _linkStep = _app.Linked ? LinkStep.Linked : LinkStep.Idle;
         UpdateLinkStep();
+        UpdateBackLinks();
+        Motion.Enter(StepLinkContent, fromX: 40, fromY: 0);      // page suivante : glisse depuis la droite
     }
 
     private void UpdateLinkStep(string? error = null)
@@ -165,6 +207,7 @@ public sealed partial class MainWindow : Window
         };
         LinkSteps.Children.Clear();
         for (var i = 0; i < steps.Length; i++) LinkSteps.Children.Add(StepCard(i + 1, steps[i].Text, steps[i].Done));
+        if (linked) Motion.Pop(LinkInfo, from: 0.96);
 
         if (error is not null)
         {
@@ -218,13 +261,40 @@ public sealed partial class MainWindow : Window
         ShowToast(_app.TestLink() ? "Le Mixer vient de s'ouvrir dans FL Studio." : "FL Studio n'a pas répondu. Vérifie MIDI Settings.",
             _app.Linked ? InfoBarSeverity.Success : InfoBarSeverity.Warning);
 
-    private void OnRepair(object sender, RoutedEventArgs e)
+    private void OnRepair(object sender, RoutedEventArgs e) => Repair();
+
+    private void Repair()
     {
         MainView.Visibility = Visibility.Collapsed;
-        if (!_app.PortsPresent) { StepPorts.Visibility = Visibility.Visible; UpdatePortsStep(); return; }
+        UpdateBackLinks();
+        if (!_app.PortsPresent)
+        {
+            StepPorts.Visibility = Visibility.Visible;
+            UpdatePortsStep();
+            Motion.Enter(StepPortsContent, fromY: 24);
+            return;
+        }
         StepLink.Visibility = Visibility.Visible;
         _linkStep = LinkStep.Idle;
         UpdateLinkStep();
+        Motion.Enter(StepLinkContent, fromY: 24);
+    }
+
+    // ---------- Volet de rubriques ----------
+
+    private void OnNavChanged(NavigationView sender, NavigationViewSelectionChangedEventArgs args)
+    {
+        if (args.SelectedItemContainer?.Tag is not string tag || tag.StartsWith('#') || tag == _navFilter) return;
+        _navFilter = tag;
+        PageTitle.Text = tag.Length == 0 ? "Raccourcis" : tag;
+        _animateNextBuild = true;
+        BuildGroups();
+        Motion.Enter(PageTitle, fromY: 8, durationMs: Motion.Normal);
+    }
+
+    private void OnNavInvoked(NavigationView sender, NavigationViewItemInvokedEventArgs args)
+    {
+        if (args.InvokedItemContainer?.Tag is "#link") Repair();
     }
 
     // ---------- Liste ----------
@@ -235,17 +305,26 @@ public sealed partial class MainWindow : Window
         EnabledSwitch.IsOn = _app.Enabled;
         EnabledSwitch.Toggled += OnEnabledToggled;
 
-        StatusBar.Title = _app.StatusTitle;
-        StatusBar.Message = _app.StatusText;
-        StatusBar.Severity = _app.Status switch
+        StatusTitle.Text = _app.StatusTitle;
+        StatusMessage.Text = _app.StatusText;
+        var (glyph, brushKey) = _app.Status switch
         {
-            StatusKind.Linked => InfoBarSeverity.Success,
-            StatusKind.Paused or StatusKind.FlClosed => InfoBarSeverity.Informational,
-            StatusKind.Elevated or StatusKind.Tampered => InfoBarSeverity.Error,
-            _ => InfoBarSeverity.Warning,
+            StatusKind.Linked => ("\uE73E", "SystemFillColorSuccessBrush"),
+            StatusKind.Paused => ("\uE769", "SystemFillColorCautionBrush"),
+            StatusKind.FlClosed => ("\uE7E8", "SystemFillColorNeutralBrush"),
+            StatusKind.Elevated or StatusKind.Tampered => ("\uE783", "SystemFillColorCriticalBrush"),
+            _ => ("\uE7BA", "SystemFillColorCautionBrush"),
         };
+        var tint = Res<Brush>(brushKey);
+        StatusGlyph.Glyph = glyph;
+        StatusGlyph.Foreground = tint;
+        StatusHalo.Fill = tint;
+        if (_shownStatus is { } before && before != _app.Status) Motion.Pop(StatusBadge);
+        _shownStatus = _app.Status;
+        AutomationProperties.SetName(StatusCard, $"{_app.StatusTitle}. {_app.StatusText}");
         StatusAction.Visibility = _app.Status is StatusKind.Inactive or StatusKind.NoKey or StatusKind.Tampered or StatusKind.Incompatible
             ? Visibility.Visible : Visibility.Collapsed;
+        PausePill.Visibility = _app.Enabled ? Visibility.Collapsed : Visibility.Visible;
         _tray.SetTooltip(_app.Enabled ? $"FL Shortcut — {_app.StatusTitle}" : "FL Shortcut — en pause");
     }
 
@@ -255,40 +334,86 @@ public sealed partial class MainWindow : Window
 
     private void BuildGroups()
     {
+        var animateAll = _animateNextBuild;
+        _animateNextBuild = false;
+        UpdateNavBadges();
+
         GroupsPanel.Children.Clear();
-        if (_app.IsEmpty)
+        var groups = _app.Groups.Where(g => _navFilter.Length == 0 || g.Title == _navFilter).ToList();
+        if (groups.Count == 0)
         {
-            var empty = new StackPanel { Spacing = 6, Padding = new Thickness(0, 60, 0, 0), HorizontalAlignment = HorizontalAlignment.Center };
-            empty.Children.Add(new TextBlock { Text = _app.Shortcuts.Count > 0 ? "Aucun raccourci trouvé" : "Aucun raccourci", FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, HorizontalAlignment = HorizontalAlignment.Center });
-            empty.Children.Add(new TextBlock { Text = _app.Shortcuts.Count > 0 ? "Essaie un autre mot." : "Clique sur « Nouveau raccourci » pour commencer.", Foreground = Secondary(), HorizontalAlignment = HorizontalAlignment.Center });
+            var searching = _app.Query.Trim().Length > 0;
+            var empty = new StackPanel { Spacing = 8, Padding = new Thickness(0, 64, 0, 0), HorizontalAlignment = HorizontalAlignment.Center };
+            empty.Children.Add(new FontIcon { Glyph = searching ? "" : "", FontSize = 40, Foreground = Secondary() });
+            empty.Children.Add(new TextBlock { Text = searching ? "Aucun raccourci trouvé" : "Aucun raccourci ici", Style = Res<Style>("SubtitleTextBlockStyle"), HorizontalAlignment = HorizontalAlignment.Center });
+            empty.Children.Add(new TextBlock { Text = searching ? "Essaie un autre mot." : "Clique sur « Nouveau raccourci » pour en créer un.", Foreground = Secondary(), HorizontalAlignment = HorizontalAlignment.Center });
             GroupsPanel.Children.Add(empty);
+            if (animateAll) Motion.Enter(empty, fromY: 12);
+            _shownRows = new HashSet<Guid>(_app.Shortcuts.Select(x => x.Id));
             return;
         }
-        foreach (var group in _app.Groups)
+
+        var index = 0;
+        foreach (var group in groups)
         {
-            var panel = new StackPanel { Spacing = 3 };
-            panel.Children.Add(new TextBlock { Text = group.Title, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Margin = new Thickness(2, 0, 0, 5) });
-            foreach (var row in group.Rows) panel.Children.Add(RowButton(row));
+            var panel = new StackPanel { Spacing = 2 };
+            var header = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Margin = new Thickness(2, 0, 0, 6) };
+            header.Children.Add(new TextBlock { Text = group.Title, Style = Res<Style>("BodyStrongTextBlockStyle") });
+            header.Children.Add(new TextBlock { Text = group.Rows.Count.ToString(), Foreground = Secondary(), VerticalAlignment = VerticalAlignment.Center });
+            panel.Children.Add(header);
+            foreach (var row in group.Rows)
+            {
+                var button = RowButton(row);
+                panel.Children.Add(button);
+                if (!animateAll && !_shownRows.Contains(row.Shortcut.Id)) Motion.Enter(button, fromY: 10);   // ligne ajoutée
+            }
             GroupsPanel.Children.Add(panel);
+            if (animateAll) Motion.Enter(panel, fromY: 16, delayMs: Math.Min(index, 6) * 40);           // cascade
+            index++;
+        }
+        _shownRows = new HashSet<Guid>(_app.Shortcuts.Select(x => x.Id));
+    }
+
+    /// Pastille « attention » sur une rubrique du volet quand un de ses raccourcis a un problème.
+    private void UpdateNavBadges()
+    {
+        var withWarnings = _app.Groups.Where(g => g.Rows.Any(r => r.HasWarning)).Select(g => g.Title).ToHashSet();
+        foreach (var item in new[] { NavComposition, NavRecording, NavMix, NavNavigation, NavKeys })
+        {
+            var warn = item.Tag is string t && withWarnings.Contains(t);
+            if (!warn) { item.InfoBadge = null; continue; }
+            if (item.InfoBadge is not null) continue;
+            var badge = new InfoBadge();
+            if (TryRes<Style>("CautionIconInfoBadgeStyle") is { } style) badge.Style = style;
+            item.InfoBadge = badge;
         }
     }
 
+    private static string CategoryGlyph(string category) => category switch
+    {
+        "Composition" => "",
+        "Enregistrement" => "",
+        "Mix" => "",
+        "Navigation" => "",
+        _ => "",
+    };
+
+    /// Ligne façon carte de Réglages : icône, intitulé + description, puis à droite le lieu, l'alerte, les touches.
     private Button RowButton(ShortcutRow row)
     {
         var grid = new Grid { ColumnSpacing = 16 };
-        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(170) });
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
         grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
 
-        var caps = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 4, VerticalAlignment = VerticalAlignment.Center };
-        foreach (var c in row.Caps) caps.Children.Add(KeyCap(c));
-        grid.Children.Add(caps);
+        grid.Children.Add(new FontIcon { Glyph = CategoryGlyph(row.Category), FontSize = 18, VerticalAlignment = VerticalAlignment.Center });
 
         var text = new StackPanel { VerticalAlignment = VerticalAlignment.Center, Spacing = 1 };
-        text.Children.Add(new TextBlock { Text = row.Label });
-        text.Children.Add(new TextBlock { Text = row.Description, FontSize = 12, Foreground = Secondary(), TextTrimming = TextTrimming.CharacterEllipsis });
+        text.Children.Add(new TextBlock { Text = row.Label, TextTrimming = TextTrimming.CharacterEllipsis });
+        text.Children.Add(new TextBlock { Text = row.Description, Style = Res<Style>("CaptionTextBlockStyle"), Foreground = Secondary(), TextTrimming = TextTrimming.CharacterEllipsis });
         Grid.SetColumn(text, 1);
         grid.Children.Add(text);
 
@@ -296,9 +421,8 @@ public sealed partial class MainWindow : Window
         {
             var tag = new Border
             {
-                Padding = new Thickness(8, 2, 8, 2), CornerRadius = new CornerRadius(4), VerticalAlignment = VerticalAlignment.Center,
-                Background = (Brush)Application.Current.Resources["ControlFillColorDefaultBrush"],
-                BorderBrush = (Brush)Application.Current.Resources["ControlStrokeColorDefaultBrush"], BorderThickness = new Thickness(1),
+                Padding = new Thickness(8, 2, 8, 3), CornerRadius = new CornerRadius(10), VerticalAlignment = VerticalAlignment.Center,
+                Background = Res<Brush>("SubtleFillColorSecondaryBrush"),
                 Child = new TextBlock { Text = row.Where, FontSize = 12, Foreground = Secondary() },
             };
             Grid.SetColumn(tag, 2);
@@ -307,19 +431,46 @@ public sealed partial class MainWindow : Window
         if (row.HasWarning)
         {
             var warn = new FontIcon { Glyph = "", FontSize = 16, VerticalAlignment = VerticalAlignment.Center,
-                Foreground = (Brush)Application.Current.Resources["SystemFillColorCautionBrush"] };
+                Foreground = Res<Brush>("SystemFillColorCautionBrush") };
             ToolTipService.SetToolTip(warn, row.WarningText);
             Grid.SetColumn(warn, 3);
             grid.Children.Add(warn);
         }
-        var chevron = new FontIcon { Glyph = "", FontSize = 12, VerticalAlignment = VerticalAlignment.Center };
-        Grid.SetColumn(chevron, 4);
+
+        var caps = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 4, VerticalAlignment = VerticalAlignment.Center };
+        foreach (var c in row.Caps) caps.Children.Add(KeyCap(c));
+        Grid.SetColumn(caps, 4);
+        grid.Children.Add(caps);
+
+        var chevron = new FontIcon { Glyph = "", FontSize = 12, VerticalAlignment = VerticalAlignment.Center, Foreground = Secondary() };
+        Grid.SetColumn(chevron, 5);
         grid.Children.Add(chevron);
 
-        var button = new Button { Style = (Style)Application.Current.Resources["RowButton"], Content = grid, Opacity = row.Opacity };
-        AutomationProperties.SetName(button, $"{string.Join(" ", row.Caps)} : {row.Label}");
+        var button = new Button { Style = Res<Style>("RowButton"), Content = grid, Opacity = row.Opacity };
+        var help = row.HasWarning ? $" Attention : {row.WarningText}" : "";
+        AutomationProperties.SetName(button, $"{string.Join(" ", row.Caps)} : {row.Label}.{help}");
         button.Click += async (_, _) => await EditAsync(row.Shortcut);
+
+        // Clic droit : activer / désactiver, supprimer (comme sur Mac).
+        var menu = new MenuFlyout();
+        var toggle = new MenuFlyoutItem
+        {
+            Text = row.Shortcut.Enabled ? "Désactiver" : "Activer",
+            Icon = new FontIcon { Glyph = row.Shortcut.Enabled ? "" : "" },
+        };
+        toggle.Click += (_, _) => _app.Upsert(row.Shortcut with { Enabled = !row.Shortcut.Enabled });
+        var delete = new MenuFlyoutItem { Text = "Supprimer", Icon = new FontIcon { Glyph = "" } };
+        delete.Click += (_, _) => DeleteWithUndo(row.Shortcut.Id);
+        menu.Items.Add(toggle);
+        menu.Items.Add(delete);
+        button.ContextFlyout = menu;
         return button;
+    }
+
+    private void DeleteWithUndo(Guid id)
+    {
+        _deleted = _app.Delete(id);
+        if (_deleted is not null) ShowToast("Raccourci supprimé", InfoBarSeverity.Informational, undo: true);
     }
 
     private async void OnNewShortcut(object sender, RoutedEventArgs e) => await EditAsync(null);
@@ -328,7 +479,7 @@ public sealed partial class MainWindow : Window
 
     private void BuildProfileMenu()
     {
-        ProfileButton.Content = $"Profil : {_app.CurrentPreset.Label()}";
+        ProfileLabel.Text = $"Profil : {_app.CurrentPreset.Label()}";
         ProfileMenu.Items.Clear();
         foreach (var preset in Enum.GetValues<ProfilePreset>())
         {
@@ -351,6 +502,7 @@ public sealed partial class MainWindow : Window
         var dialog = new ContentDialog
         {
             XamlRoot = Root.XamlRoot,
+            Style = Res<Style>("DefaultContentDialogStyle"),   // sinon, créé en code, le dialogue garde l'ancien style
             Title = $"Charger le profil « {preset.Label()} » ?",
             Content = new TextBlock { Text = preset.Summary() + "\n\nTes raccourcis actuels seront remplacés.", TextWrapping = TextWrapping.Wrap },
             PrimaryButtonText = "Charger",
@@ -386,6 +538,7 @@ public sealed partial class MainWindow : Window
         var dialog = new ContentDialog
         {
             XamlRoot = Root.XamlRoot,
+            Style = Res<Style>("DefaultContentDialogStyle"),   // sinon, créé en code, le dialogue garde l'ancien style
             Title = "Importer ce profil ?",
             Content = new TextBlock { Text = summary, TextWrapping = TextWrapping.Wrap },
             PrimaryButtonText = "Importer",
@@ -420,6 +573,7 @@ public sealed partial class MainWindow : Window
         var dialog = new ContentDialog
         {
             XamlRoot = Root.XamlRoot,
+            Style = Res<Style>("DefaultContentDialogStyle"),   // sinon, créé en code, le dialogue garde l'ancien style
             Title = existing is null ? "Nouveau raccourci" : "Modifier le raccourci",
             PrimaryButtonText = "Valider",
             CloseButtonText = "Annuler",
@@ -435,8 +589,13 @@ public sealed partial class MainWindow : Window
         kinds.Items.Add("Touche de FL");
         var actionPanel = new StackPanel { Spacing = 8 };
         var search = new AutoSuggestBox { PlaceholderText = "Rechercher une action", QueryIcon = new SymbolIcon(Symbol.Find) };
-        var cats = new RadioButtons { MaxColumns = 4 };
-        foreach (var c in Enum.GetValues<ActionCategory>()) cats.Items.Add(new FlActionInfo(0, "", "", c, "").CategoryLabel);
+        // Rubriques : SelectorBar (Windows App SDK 1.5+), l'indicateur glisse d'une rubrique à l'autre.
+        var cats = new SelectorBar();
+        foreach (var c in Enum.GetValues<ActionCategory>())
+        {
+            var label = new FlActionInfo(0, "", "", c, "").CategoryLabel;
+            cats.Items.Add(new SelectorBarItem { Text = label, Tag = c, Icon = new FontIcon { Glyph = CategoryGlyph(label) } });
+        }
         var actions = new ListView { SelectionMode = ListViewSelectionMode.Single, MaxHeight = 220 };
         var wheres = new RadioButtons { MaxColumns = 4, Header = "Où ?" };
         foreach (var w in Enum.GetValues<ShortcutContext>()) wheres.Items.Add(w.Label());
@@ -457,7 +616,7 @@ public sealed partial class MainWindow : Window
         var targetButton = CaptureButton();
         keyPanel.Children.Add(targetButton);
 
-        body.Children.Add(new TextBlock { Text = "Ton raccourci" });
+        body.Children.Add(new TextBlock { Text = "Ton raccourci", Style = Res<Style>("BodyStrongTextBlockStyle") });
         body.Children.Add(triggerButton);
         body.Children.Add(warning);
         body.Children.Add(kinds);
@@ -474,20 +633,23 @@ public sealed partial class MainWindow : Window
             actionPanel.Visibility = isAction ? Visibility.Visible : Visibility.Collapsed;
             keyPanel.Visibility = isAction ? Visibility.Collapsed : Visibility.Visible;
             wheres.SelectedIndex = (int)draft.Context;
-            cats.SelectedIndex = query.Length == 0 ? (int)category : -1;
+            cats.SelectedItem = query.Length == 0 ? cats.Items.FirstOrDefault(x => x.Tag is ActionCategory c && c == category) : null;
 
             actions.Items.Clear();
             var list = FlActions.All.Where(x => query.Length > 0
-                ? x.Label.Contains(query, StringComparison.CurrentCultureIgnoreCase)
+                ? (x.Label + " " + x.Detail()).Contains(query, StringComparison.CurrentCultureIgnoreCase)
                 : x.Category == category);
             foreach (var info in list)
             {
                 var availability = _app.Availability(info.Id);
                 var item = new ListViewItem { Tag = info.Id, IsEnabled = availability.IsUsable };
-                var stack = new StackPanel { Padding = new Thickness(0, 4, 0, 4) };
+                var stack = new StackPanel { Padding = new Thickness(0, 6, 0, 6), Spacing = 1 };
                 stack.Children.Add(new TextBlock { Text = info.Label });
-                if (availability is ActionAvailability.Unavailable u)
-                    stack.Children.Add(new TextBlock { Text = u.Reason, FontSize = 12, Foreground = Secondary() });
+                stack.Children.Add(new TextBlock
+                {
+                    Text = availability is ActionAvailability.Unavailable u ? u.Reason : info.Detail(),
+                    Style = Res<Style>("CaptionTextBlockStyle"), Foreground = Secondary(), TextWrapping = TextWrapping.Wrap,
+                });
                 item.Content = stack;
                 actions.Items.Add(item);
                 if (draft.ActionId == info.Id) actions.SelectedItem = item;
@@ -543,10 +705,10 @@ public sealed partial class MainWindow : Window
             var kind = kinds.SelectedIndex == 1 ? ShortcutKind.Keystroke : ShortcutKind.FlAction;
             if (kind != draft.Kind) { draft = draft with { Kind = kind }; Refresh(); }
         };
-        cats.SelectionChanged += (_, _) =>
+        cats.SelectionChanged += (bar, _) =>
         {
-            if (cats.SelectedIndex < 0 || (ActionCategory)cats.SelectedIndex == category && query.Length == 0) return;
-            category = (ActionCategory)cats.SelectedIndex;
+            if (bar.SelectedItem?.Tag is not ActionCategory picked || picked == category && query.Length == 0) return;
+            category = picked;
             query = "";
             search.Text = "";
             Refresh();
@@ -594,8 +756,7 @@ public sealed partial class MainWindow : Window
         }
         else if (result == ContentDialogResult.Secondary && existing is not null)
         {
-            _deleted = _app.Delete(existing.Id);
-            ShowToast("Raccourci supprimé", InfoBarSeverity.Informational, undo: true);
+            DeleteWithUndo(existing.Id);
         }
     }
 
@@ -606,21 +767,47 @@ public sealed partial class MainWindow : Window
     {
         HorizontalAlignment = HorizontalAlignment.Stretch,
         HorizontalContentAlignment = HorizontalAlignment.Center,
-        MinHeight = 60,
+        MinHeight = 76,
+        CornerRadius = Res<CornerRadius>("OverlayCornerRadius"),
         IsTabStop = true,
     };
 
     private void SetCaptureContent(Button button, KeyCombo? combo, bool recording, string prompt)
     {
+        // Bordure d'accentuation pendant l'enregistrement, comme un champ actif de Windows 11.
+        if (recording)
+        {
+            button.BorderBrush = Res<Brush>("AccentFillColorDefaultBrush");
+            button.BorderThickness = new Thickness(2);
+        }
+        else
+        {
+            button.ClearValue(Control.BorderBrushProperty);
+            button.ClearValue(Control.BorderThicknessProperty);
+        }
         if (recording || combo is null)
         {
-            button.Content = new TextBlock { Text = recording ? "Appuie sur tes touches… (Échap pour annuler)" : prompt, Foreground = recording ? (Brush)Application.Current.Resources["AccentTextFillColorPrimaryBrush"] : Secondary() };
+            var hint = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10 };
+            var tint = recording ? Res<Brush>("AccentTextFillColorPrimaryBrush") : Secondary();
+            hint.Children.Add(new FontIcon { Glyph = recording ? "\uE765" : "\uE710", FontSize = 16, Foreground = tint });
+            hint.Children.Add(new TextBlock { Text = recording ? "Appuie sur tes touches… (Échap pour annuler)" : prompt,
+                Foreground = tint, VerticalAlignment = VerticalAlignment.Center });
+            button.Content = hint;
+            button.Tag = null;
             AutomationProperties.SetName(button, recording ? "Enregistrement du raccourci en cours" : prompt);
             if (recording) button.Focus(FocusState.Programmatic);
             return;
         }
         var caps = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
-        foreach (var c in combo.Value.Caps) caps.Children.Add(KeyCap(c, large: true));
+        var isNewCombo = button.Tag is not KeyCombo shown || shown != combo.Value;
+        var i = 0;
+        foreach (var c in combo.Value.Caps)
+        {
+            var cap = KeyCap(c, large: true);
+            caps.Children.Add(cap);
+            if (isNewCombo) Motion.Pop(cap, delayMs: i++ * 35, from: 0.7);      // les touches « se posent »
+        }
+        button.Tag = combo.Value;
         button.Content = caps;
         AutomationProperties.SetName(button, "Raccourci : " + combo.Value);
     }
@@ -629,13 +816,14 @@ public sealed partial class MainWindow : Window
 
     private static Border KeyCap(string text, bool large = false) => new()
     {
-        Style = (Style)Application.Current.Resources["KeyCapBorder"],
-        Height = large ? 34 : 26,
-        MinWidth = large ? 34 : 26,
+        Style = Res<Style>("KeyCapBorder"),
+        Height = large ? 40 : 26,
+        MinWidth = large ? 40 : 26,
+        Padding = new Thickness(large ? 12 : 8, 0, large ? 12 : 8, 0),
         Child = new TextBlock
         {
             Text = text,
-            FontSize = large ? 15 : 12,
+            FontSize = large ? 16 : 12,
             FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
             HorizontalAlignment = HorizontalAlignment.Center,
             VerticalAlignment = VerticalAlignment.Center,
@@ -644,51 +832,90 @@ public sealed partial class MainWindow : Window
 
     private static Border StepCard(int number, string text, bool done)
     {
-        var success = (Brush)Application.Current.Resources["SystemFillColorSuccessBrush"];
-        var row = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10 };
-        row.Children.Add(new Border
+        var success = Res<Brush>("SystemFillColorSuccessBrush");
+        var row = new Grid { ColumnSpacing = 12 };
+        row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        var dot = new Border
         {
-            Width = 22, Height = 22, CornerRadius = new CornerRadius(11), VerticalAlignment = VerticalAlignment.Top,
-            Background = done ? success : null,
-            BorderBrush = done ? success : (Brush)Application.Current.Resources["ControlStrongStrokeColorDefaultBrush"],
-            BorderThickness = new Thickness(1),
-            Child = new TextBlock { Text = done ? "✓" : number.ToString(), FontSize = 12, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center },
-        });
-        row.Children.Add(new TextBlock { Text = text, TextWrapping = TextWrapping.Wrap, MaxWidth = 240, FontSize = 13 });
-        return new Border
+            Width = 24, Height = 24, CornerRadius = new CornerRadius(12), VerticalAlignment = VerticalAlignment.Top,
+            Background = done ? success : Res<Brush>("SubtleFillColorSecondaryBrush"),
+            Child = done
+                ? new FontIcon { Glyph = "", FontSize = 12, Foreground = Res<Brush>("TextOnAccentFillColorPrimaryBrush") }
+                : new TextBlock { Text = number.ToString(), FontSize = 12, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center },
+        };
+        row.Children.Add(dot);
+        var label = new TextBlock { Text = text, TextWrapping = TextWrapping.Wrap, FontSize = 13 };
+        Grid.SetColumn(label, 1);
+        row.Children.Add(label);
+        var card = new Border
         {
-            Padding = new Thickness(14, 10, 14, 10), CornerRadius = new CornerRadius(6), BorderThickness = new Thickness(1),
-            Background = (Brush)Application.Current.Resources["CardBackgroundFillColorDefaultBrush"],
-            BorderBrush = (Brush)Application.Current.Resources["CardStrokeColorDefaultBrush"],
+            Style = Res<Style>("Card"),
+            Padding = new Thickness(14, 12, 14, 12),
             Child = row,
         };
+        AutomationProperties.SetName(card, $"Étape {number} {(done ? "faite" : "à faire")} : {text}");
+        return card;
     }
 
-    private static Brush Secondary() => (Brush)Application.Current.Resources["TextFillColorSecondaryBrush"];
+    private static Brush Secondary() => Res<Brush>("TextFillColorSecondaryBrush");
+
+    private static T Res<T>(string key) => (T)Application.Current.Resources[key];
+
+    private static T? TryRes<T>(string key) where T : class =>
+        Application.Current.Resources.TryGetValue(key, out var v) ? v as T : null;
+
+    // ---------- Notification ----------
 
     private void ShowToast(string message, InfoBarSeverity severity, bool undo = false)
     {
-        Toast.Message = message;
-        Toast.Severity = severity;
-        if (undo)
+        var (glyph, brush) = severity switch
         {
-            var b = new Button { Content = "Annuler" };
-            b.Click += (_, _) =>
-            {
-                if (_deleted is { } d) _app.Upsert(d);
-                _deleted = null;
-                Toast.IsOpen = false;
-            };
-            Toast.ActionButton = b;
-        }
-        else Toast.ActionButton = null;
-        Toast.IsOpen = true;
+            InfoBarSeverity.Success => ("", "SystemFillColorSuccessBrush"),
+            InfoBarSeverity.Warning => ("", "SystemFillColorCautionBrush"),
+            InfoBarSeverity.Error => ("", "SystemFillColorCriticalBrush"),
+            _ => ("", "AccentTextFillColorPrimaryBrush"),
+        };
+        ToastIcon.Glyph = glyph;
+        ToastIcon.Foreground = Res<Brush>(brush);
+        ToastText.Text = message;
+        ToastUndo.Visibility = undo ? Visibility.Visible : Visibility.Collapsed;
+        AutomationProperties.SetName(Toast, message);
+
+        var replacing = Toast.Visibility == Visibility.Visible && !_toastLeaving;
+        Toast.Visibility = Visibility.Visible;
+        _toastLeaving = false;
+        if (replacing) Motion.Pop(Toast, from: 0.96);           // remplace la précédente sans clignoter
+        else Motion.Enter(Toast, fromY: 24, durationMs: Motion.Normal, opacity: 1);
 
         _toastTimer?.Stop();
         _toastTimer = DispatcherQueue.CreateTimer();
-        _toastTimer.Interval = TimeSpan.FromSeconds(3.5);
+        _toastTimer.Interval = TimeSpan.FromSeconds(undo ? 5 : 3.5);
         _toastTimer.IsRepeating = false;
-        _toastTimer.Tick += (_, _) => { Toast.IsOpen = false; _deleted = null; };
+        _toastTimer.Tick += (_, _) => HideToast();
         _toastTimer.Start();
     }
+
+    private void HideToast()
+    {
+        _toastTimer?.Stop();
+        _deleted = null;
+        if (Toast.Visibility != Visibility.Visible || _toastLeaving) return;
+        _toastLeaving = true;
+        Motion.Exit(Toast, () =>
+        {
+            // Une nouvelle notification a pu arriver pendant le fondu : elle a remis _toastLeaving à false.
+            if (!_toastLeaving) return;
+            _toastLeaving = false;
+            Toast.Visibility = Visibility.Collapsed;
+        });
+    }
+
+    private void OnToastUndo(object sender, RoutedEventArgs e)
+    {
+        if (_deleted is { } d) _app.Upsert(d);
+        HideToast();
+    }
+
+    private void OnToastClose(object sender, RoutedEventArgs e) => HideToast();
 }

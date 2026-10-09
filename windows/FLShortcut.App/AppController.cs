@@ -16,6 +16,7 @@ public sealed class ShortcutRow
     public required IReadOnlyList<string> Caps { get; init; }
     public required string Label { get; init; }
     public required string Description { get; init; }
+    public required string Category { get; init; }
     public required string Where { get; init; }
     public required bool HasWarning { get; init; }
     public required string WarningText { get; init; }
@@ -291,13 +292,15 @@ internal sealed class AppController : INotifyPropertyChanged, IDisposable
         var desc = s.Kind == ShortcutKind.Keystroke
             ? (s.Target is { } t && ConflictTable.Default.FlConflict(t) is { } fl ? "Dans " + fl : "Raccourci de FL Studio")
             : s.ActionId is { } id && Availability(id) is ActionAvailability.Unavailable u ? u.Reason
-            : s.ActionId is { } id2 && FlActions.Info(id2) is { } info ? info.CategoryLabel : s.UnknownAction ?? "";
+            : s.ActionId is { } id2 && FlActions.Info(id2) is { } info ? info.Detail()
+            : s.UnknownAction is { } unknown ? $"Action inconnue ({unknown}) : mets FL Shortcut à jour" : "";
         return new ShortcutRow
         {
             Shortcut = s,
             Caps = s.Trigger?.Caps ?? new[] { "?" },
             Label = s.Label,
             Description = desc,
+            Category = CategoryOf(s),
             Where = s.Context == ShortcutContext.Everywhere ? "" : s.Context.Label(),
             HasWarning = issues.Count > 0,
             WarningText = string.Join(" ", issues.Select(i => i.Message)),
