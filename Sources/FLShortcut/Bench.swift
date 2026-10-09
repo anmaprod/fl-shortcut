@@ -10,6 +10,11 @@ import Foundation
 enum Bench {
     static func runIfRequested() {
         guard CommandLine.arguments.contains("--mesure") else { return }
+        // À lancer app quittée (diag.sh le fait). Pas de requête LaunchServices ici : lancé directement depuis
+        // le Terminal, le processus n'est pas enregistré et la requête peut bloquer. Un conflit d'identifiant
+        // n'est de toute façon plus jamais enregistré (applyUniqueID).
+        // Sécurité : la mesure s'arrête d'elle-même au bout de 90 s quoi qu'il arrive.
+        DispatchQueue.global().asyncAfter(deadline: .now() + 90) { print("Mesure interrompue (90 s)"); exit(4) }
         setvbuf(stdout, nil, _IOLBF, 0)
         let transport = CoreMIDITransport()
         let lock = NSLock()

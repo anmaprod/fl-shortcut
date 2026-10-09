@@ -985,22 +985,20 @@ extension View {
     func windowGlassBackground() -> some View { modifier(WindowBackground()) }
 }
 
+/// Fond de fenêtre translucide quand FL Shortcut est l'app active. Dès que tu repasses dans FL, le flou s'arrête
+/// (NSVisualEffectView suit l'état actif de la fenêtre) et une couche opaque le recouvre : la fenêtre n'échantillonne
+/// plus ce qu'il y a derrière elle (FL). Seule l'opacité change : la structure des vues reste la même.
 private struct WindowBackground: ViewModifier {
     @Environment(\.controlActiveState) private var activeState
 
-    @ViewBuilder func body(content: Content) -> some View {
-        if activeState == .inactive {
-            content.background(Color(nsColor: .windowBackgroundColor))
-        } else {
-            #if compiler(>=6.0)
-            if #available(macOS 15.0, *) {
-                content.containerBackground(.thinMaterial, for: .window)
-            } else {
-                content.background(VisualEffectBackground())
+    func body(content: Content) -> some View {
+        content.background {
+            ZStack {
+                VisualEffectBackground()
+                Color(nsColor: .windowBackgroundColor)
+                    .opacity(activeState == .inactive ? 1 : 0)
             }
-            #else
-            content.background(VisualEffectBackground())
-            #endif
+            .ignoresSafeArea()
         }
     }
 }

@@ -259,7 +259,11 @@ final class Store: ObservableObject {
             } catch {
                 failure = error.localizedDescription
             }
-            DispatchQueue.main.async { self?.saveError = failure.map { "Enregistrement impossible : \($0)" } }
+            DispatchQueue.main.async {
+                guard let self else { return }
+                let message = failure.map { "Enregistrement impossible : \($0)" }
+                if self.saveError != message { self.saveError = message }   // pas de publication inutile
+            }
         }
         pendingSave = work
         saveQueue.asyncAfter(deadline: .now() + saveDelay, execute: work)

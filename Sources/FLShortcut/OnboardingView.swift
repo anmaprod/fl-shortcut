@@ -9,6 +9,7 @@ import SwiftUI
 final class OnboardingWindow {
     static let shared = OnboardingWindow()
     private var window: NSWindow?
+    private var closeObserver: NSObjectProtocol?
 
     func show() {
         if let window {
@@ -33,6 +34,17 @@ final class OnboardingWindow {
         w.contentView = host
         w.center()
         window = w
+        // Fermée (y compris par le bouton rouge) : la vue et ses abonnements sont libérés, plus rien ne tourne.
+        closeObserver = NotificationCenter.default.addObserver(forName: NSWindow.willCloseNotification,
+                                                               object: w, queue: .main) { [weak self, weak w] _ in
+            DispatchQueue.main.async {
+                guard let self, let w else { return }
+                w.contentView = nil
+                if self.window === w { self.window = nil }
+                if let o = self.closeObserver { NotificationCenter.default.removeObserver(o) }
+                self.closeObserver = nil
+            }
+        }
         w.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
     }

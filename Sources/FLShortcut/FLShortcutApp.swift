@@ -17,16 +17,15 @@ struct FLShortcutApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var delegate
     @StateObject private var store: Store
     @StateObject private var status: AppStatus
-    @StateObject private var link: MIDILink
-    @StateObject private var fl: FLMonitor
+    // Simples références : leurs publications (lien, présence de FL) ne réévaluent pas toute la scène.
+    private let link = MIDILink.shared
+    private let fl = FLMonitor.shared
 
     init() {
         Bench.runIfRequested()                   // `--mesure` : temps de réponse de FL, puis quitte
         SingleInstance.enforce()                 // avant de créer quoi que ce soit (REL-07)
         _store = StateObject(wrappedValue: Store.shared)
         _status = StateObject(wrappedValue: AppStatus.shared)
-        _link = StateObject(wrappedValue: MIDILink.shared)
-        _fl = StateObject(wrappedValue: FLMonitor.shared)
     }
 
     var body: some Scene {
@@ -105,7 +104,6 @@ final class AppStatus: ObservableObject {
     private var timer: Timer?
     private var cancellables = Set<AnyCancellable>()
     private var observers: [NSObjectProtocol] = []
-    private var ticks = 0
     private var lastStartAttempt = Date.distantPast
 
     private init() {}
@@ -121,6 +119,13 @@ final class AppStatus: ObservableObject {
                 self?.capabilities = caps
                 Store.shared.recompute()
             }
+            .store(in: &cancellables)
+
+        FLMonitor.shared.$running
+            .removeDuplicates()
+            .dropFirst()
+            .receive(on: RunLoop.main)
+            .sink { [weak self] _ in self?.refreshScriptState() }
             .store(in: &cancellables)
 
         FLMonitor.shared.$version
@@ -140,6 +145,7 @@ final class AppStatus: ObservableObject {
             })
         }
 
+        FLScriptInstaller.updateInstalledIfNeeded()     // nouvelle version du script, même clé
         refreshScriptState()
         supervise()
         let t = Timer(timeInterval: 2, repeats: true) { [weak self] _ in self?.supervise() }
@@ -206,15 +212,20 @@ final class AppStatus: ObservableObject {
                 stale = staleTCC
             }
         } else if !tap.isHealthy {
-            running = tap.restart()
+            // Recréation au plus toutes les 10 s : chaque recréation réenregistre le tap auprès du système.
+            if Date().timeIntervalSince(lastStartAttempt) >= 10 {
+                lastStartAttempt = Date()
+                running = tap.restart()
+            } else {
+                running = tap.isRunning
+            }
         } else {
             running = true
         }
         if running != tapRunning { tapRunning = running }
         if stale != staleTCC { staleTCC = stale }
-        // Empreinte du script : toutes les 10 s suffisent (lecture disque évitée le reste du temps).
-        ticks &+= 1
-        if ticks % 5 == 1 { refreshScriptState() }
+        // Empreinte du script : vérifiée au lancement, quand FL démarre ou s'arrête (c'est là qu'il charge le
+        // script) et après une installation ; plus de lecture disque périodique.
     }
 }
 
@@ -297,8 +308,17 @@ struct PauseBadge: View {
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 8)
-        .glassCapsule()
-        .padding(6)                                   // marge pour l'ombre du verre
+        // Ce bandeau flotte au-dessus de FL : jamais de verre (il échantillonnerait FL à chaque image).
+        // Reflet dessiné une fois pour toutes.
+        .background(
+            Capsule(style: .continuous)
+                .fill(Color(nsColor: .windowBackgroundColor))
+                .overlay(Capsule(style: .continuous).fill(
+                    LinearGradient(colors: [.white.opacity(0.14), .white.opacity(0)],
+                                   startPoint: .top, endPoint: .center)))
+        )
+        .overlay(Capsule(style: .continuous).strokeBorder(Color.primary.opacity(0.10), lineWidth: 0.5))
+        .padding(6)                                   // marge pour l'ombre
         .accessibilityElement(children: .combine)
     }
 }

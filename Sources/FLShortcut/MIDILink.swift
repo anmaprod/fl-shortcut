@@ -238,52 +238,71 @@ final class CoreMIDITransport: MIDITransport {
     var isReady: Bool { handles.value.ready }
     var hadUniqueIDConflict: Bool { handles.value.idConflict }
 
-    /// Crée client, source et destination. Peut être rappelée : détruit d'abord l'existant.
-    @discardableResult
-    func connect() -> Bool {
-        disconnect()
+    /// Un seul client CoreMIDI pour toute la vie de l'app (Apple déconseille de le détruire et le recréer).
+    private func ensureClient() -> MIDIClientRef? {
+        let existing = handles.value.client
+        if existing != 0 { return existing }
         var client = MIDIClientRef()
-        var status = MIDIClientCreateWithBlock(name, &client) { [weak self] notification in
+        let status = MIDIClientCreateWithBlock(name, &client) { [weak self] notification in
             if notification.pointee.messageID == .msgSetupChanged { self?.onSetupChanged?() }
         }
-        guard status == noErr else { return false }
+        guard status == noErr else { return nil }
+        handles.withLock { $0.client = client }
+        return client
+    }
+
+    /// Crée la source et la destination « FL Shortcut ». Si elles existent encore, ne touche à rien :
+    /// chaque création ou destruction de port fait rescanner le MIDI à FL (à-coup, rechargement des scripts).
+    @discardableResult
+    func connect() -> Bool {
+        if verify() { return true }
+        guard let client = ensureClient() else { return false }
+        let old = handles.withLock { h -> (MIDIEndpointRef, MIDIEndpointRef) in
+            defer { h.source = 0; h.destination = 0; h.ready = false }
+            return (h.source, h.destination)
+        }
+        if old.0 != 0 { MIDIEndpointDispose(old.0) }
+        if old.1 != 0 { MIDIEndpointDispose(old.1) }
 
         var source = MIDIEndpointRef()
-        status = MIDISourceCreate(client, name, &source)
-        guard status == noErr else { MIDIClientDispose(client); return false }
-
+        guard MIDISourceCreate(client, name, &source) == noErr else { return false }
         var destination = MIDIEndpointRef()
-        status = MIDIDestinationCreateWithBlock(client, name, &destination) { [weak self] list, _ in
+        let status = MIDIDestinationCreateWithBlock(client, name, &destination) { [weak self] list, _ in
             guard let self, let sink = self.onBytes else { return }
             CoreMIDITransport.forEachPacket(list) { sink($0) }
         }
-        guard status == noErr else { MIDIClientDispose(client); return false }
+        guard status == noErr else { MIDIEndpointDispose(source); return false }
 
         let c1 = applyUniqueID(source, key: .source)
         let c2 = applyUniqueID(destination, key: .destination)
         handles.withLock {
-            $0 = Handles(client: client, source: source, destination: destination, ready: true, idConflict: c1 || c2)
+            $0.source = source
+            $0.destination = destination
+            $0.ready = true
+            $0.idConflict = c1 || c2
         }
         return true
     }
 
+    /// Fermeture de l'app uniquement.
     func disconnect() {
         let old = handles.withLock { h -> Handles in
-            let o = h
-            h = Handles()
-            return o
+            defer { h = Handles() }
+            return h
         }
-        if old.client != 0 { MIDIClientDispose(old.client) }    // détruit aussi les points de terminaison
+        if old.source != 0 { MIDIEndpointDispose(old.source) }
+        if old.destination != 0 { MIDIEndpointDispose(old.destination) }
+        if old.client != 0 { MIDIClientDispose(old.client) }
     }
 
     /// Vrai si nos points de terminaison existent toujours (après réinitialisation de CoreMIDI).
     func verify() -> Bool {
         let h = handles.value
-        guard h.ready else { return false }
+        guard h.source != 0, h.destination != 0 else { return false }
         var value: Int32 = 0
         let ok = MIDIObjectGetIntegerProperty(h.source, kMIDIPropertyUniqueID, &value) == noErr
             && MIDIObjectGetIntegerProperty(h.destination, kMIDIPropertyUniqueID, &value) == noErr
-        if !ok { handles.withLock { $0.ready = false } }
+        if ok != h.ready { handles.withLock { $0.ready = ok } }
         return ok
     }
 
@@ -300,30 +319,22 @@ final class CoreMIDITransport: MIDITransport {
         let first = MIDIPacketListInit(list)
         let added: UnsafeMutablePointer<MIDIPacket>? = MIDIPacketListAdd(list, size, first, mach_absolute_time(), bytes.count, bytes)
         guard added != nil else { return false }
-        let status = MIDIReceived(h.source, list)
-        if status != noErr {
-            handles.withLock { $0.ready = false }
-            return false
-        }
-        return true
+        // Une erreur d'envoi ne détruit jamais les ports : verify() décidera s'ils ont vraiment disparu.
+        return MIDIReceived(h.source, list) == noErr
     }
 
     /// uniqueID aléatoire par installation, conservé dans les préférences (SEC-02). Renvoie vrai en cas de conflit.
+    /// En cas de conflit, l'identifiant enregistré n'est jamais remplacé : FL retrouve le même port au
+    /// lancement suivant (sinon il le verrait comme un nouvel appareil, désactivé).
     private func applyUniqueID(_ endpoint: MIDIEndpointRef, key: UniqueIDKey) -> Bool {
-        var conflict = false
-        for attempt in 0..<4 {
-            var id = Int32(truncatingIfNeeded: defaults.integer(forKey: key.rawValue))
-            if id == 0 || attempt > 0 {
-                id = Int32.random(in: 1...Int32.max)
-            }
-            let status = MIDIObjectSetIntegerProperty(endpoint, kMIDIPropertyUniqueID, id)
-            if status == noErr {
-                defaults.set(Int(id), forKey: key.rawValue)
-                return conflict
-            }
-            if Int(status) == Int(kMIDIIDNotUnique) { conflict = true } else { break }
+        let stored = Int32(truncatingIfNeeded: defaults.integer(forKey: key.rawValue))
+        let id = stored != 0 ? stored : Int32.random(in: 1...Int32.max)
+        let status = MIDIObjectSetIntegerProperty(endpoint, kMIDIPropertyUniqueID, id)
+        if status == noErr {
+            if stored == 0 { defaults.set(Int(id), forKey: key.rawValue) }
+            return false
         }
-        return conflict
+        return Int(status) == Int(kMIDIIDNotUnique)   // identifiant attribué par le système pour cette session
     }
 
     /// Parcourt la liste de paquets en mémoire (jamais de copie de MIDIPacket : pointeurs valides).
@@ -354,7 +365,8 @@ final class MIDILink: ObservableObject {
 
     @Published private(set) var status: LinkStatus = .flClosed
     @Published private(set) var snapshot: LinkCore.Snapshot
-    @Published private(set) var lastAck: (id: Int, date: Date)? = nil
+    /// Pas publié : aucune vue ne le lit (chaque accusé redessinerait sinon l'interface).
+    private(set) var lastAck: (id: Int, date: Date)? = nil
     @Published private(set) var uniqueIDConflict = false
 
     let core: LinkCore
@@ -362,6 +374,7 @@ final class MIDILink: ObservableObject {
     private let secrets: SecretStore
     private var timer: Timer?
     private var lastReconnect = Date.distantPast
+    private var reconnectDelay: TimeInterval = 5
     private var flRunning = false
 
     private init() {
@@ -432,23 +445,29 @@ final class MIDILink: ObservableObject {
         return false
     }
 
-    private func tick() {
-        if !transport.isReady, Date().timeIntervalSince(lastReconnect) > 5 {
-            lastReconnect = Date()
-            if transport.connect() { core.ping(minInterval: 0) }
-            uniqueIDConflict = transport.hadUniqueIDConflict
+    /// Recrée les ports seulement s'ils ont disparu, avec un délai croissant (5 s → 5 min) en cas d'échec.
+    private func reconnectIfNeeded() {
+        guard Date().timeIntervalSince(lastReconnect) > reconnectDelay, !transport.verify() else { return }
+        lastReconnect = Date()
+        if transport.connect() {
+            reconnectDelay = 5
+            core.ping(minInterval: 0)
+        } else {
+            reconnectDelay = min(reconnectDelay * 2, 300)
         }
+        uniqueIDConflict = transport.hadUniqueIDConflict
+    }
+
+    private func tick() {
+        if !transport.isReady { reconnectIfNeeded() }
         core.tick(flRunning: flRunning)
         refresh()
     }
 
     private func checkTransport() {
-        // Notre propre connect() déclenche aussi msgSetupChanged : au plus une recréation par seconde ici,
-        // sinon la surveillance (tick, toutes les 5 s) prend le relais.
-        if !transport.verify(), Date().timeIntervalSince(lastReconnect) > 1 {
-            lastReconnect = Date()
-            if transport.connect() { core.ping(minInterval: 0) }
-        }
+        // Changement de configuration MIDI (y compris ceux de FL quand il rescanne) : on ne recrée nos ports
+        // que s'ils ont réellement disparu, jamais plus d'une fois par délai de reconnexion.
+        reconnectIfNeeded()
         refresh()
     }
 
@@ -464,6 +483,11 @@ final class MIDILink: ObservableObject {
         // `lastAlive` change à chaque battement : on garde l'ancienne valeur pour ne pas redessiner l'interface
         // toutes les 2 s (le statut « relié / inactif » est calculé à part, juste en dessous).
         if snap.hello == snapshot.hello { snap.lastAlive = snapshot.lastAlive }
+        // Champs qui changent à chaque action ou changement de fenêtre de FL mais qu'aucune vue n'affiche :
+        // ils ne déclenchent pas de publication (la logique du lien les lit directement dans `core`).
+        snap.seq = snapshot.seq
+        snap.window = snapshot.window
+        snap.transportReady = snapshot.transportReady
         if snap != snapshot { snapshot = snap }
         let s = LinkStatus.resolve(flRunning: flRunning, alive: core.routingView().linked)
         if s != status { status = s }

@@ -58,13 +58,12 @@ MIN_PING_INTERVAL = 0.25   # s
 MAX_REJECT_ACKS_PER_S = 20
 HEARTBEAT_PERIOD = 2.0     # s
 WINDOW_MIN_INTERVAL = 0.1  # s (CC 117 au plus toutes les 100 ms)
-WINDOW_POLL_INTERVAL = 0.5 # s (sondage de secours si OnRefresh ne signale rien)
 HELLO_RETRY_INTERVAL = 1.0 # s
 IDLE_MIN_INTERVAL = 0.05   # s : OnIdle (appelé ~ toutes les 20 ms par FL) ne travaille qu'une fois sur 2-3
 REPORT_INTERVAL = 10.0     # s : une même erreur au plus une fois par période
 HINT_MIN_INTERVAL = 1.0    # s, pour les messages de refus répétés
 
-LOG_TO_OUTPUT = True       # copie des messages dans View > Script output
+LOG_TO_OUTPUT = False      # rien dans View > Script output (chaque ligne coûte à FL ; activer pour déboguer)
 
 _PLACEHOLDER = "__FLSHORTCUT" + "_KEY__"   # écrit en deux morceaux : une seule occurrence à remplacer
 
@@ -173,8 +172,20 @@ def _log(text):
         pass
 
 
+_hint_last = [None, -1e9]
+
+
 def _hint(text):
-    """Barre d'aide de FL. Ne lève jamais d'exception (REL-27)."""
+    """Barre d'aide de FL. Ne lève jamais d'exception (REL-27). Un même message n'est pas réaffiché
+    avant HINT_MIN_INTERVAL : une touche maintenue ne fait pas redessiner la barre d'aide 20 fois par seconde."""
+    try:
+        now = _now()
+        if text == _hint_last[0] and 0 <= now - _hint_last[1] < HINT_MIN_INTERVAL:
+            return
+        _hint_last[0] = text
+        _hint_last[1] = now
+    except Exception:
+        pass
     try:
         f = _fn("ui", "setHintMsg")
         if f is not None:
@@ -546,9 +557,11 @@ def _out_raw(cc, value):
 
 
 def _send_cc(cc, value):
+    """Sortie connue prête (vérifiée par le battement toutes les 2 s et par HELLO) : pas d'appel à
+    device.isAssigned à chaque message."""
+    if not _st.out_ok:
+        return False
     try:
-        if not _output_ready():
-            return False
         return _out_raw(cc, value)
     except Exception:
         return False
@@ -569,7 +582,10 @@ def _send_many(pairs):
 # Outils pour les actions
 # --------------------------------------------------------------------------
 def _gt(name, default, value=1):
-    """Repli : transport.globalTransport(midi.FPT_xxx, value) (API 1)."""
+    """Repli : transport.globalTransport(midi.FPT_xxx, value) (API 1). Jamais sur FL 26.1.0-26.1.6, où
+    globalTransport peut geler ou planter FL : l'action est alors annoncée indisponible et la touche va à FL."""
+    if _gt_buggy():
+        return False
     f = _fn("transport", "globalTransport")
     if f is None:
         return False
@@ -578,7 +594,7 @@ def _gt(name, default, value=1):
 
 
 def _has_gt():
-    return _has("transport", "globalTransport")
+    return _has("transport", "globalTransport") and not _gt_buggy()
 
 
 def _call_compat(f, *variants):
@@ -654,7 +670,7 @@ def _show(wid):
     if f is None:
         return False
     f(wid)
-    if _api_at_least(2):
+    if _api_at_least(2) and not _focused(wid):     # showWindow a souvent déjà donné le focus
         sf = _fn("ui", "setFocused")
         if sf is not None:
             sf(wid)
@@ -1027,19 +1043,22 @@ def _a_volume(delta_db):
             setv(t, new)
         return True
     target = db + delta_db
-    lo, hi = (cur, 1.0) if delta_db > 0 else (0.0, cur)
-    if hi - lo < 1e-6:
+    if (delta_db > 0 and cur >= 1.0) or (delta_db < 0 and cur <= 0.0):
         return True                 # déjà en butée
-    # La courbe du fader n'est pas documentée : dichotomie sur la valeur lue en dB.
-    for _ in range(10):
-        mid = (lo + hi) / 2.0
-        setv(t, mid)
-        d = float(get(t, 1))
-        if _finite(d) and d >= target:
-            hi = mid
-        else:
-            lo = mid
-    setv(t, (lo + hi) / 2.0)
+    # La courbe du fader n'est pas documentée : petit pas d'essai puis méthode de la sécante.
+    # 4 écritures au plus, toutes proches de la cible (pas de saut audible, Mixer redessiné 4 fois au plus).
+    x0, d0 = cur, db
+    x1 = min(max(cur + (0.004 if delta_db > 0 else -0.004), 0.0), 1.0)
+    setv(t, x1)
+    d1 = float(get(t, 1))
+    for _ in range(3):
+        if not _finite(d1) or not _finite(d0) or d1 == d0 or abs(d1 - target) < 0.02:
+            break
+        x2 = min(max(x1 + (target - d1) * (x1 - x0) / (d1 - d0), 0.0), 1.0)
+        if x2 == x1:
+            break
+        setv(t, x2)
+        x0, d0, x1, d1 = x1, d1, x2, float(get(t, 1))
     return True
 
 
@@ -1331,9 +1350,6 @@ def focused_window_code():
 
 
 def _check_window(now):
-    interval = WINDOW_MIN_INTERVAL if _st.win_dirty else WINDOW_POLL_INTERVAL
-    if _st.win_checked is not None and now - _st.win_checked < interval:
-        return
     _st.win_checked = now
     _st.win_dirty = False
     code = focused_window_code()
@@ -1343,8 +1359,14 @@ def _check_window(now):
 
 
 def _idle():
-    _st.ticks += 1
+    st = _st
+    st.ticks += 1
     now = _now()
+    # Changement de fenêtre signalé par OnRefresh : traité au passage suivant (~20 ms), au plus toutes les
+    # 100 ms, et seulement si l'appli peut le recevoir.
+    if st.win_dirty and st.out_ok and (st.win_checked is None
+                                       or not 0 <= now - st.win_checked < WINDOW_MIN_INTERVAL):
+        _check_window(now)
     # Le moins de travail possible dans la boucle de FL : rien n'a besoin d'être vérifié plus de 20 fois
     # par seconde (sans horloge, le pseudo-temps avance de 20 ms par appel : pas de limitation).
     if _time is not None and _st.last_idle is not None and 0 <= now - _st.last_idle < IDLE_MIN_INTERVAL:
@@ -1362,7 +1384,7 @@ def _idle():
         if ready:
             _st.beat ^= 1
             _send_cc(CC_HEARTBEAT, _st.beat)
-    _check_window(now)
+            _st.win_dirty = True        # vérification de secours de la fenêtre, toutes les 2 s
 
 
 # --------------------------------------------------------------------------
@@ -1464,10 +1486,13 @@ def OnIdle():
         _report(exc)
 
 
+_FOCUS_BIT = 32                  # midi.HW_Dirty_FocusedWindow (valeur fixe depuis l'API 1)
+
+
 def OnRefresh(flags):
     try:
-        if _is_int(flags) and flags & _const("HW_Dirty_FocusedWindow", 32):
+        # Aucun appel à FL pendant sa diffusion de rafraîchissement : on marque, OnIdle s'en charge.
+        if _is_int(flags) and flags & _FOCUS_BIT:
             _st.win_dirty = True
-            _check_window(_now())
     except Exception as exc:
         _report(exc)

@@ -178,22 +178,16 @@ extension View {
 
 }
 
-/// Surface en verre qui ne coûte RIEN quand tu travailles dans FL : dès que FL Shortcut n'est plus l'app
-/// active, le verre et le flou (recalculés par le compositeur à chaque image de ce qu'il y a derrière, donc
-/// de FL) sont remplacés par une surface opaque et fixe. La fluidité de FL passe avant l'effet visuel.
+/// Surface en verre dans la fenêtre. Le verre ne réfracte que le contenu de NOTRE fenêtre, dont le fond devient
+/// opaque et fixe dès que FL Shortcut n'est plus l'app active (WindowBackground) : rien à recalculer pendant que
+/// tu travailles dans FL. Structure de vue identique dans les deux états : aucun arbre reconstruit au passage
+/// FL ↔ FL Shortcut.
 struct GlassSurface<S: InsettableShape>: ViewModifier {
-    @Environment(\.controlActiveState) private var activeState
     let shape: S
     let interactive: Bool
 
     func body(content: Content) -> some View {
-        if activeState == .inactive {
-            content
-                .background(shape.fill(Color(nsColor: .controlBackgroundColor)))
-                .overlay(shape.strokeBorder(Color.primary.opacity(0.08), lineWidth: 0.5))
-        } else {
-            live(content)
-        }
+        live(content)
     }
 
     @ViewBuilder private func live(_ content: Content) -> some View {

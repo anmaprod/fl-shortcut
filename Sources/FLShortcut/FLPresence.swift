@@ -48,6 +48,7 @@ final class FLMonitor: ObservableObject {
     private var observers: [NSObjectProtocol] = []
     private var pids: Set<pid_t> = []
     private var frontPID: pid_t = 0
+    private var versionResolved = false
 
     private init() {}
 
@@ -73,8 +74,12 @@ final class FLMonitor: ObservableObject {
         let newPIDs = Set(apps.map(\.processIdentifier))
         let newFront = NSWorkspace.shared.frontmostApplication?.processIdentifier ?? 0
 
-        if newPIDs != pids || version == nil {
-            version = apps.first?.bundleURL.flatMap(FLDetector.version(atBundle:)) ?? FLDetector.installedVersion()
+        // Lecture du bundle de FL seulement quand l'ensemble des processus FL change (pas à chaque changement
+        // d'app au premier plan, même si la version reste inconnue).
+        if newPIDs != pids || !versionResolved {
+            versionResolved = true
+            let v = apps.first?.bundleURL.flatMap(FLDetector.version(atBundle:)) ?? FLDetector.installedVersion()
+            if v != version { version = v }
         }
         let frontChanged = newFront != frontPID
         pids = newPIDs

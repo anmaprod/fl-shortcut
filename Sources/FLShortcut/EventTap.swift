@@ -68,7 +68,22 @@ final class EventTap {
         guard changed else { return }
         if let h = handles.value { CGEvent.tapEnable(tap: h.tap, enable: active) }
         purge()
+        // Tant que FL est devant, chaque frappe vers FL passe par notre callback : macOS ne doit pas mettre
+        // l'app en sieste (App Nap), sinon la frappe attendrait que notre thread soit réveillé.
+        if active, activity == nil {
+            activity = ProcessInfo.processInfo.beginActivity(
+                options: [.userInitiatedAllowingIdleSystemSleep, .latencyCritical],
+                reason: "Raccourcis clavier de FL Studio")
+        } else if !active, let a = activity {
+            ProcessInfo.processInfo.endActivity(a)
+            activity = nil
+        }
     }
+
+    /// Activité « latence critique » tenue seulement pendant que FL est au premier plan (thread principal).
+    private var activity: NSObjectProtocol?
+    /// Une seule installation de tap à la fois (une installation lente ne doit jamais en laisser deux).
+    private let installing = Locked(false)
 
     /// Vrai (une fois) si le tap a été coupé trop souvent et doit être recréé.
     func consumeRestartRequest() -> Bool {
@@ -82,11 +97,17 @@ final class EventTap {
     @discardableResult
     func start() -> Bool {
         if isRunning { return true }
+        let claimed = installing.withLock { busy -> Bool in
+            defer { busy = true }
+            return !busy
+        }
+        guard claimed else { return false }
         let ready = DispatchSemaphore(value: 0)
         let result = Locked(false)
         let thread = Thread { [weak self] in
             guard let self else { ready.signal(); return }
             let ok = self.installTap()
+            self.installing.withLock { $0 = false }
             result.withLock { $0 = ok }
             ready.signal()
             if ok { CFRunLoopRun() }          // rend la main quand la source est retirée ou la boucle arrêtée

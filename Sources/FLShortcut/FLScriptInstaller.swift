@@ -127,6 +127,27 @@ enum FLScriptInstaller {
         return dest
     }
 
+    /// Met à jour le script déjà installé quand l'app en embarque une nouvelle version, AVEC LA MÊME CLÉ :
+    /// seulement si le script installé est intact (empreinte enregistrée identique), jamais s'il a été modifié.
+    /// Renvoie vrai si le fichier a été réécrit (FL le relira à son prochain lancement).
+    @discardableResult
+    static func updateInstalledIfNeeded(secrets: SecretStore = PreferredSecretStore(),
+                                        defaults: UserDefaults = .standard) -> Bool {
+        guard ScriptIntegrity.check(defaults: defaults) == .ok,
+              let path = defaults.string(forKey: ScriptIntegrity.pathKey),
+              let key = secrets.load(),
+              let scriptURL = Bundle.main.url(forResource: "device_FLShortcut", withExtension: "py"),
+              let template = try? String(contentsOf: scriptURL, encoding: .utf8),
+              let text = try? ScriptTemplate.inject(key: key, into: template) else { return false }
+        let data = Data(text.utf8)
+        let installed = URL(fileURLWithPath: path)
+        guard let current = try? SecureFile.read(installed, maxBytes: 4 << 20), current != data else { return false }
+        let hardware = installed.deletingLastPathComponent().deletingLastPathComponent()
+        guard let dest = try? write(script: data, hardware: hardware), dest.path == installed.path else { return false }
+        ScriptIntegrity.record(data, at: dest, defaults: defaults)
+        return true
+    }
+
     static func installWithAlert(secrets: SecretStore = PreferredSecretStore()) {
         NSApp.activate(ignoringOtherApps: true)
 
