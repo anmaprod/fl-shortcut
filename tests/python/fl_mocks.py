@@ -12,7 +12,7 @@ import types
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.abspath(os.path.join(HERE, "..", ".."))
-SCRIPT = os.environ.get("FLREMAP_SCRIPT", os.path.join(ROOT, "Resources", "device_FLRemap.py"))
+SCRIPT = os.environ.get("FLSHORTCUT_SCRIPT", os.path.join(ROOT, "Resources", "device_FLShortcut.py"))
 
 FL_MODULES = ("midi", "transport", "ui", "general", "mixer", "channels", "patterns",
               "device", "plugins", "arrangement", "playlist")
@@ -299,8 +299,8 @@ def load_script(mods, key_hex=TEST_KEY_HEX, block=(), path=SCRIPT):
         with open(path, encoding="utf-8") as fh:
             src = fh.read()
         if key_hex is not None:
-            src = src.replace('KEY_HEX = "__FLREMAP_KEY__"', 'KEY_HEX = "%s"' % key_hex, 1)
-        module = types.ModuleType("device_FLRemap_under_test")
+            src = src.replace('KEY_HEX = "__FLSHORTCUT_KEY__"', 'KEY_HEX = "%s"' % key_hex, 1)
+        module = types.ModuleType("device_FLShortcut_under_test")
         module.__file__ = path
         code = compile(src, path, "exec")
         exec(code, module.__dict__)

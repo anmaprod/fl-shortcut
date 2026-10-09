@@ -3,13 +3,13 @@
 <plist version="1.0">
 <dict>
     <key>CFBundleName</key>
-    <string>FL Remap</string>
+    <string>FL Shortcut</string>
     <key>CFBundleDisplayName</key>
-    <string>FL Remap</string>
+    <string>FL Shortcut</string>
     <key>CFBundleIdentifier</key>
-    <string>app.flremap.FLRemap</string>
+    <string>app.flshortcut.FLShortcut</string>
     <key>CFBundleExecutable</key>
-    <string>FLRemap</string>
+    <string>FLShortcut</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleShortVersionString</key>
@@ -23,6 +23,6 @@
     <key>LSApplicationCategoryType</key>
     <string>public.app-category.music</string>
     <key>NSHumanReadableCopyright</key>
-    <string>FL Remap — outil indépendant, non affilié à Image-Line.</string>
+    <string>FL Shortcut — outil indépendant, non affilié à Image-Line.</string>
 </dict>
 </plist>

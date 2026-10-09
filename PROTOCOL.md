@@ -1,18 +1,18 @@
-# Protocole FL Remap ↔ script FL Studio (v2)
+# Protocole FL Shortcut ↔ script FL Studio (v2)
 
-Contrat unique entre l'appli (Mac `Sources/FLRemap`, Windows à venir) et le script `Resources/device_FLRemap.py`.
+Contrat unique entre l'appli (Mac `Sources/FLShortcut`, Windows à venir) et le script `Resources/device_FLShortcut.py`.
 Toute modification de ce fichier doit être répercutée des deux côtés. Origine des exigences : `audit/01` (SEC-01/02/05/10), `audit/02` (REL-xx), `audit/04` (compatibilité).
 
 ## 1. Transport
 
 - Messages **Control Change uniquement** (pas de SysEx : bugs FL 26.1.x, audit 04).
-- **Appli → FL** : canal MIDI 16 (statut `0xBF`), sur la source virtuelle « FL Remap » créée par l'appli.
-- **FL → Appli** : `device.midiOutMsg` sur le canal 16, vers la destination virtuelle « FL Remap » créée par l'appli. Dans *MIDI Settings*, l'entrée et la sortie « FL Remap » doivent porter le **même numéro de port** (l'appli guide l'utilisateur).
+- **Appli → FL** : canal MIDI 16 (statut `0xBF`), sur la source virtuelle « FL Shortcut » créée par l'appli.
+- **FL → Appli** : `device.midiOutMsg` sur le canal 16, vers la destination virtuelle « FL Shortcut » créée par l'appli. Dans *MIDI Settings*, l'entrée et la sortie « FL Shortcut » doivent porter le **même numéro de port** (l'appli guide l'utilisateur).
 - uniqueID CoreMIDI : **aléatoire par installation** (stocké dans les préférences), jamais une constante (SEC-02).
 
 ## 2. Secret partagé
 
-- À l'installation du script, l'appli génère une clé aléatoire de **16 octets** (générateur cryptographique) et l'écrit dans le script installé : le texte `__FLREMAP_KEY__` n'apparaît **qu'une seule fois**, sur la ligne `KEY_HEX = "__FLREMAP_KEY__"`, et doit être remplacé par **32 caractères hexadécimaux minuscules**. Toute autre valeur fait refuser toutes les commandes.
+- À l'installation du script, l'appli génère une clé aléatoire de **16 octets** (générateur cryptographique) et l'écrit dans le script installé : le texte `__FLSHORTCUT_KEY__` n'apparaît **qu'une seule fois**, sur la ligne `KEY_HEX = "__FLSHORTCUT_KEY__"`, et doit être remplacé par **32 caractères hexadécimaux minuscules**. Toute autre valeur fait refuser toutes les commandes.
 - La clé est aussi stockée côté appli (Mac : Trousseau de préférence, sinon fichier 0600 dans Application Support).
 - Le script ne lit **aucun fichier** : la clé est une constante du script.
 - Réinstaller le script = nouvelle clé.

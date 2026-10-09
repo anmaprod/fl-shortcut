@@ -1,4 +1,4 @@
-"""Tests du script FL Studio Resources/device_FLRemap.py (protocole v2).
+"""Tests du script FL Studio Resources/device_FLShortcut.py (protocole v2).
 
 Lancement : python3 -m unittest discover -s tests/python -v
 """
@@ -649,7 +649,7 @@ class TestKeyNotInstalled(Base):
         self.assertEqual(self.mask_of(self.last_hello()), 0)
 
     def test_placeholder_variants_refused(self):
-        for bad in ("", "zz" * 16, "00" * 16, "0011", "__FLREMAP_KEY__"):
+        for bad in ("", "zz" * 16, "00" * 16, "0011", "__FLSHORTCUT_KEY__"):
             self.make(key_hex=bad)
             self.assertIsNone(self.dev.KEY, bad)
             self.command(1)
@@ -834,13 +834,13 @@ class TestSourceCompat(unittest.TestCase):
 
     def test_metadata_header(self):
         lines = self.src.splitlines()
-        self.assertEqual(lines[0], "# name=FL Remap")
-        self.assertIn("# supportedDevices=FL Remap", lines[:5])
+        self.assertEqual(lines[0], "# name=FL Shortcut")
+        self.assertIn("# supportedDevices=FL Shortcut", lines[:5])
         self.assertNotIn("# url=", lines[:5])     # url vide inutile (audit 04 §7.1)
 
     def test_key_placeholder_once(self):
-        self.assertEqual(self.src.count("__FLREMAP_KEY__"), 1)
-        self.assertEqual(len(re.findall(r'^KEY_HEX = "__FLREMAP_KEY__"$', self.src, re.M)), 1)
+        self.assertEqual(self.src.count("__FLSHORTCUT_KEY__"), 1)
+        self.assertEqual(len(re.findall(r'^KEY_HEX = "__FLSHORTCUT_KEY__"$', self.src, re.M)), 1)
 
     def test_action_table_matches_protocol(self):
         proto = os.path.join(M.ROOT, "PROTOCOL.md")

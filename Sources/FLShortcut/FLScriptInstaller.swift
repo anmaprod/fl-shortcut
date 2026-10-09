@@ -2,7 +2,7 @@ import AppKit
 
 /// Copie le script Python dans le dossier "Hardware" de FL Studio.
 enum FLScriptInstaller {
-    static let fileName = "device_FLRemap.py"
+    static let fileName = "device_FLShortcut.py"
 
     private static var defaultHardwareFolder: URL {
         FileManager.default.homeDirectoryForCurrentUser
@@ -11,7 +11,7 @@ enum FLScriptInstaller {
 
     static func installWithAlert() {
         NSApp.activate(ignoringOtherApps: true)
-        guard let script = Bundle.main.url(forResource: "device_FLRemap", withExtension: "py") else {
+        guard let script = Bundle.main.url(forResource: "device_FLShortcut", withExtension: "py") else {
             alert("Script introuvable", "Le fichier \(fileName) manque dans l'application.", style: .critical)
             return
         }
@@ -29,7 +29,7 @@ enum FLScriptInstaller {
         }
 
         do {
-            let folder = hardware.appendingPathComponent("FL Remap", isDirectory: true)
+            let folder = hardware.appendingPathComponent("FL Shortcut", isDirectory: true)
             try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
             let dest = folder.appendingPathComponent(fileName)
             if FileManager.default.fileExists(atPath: dest.path) {
@@ -39,8 +39,8 @@ enum FLScriptInstaller {
             alert("Script installé ✅", """
             Dernière étape dans FL Studio :
             1. Ouvre Options › MIDI Settings.
-            2. Dans « Input », sélectionne « FL Remap » et clique sur Enable.
-            3. Dans « Controller type », choisis « FL Remap ».
+            2. Dans « Input », sélectionne « FL Shortcut » et clique sur Enable.
+            3. Dans « Controller type », choisis « FL Shortcut ».
 
             Si FL Studio était ouvert, redémarre-le pour qu'il voie le script.
             """)

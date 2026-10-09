@@ -53,7 +53,7 @@ struct KeyCombo: Codable, Hashable {
 }
 
 /// Actions exécutées par le script Python dans FL Studio (numéro de CC MIDI).
-/// Doit rester synchronisé avec Resources/device_FLRemap.py.
+/// Doit rester synchronisé avec Resources/device_FLShortcut.py.
 enum FLAction: String, Codable, CaseIterable, Identifiable {
     case playPause, stop, record, undo, redo
     case showPlaylist, showMixer, showChannelRack, showPianoRoll, showBrowser
@@ -148,7 +148,7 @@ final class Store: ObservableObject {
 
     private static var fileURL: URL {
         let dir = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-            .appendingPathComponent("FL Remap", isDirectory: true)
+            .appendingPathComponent("FL Shortcut", isDirectory: true)
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         return dir.appendingPathComponent("profile.json")
     }

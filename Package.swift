@@ -2,9 +2,9 @@
 import PackageDescription
 
 let package = Package(
-    name: "FLRemap",
+    name: "FLShortcut",
     platforms: [.macOS(.v13)],
     targets: [
-        .executableTarget(name: "FLRemap", path: "Sources/FLRemap")
+        .executableTarget(name: "FLShortcut", path: "Sources/FLShortcut")
     ]
 )

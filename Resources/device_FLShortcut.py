@@ -1,9 +1,9 @@
-# name=FL Remap
-# supportedDevices=FL Remap
+# name=FL Shortcut
+# supportedDevices=FL Shortcut
 """
-FL Remap : script MIDI pour FL Studio 20.7 (API 1, Python 3.6) et plus récent.
+FL Shortcut : script MIDI pour FL Studio 20.7 (API 1, Python 3.6) et plus récent.
 
-Reçoit les commandes authentifiées de l'appli FL Remap (port MIDI « FL Remap »,
+Reçoit les commandes authentifiées de l'appli FL Shortcut (port MIDI « FL Shortcut »,
 canal 16) et exécute l'action demandée. Contrat : PROTOCOL.md (protocole v2).
 
 Règles de compatibilité (audit 04) :
@@ -25,7 +25,7 @@ bornes vérifiées, seuls les CC du protocole (canal 16) sont marqués « handle
 """
 
 # La ligne suivante est remplacée par l'appli à l'installation (16 octets en hex).
-KEY_HEX = "__FLREMAP_KEY__"
+KEY_HEX = "__FLSHORTCUT_KEY__"
 
 SCRIPT_VERSION = 2
 PROTOCOL_VERSION = 2
@@ -64,7 +64,7 @@ HINT_MIN_INTERVAL = 1.0    # s, pour les messages de refus répétés
 
 LOG_TO_OUTPUT = True       # copie des messages dans View > Script output
 
-_PLACEHOLDER = "__FLREMAP" + "_KEY__"   # écrit en deux morceaux : une seule occurrence à remplacer
+_PLACEHOLDER = "__FLSHORTCUT" + "_KEY__"   # écrit en deux morceaux : une seule occurrence à remplacer
 
 
 # --------------------------------------------------------------------------
@@ -184,7 +184,7 @@ def _hint(text):
 
 def _report(exc):
     try:
-        _hint("FL Remap erreur : %r" % (exc,))
+        _hint("FL Shortcut erreur : %r" % (exc,))
     except Exception:
         pass
 
@@ -624,12 +624,12 @@ def _selected_channel():
 
 
 def _no_track():
-    _hint("FL Remap : aucune piste Mixer sélectionnée")
+    _hint("FL Shortcut : aucune piste Mixer sélectionnée")
     return False
 
 
 def _no_channel():
-    _hint("FL Remap : aucun canal sélectionné")
+    _hint("FL Shortcut : aucun canal sélectionné")
     return False
 
 
@@ -701,7 +701,7 @@ def _a_marker():
     if lm is not None:
         try:
             if lm() == 0:   # mode Pattern : getSongPos donne la position dans le pattern
-                _hint("FL Remap : marqueur posé seulement en mode Song")
+                _hint("FL Shortcut : marqueur posé seulement en mode Song")
                 return False
         except Exception:
             pass
@@ -855,7 +855,7 @@ def _a_preset(forward):
         else:
             ok = _call_compat(valid, (idx, slot), (idx,))
         if not ok:
-            _hint("FL Remap : aucun plugin à cet emplacement")
+            _hint("FL Shortcut : aucun plugin à cet emplacement")
             return False
     if glob:
         _call_compat(f, (idx, slot, True), (idx, slot), (idx,))
@@ -931,7 +931,7 @@ def _a_bypass():
     enabled = bool(_fn("mixer", "isTrackSlotsEnabled")(t))
     # Toujours passer la valeur : sans elle, les slots sont coupés (bug < 25.1.99).
     _fn("mixer", "enableTrackSlots")(t, not enabled)
-    _hint("FL Remap : effets de la piste %s" % ("coupés" if enabled else "actifs"))
+    _hint("FL Shortcut : effets de la piste %s" % ("coupés" if enabled else "actifs"))
     return True
 
 
@@ -953,12 +953,12 @@ def _a_mono():
         setsep(0, restore)
         _st.mono_on = False
         _st.mono_prev = None
-        _hint("FL Remap : Master en stéréo")
+        _hint("FL Shortcut : Master en stéréo")
     else:
         _st.mono_prev = cur if cur is not None else 0.0
         setsep(0, -1.0)
         _st.mono_on = True
-        _hint("FL Remap : Master en mono (réglage du projet, ré-appuie pour revenir)")
+        _hint("FL Shortcut : Master en mono (réglage du projet, ré-appuie pour revenir)")
     return True
 
 
@@ -1231,13 +1231,13 @@ def _reject(reason_key, text):
 def _on_frame_cc(cc, value):
     if cc == CC_FRAME_FIRST:
         if _st.frame is not None:
-            _reject("partial", "FL Remap : trame incomplète ignorée")
+            _reject("partial", "FL Shortcut : trame incomplète ignorée")
         _st.frame = [value]
         return
     frame = _st.frame
     if frame is None or cc != CC_FRAME_FIRST + len(frame):
         _st.frame = None
-        _reject("mixed", "FL Remap : trame mélangée ignorée")
+        _reject("mixed", "FL Shortcut : trame mélangée ignorée")
         return
     frame.append(value)
     if len(frame) == FRAME_LEN:
@@ -1248,29 +1248,29 @@ def _on_frame_cc(cc, value):
 def _process_frame(f):
     if _signer is None:
         if KEY is None:
-            return _reject("nokey", "FL Remap : clé absente, réinstalle le script depuis l'appli FL Remap")
-        return _reject("nomac", "FL Remap : HMAC indisponible dans ce Python, commandes refusées")
+            return _reject("nokey", "FL Shortcut : clé absente, réinstalle le script depuis l'appli FL Shortcut")
+        return _reject("nomac", "FL Shortcut : HMAC indisponible dans ce Python, commandes refusées")
     seq = (f[0] << 14) | (f[1] << 7) | f[2]
     aid = f[3]
     if aid not in ACTION_BY_ID:
-        return _reject("id", "FL Remap : action %d inconnue (mets à jour le script)" % aid)
+        return _reject("id", "FL Shortcut : action %d inconnue (mets à jour le script)" % aid)
     if seq <= _st.last_seq:
-        return _reject("replay", "FL Remap : commande rejouée refusée")
+        return _reject("replay", "FL Shortcut : commande rejouée refusée")
     now = _now()
     _prune(_st.fail_times, now)
     _prune(_st.check_times, now)
     if len(_st.fail_times) >= MAX_MAC_FAILS_PER_S or len(_st.check_times) >= MAX_MAC_CHECKS_PER_S:
-        return _reject("flood", "FL Remap : trop de commandes invalides, pause")
+        return _reject("flood", "FL Shortcut : trop de commandes invalides, pause")
     _st.check_times.append(now)
     expected = _signer.mac(bytes(list(_st.nonce) + list(f[0:4])))
     if not _ct_equal(expected, f[4:8]):
         _st.fail_times.append(now)
-        return _reject("mac", "FL Remap : commande non signée refusée")
+        return _reject("mac", "FL Shortcut : commande non signée refusée")
     _st.last_seq = seq                 # trame authentique : consommée même si non exécutée
     try:
         _prune(_st.action_times, now)
         if len(_st.action_times) >= MAX_ACTIONS_PER_S:
-            return _reject("rate", "FL Remap : trop d'actions par seconde")
+            return _reject("rate", "FL Shortcut : trop d'actions par seconde")
         _st.action_times.append(now)
         ok = _run_action(aid)
         _send_cc(CC_ACK, aid if ok else 0)
@@ -1286,12 +1286,12 @@ def _run_action(aid):
     if entry is None:
         return False
     if not _caps().get(aid, False):
-        _hint("FL Remap : « %s » demande FL Studio %s ou plus récent" % (entry[2], entry[3]))
+        _hint("FL Shortcut : « %s » demande FL Studio %s ou plus récent" % (entry[2], entry[3]))
         return False
     try:
         r = entry[5]()
     except Exception as exc:
-        _hint("FL Remap : « %s » a échoué (%r)" % (entry[2], exc))
+        _hint("FL Shortcut : « %s » a échoué (%r)" % (entry[2], exc))
         return False
     return r is not False
 
@@ -1398,12 +1398,12 @@ def _init():
     _fl_version()
     _caps()
     if KEY is None:
-        msg = "FL Remap : clé absente, réinstalle le script depuis l'appli. Commandes refusées."
+        msg = "FL Shortcut : clé absente, réinstalle le script depuis l'appli. Commandes refusées."
     elif _signer is None:
-        msg = "FL Remap : HMAC indisponible, commandes refusées."
+        msg = "FL Shortcut : HMAC indisponible, commandes refusées."
     else:
         n = len([1 for v in _caps().values() if v])
-        msg = "FL Remap prêt (script v%d, API %d, %d/%d actions)" % (
+        msg = "FL Shortcut prêt (script v%d, API %d, %d/%d actions)" % (
             SCRIPT_VERSION, _api(), n, len(ACTIONS))
     if _gt_buggy():
         msg += " - FL 26.1.0-26.1.6 : mets à jour vers 26.1.7 (bugs du scripting MIDI)"

@@ -1,6 +1,6 @@
-# Audit 04 : compatibilité de FL Remap avec les versions de FL Studio
+# Audit 04 : compatibilité de FL Shortcut avec les versions de FL Studio
 
-*Audit du 8 octobre 2026. Périmètre : script `Resources/device_FLRemap.py`, actions v2 (variable `ACTIONS` de la maquette), app Mac.*
+*Audit du 8 octobre 2026. Périmètre : script `Resources/device_FLShortcut.py`, actions v2 (variable `ACTIONS` de la maquette), app Mac.*
 
 Sources principales :
 - stubs officiels de l'API (IL-Group/FL-Studio-API-Stubs, dépôt cloné et analysé localement, 503 fonctions avec leur version d'API minimale) ;
@@ -79,11 +79,11 @@ Aucune table officielle complète n'existe. Le manuel affiche une colonne « Ver
 
 ### Ce qui reste possible
 
-| Mécanisme | Disponibilité | Utilité pour FL Remap |
+| Mécanisme | Disponibilité | Utilité pour FL Shortcut |
 |---|---|---|
 | **Mode (a) : raccourcis clavier** | toutes versions | ✅ seul mode garanti. Sur Mac, seulement FL 20.0+ en natif. |
 | **« Link to controller » / Multilink** (clic droit sur un bouton ou potard → *Link to controller*, option *Global*) | toutes versions | ⚠️ Fonctionne pour les **paramètres automatisables** : volume ou mute d'une piste précise, tempo, etc. Il faut lier à la main, un CC à la fois, et la cible est fixe (une piste précise, pas « la piste sélectionnée »). Pas de lien possible pour Play, Stop ou Record (forum IL, 2015). Utilisable en mode expert seulement. |
-| **Mackie Control Universal (MCU)** : *Controller type* = « Mackie Control Universal » | intégré dans FL 8 → 25.x, **remplacé par un script Python en FL 2026** (W 26.1 bêta 1) | 🟡 Piste prometteuse : FL Remap peut **émuler un MCU** sur un 2ᵉ port virtuel « FL Remap MCU » (notes MIDI canal 1). Voir la table ci-dessous. |
+| **Mackie Control Universal (MCU)** : *Controller type* = « Mackie Control Universal » | intégré dans FL 8 → 25.x, **remplacé par un script Python en FL 2026** (W 26.1 bêta 1) | 🟡 Piste prometteuse : FL Shortcut peut **émuler un MCU** sur un 2ᵉ port virtuel « FL Shortcut MCU » (notes MIDI canal 1). Voir la table ci-dessous. |
 | **MMC** (MIDI Machine Control, SysEx `F0 7F … 06 cmd F7`) | évoqué « supporté depuis FL 8 » sur le forum, sans confirmation dans le manuel actuel | ❓ À tester. Ne couvrirait que Play, Stop, Record et Locate. |
 | CC « universels » fixes | **n'existent pas** : le manuel *MIDI settings* ne donne aucune table de CC fixes | ✗ |
 | Anciens scripts `.txt`/`.fsc` | pas de format de script utilisateur documenté avant 20.7. Les pilotes étaient compilés en interne. | ✗ |
@@ -230,11 +230,11 @@ Le raccourci clavier natif indiqué sert de repli en mode (a). Il vient du manue
 
 ### 7.1 Métadonnées et emplacement
 
-- `# name=FL Remap` **doit** figurer en tête de fichier (obligatoire) ✅.
+- `# name=FL Shortcut` **doit** figurer en tête de fichier (obligatoire) ✅.
 - `# url=` doit pointer vers `https://forum.image-line.com/…`, sinon FL redirige vers le forum de scripting. La ligne `# url=` vide actuelle est inutile : la supprimer ou la remplir.
-- **Ajouter `# supportedDevices=FL Remap`** : FL lie automatiquement un périphérique de ce nom au script. L'auto-détection existe depuis 20.7.1 ✅. C'est la fin de l'étape manuelle « Controller type » pour la plupart des utilisateurs. Le nom vu par FL dépend de l'OS ❓ : à tester sur Mac (« FL Remap » ou « FL Remap FL Remap » selon CoreMIDI).
+- **Ajouter `# supportedDevices=FL Shortcut`** : FL lie automatiquement un périphérique de ce nom au script. L'auto-détection existe depuis 20.7.1 ✅. C'est la fin de l'étape manuelle « Controller type » pour la plupart des utilisateurs. Le nom vu par FL dépend de l'OS ❓ : à tester sur Mac (« FL Shortcut » ou « FL Shortcut FL Shortcut » selon CoreMIDI).
 - `# receiveFrom=` et `# supportedHardwareIds=` sont inutiles ici. Ce dernier sert à l'identification matérielle, ajoutée en 20.9 ; l'API `device.getDeviceID` est arrivée en API 25.
-- Emplacement : `Settings/Hardware/FL Remap/device_FLRemap.py` (le préfixe `device_` est obligatoire) ✅. C'est conforme à l'installateur actuel.
+- Emplacement : `Settings/Hardware/FL Shortcut/device_FLShortcut.py` (le préfixe `device_` est obligatoire) ✅. C'est conforme à l'installateur actuel.
 
 ### 7.2 Imports
 
@@ -308,15 +308,15 @@ CAPS["quant"]  = has(channels, "quickQuantize")
 - `device.midiOutMsg(msg)` : API 1. La forme `(status, channel, data1, data2)` est arrivée en API 2 → **utiliser la forme combinée** `status | (data1 << 8) | (data2 << 16)` ✅.
 - Garde-fou : `if device.isAssigned():` (API 1). `device.getPortNumber()` (API 1) donne le port d'entrée, et la sortie doit avoir **le même numéro** ✅ (doc `getPortNumber`, tutoriel, manuel *MIDI settings*).
 - **Côté app :**
-  - créer une **destination CoreMIDI** (`MIDIDestinationCreate`) nommée « FL Remap » en plus de la source actuelle, avec un `kMIDIPropertyUniqueID` fixe ;
-  - documenter dans l'assistant : *Output* « FL Remap » → même *Port* que l'*Input*.
+  - créer une **destination CoreMIDI** (`MIDIDestinationCreate`) nommée « FL Shortcut » en plus de la source actuelle, avec un `kMIDIPropertyUniqueID` fixe ;
+  - documenter dans l'assistant : *Output* « FL Shortcut » → même *Port* que l'*Input*.
   - Sans cela, pas de handshake : l'app doit alors se rabattre sur la version lue dans le bundle (§3).
 
 ---
 
 ## 8. Recommandations d'architecture
 
-### 8.1 Script (`device_FLRemap.py` v2)
+### 8.1 Script (`device_FLShortcut.py` v2)
 
 1. **Démarrage (`OnInit`)** :
    - lire `API = general.getVersion()`, puis `ui.getVersion(0)`, `ui.getVersion(1)` et `ui.getVersion(2)` dans un `try` (le paramètre `mode` date de l'API 7 ; sinon parser `ui.getVersion()`) ;
@@ -325,7 +325,7 @@ CAPS["quant"]  = has(channels, "quickQuantize")
    - envoyer le handshake si `device.isAssigned()`.
 2. **Dispatch déclaratif.** Chaque action est un tuple `(cc, id, api_min, test_capacité, fonction, repli)` :
    - si la capacité est absente et qu'un repli existe (`GT(...)`), utiliser le repli ;
-   - sinon, `ui.setHintMsg("FL Remap : « Cloner » demande FL 21.0.3 ou plus récent")`.
+   - sinon, `ui.setHintMsg("FL Shortcut : « Cloner » demande FL 21.0.3 ou plus récent")`.
 3. **Chargement paresseux** : modules optionnels (`plugins`, `arrangement`) via `_opt`, constantes via `getattr(midi, …, valeur_numérique)`.
 4. **Paramètres tardifs** : `try: f(i, v)` puis, sur `TypeError`, `f(i)`.
 5. **Handshake en CC**, pas en SysEx (bugs 26.1.x), sur le canal 16 du port de sortie, à l'init puis sur demande de l'app (CC « ping »). Proposition :
@@ -335,7 +335,7 @@ CAPS["quant"]  = has(channels, "quickQuantize")
    - CC 103 = Python mineur (6, 9, 12…) ;
    - CC 104 = édition (0 Fruity, 1 Producer, 2 Signature, 3 All Plugins/Trial) ;
    - CC 105 à 109 = masque de capacités (7 bits par CC, soit 35 actions) ;
-   - CC 110 = version du protocole FL Remap ;
+   - CC 110 = version du protocole FL Shortcut ;
    - CC 111 = fin de trame.
 6. **Fenêtre active** : la renvoyer dans `OnRefresh(flags)` quand `flags & midi.HW_Dirty_FocusedWindow` (constante récupérée par `getattr`, valeur 32) :
    - CC 112 = `wid` (0 Mixer, 1 Channel Rack, 2 Playlist, 3 Piano Roll, 4 Browser, 6 plugin d'effet, 7 générateur, 127 autre) ;

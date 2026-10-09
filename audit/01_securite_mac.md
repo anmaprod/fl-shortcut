@@ -1,18 +1,18 @@
-# Audit de sécurité — FL Remap (macOS)
+# Audit de sécurité — FL Shortcut (macOS)
 
-Audit offensif mandaté par le propriétaire du logiciel. Cible : dépôt `/home/claude/FLRemap` (v0.1, commit `bf2b36a`) et maquette v2.
+Audit offensif mandaté par le propriétaire du logiciel. Cible : dépôt `/home/claude/FLShortcut` (v0.1, commit `bf2b36a`) et maquette v2.
 Angle : attaquant local non privilégié (une autre app de l'utilisateur, un plugin, un fichier importé), puis attaquant réseau/chaîne d'approvisionnement.
 
 ---
 
 ## 1. Résumé exécutif
 
-FL Remap repose sur deux capacités très puissantes : **(a)** un `CGEventTap` global qui voit et peut modifier **toutes** les frappes clavier du système, et **(b)** un **port MIDI virtuel non authentifié** qui pilote des actions dans FL Studio via un script Python. Ces deux capacités sont correctement utilisées dans le cas nominal, mais l'enveloppe de sécurité autour d'elles est quasi inexistante.
+FL Shortcut repose sur deux capacités très puissantes : **(a)** un `CGEventTap` global qui voit et peut modifier **toutes** les frappes clavier du système, et **(b)** un **port MIDI virtuel non authentifié** qui pilote des actions dans FL Studio via un script Python. Ces deux capacités sont correctement utilisées dans le cas nominal, mais l'enveloppe de sécurité autour d'elles est quasi inexistante.
 
 Trois problèmes dominent le risque :
 
 1. **Canal MIDI → FL sans aucune authentification (SEC-01, SEC-02).** N'importe quelle application locale peut envoyer des Control Change sur le canal 16 et faire exécuter des actions dans FL Studio (undo en boucle, mute, record, et `save` en v2). L'`uniqueID` MIDI est codé en dur, ce qui permet en plus d'**usurper** le contrôleur quand l'app n'est pas lancée. Le handshake bidirectionnel prévu en v2 est **forgeable** (faux « connecté »).
-2. **Binaire non durci (SEC-08).** Signature ad-hoc, pas de Hardened Runtime, pas de notarisation, `codesign --deep`. Résultat : `DYLD_INSERT_LIBRARIES` / dylib hijacking fonctionnent, et comme l'app détient la permission **Accessibilité**, une injection transforme FL Remap en **keylogger + injecteur de frappes** clé en main.
+2. **Binaire non durci (SEC-08).** Signature ad-hoc, pas de Hardened Runtime, pas de notarisation, `codesign --deep`. Résultat : `DYLD_INSERT_LIBRARIES` / dylib hijacking fonctionnent, et comme l'app détient la permission **Accessibilité**, une injection transforme FL Shortcut en **keylogger + injecteur de frappes** clé en main.
 3. **Injection de frappes hors FL (SEC-03) et profils non validés (SEC-05).** La vérification « FL au premier plan » est désynchronisée du `CGEvent.post` (asynchrone) et **usurpable par sous-chaîne de nom** (SEC-04) ; un profil importé malveillant peut cibler des combinaisons destructrices (⌘Q, ⌘⌫…).
 
 À son crédit : l'app **ne journalise ni ne stocke aucune frappe** aujourd'hui (vérifié : `handle()` ne lit que keycode/flags, rien n'est persisté), et la ré-injection de ses propres événements est marquée (`eventSourceUserData`), ce qui évite les boucles de remap infinies. Le risque principal n'est donc pas ce que le code fait, mais ce qu'un attaquant peut lui faire faire.
@@ -34,7 +34,7 @@ Trois problèmes dominent le risque :
 
 ### SEC-01 — Canal MIDI → FL sans authentification ni limitation de débit
 - **Gravité : Critique**
-- **Fichiers :** `Resources/device_FLRemap.py:83-93` (`OnMidiMsg`), `Sources/FLRemap/MIDIOut.swift:18-27` (`send`)
+- **Fichiers :** `Resources/device_FLShortcut.py:83-93` (`OnMidiMsg`), `Sources/FLShortcut/MIDIOut.swift:18-27` (`send`)
 - **Scénario d'attaque :** Le script FL accepte **n'importe quel** message CC arrivant sur le canal 16 et exécute l'action correspondante, sans vérifier l'origine du message :
   ```python
   def OnMidiMsg(event):
@@ -45,8 +45,8 @@ Trois problèmes dominent le risque :
       action()
   ```
   Tout processus local de l'utilisateur peut créer une source CoreMIDI virtuelle (aucune permission TCC requise pour émettre du MIDI) et émettre des CC 20-37 canal 16. Si FL route cette source vers le script (ou si l'attaquant usurpe le port, cf. SEC-02), l'attaquant déclenche des actions : `undo`/`redo` en boucle (CC 23/24) pour corrompre le travail en cours, `record` (CC 22), `mute`/`solo`, bascule de fenêtres en rafale. En v2, l'action `save` (vue dans la maquette, `ACTIONS[... 'save']`) permet d'**écraser le projet** de la victime à volonté.
-- **PoC (décrit) :** une app de 30 lignes : `MIDIClientCreate` → `MIDISourceCreate("FL Remap")` → boucle `MIDIReceived` avec `[0xBF, 23, 127]` (undo) 50×/s. FL « annule » en continu tant que la fenêtre est active. Aucune interaction utilisateur, aucune élévation de privilège.
-- **Impact :** perte/corruption de données du projet FL, DoS applicatif, comportement erratique attribué à tort à FL ou à FL Remap.
+- **PoC (décrit) :** une app de 30 lignes : `MIDIClientCreate` → `MIDISourceCreate("FL Shortcut")` → boucle `MIDIReceived` avec `[0xBF, 23, 127]` (undo) 50×/s. FL « annule » en continu tant que la fenêtre est active. Aucune interaction utilisateur, aucune élévation de privilège.
+- **Impact :** perte/corruption de données du projet FL, DoS applicatif, comportement erratique attribué à tort à FL ou à FL Shortcut.
 - **Correction :**
   1. **Secret partagé + anti-rejeu.** À l'installation, l'app génère un secret aléatoire 128 bits, l'écrit dans un fichier `0600` lu par le script Python, et chaque commande transporte un compteur de séquence + un tag dérivé du secret (via SysEx, 7 bits, voir §3).
   2. **Liste blanche + actions destructrices désactivées par défaut.** Le script refuse tout CC hors d'une allowlist ; `save`, `record` et toute action destructrice exigent un opt-in explicite.
@@ -69,11 +69,11 @@ Trois problèmes dominent le risque :
 
 ### SEC-02 — `uniqueID` MIDI codé en dur → usurpation du contrôleur
 - **Gravité : Haute**
-- **Fichier :** `Sources/FLRemap/MIDIOut.swift:14`
+- **Fichier :** `Sources/FLShortcut/MIDIOut.swift:14`
   ```swift
   if ready { MIDIObjectSetIntegerProperty(source, kMIDIPropertyUniqueID, 0x464C5250) }
   ```
-- **Scénario d'attaque :** L'`uniqueID` (`0x464C5250` = « FLRP ») et le nom (`"FL Remap"`) sont publics et fixes. FL Studio mémorise son contrôleur d'entrée par nom/uniqueID. Un attaquant qui lance sa propre source MIDI nommée `FL Remap` avec le même uniqueID **avant** FL Remap (ex. au login) **prend l'identité** du contrôleur : FL, configuré pour lire « FL Remap », lit en réalité les CC de l'attaquant. Si les deux coexistent, la collision d'uniqueID produit un comportement indéfini (CoreMIDI renumérote ou rejette), ce qui est aussi un vecteur de DoS/confusion.
+- **Scénario d'attaque :** L'`uniqueID` (`0x464C5250` = « FLRP ») et le nom (`"FL Shortcut"`) sont publics et fixes. FL Studio mémorise son contrôleur d'entrée par nom/uniqueID. Un attaquant qui lance sa propre source MIDI nommée `FL Shortcut` avec le même uniqueID **avant** FL Shortcut (ex. au login) **prend l'identité** du contrôleur : FL, configuré pour lire « FL Shortcut », lit en réalité les CC de l'attaquant. Si les deux coexistent, la collision d'uniqueID produit un comportement indéfini (CoreMIDI renumérote ou rejette), ce qui est aussi un vecteur de DoS/confusion.
 - **Impact :** combiné à SEC-01, injection fiable de commandes sans même que l'app légitime tourne ; l'utilisateur ne peut pas distinguer le vrai contrôleur du faux.
 - **Correction :** générer l'uniqueID **aléatoirement une fois par installation**, le persister dans le fichier de config `0600`, et le réutiliser. Ne jamais dériver l'identité d'une constante publique. L'authentification de SEC-01 reste la vraie défense (l'uniqueID n'est pas un secret).
   ```swift
@@ -85,7 +85,7 @@ Trois problèmes dominent le risque :
 
 ### SEC-03 — Race condition « FL au premier plan » → frappe synthétique injectée hors FL
 - **Gravité : Haute**
-- **Fichier :** `Sources/FLRemap/EventTap.swift:57-85`
+- **Fichier :** `Sources/FLShortcut/EventTap.swift:57-85`
 - **Scénario d'attaque :** Dans le callback, on teste `flStudioIsFrontmost()` puis, pour un remap `.keystroke`, on **avale** la touche et on **poste** une frappe synthétique :
   ```swift
   guard store.enabled, Self.flStudioIsFrontmost(), let remap = store.index[combo] else { return pass }
@@ -116,11 +116,11 @@ Trois problèmes dominent le risque :
 
 ### SEC-04 — Détection « FL au premier plan » usurpable par sous-chaîne de nom
 - **Gravité : Moyenne**
-- **Fichier :** `Sources/FLRemap/EventTap.swift:70-75`
+- **Fichier :** `Sources/FLShortcut/EventTap.swift:70-75`
   ```swift
   return bundle.contains("image-line") || name.contains("FL Studio")
   ```
-- **Scénario d'attaque :** La condition est satisfaite par **n'importe quelle** app dont le `bundleIdentifier` contient `image-line` (ex. `com.image-line.evil`) ou dont le `localizedName` contient `FL Studio` (ex. une fenêtre « FL Studio Updater »). Un attaquant publie une app anodine portant ce nom ; dès qu'elle est au premier plan, FL Remap active l'interception/avalement de touches et l'injection dans **son** contexte. Couplé à un profil malveillant (SEC-05), cela étend la surface d'attaque hors de FL.
+- **Scénario d'attaque :** La condition est satisfaite par **n'importe quelle** app dont le `bundleIdentifier` contient `image-line` (ex. `com.image-line.evil`) ou dont le `localizedName` contient `FL Studio` (ex. une fenêtre « FL Studio Updater »). Un attaquant publie une app anodine portant ce nom ; dès qu'elle est au premier plan, FL Shortcut active l'interception/avalement de touches et l'injection dans **son** contexte. Couplé à un profil malveillant (SEC-05), cela étend la surface d'attaque hors de FL.
 - **Impact :** avalement de frappes et injection activés au profit d'une app hostile ; contournement de la garantie « seulement dans FL ».
 - **Correction :** vérifier le `bundleIdentifier` par **égalité stricte** contre une liste connue, et idéalement vérifier le Team ID / la signature de l'app front-most.
   ```swift
@@ -135,7 +135,7 @@ Trois problèmes dominent le risque :
 
 ### SEC-05 — Profil JSON non validé : cibles dangereuses, valeurs hors bornes, import non fiable
 - **Gravité : Haute** (dans le contexte v2 « profils importables »)
-- **Fichiers :** `Sources/FLRemap/Model.swift:156-165` (décodage), `Model.swift:184-188` (sauvegarde), v2 : import/export de profils (maquette)
+- **Fichiers :** `Sources/FLShortcut/Model.swift:156-165` (décodage), `Model.swift:184-188` (sauvegarde), v2 : import/export de profils (maquette)
 - **Scénario d'attaque :** Le profil est décodé sans **aucune** validation sémantique :
   ```swift
   if let data = try? Data(contentsOf: Store.fileURL),
@@ -143,7 +143,7 @@ Trois problèmes dominent le risque :
       remaps = saved
   }
   ```
-  - `profile.json` vit dans `~/Library/Application Support/FL Remap/` **sans permissions restreintes** (écrit via `data.write(to:)`, donc en 0644, modifiable par tout processus de l'utilisateur).
+  - `profile.json` vit dans `~/Library/Application Support/FL Shortcut/` **sans permissions restreintes** (écrit via `data.write(to:)`, donc en 0644, modifiable par tout processus de l'utilisateur).
   - Un `Remap.kind == .keystroke` peut avoir un `target` arbitraire. La v2 prévoyant des **profils importables** partagés entre utilisateurs, un profil malveillant peut mapper une touche fréquente (ex. `Espace`, `Tab`) vers ⌘Q, ⌘⌫ (supprimer), ⌃⌘Q (verrouiller la session), etc. Combiné à SEC-03/SEC-04, l'injection peut sortir de FL.
   - Pas de borne sur `keyCode` (UInt16), pas de détection de boucle entre remaps au niveau sémantique.
   - **Point positif à conserver :** `JSONDecoder` sur des `struct Codable` n'instancie pas de classes arbitraires (pas de `NSKeyedUnarchiver`), donc **pas de faille de désérialisation de type**. Le CC est borné par l'enum `FLAction` (20-37), un attaquant ne peut pas injecter CC > 127 **via l'app** (mais il le peut via MIDI direct, cf. SEC-01).
@@ -171,9 +171,9 @@ Trois problèmes dominent le risque :
 
 ### SEC-06 — Installeur du script FL : TOCTOU / symlink / dossier contrôlé par l'attaquant
 - **Gravité : Moyenne**
-- **Fichier :** `Sources/FLRemap/FLScriptInstaller.swift:31-38`
+- **Fichier :** `Sources/FLShortcut/FLScriptInstaller.swift:31-38`
   ```swift
-  let folder = hardware.appendingPathComponent("FL Remap", isDirectory: true)
+  let folder = hardware.appendingPathComponent("FL Shortcut", isDirectory: true)
   try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
   let dest = folder.appendingPathComponent(fileName)
   if FileManager.default.fileExists(atPath: dest.path) {
@@ -182,9 +182,9 @@ Trois problèmes dominent le risque :
   try FileManager.default.copyItem(at: script, to: dest)
   ```
 - **Scénario d'attaque :**
-  - **Symlink / redirection :** si `FL Remap` (ou un composant du chemin sous `~/Documents/.../Hardware`) est un lien symbolique planté par un attaquant, l'écriture peut atterrir **hors** du dossier prévu, ou écraser un autre fichier via le lien.
+  - **Symlink / redirection :** si `FL Shortcut` (ou un composant du chemin sous `~/Documents/.../Hardware`) est un lien symbolique planté par un attaquant, l'écriture peut atterrir **hors** du dossier prévu, ou écraser un autre fichier via le lien.
   - **TOCTOU :** entre `fileExists`, `removeItem` et `copyItem`, un attaquant qui gagne la course peut substituer la cible (ex. remplacer `dest` par un lien) pour détourner l'écriture.
-  - **Confiance du dossier FL :** le dossier `Hardware` est sous `~/Documents` (accessible en écriture à tout processus de l'utilisateur). N'importe quel processus peut y déposer un `device_*.py` que **FL exécutera avec les privilèges de FL** — c'est un vecteur de persistance/exécution de code indépendant de FL Remap, mais que l'installeur banalise. L'`NSOpenPanel` laisse aussi choisir un dossier quelconque sans vérifier qu'il s'agit bien de FL.
+  - **Confiance du dossier FL :** le dossier `Hardware` est sous `~/Documents` (accessible en écriture à tout processus de l'utilisateur). N'importe quel processus peut y déposer un `device_*.py` que **FL exécutera avec les privilèges de FL** — c'est un vecteur de persistance/exécution de code indépendant de FL Shortcut, mais que l'installeur banalise. L'`NSOpenPanel` laisse aussi choisir un dossier quelconque sans vérifier qu'il s'agit bien de FL.
 - **Impact :** écriture hors cible, écrasement d'un autre script FL, normalisation d'un vecteur d'exécution de code dans FL.
 - **Correction :**
   1. Résoudre et **vérifier** que le chemin final ne contient aucun lien symbolique (`URL.resolvingSymlinksInPath`, comparer, refuser sinon) et reste sous le dossier FL attendu.
@@ -201,7 +201,7 @@ Trois problèmes dominent le risque :
 
 ### SEC-07 — Tap clavier global = keylogger potentiel ; pas de conscience de Secure Input ; privilège excessif
 - **Gravité : Moyenne**
-- **Fichier :** `Sources/FLRemap/EventTap.swift:16-22`
+- **Fichier :** `Sources/FLShortcut/EventTap.swift:16-22`
 - **Scénario d'attaque :** Le tap est créé sur `.cgSessionEventTap` en `.defaultTap` (actif, capable de **modifier/avaler**) pour `keyDown` **et** `keyUp` de **toute la session** — donc toutes les frappes de toutes les apps, y compris les mots de passe tapés hors FL.
   - **Vérifié :** aujourd'hui `handle()` ne lit que `keyboardEventKeycode`/`flags`/`autorepeat` et ne persiste rien → **pas de keylogging actif**. C'est une bonne propriété à préserver explicitement.
   - **Mais :** le processus a les privilèges nécessaires pour logger. Couplé à SEC-08 (injection de dylib) ou à un futur plugin/profil, il devient trivialement un keylogger complet avec Accessibilité déjà accordée. Aucune détection de **Secure Input** (champs mot de passe) : si une autre app active `EnableSecureEventInput`, le tap est muet — à documenter pour éviter des « bugs » perçus et pour la vie privée.
@@ -221,7 +221,7 @@ Trois problèmes dominent le risque :
   codesign --force --deep --sign "${SIGN_IDENTITY:--}" "$APP"
   ```
 - **Scénario d'attaque :** Signature **ad-hoc** (`-`), **sans** `--options runtime` (pas de Hardened Runtime), app **non notarisée**, et `--deep` (déprécié, signe mal les composants imbriqués). Conséquences :
-  - **Pas de Library Validation / Hardened Runtime** → `DYLD_INSERT_LIBRARIES` et le **dylib hijacking** fonctionnent. Un attaquant local lance FL Remap avec une dylib injectée qui s'exécute **dans un processus détenant la permission Accessibilité** → keylogger + injection de frappes immédiats (voir SEC-07), sans redemander d'autorisation.
+  - **Pas de Library Validation / Hardened Runtime** → `DYLD_INSERT_LIBRARIES` et le **dylib hijacking** fonctionnent. Un attaquant local lance FL Shortcut avec une dylib injectée qui s'exécute **dans un processus détenant la permission Accessibilité** → keylogger + injection de frappes immédiats (voir SEC-07), sans redemander d'autorisation.
   - **Permission Accessibilité sur binaire non signé de façon stable :** TCC identifie par cdhash/exigence de désignation. En ad-hoc il n'y a pas de Team ID stable ; un attaquant qui **remplace le binaire au même chemin** peut au minimum semer la confusion, et l'absence de Library Validation rend l'injection plus simple que le remplacement. Le principe « le binaire autorisé est de confiance » s'effondre.
   - **README** demande à l'utilisateur de contourner Gatekeeper (clic droit › Ouvrir), ce qui habitue la victime à exécuter du non-notarisé.
 - **Impact :** élévation d'une app utilitaire en plateforme de surveillance/injection clavier à l'échelle système.
@@ -232,10 +232,10 @@ Trois problèmes dominent le risque :
   ```bash
   codesign --force --options runtime --timestamp \
     --sign "Developer ID Application: <Nom> (TEAMID)" \
-    "$APP/Contents/MacOS/FLRemap"
+    "$APP/Contents/MacOS/FLShortcut"
   codesign --force --options runtime --timestamp \
     --sign "Developer ID Application: <Nom> (TEAMID)" "$APP"
-  xcrun notarytool submit dist/FLRemap.dmg --wait ... && xcrun stapler staple ...
+  xcrun notarytool submit dist/FLShortcut.dmg --wait ... && xcrun stapler staple ...
   ```
 
 ---
@@ -271,7 +271,7 @@ Trois problèmes dominent le risque :
 
 ### SEC-10 — DoS : flood MIDI et ré-activation du tap en boucle
 - **Gravité : Basse**
-- **Fichiers :** `Resources/device_FLRemap.py:83-93`, `Sources/FLRemap/EventTap.swift:34-37`
+- **Fichiers :** `Resources/device_FLShortcut.py:83-93`, `Sources/FLShortcut/EventTap.swift:34-37`
 - **Scénario d'attaque :**
   - **Flood MIDI** (prolonge SEC-01) : un flux soutenu de CC fait exécuter des actions FL en rafale (undo/redo alternés corrompent l'historique, record on/off, `save` en v2) → DoS applicatif et potentielle corruption.
   - **Tap :** sur `tapDisabledByTimeout`, le tap est ré-activé immédiatement. Si le callback devient lent (ou est ralenti par un autre composant), on obtient un cycle désactivation→réactivation qui perd des événements. Le chemin actuel est léger, donc risque faible, mais il n'y a ni back-off ni télémétrie.
@@ -282,7 +282,7 @@ Trois problèmes dominent le risque :
 
 ### SEC-11 — Touches modificatrices coincées / Set `swallowed` non borné
 - **Gravité : Basse**
-- **Fichier :** `Sources/FLRemap/EventTap.swift:11, 43-44, 59`
+- **Fichier :** `Sources/FLShortcut/EventTap.swift:11, 43-44, 59`
 - **Scénario d'attaque :** `swallowed` reçoit le keycode au `keyDown` et le retire au `keyUp`. Si le `keyUp` n'est jamais vu (changement d'app, Secure Input activé entre-temps, tap désactivé), le keycode **reste** dans le Set et le prochain `keyUp` de cette touche physique est avalé à tort. Pour les remaps avec modificateurs (ex. ⌃1), le modificateur physique reste pressé pendant l'injection → risque de combinaison involontaire ou de modificateur « coincé ».
 - **Impact :** touches qui semblent bloquées, frappes avalées de façon inattendue (gêne, pas de compromission).
 - **Correction :** purger `swallowed` sur `tapDisabled*` et sur changement d'app front-most ; borner/âger les entrées ; pour les remaps `.keystroke`, neutraliser les modificateurs physiques résiduels avant d'injecter la cible.
@@ -295,7 +295,7 @@ La v2 (handshake bidirectionnel, raccourcis par fenêtre, profils importables, b
 
 ### 3.1 Canal app ↔ script FL authentifié (répond à SEC-01, SEC-02, et au handshake forgeable)
 Le handshake de la maquette (le script renvoie `hello`/`heartbeat`/`version` via `device.midiOutMsg`, l'app affiche « connecté ») est **trivialement forgeable** : toute source MIDI peut émettre les octets `hello`. Un faux « connecté » peut masquer une usurpation de contrôleur. Exigences :
-- **Secret partagé par installation**, stocké dans `~/Library/Application Support/FL Remap/pairing.json` en **0600**, généré aléatoirement (≥ 128 bits). Le script Python le lit au `OnInit` (même fichier, mêmes droits).
+- **Secret partagé par installation**, stocké dans `~/Library/Application Support/FL Shortcut/pairing.json` en **0600**, généré aléatoirement (≥ 128 bits). Le script Python le lit au `OnInit` (même fichier, mêmes droits).
 - **Authentification des commandes** app → FL : chaque commande transporte un **compteur de séquence monotone** + un **tag** court dérivé `HMAC(secret, seq‖cc)` tronqué, transmis en **SysEx** (le CC 7 bits ne suffit pas ; SysEx permet d'emporter seq + tag). Le script **rejette** tout message sans tag valide ou avec `seq` déjà vu (**anti-rejeu**), ce qui neutralise le flood/replay (SEC-10).
 - **Authentification du handshake** FL → app : le `hello`/`heartbeat` renvoyé par le script inclut lui aussi un tag dérivé du secret + un nonce fourni par l'app au début. Sans tag valide, l'app affiche « non vérifié », **pas** « connecté ». Le bouton « Tester » doit exercer ce chemin authentifié de bout en bout.
 - **uniqueID MIDI aléatoire par installation** (SEC-02), persisté dans le même fichier de pairing.

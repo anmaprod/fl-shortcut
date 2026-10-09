@@ -3,7 +3,7 @@ import AppKit
 import ApplicationServices
 
 @main
-struct FLRemapApp: App {
+struct FLShortcutApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var delegate
     @StateObject private var store = Store.shared
     @StateObject private var status = AppStatus.shared
@@ -17,7 +17,7 @@ struct FLRemapApp: App {
             Image(systemName: store.enabled ? "keyboard.fill" : "keyboard")
         }
 
-        Window("FL Remap – Raccourcis", id: "editor") {
+        Window("FL Shortcut – Raccourcis", id: "editor") {
             EditorView()
                 .environmentObject(store)
                 .environmentObject(status)
@@ -36,12 +36,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             UserDefaults.standard.set(true, forKey: "didOnboard")
             NSApp.activate(ignoringOtherApps: true)
             let a = NSAlert()
-            a.messageText = "Bienvenue dans FL Remap 🎹"
+            a.messageText = "Bienvenue dans FL Shortcut 🎹"
             a.informativeText = """
-            FL Remap vit dans la barre des menus (icône clavier en haut à droite).
+            FL Shortcut vit dans la barre des menus (icône clavier en haut à droite).
 
             Pour démarrer :
-            1. Autorise FL Remap dans Réglages Système › Confidentialité et sécurité › Accessibilité.
+            1. Autorise FL Shortcut dans Réglages Système › Confidentialité et sécurité › Accessibilité.
             2. Installe le script dans FL Studio (bouton ci-dessous).
             3. Personnalise tes raccourcis depuis le menu.
 
@@ -103,6 +103,6 @@ struct MenuContent: View {
         }
         Button("Installer le script dans FL Studio…") { FLScriptInstaller.installWithAlert() }
         Divider()
-        Button("Quitter FL Remap") { NSApp.terminate(nil) }
+        Button("Quitter FL Shortcut") { NSApp.terminate(nil) }
     }
 }

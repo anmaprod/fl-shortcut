@@ -10,7 +10,7 @@ struct EditorView: View {
             if !status.accessibilityOK {
                 HStack {
                     Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.orange)
-                    Text("FL Remap a besoin de l'autorisation Accessibilité pour lire le clavier.")
+                    Text("FL Shortcut a besoin de l'autorisation Accessibilité pour lire le clavier.")
                     Spacer()
                     Button("Ouvrir les réglages") { status.openAccessibilitySettings() }
                 }

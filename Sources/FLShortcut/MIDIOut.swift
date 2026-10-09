@@ -1,6 +1,6 @@
 import CoreMIDI
 
-/// Port MIDI virtuel "FL Remap" que FL Studio voit comme un contrôleur.
+/// Port MIDI virtuel "FL Shortcut" que FL Studio voit comme un contrôleur.
 final class MIDIOut {
     static let shared = MIDIOut()
     private var client = MIDIClientRef()
@@ -8,8 +8,8 @@ final class MIDIOut {
     private(set) var ready = false
 
     private init() {
-        guard MIDIClientCreate("FL Remap" as CFString, nil, nil, &client) == noErr else { return }
-        ready = MIDISourceCreate(client, "FL Remap" as CFString, &source) == noErr
+        guard MIDIClientCreate("FL Shortcut" as CFString, nil, nil, &client) == noErr else { return }
+        ready = MIDISourceCreate(client, "FL Shortcut" as CFString, &source) == noErr
         // ID fixe : FL Studio retrouve la même configuration à chaque lancement
         if ready { MIDIObjectSetIntegerProperty(source, kMIDIPropertyUniqueID, 0x464C5250) }
     }

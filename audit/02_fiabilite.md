@@ -1,4 +1,4 @@
-# Audit de fiabilité : FL Remap v0.1 (macOS)
+# Audit de fiabilité : FL Shortcut v0.1 (macOS)
 
 *Revue QA / fiabilité. Code audité : commit `bf2b36a` (« v0.1 avant audit »). Complète `01_securite_mac.md` (les renvois `SEC-xx` pointent vers ce document).*
 
@@ -46,14 +46,14 @@ Le vrai risque de latence est ailleurs : c'est le partage du main thread (REL-03
 | REL-04 | Majeur | EventTap.swift:11, 43-45, 57-60 | `swallowed` : keyUp manqué, répétition orpheline, jamais purgé |
 | REL-05 | Majeur | EventTap.swift:57, 70-75 | Premier plan ≠ destinataire du clavier (Spotlight, panneaux) |
 | REL-06 | Majeur | EventTap.swift:64-65 | Touche avalée même si personne n'écoute le MIDI |
-| REL-07 | Majeur | MIDIOut.swift:14, FLRemapApp.swift:31-33 | Deux instances : deux taps, deux sources « FL Remap » |
-| REL-08 | Majeur | FLRemapApp.swift:66-80, EventTap.swift:14-37 | Permission retirée ou périmée, tap jamais recréé |
+| REL-07 | Majeur | MIDIOut.swift:14, FLShortcutApp.swift:31-33 | Deux instances : deux taps, deux sources « FL Shortcut » |
+| REL-08 | Majeur | FLShortcutApp.swift:66-80, EventTap.swift:14-37 | Permission retirée ou périmée, tap jamais recréé |
 | REL-09 | Majeur | (absent) | Saisie sécurisée : remaps éteints en silence |
 | REL-10 | Majeur | MIDIOut.swift:10-15, 19 | Pas de suivi CoreMIDI : réinitialisation, échec au démarrage |
 | REL-11 | Majeur (à valider sur Mac) | Model.swift:198-206 | Défauts en conflit avec des raccourcis macOS (⌃←/⌃→) |
 | REL-12 | Majeur | Model.swift:196-197 | Touches nues par défaut (« 0 », Tab) volées dans les champs texte |
 | REL-13 | Majeur (à valider sur Mac) | EventTap.swift:77-85 | Cible postée alors que les modificateurs du déclencheur sont enfoncés |
-| REL-14 | Majeur | device_FLRemap.py:57-76 | Une fonction d'API absente désactive tout le script |
+| REL-14 | Majeur | device_FLShortcut.py:57-76 | Une fonction d'API absente désactive tout le script |
 | REL-15 | Mineur | EventTap.swift:51-55 | ⌃⌥⌘F maintenu : bascule à chaque répétition |
 | REL-16 | Mineur | KeyNames.swift:42 | Bit passé au lieu du masque : touches mortes illisibles |
 | REL-17 | Mineur | KeyNames.swift:5-13 | Pavé numérique, F13-F20, Entrée du pavé : noms faux ou ambigus |
@@ -62,11 +62,11 @@ Le vrai risque de latence est ailleurs : c'est le partage du main thread (REL-03
 | REL-20 | Mineur | Model.swift:167-182 | Avertissement de doublon inexact ; déclencheur = ⌃⌥⌘F |
 | REL-21 | Mineur | Model.swift:139-141, 149-154 | Sauvegarde synchrone à chaque modification |
 | REL-22 | Mineur | FLScriptInstaller.swift:20-38 | Dossier non vérifié, remplacement non atomique, version du script |
-| REL-23 | Mineur | FLRemapApp.swift:35-37, 67 | Accueil marqué « vu » avant affichage ; deux fenêtres en même temps |
-| REL-24 | Mineur | device_FLRemap.py:33-48 | Index de canal ou de piste non vérifié (-1) |
-| REL-25 | Mineur | device_FLRemap.py:51-54 | `patternCount()` utilisé comme borne : précédent ou suivant bloqué |
-| REL-26 | Mineur | device_FLRemap.py:83-89 | CC à 0 et CC inconnus non marqués `handled`, ignorés en silence |
-| REL-27 | Mineur | device_FLRemap.py:90-93 | Exception qui s'échappe du `except` |
+| REL-23 | Mineur | FLShortcutApp.swift:35-37, 67 | Accueil marqué « vu » avant affichage ; deux fenêtres en même temps |
+| REL-24 | Mineur | device_FLShortcut.py:33-48 | Index de canal ou de piste non vérifié (-1) |
+| REL-25 | Mineur | device_FLShortcut.py:51-54 | `patternCount()` utilisé comme borne : précédent ou suivant bloqué |
+| REL-26 | Mineur | device_FLShortcut.py:83-89 | CC à 0 et CC inconnus non marqués `handled`, ignorés en silence |
+| REL-27 | Mineur | device_FLShortcut.py:90-93 | Exception qui s'échappe du `except` |
 | REL-28 | Mineur | EventTap.swift:57, 70-75 | Ordre des tests : appel inutile sur chaque frappe |
 
 ---
@@ -216,7 +216,7 @@ final class EventTap {
             ready.signal()
             if ok { CFRunLoopRun() }
         }
-        t.name = "FLRemap.EventTap"
+        t.name = "FLShortcut.EventTap"
         t.qualityOfService = .userInteractive
         t.start()
         ready.wait()
@@ -332,7 +332,7 @@ enum FLMatcher {
 ### REL-06 — Touches d'action FL avalées même si personne n'écoute · **Majeur**
 
 - **Où :** `EventTap.swift:64-65`, `MIDIOut.swift:19`.
-- **Reproduction :** utilisateur qui a passé l'étape d'installation du script, port « FL Remap » non activé dans FL, mauvais *Controller type*, `MIDIOut.ready == false` (REL-10), ou FL relancé sans le port.
+- **Reproduction :** utilisateur qui a passé l'étape d'installation du script, port « FL Shortcut » non activé dans FL, mauvais *Controller type*, `MIDIOut.ready == false` (REL-10), ou FL relancé sans le port.
 - **Conséquence :** Tab et « 0 » (défauts) **ne font plus rien du tout dans FL**. La touche est avalée, le CC part dans le vide, rien n'est affiché. C'est le bug « l'app casse mes touches » le plus probable en support.
 - **Correction :**
   - **v1 :** ne pas avaler une touche d'action FL si `!MIDIOut.shared.ready`, ni tant que l'utilisateur n'a pas réussi le bouton « Tester ».
@@ -355,11 +355,11 @@ case .flAction:
 
 ### REL-07 — Deux instances de l'app · **Majeur**
 
-- **Où :** `MIDIOut.swift:14` (code de retour ignoré), `FLRemapApp.swift:31-33` (aucun verrou d'instance unique).
-- **Reproduction :** lancer `dist/FL Remap.app` puis `/Applications/FL Remap.app`, ou la copie montée depuis le `.dmg`. `LSUIElement` n'empêche pas deux instances lancées depuis deux chemins différents.
+- **Où :** `MIDIOut.swift:14` (code de retour ignoré), `FLShortcutApp.swift:31-33` (aucun verrou d'instance unique).
+- **Reproduction :** lancer `dist/FL Shortcut.app` puis `/Applications/FL Shortcut.app`, ou la copie montée depuis le `.dmg`. `LSUIElement` n'empêche pas deux instances lancées depuis deux chemins différents.
 - **Conséquences :**
   - Deux taps : le second, inséré en tête (`headInsertEventTap`), voit tout en premier. ⌃⌥⌘F ne coupe que **cette** instance ; l'autre prend alors le relais. Vu de l'utilisateur, **la bascule ne marche pas**.
-  - Deux sources « FL Remap » : `MIDIObjectSetIntegerProperty` échoue pour la seconde (`kMIDIIDNotUnique`), qui reçoit un ID aléatoire. FL reste branché sur l'ancienne, donc **les actions FL ne marchent plus** si c'est la seconde instance qui avale les touches.
+  - Deux sources « FL Shortcut » : `MIDIObjectSetIntegerProperty` échoue pour la seconde (`kMIDIIDNotUnique`), qui reçoit un ID aléatoire. FL reste branché sur l'ancienne, donc **les actions FL ne marchent plus** si c'est la seconde instance qui avale les touches.
   - Écritures concurrentes de `profile.json` (REL-02).
 - **Correction :**
 
@@ -375,7 +375,7 @@ if let first = others.first {
 
 // MIDIOut
 let err = MIDIObjectSetIntegerProperty(source, kMIDIPropertyUniqueID, uniqueID)
-if err == kMIDIIDNotUnique { state = .conflict }   // affiché dans le menu : « une autre copie de FL Remap tourne »
+if err == kMIDIIDNotUnique { state = .conflict }   // affiché dans le menu : « une autre copie de FL Shortcut tourne »
 ```
 
 L'uniqueID doit être aléatoire par installation (SEC-02). Le verrou d'instance repose alors sur l'identifiant d'application, pas sur l'ID MIDI.
@@ -384,11 +384,11 @@ L'uniqueID doit être aléatoire par installation (SEC-02). Le verrou d'instance
 
 ### REL-08 — Permission Accessibilité retirée ou périmée ; tap jamais recréé · **Majeur**
 
-- **Où :** `FLRemapApp.swift:66-80`, `EventTap.swift:14-28` (pas de `stop()`, source non conservée), `EventTap.swift:34-37`.
+- **Où :** `FLShortcutApp.swift:66-80`, `EventTap.swift:14-28` (pas de `stop()`, source non conservée), `EventTap.swift:34-37`.
 - **Scénarios :**
-  1. **Retrait en cours de route :** l'utilisateur décoche FL Remap dans Réglages. Le tap ne reçoit plus rien (ou reçoit des `tapDisabledByUserInput`, et le code le réactive en boucle, cf. SEC-10). `accessibilityOK` et `tapRunning` restent à `true`, et l'interface affirme que tout va bien.
+  1. **Retrait en cours de route :** l'utilisateur décoche FL Shortcut dans Réglages. Le tap ne reçoit plus rien (ou reçoit des `tapDisabledByUserInput`, et le code le réactive en boucle, cf. SEC-10). `accessibilityOK` et `tapRunning` restent à `true`, et l'interface affirme que tout va bien.
   2. **Re-autorisation :** la minuterie de surveillance a été arrêtée au premier succès et n'est jamais relancée. Le tap mort n'est pas recréé, il faut **quitter et relancer** l'app sans qu'elle le dise.
-  3. **Mise à jour d'une app signée ad hoc** (`build.sh:20`) : la permission TCC est liée à l'empreinte du binaire. Après mise à jour, Réglages montre FL Remap **coché** mais `AXIsProcessTrusted()` renvoie `false` : l'app attend indéfiniment, l'utilisateur ne comprend pas. Cause racine : SEC-08.
+  3. **Mise à jour d'une app signée ad hoc** (`build.sh:20`) : la permission TCC est liée à l'empreinte du binaire. Après mise à jour, Réglages montre FL Shortcut **coché** mais `AXIsProcessTrusted()` renvoie `false` : l'app attend indéfiniment, l'utilisateur ne comprend pas. Cause racine : SEC-08.
   4. `tapCreate` renvoie `nil` alors que `AXIsProcessTrusted()` vaut `true` (état TCC incohérent) : `tapRunning = false`, aucune nouvelle tentative, aucun message.
 - **Correction :** une surveillance permanente qui agit sur le tap dans les deux sens, et un message adapté.
 
@@ -406,7 +406,7 @@ final class TapSupervisor {
                 EventTap.shared.stop()
             case (true, false):
                 status.tapRunning = EventTap.shared.start()
-                status.staleTCC = !status.tapRunning               // « Retire FL Remap de la liste puis ajoute-le à nouveau »
+                status.staleTCC = !status.tapRunning               // « Retire FL Shortcut de la liste puis ajoute-le à nouveau »
             case (true, true) where !EventTap.shared.isEnabled:      // CGEvent.tapIsEnabled(tap:)
                 EventTap.shared.restart()
             default:
@@ -427,7 +427,7 @@ final class TapSupervisor {
 
 - **Où :** absent du code.
 - **Reproduction :** Terminal ou iTerm avec « Saisie sécurisée au clavier » activée (elle reste active **pour toute la session**, même en arrière-plan), un gestionnaire de mots de passe resté ouvert sur un champ, une appli qui oublie de désactiver la saisie sécurisée.
-- **Conséquence :** le tap ne reçoit plus aucune frappe. FL Remap « ne marche plus » dans FL, et l'icône montre pourtant l'état actif. Si l'activation survient entre un keyDown et son keyUp, on retombe sur REL-04 (a).
+- **Conséquence :** le tap ne reçoit plus aucune frappe. FL Shortcut « ne marche plus » dans FL, et l'icône montre pourtant l'état actif. Si l'activation survient entre un keyDown et son keyUp, on retombe sur REL-04 (a).
 - **Correction :** interroger `IsSecureEventInputEnabled()` (Carbon) dans la surveillance de REL-08. Si la saisie sécurisée est active, afficher l'icône barrée et « Saisie sécurisée activée par une autre appli (ex. Terminal) ». Le PID responsable peut être lu dans `ioreg -l -w 0 | grep kCGSSessionSecureInputPID`, en option.
 
 ---
@@ -438,7 +438,7 @@ final class TapSupervisor {
 - **Scénarios :**
   1. **Lancement à l'ouverture de session** : le serveur MIDI n'est pas encore prêt, `MIDIClientCreate` échoue, `ready = false` **pour toute la session**. Aucune action FL ne marche, et les touches restent avalées (REL-06).
   2. **Réinitialisation de CoreMIDI** (Configuration audio et MIDI, plantage de `MIDIServer`, débranchement d'interfaces) : la source disparaît, `ready` reste `true`, les CC partent dans le vide.
-  3. **FL Remap relancé pendant que FL tourne** : la source est détruite puis recréée. Selon la version, FL ne revoit pas le port avant « Rescan » ou un redémarrage **(à valider sur Mac, FL 20.8, 21, 2024 et 2025)**.
+  3. **FL Shortcut relancé pendant que FL tourne** : la source est détruite puis recréée. Selon la version, FL ne revoit pas le port avant « Rescan » ou un redémarrage **(à valider sur Mac, FL 20.8, 21, 2024 et 2025)**.
   4. `MIDIPacketListAdd` renvoie `nil` en cas d'échec : la valeur est ignorée et un paquet vide est envoyé.
 - **Correction :**
 
@@ -447,7 +447,7 @@ private init() { connect() }
 
 private func connect() {
     var c = MIDIClientRef()
-    let err = MIDIClientCreateWithBlock("FL Remap" as CFString, &c) { [weak self] n in
+    let err = MIDIClientCreateWithBlock("FL Shortcut" as CFString, &c) { [weak self] n in
         if n.pointee.messageID == .msgSetupChanged { DispatchQueue.main.async { self?.verify() } }
     }
     guard err == noErr else { scheduleRetry(); return }
@@ -529,7 +529,7 @@ Pour un déclencheur tenu (auto-répétition), décider si la cible est « tapé
 
 ### REL-14 — Script Python : une fonction absente désactive tout · **Majeur** *(test `test_REL_PY1`, échoue)*
 
-- **Où :** `device_FLRemap.py:57-76`. `ACTIONS` évalue `transport.start`, `general.undoUp`, `ui.nextWindow`… **au chargement du module**.
+- **Où :** `device_FLShortcut.py:57-76`. `ACTIONS` évalue `transport.start`, `general.undoUp`, `ui.nextWindow`… **au chargement du module**.
 - **Reproduction :** API FL plus ancienne, fonction renommée ou retirée, ou, plus probable, une action v2 qui utilise une fonction récente (`patterns.clonePattern`, `mixer.armTrack`, `transport.globalTransport(FPT_CountDown)`, sauvegarde…) chargée sur une version de FL qui ne l'a pas.
 - **Conséquence :** `AttributeError` à l'import, et FL ne charge pas le script. **Toutes** les actions sont mortes, pas seulement la fonction manquante. Le seul message est dans *View › Script output*.
 - **Correction :** résoudre chaque fonction au moment de l'appel (appel paresseux), lire les constantes avec une valeur de repli, afficher un message par action indisponible. Version complète, testée, en **annexe B** :
@@ -539,7 +539,7 @@ def _api(module_name, func_name):
     def call(*args):
         func = getattr(__import__(module_name), func_name, None)
         if func is None:
-            _hint("FL Remap : %s.%s indisponible dans cette version de FL Studio" % (module_name, func_name))
+            _hint("FL Shortcut : %s.%s indisponible dans cette version de FL Studio" % (module_name, func_name))
             return None
         return func(*args)
     return call
@@ -647,7 +647,7 @@ private func scheduleSave() {
 
 ### REL-23 — Accueil marqué « vu » avant affichage ; deux fenêtres en même temps · Mineur
 
-- **Où :** `FLRemapApp.swift:35-37` et `67`.
+- **Où :** `FLShortcutApp.swift:35-37` et `67`.
 - **Constats :**
   - `didOnboard = true` est écrit **avant** `runModal()` : un plantage ou un « Quitter » à ce moment fait perdre l'accueil pour toujours.
   - La demande Accessibilité de macOS (`AXIsProcessTrustedWithOptions(prompt: true)`) et l'alerte d'accueil s'ouvrent **en même temps** et se superposent.
@@ -655,28 +655,28 @@ private func scheduleSave() {
 
 ### REL-24 — Script : index de canal ou de piste non vérifié · Mineur *(test `test_REL_PY2`, échoue)*
 
-- **Où :** `device_FLRemap.py:33-48`.
+- **Où :** `device_FLShortcut.py:33-48`.
 - **Constat :** aucune vérification de bornes. Si `selectedChannel()` renvoie -1 (aucun canal sélectionné, groupe de filtres vide), le script appelle `muteChannel(-1)`. L'exception est rattrapée, mais le message affiché est cryptique (« Channel index out of range »).
 - **Correction :** vérifier `0 <= ch < channels.channelCount()` et `trackNumber() >= 0`, sinon afficher « aucun canal sélectionné ». Voir l'annexe B.
 
 ### REL-25 — Script : `patternCount()` utilisé comme borne · Mineur *(test `test_REL_PY3`, échoue)*
 
-- **Où :** `device_FLRemap.py:51-54`.
+- **Où :** `device_FLShortcut.py:51-54`.
 - **Constat :** la borne de saut est `patternCount()`. S'il y a des trous (patterns supprimés ou vides), le pattern courant peut dépasser ce nombre : **« pattern précédent » ne fait plus rien** (pattern 7 affiché avec 4 patterns comptés).
 - **Correction :** borner par `patterns.patternMax()` (avec repli à 999), et contraindre la cible entre 1 et le maximum.
 
 ### REL-26 — Script : CC à 0 et CC inconnus · Mineur *(tests `test_REL_PY4`, `test_REL_PY5`, échouent)*
 
-- **Où :** `device_FLRemap.py:83-89`.
+- **Où :** `device_FLShortcut.py:83-89`.
 - **Constats :**
   - Un CC connu à valeur 0, ou un CC inconnu sur le canal 16, n'est pas marqué `handled`. FL le traite alors comme un contrôleur générique : lien de contrôleur, « dernier paramètre touché », voire automation enregistrée pendant un REC.
   - Un CC inconnu (app plus récente que le script) est ignoré **sans message**.
-- **Correction :** sur le canal 16, tout CC appartient à FL Remap : `event.handled = True` d'abord, puis `return` si la valeur vaut 0, puis afficher « action inconnue, réinstalle le script » si le CC n'est pas dans la table.
-- **Attention :** si l'utilisateur affecte par erreur le *Controller type* « FL Remap » à son vrai clavier MIDI, le canal 16 de ce clavier sera avalé. L'indiquer dans l'aide.
+- **Correction :** sur le canal 16, tout CC appartient à FL Shortcut : `event.handled = True` d'abord, puis `return` si la valeur vaut 0, puis afficher « action inconnue, réinstalle le script » si le CC n'est pas dans la table.
+- **Attention :** si l'utilisateur affecte par erreur le *Controller type* « FL Shortcut » à son vrai clavier MIDI, le canal 16 de ce clavier sera avalé. L'indiquer dans l'aide.
 
 ### REL-27 — Script : exception qui s'échappe du bloc `except` · Mineur *(test `test_REL_PY6`, échoue)*
 
-- **Où :** `device_FLRemap.py:90-93`.
+- **Où :** `device_FLShortcut.py:90-93`.
 - **Constat :** `ui.setHintMsg` est appelé **dans** le `except`. S'il lève une exception (fonction absente, appel hors contexte), elle sort de `OnMidiMsg`. De plus, le test d'en-tête (`event.midiId`, `midi.MIDI_CONTROLCHANGE`) est en dehors du `try`.
 - **Correction :** un `try` qui englobe toute la fonction, et un `_hint()` qui ne lève jamais d'exception (il écrit aussi avec `print` vers *Script output*). Voir l'annexe B.
 
@@ -778,14 +778,14 @@ protocol TapControl { var isRunning: Bool { get }; var isEnabled: Bool { get }; 
 4. Mettre à jour l'app (binaire signé ad hoc différent) : message « permission à renouveler » (REL-08).
 5. ⌃→ avec Mission Control par défaut (REL-11).
 6. Remap ⌃⌥R → ⌘S dans FL : la sauvegarde se déclenche-t-elle ? (REL-13).
-7. Relancer FL Remap pendant que FL tourne, puis relancer FL : le port revient-il ? Tester aussi Configuration audio et MIDI › Réinitialiser (REL-10).
+7. Relancer FL Shortcut pendant que FL tourne, puis relancer FL : le port revient-il ? Tester aussi Configuration audio et MIDI › Réinitialiser (REL-10).
 8. Veille pendant une touche tenue ; changement rapide d'utilisateur (REL-04).
 9. Lancer deux copies de l'app (REL-07).
 10. Charger le script dans FL 20.8, 21, 2024, 2025, et FL sous Rosetta.
 
 ### 4.4 Tests Python (avec modules simulés)
 
-Fichier complet en **annexe A**. Il tourne avec `python3 -m unittest`, sans FL. Le chemin du script testé est réglable par `FLREMAP_SCRIPT`, ce qui permet de tester aussi la version corrigée.
+Fichier complet en **annexe A**. Il tourne avec `python3 -m unittest`, sans FL. Le chemin du script testé est réglable par `FLSHORTCUT_SCRIPT`, ce qui permet de tester aussi la version corrigée.
 
 | Test | Script actuel | Script corrigé (annexe B) |
 |---|---|---|
@@ -808,15 +808,15 @@ Ajouter un job `python -m unittest` dans `.github/workflows/build.yml` (sur `ubu
 
 ---
 
-## Annexe A — `test_device_flremap.py` (tests Python avec modules FL simulés)
+## Annexe A — `test_device_flshortcut.py` (tests Python avec modules FL simulés)
 
-Exécution : `FLREMAP_ROOT=/chemin/du/depot python3 -m unittest -v test_device_flremap.py`. Sur le script actuel : **13 tests, 6 échecs** (REL-PY1 à PY6 = REL-14, 24, 25, 26 ×2, 27).
+Exécution : `FLSHORTCUT_ROOT=/chemin/du/depot python3 -m unittest -v test_device_flshortcut.py`. Sur le script actuel : **13 tests, 6 échecs** (REL-PY1 à PY6 = REL-14, 24, 25, 26 ×2, 27).
 
 ```python
-"""Tests du script FL Studio device_FLRemap.py avec des modules FL simulés.
+"""Tests du script FL Studio device_FLShortcut.py avec des modules FL simulés.
 
-Lancement :  python3 -m unittest -v test_device_flremap.py
-Variable FLREMAP_ROOT = racine du dépôt (défaut /home/claude/FLRemap).
+Lancement :  python3 -m unittest -v test_device_flshortcut.py
+Variable FLSHORTCUT_ROOT = racine du dépôt (défaut /home/claude/FLShortcut).
 """
 import importlib.util
 import os
@@ -825,9 +825,9 @@ import sys
 import types
 import unittest
 
-ROOT = os.environ.get("FLREMAP_ROOT", "/home/claude/FLRemap")
-SCRIPT = os.environ.get("FLREMAP_SCRIPT", os.path.join(ROOT, "Resources", "device_FLRemap.py"))
-MODEL = os.path.join(ROOT, "Sources", "FLRemap", "Model.swift")
+ROOT = os.environ.get("FLSHORTCUT_ROOT", "/home/claude/FLShortcut")
+SCRIPT = os.environ.get("FLSHORTCUT_SCRIPT", os.path.join(ROOT, "Resources", "device_FLShortcut.py"))
+MODEL = os.path.join(ROOT, "Sources", "FLShortcut", "Model.swift")
 
 FL_MODULES = ("midi", "transport", "ui", "general", "mixer", "channels", "patterns")
 
@@ -917,7 +917,7 @@ def build_fl(rec, focused=None, n_channels=8, n_tracks=126, pattern=1, pattern_c
 def load_script(mods):
     for name in FL_MODULES:
         sys.modules[name] = mods[name]
-    spec = importlib.util.spec_from_file_location("device_FLRemap_under_test", SCRIPT)
+    spec = importlib.util.spec_from_file_location("device_FLShortcut_under_test", SCRIPT)
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module
@@ -1051,12 +1051,12 @@ if __name__ == "__main__":
     unittest.main(verbosity=2)
 ```
 
-## Annexe B — `device_FLRemap.py` corrigé (passe les 13 tests)
+## Annexe B — `device_FLShortcut.py` corrigé (passe les 13 tests)
 
-Corrige REL-14 et REL-24 à REL-27. Appels d'API résolus au moment de l'appel, constantes avec valeur de repli, bornes vérifiées, `handled` sur tout le canal 16, `_hint` qui ne lève jamais. Ajoute `SCRIPT_VERSION` (REL-22). Vérifié avec `FLREMAP_SCRIPT=fixed/device_FLRemap.py python3 -m unittest test_device_flremap.py` → `OK`.
+Corrige REL-14 et REL-24 à REL-27. Appels d'API résolus au moment de l'appel, constantes avec valeur de repli, bornes vérifiées, `handled` sur tout le canal 16, `_hint` qui ne lève jamais. Ajoute `SCRIPT_VERSION` (REL-22). Vérifié avec `FLSHORTCUT_SCRIPT=fixed/device_FLShortcut.py python3 -m unittest test_device_flshortcut.py` → `OK`.
 
 ```python
-# name=FL Remap
+# name=FL Shortcut
 # url=
 """Version corrigée proposée (audit REL-PY1..PY6)."""
 
@@ -1082,7 +1082,7 @@ def _api(module_name, func_name):
         module = __import__(module_name)
         func = getattr(module, func_name, None)
         if func is None:
-            _hint("FL Remap : %s.%s indisponible dans cette version de FL Studio"
+            _hint("FL Shortcut : %s.%s indisponible dans cette version de FL Studio"
                   % (module_name, func_name))
             return None
         return func(*args)
@@ -1125,11 +1125,11 @@ def _on_selection(mixer_fn, channel_fn, label):
     elif _focused(_const("widChannelRack", 1)):
         ch = _selected_channel()
         if ch is None:
-            _hint("FL Remap : aucun canal sélectionné")
+            _hint("FL Shortcut : aucun canal sélectionné")
         else:
             _api("channels", channel_fn)(ch)
     else:
-        _hint("FL Remap : %s dispo dans le Mixer ou le Channel Rack" % label)
+        _hint("FL Shortcut : %s dispo dans le Mixer ou le Channel Rack" % label)
 
 
 def jump_pattern(delta):
@@ -1165,7 +1165,7 @@ ACTIONS = {
 
 
 def OnInit():
-    _hint("FL Remap prêt (script v%d)" % SCRIPT_VERSION)
+    _hint("FL Shortcut prêt (script v%d)" % SCRIPT_VERSION)
 
 
 def OnMidiMsg(event):
@@ -1177,9 +1177,9 @@ def OnMidiMsg(event):
             return                         # relâchement : rien à faire
         action = ACTIONS.get(event.data1)
         if action is None:
-            _hint("FL Remap : action %d inconnue, réinstalle le script depuis l'app" % event.data1)
+            _hint("FL Shortcut : action %d inconnue, réinstalle le script depuis l'app" % event.data1)
             return
         action()
     except Exception as exc:
-        _hint("FL Remap erreur : %r" % (exc,))
+        _hint("FL Shortcut erreur : %r" % (exc,))
 ```

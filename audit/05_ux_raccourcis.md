@@ -1,8 +1,8 @@
-# Audit 05 : UX des raccourcis clavier dans FL Remap
+# Audit 05 : UX des raccourcis clavier dans FL Shortcut
 
 *Point de vue d'un chercheur UX spécialisé dans les interfaces clavier et les logiciels musicaux. Rédigé le 8 octobre 2026.*
 
-**Question.** Comment aider de vrais utilisateurs de FL Studio, débutants comme pros, à apprendre, retenir et utiliser les raccourcis ? Que faut-il faire en priorité dans FL Remap ?
+**Question.** Comment aider de vrais utilisateurs de FL Studio, débutants comme pros, à apprendre, retenir et utiliser les raccourcis ? Que faut-il faire en priorité dans FL Shortcut ?
 
 **Méthode.** Je me suis appuyé sur trois types de preuves :
 - la recherche HCI publiée ;
@@ -13,7 +13,7 @@ Chaque affirmation renvoie à une source listée à la fin. Quand une source n'a
 
 ---
 
-## 0. Ce que montre l'état actuel de FL Remap
+## 0. Ce que montre l'état actuel de FL Shortcut
 
 J'ai relu `Model.swift`, `EventTap.swift`, `EditorView.swift` et `KeyNames.swift`. Les constats ci-dessous concernent directement l'UX des raccourcis.
 
@@ -37,7 +37,7 @@ J'ai relu `Model.swift`, `EventTap.swift`, `EditorView.swift` et `KeyNames.swift
 - **Tak, Westendorp et van Rooij (2013)**, dans *Interacting with Computers* (3 expériences), montrent que le manque de connaissance n'explique pas à lui seul la faible utilisation. Sous pression temporelle, les gens n'utilisent pas la méthode qu'ils savent être la plus rapide : ils se contentent de ce qui est « assez bon » (*satisficing*). En revanche, un outil d'aide à l'apprentissage augmente l'usage.
 - **Cockburn, Gutwin, Scarr et Malacria (2014)**, revue publiée dans *ACM Computing Surveys*, décrivent le même phénomène : les utilisateurs restent sur des méthodes lentes. Ils proposent quatre leviers : la répétition, le passage à une modalité plus performante, l'élargissement du vocabulaire et la transformation des tâches.
 
-**Pour FL Remap.** Une liste de raccourcis ne suffit pas. L'application doit intervenir au moment où l'utilisateur agit.
+**Pour FL Shortcut.** Une liste de raccourcis ne suffit pas. L'application doit intervenir au moment où l'utilisateur agit.
 
 ### P2. Montrer les raccourcis au moment de l'intention, pendant qu'on maintient un modificateur
 - **ExposeHK (Malacria, Bailly, Harrison, Cockburn et Gutwin, CHI 2013).** Tant qu'on maintient le modificateur, les raccourcis s'affichent sur les commandes. Résultats :
@@ -58,7 +58,7 @@ J'ai relu `Model.swift`, `EventTap.swift`, `EditorView.swift` et `KeyNames.swift
 - Les Apple HIG recommandent de définir peu de raccourcis personnalisés, réservés aux actions les plus courantes. Trop de raccourcis rendent l'application plus difficile à apprendre et multiplient les conflits.
 - Malacria et al. recensent en moyenne 55 raccourcis par application Mac (entre 15 et 112). C'est déjà beaucoup à retenir.
 
-**Pour FL Remap.** Un profil par défaut d'environ 10 raccourcis vaut mieux que 40.
+**Pour FL Shortcut.** Un profil par défaut d'environ 10 raccourcis vaut mieux que 40.
 
 ### P5. Les moyens mnémotechniques aident à se souvenir, mais ils entrent vite en collision
 - **IconHK (Giannisakis, Bailly, Malacria et Chevalier, CHI 2017), 12 participants.** Intégrer la lettre du raccourci dans l'icône fait passer le rappel de 54 % (contrôle) à 87-88 %. Après 72 heures, il reste à 100 %, contre 71-73 % pour le contrôle. Le contrôle est la seule condition où le rappel diminue avec le temps.
@@ -72,13 +72,13 @@ J'ai relu `Model.swift`, `EventTap.swift`, `EditorView.swift` et `KeyNames.swift
 - **CommandMaps (Scarr, Cockburn, Gutwin et Bunt, CHI 2012, prix du meilleur article).** Une interface à plat et spatialement stable n'est pas plus lente pour les novices, et elle est significativement plus rapide que les menus et le Ruban pour les utilisateurs expérimentés.
 - ExposeHK s'appuie explicitement sur la mémoire spatiale des emplacements.
 
-**Pour FL Remap.** L'aide-mémoire doit avoir la forme d'un clavier, avec des positions fixes. Les raccourcis apparentés doivent être voisins.
+**Pour FL Shortcut.** L'aide-mémoire doit avoir la forme d'un clavier, avec des positions fixes. Les raccourcis apparentés doivent être voisins.
 
 ### P7. Main gauche sur le clavier, main droite sur la souris : chaque main a son rôle
 - **Kabbash, Buxton et Sellen (CHI 1994), 12 sujets.** La technique asymétrique où la main non dominante prépare le cadre et la main dominante agit (Toolglass) est la plus rapide : 2,43 s contre 2,89 à 2,96 s. La main gauche est active 83 % du temps. Les auteurs montrent aussi qu'une technique à deux mains mal conçue peut être pire qu'une technique à une main. Leur cadre théorique est le modèle de Guiard.
 - Sur le forum Image-Line (mars 2026), un utilisateur se plaint que F9 et Shift+P soient trop loin de la main gauche. Il demande des raccourcis en bas à gauche du clavier, sans Shift.
 
-**Pour FL Remap.** La main gauche choisit le contexte (fenêtre, outil, mode) et la souris fait le geste précis. Il faut un profil miroir pour les gauchers.
+**Pour FL Shortcut.** La main gauche choisit le contexte (fenêtre, outil, mode) et la souris fait le geste précis. Il faut un profil miroir pour les gauchers.
 
 ### P8. La cohérence et le transfert : ne pas casser ce que les gens savent déjà
 - Les Apple HIG demandent de ne pas réutiliser un raccourci standard pour une action sans rapport, et de ne pas ajouter un modificateur à un raccourci existant pour une autre commande. Microsoft publie également une table d'accélérateurs communs à respecter.
@@ -90,7 +90,7 @@ J'ai relu `Model.swift`, `EventTap.swift`, `EditorView.swift` et `KeyNames.swift
 - **Sellen, Kurtenbach et Buxton (1992).** Un mode maintenu (une pédale tenue) produit significativement moins d'erreurs de mode qu'un mode verrouillé, que celui-ci soit activé au clavier ou à la pédale. Il donne aussi des tâches plus rapides et a été préféré par 11 sujets sur 15. Le retour visuel plein écran n'explique que 4 à 5 % des erreurs, contre 11 à 16 % pour la méthode de changement de mode.
 - Ableton Live 12 suit ce principe : maintenir certains raccourcis environ 500 ms les rend momentanés.
 
-**Pour FL Remap.** L'aide-mémoire et les modes temporaires doivent fonctionner tant que la touche est maintenue. L'interrupteur global verrouillé doit être doublé d'un retour très visible.
+**Pour FL Shortcut.** L'aide-mémoire et les modes temporaires doivent fonctionner tant que la touche est maintenue. L'interrupteur global verrouillé doit être doublé d'un retour très visible.
 
 ### P10. Fonctionner sur toutes les dispositions de clavier, pour tous les corps, et pouvoir tout désactiver
 - **Microsoft (Raymond Chen)** : ne jamais utiliser Ctrl+Alt comme modificateur, car c'est AltGr sur de nombreuses dispositions. En allemand, Ctrl+Alt+Q produit `@`, et un bug réel lançait un publipostage quand l'utilisateur tapait « đ ».
@@ -120,7 +120,7 @@ J'ai relu `Model.swift`, `EventTap.swift`, `EditorView.swift` et `KeyNames.swift
 
 Je n'ai pas pu consulter Reddit directement (le proxy a refusé la requête). Les éléments ci-dessus viennent donc surtout du forum officiel et des guides de tutoriels.
 
-**Conséquence stratégique.** Si Image-Line livre un jour son propre éditeur de raccourcis, FL Remap perdra son intérêt pour le simple remappage. Il restera différenciant sur quatre points : l'apprentissage (aide-mémoire, rappels), les actions sans raccourci natif via MIDI, les jeux de raccourcis inspirés d'autres DAW et le profil pour portables.
+**Conséquence stratégique.** Si Image-Line livre un jour son propre éditeur de raccourcis, FL Shortcut perdra son intérêt pour le simple remappage. Il restera différenciant sur quatre points : l'apprentissage (aide-mémoire, rappels), les actions sans raccourci natif via MIDI, les jeux de raccourcis inspirés d'autres DAW et le profil pour portables.
 
 ---
 
@@ -159,9 +159,9 @@ L'impact concerne l'utilisateur réel. L'effort est estimé pour le code actuel 
 
    Le message doit être explicite, par exemple : « ⌃→ : macOS l'utilise pour changer de bureau » ou « S : FL l'utilise déjà pour Solo dans le Mixer ». *(Reaper, Studio One, HIG)*
 3. **Avertir pour les touches sans modificateur.** Afficher une alerte à l'enregistrement d'une touche seule (lettre, chiffre, Tab), et proposer d'ajouter ⌃ ou de limiter le raccourci à une fenêtre. *(WCAG 2.1.4)*
-4. **Afficher un retour quand l'interrupteur global change d'état.** Un petit panneau « FL Remap désactivé » doit rester visible tant que c'est le cas, et l'icône de la barre des menus doit être plus contrastée. *(P9, Sellen)*
+4. **Afficher un retour quand l'interrupteur global change d'état.** Un petit panneau « FL Shortcut désactivé » doit rester visible tant que c'est le cas, et l'icône de la barre des menus doit être plus contrastée. *(P9, Sellen)*
 5. **Ajouter des libellés d'accessibilité** aux `Toggle` et `Picker` de l'éditeur (`.accessibilityLabel`) et tester avec VoiceOver. *(P10)*
-6. **Permettre l'import et l'export d'un profil** (fichier `.flremap` en JSON) pour sauvegarder et partager. *(Reaper, Logic, Bitwig ; P8, découverte sociale)*
+6. **Permettre l'import et l'export d'un profil** (fichier `.flshortcut` en JSON) pour sauvegarder et partager. *(Reaper, Logic, Bitwig ; P8, découverte sociale)*
 
 ### Impact élevé, effort moyen : prochaine version
 7. **Aide-mémoire en maintenant ⌃ (≈ ExposeHK).** Après environ 400 à 600 ms de ⌃ seul maintenu dans FL, afficher un panneau flottant non activant en forme de clavier, dans la disposition réelle (AZERTY, QWERTZ…). Il montre les raccourcis ⌃ de l'utilisateur, groupés par couleur (fenêtres, transport, édition), avec les raccourcis natifs de FL en filigrane. Le panneau disparaît au relâchement. Le délai évite de gêner les experts qui enchaînent vite.
@@ -180,7 +180,7 @@ L'impact concerne l'utilisateur réel. L'effort est estimé pour le code actuel 
 11. **Export d'un aide-mémoire imprimable.** PDF A4 et PNG en fond d'écran, générés dans la disposition de l'utilisateur, avec code couleur, plus une planche d'autocollants pour les touches utilisées. *(Pro Tools/SOS, export HTML de Reaper ; P6.)* Cet export a moins d'effet que l'aide-mémoire au maintien, parce qu'un document à consulter exige de la motivation (Raursø).
 
 ### Impact élevé, effort élevé : feuille de route
-12. **Rappel discret façon Blur ou Skillometer.** Le script FL signale les changements de fenêtre active (`OnRefresh` avec le drapeau de focus) via un port MIDI de retour. Si la fenêtre a changé sans qu'une touche correspondante soit passée par l'event tap, on en déduit un clic. FL Remap affiche alors, en bas de l'écran pendant 3 s : « Mixer → ⌃4 ». Règles :
+12. **Rappel discret façon Blur ou Skillometer.** Le script FL signale les changements de fenêtre active (`OnRefresh` avec le drapeau de focus) via un port MIDI de retour. Si la fenêtre a changé sans qu'une touche correspondante soit passée par l'event tap, on en déduit un clic. FL Shortcut affiche alors, en bas de l'écran pendant 3 s : « Mixer → ⌃4 ». Règles :
     - au maximum un rappel par commande et par session ;
     - jamais pendant la lecture ou l'enregistrement ;
     - bouton « ne plus montrer » ;
@@ -211,7 +211,7 @@ L'impact concerne l'utilisateur réel. L'effort est estimé pour le code actuel 
 6. **Remplacer les raccourcis natifs que les tutoriels enseignent** (Espace, F5-F9, B/P/C/D/S/T, `⌘S`, `⌘R`, L, R) dans le profil par défaut. Cela coupe le transfert social et vidéo. Ce genre de remplacement doit rester un choix explicite dans un jeu « Ableton » ou similaire. *(P8, Bailly et al.)*
 7. **Mettre trop de raccourcis dans le profil par défaut.** Plus de raccourcis signifie plus de conflits et un apprentissage plus difficile (HIG, Zipf).
 8. **Rendre les rappels intrusifs** : animations, couleurs criardes, rappels permanents ou rappels pendant l'enregistrement (Raursø). Le retour visuel « après coup » sous forme de simple texte a déçu dans Grossman et al.
-9. **Empêcher d'utiliser la souris pour forcer l'apprentissage.** Les menus désactivés fonctionnaient en laboratoire (72,8 %), mais FL Remap ne peut ni ne doit bloquer FL : le coût de frustration en usage réel n'est pas mesuré, et les participants n'aimaient pas le délai imposé (Grossman).
+9. **Empêcher d'utiliser la souris pour forcer l'apprentissage.** Les menus désactivés fonctionnaient en laboratoire (72,8 %), mais FL Shortcut ne peut ni ne doit bloquer FL : le coût de frustration en usage réel n'est pas mesuré, et les participants n'aimaient pas le délai imposé (Grossman).
 10. **Mettre des combinaisons de 3 ou 4 touches sur des actions fréquentes.** Cela coûte du temps (KLM) et des erreurs, et c'est pénible avec une seule main ou des TMS. Les réserver aux actions rares ou de sécurité.
 11. **Créer des modes verrouillés invisibles** (interrupteur global sans retour). Ils provoquent des erreurs de mode (Sellen et al.).
 12. **Supposer des touches F et un pavé numérique** sur Mac ou sur portable (base de connaissances Image-Line 683, forum 2019).
@@ -222,7 +222,7 @@ L'impact concerne l'utilisateur réel. L'effort est estimé pour le code actuel 
 ## 6. Proposition de profil par défaut : « FL+ main gauche »
 
 **Règles de conception, issues des principes ci-dessus.**
-- **Un seul espace de noms libre.** Sur Mac, FL traduit Ctrl en ⌘ et Alt en ⌥. La touche physique **⌃ Control** n'est donc presque pas utilisée par FL au clavier : c'est l'espace propre à FL Remap. Cela va contre la règle « éviter Control » des HIG, et c'est assumé : le risque d'Apple porte sur les raccourcis système Control, que l'on exclut explicitement (flèches, Espace) et que l'on vérifie pour les chiffres.
+- **Un seul espace de noms libre.** Sur Mac, FL traduit Ctrl en ⌘ et Alt en ⌥. La touche physique **⌃ Control** n'est donc presque pas utilisée par FL au clavier : c'est l'espace propre à FL Shortcut. Cela va contre la règle « éviter Control » des HIG, et c'est assumé : le risque d'Apple porte sur les raccourcis système Control, que l'on exclut explicitement (flèches, Espace) et que l'on vérifie pour les chiffres.
 - **Un seul modificateur pour les actions fréquentes.** Les chiffres (positions physiques) servent pour les fenêtres, et les lettres stables de la main gauche (E, R, T, S, D, F, G, X, C, V, B, identiques en QWERTY, AZERTY et QWERTZ) servent pour les actions.
 - **Réutiliser le sens que FL donne déjà aux lettres** pour qu'elles se renforcent : S = Solo dans le Mixer, T = outil Mute.
 - **Rien n'écrase FL.** On ajoute, on ne remplace pas. Le jeu « Ableton » (Tab, 0, etc.) reste disponible en option.
@@ -244,7 +244,7 @@ L'impact concerne l'utilisateur réel. L'effort est estimé pour le code actuel 
 | Solo (piste/canal sélectionné) | `⌃S` | | S = Solo dans le Mixer de FL (P8), lettre stable |
 | Métronome | `⌃M` | AZERTY : touche M à droite de L (par étiquette) | Action rare, donc lettre mnémotechnique placée par étiquette (P5). Évite `⌘M`, qui réduit la fenêtre sous macOS |
 | Rétablir | `⌘⇧Z` | | Standard Apple (HIG), plainte du forum sur ⌥⌘Z |
-| Activer / désactiver FL Remap | `⌃⌥⌘F` + panneau visible | | Rare et volontairement difficile à taper par accident. Ajouter un retour visible (P9) |
+| Activer / désactiver FL Shortcut | `⌃⌥⌘F` + panneau visible | | Rare et volontairement difficile à taper par accident. Ajouter un retour visible (P9) |
 
 **Retirés du profil actuel :** `Tab`, `0` (touches seules, WCAG), `⌃←`/`⌃→` (Spaces), `⌃L` (doublon de `L`, natif dans FL). Au premier lancement, si « Passer au bureau 1-5 » est activé, l'application propose `⌃⌥1` à `⌃⌥5` ou d'ouvrir les réglages système.
 
@@ -264,7 +264,7 @@ Il faut vérifier `Ctrl+Shift+S` (« Enregistrer sous » dans FL) et `Ctrl+Shift
 - Les chiffres sont enregistrés par position : `⌃1` reste la touche `&/1` sans Maj. L'aide-mémoire doit montrer les deux caractères gravés sur la touche.
 - Les lettres d'action (D, F, S, T) sont stables sur les trois dispositions. M est la seule lettre placée par étiquette, puisqu'elle sert de moyen mnémotechnique.
 - Le profil n'utilise aucune ponctuation.
-- Sur Mac, les combinaisons ⌥+lettre produisent des caractères (œ, ©, @ selon la disposition) : on n'utilise pas ⌥ seul comme modificateur de FL Remap.
+- Sur Mac, les combinaisons ⌥+lettre produisent des caractères (œ, ©, @ selon la disposition) : on n'utilise pas ⌥ seul comme modificateur de FL Shortcut.
 
 ---
 
