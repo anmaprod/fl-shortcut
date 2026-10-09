@@ -67,7 +67,7 @@ enum SingleInstance {
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
-        MIDILink.shared.start()
+        if !AppMode.light { MIDILink.shared.start() }  // mode léger : aucun port MIDI, rien dans FL
         FLMonitor.shared.start()
         AppStatus.shared.start()
         PauseIndicator.shared.bind()
@@ -125,7 +125,7 @@ final class AppStatus: ObservableObject {
             .removeDuplicates()
             .dropFirst()
             .receive(on: RunLoop.main)
-            .sink { [weak self] _ in self?.refreshScriptState() }
+            .sink { [weak self] _ in if !AppMode.light { self?.refreshScriptState() } }
             .store(in: &cancellables)
 
         FLMonitor.shared.$version
@@ -145,8 +145,10 @@ final class AppStatus: ObservableObject {
             })
         }
 
-        FLScriptInstaller.updateInstalledIfNeeded()     // nouvelle version du script, même clé
-        refreshScriptState()
+        if !AppMode.light {
+            FLScriptInstaller.updateInstalledIfNeeded() // nouvelle version du script, même clé
+            refreshScriptState()
+        }
         supervise()
         let t = Timer(timeInterval: 2, repeats: true) { [weak self] _ in self?.supervise() }
         t.tolerance = 0.5                            // laisse macOS regrouper les réveils
@@ -156,7 +158,12 @@ final class AppStatus: ObservableObject {
 
     /// Le masque du script fait foi ; avant le handshake, la version lue dans le bundle de FL.
     func availability(_ id: Int) -> ActionAvailability {
-        AvailabilityResolver.availability(of: id, caps: capabilities, flVersion: flVersion)
+        if AppMode.light {
+            return AppMode.nativeEquivalent(of: id, layout: Store.shared.layout) != nil
+                ? .available
+                : .unavailable(reason: "Demande le script MIDI dans FL (désactivé en mode léger)")
+        }
+        return AvailabilityResolver.availability(of: id, caps: capabilities, flVersion: flVersion)
     }
 
     func refreshScriptState() {
@@ -373,7 +380,9 @@ struct MenuContent: View {
                 NSApp.activate(ignoringOtherApps: true)
             }
             PanelItem(title: store.enabled ? "Mettre en pause" : "Reprendre", shortcut: "⌃⌥⌘F") { store.enabled.toggle() }
-            PanelItem(title: "Installer le lien avec FL Studio…", shortcut: nil) { FLScriptInstaller.installWithAlert() }
+            if !AppMode.light {
+                PanelItem(title: "Installer le lien avec FL Studio…", shortcut: nil) { FLScriptInstaller.installWithAlert() }
+            }
 
             Divider().padding(.horizontal, 8).padding(.vertical, 6)
 
@@ -387,6 +396,10 @@ struct MenuContent: View {
 
     private var dotColor: Color {
         guard store.enabled else { return .gray }
+        if AppMode.light {
+            if !status.accessibilityOK { return .orange }
+            return fl.running ? .green : .gray
+        }
         switch link.status {
         case .linked: return .green
         case .inactive: return .orange
@@ -398,6 +411,10 @@ struct MenuContent: View {
     private var statusLine: String {
         guard store.enabled else { return "En pause" }
         let version = fl.version.map { " \($0)" } ?? ""
+        if AppMode.light {
+            if !status.accessibilityOK { return "Clavier non autorisé" }
+            return fl.running ? "Actif dans FL Studio" + version : "FL Studio fermé"
+        }
         switch link.status {
         case .linked: return "Relié à FL Studio" + version
         case .inactive: return "Lien inactif"
@@ -410,8 +427,8 @@ struct MenuContent: View {
         if status.staleTCC { out.append("Permission périmée : retire FL Shortcut de la liste Accessibilité puis ajoute-le.") }
         if status.secureInput { out.append("Saisie sécurisée activée par une autre appli : raccourcis muets.") }
         if status.tapUnstable { out.append("macOS a coupé l'interception plusieurs fois : elle a été relancée.") }
-        if status.scriptState == .modified { out.append("Le script FL a été modifié : réinstalle le lien.") }
-        if link.uniqueIDConflict { out.append("Conflit de port MIDI : une autre copie de FL Shortcut tourne peut-être.") }
+        if !AppMode.light, status.scriptState == .modified { out.append("Le script FL a été modifié : réinstalle le lien.") }
+        if !AppMode.light, link.uniqueIDConflict { out.append("Conflit de port MIDI : une autre copie de FL Shortcut tourne peut-être.") }
         if let warning = store.loadWarning { out.append(warning) }
         if let error = store.saveError { out.append(error) }
         return out

@@ -80,7 +80,7 @@ struct OnboardingView: View {
                 removal: .offset(x: -60).combined(with: .opacity).combined(with: .scale(scale: 0.98)))))
 
             HStack(spacing: 8) {
-                ForEach(0..<2) { i in
+                ForEach(0..<(AppMode.light ? 1 : 2), id: \.self) { i in
                     Capsule()
                         .fill(i == step ? Color.accentColor : Color.secondary.opacity(0.35))
                         .frame(width: i == step ? 22 : 7, height: 7)
@@ -139,9 +139,11 @@ struct OnboardingView: View {
             Group {
                 if status.accessibilityOK {
                     Button {
-                        step = 1
+                        // Mode léger : rien à installer dans FL, l'accueil est terminé.
+                        if AppMode.light { onFinish() } else { step = 1 }
                     } label: {
-                        Label("Autorisé — continuer", systemImage: "checkmark").frame(minWidth: 200)
+                        Label(AppMode.light ? "Autorisé — terminer" : "Autorisé — continuer", systemImage: "checkmark")
+                            .frame(minWidth: 200)
                     }
                     .transition(Motion.pop)
                 } else {

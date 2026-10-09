@@ -417,6 +417,7 @@ final class MIDILink: ObservableObject {
     func setFLRunning(_ running: Bool) {
         guard running != flRunning else { return }
         flRunning = running
+        if AppMode.light { return }                    // mode léger : aucun lien MIDI
         core.resetPingBackoff()
         if running { core.ping(minInterval: 1) }
         refresh()

@@ -159,7 +159,7 @@ struct EditorView: View {
                     EmptyView()
                 }
             }
-            if status.scriptState == .modified {
+            if !AppMode.light, status.scriptState == .modified {
                 Banner(symbol: "exclamationmark.shield.fill", tint: .red,
                        text: "Le script FL a été modifié depuis son installation. Réinstalle-le pour retrouver un lien sûr.") {
                     Button("Réinstaller") { FLScriptInstaller.installWithAlert() }.secondaryGlassButton()
@@ -348,7 +348,7 @@ private struct StatusLine: View {
     var body: some View {
         HStack(spacing: 7) {
             Circle().fill(color).frame(width: 7, height: 7).shadow(color: color.opacity(0.7), radius: 3)
-                .scaleEffect(link.status == .linked && store.enabled ? 1 : 0.85)
+                .scaleEffect((AppMode.light ? fl.running : link.status == .linked) && store.enabled ? 1 : 0.85)
             Text(text).font(.system(size: 13)).foregroundStyle(.secondary)
                 .contentTransition(.interpolate)
             if let action {
@@ -363,6 +363,10 @@ private struct StatusLine: View {
 
     private var color: Color {
         if !store.enabled { return .gray }
+        if AppMode.light {
+            if !status.accessibilityOK { return .orange }
+            return fl.running ? .green : .gray
+        }
         switch link.status {
         case .linked: return .green
         case .inactive: return .orange
@@ -377,6 +381,12 @@ private struct StatusLine: View {
     private var text: String {
         if !store.enabled { return "En pause : FL Studio utilise ses raccourcis d'origine" }
         let version = fl.version.map { " \($0)" } ?? ""
+        if AppMode.light {
+            if !status.accessibilityOK { return "Autorise le clavier (Accessibilité) pour activer tes raccourcis" }
+            return fl.running
+                ? "Actif dans FL Studio\(version) · mode léger : rien ne tourne dans FL"
+                : "FL Studio n'est pas ouvert · tes raccourcis marcheront dès que tu l'ouvres"
+        }
         switch link.status {
         case .linked:
             if let ms = link.snapshot.responseMs {
@@ -392,7 +402,7 @@ private struct StatusLine: View {
     }
 
     private var action: (label: String, run: () -> Void)? {
-        guard store.enabled, link.status == .inactive else { return nil }
+        guard store.enabled, !AppMode.light, link.status == .inactive else { return nil }
         if !link.snapshot.hasKey || link.snapshot.incompatibleProtocol != nil {
             return ("Installer", { FLScriptInstaller.installWithAlert() })
         }

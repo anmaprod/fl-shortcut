@@ -188,12 +188,16 @@ final class Store: ObservableObject {
     private func pushConfig() {
         guard pushToTap else { return }
         let snapshot = (enabled, index, toggleCombo, forbidden, recording)
+        let natives = AppMode.actionNatives(layout: layout)
+        let light = AppMode.light
         EventTap.shared.updateConfig {
             $0.enabled = snapshot.0
             $0.index = snapshot.1
             $0.toggle = snapshot.2
             $0.forbidden = snapshot.3
             $0.recording = snapshot.4
+            $0.actionNatives = natives
+            $0.anyContext = light
         }
     }
 

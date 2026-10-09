@@ -85,6 +85,29 @@ final class RouterTests: XCTestCase {
         XCTAssertEqual(router.route(up(zero), config: cfg, link: .offline), .pass)
     }
 
+    // Mode léger : aucun lien MIDI ; une action avec équivalent clavier envoie la touche de FL, les autres passent.
+    func testLightModeSendsNativeKeyWithoutLink() {
+        var router = KeyRouter()
+        let f9 = KeyCombo(keyCode: 101)
+        var cfg = config([Remap(trigger: zero, action: 33), Remap(trigger: ctrlRight, action: 21)])
+        cfg.actionNatives = [33: f9]
+        cfg.anyContext = true
+        XCTAssertEqual(router.route(down(zero), config: cfg, link: .offline),
+                       RouterDecision(swallow: true, effects: [.post(f9)]))
+        XCTAssertEqual(router.route(up(zero), config: cfg, link: .offline), .swallowOnly)
+        XCTAssertEqual(router.route(down(ctrlRight), config: cfg, link: .offline), .pass)    // mute : pas de touche FL
+    }
+
+    func testLightModeUsesWindowShortcutsWithoutKnowingTheWindow() {
+        var router = KeyRouter()
+        let optQ = KeyCombo(keyCode: 12, option: true)
+        var cfg = config([Remap(trigger: zero, sends: optQ, context: .pianoRoll)])
+        XCTAssertEqual(router.route(down(zero), config: cfg, link: .offline), .pass)          // mode complet : fenêtre inconnue
+        cfg.anyContext = true
+        XCTAssertEqual(router.route(down(zero), config: cfg, link: .offline),
+                       RouterDecision(swallow: true, effects: [.post(optQ)]))
+    }
+
     func testNotFLTargetPasses() {                                     // REL-05 : Spotlight par-dessus FL
         var router = KeyRouter()
         let cfg = config([Remap(trigger: zero, action: 21)])

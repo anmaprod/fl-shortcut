@@ -34,11 +34,16 @@ struct ShortcutIndex: Equatable {
 
     var count: Int { table.values.reduce(0) { $0 + $1.count } }
 
-    /// Fenêtre précise d'abord, puis « Partout ». Fenêtre inconnue : seulement « Partout ».
-    func lookup(_ combo: KeyCombo, window: FLWindow?) -> Entry? {
+    /// Fenêtre précise d'abord, puis « Partout ». Fenêtre inconnue : seulement « Partout », sauf `anyContext`
+    /// (mode léger : FL applique lui-même la touche envoyée à sa fenêtre active), où une entrée de n'importe
+    /// quelle fenêtre convient, dans un ordre fixe.
+    func lookup(_ combo: KeyCombo, window: FLWindow?, anyContext: Bool = false) -> Entry? {
         guard let byContext = table[combo] else { return nil }
         if let window, let ctx = ShortcutContext(window: window), let e = byContext[ctx] { return e }
-        return byContext[.everywhere]
+        if let e = byContext[.everywhere] { return e }
+        guard anyContext else { return nil }
+        for ctx in ShortcutContext.allCases { if let e = byContext[ctx] { return e } }
+        return nil
     }
 }
 
@@ -51,6 +56,9 @@ struct TapConfig: Equatable {
     var recording = false
     var flPIDs: Set<Int32> = []
     var frontmostPID: Int32 = 0
+    /// Mode léger : action → touche d'origine de FL (vide sinon) ; contexte de fenêtre ignoré.
+    var actionNatives: [Int: KeyCombo] = [:]
+    var anyContext = false
 }
 
 /// Événement clavier réduit à ce qui sert à la décision (aucun caractère tapé n'est conservé : SEC-07).
@@ -126,10 +134,16 @@ struct KeyRouter {
         }
 
         guard config.enabled, e.targetIsFL,
-              let entry = config.index.lookup(e.combo, window: link.knownWindow) else { return .pass }
+              let entry = config.index.lookup(e.combo, window: link.knownWindow, anyContext: config.anyContext)
+        else { return .pass }
 
         switch entry.action {
         case .flAction(let id):
+            if let native = config.actionNatives[id] {          // mode léger : la touche de FL équivalente
+                guard !config.forbidden.isForbidden(native) else { return .pass }
+                owned[code] = .keystroke(native)
+                return RouterDecision(swallow: true, effects: [.post(native)])
+            }
             guard link.canRun(id) else { return .pass }        // lien inactif : la touche va à FL telle quelle
             owned[code] = .action(id)
             return RouterDecision(swallow: true, effects: [.sendAction(id)])

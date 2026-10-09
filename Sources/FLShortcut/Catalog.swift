@@ -428,7 +428,14 @@ struct CatalogRow: Identifiable {
 extension Store {
     var catalog: [CatalogEntry] {
         if let cached = catalogCache { return cached }
-        let entries = Catalog.entries(layout: layout)
+        var entries = Catalog.entries(layout: layout)
+        if AppMode.light {
+            // Mode léger : seules les actions qui ont une touche équivalente dans FL restent.
+            entries.removeAll {
+                if case .action(let id) = $0.kind { return AppMode.nativeEquivalent(of: id, layout: layout) == nil }
+                return false
+            }
+        }
         catalogCache = entries
         return entries
     }
