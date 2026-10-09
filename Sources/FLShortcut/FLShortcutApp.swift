@@ -38,6 +38,7 @@ struct FLShortcutApp: App {
         } label: {
             Image(systemName: status.menuBarSymbol(enabled: store.enabled))
         }
+        .menuBarExtraStyle(.window)
 
         Window("FL Shortcut – Raccourcis", id: "editor") {
             EditorView()
@@ -83,33 +84,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private static func onboard() {
-        NSApp.activate(ignoringOtherApps: true)
-        let a = NSAlert()
-        a.messageText = "Bienvenue dans FL Shortcut"
-        a.informativeText = """
-        FL Shortcut vit dans la barre des menus (icône clavier).
-
-        1. Autorise le clavier : Réglages Système › Confidentialité et sécurité › Accessibilité.
-        2. Installe le script dans FL Studio pour les « Actions dans FL ».
-        3. Personnalise tes raccourcis depuis le menu (profil Recommandé chargé).
-
-        ⌃⌥⌘F met FL Shortcut en pause à tout moment. FL Shortcut ne lit les touches que pour reconnaître
-        tes raccourcis : rien n'est enregistré ni transmis.
-        """
-        a.addButton(withTitle: "Autoriser le clavier et installer le script")
-        a.addButton(withTitle: "Autoriser le clavier seulement")
-        a.addButton(withTitle: "Plus tard")
-        let choice = a.runModal()
-        UserDefaults.standard.set(true, forKey: "didOnboard")      // après le choix (REL-23)
-        switch choice {
-        case .alertFirstButtonReturn:
-            FLScriptInstaller.installWithAlert()
-            AppStatus.shared.requestAccessibility()
-        case .alertSecondButtonReturn:
-            AppStatus.shared.requestAccessibility()
-        default:
-            break
-        }
+        OnboardingWindow.shared.show()          // accueil en 2 étapes (marqué « vu » après un choix, REL-23)
     }
 }
 
@@ -301,42 +276,111 @@ struct MenuContent: View {
     @Environment(\.openWindow) private var openWindow
 
     var body: some View {
-        Toggle(store.enabled ? "Raccourcis actifs (⌃⌥⌘F)" : "En pause – réactiver (⌃⌥⌘F)", isOn: $store.enabled)
-        Text(statusLine)
-        if !status.accessibilityOK {
-            Button("Autoriser le clavier (Accessibilité)…") { status.openAccessibilitySettings() }
+        VStack(alignment: .leading, spacing: 0) {
+            HStack(spacing: 12) {
+                AppIcon().frame(width: 38, height: 38)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("FL Shortcut").font(.system(size: 14, weight: .semibold))
+                    HStack(spacing: 6) {
+                        Circle().fill(dotColor).frame(width: 6, height: 6)
+                        Text(statusLine).font(.system(size: 12)).foregroundStyle(.secondary).lineLimit(1)
+                    }
+                }
+                Spacer(minLength: 8)
+                Toggle("", isOn: $store.enabled)
+                    .toggleStyle(.switch)
+                    .labelsHidden()
+                    .accessibilityLabel("Raccourcis actifs (⌃⌥⌘F)")
+            }
+            .padding(.horizontal, 8)
+            .padding(.top, 8)
+            .padding(.bottom, 12)
+
+            ForEach(alerts, id: \.self) { text in
+                Label(text, systemImage: "exclamationmark.triangle.fill")
+                    .font(.system(size: 11))
+                    .foregroundStyle(.orange)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.horizontal, 10)
+                    .padding(.bottom, 8)
+            }
+            if !status.accessibilityOK {
+                PanelItem(title: "Autoriser le clavier…", shortcut: nil) { status.openAccessibilitySettings() }
+            }
+
+            Divider().padding(.horizontal, 8).padding(.bottom, 6)
+
+            PanelItem(title: "Modifier les raccourcis…", shortcut: "⌘,") {
+                openWindow(id: "editor")
+                NSApp.activate(ignoringOtherApps: true)
+            }
+            PanelItem(title: store.enabled ? "Mettre en pause" : "Reprendre", shortcut: "⌃⌥⌘F") { store.enabled.toggle() }
+            PanelItem(title: "Installer le lien avec FL Studio…", shortcut: nil) { FLScriptInstaller.installWithAlert() }
+
+            Divider().padding(.horizontal, 8).padding(.vertical, 6)
+
+            PanelItem(title: "Quitter FL Shortcut", shortcut: "⌘Q") { NSApp.terminate(nil) }
         }
-        if status.staleTCC {
-            Text("Permission périmée : retire FL Shortcut de la liste Accessibilité puis ajoute-le.")
+        .padding(8)
+        .frame(width: 300)
+    }
+
+    private var dotColor: Color {
+        guard store.enabled else { return .gray }
+        switch link.status {
+        case .linked: return .green
+        case .inactive: return .orange
+        case .flClosed: return .gray
         }
-        if status.secureInput {
-            Text("Saisie sécurisée activée par une autre appli (ex. Terminal) : raccourcis muets.")
-        }
-        if status.tapUnstable {
-            Text("macOS a coupé l'interception plusieurs fois : elle a été relancée.")
-        }
-        if status.scriptState == .modified {
-            Text("Le script FL a été modifié depuis l'installation : réinstalle-le.")
-        }
-        if link.uniqueIDConflict {
-            Text("Conflit de port MIDI : une autre copie de FL Shortcut tourne peut-être.")
-        }
-        if let warning = store.loadWarning { Text(warning) }
-        if let error = store.saveError { Text(error) }
-        Divider()
-        Button("Modifier les raccourcis…") {
-            openWindow(id: "editor")
-            NSApp.activate(ignoringOtherApps: true)
-        }
-        Button("Tester le lien avec FL") { link.testLink() }
-        Button("Installer le script dans FL Studio…") { FLScriptInstaller.installWithAlert() }
-        Divider()
-        Button("Quitter FL Shortcut") { NSApp.terminate(nil) }
     }
 
     /// Chaîne calculée à part : pas de fermeture imbriquée dans une interpolation de LocalizedStringKey.
     private var statusLine: String {
-        let version = fl.version.map { " · FL \($0)" } ?? ""
-        return "FL Studio : " + link.status.label + version
+        guard store.enabled else { return "En pause" }
+        let version = fl.version.map { " \($0)" } ?? ""
+        switch link.status {
+        case .linked: return "Relié à FL Studio" + version
+        case .inactive: return "Lien inactif"
+        case .flClosed: return "FL Studio fermé"
+        }
+    }
+
+    private var alerts: [String] {
+        var out: [String] = []
+        if status.staleTCC { out.append("Permission périmée : retire FL Shortcut de la liste Accessibilité puis ajoute-le.") }
+        if status.secureInput { out.append("Saisie sécurisée activée par une autre appli : raccourcis muets.") }
+        if status.tapUnstable { out.append("macOS a coupé l'interception plusieurs fois : elle a été relancée.") }
+        if status.scriptState == .modified { out.append("Le script FL a été modifié : réinstalle le lien.") }
+        if link.uniqueIDConflict { out.append("Conflit de port MIDI : une autre copie de FL Shortcut tourne peut-être.") }
+        if let warning = store.loadWarning { out.append(warning) }
+        if let error = store.saveError { out.append(error) }
+        return out
+    }
+}
+
+/// Ligne du panneau : surbrillance au survol, comme un menu macOS.
+private struct PanelItem: View {
+    let title: String
+    let shortcut: String?
+    let action: () -> Void
+    @State private var hovering = false
+
+    var body: some View {
+        Button(action: action) {
+            HStack {
+                Text(title).font(.system(size: 13))
+                Spacer()
+                if let shortcut {
+                    Text(shortcut).font(.system(size: 12)).foregroundStyle(hovering ? Color.white.opacity(0.85) : Color.secondary)
+                }
+            }
+            .padding(.horizontal, 10)
+            .frame(height: 30)
+            .foregroundStyle(hovering ? Color.white : Color.primary)
+            .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(hovering ? Color.accentColor : .clear))
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .onHover { hovering = $0 }
     }
 }

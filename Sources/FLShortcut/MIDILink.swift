@@ -387,6 +387,15 @@ final class MIDILink: ObservableObject {
         core.ping(minInterval: 0.5)
     }
 
+    /// « Tester » dans la fiche : envoie l'action choisie à FL (trame signée), puis met le statut à jour.
+    @discardableResult
+    func test(action id: Int) -> Bool {
+        let result = core.sendAction(id)
+        refresh()
+        if case .sent = result { return true }
+        return false
+    }
+
     private func tick() {
         if !transport.isReady, Date().timeIntervalSince(lastReconnect) > 5 {
             lastReconnect = Date()

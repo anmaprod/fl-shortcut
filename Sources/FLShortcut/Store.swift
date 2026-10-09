@@ -198,6 +198,22 @@ final class Store: ObservableObject {
 
     func add() { remaps.append(Remap()) }
 
+    /// Ajoute ou remplace un raccourci (fiche d'édition).
+    func upsert(_ remap: Remap) {
+        if let i = remaps.firstIndex(where: { $0.id == remap.id }) { remaps[i] = remap } else { remaps.append(remap) }
+    }
+
+    /// Problèmes d'un brouillon, analysé après les autres raccourcis (un doublon est signalé sur lui), avec
+    /// exactement les mêmes règles que l'index du tap (REL-20).
+    func draftIssues(_ draft: Remap) -> [ShortcutIssue] {
+        var list = remaps.filter { $0.id != draft.id }
+        var probe = draft
+        probe.enabled = true
+        list.append(probe)
+        let ctx = AnalysisContext(toggle: toggleCombo, forbidden: forbidden, conflicts: conflicts, availability: availability)
+        return ShortcutAnalyzer.analyze(list, context: ctx)[draft.id] ?? []
+    }
+
     func delete(_ id: UUID) { remaps.removeAll { $0.id == id } }
 
     func apply(preset: ProfilePreset) {

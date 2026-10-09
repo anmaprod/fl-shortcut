@@ -1,147 +1,259 @@
-// Interface minimale (la version « Liquid Glass » sera refaite ensuite).
-// Audit : REL-06 / PROTOCOL.md §5 (statut du lien affiché), audit 04 §8.2 (actions grisées selon le masque de
-//         capacités ou la version de FL, « Disponible à partir de FL X »), audit 05 §4.2-4.4 (conflits macOS /
-//         FL, avertissement touche seule avec confirmation, pause visible, libellés d'accessibilité),
-//         REL-19 (un seul enregistreur actif, ⌫ efface, Échap annule, ⌃⌥⌘F refusé, délai de 5 s, arrêt quand la
-//         fenêtre perd le focus, tap suspendu pendant l'enregistrement), REL-20 (avertissements issus de
-//         l'analyse qui construit l'index), REL-21 (remplacement de profil confirmé et annulable),
-//         SEC-05 (cibles interdites refusées à la saisie ; import validé avec récapitulatif et confirmation).
+// Fenêtre « Raccourcis » en Liquid Glass, d'après la simulation validée par les tests utilisateurs :
+// liste par rubriques (Composition, Enregistrement, Mix, Navigation, Touches de FL), une ligne par raccourci
+// avec ce qu'elle fait, fiche d'édition en feuille, notification « Annuler » après une suppression.
+// Audit : REL-06 / PROTOCOL.md §5 (statut du lien), audit 04 §8.2 (actions grisées, « Disponible à partir de
+//         FL X »), audit 05 §4.2-4.4 (conflits, touche seule confirmée, pause visible, noms de touches en clair,
+//         VoiceOver), REL-19 (un seul enregistreur, ⌫ efface, Échap annule, ⌃⌥⌘F refusé, délai 5 s, arrêt à la
+//         perte du focus, tap suspendu), REL-20 (avertissements issus de l'analyse de l'index), REL-21
+//         (remplacement de profil confirmé et annulable), SEC-05 (cibles interdites refusées, import validé).
 import AppKit
 import SwiftUI
 import UniformTypeIdentifiers
+
+// MARK: - Fenêtre principale
 
 struct EditorView: View {
     @EnvironmentObject var store: Store
     @EnvironmentObject var status: AppStatus
     @EnvironmentObject var link: MIDILink
     @EnvironmentObject var fl: FLMonitor
-    @StateObject private var recorder = Recorder.shared
+
+    @State private var query = ""
+    @State private var editing: Remap? = nil
+    @State private var editingIsNew = false
+    @State private var toast: ToastMessage? = nil
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            banners
-
-            HStack {
-                Text("Raccourci").frame(width: 170, alignment: .leading)
-                Text("Où").frame(width: 120, alignment: .leading)
-                Text("Fait…").frame(width: 150, alignment: .leading)
-                Text("Action")
+        ZStack(alignment: .bottom) {
+            VStack(alignment: .leading, spacing: 0) {
+                header
+                    .padding(.horizontal, 32)
+                    .padding(.top, 18)
+                    .padding(.bottom, 14)
+                banners
+                    .padding(.horizontal, 32)
+                list
             }
-            .font(.caption)
-            .foregroundStyle(.secondary)
-            .padding(.horizontal, 20)
-            .padding(.top, 10)
+            if let toast {
+                ToastView(message: toast) { self.toast = nil }
+                    .padding(.bottom, 22)
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
+            }
+        }
+        .animation(.spring(response: 0.42, dampingFraction: 0.82), value: toast)
+        .windowGlassBackground()
+        .sheet(item: $editing) { remap in
+            EditSheet(original: remap, isNew: editingIsNew) { message in show(message) }
+                .environmentObject(store)
+                .environmentObject(status)
+                .environmentObject(link)
+        }
+    }
 
-            List {
-                ForEach($store.remaps) { $remap in
-                    RemapRow(remap: $remap, issues: store.issues(for: remap.id)) {
-                        let id = remap.id
-                        DispatchQueue.main.async { store.delete(id) }
+    // MARK: En-tête
+
+    private var header: some View {
+        HStack(alignment: .bottom, spacing: 10) {
+            VStack(alignment: .leading, spacing: 5) {
+                Text("Raccourcis")
+                    .font(.system(size: 30, weight: .bold))
+                    .accessibilityAddTraits(.isHeader)
+                StatusLine(store: store, status: status, link: link, fl: fl)
+            }
+            Spacer(minLength: 12)
+
+            profileMenu
+
+            HStack(spacing: 6) {
+                Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
+                TextField("Rechercher", text: $query)
+                    .textFieldStyle(.plain)
+                    .frame(width: 150)
+                    .accessibilityLabel("Rechercher un raccourci")
+            }
+            .padding(.horizontal, 12)
+            .frame(height: 32)
+            .glassCapsule()
+
+            Button {
+                editingIsNew = true
+                editing = Remap().with { $0.actionID = nil }
+            } label: {
+                Image(systemName: "plus").font(.system(size: 14, weight: .bold))
+                    .frame(width: 20, height: 20)
+            }
+            .primaryGlassButton()
+            .help("Nouveau raccourci")
+            .accessibilityLabel("Nouveau raccourci")
+
+            HStack(spacing: 8) {
+                Text(store.enabled ? "Actif" : "En pause").font(.system(size: 12, weight: .semibold))
+                Toggle("", isOn: $store.enabled).toggleStyle(.switch).labelsHidden()
+                    .accessibilityLabel("Raccourcis actifs (⌃⌥⌘F)")
+            }
+            .padding(.leading, 12)
+            .padding(.trailing, 6)
+            .frame(height: 32)
+            .glassCapsule()
+        }
+    }
+
+    private var profileMenu: some View {
+        Menu {
+            ForEach(ProfilePreset.allCases) { preset in
+                Button(preset.label) {
+                    if Dialogs.confirm("Charger le profil « \(preset.label) » ?",
+                                       preset.summary + "\n\nTes raccourcis actuels seront remplacés (annulable).") {
+                        store.apply(preset: preset)
+                        show(ToastMessage(text: "Profil « \(preset.label) » chargé", undo: { store.undoReplace() }))
                     }
                 }
             }
-
-            if let hint = recorder.hint {
-                Text(hint).font(.caption).foregroundStyle(.orange).padding(.horizontal, 12)
-            }
-
             Divider()
-            footer.padding(12)
+            Button("Importer un profil…") { importProfile() }
+            Button("Exporter mon profil…") { exportProfile() }
+            if store.undoSnapshot != nil {
+                Divider()
+                Button("Annuler le dernier remplacement") { store.undoReplace() }
+            }
+        } label: {
+            Label("Profil", systemImage: "person.crop.square.on.square.angled")
         }
+        .menuStyle(.borderlessButton)
+        .fixedSize()
+        .padding(.horizontal, 6)
+        .frame(height: 32)
+        .glassCapsule()
     }
+
+    // MARK: Bandeaux (seulement quand il faut agir)
 
     @ViewBuilder private var banners: some View {
-        if !store.enabled {
-            Banner(symbol: "pause.circle.fill", color: .orange,
-                   text: "FL Shortcut est en pause : aucun raccourci n'est actif. ⌃⌥⌘F pour reprendre.") {
-                Button("Reprendre") { store.enabled = true }
+        VStack(spacing: 8) {
+            if !store.enabled {
+                Banner(symbol: "pause.circle.fill", tint: .orange,
+                       text: "FL Shortcut est en pause : FL Studio utilise ses raccourcis d'origine.") {
+                    Button("Reprendre") { store.enabled = true }.secondaryGlassButton()
+                }
+            }
+            if !status.accessibilityOK {
+                Banner(symbol: "hand.raised.fill", tint: .orange,
+                       text: "FL Shortcut doit pouvoir lire le clavier (Accessibilité) pour reconnaître tes raccourcis.") {
+                    Button("Autoriser") { status.openAccessibilitySettings() }.secondaryGlassButton()
+                }
+            }
+            if status.staleTCC {
+                Banner(symbol: "exclamationmark.triangle.fill", tint: .orange,
+                       text: "Permission périmée : retire FL Shortcut de la liste Accessibilité puis ajoute-le à nouveau.") {
+                    Button("Ouvrir les réglages") { status.openAccessibilitySettings() }.secondaryGlassButton()
+                }
+            }
+            if status.secureInput {
+                Banner(symbol: "lock.fill", tint: .orange,
+                       text: "Saisie sécurisée activée par une autre appli (ex. Terminal) : macOS ne transmet plus les touches.") {
+                    EmptyView()
+                }
+            }
+            if status.scriptState == .modified {
+                Banner(symbol: "exclamationmark.shield.fill", tint: .red,
+                       text: "Le script FL a été modifié depuis son installation. Réinstalle-le pour retrouver un lien sûr.") {
+                    Button("Réinstaller") { FLScriptInstaller.installWithAlert() }.secondaryGlassButton()
+                }
+            }
+            if let error = store.saveError {
+                Banner(symbol: "xmark.octagon.fill", tint: .red, text: error) { EmptyView() }
+            }
+            if let warning = store.loadWarning {
+                Banner(symbol: "info.circle.fill", tint: .blue, text: warning) {
+                    Button("OK") { store.loadWarning = nil }.secondaryGlassButton()
+                }
             }
         }
-        if !status.accessibilityOK {
-            Banner(symbol: "exclamationmark.triangle.fill", color: .orange,
-                   text: "FL Shortcut a besoin de l'autorisation Accessibilité pour lire le clavier.") {
-                Button("Ouvrir les réglages") { status.openAccessibilitySettings() }
-            }
+        .padding(.bottom, 6)
+    }
+
+    // MARK: Liste par rubriques
+
+    private struct RowGroup: Identifiable {
+        let id: String
+        let rows: [Remap]
+    }
+
+    private var groups: [RowGroup] {
+        let q = query.trimmingCharacters(in: .whitespaces)
+        let visible = store.remaps.filter { r in
+            guard !q.isEmpty else { return true }
+            let hay = [r.title, r.subtitle, r.trigger?.display ?? ""].joined(separator: " ")
+            return hay.localizedCaseInsensitiveContains(q)
         }
-        if status.secureInput {
-            Banner(symbol: "lock.fill", color: .orange,
-                   text: "Saisie sécurisée activée par une autre appli (ex. Terminal) : macOS ne transmet plus les touches.") {
-                EmptyView()
-            }
-        }
-        Banner(symbol: linkSymbol, color: linkColor, text: linkText) {
-            Button("Tester") { link.testLink() }
-        }
-        if let error = store.saveError {
-            Banner(symbol: "xmark.octagon.fill", color: .red, text: error) { EmptyView() }
-        }
-        if let warning = store.loadWarning {
-            Banner(symbol: "info.circle.fill", color: .blue, text: warning) {
-                Button("OK") { store.loadWarning = nil }
-            }
+        let order = FLActionInfo.Category.allCases.map(\.rawValue) + ["Touches de FL", "À compléter"]
+        return order.compactMap { name in
+            let rows = visible.filter { $0.groupName == name }
+            return rows.isEmpty ? nil : RowGroup(id: name, rows: rows)
         }
     }
 
-    private var linkSymbol: String {
-        switch link.status {
-        case .linked: return "checkmark.circle.fill"
-        case .inactive: return "exclamationmark.circle.fill"
-        case .flClosed: return "moon.zzz.fill"
-        }
-    }
-
-    private var linkColor: Color {
-        switch link.status {
-        case .linked: return .green
-        case .inactive: return .orange
-        case .flClosed: return .secondary
-        }
-    }
-
-    private var linkText: String {
-        let version = fl.version.map { " (FL \($0))" } ?? ""
-        switch link.status {
-        case .linked:
-            let api = link.snapshot.hello.map { " · API \($0.apiVersion)" } ?? ""
-            return "Relié à FL Studio\(version)\(api)."
-        case .inactive:
-            if !link.snapshot.hasKey { return "Lien inactif\(version) : installe le script depuis le menu, puis redémarre FL." }
-            if let p = link.snapshot.incompatibleProtocol {
-                return "Lien inactif\(version) : script FL incompatible (protocole \(p)). Réinstalle-le."
-            }
-            return "Lien inactif\(version) : vérifie dans FL › MIDI Settings l'entrée ET la sortie « FL Shortcut » "
-                + "(même numéro de port). Les « Actions dans FL » laissent passer la touche en attendant."
-        case .flClosed:
-            return "FL fermé\(version)."
-        }
-    }
-
-    private var footer: some View {
-        HStack {
-            Button { store.add() } label: { Label("Ajouter un raccourci", systemImage: "plus") }
-            Menu("Profil") {
-                ForEach(ProfilePreset.allCases) { preset in
-                    Button(preset.label) {
-                        if Dialogs.confirm("Charger le profil « \(preset.label) » ?",
-                                           preset.summary + "\n\nTes raccourcis actuels seront remplacés (annulable).") {
-                            store.apply(preset: preset)
+    private var list: some View {
+        ScrollView {
+            LazyVStack(alignment: .leading, spacing: 18) {
+                if groups.isEmpty {
+                    VStack(spacing: 6) {
+                        Text(store.remaps.isEmpty ? "Aucun raccourci" : "Aucun raccourci trouvé")
+                            .font(.system(size: 15, weight: .semibold))
+                        Text(store.remaps.isEmpty ? "Clique sur + pour créer ton premier raccourci." : "Essaie un autre mot.")
+                            .font(.callout).foregroundStyle(.secondary)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.top, 60)
+                }
+                ForEach(groups) { group in
+                    VStack(alignment: .leading, spacing: 7) {
+                        Text(group.id)
+                            .font(.system(size: 12, weight: .semibold))
+                            .foregroundStyle(.secondary)
+                            .padding(.leading, 6)
+                            .accessibilityAddTraits(.isHeader)
+                        VStack(spacing: 0) {
+                            ForEach(Array(group.rows.enumerated()), id: \.element.id) { index, remap in
+                                if index > 0 { Divider().padding(.leading, 16) }
+                                ShortcutRow(remap: remap, issues: store.issues(for: remap.id)) {
+                                    editingIsNew = false
+                                    editing = remap
+                                } onToggle: {
+                                    var copy = remap
+                                    copy.enabled.toggle()
+                                    store.upsert(copy)
+                                } onDelete: {
+                                    delete(remap)
+                                }
+                            }
                         }
+                        .glassCard(cornerRadius: 16)
                     }
                 }
-                if store.undoSnapshot != nil {
-                    Divider()
-                    Button("Annuler le dernier remplacement") { store.undoReplace() }
-                }
             }
-            .fixedSize()
-            Button("Importer…") { importProfile() }
-            Button("Exporter…") { exportProfile() }
-            Spacer()
-            Text("Actifs seulement quand FL Studio reçoit le clavier · ⌃⌥⌘F pour mettre en pause")
-                .font(.caption)
-                .foregroundStyle(.secondary)
+            .padding(.horizontal, 32)
+            .padding(.top, 4)
+            .padding(.bottom, 80)
         }
     }
+
+    // MARK: Actions
+
+    private func delete(_ remap: Remap) {
+        store.delete(remap.id)
+        show(ToastMessage(text: "Raccourci supprimé", undo: { store.upsert(remap) }))
+    }
+
+    private func show(_ message: ToastMessage) {
+        toast = message
+        let id = message.id
+        DispatchQueue.main.asyncAfter(deadline: .now() + 3.5) {
+            if toast?.id == id { toast = nil }
+        }
+    }
+
+    private func show(_ text: String) { show(ToastMessage(text: text, undo: nil)) }
 
     private func importProfile() {
         let panel = NSOpenPanel()
@@ -149,19 +261,15 @@ struct EditorView: View {
         panel.allowsMultipleSelection = false
         guard panel.runModal() == .OK, let url = panel.url else { return }
         do {
-            guard let data = try SecureFile.read(url.resolvingSymlinksInPath(), maxBytes: ProfileImporter.maxBytes) else { return }
-            let preview = try store.prepareImport(data)
-            var lines = Array(preview.summary.prefix(25))
-            if preview.summary.count > 25 { lines.append("… et \(preview.summary.count - 25) autre(s)") }
-            if !preview.rejected.isEmpty {
-                lines.append("")
-                lines.append("Refusé :")
-                lines += preview.rejected.prefix(15)
-            }
-            if Dialogs.confirm("Importer \(preview.remaps.count) raccourci(s) ?",
-                               lines.joined(separator: "\n") + "\n\nTes raccourcis actuels seront remplacés (annulable).") {
-                store.applyImport(preview)
-            }
+            let size = (try? FileManager.default.attributesOfItem(atPath: url.path)[.size] as? Int) ?? 0
+            guard size <= ProfileImporter.maxBytes else { throw ProfileImporter.Failure.tooLarge }
+            let preview = try store.prepareImport(try Data(contentsOf: url))
+            var text = preview.summary.joined(separator: "\n")
+            if !preview.rejected.isEmpty { text += "\n\nRefusé(s) par sécurité :\n• " + preview.rejected.joined(separator: "\n• ") }
+            text += "\n\nTes raccourcis actuels seront remplacés (annulable)."
+            guard Dialogs.confirm("Importer ce profil ?", text) else { return }
+            store.applyImport(preview)
+            show(ToastMessage(text: "Profil importé", undo: { store.undoReplace() }))
         } catch {
             Dialogs.inform("Import impossible", error.localizedDescription)
         }
@@ -170,125 +278,366 @@ struct EditorView: View {
     private func exportProfile() {
         let panel = NSSavePanel()
         panel.allowedContentTypes = [.json]
-        panel.nameFieldStringValue = "Profil FL Shortcut.json"
+        panel.nameFieldStringValue = "FL Shortcut – profil.json"
         guard panel.runModal() == .OK, let url = panel.url else { return }
         do {
             try store.exportData().write(to: url, options: .atomic)
+            show("Profil exporté")
         } catch {
             Dialogs.inform("Export impossible", error.localizedDescription)
         }
     }
 }
 
-struct Banner<Accessory: View>: View {
-    let symbol: String
-    let color: Color
-    let text: String
-    @ViewBuilder var accessory: () -> Accessory
+// MARK: - Statut du lien (une ligne sous le titre)
+
+private struct StatusLine: View {
+    @ObservedObject var store: Store
+    @ObservedObject var status: AppStatus
+    @ObservedObject var link: MIDILink
+    @ObservedObject var fl: FLMonitor
 
     var body: some View {
-        HStack {
-            Image(systemName: symbol).foregroundStyle(color)
-            Text(text).fixedSize(horizontal: false, vertical: true)
-            Spacer()
-            accessory()
+        HStack(spacing: 7) {
+            Circle().fill(color).frame(width: 7, height: 7).shadow(color: color.opacity(0.7), radius: 3)
+            Text(text).font(.system(size: 13)).foregroundStyle(.secondary)
+            if let action {
+                Button(action.label, action: action.run)
+                    .buttonStyle(.link)
+                    .font(.system(size: 13, weight: .semibold))
+            }
         }
-        .padding(10)
-        .background(color.opacity(0.12))
         .accessibilityElement(children: .combine)
+    }
+
+    private var color: Color {
+        if !store.enabled { return .gray }
+        switch link.status {
+        case .linked: return .green
+        case .inactive: return .orange
+        case .flClosed: return .gray
+        }
+    }
+
+    private var text: String {
+        if !store.enabled { return "En pause : FL Studio utilise ses raccourcis d'origine" }
+        let version = fl.version.map { " \($0)" } ?? ""
+        switch link.status {
+        case .linked: return "Relié à FL Studio\(version) · actif quand FL est au premier plan"
+        case .flClosed: return "FL Studio n'est pas ouvert · tes raccourcis marcheront dès que tu l'ouvres"
+        case .inactive:
+            if !link.snapshot.hasKey { return "Lien avec FL Studio pas encore installé" }
+            if link.snapshot.incompatibleProtocol != nil { return "Script FL d'une autre version" }
+            return "Lien inactif : dans FL, Options › MIDI Settings, active l'entrée et la sortie « FL Shortcut »"
+        }
+    }
+
+    private var action: (label: String, run: () -> Void)? {
+        guard store.enabled, link.status == .inactive else { return nil }
+        if !link.snapshot.hasKey || link.snapshot.incompatibleProtocol != nil {
+            return ("Installer", { FLScriptInstaller.installWithAlert() })
+        }
+        return ("Tester", { link.testLink() })
     }
 }
 
-struct RemapRow: View {
-    @Binding var remap: Remap
-    var issues: [ShortcutIssue]
-    var onDelete: () -> Void
-    @EnvironmentObject var status: AppStatus
+// MARK: - Une ligne
+
+private struct ShortcutRow: View {
+    let remap: Remap
+    let issues: [ShortcutIssue]
+    let onOpen: () -> Void
+    let onToggle: () -> Void
+    let onDelete: () -> Void
+    @State private var hovering = false
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 2) {
-            HStack(spacing: 10) {
-                Toggle("", isOn: $remap.enabled)
-                    .labelsHidden()
-                    .accessibilityLabel("Activer ce raccourci")
-                ShortcutField(id: "\(remap.id)-trigger", role: .trigger, combo: $remap.trigger)
-                    .frame(width: 140)
-                Picker("", selection: $remap.context) {
-                    ForEach(ShortcutContext.allCases) { Text($0.label).tag($0) }
+        Button(action: onOpen) {
+            HStack(spacing: 14) {
+                KeyCaps(combo: remap.trigger, placeholder: "Aucun")
+                    .frame(minWidth: 118, alignment: .leading)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(remap.title).font(.system(size: 14, weight: .medium))
+                    Text(remap.subtitle).font(.system(size: 12)).foregroundStyle(.secondary).lineLimit(1)
                 }
-                .labelsHidden()
-                .frame(width: 120)
-                .accessibilityLabel("Fenêtre FL")
-                Picker("", selection: kindBinding) {
-                    Text("Action dans FL").tag(Remap.Kind.flAction)
-                    Text("Touche de FL").tag(Remap.Kind.keystroke)
+                Spacer(minLength: 8)
+                if remap.context != .everywhere {
+                    Text(remap.context.label)
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundStyle(.secondary)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 3)
+                        .glassCapsule()
                 }
-                .labelsHidden()
-                .frame(width: 150)
-                .accessibilityLabel("Type de raccourci")
-
-                switch remap.kind {
-                case .flAction:
-                    actionMenu.frame(maxWidth: 280)
-                case .keystroke:
-                    ShortcutField(id: "\(remap.id)-target", role: .target, combo: $remap.target)
-                        .frame(width: 140)
+                if !issues.isEmpty {
+                    Image(systemName: issues.contains(where: \.isBlocking) ? "xmark.octagon.fill" : "exclamationmark.triangle.fill")
+                        .foregroundStyle(issues.contains(where: \.isBlocking) ? Color.red : Color.orange)
+                        .help(issues.map(\.message).joined(separator: "\n"))
+                        .accessibilityLabel("Attention : " + issues.map(\.message).joined(separator: " "))
                 }
-
-                Spacer()
-                Button(action: onDelete) { Image(systemName: "trash") }
-                    .buttonStyle(.borderless)
-                    .help("Supprimer")
-                    .accessibilityLabel("Supprimer ce raccourci")
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(.tertiary)
             }
-            ForEach(issues.prefix(3), id: \.self) { issue in
-                Label(issue.message, systemImage: issue.isBlocking ? "xmark.octagon.fill" : "exclamationmark.triangle.fill")
-                    .font(.caption)
-                    .foregroundStyle(issue.isBlocking ? Color.red : Color.orange)
-                    .padding(.leading, 40)
+            .padding(.horizontal, 16)
+            .frame(minHeight: 56)
+            .contentShape(Rectangle())
+            .background(hovering ? Color.primary.opacity(0.05) : .clear)
+        }
+        .buttonStyle(.plain)
+        .opacity(remap.enabled ? 1 : 0.5)
+        .onHover { hovering = $0 }
+        .contextMenu {
+            Button(remap.enabled ? "Désactiver" : "Activer", action: onToggle)
+            Button("Supprimer", role: .destructive, action: onDelete)
+        }
+        .accessibilityLabel("\(remap.trigger?.spoken ?? "Aucun raccourci") : \(remap.title)")
+        .accessibilityHint("Ouvre la fiche du raccourci")
+    }
+}
+
+// MARK: - Fiche d'édition
+
+struct EditSheet: View {
+    @EnvironmentObject var store: Store
+    @EnvironmentObject var status: AppStatus
+    @EnvironmentObject var link: MIDILink
+    @Environment(\.dismiss) private var dismiss
+    @ObservedObject private var recorder = Recorder.shared
+
+    let isNew: Bool
+    let onDone: (ToastMessage) -> Void
+    @State private var draft: Remap
+    @State private var category: FLActionInfo.Category
+    @State private var query = ""
+
+    init(original: Remap, isNew: Bool, onDone: @escaping (ToastMessage) -> Void) {
+        self.isNew = isNew
+        self.onDone = onDone
+        _draft = State(initialValue: original)
+        let cat = original.actionID.flatMap(FLActions.info)?.category ?? .composition
+        _category = State(initialValue: cat)
+    }
+
+    private var issues: [ShortcutIssue] {
+        guard draft.trigger != nil || draft.target != nil else { return [] }
+        return store.draftIssues(draft).filter {
+            if case .noTrigger = $0 { return false }
+            if case .noTarget = $0 { return false }
+            return true
+        }
+    }
+
+    private var canSave: Bool {
+        guard recorder.activeID == nil, draft.trigger != nil else { return false }
+        switch draft.kind {
+        case .flAction: guard draft.actionID != nil else { return false }
+        case .keystroke: guard draft.target != nil else { return false }
+        }
+        return !store.draftIssues(draft).contains(where: \.isBlocking)
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text(isNew ? "Nouveau raccourci" : "Modifier le raccourci")
+                .font(.system(size: 17, weight: .semibold))
+                .frame(maxWidth: .infinity)
+
+            VStack(alignment: .leading, spacing: 7) {
+                Text("Ton raccourci").font(.system(size: 12, weight: .semibold)).foregroundStyle(.secondary)
+                CaptureField(id: "\(draft.id)-trigger", role: .trigger, combo: $draft.trigger)
+                if !issues.isEmpty && recorder.activeID == nil {
+                    IssuesView(issues: issues)
+                }
+            }
+
+            Picker("Ce que fait le raccourci", selection: kindBinding) {
+                Text("Action dans FL").tag(Remap.Kind.flAction)
+                Text("Touche de FL").tag(Remap.Kind.keystroke)
+            }
+            .pickerStyle(.segmented)
+            .labelsHidden()
+
+            switch draft.kind {
+            case .flAction: actionPicker
+            case .keystroke: keystrokePicker
+            }
+
+            HStack(spacing: 8) {
+                if !isNew {
+                    Button("Supprimer", role: .destructive) {
+                        let removed = draft
+                        store.delete(draft.id)
+                        onDone(ToastMessage(text: "Raccourci supprimé", undo: { store.upsert(removed) }))
+                        dismiss()
+                    }
+                    .buttonStyle(.borderless)
+                    .foregroundStyle(.red)
+                }
+                Spacer()
+                Button("Annuler") { recorder.stop(); dismiss() }
+                    .keyboardShortcut(.cancelAction)
+                    .secondaryGlassButton()
+                Button("Valider") {
+                    recorder.stop()
+                    var final = draft
+                    final.enabled = true
+                    if final.kind == .flAction { final.target = nil } else { final.actionID = nil }
+                    store.upsert(final)
+                    onDone(ToastMessage(text: isNew ? "Raccourci ajouté" : "Raccourci modifié", undo: nil))
+                    dismiss()
+                }
+                .keyboardShortcut(.defaultAction)
+                .primaryGlassButton()
+                .disabled(!canSave)
             }
         }
-        .padding(.vertical, 3)
-        .opacity(remap.enabled ? 1 : 0.5)
+        .padding(24)
+        .frame(width: 520)
+        .onDisappear { recorder.stop() }
     }
 
     private var kindBinding: Binding<Remap.Kind> {
-        Binding(get: { remap.kind }, set: { kind in
-            remap.kind = kind
-            if kind == .flAction && remap.actionID == nil && remap.unknownAction == nil { remap.actionID = 1 }
-        })
+        Binding(get: { draft.kind }, set: { draft.kind = $0 })
     }
 
-    private var actionMenu: some View {
-        Menu(currentActionLabel) {
-            ForEach(FLActionInfo.Category.allCases, id: \.self) { category in
-                Section(category.rawValue) {
-                    ForEach(FLActions.all.filter { $0.category == category }) { info in
-                        let availability = status.availability(info.id)
-                        Button(label(for: info, availability)) {
-                            remap.actionID = info.id
-                            remap.unknownAction = nil
-                        }
-                        .disabled(!availability.isUsable)
+    private var actionPicker: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 8) {
+                HStack(spacing: 6) {
+                    Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
+                    TextField("Rechercher une action", text: $query).textFieldStyle(.plain)
+                }
+                .padding(.horizontal, 12)
+                .frame(height: 32)
+                .glassCapsule()
+                Button {
+                    if let id = draft.actionID { link.test(action: id) }
+                } label: {
+                    Label("Tester", systemImage: "play.fill")
+                }
+                .secondaryGlassButton()
+                .disabled(draft.actionID == nil || link.status != .linked)
+                .help("Envoie l'action à FL Studio pour vérifier")
+            }
+
+            HStack(spacing: 6) {
+                ForEach(FLActionInfo.Category.allCases, id: \.self) { c in
+                    let selected = query.isEmpty && category == c
+                    Button(c.rawValue) { category = c; query = "" }
+                        .buttonStyle(.plain)
+                        .font(.system(size: 12, weight: .semibold))
+                        .padding(.horizontal, 12)
+                        .frame(height: 28)
+                        .foregroundStyle(selected ? Color.white : Color.primary)
+                        .background(Capsule().fill(selected ? Color.accentColor : Color.primary.opacity(0.06)))
+                        .accessibilityAddTraits(selected ? .isSelected : [])
+                }
+            }
+
+            ScrollView {
+                VStack(spacing: 0) {
+                    let list = actions
+                    ForEach(Array(list.enumerated()), id: \.element.id) { index, info in
+                        if index > 0 { Divider() }
+                        actionRow(info)
+                    }
+                    if list.isEmpty {
+                        Text("Aucune action trouvée").font(.caption).foregroundStyle(.secondary).padding(16)
                     }
                 }
             }
+            .frame(height: 190)
+            .glassCard(cornerRadius: 14)
+
+            HStack(spacing: 10) {
+                Text("Où ?").font(.system(size: 12, weight: .semibold)).foregroundStyle(.secondary)
+                Picker("Où ?", selection: $draft.context) {
+                    ForEach(ShortcutContext.allCases) { Text($0.label).tag($0) }
+                }
+                .pickerStyle(.segmented)
+                .labelsHidden()
+            }
         }
-        .accessibilityLabel("Action FL")
     }
 
-    private var currentActionLabel: String {
-        guard let id = remap.actionID, let info = FLActions.info(id) else {
-            return "Action inconnue (\(remap.unknownAction ?? "?"))"
+    private var actions: [FLActionInfo] {
+        let q = query.trimmingCharacters(in: .whitespaces)
+        return FLActions.all.filter { info in
+            q.isEmpty ? info.category == category
+                      : (info.label + " " + info.detail).localizedCaseInsensitiveContains(q)
         }
-        return info.label
     }
 
-    private func label(for info: FLActionInfo, _ availability: ActionAvailability) -> String {
-        if case .unavailable(let reason) = availability { return "\(info.label) — \(reason)" }
-        return info.label
+    private func actionRow(_ info: FLActionInfo) -> some View {
+        let availability = status.availability(info.id)
+        let selected = draft.actionID == info.id
+        return Button {
+            draft.actionID = info.id
+            draft.unknownAction = nil
+        } label: {
+            HStack(spacing: 10) {
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(info.label).font(.system(size: 13, weight: .semibold))
+                    if case .unavailable(let reason) = availability {
+                        Text(reason).font(.system(size: 11)).foregroundStyle(.secondary)
+                    } else {
+                        Text(info.detail).font(.system(size: 11)).foregroundStyle(.secondary)
+                    }
+                }
+                Spacer()
+                if selected {
+                    Image(systemName: "checkmark").font(.system(size: 13, weight: .bold)).foregroundStyle(Color.accentColor)
+                }
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 8)
+            .contentShape(Rectangle())
+            .background(selected ? Color.accentColor.opacity(0.12) : .clear)
+        }
+        .buttonStyle(.plain)
+        .disabled(!availability.isUsable)
+        .opacity(availability.isUsable ? 1 : 0.5)
+        .accessibilityAddTraits(selected ? .isSelected : [])
+    }
+
+    private var keystrokePicker: some View {
+        VStack(alignment: .leading, spacing: 7) {
+            Text("Pour déplacer un raccourci de FL Studio sur une touche plus pratique.")
+                .font(.system(size: 12)).foregroundStyle(.secondary)
+            CaptureField(id: "\(draft.id)-target", role: .target, combo: $draft.target)
+            if let t = draft.target, let name = store.conflicts.flConflict(t) {
+                Text("Dans FL Studio : \(name.replacingOccurrences(of: "FL : ", with: ""))")
+                    .font(.system(size: 12)).foregroundStyle(.secondary)
+            }
+        }
     }
 }
+
+private struct IssuesView: View {
+    let issues: [ShortcutIssue]
+
+    var body: some View {
+        let blocking = issues.contains(where: \.isBlocking)
+        HStack(alignment: .top, spacing: 8) {
+            Image(systemName: blocking ? "xmark.octagon.fill" : "exclamationmark.triangle.fill")
+                .foregroundStyle(blocking ? Color.red : Color.orange)
+            Text(issues.map(\.message).joined(separator: " "))
+                .font(.system(size: 12))
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 9)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(RoundedRectangle(cornerRadius: 12, style: .continuous)
+            .fill((blocking ? Color.red : Color.orange).opacity(0.14)))
+        .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous)
+            .strokeBorder((blocking ? Color.red : Color.orange).opacity(0.35)))
+        .transition(.opacity)
+    }
+}
+
+// MARK: - Champ d'enregistrement d'un raccourci
 
 /// Un seul enregistrement de raccourci à la fois (REL-19) ; le tap laisse tout passer pendant ce temps.
 final class Recorder: ObservableObject {
@@ -341,33 +690,66 @@ final class Recorder: ObservableObject {
     }
 }
 
-/// Bouton qui enregistre la prochaine combinaison. Échap annule, ⌫ seul efface.
-struct ShortcutField: View {
+/// Grand champ : clique, puis appuie sur tes touches. Échap annule, ⌫ seul efface.
+struct CaptureField: View {
     enum Role { case trigger, target }
 
     let id: String
     let role: Role
     @Binding var combo: KeyCombo?
     @ObservedObject private var recorder = Recorder.shared
+    @State private var pulse = false
 
     private var recording: Bool { recorder.activeID == id }
 
     var body: some View {
-        Button {
-            recording ? recorder.stop() : recorder.start(id, handler: accept)
-        } label: {
-            Text(recording ? "Appuie sur une touche…" : (combo?.display ?? "Cliquer pour définir"))
-                .frame(maxWidth: .infinity)
-                .foregroundStyle(recording ? Color.accentColor : (combo == nil ? Color.secondary : Color.primary))
+        VStack(alignment: .leading, spacing: 4) {
+            Button {
+                recording ? recorder.stop() : recorder.start(id, handler: accept)
+            } label: {
+                ZStack {
+                    if recording {
+                        Text("Appuie sur tes touches…").font(.system(size: 14)).foregroundStyle(Color.accentColor)
+                    } else if let combo {
+                        KeyCaps(combo: combo, large: true)
+                    } else {
+                        Text(role == .trigger ? "Clique ici, puis appuie sur tes touches" : "Clique ici, puis tape le raccourci de FL")
+                            .font(.system(size: 14)).foregroundStyle(.secondary)
+                    }
+                }
+                .frame(maxWidth: .infinity, minHeight: 72)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .glassCard(cornerRadius: 18)
+            .overlay(
+                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                    .strokeBorder(recording ? Color.accentColor : Color.clear, lineWidth: 1.5)
+                    .shadow(color: Color.accentColor.opacity(recording && pulse ? 0.5 : 0), radius: 8)
+            )
+            .onChange(of: recording) { isRecording in
+                if isRecording {
+                    withAnimation(.easeInOut(duration: 0.9).repeatForever(autoreverses: true)) { pulse = true }
+                } else {
+                    pulse = false
+                }
+            }
+            .accessibilityLabel(role == .trigger ? "Raccourci déclencheur" : "Touche envoyée à FL")
+            .accessibilityValue(recording ? "Enregistrement en cours" : (combo?.spoken ?? "aucun"))
+
+            if recording, let hint = recorder.hint {
+                Text(hint).font(.caption).foregroundStyle(.orange)
+            } else if recording {
+                Text("Échap pour annuler · ⌫ pour effacer").font(.caption).foregroundStyle(.secondary)
+            }
         }
-        .accessibilityLabel(role == .trigger ? "Raccourci déclencheur" : "Touche envoyée à FL")
         .onDisappear { if recording { recorder.stop() } }
     }
 
     private func accept(_ event: NSEvent) {
         let mods = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
         let candidate = KeyCombo(keyCode: event.keyCode, modifiers: mods)
-        if !candidate.hasModifiers && event.keyCode == 53 { return }           // Échap : annuler
+        if !candidate.hasModifiers && event.keyCode == 53 { return }            // Échap : annuler
         if !candidate.hasModifiers && event.keyCode == 51 { combo = nil; return } // ⌫ : effacer
         guard candidate.isValidKey else { return }
 
@@ -393,6 +775,60 @@ struct ShortcutField: View {
     }
 }
 
+// MARK: - Éléments communs
+
+struct ToastMessage: Identifiable, Equatable {
+    let id = UUID()
+    let text: String
+    let undo: (() -> Void)?
+
+    static func == (a: ToastMessage, b: ToastMessage) -> Bool { a.id == b.id }
+}
+
+private struct ToastView: View {
+    let message: ToastMessage
+    let onClose: () -> Void
+
+    var body: some View {
+        HStack(spacing: 12) {
+            if message.undo == nil {
+                Image(systemName: "checkmark.circle.fill").foregroundStyle(.green)
+            }
+            Text(message.text).font(.system(size: 13, weight: .medium))
+            if let undo = message.undo {
+                Button("Annuler") { undo(); onClose() }
+                    .secondaryGlassButton()
+                    .controlSize(.small)
+            }
+        }
+        .padding(.leading, 16)
+        .padding(.trailing, message.undo == nil ? 16 : 8)
+        .frame(height: 44)
+        .glassCapsule()
+        .shadow(color: .black.opacity(0.18), radius: 16, y: 8)
+        .accessibilityElement(children: .contain)
+    }
+}
+
+struct Banner<Accessory: View>: View {
+    let symbol: String
+    let tint: Color
+    let text: String
+    @ViewBuilder let accessory: () -> Accessory
+
+    var body: some View {
+        HStack(spacing: 10) {
+            Image(systemName: symbol).foregroundStyle(tint)
+            Text(text).font(.system(size: 13)).fixedSize(horizontal: false, vertical: true)
+            Spacer(minLength: 8)
+            accessory()
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 10)
+        .glassCard(cornerRadius: 14)
+    }
+}
+
 enum Dialogs {
     static func confirm(_ title: String, _ text: String) -> Bool {
         let a = NSAlert()
@@ -409,4 +845,73 @@ enum Dialogs {
         a.informativeText = text
         a.runModal()
     }
+}
+
+// MARK: - Aides de présentation
+
+extension Remap {
+    /// Copie modifiée (création d'un brouillon).
+    func with(_ change: (inout Remap) -> Void) -> Remap {
+        var copy = self
+        change(&copy)
+        return copy
+    }
+
+    var title: String {
+        switch kind {
+        case .keystroke: return target.map { "Envoie \($0.display)" } ?? "Touche de FL à choisir"
+        case .flAction:
+            if let id = actionID, let info = FLActions.info(id) { return info.label }
+            return unknownAction.map { "Action inconnue (\($0))" } ?? "Action à choisir"
+        }
+    }
+
+    var subtitle: String {
+        switch kind {
+        case .keystroke: return "Raccourci de FL Studio"
+        case .flAction:
+            guard let id = actionID, let info = FLActions.info(id) else { return "Mets FL Shortcut à jour pour l'utiliser" }
+            if case .unavailable(let reason) = AppStatus.shared.availability(id) { return reason }
+            return info.detail
+        }
+    }
+
+    var groupName: String {
+        if trigger == nil { return "À compléter" }
+        switch kind {
+        case .keystroke: return "Touches de FL"
+        case .flAction:
+            guard let id = actionID, let info = FLActions.info(id) else { return "À compléter" }
+            return info.category.rawValue
+        }
+    }
+}
+
+extension View {
+    /// Fond de fenêtre translucide (macOS 15+), le contenu en verre flotte dessus.
+    @ViewBuilder
+    func windowGlassBackground() -> some View {
+        #if compiler(>=6.0)
+        if #available(macOS 15.0, *) {
+            self.containerBackground(.thinMaterial, for: .window)
+        } else {
+            self.background(VisualEffectBackground())
+        }
+        #else
+        self.background(VisualEffectBackground())
+        #endif
+    }
+}
+
+/// Fond translucide pour macOS 13–14.
+struct VisualEffectBackground: NSViewRepresentable {
+    func makeNSView(context: Context) -> NSVisualEffectView {
+        let v = NSVisualEffectView()
+        v.material = .underWindowBackground
+        v.blendingMode = .behindWindow
+        v.state = .followsWindowActiveState
+        return v
+    }
+
+    func updateNSView(_ nsView: NSVisualEffectView, context: Context) {}
 }
