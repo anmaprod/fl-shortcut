@@ -29,6 +29,9 @@ final class LinkCore {
         var seq: UInt32
         var incompatibleProtocol: Int?
         var transportReady: Bool
+        /// Temps de réponse de FL (médiane des 15 dernières actions, en ms), mesuré de l'envoi de la trame
+        /// à l'accusé d'exécution (CC 119). Aucune frappe n'est mémorisée : seulement des durées.
+        var responseMs: Double? = nil
     }
 
     private struct State {
@@ -43,6 +46,8 @@ final class LinkCore {
         var lastPing: Date?
         var consecutiveRejects = 0
         var incompatible: Int?
+        var pendingSend: (id: Int, at: UInt64)?
+        var latencies: [Double] = []
 
         var lastAlive: Date? {
             switch (helloAt, lastBeat) {
@@ -104,7 +109,15 @@ final class LinkCore {
                         if s.consecutiveRejects >= 2 { needsResync = true; s.consecutiveRejects = 0 }
                     } else {
                         s.consecutiveRejects = 0
+                        if let p = s.pendingSend, p.id == id {
+                            let ms = Double(DispatchTime.now().uptimeNanoseconds &- p.at) / 1_000_000
+                            if ms >= 0, ms < 2000 {
+                                s.latencies.append(ms)
+                                if s.latencies.count > 15 { s.latencies.removeFirst(s.latencies.count - 15) }
+                            }
+                        }
                     }
+                    s.pendingSend = nil
                 }
             }
             return out
@@ -152,6 +165,7 @@ final class LinkCore {
                 return .unavailable
             }
             s.seq = next
+            s.pendingSend = (id: id, at: DispatchTime.now().uptimeNanoseconds)
             return transport.send(frame) ? .sent(seq: next) : .transportFailed
         }
         if exhausted { ping(minInterval: FLProtocol.resyncPingInterval) }
@@ -159,6 +173,12 @@ final class LinkCore {
     }
 
     // MARK: Lecture
+
+    static func median(_ values: [Double]) -> Double? {
+        guard !values.isEmpty else { return nil }
+        let v = values.sorted()
+        return v.count % 2 == 1 ? v[v.count / 2] : (v[v.count / 2 - 1] + v[v.count / 2]) / 2
+    }
 
     func routingView() -> LinkRoutingView {
         let now = clock()
@@ -173,7 +193,8 @@ final class LinkCore {
         let ready = transport.isReady
         return state.withLock { s in
             Snapshot(hello: s.hello, lastAlive: s.lastAlive, window: s.window, hasKey: s.signer != nil,
-                     seq: s.seq, incompatibleProtocol: s.incompatible, transportReady: ready)
+                     seq: s.seq, incompatibleProtocol: s.incompatible, transportReady: ready,
+                     responseMs: LinkCore.median(s.latencies).map { ($0 * 10).rounded() / 10 })
         }
     }
 }

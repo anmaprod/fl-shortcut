@@ -35,6 +35,7 @@ mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp "$BIN_DIR/$EXE" "$APP/Contents/MacOS/$EXE"
 cp Resources/Info.plist "$APP/Contents/Info.plist"
 cp Resources/device_FLShortcut.py "$APP/Contents/Resources/"
+cp Resources/AppIcon.icns "$APP/Contents/Resources/AppIcon.icns"
 chmod -R go-w "$APP"
 
 if [[ -n "${SIGN_IDENTITY:-}" ]]; then

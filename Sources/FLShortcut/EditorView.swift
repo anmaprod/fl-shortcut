@@ -18,12 +18,12 @@ struct EditorView: View {
     @EnvironmentObject var link: MIDILink
     @EnvironmentObject var fl: FLMonitor
 
-    @ViewState private var query = ""
-    @ViewState private var editing: Remap? = nil
-    @ViewState private var editingIsNew = false
-    @ViewState private var toast: ToastMessage? = nil
-    @ViewState private var editingRow: CatalogRow? = nil
-    @ViewState private var open: Set<String> = []
+    @State private var query = ""
+    @State private var editing: Remap? = nil
+    @State private var editingIsNew = false
+    @State private var toast: ToastMessage? = nil
+    @State private var editingRow: CatalogRow? = nil
+    @State private var open: Set<String> = []
 
     var body: some View {
         ZStack(alignment: .bottom) {
@@ -371,11 +371,19 @@ private struct StatusLine: View {
         }
     }
 
+    static func format(_ ms: Double) -> String {
+        ms < 10 ? String(format: "%.1f ms", ms).replacingOccurrences(of: ".", with: ",") : "\(Int(ms.rounded())) ms"
+    }
+
     private var text: String {
         if !store.enabled { return "En pause : FL Studio utilise ses raccourcis d'origine" }
         let version = fl.version.map { " \($0)" } ?? ""
         switch link.status {
-        case .linked: return "Relié à FL Studio\(version) · actif quand FL est au premier plan"
+        case .linked:
+            if let ms = link.snapshot.responseMs {
+                return "Relié à FL Studio\(version) · réponse en \(Self.format(ms))"
+            }
+            return "Relié à FL Studio\(version) · actif quand FL est au premier plan"
         case .flClosed: return "FL Studio n'est pas ouvert · tes raccourcis marcheront dès que tu l'ouvres"
         case .inactive:
             if !link.snapshot.hasKey { return "Lien avec FL Studio pas encore installé" }
@@ -401,7 +409,7 @@ private struct ShortcutRow: View {
     let onOpen: () -> Void
     let onToggle: () -> Void
     let onDelete: () -> Void
-    @ViewState private var hovering = false
+    @State private var hovering = false
 
     var body: some View {
         Button(action: onOpen) {
@@ -461,18 +469,18 @@ struct EditSheet: View {
 
     let isNew: Bool
     let onDone: (ToastMessage) -> Void
-    @ViewState private var draft: Remap
-    @ViewState private var category: FLActionInfo.Category
-    @ViewState private var query = ""
+    @State private var draft: Remap
+    @State private var category: FLActionInfo.Category
+    @State private var query = ""
     @Namespace private var chips
-    @ViewState private var testCount = 0
+    @State private var testCount = 0
 
     init(original: Remap, isNew: Bool, onDone: @escaping (ToastMessage) -> Void) {
         self.isNew = isNew
         self.onDone = onDone
-        _draft = ViewState(wrappedValue: original)
+        _draft = State(initialValue: original)
         let cat = original.actionID.flatMap(FLActions.info)?.category ?? .composition
-        _category = ViewState(wrappedValue: cat)
+        _category = State(initialValue: cat)
     }
 
     private var issues: [ShortcutIssue] {
@@ -869,7 +877,7 @@ struct ToastMessage: Identifiable, Equatable {
 private struct ToastView: View {
     let message: ToastMessage
     let onClose: () -> Void
-    @ViewState private var appeared = false
+    @State private var appeared = false
 
     var body: some View {
         HStack(spacing: 12) {
@@ -1031,12 +1039,7 @@ private struct SectionHeader: View {
     var body: some View {
         Button(action: toggle) {
             HStack(spacing: 14) {
-                Image(systemName: symbol)
-                    .font(.system(size: 17, weight: .semibold))
-                    .foregroundStyle(.white)
-                    .frame(width: 38, height: 38)
-                    .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(tint.gradient))
-                    .shadow(color: tint.opacity(0.35), radius: 6, y: 3)
+                GlassIcon(symbol: symbol, tint: tint, size: 40)
                 VStack(alignment: .leading, spacing: 2) {
                     Text(title).font(.system(size: 16, weight: .semibold))
                     Text(summary).font(.system(size: 12)).foregroundStyle(.secondary).lineLimit(1)
@@ -1144,7 +1147,7 @@ private struct CatalogRowView: View {
     let issues: [ShortcutIssue]
     let onEdit: () -> Void
     let onReset: () -> Void
-    @ViewState private var hovering = false
+    @State private var hovering = false
 
     private var subtitle: String {
         switch row.entry.kind {
@@ -1259,12 +1262,12 @@ struct CatalogEditSheet: View {
 
     let row: CatalogRow
     let onDone: (ToastMessage) -> Void
-    @ViewState private var combo: KeyCombo?
+    @State private var combo: KeyCombo?
 
     init(row: CatalogRow, onDone: @escaping (ToastMessage) -> Void) {
         self.row = row
         self.onDone = onDone
-        _combo = ViewState(wrappedValue: row.current)
+        _combo = State(initialValue: row.current)
     }
 
     private var nativeKey: KeyCombo? {
@@ -1294,11 +1297,7 @@ struct CatalogEditSheet: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             HStack(spacing: 12) {
-                Image(systemName: row.entry.section.symbol)
-                    .font(.system(size: 15, weight: .semibold))
-                    .foregroundStyle(.white)
-                    .frame(width: 32, height: 32)
-                    .background(RoundedRectangle(cornerRadius: 9, style: .continuous).fill(row.entry.section.tint.gradient))
+                GlassIcon(symbol: row.entry.section.symbol, tint: row.entry.section.tint, size: 34)
                 VStack(alignment: .leading, spacing: 2) {
                     Text(row.entry.title).font(.system(size: 17, weight: .semibold))
                     Text("\(row.entry.section.title) · \(row.entry.detail)")

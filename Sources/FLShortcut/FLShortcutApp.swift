@@ -390,7 +390,7 @@ private struct PanelItem: View {
     let title: String
     let shortcut: String?
     let action: () -> Void
-    @ViewState private var hovering = false
+    @State private var hovering = false
 
     var body: some View {
         Button(action: action) {

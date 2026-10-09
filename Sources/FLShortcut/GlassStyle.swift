@@ -58,7 +58,7 @@ private struct PulseModifier: ViewModifier {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let duration: Double
     let low: Double
-    @ViewState private var dimmed = false
+    @State private var dimmed = false
 
     func body(content: Content) -> some View {
         content
@@ -332,5 +332,59 @@ extension FLActionInfo {
         case "save": return "Sauvegarde le projet"
         default: return label
         }
+    }
+}
+
+
+/// Icône de section façon Liquid Glass : pastille arrondie teintée en dégradé, reflet en haut, liseré
+/// lumineux, symbole blanc en relief ; sur macOS 26, la pastille est en vrai verre teinté.
+struct GlassIcon: View {
+    let symbol: String
+    let tint: Color
+    var size: CGFloat = 38
+
+    private var shape: RoundedRectangle { RoundedRectangle(cornerRadius: size * 0.28, style: .continuous) }
+
+    var body: some View {
+        ZStack {
+            base
+            // Reflet : demi-ellipse claire en haut de la pastille.
+            Ellipse()
+                .fill(LinearGradient(colors: [.white.opacity(0.55), .white.opacity(0)], startPoint: .top, endPoint: .bottom))
+                .frame(width: size * 0.92, height: size * 0.56)
+                .offset(y: -size * 0.24)
+                .blendMode(.plusLighter)
+                .allowsHitTesting(false)
+            Image(systemName: symbol)
+                .font(.system(size: size * 0.44, weight: .semibold))
+                .symbolRenderingMode(.hierarchical)
+                .foregroundStyle(.white)
+                .shadow(color: .black.opacity(0.25), radius: size * 0.03, y: size * 0.03)
+        }
+        .frame(width: size, height: size)
+        .clipShape(shape)
+        .overlay(
+            shape.strokeBorder(
+                LinearGradient(colors: [.white.opacity(0.75), .white.opacity(0.08), .white.opacity(0.25)],
+                               startPoint: .top, endPoint: .bottom),
+                lineWidth: max(0.75, size * 0.025))
+        )
+        .shadow(color: tint.opacity(0.40), radius: size * 0.18, y: size * 0.09)
+        .accessibilityHidden(true)
+    }
+
+    @ViewBuilder private var base: some View {
+        let gradient = LinearGradient(colors: [tint.opacity(0.78), tint, tint.opacity(0.92)],
+                                      startPoint: .topLeading, endPoint: .bottomTrailing)
+        #if compiler(>=6.2)
+        if #available(macOS 26.0, *) {
+            shape.fill(gradient.opacity(0.85))
+                .glassEffect(Glass.regular.tint(tint.opacity(0.6)), in: shape)
+        } else {
+            shape.fill(gradient).overlay(shape.fill(Color.black.opacity(0.10)).mask(LinearGradient(colors: [.clear, .black], startPoint: .top, endPoint: .bottom)))
+        }
+        #else
+        shape.fill(gradient).overlay(shape.fill(Color.black.opacity(0.10)).mask(LinearGradient(colors: [.clear, .black], startPoint: .top, endPoint: .bottom)))
+        #endif
     }
 }

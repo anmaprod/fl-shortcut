@@ -50,10 +50,10 @@ struct OnboardingView: View {
     @EnvironmentObject var fl: FLMonitor
     let onFinish: () -> Void
 
-    @ViewState private var step = 0
-    @ViewState private var askedPermission = false
-    @ViewState private var installed = false
-    @ViewState private var appeared = false
+    @State private var step = 0
+    @State private var askedPermission = false
+    @State private var installed = false
+    @State private var appeared = false
 
     var body: some View {
         ZStack(alignment: .bottom) {
@@ -318,7 +318,22 @@ private struct MIDISettingsPreview: View {
 
 /// Icône de l'appli dessinée (deux touches et une flèche), en attendant l'icône finale.
 struct AppIcon: View {
+    /// Icône de l'app (Resources/AppIcon.icns) ; dessin de secours si l'app tourne hors de son bundle.
+    private static let bundleIcon: NSImage? = {
+        guard Bundle.main.url(forResource: "AppIcon", withExtension: "icns") != nil else { return nil }
+        return NSApp.applicationIconImage
+    }()
+
     var body: some View {
+        if let icon = Self.bundleIcon {
+            Image(nsImage: icon).resizable().interpolation(.high).aspectRatio(contentMode: .fit)
+                .accessibilityHidden(true)
+        } else {
+            drawn
+        }
+    }
+
+    private var drawn: some View {
         GeometryReader { geo in
             let s = geo.size.width / 96
             ZStack {
