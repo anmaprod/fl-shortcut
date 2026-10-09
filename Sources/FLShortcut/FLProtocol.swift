@@ -35,6 +35,8 @@ enum FLProtocol {
     static let aliveTimeout: TimeInterval = 6
     /// PING au lancement puis après 6 s sans battement ; le script ignore plus de 4 PING/s.
     static let pingInterval: TimeInterval = 6
+    /// Plafond des PING sans réponse (FL ouvert mais lien pas activé dans ses réglages MIDI).
+    static let maxPingInterval: TimeInterval = 60
     static let resyncPingInterval: TimeInterval = 2
 
     /// Les 3 octets de 7 bits de la séquence (poids fort d'abord).

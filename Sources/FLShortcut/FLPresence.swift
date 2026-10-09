@@ -85,6 +85,7 @@ final class FLMonitor: ObservableObject {
             $0.frontmostPID = newFront
         }
         if frontChanged { EventTap.shared.purge() }
+        EventTap.shared.setActive(newPIDs.contains(newFront))
         MIDILink.shared.setFLRunning(!newPIDs.isEmpty)
 
         let isRunning = !newPIDs.isEmpty

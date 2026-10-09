@@ -44,6 +44,8 @@ final class LinkCore {
         var window: FLWindow = .unknown
         var seq: UInt32 = 0
         var lastPing: Date?
+        /// Intervalle des PING sans réponse : 6 s, puis doublé jusqu'à 60 s tant que FL ne répond pas.
+        var pingBackoff: TimeInterval = FLProtocol.pingInterval
         var consecutiveRejects = 0
         var incompatible: Int?
         var pendingSend: (id: Int, at: UInt64)?
@@ -92,6 +94,7 @@ final class LinkCore {
                     if s.hello?.nonce != h.nonce { s.seq = 0 }
                     s.hello = h
                     s.helloAt = now
+                    s.pingBackoff = FLProtocol.pingInterval
                     s.window = .unknown        // le script renvoie la fenêtre juste après
                     s.consecutiveRejects = 0
                     s.incompatible = nil
@@ -101,6 +104,7 @@ final class LinkCore {
                     s.incompatible = p
                 case .heartbeat:
                     s.lastBeat = now
+                    s.pingBackoff = FLProtocol.pingInterval
                 case .window(let w):
                     s.window = w
                 case .ack(let id):
@@ -140,14 +144,21 @@ final class LinkCore {
     }
 
     /// À appeler toutes les secondes : PING après 6 s sans battement (ou sans HELLO) quand FL tourne.
+    /// Sans réponse, l'intervalle double (6, 12, 24, 48, 60 s) : FL Shortcut se fait oublier.
     func tick(flRunning: Bool) {
         guard flRunning else { return }
         let now = clock()
-        let stale: Bool = state.withLock { s in
-            guard let alive = s.lastAlive, s.hello != nil else { return true }
-            return now.timeIntervalSince(alive) >= FLProtocol.aliveTimeout
+        let (stale, interval): (Bool, TimeInterval) = state.withLock { s in
+            guard let alive = s.lastAlive, s.hello != nil else { return (true, s.pingBackoff) }
+            return (now.timeIntervalSince(alive) >= FLProtocol.aliveTimeout, s.pingBackoff)
         }
-        if stale { ping(minInterval: FLProtocol.pingInterval) }
+        guard stale, ping(minInterval: interval) else { return }
+        state.withLock { $0.pingBackoff = min($0.pingBackoff * 2, FLProtocol.maxPingInterval) }
+    }
+
+    /// Relance immédiate de la recherche de FL (lancement de FL, bouton Tester, nouvelle clé).
+    func resetPingBackoff() {
+        state.withLock { $0.pingBackoff = FLProtocol.pingInterval }
     }
 
     /// Envoie une trame authentifiée. Les frames sont émises sous le verrou : jamais deux trames mélangées.
@@ -378,6 +389,7 @@ final class MIDILink: ObservableObject {
         core.ping(minInterval: 0)
         timer?.invalidate()
         let t = Timer(timeInterval: 1, repeats: true) { [weak self] _ in self?.tick() }
+        t.tolerance = 0.3
         RunLoop.main.add(t, forMode: .common)
         timer = t
         refresh()
@@ -392,6 +404,7 @@ final class MIDILink: ObservableObject {
     func setFLRunning(_ running: Bool) {
         guard running != flRunning else { return }
         flRunning = running
+        core.resetPingBackoff()
         if running { core.ping(minInterval: 1) }
         refresh()
     }
@@ -399,12 +412,14 @@ final class MIDILink: ObservableObject {
     /// Clé changée (installation du script) : nouvelle signature, puis PING pour une nouvelle session.
     func reloadKey() {
         core.setKey(secrets.load())
+        core.resetPingBackoff()
         core.ping(minInterval: 0)
         refresh()
     }
 
     /// Bouton « Tester » : PING immédiat.
     func testLink() {
+        core.resetPingBackoff()
         core.ping(minInterval: 0.5)
     }
 

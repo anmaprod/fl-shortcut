@@ -104,6 +104,8 @@ final class AppStatus: ObservableObject {
     private var timer: Timer?
     private var cancellables = Set<AnyCancellable>()
     private var observers: [NSObjectProtocol] = []
+    private var ticks = 0
+    private var lastStartAttempt = Date.distantPast
 
     private init() {}
 
@@ -140,6 +142,7 @@ final class AppStatus: ObservableObject {
         refreshScriptState()
         supervise()
         let t = Timer(timeInterval: 2, repeats: true) { [weak self] _ in self?.supervise() }
+        t.tolerance = 0.5                            // laisse macOS regrouper les réveils
         RunLoop.main.add(t, forMode: .common)
         timer = t
     }
@@ -157,6 +160,7 @@ final class AppStatus: ObservableObject {
     func requestAccessibility() {
         let options = [kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: true] as CFDictionary
         _ = AXIsProcessTrustedWithOptions(options)
+        lastStartAttempt = .distantPast
         supervise()
     }
 
@@ -192,16 +196,24 @@ final class AppStatus: ObservableObject {
             running = tap.restart()
             stale = !running
         } else if !tap.isRunning {
-            running = tap.start()
-            stale = !running                        // permission cochée mais refusée : TCC périmé
-        } else if !tap.isEnabled {
+            // Permission cochée mais refusée (TCC périmé) : nouvel essai toutes les 10 s, pas toutes les 2 s.
+            if Date().timeIntervalSince(lastStartAttempt) >= 10 {
+                lastStartAttempt = Date()
+                running = tap.start()
+                stale = !running
+            } else {
+                stale = staleTCC
+            }
+        } else if !tap.isHealthy {
             running = tap.restart()
         } else {
             running = true
         }
         if running != tapRunning { tapRunning = running }
         if stale != staleTCC { staleTCC = stale }
-        refreshScriptState()
+        // Empreinte du script : toutes les 10 s suffisent (lecture disque évitée le reste du temps).
+        ticks &+= 1
+        if ticks % 5 == 1 { refreshScriptState() }
     }
 }
 

@@ -223,6 +223,28 @@ final class LinkCoreTests: XCTestCase {
         XCTAssertEqual(transport.pings, 3)
     }
 
+    func testUnansweredPingsBackOff() {
+        // FL ouvert mais lien pas activé : 6 s, 12 s, 24 s, 48 s, puis 60 s au plus entre deux PING.
+        var times: [Double] = []
+        var t = 0.0
+        while t < 400 {
+            clock.advance(1)
+            t += 1
+            let before = transport.pings
+            core.tick(flRunning: true)
+            if transport.pings > before { times.append(t) }
+        }
+        let gaps = zip(times.dropFirst(), times).map { $0 - $1 }
+        XCTAssertEqual(Array(gaps.prefix(4)), [12, 24, 48, 60])
+        XCTAssertTrue(gaps.allSatisfy { $0 <= 60 })
+        // Un HELLO remet l'intervalle à 6 s.
+        core.receive(Bytes.hello(nonce: nonce, caps: Bytes.allCaps))
+        let before = transport.pings
+        clock.advance(7)
+        core.tick(flRunning: true)
+        XCTAssertEqual(transport.pings, before + 1)
+    }
+
     func testTwoRejectionsTriggerResync() {
         core.receive(Bytes.hello(nonce: nonce, caps: Bytes.allCaps))
         core.receive(Bytes.cc(119, 0))

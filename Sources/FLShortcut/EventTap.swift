@@ -26,6 +26,9 @@ final class EventTap {
     private let handles = Locked<Handles?>(nil)
     private let reenableTimes = Locked<[Date]>([])
     private let restartFlag = Locked(false)
+    /// Le tap n'est actif que lorsque FL Studio est au premier plan. Le reste du temps il est coupé :
+    /// aucune frappe ne transite par FL Shortcut, ni dans FL, ni ailleurs.
+    private let wantsActive = Locked(false)
     /// Source privée : l'état des modificateurs postés ne se mélange pas au clavier physique (REL-13).
     private let postSource = CGEventSource(stateID: .privateState)
 
@@ -48,6 +51,23 @@ final class EventTap {
     var isEnabled: Bool {
         guard let h = handles.value else { return false }
         return CGEvent.tapIsEnabled(tap: h.tap)
+    }
+
+    /// Vrai si le tap est dans l'état voulu (actif quand FL est devant, coupé sinon).
+    var isHealthy: Bool {
+        guard let h = handles.value else { return false }
+        return !wantsActive.value || CGEvent.tapIsEnabled(tap: h.tap)
+    }
+
+    /// Active le tap quand FL passe au premier plan, le coupe dès qu'il le quitte (thread principal).
+    func setActive(_ active: Bool) {
+        let changed = wantsActive.withLock { w -> Bool in
+            defer { w = active }
+            return w != active
+        }
+        guard changed else { return }
+        if let h = handles.value { CGEvent.tapEnable(tap: h.tap, enable: active) }
+        purge()
     }
 
     /// Vrai (une fois) si le tap a été coupé trop souvent et doit être recréé.
@@ -114,7 +134,7 @@ final class EventTap {
         }
         let runLoop: CFRunLoop = CFRunLoopGetCurrent()
         CFRunLoopAddSource(runLoop, source, .commonModes)
-        CGEvent.tapEnable(tap: tap, enable: true)
+        CGEvent.tapEnable(tap: tap, enable: wantsActive.value)
         handles.withLock { $0 = Handles(tap: tap, source: source, runLoop: runLoop) }
         purge()
         return true
@@ -178,6 +198,7 @@ final class EventTap {
 
     /// Au plus 5 réactivations par minute ; au-delà, le superviseur recrée le tap et prévient l'utilisateur.
     private func reenableAfterDisable() {
+        guard wantsActive.value else { return }   // coupé volontairement (FL n'est pas devant)
         let now = Date()
         let allowed = reenableTimes.withLock { times -> Bool in
             times.removeAll { now.timeIntervalSince($0) > 60 }
