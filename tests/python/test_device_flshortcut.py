@@ -852,6 +852,31 @@ class TestSourceCompat(unittest.TestCase):
         self.assertEqual(table, dict((int(i), k) for i, k in rows))
         self.assertTrue(all(1 <= i <= 42 for i in table))
 
+    def test_action_tables_match_mac_and_windows(self):
+        """Les trois listes d'actions (script, Mac, Windows) ont les mêmes ids, clés et versions minimales."""
+        mods, _ = M.build_fl(api=45)
+        dev = M.load_script(mods)
+        script = dict((e[0], (e[1], e[3])) for e in dev.ACTIONS)
+
+        def read(*parts):
+            with open(os.path.join(M.ROOT, *parts), encoding="utf-8") as fh:
+                return fh.read()
+
+        swift = read("Sources", "FLShortcut", "Actions.swift")
+        mac = dict((int(i), (k, v)) for i, k, v in re.findall(
+            r'FLActionInfo\(id: (\d+), key: "(\w+)", label: "[^"]*", category: \.\w+, minFL: "([\d.]+)"\)', swift))
+        cs = read("windows", "FLShortcut.Core", "Actions.cs")
+        win = dict((int(i), (k, v)) for i, k, v in re.findall(
+            r'new\((\d+), "(\w+)", "[^"]*", ActionCategory\.\w+, "([\d.]+)"\)', cs))
+        self.assertEqual(mac, script)
+        self.assertEqual(win, script)
+
+        # Descriptions affichées : identiques sur Mac et Windows, une par action.
+        mac_detail = dict(re.findall(r'case "(\w+)": return "([^"]*)"', read("Sources", "FLShortcut", "GlassStyle.swift")))
+        win_detail = dict(re.findall(r'\["(\w+)"\] = "([^"]*)"', cs))
+        self.assertEqual(mac_detail, win_detail)
+        self.assertEqual(set(mac_detail), set(k for k, _ in script.values()))
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
