@@ -1,0 +1,259 @@
+// Audit : REL-01 (chargement tolérant, copie de secours du fichier illisible / v1 migré, défauts figés au
+//         premier lancement, message non bloquant), REL-02 (écriture atomique 0600, erreur publiée),
+//         REL-18 (changement de disposition : libellés, ⌃⌥⌘F, liste noire et conflits recalculés),
+//         REL-20 (index et avertissements issus de la même analyse), REL-21 (écritures regroupées sur une file
+//         utilitaire, vidées à la fermeture ; restauration annulable), SEC-05 (profil 0600, propriétaire vérifié,
+//         import validé puis confirmé), REL-03 (configuration poussée en bloc vers le tap).
+import Foundation
+
+/// Stockage du profil, injectable pour les tests.
+protocol ProfileStorage: AnyObject {
+    func read() throws -> Data?
+    func write(_ data: Data) throws
+    /// Copie de secours ; renvoie le nom du fichier créé.
+    func backup(_ data: Data, label: String) throws -> String
+}
+
+final class FileProfileStorage: ProfileStorage {
+    let url: URL
+
+    init(url: URL = AppPaths.profileURL) { self.url = url }
+
+    func read() throws -> Data? {
+        if let perms = SecureFile.permissions(at: url.path), perms.owner != getuid() {
+            throw SecureFile.Failure.notOwned(url.path)
+        }
+        return try SecureFile.read(url, maxBytes: 4 << 20)
+    }
+
+    func write(_ data: Data) throws {
+        try SecureFile.ensureDirectory(url.deletingLastPathComponent())
+        try SecureFile.writeAtomically(data, to: url, mode: 0o600)
+    }
+
+    func backup(_ data: Data, label: String) throws -> String {
+        let name = "profile.\(label)-\(Int(Date().timeIntervalSince1970)).json"
+        try SecureFile.ensureDirectory(url.deletingLastPathComponent())
+        try SecureFile.writeAtomically(data, to: url.deletingLastPathComponent().appendingPathComponent(name), mode: 0o600)
+        return name
+    }
+}
+
+final class Store: ObservableObject {
+    static let shared = Store()
+
+    @Published var remaps: [Remap] {
+        didSet { recompute(); scheduleSave() }
+    }
+    @Published var enabled: Bool {
+        didSet {
+            defaults.set(enabled, forKey: "enabled")
+            pushConfig()
+        }
+    }
+    /// Enregistrement d'un raccourci dans l'éditeur : le tap laisse tout passer (REL-19).
+    @Published var recording = false {
+        didSet { pushConfig() }
+    }
+    @Published private(set) var issues: [UUID: [ShortcutIssue]] = [:]
+    @Published var loadWarning: String? = nil
+    @Published private(set) var saveError: String? = nil
+    @Published private(set) var toggleCombo = KeyCombo(keyCode: 3, command: true, option: true, control: true)
+    /// Dernier état avant un remplacement (profil, import) : permet d'annuler.
+    @Published private(set) var undoSnapshot: [Remap]? = nil
+
+    private(set) var index = ShortcutIndex()
+    private(set) var forbidden = ForbiddenTargets.physical
+    private(set) var conflicts = ConflictTable.empty
+    /// Disponibilité des actions (masque du script ou version de FL), fournie par AppStatus.
+    var availability: (Int) -> ActionAvailability = { _ in .unverified } {
+        didSet { recompute() }
+    }
+
+    private let storage: ProfileStorage
+    private let layout: KeyboardLayout
+    private let defaults: UserDefaults
+    private let systemHotKeys: () -> [KeyCombo: String]
+    private let pushToTap: Bool
+    private let saveDelay: TimeInterval
+    private let saveQueue = DispatchQueue(label: "FLShortcut.profile-save", qos: .utility)
+    private var pendingSave: DispatchWorkItem?
+    private var layoutObserver: NSObjectProtocol?
+
+    init(storage: ProfileStorage = FileProfileStorage(),
+         layout: KeyboardLayout = SystemKeyboardLayout(),
+         defaults: UserDefaults = .standard,
+         systemHotKeys: @escaping () -> [KeyCombo: String] = SystemHotKeys.read,
+         pushToTap: Bool = true,
+         saveDelay: TimeInterval = 0.3) {
+        self.storage = storage
+        self.layout = layout
+        self.defaults = defaults
+        self.systemHotKeys = systemHotKeys
+        self.pushToTap = pushToTap
+        self.saveDelay = saveDelay
+        enabled = defaults.object(forKey: "enabled") as? Bool ?? true
+
+        let loaded = Store.load(storage: storage, layout: layout)
+        remaps = loaded.remaps
+        loadWarning = loaded.warning
+        refreshLayoutDependentState()
+        if loaded.needsSave { saveNow() }
+
+        if pushToTap {
+            layoutObserver = DistributedNotificationCenter.default().addObserver(
+                forName: Notification.Name("com.apple.Carbon.TISNotifySelectedKeyboardInputSourceChanged"),
+                object: nil, queue: .main) { [weak self] _ in
+                    self?.refreshLayoutDependentState()
+                    self?.objectWillChange.send()
+                }
+        }
+    }
+
+    deinit {
+        if let layoutObserver { DistributedNotificationCenter.default().removeObserver(layoutObserver) }
+    }
+
+    // MARK: Chargement
+
+    struct LoadResult {
+        var remaps: [Remap]
+        var warning: String?
+        var needsSave: Bool
+    }
+
+    static func load(storage: ProfileStorage, layout: KeyboardLayout) -> LoadResult {
+        let data: Data?
+        do {
+            data = try storage.read()
+        } catch {
+            return LoadResult(remaps: ProfilePreset.recommended.remaps(layout: layout),
+                              warning: "Profil inaccessible (\(error.localizedDescription)). Profil recommandé chargé.",
+                              needsSave: false)
+        }
+        guard let data else {
+            // Premier lancement : on fige tout de suite les défauts de la disposition du moment.
+            return LoadResult(remaps: ProfilePreset.recommended.remaps(layout: layout), warning: nil, needsSave: true)
+        }
+        do {
+            let decoded = try ProfileCodec.decode(data)
+            var notes: [String] = []
+            var needsSave = false
+            if decoded.dropped > 0 || decoded.sourceVersion < ProfileCodec.currentVersion {
+                let label = decoded.sourceVersion < ProfileCodec.currentVersion ? "v1" : "partiel"
+                if let name = try? storage.backup(data, label: label) {
+                    notes.append("Copie de l'ancien profil : \(name).")
+                    needsSave = true                     // migration vers v2, original conservé
+                }
+            }
+            if decoded.dropped > 0 { notes.append("\(decoded.dropped) raccourci(s) illisible(s) ignoré(s).") }
+            let unknown = decoded.remaps.filter { $0.kind == .flAction && $0.actionID == nil }.count
+            if unknown > 0 { notes.append("\(unknown) raccourci(s) avec une action inconnue, désactivé(s).") }
+            return LoadResult(remaps: decoded.remaps, warning: notes.isEmpty ? nil : notes.joined(separator: " "),
+                              needsSave: needsSave)
+        } catch {
+            let name = try? storage.backup(data, label: "illisible")
+            let where_ = name.map { " Une copie a été gardée (\($0))." } ?? ""
+            return LoadResult(remaps: ProfilePreset.recommended.remaps(layout: layout),
+                              warning: "Profil illisible : profil recommandé chargé.\(where_)", needsSave: false)
+        }
+    }
+
+    // MARK: Analyse et configuration du tap
+
+    func issues(for id: UUID) -> [ShortcutIssue] { issues[id] ?? [] }
+
+    func recompute() {
+        let ctx = AnalysisContext(toggle: toggleCombo, forbidden: forbidden, conflicts: conflicts,
+                                  availability: availability)
+        let found = ShortcutAnalyzer.analyze(remaps, context: ctx)
+        if found != issues { issues = found }
+        index = ShortcutIndex(remaps: remaps, blocked: ShortcutAnalyzer.blocked(found))
+        pushConfig()
+    }
+
+    private func refreshLayoutDependentState() {
+        toggleCombo = KeyCombo(keyCode: KeyNames.keyCode(for: "f", layout: layout) ?? 3,
+                               command: true, option: true, control: true)
+        forbidden = ForbiddenTargets.make(layout: layout)
+        conflicts = ConflictTable.make(layout: layout, systemHotKeys: systemHotKeys())
+        recompute()
+    }
+
+    private func pushConfig() {
+        guard pushToTap else { return }
+        let snapshot = (enabled, index, toggleCombo, forbidden, recording)
+        EventTap.shared.updateConfig {
+            $0.enabled = snapshot.0
+            $0.index = snapshot.1
+            $0.toggle = snapshot.2
+            $0.forbidden = snapshot.3
+            $0.recording = snapshot.4
+        }
+    }
+
+    // MARK: Édition
+
+    func add() { remaps.append(Remap()) }
+
+    func delete(_ id: UUID) { remaps.removeAll { $0.id == id } }
+
+    func apply(preset: ProfilePreset) {
+        undoSnapshot = remaps
+        remaps = preset.remaps(layout: layout)
+    }
+
+    func undoReplace() {
+        guard let previous = undoSnapshot else { return }
+        undoSnapshot = nil
+        remaps = previous
+    }
+
+    /// Raison du refus d'une cible « Touche de FL », ou `nil`.
+    func forbiddenReason(_ combo: KeyCombo) -> String? { forbidden.reason(for: combo) }
+
+    // MARK: Import / export
+
+    func exportData() throws -> Data { try ProfileCodec.encode(remaps) }
+
+    func prepareImport(_ data: Data) throws -> ImportPreview {
+        try ProfileImporter.prepare(data, forbidden: forbidden, layout: layout)
+    }
+
+    func applyImport(_ preview: ImportPreview) {
+        undoSnapshot = remaps
+        remaps = preview.remaps
+    }
+
+    // MARK: Sauvegarde
+
+    private func scheduleSave() {
+        pendingSave?.cancel()
+        let snapshot = remaps
+        let storage = self.storage
+        let work = DispatchWorkItem { [weak self] in
+            var failure: String?
+            do {
+                try storage.write(ProfileCodec.encode(snapshot))
+            } catch {
+                failure = error.localizedDescription
+            }
+            DispatchQueue.main.async { self?.saveError = failure.map { "Enregistrement impossible : \($0)" } }
+        }
+        pendingSave = work
+        saveQueue.asyncAfter(deadline: .now() + saveDelay, execute: work)
+    }
+
+    /// Écriture immédiate (fermeture de l'appli, premier lancement).
+    func saveNow() {
+        pendingSave?.cancel()
+        pendingSave = nil
+        saveQueue.sync {}                              // attend une écriture déjà commencée
+        do {
+            try storage.write(ProfileCodec.encode(remaps))
+            saveError = nil
+        } catch {
+            saveError = "Enregistrement impossible : \(error.localizedDescription)"
+        }
+    }
+}

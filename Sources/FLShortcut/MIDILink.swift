@@ -315,7 +315,7 @@ final class MIDILink: ObservableObject {
 
     @Published private(set) var status: LinkStatus = .flClosed
     @Published private(set) var snapshot: LinkCore.Snapshot
-    @Published private(set) var lastAck: (id: Int, date: Date)?
+    @Published private(set) var lastAck: (id: Int, date: Date)? = nil
     @Published private(set) var uniqueIDConflict = false
 
     let core: LinkCore
