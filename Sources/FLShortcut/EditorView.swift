@@ -294,8 +294,8 @@ struct RemapRow: View {
 final class Recorder: ObservableObject {
     static let shared = Recorder()
 
-    @Published private(set) var activeID: String?
-    @Published private(set) var hint: String?
+    @Published private(set) var activeID: String? = nil
+    @Published private(set) var hint: String? = nil
 
     private var monitor: Any?
     private var handler: ((NSEvent) -> Void)?

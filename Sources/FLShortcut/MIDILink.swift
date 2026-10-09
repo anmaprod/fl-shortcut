@@ -265,7 +265,7 @@ final class CoreMIDITransport: MIDITransport {
         defer { raw.deallocate() }
         let list = raw.bindMemory(to: MIDIPacketList.self, capacity: 1)
         let first = MIDIPacketListInit(list)
-        let added: UnsafeMutablePointer<MIDIPacket>? = MIDIPacketListAdd(list, size, first, 0, bytes.count, bytes)
+        let added: UnsafeMutablePointer<MIDIPacket>? = MIDIPacketListAdd(list, size, first, mach_absolute_time(), bytes.count, bytes)
         guard added != nil else { return false }
         let status = MIDIReceived(h.source, list)
         if status != noErr {

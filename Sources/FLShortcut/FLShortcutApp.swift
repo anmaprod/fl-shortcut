@@ -123,8 +123,8 @@ final class AppStatus: ObservableObject {
     @Published private(set) var staleTCC = false
     @Published private(set) var tapUnstable = false
     @Published private(set) var scriptState: ScriptIntegrity.State = .notInstalled
-    @Published private(set) var capabilities: CapabilityMask?
-    @Published private(set) var flVersion: FLVersion?
+    @Published private(set) var capabilities: CapabilityMask? = nil
+    @Published private(set) var flVersion: FLVersion? = nil
 
     private var timer: Timer?
     private var cancellables = Set<AnyCancellable>()

@@ -5,6 +5,7 @@ let package = Package(
     name: "FLShortcut",
     platforms: [.macOS(.v13)],
     targets: [
-        .executableTarget(name: "FLShortcut", path: "Sources/FLShortcut")
+        .executableTarget(name: "FLShortcut", path: "Sources/FLShortcut"),
+        .testTarget(name: "FLShortcutTests", dependencies: ["FLShortcut"], path: "Tests/FLShortcutTests"),
     ]
 )

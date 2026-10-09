@@ -42,7 +42,7 @@ final class FLMonitor: ObservableObject {
 
     @Published private(set) var running = false
     @Published private(set) var frontmost = false
-    @Published private(set) var version: FLVersion?
+    @Published private(set) var version: FLVersion? = nil
 
     private var observers: [NSObjectProtocol] = []
     private var pids: Set<pid_t> = []
