@@ -72,7 +72,7 @@ final class Store: ObservableObject {
     }
 
     private let storage: ProfileStorage
-    private let layout: KeyboardLayout
+    let layout: KeyboardLayout
     private let defaults: UserDefaults
     private let systemHotKeys: () -> [KeyCombo: String]
     private let pushToTap: Bool

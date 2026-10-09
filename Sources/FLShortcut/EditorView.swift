@@ -22,6 +22,8 @@ struct EditorView: View {
     @ViewState private var editing: Remap? = nil
     @ViewState private var editingIsNew = false
     @ViewState private var toast: ToastMessage? = nil
+    @ViewState private var editingRow: CatalogRow? = nil
+    @ViewState private var open: Set<String> = []
 
     var body: some View {
         ZStack(alignment: .bottom) {
@@ -71,23 +73,12 @@ struct EditorView: View {
                         Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
                         TextField("Rechercher", text: $query)
                             .textFieldStyle(.plain)
-                            .frame(width: 150)
+                            .frame(width: 130)
                             .accessibilityLabel("Rechercher un raccourci")
                     }
                     .padding(.horizontal, 12)
                     .frame(height: 32)
                     .glassCapsule(interactive: true)
-
-                    Button {
-                        editingIsNew = true
-                        editing = Remap().with { $0.actionID = nil }
-                    } label: {
-                        Image(systemName: "plus").font(.system(size: 14, weight: .bold))
-                            .frame(width: 20, height: 20)
-                    }
-                    .primaryGlassButton()
-                    .help("Nouveau raccourci")
-                    .accessibilityLabel("Nouveau raccourci")
 
                     HStack(spacing: 8) {
                         Text(store.enabled ? "Actif" : "En pause")
@@ -118,6 +109,12 @@ struct EditorView: View {
                     }
                 }
             }
+            Divider()
+            Button("Nouveau raccourci personnalisé…") {
+                editingIsNew = true
+                editing = Remap().with { $0.actionID = nil }
+            }
+            Button("Tout réinitialiser…") { resetAll() }
             Divider()
             Button("Importer un profil…") { importProfile() }
             Button("Exporter mon profil…") { exportProfile() }
@@ -188,79 +185,109 @@ struct EditorView: View {
          status.scriptState == .modified, store.saveError != nil, store.loadWarning != nil]
     }
 
-    // MARK: Liste par rubriques
+    // MARK: Catalogue, section par section (une section = une fenêtre de FL)
 
-    private struct RowGroup: Identifiable {
-        let id: String
-        let rows: [Remap]
-    }
-
-    private var groups: [RowGroup] {
-        let q = query.trimmingCharacters(in: .whitespaces)
-        let visible = store.remaps.filter { r in
-            guard !q.isEmpty else { return true }
-            let hay = [r.title, r.subtitle, r.trigger?.display ?? ""].joined(separator: " ")
-            return hay.localizedCaseInsensitiveContains(q)
-        }
-        let order = FLActionInfo.Category.allCases.map(\.rawValue) + ["Touches de FL", "À compléter"]
-        return order.compactMap { name in
-            let rows = visible.filter { $0.groupName == name }
-            return rows.isEmpty ? nil : RowGroup(id: name, rows: rows)
-        }
-    }
+    private var allOpen: Bool { open.count >= FLSection.allCases.count + 1 }
 
     private var list: some View {
-        ScrollView {
-            LazyVStack(alignment: .leading, spacing: 18) {
-                if groups.isEmpty {
-                    VStack(spacing: 6) {
-                        Text(store.remaps.isEmpty ? "Aucun raccourci" : "Aucun raccourci trouvé")
-                            .font(.system(size: 15, weight: .semibold))
-                        Text(store.remaps.isEmpty ? "Clique sur + pour créer ton premier raccourci." : "Essaie un autre mot.")
-                            .font(.callout).foregroundStyle(.secondary)
-                    }
-                    .frame(maxWidth: .infinity)
-                    .padding(.top, 60)
-                    .transition(.opacity)
-                }
-                ForEach(groups) { group in
-                    VStack(alignment: .leading, spacing: 7) {
-                        Text(group.id)
-                            .font(.system(size: 12, weight: .semibold))
-                            .foregroundStyle(.secondary)
-                            .padding(.leading, 6)
-                            .accessibilityAddTraits(.isHeader)
-                        VStack(spacing: 0) {
-                            ForEach(Array(group.rows.enumerated()), id: \.element.id) { index, remap in
-                                if index > 0 { Divider().padding(.leading, 16) }
-                                ShortcutRow(remap: remap, issues: store.issues(for: remap.id)) {
-                                    editingIsNew = false
-                                    editing = remap
-                                } onToggle: {
-                                    var copy = remap
-                                    copy.enabled.toggle()
-                                    Motion.run(Motion.snappy) { store.upsert(copy) }
-                                } onDelete: {
-                                    delete(remap)
-                                }
-                                .transition(Motion.pop)
+        let data = store.catalogRows()
+        let q = query.trimmingCharacters(in: .whitespaces)
+        let searching = !q.isEmpty
+        let matches: (CatalogRow) -> Bool = { row in
+            guard searching else { return true }
+            let hay = [row.entry.title, row.entry.detail, row.current?.display ?? "", row.entry.section.title]
+                .joined(separator: " ")
+            return hay.localizedCaseInsensitiveContains(q)
+        }
+        let others = data.others.filter { r in
+            !searching || [r.title, r.subtitle, r.trigger?.display ?? ""].joined(separator: " ").localizedCaseInsensitiveContains(q)
+        }
+        let visibleSections = FLSection.allCases.filter { s in data.rows.contains { $0.entry.section == s && matches($0) } }
+
+        return ScrollView {
+            LazyVStack(alignment: .leading, spacing: 12) {
+                HStack(spacing: 8) {
+                    Text(searching ? "Résultats pour « \(q) »" : "Choisis une fenêtre de FL pour voir et changer ses raccourcis.")
+                        .font(.system(size: 13))
+                        .foregroundStyle(.secondary)
+                    Spacer()
+                    if !searching {
+                        Button(allOpen ? "Tout replier" : "Tout déplier") {
+                            Motion.run {
+                                open = allOpen ? [] : Set(FLSection.allCases.map(\.id) + ["others"])
                             }
                         }
-                        .glassCard(cornerRadius: 16)
+                        .buttonStyle(.link)
+                        .font(.system(size: 13, weight: .semibold))
                     }
+                }
+                .padding(.horizontal, 4)
+
+                ForEach(visibleSections) { section in
+                    SectionCard(
+                        section: section,
+                        rows: data.rows.filter { $0.entry.section == section && matches($0) },
+                        isOpen: searching || open.contains(section.id),
+                        issues: { store.issues(for: $0) },
+                        toggle: { Motion.run { open.formSymmetricDifference([section.id]) } },
+                        onEdit: { editingRow = $0 },
+                        onReset: { reset($0) }
+                    )
                     .transition(Motion.pop)
                 }
+
+                if !others.isEmpty {
+                    OthersCard(remaps: others, isOpen: searching || open.contains("others"),
+                               issues: { store.issues(for: $0) },
+                               toggle: { Motion.run { open.formSymmetricDifference(["others"]) } },
+                               onOpen: { remap in editingIsNew = false; editing = remap },
+                               onToggle: { remap in
+                                   var copy = remap
+                                   copy.enabled.toggle()
+                                   Motion.run(Motion.snappy) { store.upsert(copy) }
+                               },
+                               onDelete: { delete($0) })
+                        .transition(Motion.pop)
+                }
+
+                if searching && visibleSections.isEmpty && others.isEmpty {
+                    VStack(spacing: 6) {
+                        Text("Aucun raccourci trouvé").font(.system(size: 15, weight: .semibold))
+                        Text("Essaie un autre mot, ou ouvre une section.").font(.callout).foregroundStyle(.secondary)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.top, 50)
+                    .transition(.opacity)
+                }
             }
-            // Ajout, suppression, recherche : les lignes glissent à leur place au lieu de sauter.
             .motion(Motion.smooth, value: store.remaps)
             .motion(Motion.snappy, value: query)
             .padding(.horizontal, 32)
             .padding(.top, 4)
             .padding(.bottom, 80)
         }
+        .sheet(item: $editingRow) { row in
+            CatalogEditSheet(row: row) { message in show(message) }
+                .environmentObject(store)
+                .environmentObject(link)
+        }
     }
 
     // MARK: Actions
+
+    private func reset(_ row: CatalogRow) {
+        let before = store.remaps
+        Motion.run { store.reset(row) }
+        show(ToastMessage(text: "« \(row.entry.title) » réinitialisé", undo: { Motion.run { store.remaps = before } }))
+    }
+
+    private func resetAll() {
+        guard Dialogs.confirm("Tout réinitialiser ?",
+                              "Tous les raccourcis reviennent à leur touche d'origine (profil Recommandé). C'est annulable.")
+        else { return }
+        Motion.run { store.resetAll() }
+        show(ToastMessage(text: "Tous les raccourcis sont réinitialisés", undo: { store.undoReplace() }))
+    }
 
     private func delete(_ remap: Remap) {
         Motion.run { store.delete(remap.id) }
@@ -972,4 +999,333 @@ struct VisualEffectBackground: NSViewRepresentable {
     }
 
     func updateNSView(_ nsView: NSVisualEffectView, context: Context) {}
+}
+
+// MARK: - Catalogue : sections dépliables par fenêtre de FL
+
+extension FLSection {
+    var tint: Color {
+        switch self {
+        case .general: return .blue
+        case .transport: return .red
+        case .playlist: return .green
+        case .pianoRoll: return .purple
+        case .channelRack: return .orange
+        case .mixer: return .teal
+        }
+    }
+}
+
+/// En-tête de section : icône, nom de la fenêtre, résumé, chevron qui tourne à l'ouverture.
+private struct SectionHeader: View {
+    let symbol: String
+    let tint: Color
+    let title: String
+    let summary: String
+    let modified: Int
+    let isOpen: Bool
+    let toggle: () -> Void
+
+    var body: some View {
+        Button(action: toggle) {
+            HStack(spacing: 14) {
+                Image(systemName: symbol)
+                    .font(.system(size: 17, weight: .semibold))
+                    .foregroundStyle(.white)
+                    .frame(width: 38, height: 38)
+                    .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(tint.gradient))
+                    .shadow(color: tint.opacity(0.35), radius: 6, y: 3)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(title).font(.system(size: 16, weight: .semibold))
+                    Text(summary).font(.system(size: 12)).foregroundStyle(.secondary).lineLimit(1)
+                }
+                Spacer(minLength: 8)
+                if modified > 0 {
+                    Text(modified == 1 ? "1 modifié" : "\(modified) modifiés")
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundStyle(Color.accentColor)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 3)
+                        .background(Capsule().fill(Color.accentColor.opacity(0.14)))
+                        .transition(Motion.transition(.scale(scale: 0.6).combined(with: .opacity)))
+                }
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 13, weight: .bold))
+                    .foregroundStyle(.secondary)
+                    .rotationEffect(.degrees(isOpen ? 90 : 0))
+            }
+            .padding(.horizontal, 16)
+            .frame(minHeight: 68)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(PressableRowStyle())
+        .accessibilityLabel("\(title), \(summary)")
+        .accessibilityValue(isOpen ? "ouvert" : "fermé")
+        .accessibilityHint("Affiche ou masque les raccourcis de cette fenêtre")
+    }
+}
+
+private struct SectionCard: View {
+    let section: FLSection
+    let rows: [CatalogRow]
+    let isOpen: Bool
+    let issues: (UUID) -> [ShortcutIssue]
+    let toggle: () -> Void
+    let onEdit: (CatalogRow) -> Void
+    let onReset: (CatalogRow) -> Void
+
+    private var modified: Int { rows.filter { !$0.isDefault }.count }
+
+    var body: some View {
+        VStack(spacing: 0) {
+            SectionHeader(symbol: section.symbol, tint: section.tint, title: section.title,
+                          summary: "\(rows.count) raccourcis · \(section.subtitle)",
+                          modified: modified, isOpen: isOpen, toggle: toggle)
+            if isOpen {
+                VStack(spacing: 0) {
+                    ForEach(rows) { row in
+                        Divider().padding(.leading, 16)
+                        CatalogRowView(row: row,
+                                       issues: row.remap.map { issues($0.id) } ?? [],
+                                       onEdit: { onEdit(row) },
+                                       onReset: { onReset(row) })
+                    }
+                }
+                .transition(Motion.transition(.opacity.combined(with: .move(edge: .top))))
+            }
+        }
+        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .glassCard(cornerRadius: 18)
+        .motion(Motion.smooth, value: isOpen)
+    }
+}
+
+/// Une ligne du catalogue : ce que fait le raccourci, sa touche (cliquable), et « Réinitialiser ».
+private struct CatalogRowView: View {
+    let row: CatalogRow
+    let issues: [ShortcutIssue]
+    let onEdit: () -> Void
+    let onReset: () -> Void
+    @ViewState private var hovering = false
+
+    private var subtitle: String {
+        switch row.entry.kind {
+        case .native(let combo):
+            return row.isDefault ? "Touche d'origine de FL Studio"
+                                 : "D'origine : \(combo.display) (elle marche toujours)"
+        case .action:
+            return row.entry.detail
+        }
+    }
+
+    private var resetHelp: String {
+        "Revenir à : " + (row.entry.defaultTrigger?.display ?? "aucune touche")
+    }
+
+    var body: some View {
+        HStack(spacing: 12) {
+            VStack(alignment: .leading, spacing: 2) {
+                HStack(spacing: 6) {
+                    Text(row.entry.title).font(.system(size: 14, weight: .medium))
+                    if !row.isDefault {
+                        Circle().fill(Color.accentColor).frame(width: 6, height: 6)
+                            .transition(Motion.transition(.scale.combined(with: .opacity)))
+                            .accessibilityLabel("modifié")
+                    }
+                }
+                Text(subtitle).font(.system(size: 12)).foregroundStyle(.secondary).lineLimit(1)
+            }
+            Spacer(minLength: 8)
+            if !issues.isEmpty {
+                Image(systemName: issues.contains(where: \.isBlocking) ? "xmark.octagon.fill" : "exclamationmark.triangle.fill")
+                    .foregroundStyle(issues.contains(where: \.isBlocking) ? Color.red : Color.orange)
+                    .help(issues.map(\.message).joined(separator: "\n"))
+                    .accessibilityLabel("Attention : " + issues.map(\.message).joined(separator: " "))
+            }
+            Button(action: onEdit) {
+                KeyCaps(combo: row.current, placeholder: "Choisir une touche")
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 5)
+                    .frame(minWidth: 120)
+                    .background(RoundedRectangle(cornerRadius: 10, style: .continuous)
+                        .fill(Color.primary.opacity(hovering ? 0.07 : 0.035)))
+            }
+            .buttonStyle(PressableRowStyle())
+            .help("Changer la touche")
+            .accessibilityLabel("Changer la touche de \(row.entry.title)")
+
+            Button(action: onReset) {
+                Label("Réinitialiser", systemImage: "arrow.counterclockwise")
+                    .font(.system(size: 12, weight: .semibold))
+            }
+            .secondaryGlassButton()
+            .disabled(row.isDefault)
+            .opacity(row.isDefault ? 0.4 : 1)
+            .help(resetHelp)
+        }
+        .padding(.horizontal, 16)
+        .frame(minHeight: 58)
+        .background(hovering ? Color.primary.opacity(0.035) : .clear)
+        .contentShape(Rectangle())
+        .onTapGesture(perform: onEdit)
+        .onHover { hovering = $0 }
+        .motion(Motion.hover, value: hovering)
+        .motion(Motion.snappy, value: row.isDefault)
+        .accessibilityElement(children: .contain)
+    }
+}
+
+/// Raccourcis du profil qui ne correspondent à aucune entrée du catalogue (personnalisés, importés).
+private struct OthersCard: View {
+    let remaps: [Remap]
+    let isOpen: Bool
+    let issues: (UUID) -> [ShortcutIssue]
+    let toggle: () -> Void
+    let onOpen: (Remap) -> Void
+    let onToggle: (Remap) -> Void
+    let onDelete: (Remap) -> Void
+
+    var body: some View {
+        VStack(spacing: 0) {
+            SectionHeader(symbol: "star.fill", tint: .pink, title: "Mes raccourcis personnalisés",
+                          summary: "\(remaps.count) raccourci\(remaps.count > 1 ? "s" : "") · créés ou importés par toi",
+                          modified: 0, isOpen: isOpen, toggle: toggle)
+            if isOpen {
+                VStack(spacing: 0) {
+                    ForEach(remaps) { remap in
+                        Divider().padding(.leading, 16)
+                        ShortcutRow(remap: remap, issues: issues(remap.id)) {
+                            onOpen(remap)
+                        } onToggle: {
+                            onToggle(remap)
+                        } onDelete: {
+                            onDelete(remap)
+                        }
+                    }
+                }
+                .transition(Motion.transition(.opacity.combined(with: .move(edge: .top))))
+            }
+        }
+        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .glassCard(cornerRadius: 18)
+        .motion(Motion.smooth, value: isOpen)
+    }
+}
+
+/// Fiche simple d'une entrée du catalogue : on appuie sur la nouvelle touche, c'est tout.
+struct CatalogEditSheet: View {
+    @EnvironmentObject var store: Store
+    @EnvironmentObject var link: MIDILink
+    @Environment(\.dismiss) private var dismiss
+    @ObservedObject private var recorder = Recorder.shared
+
+    let row: CatalogRow
+    let onDone: (ToastMessage) -> Void
+    @ViewState private var combo: KeyCombo?
+
+    init(row: CatalogRow, onDone: @escaping (ToastMessage) -> Void) {
+        self.row = row
+        self.onDone = onDone
+        _combo = ViewState(wrappedValue: row.current)
+    }
+
+    private var nativeKey: KeyCombo? {
+        if case .native(let c) = row.entry.kind { return c }
+        return nil
+    }
+
+    private var actionID: Int? {
+        if case .action(let id) = row.entry.kind { return id }
+        return nil
+    }
+
+    private var issues: [ShortcutIssue] {
+        guard let combo, combo != nativeKey else { return [] }
+        return store.draftIssues(store.draft(for: row, trigger: combo)).filter {
+            if case .noTrigger = $0 { return false }
+            if case .noTarget = $0 { return false }
+            return true
+        }
+    }
+
+    private var canSave: Bool {
+        recorder.activeID == nil && combo != row.current && !issues.contains(where: \.isBlocking)
+            && (combo != nil || actionID != nil)
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            HStack(spacing: 12) {
+                Image(systemName: row.entry.section.symbol)
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(.white)
+                    .frame(width: 32, height: 32)
+                    .background(RoundedRectangle(cornerRadius: 9, style: .continuous).fill(row.entry.section.tint.gradient))
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(row.entry.title).font(.system(size: 17, weight: .semibold))
+                    Text("\(row.entry.section.title) · \(row.entry.detail)")
+                        .font(.system(size: 12)).foregroundStyle(.secondary)
+                }
+            }
+
+            CaptureField(id: "catalog-\(row.id)", role: .trigger, combo: $combo)
+
+            if !issues.isEmpty && recorder.activeID == nil {
+                IssuesView(issues: issues)
+                    .transition(Motion.transition(.opacity.combined(with: .offset(y: -4))))
+            }
+
+            if let nativeKey {
+                Label("Touche d'origine dans FL : \(nativeKey.display). Elle continue de marcher, ta touche s'ajoute.",
+                      systemImage: "info.circle")
+                    .font(.system(size: 12)).foregroundStyle(.secondary)
+            } else if let d = row.entry.defaultTrigger {
+                Label("Touche d'origine : \(d.display)", systemImage: "info.circle")
+                    .font(.system(size: 12)).foregroundStyle(.secondary)
+            }
+
+            HStack(spacing: 8) {
+                Button {
+                    Motion.run(Motion.bouncy) { combo = row.entry.defaultTrigger }
+                } label: {
+                    Label("Réinitialiser", systemImage: "arrow.counterclockwise")
+                }
+                .secondaryGlassButton()
+                .disabled(combo == row.entry.defaultTrigger)
+
+                if actionID != nil {
+                    Button("Aucune touche") { Motion.run { combo = nil } }
+                        .buttonStyle(.borderless)
+                        .disabled(combo == nil)
+                    if let id = actionID {
+                        Button {
+                            link.test(action: id)
+                        } label: {
+                            Label("Tester", systemImage: "play.fill")
+                        }
+                        .buttonStyle(.borderless)
+                        .disabled(link.status != .linked)
+                        .help("Envoie l'action à FL Studio")
+                    }
+                }
+                Spacer()
+                Button("Annuler") { recorder.stop(); dismiss() }
+                    .keyboardShortcut(.cancelAction)
+                    .secondaryGlassButton()
+                Button("Valider") {
+                    recorder.stop()
+                    store.setTrigger(combo, for: row)
+                    onDone(ToastMessage(text: "« \(row.entry.title) » : " + (combo?.display ?? "aucune touche"), undo: nil))
+                    dismiss()
+                }
+                .keyboardShortcut(.defaultAction)
+                .primaryGlassButton()
+                .disabled(!canSave)
+            }
+        }
+        .padding(24)
+        .frame(width: 520)
+        .motion(Motion.smooth, value: issues.map(\.message))
+        .onDisappear { recorder.stop() }
+    }
 }
