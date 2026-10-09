@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Cœur portable de FL Shortcut pour Windows : aucune dépendance Windows, testable sous Linux/macOS. -->
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>12</LangVersion>
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+    <RootNamespace>FLShortcut.Core</RootNamespace>
+    <AssemblyName>FLShortcut.Core</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="FLShortcut.Core.Tests" />
+  </ItemGroup>
+
+</Project>
