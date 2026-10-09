@@ -90,7 +90,7 @@ struct KeyCombo: Codable, Hashable {
 // MARK: - Contexte (fenêtre FL)
 
 enum ShortcutContext: String, Codable, CaseIterable, Identifiable {
-    case everywhere, pianoRoll, playlist, mixer
+    case everywhere, pianoRoll, playlist, mixer, channelRack, browser
 
     var id: String { rawValue }
 
@@ -100,6 +100,8 @@ enum ShortcutContext: String, Codable, CaseIterable, Identifiable {
         case .pianoRoll: return "Piano Roll"
         case .playlist: return "Playlist"
         case .mixer: return "Mixer"
+        case .channelRack: return "Channel Rack"
+        case .browser: return "Browser"
         }
     }
 
@@ -109,6 +111,8 @@ enum ShortcutContext: String, Codable, CaseIterable, Identifiable {
         case .pianoRoll: self = .pianoRoll
         case .playlist: self = .playlist
         case .mixer: self = .mixer
+        case .channelRack: self = .channelRack
+        case .browser: self = .browser
         default: return nil
         }
     }

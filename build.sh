@@ -84,3 +84,11 @@ echo "▸ Empreinte"
 cat "$DMG.sha256"
 
 echo "✅ Terminé : $APP et $DMG"
+
+# Build local (FLS_NATIVE=1) : copie aussi l'app dans ~/Applications pour la lancer comme une vraie app.
+if [[ "${FLS_NATIVE:-0}" == "1" ]]; then
+  mkdir -p "$HOME/Applications"
+  rm -rf "$HOME/Applications/${APP_NAME}.app"
+  cp -R "$APP" "$HOME/Applications/"
+  echo "▸ Installé dans ~/Applications"
+fi

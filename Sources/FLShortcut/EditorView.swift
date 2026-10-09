@@ -1012,6 +1012,8 @@ extension FLSection {
         case .pianoRoll: return .purple
         case .channelRack: return .orange
         case .mixer: return .teal
+        case .patterns: return .indigo
+        case .browser: return .brown
         }
     }
 }
@@ -1083,12 +1085,27 @@ private struct SectionCard: View {
                           modified: modified, isOpen: isOpen, toggle: toggle)
             if isOpen {
                 VStack(spacing: 0) {
-                    ForEach(rows) { row in
-                        Divider().padding(.leading, 16)
-                        CatalogRowView(row: row,
-                                       issues: row.remap.map { issues($0.id) } ?? [],
-                                       onEdit: { onEdit(row) },
-                                       onReset: { onReset(row) })
+                    let natives = rows.filter { $0.entry.isNative }
+                    let extras = rows.filter { !$0.entry.isNative }
+                    if !natives.isEmpty {
+                        GroupLabel(text: "Raccourcis de FL Studio", count: natives.count)
+                        ForEach(natives) { row in
+                            Divider().padding(.leading, 16)
+                            CatalogRowView(row: row,
+                                           issues: row.remap.map { issues($0.id) } ?? [],
+                                           onEdit: { onEdit(row) },
+                                           onReset: { onReset(row) })
+                        }
+                    }
+                    if !extras.isEmpty {
+                        GroupLabel(text: "En plus avec FL Shortcut", count: extras.count)
+                        ForEach(extras) { row in
+                            Divider().padding(.leading, 16)
+                            CatalogRowView(row: row,
+                                           issues: row.remap.map { issues($0.id) } ?? [],
+                                           onEdit: { onEdit(row) },
+                                           onReset: { onReset(row) })
+                        }
                     }
                 }
                 .transition(Motion.transition(.opacity.combined(with: .move(edge: .top))))
@@ -1097,6 +1114,27 @@ private struct SectionCard: View {
         .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
         .glassCard(cornerRadius: 18)
         .motion(Motion.smooth, value: isOpen)
+    }
+}
+
+/// Intertitre dans une section ouverte.
+private struct GroupLabel: View {
+    let text: String
+    let count: Int
+
+    var body: some View {
+        HStack {
+            Text(text.uppercased())
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(.secondary)
+            Text("\(count)").font(.system(size: 11)).foregroundStyle(.tertiary)
+            Spacer()
+        }
+        .padding(.horizontal, 16)
+        .padding(.top, 14)
+        .padding(.bottom, 6)
+        .background(Color.primary.opacity(0.025))
+        .accessibilityAddTraits(.isHeader)
     }
 }
 
