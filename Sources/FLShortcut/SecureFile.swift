@@ -45,7 +45,10 @@ enum SecureFile {
     static func checkDirectory(_ dir: URL) throws {
         let path = dir.path
         var st = stat()
-        guard lstat(path, &st) == 0 else { throw Failure.missing(path) }
+        guard lstat(path, &st) == 0 else {
+            let code = errno
+            throw code == ENOENT ? Failure.missing(path) : Failure.posix("Accès refusé à \(path)", code)
+        }
         let type = Int(st.st_mode) & Int(S_IFMT)
         if type == Int(S_IFLNK) { throw Failure.symlink(path) }
         guard type == Int(S_IFDIR) else { throw Failure.notADirectory(path) }
