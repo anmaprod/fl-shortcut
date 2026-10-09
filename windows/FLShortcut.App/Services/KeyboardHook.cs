@@ -17,6 +17,7 @@ internal sealed class KeyboardHook : IDisposable
     private const uint MsgInject = Win32.WM_APP + 2;
     private const uint MsgAction = Win32.WM_APP + 3;
     private const uint MsgRefresh = Win32.WM_APP + 4;
+    private const uint MsgMask = Win32.WM_APP + 5;
 
     private readonly Func<int, bool> _sendAction;
     private readonly Action _onToggle;
@@ -31,6 +32,7 @@ internal sealed class KeyboardHook : IDisposable
     private Win32.LowLevelKeyboardProc? _kbProc;       // références gardées vivantes (sinon le GC libère le délégué)
     private Win32.WinEventProc? _fgProc;
     private volatile uint _flPid;
+    private FlProcessInfo? _lastFl;
     private readonly ManualResetEventSlim _started = new();
 
     public volatile HookConfig Config = HookConfig.Default;
@@ -73,7 +75,7 @@ internal sealed class KeyboardHook : IDisposable
         _kbProc = HookProc;
         _fgProc = ForegroundProc;
         _fgHook = Win32.SetWinEventHook(Win32.EVENT_SYSTEM_FOREGROUND, Win32.EVENT_SYSTEM_FOREGROUND, IntPtr.Zero,
-            _fgProc, 0, 0, Win32.WINEVENT_OUTOFCONTEXT | Win32.WINEVENT_SKIPOWNPROCESS);
+            _fgProc, 0, 0, Win32.WINEVENT_OUTOFCONTEXT);   // notre propre fenêtre aussi : le hook doit tomber (WIN-01)
         EvaluateForeground();
         _started.Set();
 
@@ -89,6 +91,9 @@ internal sealed class KeyboardHook : IDisposable
                     break;
                 case MsgRefresh:
                     EvaluateForeground();
+                    break;
+                case MsgMask:
+                    Injector.SendMask();
                     break;
                 default:
                     Win32.TranslateMessage(ref msg);
@@ -114,6 +119,8 @@ internal sealed class KeyboardHook : IDisposable
         _router.Purge();
         _mods.Clear();
         if (_flPid != 0) Install(); else Uninstall();
+        if (Equals(fl, _lastFl)) return;          // pas de rafraîchissement complet de l'appli à chaque Alt+Tab
+        _lastFl = fl;
         try { _onForegroundChanged(fl); } catch { /* jamais d'exception dans la boucle */ }
     }
 
@@ -150,6 +157,11 @@ internal sealed class KeyboardHook : IDisposable
                 IsRepeat: isRepeat, IsOwn: false, TargetIsFl: _flPid != 0 && FlPresence.ForegroundPid() == _flPid,
                 AltGr: _mods.AltGr);
             var decision = _router.Route(input, Config, Link);
+
+            // Alt (ou Win) tenu et déclencheur avalé : FL verrait « Alt seul » et ouvrirait son menu au relâchement.
+            // Une touche neutre, envoyée avant tout effet, l'en empêche (même technique qu'AutoHotkey).
+            if (decision.Swallow && isDown && !isRepeat && (_mods.Alt || _mods.Win))
+                Win32.PostThreadMessageW(_threadId, MsgMask, UIntPtr.Zero, IntPtr.Zero);
 
             foreach (var effect in decision.Effects)
             {
@@ -215,25 +227,36 @@ internal static class Injector
         Vk.Divide, Vk.RControl, Vk.RMenu, Vk.LWin, Vk.RWin, Vk.Apps, Vk.NumLock,
     };
 
+    /// Touche non attribuée (VK 0xE8) : neutralise un Alt ou un Win « seul » (menu de FL, menu Démarrer).
+    private const ushort MaskVk = 0xE8;
+
+    private static Win32.INPUT Input(ushort vk, bool up) => new()
+    {
+        type = Win32.INPUT_KEYBOARD,
+        U = new Win32.InputUnion
+        {
+            ki = new Win32.KEYBDINPUT
+            {
+                wVk = vk,
+                dwFlags = (up ? Win32.KEYEVENTF_KEYUP : 0) | (Array.IndexOf(ExtendedKeys, vk) >= 0 ? Win32.KEYEVENTF_EXTENDEDKEY : 0),
+                dwExtraInfo = KeyboardHook.Magic,
+            },
+        },
+    };
+
+    public static void SendMask()
+    {
+        var arr = new[] { Input(MaskVk, up: false), Input(MaskVk, up: true) };
+        Win32.SendInput((uint)arr.Length, arr, Marshal.SizeOf<Win32.INPUT>());
+    }
+
     public static bool Send(KeyCombo target, ModifierTracker physical)
     {
         var inputs = new List<Win32.INPUT>(16);
         var released = new List<ushort>();
         var pressed = new List<ushort>();
 
-        void Key(ushort vk, bool up) => inputs.Add(new Win32.INPUT
-        {
-            type = Win32.INPUT_KEYBOARD,
-            U = new Win32.InputUnion
-            {
-                ki = new Win32.KEYBDINPUT
-                {
-                    wVk = vk,
-                    dwFlags = (up ? Win32.KEYEVENTF_KEYUP : 0) | (Array.IndexOf(ExtendedKeys, vk) >= 0 ? Win32.KEYEVENTF_EXTENDEDKEY : 0),
-                    dwExtraInfo = KeyboardHook.Magic,
-                },
-            },
-        });
+        void Key(ushort vk, bool up) => inputs.Add(Input(vk, up));
 
         void Align(bool isDown, bool wanted, ushort genericVk)
         {
@@ -251,6 +274,7 @@ internal static class Injector
 
         foreach (var vk in Enumerable.Reverse(pressed)) Key(vk, up: true);
         foreach (var vk in released) Key(vk, up: false);
+        if (released.Contains(Vk.Menu) || released.Contains(Vk.LWin)) { Key(MaskVk, up: false); Key(MaskVk, up: true); }
 
         var arr = inputs.ToArray();
         var sent = Win32.SendInput((uint)arr.Length, arr, Marshal.SizeOf<Win32.INPUT>());

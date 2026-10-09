@@ -13,9 +13,10 @@
     <RuntimeIdentifiers>win-x64;win-arm64</RuntimeIdentifiers>
     <UseWinUI>true</UseWinUI>
     <WindowsPackageType>None</WindowsPackageType>
-    <WindowsAppSDKSelfContained>true</WindowsAppSDKSelfContained>
     <EnableMsixTooling>true</EnableMsixTooling>
-    <SelfContained>true</SelfContained>
+    <!-- Windows App SDK 1.6 exige Microsoft.Windows.SDK.NET.Ref *.*.*.38 ou plus récent (notes de version 1.6) :
+         sans cela, un SDK .NET 8 antérieur à 8.0.4xx refuse la compilation. -->
+    <WindowsSdkPackageVersion>10.0.19041.38</WindowsSdkPackageVersion>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <LangVersion>12</LangVersion>
@@ -25,6 +26,14 @@
     <Company>FL Shortcut</Company>
     <Description>Raccourcis personnalisés pour FL Studio — outil indépendant, non affilié à Image-Line.</Description>
     <ApplicationIcon Condition="Exists('Assets\FLShortcut.ico')">Assets\FLShortcut.ico</ApplicationIcon>
+  </PropertyGroup>
+
+  <!-- Auto-contenu (runtime .NET + Windows App SDK copiés à côté de l'exe) quand un RID est donné :
+       `dotnet publish -r win-x64 -p:Platform=x64`. Sans RID (simple `dotnet build`), SelfContained=true
+       provoquerait NETSDK1031. -->
+  <PropertyGroup Condition="'$(RuntimeIdentifier)' != ''">
+    <WindowsAppSDKSelfContained>true</WindowsAppSDKSelfContained>
+    <SelfContained>true</SelfContained>
   </PropertyGroup>
 
   <ItemGroup>

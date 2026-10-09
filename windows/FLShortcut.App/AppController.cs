@@ -143,7 +143,7 @@ internal sealed class AppController : INotifyPropertyChanged, IDisposable
         // Le brouillon est analysé après les autres raccourcis, pour qu'un doublon soit signalé sur lui.
         var list = _shortcuts.Where(s => s.Id != draft.Id).ToList();
         list.Add(draft with { Enabled = true });
-        return ShortcutAnalyzer.Analyze(list, AnalysisContext())[draft.Id];
+        return ShortcutAnalyzer.Analyze(list, NewAnalysisContext())[draft.Id];
     }
 
     public void Upsert(Shortcut s)
@@ -184,7 +184,7 @@ internal sealed class AppController : INotifyPropertyChanged, IDisposable
 
     // ---------- Interne ----------
 
-    private AnalysisContext AnalysisContext() => new(ProfilePresets.Toggle, ConflictTable.Default, Availability);
+    private AnalysisContext NewAnalysisContext() => new(ProfilePresets.Toggle, ConflictTable.Default, Availability);
 
     private void Persist()
     {
@@ -203,7 +203,7 @@ internal sealed class AppController : INotifyPropertyChanged, IDisposable
     private void RefreshAll()
     {
         if (_flVersion is null && FlPresence.RunningInstance() is { Version: { } v }) _flVersion = v;
-        _issues = ShortcutAnalyzer.Analyze(_shortcuts, AnalysisContext());
+        _issues = ShortcutAnalyzer.Analyze(_shortcuts, NewAnalysisContext());
         var blocked = ShortcutAnalyzer.Blocked(_issues);
         _hook.Config = _hook.Config with
         {

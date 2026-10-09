@@ -6,7 +6,6 @@ using System.ComponentModel;
 using FLShortcut.App.Services;
 using FLShortcut.Core;
 using Microsoft.UI;
-using Microsoft.UI.Dispatching;
 using Microsoft.UI.Input;
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
@@ -26,8 +25,9 @@ public sealed partial class MainWindow : Window
     private readonly AppController _app;
     private readonly TrayIcon _tray;
     private readonly IntPtr _hwnd;
-    private readonly DispatcherQueueTimer _poll;
-    private DispatcherQueueTimer? _toastTimer;
+    // Nom complet : Windows.System (importé pour VirtualKey) contient aussi un DispatcherQueueTimer (CS0104).
+    private readonly Microsoft.UI.Dispatching.DispatcherQueueTimer _poll;
+    private Microsoft.UI.Dispatching.DispatcherQueueTimer? _toastTimer;
     private Shortcut? _deleted;
     private bool _quitting;
     private enum LinkStep { Idle, Waiting, Linked }
@@ -39,6 +39,9 @@ public sealed partial class MainWindow : Window
         _hwnd = WinRT.Interop.WindowNative.GetWindowHandle(this);
 
         SystemBackdrop = new MicaBackdrop();
+        // Windows 10 : pas de Mica, la grille racine (sans fond) laisserait la fenêtre noire.
+        if (!Microsoft.UI.Composition.SystemBackdrops.MicaController.IsSupported())
+            Root.Background = (Brush)Application.Current.Resources["ApplicationPageBackgroundThemeBrush"];
         ExtendsContentIntoTitleBar = true;
         SetTitleBar(AppTitleBar);
         AppWindow.Resize(new Windows.Graphics.SizeInt32(1100, 780));
@@ -559,7 +562,8 @@ public sealed partial class MainWindow : Window
             if (actions.SelectedItem is ListViewItem { Tag: int id } && draft.ActionId != id)
             {
                 draft = draft with { ActionId = id, UnknownAction = null };
-                Refresh();
+                // Refresh vide et remplit la liste : jamais pendant son propre SelectionChanged.
+                DispatcherQueue.TryEnqueue(() => Refresh());
             }
         };
         wheres.SelectionChanged += (_, _) =>
