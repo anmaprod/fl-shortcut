@@ -370,24 +370,58 @@ class TestHandshake(Base):
         self.assertEqual(beats, [1, 0, 1, 0])
 
     def test_window_reported_on_change(self):
+        win = lambda: [v for s, cc, v in self.fl.cc_out() if cc == 117]
         self.fl.focused = {0}
         self.clock.t += 0.2
+        gets = len(self.fl.called("ui.getFocused"))
         self.dev.OnRefresh(32)
+        # OnRefresh ne fait aucun appel à FL : il marque, OnIdle traite.
+        self.assertEqual(len(self.fl.called("ui.getFocused")), gets)
+        self.dev.OnIdle()
+        self.assertEqual(win()[-1], 0)
         self.fl.focused = {3}
-        self.dev.OnRefresh(32)          # < 100 ms : différé
+        self.dev.OnRefresh(32)
+        self.dev.OnIdle()               # < 100 ms : différé
+        self.assertEqual(win()[-1], 0)
         self.clock.t += 0.15
         self.dev.OnIdle()
-        self.dev.OnRefresh(32)
-        wins = [v for s, cc, v in self.fl.cc_out() if cc == 117]
-        self.assertEqual(wins[-2:], [0, 3])
-        self.fl.focused = {7}
-        self.clock.t += 0.6
+        self.assertEqual(win()[-1], 3)
+        self.fl.focused = {7}           # aucun OnRefresh : vérification de secours au battement (2 s)
+        self.clock.t += 2.1
         self.dev.OnIdle()
-        self.assertEqual([v for s, cc, v in self.fl.cc_out() if cc == 117][-1], 5)
+        self.clock.t += 0.12
+        self.dev.OnIdle()
+        self.assertEqual(win()[-1], 5)
         self.fl.focused = set()
-        self.clock.t += 0.6
+        self.dev.OnRefresh(32)
+        self.clock.t += 0.12
         self.dev.OnIdle()
-        self.assertEqual([v for s, cc, v in self.fl.cc_out() if cc == 117][-1], 127)
+        self.assertEqual(win()[-1], 127)
+
+    def test_buggy_fl_never_calls_global_transport(self):
+        self.make(api=43, fl_version=(26, 1, 6))
+        for aid in (4, 5, 6, 7, 10, 38):
+            self.command(aid)
+            self.assertEqual(self.last_ack(), 0, aid)
+            self.clock.t += 0.06
+        self.assertEqual(self.fl.called("transport.globalTransport"), [])
+        mask = self.dev.capability_mask()
+        for aid in (4, 5, 6, 7, 10, 38):
+            self.assertFalse(mask & (1 << (aid - 1)), aid)
+        self.assertTrue(mask & (1 << 0))                     # Lecture reste disponible
+
+    def test_volume_few_fader_writes(self):
+        self.make(api=45, track=2)
+        before = len(self.fl.called("mixer.setTrackVolume"))
+        self.command(28)
+        self.assertLessEqual(len(self.fl.called("mixer.setTrackVolume")) - before, 4)
+
+    def test_same_hint_not_repeated(self):
+        self.make(api=1)
+        n = len(self.fl.hints)
+        for _ in range(5):
+            self.command(12)                                 # indisponible en API 1 : même message
+        self.assertEqual(len(self.fl.hints) - n, 1)
 
     def test_window_not_resent_if_unchanged(self):
         self.fl.focused = {2}
