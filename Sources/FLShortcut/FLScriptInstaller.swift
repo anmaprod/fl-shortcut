@@ -70,11 +70,22 @@ enum ScriptIntegrity {
             return .notInstalled
         }
         do {
-            guard let data = try SecureFile.read(URL(fileURLWithPath: path), maxBytes: 4 << 20) else { return .missing }
-            return sha256Hex(data) == expected ? .ok : .modified
+            let url = URL(fileURLWithPath: path)
+            guard let data = try SecureFile.read(url, maxBytes: 4 << 20) else { return .missing }
+            guard sha256Hex(data) == expected else { return .modified }
+            // Audit 03 (WIN-10/11, valable aussi sur Mac) : un autre fichier Python ou un dossier dans le dossier
+            // du script pourrait masquer un module de FL (`transport.py`, `midi.py`…) et exécuter du code dans FL.
+            return hasForeignEntries(in: url.deletingLastPathComponent(), keeping: url.lastPathComponent) ? .modified : .ok
         } catch {
             return .unreadable
         }
+    }
+
+    /// Vrai si le dossier contient autre chose que notre script (fichiers cachés du Finder exceptés).
+    static func hasForeignEntries(in folder: URL, keeping name: String, fileManager: FileManager = .default) -> Bool {
+        guard let entries = try? fileManager.contentsOfDirectory(atPath: folder.path) else { return false }
+        let ignored: Set<String> = [name, ".DS_Store", "__pycache__"]
+        return entries.contains { !ignored.contains($0) && !$0.hasPrefix("._") }
     }
 }
 

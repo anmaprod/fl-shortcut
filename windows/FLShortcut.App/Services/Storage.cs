@@ -183,7 +183,19 @@ internal static class ScriptInstaller
     public static bool IsIntact(string? path, string? sha256)
     {
         if (path is null || sha256 is null || !File.Exists(path)) return false;
-        try { return string.Equals(Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(path))), sha256, StringComparison.OrdinalIgnoreCase); }
+        try
+        {
+            if (!string.Equals(Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(path))), sha256, StringComparison.OrdinalIgnoreCase))
+                return false;
+            // Audit 03 (WIN-10/11) : un autre fichier Python (ex. « transport.py ») ou un dossier à côté du script
+            // pourrait masquer un module de FL et exécuter du code dans FL. Seul notre script est accepté.
+            var dir = Path.GetDirectoryName(path)!;
+            return Directory.EnumerateFileSystemEntries(dir)
+                .Select(Path.GetFileName)
+                .All(n => string.Equals(n, FileName, StringComparison.OrdinalIgnoreCase)
+                          || string.Equals(n, "__pycache__", StringComparison.OrdinalIgnoreCase)
+                          || string.Equals(n, "desktop.ini", StringComparison.OrdinalIgnoreCase));
+        }
         catch { return false; }
     }
 }
