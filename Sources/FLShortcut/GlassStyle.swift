@@ -1,6 +1,106 @@
 // Style « Liquid Glass » : verre natif sur macOS 26 (SDK Xcode 26, Swift 6.2), repli en matériau translucide
 // sur macOS 13–15 ou avec un compilateur plus ancien. Audit 05 : touches affichées avec leur nom en clair.
+// Mouvement : ressorts courts façon macOS (réponse 0,25–0,45 s, peu de rebond), remplacés par un simple fondu
+// quand « Réduire les animations » est activé (Réglages › Accessibilité › Affichage).
+import AppKit
 import SwiftUI
+
+// MARK: - Mouvement
+
+enum Motion {
+    /// Changement d'état ordinaire (listes, bandeaux, feuilles).
+    static let smooth = Animation.spring(response: 0.36, dampingFraction: 0.86)
+    /// Retour immédiat (sélection, puces, survol appuyé).
+    static let snappy = Animation.spring(response: 0.26, dampingFraction: 0.9)
+    /// Apparition qui « se pose » (touches capturées, notification).
+    static let bouncy = Animation.spring(response: 0.44, dampingFraction: 0.72)
+    /// Survol.
+    static let hover = Animation.easeOut(duration: 0.14)
+    /// Remplacement quand l'utilisateur a demandé moins de mouvement.
+    static let reduced = Animation.easeInOut(duration: 0.18)
+
+    static var reduce: Bool { NSWorkspace.shared.accessibilityDisplayShouldReduceMotion }
+
+    /// `withAnimation` qui respecte « Réduire les animations ».
+    static func run(_ animation: Animation = smooth, _ body: () -> Void) {
+        withAnimation(reduce ? reduced : animation, body)
+    }
+
+    /// Transition remplacée par un fondu quand le mouvement est réduit.
+    static func transition(_ t: AnyTransition) -> AnyTransition { reduce ? .opacity : t }
+
+    /// Apparition depuis le bas, légèrement réduite (notifications, bandeaux).
+    static var rise: AnyTransition {
+        transition(.move(edge: .bottom).combined(with: .opacity).combined(with: .scale(scale: 0.94, anchor: .bottom)))
+    }
+
+    /// Apparition « posée » (éléments qui arrivent dans une liste).
+    static var pop: AnyTransition {
+        transition(.asymmetric(insertion: .scale(scale: 0.96).combined(with: .opacity),
+                               removal: .opacity.combined(with: .scale(scale: 0.98))))
+    }
+}
+
+private struct MotionModifier<V: Equatable>: ViewModifier {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    let animation: Animation
+    let value: V
+
+    func body(content: Content) -> some View {
+        content.animation(reduceMotion ? Motion.reduced : animation, value: value)
+    }
+}
+
+extension View {
+    /// `.animation(_:value:)` qui respecte « Réduire les animations ».
+    func motion<V: Equatable>(_ animation: Animation = Motion.smooth, value: V) -> some View {
+        modifier(MotionModifier(animation: animation, value: value))
+    }
+
+    /// Petit rebond du symbole SF quand `value` change (macOS 14+).
+    @ViewBuilder
+    func bounceSymbol<V: Equatable>(on value: V) -> some View {
+        #if compiler(>=5.9)
+        if #available(macOS 14.0, *) {
+            self.symbolEffect(.bounce, value: value)
+        } else {
+            self
+        }
+        #else
+        self
+        #endif
+    }
+}
+
+/// Ligne cliquable : léger enfoncement à l'appui, comme les listes de Réglages Système.
+struct PressableRowStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .scaleEffect(configuration.isPressed && !Motion.reduce ? 0.985 : 1)
+            .opacity(configuration.isPressed ? 0.82 : 1)
+            .animation(Motion.snappy, value: configuration.isPressed)
+    }
+}
+
+/// Regroupe des éléments en verre pour qu'ils se fondent entre eux comme sur macOS 26 (GlassEffectContainer).
+struct GlassGroup<Content: View>: View {
+    var spacing: CGFloat = 10
+    @ViewBuilder let content: () -> Content
+
+    var body: some View {
+        #if compiler(>=6.2)
+        if #available(macOS 26.0, *) {
+            GlassEffectContainer(spacing: spacing) { content() }
+        } else {
+            content()
+        }
+        #else
+        content()
+        #endif
+    }
+}
+
+// MARK: - Verre
 
 extension View {
     /// Carte en verre (arrondie).
@@ -17,12 +117,12 @@ extension View {
         #endif
     }
 
-    /// Pastille en verre (capsule).
+    /// Pastille en verre (capsule). `interactive` : le verre réagit au pointeur (macOS 26).
     @ViewBuilder
-    func glassCapsule() -> some View {
+    func glassCapsule(interactive: Bool = false) -> some View {
         #if compiler(>=6.2)
         if #available(macOS 26.0, *) {
-            self.glassEffect(.regular, in: Capsule())
+            self.glassEffect(interactive ? Glass.regular.interactive() : Glass.regular, in: Capsule())
         } else {
             self.fallbackGlass(Capsule())
         }
@@ -98,15 +198,23 @@ struct KeyCap: View {
     }
 }
 
+/// Une touche à dessiner. `id` stable (modificateur ou touche finale) pour animer l'arrivée d'une touche
+/// sans redessiner les autres.
+struct CapInfo: Identifiable, Hashable {
+    let id: String
+    let symbol: String
+    let name: String
+}
+
 extension KeyCombo {
     /// Touches à dessiner, dans l'ordre macOS (⌃ ⌥ ⇧ ⌘ puis la touche).
-    var caps: [(symbol: String, name: String)] {
-        var out: [(symbol: String, name: String)] = []
-        if control { out.append((symbol: "⌃", name: "ctrl")) }
-        if option { out.append((symbol: "⌥", name: "option")) }
-        if shift { out.append((symbol: "⇧", name: "maj")) }
-        if command { out.append((symbol: "⌘", name: "cmd")) }
-        out.append((symbol: KeyNames.name(for: keyCode), name: ""))
+    var caps: [CapInfo] {
+        var out: [CapInfo] = []
+        if control { out.append(CapInfo(id: "ctrl", symbol: "⌃", name: "ctrl")) }
+        if option { out.append(CapInfo(id: "option", symbol: "⌥", name: "option")) }
+        if shift { out.append(CapInfo(id: "shift", symbol: "⇧", name: "maj")) }
+        if command { out.append(CapInfo(id: "cmd", symbol: "⌘", name: "cmd")) }
+        out.append(CapInfo(id: "key-\(keyCode)", symbol: KeyNames.name(for: keyCode), name: ""))
         return out
     }
 
@@ -131,13 +239,15 @@ struct KeyCaps: View {
     var body: some View {
         HStack(spacing: large ? 6 : 4) {
             if let combo {
-                ForEach(Array(combo.caps.enumerated()), id: \.offset) { _, cap in
+                ForEach(combo.caps) { cap in
                     KeyCap(symbol: cap.symbol, name: cap.name.isEmpty ? nil : cap.name, large: large)
+                        .transition(Motion.transition(.scale(scale: 0.6).combined(with: .opacity)))
                 }
             } else {
                 Text(placeholder).foregroundStyle(.secondary)
             }
         }
+        .motion(Motion.bouncy, value: combo)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(combo?.spoken ?? "Aucun raccourci")
     }

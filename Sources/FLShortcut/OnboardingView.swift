@@ -29,6 +29,7 @@ final class OnboardingWindow {
         w.isMovableByWindowBackground = true
         w.isReleasedWhenClosed = false
         w.title = "Bienvenue dans FL Shortcut"
+        w.animationBehavior = .alertPanel          // ouverture « zoom » douce, comme les fenêtres d'accueil d'Apple
         w.contentView = host
         w.center()
         window = w
@@ -52,6 +53,8 @@ struct OnboardingView: View {
     @State private var step = 0
     @State private var askedPermission = false
     @State private var installed = false
+    @State private var appeared = false
+    @State private var breathe = false
 
     var body: some View {
         ZStack(alignment: .bottom) {
@@ -61,8 +64,9 @@ struct OnboardingView: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .padding(.horizontal, 48)
             .padding(.bottom, 40)
-            .transition(.asymmetric(insertion: .move(edge: .trailing).combined(with: .opacity),
-                                    removal: .move(edge: .leading).combined(with: .opacity)))
+            .transition(Motion.transition(.asymmetric(
+                insertion: .offset(x: 60).combined(with: .opacity).combined(with: .scale(scale: 0.98)),
+                removal: .offset(x: -60).combined(with: .opacity).combined(with: .scale(scale: 0.98)))))
 
             HStack(spacing: 8) {
                 ForEach(0..<2) { i in
@@ -75,9 +79,15 @@ struct OnboardingView: View {
             .accessibilityHidden(true)
         }
         .frame(width: 640, height: 600)
-        .animation(.spring(response: 0.5, dampingFraction: 0.85), value: step)
+        .motion(Motion.smooth, value: step)
         .windowGlassBackground()
-        .onAppear { installed = link.snapshot.hasKey }
+        .onAppear {
+            installed = link.snapshot.hasKey
+            Motion.run(Motion.bouncy.delay(0.12)) { appeared = true }
+        }
+        // Le statut passe au vert tout seul dès que FL répond : on l'anime au lieu de le faire sauter.
+        .motion(Motion.smooth, value: link.status)
+        .motion(Motion.smooth, value: status.accessibilityOK)
     }
 
     // MARK: Étape 1 — clavier
@@ -85,9 +95,15 @@ struct OnboardingView: View {
     private var permissionStep: some View {
         VStack(spacing: 14) {
             AppIcon().frame(width: 92, height: 92).padding(.bottom, 6)
-            Text("FL Shortcut").font(.system(size: 30, weight: .bold))
-            Text("Crée tes propres raccourcis pour FL Studio.")
-                .font(.system(size: 15)).foregroundStyle(.secondary)
+                .scaleEffect(appeared || Motion.reduce ? 1 : 0.82)
+                .opacity(appeared ? 1 : 0)
+            Group {
+                Text("FL Shortcut").font(.system(size: 30, weight: .bold))
+                Text("Crée tes propres raccourcis pour FL Studio.")
+                    .font(.system(size: 15)).foregroundStyle(.secondary)
+            }
+            .offset(y: appeared || Motion.reduce ? 0 : 8)
+            .opacity(appeared ? 1 : 0)
 
             HStack(spacing: 10) {
                 KeyCaps(combo: KeyCombo(keyCode: 21, control: true))
@@ -116,6 +132,7 @@ struct OnboardingView: View {
                     } label: {
                         Label("Autorisé — continuer", systemImage: "checkmark").frame(minWidth: 200)
                     }
+                    .transition(Motion.pop)
                 } else {
                     Button {
                         if askedPermission {
@@ -127,6 +144,7 @@ struct OnboardingView: View {
                     } label: {
                         Text(askedPermission ? "Ouvrir les Réglages" : "Autoriser le clavier").frame(minWidth: 200)
                     }
+                    .transition(Motion.pop)
                 }
             }
             .primaryGlassButton()
@@ -138,6 +156,7 @@ struct OnboardingView: View {
                                     : "macOS va te demander l'accès « Accessibilité ».")
                 .font(.system(size: 11))
                 .foregroundStyle(.secondary)
+                .contentTransition(.interpolate)
 
             Button("Plus tard") { onFinish() }
                 .buttonStyle(.link)
@@ -170,9 +189,24 @@ struct OnboardingView: View {
             .padding(.top, 10)
 
             HStack(spacing: 10) {
-                Circle().fill(linked ? Color.green : installed ? Color.orange : Color.gray).frame(width: 8, height: 8)
+                if linked {
+                    Image(systemName: "checkmark.circle.fill")
+                        .foregroundStyle(.green)
+                        .bounceSymbol(on: linked)
+                        .transition(Motion.transition(.scale(scale: 0.3).combined(with: .opacity)))
+                } else {
+                    Circle().fill(installed ? Color.orange : Color.gray).frame(width: 8, height: 8)
+                        .opacity(installed && breathe ? 0.45 : 1)
+                        .transition(.opacity)
+                }
                 Text(linked ? "FL Studio est relié" : installed ? "En attente de FL Studio… fais les étapes 2 et 3" : "FL Studio pas encore relié")
                     .font(.system(size: 13, weight: .medium))
+                    .contentTransition(.interpolate)
+            }
+            .onAppear {
+                // Point qui « respire » doucement pendant l'attente (désactivé si le mouvement est réduit).
+                guard !Motion.reduce else { return }
+                withAnimation(.easeInOut(duration: 1.1).repeatForever(autoreverses: true)) { breathe = true }
             }
             .padding(.horizontal, 16)
             .frame(height: 36)
@@ -186,6 +220,7 @@ struct OnboardingView: View {
                         .secondaryGlassButton()
                         .controlSize(.large)
                         .help("Ouvre le Mixer dans FL Studio")
+                        .transition(Motion.pop)
                 }
                 Button {
                     if installed {
@@ -205,8 +240,10 @@ struct OnboardingView: View {
             if installed && !linked {
                 Text("Tu peux terminer maintenant : le statut s'affichera aussi dans la fenêtre Raccourcis.")
                     .font(.system(size: 11)).foregroundStyle(.secondary)
+                    .transition(.opacity)
             }
         }
+        .motion(Motion.smooth, value: installed)
     }
 }
 
@@ -221,12 +258,15 @@ private struct StepRow: View {
                 Circle().fill(done ? Color.green : Color.primary.opacity(0.08))
                 if done {
                     Image(systemName: "checkmark").font(.system(size: 10, weight: .heavy)).foregroundStyle(.white)
+                        .transition(Motion.transition(.scale(scale: 0.3).combined(with: .opacity)))
                 } else {
                     Text("\(number)").font(.system(size: 11, weight: .bold)).foregroundStyle(.secondary)
+                        .transition(.opacity)
                 }
             }
             .frame(width: 22, height: 22)
-            .animation(.spring(response: 0.35), value: done)
+            .scaleEffect(done && !Motion.reduce ? 1.0 : 0.96)
+            .motion(Motion.bouncy, value: done)
             Text(text).font(.system(size: 13)).fixedSize(horizontal: false, vertical: true)
         }
         .accessibilityElement(children: .combine)

@@ -37,10 +37,11 @@ struct EditorView: View {
             if let toast {
                 ToastView(message: toast) { self.toast = nil }
                     .padding(.bottom, 22)
-                    .transition(.move(edge: .bottom).combined(with: .opacity))
+                    .transition(Motion.rise)
+                    .id(toast.id)                       // une nouvelle notification remplace l'ancienne en douceur
             }
         }
-        .animation(.spring(response: 0.42, dampingFraction: 0.82), value: toast)
+        .motion(Motion.bouncy, value: toast)
         .windowGlassBackground()
         .sheet(item: $editing) { remap in
             EditSheet(original: remap, isNew: editingIsNew) { message in show(message) }
@@ -62,39 +63,47 @@ struct EditorView: View {
             }
             Spacer(minLength: 12)
 
-            profileMenu
+            GlassGroup(spacing: 8) {
+                HStack(spacing: 10) {
+                    profileMenu
 
-            HStack(spacing: 6) {
-                Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
-                TextField("Rechercher", text: $query)
-                    .textFieldStyle(.plain)
-                    .frame(width: 150)
-                    .accessibilityLabel("Rechercher un raccourci")
-            }
-            .padding(.horizontal, 12)
-            .frame(height: 32)
-            .glassCapsule()
+                    HStack(spacing: 6) {
+                        Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
+                        TextField("Rechercher", text: $query)
+                            .textFieldStyle(.plain)
+                            .frame(width: 150)
+                            .accessibilityLabel("Rechercher un raccourci")
+                    }
+                    .padding(.horizontal, 12)
+                    .frame(height: 32)
+                    .glassCapsule(interactive: true)
 
-            Button {
-                editingIsNew = true
-                editing = Remap().with { $0.actionID = nil }
-            } label: {
-                Image(systemName: "plus").font(.system(size: 14, weight: .bold))
-                    .frame(width: 20, height: 20)
-            }
-            .primaryGlassButton()
-            .help("Nouveau raccourci")
-            .accessibilityLabel("Nouveau raccourci")
+                    Button {
+                        editingIsNew = true
+                        editing = Remap().with { $0.actionID = nil }
+                    } label: {
+                        Image(systemName: "plus").font(.system(size: 14, weight: .bold))
+                            .frame(width: 20, height: 20)
+                    }
+                    .primaryGlassButton()
+                    .help("Nouveau raccourci")
+                    .accessibilityLabel("Nouveau raccourci")
 
-            HStack(spacing: 8) {
-                Text(store.enabled ? "Actif" : "En pause").font(.system(size: 12, weight: .semibold))
-                Toggle("", isOn: $store.enabled).toggleStyle(.switch).labelsHidden()
-                    .accessibilityLabel("Raccourcis actifs (⌃⌥⌘F)")
+                    HStack(spacing: 8) {
+                        Text(store.enabled ? "Actif" : "En pause")
+                            .font(.system(size: 12, weight: .semibold))
+                            .contentTransition(.interpolate)
+                            .frame(minWidth: 52, alignment: .trailing)
+                        Toggle("", isOn: $store.enabled).toggleStyle(.switch).labelsHidden()
+                            .accessibilityLabel("Raccourcis actifs (⌃⌥⌘F)")
+                    }
+                    .padding(.leading, 12)
+                    .padding(.trailing, 6)
+                    .frame(height: 32)
+                    .glassCapsule()
+                    .motion(Motion.snappy, value: store.enabled)
+                }
             }
-            .padding(.leading, 12)
-            .padding(.trailing, 6)
-            .frame(height: 32)
-            .glassCapsule()
         }
     }
 
@@ -133,7 +142,7 @@ struct EditorView: View {
             if !store.enabled {
                 Banner(symbol: "pause.circle.fill", tint: .orange,
                        text: "FL Shortcut est en pause : FL Studio utilise ses raccourcis d'origine.") {
-                    Button("Reprendre") { store.enabled = true }.secondaryGlassButton()
+                    Button("Reprendre") { Motion.run { store.enabled = true } }.secondaryGlassButton()
                 }
             }
             if !status.accessibilityOK {
@@ -165,11 +174,18 @@ struct EditorView: View {
             }
             if let warning = store.loadWarning {
                 Banner(symbol: "info.circle.fill", tint: .blue, text: warning) {
-                    Button("OK") { store.loadWarning = nil }.secondaryGlassButton()
+                    Button("OK") { Motion.run { store.loadWarning = nil } }.secondaryGlassButton()
                 }
             }
         }
         .padding(.bottom, 6)
+        .motion(Motion.smooth, value: bannerSignature)
+    }
+
+    /// Change dès qu'un bandeau apparaît ou disparaît : sert de déclencheur d'animation.
+    private var bannerSignature: [Bool] {
+        [store.enabled, status.accessibilityOK, status.staleTCC, status.secureInput,
+         status.scriptState == .modified, store.saveError != nil, store.loadWarning != nil]
     }
 
     // MARK: Liste par rubriques
@@ -205,6 +221,7 @@ struct EditorView: View {
                     }
                     .frame(maxWidth: .infinity)
                     .padding(.top, 60)
+                    .transition(.opacity)
                 }
                 ForEach(groups) { group in
                     VStack(alignment: .leading, spacing: 7) {
@@ -222,16 +239,21 @@ struct EditorView: View {
                                 } onToggle: {
                                     var copy = remap
                                     copy.enabled.toggle()
-                                    store.upsert(copy)
+                                    Motion.run(Motion.snappy) { store.upsert(copy) }
                                 } onDelete: {
                                     delete(remap)
                                 }
+                                .transition(Motion.pop)
                             }
                         }
                         .glassCard(cornerRadius: 16)
                     }
+                    .transition(Motion.pop)
                 }
             }
+            // Ajout, suppression, recherche : les lignes glissent à leur place au lieu de sauter.
+            .motion(Motion.smooth, value: store.remaps)
+            .motion(Motion.snappy, value: query)
             .padding(.horizontal, 32)
             .padding(.top, 4)
             .padding(.bottom, 80)
@@ -241,8 +263,8 @@ struct EditorView: View {
     // MARK: Actions
 
     private func delete(_ remap: Remap) {
-        store.delete(remap.id)
-        show(ToastMessage(text: "Raccourci supprimé", undo: { store.upsert(remap) }))
+        Motion.run { store.delete(remap.id) }
+        show(ToastMessage(text: "Raccourci supprimé", undo: { Motion.run { store.upsert(remap) } }))
     }
 
     private func show(_ message: ToastMessage) {
@@ -300,13 +322,16 @@ private struct StatusLine: View {
     var body: some View {
         HStack(spacing: 7) {
             Circle().fill(color).frame(width: 7, height: 7).shadow(color: color.opacity(0.7), radius: 3)
+                .scaleEffect(link.status == .linked && store.enabled ? 1 : 0.85)
             Text(text).font(.system(size: 13)).foregroundStyle(.secondary)
+                .contentTransition(.interpolate)
             if let action {
                 Button(action.label, action: action.run)
                     .buttonStyle(.link)
                     .font(.system(size: 13, weight: .semibold))
             }
         }
+        .motion(Motion.smooth, value: text)
         .accessibilityElement(children: .combine)
     }
 
@@ -378,15 +403,17 @@ private struct ShortcutRow: View {
                 Image(systemName: "chevron.right")
                     .font(.system(size: 11, weight: .semibold))
                     .foregroundStyle(.tertiary)
+                    .offset(x: hovering && !Motion.reduce ? 2 : 0)
             }
             .padding(.horizontal, 16)
             .frame(minHeight: 56)
             .contentShape(Rectangle())
             .background(hovering ? Color.primary.opacity(0.05) : .clear)
         }
-        .buttonStyle(.plain)
+        .buttonStyle(PressableRowStyle())
         .opacity(remap.enabled ? 1 : 0.5)
         .onHover { hovering = $0 }
+        .motion(Motion.hover, value: hovering)
         .contextMenu {
             Button(remap.enabled ? "Désactiver" : "Activer", action: onToggle)
             Button("Supprimer", role: .destructive, action: onDelete)
@@ -410,6 +437,8 @@ struct EditSheet: View {
     @State private var draft: Remap
     @State private var category: FLActionInfo.Category
     @State private var query = ""
+    @Namespace private var chips
+    @State private var testCount = 0
 
     init(original: Remap, isNew: Bool, onDone: @escaping (ToastMessage) -> Void) {
         self.isNew = isNew
@@ -448,8 +477,10 @@ struct EditSheet: View {
                 CaptureField(id: "\(draft.id)-trigger", role: .trigger, combo: $draft.trigger)
                 if !issues.isEmpty && recorder.activeID == nil {
                     IssuesView(issues: issues)
+                        .transition(Motion.transition(.opacity.combined(with: .offset(y: -4))))
                 }
             }
+            .motion(Motion.smooth, value: issues.map(\.message))
 
             Picker("Ce que fait le raccourci", selection: kindBinding) {
                 Text("Action dans FL").tag(Remap.Kind.flAction)
@@ -458,9 +489,11 @@ struct EditSheet: View {
             .pickerStyle(.segmented)
             .labelsHidden()
 
-            switch draft.kind {
-            case .flAction: actionPicker
-            case .keystroke: keystrokePicker
+            Group {
+                switch draft.kind {
+                case .flAction: actionPicker.transition(Motion.transition(.opacity.combined(with: .offset(x: -12))))
+                case .keystroke: keystrokePicker.transition(Motion.transition(.opacity.combined(with: .offset(x: 12))))
+                }
             }
 
             HStack(spacing: 8) {
@@ -498,7 +531,7 @@ struct EditSheet: View {
     }
 
     private var kindBinding: Binding<Remap.Kind> {
-        Binding(get: { draft.kind }, set: { draft.kind = $0 })
+        Binding(get: { draft.kind }, set: { kind in Motion.run { draft.kind = kind } })
     }
 
     private var actionPicker: some View {
@@ -512,9 +545,10 @@ struct EditSheet: View {
                 .frame(height: 32)
                 .glassCapsule()
                 Button {
-                    if let id = draft.actionID { link.test(action: id) }
+                    if let id = draft.actionID { link.test(action: id); testCount += 1 }
                 } label: {
                     Label("Tester", systemImage: "play.fill")
+                        .bounceSymbol(on: testCount)
                 }
                 .secondaryGlassButton()
                 .disabled(draft.actionID == nil || link.status != .linked)
@@ -524,13 +558,20 @@ struct EditSheet: View {
             HStack(spacing: 6) {
                 ForEach(FLActionInfo.Category.allCases, id: \.self) { c in
                     let selected = query.isEmpty && category == c
-                    Button(c.rawValue) { category = c; query = "" }
-                        .buttonStyle(.plain)
+                    Button(c.rawValue) { Motion.run(Motion.snappy) { category = c; query = "" } }
+                        .buttonStyle(PressableRowStyle())
                         .font(.system(size: 12, weight: .semibold))
                         .padding(.horizontal, 12)
                         .frame(height: 28)
                         .foregroundStyle(selected ? Color.white : Color.primary)
-                        .background(Capsule().fill(selected ? Color.accentColor : Color.primary.opacity(0.06)))
+                        .background {
+                            // La pastille de sélection glisse d'une rubrique à l'autre.
+                            if selected {
+                                Capsule().fill(Color.accentColor).matchedGeometryEffect(id: "chip", in: chips)
+                            } else {
+                                Capsule().fill(Color.primary.opacity(0.06))
+                            }
+                        }
                         .accessibilityAddTraits(selected ? .isSelected : [])
                 }
             }
@@ -549,6 +590,7 @@ struct EditSheet: View {
             }
             .frame(height: 190)
             .glassCard(cornerRadius: 14)
+            .motion(Motion.snappy, value: query)
 
             HStack(spacing: 10) {
                 Text("Où ?").font(.system(size: 12, weight: .semibold)).foregroundStyle(.secondary)
@@ -573,8 +615,10 @@ struct EditSheet: View {
         let availability = status.availability(info.id)
         let selected = draft.actionID == info.id
         return Button {
-            draft.actionID = info.id
-            draft.unknownAction = nil
+            Motion.run(Motion.snappy) {
+                draft.actionID = info.id
+                draft.unknownAction = nil
+            }
         } label: {
             HStack(spacing: 10) {
                 VStack(alignment: .leading, spacing: 1) {
@@ -588,6 +632,7 @@ struct EditSheet: View {
                 Spacer()
                 if selected {
                     Image(systemName: "checkmark").font(.system(size: 13, weight: .bold)).foregroundStyle(Color.accentColor)
+                        .transition(Motion.transition(.scale(scale: 0.4).combined(with: .opacity)))
                 }
             }
             .padding(.horizontal, 14)
@@ -595,7 +640,7 @@ struct EditSheet: View {
             .contentShape(Rectangle())
             .background(selected ? Color.accentColor.opacity(0.12) : .clear)
         }
-        .buttonStyle(.plain)
+        .buttonStyle(PressableRowStyle())
         .disabled(!availability.isUsable)
         .opacity(availability.isUsable ? 1 : 0.5)
         .accessibilityAddTraits(selected ? .isSelected : [])
@@ -710,17 +755,22 @@ struct CaptureField: View {
                 ZStack {
                     if recording {
                         Text("Appuie sur tes touches…").font(.system(size: 14)).foregroundStyle(Color.accentColor)
+                            .transition(Motion.transition(.opacity.combined(with: .scale(scale: 0.96))))
                     } else if let combo {
                         KeyCaps(combo: combo, large: true)
+                            .transition(Motion.transition(.opacity.combined(with: .scale(scale: 0.9))))
                     } else {
                         Text(role == .trigger ? "Clique ici, puis appuie sur tes touches" : "Clique ici, puis tape le raccourci de FL")
                             .font(.system(size: 14)).foregroundStyle(.secondary)
+                            .transition(.opacity)
                     }
                 }
                 .frame(maxWidth: .infinity, minHeight: 72)
                 .contentShape(Rectangle())
+                .motion(Motion.bouncy, value: recording)
+                .motion(Motion.bouncy, value: combo)
             }
-            .buttonStyle(.plain)
+            .buttonStyle(PressableRowStyle())
             .glassCard(cornerRadius: 18)
             .overlay(
                 RoundedRectangle(cornerRadius: 18, style: .continuous)
@@ -728,21 +778,26 @@ struct CaptureField: View {
                     .shadow(color: Color.accentColor.opacity(recording && pulse ? 0.5 : 0), radius: 8)
             )
             .onChange(of: recording) { isRecording in
-                if isRecording {
+                if isRecording && !Motion.reduce {
                     withAnimation(.easeInOut(duration: 0.9).repeatForever(autoreverses: true)) { pulse = true }
                 } else {
-                    pulse = false
+                    // Sans transaction animée, la répétition infinie s'arrête net au lieu de continuer en fond.
+                    var t = Transaction()
+                    t.disablesAnimations = true
+                    withTransaction(t) { pulse = isRecording }
                 }
             }
+            .motion(Motion.snappy, value: recording)
             .accessibilityLabel(role == .trigger ? "Raccourci déclencheur" : "Touche envoyée à FL")
             .accessibilityValue(recording ? "Enregistrement en cours" : (combo?.spoken ?? "aucun"))
 
             if recording, let hint = recorder.hint {
-                Text(hint).font(.caption).foregroundStyle(.orange)
+                Text(hint).font(.caption).foregroundStyle(.orange).transition(.opacity)
             } else if recording {
-                Text("Échap pour annuler · ⌫ pour effacer").font(.caption).foregroundStyle(.secondary)
+                Text("Échap pour annuler · ⌫ pour effacer").font(.caption).foregroundStyle(.secondary).transition(.opacity)
             }
         }
+        .motion(Motion.smooth, value: recording)
         .onDisappear { if recording { recorder.stop() } }
     }
 
@@ -788,11 +843,13 @@ struct ToastMessage: Identifiable, Equatable {
 private struct ToastView: View {
     let message: ToastMessage
     let onClose: () -> Void
+    @State private var appeared = false
 
     var body: some View {
         HStack(spacing: 12) {
             if message.undo == nil {
                 Image(systemName: "checkmark.circle.fill").foregroundStyle(.green)
+                    .bounceSymbol(on: appeared)
             }
             Text(message.text).font(.system(size: 13, weight: .medium))
             if let undo = message.undo {
@@ -806,6 +863,7 @@ private struct ToastView: View {
         .frame(height: 44)
         .glassCapsule()
         .shadow(color: .black.opacity(0.18), radius: 16, y: 8)
+        .onAppear { DispatchQueue.main.asyncAfter(deadline: .now() + 0.12) { appeared = true } }
         .accessibilityElement(children: .contain)
     }
 }
@@ -826,6 +884,7 @@ struct Banner<Accessory: View>: View {
         .padding(.horizontal, 14)
         .padding(.vertical, 10)
         .glassCard(cornerRadius: 14)
+        .transition(Motion.transition(.move(edge: .top).combined(with: .opacity)))
     }
 }
 

@@ -220,9 +220,19 @@ final class PauseIndicator {
             .sink { [weak self] enabled in self?.update(paused: !enabled) }
     }
 
+    /// Fondu d'entrée / de sortie (instantané si « Réduire les animations » est activé).
     private func update(paused: Bool) {
+        let duration = Motion.reduce ? 0 : 0.22
         guard paused else {
-            panel?.orderOut(nil)
+            guard let p = panel, p.isVisible else { return }
+            NSAnimationContext.runAnimationGroup({ ctx in
+                ctx.duration = duration
+                ctx.timingFunction = CAMediaTimingFunction(name: .easeIn)
+                p.animator().alphaValue = 0
+            }, completionHandler: { [weak self] in
+                // Ne cacher que si on n'a pas été remis en pause pendant le fondu.
+                if Store.shared.enabled { self?.panel?.orderOut(nil) }
+            })
             return
         }
         let p = panel ?? makePanel()
@@ -232,7 +242,13 @@ final class PauseIndicator {
             let size = p.frame.size
             p.setFrameOrigin(NSPoint(x: frame.maxX - size.width - 16, y: frame.maxY - size.height - 12))
         }
+        if !p.isVisible { p.alphaValue = 0 }
         p.orderFrontRegardless()
+        NSAnimationContext.runAnimationGroup { ctx in
+            ctx.duration = duration
+            ctx.timingFunction = CAMediaTimingFunction(name: .easeOut)
+            p.animator().alphaValue = 1
+        }
     }
 
     private func makePanel() -> NSPanel {
@@ -263,7 +279,8 @@ struct PauseBadge: View {
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 8)
-        .background(.regularMaterial, in: Capsule())
+        .glassCapsule()
+        .padding(6)                                   // marge pour l'ombre du verre
         .accessibilityElement(children: .combine)
     }
 }
@@ -284,7 +301,9 @@ struct MenuContent: View {
                     HStack(spacing: 6) {
                         Circle().fill(dotColor).frame(width: 6, height: 6)
                         Text(statusLine).font(.system(size: 12)).foregroundStyle(.secondary).lineLimit(1)
+                            .contentTransition(.interpolate)
                     }
+                    .motion(Motion.smooth, value: statusLine)
                 }
                 Spacer(minLength: 8)
                 Toggle("", isOn: $store.enabled)
@@ -303,6 +322,7 @@ struct MenuContent: View {
                     .fixedSize(horizontal: false, vertical: true)
                     .padding(.horizontal, 10)
                     .padding(.bottom, 8)
+                    .transition(Motion.transition(.opacity.combined(with: .move(edge: .top))))
             }
             if !status.accessibilityOK {
                 PanelItem(title: "Autoriser le clavier…", shortcut: nil) { status.openAccessibilitySettings() }
@@ -323,6 +343,8 @@ struct MenuContent: View {
         }
         .padding(8)
         .frame(width: 300)
+        .motion(Motion.smooth, value: alerts)
+        .motion(Motion.smooth, value: status.accessibilityOK)
     }
 
     private var dotColor: Color {
@@ -380,7 +402,8 @@ private struct PanelItem: View {
             .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(hovering ? Color.accentColor : .clear))
             .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
+        .buttonStyle(PressableRowStyle())
         .onHover { hovering = $0 }
+        .animation(.easeOut(duration: 0.08), value: hovering)   // surbrillance quasi immédiate, comme un vrai menu
     }
 }
