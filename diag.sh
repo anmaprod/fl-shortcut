@@ -6,7 +6,7 @@ echo "== processus concernés"
 ps -Ao pid,%cpu,%mem,rss,comm | grep -i -E "FLShortcut|FL Studio|OsxFL|Image-Line|WindowServer|appstoreagent|mds" | grep -v grep
 P=$(pgrep -x FLShortcut | head -1)
 [ -n "$P" ] && { echo "== threads FL Shortcut"; sample "$P" 1 -mayDie 2>/dev/null | grep -E "^ +[0-9]+ Thread_|EventTap" | head -12; }
-F=$(pgrep -f "FL Studio.app/Contents/MacOS" | head -1)
+F=$(pgrep -x OsxFL | head -1)
 if [ -n "$F" ]; then
   echo "== échantillon FL Studio ($F) 3 s : part du script Python FL Shortcut"
   sample "$F" 3 -mayDie > /tmp/fl_sample.txt 2>/dev/null

@@ -20,8 +20,8 @@ while true; do
     case "$cmd" in
       test)  swift test ;;
       build) FLS_NATIVE=1 FLS_SKIP_TESTS=1 ./build.sh ;;
-      run)   pkill -x "FL Shortcut" 2>/dev/null; sleep 1; open "dist/FL Shortcut.app" ;;
-      stop)  pkill -x "FL Shortcut" ;;
+      run)   pkill -x FLShortcut 2>/dev/null; sleep 1; open "dist/FL Shortcut.app" ;;
+      stop)  pkill -x FLShortcut ;;
       *)     echo "demande inconnue : $cmd" ;;
     esac > .journal.txt 2>&1
     echo "code=$?" >> .journal.txt
