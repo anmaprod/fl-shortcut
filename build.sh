@@ -12,6 +12,9 @@
 set -euo pipefail
 cd "$(dirname "$0")"
 
+# Diagnostic à la demande : si le fichier .diag existe, on mesure au lieu de compiler.
+if [[ -f .diag ]]; then rm -f .diag; ./diag.sh; exit 0; fi
+
 APP_NAME="FL Shortcut"
 EXE="FLShortcut"
 APP="dist/${APP_NAME}.app"
