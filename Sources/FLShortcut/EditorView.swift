@@ -18,10 +18,10 @@ struct EditorView: View {
     @EnvironmentObject var link: MIDILink
     @EnvironmentObject var fl: FLMonitor
 
-    @State private var query = ""
-    @State private var editing: Remap? = nil
-    @State private var editingIsNew = false
-    @State private var toast: ToastMessage? = nil
+    @ViewState private var query = ""
+    @ViewState private var editing: Remap? = nil
+    @ViewState private var editingIsNew = false
+    @ViewState private var toast: ToastMessage? = nil
 
     var body: some View {
         ZStack(alignment: .bottom) {
@@ -374,7 +374,7 @@ private struct ShortcutRow: View {
     let onOpen: () -> Void
     let onToggle: () -> Void
     let onDelete: () -> Void
-    @State private var hovering = false
+    @ViewState private var hovering = false
 
     var body: some View {
         Button(action: onOpen) {
@@ -434,18 +434,18 @@ struct EditSheet: View {
 
     let isNew: Bool
     let onDone: (ToastMessage) -> Void
-    @State private var draft: Remap
-    @State private var category: FLActionInfo.Category
-    @State private var query = ""
+    @ViewState private var draft: Remap
+    @ViewState private var category: FLActionInfo.Category
+    @ViewState private var query = ""
     @Namespace private var chips
-    @State private var testCount = 0
+    @ViewState private var testCount = 0
 
     init(original: Remap, isNew: Bool, onDone: @escaping (ToastMessage) -> Void) {
         self.isNew = isNew
         self.onDone = onDone
-        _draft = State(initialValue: original)
+        _draft = ViewState(wrappedValue: original)
         let cat = original.actionID.flatMap(FLActions.info)?.category ?? .composition
-        _category = State(initialValue: cat)
+        _category = ViewState(wrappedValue: cat)
     }
 
     private var issues: [ShortcutIssue] {
@@ -842,7 +842,7 @@ struct ToastMessage: Identifiable, Equatable {
 private struct ToastView: View {
     let message: ToastMessage
     let onClose: () -> Void
-    @State private var appeared = false
+    @ViewState private var appeared = false
 
     var body: some View {
         HStack(spacing: 12) {

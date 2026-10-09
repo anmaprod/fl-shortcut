@@ -58,7 +58,7 @@ private struct PulseModifier: ViewModifier {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let duration: Double
     let low: Double
-    @State private var dimmed = false
+    @ViewState private var dimmed = false
 
     func body(content: Content) -> some View {
         content
@@ -163,10 +163,10 @@ extension View {
         if #available(macOS 26.0, *) {
             self.buttonStyle(.glassProminent)
         } else {
-            self.buttonStyle(.borderedProminent).buttonBorderShape(.capsule)
+            self.buttonStyle(.borderedProminent).capsuleShapeIfAvailable()
         }
         #else
-        self.buttonStyle(.borderedProminent).buttonBorderShape(.capsule)
+        self.buttonStyle(.borderedProminent).capsuleShapeIfAvailable()
         #endif
     }
 
@@ -177,11 +177,21 @@ extension View {
         if #available(macOS 26.0, *) {
             self.buttonStyle(.glass)
         } else {
-            self.buttonStyle(.bordered).buttonBorderShape(.capsule)
+            self.buttonStyle(.bordered).capsuleShapeIfAvailable()
         }
         #else
-        self.buttonStyle(.bordered).buttonBorderShape(.capsule)
+        self.buttonStyle(.bordered).capsuleShapeIfAvailable()
         #endif
+    }
+
+    /// Bouton en capsule (macOS 14+) ; forme par défaut sur macOS 13.
+    @ViewBuilder
+    func capsuleShapeIfAvailable() -> some View {
+        if #available(macOS 14.0, *) {
+            self.buttonBorderShape(.capsule)
+        } else {
+            self
+        }
     }
 
     private func fallbackGlass<S: InsettableShape>(_ shape: S) -> some View {

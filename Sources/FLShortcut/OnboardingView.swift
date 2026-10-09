@@ -50,10 +50,10 @@ struct OnboardingView: View {
     @EnvironmentObject var fl: FLMonitor
     let onFinish: () -> Void
 
-    @State private var step = 0
-    @State private var askedPermission = false
-    @State private var installed = false
-    @State private var appeared = false
+    @ViewState private var step = 0
+    @ViewState private var askedPermission = false
+    @ViewState private var installed = false
+    @ViewState private var appeared = false
 
     var body: some View {
         ZStack(alignment: .bottom) {
