@@ -60,6 +60,8 @@ HEARTBEAT_PERIOD = 2.0     # s
 WINDOW_MIN_INTERVAL = 0.1  # s (CC 117 au plus toutes les 100 ms)
 WINDOW_POLL_INTERVAL = 0.5 # s (sondage de secours si OnRefresh ne signale rien)
 HELLO_RETRY_INTERVAL = 1.0 # s
+IDLE_MIN_INTERVAL = 0.05   # s : OnIdle (appelé ~ toutes les 20 ms par FL) ne travaille qu'une fois sur 2-3
+REPORT_INTERVAL = 10.0     # s : une même erreur au plus une fois par période
 HINT_MIN_INTERVAL = 1.0    # s, pour les messages de refus répétés
 
 LOG_TO_OUTPUT = True       # copie des messages dans View > Script output
@@ -182,9 +184,22 @@ def _hint(text):
     _log(text)
 
 
+_last_reports = {}
+
+
 def _report(exc):
+    """Erreur signalée au plus une fois toutes les 10 s par message : une erreur répétée dans OnIdle
+    (appelé ~50 fois par seconde) ne doit jamais inonder la barre d'aide ni la sortie des scripts de FL."""
     try:
-        _hint("FL Shortcut erreur : %r" % (exc,))
+        text = "FL Shortcut erreur : %r" % (exc,)
+        now = _now()
+        last = _last_reports.get(text)
+        if last is not None and 0 <= now - last < REPORT_INTERVAL:
+            return
+        if len(_last_reports) > 32:
+            _last_reports.clear()
+        _last_reports[text] = now
+        _hint(text)
     except Exception:
         pass
 
@@ -383,6 +398,7 @@ class _State(object):
         self.last_ping = None
         self.last_hint = {}
         self.hello_pending = False
+        self.last_idle = None
         self.last_hello_try = None
         self.last_beat = None
         self.beat = 0
@@ -1329,6 +1345,11 @@ def _check_window(now):
 def _idle():
     _st.ticks += 1
     now = _now()
+    # Le moins de travail possible dans la boucle de FL : rien n'a besoin d'être vérifié plus de 20 fois
+    # par seconde (sans horloge, le pseudo-temps avance de 20 ms par appel : pas de limitation).
+    if _time is not None and _st.last_idle is not None and 0 <= now - _st.last_idle < IDLE_MIN_INTERVAL:
+        return
+    _st.last_idle = now
     if _st.hello_pending and (_st.last_hello_try is None
                               or now - _st.last_hello_try >= HELLO_RETRY_INTERVAL):
         _send_hello()

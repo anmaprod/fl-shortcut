@@ -426,7 +426,12 @@ struct CatalogRow: Identifiable {
 }
 
 extension Store {
-    var catalog: [CatalogEntry] { Catalog.entries(layout: layout) }
+    var catalog: [CatalogEntry] {
+        if let cached = catalogCache { return cached }
+        let entries = Catalog.entries(layout: layout)
+        catalogCache = entries
+        return entries
+    }
 
     /// Associe chaque entrée du catalogue au raccourci du profil qui la porte ; le reste va dans `others`.
     /// Les raccourcis d'origine que FL Shortcut refuse d'envoyer (⌘⌫, ⌘Q…) ne sont pas proposés.

@@ -878,5 +878,33 @@ class TestSourceCompat(unittest.TestCase):
         self.assertEqual(set(mac_detail), set(k for k, _ in script.values()))
 
 
+class TestLightweight(Base):
+    """Le script ne doit jamais alourdir FL : peu de travail dans OnIdle, erreurs jamais répétées en boucle."""
+
+    def setUp(self):
+        self.make()
+
+    def test_idle_does_little_between_ticks(self):
+        calls = []
+        self.dev.focused_window_code = lambda: calls.append(1) or 127
+        self.clock.t += 1.0
+        for _ in range(50):
+            self.dev.OnIdle()                 # même instant : un seul vrai passage
+        self.assertEqual(len(calls), 1)
+        self.clock.t += 0.6
+        self.dev.OnIdle()
+        self.assertEqual(len(calls), 2)
+
+    def test_same_error_reported_once_per_period(self):
+        hints = []
+        self.dev._hint = hints.append
+        for _ in range(30):
+            self.dev._report(RuntimeError("x"))
+        self.assertEqual(len(hints), 1)
+        self.clock.t += 11
+        self.dev._report(RuntimeError("x"))
+        self.assertEqual(len(hints), 2)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

@@ -445,7 +445,10 @@ final class MIDILink: ObservableObject {
     }
 
     private func refresh() {
-        let snap = core.snapshot
+        var snap = core.snapshot
+        // `lastAlive` change à chaque battement : on garde l'ancienne valeur pour ne pas redessiner l'interface
+        // toutes les 2 s (le statut « relié / inactif » est calculé à part, juste en dessous).
+        if snap.hello == snapshot.hello { snap.lastAlive = snapshot.lastAlive }
         if snap != snapshot { snapshot = snap }
         let s = LinkStatus.resolve(flRunning: flRunning, alive: core.routingView().linked)
         if s != status { status = s }

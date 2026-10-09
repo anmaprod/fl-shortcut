@@ -128,32 +128,14 @@ struct GlassGroup<Content: View>: View {
 // MARK: - Verre
 
 extension View {
-    /// Carte en verre (arrondie).
-    @ViewBuilder
+    /// Carte en verre (arrondie). Opaque et immobile quand l'app n'est pas au premier plan.
     func glassCard(cornerRadius: CGFloat = 18) -> some View {
-        #if compiler(>=6.2)
-        if #available(macOS 26.0, *) {
-            self.glassEffect(.regular, in: RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
-        } else {
-            self.fallbackGlass(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
-        }
-        #else
-        self.fallbackGlass(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
-        #endif
+        modifier(GlassSurface(shape: RoundedRectangle(cornerRadius: cornerRadius, style: .continuous), interactive: false))
     }
 
     /// Pastille en verre (capsule). `interactive` : le verre réagit au pointeur (macOS 26).
-    @ViewBuilder
     func glassCapsule(interactive: Bool = false) -> some View {
-        #if compiler(>=6.2)
-        if #available(macOS 26.0, *) {
-            self.glassEffect(interactive ? Glass.regular.interactive() : Glass.regular, in: Capsule())
-        } else {
-            self.fallbackGlass(Capsule())
-        }
-        #else
-        self.fallbackGlass(Capsule())
-        #endif
+        modifier(GlassSurface(shape: Capsule(), interactive: interactive))
     }
 
     /// Bouton principal (accent) : verre teinté sur macOS 26, bouton accentué ailleurs.
@@ -194,8 +176,40 @@ extension View {
         }
     }
 
-    private func fallbackGlass<S: InsettableShape>(_ shape: S) -> some View {
-        self
+}
+
+/// Surface en verre qui ne coûte RIEN quand tu travailles dans FL : dès que FL Shortcut n'est plus l'app
+/// active, le verre et le flou (recalculés par le compositeur à chaque image de ce qu'il y a derrière, donc
+/// de FL) sont remplacés par une surface opaque et fixe. La fluidité de FL passe avant l'effet visuel.
+struct GlassSurface<S: InsettableShape>: ViewModifier {
+    @Environment(\.controlActiveState) private var activeState
+    let shape: S
+    let interactive: Bool
+
+    func body(content: Content) -> some View {
+        if activeState == .inactive {
+            content
+                .background(shape.fill(Color(nsColor: .controlBackgroundColor)))
+                .overlay(shape.strokeBorder(Color.primary.opacity(0.08), lineWidth: 0.5))
+        } else {
+            live(content)
+        }
+    }
+
+    @ViewBuilder private func live(_ content: Content) -> some View {
+        #if compiler(>=6.2)
+        if #available(macOS 26.0, *) {
+            content.glassEffect(interactive ? Glass.regular.interactive() : Glass.regular, in: shape)
+        } else {
+            fallback(content)
+        }
+        #else
+        fallback(content)
+        #endif
+    }
+
+    private func fallback(_ content: Content) -> some View {
+        content
             .background(.ultraThinMaterial, in: shape)
             .overlay(shape.strokeBorder(Color.white.opacity(0.35), lineWidth: 0.5))
             .shadow(color: .black.opacity(0.08), radius: 2, y: 1)
@@ -337,7 +351,7 @@ extension FLActionInfo {
 
 
 /// Icône de section façon Liquid Glass : pastille arrondie teintée en dégradé, reflet en haut, liseré
-/// lumineux, symbole blanc en relief ; sur macOS 26, la pastille est en vrai verre teinté.
+/// lumineux, symbole blanc en relief. Dessin statique : aucun effet recalculé en continu.
 struct GlassIcon: View {
     let symbol: String
     let tint: Color
@@ -373,18 +387,11 @@ struct GlassIcon: View {
         .accessibilityHidden(true)
     }
 
-    @ViewBuilder private var base: some View {
-        let gradient = LinearGradient(colors: [tint.opacity(0.78), tint, tint.opacity(0.92)],
-                                      startPoint: .topLeading, endPoint: .bottomTrailing)
-        #if compiler(>=6.2)
-        if #available(macOS 26.0, *) {
-            shape.fill(gradient.opacity(0.85))
-                .glassEffect(Glass.regular.tint(tint.opacity(0.6)), in: shape)
-        } else {
-            shape.fill(gradient).overlay(shape.fill(Color.black.opacity(0.10)).mask(LinearGradient(colors: [.clear, .black], startPoint: .top, endPoint: .bottom)))
-        }
-        #else
-        shape.fill(gradient).overlay(shape.fill(Color.black.opacity(0.10)).mask(LinearGradient(colors: [.clear, .black], startPoint: .top, endPoint: .bottom)))
-        #endif
+    private var base: some View {
+        shape
+            .fill(LinearGradient(colors: [tint.opacity(0.78), tint, tint.opacity(0.92)],
+                                 startPoint: .topLeading, endPoint: .bottomTrailing))
+            .overlay(shape.fill(Color.black.opacity(0.10))
+                .mask(LinearGradient(colors: [.clear, .black], startPoint: .top, endPoint: .bottom)))
     }
 }

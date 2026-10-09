@@ -15,8 +15,7 @@ import UniformTypeIdentifiers
 struct EditorView: View {
     @EnvironmentObject var store: Store
     @EnvironmentObject var status: AppStatus
-    @EnvironmentObject var link: MIDILink
-    @EnvironmentObject var fl: FLMonitor
+    private var link: MIDILink { MIDILink.shared }
 
     @State private var query = ""
     @State private var editing: Remap? = nil
@@ -61,7 +60,7 @@ struct EditorView: View {
                 Text("Raccourcis")
                     .font(.system(size: 30, weight: .bold))
                     .accessibilityAddTraits(.isHeader)
-                StatusLine(store: store, status: status, link: link, fl: fl)
+                StatusLine(store: store, status: status, link: MIDILink.shared, fl: FLMonitor.shared)
             }
             Spacer(minLength: 12)
 
@@ -981,18 +980,28 @@ extension Remap {
 }
 
 extension View {
-    /// Fond de fenêtre translucide (macOS 15+), le contenu en verre flotte dessus.
-    @ViewBuilder
-    func windowGlassBackground() -> some View {
-        #if compiler(>=6.0)
-        if #available(macOS 15.0, *) {
-            self.containerBackground(.thinMaterial, for: .window)
+    /// Fond de fenêtre translucide (macOS 15+) quand FL Shortcut est devant ; opaque sinon (aucun flou
+    /// recalculé derrière la fenêtre pendant que tu travailles dans FL).
+    func windowGlassBackground() -> some View { modifier(WindowBackground()) }
+}
+
+private struct WindowBackground: ViewModifier {
+    @Environment(\.controlActiveState) private var activeState
+
+    @ViewBuilder func body(content: Content) -> some View {
+        if activeState == .inactive {
+            content.background(Color(nsColor: .windowBackgroundColor))
         } else {
-            self.background(VisualEffectBackground())
+            #if compiler(>=6.0)
+            if #available(macOS 15.0, *) {
+                content.containerBackground(.thinMaterial, for: .window)
+            } else {
+                content.background(VisualEffectBackground())
+            }
+            #else
+            content.background(VisualEffectBackground())
+            #endif
         }
-        #else
-        self.background(VisualEffectBackground())
-        #endif
     }
 }
 

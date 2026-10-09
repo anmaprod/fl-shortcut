@@ -198,7 +198,6 @@ struct OnboardingView: View {
                     // Vue propre à cet état : la pulsation démarre quand le script est installé et s'arrête
                     // quand FL répond (relecture 11 : l'ancien `breathe` ne démarrait jamais après l'installation).
                     Circle().fill(Color.orange).frame(width: 8, height: 8)
-                        .pulsing(duration: 1.1, low: 0.45)
                         .transition(.opacity)
                 } else {
                     Circle().fill(Color.gray).frame(width: 8, height: 8)

@@ -73,6 +73,8 @@ final class Store: ObservableObject {
 
     private let storage: ProfileStorage
     let layout: KeyboardLayout
+    /// Catalogue (≈ 310 entrées) calculé une fois, recalculé seulement si la disposition clavier change.
+    var catalogCache: [CatalogEntry]?
     private let defaults: UserDefaults
     private let systemHotKeys: () -> [KeyCombo: String]
     private let pushToTap: Bool
@@ -175,6 +177,7 @@ final class Store: ObservableObject {
     }
 
     private func refreshLayoutDependentState() {
+        catalogCache = nil
         toggleCombo = KeyCombo(keyCode: KeyNames.keyCode(for: "f", layout: layout) ?? 3,
                                command: true, option: true, control: true)
         forbidden = ForbiddenTargets.make(layout: layout)
