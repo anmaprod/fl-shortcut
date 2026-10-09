@@ -42,6 +42,43 @@ cp Resources/device_FLShortcut.py "$APP/Contents/Resources/"
 cp Resources/AppIcon.icns "$APP/Contents/Resources/AppIcon.icns"
 chmod -R go-w "$APP"
 
+# Identité de signature locale, créée une seule fois dans un trousseau dédié (jamais le trousseau de session) :
+# certificat auto-signé « FL Shortcut Dev », usage « signature de code » uniquement, valable sur ce Mac.
+DEV_KC="$HOME/Library/Keychains/flshortcut-dev.keychain-db"
+DEV_KC_PASS="flshortcut-dev"     # trousseau local de développement, ne protège que cette identité
+dev_identity() {
+  if [[ ! -f "$DEV_KC" ]]; then
+    local t; t=$(mktemp -d)
+    cat > "$t/cfg" <<'CFG'
+[req]
+distinguished_name = dn
+x509_extensions = ext
+prompt = no
+[dn]
+CN = FL Shortcut Dev
+[ext]
+basicConstraints = critical,CA:false
+keyUsage = critical,digitalSignature
+extendedKeyUsage = critical,codeSigning
+CFG
+    openssl req -x509 -newkey rsa:2048 -nodes -days 3650 -config "$t/cfg" \
+      -keyout "$t/key.pem" -out "$t/cert.pem" >/dev/null 2>&1 \
+    && openssl pkcs12 -export -inkey "$t/key.pem" -in "$t/cert.pem" -name "FL Shortcut Dev" \
+      -out "$t/id.p12" -passout pass:"$DEV_KC_PASS" >/dev/null 2>&1 \
+    && security create-keychain -p "$DEV_KC_PASS" "$DEV_KC" \
+    && security set-keychain-settings "$DEV_KC" \
+    && security unlock-keychain -p "$DEV_KC_PASS" "$DEV_KC" \
+    && security import "$t/id.p12" -k "$DEV_KC" -P "$DEV_KC_PASS" -T /usr/bin/codesign >/dev/null \
+    && security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$DEV_KC_PASS" "$DEV_KC" >/dev/null
+    local ok=$?
+    rm -rf "$t"
+    [[ $ok -eq 0 ]] || { echo "  (identité locale impossible à créer : signature ad hoc)"; rm -f "$DEV_KC"; return 1; }
+  fi
+  security unlock-keychain -p "$DEV_KC_PASS" "$DEV_KC" 2>/dev/null || return 1
+  DEV_ID=$(security find-certificate -c "FL Shortcut Dev" -Z "$DEV_KC" 2>/dev/null | awk '/SHA-1 hash/{print $3; exit}')
+  [[ -n "$DEV_ID" ]]
+}
+
 if [[ -n "${SIGN_IDENTITY:-}" ]]; then
   echo "▸ Signature Developer ID + Hardened Runtime"
   # Aucun entitlement : pas de disable-library-validation ni d'allow-dyld-environment-variables (SEC-08).
@@ -51,6 +88,12 @@ if [[ -n "${SIGN_IDENTITY:-}" ]]; then
   codesign --verify --strict --verbose=2 "$APP"
   codesign --display --verbose=2 "$APP" 2>&1 | grep -q "flags=0x10000(runtime)" \
     || { echo "✗ Hardened Runtime absent" >&2; exit 1; }
+elif [[ "${FLS_NATIVE:-}" == "1" ]] && dev_identity; then
+  # Compilation locale : identité de développement stable. macOS garde alors la permission Accessibilité
+  # d'une compilation à l'autre (avec une signature ad hoc, chaque compilation est une « nouvelle » app).
+  echo "▸ Signature de développement locale (FL Shortcut Dev)"
+  codesign --force --keychain "$DEV_KC" --sign "$DEV_ID" "$APP" \
+    || { echo "  (refusée : signature ad hoc)"; codesign --force --sign - "$APP"; }
 else
   echo "▸ Signature ad hoc (développement uniquement — ne pas distribuer)"
   codesign --force --sign - "$APP"

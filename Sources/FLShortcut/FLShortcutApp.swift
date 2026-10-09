@@ -21,6 +21,7 @@ struct FLShortcutApp: App {
     @StateObject private var fl: FLMonitor
 
     init() {
+        Bench.runIfRequested()                   // `--mesure` : temps de réponse de FL, puis quitte
         SingleInstance.enforce()                 // avant de créer quoi que ce soit (REL-07)
         _store = StateObject(wrappedValue: Store.shared)
         _status = StateObject(wrappedValue: AppStatus.shared)
