@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Application
+    x:Class="FLShortcut.App.App"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <Application.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <XamlControlsResources xmlns="using:Microsoft.UI.Xaml.Controls" />
+            </ResourceDictionary.MergedDictionaries>
+
+            <Style x:Key="KeyCapBorder" TargetType="Border">
+                <Setter Property="MinWidth" Value="26" />
+                <Setter Property="Height" Value="26" />
+                <Setter Property="Padding" Value="8,0" />
+                <Setter Property="CornerRadius" Value="4" />
+                <Setter Property="BorderThickness" Value="1,1,1,2" />
+                <Setter Property="BorderBrush" Value="{ThemeResource ControlStrokeColorDefaultBrush}" />
+                <Setter Property="Background" Value="{ThemeResource ControlFillColorDefaultBrush}" />
+            </Style>
+
+            <Style x:Key="RowButton" TargetType="Button">
+                <Setter Property="HorizontalAlignment" Value="Stretch" />
+                <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                <Setter Property="MinHeight" Value="60" />
+                <Setter Property="Padding" Value="16,8" />
+                <Setter Property="CornerRadius" Value="6" />
+                <Setter Property="Background" Value="{ThemeResource CardBackgroundFillColorDefaultBrush}" />
+                <Setter Property="BorderBrush" Value="{ThemeResource CardStrokeColorDefaultBrush}" />
+            </Style>
+        </ResourceDictionary>
+    </Application.Resources>
+</Application>

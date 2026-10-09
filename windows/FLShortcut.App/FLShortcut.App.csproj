@@ -1,0 +1,45 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Appli Windows 11 (WinUI 3, non empaquetée). Se compile uniquement sous Windows (dotnet build). -->
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows10.0.19041.0</TargetFramework>
+    <TargetPlatformMinVersion>10.0.19041.0</TargetPlatformMinVersion>
+    <SupportedOSPlatformVersion>10.0.19041.0</SupportedOSPlatformVersion>
+    <RootNamespace>FLShortcut.App</RootNamespace>
+    <AssemblyName>FLShortcut</AssemblyName>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <Platforms>x64;ARM64</Platforms>
+    <RuntimeIdentifiers>win-x64;win-arm64</RuntimeIdentifiers>
+    <UseWinUI>true</UseWinUI>
+    <WindowsPackageType>None</WindowsPackageType>
+    <WindowsAppSDKSelfContained>true</WindowsAppSDKSelfContained>
+    <EnableMsixTooling>true</EnableMsixTooling>
+    <SelfContained>true</SelfContained>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>12</LangVersion>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <Version>0.2.0</Version>
+    <Product>FL Shortcut</Product>
+    <Company>FL Shortcut</Company>
+    <Description>Raccourcis personnalisés pour FL Studio — outil indépendant, non affilié à Image-Line.</Description>
+    <ApplicationIcon Condition="Exists('Assets\FLShortcut.ico')">Assets\FLShortcut.ico</ApplicationIcon>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.WindowsAppSDK" Version="1.6.241114003" />
+    <PackageReference Include="Microsoft.Windows.SDK.BuildTools" Version="10.0.26100.1742" />
+    <PackageReference Include="System.Security.Cryptography.ProtectedData" Version="8.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\FLShortcut.Core\FLShortcut.Core.csproj" />
+  </ItemGroup>
+
+  <!-- Le script FL (modèle avec le marqueur de clé), embarqué dans l'exécutable. -->
+  <ItemGroup>
+    <EmbeddedResource Include="..\..\Resources\device_FLShortcut.py" LogicalName="device_FLShortcut.py" />
+  </ItemGroup>
+
+</Project>

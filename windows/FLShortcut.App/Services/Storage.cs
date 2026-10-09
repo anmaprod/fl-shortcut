@@ -1,0 +1,189 @@
+// Audit : SEC-01 / PROTOCOL.md §2 (clé de 16 octets par installation, protégée par DPAPI « utilisateur »),
+//         SEC-05 / SEC-06 / WIN-08 (aucun lien symbolique ni jonction suivi, fichier temporaire dans le même dossier
+//         puis remplacement atomique), REL-01 / REL-02 (profil tolérant, copie de secours, écriture atomique),
+//         REL-22 (empreinte SHA-256 du script installé pour détecter une modification).
+using System.Reflection;
+using System.Security.Cryptography;
+using System.Text;
+using System.Text.Json;
+using FLShortcut.Core;
+
+namespace FLShortcut.App.Services;
+
+internal static class AppPaths
+{
+    /// %LOCALAPPDATA%\FL Shortcut (clé, réglages) — jamais itinérant.
+    public static string Local { get; } = Ensure(Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "FL Shortcut"));
+
+    /// %APPDATA%\FL Shortcut (profil de raccourcis).
+    public static string Roaming { get; } = Ensure(Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "FL Shortcut"));
+
+    private static string Ensure(string dir)
+    {
+        Directory.CreateDirectory(dir);
+        return dir;
+    }
+}
+
+internal static class SafeFile
+{
+    /// Refuse un fichier, ou l'un de ses 3 dossiers parents, qui serait un lien symbolique ou une jonction (SEC-06).
+    /// On s'arrête là : un profil Windows déplacé par jonction (C:\Users → D:\Users) reste accepté, et les
+    /// dossiers OneDrive (fichiers à la demande) ne sont pas des liens.
+    public static void EnsureNoLinks(string path, int levels = 3)
+    {
+        var full = Path.GetFullPath(path);
+        if (File.Exists(full) && new FileInfo(full).LinkTarget is not null) throw new IOException($"Fichier refusé (lien) : {full}");
+        var d = Directory.Exists(full) ? new DirectoryInfo(full) : new FileInfo(full).Directory;
+        for (var i = 0; i <= levels && d is not null; i++, d = d.Parent)
+        {
+            if (d.Exists && d.LinkTarget is not null) throw new IOException($"Dossier refusé (lien) : {d.FullName}");
+        }
+    }
+
+    /// Écriture atomique : fichier temporaire dans le même dossier, puis remplacement (REL-02).
+    public static void WriteAtomic(string path, byte[] content)
+    {
+        var dir = Path.GetDirectoryName(Path.GetFullPath(path))!;
+        Directory.CreateDirectory(dir);
+        EnsureNoLinks(path);
+        var tmp = Path.Combine(dir, $".{Path.GetFileName(path)}.{Guid.NewGuid():N}.tmp");
+        try
+        {
+            using (var fs = new FileStream(tmp, FileMode.CreateNew, FileAccess.Write, FileShare.None, 4096, FileOptions.WriteThrough))
+            {
+                fs.Write(content);
+                fs.Flush(true);
+            }
+            File.Move(tmp, path, overwrite: true);
+        }
+        finally
+        {
+            try { if (File.Exists(tmp)) File.Delete(tmp); } catch { /* nettoyage au mieux */ }
+        }
+    }
+}
+
+/// Clé du lien appli ↔ script FL, chiffrée par DPAPI pour l'utilisateur courant.
+internal static class SecretStore
+{
+    private static string KeyPath => Path.Combine(AppPaths.Local, "link.key");
+    private static readonly byte[] Entropy = Encoding.UTF8.GetBytes("FL Shortcut link key v2");
+
+    public static byte[]? Load()
+    {
+        try
+        {
+            if (!File.Exists(KeyPath)) return null;
+            SafeFile.EnsureNoLinks(KeyPath);
+            var key = ProtectedData.Unprotect(File.ReadAllBytes(KeyPath), Entropy, DataProtectionScope.CurrentUser);
+            return key.Length == FlProtocol.KeyLength ? key : null;
+        }
+        catch { return null; }
+    }
+
+    public static byte[] CreateNew()
+    {
+        var key = RandomNumberGenerator.GetBytes(FlProtocol.KeyLength);
+        SafeFile.WriteAtomic(KeyPath, ProtectedData.Protect(key, Entropy, DataProtectionScope.CurrentUser));
+        return key;
+    }
+}
+
+internal sealed class AppSettings
+{
+    public bool Enabled { get; set; } = true;
+    public bool Onboarded { get; set; }
+    public string? ScriptPath { get; set; }
+    public string? ScriptSha256 { get; set; }
+    public string Profile { get; set; } = "Recommended";
+
+    private static string FilePath => Path.Combine(AppPaths.Local, "settings.json");
+
+    public static AppSettings Load()
+    {
+        try
+        {
+            if (File.Exists(FilePath))
+                return JsonSerializer.Deserialize<AppSettings>(File.ReadAllText(FilePath)) ?? new AppSettings();
+        }
+        catch { /* réglages illisibles : valeurs par défaut */ }
+        return new AppSettings();
+    }
+
+    public void Save()
+    {
+        try { SafeFile.WriteAtomic(FilePath, JsonSerializer.SerializeToUtf8Bytes(this, new JsonSerializerOptions { WriteIndented = true })); }
+        catch { /* non bloquant */ }
+    }
+}
+
+internal static class ProfileStore
+{
+    private static string FilePath => Path.Combine(AppPaths.Roaming, "profile.json");
+
+    /// Profil enregistré, ou null s'il n'existe pas. Un fichier illisible est mis de côté (jamais écrasé).
+    public static List<Shortcut>? Load(out string? warning)
+    {
+        warning = null;
+        if (!File.Exists(FilePath)) return null;
+        try
+        {
+            SafeFile.EnsureNoLinks(FilePath);
+            var decoded = ProfileCodec.Decode(File.ReadAllText(FilePath));
+            if (decoded.Skipped > 0) warning = $"{decoded.Skipped} raccourci(s) illisible(s) ont été ignorés.";
+            return decoded.Shortcuts;
+        }
+        catch (Exception e)
+        {
+            try { File.Copy(FilePath, Path.Combine(AppPaths.Roaming, $"profile.illisible-{DateTime.Now:yyyyMMdd-HHmmss}.json")); }
+            catch { }
+            warning = $"Ton profil était illisible ({e.Message}). Une copie a été gardée, le profil recommandé est chargé.";
+            return null;
+        }
+    }
+
+    public static void Save(IEnumerable<Shortcut> shortcuts) =>
+        SafeFile.WriteAtomic(FilePath, Encoding.UTF8.GetBytes(ProfileCodec.Encode(shortcuts)));
+}
+
+/// Installe le script FL avec la clé de l'installation.
+internal static class ScriptInstaller
+{
+    public const string FileName = "device_FLShortcut.py";
+
+    public static string DefaultHardwareFolder => Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "Image-Line", "FL Studio", "Settings", "Hardware");
+
+    public static string Template()
+    {
+        using var s = Assembly.GetExecutingAssembly().GetManifestResourceStream(FileName)
+            ?? throw new InvalidOperationException("Script FL introuvable dans l'application.");
+        using var r = new StreamReader(s, Encoding.UTF8);
+        return r.ReadToEnd();
+    }
+
+    /// Écrit « Hardware\FL Shortcut\device_FLShortcut.py ». Renvoie le chemin et l'empreinte SHA-256.
+    public static (string Path, string Sha256) Install(string hardwareFolder, byte[] key)
+    {
+        if (!string.Equals(Path.GetFileName(Path.TrimEndingDirectorySeparator(hardwareFolder)), "Hardware", StringComparison.OrdinalIgnoreCase))
+            throw new IOException("Choisis le dossier « Settings\\Hardware » de FL Studio.");
+        var dir = Path.Combine(hardwareFolder, "FL Shortcut");
+        Directory.CreateDirectory(dir);
+        SafeFile.EnsureNoLinks(dir);
+        var content = Encoding.UTF8.GetBytes(ScriptTemplate.Inject(key, Template()));
+        var path = Path.Combine(dir, FileName);
+        SafeFile.WriteAtomic(path, content);
+        return (path, Convert.ToHexString(SHA256.HashData(content)));
+    }
+
+    /// Le script installé a-t-il été modifié par un autre logiciel depuis l'installation ?
+    public static bool IsIntact(string? path, string? sha256)
+    {
+        if (path is null || sha256 is null || !File.Exists(path)) return false;
+        try { return string.Equals(Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(path))), sha256, StringComparison.OrdinalIgnoreCase); }
+        catch { return false; }
+    }
+}

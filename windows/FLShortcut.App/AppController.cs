@@ -1,0 +1,321 @@
+// Chef d'orchestre : profil, analyse unique (REL-20), index du hook, lien MIDI, statut affiché.
+// Audit : REL-06 / PROTOCOL.md §5 (statut Relié / Lien inactif / FL fermé), WIN-05 (FL administrateur signalé),
+//         REL-22 (script modifié détecté), audit 04 (actions grisées selon le masque ou la version de FL),
+//         audit 05 (pause clairement visible, avertissements de conflit).
+using System.ComponentModel;
+using System.Runtime.CompilerServices;
+using FLShortcut.App.Services;
+using FLShortcut.Core;
+using Microsoft.UI.Dispatching;
+
+namespace FLShortcut.App;
+
+public sealed class ShortcutRow
+{
+    public required Shortcut Shortcut { get; init; }
+    public required IReadOnlyList<string> Caps { get; init; }
+    public required string Label { get; init; }
+    public required string Description { get; init; }
+    public required string Where { get; init; }
+    public required bool HasWarning { get; init; }
+    public required string WarningText { get; init; }
+    public double Opacity => Shortcut.Enabled ? 1.0 : 0.5;
+    public Microsoft.UI.Xaml.Visibility WhereVisibility => string.IsNullOrEmpty(Where) ? Microsoft.UI.Xaml.Visibility.Collapsed : Microsoft.UI.Xaml.Visibility.Visible;
+    public Microsoft.UI.Xaml.Visibility WarningVisibility => HasWarning ? Microsoft.UI.Xaml.Visibility.Visible : Microsoft.UI.Xaml.Visibility.Collapsed;
+}
+
+public sealed class ShortcutGroup
+{
+    public required string Title { get; init; }
+    public required List<ShortcutRow> Rows { get; init; }
+}
+
+internal enum StatusKind { Linked, Inactive, FlClosed, Paused, Elevated, Incompatible, NoKey, Tampered }
+
+internal sealed class AppController : INotifyPropertyChanged, IDisposable
+{
+    public event PropertyChangedEventHandler? PropertyChanged;
+
+    private readonly DispatcherQueue _ui;
+    private readonly AppSettings _settings = AppSettings.Load();
+    private readonly MidiLink _midi = new();
+    private readonly KeyboardHook _hook;
+    private List<Shortcut> _shortcuts;
+    private Dictionary<Guid, List<ShortcutIssue>> _issues = new();
+    private FlProcessInfo? _foreground;
+    private FlVersion? _flVersion;
+    private string _query = "";
+
+    public AppController(DispatcherQueue ui)
+    {
+        _ui = ui;
+        _shortcuts = ProfileStore.Load(out var warning) ?? ProfilePreset.Recommended.Shortcuts();
+        LoadWarning = warning;
+        _midi.SetKey(SecretStore.Load());
+        _midi.Changed += () => OnUi(RefreshAll);
+        _hook = new KeyboardHook(_midi.SendAction, () => OnUi(Toggle), fl => OnUi(() => OnForeground(fl)));
+    }
+
+    public void Start()
+    {
+        _midi.Start();
+        _hook.Start();
+        RefreshAll();
+    }
+
+    // ---------- État affiché ----------
+
+    public string? LoadWarning { get; }
+    public bool Onboarded => _settings.Onboarded;
+    public bool Enabled => _settings.Enabled;
+    public ProfilePreset CurrentPreset => Enum.TryParse<ProfilePreset>(_settings.Profile, out var p) ? p : ProfilePreset.Recommended;
+    public IReadOnlyList<Shortcut> Shortcuts => _shortcuts;
+    public List<ShortcutGroup> Groups { get; private set; } = new();
+    public bool IsEmpty => Groups.Count == 0;
+    public StatusKind Status { get; private set; }
+    public string StatusTitle { get; private set; } = "";
+    public string StatusText { get; private set; } = "";
+    public bool PortsPresent => _midi.PortsPresent || MidiLink.PortsExist();
+    public bool Linked => _midi.Alive;
+
+    public string Query
+    {
+        get => _query;
+        set { if (_query != value) { _query = value; RebuildRows(); } }
+    }
+
+    // ---------- Actions ----------
+
+    public void Toggle()
+    {
+        _settings.Enabled = !_settings.Enabled;
+        _settings.Save();
+        RefreshAll();
+    }
+
+    public void SetEnabled(bool on)
+    {
+        if (_settings.Enabled == on) return;
+        Toggle();
+    }
+
+    public void CompleteOnboarding()
+    {
+        _settings.Onboarded = true;
+        _settings.Save();
+        Raise(nameof(Onboarded));
+    }
+
+    /// Installe le script FL avec une nouvelle clé. Renvoie un message d'erreur, ou null si tout va bien.
+    public string? InstallScript(string? hardwareFolder = null)
+    {
+        try
+        {
+            var folder = hardwareFolder ?? ScriptInstaller.DefaultHardwareFolder;
+            if (!Directory.Exists(Path.GetDirectoryName(folder)))
+                return "Dossier de FL Studio introuvable. Choisis le dossier « Settings\\Hardware » de FL Studio.";
+            var key = SecretStore.CreateNew();
+            var (path, sha) = ScriptInstaller.Install(folder, key);
+            _settings.ScriptPath = path;
+            _settings.ScriptSha256 = sha;
+            _settings.Save();
+            _midi.SetKey(key);
+            RefreshAll();
+            return null;
+        }
+        catch (Exception e)
+        {
+            return "Installation impossible : " + e.Message;
+        }
+    }
+
+    /// « Tester » : ouvre le Mixer dans FL (action 33).
+    public bool TestLink() => _midi.SendAction(33);
+
+    /// « Tester » dans la fiche : envoie l'action choisie à FL.
+    public bool TestAction(int id) => _midi.SendAction(id);
+
+    public ActionAvailability Availability(int id) =>
+        AvailabilityResolver.Resolve(id, _midi.Hello?.Capabilities, _flVersion);
+
+    public IReadOnlyList<ShortcutIssue> IssuesFor(Shortcut draft)
+    {
+        // Le brouillon est analysé après les autres raccourcis, pour qu'un doublon soit signalé sur lui.
+        var list = _shortcuts.Where(s => s.Id != draft.Id).ToList();
+        list.Add(draft with { Enabled = true });
+        return ShortcutAnalyzer.Analyze(list, AnalysisContext())[draft.Id];
+    }
+
+    public void Upsert(Shortcut s)
+    {
+        var i = _shortcuts.FindIndex(x => x.Id == s.Id);
+        if (i >= 0) _shortcuts[i] = s; else _shortcuts.Add(s);
+        Persist();
+    }
+
+    public Shortcut? Delete(Guid id)
+    {
+        var s = _shortcuts.FirstOrDefault(x => x.Id == id);
+        if (s is null) return null;
+        _shortcuts.Remove(s);
+        Persist();
+        return s;
+    }
+
+    public void LoadPreset(ProfilePreset preset)
+    {
+        _shortcuts = preset.Shortcuts();
+        _settings.Profile = preset.ToString();
+        _settings.Save();
+        Persist();
+    }
+
+    public ImportPreview PrepareImport(string json) => ProfileImporter.Prepare(json);
+
+    public void ApplyImport(ImportPreview preview)
+    {
+        _shortcuts.AddRange(preview.Shortcuts);
+        Persist();
+    }
+
+    public string ExportJson() => ProfileCodec.Encode(_shortcuts);
+
+    public void SetRecording(bool recording) => _hook.Config = _hook.Config with { Recording = recording };
+
+    // ---------- Interne ----------
+
+    private AnalysisContext AnalysisContext() => new(ProfilePresets.Toggle, ConflictTable.Default, Availability);
+
+    private void Persist()
+    {
+        try { ProfileStore.Save(_shortcuts); }
+        catch { /* le profil reste en mémoire ; nouvel essai à la prochaine modification */ }
+        RefreshAll();
+    }
+
+    private void OnForeground(FlProcessInfo? fl)
+    {
+        _foreground = fl;
+        if (fl?.Version is { } v) _flVersion = v;
+        RefreshAll();
+    }
+
+    private void RefreshAll()
+    {
+        if (_flVersion is null && FlPresence.RunningInstance() is { Version: { } v }) _flVersion = v;
+        _issues = ShortcutAnalyzer.Analyze(_shortcuts, AnalysisContext());
+        var blocked = ShortcutAnalyzer.Blocked(_issues);
+        _hook.Config = _hook.Config with
+        {
+            Enabled = _settings.Enabled,
+            Index = new ShortcutIndex(_shortcuts, blocked),
+            Toggle = ProfilePresets.Toggle,
+        };
+        _hook.Link = _midi.RoutingView();
+        UpdateStatus();
+        RebuildRows();
+        Raise(nameof(Enabled));
+        Raise(nameof(PortsPresent));
+        Raise(nameof(Linked));
+    }
+
+    private void UpdateStatus()
+    {
+        var flRunning = _foreground is not null || FlPresence.IsRunning();
+        if (!_settings.Enabled)
+            Set(StatusKind.Paused, "En pause", "FL Studio utilise ses raccourcis d'origine.");
+        else if (_foreground is { Elevated: true })
+            Set(StatusKind.Elevated, "FL Studio est lancé en administrateur",
+                "Relance FL Studio normalement : Windows empêche FL Shortcut d'agir sur une appli administrateur.");
+        else if (!_midi.HasKey)
+            Set(StatusKind.NoKey, "Lien non installé", "Installe le lien avec FL Studio pour utiliser les actions.");
+        else if (_settings.ScriptPath is not null && !ScriptInstaller.IsIntact(_settings.ScriptPath, _settings.ScriptSha256))
+            Set(StatusKind.Tampered, "Le script FL a été modifié", "Réinstalle le lien pour retrouver un script sûr.");
+        else if (_midi.Incompatible)
+            Set(StatusKind.Incompatible, "Script FL d'une autre version", "Réinstalle le lien pour mettre le script à jour.");
+        else
+        {
+            var link = LinkStatusExtensions.Resolve(flRunning, _midi.Alive);
+            switch (link)
+            {
+                case LinkStatus.Linked:
+                    Set(StatusKind.Linked, "Relié à FL Studio", "Actif quand FL Studio est au premier plan.");
+                    break;
+                case LinkStatus.Inactive:
+                    Set(StatusKind.Inactive, "Lien inactif",
+                        PortsPresent ? "Dans FL Studio : Options › MIDI Settings, active « FL Shortcut »."
+                                     : "Les ports MIDI « FL Shortcut » sont introuvables.");
+                    break;
+                default:
+                    Set(StatusKind.FlClosed, "FL Studio n'est pas ouvert", "Tes raccourcis marcheront dès que tu l'ouvres.");
+                    break;
+            }
+        }
+    }
+
+    private void Set(StatusKind kind, string title, string text)
+    {
+        Status = kind;
+        StatusTitle = title;
+        StatusText = text;
+        Raise(nameof(Status));
+        Raise(nameof(StatusTitle));
+        Raise(nameof(StatusText));
+    }
+
+    private void RebuildRows()
+    {
+        var q = _query.Trim();
+        var cats = new[] { "Composition", "Enregistrement", "Mix", "Navigation", "Touches de FL" };
+        var rows = _shortcuts.Select(ToRow)
+            .Where(r => q.Length == 0
+                        || r.Label.Contains(q, StringComparison.CurrentCultureIgnoreCase)
+                        || r.Description.Contains(q, StringComparison.CurrentCultureIgnoreCase)
+                        || string.Join(" ", r.Caps).Contains(q, StringComparison.CurrentCultureIgnoreCase))
+            .ToList();
+        Groups = cats
+            .Select(c => new ShortcutGroup { Title = c, Rows = rows.Where(r => CategoryOf(r.Shortcut) == c).ToList() })
+            .Where(g => g.Rows.Count > 0)
+            .ToList();
+        Raise(nameof(Groups));
+        Raise(nameof(IsEmpty));
+    }
+
+    private static string CategoryOf(Shortcut s) =>
+        s.Kind == ShortcutKind.Keystroke ? "Touches de FL"
+        : s.ActionId is { } id && FlActions.Info(id) is { } info ? info.CategoryLabel : "Navigation";
+
+    private ShortcutRow ToRow(Shortcut s)
+    {
+        var issues = _issues.TryGetValue(s.Id, out var l) ? l : new List<ShortcutIssue>();
+        var desc = s.Kind == ShortcutKind.Keystroke
+            ? (s.Target is { } t && ConflictTable.Default.FlConflict(t) is { } fl ? "Dans " + fl : "Raccourci de FL Studio")
+            : s.ActionId is { } id && Availability(id) is ActionAvailability.Unavailable u ? u.Reason
+            : s.ActionId is { } id2 && FlActions.Info(id2) is { } info ? info.CategoryLabel : s.UnknownAction ?? "";
+        return new ShortcutRow
+        {
+            Shortcut = s,
+            Caps = s.Trigger?.Caps ?? new[] { "?" },
+            Label = s.Label,
+            Description = desc,
+            Where = s.Context == ShortcutContext.Everywhere ? "" : s.Context.Label(),
+            HasWarning = issues.Count > 0,
+            WarningText = string.Join(" ", issues.Select(i => i.Message)),
+        };
+    }
+
+    private void OnUi(Action a)
+    {
+        if (_ui.HasThreadAccess) a();
+        else _ui.TryEnqueue(() => a());
+    }
+
+    private void Raise([CallerMemberName] string? name = null) =>
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
+
+    public void Dispose()
+    {
+        _hook.Dispose();
+        _midi.Dispose();
+    }
+}

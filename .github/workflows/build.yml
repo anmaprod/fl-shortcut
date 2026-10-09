@@ -30,6 +30,43 @@ jobs:
       - name: Tests du script FL
         run: python3 -m unittest discover -s tests/python -v
 
+  windows-core:
+    name: Cœur Windows (tests .NET)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Tests du cœur Windows
+        run: dotnet test windows/FLShortcut.Core.Tests -c Release
+
+  windows:
+    name: App Windows (compilation)
+    runs-on: windows-2025
+    needs: [script-fl, windows-core]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Compilation x64 et ARM64
+        shell: pwsh
+        run: |
+          $targets = @{ 'x64' = 'x64'; 'arm64' = 'ARM64' }
+          foreach ($arch in $targets.Keys) {
+            dotnet publish windows/FLShortcut.App -c Release -r "win-$arch" "-p:Platform=$($targets[$arch])" -o "dist/win-$arch"
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          }
+          Compress-Archive -Path dist/win-x64/* -DestinationPath dist/FLShortcut-win-x64.zip
+          Compress-Archive -Path dist/win-arm64/* -DestinationPath dist/FLShortcut-win-arm64.zip
+          Get-FileHash dist/*.zip -Algorithm SHA256 | ForEach-Object { "$($_.Hash.ToLower())  $(Split-Path $_.Path -Leaf)" } | Out-File -Encoding ascii dist/FLShortcut-win.sha256
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: FLShortcut-windows
+          path: |
+            dist/FLShortcut-win-*.zip
+            dist/FLShortcut-win.sha256
+          if-no-files-found: error
+
   mac:
     name: App Mac (compilation + tests)
     runs-on: macos-15
