@@ -377,3 +377,16 @@ public class ActionTextTests
         }
     }
 }
+
+public class DisplayTextTests
+{
+    [Fact]
+    public void ImportedTextIsCleanedAndClipped()
+    {
+        Assert.Equal("teleport", DisplayText.Safe("tele‮port"));          // inversion bidi retirée
+        Assert.Equal("ab", DisplayText.Safe("a\u0000\n​b"));                // contrôle et largeur nulle retirés
+        Assert.Equal("", DisplayText.Safe(null));
+        Assert.Equal(new string('x', 40) + "…", DisplayText.Safe(new string('x', 500)));
+        Assert.Equal(new string('x', 39) + "…", DisplayText.Safe(new string('x', 39) + "😀😀"));   // paire non coupée
+    }
+}

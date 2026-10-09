@@ -344,7 +344,7 @@ public sealed partial class MainWindow : Window
         {
             var searching = _app.Query.Trim().Length > 0;
             var empty = new StackPanel { Spacing = 8, Padding = new Thickness(0, 64, 0, 0), HorizontalAlignment = HorizontalAlignment.Center };
-            empty.Children.Add(new FontIcon { Glyph = searching ? "" : "", FontSize = 40, Foreground = Secondary() });
+            empty.Children.Add(new FontIcon { Glyph = searching ? "\uE721" : "\uE765", FontSize = 40, Foreground = Secondary() });
             empty.Children.Add(new TextBlock { Text = searching ? "Aucun raccourci trouvé" : "Aucun raccourci ici", Style = Res<Style>("SubtitleTextBlockStyle"), HorizontalAlignment = HorizontalAlignment.Center });
             empty.Children.Add(new TextBlock { Text = searching ? "Essaie un autre mot." : "Clique sur « Nouveau raccourci » pour en créer un.", Foreground = Secondary(), HorizontalAlignment = HorizontalAlignment.Center });
             GroupsPanel.Children.Add(empty);
@@ -391,11 +391,11 @@ public sealed partial class MainWindow : Window
 
     private static string CategoryGlyph(string category) => category switch
     {
-        "Composition" => "",
-        "Enregistrement" => "",
-        "Mix" => "",
-        "Navigation" => "",
-        _ => "",
+        "Composition" => "\uE8D6",
+        "Enregistrement" => "\uE7C8",
+        "Mix" => "\uE767",
+        "Navigation" => "\uE8A9",
+        _ => "\uE765",
     };
 
     /// Ligne façon carte de Réglages : icône, intitulé + description, puis à droite le lieu, l'alerte, les touches.
@@ -430,7 +430,7 @@ public sealed partial class MainWindow : Window
         }
         if (row.HasWarning)
         {
-            var warn = new FontIcon { Glyph = "", FontSize = 16, VerticalAlignment = VerticalAlignment.Center,
+            var warn = new FontIcon { Glyph = "\uE7BA", FontSize = 16, VerticalAlignment = VerticalAlignment.Center,
                 Foreground = Res<Brush>("SystemFillColorCautionBrush") };
             ToolTipService.SetToolTip(warn, row.WarningText);
             Grid.SetColumn(warn, 3);
@@ -442,7 +442,7 @@ public sealed partial class MainWindow : Window
         Grid.SetColumn(caps, 4);
         grid.Children.Add(caps);
 
-        var chevron = new FontIcon { Glyph = "", FontSize = 12, VerticalAlignment = VerticalAlignment.Center, Foreground = Secondary() };
+        var chevron = new FontIcon { Glyph = "\uE76C", FontSize = 12, VerticalAlignment = VerticalAlignment.Center, Foreground = Secondary() };
         Grid.SetColumn(chevron, 5);
         grid.Children.Add(chevron);
 
@@ -456,10 +456,10 @@ public sealed partial class MainWindow : Window
         var toggle = new MenuFlyoutItem
         {
             Text = row.Shortcut.Enabled ? "Désactiver" : "Activer",
-            Icon = new FontIcon { Glyph = row.Shortcut.Enabled ? "" : "" },
+            Icon = new FontIcon { Glyph = row.Shortcut.Enabled ? "\uE769" : "\uE768" },
         };
         toggle.Click += (_, _) => _app.Upsert(row.Shortcut with { Enabled = !row.Shortcut.Enabled });
-        var delete = new MenuFlyoutItem { Text = "Supprimer", Icon = new FontIcon { Glyph = "" } };
+        var delete = new MenuFlyoutItem { Text = "Supprimer", Icon = new FontIcon { Glyph = "\uE74D" } };
         delete.Click += (_, _) => DeleteWithUndo(row.Shortcut.Id);
         menu.Items.Add(toggle);
         menu.Items.Add(delete);
@@ -768,7 +768,7 @@ public sealed partial class MainWindow : Window
         HorizontalAlignment = HorizontalAlignment.Stretch,
         HorizontalContentAlignment = HorizontalAlignment.Center,
         MinHeight = 76,
-        CornerRadius = Res<CornerRadius>("OverlayCornerRadius"),
+        CornerRadius = Lookup("OverlayCornerRadius") is CornerRadius r ? r : new CornerRadius(8),
         IsTabStop = true,
     };
 
@@ -841,7 +841,7 @@ public sealed partial class MainWindow : Window
             Width = 24, Height = 24, CornerRadius = new CornerRadius(12), VerticalAlignment = VerticalAlignment.Top,
             Background = done ? success : Res<Brush>("SubtleFillColorSecondaryBrush"),
             Child = done
-                ? new FontIcon { Glyph = "", FontSize = 12, Foreground = Res<Brush>("TextOnAccentFillColorPrimaryBrush") }
+                ? new FontIcon { Glyph = "\uE73E", FontSize = 12, Foreground = Res<Brush>("TextOnAccentFillColorPrimaryBrush") }
                 : new TextBlock { Text = number.ToString(), FontSize = 12, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center },
         };
         row.Children.Add(dot);
@@ -860,10 +860,23 @@ public sealed partial class MainWindow : Window
 
     private static Brush Secondary() => Res<Brush>("TextFillColorSecondaryBrush");
 
-    private static T Res<T>(string key) => (T)Application.Current.Resources[key];
+    /// Ressource du thème (Fluent) ou de App.xaml. Clé absente (autre version du Windows App SDK) : repli neutre
+    /// (pinceau gris, style par défaut) au lieu d'une exception qui ferait tomber la fenêtre (relecture 11).
+    private static T Res<T>(string key) where T : class
+    {
+        if (Lookup(key) is T found) return found;
+        return typeof(T) == typeof(Brush) ? (T)(object)new SolidColorBrush(Colors.Gray) : null!;
+    }
 
-    private static T? TryRes<T>(string key) where T : class =>
-        Application.Current.Resources.TryGetValue(key, out var v) ? v as T : null;
+    private static T? TryRes<T>(string key) where T : class => Lookup(key) as T;
+
+    /// L'indexeur cherche aussi dans les dictionnaires fusionnés et de thème (XamlControlsResources) ;
+    /// TryGetValue passe par HasKey, dont la recherche dans ces dictionnaires n'est pas garantie.
+    private static object? Lookup(string key)
+    {
+        try { return Application.Current.Resources[key]; }
+        catch (Exception) { return null; }        // KeyNotFoundException ou COMException selon la projection
+    }
 
     // ---------- Notification ----------
 
@@ -871,10 +884,10 @@ public sealed partial class MainWindow : Window
     {
         var (glyph, brush) = severity switch
         {
-            InfoBarSeverity.Success => ("", "SystemFillColorSuccessBrush"),
-            InfoBarSeverity.Warning => ("", "SystemFillColorCautionBrush"),
-            InfoBarSeverity.Error => ("", "SystemFillColorCriticalBrush"),
-            _ => ("", "AccentTextFillColorPrimaryBrush"),
+            InfoBarSeverity.Success => ("\uE73E", "SystemFillColorSuccessBrush"),
+            InfoBarSeverity.Warning => ("\uE7BA", "SystemFillColorCautionBrush"),
+            InfoBarSeverity.Error => ("\uE783", "SystemFillColorCriticalBrush"),
+            _ => ("\uE946", "AccentTextFillColorPrimaryBrush"),
         };
         ToastIcon.Glyph = glyph;
         ToastIcon.Foreground = Res<Brush>(brush);

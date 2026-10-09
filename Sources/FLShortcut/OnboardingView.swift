@@ -54,7 +54,6 @@ struct OnboardingView: View {
     @State private var askedPermission = false
     @State private var installed = false
     @State private var appeared = false
-    @State private var breathe = false
 
     var body: some View {
         ZStack(alignment: .bottom) {
@@ -194,19 +193,20 @@ struct OnboardingView: View {
                         .foregroundStyle(.green)
                         .bounceSymbol(on: linked)
                         .transition(Motion.transition(.scale(scale: 0.3).combined(with: .opacity)))
+                } else if installed {
+                    // Point qui « respire » doucement pendant l'attente (immobile si le mouvement est réduit).
+                    // Vue propre à cet état : la pulsation démarre quand le script est installé et s'arrête
+                    // quand FL répond (relecture 11 : l'ancien `breathe` ne démarrait jamais après l'installation).
+                    Circle().fill(Color.orange).frame(width: 8, height: 8)
+                        .pulsing(duration: 1.1, low: 0.45)
+                        .transition(.opacity)
                 } else {
-                    Circle().fill(installed ? Color.orange : Color.gray).frame(width: 8, height: 8)
-                        .opacity(installed && breathe ? 0.45 : 1)
+                    Circle().fill(Color.gray).frame(width: 8, height: 8)
                         .transition(.opacity)
                 }
                 Text(linked ? "FL Studio est relié" : installed ? "En attente de FL Studio… fais les étapes 2 et 3" : "FL Studio pas encore relié")
                     .font(.system(size: 13, weight: .medium))
                     .contentTransition(.interpolate)
-            }
-            .onAppear {
-                // Point qui « respire » doucement pendant l'attente (désactivé si le mouvement est réduit).
-                guard !Motion.reduce else { return }
-                withAnimation(.easeInOut(duration: 1.1).repeatForever(autoreverses: true)) { breathe = true }
             }
             .padding(.horizontal, 16)
             .frame(height: 36)

@@ -51,10 +51,35 @@ private struct MotionModifier<V: Equatable>: ViewModifier {
     }
 }
 
+/// Pulsation d'opacité infinie, confinée à la vue qui la porte : elle démarre à l'apparition et disparaît
+/// avec la vue (un `repeatForever` piloté par un état du parent ne s'arrête pas de façon fiable : relecture 11).
+/// Rien ne bouge si « Réduire les animations » est activé.
+private struct PulseModifier: ViewModifier {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    let duration: Double
+    let low: Double
+    @State private var dimmed = false
+
+    func body(content: Content) -> some View {
+        content
+            .opacity(dimmed ? low : 1)
+            .onAppear {
+                guard !reduceMotion else { return }
+                withAnimation(.easeInOut(duration: duration).repeatForever(autoreverses: true)) { dimmed = true }
+            }
+    }
+}
+
 extension View {
     /// `.animation(_:value:)` qui respecte « Réduire les animations ».
     func motion<V: Equatable>(_ animation: Animation = Motion.smooth, value: V) -> some View {
         modifier(MotionModifier(animation: animation, value: value))
+    }
+
+    /// Pulsation douce (attente, enregistrement). À poser sur une vue insérée / retirée par un `if` :
+    /// la retirer arrête l'animation.
+    func pulsing(duration: Double = 1.0, low: Double = 0.45) -> some View {
+        modifier(PulseModifier(duration: duration, low: low))
     }
 
     /// Petit rebond du symbole SF quand `value` change (macOS 14+).

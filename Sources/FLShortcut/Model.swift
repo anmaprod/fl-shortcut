@@ -291,6 +291,23 @@ enum ProfileCodec {
     }
 }
 
+// MARK: - Texte importé affiché
+
+extension String {
+    /// Texte venu d'un profil importé, affiché dans l'interface (relecture 11) : sans caractères de contrôle ni de
+    /// mise en forme invisibles (inversion bidi U+202E, largeur nulle…) qui pourraient maquiller un libellé, et
+    /// raccourci. Text n'interprète que le Markdown des littéraux : une variable String est affichée telle quelle.
+    func displaySafe(max: Int = 40) -> String {
+        var view = String.UnicodeScalarView()
+        for scalar in unicodeScalars
+        where scalar.properties.generalCategory != .control && scalar.properties.generalCategory != .format {
+            view.append(scalar)
+        }
+        let cleaned = String(view)
+        return cleaned.count > max ? String(cleaned.prefix(max)) + "…" : cleaned
+    }
+}
+
 // MARK: - Analyse (une seule fonction pour l'index et l'interface)
 
 enum ShortcutIssue: Hashable {
@@ -322,7 +339,7 @@ enum ShortcutIssue: Hashable {
         case .noTrigger: return "Aucun raccourci défini."
         case .noTarget: return "Aucune touche de FL choisie."
         case .invalidKey: return "Touche non prise en charge."
-        case .unknownAction(let raw): return "Action inconnue (« \(raw) ») : mets à jour FL Shortcut."
+        case .unknownAction(let raw): return "Action inconnue (« \(raw.displaySafe()) ») : mets à jour FL Shortcut."
         case .forbiddenTarget(let why): return "Cible interdite : \(why)."
         case .reservedToggle: return "Réservé à ⌃⌥⌘F (mettre FL Shortcut en pause)."
         case .duplicate: return "Déjà utilisé dans ce contexte : seul le premier compte."

@@ -293,7 +293,7 @@ internal sealed class AppController : INotifyPropertyChanged, IDisposable
             ? (s.Target is { } t && ConflictTable.Default.FlConflict(t) is { } fl ? "Dans " + fl : "Raccourci de FL Studio")
             : s.ActionId is { } id && Availability(id) is ActionAvailability.Unavailable u ? u.Reason
             : s.ActionId is { } id2 && FlActions.Info(id2) is { } info ? info.Detail()
-            : s.UnknownAction is { } unknown ? $"Action inconnue ({unknown}) : mets FL Shortcut à jour" : "";
+            : s.UnknownAction is { } unknown ? $"Action inconnue ({DisplayText.Safe(unknown)}) : mets FL Shortcut à jour" : "";
         return new ShortcutRow
         {
             Shortcut = s,

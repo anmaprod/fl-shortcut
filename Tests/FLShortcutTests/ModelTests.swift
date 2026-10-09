@@ -187,4 +187,11 @@ final class ModelTests: XCTestCase {
         store.undoReplace()
         XCTAssertTrue(store.remaps.isEmpty)
     }
+
+    /// Relecture 11 : un nom d'action importé ne peut pas maquiller l'interface (bidi, largeur nulle, longueur).
+    func testImportedTextIsCleanedForDisplay() {
+        XCTAssertEqual("tele\u{202E}port".displaySafe(), "teleport")
+        XCTAssertEqual("a\u{0}\n\u{200B}b".displaySafe(), "ab")
+        XCTAssertEqual(String(repeating: "x", count: 500).displaySafe(), String(repeating: "x", count: 40) + "…")
+    }
 }

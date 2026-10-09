@@ -743,7 +743,6 @@ struct CaptureField: View {
     let role: Role
     @Binding var combo: KeyCombo?
     @ObservedObject private var recorder = Recorder.shared
-    @State private var pulse = false
 
     private var recording: Bool { recorder.activeID == id }
 
@@ -772,19 +771,19 @@ struct CaptureField: View {
             }
             .buttonStyle(PressableRowStyle())
             .glassCard(cornerRadius: 18)
-            .overlay(
-                RoundedRectangle(cornerRadius: 18, style: .continuous)
-                    .strokeBorder(recording ? Color.accentColor : Color.clear, lineWidth: 1.5)
-                    .shadow(color: Color.accentColor.opacity(recording && pulse ? 0.5 : 0), radius: 8)
-            )
-            .onChange(of: recording) { isRecording in
-                if isRecording && !Motion.reduce {
-                    withAnimation(.easeInOut(duration: 0.9).repeatForever(autoreverses: true)) { pulse = true }
-                } else {
-                    // Sans transaction animée, la répétition infinie s'arrête net au lieu de continuer en fond.
-                    var t = Transaction()
-                    t.disablesAnimations = true
-                    withTransaction(t) { pulse = isRecording }
+            .overlay {
+                // Contour présent seulement pendant l'enregistrement : la lueur pulse dans une vue qui disparaît
+                // avec lui, donc la répétition infinie s'arrête à coup sûr (relecture 11).
+                if recording {
+                    ZStack {
+                        RoundedRectangle(cornerRadius: 18, style: .continuous)
+                            .strokeBorder(Color.accentColor, lineWidth: 1.5)
+                        RoundedRectangle(cornerRadius: 18, style: .continuous)
+                            .strokeBorder(Color.accentColor, lineWidth: 1.5)
+                            .shadow(color: Color.accentColor.opacity(0.5), radius: 8)
+                            .pulsing(duration: 0.9, low: 0)
+                    }
+                    .allowsHitTesting(false)
                 }
             }
             .motion(Motion.snappy, value: recording)
@@ -921,7 +920,7 @@ extension Remap {
         case .keystroke: return target.map { "Envoie \($0.display)" } ?? "Touche de FL à choisir"
         case .flAction:
             if let id = actionID, let info = FLActions.info(id) { return info.label }
-            return unknownAction.map { "Action inconnue (\($0))" } ?? "Action à choisir"
+            return unknownAction.map { "Action inconnue (\($0.displaySafe()))" } ?? "Action à choisir"
         }
     }
 

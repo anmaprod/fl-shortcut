@@ -227,6 +227,29 @@ public static class ProfileCodec
         TryString(n) is { } s && Guid.TryParse(s, out var g) ? g : null;
 }
 
+/// Texte venu d'un profil importé, affiché dans l'interface (relecture 11) : sans caractères de contrôle ni de
+/// mise en forme invisibles (inversion bidi U+202E, largeur nulle…) qui pourraient maquiller un libellé, et raccourci.
+/// TextBlock n'interprète aucun balisage : seul l'aspect est en jeu, jamais l'exécution.
+public static class DisplayText
+{
+    public static string Safe(string? raw, int max = 40)
+    {
+        if (string.IsNullOrEmpty(raw)) return "";
+        var sb = new System.Text.StringBuilder(Math.Min(raw.Length, max) + 1);
+        var truncated = false;
+        foreach (var ch in raw)
+        {
+            if (char.IsControl(ch) || char.GetUnicodeCategory(ch) == System.Globalization.UnicodeCategory.Format) continue;
+            if (sb.Length >= max) { truncated = true; break; }
+            sb.Append(ch);
+        }
+        // Ne jamais couper une paire de substitution en deux.
+        if (truncated && sb.Length > 0 && char.IsHighSurrogate(sb[sb.Length - 1])) sb.Length--;
+        if (truncated) sb.Append('…');
+        return sb.ToString();
+    }
+}
+
 public abstract record ShortcutIssue
 {
     public sealed record NoTrigger : ShortcutIssue;
@@ -251,7 +274,7 @@ public abstract record ShortcutIssue
         NoTrigger => "Aucun raccourci défini.",
         NoTarget => "Aucune touche de FL choisie.",
         InvalidKey => "Touche non prise en charge.",
-        UnknownAction u => $"Action inconnue (« {u.Raw} ») : mets à jour FL Shortcut.",
+        UnknownAction u => $"Action inconnue (« {DisplayText.Safe(u.Raw)} ») : mets à jour FL Shortcut.",
         ForbiddenTarget f => $"Cible interdite : {f.Why}.",
         ForbiddenTrigger f => $"Raccourci impossible : {f.Why}.",
         ReservedToggle => "Réservé à Ctrl+Alt+Maj+F (mettre FL Shortcut en pause).",

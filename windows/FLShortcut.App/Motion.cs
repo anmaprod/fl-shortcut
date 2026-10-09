@@ -49,6 +49,16 @@ internal static class Motion
         sb.Children.Add(Animate(element, "Opacity", 0, finalOpacity, Math.Min(durationMs, Normal), delayMs, EaseOut));
         if (fromX != 0) sb.Children.Add(Animate(shift, "X", fromX, 0, durationMs, delayMs, EaseOut));
         if (fromY != 0) sb.Children.Add(Animate(shift, "Y", fromY, 0, durationMs, delayMs, EaseOut));
+        // Fin : la valeur finale devient la valeur locale et l'animation est relâchée. Sinon (HoldEnd) elle
+        // masquerait toute affectation ultérieure de Opacity, par exemple si « Effets d'animation » est coupé
+        // entre deux notifications (relecture 11).
+        sb.Completed += (_, _) =>
+        {
+            element.Opacity = finalOpacity;
+            shift.X = 0;
+            shift.Y = 0;
+            sb.Stop();
+        };
         sb.Begin();
     }
 
@@ -63,9 +73,15 @@ internal static class Motion
         var shift = element.RenderTransform as TranslateTransform ?? new TranslateTransform();
         element.RenderTransform = shift;
         var sb = new Storyboard();
-        sb.Children.Add(Animate(element, "Opacity", element.Opacity, 0, Fast, 0, EaseIn));
-        sb.Children.Add(Animate(shift, "Y", shift.Y, toY, Fast, 0, EaseIn));
-        sb.Completed += (_, _) => done();
+        // Départ = valeur affichée (From non renseigné) : une notification fermée pendant son apparition part
+        // de là où elle en est, au lieu de la valeur locale (0 pendant Enter) qui la ferait disparaître d'un coup.
+        sb.Children.Add(Animate(element, "Opacity", null, 0, Fast, 0, EaseIn));
+        sb.Children.Add(Animate(shift, "Y", null, toY, Fast, 0, EaseIn));
+        sb.Completed += (_, _) =>
+        {
+            done();
+            sb.Stop();       // relâche l'opacité 0 maintenue (voir Enter) ; l'élément est déjà masqué ou repris
+        };
         sb.Begin();
     }
 
@@ -80,10 +96,16 @@ internal static class Motion
         var sb = new Storyboard();
         sb.Children.Add(Animate(scale, "ScaleX", from, 1, Slow + 100, delayMs, spring));
         sb.Children.Add(Animate(scale, "ScaleY", from, 1, Slow + 100, delayMs, spring));
+        sb.Completed += (_, _) =>
+        {
+            scale.ScaleX = 1;
+            scale.ScaleY = 1;
+            sb.Stop();
+        };
         sb.Begin();
     }
 
-    private static DoubleAnimation Animate(DependencyObject target, string property, double from, double to,
+    private static DoubleAnimation Animate(DependencyObject target, string property, double? from, double to,
                                            int durationMs, int delayMs, EasingFunctionBase ease)
     {
         var a = new DoubleAnimation

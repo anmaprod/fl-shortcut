@@ -210,6 +210,8 @@ final class PauseIndicator {
     static let shared = PauseIndicator()
     private var panel: NSPanel?
     private var cancellable: AnyCancellable?
+    /// Dernier état demandé : décide, à la fin d'un fondu de sortie, s'il faut vraiment cacher le panneau.
+    private var wantsVisible = false
 
     private init() {}
 
@@ -223,6 +225,7 @@ final class PauseIndicator {
     /// Fondu d'entrée / de sortie (instantané si « Réduire les animations » est activé).
     private func update(paused: Bool) {
         let duration = Motion.reduce ? 0 : 0.22
+        wantsVisible = paused
         guard paused else {
             guard let p = panel, p.isVisible else { return }
             NSAnimationContext.runAnimationGroup({ ctx in
@@ -230,8 +233,10 @@ final class PauseIndicator {
                 ctx.timingFunction = CAMediaTimingFunction(name: .easeIn)
                 p.animator().alphaValue = 0
             }, completionHandler: { [weak self] in
-                // Ne cacher que si on n'a pas été remis en pause pendant le fondu.
-                if Store.shared.enabled { self?.panel?.orderOut(nil) }
+                // Ne cacher que si on n'a pas été remis en pause pendant le fondu (état local, pas Store :
+                // indépendant de l'ordre de publication de @Published).
+                guard let self, !self.wantsVisible else { return }
+                self.panel?.orderOut(nil)
             })
             return
         }
