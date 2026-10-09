@@ -3,6 +3,10 @@
 # Lance-la d'un double-clic : elle attend une demande (fichier .demande) et n'exécute
 # que 4 commandes fixes dans ce dossier : test, build, run, stop. Ferme la fenêtre pour arrêter.
 cd "$(dirname "$0")" || exit 1
+# Xcode complet (nécessaire pour SwiftUI sur macOS 27) : utilisé sans changer le réglage du système.
+if [ -d /Applications/Xcode.app/Contents/Developer ]; then
+  export DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer
+fi
 echo "FL Shortcut : compilation automatique pour Claude."
 echo "Laisse cette fenêtre ouverte. Ferme-la quand tu veux pour tout arrêter."
 { echo "== macOS"; sw_vers; uname -m; echo "== outils"; xcode-select -p; xcodebuild -version; swift --version; } > .env.txt 2>&1
