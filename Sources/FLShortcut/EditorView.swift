@@ -1094,7 +1094,8 @@ private struct SectionCard: View {
                           summary: "\(rows.count) raccourcis · \(section.subtitle)",
                           modified: modified, isOpen: isOpen, toggle: toggle)
             if isOpen {
-                VStack(spacing: 0) {
+                // Paresseux : seules les lignes visibles sont construites (jusqu'à ~90 par section).
+                LazyVStack(spacing: 0) {
                     let natives = rows.filter { $0.entry.isNative }
                     let extras = rows.filter { !$0.entry.isNative }
                     if !natives.isEmpty {
@@ -1202,24 +1203,46 @@ private struct CatalogRowView: View {
             .help("Changer la touche")
             .accessibilityLabel("Changer la touche de \(row.entry.title)")
 
-            Button(action: onReset) {
-                Label("Réinitialiser", systemImage: "arrow.counterclockwise")
-                    .font(.system(size: 12, weight: .semibold))
-            }
-            .secondaryGlassButton()
-            .disabled(row.isDefault)
-            .opacity(row.isDefault ? 0.4 : 1)
-            .help(resetHelp)
+            ResetButton(enabled: !row.isDefault, help: resetHelp, action: onReset)
         }
         .padding(.horizontal, 16)
         .frame(minHeight: 58)
         .background(hovering ? Color.primary.opacity(0.035) : .clear)
         .contentShape(Rectangle())
         .onTapGesture(perform: onEdit)
-        .onHover { hovering = $0 }
-        .motion(Motion.hover, value: hovering)
+        .onHover { hovering = $0 }          // surlignage immédiat : aucune animation au survol de la liste
         .motion(Motion.snappy, value: row.isDefault)
         .accessibilityElement(children: .contain)
+    }
+}
+
+/// « Réinitialiser » : en verre quand il y a quelque chose à réinitialiser ; sinon même forme, dessinée une
+/// fois pour toutes (pas une couche de verre par ligne : le catalogue en compte près de 300).
+private struct ResetButton: View {
+    let enabled: Bool
+    let help: String
+    let action: () -> Void
+
+    private var label: some View {
+        Label("Réinitialiser", systemImage: "arrow.counterclockwise")
+            .font(.system(size: 12, weight: .semibold))
+    }
+
+    var body: some View {
+        if enabled {
+            Button(action: action) { label }
+                .secondaryGlassButton()
+                .help(help)
+        } else {
+            label
+                .padding(.horizontal, 11)
+                .padding(.vertical, 5)
+                .foregroundStyle(.tertiary)
+                .background(Capsule(style: .continuous).fill(Color.primary.opacity(0.045)))
+                .overlay(Capsule(style: .continuous).strokeBorder(Color.primary.opacity(0.07), lineWidth: 0.5))
+                .help(help)
+                .accessibilityLabel("Réinitialiser, déjà d'origine")
+        }
     }
 }
 

@@ -60,11 +60,34 @@ final class FLMonitor: ObservableObject {
                                           NSWorkspace.didActivateApplicationNotification,
                                           NSWorkspace.didDeactivateApplicationNotification]
         for name in names {
-            observers.append(center.addObserver(forName: name, object: nil, queue: .main) { [weak self] _ in
-                self?.refresh()
+            observers.append(center.addObserver(forName: name, object: nil, queue: .main) { [weak self] note in
+                guard let self else { return }
+                // Changement d'app au premier plan : l'app concernée est dans la notification, inutile de
+                // relister tous les processus (coûteux, et ça arrive à chaque clic dans une autre app).
+                if name == NSWorkspace.didActivateApplicationNotification || name == NSWorkspace.didDeactivateApplicationNotification,
+                   !self.pids.isEmpty || self.versionResolved,
+                   let app = note.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication {
+                    let front = name == NSWorkspace.didActivateApplicationNotification
+                        ? app.processIdentifier
+                        : (NSWorkspace.shared.frontmostApplication?.processIdentifier ?? 0)
+                    self.updateFront(front)
+                } else {
+                    self.refresh()
+                }
             })
         }
         refresh()
+    }
+
+    /// Seul le premier plan a changé (l'ensemble des processus FL est inchangé).
+    private func updateFront(_ newFront: pid_t) {
+        guard newFront != frontPID else { return }
+        frontPID = newFront
+        EventTap.shared.updateConfig { $0.frontmostPID = newFront }
+        EventTap.shared.purge()
+        let isFront = pids.contains(newFront)
+        EventTap.shared.setActive(isFront)
+        if frontmost != isFront { frontmost = isFront }
     }
 
     func refresh() {
