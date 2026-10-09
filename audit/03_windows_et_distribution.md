@@ -99,7 +99,7 @@ Gravité = impact × vraisemblance, en supposant la contre-mesure absente.
 
 | ID | Gravité | Menace | Contre-mesure | Statut |
 |---|---|---|---|---|
-| **WIN-06** | Critique | Injection de DLL dans FLShortcut.exe (processus qui détient un hook clavier) pour en faire un keylogger. | Signature Authenticode de tous les binaires ; installation dans un dossier protégé en écriture (MSIX → `WindowsApps`) ; aucun chargement de plugin ou de DLL depuis un dossier inscriptible ; `SetDefaultDllDirectories(LOAD_LIBRARY_SEARCH_SYSTEM32)` au démarrage. | **À faire** : `SetDefaultDllDirectories` dans `App()` et empaquetage MSIX. |
+| **WIN-06** | Critique | Injection de DLL dans FLShortcut.exe (processus qui détient un hook clavier) pour en faire un keylogger. | Signature Authenticode de tous les binaires ; installation dans un dossier protégé en écriture (MSIX → `WindowsApps`) ; aucun chargement de plugin ou de DLL depuis un dossier inscriptible ; `SetDefaultDllDirectories(LOAD_LIBRARY_SEARCH_SYSTEM32)` au démarrage. | **Partiel** : `SetDefaultDllDirectories` fait (`App()`) ; empaquetage MSIX à faire. |
 | **WIN-07** | Haute | Détournement de l'ordre de recherche des DLL (DLL plantée à côté de l'exe dans `Téléchargements`). | Distribution MSIX ou installeur vers `%ProgramFiles%` ; binaire auto-contenu (`WindowsAppSDKSelfContained`) ; pas de `.zip` exécuté depuis Téléchargements dans la doc utilisateur. | **Partiel** : auto-contenu fait ; MSIX à faire. |
 | **WIN-08** | Moyenne | Liens symboliques / jonctions dans les dossiers de profil, de clé ou du script (écriture redirigée). | Refus des liens sur le fichier et ses 3 dossiers parents ; fichier temporaire dans le même dossier puis remplacement atomique. | **Corrigé** (`SafeFile`). |
 | **WIN-09** | Moyenne | Démarrage automatique détourné (clé `Run` modifiée par un tiers pour lancer un autre exe). | Démarrage via la tâche de démarrage MSIX (`StartupTask`) ou clé `HKCU\…\Run` pointant vers le chemin protégé, vérifiée au lancement. Jamais de service ni de tâche « privilèges les plus élevés ». | **À faire** (pas encore de démarrage automatique). |
@@ -138,7 +138,7 @@ Gravité = impact × vraisemblance, en supposant la contre-mesure absente.
 - [x] Clé DPAPI ; écritures atomiques ; liens et jonctions refusés ; dossier du script vérifié (WIN-11).
 - [x] `asInvoker`, FL administrateur signalé ; instance unique.
 - [x] CI : SHA épinglés, permissions minimales, empreintes ; tests du cœur sous Linux, compilation x64 et ARM64.
-- [ ] `SetDefaultDllDirectories` au démarrage (WIN-06).
+- [x] `SetDefaultDllDirectories` au démarrage (WIN-06).
 - [ ] Empaquetage MSIX et distribution Store ou App Installer signé (WIN-06/07/18, SUP-05).
 - [ ] Création des ports par Windows MIDI Services (au lieu de loopMIDI) — à tester sur Windows 11 24H2+.
 - [ ] Réglages GitHub : protections, environment de signature, double authentification (SUP-09/10/12).

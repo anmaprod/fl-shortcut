@@ -1,4 +1,6 @@
-// Audit : REL-07 (instance unique vérifiée avant toute création de hook, de port ou de profil).
+// Audit : REL-07 (instance unique vérifiée avant toute création de hook, de port ou de profil),
+//         WIN-06/07 (DLL chargées seulement depuis le dossier de l'appli et System32 : ni dossier courant, ni PATH).
+using System.Runtime.InteropServices;
 using Microsoft.UI.Xaml;
 
 namespace FLShortcut.App;
@@ -8,8 +10,15 @@ public partial class App : Application
     private static Mutex? _single;
     private MainWindow? _window;
 
+    private const uint LOAD_LIBRARY_SEARCH_DEFAULT_DIRS = 0x00001000;
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool SetDefaultDllDirectories(uint directoryFlags);
+
     public App()
     {
+        SetDefaultDllDirectories(LOAD_LIBRARY_SEARCH_DEFAULT_DIRS);
         InitializeComponent();
     }
 
