@@ -1,3 +1,9 @@
 # Caches Python (régénérés par les tests)
 __pycache__/
 *.pyc
+.demande
+.fini
+.journal.txt
+.env.txt
+.build/
+dist/

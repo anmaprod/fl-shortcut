@@ -17,13 +17,17 @@ EXE="FLShortcut"
 APP="dist/${APP_NAME}.app"
 DMG="dist/FLShortcut.dmg"
 ARCHS=(--arch arm64 --arch x86_64)
+# FLS_NATIVE=1 : architecture de cette machine seulement (suffit pour tester ; marche aussi sans Xcode complet).
+if [[ "${FLS_NATIVE:-0}" == "1" ]]; then ARCHS=(); fi
 
-echo "▸ Tests"
-swift test
+if [[ "${FLS_SKIP_TESTS:-0}" != "1" ]]; then
+  echo "▸ Tests"
+  swift test
+fi
 
-echo "▸ Compilation release (universelle)"
-swift build -c release "${ARCHS[@]}"
-BIN_DIR=$(swift build -c release "${ARCHS[@]}" --show-bin-path)
+echo "▸ Compilation release"
+swift build -c release ${ARCHS[@]+"${ARCHS[@]}"}
+BIN_DIR=$(swift build -c release ${ARCHS[@]+"${ARCHS[@]}"} --show-bin-path)
 
 echo "▸ Assemblage de l'app"
 rm -rf dist
