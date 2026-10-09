@@ -1,3 +1,4 @@
+import CoreMIDI
 import XCTest
 @testable import FLShortcut
 
@@ -111,6 +112,24 @@ final class ProtocolTests: XCTestCase {
         var parser = MIDIByteParser()
         let out = parser.feed([0xBF, 118, 1, 0xF8, 117, 2, 0xF0, 1, 2, 0xF7, 0xBF, 119, 5])
         XCTAssertEqual(out.map { [$0.status, $0.data1, $0.data2] }, [[0xBF, 118, 1], [0xBF, 117, 2], [0xBF, 119, 5]])
+    }
+
+    func testPacketListWalkReadsEveryPacket() throws {
+        let size = 1024
+        let raw = UnsafeMutableRawPointer.allocate(byteCount: size, alignment: MemoryLayout<MIDIPacketList>.alignment)
+        defer { raw.deallocate() }
+        let list = raw.bindMemory(to: MIDIPacketList.self, capacity: 1)
+        let first = MIDIPacketListInit(list)
+        let a: [UInt8] = [0xBF, 118, 1]
+        let b: [UInt8] = [0xBF, 117, 2, 0xBF, 119, 5]
+        // Horodatages distincts : deux paquets séparés.
+        let p1: UnsafeMutablePointer<MIDIPacket>? = MIDIPacketListAdd(list, size, first, 1, a.count, a)
+        let anchor = try XCTUnwrap(p1)
+        let p2: UnsafeMutablePointer<MIDIPacket>? = MIDIPacketListAdd(list, size, anchor, 2, b.count, b)
+        XCTAssertNotNil(p2)
+        var seen: [[UInt8]] = []
+        CoreMIDITransport.forEachPacket(list) { seen.append($0) }
+        XCTAssertEqual(seen, [a, b])
     }
 
     func testLinkStatusResolution() {

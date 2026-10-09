@@ -4,6 +4,7 @@
 //         REL-20 (index et avertissements issus de la même analyse), REL-21 (écritures regroupées sur une file
 //         utilitaire, vidées à la fermeture ; restauration annulable), SEC-05 (profil 0600, propriétaire vérifié,
 //         import validé puis confirmé), REL-03 (configuration poussée en bloc vers le tap).
+import Combine
 import Foundation
 
 /// Stockage du profil, injectable pour les tests.
@@ -66,7 +67,7 @@ final class Store: ObservableObject {
     private(set) var forbidden = ForbiddenTargets.physical
     private(set) var conflicts = ConflictTable.empty
     /// Disponibilité des actions (masque du script ou version de FL), fournie par AppStatus.
-    var availability: (Int) -> ActionAvailability = { _ in .unverified } {
+    var availability: (Int) -> ActionAvailability = ({ _ in .unverified }) {
         didSet { recompute() }
     }
 
@@ -123,15 +124,16 @@ final class Store: ObservableObject {
     }
 
     static func load(storage: ProfileStorage, layout: KeyboardLayout) -> LoadResult {
-        let data: Data?
+        let stored: Data?
         do {
-            data = try storage.read()
+            stored = try storage.read()
         } catch {
             return LoadResult(remaps: ProfilePreset.recommended.remaps(layout: layout),
                               warning: "Profil inaccessible (\(error.localizedDescription)). Profil recommandé chargé.",
                               needsSave: false)
         }
-        guard let data else {
+        // Nom distinct : `guard let data` dans la portée d'une constante locale `data` ne compile pas.
+        guard let data = stored else {
             // Premier lancement : on fige tout de suite les défauts de la disposition du moment.
             return LoadResult(remaps: ProfilePreset.recommended.remaps(layout: layout), warning: nil, needsSave: true)
         }

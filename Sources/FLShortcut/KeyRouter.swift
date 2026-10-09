@@ -89,6 +89,10 @@ struct KeyRouter {
 
     mutating func purge() { owned.removeAll() }
 
+    /// L'effet décidé n'a pas pu être produit (trame non émise, injection refusée) : l'appui est rendu,
+    /// ses répétitions et son keyUp passeront tels quels (REL-06 : ne jamais avaler sans effet).
+    mutating func release(_ keyCode: UInt16) { owned.removeValue(forKey: keyCode) }
+
     mutating func route(_ e: RouterInput, config: TapConfig, link: LinkRoutingView) -> RouterDecision {
         if e.kind == .tapDisabled {
             purge()                                   // des keyUp ont pu être perdus

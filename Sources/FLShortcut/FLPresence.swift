@@ -3,6 +3,7 @@
 //         REL-05 (ensemble des PID de FL tenu à jour par notifications), SEC-11 / REL-04 (purge des appuis
 //         sur changement d'appli au premier plan), REL-28 (vérification en temps constant dans le tap).
 import AppKit
+import Combine
 import Foundation
 
 enum FLMatcher {

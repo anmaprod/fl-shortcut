@@ -162,6 +162,16 @@ final class RouterTests: XCTestCase {
         XCTAssertEqual(router.route(down(trigger), config: cfg, link: linked), .pass)
     }
 
+    func testReleasedPressLetsRepeatsAndKeyUpThrough() {               // REL-06 : trame non émise
+        var router = KeyRouter()
+        let cfg = config([Remap(trigger: zero, action: 21)])
+        XCTAssertTrue(router.route(down(zero), config: cfg, link: linked).swallow)
+        router.release(zero.keyCode)
+        XCTAssertEqual(router.route(down(zero, repeat: true), config: cfg, link: linked), .pass)
+        XCTAssertEqual(router.route(up(zero), config: cfg, link: linked), .pass)
+        XCTAssertTrue(router.owned.isEmpty)
+    }
+
     func testWindowFilteringUsesLinkWindow() {
         var router = KeyRouter()
         let cfg = config([Remap(trigger: zero, action: 21, context: .mixer)])

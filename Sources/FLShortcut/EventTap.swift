@@ -147,20 +147,33 @@ final class EventTap {
                                 isRepeat: event.getIntegerValueField(.keyboardEventAutorepeat) != 0,
                                 isOwn: false,
                                 targetIsFL: destination != 0 && cfg.flPIDs.contains(destination))
-        let link = MIDILink.shared.core.routingView()
+        // Le routeur ne consulte le lien que pour une frappe destinée à FL (REL-28, SEC-07 : hors FL,
+        // rien d'autre que keyCode / modificateurs n'est lu).
+        let link = input.targetIsFL ? MIDILink.shared.core.routingView() : .offline
         let decision = router.withLock { $0.route(input, config: cfg, link: link) }
 
+        var swallow = decision.swallow
         for effect in decision.effects {
             switch effect {
             case .sendAction(let id):
-                _ = MIDILink.shared.core.sendAction(id)
+                // REL-06 : le lien a pu tomber entre la décision et l'envoi (ou CoreMIDI échouer) :
+                // si aucune trame n'est partie, la touche va à FL telle quelle.
+                if case .sent = MIDILink.shared.core.sendAction(id) { break }
+                router.withLock { $0.release(code) }
+                swallow = false
             case .post(let combo):
-                post(combo, to: destination, physical: event.flags)
+                if post(combo, to: destination, physical: event.flags) { break }
+                // Injection refusée au dernier moment (FL plus au premier plan, cible interdite) :
+                // appui initial rendu ; une répétition reste avalée (pas de répétition orpheline).
+                if !input.isRepeat {
+                    router.withLock { $0.release(code) }
+                    swallow = false
+                }
             case .toggleEnabled:
                 DispatchQueue.main.async { Store.shared.enabled.toggle() }
             }
         }
-        return decision.swallow ? nil : pass
+        return swallow ? nil : pass
     }
 
     /// Au plus 5 réactivations par minute ; au-delà, le superviseur recrée le tap et prévient l'utilisateur.
@@ -181,10 +194,11 @@ final class EventTap {
 
     /// Injection confinée à FL : PID revérifié avec la configuration la plus récente, liste noire revérifiée,
     /// puis postToPid (jamais post(tap:)), encadré de flagsChanged pour que FL voie les bons modificateurs.
-    private func post(_ target: KeyCombo, to pid: Int32, physical: CGEventFlags) {
+    /// Renvoie faux si l'injection a été refusée (rien n'a été posté).
+    private func post(_ target: KeyCombo, to pid: Int32, physical: CGEventFlags) -> Bool {
         let cfg = config.value
         guard pid != 0, cfg.flPIDs.contains(pid), cfg.frontmostPID == pid,
-              !cfg.forbidden.isForbidden(target) else { return }
+              !cfg.forbidden.isForbidden(target) else { return false }
         let modifierMask: CGEventFlags = [.maskCommand, .maskAlternate, .maskControl, .maskShift]
 
         func postFlags(_ flags: CGEventFlags) {
@@ -203,6 +217,7 @@ final class EventTap {
             e.postToPid(pid)
         }
         postFlags(physical.intersection(modifierMask))
+        return true
     }
 }
 

@@ -302,7 +302,7 @@ struct MenuContent: View {
 
     var body: some View {
         Toggle(store.enabled ? "Raccourcis actifs (⌃⌥⌘F)" : "En pause – réactiver (⌃⌥⌘F)", isOn: $store.enabled)
-        Text("FL Studio : \(link.status.label)\(fl.version.map { " · FL \($0)" } ?? "")")
+        Text(statusLine)
         if !status.accessibilityOK {
             Button("Autoriser le clavier (Accessibilité)…") { status.openAccessibilitySettings() }
         }
@@ -332,5 +332,11 @@ struct MenuContent: View {
         Button("Installer le script dans FL Studio…") { FLScriptInstaller.installWithAlert() }
         Divider()
         Button("Quitter FL Shortcut") { NSApp.terminate(nil) }
+    }
+
+    /// Chaîne calculée à part : pas de fermeture imbriquée dans une interpolation de LocalizedStringKey.
+    private var statusLine: String {
+        let version = fl.version.map { " · FL \($0)" } ?? ""
+        return "FL Studio : " + link.status.label + version
     }
 }

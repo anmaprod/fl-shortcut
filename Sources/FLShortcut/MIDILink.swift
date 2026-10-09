@@ -3,6 +3,7 @@
 //         REL-06 (statut Relié / Lien inactif / FL fermé publié pour l'interface et le tap),
 //         REL-07 (conflit d'uniqueID détecté), REL-10 (CoreMIDI surveillé, recréé, nouvelle tentative paresseuse,
 //         échec de MIDIPacketListAdd / MIDIReceived pris en compte). PROTOCOL.md §1, §3, §4, §5.
+import Combine
 import CoreMIDI
 import Foundation
 
@@ -294,15 +295,21 @@ final class CoreMIDITransport: MIDITransport {
     }
 
     /// Parcourt la liste de paquets en mémoire (jamais de copie de MIDIPacket : pointeurs valides).
+    /// `packet.pointee` copierait 256 octets de données et pourrait lire au-delà d'un paquet court :
+    /// seuls `numPackets` et `length` sont lus, directement à leur position.
     static func forEachPacket(_ list: UnsafePointer<MIDIPacketList>, _ body: ([UInt8]) -> Void) {
-        let count = Int(list.pointee.numPackets)
-        guard count > 0,
+        let base = UnsafeRawPointer(list)
+        guard let countOffset = MemoryLayout<MIDIPacketList>.offset(of: \MIDIPacketList.numPackets),
               let packetOffset = MemoryLayout<MIDIPacketList>.offset(of: \MIDIPacketList.packet),
+              let lengthOffset = MemoryLayout<MIDIPacket>.offset(of: \MIDIPacket.length),
               let dataOffset = MemoryLayout<MIDIPacket>.offset(of: \MIDIPacket.data) else { return }
-        var packet = (UnsafeRawPointer(list) + packetOffset).assumingMemoryBound(to: MIDIPacket.self)
+        let count = Int(base.loadUnaligned(fromByteOffset: countOffset, as: UInt32.self))
+        guard count > 0 else { return }
+        var packet = (base + packetOffset).assumingMemoryBound(to: MIDIPacket.self)
         for i in 0..<count {
-            let length = Int(packet.pointee.length)
-            let data = UnsafeRawBufferPointer(start: UnsafeRawPointer(packet) + dataOffset, count: length)
+            let raw = UnsafeRawPointer(packet)
+            let length = Int(raw.loadUnaligned(fromByteOffset: lengthOffset, as: UInt16.self))
+            let data = UnsafeRawBufferPointer(start: raw + dataOffset, count: length)
             body(Array(data))
             if i + 1 < count { packet = UnsafePointer(MIDIPacketNext(packet)) }
         }
@@ -391,7 +398,9 @@ final class MIDILink: ObservableObject {
     }
 
     private func checkTransport() {
-        if !transport.verify() {
+        // Notre propre connect() déclenche aussi msgSetupChanged : au plus une recréation par seconde ici,
+        // sinon la surveillance (tick, toutes les 5 s) prend le relais.
+        if !transport.verify(), Date().timeIntervalSince(lastReconnect) > 1 {
             lastReconnect = Date()
             if transport.connect() { core.ping(minInterval: 0) }
         }
@@ -400,7 +409,7 @@ final class MIDILink: ObservableObject {
 
     private func handle(_ events: [IncomingEvent]) {
         for e in events {
-            if case .ack(let id) = e { lastAck = (id, Date()) }
+            if case .ack(let id) = e { lastAck = (id: id, date: Date()) }
         }
         refresh()
     }

@@ -119,7 +119,9 @@ enum SecureFile {
 
     /// Lit un fichier ordinaire sans suivre de lien, taille bornée. `nil` s'il n'existe pas.
     static func read(_ url: URL, maxBytes: Int, requirePrivate: Bool = false) throws -> Data? {
-        let fd = open(url.path, O_RDONLY | O_NOFOLLOW | O_CLOEXEC)
+        // O_NONBLOCK : un tube nommé planté à la place du fichier ne bloque pas l'appli à l'ouverture
+        // (il est ensuite refusé par le contrôle « fichier ordinaire »).
+        let fd = open(url.path, O_RDONLY | O_NOFOLLOW | O_CLOEXEC | O_NONBLOCK)
         if fd < 0 {
             if errno == ENOENT { return nil }
             if errno == ELOOP { throw Failure.symlink(url.path) }
