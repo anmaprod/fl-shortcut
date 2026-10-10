@@ -423,6 +423,23 @@ struct CatalogRow: Identifiable {
     let current: KeyCombo?
     var id: String { entry.id }
     var isDefault: Bool { current == entry.defaultTrigger }
+    /// Un autre de tes raccourcis utilise la touche de cette entrée (sa touche d'origine dans FL, ou ta touche).
+    var takenBy: String? = nil
+}
+
+/// Ce qui utilise déjà une touche : un de tes raccourcis, ou une touche d'origine de FL.
+struct KeyClash: Identifiable {
+    let row: CatalogRow?          // entrée du catalogue (nil : raccourci personnalisé hors catalogue)
+    let remap: Remap?             // ton raccourci qui porte la touche (nil : touche d'origine de FL)
+    let title: String
+    let section: String?
+    var id: String { row?.id ?? remap?.id.uuidString ?? title }
+    var isFLKey: Bool { remap == nil }
+
+    var line: String {
+        let place = section.map { " (\($0))" } ?? ""
+        return isFLKey ? "« \(title) »\(place), touche d'origine de FL" : "« \(title) »\(place), ton raccourci"
+    }
 }
 
 extension Store {
@@ -445,6 +462,7 @@ extension Store {
     func catalogRows() -> (rows: [CatalogRow], others: [Remap]) {
         var claimed = Set<UUID>()
         var rows: [CatalogRow] = []
+        rows.reserveCapacity(catalog.count)
         for entry in catalog {
             switch entry.kind {
             case .action(let id):
@@ -462,7 +480,71 @@ extension Store {
                 rows.append(CatalogRow(entry: entry, remap: remap, current: current))
             }
         }
-        return (rows, remaps.filter { !claimed.contains($0.id) })
+        // Touches prises : une touche d'origine de FL (ou ta touche) réutilisée par un AUTRE de tes raccourcis.
+        // Les doublons propres à FL (même touche d'origine dans deux fenêtres) ne sont pas signalés.
+        var owners: [KeyCombo: [String]] = [:]
+        for row in rows {
+            if let r = row.remap, r.enabled, let t = r.trigger { owners[t, default: []].append(row.id) }
+        }
+        let othersList = remaps.filter { !claimed.contains($0.id) }
+        for r in othersList where r.enabled {
+            if let t = r.trigger { owners[t, default: []].append(r.id.uuidString) }
+        }
+        let titles = Dictionary(rows.map { ($0.id, $0.entry.title) }, uniquingKeysWith: { a, _ in a })
+        for i in rows.indices {
+            var keys: [KeyCombo] = []
+            if case .native(let k) = rows[i].entry.kind { keys.append(k) }
+            if let c = rows[i].current, !keys.contains(c) { keys.append(c) }
+            for k in keys {
+                if let other = owners[k]?.first(where: { $0 != rows[i].id }) {
+                    rows[i].takenBy = titles[other] ?? "un raccourci personnalisé"
+                    break
+                }
+            }
+        }
+        return (rows, othersList)
+    }
+
+    /// Nom lisible d'un raccourci hors catalogue.
+    func remapTitle(_ r: Remap) -> String {
+        if r.kind == .keystroke { return "Envoie " + (r.target?.display ?? "une touche") }
+        return FLActions.all.first { $0.id == r.actionID }?.label ?? "Raccourci personnalisé"
+    }
+
+    /// Tout ce qui utilise déjà `trigger`, hors l'entrée qu'on modifie. Une même touche ne sert qu'une fois ;
+    /// seule exception : revenir à la touche d'origine de FL de l'entrée elle-même.
+    func clashes(for trigger: KeyCombo, editing row: CatalogRow) -> [KeyClash] {
+        if case .native(let own) = row.entry.kind, own == trigger { return [] }
+        let (rows, others) = catalogRows()
+        var out: [KeyClash] = []
+        for other in rows where other.id != row.id {
+            if let r = other.remap, r.enabled, r.trigger == trigger {
+                out.append(KeyClash(row: other, remap: r, title: other.entry.title, section: other.entry.section.title))
+            } else if case .native(let k) = other.entry.kind, k == trigger {
+                out.append(KeyClash(row: other, remap: nil, title: other.entry.title, section: other.entry.section.title))
+            }
+        }
+        for r in others where r.enabled && r.trigger == trigger && r.id != row.remap?.id {
+            out.append(KeyClash(row: nil, remap: r, title: remapTitle(r), section: nil))
+        }
+        return out
+    }
+
+    /// Libère la touche : tes raccourcis qui l'utilisaient la perdent (un raccourci d'origine revient à sa seule
+    /// touche de FL). Renvoie l'entrée à qui proposer tout de suite une nouvelle touche.
+    @discardableResult
+    func release(_ clashes: [KeyClash]) -> String? {
+        for c in clashes {
+            guard let r = c.remap else { continue }          // touche d'origine de FL : rien à retirer
+            if let row = c.row {
+                if let remap = row.remap { delete(remap.id) }
+            } else {
+                var off = r
+                off.trigger = nil
+                upsert(off)
+            }
+        }
+        return clashes.first(where: { $0.row != nil })?.row?.id
     }
 
     /// Brouillon de raccourci pour une entrée avec une nouvelle touche (sert à l'analyse des conflits).

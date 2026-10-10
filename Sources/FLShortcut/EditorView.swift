@@ -22,6 +22,8 @@ struct EditorView: View {
     @State private var editingIsNew = false
     @State private var toast: ToastMessage? = nil
     @State private var editingRow: CatalogRow? = nil
+    /// Annonce affichée en tête de la fiche quand on doit choisir une nouvelle touche pour un autre raccourci.
+    @State private var editNotice: String? = nil
     @State private var open: Set<String> = []
 
     var body: some View {
@@ -229,7 +231,7 @@ struct EditorView: View {
                         isOpen: searching || open.contains(section.id),
                         issues: { store.issues(for: $0) },
                         toggle: { Motion.run { open.formSymmetricDifference([section.id]) } },
-                        onEdit: { editingRow = $0 },
+                        onEdit: { editNotice = nil; editingRow = $0 },
                         onReset: { reset($0) }
                     )
                     .transition(Motion.pop)
@@ -266,9 +268,20 @@ struct EditorView: View {
             .padding(.bottom, 80)
         }
         .sheet(item: $editingRow) { row in
-            CatalogEditSheet(row: row) { message in show(message) }
-                .environmentObject(store)
-                .environmentObject(link)
+            CatalogEditSheet(row: row, notice: editNotice) { message, followUp in
+                show(message)
+                // La touche a été reprise à un autre raccourci : on propose aussitôt de lui en choisir une autre.
+                if let followUp {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
+                        guard let next = store.catalogRows().rows.first(where: { $0.id == followUp }) else { return }
+                        editNotice = "« \(row.entry.title) » utilise maintenant cette touche. "
+                            + "Choisis une nouvelle touche pour « \(next.entry.title) »."
+                        editingRow = next
+                    }
+                }
+            }
+            .environmentObject(store)
+            .environmentObject(link)
         }
     }
 
@@ -1195,6 +1208,12 @@ private struct CatalogRowView: View {
                 Text(subtitle).font(.system(size: 12)).foregroundStyle(.secondary).lineLimit(1)
             }
             Spacer(minLength: 8)
+            if let takenBy = row.takenBy {
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .foregroundStyle(.orange)
+                    .help("Sa touche est utilisée par « \(takenBy) ». Clique pour lui en choisir une autre.")
+                    .accessibilityLabel("Touche utilisée par \(takenBy)")
+            }
             if !issues.isEmpty {
                 Image(systemName: issues.contains(where: \.isBlocking) ? "xmark.octagon.fill" : "exclamationmark.triangle.fill")
                     .foregroundStyle(issues.contains(where: \.isBlocking) ? Color.red : Color.orange)
@@ -1301,13 +1320,32 @@ struct CatalogEditSheet: View {
     @ObservedObject private var recorder = Recorder.shared
 
     let row: CatalogRow
-    let onDone: (ToastMessage) -> Void
+    let notice: String?
+    /// Message, et l'entrée à qui proposer ensuite une nouvelle touche (touche reprise).
+    let onDone: (ToastMessage, String?) -> Void
     @State private var combo: KeyCombo?
+    @State private var pendingClashes: [KeyClash] = []
+    @State private var showClashAlert = false
 
-    init(row: CatalogRow, onDone: @escaping (ToastMessage) -> Void) {
+    init(row: CatalogRow, notice: String? = nil, onDone: @escaping (ToastMessage, String?) -> Void) {
         self.row = row
+        self.notice = notice
         self.onDone = onDone
         _combo = State(initialValue: row.current)
+    }
+
+    /// Ce qui utilise déjà la touche choisie (affiché tout de suite, confirmé à la validation).
+    private var clashes: [KeyClash] {
+        guard let combo, combo != row.current else { return [] }
+        return store.clashes(for: combo, editing: row)
+    }
+
+    private func apply(releasing toRelease: [KeyClash]) {
+        recorder.stop()
+        let followUp = toRelease.isEmpty ? nil : store.release(toRelease)
+        store.setTrigger(combo, for: row)
+        onDone(ToastMessage(text: "« \(row.entry.title) » : " + (combo?.display ?? "aucune touche"), undo: nil), followUp)
+        dismiss()
     }
 
     private var nativeKey: KeyCombo? {
@@ -1345,7 +1383,29 @@ struct CatalogEditSheet: View {
                 }
             }
 
+            if let notice {
+                Label(notice, systemImage: "exclamationmark.triangle.fill")
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundStyle(.orange)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
             CaptureField(id: "catalog-\(row.id)", role: .trigger, combo: $combo)
+
+            if !clashes.isEmpty && recorder.activeID == nil {
+                VStack(alignment: .leading, spacing: 3) {
+                    Label("Touche déjà utilisée par :", systemImage: "exclamationmark.triangle.fill")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(.orange)
+                    ForEach(clashes.prefix(4)) { c in
+                        Text(c.line).font(.system(size: 12)).foregroundStyle(.secondary)
+                    }
+                    if clashes.count > 4 {
+                        Text("et \(clashes.count - 4) autre(s)").font(.system(size: 12)).foregroundStyle(.secondary)
+                    }
+                }
+                .accessibilityElement(children: .combine)
+            }
 
             if !issues.isEmpty && recorder.activeID == nil {
                 IssuesView(issues: issues)
@@ -1391,9 +1451,13 @@ struct CatalogEditSheet: View {
                     .secondaryGlassButton()
                 Button("Valider") {
                     recorder.stop()
-                    store.setTrigger(combo, for: row)
-                    onDone(ToastMessage(text: "« \(row.entry.title) » : " + (combo?.display ?? "aucune touche"), undo: nil))
-                    dismiss()
+                    let found = clashes
+                    if found.isEmpty {
+                        apply(releasing: [])
+                    } else {
+                        pendingClashes = found
+                        showClashAlert = true
+                    }
                 }
                 .keyboardShortcut(.defaultAction)
                 .primaryGlassButton()
@@ -1404,5 +1468,14 @@ struct CatalogEditSheet: View {
         .frame(width: 520)
         .motion(Motion.smooth, value: issues.map(\.message))
         .onDisappear { recorder.stop() }
+        // Une touche ne sert qu'une fois : on annonce ce qui l'utilise avant de la reprendre.
+        .alert("\(combo?.display ?? "Cette touche") est déjà utilisée", isPresented: $showClashAlert) {
+            Button("Remplacer", role: .destructive) { apply(releasing: pendingClashes) }
+            Button("Annuler", role: .cancel) { pendingClashes = [] }
+        } message: {
+            Text(pendingClashes.prefix(4).map(\.line).joined(separator: "\n")
+                 + "\n\nUn raccourci ne peut servir qu'une fois. Si tu remplaces, tu pourras choisir tout de suite "
+                 + "une autre touche pour « \(pendingClashes.first?.title ?? "l'autre raccourci") ».")
+        }
     }
 }

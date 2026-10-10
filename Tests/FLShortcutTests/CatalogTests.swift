@@ -61,6 +61,38 @@ final class CatalogTests: XCTestCase {
         XCTAssertEqual(store.catalogRows().rows.first { $0.entry.id == "action.mx" }?.current, original)
     }
 
+    // Une touche ne sert qu'une fois : annonce, reprise, et proposition de rechoisir pour l'autre raccourci.
+    func testAKeyCanOnlyBeUsedOnce() throws {
+        let store = makeStore()
+        let rows = store.catalogRows().rows
+        let pianoP = try XCTUnwrap(rows.first { $0.entry.id == "fl.pianoRoll.p" })
+        let mixer = try XCTUnwrap(rows.first { $0.entry.id == "action.mx" })
+        let taken = try XCTUnwrap(mixer.current)                    // touche du profil Recommandé
+        let found = store.clashes(for: taken, editing: pianoP)
+        XCTAssertEqual(found.map(\.id), ["action.mx"])
+        XCTAssertFalse(found[0].isFLKey)
+        let follow = store.release(found)
+        store.setTrigger(taken, for: pianoP)
+        XCTAssertEqual(follow, "action.mx")
+        let after = store.catalogRows().rows
+        XCTAssertNil(after.first { $0.entry.id == "action.mx" }?.current)
+        XCTAssertEqual(after.first { $0.entry.id == "fl.pianoRoll.p" }?.current, taken)
+        // Revenir à sa propre touche d'origine n'est jamais un conflit (doublons propres à FL).
+        XCTAssertTrue(store.clashes(for: try XCTUnwrap(pianoP.entry.defaultTrigger), editing: pianoP).isEmpty)
+    }
+
+    func testTakingAnFLKeyIsAnnouncedAndFlagged() throws {
+        let store = makeStore()
+        let rows = store.catalogRows().rows
+        let metro = try XCTUnwrap(rows.first { $0.entry.id == "fl.transport.cmd-m" })
+        let pianoP = try XCTUnwrap(rows.first { $0.entry.id == "fl.pianoRoll.p" })
+        let cmdM = try XCTUnwrap(metro.entry.defaultTrigger)
+        XCTAssertTrue(store.clashes(for: cmdM, editing: pianoP).contains { $0.id == metro.id && $0.isFLKey })
+        store.setTrigger(cmdM, for: pianoP)
+        XCTAssertEqual(store.catalogRows().rows.first { $0.id == metro.id }?.takenBy, pianoP.entry.title)
+        XCTAssertNil(store.catalogRows().rows.first { $0.id == pianoP.id }?.takenBy)
+    }
+
     func testResponseTimeIsMeasuredFromFrameToAck() {
         let transport = FakeTransport()
         let core = LinkCore(transport: transport, key: Array(UInt8(0)..<UInt8(16)))
