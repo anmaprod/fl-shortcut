@@ -38,17 +38,17 @@ enum FLSection: String, CaseIterable, Identifiable {
         }
     }
 
-    /// Symbole SF de la section.
+    /// Symbole SF de la section (barre latérale : symboles au trait, monochromes).
     var symbol: String {
         switch self {
-        case .general: return "square.grid.2x2.fill"
-        case .transport: return "record.circle.fill"
-        case .patterns: return "square.stack.fill"
-        case .playlist: return "rectangle.split.3x1.fill"
+        case .general: return "square.grid.2x2"
+        case .transport: return "record.circle"
+        case .patterns: return "square.stack"
+        case .playlist: return "rectangle.split.3x1"
         case .pianoRoll: return "pianokeys"
-        case .channelRack: return "square.stack.3d.up.fill"
+        case .channelRack: return "square.stack.3d.up"
         case .mixer: return "slider.vertical.3"
-        case .browser: return "folder.fill"
+        case .browser: return "folder"
         }
     }
 

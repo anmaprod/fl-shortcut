@@ -23,6 +23,7 @@ struct FLShortcutApp: App {
 
     init() {
         Bench.runIfRequested()                   // `--mesure` : temps de réponse de FL, puis quitte
+        Uninstaller.runStandaloneIfNeeded()      // « Désinstaller FL Shortcut.app » du .dmg
         SingleInstance.enforce()                 // avant de créer quoi que ce soit (REL-07)
         _store = StateObject(wrappedValue: Store.shared)
         _status = StateObject(wrappedValue: AppStatus.shared)
@@ -36,7 +37,7 @@ struct FLShortcutApp: App {
                 .environmentObject(link)
                 .environmentObject(fl)
         } label: {
-            Image(systemName: status.menuBarSymbol(enabled: store.enabled))
+            MenuBarLabel(symbol: status.menuBarSymbol(enabled: store.enabled))
         }
         .menuBarExtraStyle(.window)
 
@@ -71,6 +72,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         FLMonitor.shared.start()
         AppStatus.shared.start()
         PauseIndicator.shared.bind()
+        DebugSnapshot.start()
 
         if !UserDefaults.standard.bool(forKey: "didOnboard") {
             DispatchQueue.main.async { AppDelegate.onboard() }
@@ -171,17 +173,15 @@ final class AppStatus: ObservableObject {
         if s != scriptState { scriptState = s }
     }
 
-    func requestAccessibility() {
-        let options = [kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: true] as CFDictionary
-        _ = AXIsProcessTrustedWithOptions(options)
+    /// Guide : ouvre Accessibilité et le Finder sur l'app, puis détecte l'autorisation tout seul.
+    func requestAccessibility() { AccessibilityGuide.start() }
+
+    func openAccessibilitySettings() { AccessibilityGuide.start() }
+
+    /// Revérifie tout de suite (autorisation accordée pendant le guide).
+    func recheck() {
         lastStartAttempt = .distantPast
         supervise()
-    }
-
-    func openAccessibilitySettings() {
-        if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") {
-            NSWorkspace.shared.open(url)
-        }
     }
 
     func menuBarSymbol(enabled: Bool) -> String {
@@ -306,30 +306,27 @@ final class PauseIndicator {
     }
 }
 
+/// Petite étiquette opaque en haut à droite de l'écran (jamais de verre : elle flotte au-dessus de FL).
 struct PauseBadge: View {
+    private var shape: RoundedRectangle { RoundedRectangle(cornerRadius: 6, style: .continuous) }
+
     var body: some View {
-        HStack(spacing: 8) {
-            Image(systemName: "pause.circle.fill").foregroundStyle(.orange)
-            Text("FL Shortcut en pause · ⌃⌥⌘F pour reprendre")
-                .font(.callout.weight(.semibold))
+        HStack(spacing: 6) {
+            Image(systemName: "pause.fill")
+                .font(.system(size: 10))
+                .foregroundStyle(.secondary)
+            Text("FL Shortcut en pause").font(.system(size: 12, weight: .medium))
+            Text("⌃⌥⌘F").font(.system(size: 12)).foregroundStyle(.secondary)
         }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 8)
-        // Ce bandeau flotte au-dessus de FL : jamais de verre (il échantillonnerait FL à chaque image).
-        // Reflet dessiné une fois pour toutes.
-        .background(
-            Capsule(style: .continuous)
-                .fill(Color(nsColor: .windowBackgroundColor))
-                .overlay(Capsule(style: .continuous).fill(
-                    LinearGradient(colors: [.white.opacity(0.14), .white.opacity(0)],
-                                   startPoint: .top, endPoint: .center)))
-        )
-        .overlay(Capsule(style: .continuous).strokeBorder(Color.primary.opacity(0.10), lineWidth: 0.5))
-        .padding(6)                                   // marge pour l'ombre
+        .padding(.horizontal, 10)
+        .padding(.vertical, 5)
+        .background(shape.fill(Color(nsColor: .windowBackgroundColor)))
+        .overlay(shape.strokeBorder(Color(nsColor: .separatorColor), lineWidth: 0.5))
         .accessibilityElement(children: .combine)
     }
 }
 
+/// Panneau de la barre des menus, façon menus de Centre de contrôle : statut, puis des lignes de menu.
 struct MenuContent: View {
     @EnvironmentObject var store: Store
     @EnvironmentObject var status: AppStatus
@@ -339,67 +336,56 @@ struct MenuContent: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            HStack(spacing: 12) {
-                AppIcon().frame(width: 38, height: 38)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("FL Shortcut").font(.system(size: 14, weight: .semibold))
-                    HStack(spacing: 6) {
-                        Circle().fill(dotColor).frame(width: 6, height: 6)
-                        Text(statusLine).font(.system(size: 12)).foregroundStyle(.secondary).lineLimit(1)
-                            .contentTransition(.interpolate)
-                    }
-                    .motion(Motion.smooth, value: statusLine)
+            VStack(alignment: .leading, spacing: 2) {
+                Text("FL Shortcut").font(.system(size: 13, weight: .semibold))
+                HStack(spacing: 5) {
+                    Circle().fill(dotColor).frame(width: 6, height: 6)
+                    Text(statusLine).foregroundStyle(.secondary).lineLimit(1)
                 }
-                Spacer(minLength: 8)
-                Toggle("", isOn: $store.enabled)
-                    .toggleStyle(.switch)
-                    .labelsHidden()
-                    .accessibilityLabel("Raccourcis actifs (⌃⌥⌘F)")
+                .font(.system(size: 11))
             }
             .padding(.horizontal, 8)
-            .padding(.top, 8)
-            .padding(.bottom, 12)
+            .padding(.top, 4)
+            .padding(.bottom, 6)
+            .accessibilityElement(children: .combine)
 
             ForEach(alerts, id: \.self) { text in
-                Label(text, systemImage: "exclamationmark.triangle.fill")
-                    .font(.system(size: 11))
-                    .foregroundStyle(.orange)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .padding(.horizontal, 10)
-                    .padding(.bottom, 8)
-                    .transition(Motion.transition(.opacity.combined(with: .move(edge: .top))))
+                HStack(alignment: .firstTextBaseline, spacing: 5) {
+                    Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.orange)
+                    Text(text).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+                }
+                .font(.system(size: 11))
+                .padding(.horizontal, 8)
+                .padding(.bottom, 6)
             }
+
+            MenuSeparator()
+
             if !status.accessibilityOK {
-                PanelItem(title: "Autoriser le clavier…", shortcut: nil) { status.openAccessibilitySettings() }
+                PanelItem(title: "Autoriser le clavier…") { AccessibilityGuide.start() }
             }
-
-            Divider().padding(.horizontal, 8).padding(.bottom, 6)
-
-            PanelItem(title: "Modifier les raccourcis…", shortcut: "⌘,") {
+            PanelItem(title: "Modifier les raccourcis…") {
                 openWindow(id: "editor")
                 NSApp.activate(ignoringOtherApps: true)
             }
             PanelItem(title: store.enabled ? "Mettre en pause" : "Reprendre", shortcut: "⌃⌥⌘F") { store.enabled.toggle() }
             if !AppMode.light {
-                PanelItem(title: "Installer le lien avec FL Studio…", shortcut: nil) { FLScriptInstaller.installWithAlert() }
+                PanelItem(title: "Installer le lien avec FL Studio…") { FLScriptInstaller.installWithAlert() }
             }
 
-            Divider().padding(.horizontal, 8).padding(.vertical, 6)
+            MenuSeparator()
 
-            PanelItem(title: "Quitter FL Shortcut", shortcut: "⌘Q") { NSApp.terminate(nil) }
+            PanelItem(title: "Désinstaller FL Shortcut…") { Uninstaller.confirmAndRun() }
+            PanelItem(title: "Quitter FL Shortcut", shortcut: "⌘Q", key: "q") { NSApp.terminate(nil) }
         }
-        .padding(8)
-        .frame(width: 300)
-        .motion(Motion.smooth, value: alerts)
-        .motion(Motion.smooth, value: status.accessibilityOK)
+        .padding(6)
+        .frame(width: 260)
     }
 
     private var dotColor: Color {
         guard store.enabled else { return .gray }
-        if AppMode.light {
-            if !status.accessibilityOK { return .orange }
-            return fl.running ? .green : .gray
-        }
+        if !status.accessibilityOK { return .orange }
+        if AppMode.light { return fl.running ? .green : .gray }
         switch link.status {
         case .linked: return .green
         case .inactive: return .orange
@@ -410,22 +396,22 @@ struct MenuContent: View {
     /// Chaîne calculée à part : pas de fermeture imbriquée dans une interpolation de LocalizedStringKey.
     private var statusLine: String {
         guard store.enabled else { return "En pause" }
+        if !status.accessibilityOK { return "Clavier non autorisé" }
         let version = fl.version.map { " \($0)" } ?? ""
         if AppMode.light {
-            if !status.accessibilityOK { return "Clavier non autorisé" }
-            return fl.running ? "Actif dans FL Studio" + version : "FL Studio fermé"
+            return fl.running ? "Actif dans FL Studio" + version : "FL Studio n'est pas ouvert"
         }
         switch link.status {
         case .linked: return "Relié à FL Studio" + version
         case .inactive: return "Lien inactif"
-        case .flClosed: return "FL Studio fermé"
+        case .flClosed: return "FL Studio n'est pas ouvert"
         }
     }
 
     private var alerts: [String] {
         var out: [String] = []
-        if status.staleTCC { out.append("Permission périmée : retire FL Shortcut de la liste Accessibilité puis ajoute-le.") }
-        if status.secureInput { out.append("Saisie sécurisée activée par une autre appli : raccourcis muets.") }
+        if status.staleTCC { out.append("Autorisation périmée : retire FL Shortcut de la liste Accessibilité puis ajoute-le.") }
+        if status.secureInput { out.append("Saisie sécurisée active dans une autre app : raccourcis muets.") }
         if status.tapUnstable { out.append("macOS a coupé l'interception plusieurs fois : elle a été relancée.") }
         if !AppMode.light, status.scriptState == .modified { out.append("Le script FL a été modifié : réinstalle le lien.") }
         if !AppMode.light, link.uniqueIDConflict { out.append("Conflit de port MIDI : une autre copie de FL Shortcut tourne peut-être.") }
@@ -435,30 +421,40 @@ struct MenuContent: View {
     }
 }
 
-/// Ligne du panneau : surbrillance au survol, comme un menu macOS.
+/// Filet entre deux groupes de lignes, comme dans un menu.
+private struct MenuSeparator: View {
+    var body: some View {
+        Divider().padding(.horizontal, 8).padding(.vertical, 4)
+    }
+}
+
+/// Ligne du panneau : surlignage discret au survol, immédiat (aucune animation).
 private struct PanelItem: View {
     let title: String
-    let shortcut: String?
+    var shortcut: String? = nil
+    /// Raccourci réellement actif dans le panneau (avec ⌘).
+    var key: KeyEquivalent? = nil
     let action: () -> Void
     @State private var hovering = false
 
     var body: some View {
         Button(action: action) {
             HStack {
-                Text(title).font(.system(size: 13))
-                Spacer()
+                Text(title)
+                Spacer(minLength: 12)
                 if let shortcut {
-                    Text(shortcut).font(.system(size: 12)).foregroundStyle(hovering ? Color.white.opacity(0.85) : Color.secondary)
+                    Text(shortcut).foregroundStyle(.secondary)
                 }
             }
-            .padding(.horizontal, 10)
-            .frame(height: 30)
-            .foregroundStyle(hovering ? Color.white : Color.primary)
-            .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(hovering ? Color.accentColor : .clear))
+            .font(.system(size: 13))
+            .padding(.horizontal, 8)
+            .frame(height: 24)
             .contentShape(Rectangle())
+            .background(RoundedRectangle(cornerRadius: 5, style: .continuous)
+                .fill(hovering ? Color.primary.opacity(0.1) : Color.clear))
         }
-        .buttonStyle(PressableRowStyle())
+        .buttonStyle(.plain)
+        .keyboardShortcut(key.map { KeyboardShortcut($0, modifiers: .command) })
         .onHover { hovering = $0 }
-        .animation(.easeOut(duration: 0.08), value: hovering)   // surbrillance quasi immédiate, comme un vrai menu
     }
 }

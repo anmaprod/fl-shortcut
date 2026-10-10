@@ -1,44 +1,25 @@
-// Style « Liquid Glass » : verre natif sur macOS 26 (SDK Xcode 26, Swift 6.2), repli en matériau translucide
-// sur macOS 13–15 ou avec un compilateur plus ancien. Audit 05 : touches affichées avec leur nom en clair.
-// Mouvement : ressorts courts façon macOS (réponse 0,25–0,45 s, peu de rebond), remplacés par un simple fondu
-// quand « Réduire les animations » est activé (Réglages › Accessibilité › Affichage).
+// Styles communs, volontairement sobres : polices et couleurs système, aucun verre posé à la main (macOS 26
+// donne déjà le Liquid Glass à la barre d'outils et à la barre latérale), aucun dégradé, aucune animation
+// infinie. Audit 05 : touches affichées avec leur nom en clair. Mouvement : courtes transitions, remplacées par
+// un simple fondu quand « Réduire les animations » est activé (Réglages › Accessibilité › Affichage).
 import AppKit
 import SwiftUI
 
 // MARK: - Mouvement
 
 enum Motion {
-    /// Changement d'état ordinaire (listes, bandeaux, feuilles).
-    static let smooth = Animation.spring(response: 0.36, dampingFraction: 0.86)
-    /// Retour immédiat (sélection, puces, survol appuyé).
-    static let snappy = Animation.spring(response: 0.26, dampingFraction: 0.9)
-    /// Apparition qui « se pose » (touches capturées, notification).
-    static let bouncy = Animation.spring(response: 0.44, dampingFraction: 0.72)
-    /// Survol.
-    static let hover = Animation.easeOut(duration: 0.14)
+    /// Changement d'état ordinaire (notification).
+    static let smooth = Animation.easeInOut(duration: 0.2)
     /// Remplacement quand l'utilisateur a demandé moins de mouvement.
-    static let reduced = Animation.easeInOut(duration: 0.18)
+    static let reduced = Animation.easeInOut(duration: 0.15)
 
     static var reduce: Bool { NSWorkspace.shared.accessibilityDisplayShouldReduceMotion }
-
-    /// `withAnimation` qui respecte « Réduire les animations ».
-    static func run(_ animation: Animation = smooth, _ body: () -> Void) {
-        withAnimation(reduce ? reduced : animation, body)
-    }
 
     /// Transition remplacée par un fondu quand le mouvement est réduit.
     static func transition(_ t: AnyTransition) -> AnyTransition { reduce ? .opacity : t }
 
-    /// Apparition depuis le bas, légèrement réduite (notifications, bandeaux).
-    static var rise: AnyTransition {
-        transition(.move(edge: .bottom).combined(with: .opacity).combined(with: .scale(scale: 0.94, anchor: .bottom)))
-    }
-
-    /// Apparition « posée » (éléments qui arrivent dans une liste).
-    static var pop: AnyTransition {
-        transition(.asymmetric(insertion: .scale(scale: 0.96).combined(with: .opacity),
-                               removal: .opacity.combined(with: .scale(scale: 0.98))))
-    }
+    /// Apparition depuis le bas (notification).
+    static var rise: AnyTransition { transition(.move(edge: .bottom).combined(with: .opacity)) }
 }
 
 private struct MotionModifier<V: Equatable>: ViewModifier {
@@ -51,198 +32,39 @@ private struct MotionModifier<V: Equatable>: ViewModifier {
     }
 }
 
-/// Pulsation d'opacité infinie, confinée à la vue qui la porte : elle démarre à l'apparition et disparaît
-/// avec la vue (un `repeatForever` piloté par un état du parent ne s'arrête pas de façon fiable : relecture 11).
-/// Rien ne bouge si « Réduire les animations » est activé.
-private struct PulseModifier: ViewModifier {
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    let duration: Double
-    let low: Double
-    @State private var dimmed = false
-
-    func body(content: Content) -> some View {
-        content
-            .opacity(dimmed ? low : 1)
-            .onAppear {
-                guard !reduceMotion else { return }
-                withAnimation(.easeInOut(duration: duration).repeatForever(autoreverses: true)) { dimmed = true }
-            }
-    }
-}
-
 extension View {
     /// `.animation(_:value:)` qui respecte « Réduire les animations ».
     func motion<V: Equatable>(_ animation: Animation = Motion.smooth, value: V) -> some View {
         modifier(MotionModifier(animation: animation, value: value))
     }
-
-    /// Pulsation douce (attente, enregistrement). À poser sur une vue insérée / retirée par un `if` :
-    /// la retirer arrête l'animation.
-    func pulsing(duration: Double = 1.0, low: Double = 0.45) -> some View {
-        modifier(PulseModifier(duration: duration, low: low))
-    }
-
-    /// Petit rebond du symbole SF quand `value` change (macOS 14+).
-    @ViewBuilder
-    func bounceSymbol<V: Equatable>(on value: V) -> some View {
-        #if compiler(>=5.9)
-        if #available(macOS 14.0, *) {
-            self.symbolEffect(.bounce, value: value)
-        } else {
-            self
-        }
-        #else
-        self
-        #endif
-    }
 }
 
-/// Ligne cliquable : léger enfoncement à l'appui, comme les listes de Réglages Système.
-struct PressableRowStyle: ButtonStyle {
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .scaleEffect(configuration.isPressed && !Motion.reduce ? 0.985 : 1)
-            .opacity(configuration.isPressed ? 0.82 : 1)
-            .animation(Motion.snappy, value: configuration.isPressed)
-    }
-}
+// MARK: - Touches
 
-/// Regroupe des éléments en verre pour qu'ils se fondent entre eux comme sur macOS 26 (GlassEffectContainer).
-struct GlassGroup<Content: View>: View {
-    var spacing: CGFloat = 10
-    @ViewBuilder let content: () -> Content
-
-    var body: some View {
-        #if compiler(>=6.2)
-        if #available(macOS 26.0, *) {
-            GlassEffectContainer(spacing: spacing) { content() }
-        } else {
-            content()
-        }
-        #else
-        content()
-        #endif
-    }
-}
-
-// MARK: - Verre
-
-extension View {
-    /// Carte en verre (arrondie). Opaque et immobile quand l'app n'est pas au premier plan.
-    func glassCard(cornerRadius: CGFloat = 18) -> some View {
-        modifier(GlassSurface(shape: RoundedRectangle(cornerRadius: cornerRadius, style: .continuous), interactive: false))
-    }
-
-    /// Pastille en verre (capsule). `interactive` : le verre réagit au pointeur (macOS 26).
-    func glassCapsule(interactive: Bool = false) -> some View {
-        modifier(GlassSurface(shape: Capsule(), interactive: interactive))
-    }
-
-    /// Bouton principal (accent) : verre teinté sur macOS 26, bouton accentué ailleurs.
-    @ViewBuilder
-    func primaryGlassButton() -> some View {
-        #if compiler(>=6.2)
-        if #available(macOS 26.0, *) {
-            self.buttonStyle(.glassProminent)
-        } else {
-            self.buttonStyle(.borderedProminent).capsuleShapeIfAvailable()
-        }
-        #else
-        self.buttonStyle(.borderedProminent).capsuleShapeIfAvailable()
-        #endif
-    }
-
-    /// Bouton secondaire en verre.
-    @ViewBuilder
-    func secondaryGlassButton() -> some View {
-        #if compiler(>=6.2)
-        if #available(macOS 26.0, *) {
-            self.buttonStyle(.glass)
-        } else {
-            self.buttonStyle(.bordered).capsuleShapeIfAvailable()
-        }
-        #else
-        self.buttonStyle(.bordered).capsuleShapeIfAvailable()
-        #endif
-    }
-
-    /// Bouton en capsule (macOS 14+) ; forme par défaut sur macOS 13.
-    @ViewBuilder
-    func capsuleShapeIfAvailable() -> some View {
-        if #available(macOS 14.0, *) {
-            self.buttonBorderShape(.capsule)
-        } else {
-            self
-        }
-    }
-
-}
-
-/// Surface en verre dans la fenêtre. Le verre ne réfracte que le contenu de NOTRE fenêtre, dont le fond devient
-/// opaque et fixe dès que FL Shortcut n'est plus l'app active (WindowBackground) : rien à recalculer pendant que
-/// tu travailles dans FL. Structure de vue identique dans les deux états : aucun arbre reconstruit au passage
-/// FL ↔ FL Shortcut.
-struct GlassSurface<S: InsettableShape>: ViewModifier {
-    let shape: S
-    let interactive: Bool
-
-    func body(content: Content) -> some View {
-        live(content)
-    }
-
-    @ViewBuilder private func live(_ content: Content) -> some View {
-        #if compiler(>=6.2)
-        if #available(macOS 26.0, *) {
-            content.glassEffect(interactive ? Glass.regular.interactive() : Glass.regular, in: shape)
-        } else {
-            fallback(content)
-        }
-        #else
-        fallback(content)
-        #endif
-    }
-
-    private func fallback(_ content: Content) -> some View {
-        content
-            .background(.ultraThinMaterial, in: shape)
-            .overlay(shape.strokeBorder(Color.white.opacity(0.35), lineWidth: 0.5))
-            .shadow(color: .black.opacity(0.08), radius: 2, y: 1)
-    }
-}
-
-/// Une touche de clavier : symbole + nom en clair (« ⌃ ctrl »), comme dans la simulation validée.
+/// Une touche de clavier, plate : symbole, et en grand le nom en clair (« ⌃ ctrl »).
 struct KeyCap: View {
     let symbol: String
     var name: String? = nil
     var large = false
 
+    private var shape: RoundedRectangle { RoundedRectangle(cornerRadius: large ? 6 : 4, style: .continuous) }
+
     var body: some View {
-        VStack(spacing: 2) {
-            Text(symbol)
-                .font(.system(size: large ? 17 : 13, weight: .semibold, design: .rounded))
+        VStack(spacing: 1) {
+            Text(symbol).font(.system(size: large ? 15 : 12, weight: .medium))
             if large, let name {
-                Text(name)
-                    .font(.system(size: 9, weight: .medium))
-                    .foregroundStyle(.secondary)
+                Text(name).font(.system(size: 9)).foregroundStyle(.secondary)
             }
         }
-        .frame(minWidth: large ? 44 : 26, minHeight: large ? 46 : 26)
-        .padding(.horizontal, large ? 8 : 6)
-        .background(
-            RoundedRectangle(cornerRadius: large ? 10 : 7, style: .continuous)
-                .fill(Color(nsColor: .controlBackgroundColor).opacity(0.85))
-                .shadow(color: .black.opacity(0.12), radius: 0, y: 1.5)
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: large ? 10 : 7, style: .continuous)
-                .strokeBorder(Color.primary.opacity(0.10), lineWidth: 1)
-        )
+        .frame(minWidth: large ? 34 : 20, minHeight: large ? 36 : 20)
+        .padding(.horizontal, large ? 6 : 4)
+        .background(shape.fill(Color(nsColor: .controlBackgroundColor)))
+        .overlay(shape.strokeBorder(Color(nsColor: .separatorColor), lineWidth: 1))
         .accessibilityHidden(true)
     }
 }
 
-/// Une touche à dessiner. `id` stable (modificateur ou touche finale) pour animer l'arrivée d'une touche
-/// sans redessiner les autres.
+/// Une touche à dessiner. `id` stable (modificateur ou touche finale).
 struct CapInfo: Identifiable, Hashable {
     let id: String
     let symbol: String
@@ -273,30 +95,59 @@ extension KeyCombo {
     }
 }
 
-/// Rangée de touches.
+/// Rangée de touches (champ d'enregistrement, accueil). Statique : aucune animation.
 struct KeyCaps: View {
     let combo: KeyCombo?
     var large = false
     var placeholder = "—"
 
     var body: some View {
-        HStack(spacing: large ? 6 : 4) {
+        HStack(spacing: large ? 4 : 3) {
             if let combo {
                 ForEach(combo.caps) { cap in
                     KeyCap(symbol: cap.symbol, name: cap.name.isEmpty ? nil : cap.name, large: large)
-                        .transition(Motion.transition(.scale(scale: 0.6).combined(with: .opacity)))
                 }
             } else {
                 Text(placeholder).foregroundStyle(.secondary)
             }
         }
-        .motion(Motion.bouncy, value: combo)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(combo?.spoken ?? "Aucun raccourci")
     }
 }
 
-/// Description courte de chaque action (retours des tests utilisateurs : dire ce que fait l'action).
+/// Touche compacte d'une liste, comme dans Réglages › Clavier : le raccourci en texte dans un petit cadre.
+/// `accent` : raccourci modifié.
+struct KeyLabel: View {
+    let combo: KeyCombo?
+    var accent = false
+    var placeholder = "Aucune"
+
+    private var shape: RoundedRectangle { RoundedRectangle(cornerRadius: 5, style: .continuous) }
+
+    var body: some View {
+        Group {
+            if let combo {
+                Text(combo.display)
+                    .foregroundStyle(accent ? Color.accentColor : Color.primary)
+            } else {
+                Text(placeholder).foregroundStyle(.secondary)
+            }
+        }
+        .font(.system(size: 12))
+        .lineLimit(1)
+        .padding(.horizontal, 7)
+        .frame(minWidth: 56, minHeight: 20)
+        .background(shape.fill(Color.primary.opacity(0.05)))
+        .overlay(shape.strokeBorder(accent ? Color.accentColor.opacity(0.5) : Color(nsColor: .separatorColor),
+                                    lineWidth: 0.5))
+        .contentShape(shape)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(combo?.spoken ?? placeholder)
+    }
+}
+
+/// Description courte de chaque action (affichée en bulle d'aide).
 extension FLActionInfo {
     var detail: String {
         switch key {
@@ -340,52 +191,5 @@ extension FLActionInfo {
         case "save": return "Sauvegarde le projet"
         default: return label
         }
-    }
-}
-
-
-/// Icône de section façon Liquid Glass : pastille arrondie teintée en dégradé, reflet en haut, liseré
-/// lumineux, symbole blanc en relief. Dessin statique : aucun effet recalculé en continu.
-struct GlassIcon: View {
-    let symbol: String
-    let tint: Color
-    var size: CGFloat = 38
-
-    private var shape: RoundedRectangle { RoundedRectangle(cornerRadius: size * 0.28, style: .continuous) }
-
-    var body: some View {
-        ZStack {
-            base
-            // Reflet : demi-ellipse claire en haut de la pastille.
-            Ellipse()
-                .fill(LinearGradient(colors: [.white.opacity(0.55), .white.opacity(0)], startPoint: .top, endPoint: .bottom))
-                .frame(width: size * 0.92, height: size * 0.56)
-                .offset(y: -size * 0.24)
-                .blendMode(.plusLighter)
-                .allowsHitTesting(false)
-            Image(systemName: symbol)
-                .font(.system(size: size * 0.44, weight: .semibold))
-                .symbolRenderingMode(.hierarchical)
-                .foregroundStyle(.white)
-                .shadow(color: .black.opacity(0.25), radius: size * 0.03, y: size * 0.03)
-        }
-        .frame(width: size, height: size)
-        .clipShape(shape)
-        .overlay(
-            shape.strokeBorder(
-                LinearGradient(colors: [.white.opacity(0.75), .white.opacity(0.08), .white.opacity(0.25)],
-                               startPoint: .top, endPoint: .bottom),
-                lineWidth: max(0.75, size * 0.025))
-        )
-        .shadow(color: tint.opacity(0.40), radius: size * 0.18, y: size * 0.09)
-        .accessibilityHidden(true)
-    }
-
-    private var base: some View {
-        shape
-            .fill(LinearGradient(colors: [tint.opacity(0.78), tint, tint.opacity(0.92)],
-                                 startPoint: .topLeading, endPoint: .bottomTrailing))
-            .overlay(shape.fill(Color.black.opacity(0.10))
-                .mask(LinearGradient(colors: [.clear, .black], startPoint: .top, endPoint: .bottom)))
     }
 }

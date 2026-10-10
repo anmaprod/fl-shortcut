@@ -99,10 +99,32 @@ else
   codesign --force --sign - "$APP"
 fi
 
+# Désinstalleur fourni dans le .dmg : même exécutable, identifiant à part, clé FLSUninstaller (Uninstaller.swift).
+UNINSTALLER="dist/Désinstaller ${APP_NAME}.app"
+echo "▸ Désinstalleur"
+mkdir -p "$UNINSTALLER/Contents/MacOS" "$UNINSTALLER/Contents/Resources"
+cp "$BIN_DIR/$EXE" "$UNINSTALLER/Contents/MacOS/$EXE"
+cp Resources/AppIcon.icns "$UNINSTALLER/Contents/Resources/AppIcon.icns"
+cp Resources/Info.plist "$UNINSTALLER/Contents/Info.plist"
+plutil -replace CFBundleIdentifier -string "app.flshortcut.Uninstaller" "$UNINSTALLER/Contents/Info.plist"
+plutil -replace CFBundleName -string "Désinstaller ${APP_NAME}" "$UNINSTALLER/Contents/Info.plist"
+plutil -replace CFBundleDisplayName -string "Désinstaller ${APP_NAME}" "$UNINSTALLER/Contents/Info.plist"
+plutil -replace LSUIElement -bool NO "$UNINSTALLER/Contents/Info.plist"
+plutil -insert FLSUninstaller -bool YES "$UNINSTALLER/Contents/Info.plist"
+chmod -R go-w "$UNINSTALLER"
+if [[ -n "${SIGN_IDENTITY:-}" ]]; then
+  codesign --force --timestamp --options runtime --sign "$SIGN_IDENTITY" "$UNINSTALLER"
+elif [[ -n "${DEV_ID:-}" ]]; then
+  codesign --force --keychain "$DEV_KC" --sign "$DEV_ID" "$UNINSTALLER" || codesign --force --sign - "$UNINSTALLER"
+else
+  codesign --force --sign - "$UNINSTALLER"
+fi
+
 echo "▸ Image disque"
 STAGE=$(mktemp -d)
 trap 'rm -rf "$STAGE"' EXIT
 cp -R "$APP" "$STAGE/"
+cp -R "$UNINSTALLER" "$STAGE/"
 ln -s /Applications "$STAGE/Applications"
 hdiutil create -volname "$APP_NAME" -srcfolder "$STAGE" -ov -format UDZO "$DMG"
 
