@@ -63,7 +63,7 @@ final class ModelTests: XCTestCase {
         {"version": 3, "remaps": [
           {"trigger": {"keyCode": 2, "control": true}, "kind": "flAction", "action": "teleport", "actionID": 77},
           {"trigger": {"keyCode": 3, "control": true}, "kind": "flAction", "action": "pnext", "context": "arranger"},
-          {"trigger": {"keyCode": 4, "control": true}, "kind": "macro"},
+          {"trigger": {"keyCode": 4, "control": true}, "kind": "teleportKind"},
           {"trigger": {"keyCode": 5, "control": true}, "kind": "flAction", "action": "save"}
         ]}
         """)
@@ -73,7 +73,7 @@ final class ModelTests: XCTestCase {
         XCTAssertFalse(decoded.remaps[0].enabled)
         XCTAssertEqual(decoded.remaps[1].actionID, 13)
         XCTAssertFalse(decoded.remaps[1].enabled)                  // contexte inconnu : désactivé
-        XCTAssertEqual(decoded.remaps[2].unknownAction, "type:macro")
+        XCTAssertEqual(decoded.remaps[2].unknownAction, "type:teleportKind")    // « macro » est désormais connu (MacroTests)
         XCTAssertEqual(decoded.remaps[3].actionID, 38)
         XCTAssertTrue(decoded.remaps[3].enabled)
 
