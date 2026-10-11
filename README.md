@@ -72,6 +72,21 @@ Sur Windows, on évite `Ctrl+Alt` : c'est AltGr sur les claviers AZERTY (`@`, `�
 
 ---
 
+## Macros (sans MIDI)
+
+Une **macro** enchaîne des clics et des touches dans FL, avec le même principe sûr que le mode léger : aucun script, aucun port MIDI, rien d'écrit dans FL. Les événements ne vont qu'au processus FL, et seulement quand il est au premier plan. Échap interrompt la macro.
+
+Modèle livré, **Enregistrement rapide** (fiche d'un raccourci › Type › Macro) :
+
+1. clic droit sur la piste du Mixer sous la souris, puis *File › Open mixer track state* ;
+2. preset : la liste de FL s'ouvre et la macro attend ton choix, ou un preset (.fst) est choisi une fois dans FL Shortcut et chargé directement ;
+3. armement de la piste et première entrée (positions apprises une fois, en cliquant dans FL) ;
+4. REC allumé à la fin (facultatif).
+
+Détails, limites et mode d'emploi du diagnostic (`FLShortcut --diag-macro`) : [MACROS.md](MACROS.md).
+
+---
+
 ## Sécurité et vie privée
 
 - Le clavier n'est observé **que quand FL Studio est au premier plan**. Aucune frappe n'est enregistrée, journalisée ni envoyée. L'appli n'utilise pas le réseau.

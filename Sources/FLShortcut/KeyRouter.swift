@@ -12,6 +12,7 @@ struct ShortcutIndex: Equatable {
     enum RoutedAction: Equatable {
         case flAction(Int)
         case keystroke(KeyCombo)
+        case macro(Macro)
     }
 
     struct Entry: Equatable {
@@ -74,6 +75,7 @@ struct RouterInput: Equatable {
 enum RouterEffect: Equatable {
     case sendAction(Int)
     case post(KeyCombo)
+    case runMacro(Macro)
     case toggleEnabled
 }
 
@@ -90,6 +92,7 @@ struct KeyRouter {
         case toggle
         case action(Int)
         case keystroke(KeyCombo)
+        case macro
     }
 
     /// keyCode → propriétaire de l'appui en cours. Au plus 128 entrées (codes de touche bornés).
@@ -120,8 +123,8 @@ struct KeyRouter {
             case .keystroke(let target):
                 guard e.targetIsFL, config.enabled, !config.forbidden.isForbidden(target) else { return .swallowOnly }
                 return RouterDecision(swallow: true, effects: [.post(target)])
-            case .toggle, .action:
-                return .swallowOnly                   // jamais de bascule ni d'action répétées
+            case .toggle, .action, .macro:
+                return .swallowOnly                   // jamais de bascule, d'action ni de macro répétées
             }
         }
 
@@ -151,6 +154,9 @@ struct KeyRouter {
             guard !config.forbidden.isForbidden(target) else { return .pass }
             owned[code] = .keystroke(target)
             return RouterDecision(swallow: true, effects: [.post(target)])
+        case .macro(let macro):
+            owned[code] = .macro
+            return RouterDecision(swallow: true, effects: [.runMacro(macro)])
         }
     }
 }

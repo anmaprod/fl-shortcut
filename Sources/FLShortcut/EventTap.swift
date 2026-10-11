@@ -210,6 +210,18 @@ final class EventTap {
                     router.withLock { $0.release(code) }
                     swallow = false
                 }
+            case .runMacro(let macro):
+                // La macro tourne sur sa propre file : jamais d'attente dans le thread du tap (REL-03).
+                // Déjà en cours : le raccourci est avalé sans rien faire. Refusée : la touche va à FL telle quelle.
+                switch MacroRunner.shared.start(macro, flPID: destination) {
+                case .started, .busy:
+                    break
+                case .refused:
+                    if !input.isRepeat {
+                        router.withLock { $0.release(code) }
+                        swallow = false
+                    }
+                }
             case .toggleEnabled:
                 DispatchQueue.main.async { Store.shared.enabled.toggle() }
             }

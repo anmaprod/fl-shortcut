@@ -725,6 +725,7 @@ struct EditSheet: View {
         switch draft.kind {
         case .flAction: guard draft.actionID != nil else { return false }
         case .keystroke: guard draft.target != nil else { return false }
+        case .macro: guard draft.macro != nil else { return false }
         }
         return !store.draftIssues(draft).contains(where: \.isBlocking)
     }
@@ -745,12 +746,14 @@ struct EditSheet: View {
                 Picker("Type", selection: $draft.kind) {
                     Text("Action dans FL").tag(Remap.Kind.flAction)
                     Text("Touche de FL").tag(Remap.Kind.keystroke)
+                    Text("Macro").tag(Remap.Kind.macro)
                 }
                 .pickerStyle(.segmented)
 
                 switch draft.kind {
                 case .flAction: actionFields
                 case .keystroke: keystrokeFields
+                case .macro: MacroFields(macro: macroBinding)
                 }
             }
             .formStyle(.columns)
@@ -771,7 +774,9 @@ struct EditSheet: View {
                     recorder.stop()
                     var final = draft
                     final.enabled = true
-                    if final.kind == .flAction { final.target = nil } else { final.actionID = nil }
+                    if final.kind != .keystroke { final.target = nil }
+                    if final.kind != .flAction { final.actionID = nil }
+                    if final.kind != .macro { final.macro = nil }
                     store.upsert(final)
                     onDone(ToastMessage(text: isNew ? "Raccourci ajouté" : "Raccourci modifié", undo: nil))
                     dismiss()
@@ -784,6 +789,11 @@ struct EditSheet: View {
         .padding(20)
         .frame(width: 500)
         .onDisappear { recorder.stop() }
+    }
+
+    /// Macro du brouillon (le modèle « Enregistrement rapide » tant que rien n'est modifié).
+    private var macroBinding: Binding<Macro> {
+        Binding(get: { draft.macro ?? Macro() }, set: { draft.macro = $0 })
     }
 
     private var categoryBinding: Binding<FLActionInfo.Category> {
@@ -1095,6 +1105,7 @@ extension Remap {
     var title: String {
         switch kind {
         case .keystroke: return target.map { "Envoie \($0.display)" } ?? "Touche de FL à choisir"
+        case .macro: return macro.map { "Macro : \($0.name.displaySafe())" } ?? "Macro à configurer"
         case .flAction:
             if let id = actionID, let info = FLActions.info(id) { return info.label }
             return unknownAction.map { "Action inconnue (\($0.displaySafe()))" } ?? "Action à choisir"
@@ -1104,6 +1115,7 @@ extension Remap {
     var subtitle: String {
         switch kind {
         case .keystroke: return "Raccourci de FL Studio"
+        case .macro: return "Enchaîne des clics et des touches dans FL, sans MIDI"
         case .flAction:
             guard let id = actionID, let info = FLActions.info(id) else { return "Mets FL Shortcut à jour pour l'utiliser" }
             if case .unavailable(let reason) = AppStatus.shared.availability(id) { return reason }

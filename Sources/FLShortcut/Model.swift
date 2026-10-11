@@ -125,6 +125,7 @@ struct Remap: Codable, Identifiable, Hashable {
     enum Kind: String, Codable {
         case flAction      // « Action dans FL » (trame authentifiée)
         case keystroke     // « Touche de FL » (frappe envoyée au seul processus FL)
+        case macro         // « Macro » : enchaînement de clics / touches dans FL, sans MIDI (Macro.swift)
     }
 
     var id = UUID()
@@ -137,6 +138,7 @@ struct Remap: Codable, Identifiable, Hashable {
     /// Action illisible conservée telle quelle (profil plus récent relu par une version plus ancienne).
     var unknownAction: String?
     var target: KeyCombo?
+    var macro: Macro?
 
     init(trigger: KeyCombo?, action: Int, context: ShortcutContext = .everywhere) {
         self.trigger = trigger
@@ -152,17 +154,26 @@ struct Remap: Codable, Identifiable, Hashable {
         self.context = context
     }
 
+    init(trigger: KeyCombo?, macro: Macro, context: ShortcutContext = .everywhere) {
+        self.trigger = trigger
+        self.kind = .macro
+        self.actionID = nil
+        self.macro = macro
+        self.context = context
+    }
+
     init() {}
 
     var routedAction: ShortcutIndex.RoutedAction? {
         switch kind {
         case .flAction: return actionID.map { .flAction($0) }
         case .keystroke: return target.map { .keystroke($0) }
+        case .macro: return macro.map { .macro($0) }
         }
     }
 
     private enum CodingKeys: String, CodingKey {
-        case id, enabled, trigger, context, kind, action, actionID, unknownAction, target
+        case id, enabled, trigger, context, kind, action, actionID, unknownAction, target, macro
     }
 
     /// Décodage tolérant : chaque champ manquant prend sa valeur par défaut ; une action, un type ou un
@@ -174,6 +185,7 @@ struct Remap: Codable, Identifiable, Hashable {
         trigger = try? c.decodeIfPresent(KeyCombo.self, forKey: .trigger)
         target = try? c.decodeIfPresent(KeyCombo.self, forKey: .target)
         unknownAction = try? c.decodeIfPresent(String.self, forKey: .unknownAction)
+        macro = try? c.decodeIfPresent(Macro.self, forKey: .macro)
 
         if let raw = try? c.decodeIfPresent(String.self, forKey: .context) {
             if let ctx = ShortcutContext(rawValue: raw) {
@@ -189,6 +201,8 @@ struct Remap: Codable, Identifiable, Hashable {
             kind = .flAction
         } else if rawKind == Kind.keystroke.rawValue {
             kind = .keystroke
+        } else if rawKind == Kind.macro.rawValue {
+            kind = .macro
         } else {
             kind = .flAction
             actionID = nil
@@ -199,6 +213,8 @@ struct Remap: Codable, Identifiable, Hashable {
 
         switch kind {
         case .keystroke:
+            actionID = nil
+        case .macro:
             actionID = nil
         case .flAction:
             let rawID = try? c.decodeIfPresent(Int.self, forKey: .actionID)
@@ -228,6 +244,7 @@ struct Remap: Codable, Identifiable, Hashable {
         }
         try c.encodeIfPresent(unknownAction, forKey: .unknownAction)
         try c.encodeIfPresent(target, forKey: .target)
+        if kind == .macro { try c.encodeIfPresent(macro, forKey: .macro) }
     }
 }
 
@@ -327,11 +344,12 @@ enum ShortcutIssue: Hashable {
     case flConflict(String)
     case loop
     case unavailable(String)
+    case macroInvalid(String)
 
     /// Bloquant : la ligne n'entre pas dans l'index.
     var isBlocking: Bool {
         switch self {
-        case .noTrigger, .noTarget, .invalidKey, .unknownAction, .forbiddenTarget, .reservedToggle, .duplicate:
+        case .noTrigger, .noTarget, .invalidKey, .unknownAction, .forbiddenTarget, .reservedToggle, .duplicate, .macroInvalid:
             return true
         case .bareKey, .macOSConflict, .flConflict, .loop, .unavailable:
             return false
@@ -352,6 +370,7 @@ enum ShortcutIssue: Hashable {
         case .flConflict(let what): return "Remplace un raccourci natif — \(what)."
         case .loop: return "La touche envoyée est aussi un déclencheur : elle sera envoyée telle quelle, sans enchaînement."
         case .unavailable(let why): return why
+        case .macroInvalid(let why): return why
         }
     }
 }
@@ -384,6 +403,12 @@ enum ShortcutAnalyzer {
                     else if let why = context.forbidden.reason(for: t) { list.append(.forbiddenTarget(why)) }
                 } else {
                     list.append(.noTarget)
+                }
+            case .macro:
+                if let m = r.macro {
+                    if let why = MacroLibrary.problem(in: m, forbidden: context.forbidden) { list.append(.macroInvalid(why)) }
+                } else {
+                    list.append(.macroInvalid("Aucune macro configurée."))
                 }
             }
 
@@ -522,6 +547,11 @@ enum ProfileImporter {
                 rejected.append("\(trigger) : touche non prise en charge")
                 continue
             }
+            if r.kind == .macro, r.macro?.template != .quickRecord {
+                // Une macro personnalisée (étapes libres) n'est jamais acceptée depuis un fichier importé.
+                rejected.append("\(trigger) : macro non importée (seul le modèle « Enregistrement rapide » l'est)")
+                continue
+            }
             if r.kind == .keystroke, let target = r.target {
                 if !target.isValidKey {
                     rejected.append("\(trigger) : touche envoyée non prise en charge")
@@ -538,6 +568,8 @@ enum ProfileImporter {
                 what = r.actionID.flatMap(FLActions.info).map(\.label) ?? "action inconnue (désactivée)"
             case .keystroke:
                 what = "touche " + (r.target.map { $0.displayName(layout: layout) } ?? "(aucune)")
+            case .macro:
+                what = "macro " + (r.macro?.name.displaySafe() ?? "(aucune)")
             }
             let ctx = r.context == .everywhere ? "" : " [\(r.context.label)]"
             summary.append("\(trigger)\(ctx) → \(what)\(r.enabled ? "" : " (désactivé)")")

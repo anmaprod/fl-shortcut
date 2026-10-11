@@ -7,7 +7,7 @@ name: FL Shortcut
 
 on:
   push:
-    branches: [main]
+    branches: [main, "claude/**"]
     tags: ["v*"]
   pull_request:
   workflow_dispatch:

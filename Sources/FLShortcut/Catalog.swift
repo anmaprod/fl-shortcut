@@ -508,6 +508,7 @@ extension Store {
     /// Nom lisible d'un raccourci hors catalogue.
     func remapTitle(_ r: Remap) -> String {
         if r.kind == .keystroke { return "Envoie " + (r.target?.display ?? "une touche") }
+        if r.kind == .macro { return "Macro : " + (r.macro?.name.displaySafe() ?? "à configurer") }
         return FLActions.all.first { $0.id == r.actionID }?.label ?? "Raccourci personnalisé"
     }
 
