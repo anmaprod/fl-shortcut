@@ -98,20 +98,21 @@ final class Store: ObservableObject {
         enabled = defaults.object(forKey: "enabled") as? Bool ?? true
 
         let loaded = Store.load(storage: storage, layout: layout)
-        remaps = loaded.remaps
-        loadWarning = loaded.warning
+        var initial = loaded.remaps
         var needsSave = loaded.needsSave
         // Une seule fois : la macro d'exemple rejoint un profil existant (jamais le profil « Vide », jamais à la
-        // place d'une touche déjà prise).
+        // place d'une touche déjà prise). Ajoutée avant la publication du profil : une seule écriture.
         if !defaults.bool(forKey: Self.exampleMacroKey) {
             defaults.set(true, forKey: Self.exampleMacroKey)
             let example = ProfilePreset.exampleMacro(layout: layout)
-            if !remaps.isEmpty, !remaps.contains(where: { $0.kind == .macro }),
-               !remaps.contains(where: { $0.trigger == example.trigger }) {
-                remaps.append(example)
+            if !initial.isEmpty, !initial.contains(where: { $0.kind == .macro }),
+               !initial.contains(where: { $0.trigger == example.trigger }) {
+                initial.append(example)
                 needsSave = true
             }
         }
+        remaps = initial
+        loadWarning = loaded.warning
         refreshLayoutDependentState()
         if needsSave { saveNow() }
 
