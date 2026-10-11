@@ -556,7 +556,7 @@ enum ProfileImporter {
                 rejected.append("\(trigger) : touche non prise en charge")
                 continue
             }
-            if r.kind == .macro, r.macro?.template != .quickRecord {
+            if r.kind == .macro, r.macro == nil || r.macro?.template == .custom {
                 // Une macro personnalisée (étapes libres) n'est jamais acceptée depuis un fichier importé.
                 rejected.append("\(trigger) : macro non importée (seul le modèle « Enregistrement rapide » l'est)")
                 continue

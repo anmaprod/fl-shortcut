@@ -111,23 +111,60 @@ enum Uninstaller {
         }
         if hadPrefs { removed.append("les réglages et caches") }
 
-        // 6. Autorisation Accessibilité (la ligne disparaît des Réglages Système).
+        // 6. Autorisations (les lignes disparaissent des Réglages Système).
         if run("/usr/bin/tccutil", ["reset", "Accessibility", bundleID]) { removed.append("l'autorisation clavier") }
+        if run("/usr/bin/tccutil", ["reset", "ScreenCapture", bundleID]) { removed.append("l'autorisation d'écran") }
 
-        // 7. L'app elle-même, à la Corbeille (récupérable tant que la Corbeille n'est pas vidée).
+        // 7. Captures « Capturer FL » laissées sur le Bureau.
+        if let desktop = fm.urls(for: .desktopDirectory, in: .userDomainMask).first {
+            let captures = desktop.appendingPathComponent("FL Shortcut – captures", isDirectory: true)
+            if fm.fileExists(atPath: captures.path), (try? fm.trashItem(at: captures, resultingItemURL: nil)) != nil {
+                removed.append("les captures sur le Bureau")
+            }
+        }
+
+        // 8. L'app et le désinstalleur, à la Corbeille (récupérables tant que la Corbeille n'est pas vidée).
+        // Installés par le .pkg, ils appartiennent au système : macOS demande alors le mot de passe une fois.
         var apps = Set<URL>()
         if !isUninstallerBundle { apps.insert(Bundle.main.bundleURL) }
         if let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleID) { apps.insert(url) }
         for dir in [URL(fileURLWithPath: "/Applications"), home.appendingPathComponent("Applications")] {
-            let url = dir.appendingPathComponent("FL Shortcut.app")
-            if fm.fileExists(atPath: url.path) { apps.insert(url) }
+            for name in ["FL Shortcut.app", "Désinstaller FL Shortcut.app"] {
+                let url = dir.appendingPathComponent(name)
+                if fm.fileExists(atPath: url.path) { apps.insert(url) }
+            }
         }
-        for url in apps where !url.path.hasPrefix("/Volumes/") {     // jamais l'image disque elle-même
+        var privileged: [URL] = []
+        for url in apps.map(\.standardizedFileURL) where !url.path.hasPrefix("/Volumes/") {   // jamais l'image disque
             if (try? fm.trashItem(at: url, resultingItemURL: nil)) != nil {
-                removed.append("l'app (\(url.deletingLastPathComponent().path.replacingOccurrences(of: home.path, with: "~")))")
+                removed.append(label(for: url, home: home))
+            } else {
+                privileged.append(url)
+            }
+        }
+        let receipt = fm.fileExists(atPath: "/var/db/receipts/\(pkgID).bom")
+        if !privileged.isEmpty || receipt {
+            // Chemins fixes connus (aucune donnée extérieure) ; un seul mot de passe pour le tout.
+            let quoted = privileged.map { "'" + $0.path.replacingOccurrences(of: "'", with: "'\\''") + "'" }
+            var commands: [String] = []
+            if !quoted.isEmpty { commands.append("/bin/rm -rf " + quoted.joined(separator: " ")) }
+            if receipt { commands.append("/usr/sbin/pkgutil --forget \(pkgID)") }
+            let source = "do shell script \"" + commands.joined(separator: "; ")
+                .replacingOccurrences(of: "\\", with: "\\\\").replacingOccurrences(of: "\"", with: "\\\"")
+                + "\" with administrator privileges"
+            var error: NSDictionary?
+            if NSAppleScript(source: source)?.executeAndReturnError(&error) != nil, error == nil {
+                removed += privileged.map { label(for: $0, home: home) }
             }
         }
         return removed
+    }
+
+    static let pkgID = "app.flshortcut.pkg"
+
+    private static func label(for url: URL, home: URL) -> String {
+        let what = url.lastPathComponent.hasPrefix("Désinstaller") ? "le désinstalleur" : "l'app"
+        return "\(what) (\(url.deletingLastPathComponent().path.replacingOccurrences(of: home.path, with: "~")))"
     }
 
     /// Notre dossier de script : ne contient que device_FLShortcut.py (et des fichiers du Finder / cache Python).

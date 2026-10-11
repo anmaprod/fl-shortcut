@@ -153,15 +153,19 @@ if [[ -n "${SIGN_IDENTITY:-}" ]]; then
   fi
 fi
 
-echo "▸ Paquet d'installation (.pkg) : installe FL Shortcut dans /Applications en un double-clic"
+echo "▸ Paquet d'installation (.pkg) : FL Shortcut et son désinstalleur dans /Applications, en un double-clic"
 PKG="dist/FLShortcut.pkg"
 PKG_ROOT=$(mktemp -d)
 PKG_PLIST=$(mktemp -d)/component.plist
-cp -R "$APP" "$PKG_ROOT/"
+cp -R "$APP" "$UNINSTALLER" "$PKG_ROOT/"
 pkgbuild --analyze --root "$PKG_ROOT" "$PKG_PLIST" >/dev/null
 # Toujours dans /Applications : sans cela, Installer « met à jour » une autre copie du même identifiant
 # (par exemple un build de développement dans ~/Applications) au lieu d'installer celle-ci.
-plutil -replace 0.BundleIsRelocatable -bool NO "$PKG_PLIST"
+n=0
+while plutil -extract "$n" xml1 -o /dev/null "$PKG_PLIST" 2>/dev/null; do
+  plutil -replace "$n.BundleIsRelocatable" -bool NO "$PKG_PLIST"
+  n=$((n + 1))
+done
 PKG_VERSION=$(/usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" "$APP/Contents/Info.plist")
 pkgbuild --root "$PKG_ROOT" --component-plist "$PKG_PLIST" --install-location /Applications \
   --identifier app.flshortcut.pkg --version "$PKG_VERSION" "dist/FLShortcut-component.pkg" >/dev/null

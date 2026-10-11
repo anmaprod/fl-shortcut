@@ -209,7 +209,14 @@ final class MacroRunner {
         let origin: CGPoint
         let frame: CGRect?
         let baseline: Int
+        /// Piste visée par les étapes automatiques : dernier clic dans FL, sinon position du curseur.
+        let track: CGPoint
+        /// Fenêtre de FL qui contient la piste (Mixer détaché, ou fenêtre principale).
+        let trackFrame: CGRect?
     }
+
+    /// Colonne de la piste capturée avant le choix de l'entrée : le bouton d'armement est ce qui y change.
+    private var columnBefore: ScreenShot?
 
     private let queue = DispatchQueue(label: "fr.flshortcut.macro", qos: .userInitiated)
     private let busy = Locked(false)
@@ -244,9 +251,21 @@ final class MacroRunner {
     private func execute(_ steps: [MacroStep], pid: Int32) -> MacroOutcome {
         let origin = FLWindows.cursor()
         lastClickPoint = nil
+        columnBefore = nil
+        var track = origin
+        if let remembered = TrackMemory.shared.lastClick(), FLWindows.frame(containing: remembered, pid: pid) != nil {
+            track = remembered
+        }
         let ctx = Context(pid: pid, origin: origin,
                           frame: FLWindows.frame(containing: origin, pid: pid),
-                          baseline: FLWindows.dialogCount(pid: pid))
+                          baseline: FLWindows.dialogCount(pid: pid),
+                          track: track,
+                          trackFrame: FLWindows.frame(containing: track, pid: pid))
+        if steps.contains(where: { [.trackMenu, .selectInput, .armTrack, .recordOn].contains($0.kind) }),
+           !ScreenAccess.granted {
+            DispatchQueue.main.async { ScreenAccess.request() }
+            return .failed(step: 1, reason: "autorise « Enregistrement de l'écran » pour FL Shortcut (Réglages Système), puis réessaie")
+        }
         defer { if Self.warpCursor { CGWarpMouseCursorPosition(origin) } }
         // Les modificateurs du raccourci (⌃⌥⌘⇧) sont encore enfoncés : un clic avec ⌃ serait un clic droit.
         guard waitForModifiersReleased(timeout: 1.5) else { return .cancelled(reason: "relâche les touches du raccourci") }
@@ -336,6 +355,26 @@ final class MacroRunner {
                 FLWindows.dialogCount(pid: ctx.pid) <= ctx.baseline
             }
 
+        case .trackMenu:
+            return trackMenu(step.titles, ctx: ctx)
+
+        case .feedbackCheck:
+            let report = FeedbackRisk.check(flPID: ctx.pid)
+            guard report.risky else { return .ok }
+            DispatchQueue.main.async { FeedbackAlert.show(report) }
+            return .fail("risque de larsen (micro et haut-parleurs de l'ordinateur)")
+
+        case .selectInput:
+            return selectInput(ctx: ctx)
+
+        case .armTrack:
+            return armTrack(ctx: ctx)
+
+        case .recordOn:
+            guard let combo = step.combo else { return .fail("touche REC manquante") }
+            guard !EventTap.shared.currentConfig.forbidden.isForbidden(combo) else { return .fail("touche interdite") }
+            return recordOn(combo, ctx: ctx)
+
         case .chooseFile:
             guard let path = step.path else { return .fail("chemin manquant") }
             var isDir: ObjCBool = false
@@ -352,6 +391,154 @@ final class MacroRunner {
             postKey(KeyCombo(keyCode: 36), pid: ctx.pid)
             return .ok
         }
+    }
+
+    // MARK: Étapes automatiques (lecture de l'écran)
+
+    /// Zone de l'écran où chercher un menu qui s'ouvre au point `p` (vers la droite et le bas, un peu autour).
+    private func menuArea(around p: CGPoint) -> CGRect {
+        CGRect(x: p.x - 80, y: p.y - 500, width: 760, height: 1100)
+    }
+
+    /// Cherche l'un des libellés à l'écran (fenêtres de FL seulement) pendant `timeout` secondes.
+    private func waitForText(_ variants: [String], in area: CGRect, pid: Int32, timeout: TimeInterval) -> Result<ScreenText, StepResultError> {
+        let deadline = Date().addingTimeInterval(timeout)
+        repeat {
+            if let stop = shouldStop(pid) { return .failure(.cancel(stop)) }
+            if let shot = ScreenReader.capture(pid: pid, rect: area), let hit = ScreenReader.find(variants, in: shot) {
+                return .success(hit)
+            }
+            Thread.sleep(forTimeInterval: 0.12)
+        } while Date() < deadline
+        return .failure(.notFound)
+    }
+
+    private enum StepResultError: Error {
+        case cancel(String)
+        case notFound
+    }
+
+    /// Clic droit sur la piste, puis chaque titre lu dans le menu qui s'ouvre (File › Open mixer track state).
+    private func trackMenu(_ titles: [String], ctx: Context) -> StepResult {
+        let first = click(at: ctx.track, right: true, ctx: ctx)
+        guard case .ok = first else { return first }
+        var anchor = ctx.track
+        for (i, title) in titles.enumerated() {
+            let variants = title.split(separator: "|").map(String.init)
+            switch waitForText(variants, in: menuArea(around: anchor), pid: ctx.pid, timeout: i == 0 ? 1.5 : 1.2) {
+            case .success(let hit):
+                // Survol puis clic : FL ouvre ses sous-menus au survol.
+                let result = click(at: hit.center, right: false, ctx: ctx)
+                guard case .ok = result else { return result }
+                anchor = hit.center
+                if case .cancel(let why) = pause(220, pid: ctx.pid) { return .cancel(why) }
+            case .failure(.cancel(let why)):
+                return .cancel(why)
+            case .failure(.notFound):
+                postKey(KeyCombo(keyCode: 53), pid: ctx.pid)            // Échap : referme le menu à moitié ouvert
+                return .fail(i == 0
+                    ? "menu de la piste introuvable : clique sur le nom de la piste dans le Mixer, puis réessaie"
+                    : "« \(variants.first ?? title) » introuvable dans le menu de la piste")
+            }
+        }
+        return .ok
+    }
+
+    /// Colonne de la piste dans sa fenêtre (largeur d'une tranche du Mixer).
+    private func trackColumn(_ ctx: Context) -> CGRect? {
+        guard let f = ctx.trackFrame else { return nil }
+        return CGRect(x: ctx.track.x - 40, y: f.minY, width: 80, height: f.height).intersection(f)
+    }
+
+    /// « (none) » → première entrée de la liste. Déjà une entrée choisie : rien à faire.
+    private func selectInput(ctx: Context) -> StepResult {
+        guard let frame = ctx.trackFrame else { return .fail("fenêtre du Mixer introuvable") }
+        if let column = trackColumn(ctx) { columnBefore = ScreenReader.capture(pid: ctx.pid, rect: column) }
+        guard let shot = ScreenReader.capture(pid: ctx.pid, rect: frame) else { return .fail("capture de FL impossible") }
+        let texts = ScreenReader.texts(in: shot)
+        // Le sélecteur d'entrée est le premier « (none) » en partant du haut (la sortie est en dessous).
+        let selectors = texts.filter { ScreenReader.normalized($0.text).contains("none") }.sorted { $0.rect.minY < $1.rect.minY }
+        guard let selector = selectors.first else { return .ok }               // une entrée est déjà choisie
+        let opened = click(at: selector.center, right: false, ctx: ctx)
+        guard case .ok = opened else { return opened }
+        // Première entrée : « In 1 », « Input 1 », « 1 », ou « … 1 » (nom de l'appareil suivi du numéro).
+        let deadline = Date().addingTimeInterval(1.5)
+        repeat {
+            if let stop = shouldStop(ctx.pid) { return .cancel(stop) }
+            let area = CGRect(x: selector.center.x - 200, y: selector.center.y - 60, width: 700, height: 900)
+            if let list = ScreenReader.capture(pid: ctx.pid, rect: area) {
+                let items = ScreenReader.texts(in: list)
+                    .filter { $0.rect.minY > selector.rect.minY - 4 && !ScreenReader.normalized($0.text).contains("none") }
+                    .sorted { $0.rect.minY < $1.rect.minY }
+                if let one = items.first(where: { Self.isFirstInput($0.text) }) ?? items.first(where: { $0.rect.minY > selector.rect.maxY }) {
+                    return click(at: one.center, right: false, ctx: ctx)
+                }
+            }
+            Thread.sleep(forTimeInterval: 0.12)
+        } while Date() < deadline
+        postKey(KeyCombo(keyCode: 53), pid: ctx.pid)
+        return .fail("liste des entrées introuvable")
+    }
+
+    static func isFirstInput(_ text: String) -> Bool {
+        let t = ScreenReader.normalized(text)
+        return t.range(of: #"^(in|input|entrée|entree)?\s*1(\b|$)"#, options: .regularExpression) != nil
+            || t.range(of: #"\s1$"#, options: .regularExpression) != nil
+    }
+
+    /// Bouton d'armement de la piste : ce qui est apparu ou a changé dans sa colonne avec l'entrée, ou le voyant
+    /// déjà allumé en bas de la colonne. Allumé : rien à faire (ne jamais désarmer).
+    private func armTrack(ctx: Context) -> StepResult {
+        guard let column = trackColumn(ctx) else { return .fail("fenêtre du Mixer introuvable") }
+        if case .cancel(let why) = pause(250, pid: ctx.pid) { return .cancel(why) }
+        guard let now = ScreenReader.capture(pid: ctx.pid, rect: column), let after = ScreenReader.Pixels(now.image) else {
+            return .fail("capture de FL impossible")
+        }
+        let lowerHalf = CGRect(x: 0, y: CGFloat(after.height) * 0.45, width: CGFloat(after.width), height: CGFloat(after.height) * 0.55)
+        var candidate: CGRect?
+        if let before = columnBefore.flatMap({ ScreenReader.Pixels($0.image) }) {
+            candidate = ScreenReader.changedBoxes(before, after)
+                .filter { $0.intersects(lowerHalf) && $0.width <= 40 * now.scale && $0.height <= 40 * now.scale }
+                .max { $0.width * $0.height < $1.width * $1.height }
+        }
+        // Voyant déjà allumé en bas de la colonne : armée.
+        if ScreenReader.litFraction(after, in: candidate ?? lowerHalf) > (candidate == nil ? 0.004 : 0.15) { return .ok }
+        guard let box = candidate else {
+            return .fail("bouton d'armement non reconnu : envoie une capture (fiche du raccourci › Capturer FL)")
+        }
+        let point = CGPoint(x: now.rect.minX + box.midX / now.scale, y: now.rect.minY + box.midY / now.scale)
+        let result = click(at: point, right: false, ctx: ctx)
+        guard case .ok = result else { return result }
+        if case .cancel(let why) = pause(300, pid: ctx.pid) { return .cancel(why) }
+        if let check = ScreenReader.capture(pid: ctx.pid, rect: column), let px = ScreenReader.Pixels(check.image),
+           ScreenReader.litFraction(px, in: box) > 0.15 {
+            return .ok
+        }
+        return .fail("armement non confirmé : envoie une capture (fiche du raccourci › Capturer FL)")
+    }
+
+    /// REC : la touche de FL, puis comparaison du haut de la fenêtre avant / après. S'il s'est éteint, il était
+    /// déjà allumé : on le rallume (ne jamais couper un REC déjà prêt).
+    private func recordOn(_ combo: KeyCombo, ctx: Context) -> StepResult {
+        let main = FLWindows.list(pid: ctx.pid).filter { $0.layer == 0 }.max { $0.bounds.width * $0.bounds.height < $1.bounds.width * $1.bounds.height }
+        guard let window = main?.bounds else { return .fail("fenêtre de FL introuvable") }
+        let band = CGRect(x: window.minX, y: window.minY, width: window.width, height: min(110, window.height))
+        guard let before = ScreenReader.capture(pid: ctx.pid, rect: band), let a = ScreenReader.Pixels(before.image) else {
+            return .fail("capture de FL impossible")
+        }
+        postKey(combo, pid: ctx.pid)
+        if case .cancel(let why) = pause(350, pid: ctx.pid) { return .cancel(why) }
+        guard let after = ScreenReader.capture(pid: ctx.pid, rect: band), let b = ScreenReader.Pixels(after.image) else {
+            return .fail("capture de FL impossible")
+        }
+        let changed = ScreenReader.changedBoxes(a, b).filter { $0.width <= 120 * before.scale && $0.height <= 80 * before.scale }
+        guard let button = changed.max(by: { ScreenReader.litFraction(b, in: $0) + ScreenReader.litFraction(a, in: $0)
+                                             < ScreenReader.litFraction(b, in: $1) + ScreenReader.litFraction(a, in: $1) }) else {
+            return .fail("le bouton REC n'a pas réagi")
+        }
+        if ScreenReader.litFraction(b, in: button) >= ScreenReader.litFraction(a, in: button) { return .ok }
+        postKey(combo, pid: ctx.pid)                                       // il était déjà allumé : on le rallume
+        return .ok
     }
 
     private func wait(timeoutMs: Int, pid: Int32, failure: String, until condition: () -> Bool) -> StepResult {
@@ -382,6 +569,10 @@ final class MacroRunner {
 
     private func click(_ spot: ClickSpot, right: Bool, ctx: Context) -> StepResult {
         guard spot.isFinite, let p = resolve(spot, ctx: ctx) else { return .fail("position introuvable (fenêtre de FL ?)") }
+        return click(at: p, right: right, ctx: ctx)
+    }
+
+    private func click(at p: CGPoint, right: Bool, ctx: Context) -> StepResult {
         guard FLWindows.contains(p, pid: ctx.pid) else { return .fail("le point visé est hors de FL") }
         if !Self.clicksToPid, FLWindows.ownerOfTopWindow(at: p) != ctx.pid {
             return .fail("une autre fenêtre couvre FL à cet endroit")

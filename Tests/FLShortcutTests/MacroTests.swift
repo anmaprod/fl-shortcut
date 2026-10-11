@@ -8,8 +8,15 @@ final class MacroTests: XCTestCase {
 
     private func spot(_ x: Double = 10) -> ClickSpot { ClickSpot(anchor: .cursor, dx: x, dy: 2) }
 
-    private func ready() -> Macro {
+    /// Ancien modèle à positions apprises.
+    private func legacy() -> Macro {
         var m = Macro()
+        m.template = .quickRecord
+        return m
+    }
+
+    private func ready() -> Macro {
+        var m = legacy()
         for name in MacroLibrary.requiredSpots { m.spots[name] = spot() }
         return m
     }
@@ -25,14 +32,14 @@ final class MacroTests: XCTestCase {
     // MARK: Construction
 
     func testIncompleteMacroListsMissingSpots() {
-        guard case .failure(.missing(let names)) = MacroLibrary.steps(for: Macro(), forbidden: .physical) else {
+        guard case .failure(.missing(let names)) = MacroLibrary.steps(for: legacy(), forbidden: .physical) else {
             return XCTFail("devrait demander les positions")
         }
         XCTAssertEqual(Set(names), Set(MacroLibrary.requiredSpots))
     }
 
     func testWithoutArmNoSpotIsNeeded() {
-        var m = Macro()
+        var m = legacy()
         m.armAndInput = false
         XCTAssertFalse(steps(m).contains { $0.kind == .click && $0.button == .left })
     }
@@ -67,6 +74,58 @@ final class MacroTests: XCTestCase {
         XCTAssertEqual(steps(m).first { $0.kind == .menu }?.fallback.count, 0)
         m.spots[Macro.Spot.menuOpenState] = spot(2)
         XCTAssertEqual(steps(m).first { $0.kind == .menu }?.fallback.count, 2)
+    }
+
+    // MARK: Modèle automatique (rien à apprendre)
+
+    func testAutoRecordNeedsNothingAndFollowsTheOrder() {
+        var m = Macro()
+        m.recKey = KeyCombo(keyCode: 15)
+        XCTAssertEqual(m.template, .autoRecord)
+        let kinds = steps(m).map(\.kind)
+        XCTAssertEqual(kinds, [.feedbackCheck, .trackMenu, .waitDialog, .waitDialogClose, .delay,
+                               .selectInput, .armTrack, .recordOn])
+        XCTAssertEqual(steps(m).first { $0.kind == .waitDialogClose }?.ms, MacroLibrary.maxWaitMs)
+        XCTAssertEqual(steps(m).last?.combo, KeyCombo(keyCode: 15))
+    }
+
+    func testAutoRecordWithFixedPresetAndWithoutArmOrRec() {
+        var m = Macro()
+        m.presetPath = "/Users/test/Voix.fst"
+        m.armAndInput = false
+        m.startRecording = false
+        let kinds = steps(m).map(\.kind)
+        XCTAssertEqual(kinds, [.trackMenu, .waitDialog, .chooseFile, .waitDialogClose])
+    }
+
+    func testAutoRecordMenuTitlesHaveVariants() {
+        let menu = steps(Macro()).first { $0.kind == .trackMenu }
+        XCTAssertEqual(menu?.titles.count, 2)
+        XCTAssertTrue(menu?.titles.first?.split(separator: "|").contains("File") == true)
+        XCTAssertTrue(menu?.titles.last?.split(separator: "|").contains("Open mixer track state") == true)
+    }
+
+    func testForbiddenRecKeyIsRefused() {
+        var m = Macro()
+        m.recKey = KeyCombo(keyCode: 12, command: true)                 // ⌘Q
+        XCTAssertNotNil(MacroLibrary.problem(in: m, forbidden: .physical))
+    }
+
+    func testScreenTextNormalization() {
+        XCTAssertEqual(ScreenReader.normalized("  Open mixer track state…  "), "open mixer track state")
+        XCTAssertEqual(ScreenReader.normalized("File..."), "file")
+    }
+
+    func testFeedbackRiskOnlyWithComputerMicAndSpeakers() {
+        let mic = FeedbackRisk.Device(name: "Micro MacBook Pro", builtIn: true, headphones: false)
+        let speakers = FeedbackRisk.Device(name: "Haut-parleurs MacBook Pro", builtIn: true, headphones: false)
+        let jack = FeedbackRisk.Device(name: "Casque externe", builtIn: true, headphones: true)
+        let card = FeedbackRisk.Device(name: "Scarlett 2i2", builtIn: false, headphones: false)
+        XCTAssertTrue(FeedbackRisk.Report(input: mic, output: speakers).risky)
+        XCTAssertFalse(FeedbackRisk.Report(input: mic, output: jack).risky)
+        XCTAssertFalse(FeedbackRisk.Report(input: card, output: card).risky)
+        XCTAssertFalse(FeedbackRisk.Report(input: mic, output: card).risky)
+        XCTAssertFalse(FeedbackRisk.Report(input: nil, output: speakers).risky)
     }
 
     // MARK: Sécurité
@@ -121,7 +180,7 @@ final class MacroTests: XCTestCase {
     }
 
     func testAnalyzerBlocksIncompleteMacro() {
-        let incomplete = Remap(trigger: trigger, macro: Macro())
+        let incomplete = Remap(trigger: trigger, macro: legacy())
         let ctx = AnalysisContext(toggle: toggle, forbidden: .physical, conflicts: .empty,
                                   availability: { _ in .available })
         let issues = ShortcutAnalyzer.analyze([incomplete], context: ctx)[incomplete.id] ?? []

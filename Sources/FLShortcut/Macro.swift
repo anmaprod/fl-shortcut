@@ -34,6 +34,12 @@ struct MacroStep: Codable, Equatable, Hashable {
         case waitDialog       // attend l'ouverture d'une boîte de dialogue de FL
         case waitDialogClose  // attend sa fermeture (l'utilisateur choisit son preset)
         case chooseFile       // dans la boîte « Ouvrir » : ⌘⇧G, chemin, Entrée, Entrée
+        // Étapes « automatiques » (lecture de l'écran de FL, ScreenReader.swift) : rien à apprendre.
+        case trackMenu        // clic droit sur la piste visée, puis chaque titre lu à l'écran (File › Open mixer track state)
+        case feedbackCheck    // micro et haut-parleurs de l'ordinateur : arrêt avec une explication (larsen)
+        case selectInput      // « (none) » → première entrée, seulement si aucune entrée n'est choisie
+        case armTrack         // bouton d'armement de la piste, seulement s'il est éteint
+        case recordOn         // REC (touche de FL), seulement s'il est éteint
     }
 
     enum Button: String, Codable { case left, right }
@@ -74,12 +80,19 @@ struct MacroStep: Codable, Equatable, Hashable {
     static func waitDialog(_ ms: Int) -> MacroStep { var s = MacroStep(kind: .waitDialog); s.ms = ms; return s }
     static func waitDialogClose(_ ms: Int) -> MacroStep { var s = MacroStep(kind: .waitDialogClose); s.ms = ms; return s }
     static func chooseFile(_ path: String) -> MacroStep { var s = MacroStep(kind: .chooseFile); s.path = path; return s }
+    static func trackMenu(_ titles: [String]) -> MacroStep { var s = MacroStep(kind: .trackMenu); s.titles = titles; return s }
+    static func recordOn(_ combo: KeyCombo) -> MacroStep { var s = MacroStep(kind: .recordOn); s.combo = combo; return s }
 }
 
-/// Une macro d'un raccourci. `quickRecord` est le modèle livré ; `custom` porte ses propres étapes
+/// Une macro d'un raccourci. `autoRecord` est le modèle livré (rien à configurer : FL est lu à l'écran) ;
+/// `quickRecord` est l'ancien modèle à positions apprises ; `custom` porte ses propres étapes
 /// (écrites à la main dans le profil, jamais acceptées à l'import).
 struct Macro: Codable, Equatable, Hashable {
-    enum Template: String, Codable { case quickRecord, custom }
+    enum Template: String, Codable { case autoRecord, quickRecord, custom }
+
+    /// Titres du menu de piste de FL (et variantes lues à l'écran).
+    static let fileMenuTitles = ["File", "Fichier"]
+    static let openStateTitles = ["Open mixer track state", "Open mixer track", "Ouvrir l'état de la piste"]
 
     /// Noms des positions apprises (modèle quickRecord).
     enum Spot {
@@ -90,7 +103,7 @@ struct Macro: Codable, Equatable, Hashable {
         static let firstInput = "firstInput"
     }
 
-    var template: Template = .quickRecord
+    var template: Template = .autoRecord
     var name = "Enregistrement rapide"
     /// Fichier d'état de piste (.fst) à charger directement. `nil` = ouvrir la liste de FL et attendre le choix.
     var presetPath: String?
@@ -174,9 +187,36 @@ enum MacroLibrary {
             case .success(let s): built = s
             case .failure(let e): return .failure(e)
             }
+        case .autoRecord:
+            built = autoRecordSteps(macro)
         }
         if let why = validate(built, forbidden: forbidden) { return .failure(.invalid(why)) }
         return .success(built)
+    }
+
+    /// Enregistrement rapide sans réglage : FL est lu à l'écran à chaque étape.
+    /// Ordre : larsen (avant de toucher à quoi que ce soit), menu de la piste, preset, entrée, armement, REC.
+    private static func autoRecordSteps(_ macro: Macro) -> [MacroStep] {
+        var out: [MacroStep] = []
+        if macro.armAndInput { out.append(MacroStep(kind: .feedbackCheck)) }
+        // Le menu de piste de FL n'a qu'un niveau de sous-menu : « File », puis l'élément cherché.
+        out.append(.trackMenu([Macro.fileMenuTitles.joined(separator: "|"), Macro.openStateTitles.joined(separator: "|")]))
+        out.append(.waitDialog(4_000))
+        if let path = macro.presetPath, !path.isEmpty {
+            out.append(.chooseFile(path))
+            out.append(.waitDialogClose(8_000))
+        } else {
+            out.append(.waitDialogClose(MacroLibrary.maxWaitMs))
+        }
+        if macro.armAndInput {
+            out.append(.delay(300))
+            out.append(MacroStep(kind: .selectInput))
+            out.append(MacroStep(kind: .armTrack))
+        }
+        if macro.startRecording {
+            out.append(.recordOn(macro.recKey ?? KeyCombo(keyCode: fallbackRecKeyCode)))
+        }
+        return out
     }
 
     private static func quickRecordSteps(_ macro: Macro) -> Result<[MacroStep], BuildError> {
@@ -238,6 +278,18 @@ enum MacroLibrary {
             case .waitDialog, .waitDialogClose:
                 guard (100...maxWaitMs).contains(s.ms) else { return "Étape \(n) : attente hors limites." }
                 total += s.ms
+            case .trackMenu:
+                // Chaque titre peut porter des variantes séparées par « | ».
+                guard (1...3).contains(s.titles.count), s.titles.allSatisfy({ !$0.isEmpty && $0.count <= 160 }) else {
+                    return "Étape \(n) : titres de menu invalides."
+                }
+                total += 4_000
+            case .feedbackCheck, .selectInput, .armTrack:
+                total += 3_000
+            case .recordOn:
+                guard let combo = s.combo, combo.isValidKey else { return "Étape \(n) : touche REC non prise en charge." }
+                if let why = forbidden.reason(for: combo) { return "Étape \(n) : touche interdite (\(why))." }
+                total += 2_000
             case .chooseFile:
                 guard let p = s.path, !p.isEmpty, p.count <= 1024,
                       !p.unicodeScalars.contains(where: { CharacterSet.controlCharacters.contains($0) }) else {

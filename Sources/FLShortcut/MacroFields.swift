@@ -10,6 +10,10 @@ struct MacroFields: View {
     /// Compte à rebours du bouton « Tester » (nil : rien en cours).
     @State private var countdown: Int?
     @State private var testNote: String?
+    @State private var screenGranted = ScreenAccess.granted
+    @State private var capturing = false
+
+    private var automatic: Bool { macro.template == .autoRecord }
 
     private var fixedPreset: Bool { macro.presetPath != nil }
 
@@ -33,8 +37,11 @@ struct MacroFields: View {
         LabeledContent("Macro") {
             VStack(alignment: .leading, spacing: 2) {
                 Text("Enregistrement rapide").fontWeight(.medium)
-                Text("Clic droit sur la piste → File → Open mixer track state, preset, armement, entrée 1, REC.")
+                Text(automatic
+                     ? "Clique sur une piste du Mixer, puis tape le raccourci : File › Open mixer track state, ton preset, entrée 1, armement, REC. Ce qui est déjà allumé n'est pas touché."
+                     : "Clic droit sur la piste → File → Open mixer track state, preset, armement, entrée 1, REC.")
                     .font(.caption).foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
             }
         }
 
@@ -56,29 +63,50 @@ struct MacroFields: View {
             }
         }
 
-        Toggle("Armer la piste et choisir la première entrée", isOn: $macro.armAndInput)
+        Toggle("Choisir l'entrée 1 et armer la piste", isOn: $macro.armAndInput)
         Toggle("Allumer REC à la fin", isOn: Binding(get: { macro.startRecording }, set: { on in
             macro.startRecording = on
             if on { macro.recKey = AppMode.nativeEquivalent(of: 3, layout: SystemKeyboardLayout()) }
         }))
 
-        LabeledContent("Positions") {
-            VStack(alignment: .leading, spacing: 6) {
-                learnRow(title: "Menu de la piste", done: menuLearned, optional: true, phase: .menu)
-                if macro.armAndInput {
-                    learnRow(title: "Armement et entrée", done: armLearned, optional: false, phase: .armInput)
+        Group {
+        if automatic {
+            LabeledContent("Lecture de FL") {
+                VStack(alignment: .leading, spacing: 4) {
+                    if screenGranted {
+                        Label("Autorisée", systemImage: "checkmark.circle.fill").foregroundStyle(.green)
+                    } else {
+                        Button("Autoriser l'enregistrement de l'écran…") { ScreenAccess.request() }
+                    }
+                    Text("La macro regarde la fenêtre de FL pendant qu'elle travaille (menus, boutons allumés). Rien n'est enregistré ni envoyé.")
+                        .font(.caption).foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
-                if let step = learner.instruction {
-                    Text(step).font(.callout).foregroundStyle(.tint)
+            }
+        } else {
+            LabeledContent("Positions") {
+                VStack(alignment: .leading, spacing: 6) {
+                    learnRow(title: "Menu de la piste", done: menuLearned, optional: true, phase: .menu)
+                    if macro.armAndInput {
+                        learnRow(title: "Armement et entrée", done: armLearned, optional: false, phase: .armInput)
+                    }
+                    if let step = learner.instruction {
+                        Text(step).font(.callout).foregroundStyle(.tint)
+                    }
+                    if let note = learner.message {
+                        Text(note).font(.caption).foregroundStyle(.orange)
+                    }
+                    Text("FL ne permet pas de lire ces boutons : montre-les une fois en cliquant dessus dans FL.")
+                        .font(.caption).foregroundStyle(.secondary)
                 }
-                if let note = learner.message {
-                    Text(note).font(.caption).foregroundStyle(.orange)
-                }
-                Text("FL ne permet pas de lire ces boutons : montre-les une fois en cliquant dessus dans FL.")
-                    .font(.caption).foregroundStyle(.secondary)
             }
         }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
+            screenGranted = ScreenAccess.granted
+        }
         .onAppear {
+            screenGranted = ScreenAccess.granted
             if macro.recKey == nil, macro.startRecording {
                 macro.recKey = AppMode.nativeEquivalent(of: 3, layout: SystemKeyboardLayout())
             }
@@ -87,9 +115,18 @@ struct MacroFields: View {
 
         LabeledContent("Essai") {
             VStack(alignment: .leading, spacing: 4) {
-                Button(countdown.map { "Départ dans \($0) s…" } ?? "Tester dans FL") { startTest() }
-                    .disabled(countdown != nil || learner.isActive)
-                Text(testNote ?? "FL passe devant : place la souris sur une piste du Mixer avant la fin du compte à rebours. Échap arrête la macro.")
+                HStack(spacing: 8) {
+                    Button(countdown.map { "Départ dans \($0) s…" } ?? "Tester dans FL") { startTest() }
+                        .disabled(countdown != nil || learner.isActive || capturing)
+                    if automatic {
+                        Button(capturing ? "Capture…" : "Capturer FL") { startCapture() }
+                            .disabled(countdown != nil || capturing)
+                            .help("Enregistre sur ton Bureau ce que l'app voit de FL, pour régler la macro si elle se trompe.")
+                    }
+                }
+                Text(testNote ?? (automatic
+                    ? "FL passe devant et la macro vise la dernière piste sur laquelle tu as cliqué. Échap l'arrête."
+                    : "FL passe devant : place la souris sur une piste du Mixer avant la fin du compte à rebours. Échap arrête la macro."))
                     .font(.caption).foregroundStyle(testNote == nil ? Color.secondary : Color.orange)
                     .fixedSize(horizontal: false, vertical: true)
             }
@@ -151,6 +188,34 @@ struct MacroFields: View {
             }
         }
         tick()
+    }
+
+    /// « Capturer FL » : FL passe devant, puis 3 s pour ouvrir ce qu'on veut montrer (menu, liste des entrées…).
+    private func startCapture() {
+        testNote = nil
+        guard ScreenAccess.granted else {
+            ScreenAccess.request()
+            testNote = "Autorise d'abord l'enregistrement de l'écran."
+            return
+        }
+        guard let pid = EventTap.shared.currentConfig.flPIDs.first,
+              let fl = NSRunningApplication(processIdentifier: pid) else {
+            testNote = "Ouvre FL Studio, puis recommence."
+            return
+        }
+        fl.activate(options: [])
+        capturing = true
+        DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
+            FLCapture.run(pid: pid) { dir in
+                capturing = false
+                if let dir {
+                    NSWorkspace.shared.activateFileViewerSelecting([dir])
+                    testNote = "Capture enregistrée sur ton Bureau (dossier « FL Shortcut – captures »)."
+                } else {
+                    testNote = "Capture impossible."
+                }
+            }
+        }
     }
 
     private func choosePreset() {

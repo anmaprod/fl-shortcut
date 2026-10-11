@@ -100,6 +100,11 @@ final class Store: ObservableObject {
         let loaded = Store.load(storage: storage, layout: layout)
         var initial = loaded.remaps
         var needsSave = loaded.needsSave
+        // Ancien « Enregistrement rapide » jamais réglé (aucune position apprise) : passe au modèle automatique.
+        for i in initial.indices where initial[i].macro?.template == .quickRecord && initial[i].macro?.spots.isEmpty == true {
+            initial[i].macro?.template = .autoRecord
+            needsSave = true
+        }
         // Une seule fois : la macro d'exemple rejoint un profil existant (jamais le profil « Vide », jamais à la
         // place d'une touche déjà prise). Ajoutée avant la publication du profil : une seule écriture.
         if !defaults.bool(forKey: Self.exampleMacroKey) {
@@ -189,6 +194,10 @@ final class Store: ObservableObject {
         if found != issues { issues = found }
         index = ShortcutIndex(remaps: remaps, blocked: ShortcutAnalyzer.blocked(found))
         pushConfig()
+        if pushToTap {
+            // « La piste sur laquelle j'ai cliqué » : suivie seulement s'il existe une macro automatique active.
+            TrackMemory.shared.setActive(remaps.contains { $0.enabled && $0.macro?.template == .autoRecord })
+        }
     }
 
     private func refreshLayoutDependentState() {
