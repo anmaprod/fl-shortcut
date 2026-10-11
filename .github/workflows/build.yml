@@ -58,11 +58,30 @@ jobs:
           }
           Compress-Archive -Path dist/win-x64/* -DestinationPath dist/FLShortcut-win-x64.zip
           Compress-Archive -Path dist/win-arm64/* -DestinationPath dist/FLShortcut-win-arm64.zip
-          Get-FileHash dist/*.zip -Algorithm SHA256 | ForEach-Object { "$($_.Hash.ToLower())  $(Split-Path $_.Path -Leaf)" } | Out-File -Encoding ascii dist/FLShortcut-win.sha256
+      - name: Installeur (un seul fichier, x64 + ARM64, sans droits administrateur)
+        shell: pwsh
+        env:
+          REF_NAME: ${{ github.ref_name }}
+          REF_TYPE: ${{ github.ref_type }}
+        run: |
+          $version = if ($env:REF_TYPE -eq 'tag' -and $env:REF_NAME -match '^v(\d+\.\d+\.\d+)') { $Matches[1] } else { '0.0.0' }
+          $iscc = Get-Command iscc -ErrorAction SilentlyContinue
+          if (-not $iscc) {
+            $candidate = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+            if (-not (Test-Path $candidate)) {
+              choco install innosetup --no-progress -y
+              if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+            }
+            $iscc = $candidate
+          } else { $iscc = $iscc.Source }
+          & $iscc "/DAppVersion=$version" "/DDistDir=$PWD\dist" windows/installer/FLShortcut.iss
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          Get-FileHash dist/FLShortcut-Windows-Setup.exe, dist/*.zip -Algorithm SHA256 | ForEach-Object { "$($_.Hash.ToLower())  $(Split-Path $_.Path -Leaf)" } | Out-File -Encoding ascii dist/FLShortcut-win.sha256
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: FLShortcut-windows
           path: |
+            dist/FLShortcut-Windows-Setup.exe
             dist/FLShortcut-win-*.zip
             dist/FLShortcut-win.sha256
           if-no-files-found: error
@@ -108,6 +127,9 @@ jobs:
             echo "$NOTARY_KEY_P8" > "$RUNNER_TEMP/notary.p8"
             export NOTARY_KEY="$RUNNER_TEMP/notary.p8"
           fi
+          if [[ "$GITHUB_REF_TYPE" == "tag" && "$GITHUB_REF_NAME" =~ ^v([0-9]+\.[0-9]+\.[0-9]+) ]]; then
+            export FLS_VERSION="${BASH_REMATCH[1]}"
+          fi
           chmod +x build.sh
           ./build.sh
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -121,27 +143,40 @@ jobs:
   release:
     name: Publication (tag v*)
     if: startsWith(github.ref, 'refs/tags/v')
-    needs: mac
+    needs: [mac, windows]
     runs-on: ubuntu-24.04
     permissions:
       contents: write        # créer la release
-      actions: read          # récupérer l'artefact du job « mac »
+      actions: read          # récupérer les artefacts des jobs « mac » et « windows »
       id-token: write        # attestation de provenance
       attestations: write
     steps:
-      - name: Récupérer le .dmg (outil officiel gh)
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Récupérer le .dmg et l'installeur Windows (outil officiel gh)
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh run download "$GITHUB_RUN_ID" --repo "$GITHUB_REPOSITORY" --name FLShortcut-mac --dir dist
-      - name: Vérifier l'empreinte
-        run: cd dist && sha256sum -c FLShortcut.dmg.sha256
+        run: |
+          gh run download "$GITHUB_RUN_ID" --repo "$GITHUB_REPOSITORY" --name FLShortcut-mac --dir dist
+          gh run download "$GITHUB_RUN_ID" --repo "$GITHUB_REPOSITORY" --name FLShortcut-windows --dir dist
+      - name: Vérifier les empreintes
+        run: cd dist && sha256sum -c FLShortcut.dmg.sha256 && sha256sum -c FLShortcut-win.sha256
       - uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
         with:
-          subject-path: dist/FLShortcut.dmg
+          subject-path: |
+            dist/FLShortcut.dmg
+            dist/FLShortcut-Windows-Setup.exe
+            dist/FLShortcut-win-*.zip
       - name: Créer la release (outil officiel gh, sans action tierce)
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ github.ref_name }}
         run: |
+          # Noms de fichiers fixes : les liens « releases/latest/download/… » de la page de téléchargement
+          # et du README pointent toujours vers la dernière version.
           gh release create "$TAG" dist/FLShortcut.dmg dist/FLShortcut.dmg.sha256 \
-            --repo "$GITHUB_REPOSITORY" --title "FL Shortcut $TAG" --generate-notes --verify-tag
+            dist/FLShortcut-Windows-Setup.exe dist/FLShortcut-win-x64.zip dist/FLShortcut-win-arm64.zip \
+            dist/FLShortcut-win.sha256 \
+            --repo "$GITHUB_REPOSITORY" --title "FL Shortcut $TAG" \
+            --notes-file .github/release-notes.md --generate-notes --verify-tag

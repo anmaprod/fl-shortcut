@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FL Shortcut</title>
+<meta name="description" content="Tes propres raccourcis clavier pour FL Studio, sur Mac et Windows. Gratuit, rien à installer dans FL.">
+<link rel="icon" href="icon.png">
+<style>
+  :root {
+    --bg: #f6f6f8; --card: #ffffff; --text: #1d1d1f; --muted: #6e6e73; --line: #e2e2e7;
+    --accent: #ff7a1a; --accent-text: #ffffff; --ok: #1f9d55;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #111113; --card: #1c1c1f; --text: #f2f2f4; --muted: #a1a1a8; --line: #2e2e33;
+      --accent: #ff8c3a; --accent-text: #160b02; --ok: #4ad386;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #111113; --card: #1c1c1f; --text: #f2f2f4; --muted: #a1a1a8; --line: #2e2e33;
+    --accent: #ff8c3a; --accent-text: #160b02; --ok: #4ad386;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font: 16px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI Variable", "Segoe UI", system-ui, sans-serif;
+  }
+  main { max-width: 880px; margin: 0 auto; padding: 48px 16px 64px; }
+  header { display: flex; align-items: center; gap: 16px; margin-bottom: 8px; }
+  header img { width: 64px; height: 64px; border-radius: 15px; }
+  h1 { font-size: 2rem; line-height: 1.15; margin: 0; letter-spacing: -0.01em; }
+  .lead { color: var(--muted); font-size: 1.1rem; margin: 12px 0 32px; max-width: 60ch; }
+  .primary {
+    display: flex; flex-wrap: wrap; align-items: center; gap: 12px 20px;
+    background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 24px;
+  }
+  .btn {
+    display: inline-flex; align-items: center; gap: 10px; text-decoration: none; font-weight: 600;
+    background: var(--accent); color: var(--accent-text); padding: 14px 22px; border-radius: 12px; font-size: 1.05rem;
+  }
+  .btn:focus-visible, a:focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
+  .btn.secondary { background: transparent; color: var(--text); border: 1px solid var(--line); font-weight: 500; }
+  .meta { color: var(--muted); font-size: 0.92rem; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; margin-top: 32px; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 20px 22px; }
+  .card h2 { font-size: 1.15rem; margin: 0 0 4px; }
+  .card .sub { color: var(--muted); font-size: 0.9rem; margin: 0 0 14px; }
+  ol { margin: 0; padding-left: 1.25em; }
+  li { margin: 6px 0; }
+  .note { margin-top: 14px; font-size: 0.9rem; color: var(--muted); border-top: 1px solid var(--line); padding-top: 12px; }
+  .card.current { border-color: var(--accent); }
+  .tag { display: inline-block; font-size: 0.75rem; font-weight: 600; color: var(--accent); margin-left: 6px; }
+  h3 { font-size: 1.05rem; margin: 40px 0 8px; }
+  .features { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px 24px; padding: 0; list-style: none; }
+  .features li { margin: 0; }
+  .features b { display: block; }
+  .features span { color: var(--muted); font-size: 0.92rem; }
+  footer { margin-top: 48px; color: var(--muted); font-size: 0.85rem; }
+  footer a, .card a, .meta a { color: inherit; }
+  kbd { font: inherit; font-size: 0.85em; border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 5px; padding: 0 5px; background: var(--bg); }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <img src="icon.png" alt="" width="64" height="64">
+    <h1>FL Shortcut</h1>
+  </header>
+  <p class="lead">Tes propres raccourcis clavier pour FL Studio, sur Mac et Windows. Rien à installer dans FL : l'appli
+    envoie les touches d'origine de FL, seulement quand FL est au premier plan.</p>
+
+  <section class="primary" aria-label="Téléchargement">
+    <a id="main-download" class="btn" href="#telecharger">Télécharger</a>
+    <span id="main-meta" class="meta">Choisis ton système ci-dessous.</span>
+  </section>
+
+  <div class="grid" id="telecharger">
+    <section class="card" id="card-mac">
+      <h2>Mac</h2>
+      <p class="sub">macOS 13 ou plus récent · Apple Silicon et Intel</p>
+      <a class="btn secondary" data-file="FLShortcut.dmg" href="#">FLShortcut.dmg</a>
+      <ol style="margin-top:14px">
+        <li>Ouvre <b>FLShortcut.dmg</b> et glisse <b>FL Shortcut</b> dans <b>Applications</b>.</li>
+        <li>Lance FL Shortcut : il s'installe dans la barre des menus.</li>
+        <li>Clique sur <b>Autoriser…</b> : active FL Shortcut dans <i>Réglages Système › Confidentialité et sécurité › Accessibilité</i>.</li>
+      </ol>
+      <p class="note">Si macOS dit qu'il ne peut pas vérifier l'appli : <i>Réglages Système › Confidentialité et sécurité</i>,
+        tout en bas, <b>Ouvrir quand même</b>. Fais-le seulement pour un fichier téléchargé depuis cette page.</p>
+    </section>
+
+    <section class="card" id="card-win">
+      <h2>Windows</h2>
+      <p class="sub">Windows 10 ou 11 · x64 et ARM</p>
+      <a class="btn secondary" data-file="FLShortcut-Windows-Setup.exe" href="#">FLShortcut-Windows-Setup.exe</a>
+      <ol style="margin-top:14px">
+        <li>Double-clique sur l'installeur, puis <b>Installer</b>. Aucun droit administrateur demandé.</li>
+        <li>FL Shortcut se lance et se range dans la zone de notification, à côté de l'horloge.</li>
+        <li>C'est tout : ouvre FL Studio et utilise tes raccourcis.</li>
+      </ol>
+      <p class="note">Si Windows affiche « Windows a protégé votre ordinateur » : <b>Informations complémentaires</b>,
+        puis <b>Exécuter quand même</b>. Version portable sans installation :
+        <a data-file="FLShortcut-win-x64.zip" href="#">x64</a> · <a data-file="FLShortcut-win-arm64.zip" href="#">ARM</a>.</p>
+    </section>
+  </div>
+
+  <h3>Ce que ça fait</h3>
+  <ul class="features">
+    <li><b>Tes raccourcis</b><span>Mixer, Playlist, Piano Roll, REC, métronome, patterns… sur les touches que tu veux.</span></li>
+    <li><b>Macros</b><span>Enregistrement rapide : preset de piste, armement, entrée et REC d'un seul raccourci (Mac, version de test).</span></li>
+    <li><b>Léger</b><span>Rien dans FL, pas de MIDI. Le clavier n'est écouté que quand FL est devant.</span></li>
+    <li><b>Pause</b><span><kbd>⌃⌥⌘F</kbd> sur Mac, <kbd>Ctrl+Alt+Maj+F</kbd> sur Windows.</span></li>
+  </ul>
+
+  <footer>
+    <p>Outil indépendant, gratuit, non affilié à Image-Line. « FL Studio » est une marque d'Image-Line.
+      Aucune frappe n'est enregistrée ni envoyée ; l'appli n'utilise pas le réseau.</p>
+    <p><a id="releases" href="#">Toutes les versions et empreintes SHA-256</a> · <a id="source" href="#">Code source</a></p>
+  </footer>
+</main>
+<script>
+  // Dépôt déduit de l'adresse GitHub Pages (propriétaire.github.io/dépôt), sinon valeur par défaut.
+  (function () {
+    var owner = "anmaprod", repo = "fl-shortcut";
+    var host = location.hostname.match(/^([^.]+)\.github\.io$/);
+    var path = location.pathname.split("/").filter(Boolean);
+    if (host && path.length) { owner = host[1]; repo = path[0]; }
+    var base = "https://github.com/" + owner + "/" + repo;
+    var latest = base + "/releases/latest/download/";
+
+    document.querySelectorAll("[data-file]").forEach(function (a) { a.href = latest + a.dataset.file; });
+    document.getElementById("releases").href = base + "/releases/latest";
+    document.getElementById("source").href = base;
+
+    var ua = navigator.userAgent || "";
+    var platform = (navigator.userAgentData && navigator.userAgentData.platform) || navigator.platform || "";
+    var isMac = /Mac/i.test(platform) && !/iPhone|iPad/i.test(ua);
+    var isWin = /Win/i.test(platform);
+    var main = document.getElementById("main-download"), meta = document.getElementById("main-meta");
+    if (isMac) {
+      main.textContent = "Télécharger pour Mac";
+      main.href = latest + "FLShortcut.dmg";
+      meta.textContent = "FLShortcut.dmg · macOS 13 ou plus récent";
+      document.getElementById("card-mac").classList.add("current");
+    } else if (isWin) {
+      main.textContent = "Télécharger pour Windows";
+      main.href = latest + "FLShortcut-Windows-Setup.exe";
+      meta.textContent = "Installeur · Windows 10 ou 11";
+      document.getElementById("card-win").classList.add("current");
+    }
+  })();
+</script>
+</body>
+</html>

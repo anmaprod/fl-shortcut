@@ -38,6 +38,10 @@ rm -rf dist
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp "$BIN_DIR/$EXE" "$APP/Contents/MacOS/$EXE"
 cp Resources/Info.plist "$APP/Contents/Info.plist"
+# Version de la release (tag vX.Y.Z en CI) : affichée par le Finder et « À propos ».
+if [[ -n "${FLS_VERSION:-}" ]]; then
+  plutil -replace CFBundleShortVersionString -string "$FLS_VERSION" "$APP/Contents/Info.plist"
+fi
 cp Resources/device_FLShortcut.py "$APP/Contents/Resources/"
 cp Resources/AppIcon.icns "$APP/Contents/Resources/AppIcon.icns"
 chmod -R go-w "$APP"

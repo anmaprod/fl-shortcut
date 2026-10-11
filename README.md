@@ -2,10 +2,10 @@
 
 Tes propres raccourcis clavier pour **FL Studio**, sur **Mac** et **Windows**.
 
-FL Studio n'a pas d'éditeur de raccourcis. FL Shortcut en ajoute un : quand FL Studio est au premier plan, il reconnaît tes raccourcis et :
+FL Studio n'a pas d'éditeur de raccourcis. FL Shortcut en ajoute un : quand FL Studio est au premier plan, il reconnaît tes raccourcis et envoie à FL **ses propres touches** (Mixer, Playlist, REC, métronome, pattern suivant…). **Rien à installer dans FL** : pas de script, pas de MIDI, pas de loopMIDI.
 
-- **déclenche une action dans FL** grâce à un petit script MIDI authentifié : ouvrir le Mixer, mute ou solo de la piste, pattern suivant, métronome, rétablir… (38 actions) ;
-- ou **envoie une touche de FL** : il déplace un raccourci existant sur une touche plus pratique.
+- **Macros** (Mac, version de test) : *Enregistrement rapide* charge un état de piste du Mixer, arme la piste, choisit l'entrée et lance le REC, d'un seul raccourci. Voir [MACROS.md](MACROS.md).
+- **Mode MIDI** (facultatif, pour les utilisateurs avancés) : 38 actions via un script authentifié (mute / solo de piste, volume…). Désactivé par défaut.
 
 > Outil indépendant, non affilié à Image-Line. « FL Studio » est une marque d'Image-Line.
 
@@ -20,26 +20,23 @@ FL Studio n'a pas d'éditeur de raccourcis. FL Shortcut en ajoute un : quand FL 
 
 ## Installation
 
-### Mac
+**Télécharge la dernière version** sur la [page des versions](../../releases/latest) (ou la page de téléchargement du projet, qui choisit le bon fichier toute seule).
 
-1. Ouvre `FLShortcut.dmg` et glisse **FL Shortcut** dans **Applications**, puis lance-le.
-   La version publiée est signée et notarisée par Apple : aucune manipulation de sécurité n'est nécessaire. **Si macOS affiche un avertissement, ne le contourne pas** : télécharge l'appli depuis la page officielle des versions et compare l'empreinte SHA-256 fournie.
-2. **Autoriser le clavier** : l'accueil ouvre *Réglages Système › Confidentialité et sécurité › Accessibilité*. Active FL Shortcut.
-3. **Relier FL Studio** : clique sur *Installer le lien*, redémarre FL, puis dans *Options › MIDI Settings* :
-   - *Input* « FL Shortcut » : **Enable**, *Controller type* « FL Shortcut » ;
-   - *Output* « FL Shortcut » : même numéro de port.
+### Mac : `FLShortcut.dmg`
 
-   Le statut passe à « FL Studio est relié ». *Tester* ouvre le Mixer.
+1. Ouvre `FLShortcut.dmg` et glisse **FL Shortcut** dans **Applications**, puis lance-le. Il s'installe dans la barre des menus.
+2. **Autoriser le clavier** : clique sur *Autoriser…* ; l'appli ouvre *Réglages Système › Confidentialité et sécurité › Accessibilité*. Active FL Shortcut.
 
-### Windows
+C'est tout. Si macOS dit qu'il ne peut pas vérifier l'appli (version non notarisée) : *Réglages Système › Confidentialité et sécurité*, tout en bas, **Ouvrir quand même**. Fais-le seulement pour un fichier venu de la page officielle des versions, dont l'empreinte SHA-256 correspond.
 
-Le détail est dans [windows/README.md](windows/README.md). En bref :
+Pour désinstaller : *Désinstaller FL Shortcut* dans le menu de l'appli, ou l'appli du même nom dans le `.dmg`.
 
-1. Installe [loopMIDI](https://www.tobias-erichsen.de/software/loopmidi.html) (gratuit) et crée deux ports nommés exactement `FL Shortcut` et `FL Shortcut Retour`. L'accueil les détecte tout seul.
-2. Clique sur *Installer le lien*. Dans FL Studio, *Options › MIDI Settings*, configure :
-   - *Input* « FL Shortcut » : **Enable**, *Controller type* « FL Shortcut » ;
-   - *Output* « FL Shortcut Retour » : même numéro de port.
-3. Ne lance pas FL Studio en administrateur.
+### Windows : `FLShortcut-Windows-Setup.exe`
+
+1. Double-clique sur l'installeur, puis **Installer**. Aucun droit administrateur demandé, x64 et ARM dans le même fichier.
+2. FL Shortcut se lance et se range dans la zone de notification. Il démarre avec Windows (décochable dans l'installeur).
+
+C'est tout. Si Windows affiche « Windows a protégé votre ordinateur » (installeur non signé) : **Informations complémentaires › Exécuter quand même**. Désinstallation : *Paramètres › Applications*. Une version portable (`.zip`) existe aussi. Ne lance pas FL Studio en administrateur.
 
 ---
 
@@ -51,9 +48,9 @@ Le profil **Recommandé** n'écrase aucun raccourci de FL. Tu peux changer de pr
 |---|---|---|
 | Playlist, Channel Rack, Piano Roll, Mixer, Browser | `⌃1` … `⌃5` | `Ctrl+Maj+1` … `5` |
 | Pattern précédent / suivant | `⌃D` / `⌃F` | `Ctrl+Maj+D` / `F` |
-| Mute / Solo de la piste du Mixer | `⌃T` / `⌃S` | `Ctrl+Maj+T` / `G` |
+| Mute / Solo de la piste du Mixer (mode MIDI seulement) | `⌃T` / `⌃S` | `Ctrl+Maj+T` / `G` |
 | Métronome | `⌃M` | `Ctrl+Maj+K` |
-| Rétablir | `⇧⌘Z` | `Ctrl+Y` |
+| Rétablir (mode MIDI seulement) | `⇧⌘Z` | `Ctrl+Y` |
 
 - **Style Ableton** ajoute `Tab` (Playlist ↔ Mixer), `0` (mute) et pattern précédent / suivant (`⌃⌥←/→` sur Mac, `Ctrl+Maj+←/→` sur Windows). Ce profil contient des touches seules.
 - **Vide** part de zéro.
@@ -106,11 +103,14 @@ Détails, limites et mode d'emploi du diagnostic (`FLShortcut --diag-macro`) : [
 | Cœur Windows (tests) | `dotnet test windows/FLShortcut.Core.Tests` | partout (.NET 8) |
 | App Mac | `./build.sh` | Mac avec Xcode 16+ (Xcode 26 pour le Liquid Glass natif) |
 | App Windows | `dotnet publish windows/FLShortcut.App -c Release -r win-x64 -p:Platform=x64` | Windows avec .NET 8 |
+| Installeur Windows | `iscc /DAppVersion=1.0.0 /DDistDir=…\dist windows\installer\FLShortcut.iss` | Windows avec Inno Setup 6 |
 
 **Sans Mac ni PC de développement :** pousse le dépôt sur GitHub. Le workflow [build.yml](.github/workflows/build.yml) :
 - lance tous les tests ;
-- compile le `.dmg` universel et les `.zip` Windows x64 / ARM64, avec leurs empreintes SHA-256 et une attestation de provenance ;
-- publie une *Release* à chaque tag `v*`.
+- compile le `.dmg` universel, l'installeur Windows (`FLShortcut-Windows-Setup.exe`, x64 + ARM64) et les `.zip` portables, avec leurs empreintes SHA-256 et une attestation de provenance ;
+- publie une *Release* à chaque tag `v*` (`git tag v1.0.0 && git push --tags`) ; les liens « latest » de la page de téléchargement suivent tout seuls.
+
+**Page de téléchargement :** `site/index.html`, publiée par [pages.yml](.github/workflows/pages.yml) (à activer une fois : *Settings › Pages › Source : GitHub Actions*). Elle propose le bon fichier selon l'ordinateur du visiteur.
 
 **Distribution sans avertissement :**
 - **Mac** : il faut un compte Apple Developer. Ensuite, `SIGN_IDENTITY="Developer ID Application: …" NOTARY_PROFILE=… ./build.sh` signe, notarise et agrafe le ticket.

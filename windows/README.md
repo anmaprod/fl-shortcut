@@ -4,19 +4,19 @@ Même fonctionnement que la version Mac : FL Shortcut vit dans la zone de notifi
 
 ## Installation (utilisateurs)
 
-1. **Deux ports MIDI virtuels.** Windows n'en crée pas tout seul. Installe [loopMIDI](https://www.tobias-erichsen.de/software/loopmidi.html) (gratuit) et crée deux ports nommés exactement :
-   - `FL Shortcut` (FL Shortcut → FL Studio)
-   - `FL Shortcut Retour` (FL Studio → FL Shortcut)
-
-   L'écran d'accueil de FL Shortcut les détecte tout seul.
-2. **Relier FL Studio.** Clique sur « Installer le lien », puis dans FL Studio : *Options › MIDI Settings*.
-   - *Input* : `FL Shortcut` → **Enable**, *Controller type* : **FL Shortcut**, choisis un numéro de port (ex. 10).
-   - *Output* : `FL Shortcut Retour` → même numéro de port.
-
-   Le statut passe à « FL Studio est relié ». « Tester » ouvre le Mixer dans FL.
+1. Télécharge **`FLShortcut-Windows-Setup.exe`** (page des versions du projet) et double-clique dessus. Aucun droit administrateur, x64 et ARM dans le même fichier.
+2. FL Shortcut se lance et se range dans la zone de notification. Il démarre avec Windows (décochable).
 3. **Ne lance pas FL Studio en administrateur** : Windows empêcherait FL Shortcut d'agir (l'appli te prévient).
 
+Rien à faire dans FL Studio : en **mode léger** (par défaut), FL Shortcut n'envoie que les touches d'origine de FL. Les actions sans touche dans FL (mute / solo de piste, volume, rétablir…) sont grisées.
+
 `Ctrl+Alt+Maj+F` (dans FL Studio) ou le menu de l'icône met FL Shortcut en pause.
+
+### Mode MIDI (facultatif)
+
+Pour les 38 actions, mets `"MidiActions": true` dans `%LOCALAPPDATA%\FL Shortcut\settings.json`, relance l'appli, puis :
+1. installe [loopMIDI](https://www.tobias-erichsen.de/software/loopmidi.html) et crée deux ports nommés exactement `FL Shortcut` et `FL Shortcut Retour` ;
+2. clique sur « Installer le lien » ; dans FL Studio, *Options › MIDI Settings* : *Input* `FL Shortcut` → **Enable**, *Controller type* **FL Shortcut** ; *Output* `FL Shortcut Retour` → même numéro de port.
 
 ### Profil recommandé (rien n'écrase FL)
 
@@ -45,7 +45,9 @@ windows/
 - Tests du cœur (n'importe quel système avec .NET 8) : `dotnet test windows/FLShortcut.Core.Tests`
 - Appli (Windows 10/11 avec .NET 8) : `dotnet publish windows/FLShortcut.App -c Release -r win-x64 -p:Platform=x64`
 
-Le workflow GitHub (`.github/workflows/build.yml`) fait les deux et publie les `.zip` x64 / ARM64 avec leur empreinte SHA-256.
+- Installeur (Windows avec Inno Setup 6) : `iscc windows\installer\FLShortcut.iss`
+
+Le workflow GitHub (`.github/workflows/build.yml`) fait tout et publie l'installeur et les `.zip` x64 / ARM64 avec leurs empreintes SHA-256.
 
 ## Sécurité (audit 03 et 01)
 
