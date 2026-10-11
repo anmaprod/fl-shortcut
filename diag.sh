@@ -1,11 +1,13 @@
 #!/bin/bash
-pkill -x FLShortcut; sleep 1.5
-open "$HOME/Applications/FL Shortcut.app"; sleep 6
-P=$(pgrep -x FLShortcut | head -1)
-echo "== FL Shortcut : $(ps -o comm= -p $P)"
-sample "$P" 0.5 -mayDie 2>/dev/null > /tmp/fls_s.txt
-echo "== threads"; grep -E "^ +[0-9]+ Thread_" /tmp/fls_s.txt | sed 's/^ *[0-9]* //'
-echo "== CoreMIDI chargé : $(grep -c -i "CoreMIDI\|MIDIClient" /tmp/fls_s.txt) lignes"
-echo "== ports MIDI « FL Shortcut » visibles :"; system_profiler SPMIDIDataType 2>/dev/null | grep -i -c "FL Shortcut"
-echo "== CPU (8 s)"
-top -l 8 -s 1 -stats pid,command,cpu 2>/dev/null | awk '$2=="FLShortcut"||$2=="OsxFL"{printf "%s %s  ", $2, $3} /^Processes/{print ""}' | tail -7
+defaults write app.flshortcut.FLShortcut debugSnapshots -bool YES
+C="$HOME/Library/Caches/app.flshortcut.FLShortcut"; rm -f "$C"/*.png
+pkill -x FLShortcut; sleep 1.5; open "$HOME/Applications/FL Shortcut.app"; sleep 5
+/tmp/fls_post app.flshortcut.debug.open; sleep 3
+/tmp/fls_post app.flshortcut.debug.snapshot avant; sleep 1
+# Clic réel sur « Piano Roll » puis « Mixer » dans la barre latérale (points depuis le haut-gauche de la fenêtre)
+/tmp/fls_post app.flshortcut.debug.click "100,200"; sleep 1.5
+/tmp/fls_post app.flshortcut.debug.snapshot clic-pianoroll; sleep 1
+/tmp/fls_post app.flshortcut.debug.click "100,260"; sleep 1.5
+/tmp/fls_post app.flshortcut.debug.snapshot clic-mixer; sleep 1
+defaults delete app.flshortcut.FLShortcut debugSnapshots
+rm -f .transfert/*.png; cp "$C"/*.png .transfert/; ls .transfert/*.png

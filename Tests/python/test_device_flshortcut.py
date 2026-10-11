@@ -1,6 +1,6 @@
 """Tests du script FL Studio Resources/device_FLShortcut.py (protocole v2).
 
-Lancement : python3 -m unittest discover -s tests/python -v
+Lancement : python3 -m unittest discover -s Tests/python -v
 """
 import ast
 import hashlib

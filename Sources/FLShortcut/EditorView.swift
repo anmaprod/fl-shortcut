@@ -49,6 +49,10 @@ struct EditorView: View {
         .navigationTitle(title)
         .searchable(text: $query, placement: .toolbar, prompt: "Rechercher")
         .toolbar { toolbarContent }
+        // Un clic dans le vide de la barre latérale ne laisse jamais la fenêtre sans section.
+        .onChange(of: selection) { newValue in
+            if newValue == nil { selection = .section(.general) }
+        }
         .onReceive(DebugSnapshot.publisher(DebugSnapshot.select)) { note in
             let name = note.object as? String ?? ""
             selection = FLSection(rawValue: name).map(SidebarItem.section) ?? (name == "custom" ? .custom : selection)
@@ -76,21 +80,21 @@ struct EditorView: View {
         for row in data.rows where !row.isDefault { modified[row.entry.section, default: 0] += 1 }
         return List(selection: $selection) {
             Section {
+                // Sélection par étiquette (.tag) : un NavigationLink sans destination ne sélectionne rien sur
+                // macOS 26+ (clic capté, section inchangée).
                 ForEach(FLSection.allCases) { section in
-                    NavigationLink(value: SidebarItem.section(section)) {
-                        Label(section.title, systemImage: section.symbol)
-                    }
-                    .badge(modified[section] ?? 0)
-                    .help(section.subtitle)
+                    Label(section.title, systemImage: section.symbol)
+                        .badge(modified[section] ?? 0)
+                        .help(section.subtitle)
+                        .tag(SidebarItem.section(section))
                 }
             } header: {
                 Text("FL Studio")
             }
             Section {
-                NavigationLink(value: SidebarItem.custom) {
-                    Label("Mes raccourcis", systemImage: "star")
-                }
-                .badge(data.others.count)
+                Label("Mes raccourcis", systemImage: "star")
+                    .badge(data.others.count)
+                    .tag(SidebarItem.custom)
             } header: {
                 Text("Personnalisés")
             }
@@ -112,6 +116,7 @@ struct EditorView: View {
                     }
                 }
             }
+            .id(trimmedQuery.isEmpty ? selection : nil)          // nouvelle liste (et retour en haut) à chaque section
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             Divider()
             StatusBar(store: store, status: status, link: link, fl: FLMonitor.shared)

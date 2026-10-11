@@ -87,7 +87,7 @@ Sur Windows, on évite `Ctrl+Alt` : c'est AltGr sur les claviers AZERTY (`@`, `�
 
 | | Commande | Où |
 |---|---|---|
-| Script FL (tests) | `python3 -m unittest discover -s tests/python` | partout (Python 3.6+) |
+| Script FL (tests) | `python3 -m unittest discover -s Tests/python` | partout (Python 3.6+) |
 | Cœur Windows (tests) | `dotnet test windows/FLShortcut.Core.Tests` | partout (.NET 8) |
 | App Mac | `./build.sh` | Mac avec Xcode 16+ (Xcode 26 pour le Liquid Glass natif) |
 | App Windows | `dotnet publish windows/FLShortcut.App -c Release -r win-x64 -p:Platform=x64` | Windows avec .NET 8 |
@@ -114,7 +114,7 @@ Tests/FLShortcutTests/           tests XCTest
 windows/FLShortcut.Core/         cœur Windows portable (protocole, modèle, profils, routeur)
 windows/FLShortcut.Core.Tests/   tests xUnit
 windows/FLShortcut.App/          app WinUI 3 (Mica, Fluent 2) : hook clavier, injection, MIDI WinMM, DPAPI
-tests/python/                    tests du script FL (simulateur de l'API FL)
+Tests/python/                    tests du script FL (simulateur de l'API FL)
 audit/                           rapports d'audit et de relecture
 build.sh                         compilation, signature et notarisation Mac
 ```

@@ -11,6 +11,8 @@ enum DebugSnapshot {
     static let open = Notification.Name("app.flshortcut.debug.open")
     static let select = Notification.Name("app.flshortcut.debug.select")
     static let snapshot = Notification.Name("app.flshortcut.debug.snapshot")
+    /// Vrai clic de souris à « x,y » (points, depuis le coin haut-gauche de la fenêtre de l'éditeur).
+    static let click = Notification.Name("app.flshortcut.debug.click")
 
     static func publisher(_ name: Notification.Name) -> AnyPublisher<Notification, Never> {
         guard enabled else { return Empty().eraseToAnyPublisher() }
@@ -23,6 +25,27 @@ enum DebugSnapshot {
         guard enabled, observer == nil else { return }
         observer = DistributedNotificationCenter.default().addObserver(forName: snapshot, object: nil, queue: .main) { note in
             capture(tag: note.object as? String ?? "capture")
+        }
+        clickObserver = DistributedNotificationCenter.default().addObserver(forName: click, object: nil, queue: .main) { note in
+            let parts = (note.object as? String ?? "").split(separator: ",").compactMap { Double($0) }
+            guard parts.count == 2 else { return }
+            realClick(x: parts[0], y: parts[1])
+        }
+    }
+
+    private static var clickObserver: NSObjectProtocol?
+
+    private static func realClick(x: Double, y: Double) {
+        guard let w = NSApp.windows.first(where: { $0.isVisible && $0.frame.width > 400 }),
+              let screenHeight = NSScreen.screens.first?.frame.height else { return }
+        NSApp.activate(ignoringOtherApps: true)
+        w.makeKeyAndOrderFront(nil)
+        let point = CGPoint(x: w.frame.minX + x, y: screenHeight - (w.frame.maxY - y))
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+            for type in [CGEventType.leftMouseDown, .leftMouseUp] {
+                CGEvent(mouseEventSource: nil, mouseType: type, mouseCursorPosition: point, mouseButton: .left)?
+                    .post(tap: .cghidEventTap)
+            }
         }
     }
 

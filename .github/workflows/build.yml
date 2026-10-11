@@ -28,7 +28,7 @@ jobs:
         with:
           persist-credentials: false
       - name: Tests du script FL
-        run: python3 -m unittest discover -s tests/python -v
+        run: python3 -m unittest discover -s Tests/python -v
 
   windows-core:
     name: Cœur Windows (tests .NET)
