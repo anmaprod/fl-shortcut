@@ -56,7 +56,13 @@ enum DebugSnapshot {
             .appendingPathComponent("app.flshortcut.FLShortcut", isDirectory: true)
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         var n = 0
+        var sizes: [String] = []
         for w in NSApp.windows where w.isVisible && w.frame.width > 150 && w.frame.height > 80 {
+            if let content = w.contentView {
+                sizes.append("fenêtre \(Int(w.frame.width))×\(Int(w.frame.height)), contenu minimal "
+                             + "\(Int(content.fittingSize.width))×\(Int(content.fittingSize.height)), "
+                             + "taille min. \(Int(w.contentMinSize.width))×\(Int(w.contentMinSize.height))")
+            }
             guard let view = w.contentView?.superview ?? w.contentView else { continue }
             guard let rep = view.bitmapImageRepForCachingDisplay(in: view.bounds) else { continue }
             view.cacheDisplay(in: view.bounds, to: rep)
@@ -64,6 +70,8 @@ enum DebugSnapshot {
             n += 1
             try? png.write(to: dir.appendingPathComponent("\(tag)-\(n).png"))
         }
+        try? sizes.joined(separator: "\n").write(to: dir.appendingPathComponent("\(tag)-tailles.txt"),
+                                                atomically: true, encoding: .utf8)
     }
 }
 
