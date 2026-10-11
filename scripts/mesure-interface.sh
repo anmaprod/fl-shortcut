@@ -49,7 +49,8 @@ run() {   # $1 : libellé, $2 : YES/NO effet verre
   local m0 c0 m1 c1
   m0=$(mem_mb "$p"); c0=$(cpu_avg "$p")
   "$POST" app.flshortcut.debug.open; sleep 5
-  "$POST" app.flshortcut.debug.select general; sleep 2
+  "$POST" app.flshortcut.debug.select general; sleep 1
+  "$POST" app.flshortcut.debug.resize "960,640"; sleep 2
   screencapture -x "$OUT/$label.png" 2>/dev/null || true
   # Rendu interne de la fenêtre (toute sa hauteur, même si l'écran de test est petit).
   rm -f "$HOME/Library/Caches/$DOMAIN/$label-"*

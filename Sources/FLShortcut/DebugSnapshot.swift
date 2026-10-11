@@ -13,6 +13,8 @@ enum DebugSnapshot {
     static let snapshot = Notification.Name("app.flshortcut.debug.snapshot")
     /// Vrai clic de souris à « x,y » (points, depuis le coin haut-gauche de la fenêtre de l'éditeur).
     static let click = Notification.Name("app.flshortcut.debug.click")
+    /// Taille « l,h » (points) de la fenêtre de l'éditeur, pour les captures sur un petit écran de test.
+    static let resize = Notification.Name("app.flshortcut.debug.resize")
 
     static func publisher(_ name: Notification.Name) -> AnyPublisher<Notification, Never> {
         guard enabled else { return Empty().eraseToAnyPublisher() }
@@ -31,9 +33,16 @@ enum DebugSnapshot {
             guard parts.count == 2 else { return }
             realClick(x: parts[0], y: parts[1])
         }
+        resizeObserver = DistributedNotificationCenter.default().addObserver(forName: resize, object: nil, queue: .main) { note in
+            let parts = (note.object as? String ?? "").split(separator: ",").compactMap { Double($0) }
+            guard parts.count == 2, (400...3000).contains(parts[0]), (300...2000).contains(parts[1]),
+                  let w = NSApp.windows.first(where: { $0.isVisible && $0.frame.width > 400 }) else { return }
+            w.setContentSize(NSSize(width: parts[0], height: parts[1]))
+        }
     }
 
     private static var clickObserver: NSObjectProtocol?
+    private static var resizeObserver: NSObjectProtocol?
 
     private static func realClick(x: Double, y: Double) {
         guard let w = NSApp.windows.first(where: { $0.isVisible && $0.frame.width > 400 }),

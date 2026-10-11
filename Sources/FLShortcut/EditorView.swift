@@ -122,7 +122,7 @@ struct EditorView: View {
         .safeAreaInset(edge: .top, spacing: 0) {
             NoticeStack(items: notices)
         }
-        .safeAreaInset(edge: .bottom, spacing: 0) {
+        .overlay(alignment: .bottom) {
             GlassGroup(spacing: 8) {
                 VStack(spacing: 8) {
                     if let toast {
