@@ -14,7 +14,7 @@ Rien à faire dans FL Studio : en **mode léger** (par défaut), FL Shortcut n'e
 
 ### Mode MIDI (facultatif)
 
-Pour les 38 actions, mets `"MidiActions": true` dans `%LOCALAPPDATA%\FL Shortcut\settings.json`, relance l'appli, puis :
+Pour les 40 actions, mets `"MidiActions": true` dans `%LOCALAPPDATA%\FL Shortcut\settings.json`, relance l'appli, puis :
 1. installe [loopMIDI](https://www.tobias-erichsen.de/software/loopmidi.html) et crée deux ports nommés exactement `FL Shortcut` et `FL Shortcut Retour` ;
 2. clique sur « Installer le lien » ; dans FL Studio, *Options › MIDI Settings* : *Input* `FL Shortcut` → **Enable**, *Controller type* **FL Shortcut** ; *Output* `FL Shortcut Retour` → même numéro de port.
 

@@ -196,7 +196,7 @@ enum MacroLibrary {
     /// preset, armement, REC. L'entrée audio se choisit à la main (FL ne permet pas de la régler par script).
     private static func autoRecordSteps(_ macro: Macro) -> [MacroStep] {
         var out: [MacroStep] = []
-        if macro.armAndInput { out.append(MacroStep(kind: .feedbackCheck)) }
+        if macro.armAndInput || macro.startRecording { out.append(MacroStep(kind: .feedbackCheck)) }
         // Le menu de piste de FL n'a qu'un niveau de sous-menu : « File », puis l'élément cherché.
         out.append(.trackMenu([Macro.fileMenuTitles.joined(separator: "|"), Macro.openStateTitles.joined(separator: "|")]))
         out.append(.waitDialog(4_000))

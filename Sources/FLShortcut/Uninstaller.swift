@@ -134,11 +134,16 @@ enum Uninstaller {
                 if fm.fileExists(atPath: url.path) { apps.insert(url) }
             }
         }
+        // Suppression avec mot de passe (définitive) : seulement nos deux apps installées par le .pkg dans
+        // /Applications, jamais un autre chemin.
+        let pkgInstalled: Set<String> = ["/Applications/FL Shortcut.app", "/Applications/Désinstaller FL Shortcut.app"]
         var privileged: [URL] = []
+        var seen = Set<String>()
         for url in apps.map(\.standardizedFileURL) where !url.path.hasPrefix("/Volumes/") {   // jamais l'image disque
+            guard seen.insert(url.path).inserted, fm.fileExists(atPath: url.path) else { continue }
             if (try? fm.trashItem(at: url, resultingItemURL: nil)) != nil {
                 removed.append(label(for: url, home: home))
-            } else {
+            } else if pkgInstalled.contains(url.path) {
                 privileged.append(url)
             }
         }

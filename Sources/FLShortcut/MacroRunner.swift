@@ -105,8 +105,11 @@ enum AXMenus {
             let deadline = Date().addingTimeInterval(perItemTimeout)
             var pressed = false
             while Date() < deadline, !shouldStop() {
-                if let item = titles.lazy.compactMap({ findItem(in: app, title: $0) }).first,
-                   AXUIElementPerformAction(item, kAXPressAction as CFString) == .success {
+                var item: AXUIElement?
+                for title in titles where item == nil {
+                    item = findItem(in: app, title: title, deadline: deadline, shouldStop: shouldStop)
+                }
+                if let item, AXUIElementPerformAction(item, kAXPressAction as CFString) == .success {
                     pressed = true
                     break
                 }
@@ -142,11 +145,12 @@ enum AXMenus {
         return list
     }
 
-    /// Parcours en largeur, borné (600 nœuds), sans la barre des menus.
-    private static func findItem(in root: AXUIElement, title: String) -> AXUIElement? {
+    /// Parcours en largeur, borné (300 nœuds et l'échéance de l'étape), sans la barre des menus.
+    private static func findItem(in root: AXUIElement, title: String, deadline: Date = .distantFuture,
+                                 shouldStop: () -> Bool = { false }) -> AXUIElement? {
         var queue: [AXUIElement] = [root]
         var visited = 0
-        while !queue.isEmpty, visited < 600 {
+        while !queue.isEmpty, visited < 300, Date() < deadline, !shouldStop() {
             let el = queue.removeFirst()
             visited += 1
             let role = attribute(el, kAXRoleAttribute as String)
@@ -428,9 +432,15 @@ final class MacroRunner {
 
     private func wait(timeoutMs: Int, pid: Int32, failure: String, until condition: () -> Bool) -> StepResult {
         let deadline = Date().addingTimeInterval(Double(timeoutMs) / 1000)
+        // Longue attente (choix du preset) : 4 vérifications par seconde suffisent, Échap reste immédiat.
+        let interval = timeoutMs > 10_000 ? 0.25 : 0.05
+        var nextCheck = Date.distantPast
         while Date() < deadline {
             if let stop = shouldStop(pid) { return .cancel(stop) }
-            if condition() { return .ok }
+            if Date() >= nextCheck {
+                if condition() { return .ok }
+                nextCheck = Date().addingTimeInterval(interval)
+            }
             Thread.sleep(forTimeInterval: 0.05)
         }
         return .fail(failure)

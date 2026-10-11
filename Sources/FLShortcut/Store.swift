@@ -100,10 +100,15 @@ final class Store: ObservableObject {
         let loaded = Store.load(storage: storage, layout: layout)
         var initial = loaded.remaps
         var needsSave = loaded.needsSave
-        // Ancien « Enregistrement rapide » jamais réglé (aucune position apprise) : passe au modèle automatique.
-        for i in initial.indices where initial[i].macro?.template == .quickRecord && initial[i].macro?.spots.isEmpty == true {
-            initial[i].macro?.template = .autoRecord
-            needsSave = true
+        // Une seule fois : ancien « Enregistrement rapide » jamais réglé (armement demandé, aucune position
+        // apprise : il ne pouvait pas tourner) → modèle automatique.
+        if !defaults.bool(forKey: Self.autoRecordMigrationKey) {
+            defaults.set(true, forKey: Self.autoRecordMigrationKey)
+            for i in initial.indices where initial[i].macro?.template == .quickRecord
+                && initial[i].macro?.spots.isEmpty == true && initial[i].macro?.armAndInput == true {
+                initial[i].macro?.template = .autoRecord
+                needsSave = true
+            }
         }
         // Une seule fois : la macro d'exemple rejoint un profil existant (jamais le profil « Vide », jamais à la
         // place d'une touche déjà prise). Ajoutée avant la publication du profil : une seule écriture.
@@ -138,6 +143,7 @@ final class Store: ObservableObject {
     // MARK: Chargement
 
     static let exampleMacroKey = "exampleMacroAdded"
+    static let autoRecordMigrationKey = "autoRecordMigrated"
 
     struct LoadResult {
         var remaps: [Remap]

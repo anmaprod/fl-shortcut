@@ -1312,6 +1312,17 @@ def _reject(reason_key, text):
     return False
 
 
+def _asleep_reject():
+    now = _now()
+    _prune(_st.reject_ack_times, now)
+    if len(_st.reject_ack_times) < MAX_REJECT_ACKS_PER_S and _output_ready():
+        _st.reject_ack_times.append(now)
+        try:
+            _out_raw(CC_ACK, 0)
+        except Exception:
+            pass
+
+
 def _on_frame_cc(cc, value):
     if cc == CC_FRAME_FIRST:
         if _st.frame is not None:
@@ -1351,6 +1362,7 @@ def _process_frame(f):
         _st.fail_times.append(now)
         return _reject("mac", "FL Shortcut : commande non signée refusée")
     _st.last_seq = seq                 # trame authentique : consommée même si non exécutée
+    _keep_awake()                      # seule une trame signée prolonge un réveil bref
     try:
         _prune(_st.action_times, now)
         if len(_st.action_times) >= MAX_ACTIONS_PER_S:
@@ -1482,9 +1494,12 @@ def _midi_msg(event):
         return
     if cc == CC_PING:
         _on_ping(value)
-    elif _st.awake:                  # endormi : seule un PING est écouté
-        _keep_awake()
+    elif _st.awake:
         _on_frame_cc(cc, value)
+    elif cc == CC_FRAME_LAST:
+        # Endormi (FL vient de recharger le script…) : une trame complète n'est pas exécutée, mais un refus
+        # (accusé 0, borné) dit à l'appli de se resynchroniser par un PING. Seuls les PING réveillent.
+        _asleep_reject()
 
 
 def _init():

@@ -37,7 +37,8 @@ enum DebugSnapshot {
 
     private static func realClick(x: Double, y: Double) {
         guard let w = NSApp.windows.first(where: { $0.isVisible && $0.frame.width > 400 }),
-              let screenHeight = NSScreen.screens.first?.frame.height else { return }
+              let screenHeight = NSScreen.screens.first?.frame.height,
+              (0...w.frame.width).contains(x), (0...w.frame.height).contains(y) else { return }   // notre fenêtre seulement
         NSApp.activate(ignoringOtherApps: true)
         w.makeKeyAndOrderFront(nil)
         let point = CGPoint(x: w.frame.minX + x, y: screenHeight - (w.frame.maxY - y))

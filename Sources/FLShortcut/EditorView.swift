@@ -105,32 +105,36 @@ struct EditorView: View {
     // MARK: Détail
 
     private func detail(_ data: CatalogData) -> some View {
-        VStack(spacing: 0) {
-            NoticeStack(items: notices)
-            Group {
-                if !trimmedQuery.isEmpty {
-                    searchResults(data)
-                } else {
-                    switch selection ?? .section(.general) {
-                    case .section(let s): sectionList(s, rows: data.rows)
-                    case .custom: customList(data.others)
-                    }
+        Group {
+            if !trimmedQuery.isEmpty {
+                searchResults(data)
+            } else {
+                switch selection ?? .section(.general) {
+                case .section(let s): sectionList(s, rows: data.rows)
+                case .custom: customList(data.others)
                 }
             }
-            .id(trimmedQuery.isEmpty ? selection : nil)          // nouvelle liste (et retour en haut) à chaque section
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            Divider()
-            StatusBar(store: store, status: status, link: link, fl: FLMonitor.shared)
         }
-        .overlay(alignment: .bottom) {
-            ZStack {
-                if let toast {
-                    ToastView(message: toast) { self.toast = nil }
-                        .padding(.bottom, 38)
-                        .transition(Motion.rise)
-                        .id(toast.id)                       // une nouvelle notification remplace l'ancienne
+        .id(trimmedQuery.isEmpty ? selection : nil)          // nouvelle liste (et retour en haut) à chaque section
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        // Façon macOS 26 : la liste défile SOUS des éléments en verre qui flottent (avertissements en haut,
+        // notification et statut en bas). Peu de surfaces, regroupées : le système les dessine ensemble.
+        .safeAreaInset(edge: .top, spacing: 0) {
+            NoticeStack(items: notices)
+        }
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            GlassGroup(spacing: 8) {
+                VStack(spacing: 8) {
+                    if let toast {
+                        ToastView(message: toast) { self.toast = nil }
+                            .transition(Motion.rise)
+                            .id(toast.id)                   // une nouvelle notification remplace l'ancienne
+                    }
+                    StatusBar(store: store, status: status, link: link, fl: FLMonitor.shared)
                 }
             }
+            .padding(.horizontal, 14)
+            .padding(.bottom, 10)
             .motion(Motion.smooth, value: toast)
         }
         .sheet(item: $editingRow) { row in
@@ -430,22 +434,26 @@ private struct NoticeStack: View {
 
     var body: some View {
         if !items.isEmpty {
-            VStack(spacing: 0) {
-                ForEach(items) { item in
-                    HStack(spacing: 8) {
-                        Image(systemName: item.symbol).foregroundStyle(item.tint)
-                        Text(item.text).fixedSize(horizontal: false, vertical: true)
-                        Spacer(minLength: 8)
-                        if let title = item.button, let action = item.action {
-                            Button(title, action: action).controlSize(.small)
+            GlassGroup(spacing: 6) {
+                VStack(spacing: 6) {
+                    ForEach(items) { item in
+                        HStack(spacing: 8) {
+                            Image(systemName: item.symbol).foregroundStyle(item.tint)
+                            Text(item.text).fixedSize(horizontal: false, vertical: true)
+                            Spacer(minLength: 8)
+                            if let title = item.button, let action = item.action {
+                                Button(title, action: action).controlSize(.small).secondaryButton()
+                            }
                         }
+                        .font(.system(size: 12))
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 9)
+                        .glassSurface(RoundedRectangle(cornerRadius: 14, style: .continuous))
                     }
-                    .font(.system(size: 12))
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 7)
-                    Divider()
                 }
             }
+            .padding(.horizontal, 14)
+            .padding(.top, 8)
         }
     }
 }
@@ -458,21 +466,25 @@ private struct StatusBar: View {
     @ObservedObject var link: MIDILink
     @ObservedObject var fl: FLMonitor
 
+    /// Pastille de verre flottante en bas à gauche (comme les barres flottantes de macOS 26).
     var body: some View {
-        HStack(spacing: 6) {
-            Circle().fill(color).frame(width: 7, height: 7)
-                .accessibilityHidden(true)
-            Text(text).foregroundStyle(.secondary).lineLimit(1)
-            if let action {
-                Button(action.label, action: action.run)
-                    .buttonStyle(.link)
+        HStack(spacing: 0) {
+            HStack(spacing: 7) {
+                Circle().fill(color).frame(width: 7, height: 7)
+                    .accessibilityHidden(true)
+                Text(text).foregroundStyle(.secondary).lineLimit(1)
+                if let action {
+                    Button(action.label, action: action.run)
+                        .buttonStyle(.link)
+                }
             }
+            .font(.system(size: 11.5))
+            .padding(.horizontal, 14)
+            .frame(height: 30)
+            .glassSurface(Capsule())
+            .accessibilityElement(children: .contain)
             Spacer(minLength: 0)
         }
-        .font(.system(size: 11))
-        .padding(.horizontal, 12)
-        .frame(height: 26)
-        .accessibilityElement(children: .contain)
     }
 
     private var color: Color {
@@ -775,6 +787,7 @@ struct EditSheet: View {
                 Spacer()
                 Button("Annuler") { recorder.stop(); dismiss() }
                     .keyboardShortcut(.cancelAction)
+                    .secondaryButton()
                 Button("Valider") {
                     recorder.stop()
                     var final = draft
@@ -1055,12 +1068,12 @@ struct ToastMessage: Identifiable, Equatable {
     static func == (a: ToastMessage, b: ToastMessage) -> Bool { a.id == b.id }
 }
 
-/// Petite notification (verre sur macOS 26, opaque sinon) en bas de la liste, avec « Annuler » quand c'est possible.
+/// Petite notification (verre sur macOS 26, opaque sinon) au-dessus du statut, avec « Annuler » quand c'est possible.
 private struct ToastView: View {
     let message: ToastMessage
     let onClose: () -> Void
 
-    private var shape: RoundedRectangle { RoundedRectangle(cornerRadius: 8, style: .continuous) }
+    private var shape: Capsule { Capsule() }
 
     var body: some View {
         HStack(spacing: 10) {
@@ -1068,10 +1081,11 @@ private struct ToastView: View {
             if let undo = message.undo {
                 Button("Annuler") { undo(); onClose() }
                     .controlSize(.small)
+                    .secondaryButton()
             }
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 7)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 8)
         .glassSurface(shape)
         .shadow(color: .black.opacity(0.12), radius: 6, y: 2)
         .accessibilityElement(children: .contain)
@@ -1250,6 +1264,7 @@ struct CatalogEditSheet: View {
                 Spacer()
                 Button("Annuler") { recorder.stop(); dismiss() }
                     .keyboardShortcut(.cancelAction)
+                    .secondaryButton()
                 Button("Valider") {
                     recorder.stop()
                     let found = clashes

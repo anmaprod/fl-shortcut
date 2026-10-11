@@ -68,7 +68,7 @@ internal sealed class AppController : INotifyPropertyChanged, IDisposable
 
     public string? LoadWarning { get; }
     /// Mode léger (défaut) : FL Shortcut n'envoie que des touches d'origine de FL, sans script ni MIDI.
-    public bool Light => !_settings.MidiActions;
+    public bool Light => !(_settings.MidiActions ?? _settings.ScriptPath is not null);
     /// En mode léger, rien à configurer : pas d'accueil (ni loopMIDI, ni MIDI Settings).
     public bool Onboarded => _settings.Onboarded || Light;
     public bool Enabled => _settings.Enabled;

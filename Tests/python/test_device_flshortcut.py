@@ -122,10 +122,21 @@ class TestSleep(Base):
         self.assertEqual(len(self.fl.out), before)          # ni battement, ni fenêtre, ni HELLO
         self.assertEqual(len(self.fl.calls), calls)         # aucun appel à FL
 
-    def test_frames_ignored_while_asleep(self):
+    def test_frames_ignored_while_asleep_but_refused(self):
         self.make(wake=False)
         self.command(33, nonce=[0, 0, 0, 0])
         self.assertNotIn("ui.showWindow", self.fl.names())
+        self.assertEqual(self.last_ack(), 0)                # l'appli sait qu'il faut se resynchroniser
+        self.assertFalse(self.dev._st.awake)
+
+    def test_unsigned_traffic_does_not_keep_awake(self):
+        self.make(wake=False)
+        self.send(103, 2)
+        for _ in range(20):
+            self.clock.t += 1
+            self.command(33, mac=[1, 2, 3, 4])               # trames non signées
+            self.dev.OnIdle()
+        self.assertFalse(self.dev._st.awake)
 
     def test_brief_wake_runs_then_sleeps(self):
         self.make(wake=False)

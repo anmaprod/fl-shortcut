@@ -5,7 +5,7 @@ Tes propres raccourcis clavier pour **FL Studio**, sur **Mac** et **Windows**.
 FL Studio n'a pas d'éditeur de raccourcis. FL Shortcut en ajoute un : quand FL Studio est au premier plan, il reconnaît tes raccourcis et envoie à FL **ses propres touches** (Mixer, Playlist, REC, métronome, pattern suivant…). **Rien à installer dans FL** : pas de script, pas de MIDI, pas de loopMIDI.
 
 - **Macros** (Mac, version de test) : *Enregistrement rapide* charge un état de piste du Mixer, arme la piste, choisit l'entrée et lance le REC, d'un seul raccourci. Voir [MACROS.md](MACROS.md).
-- **Mode MIDI** (facultatif, pour les utilisateurs avancés) : 38 actions via un script authentifié (mute / solo de piste, volume…). Désactivé par défaut.
+- **Mode MIDI** (facultatif, pour les utilisateurs avancés) : 40 actions via un script authentifié (mute / solo de piste, volume…). Désactivé par défaut.
 
 > Outil indépendant, non affilié à Image-Line. « FL Studio » est une marque d'Image-Line.
 
@@ -87,7 +87,7 @@ Détails, limites et mode d'emploi du diagnostic (`FLShortcut --diag-macro`) : [
 ## Sécurité et vie privée
 
 - Le clavier n'est observé **que quand FL Studio est au premier plan**. Aucune frappe n'est enregistrée, journalisée ni envoyée. L'appli n'utilise pas le réseau.
-- Les actions passent par des **trames MIDI signées** (HMAC-SHA256, nonce, anti-rejeu, limite de débit, liste blanche des 38 actions). Un autre logiciel qui écrit sur le port ne peut rien déclencher. Le protocole est décrit dans [PROTOCOL.md](PROTOCOL.md).
+- Les actions passent par des **trames MIDI signées** (HMAC-SHA256, nonce, anti-rejeu, limite de débit, liste blanche des 40 actions). Un autre logiciel qui écrit sur le port ne peut rien déclencher. Le protocole est décrit dans [PROTOCOL.md](PROTOCOL.md).
 - La clé est rangée dans le **Trousseau** (Mac) ou protégée par **DPAPI** (Windows).
 - Les écritures de fichiers sont atomiques, et les liens symboliques sont refusés. L'empreinte du script installé est vérifiée, et un script modifié est signalé.
 - Les touches dangereuses (`⌘Q`, `Alt+F4`, `Win+…`…) sont refusées comme cibles, y compris dans un profil importé.
@@ -122,7 +122,7 @@ Détails, limites et mode d'emploi du diagnostic (`FLShortcut --diag-macro`) : [
 
 ```
 Resources/device_FLShortcut.py   script MIDI côté FL Studio (Python 3.6+, FL 20.7 → 2025+)
-PROTOCOL.md                      contrat commun : trames, HMAC, table des 38 actions
+PROTOCOL.md                      contrat commun : trames, HMAC, table des 40 actions
 Sources/FLShortcut/              app Mac (SwiftUI) : interception (EventTap), routeur, MIDI (CoreMIDI),
                                  Trousseau, interface Liquid Glass (GlassStyle, EditorView, OnboardingView)
 Tests/FLShortcutTests/           tests XCTest

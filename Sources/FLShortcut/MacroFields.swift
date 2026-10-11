@@ -58,7 +58,7 @@ struct MacroFields: View {
                     HStack(spacing: 8) {
                         Text(URL(fileURLWithPath: path).deletingPathExtension().lastPathComponent)
                             .lineLimit(1).truncationMode(.middle)
-                        Button("Changer…") { choosePreset() }
+                        Button("Changer…") { choosePreset() }.secondaryButton()
                     }
                 }
             }
@@ -77,10 +77,10 @@ struct MacroFields: View {
                     VStack(alignment: .leading, spacing: 4) {
                         HStack(spacing: 8) {
                             if link.snapshot.hasKey {
-                                Button(checking ? "Vérification…" : "Vérifier") { checkLink() }.disabled(checking)
-                                Button("Réinstaller…") { FLScriptInstaller.installWithAlert() }
+                                Button(checking ? "Vérification…" : "Vérifier") { checkLink() }.secondaryButton().disabled(checking)
+                                Button("Réinstaller…") { FLScriptInstaller.installWithAlert() }.secondaryButton()
                             } else {
-                                Button("Installer le lien avec FL…") { FLScriptInstaller.installWithAlert() }
+                                Button("Installer le lien avec FL…") { FLScriptInstaller.installWithAlert() }.primaryButton()
                             }
                         }
                         Text(linkNote ?? "Sert seulement pendant la macro, à vérifier si la piste et le REC sont déjà armés. Le reste du temps, rien ne circule : FL ne ralentit pas. Une fois dans FL : Options › MIDI Settings, Input « FL Shortcut » : Enable et Controller type « FL Shortcut » ; Output « FL Shortcut » : même numéro de port.")
@@ -121,6 +121,7 @@ struct MacroFields: View {
             VStack(alignment: .leading, spacing: 4) {
                 HStack(spacing: 8) {
                     Button(countdown.map { "Départ dans \($0) s…" } ?? "Tester dans FL") { startTest() }
+                        .secondaryButton()
                         .disabled(countdown != nil || learner.isActive)
                 }
                 Text(testNote ?? (automatic

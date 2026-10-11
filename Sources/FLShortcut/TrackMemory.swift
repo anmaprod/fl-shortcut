@@ -27,7 +27,7 @@ final class TrackMemory {
     }
 
     /// Dernier clic dans FL depuis moins de `maxAge` secondes.
-    func lastClick(maxAge: TimeInterval = 1800) -> CGPoint? {
+    func lastClick(maxAge: TimeInterval = 600) -> CGPoint? {
         guard let l = last.value, Date().timeIntervalSince(l.date) < maxAge else { return nil }
         return l.point
     }

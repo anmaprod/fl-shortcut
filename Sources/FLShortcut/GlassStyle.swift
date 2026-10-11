@@ -103,7 +103,48 @@ private struct PrimaryButtonStyleModifier: ViewModifier {
     }
 }
 
+/// Regroupe des surfaces de verre voisines : le système les dessine en une passe et les fait se fondre
+/// entre elles (GlassEffectContainer, macOS 26). Ailleurs : simple conteneur.
+struct GlassGroup<Content: View>: View {
+    var spacing: CGFloat = 8
+    @ViewBuilder let content: () -> Content
+
+    var body: some View {
+        #if compiler(>=6.2)
+        if #available(macOS 26.0, *) {
+            GlassEffectContainer(spacing: spacing) { content() }
+        } else {
+            content()
+        }
+        #else
+        content()
+        #endif
+    }
+}
+
+/// Bouton secondaire : verre sur macOS 26 (préférence active), bordé sinon.
+private struct SecondaryButtonStyleModifier: ViewModifier {
+    @AppStorage(Appearance.glassKey) private var glassEnabled = true
+
+    func body(content: Content) -> some View {
+        #if compiler(>=6.2)
+        if #available(macOS 26.0, *), glassEnabled {
+            content.buttonStyle(.glass)
+        } else {
+            content.buttonStyle(.bordered)
+        }
+        #else
+        content.buttonStyle(.bordered)
+        #endif
+    }
+}
+
 extension View {
+    /// Bouton secondaire (Annuler, Changer…, Apprendre…).
+    func secondaryButton() -> some View {
+        modifier(SecondaryButtonStyleModifier())
+    }
+
     /// Surface flottante en verre (voir GlassSurface).
     func glassSurface<S: InsettableShape>(_ shape: S) -> some View {
         modifier(GlassSurface(shape: shape))
