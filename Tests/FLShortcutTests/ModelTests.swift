@@ -112,13 +112,14 @@ final class ModelTests: XCTestCase {
 
     func testRecommendedPresetHasNoBareKeysNorSpacesConflicts() {
         let remaps = ProfilePreset.recommended.remaps(layout: FakeLayout.qwerty)
-        XCTAssertEqual(remaps.count, 11)
+        XCTAssertEqual(remaps.count, 12)
         XCTAssertTrue(remaps.allSatisfy { $0.trigger?.hasModifiers == true })
         let triggers = Set(remaps.compactMap(\.trigger))
         XCTAssertFalse(triggers.contains(KeyCombo(keyCode: 123, control: true)))
         XCTAssertFalse(triggers.contains(KeyCombo(keyCode: 124, control: true)))
         XCTAssertTrue(triggers.contains(KeyCombo(keyCode: 3, control: true)))      // ⌃F
-        XCTAssertTrue(remaps.allSatisfy { $0.actionID.map(FLActions.isKnown) == true })
+        XCTAssertTrue(remaps.filter { $0.kind == .flAction }.allSatisfy { $0.actionID.map(FLActions.isKnown) == true })
+        XCTAssertEqual(remaps.filter { $0.kind == .macro }.map(\.trigger), [KeyCombo(keyCode: 15, control: true)])   // ⌃R
     }
 
     func testPresetsWithRussianLayoutFallBackToQWERTYPositions() {
@@ -148,7 +149,7 @@ final class ModelTests: XCTestCase {
     func testFirstLaunchFreezesRecommendedProfile() {
         let storage = MemoryProfileStorage()
         let store = makeStore(storage)
-        XCTAssertEqual(store.remaps.count, 11)
+        XCTAssertEqual(store.remaps.count, 12)
         XCTAssertEqual(storage.writes, 1)
         XCTAssertNil(store.loadWarning)
     }
@@ -159,7 +160,7 @@ final class ModelTests: XCTestCase {
         XCTAssertEqual(storage.writes, 0)
         XCTAssertEqual(storage.backups.count, 1)
         XCTAssertNotNil(store.loadWarning)
-        XCTAssertEqual(store.remaps.count, 11)
+        XCTAssertEqual(store.remaps.count, 12)
     }
 
     func testV1ProfileIsBackedUpThenMigrated() throws {
@@ -170,6 +171,7 @@ final class ModelTests: XCTestCase {
         XCTAssertEqual(storage.writes, 1)
         let written = try ProfileCodec.decode(XCTUnwrap(storage.data))
         XCTAssertEqual(written.sourceVersion, 2)
+        XCTAssertEqual(store.remaps.last?.kind, .macro)            // macro d'exemple ajoutée une fois
     }
 
     func testSaveErrorIsPublished() {

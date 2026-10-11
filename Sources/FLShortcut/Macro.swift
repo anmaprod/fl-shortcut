@@ -14,6 +14,8 @@ struct ClickSpot: Codable, Equatable, Hashable {
         case window
         /// x depuis le curseur, y depuis le haut de la fenêtre FL (colonne d'une piste du Mixer).
         case cursorXWindowY
+        /// Depuis le point du clic précédent de la macro (élément d'une liste qui vient de s'ouvrir).
+        case lastClick
     }
 
     var anchor: Anchor

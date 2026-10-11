@@ -100,8 +100,20 @@ final class Store: ObservableObject {
         let loaded = Store.load(storage: storage, layout: layout)
         remaps = loaded.remaps
         loadWarning = loaded.warning
+        var needsSave = loaded.needsSave
+        // Une seule fois : la macro d'exemple rejoint un profil existant (jamais le profil « Vide », jamais à la
+        // place d'une touche déjà prise).
+        if !defaults.bool(forKey: Self.exampleMacroKey) {
+            defaults.set(true, forKey: Self.exampleMacroKey)
+            let example = ProfilePreset.exampleMacro(layout: layout)
+            if !remaps.isEmpty, !remaps.contains(where: { $0.kind == .macro }),
+               !remaps.contains(where: { $0.trigger == example.trigger }) {
+                remaps.append(example)
+                needsSave = true
+            }
+        }
         refreshLayoutDependentState()
-        if loaded.needsSave { saveNow() }
+        if needsSave { saveNow() }
 
         if pushToTap {
             layoutObserver = DistributedNotificationCenter.default().addObserver(
@@ -118,6 +130,8 @@ final class Store: ObservableObject {
     }
 
     // MARK: Chargement
+
+    static let exampleMacroKey = "exampleMacroAdded"
 
     struct LoadResult {
         var remaps: [Remap]

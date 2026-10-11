@@ -463,10 +463,18 @@ enum ProfilePreset: String, CaseIterable, Identifiable {
 
     var summary: String {
         switch self {
-        case .recommended: return "⌃1…⌃5 pour les fenêtres, ⌃D/⌃F patterns, ⌃T/⌃S mute/solo, ⌃M métronome, ⌘⇧Z rétablir. Rien n'écrase FL."
+        case .recommended: return "⌃1…⌃5 pour les fenêtres, ⌃D/⌃F patterns, ⌃T/⌃S mute/solo, ⌃M métronome, ⌘⇧Z rétablir, ⌃R enregistrement rapide (macro). Rien n'écrase FL."
         case .ableton: return "Tab, 0 et ⌃⌥←/→ comme dans Ableton. Contient des touches seules."
         case .empty: return "Aucun raccourci."
         }
+    }
+
+    /// Macro livrée en exemple : « Enregistrement rapide » sur ⌃R (positions à apprendre dans sa fiche).
+    static func exampleMacro(layout: KeyboardLayout) -> Remap {
+        var macro = Macro()
+        macro.recKey = AppMode.nativeEquivalent(of: 3, layout: layout)
+        let r = KeyNames.keyCode(for: "r", layout: layout) ?? 15
+        return Remap(trigger: KeyCombo(keyCode: r, control: true), macro: macro)
     }
 
     /// Lettres résolues selon la disposition (repli QWERTY), chiffres par position physique.
@@ -487,6 +495,7 @@ enum ProfilePreset: String, CaseIterable, Identifiable {
                 Remap(trigger: KeyCombo(keyCode: key("s", 1), control: true), action: 22),   // solo
                 Remap(trigger: KeyCombo(keyCode: key("m", 46), control: true), action: 4),   // métronome
                 redo,
+                Self.exampleMacro(layout: layout),
             ]
             return list
         case .ableton:

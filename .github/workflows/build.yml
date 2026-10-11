@@ -88,14 +88,19 @@ jobs:
 
   mac:
     name: App Mac (compilation + tests)
-    runs-on: macos-15
+    # SDK macOS 26 (Xcode 26+) : sans lui, l'app garde l'ancien aspect, sans aucun Liquid Glass système
+    # (barre latérale, barre d'outils, feuilles, boutons, panneau de la barre des menus).
+    runs-on: macos-26
     needs: script-fl
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - name: Versions
-        run: swift --version && xcodebuild -version
+      - name: Xcode le plus récent
+        run: |
+          latest=$(ls -d /Applications/Xcode_2[6-9]*.app 2>/dev/null | sort -V | tail -1)
+          if [[ -n "$latest" ]]; then sudo xcode-select -s "$latest"; fi
+          swift --version && xcodebuild -version
       - name: Tests Swift
         run: swift test
       - name: Compilation universelle et .dmg
@@ -132,13 +137,28 @@ jobs:
           fi
           chmod +x build.sh
           ./build.sh
+      - name: Mesure de l'interface (mémoire et processeur, avec et sans verre)
+        continue-on-error: true      # mesure indicative : n'empêche jamais la publication
+        run: |
+          {
+            echo "## Mesure de l'interface (macOS 26)"
+            scripts/mesure-interface.sh "dist/FL Shortcut.app" dist/mesure
+          } | tee -a "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: FLShortcut-mac
           path: |
             dist/FLShortcut.dmg
             dist/FLShortcut.dmg.sha256
+            dist/FLShortcut.pkg
+            dist/FLShortcut.pkg.sha256
           if-no-files-found: error
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: always()
+        with:
+          name: FLShortcut-mac-mesure
+          path: dist/mesure
+          if-no-files-found: ignore
 
   release:
     name: Publication (tag v*)
@@ -161,11 +181,12 @@ jobs:
           gh run download "$GITHUB_RUN_ID" --repo "$GITHUB_REPOSITORY" --name FLShortcut-mac --dir dist
           gh run download "$GITHUB_RUN_ID" --repo "$GITHUB_REPOSITORY" --name FLShortcut-windows --dir dist
       - name: Vérifier les empreintes
-        run: cd dist && sha256sum -c FLShortcut.dmg.sha256 && sha256sum -c FLShortcut-win.sha256
+        run: cd dist && sha256sum -c FLShortcut.dmg.sha256 FLShortcut.pkg.sha256 FLShortcut-win.sha256
       - uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
         with:
           subject-path: |
             dist/FLShortcut.dmg
+            dist/FLShortcut.pkg
             dist/FLShortcut-Windows-Setup.exe
             dist/FLShortcut-win-*.zip
       - name: Créer la release (outil officiel gh, sans action tierce)
@@ -175,7 +196,7 @@ jobs:
         run: |
           # Noms de fichiers fixes : les liens « releases/latest/download/… » de la page de téléchargement
           # et du README pointent toujours vers la dernière version.
-          gh release create "$TAG" dist/FLShortcut.dmg dist/FLShortcut.dmg.sha256 \
+          gh release create "$TAG" dist/FLShortcut.dmg dist/FLShortcut.dmg.sha256 dist/FLShortcut.pkg dist/FLShortcut.pkg.sha256 \
             dist/FLShortcut-Windows-Setup.exe dist/FLShortcut-win-x64.zip dist/FLShortcut-win-arm64.zip \
             dist/FLShortcut-win.sha256 \
             --repo "$GITHUB_REPOSITORY" --title "FL Shortcut $TAG" \

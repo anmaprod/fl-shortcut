@@ -7,6 +7,9 @@ struct MacroFields: View {
     @Binding var macro: Macro
     @ObservedObject private var learner = MacroLearner.shared
     @ObservedObject private var status = AppStatus.shared
+    /// Compte à rebours du bouton « Tester » (nil : rien en cours).
+    @State private var countdown: Int?
+    @State private var testNote: String?
 
     private var fixedPreset: Bool { macro.presetPath != nil }
 
@@ -82,6 +85,16 @@ struct MacroFields: View {
         }
         .onDisappear { learner.cancel() }
 
+        LabeledContent("Essai") {
+            VStack(alignment: .leading, spacing: 4) {
+                Button(countdown.map { "Départ dans \($0) s…" } ?? "Tester dans FL") { startTest() }
+                    .disabled(countdown != nil || learner.isActive)
+                Text(testNote ?? "FL passe devant : place la souris sur une piste du Mixer avant la fin du compte à rebours. Échap arrête la macro.")
+                    .font(.caption).foregroundStyle(testNote == nil ? Color.secondary : Color.orange)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+
         if let last = status.lastMacro {
             LabeledContent("Dernier essai") {
                 Label(last.text, systemImage: last.ok ? "checkmark.circle.fill" : "xmark.circle.fill")
@@ -108,6 +121,36 @@ struct MacroFields: View {
                 }
             }
         }
+    }
+
+    /// Lance la macro du brouillon (même enregistrée nulle part) : FL au premier plan, puis 3 s pour viser la piste.
+    private func startTest() {
+        testNote = nil
+        if let why = MacroLibrary.problem(in: macro, forbidden: EventTap.shared.currentConfig.forbidden) {
+            testNote = why
+            return
+        }
+        guard let pid = EventTap.shared.currentConfig.flPIDs.first,
+              let fl = NSRunningApplication(processIdentifier: pid) else {
+            testNote = "Ouvre FL Studio, puis recommence."
+            return
+        }
+        let draft = macro
+        fl.activate(options: [])
+        countdown = 3
+        func tick() {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
+                guard let left = countdown else { return }
+                if left > 1 { countdown = left - 1; tick(); return }
+                countdown = nil
+                switch MacroRunner.shared.start(draft, flPID: pid) {
+                case .started: break
+                case .busy: testNote = "Une macro tourne déjà."
+                case .refused: testNote = "FL Studio n'était pas au premier plan : recommence sans changer de fenêtre."
+                }
+            }
+        }
+        tick()
     }
 
     private func choosePreset() {

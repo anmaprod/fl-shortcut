@@ -68,6 +68,20 @@ enum FLWindows {
         list(pid: pid).contains { $0.bounds.insetBy(dx: -2, dy: -2).contains(p) }
     }
 
+    /// Processus propriétaire de la fenêtre visible tout devant à ce point (menus contextuels compris).
+    static func ownerOfTopWindow(at p: CGPoint) -> Int32? {
+        let options: CGWindowListOption = [.optionOnScreenOnly, .excludeDesktopElements]
+        guard let raw = CGWindowListCopyWindowInfo(options, kCGNullWindowID) as? [[String: Any]] else { return nil }
+        for w in raw {                                            // de l'avant vers l'arrière
+            guard let layer = w[kCGWindowLayer as String] as? Int, layer >= 0, layer < 1000,
+                  let alpha = w[kCGWindowAlpha as String] as? Double, alpha > 0.01,
+                  let dict = w[kCGWindowBounds as String] as? [String: Any],
+                  let bounds = CGRect(dictionaryRepresentation: dict as CFDictionary), bounds.contains(p) else { continue }
+            return w[kCGWindowOwnerPID as String] as? Int32
+        }
+        return nil
+    }
+
     /// Position actuelle du curseur, en coordonnées CoreGraphics (origine en haut à gauche).
     static func cursor() -> CGPoint { CGEvent(source: nil)?.location ?? .zero }
 }
@@ -176,6 +190,14 @@ final class MacroRunner {
     /// puis remis à sa place. À mettre à `false` pour tester l'envoi pur d'événements.
     static var warpCursor = true
 
+    /// Clics envoyés comme de vrais clics (flux du système) : beaucoup d'apps ignorent la souris envoyée à leur
+    /// seul PID. Garde-fou : la fenêtre visible tout devant au point visé doit appartenir à FL.
+    /// `defaults write app.flshortcut.FLShortcut macroClicksToPid -bool YES` : envoi au seul PID (essai).
+    static var clicksToPid: Bool { UserDefaults.standard.bool(forKey: "macroClicksToPid") }
+
+    /// Point du dernier clic de la macro (repère `lastClick`). File de la macro uniquement.
+    private var lastClickPoint: CGPoint?
+
     private enum StepResult {
         case ok
         case fail(String)
@@ -221,6 +243,7 @@ final class MacroRunner {
 
     private func execute(_ steps: [MacroStep], pid: Int32) -> MacroOutcome {
         let origin = FLWindows.cursor()
+        lastClickPoint = nil
         let ctx = Context(pid: pid, origin: origin,
                           frame: FLWindows.frame(containing: origin, pid: pid),
                           baseline: FLWindows.dialogCount(pid: pid))
@@ -351,13 +374,20 @@ final class MacroRunner {
         case .cursorXWindowY:
             guard let f = ctx.frame else { return nil }
             return CGPoint(x: ctx.origin.x + spot.dx, y: f.minY + spot.dy)
+        case .lastClick:
+            guard let last = lastClickPoint else { return nil }
+            return CGPoint(x: last.x + spot.dx, y: last.y + spot.dy)
         }
     }
 
     private func click(_ spot: ClickSpot, right: Bool, ctx: Context) -> StepResult {
         guard spot.isFinite, let p = resolve(spot, ctx: ctx) else { return .fail("position introuvable (fenêtre de FL ?)") }
         guard FLWindows.contains(p, pid: ctx.pid) else { return .fail("le point visé est hors de FL") }
+        if !Self.clicksToPid, FLWindows.ownerOfTopWindow(at: p) != ctx.pid {
+            return .fail("une autre fenêtre couvre FL à cet endroit")
+        }
         postClick(at: p, right: right, pid: ctx.pid)
+        lastClickPoint = p
         return .ok
     }
 
@@ -404,7 +434,7 @@ final class MacroRunner {
             e.flags = []
             e.setIntegerValueField(.mouseEventClickState, value: 1)
             e.setIntegerValueField(.eventSourceUserData, value: EventTap.mark)
-            e.postToPid(pid)
+            if Self.clicksToPid { e.postToPid(pid) } else { e.post(tap: .cghidEventTap) }
         }
         send(.mouseMoved)
         Thread.sleep(forTimeInterval: 0.03)
@@ -438,6 +468,7 @@ final class MacroLearner: ObservableObject {
     private var reference: CGPoint?
     private var referenceFrame: CGRect?
     private var captured: [String: ClickSpot] = [:]
+    private var lastPoint: CGPoint?
     private var completion: (([String: ClickSpot]) -> Void)?
 
     var isActive: Bool { instruction != nil }
@@ -456,6 +487,7 @@ final class MacroLearner: ObservableObject {
         reference = nil
         referenceFrame = nil
         captured = [:]
+        lastPoint = nil
         message = nil
         instruction = prompt()
         monitor = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown]) { [weak self] event in
@@ -485,9 +517,9 @@ final class MacroLearner: ObservableObject {
         case .armInput:
             if reference == nil { return "Dans FL : clique sur ta piste du Mixer (la souris sera là quand tu utiliseras le raccourci)." }
             switch captured.count {
-            case 0: return "Clique sur le bouton d'armement de la piste."
-            case 1: return "Clique sur le sélecteur d'entrée."
-            default: return "Clique sur la première entrée de la liste."
+            case 0: return "Clique sur le bouton d'armement de la piste (enregistrement)."
+            case 1: return "Clique sur le sélecteur d'entrée audio (panneau de droite du Mixer)."
+            default: return "Clique sur la première entrée de la liste qui s'est ouverte."
             }
         }
     }
@@ -523,8 +555,17 @@ final class MacroLearner: ObservableObject {
             captured[name] = ClickSpot(anchor: .cursor, dx: p.x - ref.x, dy: p.y - ref.y)
         case .armInput:
             guard let frame = referenceFrame else { return }
-            captured[name] = ClickSpot(anchor: .cursorXWindowY, dx: p.x - ref.x, dy: p.y - frame.minY)
+            switch name {
+            case Macro.Spot.arm:            // dans la colonne de la piste visée
+                captured[name] = ClickSpot(anchor: .cursorXWindowY, dx: p.x - ref.x, dy: p.y - frame.minY)
+            case Macro.Spot.inputMenu:      // panneau de la piste sélectionnée : même place quelle que soit la piste
+                captured[name] = ClickSpot(anchor: .window, dx: p.x - frame.minX, dy: p.y - frame.minY)
+            default:                        // élément de la liste qui vient de s'ouvrir
+                guard let last = lastPoint else { return }
+                captured[name] = ClickSpot(anchor: .lastClick, dx: p.x - last.x, dy: p.y - last.y)
+            }
         }
+        lastPoint = p
         if captured.count == names.count {
             let result = captured
             let done = completion

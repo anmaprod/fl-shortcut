@@ -153,11 +153,31 @@ if [[ -n "${SIGN_IDENTITY:-}" ]]; then
   fi
 fi
 
-echo "▸ Empreinte"
-(cd dist && shasum -a 256 "$(basename "$DMG")" > "$(basename "$DMG").sha256")
-cat "$DMG.sha256"
+echo "▸ Paquet d'installation (.pkg) : installe FL Shortcut dans /Applications en un double-clic"
+PKG="dist/FLShortcut.pkg"
+PKG_ROOT=$(mktemp -d)
+PKG_PLIST=$(mktemp -d)/component.plist
+cp -R "$APP" "$PKG_ROOT/"
+pkgbuild --analyze --root "$PKG_ROOT" "$PKG_PLIST" >/dev/null
+# Toujours dans /Applications : sans cela, Installer « met à jour » une autre copie du même identifiant
+# (par exemple un build de développement dans ~/Applications) au lieu d'installer celle-ci.
+plutil -replace 0.BundleIsRelocatable -bool NO "$PKG_PLIST"
+PKG_VERSION=$(/usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" "$APP/Contents/Info.plist")
+pkgbuild --root "$PKG_ROOT" --component-plist "$PKG_PLIST" --install-location /Applications \
+  --identifier app.flshortcut.pkg --version "$PKG_VERSION" "dist/FLShortcut-component.pkg" >/dev/null
+if [[ -n "${INSTALLER_SIGN_IDENTITY:-}" ]]; then
+  productbuild --package "dist/FLShortcut-component.pkg" --sign "$INSTALLER_SIGN_IDENTITY" "$PKG"
+else
+  productbuild --package "dist/FLShortcut-component.pkg" "$PKG"
+fi
+rm -rf "$PKG_ROOT" "dist/FLShortcut-component.pkg"
 
-echo "✅ Terminé : $APP et $DMG"
+echo "▸ Empreintes"
+(cd dist && shasum -a 256 "$(basename "$DMG")" > "$(basename "$DMG").sha256" \
+  && shasum -a 256 "$(basename "$PKG")" > "$(basename "$PKG").sha256")
+cat "$DMG.sha256" "$PKG.sha256"
+
+echo "✅ Terminé : $APP, $DMG et $PKG"
 
 # Build local (FLS_NATIVE=1) : copie aussi l'app dans ~/Applications pour la lancer comme une vraie app.
 if [[ "${FLS_NATIVE:-0}" == "1" ]]; then
