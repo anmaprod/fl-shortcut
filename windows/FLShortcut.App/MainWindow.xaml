@@ -151,7 +151,7 @@
                 </NavigationViewItem>
             </NavigationView.MenuItems>
             <NavigationView.FooterMenuItems>
-                <NavigationViewItem Content="Relier FL Studio" Tag="#link" SelectsOnInvoked="False">
+                <NavigationViewItem x:Name="NavLink" Content="Relier FL Studio" Tag="#link" SelectsOnInvoked="False">
                     <NavigationViewItem.Icon><FontIcon Glyph="&#xE71B;" /></NavigationViewItem.Icon>
                 </NavigationViewItem>
             </NavigationView.FooterMenuItems>

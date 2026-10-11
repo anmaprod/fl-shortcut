@@ -59,7 +59,7 @@ internal sealed class AppController : INotifyPropertyChanged, IDisposable
 
     public void Start()
     {
-        _midi.Start();
+        if (!Light) _midi.Start();          // mode léger : aucun port MIDI ouvert, rien dans FL
         _hook.Start();
         RefreshAll();
     }
@@ -67,7 +67,10 @@ internal sealed class AppController : INotifyPropertyChanged, IDisposable
     // ---------- État affiché ----------
 
     public string? LoadWarning { get; }
-    public bool Onboarded => _settings.Onboarded;
+    /// Mode léger (défaut) : FL Shortcut n'envoie que des touches d'origine de FL, sans script ni MIDI.
+    public bool Light => !_settings.MidiActions;
+    /// En mode léger, rien à configurer : pas d'accueil (ni loopMIDI, ni MIDI Settings).
+    public bool Onboarded => _settings.Onboarded || Light;
     public bool Enabled => _settings.Enabled;
     public ProfilePreset CurrentPreset => Enum.TryParse<ProfilePreset>(_settings.Profile, out var p) ? p : ProfilePreset.Recommended;
     public IReadOnlyList<Shortcut> Shortcuts => _shortcuts;
@@ -136,8 +139,9 @@ internal sealed class AppController : INotifyPropertyChanged, IDisposable
     /// « Tester » dans la fiche : envoie l'action choisie à FL.
     public bool TestAction(int id) => _midi.SendAction(id);
 
-    public ActionAvailability Availability(int id) =>
-        AvailabilityResolver.Resolve(id, _midi.Hello?.Capabilities, _flVersion);
+    public ActionAvailability Availability(int id) => Light
+        ? LightMode.Availability(id)
+        : AvailabilityResolver.Resolve(id, _midi.Hello?.Capabilities, _flVersion);
 
     public IReadOnlyList<ShortcutIssue> IssuesFor(Shortcut draft)
     {
@@ -211,6 +215,8 @@ internal sealed class AppController : INotifyPropertyChanged, IDisposable
             Enabled = _settings.Enabled,
             Index = new ShortcutIndex(_shortcuts, blocked),
             Toggle = ProfilePresets.Toggle,
+            ActionNatives = LightMode.ActionNatives(Light),
+            AnyContext = Light,
         };
         _hook.Link = _midi.RoutingView();
         UpdateStatus();
@@ -228,6 +234,11 @@ internal sealed class AppController : INotifyPropertyChanged, IDisposable
         else if (_foreground is { Elevated: true })
             Set(StatusKind.Elevated, "FL Studio est lancé en administrateur",
                 "Relance FL Studio normalement : Windows empêche FL Shortcut d'agir sur une appli administrateur.");
+        else if (Light)
+        {
+            if (flRunning) Set(StatusKind.Linked, "Actif dans FL Studio", "Tes raccourcis marchent quand FL Studio est au premier plan.");
+            else Set(StatusKind.FlClosed, "FL Studio n'est pas ouvert", "Tes raccourcis marcheront dès que tu l'ouvres.");
+        }
         else if (!_midi.HasKey)
             Set(StatusKind.NoKey, "Lien non installé", "Installe le lien avec FL Studio pour utiliser les actions.");
         else if (_settings.ScriptPath is not null && !ScriptInstaller.IsIntact(_settings.ScriptPath, _settings.ScriptSha256))

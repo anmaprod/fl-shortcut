@@ -78,6 +78,7 @@ public sealed partial class MainWindow : Window
         _poll.Start();
 
         BuildProfileMenu();
+        if (_app.Light) NavLink.Visibility = Visibility.Collapsed;   // mode léger : rien à relier
         _app.Start();
         ShowScreen();
         if (_app.LoadWarning is { } warning) ShowToast(warning, InfoBarSeverity.Warning);
@@ -654,7 +655,7 @@ public sealed partial class MainWindow : Window
                 actions.Items.Add(item);
                 if (draft.ActionId == info.Id) actions.SelectedItem = item;
             }
-            testButton.IsEnabled = draft.ActionId is not null && _app.Linked;
+            testButton.IsEnabled = draft.ActionId is not null && _app.Linked && !_app.Light;
 
             var issues = draft.Trigger is null && draft.Target is null ? new List<ShortcutIssue>() : _app.IssuesFor(draft).ToList();
             var blocking = issues.Where(x => x.IsBlocking && x is not ShortcutIssue.NoTrigger and not ShortcutIssue.NoTarget).ToList();

@@ -99,6 +99,8 @@ internal sealed class AppSettings
     public string? ScriptPath { get; set; }
     public string? ScriptSha256 { get; set; }
     public string Profile { get; set; } = "Recommended";
+    /// Vrai = actions MIDI avec le script dans FL (loopMIDI requis). Faux (défaut) = mode léger, rien dans FL.
+    public bool MidiActions { get; set; }
 
     private static string FilePath => Path.Combine(AppPaths.Local, "settings.json");
 

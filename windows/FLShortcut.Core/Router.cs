@@ -30,19 +30,29 @@ public sealed class ShortcutIndex
 
     public bool ContainsTrigger(KeyCombo c) => _table.ContainsKey(c);
 
-    /// Fenêtre précise d'abord, puis « Partout ». Fenêtre inconnue : seulement « Partout ».
-    public Entry? Lookup(KeyCombo combo, FlWindow? window)
+    /// Fenêtre précise d'abord, puis « Partout ». Fenêtre inconnue : seulement « Partout », sauf `anyContext`
+    /// (mode léger : FL applique lui-même la touche envoyée à sa fenêtre active), où une entrée de n'importe
+    /// quelle fenêtre convient, dans un ordre fixe.
+    public Entry? Lookup(KeyCombo combo, FlWindow? window, bool anyContext = false)
     {
         if (!_table.TryGetValue(combo, out var byCtx)) return null;
         if (window is { } w && ShortcutContexts.FromWindow(w) is { } ctx && byCtx.TryGetValue(ctx, out var e)) return e;
-        return byCtx.TryGetValue(ShortcutContext.Everywhere, out var all) ? all : null;
+        if (byCtx.TryGetValue(ShortcutContext.Everywhere, out var all)) return all;
+        if (!anyContext) return null;
+        foreach (var c in Enum.GetValues<ShortcutContext>())
+            if (byCtx.TryGetValue(c, out var any)) return any;
+        return null;
     }
 }
 
 /// Configuration poussée par le thread d'interface, remplacée en bloc (lecture sans verrou : référence immuable).
+/// `ActionNatives` : mode léger, action → touche d'origine de FL (vide sinon) ; `AnyContext` : contexte de fenêtre ignoré.
 public sealed record HookConfig(bool Enabled, ShortcutIndex Index, KeyCombo Toggle, bool Recording)
 {
     public static readonly HookConfig Default = new(true, ShortcutIndex.Empty, ProfilePresets.Toggle, false);
+
+    public IReadOnlyDictionary<int, KeyCombo> ActionNatives { get; init; } = new Dictionary<int, KeyCombo>();
+    public bool AnyContext { get; init; }
 }
 
 /// Événement clavier réduit à ce qui sert à la décision.
@@ -116,11 +126,17 @@ public sealed class KeyRouter
         }
 
         if (!config.Enabled || !e.TargetIsFl) return RouterDecision.Pass;
-        if (config.Index.Lookup(e.Combo, link.KnownWindow) is not { } entry) return RouterDecision.Pass;
+        if (config.Index.Lookup(e.Combo, link.KnownWindow, config.AnyContext) is not { } entry) return RouterDecision.Pass;
 
         switch (entry.Action)
         {
             case RoutedAction.FlAction a:
+                if (config.ActionNatives.TryGetValue(a.Id, out var native))     // mode léger : la touche de FL équivalente
+                {
+                    if (ForbiddenTargets.IsForbidden(native)) return RouterDecision.Pass;
+                    _owned[vk] = new Owner.Keystroke(native);
+                    return RouterDecision.Do(new RouterEffect.Post(native));
+                }
                 if (!link.CanRun(a.Id)) return RouterDecision.Pass;     // lien inactif : la touche va à FL
                 _owned[vk] = new Owner.Action(a.Id);
                 return RouterDecision.Do(new RouterEffect.SendAction(a.Id));

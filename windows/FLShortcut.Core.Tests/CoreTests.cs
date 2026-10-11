@@ -190,12 +190,12 @@ public class ModelTests
         var toggle = Shortcut.Action(ProfilePresets.Toggle, 1);
         var issues = ShortcutAnalyzer.Analyze(new[] { dup1, dup2, bare, altgr, forbidden, toggle }, Ctx());
 
-        Assert.Empty(issues[dup1].Where(i => i.IsBlocking));
-        Assert.Contains(issues[dup2], i => i is ShortcutIssue.Duplicate);
-        Assert.Contains(issues[bare], i => i is ShortcutIssue.BareKey);
-        Assert.Contains(issues[altgr], i => i is ShortcutIssue.ForbiddenTrigger);
-        Assert.Contains(issues[forbidden], i => i is ShortcutIssue.ForbiddenTarget);
-        Assert.Contains(issues[toggle], i => i is ShortcutIssue.ReservedToggle);
+        Assert.DoesNotContain(issues[dup1.Id], i => i.IsBlocking);
+        Assert.Contains(issues[dup2.Id], i => i is ShortcutIssue.Duplicate);
+        Assert.Contains(issues[bare.Id], i => i is ShortcutIssue.BareKey);
+        Assert.Contains(issues[altgr.Id], i => i is ShortcutIssue.ForbiddenTrigger);
+        Assert.Contains(issues[forbidden.Id], i => i is ShortcutIssue.ForbiddenTarget);
+        Assert.Contains(issues[toggle.Id], i => i is ShortcutIssue.ReservedToggle);
     }
 
     [Fact]
@@ -388,5 +388,78 @@ public class DisplayTextTests
         Assert.Equal("", DisplayText.Safe(null));
         Assert.Equal(new string('x', 40) + "…", DisplayText.Safe(new string('x', 500)));
         Assert.Equal(new string('x', 39) + "…", DisplayText.Safe(new string('x', 39) + "😀😀"));   // paire non coupée
+    }
+}
+
+public class LightModeTests
+{
+    private static readonly KeyCombo Mixer = new(Vk.Digit(4), Ctrl: true, Shift: true);
+    private static readonly KeyCombo Mute = new(Vk.Letter('T'), Ctrl: true, Shift: true);
+
+    private static RouterInput Down(KeyCombo c, bool repeat = false) =>
+        new(RouterInput.Kinds.Down, c, IsRepeat: repeat, TargetIsFl: true);
+
+    private static HookConfig Light(params Shortcut[] list) => HookConfig.Default with
+    {
+        Index = new ShortcutIndex(list, new HashSet<Guid>()),
+        ActionNatives = LightMode.ActionNatives(light: true),
+        AnyContext = true,
+    };
+
+    [Fact]
+    public void ActionWithNativeKey_SendsFlKeyWithoutMidiLink()
+    {
+        var r = new KeyRouter();
+        var d = r.Route(Down(Mixer), Light(Shortcut.Action(Mixer, 33)), LinkRoutingView.Offline);
+        Assert.True(d.Swallow);
+        Assert.Equal(new RouterEffect.Post(new KeyCombo(Vk.F(9))), Assert.Single(d.Effects));
+        // Répétition : la touche de FL suit (comme une touche « Touche de FL »).
+        Assert.Single(r.Route(Down(Mixer, repeat: true), Light(Shortcut.Action(Mixer, 33)), LinkRoutingView.Offline).Effects);
+    }
+
+    [Fact]
+    public void ActionWithoutNativeKey_PassesThrough()
+    {
+        var r = new KeyRouter();
+        Assert.False(r.Route(Down(Mute), Light(Shortcut.Action(Mute, 21)), LinkRoutingView.Offline).Swallow);
+        Assert.IsType<ActionAvailability.Unavailable>(LightMode.Availability(21));
+        Assert.IsType<ActionAvailability.Available>(LightMode.Availability(33));
+    }
+
+    [Fact]
+    public void WindowContextApplies_WhenWindowUnknown()
+    {
+        var r = new KeyRouter();
+        var cfg = Light(Shortcut.Action(Mixer, 3, ShortcutContext.PianoRoll));
+        Assert.Equal(new RouterEffect.Post(new KeyCombo(Vk.Letter('R'))),
+            Assert.Single(r.Route(Down(Mixer), cfg, LinkRoutingView.Offline).Effects));
+    }
+
+    [Fact]
+    public void NativeKeys_AreNeverForbiddenTargets()
+    {
+        foreach (var (_, combo) in LightMode.ActionNatives(light: true))
+            Assert.Null(ForbiddenTargets.Reason(combo));
+        Assert.Empty(LightMode.ActionNatives(light: false));
+    }
+
+    /// Mêmes actions disponibles en mode léger sur Mac et Windows (LightMode.swift), sauf « nouveau pattern » :
+    /// ⌘F4 sur Mac, Ctrl+F4 ferme une fenêtre sous Windows.
+    [Fact]
+    public void SameActionsAsMac()
+    {
+        var swift = File.ReadAllText(Path.Combine(RepoRoot(), "Sources", "FLShortcut", "LightMode.swift"));
+        var macKeys = System.Text.RegularExpressions.Regex.Matches(swift, "case \"([a-z]+)\": return")
+            .Select(m => m.Groups[1].Value).ToHashSet();
+        macKeys.Remove("newpat");
+        var winKeys = FlActions.All.Where(a => LightMode.NativeEquivalent(a.Id) is not null).Select(a => a.Key).ToHashSet();
+        Assert.Equal(macKeys.OrderBy(k => k), winKeys.OrderBy(k => k));
+    }
+
+    private static string RepoRoot()
+    {
+        var dir = new DirectoryInfo(AppContext.BaseDirectory);
+        while (dir is not null && !Directory.Exists(Path.Combine(dir.FullName, "Sources"))) dir = dir.Parent;
+        return dir?.FullName ?? throw new DirectoryNotFoundException("racine du dépôt");
     }
 }
