@@ -51,6 +51,11 @@ run() {   # $1 : libellé, $2 : YES/NO effet verre
   "$POST" app.flshortcut.debug.open; sleep 5
   "$POST" app.flshortcut.debug.select general; sleep 2
   screencapture -x "$OUT/$label.png" 2>/dev/null || true
+  # Rendu interne de la fenêtre (toute sa hauteur, même si l'écran de test est petit).
+  rm -f "$HOME/Library/Caches/$DOMAIN/$label-"*.png
+  "$POST" app.flshortcut.debug.snapshot "$label-fenetre"; sleep 2
+  cp "$HOME/Library/Caches/$DOMAIN/$label-fenetre-"*.png "$OUT/" 2>/dev/null || true
+  echo "fenêtres : $(osascript -e 'tell application "System Events" to get size of every window of (first process whose name is "FLShortcut")' 2>/dev/null)" >&2
   m1=$(mem_mb "$p"); c1=$(cpu_avg "$p")
   echo "| $label | $m0 | $c0 | $m1 | $c1 |"
 }
