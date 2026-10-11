@@ -10,8 +10,9 @@ struct MacroFields: View {
     /// Compte à rebours du bouton « Tester » (nil : rien en cours).
     @State private var countdown: Int?
     @State private var testNote: String?
-    @State private var screenGranted = ScreenAccess.granted
-    @State private var capturing = false
+    @ObservedObject private var link = MIDILink.shared
+    @State private var checking = false
+    @State private var linkNote: String?
 
     private var automatic: Bool { macro.template == .autoRecord }
 
@@ -38,7 +39,7 @@ struct MacroFields: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text("Enregistrement rapide").fontWeight(.medium)
                 Text(automatic
-                     ? "Clique sur une piste du Mixer, puis tape le raccourci : File › Open mixer track state, ton preset, entrée 1, armement, REC. Ce qui est déjà allumé n'est pas touché."
+                     ? "Clique sur une piste du Mixer, puis tape le raccourci : File › Open mixer track state, ton preset, armement, REC. Ce qui est déjà allumé n'est pas touché."
                      : "Clic droit sur la piste → File → Open mixer track state, preset, armement, entrée 1, REC.")
                     .font(.caption).foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
@@ -63,26 +64,33 @@ struct MacroFields: View {
             }
         }
 
-        Toggle("Choisir l'entrée 1 et armer la piste", isOn: $macro.armAndInput)
-        Toggle("Allumer REC à la fin", isOn: Binding(get: { macro.startRecording }, set: { on in
+        Toggle(automatic ? "Armer la piste (si elle ne l'est pas)" : "Choisir l'entrée 1 et armer la piste", isOn: $macro.armAndInput)
+        Toggle(automatic ? "Allumer le REC à la fin (s'il est éteint)" : "Allumer REC à la fin", isOn: Binding(get: { macro.startRecording }, set: { on in
             macro.startRecording = on
             if on { macro.recKey = AppMode.nativeEquivalent(of: 3, layout: SystemKeyboardLayout()) }
         }))
 
         Group {
         if automatic {
-            LabeledContent("Lecture de FL") {
-                VStack(alignment: .leading, spacing: 4) {
-                    if screenGranted {
-                        Label("Autorisée", systemImage: "checkmark.circle.fill").foregroundStyle(.green)
-                    } else {
-                        Button("Autoriser l'enregistrement de l'écran…") { ScreenAccess.request() }
+            if macro.armAndInput || macro.startRecording {
+                LabeledContent("Lien avec FL") {
+                    VStack(alignment: .leading, spacing: 4) {
+                        HStack(spacing: 8) {
+                            if link.snapshot.hasKey {
+                                Button(checking ? "Vérification…" : "Vérifier") { checkLink() }.disabled(checking)
+                                Button("Réinstaller…") { FLScriptInstaller.installWithAlert() }
+                            } else {
+                                Button("Installer le lien avec FL…") { FLScriptInstaller.installWithAlert() }
+                            }
+                        }
+                        Text(linkNote ?? "Sert seulement pendant la macro, à vérifier si la piste et le REC sont déjà armés. Le reste du temps, rien ne circule : FL ne ralentit pas. Une fois dans FL : Options › MIDI Settings, Input « FL Shortcut » : Enable et Controller type « FL Shortcut » ; Output « FL Shortcut » : même numéro de port.")
+                            .font(.caption).foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
                     }
-                    Text("La macro regarde la fenêtre de FL pendant qu'elle travaille (menus, boutons allumés). Rien n'est enregistré ni envoyé.")
-                        .font(.caption).foregroundStyle(.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
                 }
             }
+            Text("Choisis l'entrée audio de la piste toi-même : FL ne permet pas de la régler automatiquement.")
+                .font(.caption).foregroundStyle(.secondary)
         } else {
             LabeledContent("Positions") {
                 VStack(alignment: .leading, spacing: 6) {
@@ -102,11 +110,7 @@ struct MacroFields: View {
             }
         }
         }
-        .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
-            screenGranted = ScreenAccess.granted
-        }
         .onAppear {
-            screenGranted = ScreenAccess.granted
             if macro.recKey == nil, macro.startRecording {
                 macro.recKey = AppMode.nativeEquivalent(of: 3, layout: SystemKeyboardLayout())
             }
@@ -117,12 +121,7 @@ struct MacroFields: View {
             VStack(alignment: .leading, spacing: 4) {
                 HStack(spacing: 8) {
                     Button(countdown.map { "Départ dans \($0) s…" } ?? "Tester dans FL") { startTest() }
-                        .disabled(countdown != nil || learner.isActive || capturing)
-                    if automatic {
-                        Button(capturing ? "Capture…" : "Capturer FL") { startCapture() }
-                            .disabled(countdown != nil || capturing)
-                            .help("Enregistre sur ton Bureau ce que l'app voit de FL, pour régler la macro si elle se trompe.")
-                    }
+                        .disabled(countdown != nil || learner.isActive)
                 }
                 Text(testNote ?? (automatic
                     ? "FL passe devant et la macro vise la dernière piste sur laquelle tu as cliqué. Échap l'arrête."
@@ -190,30 +189,15 @@ struct MacroFields: View {
         tick()
     }
 
-    /// « Capturer FL » : FL passe devant, puis 3 s pour ouvrir ce qu'on veut montrer (menu, liste des entrées…).
-    private func startCapture() {
-        testNote = nil
-        guard ScreenAccess.granted else {
-            ScreenAccess.request()
-            testNote = "Autorise d'abord l'enregistrement de l'écran."
-            return
-        }
-        guard let pid = EventTap.shared.currentConfig.flPIDs.first,
-              let fl = NSRunningApplication(processIdentifier: pid) else {
-            testNote = "Ouvre FL Studio, puis recommence."
-            return
-        }
-        fl.activate(options: [])
-        capturing = true
-        DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
-            FLCapture.run(pid: pid) { dir in
-                capturing = false
-                if let dir {
-                    NSWorkspace.shared.activateFileViewerSelecting([dir])
-                    testNote = "Capture enregistrée sur ton Bureau (dossier « FL Shortcut – captures »)."
-                } else {
-                    testNote = "Capture impossible."
-                }
+    /// Réveil bref du script : FL répond-il ? (MIDI Settings réglés, script à jour)
+    private func checkLink() {
+        checking = true
+        linkNote = nil
+        DispatchQueue.global(qos: .userInitiated).async {
+            let why = MIDILink.shared.runBriefly([])
+            DispatchQueue.main.async {
+                checking = false
+                linkNote = why.map { "Pas de réponse : \($0)." } ?? "FL répond : le lien est prêt."
             }
         }
     }

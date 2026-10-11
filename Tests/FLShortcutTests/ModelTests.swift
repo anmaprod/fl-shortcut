@@ -41,8 +41,8 @@ final class ModelTests: XCTestCase {
         for (name, id) in FLActions.v1Names {
             XCTAssertTrue(FLActions.isKnown(id), name)
         }
-        XCTAssertEqual(FLActions.all.count, 38)
-        XCTAssertEqual(Set(FLActions.all.map(\.id)), Set(1...38))
+        XCTAssertEqual(FLActions.all.count, 40)
+        XCTAssertEqual(Set(FLActions.all.map(\.id)), Set(1...40))
     }
 
     func testV2RoundTrip() throws {

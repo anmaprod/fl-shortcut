@@ -68,6 +68,8 @@ class FLState(object):
         self.loop_mode = kw.get("loop_mode", 1)   # 1 = Song
         self.volumes = {}
         self.solo = set(kw.get("solo", ()))
+        self.armed = set(kw.get("armed", ()))
+        self.recording = kw.get("recording", False)
         self.ch_solo = set(kw.get("ch_solo", ()))
         self.slots_enabled = {}
         self.stereo_sep = {0: kw.get("master_sep", 0.25)}
@@ -132,8 +134,13 @@ def build_fl(api=45, missing=(), extra=None, **kw):
             setattr(mods["midi"], cname, val)
 
     # transport
-    for fn in ("start", "stop", "record", "setLoopMode"):
+    for fn in ("start", "stop", "setLoopMode"):
         reg("transport", fn, 1, maxargs(0, lambda: None))
+
+    def record():
+        st.recording = not st.recording
+    reg("transport", "record", 1, maxargs(0, record))
+    reg("transport", "isRecording", 1, maxargs(0, lambda: st.recording))
     reg("transport", "globalTransport", 1, lambda cmd, value, *a: 1)
     reg("transport", "getLoopMode", 1, lambda: st.loop_mode)
     reg("transport", "getSongPos", 1,
@@ -172,7 +179,11 @@ def build_fl(api=45, missing=(), extra=None, **kw):
     for fn in ("muteTrack",):
         reg("mixer", fn, 2, lambda i, *a: chk_track(i))
     reg("mixer", "enableTrack", 1, lambda i: chk_track(i))
-    reg("mixer", "armTrack", 1, lambda i: chk_track(i))
+    def arm_track(i):
+        chk_track(i)
+        st.armed.symmetric_difference_update({i})
+    reg("mixer", "armTrack", 1, arm_track)
+    reg("mixer", "isTrackArmed", 1, lambda i: (chk_track(i), i in st.armed)[1])
 
     def solo_track(i, *a):
         chk_track(i)

@@ -90,12 +90,12 @@ enum Catalog {
     static let actionSection: [String: FLSection] = [
         "pl": .general, "cr": .general, "pr": .general, "mx": .general, "br": .general, "plmx": .general,
         "undo": .general, "redo": .general, "save": .general,
-        "play": .transport, "stop": .transport, "rec": .transport, "metro": .transport, "count": .transport,
+        "play": .transport, "stop": .transport, "rec": .transport, "recon": .transport, "metro": .transport, "count": .transport,
         "loop": .transport, "wait": .transport, "marker": .transport, "tap": .transport,
         "newpat": .patterns, "clone": .patterns, "pnext": .patterns, "pprev": .patterns,
         "snap": .pianoRoll, "quant": .pianoRoll,
         "chnext": .channelRack, "chprev": .channelRack, "presetnext": .channelRack, "presetprev": .channelRack,
-        "arm": .mixer, "mute": .mixer, "solo": .mixer, "unsolo": .mixer, "bypass": .mixer, "mono": .mixer,
+        "arm": .mixer, "armon": .mixer, "mute": .mixer, "solo": .mixer, "unsolo": .mixer, "bypass": .mixer, "mono": .mixer,
         "trnext": .mixer, "trprev": .mixer, "volup": .mixer, "voldn": .mixer,
     ]
 

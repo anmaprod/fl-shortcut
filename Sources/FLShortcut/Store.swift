@@ -196,7 +196,10 @@ final class Store: ObservableObject {
         pushConfig()
         if pushToTap {
             // « La piste sur laquelle j'ai cliqué » : suivie seulement s'il existe une macro automatique active.
-            TrackMemory.shared.setActive(remaps.contains { $0.enabled && $0.macro?.template == .autoRecord })
+            let auto = remaps.filter { $0.enabled && $0.macro?.template == .autoRecord }
+            TrackMemory.shared.setActive(!auto.isEmpty)
+            // Ports MIDI présents (sans aucun trafic) seulement si une macro arme la piste ou lance le REC.
+            MIDILink.shared.setOnDemand(auto.contains { $0.macro?.armAndInput == true || $0.macro?.startRecording == true })
         }
     }
 

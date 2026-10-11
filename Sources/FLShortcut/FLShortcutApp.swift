@@ -155,10 +155,8 @@ final class AppStatus: ObservableObject {
             })
         }
 
-        if !AppMode.light {
-            FLScriptInstaller.updateInstalledIfNeeded() // nouvelle version du script, même clé
-            refreshScriptState()
-        }
+        FLScriptInstaller.updateInstalledIfNeeded()     // script déjà installé : nouvelle version, même clé
+        if !AppMode.light { refreshScriptState() }
         supervise()
         let t = Timer(timeInterval: 2, repeats: true) { [weak self] _ in self?.supervise() }
         t.tolerance = 0.5                            // laisse macOS regrouper les réveils

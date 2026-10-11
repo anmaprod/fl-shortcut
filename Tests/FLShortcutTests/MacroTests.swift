@@ -84,9 +84,8 @@ final class MacroTests: XCTestCase {
         XCTAssertEqual(m.template, .autoRecord)
         let kinds = steps(m).map(\.kind)
         XCTAssertEqual(kinds, [.feedbackCheck, .trackMenu, .waitDialog, .waitDialogClose, .delay,
-                               .selectInput, .armTrack, .recordOn])
+                               .armTrack, .recordOn])
         XCTAssertEqual(steps(m).first { $0.kind == .waitDialogClose }?.ms, MacroLibrary.maxWaitMs)
-        XCTAssertEqual(steps(m).last?.combo, KeyCombo(keyCode: 15))
     }
 
     func testAutoRecordWithFixedPresetAndWithoutArmOrRec() {
@@ -105,15 +104,11 @@ final class MacroTests: XCTestCase {
         XCTAssertTrue(menu?.titles.last?.split(separator: "|").contains("Open mixer track state") == true)
     }
 
-    func testForbiddenRecKeyIsRefused() {
-        var m = Macro()
-        m.recKey = KeyCombo(keyCode: 12, command: true)                 // ⌘Q
-        XCTAssertNotNil(MacroLibrary.problem(in: m, forbidden: .physical))
-    }
-
-    func testScreenTextNormalization() {
-        XCTAssertEqual(ScreenReader.normalized("  Open mixer track state…  "), "open mixer track state")
-        XCTAssertEqual(ScreenReader.normalized("File..."), "file")
+    func testArmAndRecUseTheScriptActionsThatNeverSwitchOff() {
+        XCTAssertEqual(FLActions.info(39)?.key, "armon")
+        XCTAssertEqual(FLActions.info(40)?.key, "recon")
+        XCTAssertEqual(MacroRunner.armOnAction, 39)
+        XCTAssertEqual(MacroRunner.recOnAction, 40)
     }
 
     func testFeedbackRiskOnlyWithComputerMicAndSpeakers() {

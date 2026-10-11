@@ -20,18 +20,19 @@ Une macro est une liste d'étapes (`Macro.swift`) exécutée par `MacroRunner` s
 Bornes (`MacroLibrary.validate`) : 40 étapes, 180 s au total, chemins sans caractères de contrôle. Une macro `custom` (étapes libres) ne s'écrit qu'à la main dans le profil JSON et est **refusée à l'import**.
 
 ## Enregistrement rapide automatique (modèle livré, rien à régler)
-Modèle `autoRecord`, sur ⌃R dans le profil Recommandé. Il suffit de cliquer sur une piste du Mixer puis de taper le raccourci. L'app **lit l'écran de FL** (autorisation « Enregistrement de l'écran », `ScreenReader.swift`) :
+Modèle `autoRecord`, sur ⌃R dans le profil Recommandé. Il suffit de cliquer sur une piste du Mixer puis de taper le raccourci. **Aucune lecture de l'écran** : seule la permission du clavier (Accessibilité) est utilisée.
 
 | Étape | Effet |
 |---|---|
 | `feedbackCheck` | micro **et** haut-parleurs de l'ordinateur en service (`FeedbackRisk.swift`) → fenêtre « risque de larsen », la macro s'arrête. Carte son, casque (jack, USB, Bluetooth) : pas de blocage |
-| `trackMenu` | clic droit sur la **dernière piste cliquée** dans FL, puis « File » et « Open mixer track state » trouvés en lisant le menu (Vision, sur place) |
+| `trackMenu` | clic droit sur la **dernière piste cliquée** dans FL (`TrackMemory.swift`), puis « File › Open mixer track state » par l'Accessibilité, sinon au clavier (`MacroRunner.trackMenuKeys`) |
 | `waitDialog` / `waitDialogClose` | attend la boîte « Ouvrir » puis le choix du preset (ou tape le chemin d'un preset fixe) |
-| `selectInput` | « (none) » → première entrée (« In 1 »…). Une entrée déjà choisie n'est pas touchée |
-| `armTrack` | bouton d'armement repéré dans la colonne de la piste ; déjà allumé → rien (jamais désarmer) |
-| `recordOn` | touche REC de FL, puis comparaison du haut de la fenêtre : s'il s'est éteint, il était allumé → rallumé |
+| `armTrack` | action 39 `armon` du script FL : arme la piste sélectionnée **seulement si** elle ne l'est pas |
+| `recordOn` | action 40 `recon` du script FL : allume le REC **seulement s'il** est éteint |
 
-Les captures ne contiennent que les fenêtres de FL, restent en mémoire le temps d'une étape et ne sont jamais envoyées. Si la macro se trompe, la fiche du raccourci a un bouton **Capturer FL** : il enregistre sur le Bureau ce que l'app voit (images, texte lu, appareils audio) pour régler la détection.
+L'entrée audio se choisit à la main : l'API de FL ne permet pas de la régler.
+
+**Lien MIDI à la demande** : en mode léger, les ports « FL Shortcut » existent (FL les voit) mais rien n'y circule. Le script FL démarre **endormi** : `OnIdle` et `OnRefresh` s'arrêtent à leur première ligne. La macro le réveille brièvement (PING = 2), envoie l'action signée, et le script se rendort tout seul 8 s après (PROTOCOL.md §4). À régler une fois dans FL : *Options › MIDI Settings*, Input « FL Shortcut » : Enable, Controller type « FL Shortcut » ; Output « FL Shortcut » : même port.
 
 ## Enregistrement rapide à positions apprises (ancien modèle)
 Modèle `quickRecord` : voir README. Réglages d'un raccourci : preset (demander à chaque fois, ou fichier .fst fixe), armer + entrée 1, REC à la fin, positions apprises (menu de la piste, armement / entrée).

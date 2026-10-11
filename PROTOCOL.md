@@ -19,7 +19,7 @@ Toute modification de ce fichier doit être répercutée des deux côtés. Origi
 
 ## 3. Annonce du script (FL → appli)
 
-Envoyée à `OnInit`, en réponse à un PING, et chaque fois que le nonce change. Suite de CC, dans cet ordre :
+Envoyée en réponse à un PING (le script démarre **endormi** et n'envoie rien avant), et chaque fois que le nonce change. Suite de CC, dans cet ordre :
 
 | CC | Valeur |
 |---|---|
@@ -55,7 +55,11 @@ L'appli envoie une trame de 8 CC, dans cet ordre :
 - Seuls les ids de la table §6 sont acceptés.
 - Les CC/canaux inconnus ne sont **pas** marqués `handled`, sauf ceux du protocole.
 
-**PING** : appli → FL, CC 103 = 1, non authentifié. Le script génère alors un **nouveau nonce**, remet `dernier_seq` à 0 et renvoie HELLO. L'appli fait un PING au lancement et quand elle n'a plus de battement depuis 6 s. Puis elle numérote ses trames à partir de 1.
+**PING** : appli → FL, CC 103, non authentifié. Le script se réveille, génère un **nouveau nonce**, remet `dernier_seq` à 0 et renvoie HELLO.
+- `1` : réveil durable (mode MIDI complet) : battements et fenêtre active comme avant.
+- `2` : réveil bref (macros) : le script se rendort `AWAKE_FOR` = 8 s après le dernier message reçu.
+
+**Sommeil** : au chargement et après un réveil bref, `OnIdle` et `OnRefresh` s'arrêtent à leur première ligne, rien n'est envoyé, et seules les PING sont écoutées (les trames sont ignorées). FL ne fait donc aucun travail pour FL Shortcut entre deux macros. L'appli fait un PING au lancement et quand elle n'a plus de battement depuis 6 s. Puis elle numérote ses trames à partir de 1.
 
 **Vecteur de test** (à reproduire des deux côtés dans les tests) :
 
@@ -120,5 +124,7 @@ Ids figés : ne jamais renuméroter, seulement ajouter. Fonctions API et version
 | 36 | undo | Annuler |
 | 37 | redo | Rétablir |
 | 38 | save | Sauvegarder |
+| 39 | armon | Armer la piste (si éteinte) : ne désarme jamais |
+| 40 | recon | Allumer le REC (si éteint) : ne l'éteint jamais |
 
 **Fenêtre de contexte** : le filtrage « Partout / Piano Roll / Playlist / Mixer » est fait par l'appli, à partir du CC 117. Le script n'a pas à le connaître.

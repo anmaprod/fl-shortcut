@@ -143,6 +143,39 @@ final class LinkCore {
         }
     }
 
+    /// Réveil bref pour une macro (file de la macro, bloquant) : PING = 2, attente du HELLO, puis les actions
+    /// dans l'ordre. Le script se rendort tout seul ensuite : rien ne circule entre deux macros.
+    /// Renvoie nil si tout est parti, sinon la raison.
+    func runBriefly(_ ids: [Int], timeout: TimeInterval = 2.5) -> String? {
+        let start = clock()
+        let sent: Bool = state.withLock { s in
+            s.hello = nil                      // le HELLO attendu est celui de ce réveil
+            s.lastPing = start
+            return transport.send([.pingBrief])
+        }
+        guard sent else { return "ports MIDI « FL Shortcut » indisponibles" }
+        let deadline = Date().addingTimeInterval(timeout)
+        while Date() < deadline {
+            let ready = state.withLock { s in s.hello != nil && (s.lastAlive.map { $0 >= start } ?? false) }
+            if ready { break }
+            Thread.sleep(forTimeInterval: 0.03)
+        }
+        let hello: HelloInfo? = state.withLock { $0.hello }
+        guard let hello else {
+            return "FL ne répond pas : active « FL Shortcut » dans FL › Options › MIDI Settings (entrée et sortie)"
+        }
+        for id in ids {
+            guard hello.capabilities.contains(id) else { return "action indisponible dans ce FL (mets FL à jour)" }
+            switch sendAction(id) {
+            case .sent: break
+            case .noKey: return "lien avec FL non installé"
+            default: return "FL n'a pas reçu la commande"
+            }
+            Thread.sleep(forTimeInterval: 0.12)
+        }
+        return nil
+    }
+
     /// À appeler toutes les secondes : PING après 6 s sans battement (ou sans HELLO) quand FL tourne.
     /// Sans réponse, l'intervalle double (6, 12, 24, 48, 60 s) : FL Shortcut se fait oublier.
     func tick(flRunning: Bool) {
@@ -412,6 +445,28 @@ final class MIDILink: ObservableObject {
         timer?.invalidate()
         timer = nil
         transport.disconnect()
+        onDemand = false
+    }
+
+    /// Mode léger avec une macro qui arme / lance le REC : ports « FL Shortcut » présents (FL les voit), mais
+    /// aucun PING, aucune surveillance : rien ne circule tant qu'une macro ne réveille pas le script.
+    private(set) var onDemand = false
+
+    func setOnDemand(_ on: Bool) {
+        guard AppMode.light, on != onDemand else { return }
+        onDemand = on
+        if on {
+            if transport.connect() { lastReconnect = Date() }
+            uniqueIDConflict = transport.hadUniqueIDConflict
+        } else {
+            transport.disconnect()
+        }
+    }
+
+    /// Macro : réveil bref du script, actions, puis il se rendort (file de la macro, bloquant).
+    func runBriefly(_ ids: [Int]) -> String? {
+        guard transport.isReady else { return "ports MIDI « FL Shortcut » indisponibles : relance FL Shortcut" }
+        return core.runBriefly(ids)
     }
 
     func setFLRunning(_ running: Bool) {
@@ -424,8 +479,10 @@ final class MIDILink: ObservableObject {
     }
 
     /// Clé changée (installation du script) : nouvelle signature, puis PING pour une nouvelle session.
+    /// Mode léger : pas de PING (le script reste endormi jusqu'à la prochaine macro).
     func reloadKey() {
         core.setKey(secrets.load())
+        guard !AppMode.light else { refresh(); return }
         core.resetPingBackoff()
         core.ping(minInterval: 0)
         refresh()

@@ -65,6 +65,8 @@ struct CCMessage: Equatable, Hashable {
     var bytes: [UInt8] { [FLProtocol.statusCC, cc & 0x7F, value & 0x7F] }
 
     static let ping = CCMessage(cc: FLProtocol.ccPing, value: 1)
+    /// Réveil bref (macros) : le script se rendort tout seul 8 s après le dernier message (PROTOCOL.md §4).
+    static let pingBrief = CCMessage(cc: FLProtocol.ccPing, value: 2)
 }
 
 /// Calcul du MAC des trames (CryptoKit `HMAC<SHA256>`).

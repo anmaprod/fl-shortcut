@@ -63,6 +63,8 @@ enum FLActions {
         FLActionInfo(id: 36, key: "undo", label: "Annuler", category: .navigation, minFL: "20.7"),
         FLActionInfo(id: 37, key: "redo", label: "Rétablir", category: .navigation, minFL: "20.7"),
         FLActionInfo(id: 38, key: "save", label: "Sauvegarder", category: .navigation, minFL: "20.7"),
+        FLActionInfo(id: 39, key: "armon", label: "Armer la piste (si éteinte)", category: .recording, minFL: "20.7"),
+        FLActionInfo(id: 40, key: "recon", label: "Allumer le REC (si éteint)", category: .recording, minFL: "20.7"),
     ]
 
     private static let byID: [Int: FLActionInfo] = Dictionary(uniqueKeysWithValues: all.map { ($0.id, $0) })

@@ -27,7 +27,7 @@ bornes vérifiées, seuls les CC du protocole (canal 16) sont marqués « handle
 # La ligne suivante est remplacée par l'appli à l'installation (16 octets en hex).
 KEY_HEX = "__FLSHORTCUT_KEY__"
 
-SCRIPT_VERSION = 2
+SCRIPT_VERSION = 3
 PROTOCOL_VERSION = 2
 
 MIDI_CHANNEL = 15          # canal 16, 0-indexé
@@ -55,6 +55,12 @@ MAX_ACTIONS_PER_S = 20     # PROTOCOL.md §4
 MAX_MAC_CHECKS_PER_S = 25  # coût CPU borné sous inondation (SEC-10)
 MAX_MAC_FAILS_PER_S = 5    # force brute du MAC 28 bits : <= 5 essais/s
 MIN_PING_INTERVAL = 0.25   # s
+# Sommeil : le script ne fait RIEN tant que l'appli ne l'a pas réveillé (PING). Réveil « bref » (PING = 2,
+# macros) : il se rendort tout seul AWAKE_FOR secondes après le dernier message. Réveil « durable » (PING = 1,
+# mode MIDI complet) : il reste éveillé. Endormi, OnIdle et OnRefresh s'arrêtent à leur première ligne.
+AWAKE_FOR = 8.0            # s
+PING_AWAKE = 1
+PING_BRIEF = 2
 MAX_REJECT_ACKS_PER_S = 20
 HEARTBEAT_PERIOD = 2.0     # s
 WINDOW_MIN_INTERVAL = 0.1  # s (CC 117 au plus toutes les 100 ms)
@@ -419,9 +425,29 @@ class _State(object):
         self.win_checked = None
         self.mono_prev = None
         self.mono_on = False
+        self.awake = False            # endormi au chargement : rien n'est envoyé ni vérifié
+        self.awake_until = None       # None : éveillé sans limite (mode MIDI complet)
 
 
 _st = _State()
+
+
+def _wake(brief):
+    _st.awake = True
+    _st.awake_until = (_now() + AWAKE_FOR) if brief else None
+
+
+def _sleep():
+    _st.awake = False
+    _st.awake_until = None
+    _st.frame = None
+    _st.hello_pending = False
+
+
+def _keep_awake():
+    """Un message de l'appli prolonge un réveil bref."""
+    if _st.awake and _st.awake_until is not None:
+        _st.awake_until = _now() + AWAKE_FOR
 
 
 def _rand7():
@@ -766,6 +792,24 @@ def _a_arm():
     if t is None:
         return _no_track()
     _fn("mixer", "armTrack")(t)
+    return True
+
+
+def _a_armon():
+    """Arme la piste sélectionnée seulement si elle ne l'est pas (ne jamais désarmer)."""
+    t = _selected_track()
+    if t is None:
+        return _no_track()
+    if not _fn("mixer", "isTrackArmed")(t):
+        _fn("mixer", "armTrack")(t)
+    return True
+
+
+def _a_recon():
+    """Allume le REC seulement s'il est éteint (ne jamais l'éteindre)."""
+    if _fn("transport", "isRecording")():
+        return True
+    _fn("transport", "record")()
     return True
 
 
@@ -1160,6 +1204,10 @@ ACTIONS = (
     (36, "undo", "Annuler", "20.7", _av_or_gt("general", "undoUp"), _a_undo),
     (37, "redo", "Rétablir", "20.7", _av(("general", "undoDown")), _a_redo),
     (38, "save", "Sauvegarder", "20.7", _GT_ONLY, lambda: _gt("FPT_Save", 92)),
+    (39, "armon", "Armer la piste (si éteinte)", "20.7",
+     _av(("mixer", "trackNumber"), ("mixer", "isTrackArmed"), ("mixer", "armTrack")), _a_armon),
+    (40, "recon", "Allumer le REC (si éteint)", "20.7",
+     _av(("transport", "isRecording"), ("transport", "record")), _a_recon),
 )
 
 ACTION_BY_ID = {}
@@ -1226,12 +1274,13 @@ def _send_hello():
 
 
 def _on_ping(value):
-    if value != 1:
+    if value not in (PING_AWAKE, PING_BRIEF):
         return
     now = _now()
     if _st.last_ping is not None and now - _st.last_ping < MIN_PING_INTERVAL:
         return
     _st.last_ping = now
+    _wake(brief=value == PING_BRIEF)
     _new_session()
     _st.caps = None
     _send_hello()
@@ -1360,8 +1409,13 @@ def _check_window(now):
 
 def _idle():
     st = _st
-    st.ticks += 1
+    if not st.awake:
+        return                       # endormi : aucun travail dans la boucle de FL
     now = _now()
+    if st.awake_until is not None and now >= st.awake_until:
+        _sleep()
+        return
+    st.ticks += 1
     # Changement de fenêtre signalé par OnRefresh : traité au passage suivant (~20 ms), au plus toutes les
     # 100 ms, et seulement si l'appli peut le recevoir.
     if st.win_dirty and st.out_ok and (st.win_checked is None
@@ -1428,7 +1482,8 @@ def _midi_msg(event):
         return
     if cc == CC_PING:
         _on_ping(value)
-    else:
+    elif _st.awake:                  # endormi : seule un PING est écouté
+        _keep_awake()
         _on_frame_cc(cc, value)
 
 
@@ -1451,8 +1506,8 @@ def _init():
     if _gt_buggy():
         msg += " - FL 26.1.0-26.1.6 : mets à jour vers 26.1.7 (bugs du scripting MIDI)"
     _hint(msg)
-    _st.hello_pending = True
-    _send_hello()
+    # Endormi jusqu'au premier PING de l'appli : rien n'est envoyé tant qu'on n'en a pas besoin.
+    _sleep()
 
 
 def OnInit():
@@ -1492,7 +1547,7 @@ _FOCUS_BIT = 32                  # midi.HW_Dirty_FocusedWindow (valeur fixe depu
 def OnRefresh(flags):
     try:
         # Aucun appel à FL pendant sa diffusion de rafraîchissement : on marque, OnIdle s'en charge.
-        if _is_int(flags) and flags & _FOCUS_BIT:
+        if _st.awake and _is_int(flags) and flags & _FOCUS_BIT:
             _st.win_dirty = True
     except Exception as exc:
         _report(exc)

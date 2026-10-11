@@ -34,12 +34,11 @@ struct MacroStep: Codable, Equatable, Hashable {
         case waitDialog       // attend l'ouverture d'une boîte de dialogue de FL
         case waitDialogClose  // attend sa fermeture (l'utilisateur choisit son preset)
         case chooseFile       // dans la boîte « Ouvrir » : ⌘⇧G, chemin, Entrée, Entrée
-        // Étapes « automatiques » (lecture de l'écran de FL, ScreenReader.swift) : rien à apprendre.
-        case trackMenu        // clic droit sur la piste visée, puis chaque titre lu à l'écran (File › Open mixer track state)
+        // Étapes « automatiques » : rien à apprendre, aucune lecture de l'écran.
+        case trackMenu        // clic droit sur la piste visée, puis File › Open mixer track state (Accessibilité ou clavier)
         case feedbackCheck    // micro et haut-parleurs de l'ordinateur : arrêt avec une explication (larsen)
-        case selectInput      // « (none) » → première entrée, seulement si aucune entrée n'est choisie
-        case armTrack         // bouton d'armement de la piste, seulement s'il est éteint
-        case recordOn         // REC (touche de FL), seulement s'il est éteint
+        case armTrack         // script FL réveillé brièvement : arme la piste sélectionnée si elle ne l'est pas
+        case recordOn         // script FL réveillé brièvement : allume le REC s'il est éteint
     }
 
     enum Button: String, Codable { case left, right }
@@ -81,7 +80,6 @@ struct MacroStep: Codable, Equatable, Hashable {
     static func waitDialogClose(_ ms: Int) -> MacroStep { var s = MacroStep(kind: .waitDialogClose); s.ms = ms; return s }
     static func chooseFile(_ path: String) -> MacroStep { var s = MacroStep(kind: .chooseFile); s.path = path; return s }
     static func trackMenu(_ titles: [String]) -> MacroStep { var s = MacroStep(kind: .trackMenu); s.titles = titles; return s }
-    static func recordOn(_ combo: KeyCombo) -> MacroStep { var s = MacroStep(kind: .recordOn); s.combo = combo; return s }
 }
 
 /// Une macro d'un raccourci. `autoRecord` est le modèle livré (rien à configurer : FL est lu à l'écran) ;
@@ -194,8 +192,8 @@ enum MacroLibrary {
         return .success(built)
     }
 
-    /// Enregistrement rapide sans réglage : FL est lu à l'écran à chaque étape.
-    /// Ordre : larsen (avant de toucher à quoi que ce soit), menu de la piste, preset, entrée, armement, REC.
+    /// Enregistrement rapide sans réglage. Ordre : larsen (avant de toucher à quoi que ce soit), menu de la piste,
+    /// preset, armement, REC. L'entrée audio se choisit à la main (FL ne permet pas de la régler par script).
     private static func autoRecordSteps(_ macro: Macro) -> [MacroStep] {
         var out: [MacroStep] = []
         if macro.armAndInput { out.append(MacroStep(kind: .feedbackCheck)) }
@@ -210,12 +208,9 @@ enum MacroLibrary {
         }
         if macro.armAndInput {
             out.append(.delay(300))
-            out.append(MacroStep(kind: .selectInput))
             out.append(MacroStep(kind: .armTrack))
         }
-        if macro.startRecording {
-            out.append(.recordOn(macro.recKey ?? KeyCombo(keyCode: fallbackRecKeyCode)))
-        }
+        if macro.startRecording { out.append(MacroStep(kind: .recordOn)) }
         return out
     }
 
@@ -284,12 +279,8 @@ enum MacroLibrary {
                     return "Étape \(n) : titres de menu invalides."
                 }
                 total += 4_000
-            case .feedbackCheck, .selectInput, .armTrack:
+            case .feedbackCheck, .armTrack, .recordOn:
                 total += 3_000
-            case .recordOn:
-                guard let combo = s.combo, combo.isValidKey else { return "Étape \(n) : touche REC non prise en charge." }
-                if let why = forbidden.reason(for: combo) { return "Étape \(n) : touche interdite (\(why))." }
-                total += 2_000
             case .chooseFile:
                 guard let p = s.path, !p.isEmpty, p.count <= 1024,
                       !p.unicodeScalars.contains(where: { CharacterSet.controlCharacters.contains($0) }) else {

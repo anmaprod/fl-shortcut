@@ -265,6 +265,8 @@ extension FLActionInfo {
         case "undo": return "Annule la dernière action"
         case "redo": return "Rétablit l'action annulée"
         case "save": return "Sauvegarde le projet"
+        case "armon": return "Arme la piste sélectionnée, sans jamais la désarmer"
+        case "recon": return "Allume le REC, sans jamais l'éteindre"
         default: return label
         }
     }

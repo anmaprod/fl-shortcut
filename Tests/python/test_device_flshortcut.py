@@ -14,7 +14,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 import fl_mocks as M  # noqa: E402
 
-ALL_IDS = list(range(1, 39))
+ALL_IDS = list(range(1, 41))
 # Actions qui exigent une API récente (audit 04 §6) : id -> API minimale
 API_MIN = {12: 25, 24: 19, 25: 12, 19: 10, 20: 10, 18: 9}
 TEST_APIS = (1, 2, 5, 8, 9, 10, 12, 13, 19, 20, 25, 28, 45)
@@ -24,7 +24,7 @@ class Base(unittest.TestCase):
     API = 45
     KEY = M.TEST_KEY_HEX
 
-    def make(self, api=None, key_hex="default", init=True, block=(), **kw):
+    def make(self, api=None, key_hex="default", init=True, block=(), wake=True, **kw):
         api = self.API if api is None else api
         if key_hex == "default":
             key_hex = self.KEY
@@ -36,6 +36,10 @@ class Base(unittest.TestCase):
         self.seq = 0
         if init:
             self.dev.OnInit()
+            if wake:
+                # Le script démarre endormi : l'appli le réveille par un PING (1 = mode MIDI complet).
+                self.send(103, 1)
+                self.clock.t += 0.3          # au-delà de MIN_PING_INTERVAL pour les PING des tests
         return self.dev
 
     def setUp(self):
@@ -101,6 +105,53 @@ class Base(unittest.TestCase):
         reads = ("Count", "Number", "getVersion", "getFocused", "isAssigned", "midiOutMsg",
                  "setHintMsg", "selectedChannel", "getLoopMode")
         return [n for n in self.fl.names() if not any(r in n for r in reads)]
+
+
+# ---------------------------------------------------------------------------- Sommeil
+class TestSleep(Base):
+    """Le script ne fait rien tant qu'il n'est pas réveillé, et se rendort après un réveil bref."""
+
+    def test_asleep_after_init_sends_nothing(self):
+        self.make(wake=False)
+        before = len(self.fl.out)
+        calls = len(self.fl.calls)
+        for _ in range(200):
+            self.clock.t += 0.02
+            self.dev.OnIdle()
+            self.dev.OnRefresh(32)
+        self.assertEqual(len(self.fl.out), before)          # ni battement, ni fenêtre, ni HELLO
+        self.assertEqual(len(self.fl.calls), calls)         # aucun appel à FL
+
+    def test_frames_ignored_while_asleep(self):
+        self.make(wake=False)
+        self.command(33, nonce=[0, 0, 0, 0])
+        self.assertNotIn("ui.showWindow", self.fl.names())
+
+    def test_brief_wake_runs_then_sleeps(self):
+        self.make(wake=False)
+        self.send(103, 2)
+        self.assertTrue(self.hellos())
+        self.command(39)
+        self.assertIn(3, self.fl.armed)
+        self.command(39)                                    # déjà armée : jamais désarmée
+        self.assertIn(3, self.fl.armed)
+        self.command(40)
+        self.assertTrue(self.fl.recording)
+        self.command(40)                                    # déjà allumé : jamais éteint
+        self.assertTrue(self.fl.recording)
+        self.clock.t += 9
+        self.dev.OnIdle()
+        self.assertFalse(self.dev._st.awake)
+        out = len(self.fl.out)
+        for _ in range(100):
+            self.clock.t += 0.02
+            self.dev.OnIdle()
+        self.assertEqual(len(self.fl.out), out)
+
+    def test_durable_wake_stays_awake(self):
+        self.clock.t += 60
+        self.dev.OnIdle()
+        self.assertTrue(self.dev._st.awake)
 
 
 # ---------------------------------------------------------------------------- HMAC
@@ -274,7 +325,7 @@ class TestFrames(Base):
         self.assertGreaterEqual(self.fl.names().count("general.undoUp"), 19)
 
     def test_unknown_id_rejected_even_with_valid_mac(self):
-        for aid in (0, 39, 42, 127):
+        for aid in (0, 41, 42, 127):
             self.command(aid)
             self.assertEqual(self.last_ack(), 0)
         self.assertEqual(self.fl_calls_excluding_reads(), [])
@@ -462,7 +513,7 @@ class TestCapabilities(Base):
         self.make(api=45)
         d = dict(self.last_hello()[1:-1])
         self.assertEqual(d[90], 127)        # ids 1..7
-        self.assertEqual(d[95], 0b111)      # ids 36, 37, 38
+        self.assertEqual(d[95], 0b11111)    # ids 36 à 40
         self.make(api=1)
         d = dict(self.last_hello()[1:-1])
         # id 12 (clone) = bit 11 = CC 91 bit 4 ; id 18 (quant) = CC 92 bit 3
@@ -473,7 +524,7 @@ class TestCapabilities(Base):
         self.make(api=45, missing=("patterns.clonePattern",))
         mask = self.mask_of(self.last_hello())
         self.assertEqual(mask >> 11 & 1, 0)
-        self.assertEqual(bin(mask).count("1"), 37)
+        self.assertEqual(bin(mask).count("1"), 39)
 
     def test_hasattr_and_api_combined(self):
         # fonction présente mais API déclarée trop basse => indisponible
@@ -644,8 +695,9 @@ class TestActionBehaviour(Base):
         mods["arrangement"] = None
         self.mods, self.fl = mods, fl
         self.dev = M.load_script(mods)
-        self.dev._time = M.FakeClock()
+        self.dev._time = self.clock = M.FakeClock()
         self.dev.OnInit()
+        self.send(103, 1)                  # réveil
         self.command(8)
         self.assertIn((33, 1), self.fl.called("transport.globalTransport"))
 

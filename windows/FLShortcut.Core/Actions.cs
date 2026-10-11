@@ -60,6 +60,8 @@ public static class FlActions
         new(36, "undo", "Annuler", ActionCategory.Navigation, "20.7"),
         new(37, "redo", "Rétablir", ActionCategory.Navigation, "20.7"),
         new(38, "save", "Sauvegarder", ActionCategory.Navigation, "20.7"),
+        new(39, "armon", "Armer la piste (si éteinte)", ActionCategory.Recording, "20.7"),
+        new(40, "recon", "Allumer le REC (si éteint)", ActionCategory.Recording, "20.7"),
     };
 
     private static readonly Dictionary<int, FlActionInfo> ById = All.ToDictionary(a => a.Id);
@@ -114,6 +116,8 @@ public static class FlActionDetails
         ["undo"] = "Annule la dernière action",
         ["redo"] = "Rétablit l'action annulée",
         ["save"] = "Sauvegarde le projet",
+        ["armon"] = "Arme la piste sélectionnée, sans jamais la désarmer",
+        ["recon"] = "Allume le REC, sans jamais l'éteindre",
     };
 
     public static string Detail(this FlActionInfo info) => ByKey.TryGetValue(info.Key, out var d) ? d : info.Label;
