@@ -35,7 +35,8 @@ mem_mb() {   # empreinte physique (ce que le Moniteur d'activité appelle « Mé
 
 cpu_avg() {  # moyenne du processeur sur 8 s, au repos
   local p=$1
-  top -l 9 -s 1 -pid "$p" -stats cpu 2>/dev/null | awk '/^[0-9.]+$/{n++; if (n>1) {s+=$1; c++}} END{if (c) printf "%.1f %%", s/c; else print "?"}'
+  top -l 9 -s 1 -pid "$p" -stats pid,cpu 2>/dev/null \
+    | awk -v p="$p" '$1==p {n++; if (n>1) {s+=$2; c++}} END{if (c) printf "%.1f %%", s/c; else print "?"}'
 }
 
 run() {   # $1 : libellé, $2 : YES/NO effet verre
