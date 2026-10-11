@@ -35,6 +35,7 @@ struct EditorView: View {
     @State private var editingRow: CatalogRow? = nil
     /// Annonce affichée en tête de la fiche quand on doit choisir une nouvelle touche pour un autre raccourci.
     @State private var editNotice: String? = nil
+    @AppStorage(Appearance.glassKey) private var glassEnabled = true
 
     private var trimmedQuery: String { query.trimmingCharacters(in: .whitespaces) }
 
@@ -322,6 +323,10 @@ struct EditorView: View {
                 Button("Annuler le dernier remplacement") { store.undoReplace() }
             }
             Button("Tout réinitialiser…") { resetAll() }
+            if Appearance.glassAvailable {
+                Divider()
+                Toggle("Effet Liquid Glass", isOn: $glassEnabled)
+            }
             Divider()
             Button("Désinstaller FL Shortcut…") { Uninstaller.confirmAndRun() }
         } label: {
@@ -782,7 +787,7 @@ struct EditSheet: View {
                     dismiss()
                 }
                 .keyboardShortcut(.defaultAction)
-                .buttonStyle(.borderedProminent)
+                .primaryButton()
                 .disabled(!canSave)
             }
         }
@@ -1050,7 +1055,7 @@ struct ToastMessage: Identifiable, Equatable {
     static func == (a: ToastMessage, b: ToastMessage) -> Bool { a.id == b.id }
 }
 
-/// Petite notification opaque en bas de la liste, avec « Annuler » quand c'est possible.
+/// Petite notification (verre sur macOS 26, opaque sinon) en bas de la liste, avec « Annuler » quand c'est possible.
 private struct ToastView: View {
     let message: ToastMessage
     let onClose: () -> Void
@@ -1067,8 +1072,7 @@ private struct ToastView: View {
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 7)
-        .background(shape.fill(Color(nsColor: .windowBackgroundColor)))
-        .overlay(shape.strokeBorder(Color(nsColor: .separatorColor), lineWidth: 0.5))
+        .glassSurface(shape)
         .shadow(color: .black.opacity(0.12), radius: 6, y: 2)
         .accessibilityElement(children: .contain)
     }
@@ -1257,7 +1261,7 @@ struct CatalogEditSheet: View {
                     }
                 }
                 .keyboardShortcut(.defaultAction)
-                .buttonStyle(.borderedProminent)
+                .primaryButton()
                 .disabled(!canSave)
             }
         }

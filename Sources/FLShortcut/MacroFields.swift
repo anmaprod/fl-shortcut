@@ -6,6 +6,7 @@ import UniformTypeIdentifiers
 struct MacroFields: View {
     @Binding var macro: Macro
     @ObservedObject private var learner = MacroLearner.shared
+    @ObservedObject private var status = AppStatus.shared
 
     private var fixedPreset: Bool { macro.presetPath != nil }
 
@@ -80,6 +81,14 @@ struct MacroFields: View {
             }
         }
         .onDisappear { learner.cancel() }
+
+        if let last = status.lastMacro {
+            LabeledContent("Dernier essai") {
+                Label(last.text, systemImage: last.ok ? "checkmark.circle.fill" : "xmark.circle.fill")
+                    .foregroundStyle(last.ok ? Color.green : Color.orange)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
     }
 
     @ViewBuilder

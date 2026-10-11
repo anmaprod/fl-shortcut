@@ -118,7 +118,7 @@ struct OnboardingView: View {
                     } label: {
                         Text(AppMode.light ? "Terminer" : "Continuer").frame(minWidth: 160)
                     }
-                    .buttonStyle(.borderedProminent)
+                    .primaryButton()
                     .controlSize(.large)
                     .keyboardShortcut(.defaultAction)
                 } else {
@@ -132,7 +132,7 @@ struct OnboardingView: View {
                     } label: {
                         Text("Autoriser le clavier…").frame(minWidth: 160)
                     }
-                    .buttonStyle(.borderedProminent)
+                    .primaryButton()
                     .controlSize(.large)
                     .keyboardShortcut(.defaultAction)
                     if askedPermission {
@@ -221,7 +221,7 @@ struct OnboardingView: View {
                 } label: {
                     Text(installed ? "Terminer" : "Installer le lien").frame(minWidth: 140)
                 }
-                .buttonStyle(.borderedProminent)
+                .primaryButton()
                 .controlSize(.large)
                 .keyboardShortcut(.defaultAction)
             }

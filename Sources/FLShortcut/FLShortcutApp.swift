@@ -103,6 +103,8 @@ final class AppStatus: ObservableObject {
     @Published private(set) var scriptState: ScriptIntegrity.State = .notInstalled
     @Published private(set) var capabilities: CapabilityMask? = nil
     @Published private(set) var flVersion: FLVersion? = nil
+    /// Résultat de la dernière macro (« Macro terminée », « Macro arrêtée à l'étape 3 : … »), nil avant la première.
+    @Published private(set) var lastMacro: (ok: Bool, text: String)? = nil
 
     private var timer: Timer?
     private var cancellables = Set<AnyCancellable>()
@@ -139,6 +141,11 @@ final class AppStatus: ObservableObject {
                 Store.shared.recompute()
             }
             .store(in: &cancellables)
+
+        observers.append(NotificationCenter.default.addObserver(forName: .macroFinished, object: nil, queue: .main) { [weak self] note in
+            let ok = note.userInfo?["ok"] as? Bool ?? false
+            self?.lastMacro = (ok, note.userInfo?["text"] as? String ?? "")
+        })
 
         let center = NSWorkspace.shared.notificationCenter
         for name in [NSWorkspace.willSleepNotification, NSWorkspace.didWakeNotification,
@@ -349,6 +356,17 @@ struct MenuContent: View {
             .padding(.top, 4)
             .padding(.bottom, 6)
             .accessibilityElement(children: .combine)
+
+            if let macro = status.lastMacro {
+                HStack(alignment: .firstTextBaseline, spacing: 5) {
+                    Image(systemName: macro.ok ? "checkmark.circle.fill" : "xmark.circle.fill")
+                        .foregroundStyle(macro.ok ? Color.green : Color.orange)
+                    Text(macro.text).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+                }
+                .font(.system(size: 11))
+                .padding(.horizontal, 8)
+                .padding(.bottom, 6)
+            }
 
             ForEach(alerts, id: \.self) { text in
                 HStack(alignment: .firstTextBaseline, spacing: 5) {

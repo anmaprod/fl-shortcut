@@ -1,7 +1,9 @@
-// Styles communs, volontairement sobres : polices et couleurs système, aucun verre posé à la main (macOS 26
-// donne déjà le Liquid Glass à la barre d'outils et à la barre latérale), aucun dégradé, aucune animation
-// infinie. Audit 05 : touches affichées avec leur nom en clair. Mouvement : courtes transitions, remplacées par
-// un simple fondu quand « Réduire les animations » est activé (Réglages › Accessibilité › Affichage).
+// Styles communs, volontairement sobres : polices et couleurs système, aucun dégradé, aucune animation infinie.
+// Liquid Glass (macOS 26) : seulement sur quelques surfaces flottantes (notification, boutons principaux), jamais
+// ligne par ligne (une couche de verre par ligne coûtait cher : 8fb66a8). Le verre redevient opaque dès que la
+// fenêtre n'est plus active (FL au premier plan) : rien à recalculer pendant que tu travailles dans FL.
+// Réglable dans le menu Profil (« Effet Liquid Glass »). Audit 05 : touches affichées avec leur nom en clair.
+// Mouvement : courtes transitions, remplacées par un simple fondu quand « Réduire les animations » est activé.
 import AppKit
 import SwiftUI
 
@@ -36,6 +38,80 @@ extension View {
     /// `.animation(_:value:)` qui respecte « Réduire les animations ».
     func motion<V: Equatable>(_ animation: Animation = Motion.smooth, value: V) -> some View {
         modifier(MotionModifier(animation: animation, value: value))
+    }
+}
+
+// MARK: - Liquid Glass
+
+enum Appearance {
+    /// Préférence « Effet Liquid Glass » (vrai par défaut ; sans effet avant macOS 26).
+    static let glassKey = "liquidGlass"
+
+    static var glassAvailable: Bool {
+        #if compiler(>=6.2)
+        if #available(macOS 26.0, *) { return true }
+        #endif
+        return false
+    }
+}
+
+/// Surface flottante : verre natif sur macOS 26 quand la préférence est active et la fenêtre au premier plan,
+/// sinon fond opaque de fenêtre. Même structure de vue dans tous les cas (aucun arbre reconstruit au passage
+/// FL ↔ FL Shortcut) : seul le paramètre du verre change.
+struct GlassSurface<S: InsettableShape>: ViewModifier {
+    let shape: S
+    @AppStorage(Appearance.glassKey) private var glassEnabled = true
+    @Environment(\.controlActiveState) private var activeState
+
+    private var live: Bool { glassEnabled && activeState != .inactive }
+
+    func body(content: Content) -> some View {
+        #if compiler(>=6.2)
+        if #available(macOS 26.0, *) {
+            content
+                .background(shape.fill(Color(nsColor: .windowBackgroundColor)).opacity(live ? 0 : 1))
+                .glassEffect(live ? Glass.regular : Glass.identity, in: shape)
+        } else {
+            opaque(content)
+        }
+        #else
+        opaque(content)
+        #endif
+    }
+
+    private func opaque(_ content: Content) -> some View {
+        content
+            .background(shape.fill(Color(nsColor: .windowBackgroundColor)))
+            .overlay(shape.strokeBorder(Color(nsColor: .separatorColor), lineWidth: 0.5))
+    }
+}
+
+/// Bouton principal : verre teinté sur macOS 26 (préférence active), bouton accentué sinon.
+private struct PrimaryButtonStyleModifier: ViewModifier {
+    @AppStorage(Appearance.glassKey) private var glassEnabled = true
+
+    func body(content: Content) -> some View {
+        #if compiler(>=6.2)
+        if #available(macOS 26.0, *), glassEnabled {
+            content.buttonStyle(.glassProminent)
+        } else {
+            content.buttonStyle(.borderedProminent)
+        }
+        #else
+        content.buttonStyle(.borderedProminent)
+        #endif
+    }
+}
+
+extension View {
+    /// Surface flottante en verre (voir GlassSurface).
+    func glassSurface<S: InsettableShape>(_ shape: S) -> some View {
+        modifier(GlassSurface(shape: shape))
+    }
+
+    /// Bouton principal (Valider, Continuer…).
+    func primaryButton() -> some View {
+        modifier(PrimaryButtonStyleModifier())
     }
 }
 
