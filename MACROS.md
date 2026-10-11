@@ -19,7 +19,21 @@ Une macro est une liste d'étapes (`Macro.swift`) exécutée par `MacroRunner` s
 
 Bornes (`MacroLibrary.validate`) : 40 étapes, 180 s au total, chemins sans caractères de contrôle. Une macro `custom` (étapes libres) ne s'écrit qu'à la main dans le profil JSON et est **refusée à l'import**.
 
-## Enregistrement rapide
+## Enregistrement rapide automatique (modèle livré, rien à régler)
+Modèle `autoRecord`, sur ⌃R dans le profil Recommandé. Il suffit de cliquer sur une piste du Mixer puis de taper le raccourci. L'app **lit l'écran de FL** (autorisation « Enregistrement de l'écran », `ScreenReader.swift`) :
+
+| Étape | Effet |
+|---|---|
+| `feedbackCheck` | micro **et** haut-parleurs de l'ordinateur en service (`FeedbackRisk.swift`) → fenêtre « risque de larsen », la macro s'arrête. Carte son, casque (jack, USB, Bluetooth) : pas de blocage |
+| `trackMenu` | clic droit sur la **dernière piste cliquée** dans FL, puis « File » et « Open mixer track state » trouvés en lisant le menu (Vision, sur place) |
+| `waitDialog` / `waitDialogClose` | attend la boîte « Ouvrir » puis le choix du preset (ou tape le chemin d'un preset fixe) |
+| `selectInput` | « (none) » → première entrée (« In 1 »…). Une entrée déjà choisie n'est pas touchée |
+| `armTrack` | bouton d'armement repéré dans la colonne de la piste ; déjà allumé → rien (jamais désarmer) |
+| `recordOn` | touche REC de FL, puis comparaison du haut de la fenêtre : s'il s'est éteint, il était allumé → rallumé |
+
+Les captures ne contiennent que les fenêtres de FL, restent en mémoire le temps d'une étape et ne sont jamais envoyées. Si la macro se trompe, la fiche du raccourci a un bouton **Capturer FL** : il enregistre sur le Bureau ce que l'app voit (images, texte lu, appareils audio) pour régler la détection.
+
+## Enregistrement rapide à positions apprises (ancien modèle)
 Modèle `quickRecord` : voir README. Réglages d'un raccourci : preset (demander à chaque fois, ou fichier .fst fixe), armer + entrée 1, REC à la fin, positions apprises (menu de la piste, armement / entrée).
 
 Format dans un profil :
@@ -39,7 +53,7 @@ Format dans un profil :
 - Échap annule. Aucune frappe n'est lue ni journalisée.
 - Échec : bip + notification `.macroFinished` (userInfo `ok`, `text`).
 
-## À valider sur un vrai FL (non testé : pas de FL ni de compilateur Swift disponibles lors de l'écriture)
+## À valider sur un vrai FL (modèle à positions apprises)
 1. Le menu contextuel de la piste est-il natif (visible par l'Accessibilité) ? Sinon, les clics de secours appris prennent le relais.
 2. « Open mixer track state » ouvre-t-il une boîte native macOS ? Sinon `waitDialog` et `chooseFile` ne fonctionnent pas.
 3. Les événements envoyés au PID (souris) sont-ils pris par FL ? Sinon essayer `MacroRunner.warpCursor`.
