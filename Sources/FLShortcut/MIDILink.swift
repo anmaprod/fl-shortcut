@@ -47,6 +47,8 @@ final class LinkCore {
         /// Intervalle des PING sans réponse : 6 s, puis doublé jusqu'à 60 s tant que FL ne répond pas.
         var pingBackoff: TimeInterval = FLProtocol.pingInterval
         var consecutiveRejects = 0
+        /// Dernier accusé reçu (0 = refus) : la macro attend celui de sa dernière commande.
+        var lastAckedID: Int?
         var incompatible: Int?
         var pendingSend: (id: Int, at: UInt64)?
         var latencies: [Double] = []
@@ -108,6 +110,7 @@ final class LinkCore {
                 case .window(let w):
                     s.window = w
                 case .ack(let id):
+                    s.lastAckedID = id
                     if id == 0 {
                         s.consecutiveRejects += 1
                         if s.consecutiveRejects >= 2 { needsResync = true; s.consecutiveRejects = 0 }
@@ -147,7 +150,7 @@ final class LinkCore {
     /// `brief` (mode léger) : PING = 2, le script se rendort tout seul ensuite ; sinon PING = 1 (mode MIDI
     /// complet, le script reste éveillé). Script déjà réveillé depuis peu : aucun nouveau PING.
     /// Renvoie nil si tout est parti, sinon la raison.
-    func runBriefly(_ ids: [Int], brief: Bool, timeout: TimeInterval = 2.5) -> String? {
+    func runBriefly(_ ids: [Int], brief: Bool, timeout: TimeInterval = 4) -> String? {
         let start = clock()
         let state0: (hasKey: Bool, fresh: Bool) = state.withLock { s in
             let fresh = s.hello != nil && (s.lastAlive.map { start.timeIntervalSince($0) < 4 } ?? false)
@@ -170,6 +173,8 @@ final class LinkCore {
         guard let hello = state.withLock({ $0.hello }) else {
             return "FL ne répond pas : redémarre FL (nouvelle version du script), et vérifie dans Options › MIDI Settings que « FL Shortcut » est activé en entrée et en sortie"
         }
+        guard let last = ids.last else { return nil }
+        state.withLock { $0.lastAckedID = nil }
         for id in ids {
             guard hello.capabilities.contains(id) else { return "action indisponible dans ce FL (mets FL à jour)" }
             switch sendAction(id) {
@@ -177,9 +182,17 @@ final class LinkCore {
             case .noKey: return "lien avec FL non installé"
             default: return "FL n'a pas reçu la commande"
             }
-            Thread.sleep(forTimeInterval: 0.12)
         }
-        return nil
+        // Les trames partent d'affilée et FL les exécute dans l'ordre : on attend l'accusé de la dernière.
+        let ackDeadline = Date().addingTimeInterval(1.5)
+        while Date() < ackDeadline {
+            switch state.withLock({ $0.lastAckedID }) {
+            case .some(last): return nil
+            case .some(0): return "FL a refusé la commande : redémarre FL (le script vient d'être mis à jour)"
+            default: Thread.sleep(forTimeInterval: 0.01)
+            }
+        }
+        return "FL n'a pas confirmé (armement / REC)"
     }
 
     /// À appeler toutes les secondes : PING après 6 s sans battement (ou sans HELLO) quand FL tourne.
@@ -470,7 +483,7 @@ final class MIDILink: ObservableObject {
     /// Macro : réveil bref du script, actions, puis il se rendort (file de la macro, bloquant).
     func runBriefly(_ ids: [Int]) -> String? {
         guard transport.isReady else {
-            return snapshot.hasKey ? "ports MIDI « FL Shortcut » indisponibles : relance FL Shortcut"
+            return core.snapshot.hasKey ? "ports MIDI « FL Shortcut » indisponibles : relance FL Shortcut"
                                    : "lien avec FL non installé : fiche du raccourci › Installer le lien avec FL"
         }
         return core.runBriefly(ids, brief: AppMode.light)

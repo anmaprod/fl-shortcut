@@ -14,9 +14,12 @@ final class TrackMemory {
     /// Thread principal.
     func setActive(_ on: Bool) {
         if on, monitor == nil {
-            monitor = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown]) { [weak self] _ in
+            monitor = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown]) { [weak self] event in
                 let cfg = EventTap.shared.currentConfig
                 guard cfg.flPIDs.contains(cfg.frontmostPID) else { return }
+                // Les clics de la macro elle-même ne sont pas « la piste sur laquelle j'ai cliqué ».
+                if event.cgEvent?.getIntegerValueField(.eventSourceUserData) == EventTap.mark { return }
+                if MacroRunner.shared.isRunning { return }
                 let p = FLWindows.cursor()
                 self?.last.withLock { $0 = (p, Date()) }
             }

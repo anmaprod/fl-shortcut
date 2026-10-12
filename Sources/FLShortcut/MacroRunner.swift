@@ -38,6 +38,7 @@ enum FLWindows {
     struct Info {
         let layer: Int
         let bounds: CGRect
+        var number: Int = 0
     }
 
     /// Fenêtres visibles du processus, de l'avant vers l'arrière.
@@ -50,7 +51,7 @@ enum FLWindows {
                   let layer = w[kCGWindowLayer as String] as? Int,
                   let dict = w[kCGWindowBounds as String] as? [String: Any],
                   let bounds = CGRect(dictionaryRepresentation: dict as CFDictionary) else { continue }
-            out.append(Info(layer: layer, bounds: bounds))
+            out.append(Info(layer: layer, bounds: bounds, number: w[kCGWindowNumber as String] as? Int ?? 0))
         }
         return out
     }
@@ -208,7 +209,7 @@ final class MacroRunner {
     static var clicksToPid: Bool { UserDefaults.standard.bool(forKey: "macroClicksToPid") }
 
     /// Résultat de la vérification du larsen, lancée en parallèle au début de la macro.
-    private let feedbackReport = Locked<FeedbackRisk.Report?>(nil)
+    private var feedbackReport = Locked<FeedbackRisk.Report?>(nil)
     private var feedbackReady = DispatchSemaphore(value: 0)
 
     /// Point du dernier clic de la macro (repère `lastClick`). File de la macro uniquement.
@@ -228,16 +229,21 @@ final class MacroRunner {
         let baseline: Int
         /// Piste visée par les étapes automatiques : dernier clic dans FL, sinon position du curseur.
         let track: CGPoint
-        /// Fenêtre de FL qui contient la piste (Mixer détaché, ou fenêtre principale).
-        let trackFrame: CGRect?
     }
 
 
     private let queue = DispatchQueue(label: "fr.flshortcut.macro", qos: .userInitiated)
     private let busy = Locked(false)
-    private let source = CGEventSource(stateID: .privateState)
+    private let source: CGEventSource? = {
+        let s = CGEventSource(stateID: .privateState)
+        s?.localEventsSuppressionInterval = 0             // ne pas geler la souris réelle après nos événements
+        return s
+    }()
 
     private init() {}
+
+    /// Une macro est en cours (ses propres clics ne doivent pas compter comme « dernière piste cliquée »).
+    var isRunning: Bool { busy.value }
 
     /// Appelé depuis le thread du tap : ne bloque jamais, la macro tourne sur sa propre file.
     func start(_ macro: Macro, flPID pid: Int32) -> StartResult {
@@ -270,34 +276,51 @@ final class MacroRunner {
     private func execute(_ steps: [MacroStep], pid: Int32) -> MacroOutcome {
         let origin = FLWindows.cursor()
         lastClickPoint = nil
-        feedbackReport.withLock { $0 = nil }
+        // Un résultat neuf à chaque macro (une vérification tardive de la précédente ne peut pas s'y mêler).
+        let report = Locked<FeedbackRisk.Report?>(nil)
+        let ready = DispatchSemaphore(value: 0)
+        feedbackReport = report
+        feedbackReady = ready
         if steps.contains(where: { $0.kind == .feedbackCheck }) {
-            let ready = DispatchSemaphore(value: 0)
-            feedbackReady = ready
-            let report = feedbackReport
             DispatchQueue.global(qos: .utility).async {
                 let r = FeedbackRisk.check(flPID: pid)
                 report.withLock { $0 = r }
                 ready.signal()
             }
         }
+        // Une seule lecture de la liste des fenêtres pour tout le départ.
+        let windows = FLWindows.list(pid: pid)
+        func frame(_ p: CGPoint) -> CGRect? { windows.first { $0.layer == 0 && $0.bounds.contains(p) }?.bounds }
         var track = origin
-        if let remembered = TrackMemory.shared.lastClick(), FLWindows.frame(containing: remembered, pid: pid) != nil {
-            track = remembered
-        }
+        if let remembered = TrackMemory.shared.lastClick(), frame(remembered) != nil { track = remembered }
         let ctx = Context(pid: pid, origin: origin,
-                          frame: FLWindows.frame(containing: origin, pid: pid),
-                          baseline: FLWindows.dialogCount(pid: pid),
-                          track: track,
-                          trackFrame: FLWindows.frame(containing: track, pid: pid))
+                          frame: frame(origin),
+                          baseline: windows.filter { (0...8).contains($0.layer) && $0.bounds.width > 50 && $0.bounds.height > 50 }.count,
+                          track: track)
 
-        defer { if Self.warpCursor { CGWarpMouseCursorPosition(origin) } }
+        defer {
+            if Self.warpCursor {
+                CGWarpMouseCursorPosition(origin)
+                CGAssociateMouseAndMouseCursorPosition(1)
+            }
+        }
         // Les modificateurs du raccourci (⌃⌥⌘⇧) sont encore enfoncés : un clic avec ⌃ serait un clic droit.
         guard waitForModifiersReleased(timeout: 1.5) else { return .cancelled(reason: "relâche les touches du raccourci") }
         var warning: String?
-        for (index, step) in steps.enumerated() {
+        var index = 0
+        while index < steps.count {
+            let step = steps[index]
+            defer { index += 1 }
             if let stop = shouldStop(pid) { return .cancelled(reason: stop) }
-            switch perform(step, ctx: ctx) {
+            // Armement puis REC : un seul réveil du script, les deux commandes d'affilée.
+            let result: StepResult
+            if step.kind == .armTrack, index + 1 < steps.count, steps[index + 1].kind == .recordOn {
+                result = scriptActions([Self.armOnAction, Self.recOnAction], ctx: ctx)
+                index += 1
+            } else {
+                result = perform(step, ctx: ctx)
+            }
+            switch result {
             case .ok: continue
             case .warn(let why): warning = why
             case .fail(let why): return .failed(step: index + 1, reason: why)
@@ -322,7 +345,7 @@ final class MacroRunner {
         let deadline = Date().addingTimeInterval(timeout)
         while Date() < deadline {
             if CGEventSource.flagsState(.combinedSessionState).intersection(mask).isEmpty { return true }
-            Thread.sleep(forTimeInterval: 0.02)
+            Thread.sleep(forTimeInterval: 0.008)
         }
         return false
     }
@@ -388,19 +411,27 @@ final class MacroRunner {
         case .feedbackCheck:
             // Vérification lancée dès le début de la macro (Core Audio peut mettre plusieurs secondes à répondre
             // la première fois) : ici, le résultat est en général déjà prêt.
-            _ = feedbackReady.wait(timeout: .now() + 5)
-            guard let report = feedbackReport.value, report.risky else { return .ok }
-            DispatchQueue.main.async { FeedbackAlert.show(report) }
-            return .warn("risque de larsen : change d'entrée ou de sortie (casque, carte son)")
+            // Jamais d'attente : résultat pas encore prêt → la fenêtre s'affichera dès qu'il l'est.
+            let report = feedbackReport, ready = feedbackReady
+            if ready.wait(timeout: .now() + 0.05) == .success {
+                guard let r = report.value, r.risky else { return .ok }
+                DispatchQueue.main.async { FeedbackAlert.show(r) }
+                return .warn("risque de larsen : change d'entrée ou de sortie (casque, carte son)")
+            }
+            DispatchQueue.global(qos: .utility).async {
+                _ = ready.wait(timeout: .now() + 10)
+                if let r = report.value, r.risky { DispatchQueue.main.async { FeedbackAlert.show(r) } }
+            }
+            return .ok
 
         case .selectInput:
             return selectInput(ctx: ctx)
 
         case .armTrack:
-            return scriptAction(Self.armOnAction, ctx: ctx)
+            return scriptActions([Self.armOnAction], ctx: ctx)
 
         case .recordOn:
-            return scriptAction(Self.recOnAction, ctx: ctx)
+            return scriptActions([Self.recOnAction], ctx: ctx)
 
         case .chooseFile:
             guard let path = step.path else { return .fail("chemin manquant") }
@@ -448,20 +479,36 @@ final class MacroRunner {
         case timeout
     }
 
+    /// Attend qu'un menu de FL s'ouvre sous `p` (nouvelle fenêtre de FL à cet endroit), au lieu d'une pause fixe.
+    /// FL dessine-t-il ses menus dans sa propre fenêtre ? Alors rien n'apparaît : courte pause de secours.
+    private func waitPopup(at p: CGPoint, known: Set<Int>, ctx: Context, timeoutMs: Int = 450) -> StepResult {
+        let end = Date().addingTimeInterval(Double(timeoutMs) / 1000)
+        while Date() < end {
+            if let stop = shouldStop(ctx.pid) { return .cancel(stop) }
+            if FLWindows.list(pid: ctx.pid).contains(where: { !known.contains($0.number) && $0.bounds.contains(p) }) {
+                return pause(30, pid: ctx.pid)                 // le temps que FL dessine et prenne le survol
+            }
+            Thread.sleep(forTimeInterval: 0.012)
+        }
+        return pause(60, pid: ctx.pid)
+    }
+
     /// Clic droit sur la piste, puis File › Open mixer track state : clics appris la première fois
     /// (l'utilisateur les fait lui-même, guidé par une bulle), refaits ensuite au même endroit par rapport au clic droit.
     private func trackMenu(_ titles: [String], ctx: Context) -> StepResult {
+        var known = Set(FLWindows.list(pid: ctx.pid).map(\.number))
         let first = click(at: ctx.track, right: true, ctx: ctx)
         guard case .ok = first else { return first }
-        if case .cancel(let why) = pause(220, pid: ctx.pid) { return .cancel(why) }
         if let learned = MacroSpots.load(.trackMenu) {
             for p in learned.points(from: ctx.track) {
+                if case .cancel(let why) = waitPopup(at: p, known: known, ctx: ctx) { return .cancel(why) }
+                known = Set(FLWindows.list(pid: ctx.pid).map(\.number))
                 let r = click(at: p, right: false, ctx: ctx)
                 guard case .ok = r else { postKey(KeyCombo(keyCode: 53), pid: ctx.pid); return r }
-                if case .cancel(let why) = pause(220, pid: ctx.pid) { return .cancel(why) }
             }
             return .ok
         }
+        if case .cancel(let why) = pause(150, pid: ctx.pid) { return .cancel(why) }
         switch learnClicks(2, hint: "Une seule fois : clique sur « File », puis sur « Open mixer track state ».",
                            near: ctx.track, ctx: ctx) {
         case .success(let points):
@@ -484,10 +531,12 @@ final class MacroRunner {
         guard let window = mainWindow(ctx.pid) else { return .fail("fenêtre de FL introuvable") }
         let anchor = CGPoint(x: window.maxX, y: window.minY)
         if let learned = MacroSpots.load(.input), learned.matches(size: window.size) {
-            for p in learned.points(from: anchor) {
+            var known = Set(FLWindows.list(pid: ctx.pid).map(\.number))
+            for (i, p) in learned.points(from: anchor).enumerated() {
+                if i > 0, case .cancel(let why) = waitPopup(at: p, known: known, ctx: ctx) { return .cancel(why) }
+                known = Set(FLWindows.list(pid: ctx.pid).map(\.number))
                 let r = click(at: p, right: false, ctx: ctx)
                 guard case .ok = r else { postKey(KeyCombo(keyCode: 53), pid: ctx.pid); return r }
-                if case .cancel(let why) = pause(250, pid: ctx.pid) { return .cancel(why) }
             }
             return .ok
         }
@@ -502,16 +551,16 @@ final class MacroRunner {
         }
     }
 
-    /// Script FL réveillé le temps de l'action, puis il se rendort tout seul (aucun trafic MIDI entre deux macros).
-    private func scriptAction(_ id: Int, ctx: Context) -> StepResult {
-        if let why = MIDILink.shared.runBriefly([id]) { return .fail(why) }
-        return pause(150, pid: ctx.pid)
+    /// Script FL réveillé le temps des actions (il se rendort tout seul ensuite) ; attend l'accusé de FL.
+    private func scriptActions(_ ids: [Int], ctx: Context) -> StepResult {
+        if let why = MIDILink.shared.runBriefly(ids) { return .fail(why) }
+        return .ok
     }
 
     private func wait(timeoutMs: Int, pid: Int32, failure: String, until condition: () -> Bool) -> StepResult {
         let deadline = Date().addingTimeInterval(Double(timeoutMs) / 1000)
         // Longue attente (choix du preset) : 4 vérifications par seconde suffisent, Échap reste immédiat.
-        let interval = timeoutMs > 10_000 ? 0.25 : 0.05
+        let interval = timeoutMs > 10_000 ? 0.1 : 0.03
         var nextCheck = Date.distantPast
         while Date() < deadline {
             if let stop = shouldStop(pid) { return .cancel(stop) }
@@ -519,7 +568,7 @@ final class MacroRunner {
                 if condition() { return .ok }
                 nextCheck = Date().addingTimeInterval(interval)
             }
-            Thread.sleep(forTimeInterval: 0.05)
+            Thread.sleep(forTimeInterval: 0.02)
         }
         return .fail(failure)
     }
@@ -591,7 +640,10 @@ final class MacroRunner {
     }
 
     private func postClick(at p: CGPoint, right: Bool, pid: Int32) {
-        if Self.warpCursor { CGWarpMouseCursorPosition(p) }
+        if Self.warpCursor {
+            CGWarpMouseCursorPosition(p)
+            CGAssociateMouseAndMouseCursorPosition(1)       // la souris réelle répond aussitôt après le déplacement
+        }
         let button: CGMouseButton = right ? .right : .left
         func send(_ type: CGEventType) {
             guard let e = CGEvent(mouseEventSource: source, mouseType: type, mouseCursorPosition: p, mouseButton: button) else { return }
@@ -601,9 +653,9 @@ final class MacroRunner {
             if Self.clicksToPid { e.postToPid(pid) } else { e.post(tap: .cghidEventTap) }
         }
         send(.mouseMoved)
-        Thread.sleep(forTimeInterval: 0.03)
+        Thread.sleep(forTimeInterval: 0.015)
         send(right ? .rightMouseDown : .leftMouseDown)
-        Thread.sleep(forTimeInterval: 0.04)
+        Thread.sleep(forTimeInterval: 0.02)
         send(right ? .rightMouseUp : .leftMouseUp)
     }
 }

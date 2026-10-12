@@ -28,7 +28,7 @@ enum FeedbackRisk {
             let i = input?.name ?? "micro"
             let o = output?.name ?? "haut-parleurs"
             return "FL enregistre avec « \(i) » et joue le son sur « \(o) » : le micro reprendrait le son des "
-                + "haut-parleurs (larsen). Branche un casque, ou choisis ta carte son dans FL (Options › Audio Settings), puis réessaie."
+                + "haut-parleurs (larsen). Branche un casque, ou choisis ta carte son dans FL (Options › Audio Settings) avant de lancer la lecture."
         }
     }
 
@@ -121,9 +121,9 @@ enum FeedbackAlert {
     static func show(_ report: FeedbackRisk.Report) {
         let alert = NSAlert()
         alert.alertStyle = .warning
-        alert.messageText = "Enregistrement impossible : risque de larsen"
+        alert.messageText = "Tout est prêt, mais attention au larsen"
         alert.informativeText = report.message
-            + "\n\nAvec une carte son ou un casque, il n'y a pas de risque : la macro marchera telle quelle."
+            + "\n\nLa piste et le REC sont prêts : il ne reste qu'à changer d'entrée ou de sortie."
         alert.addButton(withTitle: "OK")
         alert.addButton(withTitle: "Réglages Son…")
         NSApp.activate(ignoringOtherApps: true)

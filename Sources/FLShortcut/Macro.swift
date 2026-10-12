@@ -206,7 +206,7 @@ enum MacroLibrary {
         } else {
             out.append(.waitDialogClose(MacroLibrary.maxWaitMs))
         }
-        if macro.armAndInput || macro.startRecording { out.append(.delay(250)) }
+        if macro.armAndInput || macro.startRecording { out.append(.delay(100)) }
         if macro.armAndInput { out.append(MacroStep(kind: .armTrack)) }
         if macro.startRecording { out.append(MacroStep(kind: .recordOn)) }
         if macro.armAndInput { out.append(MacroStep(kind: .selectInput)) }
