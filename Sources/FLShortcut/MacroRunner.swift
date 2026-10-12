@@ -280,6 +280,18 @@ final class MacroRunner {
 
     private init() {}
 
+    /// Essai de bout en bout (`--selftest-macro`, FL simulé) : FL reconnu par son PID et le premier plan de
+    /// NSWorkspace (pas de tap clavier dans l'essai), piste visée donnée directement. Jamais utilisé dans l'app.
+    static var testFLPID: Int32?
+    static var testTrackPoint: CGPoint?
+
+    /// Essai : exécute les étapes sur la file appelante (jamais le thread principal) et rend le résultat.
+    func runForTest(_ steps: [MacroStep], pid: Int32) -> MacroOutcome {
+        busy.withLock { $0 = true }
+        defer { busy.withLock { $0 = false } }
+        return execute(steps, pid: pid)
+    }
+
     /// Une macro est en cours (ses propres clics ne doivent pas compter comme « dernière piste cliquée »).
     var isRunning: Bool { busy.value }
 
@@ -345,7 +357,10 @@ final class MacroRunner {
         MacroLog.shared.windows("start", initial)
         func frame(_ p: CGPoint) -> CGRect? { initial.fl.first { $0.layer == 0 && $0.bounds.contains(p) }?.bounds }
         var track = origin
-        if let remembered = TrackMemory.shared.lastClickInfo() {
+        if let p = Self.testTrackPoint {
+            track = p
+            MacroLog.shared.write("TRACK", "test track (\(Int(p.x)),\(Int(p.y)))")
+        } else if let remembered = TrackMemory.shared.lastClickInfo() {
             let same = initial.window(remembered.window).map { MacroSpots.sameSize($0.bounds.size, remembered.windowSize) } ?? false
             MacroLog.shared.write("TRACK", "remembered (\(Int(remembered.point.x)),\(Int(remembered.point.y))) "
                 + "\(Int(-remembered.date.timeIntervalSinceNow)) s ago in #\(remembered.window): \(same ? "window unchanged" : "window gone/resized → ignored")")
@@ -404,8 +419,14 @@ final class MacroRunner {
 
     /// Raison d'arrêter maintenant, sinon nil.
     private func shouldStop(_ pid: Int32) -> String? {
-        let cfg = EventTap.shared.currentConfig
-        guard cfg.flPIDs.contains(pid), cfg.frontmostPID == pid else { return "FL n'est plus au premier plan" }
+        if let test = Self.testFLPID {
+            guard test == pid, NSWorkspace.shared.frontmostApplication?.processIdentifier == pid else {
+                return "FL n'est plus au premier plan"
+            }
+        } else {
+            let cfg = EventTap.shared.currentConfig
+            guard cfg.flPIDs.contains(pid), cfg.frontmostPID == pid else { return "FL n'est plus au premier plan" }
+        }
         if CGEventSource.keyState(.combinedSessionState, key: 53) { return "Échap" }
         return nil
     }

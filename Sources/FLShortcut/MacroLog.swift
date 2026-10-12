@@ -51,8 +51,12 @@ final class MacroLog: @unchecked Sendable {
     /// Bloque jusqu'à ce que tout ce qui attend dans la file soit sur disque (sonde en ligne de commande, avant exit()).
     func flush() { queue.sync { try? self.handle?.synchronize() } }
 
+    /// Essai de bout en bout : chaque ligne est aussi transmise ici (étiquette, texte, secondes depuis le début).
+    var echo: ((String, String, Double) -> Void)?
+
     func write(_ tag: String, _ text: String) {
         let (id, t0) = run.value
+        if let echo { echo(tag, text, t0 == 0 ? 0 : Double(DispatchTime.now().uptimeNanoseconds &- t0) / 1e9) }
         let now = Date()
         let elapsed = t0 == 0 ? 0 : Double(DispatchTime.now().uptimeNanoseconds &- t0) / 1e9
         logger.info("\(tag, privacy: .public) \(text, privacy: .public)")

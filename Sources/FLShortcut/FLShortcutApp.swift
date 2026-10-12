@@ -25,6 +25,8 @@ struct FLShortcutApp: App {
         Bench.runIfRequested()                   // `--mesure` : temps de réponse de FL, puis quitte
         MacroDiagnostics.runIfRequested()        // `--diag-macro` : fenêtres et menus de FL vus par l'app, puis quitte
         PresetSelfTest.runIfRequested()          // `--selftest-preset` : essai du choix automatique du preset, puis quitte
+        FakeFL.runIfRequested()                  // `--fake-fl` : FL Studio simulé pour l'essai de bout en bout (CI)
+        MacroSelfTest.runIfRequested()           // `--selftest-macro` : la macro complète contre le FL simulé, puis quitte
         Uninstaller.runStandaloneIfNeeded()      // « Désinstaller FL Shortcut.app » du .dmg
         SingleInstance.enforce()                 // avant de créer quoi que ce soit (REL-07)
         _store = StateObject(wrappedValue: Store.shared)

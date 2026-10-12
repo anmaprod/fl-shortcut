@@ -160,6 +160,26 @@ jobs:
           { echo "## Essai du preset automatique"; echo '```'; cat dist/mesure/selftest-preset.txt; echo '```'; } | tee -a "$GITHUB_STEP_SUMMARY"
           grep -Eq '^(PASS|SKIP)' dist/mesure/selftest-preset.txt && exit 0
           exit "${status:-1}"
+      - name: Essai de la macro complète sur un FL simulé (menu de piste, boîte « Open », armement, REC, entrée)
+        continue-on-error: true      # indicatif tant que le FL simulé est jeune ; le résultat est dans le résumé
+        run: |
+          mkdir -p dist/mesure
+          BIN="dist/FL Shortcut.app/Contents/MacOS/FLShortcut"
+          STATE="$RUNNER_TEMP/fakefl.json"
+          OUT="$PWD/dist/mesure/selftest-macro.txt"
+          pkill -x FLShortcut 2>/dev/null || true
+          "$BIN" --fake-fl "$STATE" &
+          fake=$!
+          sleep 3
+          "$BIN" --selftest-macro "$OUT" "$STATE" "$fake" &
+          drv=$!
+          ( for i in $(seq -w 1 40); do screencapture -x "dist/mesure/selftest-macro-$i.png" 2>/dev/null; sleep 1; done ) &
+          ( sleep 150; kill "$drv" 2>/dev/null ) &
+          status=0; wait "$drv" || status=$?
+          kill "$fake" 2>/dev/null || true
+          { echo "## Essai de la macro sur le FL simulé"; echo '```'; cat "$OUT"; echo '```'; } | tee -a "$GITHUB_STEP_SUMMARY"
+          grep -Eq '^(PASS|SKIP)' "$OUT" && exit 0
+          exit "${status:-1}"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: FLShortcut-mac

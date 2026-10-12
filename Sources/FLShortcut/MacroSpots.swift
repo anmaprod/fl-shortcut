@@ -83,8 +83,12 @@ final class ClickRecorder {
         samples.withLock { $0 = [] }
         guard monitor == nil else { return }
         monitor = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown]) { [weak self] event in
-            let cfg = EventTap.shared.currentConfig
-            guard cfg.flPIDs.contains(cfg.frontmostPID) else { return }
+            if let test = MacroRunner.testFLPID {
+                guard NSWorkspace.shared.frontmostApplication?.processIdentifier == test else { return }
+            } else {
+                let cfg = EventTap.shared.currentConfig
+                guard cfg.flPIDs.contains(cfg.frontmostPID) else { return }
+            }
             if event.cgEvent?.getIntegerValueField(.eventSourceUserData) == EventTap.mark { return }
             let p = event.cgEvent?.location ?? FLWindows.cursor()
             self?.samples.withLock { $0.append(ClickSample(point: p, time: event.timestamp)) }
