@@ -154,7 +154,7 @@ jobs:
           # lui-même au premier plan.
           "dist/FL Shortcut.app/Contents/MacOS/FLShortcut" --selftest-preset "$OUT" &
           pid=$!
-          ( sleep 3; screencapture -x dist/mesure/selftest-preset.png 2>/dev/null ) &
+          ( for i in $(seq -w 1 16); do screencapture -x "dist/mesure/selftest-preset-$i.png" 2>/dev/null; sleep 0.4; done ) &
           ( sleep 60; pkill -x FLShortcut 2>/dev/null ) &
           status=0; wait "$pid" || status=$?
           { echo "## Essai du preset automatique"; echo '```'; cat dist/mesure/selftest-preset.txt; echo '```'; } | tee -a "$GITHUB_STEP_SUMMARY"
