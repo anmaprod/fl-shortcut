@@ -147,7 +147,7 @@ final class AppStatus: ObservableObject {
             let text = note.userInfo?["text"] as? String ?? ""
             self?.lastMacro = (ok, text)
             // Dire pourquoi, pas seulement un bip (le larsen a déjà sa fenêtre).
-            if !ok, !(text.hasPrefix("Macro terminée") && text.contains("larsen") && !text.contains("armement")) {
+            if !ok, !(text.hasPrefix("Macro terminée, mais risque de larsen") && !text.contains(" ; ")) {
                 HintPanel.shared.flash(text)
             }
         })
