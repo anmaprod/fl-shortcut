@@ -147,7 +147,9 @@ final class AppStatus: ObservableObject {
             let text = note.userInfo?["text"] as? String ?? ""
             self?.lastMacro = (ok, text)
             // Dire pourquoi, pas seulement un bip (le larsen a déjà sa fenêtre).
-            if !ok, !text.hasPrefix("Macro terminée") { HintPanel.shared.flash(text) }
+            if !ok, !(text.hasPrefix("Macro terminée") && text.contains("larsen") && !text.contains("armement")) {
+                HintPanel.shared.flash(text)
+            }
         })
 
         let center = NSWorkspace.shared.notificationCenter

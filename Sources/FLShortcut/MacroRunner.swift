@@ -71,16 +71,31 @@ enum FLWindows {
         list(pid: pid).contains { $0.bounds.insetBy(dx: -2, dy: -2).contains(p) }
     }
 
-    /// Processus propriétaire de la fenêtre visible tout devant à ce point (menus contextuels compris).
-    static func ownerOfTopWindow(at p: CGPoint) -> Int32? {
+    /// Appli qui recevrait VRAIMENT un clic à ce point, d'après le système (Accessibilité, permission déjà donnée) :
+    /// les fenêtres transparentes qui laissent passer la souris (enregistreurs d'écran, utilitaires, Dock, nos
+    /// bulles) ne comptent pas. Repli : fenêtre normale (niveau 0) tout devant.
+    static func receiverPID(at p: CGPoint) -> Int32? {
+        let system = AXUIElementCreateSystemWide()
+        AXUIElementSetMessagingTimeout(system, 0.3)
+        var element: AXUIElement?
+        if AXUIElementCopyElementAtPosition(system, Float(p.x), Float(p.y), &element) == .success, let element {
+            var pid: pid_t = 0
+            if AXUIElementGetPid(element, &pid) == .success, pid != 0 { return pid }
+        }
+        return topNormalWindow(at: p)?.pid
+    }
+
+    /// Fenêtre normale (niveau 0) tout devant à ce point, sans les nôtres : (processus, nom de l'appli).
+    static func topNormalWindow(at p: CGPoint) -> (pid: Int32, name: String)? {
         let options: CGWindowListOption = [.optionOnScreenOnly, .excludeDesktopElements]
         guard let raw = CGWindowListCopyWindowInfo(options, kCGNullWindowID) as? [[String: Any]] else { return nil }
+        let me = getpid()
         for w in raw {                                            // de l'avant vers l'arrière
-            guard let layer = w[kCGWindowLayer as String] as? Int, layer >= 0, layer < 1000,
-                  let alpha = w[kCGWindowAlpha as String] as? Double, alpha > 0.01,
+            guard let layer = w[kCGWindowLayer as String] as? Int, layer == 0,
+                  let owner = w[kCGWindowOwnerPID as String] as? Int32, owner != me,
                   let dict = w[kCGWindowBounds as String] as? [String: Any],
                   let bounds = CGRect(dictionaryRepresentation: dict as CFDictionary), bounds.contains(p) else { continue }
-            return w[kCGWindowOwnerPID as String] as? Int32
+            return (owner, w[kCGWindowOwnerName as String] as? String ?? "une autre app")
         }
         return nil
     }
@@ -288,11 +303,18 @@ final class MacroRunner {
                 ready.signal()
             }
         }
+        DispatchQueue.main.async { HintPanel.shared.hide() }          // jamais notre bulle sous un clic
+        guard CGPreflightPostEventAccess() else {
+            return .failed(step: 1, reason: "autorise FL Shortcut dans Réglages Système › Confidentialité et sécurité › Accessibilité")
+        }
         // Une seule lecture de la liste des fenêtres pour tout le départ.
         let windows = FLWindows.list(pid: pid)
         func frame(_ p: CGPoint) -> CGRect? { windows.first { $0.layer == 0 && $0.bounds.contains(p) }?.bounds }
         var track = origin
         if let remembered = TrackMemory.shared.lastClick(), frame(remembered) != nil { track = remembered }
+        if steps.first?.kind == .trackMenu, frame(track) == nil {
+            return .failed(step: 1, reason: "clique d'abord sur ta piste dans le Mixer de FL, puis refais le raccourci")
+        }
         let ctx = Context(pid: pid, origin: origin,
                           frame: frame(origin),
                           baseline: windows.filter { (0...8).contains($0.layer) && $0.bounds.width > 50 && $0.bounds.height > 50 }.count,
@@ -309,6 +331,10 @@ final class MacroRunner {
         // le relâchement n'est attendu qu'avant les clics gauches, pendant que le menu de FL s'ouvre.
         if steps.first?.kind != .trackMenu {
             guard waitForModifiersReleased(timeout: 1.5) else { return .cancelled(reason: "relâche les touches du raccourci") }
+        } else {
+            // FL (2026+) lit l'état réel de ⌃⌥⌘ : un clic droit pendant que ⌃ est encore tenu serait un clic modifié.
+            // Jusqu'à 0,4 s pour le relâchement (en général bien moins), puis on part quand même.
+            _ = waitForModifiersReleased(timeout: 0.4)
         }
         var warning: String?
         var index = 0
@@ -326,7 +352,7 @@ final class MacroRunner {
             }
             switch result {
             case .ok: continue
-            case .warn(let why): warning = why
+            case .warn(let why): warning = warning.map { "\($0) ; \(why)" } ?? why
             case .fail(let why): return .failed(step: index + 1, reason: why)
             case .cancel(let why): return .cancelled(reason: why)
             }
@@ -563,7 +589,8 @@ final class MacroRunner {
 
     /// Script FL réveillé le temps des actions (il se rendort tout seul ensuite) ; attend l'accusé de FL.
     private func scriptActions(_ ids: [Int], ctx: Context) -> StepResult {
-        if let why = MIDILink.shared.runBriefly(ids) { return .fail(why) }
+        // Sans lien (ou FL qui ne répond pas), la macro ne s'arrête pas : le reste (entrée 1…) se fait quand même.
+        if let why = MIDILink.shared.runBriefly(ids) { return .warn("armement et REC non faits : \(why)") }
         return .ok
     }
 
@@ -606,8 +633,9 @@ final class MacroRunner {
 
     private func click(at p: CGPoint, right: Bool, ctx: Context) -> StepResult {
         guard FLWindows.contains(p, pid: ctx.pid) else { return .fail("le point visé est hors de FL") }
-        if !Self.clicksToPid, FLWindows.ownerOfTopWindow(at: p) != ctx.pid {
-            return .fail("une autre fenêtre couvre FL à cet endroit")
+        if !Self.clicksToPid, let owner = FLWindows.receiverPID(at: p), owner != ctx.pid, owner != getpid() {
+            let name = NSRunningApplication(processIdentifier: owner)?.localizedName ?? "une autre app"
+            return .fail("« \(name) » couvre FL à cet endroit")
         }
         postClick(at: p, right: right, pid: ctx.pid)
         lastClickPoint = p
@@ -661,11 +689,13 @@ final class MacroRunner {
             e.setIntegerValueField(.mouseEventClickState, value: 1)
             e.setIntegerValueField(.eventSourceUserData, value: EventTap.mark)
             if Self.clicksToPid { e.postToPid(pid) } else { e.post(tap: .cghidEventTap) }
+            usleep(1_000)                                   // comme Hammerspoon : laisser le système le livrer
         }
+        // Temps proches d'un vrai clic (cliclick, Hammerspoon) : survol, puis bouton tenu ~50 ms.
         send(.mouseMoved)
-        Thread.sleep(forTimeInterval: 0.015)
+        Thread.sleep(forTimeInterval: 0.03)
         send(right ? .rightMouseDown : .leftMouseDown)
-        Thread.sleep(forTimeInterval: 0.02)
+        Thread.sleep(forTimeInterval: 0.05)
         send(right ? .rightMouseUp : .leftMouseUp)
     }
 }
