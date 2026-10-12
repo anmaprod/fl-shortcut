@@ -285,6 +285,13 @@ final class MacroRunner {
     static var testFLPID: Int32?
     static var testTrackPoint: CGPoint?
 
+    /// FL au premier plan : état tenu à jour par l'app (immédiat) ; dans l'essai, NSWorkspace (≈ 20 ms par appel
+    /// hors du thread principal, mesuré sur la CI : jamais dans une boucle serrée de l'app).
+    static func isFrontmost(_ pid: Int32) -> Bool {
+        if testFLPID != nil { return NSWorkspace.shared.frontmostApplication?.processIdentifier == pid }
+        return EventTap.shared.currentConfig.frontmostPID == pid
+    }
+
     /// Essai : exécute les étapes sur la file appelante (jamais le thread principal) et rend le résultat.
     func runForTest(_ steps: [MacroStep], pid: Int32) -> MacroOutcome {
         busy.withLock { $0 = true }

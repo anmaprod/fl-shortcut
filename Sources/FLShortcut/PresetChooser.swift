@@ -34,9 +34,7 @@ enum PresetChooser {
             return nil
         }
         guard WinSnapshot.take(pid: pid).numbers.contains(dialog) else { return .failed("la boîte « Open » s'est fermée") }
-        let front = NSWorkspace.shared.frontmostApplication
-        log("frontmost \(front?.localizedName ?? "?") (\(front?.processIdentifier ?? 0)), target \(pid)")
-        guard front?.processIdentifier == pid else { return .failed("la boîte « Open » n'est pas au premier plan") }
+        guard MacroRunner.isFrontmost(pid) else { return .failed("la boîte « Open » n'est pas au premier plan") }
 
         // 1. « Aller au dossier » : nouvelle fenêtre du processus (feuille de la boîte), renvoyé tant qu'elle n'apparaît pas.
         // Fenêtres déjà là avant le premier ⌘⇧G : « Aller au dossier » est la nouvelle (elle s'anime à l'ouverture, d'où
@@ -61,7 +59,7 @@ enum PresetChooser {
             if goTo != nil { break }
         }
         guard let sheet = goTo else { return .failed("la boîte « Open » ne répond pas au clavier (⌘⇧G)") }
-        Thread.sleep(forTimeInterval: 0.2)                  // fin de l'animation : champ prêt à recevoir le texte
+        Thread.sleep(forTimeInterval: 0.1)                  // fenêtre stable (animation finie) : champ prêt
 
         // 2. Chemin tapé (remplace le texte proposé : ⌘A d'abord).
         post(keyCode: 0, flags: .maskCommand, pid: pid)                                     // ⌘A
@@ -108,7 +106,7 @@ enum PresetChooser {
         var start = 0
         while start < units.count {
             if stop() != nil { return false }
-            guard NSWorkspace.shared.frontmostApplication?.processIdentifier == pid else { return false }
+            guard MacroRunner.isFrontmost(pid) else { return false }
             var end = min(start + 12, units.count)
             if end < units.count, UTF16.isLeadSurrogate(units[end - 1]) { end -= 1 }   // jamais un caractère coupé
             let chunk = Array(units[start..<end])
@@ -128,7 +126,7 @@ enum PresetChooser {
     /// Une touche (avec ses modificateurs) frappée comme au clavier, seulement si `pid` est au premier plan (elle va
     /// donc à sa fenêtre active : la boîte « Open »). Marquée pour que notre tap l'ignore.
     static func post(keyCode: CGKeyCode, flags: CGEventFlags, pid: Int32) {
-        guard NSWorkspace.shared.frontmostApplication?.processIdentifier == pid else { return }
+        guard MacroRunner.isFrontmost(pid) else { return }
         func send(_ e: CGEvent) { e.post(tap: .cghidEventTap) }
         func flagsEvent(_ f: CGEventFlags) {
             guard let e = CGEvent(source: source) else { return }
@@ -185,6 +183,7 @@ enum PresetSelfTest {
                 exit(1)
             }
             print("boîte « Open » : \(dialog)")
+            MacroRunner.testFLPID = pid
             // Lancé depuis un terminal, l'app n'est pas au premier plan : un clic dans une zone vide du bas de la
             // boîte (à gauche de « Cancel ») la fait passer devant, comme FL quand la macro tourne.
             if NSWorkspace.shared.frontmostApplication?.processIdentifier != pid {
