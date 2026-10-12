@@ -2,7 +2,8 @@
 // (Keyboard Maestro, « Insert text by pasting ») : chaque étape attend la fenêtre qu'elle doit produire au lieu
 // d'une pause fixe (des touches envoyées avant que la boîte soit prête sont perdues).
 //  1. ⌘⇧G (« Aller au dossier ») jusqu'à l'apparition de sa fenêtre (renvoyé si la boîte n'était pas prête) ;
-//  2. chemin COLLÉ d'un coup (⌘A puis ⌘V), presse-papiers de l'utilisateur rendu ensuite tel quel ;
+//  2. chemin TAPÉ (caractères Unicode joints aux événements, comme cliclick) : un ⌘V synthétique est ignoré par
+//     macOS 26 (protection du presse-papiers), constaté par l'essai de la CI ; le presse-papiers n'est jamais touché ;
 //  3. Entrée : la fenêtre « Aller au dossier » se ferme, le fichier est sélectionné ;
 //  4. Entrée : la boîte « Open » se ferme sur ce fichier.
 // Le contenu de la boîte « Open » est servi par un autre processus du système : des touches adressées au seul
@@ -60,21 +61,18 @@ enum PresetChooser {
             if goTo != nil { break }
         }
         guard let sheet = goTo else { return .failed("la boîte « Open » ne répond pas au clavier (⌘⇧G)") }
-        Thread.sleep(forTimeInterval: 0.08)                 // champ prêt à recevoir le texte
+        Thread.sleep(forTimeInterval: 0.2)                  // fin de l'animation : champ prêt à recevoir le texte
 
-        // 2. Chemin collé (presse-papiers rendu ensuite).
-        let saved = Clipboard.save()
-        Clipboard.setString(path)
-        post(keyCode: 0, flags: .maskCommand, pid: pid)                                     // ⌘A (remplace le texte proposé)
-        Thread.sleep(forTimeInterval: 0.03)
-        post(keyCode: 9, flags: .maskCommand, pid: pid)                                     // ⌘V
-        Thread.sleep(forTimeInterval: 0.12)
-        log("path pasted (\(path.count) characters)")
+        // 2. Chemin tapé (remplace le texte proposé : ⌘A d'abord).
+        post(keyCode: 0, flags: .maskCommand, pid: pid)                                     // ⌘A
+        Thread.sleep(forTimeInterval: 0.02)
+        guard type(path, pid: pid, stop: stop) else { return .cancelled(stop() ?? "arrêt") }
+        Thread.sleep(forTimeInterval: 0.1)
+        log("path typed (\(path.count) characters)")
 
         // 3. Entrée : « Aller au dossier » se ferme et sélectionne le fichier.
         post(keyCode: 36, flags: [], pid: pid)
         let closed = gone([sheet.number], 2.0)
-        Clipboard.restore(saved, after: 0.3)
         switch closed {
         case .stopped(let why)?: return .cancelled(why)
         case .timeout?:
@@ -101,6 +99,25 @@ enum PresetChooser {
         return .failed("la boîte « Open » ne s'est pas fermée sur le preset")
     }
 
+    /// Texte frappé caractère par caractère (Unicode joint à chaque événement : indépendant de la disposition du
+    /// clavier, AZERTY compris). Faux si arrêté en route.
+    static func type(_ text: String, pid: Int32, stop: () -> String?) -> Bool {
+        for (i, character) in text.enumerated() {
+            if i % 16 == 0, stop() != nil { return false }
+            guard NSWorkspace.shared.frontmostApplication?.processIdentifier == pid else { return false }
+            let units = Array(String(character).utf16)
+            for down in [true, false] {
+                guard let e = CGEvent(keyboardEventSource: source, virtualKey: 0, keyDown: down) else { continue }
+                e.flags = []
+                e.keyboardSetUnicodeString(stringLength: units.count, unicodeString: units)
+                e.setIntegerValueField(.eventSourceUserData, value: EventTap.mark)
+                e.post(tap: .cghidEventTap)
+                usleep(1_500)
+            }
+        }
+        return true
+    }
+
     /// Une touche (avec ses modificateurs) frappée comme au clavier, seulement si `pid` est au premier plan (elle va
     /// donc à sa fenêtre active : la boîte « Open »). Marquée pour que notre tap l'ignore.
     static func post(keyCode: CGKeyCode, flags: CGEventFlags, pid: Int32) {
@@ -122,40 +139,6 @@ enum PresetChooser {
             usleep(8_000)
         }
         if !flags.isEmpty { flagsEvent([]) }
-    }
-}
-
-/// Presse-papiers général : copie complète (tous les types de chaque élément), puis remise en l'état.
-enum Clipboard {
-    typealias Snapshot = [[NSPasteboard.PasteboardType: Data]]
-
-    static func save() -> Snapshot {
-        (NSPasteboard.general.pasteboardItems ?? []).map { item in
-            var out: [NSPasteboard.PasteboardType: Data] = [:]
-            for t in item.types { if let d = item.data(forType: t) { out[t] = d } }
-            return out
-        }
-    }
-
-    static func setString(_ s: String) {
-        let pb = NSPasteboard.general
-        pb.clearContents()
-        pb.setString(s, forType: .string)
-    }
-
-    /// Après `after` secondes (le temps que l'app cible ait lu le collage).
-    static func restore(_ snapshot: Snapshot, after: TimeInterval) {
-        DispatchQueue.global(qos: .utility).asyncAfter(deadline: .now() + after) {
-            let pb = NSPasteboard.general
-            pb.clearContents()
-            guard !snapshot.isEmpty else { return }
-            let items: [NSPasteboardItem] = snapshot.map { dict in
-                let item = NSPasteboardItem()
-                for (t, d) in dict { item.setData(d, forType: t) }
-                return item
-            }
-            pb.writeObjects(items)
-        }
     }
 }
 

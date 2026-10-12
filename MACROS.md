@@ -15,7 +15,7 @@ Une macro est une liste d'étapes (`Macro.swift`) exécutée par `MacroRunner` s
 | `click` | clic gauche/droit à un point appris (repère : curseur, fenêtre FL, ou x du curseur + y de la fenêtre) ; le point doit tomber dans une fenêtre de FL |
 | `menu` | choix dans un menu par ses titres (Accessibilité) ; sinon clics de secours appris |
 | `waitDialog` / `waitDialogClose` | attend l'ouverture / la fermeture d'une boîte de dialogue de FL (nombre de fenêtres de FL au niveau 0 à 8) |
-| `chooseFile` | dans la boîte « Open » native (`PresetChooser.swift`) : ⌘⇧G renvoyé jusqu’à l’apparition de « Aller au dossier », chemin collé d’un coup (presse-papiers rendu ensuite), Entrée quand la feuille est prête, Entrée jusqu’à la fermeture de la boîte. Essai réel sur la CI : `FLShortcut --selftest-preset` |
+| `chooseFile` | dans la boîte « Open » native (`PresetChooser.swift`) : ⌘⇧G renvoyé jusqu’à l’apparition de « Aller au dossier », chemin tapé caractère par caractère (un ⌘V synthétique est ignoré par macOS 26), Entrée quand la feuille est prête, Entrée jusqu’à la fermeture de la boîte. Essai réel sur la CI : `FLShortcut --selftest-preset` |
 
 Bornes (`MacroLibrary.validate`) : 40 étapes, 180 s au total, chemins sans caractères de contrôle. Une macro `custom` (étapes libres) ne s'écrit qu'à la main dans le profil JSON et est **refusée à l'import**.
 
