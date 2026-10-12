@@ -193,6 +193,21 @@ enum PresetSelfTest {
                 exit(1)
             }
             print("boîte « Open » : \(dialog)")
+            // Lancé depuis un terminal, l'app n'est pas au premier plan : un clic dans une zone vide du bas de la
+            // boîte (à gauche de « Cancel ») la fait passer devant, comme FL quand la macro tourne.
+            if NSWorkspace.shared.frontmostApplication?.processIdentifier != pid {
+                let p = CGPoint(x: dialog.bounds.minX + dialog.bounds.width * 0.4, y: dialog.bounds.maxY - 22)
+                for type in [CGEventType.leftMouseDown, .leftMouseUp] {
+                    CGEvent(mouseEventSource: nil, mouseType: type, mouseCursorPosition: p, mouseButton: .left)?
+                        .post(tap: .cghidEventTap)
+                    usleep(40_000)
+                }
+                let deadline = Date().addingTimeInterval(2)
+                while NSWorkspace.shared.frontmostApplication?.processIdentifier != pid, Date() < deadline {
+                    Thread.sleep(forTimeInterval: 0.05)
+                }
+                print("au premier plan après le clic : \(NSWorkspace.shared.frontmostApplication?.localizedName ?? "?")")
+            }
             let outcome = PresetChooser.choose(path: wanted.path, pid: pid, dialog: dialog.number, stop: { nil },
                                                log: { print("  \($0)") })
             print("PresetChooser : \(outcome) en \(Int(Date().timeIntervalSince(started) * 1000)) ms")

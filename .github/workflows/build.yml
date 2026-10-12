@@ -150,8 +150,9 @@ jobs:
           mkdir -p dist/mesure
           OUT="$PWD/dist/mesure/selftest-preset.txt"
           pkill -x FLShortcut 2>/dev/null || true
-          # `open` : l'app démarre au premier plan, comme FL quand la macro tourne.
-          open -W -n "dist/FL Shortcut.app" --args --selftest-preset "$OUT" &
+          # Lancé depuis le shell (qui a l'autorisation d'envoyer des événements sur le runner) ; l'essai passe
+          # lui-même au premier plan.
+          "dist/FL Shortcut.app/Contents/MacOS/FLShortcut" --selftest-preset "$OUT" &
           pid=$!
           ( sleep 3; screencapture -x dist/mesure/selftest-preset.png 2>/dev/null ) &
           ( sleep 60; pkill -x FLShortcut 2>/dev/null ) &
