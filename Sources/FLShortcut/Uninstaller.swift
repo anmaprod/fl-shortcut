@@ -97,7 +97,7 @@ enum Uninstaller {
             removed.append("tes raccourcis et données")
         }
 
-        // 5. Réglages, état des fenêtres, caches.
+        // 5. Réglages, état des fenêtres, caches, journal des macros.
         defaults?.removePersistentDomain(forName: bundleID)
         CFPreferencesAppSynchronize(bundleID as CFString)
         var hadPrefs = false
@@ -106,10 +106,11 @@ enum Uninstaller {
                     lib.appendingPathComponent("Caches/\(bundleID)"),
                     lib.appendingPathComponent("HTTPStorages/\(bundleID)"),
                     lib.appendingPathComponent("HTTPStorages/\(bundleID).binarycookies"),
-                    lib.appendingPathComponent("WebKit/\(bundleID)")] where fm.fileExists(atPath: url.path) {
+                    lib.appendingPathComponent("WebKit/\(bundleID)"),
+                    lib.appendingPathComponent("Logs/FL Shortcut")] where fm.fileExists(atPath: url.path) {
             if (try? fm.removeItem(at: url)) != nil { hadPrefs = true }
         }
-        if hadPrefs { removed.append("les réglages et caches") }
+        if hadPrefs { removed.append("les réglages, caches et journaux") }
 
         // 6. Autorisations (les lignes disparaissent des Réglages Système).
         if run("/usr/bin/tccutil", ["reset", "Accessibility", bundleID]) { removed.append("l'autorisation clavier") }

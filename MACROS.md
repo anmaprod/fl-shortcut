@@ -61,6 +61,8 @@ Format dans un profil :
 
 Diagnostic : app quittée, `FLShortcut --diag-macro`, ouvrir dans FL le menu ou la boîte à étudier pendant les 6 s. La sortie liste les fenêtres de FL et l'arbre d'accessibilité.
 
+Sonde : `FLShortcut --diag-macro --watch 20` affiche pendant 20 s chaque fenêtre de FL qui apparaît, bouge ou disparaît (menus et sous-menus compris), l'état des boutons de la souris et ce que l'Accessibilité voit sous le curseur. Journal de chaque macro : `~/Library/Logs/FL Shortcut/macro.log` (bouton « Exporter le journal… » dans la fiche ; aucune frappe ni nom de fichier).
+
 ## Fichiers
 `Macro.swift` (données, logique pure) · `MacroRunner.swift` (exécution, menus, apprentissage, diagnostic) · `MacroFields.swift` (interface) · `Model.swift`, `KeyRouter.swift`, `EventTap.swift`, `EditorView.swift`, `Catalog.swift`, `FLShortcutApp.swift` (branchements) · `Tests/FLShortcutTests/MacroTests.swift`.
 

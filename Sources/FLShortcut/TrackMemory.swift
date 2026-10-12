@@ -1,27 +1,42 @@
-// « La piste sur laquelle j'ai cliqué » pour les macros : position du dernier clic gauche dans FL.
-// Moniteur global de souris (permission Accessibilité déjà donnée pour le clavier) : seule la position est
-// retenue, seulement quand FL est au premier plan, et seulement s'il existe une macro automatique active.
+// Last left click in FL: event location (not the cursor read later), the FL window it landed in (number and
+// size: the macro refuses a point whose window has since closed or changed size), and the click that brings
+// FL to the front is kept too (owner of the topmost normal window under the click).
 import AppKit
 
 final class TrackMemory {
     static let shared = TrackMemory()
 
+    struct Click {
+        let point: CGPoint
+        let date: Date
+        let window: Int
+        let windowSize: CGSize
+    }
+
     private var monitor: Any?
-    private let last = Locked<(point: CGPoint, date: Date)?>(nil)
+    private let last = Locked<Click?>(nil)
 
     private init() {}
 
-    /// Thread principal.
+    /// Main thread.
     func setActive(_ on: Bool) {
         if on, monitor == nil {
             monitor = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown]) { [weak self] event in
-                let cfg = EventTap.shared.currentConfig
-                guard cfg.flPIDs.contains(cfg.frontmostPID) else { return }
-                // Les clics de la macro elle-même ne sont pas « la piste sur laquelle j'ai cliqué ».
                 if event.cgEvent?.getIntegerValueField(.eventSourceUserData) == EventTap.mark { return }
                 if MacroRunner.shared.isRunning { return }
-                let p = FLWindows.cursor()
-                self?.last.withLock { $0 = (p, Date()) }
+                let p = event.cgEvent?.location ?? FLWindows.cursor()
+                let cfg = EventTap.shared.currentConfig
+                let target: Int32
+                if cfg.flPIDs.contains(cfg.frontmostPID) {
+                    target = cfg.frontmostPID
+                } else if let top = FLWindows.topNormalWindow(at: p), cfg.flPIDs.contains(top.pid) {
+                    target = top.pid                                   // activation click on FL
+                } else {
+                    return
+                }
+                // Normal-level FL window only: clicks in FL's menus / popups are not "the track".
+                guard let w = WinSnapshot.take(pid: target).hit(p), w.layer == 0 else { return }
+                self?.last.withLock { $0 = Click(point: p, date: Date(), window: w.number, windowSize: w.bounds.size) }
             }
         } else if !on, let m = monitor {
             NSEvent.removeMonitor(m)
@@ -29,9 +44,11 @@ final class TrackMemory {
         }
     }
 
-    /// Dernier clic dans FL depuis moins de `maxAge` secondes.
-    func lastClick(maxAge: TimeInterval = 600) -> CGPoint? {
+    func lastClickInfo(maxAge: TimeInterval = 600) -> Click? {
         guard let l = last.value, Date().timeIntervalSince(l.date) < maxAge else { return nil }
-        return l.point
+        return l
     }
+
+    /// Kept for existing callers.
+    func lastClick(maxAge: TimeInterval = 600) -> CGPoint? { lastClickInfo(maxAge: maxAge)?.point }
 }

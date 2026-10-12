@@ -151,6 +151,18 @@ struct MacroFields: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
         }
+
+        LabeledContent("Journal") {
+            VStack(alignment: .leading, spacing: 4) {
+                HStack(spacing: 8) {
+                    Button("Exporter le journal…") { MacroLogExport.run() }.secondaryButton()
+                    Button("Afficher dans le Finder") { MacroLogExport.revealInFinder() }.secondaryButton()
+                }
+                Text("Étapes, fenêtres de FL et clics de chaque macro, pour comprendre un échec. Aucune frappe, aucun nom de fichier.")
+                    .font(.caption).foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
     }
 
     @ViewBuilder

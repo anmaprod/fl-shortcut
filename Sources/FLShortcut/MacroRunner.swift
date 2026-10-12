@@ -244,7 +244,30 @@ final class MacroRunner {
         let baseline: Int
         /// Piste visée par les étapes automatiques : dernier clic dans FL, sinon position du curseur.
         let track: CGPoint
+        /// Windows visible when the macro started (FL + out-of-process panels).
+        let startNumbers: Set<Int>
     }
+
+    private enum MenuStop: Error {
+        case cancel(String)
+        case fail(String)
+    }
+
+    private func result(_ stop: MenuStop) -> StepResult {
+        switch stop {
+        case .cancel(let why): return .cancel(why)
+        case .fail(let why): return .fail(why)
+        }
+    }
+
+    /// Dialog opened by the menu (waitDialog → waitDialogClose). Macro queue only.
+    private var dialog: WinInfo?
+    /// Where the user's pointer was before a burst of automatic clicks. Macro queue only.
+    private var cursorBeforeBurst: CGPoint?
+    /// FL answered the AX hit-test on its popup with a menu role: titles can be used (tier 0). Macro queue only.
+    private var popupAX = false
+    /// Max distance between the remembered click and the learned track-menu row (Playlist guard).
+    private static let maxRowDistance: CGFloat = 200
 
 
     private let queue = DispatchQueue(label: "fr.flshortcut.macro", qos: .userInitiated)
@@ -289,9 +312,19 @@ final class MacroRunner {
     }
 
     private func execute(_ steps: [MacroStep], pid: Int32) -> MacroOutcome {
+        MacroLog.shared.beginRun(steps.map(\.kind.rawValue).joined(separator: " > "), flPID: pid)
+        let outcome = runSteps(steps, pid: pid)
+        restoreCursor()
+        MacroLog.shared.endRun(outcome.text)
+        return outcome
+    }
+
+    private func runSteps(_ steps: [MacroStep], pid: Int32) -> MacroOutcome {
         let origin = FLWindows.cursor()
         lastClickPoint = nil
-        // Un résultat neuf à chaque macro (une vérification tardive de la précédente ne peut pas s'y mêler).
+        cursorBeforeBurst = nil
+        dialog = nil
+        popupAX = false
         let report = Locked<FeedbackRisk.Report?>(nil)
         let ready = DispatchSemaphore(value: 0)
         feedbackReport = report
@@ -303,61 +336,66 @@ final class MacroRunner {
                 ready.signal()
             }
         }
-        DispatchQueue.main.async { HintPanel.shared.hide() }          // jamais notre bulle sous un clic
+        DispatchQueue.main.sync { HintPanel.shared.hide() }       // synchronous: never our bubble under a click
         guard CGPreflightPostEventAccess() else {
             return .failed(step: 1, reason: "autorise FL Shortcut dans Réglages Système › Confidentialité et sécurité › Accessibilité")
         }
-        // Une seule lecture de la liste des fenêtres pour tout le départ.
-        let windows = FLWindows.list(pid: pid)
-        func frame(_ p: CGPoint) -> CGRect? { windows.first { $0.layer == 0 && $0.bounds.contains(p) }?.bounds }
+        let initial = WinSnapshot.take(pid: pid)
+        MacroLog.shared.windows("start", initial)
+        func frame(_ p: CGPoint) -> CGRect? { initial.fl.first { $0.layer == 0 && $0.bounds.contains(p) }?.bounds }
         var track = origin
-        if let remembered = TrackMemory.shared.lastClick(), frame(remembered) != nil { track = remembered }
+        if let remembered = TrackMemory.shared.lastClickInfo() {
+            let same = initial.window(remembered.window).map { MacroSpots.sameSize($0.bounds.size, remembered.windowSize) } ?? false
+            MacroLog.shared.write("TRACK", "remembered (\(Int(remembered.point.x)),\(Int(remembered.point.y))) "
+                + "\(Int(-remembered.date.timeIntervalSinceNow)) s ago in #\(remembered.window): \(same ? "window unchanged" : "window gone/resized → ignored")")
+            if same { track = remembered.point }
+        } else {
+            MacroLog.shared.write("TRACK", "no remembered click → cursor (\(Int(origin.x)),\(Int(origin.y)))")
+        }
         if steps.first?.kind == .trackMenu, frame(track) == nil {
             return .failed(step: 1, reason: "clique d'abord sur ta piste dans le Mixer de FL, puis refais le raccourci")
         }
-        let ctx = Context(pid: pid, origin: origin,
-                          frame: frame(origin),
-                          baseline: windows.filter { (0...8).contains($0.layer) && $0.bounds.width > 50 && $0.bounds.height > 50 }.count,
-                          track: track)
-
-        defer {
-            if Self.warpCursor {
-                CGWarpMouseCursorPosition(origin)
-                CGAssociateMouseAndMouseCursorPosition(1)
-            }
-        }
-        // Les modificateurs du raccourci (⌃⌥⌘⇧) sont peut-être encore enfoncés. Une macro qui commence par le clic
-        // droit sur la piste part tout de suite (nos événements portent leurs propres modificateurs, vides) ;
-        // le relâchement n'est attendu qu'avant les clics gauches, pendant que le menu de FL s'ouvre.
-        if steps.first?.kind != .trackMenu {
-            guard waitForModifiersReleased(timeout: 1.5) else { return .cancelled(reason: "relâche les touches du raccourci") }
-        } else {
-            // FL (2026+) lit l'état réel de ⌃⌥⌘ : un clic droit pendant que ⌃ est encore tenu serait un clic modifié.
-            // Jusqu'à 0,4 s pour le relâchement (en général bien moins), puis on part quand même.
-            _ = waitForModifiersReleased(timeout: 0.4)
+        let ctx = Context(pid: pid, origin: origin, frame: frame(origin),
+                          baseline: FLWindows.dialogCount(pid: pid), track: track, startNumbers: initial.numbers)
+        // Every step that clicks waits for an idle keyboard itself; other first steps wait here.
+        if steps.first?.kind != .trackMenu, !waitForKeyboardIdle(timeout: 1.5) {
+            return .cancelled(reason: "relâche les touches du raccourci")
         }
         var warning: String?
         var index = 0
         while index < steps.count {
             let step = steps[index]
+            let number = index + 1
             defer { index += 1 }
             if let stop = shouldStop(pid) { return .cancelled(reason: stop) }
-            // Armement puis REC : un seul réveil du script, les deux commandes d'affilée.
+            MacroLog.shared.write("STEP", "\(number)/\(steps.count) \(step.kind.rawValue) …")
+            let began = Date()
             let result: StepResult
-            if step.kind == .armTrack, index + 1 < steps.count, steps[index + 1].kind == .recordOn {
-                result = scriptActions([Self.armOnAction, Self.recOnAction], ctx: ctx)
-                index += 1
+            if step.kind == .armTrack {
+                let withRec = index + 1 < steps.count && steps[index + 1].kind == .recordOn
+                if withRec { index += 1 }
+                result = armAndRecord(record: withRec, ctx: ctx)
             } else {
                 result = perform(step, ctx: ctx)
             }
+            MacroLog.shared.write("STEP", "\(number) \(step.kind.rawValue) → \(describe(result)) in \(Int(Date().timeIntervalSince(began) * 1000)) ms")
             switch result {
             case .ok: continue
             case .warn(let why): warning = warning.map { "\($0) ; \(why)" } ?? why
-            case .fail(let why): return .failed(step: index + 1, reason: why)
+            case .fail(let why): return .failed(step: number, reason: why)
             case .cancel(let why): return .cancelled(reason: why)
             }
         }
         return warning.map(MacroOutcome.doneWithWarning) ?? .done
+    }
+
+    private func describe(_ r: StepResult) -> String {
+        switch r {
+        case .ok: return "ok"
+        case .warn(let why): return "warn: \(why)"
+        case .fail(let why): return "FAIL: \(why)"
+        case .cancel(let why): return "cancel: \(why)"
+        }
     }
 
     // MARK: Garde-fous
@@ -368,16 +406,6 @@ final class MacroRunner {
         guard cfg.flPIDs.contains(pid), cfg.frontmostPID == pid else { return "FL n'est plus au premier plan" }
         if CGEventSource.keyState(.combinedSessionState, key: 53) { return "Échap" }
         return nil
-    }
-
-    private func waitForModifiersReleased(timeout: TimeInterval) -> Bool {
-        let mask: CGEventFlags = [.maskCommand, .maskAlternate, .maskControl, .maskShift]
-        let deadline = Date().addingTimeInterval(timeout)
-        while Date() < deadline {
-            if CGEventSource.flagsState(.combinedSessionState).intersection(mask).isEmpty { return true }
-            Thread.sleep(forTimeInterval: 0.008)
-        }
-        return false
     }
 
     /// Pause interrompue par Échap ou la perte du premier plan de FL.
@@ -401,6 +429,7 @@ final class MacroRunner {
 
         case .key:
             guard let combo = step.combo else { return .fail("touche manquante") }
+            MacroLog.shared.write("KEY", "touche envoyée (masquée)")
             guard !EventTap.shared.currentConfig.forbidden.isForbidden(combo) else { return .fail("touche interdite") }
             postKey(combo, pid: ctx.pid)
             return .ok
@@ -426,14 +455,10 @@ final class MacroRunner {
             return .ok
 
         case .waitDialog:
-            return wait(timeoutMs: step.ms, pid: ctx.pid, failure: "boîte de dialogue introuvable") {
-                FLWindows.dialogCount(pid: ctx.pid) > ctx.baseline
-            }
+            return waitDialogOpen(timeoutMs: step.ms, ctx: ctx)
 
         case .waitDialogClose:
-            return wait(timeoutMs: step.ms, pid: ctx.pid, failure: "la boîte de dialogue ne se ferme pas") {
-                FLWindows.dialogCount(pid: ctx.pid) <= ctx.baseline
-            }
+            return waitDialogClosed(timeoutMs: step.ms, ctx: ctx)
 
         case .trackMenu:
             return trackMenu(step.titles, ctx: ctx)
@@ -458,13 +483,14 @@ final class MacroRunner {
             return selectInput(ctx: ctx)
 
         case .armTrack:
-            return scriptActions([Self.armOnAction], ctx: ctx)
+            return armAndRecord(record: false, ctx: ctx)
 
         case .recordOn:
             return scriptActions([Self.recOnAction], ctx: ctx)
 
         case .chooseFile:
             guard let path = step.path else { return .fail("chemin manquant") }
+            MacroLog.shared.write("FILE", "chemin du preset saisi (\(path.count) caractères)")
             var isDir: ObjCBool = false
             guard FileManager.default.fileExists(atPath: path, isDirectory: &isDir), !isDir.boolValue else {
                 return .fail("preset introuvable (\(URL(fileURLWithPath: path).lastPathComponent))")
@@ -487,103 +513,378 @@ final class MacroRunner {
     static let armOnAction = 39
     static let recOnAction = 40
 
-    /// Montre la bulle et attend que l'utilisateur fasse `count` clics gauches dans FL (apprentissage, une fois).
-    private func learnClicks(_ count: Int, hint: String, near point: CGPoint, ctx: Context) -> Result<[CGPoint], LearnStop> {
-        DispatchQueue.main.sync {
-            ClickRecorder.shared.start()
-            HintPanel.shared.show(hint, near: point)
-        }
-        defer { DispatchQueue.main.async { ClickRecorder.shared.stop(); HintPanel.shared.hide() } }
-        let deadline = Date().addingTimeInterval(60)
-        while Date() < deadline {
-            if let stop = shouldStop(ctx.pid) { return .failure(.cancel(stop)) }
-            let got = ClickRecorder.shared.captured
-            if got.count >= count { return .success(Array(got.prefix(count))) }
-            Thread.sleep(forTimeInterval: 0.05)
-        }
-        return .failure(.timeout)
-    }
+    // MARK: Keyboard
 
-    private enum LearnStop: Error {
-        case cancel(String)
-        case timeout
-    }
-
-    /// Attend qu'un menu de FL s'ouvre sous `p` (nouvelle fenêtre de FL à cet endroit), au lieu d'une pause fixe.
-    /// FL dessine-t-il ses menus dans sa propre fenêtre ? Alors rien n'apparaît : courte pause de secours.
-    private func waitPopup(at p: CGPoint, known: Set<Int>, ctx: Context, timeoutMs: Int = 450) -> StepResult {
-        let end = Date().addingTimeInterval(Double(timeoutMs) / 1000)
-        while Date() < end {
-            if let stop = shouldStop(ctx.pid) { return .cancel(stop) }
-            if FLWindows.list(pid: ctx.pid).contains(where: { !known.contains($0.number) && $0.bounds.contains(p) }) {
-                return pause(30, pid: ctx.pid)                 // le temps que FL dessine et prenne le survol
+    /// No modifier and (softly) no key held, the trigger's R included: FL 2026 reads the real modifier state,
+    /// HID-posted clicks pick up held modifiers, and an open FL menu reacts to key events (a ⌃ release while the
+    /// menu is open may close it). Returns false only if modifiers are still held.
+    private func waitForKeyboardIdle(timeout: TimeInterval) -> Bool {
+        let start = Date()
+        let mask: CGEventFlags = [.maskCommand, .maskAlternate, .maskControl, .maskShift]
+        var modsUp = false
+        while Date().timeIntervalSince(start) < timeout {
+            modsUp = CGEventSource.flagsState(.combinedSessionState).intersection(mask).isEmpty
+            if modsUp && !Self.anyKeyDown() {
+                MacroLog.shared.write("KEYS", "keyboard idle after \(Int(Date().timeIntervalSince(start) * 1000)) ms")
+                return true
             }
-            Thread.sleep(forTimeInterval: 0.012)
+            Thread.sleep(forTimeInterval: 0.008)
         }
-        return pause(60, pid: ctx.pid)
+        MacroLog.shared.write("KEYS", modsUp ? "a key is still down after \(Int(timeout * 1000)) ms → going on" : "modifiers still held")
+        return modsUp
     }
 
-    /// Clic droit sur la piste, puis File › Open mixer track state : clics appris la première fois
-    /// (l'utilisateur les fait lui-même, guidé par une bulle), refaits ensuite au même endroit par rapport au clic droit.
+    private static func anyKeyDown() -> Bool {
+        for code in CGKeyCode(0)..<CGKeyCode(128) where code != 57 && code != 63 {      // caps lock, fn
+            if CGEventSource.keyState(.combinedSessionState, key: code) { return true }
+        }
+        return false
+    }
+
+    // MARK: Cursor
+
+    private func restoreCursor() {
+        guard let p = cursorBeforeBurst else { return }
+        cursorBeforeBurst = nil
+        guard Self.warpCursor else { return }
+        CGWarpMouseCursorPosition(p)
+        CGAssociateMouseAndMouseCursorPosition(1)
+    }
+
+    // MARK: Track menu (popup-window anchored)
+
     private func trackMenu(_ titles: [String], ctx: Context) -> StepResult {
-        var known = Set(FLWindows.list(pid: ctx.pid).map(\.number))
-        let first = click(at: ctx.track, right: true, ctx: ctx)
-        guard case .ok = first else { return first }
-        // Clic droit parti sans attendre : on attend maintenant que ⌃ soit relâché (pendant l'ouverture du menu),
-        // pour qu'aucun clic gauche ne devienne un ⌃-clic.
-        guard waitForModifiersReleased(timeout: 1.5) else {
-            postKey(KeyCombo(keyCode: 53), pid: ctx.pid)
-            return .cancel("relâche les touches du raccourci")
-        }
-        if let learned = MacroSpots.load(.trackMenu) {
-            for p in learned.points(from: ctx.track) {
-                if case .cancel(let why) = waitPopup(at: p, known: known, ctx: ctx) { return .cancel(why) }
-                known = Set(FLWindows.list(pid: ctx.pid).map(\.number))
-                let r = click(at: p, right: false, ctx: ctx)
-                guard case .ok = r else { postKey(KeyCombo(keyCode: 53), pid: ctx.pid); return r }
-            }
+        let axTitles = titles.map { $0.split(separator: "|").map(String.init) }
+        if let path = MacroSpots.loadPath(.openState) { return replayMenu(path, titles: axTitles, ctx: ctx) }
+        return learnPath(.openState, clicks: 2,
+                         hint: "Une seule fois : clique sur « File », puis sur « Open mixer track state ».",
+                         hintAt: Self.hintPoint(awayFrom: ctx.track), rightClick: true, ctx: ctx)
+    }
+
+    /// « Arm selected track(s) » from the same menu: idempotent (Disarm is a separate item), no MIDI needed.
+    private func armViaMenu(ctx: Context) -> StepResult {
+        if let path = MacroSpots.loadPath(.armSelected) { return replayMenu(path, titles: [["Arm selected track"]], ctx: ctx) }
+        return learnPath(.armSelected, clicks: 1, hint: "Une seule fois : clique sur « Arm selected track(s) ».",
+                         hintAt: Self.hintPoint(awayFrom: ctx.track), rightClick: true, ctx: ctx)
+    }
+
+    /// MIDI first (acknowledged by FL); if the script is unavailable, arm from the track menu instead of only warning.
+    private func armAndRecord(record: Bool, ctx: Context) -> StepResult {
+        let ids = record ? [Self.armOnAction, Self.recOnAction] : [Self.armOnAction]
+        guard let why = MIDILink.shared.runBriefly(ids) else {
+            MacroLog.shared.write("MIDI", "arm\(record ? " + REC" : "") acknowledged")
             return .ok
+        }
+        MacroLog.shared.write("MIDI", "failed: \(why) → Arm selected track(s) from the track menu")
+        let menu = armViaMenu(ctx: ctx)
+        switch menu {
+        case .cancel: return menu
+        case .ok, .warn: return record ? .warn("REC non lancé : \(why)") : .ok
+        case .fail(let menuWhy): return .warn("armement et REC non faits : \(why) ; menu : \(menuWhy)")
+        }
+    }
+
+    private func replayMenu(_ path: MacroSpots.MenuPath, titles: [[String]], ctx: Context) -> StepResult {
+        if let row = path.row, let why = rowProblem(row, ctx: ctx) { return .fail(why) }
+        guard waitForKeyboardIdle(timeout: 1.5) else { return .cancel("relâche les touches du raccourci") }
+        guard let first = path.hops.first else {
+            // FL drew the menu inside its window when learning: nothing to verify against → exact replay only.
+            guard let inline = path.inline else { return .fail("clics à réapprendre (fiche du raccourci)") }
+            guard abs(ctx.track.y - inline.anchor.y) <= 3 else {
+                return .fail("menu de FL non repérable à cette hauteur : clique sur la même rangée qu'à l'apprentissage, ou réapprends")
+            }
+            let r = click(at: ctx.track, right: true, ctx: ctx)
+            guard case .ok = r else { return r }
+            MacroLog.shared.write("MENU", "inline replay (UNVERIFIED: no popup window was seen at learning)")
+            return replayChain(inline.offsets, from: ctx.track, ctx: ctx)
+        }
+        let before = WinSnapshot.take(pid: ctx.pid)
+        MacroLog.shared.windows("before right-click", before)
+        let r = click(at: ctx.track, right: true, ctx: ctx)
+        guard case .ok = r else { return r }
+        switch awaitPopup(fitting: first, excluding: before.numbers, timeout: 1.5, ctx: ctx) {
+        case .success(let popup):
+            return runHops(path.hops, titles: titles, firstPopup: popup, base: before.numbers, ctx: ctx)
+        case .failure(let stop):
+            return result(stop)
+        }
+    }
+
+    /// A popup of the learned size appears (FL may shift it anywhere: only its own top-left matters).
+    /// Anything else that opened is closed (Escape, verified) and the step fails — no click is ever sent blind.
+    private func awaitPopup(fitting hop: MacroSpots.PopupHop, excluding base: Set<Int>, timeout: TimeInterval,
+                            ctx: Context) -> Result<WinInfo, MenuStop> {
+        let began = Date()
+        switch WindowWait.newWindow(pid: ctx.pid, excluding: base, timeout: timeout,
+                                    accept: { $0.isMenuLike && hop.fits($0.bounds) },
+                                    stop: { self.shouldStop(ctx.pid) }) {
+        case .success(let w):
+            let ax = AXProbe.hit(CGPoint(x: w.bounds.midX, y: w.bounds.midY))
+            popupAX = ax.error == .success && ax.pid == ctx.pid && ax.role.hasPrefix("AXMenu")
+            MacroLog.shared.write("MENU", "popup \(w) after \(Int(Date().timeIntervalSince(began) * 1000)) ms "
+                + "(learned \(Int(hop.size.width))x\(Int(hop.size.height))) · \(ax)")
+            return .success(w)
+        case .failure(.stopped(let why)):
+            closePopups(base: base, ctx: ctx)
+            return .failure(.cancel(why))
+        case .failure(.timeout):
+            let snap = WinSnapshot.take(pid: ctx.pid)
+            MacroLog.shared.windows("no popup of the learned size after \(Int(timeout * 1000)) ms", snap,
+                                    mark: snap.numbers.subtracting(base))
+            let other = snap.fl.first { !base.contains($0.number) && $0.isMenuLike }
+            closePopups(base: base, ctx: ctx)
+            if let other {
+                return .failure(.fail("FL a ouvert un autre menu (\(Int(other.bounds.width))x\(Int(other.bounds.height))) : "
+                                      + "clique sur le nom de ta piste dans le Mixer, ou réapprends les clics"))
+            }
+            return .failure(.fail("le menu de FL ne s'est pas ouvert"))
+        }
+    }
+
+    /// Clicks each hop inside its own popup; between hops, waits for the next popup (submenu); after the last,
+    /// waits for every popup to close (proof the item was taken).
+    private func runHops(_ hops: [MacroSpots.PopupHop], titles: [[String]], firstPopup: WinInfo,
+                         base: Set<Int>, ctx: Context) -> StepResult {
+        var popup = firstPopup
+        var opened: Set<Int> = [firstPopup.number]
+        for (i, hop) in hops.enumerated() {
+            let byTitle = popupAX && i < titles.count ? AXProbe.itemCenter(in: popup, titles: titles[i]) : nil
+            let p = byTitle ?? hop.point(in: popup.bounds)
+            MacroLog.shared.write("HOP", "\(i + 1)/\(hops.count) in \(popup) → (\(Int(p.x)),\(Int(p.y))) "
+                + (byTitle != nil ? "by AX title" : "by learned offset (\(Int(hop.offset.dx)),\(Int(hop.offset.dy)))"))
+            let known = WinSnapshot.take(pid: ctx.pid).numbers
+            let r = clickInside(p, popup: popup, ctx: ctx)
+            guard case .ok = r else {
+                closePopups(base: base, ctx: ctx)
+                return r
+            }
+            if i + 1 < hops.count {
+                switch awaitPopup(fitting: hops[i + 1], excluding: known.union(opened), timeout: 1.2, ctx: ctx) {
+                case .success(let next):
+                    popup = next
+                    opened.insert(next.number)
+                case .failure(let stop):
+                    closePopups(base: base, ctx: ctx)
+                    return result(stop)
+                }
+            } else {
+                switch WindowWait.gone(pid: ctx.pid, numbers: opened, timeout: 1.0, stop: { self.shouldStop(ctx.pid) }) {
+                case .success:
+                    MacroLog.shared.write("MENU", "all popups closed after the last click")
+                case .failure(.stopped(let why)):
+                    return .cancel(why)
+                case .failure(.timeout):
+                    closePopups(base: base, ctx: ctx)
+                    return .fail("le menu de FL est resté ouvert après le clic (élément manqué : réapprends les clics)")
+                }
+            }
+        }
+        restoreCursor()
+        return .ok
+    }
+
+    /// Left click at `p` only if `p` is inside `popup`, the popup is still there at the same place, it is FL's
+    /// frontmost window at `p`, and no other app covers it (Accessibility hit-test).
+    private func clickInside(_ p: CGPoint, popup: WinInfo, ctx: Context) -> StepResult {
+        if let stop = shouldStop(ctx.pid) { return .cancel(stop) }
+        let snap = WinSnapshot.take(pid: ctx.pid)
+        guard let now = snap.window(popup.number), now.bounds == popup.bounds else {
+            MacroLog.shared.windows("popup moved or closed before the click", snap)
+            return .fail("le menu de FL s'est fermé avant le clic")
+        }
+        guard popup.bounds.insetBy(dx: 2, dy: 2).contains(p) else { return .fail("point hors du menu : réapprends les clics") }
+        guard snap.hit(p)?.number == popup.number else {
+            MacroLog.shared.windows("another FL window above the item", snap)
+            return .fail("une autre fenêtre de FL couvre le menu")
+        }
+        let ax = AXProbe.hit(p)
+        MacroLog.shared.write("AX", "at (\(Int(p.x)),\(Int(p.y))): \(ax)")
+        if ax.error == .success, ax.pid != 0, ax.pid != ctx.pid, ax.pid != getpid() {
+            let name = NSRunningApplication(processIdentifier: ax.pid)?.localizedName ?? "une autre app"
+            return .fail("« \(name) » couvre le menu de FL")
+        }
+        postClick(at: p, right: false, pid: ctx.pid, hoverMs: 70)       // hover first: custom menus track the pointer
+        lastClickPoint = p
+        return .ok
+    }
+
+    /// Escape only while a popup WE opened (absent from `base`) is still on screen — never a blind Escape,
+    /// which FL could apply to its focused window/panel.
+    private func closePopups(base: Set<Int>, ctx: Context) {
+        for attempt in 1...3 {
+            let open = WinSnapshot.take(pid: ctx.pid).fl.filter { !base.contains($0.number) && $0.isMenuLike }
+            guard let top = open.first else { return }
+            MacroLog.shared.write("ESC", "attempt \(attempt): \(open.map(\.description).joined(separator: ", "))")
+            postKey(KeyCombo(keyCode: 53), pid: ctx.pid)
+            _ = WindowWait.gone(pid: ctx.pid, numbers: [top.number], timeout: 0.3, stop: { nil })
+        }
+    }
+
+    /// Remembered click far from the row where the track menu was learned (Playlist, Browser…): a right-click
+    /// there can delete a clip. Skipped (logged) when the FL window size differs from learning.
+    private func rowProblem(_ row: MacroSpots.TrackRow, ctx: Context) -> String? {
+        let snap = WinSnapshot.take(pid: ctx.pid)
+        guard let w = snap.fl.first(where: { $0.layer == 0 && $0.bounds.contains(ctx.track) }),
+              MacroSpots.sameSize(w.bounds.size, row.windowSize) else {
+            MacroLog.shared.write("TRACK", "row check skipped (FL window size differs from learning)")
+            return nil
+        }
+        let dy = ctx.track.y - (w.bounds.minY + row.yFromWindowTop)
+        MacroLog.shared.write("TRACK", "row check: dy \(Int(dy)) (max \(Int(Self.maxRowDistance)))")
+        return abs(dy) > Self.maxRowDistance
+            ? "la dernière piste cliquée n'est pas dans le Mixer : clique sur ta piste, puis refais le raccourci" : nil
+    }
+
+    /// Legacy chained offsets (inline menus only). Unverified by construction: kept for exact replays.
+    private func replayChain(_ offsets: [CGVector], from anchor: CGPoint, ctx: Context) -> StepResult {
+        for p in MacroSpots.Learned(anchorSize: .zero, offsets: offsets).points(from: anchor) {
+            if case .cancel(let why) = pause(220, pid: ctx.pid) { return .cancel(why) }
+            let r = click(at: p, right: false, ctx: ctx)
+            guard case .ok = r else { return r }
         }
         if case .cancel(let why) = pause(150, pid: ctx.pid) { return .cancel(why) }
-        switch learnClicks(2, hint: "Une seule fois : clique sur « File », puis sur « Open mixer track state ».",
-                           near: ctx.track, ctx: ctx) {
-        case .success(let points):
-            MacroSpots.save(.init(anchorSize: .zero, offsets: MacroSpots.offsets(points, from: ctx.track)), .trackMenu)
-            return .ok
-        case .failure(.cancel(let why)): return .cancel(why)
-        case .failure(.timeout): return .fail("menu non choisi (60 s)")
+        restoreCursor()
+        return .ok
+    }
+
+    // MARK: Learning (records which window each user click landed in)
+
+    /// The hint is shown BEFORE the right-click (no window ordered in while FL's menu is open) and on the other
+    /// half of the screen. FL's windows are polled every 15 ms; each user click is attributed to the window that
+    /// was frontmost under it in the last snapshot taken before the click's timestamp.
+    private func learnPath(_ kind: MacroSpots.PathKind, clicks n: Int, hint: String, hintAt: CGPoint,
+                           rightClick: Bool, ctx: Context) -> StepResult {
+        guard waitForKeyboardIdle(timeout: 1.5) else { return .cancel("relâche les touches du raccourci") }
+        DispatchQueue.main.sync {
+            ClickRecorder.shared.start()
+            HintPanel.shared.show(hint, near: hintAt)
         }
-    }
-
-    /// Fenêtre principale de FL (la plus grande) : repère du sélecteur d'entrée.
-    private func mainWindow(_ pid: Int32) -> CGRect? {
-        FLWindows.list(pid: pid).filter { $0.layer == 0 }
-            .max { $0.bounds.width * $0.bounds.height < $1.bounds.width * $1.bounds.height }?.bounds
-    }
-
-    /// « (none) » → entrée 1 : clics appris une fois, relatifs au coin haut-droit de la fenêtre de FL. Taille de
-    /// la fenêtre différente : la place du sélecteur a changé, on redemande plutôt que de cliquer à côté.
-    private func selectInput(ctx: Context) -> StepResult {
-        guard let window = mainWindow(ctx.pid) else { return .fail("fenêtre de FL introuvable") }
-        let anchor = CGPoint(x: window.maxX, y: window.minY)
-        if let learned = MacroSpots.load(.input), learned.matches(size: window.size) {
-            var known = Set(FLWindows.list(pid: ctx.pid).map(\.number))
-            for (i, p) in learned.points(from: anchor).enumerated() {
-                if i > 0, case .cancel(let why) = waitPopup(at: p, known: known, ctx: ctx) { return .cancel(why) }
-                known = Set(FLWindows.list(pid: ctx.pid).map(\.number))
-                let r = click(at: p, right: false, ctx: ctx)
-                guard case .ok = r else { postKey(KeyCombo(keyCode: 53), pid: ctx.pid); return r }
+        defer { DispatchQueue.main.async { ClickRecorder.shared.stop(); HintPanel.shared.hide() } }
+        let before = WinSnapshot.take(pid: ctx.pid)
+        MacroLog.shared.windows("learn \(kind.rawValue): before", before)
+        var row: MacroSpots.TrackRow?
+        if rightClick {
+            if let w = before.fl.first(where: { $0.layer == 0 && $0.bounds.contains(ctx.track) }) {
+                row = MacroSpots.TrackRow(yFromWindowTop: ctx.track.y - w.bounds.minY, windowSize: w.bounds.size)
             }
-            return .ok
+            let r = click(at: ctx.track, right: true, ctx: ctx)
+            guard case .ok = r else { return r }
+            restoreCursor()                                          // the user drives from here
         }
-        let hintPoint = CGPoint(x: window.maxX - 160, y: window.minY + 90)
-        switch learnClicks(2, hint: "Une seule fois : clique sur « (none) » de la piste, puis sur l'entrée « 1 ».",
-                           near: hintPoint, ctx: ctx) {
-        case .success(let points):
-            MacroSpots.save(.init(anchorSize: window.size, offsets: MacroSpots.offsets(points, from: anchor)), .input)
+        var history: [WinSnapshot] = []
+        var samples: [ClickSample] = []
+        let deadline = Date().addingTimeInterval(60)
+        while samples.count < n {
+            if let stop = shouldStop(ctx.pid) { return .cancel(stop) }
+            guard Date() < deadline else { return .fail("clics non montrés (60 s)") }
+            let snap = WinSnapshot.take(pid: ctx.pid)
+            if let last = history.last, last.numbers != snap.numbers {
+                MacroLog.shared.windows("learn: windows changed", snap, mark: snap.numbers.subtracting(before.numbers))
+            }
+            history.append(snap)
+            if history.count > 200 { history.removeFirst(history.count - 200) }
+            samples = ClickRecorder.shared.capturedSamples
+            Thread.sleep(forTimeInterval: 0.015)
+        }
+        let used = Array(samples.prefix(n))
+        var path = MacroSpots.resolve(used, history: history, base: before.numbers,
+                                      anchor: ctx.track, firstInWindow: !rightClick)
+        path.row = row
+        for (i, s) in used.enumerated() {
+            let hitWindow = (history.last(where: { $0.time <= s.time }) ?? history.first)?.hit(s.point)
+            MacroLog.shared.write("LEARN", "click \(i + 1) at (\(Int(s.point.x)),\(Int(s.point.y))) in \(hitWindow?.description ?? "no FL window")")
+        }
+        MacroLog.shared.write("LEARN", "\(kind.rawValue) = \(MacroSpots.describe(path))")
+        guard path.isValid else { return .fail("clics non reconnus : refais le raccourci pour recommencer") }
+        MacroSpots.savePath(path, kind)
+        return .ok
+    }
+
+    private static func displayBounds(containing p: CGPoint) -> CGRect {
+        var ids = [CGDirectDisplayID](repeating: 0, count: 4)
+        var count: UInt32 = 0
+        guard CGGetDisplaysWithPoint(p, 4, &ids, &count) == .success, count > 0 else { return CGDisplayBounds(CGMainDisplayID()) }
+        return CGDisplayBounds(ids[0])
+    }
+
+    /// Top of the screen, on the half that does not contain `p` (FL's menu opens near `p`).
+    private static func hintPoint(awayFrom p: CGPoint) -> CGPoint {
+        let d = displayBounds(containing: p)
+        return CGPoint(x: p.x > d.midX ? d.minX + d.width * 0.25 : d.minX + d.width * 0.75, y: d.minY + 60)
+    }
+
+    // MARK: Input « (none) » → 1
+
+    private func selectInput(ctx: Context) -> StepResult {
+        let snap = WinSnapshot.take(pid: ctx.pid)
+        if let path = MacroSpots.loadPath(.input), let start = path.start,
+           let window = Self.inputWindow(in: snap, size: start.windowSize, track: ctx.track) {
+            guard waitForKeyboardIdle(timeout: 1.5) else { return .cancel("relâche les touches du raccourci") }
+            let p0 = CGPoint(x: window.bounds.maxX + start.fromTopRight.dx, y: window.bounds.minY + start.fromTopRight.dy)
+            MacroLog.shared.write("INPUT", "selector (\(Int(p0.x)),\(Int(p0.y))) in \(window)")
+            let r = click(at: p0, right: false, ctx: ctx)
+            guard case .ok = r else { return r }
+            if let first = path.hops.first {
+                switch awaitPopup(fitting: first, excluding: snap.numbers, timeout: 1.2, ctx: ctx) {
+                case .success(let list): return runHops(path.hops, titles: [], firstPopup: list, base: snap.numbers, ctx: ctx)
+                case .failure(let stop): return result(stop)
+                }
+            }
+            if let inline = path.inline { return replayChain(inline.offsets, from: p0, ctx: ctx) }
+            return .fail("entrée à réapprendre (fiche du raccourci)")
+        }
+        // Not learned, or FL's window size changed: the user shows it (once).
+        guard let main = snap.fl.filter({ $0.layer == 0 })
+                .max(by: { $0.bounds.width * $0.bounds.height < $1.bounds.width * $1.bounds.height }) else {
+            return .fail("fenêtre de FL introuvable")
+        }
+        return learnPath(.input, clicks: 2, hint: "Une seule fois : clique sur « (none) » de la piste, puis sur l'entrée « 1 ».",
+                         hintAt: CGPoint(x: main.bounds.maxX - 160, y: main.bounds.minY + 90), rightClick: false, ctx: ctx)
+    }
+
+    /// FL window with the learned size: the one holding the track first (detached Mixer), else any.
+    private static func inputWindow(in snap: WinSnapshot, size: CGSize, track: CGPoint) -> WinInfo? {
+        let fits = snap.fl.filter { $0.layer == 0 && MacroSpots.sameSize($0.bounds.size, size) }
+        return fits.first { $0.bounds.contains(track) } ?? fits.first
+    }
+
+    // MARK: Dialog (tracked by window number, not by a window count)
+
+    private func waitDialogOpen(timeoutMs: Int, ctx: Context) -> StepResult {
+        restoreCursor()
+        let deadline = Date().addingTimeInterval(Double(timeoutMs) / 1000)
+        while Date() < deadline {
+            if let stop = shouldStop(ctx.pid) { return .cancel(stop) }
+            let snap = WinSnapshot.take(pid: ctx.pid)
+            let fresh = snap.fl.first { !ctx.startNumbers.contains($0.number) && $0.isDialogLike }
+                ?? snap.panelService.first { !ctx.startNumbers.contains($0.number) && $0.isDialogLike }
+            if let fresh {
+                dialog = fresh
+                MacroLog.shared.windows("dialog \(fresh) opened", snap, mark: [fresh.number])
+                return .ok
+            }
+            Thread.sleep(forTimeInterval: 0.03)
+        }
+        MacroLog.shared.windows("no dialog after \(timeoutMs) ms", WinSnapshot.take(pid: ctx.pid))
+        return .fail("boîte de dialogue introuvable")
+    }
+
+    private func waitDialogClosed(timeoutMs: Int, ctx: Context) -> StepResult {
+        restoreCursor()
+        guard let d = dialog else {
+            return wait(timeoutMs: timeoutMs, pid: ctx.pid, failure: "la boîte de dialogue ne se ferme pas") {
+                FLWindows.dialogCount(pid: ctx.pid) <= ctx.baseline
+            }
+        }
+        switch WindowWait.gone(pid: ctx.pid, numbers: [d.number], timeout: Double(timeoutMs) / 1000,
+                               interval: timeoutMs > 10_000 ? 0.1 : 0.03, stop: { self.shouldStop(ctx.pid) }) {
+        case .success:
+            MacroLog.shared.write("DIALOG", "#\(d.number) closed")
             return .ok
-        case .failure(.cancel(let why)): return .cancel(why)
-        case .failure(.timeout): return .fail("entrée non choisie (60 s)")
+        case .failure(.stopped(let why)):
+            return .cancel(why)
+        case .failure(.timeout):
+            return .fail("la boîte de dialogue ne se ferme pas")
         }
     }
 
@@ -631,17 +932,6 @@ final class MacroRunner {
         return click(at: p, right: right, ctx: ctx)
     }
 
-    private func click(at p: CGPoint, right: Bool, ctx: Context) -> StepResult {
-        guard FLWindows.contains(p, pid: ctx.pid) else { return .fail("le point visé est hors de FL") }
-        if !Self.clicksToPid, let owner = FLWindows.receiverPID(at: p), owner != ctx.pid, owner != getpid() {
-            let name = NSRunningApplication(processIdentifier: owner)?.localizedName ?? "une autre app"
-            return .fail("« \(name) » couvre FL à cet endroit")
-        }
-        postClick(at: p, right: right, pid: ctx.pid)
-        lastClickPoint = p
-        return .ok
-    }
-
     // MARK: Événements (tous marqués « FLSH » : le tap ne les retraite jamais)
 
     private func postKey(_ combo: KeyCombo, pid: Int32) {
@@ -677,10 +967,37 @@ final class MacroRunner {
         }
     }
 
-    private func postClick(at p: CGPoint, right: Bool, pid: Int32) {
+    private func click(at p: CGPoint, right: Bool, ctx: Context) -> StepResult {
+        guard FLWindows.contains(p, pid: ctx.pid) else {
+            MacroLog.shared.write("CLICK", "refused (\(Int(p.x)),\(Int(p.y))): outside every FL window")
+            return .fail("le point visé est hors de FL")
+        }
+        if !Self.clicksToPid {
+            let ax = AXProbe.hit(p)
+            MacroLog.shared.write("AX", "at (\(Int(p.x)),\(Int(p.y))): \(ax)")
+            var owner: Int32? = (ax.error == .success && ax.pid != 0) ? ax.pid : nil
+            // AX silent: fall back to the topmost NORMAL window only if no FL popup (higher layer) is there.
+            if owner == nil, WinSnapshot.take(pid: ctx.pid).hit(p).map({ $0.layer == 0 }) ?? true {
+                owner = FLWindows.topNormalWindow(at: p)?.pid
+            }
+            if let owner, owner != ctx.pid, owner != getpid() {
+                let name = NSRunningApplication(processIdentifier: owner)?.localizedName ?? "une autre app"
+                return .fail("« \(name) » couvre FL à cet endroit")
+            }
+        }
+        postClick(at: p, right: right, pid: ctx.pid)
+        lastClickPoint = p
+        return .ok
+    }
+
+    private func postClick(at p: CGPoint, right: Bool, pid: Int32, hoverMs: Int = 30) {
+        if cursorBeforeBurst == nil { cursorBeforeBurst = FLWindows.cursor() }
+        let held = CGEventSource.flagsState(.combinedSessionState).intersection([.maskCommand, .maskAlternate, .maskControl, .maskShift])
+        MacroLog.shared.write("CLICK", "\(right ? "right" : "left") (\(Int(p.x)),\(Int(p.y)))"
+            + (held.isEmpty ? "" : " WARNING modifiers held 0x\(String(held.rawValue, radix: 16))"))
         if Self.warpCursor {
             CGWarpMouseCursorPosition(p)
-            CGAssociateMouseAndMouseCursorPosition(1)       // la souris réelle répond aussitôt après le déplacement
+            CGAssociateMouseAndMouseCursorPosition(1)
         }
         let button: CGMouseButton = right ? .right : .left
         func send(_ type: CGEventType) {
@@ -689,14 +1006,14 @@ final class MacroRunner {
             e.setIntegerValueField(.mouseEventClickState, value: 1)
             e.setIntegerValueField(.eventSourceUserData, value: EventTap.mark)
             if Self.clicksToPid { e.postToPid(pid) } else { e.post(tap: .cghidEventTap) }
-            usleep(1_000)                                   // comme Hammerspoon : laisser le système le livrer
+            usleep(1_000)
         }
-        // Temps proches d'un vrai clic (cliclick, Hammerspoon) : survol, puis bouton tenu ~50 ms.
         send(.mouseMoved)
-        Thread.sleep(forTimeInterval: 0.03)
+        Thread.sleep(forTimeInterval: Double(hoverMs) / 1000)
         send(right ? .rightMouseDown : .leftMouseDown)
         Thread.sleep(forTimeInterval: 0.05)
         send(right ? .rightMouseUp : .leftMouseUp)
+        MacroLog.shared.write("CLICK", "\(right ? "right" : "left") up")
     }
 }
 
@@ -847,6 +1164,18 @@ enum MacroDiagnostics {
             exit(1)
         }
         let pid = app.processIdentifier
+        if let i = CommandLine.arguments.firstIndex(of: "--watch") {
+            let seconds = min(max(Double(CommandLine.arguments.dropFirst(i + 1).first ?? "") ?? 20, 1), 120)
+            print("Observation des fenêtres de FL pendant \(Int(seconds)) s. Dans FL : clic droit sur une piste du Mixer, survole File, ouvre le sous-menu, Échap.")
+            MacroLog.shared.beginRun("sonde --watch", flPID: pid)
+            MacroProbe.watch(pid: pid, seconds: seconds) { line in
+                print(line)
+                MacroLog.shared.write("PROBE", line)
+            }
+            MacroLog.shared.endRun("sonde terminée")
+            MacroLog.shared.flush()
+            exit(0)
+        }
         print("FL Studio : pid \(pid). Ouvre maintenant le menu / la boîte à étudier dans FL : mesure dans 6 s…")
         Thread.sleep(forTimeInterval: 6)
         let windows = FLWindows.list(pid: pid)
