@@ -18,12 +18,14 @@ extension Notification.Name {
 
 enum MacroOutcome: Equatable {
     case done
+    case doneWithWarning(String)
     case failed(step: Int, reason: String)
     case cancelled(reason: String)
 
     var text: String {
         switch self {
         case .done: return "Macro terminée"
+        case .doneWithWarning(let why): return "Macro terminée, mais \(why)"
         case .failed(let step, let reason): return "Macro arrêtée à l'étape \(step) : \(reason)"
         case .cancelled(let reason): return "Macro annulée : \(reason)"
         }
@@ -205,11 +207,16 @@ final class MacroRunner {
     /// `defaults write app.flshortcut.FLShortcut macroClicksToPid -bool YES` : envoi au seul PID (essai).
     static var clicksToPid: Bool { UserDefaults.standard.bool(forKey: "macroClicksToPid") }
 
+    /// Résultat de la vérification du larsen, lancée en parallèle au début de la macro.
+    private let feedbackReport = Locked<FeedbackRisk.Report?>(nil)
+    private var feedbackReady = DispatchSemaphore(value: 0)
+
     /// Point du dernier clic de la macro (repère `lastClick`). File de la macro uniquement.
     private var lastClickPoint: CGPoint?
 
     private enum StepResult {
         case ok
+        case warn(String)        // étape faite, avec un avertissement affiché à la fin
         case fail(String)
         case cancel(String)
     }
@@ -248,7 +255,11 @@ final class MacroRunner {
             busy.withLock { $0 = false }
             DispatchQueue.main.async {
                 var ok = false
-                if case .done = outcome { ok = true } else { NSSound.beep() }
+                switch outcome {
+                case .done: ok = true
+                case .doneWithWarning: break                       // la fenêtre du larsen suffit
+                default: NSSound.beep()
+                }
                 NotificationCenter.default.post(name: .macroFinished, object: nil,
                                                 userInfo: ["ok": ok, "text": outcome.text])
             }
@@ -259,6 +270,17 @@ final class MacroRunner {
     private func execute(_ steps: [MacroStep], pid: Int32) -> MacroOutcome {
         let origin = FLWindows.cursor()
         lastClickPoint = nil
+        feedbackReport.withLock { $0 = nil }
+        if steps.contains(where: { $0.kind == .feedbackCheck }) {
+            let ready = DispatchSemaphore(value: 0)
+            feedbackReady = ready
+            let report = feedbackReport
+            DispatchQueue.global(qos: .utility).async {
+                let r = FeedbackRisk.check(flPID: pid)
+                report.withLock { $0 = r }
+                ready.signal()
+            }
+        }
         var track = origin
         if let remembered = TrackMemory.shared.lastClick(), FLWindows.frame(containing: remembered, pid: pid) != nil {
             track = remembered
@@ -272,15 +294,17 @@ final class MacroRunner {
         defer { if Self.warpCursor { CGWarpMouseCursorPosition(origin) } }
         // Les modificateurs du raccourci (⌃⌥⌘⇧) sont encore enfoncés : un clic avec ⌃ serait un clic droit.
         guard waitForModifiersReleased(timeout: 1.5) else { return .cancelled(reason: "relâche les touches du raccourci") }
+        var warning: String?
         for (index, step) in steps.enumerated() {
             if let stop = shouldStop(pid) { return .cancelled(reason: stop) }
             switch perform(step, ctx: ctx) {
             case .ok: continue
+            case .warn(let why): warning = why
             case .fail(let why): return .failed(step: index + 1, reason: why)
             case .cancel(let why): return .cancelled(reason: why)
             }
         }
-        return .done
+        return warning.map(MacroOutcome.doneWithWarning) ?? .done
     }
 
     // MARK: Garde-fous
@@ -362,10 +386,15 @@ final class MacroRunner {
             return trackMenu(step.titles, ctx: ctx)
 
         case .feedbackCheck:
-            let report = FeedbackRisk.check(flPID: ctx.pid)
-            guard report.risky else { return .ok }
+            // Vérification lancée dès le début de la macro (Core Audio peut mettre plusieurs secondes à répondre
+            // la première fois) : ici, le résultat est en général déjà prêt.
+            _ = feedbackReady.wait(timeout: .now() + 5)
+            guard let report = feedbackReport.value, report.risky else { return .ok }
             DispatchQueue.main.async { FeedbackAlert.show(report) }
-            return .fail("risque de larsen (micro et haut-parleurs de l'ordinateur)")
+            return .warn("risque de larsen : change d'entrée ou de sortie (casque, carte son)")
+
+        case .selectInput:
+            return selectInput(ctx: ctx)
 
         case .armTrack:
             return scriptAction(Self.armOnAction, ctx: ctx)
@@ -397,31 +426,80 @@ final class MacroRunner {
     static let armOnAction = 39
     static let recOnAction = 40
 
-    /// Touches qui parcourent le menu de piste de FL jusqu'à « File › Open mixer track state », quand le menu
-    /// n'est pas lisible par l'Accessibilité (FL dessine ses menus lui-même). Codes de touche macOS :
-    /// 125 ↓, 124 →, 36 Entrée. Relevées sur le menu de FL ; nil tant qu'elles ne sont pas connues.
-    static let trackMenuKeys: [UInt16]? = nil
+    /// Montre la bulle et attend que l'utilisateur fasse `count` clics gauches dans FL (apprentissage, une fois).
+    private func learnClicks(_ count: Int, hint: String, near point: CGPoint, ctx: Context) -> Result<[CGPoint], LearnStop> {
+        DispatchQueue.main.sync {
+            ClickRecorder.shared.start()
+            HintPanel.shared.show(hint, near: point)
+        }
+        defer { DispatchQueue.main.async { ClickRecorder.shared.stop(); HintPanel.shared.hide() } }
+        let deadline = Date().addingTimeInterval(60)
+        while Date() < deadline {
+            if let stop = shouldStop(ctx.pid) { return .failure(.cancel(stop)) }
+            let got = ClickRecorder.shared.captured
+            if got.count >= count { return .success(Array(got.prefix(count))) }
+            Thread.sleep(forTimeInterval: 0.05)
+        }
+        return .failure(.timeout)
+    }
 
-    /// Clic droit sur la piste, puis File › Open mixer track state : par l'Accessibilité (permission du clavier,
-    /// déjà donnée), sinon au clavier dans le menu de FL.
+    private enum LearnStop: Error {
+        case cancel(String)
+        case timeout
+    }
+
+    /// Clic droit sur la piste, puis File › Open mixer track state : clics appris la première fois
+    /// (l'utilisateur les fait lui-même, guidé par une bulle), refaits ensuite au même endroit par rapport au clic droit.
     private func trackMenu(_ titles: [String], ctx: Context) -> StepResult {
         let first = click(at: ctx.track, right: true, ctx: ctx)
         guard case .ok = first else { return first }
-        if case .cancel(let why) = pause(250, pid: ctx.pid) { return .cancel(why) }
-        let variants = titles.map { $0.split(separator: "|").map(String.init) }
-        if AXMenus.pressPath(pid: ctx.pid, variants: variants, perItemTimeout: 0.6, shouldStop: { shouldStop(ctx.pid) != nil }) {
+        if case .cancel(let why) = pause(220, pid: ctx.pid) { return .cancel(why) }
+        if let learned = MacroSpots.load(.trackMenu) {
+            for p in learned.points(from: ctx.track) {
+                let r = click(at: p, right: false, ctx: ctx)
+                guard case .ok = r else { postKey(KeyCombo(keyCode: 53), pid: ctx.pid); return r }
+                if case .cancel(let why) = pause(220, pid: ctx.pid) { return .cancel(why) }
+            }
             return .ok
         }
-        if let stop = shouldStop(ctx.pid) { return .cancel(stop) }
-        guard let keys = Self.trackMenuKeys else {
-            postKey(KeyCombo(keyCode: 53), pid: ctx.pid)              // Échap : referme le menu
-            return .fail("menu de la piste pas encore reconnu dans cette version de FL Shortcut")
+        switch learnClicks(2, hint: "Une seule fois : clique sur « File », puis sur « Open mixer track state ».",
+                           near: ctx.track, ctx: ctx) {
+        case .success(let points):
+            MacroSpots.save(.init(anchorSize: .zero, offsets: MacroSpots.offsets(points, from: ctx.track)), .trackMenu)
+            return .ok
+        case .failure(.cancel(let why)): return .cancel(why)
+        case .failure(.timeout): return .fail("menu non choisi (60 s)")
         }
-        for code in keys {
-            postKey(KeyCombo(keyCode: code), pid: ctx.pid)
-            if case .cancel(let why) = pause(90, pid: ctx.pid) { return .cancel(why) }
+    }
+
+    /// Fenêtre principale de FL (la plus grande) : repère du sélecteur d'entrée.
+    private func mainWindow(_ pid: Int32) -> CGRect? {
+        FLWindows.list(pid: pid).filter { $0.layer == 0 }
+            .max { $0.bounds.width * $0.bounds.height < $1.bounds.width * $1.bounds.height }?.bounds
+    }
+
+    /// « (none) » → entrée 1 : clics appris une fois, relatifs au coin haut-droit de la fenêtre de FL. Taille de
+    /// la fenêtre différente : la place du sélecteur a changé, on redemande plutôt que de cliquer à côté.
+    private func selectInput(ctx: Context) -> StepResult {
+        guard let window = mainWindow(ctx.pid) else { return .fail("fenêtre de FL introuvable") }
+        let anchor = CGPoint(x: window.maxX, y: window.minY)
+        if let learned = MacroSpots.load(.input), learned.matches(size: window.size) {
+            for p in learned.points(from: anchor) {
+                let r = click(at: p, right: false, ctx: ctx)
+                guard case .ok = r else { postKey(KeyCombo(keyCode: 53), pid: ctx.pid); return r }
+                if case .cancel(let why) = pause(250, pid: ctx.pid) { return .cancel(why) }
+            }
+            return .ok
         }
-        return .ok
+        let hintPoint = CGPoint(x: window.maxX - 160, y: window.minY + 90)
+        switch learnClicks(2, hint: "Une seule fois : clique sur « (none) » de la piste, puis sur l'entrée « 1 ».",
+                           near: hintPoint, ctx: ctx) {
+        case .success(let points):
+            MacroSpots.save(.init(anchorSize: window.size, offsets: MacroSpots.offsets(points, from: anchor)), .input)
+            return .ok
+        case .failure(.cancel(let why)): return .cancel(why)
+        case .failure(.timeout): return .fail("entrée non choisie (60 s)")
+        }
     }
 
     /// Script FL réveillé le temps de l'action, puis il se rendort tout seul (aucun trafic MIDI entre deux macros).

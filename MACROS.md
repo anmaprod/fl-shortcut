@@ -24,13 +24,12 @@ Modèle `autoRecord`, sur ⌃R dans le profil Recommandé. Il suffit de cliquer 
 
 | Étape | Effet |
 |---|---|
-| `feedbackCheck` | micro **et** haut-parleurs de l'ordinateur en service (`FeedbackRisk.swift`) → fenêtre « risque de larsen », la macro s'arrête. Carte son, casque (jack, USB, Bluetooth) : pas de blocage |
-| `trackMenu` | clic droit sur la **dernière piste cliquée** dans FL (`TrackMemory.swift`), puis « File › Open mixer track state » par l'Accessibilité, sinon au clavier (`MacroRunner.trackMenuKeys`) |
+| `trackMenu` | clic droit sur la **dernière piste cliquée** dans FL (`TrackMemory.swift`), puis « File › Open mixer track state » : la **première fois**, une bulle demande à l'utilisateur de cliquer lui-même ; l'app retient la place des clics par rapport au clic droit (`MacroSpots.swift`) et les refait ensuite seule |
 | `waitDialog` / `waitDialogClose` | attend la boîte « Ouvrir » puis le choix du preset (ou tape le chemin d'un preset fixe) |
 | `armTrack` | action 39 `armon` du script FL : arme la piste sélectionnée **seulement si** elle ne l'est pas |
 | `recordOn` | action 40 `recon` du script FL : allume le REC **seulement s'il** est éteint |
-
-L'entrée audio se choisit à la main : l'API de FL ne permet pas de la régler.
+| `selectInput` | « (none) » puis l'entrée « 1 » : appris la première fois (place relative au coin haut-droit de la fenêtre de FL, retenue avec sa taille ; taille différente → redemandé, jamais de clic à côté) |
+| `feedbackCheck` | **en dernier** : micro **et** haut-parleurs de l'ordinateur en service → fenêtre « risque de larsen » (tout est déjà en place, il ne reste qu'à changer d'entrée ou de sortie). Vérifié en parallèle dès le début de la macro : aucune attente |
 
 **Lien MIDI à la demande** : en mode léger, les ports « FL Shortcut » existent (FL les voit) mais rien n'y circule. Le script FL démarre **endormi** : `OnIdle` et `OnRefresh` s'arrêtent à leur première ligne. La macro le réveille brièvement (PING = 2), envoie l'action signée, et le script se rendort tout seul 8 s après (PROTOCOL.md §4). À régler une fois dans FL : *Options › MIDI Settings*, Input « FL Shortcut » : Enable, Controller type « FL Shortcut » ; Output « FL Shortcut » : même port.
 

@@ -35,10 +35,11 @@ struct MacroStep: Codable, Equatable, Hashable {
         case waitDialogClose  // attend sa fermeture (l'utilisateur choisit son preset)
         case chooseFile       // dans la boîte « Ouvrir » : ⌘⇧G, chemin, Entrée, Entrée
         // Étapes « automatiques » : rien à apprendre, aucune lecture de l'écran.
-        case trackMenu        // clic droit sur la piste visée, puis File › Open mixer track state (Accessibilité ou clavier)
-        case feedbackCheck    // micro et haut-parleurs de l'ordinateur : arrêt avec une explication (larsen)
+        case trackMenu        // clic droit sur la piste visée, puis File › Open mixer track state (clics appris une fois)
         case armTrack         // script FL réveillé brièvement : arme la piste sélectionnée si elle ne l'est pas
         case recordOn         // script FL réveillé brièvement : allume le REC s'il est éteint
+        case selectInput      // « (none) » → entrée 1 (clics appris une fois)
+        case feedbackCheck    // en dernier : micro et haut-parleurs de l'ordinateur → explication (larsen)
     }
 
     enum Button: String, Codable { case left, right }
@@ -192,12 +193,11 @@ enum MacroLibrary {
         return .success(built)
     }
 
-    /// Enregistrement rapide sans réglage. Ordre : larsen (avant de toucher à quoi que ce soit), menu de la piste,
-    /// preset, armement, REC. L'entrée audio se choisit à la main (FL ne permet pas de la régler par script).
+    /// Enregistrement rapide sans réglage. Ordre : menu de la piste, preset, armement, REC, entrée 1, puis le
+    /// larsen en dernier (tout est déjà en place : il ne reste qu'à changer d'entrée ou de sortie).
+    /// Les clics du menu et de l'entrée sont montrés une seule fois par l'utilisateur (MacroSpots).
     private static func autoRecordSteps(_ macro: Macro) -> [MacroStep] {
         var out: [MacroStep] = []
-        if macro.armAndInput || macro.startRecording { out.append(MacroStep(kind: .feedbackCheck)) }
-        // Le menu de piste de FL n'a qu'un niveau de sous-menu : « File », puis l'élément cherché.
         out.append(.trackMenu([Macro.fileMenuTitles.joined(separator: "|"), Macro.openStateTitles.joined(separator: "|")]))
         out.append(.waitDialog(4_000))
         if let path = macro.presetPath, !path.isEmpty {
@@ -206,11 +206,11 @@ enum MacroLibrary {
         } else {
             out.append(.waitDialogClose(MacroLibrary.maxWaitMs))
         }
-        if macro.armAndInput {
-            out.append(.delay(300))
-            out.append(MacroStep(kind: .armTrack))
-        }
+        if macro.armAndInput || macro.startRecording { out.append(.delay(250)) }
+        if macro.armAndInput { out.append(MacroStep(kind: .armTrack)) }
         if macro.startRecording { out.append(MacroStep(kind: .recordOn)) }
+        if macro.armAndInput { out.append(MacroStep(kind: .selectInput)) }
+        if macro.armAndInput || macro.startRecording { out.append(MacroStep(kind: .feedbackCheck)) }
         return out
     }
 
@@ -280,6 +280,8 @@ enum MacroLibrary {
                 }
                 total += 4_000
             case .feedbackCheck, .armTrack, .recordOn:
+                total += 3_000
+            case .selectInput:
                 total += 3_000
             case .chooseFile:
                 guard let p = s.path, !p.isEmpty, p.count <= 1024,

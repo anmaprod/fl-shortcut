@@ -13,6 +13,7 @@ struct MacroFields: View {
     @ObservedObject private var link = MIDILink.shared
     @State private var checking = false
     @State private var linkNote: String?
+    @State private var spotsLearned = MacroSpots.anyLearned
 
     private var automatic: Bool { macro.template == .autoRecord }
 
@@ -39,7 +40,7 @@ struct MacroFields: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text("Enregistrement rapide").fontWeight(.medium)
                 Text(automatic
-                     ? "Clique sur une piste du Mixer, puis tape le raccourci : File › Open mixer track state, ton preset, armement, REC. Ce qui est déjà allumé n'est pas touché."
+                     ? "Clique sur une piste du Mixer, puis tape le raccourci : File › Open mixer track state, ton preset, armement, REC, entrée 1, et le larsen vérifié en dernier. Ce qui est déjà allumé n'est pas touché."
                      : "Clic droit sur la piste → File → Open mixer track state, preset, armement, entrée 1, REC.")
                     .font(.caption).foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
@@ -64,7 +65,7 @@ struct MacroFields: View {
             }
         }
 
-        Toggle(automatic ? "Armer la piste (si elle ne l'est pas)" : "Choisir l'entrée 1 et armer la piste", isOn: $macro.armAndInput)
+        Toggle(automatic ? "Armer la piste (si elle ne l'est pas) et choisir l'entrée 1" : "Choisir l'entrée 1 et armer la piste", isOn: $macro.armAndInput)
         Toggle(automatic ? "Allumer le REC à la fin (s'il est éteint)" : "Allumer REC à la fin", isOn: Binding(get: { macro.startRecording }, set: { on in
             macro.startRecording = on
             if on { macro.recKey = AppMode.nativeEquivalent(of: 3, layout: SystemKeyboardLayout()) }
@@ -89,8 +90,18 @@ struct MacroFields: View {
                     }
                 }
             }
-            Text("Choisis l'entrée audio de la piste toi-même : FL ne permet pas de la régler automatiquement.")
-                .font(.caption).foregroundStyle(.secondary)
+            LabeledContent("Clics appris") {
+                VStack(alignment: .leading, spacing: 4) {
+                    if spotsLearned {
+                        Button("Réapprendre…") { MacroSpots.forgetAll(); spotsLearned = false }.secondaryButton()
+                    }
+                    Text(spotsLearned
+                         ? "Le menu de la piste et l'entrée 1 sont retenus. Réapprends-les si tu changes la disposition de FL."
+                         : "La première fois, une bulle te demande de cliquer toi-même sur « File › Open mixer track state », puis sur « (none) » et l'entrée « 1 ». Ensuite, la macro le fait seule.")
+                        .font(.caption).foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
         } else {
             LabeledContent("Positions") {
                 VStack(alignment: .leading, spacing: 6) {
@@ -111,6 +122,7 @@ struct MacroFields: View {
         }
         }
         .onAppear {
+            spotsLearned = MacroSpots.anyLearned
             if macro.recKey == nil, macro.startRecording {
                 macro.recKey = AppMode.nativeEquivalent(of: 3, layout: SystemKeyboardLayout())
             }

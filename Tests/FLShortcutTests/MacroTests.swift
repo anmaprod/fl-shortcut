@@ -83,8 +83,8 @@ final class MacroTests: XCTestCase {
         m.recKey = KeyCombo(keyCode: 15)
         XCTAssertEqual(m.template, .autoRecord)
         let kinds = steps(m).map(\.kind)
-        XCTAssertEqual(kinds, [.feedbackCheck, .trackMenu, .waitDialog, .waitDialogClose, .delay,
-                               .armTrack, .recordOn])
+        XCTAssertEqual(kinds, [.trackMenu, .waitDialog, .waitDialogClose, .delay,
+                               .armTrack, .recordOn, .selectInput, .feedbackCheck])
         XCTAssertEqual(steps(m).first { $0.kind == .waitDialogClose }?.ms, MacroLibrary.maxWaitMs)
     }
 
@@ -109,6 +109,23 @@ final class MacroTests: XCTestCase {
         XCTAssertEqual(FLActions.info(40)?.key, "recon")
         XCTAssertEqual(MacroRunner.armOnAction, 39)
         XCTAssertEqual(MacroRunner.recOnAction, 40)
+    }
+
+    func testRecOnlyStillChecksFeedbackAtTheEnd() {
+        var m = Macro()
+        m.armAndInput = false
+        let kinds = steps(m).map(\.kind)
+        XCTAssertEqual(kinds, [.trackMenu, .waitDialog, .waitDialogClose, .delay, .recordOn, .feedbackCheck])
+    }
+
+    func testLearnedSpotsAreRelativeAndChecked() {
+        let anchor = CGPoint(x: 100, y: 200)
+        let points = [CGPoint(x: 140, y: 230), CGPoint(x: 150, y: 290)]
+        let spots = MacroSpots.Learned(anchorSize: CGSize(width: 800, height: 600), offsets: MacroSpots.offsets(points, from: anchor))
+        XCTAssertEqual(spots.points(from: anchor), points)
+        XCTAssertEqual(spots.points(from: CGPoint(x: 0, y: 0)), [CGPoint(x: 40, y: 30), CGPoint(x: 50, y: 90)])
+        XCTAssertTrue(spots.matches(size: CGSize(width: 801, height: 600)))
+        XCTAssertFalse(spots.matches(size: CGSize(width: 900, height: 600)))
     }
 
     func testFeedbackRiskOnlyWithComputerMicAndSpeakers() {
