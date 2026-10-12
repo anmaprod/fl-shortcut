@@ -144,6 +144,19 @@ jobs:
             echo "## Mesure de l'interface (macOS 26)"
             scripts/mesure-interface.sh "dist/FL Shortcut.app" dist/mesure
           } | tee -a "$GITHUB_STEP_SUMMARY"
+      - name: Essai du choix automatique du preset (vraie boîte « Open » de macOS)
+        continue-on-error: true      # dépend de l'autorisation d'envoi d'événements du runner
+        run: |
+          mkdir -p dist/mesure
+          BIN="dist/FL Shortcut.app/Contents/MacOS/FLShortcut"
+          "$BIN" --selftest-preset > dist/mesure/selftest-preset.txt 2>&1 &
+          pid=$!
+          ( sleep 2; screencapture -x dist/mesure/selftest-preset.png 2>/dev/null ) &
+          ( sleep 60; kill "$pid" 2>/dev/null ) &
+          status=0; wait "$pid" || status=$?
+          { echo "## Essai du preset automatique"; echo '```'; cat dist/mesure/selftest-preset.txt; echo '```'; } | tee -a "$GITHUB_STEP_SUMMARY"
+          grep -Eq '^(PASS|SKIP)' dist/mesure/selftest-preset.txt && exit 0
+          exit "${status:-1}"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: FLShortcut-mac

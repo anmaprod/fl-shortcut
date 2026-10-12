@@ -499,15 +499,16 @@ final class MacroRunner {
             guard FileManager.default.fileExists(atPath: path, isDirectory: &isDir), !isDir.boolValue else {
                 return .fail("preset introuvable (\(URL(fileURLWithPath: path).lastPathComponent))")
             }
-            // ⌘⇧G = « Aller au dossier » ; un chemin complet sélectionne le fichier ; Entrée l'ouvre.
-            postKey(KeyCombo(keyCode: 5, command: true, shift: true), pid: ctx.pid)
-            if case .cancel(let why) = pause(450, pid: ctx.pid) { return .cancel(why) }
-            typeText(path, pid: ctx.pid)
-            if case .cancel(let why) = pause(350, pid: ctx.pid) { return .cancel(why) }
-            postKey(KeyCombo(keyCode: 36), pid: ctx.pid)
-            if case .cancel(let why) = pause(450, pid: ctx.pid) { return .cancel(why) }
-            postKey(KeyCombo(keyCode: 36), pid: ctx.pid)
-            return .ok
+            guard let d = dialog ?? WinSnapshot.take(pid: ctx.pid).fl.first(where: {
+                !ctx.startNumbers.contains($0.number) && $0.isDialogLike && $0.layer < 20 }) else {
+                return .fail("boîte « Open » introuvable")
+            }
+            restoreCursor()
+            switch PresetChooser.choose(path: path, pid: ctx.pid, dialog: d.number, stop: { self.shouldStop(ctx.pid) }) {
+            case .done: return .ok
+            case .cancelled(let why): return .cancel(why)
+            case .failed(let why): return .fail(why)
+            }
         }
     }
 
@@ -1189,21 +1190,6 @@ final class MacroRunner {
             e.postToPid(pid)
         }
         flags([])
-    }
-
-    /// Saisie d'un texte (chemin de fichier) caractère par caractère.
-    private func typeText(_ text: String, pid: Int32) {
-        for character in text {
-            let units = Array(String(character).utf16)
-            for down in [true, false] {
-                guard let e = CGEvent(keyboardEventSource: source, virtualKey: 0, keyDown: down) else { continue }
-                e.flags = []
-                e.keyboardSetUnicodeString(stringLength: units.count, unicodeString: units)
-                e.setIntegerValueField(.eventSourceUserData, value: EventTap.mark)
-                e.postToPid(pid)
-            }
-            Thread.sleep(forTimeInterval: 0.012)
-        }
     }
 
     private func click(at p: CGPoint, right: Bool, ctx: Context) -> StepResult {
