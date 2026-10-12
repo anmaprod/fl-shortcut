@@ -487,7 +487,7 @@ final class MacroRunner {
             return selectInput(ctx: ctx)
 
         case .armTrack:
-            return armAndRecord(record: false, ctx: ctx)
+            return armAndRecord(arm: true, record: false, recKey: nil, ctx: ctx)
 
         case .recordOn:
             return armAndRecord(arm: false, record: true, recKey: step.combo, ctx: ctx)
@@ -782,7 +782,9 @@ final class MacroRunner {
     /// - armement : menu de la piste › « Arm selected track(s) » (n'éteint jamais, Disarm est un autre élément) ;
     /// - REC : la touche REC de FL (R), qui inverse l'état sans le lire.
     private func armAndRecord(arm: Bool, record: Bool, recKey: KeyCombo?, ctx: Context) -> StepResult {
-        let ids = (arm ? [Self.armOnAction] : []) + (record ? [Self.recOnAction] : [])
+        var ids: [Int] = []
+        if arm { ids.append(Self.armOnAction) }
+        if record { ids.append(Self.recOnAction) }
         guard let why = MIDILink.shared.runBriefly(ids) else {
             MacroLog.shared.write("MIDI", "\(arm ? "arm" : "")\(arm && record ? " + " : "")\(record ? "REC" : "") acknowledged")
             return .ok
