@@ -86,6 +86,8 @@ final class MacroTests: XCTestCase {
         XCTAssertEqual(kinds, [.trackMenu, .waitDialog, .waitDialogClose, .delay,
                                .armTrack, .recordOn, .selectInput, .feedbackCheck])
         XCTAssertEqual(steps(m).first { $0.kind == .waitDialogClose }?.ms, MacroLibrary.maxWaitMs)
+        // Touche REC portée par l'étape (utilisée seulement sans lien MIDI).
+        XCTAssertEqual(steps(m).first { $0.kind == .recordOn }?.combo, KeyCombo(keyCode: 15))
     }
 
     func testAutoRecordWithFixedPresetAndWithoutArmOrRec() {

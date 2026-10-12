@@ -262,6 +262,8 @@ final class MacroRunner {
 
     /// Boîte de dialogue ouverte par le menu (waitDialog → waitDialogClose). File de la macro uniquement.
     private var dialog: WinInfo?
+    /// Point du clic droit qui a ouvert le menu de piste (rangée des noms). File de la macro uniquement.
+    private var trackTarget: CGPoint?
     /// Position du pointeur de l'utilisateur avant une série de clics automatiques. File de la macro uniquement.
     private var cursorBeforeBurst: CGPoint?
     /// FL a répondu au hit-test AX sur son menu par un rôle de menu : titres utilisables (niveau 0). File de la macro uniquement.
@@ -322,6 +324,7 @@ final class MacroRunner {
     private func runSteps(_ steps: [MacroStep], pid: Int32) -> MacroOutcome {
         let origin = FLWindows.cursor()
         lastClickPoint = nil
+        trackTarget = nil
         cursorBeforeBurst = nil
         dialog = nil
         popupAX = false
@@ -373,8 +376,9 @@ final class MacroRunner {
             let result: StepResult
             if step.kind == .armTrack {
                 let withRec = index + 1 < steps.count && steps[index + 1].kind == .recordOn
+                let recKey = withRec ? steps[index + 1].combo : nil
                 if withRec { index += 1 }
-                result = armAndRecord(record: withRec, ctx: ctx)
+                result = armAndRecord(arm: true, record: withRec, recKey: recKey, ctx: ctx)
             } else {
                 result = perform(step, ctx: ctx)
             }
@@ -486,7 +490,7 @@ final class MacroRunner {
             return armAndRecord(record: false, ctx: ctx)
 
         case .recordOn:
-            return scriptActions([Self.recOnAction], ctx: ctx)
+            return armAndRecord(arm: false, record: true, recKey: step.combo, ctx: ctx)
 
         case .chooseFile:
             guard let path = step.path else { return .fail("chemin manquant") }
@@ -590,6 +594,7 @@ final class MacroRunner {
         }
         let r = click(at: target, right: true, ctx: ctx)
         guard case .ok = r else { return r }
+        trackTarget = target
 
         // 1. Le menu de la piste s'ouvre (nouvelle fenêtre de FL).
         var opened: Set<Int> = []
@@ -772,17 +777,98 @@ final class MacroRunner {
         }
     }
 
-    /// Lien MIDI (accusé par FL, n'éteint jamais ce qui est allumé) ; sans lien, l'entrée 1 armera la piste.
-    private func armAndRecord(record: Bool, ctx: Context) -> StepResult {
-        let ids = record ? [Self.armOnAction, Self.recOnAction] : [Self.armOnAction]
+    /// Lien MIDI d'abord : FL confirme, et rien de déjà allumé n'est éteint. Sans lien, au clavier :
+    /// - armement : menu de la piste › « Arm selected track(s) » (n'éteint jamais, Disarm est un autre élément) ;
+    /// - REC : la touche REC de FL (R), qui inverse l'état sans le lire.
+    private func armAndRecord(arm: Bool, record: Bool, recKey: KeyCombo?, ctx: Context) -> StepResult {
+        let ids = (arm ? [Self.armOnAction] : []) + (record ? [Self.recOnAction] : [])
         guard let why = MIDILink.shared.runBriefly(ids) else {
-            MacroLog.shared.write("MIDI", "arm\(record ? " + REC" : "") acknowledged")
+            MacroLog.shared.write("MIDI", "\(arm ? "arm" : "")\(arm && record ? " + " : "")\(record ? "REC" : "") acknowledged")
             return .ok
         }
-        // Sans lien : l'entrée choisie ensuite arme la piste (FL le fait seul) ; le REC, lui, n'a pas d'équivalent sûr
-        // (la touche R de FL inverse l'état sans le lire).
-        MacroLog.shared.write("MIDI", "failed: \(why) → arming left to the input selection")
-        return record ? .warn("REC non lancé : \(why)") : .ok
+        MacroLog.shared.write("MIDI", "unavailable (\(why)) → keyboard")
+        var warnings: [String] = []
+        if arm {
+            let r = armViaKeyboard(ctx: ctx)
+            switch r {
+            case .cancel: return r
+            case .fail(let w), .warn(let w): warnings.append("armement non fait : \(w)")
+            case .ok: break
+            }
+        }
+        if record {
+            if let stop = shouldStop(ctx.pid) { return .cancel(stop) }
+            let key = recKey ?? KeyCombo(keyCode: 15)
+            if EventTap.shared.currentConfig.forbidden.isForbidden(key) {
+                warnings.append("REC non lancé (touche interdite)")
+            } else {
+                Thread.sleep(forTimeInterval: 0.03)
+                postKey(key, pid: ctx.pid)
+                MacroLog.shared.write("KEY", "REC key")
+            }
+        }
+        return warnings.isEmpty ? .ok : .warn(warnings.joined(separator: " ; "))
+    }
+
+    /// Éléments entre « Select » et « Arm selected track(s) » dans le menu de piste de FL 2026 : Reset selected
+    /// track(s) routing, Unroute tracks…, Solo selected track(s), Alt solo selected track(s), Arm selected track(s).
+    static let armDownCount = 5
+
+    /// Menu de la piste au clavier : « S » (Select, lettre soulignée) ouvre son sous-menu, ← le referme en laissant
+    /// « Select » surligné, puis ↓ ×5 et Entrée. Chaque touche n'est envoyée que si le menu de piste est encore ouvert.
+    private func armViaKeyboard(ctx: Context) -> StepResult {
+        guard waitForKeyboardIdle(timeout: 1.0) else { return .cancel("relâche les touches du raccourci") }
+        let before = WinSnapshot.take(pid: ctx.pid)
+        let r = click(at: trackTarget ?? ctx.track, right: true, ctx: ctx)
+        guard case .ok = r else { return r }
+        let menu: WinInfo
+        switch WindowWait.newWindow(pid: ctx.pid, excluding: before.numbers, timeout: 1.5,
+                                    accept: { $0.isMenuLike }, stop: { self.shouldStop(ctx.pid) }) {
+        case .success(let w): menu = w
+        case .failure(.stopped(let why)):
+            closePopups(base: before.numbers, ctx: ctx)
+            return .cancel(why)
+        case .failure(.timeout):
+            return .fail("le menu de la piste ne s'est pas ouvert")
+        }
+        MacroLog.shared.write("ARM", "track menu \(menu)")
+        if let memo = Self.loadTrackMenuMemo(), abs(menu.bounds.height - memo.menuHeight) > 40 {
+            closePopups(base: before.numbers, ctx: ctx)
+            return .fail("FL a ouvert un autre menu")
+        }
+        hoverOutside(menu.bounds, pid: ctx.pid)
+
+        let known = WinSnapshot.take(pid: ctx.pid).numbers
+        postLetter("s", pid: ctx.pid)
+        guard case .success(let sub) = WindowWait.newWindow(pid: ctx.pid, excluding: known, timeout: 0.45,
+                                                            accept: { $0.isMenuLike }, stop: { self.shouldStop(ctx.pid) }) else {
+            closePopups(base: before.numbers, ctx: ctx)
+            return .fail("sous-menu « Select » non ouvert")
+        }
+        MacroLog.shared.write("ARM", "« s » → submenu \(sub)")
+        postKey(KeyCombo(keyCode: 123), pid: ctx.pid)                       // ←
+        guard case .success = WindowWait.gone(pid: ctx.pid, numbers: [sub.number], timeout: 0.4, stop: { self.shouldStop(ctx.pid) }),
+              menusOpen([menu.number], ctx: ctx) else {
+            closePopups(base: before.numbers, ctx: ctx)
+            return .fail("le menu de FL n'a pas suivi les flèches")
+        }
+        for _ in 0..<Self.armDownCount {
+            postKey(KeyCombo(keyCode: 125), pid: ctx.pid)                   // ↓
+            Thread.sleep(forTimeInterval: 0.015)
+        }
+        guard menusOpen([menu.number], ctx: ctx) else { return .fail("le menu de FL s'est fermé") }
+        postKey(KeyCombo(keyCode: 36), pid: ctx.pid)                        // Entrée
+        switch WindowWait.gone(pid: ctx.pid, numbers: [menu.number], timeout: 0.8, stop: { self.shouldStop(ctx.pid) }) {
+        case .success:
+            MacroLog.shared.write("ARM", "Enter → menu closed")
+            restoreCursor()
+            return .ok
+        case .failure(.stopped(let why)):
+            return .cancel(why)
+        case .failure(.timeout):
+            closePopups(base: before.numbers, ctx: ctx)
+            return .fail("« Arm selected track(s) » n'a pas répondu")
+        }
     }
 
     /// Un menu de la taille apprise apparaît (FL peut le décaler n'importe où : seul son coin haut-gauche compte).
@@ -1046,13 +1132,6 @@ final class MacroRunner {
         case .failure(.timeout):
             return .fail("la boîte de dialogue ne se ferme pas")
         }
-    }
-
-    /// Script FL réveillé le temps des actions (il se rendort tout seul ensuite) ; attend l'accusé de FL.
-    private func scriptActions(_ ids: [Int], ctx: Context) -> StepResult {
-        // Sans lien (ou FL qui ne répond pas), la macro ne s'arrête pas : le reste (entrée 1…) se fait quand même.
-        if let why = MIDILink.shared.runBriefly(ids) { return .warn("armement et REC non faits : \(why)") }
-        return .ok
     }
 
     private func wait(timeoutMs: Int, pid: Int32, failure: String, until condition: () -> Bool) -> StepResult {

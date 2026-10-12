@@ -208,7 +208,12 @@ enum MacroLibrary {
         }
         if macro.armAndInput || macro.startRecording { out.append(.delay(100)) }
         if macro.armAndInput { out.append(MacroStep(kind: .armTrack)) }
-        if macro.startRecording { out.append(MacroStep(kind: .recordOn)) }
+        if macro.startRecording {
+            // Touche REC de FL : utilisée seulement sans lien MIDI (le lien, lui, n'allume que si c'est éteint).
+            var rec = MacroStep(kind: .recordOn)
+            rec.combo = macro.recKey ?? KeyCombo(keyCode: fallbackRecKeyCode)
+            out.append(rec)
+        }
         if macro.armAndInput { out.append(MacroStep(kind: .selectInput)) }
         if macro.armAndInput || macro.startRecording { out.append(MacroStep(kind: .feedbackCheck)) }
         return out
@@ -279,7 +284,13 @@ enum MacroLibrary {
                     return "Étape \(n) : titres de menu invalides."
                 }
                 total += 4_000
-            case .feedbackCheck, .armTrack, .recordOn:
+            case .recordOn:
+                if let combo = s.combo {
+                    guard combo.isValidKey else { return "Étape \(n) : touche REC non prise en charge." }
+                    if let why = forbidden.reason(for: combo) { return "Étape \(n) : touche REC interdite (\(why))." }
+                }
+                total += 3_000
+            case .feedbackCheck, .armTrack:
                 total += 3_000
             case .selectInput:
                 total += 3_000
