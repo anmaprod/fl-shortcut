@@ -60,4 +60,21 @@ final class MacroGeometryTests: XCTestCase {
         p.hops = [.init(offset: CGVector(dx: 10, dy: 20), size: CGSize(width: 200, height: 600))]
         XCTAssertTrue(p.isValid)
     }
+
+    func testTrackMenuMemoRoundTripAndBounds() {
+        let d = UserDefaults(suiteName: "MacroGeometryTests.memo")!
+        d.removePersistentDomain(forName: "MacroGeometryTests.memo")
+        XCTAssertNil(MacroRunner.loadTrackMenuMemo(defaults: d))
+        let memo = MacroRunner.TrackMenuMemo(row: .init(yFromWindowTop: 140, windowSize: CGSize(width: 1440, height: 875)),
+                                             menuHeight: 690)
+        MacroRunner.saveTrackMenuMemo(memo, defaults: d)
+        XCTAssertEqual(MacroRunner.loadTrackMenuMemo(defaults: d), memo)
+        MacroRunner.saveTrackMenuMemo(.init(row: memo.row, menuHeight: 9000), defaults: d)
+        XCTAssertNil(MacroRunner.loadTrackMenuMemo(defaults: d))
+        MacroRunner.saveTrackMenuMemo(memo, defaults: d)
+        d.set(true, forKey: MacroRunner.enterAfterLetterKey)
+        MacroRunner.forgetTrackMenuMemo(defaults: d)
+        XCTAssertNil(MacroRunner.loadTrackMenuMemo(defaults: d))
+        XCTAssertNil(d.object(forKey: MacroRunner.enterAfterLetterKey))
+    }
 }

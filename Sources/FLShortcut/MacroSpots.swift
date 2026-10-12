@@ -60,6 +60,7 @@ enum MacroSpots {
     static func forgetAll(defaults: UserDefaults = .standard) {
         for k in Kind.allCases { defaults.removeObject(forKey: k.rawValue) }
         for k in PathKind.allCases { defaults.removeObject(forKey: k.rawValue) }
+        MacroRunner.forgetTrackMenuMemo(defaults: defaults)
     }
 
     static var anyLearned: Bool { PathKind.allCases.contains { loadPath($0) != nil } }

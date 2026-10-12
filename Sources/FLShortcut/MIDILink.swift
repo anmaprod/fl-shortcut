@@ -486,7 +486,8 @@ final class MIDILink: ObservableObject {
             return core.snapshot.hasKey ? "ports MIDI « FL Shortcut » indisponibles : relance FL Shortcut"
                                    : "lien avec FL non installé : fiche du raccourci › Installer le lien avec FL"
         }
-        return core.runBriefly(ids, brief: AppMode.light)
+        // 1,5 s au plus : un script qui ne répond pas ne doit pas figer la macro (réponse normale : quelques ms).
+        return core.runBriefly(ids, brief: AppMode.light, timeout: 1.5)
     }
 
     func setFLRunning(_ running: Bool) {

@@ -24,9 +24,9 @@ Modèle `autoRecord`, sur ⌃R dans le profil Recommandé. Il suffit de cliquer 
 
 | Étape | Effet |
 |---|---|
-| `trackMenu` | clic droit sur la **dernière piste cliquée** dans FL (`TrackMemory.swift`), puis « File › Open mixer track state » **au clavier** : les éléments des menus de FL ont une lettre soulignée (F de File, O de Open). La macro attend que le menu apparaisse (nouvelle fenêtre de FL), écarte le pointeur du menu, tape F (flèche droite si le sous-menu ne s'ouvre pas), puis O (Entrée si les menus restent ouverts). Rien à apprendre, quelle que soit la place du menu |
+| `trackMenu` | clic droit sur la **dernière piste cliquée** dans FL (`TrackMemory.swift`), puis « File › Open mixer track state » **au clavier** : les éléments des menus de FL ont une lettre soulignée (F de File, O de Open). La macro attend que le menu apparaisse (nouvelle fenêtre de FL), écarte le pointeur du menu, tape F (flèche droite si le sous-menu ne s'ouvre pas), puis O (Entrée si les menus restent ouverts ; retenu, Entrée part ensuite aussitôt). Après un passage réussi, la rangée des noms du Mixer et la hauteur du menu sont retenues : clic droit toujours sur cette rangée, refus si le dernier clic en est loin (Playlist : un clic droit y supprime un clip) ou si un autre menu s'ouvre. Rien à apprendre |
 | `waitDialog` / `waitDialogClose` | attend la boîte « Ouvrir » puis le choix du preset (ou tape le chemin d'un preset fixe) |
-| `armTrack` | action 39 `armon` du script FL : arme la piste sélectionnée **seulement si** elle ne l'est pas |
+| `armTrack` | action 39 `armon` du script FL : arme la piste sélectionnée **seulement si** elle ne l'est pas. Sans lien MIDI : rien (choisir l'entrée arme la piste dans FL) |
 | `recordOn` | action 40 `recon` du script FL : allume le REC **seulement s'il** est éteint |
 | `selectInput` | « (none) » puis l'entrée « 1 » : appris la première fois (place relative au coin haut-droit de la fenêtre de FL, retenue avec sa taille ; taille différente → redemandé, jamais de clic à côté) |
 | `feedbackCheck` | **en dernier** : micro **et** haut-parleurs de l'ordinateur en service → fenêtre « risque de larsen » (tout est déjà en place, il ne reste qu'à changer d'entrée ou de sortie). Vérifié en parallèle dès le début de la macro : aucune attente |

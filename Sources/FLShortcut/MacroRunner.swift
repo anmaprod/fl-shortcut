@@ -574,16 +574,45 @@ final class MacroRunner {
         guard waitForKeyboardIdle(timeout: 1.5) else { return .cancel("relâche les touches du raccourci") }
         let before = WinSnapshot.take(pid: ctx.pid)
         MacroLog.shared.windows("before right-click", before)
-        let r = click(at: ctx.track, right: true, ctx: ctx)
+        let trackWindow = before.fl.first { $0.layer == 0 && $0.bounds.contains(ctx.track) }
+        let memo = Self.loadTrackMenuMemo()
+        // Garde-fou Playlist (un clic droit y supprime un clip) : rangée des noms du Mixer retenue au dernier passage
+        // réussi. Clic droit toujours sur cette rangée, dans la colonne de la piste cliquée.
+        var target = ctx.track
+        if let memo, let w = trackWindow, MacroSpots.sameSize(w.bounds.size, memo.row.windowSize) {
+            let rowY = w.bounds.minY + memo.row.yFromWindowTop
+            let dy = ctx.track.y - rowY
+            MacroLog.shared.write("TRACK", "row check: dy \(Int(dy)) (max \(Int(Self.maxRowDistance)))")
+            if abs(dy) > Self.maxRowDistance {
+                return .fail("la dernière piste cliquée n'est pas dans le Mixer : clique sur le nom de ta piste, puis refais le raccourci")
+            }
+            target.y = rowY
+        }
+        let r = click(at: target, right: true, ctx: ctx)
         guard case .ok = r else { return r }
 
         // 1. Le menu de la piste s'ouvre (nouvelle fenêtre de FL).
         var opened: Set<Int> = []
+        var menuHeight: CGFloat = 0
+        func succeeded() -> StepResult {
+            if let w = trackWindow, menuHeight > 0 {
+                Self.saveTrackMenuMemo(.init(row: .init(yFromWindowTop: target.y - w.bounds.minY, windowSize: w.bounds.size),
+                                             menuHeight: menuHeight))
+            }
+            return .ok
+        }
         switch WindowWait.newWindow(pid: ctx.pid, excluding: before.numbers, timeout: 1.5,
                                     accept: { $0.isMenuLike }, stop: { self.shouldStop(ctx.pid) }) {
         case .success(let menu):
             opened.insert(menu.number)
             MacroLog.shared.write("MENU", "track menu \(menu)")
+            // Pas le menu de piste retenu (clic tombé ailleurs) : aucune lettre ne part dans un autre menu.
+            if let memo, abs(menu.bounds.height - memo.menuHeight) > 40 {
+                closePopups(base: before.numbers, ctx: ctx)
+                Self.forgetTrackMenuMemo()
+                return .fail("FL a ouvert un autre menu : clique sur le nom de ta piste dans le Mixer, puis refais le raccourci")
+            }
+            menuHeight = menu.bounds.height
             // FL place souvent son menu sous le curseur : son survol ouvrirait un sous-menu tout seul.
             hoverOutside(menu.bounds, pid: ctx.pid)
         case .failure(.stopped(let why)):
@@ -602,12 +631,12 @@ final class MacroRunner {
             }
             let known = WinSnapshot.take(pid: ctx.pid).numbers
             postLetter(letter, pid: ctx.pid)
-            var sub = WindowWait.newWindow(pid: ctx.pid, excluding: known, timeout: 0.6,
+            var sub = WindowWait.newWindow(pid: ctx.pid, excluding: known, timeout: 0.45,
                                            accept: { $0.isMenuLike }, stop: { self.shouldStop(ctx.pid) })
             if case .failure(.timeout) = sub {
                 MacroLog.shared.write("KEY", "« \(letter) » : no submenu → right arrow")
                 postKey(KeyCombo(keyCode: 124), pid: ctx.pid)
-                sub = WindowWait.newWindow(pid: ctx.pid, excluding: known, timeout: 0.6,
+                sub = WindowWait.newWindow(pid: ctx.pid, excluding: known, timeout: 0.4,
                                            accept: { $0.isMenuLike }, stop: { self.shouldStop(ctx.pid) })
             }
             switch sub {
@@ -630,26 +659,71 @@ final class MacroRunner {
         guard let last = letters.last else { return .fail("menu de piste mal décrit") }
         guard menusOpen(opened, ctx: ctx) else { return .fail("le menu de FL s'est fermé trop tôt") }
         postLetter(last, pid: ctx.pid)
-        switch WindowWait.gone(pid: ctx.pid, numbers: opened, timeout: 0.8, stop: { self.shouldStop(ctx.pid) }) {
-        case .success:
-            MacroLog.shared.write("MENU", "« \(last) » → menus closed")
-            return .ok
-        case .failure(.stopped(let why)):
-            return .cancel(why)
-        case .failure(.timeout):
-            MacroLog.shared.write("KEY", "« \(last) » : menus still open → Enter")
+        // La lettre ouvre l'élément, ou seulement le surligne (plusieurs éléments la partagent) : il faut alors Entrée.
+        // Appris au premier passage, puis Entrée part aussitôt (sinon 0,6 s d'attente à chaque fois).
+        let needsEnter = UserDefaults.standard.object(forKey: Self.enterAfterLetterKey) as? Bool
+        if needsEnter != true {
+            switch WindowWait.gone(pid: ctx.pid, numbers: opened, timeout: needsEnter == false ? 0.8 : 0.5,
+                                   stop: { self.shouldStop(ctx.pid) }) {
+            case .success:
+                MacroLog.shared.write("MENU", "« \(last) » → menus closed")
+                UserDefaults.standard.set(false, forKey: Self.enterAfterLetterKey)
+                return succeeded()
+            case .failure(.stopped(let why)):
+                return .cancel(why)
+            case .failure(.timeout):
+                MacroLog.shared.write("KEY", "« \(last) » : menus still open → Enter")
+            }
+        } else {
+            Thread.sleep(forTimeInterval: 0.03)
+            guard menusOpen(opened, ctx: ctx) else {
+                // Cette fois la lettre a suffi (menu changé ?) : plus d'Entrée automatique.
+                UserDefaults.standard.set(false, forKey: Self.enterAfterLetterKey)
+                MacroLog.shared.write("MENU", "« \(last) » → menus closed (Enter not needed any more)")
+                return succeeded()
+            }
         }
         postKey(KeyCombo(keyCode: 36), pid: ctx.pid)
         switch WindowWait.gone(pid: ctx.pid, numbers: opened, timeout: 0.8, stop: { self.shouldStop(ctx.pid) }) {
         case .success:
             MacroLog.shared.write("MENU", "Enter → menus closed")
-            return .ok
+            UserDefaults.standard.set(true, forKey: Self.enterAfterLetterKey)
+            return succeeded()
         case .failure(.stopped(let why)):
             return .cancel(why)
         case .failure(.timeout):
             closePopups(base: before.numbers, ctx: ctx)
+            UserDefaults.standard.removeObject(forKey: Self.enterAfterLetterKey)
             return .fail("« Open mixer track state » n'a pas répondu")
         }
+    }
+
+    /// Entrée nécessaire après la dernière lettre du menu de piste (appris au premier passage).
+    static let enterAfterLetterKey = "macroMenuEnterAfterLetter"
+
+    /// Rangée du Mixer et hauteur du menu de piste au dernier passage réussi (retenues seules, rien à apprendre).
+    struct TrackMenuMemo: Codable, Equatable {
+        var row: MacroSpots.TrackRow
+        var menuHeight: CGFloat
+    }
+
+    static let trackMenuMemoKey = "macroTrackMenuMemo"
+
+    static func loadTrackMenuMemo(defaults: UserDefaults = .standard) -> TrackMenuMemo? {
+        guard let data = defaults.data(forKey: trackMenuMemoKey),
+              let m = try? JSONDecoder().decode(TrackMenuMemo.self, from: data),
+              m.menuHeight.isFinite, (40...5000).contains(m.menuHeight),
+              m.row.yFromWindowTop.isFinite, abs(m.row.yFromWindowTop) < 5000 else { return nil }
+        return m
+    }
+
+    static func saveTrackMenuMemo(_ m: TrackMenuMemo, defaults: UserDefaults = .standard) {
+        if let data = try? JSONEncoder().encode(m) { defaults.set(data, forKey: trackMenuMemoKey) }
+    }
+
+    static func forgetTrackMenuMemo(defaults: UserDefaults = .standard) {
+        defaults.removeObject(forKey: trackMenuMemoKey)
+        defaults.removeObject(forKey: enterAfterLetterKey)
     }
 
     /// Pointeur juste à côté du menu (à gauche, sinon à droite) : plus aucun élément survolé.
@@ -668,7 +742,7 @@ final class MacroRunner {
             if Self.clicksToPid { e.postToPid(pid) } else { e.post(tap: .cghidEventTap) }
         }
         MacroLog.shared.write("MOVE", "pointer beside the menu (\(Int(p.x)),\(Int(p.y)))")
-        Thread.sleep(forTimeInterval: 0.04)
+        Thread.sleep(forTimeInterval: 0.015)
     }
 
     /// Au moins un des menus ouverts par la macro est encore à l'écran.
@@ -694,57 +768,21 @@ final class MacroRunner {
             e.keyboardSetUnicodeString(stringLength: units.count, unicodeString: units)
             e.setIntegerValueField(.eventSourceUserData, value: EventTap.mark)
             e.postToPid(pid)
-            usleep(15_000)
+            usleep(4_000)
         }
     }
 
-    /// « Arm selected track(s) » dans le même menu : idempotent (Disarm est un autre élément), sans MIDI.
-    private func armViaMenu(ctx: Context) -> StepResult {
-        if let path = MacroSpots.loadPath(.armSelected) { return replayMenu(path, titles: [["Arm selected track"]], ctx: ctx) }
-        return learnPath(.armSelected, clicks: 1, hint: "Une seule fois : clique sur « Arm selected track(s) ».",
-                         hintAt: Self.hintPoint(awayFrom: ctx.track), rightClick: true, ctx: ctx)
-    }
-
-    /// MIDI d'abord (accusé par FL) ; script indisponible : armement par le menu de piste plutôt qu'un simple avertissement.
+    /// Lien MIDI (accusé par FL, n'éteint jamais ce qui est allumé) ; sans lien, l'entrée 1 armera la piste.
     private func armAndRecord(record: Bool, ctx: Context) -> StepResult {
         let ids = record ? [Self.armOnAction, Self.recOnAction] : [Self.armOnAction]
         guard let why = MIDILink.shared.runBriefly(ids) else {
             MacroLog.shared.write("MIDI", "arm\(record ? " + REC" : "") acknowledged")
             return .ok
         }
-        MacroLog.shared.write("MIDI", "failed: \(why) → Arm selected track(s) from the track menu")
-        let menu = armViaMenu(ctx: ctx)
-        switch menu {
-        case .cancel: return menu
-        case .ok, .warn: return record ? .warn("REC non lancé : \(why)") : .ok
-        case .fail(let menuWhy): return .warn("armement et REC non faits : \(why) ; menu : \(menuWhy)")
-        }
-    }
-
-    private func replayMenu(_ path: MacroSpots.MenuPath, titles: [[String]], ctx: Context) -> StepResult {
-        if let row = path.row, let why = rowProblem(row, ctx: ctx) { return .fail(why) }
-        guard waitForKeyboardIdle(timeout: 1.5) else { return .cancel("relâche les touches du raccourci") }
-        guard let first = path.hops.first else {
-            // FL a dessiné le menu dans sa fenêtre à l'apprentissage : rien à vérifier → rejeu exact seulement.
-            guard let inline = path.inline else { return .fail("clics à réapprendre (fiche du raccourci)") }
-            guard abs(ctx.track.y - inline.anchor.y) <= 3 else {
-                return .fail("menu de FL non repérable à cette hauteur : clique sur la même rangée qu'à l'apprentissage, ou réapprends")
-            }
-            let r = click(at: ctx.track, right: true, ctx: ctx)
-            guard case .ok = r else { return r }
-            MacroLog.shared.write("MENU", "inline replay (UNVERIFIED: no popup window was seen at learning)")
-            return replayChain(inline.offsets, from: ctx.track, ctx: ctx)
-        }
-        let before = WinSnapshot.take(pid: ctx.pid)
-        MacroLog.shared.windows("before right-click", before)
-        let r = click(at: ctx.track, right: true, ctx: ctx)
-        guard case .ok = r else { return r }
-        switch awaitPopup(fitting: first, excluding: before.numbers, timeout: 1.5, ctx: ctx) {
-        case .success(let popup):
-            return runHops(path.hops, titles: titles, firstPopup: popup, base: before.numbers, ctx: ctx)
-        case .failure(let stop):
-            return result(stop)
-        }
+        // Sans lien : l'entrée choisie ensuite arme la piste (FL le fait seul) ; le REC, lui, n'a pas d'équivalent sûr
+        // (la touche R de FL inverse l'état sans le lire).
+        MacroLog.shared.write("MIDI", "failed: \(why) → arming left to the input selection")
+        return record ? .warn("REC non lancé : \(why)") : .ok
     }
 
     /// Un menu de la taille apprise apparaît (FL peut le décaler n'importe où : seul son coin haut-gauche compte).
@@ -756,10 +794,10 @@ final class MacroRunner {
                                     accept: { $0.isMenuLike && hop.fits($0.bounds) },
                                     stop: { self.shouldStop(ctx.pid) }) {
         case .success(let w):
-            let ax = AXProbe.hit(CGPoint(x: w.bounds.midX, y: w.bounds.midY))
-            popupAX = ax.error == .success && ax.pid == ctx.pid && ax.role.hasPrefix("AXMenu")
+            // Pas de question à l'Accessibilité ici : FL, dans sa boucle de menu, peut tarder à répondre.
+            popupAX = false
             MacroLog.shared.write("MENU", "popup \(w) after \(Int(Date().timeIntervalSince(began) * 1000)) ms "
-                + "(learned \(Int(hop.size.width))x\(Int(hop.size.height))) · \(ax)")
+                + "(learned \(Int(hop.size.width))x\(Int(hop.size.height)))")
             return .success(w)
         case .failure(.stopped(let why)):
             closePopups(base: base, ctx: ctx)
@@ -834,13 +872,13 @@ final class MacroRunner {
             MacroLog.shared.windows("another FL window above the item", snap)
             return .fail("une autre fenêtre de FL couvre le menu")
         }
-        let ax = AXProbe.hit(p)
+        let ax = AXProbe.hit(p, timeout: 0.05)
         MacroLog.shared.write("AX", "at (\(Int(p.x)),\(Int(p.y))): \(ax)")
         if ax.error == .success, ax.pid != 0, ax.pid != ctx.pid, ax.pid != getpid() {
             let name = NSRunningApplication(processIdentifier: ax.pid)?.localizedName ?? "une autre app"
             return .fail("« \(name) » couvre le menu de FL")
         }
-        postClick(at: p, right: false, pid: ctx.pid, hoverMs: 70)       // survol d'abord : les menus maison suivent le pointeur
+        postClick(at: p, right: false, pid: ctx.pid, hoverMs: 35)       // survol d'abord : les menus maison suivent le pointeur
         lastClickPoint = p
         return .ok
     }
@@ -855,21 +893,6 @@ final class MacroRunner {
             postKey(KeyCombo(keyCode: 53), pid: ctx.pid)
             _ = WindowWait.gone(pid: ctx.pid, numbers: [top.number], timeout: 0.3, stop: { nil })
         }
-    }
-
-    /// Clic retenu loin de la ligne où le menu de piste a été appris (Playlist, Browser…) : un clic droit à cet
-    /// endroit peut supprimer un clip. Vérification sautée (journalisée) si la fenêtre de FL n'a plus la taille apprise.
-    private func rowProblem(_ row: MacroSpots.TrackRow, ctx: Context) -> String? {
-        let snap = WinSnapshot.take(pid: ctx.pid)
-        guard let w = snap.fl.first(where: { $0.layer == 0 && $0.bounds.contains(ctx.track) }),
-              MacroSpots.sameSize(w.bounds.size, row.windowSize) else {
-            MacroLog.shared.write("TRACK", "row check skipped (FL window size differs from learning)")
-            return nil
-        }
-        let dy = ctx.track.y - (w.bounds.minY + row.yFromWindowTop)
-        MacroLog.shared.write("TRACK", "row check: dy \(Int(dy)) (max \(Int(Self.maxRowDistance)))")
-        return abs(dy) > Self.maxRowDistance
-            ? "la dernière piste cliquée n'est pas dans le Mixer : clique sur ta piste, puis refais le raccourci" : nil
     }
 
     /// Ancien format, décalages enchaînés (menus dans la fenêtre de FL seulement). Invérifiable : gardé pour le rejeu exact.
@@ -993,7 +1016,7 @@ final class MacroRunner {
         while Date() < deadline {
             if let stop = shouldStop(ctx.pid) { return .cancel(stop) }
             let snap = WinSnapshot.take(pid: ctx.pid)
-            let fresh = snap.fl.first { !ctx.startNumbers.contains($0.number) && $0.isDialogLike }
+            let fresh = snap.fl.first { !ctx.startNumbers.contains($0.number) && $0.isDialogLike && $0.layer < 20 }
                 ?? snap.panelService.first { !ctx.startNumbers.contains($0.number) && $0.isDialogLike }
             if let fresh {
                 dialog = fresh
@@ -1014,7 +1037,7 @@ final class MacroRunner {
             }
         }
         switch WindowWait.gone(pid: ctx.pid, numbers: [d.number], timeout: Double(timeoutMs) / 1000,
-                               interval: timeoutMs > 10_000 ? 0.1 : 0.03, stop: { self.shouldStop(ctx.pid) }) {
+                               interval: timeoutMs > 10_000 ? 0.05 : 0.03, stop: { self.shouldStop(ctx.pid) }) {
         case .success:
             MacroLog.shared.write("DIALOG", "#\(d.number) closed")
             return .ok
@@ -1110,7 +1133,7 @@ final class MacroRunner {
             return .fail("le point visé est hors de FL")
         }
         if !Self.clicksToPid {
-            let ax = AXProbe.hit(p)
+            let ax = AXProbe.hit(p, timeout: 0.08)
             MacroLog.shared.write("AX", "at (\(Int(p.x)),\(Int(p.y))): \(ax)")
             var owner: Int32? = (ax.error == .success && ax.pid != 0) ? ax.pid : nil
             // AX muet : repli sur la fenêtre NORMALE tout devant seulement si aucun menu de FL (niveau supérieur) n'est là.
@@ -1127,7 +1150,7 @@ final class MacroRunner {
         return .ok
     }
 
-    private func postClick(at p: CGPoint, right: Bool, pid: Int32, hoverMs: Int = 30) {
+    private func postClick(at p: CGPoint, right: Bool, pid: Int32, hoverMs: Int = 12) {
         if cursorBeforeBurst == nil { cursorBeforeBurst = FLWindows.cursor() }
         let held = CGEventSource.flagsState(.combinedSessionState).intersection([.maskCommand, .maskAlternate, .maskControl, .maskShift])
         MacroLog.shared.write("CLICK", "\(right ? "right" : "left") (\(Int(p.x)),\(Int(p.y)))"
@@ -1148,7 +1171,7 @@ final class MacroRunner {
         send(.mouseMoved)
         Thread.sleep(forTimeInterval: Double(hoverMs) / 1000)
         send(right ? .rightMouseDown : .leftMouseDown)
-        Thread.sleep(forTimeInterval: 0.05)
+        Thread.sleep(forTimeInterval: 0.035)
         send(right ? .rightMouseUp : .leftMouseUp)
         MacroLog.shared.write("CLICK", "\(right ? "right" : "left") up")
     }
