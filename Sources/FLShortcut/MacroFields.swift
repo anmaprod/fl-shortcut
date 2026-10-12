@@ -96,8 +96,8 @@ struct MacroFields: View {
                         Button("Réapprendre…") { MacroSpots.forgetAll(); spotsLearned = false }.secondaryButton()
                     }
                     Text(spotsLearned
-                         ? "Le menu de la piste et l'entrée 1 sont retenus. Réapprends-les si tu changes la disposition de FL."
-                         : "La première fois, une bulle te demande de cliquer toi-même sur « File › Open mixer track state », puis sur « (none) » et l'entrée « 1 ». Ensuite, la macro le fait seule.")
+                         ? "L'entrée 1 est retenue. Réapprends-la si tu changes la disposition de FL."
+                         : "« File › Open mixer track state » s'ouvre tout seul, au clavier (lettres soulignées du menu de FL). La première fois, une bulle te demande seulement de cliquer sur « (none) » puis sur l'entrée « 1 ».")
                         .font(.caption).foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
                 }

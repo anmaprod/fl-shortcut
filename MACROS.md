@@ -24,7 +24,7 @@ Modèle `autoRecord`, sur ⌃R dans le profil Recommandé. Il suffit de cliquer 
 
 | Étape | Effet |
 |---|---|
-| `trackMenu` | clic droit sur la **dernière piste cliquée** dans FL (`TrackMemory.swift`), puis « File › Open mixer track state » : la **première fois**, une bulle demande à l'utilisateur de cliquer lui-même ; l'app retient la place des clics par rapport au clic droit (`MacroSpots.swift`) et les refait ensuite seule |
+| `trackMenu` | clic droit sur la **dernière piste cliquée** dans FL (`TrackMemory.swift`), puis « File › Open mixer track state » **au clavier** : les éléments des menus de FL ont une lettre soulignée (F de File, O de Open). La macro attend que le menu apparaisse (nouvelle fenêtre de FL), écarte le pointeur du menu, tape F (flèche droite si le sous-menu ne s'ouvre pas), puis O (Entrée si les menus restent ouverts). Rien à apprendre, quelle que soit la place du menu |
 | `waitDialog` / `waitDialogClose` | attend la boîte « Ouvrir » puis le choix du preset (ou tape le chemin d'un preset fixe) |
 | `armTrack` | action 39 `armon` du script FL : arme la piste sélectionnée **seulement si** elle ne l'est pas |
 | `recordOn` | action 40 `recon` du script FL : allume le REC **seulement s'il** est éteint |

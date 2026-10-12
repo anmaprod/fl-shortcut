@@ -522,15 +522,23 @@ final class MacroRunner {
         let start = Date()
         let mask: CGEventFlags = [.maskCommand, .maskAlternate, .maskControl, .maskShift]
         var modsUp = false
+        var modsUpAt: Date?
         while Date().timeIntervalSince(start) < timeout {
             modsUp = CGEventSource.flagsState(.combinedSessionState).intersection(mask).isEmpty
-            if modsUp && !Self.anyKeyDown() {
-                MacroLog.shared.write("KEYS", "keyboard idle after \(Int(Date().timeIntervalSince(start) * 1000)) ms")
-                return true
+            if modsUp {
+                if !Self.anyKeyDown() {
+                    MacroLog.shared.write("KEYS", "keyboard idle after \(Int(Date().timeIntervalSince(start) * 1000)) ms")
+                    return true
+                }
+                // Modificateurs relâchés : une autre touche tenue (ou signalée à tort) ne retarde pas plus de 0,3 s.
+                if let t = modsUpAt, Date().timeIntervalSince(t) > 0.3 { break }
+                if modsUpAt == nil { modsUpAt = Date() }
+            } else {
+                modsUpAt = nil
             }
             Thread.sleep(forTimeInterval: 0.008)
         }
-        MacroLog.shared.write("KEYS", modsUp ? "a key is still down after \(Int(timeout * 1000)) ms → going on" : "modifiers still held")
+        MacroLog.shared.write("KEYS", modsUp ? "a key is still down after \(Int(Date().timeIntervalSince(start) * 1000)) ms → going on" : "modifiers still held")
         return modsUp
     }
 
@@ -553,12 +561,141 @@ final class MacroRunner {
 
     // MARK: Menu de piste (ancré à la fenêtre du menu)
 
+    /// Clic droit sur la piste, puis File › Open mixer track state AU CLAVIER : les éléments des menus de FL ont une
+    /// lettre soulignée (« F » de File, « O » de Open…), comme sous Windows. Aucun clic dans le menu, aucune position
+    /// à apprendre : FL peut placer son menu où il veut. Chaque touche n'est envoyée que si un menu de FL est ouvert
+    /// (sinon une lettre irait à FL : clavier-piano…).
     private func trackMenu(_ titles: [String], ctx: Context) -> StepResult {
-        let axTitles = titles.map { $0.split(separator: "|").map(String.init) }
-        if let path = MacroSpots.loadPath(.openState) { return replayMenu(path, titles: axTitles, ctx: ctx) }
-        return learnPath(.openState, clicks: 2,
-                         hint: "Une seule fois : clique sur « File », puis sur « Open mixer track state ».",
-                         hintAt: Self.hintPoint(awayFrom: ctx.track), rightClick: true, ctx: ctx)
+        let letters: [Character] = titles.compactMap { title in
+            guard let c = title.split(separator: "|").first?.first else { return nil }
+            return Character(c.lowercased())
+        }
+        guard letters.count >= 2, letters.allSatisfy({ Self.letterKeyCodes[$0] != nil }) else { return .fail("menu de piste mal décrit") }
+        guard waitForKeyboardIdle(timeout: 1.5) else { return .cancel("relâche les touches du raccourci") }
+        let before = WinSnapshot.take(pid: ctx.pid)
+        MacroLog.shared.windows("before right-click", before)
+        let r = click(at: ctx.track, right: true, ctx: ctx)
+        guard case .ok = r else { return r }
+
+        // 1. Le menu de la piste s'ouvre (nouvelle fenêtre de FL).
+        var opened: Set<Int> = []
+        switch WindowWait.newWindow(pid: ctx.pid, excluding: before.numbers, timeout: 1.5,
+                                    accept: { $0.isMenuLike }, stop: { self.shouldStop(ctx.pid) }) {
+        case .success(let menu):
+            opened.insert(menu.number)
+            MacroLog.shared.write("MENU", "track menu \(menu)")
+            // FL place souvent son menu sous le curseur : son survol ouvrirait un sous-menu tout seul.
+            hoverOutside(menu.bounds, pid: ctx.pid)
+        case .failure(.stopped(let why)):
+            closePopups(base: before.numbers, ctx: ctx)
+            return .cancel(why)
+        case .failure(.timeout):
+            MacroLog.shared.windows("no menu after the right-click", WinSnapshot.take(pid: ctx.pid))
+            return .fail("le menu de la piste ne s'est pas ouvert (clique sur le nom de ta piste dans le Mixer)")
+        }
+
+        // 2. Lettres des sous-menus (File) : le sous-menu doit apparaître ; sinon flèche droite.
+        for letter in letters.dropLast() {
+            guard menusOpen(opened, ctx: ctx) else {
+                MacroLog.shared.windows("menu closed before « \(letter) »", WinSnapshot.take(pid: ctx.pid))
+                return .fail("le menu de FL s'est fermé tout seul")
+            }
+            let known = WinSnapshot.take(pid: ctx.pid).numbers
+            postLetter(letter, pid: ctx.pid)
+            var sub = WindowWait.newWindow(pid: ctx.pid, excluding: known, timeout: 0.6,
+                                           accept: { $0.isMenuLike }, stop: { self.shouldStop(ctx.pid) })
+            if case .failure(.timeout) = sub {
+                MacroLog.shared.write("KEY", "« \(letter) » : no submenu → right arrow")
+                postKey(KeyCombo(keyCode: 124), pid: ctx.pid)
+                sub = WindowWait.newWindow(pid: ctx.pid, excluding: known, timeout: 0.6,
+                                           accept: { $0.isMenuLike }, stop: { self.shouldStop(ctx.pid) })
+            }
+            switch sub {
+            case .success(let w):
+                opened.insert(w.number)
+                MacroLog.shared.write("MENU", "« \(letter) » → submenu \(w)")
+            case .failure(.stopped(let why)):
+                closePopups(base: before.numbers, ctx: ctx)
+                return .cancel(why)
+            case .failure(.timeout):
+                MacroLog.shared.windows("« \(letter) » : still no submenu", WinSnapshot.take(pid: ctx.pid),
+                                        mark: WinSnapshot.take(pid: ctx.pid).numbers.subtracting(before.numbers))
+                closePopups(base: before.numbers, ctx: ctx)
+                return .fail("le sous-menu « \(titles[0].split(separator: "|").first ?? "File") » ne s'est pas ouvert")
+            }
+        }
+
+        // 3. Dernière lettre (Open mixer track state) : tous les menus se ferment ; sinon Entrée (lettre partagée
+        //    par plusieurs éléments : FL la surligne seulement).
+        guard let last = letters.last else { return .fail("menu de piste mal décrit") }
+        guard menusOpen(opened, ctx: ctx) else { return .fail("le menu de FL s'est fermé trop tôt") }
+        postLetter(last, pid: ctx.pid)
+        switch WindowWait.gone(pid: ctx.pid, numbers: opened, timeout: 0.8, stop: { self.shouldStop(ctx.pid) }) {
+        case .success:
+            MacroLog.shared.write("MENU", "« \(last) » → menus closed")
+            return .ok
+        case .failure(.stopped(let why)):
+            return .cancel(why)
+        case .failure(.timeout):
+            MacroLog.shared.write("KEY", "« \(last) » : menus still open → Enter")
+        }
+        postKey(KeyCombo(keyCode: 36), pid: ctx.pid)
+        switch WindowWait.gone(pid: ctx.pid, numbers: opened, timeout: 0.8, stop: { self.shouldStop(ctx.pid) }) {
+        case .success:
+            MacroLog.shared.write("MENU", "Enter → menus closed")
+            return .ok
+        case .failure(.stopped(let why)):
+            return .cancel(why)
+        case .failure(.timeout):
+            closePopups(base: before.numbers, ctx: ctx)
+            return .fail("« Open mixer track state » n'a pas répondu")
+        }
+    }
+
+    /// Pointeur juste à côté du menu (à gauche, sinon à droite) : plus aucun élément survolé.
+    private func hoverOutside(_ menu: CGRect, pid: Int32) {
+        let screen = Self.displayBounds(containing: CGPoint(x: menu.midX, y: menu.midY))
+        let x = menu.minX - 24 >= screen.minX ? menu.minX - 24 : min(menu.maxX + 24, screen.maxX - 2)
+        let p = CGPoint(x: x, y: min(max(menu.minY + 12, screen.minY + 2), screen.maxY - 2))
+        if cursorBeforeBurst == nil { cursorBeforeBurst = FLWindows.cursor() }
+        if Self.warpCursor {
+            CGWarpMouseCursorPosition(p)
+            CGAssociateMouseAndMouseCursorPosition(1)
+        }
+        if let e = CGEvent(mouseEventSource: source, mouseType: .mouseMoved, mouseCursorPosition: p, mouseButton: .left) {
+            e.flags = []
+            e.setIntegerValueField(.eventSourceUserData, value: EventTap.mark)
+            if Self.clicksToPid { e.postToPid(pid) } else { e.post(tap: .cghidEventTap) }
+        }
+        MacroLog.shared.write("MOVE", "pointer beside the menu (\(Int(p.x)),\(Int(p.y)))")
+        Thread.sleep(forTimeInterval: 0.04)
+    }
+
+    /// Au moins un des menus ouverts par la macro est encore à l'écran.
+    private func menusOpen(_ numbers: Set<Int>, ctx: Context) -> Bool {
+        !WinSnapshot.take(pid: ctx.pid).numbers.isDisjoint(with: numbers)
+    }
+
+    /// Codes de touche (position ANSI) des lettres. F et O sont au même endroit en AZERTY ; le caractère est aussi
+    /// joint à l'événement.
+    private static let letterKeyCodes: [Character: CGKeyCode] = [
+        "a": 0, "s": 1, "d": 2, "f": 3, "h": 4, "g": 5, "z": 6, "x": 7, "c": 8, "v": 9, "b": 11, "q": 12, "w": 13,
+        "e": 14, "r": 15, "y": 16, "t": 17, "o": 31, "u": 32, "i": 34, "p": 35, "l": 37, "j": 38, "k": 40, "n": 45, "m": 46,
+    ]
+
+    /// Lettre sans modificateur (raccourci d'un élément de menu), envoyée au seul processus de FL.
+    private func postLetter(_ letter: Character, pid: Int32) {
+        guard let code = Self.letterKeyCodes[letter] else { return }
+        MacroLog.shared.write("KEY", "menu letter « \(letter) »")
+        let units = Array(String(letter).utf16)
+        for down in [true, false] {
+            guard let e = CGEvent(keyboardEventSource: source, virtualKey: code, keyDown: down) else { continue }
+            e.flags = []
+            e.keyboardSetUnicodeString(stringLength: units.count, unicodeString: units)
+            e.setIntegerValueField(.eventSourceUserData, value: EventTap.mark)
+            e.postToPid(pid)
+            usleep(15_000)
+        }
     }
 
     /// « Arm selected track(s) » dans le même menu : idempotent (Disarm est un autre élément), sans MIDI.
