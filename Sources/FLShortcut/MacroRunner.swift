@@ -304,8 +304,12 @@ final class MacroRunner {
                 CGAssociateMouseAndMouseCursorPosition(1)
             }
         }
-        // Les modificateurs du raccourci (⌃⌥⌘⇧) sont encore enfoncés : un clic avec ⌃ serait un clic droit.
-        guard waitForModifiersReleased(timeout: 1.5) else { return .cancelled(reason: "relâche les touches du raccourci") }
+        // Les modificateurs du raccourci (⌃⌥⌘⇧) sont peut-être encore enfoncés. Une macro qui commence par le clic
+        // droit sur la piste part tout de suite (nos événements portent leurs propres modificateurs, vides) ;
+        // le relâchement n'est attendu qu'avant les clics gauches, pendant que le menu de FL s'ouvre.
+        if steps.first?.kind != .trackMenu {
+            guard waitForModifiersReleased(timeout: 1.5) else { return .cancelled(reason: "relâche les touches du raccourci") }
+        }
         var warning: String?
         var index = 0
         while index < steps.count {
@@ -499,6 +503,12 @@ final class MacroRunner {
         var known = Set(FLWindows.list(pid: ctx.pid).map(\.number))
         let first = click(at: ctx.track, right: true, ctx: ctx)
         guard case .ok = first else { return first }
+        // Clic droit parti sans attendre : on attend maintenant que ⌃ soit relâché (pendant l'ouverture du menu),
+        // pour qu'aucun clic gauche ne devienne un ⌃-clic.
+        guard waitForModifiersReleased(timeout: 1.5) else {
+            postKey(KeyCombo(keyCode: 53), pid: ctx.pid)
+            return .cancel("relâche les touches du raccourci")
+        }
         if let learned = MacroSpots.load(.trackMenu) {
             for p in learned.points(from: ctx.track) {
                 if case .cancel(let why) = waitPopup(at: p, known: known, ctx: ctx) { return .cancel(why) }
