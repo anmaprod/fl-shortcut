@@ -38,12 +38,14 @@ enum PresetChooser {
         guard front?.processIdentifier == pid else { return .failed("la boîte « Open » n'est pas au premier plan") }
 
         // 1. « Aller au dossier » : nouvelle fenêtre du processus (feuille de la boîte), renvoyé tant qu'elle n'apparaît pas.
+        // Fenêtres déjà là avant le premier ⌘⇧G : « Aller au dossier » est la nouvelle (elle s'anime à l'ouverture, d'où
+        // une attente généreuse ; ⌘⇧G n'est renvoyé que si elle n'est toujours pas là).
+        let base = WinSnapshot.take(pid: pid).numbers
         var goTo: WinInfo?
-        for attempt in 1...4 {
+        for attempt in 1...3 {
             if let why = stop() { return .cancelled(why) }
-            let known = WinSnapshot.take(pid: pid).numbers
             post(keyCode: 5, flags: [.maskCommand, .maskShift], pid: pid)                  // ⌘⇧G
-            switch WindowWait.newWindow(pid: pid, excluding: known, timeout: 0.6,
+            switch WindowWait.newWindow(pid: pid, excluding: base, timeout: 1.5,
                                         accept: { $0.bounds.width >= 120 && $0.bounds.height >= 30 }, stop: stop) {
             case .success(let w):
                 goTo = w
