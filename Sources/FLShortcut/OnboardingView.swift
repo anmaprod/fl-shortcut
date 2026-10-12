@@ -1,14 +1,16 @@
 // Accueil sobre : 1. autoriser le clavier (guide Accessibilité, détection automatique) ; 2. hors mode léger,
 // relier FL Studio avec un vrai statut (« En attente de FL Studio… » → « FL Studio est relié ») et « Tester ».
 // En mode léger (par défaut), l'accueil s'arrête après la première étape. Aucune animation continue.
+// macOS 26 : lueurs aux couleurs de l'icône en haut de la fenêtre (dégradés statiques), que réfractent les touches
+// en verre et le grand bouton en verre teinté ; verre coupé (préférence, Réduire la transparence) : fond uni.
 // Audit : REL-23 (accueil marqué « vu » seulement après un choix ; permission demandée depuis l'accueil),
 //         tests utilisateurs (rassurer sur la vie privée, montrer où cliquer dans MIDI Settings, confirmer que
 //         ça marche).
 import AppKit
 import SwiftUI
 
-/// Taille fixe de la fenêtre d'accueil.
-private let onboardingSize = CGSize(width: 560, height: 460)
+/// Taille fixe de la fenêtre d'accueil (plus haute pour la grande icône et les touches en verre).
+private let onboardingSize = CGSize(width: 560, height: 500)
 
 final class OnboardingWindow {
     static let shared = OnboardingWindow()
@@ -69,6 +71,11 @@ struct OnboardingView: View {
     @State private var step = 0
     @State private var askedPermission = false
     @State private var installed = false
+    @AppStorage(Appearance.glassKey) private var glassEnabled = true
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+
+    /// Lueurs et touches en verre : macOS 26, préférence active, transparence non réduite.
+    private var showGlass: Bool { Appearance.glassAvailable && glassEnabled && !reduceTransparency }
 
     var body: some View {
         Group {
@@ -78,6 +85,7 @@ struct OnboardingView: View {
         .padding(.top, 40)                  // la barre de titre est transparente
         .padding(.bottom, 28)
         .frame(width: onboardingSize.width, height: onboardingSize.height)
+        .background { if showGlass { BrandGlow() } }
         .onAppear { installed = link.snapshot.hasKey }
     }
 
@@ -86,21 +94,21 @@ struct OnboardingView: View {
     private var permissionStep: some View {
         VStack(spacing: 0) {
             Spacer(minLength: 0)
-            AppIcon().frame(width: 72, height: 72)
+            AppIcon().frame(width: 88, height: 88)
             Text("FL Shortcut")
-                .font(.title.weight(.semibold))
-                .padding(.top, 14)
+                .font(.largeTitle.weight(.bold))
+                .padding(.top, 10)
             Text("Tes propres raccourcis pour FL Studio.")
-                .font(.system(size: 13))
+                .font(.system(size: 14))
                 .foregroundStyle(.secondary)
                 .padding(.top, 4)
 
-            HStack(spacing: 8) {
-                KeyCaps(combo: KeyCombo(keyCode: 21, control: true))
-                Image(systemName: "arrow.right").font(.system(size: 11)).foregroundStyle(.secondary)
-                Text("Ouvrir le Mixer, sans chercher F9").font(.system(size: 13))
+            HStack(spacing: 10) {
+                KeyCaps(combo: KeyCombo(keyCode: 21, control: true), large: true, glass: showGlass)
+                Image(systemName: "arrow.right").font(.system(size: 12, weight: .semibold)).foregroundStyle(.secondary)
+                Text("Ouvrir le Mixer, sans chercher F9").font(.system(size: 13, weight: .medium))
             }
-            .padding(.top, 22)
+            .padding(.top, 20)
             .accessibilityElement(children: .combine)
 
             Spacer(minLength: 20)
@@ -237,19 +245,35 @@ private struct StepRow: View {
 
     var body: some View {
         HStack(alignment: .firstTextBaseline, spacing: 8) {
-            Group {
-                if done {
-                    Image(systemName: "checkmark.circle.fill").foregroundStyle(.green)
-                } else {
-                    Text("\(number).").foregroundStyle(.secondary)
-                }
-            }
-            .frame(width: 18, alignment: .leading)
+            StepBadge(number: number, done: done)
             Text(text).fixedSize(horizontal: false, vertical: true)
         }
-        .font(.system(size: 13).monospacedDigit())
+        .font(.system(size: 13))
         .accessibilityElement(children: .combine)
+        .accessibilityLabel("Étape \(number) : \(text)")
         .accessibilityValue(done ? "fait" : "à faire")
+    }
+}
+
+/// Lueurs aux couleurs de l'icône en haut de l'accueil : dégradés radiaux statiques (aucun flou, aucune
+/// animation). Couche de contenu, que le verre des touches et du bouton réfracte.
+private struct BrandGlow: View {
+    @Environment(\.colorScheme) private var scheme
+
+    private var k: Double { scheme == .dark ? 0.42 : 0.30 }
+
+    var body: some View {
+        ZStack {
+            RadialGradient(colors: [Appearance.brand[0].opacity(k), .clear], center: .topLeading,
+                           startRadius: 0, endRadius: 380)
+            RadialGradient(colors: [Appearance.brand[1].opacity(k * 0.8), .clear], center: .top,
+                           startRadius: 0, endRadius: 320)
+            RadialGradient(colors: [Appearance.brand[2].opacity(k), .clear], center: .topTrailing,
+                           startRadius: 0, endRadius: 380)
+        }
+        .ignoresSafeArea()                    // sous la barre de titre transparente
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
     }
 }
 
@@ -296,7 +320,7 @@ private struct MIDISettingsPreview: View {
     }
 }
 
-/// Icône de l'appli dessinée (deux touches et une flèche), en attendant l'icône finale.
+/// Icône de l'appli (accueil, panneau de la barre des menus, guide d'autorisation).
 struct AppIcon: View {
     /// Icône de l'app (Resources/AppIcon.icns) ; dessin de secours si l'app tourne hors de son bundle.
     private static let bundleIcon: NSImage? = {
@@ -313,24 +337,35 @@ struct AppIcon: View {
         }
     }
 
-    /// Dessin de secours, à plat (deux touches et une flèche).
+    /// Dessin de secours, à plat, d'après l'icône : dégradé de la marque, touche ⌃ translucide derrière, touche
+    /// blanche avec une forme d'onde devant. Marge de 10 % comme la grille des icônes macOS.
     private var drawn: some View {
         GeometryReader { geo in
-            let s = geo.size.width / 96
-            ZStack {
-                RoundedRectangle(cornerRadius: 22 * s, style: .continuous)
-                    .fill(Color.accentColor)
-                HStack(spacing: 8 * s) {
-                    RoundedRectangle(cornerRadius: 7 * s, style: .continuous).fill(Color.white.opacity(0.92)).frame(width: 27 * s, height: 27 * s)
-                    RoundedRectangle(cornerRadius: 7 * s, style: .continuous).fill(Color.white.opacity(0.92)).frame(width: 27 * s, height: 27 * s)
-                }
-                .offset(y: 10 * s)
-                Image(systemName: "arrow.turn.up.right")
-                    .font(.system(size: 26 * s, weight: .bold))
-                    .foregroundStyle(.white)
-                    .offset(y: -18 * s)
-            }
+            drawing(scale: geo.size.width / 96)
         }
         .accessibilityHidden(true)
+    }
+
+    private func drawing(scale s: CGFloat) -> some View {
+        let brand = LinearGradient(colors: Appearance.brand, startPoint: .topLeading, endPoint: .bottomTrailing)
+        return ZStack {
+            RoundedRectangle(cornerRadius: 18 * s, style: .continuous)
+                .fill(brand)
+                .padding(9.5 * s)
+            RoundedRectangle(cornerRadius: 9 * s, style: .continuous)
+                .fill(Color.white.opacity(0.35))
+                .frame(width: 30 * s, height: 30 * s)
+                .overlay(Image(systemName: "chevron.up")
+                    .font(.system(size: 12 * s, weight: .bold))
+                    .foregroundStyle(Color.white))
+                .offset(x: 12 * s, y: -12 * s)
+            RoundedRectangle(cornerRadius: 11 * s, style: .continuous)
+                .fill(Color.white.opacity(0.94))
+                .frame(width: 36 * s, height: 36 * s)
+                .overlay(Image(systemName: "waveform")
+                    .font(.system(size: 17 * s, weight: .bold))
+                    .foregroundStyle(brand))
+                .offset(x: -7 * s, y: 9 * s)
+        }
     }
 }

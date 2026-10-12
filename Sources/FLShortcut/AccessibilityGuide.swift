@@ -70,21 +70,37 @@ final class AccessibilityGuide: ObservableObject {
     }
 }
 
+/// Contenu du panneau : titre gras aligné à gauche avec l'icône de l'app (typographie de macOS 26), étapes
+/// numérotées en pastilles, et un aperçu de la ligne à activer. Panneau standard du système (aucun verre ajouté).
 private struct AccessibilityGuideView: View {
     @ObservedObject var guide: AccessibilityGuide
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             if guide.granted {
-                Label("Clavier autorisé", systemImage: "checkmark.circle.fill")
-                    .font(.headline)
-                    .foregroundStyle(.green)
-                Text("Tes raccourcis marchent dès que FL Studio est au premier plan.")
-                    .foregroundStyle(.secondary)
+                HStack(spacing: 12) {
+                    Image(systemName: "checkmark.circle.fill")
+                        .font(.system(size: 30))
+                        .foregroundStyle(Color.green)
+                        .accessibilityHidden(true)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Clavier autorisé").font(.headline)
+                        Text("Tes raccourcis marchent dès que FL Studio est au premier plan.")
+                            .foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+                .accessibilityElement(children: .combine)
             } else {
-                Text("Dans la fenêtre Accessibilité qui vient de s'ouvrir :")
-                    .font(.headline)
+                HStack(spacing: 10) {
+                    AppIcon().frame(width: 36, height: 36)
+                    Text("Dans la fenêtre Accessibilité qui vient de s'ouvrir :")
+                        .font(.headline)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
                 step(1, "Active l'interrupteur à côté de FL Shortcut.")
+                SwitchPreview()
+                    .padding(.leading, 28)
                 step(2, "Il n'est pas dans la liste, ou il est déjà activé mais rien ne marche ? "
                      + "Retire-le avec « – », puis glisse FL Shortcut depuis la fenêtre du Finder dans la liste.")
                 HStack(spacing: 6) {
@@ -96,13 +112,38 @@ private struct AccessibilityGuideView: View {
             }
         }
         .padding(18)
-        .frame(width: 340, alignment: .leading)
+        .frame(width: 360, alignment: .leading)
     }
 
     private func step(_ n: Int, _ text: String) -> some View {
         HStack(alignment: .firstTextBaseline, spacing: 8) {
-            Text("\(n)").font(.callout.monospacedDigit().weight(.semibold)).foregroundStyle(.secondary)
+            StepBadge(number: n)
             Text(text).fixedSize(horizontal: false, vertical: true)
         }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("Étape \(n) : \(text)")
+    }
+}
+
+/// Aperçu de la ligne de Réglages Système › Accessibilité, interrupteur activé (dessin, rien de cliquable).
+private struct SwitchPreview: View {
+    var body: some View {
+        HStack(spacing: 8) {
+            AppIcon().frame(width: 20, height: 20)
+            Text("FL Shortcut").font(.system(size: 12))
+            Spacer(minLength: 8)
+            Capsule()
+                .fill(Color.accentColor)
+                .frame(width: 30, height: 17)
+                .overlay(Circle().fill(Color.white).padding(2).shadow(color: .black.opacity(0.15), radius: 0.5, y: 0.5),
+                         alignment: .trailing)
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 6)
+        .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(Color.primary.opacity(0.05)))
+        .overlay(RoundedRectangle(cornerRadius: 10, style: .continuous)
+            .strokeBorder(Color(nsColor: .separatorColor), lineWidth: 0.5))
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Exemple : FL Shortcut, interrupteur activé")
     }
 }

@@ -320,27 +320,33 @@ final class PauseIndicator {
     }
 }
 
-/// Petite étiquette opaque en haut à droite de l'écran (jamais de verre : elle flotte au-dessus de FL).
+/// Petite étiquette opaque en haut à droite de l'écran, en capsule comme les pastilles de macOS 26. Jamais de verre :
+/// elle reste affichée au-dessus de FL qui se redessine sans cesse (curseur de lecture, vumètres) ; un verre
+/// recalculé à chaque image coûterait pendant tout le temps de la pause. Liseré clair statique en guise de reflet.
 struct PauseBadge: View {
-    private var shape: RoundedRectangle { RoundedRectangle(cornerRadius: 6, style: .continuous) }
+    private var shape: Capsule { Capsule() }
 
     var body: some View {
-        HStack(spacing: 6) {
-            Image(systemName: "pause.fill")
-                .font(.system(size: 10))
-                .foregroundStyle(.secondary)
-            Text("FL Shortcut en pause").font(.system(size: 12, weight: .medium))
+        HStack(spacing: 7) {
+            Image(systemName: "pause.circle.fill")
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(Color.orange)
+            Text("FL Shortcut en pause").font(.system(size: 12, weight: .semibold))
             Text("⌃⌥⌘F").font(.system(size: 12)).foregroundStyle(.secondary)
         }
-        .padding(.horizontal, 10)
-        .padding(.vertical, 5)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 6)
         .background(shape.fill(Color(nsColor: .windowBackgroundColor)))
-        .overlay(shape.strokeBorder(Color(nsColor: .separatorColor), lineWidth: 0.5))
+        .overlay(shape.strokeBorder(LinearGradient(colors: [Color.white.opacity(0.35), Color(nsColor: .separatorColor)],
+                                                   startPoint: .top, endPoint: .bottom),
+                                    lineWidth: 0.75))
         .accessibilityElement(children: .combine)
     }
 }
 
-/// Panneau de la barre des menus, façon menus de Centre de contrôle : statut, puis des lignes de menu.
+/// Panneau de la barre des menus, façon menus de macOS 26 : en-tête avec l'icône de l'app et le statut, puis des
+/// lignes de menu avec leur symbole à gauche (WWDC25 310 / 356). Le fond est le matériau du système (verre des
+/// menus) : rien n'y est ajouté, jamais de verre sur du verre.
 struct MenuContent: View {
     @EnvironmentObject var store: Store
     @EnvironmentObject var status: AppStatus
@@ -350,17 +356,20 @@ struct MenuContent: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            VStack(alignment: .leading, spacing: 2) {
-                Text("FL Shortcut").font(.system(size: 13, weight: .semibold))
-                HStack(spacing: 5) {
-                    Circle().fill(dotColor).frame(width: 6, height: 6)
-                    Text(statusLine).foregroundStyle(.secondary).lineLimit(1)
+            HStack(spacing: 10) {
+                AppIcon().frame(width: 32, height: 32)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("FL Shortcut").font(.system(size: 13, weight: .semibold))
+                    HStack(spacing: 5) {
+                        Circle().fill(dotColor).frame(width: 7, height: 7)
+                        Text(statusLine).foregroundStyle(.secondary).lineLimit(1)
+                    }
+                    .font(.system(size: 11))
                 }
-                .font(.system(size: 11))
             }
             .padding(.horizontal, 8)
             .padding(.top, 4)
-            .padding(.bottom, 6)
+            .padding(.bottom, 8)
             .accessibilityElement(children: .combine)
 
             if let macro = status.lastMacro {
@@ -387,24 +396,25 @@ struct MenuContent: View {
             MenuSeparator()
 
             if !status.accessibilityOK {
-                PanelItem(title: "Autoriser le clavier…") { AccessibilityGuide.start() }
+                PanelItem(symbol: "lock.open", title: "Autoriser le clavier…") { AccessibilityGuide.start() }
             }
-            PanelItem(title: "Modifier les raccourcis…") {
+            PanelItem(symbol: "keyboard", title: "Modifier les raccourcis…") {
                 openWindow(id: "editor")
                 NSApp.activate(ignoringOtherApps: true)
             }
-            PanelItem(title: store.enabled ? "Mettre en pause" : "Reprendre", shortcut: "⌃⌥⌘F") { store.enabled.toggle() }
+            PanelItem(symbol: store.enabled ? "pause" : "play", title: store.enabled ? "Mettre en pause" : "Reprendre",
+                      shortcut: "⌃⌥⌘F") { store.enabled.toggle() }
             if !AppMode.light {
-                PanelItem(title: "Installer le lien avec FL Studio…") { FLScriptInstaller.installWithAlert() }
+                PanelItem(symbol: "link", title: "Installer le lien avec FL Studio…") { FLScriptInstaller.installWithAlert() }
             }
 
             MenuSeparator()
 
-            PanelItem(title: "Désinstaller FL Shortcut…") { Uninstaller.confirmAndRun() }
-            PanelItem(title: "Quitter FL Shortcut", shortcut: "⌘Q", key: "q") { NSApp.terminate(nil) }
+            PanelItem(symbol: "trash", title: "Désinstaller FL Shortcut…") { Uninstaller.confirmAndRun() }
+            PanelItem(symbol: "power", title: "Quitter FL Shortcut", shortcut: "⌘Q", key: "q") { NSApp.terminate(nil) }
         }
         .padding(6)
-        .frame(width: 260)
+        .frame(width: 280)
     }
 
     private var dotColor: Color {
@@ -453,8 +463,10 @@ private struct MenuSeparator: View {
     }
 }
 
-/// Ligne du panneau : surlignage discret au survol, immédiat (aucune animation).
+/// Ligne du panneau : symbole à gauche (une colonne facile à parcourir), surlignage discret au survol, immédiat
+/// (aucune animation). Coins concentriques avec le panneau (rayon du panneau moins sa marge).
 private struct PanelItem: View {
+    let symbol: String
     let title: String
     var shortcut: String? = nil
     /// Raccourci réellement actif dans le panneau (avec ⌘).
@@ -464,7 +476,12 @@ private struct PanelItem: View {
 
     var body: some View {
         Button(action: action) {
-            HStack {
+            HStack(spacing: 8) {
+                Image(systemName: symbol)
+                    .font(.system(size: 12, weight: .medium))
+                    .frame(width: 18)
+                    .foregroundStyle(.secondary)
+                    .accessibilityHidden(true)
                 Text(title)
                 Spacer(minLength: 12)
                 if let shortcut {
@@ -473,9 +490,9 @@ private struct PanelItem: View {
             }
             .font(.system(size: 13))
             .padding(.horizontal, 8)
-            .frame(height: 24)
+            .frame(height: 26)
             .contentShape(Rectangle())
-            .background(RoundedRectangle(cornerRadius: 5, style: .continuous)
+            .background(RoundedRectangle(cornerRadius: 8, style: .continuous)
                 .fill(hovering ? Color.primary.opacity(0.1) : Color.clear))
         }
         .buttonStyle(.plain)

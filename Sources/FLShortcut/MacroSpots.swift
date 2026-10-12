@@ -272,17 +272,23 @@ final class HintPanel {
     }
 }
 
+/// Bulle en verre (macOS 26) même quand FL est au premier plan : elle ne dure que quelques secondes, le verre
+/// s'assombrit tout seul sur l'interface sombre de FL pour rester lisible. Ailleurs : fond opaque. Coins
+/// arrondis plutôt qu'une capsule : le texte peut tenir sur plusieurs lignes. Petite marge autour pour l'ombre.
 private struct HintView: View {
     let text: String
 
     var body: some View {
-        HStack(spacing: 8) {
-            Image(systemName: "hand.point.up.left.fill").foregroundStyle(.tint)
+        HStack(spacing: 10) {
+            Image(systemName: "hand.point.up.left.fill")
+                .font(.system(size: 15, weight: .semibold))
+                .foregroundStyle(.tint)
             Text(text).font(.system(size: 13, weight: .medium)).fixedSize(horizontal: false, vertical: true)
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 10)
-        .frame(maxWidth: 360)
-        .glassSurface(Capsule())
+        .padding(.horizontal, 18)
+        .padding(.vertical, 12)
+        .frame(maxWidth: 380)
+        .glassSurface(RoundedRectangle(cornerRadius: 20, style: .continuous), alwaysLive: true)
+        .padding(6)
     }
 }

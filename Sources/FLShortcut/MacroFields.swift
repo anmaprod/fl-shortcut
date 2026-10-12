@@ -35,6 +35,12 @@ struct MacroFields: View {
 
     private var armLearned: Bool { MacroLibrary.requiredSpots.allSatisfy { macro.spots[$0] != nil } }
 
+    /// Titre du bouton « Tester » (compte à rebours pendant l'attente).
+    private var testTitle: String {
+        guard let left = countdown else { return "Tester dans FL" }
+        return "Départ dans \(left) s…"
+    }
+
     var body: some View {
         LabeledContent("Macro") {
             VStack(alignment: .leading, spacing: 2) {
@@ -132,9 +138,11 @@ struct MacroFields: View {
         LabeledContent("Essai") {
             VStack(alignment: .leading, spacing: 4) {
                 HStack(spacing: 8) {
-                    Button(countdown.map { "Départ dans \($0) s…" } ?? "Tester dans FL") { startTest() }
-                        .secondaryButton()
-                        .disabled(countdown != nil || learner.isActive)
+                    Button { startTest() } label: {
+                        Label(testTitle, systemImage: "play.fill")
+                    }
+                    .secondaryButton()
+                    .disabled(countdown != nil || learner.isActive)
                 }
                 Text(testNote ?? (automatic
                     ? "FL passe devant et la macro vise la dernière piste sur laquelle tu as cliqué. Échap l'arrête."
@@ -155,8 +163,14 @@ struct MacroFields: View {
         LabeledContent("Journal") {
             VStack(alignment: .leading, spacing: 4) {
                 HStack(spacing: 8) {
-                    Button("Exporter le journal…") { MacroLogExport.run() }.secondaryButton()
-                    Button("Afficher dans le Finder") { MacroLogExport.revealInFinder() }.secondaryButton()
+                    Button { MacroLogExport.run() } label: {
+                        Label("Exporter le journal…", systemImage: "square.and.arrow.up")
+                    }
+                    .secondaryButton()
+                    Button { MacroLogExport.revealInFinder() } label: {
+                        Label("Afficher dans le Finder", systemImage: "folder")
+                    }
+                    .secondaryButton()
                 }
                 Text("Étapes, fenêtres de FL et clics de chaque macro, pour comprendre un échec. Aucune frappe, aucun nom de fichier.")
                     .font(.caption).foregroundStyle(.secondary)
@@ -173,13 +187,14 @@ struct MacroFields: View {
             Text(title)
             Spacer()
             if learner.isActive {
-                Button("Annuler") { learner.cancel() }
+                Button("Annuler") { learner.cancel() }.secondaryButton()
             } else {
                 Button(done ? "Refaire" : "Apprendre") {
                     learner.begin(phase) { spots in
                         for (name, spot) in spots { macro.spots[name] = spot }
                     }
                 }
+                .secondaryButton()
             }
         }
     }
