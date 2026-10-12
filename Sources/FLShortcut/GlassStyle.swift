@@ -1,8 +1,12 @@
-// Styles communs, volontairement sobres : polices et couleurs système, aucun dégradé, aucune animation infinie.
-// Liquid Glass (macOS 26) : seulement sur quelques surfaces flottantes (notification, boutons principaux), jamais
-// ligne par ligne (une couche de verre par ligne coûtait cher : 8fb66a8). Le verre redevient opaque dès que la
-// fenêtre n'est plus active (FL au premier plan) : rien à recalculer pendant que tu travailles dans FL.
-// Réglable dans le menu Profil (« Effet Liquid Glass »). Audit 05 : touches affichées avec leur nom en clair.
+// Styles communs : polices et couleurs système, aucune animation infinie, aucun minuteur.
+// Liquid Glass (macOS 26, WWDC25 219/310/323/356) : le verre est réservé à la couche de navigation et de contrôle
+// qui flotte au-dessus du contenu (barre latérale et barre d'outils du système, pastille de statut, notification,
+// avertissements, boutons, bulle d'aide), jamais ligne par ligne (une couche de verre par ligne coûtait cher :
+// 8fb66a8) ni verre sur verre. La couleur va dans le contenu (icônes de rubrique, lavis en haut de page) : c'est
+// elle que le verre réfracte et qui le rend visible. Le verre redevient opaque dès que la fenêtre n'est plus active
+// (FL au premier plan) : rien à recalculer pendant que tu travailles dans FL. Réduire la transparence et Contraste
+// élevé : le verre s'adapte tout seul, la fenêtre et le lavis redeviennent unis. Réglable dans le menu Profil
+// (« Effet Liquid Glass ») : coupé, tout est opaque. Audit 05 : touches affichées avec leur nom en clair.
 // Mouvement : courtes transitions, remplacées par un simple fondu quand « Réduire les animations » est activé.
 import AppKit
 import SwiftUI
@@ -53,35 +57,69 @@ enum Appearance {
         #endif
         return false
     }
+
+    /// Fenêtre translucide (le bureau se devine derrière) : macOS 15+, préférence active, transparence non réduite.
+    /// Une seule règle pour le fond de la fenêtre, les listes posées dessus et le lavis : jamais l'un sans l'autre.
+    static func translucentWindow(glass: Bool, reduceTransparency: Bool) -> Bool {
+        guard glass, !reduceTransparency else { return false }
+        if #available(macOS 15.0, *) { return true }
+        return false
+    }
+
+    /// Couleurs de l'icône (orange → rose → violet), reprises par l'accueil.
+    static let brand: [Color] = [Color(red: 1.0, green: 0.64, blue: 0.36),
+                                 Color(red: 0.95, green: 0.34, blue: 0.49),
+                                 Color(red: 0.48, green: 0.36, blue: 0.96)]
 }
 
-/// Surface flottante : verre natif sur macOS 26 quand la préférence est active et la fenêtre au premier plan,
-/// sinon fond opaque de fenêtre. Même structure de vue dans tous les cas (aucun arbre reconstruit au passage
-/// FL ↔ FL Shortcut) : seul le paramètre du verre change.
+/// Surface flottante : verre natif sur macOS 26 quand la préférence est active et la fenêtre au premier plan ;
+/// matériau sur macOS 13-15 ; sinon fond opaque de fenêtre. Même structure de vue dans tous les cas (aucun arbre
+/// reconstruit au passage FL ↔ FL Shortcut) : seuls les paramètres changent.
+/// `tint` : teinte qui porte un sens (avertissement), jamais décorative (WWDC25 219).
+/// `alwaysLive` : verre même quand l'app n'est pas active (bulle brève au-dessus de FL, macOS 26 seulement).
 struct GlassSurface<S: InsettableShape>: ViewModifier {
     let shape: S
+    var tint: Color? = nil
+    var alwaysLive = false
     @AppStorage(Appearance.glassKey) private var glassEnabled = true
     @Environment(\.controlActiveState) private var activeState
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
 
-    private var live: Bool { glassEnabled && activeState != .inactive }
+    private var active: Bool { activeState != .inactive }
+    private var live: Bool { glassEnabled && (alwaysLive || active) }
 
     func body(content: Content) -> some View {
         #if compiler(>=6.2)
         if #available(macOS 26.0, *) {
+            // Réduire la transparence / Contraste élevé : le verre devient plus givré ou cerné tout seul.
             content
                 .background(shape.fill(Color(nsColor: .windowBackgroundColor)).opacity(live ? 0 : 1))
-                .glassEffect(live ? Glass.regular : Glass.identity, in: shape)
+                .overlay(shape.strokeBorder(Color(nsColor: .separatorColor), lineWidth: 0.5).opacity(live ? 0 : 1))
+                .glassEffect(live ? glass : Glass.identity, in: shape)
         } else {
-            opaque(content)
+            fallback(content)
         }
         #else
-        opaque(content)
+        fallback(content)
         #endif
     }
 
-    private func opaque(_ content: Content) -> some View {
-        content
-            .background(shape.fill(Color(nsColor: .windowBackgroundColor)))
+    #if compiler(>=6.2)
+    @available(macOS 26.0, *)
+    private var glass: Glass {
+        guard let tint else { return Glass.regular }
+        return Glass.regular.tint(tint.opacity(0.35))
+    }
+    #endif
+
+    /// macOS 13-15 : matériau (flou) quand la fenêtre est active, fond opaque sinon (jamais de matériau dans une
+    /// bulle au-dessus de FL : rien derrière à flouter dans sa fenêtre transparente), teinte légère par-dessus.
+    private func fallback(_ content: Content) -> some View {
+        let translucent = glassEnabled && active && !reduceTransparency
+        let base = translucent ? AnyShapeStyle(Material.regular) : AnyShapeStyle(Color(nsColor: .windowBackgroundColor))
+        return content
+            .background(shape.fill((tint ?? Color.clear).opacity(0.14)))
+            .background(base, in: shape)
             .overlay(shape.strokeBorder(Color(nsColor: .separatorColor), lineWidth: 0.5))
     }
 }
@@ -139,12 +177,13 @@ private struct SecondaryButtonStyleModifier: ViewModifier {
     }
 }
 
-/// Fond de liste transparent quand la fenêtre est en verre (le verre de la fenêtre se voit à travers).
+/// Fond de liste transparent quand la fenêtre est translucide : les sections (cartes) se posent dessus.
 private struct GlassListBackground: ViewModifier {
     @AppStorage(Appearance.glassKey) private var glassEnabled = true
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
 
     func body(content: Content) -> some View {
-        if #available(macOS 15.0, *), glassEnabled {
+        if Appearance.translucentWindow(glass: glassEnabled, reduceTransparency: reduceTransparency) {
             content.scrollContentBackground(.hidden)
         } else {
             content
@@ -152,20 +191,74 @@ private struct GlassListBackground: ViewModifier {
     }
 }
 
-extension View {
-    /// Fenêtre entière en verre (matériau derrière la fenêtre, comme le Centre de contrôle) : le bureau et ce qui
-    /// est derrière se devinent. Composé par le système ; figé par macOS quand la fenêtre n'est plus active.
-    @ViewBuilder func windowGlass(_ on: Bool) -> some View {
-        if #available(macOS 15.0, *), on {
-            containerBackground(.ultraThinMaterial, for: .window)
+/// Fond de fenêtre translucide (voir `windowGlass`).
+private struct WindowGlass: ViewModifier {
+    let on: Bool
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+
+    func body(content: Content) -> some View {
+        if #available(macOS 15.0, *), Appearance.translucentWindow(glass: on, reduceTransparency: reduceTransparency) {
+            content.containerBackground(Material.thin, for: .window)
         } else {
-            self
+            content
         }
     }
+}
 
-    /// Liste posée sur le verre de la fenêtre.
+/// Lavis coloré en haut d'une page (couche de contenu : dégradé statique, sans flou ni animation). Il passe sous la
+/// barre d'outils et sous la barre latérale en verre, qui en prennent la couleur (WWDC25 356 : fonds teintés sous
+/// le verre). Seulement avec la fenêtre translucide ; Contraste élevé : rien.
+private struct TintedBackdrop: ViewModifier {
+    let tint: Color?
+    @AppStorage(Appearance.glassKey) private var glassEnabled = true
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+    @Environment(\.colorSchemeContrast) private var contrast
+    @Environment(\.colorScheme) private var scheme
+
+    private var visible: Bool {
+        tint != nil && contrast != .increased
+            && Appearance.translucentWindow(glass: glassEnabled, reduceTransparency: reduceTransparency)
+    }
+
+    func body(content: Content) -> some View {
+        content.background(alignment: .top) {
+            if visible, let tint {
+                LinearGradient(colors: [tint.opacity(scheme == .dark ? 0.30 : 0.24), tint.opacity(0.07), .clear],
+                               startPoint: .top, endPoint: .bottom)
+                    .frame(height: 340)
+                    .ignoresSafeArea()           // sous la barre d'outils et la barre latérale flottante
+                    .allowsHitTesting(false)
+                    .accessibilityHidden(true)
+            }
+        }
+    }
+}
+
+extension View {
+    /// Fenêtre entière translucide (matériau derrière la fenêtre) : le bureau se devine, les sections posées
+    /// dessus restent lisibles. Composé par le système ; figé par macOS quand la fenêtre n'est plus active.
+    func windowGlass(_ on: Bool) -> some View {
+        modifier(WindowGlass(on: on))
+    }
+
+    /// Liste posée sur le fond translucide de la fenêtre.
     func glassListBackground() -> some View {
         modifier(GlassListBackground())
+    }
+
+    /// Lavis de la couleur de la page sous le verre (nil : aucun).
+    func tintedBackdrop(_ tint: Color?) -> some View {
+        modifier(TintedBackdrop(tint: tint))
+    }
+
+    /// Bouton posé sur une surface de verre (notification, avertissement) : simple remplissage, jamais de verre sur
+    /// du verre (WWDC25 219).
+    @ViewBuilder func onGlassButton() -> some View {
+        if #available(macOS 14.0, *) {
+            buttonStyle(.bordered).buttonBorderShape(.capsule)
+        } else {
+            buttonStyle(.bordered)
+        }
     }
 
     /// Identité de verre : deux surfaces du même GlassGroup se fondent l'une dans l'autre en apparaissant.
@@ -211,8 +304,8 @@ extension View {
     }
 
     /// Surface flottante en verre (voir GlassSurface).
-    func glassSurface<S: InsettableShape>(_ shape: S) -> some View {
-        modifier(GlassSurface(shape: shape))
+    func glassSurface<S: InsettableShape>(_ shape: S, tint: Color? = nil, alwaysLive: Bool = false) -> some View {
+        modifier(GlassSurface(shape: shape, tint: tint, alwaysLive: alwaysLive))
     }
 
     /// Bouton principal (Valider, Continuer…).
@@ -223,15 +316,31 @@ extension View {
 
 // MARK: - Touches
 
-/// Une touche de clavier, plate : symbole, et en grand le nom en clair (« ⌃ ctrl »).
+/// Une touche de clavier : symbole, et en grand le nom en clair (« ⌃ ctrl »). Plate avec un léger relief (ombre
+/// nette d'un point, sans flou) ; en verre sur l'accueil, posée sur un fond coloré (`glass`).
 struct KeyCap: View {
     let symbol: String
     var name: String? = nil
     var large = false
+    var glass = false
 
-    private var shape: RoundedRectangle { RoundedRectangle(cornerRadius: large ? 6 : 4, style: .continuous) }
+    private var shape: RoundedRectangle { RoundedRectangle(cornerRadius: large ? 8 : 5, style: .continuous) }
 
     var body: some View {
+        Group {
+            if glass {
+                face.glassSurface(shape)
+            } else {
+                face
+                    .background(shape.fill(Color(nsColor: .controlBackgroundColor))
+                        .shadow(color: Color.black.opacity(0.14), radius: 0, x: 0, y: 1))
+                    .overlay(shape.strokeBorder(Color(nsColor: .separatorColor), lineWidth: 1))
+            }
+        }
+        .accessibilityHidden(true)
+    }
+
+    private var face: some View {
         VStack(spacing: 1) {
             Text(symbol).font(.system(size: large ? 15 : 12, weight: .medium))
             if large, let name {
@@ -240,9 +349,6 @@ struct KeyCap: View {
         }
         .frame(minWidth: large ? 34 : 20, minHeight: large ? 36 : 20)
         .padding(.horizontal, large ? 6 : 4)
-        .background(shape.fill(Color(nsColor: .controlBackgroundColor)))
-        .overlay(shape.strokeBorder(Color(nsColor: .separatorColor), lineWidth: 1))
-        .accessibilityHidden(true)
     }
 }
 
@@ -278,23 +384,35 @@ extension KeyCombo {
 }
 
 /// Rangée de touches (champ d'enregistrement, accueil). Statique : aucune animation.
+/// `glass` : touches en verre regroupées (une seule passe, elles se fondent entre elles).
 struct KeyCaps: View {
     let combo: KeyCombo?
     var large = false
+    var glass = false
     var placeholder = "—"
 
     var body: some View {
+        Group {
+            if glass {
+                GlassGroup(spacing: large ? 4 : 3) { row }
+            } else {
+                row
+            }
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(combo?.spoken ?? "Aucun raccourci")
+    }
+
+    private var row: some View {
         HStack(spacing: large ? 4 : 3) {
             if let combo {
                 ForEach(combo.caps) { cap in
-                    KeyCap(symbol: cap.symbol, name: cap.name.isEmpty ? nil : cap.name, large: large)
+                    KeyCap(symbol: cap.symbol, name: cap.name.isEmpty ? nil : cap.name, large: large, glass: glass)
                 }
             } else {
                 Text(placeholder).foregroundStyle(.secondary)
             }
         }
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel(combo?.spoken ?? "Aucun raccourci")
     }
 }
 
@@ -305,7 +423,7 @@ struct KeyLabel: View {
     var accent = false
     var placeholder = "Aucune"
 
-    private var shape: RoundedRectangle { RoundedRectangle(cornerRadius: 5, style: .continuous) }
+    private var shape: RoundedRectangle { RoundedRectangle(cornerRadius: 6, style: .continuous) }
 
     var body: some View {
         Group {
@@ -318,14 +436,63 @@ struct KeyLabel: View {
         }
         .font(.system(size: 12))
         .lineLimit(1)
-        .padding(.horizontal, 7)
-        .frame(minWidth: 56, minHeight: 20)
+        .padding(.horizontal, 8)
+        .frame(minWidth: 56, minHeight: 22)
         .background(shape.fill(Color.primary.opacity(0.05)))
         .overlay(shape.strokeBorder(accent ? Color.accentColor.opacity(0.5) : Color(nsColor: .separatorColor),
                                     lineWidth: 0.5))
         .contentShape(shape)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(combo?.spoken ?? placeholder)
+    }
+}
+
+// MARK: - Icônes
+
+/// Icône de rubrique façon Réglages Système : symbole blanc sur un carré arrondi coloré, liseré clair en haut
+/// comme un reflet. Couche de contenu (la couleur y a sa place, WWDC25 219) : aucun verre, aucun flou, statique.
+struct SectionIcon: View {
+    let symbol: String
+    let tint: Color
+    var size: CGFloat = 20
+
+    private var shape: RoundedRectangle { RoundedRectangle(cornerRadius: size * 0.27, style: .continuous) }
+
+    var body: some View {
+        shape.fill(tint.gradient)
+            .overlay(shape.strokeBorder(LinearGradient(colors: [Color.white.opacity(0.5), Color.white.opacity(0.06)],
+                                                       startPoint: .top, endPoint: .bottom),
+                                        lineWidth: max(0.5, size / 40)))
+            .overlay(Image(systemName: symbol)
+                .symbolVariant(.fill)
+                .font(.system(size: size * 0.52, weight: .semibold))
+                .foregroundStyle(Color.white))
+            .frame(width: size, height: size)
+            .accessibilityHidden(true)
+    }
+}
+
+/// Numéro d'étape dans une pastille (accueil, guide d'autorisation) ; coche verte une fois faite.
+struct StepBadge: View {
+    let number: Int
+    var done = false
+
+    var body: some View {
+        Group {
+            if done {
+                Image(systemName: "checkmark.circle.fill")
+                    .font(.system(size: 17))
+                    .foregroundStyle(Color.green)
+            } else {
+                Text("\(number)")
+                    .font(.system(size: 11, weight: .bold).monospacedDigit())
+                    .foregroundStyle(Color.white)
+                    .frame(width: 18, height: 18)
+                    .background(Circle().fill(Color.accentColor))
+            }
+        }
+        .frame(width: 20)
+        .accessibilityHidden(true)
     }
 }
 

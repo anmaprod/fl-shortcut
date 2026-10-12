@@ -1,8 +1,10 @@
-// Fenêtre « Raccourcis », sur le modèle de Xcode › Key Bindings et de Réglages Système › Clavier : barre
-// latérale standard (une rubrique par fenêtre de FL, puis « Mes raccourcis »), liste native à droite, une ligne
-// par raccourci avec sa touche (cliquable) et « Réinitialiser ». Recherche, profil et pause dans la barre
-// d'outils ; statut discret en bas ; une seule ligne d'avertissement en haut quand il faut agir.
-// Performance : listes paresseuses (NSTableView), aucun survol animé, aucune animation infinie, aucun flou.
+// Fenêtre « Raccourcis », sur le modèle de Réglages Système sur macOS 26 : barre latérale en verre (une rubrique
+// par fenêtre de FL, icônes colorées, puis « Mes raccourcis »), page à droite avec son en-tête et des sections en
+// cartes, une ligne par raccourci avec sa touche (cliquable) et « Réinitialiser ». Recherche, profil et pause dans
+// la barre d'outils en verre ; pastille de statut flottante en bas ; avertissements flottants en haut quand il
+// faut agir. La couleur de la page (lavis) passe sous le verre de la barre latérale et de la barre d'outils.
+// Performance : verre seulement sur les quelques surfaces flottantes (jamais par ligne), aucun survol animé,
+// aucune animation infinie, aucun flou dans les listes.
 // Audit : REL-06 / PROTOCOL.md §5 (statut du lien), audit 04 §8.2 (actions grisées, « Disponible à partir de
 //         FL X »), audit 05 §4.2-4.4 (conflits, touche seule confirmée, pause visible, noms de touches en clair,
 //         VoiceOver), REL-19 (un seul enregistreur, ⌫ efface, Échap annule, ⌃⌥⌘F refusé, délai 5 s, arrêt à la
@@ -18,6 +20,56 @@ import UniformTypeIdentifiers
 enum SidebarItem: Hashable {
     case section(FLSection)
     case custom
+
+    var symbol: String {
+        switch self {
+        case .section(let s): return s.symbol
+        case .custom: return "star"
+        }
+    }
+
+    var tint: Color {
+        switch self {
+        case .section(let s): return s.tint
+        case .custom: return .pink
+        }
+    }
+}
+
+extension FLSection {
+    /// Couleur de la rubrique (icône, lavis de la page) : couche de contenu, jamais sur le verre.
+    var tint: Color {
+        switch self {
+        case .general: return .gray
+        case .transport: return .red
+        case .patterns: return .orange
+        case .playlist: return .green
+        case .pianoRoll: return .purple
+        case .channelRack: return .teal
+        case .mixer: return .blue
+        case .browser: return .indigo
+        }
+    }
+}
+
+/// Textes de l'en-tête de page.
+enum PageSummary {
+    /// Résumé des raccourcis de « Mes raccourcis ».
+    static let custom = "Un raccourci personnalisé lance une action ou envoie une touche de FL Studio."
+
+    /// « 34 raccourcis · 3 modifiés ».
+    static func count(_ count: Int, modified: Int) -> String {
+        let total = count == 1 ? "1 raccourci" : "\(count) raccourcis"
+        guard modified > 0 else { return total }
+        return total + " · " + (modified == 1 ? "1 modifié" : "\(modified) modifiés")
+    }
+}
+
+private extension View {
+    /// Page en sections arrondies (cartes), comme Réglages Système ; posées sur le fond translucide en verre.
+    func cardList() -> some View {
+        formStyle(.grouped).glassListBackground()
+    }
 }
 
 typealias CatalogData = (rows: [CatalogRow], others: [Remap])
@@ -84,19 +136,28 @@ struct EditorView: View {
             Section {
                 // Sélection par étiquette (.tag) : un NavigationLink sans destination ne sélectionne rien sur
                 // macOS 26+ (clic capté, section inchangée).
+                // Icônes colorées façon Réglages Système : dessin statique, aucun verre par ligne.
                 ForEach(FLSection.allCases) { section in
-                    Label(section.title, systemImage: section.symbol)
-                        .badge(modified[section] ?? 0)
-                        .help(section.subtitle)
-                        .tag(SidebarItem.section(section))
+                    Label {
+                        Text(section.title)
+                    } icon: {
+                        SectionIcon(symbol: section.symbol, tint: section.tint)
+                    }
+                    .badge(modified[section] ?? 0)
+                    .help(section.subtitle)
+                    .tag(SidebarItem.section(section))
                 }
             } header: {
                 Text("FL Studio")
             }
             Section {
-                Label("Mes raccourcis", systemImage: "star")
-                    .badge(data.others.count)
-                    .tag(SidebarItem.custom)
+                Label {
+                    Text("Mes raccourcis")
+                } icon: {
+                    SectionIcon(symbol: SidebarItem.custom.symbol, tint: SidebarItem.custom.tint)
+                }
+                .badge(data.others.count)
+                .tag(SidebarItem.custom)
             } header: {
                 Text("Personnalisés")
             }
@@ -140,6 +201,8 @@ struct EditorView: View {
             .padding(.bottom, 10)
             .motion(Motion.smooth, value: toast)
         }
+        // Couleur de la page sous la barre d'outils et la barre latérale en verre (aucune pendant la recherche).
+        .tintedBackdrop(trimmedQuery.isEmpty ? (selection ?? .section(.general)).tint : nil)
         .sheet(item: $editingRow) { row in
             CatalogEditSheet(row: row, notice: editNotice) { message, followUp in
                 show(message)
@@ -163,7 +226,12 @@ struct EditorView: View {
         let mine = rows.filter { $0.entry.section == section }
         let natives = mine.filter { $0.entry.isNative }
         let extras = mine.filter { !$0.entry.isNative }
-        return List {
+        return Form {
+            Section {
+                PageHeader(symbol: section.symbol, tint: section.tint, title: section.title,
+                           subtitle: section.subtitle,
+                           detail: PageSummary.count(mine.count, modified: mine.filter { !$0.isDefault }.count))
+            }
             if !natives.isEmpty {
                 Section {
                     ForEach(natives) { catalogRow($0) }
@@ -179,8 +247,7 @@ struct EditorView: View {
                 }
             }
         }
-        .listStyle(.inset)
-        .glassListBackground()
+        .cardList()
         .id(section)                                     // nouvelle section : la liste repart du haut
     }
 
@@ -197,26 +264,27 @@ struct EditorView: View {
         let sections = FLSection.allCases.filter { s in rows.contains { $0.entry.section == s } }
         return Group {
             if rows.isEmpty && others.isEmpty {
-                EmptyState(title: "Aucun résultat", text: "Aucun raccourci ne correspond à « \(q) ».")
+                EmptyState(symbol: "magnifyingglass", title: "Aucun résultat",
+                           text: "Aucun raccourci ne correspond à « \(q) ».")
             } else {
-                List {
+                Form {
                     ForEach(sections) { s in
                         Section {
                             ForEach(rows.filter { $0.entry.section == s }) { catalogRow($0) }
                         } header: {
-                            Text(s.title)
+                            SectionHeader(symbol: s.symbol, tint: s.tint, title: s.title)
                         }
                     }
                     if !others.isEmpty {
                         Section {
                             ForEach(others) { customRow($0) }
                         } header: {
-                            Text("Mes raccourcis")
+                            SectionHeader(symbol: SidebarItem.custom.symbol, tint: SidebarItem.custom.tint,
+                                          title: "Mes raccourcis")
                         }
                     }
                 }
-                .listStyle(.inset)
-        .glassListBackground()
+                .cardList()
             }
         }
     }
@@ -225,24 +293,31 @@ struct EditorView: View {
     private func customList(_ others: [Remap]) -> some View {
         Group {
             if others.isEmpty {
-                EmptyState(title: "Aucun raccourci personnalisé",
-                           text: "Un raccourci personnalisé lance une action ou envoie une touche de FL Studio.",
+                EmptyState(symbol: SidebarItem.custom.symbol, title: "Aucun raccourci personnalisé",
+                           text: PageSummary.custom,
                            actionTitle: "Nouveau raccourci…",
                            action: { newCustom() })
             } else {
-                List {
+                Form {
+                    Section {
+                        PageHeader(symbol: SidebarItem.custom.symbol, tint: SidebarItem.custom.tint,
+                                   title: "Mes raccourcis", subtitle: PageSummary.custom,
+                                   detail: PageSummary.count(others.count, modified: 0))
+                    }
                     Section {
                         ForEach(others) { customRow($0) }
+                        HStack {
+                            Button {
+                                newCustom()
+                            } label: {
+                                Label("Nouveau raccourci…", systemImage: "plus")
+                            }
+                            .buttonStyle(.borderless)
+                            Spacer(minLength: 0)
+                        }
                     }
-                    Button {
-                        newCustom()
-                    } label: {
-                        Label("Nouveau raccourci…", systemImage: "plus")
-                    }
-                    .buttonStyle(.borderless)
                 }
-                .listStyle(.inset)
-        .glassListBackground()
+                .cardList()
             }
         }
     }
@@ -329,10 +404,12 @@ struct EditorView: View {
             .help("Nouveau raccourci personnalisé")
     }
 
+    /// En pause, le bouton allumé prend la couleur de la pause (la teinte affiche un état, WWDC25 310).
     private var pauseToggle: some View {
         Toggle(isOn: pausedBinding) {
             Label("Pause", systemImage: "pause")
         }
+        .tint(.orange)
         .help(store.enabled ? "Mettre en pause (⌃⌥⌘F)" : "Reprendre (⌃⌥⌘F)")
     }
 
@@ -460,7 +537,9 @@ private struct NoticeItem: Identifiable {
     var action: (() -> Void)? = nil
 }
 
-/// Lignes compactes sous la barre d'outils, séparées par un filet (vide la plupart du temps).
+/// Avertissements flottants sous la barre d'outils (vides la plupart du temps), sur un même conteneur de verre.
+/// Le verre est teinté de la couleur de l'alerte : la teinte porte un sens (WWDC25 219). Le bouton posé dessus
+/// est un simple remplissage (jamais de verre sur du verre).
 private struct NoticeStack: View {
     let items: [NoticeItem]
 
@@ -469,18 +548,21 @@ private struct NoticeStack: View {
             GlassGroup(spacing: 6) {
                 VStack(spacing: 6) {
                     ForEach(items) { item in
-                        HStack(spacing: 8) {
-                            Image(systemName: item.symbol).foregroundStyle(item.tint)
+                        HStack(spacing: 10) {
+                            Image(systemName: item.symbol)
+                                .font(.system(size: 14, weight: .semibold))
+                                .foregroundStyle(item.tint)
                             Text(item.text).fixedSize(horizontal: false, vertical: true)
                             Spacer(minLength: 8)
                             if let title = item.button, let action = item.action {
-                                Button(title, action: action).controlSize(.small).secondaryButton()
+                                Button(title, action: action).controlSize(.small).onGlassButton()
                             }
                         }
                         .font(.system(size: 12))
                         .padding(.horizontal, 14)
-                        .padding(.vertical, 9)
-                        .glassSurface(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                        .padding(.vertical, 10)
+                        .glassSurface(RoundedRectangle(cornerRadius: 18, style: .continuous),
+                                      tint: item.tint == Color.secondary ? nil : item.tint)
                     }
                 }
             }
@@ -498,21 +580,25 @@ private struct StatusBar: View {
     @ObservedObject var link: MIDILink
     @ObservedObject var fl: FLMonitor
 
-    /// Pastille de verre flottante en bas à gauche (comme les barres flottantes de macOS 26).
+    /// Pastille de verre flottante en bas à gauche (comme les barres flottantes de macOS 26). Une capsule : elle
+    /// reste concentrique avec le coin arrondi de la fenêtre. Symbole + couleur : l'état ne repose pas que sur la
+    /// couleur.
     var body: some View {
         HStack(spacing: 0) {
-            HStack(spacing: 7) {
-                Circle().fill(color).frame(width: 7, height: 7)
+            HStack(spacing: 8) {
+                Image(systemName: symbol)
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(color)
                     .accessibilityHidden(true)
-                Text(text).foregroundStyle(.secondary).lineLimit(1)
+                Text(text).lineLimit(1)
                 if let action {
                     Button(action.label, action: action.run)
                         .buttonStyle(.link)
                 }
             }
-            .font(.system(size: 11.5))
+            .font(.system(size: 12))
             .padding(.horizontal, 14)
-            .frame(height: 30)
+            .frame(height: 34)
             .glassSurface(Capsule())
             .accessibilityElement(children: .contain)
             Spacer(minLength: 0)
@@ -527,6 +613,17 @@ private struct StatusBar: View {
         case .linked: return .green
         case .inactive: return .orange
         case .flClosed: return .gray
+        }
+    }
+
+    private var symbol: String {
+        if !store.enabled { return "pause.circle.fill" }
+        if !status.accessibilityOK { return "exclamationmark.triangle.fill" }
+        if AppMode.light { return fl.running ? "checkmark.circle.fill" : "minus.circle.fill" }
+        switch link.status {
+        case .linked: return "checkmark.circle.fill"
+        case .inactive: return "exclamationmark.circle.fill"
+        case .flClosed: return "minus.circle.fill"
         }
     }
 
@@ -714,8 +811,10 @@ private struct ShortcutRow: View {
     }
 }
 
-/// État vide centré (aucun résultat, aucun raccourci personnalisé).
+/// État vide centré (aucun résultat, aucun raccourci personnalisé). Sa seule action est l'action principale :
+/// bouton en verre teinté, grand.
 private struct EmptyState: View {
+    let symbol: String
     let title: String
     let text: String
     var actionTitle: String? = nil
@@ -724,11 +823,13 @@ private struct EmptyState: View {
     var body: some View {
         if #available(macOS 14.0, *) {
             ContentUnavailableView {
-                Label(title, systemImage: "keyboard")
+                Label(title, systemImage: symbol)
             } description: {
                 Text(text)
             } actions: {
-                if let actionTitle, let action { Button(actionTitle, action: action).secondaryButton() }
+                if let actionTitle, let action {
+                    Button(actionTitle, action: action).primaryButton().controlSize(.large)
+                }
             }
         } else {
             legacy
@@ -748,6 +849,50 @@ private struct EmptyState: View {
         }
         .frame(maxWidth: 320)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+}
+
+/// En-tête de page façon Réglages Système (macOS 26) : grande icône colorée, titre gras aligné à gauche, résumé.
+/// Dans la première carte de la page (couche de contenu, aucun verre).
+private struct PageHeader: View {
+    let symbol: String
+    let tint: Color
+    let title: String
+    let subtitle: String
+    var detail: String? = nil
+
+    var body: some View {
+        HStack(spacing: 14) {
+            SectionIcon(symbol: symbol, tint: tint, size: 44)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title).font(.title3.weight(.semibold))
+                Text(subtitle)
+                    .font(.system(size: 12))
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                if let detail {
+                    Text(detail).font(.system(size: 11)).foregroundStyle(.tertiary)
+                }
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(.vertical, 4)
+        .accessibilityElement(children: .combine)
+        .accessibilityAddTraits(.isHeader)
+    }
+}
+
+/// Titre de section des résultats de recherche : petite icône de la rubrique, puis son nom.
+private struct SectionHeader: View {
+    let symbol: String
+    let tint: Color
+    let title: String
+
+    var body: some View {
+        HStack(spacing: 6) {
+            SectionIcon(symbol: symbol, tint: tint, size: 16)
+            Text(title)
+        }
     }
 }
 
@@ -793,9 +938,18 @@ struct EditSheet: View {
         return !store.draftIssues(draft).contains(where: \.isBlocking)
     }
 
+    private var kindSymbol: String {
+        switch draft.kind {
+        case .flAction: return "bolt"
+        case .keystroke: return "keyboard"
+        case .macro: return "wand.and.stars"
+        }
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text(isNew ? "Nouveau raccourci" : "Modifier le raccourci").font(.headline)
+            SheetHeader(symbol: kindSymbol, tint: SidebarItem.custom.tint,
+                        title: isNew ? "Nouveau raccourci" : "Modifier le raccourci")
 
             Form {
                 LabeledContent("Raccourci") {
@@ -949,6 +1103,28 @@ struct EditSheet: View {
     }
 }
 
+/// En-tête des fiches : icône colorée et titre gras aligné à gauche (typographie de macOS 26, WWDC25 356).
+private struct SheetHeader: View {
+    let symbol: String
+    let tint: Color
+    let title: String
+    var subtitle: String? = nil
+
+    var body: some View {
+        HStack(spacing: 12) {
+            SectionIcon(symbol: symbol, tint: tint, size: 34)
+            VStack(alignment: .leading, spacing: 1) {
+                Text(title).font(.title3.weight(.semibold))
+                if let subtitle {
+                    Text(subtitle).font(.system(size: 11)).foregroundStyle(.secondary)
+                }
+            }
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityAddTraits(.isHeader)
+    }
+}
+
 private struct IssuesView: View {
     let issues: [ShortcutIssue]
 
@@ -1022,7 +1198,8 @@ final class Recorder: ObservableObject {
 }
 
 /// Champ façon champ de texte : clique, puis appuie sur tes touches. Échap annule, ⌫ seul efface.
-/// Pendant l'enregistrement : contour accentué fixe (aucune animation).
+/// Pendant l'enregistrement : contour et fond accentués fixes (aucune animation). Coins plus ronds, comme les
+/// champs de macOS 26.
 struct CaptureField: View {
     enum Role { case trigger, target }
 
@@ -1032,7 +1209,7 @@ struct CaptureField: View {
     @ObservedObject private var recorder = Recorder.shared
 
     private var recording: Bool { recorder.activeID == id }
-    private var shape: RoundedRectangle { RoundedRectangle(cornerRadius: 6, style: .continuous) }
+    private var shape: RoundedRectangle { RoundedRectangle(cornerRadius: 12, style: .continuous) }
 
     private var footnote: (text: String, warning: Bool)? {
         if recording { return ("Échap pour annuler, ⌫ pour effacer.", false) }
@@ -1060,6 +1237,7 @@ struct CaptureField: View {
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
+            .background(shape.fill(Color.accentColor.opacity(recording ? 0.08 : 0)))
             .background(shape.fill(Color(nsColor: .textBackgroundColor)))
             .overlay(shape.strokeBorder(recording ? Color.accentColor : Color(nsColor: .separatorColor),
                                         lineWidth: recording ? 2 : 1))
@@ -1114,7 +1292,8 @@ struct ToastMessage: Identifiable, Equatable {
     static func == (a: ToastMessage, b: ToastMessage) -> Bool { a.id == b.id }
 }
 
-/// Petite notification (verre sur macOS 26, opaque sinon) au-dessus du statut, avec « Annuler » quand c'est possible.
+/// Petite notification (verre sur macOS 26, matériau ou opaque sinon) au-dessus du statut, dont elle naît, avec
+/// « Annuler » quand c'est possible (simple remplissage sur le verre, jamais de verre sur du verre).
 private struct ToastView: View {
     let message: ToastMessage
     let onClose: () -> Void
@@ -1123,15 +1302,15 @@ private struct ToastView: View {
 
     var body: some View {
         HStack(spacing: 10) {
-            Text(message.text).font(.system(size: 12))
+            Text(message.text).font(.system(size: 12, weight: .medium))
             if let undo = message.undo {
                 Button("Annuler") { undo(); onClose() }
                     .controlSize(.small)
-                    .secondaryButton()
+                    .onGlassButton()
             }
         }
         .padding(.horizontal, 16)
-        .padding(.vertical, 8)
+        .frame(minHeight: 36)
         .glassSurface(shape)
         .accessibilityElement(children: .contain)
     }
@@ -1252,10 +1431,8 @@ struct CatalogEditSheet: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            VStack(alignment: .leading, spacing: 2) {
-                Text(row.entry.title).font(.headline)
-                Text(row.entry.section.title).font(.system(size: 11)).foregroundStyle(.secondary)
-            }
+            SheetHeader(symbol: row.entry.section.symbol, tint: row.entry.section.tint,
+                        title: row.entry.title, subtitle: row.entry.section.title)
 
             if let notice {
                 HStack(alignment: .firstTextBaseline, spacing: 6) {
