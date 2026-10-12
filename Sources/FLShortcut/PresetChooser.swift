@@ -102,18 +102,25 @@ enum PresetChooser {
     /// Texte frappé caractère par caractère (Unicode joint à chaque événement : indépendant de la disposition du
     /// clavier, AZERTY compris). Faux si arrêté en route.
     static func type(_ text: String, pid: Int32, stop: () -> String?) -> Bool {
-        for (i, character) in text.enumerated() {
-            if i % 16 == 0, stop() != nil { return false }
+        // Par paquets de 12 caractères (un événement peut en porter jusqu'à 20) : 19 ms par caractère mesurés sur la
+        // CI en les tapant un par un, soit 1,7 s pour un chemin ; le premier plan n'est vérifié qu'une fois par paquet.
+        let units = Array(text.utf16)
+        var start = 0
+        while start < units.count {
+            if stop() != nil { return false }
             guard NSWorkspace.shared.frontmostApplication?.processIdentifier == pid else { return false }
-            let units = Array(String(character).utf16)
+            var end = min(start + 12, units.count)
+            if end < units.count, UTF16.isLeadSurrogate(units[end - 1]) { end -= 1 }   // jamais un caractère coupé
+            let chunk = Array(units[start..<end])
             for down in [true, false] {
                 guard let e = CGEvent(keyboardEventSource: source, virtualKey: 0, keyDown: down) else { continue }
                 e.flags = []
-                e.keyboardSetUnicodeString(stringLength: units.count, unicodeString: units)
+                e.keyboardSetUnicodeString(stringLength: chunk.count, unicodeString: chunk)
                 e.setIntegerValueField(.eventSourceUserData, value: EventTap.mark)
                 e.post(tap: .cghidEventTap)
-                usleep(1_500)
+                usleep(2_000)
             }
+            start = end
         }
         return true
     }

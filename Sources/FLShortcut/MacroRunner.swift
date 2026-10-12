@@ -1194,17 +1194,23 @@ final class MacroRunner {
         let held = CGEventSource.flagsState(.combinedSessionState).intersection([.maskCommand, .maskAlternate, .maskControl, .maskShift])
         MacroLog.shared.write("CLICK", "\(right ? "right" : "left") (\(Int(p.x)),\(Int(p.y)))"
             + (held.isEmpty ? "" : " WARNING modifiers held 0x\(String(held.rawValue, radix: 16))"))
+        func ms(since t: UInt64) -> Int { Int((DispatchTime.now().uptimeNanoseconds &- t) / 1_000_000) }
+        let t0 = DispatchTime.now().uptimeNanoseconds
         if Self.warpCursor {
             CGWarpMouseCursorPosition(p)
             CGAssociateMouseAndMouseCursorPosition(1)
         }
+        let warpMs = ms(since: t0)
         let button: CGMouseButton = right ? .right : .left
+        var postMs = 0
         func send(_ type: CGEventType) {
             guard let e = CGEvent(mouseEventSource: source, mouseType: type, mouseCursorPosition: p, mouseButton: button) else { return }
             e.flags = []
             e.setIntegerValueField(.mouseEventClickState, value: 1)
             e.setIntegerValueField(.eventSourceUserData, value: EventTap.mark)
+            let t = DispatchTime.now().uptimeNanoseconds
             if Self.clicksToPid { e.postToPid(pid) } else { e.post(tap: .cghidEventTap) }
+            postMs += ms(since: t)
             usleep(1_000)
         }
         send(.mouseMoved)
@@ -1212,7 +1218,7 @@ final class MacroRunner {
         send(right ? .rightMouseDown : .leftMouseDown)
         Thread.sleep(forTimeInterval: 0.05)
         send(right ? .rightMouseUp : .leftMouseUp)
-        MacroLog.shared.write("CLICK", "\(right ? "right" : "left") up")
+        MacroLog.shared.write("CLICK", "\(right ? "right" : "left") up · \(ms(since: t0)) ms (warp \(warpMs) ms, posts \(postMs) ms)")
     }
 }
 
