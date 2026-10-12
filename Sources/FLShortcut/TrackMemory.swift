@@ -1,6 +1,6 @@
-// Last left click in FL: event location (not the cursor read later), the FL window it landed in (number and
-// size: the macro refuses a point whose window has since closed or changed size), and the click that brings
-// FL to the front is kept too (owner of the topmost normal window under the click).
+// Dernier clic gauche dans FL : position de l'événement (pas le curseur relu plus tard), fenêtre de FL où il est tombé
+// (numéro et taille : la macro refuse un point dont la fenêtre a depuis été fermée ou redimensionnée) ; le clic qui
+// met FL au premier plan est gardé aussi (propriétaire de la fenêtre normale tout devant sous le clic).
 import AppKit
 
 final class TrackMemory {
@@ -18,7 +18,7 @@ final class TrackMemory {
 
     private init() {}
 
-    /// Main thread.
+    /// Thread principal.
     func setActive(_ on: Bool) {
         if on, monitor == nil {
             monitor = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown]) { [weak self] event in
@@ -30,11 +30,11 @@ final class TrackMemory {
                 if cfg.flPIDs.contains(cfg.frontmostPID) {
                     target = cfg.frontmostPID
                 } else if let top = FLWindows.topNormalWindow(at: p), cfg.flPIDs.contains(top.pid) {
-                    target = top.pid                                   // activation click on FL
+                    target = top.pid                                   // clic d'activation sur FL
                 } else {
                     return
                 }
-                // Normal-level FL window only: clicks in FL's menus / popups are not "the track".
+                // Fenêtre normale (niveau 0) de FL seulement : les clics dans les menus de FL ne sont pas « la piste ».
                 guard let w = WinSnapshot.take(pid: target).hit(p), w.layer == 0 else { return }
                 self?.last.withLock { $0 = Click(point: p, date: Date(), window: w.number, windowSize: w.bounds.size) }
             }
@@ -49,6 +49,6 @@ final class TrackMemory {
         return l
     }
 
-    /// Kept for existing callers.
+    /// Gardé pour les appelants existants.
     func lastClick(maxAge: TimeInterval = 600) -> CGPoint? { lastClickInfo(maxAge: maxAge)?.point }
 }

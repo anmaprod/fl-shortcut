@@ -4,15 +4,15 @@ import XCTest
 final class MacroGeometryTests: XCTestCase {
     private func win(_ n: Int, _ r: CGRect, layer: Int = 101) -> WinInfo { WinInfo(number: n, layer: layer, bounds: r, pid: 42, alpha: 1) }
 
-    /// The menu FL shifted upward: the learned hop is relative to the popup, so it survives any shift.
+    /// Menu que FL a remonté : le saut appris est relatif à la fenêtre du menu, il résiste donc à tout décalage.
     func testHopIsRelativeToThePopupNotTheClick() {
         let hop = MacroSpots.PopupHop(offset: CGVector(dx: 40, dy: 300), size: CGSize(width: 250, height: 690))
-        let low = CGRect(x: 500, y: 200, width: 250, height: 690)       // shifted up
-        let high = CGRect(x: 900, y: 40, width: 262, height: 690)       // other track, wider title
+        let low = CGRect(x: 500, y: 200, width: 250, height: 690)       // remonté
+        let high = CGRect(x: 900, y: 40, width: 262, height: 690)       // autre piste, titre plus large
         XCTAssertTrue(hop.fits(low)); XCTAssertTrue(hop.fits(high))
         XCTAssertEqual(hop.point(in: low), CGPoint(x: 540, y: 500))
         XCTAssertEqual(hop.point(in: high), CGPoint(x: 940, y: 340))
-        XCTAssertFalse(hop.fits(CGRect(x: 0, y: 0, width: 250, height: 120)))   // fader / other menu
+        XCTAssertFalse(hop.fits(CGRect(x: 0, y: 0, width: 250, height: 120)))   // fader / autre menu
     }
 
     func testResolveAttributesClicksToTheWindowFrontmostJustBefore() {

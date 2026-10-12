@@ -1,7 +1,7 @@
-// Per-run macro log: ~/Library/Logs/FL Shortcut/macro.log (0600, dir 0700), rotated at 1 MB, 3 old files kept.
-// Contents: timestamps, steps and results, FL window lists (number, layer, bounds), click points, AX hit-tests,
-// learned geometry. NEVER: key codes, typed text, file paths, window titles (CG titles are never even read).
-// Also mirrored to the unified log (subsystem app.flshortcut.FLShortcut, category macro).
+// Journal des macros : ~/Library/Logs/FL Shortcut/macro.log (0600, dossier 0700), rotation à 1 Mo, 3 anciens gardés.
+// Contenu : horodatage, étapes et résultats, fenêtres de FL (numéro, niveau, cadre), points cliqués, hit-tests AX,
+// géométrie apprise. JAMAIS : codes de touches, texte saisi, chemins de fichiers, titres de fenêtres (titres CG jamais lus).
+// Recopié aussi dans le journal unifié (sous-système app.flshortcut.FLShortcut, catégorie macro).
 import AppKit
 import CoreGraphics
 import Foundation
@@ -23,8 +23,8 @@ final class MacroLog: @unchecked Sendable {
     private let queue = DispatchQueue(label: "app.flshortcut.macro-log", qos: .utility)
     private let logger = Logger(subsystem: "app.flshortcut.FLShortcut", category: "macro")
     private let run = Locked<(id: String, t0: UInt64)>(("------", 0))
-    private var handle: FileHandle?          // queue only
-    private var written: UInt64 = 0          // queue only
+    private var handle: FileHandle?          // sur la file uniquement
+    private var written: UInt64 = 0          // sur la file uniquement
     private let stamp: ISO8601DateFormatter = {
         let f = ISO8601DateFormatter()
         f.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
@@ -33,7 +33,7 @@ final class MacroLog: @unchecked Sendable {
 
     private init() {}
 
-    /// `defaults write app.flshortcut.FLShortcut macroLogVerbose -bool YES`: full window list at every poll change.
+    /// `defaults write app.flshortcut.FLShortcut macroLogVerbose -bool YES` : liste complète des fenêtres à chaque changement.
     var verbose: Bool { UserDefaults.standard.bool(forKey: "macroLogVerbose") }
 
     func beginRun(_ title: String, flPID: Int32) {
@@ -48,7 +48,7 @@ final class MacroLog: @unchecked Sendable {
         queue.async { try? self.handle?.synchronize() }
     }
 
-    /// Blocks until everything queued is on disk (CLI probe before exit()).
+    /// Bloque jusqu'à ce que tout ce qui attend dans la file soit sur disque (sonde en ligne de commande, avant exit()).
     func flush() { queue.sync { try? self.handle?.synchronize() } }
 
     func write(_ tag: String, _ text: String) {
@@ -69,7 +69,7 @@ final class MacroLog: @unchecked Sendable {
         write("WIN", line)
     }
 
-    /// Old files first, then the current one, concatenated into `url`.
+    /// Anciens fichiers d'abord, puis l'actuel, concaténés dans `url`.
     func export(to url: URL, completion: @escaping (Error?) -> Void) {
         queue.async {
             try? self.handle?.synchronize()
@@ -82,11 +82,11 @@ final class MacroLog: @unchecked Sendable {
         }
     }
 
-    // MARK: File (queue only)
+    // MARK: Fichier (sur la file uniquement)
 
     private func append(_ line: String) {
         if handle == nil { open() }
-        guard let handle, written < Self.maxBytes * 4, let data = line.data(using: .utf8) else { return }   // runaway guard
+        guard let handle, written < Self.maxBytes * 4, let data = line.data(using: .utf8) else { return }   // garde-fou anti-emballement
         do {
             try handle.write(contentsOf: data)
             written += UInt64(data.count)
@@ -100,12 +100,12 @@ final class MacroLog: @unchecked Sendable {
         do {
             try fm.createDirectory(at: Self.directory, withIntermediateDirectories: true,
                                    attributes: [.posixPermissions: 0o700])
-            try SecureFile.checkDirectory(Self.directory)              // real dir, owned by the user, not a link
+            try SecureFile.checkDirectory(Self.directory)              // vrai dossier, à l'utilisateur, pas un lien
             let path = Self.current.path
             switch SecureFile.kind(at: path) {
             case .none: _ = fm.createFile(atPath: path, contents: nil, attributes: [.posixPermissions: 0o600])
             case .regular: break
-            default: return                                            // symlink or odd file: never write through it
+            default: return                                            // lien symbolique ou fichier bizarre : jamais d'écriture à travers
             }
             let h = try FileHandle(forWritingTo: Self.current)
             written = try h.seekToEnd()
@@ -115,7 +115,7 @@ final class MacroLog: @unchecked Sendable {
         }
     }
 
-    /// At the start of a run only, so one run never straddles two files.
+    /// Seulement au début d'une exécution : une exécution n'est jamais à cheval sur deux fichiers.
     private func rotateIfNeeded() {
         let fm = FileManager.default
         let attrs = try? fm.attributesOfItem(atPath: Self.current.path)
@@ -130,7 +130,7 @@ final class MacroLog: @unchecked Sendable {
         try? fm.moveItem(at: Self.current, to: Self.rotated(1))
     }
 
-    // MARK: Header
+    // MARK: En-tête
 
     static func environment(flPID: Int32) -> [String] {
         var out: [String] = []
@@ -158,7 +158,7 @@ final class MacroLog: @unchecked Sendable {
     }
 }
 
-/// UI hooks (main thread): « Exporter le journal des macros… » and « Afficher dans le Finder ».
+/// Pour l'interface (thread principal) : « Exporter le journal des macros… » et « Afficher dans le Finder ».
 enum MacroLogExport {
     static func run() {
         let panel = NSSavePanel()

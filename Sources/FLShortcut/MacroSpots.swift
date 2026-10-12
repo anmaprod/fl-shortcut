@@ -97,18 +97,18 @@ final class ClickRecorder {
 }
 
 struct ClickSample: Equatable {
-    let point: CGPoint          // CG global coordinates (top-left origin)
-    let time: TimeInterval      // NSEvent.timestamp (system uptime)
+    let point: CGPoint          // coordonnées CG globales (origine en haut à gauche)
+    let time: TimeInterval      // NSEvent.timestamp (temps depuis le démarrage)
 }
 
 extension MacroSpots {
-    /// One click inside a popup that FL opened as its own window, relative to THAT window's top-left.
-    /// Independent of where FL placed (shifted) the menu.
+    /// Un clic dans un menu que FL a ouvert dans sa propre fenêtre, relatif au coin haut-gauche de CETTE fenêtre.
+    /// Indépendant de l'endroit où FL a placé (décalé) le menu.
     struct PopupHop: Codable, Equatable {
         var offset: CGVector
         var size: CGSize
 
-        /// Same menu as at learning: same height (rows), width free within reason (track names widen it).
+        /// Même menu qu'à l'apprentissage : même hauteur (lignes), largeur assez libre (les noms de piste l'élargissent).
         func fits(_ w: CGRect) -> Bool {
             abs(w.height - size.height) <= 3 && w.width >= size.width * 0.5 && w.width <= size.width * 2.5
                 && offset.dy >= 1 && offset.dy <= w.height - 1
@@ -119,22 +119,22 @@ extension MacroSpots {
         }
     }
 
-    /// Where the track menu was obtained at learning (row of the mixer strip), relative to the FL window top.
+    /// Où le menu de piste a été ouvert à l'apprentissage (ligne de la tranche du mixer), relatif au haut de la fenêtre de FL.
     struct TrackRow: Codable, Equatable {
         var yFromWindowTop: CGFloat
         var windowSize: CGSize
     }
 
-    /// First click in a normal FL window (input selector), relative to that window's top-right.
+    /// Premier clic dans une fenêtre normale de FL (sélecteur d'entrée), relatif au coin haut-droit de cette fenêtre.
     struct WindowStart: Codable, Equatable {
         var fromTopRight: CGVector
         var windowSize: CGSize
     }
 
-    /// No popup window was seen at learning (FL drew the menu inside its own window): exact replay only.
+    /// Aucune fenêtre de menu vue à l'apprentissage (FL a dessiné le menu dans sa propre fenêtre) : rejeu exact seulement.
     struct InlineReplay: Codable, Equatable {
-        var anchor: CGPoint            // right-click point (track menus) or first click (input)
-        var offsets: [CGVector]        // chained, first one from `anchor`
+        var anchor: CGPoint            // point du clic droit (menus de piste) ou premier clic (entrée)
+        var offsets: [CGVector]        // enchaînés, le premier depuis `anchor`
     }
 
     struct MenuPath: Codable, Equatable {
@@ -158,8 +158,8 @@ extension MacroSpots {
     }
 
     enum PathKind: String, CaseIterable {
-        case openState = "macroSpots.v2.openState"       // track menu › File › Open mixer track state
-        case armSelected = "macroSpots.v2.armSelected"   // track menu › Arm selected track(s)
+        case openState = "macroSpots.v2.openState"       // menu de piste › File › Open mixer track state
+        case armSelected = "macroSpots.v2.armSelected"   // menu de piste › Arm selected track(s)
         case input = "macroSpots.v2.input"               // (none) › 1
     }
 
@@ -183,9 +183,9 @@ extension MacroSpots {
         abs(a.width - b.width) <= tolerance && abs(a.height - b.height) <= tolerance
     }
 
-    /// Pure (unit-tested): attributes each user click to the FL window that was frontmost under it just before
-    /// the click. A window absent from `base` (taken before the right-click / first click) is a popup → hop
-    /// relative to its top-left. If any click did not land in a popup, the whole path is stored inline.
+    /// Pure (testée) : attribue chaque clic de l'utilisateur à la fenêtre de FL qui était tout devant sous lui juste avant
+    /// le clic. Une fenêtre absente de `base` (relevée avant le clic droit / le premier clic) est un menu → saut
+    /// relatif à son coin haut-gauche. Si un clic n'est pas tombé dans un menu, tout le chemin est gardé tel quel (inline).
     static func resolve(_ samples: [ClickSample], history: [WinSnapshot], base: Set<Int>,
                         anchor: CGPoint, firstInWindow: Bool) -> MenuPath {
         func window(at s: ClickSample) -> WinInfo? {
@@ -195,7 +195,7 @@ extension MacroSpots {
         var rest = samples[...]
         var origin = anchor
         if firstInWindow, let first = rest.first {
-            guard let w = window(at: first) else { return path }                   // invalid (no hops, no inline)
+            guard let w = window(at: first) else { return path }                   // invalide (ni sauts, ni inline)
             path.start = WindowStart(fromTopRight: CGVector(dx: first.point.x - w.bounds.maxX, dy: first.point.y - w.bounds.minY),
                                      windowSize: w.bounds.size)
             origin = first.point

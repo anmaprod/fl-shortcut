@@ -244,7 +244,7 @@ final class MacroRunner {
         let baseline: Int
         /// Piste visée par les étapes automatiques : dernier clic dans FL, sinon position du curseur.
         let track: CGPoint
-        /// Windows visible when the macro started (FL + out-of-process panels).
+        /// Fenêtres visibles au démarrage de la macro (FL + panneaux hors processus).
         let startNumbers: Set<Int>
     }
 
@@ -260,13 +260,13 @@ final class MacroRunner {
         }
     }
 
-    /// Dialog opened by the menu (waitDialog → waitDialogClose). Macro queue only.
+    /// Boîte de dialogue ouverte par le menu (waitDialog → waitDialogClose). File de la macro uniquement.
     private var dialog: WinInfo?
-    /// Where the user's pointer was before a burst of automatic clicks. Macro queue only.
+    /// Position du pointeur de l'utilisateur avant une série de clics automatiques. File de la macro uniquement.
     private var cursorBeforeBurst: CGPoint?
-    /// FL answered the AX hit-test on its popup with a menu role: titles can be used (tier 0). Macro queue only.
+    /// FL a répondu au hit-test AX sur son menu par un rôle de menu : titres utilisables (niveau 0). File de la macro uniquement.
     private var popupAX = false
-    /// Max distance between the remembered click and the learned track-menu row (Playlist guard).
+    /// Distance max entre le clic retenu et la ligne apprise du menu de piste (garde-fou Playlist).
     private static let maxRowDistance: CGFloat = 200
 
 
@@ -336,7 +336,7 @@ final class MacroRunner {
                 ready.signal()
             }
         }
-        DispatchQueue.main.sync { HintPanel.shared.hide() }       // synchronous: never our bubble under a click
+        DispatchQueue.main.sync { HintPanel.shared.hide() }       // synchrone : jamais notre bulle sous un clic
         guard CGPreflightPostEventAccess() else {
             return .failed(step: 1, reason: "autorise FL Shortcut dans Réglages Système › Confidentialité et sécurité › Accessibilité")
         }
@@ -357,7 +357,7 @@ final class MacroRunner {
         }
         let ctx = Context(pid: pid, origin: origin, frame: frame(origin),
                           baseline: FLWindows.dialogCount(pid: pid), track: track, startNumbers: initial.numbers)
-        // Every step that clicks waits for an idle keyboard itself; other first steps wait here.
+        // Chaque étape qui clique attend elle-même un clavier au repos ; les autres premières étapes attendent ici.
         if steps.first?.kind != .trackMenu, !waitForKeyboardIdle(timeout: 1.5) {
             return .cancelled(reason: "relâche les touches du raccourci")
         }
@@ -513,11 +513,11 @@ final class MacroRunner {
     static let armOnAction = 39
     static let recOnAction = 40
 
-    // MARK: Keyboard
+    // MARK: Clavier
 
-    /// No modifier and (softly) no key held, the trigger's R included: FL 2026 reads the real modifier state,
-    /// HID-posted clicks pick up held modifiers, and an open FL menu reacts to key events (a ⌃ release while the
-    /// menu is open may close it). Returns false only if modifiers are still held.
+    /// Aucun modificateur et (sans insister) aucune touche enfoncés, R du raccourci compris : FL 2026 lit l'état réel
+    /// des modificateurs, les clics envoyés en HID reprennent les modificateurs enfoncés, et un menu de FL ouvert réagit
+    /// aux touches (relâcher ⌃ peut le fermer). Renvoie false seulement si des modificateurs restent enfoncés.
     private func waitForKeyboardIdle(timeout: TimeInterval) -> Bool {
         let start = Date()
         let mask: CGEventFlags = [.maskCommand, .maskAlternate, .maskControl, .maskShift]
@@ -535,13 +535,13 @@ final class MacroRunner {
     }
 
     private static func anyKeyDown() -> Bool {
-        for code in CGKeyCode(0)..<CGKeyCode(128) where code != 57 && code != 63 {      // caps lock, fn
+        for code in CGKeyCode(0)..<CGKeyCode(128) where code != 57 && code != 63 {      // verrouillage majuscules, fn
             if CGEventSource.keyState(.combinedSessionState, key: code) { return true }
         }
         return false
     }
 
-    // MARK: Cursor
+    // MARK: Curseur
 
     private func restoreCursor() {
         guard let p = cursorBeforeBurst else { return }
@@ -551,7 +551,7 @@ final class MacroRunner {
         CGAssociateMouseAndMouseCursorPosition(1)
     }
 
-    // MARK: Track menu (popup-window anchored)
+    // MARK: Menu de piste (ancré à la fenêtre du menu)
 
     private func trackMenu(_ titles: [String], ctx: Context) -> StepResult {
         let axTitles = titles.map { $0.split(separator: "|").map(String.init) }
@@ -561,14 +561,14 @@ final class MacroRunner {
                          hintAt: Self.hintPoint(awayFrom: ctx.track), rightClick: true, ctx: ctx)
     }
 
-    /// « Arm selected track(s) » from the same menu: idempotent (Disarm is a separate item), no MIDI needed.
+    /// « Arm selected track(s) » dans le même menu : idempotent (Disarm est un autre élément), sans MIDI.
     private func armViaMenu(ctx: Context) -> StepResult {
         if let path = MacroSpots.loadPath(.armSelected) { return replayMenu(path, titles: [["Arm selected track"]], ctx: ctx) }
         return learnPath(.armSelected, clicks: 1, hint: "Une seule fois : clique sur « Arm selected track(s) ».",
                          hintAt: Self.hintPoint(awayFrom: ctx.track), rightClick: true, ctx: ctx)
     }
 
-    /// MIDI first (acknowledged by FL); if the script is unavailable, arm from the track menu instead of only warning.
+    /// MIDI d'abord (accusé par FL) ; script indisponible : armement par le menu de piste plutôt qu'un simple avertissement.
     private func armAndRecord(record: Bool, ctx: Context) -> StepResult {
         let ids = record ? [Self.armOnAction, Self.recOnAction] : [Self.armOnAction]
         guard let why = MIDILink.shared.runBriefly(ids) else {
@@ -588,7 +588,7 @@ final class MacroRunner {
         if let row = path.row, let why = rowProblem(row, ctx: ctx) { return .fail(why) }
         guard waitForKeyboardIdle(timeout: 1.5) else { return .cancel("relâche les touches du raccourci") }
         guard let first = path.hops.first else {
-            // FL drew the menu inside its window when learning: nothing to verify against → exact replay only.
+            // FL a dessiné le menu dans sa fenêtre à l'apprentissage : rien à vérifier → rejeu exact seulement.
             guard let inline = path.inline else { return .fail("clics à réapprendre (fiche du raccourci)") }
             guard abs(ctx.track.y - inline.anchor.y) <= 3 else {
                 return .fail("menu de FL non repérable à cette hauteur : clique sur la même rangée qu'à l'apprentissage, ou réapprends")
@@ -610,8 +610,8 @@ final class MacroRunner {
         }
     }
 
-    /// A popup of the learned size appears (FL may shift it anywhere: only its own top-left matters).
-    /// Anything else that opened is closed (Escape, verified) and the step fails — no click is ever sent blind.
+    /// Un menu de la taille apprise apparaît (FL peut le décaler n'importe où : seul son coin haut-gauche compte).
+    /// Tout ce qui s'est ouvert d'autre est fermé (Échap, vérifié) et l'étape échoue : jamais de clic à l'aveugle.
     private func awaitPopup(fitting hop: MacroSpots.PopupHop, excluding base: Set<Int>, timeout: TimeInterval,
                             ctx: Context) -> Result<WinInfo, MenuStop> {
         let began = Date()
@@ -641,8 +641,8 @@ final class MacroRunner {
         }
     }
 
-    /// Clicks each hop inside its own popup; between hops, waits for the next popup (submenu); after the last,
-    /// waits for every popup to close (proof the item was taken).
+    /// Clique chaque saut dans son propre menu ; entre deux sauts, attend le menu suivant (sous-menu) ; après le dernier,
+    /// attend que tous les menus se ferment (preuve que l'élément a été pris).
     private func runHops(_ hops: [MacroSpots.PopupHop], titles: [[String]], firstPopup: WinInfo,
                          base: Set<Int>, ctx: Context) -> StepResult {
         var popup = firstPopup
@@ -683,8 +683,8 @@ final class MacroRunner {
         return .ok
     }
 
-    /// Left click at `p` only if `p` is inside `popup`, the popup is still there at the same place, it is FL's
-    /// frontmost window at `p`, and no other app covers it (Accessibility hit-test).
+    /// Clic gauche en `p` seulement si `p` est dans `popup`, que le menu est toujours là au même endroit, qu'il est
+    /// la fenêtre de FL tout devant en `p` et qu'aucune autre appli ne le couvre (hit-test Accessibilité).
     private func clickInside(_ p: CGPoint, popup: WinInfo, ctx: Context) -> StepResult {
         if let stop = shouldStop(ctx.pid) { return .cancel(stop) }
         let snap = WinSnapshot.take(pid: ctx.pid)
@@ -703,13 +703,13 @@ final class MacroRunner {
             let name = NSRunningApplication(processIdentifier: ax.pid)?.localizedName ?? "une autre app"
             return .fail("« \(name) » couvre le menu de FL")
         }
-        postClick(at: p, right: false, pid: ctx.pid, hoverMs: 70)       // hover first: custom menus track the pointer
+        postClick(at: p, right: false, pid: ctx.pid, hoverMs: 70)       // survol d'abord : les menus maison suivent le pointeur
         lastClickPoint = p
         return .ok
     }
 
-    /// Escape only while a popup WE opened (absent from `base`) is still on screen — never a blind Escape,
-    /// which FL could apply to its focused window/panel.
+    /// Échap seulement tant qu'un menu ouvert par NOUS (absent de `base`) est encore à l'écran : jamais d'Échap à
+    /// l'aveugle, que FL pourrait appliquer à sa fenêtre / son panneau actif.
     private func closePopups(base: Set<Int>, ctx: Context) {
         for attempt in 1...3 {
             let open = WinSnapshot.take(pid: ctx.pid).fl.filter { !base.contains($0.number) && $0.isMenuLike }
@@ -720,8 +720,8 @@ final class MacroRunner {
         }
     }
 
-    /// Remembered click far from the row where the track menu was learned (Playlist, Browser…): a right-click
-    /// there can delete a clip. Skipped (logged) when the FL window size differs from learning.
+    /// Clic retenu loin de la ligne où le menu de piste a été appris (Playlist, Browser…) : un clic droit à cet
+    /// endroit peut supprimer un clip. Vérification sautée (journalisée) si la fenêtre de FL n'a plus la taille apprise.
     private func rowProblem(_ row: MacroSpots.TrackRow, ctx: Context) -> String? {
         let snap = WinSnapshot.take(pid: ctx.pid)
         guard let w = snap.fl.first(where: { $0.layer == 0 && $0.bounds.contains(ctx.track) }),
@@ -735,7 +735,7 @@ final class MacroRunner {
             ? "la dernière piste cliquée n'est pas dans le Mixer : clique sur ta piste, puis refais le raccourci" : nil
     }
 
-    /// Legacy chained offsets (inline menus only). Unverified by construction: kept for exact replays.
+    /// Ancien format, décalages enchaînés (menus dans la fenêtre de FL seulement). Invérifiable : gardé pour le rejeu exact.
     private func replayChain(_ offsets: [CGVector], from anchor: CGPoint, ctx: Context) -> StepResult {
         for p in MacroSpots.Learned(anchorSize: .zero, offsets: offsets).points(from: anchor) {
             if case .cancel(let why) = pause(220, pid: ctx.pid) { return .cancel(why) }
@@ -747,11 +747,11 @@ final class MacroRunner {
         return .ok
     }
 
-    // MARK: Learning (records which window each user click landed in)
+    // MARK: Apprentissage (retient la fenêtre où est tombé chaque clic de l'utilisateur)
 
-    /// The hint is shown BEFORE the right-click (no window ordered in while FL's menu is open) and on the other
-    /// half of the screen. FL's windows are polled every 15 ms; each user click is attributed to the window that
-    /// was frontmost under it in the last snapshot taken before the click's timestamp.
+    /// La bulle s'affiche AVANT le clic droit (aucune fenêtre ne passe devant quand le menu de FL est ouvert), sur
+    /// l'autre moitié de l'écran. Les fenêtres de FL sont relevées toutes les 15 ms ; chaque clic de l'utilisateur est
+    /// attribué à la fenêtre tout devant sous lui dans le dernier relevé pris avant l'instant du clic.
     private func learnPath(_ kind: MacroSpots.PathKind, clicks n: Int, hint: String, hintAt: CGPoint,
                            rightClick: Bool, ctx: Context) -> StepResult {
         guard waitForKeyboardIdle(timeout: 1.5) else { return .cancel("relâche les touches du raccourci") }
@@ -769,7 +769,7 @@ final class MacroRunner {
             }
             let r = click(at: ctx.track, right: true, ctx: ctx)
             guard case .ok = r else { return r }
-            restoreCursor()                                          // the user drives from here
+            restoreCursor()                                          // l'utilisateur prend la main ici
         }
         var history: [WinSnapshot] = []
         var samples: [ClickSample] = []
@@ -807,13 +807,13 @@ final class MacroRunner {
         return CGDisplayBounds(ids[0])
     }
 
-    /// Top of the screen, on the half that does not contain `p` (FL's menu opens near `p`).
+    /// Haut de l'écran, sur la moitié qui ne contient pas `p` (le menu de FL s'ouvre près de `p`).
     private static func hintPoint(awayFrom p: CGPoint) -> CGPoint {
         let d = displayBounds(containing: p)
         return CGPoint(x: p.x > d.midX ? d.minX + d.width * 0.25 : d.minX + d.width * 0.75, y: d.minY + 60)
     }
 
-    // MARK: Input « (none) » → 1
+    // MARK: Entrée « (none) » → 1
 
     private func selectInput(ctx: Context) -> StepResult {
         let snap = WinSnapshot.take(pid: ctx.pid)
@@ -833,7 +833,7 @@ final class MacroRunner {
             if let inline = path.inline { return replayChain(inline.offsets, from: p0, ctx: ctx) }
             return .fail("entrée à réapprendre (fiche du raccourci)")
         }
-        // Not learned, or FL's window size changed: the user shows it (once).
+        // Pas appris, ou la fenêtre de FL a changé de taille : l'utilisateur le montre (une fois).
         guard let main = snap.fl.filter({ $0.layer == 0 })
                 .max(by: { $0.bounds.width * $0.bounds.height < $1.bounds.width * $1.bounds.height }) else {
             return .fail("fenêtre de FL introuvable")
@@ -842,13 +842,13 @@ final class MacroRunner {
                          hintAt: CGPoint(x: main.bounds.maxX - 160, y: main.bounds.minY + 90), rightClick: false, ctx: ctx)
     }
 
-    /// FL window with the learned size: the one holding the track first (detached Mixer), else any.
+    /// Fenêtre de FL de la taille apprise : d'abord celle qui contient la piste (Mixer détaché), sinon n'importe laquelle.
     private static func inputWindow(in snap: WinSnapshot, size: CGSize, track: CGPoint) -> WinInfo? {
         let fits = snap.fl.filter { $0.layer == 0 && MacroSpots.sameSize($0.bounds.size, size) }
         return fits.first { $0.bounds.contains(track) } ?? fits.first
     }
 
-    // MARK: Dialog (tracked by window number, not by a window count)
+    // MARK: Boîte de dialogue (suivie par son numéro de fenêtre, pas par un nombre de fenêtres)
 
     private func waitDialogOpen(timeoutMs: Int, ctx: Context) -> StepResult {
         restoreCursor()
@@ -976,7 +976,7 @@ final class MacroRunner {
             let ax = AXProbe.hit(p)
             MacroLog.shared.write("AX", "at (\(Int(p.x)),\(Int(p.y))): \(ax)")
             var owner: Int32? = (ax.error == .success && ax.pid != 0) ? ax.pid : nil
-            // AX silent: fall back to the topmost NORMAL window only if no FL popup (higher layer) is there.
+            // AX muet : repli sur la fenêtre NORMALE tout devant seulement si aucun menu de FL (niveau supérieur) n'est là.
             if owner == nil, WinSnapshot.take(pid: ctx.pid).hit(p).map({ $0.layer == 0 }) ?? true {
                 owner = FLWindows.topNormalWindow(at: p)?.pid
             }

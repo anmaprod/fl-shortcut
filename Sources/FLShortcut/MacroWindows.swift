@@ -1,5 +1,5 @@
-// Window metadata (CoreGraphics: number, layer, bounds, owner, alpha — never pixels, never kCGWindowName),
-// window appear/disappear waits, Accessibility hit-testing, and the `--diag-macro --watch` probe.
+// Métadonnées des fenêtres (CoreGraphics : numéro, niveau, cadre, propriétaire, alpha ; jamais de pixels, jamais
+// kCGWindowName), attente d'apparition / disparition des fenêtres, hit-test Accessibilité et sonde `--diag-macro --watch`.
 import AppKit
 import ApplicationServices
 import CoreGraphics
@@ -17,17 +17,18 @@ struct WinInfo: Equatable, CustomStringConvertible {
         return "#\(number) L\(layer) (\(Int(bounds.minX)),\(Int(bounds.minY))) \(Int(bounds.width))x\(Int(bounds.height))\(a)"
     }
 
-    /// Plausible popup menu, submenu or drop-down list.
+    /// Menu contextuel, sous-menu ou liste déroulante plausible.
     var isMenuLike: Bool { bounds.width >= 30 && bounds.width <= 1400 && bounds.height >= 16 && bounds.height <= 4000 }
-    /// Plausible dialog (open panel, FL dialog).
+    /// Boîte de dialogue plausible (panneau d'ouverture, dialogue de FL).
     var isDialogLike: Bool { bounds.width >= 320 && bounds.height >= 200 }
 }
 
-/// Visible on-screen windows, front to back, at `time` (system uptime: same clock as NSEvent.timestamp).
+/// Fenêtres visibles à l'écran, de l'avant vers l'arrière, à `time` (temps depuis le démarrage : même horloge que
+/// NSEvent.timestamp).
 struct WinSnapshot {
     let time: TimeInterval
     let fl: [WinInfo]
-    /// Out-of-process open/save panels (only used by sandboxed hosts; harmless otherwise).
+    /// Panneaux d'ouverture / d'enregistrement hors processus (seulement chez les applis sandboxées ; sans effet sinon).
     let panelService: [WinInfo]
 
     static let panelServiceOwners: Set<String> = ["Open and Save Panel Service", "com.apple.appkit.xpc.openAndSavePanelService"]
@@ -46,7 +47,7 @@ struct WinSnapshot {
                   let bounds = CGRect(dictionaryRepresentation: dict as CFDictionary),
                   bounds.width >= 1, bounds.height >= 1 else { continue }
             let alpha = (w[kCGWindowAlpha as String] as? NSNumber)?.doubleValue ?? 1
-            guard alpha > 0.05 else { continue }      // pooled / fading-out windows are not "open"
+            guard alpha > 0.05 else { continue }      // fenêtres en réserve / qui s'effacent : pas « ouvertes »
             let info = WinInfo(number: (w[kCGWindowNumber as String] as? NSNumber)?.intValue ?? 0,
                                layer: layer, bounds: bounds, pid: owner, alpha: alpha)
             if owner == pid {
@@ -60,15 +61,15 @@ struct WinSnapshot {
 
     var numbers: Set<Int> { Set(fl.map(\.number) + panelService.map(\.number)) }
     func window(_ number: Int) -> WinInfo? { fl.first { $0.number == number } }
-    /// FL's frontmost window under `p`, any layer: the one a click at `p` lands in (among FL's windows).
+    /// Fenêtre de FL tout devant sous `p`, tous niveaux : celle où tombe un clic en `p` (parmi les fenêtres de FL).
     func hit(_ p: CGPoint) -> WinInfo? { fl.first { $0.bounds.contains(p) } }
 }
 
 enum WindowWait {
     enum Failure: Error, Equatable { case timeout, stopped(String) }
 
-    /// Frontmost FL window absent from `excluding` that satisfies `accept`, read twice in a row with identical
-    /// bounds/alpha (FL has finished placing it — this is where it gets shifted to fit the screen).
+    /// Fenêtre de FL tout devant, absente de `excluding` et acceptée par `accept`, lue deux fois de suite avec le même
+    /// cadre et le même alpha (FL a fini de la placer : c'est là qu'il la décale pour qu'elle tienne à l'écran).
     static func newWindow(pid: Int32, excluding: Set<Int>, timeout: TimeInterval,
                           accept: (WinInfo) -> Bool = { $0.isMenuLike },
                           stop: () -> String?) -> Result<WinInfo, Failure> {
@@ -84,7 +85,7 @@ enum WindowWait {
         return .failure(.timeout)
     }
 
-    /// All `numbers` closed (or invisible).
+    /// Toutes les fenêtres `numbers` fermées (ou invisibles).
     static func gone(pid: Int32, numbers: Set<Int>, timeout: TimeInterval, interval: TimeInterval = 0.015,
                      stop: () -> String?) -> Result<Void, Failure> {
         let deadline = Date().addingTimeInterval(timeout)
@@ -97,7 +98,7 @@ enum WindowWait {
     }
 }
 
-// MARK: - Accessibility hit-testing (permission already granted for the key tap)
+// MARK: - Hit-test via l'Accessibilité (permission déjà donnée pour le tap clavier)
 
 enum AXProbe {
     struct Hit: CustomStringConvertible {
@@ -120,7 +121,7 @@ enum AXProbe {
         }
     }
 
-    /// Short timeout: FL's main thread may be inside its menu loop; a slow answer must not stall the macro.
+    /// Délai court : FL peut être dans sa boucle de menu (thread principal) ; une réponse lente ne doit pas bloquer la macro.
     static func hit(_ p: CGPoint, timeout: Float = 0.15) -> Hit {
         let t0 = DispatchTime.now().uptimeNanoseconds
         var out = Hit()
@@ -134,7 +135,7 @@ enum AXProbe {
             if AXUIElementGetPid(element, &pid) == .success { out.pid = pid }
             out.role = string(element, kAXRoleAttribute) ?? "?"
             out.subrole = string(element, kAXSubroleAttribute) ?? ""
-            // Titles only for menu roles (FL's own UI strings), truncated: never document or project content.
+            // Titres seulement pour les rôles de menu (libellés de FL), tronqués : jamais de contenu de document ou de projet.
             if out.role.hasPrefix("AXMenu") { out.title = string(element, kAXTitleAttribute).map { String($0.prefix(48)) } }
             out.frame = frame(element)
         }
@@ -142,7 +143,7 @@ enum AXProbe {
         return out
     }
 
-    /// Tier 0: if FL exposes this popup to Accessibility, centre of the item whose title matches (else nil).
+    /// Niveau 0 : si FL expose ce menu à l'Accessibilité, centre de l'élément dont le titre correspond (sinon nil).
     static func itemCenter(in popup: WinInfo, titles: [String]) -> CGPoint? {
         guard !titles.isEmpty else { return nil }
         let probe = hit(CGPoint(x: popup.bounds.midX, y: popup.bounds.minY + min(30, popup.bounds.height / 2)))
@@ -193,12 +194,12 @@ enum AXProbe {
     }
 }
 
-// MARK: - Probe: `FLShortcut --diag-macro --watch 20`
+// MARK: - Sonde : `FLShortcut --diag-macro --watch 20`
 
-/// Prints every FL window that appears (+), changes (~) or disappears (-) with 50 ms resolution, plus mouse
-/// buttons and the AX hit-test under the cursor when they change. Run it, then in FL: right-click a mixer
-/// track, hover File, open the submenu, Escape. Answers: are FL menus separate windows, at which layer,
-/// shifted where, does FL expose them to Accessibility, does the menu open on mouse-down or mouse-up.
+/// Affiche chaque fenêtre de FL qui apparaît (+), change (~) ou disparaît (-), à 50 ms près, ainsi que les boutons
+/// de la souris et le hit-test AX sous le curseur quand ils changent. La lancer, puis dans FL : clic droit sur une piste
+/// du mixer, survol de File, ouverture du sous-menu, Échap. Répond à : les menus de FL sont-ils des fenêtres à part,
+/// à quel niveau, décalés où, FL les expose-t-il à l'Accessibilité, le menu s'ouvre-t-il à l'appui ou au relâchement ?
 enum MacroProbe {
     static func watch(pid: Int32, seconds: Double, emit: (String) -> Void) {
         var previous: [Int: WinInfo] = [:]
