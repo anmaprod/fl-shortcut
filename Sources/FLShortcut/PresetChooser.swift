@@ -5,7 +5,9 @@
 //  2. chemin COLLÉ d'un coup (⌘A puis ⌘V), presse-papiers de l'utilisateur rendu ensuite tel quel ;
 //  3. Entrée : la fenêtre « Aller au dossier » se ferme, le fichier est sélectionné ;
 //  4. Entrée : la boîte « Open » se ferme sur ce fichier.
-// Tout est envoyé au seul processus de la boîte. Aucune lecture de l'écran.
+// Le contenu de la boîte « Open » est servi par un autre processus du système : des touches adressées au seul
+// processus de FL ne lui parviennent pas (constaté sur macOS 26). Quand FL est au premier plan, les touches passent
+// donc par le flux clavier du système, comme une vraie frappe ; sinon rien n'est envoyé. Aucune lecture de l'écran.
 import AppKit
 import CoreGraphics
 import Foundation
@@ -31,6 +33,9 @@ enum PresetChooser {
             return nil
         }
         guard WinSnapshot.take(pid: pid).numbers.contains(dialog) else { return .failed("la boîte « Open » s'est fermée") }
+        let front = NSWorkspace.shared.frontmostApplication
+        log("frontmost \(front?.localizedName ?? "?") (\(front?.processIdentifier ?? 0)), target \(pid)")
+        guard front?.processIdentifier == pid else { return .failed("la boîte « Open » n'est pas au premier plan") }
 
         // 1. « Aller au dossier » : nouvelle fenêtre du processus (feuille de la boîte), renvoyé tant qu'elle n'apparaît pas.
         var goTo: WinInfo?
@@ -46,7 +51,9 @@ enum PresetChooser {
             case .failure(.stopped(let why)):
                 return .cancelled(why)
             case .failure(.timeout):
-                log("⌘⇧G attempt \(attempt): no go-to-folder window yet")
+                let snap = WinSnapshot.take(pid: pid)
+                log("⌘⇧G attempt \(attempt): no go-to-folder window yet · windows: "
+                    + (snap.fl + snap.panelService).map(\.description).joined(separator: " | "))
             }
             if goTo != nil { break }
         }
@@ -92,21 +99,24 @@ enum PresetChooser {
         return .failed("la boîte « Open » ne s'est pas fermée sur le preset")
     }
 
-    /// Une touche (avec ses modificateurs) envoyée au seul processus, marquée pour que notre tap l'ignore.
+    /// Une touche (avec ses modificateurs) frappée comme au clavier, seulement si `pid` est au premier plan (elle va
+    /// donc à sa fenêtre active : la boîte « Open »). Marquée pour que notre tap l'ignore.
     static func post(keyCode: CGKeyCode, flags: CGEventFlags, pid: Int32) {
+        guard NSWorkspace.shared.frontmostApplication?.processIdentifier == pid else { return }
+        func send(_ e: CGEvent) { e.post(tap: .cghidEventTap) }
         func flagsEvent(_ f: CGEventFlags) {
             guard let e = CGEvent(source: source) else { return }
             e.type = .flagsChanged
             e.flags = f
             e.setIntegerValueField(.eventSourceUserData, value: EventTap.mark)
-            e.postToPid(pid)
+            send(e)
         }
         if !flags.isEmpty { flagsEvent(flags) }
         for down in [true, false] {
             guard let e = CGEvent(keyboardEventSource: source, virtualKey: keyCode, keyDown: down) else { continue }
             e.flags = flags
             e.setIntegerValueField(.eventSourceUserData, value: EventTap.mark)
-            e.postToPid(pid)
+            send(e)
             usleep(8_000)
         }
         if !flags.isEmpty { flagsEvent([]) }
@@ -153,7 +163,9 @@ enum Clipboard {
 /// c'est bien ce fichier qui est ouvert. Sortie : PASS / FAIL / SKIP (pas d'autorisation d'envoi d'événements).
 enum PresetSelfTest {
     static func runIfRequested() {
-        guard CommandLine.arguments.contains("--selftest-preset") else { return }
+        guard let flag = CommandLine.arguments.firstIndex(of: "--selftest-preset") else { return }
+        // Lancé par `open` (seul moyen d'être au premier plan comme FL) : la sortie va dans le fichier donné.
+        if let out = CommandLine.arguments.dropFirst(flag + 1).first, !out.hasPrefix("-") { freopen(out, "w", stdout) }
         setvbuf(stdout, nil, _IOLBF, 0)
         guard CGPreflightPostEventAccess() else {
             print("SKIP: pas d'autorisation d'envoi d'événements pour ce programme")
@@ -168,6 +180,7 @@ enum PresetSelfTest {
         let app = NSApplication.shared
         app.setActivationPolicy(.regular)
         app.activate(ignoringOtherApps: true)
+        print("au premier plan : \(NSWorkspace.shared.frontmostApplication?.localizedName ?? "?")")
 
         let pid = getpid()
         let started = Date()
