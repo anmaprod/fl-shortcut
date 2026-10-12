@@ -49,6 +49,7 @@ struct EditorView: View {
             detail(data)
         })
         .navigationTitle(title)
+        .windowGlass(glassEnabled)
         .searchable(text: $query, placement: .toolbar, prompt: "Rechercher")
         // Un clic dans le vide de la barre latérale ne laisse jamais la fenêtre sans section.
         .onChange(of: selection) { newValue in
@@ -178,7 +179,8 @@ struct EditorView: View {
                 }
             }
         }
-        .listStyle(.inset(alternatesRowBackgrounds: true))
+        .listStyle(.inset)
+        .glassListBackground()
         .id(section)                                     // nouvelle section : la liste repart du haut
     }
 
@@ -213,7 +215,8 @@ struct EditorView: View {
                         }
                     }
                 }
-                .listStyle(.inset(alternatesRowBackgrounds: true))
+                .listStyle(.inset)
+        .glassListBackground()
             }
         }
     }
@@ -238,7 +241,8 @@ struct EditorView: View {
                     }
                     .buttonStyle(.borderless)
                 }
-                .listStyle(.inset(alternatesRowBackgrounds: true))
+                .listStyle(.inset)
+        .glassListBackground()
             }
         }
     }

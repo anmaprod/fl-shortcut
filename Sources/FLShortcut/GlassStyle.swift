@@ -139,7 +139,35 @@ private struct SecondaryButtonStyleModifier: ViewModifier {
     }
 }
 
+/// Fond de liste transparent quand la fenêtre est en verre (le verre de la fenêtre se voit à travers).
+private struct GlassListBackground: ViewModifier {
+    @AppStorage(Appearance.glassKey) private var glassEnabled = true
+
+    func body(content: Content) -> some View {
+        if #available(macOS 15.0, *), glassEnabled {
+            content.scrollContentBackground(.hidden)
+        } else {
+            content
+        }
+    }
+}
+
 extension View {
+    /// Fenêtre entière en verre (matériau derrière la fenêtre, comme le Centre de contrôle) : le bureau et ce qui
+    /// est derrière se devinent. Composé par le système ; figé par macOS quand la fenêtre n'est plus active.
+    @ViewBuilder func windowGlass(_ on: Bool) -> some View {
+        if #available(macOS 15.0, *), on {
+            containerBackground(.ultraThinMaterial, for: .window)
+        } else {
+            self
+        }
+    }
+
+    /// Liste posée sur le verre de la fenêtre.
+    func glassListBackground() -> some View {
+        modifier(GlassListBackground())
+    }
+
     /// Identité de verre : deux surfaces du même GlassGroup se fondent l'une dans l'autre en apparaissant.
     @ViewBuilder func glassID(_ id: String, in ns: Namespace.ID) -> some View {
         #if compiler(>=6.2)

@@ -144,7 +144,10 @@ final class AppStatus: ObservableObject {
 
         observers.append(NotificationCenter.default.addObserver(forName: .macroFinished, object: nil, queue: .main) { [weak self] note in
             let ok = note.userInfo?["ok"] as? Bool ?? false
-            self?.lastMacro = (ok, note.userInfo?["text"] as? String ?? "")
+            let text = note.userInfo?["text"] as? String ?? ""
+            self?.lastMacro = (ok, text)
+            // Dire pourquoi, pas seulement un bip (le larsen a déjà sa fenêtre).
+            if !ok, !text.hasPrefix("Macro terminée") { HintPanel.shared.flash(text) }
         })
 
         let center = NSWorkspace.shared.notificationCenter

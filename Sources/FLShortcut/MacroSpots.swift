@@ -128,8 +128,19 @@ final class HintPanel {
     }
 
     func hide() {
+        hideWork?.cancel()
         panel?.orderOut(nil)
         panel = nil
+    }
+
+    private var hideWork: DispatchWorkItem?
+
+    /// Message bref près du curseur (échec d'une macro), retiré tout seul.
+    func flash(_ text: String, seconds: TimeInterval = 4) {
+        show(text, near: FLWindows.cursor())
+        let work = DispatchWorkItem { [weak self] in self?.hide() }
+        hideWork = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + seconds, execute: work)
     }
 }
 
