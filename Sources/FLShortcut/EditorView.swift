@@ -36,20 +36,20 @@ struct EditorView: View {
     /// Annonce affichée en tête de la fiche quand on doit choisir une nouvelle touche pour un autre raccourci.
     @State private var editNotice: String? = nil
     @AppStorage(Appearance.glassKey) private var glassEnabled = true
+    @Namespace private var glassNS
 
     private var trimmedQuery: String { query.trimmingCharacters(in: .whitespaces) }
 
     var body: some View {
         let data = store.catalogRows()
-        NavigationSplitView {
+        withToolbar(NavigationSplitView {
             sidebar(data)
                 .navigationSplitViewColumnWidth(min: 220, ideal: 245, max: 300)
         } detail: {
             detail(data)
-        }
+        })
         .navigationTitle(title)
         .searchable(text: $query, placement: .toolbar, prompt: "Rechercher")
-        .toolbar { toolbarContent }
         // Un clic dans le vide de la barre latérale ne laisse jamais la fenêtre sans section.
         .onChange(of: selection) { newValue in
             if newValue == nil { selection = .section(.general) }
@@ -119,18 +119,20 @@ struct EditorView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         // Façon macOS 26 : la liste défile SOUS des éléments en verre qui flottent (avertissements en haut,
         // notification et statut en bas). Peu de surfaces, regroupées : le système les dessine ensemble.
-        .safeAreaInset(edge: .top, spacing: 0) {
-            NoticeStack(items: notices)
-        }
-        .overlay(alignment: .bottom) {
+        // macOS 26 : barres flottantes (safeAreaBar) : la liste défile dessous avec l'effet de bord, et sa dernière
+        // ligne n'est jamais cachée par la pastille.
+        .floatingBar(.top) { NoticeStack(items: notices) }
+        .floatingBar(.bottom) {
             GlassGroup(spacing: 8) {
                 VStack(spacing: 8) {
                     if let toast {
                         ToastView(message: toast) { self.toast = nil }
-                            .transition(Motion.rise)
-                            .id(toast.id)                   // une nouvelle notification remplace l'ancienne
+                            .glassID("toast", in: glassNS)         // la notification naît de la pastille
+                            .transition(Motion.transition(.opacity))
+                            .id(toast.id)
                     }
                     StatusBar(store: store, status: status, link: link, fl: FLMonitor.shared)
+                        .glassID("status", in: glassNS)
                 }
             }
             .padding(.horizontal, 14)
@@ -295,15 +297,39 @@ struct EditorView: View {
     // MARK: Barre d'outils
 
     @ToolbarContentBuilder private var toolbarContent: some ToolbarContent {
-        ToolbarItem(placement: .primaryAction) {
-            Toggle(isOn: pausedBinding) {
-                Label("Pause", systemImage: "pause.circle")
+        ToolbarItem(placement: .primaryAction) { newButton }
+        ToolbarItem(placement: .primaryAction) { pauseToggle }
+        ToolbarItem(placement: .primaryAction) { profileMenu }
+    }
+
+    /// macOS 26 : boutons regroupés sur un même verre, le menu à part (ToolbarSpacer), comme les apps d'Apple.
+    @ViewBuilder private func withToolbar<V: View>(_ v: V) -> some View {
+        #if compiler(>=6.2)
+        if #available(macOS 26.0, *) {
+            v.toolbar {
+                ToolbarItem(placement: .primaryAction) { newButton }
+                ToolbarItem(placement: .primaryAction) { pauseToggle }
+                ToolbarSpacer(.fixed, placement: .primaryAction)
+                ToolbarItem(placement: .primaryAction) { profileMenu }
             }
-            .help(store.enabled ? "Mettre en pause (⌃⌥⌘F)" : "Reprendre (⌃⌥⌘F)")
+        } else {
+            v.toolbar { toolbarContent }
         }
-        ToolbarItem(placement: .primaryAction) {
-            profileMenu
+        #else
+        v.toolbar { toolbarContent }
+        #endif
+    }
+
+    private var newButton: some View {
+        Button(action: newCustom) { Label("Nouveau raccourci", systemImage: "plus") }
+            .help("Nouveau raccourci personnalisé")
+    }
+
+    private var pauseToggle: some View {
+        Toggle(isOn: pausedBinding) {
+            Label("Pause", systemImage: "pause")
         }
+        .help(store.enabled ? "Mettre en pause (⌃⌥⌘F)" : "Reprendre (⌃⌥⌘F)")
     }
 
     private var pausedBinding: Binding<Bool> {
@@ -313,28 +339,30 @@ struct EditorView: View {
 
     private var profileMenu: some View {
         Menu {
-            Menu("Charger un profil") {
+            Menu {
                 ForEach(ProfilePreset.allCases) { preset in
                     Button(preset.label) { load(preset) }
                 }
+            } label: {
+                Label("Charger un profil", systemImage: "rectangle.stack")
             }
-            Button("Importer…") { importProfile() }
-            Button("Exporter…") { exportProfile() }
+            Button { importProfile() } label: { Label("Importer…", systemImage: "square.and.arrow.down") }
+            Button { exportProfile() } label: { Label("Exporter…", systemImage: "square.and.arrow.up") }
             Divider()
-            Button("Nouveau raccourci personnalisé…") { newCustom() }
+            Button { newCustom() } label: { Label("Nouveau raccourci personnalisé…", systemImage: "plus") }
             Divider()
             if store.undoSnapshot != nil {
-                Button("Annuler le dernier remplacement") { store.undoReplace() }
+                Button { store.undoReplace() } label: { Label("Annuler le dernier remplacement", systemImage: "arrow.uturn.backward") }
             }
-            Button("Tout réinitialiser…") { resetAll() }
+            Button(role: .destructive) { resetAll() } label: { Label("Tout réinitialiser…", systemImage: "arrow.counterclockwise") }
             if Appearance.glassAvailable {
                 Divider()
-                Toggle("Effet Liquid Glass", isOn: $glassEnabled)
+                Toggle(isOn: $glassEnabled) { Label("Effet Liquid Glass", systemImage: "drop") }
             }
             Divider()
-            Button("Désinstaller FL Shortcut…") { Uninstaller.confirmAndRun() }
+            Button(role: .destructive) { Uninstaller.confirmAndRun() } label: { Label("Désinstaller FL Shortcut…", systemImage: "trash") }
         } label: {
-            Label("Profil", systemImage: "ellipsis.circle")
+            Label("Profil", systemImage: "ellipsis")
         }
         .help("Profil, import et export")
     }
@@ -690,6 +718,20 @@ private struct EmptyState: View {
     var action: (() -> Void)? = nil
 
     var body: some View {
+        if #available(macOS 14.0, *) {
+            ContentUnavailableView {
+                Label(title, systemImage: "keyboard")
+            } description: {
+                Text(text)
+            } actions: {
+                if let actionTitle, let action { Button(actionTitle, action: action).secondaryButton() }
+            }
+        } else {
+            legacy
+        }
+    }
+
+    private var legacy: some View {
         VStack(spacing: 6) {
             Text(title).font(.title3).foregroundStyle(.secondary)
             Text(text)
@@ -1087,7 +1129,6 @@ private struct ToastView: View {
         .padding(.horizontal, 16)
         .padding(.vertical, 8)
         .glassSurface(shape)
-        .shadow(color: .black.opacity(0.12), radius: 6, y: 2)
         .accessibilityElement(children: .contain)
     }
 }

@@ -116,10 +116,10 @@ struct OnboardingView: View {
                         // Mode léger : rien à installer dans FL, l'accueil est terminé.
                         if AppMode.light { onFinish() } else { step = 1 }
                     } label: {
-                        Text(AppMode.light ? "Terminer" : "Continuer").frame(minWidth: 160)
+                        Text(AppMode.light ? "Terminer" : "Continuer").frame(minWidth: 200)
                     }
                     .primaryButton()
-                    .controlSize(.large)
+                    .heroControlSize()
                     .keyboardShortcut(.defaultAction)
                 } else {
                     Text("FL Shortcut a besoin de l'accès Accessibilité pour reconnaître tes raccourcis.")
@@ -130,10 +130,10 @@ struct OnboardingView: View {
                         askedPermission = true
                         AccessibilityGuide.start()
                     } label: {
-                        Text("Autoriser le clavier…").frame(minWidth: 160)
+                        Text("Autoriser le clavier…").frame(minWidth: 200)
                     }
                     .primaryButton()
-                    .controlSize(.large)
+                    .heroControlSize()
                     .keyboardShortcut(.defaultAction)
                     if askedPermission {
                         Text("Active FL Shortcut dans Réglages Système › Accessibilité. C'est détecté tout seul.")
@@ -208,6 +208,7 @@ struct OnboardingView: View {
                 Spacer()
                 if linked {
                     Button("Tester") { link.test(action: 33) }
+                        .secondaryButton()
                         .controlSize(.large)
                         .help("Ouvre le Mixer dans FL Studio")
                 }

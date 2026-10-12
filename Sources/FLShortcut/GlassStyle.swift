@@ -140,6 +140,43 @@ private struct SecondaryButtonStyleModifier: ViewModifier {
 }
 
 extension View {
+    /// Identité de verre : deux surfaces du même GlassGroup se fondent l'une dans l'autre en apparaissant.
+    @ViewBuilder func glassID(_ id: String, in ns: Namespace.ID) -> some View {
+        #if compiler(>=6.2)
+        if #available(macOS 26.0, *) { glassEffectID(id, in: ns) } else { self }
+        #else
+        self
+        #endif
+    }
+
+    /// Barre flottante en haut ou en bas : safeAreaBar sur macOS 26 (effet de bord sous la barre), sinon
+    /// safeAreaInset (le contenu laisse la place).
+    @ViewBuilder func floatingBar<C: View>(_ edge: VerticalEdge, @ViewBuilder content: () -> C) -> some View {
+        #if compiler(>=6.2)
+        if #available(macOS 26.0, *) {
+            safeAreaBar(edge: edge, spacing: 0, content: content)
+        } else {
+            safeAreaInset(edge: edge, spacing: 0, content: content)
+        }
+        #else
+        safeAreaInset(edge: edge, spacing: 0, content: content)
+        #endif
+    }
+
+    /// Grands boutons d'accueil (extra-large depuis macOS 14).
+    @ViewBuilder func heroControlSize() -> some View {
+        if #available(macOS 14.0, *) { controlSize(.extraLarge) } else { controlSize(.large) }
+    }
+
+    /// Boutons qui prennent toute la largeur disponible (macOS 26), comme les fenêtres d'accueil d'Apple.
+    @ViewBuilder func flexibleButtons() -> some View {
+        #if compiler(>=6.2)
+        if #available(macOS 26.0, *) { buttonSizing(.flexible) } else { self }
+        #else
+        self
+        #endif
+    }
+
     /// Bouton secondaire (Annuler, Changer…, Apprendre…).
     func secondaryButton() -> some View {
         modifier(SecondaryButtonStyleModifier())
