@@ -45,7 +45,7 @@ run() {   # $1 : libellé, $2 : YES/NO effet verre
   defaults write "$DOMAIN" liquidGlass -bool "$glass"
   open "$APP"; sleep 6
   p=$(pgrep -x FLShortcut | head -1)
-  [[ -z "$p" ]] && { echo "| $label | ne démarre pas | | | |"; return; }
+  [[ -z "$p" ]] && { echo "| $label | ne démarre pas | | | | | |"; return; }
   local m0 c0 m1 c1
   m0=$(mem_mb "$p"); c0=$(cpu_avg "$p")
   "$POST" app.flshortcut.debug.open; sleep 5
@@ -59,11 +59,17 @@ run() {   # $1 : libellé, $2 : YES/NO effet verre
   cat "$HOME/Library/Caches/$DOMAIN/$label-fenetre-tailles.txt" >&2 2>/dev/null || true
   echo "fenêtres : $(osascript -e 'tell application "System Events" to get size of every window of (first process whose name is "FLShortcut")' 2>/dev/null)" >&2
   m1=$(mem_mb "$p"); c1=$(cpu_avg "$p")
-  echo "| $label | $m0 | $c0 | $m1 | $c1 |"
+  # Plus grosse page, puis une recherche qui affiche presque toutes les lignes : la mémoire doit rester stable.
+  "$POST" app.flshortcut.debug.select mixer; sleep 3
+  m2=$(mem_mb "$p")
+  "$POST" app.flshortcut.debug.search e; sleep 4
+  m3=$(mem_mb "$p")
+  "$POST" app.flshortcut.debug.search ""; sleep 1
+  echo "| $label | $m0 | $c0 | $m1 | $c1 | $m2 | $m3 |"
 }
 
-echo "| Effet | Mémoire (barre des menus) | Processeur | Mémoire (fenêtre ouverte) | Processeur (fenêtre ouverte, au repos) |"
-echo "|---|---|---|---|---|"
+echo "| Effet | Mémoire (barre des menus) | Processeur | Mémoire (fenêtre ouverte) | Processeur (fenêtre ouverte, au repos) | Mémoire (page Mixer) | Mémoire (recherche « e », presque tout) |"
+echo "|---|---|---|---|---|---|---|"
 run "verre" YES
 run "sans-verre" NO
 pkill -x FLShortcut 2>/dev/null

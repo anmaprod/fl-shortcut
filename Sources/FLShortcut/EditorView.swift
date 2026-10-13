@@ -111,6 +111,9 @@ struct EditorView: View {
             let name = note.object as? String ?? ""
             selection = FLSection(rawValue: name).map(SidebarItem.section) ?? (name == "custom" ? .custom : selection)
         }
+        .onReceive(DebugSnapshot.publisher(DebugSnapshot.search)) { note in
+            query = note.object as? String ?? ""
+        }
         .sheet(item: $editing) { remap in
             EditSheet(original: remap, isNew: editingIsNew) { message in show(message) }
                 .environmentObject(store)

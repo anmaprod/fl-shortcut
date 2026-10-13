@@ -10,6 +10,8 @@ enum DebugSnapshot {
     static var enabled: Bool { UserDefaults.standard.bool(forKey: "debugSnapshots") }
     static let open = Notification.Name("app.flshortcut.debug.open")
     static let select = Notification.Name("app.flshortcut.debug.select")
+    /// Texte de recherche de l'éditeur (mesure de la mémoire avec presque toutes les lignes affichées).
+    static let search = Notification.Name("app.flshortcut.debug.search")
     static let snapshot = Notification.Name("app.flshortcut.debug.snapshot")
     /// Vrai clic de souris à « x,y » (points, depuis le coin haut-gauche de la fenêtre de l'éditeur).
     static let click = Notification.Name("app.flshortcut.debug.click")
