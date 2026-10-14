@@ -19,6 +19,8 @@ enum DebugSnapshot {
     static let resize = Notification.Name("app.flshortcut.debug.resize")
     /// Créateur de macros : « open » l'ouvre sur une macro d'exemple jamais enregistrée, « close » le ferme.
     static let macro = Notification.Name("app.flshortcut.debug.macro")
+    /// Écrit « editorModels=<n> windows=<n> » dans report.txt : modèles du créateur encore vivants, fenêtres de l'app.
+    static let report = Notification.Name("app.flshortcut.debug.report")
 
     static func publisher(_ name: Notification.Name) -> AnyPublisher<Notification, Never> {
         guard enabled else { return Empty().eraseToAnyPublisher() }
@@ -43,10 +45,27 @@ enum DebugSnapshot {
                   let w = NSApp.windows.first(where: { $0.isVisible && $0.frame.width > 400 }) else { return }
             w.setContentSize(NSSize(width: parts[0], height: parts[1]))
         }
+        reportObserver = DistributedNotificationCenter.default().addObserver(forName: report, object: nil, queue: .main) { _ in
+            writeReport()
+        }
     }
 
     private static var clickObserver: NSObjectProtocol?
     private static var resizeObserver: NSObjectProtocol?
+    private static var reportObserver: NSObjectProtocol?
+
+    private static var cacheDirectory: URL {
+        let dir = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0]
+            .appendingPathComponent("app.flshortcut.FLShortcut", isDirectory: true)
+        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        return dir
+    }
+
+    /// ~/Library/Caches/app.flshortcut.FLShortcut/report.txt, écrasé à chaque demande.
+    private static func writeReport() {
+        let text = "editorModels=\(MacroEditorModel.liveCount) windows=\(NSApp.windows.count)\n"
+        try? text.write(to: cacheDirectory.appendingPathComponent("report.txt"), atomically: true, encoding: .utf8)
+    }
 
     private static func realClick(x: Double, y: Double) {
         guard let w = NSApp.windows.first(where: { $0.isVisible && $0.frame.width > 400 }),
@@ -65,9 +84,7 @@ enum DebugSnapshot {
 
     /// Une image PNG par fenêtre visible, dans ~/Library/Caches/app.flshortcut.FLShortcut/.
     static func capture(tag: String) {
-        let dir = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0]
-            .appendingPathComponent("app.flshortcut.FLShortcut", isDirectory: true)
-        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        let dir = cacheDirectory
         var n = 0
         var sizes: [String] = []
         for w in NSApp.windows where w.isVisible && w.frame.width > 150 && w.frame.height > 80 {

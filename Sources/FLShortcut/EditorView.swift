@@ -76,6 +76,24 @@ private extension View {
     }
 }
 
+/// Contenu d'une page : liste groupée (Form). Pour la mesure de la mémoire seulement, la clé `debugPagesAsList`
+/// (désactivée par défaut) la remplace par une List, pour savoir si le Form groupé, non paresseux, en est la cause.
+struct PageContainer<Content: View>: View {
+    private let content: Content
+
+    init(@ViewBuilder content: () -> Content) {
+        self.content = content()
+    }
+
+    var body: some View {
+        if UserDefaults.standard.bool(forKey: "debugPagesAsList") {
+            List { content }.listStyle(.inset)
+        } else {
+            Form { content }.formStyle(.grouped)
+        }
+    }
+}
+
 typealias CatalogData = (rows: [CatalogRow], others: [Remap])
 
 struct EditorView: View {
@@ -246,7 +264,7 @@ struct EditorView: View {
         let mine = rows.filter { $0.entry.section == section }
         let natives = mine.filter { $0.entry.isNative }
         let extras = mine.filter { !$0.entry.isNative }
-        return Form {
+        return PageContainer {
             Section {
                 PageHeader(symbol: section.symbol, tint: section.tint, title: section.title,
                            subtitle: section.subtitle,
@@ -287,7 +305,7 @@ struct EditorView: View {
                 EmptyState(symbol: "magnifyingglass", title: "Aucun résultat",
                            text: "Aucun raccourci ne correspond à « \(q) ».")
             } else {
-                Form {
+                PageContainer {
                     ForEach(sections) { s in
                         Section {
                             ForEach(rows.filter { $0.entry.section == s }) { catalogRow($0) }
@@ -318,7 +336,7 @@ struct EditorView: View {
                            actionTitle: "Nouveau raccourci…",
                            action: { newCustom() })
             } else {
-                Form {
+                PageContainer {
                     Section {
                         PageHeader(symbol: SidebarItem.custom.symbol, tint: SidebarItem.custom.tint,
                                    title: "Mes raccourcis", subtitle: PageSummary.custom,

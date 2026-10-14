@@ -44,7 +44,13 @@ final class MacroEditorModel: ObservableObject {
 
     static let saveDelay: TimeInterval = 0.5
 
+    /// Modèles vivants (créés moins libérés) : lu par le rapport de mesure `debug.report`, pour vérifier que la
+    /// fenêtre du créateur libère bien son modèle à la fermeture.
+    private static let live = Locked(0)
+    static var liveCount: Int { live.value }
+
     init(store: Store = .shared) {
+        MacroEditorModel.live.withLock { $0 += 1 }
         self.store = store
         layout = store.layout
         // L'app quitte pendant l'attente des 0,5 s : la dernière modification est enregistrée quand même.
@@ -56,6 +62,7 @@ final class MacroEditorModel: ObservableObject {
     }
 
     deinit {
+        MacroEditorModel.live.withLock { $0 -= 1 }
         if let terminateObserver { NotificationCenter.default.removeObserver(terminateObserver) }
     }
 
