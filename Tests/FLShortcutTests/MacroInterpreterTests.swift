@@ -128,7 +128,8 @@ final class MacroInterpreterTests: XCTestCase {
         let fx = FakeEffects()
         XCTAssertEqual(run(blocks, fx), .done)
         XCTAssertEqual(fx.larsenEarly, false)
-        XCTAssertEqual(fx.trace, ["begin", "track?", "dropFile", "delay", "fl[armon,recon]", "selectInput", "cleanup"])
+        // Clavier au repos avant le dépôt (les touches du raccourci relâchées : jamais ⌃ + appui = clic droit).
+        XCTAssertEqual(fx.trace, ["begin", "track?", "idle", "dropFile", "delay", "fl[armon,recon]", "selectInput", "cleanup"])
         XCTAssertTrue(fx.stepLines.contains("5/5 selectInput …"))
     }
 
