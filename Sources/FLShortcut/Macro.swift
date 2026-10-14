@@ -1,7 +1,8 @@
 // Macros : enchaînement d'étapes exécuté dans FL Studio SANS MIDI et SANS script.
 // Même principe sûr que le mode léger : des événements clavier / souris envoyés au seul processus FL
 // (CGEvent.postToPid), uniquement quand FL est au premier plan, jamais rien d'écrit dans FL.
-// Ce fichier ne contient que des données et de la logique pure (testable) ; l'exécution est dans MacroRunner.swift.
+// Ce fichier ne contient que des données et de la logique pure (testable). Format historique des étapes, gardé en
+// lecture : les macros sont désormais exécutées en blocs (MacroModel.swift, MacroTemplates.swift, MacroInterpreter.swift).
 import CoreGraphics
 import Foundation
 
@@ -169,14 +170,9 @@ enum MacroLibrary {
         }
     }
 
-    /// Raison pour laquelle la macro ne peut pas tourner, ou `nil` si elle est prête.
-    static func problem(in macro: Macro, forbidden: ForbiddenTargets) -> String? {
-        if case .failure(let e) = steps(for: macro, forbidden: forbidden) { return e.message }
-        return nil
-    }
-
-    /// Étapes à exécuter, ou ce qui manque. Pure : aucun accès au système de fichiers ni à l'écran.
-    static func steps(for macro: Macro, forbidden: ForbiddenTargets) -> Result<[MacroStep], BuildError> {
+    /// Étapes d'une ANCIENNE macro (`custom`, `quickRecord`), validées avec leurs bornes d'origine, ou ce qui
+    /// manque. Le modèle `autoRecord` est développé en blocs (MacroTemplates.enregistrementRapide). Pure.
+    static func legacySteps(for macro: Macro, forbidden: ForbiddenTargets) -> Result<[MacroStep], BuildError> {
         let built: [MacroStep]
         switch macro.template {
         case .custom:
@@ -187,36 +183,10 @@ enum MacroLibrary {
             case .failure(let e): return .failure(e)
             }
         case .autoRecord:
-            built = autoRecordSteps(macro)
+            return .failure(.invalid("Modèle développé en blocs."))
         }
         if let why = validate(built, forbidden: forbidden) { return .failure(.invalid(why)) }
         return .success(built)
-    }
-
-    /// Enregistrement rapide sans réglage. Ordre : menu de la piste, preset, armement, REC, entrée 1, puis le
-    /// larsen en dernier (tout est déjà en place : il ne reste qu'à changer d'entrée ou de sortie).
-    /// Les clics du menu et de l'entrée sont montrés une seule fois par l'utilisateur (MacroSpots).
-    private static func autoRecordSteps(_ macro: Macro) -> [MacroStep] {
-        var out: [MacroStep] = []
-        out.append(.trackMenu([Macro.fileMenuTitles.joined(separator: "|"), Macro.openStateTitles.joined(separator: "|")]))
-        out.append(.waitDialog(4_000))
-        if let path = macro.presetPath, !path.isEmpty {
-            out.append(.chooseFile(path))
-            out.append(.waitDialogClose(8_000))
-        } else {
-            out.append(.waitDialogClose(MacroLibrary.maxWaitMs))
-        }
-        if macro.armAndInput || macro.startRecording { out.append(.delay(100)) }
-        if macro.armAndInput { out.append(MacroStep(kind: .armTrack)) }
-        if macro.startRecording {
-            // Touche REC de FL : utilisée seulement sans lien MIDI (le lien, lui, n'allume que si c'est éteint).
-            var rec = MacroStep(kind: .recordOn)
-            rec.combo = macro.recKey ?? KeyCombo(keyCode: fallbackRecKeyCode)
-            out.append(rec)
-        }
-        if macro.armAndInput { out.append(MacroStep(kind: .selectInput)) }
-        if macro.armAndInput || macro.startRecording { out.append(MacroStep(kind: .feedbackCheck)) }
-        return out
     }
 
     private static func quickRecordSteps(_ macro: Macro) -> Result<[MacroStep], BuildError> {

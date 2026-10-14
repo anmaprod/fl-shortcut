@@ -2,7 +2,8 @@
 //   FLShortcut --fake-fl état.json &            (le faux FL, processus à part comme le vrai)
 //   FLShortcut --selftest-macro sortie.txt état.json <pid du faux FL>
 // Le pilote joue l'utilisateur (clic sur la piste 3, puis, la première fois, « (none) » et « In 1 » quand la bulle
-// le demande), lance la vraie macro (MacroRunner) et vérifie l'état du faux FL après chaque passage :
+// le demande), lance la vraie macro (MacroRunner, développée en blocs et jouée par l'interpréteur) et vérifie l'état
+// du faux FL après chaque passage :
 // preset choisi chargé, piste 3 armée, REC allumé, entrée « In 1 », aucune action inattendue (Delete, Solo…).
 // Quatre passages : apprentissage, rejeu, puis « O » qui ne fait que surligner (Entrée apprise), rejeu.
 // Les durées de chaque étape sont affichées : c'est la mesure de vitesse de la macro.
@@ -102,13 +103,14 @@ enum MacroSelfTest {
         var macro = Macro()
         macro.presetPath = wanted
         macro.recKey = KeyCombo(keyCode: 15)
-        guard case .success(let built) = MacroLibrary.steps(for: macro, forbidden: .physical) else {
+        let program = MacroProgram.compile(macro, forbidden: .physical)
+        guard program.isRunnable else {
             print("FAIL: macro invalide")
             return false
         }
         // La vérification du larsen ouvrirait une fenêtre d'alerte (sans rapport avec FL) : retirée de l'essai.
-        let steps = built.filter { $0.kind != .feedbackCheck }
-        print("étapes : " + steps.map(\.kind.rawValue).joined(separator: " > "))
+        let blocks = program.blocks.filter { $0.body != .feedbackCheck }
+        print("étapes : " + blocks.map { BlockRegistry.journal(of: $0.body) }.joined(separator: " > "))
 
         MacroSpots.forgetAll()
         MacroRunner.testFLPID = pid
@@ -155,7 +157,7 @@ enum MacroSelfTest {
             Thread.sleep(forTimeInterval: 0.3)
             print("\n== Passage \(label) ==")
             let t0 = Date()
-            let outcome = MacroRunner.shared.runForTest(steps, pid: pid)
+            let outcome = MacroRunner.shared.runForTest(blocks, pid: pid)
             let ms = Int(Date().timeIntervalSince(t0) * 1000)
             Thread.sleep(forTimeInterval: 0.3)
             let s = read(statePath) ?? FakeState(raw: [:])

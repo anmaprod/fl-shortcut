@@ -7,7 +7,7 @@ import Foundation
 
 /// Cibles interdites. Les touches physiques Q (12) et W (13) sont toujours incluses, plus les touches qui
 /// produisent « q » / « w » avec ⌘ dans la disposition active (AZERTY : ⌘Q est sur la touche 0).
-struct ForbiddenTargets: Equatable {
+struct ForbiddenTargets: Hashable {
     var quitKeys: Set<UInt16>
     var closeKeys: Set<UInt16>
 

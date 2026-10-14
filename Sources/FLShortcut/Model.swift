@@ -164,11 +164,18 @@ struct Remap: Codable, Identifiable, Hashable {
 
     init() {}
 
-    var routedAction: ShortcutIndex.RoutedAction? {
+    var routedAction: ShortcutIndex.RoutedAction? { indexedAction(forbidden: .physical) }
+
+    /// Macro : programme compilé (en cache) avec la liste noire donnée ; jamais d'action pour une macro qui ne
+    /// peut pas tourner.
+    func indexedAction(forbidden: ForbiddenTargets) -> ShortcutIndex.RoutedAction? {
         switch kind {
         case .flAction: return actionID.map { .flAction($0) }
         case .keystroke: return target.map { .keystroke($0) }
-        case .macro: return macro.map { .macro($0) }
+        case .macro:
+            guard let m = macro else { return nil }
+            let program = MacroProgram.compile(m, forbidden: forbidden)
+            return program.isRunnable ? .macro(program) : nil
         }
     }
 

@@ -21,18 +21,29 @@ final class MacroTests: XCTestCase {
         return m
     }
 
+    /// Étapes d'une ancienne macro (quickRecord, custom).
     private func steps(_ m: Macro) -> [MacroStep] {
-        guard case .success(let s) = MacroLibrary.steps(for: m, forbidden: .physical) else {
+        guard case .success(let s) = MacroLibrary.legacySteps(for: m, forbidden: .physical) else {
             XCTFail("macro refusée")
             return []
         }
         return s
     }
 
+    /// Blocs du modèle (ou d'une ancienne macro reprise), programme validé.
+    private func blocks(_ m: Macro) -> [Block] {
+        let p = MacroProgram.compile(m, forbidden: .physical)
+        XCTAssertNil(p.problem)
+        return p.blocks
+    }
+
+    /// Noms des blocs dans le journal : ceux des anciennes étapes.
+    private func kinds(_ m: Macro) -> [String] { blocks(m).map { BlockRegistry.journal(of: $0.body) } }
+
     // MARK: Construction
 
     func testIncompleteMacroListsMissingSpots() {
-        guard case .failure(.missing(let names)) = MacroLibrary.steps(for: legacy(), forbidden: .physical) else {
+        guard case .failure(.missing(let names)) = MacroLibrary.legacySteps(for: legacy(), forbidden: .physical) else {
             return XCTFail("devrait demander les positions")
         }
         XCTAssertEqual(Set(names), Set(MacroLibrary.requiredSpots))
@@ -82,12 +93,11 @@ final class MacroTests: XCTestCase {
         var m = Macro()
         m.recKey = KeyCombo(keyCode: 15)
         XCTAssertEqual(m.template, .autoRecord)
-        let kinds = steps(m).map(\.kind)
-        XCTAssertEqual(kinds, [.trackMenu, .waitDialog, .waitDialogClose, .delay,
-                               .armTrack, .recordOn, .selectInput, .feedbackCheck])
-        XCTAssertEqual(steps(m).first { $0.kind == .waitDialogClose }?.ms, MacroLibrary.maxWaitMs)
-        // Touche REC portée par l'étape (utilisée seulement sans lien MIDI).
-        XCTAssertEqual(steps(m).first { $0.kind == .recordOn }?.combo, KeyCombo(keyCode: 15))
+        XCTAssertEqual(kinds(m), ["trackMenu", "waitDialog", "waitDialogClose", "delay",
+                                  "armTrack", "recordOn", "selectInput", "feedbackCheck"])
+        XCTAssertTrue(blocks(m).contains { $0.body == .waitWindowClose(.dialog, timeoutMs: MacroLibrary.maxWaitMs) })
+        // Touche REC portée par le bloc (utilisée seulement sans lien MIDI).
+        XCTAssertTrue(blocks(m).contains { $0.body == .flAction(key: "recon", fallback: .key(KeyRef(KeyCombo(keyCode: 15)))) })
     }
 
     func testAutoRecordWithFixedPresetAndWithoutArmOrRec() {
@@ -95,15 +105,17 @@ final class MacroTests: XCTestCase {
         m.presetPath = "/Users/test/Voix.fst"
         m.armAndInput = false
         m.startRecording = false
-        let kinds = steps(m).map(\.kind)
-        XCTAssertEqual(kinds, [.trackMenu, .waitDialog, .chooseFile, .waitDialogClose])
+        XCTAssertEqual(kinds(m), ["trackMenu", "waitDialog", "chooseFile", "waitDialogClose"])
     }
 
-    func testAutoRecordMenuTitlesHaveVariants() {
-        let menu = steps(Macro()).first { $0.kind == .trackMenu }
-        XCTAssertEqual(menu?.titles.count, 2)
-        XCTAssertTrue(menu?.titles.first?.split(separator: "|").contains("File") == true)
-        XCTAssertTrue(menu?.titles.last?.split(separator: "|").contains("Open mixer track state") == true)
+    func testAutoRecordMenuUsesTheUnderlinedLettersOfFileAndOpen() {
+        guard case .trackMenu(let letters, let labels, let target, let enter)? = blocks(Macro()).first?.body else {
+            return XCTFail("menu de piste attendu en premier")
+        }
+        XCTAssertEqual(letters, ["f", "o"])
+        XCTAssertEqual(labels, ["File", "Open mixer track state"])
+        XCTAssertEqual(target, .lastClicked)
+        XCTAssertEqual(enter, .learned(legacyKey: "macroMenuEnterAfterLetter"))
     }
 
     func testArmAndRecUseTheScriptActionsThatNeverSwitchOff() {
@@ -116,8 +128,7 @@ final class MacroTests: XCTestCase {
     func testRecOnlyStillChecksFeedbackAtTheEnd() {
         var m = Macro()
         m.armAndInput = false
-        let kinds = steps(m).map(\.kind)
-        XCTAssertEqual(kinds, [.trackMenu, .waitDialog, .waitDialogClose, .delay, .recordOn, .feedbackCheck])
+        XCTAssertEqual(kinds(m), ["trackMenu", "waitDialog", "waitDialogClose", "delay", "recordOn", "feedbackCheck"])
     }
 
     func testLearnedSpotsAreRelativeAndChecked() {
@@ -148,7 +159,8 @@ final class MacroTests: XCTestCase {
         var m = Macro()
         m.template = .custom
         m.steps = [.key(KeyCombo(keyCode: 12, command: true))]       // ⌘Q
-        if case .success = MacroLibrary.steps(for: m, forbidden: .physical) { XCTFail("⌘Q doit être refusé") }
+        if case .success = MacroLibrary.legacySteps(for: m, forbidden: .physical) { XCTFail("⌘Q doit être refusé") }
+        XCTAssertNotNil(MacroLibrary.problem(in: m, forbidden: .physical))
     }
 
     func testLimits() {
@@ -235,7 +247,7 @@ final class MacroTests: XCTestCase {
         var router = KeyRouter()
         let d = router.route(down(trigger), config: cfg, link: linked)
         XCTAssertTrue(d.swallow)
-        XCTAssertEqual(d.effects, [.runMacro(m)])
+        XCTAssertEqual(d.effects, [.runMacro(MacroProgram.compile(m, forbidden: .physical))])
         // Auto-répétition : avalée, jamais relancée.
         let rep = router.route(down(trigger, repeat: true), config: cfg, link: linked)
         XCTAssertEqual(rep, .swallowOnly)

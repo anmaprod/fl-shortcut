@@ -12,7 +12,9 @@ struct ShortcutIndex: Equatable {
     enum RoutedAction: Equatable {
         case flAction(Int)
         case keystroke(KeyCombo)
-        case macro(Macro)
+        /// Programme compilé et validé sur le thread principal : référence partagée, jamais copiée ni revalidée
+        /// par le thread du tap.
+        case macro(MacroProgram)
     }
 
     struct Entry: Equatable {
@@ -25,9 +27,10 @@ struct ShortcutIndex: Equatable {
     init() {}
 
     /// Les remaps doivent avoir été analysés : `blocked` contient les ids écartés (doublon, cible interdite…).
-    init(remaps: [Remap], blocked: Set<UUID>) {
+    /// `forbidden` : liste noire de la disposition active, avec laquelle les macros sont compilées (en cache).
+    init(remaps: [Remap], blocked: Set<UUID>, forbidden: ForbiddenTargets = .physical) {
         for r in remaps where r.enabled && !blocked.contains(r.id) {
-            guard let trigger = r.trigger, let action = r.routedAction else { continue }
+            guard let trigger = r.trigger, let action = r.indexedAction(forbidden: forbidden) else { continue }
             if table[trigger]?[r.context] != nil { continue }      // le premier gagne (même règle que l'analyse)
             table[trigger, default: [:]][r.context] = Entry(remapID: r.id, action: action)
         }
@@ -75,7 +78,7 @@ struct RouterInput: Equatable {
 enum RouterEffect: Equatable {
     case sendAction(Int)
     case post(KeyCombo)
-    case runMacro(Macro)
+    case runMacro(MacroProgram)
     case toggleEnabled
 }
 

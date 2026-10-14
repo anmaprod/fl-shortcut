@@ -198,7 +198,7 @@ final class Store: ObservableObject {
                                   availability: availability)
         let found = ShortcutAnalyzer.analyze(remaps, context: ctx)
         if found != issues { issues = found }
-        index = ShortcutIndex(remaps: remaps, blocked: ShortcutAnalyzer.blocked(found))
+        index = ShortcutIndex(remaps: remaps, blocked: ShortcutAnalyzer.blocked(found), forbidden: forbidden)
         pushConfig()
         if pushToTap {
             // « La piste sur laquelle j'ai cliqué » : suivie seulement s'il existe une macro automatique active.
