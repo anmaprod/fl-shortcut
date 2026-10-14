@@ -200,6 +200,7 @@ private struct MacroStepsPane: View {
                                  onToggle: { on in model.setEnabled(row.blockID, on) })
                     .equatable()
                     .tag(row.id)
+                    .moveDisabled(row.kind != .block)          // les lignes de fin suivent leur boucle
                     .contextMenu { contextMenu(row) }
             }
             .onMove { offsets, to in model.move(fromOffsets: offsets, toOffset: to) }

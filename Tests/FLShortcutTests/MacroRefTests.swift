@@ -3,7 +3,7 @@ import XCTest
 
 /// Raccourci → macro de la bibliothèque (`Remap.macroRef`), lien caché pour les anciennes versions, Store.
 final class MacroRefTests: XCTestCase {
-    private let trigger = KeyCombo(keyCode: 46, control: true, option: true)
+    private let trigger = KeyCombo(keyCode: 46, option: true, control: true)
 
     private func makeStore(_ library: MacroLibraryStore) -> Store {
         Store(storage: MemoryProfileStorage(data: try? ProfileCodec.encode([])), layout: FakeLayout.qwerty,
@@ -27,7 +27,7 @@ final class MacroRefTests: XCTestCase {
         let back = try ProfileCodec.decode(data).remaps[0]
         XCTAssertEqual(back.macroRef, id)
         XCTAssertNil(back.unknownAction)                         // le lien caché n'est qu'un format d'écriture
-        XCTAssertEqual(back.kind, .macro)
+        XCTAssertEqual(back.kind, Remap.Kind.macro)
     }
 
     /// Une ancienne version relit le profil, ignore `macroRef` et le réécrit sans : le lien caché (qu'elle garde)
@@ -75,7 +75,7 @@ final class MacroRefTests: XCTestCase {
         guard case .macro(let program)? = store.index.lookup(trigger, window: nil)?.action else {
             return XCTFail("macro attendue dans l'index")
         }
-        XCTAssertEqual(program.source, .blocks(id: doc.id, revision: 0))
+        XCTAssertEqual(program.source, MacroProgram.Source.blocks(id: doc.id, revision: 0))
         XCTAssertTrue(store.activeNeeds.contains(.pisteVisee))
         XCTAssertTrue(store.activeNeeds.contains(.lienMIDI))
         // Modifiée dans la bibliothèque : l'index suit (nouvelle révision), sans toucher au profil.
@@ -83,7 +83,7 @@ final class MacroRefTests: XCTestCase {
         changed.blocks = [Block(.delay(ms: 100))]
         library.update(changed)
         guard case .macro(let updated)? = store.index.lookup(trigger, window: nil)?.action else { return XCTFail() }
-        XCTAssertEqual(updated.source, .blocks(id: doc.id, revision: 1))
+        XCTAssertEqual(updated.source, MacroProgram.Source.blocks(id: doc.id, revision: 1))
         XCTAssertFalse(store.activeNeeds.contains(.pisteVisee))
     }
 
