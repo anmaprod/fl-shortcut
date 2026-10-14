@@ -2,10 +2,15 @@ import CoreGraphics
 import XCTest
 @testable import FLShortcut
 
-/// « Enregistrer des clics » : chaque clic devient un bloc, d'après les fenêtres de FL juste avant lui (relevés figés).
+/// « Enregistrer des clics » : chaque clic devient un bloc, d'après les fenêtres de FL retenues juste avant lui.
 final class MacroClickSequenceTests: XCTestCase {
     private func win(_ n: Int, _ layer: Int, _ r: CGRect) -> WinInfo {
         WinInfo(number: n, layer: layer, bounds: r, pid: 42, alpha: 1)
+    }
+
+    private func click(_ x: CGFloat, _ y: CGFloat, _ windows: [WinInfo], right: Bool = false,
+                       menu: MenuBarAX.Hit? = nil) -> RecordedClick {
+        RecordedClick(point: CGPoint(x: x, y: y), right: right, windows: windows, menu: menu)
     }
 
     /// OPTIONS dans la fenêtre de FL, « Audio settings » dans son menu, boutons de la fenêtre des réglages (niveau 8),
@@ -14,22 +19,18 @@ final class MacroClickSequenceTests: XCTestCase {
         let main = CGRect(x: 0, y: 25, width: 1440, height: 875)
         let menu = CGRect(x: 120, y: 60, width: 200, height: 120)
         let settings = CGRect(x: 400, y: 200, width: 520, height: 428)
-        let history = [
-            WinSnapshot(time: 1, fl: [win(1, 0, main)], panelService: []),
-            WinSnapshot(time: 2, fl: [win(7, 101, menu), win(1, 0, main)], panelService: []),
-            WinSnapshot(time: 3, fl: [win(9, 8, settings), win(1, 0, main)], panelService: []),
-            WinSnapshot(time: 5, fl: [win(1, 0, main)], panelService: []),
-        ]
-        let clicks = [
-            RecordedClick(point: CGPoint(x: 150, y: 40), time: 1.5, right: false, menu: nil),
-            RecordedClick(point: CGPoint(x: 140, y: 100), time: 2.5, right: false, menu: nil),
-            RecordedClick(point: CGPoint(x: 430, y: 260), time: 3.5, right: false, menu: nil),
-            RecordedClick(point: CGPoint(x: 900, y: 600), time: 3.6, right: true, menu: nil),
-            RecordedClick(point: CGPoint(x: 60, y: 10), time: 5.5, right: false, menu: .bar("Options")),
-            RecordedClick(point: CGPoint(x: 80, y: 60), time: 6, right: false, menu: .item(["Options", "Audio settings"])),
-            RecordedClick(point: CGPoint(x: 2000, y: 10), time: 6.5, right: false, menu: nil),
-        ]
-        let r = ClickSequenceCompiler.compile(clicks, history: history)
+        let alone = [win(1, 0, main)]
+        let withMenu = [win(7, 101, menu), win(1, 0, main)]
+        let withSettings = [win(9, 8, settings), win(1, 0, main)]
+        let r = ClickSequenceCompiler.compile([
+            click(150, 40, alone),
+            click(140, 100, withMenu),
+            click(430, 260, withSettings),
+            click(900, 600, withSettings, right: true),
+            click(60, 10, alone, menu: .bar("Options")),
+            click(80, 60, alone, menu: .item(["Options", "Audio settings"])),
+            click(2000, 10, alone),
+        ])
         XCTAssertEqual(r.blocks, [
             .click(.flWindow(corner: .topLeft, dx: 150, dy: 15, size: main.size), button: .left),
             .click(.openMenu(MacroSpots.PopupHop(offset: CGVector(dx: 20, dy: 40), size: menu.size)), button: .left),
@@ -40,19 +41,28 @@ final class MacroClickSequenceTests: XCTestCase {
         XCTAssertEqual(r.ignored, 1)
     }
 
-    /// Menu de la barre ouvert puis refermé par un clic ailleurs : macOS avale ce clic, FL ne le reçoit pas.
-    func testMenuBarOpenedThenClosedIsIgnored() {
+    /// Menu de la barre refermé sans choix : par un clic ailleurs (macOS avale ce clic, FL ne le reçoit pas) ou en
+    /// recliquant son titre. Passer d'un menu de la barre à un autre ne garde que le dernier.
+    func testMenuBarClosedWithoutChoiceIsIgnored() {
         let main = CGRect(x: 0, y: 25, width: 800, height: 600)
-        let history = [WinSnapshot(time: 0, fl: [win(1, 0, main)], panelService: [])]
-        let clicks = [
-            RecordedClick(point: CGPoint(x: 60, y: 10), time: 1, right: false, menu: .bar("Options")),
-            RecordedClick(point: CGPoint(x: 300, y: 300), time: 2, right: false, menu: nil),
-            RecordedClick(point: CGPoint(x: 310, y: 300), time: 3, right: false, menu: nil),
-            RecordedClick(point: CGPoint(x: 60, y: 10), time: 4, right: false, menu: .bar("Tools")),
-        ]
-        let r = ClickSequenceCompiler.compile(clicks, history: history)
-        XCTAssertEqual(r.blocks, [.click(.flWindow(corner: .topLeft, dx: 310, dy: 275, size: main.size), button: .left)])
-        XCTAssertEqual(r.ignored, 3)
+        let alone = [win(1, 0, main)]
+        let r = ClickSequenceCompiler.compile([
+            click(60, 10, alone, menu: .bar("Options")),
+            click(300, 300, alone),                                     // referme le menu : avalé
+            click(310, 300, alone),
+            click(60, 10, alone, menu: .bar("Tools")),
+            click(60, 10, alone, menu: .bar("Tools")),                  // même titre : refermé
+            click(320, 300, alone),
+            click(60, 10, alone, menu: .bar("File")),
+            click(110, 10, alone, menu: .bar("Options")),               // autre menu de la barre
+            click(130, 50, [], menu: .item(["Options", "Audio settings"])),
+        ])
+        XCTAssertEqual(r.blocks, [
+            .click(.flWindow(corner: .topLeft, dx: 310, dy: 275, size: main.size), button: .left),
+            .click(.flWindow(corner: .topLeft, dx: 320, dy: 275, size: main.size), button: .left),
+            .menuBar(titles: ["Options", "Audio settings"]),
+        ])
+        XCTAssertEqual(r.ignored, 5)
     }
 
     func testMenuBarPathIsValidatedAndNeverLogged() {
@@ -64,5 +74,12 @@ final class MacroClickSequenceTests: XCTestCase {
         XCTAssertNotNil(spec.valider(.menuBar(titles: Array(repeating: "Niveau", count: MenuBarAX.maxDepth + 1)), ctx))
         XCTAssertEqual(BlockRegistry.journal(of: .menuBar(titles: ["Secret", "Voix"])), "menuBar")
         XCTAssertFalse(spec.dansLaPalette)
+    }
+
+    /// Point visé dans une fenêtre, depuis le coin retenu.
+    func testPointFromCorner() {
+        let f = CGRect(x: 400, y: 200, width: 520, height: 428)
+        XCTAssertEqual(MacroEffectsMac.point(in: f, corner: .topLeft, dx: 30, dy: 60), CGPoint(x: 430, y: 260))
+        XCTAssertEqual(MacroEffectsMac.point(in: f, corner: .bottomRight, dx: -20, dy: -28), CGPoint(x: 900, y: 600))
     }
 }

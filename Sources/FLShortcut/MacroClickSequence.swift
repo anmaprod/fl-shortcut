@@ -69,15 +69,16 @@ enum MenuBarAX {
         guard titles.count >= 2 else { return .failed("chemin de menu incomplet") }
         let t0 = DispatchTime.now().uptimeNanoseconds
         func ms() -> Int { Int((DispatchTime.now().uptimeNanoseconds &- t0) / 1_000_000) }
+        // Messages sans les titres : ils finissent dans le journal (un titre peut être un nom de projet récent).
         guard let item = find(pid: pid, titles: titles, openIfNeeded: true, stop: stop) else {
             if let why = stop() { return .cancelled(why) }
             MacroLog.shared.write("MENU", "menu bar item not found (\(titles.count) levels) · \(ms()) ms")
-            return .failed("élément « \(titles.map { $0.displaySafe(max: 30) }.joined(separator: " › ")) » introuvable dans les menus de FL")
+            return .failed("élément introuvable dans les menus de FL (renommé, ou FL dans une autre langue ? enregistre de nouveau tes clics)")
         }
         if let why = stop() { return .cancelled(why) }
         if bool(item, kAXEnabledAttribute as String) == false {
             closeMenus(pid: pid)
-            return .failed("« \(titles.last?.displaySafe(max: 40) ?? "") » est grisé dans le menu de FL")
+            return .failed("élément grisé dans le menu de FL")
         }
         let err = AXUIElementPerformAction(item, kAXPressAction as CFString)
         MacroLog.shared.write("MENU", "menu bar item pressed (\(titles.count) levels): AX \(err.rawValue) · \(ms()) ms")
@@ -186,8 +187,10 @@ enum MenuBarAX {
 
 struct RecordedClick: Equatable {
     let point: CGPoint                // coordonnées CG globales (origine en haut à gauche)
-    let time: TimeInterval            // NSEvent.timestamp (même horloge que les relevés de fenêtres)
     let right: Bool
+    /// Fenêtres de FL juste avant le clic, de l'avant vers l'arrière (relevé fait pendant l'enregistrement : un menu
+    /// qui se ferme au clic y est encore).
+    let windows: [WinInfo]
     /// Menu de la barre de macOS sous le clic (lu au moment du clic), sinon nil.
     let menu: MenuBarAX.Hit?
 }
@@ -199,40 +202,44 @@ enum ClickSequenceCompiler {
         var ignored: Int
     }
 
-    /// Chaque clic, d'après les fenêtres de FL juste avant lui (`history`, de la plus ancienne à la plus récente) :
-    /// menu ou fenêtre de FL → clic retenu par rapport à eux ; élément d'un menu de la barre → « Menu de FL » (le clic
-    /// qui a ouvert ce menu n'est pas gardé). Un clic qui referme un menu de la barre sans choix est ignoré : macOS
-    /// l'avale, FL ne le reçoit pas.
-    static func compile(_ clicks: [RecordedClick], history: [WinSnapshot]) -> Result {
+    /// Chaque clic, d'après les fenêtres de FL juste avant lui : menu ou fenêtre de FL → clic retenu par rapport à
+    /// eux ; élément d'un menu de la barre → « Menu de FL » (le clic qui a ouvert ce menu n'est pas gardé). Un menu de
+    /// la barre refermé sans choix (titre recliqué, ou clic ailleurs : macOS avale ce clic, FL ne le reçoit pas) est
+    /// ignoré.
+    static func compile(_ clicks: [RecordedClick]) -> Result {
         var out: [BlockBody] = []
         var ignored = 0
-        var barOpen = false
+        var openBar: String?                            // menu de la barre ouvert, rien choisi encore
         for c in clicks {
             switch c.menu {
-            case .bar?:
-                if barOpen { ignored += 1 }             // autre menu de la barre, ou le même refermé
-                barOpen = true
+            case .bar(let title)?:
+                if openBar == title {
+                    openBar = nil                       // même titre recliqué : macOS referme le menu
+                    ignored += 2
+                } else {
+                    if openBar != nil { ignored += 1 }  // passage à un autre menu de la barre
+                    openBar = title
+                }
                 continue
             case .item(let path)?:
-                barOpen = false
+                openBar = nil
                 out.append(.menuBar(titles: path))
                 continue
             case nil:
-                if barOpen {
-                    barOpen = false
+                if openBar != nil {
+                    openBar = nil
                     ignored += 2                        // le menu ouvert, puis ce clic qui l'a refermé
                     continue
                 }
             }
-            let before = history.last(where: { $0.time <= c.time }) ?? history.first
-            let windows = (before?.fl ?? []).map { (layer: $0.layer, bounds: $0.bounds) }
+            let windows = c.windows.map { (layer: $0.layer, bounds: $0.bounds) }
             guard let target = MacroOutline.learnedTarget(at: c.point, windows: windows) else {
                 ignored += 1
                 continue
             }
             out.append(.click(target, button: c.right ? .right : .left))
         }
-        if barOpen { ignored += 1 }
+        if openBar != nil { ignored += 1 }
         return Result(blocks: out, ignored: ignored)
     }
 }
@@ -275,7 +282,7 @@ final class ClickSequenceRecorder: ObservableObject {
         count = 0
         active = true
         fl.activate(options: [])
-        monitor = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown]) { [weak self] event in
+        monitor = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown, .leftMouseUp]) { [weak self] event in
             self?.record(event)
         }
         let t = Timer(timeInterval: 0.05, repeats: true) { [weak self] _ in self?.tick() }
@@ -290,7 +297,7 @@ final class ClickSequenceRecorder: ObservableObject {
     /// « Terminer » : les clics deviennent des blocs, retour dans le créateur.
     func finish() {
         guard active else { return }
-        let result = ClickSequenceCompiler.compile(clicks, history: history)
+        let result = ClickSequenceCompiler.compile(clicks)
         let done = completion
         stop()
         returnToCreator()
@@ -314,19 +321,34 @@ final class ClickSequenceRecorder: ObservableObject {
         }
         guard active, event.cgEvent?.getIntegerValueField(.eventSourceUserData) != EventTap.mark else { return }
         let p = event.cgEvent?.location ?? FLWindows.cursor()
-        // Menus de la barre de macOS : lus tout de suite (le menu se ferme au relâchement). Seulement hors des fenêtres
-        // de FL (barre des menus) ou dans un menu : jamais pour un clic dans une fenêtre de FL.
-        let before = history.last(where: { $0.time <= event.timestamp }) ?? history.last
-        let inMenuOrOutside = before?.hit(p).map { $0.layer > 8 } ?? true
+        var barPending = false
+        if case .bar? = clicks.last?.menu { barPending = true }
+        if event.type == .leftMouseUp {
+            // Menu de la barre choisi en glissant : appui sur son titre, relâché sur l'élément.
+            guard barPending, let down = clicks.last, abs(p.x - down.point.x) + abs(p.y - down.point.y) > 4,
+                  let hit = MenuBarAX.hit(at: p, pid: pid), case .item = hit else { return }
+            append(RecordedClick(point: p, right: false, windows: [], menu: hit))
+            return
+        }
+        // Fenêtres de FL juste avant le clic, retenues tout de suite (un menu se ferme au clic). Menus de la barre de
+        // macOS : lus aussi tout de suite, seulement hors des fenêtres de FL (barre des menus), dans un menu, ou quand
+        // un menu de la barre est ouvert : jamais pour un clic dans une fenêtre de FL.
+        let before = history.last(where: { $0.time <= event.timestamp }) ?? history.last ?? WinSnapshot.take(pid: pid)
+        let inMenuOrOutside = barPending || (before.hit(p).map { $0.layer > 8 } ?? true)
         let menu = inMenuOrOutside ? MenuBarAX.hit(at: p, pid: pid) : nil
-        clicks.append(RecordedClick(point: p, time: event.timestamp, right: event.type == .rightMouseDown, menu: menu))
+        append(RecordedClick(point: p, right: event.type == .rightMouseDown, windows: before.fl, menu: menu))
+    }
+
+    private func append(_ click: RecordedClick) {
+        clicks.append(click)
         count = clicks.count
         if clicks.count >= Self.maxClicks { finish() }
     }
 
+    /// Relevés de la dernière seconde seulement : chaque clic garde les siens dès qu'il est fait.
     private func tick() {
         history.append(WinSnapshot.take(pid: pid))
-        if history.count > 200 { history.removeFirst(history.count - 200) }
+        if history.count > 20 { history.removeFirst(history.count - 20) }
         if Date().timeIntervalSince(started) > Self.maxDuration { finish() }
     }
 
@@ -384,9 +406,11 @@ private final class RecordingPanel {
         panel.orderFrontRegardless()
     }
 
+    /// Contenu libéré au tour suivant : « Terminer » et « Annuler » appellent ceci depuis leur propre action.
     func hide() {
-        panel.orderOut(nil)
-        panel.contentView = nil
+        let p = panel
+        p.orderOut(nil)
+        DispatchQueue.main.async { p.contentView = nil }
     }
 }
 

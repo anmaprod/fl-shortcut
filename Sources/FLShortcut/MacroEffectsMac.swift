@@ -229,6 +229,8 @@ final class MacroEffectsMac: MacroEffects {
     var popupAX = false
     /// Dernier menu attendu par « Attendre une fenêtre (menu) » : repère des clics « menu ouvert ».
     var lastMenu: WinInfo?
+    /// Fenêtres de FL juste avant le dernier clic appris (ou menu de la barre) : ce qui n'y est pas vient d'être ouvert.
+    var numbersBeforeLastClick: Set<Int>?
 
     /// Source privée partagée par tous les passages (comme avant : une seule pour l'app).
     static let sharedSource: CGEventSource? = {
@@ -259,6 +261,7 @@ final class MacroEffectsMac: MacroEffects {
         cursorBeforeBurst = nil
         dialog = nil
         popupAX = false
+        numbersBeforeLastClick = nil
         if startFeedbackEarly {
             let report = feedbackReport, ready = feedbackReady, pid = self.pid
             DispatchQueue.global(qos: .utility).async {
@@ -339,6 +342,7 @@ final class MacroEffectsMac: MacroEffects {
             return .ok
 
         case .menuBar(let titles):
+            numbersBeforeLastClick = WinSnapshot.take(pid: ctx.pid).numbers
             switch MenuBarAX.press(pid: ctx.pid, titles: titles, stop: { self.shouldStop(ctx.pid) }) {
             case .done: return .ok
             case .cancelled(let why): return .cancel(why)
@@ -836,24 +840,65 @@ final class MacroEffectsMac: MacroEffects {
         }
     }
 
+    /// Cible d'un clic appris, et si sa fenêtre ou son menu vient d'être ouvert (absent juste avant le clic précédent
+    /// de la macro, ou au démarrage). Un menu tout juste ouvert passe avant un menu plus ancien de même forme (un
+    /// sous-menu et le menu qui l'a ouvert).
+    func locate(_ target: ClickTarget, ctx: Context) -> (point: CGPoint, popup: WinInfo?, fresh: Bool)? {
+        let baseline = numbersBeforeLastClick ?? ctx.startNumbers
+        switch target {
+        case .flWindow(let corner, let dx, let dy, let size?):
+            guard let w = Self.clickWindow(in: WinSnapshot.take(pid: ctx.pid), size: size, track: ctx.track) else { return nil }
+            return (point: Self.point(in: w.bounds, corner: corner, dx: dx, dy: dy), popup: nil, fresh: !baseline.contains(w.number))
+        case .openMenu(let hop):
+            let snap = WinSnapshot.take(pid: ctx.pid)
+            let fitting = snap.fl.filter {
+                !ctx.startNumbers.contains($0.number) && $0.isMenuLike && $0.layer > 8 && hop.fits($0.bounds)
+            }
+            guard let menu = fitting.first(where: { !baseline.contains($0.number) }) ?? fitting.first else { return nil }
+            return (point: hop.point(in: menu.bounds), popup: menu, fresh: !baseline.contains(menu.number))
+        default:
+            return resolve(target, ctx: ctx).map { (point: $0.point, popup: $0.popup, fresh: false) }
+        }
+    }
+
+    static func point(in f: CGRect, corner: Corner, dx: Double, dy: Double) -> CGPoint {
+        let x: CGFloat = corner == .topLeft || corner == .bottomLeft ? f.minX : f.maxX
+        let y: CGFloat = corner == .topLeft || corner == .topRight ? f.minY : f.maxY
+        return CGPoint(x: x + dx, y: y + dy)
+    }
+
     func click(_ target: ClickTarget, right: Bool, ctx: Context) -> StepResult {
         guard target.isFinite else { return .fail("position introuvable (fenêtre de FL ?)") }
-        var found = resolve(target, ctx: ctx)
-        if found == nil, let timeout = Self.appearTimeout(of: target) {
-            // Pas encore là (le clic précédent l'ouvre) : attendu, puis lu deux fois de suite au même endroit (FL a
-            // fini de le placer). Échap et la perte du premier plan l'interrompent.
+        var found = locate(target, ctx: ctx)
+        if let timeout = Self.appearTimeout(of: target), found?.fresh != false || found?.popup != nil {
+            // Fenêtre ou menu que le clic précédent ouvre : attendu s'il n'est pas encore là, puis lu deux fois de suite
+            // au même endroit (FL a fini de le placer). Seul un menu plus ancien de la forme apprise : un sous-menu
+            // tout juste ouvert peut encore passer devant (0,3 s). Échap et la perte du premier plan l'interrompent.
             let t0 = Date()
             var previous: CGPoint?
-            while found == nil, Date().timeIntervalSince(t0) < timeout {
+            while true {
+                let elapsed = Date().timeIntervalSince(t0)
+                if let f = found {
+                    if f.fresh {
+                        if f.point == previous { break }
+                        previous = f.point
+                    } else if elapsed >= 0.3 {
+                        break
+                    }
+                } else {
+                    previous = nil
+                }
+                if elapsed >= timeout { break }
                 if let stop = shouldStop(ctx.pid) { return .cancel(stop) }
                 Thread.sleep(forTimeInterval: 0.015)
-                let now = resolve(target, ctx: ctx)
-                if let now, now.point == previous { found = now } else { previous = now?.point }
+                found = locate(target, ctx: ctx)
             }
             let ms = Int(Date().timeIntervalSince(t0) * 1000)
-            MacroLog.shared.write("CLICK", found == nil ? "target still missing after \(ms) ms" : "target appeared after \(ms) ms")
+            if ms >= 30 || found == nil {
+                MacroLog.shared.write("CLICK", found == nil ? "target still missing after \(ms) ms" : "target ready after \(ms) ms")
+            }
             // Fenêtre qui vient de s'ouvrir : un court instant pour qu'elle passe au premier plan de FL.
-            if found != nil, found?.popup == nil, case .cancel(let why) = pause(80, pid: ctx.pid) { return .cancel(why) }
+            if let f = found, f.fresh, f.popup == nil, case .cancel(let why) = pause(80, pid: ctx.pid) { return .cancel(why) }
         }
         guard let r = found else {
             switch target {
@@ -866,6 +911,7 @@ final class MacroEffectsMac: MacroEffects {
                 return .fail("position introuvable (fenêtre de FL ?)")
             }
         }
+        numbersBeforeLastClick = WinSnapshot.take(pid: ctx.pid).numbers
         if let popup = r.popup { return clickInside(r.point, popup: popup, ctx: ctx) }
         return click(at: r.point, right: right, ctx: ctx)
     }
