@@ -6,8 +6,9 @@
 // - Annuler / Rétablir (⌘Z / ⇧⌘Z) par le gestionnaire d'annulation de la fenêtre ; les frappes d'un même champ
 //   sont regroupées en une seule étape.
 // - « Tester » : FL passe devant, puis la macro tourne par le même chemin qu'un raccourci, suivie bloc par bloc
-//   (MacroRunMonitor, branché seulement pendant l'essai). Ses besoins (ports MIDI à la demande, dernière piste
-//   cliquée) ne sont annoncés au Store que pendant l'essai, jamais à l'ouverture.
+//   (MacroRunMonitor, branché seulement pendant l'essai). Ports MIDI à la demande : annoncés au Store seulement
+//   pendant l'essai. Dernière piste cliquée : suivie tant que le créateur montre une macro qui la vise (sinon
+//   l'essai ne connaîtrait pas la piste cliquée avant « Tester ») ; rien une fois la fenêtre fermée.
 import AppKit
 import Combine
 import Foundation
@@ -45,6 +46,8 @@ final class MacroEditorModel: ObservableObject {
     private var terminateObserver: NSObjectProtocol?
     /// Fenêtre fermée : plus d'enregistrement ni d'essai.
     private var closed = false
+    /// Essai en préparation ou en cours : tous les besoins de la macro sont annoncés.
+    private var testing = false
 
     static let saveDelay: TimeInterval = 0.5
 
@@ -144,6 +147,7 @@ final class MacroEditorModel: ObservableObject {
         saveNow()
         closed = true
         preparingTest = false
+        testing = false
         undoManager?.removeAllActions(withTarget: self)
         store.setEditorNeeds([])
     }
@@ -156,6 +160,7 @@ final class MacroEditorModel: ObservableObject {
             problem = nil
             estimateMs = 0
             needs = []
+            if !testing { store.setEditorNeeds([]) }
             return
         }
         let ctx = validationContext
@@ -163,6 +168,7 @@ final class MacroEditorModel: ObservableObject {
         problem = MacroValidation.problem(in: draft, context: ctx)
         estimateMs = MacroValidation.estimateMs(draft.blocks)
         needs = MacroValidation.needs(of: draft.blocks)
+        if !testing { store.setEditorNeeds(openNeeds) }
         if let s = selection, !rows.contains(where: { $0.id == s }) { selection = nil }
     }
 
@@ -187,7 +193,9 @@ final class MacroEditorModel: ObservableObject {
         lastUndoKey = coalesce
         lastUndoAt = now
         draft = doc
-        if !monitor.running, monitor.outcome != nil || !monitor.statuses.isEmpty { monitor.clear() }
+        if !monitor.running, monitor.outcome != nil || monitor.refusal != nil || !monitor.statuses.isEmpty {
+            monitor.clear()
+        }
         refresh()
         if let select { selection = select }
         markDirty()
@@ -340,6 +348,9 @@ final class MacroEditorModel: ObservableObject {
 
     // MARK: Essai
 
+    /// Besoins annoncés hors essai : la dernière piste cliquée seulement (jamais pour l'exemple de la mesure).
+    private var openNeeds: BlockNeeds { closed || ephemeral ? [] : needs.intersection(.pisteVisee) }
+
     /// Programme du brouillon tel qu'il est (sans cache : il change à chaque modification), ou ce qui l'empêche.
     func programForTest() -> (program: MacroProgram?, problem: String?) {
         guard let draft else { return (nil, "Aucune macro ouverte.") }
@@ -367,7 +378,8 @@ final class MacroEditorModel: ObservableObject {
         }
         monitor.clear()
         preparingTest = true
-        // Ports MIDI à la demande, dernière piste cliquée : seulement le temps de l'essai.
+        // Ports MIDI à la demande : seulement le temps de l'essai.
+        testing = true
         store.setEditorNeeds(needs)
         fl.activate(options: [])
         waitForFL(program, pid: pid, tries: 40)
@@ -414,10 +426,11 @@ final class MacroEditorModel: ObservableObject {
         }
     }
 
-    /// Essai fini ou abandonné : ses besoins ne sont plus annoncés.
+    /// Essai fini ou abandonné : retour aux besoins hors essai.
     private func endTest() {
         preparingTest = false
-        store.setEditorNeeds([])
+        testing = false
+        store.setEditorNeeds(openNeeds)
     }
 
     /// « Montrer le bloc » du bandeau de résultat.

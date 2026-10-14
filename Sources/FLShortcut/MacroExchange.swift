@@ -138,13 +138,17 @@ enum MacroExchange {
         return Preview(doc: doc, lines: lines, warnings: Array(Set(warnings)).sorted(), sensitiveCount: sensitive)
     }
 
-    /// Chemins « ~/… » rendus absolus dans le dossier personnel de cette machine.
+    /// Chemins « ~/… » rendus absolus dans le dossier personnel de cette machine ; chaque clic, quel que soit son
+    /// repère (piste, dernier clic, curseur…), est à montrer de nouveau : aucun décalage n'est repris d'un fichier.
     private static func localized(_ blocks: [Block], home: String) -> [Block] {
         blocks.map { b in
             var copy = b
-            if case .chooseFile(let path) = b.body {
+            switch b.body {
+            case .chooseFile(let path):
                 copy.body = .chooseFile(path: absolute(path, home: home))
-            } else {
+            case .click(_, let button):
+                copy.body = .click(.toLearn, button: button)
+            default:
                 copy.body = b.body.replacingChildren(b.body.children.map { localized($0, home: home) })
             }
             return copy

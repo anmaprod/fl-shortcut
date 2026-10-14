@@ -230,13 +230,18 @@ final class MacroLibraryTests: XCTestCase {
 
     func testImportForcesClicksToLearn() throws {
         let aimed = ClickTarget.flWindow(corner: .topRight, dx: -40, dy: 12, size: CGSize(width: 900, height: 600))
+        let relative: [ClickTarget] = [.track(dx: 4_000, dy: -4_000), .lastClick(dx: 300, dy: 0), .startCursor(dx: 0, dy: 900)]
         let data = try handMade([Block(.click(aimed, button: .left)),
-                                 Block(.repeatCount(2, [Block(.click(aimed, button: .right))]))])
+                                 Block(.repeatCount(2, [Block(.click(aimed, button: .right))]))]
+                                + relative.map { Block(.click($0, button: .left)) })
         let preview = try MacroExchange.prepareImport(data, layout: FakeLayout.qwerty)
         guard case .click(.toLearn, _) = preview.doc.blocks[0].body else { return XCTFail("clic à apprendre attendu") }
         guard case .repeatCount(_, let inner) = preview.doc.blocks[1].body,
               case .click(.toLearn, _) = inner[0].body else { return XCTFail("clic imbriqué à apprendre attendu") }
-        XCTAssertEqual(preview.sensitiveCount, 2)
+        for block in preview.doc.blocks.dropFirst(2) {                           // piste, dernier clic, curseur
+            guard case .click(.toLearn, _) = block.body else { return XCTFail("clic relatif à apprendre attendu") }
+        }
+        XCTAssertEqual(preview.sensitiveCount, 5)
         XCTAssertNotNil(MacroProgram.compile(preview.doc, forbidden: .physical).problem)
     }
 

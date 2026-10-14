@@ -150,9 +150,11 @@ final class MacroCreatorWindowTests: XCTestCase {
         model.load(doc.id)
         XCTAssertNil(model.problem)
         XCTAssertTrue(model.needs.isSuperset(of: [.lienMIDI, .pisteVisee]))
-        XCTAssertTrue(store.activeNeeds.isEmpty)
+        // Créateur ouvert : dernière piste cliquée suivie (l'essai doit la connaître), aucun port MIDI.
+        XCTAssertTrue(store.activeNeeds.contains(.pisteVisee))
+        XCTAssertFalse(store.activeNeeds.contains(.lienMIDI))
         model.rename("Piste et lien modifiée")
-        XCTAssertTrue(store.activeNeeds.isEmpty)
+        XCTAssertFalse(store.activeNeeds.contains(.lienMIDI))
 
         try startTest(model)
         XCTAssertTrue(store.activeNeeds.isSuperset(of: [.lienMIDI, .pisteVisee]))
@@ -160,7 +162,10 @@ final class MacroCreatorWindowTests: XCTestCase {
         XCTAssertFalse(model.preparingTest)
         XCTAssertNotNil(model.monitor.refusal)           // « FL Studio n'est pas passé au premier plan »
         XCTAssertNil(model.monitor.outcome)              // essai non lancé : ni arrêté ni échoué
-        XCTAssertTrue(store.activeNeeds.isEmpty)
+        XCTAssertFalse(store.activeNeeds.contains(.lienMIDI))
+        XCTAssertTrue(store.activeNeeds.contains(.pisteVisee))
+        model.rename("Piste et lien, encore")            // une modification efface le refus périmé
+        XCTAssertNil(model.monitor.refusal)
 
         model.close()
         XCTAssertTrue(store.activeNeeds.isEmpty)

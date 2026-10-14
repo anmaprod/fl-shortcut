@@ -74,6 +74,11 @@ struct MacroCreatorView: View {
                 .navigationSplitViewColumnWidth(min: 210, ideal: 240, max: 300)
         } detail: {
             VStack(spacing: 0) {
+                if #available(macOS 14.0, *) {
+                    EmptyView()
+                } else {
+                    legacyBar
+                }
                 LibraryProblemBanner(library: store.library)
                 HStack(spacing: 0) {
                     MacroStepsPane(model: model, monitor: model.monitor, paletteItems: paletteItems)
@@ -120,37 +125,58 @@ struct MacroCreatorView: View {
     // MARK: Barre d'outils
 
     @ToolbarContentBuilder private var toolbarContent: some ToolbarContent {
-        ToolbarItem(placement: .navigation) {
-            MacroSwitcher(library: store.library, current: model.draft?.id) { id in
-                model.load(id)
-            } onNew: {
-                model.newMacro()
+        ToolbarItem(placement: .navigation) { switcher }
+        ToolbarItem(placement: .primaryAction) { TestButton(model: model, monitor: model.monitor) }
+        ToolbarItem(placement: .primaryAction) { exportButton }
+        ToolbarItem(placement: .primaryAction) { saveButton }
+    }
+
+    /// macOS 13 : NSHostingController n'y relaie pas la barre d'outils SwiftUI (sceneBridgingOptions : macOS 14) ;
+    /// mêmes commandes dans une barre en tête.
+    private var legacyBar: some View {
+        VStack(spacing: 0) {
+            HStack(spacing: 10) {
+                switcher
+                Spacer(minLength: 8)
+                TestButton(model: model, monitor: model.monitor)
+                exportButton
+                saveButton
             }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 8)
+            Divider()
         }
-        ToolbarItem(placement: .primaryAction) {
-            TestButton(model: model, monitor: model.monitor)
+    }
+
+    private var switcher: some View {
+        MacroSwitcher(library: store.library, current: model.draft?.id) { id in
+            model.load(id)
+        } onNew: {
+            model.newMacro()
         }
-        ToolbarItem(placement: .primaryAction) {
-            Button {
-                exportDraft()
-            } label: {
-                Label("Exporter…", systemImage: "square.and.arrow.up")
-            }
-            .disabled(model.draft == nil || model.ephemeral)
-            .help("Enregistre la macro dans un fichier .flsmacro à partager (positions apprises retirées)")
+    }
+
+    private var exportButton: some View {
+        Button {
+            exportDraft()
+        } label: {
+            Label("Exporter…", systemImage: "square.and.arrow.up")
         }
-        ToolbarItem(placement: .primaryAction) {
-            Button {
-                model.saveNow()
-            } label: {
-                Label(model.dirty ? "Enregistrer" : "Enregistrée",
-                      systemImage: model.dirty ? "square.and.arrow.down" : "checkmark.circle")
-            }
-            .keyboardShortcut("s", modifiers: .command)
-            .disabled(!model.dirty)
-            .help(model.dirty ? "Enregistrer maintenant (⌘S) : sinon c'est fait tout seul dans un instant"
-                              : "Tout est enregistré")
+        .disabled(model.draft == nil || model.ephemeral)
+        .help("Enregistre la macro dans un fichier .flsmacro à partager (positions apprises retirées)")
+    }
+
+    private var saveButton: some View {
+        Button {
+            model.saveNow()
+        } label: {
+            Label(model.dirty ? "Enregistrer" : "Enregistrée",
+                  systemImage: model.dirty ? "square.and.arrow.down" : "checkmark.circle")
         }
+        .keyboardShortcut("s", modifiers: .command)
+        .disabled(!model.dirty)
+        .help(model.dirty ? "Enregistrer maintenant (⌘S) : sinon c'est fait tout seul dans un instant"
+                          : "Tout est enregistré")
     }
 
     private func exportDraft() {
@@ -551,11 +577,11 @@ private struct MacroResultBanner: View {
                 banner(symbol: "play.circle.fill", tint: .blue, text: "Essai en cours dans FL… Échap pour l'arrêter.")
             } else if let outcome = monitor.outcome {
                 outcomeBanner(outcome)
+            } else if let notice = model.notice {
+                banner(symbol: "info.circle.fill", tint: nil, text: notice, close: { model.notice = nil })
             } else if let refusal = monitor.refusal {
                 banner(symbol: "exclamationmark.triangle.fill", tint: .orange, text: "Essai non lancé : \(refusal)",
                        close: { monitor.clear() })
-            } else if let notice = model.notice {
-                banner(symbol: "info.circle.fill", tint: nil, text: notice, close: { model.notice = nil })
             }
         }
         .padding(.horizontal, 14)
