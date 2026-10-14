@@ -11,6 +11,7 @@
 // seules les lignes dont l'état change pendant un essai sont redessinées.
 import AppKit
 import SwiftUI
+import UniformTypeIdentifiers
 
 /// Demande d'ouverture du créateur (fenêtre unique) : quelle macro montrer. Puis
 /// `MacroCreatorWindowController.shared.show()`.
@@ -70,7 +71,9 @@ struct MacroCreatorView: View {
 
     var body: some View {
         NavigationSplitView {
-            MacroPaletteView(items: paletteItems, insert: { [model] in model.insert($0) })
+            MacroPaletteView(items: paletteItems, insert: { [model] item in
+                withAnimation(MacroStepsPane.spring) { model.insert(item) }
+            })
                 .navigationSplitViewColumnWidth(min: 210, ideal: 240, max: 300)
         } detail: {
             VStack(spacing: 0) {
@@ -239,6 +242,10 @@ private struct MacroStepsPane: View {
         }
     }
 
+    /// Ressort court et sans rebond visible, façon Apple : les lignes s'écartent pour le bloc ajouté, glissent quand
+    /// on les range, se resserrent quand on en supprime. Seulement au moment du changement : rien ne tourne au repos.
+    static let spring = Animation.spring(response: 0.32, dampingFraction: 0.86)
+
     private var list: some View {
         List(selection: $model.selection) {
             ForEach(model.rows) { row in
@@ -249,11 +256,17 @@ private struct MacroStepsPane: View {
                     .moveDisabled(row.kind != .block)          // les lignes de fin suivent leur boucle
                     .contextMenu { contextMenu(row) }
             }
-            .onMove { offsets, to in model.move(fromOffsets: offsets, toOffset: to) }
+            .onMove { offsets, to in
+                withAnimation(Self.spring) { model.move(fromOffsets: offsets, toOffset: to) }
+            }
+            // Bloc glissé depuis la palette : lâché entre deux lignes, il prend cette place (3e, 4e…).
+            .onInsert(of: [.plainText]) { index, providers in
+                dropFromPalette(providers, beforeRow: index)
+            }
         }
         .listStyle(.inset)
         .glassListBackground()
-        .onDeleteCommand { model.deleteSelection() }
+        .onDeleteCommand { withAnimation(Self.spring) { model.deleteSelection() } }
         .overlay {
             if model.rows.isEmpty {
                 VStack(spacing: 6) {
@@ -261,14 +274,27 @@ private struct MacroStepsPane: View {
                         .font(.system(size: 28, weight: .light))
                         .foregroundStyle(.secondary)
                     Text("Aucun bloc pour l'instant").font(.headline)
-                    Text("Clique un bloc dans la palette à gauche, ou tape son nom dans « Ajouter un bloc… » puis ↩.")
+                    Text("Glisse un bloc de la palette ici, clique-le, ou tape son nom dans « Ajouter un bloc… » puis ↩.")
                         .font(.system(size: 12))
                         .foregroundStyle(.secondary)
                         .multilineTextAlignment(.center)
                         .frame(maxWidth: 320)
                 }
-                .allowsHitTesting(false)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .contentShape(Rectangle())
+                .onDrop(of: [.plainText], isTargeted: nil) { providers in
+                    dropFromPalette(providers, beforeRow: 0)
+                    return true
+                }
             }
+        }
+    }
+
+    private func dropFromPalette(_ providers: [NSItemProvider], beforeRow row: Int) {
+        let items = paletteItems
+        PaletteDrag.load(providers) { [model] id in
+            guard let item = items.first(where: { $0.id == id }) else { return }
+            withAnimation(Self.spring) { model.insert(item, beforeRow: row) }
         }
     }
 
@@ -282,12 +308,12 @@ private struct MacroStepsPane: View {
             Button(row.ownEnabled ? "Désactiver" : "Activer") { model.setEnabled(row.blockID, !row.ownEnabled) }
             Button("Dupliquer") {
                 model.selection = row.id
-                model.duplicateSelection()
+                withAnimation(Self.spring) { model.duplicateSelection() }
             }
             Divider()
             Button("Supprimer", role: .destructive) {
                 model.selection = row.id
-                model.deleteSelection()
+                withAnimation(Self.spring) { model.deleteSelection() }
             }
         }
     }
@@ -295,10 +321,10 @@ private struct MacroStepsPane: View {
     /// Sous la liste : ajouter (sous la sélection), dupliquer (⌘D), supprimer (⌫), avec l'aide du moment.
     private var actionBar: some View {
         HStack(spacing: 10) {
-            AddBlockMenu(items: paletteItems, insert: { [model] in model.insert($0) })
+            AddBlockMenu(items: paletteItems, insert: { [model] item in withAnimation(Self.spring) { model.insert(item) } })
             RecordClicksButton(model: model)
             Button {
-                model.duplicateSelection()
+                withAnimation(Self.spring) { model.duplicateSelection() }
             } label: {
                 Label("Dupliquer", systemImage: "plus.square.on.square")
             }
@@ -306,7 +332,7 @@ private struct MacroStepsPane: View {
             .disabled(model.selectedBlock == nil)
             .help("Dupliquer le bloc choisi (⌘D)")
             Button {
-                model.deleteSelection()
+                withAnimation(Self.spring) { model.deleteSelection() }
             } label: {
                 Label("Supprimer", systemImage: "trash")
             }

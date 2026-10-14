@@ -191,23 +191,27 @@ enum MacroOutline {
         case .rootEnd: break
         }
         var copy = blocks
-        guard let removed = remove(&copy, id: id) else { return false }
-        let point: InsertionPoint
-        switch target {
-        case .before(let other):
-            guard let p = path(of: other, in: copy), let last = p.last else { return false }
-            point = InsertionPoint(container: Array(p.dropLast()), slot: last.slot, index: last.index)
-        case .end(let container, let slot):
-            guard let p = path(of: container, in: copy), let c = block(at: p, in: copy),
-                  c.body.children.indices.contains(slot) else { return false }
-            point = InsertionPoint(container: p, slot: slot, index: c.body.children[slot].count)
-        case .rootEnd:
-            point = .rootEnd(copy)
-        }
-        guard insert(removed.block, into: &copy, at: point),
+        guard let removed = remove(&copy, id: id), let point = insertionPoint(for: target, in: copy),
+              insert(removed.block, into: &copy, at: point),
               MacroValidation.depth(copy) <= MacroValidation.maxDepth else { return false }
         blocks = copy
         return true
+    }
+
+    /// Place d'insertion d'une cible exprimée par ids : avant un bloc (à son niveau), à la fin d'une liste d'un
+    /// conteneur, ou tout en bas. Sert au rangement des lignes et au glisser depuis la palette.
+    static func insertionPoint(for target: MoveTarget, in blocks: [Block]) -> InsertionPoint? {
+        switch target {
+        case .before(let other):
+            guard let p = path(of: other, in: blocks), let last = p.last else { return nil }
+            return InsertionPoint(container: Array(p.dropLast()), slot: last.slot, index: last.index)
+        case .end(let container, let slot):
+            guard let p = path(of: container, in: blocks), let c = block(at: p, in: blocks),
+                  c.body.children.indices.contains(slot) else { return nil }
+            return InsertionPoint(container: p, slot: slot, index: c.body.children[slot].count)
+        case .rootEnd:
+            return .rootEnd(blocks)
+        }
     }
 
     /// Place d'insertion « sous la sélection » : après le bloc choisi (même niveau), à la fin d'une liste si une

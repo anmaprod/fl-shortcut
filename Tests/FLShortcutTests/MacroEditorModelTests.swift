@@ -48,6 +48,27 @@ final class MacroEditorModelTests: XCTestCase {
         model.close()
     }
 
+    /// Bloc glissé de la palette : lâché avant la 2e ligne, il devient le 2e ; avant la ligne de fin d'une boucle,
+    /// le dernier de la boucle ; après la dernière ligne, tout en bas.
+    func testPaletteDropInsertsAtTheChosenRow() {
+        let store = makeStore()
+        let loop = Block(.repeatCount(2, [Block(.delay(ms: 1))]))
+        let doc = store.library.add(MacroDoc(name: "Ordre", blocks: [Block(.delay(ms: 100)), Block(.delay(ms: 200)), loop]))
+        let model = MacroEditorModel(store: store)
+        model.load(doc.id)
+        let note = PaletteCatalog.items(layout: FakeLayout.qwerty).first { $0.id == "comment" }!
+        // Lignes : 0 pause 100, 1 pause 200, 2 boucle, 3 pause 1 (dans la boucle), 4 fin de la boucle.
+        model.insert(note, beforeRow: 1)
+        XCTAssertEqual(model.draft?.blocks.map(\.body.type), [.delay, .comment, .delay, .repeatCount])
+        let endRow = model.rows.firstIndex { if case .end = $0.kind { return true }; return false }!
+        model.insert(note, beforeRow: endRow)
+        XCTAssertEqual(model.draft?.blocks.last?.body.children.first?.map(\.body.type), [.delay, .comment])
+        model.insert(note, beforeRow: model.rows.count)
+        XCTAssertEqual(model.draft?.blocks.last?.body.type, .comment)
+        XCTAssertEqual(model.draft?.blocks.count, 5)
+        model.close()
+    }
+
     func testRefuseIsNotAnOutcome() {
         let monitor = MacroRunMonitor()
         monitor.refuse("Ouvre FL Studio, puis recommence.")

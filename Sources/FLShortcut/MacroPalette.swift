@@ -2,6 +2,7 @@
 // Par catégorie, avec une recherche : taper filtre, ↩ ajoute le premier bloc trouvé sous la sélection. Un clic
 // ajoute le bloc. Les blocs pas encore réglables ici (conditions) sont grisés, « bientôt ».
 // Statique : aucune animation, aucun survol animé, aucun verre par ligne.
+import AppKit
 import SwiftUI
 
 extension BlockCategory {
@@ -97,7 +98,17 @@ struct MacroPaletteView: View {
         query = ""
     }
 
-    private func row(_ item: PaletteItem) -> some View {
+    /// Un clic ajoute le bloc sous la sélection ; on peut aussi le glisser à la place voulue dans la liste.
+    @ViewBuilder private func row(_ item: PaletteItem) -> some View {
+        if item.soon {
+            button(item)
+        } else {
+            button(item)
+                .onDrag { PaletteDrag.provider(item) } preview: { PaletteDragPreview(item: item) }
+        }
+    }
+
+    private func button(_ item: PaletteItem) -> some View {
         Button {
             insert(item)
         } label: {
@@ -116,7 +127,44 @@ struct MacroPaletteView: View {
         .buttonStyle(.plain)
         .disabled(item.soon)
         .opacity(item.soon ? 0.5 : 1)
-        .help(item.soon ? "Bientôt : " + item.aide : item.aide)
+        .help(item.soon ? "Bientôt : " + item.aide : item.aide + " Clique pour l'ajouter, ou glisse-le à sa place dans la liste.")
         .accessibilityHint(item.soon ? "Pas encore disponible" : "Ajoute ce bloc sous la ligne choisie")
+    }
+}
+
+/// Glisser un bloc de la palette vers la liste : un texte « flshortcut-block:<id> », que seule la liste du créateur
+/// comprend (lâché ailleurs, c'est un texte sans effet).
+enum PaletteDrag {
+    static let prefix = "flshortcut-block:"
+
+    static func provider(_ item: PaletteItem) -> NSItemProvider {
+        NSItemProvider(object: (prefix + item.id) as NSString)
+    }
+
+    /// Entrée de palette portée par le glisser, rendue sur le fil principal ; rien pour un autre texte.
+    static func load(_ providers: [NSItemProvider], _ done: @escaping (String) -> Void) {
+        guard let p = providers.first(where: { $0.canLoadObject(ofClass: NSString.self) }) else { return }
+        _ = p.loadObject(ofClass: NSString.self) { object, _ in
+            guard let text = object as? NSString, text.hasPrefix(prefix) else { return }
+            let id = String((text as String).dropFirst(prefix.count))
+            DispatchQueue.main.async { done(id) }
+        }
+    }
+}
+
+/// Ce qui suit la souris pendant le glisser : l'icône et le nom du bloc, sur une pastille arrondie.
+private struct PaletteDragPreview: View {
+    let item: PaletteItem
+
+    var body: some View {
+        HStack(spacing: 8) {
+            SectionIcon(symbol: item.symbol, tint: item.category.tint, size: 22)
+            Text(item.label).font(.system(size: 13, weight: .medium)).lineLimit(1)
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+        .background(RoundedRectangle(cornerRadius: 12, style: .continuous)
+            .fill(Color(nsColor: .windowBackgroundColor).opacity(0.96)))
+        .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(Color.primary.opacity(0.14)))
     }
 }

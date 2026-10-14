@@ -234,13 +234,33 @@ final class MacroEditorModel: ObservableObject {
 
     /// Ajoute un bloc de la palette sous la sélection (ou dans la boucle si sa ligne de fin est choisie).
     func insert(_ item: PaletteItem) {
+        guard let draft else { return }
+        insert(item, at: MacroOutline.insertionPoint(after: selectedRow, in: draft.blocks))
+    }
+
+    /// Bloc glissé depuis la palette et lâché dans la liste : il prend la place de la ligne `row` (les suivantes
+    /// descendent) ; lâché avant une ligne de fin : à la fin de cette boucle ; après la dernière ligne : tout en bas.
+    func insert(_ item: PaletteItem, beforeRow row: Int) {
+        guard let draft, let point = MacroOutline.insertionPoint(for: target(beforeRow: row), in: draft.blocks) else { return }
+        insert(item, at: point)
+    }
+
+    /// Cible d'un dépôt juste avant la ligne `row` de la liste à plat (rangement des lignes, glisser de la palette).
+    private func target(beforeRow row: Int) -> MoveTarget {
+        guard rows.indices.contains(row) else { return .rootEnd }
+        switch rows[row].kind {
+        case .block: return .before(rows[row].blockID)
+        case .end(let slot): return .end(container: rows[row].blockID, slot: slot)
+        }
+    }
+
+    private func insert(_ item: PaletteItem, at point: InsertionPoint) {
         guard !item.soon, let draft else { return }
         guard MacroValidation.count(draft.blocks) < MacroValidation.maxBlocks else {
             notice = "Macro trop longue : \(MacroValidation.maxBlocks) blocs au plus."
             return
         }
         let block = Block(item.make())
-        let point = MacroOutline.insertionPoint(after: selectedRow, in: draft.blocks)
         if !block.body.children.isEmpty || block.body.type == .repeatCount,
            MacroOutline.depth(of: point) + 1 > MacroValidation.maxDepth {
             notice = "Trop de boucles l'une dans l'autre (\(MacroValidation.maxDepth) niveaux au plus)."
@@ -321,18 +341,10 @@ final class MacroEditorModel: ObservableObject {
         guard offsets.count == 1, let from = offsets.first, rows.indices.contains(from), rows[from].kind == .block,
               to != from, to != from + 1 else { return }
         let id = rows[from].blockID
-        let target: MoveTarget
-        if to >= rows.count {
-            target = .rootEnd
-        } else {
-            switch rows[to].kind {
-            case .block: target = .before(rows[to].blockID)
-            case .end(let slot): target = .end(container: rows[to].blockID, slot: slot)
-            }
-        }
+        let destination = target(beforeRow: to)
         var moved = false
         mutate("Déplacer le bloc", select: MacroStepRow.blockRowID(id)) { doc in
-            moved = MacroOutline.move(&doc.blocks, id: id, to: target)
+            moved = MacroOutline.move(&doc.blocks, id: id, to: destination)
         }
         if !moved {
             notice = "Déplacement impossible : un bloc ne va pas dans lui-même, et \(MacroValidation.maxDepth) niveaux au plus."
