@@ -98,15 +98,13 @@ final class MacroRunMonitor: ObservableObject, RunObserver {
         outcome = .cancelled(reason: reason)
     }
 
-    /// Capture de l'interface (mesure, `debugSnapshots` seulement) : rapport d'un essai fictif pour montrer les
-    /// couleurs (fait, en cours, échec) sans lancer FL.
-    func showSampleReport(done: [UUID], failed: UUID?, reason: String) {
+    /// Capture de l'interface (mesure, `debugSnapshots` seulement) : essai fictif en cours sur la macro d'exemple,
+    /// pour montrer l'état des lignes (faites, en cours) sans lancer FL.
+    func showSample(done: [UUID], running id: UUID) {
         clear()
-        for id in done { statuses[id] = .done(ms: 120) }
-        if let failed {
-            statuses[failed] = .failed(reason)
-            failedBlock = failed
-        }
-        outcome = .failed(step: done.count + 1, reason: reason)
+        for d in done { statuses[d] = .done(ms: 120) }
+        running = true
+        current = id
+        statuses[id] = .running
     }
 }

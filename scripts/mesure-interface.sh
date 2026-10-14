@@ -1,6 +1,7 @@
 #!/bin/bash
 # Mesure de l'interface sur un vrai macOS (CI GitHub, ou ton Mac) : mémoire (empreinte physique) et processeur
-# de FL Shortcut, barre des menus seule puis fenêtre ouverte, avec et sans l'effet Liquid Glass.
+# de FL Shortcut, barre des menus seule puis fenêtre ouverte, page Macros, créateur de macros ouvert (sur une macro
+# d'exemple jamais enregistrée) puis refermé, avec et sans l'effet Liquid Glass.
 # Usage : scripts/mesure-interface.sh "dist/FL Shortcut.app" dossier-de-sortie
 # Résultat : tableau Markdown sur la sortie standard, captures d'écran dans le dossier de sortie.
 # Ne touche à rien d'autre que les préférences de FL Shortcut (restaurées à la fin).
@@ -59,17 +60,32 @@ run() {   # $1 : libellé, $2 : YES/NO effet verre
   cat "$HOME/Library/Caches/$DOMAIN/$label-fenetre-tailles.txt" >&2 2>/dev/null || true
   echo "fenêtres : $(osascript -e 'tell application "System Events" to get size of every window of (first process whose name is "FLShortcut")' 2>/dev/null)" >&2
   m1=$(mem_mb "$p"); c1=$(cpu_avg "$p")
+  # Créateur de macros : page Macros, puis la fenêtre du créateur ouverte sur un exemple (jamais enregistré),
+  # mesurée au repos, photographiée, puis fermée (la mémoire doit revenir).
+  "$POST" app.flshortcut.debug.select macros; sleep 2
+  rm -f "$HOME/Library/Caches/$DOMAIN/$label-macros-"*
+  "$POST" app.flshortcut.debug.snapshot "$label-macros"; sleep 2
+  cp "$HOME/Library/Caches/$DOMAIN/$label-macros-"*.png "$OUT/" 2>/dev/null || true
+  mb=$(mem_mb "$p")
+  "$POST" app.flshortcut.debug.macro open; sleep 5
+  screencapture -x "$OUT/$label-createur.png" 2>/dev/null || true
+  rm -f "$HOME/Library/Caches/$DOMAIN/$label-createur-"*
+  "$POST" app.flshortcut.debug.snapshot "$label-createur"; sleep 2
+  cp "$HOME/Library/Caches/$DOMAIN/$label-createur-"*.png "$OUT/" 2>/dev/null || true
+  mc=$(mem_mb "$p"); cc=$(cpu_avg "$p")
+  "$POST" app.flshortcut.debug.macro close; sleep 4
+  md=$(mem_mb "$p")
   # Plus grosse page, puis une recherche qui affiche presque toutes les lignes : la mémoire doit rester stable.
   "$POST" app.flshortcut.debug.select mixer; sleep 3
   m2=$(mem_mb "$p")
   "$POST" app.flshortcut.debug.search e; sleep 4
   m3=$(mem_mb "$p")
   "$POST" app.flshortcut.debug.search ""; sleep 1
-  echo "| $label | $m0 | $c0 | $m1 | $c1 | $m2 | $m3 |"
+  echo "| $label | $m0 | $c0 | $m1 | $c1 | $mb | $mc | $cc | $md | $m2 | $m3 |"
 }
 
-echo "| Effet | Mémoire (barre des menus) | Processeur | Mémoire (fenêtre ouverte) | Processeur (fenêtre ouverte, au repos) | Mémoire (page Mixer) | Mémoire (recherche « e », presque tout) |"
-echo "|---|---|---|---|---|---|---|"
+echo "| Effet | Mémoire (barre des menus) | Processeur | Mémoire (fenêtre ouverte) | Processeur (fenêtre ouverte, au repos) | Mémoire (page Macros) | Mémoire (créateur ouvert) | Processeur (créateur ouvert, au repos) | Mémoire (créateur refermé) | Mémoire (page Mixer) | Mémoire (recherche « e », presque tout) |"
+echo "|---|---|---|---|---|---|---|---|---|---|---|"
 run "verre" YES
 run "sans-verre" NO
 pkill -x FLShortcut 2>/dev/null

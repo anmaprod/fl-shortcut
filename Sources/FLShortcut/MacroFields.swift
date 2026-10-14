@@ -5,6 +5,8 @@ import UniformTypeIdentifiers
 
 struct MacroFields: View {
     @Binding var macro: Macro
+    /// « Personnaliser dans le créateur… » (modèle automatique seulement) : nil, pas de bouton.
+    var customize: (() -> Void)? = nil
     @ObservedObject private var learner = MacroLearner.shared
     @ObservedObject private var status = AppStatus.shared
     /// Compte à rebours du bouton « Tester » (nil : rien en cours).
@@ -50,6 +52,16 @@ struct MacroFields: View {
                      : "Clic droit sur la piste → File → Open mixer track state, preset, armement, entrée 1, REC.")
                     .font(.caption).foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
+                if automatic, let customize {
+                    Button {
+                        customize()
+                    } label: {
+                        Label("Personnaliser dans le créateur…", systemImage: "wand.and.stars")
+                    }
+                    .secondaryButton()
+                    .padding(.top, 4)
+                    .help("Développe le modèle en blocs que tu modifies un par un (le raccourci lance alors ta version)")
+                }
             }
         }
 

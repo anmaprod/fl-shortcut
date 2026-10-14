@@ -51,6 +51,7 @@ final class MacroEditorModel: ObservableObject {
         terminateObserver = NotificationCenter.default.addObserver(forName: NSApplication.willTerminateNotification,
                                                                    object: nil, queue: .main) { [weak self] _ in
             self?.saveNow()
+            self?.store.library.saveNow()                 // l'ordre des observateurs de la fermeture n'est pas garanti
         }
     }
 
@@ -102,6 +103,12 @@ final class MacroEditorModel: ObservableObject {
         selection = rows.first(where: { $0.kind == .block })?.id
         trigger = shortcut?.trigger
         triggerIssues = []
+    }
+
+    /// L'entrée « 1 » vient d'être oubliée ou apprise : badges « À apprendre » à jour.
+    func refreshLearnedState() {
+        learnedInput = MacroSpots.loadPath(.input) != nil
+        refresh()
     }
 
     /// Nouvelle macro vide dans la bibliothèque, ouverte aussitôt.
@@ -310,14 +317,14 @@ final class MacroEditorModel: ObservableObject {
 
     // MARK: Essai
 
-    /// Programme du brouillon tel qu'il est (sans cache : il change à chaque modification).
-    func programForTest() -> Result<MacroProgram, String> {
-        guard let draft else { return .failure("Aucune macro ouverte.") }
+    /// Programme du brouillon tel qu'il est (sans cache : il change à chaque modification), ou ce qui l'empêche.
+    func programForTest() -> (program: MacroProgram?, problem: String?) {
+        guard let draft else { return (nil, "Aucune macro ouverte.") }
         let ctx = validationContext
-        if let why = MacroValidation.problem(in: draft, context: ctx) { return .failure(why) }
-        return .success(MacroProgram(blocks: draft.blocks, name: draft.name,
-                                     source: .blocks(id: draft.id, revision: draft.revision),
-                                     variables: draft.variables, context: ctx))
+        if let why = MacroValidation.problem(in: draft, context: ctx) { return (nil, why) }
+        return (MacroProgram(blocks: draft.blocks, name: draft.name,
+                             source: .blocks(id: draft.id, revision: draft.revision),
+                             variables: draft.variables, context: ctx), nil)
     }
 
     /// « Tester » : FL passe devant, puis la macro tourne exactement comme depuis son raccourci. Échap l'arrête.
@@ -325,13 +332,10 @@ final class MacroEditorModel: ObservableObject {
         guard !monitor.running, !preparingTest else { return }
         saveNow()
         notice = nil
-        let program: MacroProgram
-        switch programForTest() {
-        case .failure(let why):
-            monitor.refuse(why)
+        let compiled = programForTest()
+        guard let program = compiled.program else {
+            monitor.refuse(compiled.problem ?? "Macro invalide.")
             return
-        case .success(let p):
-            program = p
         }
         guard let pid = EventTap.shared.currentConfig.flPIDs.first,
               let fl = NSRunningApplication(processIdentifier: pid) else {

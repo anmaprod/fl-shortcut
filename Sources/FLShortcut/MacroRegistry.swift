@@ -434,9 +434,13 @@ private enum Specs {
         estimationMs: { _ in 4_000 },
         valider: { body, ctx in
             guard case .trackMenu(let l, let labels, _, let e) = body else { return nil }
-            // Mêmes règles que l'ancienne étape (lettres vérifiées au moment de l'envoi, comme avant).
+            // Mêmes règles que l'ancienne étape (lettres vérifiées au moment de l'envoi, comme avant), plus ce que
+            // l'exécution exige déjà : une lettre de sous-menu puis celle de l'élément (2 ou 3 lettres, a à z).
             guard (1...3).contains(l.count), labels.count <= 3,
                   labels.allSatisfy({ !$0.isEmpty && $0.count <= 160 }) else { return ctx.fail("titres de menu invalides.") }
+            guard l.count >= 2, lettersOK(l) else {
+                return ctx.fail("le menu de la piste demande 2 ou 3 lettres (a à z) : le sous-menu, puis l'élément.")
+            }
             if e == .never { return ctx.fail("le menu de la piste doit se fermer sur son dernier élément.") }
             return enterProblem(e, ctx)
         },

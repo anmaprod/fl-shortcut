@@ -20,11 +20,14 @@ import UniformTypeIdentifiers
 enum SidebarItem: Hashable {
     case section(FLSection)
     case custom
+    /// Bibliothèque des macros en blocs (MacroLibraryView.swift).
+    case macros
 
     var symbol: String {
         switch self {
         case .section(let s): return s.symbol
         case .custom: return "star"
+        case .macros: return "wand.and.stars"
         }
     }
 
@@ -32,6 +35,7 @@ enum SidebarItem: Hashable {
         switch self {
         case .section(let s): return s.tint
         case .custom: return .pink
+        case .macros: return .purple
         }
     }
 }
@@ -89,8 +93,16 @@ struct EditorView: View {
     @State private var editNotice: String? = nil
     @AppStorage(Appearance.glassKey) private var glassEnabled = true
     @Namespace private var glassNS
+    @Environment(\.openWindow) private var openWindow
 
     private var trimmedQuery: String { query.trimmingCharacters(in: .whitespaces) }
+
+    /// Ouvre le créateur de macros (fenêtre à part, créée à la demande) sur cette macro.
+    private func openCreator(_ id: UUID?) {
+        MacroCreatorLink.shared.open(id)
+        openWindow(id: MacroCreatorLink.windowID)
+        NSApp.activate(ignoringOtherApps: true)
+    }
 
     var body: some View {
         let data = store.catalogRows()
@@ -109,13 +121,14 @@ struct EditorView: View {
         }
         .onReceive(DebugSnapshot.publisher(DebugSnapshot.select)) { note in
             let name = note.object as? String ?? ""
-            selection = FLSection(rawValue: name).map(SidebarItem.section) ?? (name == "custom" ? .custom : selection)
+            selection = FLSection(rawValue: name).map(SidebarItem.section)
+                ?? (name == "custom" ? .custom : name == "macros" ? .macros : selection)
         }
         .onReceive(DebugSnapshot.publisher(DebugSnapshot.search)) { note in
             query = note.object as? String ?? ""
         }
         .sheet(item: $editing) { remap in
-            EditSheet(original: remap, isNew: editingIsNew) { message in show(message) }
+            EditSheet(original: remap, isNew: editingIsNew, openCreator: { id in openCreator(id) }) { message in show(message) }
                 .environmentObject(store)
                 .environmentObject(status)
                 .environmentObject(link)
@@ -127,6 +140,7 @@ struct EditorView: View {
         switch selection ?? .section(.general) {
         case .section(let s): return s.title
         case .custom: return "Mes raccourcis"
+        case .macros: return "Macros"
         }
     }
 
@@ -161,6 +175,8 @@ struct EditorView: View {
                 }
                 .badge(data.others.count)
                 .tag(SidebarItem.custom)
+                MacroSidebarRow(library: store.library)
+                    .tag(SidebarItem.macros)
             } header: {
                 Text("Personnalisés")
             }
@@ -177,6 +193,7 @@ struct EditorView: View {
                 switch selection ?? .section(.general) {
                 case .section(let s): sectionList(s, rows: data.rows)
                 case .custom: customList(data.others)
+                case .macros: MacroLibraryPage(library: store.library, open: { id in openCreator(id) }, toast: { show($0) })
                 }
             }
         }
@@ -857,7 +874,7 @@ private struct EmptyState: View {
 
 /// En-tête de page façon Réglages Système (macOS 26) : grande icône colorée, titre gras aligné à gauche, résumé.
 /// Dans la première carte de la page (couche de contenu, aucun verre).
-private struct PageHeader: View {
+struct PageHeader: View {
     let symbol: String
     let tint: Color
     let title: String
@@ -910,13 +927,17 @@ struct EditSheet: View {
 
     let isNew: Bool
     let onDone: (ToastMessage) -> Void
+    /// Ouvre une macro de la bibliothèque dans le créateur.
+    let openCreator: (UUID) -> Void
     @State private var draft: Remap
     @State private var category: FLActionInfo.Category
     @State private var query = ""
 
-    init(original: Remap, isNew: Bool, onDone: @escaping (ToastMessage) -> Void) {
+    init(original: Remap, isNew: Bool, openCreator: @escaping (UUID) -> Void = { _ in },
+         onDone: @escaping (ToastMessage) -> Void) {
         self.isNew = isNew
         self.onDone = onDone
+        self.openCreator = openCreator
         _draft = State(initialValue: original)
         let cat = original.actionID.flatMap(FLActions.info)?.category ?? .composition
         _category = State(initialValue: cat)
@@ -936,7 +957,7 @@ struct EditSheet: View {
         switch draft.kind {
         case .flAction: guard draft.actionID != nil else { return false }
         case .keystroke: guard draft.target != nil else { return false }
-        case .macro: guard draft.macro != nil else { return false }
+        case .macro: guard draft.macro != nil || draft.macroRef != nil else { return false }
         }
         return !store.draftIssues(draft).contains(where: \.isBlocking)
     }
@@ -973,7 +994,15 @@ struct EditSheet: View {
                 switch draft.kind {
                 case .flAction: actionFields
                 case .keystroke: keystrokeFields
-                case .macro: MacroFields(macro: macroBinding)
+                case .macro:
+                    if let ref = draft.macroRef {
+                        LibraryMacroFields(library: store.library, ref: ref) {
+                            dismiss()
+                            openCreator(ref)
+                        }
+                    } else {
+                        MacroFields(macro: macroBinding, customize: { customizeTemplate() })
+                    }
                 }
             }
             .formStyle(.columns)
@@ -997,7 +1026,10 @@ struct EditSheet: View {
                     final.enabled = true
                     if final.kind != .keystroke { final.target = nil }
                     if final.kind != .flAction { final.actionID = nil }
-                    if final.kind != .macro { final.macro = nil }
+                    if final.kind != .macro {
+                        final.macro = nil
+                        final.macroRef = nil
+                    }
                     store.upsert(final)
                     onDone(ToastMessage(text: isNew ? "Raccourci ajouté" : "Raccourci modifié", undo: nil))
                     dismiss()
@@ -1015,6 +1047,30 @@ struct EditSheet: View {
     /// Macro du brouillon (le modèle « Enregistrement rapide » tant que rien n'est modifié).
     private var macroBinding: Binding<Macro> {
         Binding(get: { draft.macro ?? Macro() }, set: { draft.macro = $0 })
+    }
+
+    /// « Personnaliser » : le modèle, avec ses réglages, devient une macro en blocs de la bibliothèque que ce
+    /// raccourci lance désormais ; elle s'ouvre dans le créateur (comme « Convertir » dans Raccourcis d'Apple).
+    private func customizeTemplate() {
+        let template = draft.macro ?? Macro()
+        guard Dialogs.confirm("Personnaliser « Enregistrement rapide » ?",
+                              "Le modèle devient une macro en blocs que tu modifies étape par étape dans le créateur. "
+                              + "Ce raccourci lancera ta version ; le modèle d'origine reste dans Macros › Modèles.")
+        else { return }
+        let doc = store.library.add(MacroDoc(name: store.library.uniqueName("Enregistrement rapide (personnalisé)"),
+                                             blocks: MacroTemplates.freshIDs(MacroTemplates.enregistrementRapide(template)),
+                                             origin: .template("autoRecord")))
+        var final = draft
+        final.kind = .macro
+        final.macro = nil
+        final.macroRef = doc.id
+        final.actionID = nil
+        final.target = nil
+        recorder.stop()
+        if final.trigger != nil { store.upsert(final) }
+        onDone(ToastMessage(text: "« \(doc.name) » est dans Macros : modifie-la bloc par bloc", undo: nil))
+        dismiss()
+        openCreator(doc.id)
     }
 
     private var categoryBinding: Binding<FLActionInfo.Category> {
@@ -1128,7 +1184,7 @@ private struct SheetHeader: View {
     }
 }
 
-private struct IssuesView: View {
+struct IssuesView: View {
     let issues: [ShortcutIssue]
 
     var body: some View {
@@ -1350,7 +1406,11 @@ extension Remap {
     var title: String {
         switch kind {
         case .keystroke: return target.map { "Envoie \($0.display)" } ?? "Touche de FL à choisir"
-        case .macro: return macro.map { "Macro : \($0.name.displaySafe())" } ?? "Macro à configurer"
+        case .macro:
+            if let ref = macroRef {
+                return "Macro : " + (MacroLibraryStore.shared.doc(ref)?.name.displaySafe() ?? "introuvable")
+            }
+            return macro.map { "Macro : \($0.name.displaySafe())" } ?? "Macro à configurer"
         case .flAction:
             if let id = actionID, let info = FLActions.info(id) { return info.label }
             return unknownAction.map { "Action inconnue (\($0.displaySafe()))" } ?? "Action à choisir"
@@ -1360,7 +1420,7 @@ extension Remap {
     var subtitle: String {
         switch kind {
         case .keystroke: return "Raccourci de FL Studio"
-        case .macro: return "Enchaîne des clics et des touches dans FL, sans MIDI"
+        case .macro: return macroRef != nil ? "Macro en blocs de la bibliothèque" : "Enchaîne des clics et des touches dans FL, sans MIDI"
         case .flAction:
             guard let id = actionID, let info = FLActions.info(id) else { return "Mets FL Shortcut à jour pour l'utiliser" }
             if case .unavailable(let reason) = AppStatus.shared.availability(id) { return reason }

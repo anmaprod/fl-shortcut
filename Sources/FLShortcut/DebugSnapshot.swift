@@ -17,6 +17,8 @@ enum DebugSnapshot {
     static let click = Notification.Name("app.flshortcut.debug.click")
     /// Taille « l,h » (points) de la fenêtre de l'éditeur, pour les captures sur un petit écran de test.
     static let resize = Notification.Name("app.flshortcut.debug.resize")
+    /// Créateur de macros : « open » l'ouvre sur une macro d'exemple jamais enregistrée, « close » le ferme.
+    static let macro = Notification.Name("app.flshortcut.debug.macro")
 
     static func publisher(_ name: Notification.Name) -> AnyPublisher<Notification, Never> {
         guard enabled else { return Empty().eraseToAnyPublisher() }
@@ -95,6 +97,15 @@ struct MenuBarLabel: View {
         Image(systemName: symbol)
             .onReceive(DebugSnapshot.publisher(DebugSnapshot.open)) { _ in
                 openWindow(id: "editor")
+                NSApp.activate(ignoringOtherApps: true)
+            }
+            .onReceive(DebugSnapshot.publisher(DebugSnapshot.macro)) { note in
+                if (note.object as? String) == "close" {
+                    MacroCreatorLink.shared.requestClose()
+                    return
+                }
+                MacroCreatorLink.shared.openSample()
+                openWindow(id: MacroCreatorLink.windowID)
                 NSApp.activate(ignoringOtherApps: true)
             }
     }

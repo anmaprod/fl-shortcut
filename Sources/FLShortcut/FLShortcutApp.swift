@@ -54,6 +54,15 @@ struct FLShortcutApp: App {
                 .frame(minWidth: 820, minHeight: 480)
         }
         .windowResizability(.contentMinSize)
+
+        // Créateur de macros : fenêtre créée à la demande (Raccourcis › Macros), libérée à sa fermeture.
+        Window("Créateur de macros", id: MacroCreatorLink.windowID) {
+            MacroCreatorView()
+                .environmentObject(store)
+                .frame(minWidth: 900, minHeight: 600)
+        }
+        .defaultSize(width: 1100, height: 700)
+        .windowResizability(.contentMinSize)
     }
 }
 
@@ -85,6 +94,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationWillTerminate(_ notification: Notification) {
         Store.shared.saveNow()
+        Store.shared.library.saveNow()
         EventTap.shared.stop()
         MIDILink.shared.stop()
     }

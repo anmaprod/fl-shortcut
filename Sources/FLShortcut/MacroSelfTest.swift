@@ -7,6 +7,10 @@
 // preset choisi chargé, piste 3 armée, REC allumé, entrée « In 1 », aucune action inattendue (Delete, Solo…).
 // Quatre passages : apprentissage, rejeu, puis « O » qui ne fait que surligner (Entrée apprise), rejeu.
 // Les durées de chaque étape sont affichées : c'est la mesure de vitesse de la macro.
+// `--scenario blocs` : une macro CONSTRUITE EN BLOCS par le code (comme dans le créateur, pas le modèle) — clic droit
+// sur la piste 5, S (Select), ←, ↓ ×5, Entrée (« Arm selected track(s) »), puis la touche REC — compilée comme une
+// macro de la bibliothèque et lancée par le même chemin que « Tester » dans le créateur (MacroRunMonitor) ; on
+// vérifie « arm 5 », « rec on », rien d'autre, et le suivi bloc par bloc.
 import AppKit
 import CoreGraphics
 import Foundation
@@ -25,9 +29,16 @@ enum MacroSelfTest {
         }
         let app = NSApplication.shared
         app.setActivationPolicy(.accessory)
+        let name = args.firstIndex(of: "--scenario").flatMap { args.count > $0 + 1 ? args[$0 + 1] : nil } ?? "modele"
         DispatchQueue.global(qos: .userInitiated).async {
-            let ok = scenario(statePath: statePath, pid: pid)
-            print(ok ? "PASS: macro complète sur le FL simulé (4 passages)" : "FAIL: voir ci-dessus")
+            let ok: Bool
+            if name == "blocs" {
+                ok = scenarioBlocs(statePath: statePath, pid: pid)
+                print(ok ? "PASS: macro construite en blocs sur le FL simulé (piste 5 armée par son menu, REC)" : "FAIL: voir ci-dessus")
+            } else {
+                ok = scenario(statePath: statePath, pid: pid)
+                print(ok ? "PASS: macro complète sur le FL simulé (4 passages)" : "FAIL: voir ci-dessus")
+            }
             fflush(stdout)
             exit(ok ? 0 : 1)
         }
@@ -184,5 +195,95 @@ enum MacroSelfTest {
         MacroRunner.testTrackPoint = nil
         try? FileManager.default.removeItem(at: dir)
         return allOK
+    }
+
+    // MARK: Scénario « blocs »
+
+    static func scenarioBlocs(statePath: String, pid: Int32) -> Bool {
+        guard let first = waitState(statePath, timeout: 15, { $0.point("track5") != nil }),
+              let empty = first.point("empty"), let track5 = first.point("track5") else {
+            print("FAIL: le FL simulé ne répond pas (\(statePath))")
+            return false
+        }
+        // FL simulé remis à zéro, lettres des menus qui activent leur élément.
+        DistributedNotificationCenter.default().postNotificationName(
+            Notification.Name("app.flshortcut.fakefl.mode"), object: "activate", userInfo: nil, deliverImmediately: true)
+        DistributedNotificationCenter.default().postNotificationName(
+            Notification.Name("app.flshortcut.fakefl.reset"), object: nil, userInfo: nil, deliverImmediately: true)
+        _ = waitState(statePath, timeout: 3) { s in
+            s.events.isEmpty && !s.rec && s.armed.isEmpty && (s.raw["oHighlights"] as? Bool) == false
+        }
+        if frontmost() != pid { userClick(empty) }
+        let end = Date().addingTimeInterval(3)
+        while frontmost() != pid, Date() < end { Thread.sleep(forTimeInterval: 0.05) }
+        print("au premier plan : \(NSWorkspace.shared.frontmostApplication?.localizedName ?? "?") (\(frontmost() ?? 0)), FL simulé \(pid)")
+        guard frontmost() == pid else { print("FAIL: le FL simulé n'est pas au premier plan"); return false }
+
+        // Macro construite bloc par bloc (pas le modèle), compilée comme une macro de la bibliothèque.
+        let doc = MacroDoc(name: "Armer la piste 5 et lancer le REC (blocs)",
+                           blocks: MacroTemplates.armThroughTrackMenu(rec: KeyRef(KeyCombo(keyCode: 15), char: "r")))
+        let program = MacroProgram.compile(doc, forbidden: .physical)
+        guard program.isRunnable else {
+            print("FAIL: macro invalide : \(program.problem ?? "?")")
+            return false
+        }
+        print("blocs : " + doc.blocks.map { BlockRegistry.journal(of: $0.body) }.joined(separator: " > "))
+
+        MacroRunner.testFLPID = pid
+        MacroRunner.testTrackPoint = track5
+        MacroLog.shared.echo = { tag, text, t in print(String(format: "    %6.3f s  %@ %@", t, tag, text)) }
+        defer {
+            MacroLog.shared.echo = nil
+            MacroRunner.testFLPID = nil
+            MacroRunner.testTrackPoint = nil
+        }
+
+        // Même chemin que « Tester » dans le créateur : suivi bloc par bloc, démarrage comme un raccourci.
+        let monitor = MacroRunMonitor()
+        let finished = DispatchSemaphore(value: 0)
+        let outcome = Locked<MacroOutcome?>(nil)
+        print("\n== Passage blocs : clic droit sur la piste 5, S, ←, ↓ ×5, Entrée, puis R ==")
+        let t0 = Date()
+        let started: MacroRunner.StartResult = DispatchQueue.main.sync {
+            monitor.start(program, pid: pid) { o in
+                outcome.withLock { $0 = o }
+                finished.signal()
+            }
+        }
+        guard started == .started else {
+            print("FAIL: essai refusé (\(started))")
+            return false
+        }
+        guard finished.wait(timeout: .now() + 30) == .success else {
+            print("FAIL: la macro ne s'est pas terminée en 30 s")
+            return false
+        }
+        let ms = Int(Date().timeIntervalSince(t0) * 1000)
+        Thread.sleep(forTimeInterval: 0.3)
+        let s = read(statePath) ?? FakeState(raw: [:])
+        let report: (statuses: [UUID: MacroRunMonitor.Status], current: UUID?) = DispatchQueue.main.sync {
+            (monitor.statuses, monitor.current)
+        }
+        var problems: [String] = []
+        if outcome.value != .done { problems.append("résultat « \(outcome.value?.text ?? "aucun") »") }
+        if s.events != ["arm 5", "rec on"] { problems.append("actions \(s.events) au lieu de [arm 5, rec on]") }
+        if !s.armed.contains(5) { problems.append("piste 5 non armée (\(s.armed))") }
+        if !s.rec { problems.append("REC éteint") }
+        if s.menusOpen != 0 { problems.append("\(s.menusOpen) menu(s) resté(s) ouvert(s)") }
+        let notDone = doc.blocks.indices.filter { i in
+            if case .done? = report.statuses[doc.blocks[i].id] { return false }
+            return true
+        }
+        if !notDone.isEmpty { problems.append("suivi : bloc(s) \(notDone.map { $0 + 1 }) sans « fait »") }
+        if report.current != nil { problems.append("un bloc reste marqué « en cours »") }
+        print("résultat : \(outcome.value?.text ?? "?") — \(ms) ms au total")
+        print("suivi du créateur : \(report.statuses.count) bloc(s) suivis, \(doc.blocks.count - notDone.count)/\(doc.blocks.count) faits")
+        print("FL simulé : sélectionnée=\(s.raw["selected"] ?? "?") armées=\(s.armed) REC=\(s.rec) actions=\(s.events)")
+        if problems.isEmpty {
+            print("OK passage blocs")
+        } else {
+            print("ÉCHEC passage blocs : " + problems.joined(separator: " ; "))
+        }
+        return problems.isEmpty
     }
 }

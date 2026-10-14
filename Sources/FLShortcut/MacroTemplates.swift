@@ -197,6 +197,40 @@ extension MacroTemplates {
     }
 }
 
+extension MacroTemplates {
+    /// Armer la piste visée par son menu, construit à la main avec des blocs simples (essai « blocs » de la CI,
+    /// exemple du créateur) : clic droit sur la piste, S (Select), ←, ↓ ×5, Entrée = « Arm selected track(s) »,
+    /// puis la touche REC de FL.
+    static func armThroughTrackMenu(rec: KeyRef) -> [Block] {
+        [
+            Block(.click(.track(dx: 0, dy: 0), button: .right), note: "Ouvre le menu de la piste"),
+            Block(.waitWindow(.menu, timeoutMs: 1_500)),
+            Block(.menuLetters(["s"], finalEnter: .never), note: "Select"),
+            Block(.delay(ms: 200)),
+            Block(.menuKey(.left, times: 1)),
+            Block(.menuKey(.down, times: 5), note: "Jusqu'à « Arm selected track(s) »"),
+            Block(.menuKey(.enter, times: 1)),
+            Block(.waitWindowClose(.menu, timeoutMs: 1_000)),
+            Block(.key(rec, times: 1), note: "Touche REC de FL"),
+        ]
+    }
+
+    /// Macro d'exemple de la mesure de l'interface (jamais enregistrée) : les blocs de l'essai « blocs », dans une
+    /// macro qui montre aussi un commentaire, une boucle et des badges.
+    static func sampleForCapture(layout: KeyboardLayout) -> MacroDoc {
+        let rec = AppMode.nativeEquivalent(of: 3, layout: layout) ?? KeyCombo(keyCode: MacroLibrary.fallbackRecKeyCode)
+        let mixer = AppMode.nativeEquivalent(of: 33, layout: layout) ?? KeyCombo(keyCode: 101)
+        var blocks = [Block(.comment("Clique d'abord sur ta piste dans le Mixer, puis lance le raccourci"))]
+        blocks += armThroughTrackMenu(rec: KeyRef(rec))
+        blocks += [
+            Block(.selectInput(.legacy(key: MacroSpots.PathKind.input.rawValue))),
+            Block(.repeatCount(2, [Block(.flAction(key: "mx", fallback: .key(KeyRef(mixer))))])),
+            Block(.feedbackCheck),
+        ]
+        return MacroDoc(name: "Armer la piste et lancer le REC (exemple)", blocks: blocks, origin: .template("exemple"))
+    }
+}
+
 extension BlockBody {
     /// Même bloc avec d'autres listes imbriquées (dans l'ordre de `children` : alors puis sinon, ou corps).
     func replacingChildren(_ lists: [[Block]]) -> BlockBody {

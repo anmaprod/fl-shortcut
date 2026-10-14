@@ -167,19 +167,29 @@ jobs:
           BIN="dist/FL Shortcut.app/Contents/MacOS/FLShortcut"
           STATE="$RUNNER_TEMP/fakefl.json"
           OUT="$PWD/dist/mesure/selftest-macro.txt"
+          OUT2="$PWD/dist/mesure/selftest-macro-blocs.txt"
           pkill -x FLShortcut 2>/dev/null || true
           "$BIN" --fake-fl "$STATE" &
           fake=$!
           sleep 3
+          # 1. Modèle « Enregistrement rapide » : 4 passages (inchangé).
           "$BIN" --selftest-macro "$OUT" "$STATE" "$fake" &
           drv=$!
           ( for i in $(seq -w 1 40); do screencapture -x "dist/mesure/selftest-macro-$i.png" 2>/dev/null; sleep 1; done ) &
           ( sleep 150; kill "$drv" 2>/dev/null ) &
           status=0; wait "$drv" || status=$?
+          # 2. Macro construite en blocs, lancée par le même chemin que « Tester » dans le créateur.
+          "$BIN" --selftest-macro "$OUT2" "$STATE" "$fake" --scenario blocs &
+          drv2=$!
+          ( for i in $(seq -w 1 8); do screencapture -x "dist/mesure/selftest-blocs-$i.png" 2>/dev/null; sleep 0.7; done ) &
+          ( sleep 60; kill "$drv2" 2>/dev/null ) &
+          status2=0; wait "$drv2" || status2=$?
           kill "$fake" 2>/dev/null || true
-          { echo "## Essai de la macro sur le FL simulé"; echo '```'; cat "$OUT"; echo '```'; } | tee -a "$GITHUB_STEP_SUMMARY"
-          grep -Eq '^(PASS|SKIP)' "$OUT" && exit 0
-          exit "${status:-1}"
+          { echo "## Essai de la macro sur le FL simulé"; echo '```'; cat "$OUT"; echo '```'
+            echo "## Essai d'une macro construite en blocs (chemin du bouton « Tester »)"; echo '```'; cat "$OUT2"; echo '```'; } | tee -a "$GITHUB_STEP_SUMMARY"
+          grep -Eq '^(PASS|SKIP)' "$OUT" && grep -Eq '^(PASS|SKIP)' "$OUT2" && exit 0
+          [[ "$status" != 0 ]] && exit "$status"
+          exit "${status2:-1}"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: FLShortcut-mac
