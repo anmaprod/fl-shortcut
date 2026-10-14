@@ -20,11 +20,21 @@ final class SafetyTests: XCTestCase {
         XCTAssertFalse(f.isForbidden(KeyCombo(keyCode: 53, option: true)))                         // ⌥Échap
     }
 
+    /// La touche qui quitte (ou ferme) dans la disposition active ; jamais la lettre qui est à sa place en QWERTY.
     func testBlacklistFollowsLayout() {
         let azerty = ForbiddenTargets.make(layout: FakeLayout.azerty)
         XCTAssertTrue(azerty.isForbidden(KeyCombo(keyCode: 0, command: true)))     // ⌘Q en AZERTY
         XCTAssertTrue(azerty.isForbidden(KeyCombo(keyCode: 6, command: true)))     // ⌘W en AZERTY
-        XCTAssertTrue(azerty.isForbidden(KeyCombo(keyCode: 12, command: true)))    // position Q toujours bloquée
+        XCTAssertFalse(azerty.isForbidden(KeyCombo(keyCode: 12, command: true)))   // ⌘A en AZERTY (signalé)
+        XCTAssertFalse(azerty.isForbidden(KeyCombo(keyCode: 13, command: true)))   // ⌘Z en AZERTY
+        let qwerty = ForbiddenTargets.make(layout: FakeLayout.qwerty)
+        XCTAssertTrue(qwerty.isForbidden(KeyCombo(keyCode: 12, command: true)))    // ⌘Q
+        XCTAssertTrue(qwerty.isForbidden(KeyCombo(keyCode: 13, command: true)))    // ⌘W
+        XCTAssertFalse(qwerty.isForbidden(KeyCombo(keyCode: 0, command: true)))    // ⌘A
+        // Aucune lettre latine : positions physiques Q et W.
+        let russian = ForbiddenTargets.make(layout: FakeLayout.russian)
+        XCTAssertTrue(russian.isForbidden(KeyCombo(keyCode: 12, command: true)))
+        XCTAssertTrue(russian.isForbidden(KeyCombo(keyCode: 13, command: true)))
     }
 
     func testImportDropsForbiddenTargets() throws {

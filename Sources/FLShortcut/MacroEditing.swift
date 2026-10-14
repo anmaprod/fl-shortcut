@@ -478,14 +478,11 @@ enum PaletteCatalog {
             item("menuLetters", .menuLetters) { .menuLetters(["f"], finalEnter: .never) },
             item("menuKey", .menuKey) { .menuKey(.down, times: 1) },
             // Souris
+            // Un seul bloc de clic : bouton gauche ou droit, endroit montré dans FL, piste visée, près du clic précédent…
+            // (l'ancien « Clic droit sur la piste » en était un doublon).
             item("clickLearned", .click, label: "Clic à un endroit appris",
-                 aide: "Clic à un endroit que tu montres une fois dans FL (« Montrer dans FL… »), retrouvé ensuite par rapport à la fenêtre ou au menu de FL. Jamais hors de FL ni sous une autre app.") {
+                 aide: "Clic gauche ou droit à un endroit que tu montres une fois dans FL (« Montrer dans FL… »), retrouvé ensuite par rapport à la fenêtre ou au menu de FL ; ou sur la piste visée. Jamais hors de FL ni sous une autre app.") {
                 .click(.toLearn, button: .left)
-            },
-            item("clickTrack", .click, label: "Clic droit sur la piste",
-                 aide: "Clic droit sur la dernière piste cliquée dans le Mixer : ouvre le menu de la piste (à suivre de « Attendre un menu »).",
-                 symbol: "cursorarrow.rays") {
-                .click(.track(dx: 0, dy: 0), button: .right)
             },
             // Fenêtres et attentes
             item("delay", .delay) { .delay(ms: 200) },

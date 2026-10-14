@@ -420,6 +420,7 @@ final class MacroEditorModel: ObservableObject {
         // Ports MIDI à la demande : seulement le temps de l'essai.
         testing = true
         store.setEditorNeeds(needs)
+        MacroCreatorWindowController.stepAside()        // jamais un clic de l'essai sur le créateur
         fl.activate(options: [])
         waitForFL(program, pid: pid, tries: 40)
     }
@@ -469,6 +470,7 @@ final class MacroEditorModel: ObservableObject {
     private func endTest() {
         preparingTest = false
         testing = false
+        MacroCreatorWindowController.comeBack()
         store.setEditorNeeds(openNeeds)
     }
 

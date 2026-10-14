@@ -260,17 +260,48 @@ private struct BlockInspector: View {
 
     // MARK: Touche
 
+    /// Touche capturée (raccourci compris : ⌘A…), et ⌘ ⌥ ⌃ ⇧ à cocher : un raccourci que macOS garde pour lui se
+    /// règle quand même (touche seule, puis modificateurs).
     private func keyField(_ combo: KeyCombo) -> some View {
-        CaptureField(id: "macro-block-\(block.id)", role: .target, combo: Binding(get: { combo }, set: { new in
-            guard let new else { return }                   // une touche est obligatoire : ⌫ ne l'efface pas
-            setBody(key: "key") { body in
-                if case .key(var ref, let n) = body {
-                    ref.combo = new
-                    ref.char = nil
-                    body = .key(ref, times: n)
-                }
+        VStack(alignment: .trailing, spacing: 6) {
+            CaptureField(id: "macro-block-\(block.id)", role: .target, combo: Binding(get: { combo }, set: { new in
+                guard let new else { return }               // une touche est obligatoire : ⌫ ne l'efface pas
+                setKey(new)
+            }))
+            HStack(spacing: 4) {
+                modifierToggle("⌘", "Commande", \.command, combo)
+                modifierToggle("⌥", "Option", \.option, combo)
+                modifierToggle("⌃", "Contrôle", \.control, combo)
+                modifierToggle("⇧", "Majuscule", \.shift, combo)
             }
+        }
+    }
+
+    private func modifierToggle(_ symbol: String, _ name: String, _ path: WritableKeyPath<KeyCombo, Bool>,
+                                _ combo: KeyCombo) -> some View {
+        Toggle(symbol, isOn: Binding(get: { combo[keyPath: path] }, set: { on in
+            var new = combo
+            new[keyPath: path] = on
+            if let why = Store.shared.forbiddenReason(new) {
+                Dialogs.inform("Touche interdite", "\(new.display) ne peut pas être envoyée à FL : \(why).")
+                return
+            }
+            setKey(new)
         }))
+        .toggleStyle(.button)
+        .font(.system(size: 13, weight: .medium))
+        .help("\(name) avec la touche")
+        .accessibilityLabel(name)
+    }
+
+    private func setKey(_ new: KeyCombo) {
+        setBody(key: "key") { body in
+            if case .key(var ref, let n) = body {
+                ref.combo = new
+                ref.char = nil
+                body = .key(ref, times: n)
+            }
+        }
     }
 
     // MARK: Nombres bornés
@@ -673,6 +704,7 @@ final class ClickTeacher: ObservableObject {
         say("Dans FL : clique une fois à l'endroit voulu (Échap pour annuler).", for: block)
         history = []
         started = Date()
+        MacroCreatorWindowController.stepAside()
         fl.activate(options: [])
         ClickRecorder.shared.start()
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) { [weak self] in
@@ -728,6 +760,7 @@ final class ClickTeacher: ObservableObject {
     private func finish(_ target: ClickTarget?) {
         stop()
         activeBlock = nil
+        MacroCreatorWindowController.comeBack()
         // Retour dans le créateur.
         if let window = returnWindow {
             NSApp.activate(ignoringOtherApps: true)

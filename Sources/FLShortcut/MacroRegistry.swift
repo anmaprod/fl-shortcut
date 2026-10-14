@@ -247,8 +247,8 @@ private enum Specs {
     // MARK: Clavier
 
     static let key = BlockSpec(
-        type: .key, label: "Touche", category: .clavier, symbol: "keyboard",
-        aide: "Envoie une touche (avec ses modificateurs) à FL, seulement quand FL est au premier plan. Les touches dangereuses (⌘Q, ⌘W…) sont refusées.",
+        type: .key, label: "Touche ou raccourci", category: .clavier, symbol: "keyboard",
+        aide: "Envoie une touche ou un raccourci clavier à FL (⌘A, ⇧⌘S, F9…), seulement quand FL est au premier plan. Clique le champ puis tape le raccourci, ou coche ⌘ ⌥ ⌃ ⇧. Les raccourcis dangereux (⌘Q, ⌘W…) sont refusés.",
         params: [ParamSpec("key", "Touche", .touche), ParamSpec("times", "Nombre de fois", .nombre(1...20))],
         conteneur: .aucun, dansLaPalette: true,
         needs: { _ in base },

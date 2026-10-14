@@ -270,7 +270,10 @@ final class MacroEffectsMac: MacroEffects {
                 ready.signal()
             }
         }
-        DispatchQueue.main.sync { HintPanel.shared.hide() }       // synchrone : jamais notre bulle sous un clic
+        DispatchQueue.main.sync {                                  // synchrone : jamais notre bulle sous un clic,
+            HintPanel.shared.hide()                                // ni le créateur de macros devant FL
+            MacroCreatorWindowController.stepAside()
+        }
         guard CGPreflightPostEventAccess() else {
             return "autorise FL Shortcut dans Réglages Système › Confidentialité et sécurité › Accessibilité"
         }
@@ -304,7 +307,10 @@ final class MacroEffectsMac: MacroEffects {
 
     func pause(ms: Int) -> StepResult { pause(ms, pid: pid) }
 
-    func cleanup(state: inout RunState) { restoreCursor() }
+    func cleanup(state: inout RunState) {
+        restoreCursor()
+        DispatchQueue.main.async { MacroCreatorWindowController.comeBack() }
+    }
 
     // MARK: Blocs simples
 

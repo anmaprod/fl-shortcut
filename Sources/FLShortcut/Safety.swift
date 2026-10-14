@@ -5,8 +5,10 @@
 //         disposition active, recalculée à chaque changement).
 import Foundation
 
-/// Cibles interdites. Les touches physiques Q (12) et W (13) sont toujours incluses, plus les touches qui
-/// produisent « q » / « w » avec ⌘ dans la disposition active (AZERTY : ⌘Q est sur la touche 0).
+/// Cibles interdites : les touches qui produisent « q » / « w » (avec ⌘, et seules) dans la disposition active
+/// (AZERTY : ⌘Q est sur la touche 0, ⌘W sur la 6). Disposition sans ces lettres ou illisible : touches physiques Q
+/// (12) et W (13). Les positions 12 et 13 ne sont plus bloquées dans toutes les dispositions : en AZERTY ce sont
+/// ⌘A et ⌘Z, refusés à tort. Recalculé à chaque changement de disposition et revérifié juste avant chaque envoi.
 struct ForbiddenTargets: Hashable {
     var quitKeys: Set<UInt16>
     var closeKeys: Set<UInt16>
@@ -14,14 +16,12 @@ struct ForbiddenTargets: Hashable {
     static let physical = ForbiddenTargets(quitKeys: [12], closeKeys: [13])
 
     static func make(layout: KeyboardLayout) -> ForbiddenTargets {
-        var f = physical
-        for code in [KeyNames.commandKeyCode(for: "q", layout: layout), KeyNames.keyCode(for: "q", layout: layout)] {
-            if let code { f.quitKeys.insert(code) }
+        func codes(_ letter: String) -> Set<UInt16> {
+            Set([KeyNames.commandKeyCode(for: letter, layout: layout), KeyNames.keyCode(for: letter, layout: layout)]
+                .compactMap { $0 })
         }
-        for code in [KeyNames.commandKeyCode(for: "w", layout: layout), KeyNames.keyCode(for: "w", layout: layout)] {
-            if let code { f.closeKeys.insert(code) }
-        }
-        return f
+        let q = codes("q"), w = codes("w")
+        return ForbiddenTargets(quitKeys: q.isEmpty ? physical.quitKeys : q, closeKeys: w.isEmpty ? physical.closeKeys : w)
     }
 
     /// Raison du refus, ou `nil` si la cible est autorisée.

@@ -254,7 +254,7 @@ final class MacroInterpreterTests: XCTestCase {
         let outcome = run([b(.delay(ms: 1)),
                            b(.ifElse(.lastBlockFailed, then: [], otherwise: [b(.delay(ms: 2)), b(key)]))], failing)
         // Le sinon continue la numérotation du alors (vide) : 2.2.
-        XCTAssertEqual(outcome, .failedInBlock(path: "2.2", label: "Touche", reason: "touche interdite"))
+        XCTAssertEqual(outcome, .failedInBlock(path: "2.2", label: "Touche ou raccourci", reason: "touche interdite"))
         XCTAssertEqual(outcome.text, "Macro arrêtée au bloc 2.2 (Touche) : touche interdite")
         XCTAssertTrue(failing.stepLines.contains("2.2/2 key …"))
     }

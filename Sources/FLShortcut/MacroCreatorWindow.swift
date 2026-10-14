@@ -3,6 +3,9 @@
 // - Le contrôleur possède la fenêtre et le modèle ; à la fermeture : brouillon enregistré, « Montrer dans FL… » et
 //   essai en préparation arrêtés, besoins rendus (MacroEditorModel.close), puis vue et fenêtre lâchées.
 // - Rien au repos : ni minuterie ni observateur, seulement le délégué de la fenêtre ouverte.
+// - Ouvert, il reste devant FL (niveau flottant tant que FL ou l'app est au premier plan : plus besoin de le chercher
+//   parmi les fenêtres) ; il passe derrière pendant « Montrer dans FL… », « Enregistrer des clics », un essai ou une
+//   macro (leurs clics ne doivent jamais tomber sur lui), puis revient devant.
 import AppKit
 import SwiftUI
 
@@ -20,6 +23,40 @@ final class MacroCreatorWindowController: NSObject, NSWindowDelegate {
     }
 
     var isOpen: Bool { window != nil }
+
+    // MARK: Devant FL
+
+    /// Créateur ouvert (nil sinon) : les macros et l'apprentissage le font passer derrière sans jamais le créer.
+    private static weak var open: MacroCreatorWindowController?
+    /// Derrière FL : « Montrer dans FL… », « Enregistrer des clics », essai ou macro en cours.
+    private var aside = false
+    private var activationObserver: NSObjectProtocol?
+
+    /// FL va recevoir des clics de l'utilisateur ou de la macro : le créateur passe derrière (jamais un clic dessus).
+    static func stepAside() {
+        guard let c = open, let window = c.window, !window.isMiniaturized else { return }
+        c.aside = true
+        window.level = .normal
+        if window.isVisible { window.orderBack(nil) }
+    }
+
+    /// Fini : le créateur revient devant FL, sans lui prendre le premier plan.
+    static func comeBack() {
+        guard let c = open, c.aside else { return }
+        c.aside = false
+        c.refreshLevel()
+        if let window = c.window, window.level == .floating, window.isVisible, !window.isMiniaturized { window.orderFront(nil) }
+    }
+
+    /// Devant les fenêtres de FL tant que FL (ou l'app) est au premier plan : plus besoin de le chercher parmi les
+    /// fenêtres ouvertes. Une autre app au premier plan : à sa place parmi les fenêtres, comme d'habitude.
+    private func refreshLevel() {
+        guard let window, !aside else { return }
+        let front = NSWorkspace.shared.frontmostApplication?.processIdentifier
+        let besideFL = front == getpid() || front.map { EventTap.shared.currentConfig.flPIDs.contains($0) } ?? false
+        let level: NSWindow.Level = besideFL ? .floating : .normal
+        if window.level != level { window.level = level }
+    }
 
     /// Ouvre la fenêtre, ou la ramène devant. La macro montrée vient de la demande de MacroCreatorLink.
     func show() {
@@ -51,6 +88,14 @@ final class MacroCreatorWindowController: NSObject, NSWindowDelegate {
         model.window = w
         self.model = model
         window = w
+        Self.open = self
+        aside = false
+        w.level = .floating
+        // Seulement pendant que le créateur est ouvert : suit l'app au premier plan (devant FL, pas devant les autres).
+        activationObserver = NSWorkspace.shared.notificationCenter.addObserver(
+            forName: NSWorkspace.didActivateApplicationNotification, object: nil, queue: .main) { [weak self] _ in
+            self?.refreshLevel()
+        }
         w.makeKeyAndOrderFront(nil)
         NSApplication.shared.activate(ignoringOtherApps: true)
     }
@@ -59,6 +104,10 @@ final class MacroCreatorWindowController: NSObject, NSWindowDelegate {
 
     func windowWillClose(_ notification: Notification) {
         guard let closing = notification.object as? NSWindow, closing === window else { return }
+        if let o = activationObserver { NSWorkspace.shared.notificationCenter.removeObserver(o) }
+        activationObserver = nil
+        if Self.open === self { Self.open = nil }
+        aside = false
         model?.close()
         closing.delegate = nil
         model = nil
