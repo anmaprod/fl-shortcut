@@ -55,14 +55,8 @@ struct FLShortcutApp: App {
         }
         .windowResizability(.contentMinSize)
 
-        // Créateur de macros : fenêtre créée à la demande (Raccourcis › Macros), libérée à sa fermeture.
-        Window("Créateur de macros", id: MacroCreatorLink.windowID) {
-            MacroCreatorView()
-                .environmentObject(store)
-                .frame(minWidth: 900, minHeight: 600)
-        }
-        .defaultSize(width: 1100, height: 700)
-        .windowResizability(.contentMinSize)
+        // Pas de scène pour le créateur de macros : fenêtre AppKit (MacroCreatorWindowController), libérée à sa
+        // fermeture (une scène `Window` refermée garde sa vue et son modèle en mémoire).
     }
 }
 

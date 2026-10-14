@@ -111,15 +111,13 @@ struct EditorView: View {
     @State private var editNotice: String? = nil
     @AppStorage(Appearance.glassKey) private var glassEnabled = true
     @Namespace private var glassNS
-    @Environment(\.openWindow) private var openWindow
 
     private var trimmedQuery: String { query.trimmingCharacters(in: .whitespaces) }
 
     /// Ouvre le créateur de macros (fenêtre à part, créée à la demande) sur cette macro.
     private func openCreator(_ id: UUID?) {
         MacroCreatorLink.shared.open(id)
-        openWindow(id: MacroCreatorLink.windowID)
-        NSApp.activate(ignoringOtherApps: true)
+        MacroCreatorWindowController.shared.show()
     }
 
     var body: some View {

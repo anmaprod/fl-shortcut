@@ -1,11 +1,13 @@
-// Créateur de macros : état de la fenêtre. Créé à l'ouverture de la fenêtre et libéré à sa fermeture.
+// Créateur de macros : état de la fenêtre. Créé à l'ouverture de la fenêtre et libéré à sa fermeture
+// (MacroCreatorWindowController) ; `close()` d'abord : après, plus rien n'écrit dans la bibliothèque.
 // - Édition sur un BROUILLON : enregistré dans la bibliothèque par « Enregistrer » (⌘S) ou 0,5 s après la dernière
 //   modification, jamais à chaque frappe (le Store ne recalcule l'index qu'à l'enregistrement).
 // - Liste à plat recalculée en O(n) seulement après une modification (MacroOutline) ; lignes Equatable.
 // - Annuler / Rétablir (⌘Z / ⇧⌘Z) par le gestionnaire d'annulation de la fenêtre ; les frappes d'un même champ
 //   sont regroupées en une seule étape.
 // - « Tester » : FL passe devant, puis la macro tourne par le même chemin qu'un raccourci, suivie bloc par bloc
-//   (MacroRunMonitor, branché seulement pendant l'essai).
+//   (MacroRunMonitor, branché seulement pendant l'essai). Ses besoins (ports MIDI à la demande, dernière piste
+//   cliquée) ne sont annoncés au Store que pendant l'essai, jamais à l'ouverture.
 import AppKit
 import Combine
 import Foundation
@@ -41,6 +43,8 @@ final class MacroEditorModel: ObservableObject {
     private var lastUndoAt = Date.distantPast
     private var learnedInput = false
     private var terminateObserver: NSObjectProtocol?
+    /// Fenêtre fermée : plus d'enregistrement ni d'essai.
+    private var closed = false
 
     static let saveDelay: TimeInterval = 0.5
 
@@ -124,9 +128,14 @@ final class MacroEditorModel: ObservableObject {
         load(doc.id)
     }
 
-    /// Fenêtre fermée : enregistrement, plus aucun besoin annoncé (mémoire de la piste rendue au repos).
+    /// Fenêtre fermée (une seule fois, les appels suivants ne font rien) : « Montrer dans FL… » annulé (son clic
+    /// n'écrira rien), brouillon enregistré, essai en préparation abandonné, besoins rendus (rien au repos).
     func close() {
+        guard !closed else { return }
+        ClickTeacher.shared.cancel(nil)
         saveNow()
+        closed = true
+        preparingTest = false
         undoManager?.removeAllActions(withTarget: self)
         store.setEditorNeeds([])
     }
@@ -139,7 +148,6 @@ final class MacroEditorModel: ObservableObject {
             problem = nil
             estimateMs = 0
             needs = []
-            store.setEditorNeeds([])
             return
         }
         let ctx = validationContext
@@ -147,7 +155,6 @@ final class MacroEditorModel: ObservableObject {
         problem = MacroValidation.problem(in: draft, context: ctx)
         estimateMs = MacroValidation.estimateMs(draft.blocks)
         needs = MacroValidation.needs(of: draft.blocks)
-        store.setEditorNeeds(needs)
         if let s = selection, !rows.contains(where: { $0.id == s }) { selection = nil }
     }
 
@@ -281,7 +288,7 @@ final class MacroEditorModel: ObservableObject {
     // MARK: Enregistrement
 
     private func markDirty() {
-        guard !ephemeral else { return }
+        guard !ephemeral, !closed else { return }
         dirty = true
         pendingSave?.cancel()
         let work = DispatchWorkItem { [weak self] in self?.saveNow() }
@@ -336,7 +343,7 @@ final class MacroEditorModel: ObservableObject {
 
     /// « Tester » : FL passe devant, puis la macro tourne exactement comme depuis son raccourci. Échap l'arrête.
     func test() {
-        guard !monitor.running, !preparingTest else { return }
+        guard !closed, !monitor.running, !preparingTest else { return }
         saveNow()
         notice = nil
         let compiled = programForTest()
@@ -351,18 +358,21 @@ final class MacroEditorModel: ObservableObject {
         }
         monitor.clear()
         preparingTest = true
+        // Ports MIDI à la demande, dernière piste cliquée : seulement le temps de l'essai.
+        store.setEditorNeeds(needs)
         fl.activate(options: [])
         waitForFL(program, pid: pid, tries: 40)
     }
 
     private func waitForFL(_ program: MacroProgram, pid: Int32, tries: Int) {
+        guard !closed else { return }                       // fenêtre fermée pendant la préparation
         if EventTap.shared.currentConfig.frontmostPID == pid {
             // Un court instant : la fenêtre de FL finit de passer devant.
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) { [weak self] in self?.launch(program, pid: pid) }
             return
         }
         guard tries > 0 else {
-            preparingTest = false
+            endTest()
             monitor.refuse("FL Studio n'est pas passé au premier plan : recommence.")
             return
         }
@@ -372,20 +382,33 @@ final class MacroEditorModel: ObservableObject {
     }
 
     private func launch(_ program: MacroProgram, pid: Int32) {
+        guard !closed else { return }
         preparingTest = false
         let result = monitor.start(program, pid: pid) { [weak self] _ in
+            guard let self, !self.closed else { return }
+            self.endTest()
             // Retour dans le créateur pour lire le résultat (FL reste tel que la macro l'a laissé).
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                guard let self, let window = self.window else { return }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { [weak self] in
+                guard let self, !self.closed, let window = self.window else { return }
                 NSApp.activate(ignoringOtherApps: true)
                 window.makeKeyAndOrderFront(nil)
             }
         }
         switch result {
         case .started: break
-        case .busy: monitor.refuse("Une macro tourne déjà.")
-        case .refused: monitor.refuse("FL Studio n'était plus au premier plan : recommence sans changer de fenêtre.")
+        case .busy:
+            endTest()
+            monitor.refuse("Une macro tourne déjà.")
+        case .refused:
+            endTest()
+            monitor.refuse("FL Studio n'était plus au premier plan : recommence sans changer de fenêtre.")
         }
+    }
+
+    /// Essai fini ou abandonné : ses besoins ne sont plus annoncés.
+    private func endTest() {
+        preparingTest = false
+        store.setEditorNeeds([])
     }
 
     /// « Montrer le bloc » du bandeau de résultat.

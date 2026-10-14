@@ -1,4 +1,5 @@
-// Créateur de macros : fenêtre à part (scène `Window` ouverte à la demande, libérée à la fermeture).
+// Créateur de macros : fenêtre à part (AppKit, MacroCreatorWindowController : créée à la demande, libérée à la
+// fermeture avec sa vue et son modèle).
 // - À gauche, la palette (barre latérale en verre du système) ; au centre, la liste à plat des étapes avec retrait
 //   selon l'imbrication (une phrase en français par ligne, valeurs en pastilles, icône colorée de la catégorie, case
 //   « actif », badges) ; à droite, l'inspecteur du bloc choisi.
@@ -11,11 +12,10 @@
 import AppKit
 import SwiftUI
 
-/// Demande d'ouverture du créateur (fenêtre unique) : quelle macro montrer.
+/// Demande d'ouverture du créateur (fenêtre unique) : quelle macro montrer. Puis
+/// `MacroCreatorWindowController.shared.show()`.
 final class MacroCreatorLink: ObservableObject {
     static let shared = MacroCreatorLink()
-    /// Identifiant de la scène `Window` du créateur.
-    static let windowID = "macro-creator"
 
     struct Request: Equatable {
         let serial: Int
@@ -25,8 +25,6 @@ final class MacroCreatorLink: ObservableObject {
     }
 
     @Published private(set) var request: Request?
-    /// Fermeture demandée (mesure de l'interface).
-    @Published private(set) var closeSerial = 0
     private var serial = 0
 
     private init() {}
@@ -41,13 +39,15 @@ final class MacroCreatorLink: ObservableObject {
         request = Request(serial: serial, id: nil, sample: true)
     }
 
-    func requestClose() { closeSerial += 1 }
+    /// Fermeture demandée (mesure de l'interface).
+    func requestClose() { MacroCreatorWindowController.shared.close() }
 }
 
 struct MacroCreatorView: View {
     @EnvironmentObject var store: Store
     @ObservedObject private var link = MacroCreatorLink.shared
-    @StateObject private var model = MacroEditorModel()
+    /// Possédé par MacroCreatorWindowController (libéré avec la fenêtre).
+    @ObservedObject var model: MacroEditorModel
     @Environment(\.undoManager) private var undoManager
     @AppStorage(Appearance.glassKey) private var glassEnabled = true
     @State private var paletteItems: [PaletteItem] = []
@@ -68,15 +68,12 @@ struct MacroCreatorView: View {
         .navigationTitle(model.draft?.name ?? "Créateur de macros")
         .toolbar { toolbarContent }
         .windowGlass(glassEnabled)
-        .background(WindowFinder { window in model.window = window })
         .onAppear {
             model.undoManager = undoManager
             if paletteItems.isEmpty { paletteItems = PaletteCatalog.items(layout: store.layout) }
             handle(link.request)
         }
-        .onDisappear { model.close() }
         .onChange(of: link.request) { request in handle(request) }
-        .onChange(of: link.closeSerial) { _ in model.window?.close() }
     }
 
     private func handle(_ request: MacroCreatorLink.Request?) {
@@ -614,29 +611,5 @@ private struct MacroSwitcher: View {
             Label("Macros", systemImage: "list.bullet")
         }
         .help("Ouvrir une autre macro de la bibliothèque")
-    }
-}
-
-// MARK: - Fenêtre AppKit de la vue
-
-/// Donne la fenêtre AppKit qui contient la vue (retour au créateur après un essai, fermeture par la mesure).
-struct WindowFinder: NSViewRepresentable {
-    let found: (NSWindow?) -> Void
-
-    func makeNSView(context: Context) -> NSView {
-        let view = FinderView()
-        view.found = found
-        return view
-    }
-
-    func updateNSView(_ nsView: NSView, context: Context) {}
-
-    final class FinderView: NSView {
-        var found: ((NSWindow?) -> Void)?
-
-        override func viewDidMoveToWindow() {
-            super.viewDidMoveToWindow()
-            found?(window)
-        }
     }
 }

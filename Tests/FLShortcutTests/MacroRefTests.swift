@@ -115,7 +115,7 @@ final class MacroRefTests: XCTestCase {
         // Désactivé : plus rien n'est suivi.
         store.remaps[0].enabled = false
         XCTAssertTrue(store.activeNeeds.isEmpty)
-        // Le créateur ouvert annonce ses besoins.
+        // Un essai dans le créateur annonce ses besoins.
         store.setEditorNeeds([.pisteVisee])
         XCTAssertEqual(store.activeNeeds, [.pisteVisee])
         store.setEditorNeeds([])

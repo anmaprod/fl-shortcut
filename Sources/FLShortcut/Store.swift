@@ -70,9 +70,9 @@ final class Store: ObservableObject {
     let library: MacroLibraryStore
     /// Programmes de la bibliothèque compilés au dernier `recompute` (en cache par id et révision).
     private(set) var programs: [UUID: MacroProgram] = [:]
-    /// Besoins agrégés des macros que les raccourcis peuvent lancer (et du créateur ouvert).
+    /// Besoins agrégés des macros que les raccourcis peuvent lancer (et de l'essai en cours dans le créateur).
     private(set) var activeNeeds: BlockNeeds = []
-    /// Besoins de la macro ouverte dans le créateur (essai : piste visée, lien MIDI) ; vide quand il est fermé.
+    /// Besoins de la macro essayée dans le créateur (piste visée, lien MIDI), le temps de l'essai ; vide sinon.
     private var editorNeeds: BlockNeeds = []
     /// Disponibilité des actions (masque du script ou version de FL), fournie par AppStatus.
     var availability: (Int) -> ActionAvailability = ({ _ in .unverified }) {
@@ -217,7 +217,7 @@ final class Store: ObservableObject {
         index = ShortcutIndex(remaps: remaps, blocked: ShortcutAnalyzer.blocked(found), forbidden: forbidden,
                               programs: programs)
         pushConfig()
-        // Besoins des macros que les raccourcis peuvent vraiment lancer (et de celle ouverte dans le créateur).
+        // Besoins des macros que les raccourcis peuvent vraiment lancer (et de celle essayée dans le créateur).
         activeNeeds = index.macroPrograms.reduce(editorNeeds) { $0.union($1.needs) }
         if pushToTap {
             // « La piste sur laquelle j'ai cliqué » : suivie seulement si une macro vise la dernière piste cliquée.
@@ -227,8 +227,8 @@ final class Store: ObservableObject {
         }
     }
 
-    /// Le créateur de macros ouvert annonce les besoins de sa macro (vide à la fermeture) : la dernière piste cliquée
-    /// est suivie pendant qu'on la prépare, pour l'essai.
+    /// « Tester » dans le créateur annonce les besoins de sa macro le temps de l'essai (vide à la fin de l'essai et à
+    /// la fermeture) : ouvrir le créateur ne crée aucun port MIDI.
     func setEditorNeeds(_ needs: BlockNeeds) {
         guard needs != editorNeeds else { return }
         editorNeeds = needs

@@ -1,9 +1,10 @@
 #!/bin/bash
 # Mesure de l'interface sur un vrai macOS (CI GitHub, ou ton Mac) : mémoire (empreinte physique) et processeur
 # de FL Shortcut, barre des menus seule puis fenêtre ouverte, page Macros, créateur de macros ouvert (sur une macro
-# d'exemple jamais enregistrée) puis refermé (3 cycles, avec le nombre de modèles du créateur encore vivants après
-# chaque fermeture), avec et sans l'effet Liquid Glass ; puis la recherche « e » sur une app relancée avec les pages
-# en List au lieu du Form groupé (clé debugPagesAsList), pour savoir d'où vient la mémoire de la recherche.
+# d'exemple jamais enregistrée) puis refermé (3 cycles, avec le nombre de modèles du créateur vivants avant la
+# première ouverture, témoin à 0, puis après chaque fermeture), avec et sans l'effet Liquid Glass ; puis la
+# recherche « e » sur une app relancée avec les pages en List au lieu du Form groupé (clé debugPagesAsList), pour
+# savoir d'où vient la mémoire de la recherche.
 # Usage : scripts/mesure-interface.sh "dist/FL Shortcut.app" dossier-de-sortie
 # Résultat : tableau Markdown sur la sortie standard, captures d'écran dans le dossier de sortie.
 # Ne touche à rien d'autre que les préférences de FL Shortcut (restaurées à la fin).
@@ -49,7 +50,7 @@ report() {   # $1 : nom du fichier gardé dans $OUT ; rapport de l'app (affiché
   local f="$HOME/Library/Caches/$DOMAIN/report.txt" r
   rm -f "$f"
   "$POST" app.flshortcut.debug.report; sleep 1
-  r=$(cat "$f" 2>/dev/null || echo "editorModels=? windows=?")
+  r=$(cat "$f" 2>/dev/null || echo "editorModels=? windows=? visible=?")
   cp "$f" "$OUT/$1-report.txt" 2>/dev/null || true
   echo "rapport $1 : $r" >&2
   echo "$r" | sed -n 's/.*editorModels=\([0-9?]*\).*/\1/p'
@@ -82,6 +83,9 @@ run() {   # $1 : libellé, $2 : YES/NO effet verre
   "$POST" app.flshortcut.debug.snapshot "$label-macros"; sleep 2
   cp "$HOME/Library/Caches/$DOMAIN/$label-macros-"*.png "$OUT/" 2>/dev/null || true
   mb=$(mem_mb "$p")
+  # Témoin : aucun modèle du créateur avant sa première ouverture (fenêtres : toutes, et visibles seulement).
+  local n0
+  n0=$(report "$label-avant-createur")
   "$POST" app.flshortcut.debug.macro open; sleep 5
   screencapture -x "$OUT/$label-createur.png" 2>/dev/null || true
   rm -f "$HOME/Library/Caches/$DOMAIN/$label-createur-"*
@@ -125,10 +129,10 @@ run() {   # $1 : libellé, $2 : YES/NO effet verre
     "$POST" app.flshortcut.debug.search ""; sleep 1
   fi
   restore debugPagesAsList "$had_list"
-  echo "| $label | $m0 | $c0 | $m1 | $c1 | $mb | $mc | $cc | $md | $m2 | $m3 | ${co[2]} | ${cf[2]} | ${co[3]} | ${cf[3]} | ${nm[1]} / ${nm[2]} / ${nm[3]} | $ml |"
+  echo "| $label | $m0 | $c0 | $m1 | $c1 | $mb | $mc | $cc | $md | $m2 | $m3 | ${co[2]} | ${cf[2]} | ${co[3]} | ${cf[3]} | $n0 ; ${nm[1]} / ${nm[2]} / ${nm[3]} | $ml |"
 }
 
-echo "| Effet | Mémoire (barre des menus) | Processeur | Mémoire (fenêtre ouverte) | Processeur (fenêtre ouverte, au repos) | Mémoire (page Macros) | Mémoire (créateur ouvert) | Processeur (créateur ouvert, au repos) | Mémoire (créateur refermé) | Mémoire (page Mixer) | Mémoire (recherche « e », presque tout) | Mémoire (créateur cycle 2 ouvert) | Mémoire (créateur cycle 2 refermé) | Mémoire (créateur cycle 3 ouvert) | Mémoire (créateur cycle 3 refermé) | Modèles du créateur vivants après fermeture (cycles 1 / 2 / 3) | Mémoire (recherche « e » en List) |"
+echo "| Effet | Mémoire (barre des menus) | Processeur | Mémoire (fenêtre ouverte) | Processeur (fenêtre ouverte, au repos) | Mémoire (page Macros) | Mémoire (créateur ouvert) | Processeur (créateur ouvert, au repos) | Mémoire (créateur refermé) | Mémoire (page Mixer) | Mémoire (recherche « e », presque tout) | Mémoire (créateur cycle 2 ouvert) | Mémoire (créateur cycle 2 refermé) | Mémoire (créateur cycle 3 ouvert) | Mémoire (créateur cycle 3 refermé) | Modèles du créateur vivants (avant ouverture ; après fermeture, cycles 1 / 2 / 3) | Mémoire (recherche « e » en List) |"
 echo "|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|"
 run "verre" YES
 run "sans-verre" NO

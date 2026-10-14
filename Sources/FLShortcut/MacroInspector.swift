@@ -679,8 +679,13 @@ final class ClickTeacher: ObservableObject {
         timer = t
     }
 
+    /// `text` : montré sous le bloc. nil (créateur fermé) : ni message ni retour à sa fenêtre.
     func cancel(_ text: String?) {
         let block = activeBlock
+        if text == nil {
+            returnWindow = nil
+            if message != nil { message = nil }
+        }
         finish(nil)
         if let block, let text { say(text, for: block) }
     }
