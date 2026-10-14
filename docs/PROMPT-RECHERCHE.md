@@ -25,6 +25,11 @@ exigeant :
 **Périmètre : macOS uniquement.** Le dépôt contient aussi une app Windows (`windows/`). Ignore-la complètement pour
 cette mission : Windows et Linux viendront plus tard.
 
+**Ne prends pas nos choix pour acquis.** Avant d'améliorer l'existant, vérifie que nos techniques de raccourcis et
+de macros sont les bonnes (chantier P00). Si une autre approche est meilleure, dis-le clairement, preuves à
+l'appui, même si cela remet en cause beaucoup de code déjà écrit. Si nos choix sont les bons, dis-le aussi, avec
+les preuves, et améliore-les.
+
 Prends le temps qu'il faut. Planifie ta recherche, lance plusieurs recherches en parallèle, puis vérifie et
 recoupe avant de conclure. La profondeur compte plus que la vitesse. La justesse compte plus que le volume.
 
@@ -176,6 +181,87 @@ chercher, et le **rendu** attendu.
   cliclick, skhd, AltTab, Rectangle, Maccy, KeyboardShortcuts, Sparkle… Cite le fichier et la ligne.
 - Distingue toujours **fait sourcé**, **déduction** et **à tester sur un vrai Mac / vrai FL**.
 - Si tu ne trouves rien de fiable, dis-le, et propose l'expérience qui trancherait.
+
+### P00 — Remettre en question nos techniques (à faire en premier)
+
+Le but : être sûr que les idées de base du projet sont les bonnes, avant d'investir dans leur amélioration. Pour
+chaque technique ci-dessous :
+1. décris ce que fait le projet aujourd'hui ;
+2. trouve **toutes** les alternatives sérieuses ;
+3. compare-les toutes sur la même grille, en notes sourcées et non en impressions :
+   - vitesse : latence par action, durée d'une macro complète ;
+   - fiabilité : sensibilité au timing, au focus, à la disposition du clavier, aux mises à jour de FL et de macOS ;
+   - autorisations demandées à l'utilisateur ;
+   - coût au repos : mémoire et processeur ;
+   - compatibilité : FL 20.7 → 2026, macOS 13 → 27 ;
+   - respect des contraintes de la section 3 ;
+   - effort de migration ;
+4. rends un verdict : **garder**, **améliorer** (comment) ou **remplacer** (par quoi, et le chemin de migration
+   sans casser ce que l'utilisateur a validé).
+
+**P00.1 — Reconnaître les raccourcis de l'utilisateur.**
+- Aujourd'hui : `CGEventTap` global qui modifie les événements, actif seulement quand FL est au premier plan.
+- Alternatives à étudier :
+  - `RegisterEventHotKey` (Carbon) ;
+  - moniteurs `NSEvent` (globaux et locaux) ;
+  - `CGEvent.tapCreateForPid` ;
+  - IOKit HID ;
+  - clavier virtuel DriverKit, à la manière de Karabiner-Elements ;
+  - Raccourcis d'Apple / App Intents ;
+  - ce qu'utilisent Keyboard Maestro, BetterTouchTool, Hammerspoon, skhd et Raycast, et pourquoi.
+
+**P00.2 — Faire agir FL Studio.**
+- Aujourd'hui, par ordre de préférence :
+  - touches natives de FL envoyées par `CGEvent.postToPid` ;
+  - navigation des menus contextuels au clavier (lettres soulignées) ;
+  - clics appris en dernier recours ;
+  - lien MIDI réveillé à la demande pour les actions exactes.
+- Alternatives à étudier :
+  - Accessibilité (`AXPress` sur les éléments de menu) ;
+  - AppleScript / System Events ;
+  - les outils de script internes de FL : *Tools › Macros*, scripts du Piano Roll (`.pyscript`), scripts Edison ;
+  - **« Link to controller » / « Multilink to controllers »** de FL : un port MIDI virtuel relié à un contrôle de
+    FL, sans notre script, ferait-il mieux pour armer, REC, mute… ?
+  - OSC, si FL le gère ;
+  - les fonctions natives ajoutées à FL 2025/2026, s'il y en a (voir P00.4).
+
+**P00.3 — Enchaîner et attendre dans une macro.**
+- Aujourd'hui :
+  - interpréteur de blocs ;
+  - attentes de fenêtres par instantanés `CGWindowList` (deux lectures stables) ;
+  - pauses fixes en dernier recours ;
+  - Entrée « apprise » après une lettre de menu.
+- À comparer avec la conception des moteurs de Keyboard Maestro (*Pause Until*), d'AutoHotkey (`WinWait`), de
+  SoundFlow (« attendre l'élément, jamais une pause ») et d'Hammerspoon. Question centrale : quelle est la façon la
+  plus rapide **et** la plus sûre de savoir qu'une étape de FL est terminée, sans regarder l'écran ?
+
+**P00.4 — Le besoin lui-même.**
+- **FL Studio 2025 ou 2026 a-t-il ajouté un éditeur de raccourcis clavier, des macros ou des actions
+  personnalisables ?** Si oui : sur quoi FL Shortcut doit-il se concentrer pour rester utile ?
+- Quels outils concurrents ciblent déjà FL Studio sur Mac (applications, profils Stream Deck ou Metagrid, macros
+  Keyboard Maestro), et que font-ils mieux ou moins bien que nous ?
+- Sources :
+  - notes de version et manuel de FL ;
+  - annonces Image-Line (blog, YouTube officiel) ;
+  - forum Image-Line et r/FL_Studio.
+
+**P00.5 — Le format des macros.**
+- Aujourd'hui : des blocs JSON (`MacroModel.swift`), édités dans une interface en phrases.
+- Est-ce la bonne représentation, comparée aux formats de Keyboard Maestro (`.kmmacros`), de PMC, de Shortcuts
+  et de REAPER (*custom actions*), pour :
+  - la lisibilité par un musicien ;
+  - la robustesse aux mises à jour de FL ;
+  - le partage entre utilisateurs ;
+  - l'enregistreur prévu à l'incrément 5 ?
+
+**Rendu de P00 :**
+- une grille comparative par technique ;
+- un verdict argumenté pour chacune ;
+- en tête de ta partie C, un paragraphe « **Nos choix sont-ils les bons ?** » qui répond franchement.
+
+Une recommandation de remplacement doit montrer, preuves à l'appui, qu'elle fait mieux sur la grille sans violer
+une contrainte. Elle doit aussi proposer un chemin de migration progressif, testable étape par étape, qui garde
+le chemin actuel comme repli.
 
 ### P0 — Fiabilité et vitesse de la macro « Enregistrement rapide » sur le vrai FL
 
@@ -453,7 +539,8 @@ d'importance.
 **B. Plan priorisé.** Un tableau avec ces colonnes :
 `# | changement | chantier | gain attendu (vitesse / fiabilité / mémoire / confort) | risque | effort | dépend de`.
 
-**C. Résultats de recherche.** Une section par chantier, avec :
+**C. Résultats de recherche.** Commence par le paragraphe « Nos choix sont-ils les bons ? » et les grilles de P00.
+Puis une section par chantier, avec :
 - les questions et les réponses ;
 - pour chaque affirmation, son niveau : `[vérifié : source]`, `[déduit]` ou `[à tester sur le vrai FL/Mac]` ;
 - les sources (URL, date, version).
@@ -497,6 +584,8 @@ vrai FL peut trancher. Chaque option a un protocole d'essai court, qui teste une
 
 - [ ] J'ai lu `docs/contexte/HISTORIQUE.md`, et je ne propose rien que l'historique a déjà essayé et écarté (ou
       je dis pourquoi ce serait différent cette fois).
+- [ ] J'ai remis en question chaque technique de base (P00) avec une grille sourcée et un verdict, y compris
+      quand le verdict est « garder ».
 - [ ] Aucune proposition n'utilise la capture d'écran ni ne modifie une étape validée (sauf en partie E).
 - [ ] Chaque API citée a sa source et sa disponibilité.
 - [ ] Chaque diff indique son fichier et son SHA de base, et il est complet.
