@@ -31,8 +31,8 @@ enum MacroValidation {
     static func problem(in blocks: [Block], variables: [VariableDecl] = [], context: ValidationContext) -> String? {
         guard !blocks.isEmpty else { return "La macro est vide." }
         if let path = firstUnknown(blocks), case .unknown(let type, _)? = block(at: path, in: blocks)?.body {
-            return "Étape \(path) : bloc inconnu (« \(type.displaySafe(max: 30)) »), venu d'une version plus récente de "
-                + "FL Shortcut : la macro est bloquée."
+            return "Étape \(path) : bloc illisible ou d'une version plus récente de FL Shortcut (« \(type.displaySafe(max: 30)) ») : "
+                + "la macro est bloquée."
         }
         guard count(blocks) <= maxBlocks else { return "Macro trop longue (\(maxBlocks) blocs au plus)." }
         guard depth(blocks) <= maxDepth else { return "Blocs trop imbriqués (\(maxDepth) niveaux au plus)." }
@@ -275,13 +275,31 @@ final class MacroProgram: Equatable, @unchecked Sendable {
         return program
     }
 
-    /// Macro de la bibliothèque (incrément 2) : règles strictes des fichiers.
+    private struct DocKey: Hashable {
+        let id: UUID
+        let revision: Int
+        let forbidden: ForbiddenTargets
+    }
+
+    private static let docCache = Locked<[DocKey: MacroProgram]>([:])
+
+    /// Macro de la bibliothèque (incrément 2) : règles strictes des fichiers ; cache indexé par (id, révision), la
+    /// révision étant augmentée à chaque enregistrement.
     static func compile(_ doc: MacroDoc, forbidden: ForbiddenTargets) -> MacroProgram {
+        let key = DocKey(id: doc.id, revision: doc.revision, forbidden: forbidden)
+        if let hit = docCache.withLock({ $0[key] }) { return hit }
         let ctx = ValidationContext(forbidden: forbidden, strictFiles: true)
+        let source = Source.blocks(id: doc.id, revision: doc.revision)
+        let program: MacroProgram
         if let why = MacroValidation.problem(in: doc, context: ctx) {
-            return MacroProgram(failed: why, name: doc.name, source: .blocks(id: doc.id, revision: doc.revision))
+            program = MacroProgram(failed: why, name: doc.name, source: source)
+        } else {
+            program = MacroProgram(blocks: doc.blocks, name: doc.name, source: source, variables: doc.variables, context: ctx)
         }
-        return MacroProgram(blocks: doc.blocks, name: doc.name, source: .blocks(id: doc.id, revision: doc.revision),
-                            variables: doc.variables, context: ctx)
+        docCache.withLock { c in
+            if c.count >= cacheLimit { c.removeAll() }
+            c[key] = program
+        }
+        return program
     }
 }

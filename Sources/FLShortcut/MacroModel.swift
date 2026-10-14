@@ -197,10 +197,17 @@ struct Block: Codable, Identifiable, Equatable {
         if depth < Self.maxParseDepth, let type = BlockType(rawValue: typeName),
            let body = BlockBody.parse(type, json, depth: depth) {
             self.body = body
+        } else if case .object(var o) = json {
+            // Paramètres gardés tels quels ; les champs communs (id, case à cocher…) sont rendus à l'écriture.
+            for key in Self.commonKeys { o.removeValue(forKey: key) }
+            body = .unknown(type: typeName, raw: .object(o))
         } else {
             body = .unknown(type: typeName, raw: json)
         }
     }
+
+    /// Champs communs à tous les blocs (hors paramètres).
+    static let commonKeys = ["type", "id", "enabled", "onFailure", "note"]
 
     var json: JSONValue {
         var o: [String: JSONValue]

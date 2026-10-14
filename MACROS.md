@@ -6,7 +6,7 @@
 - Un lien UDP local n'a pas été retenu : FL ne charge un script de contrôleur que s'il est rattaché à un port MIDI activé, le script ne peut lire un socket que depuis `OnIdle` (~20 ms), et il faudrait refaire toute l'authentification déjà présente dans le protocole HMAC.
 
 ## Ce que fait une macro
-Une macro est une liste d'étapes (`Macro.swift`) exécutée par `MacroRunner` sur sa propre file, jamais dans le thread du tap clavier.
+Une macro est une liste de blocs (`MacroModel.swift`, registre `MacroRegistry.swift`) jouée par l'interpréteur (`MacroInterpreter.swift`) sur sa propre file, jamais dans le thread du tap clavier ; le programme est développé et validé sur le thread principal (`MacroValidation.swift`), les effets macOS sont dans `MacroEffectsMac.swift` et `MacroFLBlocks.swift`. Le modèle « Enregistrement rapide » est développé en blocs (`MacroTemplates.swift`) ; les anciennes étapes ci-dessous (`Macro.swift`) restent lues et sont reprises bloc par bloc, avec leurs bornes d'origine.
 
 | Étape | Effet |
 |---|---|
