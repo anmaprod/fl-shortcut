@@ -72,7 +72,7 @@ enum PageSummary {
 private extension View {
     /// Page en sections arrondies (cartes), comme Réglages Système ; posées sur le fond translucide en verre.
     func cardList() -> some View {
-        cardListBackground()
+        glassListBackground()
     }
 }
 

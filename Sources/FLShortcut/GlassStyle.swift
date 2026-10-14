@@ -566,31 +566,22 @@ extension View {
     func cardRow(_ position: CardRowPosition) -> some View {
         let gap = CardRowBackground.gap
         let side = CardRowBackground.inset + 12
-        return listRowInsets(EdgeInsets(top: 6 + (position.roundsTop ? gap : 0), leading: side,
-                                        bottom: 6 + (position.roundsBottom ? gap : 0), trailing: side))
+        return listRowInsets(EdgeInsets(top: 8 + (position.roundsTop ? gap : 0), leading: side,
+                                        bottom: 8 + (position.roundsBottom ? gap : 0), trailing: side))
             .listRowSeparator(.hidden)
             .listRowBackground(CardRowBackground(position: position))
-    }
-
-    /// Fond d'une page en cartes : verre visible (fenêtre translucide) ou fond de fenêtre opaque sous les cartes.
-    func cardListBackground() -> some View {
-        modifier(CardListBackground())
     }
 }
 
 /// Fond d'une ligne de carte : rectangle arrondi seulement aux bouts de la carte, filet sous les lignes intérieures.
-/// Verre coupé ou Réduire la transparence : carte opaque, comme le Form groupé.
+/// Carte grise sur le fond de la page, comme le Form groupé (verre ou non).
 struct CardRowBackground: View {
     static let inset: CGFloat = 10                       // marge de la carte dans la liste
     static let gap: CGFloat = 4                          // espace au-dessus et au-dessous d'une carte
     let position: CardRowPosition
-    @Environment(\.cardTranslucent) private var translucent
     @Environment(\.colorScheme) private var scheme
 
-    private var fill: Color {
-        if scheme == .dark { return Color.white.opacity(0.07) }
-        return translucent ? Color.white.opacity(0.55) : Color(nsColor: .controlBackgroundColor)
-    }
+    private var fill: Color { scheme == .dark ? Color.white.opacity(0.07) : Color.black.opacity(0.045) }
 
     var body: some View {
         CardRowShape(roundsTop: position.roundsTop, roundsBottom: position.roundsBottom)
@@ -639,31 +630,5 @@ private struct CardRowShape: Shape {
         }
         p.closeSubpath()
         return p
-    }
-}
-
-/// Lu une fois par page (et non par ligne) : les cartes savent si la fenêtre est translucide.
-private struct CardListBackground: ViewModifier {
-    @AppStorage(Appearance.glassKey) private var glassEnabled = true
-    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
-
-    func body(content: Content) -> some View {
-        let translucent = Appearance.translucentWindow(glass: glassEnabled, reduceTransparency: reduceTransparency)
-        content
-            .scrollContentBackground(.hidden)
-            .background(translucent ? Color.clear : Color(nsColor: .windowBackgroundColor))
-            .environment(\.cardTranslucent, translucent)
-    }
-}
-
-private struct CardTranslucentKey: EnvironmentKey {
-    static let defaultValue = false
-}
-
-extension EnvironmentValues {
-    /// Fenêtre translucide sous la page en cartes (posé par `cardListBackground`).
-    var cardTranslucent: Bool {
-        get { self[CardTranslucentKey.self] }
-        set { self[CardTranslucentKey.self] = newValue }
     }
 }
