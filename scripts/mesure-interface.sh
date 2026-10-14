@@ -2,9 +2,8 @@
 # Mesure de l'interface sur un vrai macOS (CI GitHub, ou ton Mac) : mémoire (empreinte physique) et processeur
 # de FL Shortcut, barre des menus seule puis fenêtre ouverte, page Macros, créateur de macros ouvert (sur une macro
 # d'exemple jamais enregistrée) puis refermé (3 cycles, avec le nombre de modèles du créateur vivants avant la
-# première ouverture, témoin à 0, puis après chaque fermeture), avec et sans l'effet Liquid Glass ; puis la
-# recherche « e » sur une app relancée avec les pages en List au lieu du Form groupé (clé debugPagesAsList), pour
-# savoir d'où vient la mémoire de la recherche.
+# première ouverture, témoin à 0, puis après chaque fermeture), page Mixer et recherche « e », avec et sans l'effet
+# Liquid Glass. Détail de l'empreinte par catégorie (footprint) avant le créateur, créateur ouvert, refermé, recherche.
 # Usage : scripts/mesure-interface.sh "dist/FL Shortcut.app" dossier-de-sortie
 # Résultat : tableau Markdown sur la sortie standard, captures d'écran dans le dossier de sortie.
 # Ne touche à rien d'autre que les préférences de FL Shortcut (restaurées à la fin).
@@ -27,7 +26,6 @@ swiftc -O "$POST.swift" -o "$POST" 2>/dev/null || { echo "swiftc indisponible"; 
 had_snap=$(defaults read "$DOMAIN" debugSnapshots 2>/dev/null || echo "")
 had_glass=$(defaults read "$DOMAIN" liquidGlass 2>/dev/null || echo "")
 had_onb=$(defaults read "$DOMAIN" didOnboard 2>/dev/null || echo "")
-had_list=$(defaults read "$DOMAIN" debugPagesAsList 2>/dev/null || echo "")
 defaults write "$DOMAIN" debugSnapshots -bool YES
 defaults write "$DOMAIN" didOnboard -bool YES
 
@@ -42,6 +40,10 @@ cpu_avg() {  # moyenne du processeur sur 8 s, au repos
   local p=$1
   top -l 9 -s 1 -pid "$p" -stats pid,cpu 2>/dev/null \
     | awk -v p="$p" '$1==p {n++; if (n>1) {s+=$2; c++}} END{if (c) printf "%.1f %%", s/c; else print "?"}'
+}
+
+categories() {   # $1 pid, $2 nom du fichier : détail de l'empreinte par catégorie (malloc, IOSurface, __DATA…)
+  footprint "$1" > "$OUT/$2-footprint.txt" 2>&1 || true
 }
 
 restore() { if [[ -n "$2" ]]; then defaults write "$DOMAIN" "$1" -bool "$2"; else defaults delete "$DOMAIN" "$1" 2>/dev/null; fi; }
@@ -86,14 +88,17 @@ run() {   # $1 : libellé, $2 : YES/NO effet verre
   # Témoin : aucun modèle du créateur avant sa première ouverture (fenêtres : toutes, et visibles seulement).
   local n0
   n0=$(report "$label-avant-createur")
+  categories "$p" "$label-avant-createur"
   "$POST" app.flshortcut.debug.macro open; sleep 5
   screencapture -x "$OUT/$label-createur.png" 2>/dev/null || true
   rm -f "$HOME/Library/Caches/$DOMAIN/$label-createur-"*
   "$POST" app.flshortcut.debug.snapshot "$label-createur"; sleep 2
   cp "$HOME/Library/Caches/$DOMAIN/$label-createur-"*.png "$OUT/" 2>/dev/null || true
   mc=$(mem_mb "$p"); cc=$(cpu_avg "$p")
+  categories "$p" "$label-createur-ouvert"
   "$POST" app.flshortcut.debug.macro close; sleep 4
   md=$(mem_mb "$p")
+  categories "$p" "$label-createur-referme"
   # Deux autres cycles (ouvrir, mesurer, fermer, attendre 3 s, mesurer) : la mémoire refermée doit rester au même
   # niveau. Le rapport de l'app dit combien de modèles du créateur vivent encore après chaque fermeture.
   local n
@@ -111,33 +116,17 @@ run() {   # $1 : libellé, $2 : YES/NO effet verre
   m2=$(mem_mb "$p")
   "$POST" app.flshortcut.debug.search e; sleep 4
   m3=$(mem_mb "$p")
+  categories "$p" "$label-recherche"
   "$POST" app.flshortcut.debug.search ""; sleep 1
-  # Même recherche sur une app neuve, pages en List (paresseuse) et sans créateur : si la mémoire tombe, c'est le
-  # Form groupé (non paresseux) qui la coûtait.
-  pkill -x FLShortcut 2>/dev/null; sleep 1
-  defaults write "$DOMAIN" debugPagesAsList -bool YES
-  open "$APP"; sleep 6
-  local ml="?"
-  p=$(pgrep -x FLShortcut | head -1)
-  if [[ -n "$p" ]]; then
-    "$POST" app.flshortcut.debug.open; sleep 5
-    "$POST" app.flshortcut.debug.select general; sleep 1
-    "$POST" app.flshortcut.debug.resize "960,640"; sleep 2
-    "$POST" app.flshortcut.debug.select mixer; sleep 3
-    "$POST" app.flshortcut.debug.search e; sleep 4
-    ml=$(mem_mb "$p")
-    "$POST" app.flshortcut.debug.search ""; sleep 1
-  fi
-  restore debugPagesAsList "$had_list"
-  echo "| $label | $m0 | $c0 | $m1 | $c1 | $mb | $mc | $cc | $md | $m2 | $m3 | ${co[2]} | ${cf[2]} | ${co[3]} | ${cf[3]} | $n0 ; ${nm[1]} / ${nm[2]} / ${nm[3]} | $ml |"
+  echo "| $label | $m0 | $c0 | $m1 | $c1 | $mb | $mc | $cc | $md | $m2 | $m3 | ${co[2]} | ${cf[2]} | ${co[3]} | ${cf[3]} | $n0 ; ${nm[1]} / ${nm[2]} / ${nm[3]} |"
 }
 
-echo "| Effet | Mémoire (barre des menus) | Processeur | Mémoire (fenêtre ouverte) | Processeur (fenêtre ouverte, au repos) | Mémoire (page Macros) | Mémoire (créateur ouvert) | Processeur (créateur ouvert, au repos) | Mémoire (créateur refermé) | Mémoire (page Mixer) | Mémoire (recherche « e », presque tout) | Mémoire (créateur cycle 2 ouvert) | Mémoire (créateur cycle 2 refermé) | Mémoire (créateur cycle 3 ouvert) | Mémoire (créateur cycle 3 refermé) | Modèles du créateur vivants (avant ouverture ; après fermeture, cycles 1 / 2 / 3) | Mémoire (recherche « e » en List) |"
-echo "|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|"
+echo "| Effet | Mémoire (barre des menus) | Processeur | Mémoire (fenêtre ouverte) | Processeur (fenêtre ouverte, au repos) | Mémoire (page Macros) | Mémoire (créateur ouvert) | Processeur (créateur ouvert, au repos) | Mémoire (créateur refermé) | Mémoire (page Mixer) | Mémoire (recherche « e », presque tout) | Mémoire (créateur cycle 2 ouvert) | Mémoire (créateur cycle 2 refermé) | Mémoire (créateur cycle 3 ouvert) | Mémoire (créateur cycle 3 refermé) | Modèles du créateur vivants (avant ouverture ; après fermeture, cycles 1 / 2 / 3) |"
+echo "|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|"
 run "verre" YES
 run "sans-verre" NO
 pkill -x FLShortcut 2>/dev/null
 
-restore debugSnapshots "$had_snap"; restore liquidGlass "$had_glass"; restore didOnboard "$had_onb"; restore debugPagesAsList "$had_list"
+restore debugSnapshots "$had_snap"; restore liquidGlass "$had_glass"; restore didOnboard "$had_onb"
 echo
 echo "macOS $(sw_vers -productVersion), $(sysctl -n machdep.cpu.brand_string 2>/dev/null)"

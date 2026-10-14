@@ -72,12 +72,12 @@ enum PageSummary {
 private extension View {
     /// Page en sections arrondies (cartes), comme Réglages Système ; posées sur le fond translucide en verre.
     func cardList() -> some View {
-        formStyle(.grouped).glassListBackground()
+        cardListBackground()
     }
 }
 
-/// Contenu d'une page : liste groupée (Form). Pour la mesure de la mémoire seulement, la clé `debugPagesAsList`
-/// (désactivée par défaut) la remplace par une List, pour savoir si le Form groupé, non paresseux, en est la cause.
+/// Contenu d'une page : List paresseuse (seules les lignes visibles sont construites), sections en cartes par
+/// `cardRow`. Le Form groupé construisait toutes les lignes : 228 Mo pour la recherche « e », 58 Mo en List.
 struct PageContainer<Content: View>: View {
     private let content: Content
 
@@ -86,10 +86,20 @@ struct PageContainer<Content: View>: View {
     }
 
     var body: some View {
-        if UserDefaults.standard.bool(forKey: "debugPagesAsList") {
-            List { content }.listStyle(.inset)
-        } else {
-            Form { content }.formStyle(.grouped)
+        List { content }.listStyle(.inset)
+    }
+}
+
+/// Lignes d'une carte, chacune à sa place (première, intérieure, dernière). `trailing` : lignes posées après
+/// (bouton « Nouveau… »), comptées pour arrondir la bonne.
+private struct CardRows<Item: Identifiable, Row: View>: View {
+    let items: [Item]
+    var trailing = 0
+    @ViewBuilder let row: (Item) -> Row
+
+    var body: some View {
+        ForEach(Array(items.enumerated()), id: \.element.id) { index, item in
+            row(item).cardRow(.position(index: index, count: items.count + trailing))
         }
     }
 }
@@ -267,17 +277,18 @@ struct EditorView: View {
                 PageHeader(symbol: section.symbol, tint: section.tint, title: section.title,
                            subtitle: section.subtitle,
                            detail: PageSummary.count(mine.count, modified: mine.filter { !$0.isDefault }.count))
+                    .cardRow(.single)
             }
             if !natives.isEmpty {
                 Section {
-                    ForEach(natives) { catalogRow($0) }
+                    CardRows(items: natives) { catalogRow($0) }
                 } header: {
                     Text("Raccourcis de FL Studio")
                 }
             }
             if !extras.isEmpty {
                 Section {
-                    ForEach(extras) { catalogRow($0) }
+                    CardRows(items: extras) { catalogRow($0) }
                 } header: {
                     Text("Actions en plus")
                 }
@@ -306,14 +317,14 @@ struct EditorView: View {
                 PageContainer {
                     ForEach(sections) { s in
                         Section {
-                            ForEach(rows.filter { $0.entry.section == s }) { catalogRow($0) }
+                            CardRows(items: rows.filter { $0.entry.section == s }) { catalogRow($0) }
                         } header: {
                             SectionHeader(symbol: s.symbol, tint: s.tint, title: s.title)
                         }
                     }
                     if !others.isEmpty {
                         Section {
-                            ForEach(others) { customRow($0) }
+                            CardRows(items: others) { customRow($0) }
                         } header: {
                             SectionHeader(symbol: SidebarItem.custom.symbol, tint: SidebarItem.custom.tint,
                                           title: "Mes raccourcis")
@@ -339,9 +350,10 @@ struct EditorView: View {
                         PageHeader(symbol: SidebarItem.custom.symbol, tint: SidebarItem.custom.tint,
                                    title: "Mes raccourcis", subtitle: PageSummary.custom,
                                    detail: PageSummary.count(others.count, modified: 0))
+                            .cardRow(.single)
                     }
                     Section {
-                        ForEach(others) { customRow($0) }
+                        CardRows(items: others, trailing: 1) { customRow($0) }
                         HStack {
                             Button {
                                 newCustom()
@@ -351,6 +363,7 @@ struct EditorView: View {
                             .buttonStyle(.borderless)
                             Spacer(minLength: 0)
                         }
+                        .cardRow(.last)
                     }
                 }
                 .cardList()

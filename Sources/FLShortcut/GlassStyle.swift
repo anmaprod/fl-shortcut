@@ -544,3 +544,126 @@ extension FLActionInfo {
         }
     }
 }
+
+// MARK: - Pages en cartes (List paresseuse)
+
+/// Place d'une ligne dans sa carte (section arrondie) : arrondie en haut si première, en bas si dernière.
+enum CardRowPosition: Equatable {
+    case single, first, middle, last
+
+    static func position(index: Int, count: Int) -> CardRowPosition {
+        if count <= 1 { return .single }
+        if index == 0 { return .first }
+        return index == count - 1 ? .last : .middle
+    }
+
+    var roundsTop: Bool { self == .single || self == .first }
+    var roundsBottom: Bool { self == .single || self == .last }
+}
+
+extension View {
+    /// Ligne d'une page en cartes : fond arrondi selon sa place dans la section, sans séparateur de la liste.
+    func cardRow(_ position: CardRowPosition) -> some View {
+        let gap = CardRowBackground.gap
+        let side = CardRowBackground.inset + 12
+        return listRowInsets(EdgeInsets(top: 6 + (position.roundsTop ? gap : 0), leading: side,
+                                        bottom: 6 + (position.roundsBottom ? gap : 0), trailing: side))
+            .listRowSeparator(.hidden)
+            .listRowBackground(CardRowBackground(position: position))
+    }
+
+    /// Fond d'une page en cartes : verre visible (fenêtre translucide) ou fond de fenêtre opaque sous les cartes.
+    func cardListBackground() -> some View {
+        modifier(CardListBackground())
+    }
+}
+
+/// Fond d'une ligne de carte : rectangle arrondi seulement aux bouts de la carte, filet sous les lignes intérieures.
+/// Verre coupé ou Réduire la transparence : carte opaque, comme le Form groupé.
+struct CardRowBackground: View {
+    static let inset: CGFloat = 10                       // marge de la carte dans la liste
+    static let gap: CGFloat = 4                          // espace au-dessus et au-dessous d'une carte
+    let position: CardRowPosition
+    @Environment(\.cardTranslucent) private var translucent
+    @Environment(\.colorScheme) private var scheme
+
+    private var fill: Color {
+        if scheme == .dark { return Color.white.opacity(0.07) }
+        return translucent ? Color.white.opacity(0.55) : Color(nsColor: .controlBackgroundColor)
+    }
+
+    var body: some View {
+        CardRowShape(roundsTop: position.roundsTop, roundsBottom: position.roundsBottom)
+            .fill(fill)
+            .overlay(alignment: .bottom) {
+                if !position.roundsBottom {
+                    Rectangle().fill(Color.primary.opacity(0.08)).frame(height: 0.5).padding(.leading, 12)
+                }
+            }
+            .padding(.top, position.roundsTop ? Self.gap : 0)
+            .padding(.bottom, position.roundsBottom ? Self.gap : 0)
+            .padding(.horizontal, Self.inset)
+            .accessibilityHidden(true)
+    }
+}
+
+/// Rectangle aux coins arrondis en haut et/ou en bas (UnevenRoundedRectangle n'existe qu'à partir de macOS 14).
+private struct CardRowShape: Shape {
+    let roundsTop: Bool
+    let roundsBottom: Bool
+    var radius: CGFloat = 10
+
+    func path(in rect: CGRect) -> Path {
+        let t = roundsTop ? min(radius, rect.height / 2) : 0
+        let b = roundsBottom ? min(radius, rect.height / 2) : 0
+        var p = Path()
+        p.move(to: CGPoint(x: rect.minX, y: rect.minY + t))
+        if t > 0 {
+            p.addArc(tangent1End: CGPoint(x: rect.minX, y: rect.minY),
+                     tangent2End: CGPoint(x: rect.minX + t, y: rect.minY), radius: t)
+        }
+        p.addLine(to: CGPoint(x: rect.maxX - t, y: rect.minY))
+        if t > 0 {
+            p.addArc(tangent1End: CGPoint(x: rect.maxX, y: rect.minY),
+                     tangent2End: CGPoint(x: rect.maxX, y: rect.minY + t), radius: t)
+        }
+        p.addLine(to: CGPoint(x: rect.maxX, y: rect.maxY - b))
+        if b > 0 {
+            p.addArc(tangent1End: CGPoint(x: rect.maxX, y: rect.maxY),
+                     tangent2End: CGPoint(x: rect.maxX - b, y: rect.maxY), radius: b)
+        }
+        p.addLine(to: CGPoint(x: rect.minX + b, y: rect.maxY))
+        if b > 0 {
+            p.addArc(tangent1End: CGPoint(x: rect.minX, y: rect.maxY),
+                     tangent2End: CGPoint(x: rect.minX, y: rect.maxY - b), radius: b)
+        }
+        p.closeSubpath()
+        return p
+    }
+}
+
+/// Lu une fois par page (et non par ligne) : les cartes savent si la fenêtre est translucide.
+private struct CardListBackground: ViewModifier {
+    @AppStorage(Appearance.glassKey) private var glassEnabled = true
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+
+    func body(content: Content) -> some View {
+        let translucent = Appearance.translucentWindow(glass: glassEnabled, reduceTransparency: reduceTransparency)
+        content
+            .scrollContentBackground(.hidden)
+            .background(translucent ? Color.clear : Color(nsColor: .windowBackgroundColor))
+            .environment(\.cardTranslucent, translucent)
+    }
+}
+
+private struct CardTranslucentKey: EnvironmentKey {
+    static let defaultValue = false
+}
+
+extension EnvironmentValues {
+    /// Fenêtre translucide sous la page en cartes (posé par `cardListBackground`).
+    var cardTranslucent: Bool {
+        get { self[CardTranslucentKey.self] }
+        set { self[CardTranslucentKey.self] = newValue }
+    }
+}

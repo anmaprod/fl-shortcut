@@ -16,6 +16,13 @@ final class AppearanceTests: XCTestCase {
         XCTAssertEqual(Set(items.map(\.tint)).count, items.count, "une couleur par rubrique")
     }
 
+    func testCardRowPositions() {
+        XCTAssertEqual(CardRowPosition.position(index: 0, count: 1), .single)
+        XCTAssertEqual(CardRowPosition.position(index: 0, count: 3), .first)
+        XCTAssertEqual(CardRowPosition.position(index: 1, count: 3), .middle)
+        XCTAssertEqual(CardRowPosition.position(index: 2, count: 3), .last)
+    }
+
     func testWindowStaysOpaqueWithoutGlassOrWithReducedTransparency() {
         XCTAssertFalse(Appearance.translucentWindow(glass: false, reduceTransparency: false))
         XCTAssertFalse(Appearance.translucentWindow(glass: true, reduceTransparency: true))
