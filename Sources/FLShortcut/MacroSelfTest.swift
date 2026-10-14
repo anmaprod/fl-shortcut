@@ -373,14 +373,26 @@ enum MacroSelfTest {
             Thread.sleep(forTimeInterval: 0.3)               // rythme humain : les relevés de fenêtres suivent
             return true
         }
-        func barClick(_ what: String, _ titles: [String]) -> Bool {
+        /// Menu de macOS : comme une vraie souris, le pointeur glisse jusqu'à l'élément (le menu le surligne), puis
+        /// clique ; un clic sec, sans survol, referme parfois le menu sans rien choisir.
+        func barClick(_ what: String, _ titles: [String], until: ((FakeState) -> Bool)? = nil) -> Bool {
             guard let f = MenuBarAX.frame(pid: pid, titles: titles) else {
                 print("FAIL: \(what) : introuvable par l'Accessibilité")
                 return false
             }
-            userClick(CGPoint(x: f.midX, y: f.midY))
+            let p = CGPoint(x: f.midX, y: f.midY)
+            for dx in [-12.0, -6, 0] {
+                CGEvent(mouseEventSource: nil, mouseType: .mouseMoved, mouseCursorPosition: CGPoint(x: p.x + dx, y: p.y),
+                        mouseButton: .left)?.post(tap: .cghidEventTap)
+                usleep(40_000)
+            }
+            userClick(p)
+            if let until, waitState(statePath, timeout: 3, until) == nil {
+                print("FAIL: \(what) : le FL simulé n'a pas réagi (\(read(statePath)?.events ?? []))")
+                return false
+            }
             print("  clic : \(what)")
-            Thread.sleep(forTimeInterval: 0.5)
+            Thread.sleep(forTimeInterval: 0.4)
             return true
         }
         var clicked = click("OPTIONS (dans la fenêtre de FL)", "options") { s in s.menusOpen == 1 }
@@ -396,7 +408,9 @@ enum MacroSelfTest {
         if clicked { clicked = click("case Auto close device", "settings:toggle") { s in s.autoClose } }
         if clicked { clicked = click("Fermer les réglages", "settings:close") { s in !s.settingsOpen } }
         if clicked { clicked = barClick("Options (barre des menus de macOS)", ["Options"]) }
-        if clicked { clicked = barClick("Audio settings (menu de la barre)", ["Options", "Audio settings"]) }
+        if clicked {
+            clicked = barClick("Audio settings (menu de la barre)", ["Options", "Audio settings"]) { s in s.settingsOpen }
+        }
         if clicked { clicked = click("Fermer les réglages ouverts par la barre", "settings:close") { s in !s.settingsOpen } }
         DispatchQueue.main.sync { ClickSequenceRecorder.shared.finish() }
         guard clicked else { return false }
