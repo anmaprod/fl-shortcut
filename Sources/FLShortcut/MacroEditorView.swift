@@ -512,26 +512,30 @@ private struct MacroHeader: View {
         return Binding(get: { editor.trigger }, set: { editor.setTrigger($0) })
     }
 
+    /// Nom et état sur toute la largeur, raccourci sur sa propre ligne : la colonne des étapes est étroite (400 pt
+    /// au moins), un champ à côté du nom le coupait et repliait l'état sur quatre lignes.
     var body: some View {
-        HStack(alignment: .top, spacing: 14) {
-            SectionIcon(symbol: "wand.and.stars", tint: .purple, size: 40)
-            VStack(alignment: .leading, spacing: 4) {
-                TextField("Nom de la macro", text: nameBinding)
-                    .textFieldStyle(.plain)
-                    .font(.title2.weight(.semibold))
-                    .accessibilityLabel("Nom de la macro")
-                statusLine
-            }
-            Spacer(minLength: 12)
-            VStack(alignment: .leading, spacing: 4) {
-                Text("Raccourci").font(.system(size: 11)).foregroundStyle(.secondary)
-                CaptureField(id: "macro-trigger-\(model.draft?.id.uuidString ?? "")", role: .trigger, combo: triggerBinding)
-                    .disabled(model.ephemeral)               // exemple de la mesure : jamais enregistré
-                if !model.triggerIssues.isEmpty {
-                    IssuesView(issues: model.triggerIssues)
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(alignment: .top, spacing: 14) {
+                SectionIcon(symbol: "wand.and.stars", tint: .purple, size: 40)
+                VStack(alignment: .leading, spacing: 4) {
+                    TextField("Nom de la macro", text: nameBinding)
+                        .textFieldStyle(.plain)
+                        .font(.title2.weight(.semibold))
+                        .accessibilityLabel("Nom de la macro")
+                    statusLine
                 }
             }
-            .frame(width: 230)
+            HStack(spacing: 10) {
+                Text("Raccourci").font(.system(size: 12)).foregroundStyle(.secondary)
+                CaptureField(id: "macro-trigger-\(model.draft?.id.uuidString ?? "")", role: .trigger, combo: triggerBinding)
+                    .disabled(model.ephemeral)               // exemple de la mesure : jamais enregistré
+                    .frame(width: 230)
+                Spacer(minLength: 0)
+            }
+            if !model.triggerIssues.isEmpty {
+                IssuesView(issues: model.triggerIssues)
+            }
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 12)
@@ -549,10 +553,11 @@ private struct MacroHeader: View {
                     .fixedSize(horizontal: false, vertical: true)
             } else {
                 Image(systemName: "checkmark.circle.fill").foregroundStyle(.green)
-                Text("Prête · \(blocks)\(duration)")
+                Text("Prête · \(blocks)\(duration)").lineLimit(1)
             }
             if model.needs.contains(.lienMIDI) {
                 Label("Lien FL", systemImage: "link")
+                    .fixedSize()
                     .font(.system(size: 10, weight: .medium))
                     .foregroundStyle(.blue)
                     .help("Des actions de FL passent par le lien avec FL quand il est installé (sinon leur touche de secours).")
