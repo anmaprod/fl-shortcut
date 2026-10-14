@@ -475,16 +475,15 @@ private struct MacroHeader: View {
                 statusLine
             }
             Spacer(minLength: 12)
-            if !model.ephemeral {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Raccourci").font(.system(size: 11)).foregroundStyle(.secondary)
-                    CaptureField(id: "macro-trigger-\(model.draft?.id.uuidString ?? "")", role: .trigger, combo: triggerBinding)
-                    if !model.triggerIssues.isEmpty {
-                        IssuesView(issues: model.triggerIssues)
-                    }
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Raccourci").font(.system(size: 11)).foregroundStyle(.secondary)
+                CaptureField(id: "macro-trigger-\(model.draft?.id.uuidString ?? "")", role: .trigger, combo: triggerBinding)
+                    .disabled(model.ephemeral)               // exemple de la mesure : jamais enregistré
+                if !model.triggerIssues.isEmpty {
+                    IssuesView(issues: model.triggerIssues)
                 }
-                .frame(width: 230)
             }
+            .frame(width: 230)
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 12)
