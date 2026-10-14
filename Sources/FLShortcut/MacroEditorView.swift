@@ -296,6 +296,7 @@ private struct MacroStepsPane: View {
     private var actionBar: some View {
         HStack(spacing: 10) {
             AddBlockMenu(items: paletteItems, insert: { [model] in model.insert($0) })
+            RecordClicksButton(model: model)
             Button {
                 model.duplicateSelection()
             } label: {
@@ -321,6 +322,24 @@ private struct MacroStepsPane: View {
         .font(.system(size: 12))
         .padding(.horizontal, 14)
         .frame(height: 34)
+    }
+}
+
+/// « Enregistrer des clics » : FL passe devant, chaque clic devient un bloc (panneau « Terminer » en haut à droite).
+/// Observe seul l'enregistreur : le reste de la barre n'est pas redessiné.
+private struct RecordClicksButton: View {
+    let model: MacroEditorModel
+    @ObservedObject private var recorder = ClickSequenceRecorder.shared
+
+    var body: some View {
+        Button {
+            model.recordClicks()
+        } label: {
+            Label(recorder.active ? "Enregistrement…" : "Enregistrer des clics",
+                  systemImage: recorder.active ? "record.circle.fill" : "record.circle")
+        }
+        .disabled(recorder.active)
+        .help("FL passe devant : clique dans l'ordre (menus, Options › Audio, boutons de ses fenêtres…), puis « Terminer ». Chaque clic devient un bloc.")
     }
 }
 

@@ -378,6 +378,8 @@ enum MacroOutline {
             return ("Choisir l'entrée", "(none) → 1")
         case .feedbackCheck:
             return ("Vérifier le larsen", nil)
+        case .menuBar(let titles):
+            return ("Menu de FL", titles.map { $0.displaySafe(max: 30) }.joined(separator: " › "))
         case .menuAX(let titles, _):
             return ("Menu", titles.map { $0.displaySafe(max: 30) }.joined(separator: " › "))
         case .ifElse:
@@ -423,7 +425,9 @@ enum MacroOutline {
 
     /// Cible d'un clic montré par l'utilisateur, d'après les fenêtres de FL juste avant le clic (de l'avant vers
     /// l'arrière) : dans un menu de FL, relative à ce menu (FL le décale pour qu'il tienne à l'écran) ; dans une
-    /// fenêtre normale, relative à son coin le plus proche, taille retenue (refus si elle change). Ailleurs : nil.
+    /// fenêtre de FL (fenêtre principale, fenêtre détachée, réglages comme Options › Audio, boîte de dialogue :
+    /// niveaux 0 à 8), relative à son coin le plus proche, taille retenue (c'est elle qu'on retrouve au rejeu ; refus
+    /// si elle change). Ailleurs : nil.
     static func learnedTarget(at p: CGPoint, windows: [(layer: Int, bounds: CGRect)]) -> ClickTarget? {
         guard let w = windows.first(where: { $0.bounds.contains(p) }) else { return nil }
         let b = w.bounds
@@ -432,7 +436,7 @@ enum MacroOutline {
             let target = ClickTarget.openMenu(hop)
             return target.isFinite ? target : nil
         }
-        guard w.layer == 0 else { return nil }
+        guard MacroEffectsMac.clickWindowLayers.contains(w.layer) else { return nil }
         let left = p.x - b.minX <= b.maxX - p.x
         let top = p.y - b.minY <= b.maxY - p.y
         let corner: Corner = top ? (left ? .topLeft : .topRight) : (left ? .bottomLeft : .bottomRight)

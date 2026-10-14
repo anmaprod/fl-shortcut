@@ -6,6 +6,8 @@ import Foundation
 enum BlockType: String, CaseIterable, Codable {
     case key, menuLetters, menuKey, click, delay, waitWindow, waitWindowClose
     case trackMenu, chooseFile, dropFile, flAction, flActionValue, selectInput, feedbackCheck
+    /// Élément d'un menu de FL dans la barre des menus de macOS, par ses titres (créé par « Enregistrer des clics »).
+    case menuBar
     /// Ancienne étape `menu` : seulement pour reprendre les anciennes macros (absente de la palette).
     case menuAX
     case ifElse = "if", repeatCount = "repeat", repeatWhile = "while", waitUntil, setVariable, stop, comment
@@ -135,6 +137,7 @@ enum BlockRegistry {
         case .flActionValue: return Specs.flActionValue
         case .selectInput: return Specs.selectInput
         case .feedbackCheck: return Specs.feedbackCheck
+        case .menuBar: return Specs.menuBar
         case .menuAX: return Specs.menuAX
         case .ifElse: return Specs.ifElse
         case .repeatCount: return Specs.repeatCount
@@ -596,6 +599,29 @@ private enum Specs {
         journal: { _ in "feedbackCheck" },
         estimationMs: { _ in 3_000 },
         valider: { _, _ in nil },
+        import_: .ok, plateformes: .mac)
+
+    static let menuBar = BlockSpec(
+        type: .menuBar, label: "Menu de FL (barre des menus)", category: .fl, symbol: "menubar.rectangle",
+        aide: "Choisit un élément des menus de FL dans la barre des menus de macOS (Options › Audio settings…) par son nom, grâce à l'Accessibilité : rien n'est cliqué à l'écran. Créé par « Enregistrer des clics ».",
+        params: [],
+        conteneur: .aucun, dansLaPalette: false,
+        needs: { _ in base },
+        parDefaut: { .menuBar(titles: ["Options", "Audio settings"]) },
+        resume: { body, _ in
+            guard case .menuBar(let titles) = body else { return "" }
+            return titles.map { $0.displaySafe(max: 30) }.joined(separator: " › ")
+        },
+        journal: { _ in "menuBar" },
+        estimationMs: { _ in 400 },
+        valider: { body, ctx in
+            guard case .menuBar(let titles) = body else { return nil }
+            guard (2...MenuBarAX.maxDepth).contains(titles.count),
+                  titles.allSatisfy({ !$0.trimmingCharacters(in: .whitespaces).isEmpty && $0.count <= 80 }) else {
+                return ctx.fail("chemin de menu invalide.")
+            }
+            return nil
+        },
         import_: .ok, plateformes: .mac)
 
     static let menuAX = BlockSpec(

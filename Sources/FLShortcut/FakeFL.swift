@@ -101,7 +101,15 @@ final class FakeFLController {
     var presetTrack = 0
     var events: [String] = []
     var inputItems: [String: CGPoint] = [:]
+    /// Centre de chaque élément des menus ouverts (« item:<titre> » dans l'état) : le pilote y clique comme l'utilisateur.
+    var itemPoints: [String: CGPoint] = [:]
     var monitors: [Any] = []
+    // Options › Audio settings : fenêtre à part, au niveau des boîtes de dialogue (8), carte son, case, Fermer.
+    var settingsWindow: NSWindow?
+    var settingsView: FakeSettingsView?
+    var device = "Built-in"
+    var autoClose = false
+    let nativeMenuTarget = FakeNativeMenuTarget()
 
     init(statePath: String, oHighlights: Bool) {
         self.statePath = statePath
@@ -117,6 +125,7 @@ final class FakeFLController {
         window.contentView = mixer
         window.isReleasedWhenClosed = false
         window.makeKeyAndOrderFront(nil)
+        installMainMenu()
         NSApp.activate(ignoringOtherApps: true)
 
         monitors.append(NSEvent.addLocalMonitorForEvents(matching: [.keyDown]) { [weak self] e in
@@ -143,6 +152,11 @@ final class FakeFLController {
 
     func reset() {
         closeAll()
+        settingsWindow?.orderOut(nil)
+        settingsWindow = nil
+        settingsView = nil
+        device = "Built-in"
+        autoClose = false
         armed = []
         rec = false
         input = "(none)"
@@ -186,10 +200,20 @@ final class FakeFLController {
         let e = mixer.emptyPoint
         geometry["empty"] = pt(screenPoint(inMixer: e))
         for (k, v) in inputItems { geometry["input:\(k)"] = pt(v) }
+        let o = mixer.optionsRect
+        geometry["options"] = pt(screenPoint(inMixer: NSPoint(x: o.midX, y: o.midY)))
+        for (k, v) in itemPoints { geometry["item:\(k)"] = pt(v) }
+        if let w = settingsWindow, let v = settingsView {
+            func center(_ r: NSRect) -> CGPoint { Self.cg(w.convertPoint(toScreen: v.convert(NSPoint(x: r.midX, y: r.midY), to: nil))) }
+            geometry["settings:device"] = pt(center(v.deviceRect))
+            geometry["settings:toggle"] = pt(center(v.toggleRect))
+            geometry["settings:close"] = pt(center(v.closeRect))
+        }
         let dict: [String: Any] = [
             "pid": Int(getpid()), "selected": selected, "armed": armed.sorted(), "rec": rec, "input": input,
             "preset": preset ?? "", "presetTrack": presetTrack, "events": events, "menusOpen": levels.count,
             "oHighlights": oHighlights,
+            "settingsOpen": settingsWindow != nil, "device": device, "autoClose": autoClose,
             "geometry": geometry,
         ]
         if let data = try? JSONSerialization.data(withJSONObject: dict, options: [.sortedKeys]) {
@@ -291,6 +315,10 @@ final class FakeFLController {
         view.controller = self
         levels.append(level)
         panel.orderFrontRegardless()
+        for (i, item) in items.enumerated() where item.selectable {
+            let r = level.rowRect(i)
+            itemPoints[item.title] = Self.cg(panel.convertPoint(toScreen: NSPoint(x: r.midX, y: view.bounds.height - r.midY)))
+        }
         writeState()
         return level
     }
@@ -311,7 +339,10 @@ final class FakeFLController {
     func closeTop() {
         guard let top = levels.popLast() else { return }
         top.panel.orderOut(nil)
-        if levels.isEmpty { inputItems = [:] }
+        if levels.isEmpty {
+            inputItems = [:]
+            itemPoints = [:]
+        }
         writeState()
     }
 
@@ -426,6 +457,148 @@ final class FakeFLController {
         }
         writeState()
     }
+
+    // MARK: Options › Audio settings
+
+    /// Menus de FL dans la barre des menus de macOS (FL 2024.2 et plus), lisibles par l'Accessibilité.
+    func installMainMenu() {
+        let main = NSMenu()
+        let appItem = NSMenuItem()
+        appItem.submenu = NSMenu(title: "FL Studio")
+        main.addItem(appItem)
+        let options = NSMenu(title: "Options")
+        for (i, title) in ["MIDI settings", "Audio settings", "General settings"].enumerated() {
+            let item = NSMenuItem(title: title, action: #selector(FakeNativeMenuTarget.run(_:)), keyEquivalent: "")
+            item.target = nativeMenuTarget
+            item.tag = i
+            options.addItem(item)
+        }
+        let optionsItem = NSMenuItem(title: "Options", action: nil, keyEquivalent: "")
+        optionsItem.submenu = options
+        main.addItem(optionsItem)
+        nativeMenuTarget.actions = [
+            0: { [weak self] in self?.note("WRONG: MIDI settings") },
+            1: { [weak self] in self?.openSettings() },
+            2: { [weak self] in self?.note("WRONG: General settings") },
+        ]
+        NSApp.mainMenu = main
+    }
+
+    /// OPTIONS de la barre d'outils, dans la fenêtre de FL : menu maison, comme les autres.
+    func openOptionsMenu() {
+        closeAll()
+        let items: [FakeMenuItem] = [
+            FakeMenuItem("MIDI settings"),
+            FakeMenuItem("Audio settings") { [weak self] in self?.openSettings() },
+            FakeMenuItem("General settings"),
+            .separator,
+            FakeMenuItem("Project general settings"),
+        ]
+        let r = mixer.optionsRect
+        let below = window.convertPoint(toScreen: mixer.convert(NSPoint(x: r.minX, y: r.maxY), to: nil))
+        _ = openMenu(items, topLeft: below, width: 220)
+    }
+
+    func openSettings() {
+        if let w = settingsWindow {
+            w.makeKeyAndOrderFront(nil)
+            return
+        }
+        let w = NSWindow(contentRect: NSRect(x: 300, y: 160, width: 520, height: 400),
+                         styleMask: [.titled, .closable], backing: .buffered, defer: false)
+        w.title = "Settings - Audio"
+        w.level = .modalPanel
+        w.isReleasedWhenClosed = false
+        let v = FakeSettingsView(frame: NSRect(x: 0, y: 0, width: 520, height: 400))
+        v.controller = self
+        w.contentView = v
+        settingsWindow = w
+        settingsView = v
+        w.makeKeyAndOrderFront(nil)
+        note("settings open")
+    }
+
+    func closeSettings() {
+        closeAll()
+        settingsWindow?.orderOut(nil)
+        settingsWindow = nil
+        settingsView = nil
+        note("settings close")
+    }
+
+    func openDeviceList() {
+        closeAll()
+        guard let w = settingsWindow, let v = settingsView else { return }
+        let items = ["Built-in", "Interface USB", "Aggregate"].map { name in
+            FakeMenuItem(name) { [weak self] in
+                guard let self else { return }
+                self.device = name
+                self.settingsView?.needsDisplay = true
+                self.note("device \(name)")
+            }
+        }
+        let r = v.deviceRect
+        let below = w.convertPoint(toScreen: v.convert(NSPoint(x: r.minX, y: r.maxY), to: nil))
+        _ = openMenu(items, topLeft: below, width: r.width)
+    }
+
+    func toggleAutoClose() {
+        autoClose.toggle()
+        settingsView?.needsDisplay = true
+        note(autoClose ? "auto close on" : "auto close off")
+    }
+}
+
+/// Cible des éléments du menu Options de la barre des menus.
+final class FakeNativeMenuTarget: NSObject {
+    var actions: [Int: () -> Void] = [:]
+
+    @objc func run(_ sender: NSMenuItem) {
+        let action = actions[sender.tag]
+        DispatchQueue.main.async { action?() }        // après la fermeture du menu, comme une vraie appli
+    }
+}
+
+/// Fenêtre des réglages audio simulée : carte son (liste déroulante maison), case « Auto close device », Fermer.
+final class FakeSettingsView: NSView {
+    weak var controller: FakeFLController?
+
+    override var isFlipped: Bool { true }
+    override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
+
+    var deviceRect: NSRect { NSRect(x: 20, y: 60, width: 260, height: 24) }
+    var toggleRect: NSRect { NSRect(x: 20, y: 110, width: 22, height: 22) }
+    var closeRect: NSRect { NSRect(x: bounds.width - 110, y: bounds.height - 46, width: 90, height: 26) }
+
+    override func draw(_ dirtyRect: NSRect) {
+        NSColor(white: 0.17, alpha: 1).setFill()
+        bounds.fill()
+        guard let c = controller else { return }
+        let text: [NSAttributedString.Key: Any] = [.foregroundColor: NSColor.white, .font: NSFont.systemFont(ofSize: 12)]
+        ("Audio settings" as NSString).draw(at: NSPoint(x: 20, y: 20),
+                                            withAttributes: [.foregroundColor: NSColor.white, .font: NSFont.boldSystemFont(ofSize: 14)])
+        NSColor(white: 0.25, alpha: 1).setFill()
+        deviceRect.fill()
+        ("Device : \(c.device)" as NSString).draw(at: NSPoint(x: deviceRect.minX + 8, y: deviceRect.minY + 4), withAttributes: text)
+        (c.autoClose ? NSColor.systemOrange : NSColor(white: 0.4, alpha: 1)).setFill()
+        toggleRect.fill()
+        ("Auto close device" as NSString).draw(at: NSPoint(x: toggleRect.maxX + 8, y: toggleRect.minY + 3), withAttributes: text)
+        NSColor(white: 0.3, alpha: 1).setFill()
+        closeRect.fill()
+        ("Close" as NSString).draw(at: NSPoint(x: closeRect.minX + 28, y: closeRect.minY + 5), withAttributes: text)
+    }
+
+    override func mouseDown(with event: NSEvent) {
+        guard let c = controller else { return }
+        let p = convert(event.locationInWindow, from: nil)
+        if deviceRect.contains(p) {
+            c.openDeviceList()
+        } else if toggleRect.contains(p) {
+            c.toggleAutoClose()
+        } else if closeRect.contains(p) {
+            c.closeSettings()
+        }
+    }
 }
 
 /// Vue d'un niveau de menu (retournée : y vers le bas, comme les lignes).
@@ -535,6 +708,8 @@ final class FakeMixerView: NSView {
     func nameRect(_ t: Int) -> NSRect { let s = stripRect(t); return NSRect(x: s.minX, y: s.minY, width: s.width, height: 40) }
     func armRect(_ t: Int) -> NSRect { let s = stripRect(t); return NSRect(x: s.midX - 11, y: s.maxY - 34, width: 22, height: 22) }
     var selectorRect: NSRect { NSRect(x: bounds.width - 250, y: 46, width: 230, height: 24) }
+    /// OPTIONS de la barre d'outils de FL (menu dans la fenêtre).
+    var optionsRect: NSRect { NSRect(x: 140, y: 14, width: 84, height: 24) }
     var emptyPoint: NSPoint { NSPoint(x: bounds.width - 140, y: bounds.height - 30) }
 
     override func draw(_ dirtyRect: NSRect) {
@@ -552,6 +727,9 @@ final class FakeMixerView: NSView {
             (c.armed.contains(t) ? NSColor.systemRed : NSColor(white: 0.45, alpha: 1)).setFill()
             NSBezierPath(ovalIn: armRect(t)).fill()
         }
+        NSColor(white: 0.24, alpha: 1).setFill()
+        optionsRect.fill()
+        ("OPTIONS" as NSString).draw(at: NSPoint(x: optionsRect.minX + 14, y: optionsRect.minY + 5), withAttributes: text)
         ("Mixer - Insert \(c.selected)" as NSString).draw(at: NSPoint(x: bounds.width - 250, y: 22), withAttributes: text)
         NSColor(white: 0.25, alpha: 1).setFill()
         selectorRect.fill()
@@ -565,6 +743,10 @@ final class FakeMixerView: NSView {
         let p = convert(event.locationInWindow, from: nil)
         if selectorRect.contains(p) {
             c.openInputList()
+            return
+        }
+        if optionsRect.contains(p) {
+            c.openOptionsMenu()
             return
         }
         for t in 1...Self.trackCount {

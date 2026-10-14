@@ -338,6 +338,13 @@ final class MacroEffectsMac: MacroEffects {
             }
             return .ok
 
+        case .menuBar(let titles):
+            switch MenuBarAX.press(pid: ctx.pid, titles: titles, stop: { self.shouldStop(ctx.pid) }) {
+            case .done: return .ok
+            case .cancelled(let why): return .cancel(why)
+            case .failed(let why): return .fail(why)
+            }
+
         case .waitWindow(.dialog, let ms):
             return waitDialogOpen(timeoutMs: ms, ctx: ctx)
 
@@ -767,6 +774,21 @@ final class MacroEffectsMac: MacroEffects {
 
     // MARK: Cibles de clic
 
+    /// Niveaux des fenêtres de FL qu'un clic appris peut viser : fenêtre principale (0), fenêtres détachées ou
+    /// flottantes, réglages (Options › Audio…), boîtes de dialogue (8). Au-dessus : les menus.
+    static let clickWindowLayers = 0...8
+    /// Délai pour qu'apparaisse la fenêtre ou le menu visé quand le clic précédent vient de l'ouvrir (la fenêtre des
+    /// réglages de FL peut mettre un moment à s'ouvrir la première fois). Rien n'est attendu s'il est déjà là.
+    static let windowAppearTimeout: TimeInterval = 3
+    static let menuAppearTimeout: TimeInterval = 1.5
+
+    /// Fenêtre de FL de cette taille (à 2 points près) visée par un clic appris : celle qui contient la piste visée,
+    /// sinon la plus à l'avant.
+    static func clickWindow(in snap: WinSnapshot, size: CGSize, track: CGPoint) -> WinInfo? {
+        let fits = snap.fl.filter { clickWindowLayers.contains($0.layer) && MacroSpots.sameSize($0.bounds.size, size) }
+        return fits.first { $0.bounds.contains(track) } ?? fits.first
+    }
+
     /// Point visé, et le menu dans lequel il doit tomber (cible « menu ouvert »).
     func resolve(_ target: ClickTarget, ctx: Context) -> (point: CGPoint, popup: WinInfo?)? {
         switch target {
@@ -775,7 +797,7 @@ final class MacroEffectsMac: MacroEffects {
         case .flWindow(let corner, let dx, let dy, let size):
             let frame: CGRect?
             if let size {
-                frame = Self.inputWindow(in: WinSnapshot.take(pid: ctx.pid), size: size, track: ctx.track)?.bounds
+                frame = Self.clickWindow(in: WinSnapshot.take(pid: ctx.pid), size: size, track: ctx.track)?.bounds
             } else {
                 frame = ctx.frame
             }
@@ -794,16 +816,56 @@ final class MacroEffectsMac: MacroEffects {
         case .openMenu(let hop):
             let snap = WinSnapshot.take(pid: ctx.pid)
             let remembered = lastMenu.flatMap { m in snap.window(m.number).flatMap { $0.bounds == m.bounds ? $0 : nil } }
-            guard let menu = remembered ?? snap.fl.first(where: { !ctx.startNumbers.contains($0.number) && $0.isMenuLike && $0.layer > 8 }),
-                  hop.fits(menu.bounds) else { return nil }
+            // Le menu attendu par « Attendre un menu », sinon le menu ouvert par la macro qui a la forme apprise (le
+            // plus à l'avant : un sous-menu passe devant le menu qui l'a ouvert).
+            let opened = snap.fl.filter { !ctx.startNumbers.contains($0.number) && $0.isMenuLike && $0.layer > 8 }
+            guard let menu = remembered.flatMap({ hop.fits($0.bounds) ? $0 : nil })
+                    ?? opened.first(where: { hop.fits($0.bounds) }) else { return nil }
             return (hop.point(in: menu.bounds), menu)
         case .toLearn:
             return nil                                  // refusé par la validation : jamais de clic à l'aveugle
         }
     }
 
+    /// Fenêtre (taille retenue) ou menu de FL : attendu s'il n'est pas encore là. Autres cibles : jamais attendues.
+    static func appearTimeout(of target: ClickTarget) -> TimeInterval? {
+        switch target {
+        case .flWindow(_, _, _, .some): return windowAppearTimeout
+        case .openMenu: return menuAppearTimeout
+        default: return nil
+        }
+    }
+
     func click(_ target: ClickTarget, right: Bool, ctx: Context) -> StepResult {
-        guard target.isFinite, let r = resolve(target, ctx: ctx) else { return .fail("position introuvable (fenêtre de FL ?)") }
+        guard target.isFinite else { return .fail("position introuvable (fenêtre de FL ?)") }
+        var found = resolve(target, ctx: ctx)
+        if found == nil, let timeout = Self.appearTimeout(of: target) {
+            // Pas encore là (le clic précédent l'ouvre) : attendu, puis lu deux fois de suite au même endroit (FL a
+            // fini de le placer). Échap et la perte du premier plan l'interrompent.
+            let t0 = Date()
+            var previous: CGPoint?
+            while found == nil, Date().timeIntervalSince(t0) < timeout {
+                if let stop = shouldStop(ctx.pid) { return .cancel(stop) }
+                Thread.sleep(forTimeInterval: 0.015)
+                let now = resolve(target, ctx: ctx)
+                if let now, now.point == previous { found = now } else { previous = now?.point }
+            }
+            let ms = Int(Date().timeIntervalSince(t0) * 1000)
+            MacroLog.shared.write("CLICK", found == nil ? "target still missing after \(ms) ms" : "target appeared after \(ms) ms")
+            // Fenêtre qui vient de s'ouvrir : un court instant pour qu'elle passe au premier plan de FL.
+            if found != nil, found?.popup == nil, case .cancel(let why) = pause(80, pid: ctx.pid) { return .cancel(why) }
+        }
+        guard let r = found else {
+            switch target {
+            case .flWindow(_, _, _, let size?):
+                return .fail("fenêtre de FL de \(Int(size.width)) × \(Int(size.height)) introuvable "
+                             + "(pas ouverte, ou changée de taille : montre de nouveau le clic)")
+            case .openMenu:
+                return .fail("le menu de FL attendu ne s'est pas ouvert")
+            default:
+                return .fail("position introuvable (fenêtre de FL ?)")
+            }
+        }
         if let popup = r.popup { return clickInside(r.point, popup: popup, ctx: ctx) }
         return click(at: r.point, right: right, ctx: ctx)
     }

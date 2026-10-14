@@ -144,6 +144,7 @@ final class MacroEditorModel: ObservableObject {
     func close() {
         guard !closed else { return }
         ClickTeacher.shared.cancel(nil)
+        ClickSequenceRecorder.shared.cancel(returning: false)
         saveNow()
         closed = true
         preparingTest = false
@@ -250,6 +251,44 @@ final class MacroEditorModel: ObservableObject {
         mutate("Ajouter « \(item.label) »", select: MacroStepRow.blockRowID(block.id)) { doc in
             _ = MacroOutline.insert(block, into: &doc.blocks, at: point)
         }
+    }
+
+    /// « Enregistrer des clics » : FL passe devant, chaque clic de l'utilisateur deviendra un bloc (à « Terminer »).
+    func recordClicks() {
+        guard !closed, draft != nil, !monitor.running, !preparingTest else { return }
+        guard let pid = EventTap.shared.currentConfig.flPIDs.first,
+              ClickSequenceRecorder.shared.start(pid: pid, returnTo: window, completion: { [weak self] result in
+                  self?.insertRecorded(result)
+              }) else {
+            notice = "Ouvre FL Studio, puis recommence."
+            return
+        }
+        notice = nil
+    }
+
+    /// Blocs des clics enregistrés, dans l'ordre sous la sélection : une seule étape d'annulation.
+    func insertRecorded(_ result: ClickSequenceCompiler.Result) {
+        guard !closed, let draft else { return }
+        let skipped = result.ignored == 0 ? ""
+            : " \(result.ignored) clic\(result.ignored > 1 ? "s" : "") hors de FL (ou dans un menu refermé) ignoré\(result.ignored > 1 ? "s" : "")."
+        guard !result.blocks.isEmpty else {
+            notice = "Aucun clic dans FL enregistré." + skipped
+            return
+        }
+        guard MacroValidation.count(draft.blocks) + result.blocks.count <= MacroValidation.maxBlocks else {
+            notice = "Macro trop longue : \(MacroValidation.maxBlocks) blocs au plus."
+            return
+        }
+        let blocks = result.blocks.map { Block($0) }
+        var point = MacroOutline.insertionPoint(after: selectedRow, in: draft.blocks)
+        mutate("Enregistrer des clics", select: blocks.last.map { MacroStepRow.blockRowID($0.id) }) { doc in
+            for b in blocks {
+                _ = MacroOutline.insert(b, into: &doc.blocks, at: point)
+                point.index += 1
+            }
+        }
+        let n = blocks.count
+        notice = "\(n) bloc\(n > 1 ? "s" : "") ajouté\(n > 1 ? "s" : "") d'après tes clics." + skipped
     }
 
     func duplicateSelection() {

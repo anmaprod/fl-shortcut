@@ -23,6 +23,31 @@ final class MacroEditorModelTests: XCTestCase {
         model.close()
     }
 
+    /// Clics enregistrés : ajoutés dans l'ordre sous le bloc choisi, en une seule étape d'annulation.
+    func testRecordedClicksInsertedInOrderUnderSelection() {
+        let store = makeStore()
+        let first = Block(.delay(ms: 100)), last = Block(.delay(ms: 200))
+        let doc = store.library.add(MacroDoc(name: "Réglages", blocks: [first, last]))
+        let model = MacroEditorModel(store: store)
+        let undo = UndoManager()
+        undo.groupsByEvent = false
+        model.undoManager = undo
+        model.load(doc.id)
+        model.selection = MacroStepRow.blockRowID(first.id)
+        let menu = BlockBody.menuBar(titles: ["Options", "Audio settings"])
+        let click = BlockBody.click(.flWindow(corner: .topLeft, dx: 30, dy: 60, size: CGSize(width: 520, height: 428)), button: .left)
+        undo.beginUndoGrouping()
+        model.insertRecorded(ClickSequenceCompiler.Result(blocks: [menu, click], ignored: 1))
+        undo.endUndoGrouping()
+        XCTAssertEqual(model.draft?.blocks.map(\.body), [.delay(ms: 100), menu, click, .delay(ms: 200)])
+        XCTAssertEqual(model.notice, "2 blocs ajoutés d'après tes clics. 1 clic hors de FL (ou dans un menu refermé) ignoré.")
+        undo.undo()
+        XCTAssertEqual(model.draft?.blocks.map(\.body), [.delay(ms: 100), .delay(ms: 200)])
+        model.insertRecorded(ClickSequenceCompiler.Result(blocks: [], ignored: 2))
+        XCTAssertEqual(model.notice, "Aucun clic dans FL enregistré. 2 clics hors de FL (ou dans un menu refermé) ignorés.")
+        model.close()
+    }
+
     func testRefuseIsNotAnOutcome() {
         let monitor = MacroRunMonitor()
         monitor.refuse("Ouvre FL Studio, puis recommence.")

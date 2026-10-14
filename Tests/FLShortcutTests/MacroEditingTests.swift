@@ -193,7 +193,15 @@ final class MacroEditingTests: XCTestCase {
         XCTAssertEqual(t, .flWindow(corner: .bottomRight, dx: -20, dy: -10, size: mixer.size))
         // Hors de FL : rien.
         XCTAssertNil(MacroOutline.learnedTarget(at: CGPoint(x: 5, y: 5), windows: windows))
-        // Boîte de dialogue : refusé (seuls la fenêtre normale et les menus sont retrouvés).
-        XCTAssertNil(MacroOutline.learnedTarget(at: CGPoint(x: 10, y: 10), windows: [(3, CGRect(x: 0, y: 0, width: 400, height: 300))]))
+        // Fenêtre de réglages (Options › Audio) ou boîte de dialogue, devant le Mixer : relative à SON coin, sa
+        // taille retenue (c'est elle qu'on retrouve au rejeu), qu'elle soit flottante (3) ou de dialogue (8).
+        let settings = CGRect(x: 200, y: 150, width: 400, height: 300)
+        for layer in [3, 8] {
+            let front: [(layer: Int, bounds: CGRect)] = [(layer, settings), (0, mixer)]
+            XCTAssertEqual(MacroOutline.learnedTarget(at: CGPoint(x: 230, y: 170), windows: front),
+                           .flWindow(corner: .topLeft, dx: 30, dy: 20, size: settings.size))
+        }
+        // Niveau négatif (bureau, fenêtres d'arrière-plan) : jamais une fenêtre de FL à viser.
+        XCTAssertNil(MacroOutline.learnedTarget(at: CGPoint(x: 10, y: 10), windows: [(-20, CGRect(x: 0, y: 0, width: 400, height: 300))]))
     }
 }

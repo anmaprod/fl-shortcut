@@ -168,6 +168,7 @@ jobs:
           STATE="$RUNNER_TEMP/fakefl.json"
           OUT="$PWD/dist/mesure/selftest-macro.txt"
           OUT2="$PWD/dist/mesure/selftest-macro-blocs.txt"
+          OUT3="$PWD/dist/mesure/selftest-macro-clics.txt"
           pkill -x FLShortcut 2>/dev/null || true
           "$BIN" --fake-fl "$STATE" &
           fake=$!
@@ -184,12 +185,20 @@ jobs:
           ( for i in $(seq -w 1 8); do screencapture -x "dist/mesure/selftest-blocs-$i.png" 2>/dev/null; sleep 0.7; done ) &
           ( sleep 60; kill "$drv2" 2>/dev/null ) &
           status2=0; wait "$drv2" || status2=$?
+          # 3. « Enregistrer des clics » : l'utilisateur simulé clique (menus, fenêtre des réglages), puis rejeu.
+          "$BIN" --selftest-macro "$OUT3" "$STATE" "$fake" --scenario clics &
+          drv3=$!
+          ( for i in $(seq -w 1 12); do screencapture -x "dist/mesure/selftest-clics-$i.png" 2>/dev/null; sleep 1; done ) &
+          ( sleep 90; kill "$drv3" 2>/dev/null ) &
+          status3=0; wait "$drv3" || status3=$?
           kill "$fake" 2>/dev/null || true
           { echo "## Essai de la macro sur le FL simulé"; echo '```'; cat "$OUT"; echo '```'
-            echo "## Essai d'une macro construite en blocs (chemin du bouton « Tester »)"; echo '```'; cat "$OUT2"; echo '```'; } | tee -a "$GITHUB_STEP_SUMMARY"
-          grep -Eq '^(PASS|SKIP)' "$OUT" && grep -Eq '^(PASS|SKIP)' "$OUT2" && exit 0
+            echo "## Essai d'une macro construite en blocs (chemin du bouton « Tester »)"; echo '```'; cat "$OUT2"; echo '```'
+            echo "## Essai « Enregistrer des clics » (enregistrement puis rejeu)"; echo '```'; cat "$OUT3"; echo '```'; } | tee -a "$GITHUB_STEP_SUMMARY"
+          grep -Eq '^(PASS|SKIP)' "$OUT" && grep -Eq '^(PASS|SKIP)' "$OUT2" && grep -Eq '^(PASS|SKIP)' "$OUT3" && exit 0
           [[ "$status" != 0 ]] && exit "$status"
-          exit "${status2:-1}"
+          [[ "$status2" != 0 ]] && exit "$status2"
+          exit "${status3:-1}"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: FLShortcut-mac

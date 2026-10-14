@@ -36,6 +36,9 @@ enum MacroSelfTest {
             if name == "blocs" {
                 ok = scenarioBlocs(statePath: statePath, pid: pid)
                 print(ok ? "PASS: macro construite en blocs sur le FL simulé (piste 5 armée par son menu, REC)" : "FAIL: voir ci-dessus")
+            } else if name == "clics" {
+                ok = scenarioClics(statePath: statePath, pid: pid)
+                print(ok ? "PASS: suite de clics enregistrée puis rejouée (menus de FL et de la barre, fenêtre des réglages)" : "FAIL: voir ci-dessus")
             } else {
                 ok = scenario(statePath: statePath, pid: pid)
                 print(ok ? "PASS: macro complète sur le FL simulé (6 passages : preset déposé, puis par la boîte « Open »)" : "FAIL: voir ci-dessus")
@@ -58,6 +61,9 @@ enum MacroSelfTest {
         var presetTrack: Int { raw["presetTrack"] as? Int ?? 0 }
         var events: [String] { raw["events"] as? [String] ?? [] }
         var menusOpen: Int { raw["menusOpen"] as? Int ?? 0 }
+        var settingsOpen: Bool { raw["settingsOpen"] as? Bool ?? false }
+        var device: String { raw["device"] as? String ?? "?" }
+        var autoClose: Bool { raw["autoClose"] as? Bool ?? false }
         func point(_ key: String) -> CGPoint? {
             guard let g = raw["geometry"] as? [String: [Double]], let v = g[key], v.count == 2 else { return nil }
             return CGPoint(x: v[0], y: v[1])
@@ -295,6 +301,169 @@ enum MacroSelfTest {
             print("OK passage blocs")
         } else {
             print("ÉCHEC passage blocs : " + problems.joined(separator: " ; "))
+        }
+        return problems.isEmpty
+    }
+
+    // MARK: Scénario « clics »
+
+    /// FL simulé remis à zéro (réglages fermés, carte « Built-in »), au premier plan.
+    static func resetFake(_ statePath: String, pid: Int32) -> Bool {
+        DistributedNotificationCenter.default().postNotificationName(
+            Notification.Name("app.flshortcut.fakefl.reset"), object: nil, userInfo: nil, deliverImmediately: true)
+        guard let s = waitState(statePath, timeout: 3, { s in
+            s.events.isEmpty && !s.settingsOpen && s.device == "Built-in" && !s.autoClose && s.menusOpen == 0
+        }), let empty = s.point("empty") else {
+            print("FAIL: le FL simulé ne s'est pas remis à zéro")
+            return false
+        }
+        if frontmost() != pid { userClick(empty) }
+        let end = Date().addingTimeInterval(3)
+        while frontmost() != pid, Date() < end { Thread.sleep(forTimeInterval: 0.05) }
+        guard frontmost() == pid else {
+            print("FAIL: le FL simulé n'est pas au premier plan")
+            return false
+        }
+        return true
+    }
+
+    /// « Enregistrer des clics » de bout en bout : l'utilisateur simulé (événements NON marqués) clique OPTIONS ›
+    /// Audio settings dans la fenêtre de FL, la carte son et la case de la fenêtre des réglages (niveau 8 comme les
+    /// boîtes de FL), Fermer ; puis Options › Audio settings par la barre des menus de macOS, Fermer. L'enregistreur
+    /// en fait des blocs, rejoués ensuite sur le FL simulé remis à zéro : mêmes actions, rien d'autre.
+    static func scenarioClics(statePath: String, pid: Int32) -> Bool {
+        guard waitState(statePath, timeout: 15, { $0.point("options") != nil }) != nil else {
+            print("FAIL: le FL simulé ne répond pas (\(statePath))")
+            return false
+        }
+        guard resetFake(statePath, pid: pid) else { return false }
+        MacroRunner.testFLPID = pid
+        MacroLog.shared.echo = { tag, text, t in print(String(format: "    %6.3f s  %@ %@", t, tag, text)) }
+        defer {
+            MacroLog.shared.echo = nil
+            MacroRunner.testFLPID = nil
+        }
+
+        // 1. Enregistrement : l'utilisateur clique, l'app recopie.
+        print("\n== Enregistrement d'une suite de clics ==")
+        let recorded = Locked<ClickSequenceCompiler.Result?>(nil)
+        let finished = DispatchSemaphore(value: 0)
+        let started: Bool = DispatchQueue.main.sync {
+            ClickSequenceRecorder.shared.start(pid: pid, returnTo: nil) { result in
+                recorded.withLock { $0 = result }
+                finished.signal()
+            }
+        }
+        guard started else {
+            print("FAIL: l'enregistrement n'a pas démarré")
+            return false
+        }
+        Thread.sleep(forTimeInterval: 0.4)
+        func click(_ what: String, _ key: String, until: (FakeState) -> Bool) -> Bool {
+            guard let p = read(statePath)?.point(key) else {
+                print("FAIL: \(what) : position « \(key) » inconnue du FL simulé")
+                return false
+            }
+            userClick(p)
+            guard waitState(statePath, timeout: 3, until) != nil else {
+                print("FAIL: \(what) : le FL simulé n'a pas réagi (\(read(statePath)?.events ?? []))")
+                return false
+            }
+            print("  clic : \(what)")
+            Thread.sleep(forTimeInterval: 0.3)               // rythme humain : les relevés de fenêtres suivent
+            return true
+        }
+        func barClick(_ what: String, _ titles: [String]) -> Bool {
+            guard let f = MenuBarAX.frame(pid: pid, titles: titles) else {
+                print("FAIL: \(what) : introuvable par l'Accessibilité")
+                return false
+            }
+            userClick(CGPoint(x: f.midX, y: f.midY))
+            print("  clic : \(what)")
+            Thread.sleep(forTimeInterval: 0.5)
+            return true
+        }
+        var clicked = click("OPTIONS (dans la fenêtre de FL)", "options") { s in s.menusOpen == 1 }
+        if clicked {
+            clicked = click("Audio settings (menu de FL)", "item:Audio settings") { s in s.settingsOpen && s.menusOpen == 0 }
+        }
+        if clicked { clicked = click("carte son (fenêtre des réglages)", "settings:device") { s in s.menusOpen == 1 } }
+        if clicked {
+            clicked = click("Interface USB (liste de la carte son)", "item:Interface USB") { s in
+                s.device == "Interface USB" && s.menusOpen == 0
+            }
+        }
+        if clicked { clicked = click("case Auto close device", "settings:toggle") { s in s.autoClose } }
+        if clicked { clicked = click("Fermer les réglages", "settings:close") { s in !s.settingsOpen } }
+        if clicked { clicked = barClick("Options (barre des menus de macOS)", ["Options"]) }
+        if clicked { clicked = barClick("Audio settings (menu de la barre)", ["Options", "Audio settings"]) }
+        if clicked { clicked = click("Fermer les réglages ouverts par la barre", "settings:close") { s in !s.settingsOpen } }
+        DispatchQueue.main.sync { ClickSequenceRecorder.shared.finish() }
+        guard clicked else { return false }
+        guard finished.wait(timeout: .now() + 3) == .success, let result = recorded.value else {
+            print("FAIL: « Terminer » n'a rendu aucun bloc")
+            return false
+        }
+        func kind(_ body: BlockBody) -> String {
+            switch body {
+            case .click(.flWindow, _): return "fenêtre"
+            case .click(.openMenu, _): return "menu"
+            case .menuBar(let titles): return "barre[\(titles.joined(separator: " › "))]"
+            default: return BlockRegistry.journal(of: body)
+            }
+        }
+        let kinds = result.blocks.map(kind)
+        print("blocs : " + kinds.joined(separator: " > ") + " · clics ignorés : \(result.ignored)")
+        let expected = ["fenêtre", "menu", "fenêtre", "menu", "fenêtre", "fenêtre", "barre[Options › Audio settings]", "fenêtre"]
+        guard kinds == expected, result.ignored == 0 else {
+            print("FAIL: blocs attendus : " + expected.joined(separator: " > "))
+            return false
+        }
+
+        // 2. Rejeu des blocs obtenus, par le même chemin que « Tester » dans le créateur.
+        guard resetFake(statePath, pid: pid) else { return false }
+        let doc = MacroDoc(name: "Réglages audio (clics enregistrés)", blocks: result.blocks.map { Block($0) })
+        let program = MacroProgram.compile(doc, forbidden: .physical)
+        guard program.isRunnable else {
+            print("FAIL: macro invalide : \(program.problem ?? "?")")
+            return false
+        }
+        print("\n== Rejeu des clics enregistrés ==")
+        let monitor = MacroRunMonitor()
+        let done = DispatchSemaphore(value: 0)
+        let outcome = Locked<MacroOutcome?>(nil)
+        let t0 = Date()
+        let launched: MacroRunner.StartResult = DispatchQueue.main.sync {
+            monitor.start(program, pid: pid) { o in
+                outcome.withLock { $0 = o }
+                done.signal()
+            }
+        }
+        guard launched == .started else {
+            print("FAIL: rejeu refusé (\(launched))")
+            return false
+        }
+        guard done.wait(timeout: .now() + 30) == .success else {
+            print("FAIL: le rejeu ne s'est pas terminé en 30 s")
+            return false
+        }
+        let ms = Int(Date().timeIntervalSince(t0) * 1000)
+        Thread.sleep(forTimeInterval: 0.3)
+        let s = read(statePath) ?? FakeState(raw: [:])
+        let wanted = ["settings open", "device Interface USB", "auto close on", "settings close", "settings open", "settings close"]
+        var problems: [String] = []
+        if outcome.value != .done { problems.append("résultat « \(outcome.value?.text ?? "aucun") »") }
+        if s.events != wanted { problems.append("actions \(s.events) au lieu de \(wanted)") }
+        if s.device != "Interface USB" { problems.append("carte son « \(s.device) »") }
+        if !s.autoClose { problems.append("case non cochée") }
+        if s.settingsOpen { problems.append("réglages restés ouverts") }
+        if s.menusOpen != 0 { problems.append("\(s.menusOpen) menu(s) resté(s) ouvert(s)") }
+        print("résultat : \(outcome.value?.text ?? "?") — \(ms) ms au total")
+        print("FL simulé : carte=\(s.device) case=\(s.autoClose) réglages=\(s.settingsOpen) actions=\(s.events)")
+        if problems.isEmpty {
+            print("OK rejeu des clics")
+        } else {
+            print("ÉCHEC rejeu des clics : " + problems.joined(separator: " ; "))
         }
         return problems.isEmpty
     }

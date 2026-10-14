@@ -130,6 +130,11 @@ private struct BlockInspector: View {
 
     @ViewBuilder private var noSettings: some View {
         switch block.body {
+        case .menuBar(let titles):
+            Text("\(titles.map { $0.displaySafe(max: 40) }.joined(separator: " › ")) : choisi par son nom dans la barre "
+                 + "des menus de macOS (rien n'est cliqué à l'écran). Pour un autre élément, enregistre de nouveau tes clics.")
+                .font(.system(size: 12))
+                .fixedSize(horizontal: false, vertical: true)
         case .selectInput:
             VStack(alignment: .leading, spacing: 6) {
                 Text(MacroSpots.loadPath(.input) != nil
@@ -415,11 +420,12 @@ private struct BlockInspector: View {
         let text: String
         switch t {
         case .flWindow(_, _, _, let size?):
-            text = "Retenu dans la fenêtre de FL de \(Int(size.width)) × \(Int(size.height)) : si elle change de taille, montre-le de nouveau."
+            text = "Retenu dans la fenêtre de FL de \(Int(size.width)) × \(Int(size.height)) (fenêtre principale, réglages, "
+                + "boîte…) : le clic attend qu'elle s'ouvre. Si elle change de taille, montre-le de nouveau."
         case .flWindow:
             text = "Retenu par rapport à la fenêtre de FL."
         case .openMenu:
-            text = "Retenu dans le menu de FL ouvert juste avant (ajoute « Attendre un menu » avant ce clic)."
+            text = "Retenu dans le menu de FL ouvert par le clic précédent : le clic attend que ce menu s'ouvre."
         case .cursorXWindowY:
             text = "Ancienne position apprise (colonne du curseur)."
         default:

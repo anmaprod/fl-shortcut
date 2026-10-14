@@ -249,6 +249,8 @@ indirect enum BlockBody: Equatable {
     case flActionValue(key: String, value: IntSource)       // incrément 4 (paramètre signé)
     case selectInput(LearnedRef)
     case feedbackCheck
+    /// Élément d'un menu de FL dans la barre des menus de macOS (titre du menu, puis des éléments), par l'Accessibilité.
+    case menuBar(titles: [String])
     /// Ancienne étape `menu` (titres d'accessibilité, clics de secours) : reprise des anciennes macros, hors palette.
     case menuAX(titles: [String], fallback: [ClickTarget])
     // Contrôle
@@ -279,6 +281,7 @@ indirect enum BlockBody: Equatable {
         case .flActionValue: return .flActionValue
         case .selectInput: return .selectInput
         case .feedbackCheck: return .feedbackCheck
+        case .menuBar: return .menuBar
         case .menuAX: return .menuAX
         case .ifElse: return .ifElse
         case .repeatCount: return .repeatCount
@@ -337,6 +340,8 @@ indirect enum BlockBody: Equatable {
             return ["learned": ref.json]
         case .feedbackCheck:
             return [:]
+        case .menuBar(let titles):
+            return ["titles": .array(titles.map { .string($0) })]
         case .menuAX(let titles, let fallback):
             return ["titles": .array(titles.map { .string($0) }), "fallback": .array(fallback.map(\.json))]
         case .ifElse(let c, let then, let otherwise):
@@ -406,6 +411,11 @@ indirect enum BlockBody: Equatable {
             return .selectInput(ref)
         case .feedbackCheck:
             return .feedbackCheck
+        case .menuBar:
+            guard let list = j["titles"]?.array else { return nil }
+            let titles = list.compactMap(\.string)
+            guard titles.count == list.count else { return nil }
+            return .menuBar(titles: titles)
         case .menuAX:
             guard let titles = j["titles"]?.array?.compactMap(\.string) else { return nil }
             var fallback: [ClickTarget] = []
