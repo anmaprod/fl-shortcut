@@ -1,0 +1,405 @@
+// Créateur de macros : état de la fenêtre. Créé à l'ouverture de la fenêtre et libéré à sa fermeture.
+// - Édition sur un BROUILLON : enregistré dans la bibliothèque par « Enregistrer » (⌘S) ou 0,5 s après la dernière
+//   modification, jamais à chaque frappe (le Store ne recalcule l'index qu'à l'enregistrement).
+// - Liste à plat recalculée en O(n) seulement après une modification (MacroOutline) ; lignes Equatable.
+// - Annuler / Rétablir (⌘Z / ⇧⌘Z) par le gestionnaire d'annulation de la fenêtre ; les frappes d'un même champ
+//   sont regroupées en une seule étape.
+// - « Tester » : FL passe devant, puis la macro tourne par le même chemin qu'un raccourci, suivie bloc par bloc
+//   (MacroRunMonitor, branché seulement pendant l'essai).
+import AppKit
+import Combine
+import Foundation
+
+final class MacroEditorModel: ObservableObject {
+    @Published private(set) var draft: MacroDoc?
+    @Published private(set) var rows: [MacroStepRow] = []
+    @Published var selection: String?
+    @Published private(set) var dirty = false
+    /// Ce qui empêche la macro de tourner (validation stricte de la bibliothèque), sinon nil.
+    @Published private(set) var problem: String?
+    @Published private(set) var estimateMs = 0
+    @Published private(set) var needs: BlockNeeds = []
+    /// Message court en bas de la liste (déplacement refusé, macro supprimée…).
+    @Published var notice: String?
+    /// Raccourci affiché : celui du raccourci relié, ou celui proposé s'il est refusé (avec ses problèmes).
+    @Published private(set) var trigger: KeyCombo?
+    @Published private(set) var triggerIssues: [ShortcutIssue] = []
+    /// FL est en train de passer au premier plan avant un essai.
+    @Published private(set) var preparingTest = false
+
+    let monitor = MacroRunMonitor()
+    weak var undoManager: UndoManager?
+    weak var window: NSWindow?
+
+    /// Macro d'exemple de la mesure de l'interface : jamais enregistrée.
+    private(set) var ephemeral = false
+    private let store: Store
+    private var library: MacroLibraryStore { store.library }
+    private let layout: KeyboardLayout
+    private var pendingSave: DispatchWorkItem?
+    private var lastUndoKey: String?
+    private var lastUndoAt = Date.distantPast
+    private var learnedInput = false
+    private var terminateObserver: NSObjectProtocol?
+
+    static let saveDelay: TimeInterval = 0.5
+
+    init(store: Store = .shared) {
+        self.store = store
+        layout = store.layout
+        // L'app quitte pendant l'attente des 0,5 s : la dernière modification est enregistrée quand même.
+        terminateObserver = NotificationCenter.default.addObserver(forName: NSApplication.willTerminateNotification,
+                                                                   object: nil, queue: .main) { [weak self] _ in
+            self?.saveNow()
+        }
+    }
+
+    deinit {
+        if let terminateObserver { NotificationCenter.default.removeObserver(terminateObserver) }
+    }
+
+    // MARK: Lecture
+
+    var selectedRow: MacroStepRow? { rows.first { $0.id == selection } }
+
+    var selectedBlock: Block? {
+        guard let row = selectedRow, row.kind == .block, let draft else { return nil }
+        return MacroOutline.block(row.blockID, in: draft.blocks)
+    }
+
+    /// Raccourci du profil qui lance cette macro.
+    var shortcut: Remap? { draft.flatMap { store.remaps(forMacro: $0.id).first } }
+
+    var validationContext: ValidationContext {
+        ValidationContext(forbidden: store.forbidden, strictFiles: true, variables: Set(draft?.variables.map(\.name) ?? []))
+    }
+
+    // MARK: Ouverture
+
+    /// Ouvre une macro de la bibliothèque (la précédente est enregistrée d'abord). nil : la première, s'il y en a.
+    func load(_ id: UUID?) {
+        saveNow()
+        ephemeral = false
+        let doc = id.flatMap(library.doc) ?? library.macros.first
+        open(doc)
+    }
+
+    /// Macro d'exemple, jamais enregistrée (mesure de l'interface et capture pour la relecture).
+    func loadSample(_ doc: MacroDoc) {
+        saveNow()
+        ephemeral = true
+        open(doc)
+    }
+
+    private func open(_ doc: MacroDoc?) {
+        undoManager?.removeAllActions(withTarget: self)
+        monitor.clear()
+        notice = nil
+        draft = doc
+        dirty = false
+        learnedInput = MacroSpots.loadPath(.input) != nil
+        refresh()
+        selection = rows.first(where: { $0.kind == .block })?.id
+        trigger = shortcut?.trigger
+        triggerIssues = []
+    }
+
+    /// Nouvelle macro vide dans la bibliothèque, ouverte aussitôt.
+    func newMacro() {
+        let doc = library.add(MacroDoc(name: library.uniqueName("Nouvelle macro"), blocks: []))
+        load(doc.id)
+    }
+
+    /// Fenêtre fermée : enregistrement, plus aucun besoin annoncé (mémoire de la piste rendue au repos).
+    func close() {
+        saveNow()
+        undoManager?.removeAllActions(withTarget: self)
+        store.setEditorNeeds([])
+    }
+
+    // MARK: Projection
+
+    private func refresh() {
+        guard let draft else {
+            rows = []
+            problem = nil
+            estimateMs = 0
+            needs = []
+            store.setEditorNeeds([])
+            return
+        }
+        let ctx = validationContext
+        rows = MacroOutline.rows(draft.blocks, layout: layout, context: ctx, learnedInput: learnedInput)
+        problem = MacroValidation.problem(in: draft, context: ctx)
+        estimateMs = MacroValidation.estimateMs(draft.blocks)
+        needs = MacroValidation.needs(of: draft.blocks)
+        store.setEditorNeeds(needs)
+        if let s = selection, !rows.contains(where: { $0.id == s }) { selection = nil }
+    }
+
+    // MARK: Modifications (annulables)
+
+    /// Applique une modification au brouillon : annulable, liste recalculée, enregistrement dans 0,5 s.
+    /// `coalesce` : même clé dans la seconde et demie = même étape d'annulation (frappes d'un champ).
+    private func mutate(_ actionName: String, coalesce: String? = nil, select: String? = nil,
+                        _ change: (inout MacroDoc) -> Void) {
+        guard var doc = draft else { return }
+        let before = doc
+        let beforeSelection = selection
+        change(&doc)
+        guard doc != before else { return }
+        let now = Date()
+        if coalesce == nil || coalesce != lastUndoKey || now.timeIntervalSince(lastUndoAt) > 1.5 {
+            undoManager?.registerUndo(withTarget: self) { model in
+                model.restore(before, selection: beforeSelection, actionName: actionName)
+            }
+            undoManager?.setActionName(actionName)
+        }
+        lastUndoKey = coalesce
+        lastUndoAt = now
+        draft = doc
+        if !monitor.running, monitor.outcome != nil || !monitor.statuses.isEmpty { monitor.clear() }
+        refresh()
+        if let select { selection = select }
+        markDirty()
+    }
+
+    private func restore(_ doc: MacroDoc, selection newSelection: String?, actionName: String) {
+        guard let current = draft else { return }
+        let currentSelection = selection
+        undoManager?.registerUndo(withTarget: self) { model in
+            model.restore(current, selection: currentSelection, actionName: actionName)
+        }
+        undoManager?.setActionName(actionName)
+        lastUndoKey = nil
+        draft = doc
+        refresh()
+        selection = newSelection
+        markDirty()
+    }
+
+    func rename(_ name: String) {
+        let clean = String(name.prefix(MacroValidation.maxNameLength))
+        mutate("Renommer la macro", coalesce: "name") { $0.name = clean }
+    }
+
+    /// Modifie un bloc (inspecteur). `key` : champ modifié, pour regrouper les frappes.
+    func updateBlock(_ id: UUID, key: String, actionName: String = "Modifier le bloc", _ change: (inout Block) -> Void) {
+        mutate(actionName, coalesce: "\(id)-\(key)") { doc in
+            _ = MacroOutline.update(&doc.blocks, id: id, change)
+        }
+    }
+
+    func setEnabled(_ id: UUID, _ on: Bool) {
+        updateBlock(id, key: "enabled", actionName: on ? "Activer le bloc" : "Désactiver le bloc") { $0.enabled = on }
+    }
+
+    /// Ajoute un bloc de la palette sous la sélection (ou dans la boucle si sa ligne de fin est choisie).
+    func insert(_ item: PaletteItem) {
+        guard !item.soon, let draft else { return }
+        guard MacroValidation.count(draft.blocks) < MacroValidation.maxBlocks else {
+            notice = "Macro trop longue : \(MacroValidation.maxBlocks) blocs au plus."
+            return
+        }
+        let block = Block(item.make())
+        let point = MacroOutline.insertionPoint(after: selectedRow, in: draft.blocks)
+        if !block.body.children.isEmpty || block.body.type == .repeatCount,
+           MacroOutline.depth(of: point) + 1 > MacroValidation.maxDepth {
+            notice = "Trop de boucles l'une dans l'autre (\(MacroValidation.maxDepth) niveaux au plus)."
+            NSSound.beep()
+            return
+        }
+        notice = nil
+        mutate("Ajouter « \(item.label) »", select: MacroStepRow.blockRowID(block.id)) { doc in
+            _ = MacroOutline.insert(block, into: &doc.blocks, at: point)
+        }
+    }
+
+    func duplicateSelection() {
+        guard let block = selectedBlock, let draft else { return }
+        guard MacroValidation.count(draft.blocks) + MacroValidation.count([block]) <= MacroValidation.maxBlocks else {
+            notice = "Macro trop longue : \(MacroValidation.maxBlocks) blocs au plus."
+            return
+        }
+        guard let copy = MacroTemplates.freshIDs([block]).first, let row = selectedRow else { return }
+        let point = MacroOutline.insertionPoint(after: row, in: draft.blocks)
+        mutate("Dupliquer", select: MacroStepRow.blockRowID(copy.id)) { doc in
+            _ = MacroOutline.insert(copy, into: &doc.blocks, at: point)
+        }
+    }
+
+    func deleteSelection() {
+        guard let row = selectedRow, row.kind == .block else { return }
+        let position = rows.firstIndex(of: row) ?? 0
+        mutate("Supprimer le bloc") { doc in
+            _ = MacroOutline.remove(&doc.blocks, id: row.blockID)
+        }
+        // La ligne qui prend sa place (sinon la précédente) reste choisie : ⌫ ⌫ efface de proche en proche.
+        let candidates = rows.indices.contains(position) ? [rows[position]] + rows[..<position].reversed()
+                                                        : Array(rows.reversed())
+        selection = candidates.first(where: { $0.kind == .block })?.id
+    }
+
+    /// Glisser-déposer dans la liste à plat (`onMove`) : le bloc part avec ce qu'il contient.
+    func move(fromOffsets offsets: IndexSet, toOffset to: Int) {
+        guard offsets.count == 1, let from = offsets.first, rows.indices.contains(from), rows[from].kind == .block,
+              to != from, to != from + 1 else { return }
+        let id = rows[from].blockID
+        let target: MoveTarget
+        if to >= rows.count {
+            target = .rootEnd
+        } else {
+            switch rows[to].kind {
+            case .block: target = .before(rows[to].blockID)
+            case .end(let slot): target = .end(container: rows[to].blockID, slot: slot)
+            }
+        }
+        var moved = false
+        mutate("Déplacer le bloc", select: MacroStepRow.blockRowID(id)) { doc in
+            moved = MacroOutline.move(&doc.blocks, id: id, to: target)
+        }
+        if !moved {
+            notice = "Déplacement impossible : un bloc ne va pas dans lui-même, et \(MacroValidation.maxDepth) niveaux au plus."
+            NSSound.beep()
+        }
+    }
+
+    // MARK: Enregistrement
+
+    private func markDirty() {
+        guard !ephemeral else { return }
+        dirty = true
+        pendingSave?.cancel()
+        let work = DispatchWorkItem { [weak self] in self?.saveNow() }
+        pendingSave = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + Self.saveDelay, execute: work)
+    }
+
+    /// Enregistre le brouillon dans la bibliothèque (révision +1 : le Store recompile cette macro seulement).
+    func saveNow() {
+        pendingSave?.cancel()
+        pendingSave = nil
+        guard dirty, !ephemeral, let draft else { return }
+        dirty = false
+        if library.update(draft) == nil {
+            notice = "Cette macro n'est plus dans la bibliothèque : tes modifications ne sont pas enregistrées."
+        }
+    }
+
+    // MARK: Raccourci
+
+    /// Choisit le raccourci de la macro (avertissements de conflit habituels). Refusé : affiché avec la raison,
+    /// pas enregistré. Effacé (⌫) : le raccourci est retiré.
+    func setTrigger(_ combo: KeyCombo?) {
+        guard let draft, !ephemeral else { return }
+        let existing = store.remaps(forMacro: draft.id)
+        guard let combo else {
+            for r in existing { store.delete(r.id) }
+            trigger = nil
+            triggerIssues = []
+            return
+        }
+        var remap = existing.first ?? Remap(trigger: combo, macroRef: draft.id)
+        remap.trigger = combo
+        let issues = store.draftIssues(remap).filter { if case .noTrigger = $0 { return false }; return true }
+        trigger = combo
+        triggerIssues = issues
+        guard !issues.contains(where: \.isBlocking) else { return }
+        store.upsert(remap)
+    }
+
+    // MARK: Essai
+
+    /// Programme du brouillon tel qu'il est (sans cache : il change à chaque modification).
+    func programForTest() -> Result<MacroProgram, String> {
+        guard let draft else { return .failure("Aucune macro ouverte.") }
+        let ctx = validationContext
+        if let why = MacroValidation.problem(in: draft, context: ctx) { return .failure(why) }
+        return .success(MacroProgram(blocks: draft.blocks, name: draft.name,
+                                     source: .blocks(id: draft.id, revision: draft.revision),
+                                     variables: draft.variables, context: ctx))
+    }
+
+    /// « Tester » : FL passe devant, puis la macro tourne exactement comme depuis son raccourci. Échap l'arrête.
+    func test() {
+        guard !monitor.running, !preparingTest else { return }
+        saveNow()
+        notice = nil
+        let program: MacroProgram
+        switch programForTest() {
+        case .failure(let why):
+            monitor.refuse(why)
+            return
+        case .success(let p):
+            program = p
+        }
+        guard let pid = EventTap.shared.currentConfig.flPIDs.first,
+              let fl = NSRunningApplication(processIdentifier: pid) else {
+            monitor.refuse("Ouvre FL Studio, puis recommence.")
+            return
+        }
+        monitor.clear()
+        preparingTest = true
+        fl.activate(options: [])
+        waitForFL(program, pid: pid, tries: 40)
+    }
+
+    private func waitForFL(_ program: MacroProgram, pid: Int32, tries: Int) {
+        if EventTap.shared.currentConfig.frontmostPID == pid {
+            // Un court instant : la fenêtre de FL finit de passer devant.
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) { [weak self] in self?.launch(program, pid: pid) }
+            return
+        }
+        guard tries > 0 else {
+            preparingTest = false
+            monitor.refuse("FL Studio n'est pas passé au premier plan : recommence.")
+            return
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) { [weak self] in
+            self?.waitForFL(program, pid: pid, tries: tries - 1)
+        }
+    }
+
+    private func launch(_ program: MacroProgram, pid: Int32) {
+        preparingTest = false
+        let result = monitor.start(program, pid: pid) { [weak self] _ in
+            // Retour dans le créateur pour lire le résultat (FL reste tel que la macro l'a laissé).
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                guard let self, let window = self.window else { return }
+                NSApp.activate(ignoringOtherApps: true)
+                window.makeKeyAndOrderFront(nil)
+            }
+        }
+        switch result {
+        case .started: break
+        case .busy: monitor.refuse("Une macro tourne déjà.")
+        case .refused: monitor.refuse("FL Studio n'était plus au premier plan : recommence sans changer de fenêtre.")
+        }
+    }
+
+    /// « Montrer le bloc » du bandeau de résultat.
+    func showFailedBlock() {
+        guard let id = monitor.failedBlock else { return }
+        selection = MacroStepRow.blockRowID(id)
+    }
+
+    /// Libellé du bandeau : « Échec au bloc 4 (Attendre une fenêtre) : … ».
+    func outcomeText(_ outcome: MacroOutcome) -> String {
+        switch outcome {
+        case .done:
+            return "Macro terminée" + (monitor.totalMs > 0 ? " en \(MacroOutline.seconds(max(monitor.totalMs / 100 * 100, 100)))" : "")
+        case .doneWithWarning(let why):
+            return "Macro terminée, mais \(why)"
+        case .failed(let step, let reason):
+            let label = draft.flatMap { MacroValidation.block(at: "\(step)", in: $0.blocks) }
+                .map { " (\(BlockRegistry.label(of: $0.body)))" } ?? ""
+            return "Échec au bloc \(step)\(label) : \(reason)"
+        case .failedInBlock(let path, let label, let reason):
+            return "Échec au bloc \(path) (\(label)) : \(reason)"
+        case .stopped(let message):
+            return message.map { "Arrêtée : \($0.displaySafe(max: 80))" } ?? "Arrêtée par le bloc « Arrêter la macro »"
+        case .cancelled(let reason):
+            return "Essai arrêté : \(reason)"
+        }
+    }
+}

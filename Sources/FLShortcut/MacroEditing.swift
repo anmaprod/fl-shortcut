@@ -34,7 +34,7 @@ enum MoveTarget: Equatable {
 
 // MARK: - Ligne de la liste
 
-enum StepBadge: Hashable {
+enum MacroBadge: Hashable {
     /// Pause fixe : trop courte sur un projet lourd, trop longue ailleurs.
     case pauseFixe
     /// Échoue sans le lien avec FL (aucun équivalent au clavier).
@@ -66,7 +66,7 @@ enum StepBadge: Hashable {
     }
 }
 
-struct StepRow: Identifiable, Equatable {
+struct MacroStepRow: Identifiable, Equatable {
     enum Kind: Equatable {
         case block
         /// Fin de la liste `slot` d'un conteneur (insertion et dépôt à l'intérieur).
@@ -90,7 +90,7 @@ struct StepRow: Identifiable, Equatable {
     let enabled: Bool
     /// Case à cocher du bloc lui-même.
     let ownEnabled: Bool
-    let badges: [StepBadge]
+    let badges: [MacroBadge]
     let isContainer: Bool
 
     static func blockRowID(_ id: UUID) -> String { "b:" + id.uuidString }
@@ -212,7 +212,7 @@ enum MacroOutline {
 
     /// Place d'insertion « sous la sélection » : après le bloc choisi (même niveau), à la fin d'une liste si une
     /// ligne de fin est choisie, sinon tout en bas.
-    static func insertionPoint(after row: StepRow?, in blocks: [Block]) -> InsertionPoint {
+    static func insertionPoint(after row: MacroStepRow?, in blocks: [Block]) -> InsertionPoint {
         guard let row, let p = path(of: row.blockID, in: blocks), let last = p.last else { return .rootEnd(blocks) }
         switch row.kind {
         case .block:
@@ -230,8 +230,8 @@ enum MacroOutline {
 
     /// Lignes de la liste. `context` : validation stricte de la bibliothèque (chemin de chaque bloc posé ici).
     static func rows(_ blocks: [Block], layout: KeyboardLayout, context: ValidationContext,
-                     learnedInput: Bool) -> [StepRow] {
-        var out: [StepRow] = []
+                     learnedInput: Bool) -> [MacroStepRow] {
+        var out: [MacroStepRow] = []
         out.reserveCapacity(blocks.count + 4)
         func walk(_ list: [Block], prefix: String, offset: Int, depth: Int, parentEnabled: Bool) {
             for (i, b) in list.enumerated() {
@@ -253,7 +253,7 @@ enum MacroOutline {
     }
 
     private static func row(_ b: Block, number: String, depth: Int, enabled: Bool, context: ValidationContext,
-                            layout: KeyboardLayout, learnedInput: Bool) -> StepRow {
+                            layout: KeyboardLayout, learnedInput: Bool) -> MacroStepRow {
         let spec = b.body.type.map(BlockRegistry.spec)
         let phrase = self.phrase(b.body, layout: layout)
         var problem: String?
@@ -265,7 +265,7 @@ enum MacroOutline {
         } else {
             problem = context.fail("bloc d'une version plus récente de FL Shortcut : la macro est bloquée.")
         }
-        return StepRow(id: StepRow.blockRowID(b.id), blockID: b.id, kind: .block, number: number, depth: depth,
+        return MacroStepRow(id: MacroStepRow.blockRowID(b.id), blockID: b.id, kind: .block, number: number, depth: depth,
                        type: b.body.type, category: spec?.category, symbol: spec?.symbol ?? "questionmark.square.dashed",
                        verb: phrase.verb, value: phrase.value,
                        note: b.note.flatMap { $0.isEmpty ? nil : $0.displaySafe(max: 120) },
@@ -274,14 +274,14 @@ enum MacroOutline {
                        isContainer: !b.body.children.isEmpty)
     }
 
-    private static func endRow(_ b: Block, slot: Int, slots: Int, depth: Int, enabled: Bool) -> StepRow {
+    private static func endRow(_ b: Block, slot: Int, slots: Int, depth: Int, enabled: Bool) -> MacroStepRow {
         let verb: String
         if case .ifElse = b.body {
             verb = slot == 0 ? "Sinon" : "Fin du « Si »"
         } else {
             verb = "Fin de la boucle"
         }
-        return StepRow(id: "e\(slot):" + b.id.uuidString, blockID: b.id, kind: .end(slot: slot), number: "",
+        return MacroStepRow(id: "e\(slot):" + b.id.uuidString, blockID: b.id, kind: .end(slot: slot), number: "",
                        depth: depth, type: nil, category: b.body.type.map { BlockRegistry.spec($0).category },
                        symbol: slot + 1 < slots ? "arrow.turn.down.right" : "arrow.turn.left.up", verb: verb,
                        value: nil, note: nil, enabled: enabled, ownEnabled: true, badges: [], isContainer: false)
@@ -294,8 +294,8 @@ enum MacroOutline {
         return rest.prefix(1).uppercased() + rest.dropFirst()
     }
 
-    static func badges(_ b: Block, problem: String?, learnedInput: Bool) -> [StepBadge] {
-        var out: [StepBadge] = []
+    static func badges(_ b: Block, problem: String?, learnedInput: Bool) -> [MacroBadge] {
+        var out: [MacroBadge] = []
         switch b.body {
         case .click(.toLearn, _):
             out.append(.aApprendre("Position à montrer dans FL : choisis le bloc puis « Montrer dans FL… »."))

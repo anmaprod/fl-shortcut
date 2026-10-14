@@ -15,7 +15,7 @@ final class MacroEditingTests: XCTestCase {
         return ([a, loop, c], a, loop, inner, c)
     }
 
-    private func rows(_ blocks: [Block], learned: Bool = true) -> [StepRow] {
+    private func rows(_ blocks: [Block], learned: Bool = true) -> [MacroStepRow] {
         MacroOutline.rows(blocks, layout: FakeLayout.qwerty, context: ctx, learnedInput: learned)
     }
 
