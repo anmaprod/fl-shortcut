@@ -365,11 +365,13 @@ struct MenuContent: View {
                 AppIcon().frame(width: 32, height: 32)
                 VStack(alignment: .leading, spacing: 2) {
                     Text("FL Shortcut").font(.system(size: 13, weight: .semibold))
-                    HStack(spacing: 5) {
-                        Circle().fill(dotColor).frame(width: 7, height: 7)
-                        Text(statusLine).foregroundStyle(.secondary).lineLimit(1)
+                    if let line = statusLine {
+                        HStack(spacing: 5) {
+                            Circle().fill(dotColor).frame(width: 7, height: 7)
+                            Text(line).foregroundStyle(.secondary).lineLimit(1)
+                        }
+                        .font(.system(size: 11))
                     }
-                    .font(.system(size: 11))
                 }
             }
             .padding(.horizontal, 8)
@@ -433,16 +435,14 @@ struct MenuContent: View {
         }
     }
 
-    /// Chaîne calculée à part : pas de fermeture imbriquée dans une interpolation de LocalizedStringKey.
-    private var statusLine: String {
+    /// Chaîne calculée à part : pas de fermeture imbriquée dans une interpolation de LocalizedStringKey. nil quand
+    /// tout va bien : ni « Actif », ni la version de FL (demandé par l'utilisateur), seulement ce qui cloche.
+    private var statusLine: String? {
         guard store.enabled else { return "En pause" }
         if !status.accessibilityOK { return "Clavier non autorisé" }
-        let version = fl.version.map { " \($0)" } ?? ""
-        if AppMode.light {
-            return fl.running ? "Actif dans FL Studio" + version : "FL Studio n'est pas ouvert"
-        }
+        if AppMode.light { return fl.running ? nil : "FL Studio n'est pas ouvert" }
         switch link.status {
-        case .linked: return "Relié à FL Studio" + version
+        case .linked: return nil
         case .inactive: return "Lien inactif"
         case .flClosed: return "FL Studio n'est pas ouvert"
         }

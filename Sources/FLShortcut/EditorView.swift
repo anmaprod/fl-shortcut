@@ -632,7 +632,15 @@ private struct StatusBar: View {
     /// Pastille de verre flottante en bas à gauche (comme les barres flottantes de macOS 26). Une capsule : elle
     /// reste concentrique avec le coin arrondi de la fenêtre. Symbole + couleur : l'état ne repose pas que sur la
     /// couleur.
+    /// Rien quand tout va bien (ni « Actif », ni la version de FL : demandé par l'utilisateur) ; seulement ce qui
+    /// demande une action ou explique un silence des raccourcis.
     var body: some View {
+        if let text {
+            pill(text)
+        }
+    }
+
+    private func pill(_ text: String) -> some View {
         HStack(spacing: 0) {
             HStack(spacing: 8) {
                 Image(systemName: symbol)
@@ -680,17 +688,12 @@ private struct StatusBar: View {
         ms < 10 ? String(format: "%.1f ms", ms).replacingOccurrences(of: ".", with: ",") : "\(Int(ms.rounded())) ms"
     }
 
-    private var text: String {
+    private var text: String? {
         if !store.enabled { return "En pause : FL Studio utilise ses raccourcis d'origine" }
         if !status.accessibilityOK { return "Clavier non autorisé" }
-        let version = fl.version.map { " \($0)" } ?? ""
-        if AppMode.light {
-            return fl.running ? "Actif dans FL Studio" + version : "FL Studio n'est pas ouvert"
-        }
+        if AppMode.light { return fl.running ? nil : "FL Studio n'est pas ouvert" }
         switch link.status {
-        case .linked:
-            if let ms = link.snapshot.responseMs { return "Relié à FL Studio\(version), réponse en \(Self.format(ms))" }
-            return "Relié à FL Studio" + version
+        case .linked: return nil
         case .flClosed: return "FL Studio n'est pas ouvert"
         case .inactive:
             if !link.snapshot.hasKey { return "Lien avec FL Studio non installé" }
