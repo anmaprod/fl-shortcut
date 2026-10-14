@@ -97,6 +97,8 @@ final class FakeFLController {
     var rec = false
     var input = "(none)"
     var preset: String?
+    /// Piste qui a reçu le preset (dépôt sur sa tranche, ou boîte « Open » sur la piste sélectionnée) ; 0 : aucune.
+    var presetTrack = 0
     var events: [String] = []
     var inputItems: [String: CGPoint] = [:]
     var monitors: [Any] = []
@@ -145,6 +147,7 @@ final class FakeFLController {
         rec = false
         input = "(none)"
         preset = nil
+        presetTrack = 0
         events = []
         mixer.needsDisplay = true
         writeState()
@@ -185,7 +188,8 @@ final class FakeFLController {
         for (k, v) in inputItems { geometry["input:\(k)"] = pt(v) }
         let dict: [String: Any] = [
             "pid": Int(getpid()), "selected": selected, "armed": armed.sorted(), "rec": rec, "input": input,
-            "preset": preset ?? "", "events": events, "menusOpen": levels.count, "oHighlights": oHighlights,
+            "preset": preset ?? "", "presetTrack": presetTrack, "events": events, "menusOpen": levels.count,
+            "oHighlights": oHighlights,
             "geometry": geometry,
         ]
         if let data = try? JSONSerialization.data(withJSONObject: dict, options: [.sortedKeys]) {
@@ -386,10 +390,18 @@ final class FakeFLController {
         panel.title = "Open mixer track state"
         if panel.runModal() == .OK, let url = panel.url {
             preset = url.resolvingSymlinksInPath().path
+            presetTrack = selected
             note("open \(url.lastPathComponent)")
         } else {
             note("open cancelled")
         }
+    }
+
+    /// Fichier déposé sur une tranche (comme FL : l'état est chargé sur CETTE piste, sélectionnée ou non).
+    func dropPreset(_ url: URL, on track: Int) {
+        preset = url.resolvingSymlinksInPath().path
+        presetTrack = track
+        note("drop \(url.lastPathComponent) on \(track)")
     }
 
     func openInputList() {
@@ -494,6 +506,30 @@ final class FakeMixerView: NSView {
 
     override var isFlipped: Bool { true }
     override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
+
+    override func viewDidMoveToWindow() {
+        super.viewDidMoveToWindow()
+        registerForDraggedTypes([.fileURL])
+    }
+
+    func track(at p: NSPoint) -> Int? { (1...Self.trackCount).first { stripRect($0).contains(p) } }
+
+    // Dépôt d'un fichier n'importe où sur une tranche (comme FL).
+    override func draggingEntered(_ sender: NSDraggingInfo) -> NSDragOperation { dropOperation(sender) }
+    override func draggingUpdated(_ sender: NSDraggingInfo) -> NSDragOperation { dropOperation(sender) }
+
+    private func dropOperation(_ sender: NSDraggingInfo) -> NSDragOperation {
+        track(at: convert(sender.draggingLocation, from: nil)) != nil ? .copy : []
+    }
+
+    override func performDragOperation(_ sender: NSDraggingInfo) -> Bool {
+        guard let c = controller, let t = track(at: convert(sender.draggingLocation, from: nil)),
+              let url = (sender.draggingPasteboard.readObjects(forClasses: [NSURL.self],
+                                                               options: [.urlReadingFileURLsOnly: true]) as? [URL])?.first
+        else { return false }
+        c.dropPreset(url, on: t)
+        return true
+    }
 
     func stripRect(_ t: Int) -> NSRect { NSRect(x: 20 + CGFloat(t - 1) * 78, y: 70, width: 70, height: 470) }
     func nameRect(_ t: Int) -> NSRect { let s = stripRect(t); return NSRect(x: s.minX, y: s.minY, width: s.width, height: 40) }

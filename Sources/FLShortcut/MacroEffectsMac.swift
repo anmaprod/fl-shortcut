@@ -391,6 +391,14 @@ final class MacroEffectsMac: MacroEffects {
             case .failed(let why): return .fail(why)
             }
 
+        case .dropFile(let path):
+            MacroLog.shared.write("FILE", "preset déposé sur la piste (\(path.count) caractères)")
+            var isDir: ObjCBool = false
+            guard FileManager.default.fileExists(atPath: path, isDirectory: &isDir), !isDir.boolValue else {
+                return .fail("preset introuvable (\(URL(fileURLWithPath: path).lastPathComponent))")
+            }
+            return dropFile(path, at: ctx.track, ctx: ctx)
+
         case .menuLetters(let letters, let enter):
             return menuLetters(letters, enter: EnterMemory(policy: enter), ctx: ctx)
 
@@ -825,22 +833,44 @@ final class MacroEffectsMac: MacroEffects {
             MacroLog.shared.write("CLICK", "refused (\(Int(p.x)),\(Int(p.y))): outside every FL window")
             return .fail("le point visé est hors de FL")
         }
-        if !Self.clicksToPid {
-            let ax = AXProbe.hit(p)
-            MacroLog.shared.write("AX", "at (\(Int(p.x)),\(Int(p.y))): \(ax)")
-            var owner: Int32? = (ax.error == .success && ax.pid != 0) ? ax.pid : nil
-            // AX muet : repli sur la fenêtre NORMALE tout devant seulement si aucun menu de FL (niveau supérieur) n'est là.
-            if owner == nil, WinSnapshot.take(pid: ctx.pid).hit(p).map({ $0.layer == 0 }) ?? true {
-                owner = FLWindows.topNormalWindow(at: p)?.pid
-            }
-            if let owner, owner != ctx.pid, owner != getpid() {
-                let name = NSRunningApplication(processIdentifier: owner)?.localizedName ?? "une autre app"
-                return .fail("« \(name) » couvre FL à cet endroit")
-            }
+        if !Self.clicksToPid, let name = coveringApp(at: p, ctx: ctx) {
+            return .fail("« \(name) » couvre FL à cet endroit")
         }
         postClick(at: p, right: right, pid: ctx.pid)
         lastClickPoint = p
         return .ok
+    }
+
+    /// Nom de l'app dont une fenêtre couvre FL au point visé ; nil : c'est bien FL (ou notre app) dessous.
+    func coveringApp(at p: CGPoint, ctx: Context) -> String? {
+        let ax = AXProbe.hit(p)
+        MacroLog.shared.write("AX", "at (\(Int(p.x)),\(Int(p.y))): \(ax)")
+        var owner: Int32? = (ax.error == .success && ax.pid != 0) ? ax.pid : nil
+        // AX muet : repli sur la fenêtre NORMALE tout devant seulement si aucun menu de FL (niveau supérieur) n'est là.
+        if owner == nil, WinSnapshot.take(pid: ctx.pid).hit(p).map({ $0.layer == 0 }) ?? true {
+            owner = FLWindows.topNormalWindow(at: p)?.pid
+        }
+        guard let owner, owner != ctx.pid, owner != getpid() else { return nil }
+        return NSRunningApplication(processIdentifier: owner)?.localizedName ?? "une autre app"
+    }
+
+    /// Preset glissé sur la piste (PresetDrop) : mêmes garde-fous qu'un clic (dans FL, rien ne la couvre), toujours
+    /// par le flux du système (un glisser ne peut pas être adressé à un seul processus).
+    func dropFile(_ path: String, at p: CGPoint, ctx: Context) -> StepResult {
+        guard FLWindows.contains(p, pid: ctx.pid) else {
+            MacroLog.shared.write("DROP", "refused (\(Int(p.x)),\(Int(p.y))): outside every FL window")
+            return .fail("la piste visée est hors de FL : clique d'abord sur ta piste dans le Mixer")
+        }
+        if let name = coveringApp(at: p, ctx: ctx) { return .fail("« \(name) » couvre FL à cet endroit") }
+        if let stop = shouldStop(ctx.pid) { return .cancel(stop) }
+        if cursorBeforeBurst == nil { cursorBeforeBurst = FLWindows.cursor() }
+        switch PresetDrop.drop(path: path, at: p, source: source) {
+        case .done:
+            lastClickPoint = p
+            return .ok
+        case .failed(let why):
+            return .fail(why)
+        }
     }
 
     func postClick(at p: CGPoint, right: Bool, pid: Int32, hoverMs: Int = 30) {

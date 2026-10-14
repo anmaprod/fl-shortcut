@@ -370,6 +370,8 @@ enum MacroOutline {
             return (target == .cursor ? "Menu de la piste sous le curseur" : "Menu de la piste", value)
         case .chooseFile(let path):
             return ("Choisir le preset", path.isEmpty ? "à choisir" : URL(fileURLWithPath: path).lastPathComponent.displaySafe(max: 40))
+        case .dropFile(let path):
+            return ("Déposer le preset sur la piste", path.isEmpty ? "à choisir" : URL(fileURLWithPath: path).lastPathComponent.displaySafe(max: 40))
         case .flAction(let key, _), .flActionValue(let key, _):
             return ("Action de FL", actionLabel(key))
         case .selectInput:
@@ -490,6 +492,7 @@ enum PaletteCatalog {
                 .trackMenu(letters: ["f", "o"], labels: ["File", "Open mixer track state"], target: .lastClicked,
                            finalEnter: .ifNeeded)
             },
+            item("dropFile", .dropFile) { .dropFile(path: "") },
             item("chooseFile", .chooseFile) { .chooseFile(path: "") },
             item("flAction", .flAction,
                  aide: "Une action de FL Shortcut (Mixer, Playlist, métronome…) : par le lien avec FL s'il est installé, sinon la touche équivalente de FL.") {

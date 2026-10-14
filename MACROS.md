@@ -15,7 +15,8 @@ Une macro est une liste de blocs (`MacroModel.swift`, registre `MacroRegistry.sw
 | `click` | clic gauche/droit à un point appris (repère : curseur, fenêtre FL, ou x du curseur + y de la fenêtre) ; le point doit tomber dans une fenêtre de FL |
 | `menu` | choix dans un menu par ses titres (Accessibilité) ; sinon clics de secours appris |
 | `waitDialog` / `waitDialogClose` | attend l'ouverture / la fermeture d'une boîte de dialogue de FL (nombre de fenêtres de FL au niveau 0 à 8) |
-| `chooseFile` | dans la boîte « Open » native (`PresetChooser.swift`) : ⌘⇧G renvoyé jusqu’à l’apparition de « Aller au dossier », chemin tapé caractère par caractère (un ⌘V synthétique est ignoré par macOS 26), Entrée quand la feuille est prête, Entrée jusqu’à la fermeture de la boîte. Essai réel sur la CI : `FLShortcut --selftest-preset` |
+| `dropFile` | **preset fixe** : le fichier .fst est glissé sur la dernière piste cliquée, comme depuis le Finder (`PresetDrop.swift`) — essai de l'utilisateur sur son FL : déposé sur la tranche, l'état charge sur CETTE piste (un double-clic dans le Finder le charge sur le Master). Une petite fenêtre transparente de l'app reçoit un appui synthétique sous le point de la piste, démarre une vraie session de glisser et disparaît ; quelques déplacements puis le relâchement déposent le fichier. FL dit s'il l'a pris (refus → échec expliqué). Ni menu ni boîte « Open ». Essai sur la CI : passages 1 et 2 de `--selftest-macro` |
+| `chooseFile` | **preset choisi à chaque fois** (ou chemin d'origine) : dans la boîte « Open » native (`PresetChooser.swift`) : ⌘⇧G renvoyé jusqu’à l’apparition de « Aller au dossier », chemin tapé caractère par caractère (un ⌘V synthétique est ignoré par macOS 26), Entrée quand la feuille est prête, Entrée jusqu’à la fermeture de la boîte. Essai réel sur la CI : `FLShortcut --selftest-preset` |
 
 Bornes (`MacroLibrary.validate`) : 40 étapes, 180 s au total, chemins sans caractères de contrôle. Une macro `custom` (étapes libres) ne s'écrit qu'à la main dans le profil JSON et est **refusée à l'import**.
 
@@ -40,6 +41,7 @@ Le brouillon est enregistré par **Enregistrer** (⌘S) ou 0,5 s après la derni
 | Pause | ≤ 5 s (badge « pause fixe » : préférer une attente) |
 | Attendre une fenêtre / la fermeture | boîte de dialogue ou menu de FL, 120 s au plus (le pointeur est écarté d'un menu qui s'ouvre) |
 | Menu de la piste | clic droit sur la piste puis 2 ou 3 lettres (File › Open mixer track state…) |
+| Déposer un preset sur la piste | glisse le fichier .fst choisi sur la dernière piste cliquée (dossier personnel) |
 | Choisir un preset | dans la boîte « Open » : le fichier .fst choisi (dossier personnel) |
 | Action de FL | une action de FL Shortcut par le lien avec FL, sinon sa touche de FL ; *Armer la piste* (repli : menu de la piste) et *Allumer le REC* (repli : touche R) |
 | Choisir l'entrée 1 | « (none) » → entrée 1, montrée une fois |

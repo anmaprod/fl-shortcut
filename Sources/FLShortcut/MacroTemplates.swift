@@ -1,7 +1,8 @@
 // Modèles développés en blocs, et reprise des anciennes macros.
 // - « Enregistrement rapide » (`autoRecord`) : mêmes étapes, mêmes paramètres et même ordre que l'ancien
-//   `MacroLibrary.autoRecordSteps` (test « golden » des 8 combinaisons d'options). Ids DÉTERMINISTES, propres à
-//   chaque rôle : stables d'un lancement à l'autre (surlignage, rapport par bloc, positions apprises).
+//   `MacroLibrary.autoRecordSteps` (test « golden » des 8 combinaisons d'options), sauf le preset fixe, désormais
+//   déposé sur la piste (bloc `dropFile`) ; l'ancien chemin par le menu reste disponible (`PresetLoad.menu`).
+//   Ids DÉTERMINISTES, propres à chaque rôle : stables d'un lancement à l'autre (surlignage, rapport par bloc).
 // - Anciennes macros (`custom`, `quickRecord`) : chaque étape devient le bloc qui l'exécute exactement de la même
 //   façon, au moment de l'exécution (le profil n'est pas modifié).
 import Foundation
@@ -9,8 +10,13 @@ import Foundation
 enum MacroTemplates {
     /// Rôle d'un bloc du modèle « Enregistrement rapide ».
     enum Role: Int, CaseIterable {
-        case trackMenu = 1, waitOpen, chooseFile, waitClose, delay, arm, rec, input, feedback
+        case trackMenu = 1, waitOpen, chooseFile, waitClose, delay, arm, rec, input, feedback, dropPreset
     }
+
+    /// Chargement d'un preset fixe. `.drop` : glissé sur la piste, comme depuis le Finder (essai de l'utilisateur sur
+    /// son FL : rapide, sans boîte « Open » ; le double-clic dans le Finder, lui, charge sur le Master).
+    /// `.menu` : menu de la piste puis boîte « Open » (chemin d'origine, toujours essayé sur la CI).
+    enum PresetLoad { case drop, menu }
 
     /// Id stable d'un rôle du modèle : F15C0000-0000-4000-8000-00000000000N.
     static func id(_ role: Role) -> UUID { fixedID(0, role.rawValue) }
@@ -34,15 +40,23 @@ enum MacroTemplates {
 
     /// Enregistrement rapide sans réglage. Ordre : menu de la piste, preset, armement, REC, entrée 1, puis le
     /// larsen en dernier (tout est déjà en place : il ne reste qu'à changer d'entrée ou de sortie).
-    static func enregistrementRapide(_ macro: Macro) -> [Block] {
+    static func enregistrementRapide(_ macro: Macro, presetLoad: PresetLoad = .drop) -> [Block] {
         var out: [Block] = []
         func add(_ role: Role, _ body: BlockBody) { out.append(Block(id: id(role), body)) }
-        add(.trackMenu, openStateMenu)
-        add(.waitOpen, .waitWindow(.dialog, timeoutMs: 4_000))
         if let path = macro.presetPath, !path.isEmpty {
-            add(.chooseFile, .chooseFile(path: path))
-            add(.waitClose, .waitWindowClose(.dialog, timeoutMs: 8_000))
+            switch presetLoad {
+            case .drop:
+                add(.dropPreset, .dropFile(path: path))
+            case .menu:
+                add(.trackMenu, openStateMenu)
+                add(.waitOpen, .waitWindow(.dialog, timeoutMs: 4_000))
+                add(.chooseFile, .chooseFile(path: path))
+                add(.waitClose, .waitWindowClose(.dialog, timeoutMs: 8_000))
+            }
         } else {
+            // Preset choisi à chaque fois : menu de la piste puis boîte « Open », chemin validé, inchangé.
+            add(.trackMenu, openStateMenu)
+            add(.waitOpen, .waitWindow(.dialog, timeoutMs: 4_000))
             add(.waitClose, .waitWindowClose(.dialog, timeoutMs: MacroLibrary.maxWaitMs))
         }
         if macro.armAndInput || macro.startRecording { add(.delay, .delay(ms: 100)) }

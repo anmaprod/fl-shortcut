@@ -2,7 +2,8 @@ import XCTest
 @testable import FLShortcut
 
 /// « Enregistrement rapide » développé en blocs : test « golden » des 8 combinaisons d'options (preset fixe ou non ×
-/// armer + entrée × REC), contre les valeurs écrites en clair de l'ancien `autoRecordSteps` ; anciennes macros reprises.
+/// armer + entrée × REC). Preset fixe : déposé sur la piste ; le chemin d'origine par la boîte « Open » (preset
+/// choisi à chaque fois, ou `PresetLoad.menu`) garde les valeurs de l'ancien `autoRecordSteps`. Anciennes macros reprises.
 final class MacroTemplateTests: XCTestCase {
     private typealias Role = MacroTemplates.Role
     private let preset = "/Users/test/Presets/Voix lead (micro 1).fst"
@@ -22,6 +23,7 @@ final class MacroTemplateTests: XCTestCase {
         case .rec: body = .flAction(key: "recon", fallback: .key(KeyRef(KeyCombo(keyCode: 15))))
         case .input: body = .selectInput(.legacy(key: "macroSpots.v2.input"))
         case .feedback: body = .feedbackCheck
+        case .dropPreset: body = .dropFile(path: preset)
         }
         let id = UUID(uuidString: String(format: "F15C0000-0000-4000-8000-%012d", role.rawValue))!
         return Block(id: id, body)
@@ -38,14 +40,13 @@ final class MacroTemplateTests: XCTestCase {
              ["trackMenu", "waitDialog", "waitDialogClose", "delay", "recordOn", "feedbackCheck"]),
             (false, false, false, [.trackMenu, .waitOpen, .waitClose],
              ["trackMenu", "waitDialog", "waitDialogClose"]),
-            (true, true, true, [.trackMenu, .waitOpen, .chooseFile, .waitClose, .delay, .arm, .rec, .input, .feedback],
-             ["trackMenu", "waitDialog", "chooseFile", "waitDialogClose", "delay", "armTrack", "recordOn", "selectInput", "feedbackCheck"]),
-            (true, true, false, [.trackMenu, .waitOpen, .chooseFile, .waitClose, .delay, .arm, .input, .feedback],
-             ["trackMenu", "waitDialog", "chooseFile", "waitDialogClose", "delay", "armTrack", "selectInput", "feedbackCheck"]),
-            (true, false, true, [.trackMenu, .waitOpen, .chooseFile, .waitClose, .delay, .rec, .feedback],
-             ["trackMenu", "waitDialog", "chooseFile", "waitDialogClose", "delay", "recordOn", "feedbackCheck"]),
-            (true, false, false, [.trackMenu, .waitOpen, .chooseFile, .waitClose],
-             ["trackMenu", "waitDialog", "chooseFile", "waitDialogClose"]),
+            (true, true, true, [.dropPreset, .delay, .arm, .rec, .input, .feedback],
+             ["dropFile", "delay", "armTrack", "recordOn", "selectInput", "feedbackCheck"]),
+            (true, true, false, [.dropPreset, .delay, .arm, .input, .feedback],
+             ["dropFile", "delay", "armTrack", "selectInput", "feedbackCheck"]),
+            (true, false, true, [.dropPreset, .delay, .rec, .feedback],
+             ["dropFile", "delay", "recordOn", "feedbackCheck"]),
+            (true, false, false, [.dropPreset], ["dropFile"]),
         ]
         for (fixed, arm, rec, roles, names) in all {
             var m = Macro()
@@ -62,6 +63,36 @@ final class MacroTemplateTests: XCTestCase {
             XCTAssertEqual(program.blocks, blocks, label)
             XCTAssertEqual(program.title, names.joined(separator: " > "), label)
         }
+    }
+
+    /// Chemin d'origine par le menu de la piste et la boîte « Open » : inchangé (valeurs de l'ancien `autoRecordSteps`).
+    func testGoldenMenuPathForAFixedPresetIsUnchanged() {
+        let all: [(Bool, Bool, [Role])] = [
+            (true, true, [.trackMenu, .waitOpen, .chooseFile, .waitClose, .delay, .arm, .rec, .input, .feedback]),
+            (true, false, [.trackMenu, .waitOpen, .chooseFile, .waitClose, .delay, .arm, .input, .feedback]),
+            (false, true, [.trackMenu, .waitOpen, .chooseFile, .waitClose, .delay, .rec, .feedback]),
+            (false, false, [.trackMenu, .waitOpen, .chooseFile, .waitClose]),
+        ]
+        for (arm, rec, roles) in all {
+            var m = Macro()
+            m.presetPath = preset
+            m.armAndInput = arm
+            m.startRecording = rec
+            m.recKey = KeyCombo(keyCode: 15)
+            XCTAssertEqual(MacroTemplates.enregistrementRapide(m, presetLoad: .menu), roles.map { expected($0, fixedPreset: true) },
+                           "armer \(arm), REC \(rec)")
+        }
+    }
+
+    func testDroppedPresetTargetsTheClickedTrackAndIsValidated() {
+        let needs = BlockRegistry.needs(of: .dropFile(path: preset))
+        XCTAssertTrue(needs.isSuperset(of: [.pisteVisee, .pisteRequise, .flAuPremierPlan]))
+        var strict = ValidationContext(forbidden: .physical, strictFiles: true)
+        XCTAssertNotNil(BlockRegistry.spec(.dropFile).valider(.dropFile(path: "/Volumes/Studio/Voix.fst"), strict))
+        XCTAssertNotNil(BlockRegistry.spec(.dropFile).valider(.dropFile(path: NSHomeDirectory() + "/Voix.wav"), strict))
+        XCTAssertNil(BlockRegistry.spec(.dropFile).valider(.dropFile(path: NSHomeDirectory() + "/Voix.fst"), strict))
+        strict.presetAnywhere = true                                                   // copie du modèle livré
+        XCTAssertNil(BlockRegistry.spec(.dropFile).valider(.dropFile(path: "/Volumes/Studio/Voix.fst"), strict))
     }
 
     func testEmptyPresetPathAsksTheUserAndMissingRecKeyFallsBackToR() {

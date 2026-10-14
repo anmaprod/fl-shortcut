@@ -149,13 +149,13 @@ final class MacroEditingTests: XCTestCase {
         XCTAssertEqual(Set(items.map(\.id)).count, items.count)
         let ready = Set(items.filter { !$0.soon }.map(\.type))
         for t: BlockType in [.key, .delay, .click, .menuLetters, .menuKey, .waitWindow, .waitWindowClose, .trackMenu,
-                             .chooseFile, .flAction, .selectInput, .feedbackCheck, .repeatCount, .stop, .comment] {
+                             .chooseFile, .dropFile, .flAction, .selectInput, .feedbackCheck, .repeatCount, .stop, .comment] {
             XCTAssertTrue(ready.contains(t), "\(t)")
         }
         XCTAssertFalse(ready.contains(.ifElse))
         XCTAssertFalse(items.contains { $0.type == .menuAX || $0.type == .setVariable || $0.type == .flActionValue })
         // Chaque entrée prête produit un bloc valide, sauf ce qui reste à choisir ou à montrer dans FL.
-        for item in items where !item.soon && item.id != "chooseFile" && item.id != "clickLearned" {
+        for item in items where !item.soon && item.id != "chooseFile" && item.id != "dropFile" && item.id != "clickLearned" {
             let p = MacroProgram(blocks: [Block(item.make())], name: "x", source: .blocks(id: UUID(), revision: 0), context: ctx)
             XCTAssertNil(p.problem, item.id)
         }

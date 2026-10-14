@@ -48,7 +48,7 @@ struct MacroFields: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text("Enregistrement rapide").fontWeight(.medium)
                 Text(automatic
-                     ? "Clique sur une piste du Mixer, puis tape le raccourci : File › Open mixer track state, ton preset, armement, REC, entrée 1, et le larsen vérifié en dernier. Ce qui est déjà allumé n'est pas touché."
+                     ? "Clique au milieu de la tranche d'une piste du Mixer, puis tape le raccourci : ton preset fixe est déposé sur la piste (sinon File › Open mixer track state pour le choisir), armement, REC, entrée 1, et le larsen vérifié en dernier. Ce qui est déjà allumé n'est pas touché."
                      : "Clic droit sur la piste → File → Open mixer track state, preset, armement, entrée 1, REC.")
                     .font(.caption).foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)

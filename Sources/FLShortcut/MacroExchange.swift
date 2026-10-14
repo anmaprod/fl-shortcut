@@ -43,6 +43,8 @@ enum MacroExchange {
                 copy.body = .menuAX(titles: titles, fallback: [])
             case .chooseFile(let path):
                 copy.body = .chooseFile(path: relative(path, home: home))
+            case .dropFile(let path):
+                copy.body = .dropFile(path: relative(path, home: home))
             default:
                 copy.body = b.body.replacingChildren(b.body.children.map { sharable($0, home: home) })
             }
@@ -146,6 +148,8 @@ enum MacroExchange {
             switch b.body {
             case .chooseFile(let path):
                 copy.body = .chooseFile(path: absolute(path, home: home))
+            case .dropFile(let path):
+                copy.body = .dropFile(path: absolute(path, home: home))
             case .click(_, let button):
                 copy.body = .click(.toLearn, button: button)
             default:
@@ -173,7 +177,7 @@ enum MacroExchange {
                 } else if case .click = b.body {
                     marks.append("clic dans FL")
                 }
-                if case .chooseFile = b.body {
+                if b.body.type == .chooseFile || b.body.type == .dropFile {
                     marks.append("fichier")
                     warnings.append("Rechoisis le preset : le fichier doit exister sur ce Mac.")
                 }

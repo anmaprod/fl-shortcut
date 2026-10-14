@@ -128,9 +128,8 @@ final class MacroInterpreterTests: XCTestCase {
         let fx = FakeEffects()
         XCTAssertEqual(run(blocks, fx), .done)
         XCTAssertEqual(fx.larsenEarly, false)
-        XCTAssertEqual(fx.trace, ["begin", "track?", "trackMenu", "waitDialog", "chooseFile", "waitDialogClose", "delay",
-                                  "fl[armon,recon]", "selectInput", "cleanup"])
-        XCTAssertTrue(fx.stepLines.contains("8/8 selectInput …"))
+        XCTAssertEqual(fx.trace, ["begin", "track?", "dropFile", "delay", "fl[armon,recon]", "selectInput", "cleanup"])
+        XCTAssertTrue(fx.stepLines.contains("5/5 selectInput …"))
     }
 
     func testTrackOutsideFLIsRefusedBeforeAnything() {

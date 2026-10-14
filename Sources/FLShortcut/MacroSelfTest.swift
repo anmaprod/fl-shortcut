@@ -4,8 +4,9 @@
 // Le pilote joue l'utilisateur (clic sur la piste 3, puis, la première fois, « (none) » et « In 1 » quand la bulle
 // le demande), lance la vraie macro (MacroRunner, développée en blocs et jouée par l'interpréteur) et vérifie l'état
 // du faux FL après chaque passage :
-// preset choisi chargé, piste 3 armée, REC allumé, entrée « In 1 », aucune action inattendue (Delete, Solo…).
-// Quatre passages : apprentissage, rejeu, puis « O » qui ne fait que surligner (Entrée apprise), rejeu.
+// preset choisi chargé SUR LA PISTE 3, piste 3 armée, REC allumé, entrée « In 1 », aucune action inattendue.
+// Six passages : preset DÉPOSÉ sur la piste (apprentissage de l'entrée, rejeu), puis le chemin d'origine par le menu
+// de la piste et la boîte « Open » (« O » qui ouvre, rejeu, « O » qui ne fait que surligner, Entrée apprise).
 // Les durées de chaque étape sont affichées : c'est la mesure de vitesse de la macro.
 // `--scenario blocs` : une macro CONSTRUITE EN BLOCS par le code (comme dans le créateur, pas le modèle) — clic droit
 // sur la piste 5, S (Select), ←, ↓ ×5, Entrée (« Arm selected track(s) »), puis la touche REC — compilée comme une
@@ -37,7 +38,7 @@ enum MacroSelfTest {
                 print(ok ? "PASS: macro construite en blocs sur le FL simulé (piste 5 armée par son menu, REC)" : "FAIL: voir ci-dessus")
             } else {
                 ok = scenario(statePath: statePath, pid: pid)
-                print(ok ? "PASS: macro complète sur le FL simulé (4 passages)" : "FAIL: voir ci-dessus")
+                print(ok ? "PASS: macro complète sur le FL simulé (6 passages : preset déposé, puis par la boîte « Open »)" : "FAIL: voir ci-dessus")
             }
             fflush(stdout)
             exit(ok ? 0 : 1)
@@ -54,6 +55,7 @@ enum MacroSelfTest {
         var rec: Bool { raw["rec"] as? Bool ?? false }
         var input: String { raw["input"] as? String ?? "?" }
         var preset: String { raw["preset"] as? String ?? "" }
+        var presetTrack: Int { raw["presetTrack"] as? Int ?? 0 }
         var events: [String] { raw["events"] as? [String] ?? [] }
         var menusOpen: Int { raw["menusOpen"] as? Int ?? 0 }
         func point(_ key: String) -> CGPoint? {
@@ -120,8 +122,10 @@ enum MacroSelfTest {
             return false
         }
         // La vérification du larsen ouvrirait une fenêtre d'alerte (sans rapport avec FL) : retirée de l'essai.
-        let blocks = program.blocks.filter { $0.body != .feedbackCheck }
-        print("étapes : " + blocks.map { BlockRegistry.journal(of: $0.body) }.joined(separator: " > "))
+        let dropBlocks = program.blocks.filter { $0.body != .feedbackCheck }
+        let menuBlocks = MacroTemplates.enregistrementRapide(macro, presetLoad: .menu).filter { $0.body != .feedbackCheck }
+        print("étapes (preset déposé) : " + dropBlocks.map { BlockRegistry.journal(of: $0.body) }.joined(separator: " > "))
+        print("étapes (boîte « Open ») : " + menuBlocks.map { BlockRegistry.journal(of: $0.body) }.joined(separator: " > "))
 
         MacroSpots.forgetAll()
         MacroRunner.testFLPID = pid
@@ -151,9 +155,14 @@ enum MacroSelfTest {
         }
 
         var allOK = true
-        let runs: [(String, Bool)] = [("1 · apprentissage de l'entrée", false), ("2 · rejeu", false),
-                                      ("3 · « O » surligne seulement (Entrée)", true), ("4 · rejeu avec Entrée apprise", true)]
-        for (label, highlight) in runs {
+        let runs: [(String, Bool, Bool)] = [
+            ("1 · preset déposé, apprentissage de l'entrée", false, true), ("2 · preset déposé, rejeu", false, true),
+            ("3 · boîte « Open »", false, false), ("4 · boîte « Open », rejeu", false, false),
+            ("5 · boîte « Open », « O » surligne seulement (Entrée)", true, false),
+            ("6 · boîte « Open », rejeu avec Entrée apprise", true, false),
+        ]
+        for (label, highlight, dropped) in runs {
+            let blocks = dropped ? dropBlocks : menuBlocks
             DistributedNotificationCenter.default().postNotificationName(
                 Notification.Name("app.flshortcut.fakefl.mode"), object: highlight ? "highlight" : "activate",
                 userInfo: nil, deliverImmediately: true)
@@ -172,16 +181,19 @@ enum MacroSelfTest {
             let ms = Int(Date().timeIntervalSince(t0) * 1000)
             Thread.sleep(forTimeInterval: 0.3)
             let s = read(statePath) ?? FakeState(raw: [:])
-            let expectedEvents = Set(["arm 3", "rec on", "input In 1", "open Voix lead (micro 1).fst"])
+            let load = dropped ? "drop Voix lead (micro 1).fst on 3" : "open Voix lead (micro 1).fst"
+            let expectedEvents = Set(["arm 3", "rec on", "input In 1", load])
             let unexpected = s.events.filter { !expectedEvents.contains($0) }
             var problems: [String] = []
             if s.preset != wanted { problems.append("preset « \(s.preset) » au lieu du bon") }
+            if s.presetTrack != 3 { problems.append("preset chargé sur la piste \(s.presetTrack) au lieu de la 3") }
+            if !s.events.contains(load) { problems.append("preset pas chargé par « \(load) »") }
             if !s.armed.contains(3) { problems.append("piste 3 non armée (\(s.armed))") }
             if !s.rec { problems.append("REC éteint") }
             if s.input != "In 1" { problems.append("entrée « \(s.input) »") }
             if !unexpected.isEmpty { problems.append("actions inattendues : \(unexpected)") }
             if s.menusOpen != 0 { problems.append("\(s.menusOpen) menu(s) resté(s) ouvert(s)") }
-            print("résultat : \(outcome.text) — \(ms) ms au total (dont l'attente de la boîte « Open » par macOS)")
+            print("résultat : \(outcome.text) — \(ms) ms au total" + (dropped ? " (preset déposé, sans boîte « Open »)" : " (dont l'attente de la boîte « Open » par macOS)"))
             print("FL simulé : preset=\(URL(fileURLWithPath: s.preset).lastPathComponent) armées=\(s.armed) REC=\(s.rec) entrée=\(s.input) actions=\(s.events)")
             if problems.isEmpty {
                 print("OK passage \(label)")

@@ -243,6 +243,8 @@ indirect enum BlockBody: Equatable {
     // FL (haut niveau : le code validé d'aujourd'hui). `labels` : libellés du menu, pour les messages seulement.
     case trackMenu(letters: [Character], labels: [String], target: TrackTarget, finalEnter: EnterPolicy)
     case chooseFile(path: String)
+    /// Preset glissé sur la dernière piste cliquée, comme depuis le Finder (pas de menu ni de boîte « Open »).
+    case dropFile(path: String)
     case flAction(key: String, fallback: ActionFallback)    // clé stable du protocole ; repli : touche / chemin clavier
     case flActionValue(key: String, value: IntSource)       // incrément 4 (paramètre signé)
     case selectInput(LearnedRef)
@@ -272,6 +274,7 @@ indirect enum BlockBody: Equatable {
         case .waitWindowClose: return .waitWindowClose
         case .trackMenu: return .trackMenu
         case .chooseFile: return .chooseFile
+        case .dropFile: return .dropFile
         case .flAction: return .flAction
         case .flActionValue: return .flActionValue
         case .selectInput: return .selectInput
@@ -324,7 +327,7 @@ indirect enum BlockBody: Equatable {
         case .trackMenu(let letters, let labels, let target, let enter):
             return ["letters": .string(String(letters)), "labels": .array(labels.map { .string($0) }),
                     "target": .string(target.rawValue), "finalEnter": enter.json]
-        case .chooseFile(let path):
+        case .chooseFile(let path), .dropFile(let path):
             return ["path": .string(path)]
         case .flAction(let key, let fallback):
             return ["action": .string(key), "fallback": fallback.json]
@@ -389,9 +392,9 @@ indirect enum BlockBody: Equatable {
                   let target = j["target"]?.string.flatMap({ TrackTarget(rawValue: $0) }) else { return nil }
             let labels = j["labels"]?.array?.compactMap(\.string) ?? []
             return .trackMenu(letters: l, labels: labels, target: target, finalEnter: e)
-        case .chooseFile:
+        case .chooseFile, .dropFile:
             guard let path = j["path"]?.string else { return nil }
-            return .chooseFile(path: path)
+            return type == .chooseFile ? .chooseFile(path: path) : .dropFile(path: path)
         case .flAction:
             guard let key = j["action"]?.string, let fallback = ActionFallback(json: j["fallback"]) else { return nil }
             return .flAction(key: key, fallback: fallback)

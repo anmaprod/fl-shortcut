@@ -180,7 +180,7 @@ private struct BlockInspector: View {
             windowPicker(p.label, k)
         case (.waitWindow(_, let ms), "timeoutMs"), (.waitWindowClose(_, let ms), "timeoutMs"):
             LabeledContent("Au plus") { secondsField(ms) }
-        case (.chooseFile(let path), "path"):
+        case (.chooseFile(let path), "path"), (.dropFile(let path), "path"):
             fileField(path)
         case (.flAction(let key, _), "action"):
             actionPicker(key)
@@ -516,7 +516,9 @@ private struct BlockInspector: View {
             .first { FileManager.default.fileExists(atPath: $0.path) }
         guard panel.runModal() == .OK, let url = panel.url else { return }
         let path = url.path
-        setBody(key: "path") { $0 = .chooseFile(path: path) }
+        setBody(key: "path") { body in
+            if case .dropFile = body { body = .dropFile(path: path) } else { body = .chooseFile(path: path) }
+        }
     }
 
     // MARK: Action de FL

@@ -105,7 +105,7 @@ final class MacroTests: XCTestCase {
         m.presetPath = "/Users/test/Voix.fst"
         m.armAndInput = false
         m.startRecording = false
-        XCTAssertEqual(kinds(m), ["trackMenu", "waitDialog", "chooseFile", "waitDialogClose"])
+        XCTAssertEqual(kinds(m), ["dropFile"])                  // preset fixe : déposé sur la piste, sans boîte « Open »
     }
 
     func testAutoRecordMenuUsesTheUnderlinedLettersOfFileAndOpen() {

@@ -5,7 +5,7 @@ import Foundation
 
 enum BlockType: String, CaseIterable, Codable {
     case key, menuLetters, menuKey, click, delay, waitWindow, waitWindowClose
-    case trackMenu, chooseFile, flAction, flActionValue, selectInput, feedbackCheck
+    case trackMenu, chooseFile, dropFile, flAction, flActionValue, selectInput, feedbackCheck
     /// Ancienne étape `menu` : seulement pour reprendre les anciennes macros (absente de la palette).
     case menuAX
     case ifElse = "if", repeatCount = "repeat", repeatWhile = "while", waitUntil, setVariable, stop, comment
@@ -130,6 +130,7 @@ enum BlockRegistry {
         case .waitWindowClose: return Specs.waitWindowClose
         case .trackMenu: return Specs.trackMenu
         case .chooseFile: return Specs.chooseFile
+        case .dropFile: return Specs.dropFile
         case .flAction: return Specs.flAction
         case .flActionValue: return Specs.flActionValue
         case .selectInput: return Specs.selectInput
@@ -464,21 +465,45 @@ private enum Specs {
         estimationMs: { _ in 3_000 },
         valider: { body, ctx in
             guard case .chooseFile(let p) = body else { return nil }
-            guard !p.isEmpty, p.count <= 1024,
-                  !p.unicodeScalars.contains(where: { CharacterSet.controlCharacters.contains($0) }) else {
-                return ctx.fail("chemin de fichier invalide.")
-            }
-            if ctx.strictFiles {
-                let home = NSHomeDirectory() + "/"
-                let parts = p.split(separator: "/")
-                let placeOK = ctx.presetAnywhere ? p.hasPrefix("/") : p.hasPrefix(home)
-                guard placeOK, !parts.contains(".."), URL(fileURLWithPath: p).pathExtension.lowercased() == "fst" else {
-                    return ctx.fail(ctx.presetAnywhere ? "preset .fst attendu." : "preset .fst attendu dans ton dossier personnel.")
-                }
-            }
-            return nil
+            return presetFileProblem(p, ctx)
         },
         import_: .aRelire("fichier à rechoisir sur cette machine"), plateformes: .mac)
+
+    static let dropFile = BlockSpec(
+        type: .dropFile, label: "Déposer un preset sur la piste", category: .fl, symbol: "square.and.arrow.down.on.square",
+        aide: "Glisse le fichier sur la dernière piste cliquée dans le Mixer, comme depuis le Finder : FL y charge l'état de piste, sans menu ni boîte « Open ».",
+        params: [ParamSpec("path", "Fichier", .fichier(extensions: ["fst"]))],
+        conteneur: .aucun, dansLaPalette: true,
+        needs: { _ in base.union([.cliqueHID, .pisteVisee, .pisteRequise]) },
+        parDefaut: { .dropFile(path: NSHomeDirectory() + "/Documents/Image-Line/FL Studio/Presets/Mixer presets/Preset.fst") },
+        resume: { body, _ in
+            guard case .dropFile(let path) = body else { return "" }
+            return URL(fileURLWithPath: path).lastPathComponent.displaySafe(max: 40)
+        },
+        journal: { _ in "dropFile" },
+        estimationMs: { _ in 600 },
+        valider: { body, ctx in
+            guard case .dropFile(let p) = body else { return nil }
+            return presetFileProblem(p, ctx)
+        },
+        import_: .aRelire("fichier à rechoisir sur cette machine"), plateformes: .mac)
+
+    /// Chemin d'un preset (choisi dans la boîte « Open » ou déposé sur la piste) : mêmes règles pour les deux blocs.
+    private static func presetFileProblem(_ p: String, _ ctx: ValidationContext) -> String? {
+        guard !p.isEmpty, p.count <= 1024,
+              !p.unicodeScalars.contains(where: { CharacterSet.controlCharacters.contains($0) }) else {
+            return ctx.fail("chemin de fichier invalide.")
+        }
+        if ctx.strictFiles {
+            let home = NSHomeDirectory() + "/"
+            let parts = p.split(separator: "/")
+            let placeOK = ctx.presetAnywhere ? p.hasPrefix("/") : p.hasPrefix(home)
+            guard placeOK, !parts.contains(".."), URL(fileURLWithPath: p).pathExtension.lowercased() == "fst" else {
+                return ctx.fail(ctx.presetAnywhere ? "preset .fst attendu." : "preset .fst attendu dans ton dossier personnel.")
+            }
+        }
+        return nil
+    }
 
     static let flAction = BlockSpec(
         type: .flAction, label: "Action de FL", category: .fl, symbol: "bolt.horizontal",
