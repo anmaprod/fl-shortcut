@@ -55,7 +55,7 @@ final class MacroCreatorWindowController: NSObject, NSWindowDelegate {
         NSApplication.shared.activate(ignoringOtherApps: true)
     }
 
-    func close() { window?.close() }
+    func close() { autoreleasepool { window?.close() } }
 
     func windowWillClose(_ notification: Notification) {
         guard let closing = notification.object as? NSWindow, closing === window else { return }
@@ -63,8 +63,26 @@ final class MacroCreatorWindowController: NSObject, NSWindowDelegate {
         closing.delegate = nil
         model = nil
         window = nil
-        // Vue SwiftUI (et avec elle le modèle) détruite au tour suivant : la fermeture peut venir d'une action de
-        // la vue elle-même. La fenêtre est lâchée avec.
-        DispatchQueue.main.async { closing.contentViewController = nil }
+        // Vue SwiftUI détruite au tour suivant (la fermeture peut venir d'une action de la vue elle-même), barre
+        // d'outils aussi : ses boutons tiennent le modèle, même si AppKit garde la fenêtre un instant.
+        DispatchQueue.main.async {
+            autoreleasepool {
+                closing.contentViewController = nil
+                closing.toolbar = nil
+            }
+            Self.releaseNow()
+        }
+    }
+
+    /// App au repos : AppKit ne vide sa réserve d'objets « autoreleased » qu'au prochain événement. Un événement
+    /// vide la vide tout de suite ; puis la mémoire libérée est rendue au système (une fois, après la fermeture).
+    private static func releaseNow() {
+        if let wake = NSEvent.otherEvent(with: .applicationDefined, location: .zero, modifierFlags: [], timestamp: 0,
+                                         windowNumber: 0, context: nil, subtype: 0, data1: 0, data2: 0) {
+            NSApplication.shared.postEvent(wake, atStart: false)
+        }
+        DispatchQueue.global(qos: .utility).asyncAfter(deadline: .now() + 1) {
+            _ = malloc_zone_pressure_relief(nil, 0)
+        }
     }
 }

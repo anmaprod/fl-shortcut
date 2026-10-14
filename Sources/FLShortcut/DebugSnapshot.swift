@@ -19,8 +19,8 @@ enum DebugSnapshot {
     static let resize = Notification.Name("app.flshortcut.debug.resize")
     /// Créateur de macros : « open » l'ouvre sur une macro d'exemple jamais enregistrée, « close » le ferme.
     static let macro = Notification.Name("app.flshortcut.debug.macro")
-    /// Écrit « editorModels=<n> windows=<n> visible=<n> » dans report.txt : modèles du créateur encore vivants,
-    /// fenêtres de l'app (même masquées), fenêtres visibles.
+    /// Écrit « editorModels=<n> windows=<n> visible=<n> hidden=<classes> » dans report.txt : modèles du créateur
+    /// encore vivants, fenêtres de l'app (même masquées), fenêtres visibles, classes des fenêtres masquées.
     static let report = Notification.Name("app.flshortcut.debug.report")
 
     static func publisher(_ name: Notification.Name) -> AnyPublisher<Notification, Never> {
@@ -64,8 +64,9 @@ enum DebugSnapshot {
 
     /// ~/Library/Caches/app.flshortcut.FLShortcut/report.txt, écrasé à chaque demande.
     private static func writeReport() {
+        let hidden = NSApp.windows.filter { !$0.isVisible }.map { String(describing: type(of: $0)) }
         let text = "editorModels=\(MacroEditorModel.liveCount) windows=\(NSApp.windows.count) "
-            + "visible=\(NSApp.windows.filter(\.isVisible).count)\n"
+            + "visible=\(NSApp.windows.count - hidden.count) hidden=\(hidden.joined(separator: ","))\n"
         try? text.write(to: cacheDirectory.appendingPathComponent("report.txt"), atomically: true, encoding: .utf8)
     }
 
