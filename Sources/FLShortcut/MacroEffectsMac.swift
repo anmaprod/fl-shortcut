@@ -666,6 +666,9 @@ final class MacroEffectsMac: MacroEffects {
         case .success(let w):
             lastMenu = w
             MacroLog.shared.write("MENU", "menu \(w) open")
+            // Comme le menu de la piste : FL ouvre souvent son menu sous le pointeur, dont le survol ouvrirait un
+            // sous-menu tout seul ; le pointeur est mis juste à côté (remis à sa place à la fin de la macro).
+            hoverOutside(w.bounds, pid: ctx.pid)
             return .ok
         case .failure(.stopped(let why)):
             return .cancel(why)
@@ -786,6 +789,8 @@ final class MacroEffectsMac: MacroEffects {
             guard let menu = remembered ?? snap.fl.first(where: { !ctx.startNumbers.contains($0.number) && $0.isMenuLike && $0.layer > 8 }),
                   hop.fits(menu.bounds) else { return nil }
             return (hop.point(in: menu.bounds), menu)
+        case .toLearn:
+            return nil                                  // refusé par la validation : jamais de clic à l'aveugle
         }
     }
 

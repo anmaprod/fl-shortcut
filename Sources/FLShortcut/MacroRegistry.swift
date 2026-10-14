@@ -201,6 +201,7 @@ private enum Specs {
         case .lastClick: return "après le clic précédent"
         case .startCursor: return "curseur au départ"
         case .cursorXWindowY: return "colonne du curseur"
+        case .toLearn: return "à montrer dans FL"
         }
     }
 
@@ -327,6 +328,7 @@ private enum Specs {
         estimationMs: { _ in 300 },
         valider: { body, ctx in
             guard case .click(let t, let b) = body else { return nil }
+            if case .toLearn = t { return ctx.fail("position à montrer dans FL (« Montrer dans FL… » dans le créateur).") }
             guard t.isFinite else { return ctx.fail("position invalide.") }
             if case .openMenu = t, b == .right { return ctx.fail("clic droit impossible dans un menu ouvert.") }
             return nil

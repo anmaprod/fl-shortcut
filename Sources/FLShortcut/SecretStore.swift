@@ -161,4 +161,6 @@ enum AppPaths {
     }()
 
     static var profileURL: URL { supportDirectory.appendingPathComponent("profile.json") }
+    /// Bibliothèque des macros en blocs (MacroLibraryStore.swift).
+    static var macrosURL: URL { supportDirectory.appendingPathComponent("macros.json") }
 }

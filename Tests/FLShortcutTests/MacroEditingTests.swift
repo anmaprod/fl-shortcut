@@ -1,0 +1,199 @@
+import CoreGraphics
+import Foundation
+import XCTest
+@testable import FLShortcut
+
+/// Créateur de macros : liste à plat, opérations sur l'arbre, palette, clic montré dans FL.
+final class MacroEditingTests: XCTestCase {
+    private let ctx = ValidationContext(forbidden: .physical, strictFiles: true)
+
+    private func tree() -> (blocks: [Block], a: Block, loop: Block, inner: Block, c: Block) {
+        let a = Block(.key(KeyRef(KeyCombo(keyCode: 1, command: true)), times: 1))
+        let inner = Block(.menuKey(.down, times: 5))
+        let loop = Block(.repeatCount(3, [inner]))
+        let c = Block(.delay(ms: 200))
+        return ([a, loop, c], a, loop, inner, c)
+    }
+
+    private func rows(_ blocks: [Block], learned: Bool = true) -> [StepRow] {
+        MacroOutline.rows(blocks, layout: FakeLayout.qwerty, context: ctx, learnedInput: learned)
+    }
+
+    func testFlatListWithIndentationAndEndRows() {
+        let t = tree()
+        let r = rows(t.blocks)
+        XCTAssertEqual(r.map(\.number), ["1", "2", "2.1", "", "3"])
+        XCTAssertEqual(r.map(\.depth), [0, 0, 1, 0, 0])
+        XCTAssertEqual(r[3].kind, .end(slot: 0))
+        XCTAssertEqual(r[3].verb, "Fin de la boucle")
+        XCTAssertEqual(r[0].verb, "Appuyer sur")
+        XCTAssertEqual(r[0].value, "⌘S")
+        XCTAssertEqual(r[2].value, "↓ × 5")
+        XCTAssertEqual(r[1].value, "3 fois")
+        XCTAssertTrue(r[4].badges.contains(.pauseFixe))
+        XCTAssertTrue(r[1].isContainer)
+    }
+
+    func testDisabledParentDimsItsChildren() {
+        var t = tree()
+        MacroOutline.update(&t.blocks, id: t.loop.id) { $0.enabled = false }
+        let r = rows(t.blocks)
+        XCTAssertFalse(r[2].enabled)
+        XCTAssertTrue(r[2].ownEnabled)
+    }
+
+    func testBadgesForLinkLearningAndProblems() {
+        let blocks = [
+            Block(.flAction(key: "solo", fallback: .none)),
+            Block(.selectInput(.legacy(key: "macroSpots.v2.input"))),
+            Block(.click(.toLearn, button: .left)),
+            Block(.chooseFile(path: "")),
+            Block(.key(KeyRef(KeyCombo(keyCode: 12, command: true)), times: 1), onFailure: .keepGoing),
+        ]
+        let r = rows(blocks, learned: false)
+        XCTAssertEqual(r[0].badges, [.lienFL])
+        XCTAssertTrue(r[1].badges.contains { if case .aApprendre = $0 { return true }; return false })
+        XCTAssertEqual(r[2].badges.count, 1)
+        XCTAssertTrue(r[2].badges.contains { if case .aApprendre = $0 { return true }; return false })
+        XCTAssertTrue(r[3].badges.contains { if case .probleme = $0 { return true }; return false })
+        XCTAssertEqual(r[3].value, "à choisir")
+        // ⌘Q : refusé, message sans « Étape n : ».
+        guard case .probleme(let why)? = r[4].badges.first else { return XCTFail("problème attendu") }
+        XCTAssertTrue(why.hasPrefix("Touche interdite"), why)
+        XCTAssertTrue(r[4].badges.contains(.continueSiEchec))
+        // Entrée déjà apprise : plus de badge.
+        XCTAssertTrue(rows(blocks, learned: true)[1].badges.isEmpty)
+    }
+
+    func testInsertBelowSelectionOrInsideALoop() {
+        var t = tree()
+        let r = rows(t.blocks)
+        // Sous le bloc 1 : même niveau.
+        let p1 = MacroOutline.insertionPoint(after: r[0], in: t.blocks)
+        XCTAssertEqual(p1, InsertionPoint(container: [], slot: 0, index: 1))
+        // Ligne « Fin de la boucle » : à la fin de la boucle.
+        let p2 = MacroOutline.insertionPoint(after: r[3], in: t.blocks)
+        XCTAssertEqual(p2.container.count, 1)
+        XCTAssertEqual(p2.index, 1)
+        let new = Block(.comment("ici"))
+        XCTAssertTrue(MacroOutline.insert(new, into: &t.blocks, at: p2))
+        XCTAssertEqual(rows(t.blocks).map(\.number), ["1", "2", "2.1", "2.2", "", "3"])
+        // Rien de choisi : tout en bas.
+        XCTAssertEqual(MacroOutline.insertionPoint(after: nil, in: t.blocks).index, 3)
+    }
+
+    func testRemoveAndUpdateNestedBlocks() {
+        var t = tree()
+        XCTAssertTrue(MacroOutline.update(&t.blocks, id: t.inner.id) { $0.body = .menuKey(.up, times: 2) })
+        XCTAssertEqual(MacroOutline.block(t.inner.id, in: t.blocks)?.body, .menuKey(.up, times: 2))
+        let removed = MacroOutline.remove(&t.blocks, id: t.inner.id)
+        XCTAssertEqual(removed?.block.id, t.inner.id)
+        XCTAssertEqual(removed?.at.index, 0)
+        XCTAssertEqual(MacroValidation.count(t.blocks), 3)
+        // Annulation : remis à sa place.
+        if let removed { MacroOutline.insert(removed.block, into: &t.blocks, at: removed.at) }
+        XCTAssertEqual(rows(t.blocks).map(\.number), ["1", "2", "2.1", "", "3"])
+    }
+
+    func testMoveInAndOutOfLoopsButNeverIntoItself() {
+        var t = tree()
+        // Bloc 3 dans la boucle (déposé sur sa ligne de fin).
+        XCTAssertTrue(MacroOutline.move(&t.blocks, id: t.c.id, to: .end(container: t.loop.id, slot: 0)))
+        XCTAssertEqual(MacroOutline.path(of: t.c.id, in: t.blocks)?.count, 2)
+        // Puis avant le bloc 1.
+        XCTAssertTrue(MacroOutline.move(&t.blocks, id: t.c.id, to: .before(t.a.id)))
+        XCTAssertEqual(t.blocks.first?.id, t.c.id)
+        // La boucle dans elle-même : refusé, rien ne change.
+        let before = t.blocks
+        XCTAssertFalse(MacroOutline.move(&t.blocks, id: t.loop.id, to: .before(t.inner.id)))
+        XCTAssertFalse(MacroOutline.move(&t.blocks, id: t.loop.id, to: .end(container: t.loop.id, slot: 0)))
+        XCTAssertEqual(t.blocks, before)
+        // En bas.
+        XCTAssertTrue(MacroOutline.move(&t.blocks, id: t.c.id, to: .rootEnd))
+        XCTAssertEqual(t.blocks.last?.id, t.c.id)
+    }
+
+    func testMoveRefusesTooDeepNesting() {
+        var deepest = Block(.comment("fond"))
+        for _ in 0..<MacroValidation.maxDepth { deepest = Block(.repeatCount(2, [deepest])) }
+        let loop = Block(.repeatCount(2, []))
+        var blocks = [deepest, loop]
+        // La pile de boucles dans une boucle de plus : trop profond.
+        XCTAssertFalse(MacroOutline.move(&blocks, id: deepest.id, to: .end(container: loop.id, slot: 0)))
+        XCTAssertEqual(blocks.first?.id, deepest.id)
+    }
+
+    func testIfElseRowsKeepTheErrorNumbering() {
+        let blocks = [Block(.ifElse(.windowOpen(.dialog), then: [Block(.delay(ms: 1))],
+                                    otherwise: [Block(.delay(ms: 2)), Block(.delay(ms: 3))]))]
+        let r = rows(blocks)
+        XCTAssertEqual(r.map(\.number), ["1", "1.1", "", "1.2", "1.3", ""])
+        XCTAssertEqual(r[2].verb, "Sinon")
+        XCTAssertEqual(r[5].verb, "Fin du « Si »")
+        // Même numérotation que la validation : « 1.3 » est le dernier bloc du sinon.
+        XCTAssertEqual(MacroValidation.block(at: "1.3", in: blocks)?.body, .delay(ms: 3))
+    }
+
+    func testFreshIDsForDuplicates() {
+        let t = tree()
+        let copy = MacroTemplates.freshIDs([t.loop])[0]
+        XCTAssertNotEqual(copy.id, t.loop.id)
+        XCTAssertNotEqual(copy.body.children[0][0].id, t.inner.id)
+        XCTAssertEqual(copy.body.children[0][0].body, t.inner.body)
+    }
+
+    // MARK: Palette
+
+    func testPaletteCoversTheRunnableBlocksAndMarksTheOthers() {
+        let items = PaletteCatalog.items(layout: FakeLayout.qwerty)
+        XCTAssertEqual(Set(items.map(\.id)).count, items.count)
+        let ready = Set(items.filter { !$0.soon }.map(\.type))
+        for t: BlockType in [.key, .delay, .click, .menuLetters, .menuKey, .waitWindow, .waitWindowClose, .trackMenu,
+                             .chooseFile, .flAction, .selectInput, .feedbackCheck, .repeatCount, .stop, .comment] {
+            XCTAssertTrue(ready.contains(t), "\(t)")
+        }
+        XCTAssertFalse(ready.contains(.ifElse))
+        XCTAssertFalse(items.contains { $0.type == .menuAX || $0.type == .setVariable || $0.type == .flActionValue })
+        // Chaque entrée prête produit un bloc valide, sauf ce qui reste à choisir ou à montrer dans FL.
+        for item in items where !item.soon && item.id != "chooseFile" && item.id != "clickLearned" {
+            let p = MacroProgram(blocks: [Block(item.make())], name: "x", source: .blocks(id: UUID(), revision: 0), context: ctx)
+            XCTAssertNil(p.problem, item.id)
+        }
+        // Le menu de la piste de la palette n'utilise pas la mémoire de l'Entrée du modèle livré.
+        guard case .trackMenu(_, _, _, let enter)? = items.first(where: { $0.id == "trackMenu" })?.make() else {
+            return XCTFail("menu de la piste")
+        }
+        XCTAssertEqual(enter, .ifNeeded)
+    }
+
+    func testPaletteSearchIgnoresCaseAndAccents() {
+        let items = PaletteCatalog.items(layout: FakeLayout.qwerty)
+        XCTAssertEqual(PaletteCatalog.search(items, "PAUSE").first?.id, "delay")
+        XCTAssertTrue(PaletteCatalog.search(items, "fenetre").contains { $0.id == "waitWindow" })
+        XCTAssertEqual(PaletteCatalog.search(items, "armer").first?.id, "arm")
+        XCTAssertTrue(PaletteCatalog.search(items, "zzz introuvable").isEmpty)
+        XCTAssertEqual(PaletteCatalog.search(items, "  ").count, items.count)
+    }
+
+    // MARK: Clic montré dans FL
+
+    func testLearnedTargetInMenuOrWindow() {
+        let mixer = CGRect(x: 100, y: 100, width: 900, height: 600)
+        let menu = CGRect(x: 300, y: 50, width: 260, height: 400)
+        let windows: [(layer: Int, bounds: CGRect)] = [(101, menu), (0, mixer)]
+        // Dans le menu : relatif au menu.
+        guard case .openMenu(let hop)? = MacroOutline.learnedTarget(at: CGPoint(x: 320, y: 90), windows: windows) else {
+            return XCTFail("menu attendu")
+        }
+        XCTAssertEqual(hop.offset.dx, 20)
+        XCTAssertEqual(hop.offset.dy, 40)
+        XCTAssertEqual(hop.size, menu.size)
+        // Dans le Mixer, près du coin bas-droit : relatif à ce coin, taille retenue.
+        let t = MacroOutline.learnedTarget(at: CGPoint(x: 980, y: 690), windows: windows)
+        XCTAssertEqual(t, .flWindow(corner: .bottomRight, dx: -20, dy: -10, size: mixer.size))
+        // Hors de FL : rien.
+        XCTAssertNil(MacroOutline.learnedTarget(at: CGPoint(x: 5, y: 5), windows: windows))
+        // Boîte de dialogue : refusé (seuls la fenêtre normale et les menus sont retrouvés).
+        XCTAssertNil(MacroOutline.learnedTarget(at: CGPoint(x: 10, y: 10), windows: [(3, CGRect(x: 0, y: 0, width: 400, height: 300))]))
+    }
+}

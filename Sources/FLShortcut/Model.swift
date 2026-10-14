@@ -139,6 +139,13 @@ struct Remap: Codable, Identifiable, Hashable {
     var unknownAction: String?
     var target: KeyCombo?
     var macro: Macro?
+    /// Macro en blocs de la bibliothèque (macros.json) lancée par ce raccourci. Doublée à l'écriture d'un lien caché
+    /// `unknownAction = "macroRef:<uuid>"` : une ancienne version de l'app le conserve (sans connaître `macroRef`),
+    /// et cette version s'en sert pour retrouver la macro si la clé `macroRef` a disparu.
+    var macroRef: UUID?
+
+    /// Préfixe du lien caché vers la bibliothèque.
+    static let macroRefPrefix = "macroRef:"
 
     init(trigger: KeyCombo?, action: Int, context: ShortcutContext = .everywhere) {
         self.trigger = trigger
@@ -162,25 +169,40 @@ struct Remap: Codable, Identifiable, Hashable {
         self.context = context
     }
 
+    /// Raccourci d'une macro de la bibliothèque.
+    init(trigger: KeyCombo?, macroRef: UUID, context: ShortcutContext = .everywhere) {
+        self.trigger = trigger
+        self.kind = .macro
+        self.actionID = nil
+        self.macroRef = macroRef
+        self.context = context
+    }
+
     init() {}
 
     var routedAction: ShortcutIndex.RoutedAction? { indexedAction(forbidden: .physical) }
 
+    /// Programme de la macro du raccourci : bibliothèque (déjà compilée par le Store), sinon modèle ou ancienne
+    /// macro portés par le profil (compilés, en cache). nil : aucune macro.
+    func macroProgram(forbidden: ForbiddenTargets, programs: [UUID: MacroProgram]) -> MacroProgram? {
+        if let ref = macroRef { return programs[ref] }
+        return macro.map { MacroProgram.compile($0, forbidden: forbidden) }
+    }
+
     /// Macro : programme compilé (en cache) avec la liste noire donnée ; jamais d'action pour une macro qui ne
     /// peut pas tourner.
-    func indexedAction(forbidden: ForbiddenTargets) -> ShortcutIndex.RoutedAction? {
+    func indexedAction(forbidden: ForbiddenTargets, programs: [UUID: MacroProgram] = [:]) -> ShortcutIndex.RoutedAction? {
         switch kind {
         case .flAction: return actionID.map { .flAction($0) }
         case .keystroke: return target.map { .keystroke($0) }
         case .macro:
-            guard let m = macro else { return nil }
-            let program = MacroProgram.compile(m, forbidden: forbidden)
+            guard let program = macroProgram(forbidden: forbidden, programs: programs) else { return nil }
             return program.isRunnable ? .macro(program) : nil
         }
     }
 
     private enum CodingKeys: String, CodingKey {
-        case id, enabled, trigger, context, kind, action, actionID, unknownAction, target, macro
+        case id, enabled, trigger, context, kind, action, actionID, unknownAction, target, macro, macroRef
     }
 
     /// Décodage tolérant : chaque champ manquant prend sa valeur par défaut ; une action, un type ou un
@@ -193,6 +215,7 @@ struct Remap: Codable, Identifiable, Hashable {
         target = try? c.decodeIfPresent(KeyCombo.self, forKey: .target)
         unknownAction = try? c.decodeIfPresent(String.self, forKey: .unknownAction)
         macro = try? c.decodeIfPresent(Macro.self, forKey: .macro)
+        macroRef = try? c.decodeIfPresent(UUID.self, forKey: .macroRef)
 
         if let raw = try? c.decodeIfPresent(String.self, forKey: .context) {
             if let ctx = ShortcutContext(rawValue: raw) {
@@ -223,6 +246,12 @@ struct Remap: Codable, Identifiable, Hashable {
             actionID = nil
         case .macro:
             actionID = nil
+            // Profil réécrit par une ancienne version (clé `macroRef` perdue) : le lien caché la retrouve. Une
+            // macro mise à la place entre-temps garde la priorité.
+            if macroRef == nil, macro == nil, let link = unknownAction, link.hasPrefix(Self.macroRefPrefix) {
+                macroRef = UUID(uuidString: String(link.dropFirst(Self.macroRefPrefix.count)))
+            }
+            if macroRef != nil, unknownAction?.hasPrefix(Self.macroRefPrefix) == true { unknownAction = nil }
         case .flAction:
             let rawID = try? c.decodeIfPresent(Int.self, forKey: .actionID)
             let rawName = try? c.decodeIfPresent(String.self, forKey: .action)
@@ -249,9 +278,14 @@ struct Remap: Codable, Identifiable, Hashable {
             try c.encode(info.key, forKey: .action)
             try c.encode(actionID, forKey: .actionID)
         }
-        try c.encodeIfPresent(unknownAction, forKey: .unknownAction)
+        if kind == .macro, let ref = macroRef {
+            try c.encode(ref, forKey: .macroRef)
+            try c.encode(Self.macroRefPrefix + ref.uuidString, forKey: .unknownAction)
+        } else if unknownAction?.hasPrefix(Self.macroRefPrefix) != true {
+            try c.encodeIfPresent(unknownAction, forKey: .unknownAction)
+        }
         try c.encodeIfPresent(target, forKey: .target)
-        if kind == .macro { try c.encodeIfPresent(macro, forKey: .macro) }
+        if kind == .macro, macroRef == nil { try c.encodeIfPresent(macro, forKey: .macro) }
     }
 }
 
@@ -387,6 +421,8 @@ struct AnalysisContext {
     var forbidden: ForbiddenTargets
     var conflicts: ConflictTable
     var availability: (Int) -> ActionAvailability
+    /// Programmes de la bibliothèque (Store.recompute), par id de macro.
+    var programs: [UUID: MacroProgram] = [:]
 }
 
 enum ShortcutAnalyzer {
@@ -412,7 +448,13 @@ enum ShortcutAnalyzer {
                     list.append(.noTarget)
                 }
             case .macro:
-                if let m = r.macro {
+                if let ref = r.macroRef {
+                    if let program = context.programs[ref] {
+                        if let why = program.problem { list.append(.macroInvalid(why)) }
+                    } else {
+                        list.append(.macroInvalid("Macro introuvable dans la bibliothèque (supprimée ?)."))
+                    }
+                } else if let m = r.macro {
                     if let why = MacroLibrary.problem(in: m, forbidden: context.forbidden) { list.append(.macroInvalid(why)) }
                 } else {
                     list.append(.macroInvalid("Aucune macro configurée."))
@@ -561,6 +603,11 @@ enum ProfileImporter {
             let trigger = r.trigger.map { $0.displayName(layout: layout) } ?? "(sans raccourci)"
             if let t = r.trigger, !t.isValidKey {
                 rejected.append("\(trigger) : touche non prise en charge")
+                continue
+            }
+            if r.kind == .macro, r.macroRef != nil {
+                // Macro de la bibliothèque : elle voyage seule, en .flsmacro, relue avant d'être acceptée.
+                rejected.append("\(trigger) : macro non importée (importe-la en .flsmacro pour la relire)")
                 continue
             }
             if r.kind == .macro, r.macro == nil || r.macro?.template == .custom {

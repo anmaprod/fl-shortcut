@@ -28,15 +28,25 @@ struct ShortcutIndex: Equatable {
 
     /// Les remaps doivent avoir été analysés : `blocked` contient les ids écartés (doublon, cible interdite…).
     /// `forbidden` : liste noire de la disposition active, avec laquelle les macros sont compilées (en cache).
-    init(remaps: [Remap], blocked: Set<UUID>, forbidden: ForbiddenTargets = .physical) {
+    /// `programs` : macros de la bibliothèque déjà compilées (références partagées, jamais copiées).
+    init(remaps: [Remap], blocked: Set<UUID>, forbidden: ForbiddenTargets = .physical,
+         programs: [UUID: MacroProgram] = [:]) {
         for r in remaps where r.enabled && !blocked.contains(r.id) {
-            guard let trigger = r.trigger, let action = r.indexedAction(forbidden: forbidden) else { continue }
+            guard let trigger = r.trigger, let action = r.indexedAction(forbidden: forbidden, programs: programs) else { continue }
             if table[trigger]?[r.context] != nil { continue }      // le premier gagne (même règle que l'analyse)
             table[trigger, default: [:]][r.context] = Entry(remapID: r.id, action: action)
         }
     }
 
     var count: Int { table.values.reduce(0) { $0 + $1.count } }
+
+    /// Programmes que les raccourcis actifs peuvent lancer (besoins agrégés : mémoire de la piste, ports MIDI).
+    var macroPrograms: [MacroProgram] {
+        table.values.flatMap(\.values).compactMap { entry in
+            if case .macro(let p) = entry.action { return p }
+            return nil
+        }
+    }
 
     /// Fenêtre précise d'abord, puis « Partout ». Fenêtre inconnue : seulement « Partout », sauf `anyContext`
     /// (mode léger : FL applique lui-même la touche envoyée à sa fenêtre active), où une entrée de n'importe

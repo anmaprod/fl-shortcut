@@ -733,6 +733,8 @@ enum ClickTarget: Equatable {
     case startCursor(dx: Double, dy: Double)
     /// x depuis le curseur, y depuis le haut de la fenêtre de FL (reprise d'un ancien ClickSpot).
     case cursorXWindowY(dx: Double, dy: Double)
+    /// Position encore à montrer dans FL (bloc neuf, macro importée : positions retirées). La macro est bloquée.
+    case toLearn
 
     /// Reprise d'une ancienne position apprise, repère par repère (même point à l'exécution).
     init(_ spot: ClickSpot) {
@@ -757,6 +759,16 @@ enum ClickTarget: Equatable {
                 && (16...2000).contains(hop.size.width) && (16...4000).contains(hop.size.height)
         case .track(let dx, let dy), .lastClick(let dx, let dy), .startCursor(let dx, let dy), .cursorXWindowY(let dx, let dy):
             return ok(dx) && ok(dy)
+        case .toLearn:
+            return true
+        }
+    }
+
+    /// Position apprise en montrant le clic dans FL (retirée à l'export : propre à cette machine).
+    var isLearnedPosition: Bool {
+        switch self {
+        case .flWindow, .openMenu, .cursorXWindowY: return true
+        case .track, .lastClick, .startCursor, .toLearn: return false
         }
     }
 
@@ -780,6 +792,7 @@ enum ClickTarget: Equatable {
         case "lastClick": self = .lastClick(dx: dx, dy: dy)
         case "startCursor": self = .startCursor(dx: dx, dy: dy)
         case "cursorXWindowY": self = .cursorXWindowY(dx: dx, dy: dy)
+        case "toLearn": self = .toLearn
         default: return nil
         }
     }
@@ -802,6 +815,7 @@ enum ClickTarget: Equatable {
         case .lastClick(let dx, let dy): return offset("lastClick", dx, dy)
         case .startCursor(let dx, let dy): return offset("startCursor", dx, dy)
         case .cursorXWindowY(let dx, let dy): return offset("cursorXWindowY", dx, dy)
+        case .toLearn: return .object(["anchor": .string("toLearn")])
         }
     }
 }

@@ -67,11 +67,19 @@ final class MacroRunner {
     /// Une macro est en cours (ses propres clics ne doivent pas compter comme « dernière piste cliquée »).
     var isRunning: Bool { busy.value }
 
+    /// FL reconnu : processus suivis par l'app ; dans l'essai de la CI, le FL simulé.
+    static func isFL(_ pid: Int32) -> Bool {
+        if let test = testFLPID { return test == pid }
+        return EventTap.shared.currentConfig.flPIDs.contains(pid)
+    }
+
     /// Appelé depuis le thread du tap : ne bloque jamais, la macro tourne sur sa propre file. Le programme a été
     /// compilé et validé sur le thread principal (index du tap) : ici, une lecture et une mise en file.
-    func start(_ program: MacroProgram, flPID pid: Int32) -> StartResult {
-        let cfg = EventTap.shared.currentConfig
-        guard pid != 0, cfg.flPIDs.contains(pid), cfg.frontmostPID == pid, program.isRunnable else { return .refused }
+    /// `observer` : suivi bloc par bloc, seulement pour un essai lancé depuis le créateur (nil sinon : aucun coût).
+    /// `completion` : résultat, sur le thread principal (créateur de macros).
+    func start(_ program: MacroProgram, flPID pid: Int32, observer: RunObserver? = nil,
+               completion: ((MacroOutcome) -> Void)? = nil) -> StartResult {
+        guard pid != 0, Self.isFL(pid), Self.isFrontmost(pid), program.isRunnable else { return .refused }
         let acquired = busy.withLock { b -> Bool in
             if b { return false }
             b = true
@@ -79,7 +87,7 @@ final class MacroRunner {
         }
         guard acquired else { return .busy }
         queue.async { [self] in
-            let outcome = execute(program, pid: pid)
+            let outcome = execute(program, pid: pid, observer: observer)
             busy.withLock { $0 = false }
             DispatchQueue.main.async {
                 var ok = false
@@ -88,6 +96,7 @@ final class MacroRunner {
                 case .doneWithWarning: break                       // la fenêtre du larsen suffit
                 default: NSSound.beep()
                 }
+                completion?(outcome)
                 NotificationCenter.default.post(name: .macroFinished, object: nil,
                                                 userInfo: ["ok": ok, "text": outcome.text])
             }
@@ -101,10 +110,10 @@ final class MacroRunner {
         start(MacroProgram.compile(macro, forbidden: EventTap.shared.currentConfig.forbidden), flPID: pid)
     }
 
-    private func execute(_ program: MacroProgram, pid: Int32) -> MacroOutcome {
+    private func execute(_ program: MacroProgram, pid: Int32, observer: RunObserver? = nil) -> MacroOutcome {
         MacroLog.shared.beginRun(program.title, flPID: pid)
         // Effets neufs à chaque passage : rien de l'état d'un passage ne survit au suivant.
-        let outcome = MacroInterpreter(effects: MacroEffectsMac(pid: pid)).run(program)
+        let outcome = MacroInterpreter(effects: MacroEffectsMac(pid: pid), observer: observer).run(program)
         MacroLog.shared.endRun(outcome.text)
         return outcome
     }

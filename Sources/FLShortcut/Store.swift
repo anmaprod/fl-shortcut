@@ -66,6 +66,14 @@ final class Store: ObservableObject {
     private(set) var index = ShortcutIndex()
     private(set) var forbidden = ForbiddenTargets.physical
     private(set) var conflicts = ConflictTable.empty
+    /// Bibliothèque des macros en blocs (macros.json) ; chaque changement relance `recompute`.
+    let library: MacroLibraryStore
+    /// Programmes de la bibliothèque compilés au dernier `recompute` (en cache par id et révision).
+    private(set) var programs: [UUID: MacroProgram] = [:]
+    /// Besoins agrégés des macros que les raccourcis peuvent lancer (et du créateur ouvert).
+    private(set) var activeNeeds: BlockNeeds = []
+    /// Besoins de la macro ouverte dans le créateur (essai : piste visée, lien MIDI) ; vide quand il est fermé.
+    private var editorNeeds: BlockNeeds = []
     /// Disponibilité des actions (masque du script ou version de FL), fournie par AppStatus.
     var availability: (Int) -> ActionAvailability = ({ _ in .unverified }) {
         didSet { recompute() }
@@ -88,8 +96,12 @@ final class Store: ObservableObject {
          defaults: UserDefaults = .standard,
          systemHotKeys: @escaping () -> [KeyCombo: String] = SystemHotKeys.read,
          pushToTap: Bool = true,
-         saveDelay: TimeInterval = 0.3) {
+         saveDelay: TimeInterval = 0.3,
+         library: MacroLibraryStore? = nil) {
         self.storage = storage
+        // Hors de l'app (tests) : bibliothèque en mémoire, jamais le fichier de l'utilisateur.
+        self.library = library ?? (pushToTap ? MacroLibraryStore.shared
+                                             : MacroLibraryStore(storage: MemoryMacroLibraryStorage(), saveDelay: 0))
         self.layout = layout
         self.defaults = defaults
         self.systemHotKeys = systemHotKeys
@@ -123,6 +135,7 @@ final class Store: ObservableObject {
         }
         remaps = initial
         loadWarning = loaded.warning
+        self.library.onChange = { [weak self] in self?.recompute() }
         refreshLayoutDependentState()
         if needsSave { saveNow() }
 
@@ -194,20 +207,36 @@ final class Store: ObservableObject {
     func issues(for id: UUID) -> [ShortcutIssue] { issues[id] ?? [] }
 
     func recompute() {
+        // Thread principal : programmes de la bibliothèque compilés ici (seulement ceux qui ont changé), jamais
+        // dans le thread du tap.
+        programs = library.programs(forbidden: forbidden)
         let ctx = AnalysisContext(toggle: toggleCombo, forbidden: forbidden, conflicts: conflicts,
-                                  availability: availability)
+                                  availability: availability, programs: programs)
         let found = ShortcutAnalyzer.analyze(remaps, context: ctx)
         if found != issues { issues = found }
-        index = ShortcutIndex(remaps: remaps, blocked: ShortcutAnalyzer.blocked(found), forbidden: forbidden)
+        index = ShortcutIndex(remaps: remaps, blocked: ShortcutAnalyzer.blocked(found), forbidden: forbidden,
+                              programs: programs)
         pushConfig()
+        // Besoins des macros que les raccourcis peuvent vraiment lancer (et de celle ouverte dans le créateur).
+        activeNeeds = index.macroPrograms.reduce(editorNeeds) { $0.union($1.needs) }
         if pushToTap {
-            // « La piste sur laquelle j'ai cliqué » : suivie seulement s'il existe une macro automatique active.
-            let auto = remaps.filter { $0.enabled && $0.macro?.template == .autoRecord }
-            TrackMemory.shared.setActive(!auto.isEmpty)
-            // Ports MIDI présents (sans aucun trafic) seulement si une macro arme la piste ou lance le REC.
-            MIDILink.shared.setOnDemand(auto.contains { $0.macro?.armAndInput == true || $0.macro?.startRecording == true })
+            // « La piste sur laquelle j'ai cliqué » : suivie seulement si une macro vise la dernière piste cliquée.
+            TrackMemory.shared.setActive(activeNeeds.contains(.pisteVisee))
+            // Ports MIDI présents (sans aucun trafic) seulement si une macro passe par le lien avec FL.
+            MIDILink.shared.setOnDemand(activeNeeds.contains(.lienMIDI))
         }
     }
+
+    /// Le créateur de macros ouvert annonce les besoins de sa macro (vide à la fermeture) : la dernière piste cliquée
+    /// est suivie pendant qu'on la prépare, pour l'essai.
+    func setEditorNeeds(_ needs: BlockNeeds) {
+        guard needs != editorNeeds else { return }
+        editorNeeds = needs
+        recompute()
+    }
+
+    /// Raccourcis qui lancent cette macro de la bibliothèque.
+    func remaps(forMacro id: UUID) -> [Remap] { remaps.filter { $0.kind == .macro && $0.macroRef == id } }
 
     private func refreshLayoutDependentState() {
         catalogCache = nil
@@ -250,7 +279,8 @@ final class Store: ObservableObject {
         var probe = draft
         probe.enabled = true
         list.append(probe)
-        let ctx = AnalysisContext(toggle: toggleCombo, forbidden: forbidden, conflicts: conflicts, availability: availability)
+        let ctx = AnalysisContext(toggle: toggleCombo, forbidden: forbidden, conflicts: conflicts, availability: availability,
+                                  programs: programs)
         return ShortcutAnalyzer.analyze(list, context: ctx)[draft.id] ?? []
     }
 

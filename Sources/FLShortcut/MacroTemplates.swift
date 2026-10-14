@@ -114,3 +114,101 @@ extension MacroLibrary {
         MacroProgram.compile(macro, forbidden: forbidden).problem
     }
 }
+
+// MARK: - Galerie de modèles du créateur de macros
+
+/// Un modèle de la galerie : une macro en blocs prête à modifier (ids neufs à chaque copie).
+struct MacroTemplate: Identifiable {
+    let id: String
+    let title: String
+    let summary: String
+    let symbol: String
+    let make: (KeyboardLayout) -> MacroDoc
+}
+
+extension MacroTemplates {
+    /// Copie avec des ids neufs, imbrication comprise (deux copies d'un modèle ne partagent jamais un id).
+    static func freshIDs(_ blocks: [Block]) -> [Block] {
+        blocks.map { b in
+            var copy = b
+            copy.id = UUID()
+            copy.body = b.body.replacingChildren(b.body.children.map(freshIDs))
+            return copy
+        }
+    }
+
+    /// Modèles construits seulement avec des blocs que l'interpréteur sait déjà jouer.
+    static func gallery(layout: KeyboardLayout) -> [MacroTemplate] {
+        func cmd(_ letter: String, _ fallback: UInt16) -> KeyRef {
+            KeyRef(KeyCombo(keyCode: KeyNames.commandKeyCode(for: letter, layout: layout) ?? fallback, command: true),
+                   char: letter)
+        }
+        func action(_ key: String, fallback: UInt16) -> BlockBody {
+            let native = FLActions.id(forKey: key).flatMap { AppMode.nativeEquivalent(of: $0, layout: layout) }
+            return .flAction(key: key, fallback: .key(KeyRef(native ?? KeyCombo(keyCode: fallback))))
+        }
+        let rec = AppMode.nativeEquivalent(of: 3, layout: layout) ?? KeyCombo(keyCode: MacroLibrary.fallbackRecKeyCode)
+        return [
+            MacroTemplate(id: "autoRecord", title: "Enregistrement rapide",
+                          summary: "Le modèle livré, développé en blocs : menu de la piste, preset, armement, REC, entrée 1, puis le larsen. À modifier étape par étape.",
+                          symbol: "record.circle") { _ in
+                var m = Macro()
+                m.recKey = rec
+                return MacroDoc(name: "Enregistrement rapide (personnalisé)", blocks: freshIDs(enregistrementRapide(m)),
+                                origin: .template("autoRecord"))
+            },
+            MacroTemplate(id: "saveNew", title: "Nouvelle version du projet",
+                          summary: "⌘N : FL enregistre une nouvelle version du projet (même nom, numéro suivant).",
+                          symbol: "doc.badge.plus") { _ in
+                MacroDoc(name: "Nouvelle version du projet",
+                         blocks: [Block(.key(cmd("n", 45), times: 1), note: "File › Save new version")],
+                         origin: .template("saveNew"))
+            },
+            MacroTemplate(id: "mixerPlaylist", title: "Afficher le Mixer et la Playlist",
+                          summary: "Par le lien avec FL : les deux fenêtres s'affichent (rien n'est fermé). Sans lien : F9 puis F5, qui ouvrent ou ferment.",
+                          symbol: "macwindow.on.rectangle") { _ in
+                MacroDoc(name: "Afficher le Mixer et la Playlist",
+                         blocks: [Block(action("mx", fallback: 101)), Block(action("pl", fallback: 96))],
+                         origin: .template("mixerPlaylist"))
+            },
+            MacroTemplate(id: "saveExport", title: "Enregistrer puis exporter en WAV",
+                          summary: "⌘S (attend le nom si le projet est neuf), puis ⌘R : la macro attend que tu choisisses le nom du fichier WAV.",
+                          symbol: "waveform.badge.plus") { _ in
+                MacroDoc(name: "Enregistrer puis exporter en WAV", blocks: [
+                    Block(.key(cmd("s", 1), times: 1), note: "Enregistrer le projet"),
+                    Block(.delay(ms: 500)),
+                    Block(.waitWindowClose(.dialog, timeoutMs: MacroValidation.maxWaitMs),
+                          note: "Projet jamais enregistré : FL demande un nom"),
+                    Block(.key(cmd("r", 15), times: 1), note: "File › Export › Wave file"),
+                    Block(.waitWindow(.dialog, timeoutMs: 4_000)),
+                    Block(.waitWindowClose(.dialog, timeoutMs: MacroValidation.maxWaitMs),
+                          note: "Tu choisis le nom du fichier WAV"),
+                ], origin: .template("saveExport"))
+            },
+            MacroTemplate(id: "armRec", title: "Armer la piste et lancer le REC",
+                          summary: "Sur la dernière piste cliquée dans le Mixer. Avec le lien, rien de déjà allumé n'est éteint ; sans lien : menu de la piste, puis la touche REC.",
+                          symbol: "record.circle.fill") { _ in
+                MacroDoc(name: "Armer la piste et lancer le REC", blocks: [
+                    Block(.flAction(key: "armon", fallback: .trackMenuArm)),
+                    Block(.flAction(key: "recon", fallback: .key(KeyRef(rec)))),
+                ], origin: .template("armRec"))
+            },
+        ]
+    }
+}
+
+extension BlockBody {
+    /// Même bloc avec d'autres listes imbriquées (dans l'ordre de `children` : alors puis sinon, ou corps).
+    func replacingChildren(_ lists: [[Block]]) -> BlockBody {
+        switch self {
+        case .ifElse(let c, let then, let otherwise):
+            return .ifElse(c, then: lists.first ?? then, otherwise: lists.count > 1 ? lists[1] : otherwise)
+        case .repeatCount(let n, let body):
+            return .repeatCount(n, lists.first ?? body)
+        case .repeatWhile(let c, let max, let body):
+            return .repeatWhile(c, maxIterations: max, lists.first ?? body)
+        default:
+            return self
+        }
+    }
+}
