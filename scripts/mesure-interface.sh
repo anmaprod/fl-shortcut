@@ -78,6 +78,11 @@ run() {   # $1 : libellé, $2 : YES/NO effet verre
   cat "$HOME/Library/Caches/$DOMAIN/$label-fenetre-tailles.txt" >&2 2>/dev/null || true
   echo "fenêtres : $(osascript -e 'tell application "System Events" to get size of every window of (first process whose name is "FLShortcut")' 2>/dev/null)" >&2
   m1=$(mem_mb "$p"); c1=$(cpu_avg "$p")
+  # Même fenêtre, 10 s plus tard (après la capture interne et la question Accessibilité ci-dessus), et ce que fait
+  # l'app pendant 3 s : le processeur au repos doit retomber à 0.
+  sleep 10
+  c1b=$(cpu_avg "$p")
+  sample "$p" 3 -file "$OUT/$label-fenetre-sample.txt" >/dev/null 2>&1 || true
   # Créateur de macros : page Macros, puis la fenêtre du créateur ouverte sur un exemple (jamais enregistré),
   # mesurée au repos, photographiée, puis fermée (la mémoire doit revenir).
   "$POST" app.flshortcut.debug.select macros; sleep 2
@@ -118,11 +123,11 @@ run() {   # $1 : libellé, $2 : YES/NO effet verre
   m3=$(mem_mb "$p")
   categories "$p" "$label-recherche"
   "$POST" app.flshortcut.debug.search ""; sleep 1
-  echo "| $label | $m0 | $c0 | $m1 | $c1 | $mb | $mc | $cc | $md | $m2 | $m3 | ${co[2]} | ${cf[2]} | ${co[3]} | ${cf[3]} | $n0 ; ${nm[1]} / ${nm[2]} / ${nm[3]} |"
+  echo "| $label | $m0 | $c0 | $m1 | $c1 | $c1b | $mb | $mc | $cc | $md | $m2 | $m3 | ${co[2]} | ${cf[2]} | ${co[3]} | ${cf[3]} | $n0 ; ${nm[1]} / ${nm[2]} / ${nm[3]} |"
 }
 
-echo "| Effet | Mémoire (barre des menus) | Processeur | Mémoire (fenêtre ouverte) | Processeur (fenêtre ouverte, au repos) | Mémoire (page Macros) | Mémoire (créateur ouvert) | Processeur (créateur ouvert, au repos) | Mémoire (créateur refermé) | Mémoire (page Mixer) | Mémoire (recherche « e », presque tout) | Mémoire (créateur cycle 2 ouvert) | Mémoire (créateur cycle 2 refermé) | Mémoire (créateur cycle 3 ouvert) | Mémoire (créateur cycle 3 refermé) | Modèles du créateur vivants (avant ouverture ; après fermeture, cycles 1 / 2 / 3) |"
-echo "|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|"
+echo "| Effet | Mémoire (barre des menus) | Processeur | Mémoire (fenêtre ouverte) | Processeur (fenêtre ouverte, au repos) | Processeur (fenêtre, 10 s plus tard) | Mémoire (page Macros) | Mémoire (créateur ouvert) | Processeur (créateur ouvert, au repos) | Mémoire (créateur refermé) | Mémoire (page Mixer) | Mémoire (recherche « e », presque tout) | Mémoire (créateur cycle 2 ouvert) | Mémoire (créateur cycle 2 refermé) | Mémoire (créateur cycle 3 ouvert) | Mémoire (créateur cycle 3 refermé) | Modèles du créateur vivants (avant ouverture ; après fermeture, cycles 1 / 2 / 3) |"
+echo "|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|"
 run "verre" YES
 run "sans-verre" NO
 pkill -x FLShortcut 2>/dev/null
