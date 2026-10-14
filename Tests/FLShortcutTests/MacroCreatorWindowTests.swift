@@ -158,7 +158,8 @@ final class MacroCreatorWindowTests: XCTestCase {
         XCTAssertTrue(store.activeNeeds.isSuperset(of: [.lienMIDI, .pisteVisee]))
         spin(until: { !model.preparingTest }, timeout: 5)
         XCTAssertFalse(model.preparingTest)
-        XCTAssertNotNil(model.monitor.outcome)           // « FL Studio n'est pas passé au premier plan »
+        XCTAssertNotNil(model.monitor.refusal)           // « FL Studio n'est pas passé au premier plan »
+        XCTAssertNil(model.monitor.outcome)              // essai non lancé : ni arrêté ni échoué
         XCTAssertTrue(store.activeNeeds.isEmpty)
 
         model.close()

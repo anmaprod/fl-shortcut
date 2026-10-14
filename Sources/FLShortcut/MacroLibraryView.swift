@@ -333,6 +333,35 @@ enum MacroFileActions {
         }
     }
 
+    /// Relecture d'un import : décompte en tête, TOUS les blocs dans une liste qui défile, ce qu'il faudra faire.
+    private static func confirmImport(_ preview: MacroExchange.Preview) -> Bool {
+        let count = preview.lines.count == 1 ? "1 bloc" : "\(preview.lines.count) blocs"
+        let review = preview.sensitiveCount == 0 ? "" : preview.sensitiveCount == 1
+            ? ", dont 1 à relire" : ", dont \(preview.sensitiveCount) à relire"
+        var text = "« \(preview.doc.name) » — \(count)\(review)."
+        if !preview.warnings.isEmpty { text += "\n\nÀ faire :\n• " + preview.warnings.joined(separator: "\n• ") }
+        text += "\n\nElle arrive sans raccourci : relis-la dans le créateur, puis choisis-lui un raccourci."
+        let alert = NSAlert()
+        alert.messageText = "Importer cette macro ?"
+        alert.informativeText = text
+        alert.addButton(withTitle: "Importer")
+        alert.addButton(withTitle: "Annuler")
+        let scroll = NSScrollView(frame: NSRect(x: 0, y: 0, width: 460, height: 220))
+        scroll.hasVerticalScroller = true
+        scroll.borderType = .bezelBorder
+        let list = NSTextView(frame: NSRect(origin: .zero, size: scroll.contentSize))
+        list.isEditable = false
+        list.isVerticallyResizable = true
+        list.autoresizingMask = [.width]
+        list.maxSize = NSSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude)
+        list.textContainer?.widthTracksTextView = true
+        list.font = .systemFont(ofSize: 11)
+        list.string = preview.lines.joined(separator: "\n")
+        scroll.documentView = list
+        alert.accessoryView = scroll
+        return alert.runModal() == .alertFirstButtonReturn
+    }
+
     /// Importe un .flsmacro après relecture : la macro arrive sans raccourci (inactive), ids neufs.
     static func importMacro(into library: MacroLibraryStore, layout: KeyboardLayout) -> MacroDoc? {
         let panel = NSOpenPanel()
@@ -343,12 +372,7 @@ enum MacroFileActions {
             let size = (try? FileManager.default.attributesOfItem(atPath: url.path)[.size] as? Int) ?? 0
             guard size <= MacroExchange.maxBytes else { throw MacroExchange.Failure.tooLarge }
             let preview = try MacroExchange.prepareImport(try Data(contentsOf: url), layout: layout)
-            var text = "« \(preview.doc.name) » — " + (preview.lines.count == 1 ? "1 bloc" : "\(preview.lines.count) blocs") + " :\n\n"
-            text += preview.lines.prefix(30).joined(separator: "\n")
-            if preview.lines.count > 30 { text += "\n… et \(preview.lines.count - 30) autre(s)" }
-            if !preview.warnings.isEmpty { text += "\n\nÀ faire :\n• " + preview.warnings.joined(separator: "\n• ") }
-            text += "\n\nElle arrive sans raccourci : relis-la dans le créateur, puis choisis-lui un raccourci."
-            guard Dialogs.confirm("Importer cette macro ?", text) else { return nil }
+            guard confirmImport(preview) else { return nil }
             var doc = preview.doc
             doc.name = library.uniqueName(doc.name)
             return library.add(doc)

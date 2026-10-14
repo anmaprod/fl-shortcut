@@ -218,6 +218,48 @@ final class MacroLibraryTests: XCTestCase {
         XCTAssertNotNil(MacroProgram.compile(preview.doc, forbidden: .physical).problem)
     }
 
+    /// Fichier .flsmacro écrit à la main (sans passer par l'export, qui retire déjà les positions).
+    private func handMade(_ blocks: [Block]) throws -> Data {
+        let file: JSONValue = .object([
+            "format": .string(MacroExchange.format),
+            "version": .num(MacroExchange.version),
+            "macro": .object(["name": .string("Faite main"), "blocks": .array(blocks.map(\.json))]),
+        ])
+        return try JSONEncoder().encode(file)
+    }
+
+    func testImportForcesClicksToLearn() throws {
+        let aimed = ClickTarget.flWindow(corner: .topRight, dx: -40, dy: 12, size: CGSize(width: 900, height: 600))
+        let data = try handMade([Block(.click(aimed, button: .left)),
+                                 Block(.repeatCount(2, [Block(.click(aimed, button: .right))]))])
+        let preview = try MacroExchange.prepareImport(data, layout: FakeLayout.qwerty)
+        guard case .click(.toLearn, _) = preview.doc.blocks[0].body else { return XCTFail("clic à apprendre attendu") }
+        guard case .repeatCount(_, let inner) = preview.doc.blocks[1].body,
+              case .click(.toLearn, _) = inner[0].body else { return XCTFail("clic imbriqué à apprendre attendu") }
+        XCTAssertEqual(preview.sensitiveCount, 2)
+        XCTAssertNotNil(MacroProgram.compile(preview.doc, forbidden: .physical).problem)
+    }
+
+    func testImportFlagsHiddenMenuAX() throws {
+        let aimed = ClickTarget.flWindow(corner: .topLeft, dx: 10, dy: 10, size: CGSize(width: 900, height: 600))
+        let data = try handMade([Block(.menuAX(titles: ["File", "Open"], fallback: [aimed]))])
+        let preview = try MacroExchange.prepareImport(data, layout: FakeLayout.qwerty)
+        XCTAssertTrue(preview.lines[0].contains("bloc caché"), preview.lines[0])
+        XCTAssertTrue(preview.warnings.contains { $0.contains("bloc caché") })
+        XCTAssertEqual(preview.sensitiveCount, 1)
+        guard case .menuAX(_, let fallback) = preview.doc.blocks[0].body else { return XCTFail("menuAX attendu") }
+        XCTAssertTrue(fallback.isEmpty)                                           // clics de secours retirés
+    }
+
+    func testImportCountsSensitiveBlocksInWholeTree() throws {
+        var blocks = (0..<35).map { _ in Block(.delay(ms: 100)) }
+        blocks.append(Block(.repeatCount(2, [Block(.chooseFile(path: "~/Documents/Voix.fst"))])))
+        let preview = try MacroExchange.prepareImport(try handMade(blocks), home: "/Users/autre", layout: FakeLayout.qwerty)
+        XCTAssertEqual(preview.lines.count, 37)
+        XCTAssertEqual(preview.sensitiveCount, 1)                                 // le fichier, à la 37ᵉ ligne
+        XCTAssertTrue(preview.lines[36].contains("fichier"), preview.lines[36])
+    }
+
     func testImportLimits() {
         XCTAssertThrowsError(try MacroExchange.prepareImport(Data(repeating: 32, count: MacroExchange.maxBytes + 1),
                                                              layout: FakeLayout.qwerty)) { error in

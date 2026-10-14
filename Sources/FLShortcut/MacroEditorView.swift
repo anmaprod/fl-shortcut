@@ -100,6 +100,9 @@ struct MacroCreatorView: View {
             if model.draft == nil { model.load(nil) }
             return
         }
+        // onAppear puis onChange peuvent livrer la même demande : la rejouer rechargerait le brouillon.
+        guard model.handledRequestSerial != request.serial else { return }
+        model.handledRequestSerial = request.serial
         if request.sample {
             let doc = MacroTemplates.sampleForCapture(layout: store.layout)
             model.loadSample(doc)
@@ -548,6 +551,9 @@ private struct MacroResultBanner: View {
                 banner(symbol: "play.circle.fill", tint: .blue, text: "Essai en cours dans FL… Échap pour l'arrêter.")
             } else if let outcome = monitor.outcome {
                 outcomeBanner(outcome)
+            } else if let refusal = monitor.refusal {
+                banner(symbol: "exclamationmark.triangle.fill", tint: .orange, text: "Essai non lancé : \(refusal)",
+                       close: { monitor.clear() })
             } else if let notice = model.notice {
                 banner(symbol: "info.circle.fill", tint: nil, text: notice, close: { model.notice = nil })
             }

@@ -59,7 +59,7 @@ Le brouillon est enregistré par **Enregistrer** (⌘S) ou 0,5 s après la derni
              "blocks": [ { "type": "click", "id": "…", "target": { "anchor": "toLearn" }, "button": "right" } ] } }
 ```
 
-Les endroits appris sont retirés (à montrer sur chaque Mac), le chemin d'un preset est écrit relatif au dossier personnel (`~/…`). *Importer…* relit le fichier bloc par bloc en français (touches avec ⌘, clics, fichiers et lien FL signalés) : 256 Ko, 200 blocs et 4 niveaux au plus, ids régénérés, la macro arrive **sans raccourci**.
+Les endroits appris sont retirés (à montrer sur chaque Mac), le chemin d'un preset est écrit relatif au dossier personnel (`~/…`). *Importer…* relit le fichier bloc par bloc en français, liste complète qui défile, avec le nombre de blocs à relire en tête (touches avec ⌘, clics, fichiers, lien FL et blocs cachés de l'ancien format signalés) : 256 Ko, 200 blocs et 4 niveaux au plus, ids régénérés, **chaque clic est à montrer de nouveau** (aucune position reprise d'un fichier, même écrit à la main), la macro arrive **sans raccourci**. Bibliothèque illisible ou impossible à enregistrer : le message reste affiché dans le menu, la page Macros (même vide) et le créateur ; si la copie de secours échoue, le fichier n'est plus jamais réécrit pendant ce lancement.
 
 ## Enregistrement rapide automatique (modèle livré, rien à régler)
 Modèle `autoRecord`, sur ⌃R dans le profil Recommandé. Il suffit de cliquer sur une piste du Mixer puis de taper le raccourci. **Aucune lecture de l'écran** : seule la permission du clavier (Accessibilité) est utilisée.

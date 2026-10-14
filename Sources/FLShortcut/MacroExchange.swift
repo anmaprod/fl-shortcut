@@ -98,6 +98,8 @@ enum MacroExchange {
         var lines: [String]
         /// Ce qu'il faudra faire avant de s'en servir (positions à montrer, fichiers à rechoisir…).
         var warnings: [String]
+        /// Blocs à relire, dans tout l'arbre (touches, clics, fichiers, lien avec FL, blocs cachés de l'ancien format).
+        var sensitiveCount: Int
     }
 
     static func prepareImport(_ data: Data, home: String = NSHomeDirectory(), layout: KeyboardLayout) throws -> Preview {
@@ -124,13 +126,16 @@ enum MacroExchange {
         let cleaned = (macro["name"]?.string ?? "").displaySafe(max: 4_096)
         let trimmed = String(cleaned.prefix(MacroValidation.maxNameLength)).trimmingCharacters(in: .whitespaces)
         let name = trimmed.isEmpty ? "Macro importée" : trimmed
-        let blocks = localized(MacroTemplates.freshIDs(parsed), home: home)
+        // Positions jamais reprises d'un fichier, même fabriqué à la main : chaque clic est à montrer sur ce Mac.
+        let blocks = localized(sharable(MacroTemplates.freshIDs(parsed), home: home), home: home)
         let doc = MacroDoc(name: name, blocks: blocks, variables: Array(variables.prefix(MacroValidation.maxVariables)),
                            origin: .imported)
         var lines: [String] = []
         var warnings: [String] = []
-        describe(blocks, prefix: "", offset: 0, depth: 0, layout: layout, lines: &lines, warnings: &warnings)
-        return Preview(doc: doc, lines: lines, warnings: Array(Set(warnings)).sorted())
+        var sensitive = 0
+        describe(blocks, prefix: "", offset: 0, depth: 0, layout: layout, lines: &lines, warnings: &warnings,
+                 sensitive: &sensitive)
+        return Preview(doc: doc, lines: lines, warnings: Array(Set(warnings)).sorted(), sensitiveCount: sensitive)
     }
 
     /// Chemins « ~/… » rendus absolus dans le dossier personnel de cette machine.
@@ -147,7 +152,7 @@ enum MacroExchange {
     }
 
     private static func describe(_ blocks: [Block], prefix: String, offset: Int, depth: Int, layout: KeyboardLayout,
-                                 lines: inout [String], warnings: inout [String]) {
+                                 lines: inout [String], warnings: inout [String], sensitive: inout Int) {
         for (i, b) in blocks.enumerated() {
             let path = MacroValidation.path(prefix, offset + i + 1)
             let indent = String(repeating: "    ", count: depth)
@@ -169,15 +174,22 @@ enum MacroExchange {
                     warnings.append("Rechoisis le preset : le fichier doit exister sur ce Mac.")
                 }
                 if BlockRegistry.needs(of: b.body).contains(.lienMIDI) { marks.append("lien avec FL") }
+                if !spec.dansLaPalette {
+                    marks.append("bloc caché (ancien format)")
+                    warnings.append("Un bloc caché de l'ancien format est inclus : relis-le dans le créateur avant de t'en servir.")
+                }
+                if spec.import_ != .ok || !spec.dansLaPalette { sensitive += 1 }
                 if !marks.isEmpty { text += " — " + marks.joined(separator: ", ") }
             } else {
+                sensitive += 1
                 text = "Bloc inconnu (version plus récente) : la macro restera bloquée"
                 warnings.append("Un bloc vient d'une version plus récente de FL Shortcut : la macro ne tournera pas.")
             }
             if !b.enabled { text += " (désactivé)" }
             lines.append("\(indent)\(path). \(text)")
             for (start, child) in MacroValidation.childLists(b.body) {
-                describe(child, prefix: path, offset: start, depth: depth + 1, layout: layout, lines: &lines, warnings: &warnings)
+                describe(child, prefix: path, offset: start, depth: depth + 1, layout: layout, lines: &lines,
+                         warnings: &warnings, sensitive: &sensitive)
             }
         }
     }

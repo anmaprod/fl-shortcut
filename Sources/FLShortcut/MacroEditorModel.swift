@@ -83,8 +83,16 @@ final class MacroEditorModel: ObservableObject {
     var shortcut: Remap? { draft.flatMap { store.remaps(forMacro: $0.id).first } }
 
     var validationContext: ValidationContext {
-        ValidationContext(forbidden: store.forbidden, strictFiles: true, variables: Set(draft?.variables.map(\.name) ?? []))
+        var ctx = ValidationContext(forbidden: store.forbidden, strictFiles: true,
+                                    variables: Set(draft?.variables.map(\.name) ?? []))
+        ctx.presetAnywhere = draft?.origin == .template(MacroTemplates.autoRecordID)   // même règle que la bibliothèque
+        return ctx
     }
+
+    /// Nom enregistré quand le champ est vide (la liste et le menu des macros n'affichent jamais une ligne vide).
+    static let untitled = "Macro sans nom"
+    /// Dernière demande d'ouverture traitée (MacroCreatorLink) : une même demande n'est jamais rejouée.
+    var handledRequestSerial: Int?
 
     // MARK: Ouverture
 
@@ -300,8 +308,9 @@ final class MacroEditorModel: ObservableObject {
     func saveNow() {
         pendingSave?.cancel()
         pendingSave = nil
-        guard dirty, !ephemeral, let draft else { return }
+        guard dirty, !ephemeral, var draft else { return }
         dirty = false
+        if draft.name.trimmingCharacters(in: .whitespaces).isEmpty { draft.name = Self.untitled }
         if library.update(draft) == nil {
             notice = "Cette macro n'est plus dans la bibliothèque : tes modifications ne sont pas enregistrées."
         }

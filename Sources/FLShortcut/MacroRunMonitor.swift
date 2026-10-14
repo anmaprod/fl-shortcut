@@ -23,6 +23,8 @@ final class MacroRunMonitor: ObservableObject, RunObserver {
     @Published private(set) var statuses: [UUID: Status] = [:]
     @Published private(set) var outcome: MacroOutcome?
     @Published private(set) var running = false
+    /// Essai non lancé (FL fermé, macro invalide…) : ce n'est ni un arrêt ni un échec de la macro.
+    @Published private(set) var refusal: String?
     /// Bloc qui a fait échouer l'essai (« Montrer le bloc »).
     @Published private(set) var failedBlock: UUID?
     /// Durée totale du dernier essai.
@@ -70,6 +72,7 @@ final class MacroRunMonitor: ObservableObject, RunObserver {
         current = nil
         if !statuses.isEmpty { statuses = [:] }
         outcome = nil
+        refusal = nil
         failedBlock = nil
         running = false
     }
@@ -92,10 +95,10 @@ final class MacroRunMonitor: ObservableObject, RunObserver {
         return result
     }
 
-    /// Essai impossible avant même de démarrer (FL fermé, macro invalide) : affiché comme un échec.
+    /// Essai impossible avant même de démarrer (FL fermé, macro invalide) : « Essai non lancé », pas « arrêté ».
     func refuse(_ reason: String) {
         clear()
-        outcome = .cancelled(reason: reason)
+        refusal = reason
     }
 
     /// Capture de l'interface (mesure, `debugSnapshots` seulement) : essai fictif en cours sur la macro d'exemple,
