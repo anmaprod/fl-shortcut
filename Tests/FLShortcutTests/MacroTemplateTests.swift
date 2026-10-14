@@ -74,6 +74,28 @@ final class MacroTemplateTests: XCTestCase {
         XCTAssertTrue(blocks.contains { $0.body == .flAction(key: "recon", fallback: .key(KeyRef(KeyCombo(keyCode: 15)))) })
     }
 
+    func testCustomizedTemplateWithExternalPresetStaysValid() {
+        var macro = Macro()
+        macro.template = .autoRecord
+        macro.presetPath = "/Volumes/Studio/Voix.fst"
+        XCTAssertNil(MacroLibrary.problem(in: macro, forbidden: .physical))          // modèle en ligne : valide
+        let copy = MacroTemplates.customizedCopy(of: macro, name: "Perso", forbidden: .physical)
+        XCTAssertNil(copy.problem)                                                     // sa copie aussi
+        XCTAssertEqual(copy.doc.origin, .template(MacroTemplates.autoRecordID))
+        var other = copy.doc                                                           // une autre macro : règle stricte
+        other.id = UUID()
+        other.origin = nil
+        XCTAssertNotNil(MacroProgram.compile(other, forbidden: .physical).problem)
+    }
+
+    func testCustomizeRefusedWhenCopyInvalid() {
+        var macro = Macro()
+        macro.template = .autoRecord
+        macro.presetPath = "/Volumes/Studio/Voix.wav"                                  // pas un .fst
+        let copy = MacroTemplates.customizedCopy(of: macro, name: "Perso", forbidden: .physical)
+        XCTAssertNotNil(copy.problem)
+    }
+
     func testIdsAreStableAndDistinct() {
         var m = Macro()
         m.presetPath = preset

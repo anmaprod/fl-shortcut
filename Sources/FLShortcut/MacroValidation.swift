@@ -288,7 +288,8 @@ final class MacroProgram: Equatable, @unchecked Sendable {
     static func compile(_ doc: MacroDoc, forbidden: ForbiddenTargets) -> MacroProgram {
         let key = DocKey(id: doc.id, revision: doc.revision, forbidden: forbidden)
         if let hit = docCache.withLock({ $0[key] }) { return hit }
-        let ctx = ValidationContext(forbidden: forbidden, strictFiles: true)
+        var ctx = ValidationContext(forbidden: forbidden, strictFiles: true)
+        ctx.presetAnywhere = doc.origin == .template(MacroTemplates.autoRecordID)
         let source = Source.blocks(id: doc.id, revision: doc.revision)
         let program: MacroProgram
         if let why = MacroValidation.problem(in: doc, context: ctx) {

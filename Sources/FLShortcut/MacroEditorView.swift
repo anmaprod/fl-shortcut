@@ -43,6 +43,22 @@ final class MacroCreatorLink: ObservableObject {
     func requestClose() { MacroCreatorWindowController.shared.close() }
 }
 
+/// Bandeau du créateur quand la bibliothèque ne peut pas être enregistrée : le brouillon n'est pas gardé.
+private struct LibraryProblemBanner: View {
+    @ObservedObject var library: MacroLibraryStore
+
+    var body: some View {
+        if library.problem != nil {
+            MacroLibraryProblemLabel(library: library)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, 14)
+                .padding(.vertical, 8)
+                .background(Color.orange.opacity(0.12))
+            Divider()
+        }
+    }
+}
+
 struct MacroCreatorView: View {
     @EnvironmentObject var store: Store
     @ObservedObject private var link = MacroCreatorLink.shared
@@ -54,15 +70,18 @@ struct MacroCreatorView: View {
 
     var body: some View {
         NavigationSplitView {
-            MacroPaletteView(model: model, items: paletteItems)
+            MacroPaletteView(items: paletteItems, insert: { [model] in model.insert($0) })
                 .navigationSplitViewColumnWidth(min: 210, ideal: 240, max: 300)
         } detail: {
-            HStack(spacing: 0) {
-                MacroStepsPane(model: model, monitor: model.monitor)
-                    .frame(minWidth: 400, maxWidth: .infinity, maxHeight: .infinity)
-                Divider()
-                MacroInspectorView(model: model)
-                    .frame(width: 300)
+            VStack(spacing: 0) {
+                LibraryProblemBanner(library: store.library)
+                HStack(spacing: 0) {
+                    MacroStepsPane(model: model, monitor: model.monitor, paletteItems: paletteItems)
+                        .frame(minWidth: 400, maxWidth: .infinity, maxHeight: .infinity)
+                    Divider()
+                    MacroInspectorView(model: model)
+                        .frame(width: 300)
+                }
             }
         }
         .navigationTitle(model.draft?.name ?? "Créateur de macros")
@@ -160,6 +179,7 @@ private struct TestButton: View {
 private struct MacroStepsPane: View {
     @ObservedObject var model: MacroEditorModel
     @ObservedObject var monitor: MacroRunMonitor
+    let paletteItems: [PaletteItem]
 
     var body: some View {
         Group {
@@ -246,7 +266,7 @@ private struct MacroStepsPane: View {
     /// Sous la liste : ajouter (sous la sélection), dupliquer (⌘D), supprimer (⌫), avec l'aide du moment.
     private var actionBar: some View {
         HStack(spacing: 10) {
-            AddBlockMenu(model: model)
+            AddBlockMenu(items: paletteItems, insert: { [model] in model.insert($0) })
             Button {
                 model.duplicateSelection()
             } label: {
@@ -277,14 +297,16 @@ private struct MacroStepsPane: View {
 
 /// « + Ajouter » : les blocs de la palette, par catégorie, ajoutés sous la ligne choisie.
 private struct AddBlockMenu: View {
-    @ObservedObject var model: MacroEditorModel
+    /// Mêmes blocs que la palette (calculés une fois par le créateur), sans modèle observé.
+    let items: [PaletteItem]
+    let insert: (PaletteItem) -> Void
 
     var body: some View {
         Menu {
             ForEach(BlockCategory.allCases, id: \.self) { category in
                 Section(category.rawValue) {
-                    ForEach(PaletteCatalog.items(layout: SystemKeyboardLayout()).filter { $0.category == category && !$0.soon }) { item in
-                        Button(item.label) { model.insert(item) }
+                    ForEach(items.filter { $0.category == category && !$0.soon }) { item in
+                        Button(item.label) { insert(item) }
                     }
                 }
             }

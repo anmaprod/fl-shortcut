@@ -1086,9 +1086,14 @@ struct EditSheet: View {
                               "Le modèle devient une macro en blocs que tu modifies étape par étape dans le créateur. "
                               + "Ce raccourci lancera ta version ; le modèle d'origine reste dans Macros › Modèles.")
         else { return }
-        let doc = store.library.add(MacroDoc(name: store.library.uniqueName("Enregistrement rapide (personnalisé)"),
-                                             blocks: MacroTemplates.freshIDs(MacroTemplates.enregistrementRapide(template)),
-                                             origin: .template("autoRecord")))
+        let copy = MacroTemplates.customizedCopy(of: template,
+                                                 name: store.library.uniqueName("Enregistrement rapide (personnalisé)"),
+                                                 forbidden: store.forbidden)
+        if let problem = copy.problem {
+            Dialogs.inform("Personnalisation impossible", "Le raccourci garde le modèle, qui continue de marcher. \(problem)")
+            return
+        }
+        let doc = store.library.add(copy.doc)
         var final = draft
         final.kind = .macro
         final.macro = nil

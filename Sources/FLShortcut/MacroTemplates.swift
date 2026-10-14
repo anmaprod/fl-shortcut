@@ -127,6 +127,17 @@ struct MacroTemplate: Identifiable {
 }
 
 extension MacroTemplates {
+    /// Modèle livré « Enregistrement rapide » (galerie et origine de sa copie personnalisée).
+    static let autoRecordID = "autoRecord"
+
+    /// « Personnaliser » : copie en blocs du modèle, compilée avant de remplacer le raccourci. Problème : le
+    /// raccourci n'est pas touché.
+    static func customizedCopy(of macro: Macro, name: String,
+                               forbidden: ForbiddenTargets) -> (doc: MacroDoc, problem: String?) {
+        let doc = MacroDoc(name: name, blocks: freshIDs(enregistrementRapide(macro)), origin: .template(autoRecordID))
+        return (doc, MacroProgram.compile(doc, forbidden: forbidden).problem)
+    }
+
     /// Copie avec des ids neufs, imbrication comprise (deux copies d'un modèle ne partagent jamais un id).
     static func freshIDs(_ blocks: [Block]) -> [Block] {
         blocks.map { b in
@@ -149,13 +160,13 @@ extension MacroTemplates {
         }
         let rec = AppMode.nativeEquivalent(of: 3, layout: layout) ?? KeyCombo(keyCode: MacroLibrary.fallbackRecKeyCode)
         return [
-            MacroTemplate(id: "autoRecord", title: "Enregistrement rapide",
+            MacroTemplate(id: autoRecordID, title: "Enregistrement rapide",
                           summary: "Le modèle livré, développé en blocs : menu de la piste, preset, armement, REC, entrée 1, puis le larsen. À modifier étape par étape.",
                           symbol: "record.circle") { _ in
                 var m = Macro()
                 m.recKey = rec
                 return MacroDoc(name: "Enregistrement rapide (personnalisé)", blocks: freshIDs(enregistrementRapide(m)),
-                                origin: .template("autoRecord"))
+                                origin: .template(autoRecordID))
             },
             MacroTemplate(id: "saveNew", title: "Nouvelle version du projet",
                           summary: "⌘N : FL enregistre une nouvelle version du projet (même nom, numéro suivant).",

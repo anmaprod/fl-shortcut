@@ -11,6 +11,21 @@ enum MacroPageText {
     static let subtitle = "Enchaîne des touches, des menus et des attentes dans FL Studio sur un seul raccourci. Chaque macro se construit bloc par bloc dans le créateur."
 }
 
+/// Problème de la bibliothèque (enregistrement impossible, fichier relu en partie) : page Macros, même vide, et
+/// créateur. Rien si tout va bien.
+struct MacroLibraryProblemLabel: View {
+    @ObservedObject var library: MacroLibraryStore
+
+    var body: some View {
+        if let problem = library.problem {
+            Label(problem, systemImage: "exclamationmark.triangle.fill")
+                .font(.system(size: 12))
+                .symbolRenderingMode(.multicolor)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+}
+
 struct MacroLibraryPage: View {
     @EnvironmentObject var store: Store
     @ObservedObject var library: MacroLibraryStore
@@ -30,11 +45,9 @@ struct MacroLibraryPage: View {
                                    detail: library.macros.count == 1 ? "1 macro" : "\(library.macros.count) macros")
                         actions
                     }
-                    if let warning = library.loadWarning {
+                    if library.problem != nil {
                         Section {
-                            Label(warning, systemImage: "info.circle.fill")
-                                .font(.system(size: 12))
-                                .fixedSize(horizontal: false, vertical: true)
+                            MacroLibraryProblemLabel(library: library)
                         }
                     }
                     Section {
@@ -76,6 +89,9 @@ struct MacroLibraryPage: View {
             Button("Importer un fichier .flsmacro…") { importFile() }
                 .buttonStyle(.link)
                 .font(.system(size: 12))
+            MacroLibraryProblemLabel(library: library)
+                .frame(maxWidth: 420)
+                .padding(.top, 8)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }

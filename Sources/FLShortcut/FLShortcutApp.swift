@@ -353,6 +353,7 @@ struct PauseBadge: View {
 /// menus) : rien n'y est ajouté, jamais de verre sur du verre.
 struct MenuContent: View {
     @EnvironmentObject var store: Store
+    @ObservedObject private var library = MacroLibraryStore.shared
     @EnvironmentObject var status: AppStatus
     @EnvironmentObject var link: MIDILink
     @EnvironmentObject var fl: FLMonitor
@@ -456,6 +457,7 @@ struct MenuContent: View {
         if !AppMode.light, link.uniqueIDConflict { out.append("Conflit de port MIDI : une autre copie de FL Shortcut tourne peut-être.") }
         if let warning = store.loadWarning { out.append(warning) }
         if let error = store.saveError { out.append(error) }
+        if let problem = library.problem { out.append(problem) }
         return out
     }
 }

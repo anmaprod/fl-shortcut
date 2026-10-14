@@ -19,8 +19,10 @@ extension BlockCategory {
 }
 
 struct MacroPaletteView: View {
-    @ObservedObject var model: MacroEditorModel
+    /// Liste calculée une fois par le créateur ; aucun modèle observé : la palette ne se redessine pas à chaque
+    /// modification de la macro.
     let items: [PaletteItem]
+    let insert: (PaletteItem) -> Void
     @State private var query = ""
 
     private var trimmed: String { query.trimmingCharacters(in: .whitespaces) }
@@ -91,13 +93,13 @@ struct MacroPaletteView: View {
     /// ↩ dans la recherche : le premier bloc disponible est ajouté, la recherche se vide pour le suivant.
     private func addFirst() {
         guard !trimmed.isEmpty, let first = results.first(where: { !$0.soon }) else { return }
-        model.insert(first)
+        insert(first)
         query = ""
     }
 
     private func row(_ item: PaletteItem) -> some View {
         Button {
-            model.insert(item)
+            insert(item)
         } label: {
             HStack(spacing: 8) {
                 SectionIcon(symbol: item.symbol, tint: item.category.tint, size: 22)

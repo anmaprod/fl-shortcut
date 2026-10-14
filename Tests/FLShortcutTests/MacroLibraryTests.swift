@@ -87,6 +87,46 @@ final class MacroLibraryTests: XCTestCase {
         XCTAssertEqual(storage.writes, 0)
     }
 
+    func testBackupFailureDisablesWrites() throws {
+        let storage = MemoryMacroLibraryStorage(data: try MacroLibraryCodec.encode([sample()]))
+        let original = storage.data
+        storage.backupError = CocoaError(.fileWriteOutOfSpace)
+        let store = MacroLibraryStore(storage: storage, saveDelay: 0)
+        store.add(sample("Nouvelle"))
+        store.saveNow()
+        XCTAssertEqual(storage.writes, 0)                        // jamais remplacé sans copie
+        XCTAssertEqual(storage.data, original)
+        XCTAssertTrue(store.writesDisabled)
+        store.add(sample("Encore"))
+        store.saveNow()
+        XCTAssertEqual(storage.writes, 0)
+    }
+
+    func testProblemMessageWhenWritesDisabled() throws {
+        let storage = MemoryMacroLibraryStorage(data: try MacroLibraryCodec.encode([sample()]))
+        storage.backupError = CocoaError(.fileWriteOutOfSpace)
+        let store = MacroLibraryStore(storage: storage, saveDelay: 0)
+        XCTAssertNil(store.problem)
+        store.add(sample("Nouvelle"))
+        store.saveNow()
+        let problem = try XCTUnwrap(store.problem)
+        XCTAssertTrue(problem.hasPrefix("Tes macros ne peuvent pas être enregistrées"), problem)
+    }
+
+    func testProblemVisibleWhenLibraryEmpty() {
+        let storage = MemoryMacroLibraryStorage(data: Data("{ cassé".utf8))
+        storage.backupError = CocoaError(.fileWriteNoPermission)
+        let store = MacroLibraryStore(storage: storage, saveDelay: 0)
+        XCTAssertTrue(store.macros.isEmpty)
+        XCTAssertTrue(store.writesDisabled)                      // illisible et pas copié : jamais écrasé
+        let problem = store.problem ?? ""
+        XCTAssertTrue(problem.hasPrefix("Le fichier des macros est illisible"), problem)
+        store.add(sample())
+        store.saveNow()
+        XCTAssertEqual(storage.writes, 0)
+        XCTAssertEqual(storage.data, Data("{ cassé".utf8))
+    }
+
     func testUpdateBumpsTheRevisionOnlyWhenContentChanges() {
         let store = MacroLibraryStore(storage: MemoryMacroLibraryStorage(), saveDelay: 0)
         let doc = store.add(sample())

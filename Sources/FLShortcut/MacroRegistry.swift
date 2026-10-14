@@ -82,6 +82,9 @@ struct ValidationContext {
     /// Fichiers : sous le dossier personnel et en .fst (macros de la bibliothèque, imports). Le modèle et les
     /// anciennes macros gardent les règles d'avant (un preset peut être sur un autre disque).
     var strictFiles = false
+    /// Copie personnalisée du modèle « Enregistrement rapide » : comme le modèle en ligne, le preset peut être hors
+    /// du dossier personnel (disque externe) ; .fst toujours exigé.
+    var presetAnywhere = false
     var variables: Set<String> = []
     var path = "1"
 
@@ -468,8 +471,9 @@ private enum Specs {
             if ctx.strictFiles {
                 let home = NSHomeDirectory() + "/"
                 let parts = p.split(separator: "/")
-                guard p.hasPrefix(home), !parts.contains(".."), URL(fileURLWithPath: p).pathExtension.lowercased() == "fst" else {
-                    return ctx.fail("preset .fst attendu dans ton dossier personnel.")
+                let placeOK = ctx.presetAnywhere ? p.hasPrefix("/") : p.hasPrefix(home)
+                guard placeOK, !parts.contains(".."), URL(fileURLWithPath: p).pathExtension.lowercased() == "fst" else {
+                    return ctx.fail(ctx.presetAnywhere ? "preset .fst attendu." : "preset .fst attendu dans ton dossier personnel.")
                 }
             }
             return nil
