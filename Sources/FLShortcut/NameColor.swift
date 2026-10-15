@@ -25,6 +25,42 @@ struct RGBColor: Equatable, Hashable {
     }
 
     var hex: String { String(format: "%02X%02X%02X", r, g, b) }
+
+    /// Couleur à `t` (0 = soi, 1 = `other`) en ligne droite sur chaque composante, arrondie au plus proche comme le
+    /// script (`int(a + (b − a) × t + 0,5)`) et comme « Gradient color… » de FL.
+    func lerp(_ other: RGBColor, _ t: Double) -> RGBColor {
+        func mix(_ a: UInt8, _ b: UInt8) -> UInt8 {
+            let v = (Double(a) + (Double(b) - Double(a)) * min(max(t, 0), 1) + 0.5).rounded(.down)
+            return UInt8(min(max(v, 0), 255))
+        }
+        return RGBColor(r: mix(r, other.r), g: mix(g, other.g), b: mix(b, other.b))
+    }
+}
+
+/// Case de la grille des icônes de FL (« Change icon… ») : 14 colonnes, 15 rangées, 0-indexées ; écrite « 3-7 ».
+/// (0, 0) est « Reset » : aucune icône.
+struct FLIcon: Equatable, Hashable {
+    static let columns = 14
+    static let rows = 15
+
+    let column: Int
+    let row: Int
+
+    init?(column: Int, row: Int) {
+        guard (0..<Self.columns).contains(column), (0..<Self.rows).contains(row) else { return nil }
+        self.column = column
+        self.row = row
+    }
+
+    init?(code: String) {
+        let parts = code.split(separator: "-", omittingEmptySubsequences: false)
+        guard parts.count == 2, let c = Int(parts[0]), let r = Int(parts[1]),
+              String(c) == parts[0], String(r) == parts[1] else { return nil }
+        self.init(column: c, row: r)
+    }
+
+    var code: String { "\(column)-\(row)" }
+    var isReset: Bool { column == 0 && row == 0 }
 }
 
 /// Données de l'opération 1 : `[1, drapeaux (bit 0 nom, bit 1 couleur), R, G, B, n, nom UTF-8 (n octets)]`.
@@ -64,8 +100,9 @@ struct NameColorPayload: Equatable {
     /// Rouge de départ du bloc (un bloc neuf est valable tel quel).
     static let defaultColor = RGBColor(r: 0xE0, g: 0x45, b: 0x3A)
 
-    /// Ligne du bloc : « Kick · #E0453A », « Kick », « couleur #E0453A ».
-    static func summary(name: String?, color: RGBColor?) -> String {
+    /// Ligne du bloc : « Kick · #E0453A », « Kick », « couleur #E0453A », « dégradé #F2A0D8 → #C02890 ».
+    static func summary(name: String?, color: RGBColor?, fade: RGBColor? = nil) -> String {
+        if let color, let fade { return "dégradé #\(color.hex) → #\(fade.hex)" }
         let n = NameColorPayload(name: name, color: color)
         switch (n.name, n.color) {
         case let (name?, color?): return "\(name.displaySafe(max: 40)) · #\(color.hex)"
@@ -83,6 +120,7 @@ struct NameColorPayload: Equatable {
         case 3: return "Sélectionne une seule piste ou un seul canal."
         case 4: return "Arrête la lecture d'abord."
         case 6: return "Ta version de FL ne le permet pas sur cette page : mets FL à jour."
+        case 7: return "Sélectionne au moins 2 pistes pour un dégradé."
         default: return "FL a refusé le nom ou la couleur."
         }
     }

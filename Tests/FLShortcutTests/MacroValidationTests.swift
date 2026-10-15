@@ -185,6 +185,18 @@ final class MacroValidationTests: XCTestCase {
         XCTAssertNotNil(problem([b(.nameColor(name: String(repeating: "e\u{301}", count: 33), color: nil))]))
     }
 
+    /// Dégradé : il lui faut sa couleur de départ, et jamais de nom (comme « Gradient color… » de FL).
+    func testFadeNeedsColorAndNoName() {
+        let red = NameColorPayload.defaultColor
+        let dark = GradientField.defaultLast(for: red)
+        XCTAssertNil(problem([b(.nameColor(name: nil, color: red, fade: dark))]))
+        XCTAssertEqual(problem([b(.nameColor(name: nil, color: nil, fade: dark))]), "Étape 1 : un dégradé demande ses deux couleurs.")
+        XCTAssertEqual(problem([b(.nameColor(name: "Kick", color: red, fade: dark))]),
+                       "Étape 1 : un dégradé ne change pas le nom : retire le nom.")
+        XCTAssertNil(problem([b(.nameColor(name: nil, color: nil, icon: FLIcon(code: "1-0")))]))     // icône seule
+        XCTAssertEqual(NameColorPayload.message(forReason: 7), "Sélectionne au moins 2 pistes pour un dégradé.")
+    }
+
     func testNameColorNeedsTheLinkAndIsJournaledWithoutTheName() {
         let body = BlockBody.nameColor(name: "SecretTrack", color: nil)
         XCTAssertTrue(BlockRegistry.needs(of: body).contains(.lienMIDI))

@@ -249,8 +249,9 @@ indirect enum BlockBody: Equatable {
     case flActionValue(key: String, value: IntSource)       // incrément 4 (paramètre signé)
     case selectInput(LearnedRef)
     case feedbackCheck
-    /// Nom et/ou couleur de l'élément sélectionné de la page de FL devant (lien avec FL, NameColor.swift).
-    case nameColor(name: String?, color: RGBColor?)
+    /// Nom et/ou couleur de l'élément sélectionné de la page de FL devant (lien avec FL, NameColor.swift). `fade` :
+    /// dégradé de `color` (First) à `fade` (Last) sur les éléments sélectionnés, sans nom ; `icon` : icône de FL.
+    case nameColor(name: String?, color: RGBColor?, fade: RGBColor? = nil, icon: FLIcon? = nil)
     /// La carte son branchée devient la sortie et l'entrée du Mac (FL réglé sur « Default », SoundCard.swift).
     case soundCard
     /// Élément d'un menu de FL dans la barre des menus de macOS (titre du menu, puis des éléments), par l'Accessibilité.
@@ -346,10 +347,12 @@ indirect enum BlockBody: Equatable {
             return ["learned": ref.json]
         case .feedbackCheck, .soundCard:
             return [:]
-        case .nameColor(let name, let color):
+        case .nameColor(let name, let color, let fade, let icon):
             var p: [String: JSONValue] = [:]
             if let name { p["name"] = .string(name) }
             if let color { p["color"] = .string(color.hex) }
+            if let fade { p["fade"] = .string(fade.hex) }
+            if let icon { p["icon"] = .string(icon.code) }
             return p
         case .menuBar(let titles):
             return ["titles": .array(titles.map { .string($0) })]
@@ -427,12 +430,18 @@ indirect enum BlockBody: Equatable {
         case .nameColor:
             // Clé présente mais illisible (nom non texte, couleur hors format) : bloc illisible, conservé et bloquant.
             if j["name"] != nil && j["name"]?.string == nil { return nil }
-            var color: RGBColor?
-            if let v = j["color"] {
+            func hexColor(_ key: String) -> RGBColor?? {
+                guard let v = j[key] else { return .some(nil) }
                 guard let hex = v.string, let c = RGBColor(hex: hex) else { return nil }
-                color = c
+                return .some(c)
             }
-            return .nameColor(name: j["name"]?.string, color: color)
+            guard let color = hexColor("color"), let fade = hexColor("fade") else { return nil }
+            var icon: FLIcon?
+            if let v = j["icon"] {
+                guard let code = v.string, let i = FLIcon(code: code) else { return nil }
+                icon = i
+            }
+            return .nameColor(name: j["name"]?.string, color: color, fade: fade, icon: icon)
         case .menuBar:
             guard let list = j["titles"]?.array else { return nil }
             let titles = list.compactMap(\.string)

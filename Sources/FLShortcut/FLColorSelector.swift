@@ -135,6 +135,65 @@ func swiftColor(_ c: RGBColor) -> Color {
     Color(red: Double(c.r) / 255, green: Double(c.g) / 255, blue: Double(c.b) / 255)
 }
 
+/// Dégradé recopié sur le « Gradient editor » de FL (vidéo de l'utilisateur) : cases First et Last (chacune ouvre la
+/// fenêtre de couleur), aperçu du dégradé entre elles, puis ▶ (First devient aussi Last), ◀▶ (échange) et ◀ (Last
+/// devient aussi First).
+struct GradientField: View {
+    let first: RGBColor
+    let last: RGBColor
+    let set: (RGBColor, RGBColor) -> Void
+    @State private var pickingFirst = false
+    @State private var pickingLast = false
+
+    /// Last proposé au départ : la même couleur, plus sombre (comme le dégradé de la vidéo, du clair au foncé).
+    static func defaultLast(for c: RGBColor) -> RGBColor { c.lerp(RGBColor(r: 0, g: 0, b: 0), 0.45) }
+
+    var body: some View {
+        VStack(spacing: 6) {
+            HStack(spacing: 6) {
+                box("First", first, picking: $pickingFirst) { set($0, last) }
+                RoundedRectangle(cornerRadius: 6, style: .continuous)
+                    .fill(LinearGradient(colors: [swiftColor(first), swiftColor(last)], startPoint: .leading, endPoint: .trailing))
+                    .frame(height: 34)
+                    .overlay(RoundedRectangle(cornerRadius: 6, style: .continuous).strokeBorder(Color.primary.opacity(0.15)))
+                    .accessibilityLabel("Aperçu du dégradé")
+                box("Last", last, picking: $pickingLast) { set(first, $0) }
+            }
+            HStack {
+                Button { set(first, first) } label: { Image(systemName: "arrowtriangle.right.fill") }
+                    .help("First devient aussi Last")
+                Spacer()
+                Button { set(last, first) } label: { Image(systemName: "arrow.left.arrow.right") }
+                    .help("Échanger First et Last")
+                Spacer()
+                Button { set(last, last) } label: { Image(systemName: "arrowtriangle.left.fill") }
+                    .help("Last devient aussi First")
+            }
+            .controlSize(.small)
+        }
+    }
+
+    private func box(_ title: String, _ c: RGBColor, picking: Binding<Bool>,
+                     choose: @escaping (RGBColor) -> Void) -> some View {
+        Button { picking.wrappedValue = true } label: {
+            Text(title)
+                .font(.system(size: 10, weight: .medium))
+                .foregroundStyle(c.flHSL.luminance > 140 ? Color.black : Color.white)
+                .frame(width: 44, height: 34)
+                .background(RoundedRectangle(cornerRadius: 6, style: .continuous).fill(swiftColor(c)))
+                .overlay(RoundedRectangle(cornerRadius: 6, style: .continuous).strokeBorder(Color.primary.opacity(0.15)))
+        }
+        .buttonStyle(.plain)
+        .help("\(title) : #\(c.hex) — cliquer pour choisir")
+        .popover(isPresented: picking, arrowEdge: .leading) {
+            FLColorSelector(initial: c) { picked in
+                choose(picked)
+                picking.wrappedValue = false
+            }
+        }
+    }
+}
+
 /// La roue de FL, dessinée d'un seul tenant (Canvas) : un clic ou un glisser choisit la case sous la souris.
 private struct FLColorWheelView: View {
     let selected: RGBColor

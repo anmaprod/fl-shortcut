@@ -248,6 +248,48 @@ final class MacroModelTests: XCTestCase {
         XCTAssertEqual(lower.body, .nameColor(name: nil, color: red))
     }
 
+    /// Dégradé (« fade ») et icône : clés JSON facultatives ; une valeur illisible rend le bloc illisible (bloquant).
+    func testNameColorFadeJSONRoundTrip() throws {
+        let first = try XCTUnwrap(RGBColor(hex: "F2A0D8"))
+        let last = try XCTUnwrap(RGBColor(hex: "C02890"))
+        let icon = try XCTUnwrap(FLIcon(code: "3-7"))
+        let blocks = [Block(.nameColor(name: nil, color: first, fade: last)),
+                      Block(.nameColor(name: "Kick", color: first, icon: icon))]
+        XCTAssertEqual(try roundTrip(blocks), blocks)
+        let object = try JSONSerialization.jsonObject(with: JSONEncoder().encode(blocks[0])) as? [String: Any]
+        XCTAssertEqual(object?["fade"] as? String, "C02890")
+        XCTAssertNil(object?["icon"])
+        let withIcon = try JSONSerialization.jsonObject(with: JSONEncoder().encode(blocks[1])) as? [String: Any]
+        XCTAssertEqual(withIcon?["icon"] as? String, "3-7")
+        for raw in [#"{"type":"nameColor","color":"F2A0D8","fade":"nope"}"#,
+                    #"{"type":"nameColor","color":"F2A0D8","icon":"14-0"}"#,
+                    #"{"type":"nameColor","color":"F2A0D8","icon":7}"#] {
+            let b = try JSONDecoder().decode(Block.self, from: Data(raw.utf8))
+            guard case .unknown(let type, _) = b.body else { return XCTFail(raw) }
+            XCTAssertEqual(type, "nameColor")
+        }
+        XCTAssertEqual(NameColorPayload.summary(name: nil, color: first, fade: last), "dégradé #F2A0D8 → #C02890")
+    }
+
+    /// Même arrondi que le script et que « Gradient color… » de FL : E0453A → 3FA7E0, milieu 90768D.
+    func testLerpMatchesScript() throws {
+        let a = try XCTUnwrap(RGBColor(hex: "E0453A"))
+        let b = try XCTUnwrap(RGBColor(hex: "3FA7E0"))
+        XCTAssertEqual(a.lerp(b, 0.5).hex, "90768D")
+        XCTAssertEqual(a.lerp(b, 0), a)
+        XCTAssertEqual(a.lerp(b, 1), b)
+        XCTAssertEqual(a.lerp(b, 2), b)                                     // borné
+        XCTAssertEqual(GradientField.defaultLast(for: RGBColor(r: 200, g: 100, b: 0)), RGBColor(r: 110, g: 55, b: 0))
+    }
+
+    func testIconCodeRoundTrip() {
+        XCTAssertEqual(FLIcon(code: "3-7")?.code, "3-7")
+        XCTAssertEqual(FLIcon(code: "0-0")?.isReset, true)
+        for bad in ["14-0", "0-15", "-1-2", "a-b", "3", "3-7-1", "03-7", " 3-7"] {
+            XCTAssertNil(FLIcon(code: bad), bad)
+        }
+    }
+
     func testNameColorTexts() {
         let red = NameColorPayload.defaultColor
         XCTAssertEqual(NameColorPayload.summary(name: "Kick", color: red), "Kick · #E0453A")

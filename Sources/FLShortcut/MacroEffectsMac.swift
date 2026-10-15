@@ -439,7 +439,16 @@ final class MacroEffectsMac: MacroEffects {
                 return .fail(why)
             }
 
-        case .nameColor(let name, let color):
+        case .nameColor(let name, let color, let fade, _):
+            if let color, let fade {
+                // Dégradé de First à Last sur les éléments sélectionnés (opération 8, script v5).
+                MacroLog.shared.write("FL", "gradient")
+                switch MIDILink.shared.runRequest(OrganizerPayload.gradient(first: color, last: fade)) {
+                case .answered: return .ok
+                case .refused(let reason): return .fail(NameColorPayload.message(forReason: reason))
+                case .failed(let why): return .fail(why)
+                }
+            }
             // Journal : jamais le nom, seulement ce qui est posé.
             MacroLog.shared.write("FL", "name/color (\(name == nil ? "no name" : "name") · \(color == nil ? "no color" : "color"))")
             switch MIDILink.shared.runData(NameColorPayload(name: name, color: color).units) {

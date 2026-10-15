@@ -207,18 +207,45 @@ private struct BlockInspector: View {
                 setBody(key: "text") { $0 = .comment(text) }
             }, axis: .vertical)
             .lineLimit(2...5)
-        case (.nameColor(let name, _), "name"):
+        case (.nameColor(let name, _, let fade, _), "name"):
             // Coupé en points de code, comme le compte le script de FL (un « é » décomposé en vaut deux).
             TextField(p.label, text: Binding(get: { name ?? "" }, set: { text in
                 let cut = String(String.UnicodeScalarView(text.unicodeScalars.prefix(NameColorPayload.maxNameScalars)))
                 setBody(key: "name") { body in
-                    if case .nameColor(_, let c) = body { body = .nameColor(name: cut.isEmpty ? nil : cut, color: c) }
+                    if case .nameColor(_, let c, let f, let i) = body {
+                        body = .nameColor(name: cut.isEmpty ? nil : cut, color: c, fade: f, icon: i)
+                    }
                 }
-            }), prompt: Text("Kick, Lead, Voix… (facultatif)"))
-        case (.nameColor(_, let color), "color"):
-            NameColorField(color: color) { newColor in
-                setBody(key: "color") { body in
-                    if case .nameColor(let n, _) = body { body = .nameColor(name: n, color: newColor) }
+            }), prompt: Text(fade == nil ? "Kick, Lead, Voix… (facultatif)" : "Pas de nom pour un dégradé"))
+            .disabled(fade != nil)
+        case (.nameColor(_, let color, let fade, _), "color"):
+            VStack(alignment: .leading, spacing: 10) {
+                NameColorField(color: color) { newColor in
+                    setBody(key: "color") { body in
+                        if case .nameColor(let n, _, let f, let i) = body {
+                            body = .nameColor(name: n, color: newColor, fade: newColor == nil ? nil : f, icon: i)
+                        }
+                    }
+                }
+                if let color {
+                    // « Gradient color… » de FL : de First à Last sur les pistes ou canaux sélectionnés (2 au moins).
+                    Toggle("Dégradé sur les pistes sélectionnées", isOn: Binding(get: { fade != nil }, set: { on in
+                        setBody(key: "fade") { body in
+                            guard case .nameColor(let n, let c?, _, let i) = body else { return }
+                            body = on ? .nameColor(name: nil, color: c, fade: GradientField.defaultLast(for: c), icon: i)
+                                      : .nameColor(name: n, color: c, fade: nil, icon: i)
+                        }
+                    }))
+                    .help("Comme « Gradient color… » de FL : de la première couleur (First) à la dernière (Last), sur les pistes ou les canaux sélectionnés (au moins 2). Le nom ne change pas.")
+                    if let fade {
+                        GradientField(first: color, last: fade) { first, last in
+                            setBody(key: "fade") { body in
+                                if case .nameColor(_, _, _, let i) = body {
+                                    body = .nameColor(name: nil, color: first, fade: last, icon: i)
+                                }
+                            }
+                        }
+                    }
                 }
             }
         default:

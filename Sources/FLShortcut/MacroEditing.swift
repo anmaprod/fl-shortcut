@@ -382,8 +382,8 @@ enum MacroOutline {
             return ("Choisir l'entrée", "(none) → 1")
         case .feedbackCheck:
             return ("Vérifier le larsen", nil)
-        case .nameColor(let name, let color):
-            return ("Nom et couleur", NameColorPayload.summary(name: name, color: color))
+        case .nameColor(let name, let color, let fade, _):
+            return ("Nom et couleur", NameColorPayload.summary(name: name, color: color, fade: fade))
         case .soundCard:
             return ("Carte son branchée", "sortie et entrée du Mac")
         case .menuBar(let titles):
