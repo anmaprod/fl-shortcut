@@ -119,9 +119,19 @@ struct SoundFeatures: Equatable {
                     continue
                 }
                 // Plus petit retard qui atteint 92 % du meilleur et qui est un sommet (évite les sous-octaves).
-                let lag = (lmin + 1..<lmax).first {
-                    nacf[$0] >= 0.92 * best && nacf[$0] >= nacf[$0 - 1] && nacf[$0] >= nacf[$0 + 1]
-                } ?? (lmin...lmax).max { nacf[$0] < nacf[$1] }!
+                let threshold: Double = 0.92 * best
+                var lag = -1
+                for l in (lmin + 1)..<lmax {
+                    let v: Double = nacf[l]
+                    if v >= threshold, v >= nacf[l - 1], v >= nacf[l + 1] {
+                        lag = l
+                        break
+                    }
+                }
+                if lag < 0 {
+                    lag = lmin
+                    for l in lmin...lmax where nacf[l] > nacf[lag] { lag = l }
+                }
                 var exact = Double(lag)
                 if lag > lmin && lag < lmax {
                     let a = nacf[lag - 1], b = nacf[lag], c = nacf[lag + 1]

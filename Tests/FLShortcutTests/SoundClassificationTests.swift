@@ -13,7 +13,7 @@ enum SynthSounds {
         }
         mutating func gaussian() -> Double {
             let u = max(uniform(), 1e-12), v = uniform()
-            return (-2 * log(u)).squareRoot() * cos(2 * .pi * v)
+            return (-2 * log(u)).squareRoot() * cos(2 * Double.pi * v)
         }
     }
 
@@ -29,7 +29,7 @@ enum SynthSounds {
     }
 
     static func onePole(_ x: [Double], _ fc: Double) -> [Double] {
-        let a = exp(-2 * .pi * fc / rate)
+        let a = exp(-2 * Double.pi * fc / rate)
         var acc = 0.0
         return x.map { acc = (1 - a) * $0 + a * acc; return acc }
     }
@@ -38,7 +38,7 @@ enum SynthSounds {
         (0..<count(d)).map { i in
             let t = Double(i) / rate
             var v = 0.0, k = 1.0
-            while k * f < maxHz { v += sin(2 * .pi * k * f * t) / k; k += 1 }
+            while k * f < maxHz { v += sin(2 * Double.pi * k * f * t) / k; k += 1 }
             return v * 0.5
         }
     }
@@ -59,7 +59,7 @@ enum SynthSounds {
         var phase = 0.0
         let hit: [Double] = (0..<count(0.4)).map { i in
             let t = Double(i) / rate
-            phase += 2 * .pi * (50 + 100 * exp(-t / 0.03)) / rate
+            phase += 2 * Double.pi * (50 + 100 * exp(-t / 0.03)) / rate
             return sin(phase) * exp(-t / 0.12)
         }
         return place(2, [0, 0.5, 1, 1.5].map { ($0, hit) })
@@ -68,7 +68,9 @@ enum SynthSounds {
     static func snare(_ noise: inout Noise) -> [Double] {
         let hit: [Double] = (0..<count(0.3)).map { i in
             let t = Double(i) / rate
-            return noise.gaussian() * exp(-t / 0.08) * 0.5 + 0.4 * sin(2 * .pi * 180 * t) * exp(-t / 0.05)
+            let rattle: Double = noise.gaussian() * exp(-t / 0.08) * 0.5
+            let body: Double = 0.4 * sin(2 * Double.pi * 180 * t) * exp(-t / 0.05)
+            return rattle + body
         }
         return place(2, [(0.5, hit), (1.5, hit)])
     }
@@ -88,20 +90,22 @@ enum SynthSounds {
         func note(_ f: Double) -> [Double] {
             (0..<count(0.95)).map { i in
                 let t = Double(i) / rate
-                return tanh(1.5 * sin(2 * .pi * f * t) * exp(-t / 0.6)) * 0.8
+                return tanh(1.5 * sin(2 * Double.pi * f * t) * exp(-t / 0.6)) * 0.8
             }
         }
         return place(2, [(0, note(49)), (1, note(55))])
     }
 
     static func bass() -> [Double] {
-        place(2, [55, 65.4, 73.4, 49].enumerated().map { i, f in
+        let notes: [Double] = [55, 65.4, 73.4, 49]
+        return place(2, notes.enumerated().map { i, f -> (Double, [Double]) in
             (Double(i) * 0.5, mul(onePole(saw(f, 0.45), 400), env(0.45)).map { $0 * 1.5 })
         })
     }
 
     static func lead() -> [Double] {
-        place(2, [440, 523.3, 587.3, 659.3].enumerated().map { i, f in
+        let notes: [Double] = [440, 523.3, 587.3, 659.3]
+        return place(2, notes.enumerated().map { i, f -> (Double, [Double]) in
             (Double(i) * 0.5, mul(saw(f, 0.45), env(0.45)).map { $0 * 0.6 })
         })
     }
@@ -117,7 +121,7 @@ enum SynthSounds {
         var acc = 0.0
         return (0..<n).map { i in
             let fc = 500 + 7500 * Double(i) / Double(n)
-            let a = exp(-2 * .pi * fc / rate)
+            let a = exp(-2 * Double.pi * fc / rate)
             acc = (1 - a) * noise.gaussian() + a * acc
             return acc * Double(i) / Double(n - 1) * 0.8
         }
@@ -129,12 +133,12 @@ enum SynthSounds {
         var pulses = [Double](repeating: 0, count: n)
         for i in 0..<n {
             let t = Double(i) / rate
-            phase += 150 * pow(2, 0.4 * sin(2 * .pi * 5.5 * t) / 12) / rate
+            phase += 150 * pow(2, 0.4 * sin(2 * Double.pi * 5.5 * t) / 12) / rate
             pulses[i] = floor(phase) > floor(last) ? 1 : 0
             last = phase
         }
         func resonator(_ f: Double, _ bw: Double) -> [Double] {
-            let r = exp(-.pi * bw / rate), c1 = 2 * r * cos(2 * .pi * f / rate), c2 = -r * r
+            let r = exp(-Double.pi * bw / rate), c1 = 2 * r * cos(2 * Double.pi * f / rate), c2 = -r * r
             var y1 = 0.0, y2 = 0.0
             return pulses.map { x in
                 let v = x + c1 * y1 + c2 * y2
@@ -166,7 +170,11 @@ enum SynthSounds {
 
 final class SoundClassificationTests: XCTestCase {
     private func sine(_ f: Double, _ d: Double) -> [Float] {
-        (0..<Int(48_000 * d)).map { Float(0.5 * sin(2 * .pi * f * Double($0) / 48_000)) }
+        let step: Double = 2 * Double.pi * f / 48_000
+        return (0..<Int(48_000 * d)).map { i -> Float in
+            let v: Double = 0.5 * sin(step * Double(i))
+            return Float(v)
+        }
     }
 
     func testFeaturesOfSine() {
