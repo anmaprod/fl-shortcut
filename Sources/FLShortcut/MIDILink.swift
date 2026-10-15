@@ -51,6 +51,10 @@ final class LinkCore {
         var lastAckedID: Int?
         /// Raison du dernier refus d'une commande avec données (CC 116), remise à nil à chaque envoi.
         var lastReason: Int?
+        /// Seq de la dernière commande avec données : une réponse signée doit lui être liée (PROTOCOL.md §8).
+        var dataSeq: UInt32?
+        /// Réponse vérifiée (MAC juste, liée à `dataSeq`), octets dépaquetés ; remise à nil à chaque envoi.
+        var lastResponse: [UInt8]?
         var incompatible: Int?
         var pendingSend: (id: Int, at: UInt64)?
         var latencies: [Double] = []
@@ -113,6 +117,14 @@ final class LinkCore {
                     s.window = w
                 case .reason(let r):
                     s.lastReason = r
+                case .response(let op, let units, let mac):
+                    // Retenue seulement si son MAC est juste pour la dernière commande avec données (liée à son
+                    // seq : une réponse rejouée ou destinée à une autre commande est ignorée).
+                    guard let signer = s.signer, let nonce = s.hello?.nonce, let seq = s.dataSeq,
+                          (0...127).contains(op),
+                          signer.mac(nonce: nonce, seq: seq, action: UInt8(op), data: units) == mac,
+                          let bytes = Pack7.unpack(units) else { break }
+                    s.lastResponse = bytes
                 case .ack(let id):
                     s.lastAckedID = id
                     // Un refus expliqué (CC 116 : rien de sélectionné…) n'est pas un rejet de trame.
@@ -226,22 +238,37 @@ final class LinkCore {
     /// puis attente de l'accusé 41, ou de la raison du refus suivie de l'accusé 0. Un refus sans raison vient en
     /// général d'un script qui s'est rendormi (8 s après la dernière commande) alors que son dernier battement
     /// semblait récent : il est réveillé par un PING et la commande est renvoyée une seule fois.
-    func runData(_ units: [UInt8], brief: Bool, timeout: TimeInterval = 4) -> DataReply {
-        if case .reply(let r) = attemptData(units, brief: brief, timeout: timeout, forceWake: false) { return r }
-        switch attemptData(units, brief: brief, timeout: timeout, forceWake: true) {
+    func runData(_ units: [UInt8], brief: Bool, timeout: TimeInterval = 4,
+                 needs capability: Int = FLProtocol.dataActionID) -> DataReply {
+        if case .reply(let r) = attemptData(units, brief: brief, timeout: timeout, forceWake: false,
+                                            needs: capability) { return r }
+        switch attemptData(units, brief: brief, timeout: timeout, forceWake: true, needs: capability) {
         case .reply(let r): return r
         case .refusedSilently:
             return .failed("FL a refusé la commande : redémarre FL si le script vient d'être mis à jour")
         }
     }
 
-    private func attemptData(_ units: [UInt8], brief: Bool, timeout: TimeInterval, forceWake: Bool) -> DataAttempt {
+    /// Opération 2 à 8 (Organiser, dégradé ; PROTOCOL.md §8) : comme `runData`, puis la réponse signée de FL s'il
+    /// y en a une (`.answered([])` sinon). Demande le script v5 (capacité 42).
+    func runRequest(_ bytes: [UInt8], brief: Bool, timeout: TimeInterval = 4) -> RequestReply {
+        let units = Pack7.pack(bytes)
+        guard units.count <= FLProtocol.maxDataUnits else { return .failed("données trop longues") }
+        switch runData(units, brief: brief, timeout: timeout, needs: FLProtocol.extActionID) {
+        case .done: return .answered(state.withLock { $0.lastResponse } ?? [])
+        case .refused(let reason): return .refused(reason)
+        case .failed(let why): return .failed(why)
+        }
+    }
+
+    private func attemptData(_ units: [UInt8], brief: Bool, timeout: TimeInterval, forceWake: Bool,
+                             needs capability: Int) -> DataAttempt {
         let hello: HelloInfo
         switch wake(brief: brief, timeout: timeout, force: forceWake) {
         case .ready(let h): hello = h
         case .failed(let why): return .reply(.failed(why))
         }
-        guard hello.capabilities.contains(FLProtocol.dataActionID) else {
+        guard hello.capabilities.contains(capability) else {
             return .reply(.failed("mets à jour le lien avec FL : redémarre FL pour charger le nouveau script"))
         }
         state.withLock { $0.lastAckedID = nil }
@@ -281,6 +308,8 @@ final class LinkCore {
             }
             s.seq = next
             s.lastReason = nil
+            s.dataSeq = next
+            s.lastResponse = nil
             s.pendingSend = (id: FLProtocol.dataActionID, at: DispatchTime.now().uptimeNanoseconds)
             var from = 0
             while from < messages.count {
@@ -587,6 +616,15 @@ final class MIDILink: ObservableObject {
                                                 : "lien avec FL non installé : fiche du raccourci › Installer le lien avec FL")
         }
         return core.runData(units, brief: AppMode.light, timeout: 1.5)
+    }
+
+    /// Organiser : opération 2 à 8 du script v5, avec sa réponse signée (file de l'Organiser, bloquant).
+    func runRequest(_ bytes: [UInt8]) -> RequestReply {
+        guard transport.isReady else {
+            return .failed(core.snapshot.hasKey ? "ports MIDI « FL Shortcut » indisponibles : relance FL Shortcut"
+                                                : "lien avec FL non installé : fiche du raccourci › Installer le lien avec FL")
+        }
+        return core.runRequest(bytes, brief: AppMode.light, timeout: 1.5)
     }
 
     /// Macro : réveil bref du script, actions, puis il se rendort (file de la macro, bloquant).

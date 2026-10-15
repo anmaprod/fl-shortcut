@@ -22,7 +22,15 @@ enum FLProtocol {
     static let maxDataUnits = 600
     /// CoreMIDI : 256 octets au plus par envoi (`CoreMIDITransport.send`) ; 80 messages = 240 octets.
     static let messagesPerSend = 80
+    /// Opérations 2 à 8 de la commande avec données (Organiser, dégradé ; script v5, PROTOCOL.md §8).
+    static let extActionID = 42
     // FL → appli
+    /// Réponse signée (PROTOCOL.md §8) : 112 début (valeur = opération), 113 unités, 114 fin, 4 × 115 MAC.
+    static let ccRespStart: UInt8 = 112
+    static let ccRespUnit: UInt8 = 113
+    static let ccRespEnd: UInt8 = 114
+    static let ccRespMac: UInt8 = 115
+    static let maxRespUnits = 600
     static let ccCapsFirst: UInt8 = 90            // 90…95 : masque de capacités (6 × 7 bits)
     static let capsCount = 6
     /// Raison d'un refus de la commande avec données, juste avant l'accusé 0 (1 page, 2 rien de sélectionné,
@@ -148,7 +156,15 @@ enum Pack7 {
 /// Réponse de FL à une commande avec données.
 enum DataReply: Equatable {
     case done
-    /// Refus expliqué par le CC 116 (1 page, 2 rien de sélectionné, 3 plusieurs, 5 données).
+    /// Refus expliqué par le CC 116 (1 page, 2 rien de sélectionné, 3 plusieurs, 4 FL joue, 5 données, 6 FL trop
+    /// ancien, 7 dégradé sur un seul élément).
+    case refused(Int)
+    case failed(String)
+}
+
+/// Réponse de FL à une opération 2 à 8 (PROTOCOL.md §8) : les octets de sa réponse signée (vide : pas de réponse).
+enum RequestReply: Equatable {
+    case answered([UInt8])
     case refused(Int)
     case failed(String)
 }
@@ -202,6 +218,8 @@ enum IncomingEvent: Equatable {
     case ack(Int)
     /// Raison du refus d'une commande avec données (CC 116), juste avant l'accusé 0.
     case reason(Int)
+    /// Réponse complète (CC 112 à 115), MAC pas encore vérifié : seul LinkCore connaît le seq de la commande.
+    case response(op: Int, units: [UInt8], mac: [UInt8])
 }
 
 /// Découpe un flux d'octets MIDI en messages (statut courant géré, SysEx et temps réel ignorés).
@@ -240,11 +258,52 @@ struct IncomingDecoder {
         var caps: [UInt8?] = Array(repeating: nil, count: FLProtocol.capsCount)
     }
 
+    private struct PartialResponse {
+        var op: UInt8
+        var units: [UInt8] = []
+        /// nil tant que le CC 114 (fin des unités) n'est pas arrivé.
+        var mac: [UInt8]?
+    }
+
     private var partial: Partial?
+    private var response: PartialResponse?
 
     mutating func feed(status: UInt8, data1 cc: UInt8, data2 value: UInt8) -> IncomingEvent? {
         guard status == FLProtocol.statusCC, cc < 128, value < 128 else { return nil }
         switch cc {
+        case FLProtocol.ccRespStart:
+            response = PartialResponse(op: value)
+            return nil
+        case FLProtocol.ccRespUnit:
+            // Unité hors réponse, après la fin, ou au-delà de 600 : la réponse est jetée.
+            guard var r = response, r.mac == nil, r.units.count < FLProtocol.maxRespUnits else {
+                response = nil
+                return nil
+            }
+            r.units.append(value)
+            response = r
+            return nil
+        case FLProtocol.ccRespEnd:
+            guard var r = response, r.mac == nil else {
+                response = nil
+                return nil
+            }
+            r.mac = []
+            response = r
+            return nil
+        case FLProtocol.ccRespMac:
+            guard var r = response, var mac = r.mac else {
+                response = nil
+                return nil
+            }
+            mac.append(value)
+            guard mac.count == 4 else {
+                r.mac = mac
+                response = r
+                return nil
+            }
+            response = nil
+            return .response(op: Int(r.op), units: r.units, mac: mac)
         case FLProtocol.ccHello:
             if value == FLProtocol.helloStart {
                 partial = Partial()
