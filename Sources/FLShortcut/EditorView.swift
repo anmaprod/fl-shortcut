@@ -124,15 +124,88 @@ struct EditorView: View {
 
     private var trimmedQuery: String { query.trimmingCharacters(in: .whitespaces) }
 
-    /// Ouvre le créateur de macros (fenêtre à part, créée à la demande) sur cette macro.
+    /// Créateur de macros affiché dans la fenêtre, comme un dossier ouvert dans le Finder (nil : les raccourcis).
+    /// Le modèle n'existe que pendant qu'il est affiché.
+    @State private var macroEditor: MacroEditorModel?
+    @ObservedObject private var creatorLink = MacroCreatorLink.shared
+
+    /// Entre dans le créateur sur cette macro (la fenêtre reste la même ; la flèche ← y ramène).
     private func openCreator(_ id: UUID?) {
         MacroCreatorLink.shared.open(id)
-        MacroCreatorWindowController.shared.show()
     }
 
     var body: some View {
+        Group {
+            if let editor = macroEditor {
+                MacroCreatorView(model: editor, onBack: { leaveCreator(editor) })
+                    .environmentObject(store)
+                    .frame(minWidth: 920, minHeight: 560)       // palette, liste et inspecteur côte à côte
+                    .transition(.opacity)
+            } else {
+                shortcuts
+            }
+        }
+        .onChange(of: creatorLink.request) { request in
+            guard request != nil, macroEditor == nil else { return }    // déjà affiché : il passe à cette macro
+            enterCreator()
+        }
+        .onChange(of: creatorLink.closeSerial) { _ in closeCreator() }
+        // Fenêtre fermée pendant le créateur : brouillon enregistré, modèle lâché (rien ne reste en mémoire).
+        .onDisappear { closeCreator() }
+    }
+
+    private func enterCreator() {
+        editing = nil
+        editingRow = nil
+        let editor = MacroEditorModel(store: store)
+        withAnimation(.easeInOut(duration: 0.2)) { macroEditor = editor }
+    }
+
+    /// Flèche ← : macro neuve → l'enregistrer ou la supprimer ; macro modifiée → enregistrer ou annuler les
+    /// modifications ; sinon retour direct. « Annuler » / « Rester » : on reste dans le créateur.
+    private func leaveCreator(_ editor: MacroEditorModel) {
+        switch editor.leaveCheck() {
+        case .close:
+            break
+        case .discardEmpty:
+            editor.discardNew()
+        case .askNew(let name):
+            let shown = name.displaySafe(max: 40)
+            switch Dialogs.choose("Enregistrer « \(shown) » ?", "Si tu ne l'enregistres pas, cette nouvelle macro est supprimée.",
+                                  ["Enregistrer", "Supprimer", "Annuler"], destructive: 1) {
+            case 0:
+                editor.saveNow()
+            case 1:
+                editor.discardNew()
+                show("« \(shown) » supprimée")
+            default:
+                return
+            }
+        case .askChanges(let name):
+            switch Dialogs.choose("Enregistrer les modifications de « \(name.displaySafe(max: 40)) » ?",
+                                  "Sinon, la macro revient telle qu'elle était quand tu l'as ouverte.",
+                                  ["Enregistrer", "Annuler les modifications", "Rester"], destructive: 1) {
+            case 0: editor.saveNow()
+            case 1: editor.revertChanges()
+            default: return
+            }
+        }
+        closeCreator()
+    }
+
+    private func closeCreator() {
+        guard let editor = macroEditor else { return }
+        editor.close()
+        CreatorPresence.detach()
+        withAnimation(.easeInOut(duration: 0.2)) { macroEditor = nil }
+        selection = .macros
+        CreatorPresence.releaseMemory()
+    }
+
+    /// Les raccourcis : barre latérale (FL Studio, Mes raccourcis, Macros) et la page choisie.
+    private var shortcuts: some View {
         let data = store.catalogRows()
-        withToolbar(NavigationSplitView {
+        return withToolbar(NavigationSplitView {
             sidebar(data)
                 .navigationSplitViewColumnWidth(min: 220, ideal: 245, max: 300)
         } detail: {
@@ -1430,6 +1503,19 @@ enum Dialogs {
         a.messageText = title
         a.informativeText = text
         a.runModal()
+    }
+
+    /// Alerte à plusieurs boutons (le premier par défaut, Échap sur le dernier) : rend l'indice du bouton choisi.
+    static func choose(_ title: String, _ text: String, _ buttons: [String], destructive: Int? = nil) -> Int {
+        let a = NSAlert()
+        a.messageText = title
+        a.informativeText = text
+        for (i, label) in buttons.enumerated() {
+            let button = a.addButton(withTitle: label)
+            if i == destructive { button.hasDestructiveAction = true }
+            if i == buttons.count - 1, buttons.count > 1 { button.keyEquivalent = "\u{1b}" }
+        }
+        return a.runModal().rawValue - NSApplication.ModalResponse.alertFirstButtonReturn.rawValue
     }
 }
 

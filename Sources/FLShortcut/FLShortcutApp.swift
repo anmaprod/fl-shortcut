@@ -55,8 +55,8 @@ struct FLShortcutApp: App {
         }
         .windowResizability(.contentMinSize)
 
-        // Pas de scène pour le créateur de macros : fenêtre AppKit (MacroCreatorWindowController), libérée à sa
-        // fermeture (une scène `Window` refermée garde sa vue et son modèle en mémoire).
+        // Pas de scène pour le créateur de macros : il s'affiche dans cette fenêtre (EditorView, comme un dossier dans
+        // le Finder), son modèle n'existe que pendant qu'il est affiché.
     }
 }
 

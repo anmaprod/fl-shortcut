@@ -281,7 +281,7 @@ final class ClickSequenceRecorder: ObservableObject {
         started = Date()
         count = 0
         active = true
-        MacroCreatorWindowController.stepAside()
+        CreatorPresence.stepAside()
         fl.activate(options: [])
         monitor = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown, .leftMouseUp]) { [weak self] event in
             self?.record(event)
@@ -367,7 +367,7 @@ final class ClickSequenceRecorder: ObservableObject {
     }
 
     private func returnToCreator() {
-        MacroCreatorWindowController.comeBack()
+        CreatorPresence.comeBack()
         if let window = returnWindow {
             NSApp.activate(ignoringOtherApps: true)
             window.makeKeyAndOrderFront(nil)

@@ -1,5 +1,7 @@
-// Créateur de macros : état de la fenêtre. Créé à l'ouverture de la fenêtre et libéré à sa fermeture
-// (MacroCreatorWindowController) ; `close()` d'abord : après, plus rien n'écrit dans la bibliothèque.
+// Créateur de macros : son état. Créé quand le créateur s'affiche dans la fenêtre principale et libéré au retour
+// (flèche ←, EditorView) ; `close()` d'abord : après, plus rien n'écrit dans la bibliothèque.
+// - Au retour : macro neuve → « Enregistrer » ou « Supprimer » (vide : supprimée sans question) ; macro modifiée →
+//   « Enregistrer » ou « Annuler les modifications » (retour à l'état de l'ouverture) ; sinon, retour direct.
 // - Édition sur un BROUILLON : enregistré dans la bibliothèque par « Enregistrer » (⌘S) ou 0,5 s après la dernière
 //   modification, jamais à chaque frappe (le Store ne recalcule l'index qu'à l'enregistrement).
 // - Liste à plat recalculée en O(n) seulement après une modification (MacroOutline) ; lignes Equatable.
@@ -119,6 +121,8 @@ final class MacroEditorModel: ObservableObject {
         monitor.clear()
         notice = nil
         draft = doc
+        opened = doc
+        isNewMacro = false
         dirty = false
         learnedInput = MacroSpots.loadPath(.input) != nil
         refresh()
@@ -137,6 +141,57 @@ final class MacroEditorModel: ObservableObject {
     func newMacro() {
         let doc = library.add(MacroDoc(name: library.uniqueName("Nouvelle macro"), blocks: []))
         load(doc.id)
+        markNew()
+    }
+
+    // MARK: Retour (flèche ←)
+
+    /// Macro telle qu'à son ouverture (« Annuler les modifications »).
+    private var opened: MacroDoc?
+    /// Macro créée à l'instant (nouvelle, modèle) : au retour, l'enregistrer ou la supprimer.
+    private(set) var isNewMacro = false
+
+    func markNew() { isNewMacro = true }
+
+    enum Leave: Equatable {
+        case close
+        /// Macro neuve restée vide : supprimée sans question.
+        case discardEmpty
+        case askNew(name: String)
+        case askChanges(name: String)
+    }
+
+    /// Ce que demande le retour aux raccourcis.
+    func leaveCheck() -> Leave {
+        guard !closed, !ephemeral, let draft else { return .close }
+        if isNewMacro { return draft.blocks.isEmpty ? .discardEmpty : .askNew(name: draft.name) }
+        guard let opened, opened.name != draft.name || opened.blocks != draft.blocks || opened.variables != draft.variables
+        else { return .close }
+        return .askChanges(name: draft.name)
+    }
+
+    /// « Supprimer » : la macro créée à l'instant quitte la bibliothèque, avec son raccourci s'il en a un.
+    func discardNew() {
+        guard !closed, isNewMacro, let draft else { return }
+        pendingSave?.cancel()
+        pendingSave = nil
+        dirty = false
+        for remap in store.remaps(forMacro: draft.id) { store.delete(remap.id) }
+        _ = library.remove(draft.id)
+    }
+
+    /// « Annuler les modifications » : la macro revient telle qu'à son ouverture (nom, blocs, variables).
+    func revertChanges() {
+        guard !closed, let opened, var current = library.doc(opened.id) else { return }
+        pendingSave?.cancel()
+        pendingSave = nil
+        dirty = false
+        current.name = opened.name
+        current.blocks = opened.blocks
+        current.variables = opened.variables
+        _ = library.update(current)
+        draft = library.doc(opened.id) ?? current
+        refresh()
     }
 
     /// Fenêtre fermée (une seule fois, les appels suivants ne font rien) : « Montrer dans FL… » annulé (son clic
@@ -432,7 +487,7 @@ final class MacroEditorModel: ObservableObject {
         // Ports MIDI à la demande : seulement le temps de l'essai.
         testing = true
         store.setEditorNeeds(needs)
-        MacroCreatorWindowController.stepAside()        // jamais un clic de l'essai sur le créateur
+        CreatorPresence.stepAside()        // jamais un clic de l'essai sur le créateur
         fl.activate(options: [])
         waitForFL(program, pid: pid, tries: 40)
     }
@@ -482,7 +537,7 @@ final class MacroEditorModel: ObservableObject {
     private func endTest() {
         preparingTest = false
         testing = false
-        MacroCreatorWindowController.comeBack()
+        CreatorPresence.comeBack()
         store.setEditorNeeds(openNeeds)
     }
 

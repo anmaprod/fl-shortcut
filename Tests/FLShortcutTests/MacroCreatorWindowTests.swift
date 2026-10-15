@@ -2,7 +2,7 @@ import AppKit
 import XCTest
 @testable import FLShortcut
 
-/// Créateur de macros : fenêtre AppKit vraiment libérée à la fermeture, fermeture idempotente qui arrête tout,
+/// Créateur de macros : modèle vraiment libéré au retour aux raccourcis, fermeture idempotente qui arrête tout,
 /// besoins (ports MIDI, dernière piste cliquée) annoncés seulement pendant « Tester ». Store et bibliothèque en
 /// mémoire : jamais les fichiers de l'utilisateur, jamais le tap ni les ports MIDI.
 final class MacroCreatorWindowTests: XCTestCase {
@@ -58,19 +58,20 @@ final class MacroCreatorWindowTests: XCTestCase {
         XCTAssertTrue(model.preparingTest, "l'essai doit attendre FL")
     }
 
-    /// Ouvrir puis fermer, deux fois de suite : fenêtre et modèle libérés à chaque fermeture, rien ne s'accumule.
-    func testControllerReleasesModelOnClose() {
+    /// Créer puis lâcher le modèle, deux fois de suite : rien ne reste vivant (le créateur affiché dans la fenêtre
+    /// principale le lâche au retour ; la mesure de la CI le vérifie sur l'app entière).
+    func testModelReleasedWhenDropped() {
         let before = MacroEditorModel.liveCount
-        let controller = MacroCreatorWindowController(store: makeStore(makeLibrary()))
+        let store = makeStore(makeLibrary())
         for cycle in 1...2 {
-            autoreleasepool { controller.show() }
-            XCTAssertTrue(controller.isOpen)
-            XCTAssertEqual(MacroEditorModel.liveCount, before + 1, "cycle \(cycle) : un seul modèle ouvert")
-            spin(timeout: 0.3)                           // la vue s'affiche (onAppear)
-            autoreleasepool { controller.close() }
-            XCTAssertFalse(controller.isOpen)
+            autoreleasepool {
+                let model = MacroEditorModel(store: store)
+                model.load(nil)
+                XCTAssertEqual(MacroEditorModel.liveCount, before + 1, "cycle \(cycle) : un seul modèle")
+                model.close()
+            }
             spin(until: { MacroEditorModel.liveCount == before })
-            XCTAssertEqual(MacroEditorModel.liveCount, before, "cycle \(cycle) : modèle encore vivant après fermeture")
+            XCTAssertEqual(MacroEditorModel.liveCount, before, "cycle \(cycle) : modèle encore vivant")
         }
     }
 

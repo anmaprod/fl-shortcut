@@ -154,14 +154,14 @@ struct MacroLibraryPage: View {
 
     private func newMacro() {
         let doc = library.add(MacroDoc(name: library.uniqueName("Nouvelle macro"), blocks: []))
-        open(doc.id)
+        MacroCreatorLink.shared.open(doc.id, isNew: true)       // au retour : l'enregistrer ou la supprimer
     }
 
     private func use(_ template: MacroTemplate) {
         var doc = template.make(store.layout)
         doc.name = library.uniqueName(doc.name)
         let added = library.add(doc)
-        open(added.id)
+        MacroCreatorLink.shared.open(added.id, isNew: true)
     }
 
     private func duplicate(_ doc: MacroDoc) {

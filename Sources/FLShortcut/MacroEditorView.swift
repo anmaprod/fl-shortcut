@@ -1,5 +1,5 @@
-// Créateur de macros : fenêtre à part (AppKit, MacroCreatorWindowController : créée à la demande, libérée à la
-// fermeture avec sa vue et son modèle).
+// Créateur de macros : affiché DANS la fenêtre principale (comme un dossier dans le Finder), flèche ← en haut à gauche
+// pour revenir aux raccourcis (EditorView, CreatorPresence) ; vue et modèle libérés au retour.
 // - À gauche, la palette (barre latérale en verre du système) ; au centre, la liste à plat des étapes avec retrait
 //   selon l'imbrication (une phrase en français par ligne, valeurs en pastilles, icône colorée de la catégorie, case
 //   « actif », badges) ; à droite, l'inspecteur du bloc choisi.
@@ -13,8 +13,8 @@ import AppKit
 import SwiftUI
 import UniformTypeIdentifiers
 
-/// Demande d'ouverture du créateur (fenêtre unique) : quelle macro montrer. Puis
-/// `MacroCreatorWindowController.shared.show()`.
+/// Demande d'ouverture du créateur : quelle macro montrer. La fenêtre principale (EditorView) l'affiche alors en son
+/// sein ; déjà affiché, le créateur passe à cette macro.
 final class MacroCreatorLink: ObservableObject {
     static let shared = MacroCreatorLink()
 
@@ -23,16 +23,20 @@ final class MacroCreatorLink: ObservableObject {
         let id: UUID?
         /// Macro d'exemple jamais enregistrée (mesure de l'interface).
         let sample: Bool
+        /// Macro créée à l'instant (nouvelle, modèle) : au retour, l'enregistrer ou la supprimer.
+        var isNew = false
     }
 
     @Published private(set) var request: Request?
+    /// Retour aux raccourcis demandé sans question (mesure de l'interface).
+    @Published private(set) var closeSerial = 0
     private var serial = 0
 
     private init() {}
 
-    func open(_ id: UUID?) {
+    func open(_ id: UUID?, isNew: Bool = false) {
         serial += 1
-        request = Request(serial: serial, id: id, sample: false)
+        request = Request(serial: serial, id: id, sample: false, isNew: isNew)
     }
 
     func openSample() {
@@ -41,7 +45,7 @@ final class MacroCreatorLink: ObservableObject {
     }
 
     /// Fermeture demandée (mesure de l'interface).
-    func requestClose() { MacroCreatorWindowController.shared.close() }
+    func requestClose() { closeSerial += 1 }
 }
 
 /// Bandeau du créateur quand la bibliothèque ne peut pas être enregistrée : le brouillon n'est pas gardé.
@@ -63,8 +67,10 @@ private struct LibraryProblemBanner: View {
 struct MacroCreatorView: View {
     @EnvironmentObject var store: Store
     @ObservedObject private var link = MacroCreatorLink.shared
-    /// Possédé par MacroCreatorWindowController (libéré avec la fenêtre).
+    /// Possédé par la fenêtre principale tant que le créateur y est affiché (libéré au retour).
     @ObservedObject var model: MacroEditorModel
+    /// Flèche ← : retour aux raccourcis (avec la question « Enregistrer ou supprimer » si besoin).
+    let onBack: () -> Void
     @Environment(\.undoManager) private var undoManager
     @AppStorage(Appearance.glassKey) private var glassEnabled = true
     @State private var paletteItems: [PaletteItem] = []
@@ -77,11 +83,6 @@ struct MacroCreatorView: View {
                 .navigationSplitViewColumnWidth(min: 210, ideal: 240, max: 300)
         } detail: {
             VStack(spacing: 0) {
-                if #available(macOS 14.0, *) {
-                    EmptyView()
-                } else {
-                    legacyBar
-                }
                 LibraryProblemBanner(library: store.library)
                 HStack(spacing: 0) {
                     MacroStepsPane(model: model, monitor: model.monitor, paletteItems: paletteItems)
@@ -95,6 +96,11 @@ struct MacroCreatorView: View {
         .navigationTitle(model.draft?.name ?? "Créateur de macros")
         .toolbar { toolbarContent }
         .windowGlass(glassEnabled)
+        // Fenêtre qui l'affiche : retour du focus après « Montrer dans FL… », et devant FL tant qu'il est affiché.
+        .background(WindowReader { [model] window in
+            model.window = window
+            CreatorPresence.attach(window)
+        })
         .onAppear {
             model.undoManager = undoManager
             if paletteItems.isEmpty { paletteItems = PaletteCatalog.items(layout: store.layout) }
@@ -122,33 +128,27 @@ struct MacroCreatorView: View {
             }
         } else {
             model.load(request.id)
+            if request.isNew { model.markNew() }
         }
     }
 
     // MARK: Barre d'outils
 
     @ToolbarContentBuilder private var toolbarContent: some ToolbarContent {
+        ToolbarItem(placement: .navigation) { backButton }
         ToolbarItem(placement: .navigation) { switcher }
         ToolbarItem(placement: .primaryAction) { TestButton(model: model, monitor: model.monitor) }
         ToolbarItem(placement: .primaryAction) { exportButton }
         ToolbarItem(placement: .primaryAction) { saveButton }
     }
 
-    /// macOS 13 : NSHostingController n'y relaie pas la barre d'outils SwiftUI (sceneBridgingOptions : macOS 14) ;
-    /// mêmes commandes dans une barre en tête.
-    private var legacyBar: some View {
-        VStack(spacing: 0) {
-            HStack(spacing: 10) {
-                switcher
-                Spacer(minLength: 8)
-                TestButton(model: model, monitor: model.monitor)
-                exportButton
-                saveButton
-            }
-            .padding(.horizontal, 14)
-            .padding(.vertical, 8)
-            Divider()
+    /// Comme dans le Finder : on est entré dans la macro, la flèche ramène aux raccourcis et aux macros.
+    private var backButton: some View {
+        Button(action: onBack) {
+            Label("Retour", systemImage: "chevron.backward")
         }
+        .keyboardShortcut("[", modifiers: .command)
+        .help("Revenir aux raccourcis et aux macros (⌘[)")
     }
 
     private var switcher: some View {

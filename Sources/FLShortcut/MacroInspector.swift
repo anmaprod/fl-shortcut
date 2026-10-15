@@ -726,7 +726,7 @@ final class ClickTeacher: ObservableObject {
         say("Dans FL : clique une fois à l'endroit voulu (Échap pour annuler).", for: block)
         history = []
         started = Date()
-        MacroCreatorWindowController.stepAside()
+        CreatorPresence.stepAside()
         fl.activate(options: [])
         ClickRecorder.shared.start()
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) { [weak self] in
@@ -782,7 +782,7 @@ final class ClickTeacher: ObservableObject {
     private func finish(_ target: ClickTarget?) {
         stop()
         activeBlock = nil
-        MacroCreatorWindowController.comeBack()
+        CreatorPresence.comeBack()
         // Retour dans le créateur.
         if let window = returnWindow {
             NSApp.activate(ignoringOtherApps: true)

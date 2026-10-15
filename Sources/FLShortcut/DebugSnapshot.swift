@@ -124,8 +124,7 @@ struct MenuBarLabel: View {
                     MacroCreatorLink.shared.requestClose()
                     return
                 }
-                MacroCreatorLink.shared.openSample()
-                MacroCreatorWindowController.shared.show()
+                MacroCreatorLink.shared.openSample()            // affiché dans la fenêtre principale
             }
     }
 }
