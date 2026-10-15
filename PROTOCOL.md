@@ -128,3 +128,37 @@ Ids figés : ne jamais renuméroter, seulement ajouter. Fonctions API et version
 | 40 | recon | Allumer le REC (si éteint) : ne l'éteint jamais |
 
 **Fenêtre de contexte** : le filtrage « Partout / Piano Roll / Playlist / Mixer » est fait par l'appli, à partir du CC 117. Le script n'a pas à le connaître.
+
+## 7. Commande avec données (script v4)
+
+Action **41**, hors de la table §6 : elle porte des données. Annoncée par le bit 41 du masque de capacités (§3) ;
+un script plus ancien ne l'annonce pas, et l'appli n'envoie alors rien de tout cela.
+
+- **Appli → FL** : CC **96** (valeur ignorée) = début, vide le tampon ; puis un CC **97** par unité de 7 bits ;
+  puis la trame authentifiée habituelle (§4) avec l'action 41. **600 unités** au plus : au-delà, les données sont
+  jetées et la trame est refusée. Une unité sans CC 96 est ignorée. Le tampon ne sert qu'à la trame qui le suit, et
+  il est vidé à chaque trame, PING ou mise en sommeil. Endormi, le script ignore les CC 96 et 97.
+- **MAC** : `HMAC-SHA256(clé, nonce[4] ‖ seq_hi ‖ seq_mid ‖ seq_lo ‖ 41 ‖ unités)`, tronqué comme au §4.
+- **Empaquetage 7 bits** : les octets sont pris par groupes de 7 ; chaque groupe donne une unité d'en-tête (bit j =
+  bit 7 de l'octet j du groupe), puis les 7 bits bas de chaque octet (le dernier groupe peut être plus court).
+- **Opérations** (1er octet des données) :
+
+| Opération | Données | Effet |
+|---|---|---|
+| op 1 : nom et couleur | drapeaux (bit 0 nom, bit 1 couleur), R, G, B, n, nom UTF-8 (n octets, 64 caractères au plus, aucun caractère de contrôle) | page devant (Mixer, Channel rack, Playlist ; Playlist : API 12) ; exactement un élément sélectionné ; pose le nom et/ou la couleur (`utils.RGBToColor`). Le nom n'apparaît dans aucun message de FL |
+
+- **Raison d'un refus** : CC **116** envoyé juste avant l'accusé 0 (CC 119) : 1 page non prise en charge, 2 rien de
+  sélectionné, 3 plusieurs éléments sélectionnés, 5 données invalides ou refusées par FL. Une trame refusée avant
+  exécution (MAC faux, rejeu, débit) n'a pas de raison.
+- Le débit de 20 trames par seconde (§4) compte aussi ces trames.
+
+**Vecteur de test** (mêmes valeurs des deux côtés) :
+
+```
+clé     = 000102030405060708090a0b0c0d0e0f
+nonce   = [17, 42, 99, 5]
+seq     = 300
+données = [1, 3, 0xE0, 0x45, 0x3A, 4, 'K', 'i', 'c', 'k']      (nom « Kick », couleur E0453A)
+unités  = [4, 1, 3, 96, 69, 58, 4, 75, 0, 105, 99, 107]
+MAC     = [116, 112, 71, 62]
+```

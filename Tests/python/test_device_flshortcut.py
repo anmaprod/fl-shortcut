@@ -15,6 +15,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import fl_mocks as M  # noqa: E402
 
 ALL_IDS = list(range(1, 41))
+DATA_ID = 41                     # commande avec données (PROTOCOL.md §7), hors de la table §6
 # Actions qui exigent une API récente (audit 04 §6) : id -> API minimale
 API_MIN = {12: 25, 24: 19, 25: 12, 19: 10, 20: 10, 18: 9}
 TEST_APIS = (1, 2, 5, 8, 9, 10, 12, 13, 19, 20, 25, 28, 45)
@@ -508,23 +509,23 @@ class TestCapabilities(Base):
         return set(i for i in range(1, 43) if mask >> (i - 1) & 1)
 
     def test_api45_all_actions(self):
-        self.assertEqual(self.caps_for(45), set(ALL_IDS))
+        self.assertEqual(self.caps_for(45), set(ALL_IDS) | {DATA_ID})
 
     def test_api1_without_recent_actions(self):
         caps = self.caps_for(1)
-        self.assertEqual(caps, set(ALL_IDS) - set(API_MIN))
+        self.assertEqual(caps, (set(ALL_IDS) - set(API_MIN)) | {DATA_ID})
 
     def test_thresholds(self):
         for api in TEST_APIS:
             caps = self.caps_for(api)
-            expected = set(i for i in ALL_IDS if api >= API_MIN.get(i, 1))
+            expected = set(i for i in ALL_IDS if api >= API_MIN.get(i, 1)) | {DATA_ID}
             self.assertEqual(caps, expected, "API %d" % api)
 
     def test_mask_bit_layout(self):
         self.make(api=45)
         d = dict(self.last_hello()[1:-1])
         self.assertEqual(d[90], 127)        # ids 1..7
-        self.assertEqual(d[95], 0b11111)    # ids 36 à 40
+        self.assertEqual(d[95], 0b111111)   # ids 36 à 41 (41 = commande avec données)
         self.make(api=1)
         d = dict(self.last_hello()[1:-1])
         # id 12 (clone) = bit 11 = CC 91 bit 4 ; id 18 (quant) = CC 92 bit 3
@@ -535,7 +536,7 @@ class TestCapabilities(Base):
         self.make(api=45, missing=("patterns.clonePattern",))
         mask = self.mask_of(self.last_hello())
         self.assertEqual(mask >> 11 & 1, 0)
-        self.assertEqual(bin(mask).count("1"), 39)
+        self.assertEqual(bin(mask).count("1"), 40)
 
     def test_hasattr_and_api_combined(self):
         # fonction présente mais API déclarée trop basse => indisponible
@@ -1005,3 +1006,182 @@ class TestLightweight(Base):
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
+
+
+# ---------------------------------------------------------------------------- Commande avec données
+class TestData(Base):
+    """Action 41 précédée de données (CC 96 / 97) couvertes par le MAC : opération 1, Nom et couleur."""
+
+    RED = (0xE0, 0x45, 0x3A)
+
+    def data_command(self, payload=None, units=None, mac_units=None, start=True):
+        if units is None:
+            units = M.pack7(payload)
+        ccs = M.data_ccs(units) if start else [(97, u) for u in units]
+        for ev in self.send_pairs(ccs):
+            self.assertTrue(ev.handled)
+        self.seq += 1
+        mac = M.mac_for(self.nonce(), self.seq, DATA_ID, units=units if mac_units is None else mac_units)
+        return self.send_pairs(M.frame(self.nonce(), self.seq, DATA_ID, mac=mac))
+
+    def reasons(self):
+        return [v for (s, cc, v) in self.fl.cc_out() if cc == 116]
+
+    def rgb(self, c):
+        return (c[0] << 16) | (c[1] << 8) | c[2]
+
+    def test_vector(self):
+        units = M.pack7([1, 3, 0xE0, 0x45, 0x3A, 4] + list(b"Kick"))
+        self.assertEqual(units, [4, 1, 3, 96, 69, 58, 4, 75, 0, 105, 99, 107])
+        self.assertEqual(M.mac_for([17, 42, 99, 5], 300, 41, units=units), [116, 112, 71, 62])
+        self.assertEqual(self.dev.unpack7(units), [1, 3, 0xE0, 0x45, 0x3A, 4] + list(b"Kick"))
+
+    def test_unpack7_rejects_malformed(self):
+        self.assertIsNone(self.dev.unpack7([4]))            # en-tête seul
+        self.assertIsNone(self.dev.unpack7([0b100, 1, 2]))  # bit d'en-tête au-delà du groupe
+        self.assertEqual(self.dev.unpack7([]), [])
+
+    def test_name_and_color_on_selected_mixer_track(self):
+        self.make(focused={0}, mx_sel={3})
+        self.data_command(M.name_color("Kick", self.RED))
+        self.assertEqual(self.last_ack(), DATA_ID)
+        self.assertEqual(self.fl.given_names, {("mixer", 3): "Kick"})
+        self.assertEqual(self.fl.given_colors, {("mixer", 3): self.rgb(self.RED)})
+        self.assertEqual(self.reasons(), [])
+
+    def test_channel_rack_and_playlist(self):
+        self.make(focused={1}, ch_sel={5})
+        self.data_command(M.name_color("Lead", self.RED))
+        self.assertEqual(self.last_ack(), DATA_ID)
+        self.assertEqual(self.fl.given_names, {("channels", 5): "Lead"})
+        self.make(focused={2}, pl_sel={12})
+        self.data_command(M.name_color("Voix", self.RED))
+        self.assertEqual(self.last_ack(), DATA_ID)
+        self.assertEqual(self.fl.given_names, {("playlist", 12): "Voix"})
+        self.assertEqual(self.fl.given_colors, {("playlist", 12): self.rgb(self.RED)})
+
+    def test_color_only_and_name_only(self):
+        self.make(focused={0}, mx_sel={2})
+        self.data_command(M.name_color(color=self.RED))
+        self.assertEqual(self.last_ack(), DATA_ID)
+        self.assertEqual(self.fl.given_names, {})
+        self.assertEqual(self.fl.given_colors, {("mixer", 2): self.rgb(self.RED)})
+        self.clock.t += 0.1
+        self.data_command(M.name_color("Basse"))
+        self.assertEqual(self.last_ack(), DATA_ID)
+        self.assertEqual(self.fl.given_names, {("mixer", 2): "Basse"})
+
+    def test_refusals(self):
+        cases = (({"focused": {0}}, 2), ({"focused": {0}, "mx_sel": {1, 4}}, 3),
+                 ({"focused": {3}, "mx_sel": {1}}, 1), ({"focused": {1}, "ch_sel": set()}, 2))
+        for kw, reason in cases:
+            self.make(**kw)
+            self.data_command(M.name_color("Kick", self.RED))
+            self.assertEqual(self.last_ack(), 0, kw)
+            self.assertEqual(self.reasons(), [reason], kw)
+            self.assertEqual(self.fl.given_names, {}, kw)
+            self.assertEqual(self.fl.given_colors, {}, kw)
+            # la raison part juste avant l'accusé 0
+            out = [cc for (s, cc, v) in self.fl.cc_out() if cc in (116, 119)]
+            self.assertEqual(out[-2:], [116, 119], kw)
+
+    def test_name_utf8_roundtrip(self):
+        self.make(focused={0}, mx_sel={7})
+        self.data_command(M.name_color("Café 🎹", self.RED))
+        self.assertEqual(self.last_ack(), DATA_ID)
+        self.assertEqual(self.fl.given_names, {("mixer", 7): "Café 🎹"})
+
+    def test_bad_names_refused(self):
+        for name in ("", "a" * 65, "x\x07y", "\u00e9" * 64 + "!"):
+            self.make(focused={0}, mx_sel={7})
+            self.data_command(M.name_color(name))
+            self.assertEqual(self.last_ack(), 0, repr(name))
+            self.assertEqual(self.reasons(), [5], repr(name))
+        self.make(focused={0}, mx_sel={7})
+        self.data_command(M.name_color("é" * 64))
+        self.assertEqual(self.last_ack(), DATA_ID)
+        # octets UTF-8 invalides
+        self.make(focused={0}, mx_sel={7})
+        self.data_command([1, 1, 0, 0, 0, 2, 0xC3, 0x28])
+        self.assertEqual(self.reasons(), [5])
+        # drapeaux vides, longueur fausse, opération inconnue
+        for payload in ([1, 0, 0, 0, 0, 0], [1, 1, 0, 0, 0, 9] + list(b"ab"), [9, 3, 0, 0, 0, 0]):
+            self.make(focused={0}, mx_sel={7})
+            self.data_command(payload)
+            self.assertEqual(self.reasons(), [5], payload)
+
+    def test_name_never_in_hints(self):
+        self.make(focused={0}, mx_sel={1, 2})
+        self.data_command(M.name_color("SecretTrack", self.RED))
+        self.make(focused={0}, mx_sel={1}, raise_on={"mixer.setTrackName": RuntimeError("boom")})
+        self.data_command(M.name_color("SecretTrack", self.RED))
+        self.assertEqual(self.last_ack(), 0)
+        self.assertFalse(any("SecretTrack" in h for h in self.fl.hints))
+
+    def test_leftover_data_does_not_leak(self):
+        self.make(focused={0}, mx_sel={3})
+        self.send_pairs(M.data_ccs(M.pack7(M.name_color("Kick"))))   # données sans trame
+        self.command(2)                                               # action normale : Stop
+        self.assertEqual(self.last_ack(), 2)
+        self.clock.t += 0.1
+        # la trame 41 suivante, sans nouveau CC 96, ne reprend pas les anciennes données
+        self.seq += 1
+        self.send_pairs(M.frame(self.nonce(), self.seq, DATA_ID))
+        self.assertEqual(self.last_ack(), 0)
+        self.assertEqual(self.reasons(), [5])
+        self.assertEqual(self.fl.given_names, {})
+
+    def test_data_frame_without_or_oversized_data(self):
+        self.make(focused={0}, mx_sel={3})
+        self.seq += 1
+        self.send_pairs(M.frame(self.nonce(), self.seq, DATA_ID))
+        self.assertEqual(self.last_ack(), 0)
+        self.assertEqual(self.reasons(), [5])
+        self.clock.t += 0.1
+        # au-delà de 600 unités, les données sont jetées : le MAC ne correspond plus, refus sans raison
+        units = M.pack7(M.name_color("Kick")) + [0] * 600
+        self.data_command(units=units)
+        self.assertEqual(self.last_ack(), 0)
+        self.assertEqual(self.reasons(), [5])
+        self.assertEqual(self.fl.given_names, {})
+
+    def test_units_without_start_ignored(self):
+        self.make(focused={0}, mx_sel={3})
+        self.data_command(M.name_color("Kick"), start=False)
+        self.assertEqual(self.last_ack(), 0)
+        self.assertEqual(self.fl.given_names, {})
+
+    def test_bad_mac_over_data(self):
+        self.make(focused={0}, mx_sel={3})
+        units = M.pack7(M.name_color("Kick"))
+        self.data_command(units=units, mac_units=M.pack7(M.name_color("Kack")))
+        self.assertEqual(self.last_ack(), 0)
+        self.assertEqual(self.fl.given_names, {})
+        self.assertEqual(self.reasons(), [])          # refus du MAC : aucune raison donnée
+
+    def test_data_ignored_while_asleep(self):
+        self.make(focused={0}, mx_sel={3}, wake=False)
+        self.send_pairs(M.data_ccs(M.pack7(M.name_color("Kick"))))
+        self.assertIsNone(self.dev._st.data)
+
+    def test_playlist_needs_api12(self):
+        self.make(api=8, focused={2}, pl_sel={1})
+        self.data_command(M.name_color("Kick"))
+        self.assertEqual(self.last_ack(), 0)
+        self.assertEqual(self.reasons(), [1])
+        self.assertFalse([h for h in self.fl.hints if "erreur" in h])
+
+    def test_data_unavailable_without_mixer_functions(self):
+        self.make(missing=("mixer.setTrackName",))
+        self.assertEqual(self.dev.capability_mask() >> (DATA_ID - 1) & 1, 0)
+        self.data_command(M.name_color("Kick"))
+        self.assertEqual(self.last_ack(), 0)
+
+    def test_rate_limit_counts_data_frames(self):
+        self.make(focused={0}, mx_sel={3})
+        acks = []
+        for _ in range(21):
+            self.data_command(M.name_color("Kick"))
+            acks.append(self.last_ack())
+        self.assertEqual(acks[:20], [DATA_ID] * 20)
+        self.assertEqual(acks[20], 0)

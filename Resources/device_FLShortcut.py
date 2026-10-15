@@ -27,7 +27,7 @@ bornes vérifiées, seuls les CC du protocole (canal 16) sont marqués « handle
 # La ligne suivante est remplacée par l'appli à l'installation (16 octets en hex).
 KEY_HEX = "__FLSHORTCUT_KEY__"
 
-SCRIPT_VERSION = 3
+SCRIPT_VERSION = 4
 PROTOCOL_VERSION = 2
 
 MIDI_CHANNEL = 15          # canal 16, 0-indexé
@@ -38,8 +38,11 @@ CC_PING = 103
 CC_FRAME_FIRST = 104       # 104..111 : seq (3), action (1), MAC (4)
 CC_FRAME_LAST = 111
 FRAME_LEN = 8
+CC_DATA_START = 96         # commande avec données (PROTOCOL.md §7) : début, vide le tampon
+CC_DATA_UNIT = 97          # une unité de 7 bits des données
 # CC FL -> appli
 CC_CAPS_FIRST = 90         # 90..95 : masque de capacités, 6 x 7 bits
+CC_REASON = 116            # raison d'un refus de la commande avec données, juste avant l'accusé 0
 CC_WINDOW = 117
 CC_HEARTBEAT = 118
 CC_ACK = 119
@@ -50,6 +53,14 @@ CC_PROTO = 126
 
 SEQ_MAX = (1 << 21) - 1
 MAX_ACTION_ID = 42         # taille du masque (6 x 7 bits)
+DATA_ACTION_ID = 41        # commande avec données : hors de la table des actions (PROTOCOL.md §7)
+MAX_DATA_UNITS = 600
+MAX_NAME_CHARS = 64
+OP_NAME_COLOR = 1
+REASON_PAGE = 1            # page devant non prise en charge
+REASON_NONE = 2            # rien de sélectionné
+REASON_MANY = 3            # plusieurs éléments sélectionnés
+REASON_DATA = 5            # données invalides (ou FL a refusé)
 
 MAX_ACTIONS_PER_S = 20     # PROTOCOL.md §4
 MAX_MAC_CHECKS_PER_S = 25  # coût CPU borné sous inondation (SEC-10)
@@ -408,6 +419,8 @@ class _State(object):
         self.nonce = [0, 0, 0, 0]
         self.last_seq = 0
         self.frame = None             # valeurs reçues (CC 104..)
+        self.data = None              # unités reçues (CC 97) depuis le dernier CC 96, ou None
+        self.data_bad = False         # plus de MAX_DATA_UNITS unités : refusées
         self.action_times = []
         self.check_times = []
         self.fail_times = []
@@ -441,6 +454,7 @@ def _sleep():
     _st.awake = False
     _st.awake_until = None
     _st.frame = None
+    _st.data = None
     _st.hello_pending = False
 
 
@@ -1242,7 +1256,121 @@ def capability_mask():
     for aid, ok in _caps().items():
         if ok and 1 <= aid <= MAX_ACTION_ID:
             mask |= 1 << (aid - 1)
+    if _data_available():
+        mask |= 1 << (DATA_ACTION_ID - 1)
     return mask
+
+
+# --------------------------------------------------------------------------
+# Commande avec données (action 41, PROTOCOL.md §7)
+# --------------------------------------------------------------------------
+def unpack7(units):
+    """Inverse de l'empaquetage 7 bits : par groupe, une unité d'en-tête (bit j = bit 7 de l'octet j) puis
+    jusqu'à 7 unités. None si mal formé."""
+    out = []
+    i = 0
+    n = len(units)
+    while i < n:
+        hdr = units[i]
+        body = units[i + 1:i + 8]
+        if not body or hdr >> len(body):
+            return None
+        for j, u in enumerate(body):
+            out.append(u | (0x80 if (hdr >> j) & 1 else 0))
+        i += 1 + len(body)
+    return out
+
+
+def _data_available():
+    return (_has("ui", "getFocused") and _has("mixer", "isTrackSelected")
+            and _has("mixer", "setTrackName") and _has("mixer", "setTrackColor"))
+
+
+def _run_data(units):
+    """0 si exécutée, sinon la raison du refus (CC 116)."""
+    if not units or not _data_available():
+        return REASON_DATA
+    raw = unpack7(units)
+    if not raw:
+        return REASON_DATA
+    if raw[0] == OP_NAME_COLOR:
+        return _op_name_color(raw)
+    return REASON_DATA
+
+
+# Page devant -> (module, nombre, est sélectionné, nom, couleur, premier index, API minimale de la sélection)
+_NAME_COLOR_PAGES = {
+    0: ("mixer", "trackCount", "isTrackSelected", "setTrackName", "setTrackColor", 0, 1),
+    1: ("channels", "channelCount", "isChannelSelected", "setChannelName", "setChannelColor", 0, 1),
+    2: ("playlist", "trackCount", "isTrackSelected", "setTrackName", "setTrackColor", 1, 12),
+}
+
+
+def _rgb_to_color(r, g, b):
+    f = _fn("utils", "RGBToColor")
+    if f is not None:
+        try:
+            c = f(r, g, b)
+            if _is_int(c):
+                return c
+        except Exception:
+            pass
+    return (r << 16) | (g << 8) | b    # même calcul que utils.RGBToColor
+
+
+def _name_color_target():
+    """(fonctions, index) de l'unique élément sélectionné de la page devant, sinon la raison du refus."""
+    page = _NAME_COLOR_PAGES.get(focused_window_code())
+    if page is None:
+        return REASON_PAGE
+    mod, count_fn, sel_fn, name_fn, color_fn, first, api_min = page
+    count, is_sel = _fn(mod, count_fn), _fn(mod, sel_fn)
+    set_name, set_color = _fn(mod, name_fn), _fn(mod, color_fn)
+    if None in (count, is_sel, set_name, set_color) or not _api_at_least(api_min):
+        return REASON_PAGE
+    n = count()
+    if not _is_int(n) or n < 0:
+        return REASON_DATA
+    found = []
+    for i in range(first, n + first):
+        if is_sel(i):
+            found.append(i)
+            if len(found) > 1:
+                return REASON_MANY
+    if not found:
+        return REASON_NONE
+    return (set_name, set_color), found[0]
+
+
+def _op_name_color(raw):
+    """[1, drapeaux (bit 0 nom, bit 1 couleur), R, G, B, n, nom UTF-8 (n octets)]. Le nom n'est jamais écrit
+    dans un message de FL."""
+    if len(raw) < 6:
+        return REASON_DATA
+    flags, r, g, b, n = raw[1], raw[2], raw[3], raw[4], raw[5]
+    if flags & ~3 or not flags & 3 or len(raw) != 6 + n or (n and not flags & 1):
+        return REASON_DATA
+    name = None
+    if flags & 1:
+        try:
+            name = bytes(raw[6:]).decode("utf-8")
+        except Exception:
+            return REASON_DATA
+        if not name or len(name) > MAX_NAME_CHARS or any(ord(c) < 32 or ord(c) == 127 for c in name):
+            return REASON_DATA
+    target = _name_color_target()
+    if _is_int(target):
+        return target
+    (set_name, set_color), index = target
+    try:
+        if name is not None:
+            set_name(index, name)
+        if flags & 2:
+            set_color(index, _rgb_to_color(r, g, b))
+    except Exception as exc:
+        _hint("FL Shortcut : « Nom et couleur » a échoué (%s)" % type(exc).__name__)
+        return REASON_DATA
+    return 0
 
 
 # --------------------------------------------------------------------------
@@ -1280,6 +1408,7 @@ def _on_ping(value):
     if _st.last_ping is not None and now - _st.last_ping < MIN_PING_INTERVAL:
         return
     _st.last_ping = now
+    _st.data = None
     _wake(brief=value == PING_BRIEF)
     _new_session()
     _st.caps = None
@@ -1323,6 +1452,20 @@ def _asleep_reject():
             pass
 
 
+def _on_data_cc(cc, value):
+    """Données de la prochaine trame (action 41). Une unité sans CC 96 est ignorée."""
+    if cc == CC_DATA_START:
+        _st.data = []
+        _st.data_bad = False
+        return
+    if _st.data is None:
+        return
+    if len(_st.data) >= MAX_DATA_UNITS:
+        _st.data_bad = True
+        return
+    _st.data.append(value)
+
+
 def _on_frame_cc(cc, value):
     if cc == CC_FRAME_FIRST:
         if _st.frame is not None:
@@ -1337,17 +1480,20 @@ def _on_frame_cc(cc, value):
     frame.append(value)
     if len(frame) == FRAME_LEN:
         _st.frame = None
-        _process_frame(frame)
+        units = None if _st.data_bad else _st.data
+        _st.data = None                # les données ne servent qu'à la trame qui les suit
+        _st.data_bad = False
+        _process_frame(frame, units)
 
 
-def _process_frame(f):
+def _process_frame(f, units=None):
     if _signer is None:
         if KEY is None:
             return _reject("nokey", "FL Shortcut : clé absente, réinstalle le script depuis l'appli FL Shortcut")
         return _reject("nomac", "FL Shortcut : HMAC indisponible dans ce Python, commandes refusées")
     seq = (f[0] << 14) | (f[1] << 7) | f[2]
     aid = f[3]
-    if aid not in ACTION_BY_ID:
+    if aid not in ACTION_BY_ID and aid != DATA_ACTION_ID:
         return _reject("id", "FL Shortcut : action %d inconnue (mets à jour le script)" % aid)
     if seq <= _st.last_seq:
         return _reject("replay", "FL Shortcut : commande rejouée refusée")
@@ -1357,7 +1503,10 @@ def _process_frame(f):
     if len(_st.fail_times) >= MAX_MAC_FAILS_PER_S or len(_st.check_times) >= MAX_MAC_CHECKS_PER_S:
         return _reject("flood", "FL Shortcut : trop de commandes invalides, pause")
     _st.check_times.append(now)
-    expected = _signer.mac(bytes(list(_st.nonce) + list(f[0:4])))
+    signed = list(_st.nonce) + list(f[0:4])
+    if aid == DATA_ACTION_ID and units:
+        signed += units                # le MAC couvre les données
+    expected = _signer.mac(bytes(signed))
     if not _ct_equal(expected, f[4:8]):
         _st.fail_times.append(now)
         return _reject("mac", "FL Shortcut : commande non signée refusée")
@@ -1368,7 +1517,13 @@ def _process_frame(f):
         if len(_st.action_times) >= MAX_ACTIONS_PER_S:
             return _reject("rate", "FL Shortcut : trop d'actions par seconde")
         _st.action_times.append(now)
-        ok = _run_action(aid)
+        if aid == DATA_ACTION_ID:
+            reason = _run_data(units)
+            if reason:
+                _send_cc(CC_REASON, reason)
+            ok = not reason
+        else:
+            ok = _run_action(aid)
         _send_cc(CC_ACK, aid if ok else 0)
         return ok
     finally:
@@ -1456,11 +1611,12 @@ def _idle():
 # --------------------------------------------------------------------------
 # Callbacks FL Studio (aucune exception ne doit en sortir)
 # --------------------------------------------------------------------------
-_COMMAND_CCS = frozenset(range(CC_PING, CC_FRAME_LAST + 1))        # 103..111 : traités
+_COMMAND_CCS = frozenset(list(range(CC_PING, CC_FRAME_LAST + 1))    # 103..111 et 96, 97 : traités
+                         + [CC_DATA_START, CC_DATA_UNIT])
 # Tous les CC du protocole (y compris FL -> appli, si le port les renvoie en boucle) :
 # marqués « handled » sur le canal 16 ; les autres CC sont laissés à FL.
 _PROTOCOL_CCS = frozenset(list(range(CC_CAPS_FIRST, CC_CAPS_FIRST + 6)) + list(_COMMAND_CCS)
-                          + list(range(CC_WINDOW, CC_PROTO + 1)))
+                          + list(range(CC_REASON, CC_PROTO + 1)))
 
 
 def _cc_of(event):
@@ -1494,6 +1650,9 @@ def _midi_msg(event):
         return
     if cc == CC_PING:
         _on_ping(value)
+    elif cc in (CC_DATA_START, CC_DATA_UNIT):
+        if _st.awake:
+            _on_data_cc(cc, value)
     elif _st.awake:
         _on_frame_cc(cc, value)
     elif cc == CC_FRAME_LAST:

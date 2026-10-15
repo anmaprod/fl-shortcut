@@ -15,7 +15,7 @@ ROOT = os.path.abspath(os.path.join(HERE, "..", ".."))
 SCRIPT = os.environ.get("FLSHORTCUT_SCRIPT", os.path.join(ROOT, "Resources", "device_FLShortcut.py"))
 
 FL_MODULES = ("midi", "transport", "ui", "general", "mixer", "channels", "patterns",
-              "device", "plugins", "arrangement", "playlist")
+              "device", "plugins", "arrangement", "playlist", "utils")
 
 TEST_KEY_HEX = "000102030405060708090a0b0c0d0e0f"
 TEST_KEY = bytes(range(16))
@@ -74,6 +74,13 @@ class FLState(object):
         self.slots_enabled = {}
         self.stereo_sep = {0: kw.get("master_sep", 0.25)}
         self.raise_on = dict(kw.get("raise_on", {}))   # "module.fn" -> exception
+        # Nom et couleur (commande avec données) : sélections, noms et couleurs posés.
+        self.mx_sel = set(kw.get("mx_sel", ()))
+        self.ch_sel = set(kw.get("ch_sel", ()))
+        self.pl_sel = set(kw.get("pl_sel", ()))
+        self.pl_tracks = kw.get("pl_tracks", 500)
+        self.given_names = {}            # ("mixer" | "channels" | "playlist", index) -> nom
+        self.given_colors = {}           # même clé -> couleur
 
     def cc_out(self):
         """Liste (statut, cc, valeur) des messages envoyés."""
@@ -224,6 +231,9 @@ def build_fl(api=45, missing=(), extra=None, **kw):
     reg("mixer", "setTrackStereoSep", 12, set_sep)
     reg("mixer", "getTrackStereoSep", 12, lambda i: (chk_track(i), st.stereo_sep.get(i, 0.0))[1])
     reg("mixer", "getActiveEffectIndex", 25, lambda: (3, 2))
+    reg("mixer", "isTrackSelected", 1, lambda i: (chk_track(i), i in st.mx_sel)[1])
+    reg("mixer", "setTrackName", 1, lambda i, name: (chk_track(i), st.given_names.__setitem__(("mixer", i), name))[1])
+    reg("mixer", "setTrackColor", 1, lambda i, c: (chk_track(i), st.given_colors.__setitem__(("mixer", i), c))[1])
 
     # channels
     reg("channels", "channelCount", 1, lambda *a: st.n_channels)
@@ -243,6 +253,11 @@ def build_fl(api=45, missing=(), extra=None, **kw):
         chk_chan(i)
         st.ch_solo.symmetric_difference_update({i})
     reg("channels", "soloChannel", 1, solo_chan)
+    reg("channels", "isChannelSelected", 1, lambda i, *a: (chk_chan(i), i in st.ch_sel)[1])
+    reg("channels", "setChannelName", 1,
+        lambda i, name, *a: (chk_chan(i), st.given_names.__setitem__(("channels", i), name))[1])
+    reg("channels", "setChannelColor", 1,
+        lambda i, c, *a: (chk_chan(i), st.given_colors.__setitem__(("channels", i), c))[1])
 
     # patterns
     reg("patterns", "patternNumber", 1, lambda: st.pattern)
@@ -283,7 +298,16 @@ def build_fl(api=45, missing=(), extra=None, **kw):
 
     # arrangement / playlist
     reg("arrangement", "addAutoTimeMarker", 1, lambda t, name: None)
-    reg("playlist", "trackCount", 1, lambda: 500)
+    def chk_pl(i):
+        if not isinstance(i, int) or not 1 <= i <= st.pl_tracks:
+            raise TypeError("Playlist track index out of range")
+    reg("playlist", "trackCount", 1, lambda: st.pl_tracks)
+    reg("playlist", "isTrackSelected", 12, lambda i: (chk_pl(i), i in st.pl_sel)[1])
+    reg("playlist", "setTrackName", 1, lambda i, name: (chk_pl(i), st.given_names.__setitem__(("playlist", i), name))[1])
+    reg("playlist", "setTrackColor", 1, lambda i, c: (chk_pl(i), st.given_colors.__setitem__(("playlist", i), c))[1])
+
+    # utils (fichier utils.py livré avec FL)
+    reg("utils", "RGBToColor", 1, lambda r, g, b: (r << 16) | (g << 8) | b)
 
     if extra:
         for dotted, value in extra.items():
@@ -345,16 +369,45 @@ class Event(object):
         self.handled = False
 
 
-def mac_for(nonce, seq, action, key=TEST_KEY):
-    msg = bytes(list(nonce) + [(seq >> 14) & 0x7F, (seq >> 7) & 0x7F, seq & 0x7F, action])
+def mac_for(nonce, seq, action, key=TEST_KEY, units=()):
+    """MAC d'une commande ; `units` : données (CC 97) couvertes par le MAC de l'action 41."""
+    msg = bytes(list(nonce) + [(seq >> 14) & 0x7F, (seq >> 7) & 0x7F, seq & 0x7F, action] + list(units))
     d = hmac.new(key, msg, hashlib.sha256).digest()
     v = int.from_bytes(d[:4], "big") >> 4
     return [(v >> 21) & 0x7F, (v >> 14) & 0x7F, (v >> 7) & 0x7F, v & 0x7F]
 
 
-def frame(nonce, seq, action, key=TEST_KEY, mac=None):
+def frame(nonce, seq, action, key=TEST_KEY, mac=None, units=()):
     """Les 8 CC (cc, valeur) d'une commande authentifiée."""
     if mac is None:
-        mac = mac_for(nonce, seq, action, key)
+        mac = mac_for(nonce, seq, action, key, units)
     vals = [(seq >> 14) & 0x7F, (seq >> 7) & 0x7F, seq & 0x7F, action] + list(mac)
     return [(104 + i, v) for i, v in enumerate(vals)]
+
+
+def pack7(data):
+    """Empaquetage 7 bits (PROTOCOL.md §7) : par groupe de 7 octets, une unité d'en-tête (bit j = bit 7 de
+    l'octet j), puis les 7 bits bas de chaque octet."""
+    out = []
+    for i in range(0, len(data), 7):
+        group = list(data[i:i + 7])
+        hdr = 0
+        for j, b in enumerate(group):
+            if b & 0x80:
+                hdr |= 1 << j
+        out.append(hdr)
+        out.extend(b & 0x7F for b in group)
+    return out
+
+
+def data_ccs(units):
+    """CC 96 (début) puis un CC 97 par unité."""
+    return [(96, 0)] + [(97, u) for u in units]
+
+
+def name_color(name=None, color=None):
+    """Données de l'opération 1 (Nom et couleur)."""
+    raw = name.encode("utf-8") if name is not None else b""
+    flags = (1 if name is not None else 0) | (2 if color is not None else 0)
+    r, g, b = color if color is not None else (0, 0, 0)
+    return [1, flags, r, g, b, len(raw)] + list(raw)
