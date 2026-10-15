@@ -356,7 +356,12 @@ final class ClickSequenceRecorder: ObservableObject {
         // un menu de la barre est ouvert : jamais pour un clic dans une fenêtre de FL.
         let before = history.last(where: { $0.time <= event.timestamp }) ?? history.last ?? WinSnapshot.take(pid: pid)
         let inMenuOrOutside = barPending || (before.hit(p).map { $0.layer > 8 } ?? true)
-        let menu = inMenuOrOutside ? MenuBarAX.hit(at: p, pid: pid) : nil
+        var menu = inMenuOrOutside ? MenuBarAX.hit(at: p, pid: pid) : nil
+        // Dans la bande de la barre des menus, hors des fenêtres de FL, mais l'Accessibilité n'a pas répondu à temps
+        // (le menu s'ouvrait) : c'est quand même l'ouverture d'un menu de la barre, jamais un clic dans FL.
+        if menu == nil, before.hit(p) == nil, p.y - MacroEffectsMac.displayBounds(containing: p).minY <= 40 {
+            menu = .bar("")
+        }
         append(RecordedClick(point: p, right: event.type == .rightMouseDown, windows: before.fl, menu: menu))
     }
 
