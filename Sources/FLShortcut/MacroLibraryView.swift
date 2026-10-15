@@ -252,6 +252,7 @@ private struct MacroLibraryRow: View {
                 .font(.system(size: 12))
         }
         .padding(.vertical, 2)
+        .hoverLift()
         .contentShape(Rectangle())
         .onTapGesture(count: 2, perform: onOpen)
         .contextMenu {

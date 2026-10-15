@@ -1,7 +1,7 @@
 // Créateur de macros : palette des blocs, à gauche (barre latérale en verre du système sur macOS 26).
-// Par catégorie, avec une recherche : taper filtre, ↩ ajoute le premier bloc trouvé sous la sélection. Un clic
-// ajoute le bloc. Les blocs pas encore réglables ici (conditions) sont grisés, « bientôt ».
-// Statique : aucune animation, aucun survol animé, aucun verre par ligne.
+// Par catégorie. Un clic ajoute le bloc ; on peut aussi le prendre et le glisser à sa place dans la liste. Les blocs
+// pas encore réglables ici (conditions) sont grisés, « bientôt ». Survol : le bloc se soulève un peu ; appuyé, il
+// flotte ; pendant le glisser, une pastille qui flotte suit la souris. Aucun verre par ligne.
 import AppKit
 import SwiftUI
 
@@ -24,26 +24,12 @@ struct MacroPaletteView: View {
     /// modification de la macro.
     let items: [PaletteItem]
     let insert: (PaletteItem) -> Void
-    @State private var query = ""
-
-    private var trimmed: String { query.trimmingCharacters(in: .whitespaces) }
-
-    private var results: [PaletteItem] { PaletteCatalog.search(items, trimmed) }
 
     var body: some View {
         VStack(spacing: 0) {
-            searchField
             List {
-                if trimmed.isEmpty {
-                    ForEach(BlockCategory.allCases, id: \.self) { category in
-                        section(category)
-                    }
-                } else if results.isEmpty {
-                    Text("Aucun bloc ne correspond à « \(trimmed) ».")
-                        .font(.system(size: 12))
-                        .foregroundStyle(.secondary)
-                } else {
-                    ForEach(results) { item in row(item) }
+                ForEach(BlockCategory.allCases, id: \.self) { category in
+                    section(category)
                 }
             }
             .listStyle(.sidebar)
@@ -59,43 +45,6 @@ struct MacroPaletteView: View {
                 Text(category.rawValue)
             }
         }
-    }
-
-    private var searchField: some View {
-        HStack(spacing: 6) {
-            Image(systemName: "magnifyingglass")
-                .foregroundStyle(.secondary)
-                .accessibilityHidden(true)
-            TextField("Ajouter un bloc…", text: $query)
-                .textFieldStyle(.plain)
-                .onSubmit(addFirst)
-                .accessibilityLabel("Rechercher un bloc à ajouter")
-            if !query.isEmpty {
-                Button {
-                    query = ""
-                } label: {
-                    Image(systemName: "xmark.circle.fill")
-                }
-                .buttonStyle(.plain)
-                .foregroundStyle(.secondary)
-                .help("Effacer la recherche")
-            }
-        }
-        .font(.system(size: 13))
-        .padding(.horizontal, 10)
-        .frame(height: 30)
-        .background(RoundedRectangle(cornerRadius: 9, style: .continuous).fill(Color.primary.opacity(0.06)))
-        .padding(.horizontal, 10)
-        .padding(.top, 8)
-        .padding(.bottom, 4)
-        .help("Tape le nom d'un bloc, puis ↩ pour l'ajouter sous la ligne choisie")
-    }
-
-    /// ↩ dans la recherche : le premier bloc disponible est ajouté, la recherche se vide pour le suivant.
-    private func addFirst() {
-        guard !trimmed.isEmpty, let first = results.first(where: { !$0.soon }) else { return }
-        insert(first)
-        query = ""
     }
 
     /// Un clic ajoute le bloc sous la sélection ; on peut aussi le glisser à la place voulue dans la liste.
@@ -124,7 +73,8 @@ struct MacroPaletteView: View {
             }
             .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
+        .buttonStyle(LiftButtonStyle())
+        .hoverLift()
         .disabled(item.soon)
         .opacity(item.soon ? 0.5 : 1)
         .help(item.soon ? "Bientôt : " + item.aide : item.aide + " Clique pour l'ajouter, ou glisse-le à sa place dans la liste.")
@@ -152,19 +102,24 @@ enum PaletteDrag {
     }
 }
 
-/// Ce qui suit la souris pendant le glisser : l'icône et le nom du bloc, sur une pastille arrondie.
+/// Ce qui suit la souris pendant le glisser : le bloc soulevé, qui flotte (un peu plus grand, légèrement penché,
+/// grande ombre douce), comme une carte qu'on vient de prendre.
 private struct PaletteDragPreview: View {
     let item: PaletteItem
 
     var body: some View {
         HStack(spacing: 8) {
             SectionIcon(symbol: item.symbol, tint: item.category.tint, size: 22)
-            Text(item.label).font(.system(size: 13, weight: .medium)).lineLimit(1)
+            Text(item.label).font(.system(size: 13, weight: .semibold)).lineLimit(1)
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 8)
-        .background(RoundedRectangle(cornerRadius: 12, style: .continuous)
-            .fill(Color(nsColor: .windowBackgroundColor).opacity(0.96)))
-        .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(Color.primary.opacity(0.14)))
+        .padding(.horizontal, 14)
+        .padding(.vertical, 9)
+        .background(RoundedRectangle(cornerRadius: 14, style: .continuous)
+            .fill(Color(nsColor: .windowBackgroundColor).opacity(0.97)))
+        .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).strokeBorder(Color.primary.opacity(0.12)))
+        .shadow(color: .black.opacity(0.28), radius: 16, y: 9)
+        .scaleEffect(1.06)
+        .rotationEffect(.degrees(Motion.reduce ? 0 : -2))
+        .padding(22)                          // place pour l'ombre
     }
 }

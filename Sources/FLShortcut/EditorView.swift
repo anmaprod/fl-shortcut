@@ -139,7 +139,6 @@ struct EditorView: View {
             if let editor = macroEditor {
                 MacroCreatorView(model: editor, onBack: { leaveCreator(editor) })
                     .environmentObject(store)
-                    .frame(minWidth: 920, minHeight: 560)       // palette, liste et inspecteur côte à côte
                     .transition(.opacity)
             } else {
                 shortcuts
@@ -195,7 +194,10 @@ struct EditorView: View {
 
     private func closeCreator() {
         guard let editor = macroEditor else { return }
+        let id = editor.draft?.id
         editor.close()
+        // → des raccourcis : retour dans cette macro, si elle existe toujours (pas supprimée au retour).
+        MacroCreatorLink.shared.lastClosedID = id.flatMap { id in store.library.macros.contains { $0.id == id } ? id : nil }
         CreatorPresence.detach()
         withAnimation(.easeInOut(duration: 0.2)) { macroEditor = nil }
         selection = .macros
@@ -498,6 +500,7 @@ struct EditorView: View {
     // MARK: Barre d'outils
 
     @ToolbarContentBuilder private var toolbarContent: some ToolbarContent {
+        ToolbarItem(placement: .navigation) { arrows }
         ToolbarItem(placement: .primaryAction) { newButton }
         ToolbarItem(placement: .primaryAction) { pauseToggle }
         ToolbarItem(placement: .primaryAction) { profileMenu }
@@ -508,6 +511,7 @@ struct EditorView: View {
         #if compiler(>=6.2)
         if #available(macOS 26.0, *) {
             v.toolbar {
+                ToolbarItem(placement: .navigation) { arrows }
                 ToolbarItem(placement: .primaryAction) { newButton }
                 ToolbarItem(placement: .primaryAction) { pauseToggle }
                 ToolbarSpacer(.fixed, placement: .primaryAction)
@@ -519,6 +523,12 @@ struct EditorView: View {
         #else
         v.toolbar { toolbarContent }
         #endif
+    }
+
+    /// → : rentrer dans la dernière macro quittée (comme Avancer dans le Finder) ; ← grisée ici.
+    private var arrows: some View {
+        let last = creatorLink.lastClosedID
+        return FinderArrows(back: nil, forward: last.map { id in { openCreator(id) } })
     }
 
     private var newButton: some View {
@@ -876,6 +886,7 @@ private struct CatalogRowView: View {
                         action: onReset)
         }
         .padding(.vertical, 2)
+        .hoverLift()
         .contextMenu {
             Button("Changer la touche…", action: onEdit)
             Button("Réinitialiser", action: onReset).disabled(row.isDefault)
@@ -929,6 +940,7 @@ private struct ShortcutRow: View {
             .foregroundStyle(.secondary)
         }
         .padding(.vertical, 2)
+        .hoverLift()
         .opacity(remap.enabled ? 1 : 0.55)
         .contextMenu {
             Button("Modifier…", action: onOpen)

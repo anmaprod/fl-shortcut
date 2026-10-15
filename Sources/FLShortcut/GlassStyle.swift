@@ -43,6 +43,66 @@ extension View {
     func motion<V: Equatable>(_ animation: Animation = Motion.smooth, value: V) -> some View {
         modifier(MotionModifier(animation: animation, value: value))
     }
+
+    /// Survol : l'élément se soulève un peu (fond, légère montée en taille, ombre douce) avec un ressort, comme dans
+    /// les apps d'Apple. Seul l'élément survolé est redessiné ; rien ne tourne au repos.
+    func hoverLift(cornerRadius: CGFloat = 8) -> some View {
+        modifier(HoverLift(cornerRadius: cornerRadius))
+    }
+}
+
+extension Motion {
+    /// Survol et prise d'un élément : ressort court et souple.
+    static let lift = Animation.spring(response: 0.28, dampingFraction: 0.72)
+}
+
+private struct HoverLift: ViewModifier {
+    let cornerRadius: CGFloat
+    @State private var hovered = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    func body(content: Content) -> some View {
+        content
+            .background {
+                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                    .fill(Color.primary.opacity(hovered ? 0.06 : 0))
+                    .shadow(color: .black.opacity(hovered && !reduceMotion ? 0.12 : 0), radius: hovered ? 8 : 0,
+                            y: hovered ? 3 : 0)
+                    .padding(.horizontal, -6)
+                    .padding(.vertical, -2)
+            }
+            .scaleEffect(hovered && !reduceMotion ? 1.015 : 1)
+            .onHover { inside in
+                withAnimation(reduceMotion ? Motion.reduced : Motion.lift) { hovered = inside }
+            }
+    }
+}
+
+/// Bouton qu'on « prend » : appuyé, il se soulève et flotte (plus grand, ombre) ; relâché, il se repose avec un
+/// ressort. Sert aux blocs de la palette, qu'on peut aussi glisser dans la liste.
+struct LiftButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        LiftButtonBody(configuration: configuration)
+    }
+}
+
+private struct LiftButtonBody: View {
+    let configuration: ButtonStyleConfiguration
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    var body: some View {
+        let pressed = configuration.isPressed && !reduceMotion
+        configuration.label
+            .background {
+                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    .fill(Color.primary.opacity(pressed ? 0.09 : 0))
+                    .shadow(color: .black.opacity(pressed ? 0.22 : 0), radius: pressed ? 12 : 0, y: pressed ? 6 : 0)
+                    .padding(.horizontal, -6)
+                    .padding(.vertical, -2)
+            }
+            .scaleEffect(pressed ? 1.05 : 1)
+            .animation(reduceMotion ? Motion.reduced : Motion.lift, value: configuration.isPressed)
+    }
 }
 
 // MARK: - Liquid Glass

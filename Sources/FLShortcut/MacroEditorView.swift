@@ -30,6 +30,8 @@ final class MacroCreatorLink: ObservableObject {
     @Published private(set) var request: Request?
     /// Retour aux raccourcis demandé sans question (mesure de l'interface).
     @Published private(set) var closeSerial = 0
+    /// Dernière macro quittée par ← : la flèche → des raccourcis y ramène, comme dans le Finder.
+    @Published var lastClosedID: UUID?
     private var serial = 0
 
     private init() {}
@@ -80,16 +82,18 @@ struct MacroCreatorView: View {
             MacroPaletteView(items: paletteItems, insert: { [model] item in
                 withAnimation(MacroStepsPane.spring) { model.insert(item) }
             })
-                .navigationSplitViewColumnWidth(min: 210, ideal: 240, max: 300)
+                .navigationSplitViewColumnWidth(min: 190, ideal: 230, max: 300)
         } detail: {
+            // Colonnes souples : quand la fenêtre se resserre, la liste puis l'inspecteur rétrécissent (jamais rien
+            // de coupé ; la fenêtre ne descend pas sous 820 points, et 190 + 280 + 240 y tiennent).
             VStack(spacing: 0) {
                 LibraryProblemBanner(library: store.library)
                 HStack(spacing: 0) {
                     MacroStepsPane(model: model, monitor: model.monitor, paletteItems: paletteItems)
-                        .frame(minWidth: 400, maxWidth: .infinity, maxHeight: .infinity)
+                        .frame(minWidth: 280, maxWidth: .infinity, maxHeight: .infinity)
                     Divider()
                     MacroInspectorView(model: model)
-                        .frame(width: 300)
+                        .frame(minWidth: 240, idealWidth: 300, maxWidth: 300)
                 }
             }
         }
@@ -135,28 +139,10 @@ struct MacroCreatorView: View {
     // MARK: Barre d'outils
 
     @ToolbarContentBuilder private var toolbarContent: some ToolbarContent {
-        ToolbarItem(placement: .navigation) { backButton }
-        ToolbarItem(placement: .navigation) { switcher }
-        ToolbarItem(placement: .primaryAction) { TestButton(model: model, monitor: model.monitor) }
+        // Comme dans le Finder : on est entré dans la macro, ← ramène aux raccourcis et aux macros.
+        ToolbarItem(placement: .navigation) { FinderArrows(back: onBack, forward: nil) }
         ToolbarItem(placement: .primaryAction) { exportButton }
         ToolbarItem(placement: .primaryAction) { saveButton }
-    }
-
-    /// Comme dans le Finder : on est entré dans la macro, la flèche ramène aux raccourcis et aux macros.
-    private var backButton: some View {
-        Button(action: onBack) {
-            Label("Retour", systemImage: "chevron.backward")
-        }
-        .keyboardShortcut("[", modifiers: .command)
-        .help("Revenir aux raccourcis et aux macros (⌘[)")
-    }
-
-    private var switcher: some View {
-        MacroSwitcher(library: store.library, current: model.draft?.id) { id in
-            model.load(id)
-        } onNew: {
-            model.newMacro()
-        }
     }
 
     private var exportButton: some View {
@@ -186,23 +172,6 @@ struct MacroCreatorView: View {
         model.saveNow()
         guard let doc = model.draft else { return }
         if let message = MacroFileActions.export(doc) { model.notice = message }
-    }
-}
-
-/// ▶ Tester : observe seul le suivi de l'essai (le reste de la fenêtre n'est pas redessiné à chaque bloc).
-private struct TestButton: View {
-    @ObservedObject var model: MacroEditorModel
-    @ObservedObject var monitor: MacroRunMonitor
-
-    var body: some View {
-        Button {
-            model.test()
-        } label: {
-            Label("Tester", systemImage: "play.fill")
-        }
-        .keyboardShortcut("r", modifiers: .command)
-        .disabled(model.draft == nil || monitor.running || model.preparingTest)
-        .help("FL passe devant et la macro tourne comme avec son raccourci (⌘R). Échap l'arrête.")
     }
 }
 
@@ -697,35 +666,30 @@ private struct MacroResultBanner: View {
 
 // MARK: - Choix de la macro
 
-/// Menu de la barre d'outils : les macros de la bibliothèque, et « Nouvelle macro ».
-private struct MacroSwitcher: View {
-    @ObservedObject var library: MacroLibraryStore
-    let current: UUID?
-    let onSelect: (UUID) -> Void
-    let onNew: () -> Void
+/// ← → comme dans le Finder : ← revient aux raccourcis depuis une macro (⌘[), → rentre dans la dernière macro
+/// quittée (⌘]). Une flèche sans destination reste grisée.
+struct FinderArrows: View {
+    let back: (() -> Void)?
+    let forward: (() -> Void)?
 
     var body: some View {
-        Menu {
-            ForEach(library.macros) { doc in
-                Button {
-                    onSelect(doc.id)
-                } label: {
-                    if doc.id == current {
-                        Label(doc.name.displaySafe(max: 50), systemImage: "checkmark")
-                    } else {
-                        Text(doc.name.displaySafe(max: 50))
-                    }
-                }
-            }
-            if !library.macros.isEmpty { Divider() }
+        ControlGroup {
             Button {
-                onNew()
+                back?()
             } label: {
-                Label("Nouvelle macro", systemImage: "plus")
+                Label("Retour", systemImage: "chevron.backward")
             }
-        } label: {
-            Label("Macros", systemImage: "list.bullet")
+            .disabled(back == nil)
+            .keyboardShortcut("[", modifiers: .command)
+            .help("Revenir aux raccourcis et aux macros (⌘[)")
+            Button {
+                forward?()
+            } label: {
+                Label("Avancer", systemImage: "chevron.forward")
+            }
+            .disabled(forward == nil)
+            .keyboardShortcut("]", modifiers: .command)
+            .help(forward == nil ? "Rien où retourner pour l'instant" : "Revenir dans la dernière macro quittée (⌘])")
         }
-        .help("Ouvrir une autre macro de la bibliothèque")
     }
 }
