@@ -65,7 +65,7 @@ Sur Windows, on évite `Ctrl+Alt` : c'est AltGr sur les claviers AZERTY (`@`, `�
 
 - Mute et Solo agissent sur la piste du Mixer sélectionnée. L'API de FL ne donne pas accès aux clips sélectionnés de la Playlist.
 - Les raccourcis s'appliquent aussi dans les fenêtres de plugins de FL. En cas de conflit, mets FL Shortcut en pause.
-- Une touche seule (sans modificateur) ne peut plus servir à taper du texte dans FL. L'appli demande confirmation.
+- Une touche seule (sans ⌘ ⌃ ⌥) lance son raccourci, sauf quand FL s'en sert : menu de FL ouvert, boîte de FL devant (renommer, taper une valeur…), champ de texte, clavier-piano actif (coche lue dans le menu Options de la barre de macOS, FL 2024.2 et plus). Une saisie faite directement dans la fenêtre principale de FL, sans boîte ni champ visible par l'Accessibilité, n'est pas reconnue : ajoute alors ⌃ au raccourci.
 
 ---
 

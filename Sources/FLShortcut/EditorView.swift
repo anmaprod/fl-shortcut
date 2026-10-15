@@ -6,7 +6,7 @@
 // Performance : verre seulement sur les quelques surfaces flottantes (jamais par ligne), aucun survol animé,
 // aucune animation infinie, aucun flou dans les listes.
 // Audit : REL-06 / PROTOCOL.md §5 (statut du lien), audit 04 §8.2 (actions grisées, « Disponible à partir de
-//         FL X »), audit 05 §4.2-4.4 (conflits, touche seule confirmée, pause visible, noms de touches en clair,
+//         FL X »), audit 05 §4.2-4.4 (conflits, touche seule laissée à FL pendant une saisie, pause visible, noms de touches en clair,
 //         VoiceOver), REL-19 (un seul enregistreur, ⌫ efface, Échap annule, ⌃⌥⌘F refusé, délai 5 s, arrêt à la
 //         perte du focus, tap suspendu), REL-20 (avertissements issus de l'analyse de l'index), REL-21
 //         (remplacement de profil confirmé et annulable), SEC-05 (cibles interdites refusées, import validé).
@@ -1443,12 +1443,8 @@ struct CaptureField: View {
                 Dialogs.inform("Raccourci réservé", "⌃⌥⌘F sert à mettre FL Shortcut en pause.")
                 return
             }
-            if !candidate.hasModifiers && !KeyNames.functionKeys.contains(candidate.keyCode) {
-                guard Dialogs.confirm("Touche seule : « \(candidate.display) »",
-                                      "Elle ne pourra plus servir à taper du texte dans FL (noms, recherche, tempo) "
-                                      + "ni au clavier-piano. Ajoute plutôt ⌃, ou limite-la à une fenêtre. Garder quand même ?")
-                else { return }
-            }
+            // Touche seule : plus de question. Elle reste à FL quand elle y sert (texte en cours de saisie, menu
+            // de FL ouvert, clavier-piano actif : TypingGuard), sinon elle lance le raccourci.
         }
         combo = candidate
     }

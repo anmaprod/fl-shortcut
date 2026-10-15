@@ -48,6 +48,9 @@ struct ShortcutIndex: Equatable {
         }
     }
 
+    /// Une touche (avec ses modificateurs) lance au moins un raccourci, quel que soit son contexte.
+    func hasTrigger(_ combo: KeyCombo) -> Bool { table[combo] != nil }
+
     /// Fenêtre précise d'abord, puis « Partout ». Fenêtre inconnue : seulement « Partout », sauf `anyContext`
     /// (mode léger : FL applique lui-même la touche envoyée à sa fenêtre active), où une entrée de n'importe
     /// quelle fenêtre convient, dans un ordre fixe.
@@ -83,6 +86,9 @@ struct RouterInput: Equatable {
     var isRepeat = false
     var isOwn = false
     var targetIsFL = false
+    /// FL se sert de cette touche en ce moment (texte en cours de saisie, menu ouvert, clavier-piano) : une touche
+    /// seule lui est laissée. Évalué seulement pour une touche seule qui lance un raccourci (EventTap).
+    var typingInFL = false
 }
 
 enum RouterEffect: Equatable {
@@ -148,6 +154,9 @@ struct KeyRouter {
             owned[code] = .toggle
             return RouterDecision(swallow: true, effects: [.toggleEnabled])
         }
+
+        // Touche seule (sans ⌘ ⌃ ⌥) pendant que FL s'en sert (saisie de texte, menu, clavier-piano) : elle va à FL.
+        if e.typingInFL, e.combo.isTypingKey { return .pass }
 
         guard config.enabled, e.targetIsFL,
               let entry = config.index.lookup(e.combo, window: link.knownWindow, anyContext: config.anyContext)

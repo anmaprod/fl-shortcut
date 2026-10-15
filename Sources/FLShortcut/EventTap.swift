@@ -183,11 +183,17 @@ final class EventTap {
         let code = UInt16(truncatingIfNeeded: event.getIntegerValueField(.keyboardEventKeycode))
         let target = Int32(truncatingIfNeeded: event.getIntegerValueField(.eventTargetUnixProcessID))
         let destination = target != 0 ? target : cfg.frontmostPID
-        let input = RouterInput(kind: type == .keyDown ? .down : .up,
+        var input = RouterInput(kind: type == .keyDown ? .down : .up,
                                 combo: KeyCombo(keyCode: code, flags: event.flags),
                                 isRepeat: event.getIntegerValueField(.keyboardEventAutorepeat) != 0,
                                 isOwn: false,
                                 targetIsFL: destination != 0 && cfg.flPIDs.contains(destination))
+        // Touche seule qui lance un raccourci : FL s'en sert-il en ce moment (saisie, menu, clavier-piano) ? Lu
+        // seulement dans ce cas, jamais pour les autres frappes ni au repos.
+        if input.kind == .down, !input.isRepeat, input.targetIsFL, cfg.enabled, !cfg.recording,
+           input.combo.isTypingKey, cfg.index.hasTrigger(input.combo) {
+            input.typingInFL = TypingGuard.shared.reason(pid: destination) != nil
+        }
         // Le routeur ne consulte le lien que pour une frappe destinée à FL (REL-28, SEC-07 : hors FL,
         // rien d'autre que keyCode / modificateurs n'est lu).
         let link = input.targetIsFL ? MIDILink.shared.core.routingView() : .offline

@@ -60,6 +60,10 @@ struct KeyCombo: Codable, Hashable {
 
     var hasModifiers: Bool { command || option || control || shift }
 
+    /// Touche qui sert aussi à taper dans FL (texte, lettres d'un menu, clavier-piano) : sans ⌘ ⌃ ⌥ (⇧ compris :
+    /// majuscules), hors touches de fonction. Un raccourci de ce genre laisse la touche à FL quand elle y sert.
+    var isTypingKey: Bool { !command && !control && !option && !KeyNames.functionKeys.contains(keyCode) }
+
     /// keyCode virtuel borné (0…127) et pas une touche modificatrice.
     var isValidKey: Bool { keyCode < 128 && !Self.modifierKeyCodes.contains(keyCode) }
 
@@ -406,7 +410,7 @@ enum ShortcutIssue: Hashable {
         case .forbiddenTarget(let why): return "Cible interdite : \(why)."
         case .reservedToggle: return "Réservé à ⌃⌥⌘F (mettre FL Shortcut en pause)."
         case .duplicate: return "Déjà utilisé dans ce contexte : seul le premier compte."
-        case .bareKey: return "Touche seule : elle ne pourra plus servir à taper du texte dans FL."
+        case .bareKey: return "Touche seule : laissée à FL quand tu tapes du texte, qu'un menu de FL est ouvert ou que le clavier-piano est actif."
         case .macOSConflict(let what): return "Conflit : \(what)."
         case .flConflict(let what): return "Remplace un raccourci natif — \(what)."
         case .loop: return "La touche envoyée est aussi un déclencheur : elle sera envoyée telle quelle, sans enchaînement."

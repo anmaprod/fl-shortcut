@@ -1,3 +1,4 @@
+import CoreGraphics
 import XCTest
 @testable import FLShortcut
 
@@ -146,6 +147,44 @@ final class RouterTests: XCTestCase {
             toggles += d.effects.filter { $0 == .toggleEnabled }.count
         }
         XCTAssertEqual(toggles, 1)
+    }
+
+    /// Touche seule pendant que FL s'en sert (saisie de texte, menu, clavier-piano) : elle va à FL ; un raccourci
+    /// avec ⌘ ⌃ ⌥ marche toujours.
+    func testTypingInFLLetsBareKeysThrough() {
+        var router = KeyRouter()
+        let cfg = config([Remap(trigger: zero, action: 21), Remap(trigger: ctrlRight, action: 13)])
+        var typing = down(zero)
+        typing.typingInFL = true
+        XCTAssertEqual(router.route(typing, config: cfg, link: linked), .pass)
+        XCTAssertEqual(router.route(up(zero), config: cfg, link: linked), .pass)
+        var modified = down(ctrlRight)
+        modified.typingInFL = true
+        XCTAssertEqual(router.route(modified, config: cfg, link: linked),
+                       RouterDecision(swallow: true, effects: [.sendAction(13)]))
+        // Sans saisie : la touche seule lance son raccourci.
+        XCTAssertEqual(router.route(down(zero), config: cfg, link: linked),
+                       RouterDecision(swallow: true, effects: [.sendAction(21)]))
+        XCTAssertTrue(cfg.index.hasTrigger(zero))
+        XCTAssertFalse(cfg.index.hasTrigger(KeyCombo(keyCode: 30)))
+    }
+
+    func testTypingKeysAndDialogs() {
+        XCTAssertTrue(KeyCombo(keyCode: 0).isTypingKey)                         // A
+        XCTAssertTrue(KeyCombo(keyCode: 0, shift: true).isTypingKey)            // ⇧A : majuscule
+        XCTAssertFalse(KeyCombo(keyCode: 0, command: true).isTypingKey)
+        XCTAssertFalse(KeyCombo(keyCode: 0, control: true).isTypingKey)
+        XCTAssertFalse(KeyCombo(keyCode: 0, option: true).isTypingKey)
+        XCTAssertFalse(KeyCombo(keyCode: 122).isTypingKey)                      // F1
+        func win(_ n: Int, _ layer: Int, _ w: CGFloat, _ h: CGFloat) -> WinInfo {
+            WinInfo(number: n, layer: layer, bounds: CGRect(x: 0, y: 0, width: w, height: h), pid: 1, alpha: 1)
+        }
+        let main = win(1, 0, 1440, 900)
+        XCTAssertTrue(TypingGuard.isDialog(win(2, 8, 600, 400), among: [win(2, 8, 600, 400), main]))      // boîte
+        XCTAssertTrue(TypingGuard.isDialog(win(3, 0, 320, 120), among: [win(3, 0, 320, 120), main]))      // renommer
+        XCTAssertFalse(TypingGuard.isDialog(main, among: [main]))                                          // fenêtre de FL
+        XCTAssertFalse(TypingGuard.isDialog(win(4, 0, 900, 700), among: [win(4, 0, 900, 700), main]))     // grande fenêtre
+        XCTAssertFalse(TypingGuard.isDialog(win(5, 3, 300, 200), among: [win(5, 3, 300, 200), main]))     // plugin détaché
     }
 
     func testRecordingLetsEverythingThrough() {                        // REL-19

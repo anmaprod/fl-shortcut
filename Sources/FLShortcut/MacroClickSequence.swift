@@ -89,6 +89,26 @@ enum MenuBarAX {
         return .done
     }
 
+    /// Élément d'un menu de la barre de FL dont le titre contient l'un des `fragments` (sans casse ; premier niveau des
+    /// menus seulement, bornés) : nil si introuvable (FL sans ses menus dans la barre de macOS). Délais courts.
+    static func item(pid: Int32, titleContains fragments: [String]) -> AXUIElement? {
+        let app = AXUIElementCreateApplication(pid)
+        AXUIElementSetMessagingTimeout(app, 0.1)
+        guard let bar = element(app, kAXMenuBarAttribute as String) else { return nil }
+        let wanted = fragments.map(normalized)
+        for barItem in children(bar).prefix(14) {
+            AXUIElementSetMessagingTimeout(barItem, 0.1)
+            for menu in children(barItem) where role(menu) == (kAXMenuRole as String) {
+                AXUIElementSetMessagingTimeout(menu, 0.1)
+                for entry in children(menu).prefix(80) {
+                    guard let t = title(entry).map(normalized), wanted.contains(where: { t.contains($0) }) else { continue }
+                    return entry
+                }
+            }
+        }
+        return nil
+    }
+
     /// Cadre à l'écran (repère CoreGraphics) d'un menu de la barre ou d'un de ses éléments déjà affiché.
     static func frame(pid: Int32, titles: [String]) -> CGRect? {
         find(pid: pid, titles: titles, openIfNeeded: false, stop: { nil }).flatMap { AXProbe.frame($0) }
