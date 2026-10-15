@@ -24,6 +24,8 @@
     <true/>
     <key>LSApplicationCategoryType</key>
     <string>public.app-category.music</string>
+    <key>NSAudioCaptureUsageDescription</key>
+    <string>Pendant « Organiser » seulement, FL Shortcut écoute FL Studio, et lui seul, pour reconnaître tes sons (drums, basse, mélodies, voix, FX). Rien n'est enregistré ni envoyé.</string>
     <key>NSHumanReadableCopyright</key>
     <string>FL Shortcut — outil indépendant, non affilié à Image-Line.</string>
 </dict>
