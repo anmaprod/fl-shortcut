@@ -16,6 +16,7 @@ import fl_mocks as M  # noqa: E402
 
 ALL_IDS = list(range(1, 41))
 DATA_ID = 41                     # commande avec données (PROTOCOL.md §7), hors de la table §6
+EXT_ID = 42                      # opérations 2 à 8 de la commande avec données (PROTOCOL.md §8, script v5)
 # Actions qui exigent une API récente (audit 04 §6) : id -> API minimale
 API_MIN = {12: 25, 24: 19, 25: 12, 19: 10, 20: 10, 18: 9}
 TEST_APIS = (1, 2, 5, 8, 9, 10, 12, 13, 19, 20, 25, 28, 45)
@@ -509,23 +510,23 @@ class TestCapabilities(Base):
         return set(i for i in range(1, 43) if mask >> (i - 1) & 1)
 
     def test_api45_all_actions(self):
-        self.assertEqual(self.caps_for(45), set(ALL_IDS) | {DATA_ID})
+        self.assertEqual(self.caps_for(45), set(ALL_IDS) | {DATA_ID, EXT_ID})
 
     def test_api1_without_recent_actions(self):
         caps = self.caps_for(1)
-        self.assertEqual(caps, (set(ALL_IDS) - set(API_MIN)) | {DATA_ID})
+        self.assertEqual(caps, (set(ALL_IDS) - set(API_MIN)) | {DATA_ID, EXT_ID})
 
     def test_thresholds(self):
         for api in TEST_APIS:
             caps = self.caps_for(api)
-            expected = set(i for i in ALL_IDS if api >= API_MIN.get(i, 1)) | {DATA_ID}
+            expected = set(i for i in ALL_IDS if api >= API_MIN.get(i, 1)) | {DATA_ID, EXT_ID}
             self.assertEqual(caps, expected, "API %d" % api)
 
     def test_mask_bit_layout(self):
         self.make(api=45)
         d = dict(self.last_hello()[1:-1])
         self.assertEqual(d[90], 127)        # ids 1..7
-        self.assertEqual(d[95], 0b111111)   # ids 36 à 41 (41 = commande avec données)
+        self.assertEqual(d[95], 0b1111111)  # ids 36 à 42 (41 = données, 42 = opérations de l'Organiser)
         self.make(api=1)
         d = dict(self.last_hello()[1:-1])
         # id 12 (clone) = bit 11 = CC 91 bit 4 ; id 18 (quant) = CC 92 bit 3
@@ -536,7 +537,7 @@ class TestCapabilities(Base):
         self.make(api=45, missing=("patterns.clonePattern",))
         mask = self.mask_of(self.last_hello())
         self.assertEqual(mask >> 11 & 1, 0)
-        self.assertEqual(bin(mask).count("1"), 40)
+        self.assertEqual(bin(mask).count("1"), 41)
 
     def test_hasattr_and_api_combined(self):
         # fonction présente mais API déclarée trop basse => indisponible
@@ -1198,6 +1199,239 @@ class TestData(Base):
             acks.append(self.last_ack())
         self.assertEqual(acks[:20], [DATA_ID] * 20)
         self.assertEqual(acks[20], 0)
+
+
+# ---------------------------------------------------------------------------- Organiser (script v5)
+class TestDataV5(TestData):
+    """Opérations 2 à 8 (PROTOCOL.md §8) et réponses signées FL -> appli (CC 112 à 115)."""
+
+    def answer(self):
+        """Dernière réponse, MAC vérifié avec le seq de la commande, données dépaquetées. Elle part avant l'accusé."""
+        found = M.responses(self.fl.cc_out())
+        self.assertTrue(found, "aucune réponse")
+        op, units, mac = found[-1]
+        self.assertEqual(mac, M.mac_for(self.nonce(), self.seq, op, units=units))
+        self.assertLessEqual(len(units), 600)
+        order = [cc for (s, cc, v) in self.fl.cc_out() if cc in (114, 119)]
+        self.assertEqual(order[-2:], [114, 119])
+        return op, M.unpack7(units)
+
+    def test_response_mac_vector(self):
+        # Vecteur commun avec ProtocolTests.swift (ResponseTests)
+        units = M.pack7([1, 0, 2, 0, 0, 0, 0])
+        self.assertEqual(units, [0, 1, 0, 2, 0, 0, 0, 0])
+        self.assertEqual(M.mac_for([17, 42, 99, 5], 300, 2, units=units), [89, 95, 58, 61])
+        self.assertEqual(self.dev.pack7([1, 0, 2, 0, 0, 0, 0]), units)
+        self.assertEqual(self.dev.pack7([0xE0, 1]), [1, 0x60, 1])
+
+    def test_list_channels_page(self):
+        self.make(n_channels=3, ch_names=["Kick", "808", "Lead"], ch_colors=[0xE0453A, 0x123456, 0xABCDEF],
+                  ch_types=[0, 2, 5], ch_fx=[1, 2, 300])
+        self.data_command([2, 1, 0, 0])
+        self.assertEqual(self.last_ack(), DATA_ID)
+        op, data = self.answer()
+        self.assertEqual(op, 2)
+        self.assertEqual(data[:7], [1, 0, 3, 0, 0, 3, 0])
+        rest = data[7:]
+        self.assertEqual(rest[:7] + [bytes(rest[7:11]).decode()], [0, 0, 1, 0xE0, 0x45, 0x3A, 4, "Kick"])
+        rest = rest[11:]
+        self.assertEqual(rest[:7], [2, 0, 2, 0x12, 0x34, 0x56, 3])
+        rest = rest[10:]
+        self.assertEqual(rest, [5, 1, 44, 0xAB, 0xCD, 0xEF, 4] + list(b"Lead"))
+
+    def test_list_pages_and_utf8_cut(self):
+        self.make(n_channels=20, ch_names=["é" * 20] * 20)
+        self.data_command([2, 1, 0, 0])
+        _, data = self.answer()
+        self.assertEqual(data[:7], [1, 0, 20, 0, 0, 16, 0])
+        first_len = data[7 + 6]
+        self.assertEqual(first_len, 24)                       # 12 « é » : coupé entre deux caractères
+        self.assertEqual(bytes(data[14:14 + 24]).decode(), "é" * 12)
+        self.clock.t += 0.1
+        self.data_command([2, 1, 0, 16])
+        _, data = self.answer()
+        self.assertEqual(data[:7], [1, 0, 20, 0, 16, 4, 0])
+        self.make(n_channels=16, ch_names=["x" * 40] * 16)     # page pleine : 600 unités au plus
+        self.data_command([2, 1, 0, 0])
+        _, data = self.answer()
+        self.assertEqual(data[5], 16)
+        cut = "\U0001F3B9" * 7                                 # 4 octets chacun : coupé à 24 → 6 caractères
+        self.make(n_channels=1, ch_names=[cut])
+        self.data_command([2, 1, 0, 0])
+        _, data = self.answer()
+        self.assertEqual(bytes(data[14:]).decode(), "\U0001F3B9" * 6)
+
+    def test_list_filtered_group(self):
+        self.make(n_channels=3, n_channels_global=5)
+        self.data_command([2, 1, 0, 0])
+        _, data = self.answer()
+        self.assertEqual(data[6], 1)
+
+    def test_list_mixer(self):
+        self.make(n_tracks=3, mx_names={0: "Master", 2: "Kick"}, mx_colors={2: 0xE0453A})
+        self.data_command([2, 2, 0, 0])
+        _, data = self.answer()
+        self.assertEqual(data[:7], [2, 0, 3, 0, 0, 3, 0])
+        self.assertEqual(data[7:7 + 4] + [bytes(data[11:17]).decode()], [0x4B, 0x55, 0x60, 6, "Master"])
+        self.assertEqual(data[-8:], [0xE0, 0x45, 0x3A, 4] + list(b"Kick"))
+
+    def test_list_bad_kind_or_start(self):
+        for payload in ([2, 3, 0, 0], [2, 1, 0, 9], [2, 1]):
+            self.make(n_channels=4)
+            self.data_command(payload)
+            self.assertEqual(self.last_ack(), 0, payload)
+            self.assertEqual(self.reasons(), [5], payload)
+            self.assertEqual(M.responses(self.fl.cc_out()), [], payload)
+
+    def test_set_colors(self):
+        self.make(n_channels=4)
+        self.data_command([4, 1, 2] + M.be16(1) + [0xE0, 0x45, 0x3A] + M.be16(3) + [1, 2, 3])
+        self.assertEqual(self.last_ack(), DATA_ID)
+        self.assertEqual(self.fl.given_colors, {("channels", 1): 0xE0453A, ("channels", 3): 0x010203})
+        self.clock.t += 0.1
+        self.data_command([4, 2, 1] + M.be16(5) + [9, 9, 9])
+        self.assertEqual(self.fl.given_colors[("mixer", 5)], 0x090909)
+
+    def test_set_colors_bad_index(self):
+        self.make(n_channels=4)
+        self.data_command([4, 1, 2] + M.be16(1) + [1, 1, 1] + M.be16(9) + [2, 2, 2])
+        self.assertEqual(self.last_ack(), 0)
+        self.assertEqual(self.reasons(), [5])
+        self.assertEqual(self.fl.given_colors, {})             # tout vérifié avant de poser quoi que ce soit
+        self.make(n_channels=4)
+        self.data_command([4, 1, 65] + (M.be16(0) + [1, 1, 1]) * 65)
+        self.assertEqual(self.reasons(), [5])
+
+    def test_select_one_channel_and_mixer(self):
+        self.make(n_channels=4, mx_sel={1, 2})
+        self.data_command([5, 1] + M.be16(2))
+        self.assertEqual(self.last_ack(), DATA_ID)
+        self.assertEqual(self.fl.channel, 2)
+        self.clock.t += 0.1
+        self.data_command([5, 2] + M.be16(7))
+        self.assertEqual(self.fl.mx_sel, {7})
+        self.make(api=26, mx_sel={1, 2})                      # sans setActiveTrack
+        self.data_command([5, 2] + M.be16(7))
+        self.assertEqual(self.last_ack(), DATA_ID)
+        self.assertEqual(self.fl.mx_sel, {7})
+
+    def test_play_solo_mutes_others_and_plays(self):
+        self.make(n_channels=4, ch_muted={3}, loop_mode=1, song_pos=0.5)
+        self.data_command([6] + M.be16(1))
+        self.assertEqual(self.last_ack(), DATA_ID)
+        self.assertEqual(self.fl.ch_muted, {0, 2, 3})
+        self.assertTrue(self.fl.playing)
+        self.assertEqual((self.fl.loop_mode, self.fl.song_pos), (0, 0.0))
+        self.clock.t += 0.1
+        self.data_command([6] + M.be16(2))                    # canal suivant : arrêt, sourdines, relance
+        self.assertEqual(self.fl.ch_muted, {0, 1, 3})
+        self.assertTrue(self.fl.playing)
+        self.clock.t += 0.1
+        self.data_command([7])
+        self.assertEqual(self.last_ack(), DATA_ID)
+        self.assertFalse(self.fl.playing)
+        self.assertEqual(self.fl.ch_muted, {3})
+        self.assertEqual((self.fl.loop_mode, self.fl.song_pos), (1, 0.5))
+        self.assertIsNone(self.dev._st.memo)
+
+    def test_play_solo_refuses_when_playing(self):
+        self.make(n_channels=4, playing=True)
+        self.data_command([6] + M.be16(1))
+        self.assertEqual(self.last_ack(), 0)
+        self.assertEqual(self.reasons(), [4])
+        self.assertEqual(self.fl.ch_muted, set())
+        self.assertTrue(self.fl.playing)
+        self.assertIsNone(self.dev._st.memo)
+
+    def test_play_solo_bad_channel(self):
+        self.make(n_channels=4)
+        self.data_command([6] + M.be16(4))
+        self.assertEqual(self.reasons(), [5])
+        self.assertIsNone(self.dev._st.memo)
+
+    def test_stop_restore_without_memo(self):
+        # Sans écoute en cours (refus 4 : l'utilisateur joue), rien n'est touché : sa lecture continue.
+        self.make(n_channels=4, playing=True)
+        self.data_command([7])
+        self.assertEqual(self.last_ack(), DATA_ID)
+        self.assertTrue(self.fl.playing)
+
+    def test_sleep_restores_memo(self):
+        self.make(n_channels=4, wake=False, ch_muted={0})
+        self.send(103, 2)                                     # réveil bref (macro)
+        self.clock.t += 0.3
+        self.data_command([6] + M.be16(2))
+        self.assertEqual(self.fl.ch_muted, {0, 1, 3})
+        self.clock.t += 9                                     # l'appli a disparu : le script se rendort
+        self.dev.OnIdle()
+        self.assertFalse(self.dev._st.awake)
+        self.assertEqual(self.fl.ch_muted, {0})
+        self.assertFalse(self.fl.playing)
+        self.assertIsNone(self.dev._st.memo)
+
+    def test_deinit_restores_memo(self):
+        self.make(n_channels=4)
+        self.data_command([6] + M.be16(2))
+        self.dev.OnDeInit()
+        self.assertEqual(self.fl.ch_muted, set())
+
+    def test_audition_note_on_off(self):
+        self.make(n_channels=4)
+        self.data_command([3] + M.be16(2) + [48, 100])
+        self.assertEqual(self.last_ack(), DATA_ID)
+        self.clock.t += 0.1
+        self.data_command([3] + M.be16(2) + [48, 0])
+        self.assertEqual(self.fl.notes, [(2, 48, 100), (2, 48, 0)])
+        self.clock.t += 0.1
+        self.data_command([3] + M.be16(2) + [128, 100])       # note hors MIDI
+        self.assertEqual(self.reasons(), [5])
+
+    def test_gradient_three_tracks(self):
+        self.make(focused={0}, mx_sel={2, 5, 9})
+        self.data_command([8, 0xE0, 0x45, 0x3A, 0x3F, 0xA7, 0xE0])
+        self.assertEqual(self.last_ack(), DATA_ID)
+        self.assertEqual(self.fl.given_colors, {("mixer", 2): 0xE0453A, ("mixer", 5): 0x90768D,
+                                                ("mixer", 9): 0x3FA7E0})
+        self.make(focused={1}, ch_sel={0, 1}, n_channels=4)
+        self.data_command([8, 0, 0, 0, 255, 255, 255])
+        self.assertEqual(self.fl.given_colors, {("channels", 0): 0, ("channels", 1): 0xFFFFFF})
+
+    def test_gradient_needs_two(self):
+        for kw, reason in (({"focused": {0}, "mx_sel": {2}}, 7), ({"focused": {0}}, 2),
+                           ({"focused": {1}, "ch_sel": {3}}, 7), ({"focused": {3}, "mx_sel": {1, 2}}, 1)):
+            self.make(**kw)
+            self.data_command([8, 1, 2, 3, 4, 5, 6])
+            self.assertEqual(self.last_ack(), 0, kw)
+            self.assertEqual(self.reasons(), [reason], kw)
+            self.assertEqual(self.fl.given_colors, {}, kw)
+
+    def test_caps_bit_42(self):
+        self.assertEqual(self.dev.capability_mask() >> 41 & 1, 1)
+        self.make(missing=("utils.ColorToRGB",))
+        self.assertEqual(self.dev.capability_mask() >> 41 & 1, 0)
+        self.assertEqual(self.dev.capability_mask() >> 40 & 1, 1)   # l'opération 1 reste là
+
+    def test_missing_function_says_old_fl(self):
+        self.make(n_channels=4, missing=("channels.selectOneChannel",))
+        self.data_command([5, 1] + M.be16(2))
+        self.assertEqual(self.reasons(), [6])
+        self.make(api=8, n_channels=4)                        # getChannelType : API 19
+        self.data_command([2, 1, 0, 0])
+        _, data = self.answer()
+        self.assertEqual(data[7], 0)                          # type inconnu : 0
+
+    def test_ext_ops_unknown_op(self):
+        for payload in ([9], [0], [8, 1, 2]):
+            self.make(focused={0}, mx_sel={1, 2})
+            self.data_command(payload)
+            self.assertEqual(self.reasons(), [5], payload)
+
+    def test_names_never_in_hints(self):
+        self.make(n_channels=2, ch_names=["SecretTrack", "SecretTrack"],
+                  raise_on={"channels.getChannelColor": RuntimeError("SecretTrack")})
+        self.data_command([2, 1, 0, 0])
+        self.assertEqual(self.last_ack(), 0)
+        self.assertFalse(any("SecretTrack" in h for h in self.fl.hints))
 
 
 if __name__ == "__main__":

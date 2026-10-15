@@ -27,7 +27,7 @@ bornes vérifiées, seuls les CC du protocole (canal 16) sont marqués « handle
 # La ligne suivante est remplacée par l'appli à l'installation (16 octets en hex).
 KEY_HEX = "__FLSHORTCUT_KEY__"
 
-SCRIPT_VERSION = 4
+SCRIPT_VERSION = 5
 PROTOCOL_VERSION = 2
 
 MIDI_CHANNEL = 15          # canal 16, 0-indexé
@@ -62,6 +62,27 @@ REASON_NONE = 2            # rien de sélectionné
 REASON_MANY = 3            # plusieurs éléments sélectionnés
 REASON_OLD_FL = 6          # page prise en charge, mais pas par cette version de FL (Playlist : API 12)
 REASON_DATA = 5            # données invalides (ou FL a refusé)
+# Organiser et dégradé (script v5, PROTOCOL.md §8)
+CC_RESP_START = 112        # réponse FL -> appli : début (valeur = opération)
+CC_RESP_UNIT = 113         # une unité de 7 bits de la réponse
+CC_RESP_END = 114          # fin des unités, suivie de 4 CC 115 (MAC de la réponse)
+CC_RESP_MAC = 115
+MAX_RESP_UNITS = 600
+EXT_ACTION_ID = 42         # capacité : opérations 2 à 8
+OP_LIST = 2
+OP_AUDITION = 3
+OP_SET_COLORS = 4
+OP_SELECT_ONE = 5
+OP_PLAY_SOLO = 6
+OP_STOP_RESTORE = 7
+OP_GRADIENT = 8
+KIND_CHANNELS = 1
+KIND_MIXER = 2
+REASON_PLAYING = 4         # FL joue déjà (opération 6)
+REASON_FEW = 7             # dégradé : au moins 2 éléments sélectionnés
+LIST_PAGE = 16             # entrées par réponse de `list`
+LIST_NAME_BYTES = 24       # noms coupés (aperçu seulement)
+MAX_COLORS = 64
 
 MAX_ACTIONS_PER_S = 20     # PROTOCOL.md §4
 MAX_MAC_CHECKS_PER_S = 25  # coût CPU borné sous inondation (SEC-10)
@@ -441,6 +462,7 @@ class _State(object):
         self.mono_on = False
         self.awake = False            # endormi au chargement : rien n'est envoyé ni vérifié
         self.awake_until = None       # None : éveillé sans limite (mode MIDI complet)
+        self.memo = None              # Organiser : sourdines, mode et position d'avant l'écoute (opération 6)
 
 
 _st = _State()
@@ -452,6 +474,7 @@ def _wake(brief):
 
 
 def _sleep():
+    _restore_memo_safely()            # l'appli a disparu pendant une écoute : FL est remis comme avant
     _st.awake = False
     _st.awake_until = None
     _st.frame = None
@@ -1259,6 +1282,8 @@ def capability_mask():
             mask |= 1 << (aid - 1)
     if _data_available():
         mask |= 1 << (DATA_ACTION_ID - 1)
+        if _ext_available():
+            mask |= 1 << (EXT_ACTION_ID - 1)
     return mask
 
 
@@ -1287,16 +1312,47 @@ def _data_available():
             and _has("mixer", "setTrackName") and _has("mixer", "setTrackColor"))
 
 
-def _run_data(units):
-    """0 si exécutée, sinon la raison du refus (CC 116)."""
+def pack7(data):
+    """Empaquetage 7 bits (PROTOCOL.md §7) : par groupe de 7 octets, une unité d'en-tête puis les 7 bits bas."""
+    out = []
+    for i in range(0, len(data), 7):
+        group = data[i:i + 7]
+        hdr = 0
+        for j, b in enumerate(group):
+            if b & 0x80:
+                hdr |= 1 << j
+        out.append(hdr)
+        for b in group:
+            out.append(b & 0x7F)
+    return out
+
+
+def _ext_available():
+    return _has("utils", "ColorToRGB") and _has("utils", "RGBToColor")
+
+
+def _run_data(units, seq3=(0, 0, 0)):
+    """0 si exécutée, sinon la raison du refus (CC 116). Une opération qui répond envoie sa réponse signée
+    (CC 112 à 115) avant l'accusé."""
     if not units or not _data_available():
         return REASON_DATA
     raw = unpack7(units)
     if not raw:
         return REASON_DATA
-    if raw[0] == OP_NAME_COLOR:
+    op = raw[0]
+    if op == OP_NAME_COLOR:
         return _op_name_color(raw)
-    return REASON_DATA
+    handler = _EXT_OPS.get(op)
+    if handler is None:
+        return REASON_DATA
+    if not _ext_available():
+        return REASON_OLD_FL
+    try:
+        return handler(raw, list(seq3))
+    except Exception as exc:
+        # Jamais de nom de son ni de piste dans le message : seulement le type de l'erreur.
+        _hint("FL Shortcut : « Organiser » a échoué (%s)" % type(exc).__name__)
+        return REASON_DATA
 
 
 # Page devant -> (module, nombre, est sélectionné, nom, couleur, premier index, API minimale de la sélection)
@@ -1384,6 +1440,325 @@ def _op_name_color(raw):
         _hint("FL Shortcut : « Nom et couleur » a échoué (%s)" % type(exc).__name__)
         return REASON_DATA
     return 0
+
+
+# --------------------------------------------------------------------------
+# Organiser et dégradé : opérations 2 à 8 (PROTOCOL.md §8)
+# --------------------------------------------------------------------------
+def _respond(op, data, seq3):
+    """Réponse FL -> appli : CC 112 = op, CC 113 = unités, CC 114, puis 4 CC 115 =
+    MAC(nonce || seq de la commande || op || unités). Liée à la commande : jamais rejouable ailleurs."""
+    units = pack7(data)
+    if len(units) > MAX_RESP_UNITS or _signer is None:
+        return False
+    mac = _signer.mac(bytes(list(_st.nonce) + list(seq3) + [op] + units))
+    pairs = [(CC_RESP_START, op)] + [(CC_RESP_UNIT, u) for u in units] + [(CC_RESP_END, 0)]
+    pairs += [(CC_RESP_MAC, m) for m in mac]
+    return _send_many(pairs)
+
+
+def _be16(hi, lo):
+    return (hi << 8) | lo
+
+
+def _u16(n):
+    n = n if _is_int(n) and 0 <= n <= 0xFFFF else 0
+    return [(n >> 8) & 0xFF, n & 0xFF]
+
+
+def _fns(mod, *names):
+    """Fonctions du module dans l'ordre, ou None si l'une manque."""
+    out = []
+    for n in names:
+        f = _fn(mod, n)
+        if f is None:
+            return None
+        out.append(f)
+    return out
+
+
+def _rgb_of(color):
+    """Couleur de FL -> [R, G, B] par utils.ColorToRGB (la fonction de FL, donc son ordre)."""
+    rgb = [int(v) for v in _fn("utils", "ColorToRGB")(color)][:3]
+    if len(rgb) != 3 or any(not 0 <= v <= 255 for v in rgb):
+        raise ValueError("couleur")
+    return rgb
+
+
+def _name_bytes(name):
+    """Nom en UTF-8, coupé à LIST_NAME_BYTES octets sans couper un caractère."""
+    try:
+        raw = str(name).encode("utf-8")
+    except Exception:
+        return []
+    return list(raw[:LIST_NAME_BYTES].decode("utf-8", "ignore").encode("utf-8"))
+
+
+def _channel_count():
+    f = _fn("channels", "channelCount")
+    return f() if f is not None else 0
+
+
+def _op_list(raw, seq3):
+    """[2, genre, début (2)] -> [genre, total (2), début (2), n, filtré] + entrées (16 au plus)."""
+    if len(raw) != 4 or raw[1] not in (KIND_CHANNELS, KIND_MIXER):
+        return REASON_DATA
+    kind, start = raw[1], _be16(raw[2], raw[3])
+    get_type = None
+    if kind == KIND_CHANNELS:
+        fns = _fns("channels", "channelCount", "getChannelName", "getChannelColor", "getTargetFxTrack")
+        if fns is None:
+            return REASON_OLD_FL
+        count, get_name, get_color, get_fx = fns
+        if _api_at_least(19):
+            get_type = _fn("channels", "getChannelType")
+        total = count()
+        try:
+            filtered = 1 if count(True) != total else 0
+        except Exception:
+            filtered = 0                   # FL ancien : pas de nombre global
+    else:
+        fns = _fns("mixer", "trackCount", "getTrackName", "getTrackColor")
+        if fns is None:
+            return REASON_OLD_FL
+        count, get_name, get_color = fns
+        total = count()
+        filtered = 0
+    if not _is_int(total) or not 0 <= start <= total:
+        return REASON_DATA
+    n = min(LIST_PAGE, total - start)
+    data = [kind] + _u16(total) + _u16(start) + [n, filtered]
+    for i in range(start, start + n):
+        name = _name_bytes(get_name(i))
+        rgb = _rgb_of(get_color(i))
+        if kind == KIND_CHANNELS:
+            t = get_type(i) if get_type is not None else 0
+            t = t if _is_int(t) and 0 <= t <= 255 else 0
+            data += [t] + _u16(get_fx(i)) + rgb + [len(name)] + name
+        else:
+            data += rgb + [len(name)] + name
+    return 0 if _respond(OP_LIST, data, seq3) else REASON_DATA
+
+
+def _kind_fns(kind):
+    """(nombre, poser la couleur) du genre, ou une raison de refus."""
+    if kind == KIND_CHANNELS:
+        fns = _fns("channels", "channelCount", "setChannelColor")
+    elif kind == KIND_MIXER:
+        fns = _fns("mixer", "trackCount", "setTrackColor")
+    else:
+        return REASON_DATA
+    return fns if fns is not None else REASON_OLD_FL
+
+
+def _op_set_colors(raw, seq3):
+    """[4, genre, n, (index (2), R, G, B) x n], n <= 64 : tout est vérifié avant de poser la première couleur."""
+    if len(raw) < 3:
+        return REASON_DATA
+    kind, n = raw[1], raw[2]
+    if not 1 <= n <= MAX_COLORS or len(raw) != 3 + 5 * n:
+        return REASON_DATA
+    fns = _kind_fns(kind)
+    if _is_int(fns):
+        return fns
+    count, set_color = fns
+    total = count()
+    todo = []
+    for k in range(n):
+        o = 3 + 5 * k
+        index = _be16(raw[o], raw[o + 1])
+        color = _rgb_to_color(raw[o + 2], raw[o + 3], raw[o + 4])
+        if not _is_int(total) or not 0 <= index < total or color is None:
+            return REASON_DATA
+        todo.append((index, color))
+    for index, color in todo:
+        set_color(index, color)
+    return 0
+
+
+def _op_select_one(raw, seq3):
+    """[5, genre, index (2)] : cet élément seul sélectionné."""
+    if len(raw) != 4:
+        return REASON_DATA
+    kind, index = raw[1], _be16(raw[2], raw[3])
+    if kind == KIND_CHANNELS:
+        fns = _fns("channels", "channelCount", "selectOneChannel")
+        if fns is None or not _api_at_least(8):
+            return REASON_OLD_FL
+        total = fns[0]()
+        if not _is_int(total) or not 0 <= index < total:
+            return REASON_DATA
+        fns[1](index)
+        return 0
+    if kind == KIND_MIXER:
+        count = _fn("mixer", "trackCount")
+        active = _fn("mixer", "setActiveTrack") if _api_at_least(27) else None
+        pair = _fns("mixer", "deselectAll", "selectTrack")
+        if count is None or (active is None and pair is None):
+            return REASON_OLD_FL
+        total = count()
+        if not _is_int(total) or not 0 <= index < total:
+            return REASON_DATA
+        if active is not None:
+            active(index)
+        else:
+            pair[0]()
+            pair[1](index)
+        return 0
+    return REASON_DATA
+
+
+_PLAY_FNS = (("channels", "channelCount"), ("channels", "isChannelMuted"), ("channels", "muteChannel"),
+             ("transport", "start"), ("transport", "stop"), ("transport", "isPlaying"),
+             ("transport", "getLoopMode"), ("transport", "setLoopMode"), ("transport", "getSongPos"),
+             ("transport", "setSongPos"))
+
+
+def _op_play_solo(raw, seq3):
+    """[6, canal (2)] : au premier appel, mémo des sourdines, du mode et de la position ; puis ce canal seul
+    audible (les autres en sourdine, en ne basculant que ceux qui doivent changer), mode pattern, début, lecture."""
+    if len(raw) != 3:
+        return REASON_DATA
+    if any(_fn(m, n) is None for m, n in _PLAY_FNS):
+        return REASON_OLD_FL
+    index = _be16(raw[1], raw[2])
+    total = _channel_count()
+    if not _is_int(total) or not 0 <= index < total:
+        return REASON_DATA
+    is_muted, mute = _fn("channels", "isChannelMuted"), _fn("channels", "muteChannel")
+    playing = _fn("transport", "isPlaying")()
+    if _st.memo is None:
+        if playing:
+            return REASON_PLAYING          # l'utilisateur joue : on ne coupe rien
+        _st.memo = {"n": total, "muted": [bool(is_muted(i)) for i in range(total)],
+                    "mode": _fn("transport", "getLoopMode")(), "pos": _fn("transport", "getSongPos")()}
+    elif playing:
+        _fn("transport", "stop")()
+    for i in range(total):
+        want = i != index
+        if bool(is_muted(i)) != want:
+            mute(i)
+    if _fn("transport", "getLoopMode")() != 0:
+        _fn("transport", "setLoopMode")()
+    _fn("transport", "setSongPos")(0.0)
+    _fn("transport", "start")()
+    return 0
+
+
+def _restore_memo():
+    """Arrêt de la lecture, sourdines, mode et position remis comme au mémo, mémo vidé. Rien sans mémo."""
+    memo = _st.memo
+    _st.memo = None
+    if memo is None:
+        return
+
+    def stop():
+        _fn("transport", "stop")()
+
+    def mutes():
+        is_muted, mute = _fn("channels", "isChannelMuted"), _fn("channels", "muteChannel")
+        for i in range(min(memo["n"], _channel_count())):
+            if bool(is_muted(i)) != memo["muted"][i]:
+                mute(i)
+
+    def mode():
+        if _fn("transport", "getLoopMode")() != memo["mode"]:
+            _fn("transport", "setLoopMode")()
+
+    def pos():
+        _fn("transport", "setSongPos")(memo["pos"])
+
+    for step in (stop, mutes, mode, pos):
+        try:                               # une étape qui échoue n'empêche pas les suivantes
+            step()
+        except Exception as exc:
+            _hint("FL Shortcut : remise après l'écoute incomplète (%s)" % type(exc).__name__)
+
+
+def _restore_memo_safely():
+    try:
+        _restore_memo()
+    except Exception:
+        _st.memo = None
+
+
+def _op_stop_restore(raw, seq3):
+    """[7] : remet FL comme avant l'écoute (sans effet s'il n'y a pas eu d'écoute)."""
+    if len(raw) != 1:
+        return REASON_DATA
+    _restore_memo()
+    return 0
+
+
+def _op_audition(raw, seq3):
+    """[3, canal (2), note, vélocité] : note jouée sur le canal (vélocité 0 = arrêt)."""
+    if len(raw) != 5 or raw[3] > 127 or raw[4] > 127:
+        return REASON_DATA
+    note_on = _fn("channels", "midiNoteOn")
+    if note_on is None:
+        return REASON_OLD_FL
+    index = _be16(raw[1], raw[2])
+    total = _channel_count()
+    if not _is_int(total) or not 0 <= index < total:
+        return REASON_DATA
+    to_global = _fn("channels", "getChannelIndex")
+    note_on(to_global(index) if to_global is not None else index, raw[3], raw[4])
+    return 0
+
+
+def _selected_targets():
+    """(poser la couleur, [index sélectionnés]) sur la page devant, sinon la raison du refus."""
+    page = _NAME_COLOR_PAGES.get(focused_window_code())
+    if page is None:
+        return REASON_PAGE
+    mod, count_fn, sel_fn, _name_fn, color_fn, first, api_min = page
+    count, is_sel, set_color = _fn(mod, count_fn), _fn(mod, sel_fn), _fn(mod, color_fn)
+    if count is None or set_color is None:
+        return REASON_PAGE
+    if is_sel is None or not _api_at_least(api_min):
+        return REASON_OLD_FL
+    n = count()
+    if not _is_int(n) or n < 0:
+        return REASON_DATA
+    return set_color, [i for i in range(first, n + first) if is_sel(i)]
+
+
+def _op_gradient(raw, seq3):
+    """[8, R1, G1, B1, R2, G2, B2] : dégradé de First (premier sélectionné) à Last (dernier), comme
+    « Gradient color… » de FL : chaque composante en ligne droite, arrondie au plus proche."""
+    if len(raw) != 7:
+        return REASON_DATA
+    target = _selected_targets()
+    if _is_int(target):
+        return target
+    set_color, picked = target
+    if not picked:
+        return REASON_NONE
+    if len(picked) < 2:
+        return REASON_FEW
+    a, b = raw[1:4], raw[4:7]
+    last = len(picked) - 1
+    colors = []
+    for k in range(len(picked)):
+        rgb = [int(a[c] + (b[c] - a[c]) * k / float(last) + 0.5) for c in range(3)]
+        color = _rgb_to_color(rgb[0], rgb[1], rgb[2])
+        if color is None:
+            return REASON_DATA
+        colors.append(color)
+    for index, color in zip(picked, colors):
+        set_color(index, color)
+    return 0
+
+
+_EXT_OPS = {
+    OP_LIST: _op_list,
+    OP_AUDITION: _op_audition,
+    OP_SET_COLORS: _op_set_colors,
+    OP_SELECT_ONE: _op_select_one,
+    OP_PLAY_SOLO: _op_play_solo,
+    OP_STOP_RESTORE: _op_stop_restore,
+    OP_GRADIENT: _op_gradient,
+}
 
 
 # --------------------------------------------------------------------------
@@ -1531,7 +1906,7 @@ def _process_frame(f, units=None):
             return _reject("rate", "FL Shortcut : trop d'actions par seconde")
         _st.action_times.append(now)
         if aid == DATA_ACTION_ID:
-            reason = _run_data(units)
+            reason = _run_data(units, f[0:3])
             if reason:
                 _send_cc(CC_REASON, reason)
             ok = not reason
@@ -1629,7 +2004,7 @@ _COMMAND_CCS = frozenset(list(range(CC_PING, CC_FRAME_LAST + 1))    # 103..111 e
 # Tous les CC du protocole (y compris FL -> appli, si le port les renvoie en boucle) :
 # marqués « handled » sur le canal 16 ; les autres CC sont laissés à FL.
 _PROTOCOL_CCS = frozenset(list(range(CC_CAPS_FIRST, CC_CAPS_FIRST + 6)) + list(_COMMAND_CCS)
-                          + list(range(CC_REASON, CC_PROTO + 1)))
+                          + list(range(CC_RESP_START, CC_PROTO + 1)))
 
 
 def _cc_of(event):
@@ -1706,6 +2081,7 @@ def OnInit():
 
 def OnDeInit():
     try:
+        _restore_memo_safely()        # script déchargé pendant une écoute : FL remis comme avant
         _st.frame = None
         _st.hello_pending = False
         _st.out_ok = None

@@ -81,6 +81,19 @@ class FLState(object):
         self.pl_tracks = kw.get("pl_tracks", 500)
         self.given_names = {}            # ("mixer" | "channels" | "playlist", index) -> nom
         self.given_colors = {}           # même clé -> couleur
+        # Organiser (opérations 2 à 8) : canaux, Mixer, lecture.
+        n = self.n_channels
+        self.ch_names = list(kw.get("ch_names", ["Canal %d" % i for i in range(n)]))
+        self.ch_colors = list(kw.get("ch_colors", [0x5F6B78] * n))     # couleurs FL (0xRRGGBB dans ce faux FL)
+        self.ch_types = list(kw.get("ch_types", [2] * n))              # 2 = plugin générateur
+        self.ch_fx = list(kw.get("ch_fx", list(range(1, n + 1))))
+        self.ch_muted = set(kw.get("ch_muted", ()))
+        self.n_channels_global = kw.get("n_channels_global", n)
+        self.notes = []                  # (index global, note, vélocité)
+        self.playing = kw.get("playing", False)
+        self.song_pos = kw.get("song_pos", 0.5)
+        self.mx_names = kw.get("mx_names", {})
+        self.mx_colors = kw.get("mx_colors", {})
 
     def cc_out(self):
         """Liste (statut, cc, valeur) des messages envoyés."""
@@ -141,8 +154,20 @@ def build_fl(api=45, missing=(), extra=None, **kw):
             setattr(mods["midi"], cname, val)
 
     # transport
-    for fn in ("start", "stop", "setLoopMode"):
-        reg("transport", fn, 1, maxargs(0, lambda: None))
+    def t_start():
+        st.playing = not st.playing      # comme FL : lecture / pause
+    def t_stop():
+        st.playing = False
+    def t_loop():
+        st.loop_mode = 1 - st.loop_mode
+    reg("transport", "start", 1, maxargs(0, t_start))
+    reg("transport", "stop", 1, maxargs(0, t_stop))
+    reg("transport", "setLoopMode", 1, maxargs(0, t_loop))
+    reg("transport", "isPlaying", 1, maxargs(0, lambda: st.playing))
+
+    def set_song_pos(pos, *a):
+        st.song_pos = pos
+    reg("transport", "setSongPos", 1, set_song_pos)
 
     def record():
         st.recording = not st.recording
@@ -151,7 +176,7 @@ def build_fl(api=45, missing=(), extra=None, **kw):
     reg("transport", "globalTransport", 1, lambda cmd, value, *a: 1)
     reg("transport", "getLoopMode", 1, lambda: st.loop_mode)
     reg("transport", "getSongPos", 1,
-        maxargs(1 if api >= 3 else 0, lambda *a: 1920 if a else 0.5))
+        maxargs(1 if api >= 3 else 0, lambda *a: 1920 if a else st.song_pos))
 
     # ui
     reg("ui", "showWindow", 1, lambda w: None)
@@ -234,9 +259,34 @@ def build_fl(api=45, missing=(), extra=None, **kw):
     reg("mixer", "isTrackSelected", 1, lambda i: (chk_track(i), i in st.mx_sel)[1])
     reg("mixer", "setTrackName", 1, lambda i, name: (chk_track(i), st.given_names.__setitem__(("mixer", i), name))[1])
     reg("mixer", "setTrackColor", 1, lambda i, c: (chk_track(i), st.given_colors.__setitem__(("mixer", i), c))[1])
+    reg("mixer", "getTrackName", 1, lambda i: (chk_track(i), st.mx_names.get(i, "Insert %d" % i))[1])
+    reg("mixer", "getTrackColor", 1, lambda i: (chk_track(i), st.mx_colors.get(i, 0x4B5560))[1])
+
+    def mx_select(i):
+        chk_track(i)
+        st.mx_sel.symmetric_difference_update({i})
+    reg("mixer", "selectTrack", 1, mx_select)
+    reg("mixer", "deselectAll", 1, lambda: st.mx_sel.clear())
+
+    def mx_active(i):
+        chk_track(i)
+        st.mx_sel.clear()
+        st.mx_sel.add(i)
+    reg("mixer", "setActiveTrack", 27, mx_active)
 
     # channels
-    reg("channels", "channelCount", 1, lambda *a: st.n_channels)
+    reg("channels", "channelCount", 1, lambda *a: st.n_channels_global if a and a[0] else st.n_channels)
+    reg("channels", "getChannelName", 1, lambda i, *a: (chk_chan(i), st.ch_names[i])[1])
+    reg("channels", "getChannelColor", 1, lambda i, *a: (chk_chan(i), st.ch_colors[i])[1])
+    reg("channels", "getChannelType", 19, lambda i, *a: (chk_chan(i), st.ch_types[i])[1])
+    reg("channels", "getTargetFxTrack", 1, lambda i, *a: (chk_chan(i), st.ch_fx[i])[1])
+    reg("channels", "getChannelIndex", 1, lambda i: (chk_chan(i), i)[1])
+    reg("channels", "isChannelMuted", 1, lambda i, *a: (chk_chan(i), i in st.ch_muted)[1])
+
+    def note_on(i, note, vel, *a):
+        chk_chan(i)
+        st.notes.append((i, note, vel))
+    reg("channels", "midiNoteOn", 1, note_on)
     reg("channels", "channelNumber", 1, lambda *a: st.channel)
     reg("channels", "selectedChannel", 5, lambda *a: st.channel)
 
@@ -246,7 +296,10 @@ def build_fl(api=45, missing=(), extra=None, **kw):
     reg("channels", "selectOneChannel", 8, select_one)
     reg("channels", "selectChannel", 1, lambda i, *a: chk_chan(i))
     reg("channels", "quickQuantize", 9, lambda i, *a: chk_chan(i))
-    reg("channels", "muteChannel", 1, lambda i, *a: chk_chan(i))
+    def mute_chan(i, *a):
+        chk_chan(i)
+        st.ch_muted.symmetric_difference_update({i})     # bascule, comme la valeur par défaut -1 de FL
+    reg("channels", "muteChannel", 1, mute_chan)
     reg("channels", "isChannelSolo", 1, lambda i, *a: (chk_chan(i), i in st.ch_solo)[1])
 
     def solo_chan(i, *a):
@@ -308,6 +361,7 @@ def build_fl(api=45, missing=(), extra=None, **kw):
 
     # utils (fichier utils.py livré avec FL)
     reg("utils", "RGBToColor", 1, lambda r, g, b: (r << 16) | (g << 8) | b)
+    reg("utils", "ColorToRGB", 1, lambda c: ((c >> 16) & 0xFF, (c >> 8) & 0xFF, c & 0xFF))
 
     if extra:
         for dotted, value in extra.items():
@@ -411,3 +465,45 @@ def name_color(name=None, color=None):
     flags = (1 if name is not None else 0) | (2 if color is not None else 0)
     r, g, b = color if color is not None else (0, 0, 0)
     return [1, flags, r, g, b, len(raw)] + list(raw)
+
+
+def unpack7(units):
+    """Inverse de pack7 (sans contrôle : réservé aux réponses déjà vérifiées par les tests)."""
+    out = []
+    i = 0
+    while i < len(units):
+        hdr = units[i]
+        body = units[i + 1:i + 8]
+        for j, u in enumerate(body):
+            out.append(u | (0x80 if (hdr >> j) & 1 else 0))
+        i += 1 + len(body)
+    return out
+
+
+def responses(cc_out):
+    """Réponses FL -> appli (PROTOCOL.md §8) : [(op, unités, mac)] dans l'ordre d'envoi. Une réponse mal formée
+    lève AssertionError."""
+    out = []
+    cur = None
+    for s, cc, v in cc_out:
+        if cc == 112:
+            assert cur is None, "réponse commencée deux fois"
+            cur = {"op": v, "units": [], "mac": None}
+        elif cc == 113:
+            assert cur is not None and cur["mac"] is None
+            cur["units"].append(v)
+        elif cc == 114:
+            assert cur is not None and cur["mac"] is None
+            cur["mac"] = []
+        elif cc == 115:
+            assert cur is not None and cur["mac"] is not None
+            cur["mac"].append(v)
+            if len(cur["mac"]) == 4:
+                out.append((cur["op"], cur["units"], cur["mac"]))
+                cur = None
+    assert cur is None, "réponse inachevée"
+    return out
+
+
+def be16(n):
+    return [(n >> 8) & 0xFF, n & 0xFF]
