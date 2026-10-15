@@ -28,13 +28,26 @@ struct MixerTrackInfo: Equatable {
     let name: String
 }
 
-/// Refus de FL (raison du CC 116) ou panne du lien, avec un message pour l'utilisateur.
+/// Refus de FL (raison du CC 116), panne du lien ou arrêt, avec un message pour l'utilisateur.
 enum OrganizerError: Error, Equatable {
     case refused(Int)
     case failed(String)
+    /// Échap pendant l'écoute.
+    case cancelled
+    /// Le Channel rack affiche un groupe : les numéros des canaux ne seraient pas ceux de tout le projet.
+    case filteredGroup
+    /// Le Channel rack n'est plus devant pendant les déplacements.
+    case interrupted
+    /// Après l'application, FL ne montre pas ce qui était prévu.
+    case mismatch
 
     var message: String {
         switch self {
+        case .cancelled: return "Organiser arrêté : FL est remis comme avant."
+        case .filteredGroup: return "Le Channel rack affiche un groupe : choisis le groupe « All », puis relance Organiser."
+        case .interrupted:
+            return "Le Channel rack n'est plus devant : Organiser s'est arrêté. « Revenir comme avant » défait ce qui a été fait."
+        case .mismatch: return "FL n'a pas tout pris : vérifie dans FL, ou clique sur « Revenir comme avant »."
         case .refused(1): return "Ouvre le Channel rack ou le Mixer de FL, puis relance Organiser."
         case .refused(2): return "Sélectionne au moins un élément dans FL."
         case .refused(4): return "FL joue : appuie sur Stop, puis relance Organiser."
