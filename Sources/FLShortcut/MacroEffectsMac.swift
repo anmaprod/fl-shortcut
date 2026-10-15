@@ -428,6 +428,15 @@ final class MacroEffectsMac: MacroEffects {
         case .flActionValue:
             return .fail("action avec valeur : demande l'extension du lien avec FL")
 
+        case .nameColor(let name, let color):
+            // Journal : jamais le nom, seulement ce qui est posé.
+            MacroLog.shared.write("FL", "name/color (\(name == nil ? "no name" : "name") · \(color == nil ? "no color" : "color"))")
+            switch MIDILink.shared.runData(NameColorPayload(name: name, color: color).units) {
+            case .done: return .ok
+            case .refused(let reason): return .fail(NameColorPayload.message(forReason: reason))
+            case .failed(let why): return .fail(why)
+            }
+
         case .ifElse, .repeatCount, .repeatWhile, .waitUntil, .setVariable, .stop, .comment, .unknown:
             return .fail("bloc de contrôle hors de l'interpréteur")
         }

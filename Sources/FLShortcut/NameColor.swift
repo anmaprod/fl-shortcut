@@ -60,4 +60,46 @@ struct NameColorPayload: Equatable {
     }
 
     var units: [UInt8] { Pack7.pack(bytes) }
+
+    /// Rouge de départ du bloc (un bloc neuf est valable tel quel).
+    static let defaultColor = RGBColor(r: 0xE0, g: 0x45, b: 0x3A)
+
+    /// Ligne du bloc : « Kick · #E0453A », « Kick », « couleur #E0453A ».
+    static func summary(name: String?, color: RGBColor?) -> String {
+        let n = NameColorPayload(name: name, color: color)
+        switch (n.name, n.color) {
+        case let (name?, color?): return "\(name.displaySafe(max: 40)) · #\(color.hex)"
+        case let (name?, nil): return name.displaySafe(max: 40)
+        case let (nil, color?): return "couleur #\(color.hex)"
+        case (nil, nil): return "nom et couleur à choisir"
+        }
+    }
+
+    /// Message d'un refus expliqué par FL (CC 116).
+    static func message(forReason reason: Int) -> String {
+        switch reason {
+        case 1: return "Ouvre le Mixer, le Channel rack ou la Playlist."
+        case 2: return "Sélectionne une piste ou un canal."
+        case 3: return "Sélectionne une seule piste ou un seul canal."
+        case 4: return "Arrête la lecture d'abord."
+        default: return "FL a refusé le nom ou la couleur."
+        }
+    }
+}
+
+/// Les 10 dernières couleurs choisies dans FL Shortcut, la plus récente d'abord (préférences, codes « E0453A »).
+enum RecentColors {
+    static let key = "nameColor.recentColors"
+    static let limit = 10
+
+    static func list(defaults: UserDefaults = .standard) -> [RGBColor] {
+        var seen = Set<RGBColor>()
+        let all = (defaults.array(forKey: key) ?? []).compactMap { ($0 as? String).flatMap(RGBColor.init(hex:)) }
+        return Array(all.filter { seen.insert($0).inserted }.prefix(limit))
+    }
+
+    static func remember(_ c: RGBColor, defaults: UserDefaults = .standard) {
+        let others = list(defaults: defaults).filter { $0 != c }
+        defaults.set(([c] + others).prefix(limit).map(\.hex), forKey: key)
+    }
 }

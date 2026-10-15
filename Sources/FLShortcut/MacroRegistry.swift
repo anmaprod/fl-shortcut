@@ -6,6 +6,8 @@ import Foundation
 enum BlockType: String, CaseIterable, Codable {
     case key, menuLetters, menuKey, click, delay, waitWindow, waitWindowClose
     case trackMenu, chooseFile, dropFile, flAction, flActionValue, selectInput, feedbackCheck
+    /// Nom et couleur de la piste ou du canal sélectionné (lien avec FL, PROTOCOL.md §7).
+    case nameColor
     /// Élément d'un menu de FL dans la barre des menus de macOS, par ses titres (créé par « Enregistrer des clics »).
     case menuBar
     /// Ancienne étape `menu` : seulement pour reprendre les anciennes macros (absente de la palette).
@@ -62,6 +64,7 @@ struct ParamSpec {
 enum ParamKind {
     case touche, ms(ClosedRange<Int>), nombre(ClosedRange<Int>), lettres(max: Int), toucheMenu
     case cible, fenetre, fichier(extensions: [String]), actionFL, condition, variable, texte(max: Int), blocs
+    case couleur
 }
 
 enum Conteneur { case aucun, corps, siSinon }
@@ -137,6 +140,7 @@ enum BlockRegistry {
         case .flActionValue: return Specs.flActionValue
         case .selectInput: return Specs.selectInput
         case .feedbackCheck: return Specs.feedbackCheck
+        case .nameColor: return Specs.nameColor
         case .menuBar: return Specs.menuBar
         case .menuAX: return Specs.menuAX
         case .ifElse: return Specs.ifElse
@@ -587,6 +591,29 @@ private enum Specs {
             return MacroValidation.learnedPathKeys.contains(key) ? nil : ctx.fail("positions apprises inconnues.")
         },
         import_: .retirerPositions, plateformes: .mac)
+
+    static let nameColor = BlockSpec(
+        type: .nameColor, label: "Nom et couleur", category: .fl, symbol: "paintpalette",
+        aide: "Donne un nom et/ou une couleur à la piste ou au canal sélectionné dans la page de FL qui est devant (Mixer, Channel rack ou Playlist), par le lien avec FL. Un seul élément doit être sélectionné.",
+        params: [ParamSpec("name", "Nom", .texte(max: NameColorPayload.maxNameScalars)),
+                 ParamSpec("color", "Couleur", .couleur)],
+        conteneur: .aucun, dansLaPalette: true,
+        needs: { _ in base.union(.lienMIDI) },
+        parDefaut: { .nameColor(name: nil, color: NameColorPayload.defaultColor) },
+        resume: { body, _ in
+            guard case .nameColor(let name, let color) = body else { return "" }
+            return NameColorPayload.summary(name: name, color: color)
+        },
+        journal: { _ in "nameColor" },
+        estimationMs: { _ in 300 },
+        valider: { body, ctx in
+            guard case .nameColor(let name, let color) = body else { return nil }
+            let payload = NameColorPayload(name: name, color: color)
+            guard payload.name != nil || payload.color != nil else { return ctx.fail("donne un nom ou une couleur.") }
+            if let n = payload.name, let why = NameColorPayload.nameProblem(n) { return ctx.fail(why) }
+            return nil
+        },
+        import_: .aRelire("renomme et colore dans FL"), plateformes: .mac)
 
     static let feedbackCheck = BlockSpec(
         type: .feedbackCheck, label: "Vérifier le larsen", category: .fl, symbol: "speaker.wave.2",

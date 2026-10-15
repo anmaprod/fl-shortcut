@@ -382,6 +382,8 @@ enum MacroOutline {
             return ("Choisir l'entrée", "(none) → 1")
         case .feedbackCheck:
             return ("Vérifier le larsen", nil)
+        case .nameColor(let name, let color):
+            return ("Nom et couleur", NameColorPayload.summary(name: name, color: color))
         case .menuBar(let titles):
             return ("Menu de FL", titles.map { $0.displaySafe(max: 30) }.joined(separator: " › "))
         case .menuAX(let titles, _):
@@ -413,7 +415,7 @@ enum MacroOutline {
         func walk(_ list: [Block]) {
             for b in list where b.enabled {
                 switch b.body {
-                case .flAction, .flActionValue: link = true
+                case .flAction, .flActionValue, .nameColor: link = true
                 case .click(.toLearn, _): learn = true
                 case .selectInput: if !learnedInput { learn = true }
                 default: break
@@ -517,6 +519,7 @@ enum PaletteCatalog {
                  symbol: "record.circle.fill") {
                 .flAction(key: "recon", fallback: .key(KeyRef(rec)))
             },
+            item("nameColor", .nameColor) { .nameColor(name: nil, color: NameColorPayload.defaultColor) },
             item("selectInput", .selectInput) { MacroTemplates.inputOne },
             item("feedbackCheck", .feedbackCheck) { .feedbackCheck },
             // Contrôle

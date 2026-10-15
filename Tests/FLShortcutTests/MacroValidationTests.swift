@@ -167,4 +167,28 @@ final class MacroValidationTests: XCTestCase {
         XCTAssertEqual(MacroValidation.count(tree), 5)
         XCTAssertEqual(MacroValidation.depth(tree), 1)
     }
+
+    // MARK: Nom et couleur
+
+    func testNameColorValidation() {
+        let red = NameColorPayload.defaultColor
+        XCTAssertEqual(problem([b(.nameColor(name: nil, color: nil))]), "Étape 1 : donne un nom ou une couleur.")
+        XCTAssertNil(problem([b(.nameColor(name: "Kick", color: nil))]))
+        XCTAssertNil(problem([b(.nameColor(name: nil, color: red))]))
+        XCTAssertNil(problem([b(.nameColor(name: "Café 🎹", color: red))]))
+        XCTAssertNil(problem([b(.nameColor(name: String(repeating: "é", count: 64), color: nil))]))
+        XCTAssertNotNil(problem([b(.nameColor(name: String(repeating: "a", count: 65), color: nil))]))
+        XCTAssertNotNil(problem([b(.nameColor(name: "x\u{7}y", color: nil))]))
+        // Que des espaces : pas de nom, et pas de couleur non plus → invalide (rien ne serait envoyé).
+        XCTAssertEqual(problem([b(.nameColor(name: "   ", color: nil))]), "Étape 1 : donne un nom ou une couleur.")
+        // é décomposé (e + accent) : 2 points de code, comme le compte le script.
+        XCTAssertNotNil(problem([b(.nameColor(name: String(repeating: "e\u{301}", count: 33), color: nil))]))
+    }
+
+    func testNameColorNeedsTheLinkAndIsJournaledWithoutTheName() {
+        let body = BlockBody.nameColor(name: "SecretTrack", color: nil)
+        XCTAssertTrue(BlockRegistry.needs(of: body).contains(.lienMIDI))
+        XCTAssertEqual(BlockRegistry.journal(of: body), "nameColor")
+    }
+
 }

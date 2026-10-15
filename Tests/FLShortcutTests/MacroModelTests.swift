@@ -224,4 +224,39 @@ final class MacroModelTests: XCTestCase {
         XCTAssertFalse(needs.contains(.lienMIDI))
         XCTAssertTrue(MacroValidation.needs(of: [Block(.flActionValue(key: "trnext", value: .constant(1)))]).contains(.extensionsMIDI))
     }
+
+    // MARK: Nom et couleur
+
+    func testNameColorJSONRoundTrip() throws {
+        let red = try XCTUnwrap(RGBColor(hex: "E0453A"))
+        let blocks = [Block(.nameColor(name: "Kick", color: red)), Block(.nameColor(name: nil, color: red)),
+                      Block(.nameColor(name: "Voix", color: nil))]
+        XCTAssertEqual(try roundTrip(blocks), blocks)
+        let object = try JSONSerialization.jsonObject(with: JSONEncoder().encode(blocks[0])) as? [String: Any]
+        XCTAssertEqual(object?["name"] as? String, "Kick")
+        XCTAssertEqual(object?["color"] as? String, "E0453A")
+        let colorOnly = try JSONSerialization.jsonObject(with: JSONEncoder().encode(blocks[1])) as? [String: Any]
+        XCTAssertNil(colorOnly?["name"])
+        // Couleur hors format, nom qui n'est pas un texte : bloc illisible, conservé et bloquant.
+        for raw in [#"{"type":"nameColor","color":"ZZZ"}"#, #"{"type":"nameColor","name":12}"#] {
+            let b = try JSONDecoder().decode(Block.self, from: Data(raw.utf8))
+            guard case .unknown(let type, _) = b.body else { return XCTFail(raw) }
+            XCTAssertEqual(type, "nameColor")
+        }
+        let lower = try JSONDecoder().decode(Block.self, from: Data(##"{"type":"nameColor","color":"#e0453a"}"##.utf8))
+        XCTAssertEqual(lower.body, .nameColor(name: nil, color: red))
+    }
+
+    func testNameColorTexts() {
+        let red = NameColorPayload.defaultColor
+        XCTAssertEqual(NameColorPayload.summary(name: "Kick", color: red), "Kick · #E0453A")
+        XCTAssertEqual(NameColorPayload.summary(name: " Kick ", color: nil), "Kick")
+        XCTAssertEqual(NameColorPayload.summary(name: nil, color: red), "couleur #E0453A")
+        XCTAssertEqual(NameColorPayload.message(forReason: 1), "Ouvre le Mixer, le Channel rack ou la Playlist.")
+        XCTAssertEqual(NameColorPayload.message(forReason: 2), "Sélectionne une piste ou un canal.")
+        XCTAssertEqual(NameColorPayload.message(forReason: 3), "Sélectionne une seule piste ou un seul canal.")
+        XCTAssertEqual(NameColorPayload.message(forReason: 4), "Arrête la lecture d'abord.")
+        XCTAssertEqual(NameColorPayload.message(forReason: 5), "FL a refusé le nom ou la couleur.")
+    }
+
 }
