@@ -1,3 +1,4 @@
+import CoreAudio
 import XCTest
 @testable import FLShortcut
 
@@ -291,6 +292,28 @@ final class MacroModelTests: XCTestCase {
         XCTAssertLessThan(dark.luminance, FLColorWheel.color(ring: 4, sector: 0).flHSL.luminance)
         let d = abs(dark.hue - FLColorWheel.vivid[0].flHSL.hue)
         XCTAssertLessThan(min(d, 360 - d), 3)                                 // le rouge est près de 360°
+    }
+
+
+    /// Carte son : une carte externe avec sortie (de préférence avec entrée), celle de la dernière fois d'abord ;
+    /// jamais les haut-parleurs du Mac, l'HDMI ni le Bluetooth.
+    func testSoundCardChoice() {
+        func dev(_ id: UInt32, _ name: String, _ transport: UInt32, inputs: Int, outputs: Int) -> AudioDeviceInfo {
+            AudioDeviceInfo(id: id, uid: "uid-\(id)", name: name, transport: transport, inputs: inputs, outputs: outputs)
+        }
+        let speakers = dev(1, "Haut-parleurs MacBook Pro", kAudioDeviceTransportTypeBuiltIn, inputs: 0, outputs: 1)
+        let mic = dev(2, "Micro MacBook Pro", kAudioDeviceTransportTypeBuiltIn, inputs: 1, outputs: 0)
+        let hdmi = dev(3, "HDMI", kAudioDeviceTransportTypeHDMI, inputs: 0, outputs: 1)
+        let ssl = dev(4, "SSL 2+", kAudioDeviceTransportTypeUSB, inputs: 1, outputs: 1)
+        let dac = dev(5, "DAC USB", kAudioDeviceTransportTypeUSB, inputs: 0, outputs: 1)
+        let bt = dev(6, "AirPods", kAudioDeviceTransportTypeBluetooth, inputs: 1, outputs: 1)
+        XCTAssertNil(SoundCard.choose([speakers, mic, hdmi, bt], preferredUID: nil))
+        XCTAssertEqual(SoundCard.choose([speakers, mic, hdmi, ssl, bt], preferredUID: nil), ssl)
+        XCTAssertEqual(SoundCard.choose([dac, ssl], preferredUID: nil), ssl)           // avec entrée d'abord
+        XCTAssertEqual(SoundCard.choose([speakers, dac], preferredUID: nil), dac)      // sinon sortie seule
+        let ssl2 = dev(7, "Scarlett 2i2", kAudioDeviceTransportTypeUSB, inputs: 1, outputs: 1)
+        XCTAssertEqual(SoundCard.choose([ssl, ssl2], preferredUID: "uid-7"), ssl2)     // celle de la dernière fois
+        XCTAssertEqual(SoundCard.choose([ssl, ssl2], preferredUID: "uid-99"), ssl)
     }
 
 }

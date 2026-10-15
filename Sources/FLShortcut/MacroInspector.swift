@@ -150,6 +150,12 @@ private struct BlockInspector: View {
                     .secondaryButton()
                 }
             }
+        case .soundCard:
+            Text("La carte son branchée (USB, Thunderbolt…) devient la sortie et l'entrée du Mac. Une seule fois, dans "
+                 + "FL › Options › Audio settings : Output sur « Default audio device » et Input sur « Default input "
+                 + "device » ; FL suit alors la carte tout seul. Plusieurs cartes branchées : celle choisie la dernière fois.")
+                .font(.system(size: 12))
+                .fixedSize(horizontal: false, vertical: true)
         default:
             Text("Rien à régler.").foregroundStyle(.secondary)
         }

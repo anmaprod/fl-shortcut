@@ -8,6 +8,8 @@ enum BlockType: String, CaseIterable, Codable {
     case trackMenu, chooseFile, dropFile, flAction, flActionValue, selectInput, feedbackCheck
     /// Nom et couleur de la piste ou du canal sélectionné (lien avec FL, PROTOCOL.md §7).
     case nameColor
+    /// La carte son branchée devient la sortie et l'entrée du Mac.
+    case soundCard
     /// Élément d'un menu de FL dans la barre des menus de macOS, par ses titres (créé par « Enregistrer des clics »).
     case menuBar
     /// Ancienne étape `menu` : seulement pour reprendre les anciennes macros (absente de la palette).
@@ -141,6 +143,7 @@ enum BlockRegistry {
         case .selectInput: return Specs.selectInput
         case .feedbackCheck: return Specs.feedbackCheck
         case .nameColor: return Specs.nameColor
+        case .soundCard: return Specs.soundCard
         case .menuBar: return Specs.menuBar
         case .menuAX: return Specs.menuAX
         case .ifElse: return Specs.ifElse
@@ -614,6 +617,19 @@ private enum Specs {
             return nil
         },
         import_: .aRelire("renomme et colore dans FL"), plateformes: .mac)
+
+    static let soundCard = BlockSpec(
+        type: .soundCard, label: "Carte son branchée", category: .fl, symbol: "hifispeaker.and.homepod",
+        aide: "La carte son branchée (USB, Thunderbolt…) devient la sortie et l'entrée du Mac ; FL la suit tout seul s'il est réglé une fois sur « Default audio device » (Output) et « Default input device » (Input) dans Options › Audio settings.",
+        params: [],
+        conteneur: .aucun, dansLaPalette: true,
+        needs: { _ in [] },
+        parDefaut: { .soundCard },
+        resume: { _, _ in "sortie et entrée du Mac" },
+        journal: { _ in "soundCard" },
+        estimationMs: { _ in 200 },
+        valider: { _, _ in nil },
+        import_: .ok, plateformes: .mac)
 
     static let feedbackCheck = BlockSpec(
         type: .feedbackCheck, label: "Vérifier le larsen", category: .fl, symbol: "speaker.wave.2",

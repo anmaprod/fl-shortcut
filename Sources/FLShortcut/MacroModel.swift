@@ -251,6 +251,8 @@ indirect enum BlockBody: Equatable {
     case feedbackCheck
     /// Nom et/ou couleur de l'élément sélectionné de la page de FL devant (lien avec FL, NameColor.swift).
     case nameColor(name: String?, color: RGBColor?)
+    /// La carte son branchée devient la sortie et l'entrée du Mac (FL réglé sur « Default », SoundCard.swift).
+    case soundCard
     /// Élément d'un menu de FL dans la barre des menus de macOS (titre du menu, puis des éléments), par l'Accessibilité.
     case menuBar(titles: [String])
     /// Ancienne étape `menu` (titres d'accessibilité, clics de secours) : reprise des anciennes macros, hors palette.
@@ -284,6 +286,7 @@ indirect enum BlockBody: Equatable {
         case .selectInput: return .selectInput
         case .feedbackCheck: return .feedbackCheck
         case .nameColor: return .nameColor
+        case .soundCard: return .soundCard
         case .menuBar: return .menuBar
         case .menuAX: return .menuAX
         case .ifElse: return .ifElse
@@ -341,7 +344,7 @@ indirect enum BlockBody: Equatable {
             return ["action": .string(key), "value": value.json]
         case .selectInput(let ref):
             return ["learned": ref.json]
-        case .feedbackCheck:
+        case .feedbackCheck, .soundCard:
             return [:]
         case .nameColor(let name, let color):
             var p: [String: JSONValue] = [:]
@@ -419,6 +422,8 @@ indirect enum BlockBody: Equatable {
             return .selectInput(ref)
         case .feedbackCheck:
             return .feedbackCheck
+        case .soundCard:
+            return .soundCard
         case .nameColor:
             // Clé présente mais illisible (nom non texte, couleur hors format) : bloc illisible, conservé et bloquant.
             if j["name"] != nil && j["name"]?.string == nil { return nil }

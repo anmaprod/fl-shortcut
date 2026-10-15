@@ -428,6 +428,17 @@ final class MacroEffectsMac: MacroEffects {
         case .flActionValue:
             return .fail("action avec valeur : demande l'extension du lien avec FL")
 
+        case .soundCard:
+            switch SoundCard.apply() {
+            case .done(_, let input):
+                MacroLog.shared.write("AUDIO", "sound card set as default " + (input ? "output + input" : "output"))
+                return .ok
+            case .noCard:
+                return .fail("aucune carte son branchée (USB, Thunderbolt…) : branche-la, puis relance la macro")
+            case .failed(let why):
+                return .fail(why)
+            }
+
         case .nameColor(let name, let color):
             // Journal : jamais le nom, seulement ce qui est posé.
             MacroLog.shared.write("FL", "name/color (\(name == nil ? "no name" : "name") · \(color == nil ? "no color" : "color"))")
