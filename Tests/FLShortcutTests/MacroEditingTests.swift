@@ -209,4 +209,34 @@ final class MacroEditingTests: XCTestCase {
         // Niveau négatif (bureau, fenêtres d'arrière-plan) : jamais une fenêtre de FL à viser.
         XCTAssertNil(MacroOutline.learnedTarget(at: CGPoint(x: 10, y: 10), windows: [(-20, CGRect(x: 0, y: 0, width: 400, height: 300))]))
     }
+
+    func testPaletteHasNameColor() {
+        let items = PaletteCatalog.items(layout: FakeLayout.qwerty)
+        let item = items.first { $0.id == "nameColor" }
+        XCTAssertEqual(item?.type, .nameColor)
+        XCTAssertEqual(item?.soon, false)
+        XCTAssertTrue(PaletteCatalog.search(items, "couleur").contains { $0.id == "nameColor" })
+        XCTAssertTrue(PaletteCatalog.search(items, "renommer").contains { $0.id == "nameColor" } ||
+                      PaletteCatalog.search(items, "nom").contains { $0.id == "nameColor" })
+    }
+
+    func testRecentColors() throws {
+        let suite = "flshortcut.tests.recentColors.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
+        XCTAssertEqual(RecentColors.list(defaults: defaults), [])
+        let colors = (0..<12).map { RGBColor(r: UInt8($0 * 20), g: 0x10, b: 0x20) }
+        for c in colors { RecentColors.remember(c, defaults: defaults) }
+        let list = RecentColors.list(defaults: defaults)
+        XCTAssertEqual(list.count, 10)
+        XCTAssertEqual(list.first, colors[11])
+        // Une couleur déjà présente remonte en tête, sans doublon.
+        RecentColors.remember(colors[5], defaults: defaults)
+        XCTAssertEqual(RecentColors.list(defaults: defaults).first, colors[5])
+        XCTAssertEqual(Set(RecentColors.list(defaults: defaults)).count, 10)
+        // Valeurs illisibles dans les préférences : ignorées.
+        defaults.set(["E0453A", "zz", 3, "E0453A"], forKey: RecentColors.key)
+        XCTAssertEqual(RecentColors.list(defaults: defaults), [RGBColor(r: 0xE0, g: 0x45, b: 0x3A)])
+    }
+
 }

@@ -201,6 +201,18 @@ private struct BlockInspector: View {
                 setBody(key: "text") { $0 = .comment(text) }
             }, axis: .vertical)
             .lineLimit(2...5)
+        case (.nameColor(let name, _), "name"):
+            TextField(p.label, text: textBinding(name ?? "", max: NameColorPayload.maxNameScalars) { text in
+                setBody(key: "name") { body in
+                    if case .nameColor(_, let c) = body { body = .nameColor(name: text.isEmpty ? nil : text, color: c) }
+                }
+            }, prompt: Text("Kick, Lead, Voix… (facultatif)"))
+        case (.nameColor(_, let color), "color"):
+            NameColorField(color: color) { newColor in
+                setBody(key: "color") { body in
+                    if case .nameColor(let n, _) = body { body = .nameColor(name: n, color: newColor) }
+                }
+            }
         default:
             Text("Réglage disponible dans une prochaine version.")
                 .font(.system(size: 12))
@@ -828,5 +840,74 @@ final class ClickTeacher: ObservableObject {
             HintPanel.shared.hide()
         }
         history = []
+    }
+}
+
+// MARK: Couleur du bloc « Nom et couleur »
+
+/// « Changer la couleur », code « # » (6 chiffres hexadécimaux) avec aperçu, et les 10 dernières couleurs choisies.
+/// La grille des couleurs de FL viendra ici (capture de sa fenêtre de couleur demandée à l'utilisateur).
+struct NameColorField: View {
+    let color: RGBColor?
+    let set: (RGBColor?) -> Void
+    @State private var text = ""
+    @State private var recent: [RGBColor] = []
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Toggle("Changer la couleur", isOn: Binding(get: { color != nil }, set: { on in
+                let start = recent.first ?? NameColorPayload.defaultColor
+                set(on ? start : nil)
+                text = on ? start.hex : text
+            }))
+            if let color {
+                HStack(spacing: 6) {
+                    Self.swatch(color, size: 20)
+                    Text("#").foregroundStyle(.secondary)
+                    TextField("E0453A", text: $text)
+                        .font(.system(.body, design: .monospaced))
+                        .frame(width: 96)
+                        .help("Code de la couleur, comme dans la fenêtre de couleur de FL")
+                }
+                if !text.isEmpty, RGBColor(hex: text) == nil {
+                    Text("6 chiffres ou lettres de A à F, comme E0453A.")
+                        .font(.system(size: 11))
+                        .foregroundStyle(.red)
+                }
+                if !recent.isEmpty {
+                    Text("Récentes").font(.system(size: 11)).foregroundStyle(.secondary)
+                    HStack(spacing: 6) {
+                        ForEach(recent, id: \.self) { c in
+                            Button { choose(c) } label: { Self.swatch(c, size: 18, selected: c == color) }
+                                .buttonStyle(.plain)
+                                .help("#\(c.hex)")
+                        }
+                    }
+                }
+            }
+        }
+        .onAppear {
+            text = color?.hex ?? ""
+            recent = RecentColors.list()
+        }
+        .onChange(of: text) { newText in
+            guard let c = RGBColor(hex: newText), c != color else { return }
+            choose(c)
+        }
+    }
+
+    private func choose(_ c: RGBColor) {
+        set(c)
+        if text.uppercased().replacingOccurrences(of: "#", with: "") != c.hex { text = c.hex }
+        RecentColors.remember(c)
+        recent = RecentColors.list()
+    }
+
+    static func swatch(_ c: RGBColor, size: CGFloat, selected: Bool = false) -> some View {
+        RoundedRectangle(cornerRadius: 5, style: .continuous)
+            .fill(Color(red: Double(c.r) / 255, green: Double(c.g) / 255, blue: Double(c.b) / 255))
+            .frame(width: size, height: size)
+            .overlay(RoundedRectangle(cornerRadius: 5, style: .continuous)
+                .strokeBorder(selected ? Color.accentColor : Color.primary.opacity(0.15), lineWidth: selected ? 2 : 1))
     }
 }

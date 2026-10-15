@@ -80,6 +80,8 @@ Modèle livré, **Enregistrement rapide** (fiche d'un raccourci › Type › Mac
 3. armement de la piste et première entrée (positions apprises une fois, en cliquant dans FL) ;
 4. REC allumé à la fin (facultatif).
 
+Bloc **Nom et couleur** (par le lien avec FL) : nomme et colore la piste ou le canal sélectionné dans la page de FL qui est devant (Mixer, Channel rack, Playlist), pour des macros d'organisation.
+
 Détails, limites et mode d'emploi du diagnostic (`FLShortcut --diag-macro`) : [MACROS.md](MACROS.md).
 
 ---

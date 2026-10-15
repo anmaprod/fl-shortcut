@@ -45,6 +45,7 @@ Le brouillon est enregistré par **Enregistrer** (⌘S) ou 0,5 s après la derni
 | Action de FL | une action de FL Shortcut par le lien avec FL, sinon sa touche de FL ; *Armer la piste* (repli : menu de la piste) et *Allumer le REC* (repli : touche R) |
 | Choisir l'entrée 1 | « (none) » → entrée 1, montrée une fois |
 | Vérifier le larsen | micro et sortie de l'ordinateur, lancé dès le début, affiché à la fin |
+| Nom et couleur | nom et/ou couleur de l'élément sélectionné dans la page de FL qui est devant : piste du Mixer, canal du Channel rack, piste de la Playlist. Un seul élément sélectionné, sinon la macro s'arrête (« Sélectionne une seule piste ou un seul canal »). Couleur : code « # » et 10 dernières couleurs (la grille de FL arrive). Demande le lien avec FL (script v4 : redémarre FL après la mise à jour) |
 | Répéter | N fois (50 au plus), blocs à l'intérieur |
 
 Palette triée avec l'utilisateur : *Lettres d'un menu de FL* (fait par *Menu de la piste*), *Arrêter la macro* (inutile sans condition), *Commentaire* (doublon de la note de chaque bloc), *Tant que* et *Attendre que* ne sont plus proposés. Les anciennes macros qui les contiennent marchent toujours. *Si…* reste « bientôt » (à refaire simple : « sinon » caché, conditions en phrases).
@@ -73,6 +74,7 @@ Modèle `autoRecord`, sur ⌃R dans le profil Recommandé. Il suffit de cliquer 
 | `armTrack` | action 39 `armon` du script FL : arme la piste sélectionnée **seulement si** elle ne l'est pas. Sans lien MIDI : rien (choisir l'entrée arme la piste dans FL) |
 | `recordOn` | action 40 `recon` du script FL : allume le REC **seulement s'il** est éteint |
 | `selectInput` | « (none) » puis l'entrée « 1 » : appris la première fois (place relative au coin haut-droit de la fenêtre de FL, retenue avec sa taille ; taille différente → redemandé, jamais de clic à côté) |
+| `nameColor` | commande avec données du lien (PROTOCOL.md §7, opération 1) : le script repère la page devant (`ui.getFocused`) et l'unique élément sélectionné (`isTrackSelected`, `isChannelSelected`, Playlist dès l'API 12), puis `setTrackName`/`setChannelName` et `…Color` (`utils.RGBToColor`). Refus expliqué (CC 116) : page, rien ou plusieurs sélectionnés, données. Journal : `nameColor`, jamais le nom |
 | `feedbackCheck` | **en dernier** : micro **et** haut-parleurs de l'ordinateur en service → fenêtre « risque de larsen » (tout est déjà en place, il ne reste qu'à changer d'entrée ou de sortie). Vérifié en parallèle dès le début de la macro : aucune attente |
 
 **Lien MIDI à la demande** : en mode léger, les ports « FL Shortcut » existent (FL les voit) mais rien n'y circule. Le script FL démarre **endormi** : `OnIdle` et `OnRefresh` s'arrêtent à leur première ligne. La macro le réveille brièvement (PING = 2), envoie l'action signée, et le script se rendort tout seul 8 s après (PROTOCOL.md §4). À régler une fois dans FL : *Options › MIDI Settings*, Input « FL Shortcut » : Enable, Controller type « FL Shortcut » ; Output « FL Shortcut » : même port.
