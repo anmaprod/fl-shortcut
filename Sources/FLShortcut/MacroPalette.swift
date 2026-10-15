@@ -25,15 +25,15 @@ struct MacroPaletteView: View {
     let items: [PaletteItem]
     let insert: (PaletteItem) -> Void
 
+    /// La liste est la vue de la colonne elle-même, comme la barre latérale des raccourcis : macOS lui donne la marge
+    /// du haut (sous les boutons fermer / réduire / agrandir). Dans une pile, elle montait jusque sous ces boutons.
     var body: some View {
-        VStack(spacing: 0) {
-            List {
-                ForEach(BlockCategory.allCases, id: \.self) { category in
-                    section(category)
-                }
+        List {
+            ForEach(BlockCategory.allCases, id: \.self) { category in
+                section(category)
             }
-            .listStyle(.sidebar)
         }
+        .listStyle(.sidebar)
     }
 
     @ViewBuilder private func section(_ category: BlockCategory) -> some View {

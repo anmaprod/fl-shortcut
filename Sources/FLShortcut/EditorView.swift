@@ -215,7 +215,9 @@ struct EditorView: View {
         })
         .navigationTitle(title)
         .windowGlass(glassEnabled)
-        .searchable(text: $query, placement: .toolbar, prompt: "Rechercher")
+        // Recherche en haut de la barre latérale (comme Réglages Système) : à droite, la barre d'outils ne porte que
+        // les boutons de la page, et les flèches de la page Macros tombent au même endroit que dans le créateur.
+        .searchable(text: $query, placement: .sidebar, prompt: "Rechercher")
         // Un clic dans le vide de la barre latérale ne laisse jamais la fenêtre sans section.
         .onChange(of: selection) { newValue in
             if newValue == nil { selection = .section(.general) }
@@ -292,7 +294,7 @@ struct EditorView: View {
                 searchResults(data)
             } else {
                 switch selection ?? .section(.general) {
-                case .section(let s): sectionList(s, rows: data.rows)
+                case .section(let s): sectionList(s, rows: data.rows, mine: data.others.filter { $0.belongs(to: s) })
                 case .custom: customList(data.others)
                 case .macros: MacroLibraryPage(library: store.library, open: { id in openCreator(id) }, toast: { show($0) })
                 }
@@ -342,8 +344,8 @@ struct EditorView: View {
         }
     }
 
-    /// Une section : raccourcis d'origine de FL, puis actions en plus.
-    private func sectionList(_ section: FLSection, rows: [CatalogRow]) -> some View {
+    /// Une section : raccourcis d'origine de FL, actions en plus, puis tes raccourcis ajoutés sur cette page.
+    private func sectionList(_ section: FLSection, rows: [CatalogRow], mine custom: [Remap]) -> some View {
         let mine = rows.filter { $0.entry.section == section }
         let natives = mine.filter { $0.entry.isNative }
         let extras = mine.filter { !$0.entry.isNative }
@@ -366,6 +368,13 @@ struct EditorView: View {
                     CardRows(items: extras) { catalogRow($0) }
                 } header: {
                     Text("Actions en plus")
+                }
+            }
+            if !custom.isEmpty {
+                Section {
+                    CardRows(items: custom) { customRow($0) }
+                } header: {
+                    Text("Tes raccourcis sur cette page")
                 }
             }
         }
@@ -499,11 +508,22 @@ struct EditorView: View {
 
     // MARK: Barre d'outils
 
+    /// Page affichée (pendant une recherche : « Mes raccourcis », le « + » y crée un raccourci personnel).
+    private var page: SidebarItem { trimmedQuery.isEmpty ? (selection ?? .section(.general)) : .custom }
+    private var onMacrosPage: Bool { page == .macros }
+
+    /// Page Macros : ← → puis + ‖, exactement comme ← → puis ⇪ ✓ dans le créateur : les flèches ne bougent pas
+    /// quand on entre dans une macro ou qu'on en sort. Pages de raccourcis : pas de flèches (elles ne servent
+    /// qu'aux macros).
     @ToolbarContentBuilder private var toolbarContent: some ToolbarContent {
-        ToolbarItem(placement: .navigation) { arrows }
+        if onMacrosPage {
+            ToolbarItem(placement: .navigation) { arrows }
+        }
         ToolbarItem(placement: .primaryAction) { newButton }
         ToolbarItem(placement: .primaryAction) { pauseToggle }
-        ToolbarItem(placement: .primaryAction) { profileMenu }
+        if !onMacrosPage {
+            ToolbarItem(placement: .primaryAction) { profileMenu }
+        }
     }
 
     /// macOS 26 : boutons regroupés sur un même verre, le menu à part (ToolbarSpacer), comme les apps d'Apple.
@@ -511,11 +531,15 @@ struct EditorView: View {
         #if compiler(>=6.2)
         if #available(macOS 26.0, *) {
             v.toolbar {
-                ToolbarItem(placement: .navigation) { arrows }
+                if onMacrosPage {
+                    ToolbarItem(placement: .navigation) { arrows }
+                }
                 ToolbarItem(placement: .primaryAction) { newButton }
                 ToolbarItem(placement: .primaryAction) { pauseToggle }
-                ToolbarSpacer(.fixed, placement: .primaryAction)
-                ToolbarItem(placement: .primaryAction) { profileMenu }
+                if !onMacrosPage {
+                    ToolbarSpacer(.fixed, placement: .primaryAction)
+                    ToolbarItem(placement: .primaryAction) { profileMenu }
+                }
             }
         } else {
             v.toolbar { toolbarContent }
@@ -531,9 +555,25 @@ struct EditorView: View {
         return FinderArrows(back: nil, forward: last.map { id in { openCreator(id) } })
     }
 
+    /// « + » de la page : une macro sur la page Macros, un raccourci de cette page ailleurs.
     private var newButton: some View {
-        Button(action: newCustom) { Label("Nouveau raccourci", systemImage: "plus") }
-            .help("Nouveau raccourci personnalisé")
+        let current = page
+        let help: String
+        switch current {
+        case .macros: help = "Nouvelle macro"
+        case .custom: help = "Nouveau raccourci personnalisé"
+        case .section(let s): help = "Nouveau raccourci pour la page « \(s.title) »"
+        }
+        return Button {
+            switch current {
+            case .macros: MacroLibraryPage.newMacro(in: store.library)
+            case .custom: newCustom(page: nil)
+            case .section(let s): newCustom(page: s)
+            }
+        } label: {
+            Label(help, systemImage: "plus")
+        }
+        .help(help)
     }
 
     /// En pause, le bouton allumé prend la couleur de la pause (la teinte affiche un état, WWDC25 310).
@@ -582,9 +622,14 @@ struct EditorView: View {
 
     // MARK: Actions
 
-    private func newCustom() {
+    /// Nouveau raccourci ; depuis une page de FL, il vise sa fenêtre et reste listé sur cette page.
+    private func newCustom(page: FLSection? = nil) {
         editingIsNew = true
-        editing = Remap().with { $0.actionID = nil }
+        editing = Remap().with {
+            $0.actionID = nil
+            $0.page = page
+            if let page { $0.context = ShortcutContext(page: page) }
+        }
     }
 
     private func load(_ preset: ProfilePreset) {
@@ -1093,7 +1138,8 @@ struct EditSheet: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             SheetHeader(symbol: kindSymbol, tint: SidebarItem.custom.tint,
-                        title: isNew ? "Nouveau raccourci" : "Modifier le raccourci")
+                        title: isNew ? "Nouveau raccourci" + (draft.page.map { " · " + $0.title } ?? "")
+                                     : "Modifier le raccourci")
 
             Form {
                 LabeledContent("Raccourci") {

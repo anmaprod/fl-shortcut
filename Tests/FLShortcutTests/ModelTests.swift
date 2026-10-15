@@ -58,6 +58,33 @@ final class ModelTests: XCTestCase {
         XCTAssertTrue(text.contains("\"version\" : 2"))
     }
 
+    /// « + » d'une page : le raccourci garde sa page (listé sur elle) et vise sa fenêtre de FL. Une page inconnue
+    /// (version plus récente) est ignorée sans perdre le raccourci.
+    func testShortcutPageRoundTripAndListing() throws {
+        var a = Remap(trigger: KeyCombo(keyCode: 18, control: true), action: 30, context: .mixer)
+        a.page = .mixer
+        var b = Remap(trigger: KeyCombo(keyCode: 19, control: true), action: 2)
+        b.page = .transport
+        let c = Remap(trigger: KeyCombo(keyCode: 20, control: true), action: 3, context: .playlist)   // sans page
+        let decoded = try ProfileCodec.decode(try ProfileCodec.encode([a, b, c]))
+        XCTAssertEqual(decoded.remaps, [a, b, c])
+        XCTAssertTrue(a.belongs(to: .mixer))
+        XCTAssertFalse(a.belongs(to: .playlist))
+        XCTAssertTrue(b.belongs(to: .transport))
+        XCTAssertFalse(b.belongs(to: .general))
+        XCTAssertTrue(c.belongs(to: .playlist))                     // ancien raccourci : par sa fenêtre
+        XCTAssertFalse(Remap(trigger: nil, action: 1).belongs(to: .general))
+        XCTAssertEqual(ShortcutContext(page: .channelRack), .channelRack)
+        XCTAssertEqual(ShortcutContext(page: .patterns), .everywhere)
+        let future = json("""
+        {"version": 2, "remaps": [{"trigger": {"keyCode": 1}, "kind": "flAction", "action": "play", "page": "demain"}]}
+        """)
+        let read = try ProfileCodec.decode(future)
+        XCTAssertEqual(read.remaps.count, 1)
+        XCTAssertNil(read.remaps[0].page)
+        XCTAssertTrue(read.remaps[0].enabled)
+    }
+
     func testUnknownFutureActionKeptAndPreserved() throws {
         let data = json("""
         {"version": 3, "remaps": [

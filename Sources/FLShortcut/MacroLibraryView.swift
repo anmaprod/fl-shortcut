@@ -1,6 +1,6 @@
 // Fenêtre « Raccourcis » › Macros : la bibliothèque des macros en blocs (nom, raccourci, badges « Lien FL »,
 // « À apprendre », « Désactivée », « À corriger »), « Nouvelle macro », « Modèles… », « Importer… » ; chaque macro
-// s'ouvre dans le créateur (double-clic ou « Modifier… »). Page en cartes comme les autres, aucun verre par ligne.
+// s'ouvre dans le créateur (un clic, ou « Modifier… »). Page en cartes comme les autres, aucun verre par ligne.
 // Aussi : export / import .flsmacro (fichier relu avant d'être accepté) et le champ « Macro » d'un raccourci relié
 // à la bibliothèque.
 import AppKit
@@ -152,7 +152,10 @@ struct MacroLibraryPage: View {
 
     // MARK: Actions
 
-    private func newMacro() {
+    private func newMacro() { Self.newMacro(in: library) }
+
+    /// Nouvelle macro vide, ouverte dans le créateur (aussi le « + » de la barre d'outils sur la page Macros).
+    static func newMacro(in library: MacroLibraryStore) {
         let doc = library.add(MacroDoc(name: library.uniqueName("Nouvelle macro"), blocks: []))
         MacroCreatorLink.shared.open(doc.id, isNew: true)       // au retour : l'enregistrer ou la supprimer
     }
@@ -254,7 +257,7 @@ private struct MacroLibraryRow: View {
         .padding(.vertical, 2)
         .hoverLift()
         .contentShape(Rectangle())
-        .onTapGesture(count: 2, perform: onOpen)
+        .onTapGesture(perform: onOpen)                  // un seul clic pour rentrer dans la macro
         .contextMenu {
             Button("Modifier…", action: onOpen)
             Button("Dupliquer", action: onDuplicate)

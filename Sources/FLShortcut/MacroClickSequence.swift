@@ -1,9 +1,12 @@
-// « Enregistrer des clics » : l'utilisateur clique une suite dans FL (menus, Options › Audio, boutons des fenêtres de
-// réglages…), chaque clic devient un bloc de la macro. Comme « Montrer dans FL… », mais pour toute une suite.
-// - Pendant l'enregistrement SEULEMENT : moniteur global des clics (gauche et droit), relevé des fenêtres de FL toutes
-//   les 50 ms, petit panneau « ● Enregistrement – Terminer / Annuler » qui ne prend jamais le premier plan à FL.
-//   120 s et 40 clics au plus. Rien d'autre n'est lu : ni l'écran, ni le clavier. Les clics restent en mémoire et ne
-//   sont jamais journalisés.
+// « Enregistrer des clics » : l'utilisateur clique et tape une suite dans FL (menus, Options › Audio, boutons des
+// fenêtres de réglages, flèches, Entrée, raccourcis…), chaque clic et chaque touche devient un bloc de la macro. Comme
+// « Montrer dans FL… », mais pour toute une suite.
+// - Pendant l'enregistrement SEULEMENT, et seulement quand FL est devant : moniteur global des clics (gauche et droit)
+//   et des touches, relevé des fenêtres de FL toutes les 50 ms, petit panneau « ● Enregistrement – Terminer /
+//   Annuler » qui ne prend jamais le premier plan à FL. 120 s et 80 clics ou touches au plus. Jamais l'écran. Clics et
+//   touches restent en mémoire et ne sont jamais journalisés.
+// - Touche dans un menu de FL ouvert : ↑ ↓ ← → Entrée Échap → « Dans le menu », lettre → « Lettres d'un menu » ;
+//   ailleurs → « Touche » (raccourci compris) ; la même touche répétée → « × n ».
 // - Chaque clic est retenu par rapport à ce qu'il a touché, comme « Montrer dans FL… » : un menu de FL (son coin),
 //   une fenêtre de FL (son coin le plus proche et sa taille : fenêtre principale, réglages, boîte…). Un élément des
 //   menus de FL dans la barre des menus de macOS (FL 2024.2 et plus) est retenu par ses titres (Accessibilité) et
@@ -215,6 +218,21 @@ struct RecordedClick: Equatable {
     let menu: MenuBarAX.Hit?
 }
 
+/// Touche tapée dans FL pendant l'enregistrement (flèches, Entrée, Échap, raccourcis, lettres d'un menu).
+struct RecordedKey: Equatable {
+    let combo: KeyCombo
+    /// Caractère produit selon la disposition du clavier (affichage et lettres de menu) ; jamais journalisé.
+    let char: String?
+    /// Un menu de FL était ouvert (fenêtre de menu de FL au-dessus) au moment de la touche.
+    let menuOpen: Bool
+}
+
+/// Ce que l'enregistrement retient, dans l'ordre : clics et touches.
+enum RecordedInput: Equatable {
+    case click(RecordedClick)
+    case key(RecordedKey)
+}
+
 enum ClickSequenceCompiler {
     struct Result: Equatable {
         var blocks: [BlockBody]
@@ -222,15 +240,58 @@ enum ClickSequenceCompiler {
         var ignored: Int
     }
 
+    /// Plafonds des blocs (validation) : au-delà, un nouveau bloc commence.
+    static let maxTimes = 20
+    static let maxMenuLetters = 8
+
+    static func compile(_ clicks: [RecordedClick]) -> Result {
+        compile(inputs: clicks.map(RecordedInput.click))
+    }
+
+    /// Une touche : dans un menu de FL ouvert, ↑ ↓ ← → Entrée Échap → « Dans le menu » et une lettre seule →
+    /// « Lettres d'un menu » ; ailleurs → « Touche » (raccourci compris). La même touche répétée d'affilée devient
+    /// « × n ». Renvoie le bloc précédent remplacé (répétition) ou le bloc à ajouter.
+    static func key(_ k: RecordedKey, after previous: BlockBody?) -> (replace: BlockBody?, add: BlockBody?) {
+        let c = k.combo
+        let plain = !c.command && !c.control && !c.option
+        if k.menuOpen, plain, !c.shift, let mk = MenuKey.allCases.first(where: { $0.keyCode == c.keyCode }) {
+            if case .menuKey(let p, let n)? = previous, p == mk, n < maxTimes { return (.menuKey(mk, times: n + 1), nil) }
+            return (nil, .menuKey(mk, times: 1))
+        }
+        if k.menuOpen, plain, let ch = k.char?.lowercased(), ch.count == 1, let letter = ch.first,
+           MacroEffectsMac.letterKeyCodes[letter] != nil {
+            if case .menuLetters(let l, let e)? = previous, l.count < maxMenuLetters {
+                return (.menuLetters(l + [letter], finalEnter: e), nil)
+            }
+            return (nil, .menuLetters([letter], finalEnter: .never))
+        }
+        if case .key(let p, let n)? = previous, p.combo == c, n < maxTimes { return (.key(p, times: n + 1), nil) }
+        return (nil, .key(KeyRef(c, char: k.char), times: 1))
+    }
+
     /// Chaque clic, d'après les fenêtres de FL juste avant lui : menu ou fenêtre de FL → clic retenu par rapport à
     /// eux ; élément d'un menu de la barre → « Menu de FL » (le clic qui a ouvert ce menu n'est pas gardé). Un menu de
     /// la barre refermé sans choix (titre recliqué, ou clic ailleurs : macOS avale ce clic, FL ne le reçoit pas) est
-    /// ignoré.
-    static func compile(_ clicks: [RecordedClick]) -> Result {
+    /// ignoré, ainsi que les touches tapées pendant qu'il est ouvert (on ne sait pas ce qu'elles y choisissent).
+    static func compile(inputs: [RecordedInput]) -> Result {
         var out: [BlockBody] = []
         var ignored = 0
         var openBar: String?                            // menu de la barre ouvert, rien choisi encore
-        for c in clicks {
+        for input in inputs {
+            let c: RecordedClick
+            switch input {
+            case .key(let k):
+                if openBar != nil {
+                    ignored += 1
+                    continue
+                }
+                let (replace, add) = key(k, after: out.last)
+                if let replace { out[out.count - 1] = replace }
+                if let add { out.append(add) }
+                continue
+            case .click(let click):
+                c = click
+            }
             switch c.menu {
             case .bar(let title)?:
                 if openBar == title {
@@ -268,16 +329,18 @@ enum ClickSequenceCompiler {
 
 final class ClickSequenceRecorder: ObservableObject {
     static let shared = ClickSequenceRecorder()
-    static let maxClicks = 40
+    /// Clics et touches en tout.
+    static let maxInputs = 80
     static let maxDuration: TimeInterval = 120
 
     @Published private(set) var active = false
     @Published private(set) var count = 0
+    @Published private(set) var keyCount = 0
 
     private var monitor: Any?
     private var timer: Timer?
     private var history: [WinSnapshot] = []
-    private var clicks: [RecordedClick] = []
+    private var inputs: [RecordedInput] = []
     private var started = Date()
     private var pid: Int32 = 0
     private var completion: ((ClickSequenceCompiler.Result) -> Void)?
@@ -296,14 +359,17 @@ final class ClickSequenceRecorder: ObservableObject {
         self.pid = pid
         self.completion = completion
         returnWindow = window
-        clicks = []
+        inputs = []
         history = [WinSnapshot.take(pid: pid)]
         started = Date()
         count = 0
+        keyCount = 0
         active = true
         CreatorPresence.stepAside()
         fl.activate(options: [])
-        monitor = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown, .leftMouseUp]) { [weak self] event in
+        // Touches aussi : flèches, Entrée, Échap, raccourcis, lettres des menus (seulement quand FL est devant ; les
+        // raccourcis de FL Shortcut, pris par le tap clavier, n'arrivent pas jusqu'ici).
+        monitor = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown, .leftMouseUp, .keyDown]) { [weak self] event in
             self?.record(event)
         }
         let t = Timer(timeInterval: 0.05, repeats: true) { [weak self] _ in self?.tick() }
@@ -318,7 +384,7 @@ final class ClickSequenceRecorder: ObservableObject {
     /// « Terminer » : les clics deviennent des blocs, retour dans le créateur.
     func finish() {
         guard active else { return }
-        let result = ClickSequenceCompiler.compile(clicks)
+        let result = ClickSequenceCompiler.compile(inputs: inputs)
         let done = completion
         stop()
         returnToCreator()
@@ -341,12 +407,16 @@ final class ClickSequenceRecorder: ObservableObject {
             guard cfg.flPIDs.contains(cfg.frontmostPID) else { return }
         }
         guard active, event.cgEvent?.getIntegerValueField(.eventSourceUserData) != EventTap.mark else { return }
+        if event.type == .keyDown {
+            recordKey(event)
+            return
+        }
         let p = event.cgEvent?.location ?? FLWindows.cursor()
         var barPending = false
-        if case .bar? = clicks.last?.menu { barPending = true }
+        if case .bar? = lastClick?.menu { barPending = true }
         if event.type == .leftMouseUp {
             // Menu de la barre choisi en glissant : appui sur son titre, relâché sur l'élément.
-            guard barPending, let down = clicks.last, abs(p.x - down.point.x) + abs(p.y - down.point.y) > 4,
+            guard barPending, let down = lastClick, abs(p.x - down.point.x) + abs(p.y - down.point.y) > 4,
                   let hit = MenuBarAX.hit(at: p, pid: pid), case .item = hit else { return }
             append(RecordedClick(point: p, right: false, windows: [], menu: hit))
             return
@@ -365,10 +435,33 @@ final class ClickSequenceRecorder: ObservableObject {
         append(RecordedClick(point: p, right: event.type == .rightMouseDown, windows: before.fl, menu: menu))
     }
 
+    private var lastClick: RecordedClick? {
+        for input in inputs.reversed() { if case .click(let c) = input { return c } }
+        return nil
+    }
+
+    /// Touche (pas une touche modificatrice seule) : retenue avec l'état « menu de FL ouvert » juste avant elle.
+    private func recordKey(_ event: NSEvent) {
+        let code = event.keyCode
+        guard !KeyCombo.modifierKeyCodes.contains(code) else { return }
+        let flags = event.cgEvent?.flags ?? []
+        // Menu ouvert juste avant la touche (Entrée ou Échap le referment aussitôt), ou maintenant (menu ouvert par
+        // un clic il y a moins de 50 ms, pas encore dans les relevés).
+        let isMenu: (WinInfo) -> Bool = { $0.layer > 8 && $0.isMenuLike }
+        let before = history.last(where: { $0.time <= event.timestamp }) ?? history.last
+        let menuOpen = (before?.fl.contains(where: isMenu) ?? false) || WinSnapshot.take(pid: pid).fl.contains(where: isMenu)
+        let key = RecordedKey(combo: KeyCombo(keyCode: code, flags: flags), char: event.charactersIgnoringModifiers,
+                              menuOpen: menuOpen)
+        inputs.append(.key(key))
+        keyCount += 1
+        count = inputs.count
+        if inputs.count >= Self.maxInputs { finish() }
+    }
+
     private func append(_ click: RecordedClick) {
-        clicks.append(click)
-        count = clicks.count
-        if clicks.count >= Self.maxClicks { finish() }
+        inputs.append(.click(click))
+        count = inputs.count
+        if inputs.count >= Self.maxInputs { finish() }
     }
 
     /// Relevés de la dernière seconde seulement : chaque clic garde les siens dès qu'il est fait.
@@ -387,7 +480,7 @@ final class ClickSequenceRecorder: ObservableObject {
         panel = nil
         completion = nil
         history = []
-        clicks = []
+        inputs = []
         if active { active = false }
     }
 
@@ -456,7 +549,7 @@ private struct RecordingBar: View {
         HStack(spacing: 12) {
             Circle().fill(Color.red).frame(width: 10, height: 10)
             VStack(alignment: .leading, spacing: 2) {
-                Text("Enregistrement des clics").font(.system(size: 13, weight: .semibold))
+                Text("Enregistrement des clics et des touches").font(.system(size: 13, weight: .semibold))
                 Text(detail).font(.system(size: 11)).foregroundStyle(.secondary)
             }
             .frame(minWidth: 170, alignment: .leading)
@@ -472,10 +565,12 @@ private struct RecordingBar: View {
     }
 
     private var detail: String {
-        switch recorder.count {
-        case 0: return "Clique dans FL, dans l'ordre."
-        case 1: return "1 clic enregistré"
-        default: return "\(recorder.count) clics enregistrés"
-        }
+        let keys = recorder.keyCount
+        let clicks = recorder.count - keys
+        guard recorder.count > 0 else { return "Clique et tape dans FL (flèches, raccourcis…), dans l'ordre." }
+        var parts: [String] = []
+        if clicks > 0 { parts.append(clicks == 1 ? "1 clic" : "\(clicks) clics") }
+        if keys > 0 { parts.append(keys == 1 ? "1 touche" : "\(keys) touches") }
+        return parts.joined(separator: " · ") + (recorder.count == 1 ? " enregistré" : " enregistrés")
     }
 }

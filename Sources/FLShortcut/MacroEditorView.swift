@@ -97,7 +97,9 @@ struct MacroCreatorView: View {
                 }
             }
         }
+        // Titre de la fenêtre (menu Fenêtre, VoiceOver) ; pas dans la barre d'outils : le nom est déjà au centre.
         .navigationTitle(model.draft?.name ?? "Créateur de macros")
+        .toolbarTitleHidden()
         .toolbar { toolbarContent }
         .windowGlass(glassEnabled)
         // Fenêtre qui l'affiche : retour du focus après « Montrer dans FL… », et devant FL tant qu'il est affiché.
@@ -346,7 +348,7 @@ private struct RecordClicksButton: View {
                   systemImage: recorder.active ? "record.circle.fill" : "record.circle")
         }
         .disabled(recorder.active)
-        .help("FL passe devant : clique dans l'ordre (menus, Options › Audio, boutons de ses fenêtres…), puis « Terminer ». Chaque clic devient un bloc.")
+        .help("FL passe devant : clique et tape dans l'ordre (menus, Options › Audio, boutons de ses fenêtres, flèches, raccourcis…), puis « Terminer ». Chaque clic et chaque touche devient un bloc.")
     }
 }
 
@@ -690,6 +692,17 @@ struct FinderArrows: View {
             .disabled(forward == nil)
             .keyboardShortcut("]", modifiers: .command)
             .help(forward == nil ? "Rien où retourner pour l'instant" : "Revenir dans la dernière macro quittée (⌘])")
+        }
+    }
+}
+
+extension View {
+    /// Titre de la fenêtre gardé (menu Fenêtre, VoiceOver), retiré de la barre d'outils (macOS 15 et plus récent).
+    @ViewBuilder func toolbarTitleHidden() -> some View {
+        if #available(macOS 15.0, *) {
+            toolbar(removing: .title)
+        } else {
+            self
         }
     }
 }

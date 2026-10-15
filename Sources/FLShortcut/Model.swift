@@ -109,6 +109,18 @@ enum ShortcutContext: String, Codable, CaseIterable, Identifiable {
         }
     }
 
+    /// Contexte d'un raccourci ajouté depuis une page : la fenêtre de FL de cette page, sinon « Partout ».
+    init(page: FLSection) {
+        switch page {
+        case .playlist: self = .playlist
+        case .pianoRoll: self = .pianoRoll
+        case .channelRack: self = .channelRack
+        case .mixer: self = .mixer
+        case .browser: self = .browser
+        case .general, .transport, .patterns: self = .everywhere
+        }
+    }
+
     /// Contexte correspondant à la fenêtre FL active (CC 117), s'il y en a un.
     init?(window: FLWindow) {
         switch window {
@@ -147,6 +159,9 @@ struct Remap: Codable, Identifiable, Hashable {
     /// `unknownAction = "macroRef:<uuid>"` : une ancienne version de l'app le conserve (sans connaître `macroRef`),
     /// et cette version s'en sert pour retrouver la macro si la clé `macroRef` a disparu.
     var macroRef: UUID?
+    /// Page de FL Shortcut où le raccourci a été ajouté (« + » de la page Mixer…) : il y est listé. nil : ajouté
+    /// depuis « Mes raccourcis », ou par une version qui ne connaissait pas les pages.
+    var page: FLSection?
 
     /// Préfixe du lien caché vers la bibliothèque.
     static let macroRefPrefix = "macroRef:"
@@ -206,7 +221,7 @@ struct Remap: Codable, Identifiable, Hashable {
     }
 
     private enum CodingKeys: String, CodingKey {
-        case id, enabled, trigger, context, kind, action, actionID, unknownAction, target, macro, macroRef
+        case id, enabled, trigger, context, kind, action, actionID, unknownAction, target, macro, macroRef, page
     }
 
     /// Décodage tolérant : chaque champ manquant prend sa valeur par défaut ; une action, un type ou un
@@ -220,6 +235,7 @@ struct Remap: Codable, Identifiable, Hashable {
         unknownAction = try? c.decodeIfPresent(String.self, forKey: .unknownAction)
         macro = try? c.decodeIfPresent(Macro.self, forKey: .macro)
         macroRef = try? c.decodeIfPresent(UUID.self, forKey: .macroRef)
+        page = (try? c.decodeIfPresent(String.self, forKey: .page)).flatMap { FLSection(rawValue: $0) }
 
         if let raw = try? c.decodeIfPresent(String.self, forKey: .context) {
             if let ctx = ShortcutContext(rawValue: raw) {
@@ -290,6 +306,14 @@ struct Remap: Codable, Identifiable, Hashable {
         }
         try c.encodeIfPresent(target, forKey: .target)
         if kind == .macro, macroRef == nil { try c.encodeIfPresent(macro, forKey: .macro) }
+        try c.encodeIfPresent(page?.rawValue, forKey: .page)
+    }
+
+    /// Raccourci personnel listé sur cette page : ajouté depuis elle, ou (ajouté sans page) visant sa fenêtre de FL.
+    func belongs(to section: FLSection) -> Bool {
+        if let page { return page == section }
+        let ctx = ShortcutContext(page: section)
+        return ctx != .everywhere && context == ctx
     }
 }
 

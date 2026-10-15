@@ -76,6 +76,55 @@ final class MacroClickSequenceTests: XCTestCase {
         XCTAssertFalse(spec.dansLaPalette)
     }
 
+    private func key(_ code: UInt16, _ char: String?, menu: Bool = false, command: Bool = false,
+                     shift: Bool = false) -> RecordedInput {
+        .key(RecordedKey(combo: KeyCombo(keyCode: code, command: command, shift: shift), char: char, menuOpen: menu))
+    }
+
+    /// Touches tapées dans FL : flèches, Entrée et lettres dans un menu ouvert ; raccourcis et touches ailleurs ;
+    /// la même touche d'affilée devient « × n » ; une touche pendant un menu de la barre de macOS est ignorée.
+    func testRecordedKeysBecomeBlocks() {
+        let main = CGRect(x: 0, y: 25, width: 800, height: 600)
+        let alone = [win(1, 0, main)]
+        let r = ClickSequenceCompiler.compile(inputs: [
+            .click(click(100, 100, alone, right: true)),
+            key(125, nil, menu: true), key(125, nil, menu: true), key(125, nil, menu: true),
+            key(3, "f", menu: true), key(31, "o", menu: true),
+            key(36, "\r", menu: true),
+            key(49, " "), key(49, " "),
+            key(1, "s", command: true),
+            key(126, nil),                                           // ↑ hors menu : touche
+            .click(click(60, 10, alone, menu: .bar("Options"))),
+            key(125, nil),                                           // dans un menu de la barre : ignorée
+            .click(click(80, 60, alone, menu: .item(["Options", "Audio settings"]))),
+        ])
+        XCTAssertEqual(r.blocks, [
+            .click(.flWindow(corner: .topLeft, dx: 100, dy: 75, size: main.size), button: .right),
+            .menuKey(.down, times: 3),
+            .menuLetters(["f", "o"], finalEnter: .never),
+            .menuKey(.enter, times: 1),
+            .key(KeyRef(KeyCombo(keyCode: 49), char: " "), times: 2),
+            .key(KeyRef(KeyCombo(keyCode: 1, command: true), char: "s"), times: 1),
+            .key(KeyRef(KeyCombo(keyCode: 126), char: nil), times: 1),
+            .menuBar(titles: ["Options", "Audio settings"]),
+        ])
+        XCTAssertEqual(r.ignored, 1)
+    }
+
+    /// Répétitions plafonnées comme la validation (20 fois, 8 lettres) : au-delà, un nouveau bloc ; tous valides.
+    func testKeyRepeatsStayValid() {
+        let downs = Array(repeating: key(125, nil, menu: true), count: 25)
+        let letters = (0..<10).map { _ in key(0, "a", menu: true) }
+        let r = ClickSequenceCompiler.compile(inputs: downs + letters)
+        XCTAssertEqual(r.blocks, [.menuKey(.down, times: 20), .menuKey(.down, times: 5),
+                                  .menuLetters(Array(repeating: "a", count: 8), finalEnter: .never),
+                                  .menuLetters(["a", "a"], finalEnter: .never)])
+        let ctx = ValidationContext(forbidden: .physical)
+        for b in r.blocks {
+            XCTAssertNil(BlockRegistry.spec(b.type!).valider(b, ctx), "\(b)")
+        }
+    }
+
     /// Point visé dans une fenêtre, depuis le coin retenu.
     func testPointFromCorner() {
         let f = CGRect(x: 400, y: 200, width: 520, height: 428)
