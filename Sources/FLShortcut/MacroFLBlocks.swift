@@ -33,7 +33,7 @@ extension MacroEffectsMac {
     /// (sinon une lettre irait à FL : clavier-piano…).
     func trackMenu(letters: [Character], labels: [String], at target: CGPoint, enter memory: EnterMemory,
                    ctx: Context) -> StepResult {
-        guard letters.count >= 2, letters.allSatisfy({ Self.letterKeyCodes[$0] != nil }) else { return .fail("menu de piste mal décrit") }
+        guard !letters.isEmpty, letters.allSatisfy({ Self.letterKeyCodes[$0] != nil }) else { return .fail("menu de piste mal décrit") }
         guard waitForKeyboardIdle(timeout: 1.5) else { return .cancel("relâche les touches du raccourci") }
         let before = WinSnapshot.take(pid: ctx.pid)
         MacroLog.shared.windows("before right-click", before)

@@ -168,11 +168,12 @@ private struct BlockInspector: View {
         case (.menuLetters(let l, _), "letters"):
             lettersField(p.label, l, max: 8, hint: "Lettres soulignées du menu ouvert (F de File…), dans l'ordre.")
         case (.trackMenu(let l, _, _, _), "letters"):
-            lettersField(p.label, l, max: 3, hint: "2 ou 3 lettres : le sous-menu (F de File), puis l'élément (O de Open…).")
+            trackMenuPicker(p.label, l)
         case (.menuLetters(_, let e), "finalEnter"):
             enterPicker(p.label, e, allowNever: true)
-        case (.trackMenu(_, _, _, let e), "finalEnter"):
-            enterPicker(p.label, e, allowNever: false)
+        case (.trackMenu(let l, _, _, let e), "finalEnter"):
+            // Élément de la liste : Entrée déjà réglée pour lui. Seulement pour « Autre ».
+            if MacroTemplates.trackMenuChoice(l) == nil { enterPicker(p.label, e, allowNever: false) }
         case (.menuKey(let k, _), "menuKey"):
             menuKeyPicker(p.label, k)
         case (.click(let t, _), "target"):
@@ -381,6 +382,33 @@ private struct BlockInspector: View {
     }
 
     // MARK: Lettres et Entrée
+
+    /// Élément du menu de la piste choisi dans une liste ; « Autre » vide les lettres et montre le champ dessous.
+    private func trackMenuPicker(_ label: String, _ letters: [Character]) -> some View {
+        let other = "other"
+        let current = MacroTemplates.trackMenuChoice(letters)?.id ?? other
+        return VStack(alignment: .leading, spacing: 6) {
+            Picker(label, selection: Binding(get: { current }, set: { id in
+                let choice = MacroTemplates.trackMenuChoices.first { $0.id == id }
+                setBody(key: "letters") { body in
+                    guard case .trackMenu(_, _, let target, let e) = body else { return }
+                    if let choice {
+                        body = .trackMenu(letters: choice.letters, labels: choice.labels, target: target, finalEnter: choice.enter)
+                    } else {
+                        body = .trackMenu(letters: [], labels: [], target: target, finalEnter: e == .never ? .ifNeeded : e)
+                    }
+                }
+            })) {
+                ForEach(MacroTemplates.trackMenuChoices) { Text($0.name).tag($0.id) }
+                Divider()
+                Text("Autre (lettres soulignées)…").tag(other)
+            }
+            if current == other {
+                lettersField("Lettres", letters, max: 3,
+                             hint: "Lettres soulignées dans le menu de la piste de FL : les sous-menus (F de File), puis l'élément (O de Open…).")
+            }
+        }
+    }
 
     private func lettersField(_ label: String, _ letters: [Character], max: Int, hint: String) -> some View {
         VStack(alignment: .leading, spacing: 4) {

@@ -423,8 +423,8 @@ private enum Specs {
 
     static let trackMenu = BlockSpec(
         type: .trackMenu, label: "Menu de la piste", category: .fl, symbol: "list.bullet.rectangle",
-        aide: "Clic droit sur la dernière piste cliquée dans le Mixer, puis les lettres soulignées du menu (File › Open mixer track state…). Entrée apprise au premier passage.",
-        params: [ParamSpec("letters", "Lettres", .lettres(max: 3)), ParamSpec("finalEnter", "Entrée à la fin", .toucheMenu)],
+        aide: "Clic droit sur la dernière piste cliquée dans le Mixer, puis l'élément choisi dans la liste (ouvrir un état de piste, renommer…), au clavier : rien à apprendre.",
+        params: [ParamSpec("letters", "Élément", .lettres(max: 3)), ParamSpec("finalEnter", "Entrée à la fin", .toucheMenu)],
         conteneur: .aucun, dansLaPalette: true,
         needs: { body in
             var n: BlockNeeds = base.union([.attenteClavierInterne, .cliqueHID])
@@ -441,12 +441,12 @@ private enum Specs {
         estimationMs: { _ in 4_000 },
         valider: { body, ctx in
             guard case .trackMenu(let l, let labels, _, let e) = body else { return nil }
-            // Mêmes règles que l'ancienne étape (lettres vérifiées au moment de l'envoi, comme avant), plus ce que
-            // l'exécution exige déjà : une lettre de sous-menu puis celle de l'élément (2 ou 3 lettres, a à z).
-            guard (1...3).contains(l.count), labels.count <= 3,
+            // Lettres des sous-menus puis celle de l'élément (1 à 3, a à z) : « R » pour un élément du menu lui-même,
+            // « F O » pour File › Open mixer track state.
+            guard labels.count <= 3,
                   labels.allSatisfy({ !$0.isEmpty && $0.count <= 160 }) else { return ctx.fail("titres de menu invalides.") }
-            guard l.count >= 2, lettersOK(l) else {
-                return ctx.fail("le menu de la piste demande 2 ou 3 lettres (a à z) : le sous-menu, puis l'élément.")
+            guard (1...3).contains(l.count), lettersOK(l) else {
+                return ctx.fail("choisis l'élément du menu de la piste (ou 1 à 3 lettres soulignées, a à z).")
             }
             if e == .never { return ctx.fail("le menu de la piste doit se fermer sur son dernier élément.") }
             return enterProblem(e, ctx)

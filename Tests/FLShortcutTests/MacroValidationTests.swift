@@ -91,11 +91,32 @@ final class MacroValidationTests: XCTestCase {
         XCTAssertNil(problem([b(MacroTemplates.openStateMenu), b(MacroTemplates.inputOne)]))
     }
 
+    /// Liste du « Menu de la piste » : chaque élément est valable, lettres distinctes, et « Ouvrir un état de piste »
+    /// est exactement le bloc du modèle (mêmes lettres, titres et Entrée apprise : rien à réapprendre).
+    func testTrackMenuChoices() {
+        let choices = MacroTemplates.trackMenuChoices
+        XCTAssertEqual(Set(choices.map { String($0.letters) }).count, choices.count)
+        for c in choices {
+            let body = BlockBody.trackMenu(letters: c.letters, labels: c.labels, target: .lastClicked, finalEnter: c.enter)
+            XCTAssertNil(problem([b(body)]), c.id)
+            XCTAssertEqual(MacroTemplates.trackMenuChoice(c.letters)?.id, c.id)
+        }
+        guard case .trackMenu(let l, let labels, _, let e) = MacroTemplates.openStateMenu,
+              let open = MacroTemplates.trackMenuChoice(l) else { return XCTFail("modèle introuvable dans la liste") }
+        XCTAssertEqual(open.id, "openState")
+        XCTAssertEqual(open.labels, labels)
+        XCTAssertEqual(open.enter, e)
+        XCTAssertNil(MacroTemplates.trackMenuChoice(["x", "y"]))
+    }
+
     func testMenuBlocks() {
         XCTAssertNil(problem([b(.menuLetters(["s", "a"], finalEnter: .never))]))
         XCTAssertNotNil(problem([b(.menuLetters(["f", "1"], finalEnter: .never))]))
         XCTAssertNotNil(problem([b(.menuLetters([], finalEnter: .never))]))
         XCTAssertNotNil(problem([b(.trackMenu(letters: ["f", "o"], labels: [], target: .lastClicked, finalEnter: .never))]))
+        XCTAssertNil(problem([b(.trackMenu(letters: ["r"], labels: [], target: .lastClicked, finalEnter: .ifNeeded))]))
+        XCTAssertNotNil(problem([b(.trackMenu(letters: [], labels: [], target: .lastClicked, finalEnter: .ifNeeded))]))
+        XCTAssertNotNil(problem([b(.trackMenu(letters: ["f", "o", "x", "y"], labels: [], target: .lastClicked, finalEnter: .ifNeeded))]))
         XCTAssertNotNil(problem([b(.menuKey(.down, times: 21))]))
         let hop = MacroSpots.PopupHop(offset: CGVector(dx: 10, dy: 10), size: CGSize(width: 200, height: 100))
         XCTAssertNil(problem([b(.click(.openMenu(hop), button: .left))]))

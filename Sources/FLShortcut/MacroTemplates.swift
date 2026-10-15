@@ -35,6 +35,25 @@ enum MacroTemplates {
                           target: .lastClicked, finalEnter: .learned(legacyKey: MacroRunner.enterAfterLetterKey))
     }
 
+    /// Éléments du menu de la piste qu'on choisit dans une liste (bloc « Menu de la piste ») : lettres soulignées du
+    /// menu de FL 2026, relevées sur les vidéos de l'utilisateur (les mêmes que le FL simulé). « Autre » garde les
+    /// lettres tapées à la main.
+    static let trackMenuChoices: [TrackMenuChoice] = [
+        TrackMenuChoice(id: "openState", name: "Ouvrir un état de piste (preset de piste)",
+                        labels: [Macro.fileMenuTitles[0], Macro.openStateTitles[0]], letters: ["f", "o"],
+                        enter: .learned(legacyKey: MacroRunner.enterAfterLetterKey)),
+        TrackMenuChoice(id: "saveState", name: "Enregistrer l'état de la piste",
+                        labels: [Macro.fileMenuTitles[0], "Save mixer track state as"], letters: ["f", "s"], enter: .ifNeeded),
+        TrackMenuChoice(id: "rename", name: "Renommer, couleur et icône",
+                        labels: ["Rename, color and icon"], letters: ["r"], enter: .ifNeeded),
+        TrackMenuChoice(id: "assignAudio", name: "Créer sa piste audio (Playlist)",
+                        labels: ["Assign to new Audio track(s)"], letters: ["a"], enter: .ifNeeded),
+    ]
+
+    static func trackMenuChoice(_ letters: [Character]) -> TrackMenuChoice? {
+        trackMenuChoices.first { $0.letters == letters }
+    }
+
     /// « (none) » → entrée 1, appris une fois (clé historique : rien à réapprendre).
     static var inputOne: BlockBody { .selectInput(.legacy(key: MacroSpots.PathKind.input.rawValue)) }
 
@@ -132,6 +151,15 @@ extension MacroLibrary {
 // MARK: - Galerie de modèles du créateur de macros
 
 /// Un modèle de la galerie : une macro en blocs prête à modifier (ids neufs à chaque copie).
+/// Un élément du menu de la piste : nom affiché dans la liste, titres de FL (ligne du bloc), lettres soulignées.
+struct TrackMenuChoice: Identifiable {
+    let id: String
+    let name: String
+    let labels: [String]
+    let letters: [Character]
+    let enter: EnterPolicy
+}
+
 struct MacroTemplate: Identifiable {
     let id: String
     let title: String
