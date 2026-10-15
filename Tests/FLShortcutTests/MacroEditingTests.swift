@@ -148,11 +148,16 @@ final class MacroEditingTests: XCTestCase {
         let items = PaletteCatalog.items(layout: FakeLayout.qwerty)
         XCTAssertEqual(Set(items.map(\.id)).count, items.count)
         let ready = Set(items.filter { !$0.soon }.map(\.type))
-        for t: BlockType in [.key, .delay, .click, .menuLetters, .menuKey, .waitWindow, .waitWindowClose, .trackMenu,
-                             .chooseFile, .dropFile, .flAction, .selectInput, .feedbackCheck, .repeatCount, .stop, .comment] {
+        for t: BlockType in [.key, .click, .menuKey, .waitWindow, .trackMenu, .chooseFile, .dropFile, .flAction,
+                             .selectInput, .feedbackCheck, .repeatCount] {
             XCTAssertTrue(ready.contains(t), "\(t)")
         }
         XCTAssertFalse(ready.contains(.ifElse))
+        // Triés avec l'utilisateur : plus proposés (toujours compris dans les anciennes macros). Les attentes sont un
+        // seul « Attendre ».
+        for t: BlockType in [.menuLetters, .stop, .comment, .repeatWhile, .waitUntil, .delay, .waitWindowClose] {
+            XCTAssertFalse(items.contains { $0.type == t }, "\(t)")
+        }
         XCTAssertFalse(items.contains { $0.type == .menuAX || $0.type == .setVariable || $0.type == .flActionValue })
         // Chaque entrée prête produit un bloc valide, sauf ce qui reste à choisir ou à montrer dans FL.
         for item in items where !item.soon && item.id != "chooseFile" && item.id != "dropFile" && item.id != "clickLearned" {
@@ -168,8 +173,8 @@ final class MacroEditingTests: XCTestCase {
 
     func testPaletteSearchIgnoresCaseAndAccents() {
         let items = PaletteCatalog.items(layout: FakeLayout.qwerty)
-        XCTAssertEqual(PaletteCatalog.search(items, "PAUSE").first?.id, "delay")
-        XCTAssertTrue(PaletteCatalog.search(items, "fenetre").contains { $0.id == "waitWindow" })
+        XCTAssertEqual(PaletteCatalog.search(items, "PAUSE").first?.id, "wait")
+        XCTAssertTrue(PaletteCatalog.search(items, "fenetre").contains { $0.id == "wait" })
         XCTAssertEqual(PaletteCatalog.search(items, "armer").first?.id, "arm")
         XCTAssertTrue(PaletteCatalog.search(items, "zzz introuvable").isEmpty)
         XCTAssertEqual(PaletteCatalog.search(items, "  ").count, items.count)

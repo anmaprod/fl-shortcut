@@ -56,15 +56,15 @@ final class MacroEditorModelTests: XCTestCase {
         let doc = store.library.add(MacroDoc(name: "Ordre", blocks: [Block(.delay(ms: 100)), Block(.delay(ms: 200)), loop]))
         let model = MacroEditorModel(store: store)
         model.load(doc.id)
-        let note = PaletteCatalog.items(layout: FakeLayout.qwerty).first { $0.id == "comment" }!
+        let key = PaletteCatalog.items(layout: FakeLayout.qwerty).first { $0.id == "key" }!
         // Lignes : 0 pause 100, 1 pause 200, 2 boucle, 3 pause 1 (dans la boucle), 4 fin de la boucle.
-        model.insert(note, beforeRow: 1)
-        XCTAssertEqual(model.draft?.blocks.map(\.body.type), [.delay, .comment, .delay, .repeatCount])
+        model.insert(key, beforeRow: 1)
+        XCTAssertEqual(model.draft?.blocks.map(\.body.type), [.delay, .key, .delay, .repeatCount])
         let endRow = model.rows.firstIndex { if case .end = $0.kind { return true }; return false }!
-        model.insert(note, beforeRow: endRow)
-        XCTAssertEqual(model.draft?.blocks.last?.body.children.first?.map(\.body.type), [.delay, .comment])
-        model.insert(note, beforeRow: model.rows.count)
-        XCTAssertEqual(model.draft?.blocks.last?.body.type, .comment)
+        model.insert(key, beforeRow: endRow)
+        XCTAssertEqual(model.draft?.blocks.last?.body.children.first?.map(\.body.type), [.delay, .key])
+        model.insert(key, beforeRow: model.rows.count)
+        XCTAssertEqual(model.draft?.blocks.last?.body.type, .key)
         XCTAssertEqual(model.draft?.blocks.count, 5)
         model.close()
     }

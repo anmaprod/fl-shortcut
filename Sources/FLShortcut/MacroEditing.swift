@@ -478,8 +478,10 @@ enum PaletteCatalog {
         let mixer = AppMode.nativeEquivalent(of: 33, layout: layout) ?? KeyCombo(keyCode: 101)
         return [
             // Clavier
+            // Palette triée avec l'utilisateur : seulement les blocs qui servent vraiment. Les autres types restent compris
+            // (anciennes macros, modèles) mais ne sont plus proposés : lettres d'un menu (fait par « Menu de la piste »),
+            // arrêter la macro (inutile sans condition), commentaire (doublon de la note du bloc), tant que.
             item("key", .key) { .key(KeyRef(KeyCombo(keyCode: 49), char: " "), times: 1) },
-            item("menuLetters", .menuLetters) { .menuLetters(["f"], finalEnter: .never) },
             item("menuKey", .menuKey) { .menuKey(.down, times: 1) },
             // Souris
             // Un seul bloc de clic : bouton gauche ou droit, endroit montré dans FL, piste visée, près du clic précédent…
@@ -488,10 +490,12 @@ enum PaletteCatalog {
                  aide: "Clic gauche ou droit à un endroit que tu montres une fois dans FL (« Montrer dans FL… »), retrouvé ensuite par rapport à la fenêtre ou au menu de FL ; ou sur la piste visée. Jamais hors de FL ni sous une autre app.") {
                 .click(.toLearn, button: .left)
             },
-            // Fenêtres et attentes
-            item("delay", .delay) { .delay(ms: 200) },
-            item("waitWindow", .waitWindow) { .waitWindow(.dialog, timeoutMs: 4_000) },
-            item("waitWindowClose", .waitWindowClose) { .waitWindowClose(.dialog, timeoutMs: 8_000) },
+            // Fenêtres et attentes : un seul « Attendre » (boîte ou menu qui s'ouvre ou se ferme, ou temps fixe), réglé
+            // dans l'inspecteur. Les clics appris attendent déjà leur fenêtre tout seuls.
+            item("wait", .waitWindow, label: "Attendre",
+                 aide: "Attend qu'une boîte ou un menu de FL s'ouvre ou se ferme (par exemple que tu aies choisi un preset), ou un temps fixe (pause). Les clics appris attendent déjà leur fenêtre tout seuls.") {
+                .waitWindow(.dialog, timeoutMs: 4_000)
+            },
             // FL Studio
             item("trackMenu", .trackMenu) {
                 .trackMenu(letters: ["f", "o"], labels: ["File", "Open mixer track state"], target: .lastClicked,
@@ -517,11 +521,7 @@ enum PaletteCatalog {
             item("feedbackCheck", .feedbackCheck) { .feedbackCheck },
             // Contrôle
             item("repeat", .repeatCount) { .repeatCount(2, []) },
-            item("stop", .stop) { .stop(message: nil) },
-            item("comment", .comment) { .comment("Note") },
             item("if", .ifElse, soon: true) { .ifElse(.windowOpen(.dialog), then: [], otherwise: []) },
-            item("while", .repeatWhile, soon: true) { .repeatWhile(.windowOpen(.menu), maxIterations: 10, []) },
-            item("waitUntil", .waitUntil, soon: true) { .waitUntil(.windowOpen(.dialog), timeoutMs: 4_000) },
         ]
     }
 

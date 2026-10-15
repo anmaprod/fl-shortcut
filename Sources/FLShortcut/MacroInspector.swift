@@ -181,8 +181,8 @@ private struct BlockInspector: View {
             buttonPicker(p.label, b)
         case (.delay(let ms), "ms"):
             LabeledContent(p.label) { msField(ms) }
-        case (.waitWindow(let k, _), "window"), (.waitWindowClose(let k, _), "window"):
-            windowPicker(p.label, k)
+        case (.delay, "wait"), (.waitWindow, "wait"), (.waitWindowClose, "wait"):
+            waitPicker(block.body)
         case (.waitWindow(_, let ms), "timeoutMs"), (.waitWindowClose(_, let ms), "timeoutMs"):
             LabeledContent("Au plus") { secondsField(ms) }
         case (.chooseFile(let path), "path"), (.dropFile(let path), "path"):
@@ -238,19 +238,41 @@ private struct BlockInspector: View {
         .pickerStyle(.segmented)
     }
 
-    private func windowPicker(_ label: String, _ current: WindowKind) -> some View {
-        let binding = Binding<WindowKind>(get: { current }, set: { kind in
-            setBody(key: "window") { body in
-                switch body {
-                case .waitWindow(_, let ms): body = .waitWindow(kind, timeoutMs: ms)
-                case .waitWindowClose(_, let ms): body = .waitWindowClose(kind, timeoutMs: ms)
-                default: break
+    /// Ce qu'attend le bloc « Attendre » : un seul bloc pour toutes les attentes, le choix change son genre (boîte
+    /// ou menu qui s'ouvre ou se ferme, ou temps fixe), le délai est gardé quand il a un sens.
+    private enum WaitChoice: Hashable { case dialogOpen, dialogClose, menuOpen, menuClose, fixed }
+
+    private func waitPicker(_ body: BlockBody) -> some View {
+        let current: WaitChoice
+        switch body {
+        case .waitWindow(.dialog, _): current = .dialogOpen
+        case .waitWindowClose(.dialog, _): current = .dialogClose
+        case .waitWindow(.menu, _): current = .menuOpen
+        case .waitWindowClose(.menu, _): current = .menuClose
+        default: current = .fixed
+        }
+        let binding = Binding<WaitChoice>(get: { current }, set: { choice in
+            guard choice != current else { return }
+            setBody(key: "wait") { b in
+                var timeout = 4_000
+                if case .waitWindow(_, let t) = b { timeout = t }
+                if case .waitWindowClose(_, let t) = b { timeout = t }
+                switch choice {
+                case .dialogOpen: b = .waitWindow(.dialog, timeoutMs: timeout)
+                case .dialogClose: b = .waitWindowClose(.dialog, timeoutMs: max(timeout, 8_000))
+                case .menuOpen: b = .waitWindow(.menu, timeoutMs: timeout)
+                case .menuClose: b = .waitWindowClose(.menu, timeoutMs: timeout)
+                case .fixed: b = .delay(ms: 300)
                 }
             }
         })
-        return Picker(label, selection: binding) {
-            Text("Boîte de dialogue").tag(WindowKind.dialog)
-            Text("Menu de FL").tag(WindowKind.menu)
+        return Picker("Attendre", selection: binding) {
+            Text("qu'une boîte de FL s'ouvre").tag(WaitChoice.dialogOpen)
+            Text("que la boîte se ferme").tag(WaitChoice.dialogClose)
+            Text("qu'un menu de FL s'ouvre").tag(WaitChoice.menuOpen)
+            Text("que le menu se ferme").tag(WaitChoice.menuClose)
+            Divider()
+            Text("un temps fixe (à éviter)").tag(WaitChoice.fixed)
         }
     }
 

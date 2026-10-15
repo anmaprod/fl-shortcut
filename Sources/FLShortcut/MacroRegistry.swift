@@ -345,9 +345,9 @@ private enum Specs {
     // MARK: Fenêtres et attentes
 
     static let delay = BlockSpec(
-        type: .delay, label: "Pause", category: .fenetres, symbol: "hourglass",
-        aide: "Attend un moment (5 s au plus). Échap l'interrompt.",
-        params: [ParamSpec("ms", "Durée (ms)", .ms(0...MacroValidation.maxDelayMs))],
+        type: .delay, label: "Attendre un temps fixe", category: .fenetres, symbol: "hourglass",
+        aide: "Attend un moment (5 s au plus). Échap l'interrompt. À éviter : mieux vaut attendre qu'une fenêtre s'ouvre ou se ferme.",
+        params: [ParamSpec("wait", "Attendre", .fenetre), ParamSpec("ms", "Durée (ms)", .ms(0...MacroValidation.maxDelayMs))],
         conteneur: .aucun, dansLaPalette: true,
         needs: { _ in base },
         parDefaut: { .delay(ms: 200) },
@@ -378,7 +378,7 @@ private enum Specs {
     static let waitWindow = BlockSpec(
         type: .waitWindow, label: "Attendre une fenêtre", category: .fenetres, symbol: "macwindow.badge.plus",
         aide: "Attend qu'une boîte de dialogue ou un menu de FL s'ouvre (120 s au plus).",
-        params: [ParamSpec("window", "Fenêtre", .fenetre), ParamSpec("timeoutMs", "Au plus (ms)", .ms(100...MacroValidation.maxWaitMs))],
+        params: [ParamSpec("wait", "Attendre", .fenetre), ParamSpec("timeoutMs", "Au plus (ms)", .ms(100...MacroValidation.maxWaitMs))],
         conteneur: .aucun, dansLaPalette: true,
         needs: { _ in base },
         parDefaut: { .waitWindow(.dialog, timeoutMs: 4_000) },
@@ -400,7 +400,7 @@ private enum Specs {
     static let waitWindowClose = BlockSpec(
         type: .waitWindowClose, label: "Attendre la fermeture", category: .fenetres, symbol: "macwindow",
         aide: "Attend que la boîte ou le menu se ferme (par exemple pendant que tu choisis ton preset, 120 s au plus).",
-        params: [ParamSpec("window", "Fenêtre", .fenetre), ParamSpec("timeoutMs", "Au plus (ms)", .ms(100...MacroValidation.maxWaitMs))],
+        params: [ParamSpec("wait", "Attendre", .fenetre), ParamSpec("timeoutMs", "Au plus (ms)", .ms(100...MacroValidation.maxWaitMs))],
         conteneur: .aucun, dansLaPalette: true,
         needs: { _ in base },
         parDefaut: { .waitWindowClose(.dialog, timeoutMs: 8_000) },
@@ -454,8 +454,8 @@ private enum Specs {
         import_: .ok, plateformes: .mac)
 
     static let chooseFile = BlockSpec(
-        type: .chooseFile, label: "Choisir un preset", category: .fl, symbol: "doc.badge.arrow.up",
-        aide: "Dans la boîte « Open » de FL : va au fichier choisi et l'ouvre (le fichier doit exister).",
+        type: .chooseFile, label: "Ouvrir un preset (boîte Open)", category: .fl, symbol: "doc.badge.arrow.up",
+        aide: "Quand FL a ouvert sa boîte « Open » (preset d'un plugin, d'un canal…) : va au fichier .fst choisi et l'ouvre. À placer après les clics qui ouvrent la boîte et un « Attendre ».",
         params: [ParamSpec("path", "Fichier", .fichier(extensions: ["fst"]))],
         conteneur: .aucun, dansLaPalette: true,
         needs: { _ in base },

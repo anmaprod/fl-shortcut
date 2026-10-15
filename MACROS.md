@@ -35,22 +35,21 @@ Le brouillon est enregistré par **Enregistrer** (⌘S) ou 0,5 s après la derni
 | Bloc de la palette | Effet |
 |---|---|
 | Touche ou raccourci | une touche ou un raccourci envoyé à FL (⌘A, ⇧⌘S, F9…), N fois : taper le raccourci dans le champ, ou cocher ⌘ ⌥ ⌃ ⇧. Raccourcis dangereux refusés selon la disposition du clavier (en AZERTY ⌘Q est la touche Q, ⌘A est permis), revérifiés juste avant l'envoi |
-| Lettres d'un menu de FL | lettres soulignées d'un menu ouvert par la macro, Entrée à la fin si besoin |
 | Touche de menu | ↑ ↓ ← → Entrée Échap, seulement dans un menu ouvert par la macro |
 | Clic à un endroit appris | clic gauche ou droit (réglage « Bouton »), ailleurs aussi possible : sur la piste visée (clic droit : ouvre son menu, remplace l'ancien bloc « Clic droit sur la piste »), près du clic précédent, près du curseur. Endroit montré une fois dans FL (« Montrer dans FL… » ou « Enregistrer des clics ») : relatif à la fenêtre de FL où il tombe — fenêtre principale, fenêtre détachée, réglages comme *Options › Audio*, boîte de dialogue (niveaux 0 à 8), taille retenue — ou au menu de FL ouvert. Au rejeu, le clic attend que cette fenêtre (3 s au plus) ou ce menu (1,5 s) s'ouvre si le clic précédent vient de l'ouvrir, puis qu'elle ne bouge plus ; rien n'est attendu s'il est déjà là. Tant qu'il n'est pas montré, la macro est bloquée |
 | Menu de FL (barre des menus) | créé par « Enregistrer des clics » (absent de la palette) : élément des menus de FL dans la barre des menus de macOS (FL 2024.2 et plus), par ses titres (*Options › Audio settings*) ; choisi par l'Accessibilité (AXPress), sans clic ni menu à l'écran ; un menu que FL ne remplit qu'à l'ouverture est ouvert puis relu une fois. Journal : « menuBar », jamais les titres |
-| Pause | ≤ 5 s (badge « pause fixe » : préférer une attente) |
-| Attendre une fenêtre / la fermeture | boîte de dialogue ou menu de FL, 120 s au plus (le pointeur est écarté d'un menu qui s'ouvre) |
+| Attendre | un seul bloc pour toutes les attentes, réglé dans l'inspecteur : qu'une boîte de FL s'ouvre, qu'elle se ferme, qu'un menu de FL s'ouvre ou se ferme (120 s au plus ; le pointeur est écarté d'un menu qui s'ouvre), ou un temps fixe (≤ 5 s, badge « pause fixe » : à éviter). Les clics appris attendent déjà leur fenêtre tout seuls |
 | Menu de la piste | clic droit sur la piste puis 2 ou 3 lettres (File › Open mixer track state…) |
 | Déposer un preset sur la piste | glisse le fichier .fst choisi sur la dernière piste cliquée (dossier personnel) |
-| Choisir un preset | dans la boîte « Open » : le fichier .fst choisi (dossier personnel) |
+| Ouvrir un preset (boîte Open) | quand FL a ouvert sa boîte « Open » (preset d'un plugin, d'un canal…) : le fichier .fst choisi (dossier personnel) |
 | Action de FL | une action de FL Shortcut par le lien avec FL, sinon sa touche de FL ; *Armer la piste* (repli : menu de la piste) et *Allumer le REC* (repli : touche R) |
 | Choisir l'entrée 1 | « (none) » → entrée 1, montrée une fois |
 | Vérifier le larsen | micro et sortie de l'ordinateur, lancé dès le début, affiché à la fin |
 | Répéter | N fois (50 au plus), blocs à l'intérieur |
-| Arrêter la macro · Commentaire | fin avec message · note ignorée à l'exécution |
 
-*Si… sinon*, *Tant que* et *Attendre que* sont affichés grisés (« bientôt ») : l'interpréteur sait les jouer, leurs conditions se régleront dans le créateur à l'incrément suivant.
+Palette triée avec l'utilisateur : *Lettres d'un menu de FL* (fait par *Menu de la piste*), *Arrêter la macro* (inutile sans condition), *Commentaire* (doublon de la note de chaque bloc), *Tant que* et *Attendre que* ne sont plus proposés. Les anciennes macros qui les contiennent marchent toujours. *Si…* reste « bientôt » (à refaire simple : « sinon » caché, conditions en phrases).
+
+*Si…* est affiché grisé (*Tant que* et *Attendre que* ne sont plus proposés) (« bientôt ») : l'interpréteur sait les jouer, leurs conditions se régleront dans le créateur à l'incrément suivant.
 
 **Stockage** : `~/Library/Application Support/FL Shortcut/macros.json` (0600, écriture atomique, copie `macros.precedente.json` une fois par lancement ; fichier illisible, plus récent ou en partie illisible : copie datée gardée). Le raccourci ne garde qu'une référence (`"macroRef"`), doublée d'un lien caché `"unknownAction": "macroRef:<uuid>"` que les anciennes versions conservent : en revenant à cette version, la macro est retrouvée. La désinstallation supprime tout le dossier.
 

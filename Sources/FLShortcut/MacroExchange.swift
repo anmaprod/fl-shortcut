@@ -182,7 +182,7 @@ enum MacroExchange {
                     warnings.append("Rechoisis le preset : le fichier doit exister sur ce Mac.")
                 }
                 if BlockRegistry.needs(of: b.body).contains(.lienMIDI) { marks.append("lien avec FL") }
-                if !spec.dansLaPalette {
+                if !spec.dansLaPalette, b.body.type != .menuBar {     // « Menu de FL » : créé par l'enregistreur
                     marks.append("bloc caché (ancien format)")
                     warnings.append("Un bloc caché de l'ancien format est inclus : relis-le dans le créateur avant de t'en servir.")
                 }
