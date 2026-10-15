@@ -320,6 +320,20 @@ private struct MacroStepsPane: View {
 
     /// Sous la liste : ajouter (sous la sélection), dupliquer (⌘D), supprimer (⌫), avec l'aide du moment.
     private var actionBar: some View {
+        // Fenêtre étroite : d'abord sans l'astuce, puis les icônes seules (leur bulle d'aide reste) ; jamais un
+        // libellé coupé sur deux lignes.
+        ViewThatFits(in: .horizontal) {
+            actionButtons(hint: true)
+            actionButtons(hint: false)
+            actionButtons(hint: false).labelStyle(.iconOnly)
+        }
+        .buttonStyle(.borderless)
+        .font(.system(size: 12))
+        .padding(.horizontal, 14)
+        .frame(height: 34)
+    }
+
+    private func actionButtons(hint: Bool) -> some View {
         HStack(spacing: 10) {
             AddBlockMenu(items: paletteItems, insert: { [model] item in withAnimation(Self.spring) { model.insert(item) } })
             RecordClicksButton(model: model)
@@ -339,15 +353,13 @@ private struct MacroStepsPane: View {
             .disabled(model.selectedBlock == nil)
             .help("Supprimer le bloc choisi (⌫)")
             Spacer(minLength: 8)
-            Text("Glisse les lignes pour les ranger")
-                .font(.system(size: 11))
-                .foregroundStyle(.tertiary)
-                .lineLimit(1)
+            if hint {
+                Text("Glisse les lignes pour les ranger")
+                    .font(.system(size: 11))
+                    .foregroundStyle(.tertiary)
+            }
         }
-        .buttonStyle(.borderless)
-        .font(.system(size: 12))
-        .padding(.horizontal, 14)
-        .frame(height: 34)
+        .lineLimit(1)
     }
 }
 
