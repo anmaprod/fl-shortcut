@@ -545,6 +545,7 @@ struct EditorView: View {
         let panel = NSOpenPanel()
         panel.allowedContentTypes = [.json]
         panel.allowsMultipleSelection = false
+        panel.directoryURL = ExchangeFolder.shortcuts.prepared()       // Documents › FL Shortcut › Raccourcis
         guard panel.runModal() == .OK, let url = panel.url else { return }
         do {
             let size = (try? FileManager.default.attributesOfItem(atPath: url.path)[.size] as? Int) ?? 0
@@ -564,7 +565,9 @@ struct EditorView: View {
     private func exportProfile() {
         let panel = NSSavePanel()
         panel.allowedContentTypes = [.json]
-        panel.nameFieldStringValue = "FL Shortcut – profil.json"
+        panel.directoryURL = ExchangeFolder.shortcuts.prepared()       // Documents › FL Shortcut › Raccourcis
+        panel.canCreateDirectories = true
+        panel.nameFieldStringValue = "Mes raccourcis FL Shortcut.json"
         guard panel.runModal() == .OK, let url = panel.url else { return }
         do {
             try store.exportData().write(to: url, options: .atomic)

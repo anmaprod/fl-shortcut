@@ -113,6 +113,14 @@ struct MacroLibraryPage: View {
             } label: {
                 Label("Importer…", systemImage: "square.and.arrow.down")
             }
+            .help("Ajouter des macros reçues (.flsmacro) ; la boîte s'ouvre dans Documents › FL Shortcut › Macros")
+            Button {
+                exportAll()
+            } label: {
+                Label("Exporter…", systemImage: "square.and.arrow.up")
+            }
+            .disabled(library.macros.isEmpty)
+            .help("Toutes les macros, un fichier chacune, pour les partager (par défaut dans Documents › FL Shortcut › Macros)")
             Spacer(minLength: 0)
         }
         .buttonStyle(.borderless)
@@ -169,9 +177,17 @@ struct MacroLibraryPage: View {
     }
 
     private func importFile() {
-        guard let doc = MacroFileActions.importMacro(into: library, layout: store.layout) else { return }
-        toast(ToastMessage(text: "« \(doc.name) » importée, sans raccourci : relis-la dans le créateur", undo: nil))
-        open(doc.id)
+        let docs = MacroFileActions.importMacros(into: library, layout: store.layout)
+        if docs.count == 1, let doc = docs.first {
+            toast(ToastMessage(text: "« \(doc.name) » importée, sans raccourci : relis-la dans le créateur", undo: nil))
+            open(doc.id)
+        } else if docs.count > 1 {
+            toast(ToastMessage(text: "\(docs.count) macros importées, sans raccourci", undo: nil))
+        }
+    }
+
+    private func exportAll() {
+        if let message = MacroFileActions.exportAll(library.macros) { toast(ToastMessage(text: message, undo: nil)) }
     }
 
     private func toggle(_ remap: Remap) {
@@ -310,6 +326,25 @@ struct MacroTemplatesSheet: View {
 
 // MARK: - Fichiers .flsmacro
 
+/// Dossiers d'échange, rangés comme les projets de FL : ~/Documents/FL Shortcut/Macros et …/Raccourcis. Les boîtes
+/// d'export et d'import s'y ouvrent ; créés à la première ouverture d'une de ces boîtes (jamais au lancement).
+enum ExchangeFolder {
+    case macros, shortcuts
+
+    var url: URL {
+        FileManager.default.homeDirectoryForCurrentUser
+            .appendingPathComponent("Documents/FL Shortcut", isDirectory: true)
+            .appendingPathComponent(self == .macros ? "Macros" : "Raccourcis", isDirectory: true)
+    }
+
+    /// Le dossier, créé s'il manque ; nil si impossible (la boîte s'ouvre alors là où macOS le décide).
+    func prepared() -> URL? {
+        try? FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
+        var isDir: ObjCBool = false
+        return FileManager.default.fileExists(atPath: url.path, isDirectory: &isDir) && isDir.boolValue ? url : nil
+    }
+}
+
 enum MacroFileActions {
     static var fileType: UTType { UTType(filenameExtension: MacroExchange.fileExtension, conformingTo: .json) ?? .json }
 
@@ -321,6 +356,8 @@ enum MacroFileActions {
     static func export(_ doc: MacroDoc) -> String? {
         let panel = NSSavePanel()
         panel.allowedContentTypes = [fileType]
+        panel.directoryURL = ExchangeFolder.macros.prepared()
+        panel.canCreateDirectories = true
         panel.nameFieldStringValue = MacroExchange.suggestedFileName(doc.name)
         panel.message = "Les endroits appris (clics montrés dans FL) ne sont pas exportés : ils se montrent sur chaque Mac."
         guard panel.runModal() == .OK, let url = panel.url else { return nil }
@@ -331,6 +368,41 @@ enum MacroFileActions {
             Dialogs.inform("Export impossible", error.localizedDescription)
             return nil
         }
+    }
+
+    /// Toutes les macros, un fichier .flsmacro chacune, dans le dossier choisi (par défaut FL Shortcut › Macros) :
+    /// prêtes à envoyer à un collègue. Un fichier du même nom n'est jamais écrasé (« (2) », « (3) »…).
+    static func exportAll(_ docs: [MacroDoc]) -> String? {
+        guard !docs.isEmpty else { return nil }
+        let panel = NSOpenPanel()
+        panel.canChooseFiles = false
+        panel.canChooseDirectories = true
+        panel.canCreateDirectories = true
+        panel.allowsMultipleSelection = false
+        panel.directoryURL = ExchangeFolder.macros.prepared()
+        panel.prompt = "Exporter ici"
+        panel.message = "Chaque macro devient un fichier .flsmacro. Les endroits appris (clics montrés dans FL) ne sont pas exportés."
+        guard panel.runModal() == .OK, let folder = panel.url else { return nil }
+        var written = 0
+        for doc in docs {
+            let base = (MacroExchange.suggestedFileName(doc.name) as NSString).deletingPathExtension
+            var url = folder.appendingPathComponent(base).appendingPathExtension(MacroExchange.fileExtension)
+            var n = 2
+            while FileManager.default.fileExists(atPath: url.path) {
+                url = folder.appendingPathComponent("\(base) (\(n))").appendingPathExtension(MacroExchange.fileExtension)
+                n += 1
+            }
+            do {
+                try MacroExchange.export(doc, appVersion: appVersion).write(to: url, options: .withoutOverwriting)
+                written += 1
+            } catch {
+                Dialogs.inform("Export impossible", "« \(doc.name.displaySafe(max: 40)) » : \(error.localizedDescription)")
+                break
+            }
+        }
+        guard written > 0 else { return nil }
+        let what = written == 1 ? "1 macro exportée" : "\(written) macros exportées"
+        return what + " dans « \(folder.lastPathComponent) »"
     }
 
     /// Relecture d'un import : décompte en tête, TOUS les blocs dans une liste qui défile, ce qu'il faudra faire.
@@ -362,24 +434,29 @@ enum MacroFileActions {
         return alert.runModal() == .alertFirstButtonReturn
     }
 
-    /// Importe un .flsmacro après relecture : la macro arrive sans raccourci (inactive), ids neufs.
-    static func importMacro(into library: MacroLibraryStore, layout: KeyboardLayout) -> MacroDoc? {
+    /// Importe un ou plusieurs .flsmacro (reçus d'un collègue), chacun relu avant d'être accepté : chaque macro
+    /// arrive sans raccourci (inactive), ids neufs. La boîte s'ouvre dans FL Shortcut › Macros.
+    static func importMacros(into library: MacroLibraryStore, layout: KeyboardLayout) -> [MacroDoc] {
         let panel = NSOpenPanel()
         panel.allowedContentTypes = [fileType, .json]
-        panel.allowsMultipleSelection = false
-        guard panel.runModal() == .OK, let url = panel.url else { return nil }
-        do {
-            let size = (try? FileManager.default.attributesOfItem(atPath: url.path)[.size] as? Int) ?? 0
-            guard size <= MacroExchange.maxBytes else { throw MacroExchange.Failure.tooLarge }
-            let preview = try MacroExchange.prepareImport(try Data(contentsOf: url), layout: layout)
-            guard confirmImport(preview) else { return nil }
-            var doc = preview.doc
-            doc.name = library.uniqueName(doc.name)
-            return library.add(doc)
-        } catch {
-            Dialogs.inform("Import impossible", error.localizedDescription)
-            return nil
+        panel.allowsMultipleSelection = true
+        panel.directoryURL = ExchangeFolder.macros.prepared()
+        guard panel.runModal() == .OK else { return [] }
+        var added: [MacroDoc] = []
+        for url in panel.urls.prefix(50) {
+            do {
+                let size = (try? FileManager.default.attributesOfItem(atPath: url.path)[.size] as? Int) ?? 0
+                guard size <= MacroExchange.maxBytes else { throw MacroExchange.Failure.tooLarge }
+                let preview = try MacroExchange.prepareImport(try Data(contentsOf: url), layout: layout)
+                guard confirmImport(preview) else { continue }
+                var doc = preview.doc
+                doc.name = library.uniqueName(doc.name)
+                added.append(library.add(doc))
+            } catch {
+                Dialogs.inform("Import impossible", "\(url.lastPathComponent) : \(error.localizedDescription)")
+            }
         }
+        return added
     }
 }
 
