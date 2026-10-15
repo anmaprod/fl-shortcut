@@ -35,6 +35,25 @@ Date : 2026-10-15 · Branche : `claude/relaxed-mayer-ndguzv` · macOS seulement 
   du menu de la piste (ou Maj + molette) ; Playlist : rien, et l'API ne dit pas quels clips sont sur quelle piste.
 - Les couleurs récentes de FL ne sont ni dans l'API ni dans un fichier connu.
 
+### Ajouts du 15/10 après-midi (2 vidéos de l'utilisateur)
+
+« Pour les couleurs il faudra aussi des icônes (les mêmes que sur FL) : la personne choisit pour Mélodies une icône
+et une couleur ; elle peut choisir de la mettre en fade ; ça fonctionne pareil sur Channel rack et Mixer ; il faut
+sélectionner plusieurs pistes pour pouvoir faire un fade. »
+
+- **Fade = « Gradient color… » de FL** (relevé sur la vidéo) : avec plusieurs pistes sélectionnées, la fenêtre
+  « Gradient editor » montre deux cases **First** et **Last**, l'aperçu du dégradé entre elles, trois boutons
+  (▶ copie First dans Last, ◀▶ échange, ◀ copie Last dans First), la roue de couleurs habituelle, Reset et Accept.
+  Résultat mesuré sur 5 pistes : composantes rouge, vert et bleu en ligne droite de First (piste du haut) à Last
+  (piste du bas). « Gradient color… » est grisé avec une seule piste sélectionnée.
+- **Icônes** : « Change icon… » (menu de la piste du Mixer et de la Playlist ; « Rename, color and icon… », F2, pour
+  les canaux) ouvre une grille de FL : 14 colonnes (Reset, Content, Instr, Solfège, Synth, Effect, Gear, Misc, Info,
+  Number, Routing, Channel), 15 rangées de cases carrées, sous une barre de titres ; même taille dans le Mixer et la
+  Playlist. **L'API de FL ne lit ni ne pose les icônes** (vérifié dans la doc des modules mixer, channels et
+  playlist) : l'icône passe par la fenêtre de FL (voir §6 bis).
+- **Couleurs : format** `0x--BBGGRR` d'après la doc ; le script passe toujours par `utils.RGBToColor` /
+  `utils.ColorToRGB` de FL (ses propres fonctions, donc le même ordre que FL).
+
 ## 2. Contraintes (inchangées)
 
 Jamais l'écran (ni capture ni lecture) ; Accessibilité et événements seulement. MIDI seulement pendant une action.
@@ -76,18 +95,28 @@ Compatible avec le protocole v2 (PROTOCOL.md) : rien ne change pour les actions 
 | 3 | `audition` | canal (2 octets), note, vélocité (0 = arrêt) | `channels.midiNoteOn` |
 | 4 | `setColors` | genre, puis (index 2 octets, RVB 3 octets) × n, n ≤ 64 | pose plusieurs couleurs d'un coup |
 | 5 | `selectOne` | genre, index | sélectionne cet élément seul (`selectOneChannel`, `setActiveTrack`) |
-| 6 | `playSolo` | canal (2 octets) | 1er appel : mémorise solos, mode et position ; puis ce canal seul en solo, mode pattern, position 0, lecture |
-| 7 | `stopRestore` | — | arrêt de la lecture ; solos, mode et position remis comme mémorisés (sans effet si rien n'est mémorisé) |
+| 6 | `playSolo` | canal (2 octets) | 1er appel : mémorise sourdines, mode et position ; puis ce canal seul audible (les autres en sourdine), mode pattern, position 0, lecture |
+| 7 | `stopRestore` | — | arrêt de la lecture ; sourdines, mode et position remis comme mémorisés (sans effet si rien n'est mémorisé) |
+| 8 | `gradientSelected` | First RVB, Last RVB | page devant = Mixer, Channel rack ou Playlist ; au moins 2 éléments sélectionnés ; couleurs en ligne droite (rouge, vert, bleu) de First (premier sélectionné) à Last (dernier) |
 
-- **Réponses FL → appli** : CC **112** = début (valeur = code de l'opération), CC **113** = unités de 7 bits,
-  CC **114** = fin, suivie de 4 CC **115** portant un MAC de 28 bits (`HMAC(clé, nonce ‖ numéro de réponse ‖ unités)`).
-  L'appli ignore toute réponse dont le MAC est faux.
+- Les opérations 2 à 8 arrivent avec le script **v5**, annoncées par le bit de capacité **42** (le bit 41 seul =
+  opération 1 seulement).
+- **Raisons** en plus : 4 FL joue (opération 6), 7 « il faut au moins 2 éléments sélectionnés » (opération 8).
+- `list` est paginée : `[2, genre, début]` → réponse `[genre, total, début, n, entrées…]`, 16 entrées au plus
+  (noms coupés à 24 octets) ; l'appli redemande la suite.
+
+- **Réponses FL → appli** : CC **112** = début (valeur = code de l'opération), CC **113** = unités de 7 bits
+  (600 au plus), CC **114** = fin, suivie de 4 CC **115** portant un MAC de 28 bits
+  `HMAC(clé, nonce ‖ seq de la commande (3) ‖ code ‖ unités)` : la réponse est liée à sa commande (pas de rejeu).
+  Envoyée juste avant l'accusé 41. L'appli ignore toute réponse dont le MAC est faux ou qui ne suit pas sa commande.
 - **Raison d'un refus** : CC **116** juste avant l'accusé 0 : 1 page non prise en charge, 2 rien de sélectionné,
   3 plusieurs éléments sélectionnés, 4 FL joue, 5 données invalides.
-- **Liste des canaux** (réponse de `list` 1) : pour chaque canal, dans l'ordre affiché : type (`getChannelType`),
-  piste du Mixer (`getTargetFxTrack`), couleur, nom (64 octets au plus, pour l'aperçu seulement), première note des
-  pads si c'est un FPC (`getPadInfo`). Le script dit aussi si le Channel rack affiche un groupe filtré.
-- **Liste du Mixer** (réponse de `list` 2) : pour chaque piste : nom, couleur.
+- **Liste des canaux** (réponse de `list` 1) : en-tête `[1, total (2), début (2), n, filtré]` puis pour chaque canal,
+  dans l'ordre affiché : type (`getChannelType`, 0 si absent), piste du Mixer (`getTargetFxTrack`, 2 octets), couleur
+  RVB (`utils.ColorToRGB`), longueur et nom UTF-8 coupé à 24 octets (pour l'aperçu seulement, jamais journalisé).
+  « filtré » = 1 si le Channel rack affiche un groupe (le nombre affiché diffère du nombre global).
+- **Liste du Mixer** (réponse de `list` 2) : même en-tête, puis pour chaque piste (master compris) : couleur RVB,
+  longueur et nom coupé à 24 octets.
 - Débit : 20 trames/s au plus, comme avant ; `setColors` regroupe les couleurs pour rester dessous.
 - Le script FL passe à `SCRIPT_VERSION = 4` ; l'appli le met à jour avec la même clé (`updateInstalledIfNeeded`) et
   demande de le recharger dans FL une fois.
@@ -103,6 +132,15 @@ Compatible avec le protocole v2 (PROTOCOL.md) : rien ne change pour les actions 
 - Format JSON : `{"type":"nameColor","name":"Kick","color":"E0453A"}` (champs facultatifs) ; validé à l'import comme
   les autres blocs (longueur, caractères, hex de 6 chiffres).
 
+### Dégradé (fade) et icône
+
+- Réglage **Couleur** : « Une couleur » ou « Dégradé ». Dégradé : cases First et Last (chacune ouvre la fenêtre de
+  couleur), aperçu du dégradé, ▶ ◀▶ ◀ comme dans FL. Exécution : opération 8 ; refus 7 → « Sélectionne au moins
+  2 pistes pour un dégradé ». Le dégradé ne change pas le nom (comme dans FL) : Nom et Dégradé s'excluent.
+- JSON : `{"type":"nameColor","color":"F2A0D8","fade":"C02890"}` (`fade` = Last ; demande `color`, refuse `name`).
+- **Icône** (facultative) : grille des icônes de FL dans FL Shortcut, voir §6 bis. JSON `"icon":"c-r"` (colonne et
+  rangée de la grille de FL, 0-indexées), journal `nameColor` sans détail.
+
 ### Palette (réutilisée par Organiser)
 
 - Grille des couleurs de la fenêtre de couleur de FL, champ « # » (6 chiffres hexadécimaux), rangée « Couleurs du
@@ -117,8 +155,10 @@ Compatible avec le protocole v2 (PROTOCOL.md) : rien ne change pour les actions 
 
 ### Lancement
 
-- Nouvelle action de raccourci « Organiser la page ouverte » (`Remap.Kind.organize`, lien caché
-  `unknownAction = "organize"` pour les anciennes versions), et un élément du menu de la barre des menus.
+- Nouveau bloc de macro « Organiser la page ouverte » (`BlockType.organize`, rubrique FL Studio) et modèle de macro
+  « Organiser » dans la bibliothèque : l'utilisateur ne choisit que le raccourci, comme pour les autres macros (pas de
+  nouveau genre de raccourci, donc rien à migrer). Le bloc ouvre l'Organiser et se termine aussitôt ; la suite se
+  passe dans sa fenêtre. Aussi un élément « Organiser la page ouverte… » dans le menu de la barre des menus.
 - Page devant (CC 117) : Channel rack → organiser ; Mixer → classer et colorer ; autre → message. FL qui joue →
   « Appuie sur Stop d'abord ». Script trop ancien → « Mets à jour le script ».
 - Groupe filtré dans le Channel rack → « Affiche le groupe All » (les ⌥↑/⌥↓ suivent le groupe affiché).
@@ -165,6 +205,10 @@ Compatible avec le protocole v2 (PROTOCOL.md) : rien ne change pour les actions 
 - Fenêtre « Organiser le Channel rack » : familles dans l'ordre Drums, Basse, Mélodies, Voix, FX, À vérifier ;
   chaque son avec son nom actuel et sa famille en pastille colorée ; un clic sur la pastille change la famille ;
   couleur de chaque famille réglable (palette de la partie 5, réglage gardé). Boutons « Appliquer » et « Annuler ».
+- Pour chaque famille : **une couleur ou un dégradé** (First → Last réparti sur les sons de la famille, dans leur
+  ordre final) et **une icône** (grille de §6 bis, « aucune » par défaut). Réglages gardés dans les préférences
+  (`organize.families`, JSON : couleur, fade, icône par famille). Valeurs de départ : Drums E0453A, Basse 8E5BE8,
+  Mélodies 3FA7E0, Voix F2A93B, FX 4FC48E, À vérifier 8A8F98 ; aucune icône.
 
 ### Application
 
@@ -180,6 +224,21 @@ Compatible avec le protocole v2 (PROTOCOL.md) : rien ne change pour les actions 
 
 Lien perdu, FL fermé, page changée, Échap : arrêt propre (notes coupées, capture détruite, rien de plus envoyé),
 message ; ce qui a déjà été appliqué peut être annulé par « Revenir comme avant ».
+
+## 6 bis. Icônes
+
+- **Grille dans FL Shortcut** : même disposition que celle de FL (14 colonnes, mêmes titres, mêmes cases vides),
+  dessinée avec des symboles de macOS (SF Symbols) proches de chaque icône de FL (pas les dessins de FL, qui
+  appartiennent à Image-Line). Une case = `FLIcon(column:row:)`. La case Reset (0, 0) = « aucune icône ».
+- **Pose dans FL** (aucune lecture de l'écran) : élément sélectionné (Organiser : opération 5 d'abord) → F2 → la
+  fenêtre « Rename, color and icon » de FL s'ouvre (nouvelle fenêtre, liste des fenêtres) → clic sur le bouton de
+  l'icône de cette fenêtre, **appris une fois** (« Clique sur l'icône à droite du nom », position gardée par rapport
+  à la fenêtre, comme les autres clics appris) → la grille de FL s'ouvre (nouvelle fenêtre) → clic au centre de la
+  case `(colonne + 0,5) × L / 14`, `titre + (rangée + 0,5) × L / 14`, avec `titre = H − 15 × L / 14` (L, H = taille de
+  la fenêtre de la grille) → la grille se ferme → Entrée ferme la fenêtre du nom sans le changer.
+- **À vérifier sur le FL de l'utilisateur** avant d'en dépendre : F2 sur le Channel rack et le Mixer, le bouton de
+  l'icône dans la fenêtre du nom. Jusque-là l'icône est facultative : si une étape ne répond pas, la couleur reste
+  posée et un message dit que l'icône n'a pas pu être mise.
 
 ## 7. Mémoire et vitesse
 
@@ -205,8 +264,10 @@ message ; ce qui a déjà été appliqué peut être annulé par « Revenir comm
 1. Lien étendu (script v4 + appli) et bloc « Nom et couleur » avec une palette provisoire : champ « # » et
    « Récentes » seulement, la grille de FL arrivant à l'étape 2.
 2. Palette de FL (dès la capture de l'utilisateur), « Couleurs du projet », « Récentes ».
-3. Organiser : écoute et classement, aperçu, couleurs (Channel rack et Mixer).
-4. Organiser : regroupement du Channel rack et « Revenir comme avant ».
-5. Phase 2 (après essai sur le FL de l'utilisateur) : regroupement du Mixer.
+3. Lien v5 (opérations 2 à 8, réponses signées) et dégradé dans le bloc « Nom et couleur ».
+4. Organiser : écoute et classement, aperçu (couleur ou dégradé par famille), couleurs (Channel rack et Mixer),
+   regroupement du Channel rack et « Revenir comme avant ».
+5. Icônes : grille dans FL Shortcut (bloc et familles), pose dans FL par F2 (à vérifier sur le FL de l'utilisateur).
+6. Phase 2 (après essai sur le FL de l'utilisateur) : regroupement du Mixer.
 
 Chaque étape : CI verte (tests, essais, mémoire), puis pkg.
