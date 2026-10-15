@@ -10,6 +10,8 @@ enum BlockType: String, CaseIterable, Codable {
     case nameColor
     /// La carte son branchée devient la sortie et l'entrée du Mac.
     case soundCard
+    /// Ouvre l'Organiser sur la page de FL devant (Channel rack ou Mixer) ; la suite se passe dans sa fenêtre.
+    case organize
     /// Élément d'un menu de FL dans la barre des menus de macOS, par ses titres (créé par « Enregistrer des clics »).
     case menuBar
     /// Ancienne étape `menu` : seulement pour reprendre les anciennes macros (absente de la palette).
@@ -144,6 +146,7 @@ enum BlockRegistry {
         case .feedbackCheck: return Specs.feedbackCheck
         case .nameColor: return Specs.nameColor
         case .soundCard: return Specs.soundCard
+        case .organize: return Specs.organize
         case .menuBar: return Specs.menuBar
         case .menuAX: return Specs.menuAX
         case .ifElse: return Specs.ifElse
@@ -634,6 +637,19 @@ private enum Specs {
         parDefaut: { .soundCard },
         resume: { _, _ in "sortie et entrée du Mac" },
         journal: { _ in "soundCard" },
+        estimationMs: { _ in 200 },
+        valider: { _, _ in nil },
+        import_: .ok, plateformes: .mac)
+
+    static let organize = BlockSpec(
+        type: .organize, label: "Organiser la page ouverte", category: .fl, symbol: "square.stack.3d.up",
+        aide: "Ouvre l'Organiser sur la page de FL qui est devant : il écoute chaque son du Channel rack (sans que tu l'entendes), le classe en Drums, Basse, Mélodies, Voix, FX ; tu vérifies l'aperçu, puis il colore (une couleur ou un dégradé par famille) et regroupe les sons. Sur le Mixer, il colore les pistes. « Revenir comme avant » défait tout.",
+        params: [],
+        conteneur: .aucun, dansLaPalette: true,
+        needs: { _ in base.union(.lienMIDI) },
+        parDefaut: { .organize },
+        resume: { _, _ in "écoute, classe, colore" },
+        journal: { _ in "organize" },
         estimationMs: { _ in 200 },
         valider: { _, _ in nil },
         import_: .ok, plateformes: .mac)

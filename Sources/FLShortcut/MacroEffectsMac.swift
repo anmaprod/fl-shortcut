@@ -439,6 +439,12 @@ final class MacroEffectsMac: MacroEffects {
                 return .fail(why)
             }
 
+        case .organize:
+            // La suite se passe dans la fenêtre de l'Organiser (son propre fil, ses propres garde-fous).
+            MacroLog.shared.write("FL", "organizer opened")
+            DispatchQueue.main.async { OrganizerWindow.open() }
+            return .ok
+
         case .nameColor(let name, let color, let fade, _):
             if let color, let fade {
                 // Dégradé de First à Last sur les éléments sélectionnés (opération 8, script v5).

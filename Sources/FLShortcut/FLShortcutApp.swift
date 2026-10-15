@@ -409,6 +409,7 @@ struct MenuContent: View {
                 openWindow(id: "editor")
                 NSApp.activate(ignoringOtherApps: true)
             }
+            PanelItem(symbol: "square.stack.3d.up", title: "Organiser la page ouverte…") { OrganizerWindow.open() }
             PanelItem(symbol: store.enabled ? "pause" : "play", title: store.enabled ? "Mettre en pause" : "Reprendre",
                       shortcut: "⌃⌥⌘F") { store.enabled.toggle() }
             if !AppMode.light {

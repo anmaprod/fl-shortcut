@@ -58,17 +58,21 @@ final class OrganizerSession {
     private let timing: Timing
     private let sleep: (TimeInterval) -> Void
     private let progress: (Int, Int) -> Void
+    private let escape: () -> Bool
     private let lock = NSLock()
     private var stopped = false
 
+    /// `escape` : Échap pressé, regardé à chaque tranche d'attente (même quand FL est devant).
     init(link: OrganizerLink, audio: AudioSource, classify: @escaping Classify, timing: Timing = Timing(),
          sleep: @escaping (TimeInterval) -> Void = { Thread.sleep(forTimeInterval: $0) },
+         escape: @escaping () -> Bool = { false },
          progress: @escaping (Int, Int) -> Void = { _, _ in }) {
         self.link = link
         self.audio = audio
         self.classify = classify
         self.timing = timing
         self.sleep = sleep
+        self.escape = escape
         self.progress = progress
     }
 
@@ -161,6 +165,7 @@ final class OrganizerSession {
     private func wait(_ seconds: TimeInterval) -> Bool {
         let steps = max(1, Int((seconds / timing.slice).rounded(.up)))
         for _ in 0..<steps {
+            if escape() { cancel() }
             if isCancelled { return false }
             sleep(seconds / Double(steps))
         }

@@ -171,6 +171,8 @@ struct MacroTemplate: Identifiable {
 extension MacroTemplates {
     /// Modèle livré « Enregistrement rapide » (galerie et origine de sa copie personnalisée).
     static let autoRecordID = "autoRecord"
+    /// Modèle « Organiser la page ouverte » : l'utilisateur ne choisit que le raccourci.
+    static let organizeID = "organize"
 
     /// « Personnaliser » : copie en blocs du modèle, compilée avant de remplacer le raccourci. Problème : le
     /// raccourci n'est pas touché.
@@ -245,6 +247,11 @@ extension MacroTemplates {
                     Block(.flAction(key: "armon", fallback: .trackMenuArm)),
                     Block(.flAction(key: "recon", fallback: .key(KeyRef(rec)))),
                 ], origin: .template("armRec"))
+            },
+            MacroTemplate(id: organizeID, title: "Organiser la page ouverte",
+                          summary: "Écoute chaque son du Channel rack sans que tu l'entendes, le classe (Drums, Basse, Mélodies, Voix, FX), puis colore et regroupe après ton accord. Sur le Mixer, colore les pistes.",
+                          symbol: "square.stack.3d.up") { _ in
+                MacroDoc(name: "Organiser la page ouverte", blocks: [Block(.organize)], origin: .template(organizeID))
             },
         ]
     }

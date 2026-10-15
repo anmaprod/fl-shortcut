@@ -386,6 +386,8 @@ enum MacroOutline {
             return ("Nom et couleur", NameColorPayload.summary(name: name, color: color, fade: fade))
         case .soundCard:
             return ("Carte son branchée", "sortie et entrée du Mac")
+        case .organize:
+            return ("Organiser la page ouverte", "écoute, classe, colore")
         case .menuBar(let titles):
             return ("Menu de FL", titles.map { $0.displaySafe(max: 30) }.joined(separator: " › "))
         case .menuAX(let titles, _):
@@ -523,6 +525,7 @@ enum PaletteCatalog {
             },
             item("nameColor", .nameColor) { .nameColor(name: nil, color: NameColorPayload.defaultColor) },
             item("soundCard", .soundCard) { .soundCard },
+            item("organize", .organize) { .organize },
             item("selectInput", .selectInput) { MacroTemplates.inputOne },
             item("feedbackCheck", .feedbackCheck) { .feedbackCheck },
             // Contrôle

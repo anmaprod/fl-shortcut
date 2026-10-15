@@ -156,6 +156,12 @@ private struct BlockInspector: View {
                  + "device » ; FL suit alors la carte tout seul. Plusieurs cartes branchées : celle choisie la dernière fois.")
                 .font(.system(size: 12))
                 .fixedSize(horizontal: false, vertical: true)
+        case .organize:
+            Text("Ouvre l'Organiser sur la page de FL qui est devant (Channel rack ou Mixer). Les couleurs, dégradés et "
+                 + "icônes de chaque famille se règlent dans sa fenêtre et y restent gardés. macOS demande une fois "
+                 + "l'autorisation « Audio système » : seul le son de FL est écouté, rien n'est enregistré.")
+                .font(.system(size: 12))
+                .fixedSize(horizontal: false, vertical: true)
         default:
             Text("Rien à régler.").foregroundStyle(.secondary)
         }

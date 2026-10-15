@@ -254,6 +254,8 @@ indirect enum BlockBody: Equatable {
     case nameColor(name: String?, color: RGBColor?, fade: RGBColor? = nil, icon: FLIcon? = nil)
     /// La carte son branchée devient la sortie et l'entrée du Mac (FL réglé sur « Default », SoundCard.swift).
     case soundCard
+    /// Ouvre l'Organiser (OrganizerWindow.swift) sur la page de FL devant ; le bloc se termine aussitôt.
+    case organize
     /// Élément d'un menu de FL dans la barre des menus de macOS (titre du menu, puis des éléments), par l'Accessibilité.
     case menuBar(titles: [String])
     /// Ancienne étape `menu` (titres d'accessibilité, clics de secours) : reprise des anciennes macros, hors palette.
@@ -288,6 +290,7 @@ indirect enum BlockBody: Equatable {
         case .feedbackCheck: return .feedbackCheck
         case .nameColor: return .nameColor
         case .soundCard: return .soundCard
+        case .organize: return .organize
         case .menuBar: return .menuBar
         case .menuAX: return .menuAX
         case .ifElse: return .ifElse
@@ -345,7 +348,7 @@ indirect enum BlockBody: Equatable {
             return ["action": .string(key), "value": value.json]
         case .selectInput(let ref):
             return ["learned": ref.json]
-        case .feedbackCheck, .soundCard:
+        case .feedbackCheck, .soundCard, .organize:
             return [:]
         case .nameColor(let name, let color, let fade, let icon):
             var p: [String: JSONValue] = [:]
@@ -427,6 +430,8 @@ indirect enum BlockBody: Equatable {
             return .feedbackCheck
         case .soundCard:
             return .soundCard
+        case .organize:
+            return .organize
         case .nameColor:
             // Clé présente mais illisible (nom non texte, couleur hors format) : bloc illisible, conservé et bloquant.
             if j["name"] != nil && j["name"]?.string == nil { return nil }
