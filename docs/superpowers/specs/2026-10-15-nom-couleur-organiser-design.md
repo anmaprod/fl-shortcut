@@ -48,7 +48,11 @@ la CI avant tout pkg. Le nom tapé n'apparaît jamais dans les journaux.
 - Regrouper le **Mixer** (déplacer ses pistes) : phase 2, après un essai du chemin « Move left / Move right » sur le
   FL de l'utilisateur. Cette version colore et montre le classement du Mixer.
 - Organiser la **Playlist** : l'API ne dit pas ce que contient chaque piste. Message « Ouvre le Channel rack ou le
-  Mixer ».
+  Mixer ». Piste pour plus tard (idée de l'utilisateur) : quand tout est dans un seul pattern, « Split by channel »
+  (menu Patterns de la barre des menus de macOS, si FL l'y montre) donne un pattern par canal, puis les pistes de la
+  Playlist peuvent suivre le classement des canaux. À vérifier sur le FL de l'utilisateur.
+- **Détecteur de carte son** (nouvelle demande) : quand une carte son est branchée, une macro la choisit en entrée et
+  en sortie dans FL. Conçu à part, après l'étape 1.
 - Les 10 couleurs récentes **de FL** : remplacées par « Couleurs du projet » (lues par le lien) et « Récentes »
   (choisies dans FL Shortcut).
 
@@ -71,6 +75,8 @@ Compatible avec le protocole v2 (PROTOCOL.md) : rien ne change pour les actions 
 | 3 | `audition` | canal (2 octets), note, vélocité (0 = arrêt) | `channels.midiNoteOn` |
 | 4 | `setColors` | genre, puis (index 2 octets, RVB 3 octets) × n, n ≤ 64 | pose plusieurs couleurs d'un coup |
 | 5 | `selectOne` | genre, index | sélectionne cet élément seul (`selectOneChannel`, `setActiveTrack`) |
+| 6 | `playSolo` | canal (2 octets) | 1er appel : mémorise solos, mode et position ; puis ce canal seul en solo, mode pattern, position 0, lecture |
+| 7 | `stopRestore` | — | arrêt de la lecture ; solos, mode et position remis comme mémorisés (sans effet si rien n'est mémorisé) |
 
 - **Réponses FL → appli** : CC **112** = début (valeur = code de l'opération), CC **113** = unités de 7 bits,
   CC **114** = fin, suivie de 4 CC **115** portant un MAC de 28 bits (`HMAC(clé, nonce ‖ numéro de réponse ‖ unités)`).
@@ -121,10 +127,17 @@ Compatible avec le protocole v2 (PROTOCOL.md) : rien ne change pour les actions 
 2. Capture du **seul processus de FL** : `CATapDescription(stereoMixdownOfProcesses:)` (pid → objet audio par
    `kAudioHardwarePropertyTranslatePIDToProcessObject`), `muteBehavior = .mutedWhenTapped` (l'utilisateur n'entend
    rien), périphérique agrégé privé, IOProc qui copie dans un tampon circulaire. Créé au début, détruit à la fin.
-3. Pour chaque canal (sauf automation et layer) : note grave C3 (MIDI 48) 300 ms, puis note C5 (MIDI 60) 300 ms
-   (FPC : ses deux premiers pads), puis attente que le son retombe sous −50 dBFS (1,2 s au plus). Chaque note est
-   coupée par l'opération 3 avec vélocité 0, et toutes les notes en cours sont coupées en cas d'arrêt (Échap, erreur).
-4. Fenêtre de progression (style Liquid Glass) : « Écoute 12 / 30 », Échap pour arrêter.
+3. **Ta partie d'abord** (demande de l'utilisateur : « écouter directement ce que la personne a fait », un synthé
+   peut servir de basse) : pour chaque canal (sauf automation et layer), opération 6 : ce canal seul en solo, mode
+   pattern, lecture du pattern en cours depuis son début ; capture jusqu'à la fin du pattern, 4 s au plus ; puis
+   opération 7 (arrêt). Le classement porte sur ce que tu as joué (hauteur médiane de ta partie, rythme…).
+4. **Notes d'essai en secours** : si le canal reste silencieux (aucune note dans ce pattern), note grave C3
+   (MIDI 48) 300 ms puis C5 (MIDI 60) 300 ms (FPC : ses deux premiers pads), puis attente que le son retombe sous
+   −50 dBFS (1,2 s au plus). Le résultat est marqué « testé avec des notes d'essai » (confiance plus basse). Chaque
+   note est coupée par l'opération 3 avec vélocité 0.
+5. En fin d'écoute, et en cas d'arrêt (Échap, erreur, lien perdu) : opération 7, notes coupées ; solos, mode
+   (pattern ou song) et position de lecture remis comme au départ.
+6. Fenêtre de progression (style Liquid Glass) : « Écoute 12 / 30 », Échap pour arrêter.
 
 ### Classement
 
@@ -169,7 +182,7 @@ message ; ce qui a déjà été appliqué peut être annulé par « Revenir comm
 
 - Rien au repos : capture, modèle de SoundAnalysis et fenêtre créés au lancement d'Organiser, libérés à la fin
   (vérifié par la CI comme le créateur : objets vivants = 0).
-- Cible : écoute ≈ 0,8 s par canal ; classement < 50 ms par canal ; couleurs < 0,2 s ; déplacements ≈ 15 ms par pas.
+- Cible : écoute ≈ 3 s par canal (ta partie, 4 s au plus ; 0,8 s avec les notes d'essai) ; classement < 50 ms par canal ; couleurs < 0,2 s ; déplacements ≈ 15 ms par pas.
 - Tableau mémoire de la CI : nouvelle colonne « Organiser » (pic pendant le classement, puis après).
 
 ## 8. Tests
