@@ -254,7 +254,8 @@ final class SoundClassificationTests: XCTestCase {
             let f = SoundFeatures.measure(s.samples, rate: SynthSounds.rate)
             let scores = ai.scores(s.samples, rate: SynthSounds.rate)
             let top = scores.sorted { $0.value > $1.value }.prefix(3).map { "\($0.key) \(String(format: "%.2f", $0.value))" }
-            rows.append((s.name, FamilyFusion.decide(f, AILabels(scores: scores)).family, s.expected, "IA : " + top.joined(separator: ", ")))
+            let detail = "IA : " + top.joined(separator: ", ") + " (" + ai.lastReport + ")"
+            rows.append((s.name, FamilyFusion.decide(f, AILabels(scores: scores)).family, s.expected, detail))
         }
         let perSound = Date().timeIntervalSince(start) / Double(sounds.count)
         print("ORGANISER: classement complet \(String(format: "%.0f", perSound * 1000)) ms par son")
@@ -271,6 +272,7 @@ final class SoundClassificationTests: XCTestCase {
         for core in ["speech", "singing", "guitar", "piano", "drum"] {
             XCTAssertTrue(known.contains(core), core)
         }
-        XCTAssertGreaterThanOrEqual(FamilyFusion.labelTable.count - unknown.count, 30)
+        XCTAssertEqual(unknown, [], "toute la table est connue de macOS")
+        XCTAssertGreaterThanOrEqual(FamilyFusion.labelTable.count, 60)
     }
 }

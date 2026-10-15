@@ -63,19 +63,17 @@ struct AILabels: Equatable {
 enum FamilyFusion {
     enum LabelKind { case voice, drums, instrument }
 
-    /// Étiquettes de l'IA de macOS (`SNClassifierIdentifier.version1`) → genre. Le test de la CI vérifie celles que
-    /// macOS connaît ; une étiquette inconnue ne sert simplement jamais.
+    /// Étiquettes de l'IA de macOS (`SNClassifierIdentifier.version1`) → genre, toutes connues de macOS (vérifié par
+    /// la CI : 303 étiquettes sur macOS 26).
     static let labelTable: [String: LabelKind] = {
         var t: [String: LabelKind] = [:]
-        for l in ["speech", "singing", "choir", "chant", "rapping", "humming", "yodeling", "whispering",
-                  "male_singing", "female_singing", "child_singing", "synthetic_singing", "shout", "yell"] { t[l] = .voice }
+        for l in ["speech", "singing", "rapping", "humming", "yodeling", "whispering", "shout", "yell"] { t[l] = .voice }
         for l in ["drum", "drum_kit", "bass_drum", "snare_drum", "tabla", "timpani", "cymbal", "hi_hat",
-                  "tambourine", "cowbell", "gong", "rimshot", "drum_roll", "percussion", "wood_block", "castanets",
-                  "maraca", "bongo_drum", "conga_drum", "drum_machine", "clapping", "finger_snapping"] { t[l] = .drums }
-        for l in ["music", "musical_instrument", "plucked_string_instrument", "guitar", "electric_guitar",
+                  "tambourine", "cowbell", "gong", "percussion", "clapping", "finger_snapping"] { t[l] = .drums }
+        for l in ["music", "plucked_string_instrument", "guitar", "electric_guitar",
                   "acoustic_guitar", "bass_guitar", "steel_guitar_slide_guitar", "banjo", "sitar", "mandolin",
                   "ukulele", "zither", "keyboard_musical", "piano", "electric_piano", "organ", "electronic_organ",
-                  "hammond_organ", "synthesizer", "harpsichord", "bowed_string_instrument", "string_section",
+                  "hammond_organ", "synthesizer", "harpsichord", "bowed_string_instrument",
                   "violin_fiddle", "cello", "double_bass", "harp", "wind_instrument", "brass_instrument",
                   "french_horn", "trumpet", "trombone", "flute", "saxophone", "clarinet", "oboe", "bassoon",
                   "harmonica", "accordion", "bagpipes", "marimba_xylophone", "glockenspiel", "vibraphone",
