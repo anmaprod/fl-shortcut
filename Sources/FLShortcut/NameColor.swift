@@ -82,6 +82,7 @@ struct NameColorPayload: Equatable {
         case 2: return "Sélectionne une piste ou un canal."
         case 3: return "Sélectionne une seule piste ou un seul canal."
         case 4: return "Arrête la lecture d'abord."
+        case 6: return "Ta version de FL ne le permet pas sur cette page : mets FL à jour."
         default: return "FL a refusé le nom ou la couleur."
         }
     }

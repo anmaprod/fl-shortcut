@@ -60,6 +60,7 @@ OP_NAME_COLOR = 1
 REASON_PAGE = 1            # page devant non prise en charge
 REASON_NONE = 2            # rien de sélectionné
 REASON_MANY = 3            # plusieurs éléments sélectionnés
+REASON_OLD_FL = 6          # page prise en charge, mais pas par cette version de FL (Playlist : API 12)
 REASON_DATA = 5            # données invalides (ou FL a refusé)
 
 MAX_ACTIONS_PER_S = 20     # PROTOCOL.md §4
@@ -1307,15 +1308,16 @@ _NAME_COLOR_PAGES = {
 
 
 def _rgb_to_color(r, g, b):
+    """Couleur au format de FL par sa propre fonction (la doc de FL hésite entre 0xRRGGBB et 0x--BBGGRR : pas de
+    calcul de repli qui risquerait d'inverser rouge et bleu). None si indisponible."""
     f = _fn("utils", "RGBToColor")
-    if f is not None:
-        try:
-            c = f(r, g, b)
-            if _is_int(c):
-                return c
-        except Exception:
-            pass
-    return (r << 16) | (g << 8) | b    # même calcul que utils.RGBToColor
+    if f is None:
+        return None
+    try:
+        c = f(r, g, b)
+    except Exception:
+        return None
+    return c if _is_int(c) else None
 
 
 def _name_color_target():
@@ -1326,8 +1328,10 @@ def _name_color_target():
     mod, count_fn, sel_fn, name_fn, color_fn, first, api_min = page
     count, is_sel = _fn(mod, count_fn), _fn(mod, sel_fn)
     set_name, set_color = _fn(mod, name_fn), _fn(mod, color_fn)
-    if None in (count, is_sel, set_name, set_color) or not _api_at_least(api_min):
+    if None in (count, set_name, set_color):
         return REASON_PAGE
+    if is_sel is None or not _api_at_least(api_min):
+        return REASON_OLD_FL               # page connue, sélection lisible seulement dans un FL plus récent
     n = count()
     if not _is_int(n) or n < 0:
         return REASON_DATA
@@ -1358,15 +1362,24 @@ def _op_name_color(raw):
             return REASON_DATA
         if not name or len(name) > MAX_NAME_CHARS or any(ord(c) < 32 or ord(c) == 127 for c in name):
             return REASON_DATA
-    target = _name_color_target()
+    color = None
+    if flags & 2:
+        color = _rgb_to_color(r, g, b)
+        if color is None:
+            return REASON_DATA
+    try:
+        target = _name_color_target()
+    except Exception as exc:
+        _hint("FL Shortcut : sélection illisible (%s)" % type(exc).__name__)
+        return REASON_DATA
     if _is_int(target):
         return target
     (set_name, set_color), index = target
     try:
         if name is not None:
             set_name(index, name)
-        if flags & 2:
-            set_color(index, _rgb_to_color(r, g, b))
+        if color is not None:
+            set_color(index, color)
     except Exception as exc:
         _hint("FL Shortcut : « Nom et couleur » a échoué (%s)" % type(exc).__name__)
         return REASON_DATA

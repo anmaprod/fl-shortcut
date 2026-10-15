@@ -343,6 +343,43 @@ final class DataCommandTests: XCTestCase {
         XCTAssertEqual(transport.pings, 0)
     }
 
+    /// Script rendormi alors que son dernier battement semblait récent : la trame est ignorée (accusé 0 sans
+    /// raison) ; l'appli le réveille par un PING et renvoie une seule fois.
+    func testSilentRefusalWakesTheScriptAndRetriesOnce() {
+        let (core, transport) = linkedCore(caps: capsWithData)
+        let caps = capsWithData
+        var frames = 0
+        transport.onSend = { messages in
+            if messages == [.pingBrief] {
+                DispatchQueue.global().asyncAfter(deadline: .now() + 0.02) {
+                    core.receive(Bytes.hello(nonce: [9, 9, 9, 9], caps: caps))
+                }
+            }
+            guard messages.last?.cc == 111 else { return }
+            frames += 1
+            let answer = frames == 1 ? Bytes.cc(119, 0) : Bytes.cc(119, 41)
+            DispatchQueue.global().asyncAfter(deadline: .now() + 0.02) { core.receive(answer) }
+        }
+        XCTAssertEqual(core.runData(kickUnits, brief: true, timeout: 1), .done)
+        XCTAssertEqual(frames, 2)
+        XCTAssertEqual(transport.sent.filter { $0 == [.pingBrief] }.count, 1)
+
+        // Deux refus sans raison : un seul nouvel essai, puis un message.
+        frames = 0
+        transport.onSend = { messages in
+            if messages == [.pingBrief] {
+                DispatchQueue.global().asyncAfter(deadline: .now() + 0.02) {
+                    core.receive(Bytes.hello(nonce: [8, 8, 8, 8], caps: caps))
+                }
+            }
+            guard messages.last?.cc == 111 else { return }
+            frames += 1
+            DispatchQueue.global().asyncAfter(deadline: .now() + 0.02) { core.receive(Bytes.cc(119, 0)) }
+        }
+        guard case .failed = core.runData(kickUnits, brief: true, timeout: 1) else { return XCTFail("échec attendu") }
+        XCTAssertEqual(frames, 2)
+    }
+
     func testRunDataNeedsCapability() {
         let (core, transport) = linkedCore(caps: Bytes.allCaps)       // script v3 : pas de bit 41
         guard case .failed = core.runData(kickUnits, brief: true, timeout: 1) else {

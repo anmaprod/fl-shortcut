@@ -202,11 +202,13 @@ private struct BlockInspector: View {
             }, axis: .vertical)
             .lineLimit(2...5)
         case (.nameColor(let name, _), "name"):
-            TextField(p.label, text: textBinding(name ?? "", max: NameColorPayload.maxNameScalars) { text in
+            // Coupé en points de code, comme le compte le script de FL (un « é » décomposé en vaut deux).
+            TextField(p.label, text: Binding(get: { name ?? "" }, set: { text in
+                let cut = String(String.UnicodeScalarView(text.unicodeScalars.prefix(NameColorPayload.maxNameScalars)))
                 setBody(key: "name") { body in
-                    if case .nameColor(_, let c) = body { body = .nameColor(name: text.isEmpty ? nil : text, color: c) }
+                    if case .nameColor(_, let c) = body { body = .nameColor(name: cut.isEmpty ? nil : cut, color: c) }
                 }
-            }, prompt: Text("Kick, Lead, Voix… (facultatif)"))
+            }), prompt: Text("Kick, Lead, Voix… (facultatif)"))
         case (.nameColor(_, let color), "color"):
             NameColorField(color: color) { newColor in
                 setBody(key: "color") { body in
@@ -858,7 +860,7 @@ struct NameColorField: View {
             Toggle("Changer la couleur", isOn: Binding(get: { color != nil }, set: { on in
                 let start = recent.first ?? NameColorPayload.defaultColor
                 set(on ? start : nil)
-                text = on ? start.hex : text
+                if on { text = start.hex }
             }))
             if let color {
                 HStack(spacing: 6) {
@@ -867,7 +869,10 @@ struct NameColorField: View {
                     TextField("E0453A", text: $text)
                         .font(.system(.body, design: .monospaced))
                         .frame(width: 96)
-                        .help("Code de la couleur, comme dans la fenêtre de couleur de FL")
+                        .help("Code de la couleur, comme dans la fenêtre de couleur de FL (Entrée pour la garder dans les récentes)")
+                        .onSubmit {
+                            if let c = RGBColor(hex: text) { remember(c) }
+                        }
                 }
                 if !text.isEmpty, RGBColor(hex: text) == nil {
                     Text("6 chiffres ou lettres de A à F, comme E0453A.")
@@ -890,15 +895,26 @@ struct NameColorField: View {
             text = color?.hex ?? ""
             recent = RecentColors.list()
         }
+        // Code tapé : appliqué dès qu'il est complet, gardé dans les récentes seulement à la validation (Entrée) ;
+        // un code à moitié modifié ne remplit pas les récentes.
         .onChange(of: text) { newText in
             guard let c = RGBColor(hex: newText), c != color else { return }
-            choose(c)
+            set(c)
+        }
+        // Couleur changée ailleurs (⌘Z, autre bloc sélectionné…) : le code affiché suit.
+        .onChange(of: color) { newColor in
+            if newColor != RGBColor(hex: text) { text = newColor?.hex ?? "" }
         }
     }
 
+    /// Pastille des récentes : appliquée et remontée en tête.
     private func choose(_ c: RGBColor) {
         set(c)
-        if text.uppercased().replacingOccurrences(of: "#", with: "") != c.hex { text = c.hex }
+        text = c.hex
+        remember(c)
+    }
+
+    private func remember(_ c: RGBColor) {
         RecentColors.remember(c)
         recent = RecentColors.list()
     }

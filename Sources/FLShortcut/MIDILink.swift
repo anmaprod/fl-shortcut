@@ -188,11 +188,12 @@ final class LinkCore {
         case failed(String)
     }
 
-    /// Réveille le script si besoin (PING) et attend son HELLO. Script déjà réveillé depuis peu : aucun PING.
-    private func wake(brief: Bool, timeout: TimeInterval) -> Wake {
+    /// Réveille le script si besoin (PING) et attend son HELLO. Script déjà réveillé depuis peu : aucun PING, sauf
+    /// `force` (il s'est rendormi alors que son dernier battement semblait récent).
+    private func wake(brief: Bool, timeout: TimeInterval, force: Bool = false) -> Wake {
         let start = clock()
         let state0: (hasKey: Bool, fresh: Bool) = state.withLock { s in
-            let fresh = s.hello != nil && (s.lastAlive.map { start.timeIntervalSince($0) < 4 } ?? false)
+            let fresh = !force && s.hello != nil && (s.lastAlive.map { start.timeIntervalSince($0) < 4 } ?? false)
             return (s.signer != nil, fresh)
         }
         guard state0.hasKey else { return .failed("lien avec FL non installé : fiche du raccourci › Installer le lien avec FL") }
@@ -215,35 +216,52 @@ final class LinkCore {
         return .ready(hello)
     }
 
+    private enum DataAttempt {
+        case reply(DataReply)
+        /// Accusé 0 sans raison : trame ignorée (script rendormi entre-temps…).
+        case refusedSilently
+    }
+
     /// Macro (file de la macro, bloquant) : commande avec données (PROTOCOL.md §7). Réveil comme `runBriefly`,
-    /// puis attente de l'accusé 41, ou de la raison du refus suivie de l'accusé 0.
+    /// puis attente de l'accusé 41, ou de la raison du refus suivie de l'accusé 0. Un refus sans raison vient en
+    /// général d'un script qui s'est rendormi (8 s après la dernière commande) alors que son dernier battement
+    /// semblait récent : il est réveillé par un PING et la commande est renvoyée une seule fois.
     func runData(_ units: [UInt8], brief: Bool, timeout: TimeInterval = 4) -> DataReply {
+        if case .reply(let r) = attemptData(units, brief: brief, timeout: timeout, forceWake: false) { return r }
+        switch attemptData(units, brief: brief, timeout: timeout, forceWake: true) {
+        case .reply(let r): return r
+        case .refusedSilently:
+            return .failed("FL a refusé la commande : redémarre FL si le script vient d'être mis à jour")
+        }
+    }
+
+    private func attemptData(_ units: [UInt8], brief: Bool, timeout: TimeInterval, forceWake: Bool) -> DataAttempt {
         let hello: HelloInfo
-        switch wake(brief: brief, timeout: timeout) {
+        switch wake(brief: brief, timeout: timeout, force: forceWake) {
         case .ready(let h): hello = h
-        case .failed(let why): return .failed(why)
+        case .failed(let why): return .reply(.failed(why))
         }
         guard hello.capabilities.contains(FLProtocol.dataActionID) else {
-            return .failed("mets à jour le lien avec FL : redémarre FL pour charger le nouveau script")
+            return .reply(.failed("mets à jour le lien avec FL : redémarre FL pour charger le nouveau script"))
         }
         state.withLock { $0.lastAckedID = nil }
         switch sendData(units) {
         case .sent: break
-        case .noKey: return .failed("lien avec FL non installé")
-        default: return .failed("FL n'a pas reçu la commande")
+        case .noKey: return .reply(.failed("lien avec FL non installé"))
+        default: return .reply(.failed("FL n'a pas reçu la commande"))
         }
         let ackDeadline = Date().addingTimeInterval(1.5)
         while Date() < ackDeadline {
             let (ack, reason) = state.withLock { ($0.lastAckedID, $0.lastReason) }
             switch ack {
-            case .some(FLProtocol.dataActionID): return .done
+            case .some(FLProtocol.dataActionID): return .reply(.done)
             case .some(0):
-                return reason.map(DataReply.refused)
-                    ?? .failed("FL a refusé la commande : redémarre FL (le script vient d'être mis à jour)")
+                if let reason { return .reply(.refused(reason)) }
+                return .refusedSilently
             default: Thread.sleep(forTimeInterval: 0.01)
             }
         }
-        return .failed("FL n'a pas confirmé")
+        return .reply(.failed("FL n'a pas confirmé"))
     }
 
     /// Commande avec données : CC 96, unités, trame signée de l'action 41. Envoyée par paquets (256 octets au plus

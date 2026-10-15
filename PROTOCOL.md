@@ -43,7 +43,7 @@ L'appli envoie une trame de 8 CC, dans cet ordre :
 | CC | Valeur |
 |---|---|
 | 104, 105, 106 | numéro de séquence sur 21 bits (poids fort d'abord) |
-| 107 | id d'action (1–42, voir §6) |
+| 107 | id d'action (1–42 : table §6, et 41 = commande avec données, §7) |
 | 108–111 | MAC sur 28 bits (poids fort d'abord) |
 
 **Calcul du MAC** : `HMAC-SHA256(clé, nonce[4] ‖ seq_hi ‖ seq_mid ‖ seq_lo ‖ action)`. On prend les 4 premiers octets en big-endian, on décale de 4 bits vers la droite (28 bits), puis on découpe en 4 × 7 bits.
@@ -52,7 +52,7 @@ L'appli envoie une trame de 8 CC, dans cet ordre :
 - Rejeter si le MAC est faux ou si `seq <= dernier_seq` (anti-rejeu).
 - Rejeter les trames incomplètes ou mélangées : un CC 104 réinitialise la trame en cours.
 - Limiter le débit à **20 actions/s maximum**.
-- Seuls les ids de la table §6 sont acceptés.
+- Seuls les ids de la table §6 sont acceptés, plus l'action 41 (commande avec données, §7).
 - Les CC/canaux inconnus ne sont **pas** marqués `handled`, sauf ceux du protocole.
 
 **PING** : appli → FL, CC 103, non authentifié. Le script se réveille, génère un **nouveau nonce**, remet `dernier_seq` à 0 et renvoie HELLO.
@@ -148,7 +148,8 @@ un script plus ancien ne l'annonce pas, et l'appli n'envoie alors rien de tout c
 | op 1 : nom et couleur | drapeaux (bit 0 nom, bit 1 couleur), R, G, B, n, nom UTF-8 (n octets, 64 caractères au plus, aucun caractère de contrôle) | page devant (Mixer, Channel rack, Playlist ; Playlist : API 12) ; exactement un élément sélectionné ; pose le nom et/ou la couleur (`utils.RGBToColor`). Le nom n'apparaît dans aucun message de FL |
 
 - **Raison d'un refus** : CC **116** envoyé juste avant l'accusé 0 (CC 119) : 1 page non prise en charge, 2 rien de
-  sélectionné, 3 plusieurs éléments sélectionnés, 5 données invalides ou refusées par FL. Une trame refusée avant
+  sélectionné, 3 plusieurs éléments sélectionnés, 5 données invalides ou refusées par FL, 6 page prise en charge
+  mais pas par cette version de FL (Playlist avant l'API 12). Une trame refusée avant
   exécution (MAC faux, rejeu, débit) n'a pas de raison.
 - Le débit de 20 trames par seconde (§4) compte aussi ces trames.
 

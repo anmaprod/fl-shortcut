@@ -61,7 +61,8 @@ la CI avant tout pkg. Le nom tapé n'apparaît jamais dans les journaux.
 Compatible avec le protocole v2 (PROTOCOL.md) : rien ne change pour les actions 1 à 40.
 
 - **Commande avec données** = action **41** « data ». Annoncée dans le masque de capacités : un script ancien ne
-  l'annonce pas, et l'app cache alors « Nom et couleur » et « Organiser » (« mets à jour le script »).
+  l'annonce pas : le bloc « Nom et couleur » reste dans la palette et s'arrête avec « mets à jour le lien avec FL :
+  redémarre FL » (le cacher demanderait de suivre l'état du lien dans le créateur ; plus tard si utile).
 - **Données appli → FL** : CC **96** = début (vide le tampon), puis CC **97** = unités de 7 bits (empaquetage
   7 bits comme en SysEx : 7 octets → 8 unités). 600 unités au plus, sinon refus. Puis la trame authentifiée
   habituelle (CC 104–111) avec l'action 41. Le MAC couvre les données :

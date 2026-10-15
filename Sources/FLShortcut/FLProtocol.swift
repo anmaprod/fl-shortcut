@@ -26,7 +26,7 @@ enum FLProtocol {
     static let ccCapsFirst: UInt8 = 90            // 90…95 : masque de capacités (6 × 7 bits)
     static let capsCount = 6
     /// Raison d'un refus de la commande avec données, juste avant l'accusé 0 (1 page, 2 rien de sélectionné,
-    /// 3 plusieurs, 5 données).
+    /// 3 plusieurs, 5 données, 6 FL trop ancien pour cette page).
     static let ccReason: UInt8 = 116
     static let ccWindow: UInt8 = 117
     static let ccHeartbeat: UInt8 = 118

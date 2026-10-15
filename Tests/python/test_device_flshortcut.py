@@ -1004,8 +1004,6 @@ class TestLightweight(Base):
         self.assertEqual(len(hints), 2)
 
 
-if __name__ == "__main__":
-    unittest.main(verbosity=2)
 
 
 # ---------------------------------------------------------------------------- Commande avec données
@@ -1168,13 +1166,28 @@ class TestData(Base):
         self.make(api=8, focused={2}, pl_sel={1})
         self.data_command(M.name_color("Kick"))
         self.assertEqual(self.last_ack(), 0)
-        self.assertEqual(self.reasons(), [1])
+        self.assertEqual(self.reasons(), [6])            # la Playlist est devant : c'est FL qui est trop ancien
         self.assertFalse([h for h in self.fl.hints if "erreur" in h])
 
     def test_data_unavailable_without_mixer_functions(self):
         self.make(missing=("mixer.setTrackName",))
         self.assertEqual(self.dev.capability_mask() >> (DATA_ID - 1) & 1, 0)
         self.data_command(M.name_color("Kick"))
+        self.assertEqual(self.last_ack(), 0)
+
+    def test_color_needs_fl_conversion(self):
+        # sans utils.RGBToColor, aucune couleur devinée (rouge et bleu pourraient être inversés) : refus
+        self.make(focused={0}, mx_sel={3}, missing=("utils.RGBToColor",))
+        self.data_command(M.name_color("Kick", self.RED))
+        self.assertEqual(self.reasons(), [5])
+        self.assertEqual(self.fl.given_names, {})
+        self.data_command(M.name_color("Kick"))           # le nom seul n'en a pas besoin
+        self.assertEqual(self.fl.given_names, {("mixer", 3): "Kick"})
+
+    def test_selection_error_answers_with_a_reason(self):
+        self.make(focused={0}, mx_sel={3}, raise_on={"mixer.isTrackSelected": RuntimeError("boom")})
+        self.data_command(M.name_color("Kick"))
+        self.assertEqual(self.reasons(), [5])
         self.assertEqual(self.last_ack(), 0)
 
     def test_rate_limit_counts_data_frames(self):
@@ -1185,3 +1198,7 @@ class TestData(Base):
             acks.append(self.last_ack())
         self.assertEqual(acks[:20], [DATA_ID] * 20)
         self.assertEqual(acks[20], 0)
+
+
+if __name__ == "__main__":
+    unittest.main(verbosity=2)

@@ -257,6 +257,7 @@ final class MacroModelTests: XCTestCase {
         XCTAssertEqual(NameColorPayload.message(forReason: 3), "Sélectionne une seule piste ou un seul canal.")
         XCTAssertEqual(NameColorPayload.message(forReason: 4), "Arrête la lecture d'abord.")
         XCTAssertEqual(NameColorPayload.message(forReason: 5), "FL a refusé le nom ou la couleur.")
+        XCTAssertEqual(NameColorPayload.message(forReason: 6), "Ta version de FL ne le permet pas sur cette page : mets FL à jour.")
     }
 
 }
