@@ -847,13 +847,14 @@ final class ClickTeacher: ObservableObject {
 
 // MARK: Couleur du bloc « Nom et couleur »
 
-/// « Changer la couleur », code « # » (6 chiffres hexadécimaux) avec aperçu, et les 10 dernières couleurs choisies.
-/// La grille des couleurs de FL viendra ici (capture de sa fenêtre de couleur demandée à l'utilisateur).
+/// « Changer la couleur », code « # » (6 chiffres hexadécimaux) avec aperçu, « Choisir… » (la fenêtre de couleur de
+/// FL recopiée : FLColorSelector), et les 10 dernières couleurs choisies.
 struct NameColorField: View {
     let color: RGBColor?
     let set: (RGBColor?) -> Void
     @State private var text = ""
     @State private var recent: [RGBColor] = []
+    @State private var picking = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -864,7 +865,9 @@ struct NameColorField: View {
             }))
             if let color {
                 HStack(spacing: 6) {
-                    Self.swatch(color, size: 20)
+                    Button { picking = true } label: { Self.swatch(color, size: 20) }
+                        .buttonStyle(.plain)
+                        .help("Choisir dans la roue des couleurs de FL")
                     Text("#").foregroundStyle(.secondary)
                     TextField("E0453A", text: $text)
                         .font(.system(.body, design: .monospaced))
@@ -872,6 +875,14 @@ struct NameColorField: View {
                         .help("Code de la couleur, comme dans la fenêtre de couleur de FL (Entrée pour la garder dans les récentes)")
                         .onSubmit {
                             if let c = RGBColor(hex: text) { remember(c) }
+                        }
+                    Button("Choisir…") { picking = true }
+                        .controlSize(.small)
+                        .popover(isPresented: $picking, arrowEdge: .leading) {
+                            FLColorSelector(initial: color) { picked in
+                                choose(picked)
+                                picking = false
+                            }
                         }
                 }
                 if !text.isEmpty, RGBColor(hex: text) == nil {

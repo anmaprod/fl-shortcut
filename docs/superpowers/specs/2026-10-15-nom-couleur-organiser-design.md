@@ -108,8 +108,10 @@ Compatible avec le protocole v2 (PROTOCOL.md) : rien ne change pour les actions 
 - Grille des couleurs de la fenêtre de couleur de FL, champ « # » (6 chiffres hexadécimaux), rangée « Couleurs du
   projet » (couleurs déjà posées, lues par `list` à l'ouverture de la palette quand le lien est là), rangée
   « Récentes » (10 dernières choisies dans FL Shortcut, gardées dans les préférences).
-- **Dépendance** : les valeurs exactes de la grille viennent d'une capture de la fenêtre de couleur de FL demandée à
-  l'utilisateur. Sans elle, la tâche palette ne commence pas (le reste peut avancer).
+- Relevé sur les vidéos de l'utilisateur (fenêtre « Color selector » de FL) : roue à 16 secteurs (rouge en haut) et
+  5 anneaux autour d'un disque gris (3 anneaux de couleurs relevées pixel à pixel, 2 anneaux sombres), curseur de
+  luminosité, cases 0 à 9, « #RRGGBB », Hue (0–359), Saturation et Luminance (0–240), Red / Green / Blue, Reset,
+  Accept. Recopiée dans `FLColorSelector.swift` ; les cases 0 à 9 sont les 10 dernières couleurs de FL Shortcut.
 
 ## 6. Organiser
 

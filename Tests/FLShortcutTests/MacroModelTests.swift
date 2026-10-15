@@ -260,4 +260,37 @@ final class MacroModelTests: XCTestCase {
         XCTAssertEqual(NameColorPayload.message(forReason: 6), "Ta version de FL ne le permet pas sur cette page : mets FL à jour.")
     }
 
+
+    /// Fenêtre de couleur de FL : échelle de FL (relevé : RVB 88, 110, 124 → 203, 40, 100), roue à 16 secteurs.
+    func testFLColorScaleAndWheel() {
+        let v = RGBColor(r: 88, g: 110, b: 124).flHSL
+        XCTAssertEqual(v.hue, 203)
+        XCTAssertTrue((40...41).contains(v.saturation), "\(v.saturation)")
+        XCTAssertEqual(v.luminance, 100)
+        // Aller-retour HSL ↔ RVB à un pas d'arrondi près.
+        for c in [RGBColor(r: 254, g: 105, b: 110), RGBColor(r: 46, g: 253, b: 197), RGBColor(r: 12, g: 12, b: 12)] {
+            let back = RGBColor(flHSL: c.flHSL)
+            XCTAssertLessThanOrEqual(abs(Int(back.r) - Int(c.r)) + abs(Int(back.g) - Int(c.g)) + abs(Int(back.b) - Int(c.b)), 9, c.hex)
+        }
+        XCTAssertEqual(FLColorWheel.pale.count, 16)
+        XCTAssertEqual(FLColorWheel.medium.count, 16)
+        XCTAssertEqual(FLColorWheel.vivid.count, 16)
+        // Rouge vif en haut, centre gris, à droite le 5e secteur (90°), rien hors de la roue.
+        XCTAssertEqual(FLColorWheel.hit(dx: 0, dy: 0)?.ring, 0)
+        let top = FLColorWheel.hit(dx: 0, dy: -0.6)
+        XCTAssertEqual(top?.ring, 3)
+        XCTAssertEqual(top?.sector, 0)
+        XCTAssertEqual(FLColorWheel.color(ring: 3, sector: 0), RGBColor(r: 254, g: 105, b: 110))
+        let right = FLColorWheel.hit(dx: 0.9, dy: 0)
+        XCTAssertEqual(right?.ring, 5)
+        XCTAssertEqual(right?.sector, 4)
+        XCTAssertEqual(FLColorWheel.hit(dx: 0.3, dy: -0.95)?.sector, 1)        // un peu à droite du haut
+        XCTAssertNil(FLColorWheel.hit(dx: 1.05, dy: 0))
+        // Anneaux sombres : même teinte que le vif, plus foncés.
+        let dark = FLColorWheel.color(ring: 5, sector: 0).flHSL
+        XCTAssertLessThan(dark.luminance, FLColorWheel.color(ring: 4, sector: 0).flHSL.luminance)
+        let d = abs(dark.hue - FLColorWheel.vivid[0].flHSL.hue)
+        XCTAssertLessThan(min(d, 360 - d), 3)                                 // le rouge est près de 360°
+    }
+
 }
