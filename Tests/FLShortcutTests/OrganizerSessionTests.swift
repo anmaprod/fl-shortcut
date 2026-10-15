@@ -26,7 +26,7 @@ final class FakeOrganizerLink: OrganizerLink {
     /// Index des couleurs ignorées par ce faux FL (pour tester la vérification).
     var ignoredColors: Set<Int> = []
 
-    func setColors(_ kind: ItemKind, _ colors: [(index: Int, color: RGBColor)]) throws {
+    func setColors(_ kind: ItemKind, _ colors: [(index: Int, color: FLShortcut.RGBColor)]) throws {
         log.append("colors \(colors.count)")
         for (index, color) in colors where !ignoredColors.contains(index) {
             switch kind {
@@ -57,7 +57,7 @@ final class FakeOrganizerLink: OrganizerLink {
         return done
     }
 
-    static func copy(_ c: ChannelInfo, index: Int, color: RGBColor) -> ChannelInfo {
+    static func copy(_ c: ChannelInfo, index: Int, color: FLShortcut.RGBColor) -> ChannelInfo {
         ChannelInfo(index: index, type: c.type, mixerTrack: c.mixerTrack, color: color, name: c.name)
     }
 

@@ -5,7 +5,7 @@ import XCTest
 final class OrganizerApplyTests: XCTestCase {
     private let gray = RGBColor(r: 10, g: 10, b: 10)
 
-    private func style(_ family: SoundFamily) -> RGBColor {
+    private func style(_ family: SoundFamily) -> FLShortcut.RGBColor {
         FamilyStyles.initial[family]?.color ?? RGBColor(r: 0, g: 0, b: 0)
     }
 
