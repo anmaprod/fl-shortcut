@@ -155,8 +155,11 @@ jobs:
           "dist/FL Shortcut.app/Contents/MacOS/FLShortcut" --selftest-preset "$OUT" &
           pid=$!
           ( for i in $(seq -w 1 16); do screencapture -x "dist/mesure/selftest-preset-$i.png" 2>/dev/null; sleep 0.4; done ) &
-          ( sleep 60; pkill -x FLShortcut 2>/dev/null ) &
+          # Chien de garde arrêté dès la fin de l'essai : sinon il survit à l'étape et tue l'essai suivant.
+          ( sleep 60; kill "$pid" 2>/dev/null ) &
+          dog=$!
           status=0; wait "$pid" || status=$?
+          kill "$dog" 2>/dev/null || true
           { echo "## Essai du preset automatique"; echo '```'; cat dist/mesure/selftest-preset.txt; echo '```'; } | tee -a "$GITHUB_STEP_SUMMARY"
           grep -Eq '^(PASS|SKIP)' dist/mesure/selftest-preset.txt && exit 0
           exit "${status:-1}"
@@ -178,19 +181,25 @@ jobs:
           drv=$!
           ( for i in $(seq -w 1 40); do screencapture -x "dist/mesure/selftest-macro-$i.png" 2>/dev/null; sleep 1; done ) &
           ( sleep 150; kill "$drv" 2>/dev/null ) &
+          dog=$!
           status=0; wait "$drv" || status=$?
+          kill "$dog" 2>/dev/null || true
           # 2. Macro construite en blocs, lancée par le même chemin que « Tester » dans le créateur.
           "$BIN" --selftest-macro "$OUT2" "$STATE" "$fake" --scenario blocs &
           drv2=$!
           ( for i in $(seq -w 1 8); do screencapture -x "dist/mesure/selftest-blocs-$i.png" 2>/dev/null; sleep 0.7; done ) &
           ( sleep 60; kill "$drv2" 2>/dev/null ) &
+          dog=$!
           status2=0; wait "$drv2" || status2=$?
+          kill "$dog" 2>/dev/null || true
           # 3. « Enregistrer des clics » : l'utilisateur simulé clique (menus, fenêtre des réglages), puis rejeu.
           "$BIN" --selftest-macro "$OUT3" "$STATE" "$fake" --scenario clics &
           drv3=$!
           ( for i in $(seq -w 1 12); do screencapture -x "dist/mesure/selftest-clics-$i.png" 2>/dev/null; sleep 1; done ) &
           ( sleep 90; kill "$drv3" 2>/dev/null ) &
+          dog=$!
           status3=0; wait "$drv3" || status3=$?
+          kill "$dog" 2>/dev/null || true
           kill "$fake" 2>/dev/null || true
           { echo "## Essai de la macro sur le FL simulé"; echo '```'; cat "$OUT"; echo '```'
             echo "## Essai d'une macro construite en blocs (chemin du bouton « Tester »)"; echo '```'; cat "$OUT2"; echo '```'
