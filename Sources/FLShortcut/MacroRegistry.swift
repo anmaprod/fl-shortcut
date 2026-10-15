@@ -612,15 +612,15 @@ private enum Specs {
         valider: { body, ctx in
             guard case .nameColor(let name, let color, let fade, let icon) = body else { return nil }
             let payload = NameColorPayload(name: name, color: color)
-            guard payload.name != nil || payload.color != nil || icon != nil else {
-                return ctx.fail("donne un nom ou une couleur.")
-            }
-            if let n = payload.name, let why = NameColorPayload.nameProblem(n) { return ctx.fail(why) }
             if fade != nil {
                 // Comme « Gradient color… » de FL : une couleur de départ, et jamais de nom (plusieurs pistes).
                 guard payload.color != nil else { return ctx.fail("un dégradé demande ses deux couleurs.") }
                 guard payload.name == nil else { return ctx.fail("un dégradé ne change pas le nom : retire le nom.") }
             }
+            guard payload.name != nil || payload.color != nil || icon != nil else {
+                return ctx.fail("donne un nom ou une couleur.")
+            }
+            if let n = payload.name, let why = NameColorPayload.nameProblem(n) { return ctx.fail(why) }
             return nil
         },
         import_: .aRelire("renomme et colore dans FL"), plateformes: .mac)
