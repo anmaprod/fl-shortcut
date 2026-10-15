@@ -260,3 +260,123 @@ final class LinkCoreTests: XCTestCase {
         XCTAssertNil(core.routingView().knownWindow)
     }
 }
+
+/// PROTOCOL.md §7 : commande avec données (action 41), empaquetage 7 bits, raison des refus, Nom et couleur.
+final class DataCommandTests: XCTestCase {
+    private let key = Array(UInt8(0)..<UInt8(16))
+    private let nonce: [UInt8] = [17, 42, 99, 5]
+    private let kick: [UInt8] = [1, 3, 0xE0, 0x45, 0x3A, 4, 75, 105, 99, 107]
+    private let kickUnits: [UInt8] = [4, 1, 3, 96, 69, 58, 4, 75, 0, 105, 99, 107]
+    /// Actions 1 à 41 disponibles (41 = commande avec données).
+    private let capsWithData = CapabilityMask(bits: (1 << 41) - 1).ccValues
+
+    func testPack7Vector() {
+        XCTAssertEqual(Pack7.pack(kick), kickUnits)
+        XCTAssertEqual(Pack7.unpack(kickUnits), kick)
+    }
+
+    func testPack7RoundTrip() {
+        for n in 0...20 {
+            let bytes = (0..<n).map { UInt8(truncatingIfNeeded: $0 * 37 + 200) }
+            let units = Pack7.pack(bytes)
+            XCTAssertTrue(units.allSatisfy { $0 < 128 })
+            XCTAssertEqual(units.count, n + (n + 6) / 7)
+            XCTAssertEqual(Pack7.unpack(units), bytes)
+        }
+        XCTAssertNil(Pack7.unpack([4]))                 // en-tête seul
+        XCTAssertNil(Pack7.unpack([0b100, 1, 2]))       // bit d'en-tête au-delà du groupe
+        XCTAssertNil(Pack7.unpack([0, 200]))            // unité de plus de 7 bits
+    }
+
+    func testDataFrameVector() throws {
+        let signer = try XCTUnwrap(FrameSigner(keyBytes: key))
+        XCTAssertEqual(signer.mac(nonce: nonce, seq: 300, action: 41, data: kickUnits), [116, 112, 71, 62])
+        let messages = try XCTUnwrap(FrameEncoder.dataFrame(seq: 300, units: kickUnits, nonce: nonce, signer: signer))
+        XCTAssertEqual(messages.count, 1 + 12 + 8)
+        XCTAssertEqual(messages[0], CCMessage(cc: 96, value: 0))
+        XCTAssertEqual(messages[1...12].map(\.cc), Array(repeating: 97, count: 12))
+        XCTAssertEqual(messages[1...12].map(\.value), kickUnits)
+        XCTAssertEqual(messages[13...].map(\.cc), [104, 105, 106, 107, 108, 109, 110, 111])
+        XCTAssertEqual(messages[13...].map(\.value), [0, 2, 44, 41, 116, 112, 71, 62])
+    }
+
+    func testDataFrameTooLong() throws {
+        let signer = try XCTUnwrap(FrameSigner(keyBytes: key))
+        XCTAssertNotNil(FrameEncoder.dataFrame(seq: 1, units: Array(repeating: 0, count: 600), nonce: nonce, signer: signer))
+        XCTAssertNil(FrameEncoder.dataFrame(seq: 1, units: Array(repeating: 0, count: 601), nonce: nonce, signer: signer))
+        XCTAssertNil(FrameEncoder.dataFrame(seq: 1, units: [128], nonce: nonce, signer: signer))
+    }
+
+    func testReasonDecoded() {
+        var d = IncomingDecoder()
+        XCTAssertEqual(d.feed(status: 0xBF, data1: 116, data2: 3), .reason(3))
+    }
+
+    private func linkedCore(caps: [UInt8]) -> (LinkCore, FakeTransport) {
+        let transport = FakeTransport()
+        let core = LinkCore(transport: transport, key: key)
+        core.receive(Bytes.hello(nonce: nonce, caps: caps))
+        return (core, transport)
+    }
+
+    /// FL répond (de façon asynchrone, comme CoreMIDI) quand la trame signée est partie.
+    private func reply(_ core: LinkCore, _ transport: FakeTransport, with bytes: [UInt8]) {
+        transport.onSend = { messages in
+            guard messages.last?.cc == 111 else { return }
+            DispatchQueue.global().asyncAfter(deadline: .now() + 0.02) { core.receive(bytes) }
+        }
+    }
+
+    func testRunDataDoneAndRefused() {
+        let (core, transport) = linkedCore(caps: capsWithData)
+        reply(core, transport, with: Bytes.cc(119, 41))
+        XCTAssertEqual(core.runData(kickUnits, brief: true, timeout: 1), .done)
+        let sentCCs = transport.sent.flatMap { $0 }
+        XCTAssertEqual(sentCCs.first, CCMessage(cc: 96, value: 0))
+        XCTAssertEqual(sentCCs.last?.cc, 111)
+
+        reply(core, transport, with: Bytes.cc(116, 2) + Bytes.cc(119, 0))
+        XCTAssertEqual(core.runData(kickUnits, brief: true, timeout: 1), .refused(2))
+        // un refus expliqué n'est pas un rejet : pas de resynchronisation (PING)
+        reply(core, transport, with: Bytes.cc(116, 3) + Bytes.cc(119, 0))
+        XCTAssertEqual(core.runData(kickUnits, brief: true, timeout: 1), .refused(3))
+        XCTAssertEqual(transport.pings, 0)
+    }
+
+    func testRunDataNeedsCapability() {
+        let (core, transport) = linkedCore(caps: Bytes.allCaps)       // script v3 : pas de bit 41
+        guard case .failed = core.runData(kickUnits, brief: true, timeout: 1) else {
+            return XCTFail("le bit 41 manque : rien ne doit partir")
+        }
+        XCTAssertFalse(transport.sent.flatMap { $0 }.contains { $0.cc == 96 })
+    }
+
+    func testLongDataSentInSmallPackets() {
+        let (core, transport) = linkedCore(caps: capsWithData)
+        let units = Array(repeating: UInt8(5), count: 600)
+        XCTAssertEqual(core.sendData(units), .sent(seq: 1))
+        XCTAssertTrue(transport.sent.allSatisfy { $0.flatMap(\.bytes).count <= 256 })
+        let all = transport.sent.flatMap { $0 }
+        XCTAssertEqual(all.count, 1 + 600 + 8)
+        XCTAssertEqual(all.filter { $0.cc == 97 }.map(\.value), units)
+    }
+
+    func testNameColorPayloadBytes() throws {
+        let red = try XCTUnwrap(RGBColor(hex: "E0453A"))
+        XCTAssertEqual(NameColorPayload(name: "Kick", color: red).bytes, kick)
+        XCTAssertEqual(NameColorPayload(name: "Kick", color: red).units, kickUnits)
+        XCTAssertEqual(NameColorPayload(name: nil, color: RGBColor(r: 0x12, g: 0x34, b: 0x56)).bytes,
+                       [1, 2, 0x12, 0x34, 0x56, 0])
+        XCTAssertEqual(NameColorPayload(name: "  Kick ", color: nil).bytes, [1, 1, 0, 0, 0, 4, 75, 105, 99, 107])
+        XCTAssertNil(NameColorPayload(name: "   ", color: nil).name)
+        XCTAssertEqual(NameColorPayload(name: "Café 🎹", color: nil).bytes.suffix(10), ArraySlice(Array("Café 🎹".utf8)))
+    }
+
+    func testRGBColorHex() {
+        XCTAssertEqual(RGBColor(hex: "#e0453a"), RGBColor(r: 0xE0, g: 0x45, b: 0x3A))
+        XCTAssertEqual(RGBColor(hex: "E0453A")?.hex, "E0453A")
+        XCTAssertNil(RGBColor(hex: "E0453"))
+        XCTAssertNil(RGBColor(hex: "ZZZZZZ"))
+        XCTAssertNil(RGBColor(hex: "#E0453A00"))
+    }
+}

@@ -49,6 +49,8 @@ final class LinkCore {
         var consecutiveRejects = 0
         /// Dernier accusé reçu (0 = refus) : la macro attend celui de sa dernière commande.
         var lastAckedID: Int?
+        /// Raison du dernier refus d'une commande avec données (CC 116), remise à nil à chaque envoi.
+        var lastReason: Int?
         var incompatible: Int?
         var pendingSend: (id: Int, at: UInt64)?
         var latencies: [Double] = []
@@ -109,9 +111,12 @@ final class LinkCore {
                     s.pingBackoff = FLProtocol.pingInterval
                 case .window(let w):
                     s.window = w
+                case .reason(let r):
+                    s.lastReason = r
                 case .ack(let id):
                     s.lastAckedID = id
-                    if id == 0 {
+                    // Un refus expliqué (CC 116 : rien de sélectionné…) n'est pas un rejet de trame.
+                    if id == 0 && s.lastReason == nil {
                         s.consecutiveRejects += 1
                         if s.consecutiveRejects >= 2 { needsResync = true; s.consecutiveRejects = 0 }
                     } else {
@@ -151,27 +156,10 @@ final class LinkCore {
     /// complet, le script reste éveillé). Script déjà réveillé depuis peu : aucun nouveau PING.
     /// Renvoie nil si tout est parti, sinon la raison.
     func runBriefly(_ ids: [Int], brief: Bool, timeout: TimeInterval = 4) -> String? {
-        let start = clock()
-        let state0: (hasKey: Bool, fresh: Bool) = state.withLock { s in
-            let fresh = s.hello != nil && (s.lastAlive.map { start.timeIntervalSince($0) < 4 } ?? false)
-            return (s.signer != nil, fresh)
-        }
-        guard state0.hasKey else { return "lien avec FL non installé : fiche du raccourci › Installer le lien avec FL" }
-        if !state0.fresh {
-            let sent: Bool = state.withLock { s in
-                s.hello = nil                  // le HELLO attendu est celui de ce réveil
-                s.lastPing = start
-                return transport.send([brief ? .pingBrief : .ping])
-            }
-            guard sent else { return "ports MIDI « FL Shortcut » indisponibles" }
-            let deadline = Date().addingTimeInterval(timeout)
-            while Date() < deadline {
-                if state.withLock({ s in s.hello != nil && (s.lastAlive.map { $0 >= start } ?? false) }) { break }
-                Thread.sleep(forTimeInterval: 0.03)
-            }
-        }
-        guard let hello = state.withLock({ $0.hello }) else {
-            return "FL ne répond pas : redémarre FL (nouvelle version du script), et vérifie dans Options › MIDI Settings que « FL Shortcut » est activé en entrée et en sortie"
+        let hello: HelloInfo
+        switch wake(brief: brief, timeout: timeout) {
+        case .ready(let h): hello = h
+        case .failed(let why): return why
         }
         guard let last = ids.last else { return nil }
         state.withLock { $0.lastAckedID = nil }
@@ -193,6 +181,99 @@ final class LinkCore {
             }
         }
         return "FL n'a pas confirmé (armement / REC)"
+    }
+
+    private enum Wake {
+        case ready(HelloInfo)
+        case failed(String)
+    }
+
+    /// Réveille le script si besoin (PING) et attend son HELLO. Script déjà réveillé depuis peu : aucun PING.
+    private func wake(brief: Bool, timeout: TimeInterval) -> Wake {
+        let start = clock()
+        let state0: (hasKey: Bool, fresh: Bool) = state.withLock { s in
+            let fresh = s.hello != nil && (s.lastAlive.map { start.timeIntervalSince($0) < 4 } ?? false)
+            return (s.signer != nil, fresh)
+        }
+        guard state0.hasKey else { return .failed("lien avec FL non installé : fiche du raccourci › Installer le lien avec FL") }
+        if !state0.fresh {
+            let sent: Bool = state.withLock { s in
+                s.hello = nil                  // le HELLO attendu est celui de ce réveil
+                s.lastPing = start
+                return transport.send([brief ? .pingBrief : .ping])
+            }
+            guard sent else { return .failed("ports MIDI « FL Shortcut » indisponibles") }
+            let deadline = Date().addingTimeInterval(timeout)
+            while Date() < deadline {
+                if state.withLock({ s in s.hello != nil && (s.lastAlive.map { $0 >= start } ?? false) }) { break }
+                Thread.sleep(forTimeInterval: 0.03)
+            }
+        }
+        guard let hello = state.withLock({ $0.hello }) else {
+            return .failed("FL ne répond pas : redémarre FL (nouvelle version du script), et vérifie dans Options › MIDI Settings que « FL Shortcut » est activé en entrée et en sortie")
+        }
+        return .ready(hello)
+    }
+
+    /// Macro (file de la macro, bloquant) : commande avec données (PROTOCOL.md §7). Réveil comme `runBriefly`,
+    /// puis attente de l'accusé 41, ou de la raison du refus suivie de l'accusé 0.
+    func runData(_ units: [UInt8], brief: Bool, timeout: TimeInterval = 4) -> DataReply {
+        let hello: HelloInfo
+        switch wake(brief: brief, timeout: timeout) {
+        case .ready(let h): hello = h
+        case .failed(let why): return .failed(why)
+        }
+        guard hello.capabilities.contains(FLProtocol.dataActionID) else {
+            return .failed("mets à jour le lien avec FL : redémarre FL pour charger le nouveau script")
+        }
+        state.withLock { $0.lastAckedID = nil }
+        switch sendData(units) {
+        case .sent: break
+        case .noKey: return .failed("lien avec FL non installé")
+        default: return .failed("FL n'a pas reçu la commande")
+        }
+        let ackDeadline = Date().addingTimeInterval(1.5)
+        while Date() < ackDeadline {
+            let (ack, reason) = state.withLock { ($0.lastAckedID, $0.lastReason) }
+            switch ack {
+            case .some(FLProtocol.dataActionID): return .done
+            case .some(0):
+                return reason.map(DataReply.refused)
+                    ?? .failed("FL a refusé la commande : redémarre FL (le script vient d'être mis à jour)")
+            default: Thread.sleep(forTimeInterval: 0.01)
+            }
+        }
+        return .failed("FL n'a pas confirmé")
+    }
+
+    /// Commande avec données : CC 96, unités, trame signée de l'action 41. Envoyée par paquets (256 octets au plus
+    /// pour CoreMIDI), dans l'ordre et sous le verrou : jamais mélangée avec une autre trame.
+    func sendData(_ units: [UInt8]) -> SendResult {
+        let now = clock()
+        var exhausted = false
+        let result: SendResult = state.withLock { s in
+            guard let signer = s.signer else { return .noKey }
+            guard let hello = s.hello, let alive = s.lastAlive,
+                  now.timeIntervalSince(alive) < FLProtocol.aliveTimeout else { return .notLinked }
+            guard hello.capabilities.contains(FLProtocol.dataActionID) else { return .unavailable }
+            guard s.seq < FLProtocol.seqMax else { exhausted = true; return .sequenceExhausted }
+            let next = s.seq + 1
+            guard let messages = FrameEncoder.dataFrame(seq: next, units: units, nonce: hello.nonce, signer: signer) else {
+                return .unavailable
+            }
+            s.seq = next
+            s.lastReason = nil
+            s.pendingSend = (id: FLProtocol.dataActionID, at: DispatchTime.now().uptimeNanoseconds)
+            var from = 0
+            while from < messages.count {
+                let to = min(from + FLProtocol.messagesPerSend, messages.count)
+                guard transport.send(Array(messages[from..<to])) else { return .transportFailed }
+                from = to
+            }
+            return .sent(seq: next)
+        }
+        if exhausted { ping(minInterval: FLProtocol.resyncPingInterval) }
+        return result
     }
 
     /// À appeler toutes les secondes : PING après 6 s sans battement (ou sans HELLO) quand FL tourne.
@@ -228,6 +309,7 @@ final class LinkCore {
                 return .unavailable
             }
             s.seq = next
+            s.lastReason = nil
             s.pendingSend = (id: id, at: DispatchTime.now().uptimeNanoseconds)
             return transport.send(frame) ? .sent(seq: next) : .transportFailed
         }
@@ -478,6 +560,15 @@ final class MIDILink: ObservableObject {
         onDemand = true
         if transport.connect() { lastReconnect = Date() }
         uniqueIDConflict = transport.hadUniqueIDConflict
+    }
+
+    /// Macro : commande avec données (Nom et couleur…), même réveil bref que `runBriefly`.
+    func runData(_ units: [UInt8]) -> DataReply {
+        guard transport.isReady else {
+            return .failed(core.snapshot.hasKey ? "ports MIDI « FL Shortcut » indisponibles : relance FL Shortcut"
+                                                : "lien avec FL non installé : fiche du raccourci › Installer le lien avec FL")
+        }
+        return core.runData(units, brief: AppMode.light, timeout: 1.5)
     }
 
     /// Macro : réveil bref du script, actions, puis il se rendort (file de la macro, bloquant).

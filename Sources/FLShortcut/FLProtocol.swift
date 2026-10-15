@@ -15,9 +15,19 @@ enum FLProtocol {
     // Appli → FL
     static let ccPing: UInt8 = 103
     static let ccFrameFirst: UInt8 = 104          // 104…111 : seq (3), action (1), MAC (4)
+    // Commande avec données (PROTOCOL.md §7, script v4) : CC 96 début, CC 97 unités, puis la trame de l'action 41.
+    static let ccDataStart: UInt8 = 96
+    static let ccDataUnit: UInt8 = 97
+    static let dataActionID = 41
+    static let maxDataUnits = 600
+    /// CoreMIDI : 256 octets au plus par envoi (`CoreMIDITransport.send`) ; 80 messages = 240 octets.
+    static let messagesPerSend = 80
     // FL → appli
     static let ccCapsFirst: UInt8 = 90            // 90…95 : masque de capacités (6 × 7 bits)
     static let capsCount = 6
+    /// Raison d'un refus de la commande avec données, juste avant l'accusé 0 (1 page, 2 rien de sélectionné,
+    /// 3 plusieurs, 5 données).
+    static let ccReason: UInt8 = 116
     static let ccWindow: UInt8 = 117
     static let ccHeartbeat: UInt8 = 118
     static let ccAck: UInt8 = 119
@@ -84,11 +94,63 @@ struct FrameSigner {
     }
 
     func mac(nonce: [UInt8], seq: UInt32, action: UInt8) -> [UInt8] {
-        let msg = Self.message(nonce: nonce, seq: seq, action: action)
+        mac28(of: Self.message(nonce: nonce, seq: seq, action: action))
+    }
+
+    /// Commande avec données : le MAC couvre aussi les unités (PROTOCOL.md §7).
+    func mac(nonce: [UInt8], seq: UInt32, action: UInt8, data: [UInt8]) -> [UInt8] {
+        mac28(of: Self.message(nonce: nonce, seq: seq, action: action) + data)
+    }
+
+    private func mac28(of msg: [UInt8]) -> [UInt8] {
         let code = HMAC<SHA256>.authenticationCode(for: msg, using: key)
         let digest = code.withUnsafeBytes { Array($0) }
         return FLProtocol.mac28(digest)
     }
+}
+
+/// Empaquetage 7 bits des données (PROTOCOL.md §7) : par groupe de 7 octets, une unité d'en-tête (bit j = bit 7 de
+/// l'octet j), puis les 7 bits bas de chaque octet.
+enum Pack7 {
+    static func pack(_ bytes: [UInt8]) -> [UInt8] {
+        var out: [UInt8] = []
+        out.reserveCapacity(bytes.count + (bytes.count + 6) / 7)
+        var i = 0
+        while i < bytes.count {
+            let group = bytes[i..<min(i + 7, bytes.count)]
+            var header: UInt8 = 0
+            for (j, b) in group.enumerated() where b & 0x80 != 0 { header |= 1 << UInt8(j) }
+            out.append(header)
+            out.append(contentsOf: group.map { $0 & 0x7F })
+            i += 7
+        }
+        return out
+    }
+
+    /// nil si mal formé (en-tête seul, bit d'en-tête au-delà du groupe, unité de plus de 7 bits).
+    static func unpack(_ units: [UInt8]) -> [UInt8]? {
+        var out: [UInt8] = []
+        var i = 0
+        while i < units.count {
+            let header = units[i]
+            let body = units[(i + 1)..<min(i + 8, units.count)]
+            guard !body.isEmpty, header < 128, Int(header) >> body.count == 0 else { return nil }
+            for (j, u) in body.enumerated() {
+                guard u < 128 else { return nil }
+                out.append(u | ((header >> UInt8(j)) & 1 == 1 ? 0x80 : 0))
+            }
+            i += 1 + body.count
+        }
+        return out
+    }
+}
+
+/// Réponse de FL à une commande avec données.
+enum DataReply: Equatable {
+    case done
+    /// Refus expliqué par le CC 116 (1 page, 2 rien de sélectionné, 3 plusieurs, 5 données).
+    case refused(Int)
+    case failed(String)
 }
 
 enum FrameEncoder {
@@ -100,6 +162,18 @@ enum FrameEncoder {
         let a = UInt8(action)
         let values = FLProtocol.seqBytes(seq) + [a] + signer.mac(nonce: nonce, seq: seq, action: a)
         return values.enumerated().map { CCMessage(cc: FLProtocol.ccFrameFirst + UInt8($0.offset), value: $0.element) }
+    }
+
+    /// Commande avec données : CC 96, un CC 97 par unité, puis la trame de l'action 41 dont le MAC couvre les
+    /// unités. `nil` au-delà de 600 unités ou si une valeur sort du protocole.
+    static func dataFrame(seq: UInt32, units: [UInt8], nonce: [UInt8], signer: FrameSigner) -> [CCMessage]? {
+        guard (1...FLProtocol.seqMax).contains(seq), units.count <= FLProtocol.maxDataUnits,
+              units.allSatisfy({ $0 < 128 }), nonce.count == 4, nonce.allSatisfy({ $0 < 128 }) else { return nil }
+        let a = UInt8(FLProtocol.dataActionID)
+        let values = FLProtocol.seqBytes(seq) + [a] + signer.mac(nonce: nonce, seq: seq, action: a, data: units)
+        return [CCMessage(cc: FLProtocol.ccDataStart, value: 0)]
+            + units.map { CCMessage(cc: FLProtocol.ccDataUnit, value: $0) }
+            + values.enumerated().map { CCMessage(cc: FLProtocol.ccFrameFirst + UInt8($0.offset), value: $0.element) }
     }
 }
 
@@ -126,6 +200,8 @@ enum IncomingEvent: Equatable {
     case window(FLWindow)
     /// id de l'action exécutée, ou 0 si la trame a été rejetée / l'action a échoué.
     case ack(Int)
+    /// Raison du refus d'une commande avec données (CC 116), juste avant l'accusé 0.
+    case reason(Int)
 }
 
 /// Découpe un flux d'octets MIDI en messages (statut courant géré, SysEx et temps réel ignorés).
@@ -198,6 +274,8 @@ struct IncomingDecoder {
             return .heartbeat
         case FLProtocol.ccAck:
             return .ack(Int(value))
+        case FLProtocol.ccReason:
+            return .reason(Int(value))
         default:
             return nil
         }

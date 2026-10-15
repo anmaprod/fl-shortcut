@@ -30,10 +30,13 @@ final class FakeTransport: MIDITransport {
     var isReady = true
     var sent: [[CCMessage]] = []
     var fail = false
+    /// Appelé après chaque envoi (sous le verrou du lien : répondre de façon asynchrone).
+    var onSend: (([CCMessage]) -> Void)?
 
     func send(_ messages: [CCMessage]) -> Bool {
         guard !fail else { return false }
         sent.append(messages)
+        onSend?(messages)
         return true
     }
 
