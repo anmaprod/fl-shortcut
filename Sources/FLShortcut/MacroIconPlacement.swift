@@ -133,8 +133,12 @@ enum IconPlacement {
         let cell = FLIconGrid.center(of: icon, in: grid.bounds)
         driver.note("icon grid \(grid) → cell \(icon.code) at (\(Int(cell.x)),\(Int(cell.y)))")
         guard driver.click(cell) else { return close([grid, name], driver: driver, .clickRefused) }
-        guard awaitGone(grid.number, driver: driver) else { return close([grid, name], driver: driver, .stopped) }
-        if isOpen(grid.number, driver) { return close([grid, name], driver: driver, .gridStayed) }
+        // Relevé sur le FL de l'utilisateur (16/10) : la grille garde son numéro le temps de son animation de
+        // fermeture (44 × 44 points juste après le choix) ; elle compte comme fermée dès qu'elle n'en a plus la forme.
+        guard awaitGone(grid.number, driver: driver, still: isGrid) else {
+            return close([grid, name], driver: driver, .stopped)
+        }
+        if isOpen(grid.number, driver, still: isGrid) { return close([grid, name], driver: driver, .gridStayed) }
         // Entrée seulement si la fenêtre du nom est encore là : FL peut la refermer lui-même avec la grille, et une
         // touche envoyée sans elle irait à la page de FL devant.
         guard isOpen(name.number, driver) else {
@@ -148,8 +152,10 @@ enum IconPlacement {
         return nil
     }
 
-    static func isOpen(_ number: Int, _ driver: IconPlacementDriver) -> Bool {
-        driver.windows().contains { $0.number == number }
+    /// La fenêtre `number` est là et répond encore à `still` (sa forme : une grille qui se referme n'en est plus une).
+    static func isOpen(_ number: Int, _ driver: IconPlacementDriver,
+                       still: (WinInfo) -> Bool = { _ in true }) -> Bool {
+        driver.windows().contains { $0.number == number && still($0) }
     }
 
     /// Fenêtres de FL absentes de `base` (journal).
@@ -165,15 +171,18 @@ enum IconPlacement {
     /// quand la grille est restée ouverte devant (Entrée irait à la grille et pourrait y choisir une case).
     static func close(_ opened: [WinInfo], driver: IconPlacementDriver, _ failure: Failure) -> Failure {
         var gridLeftOpen = false
-        for w in opened where isOpen(w.number, driver) {
+        for w in opened {
+            // Une grille qui se referme (même numéro, plus sa forme) est déjà fermée.
+            let still: (WinInfo) -> Bool = isGrid(w) ? isGrid : { _ in true }
+            guard isOpen(w.number, driver, still: still) else { continue }
             driver.press(escape)
-            _ = awaitGone(w.number, driver: driver, timeout: 0.5)
+            _ = awaitGone(w.number, driver: driver, timeout: 0.5, still: still)
             if isOpen(w.number, driver), !isGrid(w), isNameWindow(w), !gridLeftOpen {
                 driver.note("still open after Escape: \(w) → Enter")
                 driver.press(enter)
                 _ = awaitGone(w.number, driver: driver, timeout: 0.5)
             }
-            if isOpen(w.number, driver) {
+            if isOpen(w.number, driver, still: still) {
                 driver.note("still open: \(w)")
                 if isGrid(w) { gridLeftOpen = true }
             }
@@ -199,10 +208,11 @@ enum IconPlacement {
         }
     }
 
-    /// La fenêtre `number` a disparu (1 s au plus) ; false seulement après Échap.
-    static func awaitGone(_ number: Int, driver: IconPlacementDriver, timeout: TimeInterval = 1) -> Bool {
+    /// La fenêtre `number` a disparu ou ne répond plus à `still` (1 s au plus) ; false seulement après Échap.
+    static func awaitGone(_ number: Int, driver: IconPlacementDriver, timeout: TimeInterval = 1,
+                          still: (WinInfo) -> Bool = { _ in true }) -> Bool {
         var waited: TimeInterval = 0
-        while driver.windows().contains(where: { $0.number == number }) && waited < timeout {
+        while isOpen(number, driver, still: still) && waited < timeout {
             guard driver.wait(0.03) else { return false }
             waited += 0.03
         }

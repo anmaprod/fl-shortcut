@@ -20,6 +20,10 @@ private final class FakeIconFL: IconPlacementDriver {
     /// Comme sur le vrai FL : Échap ne ferme pas toujours la fenêtre du nom, et jamais la grille.
     var nameIgnoresEscape = false
     var gridIgnoresEscape = false
+    /// Comme sur le vrai FL : après le choix d'une case, la grille garde son numéro, réduite à 44 × 44, le temps de
+    /// son animation de fermeture (ici, jusqu'à la fin de l'essai).
+    var gridShrinksOnClose = false
+    static let closingGrid = WinInfo(number: 3, layer: 0, bounds: CGRect(x: 465, y: 117, width: 44, height: 44), pid: 7, alpha: 1)
     /// Clic montré par l'utilisateur ; nil : il appuie sur Échap.
     var shown: CGPoint? = button
     private var stopped = false
@@ -51,6 +55,7 @@ private final class FakeIconFL: IconPlacementDriver {
             let column = Int((p.x - g.minX) / side), row = Int((p.y - g.minY - (g.height - 15 * side)) / side)
             events.append("case \(column)-\(row)")
             open.removeFirst()
+            if gridShrinksOnClose { open.insert(Self.closingGrid, at: 0) }
             if nameClosesWithGrid { open.removeAll { $0.number == Self.name.number } }
         } else if open.first == Self.name, hypot(p.x - Self.button.x, p.y - Self.button.y) <= 4 {
             events.append("bouton de l'icône")
@@ -183,6 +188,18 @@ final class FLIconTests: XCTestCase {
         XCTAssertEqual(IconPlacement.place(try XCTUnwrap(FLIcon(code: "7-4")), driver: fl, defaults: defaults), .noGrid)
         XCTAssertEqual(fl.events, ["F2", "bouton de l'icône", "Échap", "Entrée"])
         XCTAssertEqual(fl.open, [FakeIconFL.main])
+    }
+
+    /// La grille se referme en gardant son numéro (44 × 44, animation) : la pose réussit, sans Échap ni « grille
+    /// restée ouverte ».
+    func testClosingGridAnimationCountsAsClosed() throws {
+        IconPlacement.saveSpot(IconPlacement.Spot(fromTopRight: CGVector(dx: -30, dy: 30),
+                                                  windowSize: FakeIconFL.name.bounds.size), defaults: defaults)
+        let fl = FakeIconFL()
+        fl.gridShrinksOnClose = true
+        XCTAssertNil(IconPlacement.place(try XCTUnwrap(FLIcon(code: "7-4")), driver: fl, defaults: defaults))
+        XCTAssertEqual(fl.events, ["F2", "bouton de l'icône", "case 7-4", "Entrée"])
+        XCTAssertEqual(fl.open, [FakeIconFL.closingGrid, FakeIconFL.main])
     }
 
     /// Grille restée ouverte devant (elle ignore Échap) : jamais d'Entrée, qui irait à la grille.
