@@ -62,12 +62,66 @@ enum DebugSnapshot {
         return dir
     }
 
-    /// ~/Library/Caches/app.flshortcut.FLShortcut/report.txt, écrasé à chaque demande.
+    /// ~/Library/Caches/app.flshortcut.FLShortcut/report.txt, écrasé à chaque demande. Première ligne lue par la
+    /// mesure de la CI ; ensuite, l'état exact de chaque fenêtre visible (cadre, écran, barre de titre, barre
+    /// d'outils, boutons fermer / réduire / agrandir), pour juger l'interface sans capture d'écran.
     private static func writeReport() {
         let hidden = NSApp.windows.filter { !$0.isVisible }.map { String(describing: type(of: $0)) }
-        let text = "editorModels=\(MacroEditorModel.liveCount) windows=\(NSApp.windows.count) "
+        var text = "editorModels=\(MacroEditorModel.liveCount) windows=\(NSApp.windows.count) "
             + "visible=\(NSApp.windows.count - hidden.count) hidden=\(hidden.joined(separator: ","))\n"
+        for (i, s) in NSScreen.screens.enumerated() {
+            text += "écran \(i): frame \(rect(s.frame)) visible \(rect(s.visibleFrame)) échelle \(s.backingScaleFactor)\n"
+        }
+        for w in NSApp.windows where w.isVisible {
+            text += windowLines(w)
+        }
         try? text.write(to: cacheDirectory.appendingPathComponent("report.txt"), atomically: true, encoding: .utf8)
+    }
+
+    private static func rect(_ r: NSRect) -> String {
+        "(\(Int(r.minX)),\(Int(r.minY)) \(Int(r.width))×\(Int(r.height)))"
+    }
+
+    /// Coordonnées AppKit (origine en bas à gauche de l'écran principal).
+    static func windowLines(_ w: NSWindow) -> String {
+        var s = "fenêtre \(type(of: w)) « \(w.title) » #\(w.windowNumber) niveau \(w.level.rawValue)\n"
+        s += "  cadre \(rect(w.frame)) · écran \(w.screen.map { rect($0.frame) } ?? "aucun")"
+        if let screen = w.screen {
+            let inside = screen.visibleFrame.contains(w.frame)
+            s += " · entièrement dans la zone visible : \(inside ? "oui" : "NON")"
+            if w.frame.maxY > screen.visibleFrame.maxY {
+                s += " (dépasse en haut de \(Int(w.frame.maxY - screen.visibleFrame.maxY)) pt)"
+            }
+        }
+        s += "\n"
+        let mask = w.styleMask
+        let flags: [(NSWindow.StyleMask, String)] = [(.titled, "titled"), (.closable, "closable"),
+            (.miniaturizable, "miniaturizable"), (.resizable, "resizable"), (.fullSizeContentView, "fullSizeContentView"),
+            (.fullScreen, "fullScreen"), (.borderless, "borderless")]
+        s += "  styleMask : " + flags.filter { mask.contains($0.0) }.map(\.1).joined(separator: ", ") + "\n"
+        s += "  titre visible : \(w.titleVisibility == .visible ? "oui" : "non") · barre de titre transparente : "
+            + "\(w.titlebarAppearsTransparent ? "oui" : "non") · zoomée : \(w.isZoomed ? "oui" : "non") · clé : "
+            + "\(w.isKeyWindow ? "oui" : "non") · espace actif : \(w.isOnActiveSpace ? "oui" : "non")\n"
+        s += "  contentLayoutRect \(rect(w.contentLayoutRect)) · hauteur de la barre de titre "
+            + "\(Int(w.frame.height - w.contentLayoutRect.height)) pt\n"
+        if let toolbar = w.toolbar {
+            let items = toolbar.items.map { $0.label.isEmpty ? $0.itemIdentifier.rawValue : $0.label }
+            s += "  barre d'outils : visible \(toolbar.isVisible ? "oui" : "NON") · style \(w.toolbarStyle.rawValue) · "
+                + "\(items.count) éléments : \(items.joined(separator: " | "))\n"
+        } else {
+            s += "  barre d'outils : AUCUNE\n"
+        }
+        for (button, name) in [(NSWindow.ButtonType.closeButton, "fermer"), (.miniaturizeButton, "réduire"),
+                               (.zoomButton, "agrandir")] {
+            guard let b = w.standardWindowButton(button) else { s += "  bouton \(name) : ABSENT\n"; continue }
+            let inWindow = b.convert(b.bounds, to: nil)
+            var visibleChain = !b.isHidden && b.alphaValue > 0.01
+            var v: NSView? = b.superview
+            while let view = v { if view.isHidden || view.alphaValue < 0.01 { visibleChain = false }; v = view.superview }
+            s += "  bouton \(name) : \(visibleChain ? "visible" : "CACHÉ") · actif \(b.isEnabled ? "oui" : "non") · "
+                + "dans la fenêtre \(rect(inWindow))\n"
+        }
+        return s
     }
 
     private static func realClick(x: Double, y: Double) {

@@ -12,6 +12,8 @@
 #   resize L,H         taille du contenu de la fenêtre principale (points)
 #   snapshot <nom>     photo des fenêtres de l'app → ~/Library/Caches/app.flshortcut.FLShortcut/<nom>-<n>.png
 #                      (+ <nom>-tailles.txt)
+#   rapport            état exact de chaque fenêtre visible : cadre, écran, barre de titre, barre d'outils et ses
+#                      éléments, boutons fermer / réduire / agrandir (visibles ou cachés, où)
 #   fenetres           position et taille de chaque fenêtre de l'app, et des écrans
 #   ecran <nom>        capture de tout l'écran → .essais/<nom>.png (barre de titre et boutons de la fenêtre compris)
 #   fin                désactive le mode capture
@@ -57,6 +59,10 @@ case "$cmd" in
     rm -f "$CACHE/$arg"-*.png
     envoie snapshot "$arg"; sleep 2
     ls "$CACHE/$arg"-*.png 2>/dev/null; cat "$CACHE/$arg-tailles.txt" 2>/dev/null; echo
+    ;;
+  rapport)
+    envoie report; sleep 1
+    cat "$CACHE/report.txt"
     ;;
   fenetres)
     osascript -e 'tell application "System Events" to tell (first process whose name is "FLShortcut") to get {name, position, size} of every window' 2>&1
