@@ -100,11 +100,11 @@ fi
 # L'app de la barre des menus est quittée : un seul FL Shortcut à la fois envoie des événements.
 pkill -x FLShortcut 2>/dev/null; sleep 1
 
-# Mac verrouillé (ou économiseur d'écran) : aucune fenêtre ne peut passer devant, les essais du FL simulé
-# échoueraient tous pour cette seule raison.
-DEVANT=$(osascript -e 'tell application "System Events" to get name of first process whose frontmost is true' 2>/dev/null)
-if [[ "$DEVANT" == "loginwindow" || "$DEVANT" == "ScreenSaverEngine" ]]; then
-  note "FAIL  essais du FL simulé non lancés : Mac verrouillé ($DEVANT au premier plan) ; à relancer déverrouillé"
+# Mac verrouillé : aucune fenêtre ne peut passer devant (loginwindow au premier plan pour NSWorkspace), les essais
+# du FL simulé échoueraient tous pour cette seule raison. System Events, lui, nomme encore l'app d'avant le
+# verrouillage : l'état fiable est CGSSessionScreenIsLocked (relevé le 16/10 sur macOS 27).
+if ioreg -n Root -d1 -a 2>/dev/null | grep -A1 CGSSessionScreenIsLocked | grep -q '<true/>'; then
+  note "FAIL  essais du FL simulé non lancés : Mac verrouillé ; à relancer déverrouillé"
   trap - EXIT; remettre; open "$APP"; exit 1
 fi
 
