@@ -17,6 +17,9 @@ private final class FakeIconFL: IconPlacementDriver {
     var gridOpens = true
     /// FL referme lui-même la fenêtre du nom quand on choisit une case.
     var nameClosesWithGrid = false
+    /// Comme sur le vrai FL : Échap ne ferme pas toujours la fenêtre du nom, et jamais la grille.
+    var nameIgnoresEscape = false
+    var gridIgnoresEscape = false
     /// Clic montré par l'utilisateur ; nil : il appuie sur Échap.
     var shown: CGPoint? = button
     private var stopped = false
@@ -30,10 +33,12 @@ private final class FakeIconFL: IconPlacementDriver {
             if f2Opens { open.insert(Self.name, at: 0) }
         case 36:
             events.append("Entrée")
-            open.removeAll { $0.number == Self.name.number }
+            // Entrée va à la fenêtre de devant : la grille si elle est restée ouverte.
+            if open.first == Self.grid { events.append("case choisie par Entrée") } else { open.removeAll { $0.number == Self.name.number } }
         case 53:
             events.append("Échap")
-            if let front = open.first, front != Self.main { open.removeFirst() }
+            if let front = open.first, front != Self.main,
+               !(front == Self.name && nameIgnoresEscape), !(front == Self.grid && gridIgnoresEscape) { open.removeFirst() }
         default:
             events.append("touche \(key.keyCode)")
         }
@@ -121,6 +126,10 @@ final class FLIconTests: XCTestCase {
             XCTAssertNotNil(NSImage(systemSymbolName: cell.symbol, accessibilityDescription: nil), "\(icon.code) \(cell.symbol)")
         }
         XCTAssertNotNil(NSImage(systemSymbolName: "square.dashed", accessibilityDescription: nil))
+        // Repli pour les symboles d'un macOS plus récent (cible : macOS 13) : présent depuis macOS 11.
+        XCTAssertTrue(FLIconGrid.Cell.available(FLIconGrid.Cell.fallbackSymbol))
+        XCTAssertEqual(FLIconGrid.Cell(symbol: "pas.un.symbole", name: "x").shownSymbol, FLIconGrid.Cell.fallbackSymbol)
+        XCTAssertEqual(FLIconGrid.Cell(symbol: "mic.fill", name: "Microphone").shownSymbol, "mic.fill")
     }
 
     func testSummaryShowsIcon() throws {
@@ -162,6 +171,29 @@ final class FLIconTests: XCTestCase {
         XCTAssertNil(IconPlacement.place(try XCTUnwrap(FLIcon(code: "7-4")), driver: fl, defaults: defaults))
         XCTAssertEqual(fl.events, ["F2", "bouton de l'icône", "case 7-4"])
         XCTAssertEqual(fl.open, [FakeIconFL.main])
+    }
+
+    /// Échap ne ferme pas la fenêtre du nom : Entrée (le nom ne change pas, rien n'a été tapé).
+    func testEnterClosesTheNameWindowWhenEscapeDoesNot() throws {
+        IconPlacement.saveSpot(IconPlacement.Spot(fromTopRight: CGVector(dx: -30, dy: 30),
+                                                  windowSize: FakeIconFL.name.bounds.size), defaults: defaults)
+        let fl = FakeIconFL()
+        fl.gridOpens = false
+        fl.nameIgnoresEscape = true
+        XCTAssertEqual(IconPlacement.place(try XCTUnwrap(FLIcon(code: "7-4")), driver: fl, defaults: defaults), .noGrid)
+        XCTAssertEqual(fl.events, ["F2", "bouton de l'icône", "Échap", "Entrée"])
+        XCTAssertEqual(fl.open, [FakeIconFL.main])
+    }
+
+    /// Grille restée ouverte devant (elle ignore Échap) : jamais d'Entrée, qui irait à la grille.
+    func testNoEnterWhileTheGridStaysOpen() throws {
+        let fl = FakeIconFL()
+        fl.open = [FakeIconFL.grid, FakeIconFL.name, FakeIconFL.main]
+        fl.gridIgnoresEscape = true
+        fl.nameIgnoresEscape = true
+        XCTAssertEqual(IconPlacement.close([FakeIconFL.grid, FakeIconFL.name], driver: fl, .gridStayed), .gridStayed)
+        XCTAssertEqual(fl.events, ["Échap", "Échap"])
+        XCTAssertEqual(fl.open, [FakeIconFL.grid, FakeIconFL.name, FakeIconFL.main], "rien n'est choisi ni fermé à l'aveugle")
     }
 
     /// Le bouton relevé sur le FL de l'utilisateur : à 9 points du bord gauche d'une fenêtre du nom de 260 × 52.

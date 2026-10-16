@@ -1,6 +1,26 @@
 // Choix d'une icône de FL (Organiser, bloc « Nom et couleur ») dans une grille disposée comme celle de FL : mêmes
 // titres, mêmes cases vides, symboles de macOS. Ouverte à la demande seulement ; rien ne tourne au repos.
+import AppKit
 import SwiftUI
+
+extension FLIconGrid.Cell {
+    /// Symbole d'un macOS plus récent (macOS 13 : 7 cases, Trumpet, Harp…) : un symbole présent partout le remplace,
+    /// la case reste reconnaissable par sa place et sa bulle.
+    static let fallbackSymbol = "square.dashed"
+
+    var shownSymbol: String {
+        Self.available(symbol) ? symbol : Self.fallbackSymbol
+    }
+
+    private static let cache = Locked<[String: Bool]>([:])
+
+    static func available(_ name: String) -> Bool {
+        if let known = cache.value[name] { return known }
+        let found = NSImage(systemSymbolName: name, accessibilityDescription: nil) != nil
+        cache.withLock { $0[name] = found }
+        return found
+    }
+}
 
 struct FLIconPicker: View {
     let selected: FLIcon?
@@ -69,7 +89,7 @@ struct FLIconPicker: View {
         if let icon = FLIcon(column: column, row: row), let found = FLIconGrid.cell(icon) {
             let isSelected = icon == selected
             Button { pick(icon) } label: {
-                Image(systemName: found.symbol)
+                Image(systemName: found.shownSymbol)
                     .font(.system(size: 12))
                     .frame(width: Self.side, height: Self.side)
                     .background(shape.fill(isSelected ? Color.accentColor.opacity(0.25) : Color.primary.opacity(0.06)))
@@ -120,7 +140,7 @@ struct FLIconBadge: View {
         let shape = RoundedRectangle(cornerRadius: 5, style: .continuous)
         Group {
             if let icon, let cell = FLIconGrid.cell(icon) {
-                Image(systemName: cell.symbol).font(.system(size: size * 0.55))
+                Image(systemName: cell.shownSymbol).font(.system(size: size * 0.55))
             } else {
                 Image(systemName: "square.dashed").font(.system(size: size * 0.55)).foregroundStyle(.secondary)
             }

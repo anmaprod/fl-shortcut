@@ -36,7 +36,8 @@ enum IconPlacement {
         var message: String {
             switch self {
             case .stopped: return "arrêtée (Échap, ou FL n'est plus devant)"
-            case .noNameWindow: return "la fenêtre du nom de FL (F2) ne s'est pas ouverte : sélectionne une seule piste ou un seul canal"
+            case .noNameWindow:
+                return "la fenêtre du nom de FL (F2) ne s'est pas ouverte : clique sur le nom d'une seule piste ou d'un seul canal, puis relance"
             case .notShown: return "clic sur l'icône de la fenêtre du nom non montré"
             case .clickRefused: return "clic refusé (FL fermé ou couvert)"
             case .noGrid: return "la grille des icônes ne s'est pas ouverte : relance pour montrer de nouveau le bouton de l'icône"
@@ -157,13 +158,25 @@ enum IconPlacement {
         return windows.isEmpty ? "none" : windows.map(\.description).joined(separator: ", ")
     }
 
-    /// Ferme, de l'avant vers l'arrière, les fenêtres ouvertes par la pose qui sont encore là (Échap, une fois
-    /// chacune, jamais de clic), puis renvoie `failure`. La grille de FL ignore Échap : elle peut rester ouverte.
+    /// Ferme, de l'avant vers l'arrière, les fenêtres ouvertes par la pose qui sont encore là (Échap, jamais de clic),
+    /// puis renvoie `failure`. Relevé sur le FL de l'utilisateur (16/10) : la grille ignore Échap (elle peut rester
+    /// ouverte, c'est signalé) ; la fenêtre du nom ne s'y ferme qu'une fois sur deux, alors qu'Entrée la ferme sans
+    /// changer le nom (la pose ne tape jamais rien dans son champ) : Entrée en second, pour elle seulement, et jamais
+    /// quand la grille est restée ouverte devant (Entrée irait à la grille et pourrait y choisir une case).
     static func close(_ opened: [WinInfo], driver: IconPlacementDriver, _ failure: Failure) -> Failure {
+        var gridLeftOpen = false
         for w in opened where isOpen(w.number, driver) {
             driver.press(escape)
             _ = awaitGone(w.number, driver: driver, timeout: 0.5)
-            if isOpen(w.number, driver) { driver.note("still open after Escape: \(w)") }
+            if isOpen(w.number, driver), !isGrid(w), isNameWindow(w), !gridLeftOpen {
+                driver.note("still open after Escape: \(w) → Enter")
+                driver.press(enter)
+                _ = awaitGone(w.number, driver: driver, timeout: 0.5)
+            }
+            if isOpen(w.number, driver) {
+                driver.note("still open: \(w)")
+                if isGrid(w) { gridLeftOpen = true }
+            }
         }
         return failure
     }
