@@ -78,14 +78,26 @@ struct MacroLibraryPage: View {
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
                 .frame(maxWidth: 380)
+            // Le plus simple d'abord : enregistrer ce qu'on fait dans FL.
+            Button {
+                Self.recordNewMacro(in: library)
+            } label: {
+                Label("Enregistrer une macro", systemImage: "record.circle").frame(minWidth: 240)
+            }
+            .primaryButton()
+            .tint(.red)
+            .controlSize(.large)
+            .help("Une nouvelle macro s'ouvre et FL passe devant : clique et tape ta suite (menus, flèches, raccourcis…), puis « Terminer ». Chaque geste devient un bloc.")
+            Text("Fais ta suite dans FL une fois : chaque clic, flèche ou raccourci devient un bloc.")
+                .font(.system(size: 11))
+                .foregroundStyle(.secondary)
             HStack(spacing: 10) {
-                Button("Nouvelle macro") { newMacro() }
-                    .primaryButton()
-                    .controlSize(.large)
+                Button("Macro vide") { newMacro() }
+                    .secondaryButton()
                 Button("Partir d'un modèle…") { showTemplates = true }
                     .secondaryButton()
-                    .controlSize(.large)
             }
+            .padding(.top, 4)
             Button("Importer un fichier .flsmacro…") { importFile() }
                 .buttonStyle(.link)
                 .font(.system(size: 12))
@@ -99,9 +111,16 @@ struct MacroLibraryPage: View {
     private var actions: some View {
         HStack(spacing: 8) {
             Button {
+                Self.recordNewMacro(in: library)
+            } label: {
+                Label("Enregistrer une macro", systemImage: "record.circle")
+            }
+            .tint(.red)
+            .help("Une nouvelle macro s'ouvre et FL passe devant : clique et tape ta suite, puis « Terminer »")
+            Button {
                 newMacro()
             } label: {
-                Label("Nouvelle macro", systemImage: "plus")
+                Label("Macro vide", systemImage: "plus")
             }
             Button {
                 showTemplates = true
@@ -158,6 +177,13 @@ struct MacroLibraryPage: View {
     static func newMacro(in library: MacroLibraryStore) {
         let doc = library.add(MacroDoc(name: library.uniqueName("Nouvelle macro"), blocks: []))
         MacroCreatorLink.shared.open(doc.id, isNew: true)       // au retour : l'enregistrer ou la supprimer
+    }
+
+    /// « Enregistrer une macro » : nouvelle macro ouverte dans le créateur, et l'enregistrement des clics et des
+    /// touches qui démarre aussitôt (FL passe devant).
+    static func recordNewMacro(in library: MacroLibraryStore) {
+        let doc = library.add(MacroDoc(name: library.uniqueName("Nouvelle macro"), blocks: []))
+        MacroCreatorLink.shared.open(doc.id, isNew: true, record: true)
     }
 
     private func use(_ template: MacroTemplate) {

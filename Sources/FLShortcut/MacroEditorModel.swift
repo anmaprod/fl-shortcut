@@ -331,7 +331,8 @@ final class MacroEditorModel: ObservableObject {
         }
     }
 
-    /// « Enregistrer des clics » : FL passe devant, chaque clic de l'utilisateur deviendra un bloc (à « Terminer »).
+    /// « Enregistrer clics et touches » : FL passe devant, chaque clic et chaque touche de l'utilisateur deviendra
+    /// un bloc (à « Terminer »).
     func recordClicks() {
         guard !closed, draft != nil, !monitor.running, !preparingTest else { return }
         guard let pid = EventTap.shared.currentConfig.flPIDs.first,
@@ -348,9 +349,9 @@ final class MacroEditorModel: ObservableObject {
     func insertRecorded(_ result: ClickSequenceCompiler.Result) {
         guard !closed, let draft else { return }
         let skipped = result.ignored == 0 ? ""
-            : " \(result.ignored) clic\(result.ignored > 1 ? "s" : "") hors de FL (ou dans un menu refermé) ignoré\(result.ignored > 1 ? "s" : "")."
+            : " \(result.ignored) geste\(result.ignored > 1 ? "s" : "") hors de FL (ou dans un menu refermé) ignoré\(result.ignored > 1 ? "s" : "")."
         guard !result.blocks.isEmpty else {
-            notice = "Aucun clic dans FL enregistré." + skipped
+            notice = "Aucun clic ni aucune touche dans FL enregistrés." + skipped
             return
         }
         guard MacroValidation.count(draft.blocks) + result.blocks.count <= MacroValidation.maxBlocks else {
@@ -366,7 +367,7 @@ final class MacroEditorModel: ObservableObject {
             }
         }
         let n = blocks.count
-        notice = "\(n) bloc\(n > 1 ? "s" : "") ajouté\(n > 1 ? "s" : "") d'après tes clics." + skipped
+        notice = "\(n) bloc\(n > 1 ? "s" : "") ajouté\(n > 1 ? "s" : "") d'après tes clics et tes touches." + skipped
     }
 
     func duplicateSelection() {

@@ -25,6 +25,8 @@ final class MacroCreatorLink: ObservableObject {
         let sample: Bool
         /// Macro créée à l'instant (nouvelle, modèle) : au retour, l'enregistrer ou la supprimer.
         var isNew = false
+        /// « Enregistrer une macro » : l'enregistrement des clics et des touches démarre dès l'ouverture.
+        var record = false
     }
 
     @Published private(set) var request: Request?
@@ -36,9 +38,9 @@ final class MacroCreatorLink: ObservableObject {
 
     private init() {}
 
-    func open(_ id: UUID?, isNew: Bool = false) {
+    func open(_ id: UUID?, isNew: Bool = false, record: Bool = false) {
         serial += 1
-        request = Request(serial: serial, id: id, sample: false, isNew: isNew)
+        request = Request(serial: serial, id: id, sample: false, isNew: isNew, record: record)
     }
 
     func openSample() {
@@ -135,6 +137,10 @@ struct MacroCreatorView: View {
         } else {
             model.load(request.id)
             if request.isNew { model.markNew() }
+            // « Enregistrer une macro » : le créateur s'affiche, puis FL passe devant pour l'enregistrement.
+            if request.record {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [model] in model.recordClicks() }
+            }
         }
     }
 
@@ -240,17 +246,26 @@ private struct MacroStepsPane: View {
         .onDeleteCommand { withAnimation(Self.spring) { model.deleteSelection() } }
         .overlay {
             if model.rows.isEmpty {
-                VStack(spacing: 6) {
-                    Image(systemName: "square.stack.3d.down.right")
-                        .font(.system(size: 28, weight: .light))
-                        .foregroundStyle(.secondary)
-                    Text("Aucun bloc pour l'instant").font(.headline)
-                    Text("Glisse un bloc de la palette ici, clique-le, ou tape son nom dans « Ajouter un bloc… » puis ↩.")
+                // Le plus simple d'abord : enregistrer ce qu'on fait dans FL ; les blocs de la palette ensuite.
+                VStack(spacing: 10) {
+                    Image(systemName: "record.circle.fill")
+                        .font(.system(size: 40))
+                        .foregroundStyle(.red)
+                        .accessibilityHidden(true)
+                    Text("Enregistre ce que tu fais dans FL").font(.title3.weight(.semibold))
+                    Text("Clique, utilise les flèches, tes raccourcis… : chaque geste devient un bloc, que tu peux "
+                         + "ensuite modifier, ranger ou supprimer.")
                         .font(.system(size: 12))
                         .foregroundStyle(.secondary)
                         .multilineTextAlignment(.center)
-                        .frame(maxWidth: 320)
+                        .frame(maxWidth: 340)
+                        .fixedSize(horizontal: false, vertical: true)
+                    RecordStartButton(model: model)
+                    Text("ou glisse des blocs de la palette, à gauche")
+                        .font(.system(size: 11))
+                        .foregroundStyle(.tertiary)
                 }
+                .padding(20)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .contentShape(Rectangle())
                 .onDrop(of: [.plainText], isTargeted: nil) { providers in
@@ -307,7 +322,6 @@ private struct MacroStepsPane: View {
     private func actionButtons(hint: Bool) -> some View {
         HStack(spacing: 10) {
             AddBlockMenu(items: paletteItems, insert: { [model] item in withAnimation(Self.spring) { model.insert(item) } })
-            RecordClicksButton(model: model)
             Button {
                 withAnimation(Self.spring) { model.duplicateSelection() }
             } label: {
@@ -334,10 +348,10 @@ private struct MacroStepsPane: View {
     }
 }
 
-/// « Enregistrer clics et touches » : FL passe devant, chaque clic et chaque touche devient un bloc (panneau
-/// « Terminer » en haut à droite).
-/// Observe seul l'enregistreur : le reste de la barre n'est pas redessiné.
-private struct RecordClicksButton: View {
+/// « Enregistrer clics et touches », le cœur des macros : FL passe devant, chaque clic, flèche ou raccourci devient
+/// un bloc (panneau « Terminer » en haut à droite). En grand dans l'en-tête du créateur (⇧⌘R) ; seul l'enregistreur
+/// est observé : le reste de l'en-tête n'est pas redessiné.
+private struct RecordHero: View {
     let model: MacroEditorModel
     @ObservedObject private var recorder = ClickSequenceRecorder.shared
 
@@ -345,11 +359,55 @@ private struct RecordClicksButton: View {
         Button {
             model.recordClicks()
         } label: {
-            Label(recorder.active ? "Enregistrement…" : "Enregistrer clics et touches",
-                  systemImage: recorder.active ? "record.circle.fill" : "record.circle")
+            HStack(spacing: 10) {
+                Image(systemName: recorder.active ? "record.circle.fill" : "record.circle")
+                    .font(.system(size: 22))
+                    .foregroundStyle(.red)
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(recorder.active ? "Enregistrement en cours…" : "Enregistrer clics et touches")
+                        .font(.system(size: 13, weight: .semibold))
+                    Text(recorder.active ? "Clique et tape dans FL, puis « Terminer » en haut à droite."
+                         : "Fais ta suite dans FL : chaque clic, flèche ou raccourci devient un bloc.")
+                        .font(.system(size: 11))
+                        .foregroundStyle(.secondary)
+                        .lineLimit(2)
+                }
+                Spacer(minLength: 0)
+                Text("⇧⌘R").font(.system(size: 11).monospacedDigit()).foregroundStyle(.tertiary)
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
+            .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(Color.red.opacity(0.09)))
+            .overlay(RoundedRectangle(cornerRadius: 10, style: .continuous).strokeBorder(Color.red.opacity(0.3)))
+            .contentShape(Rectangle())
         }
+        .buttonStyle(.plain)
+        .hoverLift(cornerRadius: 10)
+        .keyboardShortcut("r", modifiers: [.command, .shift])
         .disabled(recorder.active)
-        .help("FL passe devant : clique et tape dans l'ordre (menus, Options › Audio, boutons de ses fenêtres, flèches, raccourcis…), puis « Terminer ». Chaque clic et chaque touche devient un bloc.")
+        .help("FL passe devant : clique et tape dans l'ordre (menus, Options › Audio, boutons de ses fenêtres, flèches, raccourcis…), puis « Terminer ». Chaque clic et chaque touche devient un bloc, ajouté sous la ligne choisie.")
+        .accessibilityLabel("Enregistrer clics et touches")
+    }
+}
+
+/// Grand bouton rouge de la macro vide : « Commencer l'enregistrement ».
+private struct RecordStartButton: View {
+    let model: MacroEditorModel
+    @ObservedObject private var recorder = ClickSequenceRecorder.shared
+
+    var body: some View {
+        Button {
+            model.recordClicks()
+        } label: {
+            Label(recorder.active ? "Enregistrement en cours…" : "Commencer l'enregistrement", systemImage: "record.circle")
+                .frame(minWidth: 220)
+        }
+        .primaryButton()
+        .tint(.red)
+        .controlSize(.large)
+        .keyboardShortcut("r", modifiers: [.command, .shift])
+        .disabled(recorder.active)
+        .help("FL passe devant : clique et tape dans l'ordre, puis « Terminer » en haut à droite (⇧⌘R).")
     }
 }
 
@@ -564,6 +622,9 @@ private struct MacroHeader: View {
             }
             if !model.triggerIssues.isEmpty {
                 IssuesView(issues: model.triggerIssues)
+            }
+            if !model.rows.isEmpty {
+                RecordHero(model: model)
             }
         }
         .padding(.horizontal, 16)
