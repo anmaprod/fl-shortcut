@@ -277,7 +277,12 @@ struct CommunityClient {
         var r = URLRequest(url: url)
         r.httpMethod = method
         r.setValue(config.anonKey, forHTTPHeaderField: "apikey")
-        r.setValue("Bearer \(token ?? config.anonKey)", forHTTPHeaderField: "Authorization")
+        // Jeton du compte connecté ; sans compte, l'ancienne clé « anon » (un JWT, « eyJ… ») sert aussi de jeton.
+        // La nouvelle clé publique de Supabase (« sb_publishable_… ») n'en est pas un : envoyée en Authorization,
+        // le serveur refuserait la requête ; « apikey » suffit alors.
+        if let bearer = token ?? (config.anonKey.hasPrefix("eyJ") ? config.anonKey : nil) {
+            r.setValue("Bearer \(bearer)", forHTTPHeaderField: "Authorization")
+        }
         if let body {
             r.httpBody = try JSONSerialization.data(withJSONObject: body)
             r.setValue("application/json", forHTTPHeaderField: "Content-Type")

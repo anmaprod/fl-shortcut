@@ -16,9 +16,11 @@ et l'app ne se connecte jamais à internet.
    - longueur minimale du mot de passe : **8**.
 4. **Authentication › URL Configuration** : laisse l'adresse par défaut ; le lien du mail de confirmation et celui
    du mot de passe oublié s'ouvrent dans le navigateur (page de Supabase).
-5. **Project Settings › API** : note l'**URL du projet** (`https://xxxx.supabase.co`) et la clé **anon public**.
-   Cette clé est publique par conception (elle est dans l'app) : ce sont les règles de `schema.sql` qui protègent
-   les données. Ne mets JAMAIS la clé `service_role` dans l'app.
+5. **Project Settings › API Keys** : note l'**URL du projet** (`https://xxxx.supabase.co`) et la clé publique :
+   la **publishable key** (`sb_publishable_…`) ou, dans l'onglet des anciennes clés, la clé **anon public**
+   (`eyJ…`) ; les deux marchent. Cette clé est publique par conception (elle est dans l'app) : ce sont les règles
+   de `schema.sql` qui protègent les données. Ne mets JAMAIS la clé secrète (`sb_secret_…` ou `service_role`) dans
+   l'app.
 
 ## 2. Compiler l'app reliée au serveur
 
@@ -26,7 +28,14 @@ et l'app ne se connecte jamais à internet.
 FLS_SUPABASE_URL="https://xxxx.supabase.co" FLS_SUPABASE_ANON_KEY="eyJ…" ./build.sh
 ```
 
-Pour la CI, ajoute deux secrets GitHub du même nom et passe-les à `./build.sh`.
+Pour la CI : **GitHub › Settings › Secrets and variables › Actions › New repository secret**, deux secrets
+`FLS_SUPABASE_URL` et `FLS_SUPABASE_ANON_KEY` ; la CI les passe déjà à `./build.sh`.
+
+## Vérifier les règles sans Supabase
+
+`supabase/tests/run.sh` essaie `schema.sql` sur un PostgreSQL ordinaire (la CI le fait à chaque envoi) : comptes et
+noms d'utilisateur, rien de lisible sans compte, publication en son nom seulement, partage non modifiable, suppression
+par l'auteur ou un administrateur, signalements lus par les administrateurs seulement, 20 partages par jour.
 
 Essai sans recompiler (cette machine seulement) :
 

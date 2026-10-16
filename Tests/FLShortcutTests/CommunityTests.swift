@@ -59,6 +59,20 @@ final class CommunityTests: XCTestCase {
         XCTAssertEqual(server.body(0)["password"] as? String, "motdepasse")
     }
 
+    /// Clés de Supabase : l'ancienne clé « anon » (un JWT) sert aussi de jeton sans compte ; la nouvelle clé publique
+    /// (« sb_publishable_… ») n'est envoyée qu'en « apikey » ; un compte connecté envoie toujours son jeton.
+    func testKeysAndBearer() throws {
+        let legacy = CommunityClient(config: CommunityConfig(url: config.url, anonKey: "eyJhbGciOi.anon"))
+        XCTAssertEqual(try legacy.request("POST", "auth/v1/recover").value(forHTTPHeaderField: "Authorization"),
+                       "Bearer eyJhbGciOi.anon")
+        let publishable = CommunityClient(config: CommunityConfig(url: config.url, anonKey: "sb_publishable_abc"))
+        let anonymous = try publishable.request("POST", "auth/v1/recover")
+        XCTAssertEqual(anonymous.value(forHTTPHeaderField: "apikey"), "sb_publishable_abc")
+        XCTAssertNil(anonymous.value(forHTTPHeaderField: "Authorization"))
+        XCTAssertEqual(try publishable.request("GET", "rest/v1/shares", token: "jeton")
+            .value(forHTTPHeaderField: "Authorization"), "Bearer jeton")
+    }
+
     func testSignUpChecksUsernameThenSendsIt() async throws {
         let server = FakeServer([(200, "true"), (200, tokenJSON)])
         _ = try await client(server).signUp(email: "malo@example.com", password: "motdepasse", username: "malo")

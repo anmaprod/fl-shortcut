@@ -30,6 +30,19 @@ jobs:
       - name: Tests du script FL
         run: python3 -m unittest discover -s Tests/python -v
 
+  communaute-sql:
+    name: Serveur de la Communauté (règles d'accès)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: supabase/schema.sql et ses règles sur un vrai PostgreSQL
+        run: |
+          sudo systemctl start postgresql.service
+          sudo -u postgres createuser -s "$USER"
+          supabase/tests/run.sh -h /var/run/postgresql
+
   windows-core:
     name: Cœur Windows (tests .NET)
     runs-on: ubuntu-24.04
@@ -112,6 +125,9 @@ jobs:
           NOTARY_KEY_P8: ${{ secrets.NOTARY_KEY_P8 }}
           NOTARY_KEY_ID: ${{ secrets.NOTARY_KEY_ID }}
           NOTARY_ISSUER: ${{ secrets.NOTARY_ISSUER }}
+          # Facultatif : serveur de la Communauté (supabase/README.md) ; sans eux, la page dit « pas encore ouverte ».
+          FLS_SUPABASE_URL: ${{ secrets.FLS_SUPABASE_URL }}
+          FLS_SUPABASE_ANON_KEY: ${{ secrets.FLS_SUPABASE_ANON_KEY }}
         run: |
           set -euo pipefail
           if [[ -n "${MAC_CERT_P12:-}" ]]; then
