@@ -698,9 +698,9 @@ struct FinderArrows: View {
 
 extension View {
     /// Titre de la fenêtre gardé (menu Fenêtre, VoiceOver), retiré de la barre d'outils (macOS 15 et plus récent).
-    @ViewBuilder func toolbarTitleHidden() -> some View {
+    @ViewBuilder func toolbarTitleHidden(_ hidden: Bool = true) -> some View {
         if #available(macOS 15.0, *) {
-            toolbar(removing: .title)
+            toolbar(removing: hidden ? .title : nil)
         } else {
             self
         }

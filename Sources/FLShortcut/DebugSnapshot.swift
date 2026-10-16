@@ -22,6 +22,8 @@ enum DebugSnapshot {
     /// Écrit « editorModels=<n> windows=<n> visible=<n> hidden=<classes> » dans report.txt : modèles du créateur
     /// encore vivants, fenêtres de l'app (même masquées), fenêtres visibles, classes des fenêtres masquées.
     static let report = Notification.Name("app.flshortcut.debug.report")
+    /// Essai de mise en page de la fenêtre principale (« 0 » à « 4 », voir EditorView.layoutTrial).
+    static let layoutTrial = Notification.Name("app.flshortcut.debug.trial")
 
     static func publisher(_ name: Notification.Name) -> AnyPublisher<Notification, Never> {
         guard enabled else { return Empty().eraseToAnyPublisher() }
@@ -89,8 +91,19 @@ enum DebugSnapshot {
         return out
     }
 
+    private static func splitViews(in view: NSView) -> [NSSplitView] {
+        var out: [NSSplitView] = []
+        if let split = view as? NSSplitView, !split.isHiddenOrHasHiddenAncestor { out.append(split) }
+        for sub in view.subviews { out += splitViews(in: sub) }
+        return out
+    }
+
     private static func rect(_ r: NSRect) -> String {
         "(\(Int(r.minX)),\(Int(r.minY)) \(Int(r.width))×\(Int(r.height)))"
+    }
+
+    private static func size(_ s: NSSize) -> String {
+        "\(Int(s.width))×\(Int(s.height))"
     }
 
     /// Coordonnées AppKit (origine en bas à gauche de l'écran principal).
@@ -131,6 +144,17 @@ enum DebugSnapshot {
                 s += "  défilement \(rect(frame)) · origine du contenu \(Int(visible.minY)) · hauteur du contenu "
                     + "\(Int(docHeight)) · marges auto \(scroll.automaticallyAdjustsContentInsets ? "oui" : "non") "
                     + "haut \(Int(scroll.contentInsets.top)) bas \(Int(scroll.contentInsets.bottom))\n"
+            }
+            // Colonnes (NavigationSplitView) : laquelle réclame plus de hauteur que la fenêtre n'en a ?
+            if let content = w.contentView {
+                s += "  contenu \(rect(content.convert(content.bounds, to: nil))) · taille idéale \(size(content.fittingSize))\n"
+            }
+            for split in splitViews(in: root) {
+                s += "  colonnes \(rect(split.convert(split.bounds, to: nil))) · taille idéale \(size(split.fittingSize))\n"
+                for pane in split.arrangedSubviews {
+                    s += "    colonne \(rect(pane.convert(pane.bounds, to: nil))) · taille idéale \(size(pane.fittingSize))"
+                        + " · \(String(describing: type(of: pane)).prefix { $0 != "<" })\n"
+                }
             }
         }
         for (button, name) in [(NSWindow.ButtonType.closeButton, "fermer"), (.miniaturizeButton, "réduire"),

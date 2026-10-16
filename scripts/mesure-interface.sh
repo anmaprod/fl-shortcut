@@ -73,6 +73,14 @@ run() {   # $1 : libellé, $2 : YES/NO effet verre
   screencapture -x "$OUT/$label.png" 2>/dev/null || true
   # État exact de la fenêtre au moment de la photo (cadre, barre de titre, boutons, listes défilées ou non).
   report "$label-fenetre" >/dev/null
+  # Essais de mise en page : sans la recherche (1), sans les barres flottantes (2), sans le lavis coloré (3), sans
+  # les trois (4). Le rapport dit, pour chacun, si les colonnes tiennent enfin dans la fenêtre.
+  for e in 1 2 3 4; do
+    "$POST" app.flshortcut.debug.trial "$e"; sleep 2
+    report "$label-essai$e" >/dev/null
+    screencapture -x "$OUT/$label-essai$e.png" 2>/dev/null || true
+  done
+  "$POST" app.flshortcut.debug.trial 0; sleep 2
   # Rendu interne de la fenêtre (toute sa hauteur, même si l'écran de test est petit).
   rm -f "$HOME/Library/Caches/$DOMAIN/$label-"*
   "$POST" app.flshortcut.debug.snapshot "$label-fenetre"; sleep 2
