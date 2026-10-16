@@ -14,7 +14,7 @@ struct WinInfo: Equatable, CustomStringConvertible {
 
     var description: String {
         let a = alpha < 0.999 ? String(format: " a%.2f", alpha) : ""
-        return "#\(number) L\(layer) (\(Int(bounds.minX)),\(Int(bounds.minY))) \(Int(bounds.width))x\(Int(bounds.height))\(a)"
+        return "#\(number) L\(layer) \(bounds.logText)\(a)"
     }
 
     /// Menu contextuel, sous-menu ou liste déroulante plausible.
@@ -132,7 +132,7 @@ enum AXProbe {
             guard error == .success else { return "AX error \(error.rawValue) (\(time))" }
             var s = "AX pid \(pid) \(role)" + (subrole.isEmpty ? "" : "/\(subrole)")
             if let title { s += " \"\(title)\"" }
-            if let f = frame { s += " (\(Int(f.minX)),\(Int(f.minY))) \(Int(f.width))x\(Int(f.height))" }
+            if let f = frame { s += " \(f.logText)" }
             return s + " (\(time))"
         }
     }

@@ -13,6 +13,11 @@ extension CGPoint {
     var logText: String { "(\(Int(x)),\(Int(y)))" }
 }
 
+extension CGRect {
+    /// « (x,y) LxH » en points entiers (coin haut-gauche, taille), pour le journal.
+    var logText: String { "(\(Int(minX)),\(Int(minY))) \(Int(width))x\(Int(height))" }
+}
+
 final class MacroLog: @unchecked Sendable {
     static let shared = MacroLog()
 
@@ -157,7 +162,7 @@ final class MacroLog: @unchecked Sendable {
         if CGGetActiveDisplayList(8, &ids, &count) == .success {
             for id in ids.prefix(Int(count)) {
                 let b = CGDisplayBounds(id)
-                out.append("display \(id)\(CGDisplayIsMain(id) != 0 ? " main" : "") (\(Int(b.minX)),\(Int(b.minY))) \(Int(b.width))x\(Int(b.height)) · \(CGDisplayPixelsWide(id)) px wide")
+                out.append("display \(id)\(CGDisplayIsMain(id) != 0 ? " main" : "") \(b.logText) · \(CGDisplayPixelsWide(id)) px wide")
             }
         }
         for kind in MacroSpots.PathKind.allCases {
