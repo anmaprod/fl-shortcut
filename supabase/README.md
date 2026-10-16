@@ -13,7 +13,9 @@ et l'app ne se connecte jamais à internet.
    d'accès (rien pour les visiteurs sans compte), le nom d'utilisateur unique et la limite de 20 partages par jour.
 3. **Authentication › Sign In / Providers › Email** :
    - « Confirm email » : **activé** (chaque compte confirme son mail) ;
-   - longueur minimale du mot de passe : **8**.
+   - longueur minimale du mot de passe : **8** ;
+   - « Password requirements » : **Lowercase, uppercase letters, digits and symbols**. L'app annonce et vérifie les
+     mêmes règles à l'inscription (`CommunityRules.passwordSets`) : à changer ensemble.
 4. **Authentication › URL Configuration** : laisse l'adresse par défaut ; le lien du mail de confirmation et celui
    du mot de passe oublié s'ouvrent dans le navigateur (page de Supabase).
 5. **Project Settings › API Keys** : note l'**URL du projet** (`https://xxxx.supabase.co`) et la clé publique :

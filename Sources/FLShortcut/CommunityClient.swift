@@ -105,8 +105,25 @@ enum CommunityRules {
         return nil
     }
 
+    /// Mêmes exigences que celles réglées dans Supabase (Authentication › Email › Password requirements :
+    /// minuscules, majuscules, chiffres et symboles), avec les mêmes caractères : lettres sans accent.
+    static let passwordRule = "8 caractères au moins, avec une minuscule, une majuscule, un chiffre et un symbole"
+    static let passwordSets: [(name: String, chars: String)] = [
+        ("une minuscule", "abcdefghijklmnopqrstuvwxyz"),
+        ("une majuscule", "ABCDEFGHIJKLMNOPQRSTUVWXYZ"),
+        ("un chiffre", "0123456789"),
+        ("un symbole", "!@#$%^&*()_+-=[]{};'\\:\"|<>?,./`~"),
+    ]
+
+    /// Ce qui manque encore au mot de passe, dans l'ordre (« 3 caractères », « une majuscule »…) ; vide : accepté.
+    static func passwordMissing(_ s: String) -> [String] {
+        let short = minPassword - s.count
+        let length: [String] = short <= 0 ? [] : [short == 1 ? "1 caractère" : "\(short) caractères"]
+        return length + passwordSets.filter { group in !s.contains { group.chars.contains($0) } }.map(\.name)
+    }
+
     static func passwordProblem(_ s: String) -> String? {
-        s.count >= minPassword ? nil : "Mot de passe : \(minPassword) caractères au moins."
+        passwordMissing(s).isEmpty ? nil : "Mot de passe : \(passwordRule)."
     }
 
     static func shareProblem(title: String, notes: String, payload: Data) -> String? {
@@ -322,6 +339,9 @@ struct CommunityClient {
         if lower.contains("email not confirmed") { return "Confirme d'abord ton adresse mail (lien reçu par mail)." }
         if lower.contains("already registered") || lower.contains("already exists") {
             return "Un compte existe déjà avec ce mail."
+        }
+        if (json?["error_code"] as? String) == "weak_password" || lower.contains("password should") {
+            return "Mot de passe trop faible : \(CommunityRules.passwordRule)."
         }
         if lower.contains("trop de partages") || lower.contains("trop de messages") { return raw }
         if status == 401 || status == 403 { return "Session expirée : reconnecte-toi." }

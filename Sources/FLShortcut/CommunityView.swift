@@ -610,10 +610,11 @@ private struct CommunitySignIn: View {
                 }
                 TextField("Mail", text: $email, prompt: Text("toi@exemple.fr"))
                 if creating {
-                    SecureField("Mot de passe", text: $password, prompt: Text("8 caractères au moins"))
+                    SecureField("Mot de passe", text: $password, prompt: Text("8 caractères, majuscule, chiffre, symbole"))
                         .textContentType(.password)
-                    if !password.isEmpty, password.count < CommunityRules.minPassword {
-                        hint("Encore \(CommunityRules.minPassword - password.count) caractère(s) au moins.")
+                    let missing = CommunityRules.passwordMissing(password)
+                    if !password.isEmpty, !missing.isEmpty {
+                        hint("Il faut encore : " + missing.joined(separator: ", ") + ".")
                     }
                 } else {
                     SecureField("Mot de passe", text: $password)

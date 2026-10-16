@@ -75,7 +75,7 @@ final class CommunityTests: XCTestCase {
 
     func testSignUpChecksUsernameThenSendsIt() async throws {
         let server = FakeServer([(200, "true"), (200, tokenJSON)])
-        _ = try await client(server).signUp(email: "malo@example.com", password: "motdepasse", username: "malo")
+        _ = try await client(server).signUp(email: "malo@example.com", password: "MotDePasse1!", username: "malo")
         XCTAssertEqual(server.requests[0].url?.path, "/rest/v1/rpc/username_available")
         XCTAssertEqual(server.body(0)["name"] as? String, "malo")
         XCTAssertEqual((server.body(1)["data"] as? [String: String])?["username"], "malo")
@@ -84,7 +84,7 @@ final class CommunityTests: XCTestCase {
     func testSignUpRefusals() async throws {
         let taken = FakeServer([(200, "false")])
         do {
-            _ = try await client(taken).signUp(email: "malo@example.com", password: "motdepasse", username: "malo")
+            _ = try await client(taken).signUp(email: "malo@example.com", password: "MotDePasse1!", username: "malo")
             XCTFail("nom pris accepté")
         } catch CommunityError.invalid(let why) {
             XCTAssertTrue(why.contains("déjà pris"))
@@ -92,8 +92,9 @@ final class CommunityTests: XCTestCase {
         XCTAssertEqual(taken.requests.count, 1, "aucune inscription envoyée")
 
         let none = FakeServer([])
-        for (mail, pass, name) in [("pas-un-mail", "motdepasse", "malo"), ("malo@example.com", "court", "malo"),
-                                   ("malo@example.com", "motdepasse", "é!"), ("malo@example.com", "motdepasse", "ab")] {
+        for (mail, pass, name) in [("pas-un-mail", "MotDePasse1!", "malo"), ("malo@example.com", "court", "malo"),
+                                   ("malo@example.com", "motdepasse", "malo"),
+                                   ("malo@example.com", "MotDePasse1!", "é!"), ("malo@example.com", "MotDePasse1!", "ab")] {
             do {
                 _ = try await client(none).signUp(email: mail, password: pass, username: name)
                 XCTFail("accepté : \(mail) \(name)")
@@ -106,7 +107,7 @@ final class CommunityTests: XCTestCase {
     func testSignUpWithEmailToConfirm() async throws {
         let server = FakeServer([(200, "true"), (200, #"{"id":"\#(userID.uuidString)","email":"malo@example.com"}"#)])
         do {
-            _ = try await client(server).signUp(email: "malo@example.com", password: "motdepasse", username: "malo")
+            _ = try await client(server).signUp(email: "malo@example.com", password: "MotDePasse1!", username: "malo")
             XCTFail("session inventée")
         } catch CommunityError.emailToConfirm {}
     }
@@ -147,12 +148,27 @@ final class CommunityTests: XCTestCase {
         XCTAssertEqual(server.requests.count, 1)
     }
 
+    /// Mêmes exigences que Supabase : 8 caractères, minuscule, majuscule, chiffre, symbole (lettres sans accent).
+    func testPasswordRules() {
+        XCTAssertNil(CommunityRules.passwordProblem("MotDePasse1!"))
+        XCTAssertNil(CommunityRules.passwordProblem("aB3~xxxx"))
+        XCTAssertEqual(CommunityRules.passwordMissing("motdepasse"), ["une majuscule", "un chiffre", "un symbole"])
+        XCTAssertEqual(CommunityRules.passwordMissing("Ab1!"), ["4 caractères"])
+        XCTAssertEqual(CommunityRules.passwordMissing("Abcdefg1!"), [])
+        XCTAssertEqual(CommunityRules.passwordMissing("ÉÉÉÉÉé1!"), ["une minuscule", "une majuscule"],
+                       "les lettres accentuées ne comptent pas, comme chez Supabase")
+        XCTAssertEqual(CommunityRules.passwordMissing("Abcdefg1 "), ["un symbole"], "l'espace n'est pas un symbole")
+        XCTAssertEqual(CommunityRules.passwordMissing("Abcdef1"), ["1 caractère", "un symbole"])
+    }
+
     func testServerMessagesAreReadable() {
         func msg(_ json: String, _ status: Int) -> String { CommunityClient.message(Data(json.utf8), status: status) }
         XCTAssertEqual(msg(#"{"error_description":"Invalid login credentials"}"#, 400), "Mail ou mot de passe incorrect.")
         XCTAssertEqual(msg(#"{"msg":"Email not confirmed"}"#, 400),
                        "Confirme d'abord ton adresse mail (lien reçu par mail).")
         XCTAssertEqual(msg(#"{"msg":"User already registered"}"#, 422), "Un compte existe déjà avec ce mail.")
+        XCTAssertEqual(msg(#"{"code":422,"error_code":"weak_password","msg":"Password should contain at least one character of each"}"#, 422),
+                       "Mot de passe trop faible : \(CommunityRules.passwordRule).")
         XCTAssertEqual(msg("", 401), "Session expirée : reconnecte-toi.")
         XCTAssertEqual(msg("", 429), "Trop de tentatives : réessaie dans quelques minutes.")
     }
