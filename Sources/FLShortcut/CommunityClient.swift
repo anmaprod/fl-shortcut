@@ -343,6 +343,9 @@ struct CommunityClient {
         if (json?["error_code"] as? String) == "weak_password" || lower.contains("password should") {
             return "Mot de passe trop faible : \(CommunityRules.passwordRule)."
         }
+        if lower.contains("error sending") || lower.contains("not authorized") {
+            return "Le mail de confirmation n'a pas pu partir. Réessaie plus tard, ou écris à l'équipe depuis la page Aide."
+        }
         if lower.contains("trop de partages") || lower.contains("trop de messages") { return raw }
         if status == 401 || status == 403 { return "Session expirée : reconnecte-toi." }
         if status == 429 { return "Trop de tentatives : réessaie dans quelques minutes." }

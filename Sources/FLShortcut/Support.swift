@@ -233,10 +233,11 @@ enum HelpContent {
                   answer: "⌃⌥⌘F, n'importe où, ou « Mettre en pause » dans le menu de l'icône en haut de l'écran. Une "
                       + "pastille rappelle que c'est en pause.",
                   keywords: "pause reprendre arreter desactiver"),
-        HelpEntry(id: 8, question: "La Communauté dit « pas encore ouverte »",
-                  answer: "Le serveur de la Communauté n'est pas encore branché dans cette version. Tes raccourcis et tes "
-                      + "macros marchent normalement en attendant.",
-                  keywords: "communaute partage compte serveur connexion"),
+        HelpEntry(id: 8, question: "Communauté : je n'ai pas reçu le mail de confirmation",
+                  answer: "Regarde dans les courriers indésirables : le mail vient de Supabase, le service qui héberge la "
+                      + "Communauté. Le lien s'ouvre dans ton navigateur ; reviens ensuite dans l'app et connecte-toi. "
+                      + "Toujours rien après quelques minutes ? Écris à l'équipe ci-dessous.",
+                  keywords: "communaute compte inscription confirmation mail spam connexion serveur"),
         HelpEntry(id: 9, question: "Mes données sont-elles envoyées quelque part ?",
                   answer: "Non. Tes touches ne sont lues que quand FL Studio est devant, et rien n'est enregistré ni "
                       + "envoyé. Seul ce que tu publies dans la Communauté, et ce que tu écris à l'équipe depuis cette "

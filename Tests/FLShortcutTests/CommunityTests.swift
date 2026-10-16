@@ -169,6 +169,7 @@ final class CommunityTests: XCTestCase {
         XCTAssertEqual(msg(#"{"msg":"User already registered"}"#, 422), "Un compte existe déjà avec ce mail.")
         XCTAssertEqual(msg(#"{"code":422,"error_code":"weak_password","msg":"Password should contain at least one character of each"}"#, 422),
                        "Mot de passe trop faible : \(CommunityRules.passwordRule).")
+        XCTAssertTrue(msg(#"{"msg":"Error sending confirmation email"}"#, 500).hasPrefix("Le mail de confirmation n'a pas pu partir"))
         XCTAssertEqual(msg("", 401), "Session expirée : reconnecte-toi.")
         XCTAssertEqual(msg("", 429), "Trop de tentatives : réessaie dans quelques minutes.")
     }

@@ -26,6 +26,13 @@
     <string>public.app-category.music</string>
     <key>NSAudioCaptureUsageDescription</key>
     <string>Pendant « Organiser » seulement, FL Shortcuts écoute FL Studio, et lui seul, pour reconnaître tes sons (drums, basse, mélodies, voix, FX). Rien n'est enregistré ni envoyé.</string>
+    <!-- Communauté et page Aide : projet Supabase et sa clé publique (publique par conception, les règles de
+         supabase/schema.sql protègent les données). FLS_SUPABASE_URL / FLS_SUPABASE_ANON_KEY les remplacent à la
+         compilation. Jamais la clé secrète ici. -->
+    <key>FLSCommunityURL</key>
+    <string>https://ulzxunuytsakxrvovxen.supabase.co</string>
+    <key>FLSCommunityAnonKey</key>
+    <string>sb_publishable_uSqh6eUCCeoXMioONoQYIQ_rYlriiw8</string>
     <key>NSHumanReadableCopyright</key>
     <string>FL Shortcuts — outil indépendant, non affilié à Image-Line.</string>
 </dict>

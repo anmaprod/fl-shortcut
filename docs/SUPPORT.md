@@ -13,9 +13,11 @@ haut de l'écran. Le formulaire est alors prêt avec le message d'erreur exact, 
 3. Dans ta boîte, un filtre sur le sujet **`[FL Shortcuts]`** range tout dans un libellé « FL Shortcuts ». Le sujet dit
    aussi le genre : `[FL Shortcuts] Problème · …`, `… Question · …`, `… Idée · …` (un filtre par genre si tu veux).
 
-Sans serveur (tant que la Communauté n'est pas branchée), le bouton est **Envoyer par mail** : l'app de mail de
-l'utilisateur s'ouvre avec le message tout prêt, il n'a qu'à l'envoyer. Avec le serveur, le message arrive aussi
-dans Supabase (**Table Editor › support_requests**, voir `supabase/README.md`), sans app de mail.
+Le serveur est branché : le bouton **Envoyer** dépose le message dans Supabase, sans app de mail
+(**Table Editor › support_requests** : une ligne par message, colonnes `reference`, `kind`, `email`, `message`,
+`error` = le message d'erreur signalé, `diagnostic` = état de l'app, derniers problèmes et journal de la dernière
+macro). Si l'envoi échoue, l'app propose **Envoyer par mail** vers l'adresse de l'équipe (étape 2) : l'app de mail
+de l'utilisateur s'ouvre avec le message tout prêt.
 
 ## 2. Lire un message
 

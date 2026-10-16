@@ -1,9 +1,12 @@
 # Communauté de FL Shortcuts : mise en place du serveur (Supabase)
 
-La page **Communauté** de l'app (barre latérale, sous « Personnalisés ») permet à chacun de partager ses macros et
+La page **Communauté** de l'app (barre latérale, sous « Mes raccourcis ») permet à chacun de partager ses macros et
 ses raccourcis avec des notes d'explication. Il faut un compte (mail, mot de passe, nom d'utilisateur) : sans
-compte, rien n'est visible. Tant que le serveur n'est pas réglé, la page affiche « Communauté bientôt disponible »
-et l'app ne se connecte jamais à internet.
+compte, rien n'est visible. Sans serveur réglé, la page affiche « La Communauté n'est pas encore ouverte » et l'app
+ne se connecte jamais à internet.
+
+**Projet en service** (16/10/2026) : `https://ulzxunuytsakxrvovxen.supabase.co`, clé publique dans
+`Resources/Info.plist` (`FLSCommunityURL`, `FLSCommunityAnonKey`). Étapes 1 à 5 faites ; reste l'étape 6 (mails).
 
 ## 1. Créer le projet (une fois, ~10 min)
 
@@ -23,15 +26,24 @@ et l'app ne se connecte jamais à internet.
    (`eyJ…`) ; les deux marchent. Cette clé est publique par conception (elle est dans l'app) : ce sont les règles
    de `schema.sql` qui protègent les données. Ne mets JAMAIS la clé secrète (`sb_secret_…` ou `service_role`) dans
    l'app.
+6. **Mails (obligatoire avant d'ouvrir à tout le monde)** : sans serveur de mail à toi, Supabase n'envoie les mails
+   de confirmation et de mot de passe oublié qu'aux membres de ton organisation Supabase, et 2 par heure au plus.
+   **Authentication › Emails › SMTP Settings** : active « Custom SMTP » avec l'adresse de l'équipe (Gmail :
+   `smtp.gmail.com`, port 465, identifiant = l'adresse, mot de passe = un « mot de passe d'application » Google,
+   validation en deux étapes requise), puis **Authentication › Rate Limits** : mails par heure à ton goût.
 
 ## 2. Compiler l'app reliée au serveur
 
+L'adresse et la clé publique du projet sont dans `Resources/Info.plist` : toute compilation est reliée au serveur.
+Pour un autre projet (essais) sans toucher au fichier :
+
 ```
-FLS_SUPABASE_URL="https://xxxx.supabase.co" FLS_SUPABASE_ANON_KEY="eyJ…" ./build.sh
+FLS_SUPABASE_URL="https://xxxx.supabase.co" FLS_SUPABASE_ANON_KEY="sb_publishable_…" ./build.sh
 ```
 
 Pour la CI : **GitHub › Settings › Secrets and variables › Actions › New repository secret**, deux secrets
-`FLS_SUPABASE_URL` et `FLS_SUPABASE_ANON_KEY` ; la CI les passe déjà à `./build.sh`.
+`FLS_SUPABASE_URL` et `FLS_SUPABASE_ANON_KEY` ; la CI les passe déjà à `./build.sh` (ils remplacent ceux du
+fichier).
 
 ## Vérifier les règles sans Supabase
 
