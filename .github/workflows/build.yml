@@ -128,6 +128,8 @@ jobs:
           # Facultatif : serveur de la Communauté (supabase/README.md) ; sans eux, la page dit « pas encore ouverte ».
           FLS_SUPABASE_URL: ${{ secrets.FLS_SUPABASE_URL }}
           FLS_SUPABASE_ANON_KEY: ${{ secrets.FLS_SUPABASE_ANON_KEY }}
+          # Facultatif : adresse de l'équipe pour la page Aide (variable du dépôt, publique : elle est dans l'app).
+          FLS_SUPPORT_EMAIL: ${{ vars.FLS_SUPPORT_EMAIL }}
         run: |
           set -euo pipefail
           if [[ -n "${MAC_CERT_P12:-}" ]]; then

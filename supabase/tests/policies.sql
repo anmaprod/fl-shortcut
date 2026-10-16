@@ -130,4 +130,51 @@ begin
 end $$;
 reset role;
 
-select 'règles de la Communauté : tout est conforme' as resultat;
+-- Aide : écrire à l'équipe avec ou sans compte ; rien n'est relisible depuis l'app ; 5 messages par heure et par mail.
+set role anon;
+set request.jwt.claim.sub to '';
+do $$
+begin
+  insert into public.support_requests (kind, message, email, diagnostic, app_version)
+    values ('probleme', 'Mes raccourcis ne marchent plus depuis hier.', 'nina@exemple.fr', 'FL Shortcut 0.1.0', '0.1.0');
+  if (select count(*) from public.support_requests) <> 0 then raise exception 'demandes d''aide lisibles par anon'; end if;
+  begin
+    insert into public.support_requests (user_id, kind, message)
+      values ('00000000-0000-0000-0000-00000000000a', 'question', 'Au nom de Malo, sans être Malo.');
+    raise exception 'demande d''aide au nom d''un compte acceptée';
+  exception when insufficient_privilege then null;
+  end;
+  begin
+    insert into public.support_requests (kind, message) values ('probleme', 'Court');
+    raise exception 'message trop court accepté';
+  exception when check_violation then null;
+  end;
+  begin
+    insert into public.support_requests (kind, message, email) values ('idee', 'Une idée sans mail valide.', 'pas-un-mail');
+    raise exception 'mail invalide accepté';
+  exception when check_violation then null;
+  end;
+  for i in 2..5 loop
+    insert into public.support_requests (kind, message, email) values ('question', 'Question numéro ' || i, 'NINA@exemple.fr');
+  end loop;
+  begin
+    insert into public.support_requests (kind, message, email) values ('question', 'Sixième question en une heure', 'nina@exemple.fr');
+    raise exception '6e message de l''heure accepté';
+  exception when raise_exception then
+    if sqlerrm not like 'Trop de messages%' then raise; end if;
+  end;
+end $$;
+reset role;
+set role authenticated;
+set request.jwt.claim.sub to '00000000-0000-0000-0000-00000000000b';
+insert into public.support_requests (kind, message) values ('idee', 'Pouvoir trier les macros par dossier.');
+reset role;
+do $$
+begin
+  if (select count(*) from public.support_requests) <> 6 then raise exception 'demandes d''aide mal comptées'; end if;
+  if (select user_id from public.support_requests where kind = 'idee') <> '00000000-0000-0000-0000-00000000000b' then
+    raise exception 'compte non rempli par défaut';
+  end if;
+end $$;
+
+select 'règles de la Communauté et de l''aide : tout est conforme' as resultat;

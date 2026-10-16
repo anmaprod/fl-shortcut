@@ -48,6 +48,10 @@ if [[ -n "${FLS_SUPABASE_URL:-}" && -n "${FLS_SUPABASE_ANON_KEY:-}" ]]; then
   plutil -replace FLSCommunityURL -string "$FLS_SUPABASE_URL" "$APP/Contents/Info.plist"
   plutil -replace FLSCommunityAnonKey -string "$FLS_SUPABASE_ANON_KEY" "$APP/Contents/Info.plist"
 fi
+# Aide : adresse de l'équipe pour « Envoyer par mail » quand le serveur n'est pas branché (ou en cas d'échec).
+if [[ -n "${FLS_SUPPORT_EMAIL:-}" ]]; then
+  plutil -replace FLSSupportEmail -string "$FLS_SUPPORT_EMAIL" "$APP/Contents/Info.plist"
+fi
 cp Resources/device_FLShortcut.py "$APP/Contents/Resources/"
 cp Resources/AppIcon.icns "$APP/Contents/Resources/AppIcon.icns"
 chmod -R go-w "$APP"

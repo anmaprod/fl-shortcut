@@ -267,6 +267,20 @@ struct CommunityClient {
                            body: ["share_id": id.uuidString.lowercased(), "reason": reason])
     }
 
+    // MARK: Aide
+
+    /// « Écrire à l'équipe » (page Aide) : avec le jeton du compte s'il y en a un, sinon la clé publique seule.
+    func sendSupport(_ message: SupportMessage, appVersion: String, token: String?) async throws {
+        if let why = SupportRules.problem(message) { throw CommunityError.invalid(why) }
+        var body: [String: Any] = ["kind": message.kind.rawValue,
+                                   "message": message.text.trimmingCharacters(in: .whitespacesAndNewlines),
+                                   "diagnostic": String((message.diagnostic ?? "").prefix(4000)),
+                                   "app_version": String(appVersion.prefix(20))]
+        let mail = message.email.trimmingCharacters(in: .whitespaces)
+        if !mail.isEmpty { body["email"] = mail }
+        _ = try await call("POST", "rest/v1/support_requests", token: token, body: body)
+    }
+
     // MARK: Requêtes
 
     func request(_ method: String, _ path: String, query: [URLQueryItem] = [], token: String? = nil,
@@ -307,7 +321,7 @@ struct CommunityClient {
         if lower.contains("already registered") || lower.contains("already exists") {
             return "Un compte existe déjà avec ce mail."
         }
-        if lower.contains("trop de partages") { return raw }
+        if lower.contains("trop de partages") || lower.contains("trop de messages") { return raw }
         if status == 401 || status == 403 { return "Session expirée : reconnecte-toi." }
         if status == 429 { return "Trop de tentatives : réessaie dans quelques minutes." }
         return raw.isEmpty ? "Erreur du serveur (\(status))." : "Erreur du serveur : \(raw.prefix(200))"

@@ -1,8 +1,12 @@
 -- Ce que Supabase fournit déjà, pour essayer schema.sql sur un PostgreSQL ordinaire (supabase/tests/run.sh) :
 -- rôles anon et authenticated, auth.users, auth.uid() lu dans le jeton (request.jwt.claim.sub), droits par défaut
 -- de Supabase (tout est accordé à anon et authenticated : ce sont les règles RLS qui protègent).
-create role anon nologin;
-create role authenticated nologin;
+-- Rôles communs à tout le serveur PostgreSQL : créés une fois (un deuxième essai les retrouve).
+do $$
+begin
+  if not exists (select 1 from pg_roles where rolname = 'anon') then create role anon nologin; end if;
+  if not exists (select 1 from pg_roles where rolname = 'authenticated') then create role authenticated nologin; end if;
+end $$;
 grant anon, authenticated to current_user;
 
 create schema auth;

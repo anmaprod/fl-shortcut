@@ -159,6 +159,23 @@ final class CommunityStore: ObservableObject {
         }
     }
 
+    /// « Écrire à l'équipe » (page Aide) : avec le compte s'il y en a un (jeton refusé : sans), sinon sans compte.
+    /// nil : envoyé ; sinon, ce qui s'est passé.
+    func sendSupport(_ message: SupportMessage) async -> String? {
+        if demo { return nil }
+        guard let client else { return CommunityError.notConfigured.errorDescription }
+        do {
+            do {
+                try await client.sendSupport(message, appVersion: MacroFileActions.appVersion, token: session?.accessToken)
+            } catch CommunityError.server(let status, _) where session != nil && (status == 401 || status == 403) {
+                try await client.sendSupport(message, appVersion: MacroFileActions.appVersion, token: nil)
+            }
+            return nil
+        } catch {
+            return error.localizedDescription
+        }
+    }
+
     func isMine(_ share: Share) -> Bool { share.authorID == session?.userID }
 
     /// Peut supprimer ce partage : le sien, ou n'importe lequel pour un administrateur.

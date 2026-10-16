@@ -172,6 +172,12 @@ run() {   # $1 : libellé, $2 : YES/NO effet verre
       screencapture -x "$OUT/guide-$n.png" 2>/dev/null || true
     done
     "$POST" app.flshortcut.debug.guide fin; sleep 2
+    # Page Aide : questions fréquentes, recherche, « Écrire à l'équipe », message envoyé.
+    "$POST" app.flshortcut.debug.select aide; sleep 2
+    for screen in aide recherche ecrire envoye; do
+      "$POST" app.flshortcut.debug.help "$screen"; sleep 3
+      screencapture -x "$OUT/aide-$screen.png" 2>/dev/null || true
+    done
     "$POST" app.flshortcut.debug.select macros; sleep 2
   fi
   # Témoin : aucun modèle du créateur avant sa première ouverture (fenêtres : toutes, et visibles seulement).

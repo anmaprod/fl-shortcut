@@ -101,3 +101,38 @@ end;
 $$;
 create trigger shares_limit before insert on public.shares
   for each row execute function public.limit_shares();
+
+-- Aide : « Écrire à l'équipe » depuis la page Aide de l'app, avec ou sans compte. Lues seulement dans Supabase
+-- (Table Editor › support_requests) : aucune règle de lecture, rien n'est relisible depuis l'app.
+create table public.support_requests (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid default auth.uid() references auth.users on delete set null,
+  kind text not null check (kind in ('probleme', 'question', 'idee')),
+  message text not null check (char_length(message) between 10 and 4000),
+  -- Pour répondre ; facultatif (sans mail, on ne peut pas répondre).
+  email text check (email is null or (char_length(email) <= 254 and email ~ '^[^@[:space:]]+@[^@[:space:]]+\.[^@[:space:]]+$')),
+  -- État de l'app, joint si l'utilisateur le laisse coché (jamais de touches, de noms de pistes ni de fichiers).
+  diagnostic text not null default '' check (char_length(diagnostic) <= 4000),
+  app_version text not null default '' check (char_length(app_version) <= 20),
+  created_at timestamptz not null default now()
+);
+create index support_requests_created_at on public.support_requests (created_at desc);
+alter table public.support_requests enable row level security;
+create policy "chacun écrit à l'équipe" on public.support_requests
+  for insert to anon, authenticated with check (user_id is null or user_id = auth.uid());
+
+-- Anti-spam : 5 messages par heure pour un même mail ou un même compte, 100 par heure en tout.
+create function public.limit_support() returns trigger
+language plpgsql security definer set search_path = public as $$
+begin
+  if (select count(*) from public.support_requests where created_at > now() - interval '1 hour') >= 100
+     or ((new.email is not null or new.user_id is not null) and (select count(*) from public.support_requests
+          where created_at > now() - interval '1 hour'
+            and (lower(email) = lower(new.email) or user_id = new.user_id)) >= 5) then
+    raise exception 'Trop de messages en ce moment : réessaie dans une heure.';
+  end if;
+  return new;
+end;
+$$;
+create trigger support_limit before insert on public.support_requests
+  for each row execute function public.limit_support();

@@ -426,7 +426,12 @@ struct MenuContent: View {
                 NSApp.activate(ignoringOtherApps: true)
             }
             PanelItem(symbol: "square.stack.3d.up", title: "Organiser la page ouverte…") { OrganizerWindow.open() }
-            PanelItem(symbol: "questionmark.circle", title: "Guide de FL Shortcut") {
+            PanelItem(symbol: "questionmark.circle", title: "Aide et contact…") {
+                HelpLink.shared.show()
+                openWindow(id: "editor")
+                NSApp.activate(ignoringOtherApps: true)
+            }
+            PanelItem(symbol: "book", title: "Guide de FL Shortcut") {
                 GuideLink.shared.show()
                 openWindow(id: "editor")
                 NSApp.activate(ignoringOtherApps: true)

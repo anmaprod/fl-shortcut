@@ -24,6 +24,8 @@ enum SidebarItem: Hashable {
     case macros
     /// Partages des membres, avec un compte (CommunityView.swift).
     case community
+    /// Questions fréquentes et « Écrire à l'équipe » (HelpView.swift).
+    case help
 
     var symbol: String {
         switch self {
@@ -31,6 +33,7 @@ enum SidebarItem: Hashable {
         case .custom: return "star"
         case .macros: return "wand.and.stars"
         case .community: return "person.2"
+        case .help: return "questionmark.circle"
         }
     }
 
@@ -40,6 +43,7 @@ enum SidebarItem: Hashable {
         case .custom: return .pink
         case .macros: return .purple
         case .community: return .cyan
+        case .help: return .teal
         }
     }
 }
@@ -137,6 +141,7 @@ struct EditorView: View {
     /// Guide : montré une fois à la première ouverture, puis à la demande (menu ⋯, barre des menus).
     @AppStorage("guideSeen") private var guideSeen = false
     @ObservedObject private var guideLink = GuideLink.shared
+    @ObservedObject private var helpLink = HelpLink.shared
     @State private var showGuide = false
     @State private var guidePage = 0
 
@@ -165,8 +170,12 @@ struct EditorView: View {
         .sheet(isPresented: $showGuide, onDismiss: { guideSeen = true }) {
             GuideView(page: $guidePage) { showGuide = false }
         }
-        .onAppear { showGuideIfNeeded() }
+        .onAppear {
+            showGuideIfNeeded()
+            showHelpIfAsked()
+        }
         .onChange(of: guideLink.pending) { _ in showGuideIfNeeded() }
+        .onChange(of: helpLink.pending) { _ in showHelpIfAsked() }
         .onReceive(DebugSnapshot.publisher(DebugSnapshot.guide)) { note in
             // Mode capture : « 0 » à « 4 », la page du guide ; autre chose, le ferme.
             if let n = Int(note.object as? String ?? "") {
@@ -176,6 +185,15 @@ struct EditorView: View {
                 showGuide = false
             }
         }
+    }
+
+    /// Page Aide demandée depuis le menu de la barre des menus : les raccourcis (créateur refermé), page Aide.
+    private func showHelpIfAsked() {
+        guard helpLink.pending else { return }
+        helpLink.pending = false
+        if macroEditor != nil { closeCreator() }
+        query = ""
+        selection = .help
     }
 
     /// Guide demandé (menu ⋯, barre des menus), ou jamais vu : première ouverture (sauf en mode capture, où la
@@ -263,7 +281,7 @@ struct EditorView: View {
         .onReceive(DebugSnapshot.publisher(DebugSnapshot.select)) { note in
             let name = note.object as? String ?? ""
             selection = FLSection(rawValue: name).map(SidebarItem.section)
-                ?? (name == "custom" ? .custom : name == "macros" ? .macros : name == "community" ? .community : selection)
+                ?? (name == "custom" ? .custom : name == "macros" ? .macros : name == "community" ? .community : name == "aide" ? .help : selection)
         }
         .onReceive(DebugSnapshot.publisher(DebugSnapshot.search)) { note in
             query = note.object as? String ?? ""
@@ -283,6 +301,7 @@ struct EditorView: View {
         case .custom: return "Mes raccourcis"
         case .macros: return "Macros"
         case .community: return "Communauté"
+        case .help: return "Aide"
         }
     }
 
@@ -330,6 +349,13 @@ struct EditorView: View {
                 }
                 .help(CommunityText.subtitle)
                 .tag(SidebarItem.community)
+                Label {
+                    Text("Aide")
+                } icon: {
+                    SectionIcon(symbol: SidebarItem.help.symbol, tint: SidebarItem.help.tint)
+                }
+                .help("Questions fréquentes, et écrire à l'équipe")
+                .tag(SidebarItem.help)
             }
         }
     }
@@ -346,6 +372,7 @@ struct EditorView: View {
                 case .custom: customList(data.others)
                 case .macros: MacroLibraryPage(library: store.library, open: { id in openCreator(id) }, toast: { show($0) })
                 case .community: CommunityPage(community: CommunityStore.shared, toast: { show($0) })
+                case .help: HelpPage(community: CommunityStore.shared, showGuide: { GuideLink.shared.show() })
                 }
             }
         }
@@ -614,7 +641,7 @@ struct EditorView: View {
     }
 
     /// « + » partout, sauf sur la page Communauté tant qu'on n'est pas connecté (rien à partager sans compte).
-    private var showsNewButton: Bool { page != .community || community.session != nil }
+    private var showsNewButton: Bool { page == .help ? false : page != .community || community.session != nil }
 
     /// « + » de la page : une macro sur la page Macros, un partage sur la page Communauté, un raccourci de cette
     /// page ailleurs.
@@ -624,6 +651,7 @@ struct EditorView: View {
         switch current {
         case .macros: help = "Nouvelle macro"
         case .community: help = "Partager une macro ou tes raccourcis"
+        case .help: help = ""
         case .custom: help = "Nouveau raccourci personnalisé"
         case .section(let s): help = "Nouveau raccourci pour la page « \(s.title) »"
         }
@@ -631,6 +659,7 @@ struct EditorView: View {
             switch current {
             case .macros: MacroLibraryPage.newMacro(in: store.library)
             case .community: community.composing = true
+            case .help: break                                  // pas de « + » sur cette page
             case .custom: newCustom(page: nil)
             case .section(let s): newCustom(page: s)
             }
@@ -642,7 +671,8 @@ struct EditorView: View {
 
     private var profileMenu: some View {
         Menu {
-            Button { GuideLink.shared.show() } label: { Label("Guide de FL Shortcut", systemImage: "questionmark.circle") }
+            Button { GuideLink.shared.show() } label: { Label("Guide de FL Shortcut", systemImage: "book") }
+            Button { selection = .help } label: { Label("Aide et contact", systemImage: "questionmark.circle") }
             Divider()
             Menu {
                 ForEach(ProfilePreset.allCases) { preset in

@@ -53,6 +53,21 @@ defaults write app.flshortcut.FLShortcut communityAnonKey "eyJ…"
 - Signalements : **Table Editor › reports** (ou SQL : `select * from reports order by created_at desc`).
 - Supprimer un partage : **Table Editor › shares**, ou depuis l'app (menu « … » de la ligne, en administrateur).
 
+## Aide : les messages des utilisateurs
+
+La page **Aide** de l'app (barre latérale) a un formulaire « Écrire à l'équipe » (problème, question ou idée, mail
+facultatif pour répondre, état de l'app joint si l'utilisateur le laisse coché). Avec le serveur branché, chaque
+message arrive dans **Table Editor › support_requests** (ou SQL :
+`select created_at, kind, email, message, diagnostic from support_requests order by created_at desc`). Personne ne
+peut les relire depuis l'app ; 5 messages par heure et par mail au plus.
+
+- Être prévenu à chaque message : **Database › Webhooks › Create a new hook**, table `support_requests`, événement
+  *Insert*, vers l'adresse d'un webhook Discord ou Slack (ou une Edge Function qui envoie un mail).
+- Sans serveur (ou s'il échoue), l'app propose « Envoyer par mail » vers l'adresse de l'équipe :
+  `FLS_SUPPORT_EMAIL="toi@exemple.fr" ./build.sh` (CI : **Settings › Secrets and variables › Actions › Variables ›
+  New repository variable** `FLS_SUPPORT_EMAIL`). Sans adresse non plus : « Copier » et « Ouvrir un ticket sur
+  GitHub » (page publique, sans le mail de l'utilisateur).
+
 ## Ce que l'app envoie et garde
 
 - Envoyé : mail, mot de passe (seulement à la connexion ou à l'inscription), nom d'utilisateur, et ce que tu
