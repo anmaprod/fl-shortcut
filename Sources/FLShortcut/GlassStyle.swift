@@ -78,33 +78,6 @@ private struct HoverLift: ViewModifier {
     }
 }
 
-/// Bouton qu'on « prend » : appuyé, il se soulève et flotte (plus grand, ombre) ; relâché, il se repose avec un
-/// ressort. Sert aux blocs de la palette, qu'on peut aussi glisser dans la liste.
-struct LiftButtonStyle: ButtonStyle {
-    func makeBody(configuration: Configuration) -> some View {
-        LiftButtonBody(configuration: configuration)
-    }
-}
-
-private struct LiftButtonBody: View {
-    let configuration: ButtonStyleConfiguration
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-
-    var body: some View {
-        let pressed = configuration.isPressed && !reduceMotion
-        configuration.label
-            .background {
-                RoundedRectangle(cornerRadius: 8, style: .continuous)
-                    .fill(Color.primary.opacity(pressed ? 0.09 : 0))
-                    .shadow(color: .black.opacity(pressed ? 0.22 : 0), radius: pressed ? 12 : 0, y: pressed ? 6 : 0)
-                    .padding(.horizontal, -6)
-                    .padding(.vertical, -2)
-            }
-            .scaleEffect(pressed ? 1.05 : 1)
-            .animation(reduceMotion ? Motion.reduced : Motion.lift, value: configuration.isPressed)
-    }
-}
-
 // MARK: - Liquid Glass
 
 enum Appearance {

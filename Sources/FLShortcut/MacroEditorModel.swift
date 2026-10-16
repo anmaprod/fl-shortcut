@@ -57,9 +57,12 @@ final class MacroEditorModel: ObservableObject {
     /// fenêtre du créateur libère bien son modèle à la fermeture.
     private static let live = Locked(0)
     static var liveCount: Int { live.value }
+    /// Dernier modèle créé, jamais retenu : le rapport de mesure y lit l'ordre des blocs (genre de bloc seulement).
+    private(set) static weak var newest: MacroEditorModel?
 
     init(store: Store = .shared) {
         MacroEditorModel.live.withLock { $0 += 1 }
+        MacroEditorModel.newest = self
         self.store = store
         layout = store.layout
         // L'app quitte pendant l'attente des 0,5 s : la dernière modification est enregistrée quand même.

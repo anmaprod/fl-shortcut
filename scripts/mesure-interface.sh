@@ -72,6 +72,10 @@ rows() {   # $1 : rapport gardé ; lignes de la liste des blocs du créateur (la
     | sort -n | tail -1 | awk '{print $2}'
 }
 
+order() {   # $1 : rapport gardé ; ordre des blocs du créateur (genres seulement)
+  sed -n 's/^créateur : //p' "$OUT/$1-report.txt" 2>/dev/null | head -1
+}
+
 run() {   # $1 : libellé, $2 : YES/NO effet verre
   local label=$1 glass=$2 p
   pkill -x FLShortcut 2>/dev/null; sleep 1
@@ -79,7 +83,7 @@ run() {   # $1 : libellé, $2 : YES/NO effet verre
   open "$APP"; sleep 6
   p=$(pgrep -x FLShortcut | head -1)
   [[ -z "$p" ]] && { echo "| $label | ne démarre pas | | | | | |"; return; }
-  local m0 c0 m1 c1 fit drop
+  local m0 c0 m1 c1 fit drop moved
   m0=$(mem_mb "$p"); c0=$(cpu_avg "$p")
   "$POST" app.flshortcut.debug.open; sleep 5
   "$POST" app.flshortcut.debug.select general; sleep 1
@@ -125,6 +129,14 @@ run() {   # $1 : libellé, $2 : YES/NO effet verre
   report "$label-createur-glisse" >/dev/null
   screencapture -x "$OUT/$label-createur-glisse.png" 2>/dev/null || true
   drop="$(rows "$label-createur-ouvert") → $(rows "$label-createur-glisse")"
+  # Puis un bloc de la liste déplacé à la souris : « Clic droit » (2e ligne) lâché entre les lignes 6 et 7 ;
+  # l'ordre des blocs doit changer.
+  "$POST" app.flshortcut.debug.drag "458,259,458,438"; sleep 3
+  report "$label-createur-deplace" >/dev/null
+  screencapture -x "$OUT/$label-createur-deplace.png" 2>/dev/null || true
+  if [[ -z "$(order "$label-createur-glisse")" ]]; then moved="?"
+  elif [[ "$(order "$label-createur-glisse")" != "$(order "$label-createur-deplace")" ]]; then moved="oui"
+  else moved="NON"; fi
   rm -f "$HOME/Library/Caches/$DOMAIN/$label-createur-"*
   "$POST" app.flshortcut.debug.snapshot "$label-createur"; sleep 2
   cp "$HOME/Library/Caches/$DOMAIN/$label-createur-"*.png "$OUT/" 2>/dev/null || true
@@ -152,11 +164,11 @@ run() {   # $1 : libellé, $2 : YES/NO effet verre
   m3=$(mem_mb "$p")
   categories "$p" "$label-recherche"
   "$POST" app.flshortcut.debug.search ""; sleep 1
-  echo "| $label | $m0 | $c0 | $m1 | $c1 | $c1b | $mb | $mc | $cc | $md | $m2 | $m3 | ${co[2]} | ${cf[2]} | ${co[3]} | ${cf[3]} | $n0 ; ${nm[1]} / ${nm[2]} / ${nm[3]} | $fit | $drop |"
+  echo "| $label | $m0 | $c0 | $m1 | $c1 | $c1b | $mb | $mc | $cc | $md | $m2 | $m3 | ${co[2]} | ${cf[2]} | ${co[3]} | ${cf[3]} | $n0 ; ${nm[1]} / ${nm[2]} / ${nm[3]} | $fit | $drop | $moved |"
 }
 
-echo "| Effet | Mémoire (barre des menus) | Processeur | Mémoire (fenêtre ouverte) | Processeur (fenêtre ouverte, au repos) | Processeur (fenêtre, 10 s plus tard) | Mémoire (page Macros) | Mémoire (créateur ouvert) | Processeur (créateur ouvert, au repos) | Mémoire (créateur refermé) | Mémoire (page Mixer) | Mémoire (recherche « e », presque tout) | Mémoire (créateur cycle 2 ouvert) | Mémoire (créateur cycle 2 refermé) | Mémoire (créateur cycle 3 ouvert) | Mémoire (créateur cycle 3 refermé) | Modèles du créateur vivants (avant ouverture ; après fermeture, cycles 1 / 2 / 3) | Colonnes dans la fenêtre (Général / Macros / créateur) | Bloc glissé de la palette (lignes avant → après) |"
-echo "|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|"
+echo "| Effet | Mémoire (barre des menus) | Processeur | Mémoire (fenêtre ouverte) | Processeur (fenêtre ouverte, au repos) | Processeur (fenêtre, 10 s plus tard) | Mémoire (page Macros) | Mémoire (créateur ouvert) | Processeur (créateur ouvert, au repos) | Mémoire (créateur refermé) | Mémoire (page Mixer) | Mémoire (recherche « e », presque tout) | Mémoire (créateur cycle 2 ouvert) | Mémoire (créateur cycle 2 refermé) | Mémoire (créateur cycle 3 ouvert) | Mémoire (créateur cycle 3 refermé) | Modèles du créateur vivants (avant ouverture ; après fermeture, cycles 1 / 2 / 3) | Colonnes dans la fenêtre (Général / Macros / créateur) | Bloc glissé de la palette (lignes avant → après) | Bloc déplacé dans la liste (ordre changé) |"
+echo "|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|"
 run "verre" YES
 run "sans-verre" NO
 pkill -x FLShortcut 2>/dev/null

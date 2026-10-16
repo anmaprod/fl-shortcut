@@ -78,6 +78,10 @@ enum DebugSnapshot {
         let hidden = NSApp.windows.filter { !$0.isVisible }.map { String(describing: type(of: $0)) }
         var text = "editorModels=\(MacroEditorModel.liveCount) windows=\(NSApp.windows.count) "
             + "visible=\(NSApp.windows.count - hidden.count) hidden=\(hidden.joined(separator: ","))\n"
+        // Ordre des blocs du créateur ouvert (genres seulement, aucun texte) : un bloc déplacé à la souris le change.
+        if let draft = MacroEditorModel.newest?.draft {
+            text += "créateur : " + draft.blocks.map { BlockRegistry.journal(of: $0.body) }.joined(separator: " > ") + "\n"
+        }
         for (i, s) in NSScreen.screens.enumerated() {
             text += "écran \(i): frame \(rect(s.frame)) visible \(rect(s.visibleFrame)) échelle \(s.backingScaleFactor)\n"
         }
