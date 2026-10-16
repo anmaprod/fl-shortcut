@@ -23,6 +23,32 @@ struct WinInfo: Equatable, CustomStringConvertible {
     var isDialogLike: Bool { bounds.width >= 320 && bounds.height >= 200 }
 }
 
+/// Une fenêtre de la liste de macOS (à l'écran, sans le bureau), de l'avant vers l'arrière. Seules les entrées qui
+/// ont un propriétaire, un niveau et un cadre sont gardées.
+struct ScreenWindow {
+    let number: Int
+    let layer: Int
+    let bounds: CGRect
+    let owner: Int32
+    let ownerName: String?
+    let alpha: Double
+
+    /// nil si la liste n'a pas pu être lue.
+    static func onScreen() -> [ScreenWindow]? {
+        let options: CGWindowListOption = [.optionOnScreenOnly, .excludeDesktopElements]
+        guard let raw = CGWindowListCopyWindowInfo(options, kCGNullWindowID) as? [[String: Any]] else { return nil }
+        return raw.compactMap { w in
+            guard let owner = w[kCGWindowOwnerPID as String] as? Int32,
+                  let layer = w[kCGWindowLayer as String] as? Int,
+                  let dict = w[kCGWindowBounds as String] as? [String: Any],
+                  let bounds = CGRect(dictionaryRepresentation: dict as CFDictionary) else { return nil }
+            return ScreenWindow(number: (w[kCGWindowNumber as String] as? NSNumber)?.intValue ?? 0, layer: layer,
+                                bounds: bounds, owner: owner, ownerName: w[kCGWindowOwnerName as String] as? String,
+                                alpha: (w[kCGWindowAlpha as String] as? NSNumber)?.doubleValue ?? 1)
+        }
+    }
+}
+
 /// Fenêtres visibles à l'écran, de l'avant vers l'arrière, à `time` (temps depuis le démarrage : même horloge que
 /// NSEvent.timestamp).
 struct WinSnapshot {
@@ -35,24 +61,14 @@ struct WinSnapshot {
 
     static func take(pid: Int32) -> WinSnapshot {
         let now = ProcessInfo.processInfo.systemUptime
-        let options: CGWindowListOption = [.optionOnScreenOnly, .excludeDesktopElements]
-        guard let raw = CGWindowListCopyWindowInfo(options, kCGNullWindowID) as? [[String: Any]] else {
-            return WinSnapshot(time: now, fl: [], panelService: [])
-        }
+        guard let raw = ScreenWindow.onScreen() else { return WinSnapshot(time: now, fl: [], panelService: []) }
         var fl: [WinInfo] = [], service: [WinInfo] = []
-        for w in raw {
-            guard let owner = w[kCGWindowOwnerPID as String] as? Int32,
-                  let layer = w[kCGWindowLayer as String] as? Int,
-                  let dict = w[kCGWindowBounds as String] as? [String: Any],
-                  let bounds = CGRect(dictionaryRepresentation: dict as CFDictionary),
-                  bounds.width >= 1, bounds.height >= 1 else { continue }
-            let alpha = (w[kCGWindowAlpha as String] as? NSNumber)?.doubleValue ?? 1
-            guard alpha > 0.05 else { continue }      // fenêtres en réserve / qui s'effacent : pas « ouvertes »
-            let info = WinInfo(number: (w[kCGWindowNumber as String] as? NSNumber)?.intValue ?? 0,
-                               layer: layer, bounds: bounds, pid: owner, alpha: alpha)
-            if owner == pid {
+        // Fenêtres en réserve / qui s'effacent (alpha ≤ 0,05) ou vides : pas « ouvertes ».
+        for w in raw where w.bounds.width >= 1 && w.bounds.height >= 1 && w.alpha > 0.05 {
+            let info = WinInfo(number: w.number, layer: w.layer, bounds: w.bounds, pid: w.owner, alpha: w.alpha)
+            if w.owner == pid {
                 fl.append(info)
-            } else if let name = w[kCGWindowOwnerName as String] as? String, panelServiceOwners.contains(name) {
+            } else if let name = w.ownerName, panelServiceOwners.contains(name) {
                 service.append(info)
             }
         }

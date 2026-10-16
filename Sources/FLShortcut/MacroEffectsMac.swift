@@ -24,17 +24,8 @@ enum FLWindows {
 
     /// Fenêtres visibles du processus, de l'avant vers l'arrière.
     static func list(pid: Int32) -> [Info] {
-        let options: CGWindowListOption = [.optionOnScreenOnly, .excludeDesktopElements]
-        guard let raw = CGWindowListCopyWindowInfo(options, kCGNullWindowID) as? [[String: Any]] else { return [] }
-        var out: [Info] = []
-        for w in raw {
-            guard let owner = w[kCGWindowOwnerPID as String] as? Int32, owner == pid,
-                  let layer = w[kCGWindowLayer as String] as? Int,
-                  let dict = w[kCGWindowBounds as String] as? [String: Any],
-                  let bounds = CGRect(dictionaryRepresentation: dict as CFDictionary) else { continue }
-            out.append(Info(layer: layer, bounds: bounds, number: w[kCGWindowNumber as String] as? Int ?? 0))
-        }
-        return out
+        (ScreenWindow.onScreen() ?? []).filter { $0.owner == pid }
+            .map { Info(layer: $0.layer, bounds: $0.bounds, number: $0.number) }
     }
 
     /// Fenêtres « normales » et boîtes de dialogue (niveaux 0 à 8 ; les menus contextuels sont plus haut).
@@ -68,17 +59,10 @@ enum FLWindows {
 
     /// Fenêtre normale (niveau 0) tout devant à ce point, sans les nôtres : (processus, nom de l'appli).
     static func topNormalWindow(at p: CGPoint) -> (pid: Int32, name: String)? {
-        let options: CGWindowListOption = [.optionOnScreenOnly, .excludeDesktopElements]
-        guard let raw = CGWindowListCopyWindowInfo(options, kCGNullWindowID) as? [[String: Any]] else { return nil }
         let me = getpid()
-        for w in raw {                                            // de l'avant vers l'arrière
-            guard let layer = w[kCGWindowLayer as String] as? Int, layer == 0,
-                  let owner = w[kCGWindowOwnerPID as String] as? Int32, owner != me,
-                  let dict = w[kCGWindowBounds as String] as? [String: Any],
-                  let bounds = CGRect(dictionaryRepresentation: dict as CFDictionary), bounds.contains(p) else { continue }
-            return (owner, w[kCGWindowOwnerName as String] as? String ?? "une autre app")
-        }
-        return nil
+        return ScreenWindow.onScreen()?                           // de l'avant vers l'arrière
+            .first { $0.layer == 0 && $0.owner != me && $0.bounds.contains(p) }
+            .map { ($0.owner, $0.ownerName ?? "une autre app") }
     }
 
     /// Position actuelle du curseur, en coordonnées CoreGraphics (origine en haut à gauche).
@@ -352,7 +336,7 @@ final class MacroEffectsMac: MacroEffects {
 
         case .menuBar(let titles):
             numbersBeforeLastClick = WinSnapshot.take(pid: ctx.pid).numbers
-            switch MenuBarAX.press(pid: ctx.pid, titles: titles, stop: { self.shouldStop(ctx.pid) }) {
+            switch MenuBarAX.press(pid: ctx.pid, titles: titles, stop: stopReason) {
             case .done: return .ok
             case .cancelled(let why): return .cancel(why)
             case .failed(let why): return .fail(why)
@@ -396,16 +380,13 @@ final class MacroEffectsMac: MacroEffects {
 
         case .chooseFile(let path):
             MacroLog.shared.write("FILE", "chemin du preset saisi (\(path.count) caractères)")
-            var isDir: ObjCBool = false
-            guard FileManager.default.fileExists(atPath: path, isDirectory: &isDir), !isDir.boolValue else {
-                return .fail("preset introuvable (\(URL(fileURLWithPath: path).lastPathComponent))")
-            }
+            if let missing = Self.missingPreset(path) { return missing }
             guard let d = dialog ?? WinSnapshot.take(pid: ctx.pid).fl.first(where: {
                 !ctx.startNumbers.contains($0.number) && $0.isDialogLike && $0.layer < 20 }) else {
                 return .fail("boîte « Open » introuvable")
             }
             restoreCursor()
-            switch PresetChooser.choose(path: path, pid: ctx.pid, dialog: d.number, stop: { self.shouldStop(ctx.pid) }) {
+            switch PresetChooser.choose(path: path, pid: ctx.pid, dialog: d.number, stop: stopReason) {
             case .done: return .ok
             case .cancelled(let why): return .cancel(why)
             case .failed(let why): return .fail(why)
@@ -413,10 +394,7 @@ final class MacroEffectsMac: MacroEffects {
 
         case .dropFile(let path):
             MacroLog.shared.write("FILE", "preset déposé sur la piste (\(path.count) caractères)")
-            var isDir: ObjCBool = false
-            guard FileManager.default.fileExists(atPath: path, isDirectory: &isDir), !isDir.boolValue else {
-                return .fail("preset introuvable (\(URL(fileURLWithPath: path).lastPathComponent))")
-            }
+            if let missing = Self.missingPreset(path) { return missing }
             return dropFile(path, at: ctx.track, ctx: ctx)
 
         case .menuLetters(let letters, let enter):
@@ -476,6 +454,15 @@ final class MacroEffectsMac: MacroEffects {
         case .ifElse, .repeatCount, .repeatWhile, .waitUntil, .setVariable, .stop, .comment, .unknown:
             return .fail("bloc de contrôle hors de l'interpréteur")
         }
+    }
+
+    /// Échec si le preset n'est pas un fichier existant (nom du fichier seulement, jamais le chemin), sinon nil.
+    static func missingPreset(_ path: String) -> StepResult? {
+        var isDir: ObjCBool = false
+        guard FileManager.default.fileExists(atPath: path, isDirectory: &isDir), !isDir.boolValue else {
+            return .fail("preset introuvable (\(URL(fileURLWithPath: path).lastPathComponent))")
+        }
+        return nil
     }
 
     // MARK: Conditions qui regardent FL
@@ -698,7 +685,7 @@ final class MacroEffectsMac: MacroEffects {
             }
         }
         switch WindowWait.gone(pid: ctx.pid, numbers: [d.number], timeout: Double(timeoutMs) / 1000,
-                               interval: timeoutMs > 10_000 ? 0.05 : 0.03, stop: { self.shouldStop(ctx.pid) }) {
+                               interval: timeoutMs > 10_000 ? 0.05 : 0.03, stop: stopReason) {
         case .success:
             MacroLog.shared.write("DIALOG", "#\(d.number) closed")
             return .ok
@@ -735,7 +722,7 @@ final class MacroEffectsMac: MacroEffects {
 
     func waitMenuOpen(timeoutMs: Int, ctx: Context) -> StepResult {
         switch WindowWait.newWindow(pid: ctx.pid, excluding: ctx.startNumbers, timeout: Double(timeoutMs) / 1000,
-                                    accept: { $0.isMenuLike && $0.layer > 8 }, stop: { self.shouldStop(ctx.pid) }) {
+                                    accept: { $0.isMenuLike && $0.layer > 8 }, stop: stopReason) {
         case .success(let w):
             lastMenu = w
             MacroLog.shared.write("MENU", "menu \(w) open")
@@ -753,7 +740,7 @@ final class MacroEffectsMac: MacroEffects {
     func waitMenuClosed(timeoutMs: Int, ctx: Context) -> StepResult {
         let open = menusOpenedByMacro(ctx: ctx)
         guard !open.isEmpty else { return .ok }
-        switch WindowWait.gone(pid: ctx.pid, numbers: open, timeout: Double(timeoutMs) / 1000, stop: { self.shouldStop(ctx.pid) }) {
+        switch WindowWait.gone(pid: ctx.pid, numbers: open, timeout: Double(timeoutMs) / 1000, stop: stopReason) {
         case .success:
             MacroLog.shared.write("MENU", "menus closed")
             return .ok
@@ -775,7 +762,7 @@ final class MacroEffectsMac: MacroEffects {
             postLetter(letter, pid: ctx.pid)
             guard i + 1 < letters.count else { break }
             switch WindowWait.newWindow(pid: ctx.pid, excluding: known, timeout: 0.6,
-                                        accept: { $0.isMenuLike }, stop: { self.shouldStop(ctx.pid) }) {
+                                        accept: { $0.isMenuLike }, stop: stopReason) {
             case .success(let w): opened.insert(w.number)
             case .failure(.stopped(let why)): return .cancel(why)
             case .failure(.timeout): break                 // la lettre a seulement surligné son élément
@@ -785,7 +772,7 @@ final class MacroEffectsMac: MacroEffects {
         let needsEnter = enter.read()
         if needsEnter != true {
             switch WindowWait.gone(pid: ctx.pid, numbers: opened, timeout: needsEnter == false ? 0.8 : 0.5,
-                                   stop: { self.shouldStop(ctx.pid) }) {
+                                   stop: stopReason) {
             case .success:
                 enter.write(false)
                 return .ok
@@ -795,14 +782,14 @@ final class MacroEffectsMac: MacroEffects {
                 break
             }
         } else {
-            _ = WindowWait.gone(pid: ctx.pid, numbers: opened, timeout: 0.12, stop: { self.shouldStop(ctx.pid) })
+            _ = WindowWait.gone(pid: ctx.pid, numbers: opened, timeout: 0.12, stop: stopReason)
             guard menusOpen(opened, ctx: ctx) else {
                 enter.write(false)
                 return .ok
             }
         }
         postKey(KeyCombo(keyCode: 36), pid: ctx.pid)
-        switch WindowWait.gone(pid: ctx.pid, numbers: opened, timeout: 0.8, stop: { self.shouldStop(ctx.pid) }) {
+        switch WindowWait.gone(pid: ctx.pid, numbers: opened, timeout: 0.8, stop: stopReason) {
         case .success:
             enter.write(true)
             return .ok
