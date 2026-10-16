@@ -334,7 +334,8 @@ private struct MacroStepsPane: View {
     }
 }
 
-/// « Enregistrer des clics » : FL passe devant, chaque clic devient un bloc (panneau « Terminer » en haut à droite).
+/// « Enregistrer clics et touches » : FL passe devant, chaque clic et chaque touche devient un bloc (panneau
+/// « Terminer » en haut à droite).
 /// Observe seul l'enregistreur : le reste de la barre n'est pas redessiné.
 private struct RecordClicksButton: View {
     let model: MacroEditorModel
@@ -344,7 +345,7 @@ private struct RecordClicksButton: View {
         Button {
             model.recordClicks()
         } label: {
-            Label(recorder.active ? "Enregistrement…" : "Enregistrer des clics",
+            Label(recorder.active ? "Enregistrement…" : "Enregistrer clics et touches",
                   systemImage: recorder.active ? "record.circle.fill" : "record.circle")
         }
         .disabled(recorder.active)

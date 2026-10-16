@@ -359,7 +359,7 @@ final class MacroEditorModel: ObservableObject {
         }
         let blocks = result.blocks.map { Block($0) }
         var point = MacroOutline.insertionPoint(after: selectedRow, in: draft.blocks)
-        mutate("Enregistrer des clics", select: blocks.last.map { MacroStepRow.blockRowID($0.id) }) { doc in
+        mutate("Enregistrer clics et touches", select: blocks.last.map { MacroStepRow.blockRowID($0.id) }) { doc in
             for b in blocks {
                 _ = MacroOutline.insert(b, into: &doc.blocks, at: point)
                 point.index += 1
