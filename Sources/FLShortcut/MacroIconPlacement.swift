@@ -2,8 +2,10 @@
 // icônes) : F2 → fenêtre « Rename, color and icon » → clic sur son bouton de l'icône (montré une fois par
 // l'utilisateur, gardé par rapport au coin haut-droit de cette fenêtre : préférence macroSpots.v2.iconButton) →
 // grille des icônes → clic au centre de la case → Entrée referme la fenêtre du nom sans le changer.
-// Aucune lecture de l'écran : seulement la liste des fenêtres de FL (numéro, cadre). Échap seulement tant qu'une
-// fenêtre ouverte par la pose est encore là.
+// Aucune lecture de l'écran : seulement la liste des fenêtres de FL (numéro, niveau, cadre). Échap seulement tant
+// qu'une fenêtre ouverte par la pose est encore là. Relevé sur le FL de l'utilisateur (16/10) : la grille ouverte par
+// « Change icon… » du Mixer (619 × 679, niveau 101) ne se ferme PAS avec Échap ; seul le choix d'une case la ferme
+// à coup sûr. Une grille restée ouverte est donc signalée, jamais refermée en cliquant à l'aveugle.
 import AppKit
 import CoreGraphics
 import Foundation
@@ -19,6 +21,12 @@ protocol IconPlacementDriver {
     func wait(_ seconds: TimeInterval) -> Bool
     /// Clic de l'utilisateur dans `window`, guidé par une bulle ; nil s'il ne vient pas.
     func learnClick(in window: WinInfo, hint: String) -> CGPoint?
+    /// Journal de diagnostic (fenêtres vues, points cliqués) ; jamais un nom de piste.
+    func note(_ text: String)
+}
+
+extension IconPlacementDriver {
+    func note(_ text: String) {}
 }
 
 enum IconPlacement {
@@ -32,7 +40,7 @@ enum IconPlacement {
             case .notShown: return "clic sur l'icône de la fenêtre du nom non montré"
             case .clickRefused: return "clic refusé (FL fermé ou couvert)"
             case .noGrid: return "la grille des icônes ne s'est pas ouverte : relance pour montrer de nouveau le bouton de l'icône"
-            case .gridStayed: return "la grille des icônes est restée ouverte (case vide ?)"
+            case .gridStayed: return "la grille des icônes de FL est restée ouverte : choisis une case ou clique à côté"
             case .nameStayed: return "la fenêtre du nom de FL est restée ouverte"
             }
         }
@@ -91,10 +99,15 @@ enum IconPlacement {
         let name: WinInfo
         switch awaitWindow(excluding: base, missing: .noNameWindow, driver: driver, accept: isNameWindow) {
         case .success(let w): name = w
-        case .failure(let failure): return failure
+        case .failure(let failure):
+            driver.note("no name window after F2; new windows: \(fresh(base, driver))")
+            return failure
         }
+        driver.note("name window \(name)")
         if let spot = loadSpot(defaults: defaults), MacroSpots.sameSize(name.bounds.size, spot.windowSize) {
-            guard driver.click(spot.point(in: name.bounds)) else { return close([name], driver: driver, .clickRefused) }
+            let p = spot.point(in: name.bounds)
+            driver.note("icon button (learned) at (\(Int(p.x)),\(Int(p.y)))")
+            guard driver.click(p) else { return close([name], driver: driver, .clickRefused) }
         } else {
             // Le clic de l'utilisateur ouvre lui-même la grille : rien à recliquer.
             guard let p = driver.learnClick(in: name, hint: hint) else {
@@ -102,23 +115,27 @@ enum IconPlacement {
             }
             let spot = Spot(fromTopRight: CGVector(dx: p.x - name.bounds.maxX, dy: p.y - name.bounds.minY),
                             windowSize: name.bounds.size)
+            driver.note("icon button shown at (\(Int(p.x)),\(Int(p.y))), from top-right (\(Int(spot.fromTopRight.dx)),"
+                        + "\(Int(spot.fromTopRight.dy)))\(spot.isValid ? "" : " — not kept")")
             if spot.isValid { saveSpot(spot, defaults: defaults) }
         }
         let grid: WinInfo
         switch awaitWindow(excluding: base.union([name.number]), missing: .noGrid, driver: driver, accept: isGrid) {
         case .success(let w): grid = w
         case .failure(let failure):
+            driver.note("no icon grid; new windows: \(fresh(base, driver))")
             if failure == .noGrid { forgetSpot(defaults: defaults) }        // à montrer de nouveau
             return close([name], driver: driver, failure)
         }
-        guard driver.click(FLIconGrid.center(of: icon, in: grid.bounds)) else {
-            return close([grid, name], driver: driver, .clickRefused)
-        }
+        let cell = FLIconGrid.center(of: icon, in: grid.bounds)
+        driver.note("icon grid \(grid) → cell \(icon.code) at (\(Int(cell.x)),\(Int(cell.y)))")
+        guard driver.click(cell) else { return close([grid, name], driver: driver, .clickRefused) }
         guard awaitGone(grid.number, driver: driver) else { return close([grid, name], driver: driver, .stopped) }
         if isOpen(grid.number, driver) { return close([grid, name], driver: driver, .gridStayed) }
         driver.press(enter)
         guard awaitGone(name.number, driver: driver) else { return close([name], driver: driver, .stopped) }
         if isOpen(name.number, driver) { return close([name], driver: driver, .nameStayed) }
+        driver.note("icon \(icon.code) placed, name window closed")
         return nil
     }
 
@@ -126,12 +143,19 @@ enum IconPlacement {
         driver.windows().contains { $0.number == number }
     }
 
+    /// Fenêtres de FL absentes de `base` (journal).
+    static func fresh(_ base: Set<Int>, _ driver: IconPlacementDriver) -> String {
+        let windows = driver.windows().filter { !base.contains($0.number) }
+        return windows.isEmpty ? "none" : windows.map(\.description).joined(separator: ", ")
+    }
+
     /// Ferme, de l'avant vers l'arrière, les fenêtres ouvertes par la pose qui sont encore là (Échap, une fois
-    /// chacune), puis renvoie `failure`.
+    /// chacune, jamais de clic), puis renvoie `failure`. La grille de FL ignore Échap : elle peut rester ouverte.
     static func close(_ opened: [WinInfo], driver: IconPlacementDriver, _ failure: Failure) -> Failure {
         for w in opened where isOpen(w.number, driver) {
             driver.press(escape)
             _ = awaitGone(w.number, driver: driver, timeout: 0.5)
+            if isOpen(w.number, driver) { driver.note("still open after Escape: \(w)") }
         }
         return failure
     }
@@ -175,6 +199,7 @@ final class FLIconDriver: IconPlacementDriver {
     func press(_ key: KeyCombo) { fx.postKey(key, pid: fx.pid) }
     func click(_ point: CGPoint) -> Bool { fx.click(at: point, right: false, ctx: fx.ctx) == .ok }
     func wait(_ seconds: TimeInterval) -> Bool { fx.pause(Int(seconds * 1000), pid: fx.pid) == .ok }
+    func note(_ text: String) { MacroLog.shared.write("ICON", text) }
 
     /// Hors du fil principal seulement (comme l'apprentissage des menus).
     func learnClick(in window: WinInfo, hint: String) -> CGPoint? {

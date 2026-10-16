@@ -112,6 +112,8 @@ Diagnostic : app quittée, `FLShortcut --diag-macro`, ouvrir dans FL le menu ou 
 
 Sonde : `FLShortcut --diag-macro --watch 20` affiche pendant 20 s chaque fenêtre de FL qui apparaît, bouge ou disparaît (menus et sous-menus compris), l'état des boutons de la souris et ce que l'Accessibilité voit sous le curseur. Journal de chaque macro : `~/Library/Logs/FL Shortcut/macro.log` (bouton « Exporter le journal… » dans la fiche ; aucune frappe ni nom de fichier).
 
+Icône : `FLShortcut --diag-icon 7-4` (colonne-rangée de la grille de FL, ici Microphone ; `--relearn` pour montrer de nouveau le bouton de l'icône) pose l'icône sur l'élément sélectionné du vrai FL par le même chemin que le bloc « Nom et couleur » (FL mis au premier plan, F2, bouton de l'icône, case, Entrée) et affiche chaque fenêtre vue et chaque point cliqué ; « PASS » ou « FAIL » à la fin. Sélectionne d'abord une seule piste ou un seul canal, dans un projet de test. La grille de FL ne se ferme pas avec Échap : restée ouverte, elle est signalée, jamais fermée par un clic à l'aveugle.
+
 ## Fichiers
 `Macro.swift` (données, logique pure) · `MacroRunner.swift` (exécution, menus, apprentissage, diagnostic) · `MacroFields.swift` (interface) · `Model.swift`, `KeyRouter.swift`, `EventTap.swift`, `EditorView.swift`, `Catalog.swift`, `FLShortcutApp.swift` (branchements) · `Tests/FLShortcutTests/MacroTests.swift`.
 
