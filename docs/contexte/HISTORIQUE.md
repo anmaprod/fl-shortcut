@@ -118,3 +118,9 @@ entrée 1 ≈ 0,5 s.
   « e » 86 Mo ; processeur au repos 0,0 % (échantillon : fil principal en attente d'événements). 222 tests, 0 échec.
 - Méthode demandée par l'utilisateur : rapide, économe, plugins seulement quand leur spécialité sert. Priorité
   macOS ; Windows et Linux plus tard.
+
+## 16 octobre : relevé de la grille des icônes
+- 16/10/2026 : grille de FL de 619 × 679 points (liste des fenêtres, niveau 101) ; Échap ne ferme pas la grille
+  ouverte par « Change icon… » du menu de piste du Mixer (deux essais, souris sur la grille puis en dehors) ; une
+  fois elle s'est fermée seule quelques secondes après son ouverture, une autre fois elle a disparu entre deux
+  sessions sans action de notre part. Cases Two, Three et Five à Eight de Number non survolées (noms déduits).

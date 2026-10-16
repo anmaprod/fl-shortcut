@@ -19,58 +19,74 @@ enum FLIconGrid {
 
     private static func c(_ symbol: String, _ name: String) -> Cell { Cell(symbol: symbol, name: name) }
 
-    /// Titres de la barre du haut et leur première colonne (un titre couvre les colonnes jusqu'au suivant).
-    /// Colonnes 1 à 5 : quel titre en couvre deux reste à confirmer sur la grille de FL (Synth, d'après ses
-    /// dernières cases Decay et Monster).
+    /// Titres de la barre du haut et leur première colonne (un titre couvre les colonnes jusqu'au suivant) :
+    /// Instr couvre les colonnes 2 et 3, Misc les colonnes 8 et 9.
     static let titles: [(column: Int, title: String)] = [
-        (0, "Reset"), (1, "Content"), (2, "Instr"), (3, "Solfège"), (4, "Synth"), (6, "Effect"), (7, "Gear"),
+        (0, "Reset"), (1, "Content"), (2, "Instr"), (4, "Solfège"), (5, "Synth"), (6, "Effect"), (7, "Gear"),
         (8, "Misc"), (10, "Info"), (11, "Number"), (12, "Routing"), (13, "Channel"),
     ]
 
-    /// Cases de chaque colonne, de haut en bas ; au-delà, les cases de FL sont vides. Colonnes 1 à 5 : cases à
-    /// reprendre du relevé de la grille de FL (en attendant, rien n'y est proposé).
+    /// Cases de chaque colonne, de haut en bas, avec le nom de la barre d'aide de FL au survol ; au-delà, les
+    /// cases de FL sont vides.
     static let table: [[Cell]] = [
-        // Reset : retire l'icône dans FL.
+        // Reset : retire l'icône dans FL (barre d'aide : « None »).
         [c("arrow.uturn.backward", "Reset")],
-        // Content
-        [],
-        // Instr
-        [],
+        // Content (deux cases portent le nom « Automation » dans FL)
+        [c("music.note", "Score"), c("pianokeys", "Melodic score"), c("square.grid.4x3.fill", "Step sequence"),
+         c("chart.bar.fill", "Automation"), c("point.topleft.down.to.point.bottomright.curvepath", "Automation"),
+         c("waveform", "Audio"), c("crown", "Master"), c("cloud.fill", "Cloud")],
+        // Instr (1)
+        [c("guitars", "Dry guitar"), c("guitars.fill", "Electric guitar"), c("guitars", "Violin"),
+         c("guitars", "Banjo"), c("horn", "Trumpet"), c("horn.fill", "Saxophone"), c("hockey.puck", "Snare drum"),
+         c("circle.circle", "Kick drum"), c("cylinder.split.1x2", "Bongos"), c("circle.dotted", "Tambourine"),
+         c("dot.radiowaves.left.and.right", "Shaker"), c("square.grid.3x3.fill", "Drum machine"),
+         c("rectangle.grid.2x2", "Drum pads"), c("circle.and.line.horizontal.fill", "Cymbal"),
+         c("circle.and.line.horizontal", "High Hat")],
+        // Instr (2)
+        [c("smallcircle.filled.circle", "Gong"), c("triangle", "Triangle"), c("bell", "Bell"),
+         c("bell.fill", "More cowbell"), c("wind", "Chimes"), c("rectangle.split.3x3", "Glockenspiel"),
+         c("pianokeys.inverse", "Piano / keyboard"), c("music.note.house", "Organ"), c("chart.bar.xaxis", "Pan flute"),
+         c("line.diagonal", "Flute"), c("wave.3.right", "Whistle"), c("lines.measurement.vertical", "Harp")],
         // Solfège
-        [],
-        // Synth (1)
-        [],
-        // Synth (2) (se termine par Decay et Monster)
-        [],
+        [c("music.quarternote.3", "Treble clef"), c("music.note.list", "Bass clef"), c("tuningfork", "Diapason"),
+         c("stairs", "Arpeggiato")],
+        // Synth
+        [c("waveform.path", "Sawtooth / synthesizer"), c("waveform.path.ecg", "Pulse / synthesizer"),
+         c("wave.3.forward", "Wobbling"), c("waveform.circle", "Sample"), c("rectangle.split.3x1", "Sliced loop"),
+         c("mouth", "Speech"), c("person.fill", "Male speech"), c("figure.stand.dress", "Female speech"),
+         c("waveform.badge.mic", "Vocoder"), c("plus", "Additive"), c("minus", "Subtractive"), c("function", "FM"),
+         c("mountain.2", "Sustaining"), c("arrow.down.right", "Plucked"), c("theatermasks", "Harmor")],
         // Effect
-        [c("lightbulb", "Lamp"), c("rectangle.portrait", "Pedal"), c("chart.line.downtrend.xyaxis", "Low pass"),
-         c("chart.line.uptrend.xyaxis", "High pass"), c("diamond", "Band"), c("building.columns", "Reverb"),
-         c("film", "Film"), c("leaf", "Flower"), c("line.3.horizontal.decrease.circle", "Filter")],
+        [c("lightbulb", "Effect"), c("rectangle.portrait", "Compression"), c("chart.line.downtrend.xyaxis", "Low-pass"),
+         c("chart.line.uptrend.xyaxis", "High-pass"), c("diamond", "Equalizer"), c("building.columns", "Reverb"),
+         c("film", "Movie score"), c("leaf", "Nature sounds"), c("line.3.horizontal.decrease.circle", "Filter")],
         // Gear
-        [c("megaphone.fill", "Horn"), c("circle.grid.cross", "MIDI"), c("headphones", "Headphones"),
-         c("speaker.fill", "Speaker"), c("mic.fill", "Microphone"), c("cable.connector", "Jack"),
-         c("opticaldisc", "CD"), c("record.circle", "Vinyl"), c("hand.tap", "Touch"), c("dial.min", "Knob"),
-         c("gamecontroller", "Joystick")],
+        [c("megaphone.fill", "Plugin"), c("circle.grid.cross", "MIDI"), c("headphones", "Headphones"),
+         c("speaker.fill", "Speakers"), c("mic.fill", "Microphone"), c("cable.connector", "Jack plug"),
+         c("opticaldisc", "CD / DVD"), c("record.circle", "LP"), c("hand.tap", "Touchscreen"),
+         c("dial.min", "Knob / remote control"), c("gamecontroller", "Joystick / remote control")],
         // Misc (1)
-        [c("gearshape", "Cog"), c("wrench", "Wrench"), c("scissors", "Scissors"), c("magnifyingglass", "Search"),
-         c("battery.100", "Battery"), c("paperclip", "Magnet"), c("lock.open", "Lock"), c("folder", "Folder"),
-         c("link", "Link"), c("shippingbox", "Box"), c("doc.on.doc", "Copy"), c("bandage", "Bandage"),
-         c("clock", "Clock"), c("briefcase", "Case"), c("figure.walk", "Character")],
+        [c("gearshape", "Gear"), c("wrench", "Wrench"), c("scissors", "Scissors"),
+         c("magnifyingglass", "Magnifying glass"), c("battery.100", "Battery"), c("paperclip", "Magnet"),
+         c("lock.open", "Padlock"), c("folder", "Folder"), c("link", "Link"), c("shippingbox", "Package"),
+         c("doc.on.doc", "Project"), c("bandage", "Patch"), c("clock", "Time"), c("briefcase", "Building block"),
+         c("figure.walk", "Jet Set Willy")],
         // Misc (2)
-        [c("hand.raised", "Hand"), c("hands.clap", "Clap")],
+        [c("hand.raised", "Snap"), c("hands.clap", "Clap")],
         // Info
-        [c("info.circle", "Info"), c("pencil", "Pencil"), c("questionmark", "Question"),
-         c("exclamationmark", "Exclamation"), c("hand.thumbsup.fill", "Thumbs up"),
-         c("hand.thumbsdown.fill", "Thumbs down"), c("eyes", "Silly"), c("face.smiling", "Happy"),
-         c("cloud.rain", "Sad"), c("nosign", "Forbidden"), c("eye", "Eye"), c("macwindow.on.rectangle", "Windows"),
-         c("macwindow", "Window"), c("flame.fill", "Fire"), c("snowflake", "Snow")],
+        [c("info.circle", "Comment"), c("pencil", "Pencil"), c("questionmark", "?"), c("exclamationmark", "!"),
+         c("hand.thumbsup.fill", "Good"), c("hand.thumbsdown.fill", "Bad"), c("eyes", "Ugly"),
+         c("face.smiling", "Happy"), c("cloud.rain", "Sad"), c("nosign", "Forbidden"), c("eye", "Visual"),
+         c("macwindow.on.rectangle", "Foreground"), c("macwindow", "Background"), c("flame.fill", "Hot"),
+         c("snowflake", "Snowflake")],
         // Number
-        [c("1.circle", "1"), c("2.circle", "2"), c("3.circle", "3"), c("4.circle", "4"), c("5.circle", "5"),
-         c("6.circle", "6"), c("7.circle", "7"), c("8.circle", "8"), c("9.circle", "9"), c("0.circle", "0")],
-        // Routing
-        [c("arrow.triangle.branch", "Route 1"), c("point.3.connected.trianglepath.dotted", "Route 2"),
-         c("arrow.triangle.merge", "Route 3"), c("arrow.triangle.pull", "Route 4"), c("paperplane.fill", "Send"),
-         c("arrow.right.to.line", "Input"), c("rectangle.portrait.and.arrow.right", "Output")],
+        [c("1.circle", "One"), c("2.circle", "Two"), c("3.circle", "Three"), c("4.circle", "Four"),
+         c("5.circle", "Five"), c("6.circle", "Six"), c("7.circle", "Seven"), c("8.circle", "Eight"),
+         c("9.circle", "Nine"), c("0.circle", "Zero")],
+        // Routing (les quatre premières cases portent le nom « Track routing » dans FL)
+        [c("arrow.triangle.branch", "Track routing"), c("point.3.connected.trianglepath.dotted", "Track routing"),
+         c("arrow.triangle.merge", "Track routing"), c("arrow.triangle.pull", "Track routing"),
+         c("paperplane.fill", "Send"), c("arrow.right.to.line", "In"), c("rectangle.portrait.and.arrow.right", "Out")],
     ]
 
     /// La case de FL, ou nil si elle est vide (ou dans la colonne Channel).
