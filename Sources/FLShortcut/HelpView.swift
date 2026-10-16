@@ -89,7 +89,7 @@ struct HelpPage: View {
                     Button {
                         showGuide()
                     } label: {
-                        Label("Revoir le guide de FL Shortcut", systemImage: "book")
+                        Label("Revoir le guide de FL Shortcuts", systemImage: "book")
                     }
                     .buttonStyle(.borderless)
                     .cardRow(.single)

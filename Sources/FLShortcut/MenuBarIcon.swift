@@ -1,4 +1,4 @@
-// Logo de FL Shortcut dans la barre des menus : les deux touches de l'icône de l'app (une derrière, une devant avec
+// Logo de FL Shortcuts dans la barre des menus : les deux touches de l'icône de l'app (une derrière, une devant avec
 // une forme d'onde), dessinées en image modèle (template) : macOS la teinte comme les autres icônes de la barre, en
 // clair ou en sombre. L'état ne remplace plus le logo : une pastille en haut à droite prend la place de la touche de
 // derrière, « ! » quand les raccourcis sont inactifs (Accessibilité, saisie sécurisée), deux barres en pause.
@@ -30,9 +30,9 @@ enum MenuBarIcon {
         }
         image.isTemplate = true
         switch state {
-        case .normal: image.accessibilityDescription = "FL Shortcut"
-        case .warning: image.accessibilityDescription = "FL Shortcut : raccourcis inactifs"
-        case .paused: image.accessibilityDescription = "FL Shortcut : en pause"
+        case .normal: image.accessibilityDescription = "FL Shortcuts"
+        case .warning: image.accessibilityDescription = "FL Shortcuts : raccourcis inactifs"
+        case .paused: image.accessibilityDescription = "FL Shortcuts : en pause"
         }
         cache.withLock { $0[state] = image }
         return image

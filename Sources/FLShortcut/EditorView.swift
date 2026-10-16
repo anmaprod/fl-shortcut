@@ -561,11 +561,11 @@ struct EditorView: View {
         var out: [NoticeItem] = []
         if !status.accessibilityOK {
             out.append(NoticeItem(id: "ax", symbol: "exclamationmark.triangle.fill", tint: .orange,
-                                  text: "FL Shortcut n'a pas accès au clavier : tes raccourcis sont inactifs.",
+                                  text: "FL Shortcuts n'a pas accès au clavier : tes raccourcis sont inactifs.",
                                   button: "Autoriser…", action: { AccessibilityGuide.start() }))
         } else if status.staleTCC {
             out.append(NoticeItem(id: "stale", symbol: "exclamationmark.triangle.fill", tint: .orange,
-                                  text: "Autorisation périmée : retire FL Shortcut de la liste Accessibilité, puis ajoute-le.",
+                                  text: "Autorisation périmée : retire FL Shortcuts de la liste Accessibilité, puis ajoute-le.",
                                   button: "Ouvrir…", action: { AccessibilityGuide.start() }))
         }
         if status.secureInput {
@@ -672,7 +672,7 @@ struct EditorView: View {
 
     private var profileMenu: some View {
         Menu {
-            Button { GuideLink.shared.show() } label: { Label("Guide de FL Shortcut", systemImage: "book") }
+            Button { GuideLink.shared.show() } label: { Label("Guide de FL Shortcuts", systemImage: "book") }
             Button { selection = .help } label: { Label("Aide et contact", systemImage: "questionmark.circle") }
             Divider()
             Menu {
@@ -696,7 +696,7 @@ struct EditorView: View {
                 Toggle(isOn: $glassEnabled) { Label("Effet Liquid Glass", systemImage: "drop") }
             }
             Divider()
-            Button(role: .destructive) { Uninstaller.confirmAndRun() } label: { Label("Désinstaller FL Shortcut…", systemImage: "trash") }
+            Button(role: .destructive) { Uninstaller.confirmAndRun() } label: { Label("Désinstaller FL Shortcuts…", systemImage: "trash") }
         } label: {
             Label("Profil", systemImage: "ellipsis")
         }
@@ -756,7 +756,7 @@ struct EditorView: View {
         let panel = NSOpenPanel()
         panel.allowedContentTypes = [.json]
         panel.allowsMultipleSelection = false
-        panel.directoryURL = ExchangeFolder.shortcuts.prepared()       // Documents › FL Shortcut › Raccourcis
+        panel.directoryURL = ExchangeFolder.shortcuts.prepared()       // Documents › FL Shortcuts › Raccourcis
         guard panel.runModal() == .OK, let url = panel.url else { return }
         do {
             let size = (try? FileManager.default.attributesOfItem(atPath: url.path)[.size] as? Int) ?? 0
@@ -776,9 +776,9 @@ struct EditorView: View {
     private func exportProfile() {
         let panel = NSSavePanel()
         panel.allowedContentTypes = [.json]
-        panel.directoryURL = ExchangeFolder.shortcuts.prepared()       // Documents › FL Shortcut › Raccourcis
+        panel.directoryURL = ExchangeFolder.shortcuts.prepared()       // Documents › FL Shortcuts › Raccourcis
         panel.canCreateDirectories = true
-        panel.nameFieldStringValue = "Mes raccourcis FL Shortcut.json"
+        panel.nameFieldStringValue = "Mes raccourcis FL Shortcuts.json"
         guard panel.runModal() == .OK, let url = panel.url else { return }
         do {
             try store.exportData().write(to: url, options: .atomic)
@@ -906,7 +906,7 @@ private struct StatusBar: View {
         case .inactive:
             if !link.snapshot.hasKey { return "Lien avec FL Studio non installé" }
             if link.snapshot.incompatibleProtocol != nil { return "Script FL d'une autre version" }
-            return "Lien inactif : active « FL Shortcut » dans Options › MIDI Settings"
+            return "Lien inactif : active « FL Shortcuts » dans Options › MIDI Settings"
         }
     }
 
@@ -1575,7 +1575,7 @@ struct CaptureField: View {
             }
         case .trigger:
             if candidate == Store.shared.toggleCombo {
-                Dialogs.inform("Raccourci réservé", "⌃⌥⌘F sert à mettre FL Shortcut en pause.")
+                Dialogs.inform("Raccourci réservé", "⌃⌥⌘F sert à mettre FL Shortcuts en pause.")
                 return
             }
             // Touche seule : plus de question. Elle reste à FL quand elle y sert (texte en cours de saisie, menu
@@ -1679,7 +1679,7 @@ extension Remap {
         case .keystroke: return "Raccourci de FL Studio"
         case .macro: return macroRef != nil ? "Macro en blocs de la bibliothèque" : "Enchaîne des clics et des touches dans FL, sans MIDI"
         case .flAction:
-            guard let id = actionID, let info = FLActions.info(id) else { return "Mets FL Shortcut à jour pour l'utiliser" }
+            guard let id = actionID, let info = FLActions.info(id) else { return "Mets FL Shortcuts à jour pour l'utiliser" }
             if case .unavailable(let reason) = AppStatus.shared.availability(id) { return reason }
             return info.detail
         }

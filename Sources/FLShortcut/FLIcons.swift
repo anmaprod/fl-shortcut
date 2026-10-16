@@ -1,7 +1,7 @@
 // Grille des icônes de FL (« Change icon… », ou le bouton de l'icône de « Rename, color and icon », F2) : 14
 // colonnes de cases carrées, 15 rangées, sous une barre de titres. L'API de FL ne lit ni ne pose les icônes : elles
 // passent par cette fenêtre de FL, et seule sa géométrie compte pour cliquer la bonne case (aucune lecture de
-// l'écran). Dans FL Shortcut, chaque case est dessinée par un symbole de macOS proche de l'icône de FL (pas les
+// l'écran). Dans FL Shortcuts, chaque case est dessinée par un symbole de macOS proche de l'icône de FL (pas les
 // dessins de FL, qui appartiennent à Image-Line), avec le nom anglais de FL.
 import CoreGraphics
 
@@ -97,10 +97,10 @@ enum FLIconGrid {
         return table[icon.column][icon.row]
     }
 
-    /// Case proposée dans FL Shortcut : une case relevée, hors de la colonne Channel.
+    /// Case proposée dans FL Shortcuts : une case relevée, hors de la colonne Channel.
     static func isPickable(_ icon: FLIcon) -> Bool { cell(icon) != nil }
 
-    /// Toutes les cases proposées dans FL Shortcut, colonne par colonne.
+    /// Toutes les cases proposées dans FL Shortcuts, colonne par colonne.
     static var pickable: [FLIcon] {
         var out: [FLIcon] = []
         for column in table.indices where column != channelColumn {

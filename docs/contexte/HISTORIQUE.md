@@ -124,3 +124,16 @@ entrée 1 ≈ 0,5 s.
   ouverte par « Change icon… » du menu de piste du Mixer (deux essais, souris sur la grille puis en dehors) ; une
   fois elle s'est fermée seule quelques secondes après son ouverture, une autre fois elle a disparu entre deux
   sessions sans action de notre part. Cases Two, Three et Five à Eight de Number non survolées (noms déduits).
+
+## 16 octobre : nouveau nom « FL Shortcuts »
+- Demande de l'utilisateur : « FL Shortcut » devient « FL Shortcuts » partout où le nom se voit (app, menus, textes,
+  script et port MIDI dans FL, sujet des mails d'aide « [FL Shortcuts] », site, Windows, fichiers téléchargés
+  FLShortcuts.dmg / .pkg / -Windows-Setup.exe). Les documents d'audit et cet historique gardent l'ancien nom.
+- Gardés exprès : identifiant app.flshortcut.FLShortcut (réglages, autorisation Accessibilité, Trousseau),
+  exécutable FLShortcut, device_FLShortcut.py, certificat local « FL Shortcut Dev » (sinon l'autorisation
+  Accessibilité serait redemandée), texte d'entropie DPAPI Windows (sinon la clé enregistrée deviendrait illisible).
+- Reprise de l'ancien nom (`AppPaths.oldName`) : Application Support et Documents › « FL Shortcut » renommés une
+  fois (rename(2), jamais un lien) ; script FL déplacé dans « FL Shortcuts » à sa mise à jour, ancien dossier retiré
+  s'il ne contient que notre script ; .pkg et build local retirent les anciennes apps (même identifiant vérifié) ;
+  le désinstalleur retire les deux noms. Après la mise à jour du script, réactiver le port « FL Shortcuts » dans
+  Options › MIDI Settings de FL (seulement si le lien MIDI était utilisé).

@@ -1,4 +1,4 @@
-# Protocole FL Shortcut ↔ script FL Studio (v2)
+# Protocole FL Shortcuts ↔ script FL Studio (v2)
 
 Contrat unique entre l'appli (Mac `Sources/FLShortcut`, Windows à venir) et le script `Resources/device_FLShortcut.py`.
 Toute modification de ce fichier doit être répercutée des deux côtés. Origine des exigences : `audit/01` (SEC-01/02/05/10), `audit/02` (REL-xx), `audit/04` (compatibilité).
@@ -6,8 +6,8 @@ Toute modification de ce fichier doit être répercutée des deux côtés. Origi
 ## 1. Transport
 
 - Messages **Control Change uniquement** (pas de SysEx : bugs FL 26.1.x, audit 04).
-- **Appli → FL** : canal MIDI 16 (statut `0xBF`), sur la source virtuelle « FL Shortcut » créée par l'appli.
-- **FL → Appli** : `device.midiOutMsg` sur le canal 16, vers la destination virtuelle « FL Shortcut » créée par l'appli. Dans *MIDI Settings*, l'entrée et la sortie « FL Shortcut » doivent porter le **même numéro de port** (l'appli guide l'utilisateur).
+- **Appli → FL** : canal MIDI 16 (statut `0xBF`), sur la source virtuelle « FL Shortcuts » créée par l'appli.
+- **FL → Appli** : `device.midiOutMsg` sur le canal 16, vers la destination virtuelle « FL Shortcuts » créée par l'appli. Dans *MIDI Settings*, l'entrée et la sortie « FL Shortcuts » doivent porter le **même numéro de port** (l'appli guide l'utilisateur).
 - uniqueID CoreMIDI : **aléatoire par installation** (stocké dans les préférences), jamais une constante (SEC-02).
 
 ## 2. Secret partagé
@@ -59,7 +59,7 @@ L'appli envoie une trame de 8 CC, dans cet ordre :
 - `1` : réveil durable (mode MIDI complet) : battements et fenêtre active comme avant.
 - `2` : réveil bref (macros) : le script se rendort `AWAKE_FOR` = 8 s après le dernier message reçu.
 
-**Sommeil** : au chargement et après un réveil bref, `OnIdle` et `OnRefresh` s'arrêtent à leur première ligne, rien n'est envoyé, et seules les PING sont écoutées (les trames sont ignorées). FL ne fait donc aucun travail pour FL Shortcut entre deux macros. L'appli fait un PING au lancement et quand elle n'a plus de battement depuis 6 s. Puis elle numérote ses trames à partir de 1.
+**Sommeil** : au chargement et après un réveil bref, `OnIdle` et `OnRefresh` s'arrêtent à leur première ligne, rien n'est envoyé, et seules les PING sont écoutées (les trames sont ignorées). FL ne fait donc aucun travail pour FL Shortcuts entre deux macros. L'appli fait un PING au lancement et quand elle n'a plus de battement depuis 6 s. Puis elle numérote ses trames à partir de 1.
 
 **Vecteur de test** (à reproduire des deux côtés dans les tests) :
 

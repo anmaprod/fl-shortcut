@@ -17,7 +17,7 @@ final class AccessibilityGuide: ObservableObject {
     func start() {
         granted = AXIsProcessTrusted()
         guard !granted else { return }
-        // Inscrit FL Shortcut dans la liste (décoché) : il ne reste qu'à l'activer.
+        // Inscrit FL Shortcuts dans la liste (décoché) : il ne reste qu'à l'activer.
         let options = [kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: false] as CFDictionary
         _ = AXIsProcessTrustedWithOptions(options)
         if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") {
@@ -98,14 +98,14 @@ private struct AccessibilityGuideView: View {
                         .font(.headline)
                         .fixedSize(horizontal: false, vertical: true)
                 }
-                step(1, "Active l'interrupteur à côté de FL Shortcut.")
+                step(1, "Active l'interrupteur à côté de FL Shortcuts.")
                 SwitchPreview()
                     .padding(.leading, 28)
                 step(2, "Il n'est pas dans la liste, ou il est déjà activé mais rien ne marche ? "
-                     + "Retire-le avec « – », puis glisse FL Shortcut depuis la fenêtre du Finder dans la liste.")
+                     + "Retire-le avec « – », puis glisse FL Shortcuts depuis la fenêtre du Finder dans la liste.")
                 HStack(spacing: 6) {
                     Image(systemName: "hourglass").foregroundStyle(.secondary)   // fixe : aucune animation
-                    Text("En attente… FL Shortcut le détecte tout seul.")
+                    Text("En attente… FL Shortcuts le détecte tout seul.")
                         .font(.callout).foregroundStyle(.secondary)
                 }
                 .padding(.top, 2)
@@ -130,7 +130,7 @@ private struct SwitchPreview: View {
     var body: some View {
         HStack(spacing: 8) {
             AppIcon().frame(width: 20, height: 20)
-            Text("FL Shortcut").font(.system(size: 12))
+            Text("FL Shortcuts").font(.system(size: 12))
             Spacer(minLength: 8)
             Capsule()
                 .fill(Color.accentColor)
@@ -144,6 +144,6 @@ private struct SwitchPreview: View {
         .overlay(RoundedRectangle(cornerRadius: 10, style: .continuous)
             .strokeBorder(Color(nsColor: .separatorColor), lineWidth: 0.5))
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("Exemple : FL Shortcut, interrupteur activé")
+        .accessibilityLabel("Exemple : FL Shortcuts, interrupteur activé")
     }
 }

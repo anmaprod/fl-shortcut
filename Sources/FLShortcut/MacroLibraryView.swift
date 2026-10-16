@@ -132,14 +132,14 @@ struct MacroLibraryPage: View {
             } label: {
                 Label("Importer…", systemImage: "square.and.arrow.down")
             }
-            .help("Ajouter des macros reçues (.flsmacro) ; la boîte s'ouvre dans Documents › FL Shortcut › Macros")
+            .help("Ajouter des macros reçues (.flsmacro) ; la boîte s'ouvre dans Documents › FL Shortcuts › Macros")
             Button {
                 exportAll()
             } label: {
                 Label("Exporter…", systemImage: "square.and.arrow.up")
             }
             .disabled(library.macros.isEmpty)
-            .help("Toutes les macros, un fichier chacune, pour les partager (par défaut dans Documents › FL Shortcut › Macros)")
+            .help("Toutes les macros, un fichier chacune, pour les partager (par défaut dans Documents › FL Shortcuts › Macros)")
             Spacer(minLength: 0)
         }
         .buttonStyle(.borderless)
@@ -356,14 +356,16 @@ struct MacroTemplatesSheet: View {
 
 // MARK: - Fichiers .flsmacro
 
-/// Dossiers d'échange, rangés comme les projets de FL : ~/Documents/FL Shortcut/Macros et …/Raccourcis. Les boîtes
+/// Dossiers d'échange, rangés comme les projets de FL : ~/Documents/FL Shortcuts/Macros et …/Raccourcis. Les boîtes
 /// d'export et d'import s'y ouvrent ; créés à la première ouverture d'une de ces boîtes (jamais au lancement).
+/// Un dossier « Documents/FL Shortcut » (ancien nom de l'app) prend alors le nouveau nom, avec ses fichiers.
 enum ExchangeFolder {
     case macros, shortcuts
 
     var url: URL {
-        FileManager.default.homeDirectoryForCurrentUser
-            .appendingPathComponent("Documents/FL Shortcut", isDirectory: true)
+        let documents = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Documents", isDirectory: true)
+        return AppPaths.renamed(documents.appendingPathComponent(AppPaths.oldName, isDirectory: true),
+                                to: documents.appendingPathComponent("FL Shortcuts", isDirectory: true))
             .appendingPathComponent(self == .macros ? "Macros" : "Raccourcis", isDirectory: true)
     }
 
@@ -400,7 +402,7 @@ enum MacroFileActions {
         }
     }
 
-    /// Toutes les macros, un fichier .flsmacro chacune, dans le dossier choisi (par défaut FL Shortcut › Macros) :
+    /// Toutes les macros, un fichier .flsmacro chacune, dans le dossier choisi (par défaut FL Shortcuts › Macros) :
     /// prêtes à envoyer à un collègue. Un fichier du même nom n'est jamais écrasé (« (2) », « (3) »…).
     static func exportAll(_ docs: [MacroDoc]) -> String? {
         guard !docs.isEmpty else { return nil }
@@ -465,7 +467,7 @@ enum MacroFileActions {
     }
 
     /// Importe un ou plusieurs .flsmacro (reçus d'un collègue), chacun relu avant d'être accepté : chaque macro
-    /// arrive sans raccourci (inactive), ids neufs. La boîte s'ouvre dans FL Shortcut › Macros.
+    /// arrive sans raccourci (inactive), ids neufs. La boîte s'ouvre dans FL Shortcuts › Macros.
     static func importMacros(into library: MacroLibraryStore, layout: KeyboardLayout) -> [MacroDoc] {
         let panel = NSOpenPanel()
         panel.allowedContentTypes = [fileType, .json]

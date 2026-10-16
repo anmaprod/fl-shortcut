@@ -9,7 +9,7 @@ import SwiftUI
 
 enum CommunityText {
     static let subtitle = "Des macros et des raccourcis prêts à l'emploi, partagés par d'autres utilisateurs de "
-        + "FL Shortcut, avec leur explication."
+        + "FL Shortcuts, avec leur explication."
 
     /// « 2026-10-16T18:02:11… » → « 16/10/2026 ».
     static func day(_ iso: String) -> String {

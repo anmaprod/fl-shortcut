@@ -1,4 +1,4 @@
-# Macro Creator for FL Shortcut: what the best macro tools teach
+# Macro Creator for FL Shortcuts: what the best macro tools teach
 
 Scope note: I couldn't find a standalone Windows program called "Super Macro" on the web. The closest match is BarRaider's **SuperMacro**, a Stream Deck plugin. I covered it, plus the common "simple recorder" category (Jitbit, Bartels Macro Recorder, Macro Scheduler), in its place. I also added three DAW-relevant references: **SoundFlow** (Pro Tools), **Cubase/Studio One macros**, and FL Studio's own *Tools › Macros*.
 
@@ -64,15 +64,15 @@ I read the repo's `/home/user/fl-shortcut/MACROS.md` so the recommendations fit 
 13. **Step-by-step mode**: press "Next" to run each step. From PMC's Manual hotkey and KM's Step Over and Pause New Macros.
 14. **Disable a step without deleting it.** From PMC's checkbox column.
 15. **"Show me" buttons**: flash the learned click spot or the image match on screen. From KM *Display* and the Get/Go buttons, SoundFlow *Pick*, and AHK Window Spy.
-16. **Ask at run time.** Any value can be "ask me each time", for example the preset or the track. From Shortcuts *Ask Each Time*, REAPER *Prompt to continue*, and FL Shortcut's existing "ask for the preset each time".
+16. **Ask at run time.** Any value can be "ask me each time", for example the preset or the track. From Shortcuts *Ask Each Time*, REAPER *Prompt to continue*, and FL Shortcuts's existing "ask for the preset each time".
 17. **Clean recordings automatically.** Merge mouse moves, drop the first click that only switches windows, collapse typed text into one step, and offer to replace recorded pauses with waits. From Bartels' merged moves, the Automator tutorial deleting the first Dock event, and Microsoft's advice to trim recorded code.
 18. **Global speed and timing settings rather than a delay on every row.** Real-time pauses are optional when recording. From the KM clock button and PMC speed hotkeys. Macro Scheduler warns that faster playback is less reliable.
-19. **Assign the shortcut with conflict detection.** Excel lets a macro silently override a built-in shortcut, and Shortcuts has reserved keys. FL Shortcut already warns about conflicts; reuse that.
+19. **Assign the shortcut with conflict detection.** Excel lets a macro silently override a built-in shortcut, and Shortcuts has reserved keys. FL Shortcuts already warns about conflicts; reuse that.
 20. **Templates before a blank page**: a gallery of FL-specific starting macros. From PMC example files, the KM Macro Library, the Shortcuts Gallery, the SoundFlow Store, and FL's own *Tools › Macros*.
 21. **Show advanced features gradually.** No variables or code in v1. Loops and conditions sit behind « Avancé ». Hammerspoon assumes programming, AHK's v1/v2 syntax confuses beginners, and a BTT If needs three blocks.
-22. **Readable sharing, imported "in quarantine".** An imported macro arrives disabled, with a summary of what it does, until the user enables it. From KM ("never execute a macro without verifying the source") and REAPER `.ReaperKeyMap`. FL Shortcut today refuses custom macros at import; quarantine would replace that refusal.
+22. **Readable sharing, imported "in quarantine".** An imported macro arrives disabled, with a summary of what it does, until the user enables it. From KM ("never execute a macro without verifying the source") and REAPER `.ReaperKeyMap`. FL Shortcuts today refuses custom macros at import; quarantine would replace that refusal.
 23. **Short, composable macros**, with a "Lancer une autre macro" step. From Excel ("smaller relevant macros"), KM Execute Macro, and REAPER nested custom actions.
-24. **Treat a macro as one action.** Tell the user it may not undo in one step, and block dangerous keys. REAPER can consolidate a macro into one undo point; Excel warns "Macros cannot be undone"; FL Shortcut already has a ⌘Q/⌘W blacklist.
+24. **Treat a macro as one action.** Tell the user it may not undo in one step, and block dangerous keys. REAPER can consolidate a macro into one undo point; Excel warns "Macros cannot be undone"; FL Shortcuts already has a ⌘Q/⌘W blacklist.
 25. **Keep the keyboard layout and environment in mind.** Store key codes but display AZERTY labels. Store the FL version and window size with each learned position, and check them again before running. PMC breaks on non-English layouts, and KM image matching breaks on DPI or resolution changes.
 
 ---
@@ -153,7 +153,7 @@ I read the repo's `/home/user/fl-shortcut/MACROS.md` so the recommendations fit 
 - **Brittle coordinates.** Absolute screen points break when windows move, are resized, change Retina scaling, or when FL panels are detached or rearranged (Watch Me Do, PMC FAQ, KM DPI threads). Prefer FL keys and menus, then anchors, then images. Store the window size with each learned position and ask again instead of guessing.
 - **Timing.** A pause tuned on the creator's Mac is too short on a slow Mac or a heavy project, and too long otherwise. Recorded real-time pauses copy hesitations. Waits with timeouts fix this.
 - **Focus stealing.** Your own windows (the floating test window, alerts, notifications), macOS dialogs, or the user touching the mouse can send keystrokes to the wrong app. Use panels that don't take focus, check that FL is frontmost before *every* step, and stop if focus changes.
-- **Modifier leakage and stuck keys.** The trigger's ⌃ still held turns a click into a right-click (FL Shortcut already handles this). After a stop, always send key-up for every modifier.
+- **Modifier leakage and stuck keys.** The trigger's ⌃ still held turns a click into a right-click (FL Shortcuts already handles this). After a stop, always send key-up for every modifier.
 - **Unreadable step lists.** Raw key codes, "Click (812, 433)", hundreds of mouse moves, and recorded noise (all of Word's dialog settings). Merge, name things, allow comments, and group steps.
 - **Too much power too early.** Variables, loops and code at the top level (AHK, Hammerspoon, BTT's three-block If, hundreds of KM actions) scare off musicians. Keep the first palette to about 8 blocks.
 - **Silent continue / hidden errors.** Automator continuing regardless and PMC's "Do not display errors" are exactly what not to copy.

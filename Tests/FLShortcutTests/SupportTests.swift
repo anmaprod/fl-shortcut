@@ -20,7 +20,7 @@ final class SupportTests: XCTestCase {
 
     private let message = SupportMessage(kind: .probleme, text: "Ma macro s'arrête au 3e bloc dans le Mixer.",
                                          email: "nina@exemple.fr", error: "Macro : échec au bloc 3 (Clic)",
-                                         diagnostic: "FL Shortcut 0.1.0 · macOS 26.6.2", reference: "FLS-3F9A2C")
+                                         diagnostic: "FL Shortcuts 0.1.0 · macOS 26.6.2", reference: "FLS-3F9A2C")
 
     func testRules() {
         XCTAssertNil(SupportRules.problem(message))
@@ -39,7 +39,7 @@ final class SupportTests: XCTestCase {
         XCTAssertEqual(text, """
             Référence : FLS-3F9A2C
             Genre : Un problème
-            FL Shortcut 0.1.0
+            FL Shortcuts 0.1.0
             Pour répondre : nina@exemple.fr
 
             — Message —
@@ -49,14 +49,14 @@ final class SupportTests: XCTestCase {
             Macro : échec au bloc 3 (Clic)
 
             — État de l'app —
-            FL Shortcut 0.1.0 · macOS 26.6.2
+            FL Shortcuts 0.1.0 · macOS 26.6.2
             """)
         var without = message
         without.diagnostic = nil
         without.error = nil
         XCTAssertFalse(SupportRules.plainText(without, appVersion: "0.1.0").contains("État de l'app"))
         XCTAssertFalse(SupportRules.plainText(without, appVersion: "0.1.0").contains("problème signalé"))
-        XCTAssertEqual(SupportRules.subject(message), "[FL Shortcut] Problème · FLS-3F9A2C · Ma macro s'arrête au 3e bloc dans le Mixer.")
+        XCTAssertEqual(SupportRules.subject(message), "[FL Shortcuts] Problème · FLS-3F9A2C · Ma macro s'arrête au 3e bloc dans le Mixer.")
         XCTAssertTrue(SupportMessage.newReference().hasPrefix("FLS-"))
         XCTAssertEqual(SupportMessage.newReference().count, 10)
 
@@ -76,7 +76,7 @@ final class SupportTests: XCTestCase {
                                             lastMacro: "échec — bloc 3", screens: ["1512×982", "2560×1440"])
         let text = SupportDiagnostic.text(facts)
         XCTAssertEqual(text, """
-            FL Shortcut 0.1.0 · macOS 26.6.2
+            FL Shortcuts 0.1.0 · macOS 26.6.2
             FL Studio : ouvert (26.1.7)
             Clavier autorisé : non (autorisation périmée) · En pause : non · Saisie sécurisée : non
             Mode : léger (sans lien MIDI)
@@ -92,7 +92,7 @@ final class SupportTests: XCTestCase {
                                             light: true, link: "FL fermé", shortcuts: 0, macros: 0, macrosToLearn: 0,
                                             lastMacro: nil, screens: [])
         let report = SupportDiagnostic.report(facts, problems: "16/10 21:07 · Macro : échec", journal: "RUN ==== Essai ====")
-        XCTAssertTrue(report.hasPrefix("FL Shortcut 0.1.0 · macOS 26.6.2\nFL Studio : fermé"))
+        XCTAssertTrue(report.hasPrefix("FL Shortcuts 0.1.0 · macOS 26.6.2\nFL Studio : fermé"))
         XCTAssertTrue(report.contains("\n\n— Derniers problèmes —\n16/10 21:07 · Macro : échec"))
         XCTAssertTrue(report.hasSuffix("\n\n— Journal de la dernière macro —\nRUN ==== Essai ===="))
         XCTAssertFalse(SupportDiagnostic.report(facts, problems: nil, journal: nil).contains("—"))
@@ -155,7 +155,7 @@ final class SupportTests: XCTestCase {
         XCTAssertNil(server.requests[0].value(forHTTPHeaderField: "Authorization"), "sans compte : la clé publique seule")
         XCTAssertEqual(server.body(0)["kind"] as? String, "probleme")
         XCTAssertEqual(server.body(0)["email"] as? String, "nina@exemple.fr")
-        XCTAssertEqual(server.body(0)["diagnostic"] as? String, "FL Shortcut 0.1.0 · macOS 26.6.2")
+        XCTAssertEqual(server.body(0)["diagnostic"] as? String, "FL Shortcuts 0.1.0 · macOS 26.6.2")
         XCTAssertEqual(server.body(0)["reference"] as? String, "FLS-3F9A2C")
         XCTAssertEqual(server.body(0)["error"] as? String, "Macro : échec au bloc 3 (Clic)")
         try await client.sendSupport(message, appVersion: "0.1.0", token: "jeton")

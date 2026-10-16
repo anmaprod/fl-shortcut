@@ -1,8 +1,8 @@
 // Désinstallation complète : rien ne reste sur le Mac.
 // Deux façons de la lancer :
-//   - menu « Désinstaller FL Shortcut… » de l'app ;
-//   - « Désinstaller FL Shortcut.app » fourni dans le .dmg (même exécutable, clé FLSUninstaller dans
-//     son Info.plist), qui ferme FL Shortcut s'il tourne puis supprime tout.
+//   - menu « Désinstaller FL Shortcuts… » de l'app ;
+//   - « Désinstaller FL Shortcuts.app » fourni dans le .dmg (même exécutable, clé FLSUninstaller dans
+//     son Info.plist), qui ferme FL Shortcuts s'il tourne puis supprime tout.
 // Supprimé : l'app (mise à la Corbeille), tes raccourcis et réglages, la clé du Trousseau, le script installé
 // dans FL Studio, l'autorisation Accessibilité, l'état de fenêtre sauvegardé et les caches.
 import AppKit
@@ -11,7 +11,7 @@ import Foundation
 enum Uninstaller {
     static let bundleID = "app.flshortcut.FLShortcut"
 
-    /// Vrai si cet exécutable est lancé comme « Désinstaller FL Shortcut.app ».
+    /// Vrai si cet exécutable est lancé comme « Désinstaller FL Shortcuts.app ».
     static var isUninstallerBundle: Bool {
         Bundle.main.object(forInfoDictionaryKey: "FLSUninstaller") as? Bool == true
     }
@@ -31,7 +31,7 @@ enum Uninstaller {
         NSApp.activate(ignoringOtherApps: true)
         let ask = NSAlert()
         ask.alertStyle = .warning
-        ask.messageText = "Désinstaller FL Shortcut ?"
+        ask.messageText = "Désinstaller FL Shortcuts ?"
         ask.informativeText = "L'app, tes raccourcis, ses réglages et son autorisation clavier seront supprimés. "
             + "FL Studio garde ses raccourcis d'origine."
         ask.addButton(withTitle: "Désinstaller")
@@ -42,7 +42,7 @@ enum Uninstaller {
         let removed = removeEverything()
 
         let done = NSAlert()
-        done.messageText = "FL Shortcut est désinstallé"
+        done.messageText = "FL Shortcuts est désinstallé"
         done.informativeText = removed.isEmpty
             ? "Il n'y avait plus rien à supprimer."
             : "Supprimé :\n• " + removed.joined(separator: "\n• ")
@@ -51,7 +51,7 @@ enum Uninstaller {
         if !isUninstallerBundle { NSApp.terminate(nil) }
     }
 
-    /// Supprime tout ce que FL Shortcut a pu créer. Renvoie la liste lisible de ce qui a été retiré.
+    /// Supprime tout ce que FL Shortcuts a pu créer. Renvoie la liste lisible de ce qui a été retiré.
     @discardableResult
     static func removeEverything() -> [String] {
         var removed: [String] = []
@@ -80,11 +80,15 @@ enum Uninstaller {
         if let path = defaults?.string(forKey: ScriptIntegrity.pathKey) {
             scriptFolders.append(URL(fileURLWithPath: path).deletingLastPathComponent())
         }
-        scriptFolders.append(home.appendingPathComponent(
-            "Documents/Image-Line/FL Studio/Settings/Hardware/\(FLScriptInstaller.folderName)", isDirectory: true))
-        for folder in Set(scriptFolders.map(\.standardizedFileURL)) where isOurScriptFolder(folder) {
-            if (try? fm.removeItem(at: folder)) != nil { removed.append("le script FL Shortcut dans FL Studio") }
+        for name in [FLScriptInstaller.folderName, FLScriptInstaller.oldFolderName] {   // nom actuel et ancien nom
+            scriptFolders.append(home.appendingPathComponent(
+                "Documents/Image-Line/FL Studio/Settings/Hardware/\(name)", isDirectory: true))
         }
+        var hadScript = false
+        for folder in Set(scriptFolders.map(\.standardizedFileURL)) where FLScriptInstaller.isOurScriptFolder(folder) {
+            if (try? fm.removeItem(at: folder)) != nil { hadScript = true }
+        }
+        if hadScript { removed.append("le script FL Shortcuts dans FL Studio") }
 
         // 3. Clé du Trousseau (et son fichier de repli).
         let secrets = PreferredSecretStore()
@@ -93,10 +97,13 @@ enum Uninstaller {
         CommunitySessionKeychain().delete()             // session de la Communauté (jamais le mot de passe)
 
         // 4. Raccourcis et données.
-        let support = AppPaths.supportDirectory
-        if fm.fileExists(atPath: support.path), (try? fm.removeItem(at: support)) != nil {
-            removed.append("tes raccourcis et données")
+        let oldSupport = AppPaths.supportDirectory.deletingLastPathComponent()
+            .appendingPathComponent(AppPaths.oldName, isDirectory: true)          // ancien nom, s'il est resté
+        var hadData = false
+        for support in Set([AppPaths.supportDirectory, oldSupport].map(\.standardizedFileURL)) where fm.fileExists(atPath: support.path) {
+            if (try? fm.removeItem(at: support)) != nil { hadData = true }
         }
+        if hadData { removed.append("tes raccourcis et données") }
 
         // 5. Réglages, état des fenêtres, caches, journal des macros.
         defaults?.removePersistentDomain(forName: bundleID)
@@ -108,7 +115,8 @@ enum Uninstaller {
                     lib.appendingPathComponent("HTTPStorages/\(bundleID)"),
                     lib.appendingPathComponent("HTTPStorages/\(bundleID).binarycookies"),
                     lib.appendingPathComponent("WebKit/\(bundleID)"),
-                    lib.appendingPathComponent("Logs/FL Shortcut")] where fm.fileExists(atPath: url.path) {
+                    lib.appendingPathComponent("Logs/FL Shortcuts"),
+                    lib.appendingPathComponent("Logs/\(AppPaths.oldName)")] where fm.fileExists(atPath: url.path) {
             if (try? fm.removeItem(at: url)) != nil { hadPrefs = true }
         }
         if hadPrefs { removed.append("les réglages, caches et journaux") }
@@ -119,10 +127,14 @@ enum Uninstaller {
 
         // 7. Captures « Capturer FL » laissées sur le Bureau.
         if let desktop = fm.urls(for: .desktopDirectory, in: .userDomainMask).first {
-            let captures = desktop.appendingPathComponent("FL Shortcut – captures", isDirectory: true)
-            if fm.fileExists(atPath: captures.path), (try? fm.trashItem(at: captures, resultingItemURL: nil)) != nil {
-                removed.append("les captures sur le Bureau")
+            var trashed = false
+            for name in ["FL Shortcuts", AppPaths.oldName] {
+                let captures = desktop.appendingPathComponent("\(name) – captures", isDirectory: true)
+                if fm.fileExists(atPath: captures.path), (try? fm.trashItem(at: captures, resultingItemURL: nil)) != nil {
+                    trashed = true
+                }
             }
+            if trashed { removed.append("les captures sur le Bureau") }
         }
 
         // 8. L'app et le désinstalleur, à la Corbeille (récupérables tant que la Corbeille n'est pas vidée).
@@ -131,14 +143,14 @@ enum Uninstaller {
         if !isUninstallerBundle { apps.insert(Bundle.main.bundleURL) }
         if let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleID) { apps.insert(url) }
         for dir in [URL(fileURLWithPath: "/Applications"), home.appendingPathComponent("Applications")] {
-            for name in ["FL Shortcut.app", "Désinstaller FL Shortcut.app"] {
+            for name in appNames {
                 let url = dir.appendingPathComponent(name)
                 if fm.fileExists(atPath: url.path) { apps.insert(url) }
             }
         }
-        // Suppression avec mot de passe (définitive) : seulement nos deux apps installées par le .pkg dans
-        // /Applications, jamais un autre chemin.
-        let pkgInstalled: Set<String> = ["/Applications/FL Shortcut.app", "/Applications/Désinstaller FL Shortcut.app"]
+        // Suppression avec mot de passe (définitive) : seulement nos apps installées par le .pkg dans /Applications
+        // (nom actuel ou ancien nom), jamais un autre chemin.
+        let pkgInstalled = Set(appNames.map { "/Applications/" + $0 })
         var privileged: [URL] = []
         var seen = Set<String>()
         for url in apps.map(\.standardizedFileURL) where !url.path.hasPrefix("/Volumes/") {   // jamais l'image disque
@@ -169,18 +181,12 @@ enum Uninstaller {
 
     static let pkgID = "app.flshortcut.pkg"
 
+    /// L'app et le désinstalleur, au nom actuel et à l'ancien nom (« FL Shortcut », avant « FL Shortcuts »).
+    static let appNames = ["FL Shortcuts", AppPaths.oldName].flatMap { ["\($0).app", "Désinstaller \($0).app"] }
+
     private static func label(for url: URL, home: URL) -> String {
         let what = url.lastPathComponent.hasPrefix("Désinstaller") ? "le désinstalleur" : "l'app"
         return "\(what) (\(url.deletingLastPathComponent().path.replacingOccurrences(of: home.path, with: "~")))"
-    }
-
-    /// Notre dossier de script : ne contient que device_FLShortcut.py (et des fichiers du Finder / cache Python).
-    private static func isOurScriptFolder(_ folder: URL) -> Bool {
-        guard folder.lastPathComponent == FLScriptInstaller.folderName,
-              let entries = try? FileManager.default.contentsOfDirectory(atPath: folder.path),
-              entries.contains(FLScriptInstaller.fileName) else { return false }
-        let allowed: Set<String> = [FLScriptInstaller.fileName, ".DS_Store", "__pycache__"]
-        return entries.allSatisfy { allowed.contains($0) || $0.hasPrefix("._") }
     }
 
     @discardableResult

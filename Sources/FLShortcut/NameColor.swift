@@ -125,7 +125,7 @@ struct NameColorPayload: Equatable {
     }
 }
 
-/// Les 10 dernières couleurs choisies dans FL Shortcut, la plus récente d'abord (préférences, codes « E0453A »).
+/// Les 10 dernières couleurs choisies dans FL Shortcuts, la plus récente d'abord (préférences, codes « E0453A »).
 enum RecentColors {
     static let key = "nameColor.recentColors"
     static let limit = 10

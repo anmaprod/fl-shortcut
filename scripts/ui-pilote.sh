@@ -1,5 +1,5 @@
 #!/bin/bash
-# Pilote de l'interface de FL Shortcut pour les essais sur le Mac, sans computer use (une app de la barre des menus,
+# Pilote de l'interface de FL Shortcuts pour les essais sur le Mac, sans computer use (une app de la barre des menus,
 # LSUIElement, n'y est pas proposée) : le mode capture de l'app (DebugSnapshot.swift, le même que la mesure de la CI)
 # ouvre la fenêtre, change de page, ouvre le créateur, clique, redimensionne et photographie ses propres fenêtres.
 # Usage : scripts/ui-pilote.sh <commande> [argument]
@@ -24,8 +24,8 @@ DOMAIN="app.flshortcut.FLShortcut"
 CACHE="$HOME/Library/Caches/app.flshortcut.FLShortcut"
 OUT="$PWD/.essais"
 mkdir -p "$OUT"
-APP="/Applications/FL Shortcut.app"
-[[ -d "$APP" ]] || APP="$HOME/Applications/FL Shortcut.app"
+APP="/Applications/FL Shortcuts.app"
+[[ -d "$APP" ]] || APP="$HOME/Applications/FL Shortcuts.app"
 
 # Petit émetteur de notifications distribuées, compilé une fois.
 POST="$OUT/fls_post"

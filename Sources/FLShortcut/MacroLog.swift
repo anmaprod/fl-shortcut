@@ -1,4 +1,4 @@
-// Journal des macros : ~/Library/Logs/FL Shortcut/macro.log (0600, dossier 0700), rotation à 1 Mo, 3 anciens gardés.
+// Journal des macros : ~/Library/Logs/FL Shortcuts/macro.log (0600, dossier 0700), rotation à 1 Mo, 3 anciens gardés.
 // Contenu : horodatage, étapes et résultats, fenêtres de FL (numéro, niveau, cadre), points cliqués, hit-tests AX,
 // géométrie apprise. JAMAIS : codes de touches, texte saisi, chemins de fichiers, titres de fenêtres (titres CG jamais lus).
 // Recopié aussi dans le journal unifié (sous-système app.flshortcut.FLShortcut, catégorie macro).
@@ -25,7 +25,7 @@ final class MacroLog: @unchecked Sendable {
     static let keepFiles = 3
 
     static var directory: URL {
-        FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Library/Logs/FL Shortcut", isDirectory: true)
+        FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Library/Logs/FL Shortcuts", isDirectory: true)
     }
     static var current: URL { directory.appendingPathComponent("macro.log") }
     static func rotated(_ i: Int) -> URL { directory.appendingPathComponent("macro.\(i).log") }
@@ -149,7 +149,7 @@ final class MacroLog: @unchecked Sendable {
     static func environment(flPID: Int32) -> [String] {
         var out: [String] = []
         let info = Bundle.main.infoDictionary
-        out.append("FL Shortcut \(info?["CFBundleShortVersionString"] as? String ?? "?") (\(info?["CFBundleVersion"] as? String ?? "?"))"
+        out.append("FL Shortcuts \(info?["CFBundleShortVersionString"] as? String ?? "?") (\(info?["CFBundleVersion"] as? String ?? "?"))"
                    + " · macOS \(ProcessInfo.processInfo.operatingSystemVersionString)")
         out.append("AX trusted \(AXIsProcessTrusted()) · post access \(CGPreflightPostEventAccess())"
                    + " · warpCursor \(MacroRunner.warpCursor) · clicksToPid \(MacroRunner.clicksToPid)")
@@ -181,7 +181,7 @@ enum MacroLogExport {
     static func run() {
         let panel = NSSavePanel()
         let day = ISO8601DateFormatter.string(from: Date(), timeZone: .current, formatOptions: [.withFullDate])
-        panel.nameFieldStringValue = "FL Shortcut macro log \(day).txt"
+        panel.nameFieldStringValue = "FL Shortcuts macro log \(day).txt"
         panel.allowedContentTypes = [.plainText]
         guard panel.runModal() == .OK, let url = panel.url else { return }
         MacroLog.shared.export(to: url) { error in

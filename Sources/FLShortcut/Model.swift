@@ -159,7 +159,7 @@ struct Remap: Codable, Identifiable, Hashable {
     /// `unknownAction = "macroRef:<uuid>"` : une ancienne version de l'app le conserve (sans connaître `macroRef`),
     /// et cette version s'en sert pour retrouver la macro si la clé `macroRef` a disparu.
     var macroRef: UUID?
-    /// Page de FL Shortcut où le raccourci a été ajouté (« + » de la page Mixer…) : il y est listé. nil : ajouté
+    /// Page de FL Shortcuts où le raccourci a été ajouté (« + » de la page Mixer…) : il y est listé. nil : ajouté
     /// depuis « Mes raccourcis », ou par une version qui ne connaissait pas les pages.
     var page: FLSection?
 
@@ -430,9 +430,9 @@ enum ShortcutIssue: Hashable {
         case .noTrigger: return "Aucun raccourci défini."
         case .noTarget: return "Aucune touche de FL choisie."
         case .invalidKey: return "Touche non prise en charge."
-        case .unknownAction(let raw): return "Action inconnue (« \(raw.displaySafe()) ») : mets à jour FL Shortcut."
+        case .unknownAction(let raw): return "Action inconnue (« \(raw.displaySafe()) ») : mets à jour FL Shortcuts."
         case .forbiddenTarget(let why): return "Cible interdite : \(why)."
-        case .reservedToggle: return "Réservé à ⌃⌥⌘F (mettre FL Shortcut en pause)."
+        case .reservedToggle: return "Réservé à ⌃⌥⌘F (mettre FL Shortcuts en pause)."
         case .duplicate: return "Déjà utilisé dans ce contexte : seul le premier compte."
         case .bareKey: return "Touche seule : laissée à FL quand tu tapes du texte, qu'un menu de FL est ouvert ou que le clavier-piano est actif."
         case .macOSConflict(let what): return "Conflit : \(what)."

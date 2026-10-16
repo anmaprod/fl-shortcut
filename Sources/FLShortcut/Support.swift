@@ -1,4 +1,4 @@
-// Aide de FL Shortcut : questions fréquentes (dans l'app, sans réseau) et « Écrire à l'équipe ». Le message part par
+// Aide de FL Shortcuts : questions fréquentes (dans l'app, sans réseau) et « Écrire à l'équipe ». Le message part par
 // le serveur de la Communauté quand il est branché (table support_requests, avec ou sans compte : supabase/schema.sql) ;
 // sinon, ou s'il échoue, par mail à l'adresse de l'équipe (build.sh : FLS_SUPPORT_EMAIL), ou en copie / ticket GitHub.
 // Le diagnostic joint (si l'utilisateur le laisse coché) dit l'état de l'app, jamais ses touches, ses noms de pistes ni
@@ -78,7 +78,7 @@ enum SupportRules {
 
     /// Le message en texte, pour un mail, le presse-papiers ou un ticket : toujours le même plan, pour lire vite.
     static func plainText(_ m: SupportMessage, appVersion: String) -> String {
-        var out = "Référence : \(m.reference)\nGenre : \(m.kind.label)\nFL Shortcut \(appVersion)"
+        var out = "Référence : \(m.reference)\nGenre : \(m.kind.label)\nFL Shortcuts \(appVersion)"
         let mail = m.email.trimmingCharacters(in: .whitespaces)
         if !mail.isEmpty { out += "\nPour répondre : \(mail)" }
         out += "\n\n— Message —\n" + m.text.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -87,11 +87,11 @@ enum SupportRules {
         return out
     }
 
-    /// « [FL Shortcut] Problème · FLS-3F9A2C · Ma macro s'arrête… » : un filtre sur « [FL Shortcut] » range tout.
+    /// « [FL Shortcuts] Problème · FLS-3F9A2C · Ma macro s'arrête… » : un filtre sur « [FL Shortcuts] » range tout.
     static func subject(_ m: SupportMessage) -> String {
         let first = m.text.trimmingCharacters(in: .whitespacesAndNewlines).split(separator: "\n").first.map(String.init) ?? ""
         let kind = m.kind.label.split(separator: " ").last.map { $0.prefix(1).uppercased() + $0.dropFirst() } ?? ""
-        return "[FL Shortcut] \(kind) · \(m.reference) · \(first.prefix(60))"
+        return "[FL Shortcuts] \(kind) · \(m.reference) · \(first.prefix(60))"
     }
 
     /// Mail tout prêt pour l'app de mail.
@@ -145,7 +145,7 @@ enum SupportDiagnostic {
 
     static func text(_ f: Facts) -> String {
         func yes(_ b: Bool) -> String { b ? "oui" : "non" }
-        var lines = ["FL Shortcut \(f.appVersion) · \(f.macOS)"]
+        var lines = ["FL Shortcuts \(f.appVersion) · \(f.macOS)"]
         lines.append("FL Studio : " + (f.flRunning ? "ouvert" + (f.flVersion.map { " (\($0))" } ?? "") : "fermé"))
         lines.append("Clavier autorisé : \(yes(f.accessibility))" + (f.staleTCC ? " (autorisation périmée)" : "")
                      + " · En pause : \(yes(f.paused)) · Saisie sécurisée : \(yes(f.secureInput))")
@@ -199,14 +199,14 @@ enum HelpContent {
     static let faq: [HelpEntry] = [
         HelpEntry(id: 1, question: "Mes raccourcis ne font rien dans FL",
                   answer: "Vérifie trois choses. 1. FL Studio est la fenêtre au premier plan : tes raccourcis ne marchent "
-                      + "que là. 2. FL Shortcut n'est pas en pause (⌃⌥⌘F, ou le menu de l'icône en haut de l'écran). "
+                      + "que là. 2. FL Shortcuts n'est pas en pause (⌃⌥⌘F, ou le menu de l'icône en haut de l'écran). "
                       + "3. Le clavier est autorisé : Réglages Système › Confidentialité et sécurité › Accessibilité, "
-                      + "FL Shortcut coché. Quand une autre app attend un mot de passe (saisie sécurisée), les raccourcis "
+                      + "FL Shortcuts coché. Quand une autre app attend un mot de passe (saisie sécurisée), les raccourcis "
                       + "se taisent le temps qu'elle le fasse.",
                   keywords: "marche pas fonctionne touche inactif rien"),
         HelpEntry(id: 2, question: "Un « ! » apparaît sur l'icône en haut de l'écran",
                   answer: "Le clavier n'est pas, ou plus, autorisé. Ouvre Réglages Système › Confidentialité et sécurité "
-                      + "› Accessibilité, retire FL Shortcut avec « − », puis ajoute-le de nouveau avec « + » (dans "
+                      + "› Accessibilité, retire FL Shortcuts avec « − », puis ajoute-le de nouveau avec « + » (dans "
                       + "Applications). Après une mise à jour de l'app, macOS demande parfois de refaire ce geste.",
                   keywords: "point exclamation alerte avertissement autorisation accessibilite barre des menus"),
         HelpEntry(id: 3, question: "Comment créer une macro ?",
@@ -247,9 +247,9 @@ enum HelpContent {
                       + "de son bandeau (ou « Signaler ce problème… » dans le menu de l'icône en haut de l'écran) prépare "
                       + "le message avec l'erreur et le journal de la macro : tu vois tout ce qui est joint avant l'envoi.",
                   keywords: "bug erreur contact equipe support aide ecrire"),
-        HelpEntry(id: 10, question: "Désinstaller FL Shortcut",
+        HelpEntry(id: 10, question: "Désinstaller FL Shortcuts",
                   answer: "Menu ⋯ en haut à droite de la fenêtre, ou menu de l'icône en haut de l'écran › « Désinstaller "
-                      + "FL Shortcut… » : l'app, ses réglages et le lien avec FL sont retirés.",
+                      + "FL Shortcuts… » : l'app, ses réglages et le lien avec FL sont retirés.",
                   keywords: "supprimer enlever desinstallation"),
     ]
 }

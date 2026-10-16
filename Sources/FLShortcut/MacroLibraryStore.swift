@@ -1,4 +1,4 @@
-// Bibliothèque des macros en blocs : `Application Support/FL Shortcut/macros.json`, à part du profil.
+// Bibliothèque des macros en blocs : `Application Support/FL Shortcuts/macros.json`, à part du profil.
 // - Pourquoi à part : une ancienne version de l'app qui relit le profil y verrait une macro inconnue et la perdrait à
 //   la réécriture ; elle ne touche jamais ce fichier. Le raccourci garde seulement une référence (`Remap.macroRef`,
 //   doublée d'un lien caché dans `unknownAction` que les anciennes versions conservent).
@@ -187,7 +187,7 @@ final class MacroLibraryStore: ObservableObject {
             var notes: [String] = []
             if decoded.version > MacroLibraryCodec.currentVersion {
                 let name = keepCopy(data, label: "plus-recente")
-                notes.append("Bibliothèque d'une version plus récente de FL Shortcut"
+                notes.append("Bibliothèque d'une version plus récente de FL Shortcuts"
                              + (name.map { " (copie : \($0))." } ?? ", copie impossible : elle n'est pas modifiée."))
             }
             if decoded.dropped > 0 {
@@ -198,7 +198,7 @@ final class MacroLibraryStore: ObservableObject {
             if !notes.isEmpty { loadWarning = notes.joined(separator: " ") }
         } catch {
             if let name = keepCopy(data, label: "illisible") {
-                loadWarning = "Le fichier des macros était illisible : une copie datée a été gardée dans Application Support › FL Shortcut (\(name))."
+                loadWarning = "Le fichier des macros était illisible : une copie datée a été gardée dans Application Support › FL Shortcuts (\(name))."
             } else {
                 loadWarning = "Le fichier des macros est illisible et n'a pas pu être copié : il n'est pas modifié, tes nouvelles macros ne seront pas enregistrées."
             }

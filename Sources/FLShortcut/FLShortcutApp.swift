@@ -28,7 +28,7 @@ struct FLShortcutApp: App {
         PresetSelfTest.runIfRequested()          // `--selftest-preset` : essai du choix automatique du preset, puis quitte
         FakeFL.runIfRequested()                  // `--fake-fl` : FL Studio simulé pour l'essai de bout en bout (CI)
         MacroSelfTest.runIfRequested()           // `--selftest-macro` : la macro complète contre le FL simulé, puis quitte
-        Uninstaller.runStandaloneIfNeeded()      // « Désinstaller FL Shortcut.app » du .dmg
+        Uninstaller.runStandaloneIfNeeded()      // « Désinstaller FL Shortcuts.app » du .dmg
         SingleInstance.enforce()                 // avant de créer quoi que ce soit (REL-07)
         _store = StateObject(wrappedValue: Store.shared)
         _status = StateObject(wrappedValue: AppStatus.shared)
@@ -46,7 +46,7 @@ struct FLShortcutApp: App {
         }
         .menuBarExtraStyle(.window)
 
-        Window("FL Shortcut – Raccourcis", id: "editor") {
+        Window("FL Shortcuts – Raccourcis", id: "editor") {
             EditorView()
                 .environmentObject(store)
                 .environmentObject(status)
@@ -124,7 +124,7 @@ final class AppStatus: ObservableObject {
     @Published private(set) var secureInput = false
     @Published private(set) var tapRunning = false
     @Published private(set) var staleTCC = false {
-        didSet { if staleTCC, !oldValue { ProblemLog.shared.add("Clavier : autorisation périmée (FL Shortcut à retirer puis rajouter dans Accessibilité)") } }
+        didSet { if staleTCC, !oldValue { ProblemLog.shared.add("Clavier : autorisation périmée (FL Shortcuts à retirer puis rajouter dans Accessibilité)") } }
     }
     @Published private(set) var tapUnstable = false {
         didSet { if tapUnstable, !oldValue { ProblemLog.shared.add("Clavier : macOS a coupé l'interception, elle a été relancée") } }
@@ -276,7 +276,7 @@ final class AppStatus: ObservableObject {
     }
 }
 
-/// Panneau flottant non activant visible tant que FL Shortcut est en pause (audit 05 §4.4).
+/// Panneau flottant non activant visible tant que FL Shortcuts est en pause (audit 05 §4.4).
 final class PauseIndicator {
     static let shared = PauseIndicator()
     private var panel: NSPanel?
@@ -357,7 +357,7 @@ struct PauseBadge: View {
             Image(systemName: "pause.circle.fill")
                 .font(.system(size: 13, weight: .semibold))
                 .foregroundStyle(Color.orange)
-            Text("FL Shortcut en pause").font(.system(size: 12, weight: .semibold))
+            Text("FL Shortcuts en pause").font(.system(size: 12, weight: .semibold))
             Text("⌃⌥⌘F").font(.system(size: 12)).foregroundStyle(.secondary)
         }
         .padding(.horizontal, 12)
@@ -386,7 +386,7 @@ struct MenuContent: View {
             HStack(spacing: 10) {
                 AppIcon().frame(width: 32, height: 32)
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("FL Shortcut").font(.system(size: 13, weight: .semibold))
+                    Text("FL Shortcuts").font(.system(size: 13, weight: .semibold))
                     if let line = statusLine {
                         HStack(spacing: 5) {
                             Circle().fill(dotColor).frame(width: 7, height: 7)
@@ -445,7 +445,7 @@ struct MenuContent: View {
                 openWindow(id: "editor")
                 NSApp.activate(ignoringOtherApps: true)
             }
-            PanelItem(symbol: "book", title: "Guide de FL Shortcut") {
+            PanelItem(symbol: "book", title: "Guide de FL Shortcuts") {
                 GuideLink.shared.show()
                 openWindow(id: "editor")
                 NSApp.activate(ignoringOtherApps: true)
@@ -458,8 +458,8 @@ struct MenuContent: View {
 
             MenuSeparator()
 
-            PanelItem(symbol: "trash", title: "Désinstaller FL Shortcut…") { Uninstaller.confirmAndRun() }
-            PanelItem(symbol: "power", title: "Quitter FL Shortcut", shortcut: "⌘Q", key: "q") { NSApp.terminate(nil) }
+            PanelItem(symbol: "trash", title: "Désinstaller FL Shortcuts…") { Uninstaller.confirmAndRun() }
+            PanelItem(symbol: "power", title: "Quitter FL Shortcuts", shortcut: "⌘Q", key: "q") { NSApp.terminate(nil) }
         }
         .padding(6)
         .frame(width: 280)
@@ -485,11 +485,11 @@ struct MenuContent: View {
 
     private var alerts: [String] {
         var out: [String] = []
-        if status.staleTCC { out.append("Autorisation périmée : retire FL Shortcut de la liste Accessibilité puis ajoute-le.") }
+        if status.staleTCC { out.append("Autorisation périmée : retire FL Shortcuts de la liste Accessibilité puis ajoute-le.") }
         if status.secureInput { out.append("Saisie sécurisée active dans une autre app : raccourcis muets.") }
         if status.tapUnstable { out.append("macOS a coupé l'interception plusieurs fois : elle a été relancée.") }
         if !AppMode.light, status.scriptState == .modified { out.append("Le script FL a été modifié : réinstalle le lien.") }
-        if !AppMode.light, link.uniqueIDConflict { out.append("Conflit de port MIDI : une autre copie de FL Shortcut tourne peut-être.") }
+        if !AppMode.light, link.uniqueIDConflict { out.append("Conflit de port MIDI : une autre copie de FL Shortcuts tourne peut-être.") }
         if let warning = store.loadWarning { out.append(warning) }
         if let error = store.saveError { out.append(error) }
         if let problem = library.problem { out.append(problem) }

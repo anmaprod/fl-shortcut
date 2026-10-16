@@ -1,7 +1,7 @@
-// Guide de FL Shortcut, façon Apple : une page « Bienvenue » qui dit tout ce qu'on peut faire, puis une page par
+// Guide de FL Shortcuts, façon Apple : une page « Bienvenue » qui dit tout ce qu'on peut faire, puis une page par
 // partie (raccourcis, macros, Communauté, au quotidien), chacune en trois étapes et une astuce. « Passer le guide »
 // sur chaque page. Montré une fois, à la première ouverture de la fenêtre principale ; ensuite depuis le menu ⋯ ou
-// le menu de la barre des menus (« Guide de FL Shortcut »). Aucune animation continue.
+// le menu de la barre des menus (« Guide de FL Shortcuts »). Aucune animation continue.
 import SwiftUI
 
 /// Demande d'ouvrir le guide (menu ⋯, barre des menus) : la fenêtre principale l'affiche dès qu'elle est là.
@@ -44,7 +44,7 @@ enum GuideContent {
                           "Le « + » partage une de tes macros, ou tous tes raccourcis, avec ton explication."],
                   tip: "Une macro ajoutée arrive sans raccourci : rien ne se lance tant que tu ne lui en as pas choisi un."),
         GuidePage(id: 4, symbol: "menubar.rectangle", tint: .orange, title: "Au quotidien",
-                  summary: "FL Shortcut travaille en arrière-plan, depuis la barre des menus.",
+                  summary: "FL Shortcuts travaille en arrière-plan, depuis la barre des menus.",
                   steps: ["L'icône en haut de l'écran ouvre son menu : modifier les raccourcis, organiser la page ouverte, mettre en pause.",
                           "⌃⌥⌘F met en pause ou reprend, n'importe où. Une pastille le rappelle tant que c'est en pause.",
                           "Un « ! » sur l'icône : le clavier n'est pas autorisé. Ouvre son menu pour savoir quoi faire."],
@@ -89,7 +89,7 @@ struct GuideView: View {
     private var welcome: some View {
         VStack(spacing: 0) {
             AppIcon().frame(width: 72, height: 72)
-            Text("Bienvenue dans FL Shortcut")
+            Text("Bienvenue dans FL Shortcuts")
                 .font(.largeTitle.weight(.bold))
                 .padding(.top, 10)
             Text("Tout ce que tu peux faire, en une minute.")

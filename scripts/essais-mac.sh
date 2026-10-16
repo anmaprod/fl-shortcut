@@ -1,14 +1,14 @@
 #!/bin/bash
-# Essais automatiques de FL Shortcut sur le Mac de l'utilisateur, en une seule commande : aucun clic de Claude, aucune
+# Essais automatiques de FL Shortcuts sur le Mac de l'utilisateur, en une seule commande : aucun clic de Claude, aucune
 # capture, aucune action dans le vrai FL Studio. Dans l'ordre : tests du script FL (Python), tests Swift, compilation,
 # essais contre le FL simulé (choix du preset dans une vraie boîte « Open », macro « Enregistrement rapide » complète,
 # macro en blocs, « Enregistrer des clics »), puis un résumé PASS / FAIL avec les durées.
-# Les préférences de FL Shortcut (positions apprises, réglages) sont sauvegardées avant et remises après : l'essai de
+# Les préférences de FL Shortcuts (positions apprises, réglages) sont sauvegardées avant et remises après : l'essai de
 # la macro efface les positions apprises. FL Studio peut rester ouvert ; ne touche pas la souris pendant les essais
 # contre le FL simulé (environ 4 minutes) : ils cliquent dans sa fenêtre.
 #
 # Usage : scripts/essais-mac.sh [--vite] [--avec-mesure]
-#   --vite        sans tests Swift ni recompilation (essaie ~/Applications/FL Shortcut.app tel quel)
+#   --vite        sans tests Swift ni recompilation (essaie ~/Applications/FL Shortcuts.app tel quel)
 #   --avec-mesure ajoute la mesure mémoire / processeur de l'interface (scripts/mesure-interface.sh, ~4 min de plus)
 # Sorties : .essais/ (un fichier par essai, plus resume.txt), hors de dist/ que ./build.sh efface.
 set -uo pipefail
@@ -23,14 +23,14 @@ for a in "$@"; do
   esac
 done
 
-# Xcode complet, sans changer le réglage du système (comme « Compiler FL Shortcut.command »).
+# Xcode complet, sans changer le réglage du système (comme « Compiler FL Shortcuts.command »).
 XCODE=$(ls -d /Applications/Xcode*.app "$HOME"/Applications/Xcode*.app 2>/dev/null | head -1)
 if [[ -n "$XCODE" && -d "$XCODE/Contents/Developer" ]]; then export DEVELOPER_DIR="$XCODE/Contents/Developer"; fi
 
 OUT="$PWD/.essais"
 rm -rf "$OUT"; mkdir -p "$OUT"
 DOMAIN="app.flshortcut.FLShortcut"
-APP="$HOME/Applications/FL Shortcut.app"
+APP="$HOME/Applications/FL Shortcuts.app"
 BIN="$APP/Contents/MacOS/FLShortcut"
 RESUME="$OUT/resume.txt"
 declare -a LIGNES=()
@@ -78,7 +78,7 @@ remettre() {
   # le FL simulé…) resterait et serait rejouée dans le vrai FL.
   defaults delete "$DOMAIN" 2>/dev/null
   if [[ $AVAIT_PREFS == 1 ]]; then defaults import "$DOMAIN" "$OUT/preferences-avant.plist"; fi
-  { echo "Essais automatiques de FL Shortcut — $(date '+%d/%m/%Y %H:%M')"; echo "Commit : $(git rev-parse --short HEAD) ($(git rev-parse --abbrev-ref HEAD))"
+  { echo "Essais automatiques de FL Shortcuts — $(date '+%d/%m/%Y %H:%M')"; echo "Commit : $(git rev-parse --short HEAD) ($(git rev-parse --abbrev-ref HEAD))"
     printf '%s\n' "${LIGNES[@]}"; } > "$RESUME"
   echo; echo "Résumé : $RESUME"; cat "$RESUME"
 }
@@ -97,7 +97,7 @@ if [[ $VITE == 0 ]]; then
 fi
 [[ -x "$BIN" ]] || { note "FAIL  app introuvable : $APP"; exit 1; }
 
-# L'app de la barre des menus est quittée : un seul FL Shortcut à la fois envoie des événements.
+# L'app de la barre des menus est quittée : un seul FL Shortcuts à la fois envoie des événements.
 pkill -x FLShortcut 2>/dev/null; sleep 1
 
 # Mac verrouillé : aucune fenêtre ne peut passer devant (loginwindow au premier plan pour NSWorkspace), les essais

@@ -72,7 +72,7 @@ private struct BlockInspector: View {
                 }
             } else {
                 Section {
-                    Text("Ce bloc vient d'une version plus récente de FL Shortcut. Il est gardé tel quel, mais la macro ne tourne pas tant qu'il est là : mets l'app à jour, ou supprime-le.")
+                    Text("Ce bloc vient d'une version plus récente de FL Shortcuts. Il est gardé tel quel, mais la macro ne tourne pas tant qu'il est là : mets l'app à jour, ou supprime-le.")
                         .font(.system(size: 12))
                         .fixedSize(horizontal: false, vertical: true)
                 }

@@ -50,7 +50,7 @@ enum Bench {
         for _ in 0..<40 {
             if roundTrip([.ping], cc: FLProtocol.ccHello, value: 1, timeout: 0.5) != nil { linked = true; break }
         }
-        guard linked else { print("FL ne répond pas (entrée/sortie « FL Shortcut » activées dans FL ?)"); exit(2) }
+        guard linked else { print("FL ne répond pas (entrée/sortie « FL Shortcuts » activées dans FL ?)"); exit(2) }
         Thread.sleep(forTimeInterval: 0.6)
 
         func report(_ name: String, _ values: [Double], lost: Int) {

@@ -31,7 +31,7 @@ enum MacroValidation {
     static func problem(in blocks: [Block], variables: [VariableDecl] = [], context: ValidationContext) -> String? {
         guard !blocks.isEmpty else { return "La macro est vide." }
         if let path = firstUnknown(blocks), case .unknown(let type, _)? = block(at: path, in: blocks)?.body {
-            return "Étape \(path) : bloc illisible ou d'une version plus récente de FL Shortcut (« \(type.displaySafe(max: 30)) ») : "
+            return "Étape \(path) : bloc illisible ou d'une version plus récente de FL Shortcuts (« \(type.displaySafe(max: 30)) ») : "
                 + "la macro est bloquée."
         }
         guard count(blocks) <= maxBlocks else { return "Macro trop longue (\(maxBlocks) blocs au plus)." }
@@ -51,7 +51,7 @@ enum MacroValidation {
 
     /// Macro de la bibliothèque : nom, format, puis ses blocs.
     static func problem(in doc: MacroDoc, context: ValidationContext) -> String? {
-        guard doc.format <= 2 else { return "Macro d'une version plus récente de FL Shortcut : elle est bloquée." }
+        guard doc.format <= 2 else { return "Macro d'une version plus récente de FL Shortcuts : elle est bloquée." }
         guard !doc.name.isEmpty, doc.name.count <= maxNameLength else { return "Nom de macro invalide." }
         return problem(in: doc.blocks, variables: doc.variables, context: context)
     }

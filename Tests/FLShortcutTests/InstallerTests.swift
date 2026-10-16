@@ -79,10 +79,53 @@ final class InstallerTests: XCTestCase {
         try FileManager.default.createDirectory(at: hardware, withIntermediateDirectories: true)
         let elsewhere = dir.appendingPathComponent("elsewhere", isDirectory: true)
         try FileManager.default.createDirectory(at: elsewhere, withIntermediateDirectories: true)
-        try FileManager.default.createSymbolicLink(at: hardware.appendingPathComponent("FL Shortcut"),
+        try FileManager.default.createSymbolicLink(at: hardware.appendingPathComponent("FL Shortcuts"),
                                                    withDestinationURL: elsewhere)
         XCTAssertThrowsError(try FLScriptInstaller.write(script: Data("x".utf8), hardware: hardware))
         XCTAssertTrue(try FileManager.default.contentsOfDirectory(atPath: elsewhere.path).isEmpty)
+    }
+
+    /// Nouveau nom de l'app : l'ancien dossier prend le nouveau nom avec son contenu, une seule fois, jamais un lien.
+    func testOldNameFolderIsTakenOver() throws {
+        let fm = FileManager.default
+        let old = dir.appendingPathComponent("FL Shortcut", isDirectory: true)
+        let new = dir.appendingPathComponent("FL Shortcuts", isDirectory: true)
+        XCTAssertEqual(AppPaths.renamed(old, to: new), new, "rien à reprendre")
+        XCTAssertFalse(fm.fileExists(atPath: new.path))
+
+        try fm.createDirectory(at: old, withIntermediateDirectories: true)
+        try Data("{}".utf8).write(to: old.appendingPathComponent("macros.json"))
+        XCTAssertEqual(AppPaths.renamed(old, to: new), new)
+        XCTAssertEqual(try Data(contentsOf: new.appendingPathComponent("macros.json")), Data("{}".utf8))
+        XCTAssertFalse(fm.fileExists(atPath: old.path))
+
+        try fm.createDirectory(at: old, withIntermediateDirectories: true)
+        XCTAssertEqual(AppPaths.renamed(old, to: new), new, "le nouveau existe déjà : l'ancien n'est pas touché")
+        XCTAssertTrue(fm.fileExists(atPath: old.path))
+        XCTAssertTrue(fm.fileExists(atPath: new.appendingPathComponent("macros.json").path))
+
+        let linkOld = dir.appendingPathComponent("lien", isDirectory: true)
+        let linkNew = dir.appendingPathComponent("lien-nouveau", isDirectory: true)
+        try fm.createSymbolicLink(at: linkOld, withDestinationURL: old)
+        XCTAssertEqual(AppPaths.renamed(linkOld, to: linkNew), linkNew)
+        XCTAssertEqual(SecureFile.kind(at: linkOld.path), .symlink, "un lien n'est jamais repris")
+    }
+
+    /// Dossier du script retiré (ancien nom) ou désinstallé : seulement s'il ne contient que notre script.
+    func testOurScriptFolderUnderBothNames() throws {
+        let hardware = dir.appendingPathComponent("Settings/Hardware", isDirectory: true)
+        for name in [FLScriptInstaller.folderName, FLScriptInstaller.oldFolderName, "Autre"] {
+            let folder = hardware.appendingPathComponent(name, isDirectory: true)
+            try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+            try Data("print(1)".utf8).write(to: folder.appendingPathComponent(FLScriptInstaller.fileName))
+            try Data().write(to: folder.appendingPathComponent(".DS_Store"))
+            XCTAssertEqual(FLScriptInstaller.isOurScriptFolder(folder), name != "Autre", name)
+            try Data("x".utf8).write(to: folder.appendingPathComponent("transport.py"))
+            XCTAssertFalse(FLScriptInstaller.isOurScriptFolder(folder), "un autre fichier à côté : jamais supprimé")
+        }
+        XCTAssertEqual(FLScriptInstaller.oldFolderName, "FL Shortcut")
+        XCTAssertEqual(Uninstaller.appNames.sorted(), ["Désinstaller FL Shortcut.app", "Désinstaller FL Shortcuts.app",
+                                                       "FL Shortcut.app", "FL Shortcuts.app"])
     }
 
     func testInstallerWritesIntoDedicatedFolder() throws {
@@ -90,7 +133,7 @@ final class InstallerTests: XCTestCase {
         try FileManager.default.createDirectory(at: hardware, withIntermediateDirectories: true)
         let dest = try FLScriptInstaller.write(script: Data("print(1)".utf8), hardware: hardware)
         XCTAssertEqual(dest.lastPathComponent, "device_FLShortcut.py")
-        XCTAssertEqual(dest.deletingLastPathComponent().lastPathComponent, "FL Shortcut")
+        XCTAssertEqual(dest.deletingLastPathComponent().lastPathComponent, "FL Shortcuts")
         XCTAssertEqual(SecureFile.permissions(at: dest.path)?.mode, 0o600)
 
         let defaults = try XCTUnwrap(UserDefaults(suiteName: "FLShortcutTests-\(UUID())"))

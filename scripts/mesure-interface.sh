@@ -1,15 +1,15 @@
 #!/bin/bash
 # Mesure de l'interface sur un vrai macOS (CI GitHub, ou ton Mac) : mémoire (empreinte physique) et processeur
-# de FL Shortcut, barre des menus seule puis fenêtre ouverte, page Macros, créateur de macros ouvert (sur une macro
+# de FL Shortcuts, barre des menus seule puis fenêtre ouverte, page Macros, créateur de macros ouvert (sur une macro
 # d'exemple jamais enregistrée) puis refermé (3 cycles, avec le nombre de modèles du créateur vivants avant la
 # première ouverture, témoin à 0, puis après chaque fermeture), page Mixer et recherche « e », avec et sans l'effet
 # Liquid Glass. Détail de l'empreinte par catégorie (footprint) avant le créateur, créateur ouvert, refermé, recherche.
-# Usage : scripts/mesure-interface.sh "dist/FL Shortcut.app" dossier-de-sortie
+# Usage : scripts/mesure-interface.sh "dist/FL Shortcuts.app" dossier-de-sortie
 # Résultat : tableau Markdown sur la sortie standard, captures d'écran dans le dossier de sortie.
-# Ne touche à rien d'autre que les préférences de FL Shortcut (restaurées à la fin).
+# Ne touche à rien d'autre que les préférences de FL Shortcuts (restaurées à la fin).
 set -uo pipefail
 
-APP="${1:-dist/FL Shortcut.app}"
+APP="${1:-dist/FL Shortcuts.app}"
 OUT="${2:-dist/mesure}"
 DOMAIN="app.flshortcut.FLShortcut"
 mkdir -p "$OUT"

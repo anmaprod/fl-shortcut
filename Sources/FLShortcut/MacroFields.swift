@@ -102,7 +102,7 @@ struct MacroFields: View {
                                 Button("Installer le lien avec FL…") { FLScriptInstaller.installWithAlert() }.primaryButton()
                             }
                         }
-                        Text(linkNote ?? "Sert seulement pendant la macro, à vérifier si la piste et le REC sont déjà armés. Le reste du temps, rien ne circule : FL ne ralentit pas. Une fois dans FL : Options › MIDI Settings, Input « FL Shortcut » : Enable et Controller type « FL Shortcut » ; Output « FL Shortcut » : même numéro de port.")
+                        Text(linkNote ?? "Sert seulement pendant la macro, à vérifier si la piste et le REC sont déjà armés. Le reste du temps, rien ne circule : FL ne ralentit pas. Une fois dans FL : Options › MIDI Settings, Input « FL Shortcuts » : Enable et Controller type « FL Shortcuts » ; Output « FL Shortcuts » : même numéro de port.")
                             .font(.caption).foregroundStyle(.secondary)
                             .fixedSize(horizontal: false, vertical: true)
                     }

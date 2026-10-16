@@ -51,7 +51,7 @@ internal sealed class KeyboardHook : IDisposable
     public void Start()
     {
         if (_thread is not null) return;
-        _thread = new Thread(Run) { IsBackground = true, Name = "FL Shortcut – clavier", Priority = ThreadPriority.AboveNormal };
+        _thread = new Thread(Run) { IsBackground = true, Name = "FL Shortcuts – clavier", Priority = ThreadPriority.AboveNormal };
         _thread.Start();
         _started.Wait(TimeSpan.FromSeconds(5));
     }

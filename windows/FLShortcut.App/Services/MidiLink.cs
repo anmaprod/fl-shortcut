@@ -3,7 +3,7 @@
 //         SEC-10 (PING borné), REL-06 (statut Relié / Lien inactif / FL fermé), REL-10 (ports surveillés et
 //         rouverts paresseusement). Contrat : PROTOCOL.md v2.
 //
-// Ports (WinMM) : l'appli écrit sur la sortie « FL Shortcut » (lue par FL) et lit l'entrée « FL Shortcut Retour »
+// Ports (WinMM) : l'appli écrit sur la sortie « FL Shortcuts » (lue par FL) et lit l'entrée « FL Shortcuts Retour »
 // (écrite par FL). Ces deux ports de bouclage sont créés par loopMIDI ou par Windows MIDI Services.
 using FLShortcut.App.Native;
 using FLShortcut.Core;
@@ -12,8 +12,11 @@ namespace FLShortcut.App.Services;
 
 internal sealed class MidiLink : IDisposable
 {
-    public const string ToFlPortName = "FL Shortcut";
-    public const string FromFlPortName = "FL Shortcut Retour";
+    public const string ToFlPortName = "FL Shortcuts";
+    public const string FromFlPortName = "FL Shortcuts Retour";
+    // Ports loopMIDI créés sous l'ancien nom de l'appli (« FL Shortcut ») : toujours acceptés.
+    private const string OldToFlPortName = "FL Shortcut";
+    private const string OldFromFlPortName = "FL Shortcut Retour";
 
     private readonly object _gate = new();
     private readonly IncomingDecoder _decoder = new();
@@ -137,8 +140,8 @@ internal sealed class MidiLink : IDisposable
 
     private bool OpenUnlocked()
     {
-        var outId = FindOut(ToFlPortName);
-        var inId = FindIn(FromFlPortName);
+        var outId = FindOut(ToFlPortName) ?? FindOut(OldToFlPortName);
+        var inId = FindIn(FromFlPortName) ?? FindIn(OldFromFlPortName);
         var present = outId is not null && inId is not null;
         var changed = present != PortsPresent;
         PortsPresent = present;
@@ -178,7 +181,7 @@ internal sealed class MidiLink : IDisposable
         if (string.IsNullOrEmpty(actual)) return false;
         actual = actual.Trim();
         if (string.Equals(actual, wanted, StringComparison.OrdinalIgnoreCase)) return true;
-        // loopMIDI / Windows MIDI Services peuvent ajouter un suffixe numérique : « FL Shortcut 1 ».
+        // loopMIDI / Windows MIDI Services peuvent ajouter un suffixe numérique : « FL Shortcuts 1 ».
         if (!actual.StartsWith(wanted + " ", StringComparison.OrdinalIgnoreCase)) return false;
         var rest = actual[(wanted.Length + 1)..];
         return rest.All(char.IsDigit);
@@ -209,7 +212,8 @@ internal sealed class MidiLink : IDisposable
     }
 
     /// Les deux ports existent-ils ? (pour l'écran « Préparer la connexion »)
-    public static bool PortsExist() => FindOut(ToFlPortName) is not null && FindIn(FromFlPortName) is not null;
+    public static bool PortsExist() => (FindOut(ToFlPortName) ?? FindOut(OldToFlPortName)) is not null
+                                       && (FindIn(FromFlPortName) ?? FindIn(OldFromFlPortName)) is not null;
 
     public void Dispose()
     {

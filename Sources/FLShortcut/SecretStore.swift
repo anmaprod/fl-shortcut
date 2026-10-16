@@ -66,7 +66,7 @@ final class KeychainSecretStore: SecretStore {
         guard update == errSecItemNotFound else { throw SecretStoreError.keychain(update) }
         var add = baseQuery
         add[kSecValueData as String] = data
-        add[kSecAttrLabel as String] = "FL Shortcut – clé du script FL Studio"
+        add[kSecAttrLabel as String] = "FL Shortcuts – clé du script FL Studio"
         let status = SecItemAdd(add as CFDictionary, nil)
         guard status == errSecSuccess else { throw SecretStoreError.keychain(status) }
     }
@@ -76,7 +76,7 @@ final class KeychainSecretStore: SecretStore {
     }
 }
 
-/// Repli : fichier 0600 dans « Application Support/FL Shortcut », jamais suivi s'il est un lien.
+/// Repli : fichier 0600 dans « Application Support/FL Shortcuts », jamais suivi s'il est un lien.
 final class FileSecretStore: SecretStore {
     let url: URL
 
@@ -154,11 +154,23 @@ final class PreferredSecretStore: SecretStore {
 
 /// Chemins de l'appli (calculés une fois, REL-21).
 enum AppPaths {
+    /// Nom de l'app et de ses dossiers avant « FL Shortcuts ».
+    static let oldName = "FL Shortcut"
+
     static let supportDirectory: URL = {
         let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
             ?? FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Library/Application Support")
-        return base.appendingPathComponent("FL Shortcut", isDirectory: true)
+        return renamed(base.appendingPathComponent(oldName, isDirectory: true),
+                       to: base.appendingPathComponent("FL Shortcuts", isDirectory: true))
     }()
+
+    /// Dossier à l'ancien nom de l'app : s'il existe (un vrai dossier, jamais un lien) et que le nouveau n'existe pas
+    /// encore, il prend le nouveau nom, avec tout son contenu (rename(2) : même volume, rien n'est copié). Si c'est
+    /// impossible, l'ancien reste utilisé : rien n'est perdu, le renommage sera retenté au prochain lancement.
+    static func renamed(_ old: URL, to new: URL) -> URL {
+        guard SecureFile.kind(at: new.path) == .none, SecureFile.kind(at: old.path) == .directory else { return new }
+        return rename(old.path, new.path) == 0 ? new : old
+    }
 
     static var profileURL: URL { supportDirectory.appendingPathComponent("profile.json") }
     /// Bibliothèque des macros en blocs (MacroLibraryStore.swift).

@@ -1,4 +1,4 @@
-# Communauté de FL Shortcut : mise en place du serveur (Supabase)
+# Communauté de FL Shortcuts : mise en place du serveur (Supabase)
 
 La page **Communauté** de l'app (barre latérale, sous « Personnalisés ») permet à chacun de partager ses macros et
 ses raccourcis avec des notes d'explication. Il faut un compte (mail, mot de passe, nom d'utilisateur) : sans

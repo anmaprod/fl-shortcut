@@ -136,7 +136,7 @@ set request.jwt.claim.sub to '';
 do $$
 begin
   insert into public.support_requests (kind, message, email, diagnostic, app_version)
-    values ('probleme', 'Mes raccourcis ne marchent plus depuis hier.', 'nina@exemple.fr', 'FL Shortcut 0.1.0', '0.1.0');
+    values ('probleme', 'Mes raccourcis ne marchent plus depuis hier.', 'nina@exemple.fr', 'FL Shortcuts 0.1.0', '0.1.0');
   if (select count(*) from public.support_requests) <> 0 then raise exception 'demandes d''aide lisibles par anon'; end if;
   begin
     insert into public.support_requests (user_id, kind, message)

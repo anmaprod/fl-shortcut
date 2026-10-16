@@ -107,7 +107,7 @@ enum Appearance {
 
 /// Surface flottante : verre natif sur macOS 26 quand la préférence est active et la fenêtre au premier plan ;
 /// matériau sur macOS 13-15 ; sinon fond opaque de fenêtre. Même structure de vue dans tous les cas (aucun arbre
-/// reconstruit au passage FL ↔ FL Shortcut) : seuls les paramètres changent.
+/// reconstruit au passage FL ↔ FL Shortcuts) : seuls les paramètres changent.
 /// `tint` : teinte qui porte un sens (avertissement), jamais décorative (WWDC25 219).
 /// `alwaysLive` : verre même quand l'app n'est pas active (bulle brève au-dessus de FL, macOS 26 seulement).
 struct GlassSurface<S: InsettableShape>: ViewModifier {

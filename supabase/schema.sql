@@ -1,4 +1,4 @@
--- Communauté de FL Shortcut : comptes (mail, mot de passe, nom d'utilisateur) et partages de macros / profils.
+-- Communauté de FL Shortcuts : comptes (mail, mot de passe, nom d'utilisateur) et partages de macros / profils.
 -- À coller une fois dans Supabase › SQL Editor (voir supabase/README.md). Rien n'est lisible sans compte :
 -- toutes les règles visent le rôle « authenticated », jamais « anon ».
 

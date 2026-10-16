@@ -1,6 +1,6 @@
-# Plan d'essais complet de FL Shortcut sur le Mac de Malo
+# Plan d'essais complet de FL Shortcuts sur le Mac de Malo
 
-Pour la session Claude Code qui tourne sur le Mac (computer use activé). But : vérifier TOUT FL Shortcut sur le
+Pour la session Claude Code qui tourne sur le Mac (computer use activé). But : vérifier TOUT FL Shortcuts sur le
 vrai FL Studio, et, pour chaque problème, écrire un compte rendu assez précis pour que la session cloud corrige le
 code sans revenir au Mac.
 
@@ -23,7 +23,7 @@ d'abord le nom de la piste (F2 ne fait rien quand le Browser a le clavier).
 **Sûreté**
 - Projet de TEST uniquement (projet vide ou copie). Jamais un morceau de Malo. Si FL propose d'enregistrer des
   changements : Annuler, et demander à Malo.
-- Les cas marqués **[accord de Malo]** changent quelque chose hors de FL Shortcut (réglages audio du Mac, script
+- Les cas marqués **[accord de Malo]** changent quelque chose hors de FL Shortcuts (réglages audio du Mac, script
   installé dans FL, désinstallation). Les faire à la fin, seulement après son accord dans la session, et remettre
   en état ensuite.
 - Jamais de clic au hasard pour « réparer » : arrêt, capture, description.
@@ -45,7 +45,7 @@ Par cas : `ID — OK` (une ligne), `ID — NON FAIT (raison)`, ou pour un KO un 
 1. pas exacts faits (commandes, clics, page de FL devant, élément sélectionné) ;
 2. attendu, puis obtenu ;
 3. messages exacts (bulle, alerte, fiche du raccourci, barre d'aide de FL), recopiés mot pour mot ;
-4. extrait brut de `~/Library/Logs/FL Shortcut/macro.log` (le passage du RUN concerné, en entier) et sorties de
+4. extrait brut de `~/Library/Logs/FL Shortcuts/macro.log` (le passage du RUN concerné, en entier) et sorties de
    commandes en entier ;
 5. fenêtres de FL au moment du problème (`FLShortcut --diag-macro` ou les lignes WIN du journal : numéro, niveau,
    cadre) ;
@@ -69,7 +69,7 @@ tableau. Attendu : barre des menus ≈ 14 Mo, fenêtre ≈ 54 Mo, 0 % de process
 
 Vérifier chaque effet par une seule capture, ou par la barre d'aide / le titre de la fenêtre de FL.
 
-- **B1** — Lancement : `open ~/Applications/"FL Shortcut.app"`. Icône dans la barre des menus, aucune pastille
+- **B1** — Lancement : `open ~/Applications/"FL Shortcuts.app"`. Icône dans la barre des menus, aucune pastille
   d'alerte (Accessibilité accordée). Ouvrir le menu de la barre : statut, pause, liens.
 - **B2** — Fenêtres : ⌃1 Playlist, ⌃2 Channel rack, ⌃3 Piano roll, ⌃4 Mixer, ⌃5 Browser
   (`key code 18 using control down`, etc.). Chacune doit passer devant dans FL.
@@ -81,9 +81,9 @@ Vérifier chaque effet par une seule capture, ou par la barre d'aide / le titre 
 - **B6** — Fenêtre principale : changer de profil (Recommandé → Style Ableton → Vide → Recommandé), annuler le
   changement ; créer un raccourci (capture d'une touche), le modifier, le supprimer ; conflit avec FL, touche déjà
   prise, touche interdite (⌘Q refusé), version de FL trop ancienne : chaque avertissement recopié.
-- **B7** — Export puis import d'un profil (dossier Documents › FL Shortcut › Raccourcis) : le profil importé est
+- **B7** — Export puis import d'un profil (dossier Documents › FL Shortcuts › Raccourcis) : le profil importé est
   identique.
-- **B8** — FL fermé puis rouvert : les raccourcis remarchent sans relancer FL Shortcut. FL Shortcut quitté : plus
+- **B8** — FL fermé puis rouvert : les raccourcis remarchent sans relancer FL Shortcuts. FL Shortcuts quitté : plus
   aucune touche interceptée.
 
 ## C. Macros (projet de test, Mixer)
@@ -103,7 +103,7 @@ Vérifier chaque effet par une seule capture, ou par la barre d'aide / le titre 
   enregistrer, attacher à un raccourci, lancer dans FL. Pour chaque bloc qui agit dans FL : effet constaté.
 - **C5** — « Enregistrer des clics » : enregistrer une suite (menu de piste, Options › Audio settings, une touche),
   puis rejouer : mêmes effets.
-- **C6** — Export / import de macros `.flsmacro` (Documents › FL Shortcut › Macros) : macros identiques, positions
+- **C6** — Export / import de macros `.flsmacro` (Documents › FL Shortcuts › Macros) : macros identiques, positions
   apprises à remontrer.
 - **C7** — Fiche du raccourci : « Exporter le journal… » produit un fichier sans frappe ni nom de fichier ni nom de
   piste.
@@ -121,7 +121,7 @@ Vérifier chaque effet par une seule capture, ou par la barre d'aide / le titre 
 
 ## E. Lien MIDI avec FL **[accord de Malo]** (installe le script dans FL)
 
-- **E1** — Installation du script depuis FL Shortcut, réglage dans FL (Options › MIDI settings), statut du lien
+- **E1** — Installation du script depuis FL Shortcuts, réglage dans FL (Options › MIDI settings), statut du lien
   « actif ». Noter chaque écran.
 - **E2** — Actions par le lien : Mute / Solo de la piste sélectionnée (⌃T / ⌃S), volume ±, piste suivante /
   précédente, Annuler / Rétablir (⇧⌘Z). Chaque effet constaté.

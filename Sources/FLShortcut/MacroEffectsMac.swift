@@ -262,7 +262,7 @@ final class MacroEffectsMac: MacroEffects {
             CreatorPresence.stepAside()
         }
         guard CGPreflightPostEventAccess() else {
-            return "autorise FL Shortcut dans Réglages Système › Confidentialité et sécurité › Accessibilité"
+            return "autorise FL Shortcuts dans Réglages Système › Confidentialité et sécurité › Accessibilité"
         }
         let initial = WinSnapshot.take(pid: pid)
         MacroLog.shared.windows("start", initial)

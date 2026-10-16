@@ -267,7 +267,7 @@ enum MacroOutline {
                 problem = context.fail("note trop longue.")
             }
         } else {
-            problem = context.fail("bloc d'une version plus récente de FL Shortcut : la macro est bloquée.")
+            problem = context.fail("bloc d'une version plus récente de FL Shortcuts : la macro est bloquée.")
         }
         return MacroStepRow(id: MacroStepRow.blockRowID(b.id), blockID: b.id, kind: .block, number: number, depth: depth,
                        type: b.body.type, category: spec?.category, symbol: spec?.symbol ?? "questionmark.square.dashed",
@@ -510,7 +510,7 @@ enum PaletteCatalog {
             item("dropFile", .dropFile) { .dropFile(path: "") },
             item("chooseFile", .chooseFile) { .chooseFile(path: "") },
             item("flAction", .flAction,
-                 aide: "Une action de FL Shortcut (Mixer, Playlist, métronome…) : par le lien avec FL s'il est installé, sinon la touche équivalente de FL.") {
+                 aide: "Une action de FL Shortcuts (Mixer, Playlist, métronome…) : par le lien avec FL s'il est installé, sinon la touche équivalente de FL.") {
                 .flAction(key: "mx", fallback: .key(KeyRef(mixer)))
             },
             item("arm", .flAction, label: "Armer la piste",

@@ -4,7 +4,7 @@
 //   (Ctrl → ⌘, Alt → ⌥, Retour arrière → ⌫, Suppr → ⌦). Les raccourcis à la souris n'y sont pas (rien à remapper).
 //   Les changer crée un raccourci « Touche de FL » (ta touche → la touche de FL, dans la fenêtre concernée) ;
 //   « Réinitialiser » le retire. La touche d'origine continue de marcher.
-// - Actions en plus (script FL Shortcut) : touche d'origine = profil Recommandé, ou aucune.
+// - Actions en plus (script FL Shortcuts) : touche d'origine = profil Recommandé, ou aucune.
 import Foundation
 
 enum FLSection: String, CaseIterable, Identifiable {
@@ -67,7 +67,7 @@ enum FLSection: String, CaseIterable, Identifiable {
 
 struct CatalogEntry: Identifiable, Hashable {
     enum Kind: Hashable {
-        case action(Int)          // action du script FL Shortcut
+        case action(Int)          // action du script FL Shortcuts
         case native(KeyCombo)     // raccourci d'origine de FL Studio
     }
 
@@ -458,7 +458,7 @@ extension Store {
     }
 
     /// Associe chaque entrée du catalogue au raccourci du profil qui la porte ; le reste va dans `others`.
-    /// Les raccourcis d'origine que FL Shortcut refuse d'envoyer (⌘⌫, ⌘Q…) ne sont pas proposés.
+    /// Les raccourcis d'origine que FL Shortcuts refuse d'envoyer (⌘⌫, ⌘Q…) ne sont pas proposés.
     func catalogRows() -> (rows: [CatalogRow], others: [Remap]) {
         var claimed = Set<UUID>()
         var rows: [CatalogRow] = []

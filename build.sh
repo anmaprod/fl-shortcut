@@ -1,5 +1,5 @@
 #!/bin/bash
-# Construit « FL Shortcut.app » et FLShortcut.dmg (app universelle Apple Silicon + Intel).
+# Construit « FL Shortcuts.app » et FLShortcuts.dmg (app universelle Apple Silicon + Intel).
 # Audit : SEC-08 (Hardened Runtime, Developer ID, notarisation, pas de --deep), SEC-09 / SUP (empreinte SHA-256).
 #
 # Usage :
@@ -16,10 +16,11 @@ cd "$(dirname "$0")"
 if [[ -f .diag2 ]]; then rm -f .diag2; bash ./diag2.sh; exit 0; fi
 if [[ -f .diag ]]; then rm -f .diag; bash ./diag.sh; exit 0; fi
 
-APP_NAME="FL Shortcut"
+APP_NAME="FL Shortcuts"
+OLD_APP_NAME="FL Shortcut"       # nom d'avant : ses copies sont retirées à l'installation
 EXE="FLShortcut"
 APP="dist/${APP_NAME}.app"
-DMG="dist/FLShortcut.dmg"
+DMG="dist/FLShortcuts.dmg"
 ARCHS=(--arch arm64 --arch x86_64)
 # FLS_NATIVE=1 : architecture de cette machine seulement (suffit pour tester ; marche aussi sans Xcode complet).
 if [[ "${FLS_NATIVE:-0}" == "1" ]]; then ARCHS=(); fi
@@ -58,6 +59,7 @@ chmod -R go-w "$APP"
 
 # Identité de signature locale, créée une seule fois dans un trousseau dédié (jamais le trousseau de session) :
 # certificat auto-signé « FL Shortcut Dev », usage « signature de code » uniquement, valable sur ce Mac.
+# Ancien nom de l'app gardé exprès : une autre identité ferait redemander l'autorisation Accessibilité.
 DEV_KC="$HOME/Library/Keychains/flshortcut-dev.keychain-db"
 DEV_KC_PASS="flshortcut-dev"     # trousseau local de développement, ne protège que cette identité
 dev_identity() {
@@ -163,8 +165,8 @@ if [[ -n "${SIGN_IDENTITY:-}" ]]; then
   fi
 fi
 
-echo "▸ Paquet d'installation (.pkg) : FL Shortcut et son désinstalleur dans /Applications, en un double-clic"
-PKG="dist/FLShortcut.pkg"
+echo "▸ Paquet d'installation (.pkg) : FL Shortcuts et son désinstalleur dans /Applications, en un double-clic"
+PKG="dist/FLShortcuts.pkg"
 PKG_ROOT=$(mktemp -d)
 PKG_PLIST=$(mktemp -d)/component.plist
 cp -R "$APP" "$UNINSTALLER" "$PKG_ROOT/"
@@ -176,15 +178,29 @@ while plutil -extract "$n" xml1 -o /dev/null "$PKG_PLIST" 2>/dev/null; do
   plutil -replace "$n.BundleIsRelocatable" -bool NO "$PKG_PLIST"
   n=$((n + 1))
 done
+# Après l'installation : retire les copies à l'ancien nom (« FL Shortcut »), seulement si ce sont bien les nôtres.
+PKG_SCRIPTS=$(mktemp -d)
+cat > "$PKG_SCRIPTS/postinstall" <<SCRIPT
+#!/bin/bash
+for pair in "${OLD_APP_NAME}.app:app.flshortcut.FLShortcut" "Désinstaller ${OLD_APP_NAME}.app:app.flshortcut.Uninstaller"; do
+  app="\${3%/}/Applications/\${pair%%:*}"
+  [[ -d "\$app" && ! -L "\$app" ]] || continue
+  id=\$(/usr/libexec/PlistBuddy -c "Print :CFBundleIdentifier" "\$app/Contents/Info.plist" 2>/dev/null)
+  [[ "\$id" == "\${pair##*:}" ]] && rm -rf "\$app"
+done
+exit 0
+SCRIPT
+chmod 755 "$PKG_SCRIPTS/postinstall"
 PKG_VERSION=$(/usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" "$APP/Contents/Info.plist")
 pkgbuild --root "$PKG_ROOT" --component-plist "$PKG_PLIST" --install-location /Applications \
-  --identifier app.flshortcut.pkg --version "$PKG_VERSION" "dist/FLShortcut-component.pkg" >/dev/null
+  --scripts "$PKG_SCRIPTS" \
+  --identifier app.flshortcut.pkg --version "$PKG_VERSION" "dist/FLShortcuts-component.pkg" >/dev/null
 if [[ -n "${INSTALLER_SIGN_IDENTITY:-}" ]]; then
-  productbuild --package "dist/FLShortcut-component.pkg" --sign "$INSTALLER_SIGN_IDENTITY" "$PKG"
+  productbuild --package "dist/FLShortcuts-component.pkg" --sign "$INSTALLER_SIGN_IDENTITY" "$PKG"
 else
-  productbuild --package "dist/FLShortcut-component.pkg" "$PKG"
+  productbuild --package "dist/FLShortcuts-component.pkg" "$PKG"
 fi
-rm -rf "$PKG_ROOT" "dist/FLShortcut-component.pkg"
+rm -rf "$PKG_ROOT" "$PKG_SCRIPTS" "dist/FLShortcuts-component.pkg"
 
 echo "▸ Empreintes"
 (cd dist && shasum -a 256 "$(basename "$DMG")" > "$(basename "$DMG").sha256" \
@@ -196,7 +212,7 @@ echo "✅ Terminé : $APP, $DMG et $PKG"
 # Build local (FLS_NATIVE=1) : copie aussi l'app dans ~/Applications pour la lancer comme une vraie app.
 if [[ "${FLS_NATIVE:-0}" == "1" ]]; then
   mkdir -p "$HOME/Applications"
-  rm -rf "$HOME/Applications/${APP_NAME}.app"
+  rm -rf "$HOME/Applications/${APP_NAME}.app" "$HOME/Applications/${OLD_APP_NAME}.app"
   cp -R "$APP" "$HOME/Applications/"
   echo "▸ Installé dans ~/Applications"
 fi

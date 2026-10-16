@@ -1,6 +1,6 @@
 #!/bin/bash
 # Attend (4 min max) FL ouvert + écoute clavier active, puis mesure.
-APP="$HOME/Applications/FL Shortcut.app"
+APP="$HOME/Applications/FL Shortcuts.app"
 tap=0; fl=0
 for i in $(seq 1 80); do
   P=$(pgrep -x FLShortcut | head -1)

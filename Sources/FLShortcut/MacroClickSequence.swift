@@ -368,7 +368,7 @@ final class ClickSequenceRecorder: ObservableObject {
         CreatorPresence.stepAside()
         fl.activate(options: [])
         // Touches aussi : flèches, Entrée, Échap, raccourcis, lettres des menus (seulement quand FL est devant ; les
-        // raccourcis de FL Shortcut, pris par le tap clavier, n'arrivent pas jusqu'ici).
+        // raccourcis de FL Shortcuts, pris par le tap clavier, n'arrivent pas jusqu'ici).
         monitor = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown, .leftMouseUp, .keyDown]) { [weak self] event in
             self?.record(event)
         }

@@ -185,7 +185,7 @@ final class MacroLibraryTests: XCTestCase {
         let json = try JSONDecoder().decode(JSONValue.self, from: data)
         XCTAssertEqual(json["format"]?.string, "flsmacro")
         XCTAssertEqual(json["version"]?.int, 1)
-        XCTAssertEqual(json["exportedBy"]?.string, "FL Shortcut 1.2 (macOS)")
+        XCTAssertEqual(json["exportedBy"]?.string, "FL Shortcuts 1.2 (macOS)")
         XCTAssertEqual(json["macro"]?["name"]?.string, "Ma macro")
         let blocks = try XCTUnwrap(json["macro"]?["blocks"]?.array)
         XCTAssertEqual(blocks.count, 5)

@@ -3,7 +3,7 @@
 import Foundation
 import Security
 
-/// Session au Trousseau (élément générique de FL Shortcut, compte « community-session »).
+/// Session au Trousseau (élément générique de FL Shortcuts, compte « community-session »).
 final class CommunitySessionKeychain {
     private let service: String
     private let account: String
@@ -33,7 +33,7 @@ final class CommunitySessionKeychain {
         if SecItemUpdate(query as CFDictionary, [kSecValueData as String: data] as CFDictionary) == errSecItemNotFound {
             var add = query
             add[kSecValueData as String] = data
-            add[kSecAttrLabel as String] = "FL Shortcut – session de la Communauté"
+            add[kSecAttrLabel as String] = "FL Shortcuts – session de la Communauté"
             add[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
             SecItemAdd(add as CFDictionary, nil)
         }

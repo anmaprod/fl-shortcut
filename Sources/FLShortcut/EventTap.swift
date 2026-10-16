@@ -27,7 +27,7 @@ final class EventTap {
     private let reenableTimes = Locked<[Date]>([])
     private let restartFlag = Locked(false)
     /// Le tap n'est actif que lorsque FL Studio est au premier plan. Le reste du temps il est coupé :
-    /// aucune frappe ne transite par FL Shortcut, ni dans FL, ni ailleurs.
+    /// aucune frappe ne transite par FL Shortcuts, ni dans FL, ni ailleurs.
     private let wantsActive = Locked(false)
     /// Source privée : l'état des modificateurs postés ne se mélange pas au clavier physique (REL-13).
     private let postSource = CGEventSource(stateID: .privateState)
