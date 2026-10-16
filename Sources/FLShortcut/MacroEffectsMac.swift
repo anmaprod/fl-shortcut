@@ -245,6 +245,9 @@ final class MacroEffectsMac: MacroEffects {
     static var testFLPID: Int32? { MacroRunner.testFLPID }
     static var armDownCount: Int { MacroRunner.armDownCount }
 
+    /// Appuis sur Échap vus par le tap au départ du passage : un appui depuis arrête la macro.
+    private let escapesAtStart = EventTap.shared.escapePresses
+
     init(pid: Int32) {
         self.pid = pid
         ctx = Context(pid: pid, origin: .zero, frame: nil, baseline: 0, track: .zero, startNumbers: [])
@@ -505,7 +508,10 @@ final class MacroEffectsMac: MacroEffects {
             let cfg = EventTap.shared.currentConfig
             guard cfg.flPIDs.contains(pid), cfg.frontmostPID == pid else { return "FL n'est plus au premier plan" }
         }
-        if CGEventSource.keyState(.combinedSessionState, key: 53) { return "Échap" }
+        // Échap tenu en ce moment, ou appuyé depuis le départ (un appui bref tombé entre deux lectures).
+        if CGEventSource.keyState(.combinedSessionState, key: 53) || EventTap.shared.escapePresses != escapesAtStart {
+            return "Échap"
+        }
         return nil
     }
 
