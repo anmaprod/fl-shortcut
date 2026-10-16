@@ -22,8 +22,6 @@ enum DebugSnapshot {
     /// Écrit « editorModels=<n> windows=<n> visible=<n> hidden=<classes> » dans report.txt : modèles du créateur
     /// encore vivants, fenêtres de l'app (même masquées), fenêtres visibles, classes des fenêtres masquées.
     static let report = Notification.Name("app.flshortcut.debug.report")
-    /// Essai de mise en page de la fenêtre principale (« 0 » à « 4 », voir EditorView.layoutTrial).
-    static let layoutTrial = Notification.Name("app.flshortcut.debug.trial")
 
     static func publisher(_ name: Notification.Name) -> AnyPublisher<Notification, Never> {
         guard enabled else { return Empty().eraseToAnyPublisher() }

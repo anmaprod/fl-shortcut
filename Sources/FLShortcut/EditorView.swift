@@ -78,11 +78,6 @@ private extension View {
     func cardList() -> some View {
         glassListBackground()
     }
-
-    /// Mode capture : `apply` est retiré pendant un essai de mise en page de la CI (`skip`), sinon appliqué.
-    @ViewBuilder func droppedInTrial<V: View>(_ skip: Bool, _ apply: (Self) -> V) -> some View {
-        if skip { self } else { apply(self) }
-    }
 }
 
 /// Contenu d'une page : List paresseuse (seules les lignes visibles sont construites), sections en cartes par
@@ -130,9 +125,6 @@ struct EditorView: View {
     @State private var editNotice: String? = nil
     @AppStorage(Appearance.glassKey) private var glassEnabled = true
     @Namespace private var glassNS
-    /// Mode capture seulement : essai de mise en page demandé par la mesure de la CI (0 : fenêtre normale ;
-    /// 1 sans la recherche, 2 sans les barres flottantes, 3 sans le lavis coloré, 4 sans les trois).
-    @State private var layoutTrial = 0
 
     private var trimmedQuery: String { query.trimmingCharacters(in: .whitespaces) }
 
@@ -232,12 +224,7 @@ struct EditorView: View {
         .windowGlass(glassEnabled)
         // Recherche en haut de la barre latérale (comme Réglages Système) : à droite, la barre d'outils ne porte que
         // les boutons de la page, et les flèches de la page Macros tombent au même endroit que dans le créateur.
-        .droppedInTrial(layoutTrial == 1 || layoutTrial == 4) {
-            $0.searchable(text: $query, placement: .sidebar, prompt: "Rechercher")
-        }
-        .onReceive(DebugSnapshot.publisher(DebugSnapshot.layoutTrial)) { note in
-            layoutTrial = Int(note.object as? String ?? "") ?? 0
-        }
+        .searchable(text: $query, placement: .sidebar, prompt: "Rechercher")
         // Un clic dans le vide de la barre latérale ne laisse jamais la fenêtre sans section.
         .onChange(of: selection) { newValue in
             if newValue == nil { selection = .section(.general) }
@@ -337,28 +324,31 @@ struct EditorView: View {
         // notification et statut en bas). Peu de surfaces, regroupées : le système les dessine ensemble.
         // macOS 26 : barres flottantes (safeAreaBar) : la liste défile dessous avec l'effet de bord, et sa dernière
         // ligne n'est jamais cachée par la pastille.
-        .droppedInTrial(layoutTrial == 2 || layoutTrial == 4) { content in
-            content.floatingBar(.top) { NoticeStack(items: notices) }
-                .floatingBar(.bottom) {
-                    GlassGroup(spacing: 8) {
-                        VStack(spacing: 8) {
-                            if let toast {
-                                ToastView(message: toast) { self.toast = nil }
-                                    .glassID("toast", in: glassNS)         // la notification naît de la pastille
-                                    .transition(Motion.transition(.opacity))
-                                    .id(toast.id)
-                            }
-                            StatusBar(store: store, status: status, link: link, fl: FLMonitor.shared)
-                                .glassID("status", in: glassNS)
-                        }
+        .floatingBar(.top) { NoticeStack(items: notices) }
+        .floatingBar(.bottom) {
+            GlassGroup(spacing: 8) {
+                VStack(spacing: 8) {
+                    if let toast {
+                        ToastView(message: toast) { self.toast = nil }
+                            .glassID("toast", in: glassNS)         // la notification naît de la pastille
+                            .transition(Motion.transition(.opacity))
+                            .id(toast.id)
                     }
-                    .padding(.horizontal, 14)
-                    .padding(.bottom, 10)
-                    .motion(Motion.smooth, value: toast)
+                    StatusBar(store: store, status: status, link: link, fl: FLMonitor.shared)
+                        .glassID("status", in: glassNS)
                 }
+            }
+            .padding(.horizontal, 14)
+            .padding(.bottom, 10)
+            .motion(Motion.smooth, value: toast)
         }
+        // La page ne réclame jamais plus de hauteur que la fenêtre. Sans ce cadre, sa hauteur minimale était prise à
+        // sa largeur minimale, où le texte des avertissements se replie presque mot par mot (994 points sur la page
+        // Général) : les deux colonnes devenaient plus hautes que la fenêtre, centrées, et le haut de la barre
+        // latérale (recherche, « FL Studio ») passait sous la barre de titre. Largeur minimale réaliste en plus.
+        .frame(minWidth: 480, minHeight: 0, maxHeight: .infinity)
         // Couleur de la page sous la barre d'outils et la barre latérale en verre (aucune pendant la recherche).
-        .tintedBackdrop(trimmedQuery.isEmpty && layoutTrial < 3 ? (selection ?? .section(.general)).tint : nil)
+        .tintedBackdrop(trimmedQuery.isEmpty ? (selection ?? .section(.general)).tint : nil)
         .sheet(item: $editingRow) { row in
             CatalogEditSheet(row: row, notice: editNotice) { message, followUp in
                 show(message)

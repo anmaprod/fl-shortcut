@@ -58,6 +58,15 @@ report() {   # $1 : nom du fichier gardé dans $OUT ; rapport de l'app (affiché
   echo "$r" | sed -n 's/.*editorModels=\([0-9?]*\).*/\1/p'
 }
 
+fits() {   # $1 : rapport gardé ; les colonnes de la fenêtre principale tiennent-elles dans sa hauteur ?
+  local f="$OUT/$1-report.txt" h c
+  h=$(sed -nE 's/^  contenu \(-?[0-9]+,-?[0-9]+ [0-9]+[^0-9]+([0-9]+)\).*/\1/p' "$f" 2>/dev/null | tail -1)
+  c=$(sed -nE 's/^  colonnes \(-?[0-9]+,(-?[0-9]+) [0-9]+[^0-9]+([0-9]+)\).*/\1 \2/p' "$f" 2>/dev/null | head -1)
+  [[ -z "$h" || -z "$c" ]] && { echo "?"; return; }
+  set -- $c
+  if (( $1 >= 0 && $1 + $2 <= h )); then echo "oui"; else echo "NON ($2 pt pour $h)"; fi
+}
+
 run() {   # $1 : libellé, $2 : YES/NO effet verre
   local label=$1 glass=$2 p
   pkill -x FLShortcut 2>/dev/null; sleep 1
@@ -65,7 +74,7 @@ run() {   # $1 : libellé, $2 : YES/NO effet verre
   open "$APP"; sleep 6
   p=$(pgrep -x FLShortcut | head -1)
   [[ -z "$p" ]] && { echo "| $label | ne démarre pas | | | | | |"; return; }
-  local m0 c0 m1 c1
+  local m0 c0 m1 c1 fit
   m0=$(mem_mb "$p"); c0=$(cpu_avg "$p")
   "$POST" app.flshortcut.debug.open; sleep 5
   "$POST" app.flshortcut.debug.select general; sleep 1
@@ -73,14 +82,7 @@ run() {   # $1 : libellé, $2 : YES/NO effet verre
   screencapture -x "$OUT/$label.png" 2>/dev/null || true
   # État exact de la fenêtre au moment de la photo (cadre, barre de titre, boutons, listes défilées ou non).
   report "$label-fenetre" >/dev/null
-  # Essais de mise en page : sans la recherche (1), sans les barres flottantes (2), sans le lavis coloré (3), sans
-  # les trois (4). Le rapport dit, pour chacun, si les colonnes tiennent enfin dans la fenêtre.
-  for e in 1 2 3 4; do
-    "$POST" app.flshortcut.debug.trial "$e"; sleep 2
-    report "$label-essai$e" >/dev/null
-    screencapture -x "$OUT/$label-essai$e.png" 2>/dev/null || true
-  done
-  "$POST" app.flshortcut.debug.trial 0; sleep 2
+  fit="$(fits "$label-fenetre")"
   # Rendu interne de la fenêtre (toute sa hauteur, même si l'écran de test est petit).
   rm -f "$HOME/Library/Caches/$DOMAIN/$label-"*
   "$POST" app.flshortcut.debug.snapshot "$label-fenetre"; sleep 2
@@ -99,6 +101,7 @@ run() {   # $1 : libellé, $2 : YES/NO effet verre
   # Vraie photo de la page Macros (flèches, « + » : à la même place que dans le créateur ?).
   screencapture -x "$OUT/$label-macros-ecran.png" 2>/dev/null || true
   report "$label-macros" >/dev/null
+  fit+=" / $(fits "$label-macros")"
   rm -f "$HOME/Library/Caches/$DOMAIN/$label-macros-"*
   "$POST" app.flshortcut.debug.snapshot "$label-macros"; sleep 2
   cp "$HOME/Library/Caches/$DOMAIN/$label-macros-"*.png "$OUT/" 2>/dev/null || true
@@ -110,6 +113,7 @@ run() {   # $1 : libellé, $2 : YES/NO effet verre
   "$POST" app.flshortcut.debug.macro open; sleep 5
   screencapture -x "$OUT/$label-createur.png" 2>/dev/null || true
   report "$label-createur-ouvert" >/dev/null
+  fit+=" / $(fits "$label-createur-ouvert")"
   rm -f "$HOME/Library/Caches/$DOMAIN/$label-createur-"*
   "$POST" app.flshortcut.debug.snapshot "$label-createur"; sleep 2
   cp "$HOME/Library/Caches/$DOMAIN/$label-createur-"*.png "$OUT/" 2>/dev/null || true
@@ -137,11 +141,11 @@ run() {   # $1 : libellé, $2 : YES/NO effet verre
   m3=$(mem_mb "$p")
   categories "$p" "$label-recherche"
   "$POST" app.flshortcut.debug.search ""; sleep 1
-  echo "| $label | $m0 | $c0 | $m1 | $c1 | $c1b | $mb | $mc | $cc | $md | $m2 | $m3 | ${co[2]} | ${cf[2]} | ${co[3]} | ${cf[3]} | $n0 ; ${nm[1]} / ${nm[2]} / ${nm[3]} |"
+  echo "| $label | $m0 | $c0 | $m1 | $c1 | $c1b | $mb | $mc | $cc | $md | $m2 | $m3 | ${co[2]} | ${cf[2]} | ${co[3]} | ${cf[3]} | $n0 ; ${nm[1]} / ${nm[2]} / ${nm[3]} | $fit |"
 }
 
-echo "| Effet | Mémoire (barre des menus) | Processeur | Mémoire (fenêtre ouverte) | Processeur (fenêtre ouverte, au repos) | Processeur (fenêtre, 10 s plus tard) | Mémoire (page Macros) | Mémoire (créateur ouvert) | Processeur (créateur ouvert, au repos) | Mémoire (créateur refermé) | Mémoire (page Mixer) | Mémoire (recherche « e », presque tout) | Mémoire (créateur cycle 2 ouvert) | Mémoire (créateur cycle 2 refermé) | Mémoire (créateur cycle 3 ouvert) | Mémoire (créateur cycle 3 refermé) | Modèles du créateur vivants (avant ouverture ; après fermeture, cycles 1 / 2 / 3) |"
-echo "|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|"
+echo "| Effet | Mémoire (barre des menus) | Processeur | Mémoire (fenêtre ouverte) | Processeur (fenêtre ouverte, au repos) | Processeur (fenêtre, 10 s plus tard) | Mémoire (page Macros) | Mémoire (créateur ouvert) | Processeur (créateur ouvert, au repos) | Mémoire (créateur refermé) | Mémoire (page Mixer) | Mémoire (recherche « e », presque tout) | Mémoire (créateur cycle 2 ouvert) | Mémoire (créateur cycle 2 refermé) | Mémoire (créateur cycle 3 ouvert) | Mémoire (créateur cycle 3 refermé) | Modèles du créateur vivants (avant ouverture ; après fermeture, cycles 1 / 2 / 3) | Colonnes dans la fenêtre (Général / Macros / créateur) |"
+echo "|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|"
 run "verre" YES
 run "sans-verre" NO
 pkill -x FLShortcut 2>/dev/null
