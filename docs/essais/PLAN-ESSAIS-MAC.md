@@ -59,8 +59,8 @@ Puis deux sections : **Lenteurs** (étapes chronométrées de plus de 1 s, avec 
 
 **A1** — `scripts/essais-mac.sh` (≈ 8 min : tests Python, tests Swift, compilation, choix du preset dans une vraie
 boîte « Open », macro « Enregistrement rapide » sur le FL simulé, macro en blocs, « Enregistrer des clics »).
-Ne pas toucher la souris pendant les essais du FL simulé. Résumé : `dist/essais/resume.txt`. Tout FAIL : joindre le
-fichier de l'essai en entier (`dist/essais/*.txt`).
+Ne pas toucher la souris pendant les essais du FL simulé. Résumé : `.essais/resume.txt`. Tout FAIL : joindre le
+fichier de l'essai en entier (`.essais/*.txt`).
 
 **A2** — `scripts/essais-mac.sh --vite --avec-mesure` (mesure mémoire / processeur de l'interface). Recopier le
 tableau. Attendu : barre des menus ≈ 14 Mo, fenêtre ≈ 54 Mo, 0 % de processeur au repos.

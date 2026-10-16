@@ -10,7 +10,7 @@
 # Usage : scripts/essais-mac.sh [--vite] [--avec-mesure]
 #   --vite        sans tests Swift ni recompilation (essaie ~/Applications/FL Shortcut.app tel quel)
 #   --avec-mesure ajoute la mesure mémoire / processeur de l'interface (scripts/mesure-interface.sh, ~4 min de plus)
-# Sorties : dist/essais/ (un fichier par essai, plus resume.txt).
+# Sorties : .essais/ (un fichier par essai, plus resume.txt), hors de dist/ que ./build.sh efface.
 set -uo pipefail
 cd "$(dirname "$0")/.." || exit 1
 
@@ -27,7 +27,7 @@ done
 XCODE=$(ls -d /Applications/Xcode*.app "$HOME"/Applications/Xcode*.app 2>/dev/null | head -1)
 if [[ -n "$XCODE" && -d "$XCODE/Contents/Developer" ]]; then export DEVELOPER_DIR="$XCODE/Contents/Developer"; fi
 
-OUT="$PWD/dist/essais"
+OUT="$PWD/.essais"
 rm -rf "$OUT"; mkdir -p "$OUT"
 DOMAIN="app.flshortcut.FLShortcut"
 APP="$HOME/Applications/FL Shortcut.app"
@@ -73,7 +73,11 @@ AVAIT_PREFS=0
 if defaults export "$DOMAIN" "$OUT/preferences-avant.plist" 2>/dev/null; then AVAIT_PREFS=1; fi
 remettre() {
   pkill -x FLShortcut 2>/dev/null
-  if [[ $AVAIT_PREFS == 1 ]]; then defaults import "$DOMAIN" "$OUT/preferences-avant.plist"; else defaults delete "$DOMAIN" 2>/dev/null; fi
+  mkdir -p "$OUT"
+  # `defaults import` fusionne : le domaine est d'abord vidé, sinon une clé apprise pendant les essais (position sur
+  # le FL simulé…) resterait et serait rejouée dans le vrai FL.
+  defaults delete "$DOMAIN" 2>/dev/null
+  if [[ $AVAIT_PREFS == 1 ]]; then defaults import "$DOMAIN" "$OUT/preferences-avant.plist"; fi
   { echo "Essais automatiques de FL Shortcut — $(date '+%d/%m/%Y %H:%M')"; echo "Commit : $(git rev-parse --short HEAD) ($(git rev-parse --abbrev-ref HEAD))"
     printf '%s\n' "${LIGNES[@]}"; } > "$RESUME"
   echo; echo "Résumé : $RESUME"; cat "$RESUME"
@@ -119,5 +123,5 @@ fi
 trap - EXIT
 remettre
 open "$APP"
-grep -q '^FAIL' "$RESUME" && exit 1
+for ligne in "${LIGNES[@]}"; do [[ $ligne == FAIL* ]] && exit 1; done
 exit 0
