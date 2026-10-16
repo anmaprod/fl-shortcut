@@ -242,7 +242,7 @@ enum MacroProbe {
             } else if let range = lastPointer.range(of: " | ") {
                 pointer += lastPointer[range.lowerBound...]
             }
-            if pointer != lastPointer { emit("\(t)   cursor (\(Int(c.x)),\(Int(c.y))) \(pointer)") }
+            if pointer != lastPointer { emit("\(t)   cursor \(c.logText) \(pointer)") }
             lastPointer = pointer
             Thread.sleep(forTimeInterval: 0.05)
         }

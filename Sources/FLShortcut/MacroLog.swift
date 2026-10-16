@@ -8,6 +8,11 @@ import Foundation
 import os
 import UniformTypeIdentifiers
 
+extension CGPoint {
+    /// « (x,y) » en points entiers, pour le journal.
+    var logText: String { "(\(Int(x)),\(Int(y)))" }
+}
+
 final class MacroLog: @unchecked Sendable {
     static let shared = MacroLog()
 

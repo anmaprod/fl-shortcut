@@ -268,7 +268,7 @@ extension MacroEffectsMac {
         for (i, hop) in hops.enumerated() {
             let byTitle = popupAX && i < titles.count ? AXProbe.itemCenter(in: popup, titles: titles[i]) : nil
             let p = byTitle ?? hop.point(in: popup.bounds)
-            MacroLog.shared.write("HOP", "\(i + 1)/\(hops.count) in \(popup) → (\(Int(p.x)),\(Int(p.y))) "
+            MacroLog.shared.write("HOP", "\(i + 1)/\(hops.count) in \(popup) → \(p.logText) "
                 + (byTitle != nil ? "by AX title" : "by learned offset (\(Int(hop.offset.dx)),\(Int(hop.offset.dy)))"))
             let known = WinSnapshot.take(pid: ctx.pid).numbers
             let r = clickInside(p, popup: popup, ctx: ctx)
@@ -358,7 +358,7 @@ extension MacroEffectsMac {
         path.row = row
         for (i, s) in used.enumerated() {
             let hitWindow = (history.last(where: { $0.time <= s.time }) ?? history.first)?.hit(s.point)
-            MacroLog.shared.write("LEARN", "click \(i + 1) at (\(Int(s.point.x)),\(Int(s.point.y))) in \(hitWindow?.description ?? "no FL window")")
+            MacroLog.shared.write("LEARN", "click \(i + 1) at \(s.point.logText) in \(hitWindow?.description ?? "no FL window")")
         }
         MacroLog.shared.write("LEARN", "\(kind.rawValue) = \(MacroSpots.describe(path))")
         guard path.isValid else { return .fail("clics non reconnus : refais le raccourci pour recommencer") }
@@ -374,7 +374,7 @@ extension MacroEffectsMac {
            let window = Self.inputWindow(in: snap, size: start.windowSize, track: ctx.track) {
             guard waitForKeyboardIdle(timeout: 1.5) else { return .cancel("relâche les touches du raccourci") }
             let p0 = CGPoint(x: window.bounds.maxX + start.fromTopRight.dx, y: window.bounds.minY + start.fromTopRight.dy)
-            MacroLog.shared.write("INPUT", "selector (\(Int(p0.x)),\(Int(p0.y))) in \(window)")
+            MacroLog.shared.write("INPUT", "selector \(p0.logText) in \(window)")
             let r = click(at: p0, right: false, ctx: ctx)
             guard case .ok = r else { return r }
             if let first = path.hops.first {

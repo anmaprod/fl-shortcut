@@ -25,9 +25,7 @@ enum MacroSpots {
         }
 
         /// Même fenêtre qu'à l'apprentissage (à 2 points près).
-        func matches(size: CGSize) -> Bool {
-            abs(size.width - anchorSize.width) <= 2 && abs(size.height - anchorSize.height) <= 2
-        }
+        func matches(size: CGSize) -> Bool { MacroSpots.sameSize(size, anchorSize) }
     }
 
     static func offsets(_ points: [CGPoint], from anchor: CGPoint) -> [CGVector] {

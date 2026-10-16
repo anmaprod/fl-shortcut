@@ -109,7 +109,7 @@ enum IconPlacement {
         driver.note("name window \(name)")
         if let spot = loadSpot(defaults: defaults), MacroSpots.sameSize(name.bounds.size, spot.windowSize) {
             let p = spot.point(in: name.bounds)
-            driver.note("icon button (learned) at (\(Int(p.x)),\(Int(p.y)))")
+            driver.note("icon button (learned) at \(p.logText)")
             guard driver.click(p) else { return close([name], driver: driver, .clickRefused) }
         } else {
             // Le clic de l'utilisateur ouvre lui-même la grille : rien à recliquer.
@@ -118,7 +118,7 @@ enum IconPlacement {
             }
             let spot = Spot(fromTopRight: CGVector(dx: p.x - name.bounds.maxX, dy: p.y - name.bounds.minY),
                             windowSize: name.bounds.size)
-            driver.note("icon button shown at (\(Int(p.x)),\(Int(p.y))), from top-right (\(Int(spot.fromTopRight.dx)),"
+            driver.note("icon button shown at \(p.logText), from top-right (\(Int(spot.fromTopRight.dx)),"
                         + "\(Int(spot.fromTopRight.dy)))\(spot.isValid ? "" : " — not kept")")
             if spot.isValid { saveSpot(spot, defaults: defaults) }
         }
@@ -131,7 +131,7 @@ enum IconPlacement {
             return close([name], driver: driver, failure)
         }
         let cell = FLIconGrid.center(of: icon, in: grid.bounds)
-        driver.note("icon grid \(grid) → cell \(icon.code) at (\(Int(cell.x)),\(Int(cell.y)))")
+        driver.note("icon grid \(grid) → cell \(icon.code) at \(cell.logText)")
         guard driver.click(cell) else { return close([grid, name], driver: driver, .clickRefused) }
         // Relevé sur le FL de l'utilisateur (16/10) : la grille garde son numéro le temps de son animation de
         // fermeture (44 × 44 points juste après le choix) ; elle compte comme fermée dès qu'elle n'en a plus la forme.

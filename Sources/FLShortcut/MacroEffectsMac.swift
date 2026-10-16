@@ -270,14 +270,14 @@ final class MacroEffectsMac: MacroEffects {
         var track = origin
         if let p = MacroRunner.testTrackPoint {
             track = p
-            MacroLog.shared.write("TRACK", "test track (\(Int(p.x)),\(Int(p.y)))")
+            MacroLog.shared.write("TRACK", "test track \(p.logText)")
         } else if let remembered = TrackMemory.shared.lastClickInfo() {
             let same = initial.window(remembered.window).map { MacroSpots.sameSize($0.bounds.size, remembered.windowSize) } ?? false
-            MacroLog.shared.write("TRACK", "remembered (\(Int(remembered.point.x)),\(Int(remembered.point.y))) "
+            MacroLog.shared.write("TRACK", "remembered \(remembered.point.logText) "
                 + "\(Int(-remembered.date.timeIntervalSinceNow)) s ago in #\(remembered.window): \(same ? "window unchanged" : "window gone/resized → ignored")")
             if same { track = remembered.point }
         } else {
-            MacroLog.shared.write("TRACK", "no remembered click → cursor (\(Int(origin.x)),\(Int(origin.y)))")
+            MacroLog.shared.write("TRACK", "no remembered click → cursor \(origin.logText)")
         }
         self.initial = initial
         ctx = Context(pid: pid, origin: origin, frame: frame(origin),
@@ -575,7 +575,7 @@ final class MacroEffectsMac: MacroEffects {
             e.setIntegerValueField(.eventSourceUserData, value: EventTap.mark)
             if Self.clicksToPid { e.postToPid(pid) } else { e.post(tap: .cghidEventTap) }
         }
-        MacroLog.shared.write("MOVE", "pointer beside the menu (\(Int(p.x)),\(Int(p.y)))")
+        MacroLog.shared.write("MOVE", "pointer beside the menu \(p.logText)")
         Thread.sleep(forTimeInterval: 0.04)
     }
 
@@ -621,7 +621,7 @@ final class MacroEffectsMac: MacroEffects {
             return .fail("une autre fenêtre de FL couvre le menu")
         }
         let ax = AXProbe.hit(p, timeout: 0.05)
-        MacroLog.shared.write("AX", "at (\(Int(p.x)),\(Int(p.y))): \(ax)")
+        MacroLog.shared.write("AX", "at \(p.logText): \(ax)")
         if ax.error == .success, ax.pid != 0, ax.pid != ctx.pid, ax.pid != getpid() {
             let name = NSRunningApplication(processIdentifier: ax.pid)?.localizedName ?? "une autre app"
             return .fail("« \(name) » couvre le menu de FL")
@@ -977,7 +977,7 @@ final class MacroEffectsMac: MacroEffects {
 
     func click(at p: CGPoint, right: Bool, ctx: Context) -> StepResult {
         guard FLWindows.contains(p, pid: ctx.pid) else {
-            MacroLog.shared.write("CLICK", "refused (\(Int(p.x)),\(Int(p.y))): outside every FL window")
+            MacroLog.shared.write("CLICK", "refused \(p.logText): outside every FL window")
             return .fail("le point visé est hors de FL")
         }
         if !Self.clicksToPid, let name = coveringApp(at: p, ctx: ctx) {
@@ -991,7 +991,7 @@ final class MacroEffectsMac: MacroEffects {
     /// Nom de l'app dont une fenêtre couvre FL au point visé ; nil : c'est bien FL (ou notre app) dessous.
     func coveringApp(at p: CGPoint, ctx: Context) -> String? {
         let ax = AXProbe.hit(p)
-        MacroLog.shared.write("AX", "at (\(Int(p.x)),\(Int(p.y))): \(ax)")
+        MacroLog.shared.write("AX", "at \(p.logText): \(ax)")
         var owner: Int32? = (ax.error == .success && ax.pid != 0) ? ax.pid : nil
         // AX muet : repli sur la fenêtre NORMALE tout devant seulement si aucun menu de FL (niveau supérieur) n'est là.
         if owner == nil, WinSnapshot.take(pid: ctx.pid).hit(p).map({ $0.layer == 0 }) ?? true {
@@ -1005,7 +1005,7 @@ final class MacroEffectsMac: MacroEffects {
     /// par le flux du système (un glisser ne peut pas être adressé à un seul processus).
     func dropFile(_ path: String, at p: CGPoint, ctx: Context) -> StepResult {
         guard FLWindows.contains(p, pid: ctx.pid) else {
-            MacroLog.shared.write("DROP", "refused (\(Int(p.x)),\(Int(p.y))): outside every FL window")
+            MacroLog.shared.write("DROP", "refused \(p.logText): outside every FL window")
             return .fail("la piste visée est hors de FL : clique d'abord sur ta piste dans le Mixer")
         }
         if let name = coveringApp(at: p, ctx: ctx) { return .fail("« \(name) » couvre FL à cet endroit") }
@@ -1023,7 +1023,7 @@ final class MacroEffectsMac: MacroEffects {
     func postClick(at p: CGPoint, right: Bool, pid: Int32, hoverMs: Int = 30) {
         if cursorBeforeBurst == nil { cursorBeforeBurst = FLWindows.cursor() }
         let held = CGEventSource.flagsState(.combinedSessionState).intersection([.maskCommand, .maskAlternate, .maskControl, .maskShift])
-        MacroLog.shared.write("CLICK", "\(right ? "right" : "left") (\(Int(p.x)),\(Int(p.y)))"
+        MacroLog.shared.write("CLICK", "\(right ? "right" : "left") \(p.logText)"
             + (held.isEmpty ? "" : " WARNING modifiers held 0x\(String(held.rawValue, radix: 16))"))
         func ms(since t: UInt64) -> Int { Int((DispatchTime.now().uptimeNanoseconds &- t) / 1_000_000) }
         let t0 = DispatchTime.now().uptimeNanoseconds
