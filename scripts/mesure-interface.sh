@@ -23,6 +23,41 @@ DistributedNotificationCenter.default().postNotificationName(
 SWIFT
 swiftc -O "$POST.swift" -o "$POST" 2>/dev/null || { echo "swiftc indisponible"; exit 1; }
 
+# Vrai glisser-déposer à la souris, envoyé par ce script (le shell de la CI a le droit d'envoyer des événements ;
+# l'app, elle, ne l'a pas) : DRAG <pid> x1 y1 x2 y2, en points depuis le coin haut-gauche de la grande fenêtre de l'app.
+DRAG="$(dirname "$POST")/fls_drag"
+cat > "$DRAG.swift" <<'SWIFT'
+import CoreGraphics
+import Foundation
+let a = CommandLine.arguments
+guard a.count == 6, let pid = Int32(a[1]) else { print("usage : fls_drag pid x1 y1 x2 y2"); exit(2) }
+let n = a[2...5].compactMap { Double($0) }
+guard n.count == 4 else { exit(2) }
+let infos = CGWindowListCopyWindowInfo([.optionOnScreenOnly, .excludeDesktopElements], kCGNullWindowID) as? [[String: Any]] ?? []
+var best: CGRect?
+for w in infos where (w[kCGWindowOwnerPID as String] as? Int32) == pid && (w[kCGWindowLayer as String] as? Int) == 0 {
+    guard let b = w[kCGWindowBounds as String] as? NSDictionary, let r = CGRect(dictionaryRepresentation: b as CFDictionary) else { continue }
+    if best.map({ r.width * r.height > $0.width * $0.height }) ?? true { best = r }
+}
+guard let win = best else { print("glisser : fenêtre de l'app introuvable"); exit(1) }
+let start = CGPoint(x: win.minX + n[0], y: win.minY + n[1])
+let end = CGPoint(x: win.minX + n[2], y: win.minY + n[3])
+func post(_ type: CGEventType, _ p: CGPoint) {
+    CGEvent(mouseEventSource: nil, mouseType: type, mouseCursorPosition: p, mouseButton: .left)?.post(tap: .cghidEventTap)
+}
+post(.mouseMoved, start); usleep(200_000)
+post(.leftMouseDown, start); usleep(300_000)
+for i in 1...30 {
+    let t = Double(i) / 30
+    post(.leftMouseDragged, CGPoint(x: start.x + (end.x - start.x) * t, y: start.y + (end.y - start.y) * t))
+    usleep(25_000)
+}
+usleep(500_000)
+post(.leftMouseUp, end)
+print("glisser (\(Int(start.x)),\(Int(start.y))) → (\(Int(end.x)),\(Int(end.y))) · envoi \(CGPreflightPostEventAccess() ? "autorisé" : "REFUSÉ")")
+SWIFT
+swiftc -O "$DRAG.swift" -o "$DRAG" 2>/dev/null || echo "fls_drag : compilation impossible" >&2
+
 had_snap=$(defaults read "$DOMAIN" debugSnapshots 2>/dev/null || echo "")
 had_glass=$(defaults read "$DOMAIN" liquidGlass 2>/dev/null || echo "")
 had_onb=$(defaults read "$DOMAIN" didOnboard 2>/dev/null || echo "")
@@ -142,13 +177,13 @@ run() {   # $1 : libellé, $2 : YES/NO effet verre
   fit+=" / $(fits "$label-createur-ouvert")"
   # Vrai glisser-déposer à la souris : « Touche ou raccourci » de la palette, lâché entre les blocs 4 et 5 de
   # l'exemple ; la liste des blocs doit gagner une ligne.
-  "$POST" app.flshortcut.debug.drag "113,87,438,360"; sleep 3
+  "$DRAG" "$p" 113 87 438 360 >&2; sleep 2
   report "$label-createur-glisse" >/dev/null
   screencapture -x "$OUT/$label-createur-glisse.png" 2>/dev/null || true
   drop="$(rows "$label-createur-ouvert") → $(rows "$label-createur-glisse")"
   # Puis un bloc de la liste déplacé à la souris : « Clic droit » (2e ligne) lâché entre les lignes 6 et 7 ;
   # l'ordre des blocs doit changer.
-  "$POST" app.flshortcut.debug.drag "458,259,458,438"; sleep 3
+  "$DRAG" "$p" 458 259 458 438 >&2; sleep 2
   report "$label-createur-deplace" >/dev/null
   screencapture -x "$OUT/$label-createur-deplace.png" 2>/dev/null || true
   if [[ -z "$(order "$label-createur-glisse")" ]]; then moved="?"

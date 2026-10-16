@@ -15,8 +15,6 @@ enum DebugSnapshot {
     static let snapshot = Notification.Name("app.flshortcut.debug.snapshot")
     /// Vrai clic de souris à « x,y » (points, depuis le coin haut-gauche de la fenêtre de l'éditeur).
     static let click = Notification.Name("app.flshortcut.debug.click")
-    /// Vrai glisser-déposer de « x1,y1,x2,y2 » (points, depuis le coin haut-gauche de la fenêtre de l'éditeur).
-    static let drag = Notification.Name("app.flshortcut.debug.drag")
     /// Taille « l,h » (points) de la fenêtre de l'éditeur, pour les captures sur un petit écran de test.
     static let resize = Notification.Name("app.flshortcut.debug.resize")
     /// Créateur de macros : « open » l'ouvre sur une macro d'exemple jamais enregistrée, « close » le ferme.
@@ -56,14 +54,7 @@ enum DebugSnapshot {
         reportObserver = DistributedNotificationCenter.default().addObserver(forName: report, object: nil, queue: .main) { _ in
             writeReport()
         }
-        dragObserver = DistributedNotificationCenter.default().addObserver(forName: drag, object: nil, queue: .main) { note in
-            let parts = (note.object as? String ?? "").split(separator: ",").compactMap { Double($0) }
-            guard parts.count == 4 else { return }
-            realDrag(from: (x: parts[0], y: parts[1]), to: (x: parts[2], y: parts[3]))
-        }
     }
-
-    private static var dragObserver: NSObjectProtocol?
 
     private static var clickObserver: NSObjectProtocol?
     private static var resizeObserver: NSObjectProtocol?
@@ -83,6 +74,8 @@ enum DebugSnapshot {
         let hidden = NSApp.windows.filter { !$0.isVisible }.map { String(describing: type(of: $0)) }
         var text = "editorModels=\(MacroEditorModel.liveCount) windows=\(NSApp.windows.count) "
             + "visible=\(NSApp.windows.count - hidden.count) hidden=\(hidden.joined(separator: ","))\n"
+        // Envoi d'événements (vrais clics de « debug.click ») : refusé, ils n'arrivent nulle part.
+        text += "envoi d'événements : \(CGPreflightPostEventAccess() ? "autorisé" : "REFUSÉ")\n"
         // Ordre des blocs du créateur ouvert (genres seulement, aucun texte) : un bloc déplacé à la souris le change.
         if let draft = MacroEditorModel.newest?.draft {
             text += "créateur : " + draft.blocks.map { BlockRegistry.journal(of: $0.body) }.joined(separator: " > ") + "\n"
@@ -218,19 +211,6 @@ enum DebugSnapshot {
             post(.leftMouseDown, point)
             post(.leftMouseUp, point)
         }
-    }
-
-    /// Vrai glisser-déposer de la souris, comme une main : appui, 24 petits pas en 0,6 s, pause sur la cible, lâcher.
-    private static func realDrag(from: (x: Double, y: Double), to: (x: Double, y: Double)) {
-        guard let start = screenPoint(x: from.x, y: from.y), let end = screenPoint(x: to.x, y: to.y) else { return }
-        let steps = 24
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { post(.leftMouseDown, start) }
-        for i in 1...steps {
-            let t = Double(i) / Double(steps)
-            let p = CGPoint(x: start.x + (end.x - start.x) * t, y: start.y + (end.y - start.y) * t)
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5 + 0.025 * Double(i)) { post(.leftMouseDragged, p) }
-        }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.6) { post(.leftMouseUp, end) }
     }
 
     /// Une image PNG par fenêtre visible, dans ~/Library/Caches/app.flshortcut.FLShortcut/.

@@ -496,22 +496,17 @@ private struct CommunityShareDetail: View {
                 .foregroundStyle(.orange)
                 .fixedSize(horizontal: false, vertical: true)
         case .macro(let preview):
-            numbered(preview.lines)
+            listed(preview.lines)
         case .profile(let preview):
-            numbered(preview.summary)
+            listed(preview.summary)
         }
     }
 
-    private func numbered(_ lines: [String]) -> some View {
+    /// Lignes de l'aperçu d'import, telles quelles (celles d'une macro sont déjà numérotées : « 12.1. … »).
+    private func listed(_ lines: [String]) -> some View {
         VStack(alignment: .leading, spacing: 5) {
-            ForEach(Array(lines.enumerated()), id: \.offset) { index, line in
-                HStack(alignment: .firstTextBaseline, spacing: 8) {
-                    Text("\(index + 1)")
-                        .font(.system(size: 11, weight: .semibold).monospacedDigit())
-                        .foregroundStyle(.secondary)
-                        .frame(width: 20, alignment: .trailing)
-                    Text(line).font(.system(size: 12)).fixedSize(horizontal: false, vertical: true)
-                }
+            ForEach(Array(lines.enumerated()), id: \.offset) { _, line in
+                Text(line).font(.system(size: 12)).fixedSize(horizontal: false, vertical: true)
             }
         }
         .padding(12)
