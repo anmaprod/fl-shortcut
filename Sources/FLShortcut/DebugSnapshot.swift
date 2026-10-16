@@ -24,6 +24,9 @@ enum DebugSnapshot {
     /// Écrit « editorModels=<n> windows=<n> visible=<n> hidden=<classes> » dans report.txt : modèles du créateur
     /// encore vivants, fenêtres de l'app (même masquées), fenêtres visibles, classes des fenêtres masquées.
     static let report = Notification.Name("app.flshortcut.debug.report")
+    /// Page Communauté avec des exemples, sans réseau : « connexion », « inscription », « liste », « vide »,
+    /// « detail », « partager » ou « signaler ».
+    static let community = Notification.Name("app.flshortcut.debug.community")
 
     static func publisher(_ name: Notification.Name) -> AnyPublisher<Notification, Never> {
         guard enabled else { return Empty().eraseToAnyPublisher() }

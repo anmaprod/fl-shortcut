@@ -132,6 +132,8 @@ struct EditorView: View {
     /// Le modèle n'existe que pendant qu'il est affiché.
     @State private var macroEditor: MacroEditorModel?
     @ObservedObject private var creatorLink = MacroCreatorLink.shared
+    /// Page Communauté : le « + » (partager) n'apparaît qu'une fois connecté.
+    @ObservedObject private var community = CommunityStore.shared
 
     /// Entre dans le créateur sur cette macro (la fenêtre reste la même ; la flèche ← y ramène).
     private func openCreator(_ id: UUID?) {
@@ -542,7 +544,7 @@ struct EditorView: View {
         if onMacrosPage {
             ToolbarItem(placement: .navigation) { arrows }
         }
-        if page != .community {
+        if showsNewButton {
             ToolbarItem(placement: .primaryAction) { newButton }
         }
         if !onMacrosPage {
@@ -558,11 +560,11 @@ struct EditorView: View {
                 if onMacrosPage {
                     ToolbarItem(placement: .navigation) { arrows }
                 }
-                if page != .community {
+                if showsNewButton {
                     ToolbarItem(placement: .primaryAction) { newButton }
                 }
                 if !onMacrosPage {
-                    if page != .community {
+                    if showsNewButton {
                         ToolbarSpacer(.fixed, placement: .primaryAction)
                     }
                     ToolbarItem(placement: .primaryAction) { profileMenu }
@@ -582,20 +584,24 @@ struct EditorView: View {
         return FinderArrows(back: nil, forward: last.map { id in { openCreator(id) } })
     }
 
-    /// « + » de la page : une macro sur la page Macros, un raccourci de cette page ailleurs.
+    /// « + » partout, sauf sur la page Communauté tant qu'on n'est pas connecté (rien à partager sans compte).
+    private var showsNewButton: Bool { page != .community || community.session != nil }
+
+    /// « + » de la page : une macro sur la page Macros, un partage sur la page Communauté, un raccourci de cette
+    /// page ailleurs.
     private var newButton: some View {
         let current = page
         let help: String
         switch current {
         case .macros: help = "Nouvelle macro"
-        case .community: help = "Partager"
+        case .community: help = "Partager une macro ou tes raccourcis"
         case .custom: help = "Nouveau raccourci personnalisé"
         case .section(let s): help = "Nouveau raccourci pour la page « \(s.title) »"
         }
         return Button {
             switch current {
             case .macros: MacroLibraryPage.newMacro(in: store.library)
-            case .community: break                             // pas de « + » sur cette page
+            case .community: community.composing = true
             case .custom: newCustom(page: nil)
             case .section(let s): newCustom(page: s)
             }

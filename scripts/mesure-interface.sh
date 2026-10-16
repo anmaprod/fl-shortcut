@@ -115,6 +115,16 @@ run() {   # $1 : libellé, $2 : YES/NO effet verre
   "$POST" app.flshortcut.debug.snapshot "$label-macros"; sleep 2
   cp "$HOME/Library/Caches/$DOMAIN/$label-macros-"*.png "$OUT/" 2>/dev/null || true
   mb=$(mem_mb "$p")
+  # Page Communauté, avec des exemples et sans réseau : chaque écran photographié (une seule fois, avec le verre).
+  if [[ "$label" == verre ]]; then
+    "$POST" app.flshortcut.debug.select community; sleep 2
+    for screen in connexion inscription liste vide detail partager signaler; do
+      "$POST" app.flshortcut.debug.community "$screen"; sleep 3
+      screencapture -x "$OUT/communaute-$screen.png" 2>/dev/null || true
+    done
+    "$POST" app.flshortcut.debug.community liste; sleep 2
+    "$POST" app.flshortcut.debug.select macros; sleep 2
+  fi
   # Témoin : aucun modèle du créateur avant sa première ouverture (fenêtres : toutes, et visibles seulement).
   local n0
   n0=$(report "$label-avant-createur")

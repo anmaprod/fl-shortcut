@@ -156,4 +156,34 @@ final class CommunityTests: XCTestCase {
     func testDayFormat() {
         XCTAssertEqual(CommunityText.day("2026-10-16T18:02:11+00:00"), "16/10/2026")
     }
+
+    /// Mode capture de la mesure : exemples affichés, aucune requête (serveur vide), Trousseau jamais touché.
+    @MainActor
+    func testDemoNeverUsesServerOrKeychain() async {
+        let server = FakeServer([])
+        let keychain = CommunitySessionKeychain(service: "app.flshortcut.tests.\(UUID().uuidString)")
+        let community = CommunityStore(config: config, keychain: keychain, transport: server)
+        community.showDemo(signedIn: false)
+        XCTAssertTrue(community.isConfigured)
+        XCTAssertNil(community.session)
+        community.showDemo(signedIn: true)
+        XCTAssertEqual(community.session?.username, "malo")
+        XCTAssertEqual(community.shares.count, 4)
+        XCTAssertEqual(community.shares.filter(community.isMine).count, 1, "un partage à soi, avec son badge")
+        await community.open()
+        await community.reload()
+        await community.signIn(email: "malo@example.com", password: "motdepasse")
+        XCTAssertEqual(community.shares.count, 4)
+        XCTAssertTrue(server.requests.isEmpty, "aucune requête en mode capture")
+        XCTAssertNil(keychain.load())
+        await community.signOut()
+        XCTAssertNil(community.session)
+        XCTAssertTrue(server.requests.isEmpty)
+    }
+
+    func testByline() {
+        let share = Share(id: UUID(), authorID: UUID(), kind: .macro, title: "Armer la piste", notes: "",
+                          appVersion: "0.1.0", createdAt: "2026-10-15T18:02:11Z", author: Share.Author(username: "leo"))
+        XCTAssertEqual(CommunityText.byline(share), "Macro · par @leo · 15/10/2026")
+    }
 }
