@@ -607,8 +607,8 @@ private enum Specs {
         needs: { _ in base.union(.lienMIDI) },
         parDefaut: { .nameColor(name: nil, color: NameColorPayload.defaultColor) },
         resume: { body, _ in
-            guard case .nameColor(let name, let color, let fade, _) = body else { return "" }
-            return NameColorPayload.summary(name: name, color: color, fade: fade)
+            guard case .nameColor(let name, let color, let fade, let icon) = body else { return "" }
+            return NameColorPayload.summary(name: name, color: color, fade: fade, icon: icon)
         },
         journal: { _ in "nameColor" },
         estimationMs: { _ in 300 },
@@ -619,6 +619,7 @@ private enum Specs {
                 // Comme « Gradient color… » de FL : une couleur de départ, et jamais de nom (plusieurs pistes).
                 guard payload.color != nil else { return ctx.fail("un dégradé demande ses deux couleurs.") }
                 guard payload.name == nil else { return ctx.fail("un dégradé ne change pas le nom : retire le nom.") }
+                guard icon == nil else { return ctx.fail("un dégradé ne pose pas d'icône : retire l'icône.") }
             }
             guard payload.name != nil || payload.color != nil || icon != nil else {
                 return ctx.fail("donne un nom ou une couleur.")

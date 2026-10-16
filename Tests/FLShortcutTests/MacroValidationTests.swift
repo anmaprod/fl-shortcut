@@ -194,6 +194,9 @@ final class MacroValidationTests: XCTestCase {
         XCTAssertEqual(problem([b(.nameColor(name: "Kick", color: red, fade: dark))]),
                        "Étape 1 : un dégradé ne change pas le nom : retire le nom.")
         XCTAssertNil(problem([b(.nameColor(name: nil, color: nil, icon: FLIcon(code: "1-0")))]))     // icône seule
+        // F2 n'agit que sur un seul élément : pas d'icône avec un dégradé.
+        XCTAssertEqual(problem([b(.nameColor(name: nil, color: red, fade: dark, icon: FLIcon(code: "1-0")))]),
+                       "Étape 1 : un dégradé ne pose pas d'icône : retire l'icône.")
         XCTAssertEqual(NameColorPayload.message(forReason: 7), "Sélectionne au moins 2 pistes pour un dégradé.")
     }
 
