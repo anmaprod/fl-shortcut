@@ -184,13 +184,14 @@ enum DebugSnapshot {
     }
 }
 
-/// Icône de la barre des menus ; en mode capture, sait aussi ouvrir l'éditeur.
+/// Icône de la barre des menus (le logo de l'app, avec la pastille d'état : MenuBarIcon) ; en mode capture, sait
+/// aussi ouvrir l'éditeur.
 struct MenuBarLabel: View {
     @Environment(\.openWindow) private var openWindow
     let symbol: String
 
     var body: some View {
-        Image(systemName: symbol)
+        Image(nsImage: MenuBarIcon.image(MenuBarIcon.state(forSymbol: symbol)))
             .onReceive(DebugSnapshot.publisher(DebugSnapshot.open)) { _ in
                 openWindow(id: "editor")
                 NSApp.activate(ignoringOtherApps: true)
