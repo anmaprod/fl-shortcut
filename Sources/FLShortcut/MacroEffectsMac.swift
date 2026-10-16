@@ -847,9 +847,7 @@ final class MacroEffectsMac: MacroEffects {
                 frame = ctx.frame
             }
             guard let f = frame else { return nil }
-            let x: CGFloat = corner == .topLeft || corner == .bottomLeft ? f.minX : f.maxX
-            let y: CGFloat = corner == .topLeft || corner == .topRight ? f.minY : f.maxY
-            return (CGPoint(x: x + dx, y: y + dy), nil)
+            return (Self.point(in: f, corner: corner, dx: dx, dy: dy), nil)
         case .cursorXWindowY(let dx, let dy):
             guard let f = ctx.frame else { return nil }
             return (CGPoint(x: ctx.origin.x + dx, y: f.minY + dy), nil)

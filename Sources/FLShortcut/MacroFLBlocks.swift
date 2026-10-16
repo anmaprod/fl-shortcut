@@ -44,7 +44,6 @@ extension MacroEffectsMac {
 
         // 1. Le menu de la piste s'ouvre (nouvelle fenêtre de FL).
         var opened: Set<Int> = []
-        func succeeded() -> StepResult { .ok }
         switch WindowWait.newWindow(pid: ctx.pid, excluding: before.numbers, timeout: 1.5,
                                     accept: { $0.isMenuLike }, stop: stopReason) {
         case .success(let menu):
@@ -105,7 +104,7 @@ extension MacroEffectsMac {
             case .success:
                 MacroLog.shared.write("MENU", "« \(last) » → menus closed")
                 memory.write(false)
-                return succeeded()
+                return .ok
             case .failure(.stopped(let why)):
                 return .cancel(why)
             case .failure(.timeout):
@@ -118,7 +117,7 @@ extension MacroEffectsMac {
                 // Cette fois la lettre a suffi (menu changé ?) : plus d'Entrée automatique.
                 memory.write(false)
                 MacroLog.shared.write("MENU", "« \(last) » → menus closed (Enter not needed any more)")
-                return succeeded()
+                return .ok
             }
         }
         postKey(KeyCombo(keyCode: 36), pid: ctx.pid)
@@ -126,7 +125,7 @@ extension MacroEffectsMac {
         case .success:
             MacroLog.shared.write("MENU", "Enter → menus closed")
             memory.write(true)
-            return succeeded()
+            return .ok
         case .failure(.stopped(let why)):
             return .cancel(why)
         case .failure(.timeout):
