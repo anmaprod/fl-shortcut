@@ -328,6 +328,11 @@ struct EditorView: View {
             } header: {
                 Text("FL Studio")
             }
+            // Macros d'abord, puis tes raccourcis, chacun dans son groupe.
+            Section {
+                MacroSidebarRow(library: store.library)
+                    .tag(SidebarItem.macros)
+            }
             Section {
                 Label {
                     Text("Mes raccourcis")
@@ -336,10 +341,6 @@ struct EditorView: View {
                 }
                 .badge(data.others.count)
                 .tag(SidebarItem.custom)
-                MacroSidebarRow(library: store.library)
-                    .tag(SidebarItem.macros)
-            } header: {
-                Text("Personnalisés")
             }
             Section {
                 Label {

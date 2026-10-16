@@ -58,7 +58,7 @@ defaults write app.flshortcut.FLShortcut communityAnonKey "eyJ…"
 La page **Aide** de l'app (barre latérale) a un formulaire « Écrire à l'équipe » (problème, question ou idée, mail
 facultatif pour répondre, état de l'app joint si l'utilisateur le laisse coché). Avec le serveur branché, chaque
 message arrive dans **Table Editor › support_requests** (ou SQL :
-`select created_at, kind, email, message, diagnostic from support_requests order by created_at desc`). Personne ne
+`select created_at, reference, kind, email, message, error, diagnostic from support_requests order by created_at desc`). Personne ne
 peut les relire depuis l'app ; 5 messages par heure et par mail au plus.
 
 - Être prévenu à chaque message : **Database › Webhooks › Create a new hook**, table `support_requests`, événement

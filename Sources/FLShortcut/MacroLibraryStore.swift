@@ -140,8 +140,9 @@ final class MacroLibraryStore: ObservableObject {
     static let previousLabel = "precedente"
 
     @Published private(set) var macros: [MacroDoc] = []
-    @Published var loadWarning: String?
-    @Published private(set) var saveError: String?
+    // Chaque avertissement et chaque erreur d'enregistrement rejoint les derniers problèmes (message d'aide).
+    @Published var loadWarning: String? { didSet { if let v = loadWarning, v != oldValue { ProblemLog.shared.add(v) } } }
+    @Published private(set) var saveError: String? { didSet { if let v = saveError, v != oldValue { ProblemLog.shared.add(v) } } }
     /// Appelé après chaque changement (Store.recompute : index du tap, besoins des macros).
     var onChange: (() -> Void)?
 

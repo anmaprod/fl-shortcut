@@ -5,12 +5,21 @@
 import AppKit
 import SwiftUI
 
-/// Demande d'ouvrir la page Aide (menu de la barre des menus) : la fenêtre principale la montre dès qu'elle est là.
+/// Demande d'ouvrir la page Aide (menu de la barre des menus, « Signaler ce problème ») : la fenêtre principale la
+/// montre dès qu'elle est là, le formulaire prérempli avec l'erreur signalée.
 final class HelpLink: ObservableObject {
     static let shared = HelpLink()
     @Published var pending = false
+    /// Message d'erreur à joindre (macro qui échoue…), repris par le formulaire.
+    @Published var reportedError: String?
 
     func show() { pending = true }
+
+    /// « Signaler ce problème » : la page Aide, le formulaire prêt avec ce message d'erreur.
+    func report(_ error: String) {
+        reportedError = error
+        pending = true
+    }
 }
 
 struct HelpPage: View {
@@ -19,6 +28,7 @@ struct HelpPage: View {
     @EnvironmentObject var link: MIDILink
     @ObservedObject var community: CommunityStore
     let showGuide: () -> Void
+    @ObservedObject private var helpLink = HelpLink.shared
 
     @State private var query = ""
     @State private var opened: Set<Int> = []
@@ -28,11 +38,13 @@ struct HelpPage: View {
     @State private var sending = false
     @State private var sent = false
     @State private var failure: String?
+    /// L'app de mail s'est ouverte avec le message : reste à l'envoyer.
+    @State private var mailOpened = false
+    /// Ce qui est joint (état, derniers problèmes, journal de la dernière macro), relu à l'ouverture et à l'envoi.
+    @State private var attached = ""
+    @State private var scrollToForm = 0
 
     private var entries: [HelpEntry] { HelpContent.faq.filter { $0.matches(query) } }
-    private var diagnostic: String {
-        SupportDiagnostic.text(SupportDiagnostic.current(store: store, status: status, fl: FLMonitor.shared, link: link))
-    }
 
     var body: some View {
         ScrollViewReader { reader in
@@ -86,9 +98,15 @@ struct HelpPage: View {
             .glassListBackground()
             .onAppear {
                 if message.email.isEmpty { message.email = community.session?.email ?? "" }
+                refreshAttached()
+                takeReportedError()
+            }
+            .onChange(of: helpLink.reportedError) { _ in takeReportedError() }
+            .onChange(of: scrollToForm) { _ in
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { reader.scrollTo("form", anchor: .top) }
             }
             .onReceive(DebugSnapshot.publisher(DebugSnapshot.help)) { note in
-                showCapture(note.object as? String ?? "", reader: reader)
+                showCapture(note.object as? String ?? "")
             }
         }
     }
@@ -115,6 +133,28 @@ struct HelpPage: View {
 
     private var form: some View {
         VStack(alignment: .leading, spacing: 12) {
+            if let error = message.error {
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack {
+                        Label("Le problème signalé", systemImage: "exclamationmark.triangle.fill")
+                            .font(.system(size: 12, weight: .semibold))
+                            .foregroundStyle(.orange)
+                        Spacer()
+                        Button("Retirer") { message.error = nil }
+                            .buttonStyle(.link)
+                            .font(.system(size: 11))
+                    }
+                    Text(error)
+                        .font(.system(size: 12))
+                        .textSelection(.enabled)
+                        .fixedSize(horizontal: false, vertical: true)
+                    Text("Dis en quelques mots ce que tu faisais juste avant : ça nous aide beaucoup.")
+                        .font(.system(size: 11))
+                        .foregroundStyle(.secondary)
+                }
+                .padding(8)
+                .background(RoundedRectangle(cornerRadius: 6, style: .continuous).fill(Color.orange.opacity(0.08)))
+            }
             Picker("Genre", selection: $message.kind) {
                 ForEach(SupportKind.allCases) { kind in Text(kind.label).tag(kind) }
             }
@@ -148,23 +188,34 @@ struct HelpPage: View {
                         .toggleStyle(.checkbox)
                     Spacer()
                     Button(showDiagnostic ? "Masquer" : "Voir ce qui est joint") {
+                        refreshAttached()
                         withAnimation(Motion.smooth) { showDiagnostic.toggle() }
                     }
                     .buttonStyle(.link)
                     .font(.system(size: 12))
                 }
                 if showDiagnostic {
-                    Text(diagnostic)
-                        .font(.system(size: 11, design: .monospaced))
-                        .textSelection(.enabled)
-                        .fixedSize(horizontal: false, vertical: true)
-                        .padding(8)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .background(RoundedRectangle(cornerRadius: 6).fill(Color.primary.opacity(0.05)))
+                    ScrollView {
+                        Text(attached)
+                            .font(.system(size: 11, design: .monospaced))
+                            .textSelection(.enabled)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .padding(8)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                    .frame(maxHeight: 200)
+                    .background(RoundedRectangle(cornerRadius: 6).fill(Color.primary.opacity(0.05)))
                 }
                 Label("Jamais envoyé : tes touches, tes noms de pistes, tes fichiers.", systemImage: "lock")
                     .font(.system(size: 11))
                     .foregroundStyle(.secondary)
+            }
+            if mailOpened {
+                Label("Ton app de mail s'est ouverte avec le message tout prêt : vérifie-le, puis envoie-le.",
+                      systemImage: "envelope")
+                    .font(.system(size: 12))
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
             }
             if let failure {
                 Label(failure, systemImage: "exclamationmark.triangle.fill")
@@ -179,8 +230,27 @@ struct HelpPage: View {
 
     private var outgoing: SupportMessage {
         var m = message
-        m.diagnostic = includeDiagnostic ? diagnostic : nil
+        m.diagnostic = includeDiagnostic ? attached : nil
         return m
+    }
+
+    private func refreshAttached() {
+        attached = SupportDiagnostic.report(
+            SupportDiagnostic.current(store: store, status: status, fl: FLMonitor.shared, link: link),
+            problems: ProblemLog.shared.text, journal: MacroLog.lastRunExcerpt())
+    }
+
+    /// « Signaler ce problème » : formulaire prêt avec l'erreur, page déroulée jusqu'à lui.
+    private func takeReportedError() {
+        guard let error = helpLink.reportedError else { return }
+        helpLink.reportedError = nil
+        message.kind = .probleme
+        message.error = error
+        sent = false
+        failure = nil
+        mailOpened = false
+        refreshAttached()
+        scrollToForm += 1
     }
 
     private var ready: Bool { SupportRules.problem(message) == nil }
@@ -231,8 +301,14 @@ struct HelpPage: View {
                 .font(.system(size: 12))
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
+            Text("Référence : \(message.reference)")
+                .font(.system(size: 11).monospacedDigit())
+                .foregroundStyle(.tertiary)
+                .textSelection(.enabled)
             Button("Écrire un autre message") {
                 message.text = ""
+                message.error = nil
+                message.reference = SupportMessage.newReference()
                 sent = false
             }
             .buttonStyle(.link)
@@ -245,6 +321,7 @@ struct HelpPage: View {
         sending = true
         failure = nil
         defer { sending = false }
+        refreshAttached()
         if let why = await community.sendSupport(outgoing) {
             failure = "Envoi impossible : \(why) Tu peux " + (SupportConfig.email == nil ? "le copier ou ouvrir un ticket." : "l'envoyer par mail.")
         } else {
@@ -258,8 +335,10 @@ struct HelpPage: View {
     }
 
     private func openMail(_ address: String) {
+        refreshAttached()
         if let url = SupportRules.mailURL(outgoing, to: address, appVersion: MacroFileActions.appVersion) {
-            NSWorkspace.shared.open(url)
+            mailOpened = NSWorkspace.shared.open(url)
+            if !mailOpened { failure = "Aucune app de mail ne s'est ouverte : copie le message et envoie-le à \(address)." }
         }
     }
 
@@ -270,16 +349,18 @@ struct HelpPage: View {
     }
 
     /// Mode capture (mesure de la CI) : « aide », « recherche », « ecrire » ou « envoye ».
-    private func showCapture(_ screen: String, reader: ScrollViewProxy) {
+    private func showCapture(_ screen: String) {
         query = screen == "recherche" ? "macro" : ""
         opened = screen == "aide" ? [1] : []
         sent = screen == "envoye"
         failure = nil
         if screen == "ecrire" || screen == "envoye" {
-            message = SupportMessage(kind: .probleme, text: "Ma macro s'arrête au 3e bloc quand le Mixer est détaché.",
-                                     email: "malo@exemple.fr")
-            showDiagnostic = screen == "ecrire"
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { reader.scrollTo("form", anchor: .top) }
+            message = SupportMessage(kind: .probleme, text: "Je lançais ma macro « Armer la piste » depuis le Mixer.",
+                                     email: "malo@exemple.fr",
+                                     error: "Macro : échec au bloc 3 (Attendre un menu) : aucun menu de FL ne s'est ouvert en 1,5 s.")
+            showDiagnostic = false
+            refreshAttached()
+            scrollToForm += 1
         }
     }
 }

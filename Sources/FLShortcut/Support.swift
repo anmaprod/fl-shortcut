@@ -49,12 +49,22 @@ struct SupportMessage: Equatable {
     var text = ""
     /// Pour lui répondre ; facultatif.
     var email = ""
-    /// État de l'app joint (nil : décoché).
+    /// Le message d'erreur signalé (bouton « Signaler ce problème » d'une macro qui échoue), tel que l'app l'a affiché.
+    var error: String?
+    /// État de l'app, derniers problèmes et journal de la dernière macro (nil : décoché).
     var diagnostic: String?
+    /// « FLS-3F9A2C » : retrouver le message dans la boîte de l'équipe, et y répondre.
+    var reference = SupportMessage.newReference()
+
+    static func newReference() -> String {
+        "FLS-" + UUID().uuidString.replacingOccurrences(of: "-", with: "").prefix(6)
+    }
 }
 
 enum SupportRules {
     static let messageRange = 10...4000
+    /// Diagnostic joint : état de l'app, derniers problèmes, journal de la dernière macro.
+    static let maxDiagnostic = 12_000
 
     /// Ce qui empêche l'envoi (nil : prêt) ; mêmes règles que le serveur.
     static func problem(_ m: SupportMessage) -> String? {
@@ -66,18 +76,22 @@ enum SupportRules {
         return nil
     }
 
-    /// Le message en texte, pour un mail, le presse-papiers ou un ticket.
+    /// Le message en texte, pour un mail, le presse-papiers ou un ticket : toujours le même plan, pour lire vite.
     static func plainText(_ m: SupportMessage, appVersion: String) -> String {
-        var out = "\(m.kind.label) — FL Shortcut \(appVersion)\n\n" + m.text.trimmingCharacters(in: .whitespacesAndNewlines)
+        var out = "Référence : \(m.reference)\nGenre : \(m.kind.label)\nFL Shortcut \(appVersion)"
         let mail = m.email.trimmingCharacters(in: .whitespaces)
-        if !mail.isEmpty { out += "\n\nPour me répondre : \(mail)" }
+        if !mail.isEmpty { out += "\nPour répondre : \(mail)" }
+        out += "\n\n— Message —\n" + m.text.trimmingCharacters(in: .whitespacesAndNewlines)
+        if let e = m.error, !e.isEmpty { out += "\n\n— Le problème signalé —\n" + e }
         if let d = m.diagnostic, !d.isEmpty { out += "\n\n— État de l'app —\n" + d }
         return out
     }
 
+    /// « [FL Shortcut] Problème · FLS-3F9A2C · Ma macro s'arrête… » : un filtre sur « [FL Shortcut] » range tout.
     static func subject(_ m: SupportMessage) -> String {
         let first = m.text.trimmingCharacters(in: .whitespacesAndNewlines).split(separator: "\n").first.map(String.init) ?? ""
-        return "FL Shortcut · \(m.kind.label) : \(first.prefix(60))"
+        let kind = m.kind.label.split(separator: " ").last.map { $0.prefix(1).uppercased() + $0.dropFirst() } ?? ""
+        return "[FL Shortcut] \(kind) · \(m.reference) · \(first.prefix(60))"
     }
 
     /// Mail tout prêt pour l'app de mail.
@@ -119,6 +133,14 @@ enum SupportDiagnostic {
         var macrosToLearn: Int
         var lastMacro: String?
         var screens: [String]
+    }
+
+    /// Tout ce qui est joint : l'état, puis les derniers problèmes et le journal de la dernière macro s'il y en a.
+    static func report(_ f: Facts, problems: String?, journal: String?) -> String {
+        var out = text(f)
+        if let problems { out += "\n\n— Derniers problèmes —\n" + problems }
+        if let journal { out += "\n\n— Journal de la dernière macro —\n" + journal }
+        return String(out.prefix(SupportRules.maxDiagnostic))
     }
 
     static func text(_ f: Facts) -> String {
@@ -220,6 +242,11 @@ enum HelpContent {
                       + "envoyé. Seul ce que tu publies dans la Communauté, et ce que tu écris à l'équipe depuis cette "
                       + "page, part sur internet.",
                   keywords: "vie privee donnees confidentialite securite internet"),
+        HelpEntry(id: 11, question: "Signaler un problème",
+                  answer: "En bas de cette page, « Écrire à l'équipe ». Quand une macro échoue, le bouton « Signaler » "
+                      + "de son bandeau (ou « Signaler ce problème… » dans le menu de l'icône en haut de l'écran) prépare "
+                      + "le message avec l'erreur et le journal de la macro : tu vois tout ce qui est joint avant l'envoi.",
+                  keywords: "bug erreur contact equipe support aide ecrire"),
         HelpEntry(id: 10, question: "Désinstaller FL Shortcut",
                   answer: "Menu ⋯ en haut à droite de la fenêtre, ou menu de l'icône en haut de l'écran › « Désinstaller "
                       + "FL Shortcut… » : l'app, ses réglages et le lien avec FL sont retirés.",

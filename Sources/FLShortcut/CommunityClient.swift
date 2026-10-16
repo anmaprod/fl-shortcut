@@ -273,8 +273,10 @@ struct CommunityClient {
     func sendSupport(_ message: SupportMessage, appVersion: String, token: String?) async throws {
         if let why = SupportRules.problem(message) { throw CommunityError.invalid(why) }
         var body: [String: Any] = ["kind": message.kind.rawValue,
+                                   "reference": message.reference,
                                    "message": message.text.trimmingCharacters(in: .whitespacesAndNewlines),
-                                   "diagnostic": String((message.diagnostic ?? "").prefix(4000)),
+                                   "error": String((message.error ?? "").prefix(2000)),
+                                   "diagnostic": String((message.diagnostic ?? "").prefix(SupportRules.maxDiagnostic)),
                                    "app_version": String(appVersion.prefix(20))]
         let mail = message.email.trimmingCharacters(in: .whitespaces)
         if !mail.isEmpty { body["email"] = mail }

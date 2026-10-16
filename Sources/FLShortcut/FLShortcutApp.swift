@@ -118,11 +118,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 final class AppStatus: ObservableObject {
     static let shared = AppStatus()
 
-    @Published private(set) var accessibilityOK = false
+    @Published private(set) var accessibilityOK = false {
+        didSet { if oldValue, !accessibilityOK { ProblemLog.shared.add("Clavier : autorisation Accessibilité perdue") } }
+    }
     @Published private(set) var secureInput = false
     @Published private(set) var tapRunning = false
-    @Published private(set) var staleTCC = false
-    @Published private(set) var tapUnstable = false
+    @Published private(set) var staleTCC = false {
+        didSet { if staleTCC, !oldValue { ProblemLog.shared.add("Clavier : autorisation périmée (FL Shortcut à retirer puis rajouter dans Accessibilité)") } }
+    }
+    @Published private(set) var tapUnstable = false {
+        didSet { if tapUnstable, !oldValue { ProblemLog.shared.add("Clavier : macOS a coupé l'interception, elle a été relancée") } }
+    }
     @Published private(set) var scriptState: ScriptIntegrity.State = .notInstalled
     @Published private(set) var capabilities: CapabilityMask? = nil
     @Published private(set) var flVersion: FLVersion? = nil
@@ -404,6 +410,14 @@ struct MenuContent: View {
                 .font(.system(size: 11))
                 .padding(.horizontal, 8)
                 .padding(.bottom, 6)
+                if !macro.ok {
+                    // La page Aide, le formulaire prêt avec ce message d'erreur et le journal de la macro.
+                    PanelItem(symbol: "exclamationmark.bubble", title: "Signaler ce problème…") {
+                        HelpLink.shared.report("Macro : " + macro.text)
+                        openWindow(id: "editor")
+                        NSApp.activate(ignoringOtherApps: true)
+                    }
+                }
             }
 
             ForEach(alerts, id: \.self) { text in

@@ -693,14 +693,17 @@ private struct MacroResultBanner: View {
             banner(symbol: "stop.circle.fill", tint: .orange, text: model.outcomeText(outcome), close: { monitor.clear() })
         case .failed, .failedInBlock:
             let editor = model
+            let text = model.outcomeText(outcome)
             let show: (String, () -> Void)? = monitor.failedBlock == nil ? nil : ("Montrer le bloc", { editor.showFailedBlock() })
-            banner(symbol: "xmark.octagon.fill", tint: .red, text: model.outcomeText(outcome), action: show,
+            // « Signaler » : la page Aide, le formulaire prêt avec ce message d'erreur et le journal de l'essai.
+            banner(symbol: "xmark.octagon.fill", tint: .red, text: text, action: show,
+                   report: { HelpLink.shared.report("Macro « \(editor.draft?.name ?? "?") » : \(text)") },
                    close: { monitor.clear() })
         }
     }
 
     private func banner(symbol: String, tint: Color?, text: String, action: (String, () -> Void)? = nil,
-                        close: (() -> Void)? = nil) -> some View {
+                        report: (() -> Void)? = nil, close: (() -> Void)? = nil) -> some View {
         HStack(spacing: 10) {
             Image(systemName: symbol)
                 .font(.system(size: 14, weight: .semibold))
@@ -711,6 +714,12 @@ private struct MacroResultBanner: View {
             Spacer(minLength: 8)
             if let action {
                 Button(action.0, action: action.1).controlSize(.small).onGlassButton()
+            }
+            if let report {
+                Button("Signaler", action: report)
+                    .controlSize(.small)
+                    .onGlassButton()
+                    .help("Écrire à l'équipe : le message d'erreur et le journal de cet essai sont joints, tu les vois avant l'envoi")
             }
             if let close {
                 Button(action: close) {

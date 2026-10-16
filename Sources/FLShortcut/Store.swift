@@ -57,8 +57,9 @@ final class Store: ObservableObject {
         didSet { pushConfig() }
     }
     @Published private(set) var issues: [UUID: [ShortcutIssue]] = [:]
-    @Published var loadWarning: String? = nil
-    @Published private(set) var saveError: String? = nil
+    // Chaque avertissement et chaque erreur d'enregistrement rejoint les derniers problèmes (message d'aide).
+    @Published var loadWarning: String? = nil { didSet { if let v = loadWarning, v != oldValue { ProblemLog.shared.add(v) } } }
+    @Published private(set) var saveError: String? = nil { didSet { if let v = saveError, v != oldValue { ProblemLog.shared.add(v) } } }
     @Published private(set) var toggleCombo = KeyCombo(keyCode: 3, command: true, option: true, control: true)
     /// Dernier état avant un remplacement (profil, import) : permet d'annuler.
     @Published private(set) var undoSnapshot: [Remap]? = nil

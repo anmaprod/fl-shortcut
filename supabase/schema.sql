@@ -108,11 +108,16 @@ create table public.support_requests (
   id uuid primary key default gen_random_uuid(),
   user_id uuid default auth.uid() references auth.users on delete set null,
   kind text not null check (kind in ('probleme', 'question', 'idee')),
+  -- « FLS-3F9A2C », aussi dans le mail envoyé sans serveur : retrouver un message et y répondre.
+  reference text not null default '' check (char_length(reference) <= 20),
   message text not null check (char_length(message) between 10 and 4000),
+  -- Le message d'erreur signalé (bouton « Signaler ce problème » d'une macro qui échoue).
+  error text not null default '' check (char_length(error) <= 2000),
   -- Pour répondre ; facultatif (sans mail, on ne peut pas répondre).
   email text check (email is null or (char_length(email) <= 254 and email ~ '^[^@[:space:]]+@[^@[:space:]]+\.[^@[:space:]]+$')),
-  -- État de l'app, joint si l'utilisateur le laisse coché (jamais de touches, de noms de pistes ni de fichiers).
-  diagnostic text not null default '' check (char_length(diagnostic) <= 4000),
+  -- État de l'app, derniers problèmes et journal de la dernière macro, joints si l'utilisateur le laisse coché
+  -- (jamais de touches, de noms de pistes ni de fichiers).
+  diagnostic text not null default '' check (char_length(diagnostic) <= 12000),
   app_version text not null default '' check (char_length(app_version) <= 20),
   created_at timestamptz not null default now()
 );
