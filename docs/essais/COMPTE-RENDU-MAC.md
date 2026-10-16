@@ -102,6 +102,29 @@ Tests Swift (314, 0 échec) et compilation : PASS au premier lancement.
    Remise en état faite à la main : `defaults delete … macroMenuEnterAfterLetter` et
    `defaults delete … macroSpots.v2.input`. Le domaine est ensuite identique à la sauvegarde.
 
+## C. Macros (constats sans essai, d'après les captures du vrai FL du 16/10)
+
+**C3 — en partie vérifié, sans essai.** Le menu de piste du Mixer (clic droit sur le nom d'Insert 1, FL 26.1.7)
+contient, dans l'ordre de la section Routing : Channel routing ›, Track routing › (grisé), Select ›, Reset selected
+track(s) routing, Unroute tracks routed to the selected track(s), puis un séparateur, puis Solo selected track(s)
+(S), Alt solo selected track(s) (⌥S), Arm selected track(s), Disarm selected track(s), Compensate for master latency
+(grisé, coché). Depuis « Select », « Arm selected track(s) » est donc le 5e élément actif, ce que suppose
+`MacroRunner.armDownCount = 5` (`MacroRunner.swift:139`), À CONDITION que ↓ saute le séparateur entre « Unroute… »
+et « Solo… ». C'est le seul point encore à voir sur le vrai FL. Les autres éléments du menu : Rename, color and icon…
+(F2), Change color…, Random color, Gradient color… (grisé), Change icon…, Assign to new Audio track(s), Unassign
+from Audio track(s) (grisé), File ›, Open audio editor (⌘E), Open audio editor and record (⇧E), Reset selected
+track(s) to default, Group : Separator (coché), Create group…, Auto color group (grisé) ; Layout : Dock to ›, Move
+left (⌥←), Move right (⌥→), Delete (Del), Insert one, Insert multiple…, Insert from state › ; CPU : Allow threaded
+processing (coché).
+
+## D. Icônes (essais du 16/10, avant ce plan)
+
+- Pose 7-4 sur Insert 2 (`--diag-icon 7-4 --relearn`, bouton montré par Malo) et 1-0 sur la piste 3 (`--diag-icon
+  1-0`, bouton appris cliqué seul, 0,97 s) : PASS, icônes vues dans la fenêtre du nom (micro, note).
+- Juste après la 2e pose, la grille gardait son numéro (#9055) réduite à 44 × 44 (animation de fermeture). Corrigé
+  dans be39e72 : une grille qui n'a plus sa forme compte comme fermée (sinon « grille restée ouverte » et deux Échap
+  à tort si l'animation dépasse 1 s ; test du faux FL qui échouait avant).
+
 ## Lenteurs
 
 - A1 : aucune étape anormale. Tests Swift 14 s, compilation 35 s, macro « Enregistrement rapide » 19 s pour
