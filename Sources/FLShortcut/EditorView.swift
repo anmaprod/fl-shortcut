@@ -22,12 +22,15 @@ enum SidebarItem: Hashable {
     case custom
     /// Bibliothèque des macros en blocs (MacroLibraryView.swift).
     case macros
+    /// Partages des membres, avec un compte (CommunityView.swift).
+    case community
 
     var symbol: String {
         switch self {
         case .section(let s): return s.symbol
         case .custom: return "star"
         case .macros: return "wand.and.stars"
+        case .community: return "person.2"
         }
     }
 
@@ -36,6 +39,7 @@ enum SidebarItem: Hashable {
         case .section(let s): return s.tint
         case .custom: return .pink
         case .macros: return .purple
+        case .community: return .cyan
         }
     }
 }
@@ -225,7 +229,7 @@ struct EditorView: View {
         .onReceive(DebugSnapshot.publisher(DebugSnapshot.select)) { note in
             let name = note.object as? String ?? ""
             selection = FLSection(rawValue: name).map(SidebarItem.section)
-                ?? (name == "custom" ? .custom : name == "macros" ? .macros : selection)
+                ?? (name == "custom" ? .custom : name == "macros" ? .macros : name == "community" ? .community : selection)
         }
         .onReceive(DebugSnapshot.publisher(DebugSnapshot.search)) { note in
             query = note.object as? String ?? ""
@@ -244,6 +248,7 @@ struct EditorView: View {
         case .section(let s): return s.title
         case .custom: return "Mes raccourcis"
         case .macros: return "Macros"
+        case .community: return "Communauté"
         }
     }
 
@@ -283,6 +288,15 @@ struct EditorView: View {
             } header: {
                 Text("Personnalisés")
             }
+            Section {
+                Label {
+                    Text("Communauté")
+                } icon: {
+                    SectionIcon(symbol: SidebarItem.community.symbol, tint: SidebarItem.community.tint)
+                }
+                .help(CommunityText.subtitle)
+                .tag(SidebarItem.community)
+            }
         }
     }
 
@@ -297,6 +311,7 @@ struct EditorView: View {
                 case .section(let s): sectionList(s, rows: data.rows, mine: data.others.filter { $0.belongs(to: s) })
                 case .custom: customList(data.others)
                 case .macros: MacroLibraryPage(library: store.library, open: { id in openCreator(id) }, toast: { show($0) })
+                case .community: CommunityPage(community: CommunityStore.shared, toast: { show($0) })
                 }
             }
         }
@@ -519,7 +534,9 @@ struct EditorView: View {
         if onMacrosPage {
             ToolbarItem(placement: .navigation) { arrows }
         }
-        ToolbarItem(placement: .primaryAction) { newButton }
+        if page != .community {
+            ToolbarItem(placement: .primaryAction) { newButton }
+        }
         ToolbarItem(placement: .primaryAction) { pauseToggle }
         if !onMacrosPage {
             ToolbarItem(placement: .primaryAction) { profileMenu }
@@ -534,7 +551,9 @@ struct EditorView: View {
                 if onMacrosPage {
                     ToolbarItem(placement: .navigation) { arrows }
                 }
-                ToolbarItem(placement: .primaryAction) { newButton }
+                if page != .community {
+                    ToolbarItem(placement: .primaryAction) { newButton }
+                }
                 ToolbarItem(placement: .primaryAction) { pauseToggle }
                 if !onMacrosPage {
                     ToolbarSpacer(.fixed, placement: .primaryAction)
@@ -561,12 +580,14 @@ struct EditorView: View {
         let help: String
         switch current {
         case .macros: help = "Nouvelle macro"
+        case .community: help = "Partager"
         case .custom: help = "Nouveau raccourci personnalisé"
         case .section(let s): help = "Nouveau raccourci pour la page « \(s.title) »"
         }
         return Button {
             switch current {
             case .macros: MacroLibraryPage.newMacro(in: store.library)
+            case .community: break                             // pas de « + » sur cette page
             case .custom: newCustom(page: nil)
             case .section(let s): newCustom(page: s)
             }

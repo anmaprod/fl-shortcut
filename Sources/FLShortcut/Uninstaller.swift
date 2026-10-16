@@ -90,6 +90,7 @@ enum Uninstaller {
         let secrets = PreferredSecretStore()
         if secrets.load() != nil { removed.append("la clé dans le Trousseau") }
         secrets.delete()
+        CommunitySessionKeychain().delete()             // session de la Communauté (jamais le mot de passe)
 
         // 4. Raccourcis et données.
         let support = AppPaths.supportDirectory

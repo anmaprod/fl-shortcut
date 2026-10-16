@@ -42,6 +42,12 @@ cp Resources/Info.plist "$APP/Contents/Info.plist"
 if [[ -n "${FLS_VERSION:-}" ]]; then
   plutil -replace CFBundleShortVersionString -string "$FLS_VERSION" "$APP/Contents/Info.plist"
 fi
+# Communauté (supabase/README.md) : adresse du projet Supabase et sa clé publique « anon ». Sans elles, la page
+# Communauté affiche « bientôt disponible » et l'app ne se connecte jamais à internet.
+if [[ -n "${FLS_SUPABASE_URL:-}" && -n "${FLS_SUPABASE_ANON_KEY:-}" ]]; then
+  plutil -replace FLSCommunityURL -string "$FLS_SUPABASE_URL" "$APP/Contents/Info.plist"
+  plutil -replace FLSCommunityAnonKey -string "$FLS_SUPABASE_ANON_KEY" "$APP/Contents/Info.plist"
+fi
 cp Resources/device_FLShortcut.py "$APP/Contents/Resources/"
 cp Resources/AppIcon.icns "$APP/Contents/Resources/AppIcon.icns"
 chmod -R go-w "$APP"

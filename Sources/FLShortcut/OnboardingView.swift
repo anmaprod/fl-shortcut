@@ -158,7 +158,7 @@ struct OnboardingView: View {
 
             Spacer(minLength: 20)
 
-            Label("Tes touches ne sont lues que quand FL Studio est au premier plan. Rien n'est enregistré ni envoyé.",
+            Label("Tes touches ne sont lues que quand FL Studio est au premier plan. Rien n'est enregistré ni envoyé, sauf ce que tu publies toi-même dans la Communauté.",
                   systemImage: "lock")
                 .font(.system(size: 11))
                 .foregroundStyle(.secondary)

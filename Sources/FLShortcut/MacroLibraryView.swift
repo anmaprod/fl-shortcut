@@ -410,7 +410,7 @@ enum MacroFileActions {
     }
 
     /// Relecture d'un import : décompte en tête, TOUS les blocs dans une liste qui défile, ce qu'il faudra faire.
-    private static func confirmImport(_ preview: MacroExchange.Preview) -> Bool {
+    static func confirmImport(_ preview: MacroExchange.Preview) -> Bool {
         let count = preview.lines.count == 1 ? "1 bloc" : "\(preview.lines.count) blocs"
         let review = preview.sensitiveCount == 0 ? "" : preview.sensitiveCount == 1
             ? ", dont 1 à relire" : ", dont \(preview.sensitiveCount) à relire"
