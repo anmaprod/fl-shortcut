@@ -62,7 +62,6 @@ final class MacroEditorModel: ObservableObject {
 
     init(store: Store = .shared) {
         MacroEditorModel.live.withLock { $0 += 1 }
-        MacroEditorModel.newest = self
         self.store = store
         layout = store.layout
         // L'app quitte pendant l'attente des 0,5 s : la dernière modification est enregistrée quand même.
@@ -71,6 +70,7 @@ final class MacroEditorModel: ObservableObject {
             self?.saveNow()
             self?.store.library.saveNow()                 // l'ordre des observateurs de la fermeture n'est pas garanti
         }
+        MacroEditorModel.newest = self
     }
 
     deinit {

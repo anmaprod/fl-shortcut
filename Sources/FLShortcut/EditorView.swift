@@ -535,9 +535,9 @@ struct EditorView: View {
     private var page: SidebarItem { trimmedQuery.isEmpty ? (selection ?? .section(.general)) : .custom }
     private var onMacrosPage: Bool { page == .macros }
 
-    /// Page Macros : ← → puis + ‖, exactement comme ← → puis ⇪ ✓ dans le créateur : les flèches ne bougent pas
+    /// Page Macros : ← → puis +, exactement comme ← → puis ⇪ ✓ dans le créateur : les flèches ne bougent pas
     /// quand on entre dans une macro ou qu'on en sort. Pages de raccourcis : pas de flèches (elles ne servent
-    /// qu'aux macros).
+    /// qu'aux macros). Pas de bouton pause ici : il est dans le menu de la barre des menus (et ⌃⌥⌘F).
     @ToolbarContentBuilder private var toolbarContent: some ToolbarContent {
         if onMacrosPage {
             ToolbarItem(placement: .navigation) { arrows }
@@ -545,7 +545,6 @@ struct EditorView: View {
         if page != .community {
             ToolbarItem(placement: .primaryAction) { newButton }
         }
-        ToolbarItem(placement: .primaryAction) { pauseToggle }
         if !onMacrosPage {
             ToolbarItem(placement: .primaryAction) { profileMenu }
         }
@@ -562,9 +561,10 @@ struct EditorView: View {
                 if page != .community {
                     ToolbarItem(placement: .primaryAction) { newButton }
                 }
-                ToolbarItem(placement: .primaryAction) { pauseToggle }
                 if !onMacrosPage {
-                    ToolbarSpacer(.fixed, placement: .primaryAction)
+                    if page != .community {
+                        ToolbarSpacer(.fixed, placement: .primaryAction)
+                    }
                     ToolbarItem(placement: .primaryAction) { profileMenu }
                 }
             }
@@ -603,20 +603,6 @@ struct EditorView: View {
             Label(help, systemImage: "plus")
         }
         .help(help)
-    }
-
-    /// En pause, le bouton allumé prend la couleur de la pause (la teinte affiche un état, WWDC25 310).
-    private var pauseToggle: some View {
-        Toggle(isOn: pausedBinding) {
-            Label("Pause", systemImage: "pause")
-        }
-        .tint(.orange)
-        .help(store.enabled ? "Mettre en pause (⌃⌥⌘F)" : "Reprendre (⌃⌥⌘F)")
-    }
-
-    private var pausedBinding: Binding<Bool> {
-        let model = store
-        return Binding(get: { !model.enabled }, set: { model.enabled = !$0 })
     }
 
     private var profileMenu: some View {
