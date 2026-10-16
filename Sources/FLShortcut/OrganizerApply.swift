@@ -138,12 +138,40 @@ struct ApplyOutcome: Equatable {
 final class OrganizerApplier {
     private let link: OrganizerLink
     private let moveUp: (Int) -> Int
+    private let placeIcon: (FLIcon) -> OrganizerError?
 
     /// `moveUp(n)` envoie ⌥↑ n fois à FL seul (15 ms entre deux, Channel rack devant à chaque pas) et renvoie le
-    /// nombre de pas faits.
-    init(link: OrganizerLink, moveUp: @escaping (Int) -> Int) {
+    /// nombre de pas faits. `placeIcon` pose une icône sur l'élément sélectionné par la fenêtre de FL (F2) ; nil si
+    /// c'est fait.
+    init(link: OrganizerLink, moveUp: @escaping (Int) -> Int,
+         placeIcon: @escaping (FLIcon) -> OrganizerError? = { _ in nil }) {
         self.link = link
         self.moveUp = moveUp
+        self.placeIcon = placeIcon
+    }
+
+    /// Icône de chaque élément (par index d'origine) : celle de sa famille ; aucune si la famille n'en a pas.
+    static func plannedIcons(families: [Int: SoundFamily], styles: [SoundFamily: FamilyStyle]) -> [Int: FLIcon] {
+        var out: [Int: FLIcon] = [:]
+        for (index, family) in families {
+            if let icon = (styles[family] ?? FamilyStyles.initial[family])?.icon { out[index] = icon }
+        }
+        return out
+    }
+
+    /// Icônes en dernier (FL ne dit pas lesquelles étaient là : « Revenir comme avant » ne les retire pas). Chaque
+    /// élément est sélectionné seul, puis la pose passe par la fenêtre de FL ; la page doit rester devant.
+    private func placeIcons(_ icons: [Int: FLIcon], kind: ItemKind, place: (Int) -> Int?) throws {
+        let page: FLWindow = kind == .channels ? .channelRack : .mixer
+        for index in icons.keys.sorted() {
+            guard let icon = icons[index], let at = place(index) else { continue }
+            guard link.window == page else {
+                throw kind == .channels ? OrganizerError.interrupted
+                                        : OrganizerError.failed("Le Mixer n'est plus devant : icônes non posées.")
+            }
+            try link.selectOne(kind, at)
+            if let error = placeIcon(icon) { throw error }
+        }
     }
 
     /// Famille de départ de chaque élément à colorer : canaux écoutés ou pistes du Mixer reliées.
@@ -196,7 +224,11 @@ final class OrganizerApplier {
             try link.setColors(.mixer, Self.pairs(colors))
             var now: [Int: RGBColor] = [:]
             for track in try link.listMixer() { now[track.index] = track.color }
-            if colors.contains(where: { now[$0.key] != $0.value }) { outcome.error = .mismatch }
+            if colors.contains(where: { now[$0.key] != $0.value }) {
+                outcome.error = .mismatch
+            } else {
+                try placeIcons(Self.plannedIcons(families: families, styles: styles), kind: .mixer) { $0 }
+            }
         } catch {
             outcome.error = Self.failure(error)
         }
@@ -218,7 +250,14 @@ final class OrganizerApplier {
             try move(plan.moves, &outcome.snapshot.arrangement)
             let now: [RGBColor?] = try link.listChannels().channels.map { $0.color }
             let expected: [RGBColor?] = outcome.snapshot.arrangement.map { colors[$0] ?? originals[$0] }
-            if now != expected { outcome.error = .mismatch }
+            if now != expected {
+                outcome.error = .mismatch
+            } else {
+                let arrangement = outcome.snapshot.arrangement
+                try placeIcons(Self.plannedIcons(families: families, styles: styles), kind: .channels) {
+                    arrangement.firstIndex(of: $0)
+                }
+            }
         } catch {
             outcome.error = Self.failure(error)
         }

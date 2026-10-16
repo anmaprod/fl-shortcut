@@ -238,7 +238,8 @@ private struct BlockInspector: View {
                     Toggle("Dégradé sur les pistes sélectionnées", isOn: Binding(get: { fade != nil }, set: { on in
                         setBody(key: "fade") { body in
                             guard case .nameColor(let n, let c?, _, let i) = body else { return }
-                            body = on ? .nameColor(name: nil, color: c, fade: GradientField.defaultLast(for: c), icon: i)
+                            // Dégradé : ni nom ni icône (plusieurs pistes).
+                            body = on ? .nameColor(name: nil, color: c, fade: GradientField.defaultLast(for: c), icon: nil)
                                       : .nameColor(name: n, color: c, fade: nil, icon: i)
                         }
                     }))
@@ -253,6 +254,23 @@ private struct BlockInspector: View {
                         }
                     }
                 }
+            }
+        case (.nameColor(_, _, let fade, let icon), "icon"):
+            // Posée par la fenêtre de FL (F2) : un seul élément à la fois, donc pas avec un dégradé.
+            VStack(alignment: .leading, spacing: 6) {
+                FLIconField(icon: icon) { picked in
+                    setBody(key: "icon") { body in
+                        if case .nameColor(let n, let c, let f, _) = body {
+                            body = .nameColor(name: n, color: c, fade: f, icon: picked)
+                        }
+                    }
+                }
+                .disabled(fade != nil)
+                Text(fade != nil ? "Pas d'icône avec un dégradé (FL la pose sur un seul élément)."
+                                 : "Posée par la fenêtre de FL (F2). La première fois, montre une fois le bouton de l'icône.")
+                    .font(.system(size: 11))
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
             }
         default:
             Text("Réglage disponible dans une prochaine version.")

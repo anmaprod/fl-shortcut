@@ -68,7 +68,7 @@ struct ParamSpec {
 enum ParamKind {
     case touche, ms(ClosedRange<Int>), nombre(ClosedRange<Int>), lettres(max: Int), toucheMenu
     case cible, fenetre, fichier(extensions: [String]), actionFL, condition, variable, texte(max: Int), blocs
-    case couleur
+    case couleur, icone
 }
 
 enum Conteneur { case aucun, corps, siSinon }
@@ -600,9 +600,10 @@ private enum Specs {
 
     static let nameColor = BlockSpec(
         type: .nameColor, label: "Nom et couleur", category: .fl, symbol: "paintpalette",
-        aide: "Donne un nom et/ou une couleur à la piste ou au canal sélectionné dans la page de FL qui est devant (Mixer, Channel rack ou Playlist), par le lien avec FL. Un seul élément doit être sélectionné.",
+        aide: "Donne un nom et/ou une couleur à la piste ou au canal sélectionné dans la page de FL qui est devant (Mixer, Channel rack ou Playlist), par le lien avec FL, et une icône de FL par sa fenêtre (F2). Un seul élément doit être sélectionné.",
         params: [ParamSpec("name", "Nom", .texte(max: NameColorPayload.maxNameScalars)),
-                 ParamSpec("color", "Couleur", .couleur)],
+                 ParamSpec("color", "Couleur", .couleur),
+                 ParamSpec("icon", "Icône", .icone)],
         conteneur: .aucun, dansLaPalette: true,
         needs: { _ in base.union(.lienMIDI) },
         parDefaut: { .nameColor(name: nil, color: NameColorPayload.defaultColor) },
@@ -611,7 +612,11 @@ private enum Specs {
             return NameColorPayload.summary(name: name, color: color, fade: fade, icon: icon)
         },
         journal: { _ in "nameColor" },
-        estimationMs: { _ in 300 },
+        estimationMs: { body in
+            // L'icône passe par deux fenêtres de FL (nom, grille).
+            if case .nameColor(_, _, _, .some) = body { return 1_800 }
+            return 300
+        },
         valider: { body, ctx in
             guard case .nameColor(let name, let color, let fade, let icon) = body else { return nil }
             let payload = NameColorPayload(name: name, color: color)

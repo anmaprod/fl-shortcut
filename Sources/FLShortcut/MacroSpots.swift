@@ -60,10 +60,13 @@ enum MacroSpots {
     static func forgetAll(defaults: UserDefaults = .standard) {
         for k in Kind.allCases { defaults.removeObject(forKey: k.rawValue) }
         for k in PathKind.allCases { defaults.removeObject(forKey: k.rawValue) }
+        IconPlacement.forgetSpot(defaults: defaults)
         MacroRunner.forgetTrackMenuMemo(defaults: defaults)
     }
 
-    static var anyLearned: Bool { PathKind.allCases.contains { loadPath($0) != nil } }
+    static var anyLearned: Bool {
+        PathKind.allCases.contains { loadPath($0) != nil } || IconPlacement.loadSpot() != nil
+    }
 }
 
 /// Enregistre les clics gauches faits dans FL pendant l'apprentissage : position ET instant de l'événement (pas le

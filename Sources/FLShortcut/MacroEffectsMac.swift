@@ -445,7 +445,7 @@ final class MacroEffectsMac: MacroEffects {
             DispatchQueue.main.async { OrganizerWindow.open() }
             return .ok
 
-        case .nameColor(let name, let color, let fade, _):
+        case .nameColor(let name, let color, let fade, let icon):
             if let color, let fade {
                 // Dégradé de First à Last sur les éléments sélectionnés (opération 8, script v5).
                 MacroLog.shared.write("FL", "gradient")
@@ -455,13 +455,20 @@ final class MacroEffectsMac: MacroEffects {
                 case .failed(let why): return .fail(why)
                 }
             }
-            // Journal : jamais le nom, seulement ce qui est posé.
-            MacroLog.shared.write("FL", "name/color (\(name == nil ? "no name" : "name") · \(color == nil ? "no color" : "color"))")
-            switch MIDILink.shared.runData(NameColorPayload(name: name, color: color).units) {
-            case .done: return .ok
-            case .refused(let reason): return .fail(NameColorPayload.message(forReason: reason))
-            case .failed(let why): return .fail(why)
+            // Nom et couleur d'abord (lien avec FL), puis l'icône par la fenêtre de FL (F2).
+            let payload = NameColorPayload(name: name, color: color)
+            let named = payload.name != nil || payload.color != nil
+            if named {
+                // Journal : jamais le nom, seulement ce qui est posé.
+                MacroLog.shared.write("FL", "name/color (\(name == nil ? "no name" : "name") · \(color == nil ? "no color" : "color"))")
+                switch MIDILink.shared.runData(payload.units) {
+                case .done: break
+                case .refused(let reason): return .fail(NameColorPayload.message(forReason: reason))
+                case .failed(let why): return .fail(why)
+                }
             }
+            guard let icon else { return .ok }
+            return placeIcon(icon, alsoColored: named)
 
         case .ifElse, .repeatCount, .repeatWhile, .waitUntil, .setVariable, .stop, .comment, .unknown:
             return .fail("bloc de contrôle hors de l'interpréteur")

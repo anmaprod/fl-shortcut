@@ -154,6 +154,50 @@ final class OrganizerApplyTests: XCTestCase {
         XCTAssertEqual(link.channels, original)
     }
 
+    /// Icônes en dernier, sur la place finale de chaque son (après le regroupement), une sélection chacune.
+    func testIconsOnFinalPlaces() throws {
+        let (link, result) = rack([.melody, .drums, .bass])
+        var styles = FamilyStyles.initial
+        styles[.drums]?.icon = try XCTUnwrap(FLIcon(code: "7-4"))
+        styles[.melody]?.icon = try XCTUnwrap(FLIcon(code: "6-0"))
+        var placed: [String] = []
+        let applier = OrganizerApplier(link: link, moveUp: link.moveSelectedUp, placeIcon: { icon in
+            placed.append("\(link.selected ?? -1):\(icon.code)")
+            return nil
+        })
+        let outcome = applier.apply(result: result, families: OrganizerApplier.families(of: result), styles: styles)
+        XCTAssertNil(outcome.error)
+        XCTAssertEqual(link.channels.map(\.name), ["Son 1", "Son 2", "Son 0"])
+        XCTAssertEqual(placed, ["2:6-0", "0:7-4"], "Son 0 (Mélodies) à la place 2, Son 1 (Drums) à la place 0")
+
+        // Une icône manquée arrête la suite ; les couleurs et le regroupement restent défaisables.
+        let (other, otherResult) = rack([.melody, .drums, .bass])
+        let failing = OrganizerApplier(link: other, moveUp: other.moveSelectedUp,
+                                       placeIcon: { _ in .failed("Icône non posée.") })
+        let missed = failing.apply(result: otherResult, families: OrganizerApplier.families(of: otherResult), styles: styles)
+        XCTAssertEqual(missed.error, .failed("Icône non posée."))
+        XCTAssertEqual(missed.snapshot.arrangement, [1, 2, 0])
+    }
+
+    func testMixerIcons() throws {
+        let link = FakeOrganizerLink()
+        link.window = .mixer
+        link.mixer = (0...3).map { MixerTrackInfo(index: $0, color: gray, name: "Piste \($0)") }
+        let result = OrganizerResult(page: .mixer, channels: [], items: [], mixer: link.mixer,
+                                     mixerFamilies: [1: .drums, 3: .vocals])
+        var styles = FamilyStyles.initial
+        styles[.vocals]?.icon = try XCTUnwrap(FLIcon(code: "7-4"))
+        var placed: [Int?] = []
+        let applier = OrganizerApplier(link: link, moveUp: { _ in 0 }, placeIcon: { _ in
+            placed.append(link.selected)
+            return nil
+        })
+        let outcome = applier.apply(result: result, families: OrganizerApplier.families(of: result), styles: styles)
+        XCTAssertNil(outcome.error)
+        XCTAssertEqual(placed, [3])
+        XCTAssertEqual(link.log, ["colors 2", "mixer", "select 3"])
+    }
+
     func testMixerColorsOnly() {
         let link = FakeOrganizerLink()
         link.window = .mixer
