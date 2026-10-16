@@ -232,7 +232,7 @@ message ; ce qui a déjà été appliqué peut être annulé par « Revenir comm
   appartiennent à Image-Line). Une case = `FLIcon(column:row:)`. La case Reset (0, 0) = « aucune icône ».
 - **Pose dans FL** (aucune lecture de l'écran) : élément sélectionné (Organiser : opération 5 d'abord) → F2 → la
   fenêtre « Rename, color and icon » de FL s'ouvre (nouvelle fenêtre, liste des fenêtres) → clic sur le bouton de
-  l'icône de cette fenêtre, **appris une fois** (« Clique sur l'icône à droite du nom », position gardée par rapport
+  l'icône de cette fenêtre, **appris une fois** (« clique sur le bouton de l'icône, à gauche du nom » : relevé le 16/10, position gardée par rapport
   à la fenêtre, comme les autres clics appris) → la grille de FL s'ouvre (nouvelle fenêtre) → clic au centre de la
   case `(colonne + 0,5) × L / 14`, `titre + (rangée + 0,5) × L / 14`, avec `titre = H − 15 × L / 14` (L, H = taille de
   la fenêtre de la grille) → la grille se ferme → Entrée ferme la fenêtre du nom sans le changer.

@@ -15,6 +15,8 @@ private final class FakeIconFL: IconPlacementDriver {
     var events: [String] = []
     var f2Opens = true
     var gridOpens = true
+    /// FL referme lui-même la fenêtre du nom quand on choisit une case.
+    var nameClosesWithGrid = false
     /// Clic montré par l'utilisateur ; nil : il appuie sur Échap.
     var shown: CGPoint? = button
     private var stopped = false
@@ -44,6 +46,7 @@ private final class FakeIconFL: IconPlacementDriver {
             let column = Int((p.x - g.minX) / side), row = Int((p.y - g.minY - (g.height - 15 * side)) / side)
             events.append("case \(column)-\(row)")
             open.removeFirst()
+            if nameClosesWithGrid { open.removeAll { $0.number == Self.name.number } }
         } else if open.first == Self.name, hypot(p.x - Self.button.x, p.y - Self.button.y) <= 4 {
             events.append("bouton de l'icône")
             if gridOpens { open.insert(Self.grid, at: 0) }
@@ -148,6 +151,24 @@ final class FLIconTests: XCTestCase {
         XCTAssertNil(IconPlacement.place(microphone, driver: again, defaults: defaults))
         XCTAssertEqual(again.events, ["F2", "bouton de l'icône", "case 7-4", "Entrée"])
         XCTAssertEqual(again.open, [FakeIconFL.main])
+    }
+
+    /// FL referme la fenêtre du nom avec la grille : aucune Entrée envoyée sans elle (elle irait à la page devant).
+    func testNoEnterWhenFLClosesTheNameWindow() throws {
+        IconPlacement.saveSpot(IconPlacement.Spot(fromTopRight: CGVector(dx: -30, dy: 30),
+                                                  windowSize: FakeIconFL.name.bounds.size), defaults: defaults)
+        let fl = FakeIconFL()
+        fl.nameClosesWithGrid = true
+        XCTAssertNil(IconPlacement.place(try XCTUnwrap(FLIcon(code: "7-4")), driver: fl, defaults: defaults))
+        XCTAssertEqual(fl.events, ["F2", "bouton de l'icône", "case 7-4"])
+        XCTAssertEqual(fl.open, [FakeIconFL.main])
+    }
+
+    /// Le bouton relevé sur le FL de l'utilisateur : à 9 points du bord gauche d'une fenêtre du nom de 260 × 52.
+    func testRealNameWindowSpot() {
+        let spot = IconPlacement.Spot(fromTopRight: CGVector(dx: -250, dy: 17), windowSize: CGSize(width: 260, height: 52))
+        XCTAssertTrue(spot.isValid)
+        XCTAssertEqual(spot.point(in: CGRect(x: 243, y: 421, width: 260, height: 52)), CGPoint(x: 253, y: 438))
     }
 
     /// La grille ne s'ouvre pas avec le clic retenu : la fenêtre du nom est refermée (Échap) et le clic est à

@@ -78,7 +78,9 @@ enum IconPlacement {
     static let f2 = KeyCombo(keyCode: 120)
     static let enter = KeyCombo(keyCode: 36)
     static let escape = KeyCombo(keyCode: 53)
-    static let hint = "Une seule fois : clique sur l'icône à droite du nom."
+    /// Relevé sur le FL de l'utilisateur (16/10) : le bouton de l'icône est à gauche du nom, dans une fenêtre du nom de
+    /// 260 × 52 points.
+    static let hint = "Une seule fois : clique sur le bouton de l'icône, à gauche du nom."
 
     /// Fenêtre du nom plausible : petite fenêtre de FL, plus haute qu'une ligne de menu.
     static func isNameWindow(_ w: WinInfo) -> Bool {
@@ -132,6 +134,12 @@ enum IconPlacement {
         guard driver.click(cell) else { return close([grid, name], driver: driver, .clickRefused) }
         guard awaitGone(grid.number, driver: driver) else { return close([grid, name], driver: driver, .stopped) }
         if isOpen(grid.number, driver) { return close([grid, name], driver: driver, .gridStayed) }
+        // Entrée seulement si la fenêtre du nom est encore là : FL peut la refermer lui-même avec la grille, et une
+        // touche envoyée sans elle irait à la page de FL devant.
+        guard isOpen(name.number, driver) else {
+            driver.note("icon \(icon.code) placed, name window already closed by FL")
+            return nil
+        }
         driver.press(enter)
         guard awaitGone(name.number, driver: driver) else { return close([name], driver: driver, .stopped) }
         if isOpen(name.number, driver) { return close([name], driver: driver, .nameStayed) }

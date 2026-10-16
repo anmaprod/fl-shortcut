@@ -72,7 +72,12 @@ enum MacroDiagnostics {
         let app = NSApplication.shared
         app.setActivationPolicy(.accessory)
         MacroRunner.testFLPID = pid
-        MacroLog.shared.echo = { tag, text, t in print(String(format: "  %6.3f s  %@ %@", t, tag, text)) }
+        // Vidé à chaque ligne : une autre session (ou `tail -f`) suit le journal pendant que la pose attend un clic.
+        MacroLog.shared.echo = { tag, text, t in
+            print(String(format: "  %6.3f s  %@ %@", t, tag, text))
+            fflush(stdout)
+        }
+        fflush(stdout)
         DispatchQueue.global(qos: .userInitiated).async {
             func frontmost() -> Int32? { NSWorkspace.shared.frontmostApplication?.processIdentifier }
             if frontmost() != pid, let url = fl.bundleURL {
@@ -85,6 +90,7 @@ enum MacroDiagnostics {
             while frontmost() != pid, Date() < deadline {
                 if !asked, Date().addingTimeInterval(6) > deadline {
                     print("FL n'est pas encore devant : clique dans FL (sans changer la sélection).")
+                    fflush(stdout)
                     asked = true
                 }
                 Thread.sleep(forTimeInterval: 0.05)
