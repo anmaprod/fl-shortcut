@@ -88,6 +88,9 @@ run() {   # $1 : libellé, $2 : YES/NO effet verre
   # Créateur de macros : page Macros, puis la fenêtre du créateur ouverte sur un exemple (jamais enregistré),
   # mesurée au repos, photographiée, puis fermée (la mémoire doit revenir).
   "$POST" app.flshortcut.debug.select macros; sleep 2
+  # Vraie photo de la page Macros (flèches, « + » : à la même place que dans le créateur ?).
+  screencapture -x "$OUT/$label-macros-ecran.png" 2>/dev/null || true
+  report "$label-macros" >/dev/null
   rm -f "$HOME/Library/Caches/$DOMAIN/$label-macros-"*
   "$POST" app.flshortcut.debug.snapshot "$label-macros"; sleep 2
   cp "$HOME/Library/Caches/$DOMAIN/$label-macros-"*.png "$OUT/" 2>/dev/null || true
