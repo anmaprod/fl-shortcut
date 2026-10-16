@@ -15,6 +15,8 @@ enum DebugSnapshot {
     static let snapshot = Notification.Name("app.flshortcut.debug.snapshot")
     /// Vrai clic de souris à « x,y » (points, depuis le coin haut-gauche de la fenêtre de l'éditeur).
     static let click = Notification.Name("app.flshortcut.debug.click")
+    /// Vrai glisser-déposer de « x1,y1,x2,y2 » (points, depuis le coin haut-gauche de la fenêtre de l'éditeur).
+    static let drag = Notification.Name("app.flshortcut.debug.drag")
     /// Taille « l,h » (points) de la fenêtre de l'éditeur, pour les captures sur un petit écran de test.
     static let resize = Notification.Name("app.flshortcut.debug.resize")
     /// Créateur de macros : « open » l'ouvre sur une macro d'exemple jamais enregistrée, « close » le ferme.
@@ -49,7 +51,14 @@ enum DebugSnapshot {
         reportObserver = DistributedNotificationCenter.default().addObserver(forName: report, object: nil, queue: .main) { _ in
             writeReport()
         }
+        dragObserver = DistributedNotificationCenter.default().addObserver(forName: drag, object: nil, queue: .main) { note in
+            let parts = (note.object as? String ?? "").split(separator: ",").compactMap { Double($0) }
+            guard parts.count == 4 else { return }
+            realDrag(from: (x: parts[0], y: parts[1]), to: (x: parts[2], y: parts[3]))
+        }
     }
+
+    private static var dragObserver: NSObjectProtocol?
 
     private static var clickObserver: NSObjectProtocol?
     private static var resizeObserver: NSObjectProtocol?
@@ -86,6 +95,13 @@ enum DebugSnapshot {
             out.append(scroll)
         }
         for sub in view.subviews { out += scrollViews(in: sub) }
+        return out
+    }
+
+    private static func tableViews(in view: NSView) -> [NSTableView] {
+        var out: [NSTableView] = []
+        if let table = view as? NSTableView, !table.isHiddenOrHasHiddenAncestor { out.append(table) }
+        for sub in view.subviews { out += tableViews(in: sub) }
         return out
     }
 
@@ -143,6 +159,10 @@ enum DebugSnapshot {
                     + "\(Int(docHeight)) · marges auto \(scroll.automaticallyAdjustsContentInsets ? "oui" : "non") "
                     + "haut \(Int(scroll.contentInsets.top)) bas \(Int(scroll.contentInsets.bottom))\n"
             }
+            // Listes : nombre de lignes (créateur : un bloc glissé depuis la palette en ajoute une).
+            for table in tableViews(in: root) {
+                s += "  liste \(rect(table.convert(table.visibleRect, to: nil))) · \(table.numberOfRows) lignes\n"
+            }
             // Colonnes (NavigationSplitView) : laquelle réclame plus de hauteur que la fenêtre n'en a ?
             if let content = w.contentView {
                 s += "  contenu \(rect(content.convert(content.bounds, to: nil))) · taille idéale \(size(content.fittingSize))\n"
@@ -168,19 +188,40 @@ enum DebugSnapshot {
         return s
     }
 
-    private static func realClick(x: Double, y: Double) {
+    /// Point de l'écran (origine en haut à gauche, comme CGEvent) d'un point « x,y » de notre fenêtre, mise devant.
+    private static func screenPoint(x: Double, y: Double) -> CGPoint? {
         guard let w = NSApp.windows.first(where: { $0.isVisible && $0.frame.width > 400 }),
               let screenHeight = NSScreen.screens.first?.frame.height,
-              (0...w.frame.width).contains(x), (0...w.frame.height).contains(y) else { return }   // notre fenêtre seulement
+              (0...w.frame.width).contains(x), (0...w.frame.height).contains(y) else { return nil }   // notre fenêtre seulement
         NSApp.activate(ignoringOtherApps: true)
         w.makeKeyAndOrderFront(nil)
-        let point = CGPoint(x: w.frame.minX + x, y: screenHeight - (w.frame.maxY - y))
+        return CGPoint(x: w.frame.minX + x, y: screenHeight - (w.frame.maxY - y))
+    }
+
+    private static func post(_ type: CGEventType, _ point: CGPoint) {
+        CGEvent(mouseEventSource: nil, mouseType: type, mouseCursorPosition: point, mouseButton: .left)?
+            .post(tap: .cghidEventTap)
+    }
+
+    private static func realClick(x: Double, y: Double) {
+        guard let point = screenPoint(x: x, y: y) else { return }
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-            for type in [CGEventType.leftMouseDown, .leftMouseUp] {
-                CGEvent(mouseEventSource: nil, mouseType: type, mouseCursorPosition: point, mouseButton: .left)?
-                    .post(tap: .cghidEventTap)
-            }
+            post(.leftMouseDown, point)
+            post(.leftMouseUp, point)
         }
+    }
+
+    /// Vrai glisser-déposer de la souris, comme une main : appui, 24 petits pas en 0,6 s, pause sur la cible, lâcher.
+    private static func realDrag(from: (x: Double, y: Double), to: (x: Double, y: Double)) {
+        guard let start = screenPoint(x: from.x, y: from.y), let end = screenPoint(x: to.x, y: to.y) else { return }
+        let steps = 24
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { post(.leftMouseDown, start) }
+        for i in 1...steps {
+            let t = Double(i) / Double(steps)
+            let p = CGPoint(x: start.x + (end.x - start.x) * t, y: start.y + (end.y - start.y) * t)
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5 + 0.025 * Double(i)) { post(.leftMouseDragged, p) }
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.6) { post(.leftMouseUp, end) }
     }
 
     /// Une image PNG par fenêtre visible, dans ~/Library/Caches/app.flshortcut.FLShortcut/.
