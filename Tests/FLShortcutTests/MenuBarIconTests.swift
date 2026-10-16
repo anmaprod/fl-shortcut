@@ -26,7 +26,11 @@ final class MenuBarIconTests: XCTestCase {
             // Touche de devant (en bas à gauche) toujours dessinée.
             XCTAssertGreaterThan(ink(rep, in: (4..<20, 14..<32)), 100, "\(state)")
             drawings.append(try XCTUnwrap(rep.tiffRepresentation))
-            XCTAssertNotNil(try? pixels(image, scale: 1))
+            // Même dessin en 1x, à la même place (le 2x n'est pas un dessin 1x posé dans un coin).
+            let small = try pixels(image, scale: 1)
+            XCTAssertGreaterThan(ink(small, in: (2..<10, 7..<16)), 25, "\(state)")
+            XCTAssertEqual(Double(ink(rep, in: (0..<36, 0..<36))) / 4, Double(ink(small, in: (0..<18, 0..<18))),
+                           accuracy: 40, "\(state)")
         }
         XCTAssertEqual(Set(drawings).count, MenuBarIcon.State.allCases.count, "chaque état se voit")
         XCTAssertTrue(MenuBarIcon.image(.normal) === MenuBarIcon.image(.normal), "dessinée une seule fois")

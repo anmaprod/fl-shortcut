@@ -48,10 +48,10 @@ enum MenuBarIcon {
         rep.size = NSSize(width: side, height: side)
         NSGraphicsContext.saveGraphicsState()
         NSGraphicsContext.current = context
-        // Origine en haut à gauche, comme le dessin de l'icône.
+        // Le contexte compte en pixels : on dessine en points (x scale), origine en haut à gauche comme l'icône.
         let flip = NSAffineTransform()
-        flip.translateX(by: 0, yBy: side)
-        flip.scaleX(by: 1, yBy: -1)
+        flip.translateX(by: 0, yBy: CGFloat(pixels))
+        flip.scaleX(by: CGFloat(scale), yBy: -CGFloat(scale))
         flip.concat()
         draw(state, in: context)
         context.flushGraphics()
