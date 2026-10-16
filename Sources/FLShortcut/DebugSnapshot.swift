@@ -27,6 +27,8 @@ enum DebugSnapshot {
     /// Page Communauté avec des exemples, sans réseau : « connexion », « inscription », « liste », « vide »,
     /// « detail », « partager » ou « signaler ».
     static let community = Notification.Name("app.flshortcut.debug.community")
+    /// Guide : « 0 » à « 4 » ouvre cette page, autre chose le ferme.
+    static let guide = Notification.Name("app.flshortcut.debug.guide")
 
     static func publisher(_ name: Notification.Name) -> AnyPublisher<Notification, Never> {
         guard enabled else { return Empty().eraseToAnyPublisher() }

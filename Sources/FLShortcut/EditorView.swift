@@ -134,6 +134,11 @@ struct EditorView: View {
     @ObservedObject private var creatorLink = MacroCreatorLink.shared
     /// Page Communauté : le « + » (partager) n'apparaît qu'une fois connecté.
     @ObservedObject private var community = CommunityStore.shared
+    /// Guide : montré une fois à la première ouverture, puis à la demande (menu ⋯, barre des menus).
+    @AppStorage("guideSeen") private var guideSeen = false
+    @ObservedObject private var guideLink = GuideLink.shared
+    @State private var showGuide = false
+    @State private var guidePage = 0
 
     /// Entre dans le créateur sur cette macro (la fenêtre reste la même ; la flèche ← y ramène).
     private func openCreator(_ id: UUID?) {
@@ -157,6 +162,30 @@ struct EditorView: View {
         .onChange(of: creatorLink.closeSerial) { _ in closeCreator() }
         // Fenêtre fermée pendant le créateur : brouillon enregistré, modèle lâché (rien ne reste en mémoire).
         .onDisappear { closeCreator() }
+        .sheet(isPresented: $showGuide, onDismiss: { guideSeen = true }) {
+            GuideView(page: $guidePage) { showGuide = false }
+        }
+        .onAppear { showGuideIfNeeded() }
+        .onChange(of: guideLink.pending) { _ in showGuideIfNeeded() }
+        .onReceive(DebugSnapshot.publisher(DebugSnapshot.guide)) { note in
+            // Mode capture : « 0 » à « 4 », la page du guide ; autre chose, le ferme.
+            if let n = Int(note.object as? String ?? "") {
+                guidePage = max(0, min(n, GuideContent.count - 1))
+                showGuide = true
+            } else {
+                showGuide = false
+            }
+        }
+    }
+
+    /// Guide demandé (menu ⋯, barre des menus), ou jamais vu : première ouverture (sauf en mode capture, où la
+    /// mesure de la CI l'ouvre elle-même).
+    private func showGuideIfNeeded() {
+        let asked = guideLink.pending
+        guard asked || (!guideSeen && !DebugSnapshot.enabled) else { return }
+        guideLink.pending = false
+        guidePage = 0
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { showGuide = true }
     }
 
     private func enterCreator() {
@@ -613,6 +642,8 @@ struct EditorView: View {
 
     private var profileMenu: some View {
         Menu {
+            Button { GuideLink.shared.show() } label: { Label("Guide de FL Shortcut", systemImage: "questionmark.circle") }
+            Divider()
             Menu {
                 ForEach(ProfilePreset.allCases) { preset in
                     Button(preset.label) { load(preset) }
@@ -638,7 +669,7 @@ struct EditorView: View {
         } label: {
             Label("Profil", systemImage: "ellipsis")
         }
-        .help("Profil, import et export")
+        .help("Guide, profil, import et export")
     }
 
     // MARK: Actions

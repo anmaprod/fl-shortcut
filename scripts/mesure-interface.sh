@@ -26,6 +26,7 @@ swiftc -O "$POST.swift" -o "$POST" 2>/dev/null || { echo "swiftc indisponible"; 
 had_snap=$(defaults read "$DOMAIN" debugSnapshots 2>/dev/null || echo "")
 had_glass=$(defaults read "$DOMAIN" liquidGlass 2>/dev/null || echo "")
 had_onb=$(defaults read "$DOMAIN" didOnboard 2>/dev/null || echo "")
+had_guide=$(defaults read "$DOMAIN" guideSeen 2>/dev/null || echo "")
 defaults write "$DOMAIN" debugSnapshots -bool YES
 defaults write "$DOMAIN" didOnboard -bool YES
 
@@ -123,6 +124,12 @@ run() {   # $1 : libellé, $2 : YES/NO effet verre
       screencapture -x "$OUT/communaute-$screen.png" 2>/dev/null || true
     done
     "$POST" app.flshortcut.debug.community liste; sleep 2
+    # Guide de l'appli, page par page.
+    for n in 0 1 2 3 4; do
+      "$POST" app.flshortcut.debug.guide "$n"; sleep 2
+      screencapture -x "$OUT/guide-$n.png" 2>/dev/null || true
+    done
+    "$POST" app.flshortcut.debug.guide fin; sleep 2
     "$POST" app.flshortcut.debug.select macros; sleep 2
   fi
   # Témoin : aucun modèle du créateur avant sa première ouverture (fenêtres : toutes, et visibles seulement).
@@ -183,6 +190,6 @@ run "verre" YES
 run "sans-verre" NO
 pkill -x FLShortcut 2>/dev/null
 
-restore debugSnapshots "$had_snap"; restore liquidGlass "$had_glass"; restore didOnboard "$had_onb"
+restore debugSnapshots "$had_snap"; restore liquidGlass "$had_glass"; restore didOnboard "$had_onb"; restore guideSeen "$had_guide"
 echo
 echo "macOS $(sw_vers -productVersion), $(sysctl -n machdep.cpu.brand_string 2>/dev/null)"

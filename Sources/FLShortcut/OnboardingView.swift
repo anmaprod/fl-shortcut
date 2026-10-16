@@ -255,9 +255,9 @@ private struct StepRow: View {
     }
 }
 
-/// Lueurs aux couleurs de l'icône en haut de l'accueil : dégradés radiaux statiques (aucun flou, aucune
-/// animation). Couche de contenu, que le verre des touches et du bouton réfracte.
-private struct BrandGlow: View {
+/// Lueurs aux couleurs de l'icône en haut de l'accueil et du guide : dégradés radiaux statiques (aucun flou,
+/// aucune animation). Couche de contenu, que le verre des touches et du bouton réfracte.
+struct BrandGlow: View {
     @Environment(\.colorScheme) private var scheme
 
     private var k: Double { scheme == .dark ? 0.42 : 0.30 }

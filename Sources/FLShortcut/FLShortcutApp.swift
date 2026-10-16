@@ -426,6 +426,11 @@ struct MenuContent: View {
                 NSApp.activate(ignoringOtherApps: true)
             }
             PanelItem(symbol: "square.stack.3d.up", title: "Organiser la page ouverte…") { OrganizerWindow.open() }
+            PanelItem(symbol: "questionmark.circle", title: "Guide de FL Shortcut") {
+                GuideLink.shared.show()
+                openWindow(id: "editor")
+                NSApp.activate(ignoringOtherApps: true)
+            }
             PanelItem(symbol: store.enabled ? "pause" : "play", title: store.enabled ? "Mettre en pause" : "Reprendre",
                       shortcut: "⌃⌥⌘F") { store.enabled.toggle() }
             if !AppMode.light {
