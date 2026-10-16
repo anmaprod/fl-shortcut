@@ -24,24 +24,15 @@ SWIFT
 swiftc -O "$POST.swift" -o "$POST" 2>/dev/null || { echo "swiftc indisponible"; exit 1; }
 
 # Vrai glisser-déposer à la souris, envoyé par ce script (le shell de la CI a le droit d'envoyer des événements ;
-# l'app, elle, ne l'a pas) : DRAG <pid> x1 y1 x2 y2, en points depuis le coin haut-gauche de la grande fenêtre de l'app.
+# l'app, elle, ne l'a pas) : DRAG x1 y1 x2 y2, points de l'écran (origine en haut à gauche, comme CGEvent).
 DRAG="$(dirname "$POST")/fls_drag"
 cat > "$DRAG.swift" <<'SWIFT'
 import CoreGraphics
 import Foundation
-let a = CommandLine.arguments
-guard a.count == 6, let pid = Int32(a[1]) else { print("usage : fls_drag pid x1 y1 x2 y2"); exit(2) }
-let n = a[2...5].compactMap { Double($0) }
-guard n.count == 4 else { exit(2) }
-let infos = CGWindowListCopyWindowInfo([.optionOnScreenOnly, .excludeDesktopElements], kCGNullWindowID) as? [[String: Any]] ?? []
-var best: CGRect?
-for w in infos where (w[kCGWindowOwnerPID as String] as? Int32) == pid && (w[kCGWindowLayer as String] as? Int) == 0 {
-    guard let b = w[kCGWindowBounds as String] as? NSDictionary, let r = CGRect(dictionaryRepresentation: b as CFDictionary) else { continue }
-    if best.map({ r.width * r.height > $0.width * $0.height }) ?? true { best = r }
-}
-guard let win = best else { print("glisser : fenêtre de l'app introuvable"); exit(1) }
-let start = CGPoint(x: win.minX + n[0], y: win.minY + n[1])
-let end = CGPoint(x: win.minX + n[2], y: win.minY + n[3])
+let n = CommandLine.arguments.dropFirst().compactMap { Double($0) }
+guard n.count == 4 else { print("usage : fls_drag x1 y1 x2 y2"); exit(2) }
+let start = CGPoint(x: n[0], y: n[1])
+let end = CGPoint(x: n[2], y: n[3])
 func post(_ type: CGEventType, _ p: CGPoint) {
     CGEvent(mouseEventSource: nil, mouseType: type, mouseCursorPosition: p, mouseButton: .left)?.post(tap: .cghidEventTap)
 }
@@ -101,6 +92,22 @@ fits() {   # $1 : rapport gardé ; les colonnes de la fenêtre principale tienne
   [[ -z "$h" || -z "$c" ]] && { echo "?"; return; }
   set -- $c
   if (( $1 >= 0 && $1 + $2 <= h )); then echo "oui"; else echo "NON ($2 pt pour $h)"; fi
+}
+
+origin() {   # $1 : rapport gardé ; « x y » du coin haut-gauche de la fenêtre de l'app sur l'écran (origine en haut)
+  local f="$OUT/$1-report.txt" sh pos
+  sh=$(sed -nE 's/^écran 0: frame \(-?[0-9]+,-?[0-9]+ [0-9]+[^0-9]+([0-9]+)\).*/\1/p' "$f" 2>/dev/null | head -1)
+  pos=$(grep -A1 '^fenêtre AppKitWindow' "$f" 2>/dev/null \
+    | sed -nE 's/^  cadre \((-?[0-9]+),(-?[0-9]+) [0-9]+[^0-9]+([0-9]+)\).*/\1 \2 \3/p' | head -1)
+  [[ -z "$sh" || -z "$pos" ]] && return 1
+  set -- $pos
+  echo "$1 $(( sh - $2 - $3 ))"
+}
+
+drag() {   # $1 : rapport gardé (position de la fenêtre) ; $2..$5 : x1 y1 x2 y2 dans la fenêtre (depuis son coin haut-gauche)
+  local ox oy
+  read -r ox oy < <(origin "$1") || { echo "glisser : position de la fenêtre inconnue" >&2; return; }
+  "$DRAG" $(( ox + $2 )) $(( oy + $3 )) $(( ox + $4 )) $(( oy + $5 )) >&2
 }
 
 rows() {   # $1 : rapport gardé ; lignes de la liste des blocs du créateur (la plus large des listes)
@@ -177,13 +184,13 @@ run() {   # $1 : libellé, $2 : YES/NO effet verre
   fit+=" / $(fits "$label-createur-ouvert")"
   # Vrai glisser-déposer à la souris : « Touche ou raccourci » de la palette, lâché entre les blocs 4 et 5 de
   # l'exemple ; la liste des blocs doit gagner une ligne.
-  "$DRAG" "$p" 113 87 438 360 >&2; sleep 2
+  drag "$label-createur-ouvert" 113 87 438 360; sleep 2
   report "$label-createur-glisse" >/dev/null
   screencapture -x "$OUT/$label-createur-glisse.png" 2>/dev/null || true
   drop="$(rows "$label-createur-ouvert") → $(rows "$label-createur-glisse")"
   # Puis un bloc de la liste déplacé à la souris : « Clic droit » (2e ligne) lâché entre les lignes 6 et 7 ;
   # l'ordre des blocs doit changer.
-  "$DRAG" "$p" 458 259 458 438 >&2; sleep 2
+  drag "$label-createur-ouvert" 458 259 458 438; sleep 2
   report "$label-createur-deplace" >/dev/null
   screencapture -x "$OUT/$label-createur-deplace.png" 2>/dev/null || true
   if [[ -z "$(order "$label-createur-glisse")" ]]; then moved="?"
