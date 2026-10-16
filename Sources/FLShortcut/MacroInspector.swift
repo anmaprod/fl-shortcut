@@ -663,17 +663,7 @@ private struct BlockInspector: View {
     }
 
     private func choosePreset() {
-        let panel = NSOpenPanel()
-        panel.title = "Choisis un état de piste du Mixer (.fst)"
-        panel.canChooseFiles = true
-        panel.canChooseDirectories = false
-        panel.allowsMultipleSelection = false
-        if let type = UTType(filenameExtension: "fst") { panel.allowedContentTypes = [type] }
-        let home = FileManager.default.homeDirectoryForCurrentUser
-        panel.directoryURL = ["Documents/Image-Line", "Music/Image-Line", "Documents"].map { home.appendingPathComponent($0) }
-            .first { FileManager.default.fileExists(atPath: $0.path) }
-        guard panel.runModal() == .OK, let url = panel.url else { return }
-        let path = url.path
+        guard let path = PresetPanel.choose() else { return }
         setBody(key: "path") { body in
             if case .dropFile = body { body = .dropFile(path: path) } else { body = .chooseFile(path: path) }
         }

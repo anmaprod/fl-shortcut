@@ -815,14 +815,8 @@ private struct StatusBar: View {
     }
 
     private var color: Color {
-        if !store.enabled { return .gray }
-        if !status.accessibilityOK { return .orange }
-        if AppMode.light { return fl.running ? .green : .gray }
-        switch link.status {
-        case .linked: return .green
-        case .inactive: return .orange
-        case .flClosed: return .gray
-        }
+        AppStatusColor.color(enabled: store.enabled, accessibilityOK: status.accessibilityOK, flRunning: fl.running,
+                             link: link.status)
     }
 
     private var symbol: String {

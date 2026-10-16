@@ -255,6 +255,14 @@ struct MacroFields: View {
     }
 
     private func choosePreset() {
+        if let path = PresetPanel.choose() { macro.presetPath = path }
+    }
+}
+
+/// Boîte « Ouvrir » d'un état de piste du Mixer (.fst), ouverte dans le dossier d'Image-Line s'il existe.
+enum PresetPanel {
+    /// Chemin choisi, nil si la boîte est annulée.
+    static func choose() -> String? {
         let panel = NSOpenPanel()
         panel.title = "Choisis un état de piste du Mixer (.fst)"
         panel.canChooseFiles = true
@@ -265,7 +273,7 @@ struct MacroFields: View {
         let candidates = ["Documents/Image-Line", "Music/Image-Line", "Documents"]
         panel.directoryURL = candidates.map { home.appendingPathComponent($0) }
             .first { FileManager.default.fileExists(atPath: $0.path) }
-        guard panel.runModal() == .OK, let url = panel.url else { return }
-        macro.presetPath = url.path
+        guard panel.runModal() == .OK, let url = panel.url else { return nil }
+        return url.path
     }
 }

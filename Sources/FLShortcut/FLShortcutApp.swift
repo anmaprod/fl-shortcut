@@ -61,6 +61,21 @@ struct FLShortcutApp: App {
     }
 }
 
+/// Couleur de l'état de l'app (pastille du menu de la barre, état de la fenêtre principale) : grise en pause,
+/// orange sans autorisation clavier, puis selon FL (mode léger) ou le lien.
+enum AppStatusColor {
+    static func color(enabled: Bool, accessibilityOK: Bool, flRunning: Bool, link: LinkStatus) -> Color {
+        if !enabled { return .gray }
+        if !accessibilityOK { return .orange }
+        if AppMode.light { return flRunning ? .green : .gray }
+        switch link {
+        case .linked: return .green
+        case .inactive: return .orange
+        case .flClosed: return .gray
+        }
+    }
+}
+
 enum SingleInstance {
     static func enforce() {
         let me = NSRunningApplication.current
@@ -427,14 +442,8 @@ struct MenuContent: View {
     }
 
     private var dotColor: Color {
-        guard store.enabled else { return .gray }
-        if !status.accessibilityOK { return .orange }
-        if AppMode.light { return fl.running ? .green : .gray }
-        switch link.status {
-        case .linked: return .green
-        case .inactive: return .orange
-        case .flClosed: return .gray
-        }
+        AppStatusColor.color(enabled: store.enabled, accessibilityOK: status.accessibilityOK, flRunning: fl.running,
+                             link: link.status)
     }
 
     /// Chaîne calculée à part : pas de fermeture imbriquée dans une interpolation de LocalizedStringKey. nil quand
