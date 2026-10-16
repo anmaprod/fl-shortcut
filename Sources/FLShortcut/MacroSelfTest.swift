@@ -101,7 +101,7 @@ enum MacroSelfTest {
     static func userKey(_ code: CGKeyCode, command: Bool = false) {
         for down in [true, false] {
             let e = CGEvent(keyboardEventSource: nil, virtualKey: code, keyDown: down)
-            if command { e?.flags = .maskCommand }
+            e?.flags = command ? .maskCommand : []            // jamais un ⌘ resté d'une touche précédente
             e?.post(tap: .cghidEventTap)
             usleep(40_000)
         }

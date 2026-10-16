@@ -157,6 +157,7 @@ struct HelpPage: View {
                     Text(diagnostic)
                         .font(.system(size: 11, design: .monospaced))
                         .textSelection(.enabled)
+                        .fixedSize(horizontal: false, vertical: true)
                         .padding(8)
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .background(RoundedRectangle(cornerRadius: 6).fill(Color.primary.opacity(0.05)))

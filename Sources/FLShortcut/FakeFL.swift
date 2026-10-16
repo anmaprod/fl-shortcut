@@ -261,8 +261,9 @@ final class FakeFLController {
             note("save project")
             return true
         }
-        // R : seulement dans la fenêtre du Mixer, jamais pendant la boîte « Open » (on y tape un chemin).
-        if NSApp.modalWindow == nil, e.window === window,
+        // R : dans la fenêtre du Mixer (ou sans fenêtre clé, juste après la fermeture des réglages), jamais pendant la
+        // boîte « Open » (on y tape un chemin) ni dans les réglages.
+        if NSApp.modalWindow == nil, e.window === window || e.window == nil,
            e.modifierFlags.intersection([.command, .control, .option]).isEmpty,
            e.keyCode == 15 || e.charactersIgnoringModifiers?.lowercased() == "r" {
             rec.toggle()
