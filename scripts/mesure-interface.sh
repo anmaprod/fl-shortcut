@@ -71,6 +71,8 @@ run() {   # $1 : libellé, $2 : YES/NO effet verre
   "$POST" app.flshortcut.debug.select general; sleep 1
   "$POST" app.flshortcut.debug.resize "960,640"; sleep 2
   screencapture -x "$OUT/$label.png" 2>/dev/null || true
+  # État exact de la fenêtre au moment de la photo (cadre, barre de titre, boutons, listes défilées ou non).
+  report "$label-fenetre" >/dev/null
   # Rendu interne de la fenêtre (toute sa hauteur, même si l'écran de test est petit).
   rm -f "$HOME/Library/Caches/$DOMAIN/$label-"*
   "$POST" app.flshortcut.debug.snapshot "$label-fenetre"; sleep 2
@@ -96,6 +98,7 @@ run() {   # $1 : libellé, $2 : YES/NO effet verre
   categories "$p" "$label-avant-createur"
   "$POST" app.flshortcut.debug.macro open; sleep 5
   screencapture -x "$OUT/$label-createur.png" 2>/dev/null || true
+  report "$label-createur-ouvert" >/dev/null
   rm -f "$HOME/Library/Caches/$DOMAIN/$label-createur-"*
   "$POST" app.flshortcut.debug.snapshot "$label-createur"; sleep 2
   cp "$HOME/Library/Caches/$DOMAIN/$label-createur-"*.png "$OUT/" 2>/dev/null || true

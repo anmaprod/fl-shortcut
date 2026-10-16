@@ -78,6 +78,17 @@ enum DebugSnapshot {
         try? text.write(to: cacheDirectory.appendingPathComponent("report.txt"), atomically: true, encoding: .utf8)
     }
 
+    /// Toutes les zones de défilement visibles sous `view` (assez grandes pour être une liste).
+    private static func scrollViews(in view: NSView) -> [NSScrollView] {
+        var out: [NSScrollView] = []
+        if let scroll = view as? NSScrollView, !scroll.isHiddenOrHasHiddenAncestor,
+           scroll.bounds.width > 100, scroll.bounds.height > 100 {
+            out.append(scroll)
+        }
+        for sub in view.subviews { out += scrollViews(in: sub) }
+        return out
+    }
+
     private static func rect(_ r: NSRect) -> String {
         "(\(Int(r.minX)),\(Int(r.minY)) \(Int(r.width))×\(Int(r.height)))"
     }
@@ -110,6 +121,17 @@ enum DebugSnapshot {
                 + "\(items.count) éléments : \(items.joined(separator: " | "))\n"
         } else {
             s += "  barre d'outils : AUCUNE\n"
+        }
+        // Zones de défilement (listes) : défilées (origine > 0) ou posées sous la barre de titre (marge du haut 0) ?
+        if let root = w.contentView?.superview ?? w.contentView {
+            for scroll in scrollViews(in: root) {
+                let frame = scroll.convert(scroll.bounds, to: nil)
+                let visible = scroll.documentVisibleRect
+                let docHeight = scroll.documentView?.frame.height ?? 0
+                s += "  défilement \(rect(frame)) · origine du contenu \(Int(visible.minY)) · hauteur du contenu "
+                    + "\(Int(docHeight)) · marges auto \(scroll.automaticallyAdjustsContentInsets ? "oui" : "non") "
+                    + "haut \(Int(scroll.contentInsets.top)) bas \(Int(scroll.contentInsets.bottom))\n"
+            }
         }
         for (button, name) in [(NSWindow.ButtonType.closeButton, "fermer"), (.miniaturizeButton, "réduire"),
                                (.zoomButton, "agrandir")] {
