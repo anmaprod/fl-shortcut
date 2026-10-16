@@ -100,6 +100,14 @@ fi
 # L'app de la barre des menus est quittée : un seul FL Shortcut à la fois envoie des événements.
 pkill -x FLShortcut 2>/dev/null; sleep 1
 
+# Mac verrouillé (ou économiseur d'écran) : aucune fenêtre ne peut passer devant, les essais du FL simulé
+# échoueraient tous pour cette seule raison.
+DEVANT=$(osascript -e 'tell application "System Events" to get name of first process whose frontmost is true' 2>/dev/null)
+if [[ "$DEVANT" == "loginwindow" || "$DEVANT" == "ScreenSaverEngine" ]]; then
+  note "FAIL  essais du FL simulé non lancés : Mac verrouillé ($DEVANT au premier plan) ; à relancer déverrouillé"
+  trap - EXIT; remettre; open "$APP"; exit 1
+fi
+
 essai "Choix automatique du preset (vraie boîte « Open »)" "$OUT/selftest-preset.txt" 60 \
   "$BIN" --selftest-preset "$OUT/selftest-preset.txt"
 
