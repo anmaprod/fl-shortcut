@@ -49,11 +49,16 @@ enum TextLook {
         var center: CGPoint { CGPoint(x: box.midX, y: box.midY) }
     }
 
-    /// Nom qu'on peut retenir : 2 à 40 caractères, au moins une lettre (pas « 1 », pas une phrase).
+    /// Nom qu'on peut retenir : 2 à 40 caractères, au moins une lettre (pas « 1 », pas une phrase), et pas un
+    /// affichage de valeur qui change avec le clic (« Device : X », « Mixer - Insert 3 », « ● REC »).
     static func isUsable(_ text: String) -> Bool {
         let t = text.trimmingCharacters(in: .whitespacesAndNewlines)
         return (2...40).contains(t.count) && t.contains(where: \.isLetter)
+            && !t.contains(where: { ":•●○◉".contains($0) }) && !t.contains(" - ") && !t.contains(" – ")
     }
+
+    /// Largeur maximale d'un nom de bouton (au-delà : une ligne de texte, pas un bouton).
+    static let maxWidth: CGFloat = 160
 
     /// Forme de comparaison : sans casse ni accents, espaces simples, et les confusions de lecture courantes
     /// (0/O, 1/l/I/|) ramenées à une seule lettre.
@@ -69,15 +74,18 @@ enum TextLook {
         })
     }
 
-    /// Pure (testée) : nom retenu pour un clic en `p`, parmi les textes lus. Le texte sous le clic (puis à 6 points
-    /// près) ; une ligne entière seulement si elle est étroite (« Insert 1 »), sinon le mot cliqué (« FILE » dans
-    /// « FILE EDIT ADD… »).
-    static func label(at p: CGPoint, in items: [Item]) -> Item? {
-        let usable = items.filter { isUsable($0.text) }
+    /// Pure (testée) : nom retenu pour un clic en `p`, parmi les textes lus dans `region`. Le texte sous le clic (puis
+    /// à 6 points près), étroit : le nom court entier (« Insert 1 »), ou le mot cliqué dans une ligne (« FILE » dans
+    /// « FILE EDIT ADD… »). Jamais une ligne large, ni un texte qui touche le bord de la zone lue (il y est coupé).
+    static func label(at p: CGPoint, in items: [Item], region: CGRect? = nil) -> Item? {
+        let usable = items.filter { item in
+            isUsable(item.text) && item.box.width <= maxWidth
+                && !(region.map { item.box.minX <= $0.minX + 2 || item.box.maxX >= $0.maxX - 2
+                        || item.box.minY <= $0.minY + 1 || item.box.maxY >= $0.maxY - 1 } ?? false)
+        }
         for pad: CGFloat in [0, 6] {
             let near = usable.filter { $0.box.insetBy(dx: -pad, dy: -pad).contains(p) }
-            if let best = near.filter({ $0.box.width <= 160 }).max(by: { $0.box.width < $1.box.width }) { return best }
-            if let best = near.min(by: { $0.box.width < $1.box.width }) { return best }
+            if let best = near.max(by: { $0.box.width < $1.box.width }) { return best }
         }
         return nil
     }
@@ -105,6 +113,8 @@ enum TextLook {
                          width: r.width / size.width, height: r.height / size.height)
             request.regionOfInterest = roi
         }
+        // Textes de FL petits (environ 10 points) : 6 points de haut au moins, en fraction de la hauteur lue.
+        request.minimumTextHeight = Float(min(1, 6 / max(1, roi.height * size.height)))
         guard (try? VNImageRequestHandler(cgImage: image, options: [:]).perform([request])) != nil else { return [] }
         // Cadres de Vision : normalisés dans la région lue, origine en bas à gauche → points de la fenêtre.
         func inWindow(_ b: CGRect) -> CGRect {
@@ -148,15 +158,18 @@ enum TextLook {
     /// Nom du bouton sous `p` (coordonnées de l'écran) dans `window`, et où tombe le clic par rapport à son centre.
     /// Lecture hors du fil principal, résultat sur le fil principal. nil : pas de texte utilisable sous le clic, ou
     /// lecture de l'écran impossible.
+    private static let queue = DispatchQueue(label: "FLShortcut.text-look", qos: .userInitiated)
+
     static func lookup(at p: CGPoint, window: WinInfo,
                        completion: @escaping ((label: String, dx: Double, dy: Double)?) -> Void) {
-        DispatchQueue.global(qos: .userInitiated).async {
+        queue.async {
             var found: (label: String, dx: Double, dy: Double)?
             let f = window.bounds
             if let image = ScreenLook.captureImage(windowNumber: window.number, size: f.size, scale: 2) {
                 let local = CGPoint(x: p.x - f.minX, y: p.y - f.minY)
                 let region = CGRect(x: local.x - 180, y: local.y - 50, width: 360, height: 100)
-                if let item = label(at: local, in: read(image, size: f.size, region: region)) {
+                    .intersection(CGRect(origin: .zero, size: f.size))
+                if let item = label(at: local, in: read(image, size: f.size, region: region), region: region) {
                     found = (label: item.text, dx: Double(local.x - item.center.x), dy: Double(local.y - item.center.y))
                 }
             }

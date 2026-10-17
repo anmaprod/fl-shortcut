@@ -367,6 +367,8 @@ final class ClickSequenceRecorder: ObservableObject {
     /// Noms des boutons en cours de lecture (un par clic dans une fenêtre de FL) ; attendus à « Terminer ».
     private var naming = DispatchGroup()
     private var finishing = false
+    /// Numéro de l'enregistrement : une fin attendue d'un enregistrement précédent n'arrête jamais le suivant.
+    private var generation = 0
 
     /// Autorisation de lire l'écran demandée une fois, au premier enregistrement (les noms des boutons).
     static let screenAskedKey = "screenNamesAsked"
@@ -386,6 +388,7 @@ final class ClickSequenceRecorder: ObservableObject {
         inputs = []
         naming = DispatchGroup()
         finishing = false
+        generation += 1
         // Boutons retenus par leur nom : il faut lire la fenêtre de FL au moment du clic. Demandé une seule fois ;
         // sans l'autorisation, les clics gardent leur place, comme avant.
         if MacroRunner.testFLPID == nil, ScreenLook.available, !ScreenLook.allowed,
@@ -421,15 +424,15 @@ final class ClickSequenceRecorder: ObservableObject {
         finishing = true
         if let m = monitor { NSEvent.removeMonitor(m) }            // plus rien d'enregistré
         monitor = nil
-        let group = naming
+        let group = naming, current = generation
         DispatchQueue.global(qos: .userInitiated).async {
             _ = group.wait(timeout: .now() + 2.5)
-            DispatchQueue.main.async { [weak self] in self?.complete() }
+            DispatchQueue.main.async { [weak self] in self?.complete(current) }
         }
     }
 
-    private func complete() {
-        guard active, finishing else { return }
+    private func complete(_ recording: Int) {
+        guard active, finishing, recording == generation else { return }
         let result = ClickSequenceCompiler.compile(inputs: inputs)
         let done = completion
         stop()
@@ -481,13 +484,17 @@ final class ClickSequenceRecorder: ObservableObject {
         }
         // Fenêtre de plugin : son titre la retrouvera au rejeu où qu'elle soit (jamais la fenêtre principale ni un menu).
         let title = menu == nil ? FLWindowAX.pluginTitle(at: p, before: before, fl: pid) : nil
+        // Bouton qui porte un nom, dans une fenêtre de FL (pas un menu) : son nom est lu tout de suite (jamais pendant
+        // les essais automatiques). Attendu avant de compiler : entré dans le groupe avant l'ajout (le 80ᵉ clic
+        // termine l'enregistrement).
+        let window = before.hit(p)
+        let readName = menu == nil && MacroRunner.testFLPID == nil && MacroEffectsMac.canRead
+            && (window.map { $0.number > 0 && (MacroEffectsMac.clickWindowLayers.contains($0.layer) || title != nil) } ?? false)
+        let group = naming
+        if readName { group.enter() }
+        let index = inputs.count
         append(RecordedClick(point: p, right: event.type == .rightMouseDown, windows: before.fl, menu: menu, title: title))
-        // Bouton qui porte un nom, dans une fenêtre de FL (pas un menu) : son nom est lu tout de suite.
-        if menu == nil, ScreenLook.allowed, let window = before.hit(p), window.number > 0,
-           MacroEffectsMac.clickWindowLayers.contains(window.layer) || title != nil {
-            let index = inputs.count - 1
-            naming.enter()
-            let group = naming
+        if readName, let window {
             TextLook.lookup(at: p, window: window) { [weak self] found in
                 defer { group.leave() }
                 guard let self, let found, index < self.inputs.count,

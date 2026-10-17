@@ -919,7 +919,7 @@ final class ClickTeacher: ObservableObject {
             let done = completion
             // Clic dans une fenêtre de FL, écran lisible : le bouton est retenu par son nom s'il en porte un, sinon
             // (« Retrouver ce bouton s'il bouge ») par son image, sinon par sa place.
-            if (ScreenLook.allowed || visual), let block, let window = before.hit(sample.point), window.number > 0,
+            if MacroEffectsMac.canRead || visual, let block, let window = before.hit(sample.point), window.number > 0,
                case .flWindow(let corner, let dx, let dy, let size?, let title) = target {
                 finish(target)
                 say("Lecture du bouton…", for: block)

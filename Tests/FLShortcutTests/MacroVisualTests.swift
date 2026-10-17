@@ -91,6 +91,17 @@ final class NamedButtonTests: XCTestCase {
         XCTAssertEqual(TextLook.label(at: CGPoint(x: 297, y: 406), in: mixer)?.text, "Insert 1")
         XCTAssertNil(TextLook.label(at: CGPoint(x: 200, y: 200), in: mixer))
         XCTAssertNil(TextLook.label(at: CGPoint(x: 5, y: 5), in: [item("1", 0, 0, 10)]))
+        // Entre deux mots d'une ligne : un des deux mots, jamais la ligne entière.
+        XCTAssertNotEqual(TextLook.label(at: CGPoint(x: 43, y: 11), in: bar)?.text, "FILE EDIT ADD PATTERNS VIEW")
+        XCTAssertNotNil(TextLook.label(at: CGPoint(x: 43, y: 11), in: bar))
+        // Texte coupé au bord de la zone lue : jamais retenu.
+        let region = CGRect(x: 0, y: 0, width: 100, height: 40)
+        XCTAssertNil(TextLook.label(at: CGPoint(x: 90, y: 11), in: [item("PATTERNS", 80, 5, 40)], region: region))
+        // Un affichage qui change avec le clic n'est pas un nom.
+        XCTAssertFalse(TextLook.isUsable("Device : Built-in"))
+        XCTAssertFalse(TextLook.isUsable("Mixer - Insert 3"))
+        XCTAssertFalse(TextLook.isUsable("● REC"))
+        XCTAssertTrue(TextLook.isUsable("Insert 1"))
     }
 
     func testNameIsFoundWhereverItMovedAndOCRSlipsAreForgiven() {

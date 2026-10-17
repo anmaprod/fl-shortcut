@@ -874,23 +874,43 @@ final class MacroEffectsMac: MacroEffects {
         return (CGPoint(x: f.minX + CGFloat(hit.x) * sx, y: f.minY + CGFloat(hit.y) * sy), window)
     }
 
-    /// Bouton retrouvé à son nom dans sa fenêtre, lue à ce moment-là seulement : d'abord autour de sa place apprise,
-    /// puis toute la fenêtre (MacroVisual.swift). nil : fenêtre absente, ou nom pas (encore) affiché. Le nom n'est
-    /// jamais journalisé (ce peut être le nom d'une piste).
-    func namedPoint(_ spot: NamedSpot, ctx: Context) -> (point: CGPoint, window: WinInfo)? {
-        guard let window = targetWindow(size: spot.size, title: spot.title, ctx: ctx), window.number > 0,
-              let image = ScreenLook.captureImage(windowNumber: window.number, size: window.bounds.size, scale: 2)
-        else { return nil }
+    enum NamedLookup {
+        case found(CGPoint, WinInfo)
+        /// Fenêtre pas (encore) ouverte, ou Échap pendant la lecture : on attend (ou on s'arrête), sans clic.
+        case noWindow
+        /// Fenêtre lue, nom absent (texte changé par le clic, mal lu…), ou fenêtre illisible : sa place apprise.
+        case usePlace
+    }
+
+    /// Bouton retrouvé à son nom dans sa fenêtre, lue une fois à ce moment-là : d'abord autour de sa place apprise,
+    /// puis toute la fenêtre (MacroVisual.swift). Le nom n'est jamais journalisé (ce peut être le nom d'une piste).
+    func namedPoint(_ spot: NamedSpot, ctx: Context) -> NamedLookup {
+        guard let window = targetWindow(size: spot.size, title: spot.title, ctx: ctx) else { return .noWindow }
+        guard window.number > 0,
+              let image = ScreenLook.captureImage(windowNumber: window.number, size: window.bounds.size, scale: 2) else {
+            MacroLog.shared.write("CLICK", "window unreadable: learned place used")
+            return .usePlace
+        }
         let f = window.bounds
         let place = Self.point(in: f, corner: spot.corner, dx: spot.px, dy: spot.py)
         let expected = CGPoint(x: place.x - f.minX - spot.dx, y: place.y - f.minY - spot.dy)   // centre du nom
         let near = CGRect(x: expected.x - 260, y: expected.y - 160, width: 520, height: 320)
-        guard let item = TextLook.find(spot.label, in: TextLook.read(image, size: f.size, region: near), near: expected)
-                ?? TextLook.find(spot.label, in: TextLook.read(image, size: f.size), near: expected) else { return nil }
+        var item = TextLook.find(spot.label, in: TextLook.read(image, size: f.size, region: near), near: expected)
+        if item == nil {
+            if shouldStop(ctx.pid) != nil { return .noWindow }                // Échap : arrêt au tour suivant
+            item = TextLook.find(spot.label, in: TextLook.read(image, size: f.size), near: expected)
+        }
+        guard let item else {
+            MacroLog.shared.write("CLICK", "button name not found: learned place used")
+            return .usePlace
+        }
         MacroLog.shared.write("CLICK", "button found by its name (moved \(Int(item.center.x - expected.x)),"
                               + "\(Int(item.center.y - expected.y)))")
-        return (CGPoint(x: f.minX + item.center.x + spot.dx, y: f.minY + item.center.y + spot.dy), window)
+        return .found(CGPoint(x: f.minX + item.center.x + spot.dx, y: f.minY + item.center.y + spot.dy), window)
     }
+
+    /// Lecture de l'écran possible ici (macOS 14 et plus, autorisation donnée).
+    static var canRead: Bool { ScreenLook.available && ScreenLook.allowed }
 
     /// Point visé, et le menu dans lequel il doit tomber (cible « menu ouvert »).
     func resolve(_ target: ClickTarget, ctx: Context) -> (point: CGPoint, popup: WinInfo?)? {
@@ -927,8 +947,12 @@ final class MacroEffectsMac: MacroEffects {
             return visualPoint(spot, ctx: ctx).map { ($0.point, nil) }
         case .named(let spot):
             // Sans lecture de l'écran (autorisation retirée, macOS 13) : sa place apprise, comme avant.
-            guard ScreenLook.allowed else { return resolve(spot.place, ctx: ctx) }
-            return namedPoint(spot, ctx: ctx).map { ($0.point, nil) }
+            guard Self.canRead else { return resolve(spot.place, ctx: ctx) }
+            switch namedPoint(spot, ctx: ctx) {
+            case .found(let p, _): return (p, nil)
+            case .noWindow: return nil
+            case .usePlace: return resolve(spot.place, ctx: ctx)
+            }
         case .toLearn:
             return nil                                  // refusé par la validation : jamais de clic à l'aveugle
         }
@@ -957,9 +981,12 @@ final class MacroEffectsMac: MacroEffects {
             guard let found = visualPoint(spot, ctx: ctx) else { return nil }
             return (point: found.point, popup: nil, fresh: !baseline.contains(found.window.number))
         case .named(let spot):
-            guard ScreenLook.allowed else { return locate(spot.place, ctx: ctx) }
-            guard let found = namedPoint(spot, ctx: ctx) else { return nil }
-            return (point: found.point, popup: nil, fresh: !baseline.contains(found.window.number))
+            guard Self.canRead else { return locate(spot.place, ctx: ctx) }
+            switch namedPoint(spot, ctx: ctx) {
+            case .found(let p, let w): return (point: p, popup: nil, fresh: !baseline.contains(w.number))
+            case .noWindow: return nil
+            case .usePlace: return locate(spot.place, ctx: ctx)
+            }
         case .openMenu(let hop):
             let snap = WinSnapshot.take(pid: ctx.pid)
             let fitting = snap.fl.filter {
@@ -1027,10 +1054,11 @@ final class MacroEffectsMac: MacroEffects {
             case .button:
                 return .fail("bouton introuvable dans la fenêtre de FL (caché, ou d'une autre apparence : "
                              + "montre-le de nouveau)")
-            case .named:
-                // Sans le nom : ce peut être celui d'une piste, jamais dans le journal.
-                return .fail("bouton introuvable par son nom dans la fenêtre de FL (caché, ou renommé ? "
-                             + "montre-le de nouveau)")
+            case .named(let spot):
+                // Sans le nom : ce peut être celui d'une piste, jamais dans le journal. Seule raison possible ici : sa
+                // fenêtre n'est pas ouverte (nom absent → sa place).
+                return .fail("fenêtre de FL de \(Int(spot.size.width)) × \(Int(spot.size.height)) introuvable "
+                             + "(pas ouverte, ou changée de taille : montre de nouveau le clic)")
             default:
                 return .fail("position introuvable (fenêtre de FL ?)")
             }
