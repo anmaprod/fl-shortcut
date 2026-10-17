@@ -107,7 +107,9 @@ enum HardwareFolder {
 
 enum FLScriptInstaller {
     static let fileName = "device_FLShortcut.py"
-    static let folderName = "FL Shortcut"
+    static let folderName = "FL Shortcuts"
+    /// Dossier du script avant le nouveau nom de l'app : remplacé à la mise à jour du script, retiré à la désinstallation.
+    static let oldFolderName = AppPaths.oldName
     private static let chosenFolderKey = "hardwareFolderPath"
 
     static var defaultHardwareFolder: URL {
@@ -115,7 +117,7 @@ enum FLScriptInstaller {
             .appendingPathComponent("Documents/Image-Line/FL Studio/Settings/Hardware", isDirectory: true)
     }
 
-    /// Écrit le script dans `<hardware>/FL Shortcut/device_FLShortcut.py` sans suivre de lien (SEC-06).
+    /// Écrit le script dans `<hardware>/FL Shortcuts/device_FLShortcut.py` sans suivre de lien (SEC-06).
     @discardableResult
     static func write(script: Data, hardware: URL) throws -> URL {
         try SecureFile.checkDirectory(hardware)
@@ -129,6 +131,8 @@ enum FLScriptInstaller {
 
     /// Met à jour le script déjà installé quand l'app en embarque une nouvelle version, AVEC LA MÊME CLÉ :
     /// seulement si le script installé est intact (empreinte enregistrée identique), jamais s'il a été modifié.
+    /// Installé sous l'ancien nom de l'app (dossier « FL Shortcut ») : le script passe dans « FL Shortcuts » et l'ancien
+    /// dossier est retiré, pour que FL ne propose pas deux fois le Controller type.
     /// Renvoie vrai si le fichier a été réécrit (FL le relira à son prochain lancement).
     @discardableResult
     static func updateInstalledIfNeeded(secrets: SecretStore = PreferredSecretStore(),
@@ -141,11 +145,26 @@ enum FLScriptInstaller {
               let text = try? ScriptTemplate.inject(key: key, into: template) else { return false }
         let data = Data(text.utf8)
         let installed = URL(fileURLWithPath: path)
-        guard let current = try? SecureFile.read(installed, maxBytes: 4 << 20), current != data else { return false }
-        let hardware = installed.deletingLastPathComponent().deletingLastPathComponent()
-        guard let dest = try? write(script: data, hardware: hardware), dest.path == installed.path else { return false }
+        let oldFolder = installed.deletingLastPathComponent()
+        let moving = oldFolder.lastPathComponent == oldFolderName
+        guard let current = try? SecureFile.read(installed, maxBytes: 4 << 20), current != data || moving else { return false }
+        let hardware = oldFolder.deletingLastPathComponent()
+        guard let dest = try? write(script: data, hardware: hardware),
+              dest.path == installed.path || moving else { return false }
         ScriptIntegrity.record(data, at: dest, defaults: defaults)
+        if moving, isOurScriptFolder(oldFolder) { try? FileManager.default.removeItem(at: oldFolder) }
         return true
+    }
+
+    /// Notre dossier de script (nouveau ou ancien nom) : ne contient que device_FLShortcut.py (et des fichiers du
+    /// Finder / le cache Python). Rien d'autre n'est jamais supprimé.
+    static func isOurScriptFolder(_ folder: URL, fileManager: FileManager = .default) -> Bool {
+        guard [folderName, oldFolderName].contains(folder.lastPathComponent),
+              SecureFile.kind(at: folder.path) == .directory,
+              let entries = try? fileManager.contentsOfDirectory(atPath: folder.path),
+              entries.contains(fileName) else { return false }
+        let allowed: Set<String> = [fileName, ".DS_Store", "__pycache__"]
+        return entries.allSatisfy { allowed.contains($0) || $0.hasPrefix("._") }
     }
 
     static func installWithAlert(secrets: SecretStore = PreferredSecretStore()) {
@@ -187,8 +206,8 @@ enum FLScriptInstaller {
             Dernières étapes dans FL Studio :
             1. Redémarre FL Studio (les scripts sont lus au lancement).
             2. Ouvre Options › MIDI Settings.
-            3. Dans « Input », sélectionne « FL Shortcut », clique sur Enable et choisis le Controller type « FL Shortcut ».
-            4. Dans « Output », sélectionne aussi « FL Shortcut » et donne-lui le même numéro de Port que l'entrée.
+            3. Dans « Input », sélectionne « FL Shortcuts », clique sur Enable et choisis le Controller type « FL Shortcuts ».
+            4. Dans « Output », sélectionne aussi « FL Shortcuts » et donne-lui le même numéro de Port que l'entrée.
 
             Chaque réinstallation crée une nouvelle clé : redémarre FL après coup.
             """)

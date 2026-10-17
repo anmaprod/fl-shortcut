@@ -237,37 +237,45 @@ enum MacroOutline {
                      learnedInput: Bool) -> [MacroStepRow] {
         var out: [MacroStepRow] = []
         out.reserveCapacity(blocks.count + 4)
-        func walk(_ list: [Block], prefix: String, offset: Int, depth: Int, parentEnabled: Bool) {
+        // `page` : page de FL ouverte au-dessus (« Cliquer sur… » hors de sa page est signalé sur sa ligne).
+        func walk(_ list: [Block], prefix: String, offset: Int, depth: Int, parentEnabled: Bool, page inherited: FLPage?) {
+            var page = inherited
             for (i, b) in list.enumerated() {
                 let number = MacroValidation.path(prefix, offset + i + 1)
                 let enabled = parentEnabled && b.enabled
                 var ctx = context
                 ctx.path = number
+                var misplaced: String?
+                if case .pageOption(let id?, _) = b.body, let own = PageOptions.page(of: id), own != page {
+                    misplaced = PageOptions.misplacedMessage((number, page))
+                }
                 out.append(row(b, number: number, depth: depth, enabled: enabled, context: ctx, layout: layout,
-                               learnedInput: learnedInput))
+                               learnedInput: learnedInput, misplaced: misplaced))
                 let lists = MacroValidation.childLists(b.body)
                 for (slot, entry) in lists.enumerated() {
-                    walk(entry.blocks, prefix: number, offset: entry.start, depth: depth + 1, parentEnabled: enabled)
+                    walk(entry.blocks, prefix: number, offset: entry.start, depth: depth + 1, parentEnabled: enabled,
+                         page: page)
                     out.append(endRow(b, slot: slot, slots: lists.count, depth: depth, enabled: enabled))
                 }
+                if case .openPage(let p) = b.body { page = p }
             }
         }
-        walk(blocks, prefix: "", offset: 0, depth: 0, parentEnabled: true)
+        walk(blocks, prefix: "", offset: 0, depth: 0, parentEnabled: true, page: nil)
         return out
     }
 
     private static func row(_ b: Block, number: String, depth: Int, enabled: Bool, context: ValidationContext,
-                            layout: KeyboardLayout, learnedInput: Bool) -> MacroStepRow {
+                            layout: KeyboardLayout, learnedInput: Bool, misplaced: String? = nil) -> MacroStepRow {
         let spec = b.body.type.map(BlockRegistry.spec)
         let phrase = self.phrase(b.body, layout: layout)
         var problem: String?
         if let spec {
-            problem = spec.valider(b.body, context)
+            problem = spec.valider(b.body, context) ?? misplaced
             if problem == nil, let note = b.note, note.count > MacroValidation.maxNoteLength {
                 problem = context.fail("note trop longue.")
             }
         } else {
-            problem = context.fail("bloc d'une version plus récente de FL Shortcut : la macro est bloquée.")
+            problem = context.fail("bloc d'une version plus récente de FL Shortcuts : la macro est bloquée.")
         }
         return MacroStepRow(id: MacroStepRow.blockRowID(b.id), blockID: b.id, kind: .block, number: number, depth: depth,
                        type: b.body.type, category: spec?.category, symbol: spec?.symbol ?? "questionmark.square.dashed",
@@ -337,8 +345,11 @@ enum MacroOutline {
     static func targetText(_ t: ClickTarget) -> String {
         switch t {
         case .track(let dx, let dy): return dx == 0 && dy == 0 ? "sur la piste visée" : "près de la piste visée"
+        case .flWindow(_, _, _, _, let title?): return "à l'endroit appris (« \(title.displaySafe(max: 30)) »)"
         case .flWindow: return "à l'endroit appris (fenêtre de FL)"
         case .openMenu: return "à l'endroit appris (menu ouvert)"
+        case .button: return "sur le bouton retrouvé à son image"
+        case .named(let spot): return "sur « \(spot.label.displaySafe(max: 30)) »"
         case .lastClick: return "près du clic précédent"
         case .startCursor: return "près du curseur"
         case .cursorXWindowY: return "dans la colonne du curseur"
@@ -388,6 +399,10 @@ enum MacroOutline {
             return ("Carte son branchée", "sortie et entrée du Mac")
         case .organize:
             return ("Organiser la page ouverte", "écoute, classe, colore")
+        case .openPage(let page):
+            return ("Ouvrir une page de FL", page?.title ?? "à choisir")
+        case .pageOption:
+            return ("Cliquer sur", resumeAfter(""))
         case .menuBar(let titles):
             return ("Menu de FL", titles.map { $0.displaySafe(max: 30) }.joined(separator: " › "))
         case .menuAX(let titles, _):
@@ -419,7 +434,8 @@ enum MacroOutline {
         func walk(_ list: [Block]) {
             for b in list where b.enabled {
                 switch b.body {
-                case .flAction, .flActionValue, .nameColor: link = true
+                case .flAction, .flActionValue, .nameColor, .openPage: link = true
+                case .pageOption(let id?, _) where PageOptions.usesLink(id): link = true
                 case .click(.toLearn, _): learn = true
                 case .selectInput: if !learnedInput { learn = true }
                 default: break
@@ -438,20 +454,22 @@ enum MacroOutline {
     /// fenêtre de FL (fenêtre principale, fenêtre détachée, réglages comme Options › Audio, boîte de dialogue :
     /// niveaux 0 à 8), relative à son coin le plus proche, taille retenue (c'est elle qu'on retrouve au rejeu ; refus
     /// si elle change). Ailleurs : nil.
-    static func learnedTarget(at p: CGPoint, windows: [(layer: Int, bounds: CGRect)]) -> ClickTarget? {
+    /// `title` : fenêtre de plugin sous le clic (titre lu par l'Accessibilité) : retenue avec son nom, même tout en
+    /// haut des niveaux (une fenêtre de plugin qui reste devant n'est pas un menu).
+    static func learnedTarget(at p: CGPoint, windows: [(layer: Int, bounds: CGRect)], title: String? = nil) -> ClickTarget? {
         guard let w = windows.first(where: { $0.bounds.contains(p) }) else { return nil }
         let b = w.bounds
-        if w.layer > 8 {
+        if w.layer > 8, title == nil {
             let hop = MacroSpots.PopupHop(offset: CGVector(dx: p.x - b.minX, dy: p.y - b.minY), size: b.size)
             let target = ClickTarget.openMenu(hop)
             return target.isFinite ? target : nil
         }
-        guard MacroEffectsMac.clickWindowLayers.contains(w.layer) else { return nil }
+        guard MacroEffectsMac.clickWindowLayers.contains(w.layer) || title != nil else { return nil }
         let left = p.x - b.minX <= b.maxX - p.x
         let top = p.y - b.minY <= b.maxY - p.y
         let corner: Corner = top ? (left ? .topLeft : .topRight) : (left ? .bottomLeft : .bottomRight)
         let dx = Double(p.x - (left ? b.minX : b.maxX)), dy = Double(p.y - (top ? b.minY : b.maxY))
-        let target = ClickTarget.flWindow(corner: corner, dx: dx, dy: dy, size: b.size)
+        let target = ClickTarget.flWindow(corner: corner, dx: dx, dy: dy, size: b.size, title: title)
         return target.isFinite ? target : nil
     }
 }
@@ -503,6 +521,8 @@ enum PaletteCatalog {
                 .waitWindow(.dialog, timeoutMs: 4_000)
             },
             // FL Studio
+            item("openPage", .openPage) { .openPage(nil) },
+            item("pageOption", .pageOption) { .pageOption(id: nil, name: "") },
             item("trackMenu", .trackMenu) {
                 .trackMenu(letters: ["f", "o"], labels: ["File", "Open mixer track state"], target: .lastClicked,
                            finalEnter: .ifNeeded)
@@ -510,7 +530,7 @@ enum PaletteCatalog {
             item("dropFile", .dropFile) { .dropFile(path: "") },
             item("chooseFile", .chooseFile) { .chooseFile(path: "") },
             item("flAction", .flAction,
-                 aide: "Une action de FL Shortcut (Mixer, Playlist, métronome…) : par le lien avec FL s'il est installé, sinon la touche équivalente de FL.") {
+                 aide: "Une action de FL Shortcuts (Mixer, Playlist, métronome…) : par le lien avec FL s'il est installé, sinon la touche équivalente de FL.") {
                 .flAction(key: "mx", fallback: .key(KeyRef(mixer)))
             },
             item("arm", .flAction, label: "Armer la piste",

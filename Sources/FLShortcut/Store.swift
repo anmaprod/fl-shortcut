@@ -44,8 +44,13 @@ final class Store: ObservableObject {
     static let shared = Store()
 
     @Published var remaps: [Remap] {
-        didSet { recompute(); scheduleSave() }
+        didSet { recompute(); scheduleSave(); onDataChange?() }
     }
+    /// Après chaque changement des raccourcis ou des macros (sauvegarde en ligne du compte : AccountBackup).
+    var onDataChange: (() -> Void)?
+    /// Le profil n'a pas pu être lu entièrement au lancement (Store.load) : jusqu'à son remplacement par la
+    /// sauvegarde du compte, il n'est jamais envoyé à la place de celle-ci.
+    private(set) var loadIncomplete = false
     @Published var enabled: Bool {
         didSet {
             defaults.set(enabled, forKey: "enabled")
@@ -57,8 +62,9 @@ final class Store: ObservableObject {
         didSet { pushConfig() }
     }
     @Published private(set) var issues: [UUID: [ShortcutIssue]] = [:]
-    @Published var loadWarning: String? = nil
-    @Published private(set) var saveError: String? = nil
+    // Chaque avertissement et chaque erreur d'enregistrement rejoint les derniers problèmes (message d'aide).
+    @Published var loadWarning: String? = nil { didSet { if let v = loadWarning, v != oldValue { ProblemLog.shared.add(v) } } }
+    @Published private(set) var saveError: String? = nil { didSet { if let v = saveError, v != oldValue { ProblemLog.shared.add(v) } } }
     @Published private(set) var toggleCombo = KeyCombo(keyCode: 3, command: true, option: true, control: true)
     /// Dernier état avant un remplacement (profil, import) : permet d'annuler.
     @Published private(set) var undoSnapshot: [Remap]? = nil
@@ -110,6 +116,7 @@ final class Store: ObservableObject {
         enabled = defaults.object(forKey: "enabled") as? Bool ?? true
 
         let loaded = Store.load(storage: storage, layout: layout)
+        loadIncomplete = loaded.incomplete
         var initial = loaded.remaps
         var needsSave = loaded.needsSave
         // Une seule fois : ancien « Enregistrement rapide » jamais réglé (armement demandé, aucune position
@@ -135,7 +142,10 @@ final class Store: ObservableObject {
         }
         remaps = initial
         loadWarning = loaded.warning
-        self.library.onChange = { [weak self] in self?.recompute() }
+        self.library.onChange = { [weak self] in
+            self?.recompute()
+            self?.onDataChange?()
+        }
         refreshLayoutDependentState()
         if needsSave { saveNow() }
 
@@ -162,6 +172,9 @@ final class Store: ObservableObject {
         var remaps: [Remap]
         var warning: String?
         var needsSave: Bool
+        /// Profil illisible, inaccessible ou en partie illisible : ce qui est chargé n'est pas ce que l'utilisateur
+        /// avait (la sauvegarde en ligne ne doit pas l'envoyer à la place de la bonne).
+        var incomplete = false
     }
 
     static func load(storage: ProfileStorage, layout: KeyboardLayout) -> LoadResult {
@@ -171,7 +184,7 @@ final class Store: ObservableObject {
         } catch {
             return LoadResult(remaps: ProfilePreset.recommended.remaps(layout: layout),
                               warning: "Profil inaccessible (\(error.localizedDescription)). Profil recommandé chargé.",
-                              needsSave: false)
+                              needsSave: false, incomplete: true)
         }
         // Nom distinct : `guard let data` dans la portée d'une constante locale `data` ne compile pas.
         guard let data = stored else {
@@ -193,12 +206,13 @@ final class Store: ObservableObject {
             let unknown = decoded.remaps.filter { $0.kind == .flAction && $0.actionID == nil }.count
             if unknown > 0 { notes.append("\(unknown) raccourci(s) avec une action inconnue, désactivé(s).") }
             return LoadResult(remaps: decoded.remaps, warning: notes.isEmpty ? nil : notes.joined(separator: " "),
-                              needsSave: needsSave)
+                              needsSave: needsSave, incomplete: decoded.dropped > 0)
         } catch {
             let name = try? storage.backup(data, label: "illisible")
             let where_ = name.map { " Une copie a été gardée (\($0))." } ?? ""
             return LoadResult(remaps: ProfilePreset.recommended.remaps(layout: layout),
-                              warning: "Profil illisible : profil recommandé chargé.\(where_)", needsSave: false)
+                              warning: "Profil illisible : profil recommandé chargé.\(where_)", needsSave: false,
+                              incomplete: true)
         }
     }
 
@@ -311,6 +325,42 @@ final class Store: ObservableObject {
     func applyImport(_ preview: ImportPreview) {
         undoSnapshot = remaps
         remaps = preview.remaps
+    }
+
+    // MARK: Sauvegarde en ligne (AccountBackup)
+
+    /// Remplace raccourcis et macros d'un coup (sauvegarde du compte reprise, déconnexion), écrits tout de suite ;
+    /// pas d'« Annuler » vers l'état d'avant.
+    func replaceAll(_ new: [Remap], macros: [MacroDoc]) {
+        undoSnapshot = nil
+        loadIncomplete = false
+        library.replaceAll(macros)
+        remaps = new
+        saveNow()
+        library.saveNow()
+    }
+
+    /// Raccourcis du premier lancement (profil recommandé, macro d'exemple comprise), sans aucune macro en blocs :
+    /// ce que la déconnexion laisse sur le Mac.
+    func freshRemaps() -> [Remap] { ProfilePreset.recommended.remaps(layout: layout) }
+
+    /// Rien de personnel sur ce Mac : raccourcis du premier lancement et aucune macro en blocs (identifiants mis à
+    /// part, ils changent à chaque création).
+    var isUntouched: Bool {
+        library.macros.isEmpty && Self.withoutIDs(remaps) == Self.withoutIDs(freshRemaps())
+    }
+
+    /// Profil encodé sans ses identifiants (UUID), pour comparer deux profils de même contenu.
+    static func withoutIDs(_ remaps: [Remap]) -> String {
+        let text = (try? ProfileCodec.encode(remaps)).map { String(decoding: $0, as: UTF8.self) } ?? ""
+        return text.replacingOccurrences(of: "[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}",
+                                         with: "-", options: .regularExpression)
+    }
+
+    /// Copie datée du profil dans Application Support (avant de le remplacer par la sauvegarde du compte).
+    @discardableResult
+    func keepCopy(label: String) -> String? {
+        (try? ProfileCodec.encode(remaps)).flatMap { try? storage.backup($0, label: label) }
     }
 
     // MARK: Sauvegarde

@@ -35,7 +35,7 @@ final class OnboardingWindow {
         w.titleVisibility = .hidden
         w.isMovableByWindowBackground = true
         w.isReleasedWhenClosed = false
-        w.title = "Bienvenue dans FL Shortcut"
+        w.title = "Bienvenue dans FL Shortcuts"
         w.animationBehavior = .alertPanel          // ouverture « zoom » douce, comme les fenêtres d'accueil d'Apple
         w.contentView = host
         w.center()
@@ -95,7 +95,7 @@ struct OnboardingView: View {
         VStack(spacing: 0) {
             Spacer(minLength: 0)
             AppIcon().frame(width: 88, height: 88)
-            Text("FL Shortcut")
+            Text("FL Shortcuts")
                 .font(.largeTitle.weight(.bold))
                 .padding(.top, 10)
             Text("Tes propres raccourcis pour FL Studio.")
@@ -130,7 +130,7 @@ struct OnboardingView: View {
                     .heroControlSize()
                     .keyboardShortcut(.defaultAction)
                 } else {
-                    Text("FL Shortcut a besoin de l'accès Accessibilité pour reconnaître tes raccourcis.")
+                    Text("FL Shortcuts a besoin de l'accès Accessibilité pour reconnaître tes raccourcis.")
                         .font(.system(size: 12))
                         .foregroundStyle(.secondary)
                         .multilineTextAlignment(.center)
@@ -144,7 +144,7 @@ struct OnboardingView: View {
                     .heroControlSize()
                     .keyboardShortcut(.defaultAction)
                     if askedPermission {
-                        Text("Active FL Shortcut dans Réglages Système › Accessibilité. C'est détecté tout seul.")
+                        Text("Active FL Shortcuts dans Réglages Système › Accessibilité. C'est détecté tout seul.")
                             .font(.system(size: 11))
                             .foregroundStyle(.secondary)
                             .multilineTextAlignment(.center)
@@ -158,7 +158,7 @@ struct OnboardingView: View {
 
             Spacer(minLength: 20)
 
-            Label("Tes touches ne sont lues que quand FL Studio est au premier plan. Rien n'est enregistré ni envoyé.",
+            Label("Tes touches ne sont lues que quand FL Studio est au premier plan. Rien n'est enregistré ni envoyé, sauf ce que tu publies toi-même dans la Communauté.",
                   systemImage: "lock")
                 .font(.system(size: 11))
                 .foregroundStyle(.secondary)
@@ -185,8 +185,8 @@ struct OnboardingView: View {
             HStack(alignment: .top, spacing: 20) {
                 VStack(alignment: .leading, spacing: 12) {
                     StepRow(number: 1, done: installed, text: "Installer le lien dans FL Studio (bouton ci-dessous), puis redémarrer FL.")
-                    StepRow(number: 2, done: linked, text: "Dans FL Studio : Options › MIDI Settings. Input « FL Shortcut » : Enable, Controller type « FL Shortcut ».")
-                    StepRow(number: 3, done: linked, text: "Output « FL Shortcut » : même numéro de Port que l'entrée. C'est détecté tout seul.")
+                    StepRow(number: 2, done: linked, text: "Dans FL Studio : Options › MIDI Settings. Input « FL Shortcuts » : Enable, Controller type « FL Shortcuts ».")
+                    StepRow(number: 3, done: linked, text: "Output « FL Shortcuts » : même numéro de Port que l'entrée. C'est détecté tout seul.")
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
 
@@ -255,9 +255,9 @@ private struct StepRow: View {
     }
 }
 
-/// Lueurs aux couleurs de l'icône en haut de l'accueil : dégradés radiaux statiques (aucun flou, aucune
-/// animation). Couche de contenu, que le verre des touches et du bouton réfracte.
-private struct BrandGlow: View {
+/// Lueurs aux couleurs de l'icône en haut de l'accueil et du guide : dégradés radiaux statiques (aucun flou,
+/// aucune animation). Couche de contenu, que le verre des touches et du bouton réfracte.
+struct BrandGlow: View {
     @Environment(\.colorScheme) private var scheme
 
     private var k: Double { scheme == .dark ? 0.42 : 0.30 }
@@ -290,10 +290,10 @@ private struct MIDISettingsPreview: View {
                 .background(Color(red: 0.23, green: 0.25, blue: 0.27))
             VStack(alignment: .leading, spacing: 5) {
                 Text("Input").font(.system(size: 10)).foregroundStyle(Color(white: 0.6))
-                highlighted("FL Shortcut", badge: "①")
+                highlighted("FL Shortcuts", badge: "①")
                 Text("Output").font(.system(size: 10)).foregroundStyle(Color(white: 0.6)).padding(.top, 4)
-                highlighted("FL Shortcut", badge: "②")
-                Text("Controller type : FL Shortcut, même Port")
+                highlighted("FL Shortcuts", badge: "②")
+                Text("Controller type : FL Shortcuts, même Port")
                     .font(.system(size: 10)).foregroundStyle(Color(white: 0.8)).padding(.top, 4)
             }
             .padding(10)
@@ -302,7 +302,7 @@ private struct MIDISettingsPreview: View {
         .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
         .overlay(RoundedRectangle(cornerRadius: 8, style: .continuous)
             .strokeBorder(Color(nsColor: .separatorColor), lineWidth: 0.5))
-        .accessibilityLabel("Aperçu : dans MIDI Settings, choisir FL Shortcut en entrée et en sortie, avec le même port.")
+        .accessibilityLabel("Aperçu : dans MIDI Settings, choisir FL Shortcuts en entrée et en sortie, avec le même port.")
     }
 
     private func highlighted(_ text: String, badge: String) -> some View {

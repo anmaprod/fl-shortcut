@@ -25,9 +25,7 @@ enum MacroSpots {
         }
 
         /// Même fenêtre qu'à l'apprentissage (à 2 points près).
-        func matches(size: CGSize) -> Bool {
-            abs(size.width - anchorSize.width) <= 2 && abs(size.height - anchorSize.height) <= 2
-        }
+        func matches(size: CGSize) -> Bool { MacroSpots.sameSize(size, anchorSize) }
     }
 
     static func offsets(_ points: [CGPoint], from anchor: CGPoint) -> [CGVector] {
@@ -60,10 +58,13 @@ enum MacroSpots {
     static func forgetAll(defaults: UserDefaults = .standard) {
         for k in Kind.allCases { defaults.removeObject(forKey: k.rawValue) }
         for k in PathKind.allCases { defaults.removeObject(forKey: k.rawValue) }
+        IconPlacement.forgetSpot(defaults: defaults)
         MacroRunner.forgetTrackMenuMemo(defaults: defaults)
     }
 
-    static var anyLearned: Bool { PathKind.allCases.contains { loadPath($0) != nil } }
+    static var anyLearned: Bool {
+        PathKind.allCases.contains { loadPath($0) != nil } || IconPlacement.loadSpot() != nil
+    }
 }
 
 /// Enregistre les clics gauches faits dans FL pendant l'apprentissage : position ET instant de l'événement (pas le

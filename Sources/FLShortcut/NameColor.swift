@@ -101,15 +101,14 @@ struct NameColorPayload: Equatable {
     static let defaultColor = RGBColor(r: 0xE0, g: 0x45, b: 0x3A)
 
     /// Ligne du bloc : « Kick · #E0453A », « Kick », « couleur #E0453A », « dégradé #F2A0D8 → #C02890 ».
-    static func summary(name: String?, color: RGBColor?, fade: RGBColor? = nil) -> String {
+    static func summary(name: String?, color: RGBColor?, fade: RGBColor? = nil, icon: FLIcon? = nil) -> String {
         if let color, let fade { return "dégradé #\(color.hex) → #\(fade.hex)" }
         let n = NameColorPayload(name: name, color: color)
-        switch (n.name, n.color) {
-        case let (name?, color?): return "\(name.displaySafe(max: 40)) · #\(color.hex)"
-        case let (name?, nil): return name.displaySafe(max: 40)
-        case let (nil, color?): return "couleur #\(color.hex)"
-        case (nil, nil): return "nom et couleur à choisir"
-        }
+        var parts: [String] = []
+        if let name = n.name { parts.append(name.displaySafe(max: 40)) }
+        if let color = n.color { parts.append(n.name == nil ? "couleur #\(color.hex)" : "#\(color.hex)") }
+        if let icon { parts.append("icône " + (FLIconGrid.cell(icon)?.name ?? icon.code)) }
+        return parts.isEmpty ? "nom et couleur à choisir" : parts.joined(separator: " · ")
     }
 
     /// Message d'un refus expliqué par FL (CC 116).
@@ -126,7 +125,7 @@ struct NameColorPayload: Equatable {
     }
 }
 
-/// Les 10 dernières couleurs choisies dans FL Shortcut, la plus récente d'abord (préférences, codes « E0453A »).
+/// Les 10 dernières couleurs choisies dans FL Shortcuts, la plus récente d'abord (préférences, codes « E0453A »).
 enum RecentColors {
     static let key = "nameColor.recentColors"
     static let limit = 10

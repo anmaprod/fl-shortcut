@@ -1,0 +1,270 @@
+// Aide de FL Shortcuts : questions fréquentes (dans l'app, sans réseau) et « Écrire à l'équipe ». Le message part par
+// le serveur de la Communauté quand il est branché (table support_requests, avec ou sans compte : supabase/schema.sql) ;
+// sinon, ou s'il échoue, par mail à l'adresse de l'équipe (build.sh : FLS_SUPPORT_EMAIL), ou en copie / ticket GitHub.
+// Le diagnostic joint (si l'utilisateur le laisse coché) dit l'état de l'app, jamais ses touches, ses noms de pistes ni
+// ses fichiers ; il est affiché tel quel avant l'envoi.
+import AppKit
+import Foundation
+
+/// Adresse de l'équipe et ticket public, pour envoyer sans le serveur.
+enum SupportConfig {
+    /// build.sh : FLS_SUPPORT_EMAIL (Info.plist FLSSupportEmail) ; essai : `defaults write … supportEmail`.
+    static var email: String? {
+        let raw = UserDefaults.standard.string(forKey: "supportEmail")
+            ?? Bundle.main.object(forInfoDictionaryKey: "FLSSupportEmail") as? String ?? ""
+        let mail = raw.trimmingCharacters(in: .whitespaces)
+        return !mail.isEmpty && CommunityRules.emailProblem(mail) == nil ? mail : nil
+    }
+
+    static let issuesURL = URL(string: "https://github.com/anmaprod/fl-shortcut/issues/new")!
+}
+
+enum SupportKind: String, CaseIterable, Identifiable {
+    case probleme, question, idee
+
+    var id: String { rawValue }
+
+    var label: String {
+        switch self {
+        case .probleme: return "Un problème"
+        case .question: return "Une question"
+        case .idee: return "Une idée"
+        }
+    }
+
+    var placeholder: String {
+        switch self {
+        case .probleme:
+            return "Ce que tu faisais, ce qui devait se passer, ce qui s'est passé. Ex. : « ma macro s'arrête au 3e bloc "
+                + "dans le Mixer »."
+        case .question: return "Ta question, le plus précisément possible."
+        case .idee: return "Ce qui te ferait gagner du temps dans FL Studio."
+        }
+    }
+}
+
+/// Ce que l'utilisateur envoie à l'équipe.
+struct SupportMessage: Equatable {
+    var kind = SupportKind.probleme
+    var text = ""
+    /// Pour lui répondre ; facultatif.
+    var email = ""
+    /// Le message d'erreur signalé (bouton « Signaler ce problème » d'une macro qui échoue), tel que l'app l'a affiché.
+    var error: String?
+    /// État de l'app, derniers problèmes et journal de la dernière macro (nil : décoché).
+    var diagnostic: String?
+    /// « FLS-3F9A2C » : retrouver le message dans la boîte de l'équipe, et y répondre.
+    var reference = SupportMessage.newReference()
+
+    static func newReference() -> String {
+        "FLS-" + UUID().uuidString.replacingOccurrences(of: "-", with: "").prefix(6)
+    }
+}
+
+enum SupportRules {
+    static let messageRange = 10...4000
+    /// Diagnostic joint : état de l'app, derniers problèmes, journal de la dernière macro.
+    static let maxDiagnostic = 12_000
+
+    /// Ce qui empêche l'envoi (nil : prêt) ; mêmes règles que le serveur.
+    static func problem(_ m: SupportMessage) -> String? {
+        let n = m.text.trimmingCharacters(in: .whitespacesAndNewlines).count
+        if n < messageRange.lowerBound { return "Écris au moins quelques mots (\(messageRange.lowerBound) caractères)." }
+        if n > messageRange.upperBound { return "\(messageRange.upperBound) caractères au plus." }
+        let mail = m.email.trimmingCharacters(in: .whitespaces)
+        if !mail.isEmpty, let why = CommunityRules.emailProblem(mail) { return why }
+        return nil
+    }
+
+    /// Le message en texte, pour un mail, le presse-papiers ou un ticket : toujours le même plan, pour lire vite.
+    static func plainText(_ m: SupportMessage, appVersion: String) -> String {
+        var out = "Référence : \(m.reference)\nGenre : \(m.kind.label)\nFL Shortcuts \(appVersion)"
+        let mail = m.email.trimmingCharacters(in: .whitespaces)
+        if !mail.isEmpty { out += "\nPour répondre : \(mail)" }
+        out += "\n\n— Message —\n" + m.text.trimmingCharacters(in: .whitespacesAndNewlines)
+        if let e = m.error, !e.isEmpty { out += "\n\n— Le problème signalé —\n" + e }
+        if let d = m.diagnostic, !d.isEmpty { out += "\n\n— État de l'app —\n" + d }
+        return out
+    }
+
+    /// « [FL Shortcuts] Problème · FLS-3F9A2C · Ma macro s'arrête… » : un filtre sur « [FL Shortcuts] » range tout.
+    static func subject(_ m: SupportMessage) -> String {
+        let first = m.text.trimmingCharacters(in: .whitespacesAndNewlines).split(separator: "\n").first.map(String.init) ?? ""
+        let kind = m.kind.label.split(separator: " ").last.map { $0.prefix(1).uppercased() + $0.dropFirst() } ?? ""
+        return "[FL Shortcuts] \(kind) · \(m.reference) · \(first.prefix(60))"
+    }
+
+    /// Mail tout prêt pour l'app de mail.
+    static func mailURL(_ m: SupportMessage, to address: String, appVersion: String) -> URL? {
+        var c = URLComponents()
+        c.scheme = "mailto"
+        c.path = address
+        c.queryItems = [URLQueryItem(name: "subject", value: subject(m)),
+                        URLQueryItem(name: "body", value: plainText(m, appVersion: appVersion))]
+        return c.url
+    }
+
+    /// Ticket public sur GitHub, prérempli (sans le mail : la page est publique).
+    static func issueURL(_ m: SupportMessage, appVersion: String) -> URL? {
+        var publicMessage = m
+        publicMessage.email = ""
+        var c = URLComponents(url: SupportConfig.issuesURL, resolvingAgainstBaseURL: false)
+        c?.queryItems = [URLQueryItem(name: "title", value: subject(m)),
+                         URLQueryItem(name: "body", value: String(plainText(publicMessage, appVersion: appVersion).prefix(5000)))]
+        return c?.url
+    }
+}
+
+/// État de l'app joint au message : de quoi comprendre un problème sans rien de personnel.
+enum SupportDiagnostic {
+    struct Facts: Equatable {
+        var appVersion: String
+        var macOS: String
+        var flRunning: Bool
+        var flVersion: String?
+        var accessibility: Bool
+        var staleTCC: Bool
+        var secureInput: Bool
+        var paused: Bool
+        var light: Bool
+        var link: String
+        var shortcuts: Int
+        var macros: Int
+        var macrosToLearn: Int
+        var lastMacro: String?
+        var screens: [String]
+    }
+
+    /// Tout ce qui est joint : l'état, puis les derniers problèmes et le journal de la dernière macro s'il y en a.
+    static func report(_ f: Facts, problems: String?, journal: String?) -> String {
+        var out = text(f)
+        if let problems { out += "\n\n— Derniers problèmes —\n" + problems }
+        if let journal { out += "\n\n— Journal de la dernière macro —\n" + journal }
+        return String(out.prefix(SupportRules.maxDiagnostic))
+    }
+
+    static func text(_ f: Facts) -> String {
+        func yes(_ b: Bool) -> String { b ? "oui" : "non" }
+        var lines = ["FL Shortcuts \(f.appVersion) · \(f.macOS)"]
+        lines.append("FL Studio : " + (f.flRunning ? "ouvert" + (f.flVersion.map { " (\($0))" } ?? "") : "fermé"))
+        lines.append("Clavier autorisé : \(yes(f.accessibility))" + (f.staleTCC ? " (autorisation périmée)" : "")
+                     + " · En pause : \(yes(f.paused)) · Saisie sécurisée : \(yes(f.secureInput))")
+        lines.append("Mode : " + (f.light ? "léger (sans lien MIDI)" : "lien avec FL : \(f.link)"))
+        lines.append("Raccourcis modifiés ou ajoutés : \(f.shortcuts) · Macros : \(f.macros)"
+                     + (f.macrosToLearn > 0 ? " (\(f.macrosToLearn) à apprendre)" : ""))
+        if let last = f.lastMacro { lines.append("Dernière macro : \(last)") }
+        lines.append("Écrans : " + (f.screens.isEmpty ? "?" : f.screens.joined(separator: ", ")))
+        return lines.joined(separator: "\n")
+    }
+
+    static func current(store: Store, status: AppStatus, fl: FLMonitor, link: MIDILink) -> Facts {
+        let learned = MacroSpots.loadPath(.input) != nil
+        let toLearn = store.library.macros.filter { MacroOutline.flags($0.blocks, learnedInput: learned).toLearn }.count
+        let os = ProcessInfo.processInfo.operatingSystemVersion
+        return Facts(appVersion: MacroFileActions.appVersion,
+                     macOS: "macOS \(os.majorVersion).\(os.minorVersion).\(os.patchVersion)",
+                     flRunning: fl.running, flVersion: fl.version?.description,
+                     accessibility: status.accessibilityOK, staleTCC: status.staleTCC, secureInput: status.secureInput,
+                     paused: !store.enabled, light: AppMode.light, link: link.status.label,
+                     shortcuts: store.remaps.count, macros: store.library.macros.count, macrosToLearn: toLearn,
+                     lastMacro: status.lastMacro.map { ($0.ok ? "réussie" : "échec") + " — " + $0.text },
+                     screens: NSScreen.screens.map { "\(Int($0.frame.width))×\(Int($0.frame.height))" })
+    }
+}
+
+// MARK: - Questions fréquentes
+
+struct HelpEntry: Identifiable {
+    let id: Int
+    let question: String
+    let answer: String
+    /// Mots en plus pour la recherche (synonymes).
+    var keywords = ""
+
+    /// Tous les mots de la recherche se trouvent dans la question, la réponse ou les mots en plus (sans accents ni
+    /// majuscules).
+    func matches(_ query: String) -> Bool {
+        let words = HelpEntry.fold(query).split(whereSeparator: { $0.isWhitespace || $0.isPunctuation })
+        guard !words.isEmpty else { return true }
+        let haystack = HelpEntry.fold(question + " " + answer + " " + keywords)
+        return words.allSatisfy { haystack.contains($0) }
+    }
+
+    static func fold(_ s: String) -> String {
+        s.folding(options: [.diacriticInsensitive, .caseInsensitive], locale: Locale(identifier: "fr_FR"))
+    }
+}
+
+enum HelpContent {
+    static let faq: [HelpEntry] = [
+        HelpEntry(id: 1, question: "Mes raccourcis ne font rien dans FL",
+                  answer: "Vérifie trois choses. 1. FL Studio est la fenêtre au premier plan : tes raccourcis ne marchent "
+                      + "que là. 2. FL Shortcuts n'est pas en pause (⌃⌥⌘F, ou le menu de l'icône en haut de l'écran). "
+                      + "3. Le clavier est autorisé : Réglages Système › Confidentialité et sécurité › Accessibilité, "
+                      + "FL Shortcuts coché. Quand une autre app attend un mot de passe (saisie sécurisée), les raccourcis "
+                      + "se taisent le temps qu'elle le fasse.",
+                  keywords: "marche pas fonctionne touche inactif rien"),
+        HelpEntry(id: 2, question: "Un « ! » apparaît sur l'icône en haut de l'écran",
+                  answer: "Le clavier n'est pas, ou plus, autorisé. Ouvre Réglages Système › Confidentialité et sécurité "
+                      + "› Accessibilité, retire FL Shortcuts avec « − », puis ajoute-le de nouveau avec « + » (dans "
+                      + "Applications). Après une mise à jour de l'app, macOS demande parfois de refaire ce geste.",
+                  keywords: "point exclamation alerte avertissement autorisation accessibilite barre des menus"),
+        HelpEntry(id: 3, question: "Comment créer une macro ?",
+                  answer: "Page Macros › « Enregistrer une macro » : FL passe devant, fais ta suite (clics, flèches, "
+                      + "raccourcis), puis « Terminer » en haut à droite. Chaque geste devient un bloc : retouche-les dans "
+                      + "le créateur, choisis un raccourci, puis « Tester ». Tu peux aussi partir d'un modèle.",
+                  keywords: "creer nouvelle enregistrer blocs createur"),
+        HelpEntry(id: 4, question: "« Enregistrer clics et touches » n'a rien enregistré",
+                  answer: "FL Studio doit être ouvert et au premier plan pendant l'enregistrement : les clics et les "
+                      + "touches faits ailleurs sont ignorés. Clique et tape dans les fenêtres et les menus de FL, puis "
+                      + "« Terminer » dans le petit panneau en haut à droite (« Annuler » n'ajoute rien).",
+                  keywords: "enregistrement clic clavier vide rien ajoute"),
+        HelpEntry(id: 5, question: "Une macro est « À apprendre »",
+                  answer: "Un de ses blocs clique à un endroit qu'il faut montrer une fois sur ton Mac (les positions ne "
+                      + "sont jamais partagées). Ouvre la macro, choisis le bloc marqué, puis « Montrer dans FL… » et "
+                      + "clique à l'endroit voulu.",
+                  keywords: "apprendre position endroit montrer"),
+        HelpEntry(id: 6, question: "Une macro s'arrête ou clique au mauvais endroit",
+                  answer: "Le bandeau en bas du créateur dit à quel bloc elle s'est arrêtée (« Montrer le bloc »). Si FL "
+                      + "a changé de taille ou d'écran, remontre l'endroit de ce bloc. Un bouton qui porte un nom "
+                      + "(« FILE », « Insert 1 ») est retrouvé par son nom même s'il bouge, si l'app peut lire l'écran "
+                      + "(autorisation « Enregistrement de l'écran ») ; un bouton sans nom qui bouge (le « + » du Channel "
+                      + "rack) : active « Retrouver ce bouton s'il bouge » sur ce clic. Si une fenêtre de FL met du "
+                      + "temps à s'ouvrir, ajoute un bloc « Attendre » juste avant.",
+                  keywords: "erreur echec arrete bloque mauvais clic bouge bouton plus channel rack"),
+        HelpEntry(id: 7, question: "Mettre en pause ou reprendre",
+                  answer: "⌃⌥⌘F, n'importe où, ou « Mettre en pause » dans le menu de l'icône en haut de l'écran. Une "
+                      + "pastille rappelle que c'est en pause.",
+                  keywords: "pause reprendre arreter desactiver"),
+        HelpEntry(id: 8, question: "Je n'ai pas reçu le code par mail",
+                  answer: "Regarde dans les courriers indésirables. Le code arrive en une minute environ ; sinon, "
+                      + "« Renvoyer le code ». Il sert à confirmer ton compte, ou à choisir un nouveau mot de passe "
+                      + "(« Mot de passe oublié ? »). Toujours rien ? Écris à l'équipe ci-dessous.",
+                  keywords: "compte inscription confirmation code mail spam connexion mot de passe oublie"),
+        HelpEntry(id: 9, question: "Mes données sont-elles envoyées quelque part ?",
+                  answer: "Tes touches ne sont lues que quand FL Studio est devant, et elles ne sont jamais enregistrées "
+                      + "ni envoyées. Seuls partent sur internet : tes raccourcis et tes macros si tu es connecté à ton "
+                      + "compte (ta sauvegarde, lisible par toi seul), ce que tu publies dans la Communauté, et ce que "
+                      + "tu écris à l'équipe depuis cette page. L'écran n'est lu qu'au moment d'un clic de macro, "
+                      + "seulement dans la fenêtre de FL, pour retrouver le bouton par son nom ou son image (autorisation "
+                      + "« Enregistrement de l'écran ») ; rien n'est enregistré ni envoyé. Le nom ou l'image du bouton "
+                      + "restent dans ta macro (et dans ta sauvegarde si tu es connecté), jamais dans un partage.",
+                  keywords: "vie privee donnees confidentialite securite internet compte sauvegarde"),
+        HelpEntry(id: 12, question: "Retrouver mes raccourcis et mes macros sur un autre Mac",
+                  answer: "Connecte-toi dans « Mon compte » (barre latérale) : tes raccourcis et tes macros sont "
+                      + "sauvegardés en ligne quelques secondes après chaque changement. Sur un autre Mac, connecte-toi "
+                      + "avec le même compte : tout revient. À la déconnexion, ils quittent ce Mac et restent dans ton "
+                      + "compte. Si ce Mac et ton compte ont chacun des changements, l'app te demande lequel garder.",
+                  keywords: "compte sauvegarde cloud synchronisation autre mac connexion deconnexion retrouver"),
+        HelpEntry(id: 11, question: "Signaler un problème",
+                  answer: "En bas de cette page, « Écrire à l'équipe ». Quand une macro échoue, le bouton « Signaler » "
+                      + "de son bandeau (ou « Signaler ce problème… » dans le menu de l'icône en haut de l'écran) prépare "
+                      + "le message avec l'erreur et le journal de la macro : tu vois tout ce qui est joint avant l'envoi.",
+                  keywords: "bug erreur contact equipe support aide ecrire"),
+        HelpEntry(id: 10, question: "Désinstaller FL Shortcuts",
+                  answer: "Menu de l'icône en haut de l'écran (ou menu ⋯ de la fenêtre) › « Désinstaller FL Shortcuts… » : "
+                      + "l'app, tes raccourcis, tes macros, ses réglages, ses autorisations et le lien avec FL sont retirés, "
+                      + "et le bilan dit s'il reste quelque chose à glisser dans la Corbeille.",
+                  keywords: "supprimer enlever desinstallation"),
+    ]
+}

@@ -263,7 +263,7 @@ final class MacroInterpreter {
 
             case .stop(let message):
                 effects.log("STEP", "\(path) \(name) → ok in \(ms(since: began)) ms")
-                for b in group { observer?.blockFinished(b.id, path: path, result: .ok, ms: ms(since: began)) }
+                finished(group, path, .ok, ms(since: began))
                 return .stop(message)
 
             case .unknown:
@@ -277,11 +277,11 @@ final class MacroInterpreter {
             if inner != .next {
                 // Un bloc imbriqué a arrêté la macro : son propre chemin est gardé.
                 effects.log("STEP", "\(path) \(name) → \(innerText(inner)) in \(elapsed) ms")
-                for b in group { observer?.blockFinished(b.id, path: path, result: .ok, ms: elapsed) }
+                finished(group, path, .ok, elapsed)
                 return inner
             }
             effects.log("STEP", "\(path) \(name) → \(describe(result)) in \(elapsed) ms")
-            for b in group { observer?.blockFinished(b.id, path: path, result: result, ms: elapsed) }
+            finished(group, path, result, elapsed)
             switch result {
             case .ok:
                 state.lastFailed = false
@@ -297,6 +297,11 @@ final class MacroInterpreter {
             }
         }
         return .next
+    }
+
+    /// Fin de chaque bloc du groupe, pour le suivi d'un essai (sans observateur : rien).
+    private func finished(_ group: [Block], _ path: String, _ result: StepResult, _ ms: Int) {
+        for b in group { observer?.blockFinished(b.id, path: path, result: result, ms: ms) }
     }
 
     private func innerText(_ f: Flow) -> String {

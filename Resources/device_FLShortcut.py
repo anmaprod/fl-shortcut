@@ -1,9 +1,9 @@
-# name=FL Shortcut
-# supportedDevices=FL Shortcut
+# name=FL Shortcuts
+# supportedDevices=FL Shortcuts
 """
-FL Shortcut : script MIDI pour FL Studio 20.7 (API 1, Python 3.6) et plus récent.
+FL Shortcuts : script MIDI pour FL Studio 20.7 (API 1, Python 3.6) et plus récent.
 
-Reçoit les commandes authentifiées de l'appli FL Shortcut (port MIDI « FL Shortcut »,
+Reçoit les commandes authentifiées de l'appli FL Shortcuts (port MIDI « FL Shortcuts »,
 canal 16) et exécute l'action demandée. Contrat : PROTOCOL.md (protocole v2).
 
 Règles de compatibilité (audit 04) :
@@ -241,7 +241,7 @@ def _report(exc):
     """Erreur signalée au plus une fois toutes les 10 s par message : une erreur répétée dans OnIdle
     (appelé ~50 fois par seconde) ne doit jamais inonder la barre d'aide ni la sortie des scripts de FL."""
     try:
-        text = "FL Shortcut erreur : %r" % (exc,)
+        text = "FL Shortcuts erreur : %r" % (exc,)
         now = _now()
         last = _last_reports.get(text)
         if last is not None and 0 <= now - last < REPORT_INTERVAL:
@@ -720,12 +720,12 @@ def _selected_channel():
 
 
 def _no_track():
-    _hint("FL Shortcut : aucune piste Mixer sélectionnée")
+    _hint("FL Shortcuts : aucune piste Mixer sélectionnée")
     return False
 
 
 def _no_channel():
-    _hint("FL Shortcut : aucun canal sélectionné")
+    _hint("FL Shortcuts : aucun canal sélectionné")
     return False
 
 
@@ -797,7 +797,7 @@ def _a_marker():
     if lm is not None:
         try:
             if lm() == 0:   # mode Pattern : getSongPos donne la position dans le pattern
-                _hint("FL Shortcut : marqueur posé seulement en mode Song")
+                _hint("FL Shortcuts : marqueur posé seulement en mode Song")
                 return False
         except Exception:
             pass
@@ -969,7 +969,7 @@ def _a_preset(forward):
         else:
             ok = _call_compat(valid, (idx, slot), (idx,))
         if not ok:
-            _hint("FL Shortcut : aucun plugin à cet emplacement")
+            _hint("FL Shortcuts : aucun plugin à cet emplacement")
             return False
     if glob:
         _call_compat(f, (idx, slot, True), (idx, slot), (idx,))
@@ -1045,7 +1045,7 @@ def _a_bypass():
     enabled = bool(_fn("mixer", "isTrackSlotsEnabled")(t))
     # Toujours passer la valeur : sans elle, les slots sont coupés (bug < 25.1.99).
     _fn("mixer", "enableTrackSlots")(t, not enabled)
-    _hint("FL Shortcut : effets de la piste %s" % ("coupés" if enabled else "actifs"))
+    _hint("FL Shortcuts : effets de la piste %s" % ("coupés" if enabled else "actifs"))
     return True
 
 
@@ -1067,12 +1067,12 @@ def _a_mono():
         setsep(0, restore)
         _st.mono_on = False
         _st.mono_prev = None
-        _hint("FL Shortcut : Master en stéréo")
+        _hint("FL Shortcuts : Master en stéréo")
     else:
         _st.mono_prev = cur if cur is not None else 0.0
         setsep(0, -1.0)
         _st.mono_on = True
-        _hint("FL Shortcut : Master en mono (réglage du projet, ré-appuie pour revenir)")
+        _hint("FL Shortcuts : Master en mono (réglage du projet, ré-appuie pour revenir)")
     return True
 
 
@@ -1351,7 +1351,7 @@ def _run_data(units, seq3=(0, 0, 0)):
         return handler(raw, list(seq3))
     except Exception as exc:
         # Jamais de nom de son ni de piste dans le message : seulement le type de l'erreur.
-        _hint("FL Shortcut : « Organiser » a échoué (%s)" % type(exc).__name__)
+        _hint("FL Shortcuts : « Organiser » a échoué (%s)" % type(exc).__name__)
         return REASON_DATA
 
 
@@ -1426,7 +1426,7 @@ def _op_name_color(raw):
     try:
         target = _name_color_target()
     except Exception as exc:
-        _hint("FL Shortcut : sélection illisible (%s)" % type(exc).__name__)
+        _hint("FL Shortcuts : sélection illisible (%s)" % type(exc).__name__)
         return REASON_DATA
     if _is_int(target):
         return target
@@ -1437,7 +1437,7 @@ def _op_name_color(raw):
         if color is not None:
             set_color(index, color)
     except Exception as exc:
-        _hint("FL Shortcut : « Nom et couleur » a échoué (%s)" % type(exc).__name__)
+        _hint("FL Shortcuts : « Nom et couleur » a échoué (%s)" % type(exc).__name__)
         return REASON_DATA
     return 0
 
@@ -1672,7 +1672,7 @@ def _restore_memo():
         try:                               # une étape qui échoue n'empêche pas les suivantes
             step()
         except Exception as exc:
-            _hint("FL Shortcut : remise après l'écoute incomplète (%s)" % type(exc).__name__)
+            _hint("FL Shortcuts : remise après l'écoute incomplète (%s)" % type(exc).__name__)
 
 
 def _restore_memo_safely():
@@ -1857,13 +1857,13 @@ def _on_data_cc(cc, value):
 def _on_frame_cc(cc, value):
     if cc == CC_FRAME_FIRST:
         if _st.frame is not None:
-            _reject("partial", "FL Shortcut : trame incomplète ignorée")
+            _reject("partial", "FL Shortcuts : trame incomplète ignorée")
         _st.frame = [value]
         return
     frame = _st.frame
     if frame is None or cc != CC_FRAME_FIRST + len(frame):
         _st.frame = None
-        _reject("mixed", "FL Shortcut : trame mélangée ignorée")
+        _reject("mixed", "FL Shortcuts : trame mélangée ignorée")
         return
     frame.append(value)
     if len(frame) == FRAME_LEN:
@@ -1877,19 +1877,19 @@ def _on_frame_cc(cc, value):
 def _process_frame(f, units=None):
     if _signer is None:
         if KEY is None:
-            return _reject("nokey", "FL Shortcut : clé absente, réinstalle le script depuis l'appli FL Shortcut")
-        return _reject("nomac", "FL Shortcut : HMAC indisponible dans ce Python, commandes refusées")
+            return _reject("nokey", "FL Shortcuts : clé absente, réinstalle le script depuis l'appli FL Shortcuts")
+        return _reject("nomac", "FL Shortcuts : HMAC indisponible dans ce Python, commandes refusées")
     seq = (f[0] << 14) | (f[1] << 7) | f[2]
     aid = f[3]
     if aid not in ACTION_BY_ID and aid != DATA_ACTION_ID:
-        return _reject("id", "FL Shortcut : action %d inconnue (mets à jour le script)" % aid)
+        return _reject("id", "FL Shortcuts : action %d inconnue (mets à jour le script)" % aid)
     if seq <= _st.last_seq:
-        return _reject("replay", "FL Shortcut : commande rejouée refusée")
+        return _reject("replay", "FL Shortcuts : commande rejouée refusée")
     now = _now()
     _prune(_st.fail_times, now)
     _prune(_st.check_times, now)
     if len(_st.fail_times) >= MAX_MAC_FAILS_PER_S or len(_st.check_times) >= MAX_MAC_CHECKS_PER_S:
-        return _reject("flood", "FL Shortcut : trop de commandes invalides, pause")
+        return _reject("flood", "FL Shortcuts : trop de commandes invalides, pause")
     _st.check_times.append(now)
     signed = list(_st.nonce) + list(f[0:4])
     if aid == DATA_ACTION_ID and units:
@@ -1897,13 +1897,13 @@ def _process_frame(f, units=None):
     expected = _signer.mac(bytes(signed))
     if not _ct_equal(expected, f[4:8]):
         _st.fail_times.append(now)
-        return _reject("mac", "FL Shortcut : commande non signée refusée")
+        return _reject("mac", "FL Shortcuts : commande non signée refusée")
     _st.last_seq = seq                 # trame authentique : consommée même si non exécutée
     _keep_awake()                      # seule une trame signée prolonge un réveil bref
     try:
         _prune(_st.action_times, now)
         if len(_st.action_times) >= MAX_ACTIONS_PER_S:
-            return _reject("rate", "FL Shortcut : trop d'actions par seconde")
+            return _reject("rate", "FL Shortcuts : trop d'actions par seconde")
         _st.action_times.append(now)
         if aid == DATA_ACTION_ID:
             reason = _run_data(units, f[0:3])
@@ -1925,12 +1925,12 @@ def _run_action(aid):
     if entry is None:
         return False
     if not _caps().get(aid, False):
-        _hint("FL Shortcut : « %s » demande FL Studio %s ou plus récent" % (entry[2], entry[3]))
+        _hint("FL Shortcuts : « %s » demande FL Studio %s ou plus récent" % (entry[2], entry[3]))
         return False
     try:
         r = entry[5]()
     except Exception as exc:
-        _hint("FL Shortcut : « %s » a échoué (%r)" % (entry[2], exc))
+        _hint("FL Shortcuts : « %s » a échoué (%r)" % (entry[2], exc))
         return False
     return r is not False
 
@@ -2058,12 +2058,12 @@ def _init():
     _fl_version()
     _caps()
     if KEY is None:
-        msg = "FL Shortcut : clé absente, réinstalle le script depuis l'appli. Commandes refusées."
+        msg = "FL Shortcuts : clé absente, réinstalle le script depuis l'appli. Commandes refusées."
     elif _signer is None:
-        msg = "FL Shortcut : HMAC indisponible, commandes refusées."
+        msg = "FL Shortcuts : HMAC indisponible, commandes refusées."
     else:
         n = len([1 for v in _caps().values() if v])
-        msg = "FL Shortcut prêt (script v%d, API %d, %d/%d actions)" % (
+        msg = "FL Shortcuts prêt (script v%d, API %d, %d/%d actions)" % (
             SCRIPT_VERSION, _api(), n, len(ACTIONS))
     if _gt_buggy():
         msg += " - FL 26.1.0-26.1.6 : mets à jour vers 26.1.7 (bugs du scripting MIDI)"

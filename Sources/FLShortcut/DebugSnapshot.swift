@@ -22,6 +22,20 @@ enum DebugSnapshot {
     /// Écrit « editorModels=<n> windows=<n> visible=<n> hidden=<classes> » dans report.txt : modèles du créateur
     /// encore vivants, fenêtres de l'app (même masquées), fenêtres visibles, classes des fenêtres masquées.
     static let report = Notification.Name("app.flshortcut.debug.report")
+    /// Page Communauté avec des exemples, sans réseau : « connexion », « inscription », « liste », « vide »,
+    /// « detail », « partager » ou « signaler ».
+    static let community = Notification.Name("app.flshortcut.debug.community")
+    /// Guide : « 0 » à « 4 » ouvre cette page, autre chose le ferme.
+    static let guide = Notification.Name("app.flshortcut.debug.guide")
+    /// Page Aide : « aide », « recherche », « ecrire » ou « envoye ».
+    static let help = Notification.Name("app.flshortcut.debug.help")
+    /// Page Mon compte avec des exemples, sans réseau : « connexion », « code » (confirmer l'inscription), « oubli »
+    /// (mot de passe oublié), « connecte », « choix » ou « attente ».
+    static let account = Notification.Name("app.flshortcut.debug.account")
+    /// Fenêtre de désinstallation avec des exemples, sans rien demander ni supprimer : « confirmer », « compte »,
+    /// « fini », « reste » ; « fermer » la ferme.
+    static let uninstall = Notification.Name("app.flshortcut.debug.uninstall")
+    private static var uninstallObserver: NSObjectProtocol?
 
     static func publisher(_ name: Notification.Name) -> AnyPublisher<Notification, Never> {
         guard enabled else { return Empty().eraseToAnyPublisher() }
@@ -32,6 +46,10 @@ enum DebugSnapshot {
 
     static func start() {
         guard enabled, observer == nil else { return }
+        uninstallObserver = DistributedNotificationCenter.default().addObserver(forName: uninstall, object: nil, queue: .main) { note in
+            let screen = note.object as? String ?? "confirmer"
+            MainActor.assumeIsolated { UninstallWindow.shared.showDemo(screen) }
+        }
         observer = DistributedNotificationCenter.default().addObserver(forName: snapshot, object: nil, queue: .main) { note in
             capture(tag: note.object as? String ?? "capture")
         }
@@ -62,26 +80,149 @@ enum DebugSnapshot {
         return dir
     }
 
-    /// ~/Library/Caches/app.flshortcut.FLShortcut/report.txt, écrasé à chaque demande.
+    /// ~/Library/Caches/app.flshortcut.FLShortcut/report.txt, écrasé à chaque demande. Première ligne lue par la
+    /// mesure de la CI ; ensuite, l'état exact de chaque fenêtre visible (cadre, écran, barre de titre, barre
+    /// d'outils, boutons fermer / réduire / agrandir), pour juger l'interface sans capture d'écran.
     private static func writeReport() {
         let hidden = NSApp.windows.filter { !$0.isVisible }.map { String(describing: type(of: $0)) }
-        let text = "editorModels=\(MacroEditorModel.liveCount) windows=\(NSApp.windows.count) "
+        var text = "editorModels=\(MacroEditorModel.liveCount) windows=\(NSApp.windows.count) "
             + "visible=\(NSApp.windows.count - hidden.count) hidden=\(hidden.joined(separator: ","))\n"
+        // Envoi d'événements (vrais clics de « debug.click ») : refusé, ils n'arrivent nulle part.
+        text += "envoi d'événements : \(CGPreflightPostEventAccess() ? "autorisé" : "REFUSÉ")\n"
+        // Ordre des blocs du créateur ouvert (genres seulement, aucun texte) : un bloc déplacé à la souris le change.
+        if let draft = MacroEditorModel.newest?.draft {
+            text += "créateur : " + draft.blocks.map { BlockRegistry.journal(of: $0.body) }.joined(separator: " > ") + "\n"
+        }
+        for (i, s) in NSScreen.screens.enumerated() {
+            text += "écran \(i): frame \(rect(s.frame)) visible \(rect(s.visibleFrame)) échelle \(s.backingScaleFactor)\n"
+        }
+        for w in NSApp.windows where w.isVisible {
+            text += windowLines(w)
+        }
         try? text.write(to: cacheDirectory.appendingPathComponent("report.txt"), atomically: true, encoding: .utf8)
     }
 
-    private static func realClick(x: Double, y: Double) {
+    /// Toutes les zones de défilement visibles sous `view` (assez grandes pour être une liste).
+    private static func scrollViews(in view: NSView) -> [NSScrollView] {
+        var out: [NSScrollView] = []
+        if let scroll = view as? NSScrollView, !scroll.isHiddenOrHasHiddenAncestor,
+           scroll.bounds.width > 100, scroll.bounds.height > 100 {
+            out.append(scroll)
+        }
+        for sub in view.subviews { out += scrollViews(in: sub) }
+        return out
+    }
+
+    private static func tableViews(in view: NSView) -> [NSTableView] {
+        var out: [NSTableView] = []
+        if let table = view as? NSTableView, !table.isHiddenOrHasHiddenAncestor { out.append(table) }
+        for sub in view.subviews { out += tableViews(in: sub) }
+        return out
+    }
+
+    private static func splitViews(in view: NSView) -> [NSSplitView] {
+        var out: [NSSplitView] = []
+        if let split = view as? NSSplitView, !split.isHiddenOrHasHiddenAncestor { out.append(split) }
+        for sub in view.subviews { out += splitViews(in: sub) }
+        return out
+    }
+
+    private static func rect(_ r: NSRect) -> String {
+        "(\(Int(r.minX)),\(Int(r.minY)) \(Int(r.width))×\(Int(r.height)))"
+    }
+
+    private static func size(_ s: NSSize) -> String {
+        "\(Int(s.width))×\(Int(s.height))"
+    }
+
+    /// Coordonnées AppKit (origine en bas à gauche de l'écran principal).
+    static func windowLines(_ w: NSWindow) -> String {
+        var s = "fenêtre \(type(of: w)) « \(w.title) » #\(w.windowNumber) niveau \(w.level.rawValue)\n"
+        s += "  cadre \(rect(w.frame)) · écran \(w.screen.map { rect($0.frame) } ?? "aucun")"
+        if let screen = w.screen {
+            let inside = screen.visibleFrame.contains(w.frame)
+            s += " · entièrement dans la zone visible : \(inside ? "oui" : "NON")"
+            if w.frame.maxY > screen.visibleFrame.maxY {
+                s += " (dépasse en haut de \(Int(w.frame.maxY - screen.visibleFrame.maxY)) pt)"
+            }
+        }
+        s += "\n"
+        let mask = w.styleMask
+        let flags: [(NSWindow.StyleMask, String)] = [(.titled, "titled"), (.closable, "closable"),
+            (.miniaturizable, "miniaturizable"), (.resizable, "resizable"), (.fullSizeContentView, "fullSizeContentView"),
+            (.fullScreen, "fullScreen"), (.borderless, "borderless")]
+        s += "  styleMask : " + flags.filter { mask.contains($0.0) }.map(\.1).joined(separator: ", ") + "\n"
+        s += "  titre visible : \(w.titleVisibility == .visible ? "oui" : "non") · barre de titre transparente : "
+            + "\(w.titlebarAppearsTransparent ? "oui" : "non") · zoomée : \(w.isZoomed ? "oui" : "non") · clé : "
+            + "\(w.isKeyWindow ? "oui" : "non") · espace actif : \(w.isOnActiveSpace ? "oui" : "non")\n"
+        s += "  contentLayoutRect \(rect(w.contentLayoutRect)) · hauteur de la barre de titre "
+            + "\(Int(w.frame.height - w.contentLayoutRect.height)) pt\n"
+        if let toolbar = w.toolbar {
+            let items = toolbar.items.map { $0.label.isEmpty ? $0.itemIdentifier.rawValue : $0.label }
+            s += "  barre d'outils : visible \(toolbar.isVisible ? "oui" : "NON") · style \(w.toolbarStyle.rawValue) · "
+                + "\(items.count) éléments : \(items.joined(separator: " | "))\n"
+        } else {
+            s += "  barre d'outils : AUCUNE\n"
+        }
+        // Zones de défilement (listes) : défilées (origine > 0) ou posées sous la barre de titre (marge du haut 0) ?
+        if let root = w.contentView?.superview ?? w.contentView {
+            for scroll in scrollViews(in: root) {
+                let frame = scroll.convert(scroll.bounds, to: nil)
+                let visible = scroll.documentVisibleRect
+                let docHeight = scroll.documentView?.frame.height ?? 0
+                s += "  défilement \(rect(frame)) · origine du contenu \(Int(visible.minY)) · hauteur du contenu "
+                    + "\(Int(docHeight)) · marges auto \(scroll.automaticallyAdjustsContentInsets ? "oui" : "non") "
+                    + "haut \(Int(scroll.contentInsets.top)) bas \(Int(scroll.contentInsets.bottom))\n"
+            }
+            // Listes : nombre de lignes (créateur : un bloc glissé depuis la palette en ajoute une).
+            for table in tableViews(in: root) {
+                s += "  liste \(rect(table.convert(table.visibleRect, to: nil))) · \(table.numberOfRows) lignes\n"
+            }
+            // Colonnes (NavigationSplitView) : laquelle réclame plus de hauteur que la fenêtre n'en a ?
+            if let content = w.contentView {
+                s += "  contenu \(rect(content.convert(content.bounds, to: nil))) · taille idéale \(size(content.fittingSize))\n"
+            }
+            for split in splitViews(in: root) {
+                s += "  colonnes \(rect(split.convert(split.bounds, to: nil))) · taille idéale \(size(split.fittingSize))\n"
+                for pane in split.arrangedSubviews {
+                    s += "    colonne \(rect(pane.convert(pane.bounds, to: nil))) · taille idéale \(size(pane.fittingSize))"
+                        + " · \(String(describing: type(of: pane)).prefix { $0 != "<" })\n"
+                }
+            }
+        }
+        for (button, name) in [(NSWindow.ButtonType.closeButton, "fermer"), (.miniaturizeButton, "réduire"),
+                               (.zoomButton, "agrandir")] {
+            guard let b = w.standardWindowButton(button) else { s += "  bouton \(name) : ABSENT\n"; continue }
+            let inWindow = b.convert(b.bounds, to: nil)
+            var visibleChain = !b.isHidden && b.alphaValue > 0.01
+            var v: NSView? = b.superview
+            while let view = v { if view.isHidden || view.alphaValue < 0.01 { visibleChain = false }; v = view.superview }
+            s += "  bouton \(name) : \(visibleChain ? "visible" : "CACHÉ") · actif \(b.isEnabled ? "oui" : "non") · "
+                + "dans la fenêtre \(rect(inWindow))\n"
+        }
+        return s
+    }
+
+    /// Point de l'écran (origine en haut à gauche, comme CGEvent) d'un point « x,y » de notre fenêtre, mise devant.
+    private static func screenPoint(x: Double, y: Double) -> CGPoint? {
         guard let w = NSApp.windows.first(where: { $0.isVisible && $0.frame.width > 400 }),
               let screenHeight = NSScreen.screens.first?.frame.height,
-              (0...w.frame.width).contains(x), (0...w.frame.height).contains(y) else { return }   // notre fenêtre seulement
+              (0...w.frame.width).contains(x), (0...w.frame.height).contains(y) else { return nil }   // notre fenêtre seulement
         NSApp.activate(ignoringOtherApps: true)
         w.makeKeyAndOrderFront(nil)
-        let point = CGPoint(x: w.frame.minX + x, y: screenHeight - (w.frame.maxY - y))
+        return CGPoint(x: w.frame.minX + x, y: screenHeight - (w.frame.maxY - y))
+    }
+
+    private static func post(_ type: CGEventType, _ point: CGPoint) {
+        CGEvent(mouseEventSource: nil, mouseType: type, mouseCursorPosition: point, mouseButton: .left)?
+            .post(tap: .cghidEventTap)
+    }
+
+    private static func realClick(x: Double, y: Double) {
+        guard let point = screenPoint(x: x, y: y) else { return }
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-            for type in [CGEventType.leftMouseDown, .leftMouseUp] {
-                CGEvent(mouseEventSource: nil, mouseType: type, mouseCursorPosition: point, mouseButton: .left)?
-                    .post(tap: .cghidEventTap)
-            }
+            post(.leftMouseDown, point)
+            post(.leftMouseUp, point)
         }
     }
 
@@ -108,13 +249,19 @@ enum DebugSnapshot {
     }
 }
 
-/// Icône de la barre des menus ; en mode capture, sait aussi ouvrir l'éditeur.
+/// Icône de la barre des menus (le logo de l'app, avec la pastille d'état : MenuBarIcon) ; en mode capture, sait
+/// aussi ouvrir l'éditeur.
 struct MenuBarLabel: View {
     @Environment(\.openWindow) private var openWindow
     let symbol: String
 
     var body: some View {
-        Image(systemName: symbol)
+        Image(nsImage: MenuBarIcon.image(MenuBarIcon.state(forSymbol: symbol)))
+            // Fenêtre principale demandée hors d'une scène SwiftUI (fenêtre de désinstallation → Mon compte).
+            .onReceive(NotificationCenter.default.publisher(for: AccountLink.openEditor)) { _ in
+                openWindow(id: "editor")
+                NSApp.activate(ignoringOtherApps: true)
+            }
             .onReceive(DebugSnapshot.publisher(DebugSnapshot.open)) { _ in
                 openWindow(id: "editor")
                 NSApp.activate(ignoringOtherApps: true)

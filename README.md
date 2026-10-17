@@ -1,8 +1,8 @@
-# FL Shortcut
+# FL Shortcuts
 
 Tes propres raccourcis clavier pour **FL Studio**, sur **Mac** et **Windows**.
 
-FL Studio n'a pas d'éditeur de raccourcis. FL Shortcut en ajoute un : quand FL Studio est au premier plan, il reconnaît tes raccourcis et envoie à FL **ses propres touches** (Mixer, Playlist, REC, métronome, pattern suivant…). **Rien à installer dans FL** : pas de script, pas de MIDI, pas de loopMIDI.
+FL Studio n'a pas d'éditeur de raccourcis. FL Shortcuts en ajoute un : quand FL Studio est au premier plan, il reconnaît tes raccourcis et envoie à FL **ses propres touches** (Mixer, Playlist, REC, métronome, pattern suivant…). **Rien à installer dans FL** : pas de script, pas de MIDI, pas de loopMIDI.
 
 - **Macros** (Mac, version de test) : *Enregistrement rapide* charge un état de piste du Mixer, arme la piste, choisit l'entrée et lance le REC, d'un seul raccourci. Voir [MACROS.md](MACROS.md).
 - **Mode MIDI** (facultatif, pour les utilisateurs avancés) : 40 actions via un script authentifié (mute / solo de piste, volume…). Désactivé par défaut.
@@ -22,19 +22,19 @@ FL Studio n'a pas d'éditeur de raccourcis. FL Shortcut en ajoute un : quand FL 
 
 **Télécharge la dernière version** sur la [page des versions](../../releases/latest) (ou la page de téléchargement du projet, qui choisit le bon fichier toute seule).
 
-### Mac : `FLShortcut.dmg`
+### Mac : `FLShortcuts.dmg`
 
-1. Ouvre `FLShortcut.dmg` et glisse **FL Shortcut** dans **Applications**, puis lance-le. Il s'installe dans la barre des menus.
-2. **Autoriser le clavier** : clique sur *Autoriser…* ; l'appli ouvre *Réglages Système › Confidentialité et sécurité › Accessibilité*. Active FL Shortcut.
+1. Ouvre `FLShortcuts.dmg` et glisse **FL Shortcuts** dans **Applications**, puis lance-le. Il s'installe dans la barre des menus.
+2. **Autoriser le clavier** : clique sur *Autoriser…* ; l'appli ouvre *Réglages Système › Confidentialité et sécurité › Accessibilité*. Active FL Shortcuts.
 
 C'est tout. Si macOS dit qu'il ne peut pas vérifier l'appli (version non notarisée) : *Réglages Système › Confidentialité et sécurité*, tout en bas, **Ouvrir quand même**. Fais-le seulement pour un fichier venu de la page officielle des versions, dont l'empreinte SHA-256 correspond.
 
-Pour désinstaller : *Désinstaller FL Shortcut* dans le menu de l'appli, ou l'appli du même nom dans le `.dmg`.
+Pour désinstaller : menu de l'icône FL Shortcuts en haut de l'écran › *Désinstaller FL Shortcuts…* (aussi dans le menu ⋯ de la fenêtre). Tout est retiré, et le bilan dit s'il reste quelque chose à glisser dans la Corbeille.
 
-### Windows : `FLShortcut-Windows-Setup.exe`
+### Windows : `FLShortcuts-Windows-Setup.exe`
 
 1. Double-clique sur l'installeur, puis **Installer**. Aucun droit administrateur demandé, x64 et ARM dans le même fichier.
-2. FL Shortcut se lance et se range dans la zone de notification. Il démarre avec Windows (décochable dans l'installeur).
+2. FL Shortcuts se lance et se range dans la zone de notification. Il démarre avec Windows (décochable dans l'installeur).
 
 C'est tout. Si Windows affiche « Windows a protégé votre ordinateur » (installeur non signé) : **Informations complémentaires › Exécuter quand même**. Désinstallation : *Paramètres › Applications*. Une version portable (`.zip`) existe aussi. Ne lance pas FL Studio en administrateur.
 
@@ -64,7 +64,7 @@ Sur Windows, on évite `Ctrl+Alt` : c'est AltGr sur les claviers AZERTY (`@`, `�
 ### Limites connues
 
 - Mute et Solo agissent sur la piste du Mixer sélectionnée. L'API de FL ne donne pas accès aux clips sélectionnés de la Playlist.
-- Les raccourcis s'appliquent aussi dans les fenêtres de plugins de FL. En cas de conflit, mets FL Shortcut en pause.
+- Les raccourcis s'appliquent aussi dans les fenêtres de plugins de FL. En cas de conflit, mets FL Shortcuts en pause.
 - Une touche seule (sans ⌘ ⌃ ⌥) lance son raccourci, sauf quand FL s'en sert : menu de FL ouvert, boîte de FL devant (renommer, taper une valeur…), champ de texte, clavier-piano actif (coche lue dans le menu Options de la barre de macOS, FL 2024.2 et plus). Une saisie faite directement dans la fenêtre principale de FL, sans boîte ni champ visible par l'Accessibilité, n'est pas reconnue : ajoute alors ⌃ au raccourci.
 
 ---
@@ -76,7 +76,7 @@ Une **macro** enchaîne des clics et des touches dans FL, avec le même principe
 Modèle livré, **Enregistrement rapide** (fiche d'un raccourci › Type › Macro) :
 
 1. clic droit sur la piste du Mixer sous la souris, puis *File › Open mixer track state* ;
-2. preset : la liste de FL s'ouvre et la macro attend ton choix, ou un preset (.fst) est choisi une fois dans FL Shortcut et chargé directement ;
+2. preset : la liste de FL s'ouvre et la macro attend ton choix, ou un preset (.fst) est choisi une fois dans FL Shortcuts et chargé directement ;
 3. armement de la piste et première entrée (positions apprises une fois, en cliquant dans FL) ;
 4. REC allumé à la fin (facultatif).
 
@@ -109,7 +109,7 @@ Détails, limites et mode d'emploi du diagnostic (`FLShortcut --diag-macro`) : [
 
 **Sans Mac ni PC de développement :** pousse le dépôt sur GitHub. Le workflow [build.yml](.github/workflows/build.yml) :
 - lance tous les tests ;
-- compile le `.dmg` universel, l'installeur Windows (`FLShortcut-Windows-Setup.exe`, x64 + ARM64) et les `.zip` portables, avec leurs empreintes SHA-256 et une attestation de provenance ;
+- compile le `.dmg` universel, l'installeur Windows (`FLShortcuts-Windows-Setup.exe`, x64 + ARM64) et les `.zip` portables, avec leurs empreintes SHA-256 et une attestation de provenance ;
 - publie une *Release* à chaque tag `v*` (`git tag v1.0.0 && git push --tags`) ; les liens « latest » de la page de téléchargement suivent tout seuls.
 
 **Page de téléchargement :** `site/index.html`, publiée par [pages.yml](.github/workflows/pages.yml) (à activer une fois : *Settings › Pages › Source : GitHub Actions*). Elle propose le bon fichier selon l'ordinateur du visiteur.

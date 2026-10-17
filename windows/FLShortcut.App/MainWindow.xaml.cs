@@ -67,7 +67,7 @@ public sealed partial class MainWindow : Window
         _app = new AppController(DispatcherQueue);
         _app.PropertyChanged += OnAppChanged;
 
-        _tray = new TrayIcon(_hwnd, "FL Shortcut") { IsEnabled = () => _app.Enabled };
+        _tray = new TrayIcon(_hwnd, "FL Shortcuts") { IsEnabled = () => _app.Enabled };
         _tray.OpenRequested += () => DispatcherQueue.TryEnqueue(ShowFromTray);
         _tray.ToggleRequested += () => DispatcherQueue.TryEnqueue(_app.Toggle);
         _tray.QuitRequested += () => DispatcherQueue.TryEnqueue(Quit);
@@ -89,7 +89,7 @@ public sealed partial class MainWindow : Window
     private void OnClosing(AppWindow sender, AppWindowClosingEventArgs args)
     {
         if (_quitting) return;
-        args.Cancel = true;          // la croix cache la fenêtre : FL Shortcut continue dans la zone de notification
+        args.Cancel = true;          // la croix cache la fenêtre : FL Shortcuts continue dans la zone de notification
         sender.Hide();
     }
 
@@ -179,8 +179,8 @@ public sealed partial class MainWindow : Window
         if (_shownPortsOk is { } before && before != ok) Motion.Pop(PortsIcon);
         _shownPortsOk = ok;
         PortsText.Text = ok
-            ? "Prêts : « FL Shortcut » et « FL Shortcut Retour »."
-            : "FL Shortcut parle à FL Studio par deux ports MIDI virtuels. Ouvre loopMIDI et crée deux ports nommés exactement « FL Shortcut » et « FL Shortcut Retour ». FL Shortcut les détecte tout seul.";
+            ? "Prêts : « FL Shortcuts » et « FL Shortcuts Retour »."
+            : "FL Shortcuts parle à FL Studio par deux ports MIDI virtuels. Ouvre loopMIDI et crée deux ports nommés exactement « FL Shortcuts » et « FL Shortcuts Retour ». FL Shortcuts les détecte tout seul.";
         LoopMidiLink.Visibility = ok ? Visibility.Collapsed : Visibility.Visible;
         PortsContinue.Content = ok ? "Continuer" : "En attente des ports…";
         PortsContinue.IsEnabled = ok;
@@ -203,8 +203,8 @@ public sealed partial class MainWindow : Window
         var steps = new (string Text, bool Done)[]
         {
             ("Installer le lien dans FL Studio (un clic, ci-dessous).", installed),
-            ("Dans FL Studio : Options › MIDI Settings. Input « FL Shortcut » : Enable, Controller type « FL Shortcut ».", linked),
-            ("Output « FL Shortcut Retour » : même numéro de port que l'entrée. FL Shortcut le détecte tout seul.", linked),
+            ("Dans FL Studio : Options › MIDI Settings. Input « FL Shortcuts » : Enable, Controller type « FL Shortcuts ».", linked),
+            ("Output « FL Shortcuts Retour » : même numéro de port que l'entrée. FL Shortcuts le détecte tout seul.", linked),
         };
         LinkSteps.Children.Clear();
         for (var i = 0; i < steps.Length; i++) LinkSteps.Children.Add(StepCard(i + 1, steps[i].Text, steps[i].Done));
@@ -326,7 +326,7 @@ public sealed partial class MainWindow : Window
         StatusAction.Visibility = _app.Status is StatusKind.Inactive or StatusKind.NoKey or StatusKind.Tampered or StatusKind.Incompatible
             ? Visibility.Visible : Visibility.Collapsed;
         PausePill.Visibility = _app.Enabled ? Visibility.Collapsed : Visibility.Visible;
-        _tray.SetTooltip(_app.Enabled ? $"FL Shortcut — {_app.StatusTitle}" : "FL Shortcut — en pause");
+        _tray.SetTooltip(_app.Enabled ? $"FL Shortcuts — {_app.StatusTitle}" : "FL Shortcuts — en pause");
     }
 
     private void OnEnabledToggled(object sender, RoutedEventArgs e) => _app.SetEnabled(EnabledSwitch.IsOn);
@@ -553,8 +553,8 @@ public sealed partial class MainWindow : Window
 
     private async Task ExportAsync()
     {
-        var picker = new FileSavePicker { SuggestedFileName = "FL Shortcut - profil" };
-        picker.FileTypeChoices.Add("Profil FL Shortcut", new List<string> { ".json" });
+        var picker = new FileSavePicker { SuggestedFileName = "FL Shortcuts - profil" };
+        picker.FileTypeChoices.Add("Profil FL Shortcuts", new List<string> { ".json" });
         WinRT.Interop.InitializeWithWindow.Initialize(picker, _hwnd);
         var file = await picker.PickSaveFileAsync();
         if (file is null) return;

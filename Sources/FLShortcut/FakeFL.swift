@@ -255,8 +255,15 @@ final class FakeFLController {
                 return true
             }
         }
-        // R : seulement dans la fenêtre du Mixer, jamais pendant la boîte « Open » (on y tape un chemin).
-        if NSApp.modalWindow == nil, e.window === window,
+        // ⌘S : « enregistrer le projet », un raccourci de FL avec une touche modificatrice.
+        if NSApp.modalWindow == nil, e.keyCode == 1,
+           e.modifierFlags.intersection([.command, .control, .option, .shift]) == .command {
+            note("save project")
+            return true
+        }
+        // R : dans la fenêtre du Mixer (ou sans fenêtre clé, juste après la fermeture des réglages), jamais pendant la
+        // boîte « Open » (on y tape un chemin) ni dans les réglages.
+        if NSApp.modalWindow == nil, e.window === window || e.window == nil,
            e.modifierFlags.intersection([.command, .control, .option]).isEmpty,
            e.keyCode == 15 || e.charactersIgnoringModifiers?.lowercased() == "r" {
             rec.toggle()
@@ -523,6 +530,7 @@ final class FakeFLController {
         settingsWindow?.orderOut(nil)
         settingsWindow = nil
         settingsView = nil
+        window.makeKeyAndOrderFront(nil)          // comme FL : la fenêtre principale reprend le clavier
         note("settings close")
     }
 

@@ -216,6 +216,17 @@ struct RecordedClick: Equatable {
     let windows: [WinInfo]
     /// Menu de la barre de macOS sous le clic (lu au moment du clic), sinon nil.
     let menu: MenuBarAX.Hit?
+    /// Fenêtre de plugin sous le clic (Serum, Vital…) : son titre, lu au moment du clic (Accessibilité).
+    var title: String? = nil
+    /// Nom du bouton cliqué (« FILE », « Insert 1 »), lu dans la fenêtre de FL juste après le clic, et où tombait le
+    /// clic par rapport au centre de ce nom.
+    var named: NamedHit? = nil
+}
+
+struct NamedHit: Equatable {
+    let label: String
+    let dx: Double
+    let dy: Double
 }
 
 /// Touche tapée dans FL pendant l'enregistrement (flèches, Entrée, Échap, raccourcis, lettres d'un menu).
@@ -243,6 +254,13 @@ enum ClickSequenceCompiler {
     /// Plafonds des blocs (validation) : au-delà, un nouveau bloc commence.
     static let maxTimes = 20
     static let maxMenuLetters = 8
+
+    /// Clic dans une fenêtre de FL sur un bouton qui porte un nom : retenu par ce nom (sa place reste le repli).
+    static func named(_ target: ClickTarget, _ hit: NamedHit?) -> ClickTarget {
+        guard let hit, case .flWindow(let corner, let dx, let dy, let size?, let title) = target else { return target }
+        let spot = NamedSpot(label: hit.label, dx: hit.dx, dy: hit.dy, corner: corner, px: dx, py: dy, size: size, title: title)
+        return spot.isValid ? .named(spot) : target
+    }
 
     static func compile(_ clicks: [RecordedClick]) -> Result {
         compile(inputs: clicks.map(RecordedInput.click))
@@ -314,11 +332,11 @@ enum ClickSequenceCompiler {
                 }
             }
             let windows = c.windows.map { (layer: $0.layer, bounds: $0.bounds) }
-            guard let target = MacroOutline.learnedTarget(at: c.point, windows: windows) else {
+            guard let target = MacroOutline.learnedTarget(at: c.point, windows: windows, title: c.title) else {
                 ignored += 1
                 continue
             }
-            out.append(.click(target, button: c.right ? .right : .left))
+            out.append(.click(Self.named(target, c.named), button: c.right ? .right : .left))
         }
         if openBar != nil { ignored += 1 }
         return Result(blocks: out, ignored: ignored)
@@ -346,6 +364,14 @@ final class ClickSequenceRecorder: ObservableObject {
     private var completion: ((ClickSequenceCompiler.Result) -> Void)?
     private weak var returnWindow: NSWindow?
     private var panel: RecordingPanel?
+    /// Noms des boutons en cours de lecture (un par clic dans une fenêtre de FL) ; attendus à « Terminer ».
+    private var naming = DispatchGroup()
+    private var finishing = false
+    /// Numéro de l'enregistrement : une fin attendue d'un enregistrement précédent n'arrête jamais le suivant.
+    private var generation = 0
+
+    /// Autorisation de lire l'écran demandée une fois, au premier enregistrement (les noms des boutons).
+    static let screenAskedKey = "screenNamesAsked"
 
     private init() {}
 
@@ -360,6 +386,16 @@ final class ClickSequenceRecorder: ObservableObject {
         self.completion = completion
         returnWindow = window
         inputs = []
+        naming = DispatchGroup()
+        finishing = false
+        generation += 1
+        // Boutons retenus par leur nom : il faut lire la fenêtre de FL au moment du clic. Demandé une seule fois ;
+        // sans l'autorisation, les clics gardent leur place, comme avant.
+        if MacroRunner.testFLPID == nil, ScreenLook.available, !ScreenLook.allowed,
+           !UserDefaults.standard.bool(forKey: Self.screenAskedKey) {
+            UserDefaults.standard.set(true, forKey: Self.screenAskedKey)
+            ScreenLook.requestAccess()
+        }
         history = [WinSnapshot.take(pid: pid)]
         started = Date()
         count = 0
@@ -368,7 +404,7 @@ final class ClickSequenceRecorder: ObservableObject {
         CreatorPresence.stepAside()
         fl.activate(options: [])
         // Touches aussi : flèches, Entrée, Échap, raccourcis, lettres des menus (seulement quand FL est devant ; les
-        // raccourcis de FL Shortcut, pris par le tap clavier, n'arrivent pas jusqu'ici).
+        // raccourcis de FL Shortcuts, pris par le tap clavier, n'arrivent pas jusqu'ici).
         monitor = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown, .leftMouseUp, .keyDown]) { [weak self] event in
             self?.record(event)
         }
@@ -381,9 +417,22 @@ final class ClickSequenceRecorder: ObservableObject {
         return true
     }
 
-    /// « Terminer » : les clics deviennent des blocs, retour dans le créateur.
+    /// « Terminer » : les clics deviennent des blocs (une fois lus les noms des derniers boutons, 2,5 s au plus),
+    /// retour dans le créateur.
     func finish() {
-        guard active else { return }
+        guard active, !finishing else { return }
+        finishing = true
+        if let m = monitor { NSEvent.removeMonitor(m) }            // plus rien d'enregistré
+        monitor = nil
+        let group = naming, current = generation
+        DispatchQueue.global(qos: .userInitiated).async {
+            _ = group.wait(timeout: .now() + 2.5)
+            DispatchQueue.main.async { [weak self] in self?.complete(current) }
+        }
+    }
+
+    private func complete(_ recording: Int) {
+        guard active, finishing, recording == generation else { return }
         let result = ClickSequenceCompiler.compile(inputs: inputs)
         let done = completion
         stop()
@@ -404,7 +453,8 @@ final class ClickSequenceRecorder: ObservableObject {
             guard NSWorkspace.shared.frontmostApplication?.processIdentifier == test else { return }
         } else {
             let cfg = EventTap.shared.currentConfig
-            guard cfg.flPIDs.contains(cfg.frontmostPID) else { return }
+            // FL devant, ou la fenêtre d'un plugin que FL fait tourner à part (pont des plugins Intel).
+            guard cfg.flPIDs.contains(cfg.frontmostPID) || FLHelpers.isFLOrHelper(cfg.frontmostPID, fl: pid) else { return }
         }
         guard active, event.cgEvent?.getIntegerValueField(.eventSourceUserData) != EventTap.mark else { return }
         if event.type == .keyDown {
@@ -432,7 +482,27 @@ final class ClickSequenceRecorder: ObservableObject {
         if menu == nil, before.hit(p) == nil, p.y - MacroEffectsMac.displayBounds(containing: p).minY <= 40 {
             menu = .bar("")
         }
-        append(RecordedClick(point: p, right: event.type == .rightMouseDown, windows: before.fl, menu: menu))
+        // Fenêtre de plugin : son titre la retrouvera au rejeu où qu'elle soit (jamais la fenêtre principale ni un menu).
+        let title = menu == nil ? FLWindowAX.pluginTitle(at: p, before: before, fl: pid) : nil
+        // Bouton qui porte un nom, dans une fenêtre de FL (pas un menu) : son nom est lu tout de suite (jamais pendant
+        // les essais automatiques). Attendu avant de compiler : entré dans le groupe avant l'ajout (le 80ᵉ clic
+        // termine l'enregistrement).
+        let window = before.hit(p)
+        let readName = menu == nil && MacroRunner.testFLPID == nil && MacroEffectsMac.canRead
+            && (window.map { $0.number > 0 && (MacroEffectsMac.clickWindowLayers.contains($0.layer) || title != nil) } ?? false)
+        let group = naming
+        if readName { group.enter() }
+        let index = inputs.count
+        append(RecordedClick(point: p, right: event.type == .rightMouseDown, windows: before.fl, menu: menu, title: title))
+        if readName, let window {
+            TextLook.lookup(at: p, window: window) { [weak self] found in
+                defer { group.leave() }
+                guard let self, let found, index < self.inputs.count,
+                      case .click(var click) = self.inputs[index], click.point == p else { return }
+                click.named = NamedHit(label: found.label, dx: found.dx, dy: found.dy)
+                self.inputs[index] = .click(click)
+            }
+        }
     }
 
     private var lastClick: RecordedClick? {
@@ -481,6 +551,7 @@ final class ClickSequenceRecorder: ObservableObject {
         completion = nil
         history = []
         inputs = []
+        finishing = false
         if active { active = false }
     }
 

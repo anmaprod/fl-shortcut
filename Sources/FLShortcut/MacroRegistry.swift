@@ -12,6 +12,10 @@ enum BlockType: String, CaseIterable, Codable {
     case soundCard
     /// Ouvre l'Organiser sur la page de FL devant (Channel rack ou Mixer) ; la suite se passe dans sa fenêtre.
     case organize
+    /// Met devant une page de FL, seulement si elle n'y est pas déjà (MacroPages.swift).
+    case openPage
+    /// « Cliquer sur… » : une option de la page ouverte au-dessus.
+    case pageOption
     /// Élément d'un menu de FL dans la barre des menus de macOS, par ses titres (créé par « Enregistrer des clics »).
     case menuBar
     /// Ancienne étape `menu` : seulement pour reprendre les anciennes macros (absente de la palette).
@@ -68,7 +72,7 @@ struct ParamSpec {
 enum ParamKind {
     case touche, ms(ClosedRange<Int>), nombre(ClosedRange<Int>), lettres(max: Int), toucheMenu
     case cible, fenetre, fichier(extensions: [String]), actionFL, condition, variable, texte(max: Int), blocs
-    case couleur
+    case couleur, icone
 }
 
 enum Conteneur { case aucun, corps, siSinon }
@@ -147,6 +151,8 @@ enum BlockRegistry {
         case .nameColor: return Specs.nameColor
         case .soundCard: return Specs.soundCard
         case .organize: return Specs.organize
+        case .openPage: return Specs.openPage
+        case .pageOption: return Specs.pageOption
         case .menuBar: return Specs.menuBar
         case .menuAX: return Specs.menuAX
         case .ifElse: return Specs.ifElse
@@ -214,6 +220,8 @@ private enum Specs {
         switch t {
         case .flWindow: return "fenêtre de FL"
         case .openMenu: return "menu ouvert"
+        case .button: return "bouton retrouvé à son image"
+        case .named: return "bouton retrouvé à son nom"
         case .track: return "piste visée"
         case .lastClick: return "après le clic précédent"
         case .startCursor: return "curseur au départ"
@@ -328,7 +336,7 @@ private enum Specs {
 
     static let click = BlockSpec(
         type: .click, label: "Clic", category: .souris, symbol: "cursorarrow.click",
-        aide: "Clic gauche ou droit à un endroit retrouvé à chaque fois (coin d'une fenêtre de FL, piste visée, menu ouvert…). Toujours dans une fenêtre de FL, jamais sous une autre app.",
+        aide: "Clic gauche ou droit à un endroit retrouvé à chaque fois (coin d'une fenêtre de FL, piste visée, menu ouvert, fenêtre d'un plugin comme Serum…). Toujours dans une fenêtre de FL ou de ses plugins, jamais sous une autre app.",
         params: [ParamSpec("target", "Où", .cible), ParamSpec("button", "Bouton", .nombre(0...1))],
         conteneur: .aucun, dansLaPalette: true,
         needs: { body in
@@ -600,18 +608,23 @@ private enum Specs {
 
     static let nameColor = BlockSpec(
         type: .nameColor, label: "Nom et couleur", category: .fl, symbol: "paintpalette",
-        aide: "Donne un nom et/ou une couleur à la piste ou au canal sélectionné dans la page de FL qui est devant (Mixer, Channel rack ou Playlist), par le lien avec FL. Un seul élément doit être sélectionné.",
+        aide: "Donne un nom et/ou une couleur à la piste ou au canal sélectionné dans la page de FL qui est devant (Mixer, Channel rack ou Playlist), par le lien avec FL, et une icône de FL par sa fenêtre (F2). Un seul élément doit être sélectionné.",
         params: [ParamSpec("name", "Nom", .texte(max: NameColorPayload.maxNameScalars)),
-                 ParamSpec("color", "Couleur", .couleur)],
+                 ParamSpec("color", "Couleur", .couleur),
+                 ParamSpec("icon", "Icône", .icone)],
         conteneur: .aucun, dansLaPalette: true,
         needs: { _ in base.union(.lienMIDI) },
         parDefaut: { .nameColor(name: nil, color: NameColorPayload.defaultColor) },
         resume: { body, _ in
-            guard case .nameColor(let name, let color, let fade, _) = body else { return "" }
-            return NameColorPayload.summary(name: name, color: color, fade: fade)
+            guard case .nameColor(let name, let color, let fade, let icon) = body else { return "" }
+            return NameColorPayload.summary(name: name, color: color, fade: fade, icon: icon)
         },
         journal: { _ in "nameColor" },
-        estimationMs: { _ in 300 },
+        estimationMs: { body in
+            // L'icône passe par deux fenêtres de FL (nom, grille).
+            if case .nameColor(_, _, _, .some) = body { return 1_800 }
+            return 300
+        },
         valider: { body, ctx in
             guard case .nameColor(let name, let color, let fade, let icon) = body else { return nil }
             let payload = NameColorPayload(name: name, color: color)
@@ -619,6 +632,7 @@ private enum Specs {
                 // Comme « Gradient color… » de FL : une couleur de départ, et jamais de nom (plusieurs pistes).
                 guard payload.color != nil else { return ctx.fail("un dégradé demande ses deux couleurs.") }
                 guard payload.name == nil else { return ctx.fail("un dégradé ne change pas le nom : retire le nom.") }
+                guard icon == nil else { return ctx.fail("un dégradé ne pose pas d'icône : retire l'icône.") }
             }
             guard payload.name != nil || payload.color != nil || icon != nil else {
                 return ctx.fail("donne un nom ou une couleur.")
@@ -665,6 +679,62 @@ private enum Specs {
         journal: { _ in "feedbackCheck" },
         estimationMs: { _ in 3_000 },
         valider: { _, _ in nil },
+        import_: .ok, plateformes: .mac)
+
+    static let openPage = BlockSpec(
+        type: .openPage, label: "Ouvrir une page de FL", category: .fl, symbol: "macwindow",
+        aide: "Met devant une page de FL (Playlist, Channel Rack, Mixer…), seulement si elle n'y est pas déjà. Les options de « Cliquer sur… » juste en dessous sont celles de cette page.",
+        params: [ParamSpec("page", "Page", .fenetre)],
+        conteneur: .aucun, dansLaPalette: true,
+        needs: { _ in base.union(.lienMIDI) },
+        parDefaut: { .openPage(.mixer) },
+        resume: { body, _ in
+            guard case .openPage(let page) = body else { return "" }
+            return page?.title ?? "page à choisir"
+        },
+        journal: { body in
+            guard case .openPage(let page) = body else { return "openPage" }
+            return "openPage \(page?.rawValue ?? "?")"
+        },
+        estimationMs: { _ in 600 },
+        valider: { body, ctx in
+            guard case .openPage(let page) = body else { return nil }
+            return page == nil ? ctx.fail("choisis la page de FL à ouvrir.") : nil
+        },
+        import_: .ok, plateformes: .mac)
+
+    static let pageOption = BlockSpec(
+        type: .pageOption, label: "Cliquer sur…", category: .fl, symbol: "cursorarrow.click.2",
+        aide: "Une option de la page de FL ouverte juste au-dessus : ajouter un instrument ou un effet, armer la piste, solo, ou un raccourci de FL de cette page. Ajouté avec « Ouvrir une page de FL » au-dessus.",
+        params: [ParamSpec("option", "Option", .actionFL), ParamSpec("name", "Plugin", .texte(max: PageOptions.maxName))],
+        conteneur: .aucun, dansLaPalette: true,
+        needs: { body in
+            guard case .pageOption(let id?, _) = body, PageOptions.usesLink(id) else { return base }
+            // Armer la piste sans le lien : par le menu de la piste visée (comme « Action de FL »).
+            return id == "mixer.armon" ? base.union([.lienMIDI, .cliqueHID, .pisteVisee]) : base.union(.lienMIDI)
+        },
+        // Valide sous la page par défaut d'« Ouvrir une page de FL » (Mixer) ; la palette les donne à choisir.
+        parDefaut: { .pageOption(id: "mixer.armon", name: "") },
+        resume: { body, layout in
+            guard case .pageOption(let id, let name) = body else { return "" }
+            guard let id, let option = PageOptions.option(id, layout: layout) else { return "option à choisir" }
+            return option.needsName && !name.isEmpty ? "\(option.label) : \(name.displaySafe(max: 30))" : option.label
+        },
+        journal: { body in
+            guard case .pageOption(let id, _) = body else { return "pageOption" }
+            return "pageOption \(id.flatMap { PageOptions.page(of: $0)?.rawValue } ?? "?")"
+        },
+        estimationMs: { _ in 800 },
+        valider: { body, ctx in
+            guard case .pageOption(let id, let name) = body else { return nil }
+            guard let id else { return ctx.fail("choisis l'option à cliquer.") }
+            guard PageOptions.isKnown(id) else { return ctx.fail("option de FL inconnue.") }
+            let trimmed = name.trimmingCharacters(in: .whitespaces)
+            if PageOptions.needsName(id), trimmed.isEmpty || trimmed.count > PageOptions.maxName {
+                return ctx.fail("écris le nom du plugin à ajouter (comme dans FL).")
+            }
+            return nil
+        },
         import_: .ok, plateformes: .mac)
 
     static let menuBar = BlockSpec(

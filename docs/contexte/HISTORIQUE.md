@@ -118,3 +118,36 @@ entrée 1 ≈ 0,5 s.
   « e » 86 Mo ; processeur au repos 0,0 % (échantillon : fil principal en attente d'événements). 222 tests, 0 échec.
 - Méthode demandée par l'utilisateur : rapide, économe, plugins seulement quand leur spécialité sert. Priorité
   macOS ; Windows et Linux plus tard.
+
+## 16 octobre : relevé de la grille des icônes
+- 16/10/2026 : grille de FL de 619 × 679 points (liste des fenêtres, niveau 101) ; Échap ne ferme pas la grille
+  ouverte par « Change icon… » du menu de piste du Mixer (deux essais, souris sur la grille puis en dehors) ; une
+  fois elle s'est fermée seule quelques secondes après son ouverture, une autre fois elle a disparu entre deux
+  sessions sans action de notre part. Cases Two, Three et Five à Eight de Number non survolées (noms déduits).
+
+## 16 octobre : nouveau nom « FL Shortcuts »
+- Demande de l'utilisateur : « FL Shortcut » devient « FL Shortcuts » partout où le nom se voit (app, menus, textes,
+  script et port MIDI dans FL, sujet des mails d'aide « [FL Shortcuts] », site, Windows, fichiers téléchargés
+  FLShortcuts.dmg / .pkg / -Windows-Setup.exe). Les documents d'audit et cet historique gardent l'ancien nom.
+- Gardés exprès : identifiant app.flshortcut.FLShortcut (réglages, autorisation Accessibilité, Trousseau),
+  exécutable FLShortcut, device_FLShortcut.py, certificat local « FL Shortcut Dev » (sinon l'autorisation
+  Accessibilité serait redemandée), texte d'entropie DPAPI Windows (sinon la clé enregistrée deviendrait illisible).
+- Reprise de l'ancien nom (`AppPaths.oldName`) : Application Support et Documents › « FL Shortcut » renommés une
+  fois (rename(2), jamais un lien) ; script FL déplacé dans « FL Shortcuts » à sa mise à jour, ancien dossier retiré
+  s'il ne contient que notre script ; .pkg et build local retirent les anciennes apps (même identifiant vérifié) ;
+  le désinstalleur retire les deux noms. Après la mise à jour du script, réactiver le port « FL Shortcuts » dans
+  Options › MIDI Settings de FL (seulement si le lien MIDI était utilisé).
+
+## 17 octobre : compte et sauvegarde en ligne
+- Demande de l'utilisateur (gratuit exigé) : avec un compte, raccourcis et macros gardés en ligne ; déconnexion =
+  retirés du Mac, gardés dans le compte ; reconnexion (ce Mac ou un autre) = tout revient.
+- Serveur : `supabase/sauvegarde.sql` (table `backups`, une ligne par compte, RLS « soi seul » ; `save_backup` avec
+  révision : refuse d'écraser une sauvegarde plus récente sauf choix forcé ; `delete_my_account`). Testé sur
+  PostgreSQL (`supabase/tests/regles-sauvegarde.sql`), à coller dans Supabase après `schema.sql`.
+- App : `AccountBackup` (envoi 4 s après un changement, reprise à la connexion, décision pure `BackupRules.decide` :
+  envoyer / reprendre / à jour / demander), page **Mon compte** (barre latérale, avant Communauté), déconnexion
+  confirmée (refusée si les derniers changements ne sont pas en ligne, sauf « quand même »), copie datée
+  « avant-compte » avant de remplacer ce Mac, « Supprimer mon compte » (garde tout sur ce Mac).
+- Gardé sur le Mac, jamais envoyé : réglages (pause, autorisations), endroits appris hors des macros, journal.
+- Supabase par défaut n'envoie les mails de confirmation qu'aux membres de l'organisation (2 par heure) : serveur de
+  mail à soi (Gmail de l'équipe) obligatoire avant l'ouverture à tous.

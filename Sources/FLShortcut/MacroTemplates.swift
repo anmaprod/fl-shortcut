@@ -248,6 +248,14 @@ extension MacroTemplates {
                     Block(.flAction(key: "recon", fallback: .key(KeyRef(rec)))),
                 ], origin: .template("armRec"))
             },
+            MacroTemplate(id: "purgeAudio", title: "Supprimer les clips audio inutilisés",
+                          summary: "Tools › Macros › Purge unused audio clips, par le menu de FL en haut de l'écran : FL retire du projet les clips audio qui ne sont pas dans la Playlist (rien n'est effacé de ton disque).",
+                          symbol: "trash") { _ in
+                MacroDoc(name: "Supprimer les clips audio inutilisés",
+                         blocks: [Block(.menuBar(titles: ["Tools", "Macros", "Purge unused audio clips"]),
+                                        note: "Commande de FL (FL 2024.2 et plus : ses menus dans la barre de macOS)")],
+                         origin: .template("purgeAudio"))
+            },
             MacroTemplate(id: organizeID, title: "Organiser la page ouverte",
                           summary: "Écoute chaque son du Channel rack sans que tu l'entendes, le classe (Drums, Basse, Mélodies, Voix, FX), puis colore et regroupe après ton accord. Sur le Mixer, colore les pistes.",
                           symbol: "square.stack.3d.up") { _ in

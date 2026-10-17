@@ -44,7 +44,8 @@ final class MacroLibraryTests: XCTestCase {
     func testStoreSavesAfterAChangeAndKeepsThePreviousFileOnce() throws {
         let storage = MemoryMacroLibraryStorage(data: try MacroLibraryCodec.encode([sample()]))
         let original = storage.data
-        let store = MacroLibraryStore(storage: storage, saveDelay: 0)
+        // Délai long : seul saveNow écrit (avec 0, l'écriture différée pouvait passer avant et compter double).
+        let store = MacroLibraryStore(storage: storage, saveDelay: 60)
         XCTAssertEqual(store.macros.count, 1)
         XCTAssertNil(store.loadWarning)
         store.add(sample("Nouvelle"))
@@ -185,7 +186,7 @@ final class MacroLibraryTests: XCTestCase {
         let json = try JSONDecoder().decode(JSONValue.self, from: data)
         XCTAssertEqual(json["format"]?.string, "flsmacro")
         XCTAssertEqual(json["version"]?.int, 1)
-        XCTAssertEqual(json["exportedBy"]?.string, "FL Shortcut 1.2 (macOS)")
+        XCTAssertEqual(json["exportedBy"]?.string, "FL Shortcuts 1.2 (macOS)")
         XCTAssertEqual(json["macro"]?["name"]?.string, "Ma macro")
         let blocks = try XCTUnwrap(json["macro"]?["blocks"]?.array)
         XCTAssertEqual(blocks.count, 5)

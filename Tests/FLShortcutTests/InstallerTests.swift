@@ -79,10 +79,89 @@ final class InstallerTests: XCTestCase {
         try FileManager.default.createDirectory(at: hardware, withIntermediateDirectories: true)
         let elsewhere = dir.appendingPathComponent("elsewhere", isDirectory: true)
         try FileManager.default.createDirectory(at: elsewhere, withIntermediateDirectories: true)
-        try FileManager.default.createSymbolicLink(at: hardware.appendingPathComponent("FL Shortcut"),
+        try FileManager.default.createSymbolicLink(at: hardware.appendingPathComponent("FL Shortcuts"),
                                                    withDestinationURL: elsewhere)
         XCTAssertThrowsError(try FLScriptInstaller.write(script: Data("x".utf8), hardware: hardware))
         XCTAssertTrue(try FileManager.default.contentsOfDirectory(atPath: elsewhere.path).isEmpty)
+    }
+
+    /// Nouveau nom de l'app : l'ancien dossier prend le nouveau nom avec son contenu, une seule fois, jamais un lien.
+    func testOldNameFolderIsTakenOver() throws {
+        let fm = FileManager.default
+        let old = dir.appendingPathComponent("FL Shortcut", isDirectory: true)
+        let new = dir.appendingPathComponent("FL Shortcuts", isDirectory: true)
+        XCTAssertEqual(AppPaths.renamed(old, to: new), new, "rien à reprendre")
+        XCTAssertFalse(fm.fileExists(atPath: new.path))
+
+        try fm.createDirectory(at: old, withIntermediateDirectories: true)
+        try Data("{}".utf8).write(to: old.appendingPathComponent("macros.json"))
+        XCTAssertEqual(AppPaths.renamed(old, to: new), new)
+        XCTAssertEqual(try Data(contentsOf: new.appendingPathComponent("macros.json")), Data("{}".utf8))
+        XCTAssertFalse(fm.fileExists(atPath: old.path))
+
+        try fm.createDirectory(at: old, withIntermediateDirectories: true)
+        XCTAssertEqual(AppPaths.renamed(old, to: new), new, "le nouveau existe déjà : l'ancien n'est pas touché")
+        XCTAssertTrue(fm.fileExists(atPath: old.path))
+        XCTAssertTrue(fm.fileExists(atPath: new.appendingPathComponent("macros.json").path))
+
+        let linkOld = dir.appendingPathComponent("lien", isDirectory: true)
+        let linkNew = dir.appendingPathComponent("lien-nouveau", isDirectory: true)
+        try fm.createSymbolicLink(at: linkOld, withDestinationURL: old)
+        XCTAssertEqual(AppPaths.renamed(linkOld, to: linkNew), linkNew)
+        XCTAssertEqual(SecureFile.kind(at: linkOld.path), .symlink, "un lien n'est jamais repris")
+    }
+
+    /// Dossier du script retiré (ancien nom) ou désinstallé : seulement s'il ne contient que notre script.
+    func testOurScriptFolderUnderBothNames() throws {
+        let hardware = dir.appendingPathComponent("Settings/Hardware", isDirectory: true)
+        for name in [FLScriptInstaller.folderName, FLScriptInstaller.oldFolderName, "Autre"] {
+            let folder = hardware.appendingPathComponent(name, isDirectory: true)
+            try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+            try Data("print(1)".utf8).write(to: folder.appendingPathComponent(FLScriptInstaller.fileName))
+            try Data().write(to: folder.appendingPathComponent(".DS_Store"))
+            XCTAssertEqual(FLScriptInstaller.isOurScriptFolder(folder), name != "Autre", name)
+            try Data("x".utf8).write(to: folder.appendingPathComponent("transport.py"))
+            XCTAssertFalse(FLScriptInstaller.isOurScriptFolder(folder), "un autre fichier à côté : jamais supprimé")
+        }
+        XCTAssertEqual(FLScriptInstaller.oldFolderName, "FL Shortcut")
+        XCTAssertEqual(Uninstaller.appNames.sorted(), ["Désinstaller FL Shortcut.app", "Désinstaller FL Shortcuts.app",
+                                                       "FL Shortcut.app", "FL Shortcuts.app"])
+    }
+
+    /// Désinstallation : chaque trace connue, sous le nom actuel et l'ancien nom, dans les deux dossiers Applications.
+    func testUninstallerKnowsEveryTrace() {
+        let home = URL(fileURLWithPath: "/Users/nina")
+        let apps = Uninstaller.appLocations(home: home).map(\.path)
+        XCTAssertEqual(apps.count, 8)
+        XCTAssertTrue(apps.contains("/Applications/FL Shortcuts.app"))
+        XCTAssertTrue(apps.contains("/Users/nina/Applications/Désinstaller FL Shortcut.app"))
+        let data = Uninstaller.dataTraces(home: home).map(\.url.path)
+        for path in ["/Users/nina/Library/Application Support/FL Shortcuts",
+                     "/Users/nina/Library/Application Support/FL Shortcut",
+                     "/Users/nina/Library/Logs/FL Shortcuts", "/Users/nina/Library/Logs/FL Shortcut",
+                     "/Users/nina/Library/Preferences/app.flshortcut.FLShortcut.plist",
+                     "/Users/nina/Library/Preferences/app.flshortcut.Uninstaller.plist",
+                     "/Users/nina/Library/Saved Application State/app.flshortcut.FLShortcut.savedState",
+                     "/Users/nina/Library/Caches/app.flshortcut.FLShortcut",
+                     "/Users/nina/Library/Keychains/flshortcut-dev.keychain-db"] {
+            XCTAssertTrue(data.contains(path), path)
+        }
+        XCTAssertEqual(Uninstaller.exportFolders(home: home).map(\.lastPathComponent), ["FL Shortcuts", "FL Shortcut"])
+        let recorded = "/Users/nina/Documents/Image-Line/FL Studio/Settings/Hardware/FL Shortcuts/device_FLShortcut.py"
+        XCTAssertEqual(Uninstaller.scriptFolders(home: home, recorded: recorded).map(\.lastPathComponent),
+                       ["FL Shortcuts", "FL Shortcut"], "chemin enregistré et emplacements par défaut, sans doublon")
+    }
+
+    /// Ce qui demande Touch ID ou le mot de passe : une seule commande, chemins entre apostrophes (même avec une
+    /// apostrophe dedans), reçu du .pkg oublié.
+    func testPrivilegedScript() {
+        XCTAssertEqual(Uninstaller.privilegedScript(Uninstaller.PrivilegedWork()), "")
+        XCTAssertTrue(Uninstaller.PrivilegedWork().isEmpty)
+        let work = Uninstaller.PrivilegedWork(apps: [URL(fileURLWithPath: "/Applications/FL Shortcuts.app"),
+                                                     URL(fileURLWithPath: "/Applications/L'autre.app")], receipt: true)
+        XCTAssertEqual(Uninstaller.privilegedScript(work),
+                       "/bin/rm -rf '/Applications/FL Shortcuts.app' '/Applications/L'\\''autre.app'; "
+                       + "/usr/sbin/pkgutil --forget app.flshortcut.pkg >/dev/null")
     }
 
     func testInstallerWritesIntoDedicatedFolder() throws {
@@ -90,7 +169,7 @@ final class InstallerTests: XCTestCase {
         try FileManager.default.createDirectory(at: hardware, withIntermediateDirectories: true)
         let dest = try FLScriptInstaller.write(script: Data("print(1)".utf8), hardware: hardware)
         XCTAssertEqual(dest.lastPathComponent, "device_FLShortcut.py")
-        XCTAssertEqual(dest.deletingLastPathComponent().lastPathComponent, "FL Shortcut")
+        XCTAssertEqual(dest.deletingLastPathComponent().lastPathComponent, "FL Shortcuts")
         XCTAssertEqual(SecureFile.permissions(at: dest.path)?.mode, 0o600)
 
         let defaults = try XCTUnwrap(UserDefaults(suiteName: "FLShortcutTests-\(UUID())"))

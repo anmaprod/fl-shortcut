@@ -24,17 +24,8 @@ enum FLWindows {
 
     /// Fenêtres visibles du processus, de l'avant vers l'arrière.
     static func list(pid: Int32) -> [Info] {
-        let options: CGWindowListOption = [.optionOnScreenOnly, .excludeDesktopElements]
-        guard let raw = CGWindowListCopyWindowInfo(options, kCGNullWindowID) as? [[String: Any]] else { return [] }
-        var out: [Info] = []
-        for w in raw {
-            guard let owner = w[kCGWindowOwnerPID as String] as? Int32, owner == pid,
-                  let layer = w[kCGWindowLayer as String] as? Int,
-                  let dict = w[kCGWindowBounds as String] as? [String: Any],
-                  let bounds = CGRect(dictionaryRepresentation: dict as CFDictionary) else { continue }
-            out.append(Info(layer: layer, bounds: bounds, number: w[kCGWindowNumber as String] as? Int ?? 0))
-        }
-        return out
+        (ScreenWindow.onScreen() ?? []).filter { $0.owner == pid }
+            .map { Info(layer: $0.layer, bounds: $0.bounds, number: $0.number) }
     }
 
     /// Fenêtres « normales » et boîtes de dialogue (niveaux 0 à 8 ; les menus contextuels sont plus haut).
@@ -68,17 +59,10 @@ enum FLWindows {
 
     /// Fenêtre normale (niveau 0) tout devant à ce point, sans les nôtres : (processus, nom de l'appli).
     static func topNormalWindow(at p: CGPoint) -> (pid: Int32, name: String)? {
-        let options: CGWindowListOption = [.optionOnScreenOnly, .excludeDesktopElements]
-        guard let raw = CGWindowListCopyWindowInfo(options, kCGNullWindowID) as? [[String: Any]] else { return nil }
         let me = getpid()
-        for w in raw {                                            // de l'avant vers l'arrière
-            guard let layer = w[kCGWindowLayer as String] as? Int, layer == 0,
-                  let owner = w[kCGWindowOwnerPID as String] as? Int32, owner != me,
-                  let dict = w[kCGWindowBounds as String] as? [String: Any],
-                  let bounds = CGRect(dictionaryRepresentation: dict as CFDictionary), bounds.contains(p) else { continue }
-            return (owner, w[kCGWindowOwnerName as String] as? String ?? "une autre app")
-        }
-        return nil
+        return ScreenWindow.onScreen()?                           // de l'avant vers l'arrière
+            .first { $0.layer == 0 && $0.owner != me && $0.bounds.contains(p) }
+            .map { ($0.owner, $0.ownerName ?? "une autre app") }
     }
 
     /// Position actuelle du curseur, en coordonnées CoreGraphics (origine en haut à gauche).
@@ -245,6 +229,9 @@ final class MacroEffectsMac: MacroEffects {
     static var testFLPID: Int32? { MacroRunner.testFLPID }
     static var armDownCount: Int { MacroRunner.armDownCount }
 
+    /// Appuis sur Échap vus par le tap au départ du passage : un appui depuis arrête la macro.
+    private let escapesAtStart = EventTap.shared.escapePresses
+
     init(pid: Int32) {
         self.pid = pid
         ctx = Context(pid: pid, origin: .zero, frame: nil, baseline: 0, track: .zero, startNumbers: [])
@@ -275,7 +262,7 @@ final class MacroEffectsMac: MacroEffects {
             CreatorPresence.stepAside()
         }
         guard CGPreflightPostEventAccess() else {
-            return "autorise FL Shortcut dans Réglages Système › Confidentialité et sécurité › Accessibilité"
+            return "autorise FL Shortcuts dans Réglages Système › Confidentialité et sécurité › Accessibilité"
         }
         let initial = WinSnapshot.take(pid: pid)
         MacroLog.shared.windows("start", initial)
@@ -283,14 +270,14 @@ final class MacroEffectsMac: MacroEffects {
         var track = origin
         if let p = MacroRunner.testTrackPoint {
             track = p
-            MacroLog.shared.write("TRACK", "test track (\(Int(p.x)),\(Int(p.y)))")
+            MacroLog.shared.write("TRACK", "test track \(p.logText)")
         } else if let remembered = TrackMemory.shared.lastClickInfo() {
             let same = initial.window(remembered.window).map { MacroSpots.sameSize($0.bounds.size, remembered.windowSize) } ?? false
-            MacroLog.shared.write("TRACK", "remembered (\(Int(remembered.point.x)),\(Int(remembered.point.y))) "
+            MacroLog.shared.write("TRACK", "remembered \(remembered.point.logText) "
                 + "\(Int(-remembered.date.timeIntervalSinceNow)) s ago in #\(remembered.window): \(same ? "window unchanged" : "window gone/resized → ignored")")
             if same { track = remembered.point }
         } else {
-            MacroLog.shared.write("TRACK", "no remembered click → cursor (\(Int(origin.x)),\(Int(origin.y)))")
+            MacroLog.shared.write("TRACK", "no remembered click → cursor \(origin.logText)")
         }
         self.initial = initial
         ctx = Context(pid: pid, origin: origin, frame: frame(origin),
@@ -349,7 +336,7 @@ final class MacroEffectsMac: MacroEffects {
 
         case .menuBar(let titles):
             numbersBeforeLastClick = WinSnapshot.take(pid: ctx.pid).numbers
-            switch MenuBarAX.press(pid: ctx.pid, titles: titles, stop: { self.shouldStop(ctx.pid) }) {
+            switch MenuBarAX.press(pid: ctx.pid, titles: titles, stop: stopReason) {
             case .done: return .ok
             case .cancelled(let why): return .cancel(why)
             case .failed(let why): return .fail(why)
@@ -393,16 +380,13 @@ final class MacroEffectsMac: MacroEffects {
 
         case .chooseFile(let path):
             MacroLog.shared.write("FILE", "chemin du preset saisi (\(path.count) caractères)")
-            var isDir: ObjCBool = false
-            guard FileManager.default.fileExists(atPath: path, isDirectory: &isDir), !isDir.boolValue else {
-                return .fail("preset introuvable (\(URL(fileURLWithPath: path).lastPathComponent))")
-            }
+            if let missing = Self.missingPreset(path) { return missing }
             guard let d = dialog ?? WinSnapshot.take(pid: ctx.pid).fl.first(where: {
                 !ctx.startNumbers.contains($0.number) && $0.isDialogLike && $0.layer < 20 }) else {
                 return .fail("boîte « Open » introuvable")
             }
             restoreCursor()
-            switch PresetChooser.choose(path: path, pid: ctx.pid, dialog: d.number, stop: { self.shouldStop(ctx.pid) }) {
+            switch PresetChooser.choose(path: path, pid: ctx.pid, dialog: d.number, stop: stopReason) {
             case .done: return .ok
             case .cancelled(let why): return .cancel(why)
             case .failed(let why): return .fail(why)
@@ -410,10 +394,7 @@ final class MacroEffectsMac: MacroEffects {
 
         case .dropFile(let path):
             MacroLog.shared.write("FILE", "preset déposé sur la piste (\(path.count) caractères)")
-            var isDir: ObjCBool = false
-            guard FileManager.default.fileExists(atPath: path, isDirectory: &isDir), !isDir.boolValue else {
-                return .fail("preset introuvable (\(URL(fileURLWithPath: path).lastPathComponent))")
-            }
+            if let missing = Self.missingPreset(path) { return missing }
             return dropFile(path, at: ctx.track, ctx: ctx)
 
         case .menuLetters(let letters, let enter):
@@ -427,6 +408,29 @@ final class MacroEffectsMac: MacroEffects {
 
         case .flActionValue:
             return .fail("action avec valeur : demande l'extension du lien avec FL")
+
+        case .openPage(let page):
+            guard let page else { return .fail("page de FL à choisir dans la macro") }
+            // Déjà devant (le lien le sait) : rien à faire. Sinon le lien la met devant sans jamais la fermer.
+            if MIDILink.shared.core.routingView().knownWindow == page.window {
+                MacroLog.shared.write("FL", "page \(page.rawValue) already in front")
+                return .ok
+            }
+            MacroLog.shared.write("FL", "open page \(page.rawValue)")
+            return perform(page.openBody(layout: SystemKeyboardLayout()), state: &state)
+
+        case .pageOption(let id, let name):
+            let layout = SystemKeyboardLayout()
+            guard let id, let option = PageOptions.option(id, layout: layout) else {
+                return .fail("option de FL à choisir dans la macro")
+            }
+            // Journal : l'option, jamais le nom du plugin.
+            MacroLog.shared.write("FL", "page option \(id)")
+            let result = perform(PageOptions.body(option, name: name, layout: layout), state: &state)
+            if option.needsName, case .fail = result {
+                return .fail("plugin introuvable dans le menu Add de FL : vérifie son nom dans « Cliquer sur… »")
+            }
+            return result
 
         case .soundCard:
             switch SoundCard.apply() {
@@ -445,7 +449,7 @@ final class MacroEffectsMac: MacroEffects {
             DispatchQueue.main.async { OrganizerWindow.open() }
             return .ok
 
-        case .nameColor(let name, let color, let fade, _):
+        case .nameColor(let name, let color, let fade, let icon):
             if let color, let fade {
                 // Dégradé de First à Last sur les éléments sélectionnés (opération 8, script v5).
                 MacroLog.shared.write("FL", "gradient")
@@ -455,17 +459,33 @@ final class MacroEffectsMac: MacroEffects {
                 case .failed(let why): return .fail(why)
                 }
             }
-            // Journal : jamais le nom, seulement ce qui est posé.
-            MacroLog.shared.write("FL", "name/color (\(name == nil ? "no name" : "name") · \(color == nil ? "no color" : "color"))")
-            switch MIDILink.shared.runData(NameColorPayload(name: name, color: color).units) {
-            case .done: return .ok
-            case .refused(let reason): return .fail(NameColorPayload.message(forReason: reason))
-            case .failed(let why): return .fail(why)
+            // Nom et couleur d'abord (lien avec FL), puis l'icône par la fenêtre de FL (F2).
+            let payload = NameColorPayload(name: name, color: color)
+            let named = payload.name != nil || payload.color != nil
+            if named {
+                // Journal : jamais le nom, seulement ce qui est posé.
+                MacroLog.shared.write("FL", "name/color (\(name == nil ? "no name" : "name") · \(color == nil ? "no color" : "color"))")
+                switch MIDILink.shared.runData(payload.units) {
+                case .done: break
+                case .refused(let reason): return .fail(NameColorPayload.message(forReason: reason))
+                case .failed(let why): return .fail(why)
+                }
             }
+            guard let icon else { return .ok }
+            return placeIcon(icon, alsoColored: named)
 
         case .ifElse, .repeatCount, .repeatWhile, .waitUntil, .setVariable, .stop, .comment, .unknown:
             return .fail("bloc de contrôle hors de l'interpréteur")
         }
+    }
+
+    /// Échec si le preset n'est pas un fichier existant (nom du fichier seulement, jamais le chemin), sinon nil.
+    static func missingPreset(_ path: String) -> StepResult? {
+        var isDir: ObjCBool = false
+        guard FileManager.default.fileExists(atPath: path, isDirectory: &isDir), !isDir.boolValue else {
+            return .fail("preset introuvable (\(URL(fileURLWithPath: path).lastPathComponent))")
+        }
+        return nil
     }
 
     // MARK: Conditions qui regardent FL
@@ -496,9 +516,15 @@ final class MacroEffectsMac: MacroEffects {
             }
         } else {
             let cfg = EventTap.shared.currentConfig
-            guard cfg.flPIDs.contains(pid), cfg.frontmostPID == pid else { return "FL n'est plus au premier plan" }
+            // FL devant, ou la fenêtre d'un plugin que FL fait tourner à part (pont des plugins Intel).
+            guard cfg.flPIDs.contains(pid), FLHelpers.isFLOrHelper(cfg.frontmostPID, fl: pid) else {
+                return "FL n'est plus au premier plan"
+            }
         }
-        if CGEventSource.keyState(.combinedSessionState, key: 53) { return "Échap" }
+        // Échap tenu en ce moment, ou appuyé depuis le départ (un appui bref tombé entre deux lectures).
+        if CGEventSource.keyState(.combinedSessionState, key: 53) || EventTap.shared.escapePresses != escapesAtStart {
+            return "Échap"
+        }
         return nil
     }
 
@@ -575,7 +601,7 @@ final class MacroEffectsMac: MacroEffects {
             e.setIntegerValueField(.eventSourceUserData, value: EventTap.mark)
             if Self.clicksToPid { e.postToPid(pid) } else { e.post(tap: .cghidEventTap) }
         }
-        MacroLog.shared.write("MOVE", "pointer beside the menu (\(Int(p.x)),\(Int(p.y)))")
+        MacroLog.shared.write("MOVE", "pointer beside the menu \(p.logText)")
         Thread.sleep(forTimeInterval: 0.04)
     }
 
@@ -621,7 +647,7 @@ final class MacroEffectsMac: MacroEffects {
             return .fail("une autre fenêtre de FL couvre le menu")
         }
         let ax = AXProbe.hit(p, timeout: 0.05)
-        MacroLog.shared.write("AX", "at (\(Int(p.x)),\(Int(p.y))): \(ax)")
+        MacroLog.shared.write("AX", "at \(p.logText): \(ax)")
         if ax.error == .success, ax.pid != 0, ax.pid != ctx.pid, ax.pid != getpid() {
             let name = NSRunningApplication(processIdentifier: ax.pid)?.localizedName ?? "une autre app"
             return .fail("« \(name) » couvre le menu de FL")
@@ -685,7 +711,7 @@ final class MacroEffectsMac: MacroEffects {
             }
         }
         switch WindowWait.gone(pid: ctx.pid, numbers: [d.number], timeout: Double(timeoutMs) / 1000,
-                               interval: timeoutMs > 10_000 ? 0.05 : 0.03, stop: { self.shouldStop(ctx.pid) }) {
+                               interval: timeoutMs > 10_000 ? 0.05 : 0.03, stop: stopReason) {
         case .success:
             MacroLog.shared.write("DIALOG", "#\(d.number) closed")
             return .ok
@@ -722,7 +748,7 @@ final class MacroEffectsMac: MacroEffects {
 
     func waitMenuOpen(timeoutMs: Int, ctx: Context) -> StepResult {
         switch WindowWait.newWindow(pid: ctx.pid, excluding: ctx.startNumbers, timeout: Double(timeoutMs) / 1000,
-                                    accept: { $0.isMenuLike && $0.layer > 8 }, stop: { self.shouldStop(ctx.pid) }) {
+                                    accept: { $0.isMenuLike && $0.layer > 8 }, stop: stopReason) {
         case .success(let w):
             lastMenu = w
             MacroLog.shared.write("MENU", "menu \(w) open")
@@ -740,7 +766,7 @@ final class MacroEffectsMac: MacroEffects {
     func waitMenuClosed(timeoutMs: Int, ctx: Context) -> StepResult {
         let open = menusOpenedByMacro(ctx: ctx)
         guard !open.isEmpty else { return .ok }
-        switch WindowWait.gone(pid: ctx.pid, numbers: open, timeout: Double(timeoutMs) / 1000, stop: { self.shouldStop(ctx.pid) }) {
+        switch WindowWait.gone(pid: ctx.pid, numbers: open, timeout: Double(timeoutMs) / 1000, stop: stopReason) {
         case .success:
             MacroLog.shared.write("MENU", "menus closed")
             return .ok
@@ -762,7 +788,7 @@ final class MacroEffectsMac: MacroEffects {
             postLetter(letter, pid: ctx.pid)
             guard i + 1 < letters.count else { break }
             switch WindowWait.newWindow(pid: ctx.pid, excluding: known, timeout: 0.6,
-                                        accept: { $0.isMenuLike }, stop: { self.shouldStop(ctx.pid) }) {
+                                        accept: { $0.isMenuLike }, stop: stopReason) {
             case .success(let w): opened.insert(w.number)
             case .failure(.stopped(let why)): return .cancel(why)
             case .failure(.timeout): break                 // la lettre a seulement surligné son élément
@@ -772,7 +798,7 @@ final class MacroEffectsMac: MacroEffects {
         let needsEnter = enter.read()
         if needsEnter != true {
             switch WindowWait.gone(pid: ctx.pid, numbers: opened, timeout: needsEnter == false ? 0.8 : 0.5,
-                                   stop: { self.shouldStop(ctx.pid) }) {
+                                   stop: stopReason) {
             case .success:
                 enter.write(false)
                 return .ok
@@ -782,14 +808,14 @@ final class MacroEffectsMac: MacroEffects {
                 break
             }
         } else {
-            _ = WindowWait.gone(pid: ctx.pid, numbers: opened, timeout: 0.12, stop: { self.shouldStop(ctx.pid) })
+            _ = WindowWait.gone(pid: ctx.pid, numbers: opened, timeout: 0.12, stop: stopReason)
             guard menusOpen(opened, ctx: ctx) else {
                 enter.write(false)
                 return .ok
             }
         }
         postKey(KeyCombo(keyCode: 36), pid: ctx.pid)
-        switch WindowWait.gone(pid: ctx.pid, numbers: opened, timeout: 0.8, stop: { self.shouldStop(ctx.pid) }) {
+        switch WindowWait.gone(pid: ctx.pid, numbers: opened, timeout: 0.8, stop: stopReason) {
         case .success:
             enter.write(true)
             return .ok
@@ -834,22 +860,95 @@ final class MacroEffectsMac: MacroEffects {
         return fits.first { $0.bounds.contains(track) } ?? fits.first
     }
 
+    /// Fenêtre visée par un clic appris : toujours de la taille retenue (une fenêtre agrandie ne se suit pas : son
+    /// contenu se réorganise, le clic tomberait à côté). Une seule fenêtre de cette taille : elle, sans rien demander à
+    /// l'Accessibilité (rapide, comme avant). Plusieurs, ou aucune parmi les fenêtres ordinaires (fenêtre de plugin
+    /// restée tout devant, ou d'un plugin que FL fait tourner à part) : celle qui porte le titre retenu. Sinon, comme
+    /// avant.
+    func targetWindow(size: CGSize, title: String?, ctx: Context) -> WinInfo? {
+        let snap = WinSnapshot.take(pid: ctx.pid)
+        let fits = snap.fl.filter { Self.clickWindowLayers.contains($0.layer) && MacroSpots.sameSize($0.bounds.size, size) }
+        // L'Accessibilité seulement quand la taille ne suffit pas : jamais pendant qu'on attend qu'une fenêtre s'ouvre.
+        let onTop = fits.isEmpty && snap.fl.contains { MacroSpots.sameSize($0.bounds.size, size) }
+        if let title, fits.count > 1 || onTop {
+            let frames = FLWindowAX.frames(titled: title, fl: ctx.pid).filter { MacroSpots.sameSize($0.size, size) }
+            if let f = frames.first(where: { $0.contains(ctx.track) }) ?? frames.first {
+                return snap.fl.first {
+                    MacroSpots.sameSize($0.bounds.size, f.size) && abs($0.bounds.minX - f.minX) <= 2 && abs($0.bounds.minY - f.minY) <= 2
+                } ?? WinInfo(number: -1, layer: 0, bounds: f, pid: ctx.pid, alpha: 1)
+            }
+        }
+        return Self.clickWindow(in: snap, size: size, track: ctx.track)
+    }
+
+    /// Bouton retrouvé à son image dans sa fenêtre, lue à ce moment-là seulement (MacroVisual.swift). nil : fenêtre
+    /// absente, lecture de l'écran pas autorisée, ou bouton pas (encore) affiché.
+    func visualPoint(_ spot: VisualSpot, ctx: Context) -> (point: CGPoint, window: WinInfo)? {
+        guard let window = targetWindow(size: spot.size, title: spot.title, ctx: ctx), window.number > 0,
+              let image = ScreenLook.capture(windowNumber: window.number, size: window.bounds.size),
+              image.width > 0, image.height > 0 else { return nil }
+        let f = window.bounds
+        let sx = f.width / CGFloat(image.width), sy = f.height / CGFloat(image.height)
+        let expected = Self.point(in: f, corner: spot.corner, dx: spot.dx, dy: spot.dy)
+        let hint = (x: Int((expected.x - f.minX) / sx), y: Int((expected.y - f.minY) / sy))
+        guard let hit = VisualMatch.find(spot.image, in: image, hint: hint) else { return nil }
+        MacroLog.shared.write("CLICK", String(format: "button found by its image (score %.2f, moved %d,%d)",
+                                              hit.score, hit.x - hint.x, hit.y - hint.y))
+        return (CGPoint(x: f.minX + CGFloat(hit.x) * sx, y: f.minY + CGFloat(hit.y) * sy), window)
+    }
+
+    enum NamedLookup {
+        case found(CGPoint, WinInfo)
+        /// Fenêtre pas (encore) ouverte, ou Échap pendant la lecture : on attend (ou on s'arrête), sans clic.
+        case noWindow
+        /// Fenêtre lue, nom absent (texte changé par le clic, mal lu…), ou fenêtre illisible : sa place apprise.
+        case usePlace
+    }
+
+    /// Bouton retrouvé à son nom dans sa fenêtre, lue une fois à ce moment-là : d'abord autour de sa place apprise,
+    /// puis toute la fenêtre (MacroVisual.swift). Le nom n'est jamais journalisé (ce peut être le nom d'une piste).
+    func namedPoint(_ spot: NamedSpot, ctx: Context) -> NamedLookup {
+        guard let window = targetWindow(size: spot.size, title: spot.title, ctx: ctx) else { return .noWindow }
+        guard window.number > 0,
+              let image = ScreenLook.captureImage(windowNumber: window.number, size: window.bounds.size, scale: 2) else {
+            MacroLog.shared.write("CLICK", "window unreadable: learned place used")
+            return .usePlace
+        }
+        let f = window.bounds
+        let place = Self.point(in: f, corner: spot.corner, dx: spot.px, dy: spot.py)
+        let expected = CGPoint(x: place.x - f.minX - spot.dx, y: place.y - f.minY - spot.dy)   // centre du nom
+        let near = CGRect(x: expected.x - 260, y: expected.y - 160, width: 520, height: 320)
+        var item = TextLook.find(spot.label, in: TextLook.read(image, size: f.size, region: near), near: expected)
+        if item == nil {
+            if shouldStop(ctx.pid) != nil { return .noWindow }                // Échap : arrêt au tour suivant
+            item = TextLook.find(spot.label, in: TextLook.read(image, size: f.size), near: expected)
+        }
+        guard let item else {
+            MacroLog.shared.write("CLICK", "button name not found: learned place used")
+            return .usePlace
+        }
+        MacroLog.shared.write("CLICK", "button found by its name (moved \(Int(item.center.x - expected.x)),"
+                              + "\(Int(item.center.y - expected.y)))")
+        return .found(CGPoint(x: f.minX + item.center.x + spot.dx, y: f.minY + item.center.y + spot.dy), window)
+    }
+
+    /// Lecture de l'écran possible ici (macOS 14 et plus, autorisation donnée).
+    static var canRead: Bool { ScreenLook.available && ScreenLook.allowed }
+
     /// Point visé, et le menu dans lequel il doit tomber (cible « menu ouvert »).
     func resolve(_ target: ClickTarget, ctx: Context) -> (point: CGPoint, popup: WinInfo?)? {
         switch target {
         case .startCursor(let dx, let dy):
             return (CGPoint(x: ctx.origin.x + dx, y: ctx.origin.y + dy), nil)
-        case .flWindow(let corner, let dx, let dy, let size):
+        case .flWindow(let corner, let dx, let dy, let size, let title):
             let frame: CGRect?
             if let size {
-                frame = Self.clickWindow(in: WinSnapshot.take(pid: ctx.pid), size: size, track: ctx.track)?.bounds
+                frame = targetWindow(size: size, title: title, ctx: ctx)?.bounds
             } else {
                 frame = ctx.frame
             }
             guard let f = frame else { return nil }
-            let x: CGFloat = corner == .topLeft || corner == .bottomLeft ? f.minX : f.maxX
-            let y: CGFloat = corner == .topLeft || corner == .topRight ? f.minY : f.maxY
-            return (CGPoint(x: x + dx, y: y + dy), nil)
+            return (Self.point(in: f, corner: corner, dx: dx, dy: dy), nil)
         case .cursorXWindowY(let dx, let dy):
             guard let f = ctx.frame else { return nil }
             return (CGPoint(x: ctx.origin.x + dx, y: f.minY + dy), nil)
@@ -867,6 +966,16 @@ final class MacroEffectsMac: MacroEffects {
             guard let menu = remembered.flatMap({ hop.fits($0.bounds) ? $0 : nil })
                     ?? opened.first(where: { hop.fits($0.bounds) }) else { return nil }
             return (hop.point(in: menu.bounds), menu)
+        case .button(let spot):
+            return visualPoint(spot, ctx: ctx).map { ($0.point, nil) }
+        case .named(let spot):
+            // Sans lecture de l'écran (autorisation retirée, macOS 13) : sa place apprise, comme avant.
+            guard Self.canRead else { return resolve(spot.place, ctx: ctx) }
+            switch namedPoint(spot, ctx: ctx) {
+            case .found(let p, _): return (p, nil)
+            case .noWindow: return nil
+            case .usePlace: return resolve(spot.place, ctx: ctx)
+            }
         case .toLearn:
             return nil                                  // refusé par la validation : jamais de clic à l'aveugle
         }
@@ -875,7 +984,7 @@ final class MacroEffectsMac: MacroEffects {
     /// Fenêtre (taille retenue) ou menu de FL : attendu s'il n'est pas encore là. Autres cibles : jamais attendues.
     static func appearTimeout(of target: ClickTarget) -> TimeInterval? {
         switch target {
-        case .flWindow(_, _, _, .some): return windowAppearTimeout
+        case .flWindow(_, _, _, .some, _), .button, .named: return windowAppearTimeout
         case .openMenu: return menuAppearTimeout
         default: return nil
         }
@@ -887,9 +996,20 @@ final class MacroEffectsMac: MacroEffects {
     func locate(_ target: ClickTarget, ctx: Context) -> (point: CGPoint, popup: WinInfo?, fresh: Bool)? {
         let baseline = numbersBeforeLastClick ?? ctx.startNumbers
         switch target {
-        case .flWindow(let corner, let dx, let dy, let size?):
-            guard let w = Self.clickWindow(in: WinSnapshot.take(pid: ctx.pid), size: size, track: ctx.track) else { return nil }
-            return (point: Self.point(in: w.bounds, corner: corner, dx: dx, dy: dy), popup: nil, fresh: !baseline.contains(w.number))
+        case .flWindow(let corner, let dx, let dy, let size?, let title):
+            guard let w = targetWindow(size: size, title: title, ctx: ctx) else { return nil }
+            return (point: Self.point(in: w.bounds, corner: corner, dx: dx, dy: dy), popup: nil,
+                    fresh: !baseline.contains(w.number))
+        case .button(let spot):
+            guard let found = visualPoint(spot, ctx: ctx) else { return nil }
+            return (point: found.point, popup: nil, fresh: !baseline.contains(found.window.number))
+        case .named(let spot):
+            guard Self.canRead else { return locate(spot.place, ctx: ctx) }
+            switch namedPoint(spot, ctx: ctx) {
+            case .found(let p, let w): return (point: p, popup: nil, fresh: !baseline.contains(w.number))
+            case .noWindow: return nil
+            case .usePlace: return locate(spot.place, ctx: ctx)
+            }
         case .openMenu(let hop):
             let snap = WinSnapshot.take(pid: ctx.pid)
             let fitting = snap.fl.filter {
@@ -943,11 +1063,25 @@ final class MacroEffectsMac: MacroEffects {
         }
         guard let r = found else {
             switch target {
-            case .flWindow(_, _, _, let size?):
+            case .flWindow(_, _, _, _, .some):
+                // Sans le titre : c'est le nom d'une piste de l'utilisateur, jamais dans le journal.
+                return .fail("fenêtre du plugin introuvable (ouvre ce plugin, ou montre de nouveau le clic)")
+            case .flWindow(_, _, _, let size?, _):
                 return .fail("fenêtre de FL de \(Int(size.width)) × \(Int(size.height)) introuvable "
                              + "(pas ouverte, ou changée de taille : montre de nouveau le clic)")
             case .openMenu:
                 return .fail("le menu de FL attendu ne s'est pas ouvert")
+            case .button where !ScreenLook.allowed:
+                return .fail("lecture de l'écran pas autorisée (Réglages Système › Confidentialité et sécurité › "
+                             + "Enregistrement de l'écran) : le bouton ne peut pas être cherché")
+            case .button:
+                return .fail("bouton introuvable dans la fenêtre de FL (caché, ou d'une autre apparence : "
+                             + "montre-le de nouveau)")
+            case .named(let spot):
+                // Sans le nom : ce peut être celui d'une piste, jamais dans le journal. Seule raison possible ici : sa
+                // fenêtre n'est pas ouverte (nom absent → sa place).
+                return .fail("fenêtre de FL de \(Int(spot.size.width)) × \(Int(spot.size.height)) introuvable "
+                             + "(pas ouverte, ou changée de taille : montre de nouveau le clic)")
             default:
                 return .fail("position introuvable (fenêtre de FL ?)")
             }
@@ -978,14 +1112,17 @@ final class MacroEffectsMac: MacroEffects {
     }
 
     func click(at p: CGPoint, right: Bool, ctx: Context) -> StepResult {
-        guard FLWindows.contains(p, pid: ctx.pid) else {
-            MacroLog.shared.write("CLICK", "refused (\(Int(p.x)),\(Int(p.y))): outside every FL window")
+        // FL, ou la fenêtre d'un plugin que FL fait tourner à part (pont des plugins Intel) : le clic va à son processus.
+        let helper = FLHelpers.pids(of: ctx.pid).first { FLWindows.contains(p, pid: $0) }
+        guard helper != nil || FLWindows.contains(p, pid: ctx.pid) else {
+            MacroLog.shared.write("CLICK", "refused \(p.logText): outside every FL window")
             return .fail("le point visé est hors de FL")
         }
         if !Self.clicksToPid, let name = coveringApp(at: p, ctx: ctx) {
             return .fail("« \(name) » couvre FL à cet endroit")
         }
-        postClick(at: p, right: right, pid: ctx.pid)
+        let front = WinSnapshot.take(pid: ctx.pid).hit(p)?.pid
+        postClick(at: p, right: right, pid: front.flatMap { $0 == ctx.pid || $0 == helper ? $0 : nil } ?? ctx.pid)
         lastClickPoint = p
         return .ok
     }
@@ -993,13 +1130,13 @@ final class MacroEffectsMac: MacroEffects {
     /// Nom de l'app dont une fenêtre couvre FL au point visé ; nil : c'est bien FL (ou notre app) dessous.
     func coveringApp(at p: CGPoint, ctx: Context) -> String? {
         let ax = AXProbe.hit(p)
-        MacroLog.shared.write("AX", "at (\(Int(p.x)),\(Int(p.y))): \(ax)")
+        MacroLog.shared.write("AX", "at \(p.logText): \(ax)")
         var owner: Int32? = (ax.error == .success && ax.pid != 0) ? ax.pid : nil
         // AX muet : repli sur la fenêtre NORMALE tout devant seulement si aucun menu de FL (niveau supérieur) n'est là.
         if owner == nil, WinSnapshot.take(pid: ctx.pid).hit(p).map({ $0.layer == 0 }) ?? true {
             owner = FLWindows.topNormalWindow(at: p)?.pid
         }
-        guard let owner, owner != ctx.pid, owner != getpid() else { return nil }
+        guard let owner, !FLHelpers.isFLOrHelper(owner, fl: ctx.pid), owner != getpid() else { return nil }
         return NSRunningApplication(processIdentifier: owner)?.localizedName ?? "une autre app"
     }
 
@@ -1007,7 +1144,7 @@ final class MacroEffectsMac: MacroEffects {
     /// par le flux du système (un glisser ne peut pas être adressé à un seul processus).
     func dropFile(_ path: String, at p: CGPoint, ctx: Context) -> StepResult {
         guard FLWindows.contains(p, pid: ctx.pid) else {
-            MacroLog.shared.write("DROP", "refused (\(Int(p.x)),\(Int(p.y))): outside every FL window")
+            MacroLog.shared.write("DROP", "refused \(p.logText): outside every FL window")
             return .fail("la piste visée est hors de FL : clique d'abord sur ta piste dans le Mixer")
         }
         if let name = coveringApp(at: p, ctx: ctx) { return .fail("« \(name) » couvre FL à cet endroit") }
@@ -1025,7 +1162,7 @@ final class MacroEffectsMac: MacroEffects {
     func postClick(at p: CGPoint, right: Bool, pid: Int32, hoverMs: Int = 30) {
         if cursorBeforeBurst == nil { cursorBeforeBurst = FLWindows.cursor() }
         let held = CGEventSource.flagsState(.combinedSessionState).intersection([.maskCommand, .maskAlternate, .maskControl, .maskShift])
-        MacroLog.shared.write("CLICK", "\(right ? "right" : "left") (\(Int(p.x)),\(Int(p.y)))"
+        MacroLog.shared.write("CLICK", "\(right ? "right" : "left") \(p.logText)"
             + (held.isEmpty ? "" : " WARNING modifiers held 0x\(String(held.rawValue, radix: 16))"))
         func ms(since t: UInt64) -> Int { Int((DispatchTime.now().uptimeNanoseconds &- t) / 1_000_000) }
         let t0 = DispatchTime.now().uptimeNanoseconds

@@ -96,6 +96,7 @@ final class MacroRunner {
                 case .doneWithWarning: break                       // la fenêtre du larsen suffit
                 default: NSSound.beep()
                 }
+                if !ok { ProblemLog.shared.add("Macro : " + outcome.text) }   // message d'aide : derniers problèmes
                 completion?(outcome)
                 NotificationCenter.default.post(name: .macroFinished, object: nil,
                                                 userInfo: ["ok": ok, "text": outcome.text])

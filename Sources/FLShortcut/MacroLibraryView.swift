@@ -8,7 +8,7 @@ import SwiftUI
 import UniformTypeIdentifiers
 
 enum MacroPageText {
-    static let subtitle = "Enchaîne des touches, des menus et des attentes dans FL Studio sur un seul raccourci. Chaque macro se construit bloc par bloc dans le créateur."
+    static let subtitle = "Enchaîne des clics, des touches et des menus de FL Studio sur un seul raccourci. Le plus simple : enregistre ce que tu fais dans FL, chaque geste devient un bloc."
 }
 
 /// Problème de la bibliothèque (enregistrement impossible, fichier relu en partie) : page Macros, même vide, et
@@ -78,14 +78,26 @@ struct MacroLibraryPage: View {
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
                 .frame(maxWidth: 380)
+            // Le plus simple d'abord : enregistrer ce qu'on fait dans FL.
+            Button {
+                Self.recordNewMacro(in: library)
+            } label: {
+                Label("Enregistrer une macro", systemImage: "record.circle").frame(minWidth: 240)
+            }
+            .primaryButton()
+            .tint(.red)
+            .controlSize(.large)
+            .help("Une nouvelle macro s'ouvre et FL passe devant : clique et tape ta suite (menus, flèches, raccourcis…), puis « Terminer ». Chaque geste devient un bloc.")
+            Text("Fais ta suite dans FL une fois : chaque clic, flèche ou raccourci devient un bloc.")
+                .font(.system(size: 11))
+                .foregroundStyle(.secondary)
             HStack(spacing: 10) {
-                Button("Nouvelle macro") { newMacro() }
-                    .primaryButton()
-                    .controlSize(.large)
+                Button("Macro vide") { newMacro() }
+                    .secondaryButton()
                 Button("Partir d'un modèle…") { showTemplates = true }
                     .secondaryButton()
-                    .controlSize(.large)
             }
+            .padding(.top, 4)
             Button("Importer un fichier .flsmacro…") { importFile() }
                 .buttonStyle(.link)
                 .font(.system(size: 12))
@@ -99,9 +111,16 @@ struct MacroLibraryPage: View {
     private var actions: some View {
         HStack(spacing: 8) {
             Button {
+                Self.recordNewMacro(in: library)
+            } label: {
+                Label("Enregistrer une macro", systemImage: "record.circle")
+            }
+            .tint(.red)
+            .help("Une nouvelle macro s'ouvre et FL passe devant : clique et tape ta suite, puis « Terminer »")
+            Button {
                 newMacro()
             } label: {
-                Label("Nouvelle macro", systemImage: "plus")
+                Label("Macro vide", systemImage: "plus")
             }
             Button {
                 showTemplates = true
@@ -113,14 +132,14 @@ struct MacroLibraryPage: View {
             } label: {
                 Label("Importer…", systemImage: "square.and.arrow.down")
             }
-            .help("Ajouter des macros reçues (.flsmacro) ; la boîte s'ouvre dans Documents › FL Shortcut › Macros")
+            .help("Ajouter des macros reçues (.flsmacro) ; la boîte s'ouvre dans Documents › FL Shortcuts › Macros")
             Button {
                 exportAll()
             } label: {
                 Label("Exporter…", systemImage: "square.and.arrow.up")
             }
             .disabled(library.macros.isEmpty)
-            .help("Toutes les macros, un fichier chacune, pour les partager (par défaut dans Documents › FL Shortcut › Macros)")
+            .help("Toutes les macros, un fichier chacune, pour les partager (par défaut dans Documents › FL Shortcuts › Macros)")
             Spacer(minLength: 0)
         }
         .buttonStyle(.borderless)
@@ -158,6 +177,13 @@ struct MacroLibraryPage: View {
     static func newMacro(in library: MacroLibraryStore) {
         let doc = library.add(MacroDoc(name: library.uniqueName("Nouvelle macro"), blocks: []))
         MacroCreatorLink.shared.open(doc.id, isNew: true)       // au retour : l'enregistrer ou la supprimer
+    }
+
+    /// « Enregistrer une macro » : nouvelle macro ouverte dans le créateur, et l'enregistrement des clics et des
+    /// touches qui démarre aussitôt (FL passe devant).
+    static func recordNewMacro(in library: MacroLibraryStore) {
+        let doc = library.add(MacroDoc(name: library.uniqueName("Nouvelle macro"), blocks: []))
+        MacroCreatorLink.shared.open(doc.id, isNew: true, record: true)
     }
 
     private func use(_ template: MacroTemplate) {
@@ -330,14 +356,16 @@ struct MacroTemplatesSheet: View {
 
 // MARK: - Fichiers .flsmacro
 
-/// Dossiers d'échange, rangés comme les projets de FL : ~/Documents/FL Shortcut/Macros et …/Raccourcis. Les boîtes
+/// Dossiers d'échange, rangés comme les projets de FL : ~/Documents/FL Shortcuts/Macros et …/Raccourcis. Les boîtes
 /// d'export et d'import s'y ouvrent ; créés à la première ouverture d'une de ces boîtes (jamais au lancement).
+/// Un dossier « Documents/FL Shortcut » (ancien nom de l'app) prend alors le nouveau nom, avec ses fichiers.
 enum ExchangeFolder {
     case macros, shortcuts
 
     var url: URL {
-        FileManager.default.homeDirectoryForCurrentUser
-            .appendingPathComponent("Documents/FL Shortcut", isDirectory: true)
+        let documents = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Documents", isDirectory: true)
+        return AppPaths.renamed(documents.appendingPathComponent(AppPaths.oldName, isDirectory: true),
+                                to: documents.appendingPathComponent("FL Shortcuts", isDirectory: true))
             .appendingPathComponent(self == .macros ? "Macros" : "Raccourcis", isDirectory: true)
     }
 
@@ -374,7 +402,7 @@ enum MacroFileActions {
         }
     }
 
-    /// Toutes les macros, un fichier .flsmacro chacune, dans le dossier choisi (par défaut FL Shortcut › Macros) :
+    /// Toutes les macros, un fichier .flsmacro chacune, dans le dossier choisi (par défaut FL Shortcuts › Macros) :
     /// prêtes à envoyer à un collègue. Un fichier du même nom n'est jamais écrasé (« (2) », « (3) »…).
     static func exportAll(_ docs: [MacroDoc]) -> String? {
         guard !docs.isEmpty else { return nil }
@@ -410,7 +438,7 @@ enum MacroFileActions {
     }
 
     /// Relecture d'un import : décompte en tête, TOUS les blocs dans une liste qui défile, ce qu'il faudra faire.
-    private static func confirmImport(_ preview: MacroExchange.Preview) -> Bool {
+    static func confirmImport(_ preview: MacroExchange.Preview) -> Bool {
         let count = preview.lines.count == 1 ? "1 bloc" : "\(preview.lines.count) blocs"
         let review = preview.sensitiveCount == 0 ? "" : preview.sensitiveCount == 1
             ? ", dont 1 à relire" : ", dont \(preview.sensitiveCount) à relire"
@@ -439,7 +467,7 @@ enum MacroFileActions {
     }
 
     /// Importe un ou plusieurs .flsmacro (reçus d'un collègue), chacun relu avant d'être accepté : chaque macro
-    /// arrive sans raccourci (inactive), ids neufs. La boîte s'ouvre dans FL Shortcut › Macros.
+    /// arrive sans raccourci (inactive), ids neufs. La boîte s'ouvre dans FL Shortcuts › Macros.
     static func importMacros(into library: MacroLibraryStore, layout: KeyboardLayout) -> [MacroDoc] {
         let panel = NSOpenPanel()
         panel.allowedContentTypes = [fileType, .json]

@@ -67,7 +67,7 @@ internal sealed class AppController : INotifyPropertyChanged, IDisposable
     // ---------- État affiché ----------
 
     public string? LoadWarning { get; }
-    /// Mode léger (défaut) : FL Shortcut n'envoie que des touches d'origine de FL, sans script ni MIDI.
+    /// Mode léger (défaut) : FL Shortcuts n'envoie que des touches d'origine de FL, sans script ni MIDI.
     public bool Light => !(_settings.MidiActions ?? _settings.ScriptPath is not null);
     /// En mode léger, rien à configurer : pas d'accueil (ni loopMIDI, ni MIDI Settings).
     public bool Onboarded => _settings.Onboarded || Light;
@@ -233,7 +233,7 @@ internal sealed class AppController : INotifyPropertyChanged, IDisposable
             Set(StatusKind.Paused, "En pause", "FL Studio utilise ses raccourcis d'origine.");
         else if (_foreground is { Elevated: true })
             Set(StatusKind.Elevated, "FL Studio est lancé en administrateur",
-                "Relance FL Studio normalement : Windows empêche FL Shortcut d'agir sur une appli administrateur.");
+                "Relance FL Studio normalement : Windows empêche FL Shortcuts d'agir sur une appli administrateur.");
         else if (Light)
         {
             if (flRunning) Set(StatusKind.Linked, "Actif dans FL Studio", "Tes raccourcis marchent quand FL Studio est au premier plan.");
@@ -255,8 +255,8 @@ internal sealed class AppController : INotifyPropertyChanged, IDisposable
                     break;
                 case LinkStatus.Inactive:
                     Set(StatusKind.Inactive, "Lien inactif",
-                        PortsPresent ? "Dans FL Studio : Options › MIDI Settings, active « FL Shortcut »."
-                                     : "Les ports MIDI « FL Shortcut » sont introuvables.");
+                        PortsPresent ? "Dans FL Studio : Options › MIDI Settings, active « FL Shortcuts »."
+                                     : "Les ports MIDI « FL Shortcuts » sont introuvables.");
                     break;
                 default:
                     Set(StatusKind.FlClosed, "FL Studio n'est pas ouvert", "Tes raccourcis marcheront dès que tu l'ouvres.");
@@ -304,7 +304,7 @@ internal sealed class AppController : INotifyPropertyChanged, IDisposable
             ? (s.Target is { } t && ConflictTable.Default.FlConflict(t) is { } fl ? "Dans " + fl : "Raccourci de FL Studio")
             : s.ActionId is { } id && Availability(id) is ActionAvailability.Unavailable u ? u.Reason
             : s.ActionId is { } id2 && FlActions.Info(id2) is { } info ? info.Detail()
-            : s.UnknownAction is { } unknown ? $"Action inconnue ({DisplayText.Safe(unknown)}) : mets FL Shortcut à jour" : "";
+            : s.UnknownAction is { } unknown ? $"Action inconnue ({DisplayText.Safe(unknown)}) : mets FL Shortcuts à jour" : "";
         return new ShortcutRow
         {
             Shortcut = s,

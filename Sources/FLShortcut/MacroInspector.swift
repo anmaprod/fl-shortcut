@@ -72,7 +72,7 @@ private struct BlockInspector: View {
                 }
             } else {
                 Section {
-                    Text("Ce bloc vient d'une version plus récente de FL Shortcut. Il est gardé tel quel, mais la macro ne tourne pas tant qu'il est là : mets l'app à jour, ou supprime-le.")
+                    Text("Ce bloc vient d'une version plus récente de FL Shortcuts. Il est gardé tel quel, mais la macro ne tourne pas tant qu'il est là : mets l'app à jour, ou supprime-le.")
                         .font(.system(size: 12))
                         .fixedSize(horizontal: false, vertical: true)
                 }
@@ -204,6 +204,14 @@ private struct BlockInspector: View {
             actionPicker(key)
         case (.flAction(let key, let fallback), "fallback"):
             fallbackField(key, fallback)
+        case (.openPage(let page), "page"):
+            pagePicker(page)
+        case (.pageOption(let id, _), "option"):
+            pageOptionPicker(id)
+        case (.pageOption(let id?, let name), "name") where PageOptions.needsName(id):
+            pluginNameField(id, name)
+        case (.pageOption, "name"):
+            EmptyView()
         case (.stop(let m), "message"):
             TextField(p.label, text: textBinding(m ?? "", max: MacroValidation.maxNoteLength) { text in
                 setBody(key: "message") { $0 = .stop(message: text.isEmpty ? nil : text) }
@@ -238,7 +246,8 @@ private struct BlockInspector: View {
                     Toggle("Dégradé sur les pistes sélectionnées", isOn: Binding(get: { fade != nil }, set: { on in
                         setBody(key: "fade") { body in
                             guard case .nameColor(let n, let c?, _, let i) = body else { return }
-                            body = on ? .nameColor(name: nil, color: c, fade: GradientField.defaultLast(for: c), icon: i)
+                            // Dégradé : ni nom ni icône (plusieurs pistes).
+                            body = on ? .nameColor(name: nil, color: c, fade: GradientField.defaultLast(for: c), icon: nil)
                                       : .nameColor(name: n, color: c, fade: nil, icon: i)
                         }
                     }))
@@ -253,6 +262,23 @@ private struct BlockInspector: View {
                         }
                     }
                 }
+            }
+        case (.nameColor(_, _, let fade, let icon), "icon"):
+            // Posée par la fenêtre de FL (F2) : un seul élément à la fois, donc pas avec un dégradé.
+            VStack(alignment: .leading, spacing: 6) {
+                FLIconField(icon: icon) { picked in
+                    setBody(key: "icon") { body in
+                        if case .nameColor(let n, let c, let f, _) = body {
+                            body = .nameColor(name: n, color: c, fade: f, icon: picked)
+                        }
+                    }
+                }
+                .disabled(fade != nil)
+                Text(fade != nil ? "Pas d'icône avec un dégradé (FL la pose sur un seul élément)."
+                                 : "Posée par la fenêtre de FL (F2). La première fois, montre une fois le bouton de l'icône.")
+                    .font(.system(size: 11))
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
             }
         default:
             Text("Réglage disponible dans une prochaine version.")
@@ -517,7 +543,7 @@ private struct BlockInspector: View {
 
     private func targetKind(_ t: ClickTarget) -> String {
         switch t {
-        case .flWindow, .openMenu, .cursorXWindowY, .toLearn: return "learned"
+        case .flWindow, .openMenu, .button, .named, .cursorXWindowY, .toLearn: return "learned"
         case .track: return "track"
         case .lastClick: return "lastClick"
         case .startCursor: return "startCursor"
@@ -542,7 +568,7 @@ private struct BlockInspector: View {
             Text("Près du curseur au départ").tag("startCursor")
         }
         switch t {
-        case .flWindow, .openMenu, .cursorXWindowY, .toLearn:
+        case .flWindow, .openMenu, .button, .named, .cursorXWindowY, .toLearn:
             learnedSpot(t)
         case .track(let dx, let dy), .lastClick(let dx, let dy), .startCursor(let dx, let dy):
             offsetFields(t, dx: dx, dy: dy)
@@ -553,13 +579,22 @@ private struct BlockInspector: View {
         let learning = teacher.activeBlock == block.id
         let text: String
         switch t {
-        case .flWindow(_, _, _, let size?):
+        case .flWindow(_, _, _, _, let title?):
+            text = "Retenu dans la fenêtre du plugin « \(title.displaySafe(max: 40)) » : le clic la retrouve où qu'elle soit "
+                + "et attend qu'elle s'ouvre. Si elle change de taille, montre-le de nouveau."
+        case .flWindow(_, _, _, let size?, _):
             text = "Retenu dans la fenêtre de FL de \(Int(size.width)) × \(Int(size.height)) (fenêtre principale, réglages, "
                 + "boîte…) : le clic attend qu'elle s'ouvre. Si elle change de taille, montre-le de nouveau."
         case .flWindow:
             text = "Retenu par rapport à la fenêtre de FL."
         case .openMenu:
             text = "Retenu dans le menu de FL ouvert par le clic précédent : le clic attend que ce menu s'ouvre."
+        case .button:
+            text = "Bouton retrouvé à son image dans la fenêtre de FL, même s'il a bougé. L'écran n'est lu qu'à ce "
+                + "moment-là, dans cette fenêtre."
+        case .named(let spot):
+            text = "Bouton retrouvé par son nom « \(spot.label.displaySafe(max: 30)) » dans la fenêtre de FL, même s'il a "
+                + "bougé. L'écran n'est lu qu'à ce moment-là, dans cette fenêtre ; sans l'autorisation, à sa place."
         case .cursorXWindowY:
             text = "Ancienne position apprise (colonne du curseur)."
         default:
@@ -573,7 +608,8 @@ private struct BlockInspector: View {
                     Button("Annuler") { teacher.cancel("Annulé.") }.secondaryButton()
                 } else {
                     Button {
-                        teach()
+                        // Bouton suivi à son image : son image est reprise en le montrant de nouveau.
+                        if case .button = t { teach(visual: true) } else { teach() }
                     } label: {
                         Label("Montrer dans FL…", systemImage: "hand.point.up.left")
                     }
@@ -581,20 +617,62 @@ private struct BlockInspector: View {
                     .help("FL passe devant : clique une fois à l'endroit voulu (le clic agit aussi dans FL). Échap annule.")
                 }
             }
+            if ScreenLook.available, canFollow(t) {
+                Toggle("Retrouver ce bouton s'il bouge", isOn: Binding(get: {
+                    switch t {
+                    case .button, .named: return true
+                    default: return false
+                    }
+                }, set: { on in follow(on, t) }))
+                .disabled(learning)
+                .help("Pour un bouton qui change de place (une piste du Mixer, le « + » du Channel rack…) : il est "
+                    + "cherché par son nom (« Insert 1 »), ou à son image s'il n'en a pas, dans la fenêtre au moment du "
+                    + "clic. Demande l'autorisation « Enregistrement de l'écran ».")
+            }
             if let message = teacher.message, teacher.lastBlock == block.id {
                 Text(message).font(.system(size: 11)).foregroundStyle(learning ? Color.accentColor : Color.secondary)
             }
         }
     }
 
-    private func teach() {
+    /// Clic dans une fenêtre de FL (taille retenue) : son bouton peut être retrouvé à son image.
+    private func canFollow(_ t: ClickTarget) -> Bool {
+        switch t {
+        case .flWindow(_, _, _, .some, _), .button, .named: return true
+        default: return false
+        }
+    }
+
+    /// Option « Retrouver ce bouton s'il bouge » : activée, l'autorisation de lire l'écran est demandée, puis on montre
+    /// le bouton dans FL (son image est prise à ce moment-là) ; désactivée, le clic garde sa place, sans image.
+    private func follow(_ on: Bool, _ t: ClickTarget) {
+        if !on {
+            let place: ClickTarget
+            switch t {
+            case .button(let spot): place = spot.place
+            case .named(let spot): place = spot.place
+            default: return
+            }
+            setBody(key: "target") { if case .click(_, let b) = $0 { $0 = .click(place, button: b) } }
+            return
+        }
+        guard ScreenLook.allowed || ScreenLook.requestAccess() else {
+            teacher.say("Autorise FL Shortcuts dans Réglages Système › Confidentialité et sécurité › Enregistrement de "
+                        + "l'écran (rouvre l'app si macOS le demande), puis réactive l'option.", for: block.id)
+            ScreenLook.openSettings()
+            return
+        }
+        teach(visual: true)
+    }
+
+    private func teach(visual: Bool = false) {
         guard let pid = EventTap.shared.currentConfig.flPIDs.first else {
             teacher.say("Ouvre FL Studio, puis recommence.", for: block.id)
             return
         }
         let id = block.id
         let editor: MacroEditorModel = model
-        teacher.start(block: id, pid: pid, returnTo: editor.window) { [weak editor] target in
+        teacher.start(block: id, pid: pid, returnTo: editor.window, visual: visual) { [weak editor] target in
             editor?.updateBlock(id, key: "target", actionName: "Montrer l'endroit du clic") { b in
                 if case .click(_, let button) = b.body { b.body = .click(target, button: button) }
             }
@@ -645,17 +723,7 @@ private struct BlockInspector: View {
     }
 
     private func choosePreset() {
-        let panel = NSOpenPanel()
-        panel.title = "Choisis un état de piste du Mixer (.fst)"
-        panel.canChooseFiles = true
-        panel.canChooseDirectories = false
-        panel.allowsMultipleSelection = false
-        if let type = UTType(filenameExtension: "fst") { panel.allowedContentTypes = [type] }
-        let home = FileManager.default.homeDirectoryForCurrentUser
-        panel.directoryURL = ["Documents/Image-Line", "Music/Image-Line", "Documents"].map { home.appendingPathComponent($0) }
-            .first { FileManager.default.fileExists(atPath: $0.path) }
-        guard panel.runModal() == .OK, let url = panel.url else { return }
-        let path = url.path
+        guard let path = PresetPanel.choose() else { return }
         setBody(key: "path") { body in
             if case .dropFile = body { body = .dropFile(path: path) } else { body = .chooseFile(path: path) }
         }
@@ -735,6 +803,112 @@ private struct BlockInspector: View {
             }
         }
     }
+
+    // MARK: Pages de FL
+
+    private func pagePicker(_ page: FLPage?) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Picker("Page", selection: Binding<FLPage?>(get: { page }, set: { new in
+                setBody(key: "page") { $0 = .openPage(new) }
+            })) {
+                if page == nil { Text("À choisir").tag(FLPage?.none) }
+                ForEach(FLPage.allCases) { p in
+                    Text(p.title).tag(FLPage?.some(p))
+                }
+            }
+            if page == nil {
+                Label("Choisis la page de FL à ouvrir : les options de « Cliquer sur… » en dessous viennent d'elle.",
+                      systemImage: "exclamationmark.triangle.fill")
+                    .font(.system(size: 11))
+                    .foregroundStyle(.orange)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            Text("Ouverte seulement si elle n'est pas déjà devant (le lien avec FL le sait). Sans le lien : sa touche "
+                 + "de FL (F5, F6, F7, F9…), qui la referme si elle est déjà devant.")
+                .font(.system(size: 11))
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    /// Seulement les options de la page ouverte au-dessus.
+    private func pageOptionPicker(_ id: String?) -> some View {
+        let layout = SystemKeyboardLayout()
+        let page = PageOptions.pageAbove(block.id, in: model.draft?.blocks ?? []) ?? nil
+        let options = page.map { PageOptions.options(for: $0, layout: layout) } ?? []
+        let current = options.first { $0.id == id }
+        let inPage = options.filter { if case .key = $0.kind { return false }; return true }
+        let keys = options.filter { if case .key = $0.kind { return true }; return false }
+        return VStack(alignment: .leading, spacing: 4) {
+            if let page {
+                Picker("Option", selection: Binding<String?>(get: { current?.id }, set: { new in
+                    setBody(key: "option") { body in
+                        guard case .pageOption(_, let name) = body else { return }
+                        body = .pageOption(id: new, name: name)
+                    }
+                })) {
+                    if current == nil { Text("À choisir").tag(String?.none) }
+                    if !inPage.isEmpty {
+                        Section(page.title) {
+                            ForEach(inPage) { o in Text(o.label).tag(String?.some(o.id)) }
+                        }
+                    }
+                    if !keys.isEmpty {
+                        Section("Raccourcis de FL dans \(page.title)") {
+                            ForEach(keys) { o in Text(o.label).tag(String?.some(o.id)) }
+                        }
+                    }
+                }
+                if let current {
+                    Text(optionDetail(current, layout: layout))
+                        .font(.system(size: 11))
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                } else {
+                    Label(id == nil ? "Choisis l'option à cliquer dans \(page.title)."
+                                    : "Cette option n'est pas dans \(page.title) : choisis-en une de cette page.",
+                          systemImage: "exclamationmark.triangle.fill")
+                        .font(.system(size: 11))
+                        .foregroundStyle(.orange)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            } else {
+                Label("Choisis d'abord la page dans « Ouvrir une page de FL » juste au-dessus : seules ses options "
+                      + "apparaissent ici.", systemImage: "exclamationmark.triangle.fill")
+                    .font(.system(size: 12))
+                    .foregroundStyle(.orange)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+    }
+
+    private func optionDetail(_ option: PageOption, layout: KeyboardLayout) -> String {
+        switch option.kind {
+        case .action:
+            return option.id == "mixer.armon"
+                ? "Par le lien avec FL ; sans lien : menu de la piste › Arm selected track(s)."
+                : "Par le lien avec FL ; sans lien : sa touche de FL, si elle existe."
+        case .key(let combo):
+            return "Touche de FL : \(combo.displayName(layout: layout))."
+        case .addMenu(let item):
+            return "Par le menu Add › \(item) de FL (barre des menus de macOS), avec le nom du plugin ci-dessous."
+        }
+    }
+
+    private func pluginNameField(_ id: String, _ name: String) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            TextField("Plugin", text: textBinding(name, max: PageOptions.maxName) { text in
+                setBody(key: "name") { body in
+                    guard case .pageOption(let i, _) = body else { return }
+                    body = .pageOption(id: i, name: text)
+                }
+            }, prompt: Text(id.hasSuffix(".addEffect") ? "Fruity Limiter, Pro-Q 3…" : "Serum, FLEX, Sytrus…"))
+            Text("Écrit exactement comme dans le menu Add › \(id.hasSuffix(".addEffect") ? "Effect" : "Channel") de FL.")
+                .font(.system(size: 11))
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
 }
 
 private extension ParamKind {
@@ -786,6 +960,8 @@ final class ClickTeacher: ObservableObject {
     private var pid: Int32 = 0
     private var completion: ((ClickTarget) -> Void)?
     private weak var returnWindow: NSWindow?
+    /// « Retrouver ce bouton s'il bouge » : l'image du bouton est prise juste après le clic montré.
+    private var visual = false
 
     private init() {}
 
@@ -794,8 +970,10 @@ final class ClickTeacher: ObservableObject {
         message = text
     }
 
-    func start(block: UUID, pid: Int32, returnTo window: NSWindow?, completion: @escaping (ClickTarget) -> Void) {
+    func start(block: UUID, pid: Int32, returnTo window: NSWindow?, visual: Bool = false,
+               completion: @escaping (ClickTarget) -> Void) {
         stop()
+        self.visual = visual
         guard let fl = NSRunningApplication(processIdentifier: pid) else {
             say("Ouvre FL Studio, puis recommence.", for: block)
             return
@@ -850,13 +1028,59 @@ final class ClickTeacher: ObservableObject {
         let before = history.last(where: { $0.time <= sample.time }) ?? history.first ?? snap
         let block = activeBlock
         let windows: [(layer: Int, bounds: CGRect)] = before.fl.map { (layer: $0.layer, bounds: $0.bounds) }
-        if let target = MacroOutline.learnedTarget(at: sample.point, windows: windows) {
+        let title = FLWindowAX.pluginTitle(at: sample.point, before: before, fl: pid)     // fenêtre de plugin
+        if let target = MacroOutline.learnedTarget(at: sample.point, windows: windows, title: title) {
             let done = completion
+            // Clic dans une fenêtre de FL, écran lisible : le bouton est retenu par son nom s'il en porte un, sinon
+            // (« Retrouver ce bouton s'il bouge ») par son image, sinon par sa place.
+            if MacroEffectsMac.canRead || visual, let block, let window = before.hit(sample.point), window.number > 0,
+               case .flWindow(let corner, let dx, let dy, let size?, let title) = target {
+                finish(target)
+                say("Lecture du bouton…", for: block)
+                let point = sample.point, wantsImage = visual
+                TextLook.lookup(at: point, window: window) { [weak self] found in
+                    let spot = found.map { NamedSpot(label: $0.label, dx: $0.dx, dy: $0.dy, corner: corner, px: dx, py: dy,
+                                                     size: size, title: title) }
+                    if let spot, spot.isValid {
+                        done?(.named(spot))
+                        self?.say("Bouton retenu par son nom « \(spot.label.displaySafe(max: 30)) » : il sera retrouvé "
+                                  + "même s'il bouge.", for: block)
+                    } else if wantsImage {
+                        self?.learnImage(at: point, window: window, place: target, done: done, block: block)
+                    } else {
+                        done?(target)
+                        self?.say("Endroit retenu.", for: block)
+                    }
+                }
+                return
+            }
             finish(target)
             done?(target)
             if let block { say("Endroit retenu.", for: block) }
         } else {
             cancel("Ce clic n'était ni dans une fenêtre de FL ni dans un de ses menus : recommence.")
+        }
+    }
+
+    /// Image du bouton sous `point` (bouton sans nom, « Retrouver ce bouton s'il bouge ») ; sinon sa place.
+    private func learnImage(at point: CGPoint, window: WinInfo, place target: ClickTarget,
+                            done: ((ClickTarget) -> Void)?, block: UUID) {
+        guard case .flWindow(let corner, let dx, let dy, let size?, let title) = target else { return }
+        ScreenLook.capture(windowNumber: window.number, size: window.bounds.size) { [weak self] image in
+            let patch = image.flatMap { image -> GrayImage? in
+                let cx = Int((point.x - window.bounds.minX) * CGFloat(image.width) / window.bounds.width)
+                let cy = Int((point.y - window.bounds.minY) * CGFloat(image.height) / window.bounds.height)
+                return image.crop(centerX: cx, centerY: cy, side: VisualSpot.defaultSide)
+            }
+            if let patch, patch.contrast >= VisualMatch.minContrast {
+                done?(.button(VisualSpot(corner: corner, dx: dx, dy: dy, size: size, title: title,
+                                         side: patch.width, pixels: patch.pixels)))
+                self?.say("Bouton retenu : il sera cherché à son image.", for: block)
+            } else {
+                done?(target)
+                self?.say(image == nil ? "Lecture de l'écran impossible : endroit retenu sans image."
+                                       : "Rien de reconnaissable à cet endroit : endroit retenu sans image.", for: block)
+            }
         }
     }
 

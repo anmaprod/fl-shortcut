@@ -12,16 +12,28 @@ namespace FLShortcut.App.Services;
 
 internal static class AppPaths
 {
-    /// %LOCALAPPDATA%\FL Shortcut (clé, réglages) — jamais itinérant.
+    /// %LOCALAPPDATA%\FL Shortcuts (clé, réglages) — jamais itinérant.
     public static string Local { get; } = Ensure(Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "FL Shortcut"));
+        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "FL Shortcuts"));
 
-    /// %APPDATA%\FL Shortcut (profil de raccourcis).
+    /// %APPDATA%\FL Shortcuts (profil de raccourcis).
     public static string Roaming { get; } = Ensure(Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "FL Shortcut"));
+        Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "FL Shortcuts"));
 
+    /// Nom de l'app avant « FL Shortcuts ».
+    public const string OldName = "FL Shortcut";
+
+    /// Un dossier à l'ancien nom (un vrai dossier, pas un lien) prend le nouveau nom avec son contenu, si le nouveau
+    /// n'existe pas encore ; en cas d'échec, l'ancien reste utilisé (rien n'est perdu).
     private static string Ensure(string dir)
     {
+        var old = Path.Combine(Path.GetDirectoryName(dir)!, OldName);
+        if (!Directory.Exists(dir) && Directory.Exists(old) && new DirectoryInfo(old).LinkTarget is null)
+        {
+            try { Directory.Move(old, dir); }
+            catch (IOException) { return old; }
+            catch (UnauthorizedAccessException) { return old; }
+        }
         Directory.CreateDirectory(dir);
         return dir;
     }
@@ -70,6 +82,7 @@ internal static class SafeFile
 internal static class SecretStore
 {
     private static string KeyPath => Path.Combine(AppPaths.Local, "link.key");
+    // Ancien nom de l'app gardé exprès : changer ce texte rendrait illisibles les clés déjà enregistrées.
     private static readonly byte[] Entropy = Encoding.UTF8.GetBytes("FL Shortcut link key v2");
 
     public static byte[]? Load()
@@ -169,17 +182,28 @@ internal static class ScriptInstaller
         return r.ReadToEnd();
     }
 
-    /// Écrit « Hardware\FL Shortcut\device_FLShortcut.py ». Renvoie le chemin et l'empreinte SHA-256.
+    /// Écrit « Hardware\FL Shortcuts\device_FLShortcut.py ». Renvoie le chemin et l'empreinte SHA-256.
     public static (string Path, string Sha256) Install(string hardwareFolder, byte[] key)
     {
         if (!string.Equals(Path.GetFileName(Path.TrimEndingDirectorySeparator(hardwareFolder)), "Hardware", StringComparison.OrdinalIgnoreCase))
             throw new IOException("Choisis le dossier « Settings\\Hardware » de FL Studio.");
-        var dir = Path.Combine(hardwareFolder, "FL Shortcut");
+        var dir = Path.Combine(hardwareFolder, "FL Shortcuts");
         Directory.CreateDirectory(dir);
         SafeFile.EnsureNoLinks(dir);
         var content = Encoding.UTF8.GetBytes(ScriptTemplate.Inject(key, Template()));
         var path = Path.Combine(dir, FileName);
         SafeFile.WriteAtomic(path, content);
+        // Ancien nom de l'app : son dossier de script est retiré (FL proposerait deux fois le Controller type),
+        // seulement s'il ne contient que notre script.
+        var old = Path.Combine(hardwareFolder, AppPaths.OldName);
+        try
+        {
+            if (Directory.Exists(old) && new DirectoryInfo(old).LinkTarget is null
+                && File.Exists(Path.Combine(old, FileName)) && OnlyOurScript(old))
+                Directory.Delete(old, true);
+        }
+        catch (IOException) { }
+        catch (UnauthorizedAccessException) { }
         return (path, Convert.ToHexString(SHA256.HashData(content)));
     }
 
@@ -193,13 +217,15 @@ internal static class ScriptInstaller
                 return false;
             // Audit 03 (WIN-10/11) : un autre fichier Python (ex. « transport.py ») ou un dossier à côté du script
             // pourrait masquer un module de FL et exécuter du code dans FL. Seul notre script est accepté.
-            var dir = Path.GetDirectoryName(path)!;
-            return Directory.EnumerateFileSystemEntries(dir)
-                .Select(Path.GetFileName)
-                .All(n => string.Equals(n, FileName, StringComparison.OrdinalIgnoreCase)
-                          || string.Equals(n, "__pycache__", StringComparison.OrdinalIgnoreCase)
-                          || string.Equals(n, "desktop.ini", StringComparison.OrdinalIgnoreCase));
+            return OnlyOurScript(Path.GetDirectoryName(path)!);
         }
         catch { return false; }
     }
+
+    private static bool OnlyOurScript(string dir) =>
+        Directory.EnumerateFileSystemEntries(dir)
+            .Select(Path.GetFileName)
+            .All(n => string.Equals(n, FileName, StringComparison.OrdinalIgnoreCase)
+                      || string.Equals(n, "__pycache__", StringComparison.OrdinalIgnoreCase)
+                      || string.Equals(n, "desktop.ini", StringComparison.OrdinalIgnoreCase));
 }

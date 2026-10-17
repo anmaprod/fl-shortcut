@@ -933,8 +933,8 @@ class TestSourceCompat(unittest.TestCase):
 
     def test_metadata_header(self):
         lines = self.src.splitlines()
-        self.assertEqual(lines[0], "# name=FL Shortcut")
-        self.assertIn("# supportedDevices=FL Shortcut", lines[:5])
+        self.assertEqual(lines[0], "# name=FL Shortcuts")
+        self.assertIn("# supportedDevices=FL Shortcuts", lines[:5])
         self.assertNotIn("# url=", lines[:5])     # url vide inutile (audit 04 §7.1)
 
     def test_key_placeholder_once(self):

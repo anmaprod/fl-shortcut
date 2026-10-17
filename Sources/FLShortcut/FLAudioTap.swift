@@ -13,7 +13,7 @@ enum CaptureError: Error, Equatable {
     var message: String {
         switch self {
         case .processNotFound: return "FL Studio n'envoie pas de son pour l'instant : ouvre ton projet dans FL, puis relance Organiser."
-        case .failed(let step, let status): return "Écoute de FL impossible (\(step), erreur \(status)) : vérifie l'autorisation « Audio système » de FL Shortcut dans Réglages Système › Confidentialité et sécurité."
+        case .failed(let step, let status): return "Écoute de FL impossible (\(step), erreur \(status)) : vérifie l'autorisation « Audio système » de FL Shortcuts dans Réglages Système › Confidentialité et sécurité."
         case .unsupportedFormat: return "Format du son de FL inattendu : écoute impossible."
         }
     }
@@ -40,7 +40,7 @@ final class FLAudioTap: AudioSource {
         let process = try Self.processObject(pid: pid)
         let description = CATapDescription(stereoMixdownOfProcesses: [process])
         description.uuid = UUID()
-        description.name = "FL Shortcut – Organiser"
+        description.name = "FL Shortcuts – Organiser"
         description.isPrivate = true
         description.muteBehavior = .mutedWhenTapped
         var tap = AudioObjectID(kAudioObjectUnknown)
@@ -64,7 +64,7 @@ final class FLAudioTap: AudioSource {
 
         let output = Self.defaultOutputUID() ?? ""
         var aggregate: [String: Any] = [
-            kAudioAggregateDeviceNameKey: "FL Shortcut – écoute de FL",
+            kAudioAggregateDeviceNameKey: "FL Shortcuts – écoute de FL",
             kAudioAggregateDeviceUIDKey: "app.flshortcut.organizer." + UUID().uuidString,
             kAudioAggregateDeviceIsPrivateKey: true,
             kAudioAggregateDeviceIsStackedKey: false,

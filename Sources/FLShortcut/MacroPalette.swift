@@ -1,7 +1,7 @@
 // Créateur de macros : palette des blocs, à gauche (barre latérale en verre du système sur macOS 26).
 // Par catégorie. Un clic ajoute le bloc ; on peut aussi le prendre et le glisser à sa place dans la liste. Les blocs
-// pas encore réglables ici (conditions) sont grisés, « bientôt ». Survol : le bloc se soulève un peu ; appuyé, il
-// flotte ; pendant le glisser, une pastille qui flotte suit la souris. Aucun verre par ligne.
+// pas encore réglables ici (conditions) sont grisés, « bientôt ». Survol : le bloc se soulève un peu ; pendant le
+// glisser, une pastille qui flotte suit la souris. Aucun verre par ligne.
 import AppKit
 import SwiftUI
 
@@ -32,6 +32,10 @@ struct MacroPaletteView: View {
             ForEach(BlockCategory.allCases, id: \.self) { category in
                 section(category)
             }
+            if items.isEmpty {
+                Text("Aucun bloc ne correspond.")
+                    .foregroundStyle(.secondary)
+            }
         }
         .listStyle(.sidebar)
     }
@@ -48,37 +52,40 @@ struct MacroPaletteView: View {
     }
 
     /// Un clic ajoute le bloc sous la sélection ; on peut aussi le glisser à la place voulue dans la liste.
+    /// Ligne simple, pas un bouton : sur macOS, un bouton garde l'appui de la souris pour lui et le glisser ne
+    /// démarrait jamais (vrai glisser à la souris de la mesure de la CI : liste inchangée).
     @ViewBuilder private func row(_ item: PaletteItem) -> some View {
         if item.soon {
-            button(item)
+            label(item)
+                .opacity(0.5)
+                .help("Bientôt : " + item.aide)
+                .accessibilityElement(children: .combine)
+                .accessibilityHint("Pas encore disponible")
         } else {
-            button(item)
+            label(item)
+                .hoverLift()
+                .onTapGesture { insert(item) }
                 .onDrag { PaletteDrag.provider(item) } preview: { PaletteDragPreview(item: item) }
+                .help(item.aide + " Clique pour l'ajouter, ou glisse-le à sa place dans la liste.")
+                .accessibilityElement(children: .combine)
+                .accessibilityAddTraits(.isButton)
+                .accessibilityAction { insert(item) }
+                .accessibilityHint("Ajoute ce bloc sous la ligne choisie")
         }
     }
 
-    private func button(_ item: PaletteItem) -> some View {
-        Button {
-            insert(item)
-        } label: {
-            HStack(spacing: 8) {
-                SectionIcon(symbol: item.symbol, tint: item.category.tint, size: 22)
-                Text(item.label).lineLimit(1)
-                Spacer(minLength: 4)
-                if item.soon {
-                    Text("bientôt")
-                        .font(.system(size: 10, weight: .medium))
-                        .foregroundStyle(.secondary)
-                }
+    private func label(_ item: PaletteItem) -> some View {
+        HStack(spacing: 8) {
+            SectionIcon(symbol: item.symbol, tint: item.category.tint, size: 22)
+            Text(item.label).lineLimit(1)
+            Spacer(minLength: 4)
+            if item.soon {
+                Text("bientôt")
+                    .font(.system(size: 10, weight: .medium))
+                    .foregroundStyle(.secondary)
             }
-            .contentShape(Rectangle())
         }
-        .buttonStyle(LiftButtonStyle())
-        .hoverLift()
-        .disabled(item.soon)
-        .opacity(item.soon ? 0.5 : 1)
-        .help(item.soon ? "Bientôt : " + item.aide : item.aide + " Clique pour l'ajouter, ou glisse-le à sa place dans la liste.")
-        .accessibilityHint(item.soon ? "Pas encore disponible" : "Ajoute ce bloc sous la ligne choisie")
+        .contentShape(Rectangle())
     }
 }
 

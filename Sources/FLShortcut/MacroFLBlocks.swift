@@ -44,9 +44,8 @@ extension MacroEffectsMac {
 
         // 1. Le menu de la piste s'ouvre (nouvelle fenêtre de FL).
         var opened: Set<Int> = []
-        func succeeded() -> StepResult { .ok }
         switch WindowWait.newWindow(pid: ctx.pid, excluding: before.numbers, timeout: 1.5,
-                                    accept: { $0.isMenuLike }, stop: { self.shouldStop(ctx.pid) }) {
+                                    accept: { $0.isMenuLike }, stop: stopReason) {
         case .success(let menu):
             opened.insert(menu.number)
             MacroLog.shared.write("MENU", "track menu \(menu)")
@@ -69,12 +68,12 @@ extension MacroEffectsMac {
             let known = WinSnapshot.take(pid: ctx.pid).numbers
             postLetter(letter, pid: ctx.pid)
             var sub = WindowWait.newWindow(pid: ctx.pid, excluding: known, timeout: 0.6,
-                                           accept: { $0.isMenuLike }, stop: { self.shouldStop(ctx.pid) })
+                                           accept: { $0.isMenuLike }, stop: stopReason)
             if case .failure(.timeout) = sub {
                 MacroLog.shared.write("KEY", "« \(letter) » : no submenu → right arrow")
                 postKey(KeyCombo(keyCode: 124), pid: ctx.pid)
                 sub = WindowWait.newWindow(pid: ctx.pid, excluding: known, timeout: 0.6,
-                                           accept: { $0.isMenuLike }, stop: { self.shouldStop(ctx.pid) })
+                                           accept: { $0.isMenuLike }, stop: stopReason)
             }
             switch sub {
             case .success(let w):
@@ -101,11 +100,11 @@ extension MacroEffectsMac {
         let needsEnter = memory.read()
         if needsEnter != true {
             switch WindowWait.gone(pid: ctx.pid, numbers: opened, timeout: needsEnter == false ? 0.8 : 0.5,
-                                   stop: { self.shouldStop(ctx.pid) }) {
+                                   stop: stopReason) {
             case .success:
                 MacroLog.shared.write("MENU", "« \(last) » → menus closed")
                 memory.write(false)
-                return succeeded()
+                return .ok
             case .failure(.stopped(let why)):
                 return .cancel(why)
             case .failure(.timeout):
@@ -113,20 +112,20 @@ extension MacroEffectsMac {
             }
         } else {
             // Courte attente quand même : si la lettre a suffi cette fois, Entrée ne doit pas tomber dans la boîte.
-            _ = WindowWait.gone(pid: ctx.pid, numbers: opened, timeout: 0.12, stop: { self.shouldStop(ctx.pid) })
+            _ = WindowWait.gone(pid: ctx.pid, numbers: opened, timeout: 0.12, stop: stopReason)
             guard menusOpen(opened, ctx: ctx) else {
                 // Cette fois la lettre a suffi (menu changé ?) : plus d'Entrée automatique.
                 memory.write(false)
                 MacroLog.shared.write("MENU", "« \(last) » → menus closed (Enter not needed any more)")
-                return succeeded()
+                return .ok
             }
         }
         postKey(KeyCombo(keyCode: 36), pid: ctx.pid)
-        switch WindowWait.gone(pid: ctx.pid, numbers: opened, timeout: 0.8, stop: { self.shouldStop(ctx.pid) }) {
+        switch WindowWait.gone(pid: ctx.pid, numbers: opened, timeout: 0.8, stop: stopReason) {
         case .success:
             MacroLog.shared.write("MENU", "Enter → menus closed")
             memory.write(true)
-            return succeeded()
+            return .ok
         case .failure(.stopped(let why)):
             return .cancel(why)
         case .failure(.timeout):
@@ -185,7 +184,7 @@ extension MacroEffectsMac {
         guard case .ok = r else { return r }
         let menu: WinInfo
         switch WindowWait.newWindow(pid: ctx.pid, excluding: before.numbers, timeout: 1.5,
-                                    accept: { $0.isMenuLike }, stop: { self.shouldStop(ctx.pid) }) {
+                                    accept: { $0.isMenuLike }, stop: stopReason) {
         case .success(let w): menu = w
         case .failure(.stopped(let why)):
             closePopups(base: before.numbers, ctx: ctx)
@@ -199,13 +198,13 @@ extension MacroEffectsMac {
         let known = WinSnapshot.take(pid: ctx.pid).numbers
         postLetter("s", pid: ctx.pid)
         guard case .success(let sub) = WindowWait.newWindow(pid: ctx.pid, excluding: known, timeout: 0.45,
-                                                            accept: { $0.isMenuLike }, stop: { self.shouldStop(ctx.pid) }) else {
+                                                            accept: { $0.isMenuLike }, stop: stopReason) else {
             closePopups(base: before.numbers, ctx: ctx)
             return .fail("sous-menu « Select » non ouvert")
         }
         MacroLog.shared.write("ARM", "« s » → submenu \(sub)")
         postKey(KeyCombo(keyCode: 123), pid: ctx.pid)                       // ←
-        guard case .success = WindowWait.gone(pid: ctx.pid, numbers: [sub.number], timeout: 0.4, stop: { self.shouldStop(ctx.pid) }),
+        guard case .success = WindowWait.gone(pid: ctx.pid, numbers: [sub.number], timeout: 0.4, stop: stopReason),
               menusOpen([menu.number], ctx: ctx) else {
             closePopups(base: before.numbers, ctx: ctx)
             return .fail("le menu de FL n'a pas suivi les flèches")
@@ -216,7 +215,7 @@ extension MacroEffectsMac {
         }
         guard menusOpen([menu.number], ctx: ctx) else { return .fail("le menu de FL s'est fermé") }
         postKey(KeyCombo(keyCode: 36), pid: ctx.pid)                        // Entrée
-        switch WindowWait.gone(pid: ctx.pid, numbers: [menu.number], timeout: 0.8, stop: { self.shouldStop(ctx.pid) }) {
+        switch WindowWait.gone(pid: ctx.pid, numbers: [menu.number], timeout: 0.8, stop: stopReason) {
         case .success:
             MacroLog.shared.write("ARM", "Enter → menu closed")
             restoreCursor()
@@ -236,7 +235,7 @@ extension MacroEffectsMac {
         let began = Date()
         switch WindowWait.newWindow(pid: ctx.pid, excluding: base, timeout: timeout,
                                     accept: { $0.isMenuLike && hop.fits($0.bounds) },
-                                    stop: { self.shouldStop(ctx.pid) }) {
+                                    stop: stopReason) {
         case .success(let w):
             // Pas de question à l'Accessibilité ici : FL, dans sa boucle de menu, peut tarder à répondre.
             popupAX = false
@@ -269,7 +268,7 @@ extension MacroEffectsMac {
         for (i, hop) in hops.enumerated() {
             let byTitle = popupAX && i < titles.count ? AXProbe.itemCenter(in: popup, titles: titles[i]) : nil
             let p = byTitle ?? hop.point(in: popup.bounds)
-            MacroLog.shared.write("HOP", "\(i + 1)/\(hops.count) in \(popup) → (\(Int(p.x)),\(Int(p.y))) "
+            MacroLog.shared.write("HOP", "\(i + 1)/\(hops.count) in \(popup) → \(p.logText) "
                 + (byTitle != nil ? "by AX title" : "by learned offset (\(Int(hop.offset.dx)),\(Int(hop.offset.dy)))"))
             let known = WinSnapshot.take(pid: ctx.pid).numbers
             let r = clickInside(p, popup: popup, ctx: ctx)
@@ -287,7 +286,7 @@ extension MacroEffectsMac {
                     return result(stop)
                 }
             } else {
-                switch WindowWait.gone(pid: ctx.pid, numbers: opened, timeout: 1.0, stop: { self.shouldStop(ctx.pid) }) {
+                switch WindowWait.gone(pid: ctx.pid, numbers: opened, timeout: 1.0, stop: stopReason) {
                 case .success:
                     MacroLog.shared.write("MENU", "all popups closed after the last click")
                 case .failure(.stopped(let why)):
@@ -359,7 +358,7 @@ extension MacroEffectsMac {
         path.row = row
         for (i, s) in used.enumerated() {
             let hitWindow = (history.last(where: { $0.time <= s.time }) ?? history.first)?.hit(s.point)
-            MacroLog.shared.write("LEARN", "click \(i + 1) at (\(Int(s.point.x)),\(Int(s.point.y))) in \(hitWindow?.description ?? "no FL window")")
+            MacroLog.shared.write("LEARN", "click \(i + 1) at \(s.point.logText) in \(hitWindow?.description ?? "no FL window")")
         }
         MacroLog.shared.write("LEARN", "\(kind.rawValue) = \(MacroSpots.describe(path))")
         guard path.isValid else { return .fail("clics non reconnus : refais le raccourci pour recommencer") }
@@ -375,7 +374,7 @@ extension MacroEffectsMac {
            let window = Self.inputWindow(in: snap, size: start.windowSize, track: ctx.track) {
             guard waitForKeyboardIdle(timeout: 1.5) else { return .cancel("relâche les touches du raccourci") }
             let p0 = CGPoint(x: window.bounds.maxX + start.fromTopRight.dx, y: window.bounds.minY + start.fromTopRight.dy)
-            MacroLog.shared.write("INPUT", "selector (\(Int(p0.x)),\(Int(p0.y))) in \(window)")
+            MacroLog.shared.write("INPUT", "selector \(p0.logText) in \(window)")
             let r = click(at: p0, right: false, ctx: ctx)
             guard case .ok = r else { return r }
             if let first = path.hops.first {

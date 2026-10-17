@@ -159,7 +159,8 @@ final class MacroCreatorWindowTests: XCTestCase {
 
         try startTest(model)
         XCTAssertTrue(store.activeNeeds.isSuperset(of: [.lienMIDI, .pisteVisee]))
-        spin(until: { !model.preparingTest }, timeout: 5)
+        // 40 essais toutes les 50 ms (2 s) ; marge large : la machine de la CI, chargée, retarde parfois les minuteries.
+        spin(until: { !model.preparingTest }, timeout: 15)
         XCTAssertFalse(model.preparingTest)
         XCTAssertNotNil(model.monitor.refusal)           // « FL Studio n'est pas passé au premier plan »
         XCTAssertNil(model.monitor.outcome)              // essai non lancé : ni arrêté ni échoué

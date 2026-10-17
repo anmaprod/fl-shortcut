@@ -1,5 +1,5 @@
 // Échange d'une macro seule : fichier `.flsmacro` (JSON lisible), exactement une entrée de la bibliothèque.
-//   { "format": "flsmacro", "version": 1, "exportedBy": "FL Shortcut 1.2 (macOS)",
+//   { "format": "flsmacro", "version": 1, "exportedBy": "FL Shortcuts 1.2 (macOS)",
 //     "macro": { "name": "…", "blocks": [ … ] } }
 // Export : les positions apprises (clics montrés dans FL) sont retirées, à montrer de nouveau sur l'autre machine ;
 // le chemin d'un preset est écrit relatif au dossier personnel (« ~/… »), jamais le nom du compte.
@@ -23,8 +23,8 @@ enum MacroExchange {
         var errorDescription: String? {
             switch self {
             case .tooLarge: return "Fichier trop volumineux pour une macro (256 Ko au plus)."
-            case .notAMacro: return "Ce fichier n'est pas une macro de FL Shortcut (.flsmacro)."
-            case .newerVersion: return "Macro d'une version plus récente de FL Shortcut : mets l'app à jour pour l'importer."
+            case .notAMacro: return "Ce fichier n'est pas une macro de FL Shortcuts (.flsmacro)."
+            case .newerVersion: return "Macro d'une version plus récente de FL Shortcuts : mets l'app à jour pour l'importer."
             case .invalid(let why): return why
             }
         }
@@ -65,7 +65,7 @@ enum MacroExchange {
         let file: JSONValue = .object([
             "format": .string(format),
             "version": .num(version),
-            "exportedBy": .string("FL Shortcut \(appVersion) (macOS)"),
+            "exportedBy": .string("FL Shortcuts \(appVersion) (macOS)"),
             "macro": .object(macro),
         ])
         let encoder = JSONEncoder()
@@ -191,7 +191,7 @@ enum MacroExchange {
             } else {
                 sensitive += 1
                 text = "Bloc inconnu (version plus récente) : la macro restera bloquée"
-                warnings.append("Un bloc vient d'une version plus récente de FL Shortcut : la macro ne tournera pas.")
+                warnings.append("Un bloc vient d'une version plus récente de FL Shortcuts : la macro ne tournera pas.")
             }
             if !b.enabled { text += " (désactivé)" }
             lines.append("\(indent)\(path). \(text)")

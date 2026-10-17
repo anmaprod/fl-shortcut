@@ -1,6 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
-  <!-- Cœur portable de FL Shortcut pour Windows : aucune dépendance Windows, testable sous Linux/macOS. -->
+  <!-- Cœur portable de FL Shortcuts pour Windows : aucune dépendance Windows, testable sous Linux/macOS. -->
   <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>
     <Nullable>enable</Nullable>

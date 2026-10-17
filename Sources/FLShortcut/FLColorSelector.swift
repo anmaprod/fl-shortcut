@@ -1,5 +1,5 @@
 // Fenêtre de couleur copiée sur le « Color selector » de FL (vidéos de l'utilisateur) : la roue à 16 secteurs et
-// 5 anneaux, le curseur de luminosité, les 10 cases 0 à 9 (ici les 10 dernières couleurs choisies dans FL Shortcut),
+// 5 anneaux, le curseur de luminosité, les 10 cases 0 à 9 (ici les 10 dernières couleurs choisies dans FL Shortcuts),
 // le champ « #RRGGBB », teinte / saturation / luminance (échelle de FL) et rouge / vert / bleu, Reset et Accept.
 // Ouverte seulement à la demande (bouton « Choisir… » du bloc Nom et couleur) : rien ne tourne au repos.
 import SwiftUI

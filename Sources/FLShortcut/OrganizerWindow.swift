@@ -18,6 +18,8 @@ struct OrganizerEnvironment {
     var escapePressed: () -> Bool = { false }
     var loadStyles: () -> [SoundFamily: FamilyStyle] = { FamilyStyles.load() }
     var saveStyles: ([SoundFamily: FamilyStyle]) -> Void = { FamilyStyles.save($0) }
+    /// Icône posée sur l'élément sélectionné par la fenêtre de FL (F2) ; nil si c'est fait.
+    var placeIcon: (FLIcon) -> OrganizerError? = { _ in nil }
 
     static func live() -> OrganizerEnvironment {
         OrganizerEnvironment(
@@ -31,7 +33,22 @@ struct OrganizerEnvironment {
             },
             classify: { OrganizerSession.liveClassifier() },
             moveUp: { link in { count in OrganizerEnvironment.liveMoveUp(count, link: link) } },
-            escapePressed: { CGEventSource.keyState(.combinedSessionState, key: 53) })
+            escapePressed: { CGEventSource.keyState(.combinedSessionState, key: 53) },
+            placeIcon: { OrganizerEnvironment.livePlaceIcon($0) })
+    }
+
+    /// Mêmes étapes et garde-fous que le bloc « Nom et couleur » (FL au premier plan, Échap).
+    static func livePlaceIcon(_ icon: FLIcon) -> OrganizerError? {
+        guard let pid = flPID() else { return .failed("FL Studio n'est pas ouvert.") }
+        if EventTap.shared.currentConfig.frontmostPID != pid {
+            _ = NSRunningApplication(processIdentifier: pid)?.activate(options: [])
+            Thread.sleep(forTimeInterval: 0.3)
+        }
+        switch MacroEffectsMac(pid: pid).placeIcon(icon, alsoColored: false) {
+        case .ok, .warn: return nil
+        case .fail(let why), .cancel(let why):
+            return .failed(why.prefix(1).uppercased() + String(why.dropFirst()) + ". Les couleurs sont posées.")
+        }
     }
 
     /// FL au premier plan d'abord, sinon le premier FL ouvert.
@@ -217,7 +234,7 @@ final class OrganizerController: ObservableObject {
         guard phase == .preview, let result, let link else { return }
         env.saveStyles(styles)
         phase = .applying
-        let applier = OrganizerApplier(link: link, moveUp: env.moveUp(link))
+        let applier = OrganizerApplier(link: link, moveUp: env.moveUp(link), placeIcon: env.placeIcon)
         let families = self.families, styles = self.styles
         queue.async { [weak self] in
             let outcome = applier.apply(result: result, families: families, styles: styles)
@@ -434,6 +451,7 @@ private struct FamilySection: View {
     let colors: [Int: RGBColor]
     @State private var pickingFirst = false
     @State private var pickingLast = false
+    @State private var pickingIcon = false
 
     private var fadeOn: Binding<Bool> {
         Binding(get: { controller.style(of: family).fade != nil }, set: { on in
@@ -468,6 +486,15 @@ private struct FamilySection: View {
                         controller.updateStyle(family) { $0.fade = picked }
                     }
                 }
+                Button { pickingIcon = true } label: { FLIconBadge(icon: style.icon, size: 18) }
+                    .buttonStyle(.plain)
+                    .help("Icône de FL de la famille (posée par la fenêtre de FL, F2 ; « Revenir comme avant » ne la retire pas)")
+                    .popover(isPresented: $pickingIcon, arrowEdge: .bottom) {
+                        FLIconPicker(selected: style.icon) { picked in
+                            controller.updateStyle(family) { $0.icon = picked }
+                            pickingIcon = false
+                        }
+                    }
             }
             ForEach(members) { member in
                 row(member, color: colors[member.id] ?? style.color)

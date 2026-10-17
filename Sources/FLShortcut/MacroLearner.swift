@@ -51,7 +51,8 @@ final class MacroLearner: ObservableObject {
         message = nil
         instruction = prompt()
         monitor = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown]) { [weak self] event in
-            self?.handle(isRight: event.type == .rightMouseDown)
+            // Position portée par l'événement (pas le curseur relu plus tard), comme ClickRecorder.
+            self?.handle(isRight: event.type == .rightMouseDown, at: event.cgEvent?.location ?? FLWindows.cursor())
         }
     }
 
@@ -84,9 +85,8 @@ final class MacroLearner: ObservableObject {
         }
     }
 
-    private func handle(isRight: Bool) {
+    private func handle(isRight: Bool, at p: CGPoint) {
         guard isActive else { return }
-        let p = FLWindows.cursor()
         guard FLWindows.contains(p, pid: pid) else {
             message = "Clique dans la fenêtre de FL."
             return

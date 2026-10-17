@@ -24,10 +24,11 @@ struct FLShortcutApp: App {
     init() {
         Bench.runIfRequested()                   // `--mesure` : temps de réponse de FL, puis quitte
         MacroDiagnostics.runIfRequested()        // `--diag-macro` : fenêtres et menus de FL vus par l'app, puis quitte
+        MacroDiagnostics.runIconIfRequested()    // `--diag-icon 7-4` : pose une icône dans le vrai FL, puis quitte
         PresetSelfTest.runIfRequested()          // `--selftest-preset` : essai du choix automatique du preset, puis quitte
         FakeFL.runIfRequested()                  // `--fake-fl` : FL Studio simulé pour l'essai de bout en bout (CI)
         MacroSelfTest.runIfRequested()           // `--selftest-macro` : la macro complète contre le FL simulé, puis quitte
-        Uninstaller.runStandaloneIfNeeded()      // « Désinstaller FL Shortcut.app » du .dmg
+        Uninstaller.runCheckIfRequested()        // `--essai-desinstallation` (CI) : tout supprimer, vérifier, quitter
         SingleInstance.enforce()                 // avant de créer quoi que ce soit (REL-07)
         _store = StateObject(wrappedValue: Store.shared)
         _status = StateObject(wrappedValue: AppStatus.shared)
@@ -45,7 +46,7 @@ struct FLShortcutApp: App {
         }
         .menuBarExtraStyle(.window)
 
-        Window("FL Shortcut – Raccourcis", id: "editor") {
+        Window("FL Shortcuts – Raccourcis", id: "editor") {
             EditorView()
                 .environmentObject(store)
                 .environmentObject(status)
@@ -57,6 +58,21 @@ struct FLShortcutApp: App {
 
         // Pas de scène pour le créateur de macros : il s'affiche dans cette fenêtre (EditorView, comme un dossier dans
         // le Finder), son modèle n'existe que pendant qu'il est affiché.
+    }
+}
+
+/// Couleur de l'état de l'app (pastille du menu de la barre, état de la fenêtre principale) : grise en pause,
+/// orange sans autorisation clavier, puis selon FL (mode léger) ou le lien.
+enum AppStatusColor {
+    static func color(enabled: Bool, accessibilityOK: Bool, flRunning: Bool, link: LinkStatus) -> Color {
+        if !enabled { return .gray }
+        if !accessibilityOK { return .orange }
+        if AppMode.light { return flRunning ? .green : .gray }
+        switch link {
+        case .linked: return .green
+        case .inactive: return .orange
+        case .flClosed: return .gray
+        }
     }
 }
 
@@ -80,10 +96,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         AppStatus.shared.start()
         PauseIndicator.shared.bind()
         DebugSnapshot.start()
+        // Sauvegarde en ligne : seulement avec un compte connecté (session au Trousseau), sinon aucune requête.
+        MainActor.assumeIsolated { AccountBackup.shared.start() }
 
         if !UserDefaults.standard.bool(forKey: "didOnboard") {
             DispatchQueue.main.async { AppDelegate.onboard() }
         }
+    }
+
+    /// Après la désinstallation, quitter (⌘Q, fermeture de session…) ne doit rien réécrire : sortie directe.
+    func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+        if Uninstaller.didUninstall { Uninstaller.quitAfterUninstall() }
+        return .terminateNow
     }
 
     func applicationWillTerminate(_ notification: Notification) {
@@ -102,11 +126,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 final class AppStatus: ObservableObject {
     static let shared = AppStatus()
 
-    @Published private(set) var accessibilityOK = false
+    @Published private(set) var accessibilityOK = false {
+        didSet { if oldValue, !accessibilityOK { ProblemLog.shared.add("Clavier : autorisation Accessibilité perdue") } }
+    }
     @Published private(set) var secureInput = false
     @Published private(set) var tapRunning = false
-    @Published private(set) var staleTCC = false
-    @Published private(set) var tapUnstable = false
+    @Published private(set) var staleTCC = false {
+        didSet { if staleTCC, !oldValue { ProblemLog.shared.add("Clavier : autorisation périmée (FL Shortcuts à retirer puis rajouter dans Accessibilité)") } }
+    }
+    @Published private(set) var tapUnstable = false {
+        didSet { if tapUnstable, !oldValue { ProblemLog.shared.add("Clavier : macOS a coupé l'interception, elle a été relancée") } }
+    }
     @Published private(set) var scriptState: ScriptIntegrity.State = .notInstalled
     @Published private(set) var capabilities: CapabilityMask? = nil
     @Published private(set) var flVersion: FLVersion? = nil
@@ -254,7 +284,7 @@ final class AppStatus: ObservableObject {
     }
 }
 
-/// Panneau flottant non activant visible tant que FL Shortcut est en pause (audit 05 §4.4).
+/// Panneau flottant non activant visible tant que FL Shortcuts est en pause (audit 05 §4.4).
 final class PauseIndicator {
     static let shared = PauseIndicator()
     private var panel: NSPanel?
@@ -335,7 +365,7 @@ struct PauseBadge: View {
             Image(systemName: "pause.circle.fill")
                 .font(.system(size: 13, weight: .semibold))
                 .foregroundStyle(Color.orange)
-            Text("FL Shortcut en pause").font(.system(size: 12, weight: .semibold))
+            Text("FL Shortcuts en pause").font(.system(size: 12, weight: .semibold))
             Text("⌃⌥⌘F").font(.system(size: 12)).foregroundStyle(.secondary)
         }
         .padding(.horizontal, 12)
@@ -358,13 +388,14 @@ struct MenuContent: View {
     @EnvironmentObject var link: MIDILink
     @EnvironmentObject var fl: FLMonitor
     @Environment(\.openWindow) private var openWindow
+    @ObservedObject private var panel = MenuPanel.shared
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack(spacing: 10) {
                 AppIcon().frame(width: 32, height: 32)
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("FL Shortcut").font(.system(size: 13, weight: .semibold))
+                    Text("FL Shortcuts").font(.system(size: 13, weight: .semibold))
                     if let line = statusLine {
                         HStack(spacing: 5) {
                             Circle().fill(dotColor).frame(width: 7, height: 7)
@@ -388,6 +419,14 @@ struct MenuContent: View {
                 .font(.system(size: 11))
                 .padding(.horizontal, 8)
                 .padding(.bottom, 6)
+                if !macro.ok {
+                    // La page Aide, le formulaire prêt avec ce message d'erreur et le journal de la macro.
+                    PanelItem(symbol: "exclamationmark.bubble", title: "Signaler ce problème…", order: 1) {
+                        HelpLink.shared.report("Macro : " + macro.text)
+                        openWindow(id: "editor")
+                        NSApp.activate(ignoringOtherApps: true)
+                    }
+                }
             }
 
             ForEach(alerts, id: \.self) { text in
@@ -403,37 +442,45 @@ struct MenuContent: View {
             MenuSeparator()
 
             if !status.accessibilityOK {
-                PanelItem(symbol: "lock.open", title: "Autoriser le clavier…") { AccessibilityGuide.start() }
+                PanelItem(symbol: "lock.open", title: "Autoriser le clavier…", order: 2) { AccessibilityGuide.start() }
             }
-            PanelItem(symbol: "keyboard", title: "Modifier les raccourcis…") {
+            PanelItem(symbol: "keyboard", title: "Modifier les raccourcis…", order: 3) {
                 openWindow(id: "editor")
                 NSApp.activate(ignoringOtherApps: true)
             }
-            PanelItem(symbol: "square.stack.3d.up", title: "Organiser la page ouverte…") { OrganizerWindow.open() }
+            PanelItem(symbol: "square.stack.3d.up", title: "Organiser la page ouverte…", order: 4) { OrganizerWindow.open() }
+            PanelItem(symbol: "questionmark.circle", title: "Aide et contact…", order: 5) {
+                HelpLink.shared.show()
+                openWindow(id: "editor")
+                NSApp.activate(ignoringOtherApps: true)
+            }
+            PanelItem(symbol: "book", title: "Guide de FL Shortcuts", order: 6) {
+                GuideLink.shared.show()
+                openWindow(id: "editor")
+                NSApp.activate(ignoringOtherApps: true)
+            }
             PanelItem(symbol: store.enabled ? "pause" : "play", title: store.enabled ? "Mettre en pause" : "Reprendre",
-                      shortcut: "⌃⌥⌘F") { store.enabled.toggle() }
+                      shortcut: "⌃⌥⌘F", order: 7) { store.enabled.toggle() }
             if !AppMode.light {
-                PanelItem(symbol: "link", title: "Installer le lien avec FL Studio…") { FLScriptInstaller.installWithAlert() }
+                PanelItem(symbol: "link", title: "Installer le lien avec FL Studio…", order: 8) { FLScriptInstaller.installWithAlert() }
             }
 
             MenuSeparator()
 
-            PanelItem(symbol: "trash", title: "Désinstaller FL Shortcut…") { Uninstaller.confirmAndRun() }
-            PanelItem(symbol: "power", title: "Quitter FL Shortcut", shortcut: "⌘Q", key: "q") { NSApp.terminate(nil) }
+            PanelItem(symbol: "trash", title: "Désinstaller FL Shortcuts…", order: 9) { Uninstaller.confirmAndRun() }
+            PanelItem(symbol: "power", title: "Quitter FL Shortcuts", shortcut: "⌘Q", key: "q", order: 10) { NSApp.terminate(nil) }
         }
         .padding(6)
         .frame(width: 280)
+        // Sort de l'icône à chaque ouverture ; se ferme au choix d'une ligne ou d'un clic ailleurs (MenuPanel).
+        .menuReveal(panel.revealed)
+        .background(WindowReader { MenuPanel.shared.attach($0) })
+        .onAppear { MenuPanel.shared.appeared() }
     }
 
     private var dotColor: Color {
-        guard store.enabled else { return .gray }
-        if !status.accessibilityOK { return .orange }
-        if AppMode.light { return fl.running ? .green : .gray }
-        switch link.status {
-        case .linked: return .green
-        case .inactive: return .orange
-        case .flClosed: return .gray
-        }
+        AppStatusColor.color(enabled: store.enabled, accessibilityOK: status.accessibilityOK, flRunning: fl.running,
+                             link: link.status)
     }
 
     /// Chaîne calculée à part : pas de fermeture imbriquée dans une interpolation de LocalizedStringKey. nil quand
@@ -451,11 +498,11 @@ struct MenuContent: View {
 
     private var alerts: [String] {
         var out: [String] = []
-        if status.staleTCC { out.append("Autorisation périmée : retire FL Shortcut de la liste Accessibilité puis ajoute-le.") }
+        if status.staleTCC { out.append("Autorisation périmée : retire FL Shortcuts de la liste Accessibilité puis ajoute-le.") }
         if status.secureInput { out.append("Saisie sécurisée active dans une autre app : raccourcis muets.") }
         if status.tapUnstable { out.append("macOS a coupé l'interception plusieurs fois : elle a été relancée.") }
         if !AppMode.light, status.scriptState == .modified { out.append("Le script FL a été modifié : réinstalle le lien.") }
-        if !AppMode.light, link.uniqueIDConflict { out.append("Conflit de port MIDI : une autre copie de FL Shortcut tourne peut-être.") }
+        if !AppMode.light, link.uniqueIDConflict { out.append("Conflit de port MIDI : une autre copie de FL Shortcuts tourne peut-être.") }
         if let warning = store.loadWarning { out.append(warning) }
         if let error = store.saveError { out.append(error) }
         if let problem = library.problem { out.append(problem) }
@@ -471,18 +518,26 @@ private struct MenuSeparator: View {
 }
 
 /// Ligne du panneau : symbole à gauche (une colonne facile à parcourir), surlignage discret au survol, immédiat
-/// (aucune animation). Coins concentriques avec le panneau (rayon du panneau moins sa marge).
+/// (aucune animation). Coins concentriques avec le panneau (rayon du panneau moins sa marge). Choisie, elle ferme
+/// le menu ; à l'ouverture, elle arrive à son tour (`order`).
 private struct PanelItem: View {
     let symbol: String
     let title: String
     var shortcut: String? = nil
     /// Raccourci réellement actif dans le panneau (avec ⌘).
     var key: KeyEquivalent? = nil
+    var order = 0
     let action: () -> Void
     @State private var hovering = false
+    @ObservedObject private var panel = MenuPanel.shared
 
     var body: some View {
-        Button(action: action) {
+        Button {
+            // L'action d'abord (une fenêtre qui s'ouvre prend la main), puis le menu se ferme : la fenêtre ouverte
+            // reste devant (MenuPanel).
+            action()
+            MenuPanel.shared.close()
+        } label: {
             HStack(spacing: 8) {
                 Image(systemName: symbol)
                     .font(.system(size: 12, weight: .medium))
@@ -505,5 +560,6 @@ private struct PanelItem: View {
         .buttonStyle(.plain)
         .keyboardShortcut(key.map { KeyboardShortcut($0, modifiers: .command) })
         .onHover { hovering = $0 }
+        .menuRevealRow(panel.revealed, index: order)
     }
 }

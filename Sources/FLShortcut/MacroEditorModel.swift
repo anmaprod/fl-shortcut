@@ -57,6 +57,8 @@ final class MacroEditorModel: ObservableObject {
     /// fenêtre du créateur libère bien son modèle à la fermeture.
     private static let live = Locked(0)
     static var liveCount: Int { live.value }
+    /// Dernier modèle créé, jamais retenu : le rapport de mesure y lit l'ordre des blocs (genre de bloc seulement).
+    private(set) static weak var newest: MacroEditorModel?
 
     init(store: Store = .shared) {
         MacroEditorModel.live.withLock { $0 += 1 }
@@ -68,6 +70,7 @@ final class MacroEditorModel: ObservableObject {
             self?.saveNow()
             self?.store.library.saveNow()                 // l'ordre des observateurs de la fermeture n'est pas garanti
         }
+        MacroEditorModel.newest = self
     }
 
     deinit {
@@ -311,11 +314,15 @@ final class MacroEditorModel: ObservableObject {
 
     private func insert(_ item: PaletteItem, at point: InsertionPoint) {
         guard !item.soon, let draft else { return }
-        guard MacroValidation.count(draft.blocks) < MacroValidation.maxBlocks else {
+        let block = Block(item.make())
+        // « Cliquer sur… » sans page juste au-dessus : « Ouvrir une page de FL » arrive avec lui, choisi pour qu'on
+        // règle sa page d'abord.
+        let page = Block(.openPage(nil))
+        let withPage = MacroOutline.needsPage(block, at: point, in: draft.blocks)
+        guard MacroValidation.count(draft.blocks) + (withPage ? 2 : 1) <= MacroValidation.maxBlocks else {
             notice = "Macro trop longue : \(MacroValidation.maxBlocks) blocs au plus."
             return
         }
-        let block = Block(item.make())
         if !block.body.children.isEmpty || block.body.type == .repeatCount,
            MacroOutline.depth(of: point) + 1 > MacroValidation.maxDepth {
             notice = "Trop de boucles l'une dans l'autre (\(MacroValidation.maxDepth) niveaux au plus)."
@@ -323,12 +330,16 @@ final class MacroEditorModel: ObservableObject {
             return
         }
         notice = nil
-        mutate("Ajouter « \(item.label) »", select: MacroStepRow.blockRowID(block.id)) { doc in
-            _ = MacroOutline.insert(block, into: &doc.blocks, at: point)
+        mutate("Ajouter « \(item.label) »", select: MacroStepRow.blockRowID(withPage ? page.id : block.id)) { doc in
+            _ = MacroOutline.insertWithPage(block, page: page, into: &doc.blocks, at: point)
+        }
+        if withPage {
+            notice = "« Ouvrir une page de FL » ajouté juste au-dessus : choisis d'abord la page, puis l'option à cliquer dans cette page."
         }
     }
 
-    /// « Enregistrer des clics » : FL passe devant, chaque clic de l'utilisateur deviendra un bloc (à « Terminer »).
+    /// « Enregistrer clics et touches » : FL passe devant, chaque clic et chaque touche de l'utilisateur deviendra
+    /// un bloc (à « Terminer »).
     func recordClicks() {
         guard !closed, draft != nil, !monitor.running, !preparingTest else { return }
         guard let pid = EventTap.shared.currentConfig.flPIDs.first,
@@ -345,9 +356,9 @@ final class MacroEditorModel: ObservableObject {
     func insertRecorded(_ result: ClickSequenceCompiler.Result) {
         guard !closed, let draft else { return }
         let skipped = result.ignored == 0 ? ""
-            : " \(result.ignored) clic\(result.ignored > 1 ? "s" : "") hors de FL (ou dans un menu refermé) ignoré\(result.ignored > 1 ? "s" : "")."
+            : " \(result.ignored) geste\(result.ignored > 1 ? "s" : "") hors de FL (ou dans un menu refermé) ignoré\(result.ignored > 1 ? "s" : "")."
         guard !result.blocks.isEmpty else {
-            notice = "Aucun clic dans FL enregistré." + skipped
+            notice = "Aucun clic ni aucune touche dans FL enregistrés." + skipped
             return
         }
         guard MacroValidation.count(draft.blocks) + result.blocks.count <= MacroValidation.maxBlocks else {
@@ -356,14 +367,14 @@ final class MacroEditorModel: ObservableObject {
         }
         let blocks = result.blocks.map { Block($0) }
         var point = MacroOutline.insertionPoint(after: selectedRow, in: draft.blocks)
-        mutate("Enregistrer des clics", select: blocks.last.map { MacroStepRow.blockRowID($0.id) }) { doc in
+        mutate("Enregistrer clics et touches", select: blocks.last.map { MacroStepRow.blockRowID($0.id) }) { doc in
             for b in blocks {
                 _ = MacroOutline.insert(b, into: &doc.blocks, at: point)
                 point.index += 1
             }
         }
         let n = blocks.count
-        notice = "\(n) bloc\(n > 1 ? "s" : "") ajouté\(n > 1 ? "s" : "") d'après tes clics." + skipped
+        notice = "\(n) bloc\(n > 1 ? "s" : "") ajouté\(n > 1 ? "s" : "") d'après tes clics et tes touches." + skipped
     }
 
     func duplicateSelection() {

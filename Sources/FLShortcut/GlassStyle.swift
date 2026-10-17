@@ -52,6 +52,43 @@ extension View {
 }
 
 extension Motion {
+    /// Changement de page « morph » (comme la Morphose de PowerPoint ou le Magic Move de Keynote) : ce qui se
+    /// retrouve d'une page à l'autre glisse à sa nouvelle place, le reste se fond. Ressort doux, sans rebond visible.
+    static let morph = Animation.spring(response: 0.5, dampingFraction: 0.88)
+
+    /// Page qui arrive : fondu, à peine plus petite et un peu plus bas, posée par le ressort ; celle qui part : fondu
+    /// rapide (les deux ne se lisent jamais l'une sur l'autre).
+    static var pageMorph: AnyTransition {
+        transition(.asymmetric(
+            insertion: .opacity.combined(with: .scale(scale: 0.985, anchor: .top)).combined(with: .offset(y: 10)),
+            removal: .opacity.animation(.easeOut(duration: 0.12))))
+    }
+}
+
+private struct MorphIn: ViewModifier {
+    let index: Int
+    @State private var shown = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    func body(content: Content) -> some View {
+        content
+            .opacity(shown ? 1 : 0)
+            .offset(y: shown || reduceMotion ? 0 : 12)
+            .onAppear {
+                withAnimation(reduceMotion ? Motion.reduced : Motion.morph.delay(0.06 + 0.05 * Double(index))) { shown = true }
+            }
+    }
+}
+
+extension View {
+    /// Élément d'une page qui arrive : il monte à sa place juste après le précédent (`index`), une seule fois, à
+    /// l'apparition de la page. Pas dans une liste (les lignes y apparaissent aussi en défilant).
+    func morphIn(_ index: Int) -> some View {
+        modifier(MorphIn(index: index))
+    }
+}
+
+extension Motion {
     /// Survol et prise d'un élément : ressort court et souple.
     static let lift = Animation.spring(response: 0.28, dampingFraction: 0.72)
 }
@@ -75,33 +112,6 @@ private struct HoverLift: ViewModifier {
             .onHover { inside in
                 withAnimation(reduceMotion ? Motion.reduced : Motion.lift) { hovered = inside }
             }
-    }
-}
-
-/// Bouton qu'on « prend » : appuyé, il se soulève et flotte (plus grand, ombre) ; relâché, il se repose avec un
-/// ressort. Sert aux blocs de la palette, qu'on peut aussi glisser dans la liste.
-struct LiftButtonStyle: ButtonStyle {
-    func makeBody(configuration: Configuration) -> some View {
-        LiftButtonBody(configuration: configuration)
-    }
-}
-
-private struct LiftButtonBody: View {
-    let configuration: ButtonStyleConfiguration
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-
-    var body: some View {
-        let pressed = configuration.isPressed && !reduceMotion
-        configuration.label
-            .background {
-                RoundedRectangle(cornerRadius: 8, style: .continuous)
-                    .fill(Color.primary.opacity(pressed ? 0.09 : 0))
-                    .shadow(color: .black.opacity(pressed ? 0.22 : 0), radius: pressed ? 12 : 0, y: pressed ? 6 : 0)
-                    .padding(.horizontal, -6)
-                    .padding(.vertical, -2)
-            }
-            .scaleEffect(pressed ? 1.05 : 1)
-            .animation(reduceMotion ? Motion.reduced : Motion.lift, value: configuration.isPressed)
     }
 }
 
@@ -134,7 +144,7 @@ enum Appearance {
 
 /// Surface flottante : verre natif sur macOS 26 quand la préférence est active et la fenêtre au premier plan ;
 /// matériau sur macOS 13-15 ; sinon fond opaque de fenêtre. Même structure de vue dans tous les cas (aucun arbre
-/// reconstruit au passage FL ↔ FL Shortcut) : seuls les paramètres changent.
+/// reconstruit au passage FL ↔ FL Shortcuts) : seuls les paramètres changent.
 /// `tint` : teinte qui porte un sens (avertissement), jamais décorative (WWDC25 219).
 /// `alwaysLive` : verre même quand l'app n'est pas active (bulle brève au-dessus de FL, macOS 26 seulement).
 struct GlassSurface<S: InsettableShape>: ViewModifier {
