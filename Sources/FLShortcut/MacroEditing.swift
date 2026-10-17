@@ -341,6 +341,7 @@ enum MacroOutline {
         case .flWindow: return "à l'endroit appris (fenêtre de FL)"
         case .openMenu: return "à l'endroit appris (menu ouvert)"
         case .button: return "sur le bouton retrouvé à son image"
+        case .named(let spot): return "sur « \(spot.label.displaySafe(max: 30)) »"
         case .lastClick: return "près du clic précédent"
         case .startCursor: return "près du curseur"
         case .cursorXWindowY: return "dans la colonne du curseur"

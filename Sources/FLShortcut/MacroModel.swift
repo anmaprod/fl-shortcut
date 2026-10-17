@@ -780,6 +780,9 @@ enum ClickTarget: Equatable {
     /// Bouton de FL qui peut bouger (« + » du Channel rack) : cherché à son image dans sa fenêtre au moment du clic,
     /// sur demande de l'utilisateur pour ce clic (MacroVisual.swift).
     case button(VisualSpot)
+    /// Bouton de FL qui porte un nom (« FILE », « Insert 1 ») : cherché par ce nom dans sa fenêtre au moment du clic,
+    /// où qu'il soit ; sans lecture de l'écran, sa place apprise (MacroVisual.swift).
+    case named(NamedSpot)
     /// Depuis la piste visée (TrackMemory).
     case track(dx: Double, dy: Double)
     case lastClick(dx: Double, dy: Double)
@@ -816,6 +819,8 @@ enum ClickTarget: Equatable {
                 && (16...2000).contains(hop.size.width) && (16...4000).contains(hop.size.height)
         case .button(let spot):
             return spot.isValid
+        case .named(let spot):
+            return spot.isValid
         case .track(let dx, let dy), .lastClick(let dx, let dy), .startCursor(let dx, let dy), .cursorXWindowY(let dx, let dy):
             return ok(dx) && ok(dy)
         case .toLearn:
@@ -826,7 +831,7 @@ enum ClickTarget: Equatable {
     /// Position apprise en montrant le clic dans FL (retirée à l'export : propre à cette machine).
     var isLearnedPosition: Bool {
         switch self {
-        case .flWindow, .openMenu, .button, .cursorXWindowY: return true
+        case .flWindow, .openMenu, .button, .named, .cursorXWindowY: return true
         case .track, .lastClick, .startCursor, .toLearn: return false
         }
     }
@@ -858,6 +863,14 @@ enum ClickTarget: Equatable {
             let spot = VisualSpot(corner: corner, dx: dx, dy: dy, size: s, title: title, side: side, pixels: [UInt8](data))
             guard spot.isValid else { return nil }
             self = .button(spot)
+        case "named":
+            guard let label = json["label"]?.string, let corner = json["corner"]?.string.flatMap({ Corner(rawValue: $0) }),
+                  let s = size(json["size"]), let px = json["px"]?.double, let py = json["py"]?.double else { return nil }
+            let title = json["title"]?.string
+            if let t = json["title"], t != .null, title == nil { return nil }
+            let spot = NamedSpot(label: label, dx: dx, dy: dy, corner: corner, px: px, py: py, size: s, title: title)
+            guard spot.isValid else { return nil }
+            self = .named(spot)
         case "track": self = .track(dx: dx, dy: dy)
         case "lastClick": self = .lastClick(dx: dx, dy: dy)
         case "startCursor": self = .startCursor(dx: dx, dy: dy)
@@ -888,6 +901,13 @@ enum ClickTarget: Equatable {
                                           "size": pair(spot.size.width, spot.size.height),
                                           "side": .number(Double(spot.side)),
                                           "pixels": .string(Data(spot.pixels).base64EncodedString())]
+            if let title = spot.title { o["title"] = .string(title) }
+            return .object(o)
+        case .named(let spot):
+            var o: [String: JSONValue] = ["anchor": .string("named"), "label": .string(spot.label),
+                                          "dx": .number(spot.dx), "dy": .number(spot.dy),
+                                          "corner": .string(spot.corner.rawValue), "px": .number(spot.px),
+                                          "py": .number(spot.py), "size": pair(spot.size.width, spot.size.height)]
             if let title = spot.title { o["title"] = .string(title) }
             return .object(o)
         case .track(let dx, let dy): return offset("track", dx, dy)

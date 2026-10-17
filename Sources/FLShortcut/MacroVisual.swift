@@ -1,9 +1,12 @@
-// « Retrouver ce bouton s'il bouge » : certains boutons de FL changent de place (le « + » du Channel rack descend à
-// chaque piste ajoutée), et FL les dessine lui-même, sans nom pour l'Accessibilité. Pour un clic où l'utilisateur
-// l'a demandé, et seulement pour lui : une petite image du bouton (niveaux de gris, 1 pixel par point) est prise en
-// le montrant dans FL, puis cherchée dans sa fenêtre au moment du clic.
-// - Lecture de l'écran : seulement la fenêtre de FL visée, seulement à ce moment-là (jamais au repos, jamais
-//   d'enregistrement), avec l'autorisation « Enregistrement de l'écran » demandée quand l'utilisateur active l'option.
+// Boutons de FL retrouvés même s'ils bougent (le « + » du Channel rack descend à chaque piste ajoutée, une piste du
+// Mixer change de place…). FL les dessine lui-même, sans nom pour l'Accessibilité : il faut lire sa fenêtre.
+// - Par son nom (« FILE », « Insert 1 », « Master »…) : le texte sous le clic est lu à l'enregistrement (Vision, sur
+//   le Mac), puis cherché dans la fenêtre au moment du clic ; c'est la règle pour tout bouton qui porte un nom.
+// - Par son image (bouton sans texte, comme le « + ») : sur demande pour ce clic (« Retrouver ce bouton s'il bouge »),
+//   une petite image du bouton (niveaux de gris, 1 pixel par point) est cherchée dans la fenêtre.
+// - Lecture de l'écran : seulement la fenêtre de FL visée, seulement au moment d'un clic (jamais au repos, jamais
+//   d'enregistrement vidéo), avec l'autorisation « Enregistrement de l'écran » ; sans elle, les clics gardent leur
+//   place, comme avant. Ni le nom ni l'image ne sont journalisés.
 //   L'image reste dans la macro (et dans la sauvegarde en ligne du compte, lisible par son seul propriétaire) ; elle
 //   est retirée à l'export et des partages.
 // - Recherche : corrélation normalisée (insensible à la luminosité), d'abord sur une image réduite au tiers, puis au
@@ -11,6 +14,156 @@
 import AppKit
 import CoreGraphics
 import ScreenCaptureKit
+import Vision
+
+/// Bouton retrouvé à son nom : le texte lu sous le clic, où tombait le clic par rapport au centre de ce texte, et où
+/// il était quand on l'a montré (fenêtre où le chercher ; repli sans lecture de l'écran).
+struct NamedSpot: Equatable {
+    let label: String
+    let dx: Double
+    let dy: Double
+    let corner: Corner
+    let px: Double
+    let py: Double
+    let size: CGSize
+    var title: String? = nil
+
+    /// La même place, sans le nom.
+    var place: ClickTarget { .flWindow(corner: corner, dx: px, dy: py, size: size, title: title) }
+
+    var isValid: Bool {
+        func ok(_ v: Double) -> Bool { v.isFinite && abs(v) <= 5000 }
+        return TextLook.isUsable(label) && ok(dx) && ok(dy) && abs(dx) <= 200 && abs(dy) <= 200 && ok(px) && ok(py)
+            && size.width.isFinite && size.height.isFinite && size.width > 0 && size.height > 0
+            && size.width <= 10_000 && size.height <= 10_000
+            && (title.map { !$0.isEmpty && $0.count <= ClickTarget.maxTitle } ?? true)
+    }
+}
+
+/// Textes d'une fenêtre de FL, lus sur le Mac (Vision), pour retrouver un bouton à son nom.
+enum TextLook {
+    struct Item: Equatable {
+        let text: String
+        /// Cadre dans la fenêtre, en points, origine en haut à gauche.
+        let box: CGRect
+        var center: CGPoint { CGPoint(x: box.midX, y: box.midY) }
+    }
+
+    /// Nom qu'on peut retenir : 2 à 40 caractères, au moins une lettre (pas « 1 », pas une phrase).
+    static func isUsable(_ text: String) -> Bool {
+        let t = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        return (2...40).contains(t.count) && t.contains(where: \.isLetter)
+    }
+
+    /// Forme de comparaison : sans casse ni accents, espaces simples, et les confusions de lecture courantes
+    /// (0/O, 1/l/I/|) ramenées à une seule lettre.
+    static func normalized(_ s: String) -> String {
+        let folded = s.folding(options: [.caseInsensitive, .diacriticInsensitive, .widthInsensitive], locale: nil)
+            .split(whereSeparator: \.isWhitespace).joined(separator: " ")
+        return String(folded.map { c -> Character in
+            switch c {
+            case "0": return "o"
+            case "1", "i", "|", "!": return "l"
+            default: return c
+            }
+        })
+    }
+
+    /// Pure (testée) : nom retenu pour un clic en `p`, parmi les textes lus. Le texte sous le clic (puis à 6 points
+    /// près) ; une ligne entière seulement si elle est étroite (« Insert 1 »), sinon le mot cliqué (« FILE » dans
+    /// « FILE EDIT ADD… »).
+    static func label(at p: CGPoint, in items: [Item]) -> Item? {
+        let usable = items.filter { isUsable($0.text) }
+        for pad: CGFloat in [0, 6] {
+            let near = usable.filter { $0.box.insetBy(dx: -pad, dy: -pad).contains(p) }
+            if let best = near.filter({ $0.box.width <= 160 }).max(by: { $0.box.width < $1.box.width }) { return best }
+            if let best = near.min(by: { $0.box.width < $1.box.width }) { return best }
+        }
+        return nil
+    }
+
+    /// Pure (testée) : le nom parmi les textes lus (même texte, à la forme de comparaison près), le plus proche de
+    /// `hint` s'il y est plusieurs fois.
+    static func find(_ label: String, in items: [Item], near hint: CGPoint) -> Item? {
+        let wanted = normalized(label)
+        func distance(_ i: Item) -> CGFloat {
+            (i.center.x - hint.x) * (i.center.x - hint.x) + (i.center.y - hint.y) * (i.center.y - hint.y)
+        }
+        return items.filter { normalized($0.text) == wanted }.min { distance($0) < distance($1) }
+    }
+
+    /// Textes de `image` (une fenêtre de `size` points), lignes et mots ; `region` (points) : seulement là.
+    static func read(_ image: CGImage, size: CGSize, region: CGRect? = nil) -> [Item] {
+        guard size.width > 0, size.height > 0 else { return [] }
+        let request = VNRecognizeTextRequest()
+        request.recognitionLevel = .accurate
+        request.usesLanguageCorrection = false
+        request.recognitionLanguages = ["en-US", "fr-FR"]
+        var roi = CGRect(x: 0, y: 0, width: 1, height: 1)
+        if let r = region?.intersection(CGRect(origin: .zero, size: size)), !r.isNull, r.width > 4, r.height > 4 {
+            roi = CGRect(x: r.minX / size.width, y: 1 - r.maxY / size.height,
+                         width: r.width / size.width, height: r.height / size.height)
+            request.regionOfInterest = roi
+        }
+        guard (try? VNImageRequestHandler(cgImage: image, options: [:]).perform([request])) != nil else { return [] }
+        // Cadres de Vision : normalisés dans la région lue, origine en bas à gauche → points de la fenêtre.
+        func inWindow(_ b: CGRect) -> CGRect {
+            let x = (roi.minX + b.minX * roi.width) * size.width
+            let bottom = roi.minY + b.minY * roi.height
+            let h = b.height * roi.height
+            return CGRect(x: x, y: (1 - bottom - h) * size.height, width: b.width * roi.width * size.width,
+                          height: h * size.height)
+        }
+        var out: [Item] = []
+        for observation in request.results ?? [] {
+            guard let top = observation.topCandidates(1).first else { continue }
+            let text = top.string.trimmingCharacters(in: .whitespaces)
+            guard !text.isEmpty else { continue }
+            out.append(Item(text: text, box: inWindow(observation.boundingBox)))
+            let words = wordRanges(top.string)
+            guard words.count > 1 else { continue }
+            for range in words {
+                if let word = try? top.boundingBox(for: range) {
+                    out.append(Item(text: String(top.string[range]), box: inWindow(word.boundingBox)))
+                }
+            }
+        }
+        return out
+    }
+
+    private static func wordRanges(_ s: String) -> [Range<String.Index>] {
+        var out: [Range<String.Index>] = []
+        var start: String.Index?
+        for i in s.indices {
+            if s[i].isWhitespace {
+                if let b = start { out.append(b..<i); start = nil }
+            } else if start == nil {
+                start = i
+            }
+        }
+        if let b = start { out.append(b..<s.endIndex) }
+        return out
+    }
+
+    /// Nom du bouton sous `p` (coordonnées de l'écran) dans `window`, et où tombe le clic par rapport à son centre.
+    /// Lecture hors du fil principal, résultat sur le fil principal. nil : pas de texte utilisable sous le clic, ou
+    /// lecture de l'écran impossible.
+    static func lookup(at p: CGPoint, window: WinInfo,
+                       completion: @escaping ((label: String, dx: Double, dy: Double)?) -> Void) {
+        DispatchQueue.global(qos: .userInitiated).async {
+            var found: (label: String, dx: Double, dy: Double)?
+            let f = window.bounds
+            if let image = ScreenLook.captureImage(windowNumber: window.number, size: f.size, scale: 2) {
+                let local = CGPoint(x: p.x - f.minX, y: p.y - f.minY)
+                let region = CGRect(x: local.x - 180, y: local.y - 50, width: 360, height: 100)
+                if let item = label(at: local, in: read(image, size: f.size, region: region)) {
+                    found = (label: item.text, dx: Double(local.x - item.center.x), dy: Double(local.y - item.center.y))
+                }
+            }
+            DispatchQueue.main.async { completion(found) }
+        }
+    }
+}
 
 /// Bouton retrouvé à son image : où il était quand on l'a montré (fenêtre de FL : coin, décalage, taille, titre de
 /// plugin), et son image.
@@ -200,19 +353,25 @@ enum ScreenLook {
         }
     }
 
-    /// Fenêtre `number` (liste des fenêtres de macOS) de taille `size` en points. À appeler hors du fil principal
-    /// (attente bornée à 2 s).
+    /// Fenêtre `number` (liste des fenêtres de macOS) de taille `size` en points, en niveaux de gris, 1 pixel par
+    /// point. À appeler hors du fil principal (attente bornée à 2 s).
     static func capture(windowNumber number: Int, size: CGSize) -> GrayImage? {
-        guard number > 0, allowed else { return nil }
+        captureImage(windowNumber: number, size: size, scale: 1).flatMap(gray)
+    }
+
+    /// Même fenêtre en couleur, `scale` pixels par point (2 : textes nets pour la lecture). Hors du fil principal.
+    static func captureImage(windowNumber number: Int, size: CGSize, scale: CGFloat) -> CGImage? {
+        guard number > 0, allowed, size.width >= 1, size.height >= 1 else { return nil }
         if #available(macOS 14.0, *) {
             let box = CaptureBox()
             let done = DispatchSemaphore(value: 0)
+            let pixels = CGSize(width: size.width * scale, height: size.height * scale)
             Task.detached {
-                box.image = await captureWindow(number: number, size: size)
+                box.image = await captureWindow(number: number, size: pixels)
                 done.signal()
             }
-            guard done.wait(timeout: .now() + 2) == .success, let cg = box.image else { return nil }
-            return gray(cg)
+            guard done.wait(timeout: .now() + 2) == .success else { return nil }
+            return box.image
         }
         return nil
     }

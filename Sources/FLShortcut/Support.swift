@@ -226,9 +226,11 @@ enum HelpContent {
                   keywords: "apprendre position endroit montrer"),
         HelpEntry(id: 6, question: "Une macro s'arrête ou clique au mauvais endroit",
                   answer: "Le bandeau en bas du créateur dit à quel bloc elle s'est arrêtée (« Montrer le bloc »). Si FL "
-                      + "a changé de taille ou d'écran, remontre l'endroit de ce bloc. Un bouton qui change de place (le "
-                      + "« + » du Channel rack descend à chaque piste ajoutée) : active « Retrouver ce bouton s'il bouge » "
-                      + "sur ce clic. Si une fenêtre de FL met du temps à s'ouvrir, ajoute un bloc « Attendre » juste avant.",
+                      + "a changé de taille ou d'écran, remontre l'endroit de ce bloc. Un bouton qui porte un nom "
+                      + "(« FILE », « Insert 1 ») est retrouvé par son nom même s'il bouge, si l'app peut lire l'écran "
+                      + "(autorisation « Enregistrement de l'écran ») ; un bouton sans nom qui bouge (le « + » du Channel "
+                      + "rack) : active « Retrouver ce bouton s'il bouge » sur ce clic. Si une fenêtre de FL met du "
+                      + "temps à s'ouvrir, ajoute un bloc « Attendre » juste avant.",
                   keywords: "erreur echec arrete bloque mauvais clic bouge bouton plus channel rack"),
         HelpEntry(id: 7, question: "Mettre en pause ou reprendre",
                   answer: "⌃⌥⌘F, n'importe où, ou « Mettre en pause » dans le menu de l'icône en haut de l'écran. Une "
@@ -243,10 +245,10 @@ enum HelpContent {
                   answer: "Tes touches ne sont lues que quand FL Studio est devant, et elles ne sont jamais enregistrées "
                       + "ni envoyées. Seuls partent sur internet : tes raccourcis et tes macros si tu es connecté à ton "
                       + "compte (ta sauvegarde, lisible par toi seul), ce que tu publies dans la Communauté, et ce que "
-                      + "tu écris à l'équipe depuis cette page. L'écran n'est jamais lu, sauf pour un clic où tu as "
-                      + "activé « Retrouver ce bouton s'il bouge » : seulement la fenêtre de FL, au moment du clic. "
-                      + "La petite image du bouton reste dans ta macro (et dans ta sauvegarde si tu es connecté), "
-                      + "jamais dans un partage.",
+                      + "tu écris à l'équipe depuis cette page. L'écran n'est lu qu'au moment d'un clic de macro, "
+                      + "seulement dans la fenêtre de FL, pour retrouver le bouton par son nom ou son image (autorisation "
+                      + "« Enregistrement de l'écran ») ; rien n'est enregistré ni envoyé. Le nom ou l'image du bouton "
+                      + "restent dans ta macro (et dans ta sauvegarde si tu es connecté), jamais dans un partage.",
                   keywords: "vie privee donnees confidentialite securite internet compte sauvegarde"),
         HelpEntry(id: 12, question: "Retrouver mes raccourcis et mes macros sur un autre Mac",
                   answer: "Connecte-toi dans « Mon compte » (barre latérale) : tes raccourcis et tes macros sont "

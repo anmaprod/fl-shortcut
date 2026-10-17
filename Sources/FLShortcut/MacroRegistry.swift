@@ -215,6 +215,7 @@ private enum Specs {
         case .flWindow: return "fenêtre de FL"
         case .openMenu: return "menu ouvert"
         case .button: return "bouton retrouvé à son image"
+        case .named: return "bouton retrouvé à son nom"
         case .track: return "piste visée"
         case .lastClick: return "après le clic précédent"
         case .startCursor: return "curseur au départ"

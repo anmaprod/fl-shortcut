@@ -104,10 +104,11 @@ peut les relire depuis l'app ; 5 messages par heure et par mail au plus.
   changement ; rien d'autre (ni réglages du Mac, ni journal, ni touches tapées). **Table Editor › backups** : une
   ligne par compte. Sans compte, rien ne part.
 
-- Écran : jamais lu, sauf pour un clic où l'utilisateur a activé « Retrouver ce bouton s'il bouge » (le « + » du
-  Channel rack qui descend) : seulement la fenêtre de FL visée, au moment du clic, avec l'autorisation
-  « Enregistrement de l'écran » ; l'image du bouton reste dans la macro (donc dans la sauvegarde en ligne, lisible
-  par le seul propriétaire du compte) et est retirée à l'export et des partages.
+- Écran : lu seulement au moment d'un clic de macro (et juste après un clic enregistré), seulement dans la fenêtre
+  de FL visée, avec l'autorisation « Enregistrement de l'écran » : le texte du bouton (« FILE », « Insert 1 ») le
+  retrouve par son nom même s'il bouge ; un bouton sans nom, si l'utilisateur l'a demandé, à son image. Le nom ou
+  l'image restent dans la macro (donc dans la sauvegarde en ligne, lisible par le seul propriétaire du compte) et
+  sont retirés à l'export et des partages. Sans l'autorisation, les clics gardent leur place.
 
 - Envoyé : mail, mot de passe (seulement à la connexion ou à l'inscription), nom d'utilisateur, et ce que tu
   publies (titre, notes, fichier exporté **sans** positions apprises ni chemins de tes fichiers).

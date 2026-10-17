@@ -71,3 +71,55 @@ final class MacroVisualTests: XCTestCase {
         XCTAssertFalse(ClickTarget.button(broken).isFinite)
     }
 }
+
+/// Boutons retrouvés par leur nom (textes lus dans la fenêtre de FL).
+final class NamedButtonTests: XCTestCase {
+    private func item(_ text: String, _ x: CGFloat, _ y: CGFloat, _ w: CGFloat, _ h: CGFloat = 14) -> TextLook.Item {
+        TextLook.Item(text: text, box: CGRect(x: x, y: y, width: w, height: h))
+    }
+
+    func testTheClickedWordOrTheShortLabelIsKept() {
+        // Barre de FL lue d'un bloc : le mot cliqué.
+        let bar = [item("FILE EDIT ADD PATTERNS VIEW", 10, 5, 260), item("FILE", 10, 5, 30), item("EDIT", 46, 5, 30),
+                   item("ADD", 82, 5, 26)]
+        XCTAssertEqual(TextLook.label(at: CGPoint(x: 20, y: 11), in: bar)?.text, "FILE")
+        XCTAssertEqual(TextLook.label(at: CGPoint(x: 90, y: 11), in: bar)?.text, "ADD")
+        // Nom court d'une piste : le nom entier, pas « 1 ».
+        let mixer = [item("Insert 1", 300, 400, 52), item("Insert", 300, 400, 36), item("1", 344, 400, 8)]
+        XCTAssertEqual(TextLook.label(at: CGPoint(x: 346, y: 406), in: mixer)?.text, "Insert 1")
+        // Juste à côté du texte (6 points) : encore lui ; plus loin, ou un simple chiffre : rien.
+        XCTAssertEqual(TextLook.label(at: CGPoint(x: 297, y: 406), in: mixer)?.text, "Insert 1")
+        XCTAssertNil(TextLook.label(at: CGPoint(x: 200, y: 200), in: mixer))
+        XCTAssertNil(TextLook.label(at: CGPoint(x: 5, y: 5), in: [item("1", 0, 0, 10)]))
+    }
+
+    func testNameIsFoundWhereverItMovedAndOCRSlipsAreForgiven() {
+        let now = [item("Insert 2", 300, 400, 52), item("lnsert 1", 520, 400, 52), item("Master", 80, 400, 50)]
+        // « Insert 1 » est passé à droite ; lu « lnsert 1 » cette fois : retrouvé quand même.
+        let found = TextLook.find("Insert 1", in: now, near: CGPoint(x: 326, y: 407))
+        XCTAssertEqual(found?.box.minX, 520)
+        XCTAssertNil(TextLook.find("Insert 10", in: now, near: .zero), "jamais un autre nom")
+        // Deux fois le même nom : le plus proche de sa place apprise.
+        let twice = [item("Piano roll", 20, 40, 60), item("Piano roll", 600, 300, 60)]
+        XCTAssertEqual(TextLook.find("PIANO ROLL", in: twice, near: CGPoint(x: 590, y: 290))?.box.minX, 600)
+    }
+
+    func testRecordedClickOnANamedButtonIsKeptByItsName() {
+        let main = CGRect(x: 0, y: 0, width: 1200, height: 800)
+        let window = WinInfo(number: 7, layer: 0, bounds: main, pid: 42, alpha: 1)
+        var click = RecordedClick(point: CGPoint(x: 330, y: 300), right: false, windows: [window], menu: nil)
+        click.named = NamedHit(label: "Insert 1", dx: 4, dy: 3)
+        let result = ClickSequenceCompiler.compile([click])
+        guard case .click(.named(let spot), .left)? = result.blocks.first else { return XCTFail("clic par son nom attendu") }
+        XCTAssertEqual(spot.label, "Insert 1")
+        XCTAssertEqual(spot.place, .flWindow(corner: .topLeft, dx: 330, dy: 300, size: main.size))
+        // Gardé dans la macro, retiré des partages, et sans nom utilisable : sa place, comme avant.
+        let target = ClickTarget.named(spot)
+        XCTAssertEqual(ClickTarget(json: target.json), target)
+        XCTAssertTrue(target.isLearnedPosition)
+        click.named = NamedHit(label: "1", dx: 0, dy: 0)
+        guard case .click(.flWindow, .left)? = ClickSequenceCompiler.compile([click]).blocks.first else {
+            return XCTFail("un chiffre seul n'est pas un nom")
+        }
+    }
+}
