@@ -571,7 +571,10 @@ private struct BlockInspector: View {
         let learning = teacher.activeBlock == block.id
         let text: String
         switch t {
-        case .flWindow(_, _, _, let size?):
+        case .flWindow(_, _, _, _, let title?):
+            text = "Retenu dans la fenêtre du plugin « \(title.displaySafe(max: 40)) » : le clic la retrouve où qu'elle soit, "
+                + "même agrandie, et attend qu'elle s'ouvre."
+        case .flWindow(_, _, _, let size?, _):
             text = "Retenu dans la fenêtre de FL de \(Int(size.width)) × \(Int(size.height)) (fenêtre principale, réglages, "
                 + "boîte…) : le clic attend qu'elle s'ouvre. Si elle change de taille, montre-le de nouveau."
         case .flWindow:
@@ -858,7 +861,8 @@ final class ClickTeacher: ObservableObject {
         let before = history.last(where: { $0.time <= sample.time }) ?? history.first ?? snap
         let block = activeBlock
         let windows: [(layer: Int, bounds: CGRect)] = before.fl.map { (layer: $0.layer, bounds: $0.bounds) }
-        if let target = MacroOutline.learnedTarget(at: sample.point, windows: windows) {
+        let title = FLWindowAX.pluginTitle(at: sample.point, before: before, fl: pid)     // fenêtre de plugin
+        if let target = MacroOutline.learnedTarget(at: sample.point, windows: windows, title: title) {
             let done = completion
             finish(target)
             done?(target)

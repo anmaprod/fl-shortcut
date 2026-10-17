@@ -216,6 +216,8 @@ struct RecordedClick: Equatable {
     let windows: [WinInfo]
     /// Menu de la barre de macOS sous le clic (lu au moment du clic), sinon nil.
     let menu: MenuBarAX.Hit?
+    /// Fenêtre de plugin sous le clic (Serum, Vital…) : son titre, lu au moment du clic (Accessibilité).
+    var title: String? = nil
 }
 
 /// Touche tapée dans FL pendant l'enregistrement (flèches, Entrée, Échap, raccourcis, lettres d'un menu).
@@ -314,7 +316,7 @@ enum ClickSequenceCompiler {
                 }
             }
             let windows = c.windows.map { (layer: $0.layer, bounds: $0.bounds) }
-            guard let target = MacroOutline.learnedTarget(at: c.point, windows: windows) else {
+            guard let target = MacroOutline.learnedTarget(at: c.point, windows: windows, title: c.title) else {
                 ignored += 1
                 continue
             }
@@ -404,7 +406,8 @@ final class ClickSequenceRecorder: ObservableObject {
             guard NSWorkspace.shared.frontmostApplication?.processIdentifier == test else { return }
         } else {
             let cfg = EventTap.shared.currentConfig
-            guard cfg.flPIDs.contains(cfg.frontmostPID) else { return }
+            // FL devant, ou la fenêtre d'un plugin que FL fait tourner à part (pont des plugins Intel).
+            guard cfg.flPIDs.contains(cfg.frontmostPID) || FLHelpers.isFLOrHelper(cfg.frontmostPID, fl: pid) else { return }
         }
         guard active, event.cgEvent?.getIntegerValueField(.eventSourceUserData) != EventTap.mark else { return }
         if event.type == .keyDown {
@@ -432,7 +435,9 @@ final class ClickSequenceRecorder: ObservableObject {
         if menu == nil, before.hit(p) == nil, p.y - MacroEffectsMac.displayBounds(containing: p).minY <= 40 {
             menu = .bar("")
         }
-        append(RecordedClick(point: p, right: event.type == .rightMouseDown, windows: before.fl, menu: menu))
+        // Fenêtre de plugin : son titre la retrouvera au rejeu où qu'elle soit (jamais la fenêtre principale ni un menu).
+        let title = menu == nil ? FLWindowAX.pluginTitle(at: p, before: before, fl: pid) : nil
+        append(RecordedClick(point: p, right: event.type == .rightMouseDown, windows: before.fl, menu: menu, title: title))
     }
 
     private var lastClick: RecordedClick? {

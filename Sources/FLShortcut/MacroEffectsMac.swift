@@ -493,7 +493,10 @@ final class MacroEffectsMac: MacroEffects {
             }
         } else {
             let cfg = EventTap.shared.currentConfig
-            guard cfg.flPIDs.contains(pid), cfg.frontmostPID == pid else { return "FL n'est plus au premier plan" }
+            // FL devant, ou la fenêtre d'un plugin que FL fait tourner à part (pont des plugins Intel).
+            guard cfg.flPIDs.contains(pid), FLHelpers.isFLOrHelper(cfg.frontmostPID, fl: pid) else {
+                return "FL n'est plus au premier plan"
+            }
         }
         // Échap tenu en ce moment, ou appuyé depuis le départ (un appui bref tombé entre deux lectures).
         if CGEventSource.keyState(.combinedSessionState, key: 53) || EventTap.shared.escapePresses != escapesAtStart {
@@ -834,20 +837,49 @@ final class MacroEffectsMac: MacroEffects {
         return fits.first { $0.bounds.contains(track) } ?? fits.first
     }
 
+    /// Fenêtre visée par un clic appris, et l'échelle de ses décalages. Une seule fenêtre de la taille retenue : elle,
+    /// sans rien demander à l'Accessibilité (rapide, comme avant). Sinon, fenêtre de plugin (titre retenu) : celle qui
+    /// porte ce titre, où qu'elle soit, même agrandie ou réduite (l'interface du plugin suit sa taille) ; titre
+    /// introuvable ou clic sans titre : la fenêtre de FL de la taille retenue, comme avant.
+    func targetWindow(size: CGSize, title: String?, ctx: Context) -> (window: WinInfo, scale: CGSize)? {
+        let snap = WinSnapshot.take(pid: ctx.pid)
+        let fits = snap.fl.filter { Self.clickWindowLayers.contains($0.layer) && MacroSpots.sameSize($0.bounds.size, size) }
+        if let title, fits.count != 1 {
+            let frames = FLWindowAX.frames(titled: title, fl: ctx.pid)
+            if let f = frames.first(where: { $0.contains(ctx.track) }) ?? frames.first {
+                let window = snap.fl.first {
+                    MacroSpots.sameSize($0.bounds.size, f.size) && abs($0.bounds.minX - f.minX) <= 2 && abs($0.bounds.minY - f.minY) <= 2
+                } ?? WinInfo(number: -1, layer: 0, bounds: f, pid: ctx.pid, alpha: 1)
+                return (window: window, scale: Self.scale(from: size, to: window.bounds.size))
+            }
+        }
+        return Self.clickWindow(in: snap, size: size, track: ctx.track).map { (window: $0, scale: CGSize(width: 1, height: 1)) }
+    }
+
+    /// Pure (testée) : échelle d'une fenêtre de plugin agrandie ou réduite depuis l'apprentissage (à 2 points près :
+    /// même taille, aucune échelle).
+    static func scale(from learned: CGSize, to now: CGSize) -> CGSize {
+        guard learned.width > 0, learned.height > 0, !MacroSpots.sameSize(learned, now) else { return CGSize(width: 1, height: 1) }
+        return CGSize(width: now.width / learned.width, height: now.height / learned.height)
+    }
+
     /// Point visé, et le menu dans lequel il doit tomber (cible « menu ouvert »).
     func resolve(_ target: ClickTarget, ctx: Context) -> (point: CGPoint, popup: WinInfo?)? {
         switch target {
         case .startCursor(let dx, let dy):
             return (CGPoint(x: ctx.origin.x + dx, y: ctx.origin.y + dy), nil)
-        case .flWindow(let corner, let dx, let dy, let size):
+        case .flWindow(let corner, let dx, let dy, let size, let title):
             let frame: CGRect?
+            var scale = CGSize(width: 1, height: 1)
             if let size {
-                frame = Self.clickWindow(in: WinSnapshot.take(pid: ctx.pid), size: size, track: ctx.track)?.bounds
+                let found = targetWindow(size: size, title: title, ctx: ctx)
+                frame = found?.window.bounds
+                scale = found?.scale ?? scale
             } else {
                 frame = ctx.frame
             }
             guard let f = frame else { return nil }
-            return (Self.point(in: f, corner: corner, dx: dx, dy: dy), nil)
+            return (Self.point(in: f, corner: corner, dx: dx * Double(scale.width), dy: dy * Double(scale.height)), nil)
         case .cursorXWindowY(let dx, let dy):
             guard let f = ctx.frame else { return nil }
             return (CGPoint(x: ctx.origin.x + dx, y: f.minY + dy), nil)
@@ -873,7 +905,7 @@ final class MacroEffectsMac: MacroEffects {
     /// Fenêtre (taille retenue) ou menu de FL : attendu s'il n'est pas encore là. Autres cibles : jamais attendues.
     static func appearTimeout(of target: ClickTarget) -> TimeInterval? {
         switch target {
-        case .flWindow(_, _, _, .some): return windowAppearTimeout
+        case .flWindow(_, _, _, .some, _): return windowAppearTimeout
         case .openMenu: return menuAppearTimeout
         default: return nil
         }
@@ -885,9 +917,12 @@ final class MacroEffectsMac: MacroEffects {
     func locate(_ target: ClickTarget, ctx: Context) -> (point: CGPoint, popup: WinInfo?, fresh: Bool)? {
         let baseline = numbersBeforeLastClick ?? ctx.startNumbers
         switch target {
-        case .flWindow(let corner, let dx, let dy, let size?):
-            guard let w = Self.clickWindow(in: WinSnapshot.take(pid: ctx.pid), size: size, track: ctx.track) else { return nil }
-            return (point: Self.point(in: w.bounds, corner: corner, dx: dx, dy: dy), popup: nil, fresh: !baseline.contains(w.number))
+        case .flWindow(let corner, let dx, let dy, let size?, let title):
+            guard let found = targetWindow(size: size, title: title, ctx: ctx) else { return nil }
+            let w = found.window
+            let point = Self.point(in: w.bounds, corner: corner, dx: dx * Double(found.scale.width),
+                                   dy: dy * Double(found.scale.height))
+            return (point: point, popup: nil, fresh: !baseline.contains(w.number))
         case .openMenu(let hop):
             let snap = WinSnapshot.take(pid: ctx.pid)
             let fitting = snap.fl.filter {
@@ -941,7 +976,10 @@ final class MacroEffectsMac: MacroEffects {
         }
         guard let r = found else {
             switch target {
-            case .flWindow(_, _, _, let size?):
+            case .flWindow(_, _, _, _, .some):
+                // Sans le titre : c'est le nom d'une piste de l'utilisateur, jamais dans le journal.
+                return .fail("fenêtre du plugin introuvable (ouvre ce plugin, ou montre de nouveau le clic)")
+            case .flWindow(_, _, _, let size?, _):
                 return .fail("fenêtre de FL de \(Int(size.width)) × \(Int(size.height)) introuvable "
                              + "(pas ouverte, ou changée de taille : montre de nouveau le clic)")
             case .openMenu:

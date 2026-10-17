@@ -328,7 +328,7 @@ private enum Specs {
 
     static let click = BlockSpec(
         type: .click, label: "Clic", category: .souris, symbol: "cursorarrow.click",
-        aide: "Clic gauche ou droit à un endroit retrouvé à chaque fois (coin d'une fenêtre de FL, piste visée, menu ouvert…). Toujours dans une fenêtre de FL, jamais sous une autre app.",
+        aide: "Clic gauche ou droit à un endroit retrouvé à chaque fois (coin d'une fenêtre de FL, piste visée, menu ouvert, fenêtre d'un plugin comme Serum…). Toujours dans une fenêtre de FL ou de ses plugins, jamais sous une autre app.",
         params: [ParamSpec("target", "Où", .cible), ParamSpec("button", "Bouton", .nombre(0...1))],
         conteneur: .aucun, dansLaPalette: true,
         needs: { body in

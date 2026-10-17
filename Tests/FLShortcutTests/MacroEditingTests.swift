@@ -210,6 +210,31 @@ final class MacroEditingTests: XCTestCase {
         XCTAssertNil(MacroOutline.learnedTarget(at: CGPoint(x: 10, y: 10), windows: [(-20, CGRect(x: 0, y: 0, width: 400, height: 300))]))
     }
 
+    func testPluginWindowIsLearnedWithItsTitleEvenOnTop() {
+        let serum = CGRect(x: 300, y: 50, width: 1012, height: 768)
+        let main = CGRect(x: 0, y: 0, width: 1600, height: 1000)
+        // Fenêtre de plugin restée devant (niveau des menus) : avec son titre, une fenêtre, pas un menu.
+        let windows: [(layer: Int, bounds: CGRect)] = [(101, serum), (0, main)]
+        XCTAssertEqual(MacroOutline.learnedTarget(at: CGPoint(x: 340, y: 90), windows: windows, title: "Serum"),
+                       .flWindow(corner: .topLeft, dx: 40, dy: 40, size: serum.size, title: "Serum"))
+        guard case .openMenu? = MacroOutline.learnedTarget(at: CGPoint(x: 340, y: 90), windows: windows) else {
+            return XCTFail("sans titre : un menu, comme avant")
+        }
+        // Le titre est gardé dans la macro, relu tel quel.
+        let target = ClickTarget.flWindow(corner: .bottomRight, dx: -20, dy: -10, size: serum.size, title: "Serum #2")
+        XCTAssertEqual(ClickTarget(json: target.json), target)
+        XCTAssertTrue(target.isFinite)
+        XCTAssertFalse(ClickTarget.flWindow(corner: .topLeft, dx: 1, dy: 1, size: serum.size, title: "").isFinite)
+        XCTAssertFalse(ClickTarget.flWindow(corner: .topLeft, dx: 1, dy: 1, size: nil, title: "Serum").isFinite)
+        // Plugin agrandi : le clic suit sa taille ; même taille (à 2 points près) : aucune échelle.
+        XCTAssertEqual(MacroEffectsMac.scale(from: serum.size, to: CGSize(width: 2024, height: 1536)), CGSize(width: 2, height: 2))
+        XCTAssertEqual(MacroEffectsMac.scale(from: serum.size, to: CGSize(width: 1013, height: 767)), CGSize(width: 1, height: 1))
+        // La fenêtre principale (nom du projet) n'est jamais retenue par son titre.
+        XCTAssertTrue(FLWindowAX.isPluginTitle("Serum"))
+        XCTAssertFalse(FLWindowAX.isPluginTitle("Mon morceau - FL Studio 2025"))
+        XCTAssertFalse(FLWindowAX.isPluginTitle(""))
+    }
+
     func testPaletteHasNameColor() {
         let items = PaletteCatalog.items(layout: FakeLayout.qwerty)
         let item = items.first { $0.id == "nameColor" }

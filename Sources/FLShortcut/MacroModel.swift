@@ -772,8 +772,9 @@ enum Corner: String, CaseIterable { case topLeft, topRight, bottomLeft, bottomRi
 /// Où cliquer, retrouvé à chaque exécution (jamais un point absolu de l'écran).
 enum ClickTarget: Equatable {
     /// Coin d'une fenêtre de FL. Taille retenue : la fenêtre de cette taille (refus si aucune) ; sans taille : celle
-    /// qui est sous le curseur au démarrage (ancien repère `window`).
-    case flWindow(corner: Corner, dx: Double, dy: Double, size: CGSize?)
+    /// qui est sous le curseur au démarrage (ancien repère `window`). Titre : fenêtre d'un plugin (Serum, Vital…),
+    /// retrouvée par son nom (Accessibilité) où qu'elle soit, même agrandie (le clic suit sa taille).
+    case flWindow(corner: Corner, dx: Double, dy: Double, size: CGSize?, title: String? = nil)
     /// Relatif au dernier menu de FL ouvert (résiste au décalage du menu).
     case openMenu(MacroSpots.PopupHop)
     /// Depuis la piste visée (TrackMemory).
@@ -795,14 +796,18 @@ enum ClickTarget: Equatable {
         }
     }
 
-    /// Décalages finis et bornés (±5000), taille plausible.
+    /// Longueur maximale du titre d'une fenêtre de plugin retenu.
+    static let maxTitle = 120
+
+    /// Décalages finis et bornés (±5000), taille plausible, titre court.
     var isFinite: Bool {
         func ok(_ v: Double) -> Bool { v.isFinite && abs(v) <= 5000 }
         switch self {
-        case .flWindow(_, let dx, let dy, let size):
+        case .flWindow(_, let dx, let dy, let size, let title):
             let sizeOK = size.map { $0.width.isFinite && $0.height.isFinite && $0.width > 0 && $0.height > 0
                 && $0.width <= 10_000 && $0.height <= 10_000 } ?? true
-            return ok(dx) && ok(dy) && sizeOK
+            let titleOK = title.map { !$0.isEmpty && $0.count <= ClickTarget.maxTitle && size != nil } ?? true
+            return ok(dx) && ok(dy) && sizeOK && titleOK
         case .openMenu(let hop):
             return ok(Double(hop.offset.dx)) && ok(Double(hop.offset.dy)) && hop.size.width.isFinite && hop.size.height.isFinite
                 && (16...2000).contains(hop.size.width) && (16...4000).contains(hop.size.height)
@@ -833,7 +838,9 @@ enum ClickTarget: Equatable {
             guard let corner = json["corner"]?.string.flatMap({ Corner(rawValue: $0) }) else { return nil }
             let parsed = size(json["size"])
             if let s = json["size"], s != .null, parsed == nil { return nil }
-            self = .flWindow(corner: corner, dx: dx, dy: dy, size: parsed)
+            let title = json["title"]?.string
+            if let t = json["title"], t != .null, title == nil { return nil }
+            self = .flWindow(corner: corner, dx: dx, dy: dy, size: parsed, title: title)
         case "openMenu":
             guard let offset = size(json["offset"]), let s = size(json["size"]) else { return nil }
             self = .openMenu(MacroSpots.PopupHop(offset: CGVector(dx: offset.width, dy: offset.height), size: s))
@@ -852,10 +859,11 @@ enum ClickTarget: Equatable {
             .object(["anchor": .string(anchor), "dx": .number(dx), "dy": .number(dy)])
         }
         switch self {
-        case .flWindow(let corner, let dx, let dy, let size):
+        case .flWindow(let corner, let dx, let dy, let size, let title):
             var o: [String: JSONValue] = ["anchor": .string("flWindow"), "corner": .string(corner.rawValue),
                                           "dx": .number(dx), "dy": .number(dy)]
             if let size { o["size"] = pair(size.width, size.height) }
+            if let title { o["title"] = .string(title) }
             return .object(o)
         case .openMenu(let hop):
             return .object(["anchor": .string("openMenu"), "offset": pair(hop.offset.dx, hop.offset.dy),

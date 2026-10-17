@@ -337,6 +337,7 @@ enum MacroOutline {
     static func targetText(_ t: ClickTarget) -> String {
         switch t {
         case .track(let dx, let dy): return dx == 0 && dy == 0 ? "sur la piste visée" : "près de la piste visée"
+        case .flWindow(_, _, _, _, let title?): return "à l'endroit appris (« \(title.displaySafe(max: 30)) »)"
         case .flWindow: return "à l'endroit appris (fenêtre de FL)"
         case .openMenu: return "à l'endroit appris (menu ouvert)"
         case .lastClick: return "près du clic précédent"
@@ -438,20 +439,22 @@ enum MacroOutline {
     /// fenêtre de FL (fenêtre principale, fenêtre détachée, réglages comme Options › Audio, boîte de dialogue :
     /// niveaux 0 à 8), relative à son coin le plus proche, taille retenue (c'est elle qu'on retrouve au rejeu ; refus
     /// si elle change). Ailleurs : nil.
-    static func learnedTarget(at p: CGPoint, windows: [(layer: Int, bounds: CGRect)]) -> ClickTarget? {
+    /// `title` : fenêtre de plugin sous le clic (titre lu par l'Accessibilité) : retenue avec son nom, même tout en
+    /// haut des niveaux (une fenêtre de plugin qui reste devant n'est pas un menu).
+    static func learnedTarget(at p: CGPoint, windows: [(layer: Int, bounds: CGRect)], title: String? = nil) -> ClickTarget? {
         guard let w = windows.first(where: { $0.bounds.contains(p) }) else { return nil }
         let b = w.bounds
-        if w.layer > 8 {
+        if w.layer > 8, title == nil {
             let hop = MacroSpots.PopupHop(offset: CGVector(dx: p.x - b.minX, dy: p.y - b.minY), size: b.size)
             let target = ClickTarget.openMenu(hop)
             return target.isFinite ? target : nil
         }
-        guard MacroEffectsMac.clickWindowLayers.contains(w.layer) else { return nil }
+        guard MacroEffectsMac.clickWindowLayers.contains(w.layer) || title != nil else { return nil }
         let left = p.x - b.minX <= b.maxX - p.x
         let top = p.y - b.minY <= b.maxY - p.y
         let corner: Corner = top ? (left ? .topLeft : .topRight) : (left ? .bottomLeft : .bottomRight)
         let dx = Double(p.x - (left ? b.minX : b.maxX)), dy = Double(p.y - (top ? b.minY : b.maxY))
-        let target = ClickTarget.flWindow(corner: corner, dx: dx, dy: dy, size: b.size)
+        let target = ClickTarget.flWindow(corner: corner, dx: dx, dy: dy, size: b.size, title: title)
         return target.isFinite ? target : nil
     }
 }

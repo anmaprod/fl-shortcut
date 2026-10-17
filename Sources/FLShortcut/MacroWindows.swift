@@ -64,9 +64,10 @@ struct WinSnapshot {
         guard let raw = ScreenWindow.onScreen() else { return WinSnapshot(time: now, fl: [], panelService: []) }
         var fl: [WinInfo] = [], service: [WinInfo] = []
         // Fenêtres en réserve / qui s'effacent (alpha ≤ 0,05) ou vides : pas « ouvertes ».
+        let helpers = FLHelpers.pids(of: pid)
         for w in raw where w.bounds.width >= 1 && w.bounds.height >= 1 && w.alpha > 0.05 {
             let info = WinInfo(number: w.number, layer: w.layer, bounds: w.bounds, pid: w.owner, alpha: w.alpha)
-            if w.owner == pid {
+            if w.owner == pid || helpers.contains(w.owner) {     // FL, ou son pont de plugins (Intel)
                 fl.append(info)
             } else if let name = w.ownerName, panelServiceOwners.contains(name) {
                 service.append(info)
@@ -79,6 +80,126 @@ struct WinSnapshot {
     func window(_ number: Int) -> WinInfo? { fl.first { $0.number == number } }
     /// Fenêtre de FL tout devant sous `p`, tous niveaux : celle où tombe un clic en `p` (parmi les fenêtres de FL).
     func hit(_ p: CGPoint) -> WinInfo? { fl.first { $0.bounds.contains(p) } }
+}
+
+/// Processus lancés par FL (pont des plugins Intel sur un Mac Apple) : les fenêtres de ces plugins sont les leurs,
+/// elles comptent comme celles de FL. Liste des processus relue au plus une fois par seconde, et seulement pendant une
+/// macro ou un enregistrement (rien au repos).
+enum FLHelpers {
+    private static let cache = Locked<(parent: Int32, time: TimeInterval, pids: Set<Int32>)?>(nil)
+
+    static func pids(of parent: Int32) -> Set<Int32> {
+        guard parent > 0 else { return [] }
+        let now = ProcessInfo.processInfo.systemUptime
+        if let c = cache.value, c.parent == parent, now - c.time < 1 { return c.pids }
+        let found = children(of: parent)
+        cache.withLock { $0 = (parent: parent, time: now, pids: found) }
+        return found
+    }
+
+    /// FL ou un processus lancé par FL.
+    static func isFLOrHelper(_ pid: Int32, fl: Int32) -> Bool {
+        pid == fl || pids(of: fl).contains(pid)
+    }
+
+    private static func children(of parent: Int32) -> Set<Int32> {
+        var mib: [Int32] = [CTL_KERN, KERN_PROC, KERN_PROC_ALL]
+        var size = 0
+        guard sysctl(&mib, u_int(mib.count), nil, &size, nil, 0) == 0, size > 0 else { return [] }
+        let stride = MemoryLayout<kinfo_proc>.stride
+        var procs = [kinfo_proc](repeating: kinfo_proc(), count: size / stride + 32)
+        size = procs.count * stride
+        guard sysctl(&mib, u_int(mib.count), &procs, &size, nil, 0) == 0 else { return [] }
+        var out = Set<Int32>()
+        for proc in procs.prefix(size / stride) where proc.kp_eproc.e_ppid == parent && proc.kp_proc.p_pid > 0 {
+            out.insert(proc.kp_proc.p_pid)
+        }
+        return out
+    }
+}
+
+/// Fenêtres de plugins de FL (Serum, Vital…) par l'Accessibilité, déjà accordée pour le clavier : leur titre (le nom
+/// de la piste du plugin) les retrouve où qu'elles soient et quelle que soit leur taille. Jamais l'écran ; le titre
+/// n'est gardé que dans la macro, jamais journalisé. Délais courts : FL peut être occupé.
+enum FLWindowAX {
+    static let timeout: Float = 0.15
+
+    /// Titre de la fenêtre sous `p` si c'est une fenêtre de plugin de FL (ni la fenêtre principale, ni sans titre).
+    static func pluginTitle(at p: CGPoint, fl pid: Int32) -> String? {
+        let system = AXUIElementCreateSystemWide()
+        AXUIElementSetMessagingTimeout(system, timeout)
+        var found: AXUIElement?
+        guard AXUIElementCopyElementAtPosition(system, Float(p.x), Float(p.y), &found) == .success, let el = found
+        else { return nil }
+        var owner: pid_t = 0
+        guard AXUIElementGetPid(el, &owner) == .success, FLHelpers.isFLOrHelper(owner, fl: pid) else { return nil }
+        let window: AXUIElement
+        if string(el, kAXRoleAttribute) == (kAXWindowRole as String) {
+            window = el
+        } else {
+            var value: CFTypeRef?
+            guard AXUIElementCopyAttributeValue(el, kAXWindowAttribute as CFString, &value) == .success, let v = value,
+                  CFGetTypeID(v) == AXUIElementGetTypeID() else { return nil }
+            window = v as! AXUIElement               // type vérifié juste au-dessus
+        }
+        return pluginTitle(of: window)
+    }
+
+    /// Titre de la fenêtre de plugin sous un clic, d'après les fenêtres de FL juste avant lui : jamais pour la fenêtre
+    /// principale (la plus grande au niveau 0), ni hors des fenêtres de FL.
+    static func pluginTitle(at p: CGPoint, before: WinSnapshot, fl pid: Int32) -> String? {
+        guard let hit = before.hit(p) else { return nil }
+        let main = before.fl.filter { $0.layer == 0 }.max { $0.bounds.width * $0.bounds.height < $1.bounds.width * $1.bounds.height }
+        guard hit.number != main?.number else { return nil }
+        return pluginTitle(at: p, fl: pid)
+    }
+
+    /// Cadres (coordonnées de l'écran, origine en haut à gauche) des fenêtres de FL et de son pont qui portent ce titre.
+    static func frames(titled title: String, fl pid: Int32) -> [CGRect] {
+        var out: [CGRect] = []
+        for owner in [pid] + FLHelpers.pids(of: pid).sorted() {
+            let app = AXUIElementCreateApplication(owner)
+            AXUIElementSetMessagingTimeout(app, timeout)
+            var value: CFTypeRef?
+            guard AXUIElementCopyAttributeValue(app, kAXWindowsAttribute as CFString, &value) == .success,
+                  let windows = value as? [AXUIElement] else { continue }
+            for w in windows where pluginTitle(of: w) == title {
+                if let f = frame(of: w) { out.append(f) }
+            }
+        }
+        return out
+    }
+
+    /// Titre retenu pour une fenêtre : pas la fenêtre principale de FL (son titre porte le nom du projet), pas vide,
+    /// court.
+    static func pluginTitle(of window: AXUIElement) -> String? {
+        guard let title = string(window, kAXTitleAttribute)?.trimmingCharacters(in: .whitespacesAndNewlines),
+              isPluginTitle(title) else { return nil }
+        return title
+    }
+
+    /// Pure (testée).
+    static func isPluginTitle(_ title: String) -> Bool {
+        !title.isEmpty && title.count <= ClickTarget.maxTitle && !title.localizedCaseInsensitiveContains("FL Studio")
+    }
+
+    private static func string(_ el: AXUIElement, _ attribute: String) -> String? {
+        var value: CFTypeRef?
+        guard AXUIElementCopyAttributeValue(el, attribute as CFString, &value) == .success else { return nil }
+        return value as? String
+    }
+
+    private static func frame(of window: AXUIElement) -> CGRect? {
+        var pos: CFTypeRef?, size: CFTypeRef?
+        guard AXUIElementCopyAttributeValue(window, kAXPositionAttribute as CFString, &pos) == .success,
+              AXUIElementCopyAttributeValue(window, kAXSizeAttribute as CFString, &size) == .success,
+              let p = pos, let s = size, CFGetTypeID(p) == AXValueGetTypeID(), CFGetTypeID(s) == AXValueGetTypeID()
+        else { return nil }
+        var origin = CGPoint.zero, extent = CGSize.zero
+        guard AXValueGetValue(p as! AXValue, .cgPoint, &origin), AXValueGetValue(s as! AXValue, .cgSize, &extent),
+              extent.width >= 1, extent.height >= 1 else { return nil }
+        return CGRect(origin: origin, size: extent)
+    }
 }
 
 enum WindowWait {
