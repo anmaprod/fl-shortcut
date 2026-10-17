@@ -314,11 +314,15 @@ final class MacroEditorModel: ObservableObject {
 
     private func insert(_ item: PaletteItem, at point: InsertionPoint) {
         guard !item.soon, let draft else { return }
-        guard MacroValidation.count(draft.blocks) < MacroValidation.maxBlocks else {
+        let block = Block(item.make())
+        // « Cliquer sur… » sans page juste au-dessus : « Ouvrir une page de FL » arrive avec lui, choisi pour qu'on
+        // règle sa page d'abord.
+        let page = Block(.openPage(nil))
+        let withPage = MacroOutline.needsPage(block, at: point, in: draft.blocks)
+        guard MacroValidation.count(draft.blocks) + (withPage ? 2 : 1) <= MacroValidation.maxBlocks else {
             notice = "Macro trop longue : \(MacroValidation.maxBlocks) blocs au plus."
             return
         }
-        let block = Block(item.make())
         if !block.body.children.isEmpty || block.body.type == .repeatCount,
            MacroOutline.depth(of: point) + 1 > MacroValidation.maxDepth {
             notice = "Trop de boucles l'une dans l'autre (\(MacroValidation.maxDepth) niveaux au plus)."
@@ -326,8 +330,11 @@ final class MacroEditorModel: ObservableObject {
             return
         }
         notice = nil
-        mutate("Ajouter « \(item.label) »", select: MacroStepRow.blockRowID(block.id)) { doc in
-            _ = MacroOutline.insert(block, into: &doc.blocks, at: point)
+        mutate("Ajouter « \(item.label) »", select: MacroStepRow.blockRowID(withPage ? page.id : block.id)) { doc in
+            _ = MacroOutline.insertWithPage(block, page: page, into: &doc.blocks, at: point)
+        }
+        if withPage {
+            notice = "« Ouvrir une page de FL » ajouté juste au-dessus : choisis d'abord la page, puis l'option à cliquer dans cette page."
         }
     }
 

@@ -204,6 +204,14 @@ private struct BlockInspector: View {
             actionPicker(key)
         case (.flAction(let key, let fallback), "fallback"):
             fallbackField(key, fallback)
+        case (.openPage(let page), "page"):
+            pagePicker(page)
+        case (.pageOption(let id, _), "option"):
+            pageOptionPicker(id)
+        case (.pageOption(let id?, let name), "name") where PageOptions.needsName(id):
+            pluginNameField(id, name)
+        case (.pageOption, "name"):
+            EmptyView()
         case (.stop(let m), "message"):
             TextField(p.label, text: textBinding(m ?? "", max: MacroValidation.maxNoteLength) { text in
                 setBody(key: "message") { $0 = .stop(message: text.isEmpty ? nil : text) }
@@ -793,6 +801,112 @@ private struct BlockInspector: View {
                 }
                 .secondaryButton()
             }
+        }
+    }
+
+    // MARK: Pages de FL
+
+    private func pagePicker(_ page: FLPage?) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Picker("Page", selection: Binding<FLPage?>(get: { page }, set: { new in
+                setBody(key: "page") { $0 = .openPage(new) }
+            })) {
+                if page == nil { Text("À choisir").tag(FLPage?.none) }
+                ForEach(FLPage.allCases) { p in
+                    Text(p.title).tag(FLPage?.some(p))
+                }
+            }
+            if page == nil {
+                Label("Choisis la page de FL à ouvrir : les options de « Cliquer sur… » en dessous viennent d'elle.",
+                      systemImage: "exclamationmark.triangle.fill")
+                    .font(.system(size: 11))
+                    .foregroundStyle(.orange)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            Text("Ouverte seulement si elle n'est pas déjà devant (le lien avec FL le sait). Sans le lien : sa touche "
+                 + "de FL (F5, F6, F7, F9…), qui la referme si elle est déjà devant.")
+                .font(.system(size: 11))
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    /// Seulement les options de la page ouverte au-dessus.
+    private func pageOptionPicker(_ id: String?) -> some View {
+        let layout = SystemKeyboardLayout()
+        let page = PageOptions.pageAbove(block.id, in: model.draft?.blocks ?? []) ?? nil
+        let options = page.map { PageOptions.options(for: $0, layout: layout) } ?? []
+        let current = options.first { $0.id == id }
+        let inPage = options.filter { if case .key = $0.kind { return false }; return true }
+        let keys = options.filter { if case .key = $0.kind { return true }; return false }
+        return VStack(alignment: .leading, spacing: 4) {
+            if let page {
+                Picker("Option", selection: Binding<String?>(get: { current?.id }, set: { new in
+                    setBody(key: "option") { body in
+                        guard case .pageOption(_, let name) = body else { return }
+                        body = .pageOption(id: new, name: name)
+                    }
+                })) {
+                    if current == nil { Text("À choisir").tag(String?.none) }
+                    if !inPage.isEmpty {
+                        Section(page.title) {
+                            ForEach(inPage) { o in Text(o.label).tag(String?.some(o.id)) }
+                        }
+                    }
+                    if !keys.isEmpty {
+                        Section("Raccourcis de FL dans \(page.title)") {
+                            ForEach(keys) { o in Text(o.label).tag(String?.some(o.id)) }
+                        }
+                    }
+                }
+                if let current {
+                    Text(optionDetail(current, layout: layout))
+                        .font(.system(size: 11))
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                } else {
+                    Label(id == nil ? "Choisis l'option à cliquer dans \(page.title)."
+                                    : "Cette option n'est pas dans \(page.title) : choisis-en une de cette page.",
+                          systemImage: "exclamationmark.triangle.fill")
+                        .font(.system(size: 11))
+                        .foregroundStyle(.orange)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            } else {
+                Label("Choisis d'abord la page dans « Ouvrir une page de FL » juste au-dessus : seules ses options "
+                      + "apparaissent ici.", systemImage: "exclamationmark.triangle.fill")
+                    .font(.system(size: 12))
+                    .foregroundStyle(.orange)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+    }
+
+    private func optionDetail(_ option: PageOption, layout: KeyboardLayout) -> String {
+        switch option.kind {
+        case .action:
+            return option.id == "mixer.armon"
+                ? "Par le lien avec FL ; sans lien : menu de la piste › Arm selected track(s)."
+                : "Par le lien avec FL ; sans lien : sa touche de FL, si elle existe."
+        case .key(let combo):
+            return "Touche de FL : \(combo.displayName(layout: layout))."
+        case .addMenu(let item):
+            return "Par le menu Add › \(item) de FL (barre des menus de macOS), avec le nom du plugin ci-dessous."
+        }
+    }
+
+    private func pluginNameField(_ id: String, _ name: String) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            TextField("Plugin", text: textBinding(name, max: PageOptions.maxName) { text in
+                setBody(key: "name") { body in
+                    guard case .pageOption(let i, _) = body else { return }
+                    body = .pageOption(id: i, name: text)
+                }
+            }, prompt: Text(id.hasSuffix(".addEffect") ? "Fruity Limiter, Pro-Q 3…" : "Serum, FLEX, Sytrus…"))
+            Text("Écrit exactement comme dans le menu Add › \(id.hasSuffix(".addEffect") ? "Effect" : "Channel") de FL.")
+                .font(.system(size: 11))
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
         }
     }
 }

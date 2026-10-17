@@ -237,32 +237,40 @@ enum MacroOutline {
                      learnedInput: Bool) -> [MacroStepRow] {
         var out: [MacroStepRow] = []
         out.reserveCapacity(blocks.count + 4)
-        func walk(_ list: [Block], prefix: String, offset: Int, depth: Int, parentEnabled: Bool) {
+        // `page` : page de FL ouverte au-dessus (« Cliquer sur… » hors de sa page est signalé sur sa ligne).
+        func walk(_ list: [Block], prefix: String, offset: Int, depth: Int, parentEnabled: Bool, page inherited: FLPage?) {
+            var page = inherited
             for (i, b) in list.enumerated() {
                 let number = MacroValidation.path(prefix, offset + i + 1)
                 let enabled = parentEnabled && b.enabled
                 var ctx = context
                 ctx.path = number
+                var misplaced: String?
+                if case .pageOption(let id?, _) = b.body, let own = PageOptions.page(of: id), own != page {
+                    misplaced = PageOptions.misplacedMessage((number, page))
+                }
                 out.append(row(b, number: number, depth: depth, enabled: enabled, context: ctx, layout: layout,
-                               learnedInput: learnedInput))
+                               learnedInput: learnedInput, misplaced: misplaced))
                 let lists = MacroValidation.childLists(b.body)
                 for (slot, entry) in lists.enumerated() {
-                    walk(entry.blocks, prefix: number, offset: entry.start, depth: depth + 1, parentEnabled: enabled)
+                    walk(entry.blocks, prefix: number, offset: entry.start, depth: depth + 1, parentEnabled: enabled,
+                         page: page)
                     out.append(endRow(b, slot: slot, slots: lists.count, depth: depth, enabled: enabled))
                 }
+                if case .openPage(let p) = b.body { page = p }
             }
         }
-        walk(blocks, prefix: "", offset: 0, depth: 0, parentEnabled: true)
+        walk(blocks, prefix: "", offset: 0, depth: 0, parentEnabled: true, page: nil)
         return out
     }
 
     private static func row(_ b: Block, number: String, depth: Int, enabled: Bool, context: ValidationContext,
-                            layout: KeyboardLayout, learnedInput: Bool) -> MacroStepRow {
+                            layout: KeyboardLayout, learnedInput: Bool, misplaced: String? = nil) -> MacroStepRow {
         let spec = b.body.type.map(BlockRegistry.spec)
         let phrase = self.phrase(b.body, layout: layout)
         var problem: String?
         if let spec {
-            problem = spec.valider(b.body, context)
+            problem = spec.valider(b.body, context) ?? misplaced
             if problem == nil, let note = b.note, note.count > MacroValidation.maxNoteLength {
                 problem = context.fail("note trop longue.")
             }
@@ -391,6 +399,10 @@ enum MacroOutline {
             return ("Carte son branchée", "sortie et entrée du Mac")
         case .organize:
             return ("Organiser la page ouverte", "écoute, classe, colore")
+        case .openPage(let page):
+            return ("Ouvrir une page de FL", page?.title ?? "à choisir")
+        case .pageOption:
+            return ("Cliquer sur", resumeAfter(""))
         case .menuBar(let titles):
             return ("Menu de FL", titles.map { $0.displaySafe(max: 30) }.joined(separator: " › "))
         case .menuAX(let titles, _):
@@ -422,7 +434,8 @@ enum MacroOutline {
         func walk(_ list: [Block]) {
             for b in list where b.enabled {
                 switch b.body {
-                case .flAction, .flActionValue, .nameColor: link = true
+                case .flAction, .flActionValue, .nameColor, .openPage: link = true
+                case .pageOption(let id?, _) where PageOptions.usesLink(id): link = true
                 case .click(.toLearn, _): learn = true
                 case .selectInput: if !learnedInput { learn = true }
                 default: break
@@ -508,6 +521,8 @@ enum PaletteCatalog {
                 .waitWindow(.dialog, timeoutMs: 4_000)
             },
             // FL Studio
+            item("openPage", .openPage) { .openPage(nil) },
+            item("pageOption", .pageOption) { .pageOption(id: nil, name: "") },
             item("trackMenu", .trackMenu) {
                 .trackMenu(letters: ["f", "o"], labels: ["File", "Open mixer track state"], target: .lastClicked,
                            finalEnter: .ifNeeded)

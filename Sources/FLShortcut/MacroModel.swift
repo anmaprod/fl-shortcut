@@ -256,6 +256,12 @@ indirect enum BlockBody: Equatable {
     case soundCard
     /// Ouvre l'Organiser (OrganizerWindow.swift) sur la page de FL devant ; le bloc se termine aussitôt.
     case organize
+    /// Met devant une page de FL (Playlist, Channel Rack, Mixer…), seulement si elle n'y est pas déjà
+    /// (MacroPages.swift). nil : page encore à choisir (la macro ne tourne pas).
+    case openPage(FLPage?)
+    /// « Cliquer sur… » : une option de la page ouverte au-dessus (« mixer.armon »…) ; `name` : le plugin à ajouter.
+    /// nil : option encore à choisir.
+    case pageOption(id: String?, name: String)
     /// Élément d'un menu de FL dans la barre des menus de macOS (titre du menu, puis des éléments), par l'Accessibilité.
     case menuBar(titles: [String])
     /// Ancienne étape `menu` (titres d'accessibilité, clics de secours) : reprise des anciennes macros, hors palette.
@@ -291,6 +297,8 @@ indirect enum BlockBody: Equatable {
         case .nameColor: return .nameColor
         case .soundCard: return .soundCard
         case .organize: return .organize
+        case .openPage: return .openPage
+        case .pageOption: return .pageOption
         case .menuBar: return .menuBar
         case .menuAX: return .menuAX
         case .ifElse: return .ifElse
@@ -350,6 +358,12 @@ indirect enum BlockBody: Equatable {
             return ["learned": ref.json]
         case .feedbackCheck, .soundCard, .organize:
             return [:]
+        case .openPage(let page):
+            return page.map { ["page": .string($0.rawValue)] } ?? [:]
+        case .pageOption(let id, let name):
+            var p: [String: JSONValue] = ["name": .string(name)]
+            if let id { p["option"] = .string(id) }
+            return p
         case .nameColor(let name, let color, let fade, let icon):
             var p: [String: JSONValue] = [:]
             if let name { p["name"] = .string(name) }
@@ -432,6 +446,13 @@ indirect enum BlockBody: Equatable {
             return .soundCard
         case .organize:
             return .organize
+        case .openPage:
+            guard let v = j["page"] else { return .openPage(nil) }
+            guard let page = v.string.flatMap({ FLPage(rawValue: $0) }) else { return nil }
+            return .openPage(page)
+        case .pageOption:
+            if j["option"] != nil && j["option"]?.string == nil { return nil }
+            return .pageOption(id: j["option"]?.string, name: j["name"]?.string ?? "")
         case .nameColor:
             // Clé présente mais illisible (nom non texte, couleur hors format) : bloc illisible, conservé et bloquant.
             if j["name"] != nil && j["name"]?.string == nil { return nil }

@@ -45,6 +45,7 @@ enum MacroValidation {
         var ctx = context
         ctx.variables = names
         if let why = check(blocks, prefix: "", ctx: ctx) { return why }
+        if let wrong = PageOptions.misplaced(in: blocks) { return PageOptions.misplacedMessage(wrong) }
         guard estimateMs(blocks) <= maxEstimateMs else { return "Macro trop longue (durée totale)." }
         return nil
     }

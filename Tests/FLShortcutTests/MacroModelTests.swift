@@ -155,12 +155,16 @@ final class MacroModelTests: XCTestCase {
         }
     }
 
-    /// Valeur par défaut de chaque type : valide seule (variable « n » déclarée).
+    /// Valeur par défaut de chaque type : valide seule (variable « n » déclarée). « Cliquer sur… » demande sa page
+    /// au-dessus : valide sous « Ouvrir une page de FL » par défaut.
     func testDefaultsAreValid() {
-        for t in BlockType.allCases {
+        for t in BlockType.allCases where t != .pageOption {
             let p = program([Block(BlockRegistry.spec(t).parDefaut())], variables: [VariableDecl(name: "n")])
             XCTAssertNil(p.problem, "\(t)")
         }
+        let page = Block(BlockRegistry.spec(.openPage).parDefaut())
+        XCTAssertNil(program([page, Block(BlockRegistry.spec(.pageOption).parDefaut())]).problem)
+        XCTAssertNotNil(program([Block(BlockRegistry.spec(.pageOption).parDefaut())]).problem, "sans page au-dessus")
     }
 
     func testPaletteHidesLegacyAndUnfinishedBlocks() {

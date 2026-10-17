@@ -409,6 +409,29 @@ final class MacroEffectsMac: MacroEffects {
         case .flActionValue:
             return .fail("action avec valeur : demande l'extension du lien avec FL")
 
+        case .openPage(let page):
+            guard let page else { return .fail("page de FL à choisir dans la macro") }
+            // Déjà devant (le lien le sait) : rien à faire. Sinon le lien la met devant sans jamais la fermer.
+            if MIDILink.shared.core.routingView().knownWindow == page.window {
+                MacroLog.shared.write("FL", "page \(page.rawValue) already in front")
+                return .ok
+            }
+            MacroLog.shared.write("FL", "open page \(page.rawValue)")
+            return perform(page.openBody(layout: SystemKeyboardLayout()), state: &state)
+
+        case .pageOption(let id, let name):
+            let layout = SystemKeyboardLayout()
+            guard let id, let option = PageOptions.option(id, layout: layout) else {
+                return .fail("option de FL à choisir dans la macro")
+            }
+            // Journal : l'option, jamais le nom du plugin.
+            MacroLog.shared.write("FL", "page option \(id)")
+            let result = perform(PageOptions.body(option, name: name, layout: layout), state: &state)
+            if option.needsName, case .fail = result {
+                return .fail("plugin introuvable dans le menu Add de FL : vérifie son nom dans « Cliquer sur… »")
+            }
+            return result
+
         case .soundCard:
             switch SoundCard.apply() {
             case .done(_, let input):
