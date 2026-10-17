@@ -238,7 +238,7 @@ jobs:
           [[ "$status2" != 0 ]] && exit "$status2"
           [[ "$status3" != 0 ]] && exit "$status3"
           exit "${status4:-1}"
-      - name: Essai de la désinstallation (.pkg installé, ancien nom, traces semées : plus rien ne doit rester)
+      - name: Essai de la désinstallation (.pkg installé, ancien nom, traces semées, plus rien ne doit rester)
         run: |
           status=0
           scripts/essai-desinstallation.sh dist dist/mesure/desinstallation.txt || status=$?
