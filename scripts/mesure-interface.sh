@@ -200,9 +200,9 @@ run() {   # $1 : libellé, $2 : YES/NO effet verre
   screencapture -x "$OUT/$label-createur.png" 2>/dev/null || true
   report "$label-createur-ouvert" >/dev/null
   fit+=" / $(fits "$label-createur-ouvert")"
-  # Vrai glisser-déposer à la souris : « Touche ou raccourci » de la palette, lâché entre les blocs 4 et 5 de
-  # l'exemple ; la liste des blocs doit gagner une ligne.
-  drag "$label-createur-ouvert" 113 87 438 360; sleep 2
+  # Vrai glisser-déposer à la souris : « Touche ou raccourci » de la palette (sous « Rechercher un bloc »), lâché
+  # entre les blocs 4 et 5 de l'exemple ; la liste des blocs doit gagner une ligne.
+  drag "$label-createur-ouvert" 113 133 438 360; sleep 2
   report "$label-createur-glisse" >/dev/null
   screencapture -x "$OUT/$label-createur-glisse.png" 2>/dev/null || true
   drop="$(rows "$label-createur-ouvert") → $(rows "$label-createur-glisse")"

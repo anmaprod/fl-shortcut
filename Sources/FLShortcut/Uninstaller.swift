@@ -113,6 +113,9 @@ enum Uninstaller {
             print("droits d'administrateur : \(why)")
         }
         let report = removeEverything(interactive: false, removeExports: true)
+        // Comme en quittant après la fenêtre (quitAfterUninstall) : ce qui a pu être réécrit est effacé de nouveau.
+        Thread.sleep(forTimeInterval: 1)
+        sweepAgain(home: FileManager.default.homeDirectoryForCurrentUser)
         for line in report.removed { print("supprimé : \(line)") }
         for trace in report.remaining { print("RESTE : \(trace.url.path) (\(trace.label))") }
         print(report.remaining.isEmpty ? "PASS: plus aucune trace" : "FAIL: \(report.remaining.count) trace(s)")
@@ -134,9 +137,19 @@ enum Uninstaller {
     private static func sweepAgain(home: URL) {
         CommunitySessionKeychain().delete()
         UserDefaults.standard.removePersistentDomain(forName: bundleID)
-        CFPreferencesAppSynchronize(bundleID as CFString)
+        forgetPreferences()
         for trace in dataTraces(home: home) where trace.url.pathExtension != "keychain-db" && exists(trace.url) {
             try? FileManager.default.removeItem(at: trace.url)
+        }
+    }
+
+    /// Réglages des deux identifiants : vidés dans cfprefsd, puis effacés par `defaults delete`, qui passe lui aussi
+    /// par cfprefsd. Effacer seulement le fichier ne suffit pas : cfprefsd le réécrivait vide un peu plus tard.
+    private static func forgetPreferences() {
+        for id in [bundleID, uninstallerID] {
+            UserDefaults(suiteName: id)?.removePersistentDomain(forName: id)
+            CFPreferencesAppSynchronize(id as CFString)
+            run("/usr/bin/defaults", ["delete", id])
         }
     }
 
@@ -238,10 +251,7 @@ enum Uninstaller {
         if interactive { MainActor.assumeIsolated { CommunityStore.shared.forgetSession() } }
 
         // 4. Réglages (vidés dans cfprefsd avant d'effacer le fichier), données, caches, journal.
-        for id in [bundleID, uninstallerID] {
-            UserDefaults(suiteName: id)?.removePersistentDomain(forName: id)
-            CFPreferencesAppSynchronize(id as CFString)
-        }
+        forgetPreferences()
         defaults.removePersistentDomain(forName: bundleID)
         for trace in dataTraces(home: home) where exists(trace.url) {
             if trace.url.pathExtension == "keychain-db" {

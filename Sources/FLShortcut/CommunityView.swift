@@ -687,18 +687,21 @@ struct CommunitySignIn: View {
         } footer: {
             VStack(alignment: .leading, spacing: 4) {
                 Text("Pas de mail ? Regarde dans les courriers indésirables, ou renvoie le code.")
+                    .foregroundStyle(.secondary)
                 if !recovery {
                     // Mail avec un lien au lieu d'un code : le lien confirme l'adresse (la page affichée après peut
                     // ne pas s'ouvrir), il ne reste qu'à se connecter.
-                    Button("Reçu un lien au lieu d'un code ? Clique dessus, puis ici") {
-                        email = pending.email
-                        community.confirmedByLink()
+                    HStack(spacing: 4) {
+                        Text("Reçu un lien au lieu d'un code ?").foregroundStyle(.secondary)
+                        Button("J'ai cliqué sur le lien") {
+                            email = pending.email
+                            community.confirmedByLink()
+                        }
+                        .buttonStyle(.link)
                     }
-                    .buttonStyle(.link)
                 }
             }
             .font(.system(size: 11))
-            .foregroundStyle(.secondary)
         }
     }
 
