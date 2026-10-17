@@ -1,0 +1,81 @@
+#!/bin/bash
+# Essai de la désinstallation sur la machine de la CI, comme chez un utilisateur : le .pkg installe les apps dans
+# /Applications (au système), une ancienne app « FL Shortcut » traîne dans /Applications et dans ~/Applications, et
+# toutes les traces que l'app laisse sont semées, sous le nom actuel et l'ancien nom. Puis la désinstallation tourne
+# sans fenêtre (le mot de passe passe par sudo -n), et ce script revérifie lui-même, chemin par chemin, que plus rien
+# ne reste… sauf ce qui n'est pas à nous. RÉSERVÉ À UNE MACHINE JETABLE : il efface tout ce qui touche à l'app.
+# Usage (CI) : scripts/essai-desinstallation.sh dist dist/mesure/desinstallation.txt
+set -uo pipefail
+[[ "${CI:-}" == "true" ]] || { echo "Réservé à la CI (machine jetable) : il efface les données de l'app."; exit 2; }
+DIST="${1:-dist}"
+OUT="${2:-dist/mesure/desinstallation.txt}"
+H="$HOME"
+L="$H/Library"
+HW="$H/Documents/Image-Line/FL Studio/Settings/Hardware"
+mkdir -p "$(dirname "$OUT")"
+: > "$OUT"
+say() { echo "$*" | tee -a "$OUT"; }
+pkill -x FLShortcut 2>/dev/null || true
+
+# 1. Une ancienne app « FL Shortcut » au système, puis le .pkg : son script d'après installation doit la retirer.
+sudo cp -R "$DIST/FL Shortcuts.app" "/Applications/FL Shortcut.app"
+sudo installer -pkg "$DIST/FLShortcuts.pkg" -target / >/dev/null || { say "FAIL: installation du .pkg impossible"; exit 1; }
+if [[ -e "/Applications/FL Shortcut.app" ]]; then say "FAIL: le .pkg a laissé l'ancienne app « FL Shortcut »"; exit 1; fi
+[[ -d "/Applications/FL Shortcuts.app" && -d "/Applications/Désinstaller FL Shortcuts.app" ]] \
+  || { say "FAIL: le .pkg n'a pas installé les deux apps"; exit 1; }
+say "ok .pkg : apps installées, ancienne app retirée"
+
+# 2. Toutes les traces, sous les deux noms (ancienne compilation locale dans ~/Applications comprise).
+mkdir -p "$H/Applications"
+cp -R "$DIST/FL Shortcuts.app" "$H/Applications/FL Shortcut.app"
+for n in "FL Shortcuts" "FL Shortcut"; do
+  mkdir -p "$L/Application Support/$n" "$L/Logs/$n" "$H/Desktop/$n – captures" "$H/Documents/$n/Macros" "$HW/$n"
+  echo '{}' > "$L/Application Support/$n/profile.json"
+  echo 'RUN' > "$L/Logs/$n/macro.log"
+  echo 'png' > "$H/Desktop/$n – captures/capture.png"
+  echo '{}' > "$H/Documents/$n/Macros/Voix.flsmacro"
+  echo "# name=$n" > "$HW/$n/device_FLShortcut.py"
+done
+mkdir -p "$HW/Autre controleur"
+echo '# name=Autre' > "$HW/Autre controleur/device_autre.py"          # pas à nous : doit rester
+for id in app.flshortcut.FLShortcut app.flshortcut.Uninstaller; do
+  defaults write "$id" essai -bool true
+  mkdir -p "$L/Caches/$id" "$L/Saved Application State/$id.savedState" "$L/HTTPStorages/$id"
+done
+security create-keychain -p essai "$L/Keychains/flshortcut-dev.keychain-db" >/dev/null 2>&1 || true
+security add-generic-password -A -U -s app.flshortcut.FLShortcut -a fl-script-key -w 00112233445566778899aabbccddeeff >/dev/null 2>&1 \
+  || say "(Trousseau indisponible ici : clé non semée)"
+security add-generic-password -A -U -s app.flshortcut.FLShortcut -a community-session -w '{}' >/dev/null 2>&1 || true
+say "ok traces semées"
+
+# 3. Désinstallation, lancée depuis l'app installée par le .pkg.
+FLS_ESSAI_DESINSTALLATION=1 FLS_ESSAI_SUDO=1 \
+  "/Applications/FL Shortcuts.app/Contents/MacOS/FLShortcut" --essai-desinstallation 2>&1 | tee -a "$OUT"
+status=${PIPESTATUS[0]}
+sleep 2                                                             # cfprefsd a fini d'écrire
+
+# 4. Vérification indépendante.
+left=0
+check() { if [[ -e "$1" || -L "$1" ]]; then say "RESTE (vu par le script) : $1"; left=1; fi; }
+for a in "FL Shortcuts.app" "Désinstaller FL Shortcuts.app" "FL Shortcut.app" "Désinstaller FL Shortcut.app"; do
+  check "/Applications/$a"; check "$H/Applications/$a"
+done
+for n in "FL Shortcuts" "FL Shortcut"; do
+  check "$L/Application Support/$n"; check "$L/Logs/$n"; check "$H/Desktop/$n – captures"; check "$H/Documents/$n"
+  check "$HW/$n"
+done
+for id in app.flshortcut.FLShortcut app.flshortcut.Uninstaller; do
+  check "$L/Preferences/$id.plist"; check "$L/Caches/$id"; check "$L/Saved Application State/$id.savedState"
+  check "$L/HTTPStorages/$id"
+  if [[ -n "$(defaults read "$id" 2>/dev/null)" ]]; then say "RESTE : réglages $id"; left=1; fi
+done
+check "$L/Keychains/flshortcut-dev.keychain-db"
+if security find-generic-password -s app.flshortcut.FLShortcut >/dev/null 2>&1; then say "RESTE : élément du Trousseau"; left=1; fi
+if pkgutil --pkg-info app.flshortcut.pkg >/dev/null 2>&1; then say "RESTE : reçu du .pkg"; left=1; fi
+if [[ ! -f "$HW/Autre controleur/device_autre.py" ]]; then say "FAIL: un dossier qui n'est pas à nous a été supprimé"; left=1; fi
+if [[ $status -eq 0 && $left -eq 0 ]]; then
+  say "PASS: désinstallation complète, plus aucune trace (apps du .pkg, ancien nom, données, Trousseau, script FL, reçu)"
+  exit 0
+fi
+say "FAIL: désinstallation incomplète (code $status)"
+exit 1

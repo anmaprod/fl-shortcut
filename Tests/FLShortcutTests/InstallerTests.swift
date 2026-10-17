@@ -128,6 +128,30 @@ final class InstallerTests: XCTestCase {
                                                        "FL Shortcut.app", "FL Shortcuts.app"])
     }
 
+    /// Désinstallation : chaque trace connue, sous le nom actuel et l'ancien nom, dans les deux dossiers Applications.
+    func testUninstallerKnowsEveryTrace() {
+        let home = URL(fileURLWithPath: "/Users/nina")
+        let apps = Uninstaller.appLocations(home: home).map(\.path)
+        XCTAssertEqual(apps.count, 8)
+        XCTAssertTrue(apps.contains("/Applications/FL Shortcuts.app"))
+        XCTAssertTrue(apps.contains("/Users/nina/Applications/Désinstaller FL Shortcut.app"))
+        let data = Uninstaller.dataTraces(home: home).map(\.url.path)
+        for path in ["/Users/nina/Library/Application Support/FL Shortcuts",
+                     "/Users/nina/Library/Application Support/FL Shortcut",
+                     "/Users/nina/Library/Logs/FL Shortcuts", "/Users/nina/Library/Logs/FL Shortcut",
+                     "/Users/nina/Library/Preferences/app.flshortcut.FLShortcut.plist",
+                     "/Users/nina/Library/Preferences/app.flshortcut.Uninstaller.plist",
+                     "/Users/nina/Library/Saved Application State/app.flshortcut.FLShortcut.savedState",
+                     "/Users/nina/Library/Caches/app.flshortcut.FLShortcut",
+                     "/Users/nina/Library/Keychains/flshortcut-dev.keychain-db"] {
+            XCTAssertTrue(data.contains(path), path)
+        }
+        XCTAssertEqual(Uninstaller.exportFolders(home: home).map(\.lastPathComponent), ["FL Shortcuts", "FL Shortcut"])
+        let recorded = "/Users/nina/Documents/Image-Line/FL Studio/Settings/Hardware/FL Shortcuts/device_FLShortcut.py"
+        XCTAssertEqual(Uninstaller.scriptFolders(home: home, recorded: recorded).map(\.lastPathComponent),
+                       ["FL Shortcuts", "FL Shortcut"], "chemin enregistré et emplacements par défaut, sans doublon")
+    }
+
     func testInstallerWritesIntoDedicatedFolder() throws {
         let hardware = dir.appendingPathComponent("Settings/Hardware", isDirectory: true)
         try FileManager.default.createDirectory(at: hardware, withIntermediateDirectories: true)
