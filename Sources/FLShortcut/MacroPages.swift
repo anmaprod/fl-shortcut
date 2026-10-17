@@ -222,7 +222,7 @@ extension MacroOutline {
     static func needsPage(_ new: Block, at point: InsertionPoint, in blocks: [Block]) -> Bool {
         guard case .pageOption = new.body else { return false }
         var copy = blocks
-        return withList(&copy, container: point.container, slot: point.slot) { list in
+        return withList(&copy, container: point.container, slot: point.slot) { (list: inout [Block]) -> Bool in
             let i = min(max(point.index, 0), list.count)
             let above = i > 0 ? list[i - 1].body.type : nil
             return above != .openPage && above != .pageOption
@@ -234,10 +234,11 @@ extension MacroOutline {
     static func insertWithPage(_ new: Block, page: Block = Block(.openPage(nil)), into blocks: inout [Block],
                                at point: InsertionPoint) -> Bool {
         guard needsPage(new, at: point, in: blocks) else { return insert(new, into: &blocks, at: point) }
-        return withList(&blocks, container: point.container, slot: point.slot) { list in
+        let done: Void? = withList(&blocks, container: point.container, slot: point.slot) { (list: inout [Block]) -> Void in
             let i = min(max(point.index, 0), list.count)
             list.insert(page, at: i)
             list.insert(new, at: i + 1)
-        } != nil
+        }
+        return done != nil
     }
 }
