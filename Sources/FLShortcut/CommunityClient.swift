@@ -1,7 +1,8 @@
-// Communauté : client du serveur Supabase (comptes et partages), par son API REST, sans bibliothèque ajoutée.
-// Le réseau n'est utilisé que sur la page Communauté, à la demande de l'utilisateur : jamais au repos, jamais pour les
-// raccourcis ni les macros. Sans compte connecté, le serveur ne renvoie rien (règles « authenticated » seulement :
-// supabase/schema.sql). Le mot de passe n'est jamais gardé : seul le jeton de rafraîchissement l'est, au Trousseau.
+// Compte, Communauté et sauvegarde en ligne : client du serveur Supabase, par son API REST, sans bibliothèque ajoutée.
+// Le réseau ne sert qu'avec un compte connecté (Communauté, sauvegarde de ses raccourcis et macros : AccountBackup)
+// ou pour « Écrire à l'équipe » : jamais sans compte en dehors de ces pages, jamais pour lancer un raccourci ou une
+// macro. Sans compte connecté, le serveur ne renvoie rien (règles « authenticated » seulement : supabase/schema.sql,
+// supabase/sauvegarde.sql). Le mot de passe n'est jamais gardé : seul le jeton de rafraîchissement l'est, au Trousseau.
 import Foundation
 
 /// Adresse du projet Supabase et sa clé publique (« anon », publique par conception : les règles du serveur
@@ -69,6 +70,8 @@ enum CommunityError: Error, LocalizedError, Equatable {
     case server(Int, String)
     case network(String)
     case badResponse
+    /// La sauvegarde du compte a été changée ailleurs depuis la dernière lue par ce Mac (supabase/sauvegarde.sql).
+    case backupConflict
 
     var errorDescription: String? {
         switch self {
@@ -78,6 +81,7 @@ enum CommunityError: Error, LocalizedError, Equatable {
         case .server(_, let message): return message
         case .network(let why): return "Connexion impossible : \(why)"
         case .badResponse: return "Réponse inattendue du serveur."
+        case .backupConflict: return "La sauvegarde de ton compte a changé depuis un autre Mac."
         }
     }
 }
@@ -284,6 +288,51 @@ struct CommunityClient {
                            body: ["share_id": id.uuidString.lowercased(), "reason": reason])
     }
 
+    // MARK: Sauvegarde du compte
+
+    /// Révision et date de la sauvegarde du compte, sans son contenu (vérification rapide) ; nil : pas encore.
+    func backupRevision(session: CommunitySession) async throws -> (revision: Int64, updatedAt: Date?)? {
+        let data = try await call("GET", "rest/v1/backups", query: [URLQueryItem(name: "select", value: "revision,updated_at")],
+                                  token: session.accessToken)
+        struct Row: Decodable { let revision: Int64; let updated_at: String? }
+        guard let rows = try? JSONDecoder().decode([Row].self, from: data) else { throw CommunityError.badResponse }
+        return rows.first.map { ($0.revision, $0.updated_at.flatMap(CommunityText.date)) }
+    }
+
+    /// La sauvegarde du compte ; nil : pas encore de sauvegarde.
+    func backup(session: CommunitySession) async throws -> RemoteBackup? {
+        let data = try await call("GET", "rest/v1/backups",
+                                  query: [URLQueryItem(name: "select", value: "profile,macros,revision,updated_at")],
+                                  token: session.accessToken)
+        struct Row: Decodable { let profile: String; let macros: String; let revision: Int64; let updated_at: String? }
+        guard let rows = try? JSONDecoder().decode([Row].self, from: data) else { throw CommunityError.badResponse }
+        return rows.first.map {
+            RemoteBackup(content: BackupContent(profile: $0.profile, macros: $0.macros), revision: $0.revision,
+                         updatedAt: $0.updated_at.flatMap(CommunityText.date))
+        }
+    }
+
+    /// Enregistre la sauvegarde si elle est toujours à la révision `base` (sinon `.backupConflict`), ou quoi qu'il y
+    /// ait si `force`. Renvoie la nouvelle révision.
+    func saveBackup(_ content: BackupContent, base: Int64, force: Bool, appVersion: String,
+                    session: CommunitySession) async throws -> Int64 {
+        let data: Data
+        do {
+            data = try await call("POST", "rest/v1/rpc/save_backup", token: session.accessToken,
+                                  body: ["p_profile": content.profile, "p_macros": content.macros, "p_base": base,
+                                         "p_force": force, "p_app_version": String(appVersion.prefix(20))])
+        } catch CommunityError.server(_, let message) where message.hasPrefix("Sauvegarde plus récente") {
+            throw CommunityError.backupConflict
+        }
+        guard let revision = try? JSONDecoder().decode(Int64.self, from: data) else { throw CommunityError.badResponse }
+        return revision
+    }
+
+    /// Supprime le compte et tout ce qui en dépend sur le serveur (profil, partages, signalements, sauvegarde).
+    func deleteAccount(session: CommunitySession) async throws {
+        _ = try await call("POST", "rest/v1/rpc/delete_my_account", token: session.accessToken, body: [:])
+    }
+
     // MARK: Aide
 
     /// « Écrire à l'équipe » (page Aide) : avec le jeton du compte s'il y en a un, sinon la clé publique seule.
@@ -346,7 +395,12 @@ struct CommunityClient {
         if lower.contains("error sending") || lower.contains("not authorized") {
             return "Le mail de confirmation n'a pas pu partir. Réessaie plus tard, ou écris à l'équipe depuis la page Aide."
         }
-        if lower.contains("trop de partages") || lower.contains("trop de messages") { return raw }
+        if lower.contains("trop de partages") || lower.contains("trop de messages") || lower.hasPrefix("sauvegarde plus récente") {
+            return raw
+        }
+        if lower.contains("backups_profile_check") || lower.contains("backups_macros_check") {
+            return "Sauvegarde trop grande pour le serveur (2 Mo de raccourcis, 6 Mo de macros au plus)."
+        }
         if status == 401 || status == 403 { return "Session expirée : reconnecte-toi." }
         if status == 429 { return "Trop de tentatives : réessaie dans quelques minutes." }
         return raw.isEmpty ? "Erreur du serveur (\(status))." : "Erreur du serveur : \(raw.prefix(200))"

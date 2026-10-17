@@ -1,4 +1,8 @@
-# Communauté de FL Shortcuts : mise en place du serveur (Supabase)
+# Comptes, Communauté et sauvegarde en ligne de FL Shortcuts : mise en place du serveur (Supabase)
+
+Un seul compte (page **Mon compte**) sert à deux choses : la **sauvegarde en ligne** des raccourcis et des macros
+(retrouvés sur n'importe quel Mac, retirés de ce Mac à la déconnexion : `supabase/sauvegarde.sql`,
+`Sources/FLShortcut/AccountBackup.swift`) et la **Communauté**.
 
 La page **Communauté** de l'app (barre latérale, sous « Mes raccourcis ») permet à chacun de partager ses macros et
 ses raccourcis avec des notes d'explication. Il faut un compte (mail, mot de passe, nom d'utilisateur) : sans
@@ -6,7 +10,8 @@ compte, rien n'est visible. Sans serveur réglé, la page affiche « La Communau
 ne se connecte jamais à internet.
 
 **Projet en service** (16/10/2026) : `https://ulzxunuytsakxrvovxen.supabase.co`, clé publique dans
-`Resources/Info.plist` (`FLSCommunityURL`, `FLSCommunityAnonKey`). Étapes 1 à 5 faites ; reste l'étape 6 (mails).
+`Resources/Info.plist` (`FLSCommunityURL`, `FLSCommunityAnonKey`). Étapes 1 à 5 faites ; restent l'étape 6 (mails)
+et l'étape 7 (sauvegarde en ligne).
 
 ## 1. Créer le projet (une fois, ~10 min)
 
@@ -31,6 +36,10 @@ ne se connecte jamais à internet.
    **Authentication › Emails › SMTP Settings** : active « Custom SMTP » avec l'adresse de l'équipe (Gmail :
    `smtp.gmail.com`, port 465, identifiant = l'adresse, mot de passe = un « mot de passe d'application » Google,
    validation en deux étapes requise), puis **Authentication › Rate Limits** : mails par heure à ton goût.
+7. **Sauvegarde en ligne** : **SQL Editor › New query**, colle tout `supabase/sauvegarde.sql`, puis **Run** (après
+   `schema.sql`). Cela crée la table `backups` (une ligne par compte, lisible et modifiable par lui seul), l'envoi qui
+   refuse d'écraser une sauvegarde plus récente faite sur un autre Mac, et « Supprimer mon compte ». Place : une
+   sauvegarde pèse quelques dizaines de Ko (2 Mo de raccourcis et 6 Mo de macros au plus).
 
 ## 2. Compiler l'app reliée au serveur
 
@@ -83,6 +92,10 @@ peut les relire depuis l'app ; 5 messages par heure et par mail au plus.
   GitHub » (page publique, sans le mail de l'utilisateur).
 
 ## Ce que l'app envoie et garde
+
+- Sauvegarde en ligne (connecté seulement) : les fichiers des raccourcis et des macros, quelques secondes après chaque
+  changement ; rien d'autre (ni réglages du Mac, ni journal, ni touches tapées). **Table Editor › backups** : une
+  ligne par compte. Sans compte, rien ne part.
 
 - Envoyé : mail, mot de passe (seulement à la connexion ou à l'inscription), nom d'utilisateur, et ce que tu
   publies (titre, notes, fichier exporté **sans** positions apprises ni chemins de tes fichiers).

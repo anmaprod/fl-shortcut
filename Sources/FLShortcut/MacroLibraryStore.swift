@@ -126,9 +126,10 @@ enum MacroLibraryCodec {
         return Decoded(macros: macros, version: file.version ?? currentVersion, dropped: file.macros.count - macros.count)
     }
 
-    static func encode(_ macros: [MacroDoc]) throws -> Data {
+    /// `pretty` : lisible dans un éditeur (le fichier) ; sans : plus court (sauvegarde en ligne).
+    static func encode(_ macros: [MacroDoc], pretty: Bool = true) throws -> Data {
         let encoder = JSONEncoder()
-        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+        encoder.outputFormatting = pretty ? [.prettyPrinted, .sortedKeys] : [.sortedKeys]
         return try encoder.encode(FileOut(version: currentVersion, macros: macros))
     }
 }
@@ -281,6 +282,18 @@ final class MacroLibraryStore: ObservableObject {
         let doc = macros.remove(at: i)
         changed()
         return (doc, i)
+    }
+
+    /// Remplace toute la bibliothèque (sauvegarde du compte reprise, déconnexion : Store.replaceAll).
+    func replaceAll(_ docs: [MacroDoc]) {
+        macros = docs
+        changed()
+    }
+
+    /// Copie datée de la bibliothèque (avant de la remplacer par la sauvegarde du compte).
+    @discardableResult
+    func keepCurrentCopy(label: String) -> String? {
+        (try? MacroLibraryCodec.encode(macros)).flatMap { try? storage.backup($0, label: label) }
     }
 
     static func sameContent(_ a: MacroDoc, _ b: MacroDoc) -> Bool {

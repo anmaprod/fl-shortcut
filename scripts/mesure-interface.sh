@@ -178,6 +178,12 @@ run() {   # $1 : libellé, $2 : YES/NO effet verre
       "$POST" app.flshortcut.debug.help "$screen"; sleep 3
       screencapture -x "$OUT/aide-$screen.png" 2>/dev/null || true
     done
+    # Page Mon compte (sauvegarde en ligne), avec des exemples et sans réseau.
+    "$POST" app.flshortcut.debug.select compte; sleep 2
+    for screen in connexion connecte attente choix; do
+      "$POST" app.flshortcut.debug.account "$screen"; sleep 3
+      screencapture -x "$OUT/compte-$screen.png" 2>/dev/null || true
+    done
     "$POST" app.flshortcut.debug.select macros; sleep 2
   fi
   # Témoin : aucun modèle du créateur avant sa première ouverture (fenêtres : toutes, et visibles seulement).

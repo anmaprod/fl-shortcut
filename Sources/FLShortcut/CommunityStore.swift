@@ -1,5 +1,6 @@
-// Communauté : état de la page (session, liste, recherche) et actions, sur le thread principal. Une session est
-// gardée au Trousseau ; rien n'est demandé au serveur tant que la page Communauté n'est pas ouverte.
+// Compte et Communauté : session, liste, recherche et actions, sur le thread principal. Une session est gardée au
+// Trousseau ; reprise au lancement seulement s'il y en a une (sauvegarde en ligne : AccountBackup), sinon rien n'est
+// demandé au serveur.
 import Foundation
 import Security
 
@@ -75,14 +76,46 @@ final class CommunityStore: ObservableObject {
 
     /// Ouverture de la page : session du Trousseau reprise (rafraîchie), puis la liste.
     func open() async {
-        guard !demo, let client else { return }
-        if !restored {
-            restored = true
-            if let saved = keychain.load() {
-                do { set(try await client.refresh(saved)) } catch { set(nil) }
+        await restoreSession()
+        if session != nil { await reload() }
+    }
+
+    /// Session du Trousseau reprise une fois (lancement, page Communauté). Hors ligne : gardée telle quelle, le jeton
+    /// sera rafraîchi à la prochaine demande ; refusée par le serveur : oubliée (reconnexion demandée).
+    func restoreSession() async {
+        guard !demo, let client, !restored else { return }
+        restored = true
+        guard let saved = keychain.load() else { return }
+        do {
+            set(try await client.refresh(saved))
+        } catch CommunityError.network(_) {
+            session = saved
+        } catch {
+            set(nil)
+        }
+    }
+
+    /// Session prête pour une requête : jeton rafraîchi s'il expire dans la minute. Refus du serveur : session
+    /// oubliée et erreur « reconnecte-toi » ; hors ligne : l'erreur de connexion, session gardée.
+    func validSession() async throws -> CommunitySession {
+        guard let client, var current = session else { throw CommunityError.invalid("Connecte-toi d'abord.") }
+        if current.expiresAt < Date().addingTimeInterval(60) {
+            do {
+                current = try await client.refresh(current)
+                set(current)
+            } catch let error as CommunityError {
+                if case .network = error { throw error }
+                set(nil)
+                throw CommunityError.invalid("Session expirée : reconnecte-toi.")
             }
         }
-        if session != nil { await reload() }
+        return current
+    }
+
+    /// Oublie la session sans rien demander au serveur (compte supprimé).
+    func forgetSession() {
+        set(nil)
+        shares = []
     }
 
     func signIn(email: String, password: String) async {
@@ -213,19 +246,7 @@ final class CommunityStore: ObservableObject {
     /// Une action qui demande un compte : jeton rafraîchi s'il expire dans la minute ; session expirée, retour
     /// à l'écran de connexion.
     private func authed(_ body: (CommunityClient, CommunitySession) async throws -> Void) async {
-        await run { client in
-            guard var current = self.session else { throw CommunityError.invalid("Connecte-toi d'abord.") }
-            if current.expiresAt < Date().addingTimeInterval(60) {
-                do {
-                    current = try await client.refresh(current)
-                    self.set(current)
-                } catch {
-                    self.set(nil)
-                    throw CommunityError.invalid("Session expirée : reconnecte-toi.")
-                }
-            }
-            try await body(client, current)
-        }
+        await run { client in try await body(client, try await self.validSession()) }
     }
 
     // MARK: Mode capture

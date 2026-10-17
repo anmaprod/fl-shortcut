@@ -96,6 +96,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         AppStatus.shared.start()
         PauseIndicator.shared.bind()
         DebugSnapshot.start()
+        // Sauvegarde en ligne : seulement avec un compte connecté (session au Trousseau), sinon aucune requête.
+        MainActor.assumeIsolated { AccountBackup.shared.start() }
 
         if !UserDefaults.standard.bool(forKey: "didOnboard") {
             DispatchQueue.main.async { AppDelegate.onboard() }

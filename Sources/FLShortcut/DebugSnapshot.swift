@@ -29,6 +29,8 @@ enum DebugSnapshot {
     static let guide = Notification.Name("app.flshortcut.debug.guide")
     /// Page Aide : « aide », « recherche », « ecrire » ou « envoye ».
     static let help = Notification.Name("app.flshortcut.debug.help")
+    /// Page Mon compte avec des exemples, sans réseau : « connexion », « connecte », « choix » ou « attente ».
+    static let account = Notification.Name("app.flshortcut.debug.account")
 
     static func publisher(_ name: Notification.Name) -> AnyPublisher<Notification, Never> {
         guard enabled else { return Empty().eraseToAnyPublisher() }

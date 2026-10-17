@@ -137,3 +137,17 @@ entrée 1 ≈ 0,5 s.
   s'il ne contient que notre script ; .pkg et build local retirent les anciennes apps (même identifiant vérifié) ;
   le désinstalleur retire les deux noms. Après la mise à jour du script, réactiver le port « FL Shortcuts » dans
   Options › MIDI Settings de FL (seulement si le lien MIDI était utilisé).
+
+## 17 octobre : compte et sauvegarde en ligne
+- Demande de l'utilisateur (gratuit exigé) : avec un compte, raccourcis et macros gardés en ligne ; déconnexion =
+  retirés du Mac, gardés dans le compte ; reconnexion (ce Mac ou un autre) = tout revient.
+- Serveur : `supabase/sauvegarde.sql` (table `backups`, une ligne par compte, RLS « soi seul » ; `save_backup` avec
+  révision : refuse d'écraser une sauvegarde plus récente sauf choix forcé ; `delete_my_account`). Testé sur
+  PostgreSQL (`supabase/tests/regles-sauvegarde.sql`), à coller dans Supabase après `schema.sql`.
+- App : `AccountBackup` (envoi 4 s après un changement, reprise à la connexion, décision pure `BackupRules.decide` :
+  envoyer / reprendre / à jour / demander), page **Mon compte** (barre latérale, avant Communauté), déconnexion
+  confirmée (refusée si les derniers changements ne sont pas en ligne, sauf « quand même »), copie datée
+  « avant-compte » avant de remplacer ce Mac, « Supprimer mon compte » (garde tout sur ce Mac).
+- Gardé sur le Mac, jamais envoyé : réglages (pause, autorisations), endroits appris hors des macros, journal.
+- Supabase par défaut n'envoie les mails de confirmation qu'aux membres de l'organisation (2 par heure) : serveur de
+  mail à soi (Gmail de l'équipe) obligatoire avant l'ouverture à tous.

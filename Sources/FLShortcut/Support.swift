@@ -239,10 +239,17 @@ enum HelpContent {
                       + "Toujours rien après quelques minutes ? Écris à l'équipe ci-dessous.",
                   keywords: "communaute compte inscription confirmation mail spam connexion serveur"),
         HelpEntry(id: 9, question: "Mes données sont-elles envoyées quelque part ?",
-                  answer: "Non. Tes touches ne sont lues que quand FL Studio est devant, et rien n'est enregistré ni "
-                      + "envoyé. Seul ce que tu publies dans la Communauté, et ce que tu écris à l'équipe depuis cette "
-                      + "page, part sur internet.",
-                  keywords: "vie privee donnees confidentialite securite internet"),
+                  answer: "Tes touches ne sont lues que quand FL Studio est devant, et elles ne sont jamais enregistrées "
+                      + "ni envoyées. Seuls partent sur internet : tes raccourcis et tes macros si tu es connecté à ton "
+                      + "compte (ta sauvegarde, lisible par toi seul), ce que tu publies dans la Communauté, et ce que "
+                      + "tu écris à l'équipe depuis cette page.",
+                  keywords: "vie privee donnees confidentialite securite internet compte sauvegarde"),
+        HelpEntry(id: 12, question: "Retrouver mes raccourcis et mes macros sur un autre Mac",
+                  answer: "Connecte-toi dans « Mon compte » (barre latérale) : tes raccourcis et tes macros sont "
+                      + "sauvegardés en ligne quelques secondes après chaque changement. Sur un autre Mac, connecte-toi "
+                      + "avec le même compte : tout revient. À la déconnexion, ils quittent ce Mac et restent dans ton "
+                      + "compte. Si ce Mac et ton compte ont chacun des changements, l'app te demande lequel garder.",
+                  keywords: "compte sauvegarde cloud synchronisation autre mac connexion deconnexion retrouver"),
         HelpEntry(id: 11, question: "Signaler un problème",
                   answer: "En bas de cette page, « Écrire à l'équipe ». Quand une macro échoue, le bouton « Signaler » "
                       + "de son bandeau (ou « Signaler ce problème… » dans le menu de l'icône en haut de l'écran) prépare "

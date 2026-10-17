@@ -17,6 +17,22 @@ enum CommunityText {
         return parts.count == 3 ? "\(parts[2])/\(parts[1])/\(parts[0])" : ""
     }
 
+    /// Date du serveur (« 2026-10-16T18:02:11.123456+00:00 », fractions de seconde ou non).
+    static func date(_ iso: String) -> Date? {
+        // Microsecondes du serveur ramenées aux millisecondes que lit ISO8601DateFormatter.
+        var iso = iso
+        if let dot = iso.firstIndex(of: "."),
+           let end = iso[iso.index(after: dot)...].firstIndex(where: { !$0.isNumber }),
+           iso.distance(from: dot, to: end) > 4 {
+            iso.removeSubrange(iso.index(dot, offsetBy: 4)..<end)
+        }
+        let f = ISO8601DateFormatter()
+        f.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        if let d = f.date(from: iso) { return d }
+        f.formatOptions = [.withInternetDateTime]
+        return f.date(from: iso)
+    }
+
     /// « Macro · par @leo.beats · 15/10/2026 ».
     static func byline(_ share: Share) -> String {
         "\(share.kind.label) · par @\(share.authorName.displaySafe(max: 24)) · \(day(share.createdAt))"
@@ -112,8 +128,9 @@ struct CommunityPage: View {
 }
 
 /// Page sans contenu : ce qui se passe, en une phrase, et quoi faire (s'il y a quelque chose à faire).
-private struct CommunityMessage: View {
+struct CommunityMessage: View {
     let symbol: String
+    var tint: Color = SidebarItem.community.tint
     let title: String
     let text: String
     var button: String? = nil
@@ -121,7 +138,7 @@ private struct CommunityMessage: View {
 
     var body: some View {
         VStack(spacing: 10) {
-            SectionIcon(symbol: symbol, tint: SidebarItem.community.tint, size: 44)
+            SectionIcon(symbol: symbol, tint: tint, size: 44)
             Text(title).font(.title3.weight(.semibold)).multilineTextAlignment(.center)
             Text(text)
                 .font(.system(size: 12))
@@ -317,7 +334,7 @@ private struct CommunityFilters: View {
                     Text("Connecté en tant que @\(session.username)")
                 }
                 Divider()
-                Button("Se déconnecter") { Task { await community.signOut() } }
+                Button("Se déconnecter…") { Task { await AccountActions.signOut() } }
             } label: {
                 Image(systemName: "person.crop.circle")
             }
@@ -576,8 +593,17 @@ private struct CommunityShareDetail: View {
 
 // MARK: - Connexion et création de compte
 
-private struct CommunitySignIn: View {
+/// Connexion ou création du compte : un seul compte pour la Communauté et la sauvegarde en ligne (page Mon compte).
+struct CommunitySignIn: View {
     @ObservedObject var community: CommunityStore
+    var page: SidebarItem = .community
+    var title = "Communauté"
+    var subtitle = CommunityText.subtitle
+    var benefits: [(symbol: String, text: String)] = [
+        ("square.and.arrow.down", "Ajoute des macros toutes faites, après avoir lu ce qu'elles font."),
+        ("square.and.arrow.up", "Partage les tiennes, avec une explication pour les autres."),
+        ("lock.shield", "Ton mail reste privé : les autres ne voient que ton nom d'utilisateur."),
+    ]
     @State private var email = ""
     @State private var password = ""
     @State private var username = ""
@@ -587,12 +613,9 @@ private struct CommunitySignIn: View {
     var body: some View {
         Form {
             Section {
-                PageHeader(symbol: SidebarItem.community.symbol, tint: SidebarItem.community.tint, title: "Communauté",
-                           subtitle: CommunityText.subtitle)
+                PageHeader(symbol: page.symbol, tint: page.tint, title: title, subtitle: subtitle)
                 VStack(alignment: .leading, spacing: 8) {
-                    benefit("square.and.arrow.down", "Ajoute des macros toutes faites, après avoir lu ce qu'elles font.")
-                    benefit("square.and.arrow.up", "Partage les tiennes, avec une explication pour les autres.")
-                    benefit("lock.shield", "Ton mail reste privé : les autres ne voient que ton nom d'utilisateur.")
+                    ForEach(benefits.indices, id: \.self) { i in benefit(benefits[i].symbol, benefits[i].text) }
                 }
                 .padding(.vertical, 2)
             }
@@ -654,7 +677,7 @@ private struct CommunitySignIn: View {
         Label {
             Text(text).font(.system(size: 12)).fixedSize(horizontal: false, vertical: true)
         } icon: {
-            Image(systemName: symbol).foregroundStyle(SidebarItem.community.tint)
+            Image(systemName: symbol).foregroundStyle(page.tint)
         }
     }
 

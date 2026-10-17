@@ -44,8 +44,10 @@ final class Store: ObservableObject {
     static let shared = Store()
 
     @Published var remaps: [Remap] {
-        didSet { recompute(); scheduleSave() }
+        didSet { recompute(); scheduleSave(); onDataChange?() }
     }
+    /// Après chaque changement des raccourcis ou des macros (sauvegarde en ligne du compte : AccountBackup).
+    var onDataChange: (() -> Void)?
     @Published var enabled: Bool {
         didSet {
             defaults.set(enabled, forKey: "enabled")
@@ -136,7 +138,10 @@ final class Store: ObservableObject {
         }
         remaps = initial
         loadWarning = loaded.warning
-        self.library.onChange = { [weak self] in self?.recompute() }
+        self.library.onChange = { [weak self] in
+            self?.recompute()
+            self?.onDataChange?()
+        }
         refreshLayoutDependentState()
         if needsSave { saveNow() }
 
@@ -312,6 +317,41 @@ final class Store: ObservableObject {
     func applyImport(_ preview: ImportPreview) {
         undoSnapshot = remaps
         remaps = preview.remaps
+    }
+
+    // MARK: Sauvegarde en ligne (AccountBackup)
+
+    /// Remplace raccourcis et macros d'un coup (sauvegarde du compte reprise, déconnexion), écrits tout de suite ;
+    /// pas d'« Annuler » vers l'état d'avant.
+    func replaceAll(_ new: [Remap], macros: [MacroDoc]) {
+        undoSnapshot = nil
+        library.replaceAll(macros)
+        remaps = new
+        saveNow()
+        library.saveNow()
+    }
+
+    /// Raccourcis du premier lancement (profil recommandé, macro d'exemple comprise), sans aucune macro en blocs :
+    /// ce que la déconnexion laisse sur le Mac.
+    func freshRemaps() -> [Remap] { ProfilePreset.recommended.remaps(layout: layout) }
+
+    /// Rien de personnel sur ce Mac : raccourcis du premier lancement et aucune macro en blocs (identifiants mis à
+    /// part, ils changent à chaque création).
+    var isUntouched: Bool {
+        library.macros.isEmpty && Self.withoutIDs(remaps) == Self.withoutIDs(freshRemaps())
+    }
+
+    /// Profil encodé sans ses identifiants (UUID), pour comparer deux profils de même contenu.
+    static func withoutIDs(_ remaps: [Remap]) -> String {
+        let text = (try? ProfileCodec.encode(remaps)).map { String(decoding: $0, as: UTF8.self) } ?? ""
+        return text.replacingOccurrences(of: "[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}",
+                                         with: "-", options: .regularExpression)
+    }
+
+    /// Copie datée du profil dans Application Support (avant de le remplacer par la sauvegarde du compte).
+    @discardableResult
+    func keepCopy(label: String) -> String? {
+        (try? ProfileCodec.encode(remaps)).flatMap { try? storage.backup($0, label: label) }
     }
 
     // MARK: Sauvegarde
