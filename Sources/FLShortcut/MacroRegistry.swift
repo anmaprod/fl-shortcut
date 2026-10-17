@@ -214,6 +214,7 @@ private enum Specs {
         switch t {
         case .flWindow: return "fenêtre de FL"
         case .openMenu: return "menu ouvert"
+        case .button: return "bouton retrouvé à son image"
         case .track: return "piste visée"
         case .lastClick: return "après le clic précédent"
         case .startCursor: return "curseur au départ"

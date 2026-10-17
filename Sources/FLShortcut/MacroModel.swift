@@ -777,6 +777,9 @@ enum ClickTarget: Equatable {
     case flWindow(corner: Corner, dx: Double, dy: Double, size: CGSize?, title: String? = nil)
     /// Relatif au dernier menu de FL ouvert (résiste au décalage du menu).
     case openMenu(MacroSpots.PopupHop)
+    /// Bouton de FL qui peut bouger (« + » du Channel rack) : cherché à son image dans sa fenêtre au moment du clic,
+    /// sur demande de l'utilisateur pour ce clic (MacroVisual.swift).
+    case button(VisualSpot)
     /// Depuis la piste visée (TrackMemory).
     case track(dx: Double, dy: Double)
     case lastClick(dx: Double, dy: Double)
@@ -811,6 +814,8 @@ enum ClickTarget: Equatable {
         case .openMenu(let hop):
             return ok(Double(hop.offset.dx)) && ok(Double(hop.offset.dy)) && hop.size.width.isFinite && hop.size.height.isFinite
                 && (16...2000).contains(hop.size.width) && (16...4000).contains(hop.size.height)
+        case .button(let spot):
+            return spot.isValid
         case .track(let dx, let dy), .lastClick(let dx, let dy), .startCursor(let dx, let dy), .cursorXWindowY(let dx, let dy):
             return ok(dx) && ok(dy)
         case .toLearn:
@@ -821,7 +826,7 @@ enum ClickTarget: Equatable {
     /// Position apprise en montrant le clic dans FL (retirée à l'export : propre à cette machine).
     var isLearnedPosition: Bool {
         switch self {
-        case .flWindow, .openMenu, .cursorXWindowY: return true
+        case .flWindow, .openMenu, .button, .cursorXWindowY: return true
         case .track, .lastClick, .startCursor, .toLearn: return false
         }
     }
@@ -844,6 +849,15 @@ enum ClickTarget: Equatable {
         case "openMenu":
             guard let offset = size(json["offset"]), let s = size(json["size"]) else { return nil }
             self = .openMenu(MacroSpots.PopupHop(offset: CGVector(dx: offset.width, dy: offset.height), size: s))
+        case "button":
+            guard let corner = json["corner"]?.string.flatMap({ Corner(rawValue: $0) }), let s = size(json["size"]),
+                  let side = json["side"]?.double, side.isFinite, VisualSpot.sides.contains(Int(side)),
+                  let encoded = json["pixels"]?.string, let data = Data(base64Encoded: encoded) else { return nil }
+            let title = json["title"]?.string
+            if let t = json["title"], t != .null, title == nil { return nil }
+            let spot = VisualSpot(corner: corner, dx: dx, dy: dy, size: s, title: title, side: Int(side), pixels: [UInt8](data))
+            guard spot.isValid else { return nil }
+            self = .button(spot)
         case "track": self = .track(dx: dx, dy: dy)
         case "lastClick": self = .lastClick(dx: dx, dy: dy)
         case "startCursor": self = .startCursor(dx: dx, dy: dy)
@@ -868,6 +882,14 @@ enum ClickTarget: Equatable {
         case .openMenu(let hop):
             return .object(["anchor": .string("openMenu"), "offset": pair(hop.offset.dx, hop.offset.dy),
                             "size": pair(hop.size.width, hop.size.height)])
+        case .button(let spot):
+            var o: [String: JSONValue] = ["anchor": .string("button"), "corner": .string(spot.corner.rawValue),
+                                          "dx": .number(spot.dx), "dy": .number(spot.dy),
+                                          "size": pair(spot.size.width, spot.size.height),
+                                          "side": .number(Double(spot.side)),
+                                          "pixels": .string(Data(spot.pixels).base64EncodedString())]
+            if let title = spot.title { o["title"] = .string(title) }
+            return .object(o)
         case .track(let dx, let dy): return offset("track", dx, dy)
         case .lastClick(let dx, let dy): return offset("lastClick", dx, dy)
         case .startCursor(let dx, let dy): return offset("startCursor", dx, dy)

@@ -535,7 +535,7 @@ private struct BlockInspector: View {
 
     private func targetKind(_ t: ClickTarget) -> String {
         switch t {
-        case .flWindow, .openMenu, .cursorXWindowY, .toLearn: return "learned"
+        case .flWindow, .openMenu, .button, .cursorXWindowY, .toLearn: return "learned"
         case .track: return "track"
         case .lastClick: return "lastClick"
         case .startCursor: return "startCursor"
@@ -560,7 +560,7 @@ private struct BlockInspector: View {
             Text("Près du curseur au départ").tag("startCursor")
         }
         switch t {
-        case .flWindow, .openMenu, .cursorXWindowY, .toLearn:
+        case .flWindow, .openMenu, .button, .cursorXWindowY, .toLearn:
             learnedSpot(t)
         case .track(let dx, let dy), .lastClick(let dx, let dy), .startCursor(let dx, let dy):
             offsetFields(t, dx: dx, dy: dy)
@@ -581,6 +581,9 @@ private struct BlockInspector: View {
             text = "Retenu par rapport à la fenêtre de FL."
         case .openMenu:
             text = "Retenu dans le menu de FL ouvert par le clic précédent : le clic attend que ce menu s'ouvre."
+        case .button:
+            text = "Bouton retrouvé à son image dans la fenêtre de FL, même s'il a bougé. L'écran n'est lu qu'à ce "
+                + "moment-là, dans cette fenêtre."
         case .cursorXWindowY:
             text = "Ancienne position apprise (colonne du curseur)."
         default:
@@ -602,20 +605,54 @@ private struct BlockInspector: View {
                     .help("FL passe devant : clique une fois à l'endroit voulu (le clic agit aussi dans FL). Échap annule.")
                 }
             }
+            if ScreenLook.available, canFollow(t) {
+                Toggle("Retrouver ce bouton s'il bouge", isOn: Binding(get: {
+                    if case .button = t { return true } else { return false }
+                }, set: { on in follow(on, t) }))
+                .disabled(learning)
+                .help("Pour un bouton qui change de place (le « + » du Channel rack descend quand tu ajoutes des pistes) : "
+                    + "son image est cherchée dans la fenêtre au moment du clic. Demande l'autorisation « Enregistrement "
+                    + "de l'écran ».")
+            }
             if let message = teacher.message, teacher.lastBlock == block.id {
                 Text(message).font(.system(size: 11)).foregroundStyle(learning ? Color.accentColor : Color.secondary)
             }
         }
     }
 
-    private func teach() {
+    /// Clic dans une fenêtre de FL (taille retenue) : son bouton peut être retrouvé à son image.
+    private func canFollow(_ t: ClickTarget) -> Bool {
+        switch t {
+        case .flWindow(_, _, _, .some, _), .button: return true
+        default: return false
+        }
+    }
+
+    /// Option « Retrouver ce bouton s'il bouge » : activée, l'autorisation de lire l'écran est demandée, puis on montre
+    /// le bouton dans FL (son image est prise à ce moment-là) ; désactivée, le clic garde sa place, sans image.
+    private func follow(_ on: Bool, _ t: ClickTarget) {
+        if !on {
+            guard case .button(let spot) = t else { return }
+            setBody(key: "target") { if case .click(_, let b) = $0 { $0 = .click(spot.place, button: b) } }
+            return
+        }
+        guard ScreenLook.allowed || ScreenLook.requestAccess() else {
+            teacher.say("Autorise FL Shortcuts dans Réglages Système › Confidentialité et sécurité › Enregistrement de "
+                        + "l'écran (rouvre l'app si macOS le demande), puis réactive l'option.", for: block.id)
+            ScreenLook.openSettings()
+            return
+        }
+        teach(visual: true)
+    }
+
+    private func teach(visual: Bool = false) {
         guard let pid = EventTap.shared.currentConfig.flPIDs.first else {
             teacher.say("Ouvre FL Studio, puis recommence.", for: block.id)
             return
         }
         let id = block.id
         let editor: MacroEditorModel = model
-        teacher.start(block: id, pid: pid, returnTo: editor.window) { [weak editor] target in
+        teacher.start(block: id, pid: pid, returnTo: editor.window, visual: visual) { [weak editor] target in
             editor?.updateBlock(id, key: "target", actionName: "Montrer l'endroit du clic") { b in
                 if case .click(_, let button) = b.body { b.body = .click(target, button: button) }
             }
@@ -797,6 +834,8 @@ final class ClickTeacher: ObservableObject {
     private var pid: Int32 = 0
     private var completion: ((ClickTarget) -> Void)?
     private weak var returnWindow: NSWindow?
+    /// « Retrouver ce bouton s'il bouge » : l'image du bouton est prise juste après le clic montré.
+    private var visual = false
 
     private init() {}
 
@@ -805,8 +844,10 @@ final class ClickTeacher: ObservableObject {
         message = text
     }
 
-    func start(block: UUID, pid: Int32, returnTo window: NSWindow?, completion: @escaping (ClickTarget) -> Void) {
+    func start(block: UUID, pid: Int32, returnTo window: NSWindow?, visual: Bool = false,
+               completion: @escaping (ClickTarget) -> Void) {
         stop()
+        self.visual = visual
         guard let fl = NSRunningApplication(processIdentifier: pid) else {
             say("Ouvre FL Studio, puis recommence.", for: block)
             return
@@ -864,6 +905,29 @@ final class ClickTeacher: ObservableObject {
         let title = FLWindowAX.pluginTitle(at: sample.point, before: before, fl: pid)     // fenêtre de plugin
         if let target = MacroOutline.learnedTarget(at: sample.point, windows: windows, title: title) {
             let done = completion
+            if visual, let block, let window = before.hit(sample.point),
+               case .flWindow(let corner, let dx, let dy, let size?, let title) = target {
+                finish(target)
+                say("Image du bouton…", for: block)
+                ScreenLook.capture(windowNumber: window.number, size: window.bounds.size) { [weak self] image in
+                    let patch = image.flatMap { image -> GrayImage? in
+                        let cx = Int((sample.point.x - window.bounds.minX) * CGFloat(image.width) / window.bounds.width)
+                        let cy = Int((sample.point.y - window.bounds.minY) * CGFloat(image.height) / window.bounds.height)
+                        return image.crop(centerX: cx, centerY: cy, side: VisualSpot.defaultSide)
+                    }
+                    if let patch, patch.contrast >= VisualMatch.minContrast {
+                        done?(.button(VisualSpot(corner: corner, dx: dx, dy: dy, size: size, title: title,
+                                                 side: patch.width, pixels: patch.pixels)))
+                        self?.say("Bouton retenu : il sera cherché à son image.", for: block)
+                    } else {
+                        done?(target)
+                        self?.say(image == nil ? "Lecture de l'écran impossible : endroit retenu sans image."
+                                               : "Rien de reconnaissable à cet endroit : endroit retenu sans image.",
+                                  for: block)
+                    }
+                }
+                return
+            }
             finish(target)
             done?(target)
             if let block { say("Endroit retenu.", for: block) }

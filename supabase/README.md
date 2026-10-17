@@ -104,6 +104,10 @@ peut les relire depuis l'app ; 5 messages par heure et par mail au plus.
   changement ; rien d'autre (ni réglages du Mac, ni journal, ni touches tapées). **Table Editor › backups** : une
   ligne par compte. Sans compte, rien ne part.
 
+- Écran : jamais lu, sauf pour un clic où l'utilisateur a activé « Retrouver ce bouton s'il bouge » (le « + » du
+  Channel rack qui descend) : seulement la fenêtre de FL visée, au moment du clic, avec l'autorisation
+  « Enregistrement de l'écran » ; l'image du bouton reste dans la macro et est retirée à l'export.
+
 - Envoyé : mail, mot de passe (seulement à la connexion ou à l'inscription), nom d'utilisateur, et ce que tu
   publies (titre, notes, fichier exporté **sans** positions apprises ni chemins de tes fichiers).
 - Gardé sur le Mac : la session (jeton) au Trousseau, jamais le mot de passe ; supprimée par « Se déconnecter » et

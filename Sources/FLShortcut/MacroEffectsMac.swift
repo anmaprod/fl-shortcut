@@ -856,6 +856,23 @@ final class MacroEffectsMac: MacroEffects {
         return Self.clickWindow(in: snap, size: size, track: ctx.track).map { (window: $0, scale: CGSize(width: 1, height: 1)) }
     }
 
+    /// Bouton retrouvé à son image dans sa fenêtre, lue à ce moment-là seulement (MacroVisual.swift). nil : fenêtre
+    /// absente, lecture de l'écran pas autorisée, ou bouton pas (encore) affiché.
+    func visualPoint(_ spot: VisualSpot, ctx: Context) -> (point: CGPoint, window: WinInfo)? {
+        guard let found = targetWindow(size: spot.size, title: spot.title, ctx: ctx), found.window.number > 0,
+              let image = ScreenLook.capture(windowNumber: found.window.number, size: found.window.bounds.size),
+              image.width > 0, image.height > 0 else { return nil }
+        let f = found.window.bounds
+        let sx = f.width / CGFloat(image.width), sy = f.height / CGFloat(image.height)
+        let expected = Self.point(in: f, corner: spot.corner, dx: spot.dx * Double(found.scale.width),
+                                  dy: spot.dy * Double(found.scale.height))
+        let hint = (x: Int((expected.x - f.minX) / sx), y: Int((expected.y - f.minY) / sy))
+        guard let hit = VisualMatch.find(spot.image, in: image, hint: hint) else { return nil }
+        MacroLog.shared.write("CLICK", String(format: "button found by its image (score %.2f, moved %d,%d)",
+                                              hit.score, hit.x - hint.x, hit.y - hint.y))
+        return (CGPoint(x: f.minX + CGFloat(hit.x) * sx, y: f.minY + CGFloat(hit.y) * sy), found.window)
+    }
+
     /// Pure (testée) : échelle d'une fenêtre de plugin agrandie ou réduite depuis l'apprentissage (à 2 points près :
     /// même taille, aucune échelle).
     static func scale(from learned: CGSize, to now: CGSize) -> CGSize {
@@ -897,6 +914,8 @@ final class MacroEffectsMac: MacroEffects {
             guard let menu = remembered.flatMap({ hop.fits($0.bounds) ? $0 : nil })
                     ?? opened.first(where: { hop.fits($0.bounds) }) else { return nil }
             return (hop.point(in: menu.bounds), menu)
+        case .button(let spot):
+            return visualPoint(spot, ctx: ctx).map { ($0.point, nil) }
         case .toLearn:
             return nil                                  // refusé par la validation : jamais de clic à l'aveugle
         }
@@ -905,7 +924,7 @@ final class MacroEffectsMac: MacroEffects {
     /// Fenêtre (taille retenue) ou menu de FL : attendu s'il n'est pas encore là. Autres cibles : jamais attendues.
     static func appearTimeout(of target: ClickTarget) -> TimeInterval? {
         switch target {
-        case .flWindow(_, _, _, .some, _): return windowAppearTimeout
+        case .flWindow(_, _, _, .some, _), .button: return windowAppearTimeout
         case .openMenu: return menuAppearTimeout
         default: return nil
         }
@@ -923,6 +942,9 @@ final class MacroEffectsMac: MacroEffects {
             let point = Self.point(in: w.bounds, corner: corner, dx: dx * Double(found.scale.width),
                                    dy: dy * Double(found.scale.height))
             return (point: point, popup: nil, fresh: !baseline.contains(w.number))
+        case .button(let spot):
+            guard let found = visualPoint(spot, ctx: ctx) else { return nil }
+            return (point: found.point, popup: nil, fresh: !baseline.contains(found.window.number))
         case .openMenu(let hop):
             let snap = WinSnapshot.take(pid: ctx.pid)
             let fitting = snap.fl.filter {
@@ -984,6 +1006,12 @@ final class MacroEffectsMac: MacroEffects {
                              + "(pas ouverte, ou changée de taille : montre de nouveau le clic)")
             case .openMenu:
                 return .fail("le menu de FL attendu ne s'est pas ouvert")
+            case .button where !ScreenLook.allowed:
+                return .fail("lecture de l'écran pas autorisée (Réglages Système › Confidentialité et sécurité › "
+                             + "Enregistrement de l'écran) : le bouton ne peut pas être cherché")
+            case .button:
+                return .fail("bouton introuvable dans la fenêtre de FL (caché, ou d'une autre apparence : "
+                             + "montre-le de nouveau)")
             default:
                 return .fail("position introuvable (fenêtre de FL ?)")
             }
