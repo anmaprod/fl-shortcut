@@ -9,6 +9,7 @@
 // refusé) est dit, et montré dans le Finder pour le glisser à la Corbeille.
 import AppKit
 import Foundation
+import Security
 
 enum Uninstaller {
     static let bundleID = "app.flshortcut.FLShortcut"
@@ -226,12 +227,12 @@ enum Uninstaller {
         }
 
         // 3. Trousseau : clé du script (et son fichier de repli), session du compte (jamais le mot de passe).
-        let secrets = PreferredSecretStore()
-        if secrets.load() != nil { note("la clé dans le Trousseau") }
-        secrets.delete()
-        let session = CommunitySessionKeychain()
-        if session.load() != nil { note("la session de ton compte dans le Trousseau") }
-        session.delete()
+        // Seule la présence est lue, jamais le secret : rangé par une autre version de l'app, le lire ferait
+        // demander le mot de passe du Mac au milieu de la désinstallation.
+        if inKeychain(account: "fl-script-key") || exists(FileSecretStore().url) { note("la clé dans le Trousseau") }
+        PreferredSecretStore().delete()
+        if inKeychain(account: "community-session") { note("la session de ton compte dans le Trousseau") }
+        CommunitySessionKeychain().delete()
         if interactive { MainActor.assumeIsolated { CommunityStore.shared.forgetSession() } }
 
         // 4. Réglages (vidés dans cfprefsd avant d'effacer le fichier), données, caches, journal.
@@ -310,6 +311,16 @@ enum Uninstaller {
 
     /// Existe, même si c'est un lien cassé (lstat).
     private static func exists(_ url: URL) -> Bool { SecureFile.kind(at: url.path) != .none }
+
+    /// Élément de l'app dans le Trousseau : sa présence seulement (rien n'est demandé en retour, donc rien n'est
+    /// déchiffré et aucune demande de mot de passe ne s'affiche).
+    private static func inKeychain(account: String) -> Bool {
+        let query: [String: Any] = [kSecClass as String: kSecClassGenericPassword,
+                                    kSecAttrService as String: bundleID,
+                                    kSecAttrAccount as String: account,
+                                    kSecMatchLimit as String: kSecMatchLimitOne]
+        return SecItemCopyMatching(query as CFDictionary, nil) == errSecSuccess
+    }
 
     private static func isEmptyFolder(_ url: URL) -> Bool {
         guard let entries = try? FileManager.default.contentsOfDirectory(atPath: url.path) else { return false }

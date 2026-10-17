@@ -15,7 +15,17 @@ HW="$H/Documents/Image-Line/FL Studio/Settings/Hardware"
 mkdir -p "$(dirname "$OUT")"
 : > "$OUT"
 say() { echo "$*" | tee -a "$OUT"; }
+# Durée maximale d'une commande (une fenêtre de macOS sans personne pour répondre bloquerait l'essai) : code 142.
+limit() { local s=$1; shift; perl -e 'alarm shift; exec @ARGV or die "exec: $!\n"' "$s" "$@"; }
 pkill -x FLShortcut 2>/dev/null || true
+
+# 0. Trousseau à part, ouvert, seul dans la liste : les étapes d'avant ont pu y ranger la clé avec une autre
+# compilation de l'app, et la lire ou la changer ferait demander un mot de passe à l'écran.
+KC="${RUNNER_TEMP:-${TMPDIR:-/tmp}}/essai-desinstallation.keychain-db"
+security delete-keychain "$KC" >/dev/null 2>&1 || true
+limit 20 security create-keychain -p essai "$KC" && limit 20 security set-keychain-settings "$KC" \
+  && limit 20 security unlock-keychain -p essai "$KC" && security list-keychains -d user -s "$KC" \
+  && security default-keychain -d user -s "$KC" || say "(Trousseau d'essai impossible : Trousseau de session gardé)"
 
 # 1. Une ancienne app « FL Shortcut » et un ancien désinstalleur à part au système, puis le .pkg : son script d'après
 # installation doit les retirer, et il n'installe plus que l'app (on désinstalle depuis son menu).
@@ -23,7 +33,8 @@ sudo cp -R "$DIST/FL Shortcuts.app" "/Applications/FL Shortcut.app"
 sudo cp -R "$DIST/FL Shortcuts.app" "/Applications/Désinstaller FL Shortcuts.app"
 sudo /usr/libexec/PlistBuddy -c "Set :CFBundleIdentifier app.flshortcut.Uninstaller" \
   "/Applications/Désinstaller FL Shortcuts.app/Contents/Info.plist"
-sudo installer -pkg "$DIST/FLShortcuts.pkg" -target / >/dev/null || { say "FAIL: installation du .pkg impossible"; exit 1; }
+limit 300 sudo installer -pkg "$DIST/FLShortcuts.pkg" -target / >/dev/null \
+  || { say "FAIL: installation du .pkg impossible"; exit 1; }
 for old in "FL Shortcut.app" "Désinstaller FL Shortcuts.app"; do
   if [[ -e "/Applications/$old" ]]; then say "FAIL: le .pkg a laissé /Applications/$old"; exit 1; fi
 done
@@ -48,16 +59,19 @@ for id in app.flshortcut.FLShortcut app.flshortcut.Uninstaller; do
   defaults write "$id" essai -bool true
   mkdir -p "$L/Caches/$id" "$L/Saved Application State/$id.savedState" "$L/HTTPStorages/$id"
 done
-security create-keychain -p essai "$L/Keychains/flshortcut-dev.keychain-db" >/dev/null 2>&1 || true
-security add-generic-password -A -U -s app.flshortcut.FLShortcut -a fl-script-key -w 00112233445566778899aabbccddeeff >/dev/null 2>&1 \
-  || say "(Trousseau indisponible ici : clé non semée)"
-security add-generic-password -A -U -s app.flshortcut.FLShortcut -a community-session -w '{}' >/dev/null 2>&1 || true
+limit 20 security create-keychain -p essai "$L/Keychains/flshortcut-dev.keychain-db" >/dev/null 2>&1 || true
+[[ -f "$KC" ]] && security list-keychains -d user -s "$KC"         # create-keychain l'a ajouté à la liste
+limit 20 security add-generic-password -A -U -s app.flshortcut.FLShortcut -a fl-script-key \
+  -w 00112233445566778899aabbccddeeff >/dev/null 2>&1 || say "(Trousseau indisponible ici : clé non semée)"
+limit 20 security add-generic-password -A -U -s app.flshortcut.FLShortcut -a community-session -w '{}' >/dev/null 2>&1 \
+  || true
 say "ok traces semées"
 
 # 3. Désinstallation, lancée depuis l'app installée par le .pkg.
-FLS_ESSAI_DESINSTALLATION=1 FLS_ESSAI_SUDO=1 \
+limit 180 env FLS_ESSAI_DESINSTALLATION=1 FLS_ESSAI_SUDO=1 \
   "/Applications/FL Shortcuts.app/Contents/MacOS/FLShortcut" --essai-desinstallation 2>&1 | tee -a "$OUT"
 status=${PIPESTATUS[0]}
+[[ $status -eq 142 ]] && say "FAIL: désinstallation bloquée plus de 3 minutes (une fenêtre de macOS attendait ?)"
 sleep 2                                                             # cfprefsd a fini d'écrire
 
 # 4. Vérification indépendante.
