@@ -388,6 +388,7 @@ struct MenuContent: View {
     @EnvironmentObject var link: MIDILink
     @EnvironmentObject var fl: FLMonitor
     @Environment(\.openWindow) private var openWindow
+    @ObservedObject private var panel = MenuPanel.shared
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -420,7 +421,7 @@ struct MenuContent: View {
                 .padding(.bottom, 6)
                 if !macro.ok {
                     // La page Aide, le formulaire prêt avec ce message d'erreur et le journal de la macro.
-                    PanelItem(symbol: "exclamationmark.bubble", title: "Signaler ce problème…") {
+                    PanelItem(symbol: "exclamationmark.bubble", title: "Signaler ce problème…", order: 1) {
                         HelpLink.shared.report("Macro : " + macro.text)
                         openWindow(id: "editor")
                         NSApp.activate(ignoringOtherApps: true)
@@ -441,36 +442,40 @@ struct MenuContent: View {
             MenuSeparator()
 
             if !status.accessibilityOK {
-                PanelItem(symbol: "lock.open", title: "Autoriser le clavier…") { AccessibilityGuide.start() }
+                PanelItem(symbol: "lock.open", title: "Autoriser le clavier…", order: 2) { AccessibilityGuide.start() }
             }
-            PanelItem(symbol: "keyboard", title: "Modifier les raccourcis…") {
+            PanelItem(symbol: "keyboard", title: "Modifier les raccourcis…", order: 3) {
                 openWindow(id: "editor")
                 NSApp.activate(ignoringOtherApps: true)
             }
-            PanelItem(symbol: "square.stack.3d.up", title: "Organiser la page ouverte…") { OrganizerWindow.open() }
-            PanelItem(symbol: "questionmark.circle", title: "Aide et contact…") {
+            PanelItem(symbol: "square.stack.3d.up", title: "Organiser la page ouverte…", order: 4) { OrganizerWindow.open() }
+            PanelItem(symbol: "questionmark.circle", title: "Aide et contact…", order: 5) {
                 HelpLink.shared.show()
                 openWindow(id: "editor")
                 NSApp.activate(ignoringOtherApps: true)
             }
-            PanelItem(symbol: "book", title: "Guide de FL Shortcuts") {
+            PanelItem(symbol: "book", title: "Guide de FL Shortcuts", order: 6) {
                 GuideLink.shared.show()
                 openWindow(id: "editor")
                 NSApp.activate(ignoringOtherApps: true)
             }
             PanelItem(symbol: store.enabled ? "pause" : "play", title: store.enabled ? "Mettre en pause" : "Reprendre",
-                      shortcut: "⌃⌥⌘F") { store.enabled.toggle() }
+                      shortcut: "⌃⌥⌘F", order: 7) { store.enabled.toggle() }
             if !AppMode.light {
-                PanelItem(symbol: "link", title: "Installer le lien avec FL Studio…") { FLScriptInstaller.installWithAlert() }
+                PanelItem(symbol: "link", title: "Installer le lien avec FL Studio…", order: 8) { FLScriptInstaller.installWithAlert() }
             }
 
             MenuSeparator()
 
-            PanelItem(symbol: "trash", title: "Désinstaller FL Shortcuts…") { Uninstaller.confirmAndRun() }
-            PanelItem(symbol: "power", title: "Quitter FL Shortcuts", shortcut: "⌘Q", key: "q") { NSApp.terminate(nil) }
+            PanelItem(symbol: "trash", title: "Désinstaller FL Shortcuts…", order: 9) { Uninstaller.confirmAndRun() }
+            PanelItem(symbol: "power", title: "Quitter FL Shortcuts", shortcut: "⌘Q", key: "q", order: 10) { NSApp.terminate(nil) }
         }
         .padding(6)
         .frame(width: 280)
+        // Sort de l'icône à chaque ouverture ; se ferme au choix d'une ligne ou d'un clic ailleurs (MenuPanel).
+        .menuReveal(panel.revealed)
+        .background(WindowReader { MenuPanel.shared.attach($0) })
+        .onAppear { MenuPanel.shared.appeared() }
     }
 
     private var dotColor: Color {
@@ -513,18 +518,24 @@ private struct MenuSeparator: View {
 }
 
 /// Ligne du panneau : symbole à gauche (une colonne facile à parcourir), surlignage discret au survol, immédiat
-/// (aucune animation). Coins concentriques avec le panneau (rayon du panneau moins sa marge).
+/// (aucune animation). Coins concentriques avec le panneau (rayon du panneau moins sa marge). Choisie, elle ferme
+/// le menu ; à l'ouverture, elle arrive à son tour (`order`).
 private struct PanelItem: View {
     let symbol: String
     let title: String
     var shortcut: String? = nil
     /// Raccourci réellement actif dans le panneau (avec ⌘).
     var key: KeyEquivalent? = nil
+    var order = 0
     let action: () -> Void
     @State private var hovering = false
+    @ObservedObject private var panel = MenuPanel.shared
 
     var body: some View {
-        Button(action: action) {
+        Button {
+            MenuPanel.shared.close()
+            action()
+        } label: {
             HStack(spacing: 8) {
                 Image(systemName: symbol)
                     .font(.system(size: 12, weight: .medium))
@@ -547,5 +558,6 @@ private struct PanelItem: View {
         .buttonStyle(.plain)
         .keyboardShortcut(key.map { KeyboardShortcut($0, modifiers: .command) })
         .onHover { hovering = $0 }
+        .menuRevealRow(panel.revealed, index: order)
     }
 }
