@@ -212,6 +212,53 @@ final class CommunityTests: XCTestCase {
         XCTAssertTrue(server.requests.isEmpty)
     }
 
+    /// Codes reçus par mail : confirmation de l'inscription, puis mot de passe oublié (code + nouveau mot de passe).
+    @MainActor
+    func testCodesFromMail() async {
+        XCTAssertEqual(CommunityRules.code(" 123 456 "), "123456")
+        XCTAssertEqual(CommunityRules.code("12345678"), "12345678")
+        XCTAssertNil(CommunityRules.code("12345"))
+        XCTAssertNil(CommunityRules.code("abcdef"))
+        XCTAssertNil(CommunityRules.code("١٢٣٤٥٦"), "chiffres latins seulement")
+
+        let keychain = CommunitySessionKeychain(service: "app.flshortcut.tests.\(UUID().uuidString)")
+        defer { keychain.delete() }
+        let signup = FakeServer([(200, "true"), (200, #"{"id":"\#(userID.uuidString)","email":"malo@example.com"}"#),
+                                 (200, tokenJSON)])
+        let community = CommunityStore(config: config, keychain: keychain, transport: signup)
+        await community.signUp(email: "malo@example.com", password: "MotDePasse1!", username: "malo")
+        XCTAssertEqual(community.pendingCode, CommunityStore.PendingCode(kind: .signup, email: "malo@example.com"))
+        XCTAssertNil(community.session)
+        await community.confirmSignup(code: "123 456")
+        XCTAssertEqual(signup.requests[2].url?.path, "/auth/v1/verify")
+        XCTAssertEqual(signup.body(2)["type"] as? String, "signup")
+        XCTAssertEqual(signup.body(2)["token"] as? String, "123456")
+        XCTAssertEqual(community.session?.username, "malo")
+        XCTAssertNil(community.pendingCode)
+
+        let keychain2 = CommunitySessionKeychain(service: "app.flshortcut.tests.\(UUID().uuidString)")
+        defer { keychain2.delete() }
+        let reset = FakeServer([(200, "{}"), (200, tokenJSON), (200, "{}")])
+        let forgot = CommunityStore(config: config, keychain: keychain2, transport: reset)
+        await forgot.resetPassword(email: " malo@example.com ")
+        XCTAssertEqual(reset.requests[0].url?.path, "/auth/v1/recover")
+        XCTAssertEqual(forgot.pendingCode, CommunityStore.PendingCode(kind: .recovery, email: "malo@example.com"))
+        await forgot.finishReset(code: "654321", newPassword: "faible")
+        XCTAssertEqual(reset.requests.count, 1, "mot de passe refusé avant tout envoi")
+        XCTAssertNotNil(forgot.error)
+        await forgot.finishReset(code: "654321", newPassword: "NouveauMdp2!")
+        XCTAssertEqual(reset.body(1)["type"] as? String, "recovery")
+        XCTAssertEqual(reset.requests[2].httpMethod, "PUT")
+        XCTAssertEqual(reset.requests[2].url?.path, "/auth/v1/user")
+        XCTAssertEqual(reset.requests[2].value(forHTTPHeaderField: "Authorization"), "Bearer jeton")
+        XCTAssertEqual(reset.body(2)["password"] as? String, "NouveauMdp2!")
+        XCTAssertNotNil(forgot.session)
+        XCTAssertNil(forgot.pendingCode)
+
+        func msg(_ json: String) -> String { CommunityClient.message(Data(json.utf8), status: 403) }
+        XCTAssertTrue(msg(#"{"error_code":"otp_expired","msg":"Token has expired or is invalid"}"#).hasPrefix("Code incorrect ou expiré"))
+    }
+
     func testByline() {
         let share = Share(id: UUID(), authorID: UUID(), kind: .macro, title: "Armer la piste", notes: "",
                           appVersion: "0.1.0", createdAt: "2026-10-15T18:02:11Z", author: Share.Author(username: "leo"))

@@ -77,7 +77,7 @@ enum CommunityError: Error, LocalizedError, Equatable {
         switch self {
         case .notConfigured: return "La Communauté n'est pas encore ouverte dans cette version."
         case .invalid(let why): return why
-        case .emailToConfirm: return "Compte créé : ouvre le mail de confirmation, puis connecte-toi."
+        case .emailToConfirm: return "Compte créé : entre le code reçu par mail pour le confirmer."
         case .server(_, let message): return message
         case .network(let why): return "Connexion impossible : \(why)"
         case .badResponse: return "Réponse inattendue du serveur."
@@ -124,6 +124,12 @@ enum CommunityRules {
         let short = minPassword - s.count
         let length: [String] = short <= 0 ? [] : [short == 1 ? "1 caractère" : "\(short) caractères"]
         return length + passwordSets.filter { group in !s.contains { group.chars.contains($0) } }.map(\.name)
+    }
+
+    /// Code reçu par mail (confirmation de l'inscription, mot de passe oublié) : 6 à 10 chiffres, espaces ignorés.
+    static func code(_ s: String) -> String? {
+        let digits = s.filter { !$0.isWhitespace }
+        return (6...10).contains(digits.count) && digits.allSatisfy(\.isASCII) && digits.allSatisfy(\.isNumber) ? digits : nil
     }
 
     static func passwordProblem(_ s: String) -> String? {
@@ -218,10 +224,37 @@ struct CommunityClient {
         _ = try? await call("POST", "auth/v1/logout", token: session.accessToken)
     }
 
-    /// Mail de remise à zéro du mot de passe.
+    /// Mot de passe oublié : un code part par mail (modèle « Reset password » de Supabase, avec {{ .Token }}).
     func resetPassword(email: String) async throws {
         if let why = CommunityRules.emailProblem(email) { throw CommunityError.invalid(why) }
         _ = try await call("POST", "auth/v1/recover", body: ["email": email])
+    }
+
+    /// Ce que confirme un code reçu par mail.
+    enum CodeKind: String {
+        case signup, recovery
+    }
+
+    /// Vérifie le code reçu par mail ; le serveur connecte le compte.
+    func verifyCode(email: String, code: String, kind: CodeKind) async throws -> CommunitySession {
+        guard let token = CommunityRules.code(code) else {
+            throw CommunityError.invalid("Le code fait 6 chiffres : recopie-le depuis le mail.")
+        }
+        let data = try await call("POST", "auth/v1/verify",
+                                  body: ["type": kind.rawValue, "email": email, "token": token])
+        return try decodeSession(data)
+    }
+
+    /// Nouveau code de confirmation de l'inscription.
+    func resendSignupCode(email: String) async throws {
+        if let why = CommunityRules.emailProblem(email) { throw CommunityError.invalid(why) }
+        _ = try await call("POST", "auth/v1/resend", body: ["type": "signup", "email": email])
+    }
+
+    /// Nouveau mot de passe du compte connecté (après le code du mot de passe oublié).
+    func updatePassword(_ password: String, session: CommunitySession) async throws {
+        if let why = CommunityRules.passwordProblem(password) { throw CommunityError.invalid(why) }
+        _ = try await call("PUT", "auth/v1/user", token: session.accessToken, body: ["password": password])
     }
 
     // MARK: Partages
@@ -388,6 +421,14 @@ struct CommunityClient {
         if lower.contains("email not confirmed") { return "Confirme d'abord ton adresse mail (lien reçu par mail)." }
         if lower.contains("already registered") || lower.contains("already exists") {
             return "Un compte existe déjà avec ce mail."
+        }
+        let code = json?["error_code"] as? String
+        if code == "otp_expired" || lower.contains("token has expired") || lower.contains("token is invalid")
+            || lower.contains("otp has expired") {
+            return "Code incorrect ou expiré : vérifie-le, ou demande un nouveau code."
+        }
+        if code == "same_password" || lower.contains("should be different") {
+            return "Choisis un mot de passe différent de l'ancien."
         }
         if (json?["error_code"] as? String) == "weak_password" || lower.contains("password should") {
             return "Mot de passe trop faible : \(CommunityRules.passwordRule)."

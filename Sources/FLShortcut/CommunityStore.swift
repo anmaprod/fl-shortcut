@@ -59,6 +59,13 @@ final class CommunityStore: ObservableObject {
     @Published var composing = false
     /// Écran de connexion : « Créer un compte » plutôt que « J'ai déjà un compte ».
     @Published var creatingAccount = false
+    /// Un code est attendu (reçu par mail) : confirmation de l'inscription ou mot de passe oublié.
+    @Published var pendingCode: PendingCode?
+
+    struct PendingCode: Equatable {
+        let kind: CommunityClient.CodeKind
+        let email: String
+    }
     /// Mode capture seulement (mesure de la CI) : exemples affichés tels quels, sans serveur ni Trousseau.
     @Published private(set) var demo = false
 
@@ -128,17 +135,67 @@ final class CommunityStore: ObservableObject {
             do {
                 self.set(try await client.signUp(email: email, password: password, username: username))
             } catch CommunityError.emailToConfirm {
-                self.notice = CommunityError.emailToConfirm.errorDescription
+                self.pendingCode = PendingCode(kind: .signup, email: email)
+                self.notice = "Un code vient de partir à \(email) : entre-le ici pour confirmer ton compte."
             }
         }
         if session != nil { await reload() }
     }
 
     func resetPassword(email: String) async {
+        let mail = email.trimmingCharacters(in: .whitespaces)
         await run { client in
-            try await client.resetPassword(email: email)
-            self.notice = "Si un compte existe avec ce mail, un lien pour changer le mot de passe vient d'y être envoyé."
+            try await client.resetPassword(email: mail)
+            self.pendingCode = PendingCode(kind: .recovery, email: mail)
+            self.notice = "Si un compte existe avec ce mail, un code vient d'y partir : entre-le ici avec ton nouveau mot de passe."
         }
+    }
+
+    /// Code de confirmation de l'inscription : le compte est confirmé et connecté.
+    func confirmSignup(code: String) async {
+        guard let pending = pendingCode, pending.kind == .signup else { return }
+        await run { client in
+            self.set(try await client.verifyCode(email: pending.email, code: code, kind: .signup))
+            self.pendingCode = nil
+            self.notice = nil
+        }
+        if session != nil { await reload() }
+    }
+
+    /// Mot de passe oublié : le code connecte le compte, puis le nouveau mot de passe est enregistré.
+    func finishReset(code: String, newPassword: String) async {
+        guard let pending = pendingCode, pending.kind == .recovery else { return }
+        if let why = CommunityRules.passwordProblem(newPassword) {
+            error = why
+            return
+        }
+        await run { client in
+            let session = try await client.verifyCode(email: pending.email, code: code, kind: .recovery)
+            try await client.updatePassword(newPassword, session: session)
+            self.set(session)
+            self.pendingCode = nil
+            self.notice = "Mot de passe changé : tu es connecté."
+        }
+        if session != nil { await reload() }
+    }
+
+    /// Un nouveau code (il n'est pas arrivé, ou il a expiré).
+    func resendCode() async {
+        guard let pending = pendingCode else { return }
+        await run { client in
+            switch pending.kind {
+            case .signup: try await client.resendSignupCode(email: pending.email)
+            case .recovery: try await client.resetPassword(email: pending.email)
+            }
+            self.notice = "Nouveau code envoyé à \(pending.email)."
+        }
+    }
+
+    /// Retour à l'écran de connexion (mauvaise adresse…).
+    func cancelCode() {
+        pendingCode = nil
+        error = nil
+        notice = nil
     }
 
     func signOut() async {
@@ -257,6 +314,7 @@ final class CommunityStore: ObservableObject {
         demo = true
         error = nil
         notice = nil
+        pendingCode = nil
         session = signedIn ? CommunitySession(accessToken: "", refreshToken: "", expiresAt: .distantFuture,
                                               userID: Self.demoUser, email: "malo@exemple.fr", username: "malo") : nil
         shares = signedIn && !empty ? Self.demoShares : []

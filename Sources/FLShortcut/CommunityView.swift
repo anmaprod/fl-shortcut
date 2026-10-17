@@ -607,6 +607,8 @@ struct CommunitySignIn: View {
     @State private var email = ""
     @State private var password = ""
     @State private var username = ""
+    @State private var code = ""
+    @State private var newPassword = ""
 
     private var creating: Bool { community.creatingAccount }
 
@@ -619,6 +621,73 @@ struct CommunitySignIn: View {
                 }
                 .padding(.vertical, 2)
             }
+            if let pending = community.pendingCode {
+                codeSection(pending)
+            } else {
+                signInSection
+            }
+        }
+        .formStyle(.grouped)
+        .glassListBackground()
+        .onChange(of: community.pendingCode) { _ in
+            code = ""
+            newPassword = ""
+        }
+    }
+
+    /// Code reçu par mail : confirmer l'inscription, ou choisir un nouveau mot de passe.
+    private func codeSection(_ pending: CommunityStore.PendingCode) -> some View {
+        let recovery = pending.kind == .recovery
+        return Section {
+            Text("Code envoyé à \(pending.email.displaySafe(max: 60))")
+                .font(.system(size: 12))
+                .foregroundStyle(.secondary)
+            TextField("Code", text: $code, prompt: Text("123456"))
+                .font(.system(size: 15, weight: .medium, design: .monospaced))
+                .textContentType(.oneTimeCode)
+            if recovery {
+                SecureField("Nouveau mot de passe", text: $newPassword, prompt: Text("8 caractères, majuscule, chiffre, symbole"))
+                    .textContentType(.password)
+                let missing = CommunityRules.passwordMissing(newPassword)
+                if !newPassword.isEmpty, !missing.isEmpty {
+                    hint("Il faut encore : " + missing.joined(separator: ", ") + ".")
+                }
+            }
+            HStack {
+                Button(recovery ? "Changer le mot de passe" : "Confirmer") {
+                    let typed = code, chosen = newPassword
+                    Task {
+                        if recovery {
+                            await community.finishReset(code: typed, newPassword: chosen)
+                        } else {
+                            await community.confirmSignup(code: typed)
+                        }
+                    }
+                }
+                .primaryButton()
+                .keyboardShortcut(.defaultAction)
+                .disabled(CommunityRules.code(code) == nil || (recovery && CommunityRules.passwordProblem(newPassword) != nil))
+                Button("Renvoyer le code") { Task { await community.resendCode() } }
+                    .buttonStyle(.link)
+                    .font(.system(size: 12))
+                Spacer(minLength: 0)
+                if community.busy { ProgressView().controlSize(.small) }
+                Button("Retour") { community.cancelCode() }
+                    .buttonStyle(.link)
+                    .font(.system(size: 12))
+            }
+            .disabled(community.busy)
+            CommunityStatus(community: community)
+        } header: {
+            Text(recovery ? "Mot de passe oublié" : "Confirme ton adresse")
+        } footer: {
+            Text("Pas de mail ? Regarde dans les courriers indésirables, ou renvoie le code.")
+                .font(.system(size: 11))
+                .foregroundStyle(.secondary)
+        }
+    }
+
+    private var signInSection: some View {
             Section {
                 Picker("", selection: $community.creatingAccount) {
                     Text("J'ai déjà un compte").tag(false)
@@ -652,7 +721,7 @@ struct CommunitySignIn: View {
                         Button("Mot de passe oublié ?") { Task { await community.resetPassword(email: email) } }
                             .buttonStyle(.link)
                             .font(.system(size: 12))
-                            .help("Reçois par mail un lien pour choisir un nouveau mot de passe")
+                            .help("Reçois par mail un code pour choisir un nouveau mot de passe")
                     }
                     Spacer(minLength: 0)
                     if community.busy { ProgressView().controlSize(.small) }
@@ -668,9 +737,6 @@ struct CommunitySignIn: View {
                         .foregroundStyle(.secondary)
                 }
             }
-        }
-        .formStyle(.grouped)
-        .glassListBackground()
     }
 
     private func benefit(_ symbol: String, _ text: String) -> some View {

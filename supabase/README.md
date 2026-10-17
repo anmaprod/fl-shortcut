@@ -10,8 +10,8 @@ compte, rien n'est visible. Sans serveur réglé, la page affiche « La Communau
 ne se connecte jamais à internet.
 
 **Projet en service** (16/10/2026) : `https://ulzxunuytsakxrvovxen.supabase.co`, clé publique dans
-`Resources/Info.plist` (`FLSCommunityURL`, `FLSCommunityAnonKey`). Étapes 1 à 5 faites ; restent l'étape 6 (mails)
-et l'étape 7 (sauvegarde en ligne).
+`Resources/Info.plist` (`FLSCommunityURL`, `FLSCommunityAnonKey`). Étapes 1 à 5 et 8 faites ; restent l'étape 6 (serveur de mail)
+et l'étape 7 (modèles des mails avec le code).
 
 ## 1. Créer le projet (une fois, ~10 min)
 
@@ -24,8 +24,8 @@ et l'étape 7 (sauvegarde en ligne).
    - longueur minimale du mot de passe : **8** ;
    - « Password requirements » : **Lowercase, uppercase letters, digits and symbols**. L'app annonce et vérifie les
      mêmes règles à l'inscription (`CommunityRules.passwordSets`) : à changer ensemble.
-4. **Authentication › URL Configuration** : laisse l'adresse par défaut ; le lien du mail de confirmation et celui
-   du mot de passe oublié s'ouvrent dans le navigateur (page de Supabase).
+4. **Authentication › URL Configuration** : laisse l'adresse par défaut. Les mails n'ont pas de lien : ils donnent un
+   **code** que l'on tape dans l'app (confirmation du compte, mot de passe oublié ; étape 7).
 5. **Project Settings › API Keys** : note l'**URL du projet** (`https://xxxx.supabase.co`) et la clé publique :
    la **publishable key** (`sb_publishable_…`) ou, dans l'onglet des anciennes clés, la clé **anon public**
    (`eyJ…`) ; les deux marchent. Cette clé est publique par conception (elle est dans l'app) : ce sont les règles
@@ -36,7 +36,14 @@ et l'étape 7 (sauvegarde en ligne).
    **Authentication › Emails › SMTP Settings** : active « Custom SMTP » avec l'adresse de l'équipe (Gmail :
    `smtp.gmail.com`, port 465, identifiant = l'adresse, mot de passe = un « mot de passe d'application » Google,
    validation en deux étapes requise), puis **Authentication › Rate Limits** : mails par heure à ton goût.
-7. **Sauvegarde en ligne** : **SQL Editor › New query**, colle tout `supabase/sauvegarde.sql`, puis **Run** (après
+7. **Mails en français, au nom de FL Shortcuts, avec un code** (après l'étape 6 : sans serveur de mail à soi, les
+   nouveaux projets gratuits ne peuvent pas modifier les modèles). **Authentication › Emails › Templates** :
+   - « Confirm signup » : sujet `Ton code FL Shortcuts : {{ .Token }}`, message : tout `supabase/mails/confirmation.html` ;
+   - « Reset password » : sujet `Ton code pour changer de mot de passe : {{ .Token }}`, message : tout
+     `supabase/mails/mot-de-passe.html`.
+   Dans **SMTP Settings**, « Sender name » : `FL Shortcuts`. L'app attend un code de 6 à 10 chiffres
+   (**Sign In / Providers › Email › Email OTP Length**) ; il reste valable une heure (« Email OTP Expiration »).
+8. **Sauvegarde en ligne** : **SQL Editor › New query**, colle tout `supabase/sauvegarde.sql`, puis **Run** (après
    `schema.sql`). Cela crée la table `backups` (une ligne par compte, lisible et modifiable par lui seul), l'envoi qui
    refuse d'écraser une sauvegarde plus récente faite sur un autre Mac, et « Supprimer mon compte ». Place : une
    sauvegarde pèse quelques dizaines de Ko (2 Mo de raccourcis et 6 Mo de macros au plus).

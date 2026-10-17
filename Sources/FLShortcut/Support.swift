@@ -233,11 +233,11 @@ enum HelpContent {
                   answer: "⌃⌥⌘F, n'importe où, ou « Mettre en pause » dans le menu de l'icône en haut de l'écran. Une "
                       + "pastille rappelle que c'est en pause.",
                   keywords: "pause reprendre arreter desactiver"),
-        HelpEntry(id: 8, question: "Communauté : je n'ai pas reçu le mail de confirmation",
-                  answer: "Regarde dans les courriers indésirables : le mail vient de Supabase, le service qui héberge la "
-                      + "Communauté. Le lien s'ouvre dans ton navigateur ; reviens ensuite dans l'app et connecte-toi. "
-                      + "Toujours rien après quelques minutes ? Écris à l'équipe ci-dessous.",
-                  keywords: "communaute compte inscription confirmation mail spam connexion serveur"),
+        HelpEntry(id: 8, question: "Je n'ai pas reçu le code par mail",
+                  answer: "Regarde dans les courriers indésirables. Le code arrive en une minute environ ; sinon, "
+                      + "« Renvoyer le code ». Il sert à confirmer ton compte, ou à choisir un nouveau mot de passe "
+                      + "(« Mot de passe oublié ? »). Toujours rien ? Écris à l'équipe ci-dessous.",
+                  keywords: "compte inscription confirmation code mail spam connexion mot de passe oublie"),
         HelpEntry(id: 9, question: "Mes données sont-elles envoyées quelque part ?",
                   answer: "Tes touches ne sont lues que quand FL Studio est devant, et elles ne sont jamais enregistrées "
                       + "ni envoyées. Seuls partent sur internet : tes raccourcis et tes macros si tu es connecté à ton "

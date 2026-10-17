@@ -29,7 +29,8 @@ enum DebugSnapshot {
     static let guide = Notification.Name("app.flshortcut.debug.guide")
     /// Page Aide : « aide », « recherche », « ecrire » ou « envoye ».
     static let help = Notification.Name("app.flshortcut.debug.help")
-    /// Page Mon compte avec des exemples, sans réseau : « connexion », « connecte », « choix » ou « attente ».
+    /// Page Mon compte avec des exemples, sans réseau : « connexion », « code » (confirmer l'inscription), « oubli »
+    /// (mot de passe oublié), « connecte », « choix » ou « attente ».
     static let account = Notification.Name("app.flshortcut.debug.account")
     /// Fenêtre de désinstallation avec des exemples, sans rien demander ni supprimer : « confirmer », « compte »,
     /// « fini », « reste » ; « fermer » la ferme.
