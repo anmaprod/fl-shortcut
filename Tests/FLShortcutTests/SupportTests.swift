@@ -139,7 +139,7 @@ final class SupportTests: XCTestCase {
         let ids = { (q: String) in HelpContent.faq.filter { $0.matches(q) }.map(\.id) }
         XCTAssertEqual(ids(""), HelpContent.faq.map(\.id))
         XCTAssertTrue(ids("pause").contains(7))
-        XCTAssertTrue(ids("COMMUNAUTE").contains(8), "sans accents ni majuscules")
+        XCTAssertTrue(ids("RECU LE CODE").contains(8), "sans accents ni majuscules")
         XCTAssertTrue(ids("macro apprendre").contains(5), "tous les mots")
         XCTAssertEqual(ids("zzzz"), [])
         XCTAssertEqual(Set(HelpContent.faq.map(\.id)).count, HelpContent.faq.count)
