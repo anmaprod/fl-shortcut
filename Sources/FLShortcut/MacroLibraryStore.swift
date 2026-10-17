@@ -155,6 +155,9 @@ final class MacroLibraryStore: ObservableObject {
     private let previousContent = Locked<Data?>(nil)
     /// Fichier présent mais inaccessible (droits, lien symbolique…), ou copie de secours impossible : jamais réécrit.
     @Published private(set) var writesDisabled = false
+    /// Bibliothèque illisible, inaccessible, en partie illisible ou plus récente au lancement : jamais envoyée à la
+    /// place de la sauvegarde du compte (AccountBackup) tant qu'elle n'a pas été remplacée.
+    private(set) var loadIncomplete = false
     private var programCache: [UUID: MacroProgram] = [:]
     private var cacheForbidden: ForbiddenTargets?
 
@@ -177,6 +180,7 @@ final class MacroLibraryStore: ObservableObject {
             stored = try storage.read()
         } catch {
             writesDisabled = true
+            loadIncomplete = true
             loadWarning = "Bibliothèque de macros inaccessible (\(error.localizedDescription)) : elle n'est pas modifiée."
             return
         }
@@ -186,6 +190,7 @@ final class MacroLibraryStore: ObservableObject {
             macros = decoded.macros
             previousContent.withLock { $0 = data }
             var notes: [String] = []
+            loadIncomplete = decoded.dropped > 0 || decoded.version > MacroLibraryCodec.currentVersion
             if decoded.version > MacroLibraryCodec.currentVersion {
                 let name = keepCopy(data, label: "plus-recente")
                 notes.append("Bibliothèque d'une version plus récente de FL Shortcuts"
@@ -198,6 +203,7 @@ final class MacroLibraryStore: ObservableObject {
             }
             if !notes.isEmpty { loadWarning = notes.joined(separator: " ") }
         } catch {
+            loadIncomplete = true
             if let name = keepCopy(data, label: "illisible") {
                 loadWarning = "Le fichier des macros était illisible : une copie datée a été gardée dans Application Support › FL Shortcuts (\(name))."
             } else {
@@ -286,6 +292,7 @@ final class MacroLibraryStore: ObservableObject {
 
     /// Remplace toute la bibliothèque (sauvegarde du compte reprise, déconnexion : Store.replaceAll).
     func replaceAll(_ docs: [MacroDoc]) {
+        loadIncomplete = false
         macros = docs
         changed()
     }

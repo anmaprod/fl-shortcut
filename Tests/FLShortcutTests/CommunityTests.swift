@@ -2,14 +2,19 @@ import XCTest
 @testable import FLShortcut
 
 /// Faux serveur Supabase : renvoie les réponses prévues dans l'ordre et garde les requêtes reçues.
-private final class FakeServer: CommunityTransport {
-    var replies: [(Int, String)]
-    private(set) var requests: [URLRequest] = []
+private final class FakeServer: CommunityTransport, @unchecked Sendable {
+    private let lock = NSLock()
+    private var replies: [(Int, String)]
+    private var _requests: [URLRequest] = []
+    /// Requêtes reçues ; protégées : la vérification d'administrateur part en parallèle de la liste.
+    var requests: [URLRequest] { lock.lock(); defer { lock.unlock() }; return _requests }
 
     init(_ replies: [(Int, String)]) { self.replies = replies }
 
     func send(_ request: URLRequest) async throws -> (Data, Int) {
-        requests.append(request)
+        lock.lock()
+        defer { lock.unlock() }
+        _requests.append(request)
         guard !replies.isEmpty else { return (Data(), 500) }
         let (status, body) = replies.removeFirst()
         return (Data(body.utf8), status)
@@ -165,7 +170,7 @@ final class CommunityTests: XCTestCase {
         func msg(_ json: String, _ status: Int) -> String { CommunityClient.message(Data(json.utf8), status: status) }
         XCTAssertEqual(msg(#"{"error_description":"Invalid login credentials"}"#, 400), "Mail ou mot de passe incorrect.")
         XCTAssertEqual(msg(#"{"msg":"Email not confirmed"}"#, 400),
-                       "Confirme d'abord ton adresse mail (lien reçu par mail).")
+                       CommunityClient.unconfirmedMessage)
         XCTAssertEqual(msg(#"{"msg":"User already registered"}"#, 422), "Un compte existe déjà avec ce mail.")
         XCTAssertEqual(msg(#"{"code":422,"error_code":"weak_password","msg":"Password should contain at least one character of each"}"#, 422),
                        "Mot de passe trop faible : \(CommunityRules.passwordRule).")

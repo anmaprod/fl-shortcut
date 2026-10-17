@@ -64,12 +64,14 @@ enum BackupFailure: Error, LocalizedError, Equatable {
     case unreadable
     case newerVersion
     case cannotWrite
+    case copyFailed
 
     var errorDescription: String? {
         switch self {
         case .unreadable: return "La sauvegarde de ton compte est illisible : rien n'a été changé sur ce Mac."
         case .newerVersion: return "Ta sauvegarde vient d'une version plus récente de FL Shortcuts : mets l'app à jour."
         case .cannotWrite: return MacroLibraryStore.writesDisabledMessage
+        case .copyFailed: return "Impossible de garder une copie de ce Mac avant de reprendre ta sauvegarde : rien n'a été remplacé."
         }
     }
 }
@@ -206,6 +208,11 @@ final class AccountBackup: ObservableObject {
     /// « 12 raccourcis · 3 macros » : ce qui est sur ce Mac.
     var hereSummary: String { BackupContent.summary(remaps: store.remaps.count, macros: store.library.macros.count) }
 
+    /// Fichiers de ce Mac pas lus entièrement au lancement : jamais envoyés à la place de la sauvegarde du compte.
+    private var localUnreliable: Bool {
+        store.loadIncomplete || store.library.loadIncomplete || store.library.writesDisabled
+    }
+
     private func currentContent() throws -> BackupContent {
         try BackupContent.of(remaps: store.remaps, macros: store.library.macros)
     }
@@ -296,6 +303,12 @@ final class AccountBackup: ObservableObject {
             let session = try await community.validSession()
             let account = session.userID
             let synced = syncedRevision(for: account)
+            // Fichiers de ce Mac illisibles au lancement (leur copie datée est déjà gardée) : la sauvegarde du compte
+            // les remplace ; rien n'est envoyé à sa place.
+            if localUnreliable, let remote = try await client.backup(session: session) {
+                try restore(remote, account: account, keepCopy: false)
+                return .saved
+            }
             // Vérification rapide : le compte n'a pas bougé depuis ce Mac.
             if let synced, let quick = try await client.backupRevision(session: session), quick.revision == synced {
                 if dirty { return await save(base: synced, force: false) }
@@ -351,6 +364,10 @@ final class AccountBackup: ObservableObject {
     /// Envoi après un changement (quelques secondes après le dernier).
     private func push() async {
         guard dirty, let user = community.session?.userID, !syncing, conflict == nil else { return }
+        guard !localUnreliable else {                     // relu et décidé par sync
+            await sync()
+            return
+        }
         guard let synced = syncedRevision(for: user) else {
             await sync()
             return
@@ -366,8 +383,8 @@ final class AccountBackup: ObservableObject {
         let decoded = try remote.content.decoded()
         guard !store.library.writesDisabled else { throw BackupFailure.cannotWrite }
         if keepCopy {
-            store.keepCopy(label: "avant-compte")
-            store.library.keepCurrentCopy(label: "avant-compte")
+            guard store.keepCopy(label: "avant-compte") != nil,
+                  store.library.keepCurrentCopy(label: "avant-compte") != nil else { throw BackupFailure.copyFailed }
         }
         applying = true
         store.replaceAll(decoded.remaps, macros: decoded.macros)
@@ -383,6 +400,12 @@ final class AccountBackup: ObservableObject {
         }
         guard community.session != nil else {
             status = .off
+            return
+        }
+        // Refus définitif du serveur (trop grande, compte supprimé ailleurs…) : pas de nouvel essai sans fin.
+        if let e = error as? CommunityError, case .server(let code, let message) = e,
+           (400..<500).contains(code), ![401, 408, 429].contains(code) {
+            status = .blocked("Sauvegarde refusée par le serveur : \(message)")
             return
         }
         let why: String
@@ -420,7 +443,6 @@ final class AccountBackup: ObservableObject {
     /// Envoi tout de suite (bouton « Sauvegarder maintenant »).
     func saveNow() async {
         pushTask?.cancel()
-        if !dirty, let user = community.session?.userID, syncedRevision(for: user) != nil { dirty = true }
         await sync()
     }
 
@@ -433,6 +455,12 @@ final class AccountBackup: ObservableObject {
         }
         pushTask?.cancel()
         while syncing { try? await Task.sleep(nanoseconds: 50_000_000) }   // un envoi en cours se termine d'abord
+        // Session perdue (expirée, refusée) : sans elle rien ne peut partir ; ce Mac n'est vidé que si tout est déjà
+        // dans le compte, ou si l'utilisateur l'accepte.
+        if !evenIfNotSaved, community.session == nil,
+           dirty || defaults.string(forKey: Keys.account) == nil {
+            return .notSaved("Ta session a expiré : reconnecte-toi pour mettre en ligne tes derniers changements.")
+        }
         if !evenIfNotSaved, let user = community.session?.userID {
             if conflict == nil, dirty || syncedRevision(for: user) == nil { await sync() }
             if conflict != nil {

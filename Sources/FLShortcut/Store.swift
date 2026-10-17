@@ -48,6 +48,9 @@ final class Store: ObservableObject {
     }
     /// Après chaque changement des raccourcis ou des macros (sauvegarde en ligne du compte : AccountBackup).
     var onDataChange: (() -> Void)?
+    /// Le profil n'a pas pu être lu entièrement au lancement (Store.load) : jusqu'à son remplacement par la
+    /// sauvegarde du compte, il n'est jamais envoyé à la place de celle-ci.
+    private(set) var loadIncomplete = false
     @Published var enabled: Bool {
         didSet {
             defaults.set(enabled, forKey: "enabled")
@@ -113,6 +116,7 @@ final class Store: ObservableObject {
         enabled = defaults.object(forKey: "enabled") as? Bool ?? true
 
         let loaded = Store.load(storage: storage, layout: layout)
+        loadIncomplete = loaded.incomplete
         var initial = loaded.remaps
         var needsSave = loaded.needsSave
         // Une seule fois : ancien « Enregistrement rapide » jamais réglé (armement demandé, aucune position
@@ -168,6 +172,9 @@ final class Store: ObservableObject {
         var remaps: [Remap]
         var warning: String?
         var needsSave: Bool
+        /// Profil illisible, inaccessible ou en partie illisible : ce qui est chargé n'est pas ce que l'utilisateur
+        /// avait (la sauvegarde en ligne ne doit pas l'envoyer à la place de la bonne).
+        var incomplete = false
     }
 
     static func load(storage: ProfileStorage, layout: KeyboardLayout) -> LoadResult {
@@ -177,7 +184,7 @@ final class Store: ObservableObject {
         } catch {
             return LoadResult(remaps: ProfilePreset.recommended.remaps(layout: layout),
                               warning: "Profil inaccessible (\(error.localizedDescription)). Profil recommandé chargé.",
-                              needsSave: false)
+                              needsSave: false, incomplete: true)
         }
         // Nom distinct : `guard let data` dans la portée d'une constante locale `data` ne compile pas.
         guard let data = stored else {
@@ -199,12 +206,13 @@ final class Store: ObservableObject {
             let unknown = decoded.remaps.filter { $0.kind == .flAction && $0.actionID == nil }.count
             if unknown > 0 { notes.append("\(unknown) raccourci(s) avec une action inconnue, désactivé(s).") }
             return LoadResult(remaps: decoded.remaps, warning: notes.isEmpty ? nil : notes.joined(separator: " "),
-                              needsSave: needsSave)
+                              needsSave: needsSave, incomplete: decoded.dropped > 0)
         } catch {
             let name = try? storage.backup(data, label: "illisible")
             let where_ = name.map { " Une copie a été gardée (\($0))." } ?? ""
             return LoadResult(remaps: ProfilePreset.recommended.remaps(layout: layout),
-                              warning: "Profil illisible : profil recommandé chargé.\(where_)", needsSave: false)
+                              warning: "Profil illisible : profil recommandé chargé.\(where_)", needsSave: false,
+                              incomplete: true)
         }
     }
 
@@ -325,6 +333,7 @@ final class Store: ObservableObject {
     /// pas d'« Annuler » vers l'état d'avant.
     func replaceAll(_ new: [Remap], macros: [MacroDoc]) {
         undoSnapshot = nil
+        loadIncomplete = false
         library.replaceAll(macros)
         remaps = new
         saveNow()

@@ -100,10 +100,10 @@ final class CommunityStore: ObservableObject {
         guard let saved = keychain.load() else { return }
         do {
             set(try await client.refresh(saved))
-        } catch CommunityError.network(_) {
-            session = saved
+        } catch let error as CommunityError where Self.sessionRefused(error) {
+            set(nil)                                      // jeton refusé : reconnexion demandée
         } catch {
-            set(nil)
+            session = saved                               // hors ligne, serveur en panne : gardée, réessayée plus tard
         }
     }
 
@@ -115,13 +115,19 @@ final class CommunityStore: ObservableObject {
             do {
                 current = try await client.refresh(current)
                 set(current)
-            } catch let error as CommunityError {
-                if case .network = error { throw error }
+            } catch let error as CommunityError where Self.sessionRefused(error) {
                 set(nil)
                 throw CommunityError.invalid("Session expirée : reconnecte-toi.")
             }
         }
         return current
+    }
+
+    /// Le serveur refuse le jeton de rafraîchissement (expiré, révoqué) : seul cas où la session est oubliée ; une
+    /// panne (5xx), une limite (429) ou une réponse illisible la gardent.
+    static func sessionRefused(_ error: CommunityError) -> Bool {
+        if case .server(let code, _) = error { return [400, 401, 403].contains(code) }
+        return false
     }
 
     /// Oublie la session sans rien demander au serveur (compte supprimé).
