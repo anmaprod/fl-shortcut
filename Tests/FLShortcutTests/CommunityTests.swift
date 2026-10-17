@@ -262,6 +262,20 @@ final class CommunityTests: XCTestCase {
 
         func msg(_ json: String) -> String { CommunityClient.message(Data(json.utf8), status: 403) }
         XCTAssertTrue(msg(#"{"error_code":"otp_expired","msg":"Token has expired or is invalid"}"#).hasPrefix("Code incorrect ou expiré"))
+
+        // Mail avec un lien au lieu d'un code : retour à la connexion, rien d'envoyé.
+        let keychain3 = CommunitySessionKeychain(service: "app.flshortcut.tests.\(UUID().uuidString)")
+        defer { keychain3.delete() }
+        let linked = FakeServer([(200, "true"), (200, #"{"id":"\#(userID.uuidString)","email":"malo@example.com"}"#)])
+        let byLink = CommunityStore(config: config, keychain: keychain3, transport: linked)
+        byLink.creatingAccount = true
+        await byLink.signUp(email: "malo@example.com", password: "MotDePasse1!", username: "malo")
+        XCTAssertNotNil(byLink.pendingCode)
+        byLink.confirmedByLink()
+        XCTAssertNil(byLink.pendingCode)
+        XCTAssertFalse(byLink.creatingAccount)
+        XCTAssertEqual(byLink.notice, CommunityStore.confirmedByLinkNotice)
+        XCTAssertEqual(linked.requests.count, 2)
     }
 
     func testByline() {

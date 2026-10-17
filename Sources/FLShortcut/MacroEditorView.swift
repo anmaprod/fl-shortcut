@@ -78,10 +78,11 @@ struct MacroCreatorView: View {
     @Environment(\.undoManager) private var undoManager
     @AppStorage(Appearance.glassKey) private var glassEnabled = true
     @State private var paletteItems: [PaletteItem] = []
+    @State private var blockQuery = ""
 
     var body: some View {
         NavigationSplitView {
-            MacroPaletteView(items: paletteItems, insert: { [model] item in
+            MacroPaletteView(items: PaletteCatalog.search(paletteItems, blockQuery), insert: { [model] item in
                 withAnimation(MacroStepsPane.spring) { model.insert(item) }
             })
                 .navigationSplitViewColumnWidth(min: 190, ideal: 230, max: 300)
@@ -101,6 +102,9 @@ struct MacroCreatorView: View {
         }
         // Titre de la fenêtre (menu Fenêtre, VoiceOver) ; pas dans la barre d'outils : le nom est déjà au centre.
         .navigationTitle(model.draft?.name ?? "Créateur de macros")
+        // Recherche en haut de la palette, comme dans la fenêtre des raccourcis : elle pose aussi la liste sous les
+        // boutons fermer / réduire / agrandir (sans elle, « Clavier » et la première ligne passaient dessous).
+        .searchable(text: $blockQuery, placement: .sidebar, prompt: "Rechercher un bloc")
         .toolbarTitleHidden()
         .toolbar { toolbarContent }
         .windowGlass(glassEnabled)

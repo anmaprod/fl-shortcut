@@ -44,7 +44,8 @@ final class MacroLibraryTests: XCTestCase {
     func testStoreSavesAfterAChangeAndKeepsThePreviousFileOnce() throws {
         let storage = MemoryMacroLibraryStorage(data: try MacroLibraryCodec.encode([sample()]))
         let original = storage.data
-        let store = MacroLibraryStore(storage: storage, saveDelay: 0)
+        // Délai long : seul saveNow écrit (avec 0, l'écriture différée pouvait passer avant et compter double).
+        let store = MacroLibraryStore(storage: storage, saveDelay: 60)
         XCTAssertEqual(store.macros.count, 1)
         XCTAssertNil(store.loadWarning)
         store.add(sample("Nouvelle"))

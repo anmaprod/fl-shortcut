@@ -227,6 +227,16 @@ final class CommunityStore: ObservableObject {
         notice = nil
     }
 
+    /// Le mail d'inscription contenait un lien au lieu d'un code (modèles de Supabase pas encore changés) : cliquer
+    /// dessus confirme l'adresse, même si la page qui s'ouvre ensuite ne s'affiche pas. Retour à la connexion.
+    func confirmedByLink() {
+        cancelCode()
+        creatingAccount = false
+        notice = Self.confirmedByLinkNotice
+    }
+
+    static let confirmedByLinkNotice = "Si tu as cliqué sur le lien du mail, ton adresse est confirmée : connecte-toi avec ton mot de passe."
+
     func signOut() async {
         guard !demo else {
             session = nil

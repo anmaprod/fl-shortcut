@@ -685,9 +685,20 @@ struct CommunitySignIn: View {
         } header: {
             Text(recovery ? "Mot de passe oublié" : "Confirme ton adresse")
         } footer: {
-            Text("Pas de mail ? Regarde dans les courriers indésirables, ou renvoie le code.")
-                .font(.system(size: 11))
-                .foregroundStyle(.secondary)
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Pas de mail ? Regarde dans les courriers indésirables, ou renvoie le code.")
+                if !recovery {
+                    // Mail avec un lien au lieu d'un code : le lien confirme l'adresse (la page affichée après peut
+                    // ne pas s'ouvrir), il ne reste qu'à se connecter.
+                    Button("Reçu un lien au lieu d'un code ? Clique dessus, puis ici") {
+                        email = pending.email
+                        community.confirmedByLink()
+                    }
+                    .buttonStyle(.link)
+                }
+            }
+            .font(.system(size: 11))
+            .foregroundStyle(.secondary)
         }
     }
 

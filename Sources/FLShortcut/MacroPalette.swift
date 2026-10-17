@@ -32,6 +32,10 @@ struct MacroPaletteView: View {
             ForEach(BlockCategory.allCases, id: \.self) { category in
                 section(category)
             }
+            if items.isEmpty {
+                Text("Aucun bloc ne correspond.")
+                    .foregroundStyle(.secondary)
+            }
         }
         .listStyle(.sidebar)
     }
