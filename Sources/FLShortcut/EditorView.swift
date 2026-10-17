@@ -45,9 +45,10 @@ enum SidebarItem: Hashable {
         case .section(let s): return s.tint
         case .custom: return .pink
         case .macros: return .purple
-        case .community: return .cyan
-        case .help: return .teal
-        case .account: return .indigo
+        // Communauté : une couleur à elle (ambre, prise par aucune autre rubrique) ; Mon compte et Aide, groupés,
+        // partagent la leur.
+        case .community: return Color(red: 0.96, green: 0.68, blue: 0.0)
+        case .help, .account: return .teal
         }
     }
 }
@@ -342,10 +343,13 @@ struct EditorView: View {
             } header: {
                 Text("FL Studio")
             }
-            // Macros d'abord, puis tes raccourcis, chacun dans son groupe.
+            // Chaque groupe a son titre gris, comme « FL Studio » : macros, tes raccourcis, la Communauté, puis
+            // ton compte et l'aide ensemble.
             Section {
                 MacroSidebarRow(library: store.library)
                     .tag(SidebarItem.macros)
+            } header: {
+                Text("Automatiser")
             }
             Section {
                 Label {
@@ -355,6 +359,19 @@ struct EditorView: View {
                 }
                 .badge(data.others.count)
                 .tag(SidebarItem.custom)
+            } header: {
+                Text("Personnalisé")
+            }
+            Section {
+                Label {
+                    Text("Communauté")
+                } icon: {
+                    SectionIcon(symbol: SidebarItem.community.symbol, tint: SidebarItem.community.tint)
+                }
+                .help(CommunityText.subtitle)
+                .tag(SidebarItem.community)
+            } header: {
+                Text("Partager")
             }
             Section {
                 Label {
@@ -366,19 +383,14 @@ struct EditorView: View {
                 .help(AccountText.subtitle)
                 .tag(SidebarItem.account)
                 Label {
-                    Text("Communauté")
-                } icon: {
-                    SectionIcon(symbol: SidebarItem.community.symbol, tint: SidebarItem.community.tint)
-                }
-                .help(CommunityText.subtitle)
-                .tag(SidebarItem.community)
-                Label {
                     Text("Aide")
                 } icon: {
                     SectionIcon(symbol: SidebarItem.help.symbol, tint: SidebarItem.help.tint)
                 }
                 .help("Questions fréquentes, et écrire à l'équipe")
                 .tag(SidebarItem.help)
+            } header: {
+                Text("Compte et aide")
             }
         }
     }
