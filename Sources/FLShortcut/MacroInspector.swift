@@ -586,7 +586,7 @@ private struct BlockInspector: View {
                 + "moment-là, dans cette fenêtre."
         case .named(let spot):
             text = "Bouton retrouvé par son nom « \(spot.label.displaySafe(max: 30)) » dans la fenêtre de FL, même s'il a "
-                + "bougé. L'écran n'est lu qu'à ce moment-là, dans cette fenêtre ; sans l'autorisation, à sa place.
+                + "bougé. L'écran n'est lu qu'à ce moment-là, dans cette fenêtre ; sans l'autorisation, à sa place."
         case .cursorXWindowY:
             text = "Ancienne position apprise (colonne du curseur)."
         default:
