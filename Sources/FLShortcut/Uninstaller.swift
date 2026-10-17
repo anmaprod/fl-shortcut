@@ -72,6 +72,22 @@ enum Uninstaller {
         names.map { home.appendingPathComponent("Documents/\($0)") }
     }
 
+    /// Ce que l'app y range : « Macros » et « Raccourcis » ; le reste du dossier n'est jamais touché.
+    static func exportSubfolders(_ folder: URL) -> [URL] {
+        ["Macros", "Raccourcis"].map { folder.appendingPathComponent($0, isDirectory: true) }
+    }
+
+    /// Des fichiers exportés existent (macros ou raccourcis).
+    static func hasExports(home: URL) -> Bool {
+        exportFolders(home: home).flatMap(exportSubfolders).contains { sub in
+            ((try? FileManager.default.contentsOfDirectory(atPath: sub.path)) ?? []).contains { !$0.hasPrefix(".") }
+        }
+    }
+
+    /// Désinstallation faite : toute fermeture de l'app passe par quitAfterUninstall (AppDelegate), jamais par la
+    /// fermeture normale qui réécrirait profil, macros et réglages.
+    static var didUninstall = false
+
     /// Dossiers du script dans FL Studio (le chemin enregistré, et l'emplacement par défaut sous les deux noms).
     static func scriptFolders(home: URL, recorded: String?) -> [URL] {
         var folders = recorded.map { [URL(fileURLWithPath: $0).deletingLastPathComponent()] } ?? []
@@ -111,6 +127,7 @@ enum Uninstaller {
 
     /// Réglages et fichiers de l'app réécrits après la suppression (fenêtres, réglages) : effacés une dernière fois.
     private static func sweepAgain(home: URL) {
+        CommunitySessionKeychain().delete()
         UserDefaults.standard.removePersistentDomain(forName: bundleID)
         CFPreferencesAppSynchronize(bundleID as CFString)
         for trace in dataTraces(home: home) where trace.url.pathExtension != "keychain-db" && exists(trace.url) {
@@ -128,11 +145,17 @@ enum Uninstaller {
         var isEmpty: Bool { apps.isEmpty && !receipt }
     }
 
+    /// Une de nos apps (ou un ancien désinstalleur) : un paquet .app avec notre identifiant, jamais autre chose.
+    static func isOurApp(_ url: URL) -> Bool {
+        url.pathExtension == "app" && [bundleID, uninstallerID].contains(Bundle(url: url)?.bundleIdentifier ?? "")
+    }
+
     static func privilegedWork(home: URL = FileManager.default.homeDirectoryForCurrentUser) -> PrivilegedWork {
         var seen = Set<String>()
         let apps = ([Bundle.main.bundleURL] + appLocations(home: home)).map(\.standardizedFileURL)
             .filter { seen.insert($0.path).inserted }
             .filter { $0.path.hasPrefix("/Applications/") && appNames.contains($0.lastPathComponent) && exists($0) }
+            .filter(isOurApp)
             .filter { SecureFile.permissions(at: $0.path)?.owner != getuid() }
         return PrivilegedWork(apps: apps, receipt: FileManager.default.fileExists(atPath: "/var/db/receipts/\(pkgID).bom"))
     }
@@ -166,7 +189,9 @@ enum Uninstaller {
         var error: NSDictionary?
         _ = NSAppleScript(source: source)?.executeAndReturnError(&error)
         guard let error else { return .done }
-        if (error[NSAppleScript.errorNumber] as? Int) == -128 { return .cancelled }
+        // Erreurs négatives : l'autorisation n'a pas été donnée (-128 Annuler, -60005 mot de passe faux…) : rien
+        // n'est supprimé. Positives : la commande a tourné mais a échoué (le bilan dit ce qui reste).
+        if let n = error[NSAppleScript.errorNumber] as? Int, n < 0 { return .cancelled }
         return .failed(error[NSAppleScript.errorMessage] as? String ?? "erreur inconnue")
     }
 
@@ -207,6 +232,7 @@ enum Uninstaller {
         let session = CommunitySessionKeychain()
         if session.load() != nil { note("la session de ton compte dans le Trousseau") }
         session.delete()
+        if interactive { MainActor.assumeIsolated { CommunityStore.shared.forgetSession() } }
 
         // 4. Réglages (vidés dans cfprefsd avant d'effacer le fichier), données, caches, journal.
         for id in [bundleID, uninstallerID] {
@@ -227,10 +253,11 @@ enum Uninstaller {
         // 5. Macros exportées : à la Corbeille si demandé ; un dossier vide est retiré de toute façon.
         for folder in exportFolders(home: home) where exists(folder) {
             if removeExports {
-                if (try? fm.trashItem(at: folder, resultingItemURL: nil)) != nil { note("tes fichiers exportés (Corbeille)") }
-            } else if isEmptyFolder(folder) {
-                try? fm.removeItem(at: folder)
+                for sub in exportSubfolders(folder) where exists(sub) {
+                    if (try? fm.trashItem(at: sub, resultingItemURL: nil)) != nil { note("tes fichiers exportés (Corbeille)") }
+                }
             }
+            if isEmptyFolder(folder) { try? fm.removeItem(at: folder) }
         }
 
         // 6. Autorisations : toutes celles de l'app et des anciens désinstalleurs (clavier, écran, son…).
@@ -247,7 +274,8 @@ enum Uninstaller {
         }
         apps += appLocations(home: home)
         var seen = Set<String>()
-        apps = apps.map(\.standardizedFileURL).filter { seen.insert($0.path).inserted && !$0.path.hasPrefix("/Volumes/") }
+        apps = apps.map(\.standardizedFileURL)
+            .filter { seen.insert($0.path).inserted && !$0.path.hasPrefix("/Volumes/") && exists($0) && isOurApp($0) }
         var privileged: [URL] = []
         for url in apps where exists(url) {
             if (try? fm.trashItem(at: url, resultingItemURL: nil)) != nil {
@@ -271,8 +299,10 @@ enum Uninstaller {
         remaining += scripts.filter { exists($0) && FLScriptInstaller.isOurScriptFolder($0) }
             .map { Trace(url: $0, label: "le script FL Shortcuts dans FL Studio") }
         if removeExports {
-            remaining += exportFolders(home: home).filter(exists).map { Trace(url: $0, label: "tes fichiers exportés") }
+            remaining += exportFolders(home: home).flatMap(exportSubfolders).filter(exists)
+                .map { Trace(url: $0, label: "tes fichiers exportés") }
         }
+        if interactive { didUninstall = true }
         return Report(removed: removed, remaining: remaining)
     }
 

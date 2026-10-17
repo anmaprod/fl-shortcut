@@ -153,11 +153,7 @@ final class UninstallWindow: NSObject, NSWindowDelegate {
             NSApp.activate(ignoringOtherApps: true)
             return
         }
-        let home = FileManager.default.homeDirectoryForCurrentUser
-        let hasExports = Uninstaller.exportFolders(home: home).contains { url in
-            ((try? FileManager.default.contentsOfDirectory(atPath: url.appendingPathComponent("Macros").path)) ?? [])
-                .contains { !$0.hasPrefix(".") }
-        }
+        let hasExports = Uninstaller.hasExports(home: FileManager.default.homeDirectoryForCurrentUser)
         let risk: UninstallFlow.Risk = demo == "compte" ? .saved : demo != nil ? .notSignedIn : UninstallFlow.currentRisk()
         let flow = UninstallFlow(risk: risk, hasExports: hasExports, demo: demo != nil)
         if let demo { flow.showDemo(demo) }
@@ -229,7 +225,7 @@ struct UninstallView: View {
                 .fixedSize(horizontal: false, vertical: true)
             risk
             if flow.hasExports {
-                Toggle("Supprimer aussi mes macros exportées", isOn: $flow.removeExports)
+                Toggle("Supprimer aussi mes fichiers exportés", isOn: $flow.removeExports)
                     .toggleStyle(.checkbox)
                     .font(.system(size: 11))
             }

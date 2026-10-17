@@ -104,6 +104,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
+    /// Après la désinstallation, quitter (⌘Q, fermeture de session…) ne doit rien réécrire : sortie directe.
+    func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+        if Uninstaller.didUninstall { Uninstaller.quitAfterUninstall() }
+        return .terminateNow
+    }
+
     func applicationWillTerminate(_ notification: Notification) {
         Store.shared.saveNow()
         Store.shared.library.saveNow()
