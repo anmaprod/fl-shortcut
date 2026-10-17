@@ -206,9 +206,9 @@ run() {   # $1 : libellé, $2 : YES/NO effet verre
   report "$label-createur-glisse" >/dev/null
   screencapture -x "$OUT/$label-createur-glisse.png" 2>/dev/null || true
   drop="$(rows "$label-createur-ouvert") → $(rows "$label-createur-glisse")"
-  # Puis un bloc de la liste déplacé à la souris : « Clic droit » (2e ligne) lâché entre les lignes 6 et 7 ;
-  # l'ordre des blocs doit changer.
-  drag "$label-createur-ouvert" 458 259 458 438; sleep 2
+  # Puis un bloc de la liste déplacé à la souris : « Clic droit » (2e ligne, sur son nom, sous le bandeau
+  # « Enregistrer clics et touches ») lâché entre les lignes 6 et 7 ; l'ordre des blocs doit changer.
+  drag "$label-createur-ouvert" 380 331 380 508; sleep 2
   report "$label-createur-deplace" >/dev/null
   screencapture -x "$OUT/$label-createur-deplace.png" 2>/dev/null || true
   if [[ -z "$(order "$label-createur-glisse")" ]]; then moved="?"
