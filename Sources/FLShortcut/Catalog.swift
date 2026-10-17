@@ -427,6 +427,18 @@ struct CatalogRow: Identifiable {
     var takenBy: String? = nil
 }
 
+/// Recherche avec un raccourci appuyé : ce qui se lance sur ces touches (touche actuelle), ou les portait dans FL
+/// (touche d'origine, même si elle a été changée depuis).
+enum KeySearch {
+    static func matches(_ row: CatalogRow, _ combo: KeyCombo) -> Bool {
+        row.current == combo || row.entry.defaultTrigger == combo
+    }
+
+    static func matches(_ remap: Remap, _ combo: KeyCombo) -> Bool {
+        remap.trigger == combo
+    }
+}
+
 /// Ce qui utilise déjà une touche : un de tes raccourcis, ou une touche d'origine de FL.
 struct KeyClash: Identifiable {
     let row: CatalogRow?          // entrée du catalogue (nil : raccourci personnalisé hors catalogue)

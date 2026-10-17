@@ -151,6 +151,10 @@ struct EditorView: View {
     @ObservedObject private var accountLink = AccountLink.shared
     @State private var showGuide = false
     @State private var guidePage = 0
+    /// Recherche avec un raccourci : la touche appuyée (la recherche affiche son nom, « ⌥⇧A »).
+    @State private var keySearch: KeyCombo?
+    @ObservedObject private var recorder = Recorder.shared
+    private static let keySearchID = "recherche-raccourci"
 
     /// Entre dans le créateur sur cette macro (la fenêtre reste la même ; la flèche ← y ramène).
     private func openCreator(_ id: UUID?) {
@@ -288,6 +292,8 @@ struct EditorView: View {
         return withToolbar(NavigationSplitView {
             sidebar(data)
                 .navigationSplitViewColumnWidth(min: 220, ideal: 245, max: 300)
+                // À côté de la recherche : chercher avec le raccourci qu'on connaît plutôt que son nom.
+                .toolbar { ToolbarItem { keySearchButton } }
         } detail: {
             detail(data)
         })
@@ -299,6 +305,10 @@ struct EditorView: View {
         // Recherche en haut de la barre latérale (comme Réglages Système) : à droite, la barre d'outils ne porte que
         // les boutons de la page, et les flèches de la page Macros tombent au même endroit que dans le créateur.
         .searchable(text: $query, placement: .sidebar, prompt: "Rechercher")
+        // Le texte de la recherche n'est plus le nom du raccourci appuyé : recherche ordinaire.
+        .onChange(of: query) { newValue in
+            if let combo = keySearch, newValue.trimmingCharacters(in: .whitespaces) != combo.display { keySearch = nil }
+        }
         // Un clic dans le vide de la barre latérale ne laisse jamais la fenêtre sans section.
         .onChange(of: selection) { newValue in
             if newValue == nil { selection = .section(.general) }
@@ -517,21 +527,30 @@ struct EditorView: View {
         .id(section)                                     // nouvelle section : la liste repart du haut
     }
 
-    /// Recherche : toutes les sections, regroupées par section.
+    /// Recherche : toutes les sections, regroupées par section. Avec un raccourci appuyé (bouton clavier) : ce qui se
+    /// lance sur ces touches, ou les portait dans FL.
     private func searchResults(_ data: CatalogData) -> some View {
         let q = trimmedQuery
+        let combo = keySearch.flatMap { $0.display == q ? $0 : nil }
         let rows = data.rows.filter { row in
-            [row.entry.title, row.entry.detail, row.current?.display ?? "", row.entry.section.title]
+            if let combo { return KeySearch.matches(row, combo) }
+            return [row.entry.title, row.entry.detail, row.current?.display ?? "", row.entry.section.title]
                 .joined(separator: " ").localizedCaseInsensitiveContains(q)
         }
         let others = data.others.filter { r in
-            [r.title, r.subtitle, r.trigger?.display ?? ""].joined(separator: " ").localizedCaseInsensitiveContains(q)
+            if let combo { return KeySearch.matches(r, combo) }
+            return [r.title, r.subtitle, r.trigger?.display ?? ""].joined(separator: " ").localizedCaseInsensitiveContains(q)
         }
         let sections = FLSection.allCases.filter { s in rows.contains { $0.entry.section == s } }
         return Group {
             if rows.isEmpty && others.isEmpty {
-                EmptyState(symbol: "magnifyingglass", title: "Aucun résultat",
-                           text: "Aucun raccourci ne correspond à « \(q) ».")
+                if let combo {
+                    EmptyState(symbol: "keyboard", title: "Aucun raccourci",
+                               text: "Rien n'utilise \(combo.display) : ces touches sont libres.")
+                } else {
+                    EmptyState(symbol: "magnifyingglass", title: "Aucun résultat",
+                               text: "Aucun raccourci ne correspond à « \(q) ».")
+                }
             } else {
                 PageContainer {
                     ForEach(sections) { s in
@@ -612,6 +631,11 @@ struct EditorView: View {
 
     private var notices: [NoticeItem] {
         var out: [NoticeItem] = []
+        if recorder.activeID == Self.keySearchID {
+            out.append(NoticeItem(id: "keysearch", symbol: "keyboard", tint: .accentColor,
+                                  text: "Appuie sur le raccourci que tu connais : la recherche montre ce qu'il fait.",
+                                  button: "Annuler", action: { Recorder.shared.stop() }))
+        }
         if !status.accessibilityOK {
             out.append(NoticeItem(id: "ax", symbol: "exclamationmark.triangle.fill", tint: .orange,
                                   text: "FL Shortcuts n'a pas accès au clavier : tes raccourcis sont inactifs.",
@@ -686,6 +710,30 @@ struct EditorView: View {
         #else
         v.toolbar { toolbarContent }
         #endif
+    }
+
+    /// Bouton clavier à côté de la recherche : appuie sur un raccourci, la recherche montre ce qu'il fait (pour qui
+    /// connaît ses touches mais pas le nom du raccourci). Échap annule.
+    private var keySearchButton: some View {
+        let listening = recorder.activeID == Self.keySearchID
+        return Button {
+            if listening { recorder.stop() } else { startKeySearch() }
+        } label: {
+            Label("Rechercher avec un raccourci", systemImage: listening ? "keyboard.fill" : "keyboard")
+        }
+        .help("Rechercher avec un raccourci : appuie sur les touches que tu connais")
+        .accessibilityValue(listening ? "En attente des touches" : "")
+    }
+
+    private func startKeySearch() {
+        recorder.start(Self.keySearchID) { event in
+            let combo = KeyCombo(keyCode: event.keyCode,
+                                 modifiers: event.modifierFlags.intersection(.deviceIndependentFlagsMask))
+            if !combo.hasModifiers && event.keyCode == 53 { return }          // Échap : annuler
+            guard combo.isValidKey else { return }
+            keySearch = combo
+            query = combo.display
+        }
     }
 
     /// → : rentrer dans la dernière macro quittée (comme Avancer dans le Finder) ; ← grisée ici.

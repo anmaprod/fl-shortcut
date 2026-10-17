@@ -49,6 +49,19 @@ final class CatalogTests: XCTestCase {
         XCTAssertNil(back.remap)
     }
 
+    func testSearchWithAShortcutFindsWhatItDoesNowAndInFL() throws {
+        let store = makeStore()
+        let row = try XCTUnwrap(store.catalogRows().rows.first { $0.entry.id == "fl.pianoRoll.p" })
+        let original = try XCTUnwrap(row.entry.defaultTrigger)
+        XCTAssertTrue(KeySearch.matches(row, original))
+        let custom = KeyCombo(keyCode: 35, control: true)          // ⌃P
+        store.setTrigger(custom, for: row)
+        let changed = try XCTUnwrap(store.catalogRows().rows.first { $0.entry.id == "fl.pianoRoll.p" })
+        XCTAssertTrue(KeySearch.matches(changed, custom), "sa touche actuelle")
+        XCTAssertTrue(KeySearch.matches(changed, original), "celle qu'on connaît de FL")
+        XCTAssertFalse(KeySearch.matches(changed, KeyCombo(keyCode: 35, command: true, control: true)))
+    }
+
     func testChangingAndResettingAnAction() throws {
         let store = makeStore()
         let row = try XCTUnwrap(store.catalogRows().rows.first { $0.entry.id == "action.mx" })
