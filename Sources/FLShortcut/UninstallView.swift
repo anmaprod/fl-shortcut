@@ -82,7 +82,7 @@ final class UninstallFlow: ObservableObject {
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
                 switch Uninstaller.runPrivileged(work) {
                 case .cancelled: self.back("Rien n'a été supprimé.")
-                case .done, .failed: self.finish(privilegedDone: true)   // ce qui a résisté est dans le bilan
+                case .done, .failed: self.finish()   // ce qui a résisté est dans le bilan
                 }
             }
             return
@@ -90,13 +90,13 @@ final class UninstallFlow: ObservableObject {
         let context = LAContext()
         var error: NSError?
         guard context.canEvaluatePolicy(.deviceOwnerAuthentication, error: &error) else {
-            finish(privilegedDone: true)                                // Mac sans mot de passe : rien à demander
+            finish()                                // Mac sans mot de passe : rien à demander
             return
         }
         context.evaluatePolicy(.deviceOwnerAuthentication,
                                localizedReason: "désinstaller l'app et tout ce qu'elle a créé sur ce Mac") { ok, _ in
             DispatchQueue.main.async {
-                if ok { self.finish(privilegedDone: true) } else { self.back("Rien n'a été supprimé.") }
+                if ok { self.finish() } else { self.back("Rien n'a été supprimé.") }
             }
         }
     }
@@ -106,11 +106,10 @@ final class UninstallFlow: ObservableObject {
         step = .confirm
     }
 
-    private func finish(privilegedDone: Bool) {
+    private func finish() {
         step = .working
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
-            let report = Uninstaller.removeEverything(interactive: true, removeExports: self.removeExports,
-                                                      privilegedDone: privilegedDone)
+            let report = Uninstaller.removeEverything(interactive: true, removeExports: self.removeExports)
             self.step = .done(report)
         }
     }

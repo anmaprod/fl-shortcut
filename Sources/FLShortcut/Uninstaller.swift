@@ -107,8 +107,12 @@ enum Uninstaller {
     static func runCheckIfRequested() {
         guard CommandLine.arguments.contains("--essai-desinstallation"),
               ProcessInfo.processInfo.environment["FLS_ESSAI_DESINSTALLATION"] == "1" else { return }
-        let report = removeEverything(interactive: false, removeExports: true,
-                                      sudo: ProcessInfo.processInfo.environment["FLS_ESSAI_SUDO"] == "1")
+        // Même ordre que la fenêtre : ce qui appartient au système d'abord, puis tout le reste.
+        if ProcessInfo.processInfo.environment["FLS_ESSAI_SUDO"] == "1",
+           case .failed(let why) = runPrivileged(privilegedWork(), sudo: true) {
+            print("droits d'administrateur : \(why)")
+        }
+        let report = removeEverything(interactive: false, removeExports: true)
         for line in report.removed { print("supprimé : \(line)") }
         for trace in report.remaining { print("RESTE : \(trace.url.path) (\(trace.label))") }
         print(report.remaining.isEmpty ? "PASS: plus aucune trace" : "FAIL: \(report.remaining.count) trace(s)")
@@ -199,12 +203,10 @@ enum Uninstaller {
     // MARK: Suppression
 
     /// Supprime tout ce que FL Shortcuts a pu créer, puis revérifie chaque chemin.
-    /// `interactive` : l'app tourne (tap et MIDI arrêtés, écritures en attente faites). `privilegedDone` : ce qui
-    /// appartient au système a déjà été retiré (fenêtre de désinstallation, après Touch ID) ; sinon `sudo -n` s'il
-    /// est permis (essai de la CI), ou rien (ce qui reste est dit dans le bilan).
+    /// `interactive` : l'app tourne (tap et MIDI arrêtés, écritures en attente faites). Ce qui appartient au système
+    /// est retiré avant (`runPrivileged`) ; s'il est encore là, le bilan le dit.
     @discardableResult
-    static func removeEverything(interactive: Bool = true, removeExports: Bool = false, sudo: Bool = false,
-                                 privilegedDone: Bool = false) -> Report {
+    static func removeEverything(interactive: Bool = true, removeExports: Bool = false) -> Report {
         var removed: [String] = []
         func note(_ label: String) { if !removed.contains(label) { removed.append(label) } }
         let fm = FileManager.default
@@ -266,9 +268,10 @@ enum Uninstaller {
             if run("/usr/bin/tccutil", ["reset", "All", id]), id == bundleID { note("les autorisations (clavier, écran, son)") }
         }
 
-        // 7. Les apps, à la Corbeille (récupérables tant que la Corbeille n'est pas vidée). Installées par le .pkg,
-        // elles appartiennent au système : mot de passe une fois. macOS peut aussi les protéger (« Gestion des
-        // apps ») : elles restent alors, et le bilan le dit.
+        // 7. Les apps de ce compte, à la Corbeille (récupérables tant que la Corbeille n'est pas vidée). Celles du
+        // système (installées par le .pkg) et le reçu sont retirés avant, avec Touch ID ou le mot de passe
+        // (`runPrivileged`) ; jamais déplacées d'ici, ce qui pourrait ouvrir une autre fenêtre de macOS. macOS peut
+        // aussi les protéger (« Gestion des apps ») : elles restent alors, et le bilan le dit.
         var apps: [URL] = [Bundle.main.bundleURL]
         for id in [bundleID, uninstallerID] {
             if let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: id) { apps.append(url) }
@@ -277,20 +280,9 @@ enum Uninstaller {
         var seen = Set<String>()
         apps = apps.map(\.standardizedFileURL)
             .filter { seen.insert($0.path).inserted && !$0.path.hasPrefix("/Volumes/") && exists($0) && isOurApp($0) }
-        var privileged: [URL] = []
-        for url in apps where exists(url) {
-            if (try? fm.trashItem(at: url, resultingItemURL: nil)) != nil {
-                note(label(for: url, home: home))
-            } else if url.path.hasPrefix("/Applications/"), appNames.contains(url.lastPathComponent) {
-                privileged.append(url)                   // seulement nos apps de /Applications, jamais un autre chemin
-            }
+        for url in apps where SecureFile.permissions(at: url.path)?.owner == getuid() {
+            if (try? fm.trashItem(at: url, resultingItemURL: nil)) != nil { note(label(for: url, home: home)) }
         }
-        let receipt = fm.fileExists(atPath: "/var/db/receipts/\(pkgID).bom")
-        if !privilegedDone, sudo, !privileged.isEmpty || receipt {
-            _ = runPrivileged(PrivilegedWork(apps: privileged, receipt: receipt), sudo: true)
-        }
-        for url in privileged where !exists(url) { note(label(for: url, home: home)) }
-        if receipt, !fm.fileExists(atPath: "/var/db/receipts/\(pkgID).bom") { note("le reçu d'installation du .pkg") }
 
         // 8. Vérification : ce qui est encore là, chemin par chemin.
         var remaining: [Trace] = []
