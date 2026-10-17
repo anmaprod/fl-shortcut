@@ -572,6 +572,10 @@ private struct CommunityShareDetail: View {
     }
 
     private func add() {
+        guard !community.demo else {                      // mode capture : rien n'est ajouté
+            dismiss()
+            return
+        }
         switch content {
         case .macro(let preview):
             var doc = preview.doc

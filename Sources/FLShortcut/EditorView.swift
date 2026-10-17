@@ -722,8 +722,10 @@ struct EditorView: View {
     private var profileMenu: some View {
         Menu {
             Button { GuideLink.shared.show() } label: { Label("Guide de FL Shortcuts", systemImage: "book") }
-            Button { selection = .help } label: { Label("Aide et contact", systemImage: "questionmark.circle") }
-            Button { selection = .account } label: { Label("Mon compte et sauvegarde", systemImage: "person.crop.circle") }
+            Button { query = ""; selection = .help } label: { Label("Aide et contact", systemImage: "questionmark.circle") }
+            Button { query = ""; selection = .account } label: {
+                Label("Mon compte et sauvegarde", systemImage: "person.crop.circle")
+            }
             Divider()
             Menu {
                 ForEach(ProfilePreset.allCases) { preset in

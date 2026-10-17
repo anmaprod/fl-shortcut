@@ -200,9 +200,13 @@ struct CommunityClient {
 
     func signIn(email: String, password: String) async throws -> CommunitySession {
         if let why = CommunityRules.emailProblem(email) { throw CommunityError.invalid(why) }
-        let data = try await call("POST", "auth/v1/token", query: [URLQueryItem(name: "grant_type", value: "password")],
-                                  body: ["email": email, "password": password])
-        return try decodeSession(data)
+        do {
+            let data = try await call("POST", "auth/v1/token", query: [URLQueryItem(name: "grant_type", value: "password")],
+                                      body: ["email": email, "password": password])
+            return try decodeSession(data)
+        } catch CommunityError.server(_, let message) where message == Self.unconfirmedMessage {
+            throw CommunityError.emailToConfirm                 // compte créé, code jamais tapé
+        }
     }
 
     func refresh(_ session: CommunitySession) async throws -> CommunitySession {
@@ -412,13 +416,17 @@ struct CommunityClient {
         return data
     }
 
+    static let unconfirmedMessage = "Confirme d'abord ton adresse mail avec le code reçu par mail."
+
     /// Message du serveur, traduit pour les cas courants.
     static func message(_ data: Data, status: Int) -> String {
         let json = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any]
         let raw = (json?["error_description"] ?? json?["msg"] ?? json?["message"] ?? json?["error"]) as? String ?? ""
         let lower = raw.lowercased()
         if lower.contains("invalid login credentials") { return "Mail ou mot de passe incorrect." }
-        if lower.contains("email not confirmed") { return "Confirme d'abord ton adresse mail (lien reçu par mail)." }
+        if lower.contains("email not confirmed") || (json?["error_code"] as? String) == "email_not_confirmed" {
+            return unconfirmedMessage
+        }
         if lower.contains("already registered") || lower.contains("already exists") {
             return "Un compte existe déjà avec ce mail."
         }

@@ -60,7 +60,12 @@ final class CommunityStore: ObservableObject {
     /// Écran de connexion : « Créer un compte » plutôt que « J'ai déjà un compte ».
     @Published var creatingAccount = false
     /// Un code est attendu (reçu par mail) : confirmation de l'inscription ou mot de passe oublié.
-    @Published var pendingCode: PendingCode?
+    @Published var pendingCode: PendingCode? {
+        didSet { if pendingCode != oldValue { recoverySession = nil } }
+    }
+    /// Mot de passe oublié : session obtenue avec le code (utilisable une seule fois), gardée si le nouveau mot de
+    /// passe est refusé (le même que l'ancien, réseau) pour réessayer sans redemander de code.
+    private var recoverySession: CommunitySession?
 
     struct PendingCode: Equatable {
         let kind: CommunityClient.CodeKind
@@ -126,7 +131,16 @@ final class CommunityStore: ObservableObject {
     }
 
     func signIn(email: String, password: String) async {
-        await run { client in self.set(try await client.signIn(email: email, password: password)) }
+        await run { client in
+            do {
+                self.set(try await client.signIn(email: email, password: password))
+            } catch CommunityError.emailToConfirm {
+                // Compte jamais confirmé (code pas tapé, app relancée…) : un nouveau code, et l'écran pour le taper.
+                try? await client.resendSignupCode(email: email)
+                self.pendingCode = PendingCode(kind: .signup, email: email)
+                self.notice = "Ton compte n'est pas encore confirmé : un code vient de partir à \(email)."
+            }
+        }
         if session != nil { await reload() }
     }
 
@@ -169,14 +183,22 @@ final class CommunityStore: ObservableObject {
             error = why
             return
         }
+        var changed = false
         await run { client in
-            let session = try await client.verifyCode(email: pending.email, code: code, kind: .recovery)
+            let session: CommunitySession
+            if let kept = self.recoverySession {
+                session = kept
+            } else {
+                session = try await client.verifyCode(email: pending.email, code: code, kind: .recovery)
+                self.recoverySession = session
+            }
             try await client.updatePassword(newPassword, session: session)
             self.set(session)
             self.pendingCode = nil
-            self.notice = "Mot de passe changé : tu es connecté."
+            changed = true
         }
         if session != nil { await reload() }
+        if changed { notice = "Mot de passe changé : tu es connecté." }   // après reload, qui efface les messages
     }
 
     /// Un nouveau code (il n'est pas arrivé, ou il a expiré).
@@ -194,6 +216,7 @@ final class CommunityStore: ObservableObject {
     /// Retour à l'écran de connexion (mauvaise adresse…).
     func cancelCode() {
         pendingCode = nil
+        recoverySession = nil
         error = nil
         notice = nil
     }
@@ -224,8 +247,8 @@ final class CommunityStore: ObservableObject {
             ok = true
         }
         if ok {
-            notice = "Partage publié."
             await reload()
+            notice = "Partage publié."                     // après reload, qui efface les messages
         }
         return ok
     }

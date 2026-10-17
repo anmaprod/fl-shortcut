@@ -401,6 +401,10 @@ final class AccountBackup: ObservableObject {
 
     /// Choix de l'utilisateur quand ce Mac et le compte ont chacun leurs changements.
     func resolve(keepAccount: Bool) async {
+        guard !community.demo else {                      // mode capture : rien n'est remplacé ni envoyé
+            conflict = nil
+            return
+        }
         guard let choice = conflict, let account = community.session?.userID else { return }
         conflict = nil
         if keepAccount {
