@@ -533,8 +533,10 @@ private struct PanelItem: View {
 
     var body: some View {
         Button {
-            MenuPanel.shared.close()
+            // L'action d'abord (une fenêtre qui s'ouvre prend la main), puis le menu se ferme : la fenêtre ouverte
+            // reste devant (MenuPanel).
             action()
+            MenuPanel.shared.close()
         } label: {
             HStack(spacing: 8) {
                 Image(systemName: symbol)

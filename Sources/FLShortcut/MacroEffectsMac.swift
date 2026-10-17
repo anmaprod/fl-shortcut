@@ -837,47 +837,41 @@ final class MacroEffectsMac: MacroEffects {
         return fits.first { $0.bounds.contains(track) } ?? fits.first
     }
 
-    /// Fenêtre visée par un clic appris, et l'échelle de ses décalages. Une seule fenêtre de la taille retenue : elle,
-    /// sans rien demander à l'Accessibilité (rapide, comme avant). Sinon, fenêtre de plugin (titre retenu) : celle qui
-    /// porte ce titre, où qu'elle soit, même agrandie ou réduite (l'interface du plugin suit sa taille) ; titre
-    /// introuvable ou clic sans titre : la fenêtre de FL de la taille retenue, comme avant.
-    func targetWindow(size: CGSize, title: String?, ctx: Context) -> (window: WinInfo, scale: CGSize)? {
+    /// Fenêtre visée par un clic appris : toujours de la taille retenue (une fenêtre agrandie ne se suit pas : son
+    /// contenu se réorganise, le clic tomberait à côté). Une seule fenêtre de cette taille : elle, sans rien demander à
+    /// l'Accessibilité (rapide, comme avant). Plusieurs, ou aucune parmi les fenêtres ordinaires (fenêtre de plugin
+    /// restée tout devant, ou d'un plugin que FL fait tourner à part) : celle qui porte le titre retenu. Sinon, comme
+    /// avant.
+    func targetWindow(size: CGSize, title: String?, ctx: Context) -> WinInfo? {
         let snap = WinSnapshot.take(pid: ctx.pid)
         let fits = snap.fl.filter { Self.clickWindowLayers.contains($0.layer) && MacroSpots.sameSize($0.bounds.size, size) }
-        if let title, fits.count != 1 {
-            let frames = FLWindowAX.frames(titled: title, fl: ctx.pid)
+        // L'Accessibilité seulement quand la taille ne suffit pas : jamais pendant qu'on attend qu'une fenêtre s'ouvre.
+        let onTop = fits.isEmpty && snap.fl.contains { MacroSpots.sameSize($0.bounds.size, size) }
+        if let title, fits.count > 1 || onTop {
+            let frames = FLWindowAX.frames(titled: title, fl: ctx.pid).filter { MacroSpots.sameSize($0.size, size) }
             if let f = frames.first(where: { $0.contains(ctx.track) }) ?? frames.first {
-                let window = snap.fl.first {
+                return snap.fl.first {
                     MacroSpots.sameSize($0.bounds.size, f.size) && abs($0.bounds.minX - f.minX) <= 2 && abs($0.bounds.minY - f.minY) <= 2
                 } ?? WinInfo(number: -1, layer: 0, bounds: f, pid: ctx.pid, alpha: 1)
-                return (window: window, scale: Self.scale(from: size, to: window.bounds.size))
             }
         }
-        return Self.clickWindow(in: snap, size: size, track: ctx.track).map { (window: $0, scale: CGSize(width: 1, height: 1)) }
+        return Self.clickWindow(in: snap, size: size, track: ctx.track)
     }
 
     /// Bouton retrouvé à son image dans sa fenêtre, lue à ce moment-là seulement (MacroVisual.swift). nil : fenêtre
     /// absente, lecture de l'écran pas autorisée, ou bouton pas (encore) affiché.
     func visualPoint(_ spot: VisualSpot, ctx: Context) -> (point: CGPoint, window: WinInfo)? {
-        guard let found = targetWindow(size: spot.size, title: spot.title, ctx: ctx), found.window.number > 0,
-              let image = ScreenLook.capture(windowNumber: found.window.number, size: found.window.bounds.size),
+        guard let window = targetWindow(size: spot.size, title: spot.title, ctx: ctx), window.number > 0,
+              let image = ScreenLook.capture(windowNumber: window.number, size: window.bounds.size),
               image.width > 0, image.height > 0 else { return nil }
-        let f = found.window.bounds
+        let f = window.bounds
         let sx = f.width / CGFloat(image.width), sy = f.height / CGFloat(image.height)
-        let expected = Self.point(in: f, corner: spot.corner, dx: spot.dx * Double(found.scale.width),
-                                  dy: spot.dy * Double(found.scale.height))
+        let expected = Self.point(in: f, corner: spot.corner, dx: spot.dx, dy: spot.dy)
         let hint = (x: Int((expected.x - f.minX) / sx), y: Int((expected.y - f.minY) / sy))
         guard let hit = VisualMatch.find(spot.image, in: image, hint: hint) else { return nil }
         MacroLog.shared.write("CLICK", String(format: "button found by its image (score %.2f, moved %d,%d)",
                                               hit.score, hit.x - hint.x, hit.y - hint.y))
-        return (CGPoint(x: f.minX + CGFloat(hit.x) * sx, y: f.minY + CGFloat(hit.y) * sy), found.window)
-    }
-
-    /// Pure (testée) : échelle d'une fenêtre de plugin agrandie ou réduite depuis l'apprentissage (à 2 points près :
-    /// même taille, aucune échelle).
-    static func scale(from learned: CGSize, to now: CGSize) -> CGSize {
-        guard learned.width > 0, learned.height > 0, !MacroSpots.sameSize(learned, now) else { return CGSize(width: 1, height: 1) }
-        return CGSize(width: now.width / learned.width, height: now.height / learned.height)
+        return (CGPoint(x: f.minX + CGFloat(hit.x) * sx, y: f.minY + CGFloat(hit.y) * sy), window)
     }
 
     /// Point visé, et le menu dans lequel il doit tomber (cible « menu ouvert »).
@@ -887,16 +881,13 @@ final class MacroEffectsMac: MacroEffects {
             return (CGPoint(x: ctx.origin.x + dx, y: ctx.origin.y + dy), nil)
         case .flWindow(let corner, let dx, let dy, let size, let title):
             let frame: CGRect?
-            var scale = CGSize(width: 1, height: 1)
             if let size {
-                let found = targetWindow(size: size, title: title, ctx: ctx)
-                frame = found?.window.bounds
-                scale = found?.scale ?? scale
+                frame = targetWindow(size: size, title: title, ctx: ctx)?.bounds
             } else {
                 frame = ctx.frame
             }
             guard let f = frame else { return nil }
-            return (Self.point(in: f, corner: corner, dx: dx * Double(scale.width), dy: dy * Double(scale.height)), nil)
+            return (Self.point(in: f, corner: corner, dx: dx, dy: dy), nil)
         case .cursorXWindowY(let dx, let dy):
             guard let f = ctx.frame else { return nil }
             return (CGPoint(x: ctx.origin.x + dx, y: f.minY + dy), nil)
@@ -937,11 +928,9 @@ final class MacroEffectsMac: MacroEffects {
         let baseline = numbersBeforeLastClick ?? ctx.startNumbers
         switch target {
         case .flWindow(let corner, let dx, let dy, let size?, let title):
-            guard let found = targetWindow(size: size, title: title, ctx: ctx) else { return nil }
-            let w = found.window
-            let point = Self.point(in: w.bounds, corner: corner, dx: dx * Double(found.scale.width),
-                                   dy: dy * Double(found.scale.height))
-            return (point: point, popup: nil, fresh: !baseline.contains(w.number))
+            guard let w = targetWindow(size: size, title: title, ctx: ctx) else { return nil }
+            return (point: Self.point(in: w.bounds, corner: corner, dx: dx, dy: dy), popup: nil,
+                    fresh: !baseline.contains(w.number))
         case .button(let spot):
             guard let found = visualPoint(spot, ctx: ctx) else { return nil }
             return (point: found.point, popup: nil, fresh: !baseline.contains(found.window.number))
@@ -1042,14 +1031,17 @@ final class MacroEffectsMac: MacroEffects {
     }
 
     func click(at p: CGPoint, right: Bool, ctx: Context) -> StepResult {
-        guard FLWindows.contains(p, pid: ctx.pid) else {
+        // FL, ou la fenêtre d'un plugin que FL fait tourner à part (pont des plugins Intel) : le clic va à son processus.
+        let helper = FLHelpers.pids(of: ctx.pid).first { FLWindows.contains(p, pid: $0) }
+        guard helper != nil || FLWindows.contains(p, pid: ctx.pid) else {
             MacroLog.shared.write("CLICK", "refused \(p.logText): outside every FL window")
             return .fail("le point visé est hors de FL")
         }
         if !Self.clicksToPid, let name = coveringApp(at: p, ctx: ctx) {
             return .fail("« \(name) » couvre FL à cet endroit")
         }
-        postClick(at: p, right: right, pid: ctx.pid)
+        let front = WinSnapshot.take(pid: ctx.pid).hit(p)?.pid
+        postClick(at: p, right: right, pid: front.flatMap { $0 == ctx.pid || $0 == helper ? $0 : nil } ?? ctx.pid)
         lastClickPoint = p
         return .ok
     }
@@ -1063,7 +1055,7 @@ final class MacroEffectsMac: MacroEffects {
         if owner == nil, WinSnapshot.take(pid: ctx.pid).hit(p).map({ $0.layer == 0 }) ?? true {
             owner = FLWindows.topNormalWindow(at: p)?.pid
         }
-        guard let owner, owner != ctx.pid, owner != getpid() else { return nil }
+        guard let owner, !FLHelpers.isFLOrHelper(owner, fl: ctx.pid), owner != getpid() else { return nil }
         return NSRunningApplication(processIdentifier: owner)?.localizedName ?? "une autre app"
     }
 

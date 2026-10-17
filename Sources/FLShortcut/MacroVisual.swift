@@ -4,7 +4,8 @@
 // le montrant dans FL, puis cherchée dans sa fenêtre au moment du clic.
 // - Lecture de l'écran : seulement la fenêtre de FL visée, seulement à ce moment-là (jamais au repos, jamais
 //   d'enregistrement), avec l'autorisation « Enregistrement de l'écran » demandée quand l'utilisateur active l'option.
-//   Rien n'est envoyé ; l'image reste dans la macro et est retirée à l'export.
+//   L'image reste dans la macro (et dans la sauvegarde en ligne du compte, lisible par son seul propriétaire) ; elle
+//   est retirée à l'export et des partages.
 // - Recherche : corrélation normalisée (insensible à la luminosité), d'abord sur une image réduite au tiers, puis au
 //   point près autour des meilleures places ; à score presque égal, la plus proche de l'endroit montré.
 import AppKit

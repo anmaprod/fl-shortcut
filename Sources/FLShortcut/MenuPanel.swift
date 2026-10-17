@@ -83,7 +83,12 @@ final class MenuPanel: ObservableObject {
     private func resigned() {
         DispatchQueue.main.async { [weak self] in
             guard let self, let panel = self.panel else { return }
-            if panel.isVisible, !panel.isKeyWindow { self.close() }
+            // Clic sur une fenêtre de l'app : elle reste devant une fois le menu fermé. Clic dans une autre app :
+            // SwiftUI ferme le menu lui-même (le refermer ici pourrait le rouvrir pendant qu'il s'efface).
+            if panel.isVisible, !panel.isKeyWindow, NSApp.isActive {
+                if let key = NSApp.keyWindow, key !== panel, key.isVisible { self.frontWindow = key }
+                self.close()
+            }
             if !panel.isVisible { self.closed() }
         }
     }
@@ -106,9 +111,10 @@ final class MenuPanel: ObservableObject {
         closing = false
         guard let window = frontWindow, byItemOrIcon else { frontWindow = nil; return }
         frontWindow = nil
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) { [weak self] in
             guard window.isVisible, !window.isMiniaturized else { return }
-            if NSApp.isActive, let key = NSApp.keyWindow, key.canBecomeMain { return }   // déjà devant
+            // Une fenêtre de l'app a déjà la main (celle qu'une ligne vient d'ouvrir, l'Organiser…) : elle la garde.
+            if let key = NSApp.keyWindow, key !== self?.panel, key.isVisible { return }
             NSApp.activate(ignoringOtherApps: true)
             window.makeKeyAndOrderFront(nil)
         }

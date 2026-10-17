@@ -572,8 +572,8 @@ private struct BlockInspector: View {
         let text: String
         switch t {
         case .flWindow(_, _, _, _, let title?):
-            text = "Retenu dans la fenêtre du plugin « \(title.displaySafe(max: 40)) » : le clic la retrouve où qu'elle soit, "
-                + "même agrandie, et attend qu'elle s'ouvre."
+            text = "Retenu dans la fenêtre du plugin « \(title.displaySafe(max: 40)) » : le clic la retrouve où qu'elle soit "
+                + "et attend qu'elle s'ouvre. Si elle change de taille, montre-le de nouveau."
         case .flWindow(_, _, _, let size?, _):
             text = "Retenu dans la fenêtre de FL de \(Int(size.width)) × \(Int(size.height)) (fenêtre principale, réglages, "
                 + "boîte…) : le clic attend qu'elle s'ouvre. Si elle change de taille, montre-le de nouveau."
@@ -597,7 +597,8 @@ private struct BlockInspector: View {
                     Button("Annuler") { teacher.cancel("Annulé.") }.secondaryButton()
                 } else {
                     Button {
-                        teach()
+                        // Bouton suivi à son image : son image est reprise en le montrant de nouveau.
+                        if case .button = t { teach(visual: true) } else { teach() }
                     } label: {
                         Label("Montrer dans FL…", systemImage: "hand.point.up.left")
                     }

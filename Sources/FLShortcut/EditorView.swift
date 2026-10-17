@@ -635,6 +635,9 @@ struct EditorView: View {
             out.append(NoticeItem(id: "keysearch", symbol: "keyboard", tint: .accentColor,
                                   text: "Appuie sur le raccourci que tu connais : la recherche montre ce qu'il fait.",
                                   button: "Annuler", action: { Recorder.shared.stop() }))
+        } else if recorder.hintID == Self.keySearchID, let hint = recorder.hint {
+            out.append(NoticeItem(id: "keysearch-hint", symbol: "keyboard", tint: .orange, text: hint,
+                                  button: "Réessayer", action: { startKeySearch() }))
         }
         if !status.accessibilityOK {
             out.append(NoticeItem(id: "ax", symbol: "exclamationmark.triangle.fill", tint: .orange,

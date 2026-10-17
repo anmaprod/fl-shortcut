@@ -226,9 +226,6 @@ final class MacroEditingTests: XCTestCase {
         XCTAssertTrue(target.isFinite)
         XCTAssertFalse(ClickTarget.flWindow(corner: .topLeft, dx: 1, dy: 1, size: serum.size, title: "").isFinite)
         XCTAssertFalse(ClickTarget.flWindow(corner: .topLeft, dx: 1, dy: 1, size: nil, title: "Serum").isFinite)
-        // Plugin agrandi : le clic suit sa taille ; même taille (à 2 points près) : aucune échelle.
-        XCTAssertEqual(MacroEffectsMac.scale(from: serum.size, to: CGSize(width: 2024, height: 1536)), CGSize(width: 2, height: 2))
-        XCTAssertEqual(MacroEffectsMac.scale(from: serum.size, to: CGSize(width: 1013, height: 767)), CGSize(width: 1, height: 1))
         // La fenêtre principale (nom du projet) n'est jamais retenue par son titre.
         XCTAssertTrue(FLWindowAX.isPluginTitle("Serum"))
         XCTAssertFalse(FLWindowAX.isPluginTitle("Mon morceau - FL Studio 2025"))

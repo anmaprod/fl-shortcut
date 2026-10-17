@@ -119,8 +119,9 @@ enum FLHelpers {
 }
 
 /// Fenêtres de plugins de FL (Serum, Vital…) par l'Accessibilité, déjà accordée pour le clavier : leur titre (le nom
-/// de la piste du plugin) les retrouve où qu'elles soient et quelle que soit leur taille. Jamais l'écran ; le titre
-/// n'est gardé que dans la macro, jamais journalisé. Délais courts : FL peut être occupé.
+/// de la piste du plugin) les distingue parmi les fenêtres de la même taille, où qu'elles soient. Jamais l'écran ; le
+/// titre reste dans la macro (et dans la sauvegarde en ligne du compte, lisible par son seul propriétaire), jamais
+/// dans un journal ni dans un partage (positions retirées à l'export). Délais courts : FL peut être occupé.
 enum FLWindowAX {
     static let timeout: Float = 0.15
 

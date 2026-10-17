@@ -244,8 +244,9 @@ enum HelpContent {
                       + "ni envoyées. Seuls partent sur internet : tes raccourcis et tes macros si tu es connecté à ton "
                       + "compte (ta sauvegarde, lisible par toi seul), ce que tu publies dans la Communauté, et ce que "
                       + "tu écris à l'équipe depuis cette page. L'écran n'est jamais lu, sauf pour un clic où tu as "
-                      + "activé « Retrouver ce bouton s'il bouge » : seulement la fenêtre de FL, au moment du clic, et "
-                      + "rien n'en sort.",
+                      + "activé « Retrouver ce bouton s'il bouge » : seulement la fenêtre de FL, au moment du clic. "
+                      + "La petite image du bouton reste dans ta macro (et dans ta sauvegarde si tu es connecté), "
+                      + "jamais dans un partage.",
                   keywords: "vie privee donnees confidentialite securite internet compte sauvegarde"),
         HelpEntry(id: 12, question: "Retrouver mes raccourcis et mes macros sur un autre Mac",
                   answer: "Connecte-toi dans « Mon compte » (barre latérale) : tes raccourcis et tes macros sont "

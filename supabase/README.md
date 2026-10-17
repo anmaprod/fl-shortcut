@@ -106,7 +106,8 @@ peut les relire depuis l'app ; 5 messages par heure et par mail au plus.
 
 - Écran : jamais lu, sauf pour un clic où l'utilisateur a activé « Retrouver ce bouton s'il bouge » (le « + » du
   Channel rack qui descend) : seulement la fenêtre de FL visée, au moment du clic, avec l'autorisation
-  « Enregistrement de l'écran » ; l'image du bouton reste dans la macro et est retirée à l'export.
+  « Enregistrement de l'écran » ; l'image du bouton reste dans la macro (donc dans la sauvegarde en ligne, lisible
+  par le seul propriétaire du compte) et est retirée à l'export et des partages.
 
 - Envoyé : mail, mot de passe (seulement à la connexion ou à l'inscription), nom d'utilisateur, et ce que tu
   publies (titre, notes, fichier exporté **sans** positions apprises ni chemins de tes fichiers).

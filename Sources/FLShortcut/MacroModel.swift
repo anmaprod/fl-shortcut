@@ -773,7 +773,7 @@ enum Corner: String, CaseIterable { case topLeft, topRight, bottomLeft, bottomRi
 enum ClickTarget: Equatable {
     /// Coin d'une fenêtre de FL. Taille retenue : la fenêtre de cette taille (refus si aucune) ; sans taille : celle
     /// qui est sous le curseur au démarrage (ancien repère `window`). Titre : fenêtre d'un plugin (Serum, Vital…),
-    /// retrouvée par son nom (Accessibilité) où qu'elle soit, même agrandie (le clic suit sa taille).
+    /// reconnue à son nom (Accessibilité) parmi plusieurs fenêtres de la même taille, où qu'elle soit.
     case flWindow(corner: Corner, dx: Double, dy: Double, size: CGSize?, title: String? = nil)
     /// Relatif au dernier menu de FL ouvert (résiste au décalage du menu).
     case openMenu(MacroSpots.PopupHop)
@@ -851,11 +851,11 @@ enum ClickTarget: Equatable {
             self = .openMenu(MacroSpots.PopupHop(offset: CGVector(dx: offset.width, dy: offset.height), size: s))
         case "button":
             guard let corner = json["corner"]?.string.flatMap({ Corner(rawValue: $0) }), let s = size(json["size"]),
-                  let side = json["side"]?.double, side.isFinite, VisualSpot.sides.contains(Int(side)),
+                  let side = json["side"]?.int, VisualSpot.sides.contains(side),
                   let encoded = json["pixels"]?.string, let data = Data(base64Encoded: encoded) else { return nil }
             let title = json["title"]?.string
             if let t = json["title"], t != .null, title == nil { return nil }
-            let spot = VisualSpot(corner: corner, dx: dx, dy: dy, size: s, title: title, side: Int(side), pixels: [UInt8](data))
+            let spot = VisualSpot(corner: corner, dx: dx, dy: dy, size: s, title: title, side: side, pixels: [UInt8](data))
             guard spot.isValid else { return nil }
             self = .button(spot)
         case "track": self = .track(dx: dx, dy: dy)
