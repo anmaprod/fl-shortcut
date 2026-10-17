@@ -148,6 +148,7 @@ struct EditorView: View {
     @AppStorage("guideSeen") private var guideSeen = false
     @ObservedObject private var guideLink = GuideLink.shared
     @ObservedObject private var helpLink = HelpLink.shared
+    @ObservedObject private var accountLink = AccountLink.shared
     @State private var showGuide = false
     @State private var guidePage = 0
 
@@ -179,6 +180,7 @@ struct EditorView: View {
         .onAppear {
             showGuideIfNeeded()
             showHelpIfAsked()
+            showAccountIfAsked()
             Task { await backup.refreshIfStale() }       // changé depuis un autre Mac ?
         }
         // Ce Mac et le compte ont chacun leurs changements : la page Mon compte montre le choix.
@@ -189,6 +191,7 @@ struct EditorView: View {
         }
         .onChange(of: guideLink.pending) { _ in showGuideIfNeeded() }
         .onChange(of: helpLink.pending) { _ in showHelpIfAsked() }
+        .onChange(of: accountLink.pending) { _ in showAccountIfAsked() }
         .onReceive(DebugSnapshot.publisher(DebugSnapshot.guide)) { note in
             // Mode capture : « 0 » à « 4 », la page du guide ; autre chose, le ferme.
             if let n = Int(note.object as? String ?? "") {
@@ -198,6 +201,15 @@ struct EditorView: View {
                 showGuide = false
             }
         }
+    }
+
+    /// Page Mon compte demandée hors de la fenêtre (désinstallation : « Me connecter pour les sauvegarder d'abord »).
+    private func showAccountIfAsked() {
+        guard accountLink.pending else { return }
+        accountLink.pending = false
+        if macroEditor != nil { closeCreator() }
+        query = ""
+        selection = .account
     }
 
     /// Page Aide demandée depuis le menu de la barre des menus : les raccourcis (créateur refermé), page Aide.

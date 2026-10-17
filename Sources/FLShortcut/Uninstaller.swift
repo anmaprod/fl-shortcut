@@ -98,59 +98,14 @@ enum Uninstaller {
         exit(report.remaining.isEmpty ? 0 : 1)
     }
 
-    /// Demande confirmation, supprime tout, affiche le bilan vérifié, puis l'app quitte.
-    static func confirmAndRun() {
-        NSApp.activate(ignoringOtherApps: true)
-        let home = FileManager.default.homeDirectoryForCurrentUser
-        let exports = exportFolders(home: home).filter { !isEmptyFolder($0) && FileManager.default.fileExists(atPath: $0.path) }
+    /// « Désinstaller FL Shortcuts… » (menu de l'icône, menu ⋯) : la fenêtre en 3 étapes (UninstallView.swift).
+    @MainActor
+    static func confirmAndRun() { UninstallWindow.shared.show() }
 
-        let ask = NSAlert()
-        ask.alertStyle = .warning
-        ask.messageText = "Désinstaller FL Shortcuts ?"
-        ask.informativeText = "L'app, tes raccourcis, tes macros, ses réglages et ses autorisations seront supprimés de "
-            + "ce Mac. FL Studio garde ses raccourcis d'origine. Ton compte et ta sauvegarde en ligne restent : "
-            + "supprime-les d'abord dans « Mon compte » si tu veux tout effacer."
-        var exportBox: NSButton?
-        if !exports.isEmpty {
-            let box = NSButton(checkboxWithTitle: "Supprimer aussi mes fichiers exportés (Documents › FL Shortcuts)",
-                               target: nil, action: nil)
-            box.state = .off
-            ask.accessoryView = box
-            exportBox = box
-        }
-        ask.addButton(withTitle: "Désinstaller")
-        ask.addButton(withTitle: "Annuler")
-        ask.buttons.first?.hasDestructiveAction = true
-        guard ask.runModal() == .alertFirstButtonReturn else { return }
-
-        let report = removeEverything(interactive: true, removeExports: exportBox?.state == .on)
-
-        let done = NSAlert()
-        var text = report.removed.isEmpty ? "Il n'y avait plus rien à supprimer."
-            : "Supprimé :\n• " + report.removed.joined(separator: "\n• ")
-        if report.remaining.isEmpty {
-            done.messageText = "FL Shortcuts est désinstallé"
-            text += "\n\nPlus rien ne reste sur ce Mac."
-            done.addButton(withTitle: "OK")
-        } else {
-            done.messageText = "Il reste une dernière étape"
-            text += "\n\nmacOS n'a pas laissé supprimer :\n• "
-                + report.remaining.map { "\($0.url.lastPathComponent) (\($0.url.deletingLastPathComponent().path))" }
-                    .joined(separator: "\n• ")
-                + "\n\nGlisse-les dans la Corbeille : le Finder te demandera ton mot de passe si besoin."
-            done.addButton(withTitle: "Afficher dans le Finder")
-            done.addButton(withTitle: "OK")
-        }
-        if !exports.isEmpty, exportBox?.state != .on {
-            text += "\n\nTes fichiers exportés restent dans Documents › FL Shortcuts."
-        }
-        done.informativeText = text
-        if done.runModal() == .alertFirstButtonReturn, !report.remaining.isEmpty {
-            NSWorkspace.shared.activateFileViewerSelecting(report.remaining.map(\.url))
-        }
-        // Pas la fermeture normale : elle réécrirait le profil, les macros et les réglages (applicationWillTerminate,
-        // fenêtres) qui viennent d'être effacés. Ce qui a pu être réécrit pendant le bilan est effacé à nouveau.
-        sweepAgain(home: home)
+    /// Fin : l'app quitte sans la fermeture normale, qui réécrirait le profil, les macros et les réglages
+    /// (applicationWillTerminate, fenêtres) qui viennent d'être effacés ; ce qui a pu être réécrit est effacé à nouveau.
+    static func quitAfterUninstall() -> Never {
+        sweepAgain(home: FileManager.default.homeDirectoryForCurrentUser)
         exit(0)
     }
 
@@ -163,13 +118,67 @@ enum Uninstaller {
         }
     }
 
+    // MARK: Ce qui demande Touch ID ou le mot de passe
+
+    /// Nos apps de /Applications que ce compte ne peut pas déplacer (installées par le .pkg, elles appartiennent au
+    /// système), et le reçu du .pkg : une seule demande pour tout, avant toute suppression.
+    struct PrivilegedWork: Equatable {
+        var apps: [URL] = []
+        var receipt = false
+        var isEmpty: Bool { apps.isEmpty && !receipt }
+    }
+
+    static func privilegedWork(home: URL = FileManager.default.homeDirectoryForCurrentUser) -> PrivilegedWork {
+        var seen = Set<String>()
+        let apps = ([Bundle.main.bundleURL] + appLocations(home: home)).map(\.standardizedFileURL)
+            .filter { seen.insert($0.path).inserted }
+            .filter { $0.path.hasPrefix("/Applications/") && appNames.contains($0.lastPathComponent) && exists($0) }
+            .filter { SecureFile.permissions(at: $0.path)?.owner != getuid() }
+        return PrivilegedWork(apps: apps, receipt: FileManager.default.fileExists(atPath: "/var/db/receipts/\(pkgID).bom"))
+    }
+
+    /// Commande lancée avec les droits d'administrateur : chemins fixes connus, jamais une donnée extérieure.
+    static func privilegedScript(_ work: PrivilegedWork) -> String {
+        var commands: [String] = []
+        if !work.apps.isEmpty {
+            commands.append("/bin/rm -rf " + work.apps.map { "'" + $0.path.replacingOccurrences(of: "'", with: "'\\''") + "'" }
+                .joined(separator: " "))
+        }
+        if work.receipt { commands.append("/usr/sbin/pkgutil --forget \(pkgID) >/dev/null") }
+        return commands.joined(separator: "; ")
+    }
+
+    enum PrivilegedResult: Equatable {
+        case done
+        /// L'utilisateur a refusé (Annuler dans la fenêtre de macOS) : rien n'est supprimé.
+        case cancelled
+        case failed(String)
+    }
+
+    /// Touch ID ou le mot de passe, une seule fois (fenêtre de macOS), pour ce qui appartient au système.
+    /// `sudo` : `sudo -n` à la place (machine de la CI).
+    static func runPrivileged(_ work: PrivilegedWork, sudo: Bool = false) -> PrivilegedResult {
+        guard !work.isEmpty else { return .done }
+        let script = privilegedScript(work)
+        if sudo { return run("/usr/bin/sudo", ["-n", "/bin/sh", "-c", script]) ? .done : .failed("sudo -n refusé") }
+        let source = "do shell script \"" + script.replacingOccurrences(of: "\\", with: "\\\\")
+            .replacingOccurrences(of: "\"", with: "\\\"") + "\" with administrator privileges"
+        var error: NSDictionary?
+        _ = NSAppleScript(source: source)?.executeAndReturnError(&error)
+        guard let error else { return .done }
+        if (error[NSAppleScript.errorNumber] as? Int) == -128 { return .cancelled }
+        return .failed(error[NSAppleScript.errorMessage] as? String ?? "erreur inconnue")
+    }
+
     // MARK: Suppression
 
     /// Supprime tout ce que FL Shortcuts a pu créer, puis revérifie chaque chemin.
-    /// `interactive` : fenêtre de mot de passe de macOS pour les apps installées par le .pkg ; sans, rien n'est demandé
-    /// (essai de la CI). `sudo` : à la place, `sudo -n` (CI seulement).
+    /// `interactive` : l'app tourne (tap et MIDI arrêtés, écritures en attente faites). `privilegedDone` : ce qui
+    /// appartient au système a déjà été retiré (fenêtre de désinstallation, après Touch ID) ; sinon `sudo -n` s'il
+    /// est permis (essai de la CI), ou rien (ce qui reste est dit dans le bilan).
     @discardableResult
-    static func removeEverything(interactive: Bool = true, removeExports: Bool = false, sudo: Bool = false) -> Report {
+    static func removeEverything(interactive: Bool = true, removeExports: Bool = false, sudo: Bool = false,
+                                 privilegedDone: Bool = false) -> Report {
         var removed: [String] = []
         func note(_ label: String) { if !removed.contains(label) { removed.append(label) } }
         let fm = FileManager.default
@@ -248,24 +257,11 @@ enum Uninstaller {
             }
         }
         let receipt = fm.fileExists(atPath: "/var/db/receipts/\(pkgID).bom")
-        if !privileged.isEmpty || receipt {
-            let quoted = privileged.map { "'" + $0.path.replacingOccurrences(of: "'", with: "'\\''") + "'" }
-            var commands: [String] = []
-            if !quoted.isEmpty { commands.append("/bin/rm -rf " + quoted.joined(separator: " ")) }
-            if receipt { commands.append("/usr/sbin/pkgutil --forget \(pkgID)") }
-            let script = commands.joined(separator: "; ")
-            if sudo {
-                _ = run("/usr/bin/sudo", ["-n", "/bin/sh", "-c", script])
-            } else if interactive {
-                // Chemins fixes connus (aucune donnée extérieure) ; un seul mot de passe pour le tout.
-                let source = "do shell script \"" + script
-                    .replacingOccurrences(of: "\\", with: "\\\\").replacingOccurrences(of: "\"", with: "\\\"")
-                    + "\" with administrator privileges"
-                var error: NSDictionary?
-                _ = NSAppleScript(source: source)?.executeAndReturnError(&error)
-            }
-            for url in privileged where !exists(url) { note(label(for: url, home: home)) }
+        if !privilegedDone, sudo, !privileged.isEmpty || receipt {
+            _ = runPrivileged(PrivilegedWork(apps: privileged, receipt: receipt), sudo: true)
         }
+        for url in privileged where !exists(url) { note(label(for: url, home: home)) }
+        if receipt, !fm.fileExists(atPath: "/var/db/receipts/\(pkgID).bom") { note("le reçu d'installation du .pkg") }
 
         // 8. Vérification : ce qui est encore là, chemin par chemin.
         var remaining: [Trace] = []

@@ -184,6 +184,12 @@ run() {   # $1 : libellé, $2 : YES/NO effet verre
       "$POST" app.flshortcut.debug.account "$screen"; sleep 3
       screencapture -x "$OUT/compte-$screen.png" 2>/dev/null || true
     done
+    # Fenêtre de désinstallation en 3 étapes, avec des exemples : rien n'est demandé ni supprimé.
+    for screen in confirmer compte fini reste; do
+      "$POST" app.flshortcut.debug.uninstall "$screen"; sleep 3
+      screencapture -x "$OUT/desinstaller-$screen.png" 2>/dev/null || true
+    done
+    "$POST" app.flshortcut.debug.uninstall fermer; sleep 1
     "$POST" app.flshortcut.debug.select macros; sleep 2
   fi
   # Témoin : aucun modèle du créateur avant sa première ouverture (fenêtres : toutes, et visibles seulement).

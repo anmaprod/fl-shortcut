@@ -31,6 +31,10 @@ enum DebugSnapshot {
     static let help = Notification.Name("app.flshortcut.debug.help")
     /// Page Mon compte avec des exemples, sans réseau : « connexion », « connecte », « choix » ou « attente ».
     static let account = Notification.Name("app.flshortcut.debug.account")
+    /// Fenêtre de désinstallation avec des exemples, sans rien demander ni supprimer : « confirmer », « compte »,
+    /// « fini », « reste » ; « fermer » la ferme.
+    static let uninstall = Notification.Name("app.flshortcut.debug.uninstall")
+    private static var uninstallObserver: NSObjectProtocol?
 
     static func publisher(_ name: Notification.Name) -> AnyPublisher<Notification, Never> {
         guard enabled else { return Empty().eraseToAnyPublisher() }
@@ -41,6 +45,10 @@ enum DebugSnapshot {
 
     static func start() {
         guard enabled, observer == nil else { return }
+        uninstallObserver = DistributedNotificationCenter.default().addObserver(forName: uninstall, object: nil, queue: .main) { note in
+            let screen = note.object as? String ?? "confirmer"
+            MainActor.assumeIsolated { UninstallWindow.shared.showDemo(screen) }
+        }
         observer = DistributedNotificationCenter.default().addObserver(forName: snapshot, object: nil, queue: .main) { note in
             capture(tag: note.object as? String ?? "capture")
         }
@@ -248,6 +256,11 @@ struct MenuBarLabel: View {
 
     var body: some View {
         Image(nsImage: MenuBarIcon.image(MenuBarIcon.state(forSymbol: symbol)))
+            // Fenêtre principale demandée hors d'une scène SwiftUI (fenêtre de désinstallation → Mon compte).
+            .onReceive(NotificationCenter.default.publisher(for: AccountLink.openEditor)) { _ in
+                openWindow(id: "editor")
+                NSApp.activate(ignoringOtherApps: true)
+            }
             .onReceive(DebugSnapshot.publisher(DebugSnapshot.open)) { _ in
                 openWindow(id: "editor")
                 NSApp.activate(ignoringOtherApps: true)

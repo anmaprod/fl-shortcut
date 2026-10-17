@@ -152,6 +152,18 @@ final class InstallerTests: XCTestCase {
                        ["FL Shortcuts", "FL Shortcut"], "chemin enregistré et emplacements par défaut, sans doublon")
     }
 
+    /// Ce qui demande Touch ID ou le mot de passe : une seule commande, chemins entre apostrophes (même avec une
+    /// apostrophe dedans), reçu du .pkg oublié.
+    func testPrivilegedScript() {
+        XCTAssertEqual(Uninstaller.privilegedScript(Uninstaller.PrivilegedWork()), "")
+        XCTAssertTrue(Uninstaller.PrivilegedWork().isEmpty)
+        let work = Uninstaller.PrivilegedWork(apps: [URL(fileURLWithPath: "/Applications/FL Shortcuts.app"),
+                                                     URL(fileURLWithPath: "/Applications/L'autre.app")], receipt: true)
+        XCTAssertEqual(Uninstaller.privilegedScript(work),
+                       "/bin/rm -rf '/Applications/FL Shortcuts.app' '/Applications/L'\\''autre.app'; "
+                       + "/usr/sbin/pkgutil --forget app.flshortcut.pkg >/dev/null")
+    }
+
     func testInstallerWritesIntoDedicatedFolder() throws {
         let hardware = dir.appendingPathComponent("Settings/Hardware", isDirectory: true)
         try FileManager.default.createDirectory(at: hardware, withIntermediateDirectories: true)
