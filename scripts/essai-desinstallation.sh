@@ -17,17 +17,23 @@ mkdir -p "$(dirname "$OUT")"
 say() { echo "$*" | tee -a "$OUT"; }
 pkill -x FLShortcut 2>/dev/null || true
 
-# 1. Une ancienne app « FL Shortcut » au système, puis le .pkg : son script d'après installation doit la retirer.
+# 1. Une ancienne app « FL Shortcut » et un ancien désinstalleur à part au système, puis le .pkg : son script d'après
+# installation doit les retirer, et il n'installe plus que l'app (on désinstalle depuis son menu).
 sudo cp -R "$DIST/FL Shortcuts.app" "/Applications/FL Shortcut.app"
+sudo cp -R "$DIST/FL Shortcuts.app" "/Applications/Désinstaller FL Shortcuts.app"
+sudo /usr/libexec/PlistBuddy -c "Set :CFBundleIdentifier app.flshortcut.Uninstaller" \
+  "/Applications/Désinstaller FL Shortcuts.app/Contents/Info.plist"
 sudo installer -pkg "$DIST/FLShortcuts.pkg" -target / >/dev/null || { say "FAIL: installation du .pkg impossible"; exit 1; }
-if [[ -e "/Applications/FL Shortcut.app" ]]; then say "FAIL: le .pkg a laissé l'ancienne app « FL Shortcut »"; exit 1; fi
-[[ -d "/Applications/FL Shortcuts.app" && -d "/Applications/Désinstaller FL Shortcuts.app" ]] \
-  || { say "FAIL: le .pkg n'a pas installé les deux apps"; exit 1; }
-say "ok .pkg : apps installées, ancienne app retirée"
+for old in "FL Shortcut.app" "Désinstaller FL Shortcuts.app"; do
+  if [[ -e "/Applications/$old" ]]; then say "FAIL: le .pkg a laissé /Applications/$old"; exit 1; fi
+done
+[[ -d "/Applications/FL Shortcuts.app" ]] || { say "FAIL: le .pkg n'a pas installé l'app"; exit 1; }
+say "ok .pkg : l'app seule installée, ancienne app et ancien désinstalleur retirés"
 
 # 2. Toutes les traces, sous les deux noms (ancienne compilation locale dans ~/Applications comprise).
 mkdir -p "$H/Applications"
 cp -R "$DIST/FL Shortcuts.app" "$H/Applications/FL Shortcut.app"
+cp -R "$DIST/FL Shortcuts.app" "$H/Applications/Désinstaller FL Shortcut.app"     # ancien désinstalleur à part
 for n in "FL Shortcuts" "FL Shortcut"; do
   mkdir -p "$L/Application Support/$n" "$L/Logs/$n" "$H/Desktop/$n – captures" "$H/Documents/$n/Macros" "$HW/$n"
   echo '{}' > "$L/Application Support/$n/profile.json"

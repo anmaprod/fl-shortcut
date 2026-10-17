@@ -256,8 +256,9 @@ enum HelpContent {
                       + "le message avec l'erreur et le journal de la macro : tu vois tout ce qui est joint avant l'envoi.",
                   keywords: "bug erreur contact equipe support aide ecrire"),
         HelpEntry(id: 10, question: "Désinstaller FL Shortcuts",
-                  answer: "Menu ⋯ en haut à droite de la fenêtre, ou menu de l'icône en haut de l'écran › « Désinstaller "
-                      + "FL Shortcuts… » : l'app, ses réglages et le lien avec FL sont retirés.",
+                  answer: "Menu de l'icône en haut de l'écran (ou menu ⋯ de la fenêtre) › « Désinstaller FL Shortcuts… » : "
+                      + "l'app, tes raccourcis, tes macros, ses réglages, ses autorisations et le lien avec FL sont retirés, "
+                      + "et le bilan dit s'il reste quelque chose à glisser dans la Corbeille.",
                   keywords: "supprimer enlever desinstallation"),
     ]
 }

@@ -29,7 +29,7 @@ FL Studio n'a pas d'éditeur de raccourcis. FL Shortcuts en ajoute un : quand FL
 
 C'est tout. Si macOS dit qu'il ne peut pas vérifier l'appli (version non notarisée) : *Réglages Système › Confidentialité et sécurité*, tout en bas, **Ouvrir quand même**. Fais-le seulement pour un fichier venu de la page officielle des versions, dont l'empreinte SHA-256 correspond.
 
-Pour désinstaller : *Désinstaller FL Shortcuts* dans le menu de l'appli, ou l'appli du même nom dans le `.dmg`.
+Pour désinstaller : menu de l'icône FL Shortcuts en haut de l'écran › *Désinstaller FL Shortcuts…* (aussi dans le menu ⋯ de la fenêtre). Tout est retiré, et le bilan dit s'il reste quelque chose à glisser dans la Corbeille.
 
 ### Windows : `FLShortcuts-Windows-Setup.exe`
 

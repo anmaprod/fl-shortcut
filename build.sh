@@ -115,32 +115,10 @@ else
   codesign --force --sign - "$APP"
 fi
 
-# Désinstalleur fourni dans le .dmg : même exécutable, identifiant à part, clé FLSUninstaller (Uninstaller.swift).
-UNINSTALLER="dist/Désinstaller ${APP_NAME}.app"
-echo "▸ Désinstalleur"
-mkdir -p "$UNINSTALLER/Contents/MacOS" "$UNINSTALLER/Contents/Resources"
-cp "$BIN_DIR/$EXE" "$UNINSTALLER/Contents/MacOS/$EXE"
-cp Resources/AppIcon.icns "$UNINSTALLER/Contents/Resources/AppIcon.icns"
-cp Resources/Info.plist "$UNINSTALLER/Contents/Info.plist"
-plutil -replace CFBundleIdentifier -string "app.flshortcut.Uninstaller" "$UNINSTALLER/Contents/Info.plist"
-plutil -replace CFBundleName -string "Désinstaller ${APP_NAME}" "$UNINSTALLER/Contents/Info.plist"
-plutil -replace CFBundleDisplayName -string "Désinstaller ${APP_NAME}" "$UNINSTALLER/Contents/Info.plist"
-plutil -replace LSUIElement -bool NO "$UNINSTALLER/Contents/Info.plist"
-plutil -insert FLSUninstaller -bool YES "$UNINSTALLER/Contents/Info.plist"
-chmod -R go-w "$UNINSTALLER"
-if [[ -n "${SIGN_IDENTITY:-}" ]]; then
-  codesign --force --timestamp --options runtime --sign "$SIGN_IDENTITY" "$UNINSTALLER"
-elif [[ -n "${DEV_ID:-}" ]]; then
-  codesign --force --keychain "$DEV_KC" --sign "$DEV_ID" "$UNINSTALLER" || codesign --force --sign - "$UNINSTALLER"
-else
-  codesign --force --sign - "$UNINSTALLER"
-fi
-
 echo "▸ Image disque"
 STAGE=$(mktemp -d)
 trap 'rm -rf "$STAGE"' EXIT
 cp -R "$APP" "$STAGE/"
-cp -R "$UNINSTALLER" "$STAGE/"
 ln -s /Applications "$STAGE/Applications"
 hdiutil create -volname "$APP_NAME" -srcfolder "$STAGE" -ov -format UDZO "$DMG"
 
@@ -165,11 +143,11 @@ if [[ -n "${SIGN_IDENTITY:-}" ]]; then
   fi
 fi
 
-echo "▸ Paquet d'installation (.pkg) : FL Shortcuts et son désinstalleur dans /Applications, en un double-clic"
+echo "▸ Paquet d'installation (.pkg) : FL Shortcuts dans /Applications, en un double-clic"
 PKG="dist/FLShortcuts.pkg"
 PKG_ROOT=$(mktemp -d)
 PKG_PLIST=$(mktemp -d)/component.plist
-cp -R "$APP" "$UNINSTALLER" "$PKG_ROOT/"
+cp -R "$APP" "$PKG_ROOT/"
 pkgbuild --analyze --root "$PKG_ROOT" "$PKG_PLIST" >/dev/null
 # Toujours dans /Applications : sans cela, Installer « met à jour » une autre copie du même identifiant
 # (par exemple un build de développement dans ~/Applications) au lieu d'installer celle-ci.
@@ -178,11 +156,13 @@ while plutil -extract "$n" xml1 -o /dev/null "$PKG_PLIST" 2>/dev/null; do
   plutil -replace "$n.BundleIsRelocatable" -bool NO "$PKG_PLIST"
   n=$((n + 1))
 done
-# Après l'installation : retire les copies à l'ancien nom (« FL Shortcut »), seulement si ce sont bien les nôtres.
+# Après l'installation : retire les copies à l'ancien nom (« FL Shortcut ») et les anciens désinstalleurs à part
+# (on désinstalle maintenant depuis le menu de l'app), seulement si ce sont bien les nôtres (identifiant vérifié).
 PKG_SCRIPTS=$(mktemp -d)
 cat > "$PKG_SCRIPTS/postinstall" <<SCRIPT
 #!/bin/bash
-for pair in "${OLD_APP_NAME}.app:app.flshortcut.FLShortcut" "Désinstaller ${OLD_APP_NAME}.app:app.flshortcut.Uninstaller"; do
+for pair in "${OLD_APP_NAME}.app:app.flshortcut.FLShortcut" "Désinstaller ${OLD_APP_NAME}.app:app.flshortcut.Uninstaller" \
+            "Désinstaller ${APP_NAME}.app:app.flshortcut.Uninstaller"; do
   app="\${3%/}/Applications/\${pair%%:*}"
   [[ -d "\$app" && ! -L "\$app" ]] || continue
   id=\$(/usr/libexec/PlistBuddy -c "Print :CFBundleIdentifier" "\$app/Contents/Info.plist" 2>/dev/null)

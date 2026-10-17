@@ -1,10 +1,8 @@
 // Désinstallation complète : rien ne reste sur le Mac, et le bilan le vérifie.
-// Deux façons de la lancer :
-//   - menu « Désinstaller FL Shortcuts… » de l'app ;
-//   - « Désinstaller FL Shortcuts.app » fourni dans le .dmg (même exécutable, clé FLSUninstaller dans
-//     son Info.plist), qui ferme FL Shortcuts s'il tourne puis supprime tout.
-// Supprimé, sous le nom actuel comme sous l'ancien (« FL Shortcut ») : l'app et le désinstalleur (Corbeille ; ceux
-// du .pkg, avec le mot de passe), tes raccourcis et macros, réglages, état des fenêtres, caches, journal, la clé et
+// Lancée depuis l'app seulement : menu de l'icône en haut de l'écran, ou menu ⋯ de la fenêtre, « Désinstaller
+// FL Shortcuts… » (plus d'app « Désinstaller » à part ; celles des anciennes versions sont retirées aussi).
+// Supprimé, sous le nom actuel comme sous l'ancien (« FL Shortcut ») : l'app et les anciens désinstalleurs (Corbeille ;
+// ceux du .pkg, avec le mot de passe), tes raccourcis et macros, réglages, état des fenêtres, caches, journal, la clé et
 // la session du Trousseau, le script installé dans FL Studio, les autorisations (clavier, écran, son), l'identité
 // de signature des compilations locales ; tes macros exportées (Documents) seulement si tu le demandes.
 // À la fin, chaque chemin est revérifié : ce que macOS a refusé de supprimer (protection des apps, mot de passe
@@ -31,11 +29,6 @@ enum Uninstaller {
     struct Report: Equatable {
         var removed: [String] = []
         var remaining: [Trace] = []
-    }
-
-    /// Vrai si cet exécutable est lancé comme « Désinstaller FL Shortcuts.app ».
-    static var isUninstallerBundle: Bool {
-        Bundle.main.object(forInfoDictionaryKey: "FLSUninstaller") as? Bool == true
     }
 
     // MARK: Où l'app laisse des traces (pur, testé)
@@ -91,16 +84,6 @@ enum Uninstaller {
 
     // MARK: Lancement
 
-    /// Lancé depuis le .dmg : boîte de dialogue seule, sans icône dans la barre des menus, puis fin.
-    static func runStandaloneIfNeeded() {
-        guard isUninstallerBundle else { return }
-        let app = NSApplication.shared
-        app.setActivationPolicy(.regular)
-        app.finishLaunching()
-        confirmAndRun()
-        exit(0)
-    }
-
     /// Essai de la CI (`--essai-desinstallation`, avec FLS_ESSAI_DESINSTALLATION=1) : tout supprimer sans aucune
     /// fenêtre, écrire le bilan, quitter (0 : plus rien ne reste). FLS_ESSAI_SUDO=1 : ce qui demande le mot de passe
     /// passe par `sudo -n` (machine de la CI) au lieu de la fenêtre de macOS.
@@ -115,7 +98,7 @@ enum Uninstaller {
         exit(report.remaining.isEmpty ? 0 : 1)
     }
 
-    /// Demande confirmation, supprime tout, affiche le bilan vérifié. Depuis l'app, celle-ci quitte ensuite.
+    /// Demande confirmation, supprime tout, affiche le bilan vérifié, puis l'app quitte.
     static func confirmAndRun() {
         NSApp.activate(ignoringOtherApps: true)
         let home = FileManager.default.homeDirectoryForCurrentUser
@@ -165,12 +148,10 @@ enum Uninstaller {
         if done.runModal() == .alertFirstButtonReturn, !report.remaining.isEmpty {
             NSWorkspace.shared.activateFileViewerSelecting(report.remaining.map(\.url))
         }
-        if !isUninstallerBundle {
-            // Pas la fermeture normale : elle réécrirait le profil, les macros et les réglages (applicationWillTerminate,
-            // fenêtres) qui viennent d'être effacés. Ce qui a pu être réécrit pendant le bilan est effacé à nouveau.
-            sweepAgain(home: home)
-            exit(0)
-        }
+        // Pas la fermeture normale : elle réécrirait le profil, les macros et les réglages (applicationWillTerminate,
+        // fenêtres) qui viennent d'être effacés. Ce qui a pu être réécrit pendant le bilan est effacé à nouveau.
+        sweepAgain(home: home)
+        exit(0)
     }
 
     /// Réglages et fichiers de l'app réécrits après la suppression (fenêtres, réglages) : effacés une dernière fois.
@@ -194,17 +175,9 @@ enum Uninstaller {
         let fm = FileManager.default
         let home = fm.homeDirectoryForCurrentUser
 
-        // 1. Arrêter ce qui tourne : l'app principale si on est le désinstalleur (elle enregistre en quittant : on
-        // attend qu'elle ait fini, 3 s au plus), ou nous-mêmes (écritures en attente faites tout de suite, pour
-        // qu'aucune n'arrive après la suppression).
-        if isUninstallerBundle {
-            let running = NSRunningApplication.runningApplications(withBundleIdentifier: bundleID)
-            running.forEach { $0.terminate() }
-            let end = Date().addingTimeInterval(3)
-            while running.contains(where: { !$0.isTerminated }), Date() < end { Thread.sleep(forTimeInterval: 0.1) }
-            running.filter { !$0.isTerminated }.forEach { $0.forceTerminate() }
-            Thread.sleep(forTimeInterval: 0.3)
-        } else if interactive {
+        // 1. Arrêter ce qui tourne ; écritures en attente faites tout de suite, pour qu'aucune n'arrive après la
+        // suppression.
+        if interactive {
             EventTap.shared.stop()
             MIDILink.shared.stop()
             Store.shared.saveNow()
@@ -212,9 +185,8 @@ enum Uninstaller {
         }
 
         // 2. Script installé dans FL Studio : seulement nos dossiers (rien d'autre dedans).
-        // Depuis le désinstalleur : réglages d'une autre app (même utilisateur). Depuis l'app : les siens.
-        let defaults: UserDefaults? = isUninstallerBundle ? UserDefaults(suiteName: bundleID) : UserDefaults.standard
-        let scripts = scriptFolders(home: home, recorded: defaults?.string(forKey: ScriptIntegrity.pathKey))
+        let defaults = UserDefaults.standard
+        let scripts = scriptFolders(home: home, recorded: defaults.string(forKey: ScriptIntegrity.pathKey))
         for folder in scripts where FLScriptInstaller.isOurScriptFolder(folder) {
             if (try? fm.removeItem(at: folder)) != nil { note("le script FL Shortcuts dans FL Studio") }
         }
@@ -232,7 +204,7 @@ enum Uninstaller {
             UserDefaults(suiteName: id)?.removePersistentDomain(forName: id)
             CFPreferencesAppSynchronize(id as CFString)
         }
-        defaults?.removePersistentDomain(forName: bundleID)
+        defaults.removePersistentDomain(forName: bundleID)
         for trace in dataTraces(home: home) where exists(trace.url) {
             if trace.url.pathExtension == "keychain-db" {
                 _ = run("/usr/bin/security", ["delete-keychain", trace.url.path])   // le retire aussi de la liste
@@ -252,7 +224,7 @@ enum Uninstaller {
             }
         }
 
-        // 6. Autorisations : toutes celles de l'app et du désinstalleur (clavier, écran, son…).
+        // 6. Autorisations : toutes celles de l'app et des anciens désinstalleurs (clavier, écran, son…).
         for id in [bundleID, uninstallerID] {
             if run("/usr/bin/tccutil", ["reset", "All", id]), id == bundleID { note("les autorisations (clavier, écran, son)") }
         }
@@ -260,8 +232,7 @@ enum Uninstaller {
         // 7. Les apps, à la Corbeille (récupérables tant que la Corbeille n'est pas vidée). Installées par le .pkg,
         // elles appartiennent au système : mot de passe une fois. macOS peut aussi les protéger (« Gestion des
         // apps ») : elles restent alors, et le bilan le dit.
-        var apps: [URL] = []
-        if !isUninstallerBundle { apps.append(Bundle.main.bundleURL) }
+        var apps: [URL] = [Bundle.main.bundleURL]
         for id in [bundleID, uninstallerID] {
             if let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: id) { apps.append(url) }
         }
@@ -324,7 +295,7 @@ enum Uninstaller {
     }
 
     private static func label(for url: URL, home: URL) -> String {
-        let what = url.lastPathComponent.hasPrefix("Désinstaller") ? "le désinstalleur" : "l'app"
+        let what = url.lastPathComponent.hasPrefix("Désinstaller") ? "l'ancien désinstalleur" : "l'app"
         return "\(what) (\(url.deletingLastPathComponent().path.replacingOccurrences(of: home.path, with: "~")))"
     }
 

@@ -29,7 +29,6 @@ struct FLShortcutApp: App {
         FakeFL.runIfRequested()                  // `--fake-fl` : FL Studio simulé pour l'essai de bout en bout (CI)
         MacroSelfTest.runIfRequested()           // `--selftest-macro` : la macro complète contre le FL simulé, puis quitte
         Uninstaller.runCheckIfRequested()        // `--essai-desinstallation` (CI) : tout supprimer, vérifier, quitter
-        Uninstaller.runStandaloneIfNeeded()      // « Désinstaller FL Shortcuts.app » du .dmg
         SingleInstance.enforce()                 // avant de créer quoi que ce soit (REL-07)
         _store = StateObject(wrappedValue: Store.shared)
         _status = StateObject(wrappedValue: AppStatus.shared)
