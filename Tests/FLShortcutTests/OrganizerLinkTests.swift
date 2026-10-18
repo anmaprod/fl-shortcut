@@ -154,6 +154,94 @@ final class OrganizerLinkTests: XCTestCase {
         XCTAssertNil(OrganizerPayload.decodeMixer(channelPage(total: 1, start: 0, names: ["a"])))           // autre genre
     }
 
+    // MARK: Playlist et page (script v6)
+
+    func testPlaylistPayloads() {
+        XCTAssertEqual(OrganizerPayload.page, [9])
+        XCTAssertEqual(OrganizerPayload.playTrack(300), [11, 1, 44])
+        XCTAssertEqual(OrganizerPayload.seek(0.5), [12, 1, 244])
+        XCTAssertEqual(OrganizerPayload.seek(2), [12, 3, 232], "borné à la fin de la chanson")
+        XCTAssertEqual(OrganizerPayload.seek(-1), [12, 0, 0])
+        XCTAssertEqual(OrganizerPayload.decodePage([2]), .playlist)
+        XCTAssertEqual(OrganizerPayload.decodePage([127]), .unknown)
+        XCTAssertNil(OrganizerPayload.decodePage([]))
+        XCTAssertEqual(OrganizerPayload.decodeBars([0, 48]), 48)
+        XCTAssertNil(OrganizerPayload.decodeBars([48]))
+
+        // Noms : 16 par commande, 32 octets au plus sans couper un caractère, vides jamais envoyés.
+        XCTAssertEqual(OrganizerPayload.nameUTF8("  Kick "), Array("Kick".utf8))
+        XCTAssertEqual(OrganizerPayload.nameUTF8(String(repeating: "é", count: 20)).map { String(decoding: $0, as: UTF8.self) },
+                       String(repeating: "é", count: 16))
+        XCTAssertNil(OrganizerPayload.nameUTF8("   "))
+        let names = (0..<17).map { (index: $0 + 256, name: "Kick") } + [(index: 1, name: "")]
+        let chunks = OrganizerPayload.setNames(.playlist, names)
+        XCTAssertEqual(chunks.count, 2)
+        XCTAssertEqual(Array(chunks[0].prefix(8)), [10, 3, 16, 1, 0, 4] + Array("Ki".utf8))
+        XCTAssertEqual(chunks[1], [10, 3, 1, 1, 16, 4] + Array("Kick".utf8))
+        XCTAssertLessThanOrEqual(Pack7.pack(chunks[0]).count, FLProtocol.maxDataUnits)
+        // 16 noms de 32 octets ne tiennent pas dans une trame : deux commandes.
+        let longest = OrganizerPayload.setNames(.playlist, (0..<16).map { (index: $0, name: String(repeating: "x", count: 40)) })
+        XCTAssertEqual(longest.count, 2)
+        XCTAssertEqual(longest.map { Int($0[2]) }.reduce(0, +), 16)
+        for chunk in longest { XCTAssertLessThanOrEqual(Pack7.pack(chunk).count, FLProtocol.maxDataUnits) }
+    }
+
+    /// Page de la Playlist telle que le script l'écrit (`_list_playlist`).
+    private func playlistPage(total: Int, start: Int, count: Int) -> [UInt8] {
+        var out: [UInt8] = [3] + OrganizerPayload.be16(total) + OrganizerPayload.be16(start) + [UInt8(count), 0]
+        for k in 0..<count {
+            let raw = Array("Track \(start + k + 1)".utf8)
+            out += [(start + k) == 3 ? 1 : 0, 0x56, 0x5E, 0x66, UInt8(raw.count)] + raw
+        }
+        return out
+    }
+
+    func testPlaylistListStopsAtLimit() throws {
+        var requests: [[UInt8]] = []
+        let link = RequestOrganizerLink(request: { bytes in
+            requests.append(bytes)
+            let start = Int(bytes[2]) << 8 | Int(bytes[3])
+            return .answered(self.playlistPage(total: 500, start: start, count: 16))
+        }, window: { .playlist }, sleep: { _ in })
+        let tracks = try link.listPlaylist(limit: 20)
+        XCTAssertEqual(requests, [[2, 3, 0, 0], [2, 3, 0, 16]])
+        XCTAssertEqual(tracks.count, 20)
+        XCTAssertEqual(tracks[3], PlaylistTrackInfo(index: 3, selected: true, color: RGBColor(r: 0x56, g: 0x5E, b: 0x66),
+                                                    name: "Track 4"))
+        XCTAssertTrue(tracks[3].hasDefaultName)
+        XCTAssertNil(OrganizerPayload.decodePlaylist(playlistPage(total: 2, start: 0, count: 2) + [0]))
+        XCTAssertNil(OrganizerPayload.decodeChannels(playlistPage(total: 1, start: 0, count: 1)), "autre genre")
+    }
+
+    func testPageAskedThenOldScriptFallback() throws {
+        // Script v6 : la page vient de l'opération 9.
+        let v6 = RequestOrganizerLink(request: { _ in .answered([1]) }, window: { .unknown }, sleep: { _ in })
+        XCTAssertEqual(try v6.page(), .channelRack)
+        XCTAssertEqual(v6.window, .channelRack, "lien endormi : la page est demandée")
+
+        // Script v5 : refus 5, puis la page reçue au réveil.
+        var reads = 0
+        let v5 = RequestOrganizerLink(request: { _ in .refused(5) }, window: {
+            reads += 1
+            return reads < 3 ? .unknown : .mixer
+        }, sleep: { _ in })
+        XCTAssertEqual(try v5.page(), .mixer)
+
+        // Script v5 sans page connue, ou opérations 10 à 12 : FL doit être redémarré.
+        let silent = RequestOrganizerLink(request: { _ in .refused(5) }, window: { .unknown }, sleep: { _ in })
+        XCTAssertThrowsError(try silent.page()) { XCTAssertEqual($0 as? OrganizerError, .outdatedScript) }
+        XCTAssertThrowsError(try silent.playTrack(0)) { XCTAssertEqual($0 as? OrganizerError, .outdatedScript) }
+        XCTAssertTrue(OrganizerError.outdatedScript.message.contains("redémarre FL Studio"))
+    }
+
+    func testRefusalAfterV6StaysARefusal() throws {
+        var answers: [RequestReply] = [.answered([2]), .refused(5)]
+        let link = RequestOrganizerLink(request: { _ in answers.removeFirst() }, window: { .unknown }, sleep: { _ in })
+        XCTAssertEqual(try link.page(), .playlist)
+        XCTAssertThrowsError(try link.seek(0.5)) { XCTAssertEqual($0 as? OrganizerError, .refused(5)) }
+        XCTAssertEqual(OrganizerError.failed("lien avec FL non installé").message, "Lien avec FL non installé")
+    }
+
     func testRefusalsBecomeErrors() {
         var calls = 0
         let link = RequestOrganizerLink(request: { _ in

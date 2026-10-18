@@ -94,6 +94,11 @@ class FLState(object):
         self.song_pos = kw.get("song_pos", 0.5)
         self.mx_names = kw.get("mx_names", {})
         self.mx_colors = kw.get("mx_colors", {})
+        # Playlist (index 1 = piste 1 de FL) : noms, couleurs, sourdines, longueur de la chanson.
+        self.pl_names = kw.get("pl_names", {})
+        self.pl_colors = kw.get("pl_colors", {})
+        self.pl_muted = set(kw.get("pl_muted", ()))
+        self.song_bars = kw.get("song_bars", 32)
 
     def cc_out(self):
         """Liste (statut, cc, valeur) des messages envoyés."""
@@ -175,6 +180,7 @@ def build_fl(api=45, missing=(), extra=None, **kw):
     reg("transport", "isRecording", 1, maxargs(0, lambda: st.recording))
     reg("transport", "globalTransport", 1, lambda cmd, value, *a: 1)
     reg("transport", "getLoopMode", 1, lambda: st.loop_mode)
+    reg("transport", "getSongLength", 3, lambda mode: st.song_bars if mode == 3 else st.song_bars * 384)
     reg("transport", "getSongPos", 1,
         maxargs(1 if api >= 3 else 0, lambda *a: 1920 if a else st.song_pos))
 
@@ -358,6 +364,14 @@ def build_fl(api=45, missing=(), extra=None, **kw):
     reg("playlist", "isTrackSelected", 12, lambda i: (chk_pl(i), i in st.pl_sel)[1])
     reg("playlist", "setTrackName", 1, lambda i, name: (chk_pl(i), st.given_names.__setitem__(("playlist", i), name))[1])
     reg("playlist", "setTrackColor", 1, lambda i, c: (chk_pl(i), st.given_colors.__setitem__(("playlist", i), c))[1])
+    reg("playlist", "getTrackName", 1, lambda i: (chk_pl(i), st.pl_names.get(i, "Track %d" % i))[1])
+    reg("playlist", "getTrackColor", 1, lambda i: (chk_pl(i), st.pl_colors.get(i, 0x565E66))[1])
+    reg("playlist", "isTrackMuted", 1, lambda i: (chk_pl(i), i in st.pl_muted)[1])
+
+    def pl_mute(i, *a):
+        chk_pl(i)
+        st.pl_muted.symmetric_difference_update({i})     # bascule, comme la valeur par défaut -1 de FL
+    reg("playlist", "muteTrack", 1, pl_mute)
 
     # utils (fichier utils.py livré avec FL)
     reg("utils", "RGBToColor", 1, lambda r, g, b: (r << 16) | (g << 8) | b)

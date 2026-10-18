@@ -27,7 +27,7 @@ bornes vérifiées, seuls les CC du protocole (canal 16) sont marqués « handle
 # La ligne suivante est remplacée par l'appli à l'installation (16 octets en hex).
 KEY_HEX = "__FLSHORTCUT_KEY__"
 
-SCRIPT_VERSION = 5
+SCRIPT_VERSION = 6
 PROTOCOL_VERSION = 2
 
 MIDI_CHANNEL = 15          # canal 16, 0-indexé
@@ -76,13 +76,20 @@ OP_SELECT_ONE = 5
 OP_PLAY_SOLO = 6
 OP_STOP_RESTORE = 7
 OP_GRADIENT = 8
+OP_PAGE = 9                # page de FL devant (Organiser)
+OP_SET_NAMES = 10          # noms des pistes de la Playlist
+OP_PLAY_TRACK = 11         # écoute d'une piste de la Playlist seule
+OP_SEEK = 12               # position de la chanson pendant cette écoute
 KIND_CHANNELS = 1
 KIND_MIXER = 2
+KIND_PLAYLIST = 3          # pistes de la Playlist (index 0 = piste 1 de FL)
 REASON_PLAYING = 4         # FL joue déjà (opération 6)
 REASON_FEW = 7             # dégradé : au moins 2 éléments sélectionnés
 LIST_PAGE = 16             # entrées par réponse de `list`
 LIST_NAME_BYTES = 24       # noms coupés (aperçu seulement)
 MAX_COLORS = 64
+MAX_NAMES = 16             # noms par commande (opération 10)
+NAME_MAX_BYTES = 32
 
 MAX_ACTIONS_PER_S = 20     # PROTOCOL.md §4
 MAX_MAC_CHECKS_PER_S = 25  # coût CPU borné sous inondation (SEC-10)
@@ -1500,11 +1507,14 @@ def _channel_count():
 
 
 def _op_list(raw, seq3):
-    """[2, genre, début (2)] -> [genre, total (2), début (2), n, filtré] + entrées (16 au plus)."""
-    if len(raw) != 4 or raw[1] not in (KIND_CHANNELS, KIND_MIXER):
+    """[2, genre, début (2)] -> [genre, total (2), début (2), n, filtré] + entrées (16 au plus). Playlist : entrée
+    [sélectionnée, R, G, B, longueur, nom], index 0 = piste 1 de FL."""
+    if len(raw) != 4 or raw[1] not in (KIND_CHANNELS, KIND_MIXER, KIND_PLAYLIST):
         return REASON_DATA
     kind, start = raw[1], _be16(raw[2], raw[3])
     get_type = None
+    if kind == KIND_PLAYLIST:
+        return _list_playlist(start, seq3)
     if kind == KIND_CHANNELS:
         fns = _fns("channels", "channelCount", "getChannelName", "getChannelColor", "getTargetFxTrack")
         if fns is None:
@@ -1540,12 +1550,35 @@ def _op_list(raw, seq3):
     return 0 if _respond(OP_LIST, data, seq3) else REASON_DATA
 
 
+def _list_playlist(start, seq3):
+    fns = _fns("playlist", "trackCount", "getTrackName", "getTrackColor")
+    if fns is None:
+        return REASON_OLD_FL
+    count, get_name, get_color = fns
+    selected = _fn("playlist", "isTrackSelected") if _api_at_least(12) else None
+    total = count()
+    if not _is_int(total) or not 0 <= start <= total:
+        return REASON_DATA
+    n = min(LIST_PAGE, total - start)
+    data = [KIND_PLAYLIST] + _u16(total) + _u16(start) + [n, 0]
+    for i in range(start, start + n):
+        name = _name_bytes(get_name(i + 1))
+        sel = 1 if selected is not None and selected(i + 1) else 0
+        data += [sel] + _rgb_of(get_color(i + 1)) + [len(name)] + name
+    return 0 if _respond(OP_LIST, data, seq3) else REASON_DATA
+
+
 def _kind_fns(kind):
     """(nombre, poser la couleur) du genre, ou une raison de refus."""
     if kind == KIND_CHANNELS:
         fns = _fns("channels", "channelCount", "setChannelColor")
     elif kind == KIND_MIXER:
         fns = _fns("mixer", "trackCount", "setTrackColor")
+    elif kind == KIND_PLAYLIST:
+        fns = _fns("playlist", "trackCount", "setTrackColor")
+        if fns is not None:                  # index 0 = piste 1 de FL
+            count, set_color = fns
+            fns = (count, lambda i, c: set_color(i + 1, c))
     else:
         return REASON_DATA
     return fns if fns is not None else REASON_OLD_FL
@@ -1626,11 +1659,13 @@ def _op_play_solo(raw, seq3):
     if not _is_int(total) or not 0 <= index < total:
         return REASON_DATA
     is_muted, mute = _fn("channels", "isChannelMuted"), _fn("channels", "muteChannel")
+    if _st.memo is not None and _st.memo.get("kind", "ch") != "ch":
+        _restore_memo()                    # une écoute de la Playlist était en cours
     playing = _fn("transport", "isPlaying")()
     if _st.memo is None:
         if playing:
             return REASON_PLAYING          # l'utilisateur joue : on ne coupe rien
-        _st.memo = {"n": total, "muted": [bool(is_muted(i)) for i in range(total)],
+        _st.memo = {"kind": "ch", "n": total, "muted": [bool(is_muted(i)) for i in range(total)],
                     "mode": _fn("transport", "getLoopMode")(), "pos": _fn("transport", "getSongPos")()}
     elif playing:
         _fn("transport", "stop")()
@@ -1645,6 +1680,105 @@ def _op_play_solo(raw, seq3):
     return 0
 
 
+_PL_PLAY_FNS = (("playlist", "trackCount"), ("playlist", "isTrackMuted"), ("playlist", "muteTrack"),
+                ("transport", "start"), ("transport", "stop"), ("transport", "isPlaying"),
+                ("transport", "getLoopMode"), ("transport", "setLoopMode"), ("transport", "getSongPos"),
+                ("transport", "setSongPos"))
+
+
+def _op_play_track(raw, seq3):
+    """[11, piste (2)] -> [longueur de la chanson en mesures (2)] : comme l'opération 6, pour une piste de la
+    Playlist : au premier appel, mémo des sourdines des pistes, du mode et de la position ; puis cette piste seule
+    audible, mode chanson, début, lecture."""
+    if len(raw) != 3:
+        return REASON_DATA
+    if any(_fn(m, n) is None for m, n in _PL_PLAY_FNS):
+        return REASON_OLD_FL
+    index = _be16(raw[1], raw[2])
+    total = _fn("playlist", "trackCount")()
+    if not _is_int(total) or not 0 <= index < total:
+        return REASON_DATA
+    is_muted, mute = _fn("playlist", "isTrackMuted"), _fn("playlist", "muteTrack")
+    if _st.memo is not None and _st.memo.get("kind", "ch") != "pl":
+        _restore_memo()                    # une écoute du Channel rack était en cours
+    playing = _fn("transport", "isPlaying")()
+    if _st.memo is None:
+        if playing:
+            return REASON_PLAYING
+        _st.memo = {"kind": "pl", "n": total, "muted": [bool(is_muted(i + 1)) for i in range(total)],
+                    "mode": _fn("transport", "getLoopMode")(), "pos": _fn("transport", "getSongPos")()}
+    elif playing:
+        _fn("transport", "stop")()
+    for i in range(total):
+        want = i != index
+        if bool(is_muted(i + 1)) != want:
+            mute(i + 1)
+    if _fn("transport", "getLoopMode")() != 1:
+        _fn("transport", "setLoopMode")()
+    _fn("transport", "setSongPos")(0.0)
+    _fn("transport", "start")()
+    length = _fn("transport", "getSongLength")
+    bars = 0
+    if length is not None and _api_at_least(3):
+        try:
+            bars = int(length(_const("SONGLENGTH_BARS", 3)))
+        except Exception:
+            bars = 0
+    return 0 if _respond(OP_PLAY_TRACK, _u16(max(0, bars)), seq3) else REASON_DATA
+
+
+def _op_seek(raw, seq3):
+    """[12, pour mille (2)] : position de la chanson, seulement pendant une écoute de la Playlist."""
+    if len(raw) != 3:
+        return REASON_DATA
+    permille = _be16(raw[1], raw[2])
+    if _st.memo is None or _st.memo.get("kind") != "pl" or permille > 1000:
+        return REASON_DATA
+    _fn("transport", "setSongPos")(permille / 1000.0)
+    return 0
+
+
+def _op_page(raw, seq3):
+    """[9] -> [code de la page devant] (0 Mixer, 1 Channel rack, 2 Playlist…, 127 aucune)."""
+    if len(raw) != 1:
+        return REASON_DATA
+    return 0 if _respond(OP_PAGE, [focused_window_code()], seq3) else REASON_DATA
+
+
+def _op_set_names(raw, seq3):
+    """[10, genre, n, (index (2), longueur, nom UTF-8) x n] : noms des pistes de la Playlist (genre 3), tout vérifié
+    avant d'en poser un."""
+    if len(raw) < 3 or raw[1] != KIND_PLAYLIST:
+        return REASON_DATA
+    n = raw[2]
+    fns = _fns("playlist", "trackCount", "setTrackName")
+    if fns is None:
+        return REASON_OLD_FL
+    count, set_name = fns
+    total = count()
+    if not 1 <= n <= MAX_NAMES or not _is_int(total):
+        return REASON_DATA
+    todo, at = [], 3
+    for _ in range(n):
+        if at + 3 > len(raw):
+            return REASON_DATA
+        index, size = _be16(raw[at], raw[at + 1]), raw[at + 2]
+        at += 3
+        if not 0 <= index < total or not 1 <= size <= NAME_MAX_BYTES or at + size > len(raw):
+            return REASON_DATA
+        try:
+            name = bytes(raw[at:at + size]).decode("utf-8")
+        except Exception:
+            return REASON_DATA
+        at += size
+        todo.append((index, name))
+    if at != len(raw):
+        return REASON_DATA
+    for index, name in todo:
+        set_name(index + 1, name)
+    return 0
+
+
 def _restore_memo():
     """Arrêt de la lecture, sourdines, mode et position remis comme au mémo, mémo vidé. Rien sans mémo."""
     memo = _st.memo
@@ -1656,6 +1790,13 @@ def _restore_memo():
         _fn("transport", "stop")()
 
     def mutes():
+        if memo.get("kind", "ch") == "pl":
+            is_muted, mute = _fn("playlist", "isTrackMuted"), _fn("playlist", "muteTrack")
+            count = _fn("playlist", "trackCount")()
+            for i in range(min(memo["n"], count if _is_int(count) else 0)):
+                if bool(is_muted(i + 1)) != memo["muted"][i]:
+                    mute(i + 1)
+            return
         is_muted, mute = _fn("channels", "isChannelMuted"), _fn("channels", "muteChannel")
         for i in range(min(memo["n"], _channel_count())):
             if bool(is_muted(i)) != memo["muted"][i]:
@@ -1758,6 +1899,10 @@ _EXT_OPS = {
     OP_PLAY_SOLO: _op_play_solo,
     OP_STOP_RESTORE: _op_stop_restore,
     OP_GRADIENT: _op_gradient,
+    OP_PAGE: _op_page,
+    OP_SET_NAMES: _op_set_names,
+    OP_PLAY_TRACK: _op_play_track,
+    OP_SEEK: _op_seek,
 }
 
 

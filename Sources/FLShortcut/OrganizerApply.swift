@@ -1,6 +1,8 @@
 // Organiser : réglage de chaque famille (une couleur ou un dégradé, une icône), plan de regroupement du Channel rack,
-// application dans FL et « Revenir comme avant ». Le plan et les couleurs sont purs (testés) ; l'application passe
-// par OrganizerLink (couleurs, sélection, vérification) et par ⌥↑ envoyé à FL seul pour remonter un canal.
+// noms des pistes de la Playlist, application dans FL et « Revenir comme avant ». Le plan, les couleurs et les noms
+// sont purs (testés) ; l'application passe par OrganizerLink (couleurs, noms, sélection, vérification) et par ⌥↑
+// envoyé à FL seul pour remonter un canal. FL ne permet pas de déplacer les pistes de la Playlist ni de poser leur
+// icône depuis un script : la Playlist garde son ordre et ses icônes.
 import Foundation
 
 /// Réglage d'une famille, gardé dans les préférences.
@@ -125,8 +127,10 @@ struct OrganizerSnapshot: Equatable {
     let kind: ItemKind
     /// Couleur d'origine de chaque élément (par index d'origine).
     let colors: [Int: RGBColor]
-    /// Channel rack : place → index d'origine, après ce qui a déjà été fait ; vide pour le Mixer.
+    /// Channel rack : place → index d'origine, après ce qui a déjà été fait ; vide pour le Mixer et la Playlist.
     var arrangement: [Int]
+    /// Playlist : nom d'origine des pistes renommées.
+    var names: [Int: String] = [:]
 }
 
 struct ApplyOutcome: Equatable {
@@ -174,10 +178,11 @@ final class OrganizerApplier {
         }
     }
 
-    /// Famille de départ de chaque élément à colorer : canaux écoutés ou pistes du Mixer reliées.
+    /// Famille de départ de chaque élément à colorer : canaux ou pistes de la Playlist écoutés, ou pistes du Mixer
+    /// reliées.
     static func families(of result: OrganizerResult) -> [Int: SoundFamily] {
         switch result.page {
-        case .channelRack:
+        case .channelRack, .playlist:
             var out: [Int: SoundFamily] = [:]
             for item in result.items { out[item.index] = item.family }
             return out
@@ -198,20 +203,82 @@ final class OrganizerApplier {
         return out
     }
 
+    /// Nouveau nom des pistes de la Playlist qui ont encore le nom de FL : la sorte des drums (Kick, Snare…) ou la
+    /// famille (Voix, Mélodie, Basse, FX) ; numérotés dans l'ordre de la Playlist quand il y en a plusieurs
+    /// (« Kick », « Kick 2 »…). « À vérifier » : pas renommée.
+    static func plannedNames(result: OrganizerResult, families: [Int: SoundFamily]) -> [Int: String] {
+        let drums = Dictionary(result.items.map { ($0.index, $0.drum) }, uniquingKeysWith: { a, _ in a })
+        var base: [(index: Int, name: String)] = []
+        for track in result.playlist where track.hasDefaultName {
+            guard let family = families[track.index], var name = family.trackName else { continue }
+            if family == .drums, let kind = drums[track.index] ?? nil { name = kind.name }
+            base.append((track.index, name))
+        }
+        var seen: [String: Int] = [:]
+        var out: [Int: String] = [:]
+        for item in base {
+            seen[item.name, default: 0] += 1
+            let n = seen[item.name] ?? 1
+            out[item.index] = n > 1 ? "\(item.name) \(n)" : item.name
+        }
+        return out
+    }
+
     private static func pairs(_ colors: [Int: RGBColor]) -> [(index: Int, color: RGBColor)] {
         colors.keys.sorted().compactMap { index in colors[index].map { (index: index, color: $0) } }
+    }
+
+    private static func namePairs(_ names: [Int: String]) -> [(index: Int, name: String)] {
+        names.keys.sorted().compactMap { index in names[index].map { (index: index, name: $0) } }
     }
 
     private static func failure(_ error: Error) -> OrganizerError {
         (error as? OrganizerError) ?? .failed("Organiser : étape impossible (\(type(of: error))).")
     }
 
+    /// `names` : nouveaux noms des pistes de la Playlist (voir `plannedNames`).
     func apply(result: OrganizerResult, families: [Int: SoundFamily],
-               styles: [SoundFamily: FamilyStyle]) -> ApplyOutcome {
+               styles: [SoundFamily: FamilyStyle], names: [Int: String] = [:]) -> ApplyOutcome {
         switch result.page {
         case .mixer: return applyMixer(result, families, styles)
         case .channelRack: return applyRack(result, families, styles)
+        case .playlist: return applyPlaylist(result, families, styles, names)
         }
+    }
+
+    /// Couleurs et noms, puis vérification sur les pistes touchées (lues jusqu'à la dernière).
+    private func applyPlaylist(_ result: OrganizerResult, _ families: [Int: SoundFamily],
+                               _ styles: [SoundFamily: FamilyStyle], _ names: [Int: String]) -> ApplyOutcome {
+        var originals: [Int: RGBColor] = [:]
+        var originalNames: [Int: String] = [:]
+        for track in result.playlist {
+            if families[track.index] != nil { originals[track.index] = track.color }
+            // Nom de FL lu vide : remis en « Track n » (un nom vide ne peut pas être posé).
+            if names[track.index] != nil {
+                originalNames[track.index] = track.name.isEmpty ? "Track \(track.index + 1)" : track.name
+            }
+        }
+        let colors = Self.plannedColors(families: families, styles: styles, order: result.playlist.map(\.index))
+        var outcome = ApplyOutcome(snapshot: OrganizerSnapshot(kind: .playlist, colors: originals, arrangement: [],
+                                                               names: originalNames))
+        do {
+            try link.setColors(.playlist, Self.pairs(colors))
+            try link.setNames(.playlist, Self.namePairs(names))
+            let last = max(colors.keys.max() ?? -1, names.keys.max() ?? -1)
+            guard last >= 0 else { return outcome }
+            var now: [Int: PlaylistTrackInfo] = [:]
+            for track in try link.listPlaylist(limit: last + 1) { now[track.index] = track }
+            let wrongColor = colors.contains { now[$0.key]?.color != $0.value }
+            // Noms comparés tels que le script les lit (coupés à 24 octets) ; les nouveaux noms sont courts.
+            let wrongName = names.contains { item in
+                guard let read = now[item.key]?.name, let sent = OrganizerPayload.nameUTF8(item.value) else { return true }
+                return Array(read.utf8) != Array(sent.prefix(24))
+            }
+            if wrongColor || wrongName { outcome.error = .mismatch }
+        } catch {
+            outcome.error = Self.failure(error)
+        }
+        return outcome
     }
 
     private func applyMixer(_ result: OrganizerResult, _ families: [Int: SoundFamily],
@@ -282,6 +349,9 @@ final class OrganizerApplier {
             switch snapshot.kind {
             case .mixer:
                 try link.setColors(.mixer, Self.pairs(snapshot.colors))
+            case .playlist:
+                try link.setColors(.playlist, Self.pairs(snapshot.colors))
+                try link.setNames(.playlist, Self.namePairs(snapshot.names))
             case .channels:
                 var byPlace: [Int: RGBColor] = [:]
                 for (place, id) in snapshot.arrangement.enumerated() { byPlace[place] = snapshot.colors[id] }

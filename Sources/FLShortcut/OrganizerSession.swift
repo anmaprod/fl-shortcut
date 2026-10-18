@@ -1,11 +1,12 @@
 // Organiser : écoute de chaque canal de FL (ta partie d'abord, notes d'essai en secours si le canal se tait), classement
-// en familles, et famille de chaque piste du Mixer. Tourne hors du fil principal ; FL est toujours remis comme avant
+// en familles, et famille de chaque piste du Mixer ; ou écoute de chaque piste de la Playlist seule (la chanson
+// parcourue jusqu'à ce que la piste sonne). Tourne hors du fil principal ; FL est toujours remis comme avant
 // (opération 7) avant que le son de FL revienne, même après une erreur ou Échap. Les noms ne sont jamais journalisés.
 import Accelerate
 import Foundation
 
 enum OrganizerPage: Equatable {
-    case channelRack, mixer
+    case channelRack, mixer, playlist
 }
 
 /// Un canal écouté et classé.
@@ -18,6 +19,8 @@ struct OrganizerItem: Equatable {
     var testNotes: Bool
     let mixerTrack: Int
     let color: RGBColor
+    /// Drums d'une piste de la Playlist : leur sorte (le nouveau nom de la piste).
+    var drum: DrumKind? = nil
 }
 
 struct OrganizerResult: Equatable {
@@ -30,6 +33,8 @@ struct OrganizerResult: Equatable {
     let mixer: [MixerTrackInfo]
     /// Famille des pistes du Mixer reliées à au moins un canal écouté (le Master n'est jamais touché).
     let mixerFamilies: [Int: SoundFamily]
+    /// Pistes de la Playlist lues (page Playlist seulement) ; `items` : celles qui sonnent, écoutées et classées.
+    var playlist: [PlaylistTrackInfo] = []
 }
 
 final class OrganizerSession {
@@ -42,19 +47,29 @@ final class OrganizerSession {
         var tail: TimeInterval = 0.6
         /// Échap est vu au plus tard après ce délai.
         var slice: TimeInterval = 0.05
+        /// Playlist : écoute à chaque position essayée, jusqu'à ce que la piste sonne.
+        var probe: TimeInterval = 0.4
     }
 
     typealias Classify = ([Float], Double) -> (family: SoundFamily, confidence: Double)
+    /// Sorte d'un son classé en drums (nom de la piste de la Playlist).
+    typealias NameDrum = ([Float], Double) -> DrumKind
 
     /// Notes d'essai : C3 puis C5 (pour FPC, ses deux premiers pads).
     static let testNotes: [UInt8] = [48, 60]
     static let testVelocity: UInt8 = 100
     /// Un classement fait avec les notes d'essai compte moins.
     static let testNotesFactor = 0.7
+    /// Playlist sans piste sélectionnée : pistes écoutées après la dernière piste renommée (des pistes jamais
+    /// renommées ont souvent des clips), 64 au plus ; l'écoute s'arrête après 3 pistes muettes de suite au-delà.
+    static let extraTracks = 32
+    static let maxTracks = 64
+    static let silentRunStop = 3
 
     private let link: OrganizerLink
     private let audio: AudioSource
     private let classify: Classify
+    private let nameDrum: NameDrum?
     private let timing: Timing
     private let sleep: (TimeInterval) -> Void
     private let progress: (Int, Int) -> Void
@@ -63,13 +78,15 @@ final class OrganizerSession {
     private var stopped = false
 
     /// `escape` : Échap pressé, regardé à chaque tranche d'attente (même quand FL est devant).
-    init(link: OrganizerLink, audio: AudioSource, classify: @escaping Classify, timing: Timing = Timing(),
+    init(link: OrganizerLink, audio: AudioSource, classify: @escaping Classify, nameDrum: NameDrum? = nil,
+         timing: Timing = Timing(),
          sleep: @escaping (TimeInterval) -> Void = { Thread.sleep(forTimeInterval: $0) },
          escape: @escaping () -> Bool = { false },
          progress: @escaping (Int, Int) -> Void = { _, _ in }) {
         self.link = link
         self.audio = audio
         self.classify = classify
+        self.nameDrum = nameDrum
         self.timing = timing
         self.sleep = sleep
         self.escape = escape
@@ -90,14 +107,16 @@ final class OrganizerSession {
     }
 
     /// Bloquant (à lancer hors du fil principal) ; `progress(fait, total)` est appelé avant chaque canal et à la fin.
+    /// La page devant est demandée à FL (la première commande réveille le script : rien n'est su avant).
     func run() -> Result<OrganizerResult, OrganizerError> {
-        let page: OrganizerPage
-        switch link.window {
-        case .channelRack: page = .channelRack
-        case .mixer: page = .mixer
-        default: return .failure(.refused(1))
-        }
         do {
+            let page: OrganizerPage
+            switch try link.page() {
+            case .channelRack: page = .channelRack
+            case .mixer: page = .mixer
+            case .playlist: return .success(try runPlaylist())
+            default: return .failure(.refused(1))
+            }
             let list = try link.listChannels()
             if list.filtered { return .failure(.filteredGroup) }
             let mixer: [MixerTrackInfo] = try page == .mixer ? link.listMixer() : []
@@ -144,6 +163,69 @@ final class OrganizerSession {
         return items
     }
 
+    // MARK: Playlist
+
+    private func runPlaylist() throws -> OrganizerResult {
+        let tracks = try link.listPlaylist(limit: .max)
+        let targets = Self.playlistTargets(tracks)
+        let lastNamed = tracks.contains(where: \.selected) ? nil : Self.lastNamed(tracks)
+        let items = try listenPlaylist(targets, stopAfterSilence: lastNamed)
+        return OrganizerResult(page: .playlist, channels: [], items: items, mixer: [], mixerFamilies: [:],
+                               playlist: tracks)
+    }
+
+    /// `stopAfterSilence` : index de la dernière piste renommée ; au-delà, l'écoute s'arrête après
+    /// `silentRunStop` pistes muettes de suite (nil : toutes les pistes demandées sont écoutées).
+    private func listenPlaylist(_ targets: [PlaylistTrackInfo], stopAfterSilence: Int?) throws -> [OrganizerItem] {
+        guard !targets.isEmpty else { return [] }
+        try audio.start()
+        defer {
+            link.stopRestore()
+            audio.stop()
+        }
+        var items: [OrganizerItem] = []
+        var silentRun = 0
+        for (done, track) in targets.enumerated() {
+            progress(done, targets.count)
+            if isCancelled { throw OrganizerError.cancelled }
+            guard let samples = try hear(track.index) else {
+                if let last = stopAfterSilence, track.index > last {
+                    silentRun += 1
+                    if silentRun >= Self.silentRunStop { break }
+                }
+                continue
+            }
+            silentRun = 0
+            let verdict = classify(samples, audio.rate)
+            let drum = verdict.family == .drums ? nameDrum?(samples, audio.rate) : nil
+            items.append(OrganizerItem(index: track.index, name: track.name, family: verdict.family,
+                                       confidence: verdict.confidence, testNotes: false, mixerTrack: 0,
+                                       color: track.color, drum: drum))
+        }
+        progress(targets.count, targets.count)
+        return items
+    }
+
+    /// La piste seule, chanson jouée depuis son début puis aux positions de `probePositions` jusqu'à ce qu'elle
+    /// sonne ; ensuite `Timing.listen` de plus. nil si elle reste muette partout.
+    private func hear(_ track: Int) throws -> [Float]? {
+        audio.reset()
+        let bars = try link.playTrack(track)
+        for (k, position) in Self.probePositions(bars: bars).enumerated() {
+            if k > 0 {
+                try link.seek(position)
+                audio.reset()
+            }
+            try pause(timing.probe)
+            let heard = audio.take()
+            if Self.peakDB(heard) >= FamilyFusion.silenceDB {
+                try pause(timing.listen)
+                return heard + audio.take()
+            }
+        }
+        return nil
+    }
+
     /// Chaque note est toujours coupée (vélocité 0), même après Échap.
     private func playTestNotes(_ channel: Int) throws -> [Float] {
         audio.reset()
@@ -174,6 +256,27 @@ final class OrganizerSession {
 
     // MARK: Pur
 
+    /// Index de la dernière piste renommée (-1 s'il n'y en a pas).
+    static func lastNamed(_ tracks: [PlaylistTrackInfo]) -> Int {
+        tracks.last(where: { !$0.hasDefaultName })?.index ?? -1
+    }
+
+    /// Pistes à écouter : les pistes sélectionnées s'il y en a ; sinon de la première à la dernière renommée, plus
+    /// `extraTracks` pistes au nom de FL après elle ; `maxTracks` au plus.
+    static func playlistTargets(_ tracks: [PlaylistTrackInfo]) -> [PlaylistTrackInfo] {
+        let selected = tracks.filter(\.selected)
+        if !selected.isEmpty { return Array(selected.prefix(maxTracks)) }
+        let end = min(tracks.count, lastNamed(tracks) + 1 + extraTracks, maxTracks)
+        return Array(tracks.prefix(end))
+    }
+
+    /// Positions (0…1) essayées pour trouver le son d'une piste : le début, puis toutes les 4 mesures (24 positions
+    /// au plus, 16 si FL ne donne pas la longueur).
+    static func probePositions(bars: Int) -> [Double] {
+        let count = bars > 0 ? min(24, max(1, (bars + 3) / 4)) : 16
+        return (0..<count).map { Double($0) / Double(count) }
+    }
+
     /// Crête en dBFS (−180 pour un son vide).
     static func peakDB(_ samples: [Float]) -> Double {
         guard !samples.isEmpty else { return -180 }
@@ -203,6 +306,13 @@ final class OrganizerSession {
             let features = SoundFeatures.measure(samples, rate: rate)
             let labels = ai.map { AILabels(scores: $0.scores(samples, rate: rate)) } ?? AILabels.none
             return FamilyFusion.decide(features, labels)
+        }
+    }
+
+    /// Sorte des drums : étiquettes de l'IA de macOS, sinon les mesures du son.
+    static func liveDrumNamer(ai: SoundClassifier? = SoundClassifier()) -> NameDrum {
+        { samples, rate in
+            DrumNaming.kind(SoundFeatures.measure(samples, rate: rate), scores: ai?.scores(samples, rate: rate) ?? [:])
         }
     }
 }

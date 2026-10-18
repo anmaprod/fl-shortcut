@@ -7,10 +7,47 @@ final class FakeOrganizerLink: OrganizerLink {
     var channels: [ChannelInfo] = []
     var filtered = false
     var mixer: [MixerTrackInfo] = []
+    var playlist: [PlaylistTrackInfo] = []
+    /// Longueur de la chanson rendue par l'écoute d'une piste (opération 11).
+    var bars = 32
     var playing = false
     private(set) var log: [String] = []
     private(set) var solo: Int?
+    /// Piste de la Playlist écoutée seule, et la position de la chanson (0…1).
+    private(set) var track: Int?
+    private(set) var position = 0.0
     private var memo = false
+
+    func page() throws -> FLWindow { window }
+
+    func listPlaylist(limit: Int) throws -> [PlaylistTrackInfo] {
+        log.append("playlist")
+        return Array(playlist.prefix(limit))
+    }
+
+    func setNames(_ kind: ItemKind, _ names: [(index: Int, name: String)]) throws {
+        log.append("names \(names.count)")
+        for (index, name) in names where playlist.indices.contains(index) {
+            let t = playlist[index]
+            playlist[index] = PlaylistTrackInfo(index: index, selected: t.selected, color: t.color, name: name)
+        }
+    }
+
+    func playTrack(_ index: Int) throws -> Int {
+        if !memo && playing { throw OrganizerError.refused(4) }
+        memo = true
+        playing = true
+        track = index
+        position = 0
+        log.append("track \(index)")
+        return bars
+    }
+
+    func seek(_ fraction: Double) throws {
+        guard memo, track != nil else { throw OrganizerError.refused(5) }
+        position = fraction
+        log.append("seek \(Int((fraction * 1000).rounded()))")
+    }
 
     func listChannels() throws -> (channels: [ChannelInfo], filtered: Bool) {
         log.append("list")
@@ -35,6 +72,11 @@ final class FakeOrganizerLink: OrganizerLink {
             case .mixer:
                 if let at = mixer.firstIndex(where: { $0.index == index }) {
                     mixer[at] = MixerTrackInfo(index: index, color: color, name: mixer[at].name)
+                }
+            case .playlist:
+                if playlist.indices.contains(index) {
+                    let t = playlist[index]
+                    playlist[index] = PlaylistTrackInfo(index: index, selected: t.selected, color: color, name: t.name)
                 }
             }
         }
@@ -75,6 +117,7 @@ final class FakeOrganizerLink: OrganizerLink {
         if memo { playing = false }
         memo = false
         solo = nil
+        track = nil
     }
 
     func audition(_ channel: Int, note: UInt8, velocity: UInt8) throws {
@@ -82,12 +125,14 @@ final class FakeOrganizerLink: OrganizerLink {
     }
 }
 
-/// Capture simulée : le son de la partie du canal en solo, ou celui de ses notes d'essai.
+/// Capture simulée : le son de la partie du canal en solo, ou celui de ses notes d'essai ; Playlist : le son de la
+/// piste écoutée seule, à partir de la position où ses clips commencent.
 final class FakeAudio: AudioSource {
     let rate = 48_000.0
     let link: FakeOrganizerLink
     var parts: [Int: [Float]] = [:]
     var testSounds: [Int: [Float]] = [:]
+    var tracks: [Int: (from: Double, samples: [Float])] = [:]
     private(set) var started = 0
     private(set) var stopped = 0
     private var mark = 0
@@ -99,6 +144,10 @@ final class FakeAudio: AudioSource {
     func reset() { mark = link.log.count }
 
     func take() -> [Float] {
+        if let track = link.track {
+            guard let sound = tracks[track], link.position >= sound.from else { return [] }
+            return sound.samples
+        }
         guard let channel = link.solo else { return [] }
         let since = link.log[mark...]
         if since.contains(where: { $0.hasPrefix("note \(channel) ") }) { return testSounds[channel] ?? [] }
@@ -108,7 +157,7 @@ final class FakeAudio: AudioSource {
 
 final class OrganizerSessionTests: XCTestCase {
     private let red = RGBColor(r: 200, g: 0, b: 0)
-    private let timing = OrganizerSession.Timing(listen: 0.2, testNote: 0.1, tail: 0.1, slice: 0.05)
+    private let timing = OrganizerSession.Timing(listen: 0.2, testNote: 0.1, tail: 0.1, slice: 0.05, probe: 0.1)
 
     /// Le son d'une famille : sa place dans l'ordre des familles, en amplitude (bien au-dessus de −50 dBFS).
     private func tone(_ family: SoundFamily) -> [Float] {
@@ -127,7 +176,8 @@ final class OrganizerSessionTests: XCTestCase {
     private func make(_ link: FakeOrganizerLink, _ audio: FakeAudio,
                       sleep: @escaping (TimeInterval) -> Void = { _ in },
                       progress: @escaping (Int, Int) -> Void = { _, _ in }) -> OrganizerSession {
-        OrganizerSession(link: link, audio: audio, classify: classify, timing: timing, sleep: sleep, progress: progress)
+        OrganizerSession(link: link, audio: audio, classify: classify, nameDrum: { _, _ in .kick }, timing: timing,
+                         sleep: sleep, progress: progress)
     }
 
     func testChannelRackFlow() throws {
@@ -247,21 +297,102 @@ final class OrganizerSessionTests: XCTestCase {
         let result = try make(link, audio).run().get()
         XCTAssertEqual(result.page, .mixer)
         XCTAssertEqual(result.mixer.count, 6)
-        // 1 : 2 drums contre 1 basse ; 2 : mélodie ; 3 : seulement « À vérifier » ; 4 : égalité → Drums (ordre) ;
-        // Master (0) et piste 5 sans canal : pas touchés.
-        XCTAssertEqual(result.mixerFamilies, [1: .drums, 2: .melody, 3: .unsure, 4: .drums])
+        // 1 : 2 drums contre 1 basse ; 2 : mélodie ; 3 : seulement « À vérifier » ; 4 : égalité → Basse (l'ordre :
+        // voix, mélodies, basse, drums, FX) ; Master (0) et piste 5 sans canal : pas touchés.
+        XCTAssertEqual(result.mixerFamilies, [1: .drums, 2: .melody, 3: .unsure, 4: .bass])
         XCTAssertEqual(Array(link.log.prefix(2)), ["list", "mixer"])
         XCTAssertEqual(link.log.last, "restore")
     }
 
     func testOtherPageRefused() {
         let link = FakeOrganizerLink()
-        link.window = .playlist
+        link.window = .pianoRoll
         link.channels = [channel(0)]
         let audio = FakeAudio(link: link)
         XCTAssertEqual(make(link, audio).run(), .failure(.refused(1)))
         XCTAssertEqual(link.log, [])
         XCTAssertEqual(audio.started, 0)
+    }
+
+    // MARK: Playlist
+
+    private func track(_ index: Int, _ name: String? = nil, selected: Bool = false) -> PlaylistTrackInfo {
+        PlaylistTrackInfo(index: index, selected: selected, color: red, name: name ?? "Track \(index + 1)")
+    }
+
+    func testPlaylistFlow() throws {
+        let link = FakeOrganizerLink()
+        link.window = .playlist
+        link.playlist = [track(0, "Lead")] + (1..<10).map { track($0) }
+        let audio = FakeAudio(link: link)
+        audio.tracks = [0: (from: 0, samples: tone(.melody)), 1: (from: 0.5, samples: tone(.drums)),
+                        3: (from: 0, samples: tone(.bass))]
+        var steps: [[Int]] = []
+        let result = try make(link, audio, progress: { steps.append([$0, $1]) }).run().get()
+        XCTAssertEqual(result.page, .playlist)
+        XCTAssertEqual(result.playlist.count, 10)
+        XCTAssertEqual(result.items.map(\.index), [0, 1, 3])
+        XCTAssertEqual(result.items.map(\.family), [.melody, .drums, .bass])
+        XCTAssertEqual(result.items.map(\.drum), [nil, .kick, nil], "sorte des drums seulement")
+        XCTAssertEqual(result.items[0].name, "Lead")
+        // Après la dernière piste renommée (0), 3 pistes muettes de suite (4, 5, 6) arrêtent l'écoute.
+        XCTAssertEqual(link.log.filter { $0.hasPrefix("track") }, (0...6).map { "track \($0)" })
+        XCTAssertEqual(link.log.first, "playlist")
+        XCTAssertEqual(link.log.last, "restore")
+        // Piste 1 : 32 mesures → 8 positions ; son trouvé à la 5e (moitié de la chanson).
+        let afterOne = link.log.drop(while: { $0 != "track 1" }).dropFirst().prefix(while: { $0.hasPrefix("seek") })
+        XCTAssertEqual(Array(afterOne), ["seek 125", "seek 250", "seek 375", "seek 500"])
+        XCTAssertEqual(steps.first, [0, 10])
+        XCTAssertEqual(steps.last, [10, 10])
+        XCTAssertEqual(audio.started, 1)
+        XCTAssertEqual(audio.stopped, 1)
+    }
+
+    func testPlaylistSelectedTracksOnly() throws {
+        let link = FakeOrganizerLink()
+        link.window = .playlist
+        link.playlist = (0..<8).map { track($0, selected: $0 == 2 || $0 == 5) }
+        let audio = FakeAudio(link: link)
+        audio.tracks = [0: (from: 0, samples: tone(.vocals)), 5: (from: 0, samples: tone(.fx))]
+        let result = try make(link, audio).run().get()
+        XCTAssertEqual(link.log.filter { $0.hasPrefix("track") }, ["track 2", "track 5"])
+        XCTAssertEqual(result.items.map(\.index), [5])
+        XCTAssertEqual(result.items.map(\.family), [.fx])
+    }
+
+    func testPlaylistPlayingRefused() {
+        let link = FakeOrganizerLink()
+        link.window = .playlist
+        link.playlist = [track(0)]
+        link.playing = true
+        let audio = FakeAudio(link: link)
+        XCTAssertEqual(make(link, audio).run(), .failure(.refused(4)))
+        XCTAssertEqual(link.log, ["playlist", "restore"])
+        XCTAssertTrue(link.playing, "la lecture de l'utilisateur n'est pas coupée")
+        XCTAssertEqual(audio.stopped, 1)
+    }
+
+    func testPlaylistTargetsAndProbes() {
+        let unnamed = (0..<500).map { track($0) }
+        XCTAssertEqual(OrganizerSession.playlistTargets(unnamed).count, OrganizerSession.extraTracks)
+        var named = unnamed
+        named[40] = track(40, "Voix")
+        XCTAssertEqual(OrganizerSession.lastNamed(named), 40)
+        XCTAssertEqual(OrganizerSession.playlistTargets(named).count, OrganizerSession.maxTracks)
+        var picked = unnamed
+        picked[7] = track(7, selected: true)
+        XCTAssertEqual(OrganizerSession.playlistTargets(picked).map(\.index), [7])
+        XCTAssertEqual(OrganizerSession.playlistTargets([]), [])
+
+        XCTAssertEqual(OrganizerSession.probePositions(bars: 0).count, 16)
+        XCTAssertEqual(OrganizerSession.probePositions(bars: 1), [0])
+        XCTAssertEqual(OrganizerSession.probePositions(bars: 32), [0, 0.125, 0.25, 0.375, 0.5, 0.625, 0.75, 0.875])
+        XCTAssertEqual(OrganizerSession.probePositions(bars: 400).count, 24)
+
+        XCTAssertTrue(track(2, "Track 3").hasDefaultName)
+        XCTAssertTrue(track(2, " ").hasDefaultName)
+        XCTAssertFalse(track(5, "Track 3").hasDefaultName, "« Track 3 » donné à la piste 6 : un vrai nom")
+        XCTAssertFalse(track(0, "Kick").hasDefaultName)
     }
 
     func testEmptyRackListensToNothing() throws {

@@ -482,7 +482,7 @@ enum MacroOutline {
 // MARK: - Palette
 
 /// Une entrée de la palette : un type de bloc avec ses réglages de départ (deux entrées peuvent partager un type :
-/// « Armer la piste » et « Allumer le REC » sont des actions de FL).
+/// « Mute de la piste » et « Solo de la piste » sont des actions de FL).
 struct PaletteItem: Identifiable {
     let id: String
     let type: BlockType
@@ -503,7 +503,6 @@ enum PaletteCatalog {
             return PaletteItem(id: id, type: type, label: label ?? spec.label, aide: aide ?? spec.aide,
                                symbol: symbol ?? spec.symbol, category: spec.category, soon: soon, make: make)
         }
-        let rec = AppMode.nativeEquivalent(of: 3, layout: layout) ?? KeyCombo(keyCode: MacroLibrary.fallbackRecKeyCode)
         let mixer = AppMode.nativeEquivalent(of: 33, layout: layout) ?? KeyCombo(keyCode: 101)
         return [
             // Clavier
@@ -538,11 +537,8 @@ enum PaletteCatalog {
                  aide: "Une action de FL Shortcuts (Mixer, Playlist, métronome…) : par le lien avec FL s'il est installé, sinon la touche équivalente de FL.") {
                 .flAction(key: "mx", fallback: .key(KeyRef(mixer)))
             },
-            item("arm", .flAction, label: "Armer la piste",
-                 aide: "Arme la dernière piste cliquée si elle ne l'est pas : par le lien avec FL, sinon par le menu de la piste (« Arm selected track(s) », qui n'éteint jamais).",
-                 symbol: "record.circle") {
-                .flAction(key: "armon", fallback: .trackMenuArm)
-            },
+            // Armer la piste, allumer le REC, choisir l'entrée 1 et vérifier le larsen : retirés avec l'utilisateur
+            // (l'enregistrement rapide sera refait) ; toujours compris dans les anciennes macros.
             item("mute", .flAction, label: "Mute de la piste",
                  aide: "Coupe le son de la piste cliquée dans le Mixer juste avant, ou le remet s'il était coupé. Sans le script : un clic sur son bouton mute, montré une seule fois.",
                  symbol: "speaker.slash.fill") {
@@ -553,16 +549,9 @@ enum PaletteCatalog {
                  symbol: "headphones") {
                 .flAction(key: "solo", fallback: .none)
             },
-            item("rec", .flAction, label: "Allumer le REC",
-                 aide: "Allume le REC s'il est éteint (lien avec FL) ; sans lien, la touche REC de FL, qui l'inverse.",
-                 symbol: "record.circle.fill") {
-                .flAction(key: "recon", fallback: .key(KeyRef(rec)))
-            },
             item("nameColor", .nameColor) { .nameColor(name: nil, color: NameColorPayload.defaultColor) },
             item("soundCard", .soundCard) { .soundCard },
             item("organize", .organize) { .organize },
-            item("selectInput", .selectInput) { MacroTemplates.inputOne },
-            item("feedbackCheck", .feedbackCheck) { .feedbackCheck },
             // Contrôle
             item("repeat", .repeatCount) { .repeatCount(2, []) },
             item("if", .ifElse, soon: true) { .ifElse(.windowOpen(.dialog), then: [], otherwise: []) },

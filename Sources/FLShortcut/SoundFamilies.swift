@@ -1,6 +1,7 @@
-// Organiser : les familles de sons et les règles qui fusionnent les mesures du son (SoundFeatures) et l'avis de l'IA
-// de macOS (SoundAnalysis, sur le Mac). Règles réglées sur des sons de synthèse (prototype, puis test de la CI) ; elles
-// tiennent même si l'IA se trompe (une montée de bruit reste FX, une nappe reste une mélodie).
+// Organiser : les familles de sons (et la sorte des drums, pour nommer les pistes de la Playlist) et les règles qui
+// fusionnent les mesures du son (SoundFeatures) et l'avis de l'IA de macOS (SoundAnalysis, sur le Mac). Règles
+// réglées sur des sons de synthèse (prototype, puis test de la CI) ; elles tiennent même si l'IA se trompe (une montée
+// de bruit reste FX, une nappe reste une mélodie).
 import Foundation
 
 enum SoundFamily: String, CaseIterable, Codable {
@@ -28,9 +29,69 @@ enum SoundFamily: String, CaseIterable, Codable {
         }
     }
 
-    /// Ordre des familles dans le Channel rack une fois organisé, et dans l'aperçu.
-    static let order: [SoundFamily] = [.drums, .bass, .melody, .vocals, .fx, .unsure]
+    /// Nom d'une piste de la Playlist renommée (drums : leur sorte, voir `DrumKind`).
+    var trackName: String? {
+        switch self {
+        case .drums: return "Drums"
+        case .bass: return "Basse"
+        case .melody: return "Mélodie"
+        case .vocals: return "Voix"
+        case .fx: return "FX"
+        case .unsure: return nil
+        }
+    }
+
+    /// Ordre des familles (choisi par l'utilisateur) : dans le Channel rack une fois organisé, et dans l'aperçu.
+    static let order: [SoundFamily] = [.vocals, .melody, .bass, .drums, .fx, .unsure]
     var rank: Int { Self.order.firstIndex(of: self) ?? Self.order.count }
+}
+
+/// Sorte d'un son de drums : le nom d'une piste de la Playlist renommée.
+enum DrumKind: String, CaseIterable, Codable {
+    case kick, snare, hiHat, clap, cymbal, perc, kit
+
+    var name: String {
+        switch self {
+        case .kick: return "Kick"
+        case .snare: return "Snare"
+        case .hiHat: return "Hi-hat"
+        case .clap: return "Clap"
+        case .cymbal: return "Cymbal"
+        case .perc: return "Perc"
+        case .kit: return "Drums"
+        }
+    }
+}
+
+enum DrumNaming {
+    /// Étiquettes de l'IA de macOS → sorte de drums (toutes dans `FamilyFusion.labelTable`).
+    static let labels: [String: DrumKind] = [
+        "bass_drum": .kick, "snare_drum": .snare, "hi_hat": .hiHat, "clapping": .clap, "finger_snapping": .clap,
+        "cymbal": .cymbal, "gong": .cymbal, "tambourine": .perc, "cowbell": .perc, "tabla": .perc, "timpani": .perc,
+        "percussion": .perc, "drum_kit": .kit, "drum": .kit,
+    ]
+    /// Confiance de l'IA à partir de laquelle son étiquette l'emporte sur les mesures.
+    static let minConfidence = 0.3
+
+    /// L'étiquette de l'IA la plus sûre (égalité : l'ordre de `DrumKind`), sinon les mesures : grave → kick ; bruit
+    /// aigu → hi-hat (long : cymbale) ; bruit médium → snare ; le reste → perc.
+    static func kind(_ f: SoundFeatures, scores: [String: Double]) -> DrumKind {
+        var best: (kind: DrumKind, confidence: Double)?
+        for (label, confidence) in scores {
+            guard let kind = labels[label], confidence >= minConfidence else { continue }
+            let rank = DrumKind.allCases.firstIndex(of: kind) ?? 0
+            if let b = best, b.confidence > confidence
+                || (b.confidence == confidence && (DrumKind.allCases.firstIndex(of: b.kind) ?? 0) <= rank) { continue }
+            best = (kind, confidence)
+        }
+        if let best { return best.kind }
+        if f.lowRatio >= 0.5 || (f.medianF0 > 0 && f.medianF0 < FamilyFusion.lowF0 && f.pitchedFraction >= 0.3) {
+            return .kick
+        }
+        if f.flatness >= 0.4 && f.lowRatio < 0.1 { return f.noteLength >= 0.6 ? .cymbal : .hiHat }
+        if f.flatness >= 0.2 { return .snare }
+        return .perc
+    }
 }
 
 /// Avis de l'IA de macOS, ramené à trois familles d'étiquettes (confiance 0…1, la plus forte de chaque famille).

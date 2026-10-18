@@ -239,7 +239,7 @@ extension MacroTemplates {
                          origin: .template("purgeAudio"))
             },
             MacroTemplate(id: organizeID, title: "Organiser la page ouverte",
-                          summary: "Écoute chaque son du Channel rack sans que tu l'entendes, le classe (Drums, Basse, Mélodies, Voix, FX), puis colore et regroupe après ton accord. Sur le Mixer, colore les pistes.",
+                          summary: "Écoute chaque son sans que tu l'entendes, le classe (Voix, Mélodies, Basse, Drums, FX), puis colore après ton accord : regroupe aussi le Channel rack, renomme les pistes de la Playlist (Kick, Snare…).",
                           symbol: "square.stack.3d.up") { _ in
                 MacroDoc(name: "Organiser la page ouverte", blocks: [Block(.organize)], origin: .template(organizeID))
             },

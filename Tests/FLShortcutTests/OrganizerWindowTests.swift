@@ -60,13 +60,13 @@ final class OrganizerWindowTests: XCTestCase {
 
             // Une famille changée dans l'aperçu, un dégradé choisi : gardés dans les préférences à l'application.
             controller.families[1] = .bass
-            XCTAssertEqual(controller.presentFamilies, [.drums, .bass])
+            XCTAssertEqual(controller.presentFamilies, [.bass, .drums], "ordre : voix, mélodies, basse, drums, FX")
             controller.updateStyle(.drums) { $0.fade = black }
             controller.apply()
             waitFor(controller, OrganizerWindowTests.isApplied)
             XCTAssertEqual(controller.phase, .applied(nil))
             XCTAssertEqual(saved?[.drums]?.fade, black)
-            XCTAssertEqual(link.channels.map(\.color), [drums, bass])
+            XCTAssertEqual(link.channels.map(\.color), [bass, drums], "la basse remonte avant les drums")
 
             XCTAssertTrue(controller.canUndo)
             controller.undo()
@@ -84,6 +84,73 @@ final class OrganizerWindowTests: XCTestCase {
         wait(for: [drained], timeout: 2)
         XCTAssertNil(released, "contrôleur libéré à la fermeture")
         XCTAssertNil(OrganizerWindow.controller)
+    }
+
+    func testSetupWhenLinkMissingThenRetry() {
+        let link = FakeOrganizerLink()
+        link.channels = [ChannelInfo(index: 0, type: 2, mixerTrack: 0, color: RGBColor(r: 1, g: 2, b: 3), name: "Son 0")]
+        let audio = FakeAudio(link: link)
+        audio.parts = [0: [Float](repeating: 0.3, count: 64)]
+        var installed = false
+        var e = env(link, audio, saved: { _ in })
+        e.prepareLink = { installed ? .ready(warmUp: 0.5) : .notInstalled }
+        e.installLink = { installed = true }
+        let controller = OrganizerController(env: e)
+        controller.start()
+        XCTAssertEqual(controller.phase, .setup)
+        XCTAssertTrue(controller.canRetry)
+        XCTAssertEqual(link.log, [], "rien n'est envoyé à FL")
+        controller.installLink()
+        controller.retry()
+        waitFor(controller) { $0 == .preview }
+        XCTAssertEqual(controller.members(of: .drums).map(\.name), ["Son 0"])
+        XCTAssertFalse(controller.canRetry)
+        controller.close()
+    }
+
+    func testFailureCanBeRetried() {
+        let link = FakeOrganizerLink()
+        link.window = .browser
+        let controller = OrganizerController(env: env(link, FakeAudio(link: link), saved: { _ in }))
+        controller.start()
+        waitFor(controller) { if case .failed = $0 { return true } else { return false } }
+        XCTAssertEqual(controller.phase, .failed(OrganizerError.refused(1).message))
+        XCTAssertTrue(OrganizerError.refused(1).message.contains("Playlist"))
+        XCTAssertTrue(controller.canRetry)
+        link.window = .channelRack
+        controller.retry()
+        waitFor(controller) { if case .failed = $0 { return true } else { return false } }
+        XCTAssertEqual(controller.phase, .failed("Aucun son à écouter dans le Channel rack."))
+        controller.close()
+    }
+
+    func testPlaylistPreviewNamesAndApply() {
+        let link = FakeOrganizerLink()
+        link.window = .playlist
+        let gray = RGBColor(r: 9, g: 9, b: 9)
+        link.playlist = (0..<3).map { PlaylistTrackInfo(index: $0, selected: false, color: gray, name: "Track \($0 + 1)") }
+        let audio = FakeAudio(link: link)
+        audio.tracks = [0: (from: 0, samples: [Float](repeating: 0.3, count: 64)),
+                        2: (from: 0, samples: [Float](repeating: 0.3, count: 64))]
+        var e = env(link, audio, saved: { _ in })
+        e.nameDrum = { { _, _ in .snare } }
+        let controller = OrganizerController(env: e)
+        controller.start()
+        waitFor(controller) { $0 == .preview }
+        XCTAssertEqual(controller.title, "Organiser la Playlist")
+        XCTAssertEqual(controller.members(of: .drums).map(\.newName), ["Snare", "Snare 2"])
+        controller.renameTracks = false
+        XCTAssertEqual(controller.members(of: .drums).map(\.newName), [nil, nil])
+        controller.renameTracks = true
+        controller.apply()
+        waitFor(controller, OrganizerWindowTests.isApplied)
+        XCTAssertEqual(controller.phase, .applied(nil))
+        XCTAssertEqual(link.playlist.map(\.name), ["Snare", "Track 2", "Snare 2"])
+        controller.undo()
+        waitFor(controller, OrganizerWindowTests.isUndone)
+        XCTAssertEqual(link.playlist.map(\.name), ["Track 1", "Track 2", "Track 3"])
+        XCTAssertEqual(link.playlist.map(\.color), [gray, gray, gray])
+        controller.close()
     }
 
     func testCaptureUnavailableIsExplained() {

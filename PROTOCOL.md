@@ -164,30 +164,39 @@ unités  = [4, 1, 3, 96, 69, 58, 4, 75, 0, 105, 99, 107]
 MAC     = [116, 112, 71, 62]
 ```
 
-## 8. Organiser et dégradé (script v5)
+## 8. Organiser et dégradé (script v5, Playlist : script v6)
 
-Opérations 2 à 8 de la commande avec données (§7), annoncées par le bit **42** du masque de capacités (le bit 41
+Opérations 2 à 12 de la commande avec données (§7), annoncées par le bit **42** du masque de capacités (le bit 41
 seul = opération 1 seulement). Un script qui annonce 42 a aussi `utils.ColorToRGB` et `utils.RGBToColor` de FL.
+Les opérations 9 à 12 (script v6) n'ont pas de bit à elles : un script v5 les refuse avec la raison 5 sans rien
+toucher, et l'appli demande alors de redémarrer FL (le script mis à jour n'est lu qu'au lancement de FL).
 
 - **Réponse FL → appli** (opération 2) : CC **112** = début (valeur = opération), un CC **113** par unité de 7 bits
   (empaquetage du §7, **600 unités** au plus), CC **114** = fin, puis 4 CC **115** =
   `mac28(HMAC-SHA256(clé, nonce[4] ‖ seq_hi ‖ seq_mid ‖ seq_lo de la commande ‖ opération ‖ unités))`. Envoyée juste
   avant l'accusé 41 : liée à sa commande, elle ne peut pas être rejouée pour une autre. L'appli ignore une réponse au
   MAC faux, incomplète, ou qui ne suit pas sa commande.
-- Index sur 2 octets, poids fort d'abord. Genre : 1 = canaux du Channel rack, 2 = pistes du Mixer.
+- Index sur 2 octets, poids fort d'abord. Genre : 1 = canaux du Channel rack, 2 = pistes du Mixer, 3 = pistes de
+  la Playlist (index 0 = piste 1 de FL ; l'API de la Playlist compte depuis 1).
 
 | Opération | Données | Effet |
 |---|---|---|
-| op 2 : liste | genre, début (2) | réponse `[genre, total (2), début (2), n, filtré]` puis n entrées (16 au plus). Canal : `[type, piste du Mixer (2), R, G, B, longueur, nom]` (type 0 avant l'API 19) ; piste du Mixer : `[R, G, B, longueur, nom]`. Noms UTF-8 coupés à 24 octets sans couper un caractère, pour l'aperçu seulement. filtré = 1 si le Channel rack montre un groupe |
+| op 2 : liste | genre, début (2) | réponse `[genre, total (2), début (2), n, filtré]` puis n entrées (16 au plus). Canal : `[type, piste du Mixer (2), R, G, B, longueur, nom]` (type 0 avant l'API 19) ; piste du Mixer : `[R, G, B, longueur, nom]` ; piste de la Playlist : `[sélectionnée, R, G, B, longueur, nom]` (sélectionnée = 0 avant l'API 12). Noms UTF-8 coupés à 24 octets sans couper un caractère, pour l'aperçu seulement. filtré = 1 si le Channel rack montre un groupe |
 | op 3 : note d'essai | canal (2), note, vélocité | `channels.midiNoteOn` ; vélocité 0 = arrêt |
 | op 4 : couleurs | genre, n, (index (2), R, G, B) × n | n ≤ 64 ; tout est vérifié avant de poser la première couleur |
 | op 5 : sélection | genre, index (2) | cet élément seul sélectionné (`selectOneChannel` API 8 ; Mixer `setActiveTrack` API 27, sinon `deselectAll` + `selectTrack`) |
 | op 6 : écoute d'un canal | canal (2) | FL qui joue sans écoute en cours → raison 4, rien n'est touché. 1er appel : mémo des sourdines de tous les canaux, du mode (pattern / song) et de la position. Puis ce canal seul audible (on ne bascule que les sourdines qui doivent changer), mode pattern, position 0, lecture |
 | op 7 : fin de l'écoute | — | arrêt, sourdines, mode et position remis comme au mémo, mémo vidé ; **sans effet** sans mémo (la lecture de l'utilisateur n'est jamais coupée). Aussi fait par le script quand il se rendort ou est déchargé |
 | op 8 : dégradé | First R, G, B, Last R, G, B | page devant (comme l'op 1) ; tous les éléments sélectionnés, du premier au dernier ; composante k = `int(a + (b − a) × k / (n − 1) + 0,5)`, comme « Gradient color… » de FL. 0 sélectionné → raison 2, 1 seul → raison 7 |
+| op 9 : page devant | — | réponse `[code]` : le code de la page devant (§3, CC 117 : 0 Mixer, 1 Channel rack, 2 Playlist, 3 Piano roll, 4 Browser, 5 plugin, 127 aucune). L'appli le demande avant d'organiser : en mode léger, rien n'est su de FL avant le réveil |
+| op 10 : noms | genre (3 seulement), n, (index (2), longueur, nom UTF-8) × n | 1 ≤ n ≤ 16, nom de 1 à 32 octets ; tout est vérifié (index, longueurs, UTF-8, aucun octet en trop) avant de poser le premier nom (`playlist.setTrackName`) |
+| op 11 : écoute d'une piste de la Playlist | piste (2) | comme l'op 6 pour la Playlist : FL qui joue sans écoute en cours → raison 4. 1er appel : mémo des sourdines de toutes les pistes, du mode et de la position (une écoute du Channel rack en cours est d'abord remise comme avant, et inversement). Puis cette piste seule audible, mode song, position 0, lecture. Réponse `[mesures (2)]` : longueur de la chanson (`transport.getSongLength`, API 3 ; 0 si inconnue) |
+| op 12 : position | pour mille (2) | position de la chanson (`setSongPos`, 0 à 1000 ‰), seulement pendant une écoute de la Playlist (sinon raison 5). L'appli parcourt la chanson jusqu'à ce que la piste sonne |
 
 - **Raisons** en plus (CC 116) : 4 FL joue déjà, 7 au moins 2 éléments sélectionnés pour un dégradé. Une fonction
   de FL absente pour une opération → raison 6.
+- L'API de FL ne permet ni de déplacer une piste de la Playlist, ni de lire ou poser son icône, ni de lister ses
+  clips : la Playlist est colorée et renommée, jamais réordonnée.
 - Les noms des sons et des pistes n'apparaissent jamais dans les messages de FL : une erreur ne donne que son type.
 
 **Vecteur de test de la réponse** (mêmes valeurs des deux côtés) :

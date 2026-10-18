@@ -659,7 +659,7 @@ private enum Specs {
 
     static let organize = BlockSpec(
         type: .organize, label: "Organiser la page ouverte", category: .fl, symbol: "square.stack.3d.up",
-        aide: "Ouvre l'Organiser sur la page de FL qui est devant : il écoute chaque son du Channel rack (sans que tu l'entendes), le classe en Drums, Basse, Mélodies, Voix, FX ; tu vérifies l'aperçu, puis il colore (une couleur ou un dégradé par famille) et regroupe les sons. Sur le Mixer, il colore les pistes. « Revenir comme avant » défait tout.",
+        aide: "Ouvre l'Organiser sur la page de FL qui est devant : il écoute chaque son (sans que tu l'entendes) et le classe en Voix, Mélodies, Basse, Drums, FX ; tu vérifies l'aperçu, puis il colore (une couleur ou un dégradé par famille). Channel rack : regroupe aussi les sons dans cet ordre. Mixer : colore les pistes. Playlist : colore les pistes et renomme celles qui ont encore le nom de FL (Kick, Snare, Hi-hat…). « Revenir comme avant » défait tout.",
         params: [],
         conteneur: .aucun, dansLaPalette: true,
         needs: { _ in base.union(.lienMIDI) },

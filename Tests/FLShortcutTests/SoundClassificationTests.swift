@@ -223,6 +223,28 @@ final class SoundClassificationTests: XCTestCase {
         XCTAssertEqual(FamilyFusion.decide(f(len: 0.2, pitched: 0.4, f0: 300, low: 0, flat: 0.2), .none).family, .unsure)
     }
 
+    /// Sorte des drums (nom d'une piste de la Playlist) : l'IA d'abord, sinon les mesures.
+    func testDrumNaming() {
+        func f(len: Double, low: Double, flat: Double, f0: Double = 0, pitched: Double = 0) -> SoundFeatures {
+            SoundFeatures(peakDB: -6, noteLength: len, pitchedFraction: pitched, medianF0: f0, lowRatio: low,
+                          flatness: flat, onsetsPerSecond: 4, distinctPitches: 1, vibrato: 0)
+        }
+        let neutral = f(len: 0.2, low: 0.2, flat: 0.1)
+        XCTAssertEqual(DrumNaming.kind(neutral, scores: ["bass_drum": 0.8, "snare_drum": 0.4]), .kick)
+        XCTAssertEqual(DrumNaming.kind(neutral, scores: ["clapping": 0.5, "hi_hat": 0.5]), .hiHat, "égalité : l'ordre")
+        XCTAssertEqual(DrumNaming.kind(neutral, scores: ["drum_kit": 0.9, "bass_drum": 0.4]), .kit)
+        XCTAssertEqual(DrumNaming.kind(neutral, scores: ["snare_drum": 0.2, "speech": 0.9]), .perc, "trop peu sûr : mesures")
+        XCTAssertEqual(DrumNaming.kind(f(len: 0.3, low: 0.9, flat: 0.05), scores: [:]), .kick)
+        XCTAssertEqual(DrumNaming.kind(f(len: 0.3, low: 0.2, flat: 0.05, f0: 55, pitched: 0.8), scores: [:]), .kick)
+        XCTAssertEqual(DrumNaming.kind(f(len: 0.1, low: 0, flat: 0.5), scores: [:]), .hiHat)
+        XCTAssertEqual(DrumNaming.kind(f(len: 1.2, low: 0, flat: 0.5), scores: [:]), .cymbal)
+        XCTAssertEqual(DrumNaming.kind(f(len: 0.2, low: 0.2, flat: 0.3), scores: [:]), .snare)
+        XCTAssertEqual(DrumKind.allCases.map(\.name), ["Kick", "Snare", "Hi-hat", "Clap", "Cymbal", "Perc", "Drums"])
+        for label in DrumNaming.labels.keys {
+            XCTAssertEqual(FamilyFusion.labelTable[label], .drums, "\(label) : étiquette de drums connue")
+        }
+    }
+
     private func table(_ rows: [(String, SoundFamily, SoundFamily, String)]) -> Int {
         var ok = 0
         for (name, got, expected, detail) in rows {

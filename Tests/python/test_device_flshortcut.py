@@ -1276,7 +1276,7 @@ class TestDataV5(TestData):
         self.assertEqual(data[-8:], [0xE0, 0x45, 0x3A, 4] + list(b"Kick"))
 
     def test_list_bad_kind_or_start(self):
-        for payload in ([2, 3, 0, 0], [2, 1, 0, 9], [2, 1]):
+        for payload in ([2, 4, 0, 0], [2, 1, 0, 9], [2, 1], [2, 3, 1, 245]):
             self.make(n_channels=4)
             self.data_command(payload)
             self.assertEqual(self.last_ack(), 0, payload)
@@ -1421,10 +1421,149 @@ class TestDataV5(TestData):
         self.assertEqual(data[7], 0)                          # type inconnu : 0
 
     def test_ext_ops_unknown_op(self):
-        for payload in ([9], [0], [8, 1, 2]):
+        for payload in ([13], [0], [8, 1, 2], [9, 0]):
             self.make(focused={0}, mx_sel={1, 2})
             self.data_command(payload)
             self.assertEqual(self.reasons(), [5], payload)
+
+    # -- Playlist (opérations 9 à 12, genre 3)
+
+    def test_page_code(self):
+        for focused, code in (({2}, 2), ({1}, 1), ({0}, 0), ((), 127)):
+            self.make(focused=focused)
+            self.data_command([9])
+            self.assertEqual(self.last_ack(), DATA_ID, focused)
+            self.assertEqual(self.answer(), (9, [code]), focused)
+
+    def test_list_playlist(self):
+        self.make(pl_tracks=3, pl_names={1: "Kick", 3: "Voix"}, pl_colors={1: 0xE0453A}, pl_sel={3})
+        self.data_command([2, 3, 0, 0])
+        self.assertEqual(self.last_ack(), DATA_ID)
+        op, data = self.answer()
+        self.assertEqual(op, 2)
+        self.assertEqual(data[:7], [3, 0, 3, 0, 0, 3, 0])
+        rest = data[7:]
+        self.assertEqual(rest[:5] + [bytes(rest[5:9]).decode()], [0, 0xE0, 0x45, 0x3A, 4, "Kick"])
+        rest = rest[9:]
+        self.assertEqual(rest[:5] + [bytes(rest[5:12]).decode()], [0, 0x56, 0x5E, 0x66, 7, "Track 2"])
+        rest = rest[12:]
+        self.assertEqual(rest, [1, 0x56, 0x5E, 0x66, 4] + list(b"Voix"))
+        self.make(pl_tracks=40)                               # pages de 16, comme les autres genres
+        self.data_command([2, 3, 0, 32])
+        _, data = self.answer()
+        self.assertEqual(data[:7], [3, 0, 40, 0, 32, 8, 0])
+        self.make(api=11, pl_tracks=2, pl_sel={1})            # sélection : API 12
+        self.data_command([2, 3, 0, 0])
+        _, data = self.answer()
+        self.assertEqual(data[7], 0)
+
+    def test_set_colors_playlist(self):
+        self.make(pl_tracks=4)
+        self.data_command([4, 3, 2] + M.be16(0) + [0xE0, 0x45, 0x3A] + M.be16(3) + [1, 2, 3])
+        self.assertEqual(self.last_ack(), DATA_ID)
+        self.assertEqual(self.fl.given_colors, {("playlist", 1): 0xE0453A, ("playlist", 4): 0x010203})
+        self.make(pl_tracks=4)
+        self.data_command([4, 3, 1] + M.be16(4) + [1, 2, 3])
+        self.assertEqual(self.reasons(), [5])
+        self.assertEqual(self.fl.given_colors, {})
+
+    def test_set_names_playlist(self):
+        self.make(pl_tracks=4)
+        self.data_command([10, 3, 2] + M.be16(0) + [4] + list(b"Kick") + M.be16(3) + [7] + list("Hi-hât".encode()))
+        self.assertEqual(self.last_ack(), DATA_ID)
+        self.assertEqual(self.fl.given_names, {("playlist", 1): "Kick", ("playlist", 4): "Hi-hât"})
+
+    def test_set_names_checks_everything_first(self):
+        good = M.be16(0) + [4] + list(b"Kick")
+        for payload in ([10, 3, 2] + good + M.be16(4) + [4] + list(b"Clap"),   # piste 5 sur 4
+                        [10, 2, 1] + good,                                     # pas la Playlist
+                        [10, 3, 1] + good + [0],                               # octet en trop
+                        [10, 3, 2] + good,                                     # un nom manquant
+                        [10, 3, 1] + M.be16(1) + [0],                          # nom vide
+                        [10, 3, 1] + M.be16(1) + [33] + [65] * 33,             # nom trop long
+                        [10, 3, 1] + M.be16(1) + [2, 0xC3, 0x28],              # UTF-8 invalide
+                        [10, 3, 0], [10, 3, 17] + good * 17):
+            self.make(pl_tracks=4)
+            self.data_command(payload)
+            self.assertEqual(self.last_ack(), 0, payload)
+            self.assertEqual(self.reasons(), [5], payload)
+            self.assertEqual(self.fl.given_names, {}, payload)
+
+    def test_play_track_seek_and_restore(self):
+        self.make(pl_tracks=4, pl_muted={4}, loop_mode=0, song_pos=0.25, song_bars=48)
+        self.data_command([11] + M.be16(1))
+        self.assertEqual(self.last_ack(), DATA_ID)
+        self.assertEqual(self.answer(), (11, [0, 48]))
+        self.assertEqual(self.fl.pl_muted, {1, 3, 4})          # seule la piste 2 de FL s'entend
+        self.assertTrue(self.fl.playing)
+        self.assertEqual((self.fl.loop_mode, self.fl.song_pos), (1, 0.0))
+        self.clock.t += 0.1
+        self.data_command([12] + M.be16(500))
+        self.assertEqual(self.last_ack(), DATA_ID)
+        self.assertEqual(self.fl.song_pos, 0.5)
+        self.clock.t += 0.1
+        self.data_command([11] + M.be16(3))                   # piste suivante : arrêt, sourdines, relance
+        self.assertEqual(self.fl.pl_muted, {1, 2, 3})
+        self.assertTrue(self.fl.playing)
+        self.clock.t += 0.1
+        self.data_command([7])
+        self.assertEqual(self.last_ack(), DATA_ID)
+        self.assertFalse(self.fl.playing)
+        self.assertEqual(self.fl.pl_muted, {4})
+        self.assertEqual((self.fl.loop_mode, self.fl.song_pos), (0, 0.25))
+        self.assertIsNone(self.dev._st.memo)
+
+    def test_play_track_refuses_when_playing_or_bad(self):
+        self.make(pl_tracks=4, playing=True)
+        self.data_command([11] + M.be16(1))
+        self.assertEqual(self.reasons(), [4])
+        self.assertEqual(self.fl.pl_muted, set())
+        self.assertIsNone(self.dev._st.memo)
+        for payload in ([11] + M.be16(4), [11, 0], [12] + M.be16(100)):  # piste hors Playlist, court, sans écoute
+            self.make(pl_tracks=4)
+            self.data_command(payload)
+            self.assertEqual(self.reasons(), [5], payload)
+            self.assertIsNone(self.dev._st.memo, payload)
+        self.make(pl_tracks=4)
+        self.data_command([11] + M.be16(0))
+        self.clock.t += 0.1
+        self.data_command([12] + M.be16(1001))                # au-delà de la fin
+        self.assertEqual(self.reasons(), [5])
+
+    def test_play_track_old_fl(self):
+        self.make(pl_tracks=4, missing=("playlist.isTrackMuted",))
+        self.data_command([11] + M.be16(0))
+        self.assertEqual(self.reasons(), [6])
+        self.make(api=2, pl_tracks=4)                         # longueur de la chanson : API 3 → 0, l'appli devine
+        self.data_command([11] + M.be16(0))
+        self.assertEqual(self.answer(), (11, [0, 0]))
+
+    def test_channel_then_playlist_listening(self):
+        # Passer d'une écoute du Channel rack à la Playlist remet d'abord les canaux comme avant, et inversement.
+        self.make(n_channels=4, pl_tracks=3, ch_muted={0}, pl_muted={2})
+        self.data_command([6] + M.be16(1))
+        self.assertEqual(self.fl.ch_muted, {0, 2, 3})
+        self.clock.t += 0.1
+        self.data_command([11] + M.be16(0))
+        self.assertEqual(self.fl.ch_muted, {0})
+        self.assertEqual(self.fl.pl_muted, {2, 3})
+        self.clock.t += 0.1
+        self.data_command([6] + M.be16(2))
+        self.assertEqual(self.fl.pl_muted, {2})
+        self.assertEqual(self.fl.ch_muted, {0, 1, 3})
+        self.dev.OnDeInit()
+        self.assertEqual((self.fl.ch_muted, self.fl.pl_muted), ({0}, {2}))
+
+    def test_playlist_sleep_restores(self):
+        self.make(pl_tracks=3, wake=False, pl_muted={1})
+        self.send(103, 2)                                     # réveil bref
+        self.clock.t += 0.3
+        self.data_command([11] + M.be16(1))
+        self.assertEqual(self.fl.pl_muted, {1, 3})
+        self.clock.t += 9
+        self.dev.OnIdle()
+        self.assertEqual(self.fl.pl_muted, {1})
+        self.assertFalse(self.fl.playing)
 
     def test_names_never_in_hints(self):
         self.make(n_channels=2, ch_names=["SecretTrack", "SecretTrack"],
