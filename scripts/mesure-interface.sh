@@ -161,7 +161,7 @@ run() {   # $1 : libellé, $2 : YES/NO effet verre
   # Page Communauté, avec des exemples et sans réseau : chaque écran photographié (une seule fois, avec le verre).
   if [[ "$label" == verre ]]; then
     "$POST" app.flshortcut.debug.select community; sleep 2
-    for screen in connexion inscription liste vide detail partager signaler; do
+    for screen in connexion inscription liste vide detail partager signaler membres auteur; do
       "$POST" app.flshortcut.debug.community "$screen"; sleep 3
       screencapture -x "$OUT/communaute-$screen.png" 2>/dev/null || true
     done

@@ -53,6 +53,14 @@ struct Share: Codable, Identifiable, Equatable {
     var authorName: String { author?.username ?? "?" }
 }
 
+/// Un membre qui a publié (trouvé par son nom dans la recherche de la Communauté) : son nom et ses partages.
+struct CommunityMember: Identifiable, Equatable {
+    let id: UUID
+    let username: String
+    /// Partages comptés à la recherche (0 : pas encore comptés, membre ouvert depuis un partage).
+    let shareCount: Int
+}
+
 /// Compte connecté. `accessToken` vit en mémoire ; le reste est gardé au Trousseau.
 struct CommunitySession: Codable, Equatable {
     var accessToken: String
@@ -265,12 +273,14 @@ struct CommunityClient {
 
     static let listColumns = "id,author_id,kind,title,notes,app_version,created_at,author:profiles(username)"
 
-    /// Les 50 partages les plus récents, filtrés par sorte et par texte (titre ou notes).
-    func shares(kind: ShareKind?, search: String, session: CommunitySession) async throws -> [Share] {
+    /// Les 50 partages les plus récents, filtrés par sorte, par texte (titre ou notes) et par auteur.
+    func shares(kind: ShareKind?, search: String, authorID: UUID? = nil,
+                session: CommunitySession) async throws -> [Share] {
         var query = [URLQueryItem(name: "select", value: Self.listColumns),
                      URLQueryItem(name: "order", value: "created_at.desc"),
                      URLQueryItem(name: "limit", value: "50")]
         if let kind { query.append(URLQueryItem(name: "kind", value: "eq.\(kind.rawValue)")) }
+        if let authorID { query.append(URLQueryItem(name: "author_id", value: "eq.\(authorID.uuidString.lowercased())")) }
         let words = Self.searchPattern(search)
         if !words.isEmpty {
             query.append(URLQueryItem(name: "or", value: "(title.ilike.*\(words)*,notes.ilike.*\(words)*)"))
@@ -278,6 +288,46 @@ struct CommunityClient {
         let data = try await call("GET", "rest/v1/shares", query: query, token: session.accessToken)
         guard let list = try? JSONDecoder().decode([Share].self, from: data) else { throw CommunityError.badResponse }
         return list
+    }
+
+    /// Membres dont le nom contient la recherche, parmi ceux qui ont publié (un compte sans partage n'apparaît
+    /// jamais) : les plus actifs d'abord, 8 au plus.
+    func members(matching search: String, session: CommunitySession) async throws -> [CommunityMember] {
+        guard let name = Self.memberPattern(search) else { return [] }
+        let query = [URLQueryItem(name: "select", value: "author_id,author:profiles!inner(username)"),
+                     URLQueryItem(name: "author.username", value: "ilike.*\(name)*"),
+                     URLQueryItem(name: "limit", value: "500")]
+        let data = try await call("GET", "rest/v1/shares", query: query, token: session.accessToken)
+        struct Row: Decodable {
+            let authorID: UUID
+            let author: Share.Author
+            enum CodingKeys: String, CodingKey {
+                case author
+                case authorID = "author_id"
+            }
+        }
+        guard let rows = try? JSONDecoder().decode([Row].self, from: data) else { throw CommunityError.badResponse }
+        return Self.members(rows.map { (id: $0.authorID, username: $0.author.username) })
+    }
+
+    /// Pure (testée) : nom d'utilisateur cherché (« @leo.beats » → « leo.beats »), ou nil si la recherche n'en est pas
+    /// un (espace, accent, signe : un titre). Deux caractères au moins.
+    static func memberPattern(_ s: String) -> String? {
+        var name = s.trimmingCharacters(in: .whitespaces)
+        if name.hasPrefix("@") { name.removeFirst() }
+        guard (2...24).contains(name.count),
+              name.allSatisfy({ $0.isASCII && ($0.isLetter || $0.isNumber || "_.-".contains($0)) }) else { return nil }
+        return name
+    }
+
+    /// Pure (testée) : un membre par auteur avec son nombre de partages, les plus actifs d'abord, puis par nom.
+    static func members(_ rows: [(id: UUID, username: String)], max: Int = 8) -> [CommunityMember] {
+        var counts: [UUID: (username: String, count: Int)] = [:]
+        for row in rows { counts[row.id, default: (row.username, 0)].count += 1 }
+        return counts.map { CommunityMember(id: $0.key, username: $0.value.username, shareCount: $0.value.count) }
+            .sorted { ($0.shareCount, $1.username.lowercased()) > ($1.shareCount, $0.username.lowercased()) }
+            .prefix(max)
+            .map { $0 }
     }
 
     /// Texte de recherche sans les caractères qui ont un sens dans un filtre du serveur.

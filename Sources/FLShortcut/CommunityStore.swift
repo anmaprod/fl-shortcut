@@ -55,6 +55,10 @@ final class CommunityStore: ObservableObject {
     @Published var notice: String?
     @Published var kind: ShareKind?
     @Published var search = ""
+    /// Membres dont le nom correspond à la recherche (parmi ceux qui ont publié).
+    @Published private(set) var members: [CommunityMember] = []
+    /// Membre dont on regarde les partages (choisi dans la recherche ou depuis un partage) ; nil : tout le monde.
+    @Published private(set) var author: CommunityMember?
     /// Feuille « Partager » ouverte (bouton de la page ou « + » de la barre d'outils).
     @Published var composing = false
     /// Écran de connexion : « Créer un compte » plutôt que « J'ai déjà un compte ».
@@ -246,13 +250,48 @@ final class CommunityStore: ObservableObject {
         if let client, let session { await client.signOut(session) }
         set(nil)
         shares = []
+        members = []
+        author = nil
     }
 
     func reload() async {
         guard !demo else { return }
         await authed { client, session in
-            self.shares = try await client.shares(kind: self.kind, search: self.search, session: session)
+            self.shares = try await client.shares(kind: self.kind, search: self.search, authorID: self.author?.id,
+                                                  session: session)
+            // Membres : seulement pour une recherche sur tout le monde ; s'ils ne se chargent pas, les partages restent.
+            if self.author == nil {
+                self.members = (try? await client.members(matching: self.search, session: session)) ?? []
+            } else {
+                self.members = []
+            }
         }
+    }
+
+    /// Tous les partages d'un membre (la recherche est effacée : elle a servi à le trouver).
+    func showAuthor(_ member: CommunityMember) async {
+        author = member
+        members = []
+        search = ""
+        if demo {
+            shares = Self.demoShares.filter { $0.authorID == member.id }
+            return
+        }
+        await reload()
+    }
+
+    func showAuthor(of share: Share) async {
+        await showAuthor(CommunityMember(id: share.authorID, username: share.authorName, shareCount: 0))
+    }
+
+    /// Retour aux partages de tout le monde.
+    func showEveryone() async {
+        author = nil
+        if demo {
+            shares = Self.demoShares
+            return
+        }
+        await reload()
     }
 
     func publish(kind: ShareKind, title: String, notes: String, payload: Data) async -> Bool {
@@ -357,6 +396,19 @@ final class CommunityStore: ObservableObject {
         session = signedIn ? CommunitySession(accessToken: "", refreshToken: "", expiresAt: .distantFuture,
                                               userID: Self.demoUser, email: "malo@exemple.fr", username: "malo") : nil
         shares = signedIn && !empty ? Self.demoShares : []
+        members = []
+        author = nil
+        search = ""
+    }
+
+    /// Exemple d'une recherche qui trouve des membres (« le ») : leurs noms, puis les partages qui en parlent.
+    func showDemoMemberSearch(_ text: String) {
+        showDemo(signedIn: true)
+        search = text
+        let rows = Self.demoShares.map { (id: $0.authorID, username: $0.authorName) }
+        members = CommunityClient.members(rows.filter { $0.username.localizedCaseInsensitiveContains(text) })
+        shares = Self.demoShares.filter { $0.title.localizedCaseInsensitiveContains(text)
+            || $0.notes.localizedCaseInsensitiveContains(text) }
     }
 
     private static let demoUser = UUID(uuidString: "00000000-0000-0000-0000-00000000000A")!

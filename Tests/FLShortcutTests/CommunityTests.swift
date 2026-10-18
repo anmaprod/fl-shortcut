@@ -133,6 +133,70 @@ final class CommunityTests: XCTestCase {
         XCTAssertEqual(q["limit"], "50")
     }
 
+    /// Recherche d'un membre : seulement un nom d'utilisateur possible, parmi ceux qui ont publié, regroupé par auteur.
+    func testMemberSearchFindsAuthorsByName() async throws {
+        XCTAssertEqual(CommunityClient.memberPattern("@leo.beats"), "leo.beats")
+        XCTAssertEqual(CommunityClient.memberPattern(" Nina_2 "), "Nina_2")
+        XCTAssertNil(CommunityClient.memberPattern("l"), "un seul caractère")
+        XCTAssertNil(CommunityClient.memberPattern("armer la piste"), "une phrase n'est pas un nom")
+        XCTAssertNil(CommunityClient.memberPattern("léo"), "accent : pas un nom d'utilisateur")
+        XCTAssertNil(CommunityClient.memberPattern("leo*,(x)"))
+
+        let leo = UUID(), nina = UUID(), lea = UUID()
+        let rows = """
+        [{"author_id":"\(leo.uuidString)","author":{"username":"leo.beats"}},
+         {"author_id":"\(nina.uuidString)","author":{"username":"nina.leon"}},
+         {"author_id":"\(leo.uuidString)","author":{"username":"leo.beats"}},
+         {"author_id":"\(lea.uuidString)","author":{"username":"Lea"}}]
+        """
+        let server = FakeServer([(200, rows)])
+        let members = try await client(server).members(matching: "@le", session: session)
+        XCTAssertEqual(members.map(\.username), ["leo.beats", "Lea", "nina.leon"], "les plus actifs, puis par nom")
+        XCTAssertEqual(members.first?.shareCount, 2)
+        XCTAssertEqual(members.first?.id, leo)
+        let q = server.query(0)
+        XCTAssertEqual(server.requests[0].url?.path, "/rest/v1/shares", "seuls ceux qui ont publié")
+        XCTAssertEqual(q["select"], "author_id,author:profiles!inner(username)")
+        XCTAssertEqual(q["author.username"], "ilike.*le*")
+        XCTAssertEqual(server.requests[0].value(forHTTPHeaderField: "Authorization"), "Bearer jeton")
+
+        let none = FakeServer([])
+        let nothing = try await client(none).members(matching: "armer la piste", session: session)
+        XCTAssertTrue(nothing.isEmpty)
+        XCTAssertTrue(none.requests.isEmpty, "aucune requête pour une phrase")
+        let many = (0..<12).map { (id: UUID(), username: "membre\($0)") }
+        XCTAssertEqual(CommunityClient.members(many).count, 8)
+    }
+
+    func testListOfOneAuthor() async throws {
+        let author = UUID()
+        let server = FakeServer([(200, "[]")])
+        _ = try await client(server).shares(kind: nil, search: "", authorID: author, session: session)
+        XCTAssertEqual(server.query(0)["author_id"], "eq.\(author.uuidString.lowercased())")
+        XCTAssertNil(server.query(0)["kind"])
+    }
+
+    /// Page : un membre choisi montre ses partages ; « Voir tout le monde » revient à la liste (mode capture).
+    @MainActor
+    func testAuthorFilterInDemo() async {
+        let server = FakeServer([])
+        let keychain = CommunitySessionKeychain(service: "app.flshortcut.tests.\(UUID().uuidString)")
+        let community = CommunityStore(config: config, keychain: keychain, transport: server)
+        community.showDemoMemberSearch("leo")
+        XCTAssertEqual(community.members.map(\.username), ["leo.beats"])
+        guard let leo = community.members.first else { return XCTFail("membre attendu") }
+        await community.showAuthor(leo)
+        XCTAssertEqual(community.author, leo)
+        XCTAssertEqual(community.search, "", "la recherche a servi à le trouver")
+        XCTAssertTrue(community.members.isEmpty)
+        XCTAssertFalse(community.shares.isEmpty)
+        XCTAssertTrue(community.shares.allSatisfy { $0.authorName == "leo.beats" })
+        await community.showEveryone()
+        XCTAssertNil(community.author)
+        XCTAssertEqual(community.shares.count, 4)
+        XCTAssertTrue(server.requests.isEmpty, "aucune requête en mode capture")
+    }
+
     func testPublishValidatesBeforeSending() async throws {
         let server = FakeServer([(201, "")])
         let file = Data(#"{"format":"flsmacro"}"#.utf8)

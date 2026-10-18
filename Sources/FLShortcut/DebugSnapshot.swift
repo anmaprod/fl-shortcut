@@ -25,7 +25,7 @@ enum DebugSnapshot {
     /// encore vivants, fenêtres de l'app (même masquées), fenêtres visibles, classes des fenêtres masquées.
     static let report = Notification.Name("app.flshortcut.debug.report")
     /// Page Communauté avec des exemples, sans réseau : « connexion », « inscription », « liste », « vide »,
-    /// « detail », « partager » ou « signaler ».
+    /// « detail », « partager », « signaler », « membres » (recherche qui trouve un membre) ou « auteur » (ses partages).
     static let community = Notification.Name("app.flshortcut.debug.community")
     /// Guide : « 0 » à « 4 » ouvre cette page (« 1 lent » : animation 10 fois plus lente, pour la photographier en
     /// cours de route), autre chose le ferme.

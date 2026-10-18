@@ -121,6 +121,11 @@ struct CommunityPage: View {
         case "signaler":
             community.showDemo(signedIn: true)
             reporting = community.shares.first
+        case "membres":
+            community.showDemoMemberSearch("le")
+        case "auteur":
+            community.showDemo(signedIn: true)
+            if let first = community.shares.first { Task { await community.showAuthor(of: first) } }
         default:
             community.showDemo(signedIn: true)
         }
@@ -203,6 +208,23 @@ private struct CommunityBrowse: View {
                     CommunityStatus(community: community).cardRow(.last)
                 }
             }
+            if let author = community.author {
+                Section {
+                    CommunityAuthorHeader(author: author, count: community.shares.count, busy: community.busy) {
+                        Task { await community.showEveryone() }
+                    }
+                    .cardRow(.single)
+                }
+            } else if !community.members.isEmpty {
+                Section {
+                    ForEach(Array(community.members.enumerated()), id: \.element.id) { index, member in
+                        CommunityMemberRow(member: member) { Task { await community.showAuthor(member) } }
+                            .cardRow(.position(index: index, count: community.members.count))
+                    }
+                } header: {
+                    Text("Membres")
+                }
+            }
             Section {
                 if community.shares.isEmpty {
                     empty.cardRow(.single)
@@ -210,6 +232,9 @@ private struct CommunityBrowse: View {
                     ForEach(Array(community.shares.enumerated()), id: \.element.id) { index, share in
                         CommunityShareRow(share: share, mine: community.isMine(share),
                                           canDelete: community.canDelete(share),
+                                          showAuthor: community.author?.id == share.authorID ? nil : {
+                                              Task { await community.showAuthor(of: share) }
+                                          },
                                           open: { open(share) }, report: { report(share) }, delete: { delete(share) })
                             .cardRow(.position(index: index, count: community.shares.count))
                     }
@@ -224,9 +249,14 @@ private struct CommunityBrowse: View {
     private var trimmedSearch: String { community.search.trimmingCharacters(in: .whitespaces) }
 
     private var listTitle: String {
+        let n = community.shares.count
+        if let author = community.author {
+            let name = "@\(author.username.displaySafe(max: 24))"
+            if !trimmedSearch.isEmpty { return n == 1 ? "1 résultat chez \(name)" : "\(n) résultats chez \(name)" }
+            return "Partages de \(name)"
+        }
         if !trimmedSearch.isEmpty {
-            let n = community.shares.count
-            return n == 1 ? "1 résultat" : "\(n) résultats"
+            return n == 1 ? "1 partage trouvé" : "\(n) partages trouvés"
         }
         switch community.kind {
         case .macro?: return "Macros partagées"
@@ -245,10 +275,20 @@ private struct CommunityBrowse: View {
             .padding(.vertical, 20)
         } else if !trimmedSearch.isEmpty {
             CommunityMessage(symbol: "magnifyingglass", title: "Aucun partage pour « \(trimmedSearch.displaySafe(max: 30)) »",
-                             text: "Essaie un autre mot : un titre, une fenêtre de FL (Mixer, Playlist…) ou une action.",
+                             text: community.members.isEmpty
+                                 ? "Essaie un autre mot : un titre, une fenêtre de FL (Mixer, Playlist…), une action ou "
+                                     + "le nom d'un membre."
+                                 : "Aucun titre ni aucune explication ne contient ce mot : choisis un membre plus haut "
+                                     + "pour voir ses partages.",
                              button: "Effacer la recherche") {
                 community.search = ""
                 Task { await community.reload() }
+            }
+        } else if let author = community.author {
+            CommunityMessage(symbol: "person.crop.circle", title: "Aucun partage de @\(author.username.displaySafe(max: 24))",
+                             text: "Ce membre n'a rien publié pour l'instant\(community.kind == nil ? "" : " de ce genre").",
+                             button: "Voir tout le monde") {
+                Task { await community.showEveryone() }
             }
         } else if community.kind != nil {
             CommunityMessage(symbol: community.kind?.symbol ?? "square.stack", title: "Rien de ce genre pour l'instant",
@@ -293,6 +333,57 @@ private struct CommunityHowTo: View {
     }
 }
 
+/// Un membre trouvé par son nom : toute la ligne ouvre ses partages.
+private struct CommunityMemberRow: View {
+    let member: CommunityMember
+    let open: () -> Void
+
+    var body: some View {
+        HStack(spacing: 12) {
+            SectionIcon(symbol: "person.fill", tint: SidebarItem.community.tint, size: 32)
+            VStack(alignment: .leading, spacing: 2) {
+                Text("@\(member.username.displaySafe(max: 24))").fontWeight(.semibold).lineLimit(1)
+                Text(member.shareCount == 1 ? "1 partage" : "\(member.shareCount) partages")
+                    .font(.system(size: 11)).foregroundStyle(.secondary)
+            }
+            Spacer(minLength: 8)
+            Image(systemName: "chevron.right").font(.system(size: 12, weight: .semibold)).foregroundStyle(.tertiary)
+        }
+        .padding(.vertical, 2)
+        .contentShape(Rectangle())
+        .onTapGesture(perform: open)
+        .hoverLift()
+        .help("Voir tout ce que @\(member.username.displaySafe(max: 24)) a publié")
+        .accessibilityElement(children: .combine)
+        .accessibilityAddTraits(.isButton)
+        .accessibilityAction { open() }
+    }
+}
+
+/// Partages d'un seul membre : son nom, combien, et le retour à tout le monde.
+private struct CommunityAuthorHeader: View {
+    let author: CommunityMember
+    let count: Int
+    let busy: Bool
+    let everyone: () -> Void
+
+    var body: some View {
+        HStack(spacing: 12) {
+            SectionIcon(symbol: "person.fill", tint: SidebarItem.community.tint, size: 32)
+            VStack(alignment: .leading, spacing: 2) {
+                Text("@\(author.username.displaySafe(max: 24))").font(.headline).lineLimit(1)
+                Text(busy ? "Chargement…" : count == 1 ? "1 partage" : count >= 50 ? "50 partages les plus récents"
+                                                                                 : "\(count) partages")
+                    .font(.system(size: 11)).foregroundStyle(.secondary)
+            }
+            Spacer(minLength: 8)
+            Button("Voir tout le monde", action: everyone)
+                .help("Revenir aux partages de tous les membres")
+        }
+        .padding(.vertical, 2)
+    }
+}
+
 /// Genre, recherche (au fil de la frappe), actualiser, compte.
 private struct CommunityFilters: View {
     @ObservedObject var community: CommunityStore
@@ -310,7 +401,7 @@ private struct CommunityFilters: View {
             .fixedSize()
             .help("Afficher tous les partages, seulement les macros, ou seulement les jeux de raccourcis")
             .onChange(of: community.kind) { _ in Task { await community.reload() } }
-            TextField("Rechercher", text: $community.search, prompt: Text("Rechercher un titre ou une explication"))
+            TextField("Rechercher", text: $community.search, prompt: Text("Rechercher un partage ou un membre"))
                 .textFieldStyle(.roundedBorder)
                 .onSubmit { Task { await community.reload() } }
                 .onChange(of: community.search) { _ in
@@ -352,6 +443,8 @@ private struct CommunityShareRow: View {
     let share: Share
     let mine: Bool
     let canDelete: Bool
+    /// Voir tous les partages de l'auteur (nil : on les regarde déjà).
+    let showAuthor: (() -> Void)?
     let open: () -> Void
     let report: () -> Void
     let delete: () -> Void
@@ -387,6 +480,9 @@ private struct CommunityShareRow: View {
             Button("Voir", action: open)
                 .help("Lire l'explication et voir ce que fait ce partage, avant de l'ajouter")
             Menu {
+                if let showAuthor {
+                    Button("Tous les partages de @\(share.authorName.displaySafe(max: 24))", action: showAuthor)
+                }
                 if !mine {
                     Button("Signaler…", action: report)
                 }
@@ -442,6 +538,14 @@ private struct CommunityShareDetail: View {
                     Text(share.title.displaySafe(max: 80)).font(.title3.weight(.semibold))
                         .fixedSize(horizontal: false, vertical: true)
                     Text(CommunityText.byline(share)).font(.system(size: 12)).foregroundStyle(.secondary)
+                    if community.author?.id != share.authorID {
+                        Button("Tous les partages de @\(share.authorName.displaySafe(max: 24))") {
+                            dismiss()
+                            Task { await community.showAuthor(of: share) }
+                        }
+                        .buttonStyle(.link)
+                        .font(.system(size: 12))
+                    }
                 }
             }
             .padding(20)
