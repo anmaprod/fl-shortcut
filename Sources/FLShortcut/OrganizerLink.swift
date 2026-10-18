@@ -58,6 +58,8 @@ enum OrganizerError: Error, Equatable {
     case mismatch
     /// Le script chargé dans FL est l'ancien (sans les opérations 9 à 12) : FL doit être redémarré.
     case outdatedScript
+    /// FL ne répond pas : le script n'est pas chargé (Controller type « generic controller », ports différents…).
+    case noResponse
 
     var message: String {
         switch self {
@@ -66,6 +68,8 @@ enum OrganizerError: Error, Equatable {
         case .interrupted:
             return "Le Channel rack n'est plus devant : Organiser s'est arrêté. « Revenir comme avant » défait ce qui a été fait."
         case .mismatch: return "FL n'a pas tout pris : vérifie dans FL, ou clique sur « Revenir comme avant »."
+        case .noResponse:
+            return "FL ne répond pas : le script FL Shortcuts n'est pas chargé dans FL. Vérifie ces réglages, puis « Réessayer »."
         case .outdatedScript:
             return "FL utilise encore l'ancienne version du lien : redémarre FL Studio (il charge la nouvelle au lancement), puis clique sur « Réessayer »."
         case .refused(1): return "Ouvre le Channel rack, le Mixer ou la Playlist de FL (clique dedans), puis clique sur « Réessayer »."
@@ -327,7 +331,7 @@ final class RequestOrganizerLink: OrganizerLink {
         switch request(bytes) {
         case .answered(let answer): return answer
         case .refused(let reason): throw OrganizerError.refused(reason)
-        case .failed(let why): throw OrganizerError.failed(why)
+        case .failed(let why): throw why == LinkCore.noResponse ? OrganizerError.noResponse : OrganizerError.failed(why)
         }
     }
 

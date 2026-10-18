@@ -38,27 +38,28 @@ struct MacroLibraryPage: View {
             if library.macros.isEmpty {
                 empty
             } else {
-                Form {
+                // Même page en cartes que les raccourcis : chaque macro s'éclaire au survol, d'un filet à l'autre.
+                PageContainer {
                     Section {
                         PageHeader(symbol: SidebarItem.macros.symbol, tint: SidebarItem.macros.tint, title: "Macros",
                                    subtitle: MacroPageText.subtitle,
                                    detail: library.macros.count == 1 ? "1 macro" : "\(library.macros.count) macros")
-                        actions
+                            .cardRow(.first)
+                        actions.cardRow(.last)
                     }
                     if library.problem != nil {
                         Section {
-                            MacroLibraryProblemLabel(library: library)
+                            MacroLibraryProblemLabel(library: library).cardRow(.single)
                         }
                     }
                     Section {
-                        ForEach(library.macros) { doc in
-                            row(doc)
+                        ForEach(Array(library.macros.enumerated()), id: \.element.id) { index, doc in
+                            row(doc).cardRow(.position(index: index, count: library.macros.count), hover: true)
                         }
                     } header: {
                         Text("Mes macros")
                     }
                 }
-                .formStyle(.grouped)
                 .glassListBackground()
             }
         }
@@ -281,7 +282,6 @@ private struct MacroLibraryRow: View {
                 .font(.system(size: 12))
         }
         .padding(.vertical, 2)
-        .hoverLift()
         .contentShape(Rectangle())
         .onTapGesture(perform: onOpen)                  // un seul clic pour rentrer dans la macro
         .contextMenu {

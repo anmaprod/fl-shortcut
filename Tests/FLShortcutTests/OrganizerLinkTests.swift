@@ -242,6 +242,16 @@ final class OrganizerLinkTests: XCTestCase {
         XCTAssertEqual(OrganizerError.failed("lien avec FL non installé").message, "Lien avec FL non installé")
     }
 
+    /// FL muet (script pas chargé : Controller type « generic controller », ports différents) : erreur à part, qui
+    /// affiche les réglages de FL à vérifier.
+    func testNoResponseExplained() {
+        let link = RequestOrganizerLink(request: { _ in .failed(LinkCore.noResponse) }, window: { .unknown }, sleep: { _ in })
+        XCTAssertThrowsError(try link.page()) { XCTAssertEqual($0 as? OrganizerError, .noResponse) }
+        XCTAssertTrue(LinkCore.noResponse.contains("generic controller"))
+        XCTAssertTrue(LinkCore.noResponse.contains("même numéro de Port"))
+        XCTAssertTrue(OrganizerError.noResponse.message.contains("Réessayer"))
+    }
+
     func testRefusalsBecomeErrors() {
         var calls = 0
         let link = RequestOrganizerLink(request: { _ in

@@ -156,11 +156,13 @@ enum Uninstaller {
     // MARK: Ce qui demande Touch ID ou le mot de passe
 
     /// Nos apps de /Applications que ce compte ne peut pas déplacer (installées par le .pkg, elles appartiennent au
-    /// système), et le reçu du .pkg : une seule demande pour tout, avant toute suppression.
+    /// système), le reçu du .pkg et les autorisations de macOS (clavier, écran, son : la liste « Accessibilité » est
+    /// celle du système, que seul un administrateur vide) : une seule demande pour tout, avant toute suppression.
     struct PrivilegedWork: Equatable {
         var apps: [URL] = []
         var receipt = false
-        var isEmpty: Bool { apps.isEmpty && !receipt }
+        var permissions = false
+        var isEmpty: Bool { apps.isEmpty && !receipt && !permissions }
     }
 
     /// Une de nos apps (ou un ancien désinstalleur) : un paquet .app avec notre identifiant, jamais autre chose.
@@ -175,7 +177,8 @@ enum Uninstaller {
             .filter { $0.path.hasPrefix("/Applications/") && appNames.contains($0.lastPathComponent) && exists($0) }
             .filter(isOurApp)
             .filter { SecureFile.permissions(at: $0.path)?.owner != getuid() }
-        return PrivilegedWork(apps: apps, receipt: FileManager.default.fileExists(atPath: "/var/db/receipts/\(pkgID).bom"))
+        return PrivilegedWork(apps: apps, receipt: FileManager.default.fileExists(atPath: "/var/db/receipts/\(pkgID).bom"),
+                              permissions: true)
     }
 
     /// Commande lancée avec les droits d'administrateur : chemins fixes connus, jamais une donnée extérieure.
@@ -186,6 +189,9 @@ enum Uninstaller {
                 .joined(separator: " "))
         }
         if work.receipt { commands.append("/usr/sbin/pkgutil --forget \(pkgID) >/dev/null") }
+        if work.permissions {
+            for id in [bundleID, uninstallerID] { commands.append("/usr/bin/tccutil reset All \(id) >/dev/null 2>&1") }
+        }
         return commands.joined(separator: "; ")
     }
 
@@ -196,12 +202,14 @@ enum Uninstaller {
         case failed(String)
     }
 
-    /// Touch ID ou le mot de passe, une seule fois (fenêtre de macOS), pour ce qui appartient au système.
-    /// `sudo` : `sudo -n` à la place (machine de la CI).
+    /// Touch ID ou le mot de passe, une seule fois (fenêtre d'autorisation de macOS), pour ce qui appartient au
+    /// système. `sudo` : `sudo -n` à la place (machine de la CI).
     static func runPrivileged(_ work: PrivilegedWork, sudo: Bool = false) -> PrivilegedResult {
         guard !work.isEmpty else { return .done }
         let script = privilegedScript(work)
         if sudo { return run("/usr/bin/sudo", ["-n", "/bin/sh", "-c", script]) ? .done : .failed("sudo -n refusé") }
+        if let result = runAuthorized(script) { return result }
+        // Repli (fonction du système absente) : la fenêtre d'AppleScript, mot de passe seulement.
         let source = "do shell script \"" + script.replacingOccurrences(of: "\\", with: "\\\\")
             .replacingOccurrences(of: "\"", with: "\\\"") + "\" with administrator privileges"
         var error: NSDictionary?
@@ -211,6 +219,55 @@ enum Uninstaller {
         // n'est supprimé. Positives : la commande a tourné mais a échoué (le bilan dit ce qui reste).
         if let n = error[NSAppleScript.errorNumber] as? Int, n < 0 { return .cancelled }
         return .failed(error[NSAppleScript.errorMessage] as? String ?? "erreur inconnue")
+    }
+
+    /// La fenêtre d'autorisation de macOS (Touch ID ou mot de passe, comme dans Réglages Système), puis la commande en
+    /// administrateur. Lancée par zsh en mode privilégié (`-p` : il garde les droits) qui devient tout à fait
+    /// administrateur (`UID=0`) : pkgutil et tccutil le demandent. nil : la fonction du système n'est pas là.
+    private static func runAuthorized(_ script: String) -> PrivilegedResult? {
+        typealias Execute = @convention(c) (AuthorizationRef, UnsafePointer<CChar>, AuthorizationFlags,
+                                            UnsafePointer<UnsafeMutablePointer<CChar>?>,
+                                            UnsafeMutablePointer<UnsafeMutablePointer<FILE>?>?) -> OSStatus
+        // Dépréciée mais toujours là : appelée par son nom, comme le font les apps qui se mettent à jour seules.
+        guard let symbol = dlsym(UnsafeMutableRawPointer(bitPattern: -2), "AuthorizationExecuteWithPrivileges") else {
+            return nil
+        }
+        let execute = unsafeBitCast(symbol, to: Execute.self)
+        var created: AuthorizationRef?
+        guard AuthorizationCreate(nil, nil, [], &created) == errAuthorizationSuccess, let auth = created else { return nil }
+        defer { AuthorizationFree(auth, [.destroyRights]) }
+        let status: OSStatus = kAuthorizationRightExecute.withCString { name in
+            var item = AuthorizationItem(name: name, valueLength: 0, value: nil, flags: 0)
+            return withUnsafeMutablePointer(to: &item) { pointer in
+                var rights = AuthorizationRights(count: 1, items: pointer)
+                return AuthorizationCopyRights(auth, &rights, nil, [.interactionAllowed, .extendRights, .preAuthorize], nil)
+            }
+        }
+        if status == errAuthorizationCanceled || status == errAuthorizationDenied { return .cancelled }
+        guard status == errAuthorizationSuccess else { return .failed("autorisation refusée (\(status))") }
+        var pipe: UnsafeMutablePointer<FILE>?
+        let launched: OSStatus = "-p".withCString { privileged in
+            "-c".withCString { command in
+                ("UID=0; " + script).withCString { body in
+                    let args: [UnsafeMutablePointer<CChar>?] = [UnsafeMutablePointer(mutating: privileged),
+                                                                UnsafeMutablePointer(mutating: command),
+                                                                UnsafeMutablePointer(mutating: body), nil]
+                    return args.withUnsafeBufferPointer { buffer in
+                        "/bin/zsh".withCString { tool in execute(auth, tool, [], buffer.baseAddress!, &pipe) }
+                    }
+                }
+            }
+        }
+        guard launched == errAuthorizationSuccess else {
+            return launched == errAuthorizationCanceled ? .cancelled : .failed("commande refusée (\(launched))")
+        }
+        // Fin de la commande : sa sortie se ferme.
+        if let pipe {
+            var line = [CChar](repeating: 0, count: 256)
+            while fgets(&line, Int32(line.count), pipe) != nil {}
+            fclose(pipe)
+        }
+        return .done
     }
 
     // MARK: Suppression

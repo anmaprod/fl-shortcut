@@ -4,6 +4,7 @@
 // modifiable, nouveaux noms des pistes de la Playlist), application, puis « Revenir comme avant ». Tout est libéré à
 // la fermeture (session, capture, IA, panneau) : rien ne tourne au repos. Aucune lecture de l'écran.
 import AppKit
+import Combine
 import SwiftUI
 
 /// État du lien avec FL à l'ouverture de l'Organiser.
@@ -367,12 +368,16 @@ final class OrganizerController: ObservableObject {
     }
 }
 
-/// Le panneau de l'Organiser : un seul à la fois, détruit à la fermeture.
+/// Le panneau de l'Organiser : un seul à la fois, détruit à la fermeture. Sans barre de titre visible (contenu sous
+/// les boutons de fenêtre, déplaçable par le fond) ; sa hauteur suit son contenu (un message court : un petit
+/// panneau), l'aperçu garde une hauteur fixe qui défile.
 enum OrganizerWindow {
     private static var panel: NSPanel?
     /// Le contrôleur affiché (nil quand la fenêtre est fermée).
     private(set) static var controller: OrganizerController?
     private static let delegate = Delegate()
+    /// Taille ajustée à chaque étape.
+    private static var sizing: AnyCancellable?
 
     private final class Delegate: NSObject, NSWindowDelegate {
         func windowWillClose(_ notification: Notification) { OrganizerWindow.close() }
@@ -388,10 +393,14 @@ enum OrganizerWindow {
         let controller = OrganizerController(env: env)
         controller.onClose = { OrganizerWindow.close() }
         let host = NSHostingView(rootView: OrganizerView(controller: controller))
-        let p = NSPanel(contentRect: NSRect(x: 0, y: 0, width: OrganizerView.width, height: OrganizerView.height),
-                        styleMask: [.titled, .closable, .nonactivatingPanel],
+        host.sizingOptions = []                                       // taille posée ici, à chaque étape
+        let p = NSPanel(contentRect: NSRect(x: 0, y: 0, width: OrganizerView.width, height: 220),
+                        styleMask: [.titled, .closable, .fullSizeContentView, .nonactivatingPanel],
                         backing: .buffered, defer: false)
         p.title = "Organiser"
+        p.titleVisibility = .hidden
+        p.titlebarAppearsTransparent = true
+        p.isMovableByWindowBackground = true
         p.isFloatingPanel = true
         p.level = .floating
         p.hidesOnDeactivate = false
@@ -399,12 +408,32 @@ enum OrganizerWindow {
         p.collectionBehavior = [.fullScreenAuxiliary]
         p.contentView = host
         p.delegate = delegate
+        fit(p, host, animate: false)
         p.center()
         panel = p
         self.controller = controller
+        sizing = controller.$phase.sink { _ in
+            // Après le dessin de la nouvelle étape.
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+                guard let panel = OrganizerWindow.panel, panel === p else { return }
+                fit(p, host, animate: true)
+            }
+        }
         p.orderFrontRegardless()
         p.makeKey()
         controller.start()
+    }
+
+    /// Hauteur du contenu, le haut du panneau restant à sa place.
+    private static func fit(_ panel: NSPanel, _ host: NSView, animate: Bool) {
+        host.layoutSubtreeIfNeeded()
+        let size = host.fittingSize
+        guard size.width > 0, size.height > 0 else { return }
+        var frame = panel.frameRect(forContentRect: NSRect(origin: .zero, size: size))
+        let old = panel.frame
+        frame.origin = NSPoint(x: old.minX, y: old.maxY - frame.height)
+        guard abs(frame.height - old.height) > 0.5 || abs(frame.width - old.width) > 0.5 else { return }
+        panel.setFrame(frame, display: true, animate: animate && panel.isVisible && !Motion.reduce)
     }
 
     /// Ferme et lâche tout ; l'écoute en cours s'arrête et FL est remis comme avant.
@@ -413,6 +442,7 @@ enum OrganizerWindow {
         let c = controller
         panel = nil
         controller = nil
+        sizing = nil
         c?.close()
         p.delegate = nil
         p.orderOut(nil)
@@ -422,28 +452,66 @@ enum OrganizerWindow {
 }
 
 struct OrganizerView: View {
-    static let width: CGFloat = 460
+    static let width: CGFloat = 440
+    /// Hauteur de l'aperçu (la liste des familles y défile).
     static let height: CGFloat = 560
+    /// Couleur de l'Organiser (icône, fond, numéros des étapes).
+    static let tint = Color.indigo
 
     @ObservedObject var controller: OrganizerController
 
-    var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            HStack(spacing: 10) {
-                Image(systemName: "square.stack.3d.up")
-                    .font(.system(size: 18, weight: .semibold))
-                    .foregroundStyle(Color.accentColor)
-                Text(controller.title).font(.system(size: 15, weight: .semibold))
-                Spacer()
-            }
-            content
+    private var isPreview: Bool { controller.phase == .preview }
+
+    /// Étape affichée : une nouvelle étape remplace l'ancienne en fondu (la progression de l'écoute, non).
+    private var stepKey: String {
+        switch controller.phase {
+        case .starting: return "starting"
+        case .setup: return "setup"
+        case .listening: return "listening"
+        case .preview: return "preview"
+        case .applying: return "applying"
+        case .applied: return "applied"
+        case .undoing: return "undoing"
+        case .undone: return "undone"
+        case .failed(let message): return "failed:" + message
         }
-        .padding(18)
-        .frame(width: Self.width, height: Self.height, alignment: .top)
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            header
+            ZStack(alignment: .topLeading) {
+                content
+                    .id(stepKey)
+                    .transition(Motion.pageMorph)
+            }
+            .frame(maxWidth: .infinity, alignment: .topLeading)
+        }
+        .padding(.horizontal, 22)
+        .padding(.top, 34)                           // sous les boutons de la fenêtre
+        .padding(.bottom, 20)
+        .frame(width: Self.width, alignment: .top)
+        .frame(height: isPreview ? Self.height : nil, alignment: .top)
+        .fixedSize(horizontal: false, vertical: !isPreview)
+        .background { TintGlow(tint: Self.tint) }
+        .motion(Motion.morph, value: stepKey)
+    }
+
+    private var header: some View {
+        HStack(spacing: 12) {
+            SectionIcon(symbol: "square.stack.3d.up", tint: Self.tint, size: 34)
+            VStack(alignment: .leading, spacing: 1) {
+                Text(controller.title).font(.system(size: 17, weight: .bold))
+                Text("Écoute, classe et colore tes sons")
+                    .font(.system(size: 11))
+                    .foregroundStyle(.secondary)
+            }
+            Spacer()
+        }
     }
 
     private static func listeningText(_ done: Int, _ total: Int) -> String {
-        total == 0 ? "Préparation de l'écoute…" : "Écoute \(min(done + 1, total)) / \(total)"
+        total == 0 ? "Préparation de l'écoute…" : "Écoute \(min(done + 1, total)) sur \(total)"
     }
 
     @ViewBuilder private var content: some View {
@@ -453,12 +521,26 @@ struct OrganizerView: View {
         case .setup:
             setup
         case .listening(let done, let total):
-            VStack(alignment: .leading, spacing: 10) {
-                Text(Self.listeningText(done, total)).font(.system(size: 13, weight: .medium))
-                ProgressView(value: Double(done), total: Double(max(total, 1)))
+            VStack(alignment: .leading, spacing: 12) {
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack {
+                        Text(Self.listeningText(done, total)).font(.system(size: 13, weight: .semibold))
+                        Spacer()
+                        if total > 0 {
+                            Text("\(Int((Double(done) / Double(max(total, 1)) * 100).rounded())) %")
+                                .font(.system(size: 12).monospacedDigit())
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                    ProgressView(value: Double(done), total: Double(max(total, 1)))
+                        .tint(Self.tint)
+                        .motion(Motion.smooth, value: done)
+                }
+                .padding(14)
+                .background(OrganizerCard())
                 Text("Chaque son joue seul, sans que tu l'entendes (dans la Playlist, la chanson est parcourue jusqu'à "
-                     + "ce que la piste sonne). Ne touche pas à FL pendant l'écoute ; Échap l'arrête.")
-                    .font(.system(size: 12))
+                     + "ce que la piste sonne). Ne touche pas à FL ; Échap arrête.")
+                    .font(.system(size: 11))
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
                 HStack {
@@ -473,70 +555,95 @@ struct OrganizerView: View {
         case .undoing:
             working("Retour comme avant…")
         case .applied(let error):
-            ending(error?.message ?? controller.doneText, ok: error == nil)
+            ending(error?.message ?? controller.doneText, ok: error == nil, linkHelp: error == .noResponse)
         case .undone(let error):
-            ending(error?.message ?? "FL est revenu comme avant.", ok: error == nil)
+            ending(error?.message ?? "FL est revenu comme avant.", ok: error == nil, linkHelp: error == .noResponse)
         case .failed(let message):
-            ending(message, ok: false)
+            ending(message, ok: false, linkHelp: message == OrganizerError.noResponse.message)
         }
     }
 
     private func working(_ text: String) -> some View {
-        HStack(spacing: 10) {
+        HStack(spacing: 12) {
             ProgressView().controlSize(.small)
             Text(text).font(.system(size: 13))
+            Spacer(minLength: 0)
+        }
+        .padding(14)
+        .background(OrganizerCard())
+    }
+
+    /// Fin d'une étape : le message dans une carte (coche verte ou triangle orange) ; FL muet : les réglages de FL
+    /// à vérifier, étape par étape.
+    private func ending(_ text: String, ok: Bool, linkHelp: Bool) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(alignment: .top, spacing: 12) {
+                Image(systemName: ok ? "checkmark.circle.fill" : "exclamationmark.triangle.fill")
+                    .font(.system(size: 20))
+                    .symbolRenderingMode(.multicolor)
+                    .foregroundStyle(ok ? Color.green : Color.orange)
+                Text(text).font(.system(size: 13)).fixedSize(horizontal: false, vertical: true)
+                Spacer(minLength: 0)
+            }
+            .padding(14)
+            .background(OrganizerCard(tint: ok ? .green : .orange))
+            if linkHelp {
+                VStack(alignment: .leading, spacing: 8) {
+                    OrganizerStep(n: 1, text: "Dans FL : Options › MIDI Settings.")
+                    OrganizerStep(n: 2, text: "En entrée, « FL Shortcuts » : Controller type « FL Shortcuts » (pas "
+                                  + "« generic controller »), puis Enable.")
+                    OrganizerStep(n: 3, text: "Donne le même numéro de Port à l'entrée et à la sortie « FL Shortcuts » "
+                                  + "(par exemple 10).")
+                    OrganizerStep(n: 4, text: "« FL Shortcuts » absent de la liste : redémarre FL, puis recommence.")
+                }
+            }
+            buttons
         }
     }
 
-    private func ending(_ text: String, ok: Bool) -> some View {
-        VStack(alignment: .leading, spacing: 14) {
-            HStack(alignment: .firstTextBaseline, spacing: 8) {
-                Image(systemName: ok ? "checkmark.circle.fill" : "exclamationmark.triangle.fill")
-                    .foregroundStyle(ok ? Color.green : Color.orange)
-                Text(text).font(.system(size: 13)).fixedSize(horizontal: false, vertical: true)
+    @ViewBuilder private var buttons: some View {
+        HStack {
+            if controller.canUndo {
+                Button("Revenir comme avant") { controller.undo() }
             }
-            HStack {
-                if controller.canUndo {
-                    Button("Revenir comme avant") { controller.undo() }
-                }
-                Spacer()
-                if controller.canRetry {
-                    Button("Fermer") { controller.close() }.keyboardShortcut(.cancelAction)
-                    Button("Réessayer") { controller.retry() }.keyboardShortcut(.defaultAction)
-                } else {
-                    Button("Fermer") { controller.close() }.keyboardShortcut(.defaultAction)
-                }
+            Spacer()
+            if controller.canRetry {
+                Button("Fermer") { controller.close() }.keyboardShortcut(.cancelAction)
+                Button("Réessayer") { controller.retry() }
+                    .primaryButton()
+                    .keyboardShortcut(.defaultAction)
+            } else {
+                Button("Fermer") { controller.close() }
+                    .primaryButton()
+                    .keyboardShortcut(.defaultAction)
             }
         }
+        .padding(.top, 2)
     }
 
     /// Lien avec FL pas encore installé : installé ici, à la demande.
     private var setup: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Organiser parle à FL par le lien avec FL : un petit script que FL Shortcuts installe dans FL Studio, "
-                 + "une seule fois. Il n'est pas encore installé.")
+            Text("Organiser parle à FL par un petit script que FL Shortcuts installe dans FL Studio, une seule fois.")
                 .font(.system(size: 13))
                 .fixedSize(horizontal: false, vertical: true)
-            VStack(alignment: .leading, spacing: 6) {
-                step(1, "Clique sur « Installer le lien avec FL ».")
-                step(2, "Redémarre FL Studio.")
-                step(3, "Dans FL : Options › MIDI Settings. En entrée, choisis « FL Shortcuts », Enable, Controller type "
-                     + "« FL Shortcuts » ; en sortie, « FL Shortcuts » avec le même numéro de Port.")
-                step(4, "Ouvre la page à organiser (Channel rack, Mixer ou Playlist), puis clique sur « Réessayer ».")
+            VStack(alignment: .leading, spacing: 8) {
+                OrganizerStep(n: 1, text: "Clique sur « Installer le lien avec FL », puis redémarre FL Studio.")
+                OrganizerStep(n: 2, text: "Dans FL : Options › MIDI Settings. En entrée, « FL Shortcuts » : Controller "
+                              + "type « FL Shortcuts », puis Enable.")
+                OrganizerStep(n: 3, text: "Même numéro de Port à l'entrée et à la sortie « FL Shortcuts ».")
+                OrganizerStep(n: 4, text: "Ouvre la page à organiser (Channel rack, Mixer ou Playlist), puis "
+                              + "« Réessayer ».")
             }
             HStack {
                 Button("Installer le lien avec FL") { controller.installLink() }
                 Spacer()
                 Button("Fermer") { controller.close() }.keyboardShortcut(.cancelAction)
-                Button("Réessayer") { controller.retry() }.keyboardShortcut(.defaultAction)
+                Button("Réessayer") { controller.retry() }
+                    .primaryButton()
+                    .keyboardShortcut(.defaultAction)
             }
-        }
-    }
-
-    private func step(_ n: Int, _ text: String) -> some View {
-        HStack(alignment: .firstTextBaseline, spacing: 8) {
-            Text("\(n)").font(.system(size: 12, weight: .semibold)).foregroundStyle(.secondary).frame(width: 14)
-            Text(text).font(.system(size: 12)).fixedSize(horizontal: false, vertical: true)
+            .padding(.top, 2)
         }
     }
 
@@ -578,9 +685,45 @@ struct OrganizerView: View {
             HStack {
                 Button("Annuler") { controller.close() }.keyboardShortcut(.cancelAction)
                 Spacer()
-                Button("Appliquer") { controller.apply() }.keyboardShortcut(.defaultAction)
+                Button("Appliquer") { controller.apply() }
+                    .primaryButton()
+                    .keyboardShortcut(.defaultAction)
             }
         }
+    }
+}
+
+/// Carte de l'Organiser : voile clair et liseré léger, de la couleur donnée.
+private struct OrganizerCard: View {
+    var tint: Color = OrganizerView.tint
+
+    var body: some View {
+        RoundedRectangle(cornerRadius: 14, style: .continuous)
+            .fill(Color.primary.opacity(0.05))
+            .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .strokeBorder(tint.opacity(0.25), lineWidth: 1))
+    }
+}
+
+/// Une étape numérotée, dans une carte (comme les étapes du guide).
+private struct OrganizerStep: View {
+    let n: Int
+    let text: String
+
+    var body: some View {
+        HStack(alignment: .firstTextBaseline, spacing: 10) {
+            Text("\(n)")
+                .font(.system(size: 11, weight: .bold).monospacedDigit())
+                .foregroundStyle(Color.white)
+                .frame(width: 20, height: 20)
+                .background(Circle().fill(OrganizerView.tint.gradient))
+                .accessibilityHidden(true)
+            Text(text).font(.system(size: 12)).fixedSize(horizontal: false, vertical: true)
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 9)
+        .background(OrganizerCard())
     }
 }
 

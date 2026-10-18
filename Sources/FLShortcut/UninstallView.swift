@@ -106,11 +106,18 @@ final class UninstallFlow: ObservableObject {
         step = .confirm
     }
 
+    /// Tout est parti : l'app se ferme d'elle-même après un court instant (le bilan reste lisible), plus rien ne
+    /// tourne. S'il reste quelque chose à glisser à la Corbeille, la fenêtre attend.
+    static let autoQuitDelay: TimeInterval = 2.5
+
     private func finish() {
         step = .working
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
             let report = Uninstaller.removeEverything(interactive: true, removeExports: self.removeExports)
             self.step = .done(report)
+            if report.remaining.isEmpty {
+                DispatchQueue.main.asyncAfter(deadline: .now() + Self.autoQuitDelay) { Uninstaller.quitAfterUninstall() }
+            }
         }
     }
 
@@ -202,10 +209,21 @@ struct UninstallView: View {
             case .done(let report): done(report)
             }
         }
+        .softSwitch(stepKey)
         .padding(.horizontal, 24)
         .padding(.top, 30)
         .padding(.bottom, 18)
         .frame(width: 340)
+    }
+
+    /// Étape affichée : chacune arrive en fondu flou, comme dans le guide.
+    private var stepKey: Int {
+        switch flow.step {
+        case .confirm: return 0
+        case .authenticating: return 1
+        case .working: return 2
+        case .done: return 3
+        }
     }
 
     // MARK: 1. Confirmation
@@ -302,7 +320,7 @@ struct UninstallView: View {
                 SuccessMark()
                 Text("FL Shortcuts est désinstallé")
                     .font(.system(size: 13, weight: .bold))
-                Text("Plus rien ne reste sur ce Mac.")
+                Text(flow.demo ? "Plus rien ne reste sur ce Mac." : "Plus rien ne reste sur ce Mac. L'app se ferme…")
                     .font(.system(size: 11))
                     .foregroundStyle(.secondary)
             } else {

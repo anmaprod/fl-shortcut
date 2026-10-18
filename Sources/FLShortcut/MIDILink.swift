@@ -200,6 +200,12 @@ final class LinkCore {
         case failed(String)
     }
 
+    /// Script de FL muet. Le plus souvent : l'entrée « FL Shortcuts » est activée, mais avec le Controller type
+    /// « (generic controller) » (le script n'est pas chargé), ou sans le même numéro de Port que la sortie.
+    static let noResponse = "FL ne répond pas : dans FL, Options › MIDI Settings, choisis « FL Shortcuts » comme "
+        + "Controller type de l'entrée (pas « generic controller »), et donne le même numéro de Port à l'entrée et à la "
+        + "sortie « FL Shortcuts » (absent de la liste : redémarre FL)"
+
     /// Réveille le script si besoin (PING) et attend son HELLO. Script déjà réveillé depuis peu : aucun PING, sauf
     /// `force` (il s'est rendormi alors que son dernier battement semblait récent).
     private func wake(brief: Bool, timeout: TimeInterval, force: Bool = false) -> Wake {
@@ -222,9 +228,7 @@ final class LinkCore {
                 Thread.sleep(forTimeInterval: 0.03)
             }
         }
-        guard let hello = state.withLock({ $0.hello }) else {
-            return .failed("FL ne répond pas : redémarre FL (nouvelle version du script), et vérifie dans Options › MIDI Settings que « FL Shortcuts » est activé en entrée et en sortie")
-        }
+        guard let hello = state.withLock({ $0.hello }) else { return .failed(Self.noResponse) }
         return .ready(hello)
     }
 

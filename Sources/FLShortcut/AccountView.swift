@@ -72,6 +72,8 @@ struct AccountPage: View {
                                 subtitle: AccountText.subtitle, benefits: AccountText.benefits)
             }
         }
+        // Connexion, déconnexion : la page passe de l'une à l'autre en fondu.
+        .softSwitch(!community.isConfigured ? 0 : community.session == nil ? 1 : 2)
         .task { await backup.refreshIfStale() }
         .onReceive(DebugSnapshot.publisher(DebugSnapshot.account)) { note in
             backup.showDemo(note.object as? String ?? "")

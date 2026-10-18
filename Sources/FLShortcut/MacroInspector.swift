@@ -25,6 +25,15 @@ struct MacroInspectorView: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        // Autre bloc choisi : ses réglages arrivent en fondu flou, vite (les flèches du clavier le suivent).
+        .softSwitch(inspectorKey, quick: true)
+    }
+
+    /// Ce que montre l'inspecteur : un bloc, une fin de liste, le conseil, ou rien.
+    private var inspectorKey: String {
+        if let block = model.selectedBlock { return block.id.uuidString }
+        if let row = model.selectedRow, case .end = row.kind { return "fin-\(row.id)" }
+        return model.draft != nil ? "conseil" : "vide"
     }
 
     private func hint(symbol: String, title: String, text: String) -> some View {

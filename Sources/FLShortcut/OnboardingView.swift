@@ -279,8 +279,8 @@ struct OnboardingView: View {
             HStack(alignment: .top, spacing: 20) {
                 VStack(alignment: .leading, spacing: 12) {
                     StepRow(number: 1, done: installed, text: "Installer le lien dans FL Studio (bouton ci-dessous), puis redémarrer FL.")
-                    StepRow(number: 2, done: linked, text: "Dans FL Studio : Options › MIDI Settings. Input « FL Shortcuts » : Enable, Controller type « FL Shortcuts ».")
-                    StepRow(number: 3, done: linked, text: "Output « FL Shortcuts » : même numéro de Port que l'entrée. C'est détecté tout seul.")
+                    StepRow(number: 2, done: linked, text: "Dans FL Studio : Options › MIDI Settings. Input « FL Shortcuts » : Controller type « FL Shortcuts » (pas « generic controller »), Enable, un numéro de Port (10 par exemple).")
+                    StepRow(number: 3, done: linked, text: "Output « FL Shortcuts » : le même numéro de Port que l'entrée. C'est détecté tout seul.")
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
 

@@ -68,6 +68,7 @@ struct CommunityPage: View {
                                 delete: { share in Task { await delete(share) } })
             }
         }
+        .softSwitch(!community.isConfigured ? 0 : community.session == nil ? 1 : 2)
         .task { await community.open() }
         .sheet(item: $opened) { share in
             CommunityShareDetail(community: community, store: store, share: share, added: toast,
@@ -219,7 +220,7 @@ private struct CommunityBrowse: View {
                 Section {
                     ForEach(Array(community.members.enumerated()), id: \.element.id) { index, member in
                         CommunityMemberRow(member: member) { Task { await community.showAuthor(member) } }
-                            .cardRow(.position(index: index, count: community.members.count))
+                            .cardRow(.position(index: index, count: community.members.count), hover: true)
                     }
                 } header: {
                     Text("Membres")
@@ -236,7 +237,7 @@ private struct CommunityBrowse: View {
                                               Task { await community.showAuthor(of: share) }
                                           },
                                           open: { open(share) }, report: { report(share) }, delete: { delete(share) })
-                            .cardRow(.position(index: index, count: community.shares.count))
+                            .cardRow(.position(index: index, count: community.shares.count), hover: true)
                     }
                 }
             } header: {
@@ -352,7 +353,6 @@ private struct CommunityMemberRow: View {
         .padding(.vertical, 2)
         .contentShape(Rectangle())
         .onTapGesture(perform: open)
-        .hoverLift()
         .help("Voir tout ce que @\(member.username.displaySafe(max: 24)) a publié")
         .accessibilityElement(children: .combine)
         .accessibilityAddTraits(.isButton)
@@ -498,7 +498,6 @@ private struct CommunityShareRow: View {
             .accessibilityLabel("Plus d'actions")
         }
         .padding(.vertical, 2)
-        .hoverLift()
     }
 }
 
@@ -737,6 +736,9 @@ struct CommunitySignIn: View {
         }
         .formStyle(.grouped)
         .glassListBackground()
+        // Code reçu, création du compte : les champs changent en douceur.
+        .motion(Motion.morph, value: community.pendingCode)
+        .motion(Motion.morph, value: creating)
         .onChange(of: community.pendingCode) { _ in
             code = ""
             newPassword = ""

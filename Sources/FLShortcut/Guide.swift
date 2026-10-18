@@ -5,7 +5,9 @@
 // Changement de page « morph » (Morphose de PowerPoint) : de « Bienvenue » à une partie, l'icône de la ligne choisie
 // glisse et grandit jusqu'en haut de la page ; les textes ne sont jamais étirés d'une taille à l'autre (ils
 // sautaient en cours de route) : la page qui part se brouille et s'efface pendant que la nouvelle passe du flou au
-// net (titre, phrase, étapes, astuce, l'un après l'autre). Le fond prend la couleur de l'icône de chaque partie.
+// net (titre, phrase, étapes, astuce, l'un après l'autre). En revenant en arrière, pas de vol d'icône (elle passait
+// sur le texte qui s'effaçait) : les deux pages se fondent l'une dans l'autre. Le fond prend la couleur de l'icône
+// de chaque partie.
 import SwiftUI
 
 /// Demande d'ouvrir le guide (menu ⋯, barre des menus) : la fenêtre principale l'affiche dès qu'elle est là.
@@ -69,6 +71,9 @@ struct GuideView: View {
     var appIconMorph: Namespace.ID? = nil
     /// Élément qui passe d'une page à l'autre : l'icône d'une partie.
     @Namespace private var morph
+    /// Sens du dernier changement de page : en avant, l'icône d'une ligne vole jusqu'en haut de sa partie ; en
+    /// arrière, simple fondu.
+    @State private var forward = true
 
     private var last: Bool { page >= GuideContent.count - 1 }
     private var part: GuidePage? { page > 0 ? GuideContent.pages[min(page, GuideContent.pages.count) - 1] : nil }
@@ -124,30 +129,9 @@ struct GuideView: View {
                 .morphIn(1)
             VStack(alignment: .leading, spacing: 8) {
                 ForEach(Array(GuideContent.pages.enumerated()), id: \.element.id) { index, p in
-                    Button {
-                        page = p.id
-                    } label: {
-                        HStack(spacing: 14) {
-                            MorphIcon(page: p, size: 36, morph: morph)
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(p.title).font(.system(size: 14, weight: .semibold))
-                                Text(p.summary).font(.system(size: 12)).foregroundStyle(.secondary)
-                                    .fixedSize(horizontal: false, vertical: true)
-                            }
-                            Spacer(minLength: 0)
-                            Image(systemName: "chevron.right")
-                                .font(.system(size: 11, weight: .semibold))
-                                .foregroundStyle(.tertiary)
-                        }
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 9)
-                        .background(GuideCard(tint: p.tint))
-                        .contentShape(Rectangle())
-                    }
-                    .buttonStyle(.plain)
-                    .hoverLift(cornerRadius: 14)
-                    .help("Voir « \(p.title) »")
-                    .morphIn(index + 2)
+                    GuideWelcomeRow(page: p, morph: morph, flies: forward) { go(to: p.id) }
+                        .help("Voir « \(p.title) »")
+                        .morphIn(index + 2)
                 }
             }
             .frame(maxWidth: 460)
@@ -155,9 +139,17 @@ struct GuideView: View {
         }
     }
 
+    /// Change de page en notant le sens (même mise à jour : l'icône sait si elle doit voler).
+    private func go(to new: Int) {
+        let target = max(0, min(new, GuideContent.count - 1))
+        guard target != page else { return }
+        forward = target > page
+        page = target
+    }
+
     private var footer: some View {
         ZStack {
-            GuideDots(count: GuideContent.count, page: $page, tint: tint)
+            GuideDots(count: GuideContent.count, page: page, tint: tint) { go(to: $0) }
             HStack(spacing: 8) {
                 if !last {
                     Button("Passer le guide", action: close)
@@ -168,10 +160,10 @@ struct GuideView: View {
                 }
                 Spacer()
                 if page > 0 {
-                    Button("Précédent") { page -= 1 }
+                    Button("Précédent") { go(to: page - 1) }
                 }
                 Button(page == 0 ? "Découvrir" : last ? "C'est parti" : "Suivant") {
-                    if last { close() } else { page += 1 }
+                    if last { close() } else { go(to: page + 1) }
                 }
                 .primaryButton()
                 .keyboardShortcut(.defaultAction)
@@ -190,7 +182,7 @@ private struct GuidePageView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack(spacing: 16) {
-                MorphIcon(page: page, size: 60, morph: morph)
+                MorphIcon(page: page, size: 60, morph: morph, id: MorphIcon.id(page))
                     .shadow(color: page.tint.opacity(0.45), radius: 18, y: 8)
                 VStack(alignment: .leading, spacing: 4) {
                     Text(page.title).font(.system(size: 30, weight: .bold))
@@ -232,15 +224,57 @@ private struct GuidePageView: View {
     }
 }
 
-/// Carte d'une ligne du guide : voile clair, liseré de la couleur de la page.
+/// Carte d'une ligne du guide : voile clair, liseré de la couleur de la page ; au survol, plus claire et liseré plus
+/// marqué (rien ne dépasse du liseré).
 private struct GuideCard: View {
     let tint: Color
+    var hovered = false
 
     var body: some View {
         RoundedRectangle(cornerRadius: 14, style: .continuous)
-            .fill(Color.primary.opacity(0.045))
+            .fill(Color.primary.opacity(hovered ? 0.085 : 0.045))
             .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .strokeBorder(tint.opacity(0.22), lineWidth: 1))
+                .strokeBorder(tint.opacity(hovered ? 0.6 : 0.22), lineWidth: hovered ? 1.5 : 1))
+    }
+}
+
+/// Ligne d'une partie sur « Bienvenue » : au survol, la carte entière grossit avec son liseré de couleur (fond,
+/// liseré et contenu ensemble), ombre douce de sa couleur.
+private struct GuideWelcomeRow: View {
+    let page: GuidePage
+    let morph: Namespace.ID
+    /// En avant : son icône vole jusqu'en haut de la partie.
+    let flies: Bool
+    let action: () -> Void
+    @State private var hovered = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 14) {
+                MorphIcon(page: page, size: 36, morph: morph, id: flies ? MorphIcon.id(page) : "ligne\(page.id)")
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(page.title).font(.system(size: 14, weight: .semibold))
+                    Text(page.summary).font(.system(size: 12)).foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                Spacer(minLength: 0)
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(hovered ? AnyShapeStyle(page.tint) : AnyShapeStyle(.tertiary))
+                    .offset(x: hovered && !reduceMotion ? 2 : 0)
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 9)
+            .background(GuideCard(tint: page.tint, hovered: hovered))
+            .contentShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+        }
+        .buttonStyle(.plain)
+        .scaleEffect(hovered && !reduceMotion ? 1.02 : 1)
+        .shadow(color: page.tint.opacity(hovered ? 0.28 : 0), radius: hovered ? 14 : 0, y: hovered ? 5 : 0)
+        .onHover { inside in
+            withAnimation(reduceMotion ? Motion.reduced : Motion.lift) { hovered = inside }
+        }
     }
 }
 
@@ -265,12 +299,16 @@ private struct MorphIcon: View {
     let page: GuidePage
     let size: CGFloat
     let morph: Namespace.ID
+    /// Même identifiant sur les deux pages : l'icône vole de l'une à l'autre ; différent : chacune reste à sa place.
+    let id: String
+
+    static func id(_ page: GuidePage) -> String { "icon\(page.id)" }
 
     var body: some View {
         GeometryReader { g in
             SectionIcon(symbol: page.symbol, tint: page.tint, size: max(1, min(g.size.width, g.size.height)))
         }
-        .matchedGeometryEffect(id: "icon\(page.id)", in: morph)
+        .matchedGeometryEffect(id: id, in: morph)
         .frame(width: size, height: size)
     }
 }
@@ -325,14 +363,15 @@ struct TintGlow: View {
 /// Points de pagination, cliquables : celui de la page ouverte s'allonge, dans la couleur de la page.
 private struct GuideDots: View {
     let count: Int
-    @Binding var page: Int
+    let page: Int
     let tint: Color
+    let select: (Int) -> Void
 
     var body: some View {
         HStack(spacing: 6) {
             ForEach(0..<count, id: \.self) { i in
                 Button {
-                    page = i
+                    select(i)
                 } label: {
                     Capsule()
                         .fill(i == page ? tint : Color.secondary.opacity(0.35))
@@ -344,5 +383,25 @@ private struct GuideDots: View {
                 .accessibilityLabel("Page \(i + 1) sur \(count)")
             }
         }
+    }
+}
+
+/// Guide ouvert dans la fenêtre principale (menu ⋯, Aide, barre des menus) : sa page vit dans la feuille elle-même.
+/// Gardée par la fenêtre, chaque changement de page redessinait la feuille de l'extérieur, sans aucune animation.
+struct GuideSheet: View {
+    /// Page demandée à l'ouverture (et par le mode capture, guide ouvert).
+    let initialPage: Int
+    let close: () -> Void
+    @State private var page: Int
+
+    init(initialPage: Int, close: @escaping () -> Void) {
+        self.initialPage = initialPage
+        self.close = close
+        _page = State(initialValue: initialPage)
+    }
+
+    var body: some View {
+        GuideView(page: $page, close: close)
+            .onChange(of: initialPage) { page = $0 }
     }
 }

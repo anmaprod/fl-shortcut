@@ -71,6 +71,31 @@ extension Motion {
     }
 }
 
+extension Motion {
+    /// Changement de contenu rapide (inspecteur du créateur, qui suit les flèches du clavier) : le même fondu flou,
+    /// en un tiers de seconde.
+    static var quickMorph: Animation { .spring(response: 0.35 * DebugSnapshot.slowMotion, dampingFraction: 0.92) }
+
+    static var quickSwap: AnyTransition {
+        transition(.asymmetric(
+            insertion: .modifier(active: SoftFocus(amount: 1, rise: 8), identity: SoftFocus(amount: 0, rise: 8)),
+            removal: .modifier(active: SoftFocus(amount: 1, rise: -6), identity: SoftFocus(amount: 0, rise: -6))
+                .animation(.easeOut(duration: 0.2 * DebugSnapshot.slowMotion))))
+    }
+}
+
+extension View {
+    /// Contenu qui change (page de la barre latérale, connecté ou non, étape suivante…) : comme dans le guide,
+    /// l'ancien se brouille et s'efface pendant que le nouveau passe du flou au net ; jamais de changement sec.
+    /// `key` : ce qui fait changer le contenu (un nouveau contenu repart aussi de zéro : liste en haut, champs neufs).
+    func softSwitch<K: Hashable>(_ key: K, quick: Bool = false) -> some View {
+        ZStack {
+            self.id(key).transition(quick ? Motion.quickSwap : Motion.pageMorph)
+        }
+        .motion(quick ? Motion.quickMorph : Motion.morph, value: key)
+    }
+}
+
 /// « Mise au point » : `amount` 1 = hors champ (transparent, flou, décalé, à peine plus petit), 0 = en place.
 private struct SoftFocus: ViewModifier {
     let amount: CGFloat
@@ -133,12 +158,11 @@ private struct HoverLift: ViewModifier {
     func body(content: Content) -> some View {
         content
             .background {
+                // Exactement aux bords de l'élément (jamais au-delà de son contour).
                 RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
                     .fill(Color.primary.opacity(hovered ? 0.06 : 0))
                     .shadow(color: .black.opacity(hovered && !reduceMotion ? 0.12 : 0), radius: hovered ? 8 : 0,
                             y: hovered ? 3 : 0)
-                    .padding(.horizontal, -6)
-                    .padding(.vertical, -2)
             }
             .scaleEffect(hovered && !reduceMotion ? 1.015 : 1)
             .onHover { inside in
@@ -665,25 +689,54 @@ enum CardRowPosition: Equatable {
 
 extension View {
     /// Ligne d'une page en cartes : fond arrondi selon sa place dans la section, sans séparateur de la liste.
-    func cardRow(_ position: CardRowPosition) -> some View {
+    /// `hover` : la ligne entière s'éclaire au survol, d'un filet à l'autre (toute la largeur de la carte).
+    func cardRow(_ position: CardRowPosition, hover: Bool = false) -> some View {
+        modifier(CardRowModifier(position: position, hover: hover))
+    }
+}
+
+/// La marge intérieure d'une ligne est dans la ligne elle-même (pas dans la liste) : le survol couvre toute la ligne,
+/// jusqu'aux filets qui la séparent de ses voisines.
+private struct CardRowModifier: ViewModifier {
+    let position: CardRowPosition
+    let hover: Bool
+    @State private var hovered = false
+
+    func body(content: Content) -> some View {
         let gap = CardRowBackground.gap
-        let side = CardRowBackground.inset + 12
-        return listRowInsets(EdgeInsets(top: 8 + (position.roundsTop ? gap : 0), leading: side,
-                                        bottom: 8 + (position.roundsBottom ? gap : 0), trailing: side))
-            .listRowSeparator(.hidden)
-            .listRowBackground(CardRowBackground(position: position))
+        let row = content
+            .padding(.vertical, 8)
+            .padding(.horizontal, 12)
+            .frame(maxWidth: .infinity, alignment: .leading)
+        return Group {
+            if hover {
+                row
+                    .contentShape(Rectangle())
+                    .onHover { inside in withAnimation(.easeOut(duration: 0.18)) { hovered = inside } }
+            } else {
+                row
+            }
+        }
+        .listRowInsets(EdgeInsets(top: position.roundsTop ? gap : 0, leading: CardRowBackground.inset,
+                                  bottom: position.roundsBottom ? gap : 0, trailing: CardRowBackground.inset))
+        .listRowSeparator(.hidden)
+        .listRowBackground(CardRowBackground(position: position, hovered: hover && hovered))
     }
 }
 
 /// Fond d'une ligne de carte : rectangle arrondi seulement aux bouts de la carte, filet sous les lignes intérieures.
-/// Carte grise sur le fond de la page, comme le Form groupé (verre ou non).
+/// Carte grise sur le fond de la page, comme le Form groupé (verre ou non) ; un peu plus claire au survol.
 struct CardRowBackground: View {
     static let inset: CGFloat = 10                       // marge de la carte dans la liste
     static let gap: CGFloat = 4                          // espace au-dessus et au-dessous d'une carte
     let position: CardRowPosition
+    var hovered = false
     @Environment(\.colorScheme) private var scheme
 
-    private var fill: Color { scheme == .dark ? Color.white.opacity(0.07) : Color.black.opacity(0.045) }
+    private var fill: Color {
+        if scheme == .dark { return Color.white.opacity(hovered ? 0.12 : 0.07) }
+        return Color.black.opacity(hovered ? 0.08 : 0.045)
+    }
 
     var body: some View {
         CardRowShape(roundsTop: position.roundsTop, roundsBottom: position.roundsBottom)

@@ -206,8 +206,8 @@ enum FLScriptInstaller {
             Dernières étapes dans FL Studio :
             1. Redémarre FL Studio (les scripts sont lus au lancement).
             2. Ouvre Options › MIDI Settings.
-            3. Dans « Input », sélectionne « FL Shortcuts », clique sur Enable et choisis le Controller type « FL Shortcuts ».
-            4. Dans « Output », sélectionne aussi « FL Shortcuts » et donne-lui le même numéro de Port que l'entrée.
+            3. Dans « Input », sélectionne « FL Shortcuts », choisis le Controller type « FL Shortcuts » (pas « generic controller »), clique sur Enable et donne-lui un numéro de Port (par exemple 10).
+            4. Dans « Output », sélectionne aussi « FL Shortcuts » et donne-lui le même numéro de Port.
 
             Chaque réinstallation crée une nouvelle clé : redémarre FL après coup.
             """)

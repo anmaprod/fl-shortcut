@@ -104,7 +104,7 @@ struct PageContainer<Content: View>: View {
 }
 
 /// Lignes d'une carte, chacune à sa place (première, intérieure, dernière). `trailing` : lignes posées après
-/// (bouton « Nouveau… »), comptées pour arrondir la bonne.
+/// (bouton « Nouveau… »), comptées pour arrondir la bonne. Chaque ligne s'éclaire au survol, d'un filet à l'autre.
 private struct CardRows<Item: Identifiable, Row: View>: View {
     let items: [Item]
     var trailing = 0
@@ -112,7 +112,7 @@ private struct CardRows<Item: Identifiable, Row: View>: View {
 
     var body: some View {
         ForEach(Array(items.enumerated()), id: \.element.id) { index, item in
-            row(item).cardRow(.position(index: index, count: items.count + trailing))
+            row(item).cardRow(.position(index: index, count: items.count + trailing), hover: true)
         }
     }
 }
@@ -166,9 +166,10 @@ struct EditorView: View {
             if let editor = macroEditor {
                 MacroCreatorView(model: editor, onBack: { leaveCreator(editor) })
                     .environmentObject(store)
-                    .transition(.opacity)
+                    .transition(Motion.pageMorph)
             } else {
                 shortcuts
+                    .transition(Motion.pageMorph)
             }
         }
         .onChange(of: creatorLink.request) { request in
@@ -179,7 +180,7 @@ struct EditorView: View {
         // Fenêtre fermée pendant le créateur : brouillon enregistré, modèle lâché (rien ne reste en mémoire).
         .onDisappear { closeCreator() }
         .sheet(isPresented: $showGuide, onDismiss: { guideSeen = true }) {
-            GuideView(page: $guidePage) { showGuide = false }
+            GuideSheet(initialPage: guidePage) { showGuide = false }
         }
         .onAppear {
             showGuideIfNeeded()
@@ -243,7 +244,7 @@ struct EditorView: View {
         editing = nil
         editingRow = nil
         let editor = MacroEditorModel(store: store)
-        withAnimation(.easeInOut(duration: 0.2)) { macroEditor = editor }
+        withAnimation(Motion.reduce ? Motion.reduced : Motion.morph) { macroEditor = editor }
     }
 
     /// Flèche ← : macro neuve → l'enregistrer ou la supprimer ; macro modifiée → enregistrer ou annuler les
@@ -285,7 +286,7 @@ struct EditorView: View {
         // → des raccourcis : retour dans cette macro, si elle existe toujours (pas supprimée au retour).
         MacroCreatorLink.shared.lastClosedID = id.flatMap { id in store.library.macros.contains { $0.id == id } ? id : nil }
         CreatorPresence.detach()
-        withAnimation(.easeInOut(duration: 0.2)) { macroEditor = nil }
+        withAnimation(Motion.reduce ? Motion.reduced : Motion.morph) { macroEditor = nil }
         selection = .macros
         CreatorPresence.releaseMemory()
     }
@@ -309,6 +310,8 @@ struct EditorView: View {
         // Recherche en haut de la barre latérale (comme Réglages Système) : à droite, la barre d'outils ne porte que
         // les boutons de la page, et les flèches de la page Macros tombent au même endroit que dans le créateur.
         .searchable(text: $query, placement: .sidebar, prompt: "Rechercher")
+        // Active seulement après un clic dedans (ou ⌘F) : taper ailleurs n'y écrit plus rien.
+        .background(SearchFocusGuard())
         // Le texte de la recherche n'est plus le nom du raccourci appuyé : recherche ordinaire.
         .onChange(of: query) { newValue in
             if let combo = keySearch, newValue.trimmingCharacters(in: .whitespaces) != combo.display { keySearch = nil }
@@ -438,7 +441,8 @@ struct EditorView: View {
                 }
             }
         }
-        .id(trimmedQuery.isEmpty ? selection : nil)          // nouvelle liste (et retour en haut) à chaque section
+        // Nouvelle liste (et retour en haut) à chaque section, en fondu flou comme dans le guide.
+        .softSwitch(trimmedQuery.isEmpty ? selection : nil)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         // Façon macOS 26 : la liste défile SOUS des éléments en verre qui flottent (avertissements en haut,
         // notification et statut en bas). Peu de surfaces, regroupées : le système les dessine ensemble.
@@ -1115,7 +1119,6 @@ private struct CatalogRowView: View {
                         action: onReset)
         }
         .padding(.vertical, 2)
-        .hoverLift()
         .contextMenu {
             Button("Changer la touche…", action: onEdit)
             Button("Réinitialiser", action: onReset).disabled(row.isDefault)
@@ -1169,7 +1172,6 @@ private struct ShortcutRow: View {
             .foregroundStyle(.secondary)
         }
         .padding(.vertical, 2)
-        .hoverLift()
         .opacity(remap.enabled ? 1 : 0.55)
         .contextMenu {
             Button("Modifier…", action: onOpen)

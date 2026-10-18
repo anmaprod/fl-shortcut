@@ -162,6 +162,13 @@ final class InstallerTests: XCTestCase {
         XCTAssertEqual(Uninstaller.privilegedScript(work),
                        "/bin/rm -rf '/Applications/FL Shortcuts.app' '/Applications/L'\\''autre.app'; "
                        + "/usr/sbin/pkgutil --forget app.flshortcut.pkg >/dev/null")
+        // Autorisations (clavier, écran, son) : retirées de la liste du système, en administrateur.
+        let permissions = Uninstaller.PrivilegedWork(permissions: true)
+        XCTAssertFalse(permissions.isEmpty)
+        XCTAssertEqual(Uninstaller.privilegedScript(permissions),
+                       "/usr/bin/tccutil reset All app.flshortcut.FLShortcut >/dev/null 2>&1; "
+                       + "/usr/bin/tccutil reset All app.flshortcut.Uninstaller >/dev/null 2>&1")
+        XCTAssertTrue(Uninstaller.privilegedWork(home: URL(fileURLWithPath: "/nulle/part")).permissions)
     }
 
     func testInstallerWritesIntoDedicatedFolder() throws {
