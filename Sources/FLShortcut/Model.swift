@@ -614,7 +614,10 @@ enum ProfilePreset: String, CaseIterable, Identifiable {
                 sends(ch("d", 2, cmd: true), ch("b", 11, cmd: true), .playlist),        // ⌘D : dupliquer (⌘B)
                 sends(ch("e", 14, cmd: true), ch("c", 8), .playlist),                   // ⌘E : découper (outil C)
                 sends(ch("j", 38, cmd: true), ch("c", 8, cmd: true, opt: true), .playlist),  // ⌘J : consolider (⌘⌥C)
-                sends(ch("u", 32, cmd: true), ch("q", 12, cmd: true, opt: true), .pianoRoll), // ⌘U : quantize (⌘⌥Q)
+                // ⌘U : quantize. Le Quantize rapide de FL (⌘⌥Q) n'est jamais envoyé (⌘ + Q quitterait FL au
+                // moindre ⌥ perdu) : l'outil Quantize du Piano Roll (⌥Q), le Quantize rapide des clips (⇧Q).
+                sends(ch("u", 32, cmd: true), ch("q", 12, opt: true), .pianoRoll),
+                sends(ch("u", 32, cmd: true), ch("q", 12, shift: true), .playlist),
                 sends(ch("r", 15, cmd: true), kc(120)),                                 // ⌘R : renommer (F2)
                 sends(ch("r", 15, cmd: true, shift: true), ch("r", 15, cmd: true)),     // ⌘⇧R : exporter (⌘R)
                 sends(kc(29), ch("m", 46, opt: true), .playlist),                       // 0 : désactiver → mute (⌥M)
@@ -641,7 +644,8 @@ enum ProfilePreset: String, CaseIterable, Identifiable {
                 sends(ch("f", 3), kc(100, opt: true)),                                  // F : navigateurs → Browser (⌥F8)
                 sends(ch("y", 16), kc(100)),                                            // Y : bibliothèque → Plugin Picker (F8)
                 sends(ch("t", 17), kc(99)),                                             // T : outils (F3)
-                sends(ch("q", 12), ch("q", 12, cmd: true, opt: true), .pianoRoll),      // Q : quantize (⌘⌥Q)
+                sends(ch("q", 12), ch("q", 12, opt: true), .pianoRoll),                 // Q : quantize (outil ⌥Q)
+                sends(ch("q", 12), ch("q", 12, shift: true), .playlist),                 // (clips : ⇧Q)
                 sends(ch("t", 17, cmd: true), ch("c", 8), .playlist),                   // ⌘T : couper (outil C)
                 sends(ch("r", 15, cmd: true), ch("b", 11, cmd: true), .playlist),       // ⌘R : répéter (⌘B)
                 sends(ch("j", 38, cmd: true), ch("c", 8, cmd: true, opt: true), .playlist),  // ⌘J : joindre (⌘⌥C)

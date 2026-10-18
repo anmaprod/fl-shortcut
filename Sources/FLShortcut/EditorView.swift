@@ -162,14 +162,17 @@ struct EditorView: View {
     }
 
     var body: some View {
-        Group {
+        // Le créateur reste au-dessus des raccourcis : il arrive par-dessus, et s'efface par-dessus au retour.
+        ZStack {
             if let editor = macroEditor {
                 MacroCreatorView(model: editor, onBack: { leaveCreator(editor) })
                     .environmentObject(store)
-                    .transition(Motion.pageMorph)
+                    .transition(Motion.windowSwap)
+                    .zIndex(1)
             } else {
                 shortcuts
-                    .transition(Motion.pageMorph)
+                    .transition(Motion.windowSwap)
+                    .zIndex(0)
             }
         }
         .onChange(of: creatorLink.request) { request in

@@ -72,6 +72,17 @@ extension Motion {
 }
 
 extension Motion {
+    /// Bascule de toute la fenêtre (raccourcis ↔ créateur de macros). Ces pages sont faites de vues d'AppKit (barres
+    /// latérales, listes, barre d'outils) que le flou et l'échelle de SwiftUI ne suivent pas : des morceaux sautaient
+    /// pendant que d'autres se brouillaient. Ici un fondu enchaîné seulement : la page qui part s'efface vite, celle
+    /// qui arrive apparaît juste derrière (les deux barres d'outils ne se superposent presque pas).
+    static var windowSwap: AnyTransition {
+        transition(.asymmetric(
+            insertion: .opacity.animation(.easeOut(duration: 0.34 * DebugSnapshot.slowMotion)
+                .delay(0.1 * DebugSnapshot.slowMotion)),
+            removal: .opacity.animation(.easeIn(duration: 0.16 * DebugSnapshot.slowMotion))))
+    }
+
     /// Changement de contenu rapide (inspecteur du créateur, qui suit les flèches du clavier) : le même fondu flou,
     /// en un tiers de seconde.
     static var quickMorph: Animation { .spring(response: 0.35 * DebugSnapshot.slowMotion, dampingFraction: 0.92) }

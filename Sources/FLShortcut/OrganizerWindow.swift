@@ -530,16 +530,18 @@ struct OrganizerView: View {
     }
 
     private var header: some View {
-        HStack(spacing: 12) {
-            SectionIcon(symbol: "square.stack.3d.up", tint: Self.tint, size: 34)
-            VStack(alignment: .leading, spacing: 1) {
-                Text(controller.title).font(.system(size: 17, weight: .bold))
+        HStack(spacing: 14) {
+            SectionIcon(symbol: "square.stack.3d.up", tint: Self.tint, size: 42)
+                .shadow(color: Self.tint.opacity(0.35), radius: 12, y: 4)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(controller.title).font(.system(size: 18, weight: .bold))
                 Text("Écoute, classe et colore tes sons")
-                    .font(.system(size: 11))
+                    .font(.system(size: 12))
                     .foregroundStyle(.secondary)
             }
             Spacer()
         }
+        .morphIn(0)
     }
 
     private static func listeningText(_ done: Int, _ total: Int) -> String {
@@ -554,31 +556,37 @@ struct OrganizerView: View {
             setup
         case .listening(let done, let total):
             VStack(alignment: .leading, spacing: 12) {
-                VStack(alignment: .leading, spacing: 8) {
-                    HStack {
-                        Text(Self.listeningText(done, total)).font(.system(size: 13, weight: .semibold))
-                        Spacer()
-                        if total > 0 {
-                            Text("\(Int((Double(done) / Double(max(total, 1)) * 100).rounded())) %")
-                                .font(.system(size: 12).monospacedDigit())
-                                .foregroundStyle(.secondary)
+                HStack(spacing: 12) {
+                    OrganizerBadge(symbol: "waveform", tint: Self.tint, live: true)
+                    VStack(alignment: .leading, spacing: 8) {
+                        HStack {
+                            Text(Self.listeningText(done, total)).font(.system(size: 13, weight: .semibold))
+                            Spacer()
+                            if total > 0 {
+                                Text("\(Int((Double(done) / Double(max(total, 1)) * 100).rounded())) %")
+                                    .font(.system(size: 12).monospacedDigit())
+                                    .foregroundStyle(.secondary)
+                            }
                         }
+                        ProgressView(value: Double(done), total: Double(max(total, 1)))
+                            .tint(Self.tint)
+                            .motion(Motion.smooth, value: done)
                     }
-                    ProgressView(value: Double(done), total: Double(max(total, 1)))
-                        .tint(Self.tint)
-                        .motion(Motion.smooth, value: done)
                 }
                 .padding(14)
-                .background(OrganizerCard())
+                .organizerCard()
+                .morphIn(1)
                 Text("Chaque son joue seul, sans que tu l'entendes (dans la Playlist, la chanson est parcourue jusqu'à "
                      + "ce que la piste sonne). Ne touche pas à FL ; Échap arrête.")
                     .font(.system(size: 11))
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
+                    .morphIn(2)
                 HStack {
                     Spacer()
                     Button("Arrêter") { controller.close() }.keyboardShortcut(.cancelAction)
                 }
+                .morphIn(3)
             }
         case .preview:
             preview
@@ -602,23 +610,22 @@ struct OrganizerView: View {
             Spacer(minLength: 0)
         }
         .padding(14)
-        .background(OrganizerCard())
+        .organizerCard()
+        .morphIn(1)
     }
 
     /// Fin d'une étape : le message dans une carte (coche verte ou triangle orange) ; FL muet : les réglages de FL
     /// à vérifier, étape par étape.
     private func ending(_ text: String, ok: Bool, linkHelp: Bool) -> some View {
         VStack(alignment: .leading, spacing: 12) {
-            HStack(alignment: .top, spacing: 12) {
-                Image(systemName: ok ? "checkmark.circle.fill" : "exclamationmark.triangle.fill")
-                    .font(.system(size: 20))
-                    .symbolRenderingMode(.multicolor)
-                    .foregroundStyle(ok ? Color.green : Color.orange)
+            HStack(alignment: .center, spacing: 12) {
+                OrganizerBadge(symbol: ok ? "checkmark" : "exclamationmark", tint: ok ? .green : .orange)
                 Text(text).font(.system(size: 13)).fixedSize(horizontal: false, vertical: true)
                 Spacer(minLength: 0)
             }
             .padding(14)
-            .background(OrganizerCard(tint: ok ? .green : .orange))
+            .organizerCard(ok ? .green : .orange)
+            .morphIn(1)
             if linkHelp {
                 VStack(alignment: .leading, spacing: 8) {
                     OrganizerStep(n: 1, text: "Quitte et rouvre FL Studio : il trouve « FL Shortcuts Link » en démarrant "
@@ -633,8 +640,10 @@ struct OrganizerView: View {
                                   + "FL Studio : « Dossier Documents » doit être coché.")
                 }
                 scriptCard
+                    .morphIn(6)
             }
             buttons
+                .morphIn(linkHelp ? 7 : 2)
         }
     }
 
@@ -669,7 +678,7 @@ struct OrganizerView: View {
             .controlSize(.small)
         }
         .padding(12)
-        .background(OrganizerCard(tint: present ? Self.tint : .orange))
+        .organizerCard(present ? Self.tint : .orange)
     }
 
     @ViewBuilder private var buttons: some View {
@@ -698,6 +707,7 @@ struct OrganizerView: View {
             Text("Organiser parle à FL par un petit script que FL Shortcuts installe dans FL Studio, une seule fois.")
                 .font(.system(size: 13))
                 .fixedSize(horizontal: false, vertical: true)
+                .morphIn(1)
             VStack(alignment: .leading, spacing: 8) {
                 OrganizerStep(n: 1, text: "Clique sur « Installer le lien avec FL ».")
                 OrganizerStep(n: 2, text: "Quitte et rouvre FL Studio : il trouve « FL Shortcuts Link » en démarrant et "
@@ -714,6 +724,7 @@ struct OrganizerView: View {
                     .keyboardShortcut(.defaultAction)
             }
             .padding(.top, 2)
+            .morphIn(5)
         }
     }
 
@@ -734,14 +745,20 @@ struct OrganizerView: View {
                 .font(.system(size: 12))
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
+                .morphIn(1)
             ScrollView {
                 VStack(alignment: .leading, spacing: 10) {
                     let colors = controller.plannedColors
-                    ForEach(controller.presentFamilies, id: \.self) { family in
+                    ForEach(Array(controller.presentFamilies.enumerated()), id: \.element) { index, family in
                         FamilySection(controller: controller, family: family, colors: colors)
+                            .morphIn(index + 2)
                     }
                 }
+                // Place pour la carte survolée qui grandit et son ombre.
+                .padding(.horizontal, 4)
+                .padding(.vertical, 6)
             }
+            .padding(.horizontal, -4)
             if controller.result?.page == .playlist {
                 Toggle("Renommer les pistes qui ont encore le nom de FL (Kick, Snare, Voix…)",
                        isOn: $controller.renameTracks)
@@ -763,19 +780,70 @@ struct OrganizerView: View {
     }
 }
 
-/// Carte de l'Organiser : voile clair et liseré léger, de la couleur donnée.
+/// Carte de l'Organiser, comme celles du guide : voile clair et liseré de sa couleur, qui s'épaissit au survol.
 private struct OrganizerCard: View {
     var tint: Color = OrganizerView.tint
+    var hovered = false
 
     var body: some View {
         RoundedRectangle(cornerRadius: 14, style: .continuous)
-            .fill(Color.primary.opacity(0.05))
+            .fill(Color.primary.opacity(hovered ? 0.085 : 0.045))
             .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .strokeBorder(tint.opacity(0.25), lineWidth: 1))
+                .strokeBorder(tint.opacity(hovered ? 0.6 : 0.24), lineWidth: hovered ? 1.5 : 1))
     }
 }
 
-/// Une étape numérotée, dans une carte (comme les étapes du guide).
+/// Carte qui grandit un peu au survol avec son liseré, ombre douce de sa couleur (comme sur l'accueil du guide).
+private struct OrganizerHoverCard: ViewModifier {
+    let tint: Color
+    @State private var hovered = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    func body(content: Content) -> some View {
+        content
+            .background(OrganizerCard(tint: tint, hovered: hovered))
+            .scaleEffect(hovered && !reduceMotion ? 1.015 : 1)
+            .shadow(color: tint.opacity(hovered ? 0.25 : 0), radius: hovered ? 12 : 0, y: hovered ? 4 : 0)
+            .onHover { inside in
+                withAnimation(reduceMotion ? Motion.reduced : Motion.lift) { hovered = inside }
+            }
+    }
+}
+
+private extension View {
+    func organizerCard(_ tint: Color = OrganizerView.tint) -> some View { modifier(OrganizerHoverCard(tint: tint)) }
+}
+
+/// Pastille ronde de couleur avec son symbole (résultat, écoute en cours : l'onde s'anime).
+private struct OrganizerBadge: View {
+    let symbol: String
+    let tint: Color
+    var live = false
+
+    var body: some View {
+        icon
+            .font(.system(size: 15, weight: .bold))
+            .foregroundStyle(Color.white)
+            .frame(width: 34, height: 34)
+            .background(Circle().fill(tint.gradient))
+            .shadow(color: tint.opacity(0.35), radius: 8, y: 3)
+            .accessibilityHidden(true)
+    }
+
+    @ViewBuilder private var icon: some View {
+        if live {
+            if #available(macOS 14.0, *) {
+                Image(systemName: symbol).symbolEffect(.variableColor.iterative, options: .repeating)
+            } else {
+                Image(systemName: symbol)
+            }
+        } else {
+            Image(systemName: symbol)
+        }
+    }
+}
+
+/// Une étape numérotée, dans une carte (comme les étapes du guide), qui apparaît à son tour.
 private struct OrganizerStep: View {
     let n: Int
     let text: String
@@ -785,15 +853,16 @@ private struct OrganizerStep: View {
             Text("\(n)")
                 .font(.system(size: 11, weight: .bold).monospacedDigit())
                 .foregroundStyle(Color.white)
-                .frame(width: 20, height: 20)
+                .frame(width: 22, height: 22)
                 .background(Circle().fill(OrganizerView.tint.gradient))
                 .accessibilityHidden(true)
             Text(text).font(.system(size: 12)).fixedSize(horizontal: false, vertical: true)
             Spacer(minLength: 0)
         }
         .padding(.horizontal, 12)
-        .padding(.vertical, 9)
-        .background(OrganizerCard())
+        .padding(.vertical, 10)
+        .organizerCard()
+        .morphIn(n + 1)
     }
 }
 
@@ -819,9 +888,19 @@ private struct FamilySection: View {
         let members = controller.members(of: family)
         VStack(alignment: .leading, spacing: 6) {
             HStack(spacing: 8) {
-                Image(systemName: family.symbol).frame(width: 18)
+                Image(systemName: family.symbol)
+                    .font(.system(size: 11, weight: .bold))
+                    .foregroundStyle(Color.white)
+                    .frame(width: 24, height: 24)
+                    .background(Circle().fill(swiftColor(style.color).gradient))
+                    .accessibilityHidden(true)
                 Text(family.label).font(.system(size: 13, weight: .semibold))
-                Text("\(members.count)").foregroundStyle(.secondary)
+                Text("\(members.count)")
+                    .font(.system(size: 11, weight: .semibold).monospacedDigit())
+                    .foregroundStyle(.secondary)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 1)
+                    .background(Capsule().fill(Color.primary.opacity(0.07)))
                 Spacer()
                 Picker("", selection: fadeOn) {
                     Text("Une couleur").tag(false)
@@ -855,8 +934,8 @@ private struct FamilySection: View {
                 row(member, color: colors[member.id] ?? style.color)
             }
         }
-        .padding(10)
-        .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(Color.primary.opacity(0.05)))
+        .padding(12)
+        .organizerCard(swiftColor(style.color))
     }
 
     private func row(_ member: OrganizerController.Member, color: RGBColor) -> some View {

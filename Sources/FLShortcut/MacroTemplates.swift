@@ -267,18 +267,16 @@ extension MacroTemplates {
                     Block(.repeatCount(4, [Block(key(cmd("b", 11)), note: "Dupliquer à droite"), Block(.delay(ms: 80))])),
                 ], origin: .template("duplicateFour"))
             },
-            MacroTemplate(id: "tidyNotes", title: "Quantize et legato des notes",
-                          summary: "Dans le Piano Roll ouvert devant : toutes les notes sont calées sur la grille (Quantize rapide), allongées jusqu'à la suivante (Legato rapide), puis désélectionnées.",
-                          symbol: "wand.and.stars", shortcut: shortcut("q", 12)) { _ in
-                MacroDoc(name: "Quantize et legato des notes", blocks: [
-                    Block(.comment("Ouvre d'abord le Piano Roll du pattern à nettoyer")),
+            MacroTemplate(id: "legatoAll", title: "Toutes les notes en legato",
+                          summary: "Dans le Piano Roll ouvert devant : chaque note s'allonge jusqu'à la suivante (Legato rapide de FL), idéal pour une ligne de 808 ou de basse, puis tout est désélectionné.",
+                          symbol: "wand.and.stars", shortcut: shortcut("l", 37)) { _ in
+                MacroDoc(name: "Toutes les notes en legato", blocks: [
+                    Block(.comment("Ouvre d'abord le Piano Roll du pattern à arranger")),
                     Block(key(cmd("a", 0)), note: "Tout sélectionner"),
-                    Block(key(cmd("q", 12, opt: true)), note: "Quantize rapide"),
-                    Block(.delay(ms: 100)),
                     Block(key(cmd("l", 37)), note: "Legato rapide"),
                     Block(.delay(ms: 100)),
                     Block(key(cmd("d", 2)), note: "Désélectionner"),
-                ], origin: .template("tidyNotes"))
+                ], origin: .template("legatoAll"))
             },
             MacroTemplate(id: "exportMIDI", title: "Exporter en MIDI",
                           summary: "File › Export › MIDI file (⌘⇧M) : la macro attend que tu choisisses le nom du fichier, pour envoyer ta mélodie à quelqu'un ou l'ouvrir dans un autre logiciel.",
