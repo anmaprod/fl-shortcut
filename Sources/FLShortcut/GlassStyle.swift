@@ -72,28 +72,6 @@ extension Motion {
 }
 
 extension Motion {
-    /// Bascule de toute la fenêtre (raccourcis ↔ créateur de macros). Ces pages sont faites de vues d'AppKit (barres
-    /// latérales, listes, barre d'outils) que le flou et l'échelle de SwiftUI ne suivent pas : des morceaux sautaient
-    /// pendant que d'autres se brouillaient. Ici un fondu seulement, et seulement pour la page qui arrive : celle qui
-    /// part disparaît tout de suite. Captures au ralenti : les listes d'AppKit ne suivent pas le fondu de sortie de
-    /// SwiftUI (elles restaient pleines puis s'effaçaient en retard), les deux pages restaient l'une sur l'autre.
-    static var windowSwap: AnyTransition {
-        transition(.asymmetric(
-            insertion: .opacity.animation(.easeOut(duration: 0.28 * DebugSnapshot.slowMotion)),
-            removal: .identity))
-    }
-
-    /// Page de la barre latérale : celle qui part disparaît tout de suite, celle qui arrive monte un peu en devenant
-    /// nette (ressort). Captures au ralenti : avec le fondu croisé, les deux pages restaient l'une sur l'autre une
-    /// demi-seconde (titres en double, « Général » mêlé à « Mixer », et le bord de défilement sous la barre d'outils
-    /// dessiné deux fois : la barre au-dessus du titre) ; les listes d'AppKit ne suivent pas un fondu de sortie.
-    static var pageSwap: AnyTransition {
-        transition(.asymmetric(
-            insertion: .modifier(active: SoftFocus(amount: 1, rise: 10), identity: SoftFocus(amount: 0, rise: 10))
-                .animation(.spring(response: 0.45 * DebugSnapshot.slowMotion, dampingFraction: 0.9)),
-            removal: .identity))
-    }
-
     /// Changement de contenu rapide (inspecteur du créateur, qui suit les flèches du clavier) : le même fondu flou,
     /// en un tiers de seconde.
     static var quickMorph: Animation { .spring(response: 0.35 * DebugSnapshot.slowMotion, dampingFraction: 0.92) }
@@ -117,12 +95,16 @@ extension View {
         .motion(quick ? Motion.quickMorph : Motion.morph, value: key)
     }
 
-    /// Page de la barre latérale : l'une après l'autre, sans se superposer (Motion.pageSwap).
+    /// Page de la barre latérale : une nouvelle page à chaque `key`, qui arrive du flou au net en montant un peu. Le
+    /// changement lui-même n'est pas animé : la page qui part s'en va tout de suite (PageReveal).
     func pageSwitch<K: Hashable>(_ key: K) -> some View {
-        ZStack {
-            self.id(key).transition(Motion.pageSwap)
-        }
-        .motion(Motion.morph, value: key)
+        modifier(PageReveal(focus: true)).id(key)
+    }
+
+    /// Bascule de toute la fenêtre (raccourcis ↔ créateur de macros) : la page qui arrive apparaît en fondu, à sa
+    /// création. Opacité seule : ces pages sont faites de vues d'AppKit que le flou et l'échelle ne suivent pas.
+    func windowReveal() -> some View {
+        modifier(PageReveal(focus: false))
     }
 }
 
@@ -137,6 +119,36 @@ private struct SoftFocus: ViewModifier {
             .blur(radius: 12 * amount)
             .scaleEffect(1 - 0.03 * amount, anchor: .top)
             .offset(y: rise * amount)
+    }
+}
+
+/// Apparition d'une page entière, une seule fois, à sa création. Le changement de page se fait SANS animation : avec
+/// une animation, SwiftUI garde la page qui part (ses listes et barres d'AppKit, qui ne suivent pas le fondu) pleine
+/// jusqu'au bout, et la nouvelle apparaissait par-dessus (captures au ralenti de la CI : titres en double, « Général »
+/// mêlé à « Mixer », bord de défilement dessiné deux fois sous la barre d'outils). Ici l'ancienne s'en va tout de
+/// suite, puis la nouvelle se dévoile (sa propre animation).
+private struct PageReveal: ViewModifier {
+    /// Vrai : du flou au net en montant un peu (une page) ; faux : opacité seule (toute la fenêtre).
+    let focus: Bool
+    @State private var shown = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotionSetting
+
+    private var reduceMotion: Bool { reduceMotionSetting && DebugSnapshot.slowMotion == 1 }
+
+    func body(content: Content) -> some View {
+        Group {
+            if focus && !reduceMotion {
+                content.modifier(SoftFocus(amount: shown ? 0 : 1, rise: 10))
+            } else {
+                content.opacity(shown ? 1 : 0)
+            }
+        }
+        .onAppear {
+            let animation: Animation = reduceMotion ? Motion.reduced
+                : focus ? .spring(response: 0.45 * DebugSnapshot.slowMotion, dampingFraction: 0.9)
+                : .easeOut(duration: 0.28 * DebugSnapshot.slowMotion)
+            withAnimation(animation) { shown = true }
+        }
     }
 }
 

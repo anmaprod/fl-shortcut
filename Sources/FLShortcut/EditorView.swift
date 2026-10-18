@@ -163,16 +163,16 @@ struct EditorView: View {
     }
 
     var body: some View {
-        // Le créateur reste au-dessus des raccourcis : il arrive par-dessus, et s'efface par-dessus au retour.
+        // Bascule sans animation (la page qui part s'en va tout de suite), puis celle qui arrive apparaît en fondu.
         ZStack {
             if let editor = macroEditor {
                 MacroCreatorView(model: editor, onBack: { leaveCreator(editor) })
                     .environmentObject(store)
-                    .transition(Motion.windowSwap)
+                    .windowReveal()
                     .zIndex(1)
             } else {
                 shortcuts
-                    .transition(Motion.windowSwap)
+                    .windowReveal()
                     .zIndex(0)
             }
         }
@@ -262,7 +262,7 @@ struct EditorView: View {
         // Macro chargée et palette prête avant l'animation : le créateur arrive rempli, rien n'apparaît en route.
         editor.handle(creatorLink.request)
         _ = editor.paletteItems
-        withAnimation(Motion.reduce ? Motion.reduced : Motion.morph) { macroEditor = editor }
+        macroEditor = editor
     }
 
     /// Flèche ← : macro neuve → l'enregistrer ou la supprimer ; macro modifiée → enregistrer ou annuler les
@@ -304,7 +304,7 @@ struct EditorView: View {
         // → des raccourcis : retour dans cette macro, si elle existe toujours (pas supprimée au retour).
         MacroCreatorLink.shared.lastClosedID = id.flatMap { id in store.library.macros.contains { $0.id == id } ? id : nil }
         CreatorPresence.detach()
-        withAnimation(Motion.reduce ? Motion.reduced : Motion.morph) { macroEditor = nil }
+        macroEditor = nil
         selection = .macros
         CreatorPresence.releaseMemory()
     }
