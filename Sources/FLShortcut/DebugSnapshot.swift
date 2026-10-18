@@ -30,6 +30,11 @@ enum DebugSnapshot {
     /// Guide : « 0 » à « 4 » ouvre cette page (« 1 lent » : animation 10 fois plus lente, pour la photographier en
     /// cours de route), autre chose le ferme.
     static let guide = Notification.Name("app.flshortcut.debug.guide")
+    /// Accueil : « clavier » (« clavier lent » : au ralenti) l'ouvre sur l'écran du clavier, « autorise » montre le
+    /// clavier autorisé, « guide lent » passe au guide au ralenti, « partie 2 lent » ouvre une partie du guide, « fin »
+    /// la ferme. Rien n'est marqué « vu ».
+    static let onboarding = Notification.Name("app.flshortcut.debug.onboarding")
+    private static var onboardingObserver: NSObjectProtocol?
     /// Page Aide : « aide », « recherche », « ecrire » ou « envoye ».
     static let help = Notification.Name("app.flshortcut.debug.help")
     /// Page Mon compte avec des exemples, sans réseau : « connexion », « code » (confirmer l'inscription), « oubli »
@@ -49,6 +54,10 @@ enum DebugSnapshot {
 
     static func start() {
         guard enabled, observer == nil else { return }
+        onboardingObserver = DistributedNotificationCenter.default().addObserver(forName: onboarding, object: nil, queue: .main) { note in
+            let command = note.object as? String ?? ""
+            MainActor.assumeIsolated { OnboardingWindow.shared.capture(command) }
+        }
         uninstallObserver = DistributedNotificationCenter.default().addObserver(forName: uninstall, object: nil, queue: .main) { note in
             let screen = note.object as? String ?? "confirmer"
             MainActor.assumeIsolated { UninstallWindow.shared.showDemo(screen) }

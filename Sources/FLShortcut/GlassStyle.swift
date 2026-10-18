@@ -54,15 +54,34 @@ extension View {
 
 extension Motion {
     /// Changement de page « morph » (comme la Morphose de PowerPoint ou le Magic Move de Keynote) : ce qui se
-    /// retrouve d'une page à l'autre glisse à sa nouvelle place, le reste se fond. Ressort doux, sans rebond visible.
-    static var morph: Animation { .spring(response: 0.5 * DebugSnapshot.slowMotion, dampingFraction: 0.88) }
+    /// retrouve d'une page à l'autre glisse à sa nouvelle place, le reste se fond. Ressort lent et doux (0,8 s), sans
+    /// rebond visible.
+    static var morph: Animation { .spring(response: 0.8 * DebugSnapshot.slowMotion, dampingFraction: 0.9) }
 
-    /// Page qui arrive : fondu, à peine plus petite et un peu plus bas, posée par le ressort ; celle qui part : fondu
-    /// rapide (les deux ne se lisent jamais l'une sur l'autre).
+    /// Page qui s'en va : un vrai fondu, assez long pour se croiser avec celle qui arrive (jamais de disparition sèche).
+    static var fadeOut: Animation { .easeInOut(duration: 0.5 * DebugSnapshot.slowMotion) }
+
+    /// Page qui arrive : floue, transparente, un peu plus bas et plus petite, puis nette à sa place (ressort) ; celle
+    /// qui part se brouille et monte en s'effaçant. Les deux se croisent.
     static var pageMorph: AnyTransition {
         transition(.asymmetric(
-            insertion: .opacity.combined(with: .scale(scale: 0.985, anchor: .top)).combined(with: .offset(y: 10)),
-            removal: .opacity.animation(.easeOut(duration: 0.12 * DebugSnapshot.slowMotion))))
+            insertion: .modifier(active: SoftFocus(amount: 1, rise: 18), identity: SoftFocus(amount: 0, rise: 18)),
+            removal: .modifier(active: SoftFocus(amount: 1, rise: -12), identity: SoftFocus(amount: 0, rise: -12))
+                .animation(fadeOut)))
+    }
+}
+
+/// « Mise au point » : `amount` 1 = hors champ (transparent, flou, décalé, à peine plus petit), 0 = en place.
+private struct SoftFocus: ViewModifier {
+    let amount: CGFloat
+    let rise: CGFloat
+
+    func body(content: Content) -> some View {
+        content
+            .opacity(1 - amount)
+            .blur(radius: 12 * amount)
+            .scaleEffect(1 - 0.03 * amount, anchor: .top)
+            .offset(y: rise * amount)
     }
 }
 
@@ -76,16 +95,26 @@ private struct MorphIn: ViewModifier {
     func body(content: Content) -> some View {
         content
             .opacity(shown ? 1 : 0)
-            .offset(y: shown || reduceMotion ? 0 : 12)
+            .blur(radius: shown || reduceMotion ? 0 : 8)
+            .offset(y: shown || reduceMotion ? 0 : 16)
             .onAppear {
-                withAnimation(reduceMotion ? Motion.reduced : Motion.morph.delay((0.06 + 0.05 * Double(index)) * DebugSnapshot.slowMotion)) { shown = true }
+                withAnimation(reduceMotion ? Motion.reduced
+                                           : Motion.morph.delay((0.15 + 0.1 * Double(index)) * DebugSnapshot.slowMotion)) {
+                    shown = true
+                }
             }
     }
 }
 
 extension View {
-    /// Élément d'une page qui arrive : il monte à sa place juste après le précédent (`index`), une seule fois, à
-    /// l'apparition de la page. Pas dans une liste (les lignes y apparaissent aussi en défilant).
+    /// Même place d'une vue à l'autre (`matchedGeometryEffect`) quand un espace de noms est donné ; sinon rien.
+    @ViewBuilder func morphing(_ id: String, in ns: Namespace.ID?) -> some View {
+        if let ns { matchedGeometryEffect(id: id, in: ns) } else { self }
+    }
+
+    /// Élément d'une page qui arrive : il passe du flou au net en montant à sa place, juste après le précédent
+    /// (`index`), une seule fois, à l'apparition de la page. Pas dans une liste (les lignes y apparaissent aussi en
+    /// défilant).
     func morphIn(_ index: Int) -> some View {
         modifier(MorphIn(index: index))
     }

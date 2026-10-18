@@ -180,6 +180,26 @@ run() {   # $1 : libellé, $2 : YES/NO effet verre
     sleep 4
     report guide-morph >/dev/null
     "$POST" app.flshortcut.debug.guide fin; sleep 2
+    # Accueil au ralenti : ouverture (écran du clavier), clavier autorisé, puis passage au guide dans la même fenêtre.
+    "$POST" app.flshortcut.debug.onboarding "clavier lent"
+    for i in 1 2 3 4; do
+      sleep 0.8; screencapture -x "$OUT/accueil-ouverture-$i.png" 2>/dev/null || true
+    done
+    sleep 4
+    "$POST" app.flshortcut.debug.onboarding autorise; sleep 5
+    screencapture -x "$OUT/accueil-clavier-ok.png" 2>/dev/null || true
+    "$POST" app.flshortcut.debug.onboarding "guide lent"
+    for i in 1 2 3 4 5 6; do
+      sleep 0.7; screencapture -x "$OUT/accueil-guide-$i.png" 2>/dev/null || true
+    done
+    sleep 5
+    screencapture -x "$OUT/accueil-guide.png" 2>/dev/null || true
+    "$POST" app.flshortcut.debug.onboarding "partie 2 lent"
+    for i in 1 2 3 4; do
+      sleep 0.9; screencapture -x "$OUT/accueil-partie-$i.png" 2>/dev/null || true
+    done
+    sleep 4
+    "$POST" app.flshortcut.debug.onboarding fin; sleep 2
     # Page Aide : questions fréquentes, recherche, « Écrire à l'équipe », message envoyé.
     "$POST" app.flshortcut.debug.select aide; sleep 2
     for screen in aide recherche ecrire envoye; do
