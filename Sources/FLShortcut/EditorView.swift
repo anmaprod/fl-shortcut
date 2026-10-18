@@ -1017,7 +1017,7 @@ private struct StatusBar: View {
         case .inactive:
             if !link.snapshot.hasKey { return "Lien avec FL Studio non installé" }
             if link.snapshot.incompatibleProtocol != nil { return "Script FL d'une autre version" }
-            return "Lien inactif : active « FL Shortcuts » dans Options › MIDI Settings"
+            return "Lien inactif : quitte et rouvre FL (il relie « FL Shortcuts Link » tout seul)"
         }
     }
 

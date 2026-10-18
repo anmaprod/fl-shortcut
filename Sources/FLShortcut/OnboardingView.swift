@@ -279,8 +279,8 @@ struct OnboardingView: View {
             HStack(alignment: .top, spacing: 20) {
                 VStack(alignment: .leading, spacing: 12) {
                     StepRow(number: 1, done: installed, text: "Installer le lien dans FL Studio (bouton ci-dessous), puis redémarrer FL.")
-                    StepRow(number: 2, done: linked, text: "Dans FL Studio : Options › MIDI Settings. Input « FL Shortcuts » : Controller type « FL Shortcuts » (pas « generic controller »), Enable, un numéro de Port (10 par exemple).")
-                    StepRow(number: 3, done: linked, text: "Output « FL Shortcuts » : le même numéro de Port que l'entrée. C'est détecté tout seul.")
+                    StepRow(number: 2, done: linked, text: "FL trouve « FL Shortcuts Link » en démarrant et le relie tout seul. C'est détecté ici dès que c'est fait.")
+                    StepRow(number: 3, done: linked, text: "Seulement si rien ne se passe : Options › MIDI Settings, entrée « FL Shortcuts Link », Controller type « FL Shortcuts », même numéro de Port en entrée et en sortie.")
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
 
@@ -384,9 +384,9 @@ private struct MIDISettingsPreview: View {
                 .background(Color(red: 0.23, green: 0.25, blue: 0.27))
             VStack(alignment: .leading, spacing: 5) {
                 Text("Input").font(.system(size: 10)).foregroundStyle(Color(white: 0.6))
-                highlighted("FL Shortcuts", badge: "①")
+                highlighted("FL Shortcuts Link", badge: "①")
                 Text("Output").font(.system(size: 10)).foregroundStyle(Color(white: 0.6)).padding(.top, 4)
-                highlighted("FL Shortcuts", badge: "②")
+                highlighted("FL Shortcuts Link", badge: "②")
                 Text("Controller type : FL Shortcuts, même Port")
                     .font(.system(size: 10)).foregroundStyle(Color(white: 0.8)).padding(.top, 4)
             }
@@ -396,7 +396,7 @@ private struct MIDISettingsPreview: View {
         .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
         .overlay(RoundedRectangle(cornerRadius: 8, style: .continuous)
             .strokeBorder(Color(nsColor: .separatorColor), lineWidth: 0.5))
-        .accessibilityLabel("Aperçu : dans MIDI Settings, choisir FL Shortcuts en entrée et en sortie, avec le même port.")
+        .accessibilityLabel("Aperçu : dans MIDI Settings, FL Shortcuts Link en entrée et en sortie, avec le même port.")
     }
 
     private func highlighted(_ text: String, badge: String) -> some View {

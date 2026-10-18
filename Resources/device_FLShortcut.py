@@ -1,5 +1,5 @@
 # name=FL Shortcuts
-# supportedDevices=FL Shortcuts
+# supportedDevices=FL Shortcuts Link,FL Shortcuts
 """
 FL Shortcuts : script MIDI pour FL Studio 20.7 (API 1, Python 3.6) et plus récent.
 

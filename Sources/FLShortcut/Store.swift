@@ -236,8 +236,9 @@ final class Store: ObservableObject {
         if pushToTap {
             // « La piste sur laquelle j'ai cliqué » : suivie seulement si une macro vise la dernière piste cliquée.
             TrackMemory.shared.setActive(activeNeeds.contains(.pisteVisee))
-            // Ports MIDI présents (sans aucun trafic) seulement si une macro passe par le lien avec FL.
-            MIDILink.shared.setOnDemand(activeNeeds.contains(.lienMIDI))
+            // Ports MIDI présents (sans aucun trafic) dès que le lien avec FL est installé : FL les trouve en démarrant et
+            // y relie son script tout seul (Controller type, Port), sans réglage à faire.
+            MIDILink.shared.setOnDemand(true)
         }
     }
 

@@ -203,11 +203,9 @@ enum FLScriptInstaller {
             MIDILink.shared.reloadKey()
             AppStatus.shared.refreshScriptState()
             alert("Script installé", """
-            Dernières étapes dans FL Studio :
-            1. Redémarre FL Studio (les scripts sont lus au lancement).
-            2. Ouvre Options › MIDI Settings.
-            3. Dans « Input », sélectionne « FL Shortcuts », choisis le Controller type « FL Shortcuts » (pas « generic controller »), clique sur Enable et donne-lui un numéro de Port (par exemple 10).
-            4. Dans « Output », sélectionne aussi « FL Shortcuts » et donne-lui le même numéro de Port.
+            Dernière étape : quitte et rouvre FL Studio. Il trouve « FL Shortcuts Link » en démarrant et le relie tout seul.
+
+            Seulement si ça ne marche pas : Options › MIDI Settings, entrée « FL Shortcuts Link », Controller type « FL Shortcuts » (pas « generic controller »), Enable, et le même numéro de Port pour l'entrée et la sortie « FL Shortcuts Link ».
 
             Chaque réinstallation crée une nouvelle clé : redémarre FL après coup.
             """)

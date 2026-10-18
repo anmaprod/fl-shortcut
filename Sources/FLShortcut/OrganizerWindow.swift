@@ -55,7 +55,7 @@ struct OrganizerEnvironment {
             nameDrum: { OrganizerSession.liveDrumNamer() })
     }
 
-    /// Lien installé : ports « FL Shortcuts » créés s'ils ne sont pas là (mode léger, sans trafic), comme pour une
+    /// Lien installé : ports « FL Shortcuts Link » créés s'ils ne sont pas là (mode léger, sans trafic), comme pour une
     /// macro qui en a besoin.
     static func livePrepareLink() -> OrganizerLinkState {
         let midi = MIDILink.shared
@@ -589,12 +589,12 @@ struct OrganizerView: View {
             .background(OrganizerCard(tint: ok ? .green : .orange))
             if linkHelp {
                 VStack(alignment: .leading, spacing: 8) {
-                    OrganizerStep(n: 1, text: "Dans FL : Options › MIDI Settings.")
-                    OrganizerStep(n: 2, text: "En entrée, « FL Shortcuts » : Controller type « FL Shortcuts » (pas "
-                                  + "« generic controller »), puis Enable.")
-                    OrganizerStep(n: 3, text: "Donne le même numéro de Port à l'entrée et à la sortie « FL Shortcuts » "
+                    OrganizerStep(n: 1, text: "Quitte et rouvre FL Studio : il trouve « FL Shortcuts Link » en démarrant "
+                                  + "et le relie tout seul. Puis « Réessayer ».")
+                    OrganizerStep(n: 2, text: "Toujours rien : Options › MIDI Settings, entrée « FL Shortcuts Link », "
+                                  + "Controller type « FL Shortcuts » (pas « generic controller »), Enable.")
+                    OrganizerStep(n: 3, text: "Même numéro de Port à l'entrée et à la sortie « FL Shortcuts Link » "
                                   + "(par exemple 10).")
-                    OrganizerStep(n: 4, text: "« FL Shortcuts » absent de la liste : redémarre FL, puis recommence.")
                 }
             }
             buttons
@@ -628,11 +628,10 @@ struct OrganizerView: View {
                 .font(.system(size: 13))
                 .fixedSize(horizontal: false, vertical: true)
             VStack(alignment: .leading, spacing: 8) {
-                OrganizerStep(n: 1, text: "Clique sur « Installer le lien avec FL », puis redémarre FL Studio.")
-                OrganizerStep(n: 2, text: "Dans FL : Options › MIDI Settings. En entrée, « FL Shortcuts » : Controller "
-                              + "type « FL Shortcuts », puis Enable.")
-                OrganizerStep(n: 3, text: "Même numéro de Port à l'entrée et à la sortie « FL Shortcuts ».")
-                OrganizerStep(n: 4, text: "Ouvre la page à organiser (Channel rack, Mixer ou Playlist), puis "
+                OrganizerStep(n: 1, text: "Clique sur « Installer le lien avec FL ».")
+                OrganizerStep(n: 2, text: "Quitte et rouvre FL Studio : il trouve « FL Shortcuts Link » en démarrant et "
+                              + "le relie tout seul.")
+                OrganizerStep(n: 3, text: "Ouvre la page à organiser (Channel rack, Mixer ou Playlist), puis "
                               + "« Réessayer ».")
             }
             HStack {

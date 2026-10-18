@@ -200,11 +200,13 @@ final class LinkCore {
         case failed(String)
     }
 
-    /// Script de FL muet. Le plus souvent : l'entrée « FL Shortcuts » est activée, mais avec le Controller type
-    /// « (generic controller) » (le script n'est pas chargé), ou sans le même numéro de Port que la sortie.
-    static let noResponse = "FL ne répond pas : dans FL, Options › MIDI Settings, choisis « FL Shortcuts » comme "
-        + "Controller type de l'entrée (pas « generic controller »), et donne le même numéro de Port à l'entrée et à la "
-        + "sortie « FL Shortcuts » (absent de la liste : redémarre FL)"
+    /// Script de FL muet. FL relie lui-même le script à l'appareil « FL Shortcuts Link » quand il le trouve en
+    /// démarrant (en-tête `supportedDevices` du script) ; sinon, le plus souvent, l'entrée est activée avec le
+    /// Controller type « (generic controller) » (le script n'est pas chargé), ou sans le même Port que la sortie.
+    static let noResponse = "FL ne répond pas : quitte et rouvre FL Studio, il relie « \(CoreMIDITransport.portName) » "
+        + "tout seul en démarrant. Toujours rien : dans Options › MIDI Settings, entrée « \(CoreMIDITransport.portName) », "
+        + "choisis le Controller type « FL Shortcuts » (pas « generic controller »), et donne le même numéro de Port à "
+        + "l'entrée et à la sortie"
 
     /// Réveille le script si besoin (PING) et attend son HELLO. Script déjà réveillé depuis peu : aucun PING, sauf
     /// `force` (il s'est rendormi alors que son dernier battement semblait récent).
@@ -221,7 +223,7 @@ final class LinkCore {
                 s.lastPing = start
                 return transport.send([brief ? .pingBrief : .ping])
             }
-            guard sent else { return .failed("ports MIDI « FL Shortcuts » indisponibles") }
+            guard sent else { return .failed("ports MIDI « FL Shortcuts Link » indisponibles") }
             let deadline = Date().addingTimeInterval(timeout)
             while Date() < deadline {
                 if state.withLock({ s in s.hello != nil && (s.lastAlive.map { $0 >= start } ?? false) }) { break }
@@ -395,11 +397,17 @@ final class LinkCore {
     }
 }
 
-/// Source + destination virtuelles CoreMIDI « FL Shortcuts ».
+/// Source + destination virtuelles CoreMIDI « FL Shortcuts Link ».
 final class CoreMIDITransport: MIDITransport {
+    /// Nom de l'appareil dans FL (Options › MIDI Settings), le même que dans l'en-tête `supportedDevices` du script :
+    /// FL y relie le script tout seul (Controller type et Port) quand il le trouve en démarrant. Nouveau nom (avant :
+    /// « FL Shortcuts ») : un FL qui avait gardé l'ancien appareil en « generic controller » le voit comme neuf.
+    static let portName = "FL Shortcuts Link"
+
+    /// Identifiants neufs avec le nouveau nom (FL voit un appareil neuf, sans réglage gardé).
     enum UniqueIDKey: String {
-        case source = "midiSourceUniqueID"
-        case destination = "midiDestinationUniqueID"
+        case source = "midiSourceUniqueID.v2"
+        case destination = "midiDestinationUniqueID.v2"
     }
 
     private struct Handles {
@@ -411,7 +419,7 @@ final class CoreMIDITransport: MIDITransport {
     }
 
     private let handles = Locked(Handles())
-    private let name = "FL Shortcuts" as CFString
+    private let name = CoreMIDITransport.portName as CFString
     private let defaults: UserDefaults
     var onBytes: (([UInt8]) -> Void)?
     var onSetupChanged: (() -> Void)?
@@ -436,7 +444,7 @@ final class CoreMIDITransport: MIDITransport {
         return client
     }
 
-    /// Crée la source et la destination « FL Shortcuts ». Si elles existent encore, ne touche à rien :
+    /// Crée la source et la destination « FL Shortcuts Link ». Si elles existent encore, ne touche à rien :
     /// chaque création ou destruction de port fait rescanner le MIDI à FL (à-coup, rechargement des scripts).
     @discardableResult
     func connect() -> Bool {
@@ -600,7 +608,8 @@ final class MIDILink: ObservableObject {
         onDemand = false
     }
 
-    /// Mode léger avec une macro qui arme / lance le REC : ports « FL Shortcuts » présents (FL les voit), mais
+    /// Mode léger, lien installé : ports « FL Shortcuts Link » présents (FL les voit en démarrant et y relie son
+    /// script), mais
     /// aucun PING, aucune surveillance : rien ne circule tant qu'une macro ne réveille pas le script.
     private(set) var onDemand = false
 
@@ -616,7 +625,7 @@ final class MIDILink: ObservableObject {
     /// Macro : commande avec données (Nom et couleur…), même réveil bref que `runBriefly`.
     func runData(_ units: [UInt8]) -> DataReply {
         guard transport.isReady else {
-            return .failed(core.snapshot.hasKey ? "ports MIDI « FL Shortcuts » indisponibles : relance FL Shortcuts"
+            return .failed(core.snapshot.hasKey ? "ports MIDI « FL Shortcuts Link » indisponibles : relance FL Shortcuts"
                                                 : "lien avec FL non installé : fiche du raccourci › Installer le lien avec FL")
         }
         return core.runData(units, brief: AppMode.light, timeout: 1.5)
@@ -625,7 +634,7 @@ final class MIDILink: ObservableObject {
     /// Organiser : opération 2 à 8 du script v5, avec sa réponse signée (file de l'Organiser, bloquant).
     func runRequest(_ bytes: [UInt8]) -> RequestReply {
         guard transport.isReady else {
-            return .failed(core.snapshot.hasKey ? "ports MIDI « FL Shortcuts » indisponibles : relance FL Shortcuts"
+            return .failed(core.snapshot.hasKey ? "ports MIDI « FL Shortcuts Link » indisponibles : relance FL Shortcuts"
                                                 : "lien avec FL non installé : fiche du raccourci › Installer le lien avec FL")
         }
         return core.runRequest(bytes, brief: AppMode.light, timeout: 1.5)
@@ -634,7 +643,7 @@ final class MIDILink: ObservableObject {
     /// Macro : réveil bref du script, actions, puis il se rendort (file de la macro, bloquant).
     func runBriefly(_ ids: [Int]) -> String? {
         guard transport.isReady else {
-            return core.snapshot.hasKey ? "ports MIDI « FL Shortcuts » indisponibles : relance FL Shortcuts"
+            return core.snapshot.hasKey ? "ports MIDI « FL Shortcuts Link » indisponibles : relance FL Shortcuts"
                                    : "lien avec FL non installé : fiche du raccourci › Installer le lien avec FL"
         }
         // 1,5 s au plus : un script qui ne répond pas ne doit pas figer la macro (réponse normale : quelques ms).
