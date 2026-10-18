@@ -29,11 +29,11 @@ final class LinkCore {
         var seq: UInt32
         var incompatibleProtocol: Int?
         var transportReady: Bool
-        /// Le script a dit être sur une autre entrée MIDI que « FL Shortcuts Link » (jusqu'au prochain HELLO).
-        var wrongInput = false
         /// Temps de réponse de FL (médiane des 15 dernières actions, en ms), mesuré de l'envoi de la trame
         /// à l'accusé d'exécution (CC 119). Aucune frappe n'est mémorisée : seulement des durées.
         var responseMs: Double? = nil
+        /// Le script a dit être sur une autre entrée MIDI que « FL Shortcuts Link » (jusqu'au prochain HELLO).
+        var wrongInput = false
     }
 
     private struct State {
