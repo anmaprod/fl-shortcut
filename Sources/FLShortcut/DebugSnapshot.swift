@@ -92,6 +92,8 @@ enum DebugSnapshot {
             + "visible=\(NSApp.windows.count - hidden.count) hidden=\(hidden.joined(separator: ","))\n"
         // Envoi d'événements (vrais clics de « debug.click ») : refusé, ils n'arrivent nulle part.
         text += "envoi d'événements : \(CGPreflightPostEventAccess() ? "autorisé" : "REFUSÉ")\n"
+        // « Réduire les animations » de macOS : les transitions deviennent de simples fondus courts.
+        text += "animations réduites : \(NSWorkspace.shared.accessibilityDisplayShouldReduceMotion ? "oui" : "non")\n"
         // Ordre des blocs du créateur ouvert (genres seulement, aucun texte) : un bloc déplacé à la souris le change.
         if let draft = MacroEditorModel.newest?.draft {
             text += "créateur : " + draft.blocks.map { BlockRegistry.journal(of: $0.body) }.joined(separator: " > ") + "\n"

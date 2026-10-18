@@ -178,6 +178,7 @@ run() {   # $1 : libellé, $2 : YES/NO effet verre
       sleep 0.7; screencapture -x "$OUT/guide-morph-$i.png" 2>/dev/null || true
     done
     sleep 4
+    report guide-morph >/dev/null
     "$POST" app.flshortcut.debug.guide fin; sleep 2
     # Page Aide : questions fréquentes, recherche, « Écrire à l'équipe », message envoyé.
     "$POST" app.flshortcut.debug.select aide; sleep 2

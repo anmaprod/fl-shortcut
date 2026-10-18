@@ -197,10 +197,12 @@ struct EditorView: View {
         .onChange(of: helpLink.pending) { _ in showHelpIfAsked() }
         .onChange(of: accountLink.pending) { _ in showAccountIfAsked() }
         .onReceive(DebugSnapshot.publisher(DebugSnapshot.guide)) { note in
-            // Mode capture : « 0 » à « 4 », la page du guide (« 1 lent » : au ralenti) ; autre chose, le ferme.
+            // Mode capture : « 0 » à « 4 », la page du guide ; autre chose, le ferme. « 1 lent » (guide ouvert) :
+            // changée par le guide lui-même, au ralenti (GuideView).
             let words = (note.object as? String ?? "").split(separator: " ")
+            if words.contains("lent"), showGuide { return }
             if let n = words.first.flatMap({ Int($0) }) {
-                DebugSnapshot.slowMotion = words.contains("lent") ? 10 : 1
+                DebugSnapshot.slowMotion = 1
                 guidePage = max(0, min(n, GuideContent.count - 1))
                 showGuide = true
             } else {

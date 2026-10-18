@@ -94,6 +94,13 @@ struct GuideView: View {
         .frame(width: 640, height: 540)
         .background { if showGlass { BrandGlow() } }
         .motion(Motion.morph, value: page)
+        .onReceive(DebugSnapshot.publisher(DebugSnapshot.guide)) { note in
+            // Mode capture : « 1 lent », la page changée ici comme par « Suivant », 10 fois plus lentement.
+            let words = (note.object as? String ?? "").split(separator: " ")
+            guard words.contains("lent"), let n = words.first.flatMap({ Int($0) }) else { return }
+            DebugSnapshot.slowMotion = 10
+            page = max(0, min(n, GuideContent.count - 1))
+        }
     }
 
     private var welcome: some View {
