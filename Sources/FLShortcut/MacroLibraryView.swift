@@ -259,6 +259,23 @@ private struct MacroLibraryRow: View {
         return first.isEmpty ? blocks : blocks + " · " + first.joined(separator: ", ")
     }
 
+    private var disabled: Bool { badges.contains { $0.0 == "Désactivée" } }
+
+    private var options: [StyledMenuEntry] {
+        var entries: [StyledMenuEntry] = [
+            .item("Modifier…", symbol: "pencil", tint: .blue, action: onOpen),
+            .item("Dupliquer", symbol: "plus.square.on.square", tint: .purple, action: onDuplicate),
+            .item("Exporter…", symbol: "square.and.arrow.up", tint: .teal, action: onExport),
+        ]
+        if let onToggle {
+            entries += [.separator,
+                        .item(disabled ? "Activer le raccourci" : "Désactiver le raccourci",
+                              symbol: disabled ? "play" : "pause", tint: disabled ? .green : .yellow, action: onToggle)]
+        }
+        entries += [.separator, .item("Supprimer", symbol: "trash", tint: .red, action: onDelete)]
+        return entries
+    }
+
     var body: some View {
         HStack(spacing: 10) {
             SectionIcon(symbol: "wand.and.stars", tint: .purple, size: 26)
@@ -280,6 +297,13 @@ private struct MacroLibraryRow: View {
             Button("Modifier…", action: onOpen)
                 .buttonStyle(.borderless)
                 .font(.system(size: 12))
+            // Options de la macro, au style du menu de l'icône (le clic droit garde le menu de macOS).
+            StyledMenuButton(help: "Options de la macro", entries: { options }) {
+                Image(systemName: "ellipsis.circle")
+                    .font(.system(size: 14))
+                    .foregroundStyle(.secondary)
+            }
+            .buttonStyle(.borderless)
         }
         .padding(.vertical, 2)
         .contentShape(Rectangle())
@@ -290,8 +314,7 @@ private struct MacroLibraryRow: View {
             Button("Exporter…", action: onExport)
             if let onToggle {
                 Divider()
-                Button(badges.contains { $0.0 == "Désactivée" } ? "Activer le raccourci" : "Désactiver le raccourci",
-                       action: onToggle)
+                Button(disabled ? "Activer le raccourci" : "Désactiver le raccourci", action: onToggle)
             }
             Divider()
             Button("Supprimer", role: .destructive, action: onDelete)

@@ -1,5 +1,8 @@
-// Guide d'autorisation du clavier : on ouvre nous-mêmes Réglages Système › Accessibilité et une fenêtre du
-// Finder sur l'app, un petit panneau dit quoi faire, et on détecte tout seul quand c'est autorisé.
+// Autorisations, demandées en une seule fois (demandé par l'utilisateur : plus de demandes éparpillées) : le clavier
+// (Accessibilité, indispensable), puis la lecture de la fenêtre de FL (Enregistrement de l'écran, pour retrouver les
+// boutons par leur nom ; facultative). On ouvre nous-mêmes Réglages Système sur la bonne liste (et le Finder sur l'app
+// pour le clavier), un petit panneau dit quoi faire, et on détecte tout seul quand c'est autorisé. Le son de FL
+// (Organiser) n'a pas de réglage à ouvrir : macOS le demande lui-même, une fois, à la première écoute.
 // Le panneau ne vérifie qu'une fois par seconde, et seulement tant qu'il est affiché.
 import AppKit
 import ApplicationServices
@@ -8,22 +11,34 @@ import SwiftUI
 final class AccessibilityGuide: ObservableObject {
     static let shared = AccessibilityGuide()
 
+    enum Stage { case keyboard, screen }
+
     @Published private(set) var granted = AXIsProcessTrusted()
+    @Published private(set) var screenGranted = ScreenLook.allowed
+    @Published private(set) var stage = Stage.keyboard
     private var panel: NSPanel?
     private var timer: Timer?
 
     static func start() { shared.start() }
 
+    /// Tout ce qui manque, à la suite : le clavier, puis la fenêtre de FL.
     func start() {
         granted = AXIsProcessTrusted()
-        guard !granted else { return }
-        // Inscrit FL Shortcuts dans la liste (décoché) : il ne reste qu'à l'activer.
-        let options = [kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: false] as CFDictionary
-        _ = AXIsProcessTrustedWithOptions(options)
-        if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") {
-            NSWorkspace.shared.open(url)
+        screenGranted = ScreenLook.allowed
+        if !granted {
+            stage = .keyboard
+            // Inscrit FL Shortcuts dans la liste (décoché) : il ne reste qu'à l'activer.
+            let options = [kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: false] as CFDictionary
+            _ = AXIsProcessTrustedWithOptions(options)
+            if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") {
+                NSWorkspace.shared.open(url)
+            }
+            NSWorkspace.shared.activateFileViewerSelecting([Bundle.main.bundleURL])
+        } else if Self.screenMissing {
+            askScreen()
+        } else {
+            return
         }
-        NSWorkspace.shared.activateFileViewerSelecting([Bundle.main.bundleURL])
         showPanel()
         timer?.invalidate()
         let t = Timer(timeInterval: 1, repeats: true) { [weak self] _ in self?.check() }
@@ -32,14 +47,33 @@ final class AccessibilityGuide: ObservableObject {
         timer = t
     }
 
+    /// Lecture de la fenêtre de FL possible sur ce Mac et pas encore autorisée.
+    static var screenMissing: Bool { ScreenLook.available && !ScreenLook.allowed }
+
+    /// Inscrit FL Shortcuts dans la liste « Enregistrement de l'écran » (fenêtre de macOS la première fois) et l'ouvre.
+    private func askScreen() {
+        stage = .screen
+        ScreenLook.requestOnce()
+        ScreenLook.openSettings()
+    }
+
     private func check() {
-        guard AXIsProcessTrusted() else { return }
-        granted = true
-        timer?.invalidate()
-        timer = nil
-        AppStatus.shared.recheck()
-        // Laisse voir la coche une seconde, puis range tout.
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.4) { [weak self] in self?.close() }
+        switch stage {
+        case .keyboard:
+            guard AXIsProcessTrusted() else { return }
+            granted = true
+            AppStatus.shared.recheck()
+            // Laisse voir la coche, puis la fenêtre de FL (même panneau), ou tout est rangé.
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) { [weak self] in
+                guard let self else { return }
+                if Self.screenMissing { withAnimation(Motion.quickMorph) { self.askScreen() } } else { self.close() }
+            }
+        case .screen:
+            // macOS ne le dit souvent qu'après « Quitter et rouvrir » : le panneau reste jusque-là, ou « Plus tard ».
+            guard ScreenLook.allowed else { return }
+            screenGranted = true
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.4) { [weak self] in self?.close() }
+        }
     }
 
     func close() {
@@ -55,7 +89,7 @@ final class AccessibilityGuide: ObservableObject {
         let p = NSPanel(contentRect: NSRect(origin: .zero, size: host.fittingSize),
                         styleMask: [.titled, .closable, .nonactivatingPanel, .utilityWindow],
                         backing: .buffered, defer: false)
-        p.title = "Autoriser le clavier"
+        p.title = "Autoriser FL Shortcuts"
         p.isFloatingPanel = true
         p.level = .floating
         p.hidesOnDeactivate = false
@@ -77,7 +111,10 @@ private struct AccessibilityGuideView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            if guide.granted {
+            progress
+            if guide.stage == .screen {
+                screenSteps
+            } else if guide.granted {
                 HStack(spacing: 12) {
                     Image(systemName: "checkmark.circle.fill")
                         .font(.system(size: 30))
@@ -113,6 +150,51 @@ private struct AccessibilityGuideView: View {
         }
         .padding(18)
         .frame(width: 360, alignment: .leading)
+        .animation(Motion.quickMorph, value: guide.stage)
+    }
+
+    /// Les deux autorisations demandées ensemble, cochées une à une.
+    private var progress: some View {
+        HStack(spacing: 14) {
+            mark("Clavier", done: guide.granted, current: guide.stage == .keyboard)
+            if ScreenLook.available {
+                mark("Fenêtre de FL", done: guide.screenGranted, current: guide.stage == .screen)
+            }
+        }
+        .font(.system(size: 11, weight: .medium))
+    }
+
+    private func mark(_ title: String, done: Bool, current: Bool) -> some View {
+        Label(title, systemImage: done ? "checkmark.circle.fill" : current ? "circle.dotted" : "circle")
+            .foregroundStyle(done ? Color.green : current ? Color.primary : Color.secondary)
+    }
+
+    @ViewBuilder private var screenSteps: some View {
+        if guide.screenGranted {
+            Label("Fenêtre de FL autorisée : tout est prêt.", systemImage: "checkmark.circle.fill")
+                .font(.headline)
+                .foregroundStyle(Color.green)
+        } else {
+            HStack(spacing: 10) {
+                AppIcon().frame(width: 36, height: 36)
+                Text("Dans la fenêtre Enregistrement de l'écran qui vient de s'ouvrir :")
+                    .font(.headline)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            step(1, "Active l'interrupteur à côté de FL Shortcuts.")
+            SwitchPreview()
+                .padding(.leading, 28)
+            step(2, "macOS propose « Quitter et rouvrir » : accepte, FL Shortcuts revient tout seul.")
+            Text("Facultatif : sert seulement à retrouver les boutons de FL par leur nom. Seule la fenêtre de FL est lue, "
+                 + "au moment du clic, jamais enregistrée.")
+                .font(.callout)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+            HStack {
+                Spacer()
+                Button("Plus tard") { guide.close() }
+            }
+        }
     }
 
     private func step(_ n: Int, _ text: String) -> some View {

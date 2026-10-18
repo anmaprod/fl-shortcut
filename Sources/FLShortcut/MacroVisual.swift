@@ -371,6 +371,16 @@ enum ScreenLook {
     @discardableResult
     static func requestAccess() -> Bool { CGRequestScreenCaptureAccess() }
 
+    /// Demandée une seule fois en tout : avec le clavier (accueil, « Tout autoriser »), sinon au premier
+    /// enregistrement des clics. Jamais redemandée ensuite : sans elle, les clics gardent leur place apprise.
+    static let askedKey = "screenNamesAsked"
+
+    static func requestOnce(_ defaults: UserDefaults = .standard) {
+        guard available, !allowed, !defaults.bool(forKey: askedKey) else { return }
+        defaults.set(true, forKey: askedKey)
+        requestAccess()
+    }
+
     static func openSettings() {
         if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture") {
             NSWorkspace.shared.open(url)

@@ -799,40 +799,40 @@ struct EditorView: View {
         .help(help)
     }
 
+    /// Menu ⋯ au style du menu de l'icône (StyledMenu.swift).
     private var profileMenu: some View {
-        Menu {
-            // Le guide est dans la page Aide (son seul endroit, avec les questions et le contact).
-            Button { query = ""; selection = .help } label: { Label("Aide, guide et contact", systemImage: "questionmark.circle") }
-            Button { query = ""; selection = .account } label: {
-                Label("Mon compte et sauvegarde", systemImage: "person.crop.circle")
-            }
-            Divider()
-            Menu {
-                ForEach(ProfilePreset.allCases) { preset in
-                    Button(preset.label) { load(preset) }
-                }
-            } label: {
-                Label("Charger un profil", systemImage: "rectangle.stack")
-            }
-            Button { importProfile() } label: { Label("Importer…", systemImage: "square.and.arrow.down") }
-            Button { exportProfile() } label: { Label("Exporter…", systemImage: "square.and.arrow.up") }
-            Divider()
-            Button { newCustom() } label: { Label("Nouveau raccourci personnalisé…", systemImage: "plus") }
-            Divider()
+        StyledMenuButton(help: "Aide, compte, profil, import et export", width: 290) {
+            var entries: [StyledMenuEntry] = [
+                // Le guide est dans la page Aide (son seul endroit, avec les questions et le contact).
+                .item("Aide, guide et contact", symbol: "questionmark", tint: .teal) { query = ""; selection = .help },
+                .item("Mon compte et sauvegarde", symbol: "person.crop.circle", tint: .indigo) {
+                    query = ""; selection = .account
+                },
+                .separator,
+                .group("Charger un profil", symbol: "rectangle.stack", tint: .purple, ProfilePreset.allCases.map { preset -> StyledMenuEntry in
+                    .item(preset.label, symbol: "keyboard", tint: .purple) { load(preset) }
+                }),
+                .item("Importer…", symbol: "square.and.arrow.down", tint: .blue) { importProfile() },
+                .item("Exporter…", symbol: "square.and.arrow.up", tint: .blue) { exportProfile() },
+                .separator,
+                .item("Nouveau raccourci personnalisé…", symbol: "plus", tint: .green) { newCustom() },
+                .separator,
+            ]
             if store.undoSnapshot != nil {
-                Button { store.undoReplace() } label: { Label("Annuler le dernier remplacement", systemImage: "arrow.uturn.backward") }
+                entries.append(.item("Annuler le dernier remplacement", symbol: "arrow.uturn.backward", tint: .orange) {
+                    store.undoReplace()
+                })
             }
-            Button(role: .destructive) { resetAll() } label: { Label("Tout réinitialiser…", systemImage: "arrow.counterclockwise") }
+            entries.append(.item("Tout réinitialiser…", symbol: "arrow.counterclockwise", tint: .orange) { resetAll() })
             if Appearance.glassAvailable {
-                Divider()
-                Toggle(isOn: $glassEnabled) { Label("Effet Liquid Glass", systemImage: "drop") }
+                entries += [.separator, .toggle("Effet Liquid Glass", symbol: "drop", tint: .cyan, isOn: $glassEnabled)]
             }
-            Divider()
-            Button(role: .destructive) { Uninstaller.confirmAndRun() } label: { Label("Désinstaller FL Shortcuts…", systemImage: "trash") }
+            entries += [.separator,
+                        .item("Désinstaller FL Shortcuts…", symbol: "trash", tint: .red) { Uninstaller.confirmAndRun() }]
+            return entries
         } label: {
             Label("Profil", systemImage: "ellipsis")
         }
-        .help("Guide, profil, import et export")
     }
 
     // MARK: Actions

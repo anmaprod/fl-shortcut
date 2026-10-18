@@ -126,6 +126,8 @@ struct OnboardingView: View {
     @Namespace private var morph
 
     private var accessOK: Bool { demoAccess || status.accessibilityOK }
+    /// Autorisations demandées ensemble (clavier, puis fenêtre de FL).
+    @ObservedObject private var permissions = AccessibilityGuide.shared
 
     var body: some View {
         ZStack {
@@ -179,22 +181,22 @@ struct OnboardingView: View {
         }
     }
 
-    // MARK: Étape 1 — clavier
+    // MARK: Étape 1 — autorisations (clavier, fenêtre de FL), demandées ensemble
 
     private var permissionStep: some View {
         VStack(spacing: 0) {
             Spacer(minLength: 0)
             AppIcon()
                 .matchedGeometryEffect(id: "appIcon", in: morph)
-                .frame(width: 104, height: 104)
-                .shadow(color: Appearance.brand[1].opacity(0.4), radius: 26, y: 12)
+                .frame(width: 84, height: 84)                // place pour la liste des autorisations
+                .shadow(color: Appearance.brand[1].opacity(0.4), radius: 22, y: 10)
                 .morphIn(0)
             Text("FL Shortcuts")
-                .font(.system(size: 36, weight: .bold))
-                .padding(.top, 16)
+                .font(.system(size: 34, weight: .bold))
+                .padding(.top, 12)
                 .morphIn(1)
             Text(accessOK ? "Le clavier est autorisé : tout est prêt."
-                          : "Autorise le clavier pour que FL Shortcuts reconnaisse tes raccourcis dans FL Studio.")
+                          : "Une seule fois, tout ce dont FL Shortcuts a besoin, demandé ensemble.")
                 .font(.system(size: 15))
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
@@ -205,7 +207,11 @@ struct OnboardingView: View {
                 .transition(.opacity)
                 .morphIn(2)
 
-            Spacer(minLength: 28)
+            permissionList
+                .padding(.top, 14)
+                .morphIn(3)
+
+            Spacer(minLength: 14)
 
             VStack(spacing: 10) {
                 if accessOK {
@@ -225,14 +231,14 @@ struct OnboardingView: View {
                         askedPermission = true
                         AccessibilityGuide.start()
                     } label: {
-                        Text("Autoriser le clavier…").frame(minWidth: 220)
+                        Text("Tout autoriser…").frame(minWidth: 220)
                     }
                     .primaryButton()
                     .heroControlSize()
                     .keyboardShortcut(.defaultAction)
                     .transition(Motion.pageMorph)
                     if askedPermission {
-                        Text("Active FL Shortcuts dans Réglages Système › Accessibilité : c'est détecté tout seul.")
+                        Text("Suis le petit panneau en bas à droite : clavier, puis fenêtre de FL. C'est détecté tout seul.")
                             .font(.system(size: 11))
                             .foregroundStyle(.secondary)
                             .multilineTextAlignment(.center)
@@ -244,20 +250,53 @@ struct OnboardingView: View {
                 }
             }
             .frame(maxWidth: 380)
-            .morphIn(3)
+            .morphIn(4)
 
-            Spacer(minLength: 24)
+            Spacer(minLength: 14)
 
             Label("Tes touches ne sont lues que quand FL Studio est au premier plan. Rien n'est enregistré ni envoyé, sauf ce que tu publies toi-même dans la Communauté.",
                   systemImage: "lock")
                 .font(.system(size: 11))
                 .foregroundStyle(.secondary)
                 .frame(maxWidth: 440)
-                .morphIn(4)
+                .morphIn(5)
         }
         // Clavier autorisé : le texte et les boutons changent en fondu.
         .motion(Motion.morph, value: accessOK)
         .motion(Motion.morph, value: askedPermission)
+    }
+
+    /// Ce qui est demandé, d'un coup d'œil : le clavier (indispensable), la fenêtre de FL (conseillée), et le son de
+    /// FL que macOS demande lui-même à la première écoute de l'Organiser.
+    private var permissionList: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            permissionRow("keyboard", .blue, "Clavier", "Tes raccourcis dans FL Studio (indispensable)", done: accessOK)
+            if ScreenLook.available {
+                permissionRow("macwindow", .purple, "Fenêtre de FL", "Retrouver ses boutons par leur nom, au moment du clic",
+                              done: permissions.screenGranted)
+            }
+            permissionRow("waveform", .pink, "Son de FL", "Organiser : macOS le demande une fois, à la première écoute",
+                          done: nil)
+        }
+        .frame(maxWidth: 400)
+    }
+
+    private func permissionRow(_ symbol: String, _ tint: Color, _ title: String, _ detail: String,
+                               done: Bool?) -> some View {
+        HStack(spacing: 10) {
+            SectionIcon(symbol: symbol, tint: tint, size: 24)
+            VStack(alignment: .leading, spacing: 1) {
+                Text(title).font(.system(size: 13, weight: .semibold))
+                Text(detail).font(.system(size: 11)).foregroundStyle(.secondary)
+            }
+            Spacer(minLength: 8)
+            if let done {
+                Image(systemName: done ? "checkmark.circle.fill" : "circle")
+                    .foregroundStyle(done ? Color.green : Color.secondary)
+                    .contentTransition(.opacity)
+            }
+        }
+        .accessibilityElement(children: .combine)
     }
 
     // MARK: Étape 2 — relier FL Studio (hors mode léger)

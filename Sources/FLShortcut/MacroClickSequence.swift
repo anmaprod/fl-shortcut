@@ -455,9 +455,6 @@ final class ClickSequenceRecorder: ObservableObject {
     /// Numéro de l'enregistrement : une fin attendue d'un enregistrement précédent n'arrête jamais le suivant.
     private var generation = 0
 
-    /// Autorisation de lire l'écran demandée une fois, au premier enregistrement (les noms des boutons).
-    static let screenAskedKey = "screenNamesAsked"
-
     private init() {}
 
     /// FL passe devant, l'enregistrement commence. `completion` : appelé par « Terminer » (jamais par « Annuler »).
@@ -474,13 +471,9 @@ final class ClickSequenceRecorder: ObservableObject {
         naming = DispatchGroup()
         finishing = false
         generation += 1
-        // Boutons retenus par leur nom : il faut lire la fenêtre de FL au moment du clic. Demandé une seule fois ;
-        // sans l'autorisation, les clics gardent leur place, comme avant.
-        if MacroRunner.testFLPID == nil, ScreenLook.available, !ScreenLook.allowed,
-           !UserDefaults.standard.bool(forKey: Self.screenAskedKey) {
-            UserDefaults.standard.set(true, forKey: Self.screenAskedKey)
-            ScreenLook.requestAccess()
-        }
+        // Boutons retenus par leur nom : il faut lire la fenêtre de FL au moment du clic. Demandé une seule fois en
+        // tout (d'habitude déjà à l'accueil) ; sans l'autorisation, les clics gardent leur place, comme avant.
+        if MacroRunner.testFLPID == nil { ScreenLook.requestOnce() }
         history = [WinSnapshot.take(pid: pid)]
         started = Date()
         count = 0

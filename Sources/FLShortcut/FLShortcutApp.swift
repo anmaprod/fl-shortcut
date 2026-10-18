@@ -443,7 +443,7 @@ struct MenuContent: View {
             MenuSeparator()
 
             if !status.accessibilityOK {
-                PanelItem(symbol: "lock.open", title: "Autoriser le clavier…", tint: .orange, order: 2) {
+                PanelItem(symbol: "lock.open", title: "Tout autoriser…", tint: .orange, order: 2) {
                     AccessibilityGuide.start()
                 }
             }

@@ -391,20 +391,20 @@ private struct AddBlockMenu: View {
     let insert: (PaletteItem) -> Void
 
     var body: some View {
-        Menu {
-            ForEach(BlockCategory.allCases, id: \.self) { category in
-                Section(category.rawValue) {
-                    ForEach(items.filter { $0.category == category && !$0.soon }) { item in
-                        Button(item.label) { insert(item) }
-                    }
+        // Au style du menu de l'icône : chaque bloc avec son icône et la couleur de sa catégorie.
+        StyledMenuButton(help: "Ajouter un bloc sous la ligne choisie (ou dans la boucle si sa ligne de fin est choisie)",
+                         arrowEdge: .top, width: 280) {
+            BlockCategory.allCases.flatMap { category -> [StyledMenuEntry] in
+                let inCategory = items.filter { $0.category == category && !$0.soon }
+                guard !inCategory.isEmpty else { return [] }
+                return [StyledMenuEntry.header(category.rawValue)] + inCategory.map { item -> StyledMenuEntry in
+                    .item(item.label, symbol: item.symbol, tint: category.tint, help: item.aide) { insert(item) }
                 }
             }
         } label: {
             Label("Ajouter", systemImage: "plus")
         }
-        .menuIndicator(.hidden)
         .fixedSize()
-        .help("Ajouter un bloc sous la ligne choisie (ou dans la boucle si sa ligne de fin est choisie)")
     }
 }
 
