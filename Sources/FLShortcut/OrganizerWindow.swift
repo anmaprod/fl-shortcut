@@ -13,6 +13,8 @@ enum OrganizerLinkState: Equatable {
     case notInstalled
     /// `warmUp` : ports MIDI tout juste créés (mode léger), le temps que FL les voie et charge le script.
     case ready(warmUp: TimeInterval)
+    /// Script absent de FL Studio, remis à l'instant (même clé) : FL ne le lira qu'à son prochain lancement.
+    case restored
 }
 
 /// Ce dont l'Organiser a besoin du monde réel (des faux dans les tests).
@@ -34,6 +36,11 @@ struct OrganizerEnvironment {
     var prepareLink: () -> OrganizerLinkState = { .ready(warmUp: 0) }
     /// « Installer le lien avec FL » (fil principal).
     var installLink: () -> Void = {}
+    /// « Autre dossier de FL… » : le lien réinstallé dans le dossier de données de FL choisi (fil principal).
+    var installLinkElsewhere: () -> Void = {}
+    /// Script dans FL Studio : où il est enregistré, et s'il y est encore (nil : aucun).
+    var scriptPlace: () -> (url: URL, present: Bool)? = { nil }
+    var reveal: (URL) -> Void = { _ in }
     var nameDrum: () -> OrganizerSession.NameDrum = { { _, _ in .perc } }
 
     static func live() -> OrganizerEnvironment {
@@ -52,17 +59,21 @@ struct OrganizerEnvironment {
             placeIcon: { OrganizerEnvironment.livePlaceIcon($0) },
             prepareLink: { OrganizerEnvironment.livePrepareLink() },
             installLink: { FLScriptInstaller.installWithAlert() },
+            installLinkElsewhere: { FLScriptInstaller.installWithAlert(chooseFolder: true) },
+            scriptPlace: { FLScriptInstaller.installedScript() },
+            reveal: { NSWorkspace.shared.activateFileViewerSelecting([$0]) },
             nameDrum: { OrganizerSession.liveDrumNamer() })
     }
 
-    /// Lien installé : ports « FL Shortcuts Link » créés s'ils ne sont pas là (mode léger, sans trafic), comme pour une
-    /// macro qui en a besoin.
+    /// Lien installé : script remis dans FL s'il en a disparu, ports « FL Shortcuts Link » créés s'ils ne sont pas là
+    /// (mode léger, sans trafic), comme pour une macro qui en a besoin.
     static func livePrepareLink() -> OrganizerLinkState {
         let midi = MIDILink.shared
         guard midi.snapshot.hasKey else { return .notInstalled }
+        let restored = FLScriptInstaller.repairIfNeeded() != nil
         let fresh = AppMode.light && !midi.onDemand
         midi.setOnDemand(true)
-        return .ready(warmUp: fresh && midi.onDemand ? 2 : 0)
+        return restored ? .restored : .ready(warmUp: fresh && midi.onDemand ? 2 : 0)
     }
 
     /// Mêmes étapes et garde-fous que le bloc « Nom et couleur » (FL au premier plan, Échap).
@@ -161,6 +172,9 @@ final class OrganizerController: ObservableObject {
         case .notInstalled:
             phase = .setup
             return
+        case .restored:
+            phase = .failed(Self.restoredMessage)
+            return
         case .ready(let delay):
             warmUp = delay
         }
@@ -208,6 +222,24 @@ final class OrganizerController: ObservableObject {
 
     func installLink() {
         env.installLink()
+    }
+
+    static let restoredMessage = "Le script du lien manquait dans FL Studio : il vient d'être remis. Quitte et rouvre "
+        + "FL Studio (il ne lit ses scripts qu'en démarrant), puis clique sur « Réessayer »."
+
+    /// FL muet : réglages de FL à vérifier et emplacement du script.
+    func needsLinkHelp(_ message: String) -> Bool {
+        message == OrganizerError.noResponse.message || message == Self.restoredMessage
+    }
+
+    var scriptPlace: (url: URL, present: Bool)? { env.scriptPlace() }
+
+    func revealScript() {
+        if let place = env.scriptPlace(), place.present { env.reveal(place.url) }
+    }
+
+    func installLinkElsewhere() {
+        env.installLinkElsewhere()
     }
 
     private func listening(_ done: Int, _ total: Int) {
@@ -559,7 +591,7 @@ struct OrganizerView: View {
         case .undone(let error):
             ending(error?.message ?? "FL est revenu comme avant.", ok: error == nil, linkHelp: error == .noResponse)
         case .failed(let message):
-            ending(message, ok: false, linkHelp: message == OrganizerError.noResponse.message)
+            ending(message, ok: false, linkHelp: controller.needsLinkHelp(message))
         }
     }
 
@@ -592,13 +624,52 @@ struct OrganizerView: View {
                     OrganizerStep(n: 1, text: "Quitte et rouvre FL Studio : il trouve « FL Shortcuts Link » en démarrant "
                                   + "et le relie tout seul. Puis « Réessayer ».")
                     OrganizerStep(n: 2, text: "Toujours rien : Options › MIDI Settings, entrée « FL Shortcuts Link », "
-                                  + "Controller type « FL Shortcuts » (pas « generic controller »), Enable.")
-                    OrganizerStep(n: 3, text: "Même numéro de Port à l'entrée et à la sortie « FL Shortcuts Link » "
-                                  + "(par exemple 10).")
+                                  + "Controller type « FL Shortcuts » (pas « generic controller »), Enable, et le même "
+                                  + "numéro de Port à l'entrée et à la sortie.")
+                    OrganizerStep(n: 3, text: "« FL Shortcuts » absent des Controller types : FL ne lit pas le dossier du "
+                                  + "script ci-dessous. Compare-le avec Options › File settings › User data folder dans "
+                                  + "FL (pas sur iCloud) ; s'il diffère, « Autre dossier de FL… » et choisis celui-là.")
+                    OrganizerStep(n: 4, text: "Réglages Système › Confidentialité et sécurité › Fichiers et dossiers › "
+                                  + "FL Studio : « Dossier Documents » doit être coché.")
                 }
+                scriptCard
             }
             buttons
         }
+    }
+
+    /// Où est le script du lien, avec « Afficher dans le Finder » et « Autre dossier de FL… ».
+    private var scriptCard: some View {
+        let place = controller.scriptPlace
+        let present = place?.present == true
+        return VStack(alignment: .leading, spacing: 8) {
+            HStack(alignment: .top, spacing: 10) {
+                Image(systemName: present ? "doc.text.fill" : "questionmark.folder.fill")
+                    .font(.system(size: 15))
+                    .foregroundStyle(present ? Self.tint : Color.orange)
+                    .frame(width: 18)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(present ? "Script du lien" : "Script introuvable dans FL Studio")
+                        .font(.system(size: 12, weight: .semibold))
+                    Text(place.map { FLScriptInstaller.displayFolder(of: $0.url) } ?? "Aucun dossier enregistré.")
+                        .font(.system(size: 11))
+                        .foregroundStyle(.secondary)
+                        .textSelection(.enabled)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                Spacer(minLength: 0)
+            }
+            HStack {
+                if present {
+                    Button("Afficher dans le Finder") { controller.revealScript() }
+                }
+                Button("Autre dossier de FL…") { controller.installLinkElsewhere() }
+                Spacer(minLength: 0)
+            }
+            .controlSize(.small)
+        }
+        .padding(12)
+        .background(OrganizerCard(tint: present ? Self.tint : .orange))
     }
 
     @ViewBuilder private var buttons: some View {

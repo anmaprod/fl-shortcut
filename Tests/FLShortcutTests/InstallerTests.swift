@@ -186,6 +186,55 @@ final class InstallerTests: XCTestCase {
         XCTAssertEqual(ScriptIntegrity.check(defaults: defaults), .modified)
     }
 
+    /// Clé là mais script disparu de FL : remis avec la même clé (dossier enregistré, sinon celui de FL par défaut) ;
+    /// jamais sans clé, jamais par-dessus un script modifié.
+    func testRepairPutsMissingScriptBackWithSameKey() throws {
+        let hardware = dir.appendingPathComponent("Settings/Hardware", isDirectory: true)
+        try FileManager.default.createDirectory(at: hardware, withIntermediateDirectories: true)
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: "FLShortcutTests-\(UUID())"))
+        let secrets = MemorySecrets()
+        let template = "# name=FL Shortcuts\nKEY_HEX = \"__FLSHORTCUT_KEY__\"\n"
+        let absent = dir.appendingPathComponent("absent", isDirectory: true)
+        func repair(_ fallback: URL) -> URL? {
+            FLScriptInstaller.repairIfNeeded(secrets: secrets, defaults: defaults, template: template,
+                                             defaultHardware: fallback)
+        }
+
+        XCTAssertNil(repair(hardware), "sans clé : écran d'installation, rien d'écrit")
+        secrets.key = key
+        let dest = try XCTUnwrap(repair(hardware))
+        XCTAssertEqual(dest.path, hardware.appendingPathComponent("FL Shortcuts/device_FLShortcut.py").path)
+        XCTAssertEqual(try String(contentsOf: dest, encoding: .utf8),
+                       "# name=FL Shortcuts\nKEY_HEX = \"000102030405060708090a0b0c0d0e0f\"\n")
+        XCTAssertEqual(ScriptIntegrity.check(defaults: defaults), .ok)
+        XCTAssertNil(repair(hardware), "script en place : rien à faire")
+
+        try FileManager.default.removeItem(at: dest.deletingLastPathComponent())
+        XCTAssertEqual(ScriptIntegrity.check(defaults: defaults), .missing)
+        XCTAssertEqual(repair(absent)?.path, dest.path, "remis au même endroit")
+        XCTAssertEqual(FLScriptInstaller.installedScript(defaults: defaults)?.present, true)
+
+        try Data("print(2)".utf8).write(to: dest)
+        XCTAssertNil(repair(hardware), "modifié par quelqu'un : jamais réécrit")
+        XCTAssertEqual(try String(contentsOf: dest, encoding: .utf8), "print(2)")
+
+        let other = try XCTUnwrap(UserDefaults(suiteName: "FLShortcutTests-\(UUID())"))
+        XCTAssertNil(FLScriptInstaller.repairIfNeeded(secrets: secrets, defaults: other, template: template,
+                                                      defaultHardware: absent), "aucun dossier de FL : rien")
+        XCTAssertNil(FLScriptInstaller.installedScript(defaults: other))
+    }
+
+    func testScriptFolderShownFromHome() {
+        let home = URL(fileURLWithPath: "/Users/nina")
+        XCTAssertEqual(FLScriptInstaller.displayFolder(
+            of: URL(fileURLWithPath: "/Users/nina/Documents/Image-Line/FL Studio/Settings/Hardware/FL Shortcuts/"
+                    + "device_FLShortcut.py"), home: home),
+                       "Documents › Image-Line › FL Studio › Settings › Hardware › FL Shortcuts")
+        XCTAssertEqual(FLScriptInstaller.displayFolder(
+            of: URL(fileURLWithPath: "/Volumes/Son/FL/Settings/Hardware/FL Shortcuts/device_FLShortcut.py"), home: home),
+                       "Volumes › Son › FL › Settings › Hardware › FL Shortcuts")
+    }
+
     func testHardwareFolderResolution() {
         let base = URL(fileURLWithPath: "/Users/x/Documents/Image-Line/FL Studio")
         let hardware = base.appendingPathComponent("Settings/Hardware")
@@ -206,4 +255,11 @@ final class InstallerTests: XCTestCase {
         XCTAssertNil(FileSecretStore.parseHex(String(repeating: "g", count: 32)))
         XCTAssertEqual(FLProtocol.hex(key), "000102030405060708090a0b0c0d0e0f")
     }
+}
+
+private final class MemorySecrets: SecretStore {
+    var key: [UInt8]?
+    func load() -> [UInt8]? { key }
+    func save(_ key: [UInt8]) throws { self.key = key }
+    func delete() { key = nil }
 }

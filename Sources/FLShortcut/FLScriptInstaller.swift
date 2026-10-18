@@ -156,6 +156,57 @@ enum FLScriptInstaller {
         return true
     }
 
+    /// Script embarqué dans l'app, avec son marqueur de clé.
+    static func bundledTemplate() -> String? {
+        guard let url = Bundle.main.url(forResource: "device_FLShortcut", withExtension: "py") else { return nil }
+        return try? String(contentsOf: url, encoding: .utf8)
+    }
+
+    /// Lien installé (clé présente) mais script absent de FL Studio (supprimé, jamais arrivé, réglages de l'app
+    /// effacés…) : FL ne propose alors pas le Controller type « FL Shortcuts ». Le script est réécrit avec la même clé,
+    /// dans le dossier « Hardware » enregistré s'il existe encore, sinon dans celui de FL par défaut ; FL le lira à
+    /// son prochain lancement. Renvoie le chemin écrit ; nil si rien à faire (script en place, modifié par quelqu'un,
+    /// pas de clé) ou si aucun dossier de FL n'est trouvé.
+    @discardableResult
+    static func repairIfNeeded(secrets: SecretStore = PreferredSecretStore(), defaults: UserDefaults = .standard,
+                               template: String? = bundledTemplate(),
+                               defaultHardware: URL = defaultHardwareFolder) -> URL? {
+        let state = ScriptIntegrity.check(defaults: defaults)
+        guard state == .notInstalled || state == .missing, let template, let key = secrets.load(),
+              let text = try? ScriptTemplate.inject(key: key, into: template) else { return nil }
+        let usable: (URL) -> Bool = { SecureFile.kind(at: $0.path) == .directory && !SecureFile.pathContainsSymlink($0) }
+        var folders: [URL] = []
+        if let path = defaults.string(forKey: ScriptIntegrity.pathKey) {
+            folders.append(URL(fileURLWithPath: path).deletingLastPathComponent().deletingLastPathComponent())
+        }
+        if let saved = defaults.string(forKey: chosenFolderKey) {
+            folders.append(URL(fileURLWithPath: saved, isDirectory: true))
+        }
+        folders.append(defaultHardware)
+        guard let hardware = folders.first(where: usable) else { return nil }
+        let data = Data(text.utf8)
+        guard let dest = try? write(script: data, hardware: hardware) else { return nil }
+        ScriptIntegrity.record(data, at: dest, defaults: defaults)
+        defaults.set(hardware.path, forKey: chosenFolderKey)
+        return dest
+    }
+
+    /// Script enregistré et s'il est toujours là (nil : jamais installé).
+    static func installedScript(defaults: UserDefaults = .standard) -> (url: URL, present: Bool)? {
+        guard let path = defaults.string(forKey: ScriptIntegrity.pathKey) else { return nil }
+        let url = URL(fileURLWithPath: path)
+        return (url, SecureFile.kind(at: url.path) == .regular)
+    }
+
+    /// « Documents › Image-Line › FL Studio › Settings › Hardware › FL Shortcuts » : dossier du script, depuis le
+    /// dossier de l'utilisateur.
+    static func displayFolder(of script: URL, home: URL = FileManager.default.homeDirectoryForCurrentUser) -> String {
+        let folder = script.deletingLastPathComponent().standardizedFileURL.pathComponents
+        let base = home.standardizedFileURL.pathComponents
+        let parts = folder.starts(with: base) ? folder.dropFirst(base.count) : folder.dropFirst()
+        return parts.joined(separator: " › ")
+    }
+
     /// Notre dossier de script (nouveau ou ancien nom) : ne contient que device_FLShortcut.py (et des fichiers du
     /// Finder / le cache Python). Rien d'autre n'est jamais supprimé.
     static func isOurScriptFolder(_ folder: URL, fileManager: FileManager = .default) -> Bool {
@@ -167,11 +218,11 @@ enum FLScriptInstaller {
         return entries.allSatisfy { allowed.contains($0) || $0.hasPrefix("._") }
     }
 
-    static func installWithAlert(secrets: SecretStore = PreferredSecretStore()) {
+    /// `chooseFolder` : le dossier de FL est demandé même si celui par défaut existe (FL range ses réglages ailleurs).
+    static func installWithAlert(secrets: SecretStore = PreferredSecretStore(), chooseFolder: Bool = false) {
         NSApp.activate(ignoringOtherApps: true)
 
-        guard let scriptURL = Bundle.main.url(forResource: "device_FLShortcut", withExtension: "py"),
-              let template = try? String(contentsOf: scriptURL, encoding: .utf8) else {
+        guard let template = bundledTemplate() else {
             alert("Script introuvable", "Le fichier \(fileName) manque dans l'application.", style: .critical)
             return
         }
@@ -183,7 +234,7 @@ enum FLScriptInstaller {
             return
         }
 
-        guard let hardware = chooseHardwareFolder() else { return }
+        guard let hardware = chooseFolder ? pickHardwareFolder() : chooseHardwareFolder() else { return }
 
         let previousKey = secrets.load()
         do {
@@ -207,6 +258,8 @@ enum FLScriptInstaller {
 
             Seulement si ça ne marche pas : Options › MIDI Settings, entrée « FL Shortcuts Link », Controller type « FL Shortcuts » (pas « generic controller »), Enable, et le même numéro de Port pour l'entrée et la sortie « FL Shortcuts Link ».
 
+            « FL Shortcuts » absent des Controller types : FL lit un autre dossier. Le script est dans \(displayFolder(of: dest)) ; compare avec Options › File settings › User data folder dans FL.
+
             Chaque réinstallation crée une nouvelle clé : redémarre FL après coup.
             """)
         } catch {
@@ -223,9 +276,18 @@ enum FLScriptInstaller {
             let url = URL(fileURLWithPath: saved, isDirectory: true)
             if isDir(url), !SecureFile.pathContainsSymlink(url) { return url }
         }
+        return pickHardwareFolder()
+    }
 
+    /// Sélecteur vérifié : le dossier de données de FL (Options › File settings › User data folder), ou son
+    /// « Settings/Hardware ».
+    private static func pickHardwareFolder() -> URL? {
+        let isDir: (URL) -> Bool = { SecureFile.kind(at: $0.path) == .directory }
         let panel = NSOpenPanel()
-        panel.message = "Choisis le dossier « Settings/Hardware » de FL Studio (dans ton dossier Image-Line)."
+        panel.message = "Choisis le dossier de données de FL Studio (Options › File settings › User data folder dans FL), "
+            + "ou son dossier « Settings/Hardware »."
+        panel.directoryURL = defaultHardwareFolder.deletingLastPathComponent().deletingLastPathComponent()
+            .deletingLastPathComponent()
         panel.canChooseDirectories = true
         panel.canChooseFiles = false
         panel.canCreateDirectories = false
@@ -234,7 +296,8 @@ enum FLScriptInstaller {
         let real = picked.resolvingSymlinksInPath()
         guard let hardware = HardwareFolder.resolve(real, isDirectory: isDir), !SecureFile.pathContainsSymlink(hardware) else {
             alert("Dossier incorrect",
-                  "Ce dossier n'est pas « Settings/Hardware » de FL Studio. FL ne verrait pas le script.", style: .warning)
+                  "Ce n'est ni le dossier de données de FL Studio ni son « Settings/Hardware ». FL ne verrait pas le script.",
+                  style: .warning)
             return nil
         }
         return hardware

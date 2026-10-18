@@ -198,6 +198,7 @@ final class AppStatus: ObservableObject {
         }
 
         FLScriptInstaller.updateInstalledIfNeeded()     // script déjà installé : nouvelle version, même clé
+        FLScriptInstaller.repairIfNeeded()              // clé là mais script disparu de FL : remis, même clé
         if !AppMode.light { refreshScriptState() }
         supervise()
         let t = Timer(timeInterval: 2, repeats: true) { [weak self] _ in self?.supervise() }

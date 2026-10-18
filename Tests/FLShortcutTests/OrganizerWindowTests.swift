@@ -108,6 +108,43 @@ final class OrganizerWindowTests: XCTestCase {
         controller.close()
     }
 
+    /// Script disparu de FL : remis, puis FL à redémarrer (rien n'est envoyé) ; emplacement montré, autre dossier.
+    func testRestoredScriptAsksToRestartFL() {
+        let link = FakeOrganizerLink()
+        link.channels = [ChannelInfo(index: 0, type: 2, mixerTrack: 0, color: RGBColor(r: 1, g: 2, b: 3), name: "Son 0")]
+        let audio = FakeAudio(link: link)
+        audio.parts = [0: [Float](repeating: 0.3, count: 64)]
+        let script = URL(fileURLWithPath: "/Users/nina/Documents/Image-Line/FL Studio/Settings/Hardware/FL Shortcuts/"
+                         + "device_FLShortcut.py")
+        var restored = true
+        var revealed: [URL] = []
+        var elsewhere = 0
+        var e = env(link, audio, saved: { _ in })
+        e.prepareLink = {
+            defer { restored = false }
+            return restored ? .restored : .ready(warmUp: 0)
+        }
+        e.scriptPlace = { (url: script, present: true) }
+        e.reveal = { revealed.append($0) }
+        e.installLinkElsewhere = { elsewhere += 1 }
+        let controller = OrganizerController(env: e)
+        controller.start()
+        XCTAssertEqual(controller.phase, .failed(OrganizerController.restoredMessage))
+        XCTAssertEqual(link.log, [], "rien n'est envoyé à FL avant son redémarrage")
+        XCTAssertTrue(controller.needsLinkHelp(OrganizerController.restoredMessage))
+        XCTAssertTrue(controller.needsLinkHelp(OrganizerError.noResponse.message))
+        XCTAssertFalse(controller.needsLinkHelp("Aucun son à écouter dans le Channel rack."))
+        XCTAssertEqual(controller.scriptPlace?.url, script)
+        controller.revealScript()
+        XCTAssertEqual(revealed, [script])
+        controller.installLinkElsewhere()
+        XCTAssertEqual(elsewhere, 1)
+        XCTAssertTrue(controller.canRetry)
+        controller.retry()
+        waitFor(controller) { $0 == .preview }
+        controller.close()
+    }
+
     func testFailureCanBeRetried() {
         let link = FakeOrganizerLink()
         link.window = .browser

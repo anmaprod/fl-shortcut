@@ -18,6 +18,9 @@ Toute modification de ce fichier doit être répercutée des deux côtés. Origi
 - La clé est aussi stockée côté appli (Mac : Trousseau de préférence, sinon fichier 0600 dans Application Support).
 - Le script ne lit **aucun fichier** : la clé est une constante du script.
 - Réinstaller le script = nouvelle clé.
+- Clé présente mais script disparu de FL (`Settings/Hardware/FL Shortcuts/device_FLShortcut.py` absent : FL ne propose
+  pas le Controller type « FL Shortcuts ») : l'appli le réécrit **avec la même clé**, au lancement et à l'ouverture de
+  l'Organiser, dans le dossier enregistré ou celui de FL par défaut ; jamais par-dessus un script modifié.
 
 ## 3. Annonce du script (FL → appli)
 
