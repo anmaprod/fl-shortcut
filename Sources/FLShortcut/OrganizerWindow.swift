@@ -44,6 +44,8 @@ struct OrganizerEnvironment {
     /// Script dans FL Studio : où il est enregistré, et s'il y est encore (nil : aucun).
     var scriptPlace: () -> (url: URL, present: Bool)? = { nil }
     var reveal: (URL) -> Void = { _ in }
+    /// Le script a dit être posé sur une autre entrée MIDI que « FL Shortcuts Link » (PROTOCOL.md §3).
+    var wrongInput: () -> Bool = { false }
     var nameDrum: () -> OrganizerSession.NameDrum = { { _, _ in .perc } }
 
     static func live() -> OrganizerEnvironment {
@@ -65,6 +67,7 @@ struct OrganizerEnvironment {
             installLinkElsewhere: { FLScriptInstaller.installWithAlert(chooseFolder: true, quiet: true) },
             scriptPlace: { FLScriptInstaller.installedScript() },
             reveal: { NSWorkspace.shared.activateFileViewerSelecting([$0]) },
+            wrongInput: { MIDILink.shared.core.snapshot.wrongInput },
             nameDrum: { OrganizerSession.liveDrumNamer() })
     }
 
@@ -128,6 +131,8 @@ final class OrganizerController: ObservableObject {
         case restartFL
         /// FL ne répond pas (lien pas encore chargé dans FL).
         case noResponse
+        /// Le script est chargé, mais sur une autre entrée MIDI (carte son, clavier) : il ne reçoit rien.
+        case wrongInput
         case openFL
         /// Aucune page à organiser devant dans FL.
         case openPage
@@ -209,7 +214,7 @@ final class OrganizerController: ObservableObject {
         case .success(let source):
             audio = source
         case .failure(let error):
-            if let reason = Self.waitReason(for: error) { wait(reason) } else { phase = .failed(error.message) }
+            if let reason = Self.waitReason(for: error, wrongInput: env.wrongInput()) { wait(reason) } else { phase = .failed(error.message) }
             return
         }
         let link = env.link()
@@ -232,9 +237,9 @@ final class OrganizerController: ObservableObject {
 
     /// Ce qui se règle dans FL (redémarrer, ouvrir une page, arrêter la lecture…) : Organiser attend et continue
     /// tout seul. nil : un vrai échec, dit tel quel.
-    static func waitReason(for error: OrganizerError) -> Wait? {
+    static func waitReason(for error: OrganizerError, wrongInput: Bool = false) -> Wait? {
         switch error {
-        case .noResponse: return .noResponse
+        case .noResponse: return wrongInput ? .wrongInput : .noResponse
         case .outdatedScript: return .restartFL
         case .flClosed: return .openFL
         case .refused(1): return .openPage
@@ -316,7 +321,7 @@ final class OrganizerController: ObservableObject {
                 phase = .failed("Aucun son à écouter dans le Channel rack.")
             }
         case .failure(let error):
-            if let reason = Self.waitReason(for: error) { wait(reason) } else { phase = .failed(error.message) }
+            if let reason = Self.waitReason(for: error, wrongInput: env.wrongInput()) { wait(reason) } else { phase = .failed(error.message) }
         }
     }
 
@@ -541,10 +546,13 @@ enum OrganizerWindow {
         self.controller = controller
         // Nouvelle étape, ou aide dépliée / repliée : le panneau suit la hauteur du contenu.
         sizing = controller.$phase.map { _ in () }.merge(with: controller.$showLinkHelp.map { _ in () }).sink { _ in
-            // Après le dessin de la nouvelle étape.
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
-                guard let panel = OrganizerWindow.panel, panel === p else { return }
-                fit(p, host, animate: true)
+            // Après le dessin de la nouvelle étape, puis une fois le fondu fini : pendant le fondu, l'ancienne étape
+            // compte encore dans la hauteur (la fenêtre restait trop grande).
+            for delay in [0.05, 0.85 * DebugSnapshot.slowMotion] {
+                DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
+                    guard let panel = OrganizerWindow.panel, panel === p else { return }
+                    fit(p, host, animate: true)
+                }
             }
         }
         p.orderFrontRegardless()
@@ -622,6 +630,9 @@ struct OrganizerView: View {
         .frame(width: Self.width, alignment: .top)
         .frame(height: isPreview ? Self.height : nil, alignment: .top)
         .fixedSize(horizontal: false, vertical: !isPreview)
+        // Collé en haut, et le fond remplit toute la fenêtre : pendant qu'elle change de taille (Réessayer, étape
+        // suivante), plus de bandes noires en haut et en bas (vidéo de l'utilisateur : le contenu se centrait).
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .background { TintGlow(tint: Self.tint) }
         .motion(Motion.morph, value: stepKey)
     }
@@ -857,7 +868,7 @@ struct OrganizerView: View {
                     .foregroundStyle(.secondary)
             }
             .morphIn(2)
-            if reason == .noResponse || reason == .restartFL {
+            if reason == .noResponse || reason == .restartFL || reason == .wrongInput {
                 linkHelpToggle.morphIn(3)
                 if controller.showLinkHelp {
                     linkHelpSteps
@@ -882,6 +893,11 @@ struct OrganizerView: View {
         case .noResponse:
             return ("antenna.radiowaves.left.and.right", "En attente de FL Studio",
                     "FL ne répond pas encore. Quitte et rouvre FL Studio : il relie « FL Shortcuts Link » en démarrant.")
+        case .wrongInput:
+            return ("cable.connector", "Le lien est sur la mauvaise entrée",
+                    "Dans FL : Options › MIDI Settings › Input, ta carte son (ou ton clavier) a le Controller type « FL "
+                    + "Shortcuts ». Remets-la sur « (generic controller) », puis clique la ligne « FL Shortcuts Link » "
+                    + "et choisis « FL Shortcuts ».")
         case .openFL:
             return ("macwindow", "Ouvre FL Studio", "Organiser commence dès que FL est ouvert, avec ton projet.")
         case .openPage:
@@ -912,9 +928,11 @@ struct OrganizerView: View {
 
     private var linkHelpSteps: some View {
         VStack(alignment: .leading, spacing: 8) {
-            OrganizerStep(n: 1, text: "Dans FL : Options › MIDI Settings, entrée « FL Shortcuts Link », Controller type "
-                          + "« FL Shortcuts » (pas « generic controller »), Enable, et le même numéro de Port à "
-                          + "l'entrée et à la sortie.")
+            OrganizerStep(n: 1, text: "Dans FL : Options › MIDI Settings › Input, clique d'abord la ligne « FL Shortcuts "
+                          + "Link » (le Controller type, en bas, change la ligne choisie), puis Controller type « FL "
+                          + "Shortcuts », Enable, et un numéro de Port que rien d'autre n'utilise. Dans Output, « FL "
+                          + "Shortcuts Link » sur ce même Port. Ta carte son ou ton clavier MIDI restent sur « (generic "
+                          + "controller) ».")
             OrganizerStep(n: 2, text: "« FL Shortcuts » absent des Controller types : FL ne lit pas le dossier du "
                           + "script ci-dessous. Compare-le avec Options › File settings › User data folder (pas sur "
                           + "iCloud) ; s'il diffère, « Autre dossier de FL… » et choisis celui-là.")

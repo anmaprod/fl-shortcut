@@ -29,6 +29,8 @@ final class LinkCore {
         var seq: UInt32
         var incompatibleProtocol: Int?
         var transportReady: Bool
+        /// Le script a dit être sur une autre entrée MIDI que « FL Shortcuts Link » (jusqu'au prochain HELLO).
+        var wrongInput = false
         /// Temps de réponse de FL (médiane des 15 dernières actions, en ms), mesuré de l'envoi de la trame
         /// à l'accusé d'exécution (CC 119). Aucune frappe n'est mémorisée : seulement des durées.
         var responseMs: Double? = nil
@@ -56,6 +58,7 @@ final class LinkCore {
         /// Réponse vérifiée (MAC juste, liée à `dataSeq`), octets dépaquetés ; remise à nil à chaque envoi.
         var lastResponse: [UInt8]?
         var incompatible: Int?
+        var wrongInput = false
         var pendingSend: (id: Int, at: UInt64)?
         var latencies: [Double] = []
 
@@ -106,6 +109,9 @@ final class LinkCore {
                     s.window = .unknown        // le script renvoie la fenêtre juste après
                     s.consecutiveRejects = 0
                     s.incompatible = nil
+                    s.wrongInput = false
+                case .wrongInput:
+                    s.wrongInput = true
                 case .incompatible(let p):
                     s.hello = nil
                     s.helloAt = nil
@@ -392,7 +398,8 @@ final class LinkCore {
         return state.withLock { s in
             Snapshot(hello: s.hello, lastAlive: s.lastAlive, window: s.window, hasKey: s.signer != nil,
                      seq: s.seq, incompatibleProtocol: s.incompatible, transportReady: ready,
-                     responseMs: LinkCore.median(s.latencies).map { ($0 * 10).rounded() / 10 })
+                     responseMs: LinkCore.median(s.latencies).map { ($0 * 10).rounded() / 10 },
+                     wrongInput: s.wrongInput)
         }
     }
 }

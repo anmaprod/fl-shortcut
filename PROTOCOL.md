@@ -38,6 +38,11 @@ Envoyée en réponse à un PING (le script démarre **endormi** et n'envoie rien
 Autres messages FL → appli :
 - **CC 117** = fenêtre FL active (0 Mixer, 1 Channel Rack, 2 Playlist, 3 Piano Roll, 4 Browser, 5 plugin, 127 inconnue), envoyé à chaque changement (depuis `OnRefresh`/`OnIdle`, au plus toutes les 100 ms).
 - **CC 118** = battement de cœur (valeur 0/1 alternée) toutes les ~2 s.
+- **CC 120 = 64** (script v8), une seule fois au démarrage, non authentifié : FL a posé le script sur une autre entrée
+  que « FL Shortcuts Link » (`device.getName()`, API 7 : Controller type choisi sur la ligne d'une carte son ou d'un
+  clavier). Les messages de l'appli n'arrivent alors jamais au script ; il le dit aussi dans la barre d'aide de FL.
+  L'appli ne le reçoit que si sa sortie partage le Port de cette entrée ; elle l'affiche dans l'Organiser (attente
+  de FL) jusqu'au prochain HELLO. Simple indication à l'écran : rien d'autre n'en dépend.
 - **CC 119** = accusé d'exécution : valeur = id de l'action exécutée avec succès, ou 0 si la trame a été rejetée (MAC faux, rejeu, trame mélangée, débit dépassé, id inconnu, action indisponible) ou si l'action n'a pas pu s'exécuter (aucune piste ou aucun canal sélectionné, erreur FL).
 - Les PING trop fréquents (plus de 4 par seconde) sont ignorés.
 

@@ -64,6 +64,7 @@ class FLState(object):
         self.pattern_count = kw.get("pattern_count", 4)
         self.focused = set(kw.get("focused", ()))
         self.assigned = kw.get("assigned", True)
+        self.device_name = kw.get("device_name", "FL Shortcuts Link")
         self.fl_version = kw.get("fl_version", fl_version_for_api(api))
         self.loop_mode = kw.get("loop_mode", 1)   # 1 = Song
         self.volumes = {}
@@ -346,6 +347,7 @@ def build_fl(api=45, missing=(), extra=None, **kw):
     reg("device", "midiOutMsg", 1, midi_out)
     reg("device", "isAssigned", 1, lambda: 1 if st.assigned else 0)
     reg("device", "getPortNumber", 1, lambda: 0)
+    reg("device", "getName", 7, lambda: st.device_name)
 
     # plugins : module absent avant l'API 8
     if api >= 8:

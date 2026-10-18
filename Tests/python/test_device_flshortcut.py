@@ -105,13 +105,24 @@ class Base(unittest.TestCase):
 
     def fl_calls_excluding_reads(self):
         reads = ("Count", "Number", "getVersion", "getFocused", "isAssigned", "midiOutMsg",
-                 "setHintMsg", "selectedChannel", "getLoopMode")
+                 "setHintMsg", "selectedChannel", "getLoopMode", "getName")
         return [n for n in self.fl.names() if not any(r in n for r in reads)]
 
 
 # ---------------------------------------------------------------------------- Sommeil
 class TestSleep(Base):
     """Le script ne fait rien tant qu'il n'est pas réveillé, et se rendort après un réveil bref."""
+
+    def test_wrong_input_is_told_in_fl_and_to_the_app(self):
+        # Controller type « FL Shortcuts » choisi sur la ligne de la carte son (vidéo de l'utilisateur).
+        self.make(wake=False, device_name="SSL 2+")
+        self.assertIn((120, 64), [(cc, v) for (s, cc, v) in self.fl.cc_out()])
+        self.assertTrue(any("SSL 2+" in h and "FL Shortcuts Link" in h for h in self.fl.hints), self.fl.hints)
+        for name in ("FL Shortcuts Link", "FL Shortcuts"):
+            self.make(wake=False, device_name=name)
+            self.assertNotIn((120, 64), [(cc, v) for (s, cc, v) in self.fl.cc_out()])
+        self.make(wake=False, api=5, device_name="SSL 2+")             # getName absent : rien de dit
+        self.assertNotIn((120, 64), [(cc, v) for (s, cc, v) in self.fl.cc_out()])
 
     def test_asleep_after_init_sends_nothing(self):
         self.make(wake=False)

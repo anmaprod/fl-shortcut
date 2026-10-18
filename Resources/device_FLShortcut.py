@@ -27,7 +27,7 @@ bornes vérifiées, seuls les CC du protocole (canal 16) sont marqués « handle
 # La ligne suivante est remplacée par l'appli à l'installation (16 octets en hex).
 KEY_HEX = "__FLSHORTCUT_KEY__"
 
-SCRIPT_VERSION = 7
+SCRIPT_VERSION = 8
 PROTOCOL_VERSION = 2
 
 MIDI_CHANNEL = 15          # canal 16, 0-indexé
@@ -81,6 +81,7 @@ OP_SET_NAMES = 10          # noms des pistes de la Playlist
 OP_PLAY_TRACK = 11         # écoute d'une piste de la Playlist seule
 OP_SEEK = 12               # position de la chanson pendant cette écoute
 OP_CHANNEL_TOGGLE = 13     # mute ou solo d'un canal du Channel rack, par son numéro (macro « Cliquer sur… »)
+HELLO_WRONG_INPUT = 64     # CC 120 = 64 au démarrage : script posé sur une autre entrée que « FL Shortcuts Link »
 KIND_CHANNELS = 1
 KIND_MIXER = 2
 KIND_PLAYLIST = 3          # pistes de la Playlist (index 0 = piste 1 de FL)
@@ -2211,6 +2212,22 @@ def _midi_msg(event):
         _asleep_reject()
 
 
+def _wrong_input():
+    """Nom de l'entrée MIDI où FL a posé le script quand ce n'est pas « FL Shortcuts Link » (une carte son, un
+    clavier : le Controller type choisi sur la mauvaise ligne d'Options > MIDI Settings), sinon None. L'appli
+    parle sur « FL Shortcuts Link » : sur une autre entrée, le script ne reçoit jamais ses messages."""
+    f = _fn("device", "getName")
+    if f is None:
+        return None
+    try:
+        name = f()
+    except Exception:
+        return None
+    if not isinstance(name, str) or not name.strip() or "fl shortcuts" in name.lower():
+        return None
+    return name.strip()[:40]
+
+
 def _init():
     _st.api = None
     _st.fl_version = None
@@ -2229,6 +2246,17 @@ def _init():
             SCRIPT_VERSION, _api(), n, len(ACTIONS))
     if _gt_buggy():
         msg += " - FL 26.1.0-26.1.6 : mets à jour vers 26.1.7 (bugs du scripting MIDI)"
+    wrong = _wrong_input()
+    if wrong is not None:
+        msg = ("FL Shortcuts : ce script est sur l'entrée « %s ». Options > MIDI Settings > Input : remets-la sur "
+               "(generic controller), puis clique « FL Shortcuts Link » et choisis le Controller type "
+               "« FL Shortcuts »." % wrong)
+        # L'appli le dit aussi (Organiser) quand sa sortie partage le Port de cette entrée. Un seul CC, au démarrage.
+        try:
+            if _output_ready():
+                _out_raw(CC_HELLO, HELLO_WRONG_INPUT)
+        except Exception:
+            pass
     _hint(msg)
     # Endormi jusqu'au premier PING de l'appli : rien n'est envoyé tant qu'on n'en a pas besoin.
     _sleep()
