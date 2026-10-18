@@ -44,7 +44,7 @@ final class MacroEditingTests: XCTestCase {
 
     func testBadgesForLinkLearningAndProblems() {
         let blocks = [
-            Block(.flAction(key: "solo", fallback: .none)),
+            Block(.flAction(key: "bypass", fallback: .none)),
             Block(.selectInput(.legacy(key: "macroSpots.v2.input"))),
             Block(.click(.toLearn, button: .left)),
             Block(.chooseFile(path: "")),
@@ -63,6 +63,12 @@ final class MacroEditingTests: XCTestCase {
         XCTAssertTrue(r[4].badges.contains(.continueSiEchec))
         // Entrée déjà apprise : plus de badge.
         XCTAssertTrue(rows(blocks, learned: true)[1].badges.isEmpty)
+        // Mute et solo marchent sans le script : jamais « lien FL » ; le mute attend son bouton, montré une fois.
+        MuteSwitch.forget()
+        let mixer = rows([Block(.flAction(key: "mute", fallback: .none)), Block(.flAction(key: "solo", fallback: .none))],
+                         learned: true)
+        XCTAssertEqual(mixer[0].badges, [.aApprendre(MuteSwitch.toLearn)])
+        XCTAssertTrue(mixer[1].badges.isEmpty)
     }
 
     func testInsertBelowSelectionOrInsideALoop() {
