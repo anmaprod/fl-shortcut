@@ -458,8 +458,11 @@ final class MacroEffectsMac: MacroEffects {
 
         case .soundCard:
             switch SoundCard.apply() {
-            case .done(_, let input):
+            case .done(let name, let input):
                 MacroLog.shared.write("AUDIO", "sound card set as default " + (input ? "output + input" : "output"))
+                // Dit ce qui a changé (avant, rien ne se voyait : on ne savait pas si la carte avait été prise).
+                let text = (input ? "Sortie et entrée du Mac : " : "Sortie du Mac : ") + name.displaySafe(max: 40)
+                DispatchQueue.main.async { HintPanel.shared.flash(text, seconds: 2.5) }
                 return .ok
             case .noCard:
                 return .fail("aucune carte son branchée (USB, Thunderbolt…) : branche-la, puis relance la macro")

@@ -4,6 +4,7 @@
 // Construit seulement pour le bloc choisi ; chaque réglage passe par le brouillon (annulable, enregistré 0,5 s après).
 import AppKit
 import ApplicationServices
+import CoreAudio
 import SwiftUI
 import UniformTypeIdentifiers
 
@@ -161,11 +162,7 @@ private struct BlockInspector: View {
                 }
             }
         case .soundCard:
-            Text("La carte son branchée (USB, Thunderbolt…) devient la sortie et l'entrée du Mac. Une seule fois, dans "
-                 + "FL › Options › Audio settings : Output sur « Default audio device » et Input sur « Default input "
-                 + "device » ; FL suit alors la carte tout seul. Plusieurs cartes branchées : celle choisie la dernière fois.")
-                .font(.system(size: 12))
-                .fixedSize(horizontal: false, vertical: true)
+            SoundCardField()
         case .organize:
             Text("Ouvre l'Organiser sur la page de FL qui est devant (Channel rack, Mixer ou Playlist). Les couleurs, dégradés et "
                  + "icônes de chaque famille se règlent dans sa fenêtre et y restent gardés. macOS demande une fois "
@@ -1006,6 +1003,91 @@ private struct BlockInspector: View {
                     .font(.system(size: 11))
                     .foregroundStyle(.orange)
                     .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+    }
+}
+
+/// « Carte son branchée » : la carte à prendre (automatique, ou celle choisie, retenue sur ce Mac), la sortie du Mac en
+/// ce moment, et un essai tout de suite, sans lancer la macro. CoreAudio n'est lu qu'à l'affichage et sur demande.
+private struct SoundCardField: View {
+    @State private var devices: [AudioDeviceInfo] = []
+    @State private var current: AudioObjectID?
+    @State private var chosen = UserDefaults.standard.string(forKey: SoundCard.chosenKey) ?? ""
+    @State private var result: (ok: Bool, text: String)?
+    @State private var trying = false
+
+    private var auto: AudioDeviceInfo? {
+        SoundCard.choose(devices, preferredUID: UserDefaults.standard.string(forKey: SoundCard.preferredKey))
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Picker("Carte son", selection: Binding(get: { chosen }, set: { uid in
+                chosen = uid
+                if uid.isEmpty {
+                    UserDefaults.standard.removeObject(forKey: SoundCard.chosenKey)
+                } else {
+                    UserDefaults.standard.set(uid, forKey: SoundCard.chosenKey)
+                }
+                result = nil
+            })) {
+                Text(auto.map { "Automatique (\($0.name.displaySafe(max: 30)))" } ?? "Automatique (aucune carte branchée)").tag("")
+                ForEach(SoundCard.selectable(devices)) { d in
+                    Text(d.name.displaySafe(max: 40) + (d.isExternal ? "" : " (du Mac)")).tag(d.uid)
+                }
+                if !chosen.isEmpty, !devices.contains(where: { $0.uid == chosen }) {
+                    Text("Carte choisie, pas branchée").tag(chosen)
+                }
+            }
+            Text("Sortie du Mac en ce moment : " + (devices.first { $0.id == current }?.name.displaySafe(max: 40) ?? "inconnue"))
+                .font(.system(size: 11))
+                .foregroundStyle(.secondary)
+            HStack(spacing: 8) {
+                Button("Essayer maintenant", action: tryNow)
+                    .secondaryButton()
+                    .disabled(trying)
+                Button { reload() } label: { Image(systemName: "arrow.clockwise") }
+                    .buttonStyle(.borderless)
+                    .help("Relire les cartes branchées")
+            }
+            if let result {
+                Label(result.text, systemImage: result.ok ? "checkmark.circle.fill" : "exclamationmark.triangle.fill")
+                    .font(.system(size: 11))
+                    .foregroundStyle(result.ok ? Color.green : Color.orange)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            Text("La carte devient la sortie et l'entrée du Mac. Une seule fois, dans FL › Options › Audio settings : "
+                 + "Output sur « Default audio device » et Input sur « Default input device » ; FL suit alors la carte "
+                 + "tout seul.")
+                .font(.system(size: 11))
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .onAppear(perform: reload)
+    }
+
+    private func reload() {
+        devices = SoundCard.list()
+        current = SoundCard.currentDefault()
+    }
+
+    /// Le bloc tout seul, tout de suite : la réponse dit ce que macOS a fait.
+    private func tryNow() {
+        trying = true
+        DispatchQueue.global(qos: .userInitiated).async {
+            let outcome = SoundCard.apply()
+            DispatchQueue.main.async {
+                trying = false
+                switch outcome {
+                case .done(let name, let input):
+                    result = (true, (input ? "Sortie et entrée du Mac : " : "Sortie du Mac : ") + name.displaySafe(max: 40))
+                case .noCard:
+                    result = (false, "Aucune carte son branchée trouvée (USB, Thunderbolt…) : choisis-la dans la liste.")
+                case .failed(let why):
+                    result = (false, why.prefix(1).uppercased() + why.dropFirst())
+                }
+                reload()
             }
         }
     }

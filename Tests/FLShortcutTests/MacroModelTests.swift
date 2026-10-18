@@ -360,6 +360,15 @@ final class MacroModelTests: XCTestCase {
         let ssl2 = dev(7, "Scarlett 2i2", kAudioDeviceTransportTypeUSB, inputs: 1, outputs: 1)
         XCTAssertEqual(SoundCard.choose([ssl, ssl2], preferredUID: "uid-7"), ssl2)     // celle de la dernière fois
         XCTAssertEqual(SoundCard.choose([ssl, ssl2], preferredUID: "uid-99"), ssl)
+        // Choisie dans la fiche du bloc : toujours elle si elle est branchée, même hors des cartes « externes ».
+        let display = dev(8, "Studio Display", kAudioDeviceTransportTypeUSB, inputs: 1, outputs: 1)
+        XCTAssertEqual(SoundCard.choose([display, ssl], preferredUID: nil, chosenUID: "uid-4"), ssl)
+        XCTAssertEqual(SoundCard.choose([display, ssl], preferredUID: "uid-8", chosenUID: "uid-4"), ssl)
+        XCTAssertEqual(SoundCard.choose([speakers, ssl], preferredUID: nil, chosenUID: "uid-1"), speakers)
+        XCTAssertEqual(SoundCard.choose([display, ssl], preferredUID: nil, chosenUID: "uid-99"), display, "pas branchée")
+        let aggregate = dev(9, "Agrégé", kAudioDeviceTransportTypeAggregate, inputs: 1, outputs: 1)
+        XCTAssertEqual(SoundCard.selectable([speakers, mic, aggregate, ssl]).map(\.id), [1, 4])
+        XCTAssertEqual(SoundCard.fourCC(kAudioDeviceTransportTypeUSB), "usb ")
     }
 
 }
