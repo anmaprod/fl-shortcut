@@ -189,19 +189,17 @@ final class InstallerTests: XCTestCase {
     /// Clé là mais script disparu de FL : remis avec la même clé (dossier enregistré, sinon celui de FL par défaut) ;
     /// jamais sans clé, jamais par-dessus un script modifié.
     func testRepairPutsMissingScriptBackWithSameKey() throws {
-        // Chemin sans aucun lien (sur macOS, /var mène à /private/var) : un dossier de FL qui en contient est refusé.
-        let raw = try XCTUnwrap(realpath(dir.path, nil))
-        let real = URL(fileURLWithPath: String(cString: raw), isDirectory: true)
-        free(raw)
-        let hardware = real.appendingPathComponent("Settings/Hardware", isDirectory: true)
+        let hardware = dir.appendingPathComponent("Settings/Hardware", isDirectory: true)
         try FileManager.default.createDirectory(at: hardware, withIntermediateDirectories: true)
         let defaults = try XCTUnwrap(UserDefaults(suiteName: "FLShortcutTests-\(UUID())"))
         let secrets = MemorySecrets()
         let template = "# name=FL Shortcuts\nKEY_HEX = \"__FLSHORTCUT_KEY__\"\n"
-        let absent = real.appendingPathComponent("absent", isDirectory: true)
+        let absent = dir.appendingPathComponent("absent", isDirectory: true)
+        // Le dossier temporaire passe par /var, un lien sur macOS : refusé par l'app, d'où ce contrôle sans les liens.
+        let usable: (URL) -> Bool = { SecureFile.kind(at: $0.path) == .directory }
         func repair(_ fallback: URL) -> URL? {
             FLScriptInstaller.repairIfNeeded(secrets: secrets, defaults: defaults, template: template,
-                                             defaultHardware: fallback)
+                                             defaultHardware: fallback, usable: usable)
         }
 
         XCTAssertNil(repair(hardware), "sans clé : écran d'installation, rien d'écrit")
@@ -224,7 +222,11 @@ final class InstallerTests: XCTestCase {
 
         let other = try XCTUnwrap(UserDefaults(suiteName: "FLShortcutTests-\(UUID())"))
         XCTAssertNil(FLScriptInstaller.repairIfNeeded(secrets: secrets, defaults: other, template: template,
-                                                      defaultHardware: absent), "aucun dossier de FL : rien")
+                                                      defaultHardware: absent, usable: usable), "aucun dossier de FL : rien")
+        if SecureFile.pathContainsSymlink(hardware) {
+            XCTAssertNil(FLScriptInstaller.repairIfNeeded(secrets: secrets, defaults: other, template: template,
+                                                          defaultHardware: hardware), "dossier par un lien : refusé")
+        }
         XCTAssertNil(FLScriptInstaller.installedScript(defaults: other))
     }
 

@@ -166,15 +166,16 @@ enum FLScriptInstaller {
     /// effacés…) : FL ne propose alors pas le Controller type « FL Shortcuts ». Le script est réécrit avec la même clé,
     /// dans le dossier « Hardware » enregistré s'il existe encore, sinon dans celui de FL par défaut ; FL le lira à
     /// son prochain lancement. Renvoie le chemin écrit ; nil si rien à faire (script en place, modifié par quelqu'un,
-    /// pas de clé) ou si aucun dossier de FL n'est trouvé.
+    /// pas de clé) ou si aucun dossier de FL n'est trouvé. `usable` : dossier existant et sans lien (SEC-06).
     @discardableResult
     static func repairIfNeeded(secrets: SecretStore = PreferredSecretStore(), defaults: UserDefaults = .standard,
                                template: String? = bundledTemplate(),
-                               defaultHardware: URL = defaultHardwareFolder) -> URL? {
+                               defaultHardware: URL = defaultHardwareFolder,
+                               usable: (URL) -> Bool = { SecureFile.kind(at: $0.path) == .directory
+                                   && !SecureFile.pathContainsSymlink($0) }) -> URL? {
         let state = ScriptIntegrity.check(defaults: defaults)
         guard state == .notInstalled || state == .missing, let template, let key = secrets.load(),
               let text = try? ScriptTemplate.inject(key: key, into: template) else { return nil }
-        let usable: (URL) -> Bool = { SecureFile.kind(at: $0.path) == .directory && !SecureFile.pathContainsSymlink($0) }
         var folders: [URL] = []
         if let path = defaults.string(forKey: ScriptIntegrity.pathKey) {
             folders.append(URL(fileURLWithPath: path).deletingLastPathComponent().deletingLastPathComponent())
