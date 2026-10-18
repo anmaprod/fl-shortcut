@@ -747,7 +747,7 @@ private struct BlockInspector: View {
             if let info {
                 Text(info.detail).font(.system(size: 11)).foregroundStyle(.secondary)
             }
-            if case .unavailable(let reason)? = availability {
+            if case .unavailable(let reason)? = availability, !MuteSolo.handlesWithoutLink(key) {
                 Text(reason).font(.system(size: 11)).foregroundStyle(.orange)
             }
         }
@@ -788,6 +788,8 @@ private struct BlockInspector: View {
                 Text("⌫ dans le champ : aucune touche (le bloc demande alors le lien avec FL).")
                     .font(.system(size: 11)).foregroundStyle(.secondary)
             }
+        case .none where MuteSolo.handlesWithoutLink(key):
+            MuteSoloField(key: key, window: model.window) { model.refreshLearnedState() }
         case .none:
             VStack(alignment: .leading, spacing: 4) {
                 Text("Sans lien avec FL, ce bloc échoue (aucun équivalent au clavier).")
@@ -859,7 +861,9 @@ private struct BlockInspector: View {
                         }
                     }
                 }
-                if let current {
+                if let current, case .action(let key) = current.kind, MuteSolo.handlesWithoutLink(key) {
+                    MuteSoloField(key: key, window: model.window) { model.refreshLearnedState() }
+                } else if let current {
                     Text(optionDetail(current, layout: layout))
                         .font(.system(size: 11))
                         .foregroundStyle(.secondary)
@@ -907,6 +911,53 @@ private struct BlockInspector: View {
                 .font(.system(size: 11))
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+}
+
+/// Mute / solo sans le script : le bouton mute de la piste cliquée dans le Mixer, montré une seule fois sur ce Mac.
+private struct MuteSoloField: View {
+    let key: String
+    let window: NSWindow?
+    let learnedChanged: () -> Void
+    @ObservedObject private var teacher = MuteSwitchTeacher.shared
+    @State private var learned = MuteSwitch.isLearned
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(key == "mute"
+                 ? "Clique ta piste dans le Mixer, puis lance la macro : son bouton mute est cliqué, le son est coupé "
+                     + "(ou remis s'il l'était). Avec le script MIDI de FL, c'est lui qui le fait."
+                 : "Clique ta piste dans le Mixer, puis lance la macro : elle passe en solo (ou le perd si elle l'était), "
+                     + "par un clic droit sur son bouton mute, ou la touche S de FL tant qu'il n'est pas montré.")
+                .font(.system(size: 11))
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+            Label(learned ? "Bouton mute montré sur ce Mac" : "Bouton mute à montrer une fois",
+                  systemImage: learned ? "checkmark.circle.fill" : "hand.point.up.left")
+                .font(.system(size: 12))
+                .foregroundStyle(learned ? Color.green : Color.purple)
+            Button(learned ? "Montrer de nouveau…" : "Montrer le bouton mute dans FL…") {
+                guard let pid = EventTap.shared.currentConfig.flPIDs.first else {
+                    teacher.say("Ouvre FL Studio, puis recommence.")
+                    return
+                }
+                teacher.start(pid: pid, returnTo: window)
+            }
+            .secondaryButton()
+            .disabled(teacher.active)
+            .help("Dans FL, clique le bouton mute (le petit rond en haut) d'une piste, puis reclique-le pour remettre le son.")
+            if let message = teacher.message {
+                Text(message)
+                    .font(.system(size: 11))
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .onChange(of: teacher.active) { active in
+            guard !active else { return }
+            learned = MuteSwitch.isLearned
+            learnedChanged()
         }
     }
 }

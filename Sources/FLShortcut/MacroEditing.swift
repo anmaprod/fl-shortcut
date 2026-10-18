@@ -316,6 +316,11 @@ enum MacroOutline {
         }
         switch b.body {
         case .delay: out.append(.pauseFixe)
+        case .flAction("mute", .none), .pageOption("mixer.mute"?, _):
+            // Sans le script : le bouton mute de la piste, montré une fois sur ce Mac.
+            if !MuteSwitch.isLearned { out.append(.aApprendre(MuteSwitch.toLearn)) }
+        case .flAction("solo", .none):
+            break                                   // sans le script : bouton mute (clic droit) ou touche S
         case .flAction(_, .none): out.append(.lienFL)
         case .selectInput where !learnedInput:
             out.append(.aApprendre("L'entrée « 1 » est montrée une seule fois, pendant la macro : une bulle te le demande."))
@@ -537,6 +542,16 @@ enum PaletteCatalog {
                  aide: "Arme la dernière piste cliquée si elle ne l'est pas : par le lien avec FL, sinon par le menu de la piste (« Arm selected track(s) », qui n'éteint jamais).",
                  symbol: "record.circle") {
                 .flAction(key: "armon", fallback: .trackMenuArm)
+            },
+            item("mute", .flAction, label: "Mute de la piste",
+                 aide: "Coupe le son de la piste cliquée dans le Mixer juste avant, ou le remet s'il était coupé. Sans le script : un clic sur son bouton mute, montré une seule fois.",
+                 symbol: "speaker.slash.fill") {
+                .flAction(key: "mute", fallback: .none)
+            },
+            item("solo", .flAction, label: "Solo de la piste",
+                 aide: "Met en solo la piste cliquée dans le Mixer juste avant, ou retire son solo, comme la touche S de FL.",
+                 symbol: "headphones") {
+                .flAction(key: "solo", fallback: .none)
             },
             item("rec", .flAction, label: "Allumer le REC",
                  aide: "Allume le REC s'il est éteint (lien avec FL) ; sans lien, la touche REC de FL, qui l'inverse.",

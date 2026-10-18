@@ -227,6 +227,17 @@ struct GrayImage: Equatable {
         return GrayImage(width: side, height: side, pixels: out)
     }
 
+    /// Rectangle (coin haut gauche `x`, `y`) entièrement dans l'image ; nil sinon.
+    func crop(x: Int, y: Int, width w: Int, height h: Int) -> GrayImage? {
+        guard w > 0, h > 0, x >= 0, y >= 0, x + w <= width, y + h <= height else { return nil }
+        var out = [UInt8](repeating: 0, count: w * h)
+        for row in 0..<h {
+            let from = (y + row) * width + x
+            for col in 0..<w { out[row * w + col] = pixels[from + col] }
+        }
+        return GrayImage(width: w, height: h, pixels: out)
+    }
+
     /// Réduite d'un facteur entier (moyenne de chaque bloc).
     func reduced(by f: Int) -> GrayImage {
         guard f > 1 else { return self }

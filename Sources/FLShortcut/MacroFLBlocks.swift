@@ -137,7 +137,8 @@ extension MacroEffectsMac {
 
     /// Lien MIDI d'abord : FL confirme, et rien de déjà allumé n'est éteint. Sans lien, au clavier :
     /// - armement : menu de la piste › « Arm selected track(s) » (n'éteint jamais, Disarm est un autre élément) ;
-    /// - REC : la touche REC de FL (R), qui inverse l'état sans le lire.
+    /// - REC : la touche REC de FL (R), qui inverse l'état sans le lire ;
+    /// - mute / solo : le bouton mute de la piste cliquée (MacroMuteSolo.swift), qui inverse l'état.
     /// Actions consécutives d'une macro : un seul réveil du lien (généralisation de l'ancien armement + REC).
     func flActions(_ group: [FLActionCall], state: inout RunState) -> StepResult {
         let ids = group.compactMap { FLActions.id(forKey: $0.key) }
@@ -168,6 +169,10 @@ extension MacroEffectsMac {
                     postKey(ref.combo, pid: ctx.pid)
                     MacroLog.shared.write("KEY", rec ? "REC key" : "fallback key")
                 }
+            case .none where MuteSolo.handlesWithoutLink(call.key):
+                // Mute / solo de la piste cliquée, sans le script (MacroMuteSolo.swift).
+                let r = call.key == "mute" ? muteWithoutLink(ctx: ctx) : soloWithoutLink(ctx: ctx)
+                guard case .ok = r else { return r }
             case .none:
                 return .fail("ce bloc a besoin du lien avec FL (\(why))")
             }

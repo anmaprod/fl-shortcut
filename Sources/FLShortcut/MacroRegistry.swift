@@ -534,6 +534,8 @@ private enum Specs {
         needs: { body in
             var n: BlockNeeds = base.union(.lienMIDI)
             if case .flAction(_, .trackMenuArm) = body { n.formUnion([.cliqueHID, .pisteVisee]) }
+            // Mute / solo sans le script : bouton mute de la piste cliquée juste avant (MacroMuteSolo.swift).
+            if case .flAction(let key, .none) = body, MuteSolo.handlesWithoutLink(key) { n.formUnion([.cliqueHID, .pisteVisee]) }
             return n
         },
         parDefaut: { .flAction(key: "armon", fallback: .trackMenuArm) },
@@ -710,8 +712,9 @@ private enum Specs {
         conteneur: .aucun, dansLaPalette: true,
         needs: { body in
             guard case .pageOption(let id?, _) = body, PageOptions.usesLink(id) else { return base }
-            // Armer la piste sans le lien : par le menu de la piste visée (comme « Action de FL »).
-            return id == "mixer.armon" ? base.union([.lienMIDI, .cliqueHID, .pisteVisee]) : base.union(.lienMIDI)
+            // Armer, mute ou solo sans le lien : par la piste visée (comme « Action de FL »).
+            let byTrack: Set<String> = ["mixer.armon", "mixer.mute", "mixer.solo"]
+            return byTrack.contains(id) ? base.union([.lienMIDI, .cliqueHID, .pisteVisee]) : base.union(.lienMIDI)
         },
         // Valide sous la page par défaut d'« Ouvrir une page de FL » (Mixer) ; la palette les donne à choisir.
         parDefaut: { .pageOption(id: "mixer.armon", name: "") },
