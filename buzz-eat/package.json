@@ -1,0 +1,19 @@
+{
+  "name": "buzz-eat",
+  "version": "1.0.0",
+  "description": "Buzz Eat : prise de commande au bar, QR code pour le client, alarme sur son téléphone quand la commande est prête.",
+  "private": true,
+  "type": "module",
+  "main": "server.js",
+  "engines": {
+    "node": ">=22.13"
+  },
+  "scripts": {
+    "start": "node --env-file-if-exists=.env --disable-warning=ExperimentalWarning server.js",
+    "test": "node --disable-warning=ExperimentalWarning --test test/*.test.js"
+  },
+  "dependencies": {
+    "qrcode": "1.5.4",
+    "web-push": "3.6.7"
+  }
+}

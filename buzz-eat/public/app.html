@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#0b5fa5" />
+    <meta name="robots" content="noindex" />
+    <title>Buzz Eat</title>
+    <link rel="stylesheet" href="/css/app.css" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="icon" href="/icons/icon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
+    <script type="module" src="/js/bar.js"></script>
+  </head>
+  <body>
+    <header class="topbar">
+      <a class="brand" id="brand" href="/app"></a>
+      <nav>
+        <span class="live off" id="live" role="status">Connexion…</span>
+        <a href="/reglages"><span aria-hidden="true">⚙️</span> <span class="nav-label">Réglages</span></a>
+      </nav>
+    </header>
+
+    <main class="container">
+      <div class="banner" id="sub-banner" hidden>
+        <div>
+          <strong>Abonnement requis pour prendre des commandes</strong>
+          <span id="sub-price">5 €</span> par mois, sans engagement.
+        </div>
+        <a class="btn btn-primary" href="/reglages#abonnement">S’abonner</a>
+      </div>
+
+      <div class="bar-layout">
+        <section class="card new-order" aria-labelledby="new-title">
+          <h2 id="new-title">Nouvelle commande</h2>
+          <form id="order-form" class="stack" autocomplete="off">
+            <label class="field">
+              <span>Commande</span>
+              <textarea id="details" maxlength="500" rows="4" placeholder="Ex. : 2 pressions, 1 planche mixte"></textarea>
+            </label>
+            <label class="field">
+              <span>Nom du client <span class="muted small">(facultatif)</span></span>
+              <input id="customer" maxlength="40" placeholder="Ex. : Julie" />
+            </label>
+            <p class="error" id="order-error" role="alert"></p>
+            <button class="btn btn-primary btn-lg btn-block" type="submit" id="validate">Valider la commande</button>
+            <p class="small muted">Le QR code s’affiche : le client le scanne pour être prévenu.</p>
+          </form>
+        </section>
+
+        <div class="orders-area">
+          <section aria-labelledby="prep-title">
+            <h2 class="section-title" id="prep-title">En préparation <span class="count" id="prep-count">0</span></h2>
+            <div class="order-list" id="prep-list"></div>
+          </section>
+          <section aria-labelledby="ready-title">
+            <h2 class="section-title" id="ready-title">À retirer <span class="count" id="ready-count">0</span></h2>
+            <div class="order-list" id="ready-list"></div>
+          </section>
+        </div>
+      </div>
+    </main>
+
+    <dialog id="qr-dialog" aria-labelledby="qr-title">
+      <div class="qr-box">
+        <div class="order-num" id="qr-num"></div>
+        <h2 id="qr-title">Scannez pour être prévenu</h2>
+        <p class="muted">Le client scanne ce code avec l’appareil photo de son téléphone.</p>
+        <img class="qr-img" id="qr-img" alt="QR code de la commande" />
+        <p class="qr-scanned" id="qr-scanned" role="status" hidden>✓ Scanné par le client</p>
+        <form method="dialog">
+          <button class="btn btn-secondary btn-lg btn-block">Fermer</button>
+        </form>
+      </div>
+    </dialog>
+  </body>
+</html>

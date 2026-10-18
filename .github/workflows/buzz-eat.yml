@@ -1,0 +1,36 @@
+# Tests de Buzz Eat (appli web de commandes au bar, dossier buzz-eat/).
+# Même règle que build.yml : actions épinglées par SHA de commit, jeton en lecture seule.
+# Node vient de l'image du conteneur (node:sqlite demande Node 22.13 ou plus).
+name: Buzz Eat
+
+on:
+  push:
+    branches: [main, "claude/**"]
+    paths: ["buzz-eat/**", ".github/workflows/buzz-eat.yml"]
+  pull_request:
+    paths: ["buzz-eat/**", ".github/workflows/buzz-eat.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  tests:
+    name: Tests (Node 22)
+    runs-on: ubuntu-24.04
+    container: node:22-bookworm-slim
+    defaults:
+      run:
+        working-directory: buzz-eat
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Dépendances
+        run: npm ci --no-fund --no-audit
+      - name: Tests
+        run: npm test

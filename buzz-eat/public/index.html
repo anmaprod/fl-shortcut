@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#0b5fa5" />
+    <meta name="description" content="Prise de commande au bar : le client scanne un QR code et son téléphone sonne quand sa commande est prête." />
+    <title>Buzz Eat · le téléphone du client sonne quand c’est prêt</title>
+    <link rel="stylesheet" href="/css/app.css" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="icon" href="/icons/icon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
+    <script type="module" src="/js/landing.js"></script>
+  </head>
+  <body>
+    <header class="topbar">
+      <a class="brand" href="/">
+        <span class="brand-mark" aria-hidden="true">🔔</span>
+        <span class="brand-name">Buzz Eat</span>
+      </a>
+    </header>
+
+    <main class="container">
+      <div class="hero">
+        <section>
+          <h1>Le téléphone de vos clients sonne quand leur commande est prête.</h1>
+          <p class="lead">Plus de numéros criés au comptoir ni de clients qui attendent debout devant le bar.</p>
+          <ol class="steps">
+            <li>
+              <span class="step-icon" aria-hidden="true">📝</span>
+              <div>
+                <strong>Vous notez la commande et la validez</strong><br />
+                <span class="muted">Sur tablette, téléphone ou ordinateur.</span>
+              </div>
+            </li>
+            <li>
+              <span class="step-icon" aria-hidden="true">📱</span>
+              <div>
+                <strong>Le client scanne le QR code</strong><br />
+                <span class="muted">Une page s’ouvre sur son téléphone, sans application à installer.</span>
+              </div>
+            </li>
+            <li>
+              <span class="step-icon" aria-hidden="true">🔔</span>
+              <div>
+                <strong>C’est prêt : son téléphone sonne et vibre</strong><br />
+                <span class="muted">Il vient la chercher, vous cliquez « Récupérée » : tout s’efface.</span>
+              </div>
+            </li>
+          </ol>
+          <p class="price"><strong>5 €</strong> par mois et par établissement, sans engagement</p>
+        </section>
+
+        <section class="card" aria-label="Espace établissement">
+          <div class="tabs" role="tablist">
+            <button type="button" role="tab" id="tab-login" aria-selected="true" aria-controls="login-form">Se connecter</button>
+            <button type="button" role="tab" id="tab-signup" aria-selected="false" aria-controls="signup-form">Créer un compte</button>
+          </div>
+
+          <form id="login-form" class="stack" role="tabpanel" aria-labelledby="tab-login">
+            <label class="field">
+              <span>E-mail</span>
+              <input type="email" name="email" autocomplete="email" required />
+            </label>
+            <label class="field">
+              <span>Mot de passe</span>
+              <input type="password" name="password" autocomplete="current-password" required />
+            </label>
+            <p class="error" role="alert"></p>
+            <button class="btn btn-primary btn-lg btn-block" type="submit">Se connecter</button>
+          </form>
+
+          <form id="signup-form" class="stack" role="tabpanel" aria-labelledby="tab-signup" hidden>
+            <label class="field">
+              <span>Nom de l’établissement</span>
+              <input name="name" maxlength="80" autocomplete="organization" required />
+            </label>
+            <label class="field">
+              <span>SIRET</span>
+              <input name="siret" inputmode="numeric" maxlength="20" placeholder="14 chiffres" required />
+            </label>
+            <label class="field">
+              <span>E-mail</span>
+              <input type="email" name="email" autocomplete="email" required />
+            </label>
+            <label class="field">
+              <span>Mot de passe</span>
+              <input type="password" name="password" autocomplete="new-password" minlength="8" required />
+              <span class="hint">8 caractères au moins.</span>
+            </label>
+            <p class="error" role="alert"></p>
+            <button class="btn btn-primary btn-lg btn-block" type="submit">Créer mon compte</button>
+            <p class="small muted">Ensuite, dans Réglages : votre logo, vos couleurs et l’abonnement.</p>
+          </form>
+        </section>
+      </div>
+    </main>
+  </body>
+</html>

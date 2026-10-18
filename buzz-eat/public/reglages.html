@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#0b5fa5" />
+    <meta name="robots" content="noindex" />
+    <title>Réglages</title>
+    <link rel="stylesheet" href="/css/app.css" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="icon" href="/icons/icon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
+    <script type="module" src="/js/reglages.js"></script>
+  </head>
+  <body>
+    <header class="topbar">
+      <a class="brand" id="brand" href="/app"></a>
+      <nav>
+        <a href="/app"><span aria-hidden="true">←</span> <span class="nav-label">Commandes</span></a>
+        <button type="button" id="logout">Déconnexion</button>
+      </nav>
+    </header>
+
+    <main class="container narrow">
+      <h1>Réglages</h1>
+
+      <div class="banner" id="welcome" hidden>
+        <div>
+          <strong>Bienvenue !</strong>
+          Ajoutez votre logo, choisissez vos couleurs puis activez l’abonnement pour prendre vos premières commandes.
+        </div>
+      </div>
+
+      <section class="card" aria-labelledby="info-title">
+        <h2 id="info-title">Établissement</h2>
+        <form id="info-form" class="stack">
+          <label class="field">
+            <span>Nom de l’établissement</span>
+            <input name="name" maxlength="80" required />
+          </label>
+          <label class="field">
+            <span>SIRET</span>
+            <input name="siret" inputmode="numeric" maxlength="20" required />
+            <span class="hint">Affiché en bas de la page de vos clients.</span>
+          </label>
+          <label class="field">
+            <span>E-mail du compte</span>
+            <input type="email" name="email" readonly />
+          </label>
+          <p class="error" role="alert"></p>
+          <div><button class="btn btn-primary" type="submit">Enregistrer</button></div>
+        </form>
+      </section>
+
+      <section class="card" aria-labelledby="logo-title">
+        <h2 id="logo-title">Logo</h2>
+        <div class="logo-row">
+          <div class="logo-preview" id="logo-preview"></div>
+          <div class="stack">
+            <div class="row">
+              <button class="btn btn-secondary" type="button" id="logo-pick">Choisir une image</button>
+              <button class="btn btn-ghost" type="button" id="logo-remove">Retirer</button>
+              <input type="file" accept="image/*" id="logo-input" hidden />
+            </div>
+            <p class="small muted">Il apparaît sur vos écrans et sur le téléphone de vos clients. Image carrée de préférence.</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="card" aria-labelledby="colors-title">
+        <h2 id="colors-title">Couleurs</h2>
+        <p class="muted">Choisissez la palette de votre établissement.</p>
+        <fieldset class="palettes" id="palettes">
+          <legend class="sr-only">Palette de couleurs</legend>
+        </fieldset>
+        <p><a class="btn btn-ghost" href="/apercu">Voir la page de vos clients (aperçu)</a></p>
+      </section>
+
+      <section class="card" id="abonnement" aria-labelledby="sub-title">
+        <h2 id="sub-title">Abonnement</h2>
+        <div class="stack">
+          <div class="plan" id="plan"></div>
+          <div class="stack" id="promo-block" hidden>
+            <form class="promo-form" id="promo-form">
+              <label class="sr-only" for="promo">Code promo</label>
+              <input id="promo" placeholder="Vous avez un code promo ?" autocomplete="off" autocapitalize="characters" maxlength="64" />
+              <button class="btn btn-secondary" type="submit">Appliquer</button>
+            </form>
+            <p class="error" id="promo-error" role="alert"></p>
+          </div>
+        </div>
+      </section>
+    </main>
+  </body>
+</html>
