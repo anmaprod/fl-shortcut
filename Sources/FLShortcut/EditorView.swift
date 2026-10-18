@@ -148,6 +148,7 @@ struct EditorView: View {
     @AppStorage("guideSeen") private var guideSeen = false
     @ObservedObject private var guideLink = GuideLink.shared
     @ObservedObject private var helpLink = HelpLink.shared
+    @ObservedObject private var macrosLink = MacrosLink.shared
     @ObservedObject private var accountLink = AccountLink.shared
     @State private var showGuide = false
     @State private var guidePage = 0
@@ -188,6 +189,7 @@ struct EditorView: View {
         .onAppear {
             showGuideIfNeeded()
             showHelpIfAsked()
+            showMacrosIfAsked()
             showAccountIfAsked()
             Task { await backup.refreshIfStale() }       // changé depuis un autre Mac ?
         }
@@ -199,6 +201,7 @@ struct EditorView: View {
         }
         .onChange(of: guideLink.pending) { _ in showGuideIfNeeded() }
         .onChange(of: helpLink.pending) { _ in showHelpIfAsked() }
+        .onChange(of: macrosLink.pending) { _ in showMacrosIfAsked() }
         .onChange(of: accountLink.pending) { _ in showAccountIfAsked() }
         .onReceive(DebugSnapshot.publisher(DebugSnapshot.guide)) { note in
             // Mode capture : « 0 » à « 4 », la page du guide ; autre chose, le ferme. « 1 lent » (guide ouvert) :
@@ -222,6 +225,15 @@ struct EditorView: View {
         if macroEditor != nil { closeCreator() }
         query = ""
         selection = .account
+    }
+
+    /// Page Macros demandée depuis le menu de l'icône : les raccourcis (créateur refermé), page Macros.
+    private func showMacrosIfAsked() {
+        guard macrosLink.pending else { return }
+        macrosLink.pending = false
+        if macroEditor != nil { closeCreator() }
+        query = ""
+        selection = .macros
     }
 
     /// Page Aide demandée depuis le menu de la barre des menus : les raccourcis (créateur refermé), page Aide.
@@ -327,7 +339,10 @@ struct EditorView: View {
             if newValue == nil { selection = .section(.general) }
         }
         .onReceive(DebugSnapshot.publisher(DebugSnapshot.select)) { note in
-            let name = note.object as? String ?? ""
+            // « mixer lent » : le changement de page au ralenti (10 fois), photographié en route.
+            let words = (note.object as? String ?? "").split(separator: " ")
+            DebugSnapshot.slowMotion = words.contains("lent") ? 10 : 1
+            let name = words.first.map(String.init) ?? ""
             selection = FLSection(rawValue: name).map(SidebarItem.section)
                 ?? (name == "custom" ? .custom : name == "macros" ? .macros : name == "community" ? .community
                     : name == "aide" ? .help : name == "compte" ? .account : selection)
@@ -786,8 +801,8 @@ struct EditorView: View {
 
     private var profileMenu: some View {
         Menu {
-            Button { GuideLink.shared.show() } label: { Label("Guide de FL Shortcuts", systemImage: "book") }
-            Button { query = ""; selection = .help } label: { Label("Aide et contact", systemImage: "questionmark.circle") }
+            // Le guide est dans la page Aide (son seul endroit, avec les questions et le contact).
+            Button { query = ""; selection = .help } label: { Label("Aide, guide et contact", systemImage: "questionmark.circle") }
             Button { query = ""; selection = .account } label: {
                 Label("Mon compte et sauvegarde", systemImage: "person.crop.circle")
             }

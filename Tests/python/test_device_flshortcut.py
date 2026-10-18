@@ -1316,6 +1316,22 @@ class TestDataV5(TestData):
         self.assertEqual(self.last_ack(), DATA_ID)
         self.assertEqual(self.fl.mx_sel, {7})
 
+    def test_channel_mute_and_solo_by_number(self):
+        self.make(n_channels=12, ch_muted={3})
+        self.data_command([13, 0] + M.be16(11))               # canal 12, au-delà des touches 1 à 0 de FL
+        self.assertEqual(self.last_ack(), DATA_ID)
+        self.assertEqual(self.fl.ch_muted, {3, 11})
+        self.clock.t += 0.1
+        self.data_command([13, 0] + M.be16(3))                # bascule : le son revient
+        self.assertEqual(self.fl.ch_muted, {11})
+        self.clock.t += 0.1
+        self.data_command([13, 1] + M.be16(5))
+        self.assertEqual(self.fl.ch_solo, {5})
+        for payload in ([13, 0] + M.be16(12), [13, 2] + M.be16(1), [13, 0, 1]):
+            self.make(n_channels=12)
+            self.data_command(payload)
+            self.assertEqual(self.reasons(), [5], payload)
+
     def test_play_solo_mutes_others_and_plays(self):
         self.make(n_channels=4, ch_muted={3}, loop_mode=1, song_pos=0.5)
         self.data_command([6] + M.be16(1))
@@ -1422,7 +1438,7 @@ class TestDataV5(TestData):
         self.assertEqual(data[7], 0)                          # type inconnu : 0
 
     def test_ext_ops_unknown_op(self):
-        for payload in ([13], [0], [8, 1, 2], [9, 0]):
+        for payload in ([14], [0], [8, 1, 2], [9, 0]):
             self.make(focused={0}, mx_sel={1, 2})
             self.data_command(payload)
             self.assertEqual(self.reasons(), [5], payload)

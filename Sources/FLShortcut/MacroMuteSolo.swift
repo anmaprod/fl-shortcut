@@ -46,7 +46,7 @@ struct MuteSwitch: Codable, Equatable {
 
     static var isLearned: Bool { load() != nil }
 
-    static let toLearn = "Bouton mute à montrer une fois sur ce Mac : choisis le bloc, puis « Montrer le bouton mute dans FL… »."
+    static let toLearn = "Avec le lien avec FL, rien à faire (aucun clic). Sans lui : bouton mute à montrer une fois sur ce Mac, avec « Montrer le bouton mute dans FL… »."
 
     /// Pure (testée) : centre du bouton de la piste dont la colonne contient `expected` (repère de l'image : la
     /// fenêtre de FL, 1 pixel par point), ou nil s'il n'est pas reconnu. Jamais hors de cette colonne ; à image égale,

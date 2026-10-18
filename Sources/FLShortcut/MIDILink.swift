@@ -641,13 +641,48 @@ final class MIDILink: ObservableObject {
     }
 
     /// Macro : réveil bref du script, actions, puis il se rendort (file de la macro, bloquant).
+    /// Lien resté muet il y a moins de 20 s (FL sans le script) : les blocs passent tout de suite au clavier, sans
+    /// attendre 1,5 s chacun. Dès que FL répond de nouveau (annonce), le lien sert de nouveau.
+    private let mutedUntil = Locked(Date.distantPast)
+    static let muteDelay: TimeInterval = 20
+
     func runBriefly(_ ids: [Int]) -> String? {
         guard transport.isReady else {
             return core.snapshot.hasKey ? "ports MIDI « FL Shortcuts Link » indisponibles : relance FL Shortcuts"
                                    : "lien avec FL non installé : fiche du raccourci › Installer le lien avec FL"
         }
+        if mutedRecently { return Self.mutedMessage }
         // 1,5 s au plus : un script qui ne répond pas ne doit pas figer la macro (réponse normale : quelques ms).
-        return core.runBriefly(ids, brief: AppMode.light, timeout: 1.5)
+        let why = core.runBriefly(ids, brief: AppMode.light, timeout: 1.5)
+        if why != nil { rememberSilence() }
+        return why
+    }
+
+    /// Macro : opération du script (canal par son numéro…), même mémoire du lien muet que `runBriefly` : le bloc
+    /// passe tout de suite à son repli.
+    func runMacroRequest(_ bytes: [UInt8]) -> RequestReply {
+        if mutedRecently { return .failed(Self.mutedMessage) }
+        let reply = runRequest(bytes)
+        if case .failed = reply { rememberSilence() }
+        return reply
+    }
+
+    /// Macro : commande avec données (nom de la piste…), même mémoire du lien muet que `runBriefly`.
+    func runMacroData(_ units: [UInt8]) -> DataReply {
+        if mutedRecently { return .failed(Self.mutedMessage) }
+        let reply = runData(units)
+        if case .failed = reply { rememberSilence() }
+        return reply
+    }
+
+    private static let mutedMessage = "FL ne répond pas (essayé il y a peu)"
+
+    private var mutedRecently: Bool { core.snapshot.hello == nil && Date() < mutedUntil.value }
+
+    /// Script resté muet (aucune annonce de FL) : les blocs suivants passent à leur repli pendant 20 s.
+    private func rememberSilence() {
+        guard core.snapshot.hello == nil else { return }
+        mutedUntil.withLock { $0 = Date().addingTimeInterval(Self.muteDelay) }
     }
 
     func setFLRunning(_ running: Bool) {

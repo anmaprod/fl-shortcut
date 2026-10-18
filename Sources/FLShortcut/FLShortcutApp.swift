@@ -451,30 +451,25 @@ struct MenuContent: View {
                 openWindow(id: "editor")
                 NSApp.activate(ignoringOtherApps: true)
             }
+            PanelItem(symbol: SidebarItem.macros.symbol, title: "Macros…", tint: SidebarItem.macros.tint, order: 4) {
+                MacrosLink.shared.show()
+                openWindow(id: "editor")
+                NSApp.activate(ignoringOtherApps: true)
+            }
             PanelItem(symbol: "square.stack.3d.up", title: "Organiser la page ouverte…", tint: OrganizerView.tint,
-                      order: 4) { OrganizerWindow.open() }
-            PanelItem(symbol: "questionmark.circle", title: "Aide et contact…", tint: SidebarItem.help.tint, order: 5) {
-                HelpLink.shared.show()
-                openWindow(id: "editor")
-                NSApp.activate(ignoringOtherApps: true)
-            }
-            PanelItem(symbol: "book", title: "Guide de FL Shortcuts", tint: Appearance.brand[1], order: 6) {
-                GuideLink.shared.show()
-                openWindow(id: "editor")
-                NSApp.activate(ignoringOtherApps: true)
-            }
+                      order: 5) { OrganizerWindow.open() }
             PanelItem(symbol: store.enabled ? "pause" : "play", title: store.enabled ? "Mettre en pause" : "Reprendre",
-                      shortcut: "⌃⌥⌘F", tint: store.enabled ? .yellow : .green, order: 7) { store.enabled.toggle() }
+                      shortcut: "⌃⌥⌘F", tint: store.enabled ? .yellow : .green, order: 6) { store.enabled.toggle() }
             if !AppMode.light {
-                PanelItem(symbol: "link", title: "Installer le lien avec FL Studio…", tint: .green, order: 8) {
+                PanelItem(symbol: "link", title: "Installer le lien avec FL Studio…", tint: .green, order: 7) {
                     FLScriptInstaller.installWithAlert()
                 }
             }
 
             MenuSeparator()
 
-            PanelItem(symbol: "trash", title: "Désinstaller FL Shortcuts…", tint: .red, order: 9) { Uninstaller.confirmAndRun() }
-            PanelItem(symbol: "power", title: "Quitter FL Shortcuts", shortcut: "⌘Q", key: "q", tint: .gray, order: 10) {
+            PanelItem(symbol: "trash", title: "Désinstaller FL Shortcuts…", tint: .red, order: 8) { Uninstaller.confirmAndRun() }
+            PanelItem(symbol: "power", title: "Quitter FL Shortcuts", shortcut: "⌘Q", key: "q", tint: .gray, order: 9) {
                 NSApp.terminate(nil)
             }
         }

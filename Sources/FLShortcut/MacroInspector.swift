@@ -3,6 +3,7 @@
 // action de FL du catalogue, endroit d'un clic montré dans FL, « Si le bloc échoue », note.
 // Construit seulement pour le bloc choisi ; chaque réglage passe par le brouillon (annulable, enregistré 0,5 s après).
 import AppKit
+import ApplicationServices
 import SwiftUI
 import UniformTypeIdentifiers
 
@@ -219,8 +220,13 @@ private struct BlockInspector: View {
             pagePicker(page)
         case (.pageOption(let id, _), "option"):
             pageOptionPicker(id)
-        case (.pageOption(let id?, let name), "name") where PageOptions.needsName(id):
-            pluginNameField(id, name)
+        case (.pageOption(let id?, let name), "name"):
+            // Seulement pour l'option qui demande une valeur : la ligne arrive en poussant les réglages du dessous.
+            if let field = PageOptions.field(of: id) {
+                pageOptionValue(field, id: id, value: name)
+                    .transition(Motion.transition(.asymmetric(
+                        insertion: .move(edge: .top).combined(with: .opacity), removal: .opacity)))
+            }
         case (.pageOption, "name"):
             EmptyView()
         case (.stop(let m), "message"):
@@ -890,20 +896,28 @@ private struct BlockInspector: View {
         }
     }
 
-    /// Seulement les options de la page ouverte au-dessus.
+    /// Seulement les options de la page ouverte au-dessus (et l'option déjà choisie, même remplacée depuis).
     private func pageOptionPicker(_ id: String?) -> some View {
         let layout = SystemKeyboardLayout()
         let page = PageOptions.pageAbove(block.id, in: model.draft?.blocks ?? []) ?? nil
-        let options = page.map { PageOptions.options(for: $0, layout: layout) } ?? []
+        var options = page.map { PageOptions.options(for: $0, layout: layout) } ?? []
+        if let id, !options.contains(where: { $0.id == id }), let old = PageOptions.option(id, layout: layout),
+           old.page == page {
+            options.append(old)
+        }
         let current = options.first { $0.id == id }
         let inPage = options.filter { if case .key = $0.kind { return false }; return true }
         let keys = options.filter { if case .key = $0.kind { return true }; return false }
         return VStack(alignment: .leading, spacing: 4) {
             if let page {
                 Picker("Option", selection: Binding<String?>(get: { current?.id }, set: { new in
-                    setBody(key: "option") { body in
-                        guard case .pageOption(_, let name) = body else { return }
-                        body = .pageOption(id: new, name: name)
+                    // Une autre sorte de valeur (plugin, numéro, nom) : la valeur repart de zéro.
+                    let sameField = new.flatMap(PageOptions.field(of:)) == id.flatMap(PageOptions.field(of:))
+                    withAnimation(Motion.quickMorph) {
+                        setBody(key: "option") { body in
+                            guard case .pageOption(_, let name) = body else { return }
+                            body = .pageOption(id: new, name: sameField ? name : "")
+                        }
                     }
                 })) {
                     if current == nil { Text("À choisir").tag(String?.none) }
@@ -952,23 +966,190 @@ private struct BlockInspector: View {
         case .key(let combo):
             return "Touche de FL : \(combo.displayName(layout: layout))."
         case .addMenu(let item):
-            return "Par le menu Add › \(item) de FL (barre des menus de macOS), avec le nom du plugin ci-dessous."
+            return "Par le menu Add › \(item) de FL (barre des menus de macOS), sans clic : choisis le plugin ci-dessous."
+        case .channelToggle(let solo):
+            return "Le \(solo ? "solo" : "mute") du canal est basculé par le lien avec FL : ni souris, ni touche. Sans "
+                + "le lien : la touche 1 à 0 de FL\(solo ? " avec ⌘" : ""), jusqu'au canal 10."
+        case .rename:
+            return "La piste sélectionnée dans le Mixer prend ce nom, par le lien avec FL. Sans le lien : la fenêtre "
+                + "« Renommer » de FL (F2), le nom tapé, puis Entrée."
         }
     }
 
-    private func pluginNameField(_ id: String, _ name: String) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
-            TextField("Plugin", text: textBinding(name, max: PageOptions.maxName) { text in
-                setBody(key: "name") { body in
-                    guard case .pageOption(let i, _) = body else { return }
-                    body = .pageOption(id: i, name: text)
-                }
-            }, prompt: Text(id.hasSuffix(".addEffect") ? "Fruity Limiter, Pro-Q 3…" : "Serum, FLEX, Sytrus…"))
-            Text("Écrit exactement comme dans le menu Add › \(id.hasSuffix(".addEffect") ? "Effect" : "Channel") de FL.")
-                .font(.system(size: 11))
-                .foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
+    /// Valeur de l'option : le plugin (liste lue dans FL), le numéro du canal ou le nouveau nom.
+    @ViewBuilder private func pageOptionValue(_ field: PageOption.Field, id: String, value: String) -> some View {
+        let set: (String) -> Void = { text in
+            setBody(key: "name") { body in
+                guard case .pageOption(let i, _) = body else { return }
+                body = .pageOption(id: i, name: text)
+            }
         }
+        let problem = value.isEmpty ? nil : PageOptions.valueProblem(field, value)
+        VStack(alignment: .leading, spacing: 4) {
+            switch field {
+            case .plugin:
+                PluginField(item: id.hasSuffix(".addEffect") ? "Effect" : "Channel", value: value, set: set)
+            case .channel:
+                TextField("Canal", text: Binding(get: { value }, set: { text in
+                    set(String(text.filter { $0.isASCII && $0.isNumber }.prefix(3)))
+                }), prompt: Text("1 à \(PageOptions.maxChannel)"))
+                Text("Numéro du canal dans le Channel rack (1 = le premier en haut).")
+                    .font(.system(size: 11))
+                    .foregroundStyle(.secondary)
+            case .name:
+                TextField("Nouveau nom", text: Binding(get: { value }, set: { text in
+                    set(String(String.UnicodeScalarView(text.unicodeScalars.prefix(NameColorPayload.maxNameScalars))))
+                }), prompt: Text("Kick, Lead, Voix…"))
+            }
+            if let problem {
+                Label(problem.prefix(1).uppercased() + problem.dropFirst(), systemImage: "exclamationmark.triangle.fill")
+                    .font(.system(size: 11))
+                    .foregroundStyle(.orange)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+    }
+}
+
+/// Plugin à ajouter : la liste de ceux du menu Add › Channel ou Effect de FL (lue sans rien ouvrir ni cliquer), sinon
+/// le nom à écrire.
+private struct PluginField: View {
+    let item: String
+    let value: String
+    let set: (String) -> Void
+    @ObservedObject private var list: FLPluginList
+    @State private var typing = false
+
+    init(item: String, value: String, set: @escaping (String) -> Void) {
+        self.item = item
+        self.value = value
+        self.set = set
+        _list = ObservedObject(wrappedValue: FLPluginList.forItem(item))
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            if case .loaded(let names) = list.state, !typing {
+                HStack(spacing: 6) {
+                    Picker("Plugin", selection: Binding(get: { value }, set: set)) {
+                        if value.isEmpty { Text("À choisir").tag("") }
+                        if !value.isEmpty, !names.contains(value) { Text(value).tag(value) }
+                        ForEach(Array(FLPluginList.groups(names).enumerated()), id: \.offset) { _, group in
+                            if let title = group.title {
+                                Section(title) {
+                                    ForEach(group.names, id: \.self) { name in
+                                        Text(PageOptions.pluginPath(name).last ?? name).tag(name)
+                                    }
+                                }
+                            } else {
+                                ForEach(group.names, id: \.self) { name in Text(name).tag(name) }
+                            }
+                        }
+                    }
+                    reloadButton
+                }
+                Button("Écrire le nom moi-même") { withAnimation(Motion.quickMorph) { typing = true } }
+                    .buttonStyle(.link)
+                    .font(.system(size: 11))
+            } else {
+                HStack(spacing: 6) {
+                    TextField("Plugin", text: Binding(get: { value }, set: { set(String($0.prefix(PageOptions.maxName))) }),
+                              prompt: Text(item == "Effect" ? "Fruity Limiter, Pro-Q 3…" : "Serum, FLEX, Sytrus…"))
+                    if list.state == .loading {
+                        ProgressView().controlSize(.small)
+                    } else {
+                        reloadButton
+                    }
+                }
+                Group {
+                    if typing {
+                        Button("Choisir dans la liste de FL") { withAnimation(Motion.quickMorph) { typing = false } }
+                            .buttonStyle(.link)
+                    } else if case .unavailable(let why) = list.state {
+                        Text(why).foregroundStyle(.secondary)
+                    } else {
+                        Text("Écrit exactement comme dans le menu Add › \(item) de FL.").foregroundStyle(.secondary)
+                    }
+                }
+                .font(.system(size: 11))
+                .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .onAppear { list.loadIfNeeded() }
+    }
+
+    private var reloadButton: some View {
+        Button { list.reload() } label: { Image(systemName: "arrow.clockwise") }
+            .buttonStyle(.borderless)
+            .help("Relire la liste dans FL (plugins ajoutés depuis)")
+    }
+}
+
+/// Plugins du menu Add › Channel ou Effect de FL, lus dans la barre des menus de macOS (Accessibilité, sans rien
+/// ouvrir ni cliquer), pour « Cliquer sur… ». Lus à la première demande, relus avec le bouton ; jamais journalisés.
+final class FLPluginList: ObservableObject {
+    enum State: Equatable {
+        case loading
+        case loaded([String])
+        case unavailable(String)
+    }
+
+    static let channel = FLPluginList(item: "Channel")
+    static let effect = FLPluginList(item: "Effect")
+    static func forItem(_ item: String) -> FLPluginList { item == "Effect" ? effect : channel }
+
+    let item: String
+    @Published private(set) var state: State?
+
+    private init(item: String) { self.item = item }
+
+    func loadIfNeeded() {
+        if state == nil || state == .unavailable(Self.flClosed) { reload() }
+    }
+
+    func reload() {
+        guard state != .loading else { return }
+        guard AXIsProcessTrusted() else {
+            state = .unavailable("Autorise l'Accessibilité à FL Shortcuts pour voir la liste de tes plugins, ou écris le nom.")
+            return
+        }
+        guard let pid = OrganizerEnvironment.flPID() else {
+            state = .unavailable(Self.flClosed)
+            return
+        }
+        state = .loading
+        let path = ["Add", item]
+        DispatchQueue.global(qos: .userInitiated).async {
+            let names = MenuBarAX.entries(pid: pid, under: path).map { $0.joined(separator: PageOptions.pathSeparator) }
+            DispatchQueue.main.async {
+                self.state = names.isEmpty
+                    ? .unavailable("Liste introuvable dans les menus de FL (FL 2024.2 ou plus récent) : écris le nom.")
+                    : .loaded(names)
+            }
+        }
+    }
+
+    private static let flClosed = "Ouvre FL Studio pour choisir dans la liste de tes plugins, ou écris le nom."
+
+    struct Folder: Equatable {
+        /// Sous-menu du menu Add ; nil pour les plugins de sa racine.
+        let title: String?
+        var names: [String]
+    }
+
+    /// Pure (testée) : plugins rangés par sous-menu, dans l'ordre du menu.
+    static func groups(_ names: [String]) -> [Folder] {
+        var out: [Folder] = []
+        for name in names {
+            let path = PageOptions.pluginPath(name)
+            let title = path.count > 1 ? path[0] : nil
+            if let last = out.indices.last, out[last].title == title {
+                out[last].names.append(name)
+            } else {
+                out.append(Folder(title: title, names: [name]))
+            }
+        }
+        return out
     }
 }
 
@@ -982,11 +1163,18 @@ private struct MuteSoloField: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
+            Label(key == "mute"
+                  ? "Avec le lien avec FL : le son de la piste choisie est coupé (ou remis) tout de suite, sans aucun clic."
+                  : "Avec le lien avec FL : la piste choisie passe en solo (ou le perd) tout de suite, sans aucun clic.",
+                  systemImage: "link")
+                .font(.system(size: 11))
+                .foregroundStyle(.blue)
+                .fixedSize(horizontal: false, vertical: true)
             Text(key == "mute"
-                 ? "Clique ta piste dans le Mixer, puis lance la macro : son bouton mute est cliqué, le son est coupé "
-                     + "(ou remis s'il l'était). Avec le script MIDI de FL, c'est lui qui le fait."
-                 : "Clique ta piste dans le Mixer, puis lance la macro : elle passe en solo (ou le perd si elle l'était), "
-                     + "par un clic droit sur son bouton mute, ou la touche S de FL tant qu'il n'est pas montré.")
+                 ? "Sans le lien seulement : clique ta piste dans le Mixer, puis lance la macro ; son bouton mute est "
+                     + "cliqué (montré une fois ci-dessous)."
+                 : "Sans le lien seulement : clique ta piste dans le Mixer, puis lance la macro ; clic droit sur son "
+                     + "bouton mute, ou la touche S de FL tant qu'il n'est pas montré.")
                 .font(.system(size: 11))
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)

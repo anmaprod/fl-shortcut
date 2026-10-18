@@ -154,15 +154,17 @@ final class MacroEditingTests: XCTestCase {
         let items = PaletteCatalog.items(layout: FakeLayout.qwerty)
         XCTAssertEqual(Set(items.map(\.id)).count, items.count)
         let ready = Set(items.filter { !$0.soon }.map(\.type))
-        for t: BlockType in [.key, .click, .drag, .menuKey, .waitWindow, .trackMenu, .chooseFile, .dropFile, .flAction,
+        for t: BlockType in [.key, .click, .drag, .menuKey, .waitWindow, .dropFile, .flAction,
                              .repeatCount, .openPage, .pageOption] {
             XCTAssertTrue(ready.contains(t), "\(t)")
         }
         XCTAssertFalse(ready.contains(.ifElse))
         // Triés avec l'utilisateur : plus proposés (toujours compris dans les anciennes macros). Les attentes sont un
         // seul « Attendre ».
+        // « Ouvrir un preset (boîte Open) » aussi : « Déposer un preset » fait la même chose, plus vite. « Menu de la
+        // piste » : outil technique, remplacé par « Cliquer sur… » et l'enregistrement des clics.
         for t: BlockType in [.menuLetters, .stop, .comment, .repeatWhile, .waitUntil, .delay, .waitWindowClose,
-                             .selectInput, .feedbackCheck] {
+                             .selectInput, .feedbackCheck, .chooseFile, .trackMenu] {
             XCTAssertFalse(items.contains { $0.type == t }, "\(t)")
         }
         // Armer la piste et allumer le REC : plus proposés non plus (l'enregistrement rapide sera refait).
@@ -178,11 +180,6 @@ final class MacroEditingTests: XCTestCase {
             let p = MacroProgram(blocks: [Block(item.make())], name: "x", source: .blocks(id: UUID(), revision: 0), context: ctx)
             XCTAssertNil(p.problem, item.id)
         }
-        // Le menu de la piste de la palette n'utilise pas la mémoire de l'Entrée du modèle livré.
-        guard case .trackMenu(_, _, _, let enter)? = items.first(where: { $0.id == "trackMenu" })?.make() else {
-            return XCTFail("menu de la piste")
-        }
-        XCTAssertEqual(enter, .ifNeeded)
     }
 
     func testPaletteSearchIgnoresCaseAndAccents() {

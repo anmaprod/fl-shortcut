@@ -197,6 +197,7 @@ toucher, et l'appli demande alors de redémarrer FL (le script mis à jour n'est
 | op 10 : noms | genre (3 seulement), n, (index (2), longueur, nom UTF-8) × n | 1 ≤ n ≤ 16, nom de 1 à 32 octets ; tout est vérifié (index, longueurs, UTF-8, aucun octet en trop) avant de poser le premier nom (`playlist.setTrackName`) |
 | op 11 : écoute d'une piste de la Playlist | piste (2) | comme l'op 6 pour la Playlist : FL qui joue sans écoute en cours → raison 4. 1er appel : mémo des sourdines de toutes les pistes, du mode et de la position (une écoute du Channel rack en cours est d'abord remise comme avant, et inversement). Puis cette piste seule audible, mode song, position 0, lecture. Réponse `[mesures (2)]` : longueur de la chanson (`transport.getSongLength`, API 3 ; 0 si inconnue) |
 | op 12 : position | pour mille (2) | position de la chanson (`setSongPos`, 0 à 1000 ‰), seulement pendant une écoute de la Playlist (sinon raison 5). L'appli parcourt la chanson jusqu'à ce que la piste sonne |
+| op 13 : mute / solo d'un canal | 0 mute ou 1 solo, index (2) | bascule le mute (`muteChannel`) ou le solo (`soloChannel`) de ce canal du Channel rack, comme son bouton ; index hors du Channel rack : raison 5. Bloc « Cliquer sur… » › Mute ou Solo d'un canal (son numéro) : ni clic ni touche ; sans le lien, les touches 1 à 0 de FL jusqu'au canal 10 seulement ; script v7 |
 
 - **Raisons** en plus (CC 116) : 4 FL joue déjà, 7 au moins 2 éléments sélectionnés pour un dégradé. Une fonction
   de FL absente pour une opération → raison 6.

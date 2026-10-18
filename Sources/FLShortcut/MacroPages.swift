@@ -5,8 +5,10 @@
 // - La page n'est ouverte que si elle n'est pas déjà devant : avec le lien, la page devant est connue (rien n'est
 //   envoyé si c'est elle), et l'ouverture du script de FL ne ferme jamais une page (ui.showWindow). Sans le lien :
 //   sa touche de FL (F5, F6, F7, F9, ⌥F8), qui peut la refermer si elle est déjà devant (dit dans l'inspecteur).
-// - Chaque option est jouée par le moyen le plus sûr : le lien avec FL (actions), le menu Add de FL par son nom
-//   (instrument, effet), ou la touche de FL (raccourcis d'origine de la page).
+// - Chaque option est jouée par le moyen le plus sûr : le lien avec FL (actions, mute ou solo d'un canal par son
+//   numéro, nom de la piste), le menu Add de FL par son nom (instrument, effet, choisi dans la liste lue dans FL), ou
+//   la touche de FL (raccourcis d'origine de la page). Aucune ne clique avec la souris.
+// - Une option qui demande une valeur (plugin, numéro du canal, nouveau nom) la garde dans le texte « name » du bloc.
 import Foundation
 
 /// Page de FL qu'on peut mettre devant.
@@ -59,8 +61,13 @@ enum FLPage: String, CaseIterable, Identifiable {
     }
 
     /// Bloc qui la met devant : le lien avec FL, sinon sa touche de FL.
+    /// Touche de FL qui affiche la page (F5, F6, F7, F9, ⌥F8).
+    func nativeKey(layout: KeyboardLayout) -> KeyCombo? {
+        FLActions.id(forKey: actionKey).flatMap { AppMode.nativeEquivalent(of: $0, layout: layout) }
+    }
+
     func openBody(layout: KeyboardLayout) -> BlockBody {
-        let native = FLActions.id(forKey: actionKey).flatMap { AppMode.nativeEquivalent(of: $0, layout: layout) }
+        let native = nativeKey(layout: layout)
         let fallback: ActionFallback = native.map { ActionFallback.key(KeyRef($0)) } ?? ActionFallback.none
         return .flAction(key: actionKey, fallback: fallback)
     }
@@ -75,6 +82,21 @@ struct PageOption: Identifiable, Equatable {
         case key(KeyCombo)
         /// Élément du menu Add de FL (barre des menus de macOS), suivi du nom choisi (plugin).
         case addMenu(String)
+        /// Mute ou solo d'un canal du Channel rack, par son numéro : le lien avec FL (aucun clic, aucune touche),
+        /// sinon la touche 1 à 0 de FL jusqu'au canal 10.
+        case channelToggle(solo: Bool)
+        /// Nouveau nom de la piste sélectionnée : le lien avec FL, sinon la fenêtre F2 de FL.
+        case rename
+    }
+
+    /// Ce que l'option demande en plus, écrit dans le bloc (son texte « name »).
+    enum Field: Equatable {
+        /// Plugin du menu Add de FL (« Serum », ou « Sous-menu › Plugin »).
+        case plugin
+        /// Numéro du canal (1 à `PageOptions.maxChannel`).
+        case channel
+        /// Nouveau nom de la piste.
+        case name
     }
 
     /// « mixer.arm », « channelRack.addInstrument », « channelRack.fl.channelRack.c »…
@@ -83,19 +105,35 @@ struct PageOption: Identifiable, Equatable {
     let label: String
     let kind: Kind
 
-    /// Demande un nom (plugin à ajouter).
-    var needsName: Bool {
-        if case .addMenu = kind { return true }
-        return false
+    var field: Field? {
+        switch kind {
+        case .addMenu: return .plugin
+        case .channelToggle: return .channel
+        case .rename: return .name
+        case .action, .key: return nil
+        }
     }
 }
 
 enum PageOptions {
     /// Longueur maximale du nom d'un plugin.
     static let maxName = 80
+    /// Numéro de canal le plus grand accepté (« Mute d'un canal »).
+    static let maxChannel = 999
+    /// Sous-menus du menu Add dans le nom d'un plugin : « Fruity › Fruity Limiter ».
+    static let pathSeparator = " › "
+
+    /// Raccourcis remplacés par une option qui demande sa valeur : les touches 1 à 0 (⌘ pour le solo) par « Mute
+    /// d'un canal », F2 par « Renommer la piste ». Plus proposés, toujours compris (macros déjà faites).
+    static let replaced: Set<String> = {
+        let digits = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0"]
+        let rack = digits.flatMap { ["channelRack.fl.channelRack.\($0)", "channelRack.fl.channelRack.cmd-\($0)"] }
+        return Set(rack + ["mixer.fl.mixer.f2"])
+    }()
 
     /// Options de la page : les plus utiles d'abord (ajouter un plugin, armer…), puis les raccourcis de FL de la page.
-    static func options(for page: FLPage, layout: KeyboardLayout) -> [PageOption] {
+    /// `all` : avec les raccourcis remplacés (validation, macros déjà faites).
+    static func options(for page: FLPage, layout: KeyboardLayout, all: Bool = false) -> [PageOption] {
         var out: [PageOption] = []
         func add(_ id: String, _ label: String, _ kind: PageOption.Kind) {
             out.append(PageOption(id: "\(page.rawValue).\(id)", page: page, label: label, kind: kind))
@@ -103,12 +141,15 @@ enum PageOptions {
         switch page {
         case .channelRack:
             add("addInstrument", "Ajouter un instrument (VST, plugin…)", .addMenu("Channel"))
+            add("chMute", "Mute d'un canal (son numéro)", .channelToggle(solo: false))
+            add("chSolo", "Solo d'un canal (son numéro)", .channelToggle(solo: true))
             add("chnext", "Instrument suivant", .action("chnext"))
             add("chprev", "Instrument précédent", .action("chprev"))
             add("presetnext", "Preset suivant", .action("presetnext"))
             add("presetprev", "Preset précédent", .action("presetprev"))
         case .mixer:
             add("addEffect", "Ajouter un effet sur la piste (plugin)", .addMenu("Effect"))
+            add("rename", "Renommer la piste", .rename)
             add("armon", "Armer la piste", .action("armon"))
             add("arm", "Armer ou désarmer la piste", .action("arm"))
             add("mute", "Mute de la piste (coupe ou remet le son)", .action("mute"))
@@ -132,21 +173,30 @@ enum PageOptions {
         // Raccourcis d'origine de FL dans cette page (touche de FL, toujours la même).
         for entry in Catalog.entries(layout: layout) where entry.section == page.section {
             guard case .native(let combo) = entry.kind else { continue }
+            let id = "\(page.rawValue).\(entry.id)"
+            if !all, replaced.contains(id) { continue }
             add(entry.id, entry.title, .key(combo))
         }
         return out
     }
 
-    /// Identifiants de toutes les options, et celles qui passent par le lien : ne dépendent pas de la disposition du
-    /// clavier, calculés une fois (la validation et les besoins d'une macro les lisent souvent).
-    private static let known: (all: Set<String>, link: Set<String>) = {
-        let all = FLPage.allCases.flatMap { options(for: $0, layout: SystemKeyboardLayout()) }
-        return (Set(all.map(\.id)), Set(all.filter { if case .action = $0.kind { return true }; return false }.map(\.id)))
+    /// Identifiants de toutes les options, celles qui passent par le lien, et ce que chacune demande : ne dépendent
+    /// pas de la disposition du clavier, calculés une fois (la validation et les besoins d'une macro les lisent souvent).
+    private static let known: (all: Set<String>, link: Set<String>, fields: [String: PageOption.Field]) = {
+        let all = FLPage.allCases.flatMap { options(for: $0, layout: SystemKeyboardLayout(), all: true) }
+        let link = all.filter {
+            switch $0.kind {
+            case .action, .channelToggle, .rename: return true
+            case .key, .addMenu: return false
+            }
+        }
+        return (Set(all.map(\.id)), Set(link.map(\.id)),
+                Dictionary(uniqueKeysWithValues: all.compactMap { o in o.field.map { (o.id, $0) } }))
     }()
 
     static func isKnown(_ id: String) -> Bool { known.all.contains(id) }
     static func usesLink(_ id: String) -> Bool { known.link.contains(id) }
-    static func needsName(_ id: String) -> Bool { id.hasSuffix(".addInstrument") || id.hasSuffix(".addEffect") }
+    static func field(of id: String) -> PageOption.Field? { known.fields[id] }
 
     /// Page d'une option, d'après son identifiant.
     static func page(of id: String) -> FLPage? {
@@ -155,11 +205,32 @@ enum PageOptions {
 
     static func option(_ id: String, layout: KeyboardLayout) -> PageOption? {
         guard let page = page(of: id) else { return nil }
-        return options(for: page, layout: layout).first { $0.id == id }
+        return options(for: page, layout: layout, all: true).first { $0.id == id }
     }
 
-    /// Ce que joue l'option : une action du lien, la touche de FL, ou le menu Add de FL avec le nom choisi.
-    static func body(_ option: PageOption, name: String, layout: KeyboardLayout) -> BlockBody {
+    /// Numéro de canal écrit dans le bloc (1 à `maxChannel`), sinon nil.
+    static func channel(_ text: String) -> Int? {
+        guard let n = Int(text.trimmingCharacters(in: .whitespaces)), (1...maxChannel).contains(n) else { return nil }
+        return n
+    }
+
+    /// Touche 1 à 0 de FL (⌘ pour le solo) du canal `number`, jusqu'au canal 10.
+    static func channelKey(_ number: Int, solo: Bool, layout: KeyboardLayout) -> KeyCombo? {
+        guard (1...10).contains(number) else { return nil }
+        let digit = number == 10 ? "0" : String(number)
+        guard let o = option("channelRack.fl.channelRack.\(solo ? "cmd-" : "")\(digit)", layout: layout),
+              case .key(let combo) = o.kind else { return nil }
+        return combo
+    }
+
+    /// Chemin dans le menu Add › Channel ou Effect : « Fruity › Fruity Limiter » → [Fruity, Fruity Limiter].
+    static func pluginPath(_ name: String) -> [String] {
+        name.split(separator: "›", omittingEmptySubsequences: false).map { $0.trimmingCharacters(in: .whitespaces) }
+    }
+
+    /// Ce que joue l'option : une action du lien, la touche de FL, ou le menu Add de FL avec le nom choisi. nil : jouée
+    /// par l'effet lui-même (canal par son numéro, nom de la piste).
+    static func body(_ option: PageOption, name: String, layout: KeyboardLayout) -> BlockBody? {
         switch option.kind {
         case .action(let key):
             // Armer sans le lien : le menu de la piste (n'éteint jamais) ; sinon la touche de FL, si elle existe.
@@ -170,8 +241,29 @@ enum PageOptions {
         case .key(let combo):
             return .key(KeyRef(combo), times: 1)
         case .addMenu(let item):
-            return .menuBar(titles: ["Add", item, name.trimmingCharacters(in: .whitespaces)])
+            return .menuBar(titles: ["Add", item] + pluginPath(name))
+        case .channelToggle, .rename:
+            return nil
         }
+    }
+
+    /// Valeur du bloc pour son option : nil si elle convient, sinon ce qu'il faut écrire.
+    static func valueProblem(_ field: PageOption.Field, _ text: String) -> String? {
+        let trimmed = text.trimmingCharacters(in: .whitespaces)
+        switch field {
+        case .plugin:
+            let path = pluginPath(trimmed)
+            if trimmed.isEmpty || trimmed.count > maxName || path.contains(where: \.isEmpty)
+                || path.count > MenuBarAX.maxDepth - 2 {
+                return "choisis le plugin à ajouter (comme dans le menu Add de FL)."
+            }
+        case .channel:
+            if channel(trimmed) == nil { return "écris le numéro du canal (1 à \(maxChannel))." }
+        case .name:
+            if trimmed.isEmpty { return "écris le nouveau nom de la piste." }
+            if let problem = NameColorPayload.nameProblem(trimmed) { return problem }
+        }
+        return nil
     }
 
     /// Pure (testée) : page ouverte au-dessus du bloc `id`, la dernière « Ouvrir une page de FL » avant lui, à son

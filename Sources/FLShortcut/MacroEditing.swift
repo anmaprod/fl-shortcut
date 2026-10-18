@@ -534,7 +534,7 @@ enum PaletteCatalog {
         return [
             // Clavier
             // Palette triée avec l'utilisateur : seulement les blocs qui servent vraiment. Les autres types restent compris
-            // (anciennes macros, modèles) mais ne sont plus proposés : lettres d'un menu (fait par « Menu de la piste »),
+            // (anciennes macros, modèles) mais ne sont plus proposés : lettres d'un menu (les enregistrer avec « Enregistrer clics et touches »),
             // arrêter la macro (inutile sans condition), commentaire (doublon de la note du bloc), tant que.
             item("key", .key) { .key(KeyRef(KeyCombo(keyCode: 49), char: " "), times: 1) },
             item("menuKey", .menuKey) { .menuKey(.down, times: 1) },
@@ -555,12 +555,11 @@ enum PaletteCatalog {
             // FL Studio
             item("openPage", .openPage) { .openPage(nil) },
             item("pageOption", .pageOption) { .pageOption(id: nil, name: "") },
-            item("trackMenu", .trackMenu) {
-                .trackMenu(letters: ["f", "o"], labels: ["File", "Open mixer track state"], target: .lastClicked,
-                           finalEnter: .ifNeeded)
-            },
+            // « Menu de la piste » retiré avec l'utilisateur : outil technique (clic droit sur la piste, puis une ligne
+            // du menu), que « Cliquer sur… » et « Enregistrer clics et touches » remplacent. Toujours compris.
+            // « Ouvrir un preset (boîte Open) » retiré avec l'utilisateur : « Déposer un preset » fait la même chose, plus
+            // vite (toujours compris dans les anciennes macros).
             item("dropFile", .dropFile) { .dropFile(path: "") },
-            item("chooseFile", .chooseFile) { .chooseFile(path: "") },
             item("flAction", .flAction,
                  aide: "Une action de FL Shortcuts (Mixer, Playlist, métronome…) : par le lien avec FL s'il est installé, sinon la touche équivalente de FL.") {
                 .flAction(key: "mx", fallback: .key(KeyRef(mixer)))
@@ -568,12 +567,12 @@ enum PaletteCatalog {
             // Armer la piste, allumer le REC, choisir l'entrée 1 et vérifier le larsen : retirés avec l'utilisateur
             // (l'enregistrement rapide sera refait) ; toujours compris dans les anciennes macros.
             item("mute", .flAction, label: "Mute de la piste",
-                 aide: "Coupe le son de la piste cliquée dans le Mixer juste avant, ou le remet s'il était coupé. Sans le script : un clic sur son bouton mute, montré une seule fois.",
+                 aide: "Coupe le son de la piste choisie dans le Mixer, ou le remet s'il était coupé : par le lien avec FL, tout de suite et sans aucun clic. Sans le lien : un clic sur son bouton mute (piste cliquée juste avant), montré une seule fois.",
                  symbol: "speaker.slash.fill") {
                 .flAction(key: "mute", fallback: .none)
             },
             item("solo", .flAction, label: "Solo de la piste",
-                 aide: "Met en solo la piste cliquée dans le Mixer juste avant, ou retire son solo, comme la touche S de FL.",
+                 aide: "Met en solo la piste choisie dans le Mixer, ou retire son solo : par le lien avec FL, sans aucun clic. Sans le lien : la touche S de FL, ou un clic droit sur son bouton mute.",
                  symbol: "headphones") {
                 .flAction(key: "solo", fallback: .none)
             },

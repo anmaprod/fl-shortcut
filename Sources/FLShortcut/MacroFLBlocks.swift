@@ -406,3 +406,77 @@ extension MacroEffectsMac {
         return fits.first { $0.bounds.contains(track) } ?? fits.first
     }
 }
+
+extension MacroEffectsMac {
+    // MARK: « Cliquer sur… » : canal par son numéro, nom de la piste (jamais la souris)
+
+    /// Mute ou solo du canal `number` : le script de FL le bascule lui-même (opération 13, ni touche ni clic) ; sans
+    /// le lien, jusqu'au canal 10, la touche 1 à 0 de FL (⌘ pour le solo), le Channel rack devant.
+    func toggleChannel(_ number: Int, solo: Bool, layout: KeyboardLayout, ctx: Context) -> StepResult {
+        let what = solo ? "solo" : "mute"
+        let key = PageOptions.channelKey(number, solo: solo, layout: layout)
+        if key == nil || MIDILink.shared.core.snapshot.hasKey {
+            switch MIDILink.shared.runMacroRequest(OrganizerPayload.toggleChannel(number - 1, solo: solo)) {
+            case .answered:
+                MacroLog.shared.write("FL", "channel \(what) by link")
+                return .ok
+            case .refused(5) where key == nil:
+                // Aussi la réponse d'un script d'avant la v7 (opération inconnue).
+                return .fail("canal \(number) absent du Channel rack (ou script de FL pas à jour : redémarre FL)")
+            case .refused(let reason) where key == nil:
+                return .fail("FL a refusé le \(what) du canal (raison \(reason))")
+            case .failed(let why) where key == nil:
+                return .fail(why + " (au-delà du canal 10, seul le lien avec FL le fait)")
+            default:
+                MacroLog.shared.write("FL", "channel \(what): link unavailable, FL key")
+            }
+        }
+        guard let key else { return .fail("canal \(number) : lien avec FL nécessaire") }
+        if let stop = shouldStop(ctx.pid) { return .cancel(stop) }
+        postKey(key, pid: ctx.pid)
+        MacroLog.shared.write("FL", "channel \(what) by key")
+        return .ok
+    }
+
+    /// Nouveau nom de la piste sélectionnée : le script de FL le pose (opération 1, rien n'est tapé) ; sans le lien,
+    /// la fenêtre F2 de FL, le nom tapé par-dessus l'ancien, puis Entrée. Le nom n'est jamais journalisé.
+    func renameTrack(_ name: String, ctx: Context) -> StepResult {
+        let payload = NameColorPayload(name: name, color: nil)
+        guard let clean = payload.name else { return .fail("nouveau nom de la piste à écrire dans « Cliquer sur… »") }
+        switch MIDILink.shared.runMacroData(payload.units) {
+        case .done:
+            MacroLog.shared.write("FL", "track renamed by link")
+            return .ok
+        case .refused(let reason):
+            return .fail(NameColorPayload.message(forReason: reason))
+        case .failed:
+            MacroLog.shared.write("FL", "rename: link unavailable, F2 window")
+        }
+        guard waitForKeyboardIdle(timeout: 1.5) else { return .cancel("relâche les touches du raccourci") }
+        let before = WinSnapshot.take(pid: ctx.pid)
+        postKey(KeyCombo(keyCode: 120), pid: ctx.pid)                                    // F2
+        let box: WinInfo
+        switch WindowWait.newWindow(pid: ctx.pid, excluding: before.numbers, timeout: 1.5, accept: { _ in true },
+                                    stop: stopReason) {
+        case .success(let w): box = w
+        case .failure(.stopped(let why)): return .cancel(why)
+        case .failure(.timeout):
+            return .fail("la fenêtre « Renommer » de FL ne s'est pas ouverte (sélectionne ta piste dans le Mixer)")
+        }
+        let layout = SystemKeyboardLayout()
+        postKey(KeyCombo(keyCode: KeyNames.commandKeyCode(for: "a", layout: layout) ?? 0, command: true), pid: ctx.pid)
+        usleep(30_000)
+        guard PresetChooser.type(clean, pid: ctx.pid, stop: stopReason) else {
+            return .cancel(stopReason() ?? "FL n'est plus au premier plan")
+        }
+        usleep(30_000)
+        postKey(KeyCombo(keyCode: 36), pid: ctx.pid)                                     // Entrée
+        switch WindowWait.gone(pid: ctx.pid, numbers: [box.number], timeout: 1.5, stop: stopReason) {
+        case .success:
+            MacroLog.shared.write("FL", "track renamed by F2 window")
+            return .ok
+        case .failure(.stopped(let why)): return .cancel(why)
+        case .failure(.timeout): return .fail("la fenêtre « Renommer » de FL est restée ouverte")
+        }
+    }
+}

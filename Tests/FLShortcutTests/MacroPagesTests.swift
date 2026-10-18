@@ -18,7 +18,8 @@ final class MacroPagesTests: XCTestCase {
                 XCTAssertEqual(o.page, page)
                 XCTAssertEqual(PageOptions.page(of: o.id), page, o.id)
                 XCTAssertTrue(PageOptions.isKnown(o.id), o.id)
-                XCTAssertEqual(PageOptions.needsName(o.id), o.needsName, o.id)
+                XCTAssertEqual(PageOptions.field(of: o.id), o.field, o.id)
+                XCTAssertFalse(PageOptions.replaced.contains(o.id), o.id)
             }
         }
         let rack = PageOptions.options(for: .channelRack, layout: layout).map(\.id)
@@ -49,6 +50,69 @@ final class MacroPagesTests: XCTestCase {
         XCTAssertEqual(PageOptions.body(key, name: "", layout: layout), .key(KeyRef(combo), times: 1))
         // Ouvrir une page : le lien (jamais refermée), avec sa touche de FL en repli.
         guard case .flAction("mx", _) = FLPage.mixer.openBody(layout: layout) else { return XCTFail("lien attendu") }
+    }
+
+    /// Mute ou solo d'un canal par son numéro (au lieu des touches 1 à 9), nom de la piste à écrire (au lieu de F2) :
+    /// les anciens raccourcis ne sont plus proposés mais restent compris.
+    func testChannelNumberAndTrackNameAreAskedFor() throws {
+        let rack = PageOptions.options(for: .channelRack, layout: layout).map(\.id)
+        XCTAssertTrue(rack.contains("channelRack.chMute") && rack.contains("channelRack.chSolo"))
+        XCTAssertFalse(rack.contains("channelRack.fl.channelRack.1"))
+        XCTAssertFalse(PageOptions.options(for: .mixer, layout: layout).map(\.id).contains("mixer.fl.mixer.f2"))
+        XCTAssertTrue(PageOptions.isKnown("channelRack.fl.channelRack.cmd-0"))
+        XCTAssertNotNil(PageOptions.option("mixer.fl.mixer.f2", layout: layout))
+        XCTAssertEqual(PageOptions.field(of: "channelRack.chSolo"), .channel)
+        XCTAssertEqual(PageOptions.field(of: "mixer.rename"), .name)
+        XCTAssertEqual(PageOptions.field(of: "mixer.addEffect"), .plugin)
+        XCTAssertNil(PageOptions.field(of: "mixer.armon"))
+        XCTAssertTrue(PageOptions.usesLink("channelRack.chMute") && PageOptions.usesLink("mixer.rename"))
+
+        // Numéro : 1 à 999 ; touche de FL jusqu'au canal 10 (0 pour le 10, ⌘ pour le solo).
+        XCTAssertEqual(PageOptions.channel(" 12 "), 12)
+        XCTAssertNil(PageOptions.channel("0"))
+        XCTAssertNil(PageOptions.channel("1000"))
+        XCTAssertNil(PageOptions.channel("douze"))
+        XCTAssertEqual(PageOptions.channelKey(1, solo: false, layout: layout), KeyCombo(keyCode: 18))
+        XCTAssertEqual(PageOptions.channelKey(10, solo: true, layout: layout), KeyCombo(keyCode: 29, command: true))
+        XCTAssertNil(PageOptions.channelKey(11, solo: false, layout: layout))
+        XCTAssertEqual(OrganizerPayload.toggleChannel(11, solo: true), [13, 1, 0, 11])
+
+        // Jouées par l'effet lui-même (lien, sinon touche ou fenêtre F2), jamais par un bloc de clic.
+        let mute = try XCTUnwrap(PageOptions.option("channelRack.chMute", layout: layout))
+        XCTAssertNil(PageOptions.body(mute, name: "12", layout: layout))
+
+        // Validation et ligne du bloc.
+        func problem(_ id: String, _ value: String) -> String? {
+            program([Block(.openPage(PageOptions.page(of: id))), Block(.pageOption(id: id, name: value))]).problem
+        }
+        XCTAssertNil(problem("channelRack.chMute", "12"))
+        XCTAssertNotNil(problem("channelRack.chMute", ""))
+        XCTAssertNotNil(problem("channelRack.chSolo", "1000"))
+        XCTAssertNil(problem("mixer.rename", "Voix lead"))
+        XCTAssertNotNil(problem("mixer.rename", "  "))
+        XCTAssertNotNil(problem("mixer.rename", String(repeating: "a", count: 65)))
+        XCTAssertNil(problem("mixer.fl.mixer.f2", ""), "ancienne macro : F2 toujours valable")
+        let spec = BlockRegistry.spec(.pageOption)
+        XCTAssertEqual(spec.resume(.pageOption(id: "channelRack.chSolo", name: "12"), layout), "Solo du canal 12")
+        XCTAssertEqual(spec.resume(.pageOption(id: "mixer.rename", name: "Voix"), layout), "Renommer la piste : Voix")
+        XCTAssertFalse(BlockRegistry.journal(of: .pageOption(id: "mixer.rename", name: "Secret")).contains("Secret"))
+    }
+
+    /// Plugin choisi dans la liste lue dans FL : un sous-menu du menu Add devient un niveau de plus du chemin.
+    func testPluginPathsAndGroups() throws {
+        let add = try XCTUnwrap(PageOptions.option("mixer.addEffect", layout: layout))
+        XCTAssertEqual(PageOptions.body(add, name: "Fruity › Fruity Limiter", layout: layout),
+                       .menuBar(titles: ["Add", "Effect", "Fruity", "Fruity Limiter"]))
+        XCTAssertNil(PageOptions.valueProblem(.plugin, "Fruity › Fruity Limiter"))
+        XCTAssertNotNil(PageOptions.valueProblem(.plugin, "Fruity › "))
+        XCTAssertNotNil(PageOptions.valueProblem(.plugin, "a › b › c › d"))
+        let groups = FLPluginList.groups(["Serum", "Fruity › Limiter", "Fruity › Delay 3", "Vital"])
+        XCTAssertEqual(groups, [FLPluginList.Folder(title: nil, names: ["Serum"]),
+                                FLPluginList.Folder(title: "Fruity", names: ["Fruity › Limiter", "Fruity › Delay 3"]),
+                                FLPluginList.Folder(title: nil, names: ["Vital"])])
+        // Chaque bloc produit par une option de la palette reste valable dans le « Menu de FL ».
+        let ctx = ValidationContext(forbidden: .physical)
+        XCTAssertNil(BlockRegistry.spec(.menuBar).valider(.menuBar(titles: ["Add", "Effect", "Fruity", "Fruity Limiter"]), ctx))
     }
 
     func testPageAboveFollowsTheMacroOrderAndLoops() {

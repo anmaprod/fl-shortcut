@@ -224,6 +224,14 @@ run() {   # $1 : libellé, $2 : YES/NO effet verre
       screencapture -x "$OUT/organiser-$screen.png" 2>/dev/null || true
     done
     "$POST" app.flshortcut.debug.organizer fermer; sleep 1
+    # Changement de page au ralenti (10 fois) : Général → Mixer, photographié en route (barre au-dessus du titre ?).
+    "$POST" app.flshortcut.debug.select general; sleep 2
+    "$POST" app.flshortcut.debug.select "mixer lent"
+    for i in 1 2 3 4 5 6 7 8; do
+      sleep 0.5; screencapture -x "$OUT/page-change-$i.png" 2>/dev/null || true
+    done
+    sleep 5
+    "$POST" app.flshortcut.debug.select general; sleep 2
     # Créateur de macros au ralenti (10 fois) : ouverture depuis la page Macros, puis retour, photographiés en route.
     "$POST" app.flshortcut.debug.select macros; sleep 2
     "$POST" app.flshortcut.debug.macro "open lent"

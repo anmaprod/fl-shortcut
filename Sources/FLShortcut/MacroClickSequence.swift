@@ -112,6 +112,35 @@ enum MenuBarAX {
         return nil
     }
 
+    /// Éléments d'un menu de la barre de FL (`path` : titre du menu, puis élément), avec ceux de ses sous-menus (un
+    /// niveau : [sous-menu, élément]) : les plugins d'Add › Channel ou Effect pour « Cliquer sur… ». Lu sans rien
+    /// ouvrir (FL n'est pas devant) : vide si FL n'a pas ses menus dans la barre de macOS, ou ne les remplit qu'ouverts.
+    static func entries(pid: Int32, under path: [String], limit: Int = 400) -> [[String]] {
+        guard let parent = find(pid: pid, titles: path, openIfNeeded: false, stop: { nil }),
+              let menu = submenu(of: parent) else { return [] }
+        var out: [[String]] = []
+        func usable(_ el: AXUIElement) -> String? {
+            guard let t = title(el), !t.contains("›"),
+                  bool(el, kAXEnabledAttribute as String) != false else { return nil }
+            return t
+        }
+        for entry in children(menu).prefix(limit) where out.count < limit {
+            guard let t = usable(entry) else { continue }
+            if let sub = submenu(of: entry) {
+                for leaf in children(sub).prefix(limit) where out.count < limit && submenu(of: leaf) == nil {
+                    if let l = usable(leaf) { out.append([t, l]) }
+                }
+            } else {
+                out.append([t])
+            }
+        }
+        return out
+    }
+
+    private static func submenu(of el: AXUIElement) -> AXUIElement? {
+        children(el).first { role($0) == (kAXMenuRole as String) }
+    }
+
     /// Cadre à l'écran (repère CoreGraphics) d'un menu de la barre ou d'un de ses éléments déjà affiché.
     static func frame(pid: Int32, titles: [String]) -> CGRect? {
         find(pid: pid, titles: titles, openIfNeeded: false, stop: { nil }).flatMap { AXProbe.frame($0) }
@@ -221,6 +250,47 @@ struct RecordedClick: Equatable {
     /// Nom du bouton cliqué (« FILE », « Insert 1 »), lu dans la fenêtre de FL juste après le clic, et où tombait le
     /// clic par rapport au centre de ce nom.
     var named: NamedHit? = nil
+    /// Bouton gauche relâché loin de l'appui : un glisser-déposer (où il est lâché, et les fenêtres de FL à ce moment).
+    var release: RecordedRelease? = nil
+}
+
+/// Fin d'un glisser-déposer enregistré.
+struct RecordedRelease: Equatable {
+    let point: CGPoint
+    let windows: [WinInfo]
+}
+
+/// Éléments des menus de FL (barre des menus de macOS) qui ont leur raccourci dans FL : enregistrés, ils deviennent
+/// ce raccourci (instantané, sans ouvrir de menu). Titres de FL en anglais, comparés sans casse ni « … ».
+enum MenuShortcuts {
+    static func key(for path: [String], layout: KeyboardLayout) -> KeyCombo? {
+        func cmd(_ letter: String, _ fallback: UInt16, shift: Bool = false) -> KeyCombo {
+            KeyCombo(keyCode: KeyNames.commandKeyCode(for: letter, layout: layout) ?? fallback, command: true, shift: shift)
+        }
+        let p = path.map { t -> String in
+            var s = t.lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
+            while s.hasSuffix("…") || s.hasSuffix(".") { s.removeLast() }
+            return s
+        }
+        switch p {
+        case ["view", "playlist"]: return KeyCombo(keyCode: 96)                      // F5
+        case ["view", "channel rack"]: return KeyCombo(keyCode: 97)                  // F6
+        case ["view", "piano roll"]: return KeyCombo(keyCode: 98)                    // F7
+        case ["view", "plugin picker"]: return KeyCombo(keyCode: 100)                // F8
+        case ["view", "mixer"]: return KeyCombo(keyCode: 101)                        // F9
+        case ["view", "browser"]: return KeyCombo(keyCode: 100, option: true)        // ⌥F8
+        case ["options", "midi settings"]: return KeyCombo(keyCode: 109)             // F10
+        case ["file", "open"]: return cmd("o", 31)
+        case ["file", "save"]: return cmd("s", 1)
+        case ["file", "save as"]: return cmd("s", 1, shift: true)
+        case ["file", "save new version"]: return cmd("n", 45)
+        case ["file", "export", "wave file"]: return cmd("r", 15)
+        case ["file", "export", "mp3 file"]: return cmd("r", 15, shift: true)
+        case ["file", "export", "midi file"]: return cmd("m", 46, shift: true)
+        case ["edit", "undo"]: return cmd("z", 6)
+        default: return nil
+        }
+    }
 }
 
 struct NamedHit: Equatable {
@@ -262,8 +332,8 @@ enum ClickSequenceCompiler {
         return spot.isValid ? .named(spot) : target
     }
 
-    static func compile(_ clicks: [RecordedClick]) -> Result {
-        compile(inputs: clicks.map(RecordedInput.click))
+    static func compile(_ clicks: [RecordedClick], layout: KeyboardLayout = SystemKeyboardLayout()) -> Result {
+        compile(inputs: clicks.map(RecordedInput.click), layout: layout)
     }
 
     /// Une touche : dans un menu de FL ouvert, ↑ ↓ ← → Entrée Échap → « Dans le menu » et une lettre seule →
@@ -291,7 +361,9 @@ enum ClickSequenceCompiler {
     /// eux ; élément d'un menu de la barre → « Menu de FL » (le clic qui a ouvert ce menu n'est pas gardé). Un menu de
     /// la barre refermé sans choix (titre recliqué, ou clic ailleurs : macOS avale ce clic, FL ne le reçoit pas) est
     /// ignoré, ainsi que les touches tapées pendant qu'il est ouvert (on ne sait pas ce qu'elles y choisissent).
-    static func compile(inputs: [RecordedInput]) -> Result {
+    /// Un élément de menu qui a son raccourci dans FL devient ce raccourci ; un bouton gauche relâché loin de l'appui,
+    /// dans FL, devient un glisser-déposer.
+    static func compile(inputs: [RecordedInput], layout: KeyboardLayout = SystemKeyboardLayout()) -> Result {
         var out: [BlockBody] = []
         var ignored = 0
         var openBar: String?                            // menu de la barre ouvert, rien choisi encore
@@ -322,7 +394,11 @@ enum ClickSequenceCompiler {
                 continue
             case .item(let path)?:
                 openBar = nil
-                out.append(.menuBar(titles: path))
+                if let combo = MenuShortcuts.key(for: path, layout: layout) {
+                    out.append(.key(KeyRef(combo), times: 1))
+                } else {
+                    out.append(.menuBar(titles: path))
+                }
                 continue
             case nil:
                 if openBar != nil {
@@ -334,6 +410,13 @@ enum ClickSequenceCompiler {
             let windows = c.windows.map { (layer: $0.layer, bounds: $0.bounds) }
             guard let target = MacroOutline.learnedTarget(at: c.point, windows: windows, title: c.title) else {
                 ignored += 1
+                continue
+            }
+            if let release = c.release, !c.right,
+               let to = MacroOutline.learnedTarget(at: release.point,
+                                                   windows: release.windows.map { (layer: $0.layer, bounds: $0.bounds) },
+                                                   title: nil) {
+                out.append(.drag(from: Self.named(target, c.named), to: to))
                 continue
             }
             out.append(.click(Self.named(target, c.named), button: c.right ? .right : .left))
@@ -350,6 +433,8 @@ final class ClickSequenceRecorder: ObservableObject {
     /// Clics et touches en tout.
     static let maxInputs = 80
     static let maxDuration: TimeInterval = 120
+    /// Au-delà (points), un appui relâché ailleurs est un glisser-déposer, pas un clic.
+    static let dragDistance: CGFloat = 8
 
     @Published private(set) var active = false
     @Published private(set) var count = 0
@@ -465,10 +550,21 @@ final class ClickSequenceRecorder: ObservableObject {
         var barPending = false
         if case .bar? = lastClick?.menu { barPending = true }
         if event.type == .leftMouseUp {
-            // Menu de la barre choisi en glissant : appui sur son titre, relâché sur l'élément.
-            guard barPending, let down = lastClick, abs(p.x - down.point.x) + abs(p.y - down.point.y) > 4,
-                  let hit = MenuBarAX.hit(at: p, pid: pid), case .item = hit else { return }
-            append(RecordedClick(point: p, right: false, windows: [], menu: hit))
+            if barPending {
+                // Menu de la barre choisi en glissant : appui sur son titre, relâché sur l'élément.
+                guard let down = lastClick, abs(p.x - down.point.x) + abs(p.y - down.point.y) > 4,
+                      let hit = MenuBarAX.hit(at: p, pid: pid), case .item = hit else { return }
+                append(RecordedClick(point: p, right: false, windows: [], menu: hit))
+                return
+            }
+            // Glisser-déposer : le bouton gauche relâché loin de l'appui. Le clic d'appui devient un glisser-déposer
+            // (où il est lâché, et les fenêtres de FL à ce moment).
+            guard let i = inputs.lastIndex(where: { if case .click = $0 { return true } else { return false } }),
+                  case .click(var down) = inputs[i], !down.right, down.menu == nil, down.release == nil,
+                  hypot(p.x - down.point.x, p.y - down.point.y) > Self.dragDistance else { return }
+            let now = history.last(where: { $0.time <= event.timestamp }) ?? history.last ?? WinSnapshot.take(pid: pid)
+            down.release = RecordedRelease(point: p, windows: now.fl)
+            inputs[i] = .click(down)
             return
         }
         // Fenêtres de FL juste avant le clic, retenues tout de suite (un menu se ferme au clic). Menus de la barre de
@@ -499,6 +595,7 @@ final class ClickSequenceRecorder: ObservableObject {
                 defer { group.leave() }
                 guard let self, let found, index < self.inputs.count,
                       case .click(var click) = self.inputs[index], click.point == p else { return }
+                // Lu sur l'appui (le relâché d'un glisser-déposer a pu s'ajouter depuis : il est gardé).
                 click.named = NamedHit(label: found.label, dx: found.dx, dy: found.dy)
                 self.inputs[index] = .click(click)
             }

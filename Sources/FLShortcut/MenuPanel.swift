@@ -65,9 +65,23 @@ final class MenuPanel: ObservableObject {
         // Les options repartent d'abord (MenuReveal), puis le panneau rentre dans l'icône.
         let duration = reduce ? 0.12 : 0.36
         withAnimation(reduce ? .easeIn(duration: 0.12) : .easeIn(duration: 0.22).delay(0.14)) { revealed = false }
+        // La bulle (le fond du menu, dessiné par macOS) s'efface avec les options : elle restait seule au-dessus de
+        // la fenêtre qu'une option venait d'ouvrir.
+        NSAnimationContext.runAnimationGroup { context in
+            context.duration = duration
+            context.timingFunction = CAMediaTimingFunction(name: .easeIn)
+            panel.animator().alphaValue = 0
+        }
         DispatchQueue.main.asyncAfter(deadline: .now() + duration) { [weak self] in
-            guard let self, self.panel?.isVisible == true else { return }
+            guard let self, let panel = self.panel, panel.isVisible else { return }
             self.statusButton?.performClick(nil)
+            // Filet : toujours là (une fenêtre de l'app vient de prendre la main et le clic n'a rien fermé), il est
+            // retiré directement.
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) { [weak self] in
+                guard let self, let panel = self.panel, panel.isVisible, !self.revealed else { return }
+                panel.orderOut(nil)
+                self.closed()
+            }
         }
     }
 
@@ -84,6 +98,7 @@ final class MenuPanel: ObservableObject {
     }
 
     private func reveal() {
+        panel?.alphaValue = 1                              // effacée à la dernière fermeture
         let reduce = NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
         withAnimation(reduce ? .easeOut(duration: 0.15) : .spring(response: 0.5, dampingFraction: 0.82)) {
             revealed = true

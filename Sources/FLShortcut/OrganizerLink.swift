@@ -120,6 +120,9 @@ enum OrganizerPayload {
 
     static let page: [UInt8] = [9]
 
+    /// Opération 13 (script v7) : bascule le mute, ou le solo, du canal `index` (0 = canal 1 du Channel rack).
+    static func toggleChannel(_ index: Int, solo: Bool) -> [UInt8] { [13, solo ? 1 : 0] + be16(index) }
+
     /// Nom en UTF-8, coupé à `nameBytes` octets sans couper un caractère ; nil s'il est vide.
     static func nameUTF8(_ name: String) -> [UInt8]? {
         var out: [UInt8] = []

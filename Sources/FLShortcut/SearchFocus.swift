@@ -1,7 +1,8 @@
 // Recherche de la fenêtre principale active seulement quand on l'a choisie, comme une barre de recherche ordinaire.
 // AppKit donne la main au premier champ de la fenêtre (la recherche de la barre latérale) dès qu'elle s'ouvre, ou
 // quand une page change : toute frappe s'y écrivait sans qu'on ait cliqué dedans. Elle ne garde la main qu'après un
-// clic dedans (ou ⌘F) ; sinon la fenêtre la lui reprend aussitôt. Rien ne tourne au repos : un observateur de la
+// clic dedans (ou ⌘F) ; sinon la fenêtre la lui reprend aussitôt. Un clic ailleurs la lui reprend aussi (plus de
+// curseur qui clignote dans la recherche quand on est passé à autre chose). Rien ne tourne au repos : un observateur de la
 // fenêtre et un moniteur local (clics et touches de cette fenêtre seulement), retirés avec la vue.
 import AppKit
 import SwiftUI
@@ -34,7 +35,15 @@ struct SearchFocusGuard: NSViewRepresentable {
                         self.chosenAt = Date()
                     }
                 default:
-                    if Self.searchField(at: event.locationInWindow, in: window) { self.chosenAt = Date() }
+                    if Self.searchField(at: event.locationInWindow, in: window) {
+                        self.chosenAt = Date()
+                    } else if Self.isSearchEditor(window.firstResponder) {
+                        // Clic ailleurs (une page, un bouton, la liste) : la recherche lâche la main, le curseur ne
+                        // clignote plus, son texte reste. Un autre champ cliqué prend la main lui-même.
+                        DispatchQueue.main.async {
+                            if Self.isSearchEditor(window.firstResponder) { window.makeFirstResponder(nil) }
+                        }
+                    }
                 }
                 return event
             }

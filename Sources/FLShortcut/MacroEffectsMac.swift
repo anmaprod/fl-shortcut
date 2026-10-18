@@ -414,24 +414,45 @@ final class MacroEffectsMac: MacroEffects {
 
         case .openPage(let page):
             guard let page else { return .fail("page de FL à choisir dans la macro") }
-            // Déjà devant (le lien le sait) : rien à faire. Sinon le lien la met devant sans jamais la fermer.
-            if MIDILink.shared.core.routingView().knownWindow == page.window {
+            // Déjà devant (le lien le sait) : rien à faire. Lien éveillé : il la met devant sans jamais la fermer.
+            // Sinon, tout de suite la touche de FL (F5, F6, F7, F9, ⌥F8) : sans attendre un lien qui ne répond pas.
+            let view = MIDILink.shared.core.routingView()
+            if view.knownWindow == page.window {
                 MacroLog.shared.write("FL", "page \(page.rawValue) already in front")
                 return .ok
             }
+            let layout = SystemKeyboardLayout()
+            if view.knownWindow == nil, let key = page.nativeKey(layout: layout) {
+                if let stop = shouldStop(ctx.pid) { return .cancel(stop) }
+                postKey(key, pid: ctx.pid)
+                MacroLog.shared.write("FL", "open page \(page.rawValue) (key)")
+                return .ok
+            }
             MacroLog.shared.write("FL", "open page \(page.rawValue)")
-            return perform(page.openBody(layout: SystemKeyboardLayout()), state: &state)
+            return perform(page.openBody(layout: layout), state: &state)
 
         case .pageOption(let id, let name):
             let layout = SystemKeyboardLayout()
             guard let id, let option = PageOptions.option(id, layout: layout) else {
                 return .fail("option de FL à choisir dans la macro")
             }
-            // Journal : l'option, jamais le nom du plugin.
+            // Journal : l'option, jamais le nom du plugin ni celui de la piste.
             MacroLog.shared.write("FL", "page option \(id)")
-            let result = perform(PageOptions.body(option, name: name, layout: layout), state: &state)
-            if option.needsName, case .fail = result {
-                return .fail("plugin introuvable dans le menu Add de FL : vérifie son nom dans « Cliquer sur… »")
+            switch option.kind {
+            case .channelToggle(let solo):
+                guard let number = PageOptions.channel(name) else {
+                    return .fail("numéro du canal à écrire dans « Cliquer sur… »")
+                }
+                return toggleChannel(number, solo: solo, layout: layout, ctx: ctx)
+            case .rename:
+                return renameTrack(name, ctx: ctx)
+            case .action, .key, .addMenu:
+                break
+            }
+            guard let body = PageOptions.body(option, name: name, layout: layout) else { return .fail("option inconnue") }
+            let result = perform(body, state: &state)
+            if option.field == .plugin, case .fail = result {
+                return .fail("plugin introuvable dans le menu Add de FL : choisis-le de nouveau dans « Cliquer sur… »")
             }
             return result
 

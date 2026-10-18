@@ -740,8 +740,8 @@ private enum Specs {
 
     static let pageOption = BlockSpec(
         type: .pageOption, label: "Cliquer sur…", category: .fl, symbol: "cursorarrow.click.2",
-        aide: "Une option de la page de FL ouverte juste au-dessus : ajouter un instrument ou un effet, armer la piste, solo, ou un raccourci de FL de cette page. Ajouté avec « Ouvrir une page de FL » au-dessus.",
-        params: [ParamSpec("option", "Option", .actionFL), ParamSpec("name", "Plugin", .texte(max: PageOptions.maxName))],
+        aide: "Une option de la page de FL ouverte juste au-dessus : ajouter un instrument ou un effet, armer la piste, mute ou solo d'un canal par son numéro, renommer la piste, ou un raccourci de FL de cette page. Jamais de clic de souris. Ajouté avec « Ouvrir une page de FL » au-dessus.",
+        params: [ParamSpec("option", "Option", .actionFL), ParamSpec("name", "Valeur", .texte(max: PageOptions.maxName))],
         conteneur: .aucun, dansLaPalette: true,
         needs: { body in
             guard case .pageOption(let id?, _) = body, PageOptions.usesLink(id) else { return base }
@@ -754,7 +754,16 @@ private enum Specs {
         resume: { body, layout in
             guard case .pageOption(let id, let name) = body else { return "" }
             guard let id, let option = PageOptions.option(id, layout: layout) else { return "option à choisir" }
-            return option.needsName && !name.isEmpty ? "\(option.label) : \(name.displaySafe(max: 30))" : option.label
+            let value = name.trimmingCharacters(in: .whitespaces)
+            switch option.field {
+            case .channel?:
+                guard let n = PageOptions.channel(value), case .channelToggle(let solo) = option.kind else { return option.label }
+                return "\(solo ? "Solo" : "Mute") du canal \(n)"
+            case .plugin?, .name?:
+                return value.isEmpty ? option.label : "\(option.label) : \(value.displaySafe(max: 30))"
+            case nil:
+                return option.label
+            }
         },
         journal: { body in
             guard case .pageOption(let id, _) = body else { return "pageOption" }
@@ -765,9 +774,8 @@ private enum Specs {
             guard case .pageOption(let id, let name) = body else { return nil }
             guard let id else { return ctx.fail("choisis l'option à cliquer.") }
             guard PageOptions.isKnown(id) else { return ctx.fail("option de FL inconnue.") }
-            let trimmed = name.trimmingCharacters(in: .whitespaces)
-            if PageOptions.needsName(id), trimmed.isEmpty || trimmed.count > PageOptions.maxName {
-                return ctx.fail("écris le nom du plugin à ajouter (comme dans FL).")
+            if let field = PageOptions.field(of: id), let problem = PageOptions.valueProblem(field, name) {
+                return ctx.fail(problem)
             }
             return nil
         },

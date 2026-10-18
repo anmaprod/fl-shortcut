@@ -65,6 +65,33 @@ final class MacroClickSequenceTests: XCTestCase {
         XCTAssertEqual(r.ignored, 5)
     }
 
+    /// Glisser-déposer enregistré : l'appui et l'endroit où il est lâché (un vrai bloc « Glisser-déposer », plus un
+    /// simple clic). Choix d'un menu de FL qui a son raccourci : le raccourci, sans ouvrir de menu.
+    func testDragAndMenuShortcutsAreRecordedAsSuch() {
+        let main = CGRect(x: 0, y: 25, width: 1440, height: 875)
+        let alone = [win(1, 0, main)]
+        var drag = click(100, 200, alone)
+        drag.release = RecordedRelease(point: CGPoint(x: 700, y: 400), windows: alone)
+        let r = ClickSequenceCompiler.compile([
+            drag,
+            click(60, 10, alone, menu: .bar("View")),
+            click(80, 60, alone, menu: .item(["View", "Mixer"])),
+            click(60, 10, alone, menu: .bar("File")),
+            click(80, 60, alone, menu: .item(["File", "Export", "Wave file..."])),
+            click(80, 60, alone, menu: .item(["Options", "Audio settings"])),
+        ], layout: FakeLayout.qwerty)
+        XCTAssertEqual(r.blocks, [
+            .drag(from: .flWindow(corner: .topLeft, dx: 100, dy: 175, size: main.size),
+                  to: .flWindow(corner: .topLeft, dx: 700, dy: 375, size: main.size)),
+            .key(KeyRef(KeyCombo(keyCode: 101)), times: 1),                              // F9
+            .key(KeyRef(KeyCombo(keyCode: 15, command: true)), times: 1),                // ⌘R
+            .menuBar(titles: ["Options", "Audio settings"]),                             // pas de raccourci : le menu
+        ])
+        XCTAssertNil(MenuShortcuts.key(for: ["View", "Inconnu"], layout: FakeLayout.qwerty))
+        XCTAssertEqual(MenuShortcuts.key(for: ["view", "Browser"], layout: FakeLayout.qwerty),
+                       KeyCombo(keyCode: 100, option: true))
+    }
+
     func testMenuBarPathIsValidatedAndNeverLogged() {
         let ctx = ValidationContext(forbidden: .physical)
         let spec = BlockRegistry.spec(.menuBar)

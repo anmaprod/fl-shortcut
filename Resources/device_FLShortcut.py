@@ -27,7 +27,7 @@ bornes vérifiées, seuls les CC du protocole (canal 16) sont marqués « handle
 # La ligne suivante est remplacée par l'appli à l'installation (16 octets en hex).
 KEY_HEX = "__FLSHORTCUT_KEY__"
 
-SCRIPT_VERSION = 6
+SCRIPT_VERSION = 7
 PROTOCOL_VERSION = 2
 
 MIDI_CHANNEL = 15          # canal 16, 0-indexé
@@ -80,6 +80,7 @@ OP_PAGE = 9                # page de FL devant (Organiser)
 OP_SET_NAMES = 10          # noms des pistes de la Playlist
 OP_PLAY_TRACK = 11         # écoute d'une piste de la Playlist seule
 OP_SEEK = 12               # position de la chanson pendant cette écoute
+OP_CHANNEL_TOGGLE = 13     # mute ou solo d'un canal du Channel rack, par son numéro (macro « Cliquer sur… »)
 KIND_CHANNELS = 1
 KIND_MIXER = 2
 KIND_PLAYLIST = 3          # pistes de la Playlist (index 0 = piste 1 de FL)
@@ -1891,6 +1892,21 @@ def _op_gradient(raw, seq3):
     return 0
 
 
+def _op_channel_toggle(raw, seq3):
+    """[13, 0 mute | 1 solo, index (2)] : bascule le mute (ou le solo) de ce canal, comme son bouton."""
+    if len(raw) != 4 or raw[1] not in (0, 1):
+        return REASON_DATA
+    index = _be16(raw[2], raw[3])
+    fns = _fns("channels", "channelCount", "soloChannel" if raw[1] else "muteChannel")
+    if fns is None:
+        return REASON_OLD_FL
+    total = fns[0]()
+    if not _is_int(total) or not 0 <= index < total:
+        return REASON_DATA
+    fns[1](index)
+    return 0
+
+
 _EXT_OPS = {
     OP_LIST: _op_list,
     OP_AUDITION: _op_audition,
@@ -1903,6 +1919,7 @@ _EXT_OPS = {
     OP_SET_NAMES: _op_set_names,
     OP_PLAY_TRACK: _op_play_track,
     OP_SEEK: _op_seek,
+    OP_CHANNEL_TOGGLE: _op_channel_toggle,
 }
 
 

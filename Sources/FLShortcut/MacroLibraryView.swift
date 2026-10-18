@@ -301,6 +301,14 @@ private struct MacroLibraryRow: View {
     }
 }
 
+/// La page Macros, demandée hors de la fenêtre principale (menu de l'icône).
+final class MacrosLink: ObservableObject {
+    static let shared = MacrosLink()
+    @Published var pending = false
+
+    func show() { pending = true }
+}
+
 // MARK: - Modèles
 
 struct MacroTemplatesSheet: View {
