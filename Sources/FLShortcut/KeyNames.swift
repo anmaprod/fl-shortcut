@@ -15,18 +15,25 @@ extension KeyboardLayout {
     func commandCharacter(for keyCode: UInt16) -> String? { character(for: keyCode) }
 }
 
-/// Disposition active du système (Text Input Sources). À appeler depuis le thread principal.
+/// Disposition active du système (Text Input Sources). Sur le fil principal : lue directement. Sur un autre fil (une
+/// macro, sur sa file) : la copie faite sur le fil principal (KeyboardLayoutCopy). Appelées hors du fil principal, ces
+/// fonctions de macOS font planter l'app (signalé : « Cliquer sur… › Ajouter un effet » refermait FL Shortcuts).
 struct SystemKeyboardLayout: KeyboardLayout {
     func character(for keyCode: UInt16) -> String? {
-        translate(keyCode, modifierState: 0)
+        guard Thread.isMainThread else { return KeyboardLayoutCopy.shared.character(keyCode, command: false) }
+        return Self.translate(keyCode, modifierState: 0)
     }
 
     func commandCharacter(for keyCode: UInt16) -> String? {
-        // modifierKeyState = (modificateurs Carbon >> 8) & 0xFF ; cmdKey = 1 << 8.
-        translate(keyCode, modifierState: UInt32((cmdKey >> 8) & 0xFF))
+        guard Thread.isMainThread else { return KeyboardLayoutCopy.shared.character(keyCode, command: true) }
+        return Self.translate(keyCode, modifierState: Self.commandState)
     }
 
-    private func translate(_ keyCode: UInt16, modifierState: UInt32) -> String? {
+    /// modifierKeyState = (modificateurs Carbon >> 8) & 0xFF ; cmdKey = 1 << 8.
+    static let commandState = UInt32((cmdKey >> 8) & 0xFF)
+
+    /// Fil principal seulement.
+    static func translate(_ keyCode: UInt16, modifierState: UInt32) -> String? {
         guard let source = TISCopyCurrentKeyboardLayoutInputSource()?.takeRetainedValue(),
               let ptr = TISGetInputSourceProperty(source, kTISPropertyUnicodeKeyLayoutData) else { return nil }
         let data = Unmanaged<CFData>.fromOpaque(ptr).takeUnretainedValue() as Data
@@ -43,6 +50,56 @@ struct SystemKeyboardLayout: KeyboardLayout {
         }
         guard status == noErr, length > 0 else { return nil }
         return String(utf16CodeUnits: chars, count: length)
+    }
+}
+
+/// Copie de la disposition active (les 128 touches, sans et avec ⌘), faite sur le fil principal au démarrage de
+/// l'app et à chaque changement de disposition, pour les autres fils. Pas encore faite : rien (les raccourcis
+/// gardent leur touche de repli) et elle est demandée au fil principal.
+final class KeyboardLayoutCopy {
+    static let shared = KeyboardLayoutCopy()
+
+    private struct Table {
+        var plain: [UInt16: String] = [:]
+        var command: [UInt16: String] = [:]
+        var ready = false
+    }
+
+    private let table = Locked(Table())
+    private var observer: NSObjectProtocol?
+
+    private init() {}
+
+    /// Fil principal (démarrage de l'app).
+    func start() {
+        refresh()
+        guard observer == nil else { return }
+        observer = DistributedNotificationCenter.default().addObserver(
+            forName: Notification.Name("com.apple.Carbon.TISNotifySelectedKeyboardInputSourceChanged"),
+            object: nil, queue: .main) { [weak self] _ in self?.refresh() }
+    }
+
+    func refresh() {
+        guard Thread.isMainThread else {
+            DispatchQueue.main.async { [weak self] in self?.refresh() }
+            return
+        }
+        var t = Table()
+        for code in UInt16(0)..<128 {
+            t.plain[code] = SystemKeyboardLayout.translate(code, modifierState: 0)
+            t.command[code] = SystemKeyboardLayout.translate(code, modifierState: SystemKeyboardLayout.commandState)
+        }
+        t.ready = true
+        table.withLock { $0 = t }
+    }
+
+    func character(_ keyCode: UInt16, command: Bool) -> String? {
+        let t = table.value
+        guard t.ready else {
+            refresh()
+            return nil
+        }
+        return command ? t.command[keyCode] : t.plain[keyCode]
     }
 }
 

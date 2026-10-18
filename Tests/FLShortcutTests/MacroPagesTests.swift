@@ -115,6 +115,28 @@ final class MacroPagesTests: XCTestCase {
         XCTAssertNil(BlockRegistry.spec(.menuBar).valider(.menuBar(titles: ["Add", "Effect", "Fruity", "Fruity Limiter"]), ctx))
     }
 
+    /// Une macro tourne sur sa propre file : la disposition du clavier y est lue dans la copie faite sur le fil
+    /// principal (lire macOS hors du fil principal faisait planter l'app : « Ajouter un effet »).
+    func testKeyboardLayoutIsReadSafelyFromTheMacroQueue() throws {
+        KeyboardLayoutCopy.shared.refresh()
+        let main = (0..<UInt16(50)).map { SystemKeyboardLayout().character(for: $0) }
+        let mainCommand = SystemKeyboardLayout().commandCharacter(for: 0)
+        let done = expectation(description: "file de la macro")
+        var off: [String?] = []
+        var offCommand: String?
+        var option: PageOption?
+        DispatchQueue.global(qos: .userInitiated).async {
+            off = (0..<UInt16(50)).map { SystemKeyboardLayout().character(for: $0) }
+            offCommand = SystemKeyboardLayout().commandCharacter(for: 0)
+            option = PageOptions.option("mixer.addEffect", layout: SystemKeyboardLayout())
+            done.fulfill()
+        }
+        wait(for: [done], timeout: 5)
+        XCTAssertEqual(off, main)
+        XCTAssertEqual(offCommand, mainCommand)
+        XCTAssertEqual(option?.field, .plugin)
+    }
+
     func testPageAboveFollowsTheMacroOrderAndLoops() {
         let open = Block(.openPage(.mixer))
         let first = Block(.pageOption(id: "mixer.armon", name: ""))

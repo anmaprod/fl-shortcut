@@ -151,6 +151,8 @@ final class AppStatus: ObservableObject {
     private init() {}
 
     func start() {
+        // Disposition du clavier copiée sur le fil principal, pour les macros (leur file ne doit jamais la lire).
+        KeyboardLayoutCopy.shared.start()
         Store.shared.availability = { [weak self] id in self?.availability(id) ?? .unverified }
 
         MIDILink.shared.$snapshot
