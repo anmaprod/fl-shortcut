@@ -74,16 +74,21 @@ final class ClickRecorder {
 
     private var monitor: Any?
     private let samples = Locked<[ClickSample]>([])
+    /// Relâchés retenus aussi (glisser-déposer montré dans FL).
+    private var releases = false
 
     private init() {}
 
-    var captured: [CGPoint] { samples.value.map(\.point) }
+    var captured: [CGPoint] { samples.value.filter { !$0.up }.map(\.point) }
     var capturedSamples: [ClickSample] { samples.value }
 
-    func start() {
+    func start(releases: Bool = false) {
         samples.withLock { $0 = [] }
+        if monitor != nil, self.releases != releases { stop() }
+        self.releases = releases
         guard monitor == nil else { return }
-        monitor = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown]) { [weak self] event in
+        let mask: NSEvent.EventTypeMask = releases ? [.leftMouseDown, .leftMouseUp] : [.leftMouseDown]
+        monitor = NSEvent.addGlobalMonitorForEvents(matching: mask) { [weak self] event in
             if let test = MacroRunner.testFLPID {
                 guard NSWorkspace.shared.frontmostApplication?.processIdentifier == test else { return }
             } else {
@@ -92,7 +97,8 @@ final class ClickRecorder {
             }
             if event.cgEvent?.getIntegerValueField(.eventSourceUserData) == EventTap.mark { return }
             let p = event.cgEvent?.location ?? FLWindows.cursor()
-            self?.samples.withLock { $0.append(ClickSample(point: p, time: event.timestamp)) }
+            let up = event.type == .leftMouseUp
+            self?.samples.withLock { $0.append(ClickSample(point: p, time: event.timestamp, up: up)) }
         }
     }
 
@@ -105,6 +111,7 @@ final class ClickRecorder {
 struct ClickSample: Equatable {
     let point: CGPoint          // coordonnées CG globales (origine en haut à gauche)
     let time: TimeInterval      // NSEvent.timestamp (temps depuis le démarrage)
+    var up = false              // relâché (seulement si l'enregistreur les retient)
 }
 
 extension MacroSpots {

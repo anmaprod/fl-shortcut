@@ -318,6 +318,9 @@ final class MacroEffectsMac: MacroEffects {
         case .click(let target, let button):
             return click(target, right: button == .right, ctx: ctx)
 
+        case .drag(let from, let to):
+            return drag(from: from, to: to, ctx: ctx)
+
         case .menuAX(let titles, let fallback):
             let found = AXMenus.pressPath(pid: ctx.pid, titles: titles, perItemTimeout: 0.9) {
                 shouldStop(ctx.pid) != nil
@@ -1156,6 +1159,71 @@ final class MacroEffectsMac: MacroEffects {
             return .ok
         case .failed(let why):
             return .fail(why)
+        }
+    }
+
+    /// Glisser-déposer : les deux endroits retrouvés (sans attente : la page de FL est déjà ouverte), dans FL et rien
+    /// ne les couvre ; puis appui, glissé, relâché par le flux du système (un glisser ne peut pas être adressé à un seul
+    /// processus). Le bouton est toujours relâché, même après Échap.
+    func drag(from: ClickTarget, to: ClickTarget, ctx: Context) -> StepResult {
+        guard from.isFinite, to.isFinite else { return .fail("position invalide") }
+        guard let a = locate(from, ctx: ctx), a.popup == nil else {
+            return .fail("endroit où attraper introuvable (fenêtre de FL pas ouverte, ou changée de taille : montre de nouveau le glisser)")
+        }
+        guard let b = locate(to, ctx: ctx), b.popup == nil else {
+            return .fail("endroit où lâcher introuvable (fenêtre de FL pas ouverte, ou changée de taille : montre de nouveau le glisser)")
+        }
+        for p in [a.point, b.point] {
+            let inFL = FLWindows.contains(p, pid: ctx.pid) || FLHelpers.pids(of: ctx.pid).contains { FLWindows.contains(p, pid: $0) }
+            guard inFL else {
+                MacroLog.shared.write("DRAG", "refused \(p.logText): outside every FL window")
+                return .fail("le glisser sort de FL")
+            }
+            if let name = coveringApp(at: p, ctx: ctx) { return .fail("« \(name) » couvre FL à cet endroit") }
+        }
+        if let stop = shouldStop(ctx.pid) { return .cancel(stop) }
+        numbersBeforeLastClick = WinSnapshot.take(pid: ctx.pid).numbers
+        postDrag(from: a.point, to: b.point)
+        lastClickPoint = b.point
+        return .ok
+    }
+
+    /// Appui, une vingtaine de pas (16 ms chacun), un temps au-dessus de l'arrivée pour que FL la voie, relâché.
+    func postDrag(from a: CGPoint, to b: CGPoint) {
+        if cursorBeforeBurst == nil { cursorBeforeBurst = FLWindows.cursor() }
+        MacroLog.shared.write("DRAG", "\(a.logText) → \(b.logText)")
+        func post(_ type: CGEventType, _ q: CGPoint) {
+            guard let e = CGEvent(mouseEventSource: source, mouseType: type, mouseCursorPosition: q, mouseButton: .left) else { return }
+            e.flags = []
+            e.setIntegerValueField(.mouseEventClickState, value: 1)
+            e.setIntegerValueField(.eventSourceUserData, value: EventTap.mark)
+            e.post(tap: .cghidEventTap)
+        }
+        if Self.warpCursor {
+            CGWarpMouseCursorPosition(a)
+            CGAssociateMouseAndMouseCursorPosition(1)
+        }
+        post(.mouseMoved, a)
+        usleep(30_000)
+        post(.leftMouseDown, a)
+        defer { post(.leftMouseUp, b) }
+        usleep(90_000)                       // FL commence le glisser (seuil de temps de certains éléments)
+        let steps = Self.dragSteps(from: a, to: b)
+        for q in steps {
+            post(.leftMouseDragged, q)
+            usleep(16_000)
+        }
+        usleep(90_000)
+    }
+
+    /// Pure (testée) : points du glissé, de quelques pixels après `a` jusqu'à `b` compris (8 à 30 pas, un tous les
+    /// 20 points environ).
+    static func dragSteps(from a: CGPoint, to b: CGPoint) -> [CGPoint] {
+        let distance = hypot(b.x - a.x, b.y - a.y)
+        let count = max(8, min(30, Int((distance / 20).rounded(.up))))
+        return (1...count).map { k in
+            let t = CGFloat(k) / CGFloat(count)
+            return CGPoint(x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t)
         }
     }
 

@@ -39,6 +39,8 @@ enum MacroExchange {
             switch b.body {
             case .click(let target, let button) where target.isLearnedPosition:
                 copy.body = .click(.toLearn, button: button)
+            case .drag(let from, let to) where from.isLearnedPosition || to.isLearnedPosition:
+                copy.body = .drag(from: .toLearn, to: .toLearn)
             case .menuAX(let titles, _):
                 copy.body = .menuAX(titles: titles, fallback: [])
             case .chooseFile(let path):
@@ -152,6 +154,8 @@ enum MacroExchange {
                 copy.body = .dropFile(path: absolute(path, home: home))
             case .click(_, let button):
                 copy.body = .click(.toLearn, button: button)
+            case .drag:
+                copy.body = .drag(from: .toLearn, to: .toLearn)
             default:
                 copy.body = b.body.replacingChildren(b.body.children.map { localized($0, home: home) })
             }
@@ -176,6 +180,12 @@ enum MacroExchange {
                     warnings.append("Montre de nouveau chaque clic dans FL (positions propres à chaque Mac).")
                 } else if case .click = b.body {
                     marks.append("clic dans FL")
+                }
+                if case .drag(.toLearn, _) = b.body {
+                    marks.append("glisser : endroits à montrer dans FL")
+                    warnings.append("Montre de nouveau chaque glisser-déposer dans FL (positions propres à chaque Mac).")
+                } else if case .drag = b.body {
+                    marks.append("glisser dans FL")
                 }
                 if b.body.type == .chooseFile || b.body.type == .dropFile {
                     marks.append("fichier")

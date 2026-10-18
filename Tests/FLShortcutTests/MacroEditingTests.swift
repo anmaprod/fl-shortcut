@@ -154,7 +154,7 @@ final class MacroEditingTests: XCTestCase {
         let items = PaletteCatalog.items(layout: FakeLayout.qwerty)
         XCTAssertEqual(Set(items.map(\.id)).count, items.count)
         let ready = Set(items.filter { !$0.soon }.map(\.type))
-        for t: BlockType in [.key, .click, .menuKey, .waitWindow, .trackMenu, .chooseFile, .dropFile, .flAction,
+        for t: BlockType in [.key, .click, .drag, .menuKey, .waitWindow, .trackMenu, .chooseFile, .dropFile, .flAction,
                              .repeatCount, .openPage, .pageOption] {
             XCTAssertTrue(ready.contains(t), "\(t)")
         }
@@ -173,7 +173,7 @@ final class MacroEditingTests: XCTestCase {
         XCTAssertFalse(keys.contains("armon") || keys.contains("recon"), "\(keys)")
         XCTAssertFalse(items.contains { $0.type == .menuAX || $0.type == .setVariable || $0.type == .flActionValue })
         // Chaque entrée prête produit un bloc valide, sauf ce qui reste à choisir ou à montrer dans FL.
-        let toChoose: Set<String> = ["chooseFile", "dropFile", "clickLearned", "openPage", "pageOption"]
+        let toChoose: Set<String> = ["chooseFile", "dropFile", "clickLearned", "drag", "openPage", "pageOption"]
         for item in items where !item.soon && !toChoose.contains(item.id) {
             let p = MacroProgram(blocks: [Block(item.make())], name: "x", source: .blocks(id: UUID(), revision: 0), context: ctx)
             XCTAssertNil(p.problem, item.id)

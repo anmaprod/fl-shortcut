@@ -5,12 +5,15 @@ import Foundation
 
 enum BlockType: String, CaseIterable, Codable {
     case key, menuLetters, menuKey, click, delay, waitWindow, waitWindowClose
+    /// Glisser-déposer : appui à un endroit de FL, glissé jusqu'à un autre, relâché.
+    case drag
     case trackMenu, chooseFile, dropFile, flAction, flActionValue, selectInput, feedbackCheck
     /// Nom et couleur de la piste ou du canal sélectionné (lien avec FL, PROTOCOL.md §7).
     case nameColor
     /// La carte son branchée devient la sortie et l'entrée du Mac.
     case soundCard
-    /// Ouvre l'Organiser sur la page de FL devant (Channel rack ou Mixer) ; la suite se passe dans sa fenêtre.
+    /// Ouvre l'Organiser sur la page de FL devant (Channel rack, Mixer ou Playlist) ; la suite se passe dans sa
+    /// fenêtre.
     case organize
     /// Met devant une page de FL, seulement si elle n'y est pas déjà (MacroPages.swift).
     case openPage
@@ -138,6 +141,7 @@ enum BlockRegistry {
         case .menuLetters: return Specs.menuLetters
         case .menuKey: return Specs.menuKey
         case .click: return Specs.click
+        case .drag: return Specs.drag
         case .delay: return Specs.delay
         case .waitWindow: return Specs.waitWindow
         case .waitWindowClose: return Specs.waitWindowClose
@@ -356,6 +360,35 @@ private enum Specs {
             if case .toLearn = t { return ctx.fail("position à montrer dans FL (« Montrer dans FL… » dans le créateur).") }
             guard t.isFinite else { return ctx.fail("position invalide.") }
             if case .openMenu = t, b == .right { return ctx.fail("clic droit impossible dans un menu ouvert.") }
+            return nil
+        },
+        import_: .retirerPositions, plateformes: .mac)
+
+    static let drag = BlockSpec(
+        type: .drag, label: "Glisser-déposer", category: .souris, symbol: "hand.draw",
+        aide: "Reste cliqué à un endroit de FL (un son du Browser, un clip, un plugin…), glisse jusqu'à un autre endroit de FL et lâche. Les deux endroits se montrent une fois en faisant le geste dans FL ; toujours dans les fenêtres de FL, jamais sous une autre app.",
+        params: [ParamSpec("from", "Glisser", .cible)],
+        conteneur: .aucun, dansLaPalette: true,
+        needs: { body in
+            var n: BlockNeeds = base.union(.cliqueHID)
+            if case .drag(let a, let b) = body, a.isTrack || b.isTrack { n.insert(.pisteVisee) }
+            return n
+        },
+        parDefaut: { .drag(from: .lastClick(dx: 0, dy: 0), to: .startCursor(dx: 0, dy: 0)) },
+        resume: { body, _ in
+            guard case .drag(let a, let b) = body else { return "" }
+            return describe(a) + " → " + describe(b)
+        },
+        journal: { _ in "drag" },
+        estimationMs: { _ in 700 },
+        valider: { body, ctx in
+            guard case .drag(let a, let b) = body else { return nil }
+            if a == .toLearn || b == .toLearn {
+                return ctx.fail("glisser à montrer dans FL (« Montrer dans FL… » dans le créateur).")
+            }
+            guard a.isFinite, b.isFinite else { return ctx.fail("position invalide.") }
+            if case .openMenu = a { return ctx.fail("glisser impossible depuis un menu ouvert.") }
+            if case .openMenu = b { return ctx.fail("glisser impossible vers un menu ouvert.") }
             return nil
         },
         import_: .retirerPositions, plateformes: .mac)

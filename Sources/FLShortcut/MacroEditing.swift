@@ -311,6 +311,8 @@ enum MacroOutline {
         switch b.body {
         case .click(.toLearn, _):
             out.append(.aApprendre("Position à montrer dans FL : choisis le bloc puis « Montrer dans FL… »."))
+        case .drag(.toLearn, _), .drag(_, .toLearn):
+            out.append(.aApprendre("Glisser à montrer dans FL : choisis le bloc puis « Montrer dans FL… »."))
         default:
             if let problem { out.append(.probleme(problem)) }
         }
@@ -378,6 +380,10 @@ enum MacroOutline {
             return ("Dans le menu", k.symbol + times(n))
         case .click(let t, let b):
             return (b == .right ? "Clic droit" : "Clic", targetText(t))
+        case .drag(.toLearn, _), .drag(_, .toLearn):
+            return ("Glisser-déposer", "à montrer dans FL")
+        case .drag:
+            return ("Glisser-déposer", "de l'endroit appris jusqu'à l'autre")
         case .delay(let ms):
             return ("Pause", duration(ms))
         case .waitWindow(let k, let ms):
@@ -441,7 +447,7 @@ enum MacroOutline {
                 switch b.body {
                 case .flAction, .flActionValue, .nameColor, .openPage: link = true
                 case .pageOption(let id?, _) where PageOptions.usesLink(id): link = true
-                case .click(.toLearn, _): learn = true
+                case .click(.toLearn, _), .drag(.toLearn, _), .drag(_, .toLearn): learn = true
                 case .selectInput: if !learnedInput { learn = true }
                 default: break
                 }
@@ -453,6 +459,27 @@ enum MacroOutline {
     }
 
     // MARK: Clic montré dans FL
+
+    /// Glisser-déposer montré dans FL.
+    enum DragShown: Equatable {
+        case shown(from: ClickTarget, to: ClickTarget)
+        /// Appui et relâché à moins de 4 points : un simple clic.
+        case tooShort
+        /// Hors des fenêtres de FL, ou dans un menu.
+        case outside
+    }
+
+    /// Pure (testée) : les deux bouts d'un glisser montré, retenus comme des clics montrés (`learnedTarget`), par
+    /// rapport aux fenêtres de FL d'avant l'appui ; jamais dans un menu.
+    static func dragTargets(from a: CGPoint, to b: CGPoint, windows: [(layer: Int, bounds: CGRect)],
+                            titles: (String?, String?) = (nil, nil)) -> DragShown {
+        guard hypot(b.x - a.x, b.y - a.y) >= 4 else { return .tooShort }
+        guard let from = learnedTarget(at: a, windows: windows, title: titles.0),
+              let to = learnedTarget(at: b, windows: windows, title: titles.1) else { return .outside }
+        if case .openMenu = from { return .outside }
+        if case .openMenu = to { return .outside }
+        return .shown(from: from, to: to)
+    }
 
     /// Cible d'un clic montré par l'utilisateur, d'après les fenêtres de FL juste avant le clic (de l'avant vers
     /// l'arrière) : dans un menu de FL, relative à ce menu (FL le décale pour qu'il tienne à l'écran) ; dans une
@@ -518,6 +545,7 @@ enum PaletteCatalog {
                  aide: "Clic gauche ou droit à un endroit que tu montres une fois dans FL (« Montrer dans FL… »), retrouvé ensuite par rapport à la fenêtre ou au menu de FL ; ou sur la piste visée. Jamais hors de FL ni sous une autre app.") {
                 .click(.toLearn, button: .left)
             },
+            item("drag", .drag) { .drag(from: .toLearn, to: .toLearn) },
             // Fenêtres et attentes : un seul « Attendre » (boîte ou menu qui s'ouvre ou se ferme, ou temps fixe), réglé
             // dans l'inspecteur. Les clics appris attendent déjà leur fenêtre tout seuls.
             item("wait", .waitWindow, label: "Attendre",

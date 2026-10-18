@@ -157,7 +157,7 @@ private struct BlockInspector: View {
                 .font(.system(size: 12))
                 .fixedSize(horizontal: false, vertical: true)
         case .organize:
-            Text("Ouvre l'Organiser sur la page de FL qui est devant (Channel rack ou Mixer). Les couleurs, dégradés et "
+            Text("Ouvre l'Organiser sur la page de FL qui est devant (Channel rack, Mixer ou Playlist). Les couleurs, dégradés et "
                  + "icônes de chaque famille se règlent dans sa fenêtre et y restent gardés. macOS demande une fois "
                  + "l'autorisation « Audio système » : seul le son de FL est écouté, rien n'est enregistré.")
                 .font(.system(size: 12))
@@ -192,6 +192,8 @@ private struct BlockInspector: View {
             clickTarget(t)
         case (.click(_, let b), "button"):
             buttonPicker(p.label, b)
+        case (.drag(let from, let to), "from"):
+            dragField(from, to)
         case (.delay(let ms), "ms"):
             LabeledContent(p.label) { msField(ms) }
         case (.delay, "wait"), (.waitWindow, "wait"), (.waitWindowClose, "wait"):
@@ -679,6 +681,52 @@ private struct BlockInspector: View {
         }
     }
 
+    // MARK: Glisser-déposer
+
+    private func dragField(_ from: ClickTarget, _ to: ClickTarget) -> some View {
+        let learning = teacher.activeBlock == block.id
+        let shown = from != .toLearn && to != .toLearn
+        return VStack(alignment: .leading, spacing: 6) {
+            if shown {
+                LabeledContent("Attraper") { Text(MacroOutline.targetText(from)).foregroundStyle(.secondary) }
+                LabeledContent("Lâcher") { Text(MacroOutline.targetText(to)).foregroundStyle(.secondary) }
+            }
+            Text(shown ? "Retenu par rapport aux fenêtres de FL : la macro attrape et lâche aux mêmes endroits de ces "
+                         + "fenêtres. Si l'une change de taille ou de place dans FL, montre-le de nouveau."
+                       : "Pas encore montré : fais le glisser-déposer une fois dans FL (reste cliqué, glisse, lâche). "
+                         + "La macro ne tourne pas tant qu'il n'est pas montré.")
+                .font(.system(size: 12))
+                .fixedSize(horizontal: false, vertical: true)
+            HStack(spacing: 8) {
+                if learning {
+                    ProgressView().controlSize(.small)
+                    Button("Annuler") { teacher.cancel("Annulé.") }.secondaryButton()
+                } else {
+                    Button { teachDrag() } label: { Label("Montrer dans FL…", systemImage: "hand.draw") }
+                        .secondaryButton()
+                        .help("FL passe devant : fais le glisser-déposer une fois (il agit aussi dans FL). Échap annule.")
+                }
+            }
+            if let message = teacher.message, teacher.lastBlock == block.id {
+                Text(message).font(.system(size: 11)).foregroundStyle(learning ? Color.accentColor : Color.secondary)
+            }
+        }
+    }
+
+    private func teachDrag() {
+        guard let pid = EventTap.shared.currentConfig.flPIDs.first else {
+            teacher.say("Ouvre FL Studio, puis recommence.", for: block.id)
+            return
+        }
+        let id = block.id
+        let editor: MacroEditorModel = model
+        teacher.startDrag(block: id, pid: pid, returnTo: editor.window) { [weak editor] from, to in
+            editor?.updateBlock(id, key: "from", actionName: "Montrer le glisser-déposer") { b in
+                if case .drag = b.body { b.body = .drag(from: from, to: to) }
+            }
+        }
+    }
+
     private func offsetFields(_ t: ClickTarget, dx: Double, dy: Double) -> some View {
         func set(_ x: Double, _ y: Double) {
             let cx = min(max(x, -5000), 5000), cy = min(max(y, -5000), 5000)
@@ -1010,6 +1058,9 @@ final class ClickTeacher: ObservableObject {
     private var started = Date()
     private var pid: Int32 = 0
     private var completion: ((ClickTarget) -> Void)?
+    /// Glisser-déposer montré : l'appui et le relâché du même geste.
+    private var dragCompletion: ((ClickTarget, ClickTarget) -> Void)?
+    private var dragging = false
     private weak var returnWindow: NSWindow?
     /// « Retrouver ce bouton s'il bouge » : l'image du bouton est prise juste après le clic montré.
     private var visual = false
@@ -1021,10 +1072,19 @@ final class ClickTeacher: ObservableObject {
         message = text
     }
 
-    func start(block: UUID, pid: Int32, returnTo window: NSWindow?, visual: Bool = false,
+    /// Glisser-déposer : FL passe devant, le premier geste « appui, glissé, relâché » dans FL est retenu.
+    func startDrag(block: UUID, pid: Int32, returnTo window: NSWindow?,
+                   completion: @escaping (ClickTarget, ClickTarget) -> Void) {
+        start(block: block, pid: pid, returnTo: window, drag: true) { _ in }
+        guard activeBlock == block else { return }
+        dragCompletion = completion
+    }
+
+    func start(block: UUID, pid: Int32, returnTo window: NSWindow?, visual: Bool = false, drag: Bool = false,
                completion: @escaping (ClickTarget) -> Void) {
         stop()
         self.visual = visual
+        dragging = drag
         guard let fl = NSRunningApplication(processIdentifier: pid) else {
             say("Ouvre FL Studio, puis recommence.", for: block)
             return
@@ -1033,17 +1093,19 @@ final class ClickTeacher: ObservableObject {
         self.completion = completion
         returnWindow = window
         activeBlock = block
-        say("Dans FL : clique une fois à l'endroit voulu (Échap pour annuler).", for: block)
+        say(drag ? "Dans FL : reste cliqué sur ce qu'il faut attraper, glisse et lâche à l'endroit voulu (Échap pour annuler)."
+                 : "Dans FL : clique une fois à l'endroit voulu (Échap pour annuler).", for: block)
         history = []
         started = Date()
         CreatorPresence.stepAside()
         fl.activate(options: [])
-        ClickRecorder.shared.start()
+        ClickRecorder.shared.start(releases: drag)
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) { [weak self] in
             guard let self, self.activeBlock == block,
                   let main = FLWindows.list(pid: pid).filter({ $0.layer == 0 })
                     .max(by: { $0.bounds.width * $0.bounds.height < $1.bounds.width * $1.bounds.height }) else { return }
-            HintPanel.shared.show("Clique à l'endroit voulu dans FL (une fois). Échap : annuler.",
+            HintPanel.shared.show(drag ? "Fais le glisser-déposer dans FL (une fois). Échap : annuler."
+                                       : "Clique à l'endroit voulu dans FL (une fois). Échap : annuler.",
                                   near: CGPoint(x: main.bounds.midX, y: main.bounds.minY + 70))
         }
         let t = Timer(timeInterval: 0.05, repeats: true) { [weak self] _ in self?.tick() }
@@ -1071,7 +1133,11 @@ final class ClickTeacher: ObservableObject {
             return
         }
         if Date().timeIntervalSince(started) > 30 {
-            cancel("Aucun clic montré dans FL en 30 s.")
+            cancel(dragging ? "Aucun glisser-déposer montré dans FL en 30 s." : "Aucun clic montré dans FL en 30 s.")
+            return
+        }
+        if dragging {
+            tickDrag(snap)
             return
         }
         guard let sample = ClickRecorder.shared.capturedSamples.first else { return }
@@ -1113,6 +1179,30 @@ final class ClickTeacher: ObservableObject {
         }
     }
 
+    /// Glisser : l'appui puis le relâché qui le suit, retenus par rapport aux fenêtres de FL telles qu'elles étaient
+    /// juste avant l'appui.
+    private func tickDrag(_ snap: WinSnapshot) {
+        let samples = ClickRecorder.shared.capturedSamples
+        guard let down = samples.first(where: { !$0.up }),
+              let up = samples.first(where: { $0.up && $0.time >= down.time }) else { return }
+        let before = history.last(where: { $0.time <= down.time }) ?? history.first ?? snap
+        let windows: [(layer: Int, bounds: CGRect)] = before.fl.map { (layer: $0.layer, bounds: $0.bounds) }
+        let titles = (FLWindowAX.pluginTitle(at: down.point, before: before, fl: pid),
+                      FLWindowAX.pluginTitle(at: up.point, before: before, fl: pid))
+        let block = activeBlock
+        let done = dragCompletion
+        switch MacroOutline.dragTargets(from: down.point, to: up.point, windows: windows, titles: titles) {
+        case .shown(let from, let to):
+            finish(nil)
+            done?(from, to)
+            if let block { say("Glisser-déposer retenu.", for: block) }
+        case .tooShort:
+            cancel("Ce n'était pas un glisser : reste cliqué et glisse jusqu'à l'endroit voulu, puis recommence.")
+        case .outside:
+            cancel("Le glisser doit commencer et finir dans une fenêtre de FL (pas dans un menu) : recommence.")
+        }
+    }
+
     /// Image du bouton sous `point` (bouton sans nom, « Retrouver ce bouton s'il bouge ») ; sinon sa place.
     private func learnImage(at point: CGPoint, window: WinInfo, place target: ClickTarget,
                             done: ((ClickTarget) -> Void)?, block: UUID) {
@@ -1151,6 +1241,7 @@ final class ClickTeacher: ObservableObject {
         timer?.invalidate()
         timer = nil
         completion = nil
+        dragCompletion = nil
         if activeBlock != nil {
             ClickRecorder.shared.stop()
             HintPanel.shared.hide()

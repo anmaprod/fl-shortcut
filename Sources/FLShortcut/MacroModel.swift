@@ -236,6 +236,8 @@ indirect enum BlockBody: Equatable {
     case menuKey(MenuKey, times: Int)                       // ↑ ↓ ← → Entrée Échap, seulement dans un menu ouvert
     // Souris
     case click(ClickTarget, button: MouseButton)
+    /// Appui à `from`, glissé jusqu'à `to`, relâché (MacroEffectsMac.drag).
+    case drag(from: ClickTarget, to: ClickTarget)
     // Fenêtres et attentes
     case delay(ms: Int)
     case waitWindow(WindowKind, timeoutMs: Int)             // .dialog | .menu
@@ -284,6 +286,7 @@ indirect enum BlockBody: Equatable {
         case .menuLetters: return .menuLetters
         case .menuKey: return .menuKey
         case .click: return .click
+        case .drag: return .drag
         case .delay: return .delay
         case .waitWindow: return .waitWindow
         case .waitWindowClose: return .waitWindowClose
@@ -341,6 +344,8 @@ indirect enum BlockBody: Equatable {
             return ["menuKey": .string(key.rawValue), "times": .num(times)]
         case .click(let target, let button):
             return ["target": target.json, "button": .string(button.rawValue)]
+        case .drag(let from, let to):
+            return ["from": from.json, "to": to.json]
         case .delay(let ms):
             return ["ms": .num(ms)]
         case .waitWindow(let kind, let timeout), .waitWindowClose(let kind, let timeout):
@@ -416,6 +421,9 @@ indirect enum BlockBody: Equatable {
             guard let t = ClickTarget(json: j["target"]),
                   let button = MouseButton(rawValue: j["button"]?.string ?? "left") else { return nil }
             return .click(t, button: button)
+        case .drag:
+            guard let from = ClickTarget(json: j["from"]), let to = ClickTarget(json: j["to"]) else { return nil }
+            return .drag(from: from, to: to)
         case .delay:
             guard let ms = j["ms"]?.int else { return nil }
             return .delay(ms: ms)
@@ -855,6 +863,12 @@ enum ClickTarget: Equatable {
         case .flWindow, .openMenu, .button, .named, .cursorXWindowY: return true
         case .track, .lastClick, .startCursor, .toLearn: return false
         }
+    }
+
+    /// Relatif à la piste visée (la macro demande une piste cliquée avant le raccourci).
+    var isTrack: Bool {
+        if case .track = self { return true }
+        return false
     }
 
     init?(json: JSONValue?) {
