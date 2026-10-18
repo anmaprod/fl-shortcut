@@ -76,9 +76,9 @@ Vérifier chaque effet par une seule capture, ou par la barre d'aide / le titre 
 - **B3** — ⌃D / ⌃F : pattern précédent / suivant (créer 2 patterns d'abord). ⌃M : métronome (bouton du transport).
 - **B4** — Pause ⌃⌥⌘F : les raccourcis ne font plus rien ; de nouveau ⌃⌥⌘F : ils remarchent. Statut visible dans la
   barre des menus.
-- **B5** — Touches seules (profil « Style Ableton » : Tab, 0) : marchent dans le Mixer ; NE se déclenchent PAS quand
+- **B5** — Touches seules (profil « Ableton dans FL » : 0, B, O, Z) : marchent dans FL ; NE se déclenchent PAS quand
   la fenêtre du nom de FL (F2) est ouverte, ni dans un champ de texte, ni avec un menu de FL ouvert.
-- **B6** — Fenêtre principale : changer de profil (Recommandé → Style Ableton → Vide → Recommandé), annuler le
+- **B6** — Fenêtre principale : changer de profil (Recommandé → Ableton dans FL → Logic Pro dans FL → Vide → Recommandé), annuler le
   changement ; créer un raccourci (capture d'une touche), le modifier, le supprimer ; conflit avec FL, touche déjà
   prise, touche interdite (⌘Q refusé), version de FL trop ancienne : chaque avertissement recopié.
 - **B7** — Export puis import d'un profil (dossier Documents › FL Shortcuts › Raccourcis) : le profil importé est

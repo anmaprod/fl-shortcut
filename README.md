@@ -52,7 +52,8 @@ Le profil **Recommandé** n'écrase aucun raccourci de FL. Tu peux changer de pr
 | Métronome | `⌃M` | `Ctrl+Maj+K` |
 | Rétablir (mode MIDI seulement) | `⇧⌘Z` | `Ctrl+Y` |
 
-- **Style Ableton** ajoute `Tab` (Playlist ↔ Mixer), `0` (mute) et pattern précédent / suivant (`⌃⌥←/→` sur Mac, `Ctrl+Maj+←/→` sur Windows). Ce profil contient des touches seules.
+- **Ableton dans FL** (Mac) : les raccourcis par défaut d'Ableton Live 12 font la même chose dans FL, chacun envoyé comme la touche de FL équivalente (sans le script) : `F9` enregistre, `⌘D` duplique, `⌘E` découpe, `⌘J` consolide, `⌘U` quantize, `⌘R` renomme, `0` coupe le son de la sélection, `B` dessine, `O` métronome, `⌘4` magnétisme, `⌘+` / `⌘−` / `Z` zooment, `⌘⌥B` Browser, `⌘⌥M` Mixer, `⇧⇥` Piano Roll, `⌘Z` annule pas à pas. Contient des touches seules.
+- **Logic Pro dans FL** (Mac) : pareil avec les raccourcis par défaut de Logic Pro : `↩` revient au début, `K` métronome, `X` Mixer, `P` Piano Roll, `F` Browser, `Y` instruments et effets, `T` outils, `Q` quantize, `⌘T` découpe, `⌘R` répète, `⌘J` joint, `⌃M` coupe le son des clips, `⌘←` / `⌘→` / `Z` zooment, `,` / `.` changent de mesure, `⌘K` clavier musical, `⌘B` exporte. Contient des touches seules.
 - **Vide** part de zéro.
 
 Sur Windows, on évite `Ctrl+Alt` : c'est AltGr sur les claviers AZERTY (`@`, `€`, `{`…). L'appli prévient quand un raccourci :

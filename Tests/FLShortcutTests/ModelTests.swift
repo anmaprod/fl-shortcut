@@ -155,7 +155,77 @@ final class ModelTests: XCTestCase {
         XCTAssertTrue(triggers.contains(KeyCombo(keyCode: 46, control: true)))     // ⌃M → 46
         XCTAssertTrue(triggers.contains(KeyCombo(keyCode: 6, command: true, shift: true)))
         XCTAssertTrue(ProfilePreset.empty.remaps(layout: FakeLayout.qwerty).isEmpty)
-        XCTAssertTrue(ProfilePreset.ableton.remaps(layout: FakeLayout.qwerty).contains { $0.trigger == KeyCombo(keyCode: 48) })
+        XCTAssertTrue(ProfilePreset.ableton.remaps(layout: FakeLayout.qwerty).contains {
+            $0.trigger == KeyCombo(keyCode: 101) && $0.target == KeyCombo(keyCode: 15)                  // F9 → R
+        })
+    }
+
+    /// Ableton et Logic dans FL : chaque touche envoie une touche de FL autorisée (sans le script), une seule fois par
+    /// fenêtre, quelle que soit la disposition ; seul « rétablir » demande le script.
+    func testAbletonAndLogicPresetsSendFLKeys() {
+        for preset in [ProfilePreset.ableton, .logic] {
+            for layout in [FakeLayout.qwerty, FakeLayout.azerty, FakeLayout.russian] {
+                let remaps = preset.remaps(layout: layout)
+                let forbidden = ForbiddenTargets.make(layout: layout)
+                XCTAssertGreaterThanOrEqual(remaps.count, 20, preset.label)
+                XCTAssertEqual(remaps.filter { $0.kind == .flAction }.map(\.actionID), [37], preset.label)
+                var seen = Set<String>()
+                for r in remaps {
+                    guard let trigger = r.trigger else { return XCTFail("\(preset.label) : raccourci sans touche") }
+                    XCTAssertTrue(trigger.isValidKey, preset.label)
+                    XCTAssertTrue(seen.insert("\(trigger.display) \(r.context.rawValue)").inserted,
+                                  "\(preset.label) : \(trigger.display) deux fois dans \(r.context.label)")
+                    guard r.kind == .keystroke else { continue }
+                    guard let target = r.target else { return XCTFail("\(preset.label) : touche de FL manquante") }
+                    XCTAssertTrue(target.isValidKey, preset.label)
+                    XCTAssertNil(forbidden.reason(for: target), "\(preset.label) : \(target.display)")
+                    XCTAssertNotEqual(trigger, target, preset.label)
+                }
+            }
+        }
+        let logic = ProfilePreset.logic.remaps(layout: FakeLayout.qwerty)
+        XCTAssertTrue(logic.contains { $0.trigger == KeyCombo(keyCode: 7) && $0.target == KeyCombo(keyCode: 101) })   // X → F9
+        XCTAssertTrue(logic.contains {
+            $0.trigger == KeyCombo(keyCode: 36) && $0.target == KeyCombo(keyCode: 115) && $0.context == .playlist  // ↩ → ↖
+        })
+    }
+
+    /// 5 exemples de macros prêts : touches de FL seulement, raccourcis ⌃⇧ distincts hors du profil Recommandé, donnés
+    /// à la copie s'ils sont libres (déjà pris : la copie reste sans raccourci).
+    func testMacroExamplesGetTheirShortcutWhenFree() {
+        let store = makeStore(MemoryProfileStorage(data: try? ProfileCodec.encode([])))
+        let examples = MacroTemplates.examples(layout: FakeLayout.qwerty)
+        XCTAssertEqual(examples.count, 5)
+        let combos = examples.compactMap(\.shortcut)
+        XCTAssertEqual(Set(combos).count, 5)
+        XCTAssertTrue(combos.allSatisfy { $0.control && $0.shift && !$0.command && !$0.option })
+        let recommended = Set(ProfilePreset.recommended.remaps(layout: FakeLayout.qwerty).compactMap(\.trigger))
+        XCTAssertTrue(recommended.isDisjoint(with: combos))
+        let gallery = Set(MacroTemplates.gallery(layout: FakeLayout.qwerty).map(\.id))
+        XCTAssertTrue(gallery.isSuperset(of: examples.map(\.id)))
+        for t in examples {
+            let doc = t.make(FakeLayout.qwerty)
+            XCTAssertNil(MacroProgram.compile(doc, forbidden: .physical).problem, t.id)
+            XCTAssertFalse(doc.blocks.contains { if case .click = $0.body { return true } else { return false } },
+                           "\(t.id) : rien à apprendre")
+        }
+
+        let doc = store.library.add(examples[0].make(FakeLayout.qwerty))
+        XCTAssertTrue(store.giveShortcutIfFree(combos[0], toMacro: doc.id))
+        XCTAssertEqual(store.remaps(forMacro: doc.id).map(\.trigger), [combos[0]])
+        let again = store.library.add(examples[0].make(FakeLayout.qwerty))
+        XCTAssertFalse(store.giveShortcutIfFree(combos[0], toMacro: again.id), "déjà pris : sans raccourci")
+        XCTAssertTrue(store.remaps(forMacro: again.id).isEmpty)
+    }
+
+    /// Chargé, le profil Ableton se lit sur les lignes de FL : « Dupliquer la sélection à droite » (Playlist) prend ⌘D.
+    func testAbletonPresetShownOnFLRows() {
+        let store = makeStore(MemoryProfileStorage(data: try? ProfileCodec.encode([])))
+        store.apply(preset: .ableton)
+        let rows = store.catalogRows().rows
+        let duplicate = rows.first { $0.id == "fl.playlist.cmd-b" }
+        XCTAssertEqual(duplicate?.current, KeyCombo(keyCode: 2, command: true))
+        XCTAssertEqual(rows.first { $0.id == "fl.transport.r" }?.current, KeyCombo(keyCode: 101))      // F9
     }
 
     func testKeyComboIgnoresFnNumPadCapsLock() {

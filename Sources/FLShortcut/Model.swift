@@ -1,6 +1,7 @@
 // Audit : REL-01 (décodage tolérant champ par champ et élément par élément, actions inconnues conservées et
 //         désactivées, migration du format v1, ids dédoublonnés), REL-11 / REL-12 / audit 05 §6 (profils
-//         Recommandé / Style Ableton / Vide, aucune touche seule ni ⌃←/⌃→ dans le profil par défaut),
+//         Recommandé / Ableton dans FL / Logic Pro dans FL / Vide, aucune touche seule ni ⌃←/⌃→ dans le profil
+//         par défaut),
 //         REL-17 (Fn / pavé numérique / Verr. Maj ne font pas partie de la combinaison), REL-20 (une seule
 //         analyse sert à l'index ET à l'interface ; clé d'unicité (déclencheur, contexte)), SEC-05 (validation
 //         stricte : bornes des keyCodes, touches modificatrices refusées, liste noire, détection de boucles,
@@ -530,14 +531,15 @@ enum ShortcutAnalyzer {
 // MARK: - Profils livrés
 
 enum ProfilePreset: String, CaseIterable, Identifiable {
-    case recommended, ableton, empty
+    case recommended, ableton, logic, empty
 
     var id: String { rawValue }
 
     var label: String {
         switch self {
         case .recommended: return "Recommandé"
-        case .ableton: return "Style Ableton"
+        case .ableton: return "Ableton dans FL"
+        case .logic: return "Logic Pro dans FL"
         case .empty: return "Vide"
         }
     }
@@ -545,7 +547,14 @@ enum ProfilePreset: String, CaseIterable, Identifiable {
     var summary: String {
         switch self {
         case .recommended: return "⌃1…⌃5 pour les fenêtres, ⌃D/⌃F patterns, ⌃T/⌃S mute/solo, ⌃M métronome, ⌘⇧Z rétablir, ⌃R enregistrement rapide (macro). Rien n'écrase FL."
-        case .ableton: return "Tab, 0 et ⌃⌥←/→ comme dans Ableton. Contient des touches seules."
+        case .ableton: return "Les raccourcis d'Ableton Live font la même chose dans FL : F9 enregistre, ⌘D duplique, ⌘E découpe, "
+            + "⌘J consolide, ⌘U quantize, ⌘R renomme, 0 coupe le son de la sélection, B dessine, O métronome, ⌘4 "
+            + "magnétisme, ⌘+/⌘− et Z zooment, ⌘⌥B Browser, ⌘⌥M Mixer, ⇧⇥ Piano Roll, ⌘Z annule pas à pas. "
+            + "Remplace certaines touches de FL (F9, B, O, Z…)."
+        case .logic: return "Les raccourcis de Logic Pro font la même chose dans FL : Retour revient au début, K métronome, "
+            + "X Mixer, P Piano Roll, F Browser, Y instruments et effets, T outils, Q quantize, ⌘T découpe, ⌘R répète, "
+            + "⌘J joint, ⌃M coupe le son des clips, ⌘←/⌘→ et Z zooment, « , » et « . » changent de mesure, ⌘K clavier "
+            + "musical, ⌘B exporte. Remplace certaines touches de FL (P, F, T, Z…)."
         case .empty: return "Aucun raccourci."
         }
     }
@@ -565,6 +574,21 @@ enum ProfilePreset: String, CaseIterable, Identifiable {
         let digits: [UInt16] = [18, 19, 20, 21, 23]          // 1…5 de la rangée des chiffres
         let windows = [30, 31, 32, 33, 34]                    // Playlist, Channel Rack, Piano Roll, Mixer, Browser
         let redo = Remap(trigger: KeyCombo(keyCode: cmdKey("z", 6), command: true, shift: true), action: 37)
+        /// Caractère résolu selon la disposition (avec ⌘ : la touche qui le produit avec ⌘), repli QWERTY.
+        func ch(_ c: String, _ fallback: UInt16, cmd: Bool = false, opt: Bool = false, ctrl: Bool = false,
+                shift: Bool = false) -> KeyCombo {
+            KeyCombo(keyCode: cmd ? cmdKey(c, fallback) : key(c, fallback), command: cmd, option: opt, control: ctrl,
+                     shift: shift)
+        }
+        /// Touche physique (F1…F12, flèches, pavé numérique, chiffres de la rangée).
+        func kc(_ code: UInt16, cmd: Bool = false, opt: Bool = false, shift: Bool = false) -> KeyCombo {
+            KeyCombo(keyCode: code, command: cmd, option: opt, control: false, shift: shift)
+        }
+        /// Ta touche → la touche de FL, dans la fenêtre de sa page (FL Shortcuts la montre sur cette ligne).
+        func sends(_ trigger: KeyCombo, _ target: KeyCombo, _ context: ShortcutContext = .everywhere) -> Remap {
+            Remap(trigger: trigger, sends: target, context: context)
+        }
+        let undo = sends(ch("z", 6, cmd: true), ch("z", 6, cmd: true, opt: true))   // ⌘Z : annuler pas à pas (⌘⌥Z)
 
         switch self {
         case .recommended:
@@ -580,16 +604,59 @@ enum ProfilePreset: String, CaseIterable, Identifiable {
             ]
             return list
         case .ableton:
-            var list = [
-                Remap(trigger: KeyCombo(keyCode: 48), action: 35),                           // Tab : Playlist ↔ Mixer
-                Remap(trigger: KeyCombo(keyCode: 29), action: 21),                           // 0 : mute
+            // Raccourcis par défaut d'Ableton Live 12 (manuel d'Ableton, « Live Keyboard Shortcuts »), chacun envoyé
+            // comme la touche de FL qui fait la même chose : rien ne demande le script, sauf ⌘⇧Z (rétablir).
+            return [
+                sends(kc(101), ch("r", 15)),                                            // F9 : enregistrer (R)
+                sends(kc(48, shift: true), kc(98)),                                     // ⇧⇥ : vue du clip → Piano Roll (F7)
+                sends(ch("b", 11, cmd: true, opt: true), kc(100, opt: true)),           // ⌘⌥B : Browser (⌥F8)
+                sends(ch("m", 46, cmd: true, opt: true), kc(101)),                      // ⌘⌥M : Mixer (F9)
+                sends(ch("d", 2, cmd: true), ch("b", 11, cmd: true), .playlist),        // ⌘D : dupliquer (⌘B)
+                sends(ch("e", 14, cmd: true), ch("c", 8), .playlist),                   // ⌘E : découper (outil C)
+                sends(ch("j", 38, cmd: true), ch("c", 8, cmd: true, opt: true), .playlist),  // ⌘J : consolider (⌘⌥C)
+                sends(ch("u", 32, cmd: true), ch("q", 12, cmd: true, opt: true), .pianoRoll), // ⌘U : quantize (⌘⌥Q)
+                sends(ch("r", 15, cmd: true), kc(120)),                                 // ⌘R : renommer (F2)
+                sends(ch("r", 15, cmd: true, shift: true), ch("r", 15, cmd: true)),     // ⌘⇧R : exporter (⌘R)
+                sends(kc(29), ch("m", 46, opt: true), .playlist),                       // 0 : désactiver → mute (⌥M)
+                sends(ch("b", 11), ch("p", 35), .playlist),                             // B : dessiner (crayon P)
+                sends(ch("b", 11), ch("p", 35), .pianoRoll),
+                sends(ch("o", 31), ch("m", 46, cmd: true)),                             // O : métronome (⌘M)
+                sends(kc(21, cmd: true), kc(51)),                                       // ⌘4 : magnétisme (⌫)
+                sends(ch("=", 24, cmd: true), kc(116), .playlist),                      // ⌘+ : zoom avant (Pg↑)
+                sends(ch("-", 27, cmd: true), kc(121), .playlist),                      // ⌘− : zoom arrière (Pg↓)
+                sends(ch("z", 6), kc(23), .playlist),                                   // Z : zoomer sur la sélection (5)
+                sends(ch("m", 46, cmd: true, shift: true), kc(118, cmd: true)),         // ⌘⇧M : clip MIDI → pattern vide (⌘F4)
+                sends(ch(",", 43, cmd: true), kc(109)),                                 // ⌘, : réglages (F10)
+                undo,
                 redo,
-                Remap(trigger: KeyCombo(keyCode: 124, option: true, control: true), action: 13),
-                Remap(trigger: KeyCombo(keyCode: 123, option: true, control: true), action: 14),
-                Remap(trigger: KeyCombo(keyCode: key("m", 46), control: true), action: 4),
             ]
-            list += zip(digits, windows).map { Remap(trigger: KeyCombo(keyCode: $0, control: true), action: $1) }
-            return list
+        case .logic:
+            // Raccourcis par défaut de Logic Pro (jeu américain), chacun envoyé comme la touche de FL qui fait la même
+            // chose : rien ne demande le script, sauf ⌘⇧Z (rétablir).
+            return [
+                sends(kc(36), kc(115), .playlist),                                      // Retour : au début (Origine)
+                sends(ch("k", 40), ch("m", 46, cmd: true)),                             // K : métronome (⌘M)
+                sends(ch("x", 7), kc(101)),                                             // X : Mixer (F9)
+                sends(ch("p", 35), kc(98)),                                             // P : Piano Roll (F7)
+                sends(ch("f", 3), kc(100, opt: true)),                                  // F : navigateurs → Browser (⌥F8)
+                sends(ch("y", 16), kc(100)),                                            // Y : bibliothèque → Plugin Picker (F8)
+                sends(ch("t", 17), kc(99)),                                             // T : outils (F3)
+                sends(ch("q", 12), ch("q", 12, cmd: true, opt: true), .pianoRoll),      // Q : quantize (⌘⌥Q)
+                sends(ch("t", 17, cmd: true), ch("c", 8), .playlist),                   // ⌘T : couper (outil C)
+                sends(ch("r", 15, cmd: true), ch("b", 11, cmd: true), .playlist),       // ⌘R : répéter (⌘B)
+                sends(ch("j", 38, cmd: true), ch("c", 8, cmd: true, opt: true), .playlist),  // ⌘J : joindre (⌘⌥C)
+                sends(ch("m", 46, ctrl: true), ch("m", 46, opt: true), .playlist),      // ⌃M : mute des régions (⌥M)
+                sends(kc(124, cmd: true), kc(116), .playlist),                          // ⌘→ : zoom avant (Pg↑)
+                sends(kc(123, cmd: true), kc(121), .playlist),                          // ⌘← : zoom arrière (Pg↓)
+                sends(ch("z", 6), kc(23), .playlist),                                   // Z : zoomer sur la sélection (5)
+                sends(ch(",", 43), kc(75)),                                             // , : mesure précédente (/ du pavé)
+                sends(ch(".", 47), kc(67)),                                             // . : mesure suivante (* du pavé)
+                sends(ch("k", 40, cmd: true), ch("t", 17, cmd: true)),                  // ⌘K : clavier musical (⌘T)
+                sends(ch("b", 11, cmd: true), ch("r", 15, cmd: true)),                  // ⌘B : bounce → exporter (⌘R)
+                sends(ch(",", 43, cmd: true), kc(109)),                                 // ⌘, : réglages (F10)
+                undo,
+                redo,
+            ]
         case .empty:
             return []
         }
