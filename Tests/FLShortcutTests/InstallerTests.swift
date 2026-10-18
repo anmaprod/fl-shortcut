@@ -152,8 +152,8 @@ final class InstallerTests: XCTestCase {
                        ["FL Shortcuts", "FL Shortcut"], "chemin enregistré et emplacements par défaut, sans doublon")
     }
 
-    /// Ce qui demande Touch ID ou le mot de passe : une seule commande, chemins entre apostrophes (même avec une
-    /// apostrophe dedans), reçu du .pkg oublié.
+    /// Ce qui demande le mot de passe (ancienne installation seulement) : une seule commande, chemins entre
+    /// apostrophes (même avec une apostrophe dedans), reçu du .pkg oublié.
     func testPrivilegedScript() {
         XCTAssertEqual(Uninstaller.privilegedScript(Uninstaller.PrivilegedWork()), "")
         XCTAssertTrue(Uninstaller.PrivilegedWork().isEmpty)
@@ -162,13 +162,13 @@ final class InstallerTests: XCTestCase {
         XCTAssertEqual(Uninstaller.privilegedScript(work),
                        "/bin/rm -rf '/Applications/FL Shortcuts.app' '/Applications/L'\\''autre.app'; "
                        + "/usr/sbin/pkgutil --forget app.flshortcut.pkg >/dev/null")
-        // Autorisations (clavier, écran, son) : retirées de la liste du système, en administrateur.
-        let permissions = Uninstaller.PrivilegedWork(permissions: true)
-        XCTAssertFalse(permissions.isEmpty)
-        XCTAssertEqual(Uninstaller.privilegedScript(permissions),
-                       "/usr/bin/tccutil reset All app.flshortcut.FLShortcut >/dev/null 2>&1; "
-                       + "/usr/bin/tccutil reset All app.flshortcut.Uninstaller >/dev/null 2>&1")
-        XCTAssertTrue(Uninstaller.privilegedWork(home: URL(fileURLWithPath: "/nulle/part")).permissions)
+        // Plus rien au système (app à l'utilisateur, reçu oublié par le .pkg) : aucune demande, même s'il reste un
+        // vieux reçu ; les autorisations sont celles de l'utilisateur, retirées sans mot de passe.
+        let home = URL(fileURLWithPath: "/nulle/part")
+        XCTAssertTrue(Uninstaller.privilegedWork(home: home, receiptExists: true).apps.allSatisfy { $0.path.hasPrefix("/Applications/") })
+        if Uninstaller.privilegedWork(home: home, receiptExists: false).apps.isEmpty {
+            XCTAssertTrue(Uninstaller.privilegedWork(home: home, receiptExists: true).isEmpty, "reçu seul : pas de mot de passe")
+        }
     }
 
     func testInstallerWritesIntoDedicatedFolder() throws {

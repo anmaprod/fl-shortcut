@@ -1,13 +1,12 @@
 // Désinstallation en 3 étapes, à la façon d'Apple :
 // 1. « Désinstaller FL Shortcuts ? » ; si les raccourcis et les macros ne sont sauvegardés nulle part (pas connecté
 //    au compte, ou derniers changements pas encore en ligne), une ligne le dit, avec de quoi les sauvegarder d'abord ;
-// 2. Touch ID ou le mot de passe du Mac, une seule fois, avant toute suppression (l'app installée par le .pkg
-//    appartient au système ; sinon, simple confirmation de l'identité). Refusé : rien n'est supprimé ;
+// 2. rien à confirmer de plus, sauf pour une app installée par un ancien .pkg (au système) : le mot de passe du Mac,
+//    une seule fois, avant toute suppression. Refusé : rien n'est supprimé ;
 // 3. le bilan vérifié (Uninstaller.removeEverything) : coche verte qui apparaît en grandissant, « Quitter » en bas à
 //    droite ; s'il reste quelque chose, « Glisse FL Shortcuts dans la Corbeille » et « Afficher dans le Finder ».
 // Couleurs et mise en page des alertes de macOS ; textes courts (les gens lisent ce qui est court).
 import AppKit
-import LocalAuthentication
 import SwiftUI
 
 /// Un lien vers la page Mon compte, depuis l'extérieur de la fenêtre principale (fenêtre de désinstallation).
@@ -71,32 +70,22 @@ final class UninstallFlow: ObservableObject {
         return .notSaved
     }
 
-    /// Étape 2, puis 3.
+    /// Étape 2, puis 3. Rien à confirmer de plus : le bouton « Désinstaller » suffit. Le mot de passe du Mac n'est
+    /// demandé que pour une app installée par un ancien .pkg (elle appartient au système).
     func start() {
         guard !demo else { return }
         cancelled = nil
-        step = .authenticating
         let work = Uninstaller.privilegedWork()
-        if !work.isEmpty {
-            // La fenêtre de macOS (Touch ID ou mot de passe) s'affiche ; l'étape « Confirme… » est dessinée avant.
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
-                switch Uninstaller.runPrivileged(work) {
-                case .cancelled: self.back("Rien n'a été supprimé.")
-                case .done, .failed: self.finish()   // ce qui a résisté est dans le bilan
-                }
-            }
+        guard !work.isEmpty else {
+            finish()
             return
         }
-        let context = LAContext()
-        var error: NSError?
-        guard context.canEvaluatePolicy(.deviceOwnerAuthentication, error: &error) else {
-            finish()                                // Mac sans mot de passe : rien à demander
-            return
-        }
-        context.evaluatePolicy(.deviceOwnerAuthentication,
-                               localizedReason: "désinstaller l'app et tout ce qu'elle a créé sur ce Mac") { ok, _ in
-            DispatchQueue.main.async {
-                if ok { self.finish() } else { self.back("Rien n'a été supprimé.") }
+        step = .authenticating
+        // La fenêtre de macOS (mot de passe) s'affiche ; l'étape « Ton mot de passe… » est dessinée avant.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+            switch Uninstaller.runPrivileged(work) {
+            case .cancelled: self.back("Rien n'a été supprimé.")
+            case .done, .failed: self.finish()   // ce qui a résisté est dans le bilan
             }
         }
     }
@@ -144,13 +133,22 @@ final class UninstallWindow: NSObject, NSWindowDelegate {
     private var window: NSWindow?
     private var flow: UninstallFlow?
 
-    /// Mode capture : un écran d'exemple ; « fermer » ferme la fenêtre (sans quitter).
+    /// Mode capture : un écran d'exemple ; « fermer » ferme la fenêtre (sans quitter). « reel » : la vraie
+    /// désinstallation, comme si on cliquait « Désinstaller » (essai de la fenêtre sur la CI, machine jetable).
     func showDemo(_ screen: String) {
-        if screen == "fermer" {
+        switch screen {
+        case "fermer":
             window?.close()
-            return
+        case "reel":
+            guard ProcessInfo.processInfo.environment["FLS_ESSAI_DESINSTALLATION"] == "1" else { return }
+            show()
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { [weak self] in
+                self?.flow?.removeExports = true
+                self?.flow?.start()
+            }
+        default:
+            show(demo: screen)
         }
-        show(demo: screen)
     }
 
     func show(demo: String? = nil) {
@@ -204,7 +202,7 @@ struct UninstallView: View {
         Group {
             switch flow.step {
             case .confirm: confirm
-            case .authenticating: waiting(symbol: "touchid", title: "Confirme avec Touch ID ou ton mot de passe")
+            case .authenticating: waiting(symbol: "lock", title: "Ton mot de passe du Mac, une seule fois (ancienne installation)")
             case .working: waiting(symbol: "trash", title: "Suppression…")
             case .done(let report): done(report)
             }
@@ -213,7 +211,9 @@ struct UninstallView: View {
         .padding(.horizontal, 24)
         .padding(.top, 30)
         .padding(.bottom, 18)
-        .frame(width: 340)
+        // Même taille à chaque étape : la fenêtre ne saute plus quand le contenu change (confirmation haute, attente
+        // courte, bilan) ; chaque étape est centrée dedans.
+        .frame(width: 340, height: 350)
         .background { BrandGlow() }                  // les couleurs de l'app, comme le guide
     }
 
@@ -299,7 +299,7 @@ struct UninstallView: View {
         .padding(.top, 2)
     }
 
-    // MARK: 2. Touch ID, suppression
+    // MARK: 2. Mot de passe (ancienne installation), suppression
 
     private func waiting(symbol: String, title: String) -> some View {
         VStack(spacing: 12) {

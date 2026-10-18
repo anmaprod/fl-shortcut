@@ -165,8 +165,6 @@ struct MacroTemplate: Identifiable {
     let title: String
     let summary: String
     let symbol: String
-    /// Raccourci donné tout de suite à la copie s'il est libre (exemples prêts à l'emploi, sans réglage).
-    var shortcut: KeyCombo? = nil
     let make: (KeyboardLayout) -> MacroDoc
 }
 
@@ -244,72 +242,6 @@ extension MacroTemplates {
                           summary: "Écoute chaque son sans que tu l'entendes, le classe (Voix, Mélodies, Basse, Drums, FX), puis colore après ton accord : regroupe aussi le Channel rack, renomme les pistes de la Playlist (Kick, Snare…).",
                           symbol: "square.stack.3d.up") { _ in
                 MacroDoc(name: "Organiser la page ouverte", blocks: [Block(.organize)], origin: .template(organizeID))
-            },
-        ] + examples(layout: layout)
-    }
-
-    /// Exemples prêts à l'emploi : seulement des touches de FL (rien à apprendre ni à régler), chacun avec son
-    /// raccourci ⌃⇧ + lettre, libre dans FL et dans macOS.
-    static func examples(layout: KeyboardLayout) -> [MacroTemplate] {
-        func key(_ combo: KeyCombo) -> BlockBody { .key(KeyRef(combo), times: 1) }
-        func cmd(_ letter: String, _ fallback: UInt16, opt: Bool = false, shift: Bool = false) -> KeyCombo {
-            KeyCombo(keyCode: KeyNames.commandKeyCode(for: letter, layout: layout) ?? fallback, command: true,
-                     option: opt, shift: shift)
-        }
-        func shortcut(_ letter: String, _ fallback: UInt16) -> KeyCombo {
-            KeyCombo(keyCode: KeyNames.keyCode(for: letter, layout: layout) ?? fallback, control: true, shift: true)
-        }
-        return [
-            MacroTemplate(id: "duplicateFour", title: "Dupliquer 4 fois la sélection",
-                          summary: "Dans la Playlist ou le Piano Roll : la sélection est recopiée 4 fois à sa droite (⌘B de FL), pour poser une boucle sur plusieurs mesures d'un coup.",
-                          symbol: "square.on.square", shortcut: shortcut("d", 2)) { _ in
-                MacroDoc(name: "Dupliquer 4 fois la sélection", blocks: [
-                    Block(.repeatCount(4, [Block(key(cmd("b", 11)), note: "Dupliquer à droite"), Block(.delay(ms: 80))])),
-                ], origin: .template("duplicateFour"))
-            },
-            MacroTemplate(id: "legatoAll", title: "Toutes les notes en legato",
-                          summary: "Dans le Piano Roll ouvert devant : chaque note s'allonge jusqu'à la suivante (Legato rapide de FL), idéal pour une ligne de 808 ou de basse, puis tout est désélectionné.",
-                          symbol: "wand.and.stars", shortcut: shortcut("l", 37)) { _ in
-                MacroDoc(name: "Toutes les notes en legato", blocks: [
-                    Block(.comment("Ouvre d'abord le Piano Roll du pattern à arranger")),
-                    Block(key(cmd("a", 0)), note: "Tout sélectionner"),
-                    Block(key(cmd("l", 37)), note: "Legato rapide"),
-                    Block(.delay(ms: 100)),
-                    Block(key(cmd("d", 2)), note: "Désélectionner"),
-                ], origin: .template("legatoAll"))
-            },
-            MacroTemplate(id: "exportMIDI", title: "Exporter en MIDI",
-                          summary: "File › Export › MIDI file (⌘⇧M) : la macro attend que tu choisisses le nom du fichier, pour envoyer ta mélodie à quelqu'un ou l'ouvrir dans un autre logiciel.",
-                          symbol: "pianokeys", shortcut: shortcut("e", 14)) { _ in
-                MacroDoc(name: "Exporter en MIDI", blocks: [
-                    Block(key(cmd("m", 46, shift: true)), note: "File › Export › MIDI file"),
-                    Block(.waitWindow(.dialog, timeoutMs: 4_000)),
-                    Block(.waitWindowClose(.dialog, timeoutMs: MacroValidation.maxWaitMs),
-                          note: "Tu choisis le nom du fichier MIDI"),
-                ], origin: .template("exportMIDI"))
-            },
-            MacroTemplate(id: "saveExportMP3", title: "Enregistrer puis exporter en MP3",
-                          summary: "⌘S (attend le nom si le projet est neuf), puis ⌘⇧R : la macro attend que tu choisisses le nom du MP3, prêt à écouter sur ton téléphone.",
-                          symbol: "music.note", shortcut: shortcut("m", 46)) { _ in
-                MacroDoc(name: "Enregistrer puis exporter en MP3", blocks: [
-                    Block(key(cmd("s", 1)), note: "Enregistrer le projet"),
-                    Block(.delay(ms: 500)),
-                    Block(.waitWindowClose(.dialog, timeoutMs: MacroValidation.maxWaitMs),
-                          note: "Projet jamais enregistré : FL demande un nom"),
-                    Block(key(cmd("r", 15, shift: true)), note: "File › Export › MP3 file"),
-                    Block(.waitWindow(.dialog, timeoutMs: 4_000)),
-                    Block(.waitWindowClose(.dialog, timeoutMs: MacroValidation.maxWaitMs),
-                          note: "Tu choisis le nom du MP3"),
-                ], origin: .template("saveExportMP3"))
-            },
-            MacroTemplate(id: "backToPlaylist", title: "Tout fermer, revenir à la Playlist",
-                          summary: "Ferme toutes les fenêtres de FL (F12 : plugins, Mixer, Piano Roll…), puis rouvre la Playlist seule (F5) : l'écran redevient clair d'une touche.",
-                          symbol: "rectangle.on.rectangle.slash", shortcut: shortcut("p", 35)) { _ in
-                MacroDoc(name: "Tout fermer, revenir à la Playlist", blocks: [
-                    Block(key(KeyCombo(keyCode: 111)), note: "Fermer toutes les fenêtres"),
-                    Block(.delay(ms: 150)),
-                    Block(key(KeyCombo(keyCode: 96)), note: "Afficher la Playlist"),
-                ], origin: .template("backToPlaylist"))
             },
         ]
     }

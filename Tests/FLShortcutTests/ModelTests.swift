@@ -190,34 +190,6 @@ final class ModelTests: XCTestCase {
         })
     }
 
-    /// 5 exemples de macros prêts : touches de FL seulement, raccourcis ⌃⇧ distincts hors du profil Recommandé, donnés
-    /// à la copie s'ils sont libres (déjà pris : la copie reste sans raccourci).
-    func testMacroExamplesGetTheirShortcutWhenFree() {
-        let store = makeStore(MemoryProfileStorage(data: try? ProfileCodec.encode([])))
-        let examples = MacroTemplates.examples(layout: FakeLayout.qwerty)
-        XCTAssertEqual(examples.count, 5)
-        let combos = examples.compactMap(\.shortcut)
-        XCTAssertEqual(Set(combos).count, 5)
-        XCTAssertTrue(combos.allSatisfy { $0.control && $0.shift && !$0.command && !$0.option })
-        let recommended = Set(ProfilePreset.recommended.remaps(layout: FakeLayout.qwerty).compactMap(\.trigger))
-        XCTAssertTrue(recommended.isDisjoint(with: combos))
-        let gallery = Set(MacroTemplates.gallery(layout: FakeLayout.qwerty).map(\.id))
-        XCTAssertTrue(gallery.isSuperset(of: examples.map(\.id)))
-        for t in examples {
-            let doc = t.make(FakeLayout.qwerty)
-            XCTAssertNil(MacroProgram.compile(doc, forbidden: .physical).problem, t.id)
-            XCTAssertFalse(doc.blocks.contains { if case .click = $0.body { return true } else { return false } },
-                           "\(t.id) : rien à apprendre")
-        }
-
-        let doc = store.library.add(examples[0].make(FakeLayout.qwerty))
-        XCTAssertTrue(store.giveShortcutIfFree(combos[0], toMacro: doc.id))
-        XCTAssertEqual(store.remaps(forMacro: doc.id).map(\.trigger), [combos[0]])
-        let again = store.library.add(examples[0].make(FakeLayout.qwerty))
-        XCTAssertFalse(store.giveShortcutIfFree(combos[0], toMacro: again.id), "déjà pris : sans raccourci")
-        XCTAssertTrue(store.remaps(forMacro: again.id).isEmpty)
-    }
-
     /// Chargé, le profil Ableton se lit sur les lignes de FL : « Dupliquer la sélection à droite » (Playlist) prend ⌘D.
     func testAbletonPresetShownOnFLRows() {
         let store = makeStore(MemoryProfileStorage(data: try? ProfileCodec.encode([])))

@@ -168,6 +168,15 @@ for pair in "${OLD_APP_NAME}.app:app.flshortcut.FLShortcut" "Désinstaller ${OLD
   id=\$(/usr/libexec/PlistBuddy -c "Print :CFBundleIdentifier" "\$app/Contents/Info.plist" 2>/dev/null)
   [[ "\$id" == "\${pair##*:}" ]] && rm -rf "\$app"
 done
+# L'app appartient à la personne connectée, comme une app glissée depuis un .dmg : elle la désinstalle sans mot de
+# passe. Le reçu du .pkg (écrit par Installer après ce script) est oublié juste après : rien ne reste au système.
+user=\$(/usr/bin/stat -f%Su /dev/console 2>/dev/null)
+app="\${3%/}/Applications/${APP_NAME}.app"
+if [[ -n "\$user" && "\$user" != root && -d "\$app" && ! -L "\$app" ]]; then
+  /usr/sbin/chown -R "\$user":staff "\$app"
+fi
+( sleep 8; /usr/sbin/pkgutil --forget app.flshortcut.pkg ) </dev/null >/dev/null 2>&1 &
+disown 2>/dev/null || true
 exit 0
 SCRIPT
 chmod 755 "$PKG_SCRIPTS/postinstall"

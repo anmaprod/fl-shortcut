@@ -247,6 +247,9 @@ struct EditorView: View {
         editing = nil
         editingRow = nil
         let editor = MacroEditorModel(store: store)
+        // Macro chargée et palette prête avant l'animation : le créateur arrive rempli, rien n'apparaît en route.
+        editor.handle(creatorLink.request)
+        _ = editor.paletteItems
         withAnimation(Motion.reduce ? Motion.reduced : Motion.morph) { macroEditor = editor }
     }
 

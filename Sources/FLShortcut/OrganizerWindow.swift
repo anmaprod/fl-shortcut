@@ -34,10 +34,13 @@ struct OrganizerEnvironment {
     var placeIcon: (FLIcon) -> OrganizerError? = { _ in nil }
     /// Fil principal, avant chaque écoute : lien installé ? Ports MIDI créés à la demande.
     var prepareLink: () -> OrganizerLinkState = { .ready(warmUp: 0) }
-    /// « Installer le lien avec FL » (fil principal).
-    var installLink: () -> Void = {}
+    /// « Installer le lien » (fil principal) : vrai s'il est installé (faux : annulé, ou impossible, déjà dit).
+    var installLink: () -> Bool = { true }
     /// « Autre dossier de FL… » : le lien réinstallé dans le dossier de données de FL choisi (fil principal).
-    var installLinkElsewhere: () -> Void = {}
+    var installLinkElsewhere: () -> Bool = { true }
+    /// En attente de FL (à redémarrer, à ouvrir, page à ouvrir, lecture à arrêter) : nouvel essai, tout seul, à
+    /// cet intervalle.
+    var waitInterval: TimeInterval = 2
     /// Script dans FL Studio : où il est enregistré, et s'il y est encore (nil : aucun).
     var scriptPlace: () -> (url: URL, present: Bool)? = { nil }
     var reveal: (URL) -> Void = { _ in }
@@ -50,7 +53,7 @@ struct OrganizerEnvironment {
                 guard #available(macOS 14.2, *) else {
                     return .failure(.failed("L'Organiser écoute FL avec macOS 14.2 ou plus récent : mets macOS à jour."))
                 }
-                guard let pid = OrganizerEnvironment.flPID() else { return .failure(.failed("FL Studio n'est pas ouvert.")) }
+                guard let pid = OrganizerEnvironment.flPID() else { return .failure(.flClosed) }
                 return .success(FLAudioTap(pid: pid))
             },
             classify: { OrganizerSession.liveClassifier() },
@@ -58,8 +61,8 @@ struct OrganizerEnvironment {
             escapePressed: { CGEventSource.keyState(.combinedSessionState, key: 53) },
             placeIcon: { OrganizerEnvironment.livePlaceIcon($0) },
             prepareLink: { OrganizerEnvironment.livePrepareLink() },
-            installLink: { FLScriptInstaller.installWithAlert() },
-            installLinkElsewhere: { FLScriptInstaller.installWithAlert(chooseFolder: true) },
+            installLink: { FLScriptInstaller.installWithAlert(quiet: true) },
+            installLinkElsewhere: { FLScriptInstaller.installWithAlert(chooseFolder: true, quiet: true) },
             scriptPlace: { FLScriptInstaller.installedScript() },
             reveal: { NSWorkspace.shared.activateFileViewerSelecting([$0]) },
             nameDrum: { OrganizerSession.liveDrumNamer() })
@@ -119,10 +122,24 @@ struct OrganizerEnvironment {
 }
 
 final class OrganizerController: ObservableObject {
+    /// Ce qu'Organiser attend de FL : il réessaie tout seul (`waitInterval`) et continue dès que c'est bon.
+    enum Wait: Equatable {
+        /// Lien tout juste installé ou remis, ou ancienne version chargée : FL le lit en démarrant.
+        case restartFL
+        /// FL ne répond pas (lien pas encore chargé dans FL).
+        case noResponse
+        case openFL
+        /// Aucune page à organiser devant dans FL.
+        case openPage
+        case stopPlayback
+    }
+
     enum Phase: Equatable {
         case starting
         /// Lien avec FL pas installé : écran d'installation.
         case setup
+        /// En attente de FL : nouvel essai tout seul, toutes les `waitInterval` secondes.
+        case waiting(Wait)
         case listening(done: Int, total: Int)
         case preview
         case applying
@@ -139,6 +156,8 @@ final class OrganizerController: ObservableObject {
     @Published private(set) var result: OrganizerResult?
     /// Playlist : renommer les pistes qui ont encore le nom de FL.
     @Published var renameTracks = true
+    /// En attente de FL : l'aide détaillée (réglages de FL, dossier du script) dépliée.
+    @Published var showLinkHelp = false
 
     /// Appelé une fois, à la fermeture (la fenêtre se ferme et lâche le contrôleur).
     var onClose: (() -> Void)?
@@ -166,14 +185,21 @@ final class OrganizerController: ObservableObject {
 
     /// Écoute de chaque son, hors du fil principal.
     func start() {
-        guard phase == .starting, !closed else { return }
+        guard phase == .starting else { return }
+        begin(quiet: false)
+    }
+
+    /// `quiet` : nouvel essai pendant une attente ; l'écran d'attente reste jusqu'au premier son écouté (pas
+    /// d'aller-retour entre « En attente » et « Préparation… » toutes les 2 secondes).
+    private func begin(quiet: Bool) {
+        guard !closed else { return }
         let warmUp: TimeInterval
         switch env.prepareLink() {
         case .notInstalled:
             phase = .setup
             return
         case .restored:
-            phase = .failed(Self.restoredMessage)
+            wait(.restartFL)
             return
         case .ready(let delay):
             warmUp = delay
@@ -183,7 +209,7 @@ final class OrganizerController: ObservableObject {
         case .success(let source):
             audio = source
         case .failure(let error):
-            phase = .failed(error.message)
+            if let reason = Self.waitReason(for: error) { wait(reason) } else { phase = .failed(error.message) }
             return
         }
         let link = env.link()
@@ -195,7 +221,7 @@ final class OrganizerController: ObservableObject {
             })
         self.link = link
         self.session = session
-        phase = .listening(done: 0, total: 0)
+        if !quiet { phase = .listening(done: 0, total: 0) }
         let sleep = env.sleep
         queue.async { [weak self] in
             if warmUp > 0 { sleep(warmUp) }
@@ -204,32 +230,54 @@ final class OrganizerController: ObservableObject {
         }
     }
 
-    /// « Réessayer » : après l'écran d'installation ou un échec (FL qui jouait, page à ouvrir, FL à redémarrer…).
+    /// Ce qui se règle dans FL (redémarrer, ouvrir une page, arrêter la lecture…) : Organiser attend et continue
+    /// tout seul. nil : un vrai échec, dit tel quel.
+    static func waitReason(for error: OrganizerError) -> Wait? {
+        switch error {
+        case .noResponse: return .noResponse
+        case .outdatedScript: return .restartFL
+        case .flClosed: return .openFL
+        case .refused(1): return .openPage
+        case .refused(4): return .stopPlayback
+        default: return nil
+        }
+    }
+
+    /// Nouvelle attente : un essai part tout seul après `waitInterval`, tant que la fenêtre attend toujours la même
+    /// chose (un essai manuel, une installation ou la fermeture l'annulent).
+    private var waitSerial = 0
+
+    private func wait(_ reason: Wait) {
+        phase = .waiting(reason)
+        waitSerial += 1
+        let serial = waitSerial
+        DispatchQueue.main.asyncAfter(deadline: .now() + env.waitInterval) { [weak self] in
+            guard let self, !self.closed, self.waitSerial == serial, case .waiting = self.phase else { return }
+            self.begin(quiet: true)
+        }
+    }
+
+    /// « Réessayer » : après un échec, ou tout de suite pendant une attente.
     var canRetry: Bool {
         switch phase {
-        case .setup, .failed: return snapshot == nil
+        case .setup, .failed, .waiting: return snapshot == nil
         default: return false
         }
     }
 
     func retry() {
         guard canRetry, !closed else { return }
+        waitSerial += 1
         result = nil
         families = [:]
         phase = .starting
         start()
     }
 
+    /// Lien installé en un clic : FL doit redémarrer pour le lire, Organiser attend et continue tout seul.
     func installLink() {
-        env.installLink()
-    }
-
-    static let restoredMessage = "Le script du lien manquait dans FL Studio : il vient d'être remis. Quitte et rouvre "
-        + "FL Studio (il ne lit ses scripts qu'en démarrant), puis clique sur « Réessayer »."
-
-    /// FL muet : réglages de FL à vérifier et emplacement du script.
-    func needsLinkHelp(_ message: String) -> Bool {
-        message == OrganizerError.noResponse.message || message == Self.restoredMessage
+        guard env.installLink(), !closed else { return }
+        wait(.restartFL)
     }
 
     var scriptPlace: (url: URL, present: Bool)? { env.scriptPlace() }
@@ -239,12 +287,15 @@ final class OrganizerController: ObservableObject {
     }
 
     func installLinkElsewhere() {
-        env.installLinkElsewhere()
+        guard env.installLinkElsewhere(), !closed else { return }
+        wait(.restartFL)
     }
 
     private func listening(_ done: Int, _ total: Int) {
-        guard case .listening = phase else { return }
-        phase = .listening(done: done, total: total)
+        switch phase {
+        case .listening, .waiting: phase = .listening(done: done, total: total)   // l'attente finit au premier son
+        default: return
+        }
     }
 
     private func finishListening(_ outcome: Result<OrganizerResult, OrganizerError>) {
@@ -265,7 +316,7 @@ final class OrganizerController: ObservableObject {
                 phase = .failed("Aucun son à écouter dans le Channel rack.")
             }
         case .failure(let error):
-            phase = .failed(error.message)
+            if let reason = Self.waitReason(for: error) { wait(reason) } else { phase = .failed(error.message) }
         }
     }
 
@@ -388,6 +439,40 @@ final class OrganizerController: ObservableObject {
         }
     }
 
+    /// Mode capture (mesure de la CI) : un écran donné, avec des sons d'exemple ; rien n'est envoyé à FL.
+    func showDemo(_ screen: String) {
+        waitSerial += 1
+        showLinkHelp = screen == "aide"
+        switch screen {
+        case "installer": phase = .setup
+        case "attente": phase = .waiting(.restartFL)
+        case "aide": phase = .waiting(.noResponse)
+        case "page": phase = .waiting(.openPage)
+        case "ecoute": phase = .listening(done: 3, total: 8)
+        case "apercu", "fini":
+            let result = Self.demoResult
+            self.result = result
+            families = OrganizerApplier.families(of: result)
+            phase = screen == "fini" ? .applied(nil) : .preview
+        default: break
+        }
+    }
+
+    static var demoResult: OrganizerResult {
+        let sounds: [(String, SoundFamily)] = [("Voix lead", .vocals), ("Piano", .melody), ("Pluck", .melody),
+                                               ("808", .bass), ("Kick", .drums), ("Snare", .drums),
+                                               ("Hi-hat", .drums), ("Riser", .fx)]
+        let gray = RGBColor(r: 92, g: 101, b: 107)
+        let channels = sounds.enumerated().map {
+            ChannelInfo(index: $0.offset, type: 2, mixerTrack: $0.offset + 1, color: gray, name: $0.element.0)
+        }
+        let items = sounds.enumerated().map {
+            OrganizerItem(index: $0.offset, name: $0.element.0, family: $0.element.1, confidence: 0.9, testNotes: false,
+                          mixerTrack: $0.offset + 1, color: gray)
+        }
+        return OrganizerResult(page: .channelRack, channels: channels, items: items, mixer: [], mixerFamilies: [:])
+    }
+
     /// Arrête l'écoute (la session remet FL comme avant) et ferme la fenêtre.
     func close() {
         guard !closed else { return }
@@ -415,8 +500,18 @@ enum OrganizerWindow {
         func windowWillClose(_ notification: Notification) { OrganizerWindow.close() }
     }
 
+    /// Mode capture : l'Organiser sur un écran d'exemple (sans écoute ni lien) ; « fermer » le ferme.
+    static func showDemo(_ screen: String) {
+        guard screen != "fermer" else {
+            controller?.close()
+            return
+        }
+        if panel == nil { open(start: false) }
+        controller?.showDemo(screen)
+    }
+
     /// Ouvre l'Organiser (ou le ramène devant). Fil principal.
-    static func open(env: OrganizerEnvironment = .live()) {
+    static func open(env: OrganizerEnvironment = .live(), start: Bool = true) {
         if let panel {
             panel.orderFrontRegardless()
             panel.makeKey()
@@ -444,7 +539,8 @@ enum OrganizerWindow {
         p.center()
         panel = p
         self.controller = controller
-        sizing = controller.$phase.sink { _ in
+        // Nouvelle étape, ou aide dépliée / repliée : le panneau suit la hauteur du contenu.
+        sizing = controller.$phase.map { _ in () }.merge(with: controller.$showLinkHelp.map { _ in () }).sink { _ in
             // Après le dessin de la nouvelle étape.
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
                 guard let panel = OrganizerWindow.panel, panel === p else { return }
@@ -453,7 +549,7 @@ enum OrganizerWindow {
         }
         p.orderFrontRegardless()
         p.makeKey()
-        controller.start()
+        if start { controller.start() }
     }
 
     /// Hauteur du contenu, le haut du panneau restant à sa place.
@@ -499,6 +595,7 @@ struct OrganizerView: View {
         switch controller.phase {
         case .starting: return "starting"
         case .setup: return "setup"
+        case .waiting(let reason): return "waiting:\(reason)"
         case .listening: return "listening"
         case .preview: return "preview"
         case .applying: return "applying"
@@ -554,6 +651,8 @@ struct OrganizerView: View {
             working("Préparation…")
         case .setup:
             setup
+        case .waiting(let reason):
+            waiting(reason)
         case .listening(let done, let total):
             VStack(alignment: .leading, spacing: 12) {
                 HStack(spacing: 12) {
@@ -599,7 +698,7 @@ struct OrganizerView: View {
         case .undone(let error):
             ending(error?.message ?? "FL est revenu comme avant.", ok: error == nil, linkHelp: error == .noResponse)
         case .failed(let message):
-            ending(message, ok: false, linkHelp: controller.needsLinkHelp(message))
+            ending(message, ok: false, linkHelp: false)
         }
     }
 
@@ -701,30 +800,127 @@ struct OrganizerView: View {
         .padding(.top, 2)
     }
 
-    /// Lien avec FL pas encore installé : installé ici, à la demande.
+    /// Lien avec FL pas encore installé : un seul bouton, la suite se fait toute seule.
     private var setup: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Organiser parle à FL par un petit script que FL Shortcuts installe dans FL Studio, une seule fois.")
-                .font(.system(size: 13))
-                .fixedSize(horizontal: false, vertical: true)
-                .morphIn(1)
-            VStack(alignment: .leading, spacing: 8) {
-                OrganizerStep(n: 1, text: "Clique sur « Installer le lien avec FL ».")
-                OrganizerStep(n: 2, text: "Quitte et rouvre FL Studio : il trouve « FL Shortcuts Link » en démarrant et "
-                              + "le relie tout seul.")
-                OrganizerStep(n: 3, text: "Ouvre la page à organiser (Channel rack, Mixer ou Playlist), puis "
-                              + "« Réessayer ».")
+        VStack(alignment: .leading, spacing: 14) {
+            HStack(alignment: .center, spacing: 14) {
+                OrganizerBadge(symbol: "link", tint: Self.tint)
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Un petit lien avec FL, une seule fois").font(.system(size: 14, weight: .semibold))
+                    Text("Organiser parle à FL par un script que FL Shortcuts installe dans FL Studio. Ensuite, tout se "
+                         + "fait seul.")
+                        .font(.system(size: 12))
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                Spacer(minLength: 0)
             }
+            .padding(14)
+            .organizerCard()
+            .morphIn(1)
             HStack {
-                Button("Installer le lien avec FL") { controller.installLink() }
                 Spacer()
                 Button("Fermer") { controller.close() }.keyboardShortcut(.cancelAction)
-                Button("Réessayer") { controller.retry() }
+                Button("Installer le lien") { controller.installLink() }
                     .primaryButton()
                     .keyboardShortcut(.defaultAction)
             }
             .padding(.top, 2)
-            .morphIn(5)
+            .morphIn(2)
+        }
+    }
+
+    /// En attente de FL : ce qu'il faut faire, en une phrase ; Organiser vérifie tout seul et continue dès que
+    /// c'est bon (aucun bouton à toucher). FL muet : l'aide détaillée, repliée.
+    private func waiting(_ reason: OrganizerController.Wait) -> some View {
+        let text = Self.waitText(reason)
+        let tint: Color = reason == .stopPlayback ? .orange : Self.tint
+        return VStack(alignment: .leading, spacing: 14) {
+            HStack(alignment: .center, spacing: 16) {
+                WaitingPulse(symbol: text.symbol, tint: tint)
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(text.title).font(.system(size: 14, weight: .semibold))
+                    Text(text.detail)
+                        .font(.system(size: 12))
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                Spacer(minLength: 0)
+            }
+            .padding(14)
+            .organizerCard(tint)
+            .morphIn(1)
+            HStack(spacing: 8) {
+                ProgressView().controlSize(.mini)
+                Text("Organiser continue tout seul dès que FL est prêt.")
+                    .font(.system(size: 11))
+                    .foregroundStyle(.secondary)
+            }
+            .morphIn(2)
+            if reason == .noResponse || reason == .restartFL {
+                linkHelpToggle.morphIn(3)
+                if controller.showLinkHelp {
+                    linkHelpSteps
+                        .transition(Motion.quickSwap)
+                }
+            }
+            HStack {
+                Spacer()
+                Button("Fermer") { controller.close() }.keyboardShortcut(.cancelAction)
+                Button("Réessayer maintenant") { controller.retry() }
+            }
+            .padding(.top, 2)
+            .morphIn(4)
+        }
+    }
+
+    static func waitText(_ reason: OrganizerController.Wait) -> (symbol: String, title: String, detail: String) {
+        switch reason {
+        case .restartFL:
+            return ("arrow.clockwise", "Quitte et rouvre FL Studio",
+                    "Le lien est prêt : FL le lit en démarrant et relie « FL Shortcuts Link » tout seul.")
+        case .noResponse:
+            return ("antenna.radiowaves.left.and.right", "En attente de FL Studio",
+                    "FL ne répond pas encore. Quitte et rouvre FL Studio : il relie « FL Shortcuts Link » en démarrant.")
+        case .openFL:
+            return ("macwindow", "Ouvre FL Studio", "Organiser commence dès que FL est ouvert, avec ton projet.")
+        case .openPage:
+            return ("square.stack.3d.up", "Ouvre la page à organiser",
+                    "Clique dans le Channel rack, le Mixer ou la Playlist de FL.")
+        case .stopPlayback:
+            return ("stop.fill", "Arrête la lecture dans FL",
+                    "Organiser écoute chaque son seul : FL doit être à l'arrêt.")
+        }
+    }
+
+    /// « Ça ne marche toujours pas ? » : les réglages de FL à vérifier, repliés tant qu'on ne les demande pas.
+    private var linkHelpToggle: some View {
+        Button {
+            withAnimation(Motion.quickMorph) { controller.showLinkHelp.toggle() }
+        } label: {
+            HStack(spacing: 6) {
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 10, weight: .bold))
+                    .rotationEffect(.degrees(controller.showLinkHelp ? 90 : 0))
+                Text("Ça ne marche toujours pas ?").font(.system(size: 12, weight: .medium))
+            }
+            .foregroundStyle(Self.tint)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+    }
+
+    private var linkHelpSteps: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            OrganizerStep(n: 1, text: "Dans FL : Options › MIDI Settings, entrée « FL Shortcuts Link », Controller type "
+                          + "« FL Shortcuts » (pas « generic controller »), Enable, et le même numéro de Port à "
+                          + "l'entrée et à la sortie.")
+            OrganizerStep(n: 2, text: "« FL Shortcuts » absent des Controller types : FL ne lit pas le dossier du "
+                          + "script ci-dessous. Compare-le avec Options › File settings › User data folder (pas sur "
+                          + "iCloud) ; s'il diffère, « Autre dossier de FL… » et choisis celui-là.")
+            OrganizerStep(n: 3, text: "Réglages Système › Confidentialité et sécurité › Fichiers et dossiers › "
+                          + "FL Studio : « Dossier Documents » doit être coché.")
+            scriptCard
         }
     }
 
@@ -812,6 +1008,34 @@ private struct OrganizerHoverCard: ViewModifier {
 
 private extension View {
     func organizerCard(_ tint: Color = OrganizerView.tint) -> some View { modifier(OrganizerHoverCard(tint: tint)) }
+}
+
+/// Attente de FL : la pastille de couleur et deux ondes qui s'en éloignent sans fin, comme un appel (rien ne tourne
+/// une fois la fenêtre fermée). Mouvement réduit demandé : la pastille seule.
+private struct WaitingPulse: View {
+    let symbol: String
+    let tint: Color
+    @State private var going = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    var body: some View {
+        ZStack {
+            if !reduceMotion {
+                ForEach(0..<2, id: \.self) { i in
+                    Circle()
+                        .stroke(tint.opacity(0.45), lineWidth: 1.5)
+                        .frame(width: 34, height: 34)
+                        .scaleEffect(going ? 1.9 : 1)
+                        .opacity(going ? 0 : 0.9)
+                        .animation(.easeOut(duration: 1.6).repeatForever(autoreverses: false).delay(Double(i) * 0.8),
+                                   value: going)
+                }
+            }
+            OrganizerBadge(symbol: symbol, tint: tint)
+        }
+        .frame(width: 56, height: 56)
+        .onAppear { going = true }
+    }
 }
 
 /// Pastille ronde de couleur avec son symbole (résultat, écoute en cours : l'onde s'anime).

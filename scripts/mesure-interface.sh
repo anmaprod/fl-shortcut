@@ -218,6 +218,25 @@ run() {   # $1 : libellé, $2 : YES/NO effet verre
       screencapture -x "$OUT/desinstaller-$screen.png" 2>/dev/null || true
     done
     "$POST" app.flshortcut.debug.uninstall fermer; sleep 1
+    # Organiser, avec des sons d'exemple (sans FL) : chaque écran, puis le passage de l'un à l'autre.
+    for screen in installer attente aide page ecoute apercu fini; do
+      "$POST" app.flshortcut.debug.organizer "$screen"; sleep 3
+      screencapture -x "$OUT/organiser-$screen.png" 2>/dev/null || true
+    done
+    "$POST" app.flshortcut.debug.organizer fermer; sleep 1
+    # Créateur de macros au ralenti (10 fois) : ouverture depuis la page Macros, puis retour, photographiés en route.
+    "$POST" app.flshortcut.debug.select macros; sleep 2
+    "$POST" app.flshortcut.debug.macro "open lent"
+    for i in 1 2 3 4 5 6 7 8; do
+      sleep 0.5; screencapture -x "$OUT/createur-ouverture-$i.png" 2>/dev/null || true
+    done
+    sleep 4
+    "$POST" app.flshortcut.debug.macro "close lent"
+    for i in 1 2 3 4 5 6; do
+      sleep 0.5; screencapture -x "$OUT/createur-retour-$i.png" 2>/dev/null || true
+    done
+    sleep 5
+    "$POST" app.flshortcut.debug.macro close; sleep 1
     "$POST" app.flshortcut.debug.select macros; sleep 2
   fi
   # Témoin : aucun modèle du créateur avant sa première ouverture (fenêtres : toutes, et visibles seulement).

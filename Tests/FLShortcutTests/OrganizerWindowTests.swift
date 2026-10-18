@@ -10,12 +10,14 @@ final class OrganizerWindowTests: XCTestCase {
 
     private func env(_ link: FakeOrganizerLink, _ audio: FakeAudio,
                      saved: @escaping ([SoundFamily: FamilyStyle]) -> Void) -> OrganizerEnvironment {
-        OrganizerEnvironment(link: { link }, audio: { .success(audio) },
-                             classify: { OrganizerWindowTests.classify },
-                             moveUp: { _ in { count in link.moveSelectedUp(count) } },
-                             timing: OrganizerSession.Timing(listen: 0.01, testNote: 0.01, tail: 0.01, slice: 0.01),
-                             sleep: { _ in }, escapePressed: { false },
-                             loadStyles: { FamilyStyles.initial }, saveStyles: saved)
+        var e = OrganizerEnvironment(link: { link }, audio: { .success(audio) },
+                                     classify: { OrganizerWindowTests.classify },
+                                     moveUp: { _ in { count in link.moveSelectedUp(count) } },
+                                     timing: OrganizerSession.Timing(listen: 0.01, testNote: 0.01, tail: 0.01, slice: 0.01),
+                                     sleep: { _ in }, escapePressed: { false },
+                                     loadStyles: { FamilyStyles.initial }, saveStyles: saved)
+        e.waitInterval = 0.05
+        return e
     }
 
     private func waitFor(_ controller: OrganizerController, _ reached: @escaping (OrganizerController.Phase) -> Bool) {
@@ -94,21 +96,23 @@ final class OrganizerWindowTests: XCTestCase {
         var installed = false
         var e = env(link, audio, saved: { _ in })
         e.prepareLink = { installed ? .ready(warmUp: 0.5) : .notInstalled }
-        e.installLink = { installed = true }
+        e.installLink = { installed = true; return true }
         let controller = OrganizerController(env: e)
         controller.start()
         XCTAssertEqual(controller.phase, .setup)
         XCTAssertTrue(controller.canRetry)
         XCTAssertEqual(link.log, [], "rien n'est envoyé à FL")
+        // Un clic : installé, puis Organiser attend FL et continue tout seul (sans « Réessayer »).
         controller.installLink()
-        controller.retry()
+        XCTAssertEqual(controller.phase, .waiting(.restartFL))
         waitFor(controller) { $0 == .preview }
         XCTAssertEqual(controller.members(of: .drums).map(\.name), ["Son 0"])
         XCTAssertFalse(controller.canRetry)
         controller.close()
     }
 
-    /// Script disparu de FL : remis, puis FL à redémarrer (rien n'est envoyé) ; emplacement montré, autre dossier.
+    /// Script disparu de FL : remis, puis FL à redémarrer (rien n'est envoyé) ; Organiser continue tout seul quand
+    /// FL répond. Emplacement montré, autre dossier ; attentes et vrais échecs bien triés.
     func testRestoredScriptAsksToRestartFL() {
         let link = FakeOrganizerLink()
         link.channels = [ChannelInfo(index: 0, type: 2, mixerTrack: 0, color: RGBColor(r: 1, g: 2, b: 3), name: "Son 0")]
@@ -126,21 +130,23 @@ final class OrganizerWindowTests: XCTestCase {
         }
         e.scriptPlace = { (url: script, present: true) }
         e.reveal = { revealed.append($0) }
-        e.installLinkElsewhere = { elsewhere += 1 }
+        e.installLinkElsewhere = { elsewhere += 1; return true }
         let controller = OrganizerController(env: e)
         controller.start()
-        XCTAssertEqual(controller.phase, .failed(OrganizerController.restoredMessage))
+        XCTAssertEqual(controller.phase, .waiting(.restartFL))
         XCTAssertEqual(link.log, [], "rien n'est envoyé à FL avant son redémarrage")
-        XCTAssertTrue(controller.needsLinkHelp(OrganizerController.restoredMessage))
-        XCTAssertTrue(controller.needsLinkHelp(OrganizerError.noResponse.message))
-        XCTAssertFalse(controller.needsLinkHelp("Aucun son à écouter dans le Channel rack."))
+        XCTAssertEqual(OrganizerController.waitReason(for: .noResponse), .noResponse)
+        XCTAssertEqual(OrganizerController.waitReason(for: .outdatedScript), .restartFL)
+        XCTAssertEqual(OrganizerController.waitReason(for: .flClosed), .openFL)
+        XCTAssertEqual(OrganizerController.waitReason(for: .refused(4)), .stopPlayback)
+        XCTAssertNil(OrganizerController.waitReason(for: .filteredGroup))
+        XCTAssertNil(OrganizerController.waitReason(for: .cancelled))
         XCTAssertEqual(controller.scriptPlace?.url, script)
         controller.revealScript()
         XCTAssertEqual(revealed, [script])
         controller.installLinkElsewhere()
         XCTAssertEqual(elsewhere, 1)
-        XCTAssertTrue(controller.canRetry)
-        controller.retry()
+        XCTAssertEqual(controller.phase, .waiting(.restartFL))
         waitFor(controller) { $0 == .preview }
         controller.close()
     }
@@ -150,12 +156,11 @@ final class OrganizerWindowTests: XCTestCase {
         link.window = .browser
         let controller = OrganizerController(env: env(link, FakeAudio(link: link), saved: { _ in }))
         controller.start()
-        waitFor(controller) { if case .failed = $0 { return true } else { return false } }
-        XCTAssertEqual(controller.phase, .failed(OrganizerError.refused(1).message))
+        // Aucune page à organiser devant : Organiser attend, puis continue tout seul quand elle s'ouvre.
+        waitFor(controller) { $0 == .waiting(.openPage) }
         XCTAssertTrue(OrganizerError.refused(1).message.contains("Playlist"))
         XCTAssertTrue(controller.canRetry)
         link.window = .channelRack
-        controller.retry()
         waitFor(controller) { if case .failed = $0 { return true } else { return false } }
         XCTAssertEqual(controller.phase, .failed("Aucun son à écouter dans le Channel rack."))
         controller.close()
@@ -193,11 +198,21 @@ final class OrganizerWindowTests: XCTestCase {
     func testCaptureUnavailableIsExplained() {
         let link = FakeOrganizerLink()
         var e = env(link, FakeAudio(link: link), saved: { _ in })
-        e.audio = { .failure(.failed("FL Studio n'est pas ouvert.")) }
+        e.audio = { .failure(.failed("L'Organiser écoute FL avec macOS 14.2 ou plus récent : mets macOS à jour.")) }
         let controller = OrganizerController(env: e)
         controller.start()
-        XCTAssertEqual(controller.phase, .failed("FL Studio n'est pas ouvert."))
+        XCTAssertEqual(controller.phase, .failed("L'Organiser écoute FL avec macOS 14.2 ou plus récent : mets macOS à jour."))
         XCTAssertEqual(link.log, [], "rien n'est envoyé à FL")
+        // FL fermé : Organiser attend qu'il s'ouvre, et commence tout seul.
+        var open = false
+        e.audio = { open ? .success(FakeAudio(link: link)) : .failure(.flClosed) }
+        let waiting = OrganizerController(env: e)
+        waiting.start()
+        XCTAssertEqual(waiting.phase, .waiting(.openFL))
+        open = true
+        waitFor(waiting) { if case .failed = $0 { return true } else { return false } }
+        XCTAssertEqual(waiting.phase, .failed("Aucun son à écouter dans le Channel rack."))
+        waiting.close()
     }
 
     func testOrganizeBlockJSON() throws {

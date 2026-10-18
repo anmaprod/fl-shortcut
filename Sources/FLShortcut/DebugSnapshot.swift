@@ -44,6 +44,10 @@ enum DebugSnapshot {
     /// « fini », « reste » ; « fermer » la ferme.
     static let uninstall = Notification.Name("app.flshortcut.debug.uninstall")
     private static var uninstallObserver: NSObjectProtocol?
+    /// Organiser avec des sons d'exemple, sans lien ni écoute : « installer », « attente », « aide », « page »,
+    /// « ecoute », « apercu », « fini » ; « fermer » le ferme.
+    static let organizer = Notification.Name("app.flshortcut.debug.organizer")
+    private static var organizerObserver: NSObjectProtocol?
 
     static func publisher(_ name: Notification.Name) -> AnyPublisher<Notification, Never> {
         guard enabled else { return Empty().eraseToAnyPublisher() }
@@ -61,6 +65,9 @@ enum DebugSnapshot {
         uninstallObserver = DistributedNotificationCenter.default().addObserver(forName: uninstall, object: nil, queue: .main) { note in
             let screen = note.object as? String ?? "confirmer"
             MainActor.assumeIsolated { UninstallWindow.shared.showDemo(screen) }
+        }
+        organizerObserver = DistributedNotificationCenter.default().addObserver(forName: organizer, object: nil, queue: .main) { note in
+            OrganizerWindow.showDemo(note.object as? String ?? "attente")
         }
         observer = DistributedNotificationCenter.default().addObserver(forName: snapshot, object: nil, queue: .main) { note in
             capture(tag: note.object as? String ?? "capture")
@@ -281,7 +288,10 @@ struct MenuBarLabel: View {
                 NSApp.activate(ignoringOtherApps: true)
             }
             .onReceive(DebugSnapshot.publisher(DebugSnapshot.macro)) { note in
-                if (note.object as? String) == "close" {
+                // « open lent » / « close lent » : la transition au ralenti (10 fois), photographiée en route.
+                let words = (note.object as? String ?? "").split(separator: " ")
+                DebugSnapshot.slowMotion = words.contains("lent") ? 10 : 1
+                if words.first == "close" {
                     MacroCreatorLink.shared.requestClose()
                     return
                 }

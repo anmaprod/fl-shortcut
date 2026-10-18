@@ -287,21 +287,6 @@ final class Store: ObservableObject {
         if let i = remaps.firstIndex(where: { $0.id == remap.id }) { remaps[i] = remap } else { remaps.append(remap) }
     }
 
-    /// Exemple de macro prêt à l'emploi : il reçoit son raccourci s'il ne gêne rien (aucun autre raccourci, ni FL, ni
-    /// macOS) ; sinon il reste sans raccourci, à choisir dans le créateur. L'état de la macro, tout juste ajoutée, est
-    /// vérifié par le créateur.
-    @discardableResult
-    func giveShortcutIfFree(_ combo: KeyCombo, toMacro id: UUID) -> Bool {
-        let remap = Remap(trigger: combo, macroRef: id)
-        let issues = draftIssues(remap).filter {
-            if case .macroInvalid = $0 { return false }
-            return true
-        }
-        guard issues.isEmpty else { return false }
-        upsert(remap)
-        return true
-    }
-
     /// Problèmes d'un brouillon, analysé après les autres raccourcis (un doublon est signalé sur lui), avec
     /// exactement les mêmes règles que l'index du tap (REL-20).
     func draftIssues(_ draft: Remap) -> [ShortcutIssue] {

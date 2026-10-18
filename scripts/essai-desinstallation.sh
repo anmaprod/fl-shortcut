@@ -4,11 +4,16 @@
 # toutes les traces que l'app laisse sont semées, sous le nom actuel et l'ancien nom. Puis la désinstallation tourne
 # sans fenêtre (le mot de passe passe par sudo -n), et ce script revérifie lui-même, chemin par chemin, que plus rien
 # ne reste… sauf ce qui n'est pas à nous. RÉSERVÉ À UNE MACHINE JETABLE : il efface tout ce qui touche à l'app.
-# Usage (CI) : scripts/essai-desinstallation.sh dist dist/mesure/desinstallation.txt
+# Mode « fenetre » : la vraie fenêtre de désinstallation, comme chez un utilisateur (l'app lancée depuis
+# /Applications, « Désinstaller » cliqué, captures d'écran de chaque étape) ; l'app doit se fermer toute seule, sans
+# aucune demande de mot de passe (le .pkg lui a donné l'app et a oublié son reçu).
+# Usage (CI) : scripts/essai-desinstallation.sh dist dist/mesure/desinstallation.txt [fenetre]
 set -uo pipefail
 [[ "${CI:-}" == "true" ]] || { echo "Réservé à la CI (machine jetable) : il efface les données de l'app."; exit 2; }
 DIST="${1:-dist}"
 OUT="${2:-dist/mesure/desinstallation.txt}"
+MODE="${3:-sans-fenetre}"
+SHOTS="$(dirname "$OUT")"
 H="$HOME"
 L="$H/Library"
 HW="$H/Documents/Image-Line/FL Studio/Settings/Hardware"
@@ -40,6 +45,12 @@ for old in "FL Shortcut.app" "Désinstaller FL Shortcuts.app"; do
 done
 [[ -d "/Applications/FL Shortcuts.app" ]] || { say "FAIL: le .pkg n'a pas installé l'app"; exit 1; }
 say "ok .pkg : l'app seule installée, ancienne app et ancien désinstalleur retirés"
+owner=$(stat -f%Su "/Applications/FL Shortcuts.app")
+[[ "$owner" == "$(id -un)" ]] && say "ok l'app installée appartient à $owner (désinstallation sans mot de passe)" \
+  || say "(l'app installée appartient à $owner)"
+for i in $(seq 1 20); do pkgutil --pkg-info app.flshortcut.pkg >/dev/null 2>&1 || break; sleep 1; done
+pkgutil --pkg-info app.flshortcut.pkg >/dev/null 2>&1 && say "(reçu du .pkg encore là après 20 s)" \
+  || say "ok reçu du .pkg oublié après l'installation"
 
 # 2. Toutes les traces, sous les deux noms (ancienne compilation locale dans ~/Applications comprise).
 mkdir -p "$H/Applications"
@@ -68,10 +79,42 @@ limit 20 security add-generic-password -A -U -s app.flshortcut.FLShortcut -a com
 say "ok traces semées"
 
 # 3. Désinstallation, lancée depuis l'app installée par le .pkg.
-limit 180 env FLS_ESSAI_DESINSTALLATION=1 FLS_ESSAI_SUDO=1 \
-  "/Applications/FL Shortcuts.app/Contents/MacOS/FLShortcut" --essai-desinstallation 2>&1 | tee -a "$OUT"
-status=${PIPESTATUS[0]}
-[[ $status -eq 142 ]] && say "FAIL: désinstallation bloquée plus de 3 minutes (une fenêtre de macOS attendait ?)"
+if [[ "$MODE" == fenetre ]]; then
+  D=app.flshortcut.FLShortcut
+  defaults write "$D" debugSnapshots -bool YES
+  defaults write "$D" didOnboard -bool YES
+  defaults write "$D" guideSeen -bool YES
+  POST="$(mktemp -d)/fls_post"
+  cat > "$POST.swift" <<'SWIFT'
+import Foundation
+let args = CommandLine.arguments
+DistributedNotificationCenter.default().postNotificationName(
+    Notification.Name(args[1]), object: args.count > 2 ? args[2] : nil, userInfo: nil, deliverImmediately: true)
+SWIFT
+  swiftc -O "$POST.swift" -o "$POST" 2>/dev/null || { say "FAIL: swiftc indisponible"; exit 1; }
+  FLS_ESSAI_DESINSTALLATION=1 "/Applications/FL Shortcuts.app/Contents/MacOS/FLShortcut" >/dev/null 2>&1 &
+  pid=$!
+  sleep 8
+  kill -0 "$pid" 2>/dev/null || { say "FAIL: l'app ne démarre pas"; exit 1; }
+  "$POST" app.flshortcut.debug.uninstall reel
+  # Fenêtre, « Désinstaller » cliqué 1,5 s après, suppression, bilan, fermeture seule 2,5 s après le bilan.
+  for i in $(seq -w 1 16); do screencapture -x "$SHOTS/desinstallation-fenetre-$i.png" 2>/dev/null; sleep 0.5; done
+  for i in $(seq 1 40); do kill -0 "$pid" 2>/dev/null || break; sleep 0.5; done
+  if kill -0 "$pid" 2>/dev/null; then
+    screencapture -x "$SHOTS/desinstallation-fenetre-bloquee.png" 2>/dev/null
+    say "FAIL: l'app ne s'est pas fermée toute seule après la désinstallation"
+    kill "$pid" 2>/dev/null
+    status=1
+  else
+    wait "$pid"; status=$?
+    say "ok l'app s'est fermée toute seule (code $status), sans demander de mot de passe"
+  fi
+else
+  limit 180 env FLS_ESSAI_DESINSTALLATION=1 FLS_ESSAI_SUDO=1 \
+    "/Applications/FL Shortcuts.app/Contents/MacOS/FLShortcut" --essai-desinstallation 2>&1 | tee -a "$OUT"
+  status=${PIPESTATUS[0]}
+  [[ $status -eq 142 ]] && say "FAIL: désinstallation bloquée plus de 3 minutes (une fenêtre de macOS attendait ?)"
+fi
 sleep 2                                                             # cfprefsd a fini d'écrire
 
 # 4. Vérification indépendante.
@@ -80,6 +123,7 @@ check() { if [[ -e "$1" || -L "$1" ]]; then say "RESTE (vu par le script) : $1";
 for a in "FL Shortcuts.app" "Désinstaller FL Shortcuts.app" "FL Shortcut.app" "Désinstaller FL Shortcut.app"; do
   check "/Applications/$a"; check "$H/Applications/$a"
 done
+[[ "$MODE" == fenetre ]] && defaults delete app.flshortcut.FLShortcut debugSnapshots >/dev/null 2>&1
 for n in "FL Shortcuts" "FL Shortcut"; do
   check "$L/Application Support/$n"; check "$L/Logs/$n"; check "$H/Desktop/$n – captures"; check "$H/Documents/$n"
   check "$HW/$n"

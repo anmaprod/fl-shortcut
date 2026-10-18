@@ -102,7 +102,40 @@ final class MacroEditorModel: ObservableObject {
     /// Dernière demande d'ouverture traitée (MacroCreatorLink) : une même demande n'est jamais rejouée.
     var handledRequestSerial: Int?
 
+    /// Palette du créateur, construite avec le modèle : déjà là à la première image de l'ouverture (avant, elle
+    /// apparaissait d'un coup en pleine transition).
+    private(set) lazy var paletteItems: [PaletteItem] = PaletteCatalog.items(layout: layout)
+
     // MARK: Ouverture
+
+    /// Demande d'ouverture (macro, nouvelle macro, modèle, exemple, enregistrement), traitée une seule fois. Faite
+    /// avant que le créateur s'affiche : il arrive déjà rempli, rien ne saute pendant le fondu.
+    func handle(_ request: MacroCreatorLink.Request?) {
+        guard let request else {
+            if draft == nil { load(nil) }
+            return
+        }
+        // L'ouverture puis le changement de demande peuvent livrer la même : la rejouer rechargerait le brouillon.
+        guard handledRequestSerial != request.serial else { return }
+        handledRequestSerial = request.serial
+        if request.sample {
+            let doc = MacroTemplates.sampleForCapture(layout: layout)
+            loadSample(doc)
+            // Capture : essai en cours sur l'exemple (couleurs des lignes), bloc 4 choisi (inspecteur).
+            let ids = doc.blocks.map(\.id)
+            if ids.count > 7 {
+                monitor.showSample(done: Array(ids[1...6]), running: ids[7])
+                selection = MacroStepRow.blockRowID(ids[3])
+            }
+        } else {
+            load(request.id)
+            if request.isNew { markNew() }
+            // « Enregistrer une macro » : le créateur s'affiche, puis FL passe devant pour l'enregistrement.
+            if request.record {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in self?.recordClicks() }
+            }
+        }
+    }
 
     /// Ouvre une macro de la bibliothèque (la précédente est enregistrée d'abord). nil : la première, s'il y en a.
     func load(_ id: UUID?) {

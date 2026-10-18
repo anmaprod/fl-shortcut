@@ -60,6 +60,8 @@ enum OrganizerError: Error, Equatable {
     case outdatedScript
     /// FL ne répond pas : le script n'est pas chargé (Controller type « generic controller », ports différents…).
     case noResponse
+    /// FL Studio n'est pas ouvert.
+    case flClosed
 
     var message: String {
         switch self {
@@ -70,6 +72,7 @@ enum OrganizerError: Error, Equatable {
         case .mismatch: return "FL n'a pas tout pris : vérifie dans FL, ou clique sur « Revenir comme avant »."
         case .noResponse:
             return "FL ne répond pas : le script FL Shortcuts n'est pas chargé dans FL. Vérifie ces réglages, puis « Réessayer »."
+        case .flClosed: return "FL Studio n'est pas ouvert."
         case .outdatedScript:
             return "FL utilise encore l'ancienne version du lien : redémarre FL Studio (il charge la nouvelle au lancement), puis clique sur « Réessayer »."
         case .refused(1): return "Ouvre le Channel rack, le Mixer ou la Playlist de FL (clique dedans), puis clique sur « Réessayer »."

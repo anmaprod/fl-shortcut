@@ -220,22 +220,26 @@ enum FLScriptInstaller {
     }
 
     /// `chooseFolder` : le dossier de FL est demandé même si celui par défaut existe (FL range ses réglages ailleurs).
-    static func installWithAlert(secrets: SecretStore = PreferredSecretStore(), chooseFolder: Bool = false) {
+    /// `quiet` : pas d'alerte de réussite (l'Organiser montre lui-même l'étape suivante). Vrai si le script est
+    /// installé ; faux si c'est annulé ou impossible (déjà dit dans une alerte).
+    @discardableResult
+    static func installWithAlert(secrets: SecretStore = PreferredSecretStore(), chooseFolder: Bool = false,
+                                 quiet: Bool = false) -> Bool {
         NSApp.activate(ignoringOtherApps: true)
 
         guard let template = bundledTemplate() else {
             alert("Script introuvable", "Le fichier \(fileName) manque dans l'application.", style: .critical)
-            return
+            return false
         }
 
         if let version = FLDetector.installedVersion(), !version.supportsPython {
             alert("FL Studio trop ancien",
                   "Les actions FL demandent FL Studio \(FLActions.pythonMinFL) ou plus récent (tu as \(version)). "
                   + "Les raccourcis « Touche de FL » restent disponibles sans le script.", style: .warning)
-            return
+            return false
         }
 
-        guard let hardware = chooseFolder ? pickHardwareFolder() : chooseHardwareFolder() else { return }
+        guard let hardware = chooseFolder ? pickHardwareFolder() : chooseHardwareFolder() else { return false }
 
         let previousKey = secrets.load()
         do {
@@ -254,6 +258,7 @@ enum FLScriptInstaller {
             UserDefaults.standard.set(hardware.path, forKey: chosenFolderKey)
             MIDILink.shared.reloadKey()
             AppStatus.shared.refreshScriptState()
+            if quiet { return true }
             alert("Script installé", """
             Dernière étape : quitte et rouvre FL Studio. Il trouve « FL Shortcuts Link » en démarrant et le relie tout seul.
 
@@ -263,8 +268,10 @@ enum FLScriptInstaller {
 
             Chaque réinstallation crée une nouvelle clé : redémarre FL après coup.
             """)
+            return true
         } catch {
             alert("Installation impossible", error.localizedDescription, style: .critical)
+            return false
         }
     }
 

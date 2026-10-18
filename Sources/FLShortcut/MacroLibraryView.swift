@@ -191,7 +191,6 @@ struct MacroLibraryPage: View {
         var doc = template.make(store.layout)
         doc.name = library.uniqueName(doc.name)
         let added = library.add(doc)
-        if let combo = template.shortcut { store.giveShortcutIfFree(combo, toMacro: added.id) }
         MacroCreatorLink.shared.open(added.id, isNew: true)
     }
 
@@ -326,19 +325,7 @@ struct MacroTemplatesSheet: View {
                         HStack(alignment: .top, spacing: 12) {
                             SectionIcon(symbol: t.symbol, tint: .purple, size: 28)
                             VStack(alignment: .leading, spacing: 2) {
-                                HStack(spacing: 6) {
-                                    Text(t.title).fontWeight(.semibold)
-                                    if let shortcut = t.shortcut {
-                                        // Raccourci prêt : donné à la copie s'il est libre.
-                                        Text(shortcut.display)
-                                            .font(.system(size: 10, weight: .semibold, design: .rounded))
-                                            .padding(.horizontal, 6)
-                                            .padding(.vertical, 1)
-                                            .background(Capsule().fill(Color.purple.opacity(0.14)))
-                                            .foregroundStyle(.purple)
-                                            .help("Raccourci donné tout de suite s'il est libre")
-                                    }
-                                }
+                                Text(t.title).fontWeight(.semibold)
                                 Text(t.summary)
                                     .font(.system(size: 11))
                                     .foregroundStyle(.secondary)

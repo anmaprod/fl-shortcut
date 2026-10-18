@@ -2,7 +2,7 @@
 // Lancée depuis l'app seulement : menu de l'icône en haut de l'écran, ou menu ⋯ de la fenêtre, « Désinstaller
 // FL Shortcuts… » (plus d'app « Désinstaller » à part ; celles des anciennes versions sont retirées aussi).
 // Supprimé, sous le nom actuel comme sous l'ancien (« FL Shortcut ») : l'app et les anciens désinstalleurs (Corbeille ;
-// ceux du .pkg, avec le mot de passe), tes raccourcis et macros, réglages, état des fenêtres, caches, journal, la clé et
+// ceux d'un ancien .pkg, au système, avec le mot de passe), tes raccourcis et macros, réglages, état des fenêtres, caches, journal, la clé et
 // la session du Trousseau, le script installé dans FL Studio, les autorisations (clavier, écran, son), l'identité
 // de signature des compilations locales ; tes macros exportées (Documents) seulement si tu le demandes.
 // À la fin, chaque chemin est revérifié : ce que macOS a refusé de supprimer (protection des apps, mot de passe
@@ -108,8 +108,7 @@ enum Uninstaller {
         guard CommandLine.arguments.contains("--essai-desinstallation"),
               ProcessInfo.processInfo.environment["FLS_ESSAI_DESINSTALLATION"] == "1" else { return }
         // Même ordre que la fenêtre : ce qui appartient au système d'abord, puis tout le reste.
-        if ProcessInfo.processInfo.environment["FLS_ESSAI_SUDO"] == "1",
-           case .failed(let why) = runPrivileged(privilegedWork(), sudo: true) {
+        if case .failed(let why) = runPrivileged(privilegedWork()) {
             print("droits d'administrateur : \(why)")
         }
         let report = removeEverything(interactive: false, removeExports: true)
@@ -153,16 +152,16 @@ enum Uninstaller {
         }
     }
 
-    // MARK: Ce qui demande Touch ID ou le mot de passe
+    // MARK: Ce qui demande le mot de passe (anciennes installations seulement)
 
-    /// Nos apps de /Applications que ce compte ne peut pas déplacer (installées par le .pkg, elles appartiennent au
-    /// système), le reçu du .pkg et les autorisations de macOS (clavier, écran, son : la liste « Accessibilité » est
-    /// celle du système, que seul un administrateur vide) : une seule demande pour tout, avant toute suppression.
+    /// Ce que ce compte ne peut pas retirer seul : nos apps de /Applications qui appartiennent au système (installées
+    /// par un ancien .pkg : le .pkg actuel donne l'app à l'utilisateur et oublie son reçu) et le reçu d'un ancien .pkg.
+    /// Les autorisations (clavier, écran, son) sont celles de l'utilisateur : retirées sans mot de passe
+    /// (`tccutil reset` agit sur le compte courant).
     struct PrivilegedWork: Equatable {
         var apps: [URL] = []
         var receipt = false
-        var permissions = false
-        var isEmpty: Bool { apps.isEmpty && !receipt && !permissions }
+        var isEmpty: Bool { apps.isEmpty && !receipt }
     }
 
     /// Une de nos apps (ou un ancien désinstalleur) : un paquet .app avec notre identifiant, jamais autre chose.
@@ -170,15 +169,18 @@ enum Uninstaller {
         url.pathExtension == "app" && [bundleID, uninstallerID].contains(Bundle(url: url)?.bundleIdentifier ?? "")
     }
 
-    static func privilegedWork(home: URL = FileManager.default.homeDirectoryForCurrentUser) -> PrivilegedWork {
+    /// Le reçu d'un ancien .pkg ne demande le mot de passe que si une app du système doit partir aussi : seul, il
+    /// n'est qu'une fiche invisible du système, qui ne vaut pas une demande de mot de passe.
+    static func privilegedWork(home: URL = FileManager.default.homeDirectoryForCurrentUser,
+                               receiptExists: Bool = FileManager.default.fileExists(atPath: "/var/db/receipts/\(pkgID).bom"))
+        -> PrivilegedWork {
         var seen = Set<String>()
         let apps = ([Bundle.main.bundleURL] + appLocations(home: home)).map(\.standardizedFileURL)
             .filter { seen.insert($0.path).inserted }
             .filter { $0.path.hasPrefix("/Applications/") && appNames.contains($0.lastPathComponent) && exists($0) }
             .filter(isOurApp)
             .filter { SecureFile.permissions(at: $0.path)?.owner != getuid() }
-        return PrivilegedWork(apps: apps, receipt: FileManager.default.fileExists(atPath: "/var/db/receipts/\(pkgID).bom"),
-                              permissions: true)
+        return PrivilegedWork(apps: apps, receipt: receiptExists && !apps.isEmpty)
     }
 
     /// Commande lancée avec les droits d'administrateur : chemins fixes connus, jamais une donnée extérieure.
@@ -189,9 +191,6 @@ enum Uninstaller {
                 .joined(separator: " "))
         }
         if work.receipt { commands.append("/usr/sbin/pkgutil --forget \(pkgID) >/dev/null") }
-        if work.permissions {
-            for id in [bundleID, uninstallerID] { commands.append("/usr/bin/tccutil reset All \(id) >/dev/null 2>&1") }
-        }
         return commands.joined(separator: "; ")
     }
 
@@ -202,14 +201,18 @@ enum Uninstaller {
         case failed(String)
     }
 
-    /// Touch ID ou le mot de passe, une seule fois (fenêtre d'autorisation de macOS), pour ce qui appartient au
-    /// système. `sudo` : `sudo -n` à la place (machine de la CI).
-    static func runPrivileged(_ work: PrivilegedWork, sudo: Bool = false) -> PrivilegedResult {
+    /// Essai de la CI : le mot de passe passe par `sudo -n` (personne pour répondre à la fenêtre de macOS).
+    static var essaiSudo: Bool {
+        let env = ProcessInfo.processInfo.environment
+        return env["FLS_ESSAI_DESINSTALLATION"] == "1" && env["FLS_ESSAI_SUDO"] == "1"
+    }
+
+    /// Le mot de passe du Mac, une seule fois (fenêtre de macOS), pour ce qui appartient au système : seulement une
+    /// app installée par un ancien .pkg. `sudo` : `sudo -n` à la place (machine de la CI).
+    static func runPrivileged(_ work: PrivilegedWork, sudo: Bool = essaiSudo) -> PrivilegedResult {
         guard !work.isEmpty else { return .done }
         let script = privilegedScript(work)
         if sudo { return run("/usr/bin/sudo", ["-n", "/bin/sh", "-c", script]) ? .done : .failed("sudo -n refusé") }
-        if let result = runAuthorized(script) { return result }
-        // Repli (fonction du système absente) : la fenêtre d'AppleScript, mot de passe seulement.
         let source = "do shell script \"" + script.replacingOccurrences(of: "\\", with: "\\\\")
             .replacingOccurrences(of: "\"", with: "\\\"") + "\" with administrator privileges"
         var error: NSDictionary?
@@ -219,55 +222,6 @@ enum Uninstaller {
         // n'est supprimé. Positives : la commande a tourné mais a échoué (le bilan dit ce qui reste).
         if let n = error[NSAppleScript.errorNumber] as? Int, n < 0 { return .cancelled }
         return .failed(error[NSAppleScript.errorMessage] as? String ?? "erreur inconnue")
-    }
-
-    /// La fenêtre d'autorisation de macOS (Touch ID ou mot de passe, comme dans Réglages Système), puis la commande en
-    /// administrateur. Lancée par zsh en mode privilégié (`-p` : il garde les droits) qui devient tout à fait
-    /// administrateur (`UID=0`) : pkgutil et tccutil le demandent. nil : la fonction du système n'est pas là.
-    private static func runAuthorized(_ script: String) -> PrivilegedResult? {
-        typealias Execute = @convention(c) (AuthorizationRef, UnsafePointer<CChar>, AuthorizationFlags,
-                                            UnsafePointer<UnsafeMutablePointer<CChar>?>,
-                                            UnsafeMutablePointer<UnsafeMutablePointer<FILE>?>?) -> OSStatus
-        // Dépréciée mais toujours là : appelée par son nom, comme le font les apps qui se mettent à jour seules.
-        guard let symbol = dlsym(UnsafeMutableRawPointer(bitPattern: -2), "AuthorizationExecuteWithPrivileges") else {
-            return nil
-        }
-        let execute = unsafeBitCast(symbol, to: Execute.self)
-        var created: AuthorizationRef?
-        guard AuthorizationCreate(nil, nil, [], &created) == errAuthorizationSuccess, let auth = created else { return nil }
-        defer { AuthorizationFree(auth, [.destroyRights]) }
-        let status: OSStatus = kAuthorizationRightExecute.withCString { name in
-            var item = AuthorizationItem(name: name, valueLength: 0, value: nil, flags: 0)
-            return withUnsafeMutablePointer(to: &item) { pointer in
-                var rights = AuthorizationRights(count: 1, items: pointer)
-                return AuthorizationCopyRights(auth, &rights, nil, [.interactionAllowed, .extendRights, .preAuthorize], nil)
-            }
-        }
-        if status == errAuthorizationCanceled || status == errAuthorizationDenied { return .cancelled }
-        guard status == errAuthorizationSuccess else { return .failed("autorisation refusée (\(status))") }
-        var pipe: UnsafeMutablePointer<FILE>?
-        let launched: OSStatus = "-p".withCString { privileged in
-            "-c".withCString { command in
-                ("UID=0; " + script).withCString { body in
-                    let args: [UnsafeMutablePointer<CChar>?] = [UnsafeMutablePointer(mutating: privileged),
-                                                                UnsafeMutablePointer(mutating: command),
-                                                                UnsafeMutablePointer(mutating: body), nil]
-                    return args.withUnsafeBufferPointer { buffer in
-                        "/bin/zsh".withCString { tool in execute(auth, tool, [], buffer.baseAddress!, &pipe) }
-                    }
-                }
-            }
-        }
-        guard launched == errAuthorizationSuccess else {
-            return launched == errAuthorizationCanceled ? .cancelled : .failed("commande refusée (\(launched))")
-        }
-        // Fin de la commande : sa sortie se ferme.
-        if let pipe {
-            var line = [CChar](repeating: 0, count: 256)
-            while fgets(&line, Int32(line.count), pipe) != nil {}
-            fclose(pipe)
-        }
-        return .done
     }
 
     // MARK: Suppression
@@ -335,8 +289,8 @@ enum Uninstaller {
             if run("/usr/bin/tccutil", ["reset", "All", id]), id == bundleID { note("les autorisations (clavier, écran, son)") }
         }
 
-        // 7. Les apps de ce compte, à la Corbeille (récupérables tant que la Corbeille n'est pas vidée). Celles du
-        // système (installées par le .pkg) et le reçu sont retirés avant, avec Touch ID ou le mot de passe
+        // 7. Les apps de ce compte, à la Corbeille (récupérables tant que la Corbeille n'est pas vidée) : celle du .pkg
+        // actuel en fait partie. Celles du système (ancien .pkg) sont retirées avant, avec le mot de passe
         // (`runPrivileged`) ; jamais déplacées d'ici, ce qui pourrait ouvrir une autre fenêtre de macOS. macOS peut
         // aussi les protéger (« Gestion des apps ») : elles restent alors, et le bilan le dit.
         var apps: [URL] = [Bundle.main.bundleURL]

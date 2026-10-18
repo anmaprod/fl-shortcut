@@ -77,11 +77,10 @@ struct MacroCreatorView: View {
     let onBack: () -> Void
     @Environment(\.undoManager) private var undoManager
     @AppStorage(Appearance.glassKey) private var glassEnabled = true
-    @State private var paletteItems: [PaletteItem] = []
 
     var body: some View {
         NavigationSplitView {
-            MacroPaletteView(items: paletteItems, insert: { [model] item in
+            MacroPaletteView(items: model.paletteItems, insert: { [model] item in
                 withAnimation(MacroStepsPane.spring) { model.insert(item) }
             })
                 .navigationSplitViewColumnWidth(min: 190, ideal: 230, max: 300)
@@ -91,7 +90,7 @@ struct MacroCreatorView: View {
             VStack(spacing: 0) {
                 LibraryProblemBanner(library: store.library)
                 HStack(spacing: 0) {
-                    MacroStepsPane(model: model, monitor: model.monitor, paletteItems: paletteItems)
+                    MacroStepsPane(model: model, monitor: model.monitor, paletteItems: model.paletteItems)
                         .frame(minWidth: 280, maxWidth: .infinity, maxHeight: .infinity)
                     Divider()
                     MacroInspectorView(model: model)
@@ -113,37 +112,9 @@ struct MacroCreatorView: View {
         })
         .onAppear {
             model.undoManager = undoManager
-            if paletteItems.isEmpty { paletteItems = PaletteCatalog.items(layout: store.layout) }
-            handle(link.request)
+            model.handle(link.request)                  // déjà fait avant l'ouverture : sans effet
         }
-        .onChange(of: link.request) { request in handle(request) }
-    }
-
-    private func handle(_ request: MacroCreatorLink.Request?) {
-        guard let request else {
-            if model.draft == nil { model.load(nil) }
-            return
-        }
-        // onAppear puis onChange peuvent livrer la même demande : la rejouer rechargerait le brouillon.
-        guard model.handledRequestSerial != request.serial else { return }
-        model.handledRequestSerial = request.serial
-        if request.sample {
-            let doc = MacroTemplates.sampleForCapture(layout: store.layout)
-            model.loadSample(doc)
-            // Capture : essai en cours sur l'exemple (couleurs des lignes), bloc 4 choisi (inspecteur).
-            let ids = doc.blocks.map(\.id)
-            if ids.count > 7 {
-                model.monitor.showSample(done: Array(ids[1...6]), running: ids[7])
-                model.selection = MacroStepRow.blockRowID(ids[3])
-            }
-        } else {
-            model.load(request.id)
-            if request.isNew { model.markNew() }
-            // « Enregistrer une macro » : le créateur s'affiche, puis FL passe devant pour l'enregistrement.
-            if request.record {
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [model] in model.recordClicks() }
-            }
-        }
+        .onChange(of: link.request) { request in model.handle(request) }
     }
 
     // MARK: Barre d'outils
