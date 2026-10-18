@@ -1,42 +1,52 @@
-import { $, api, applyTheme, formatPrice, h, renderBrand, toast } from './common.js';
+import { $, api, applyTheme, elapsed, formatPrice, h, icon, toast } from './common.js';
 import { THEMES } from './themes.js';
 
 let me = null;
+let popina = null;
 
 function show(next) {
   me = next;
   const r = me.restaurant;
   applyTheme(r.theme);
-  renderBrand($('#brand'), r);
   document.title = `Réglages · ${r.name}`;
-  renderLogo();
-  renderPlan();
+  $('#profile-name').textContent = r.name;
+  $('#profile-sub').textContent = `SIRET ${r.siretFormatted}`;
+  $('#profile-logo').replaceChildren(r.logoUrl ? h('img', { src: r.logoUrl, alt: 'Logo' }) : icon('store'));
+  $('#logo-remove').hidden = !r.logoUrl;
   for (const input of document.querySelectorAll('input[name="theme"]')) input.checked = input.value === r.theme;
+  renderPlan();
 }
 
-// ---------- Établissement ----------
+// ---------- Établissement : enregistré dès qu'on quitte le champ ----------
 
 const infoForm = $('#info-form');
-infoForm.addEventListener('submit', async (e) => {
-  e.preventDefault();
-  const error = infoForm.querySelector('.error');
-  error.textContent = '';
+const infoFooter = $('#info-footer');
+const infoHint = infoFooter.textContent;
+
+async function saveInfo() {
+  const name = infoForm.name.value;
+  const siret = infoForm.siret.value;
+  if (name === me.restaurant.name && siret.replace(/\s/g, '') === me.restaurant.siret) return;
   try {
-    show(await api('PUT', '/api/restaurant', { name: infoForm.name.value, siret: infoForm.siret.value }));
+    show(await api('PUT', '/api/restaurant', { name, siret }));
     infoForm.siret.value = me.restaurant.siretFormatted;
-    toast('Enregistré.');
+    infoFooter.textContent = infoHint;
+    infoFooter.classList.remove('is-error');
+    toast('Enregistré');
   } catch (err) {
-    error.textContent = err.message;
+    infoFooter.textContent = err.message;
+    infoFooter.classList.add('is-error');
   }
+}
+
+infoForm.addEventListener('change', saveInfo);
+infoForm.addEventListener('submit', (e) => {
+  e.preventDefault();
+  document.activeElement?.blur();
+  saveInfo();
 });
 
 // ---------- Logo ----------
-
-function renderLogo() {
-  const { logoUrl } = me.restaurant;
-  $('#logo-preview').replaceChildren(logoUrl ? h('img', { src: logoUrl, alt: 'Logo actuel' }) : 'Aucun logo');
-  $('#logo-remove').hidden = !logoUrl;
-}
 
 function loadImage(file) {
   return new Promise((resolve, reject) => {
@@ -76,7 +86,7 @@ $('#logo-input').addEventListener('change', async (e) => {
   if (!file) return;
   try {
     show(await api('PUT', '/api/restaurant/logo', { dataUrl: await prepareLogo(file) }));
-    toast('Logo enregistré.');
+    toast('Logo enregistré');
   } catch (err) {
     toast(err.message, { error: true });
   }
@@ -89,18 +99,16 @@ $('#logo-remove').addEventListener('click', async () => {
   }
 });
 
-// ---------- Couleurs ----------
+// ---------- Couleur ----------
 
-function buildPalettes() {
+function buildSwatches() {
   const set = $('#palettes');
   for (const t of THEMES) {
-    const top = h('div', { class: 'palette-top' }, h('span', { text: 'Aa' }), h('span', { text: '🔔', 'aria-hidden': 'true' }));
-    top.style.background = t.primary;
-    top.style.color = t.onPrimary;
-    const name = h('div', { class: 'palette-name' }, h('span', { text: t.name }), h('span', { class: 'palette-check', text: '✓', 'aria-hidden': 'true' }));
-    name.style.background = t.soft;
-    name.style.color = t.ink;
-    const input = h('input', { type: 'radio', name: 'theme', value: t.id, 'aria-label': t.name });
+    const input = h('input', { type: 'radio', name: 'theme', value: t.id });
+    const dot = h('span', { class: 'swatch-dot' }, icon('check'));
+    dot.style.background = t.tint;
+    const label = h('label', { class: 'swatch' }, input, dot, h('span', { text: t.name }));
+    label.style.setProperty('--swatch', t.tint);
     input.addEventListener('change', async () => {
       const previous = me.restaurant.theme;
       applyTheme(t.id);
@@ -112,7 +120,7 @@ function buildPalettes() {
         show(me);
       }
     });
-    set.append(h('label', { class: 'palette' }, input, top, name));
+    set.append(label);
   }
 }
 
@@ -133,42 +141,52 @@ async function redirectTo(path, button) {
   }
 }
 
+function buttonRow(text, path) {
+  const button = h('button', { class: 'row row-button', type: 'button', text });
+  button.addEventListener('click', () => redirectTo(path, button));
+  return button;
+}
+
 function renderPlan() {
   const s = me.subscription;
-  let title;
-  let text;
-  let price = `${formatPrice(s.priceCents)} / mois`;
-  let action = null;
-  if (s.active && s.plan === 'promo') {
-    title = '✓ Abonnement offert';
-    text = 'Code promo appliqué : rien à payer.';
-  } else if (s.active) {
-    title = '✓ Abonnement actif';
-    text =
-      s.status === 'past_due'
-        ? 'Le dernier paiement a échoué : mettez à jour votre carte.'
-        : s.periodEnd
-          ? `Prochain renouvellement le ${dateText(s.periodEnd)}.`
-          : 'Merci pour votre confiance !';
-    if (s.canManage) {
-      action = h('button', { class: 'btn btn-secondary', type: 'button', text: 'Gérer mon abonnement' });
-      action.addEventListener('click', () => redirectTo('/api/billing/portal', action));
-    }
-  } else {
-    title = { canceled: 'Abonnement résilié', unpaid: 'Paiement refusé', incomplete_expired: 'Paiement non abouti' }[s.status] || 'Pas encore d’abonnement';
-    price = `${formatPrice(s.listPriceCents)} / mois`;
-    if (s.onlinePayment) {
-      text = 'Sans engagement, résiliable à tout moment. Paiement sécurisé par Stripe.';
-      action = h('button', { class: 'btn btn-primary btn-lg', type: 'button', text: 'S’abonner' });
-      action.addEventListener('click', () => redirectTo('/api/billing/checkout', action));
-    } else {
-      text = 'Le paiement en ligne n’est pas encore ouvert sur ce serveur. Un code promo permet de commencer.';
-    }
+  const price = `${formatPrice(s.active ? s.priceCents : s.listPriceCents)} par mois`;
+  const [state, stateClass] = s.active
+    ? s.status === 'past_due'
+      ? ['Paiement en attente', 'warn']
+      : ['Actif', 'ok']
+    : [{ canceled: 'Résilié', unpaid: 'Paiement refusé', incomplete_expired: 'Non abouti' }[s.status] || 'Inactif', ''];
+  const rows = [
+    h(
+      'div',
+      { class: 'row' },
+      h('span', { class: 'row-icon' }, icon('creditcard')),
+      h('span', { class: 'row-label' }, 'Buzz Eat', h('span', { class: 'row-sub', text: s.plan === 'promo' ? `${price} · code promo` : price })),
+      h('span', { class: `row-value ${stateClass}`.trim(), text: state })
+    )
+  ];
+  if (s.active && s.plan === 'stripe' && s.periodEnd) {
+    rows.push(
+      h(
+        'div',
+        { class: 'row' },
+        h('span', { class: 'row-icon gray' }, icon('clock')),
+        h('span', { class: 'row-label', text: 'Renouvellement' }),
+        h('span', { class: 'row-value', text: dateText(s.periodEnd) })
+      )
+    );
   }
-  $('#plan').replaceChildren(
-    h('div', {}, h('strong', { text: title }), h('div', { class: 'small', text })),
-    h('div', { class: 'row' }, h('span', { class: 'plan-price', text: price }), action)
-  );
+  if (!s.active && s.onlinePayment) rows.push(buttonRow('S’abonner', '/api/billing/checkout'));
+  if (s.canManage) rows.push(buttonRow('Gérer l’abonnement', '/api/billing/portal'));
+  $('#plan').replaceChildren(...rows);
+  $('#plan-footer').textContent = s.active
+    ? s.plan === 'promo'
+      ? 'Abonnement offert grâce à un code promo.'
+      : s.status === 'past_due'
+        ? 'Le dernier paiement a échoué : mettez votre carte à jour dans « Gérer l’abonnement ».'
+        : 'Sans engagement : résiliable à tout moment dans « Gérer l’abonnement ».'
+    : s.onlinePayment
+      ? 'Sans engagement. Paiement sécurisé par Stripe.'
+      : 'Le paiement en ligne n’est pas encore ouvert sur ce serveur. Un code promo permet de commencer.';
   $('#promo-block').hidden = s.active;
 }
 
@@ -178,11 +196,72 @@ $('#promo-form').addEventListener('submit', async (e) => {
   try {
     show(await api('POST', '/api/billing/promo', { code: $('#promo').value }));
     $('#promo').value = '';
-    toast('Code promo appliqué : abonnement offert.');
+    toast('Abonnement offert');
   } catch (err) {
     $('#promo-error').textContent = err.message;
   }
 });
+
+// ---------- Popina ----------
+
+function renderPopina(view) {
+  popina = view;
+  $('#popina-enabled').checked = view.enabled;
+  $('#popina-details').hidden = !view.enabled;
+  for (const b of document.querySelectorAll('#popina-create-on button')) {
+    b.setAttribute('aria-pressed', String(b.dataset.value === view.createOn));
+  }
+  if (document.activeElement !== $('#popina-rooms')) $('#popina-rooms').value = view.rooms;
+  $('#popina-url').textContent = view.webhookUrl || '';
+  $('#popina-secret').placeholder = view.hasSecret ? 'Enregistrée' : 'Coller la clé';
+  $('#popina-last').textContent = view.lastAt ? `${view.lastInfo} · ${elapsed(view.lastAt)}` : 'Aucun';
+}
+
+async function savePopina(fields, message) {
+  try {
+    renderPopina(await api('PUT', '/api/popina', fields));
+    if (message) toast(message);
+  } catch (err) {
+    toast(err.message, { error: true });
+    renderPopina(popina);
+  }
+}
+
+$('#popina-enabled').addEventListener('change', (e) => savePopina({ enabled: e.target.checked }));
+for (const b of document.querySelectorAll('#popina-create-on button')) {
+  b.addEventListener('click', () => savePopina({ createOn: b.dataset.value }));
+}
+$('#popina-rooms').addEventListener('change', (e) => savePopina({ rooms: e.target.value }, 'Enregistré'));
+$('#popina-secret').addEventListener('change', async (e) => {
+  const secret = e.target.value.trim();
+  if (!secret) return;
+  await savePopina({ secret }, 'Clé secrète enregistrée');
+  e.target.value = '';
+});
+for (const id of ['#popina-rooms', '#popina-secret']) {
+  $(id).addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') e.target.blur();
+  });
+}
+$('#popina-copy').addEventListener('click', async () => {
+  try {
+    await navigator.clipboard.writeText(popina.webhookUrl);
+    toast('Adresse copiée');
+  } catch {
+    getSelection().selectAllChildren($('#popina-url'));
+  }
+});
+$('#popina-renew').addEventListener('click', async () => {
+  if (!confirm('L’adresse actuelle ne marchera plus. Il faudra donner la nouvelle au support Popina. Continuer ?')) return;
+  try {
+    renderPopina(await api('POST', '/api/popina/address'));
+    toast('Nouvelle adresse créée');
+  } catch (err) {
+    toast(err.message, { error: true });
+  }
+});
+
+// ---------- Compte ----------
 
 $('#logout').addEventListener('click', async () => {
   await api('POST', '/api/logout').catch(() => {});
@@ -197,25 +276,30 @@ async function init() {
     else toast(err.message, { error: true });
     return;
   }
-  buildPalettes();
+  buildSwatches();
   infoForm.name.value = me.restaurant.name;
   infoForm.siret.value = me.restaurant.siretFormatted;
-  infoForm.email.value = me.restaurant.email;
+  $('#email').textContent = me.restaurant.email;
   show(me);
+  api('GET', '/api/popina').then(renderPopina, () => {});
+  // Le dernier envoi reçu de Popina se met à jour tout seul pendant qu'on règle la connexion.
+  setInterval(() => {
+    if (document.visibilityState === 'visible' && popina?.enabled) api('GET', '/api/popina').then(renderPopina, () => {});
+  }, 15000);
 
   const params = new URLSearchParams(location.search);
   if (params.has('bienvenue')) $('#welcome').hidden = false;
-  if (params.get('abonnement') === 'annule') toast('Paiement annulé : rien n’a été prélevé.');
+  if (params.get('abonnement') === 'annule') toast('Paiement annulé : rien n’a été prélevé');
   if (params.get('abonnement') === 'ok' && params.get('session_id')) {
     try {
       show(await api('POST', '/api/billing/confirm', { sessionId: params.get('session_id') }));
-      toast(me.subscription.active ? 'Abonnement activé, merci !' : 'Paiement en cours de validation…');
+      toast(me.subscription.active ? 'Abonnement activé, merci' : 'Paiement en cours de validation');
     } catch (err) {
       toast(err.message, { error: true });
     }
   }
   if (location.search) history.replaceState(null, '', `/reglages${location.hash}`);
-  if (location.hash === '#abonnement') $('#abonnement').scrollIntoView();
+  if (location.hash) document.querySelector(location.hash)?.scrollIntoView();
 }
 
 init();

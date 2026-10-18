@@ -1,18 +1,25 @@
-import { $, api, applyTheme, clock, elapsed, formatPrice, h, registerServiceWorker, renderBrand, toast } from './common.js';
+import { $, api, applyTheme, clock, elapsed, formatPrice, h, icon, registerServiceWorker, renderBrand, toast } from './common.js';
 
 const orders = new Map();
 const cards = new Map();
 let me = null;
 let events = null;
 let qr = { id: null, scanned: false };
+// Commandes arrivées de Popina pendant qu'un QR code est déjà affiché : montrées ensuite, dans l'ordre.
+const qrQueue = [];
 
 // ---------- Cartes des commandes ----------
 
-function clientChip(o) {
-  if (o.alertOn && (o.listening || o.push)) return h('span', { class: 'chip chip-ok', text: '📱 Alerte activée' });
-  if (o.listening) return h('span', { class: 'chip chip-warn', text: '📱 Page ouverte, alerte pas activée' });
-  if (o.alertOn) return h('span', { class: 'chip chip-warn', text: '⚠️ Téléphone du client déconnecté' });
-  return h('span', { class: 'chip', text: 'QR code pas encore scanné' });
+function clientState(o) {
+  const [cls, name, text] =
+    o.alertOn && (o.listening || o.push)
+      ? ['ok', 'check-circle', 'Alerte activée sur le téléphone du client']
+      : o.listening
+        ? ['warn', 'iphone', 'Page ouverte, alerte pas encore activée']
+        : o.alertOn
+          ? ['warn', 'warning', 'Téléphone du client hors ligne']
+          : ['', 'qrcode', 'QR code pas encore scanné'];
+  return h('div', { class: `client-state ${cls}`.trim() }, icon(name), h('span', { text }));
 }
 
 function timeText(o) {
@@ -22,8 +29,13 @@ function timeText(o) {
 }
 
 // Bouton d'action : grisé pendant l'envoi, rendu utilisable si l'envoi échoue.
-function actionButton(cls, text, fn) {
-  const button = h('button', { class: `btn ${cls}`, type: 'button', text });
+function actionButton(cls, label, fn, { iconName, title } = {}) {
+  const button = h(
+    'button',
+    { class: `btn ${cls}`, type: 'button', 'aria-label': title || null, title: title || null },
+    iconName ? icon(iconName) : null,
+    label ? h('span', { text: label }) : null
+  );
   button.addEventListener('click', async () => {
     button.disabled = true;
     try {
@@ -37,36 +49,50 @@ function actionButton(cls, text, fn) {
 }
 
 function actions(o) {
-  const qrButton = h('button', { class: 'btn btn-ghost', type: 'button', onclick: () => showQr(o.id), text: 'QR code' });
+  const qrButton = h(
+    'button',
+    { class: 'btn btn-gray btn-icon', type: 'button', 'aria-label': 'Afficher le QR code', title: 'QR code', onclick: () => showQr(o.id) },
+    icon('qrcode')
+  );
   const remove = () => {
     orders.delete(o.id);
     render();
   };
   if (o.status === 'ready') {
     return [
-      actionButton('btn-ok btn-lg btn-main', '✓ Récupérée', async () => {
+      actionButton('btn-green btn-main', 'Récupérée', async () => {
         await api('POST', `/api/orders/${o.id}/pickup`);
         remove();
       }),
-      actionButton('btn-secondary', '🔔 Sonner à nouveau', async () => {
-        await api('POST', `/api/orders/${o.id}/ring`);
-        toast(`Le téléphone de la commande n° ${o.number} sonne à nouveau.`);
-      }),
+      actionButton(
+        'btn-gray btn-icon',
+        null,
+        async () => {
+          await api('POST', `/api/orders/${o.id}/ring`);
+          toast(`Le téléphone du n° ${o.number} sonne à nouveau`);
+        },
+        { iconName: 'bell', title: 'Faire sonner à nouveau' }
+      ),
       qrButton
     ];
   }
   return [
-    actionButton('btn-primary btn-lg btn-main', '🔔 Venir retirer la commande', async () => {
+    actionButton('btn-filled btn-main', 'Venir retirer la commande', async () => {
       const { order } = await api('POST', `/api/orders/${o.id}/ready`);
       orders.set(order.id, order);
       render();
     }),
     qrButton,
-    actionButton('btn-danger-ghost', 'Annuler', async () => {
-      if (!confirm(`Annuler la commande n° ${o.number} ?`)) return;
-      await api('DELETE', `/api/orders/${o.id}`);
-      remove();
-    })
+    actionButton(
+      'btn-gray btn-icon destructive',
+      null,
+      async () => {
+        if (!confirm(`Annuler la commande n° ${o.number} ?`)) return;
+        await api('DELETE', `/api/orders/${o.id}`);
+        remove();
+      },
+      { iconName: 'xmark', title: 'Annuler la commande' }
+    )
   ];
 }
 
@@ -74,20 +100,25 @@ function buildCard(o) {
   const ready = o.status === 'ready';
   return h(
     'article',
-    { class: `order ${ready ? 'is-ready' : 'is-preparing'}`, 'aria-label': `Commande n° ${o.number}` },
+    { class: `order${ready ? ' is-ready' : ''}`, 'aria-label': `Commande n° ${o.number}` },
     h(
       'div',
-      { class: 'order-head' },
-      h('div', { class: 'order-num', text: o.number }),
+      { class: 'order-top' },
+      h('div', { class: 'order-badge', text: o.number }),
       h(
         'div',
-        { class: 'order-meta' },
-        h('div', { class: 'order-customer', text: o.customer || `Commande n° ${o.number}` }),
-        h('div', { class: 'order-time', text: timeText(o) })
+        { class: 'order-info' },
+        h(
+          'div',
+          { class: 'order-title' },
+          h('span', { text: o.customer || `Commande n° ${o.number}` }),
+          o.source === 'popina' ? h('span', { class: 'source', text: 'Popina' }) : null
+        ),
+        h('div', { class: 'order-sub order-time', text: timeText(o) })
       )
     ),
     o.details ? h('p', { class: 'order-details', text: o.details }) : null,
-    h('div', { class: 'order-chips' }, clientChip(o)),
+    clientState(o),
     h('div', { class: 'order-actions' }, actions(o))
   );
 }
@@ -122,8 +153,8 @@ function render() {
   const ready = all.filter((o) => o.status === 'ready').sort((a, b) => a.readyAt - b.readyAt);
   $('#prep-count').textContent = preparing.length;
   $('#ready-count').textContent = ready.length;
-  fill($('#prep-list'), preparing, 'Aucune commande en préparation.');
-  fill($('#ready-list'), ready, 'Aucune commande à retirer.');
+  fill($('#prep-list'), preparing, 'Aucune commande en préparation');
+  fill($('#ready-list'), ready, 'Aucune commande à retirer');
 }
 
 function refreshTimes() {
@@ -140,6 +171,7 @@ function showQr(id) {
   if (!o) return;
   qr = { id, scanned: o.listening || o.alertOn };
   $('#qr-num').textContent = o.number;
+  $('#qr-source').textContent = o.source === 'popina' ? 'Commande reçue de Popina' : o.customer || 'Commande';
   $('#qr-img').src = `/api/orders/${id}/qr.svg`;
   $('#qr-scanned').hidden = !qr.scanned;
   const dialog = $('#qr-dialog');
@@ -158,8 +190,17 @@ function onOrderUpdate(o) {
 
 $('#qr-dialog').addEventListener('close', () => {
   qr = { id: null, scanned: false };
-  $('#details').focus();
+  const next = qrQueue.shift();
+  if (next && orders.has(next)) showQr(next);
+  else $('#details').focus({ preventScroll: true });
 });
+
+// Une commande arrivée de la caisse ouvre son QR code toute seule, sur chaque écran du bar.
+function onNewOrder(o) {
+  if (o.source !== 'popina') return;
+  if ($('#qr-dialog').open) qrQueue.push(o.id);
+  else showQr(o.id);
+}
 
 // ---------- Nouvelle commande ----------
 
@@ -219,14 +260,18 @@ function connect() {
   });
   events.addEventListener('order', (e) => {
     const { order } = JSON.parse(e.data);
+    const isNew = !orders.has(order.id);
     orders.set(order.id, order);
     render();
-    onOrderUpdate(order);
+    if (isNew) onNewOrder(order);
+    else onOrderUpdate(order);
   });
   events.addEventListener('removed', (e) => {
     const { id } = JSON.parse(e.data);
     orders.delete(id);
     render();
+    const queued = qrQueue.indexOf(id);
+    if (queued >= 0) qrQueue.splice(queued, 1);
     if (qr.id === id) $('#qr-dialog').close();
   });
   events.onerror = () => {

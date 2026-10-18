@@ -3,7 +3,10 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-    <meta name="theme-color" content="#0b5fa5" />
+    <meta name="theme-color" content="#f2f2f7" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="Buzz Eat" />
     <meta name="robots" content="noindex" />
     <title>Buzz Eat</title>
     <link rel="stylesheet" href="/css/app.css" />
@@ -13,64 +16,70 @@
     <script type="module" src="/js/bar.js"></script>
   </head>
   <body>
-    <header class="topbar">
-      <a class="brand" id="brand" href="/app"></a>
-      <nav>
-        <span class="live off" id="live" role="status">Connexion…</span>
-        <a href="/reglages"><span aria-hidden="true">⚙️</span> <span class="nav-label">Réglages</span></a>
-      </nav>
+    <header class="navbar">
+      <div class="navbar-inner">
+        <a class="brand" id="brand" href="/app"></a>
+        <span></span>
+        <div class="nav-actions">
+          <span class="live off" id="live" role="status">Connexion…</span>
+          <a class="icon-button" href="/reglages" aria-label="Réglages"><svg class="i"><use href="/icons/symbols.svg#gear" /></svg></a>
+        </div>
+      </div>
     </header>
 
-    <main class="container">
-      <div class="banner" id="sub-banner" hidden>
-        <div>
-          <strong>Abonnement requis pour prendre des commandes</strong>
-          <span id="sub-price">5 €</span> par mois, sans engagement.
+    <main class="page">
+      <div class="notice" id="sub-banner" hidden>
+        <span class="row-icon orange"><svg class="i"><use href="/icons/symbols.svg#creditcard" /></svg></span>
+        <div class="notice-text">
+          <strong>Abonnement requis</strong>
+          Pour prendre des commandes : <span id="sub-price">5 €</span> par mois, sans engagement.
         </div>
-        <a class="btn btn-primary" href="/reglages#abonnement">S’abonner</a>
+        <a class="btn btn-tinted btn-small" href="/reglages#abonnement">Activer</a>
       </div>
 
       <div class="bar-layout">
-        <section class="card new-order" aria-labelledby="new-title">
-          <h2 id="new-title">Nouvelle commande</h2>
-          <form id="order-form" class="stack" autocomplete="off">
-            <label class="field">
-              <span>Commande</span>
-              <textarea id="details" maxlength="500" rows="4" placeholder="Ex. : 2 pressions, 1 planche mixte"></textarea>
-            </label>
-            <label class="field">
-              <span>Nom du client <span class="muted small">(facultatif)</span></span>
-              <input id="customer" maxlength="40" placeholder="Ex. : Julie" />
-            </label>
-            <p class="error" id="order-error" role="alert"></p>
-            <button class="btn btn-primary btn-lg btn-block" type="submit" id="validate">Valider la commande</button>
-            <p class="small muted">Le QR code s’affiche : le client le scanne pour être prévenu.</p>
+        <section class="composer" aria-labelledby="new-title">
+          <h2 class="title2" id="new-title">Nouvelle commande</h2>
+          <form id="order-form" autocomplete="off">
+            <div class="group">
+              <textarea class="field-input" id="details" maxlength="500" rows="4" placeholder="Commande" aria-label="Commande"></textarea>
+              <div class="row"><input class="row-input left" id="customer" maxlength="40" placeholder="Nom du client (facultatif)" aria-label="Nom du client" /></div>
+            </div>
+            <p class="section-footer is-error error" id="order-error" role="alert"></p>
+            <button class="btn btn-filled btn-block" type="submit" id="validate">Valider</button>
+            <p class="footnote">Le QR code s’affiche ensuite pour le client.</p>
           </form>
         </section>
 
-        <div class="orders-area">
-          <section aria-labelledby="prep-title">
-            <h2 class="section-title" id="prep-title">En préparation <span class="count" id="prep-count">0</span></h2>
-            <div class="order-list" id="prep-list"></div>
-          </section>
-          <section aria-labelledby="ready-title">
-            <h2 class="section-title" id="ready-title">À retirer <span class="count" id="ready-count">0</span></h2>
-            <div class="order-list" id="ready-list"></div>
-          </section>
-        </div>
+        <section aria-labelledby="orders-title">
+          <h1 class="large-title" id="orders-title">Commandes</h1>
+          <div class="columns">
+            <div>
+              <h2 class="section-header"><span>En préparation</span><span id="prep-count">0</span></h2>
+              <div class="order-list" id="prep-list"></div>
+            </div>
+            <div>
+              <h2 class="section-header"><span>À retirer</span><span id="ready-count">0</span></h2>
+              <div class="order-list" id="ready-list"></div>
+            </div>
+          </div>
+        </section>
       </div>
     </main>
 
-    <dialog id="qr-dialog" aria-labelledby="qr-title">
-      <div class="qr-box">
-        <div class="order-num" id="qr-num"></div>
-        <h2 id="qr-title">Scannez pour être prévenu</h2>
-        <p class="muted">Le client scanne ce code avec l’appareil photo de son téléphone.</p>
-        <img class="qr-img" id="qr-img" alt="QR code de la commande" />
-        <p class="qr-scanned" id="qr-scanned" role="status" hidden>✓ Scanné par le client</p>
+    <dialog class="sheet" id="qr-dialog" aria-labelledby="qr-title">
+      <div class="sheet-head">
+        <span class="sheet-title" id="qr-title">QR code</span>
         <form method="dialog">
-          <button class="btn btn-secondary btn-lg btn-block">Fermer</button>
+          <button class="sheet-close" aria-label="Fermer"><svg class="i"><use href="/icons/symbols.svg#xmark" /></svg></button>
         </form>
+      </div>
+      <div class="sheet-body">
+        <p class="qr-label" id="qr-source">Commande</p>
+        <p class="qr-number" id="qr-num"></p>
+        <div class="qr-frame"><img class="qr-img" id="qr-img" alt="QR code de la commande" /></div>
+        <p class="sheet-text">Scannez avec l’appareil photo pour être prévenu quand c’est prêt.</p>
+        <p class="scanned" id="qr-scanned" role="status" hidden><svg class="i"><use href="/icons/symbols.svg#check-circle" /></svg> Scanné</p>
       </div>
     </dialog>
   </body>

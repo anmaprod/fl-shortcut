@@ -23,12 +23,40 @@ export async function api(method, path, body) {
 export function applyTheme(themeId) {
   const t = getTheme(themeId);
   const s = document.documentElement.style;
-  s.setProperty('--primary', t.primary);
-  s.setProperty('--on-primary', t.onPrimary);
-  s.setProperty('--soft', t.soft);
-  s.setProperty('--ink', t.ink);
-  document.querySelector('meta[name="theme-color"]')?.setAttribute('content', t.primary);
+  s.setProperty('--tint', t.tint);
+  s.setProperty('--tint-dark', t.tintDark);
   return t;
+}
+
+const SVG = 'http://www.w3.org/2000/svg';
+
+// Icône du fichier /icons/symbols.svg, à la couleur du texte qui l'entoure.
+export function icon(name, className = '') {
+  const svg = document.createElementNS(SVG, 'svg');
+  svg.setAttribute('class', `i ${className}`.trim());
+  svg.setAttribute('aria-hidden', 'true');
+  const use = document.createElementNS(SVG, 'use');
+  use.setAttribute('href', `/icons/symbols.svg#${name}`);
+  svg.append(use);
+  return svg;
+}
+
+// Indicateur d'activité à huit branches, comme sur iPhone.
+export function spinner() {
+  const svg = document.createElementNS(SVG, 'svg');
+  svg.setAttribute('class', 'spinner');
+  svg.setAttribute('viewBox', '0 0 24 24');
+  svg.setAttribute('aria-hidden', 'true');
+  for (let i = 0; i < 8; i++) {
+    const line = document.createElementNS(SVG, 'line');
+    for (const [k, v] of Object.entries({ x1: 12, y1: 3, x2: 12, y2: 7.5, stroke: 'currentColor' })) line.setAttribute(k, v);
+    line.setAttribute('stroke-width', '2.4');
+    line.setAttribute('stroke-linecap', 'round');
+    line.setAttribute('opacity', String(1 - i * 0.11));
+    line.setAttribute('transform', `rotate(${-i * 45} 12 12)`);
+    svg.append(line);
+  }
+  return svg;
 }
 
 // Petit constructeur d'éléments : le texte passe toujours par textContent, jamais par innerHTML.
@@ -52,16 +80,14 @@ export const $ = (selector, root = document) => root.querySelector(selector);
 
 let toastTimer;
 export function toast(message, { error = false } = {}) {
-  let el = $('.toast');
-  if (!el) {
-    el = h('div', { class: 'toast', role: 'status', 'aria-live': 'polite' });
-    document.body.append(el);
-  }
-  el.textContent = message;
-  el.classList.toggle('is-error', error);
-  el.hidden = false;
+  $('.hud')?.remove();
+  const el = h('div', { class: `hud${error ? ' is-error' : ''}`, role: 'status', 'aria-live': 'polite' },
+    icon(error ? 'warning' : 'check-circle'),
+    h('span', { text: message })
+  );
+  document.body.append(el);
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => (el.hidden = true), 3500);
+  toastTimer = setTimeout(() => el.remove(), 3200);
 }
 
 export function formatPrice(cents) {
@@ -88,7 +114,7 @@ export function renderBrand(container, restaurant) {
   container.replaceChildren(
     restaurant.logoUrl
       ? h('img', { class: 'brand-logo', src: restaurant.logoUrl, alt: '' })
-      : h('span', { class: 'brand-mark', 'aria-hidden': 'true', text: '🔔' }),
+      : h('span', { class: 'brand-mark', 'aria-hidden': 'true' }, icon('bell-fill')),
     h('span', { class: 'brand-name', text: restaurant.name })
   );
 }

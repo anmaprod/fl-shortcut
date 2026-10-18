@@ -1,5 +1,5 @@
 import { createAlarm } from './alarm.js';
-import { $, api, applyTheme, h, registerServiceWorker, renderBrand } from './common.js';
+import { $, api, applyTheme, h, icon, registerServiceWorker, renderBrand, spinner } from './common.js';
 
 const preview = location.pathname === '/apercu';
 const token = preview ? null : location.pathname.split('/').pop();
@@ -18,16 +18,20 @@ function render() {
   document.title = `Commande n° ${order.number} · ${r.name}`;
   $('#loading').hidden = true;
   $('#ticket').hidden = false;
-  $('#num').textContent = `n° ${order.number}`;
+  $('#num').textContent = order.number;
   $('#customer').hidden = !order.customer;
   $('#customer').textContent = order.customer;
-  $('#details').hidden = !order.details;
+  $('#details-block').hidden = !order.details;
   $('#details').textContent = order.details;
   const ready = order.status === 'ready';
-  $('#status').classList.toggle('is-ready', ready);
-  $('#status-text').textContent = ready ? 'Prête : venez la retirer au bar' : 'En préparation';
-  $('#alert-card').hidden = ready;
-  $('#ready-num').textContent = `n° ${order.number}`;
+  $('#status').classList.toggle('ready', ready);
+  $('#status').replaceChildren(
+    ready ? icon('check-circle') : spinner(),
+    h('span', { text: ready ? 'Prête : venez la retirer au bar' : 'En préparation' })
+  );
+  $('#alert-off').hidden = ready || alertOn;
+  $('#alert-on').hidden = ready || !alertOn;
+  $('#ready-num').textContent = order.number;
   $('#footer').replaceChildren(h('div', { text: `${r.name} · SIRET ${r.siret}` }), h('div', { text: 'Buzz Eat' }));
 }
 
@@ -56,23 +60,22 @@ function onState(next, { initial = false } = {}) {
 }
 
 const DONE = {
-  picked_up: ['✅', 'Commande récupérée', 'Bon appétit ! Vous pouvez fermer cette page.'],
-  canceled: ['ℹ️', 'Commande annulée', 'L’établissement a annulé cette commande. Rapprochez-vous du bar si besoin.'],
-  expired: ['ℹ️', 'Commande terminée', 'Cette commande n’est plus suivie.'],
-  gone: ['ℹ️', 'Commande terminée', 'Cette commande a déjà été récupérée ou n’existe plus.']
+  picked_up: [true, 'Commande récupérée', 'Bon appétit ! Vous pouvez fermer cette page.'],
+  canceled: [false, 'Commande annulée', 'L’établissement a annulé cette commande. Rapprochez-vous du bar si besoin.'],
+  expired: [false, 'Commande terminée', 'Cette commande n’est plus suivie.'],
+  gone: [false, 'Commande terminée', 'Cette commande a déjà été récupérée ou n’existe plus.']
 };
 
 function onDone(reason) {
   finished = true;
   events?.close();
   alarm.stop();
-  const [icon, title, text] = DONE[reason] || DONE.gone;
+  const [success, title, text] = DONE[reason] || DONE.gone;
   $('#ready').hidden = true;
-  $('#loading').hidden = true;
-  $('#ticket').hidden = true;
-  $('#alert-card').hidden = true;
+  for (const id of ['#loading', '#ticket', '#details-block', '#alert-off', '#alert-on']) $(id).hidden = true;
   $('#done').hidden = false;
-  $('#done-icon').textContent = icon;
+  $('#done-icon').classList.toggle('neutral', !success);
+  $('#done-icon').querySelector('use').setAttribute('href', `/icons/symbols.svg#${success ? 'check-circle' : 'clock'}`);
   $('#done-title').textContent = title;
   $('#done-text').textContent = text;
   document.title = title;
@@ -144,17 +147,25 @@ async function enableAlert() {
     api('POST', `/api/c/${token}/alert`, {}).catch(() => {});
     if (notifications) pushOk = await subscribePush();
   }
-  const tips = [
-    soundOk ? 'Le son est activé : montez le volume.' : 'Le son n’a pas pu démarrer : touchez « Tester le son ».',
-    alarm.canVibrate
-      ? 'Le téléphone vibrera aussi.'
-      : 'Ce téléphone ne vibre pas depuis une page web : laissez le son allumé.',
-    screenOn ? 'L’écran reste allumé tant que cette page est ouverte.' : 'Gardez cette page ouverte et l’écran allumé.',
-    pushOk ? 'Une notification vous préviendra même si vous quittez cette page.' : null
+  const row = (iconName, color, label, value, ok) =>
+    h(
+      'div',
+      { class: 'row' },
+      h('span', { class: `row-icon ${color}` }, icon(iconName)),
+      h('span', { class: 'row-label', text: label }),
+      h('span', { class: `row-value ${ok ? 'ok' : 'warn'}`, text: value })
+    );
+  const test = h('button', { class: 'row row-button', type: 'button', text: 'Tester le son' });
+  test.addEventListener('click', () => alarm.unlock());
+  const rows = [
+    row('speaker', 'red', 'Son', soundOk ? 'Activé · montez le volume' : 'Touchez « Tester le son »', soundOk),
+    row('vibration', 'orange', 'Vibration', alarm.canVibrate ? 'Activée' : 'Impossible sur ce téléphone', alarm.canVibrate),
+    row('sun', '', 'Écran', screenOn ? 'Reste allumé' : 'Gardez-le allumé', screenOn),
+    pushOk ? row('badge', 'red', 'Notification', 'Même page fermée', true) : null,
+    test
   ];
-  $('#tips').replaceChildren(...tips.filter(Boolean).map((t) => h('li', { text: t })));
-  $('#alert-off').hidden = true;
-  $('#alert-on').hidden = false;
+  $('#alert-rows').replaceChildren(...rows.filter(Boolean));
+  render();
 }
 
 // ---------- Suivi en direct ----------
@@ -190,7 +201,6 @@ document.addEventListener('visibilitychange', () => {
 });
 
 $('#enable').addEventListener('click', enableAlert);
-$('#test-sound').addEventListener('click', () => alarm.unlock());
 $('#stop').addEventListener('click', acknowledge);
 
 async function init() {

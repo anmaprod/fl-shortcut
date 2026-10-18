@@ -9,7 +9,9 @@ Prise de commande au bar, et le **téléphone du client sonne quand sa commande 
 
 Une commande oubliée s'efface toute seule au bout de 12 heures.
 
-Fonctionne sur **ordinateur, tablette et téléphone** (iPhone, Android, Windows, Mac), dans le navigateur. L'écran du bar peut s'installer comme une appli (« Ajouter à l'écran d'accueil »).
+Fonctionne sur **ordinateur, tablette et téléphone** (iPhone, Android, Windows, Mac), dans le navigateur, en mode clair et en mode sombre (il suit le réglage de l'appareil). L'interface reprend les codes des apps d'Apple : barre translucide, listes groupées comme dans Réglages, typographie système. L'écran du bar peut s'installer comme une appli (« Ajouter à l'écran d'accueil »).
+
+Les commandes peuvent aussi **arriver toutes seules de la caisse Popina** : voir plus bas.
 
 ## Ce que l'établissement personnalise
 
@@ -17,8 +19,26 @@ Dans **Réglages** :
 
 - **nom** et **SIRET** (vérifié : 14 chiffres et clé de contrôle ; affiché en bas de la page du client) ;
 - **logo** (réduit à 512 px et réencodé dans le navigateur avant l'envoi) ;
-- **palette de couleurs** parmi 10 : Océan, Bistrot, Forêt, Soleil, Ardoise, Framboise, Lavande, Lagon, Café, Nuit. Elle colore l'écran du bar et la page du client ;
+- **couleur** parmi 10, les teintes système d'Apple : Bleu, Indigo, Violet, Rose, Rouge, Orange, Vert, Turquoise, Marron, Graphite (foncées juste assez pour que le texte blanc reste lisible, avec une version pour le mode sombre). Elle colore l'écran du bar et la page du client ;
 - **aperçu** de la page du client, avec un bouton pour essayer l'alarme.
+
+## Caisse Popina
+
+Quand c'est activé (*Réglages › Caisse Popina*), chaque commande envoyée depuis Popina crée la commande Buzz Eat : articles, menus, options et note de la caisse, et pour repère le numéro de bipeur ou la table. **Son QR code s'ouvre tout seul sur l'écran du bar**, prêt à être scanné par le client. La suite ne change pas : *Venir retirer la commande*, puis *Récupérée*.
+
+- **Quand créer la commande** : à l'envoi en préparation (par défaut) ou au paiement.
+- **Salles** : facultatif, pour ne suivre que certaines salles de Popina (par exemple « Comptoir »).
+- Une commande modifiée dans Popina est mise à jour, sans doublon. Une commande annulée dans Popina l'est aussi chez le client. Une commande déjà récupérée ne revient pas si Popina la renvoie (au paiement, par exemple).
+- Rien n'est créé sans abonnement actif ; *Dernier envoi reçu* dit ce qui s'est passé.
+
+Mise en place :
+
+1. Activez *Recevoir les commandes de Popina* et copiez **l'adresse à donner à Popina** (elle est propre à votre établissement).
+2. Demandez au **support Popina** d'envoyer les webhooks de votre établissement à cette adresse. Leur documentation : <https://www.pragma-project.dev/docs/guides/webhooks>.
+3. Popina vous donne une **clé secrète de 64 caractères** : collez-la dans *Clé secrète*. Chaque envoi est vérifié avec elle (signature `x-popina-hmac-signature`) ; sans elle, rien n'est accepté.
+4. *Changer d'adresse* rend l'ancienne inutilisable (si elle a circulé par erreur) : donnez alors la nouvelle à Popina.
+
+Le site doit être en ligne en **HTTPS** pour que Popina puisse l'appeler. Événements utilisés : `order.call` (commande modifiée ou envoyée en préparation), `order.paid`, `order.canceled`. « Envoyée en préparation » est reconnu quand au moins un article porte une date de transmission (`transmittedAt`) : à vérifier sur une vraie commande, l'API de Popina étant en bêta.
 
 ## Abonnement
 
@@ -39,7 +59,7 @@ PROMO_CODES_GRATUITS=MONCODE npm start
 
 Puis ouvrir <http://localhost:3000>, créer un compte et saisir `MONCODE` dans *Réglages › Abonnement*.
 
-Tests : `npm test` (inscription, abonnement et code promo, commande de bout en bout avec le temps réel, effacement, personnalisation, sécurité, webhooks Stripe).
+Tests : `npm test` (inscription, abonnement et code promo, commande de bout en bout avec le temps réel, effacement, personnalisation, sécurité, webhooks Stripe et Popina).
 
 ## Mettre en ligne
 

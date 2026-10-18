@@ -3,7 +3,8 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-    <meta name="theme-color" content="#0b5fa5" />
+    <meta name="theme-color" content="#f2f2f7" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)" />
     <meta name="robots" content="noindex" />
     <title>Réglages</title>
     <link rel="stylesheet" href="/css/app.css" />
@@ -13,83 +14,122 @@
     <script type="module" src="/js/reglages.js"></script>
   </head>
   <body>
-    <header class="topbar">
-      <a class="brand" id="brand" href="/app"></a>
-      <nav>
-        <a href="/app"><span aria-hidden="true">←</span> <span class="nav-label">Commandes</span></a>
-        <button type="button" id="logout">Déconnexion</button>
-      </nav>
+    <header class="navbar">
+      <div class="navbar-inner">
+        <a class="nav-back" href="/app"><svg class="i"><use href="/icons/symbols.svg#chevron-left" /></svg>Commandes</a>
+        <span class="nav-title">Réglages</span>
+        <span></span>
+      </div>
     </header>
 
-    <main class="container narrow">
-      <h1>Réglages</h1>
+    <main class="page page-narrow">
+      <h1 class="large-title">Réglages</h1>
 
-      <div class="banner" id="welcome" hidden>
-        <div>
-          <strong>Bienvenue !</strong>
-          Ajoutez votre logo, choisissez vos couleurs puis activez l’abonnement pour prendre vos premières commandes.
+      <div class="group profile">
+        <div class="logo-preview" id="profile-logo"></div>
+        <div class="row-label">
+          <div class="profile-name" id="profile-name"></div>
+          <span class="row-sub" id="profile-sub"></span>
         </div>
       </div>
 
-      <section class="card" aria-labelledby="info-title">
-        <h2 id="info-title">Établissement</h2>
-        <form id="info-form" class="stack">
-          <label class="field">
-            <span>Nom de l’établissement</span>
-            <input name="name" maxlength="80" required />
-          </label>
-          <label class="field">
-            <span>SIRET</span>
-            <input name="siret" inputmode="numeric" maxlength="20" required />
-            <span class="hint">Affiché en bas de la page de vos clients.</span>
-          </label>
-          <label class="field">
-            <span>E-mail du compte</span>
-            <input type="email" name="email" readonly />
-          </label>
-          <p class="error" role="alert"></p>
-          <div><button class="btn btn-primary" type="submit">Enregistrer</button></div>
-        </form>
-      </section>
-
-      <section class="card" aria-labelledby="logo-title">
-        <h2 id="logo-title">Logo</h2>
-        <div class="logo-row">
-          <div class="logo-preview" id="logo-preview"></div>
-          <div class="stack">
-            <div class="row">
-              <button class="btn btn-secondary" type="button" id="logo-pick">Choisir une image</button>
-              <button class="btn btn-ghost" type="button" id="logo-remove">Retirer</button>
-              <input type="file" accept="image/*" id="logo-input" hidden />
-            </div>
-            <p class="small muted">Il apparaît sur vos écrans et sur le téléphone de vos clients. Image carrée de préférence.</p>
-          </div>
+      <div class="notice" id="welcome" hidden>
+        <div class="notice-text">
+          <strong>Bienvenue</strong>
+          Ajoutez votre logo, choisissez une couleur, puis activez l’abonnement.
         </div>
-      </section>
+      </div>
 
-      <section class="card" aria-labelledby="colors-title">
-        <h2 id="colors-title">Couleurs</h2>
-        <p class="muted">Choisissez la palette de votre établissement.</p>
-        <fieldset class="palettes" id="palettes">
-          <legend class="sr-only">Palette de couleurs</legend>
+      <h2 class="section-header">Établissement</h2>
+      <form class="group" id="info-form">
+        <label class="row"><span class="row-label">Nom</span><input class="row-input" name="name" maxlength="80" required /></label>
+        <label class="row"><span class="row-label">SIRET</span><input class="row-input" name="siret" inputmode="numeric" maxlength="20" required /></label>
+        <div class="row"><span class="row-label">E-mail</span><span class="row-value" id="email"></span></div>
+      </form>
+      <p class="section-footer" id="info-footer">Le SIRET est affiché en bas de la page de vos clients.</p>
+
+      <h2 class="section-header">Logo</h2>
+      <div class="group">
+        <button class="row row-button" type="button" id="logo-pick">Choisir une image…</button>
+        <button class="row row-button destructive" type="button" id="logo-remove">Supprimer le logo</button>
+        <input type="file" accept="image/*" id="logo-input" hidden />
+      </div>
+      <p class="section-footer">Une image carrée de préférence. Elle apparaît sur vos écrans et sur le téléphone de vos clients.</p>
+
+      <h2 class="section-header">Couleur</h2>
+      <div class="group">
+        <fieldset class="swatches" id="palettes">
+          <legend class="sr-only">Couleur de l’établissement</legend>
         </fieldset>
-        <p><a class="btn btn-ghost" href="/apercu">Voir la page de vos clients (aperçu)</a></p>
-      </section>
+      </div>
+      <p class="section-footer">Elle colore vos écrans et la page de vos clients.</p>
+      <h2 class="section-header"><span class="sr-only">Aperçu</span></h2>
+      <div class="group with-icons" id="preview-group">
+        <a class="row" href="/apercu">
+          <span class="row-icon"><svg class="i"><use href="/icons/symbols.svg#eye" /></svg></span>
+          <span class="row-label">Aperçu de la page client</span>
+          <svg class="i chevron"><use href="/icons/symbols.svg#chevron-right" /></svg>
+        </a>
+      </div>
 
-      <section class="card" id="abonnement" aria-labelledby="sub-title">
-        <h2 id="sub-title">Abonnement</h2>
-        <div class="stack">
-          <div class="plan" id="plan"></div>
-          <div class="stack" id="promo-block" hidden>
-            <form class="promo-form" id="promo-form">
-              <label class="sr-only" for="promo">Code promo</label>
-              <input id="promo" placeholder="Vous avez un code promo ?" autocomplete="off" autocapitalize="characters" maxlength="64" />
-              <button class="btn btn-secondary" type="submit">Appliquer</button>
-            </form>
-            <p class="error" id="promo-error" role="alert"></p>
+      <h2 class="section-header" id="abonnement">Abonnement</h2>
+      <div class="group with-icons" id="plan"></div>
+      <p class="section-footer" id="plan-footer"></p>
+
+      <div id="promo-block">
+        <h2 class="section-header">Code promo</h2>
+        <form class="group" id="promo-form">
+          <div class="row">
+            <input class="row-input left" id="promo" placeholder="Saisir un code" autocomplete="off" autocapitalize="characters" maxlength="64" aria-label="Code promo" />
+            <button class="btn btn-tinted btn-small" type="submit">Appliquer</button>
           </div>
+        </form>
+        <p class="section-footer is-error" id="promo-error"></p>
+      </div>
+
+      <h2 class="section-header" id="popina">Caisse Popina</h2>
+      <div class="group with-icons">
+        <label class="row">
+          <span class="row-icon indigo"><svg class="i"><use href="/icons/symbols.svg#store" /></svg></span>
+          <span class="row-label">Recevoir les commandes de Popina</span>
+          <span class="toggle"><input type="checkbox" id="popina-enabled" role="switch" /><span></span></span>
+        </label>
+      </div>
+      <p class="section-footer">Chaque commande envoyée depuis votre caisse apparaît ici avec son QR code, prêt à scanner.</p>
+
+      <div id="popina-details" hidden>
+        <h2 class="section-header">Créer la commande</h2>
+        <div class="group">
+          <div class="row">
+            <div class="segmented row-label" id="popina-create-on">
+              <button type="button" data-value="sent" aria-pressed="true">À l’envoi en préparation</button>
+              <button type="button" data-value="paid" aria-pressed="false">Au paiement</button>
+            </div>
+          </div>
+          <label class="row"><span class="row-label">Salles</span><input class="row-input" id="popina-rooms" maxlength="200" placeholder="Toutes" /></label>
         </div>
-      </section>
+        <p class="section-footer">Pour ne suivre que certaines salles de Popina (par exemple « Comptoir »), écrivez leurs noms séparés par des virgules.</p>
+
+        <h2 class="section-header">Connexion</h2>
+        <div class="group">
+          <div class="row">
+            <span class="row-label">Adresse à donner à Popina<span class="row-sub copy-url" id="popina-url"></span></span>
+            <button class="btn btn-tinted btn-small" type="button" id="popina-copy">Copier</button>
+          </div>
+          <label class="row"><span class="row-label">Clé secrète</span><input class="row-input" id="popina-secret" type="password" autocomplete="off" placeholder="Coller la clé" /></label>
+          <div class="row"><span class="row-label">Dernier envoi reçu</span><span class="row-value" id="popina-last">Aucun</span></div>
+          <button class="row row-button destructive" type="button" id="popina-renew">Changer d’adresse</button>
+        </div>
+        <p class="section-footer">
+          Demandez au support Popina d’envoyer les webhooks de votre établissement à cette adresse. Ils vous
+          donnent une clé secrète de 64 caractères : collez-la ici. Sans elle, rien n’est accepté.
+        </p>
+      </div>
+
+      <h2 class="section-header"><span class="sr-only">Compte</span></h2>
+      <div class="group">
+        <button class="row row-button destructive center" type="button" id="logout">Se déconnecter</button>
+      </div>
     </main>
   </body>
 </html>

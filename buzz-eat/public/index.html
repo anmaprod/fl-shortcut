@@ -3,97 +3,115 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-    <meta name="theme-color" content="#0b5fa5" />
-    <meta name="description" content="Prise de commande au bar : le client scanne un QR code et son téléphone sonne quand sa commande est prête." />
-    <title>Buzz Eat · le téléphone du client sonne quand c’est prêt</title>
+    <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#1c1c1e" media="(prefers-color-scheme: dark)" />
+    <meta name="description" content="Le client scanne un QR code au comptoir. Quand sa commande est prête, son téléphone sonne." />
+    <title>Buzz Eat</title>
     <link rel="stylesheet" href="/css/app.css" />
     <link rel="manifest" href="/manifest.webmanifest" />
     <link rel="icon" href="/icons/icon.svg" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
     <script type="module" src="/js/landing.js"></script>
   </head>
-  <body>
-    <header class="topbar">
-      <a class="brand" href="/">
-        <span class="brand-mark" aria-hidden="true">🔔</span>
-        <span class="brand-name">Buzz Eat</span>
-      </a>
+  <body class="landing">
+    <header class="navbar">
+      <div class="navbar-inner">
+        <a class="wordmark" href="/">
+          <span class="brand-mark" aria-hidden="true"><svg class="i"><use href="/icons/symbols.svg#bell-fill" /></svg></span>
+          Buzz Eat
+        </a>
+        <span></span>
+        <a class="nav-link" href="#compte" id="nav-login">Se connecter</a>
+      </div>
     </header>
 
-    <main class="container">
-      <div class="hero">
-        <section>
-          <h1>Le téléphone de vos clients sonne quand leur commande est prête.</h1>
-          <p class="lead">Plus de numéros criés au comptoir ni de clients qui attendent debout devant le bar.</p>
-          <ol class="steps">
-            <li>
-              <span class="step-icon" aria-hidden="true">📝</span>
-              <div>
-                <strong>Vous notez la commande et la validez</strong><br />
-                <span class="muted">Sur tablette, téléphone ou ordinateur.</span>
-              </div>
-            </li>
-            <li>
-              <span class="step-icon" aria-hidden="true">📱</span>
-              <div>
-                <strong>Le client scanne le QR code</strong><br />
-                <span class="muted">Une page s’ouvre sur son téléphone, sans application à installer.</span>
-              </div>
-            </li>
-            <li>
-              <span class="step-icon" aria-hidden="true">🔔</span>
-              <div>
-                <strong>C’est prêt : son téléphone sonne et vibre</strong><br />
-                <span class="muted">Il vient la chercher, vous cliquez « Récupérée » : tout s’efface.</span>
-              </div>
-            </li>
-          </ol>
-          <p class="price"><strong>5 €</strong> par mois et par établissement, sans engagement</p>
-        </section>
-
-        <section class="card" aria-label="Espace établissement">
-          <div class="tabs" role="tablist">
-            <button type="button" role="tab" id="tab-login" aria-selected="true" aria-controls="login-form">Se connecter</button>
-            <button type="button" role="tab" id="tab-signup" aria-selected="false" aria-controls="signup-form">Créer un compte</button>
+    <main>
+      <section class="hero">
+        <p class="eyebrow">Pour les bars et les restaurants</p>
+        <h1 class="headline">C’est prêt.<br />Leur téléphone sonne.</h1>
+        <p class="subhead">
+          Le client scanne un QR code au comptoir. Quand sa commande est prête, son téléphone sonne et vibre. Sans
+          application à installer.
+        </p>
+        <div class="hero-actions">
+          <a class="btn btn-filled btn-capsule" href="#inscription">Commencer</a>
+          <a class="link-arrow" href="#fonctionnement">Comment ça marche <svg class="i"><use href="/icons/symbols.svg#chevron-right" /></svg></a>
+        </div>
+        <div class="device" aria-hidden="true">
+          <div class="device-screen">
+            <svg class="device-bell"><use href="/icons/symbols.svg#bell-fill" /></svg>
+            <p class="device-title">C’est prêt !</p>
+            <p class="device-num">42</p>
+            <p class="device-text">Venez la retirer au bar.</p>
+            <span class="device-button">J’arrive</span>
           </div>
+        </div>
+      </section>
 
-          <form id="login-form" class="stack" role="tabpanel" aria-labelledby="tab-login">
-            <label class="field">
-              <span>E-mail</span>
-              <input type="email" name="email" autocomplete="email" required />
-            </label>
-            <label class="field">
-              <span>Mot de passe</span>
-              <input type="password" name="password" autocomplete="current-password" required />
-            </label>
-            <p class="error" role="alert"></p>
-            <button class="btn btn-primary btn-lg btn-block" type="submit">Se connecter</button>
-          </form>
+      <section class="band band-gray" id="fonctionnement">
+        <div class="band-inner">
+          <h2 class="band-title">Trois gestes, c’est tout.</h2>
+          <div class="features">
+            <div class="feature">
+              <svg class="i"><use href="/icons/symbols.svg#store" /></svg>
+              <h3>Vous validez.</h3>
+              <p>La commande est saisie au bar, sur iPad, iPhone ou ordinateur. Ou elle arrive toute seule de votre caisse Popina.</p>
+            </div>
+            <div class="feature">
+              <svg class="i"><use href="/icons/symbols.svg#qrcode" /></svg>
+              <h3>Il scanne.</h3>
+              <p>Le client scanne le QR code avec l’appareil photo. Une page s’ouvre à vos couleurs, avec votre logo.</p>
+            </div>
+            <div class="feature">
+              <svg class="i"><use href="/icons/symbols.svg#bell" /></svg>
+              <h3>Ça sonne.</h3>
+              <p>Un geste sur « Venir retirer la commande » et son téléphone sonne. « Récupérée », et tout s’efface.</p>
+            </div>
+          </div>
+        </div>
+      </section>
 
-          <form id="signup-form" class="stack" role="tabpanel" aria-labelledby="tab-signup" hidden>
-            <label class="field">
-              <span>Nom de l’établissement</span>
-              <input name="name" maxlength="80" autocomplete="organization" required />
-            </label>
-            <label class="field">
-              <span>SIRET</span>
-              <input name="siret" inputmode="numeric" maxlength="20" placeholder="14 chiffres" required />
-            </label>
-            <label class="field">
-              <span>E-mail</span>
-              <input type="email" name="email" autocomplete="email" required />
-            </label>
-            <label class="field">
-              <span>Mot de passe</span>
-              <input type="password" name="password" autocomplete="new-password" minlength="8" required />
-              <span class="hint">8 caractères au moins.</span>
-            </label>
-            <p class="error" role="alert"></p>
-            <button class="btn btn-primary btn-lg btn-block" type="submit">Créer mon compte</button>
-            <p class="small muted">Ensuite, dans Réglages : votre logo, vos couleurs et l’abonnement.</p>
-          </form>
-        </section>
-      </div>
+      <section class="band" id="compte">
+        <div class="band-inner">
+          <h2 class="band-title">5 € par mois.</h2>
+          <p class="price">Par établissement. Sans engagement.</p>
+          <ul class="price-list">
+            <li><svg class="i"><use href="/icons/symbols.svg#check" /></svg> Commandes illimitées</li>
+            <li><svg class="i"><use href="/icons/symbols.svg#check" /></svg> Votre logo et vos couleurs</li>
+            <li><svg class="i"><use href="/icons/symbols.svg#check" /></svg> Connexion à la caisse Popina</li>
+          </ul>
+
+          <div class="account">
+            <div class="segmented" role="tablist">
+              <button type="button" role="tab" id="tab-login" aria-selected="true" aria-controls="login-form">Se connecter</button>
+              <button type="button" role="tab" id="tab-signup" aria-selected="false" aria-controls="signup-form">Créer un compte</button>
+            </div>
+
+            <form id="login-form" role="tabpanel" aria-labelledby="tab-login">
+              <div class="group">
+                <div class="row"><input class="row-input left" type="email" name="email" autocomplete="email" placeholder="E-mail" aria-label="E-mail" required /></div>
+                <div class="row"><input class="row-input left" type="password" name="password" autocomplete="current-password" placeholder="Mot de passe" aria-label="Mot de passe" required /></div>
+              </div>
+              <p class="section-footer is-error error" role="alert"></p>
+              <button class="btn btn-filled btn-block" type="submit">Se connecter</button>
+            </form>
+
+            <form id="signup-form" role="tabpanel" aria-labelledby="tab-signup" hidden>
+              <div class="group">
+                <div class="row"><input class="row-input left" name="name" maxlength="80" autocomplete="organization" placeholder="Nom de l’établissement" aria-label="Nom de l’établissement" required /></div>
+                <div class="row"><input class="row-input left" name="siret" inputmode="numeric" maxlength="20" placeholder="SIRET (14 chiffres)" aria-label="SIRET" required /></div>
+                <div class="row"><input class="row-input left" type="email" name="email" autocomplete="email" placeholder="E-mail" aria-label="E-mail" required /></div>
+                <div class="row"><input class="row-input left" type="password" name="password" autocomplete="new-password" minlength="8" placeholder="Mot de passe (8 caractères au moins)" aria-label="Mot de passe" required /></div>
+              </div>
+              <p class="section-footer is-error error" role="alert"></p>
+              <button class="btn btn-filled btn-block" type="submit">Créer le compte</button>
+              <p class="footnote">Votre logo, vos couleurs, l’abonnement et Popina se règlent ensuite dans Réglages.</p>
+            </form>
+          </div>
+        </div>
+      </section>
     </main>
+
+    <footer class="site-footer">Buzz Eat · iPhone, iPad, Android, Mac et PC, dans le navigateur.</footer>
   </body>
 </html>
