@@ -171,6 +171,13 @@ run() {   # $1 : libellé, $2 : YES/NO effet verre
       "$POST" app.flshortcut.debug.guide "$n"; sleep 2
       screencapture -x "$OUT/guide-$n.png" 2>/dev/null || true
     done
+    # « Bienvenue » → première partie au ralenti (10 fois plus lent) : le morph photographié en cours de route.
+    "$POST" app.flshortcut.debug.guide 0; sleep 2
+    "$POST" app.flshortcut.debug.guide "1 lent"
+    for i in 1 2 3 4 5 6; do
+      sleep 0.7; screencapture -x "$OUT/guide-morph-$i.png" 2>/dev/null || true
+    done
+    sleep 4
     "$POST" app.flshortcut.debug.guide fin; sleep 2
     # Page Aide : questions fréquentes, recherche, « Écrire à l'équipe », message envoyé.
     "$POST" app.flshortcut.debug.select aide; sleep 2
@@ -200,9 +207,9 @@ run() {   # $1 : libellé, $2 : YES/NO effet verre
   screencapture -x "$OUT/$label-createur.png" 2>/dev/null || true
   report "$label-createur-ouvert" >/dev/null
   fit+=" / $(fits "$label-createur-ouvert")"
-  # Vrai glisser-déposer à la souris : « Touche ou raccourci » de la palette (sous « Rechercher un bloc »), lâché
-  # entre les blocs 4 et 5 de l'exemple ; la liste des blocs doit gagner une ligne.
-  drag "$label-createur-ouvert" 113 133 438 360; sleep 2
+  # Vrai glisser-déposer à la souris : « Touche ou raccourci » de la palette (sous la marge des boutons de la
+  # fenêtre), lâché entre les blocs 4 et 5 de l'exemple ; la liste des blocs doit gagner une ligne.
+  drag "$label-createur-ouvert" 113 129 438 360; sleep 2
   report "$label-createur-glisse" >/dev/null
   screencapture -x "$OUT/$label-createur-glisse.png" 2>/dev/null || true
   drop="$(rows "$label-createur-ouvert") → $(rows "$label-createur-glisse")"

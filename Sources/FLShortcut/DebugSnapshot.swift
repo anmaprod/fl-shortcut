@@ -8,6 +8,8 @@ import SwiftUI
 
 enum DebugSnapshot {
     static var enabled: Bool { UserDefaults.standard.bool(forKey: "debugSnapshots") }
+    /// Mode capture : multiplie la durée du « morph » du guide (1 : vitesse normale ; jamais changé hors capture).
+    static var slowMotion: Double = 1
     static let open = Notification.Name("app.flshortcut.debug.open")
     static let select = Notification.Name("app.flshortcut.debug.select")
     /// Texte de recherche de l'éditeur (mesure de la mémoire avec presque toutes les lignes affichées).
@@ -25,7 +27,8 @@ enum DebugSnapshot {
     /// Page Communauté avec des exemples, sans réseau : « connexion », « inscription », « liste », « vide »,
     /// « detail », « partager » ou « signaler ».
     static let community = Notification.Name("app.flshortcut.debug.community")
-    /// Guide : « 0 » à « 4 » ouvre cette page, autre chose le ferme.
+    /// Guide : « 0 » à « 4 » ouvre cette page (« 1 lent » : animation 10 fois plus lente, pour la photographier en
+    /// cours de route), autre chose le ferme.
     static let guide = Notification.Name("app.flshortcut.debug.guide")
     /// Page Aide : « aide », « recherche », « ecrire » ou « envoye ».
     static let help = Notification.Name("app.flshortcut.debug.help")

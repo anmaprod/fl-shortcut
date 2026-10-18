@@ -25,6 +25,11 @@ struct MacroPaletteView: View {
     let items: [PaletteItem]
     let insert: (PaletteItem) -> Void
 
+    /// Marge en haut de la palette : « Clavier » reste sous les boutons fermer / réduire / agrandir, à la distance
+    /// qu'avait la recherche de blocs (retirée), même quand la barre latérale en verre monte jusqu'en haut de la
+    /// fenêtre (macOS 26).
+    static let topClearance: CGFloat = 42
+
     /// La liste est la vue de la colonne elle-même, comme la barre latérale des raccourcis : macOS lui donne la marge
     /// du haut (sous les boutons fermer / réduire / agrandir). Dans une pile, elle montait jusque sous ces boutons.
     var body: some View {
@@ -32,12 +37,11 @@ struct MacroPaletteView: View {
             ForEach(BlockCategory.allCases, id: \.self) { category in
                 section(category)
             }
-            if items.isEmpty {
-                Text("Aucun bloc ne correspond.")
-                    .foregroundStyle(.secondary)
-            }
         }
         .listStyle(.sidebar)
+        .safeAreaInset(edge: .top, spacing: 0) {
+            Color.clear.frame(height: Self.topClearance)
+        }
     }
 
     @ViewBuilder private func section(_ category: BlockCategory) -> some View {

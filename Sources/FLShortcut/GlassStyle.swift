@@ -54,14 +54,14 @@ extension View {
 extension Motion {
     /// Changement de page « morph » (comme la Morphose de PowerPoint ou le Magic Move de Keynote) : ce qui se
     /// retrouve d'une page à l'autre glisse à sa nouvelle place, le reste se fond. Ressort doux, sans rebond visible.
-    static let morph = Animation.spring(response: 0.5, dampingFraction: 0.88)
+    static var morph: Animation { .spring(response: 0.5 * DebugSnapshot.slowMotion, dampingFraction: 0.88) }
 
     /// Page qui arrive : fondu, à peine plus petite et un peu plus bas, posée par le ressort ; celle qui part : fondu
     /// rapide (les deux ne se lisent jamais l'une sur l'autre).
     static var pageMorph: AnyTransition {
         transition(.asymmetric(
             insertion: .opacity.combined(with: .scale(scale: 0.985, anchor: .top)).combined(with: .offset(y: 10)),
-            removal: .opacity.animation(.easeOut(duration: 0.12))))
+            removal: .opacity.animation(.easeOut(duration: 0.12 * DebugSnapshot.slowMotion))))
     }
 }
 
@@ -75,7 +75,7 @@ private struct MorphIn: ViewModifier {
             .opacity(shown ? 1 : 0)
             .offset(y: shown || reduceMotion ? 0 : 12)
             .onAppear {
-                withAnimation(reduceMotion ? Motion.reduced : Motion.morph.delay(0.06 + 0.05 * Double(index))) { shown = true }
+                withAnimation(reduceMotion ? Motion.reduced : Motion.morph.delay((0.06 + 0.05 * Double(index)) * DebugSnapshot.slowMotion)) { shown = true }
             }
     }
 }

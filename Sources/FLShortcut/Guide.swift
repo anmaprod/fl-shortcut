@@ -2,9 +2,10 @@
 // partie (raccourcis, macros, Communauté, au quotidien), chacune en trois étapes et une astuce. « Passer le guide »
 // sur chaque page. Montré une fois, à la première ouverture de la fenêtre principale ; ensuite depuis le menu ⋯ ou
 // le menu de la barre des menus (« Guide de FL Shortcuts »). Aucune animation continue.
-// Changement de page « morph » (Morphose de PowerPoint) : de « Bienvenue » à une partie, l'icône, le titre et la
-// phrase de la ligne choisie glissent et grandissent jusqu'en haut de la page ; d'une partie à l'autre, l'en-tête
-// reste en place et change, les étapes arrivent l'une après l'autre.
+// Changement de page « morph » (Morphose de PowerPoint) : de « Bienvenue » à une partie, l'icône de la ligne choisie
+// glisse et grandit jusqu'en haut de la page ; les textes ne sont jamais étirés d'une taille à l'autre (ils
+// sautaient en cours de route) : ceux qui partent s'effacent, le titre, la phrase puis les étapes arrivent l'un
+// après l'autre.
 import SwiftUI
 
 /// Demande d'ouvrir le guide (menu ⋯, barre des menus) : la fenêtre principale l'affiche dès qu'elle est là.
@@ -64,7 +65,7 @@ struct GuideView: View {
     let close: () -> Void
     @AppStorage(Appearance.glassKey) private var glassEnabled = true
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
-    /// Éléments qui passent d'une page à l'autre (icône, titre et phrase d'une partie).
+    /// Élément qui passe d'une page à l'autre : l'icône d'une partie.
     @Namespace private var morph
 
     private var showGlass: Bool { Appearance.glassAvailable && glassEnabled && !reduceTransparency }
@@ -111,14 +112,11 @@ struct GuideView: View {
                         page = p.id
                     } label: {
                         HStack(spacing: 14) {
-                            SectionIcon(symbol: p.symbol, tint: p.tint, size: 36)
-                                .matchedGeometryEffect(id: "icon\(p.id)", in: morph)
+                            MorphIcon(page: p, size: 36, morph: morph)
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(p.title).font(.system(size: 14, weight: .semibold))
-                                    .matchedGeometryEffect(id: "title\(p.id)", in: morph)
                                 Text(p.summary).font(.system(size: 12)).foregroundStyle(.secondary)
                                     .fixedSize(horizontal: false, vertical: true)
-                                    .matchedGeometryEffect(id: "summary\(p.id)", in: morph)
                             }
                             Spacer(minLength: 0)
                         }
@@ -159,8 +157,8 @@ struct GuideView: View {
     }
 }
 
-/// Une partie : grande icône, titre, phrase, trois étapes numérotées, une astuce. L'en-tête vient de la ligne de
-/// « Bienvenue » (`morph`) ; les étapes et l'astuce arrivent l'une après l'autre.
+/// Une partie : grande icône, titre, phrase, trois étapes numérotées, une astuce. L'icône vient de la ligne de
+/// « Bienvenue » (`morph`) ; le titre et la phrase, les étapes puis l'astuce arrivent l'un après l'autre.
 private struct GuidePageView: View {
     let page: GuidePage
     let morph: Namespace.ID
@@ -168,15 +166,13 @@ private struct GuidePageView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack(spacing: 16) {
-                SectionIcon(symbol: page.symbol, tint: page.tint, size: 56)
-                    .matchedGeometryEffect(id: "icon\(page.id)", in: morph)
+                MorphIcon(page: page, size: 56, morph: morph)
                 VStack(alignment: .leading, spacing: 3) {
                     Text(page.title).font(.largeTitle.weight(.bold))
-                        .matchedGeometryEffect(id: "title\(page.id)", in: morph)
                     Text(page.summary).font(.system(size: 14)).foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
-                        .matchedGeometryEffect(id: "summary\(page.id)", in: morph)
                 }
+                .morphIn(0)
             }
             VStack(alignment: .leading, spacing: 16) {
                 ForEach(Array(page.steps.enumerated()), id: \.offset) { index, step in
@@ -185,7 +181,7 @@ private struct GuidePageView: View {
                         Text(step).font(.system(size: 14)).fixedSize(horizontal: false, vertical: true)
                     }
                     .accessibilityElement(children: .combine)
-                    .morphIn(index)
+                    .morphIn(index + 1)
                 }
             }
             .padding(.top, 28)
@@ -200,9 +196,25 @@ private struct GuidePageView: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(Color.primary.opacity(0.05)))
             .padding(.top, 26)
-            .morphIn(page.steps.count)
+            .morphIn(page.steps.count + 1)
         }
         .frame(maxWidth: 520, alignment: .leading)
+    }
+}
+
+/// Icône d'une partie redessinée à la taille qu'on lui donne : pendant le morph, elle grandit en douceur de la ligne
+/// de « Bienvenue » (36 points) jusqu'à l'en-tête de la page (56 points), au lieu de sauter d'une taille à l'autre.
+private struct MorphIcon: View {
+    let page: GuidePage
+    let size: CGFloat
+    let morph: Namespace.ID
+
+    var body: some View {
+        GeometryReader { g in
+            SectionIcon(symbol: page.symbol, tint: page.tint, size: max(1, min(g.size.width, g.size.height)))
+        }
+        .matchedGeometryEffect(id: "icon\(page.id)", in: morph)
+        .frame(width: size, height: size)
     }
 }
 

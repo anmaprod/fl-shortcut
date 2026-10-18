@@ -197,8 +197,10 @@ struct EditorView: View {
         .onChange(of: helpLink.pending) { _ in showHelpIfAsked() }
         .onChange(of: accountLink.pending) { _ in showAccountIfAsked() }
         .onReceive(DebugSnapshot.publisher(DebugSnapshot.guide)) { note in
-            // Mode capture : « 0 » à « 4 », la page du guide ; autre chose, le ferme.
-            if let n = Int(note.object as? String ?? "") {
+            // Mode capture : « 0 » à « 4 », la page du guide (« 1 lent » : au ralenti) ; autre chose, le ferme.
+            let words = (note.object as? String ?? "").split(separator: " ")
+            if let n = words.first.flatMap({ Int($0) }) {
+                DebugSnapshot.slowMotion = words.contains("lent") ? 10 : 1
                 guidePage = max(0, min(n, GuideContent.count - 1))
                 showGuide = true
             } else {
@@ -420,24 +422,21 @@ struct EditorView: View {
     // MARK: Détail
 
     private func detail(_ data: CatalogData) -> some View {
-        ZStack {
-            Group {
-                if !trimmedQuery.isEmpty {
-                    searchResults(data)
-                } else {
-                    switch selection ?? .section(.general) {
-                    case .section(let s): sectionList(s, rows: data.rows, mine: data.others.filter { $0.belongs(to: s) })
-                    case .custom: customList(data.others)
-                    case .macros: MacroLibraryPage(library: store.library, open: { id in openCreator(id) }, toast: { show($0) })
-                    case .community: CommunityPage(community: CommunityStore.shared, toast: { show($0) })
-                    case .help: HelpPage(community: CommunityStore.shared, showGuide: { GuideLink.shared.show() })
-                    case .account: AccountPage(community: CommunityStore.shared, backup: AccountBackup.shared)
-                    }
+        Group {
+            if !trimmedQuery.isEmpty {
+                searchResults(data)
+            } else {
+                switch selection ?? .section(.general) {
+                case .section(let s): sectionList(s, rows: data.rows, mine: data.others.filter { $0.belongs(to: s) })
+                case .custom: customList(data.others)
+                case .macros: MacroLibraryPage(library: store.library, open: { id in openCreator(id) }, toast: { show($0) })
+                case .community: CommunityPage(community: CommunityStore.shared, toast: { show($0) })
+                case .help: HelpPage(community: CommunityStore.shared, showGuide: { GuideLink.shared.show() })
+                case .account: AccountPage(community: CommunityStore.shared, backup: AccountBackup.shared)
                 }
             }
-            .id(trimmedQuery.isEmpty ? selection : nil)      // nouvelle liste (et retour en haut) à chaque section
-            .transition(Motion.pageMorph)
         }
+        .id(trimmedQuery.isEmpty ? selection : nil)          // nouvelle liste (et retour en haut) à chaque section
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         // Façon macOS 26 : la liste défile SOUS des éléments en verre qui flottent (avertissements en haut,
         // notification et statut en bas). Peu de surfaces, regroupées : le système les dessine ensemble.
@@ -468,9 +467,6 @@ struct EditorView: View {
         .frame(minWidth: 480, minHeight: 0, maxHeight: .infinity)
         // Couleur de la page sous la barre d'outils et la barre latérale en verre (aucune pendant la recherche).
         .tintedBackdrop(trimmedQuery.isEmpty ? (selection ?? .section(.general)).tint : nil)
-        // Changement de page « morph » : la nouvelle page se pose pendant que l'ancienne s'efface, et la couleur de
-        // la page passe d'une teinte à l'autre (Motion.pageMorph).
-        .motion(Motion.morph, value: selection)
         .sheet(item: $editingRow) { row in
             CatalogEditSheet(row: row, notice: editNotice) { message, followUp in
                 show(message)
