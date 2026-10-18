@@ -3,7 +3,8 @@
 // - refermé d'un clic sur l'icône, il laisse devant la fenêtre de l'app qui y était (SwiftUI rendait le premier plan
 //   à FL, dont la fenêtre recouvrait tout : on aurait dit que tout se fermait) ;
 // - à chaque ouverture, son contenu sort de l'icône : fondu et léger agrandissement depuis le haut, puis les lignes
-//   l'une après l'autre, avec un ressort doux. « Réduire les animations » : fondu seul.
+//   l'une après l'autre, avec un ressort doux ; une ligne choisie le fait rentrer dans l'icône de la même façon,
+//   à l'envers, avant qu'il se ferme. « Réduire les animations » : fondu seul.
 // Fermer passe par le bouton de l'icône (comme un clic dessus) : SwiftUI reste d'accord sur l'état du menu, et le
 // clic suivant sur l'icône l'ouvre du premier coup.
 import AppKit
@@ -23,6 +24,8 @@ final class MenuPanel: ObservableObject {
     private weak var frontWindow: NSWindow?
     /// Fermeture demandée (ligne choisie) : ne pas recliquer l'icône une seconde fois.
     private var closing = false
+    /// Menu ouvert (entre l'ouverture et la fermeture de sa fenêtre), même pendant qu'il rentre dans l'icône.
+    private var isOpen = false
 
     private init() {
         observers.append(NotificationCenter.default.addObserver(
@@ -48,22 +51,29 @@ final class MenuPanel: ObservableObject {
     /// Contenu affiché : si la fenêtre n'a rien signalé (cas imprévu), le contenu se montre quand même.
     func appeared() {
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { [weak self] in
-            guard let self, !self.revealed, self.panel?.isVisible ?? true else { return }
+            guard let self, !self.revealed, !self.closing, self.panel?.isVisible ?? true else { return }
             self.reveal()
         }
     }
 
-    /// Ligne choisie : le menu se ferme, comme un vrai menu.
+    /// Ligne choisie : le menu rentre dans l'icône (l'ouverture à l'envers), puis se ferme, comme un vrai menu.
     func close() {
         guard let panel, panel.isVisible, !closing else { return }
         closing = true
-        statusButton?.performClick(nil)
+        let reduce = NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
+        let duration = reduce ? 0.12 : 0.22
+        withAnimation(.easeIn(duration: duration)) { revealed = false }
+        DispatchQueue.main.asyncAfter(deadline: .now() + duration) { [weak self] in
+            guard let self, self.panel?.isVisible == true else { return }
+            self.statusButton?.performClick(nil)
+        }
     }
 
     // MARK: Ouverture, fermeture
 
     private func opened() {
-        guard !revealed else { return }
+        guard !isOpen else { return }
+        isOpen = true
         closing = false
         // L'app était déjà au premier plan avant le clic sur l'icône (pas activée par l'ouverture du menu).
         let alreadyFront = NSApp.isActive && Date().timeIntervalSince(activeSince) > 0.4
@@ -103,8 +113,11 @@ final class MenuPanel: ObservableObject {
     }
 
     private func closed() {
-        guard revealed else { return }
-        revealed = false                                   // sans animation : prêt pour la prochaine ouverture
+        guard isOpen else { return }
+        isOpen = false
+        var quiet = Transaction()
+        quiet.disablesAnimations = true
+        withTransaction(quiet) { revealed = false }       // sans animation : prêt pour la prochaine ouverture
         // Fermé par une ligne choisie ou d'un clic sur l'icône (pas d'un clic dans une autre app) alors qu'une
         // fenêtre de l'app était devant : elle y reste.
         let byItemOrIcon = closing || (statusButton?.window?.frame.contains(NSEvent.mouseLocation) ?? false)
@@ -170,7 +183,7 @@ private struct MenuReveal: ViewModifier {
                 .opacity(revealed ? 1 : 0)
                 .offset(y: revealed ? 0 : -7)
                 .animation(revealed ? .spring(response: 0.36, dampingFraction: 0.86).delay(0.02 + Double(index) * 0.016)
-                                    : nil, value: revealed)
+                                    : .easeIn(duration: 0.16), value: revealed)
         } else {
             content
                 .opacity(revealed ? 1 : 0)
