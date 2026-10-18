@@ -28,14 +28,14 @@ function contrast(a, b) {
   return (l1 + 0.05) / (l2 + 0.05);
 }
 
-test('palettes : texte lisible (contraste 4,5 au moins) et identifiants uniques', () => {
+test('palettes : texte lisible (contraste 4,5 au moins) en clair et en sombre, identifiants uniques', () => {
   assert.equal(new Set(THEMES.map((t) => t.id)).size, THEMES.length);
   for (const t of THEMES) {
-    assert.ok(contrast(t.primary, t.onPrimary) >= 4.5, `${t.name} : bouton`);
-    assert.ok(contrast(t.ink, t.soft) >= 4.5, `${t.name} : fond teinté`);
-    assert.ok(contrast(t.primary, '#ffffff') >= 3, `${t.name} : couleur sur fond blanc`);
+    assert.ok(contrast(t.tint, '#ffffff') >= 4.5, `${t.name} : texte blanc sur la couleur, couleur sur fond blanc`);
+    assert.ok(contrast(t.tintDark, '#1c1c1e') >= 4.5, `${t.name} : couleur sur fond sombre`);
+    assert.ok(contrast(t.tintDark, '#000000') >= 4.5, `${t.name} : couleur sur fond noir`);
   }
-  assert.equal(getTheme('inconnue').id, 'ocean');
+  assert.equal(getTheme('inconnue').id, 'bleu');
 });
 
 test('mots de passe : scrypt salé, vérification', async () => {

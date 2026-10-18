@@ -36,11 +36,29 @@ CREATE TABLE IF NOT EXISTS orders (
   customer TEXT NOT NULL DEFAULT '',
   details TEXT NOT NULL DEFAULT '',
   status TEXT NOT NULL DEFAULT 'preparing',
+  source TEXT NOT NULL DEFAULT 'bar',
   alert_on INTEGER NOT NULL DEFAULT 0,
   created_at INTEGER NOT NULL,
   ready_at INTEGER
 );
 CREATE INDEX IF NOT EXISTS orders_by_restaurant ON orders(restaurant_id, created_at);
+CREATE TABLE IF NOT EXISTS popina (
+  restaurant_id TEXT PRIMARY KEY REFERENCES restaurants(id) ON DELETE CASCADE,
+  token TEXT NOT NULL UNIQUE,
+  secret TEXT,
+  enabled INTEGER NOT NULL DEFAULT 0,
+  create_on TEXT NOT NULL DEFAULT 'sent',
+  rooms TEXT NOT NULL DEFAULT '',
+  last_at INTEGER,
+  last_info TEXT
+);
+CREATE TABLE IF NOT EXISTS external_orders (
+  restaurant_id TEXT NOT NULL REFERENCES restaurants(id) ON DELETE CASCADE,
+  external_id TEXT NOT NULL,
+  order_id TEXT,
+  seen_at INTEGER NOT NULL,
+  PRIMARY KEY (restaurant_id, external_id)
+);
 CREATE TABLE IF NOT EXISTS push_subscriptions (
   endpoint TEXT PRIMARY KEY,
   order_id TEXT NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
@@ -75,6 +93,9 @@ export function openDatabase(file) {
   db.exec('PRAGMA foreign_keys = ON; PRAGMA busy_timeout = 5000;');
   if (file !== ':memory:') db.exec('PRAGMA journal_mode = WAL;');
   db.exec(SCHEMA);
+  // Colonnes ajoutées après la première version : ajoutées aux bases déjà créées.
+  const hasColumn = (table, column) => db.prepare(`PRAGMA table_info(${table})`).all().some((c) => c.name === column);
+  if (!hasColumn('orders', 'source')) db.exec("ALTER TABLE orders ADD COLUMN source TEXT NOT NULL DEFAULT 'bar'");
 
   const q = (sql) => db.prepare(sql);
   // Toutes les colonnes sauf l'image du logo, lue seulement quand on la sert.
@@ -98,8 +119,9 @@ export function openDatabase(file) {
     deleteSession: q('DELETE FROM sessions WHERE token_hash = ?'),
     purgeSessions: q('DELETE FROM sessions WHERE expires_at <= ?'),
 
-    insertOrder: q(`INSERT INTO orders (id, restaurant_id, token, number, customer, details, created_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?)`),
+    insertOrder: q(`INSERT INTO orders (id, restaurant_id, token, number, customer, details, source, created_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)`),
+    updateOrderText: q('UPDATE orders SET customer = ?, details = ? WHERE id = ?'),
     orderById: q('SELECT * FROM orders WHERE id = ? AND restaurant_id = ?'),
     orderByToken: q('SELECT * FROM orders WHERE token = ?'),
     ordersOf: q('SELECT * FROM orders WHERE restaurant_id = ? ORDER BY created_at'),
@@ -113,6 +135,14 @@ export function openDatabase(file) {
     pushOf: q('SELECT * FROM push_subscriptions WHERE order_id = ?'),
     countPush: q('SELECT COUNT(*) AS n FROM push_subscriptions WHERE order_id = ?'),
     deletePush: q('DELETE FROM push_subscriptions WHERE endpoint = ?'),
+
+    popina: q('SELECT * FROM popina WHERE restaurant_id = ?'),
+    popinaByToken: q('SELECT * FROM popina WHERE token = ?'),
+    insertPopina: q('INSERT INTO popina (restaurant_id, token) VALUES (?, ?) ON CONFLICT(restaurant_id) DO NOTHING'),
+    externalOrder: q('SELECT * FROM external_orders WHERE restaurant_id = ? AND external_id = ?'),
+    rememberExternal: q(`INSERT INTO external_orders (restaurant_id, external_id, order_id, seen_at) VALUES (?, ?, ?, ?)
+      ON CONFLICT(restaurant_id, external_id) DO UPDATE SET order_id = excluded.order_id, seen_at = excluded.seen_at`),
+    purgeExternal: q('DELETE FROM external_orders WHERE seen_at <= ?'),
 
     getSetting: q('SELECT value FROM settings WHERE key = ?'),
     setSetting: q('INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value'),
@@ -147,7 +177,8 @@ export function openDatabase(file) {
     purgeSessions: (now) => st.purgeSessions.run(now),
 
     createOrder: (o) =>
-      st.insertOrder.run(o.id, o.restaurantId, o.token, o.number, o.customer, o.details, o.createdAt),
+      st.insertOrder.run(o.id, o.restaurantId, o.token, o.number, o.customer, o.details, o.source || 'bar', o.createdAt),
+    updateOrderText: (id, customer, details) => st.updateOrderText.run(customer, details, id),
     order: (id, restaurantId) => st.orderById.get(id, restaurantId),
     orderByToken: (token) => st.orderByToken.get(token),
     orders: (restaurantId) => st.ordersOf.all(restaurantId),
@@ -160,6 +191,21 @@ export function openDatabase(file) {
     pushSubscriptions: (orderId) => st.pushOf.all(orderId),
     countPushSubscriptions: (orderId) => st.countPush.get(orderId).n,
     deletePushSubscription: (endpoint) => st.deletePush.run(endpoint),
+
+    popina: (restaurantId) => st.popina.get(restaurantId),
+    popinaByToken: (token) => st.popinaByToken.get(token),
+    ensurePopina: (restaurantId, token) => st.insertPopina.run(restaurantId, token),
+    updatePopina(restaurantId, fields) {
+      const allowed = ['token', 'secret', 'enabled', 'create_on', 'rooms', 'last_at', 'last_info'];
+      const keys = Object.keys(fields).filter((k) => allowed.includes(k));
+      if (!keys.length) return;
+      const sql = `UPDATE popina SET ${keys.map((k) => `${k} = ?`).join(', ')} WHERE restaurant_id = ?`;
+      db.prepare(sql).run(...keys.map((k) => fields[k] ?? null), restaurantId);
+    },
+    externalOrder: (restaurantId, externalId) => st.externalOrder.get(restaurantId, externalId),
+    rememberExternalOrder: (restaurantId, externalId, orderId, now) =>
+      st.rememberExternal.run(restaurantId, externalId, orderId, now),
+    purgeExternalOrders: (before) => st.purgeExternal.run(before),
 
     getSetting: (key) => st.getSetting.get(key)?.value,
     setSetting: (key, value) => st.setSetting.run(key, value),

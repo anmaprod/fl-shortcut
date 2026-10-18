@@ -5,6 +5,7 @@ import QRCode from 'qrcode';
 import { createBilling, isSubscribed, subscriptionView } from './billing.js';
 import { EventHub } from './events.js';
 import { HttpError, cleanText, parseCookies, readBody, sendJson } from './http.js';
+import { popinaLabel, popinaOrderText, roomMatches, verifyPopinaSignature, wasSentToPreparation } from './popina.js';
 import { parsePushSubscription } from './push.js';
 import { RateLimiter, hashPassword, randomToken, sha256, verifyPassword } from './security.js';
 import { formatSiret, isValidSiret, normalizeSiret } from './siret.js';
@@ -162,6 +163,7 @@ export function createApp({ config, db, push, stripe = null, clock = () => Date.
       createdAt: o.created_at,
       readyAt: o.ready_at,
       clientPath: `/c/${o.token}`,
+      source: o.source,
       alertOn: Boolean(o.alert_on),
       listening: hub.count(`order:${o.id}`) > 0,
       push: db.countPushSubscriptions(o.id) > 0
@@ -206,6 +208,24 @@ export function createApp({ config, db, push, stripe = null, clock = () => Date.
     hub.publish(`order:${o.id}`, 'done', { reason });
     hub.end(`order:${o.id}`);
     hub.publish(`restaurant:${o.restaurant_id}`, 'removed', { id: o.id, reason });
+  }
+
+  function createOrder(r, { customer, details, source = 'bar' }) {
+    const now = clock();
+    const o = {
+      id: randomToken(9),
+      restaurantId: r.id,
+      token: randomToken(16),
+      number: db.nextOrderNumber(r.id, serviceDay(now)),
+      customer,
+      details,
+      source,
+      createdAt: now
+    };
+    db.createOrder(o);
+    const order = staffOrder(db.order(o.id, r.id));
+    hub.publish(`restaurant:${r.id}`, 'order', { order });
+    return order;
   }
 
   function findOrder(r, id) {
@@ -344,20 +364,7 @@ export function createApp({ config, db, push, stripe = null, clock = () => Date.
       if (!isSubscribed(r)) throw new HttpError(402, 'Abonnement requis pour prendre des commandes.');
       const customer = cleanText(body.customer, 40, 'Nom du client');
       const details = cleanText(body.details, 500, 'Commande', { multiline: true });
-      const now = clock();
-      const o = {
-        id: randomToken(9),
-        restaurantId: r.id,
-        token: randomToken(16),
-        number: db.nextOrderNumber(r.id, serviceDay(now)),
-        customer,
-        details,
-        createdAt: now
-      };
-      db.createOrder(o);
-      const order = staffOrder(db.order(o.id, r.id));
-      hub.publish(`restaurant:${r.id}`, 'order', { order });
-      return { order };
+      return { order: createOrder(r, { customer, details }) };
     },
     { auth: true }
   );
@@ -491,6 +498,130 @@ export function createApp({ config, db, push, stripe = null, clock = () => Date.
     notifyStaff(o.id, o.restaurant_id);
     return { ok: true };
   });
+
+  // ---------- Caisse Popina ----------
+
+  function popinaView(req, link) {
+    return {
+      enabled: Boolean(link?.enabled),
+      webhookUrl: link ? `${baseUrl(req)}/api/popina/${link.token}` : null,
+      hasSecret: Boolean(link?.secret),
+      createOn: link?.create_on || 'sent',
+      rooms: link?.rooms || '',
+      lastAt: link?.last_at || null,
+      lastInfo: link?.last_info || null
+    };
+  }
+
+  route('GET', '/api/popina', ({ req, r }) => popinaView(req, db.popina(r.id)), { auth: true });
+
+  route(
+    'PUT',
+    '/api/popina',
+    ({ req, r, body }) => {
+      db.ensurePopina(r.id, randomToken(24));
+      const fields = {};
+      if (body.enabled !== undefined) fields.enabled = body.enabled ? 1 : 0;
+      if (body.secret !== undefined) {
+        const secret = String(body.secret).trim();
+        if (secret && !/^[\x21-\x7e]{16,256}$/.test(secret)) {
+          throw new HttpError(400, 'Clé secrète Popina invalide (64 caractères, sans espace).');
+        }
+        fields.secret = secret || null;
+      }
+      if (body.createOn !== undefined) {
+        if (!['sent', 'paid'].includes(body.createOn)) throw new HttpError(400, 'Choix inconnu.');
+        fields.create_on = body.createOn;
+      }
+      if (body.rooms !== undefined) fields.rooms = cleanText(body.rooms, 200, 'Salles');
+      db.updatePopina(r.id, fields);
+      return popinaView(req, db.popina(r.id));
+    },
+    { auth: true }
+  );
+
+  // Nouvelle adresse : l'ancienne ne marche plus (à faire si elle a été communiquée par erreur).
+  route(
+    'POST',
+    '/api/popina/address',
+    ({ req, r }) => {
+      db.ensurePopina(r.id, randomToken(24));
+      db.updatePopina(r.id, { token: randomToken(24) });
+      return popinaView(req, db.popina(r.id));
+    },
+    { auth: true }
+  );
+
+  const shorten = (value, max) => {
+    const chars = [...value];
+    return chars.length > max ? `${chars.slice(0, max - 1).join('')}…` : value;
+  };
+
+  function handlePopina(r, link, event, data) {
+    if (!link.enabled) return 'Reçue, connexion désactivée';
+    const known = db.externalOrder(r.id, data.id);
+    const existing = known?.order_id ? db.order(known.order_id, r.id) : null;
+    if (event === 'order.canceled' || data.isCanceled) {
+      if (!existing) return 'Annulation reçue';
+      removeOrder(existing, 'canceled');
+      return `Commande n° ${existing.number} annulée`;
+    }
+    const customer = shorten(cleanText(shorten(popinaLabel(data), 100), 100, 'Repère'), 40);
+    const details = shorten(cleanText(shorten(popinaOrderText(data), 2000), 2000, 'Commande', { multiline: true }), 500);
+    if (existing) {
+      if (customer !== existing.customer || details !== existing.details) {
+        db.updateOrderText(existing.id, customer, details);
+        const o = db.order(existing.id, r.id);
+        hub.publish(`restaurant:${r.id}`, 'order', { order: staffOrder(o) });
+        hub.publish(`order:${o.id}`, 'state', { order: publicOrder(o, r) });
+      }
+      return `Commande n° ${existing.number} mise à jour`;
+    }
+    // Déjà créée puis récupérée : Popina peut encore l'envoyer (paiement, clôture), on ne la recrée pas.
+    if (known) return 'Commande déjà terminée';
+    const wanted =
+      link.create_on === 'paid'
+        ? event === 'order.paid'
+        : (event === 'order.call' || event === 'order.paid') && wasSentToPreparation(data);
+    if (!wanted) return link.create_on === 'paid' ? 'En attente du paiement' : 'En attente de l’envoi en préparation';
+    if (!roomMatches(link.rooms, data.roomName)) return `Ignorée (salle « ${shorten(String(data.roomName || ''), 40)} »)`;
+    if (!isSubscribed(r)) return 'Ignorée : abonnement inactif';
+    const order = createOrder(r, { customer, details, source: 'popina' });
+    db.rememberExternalOrder(r.id, data.id, order.id, clock());
+    return `Commande n° ${order.number} créée`;
+  }
+
+  route(
+    'POST',
+    '/api/popina/:token',
+    ({ req, params, rawBody }) => {
+      const link = TOKEN.test(params.token) ? db.popinaByToken(params.token) : null;
+      if (!link) throw new HttpError(404, 'Adresse inconnue.');
+      const note = (info) => db.updatePopina(link.restaurant_id, { last_at: clock(), last_info: info });
+      if (!link.secret) {
+        note('Refusée : clé secrète Popina pas encore saisie');
+        throw new HttpError(401, 'Clé secrète non configurée.');
+      }
+      if (!verifyPopinaSignature(rawBody, req.headers['x-popina-hmac-signature'], link.secret)) {
+        note('Refusée : signature invalide (vérifiez la clé secrète)');
+        throw new HttpError(401, 'Signature invalide.');
+      }
+      let payload;
+      try {
+        payload = JSON.parse(rawBody.toString('utf8'));
+      } catch {
+        throw new HttpError(400, 'JSON invalide.');
+      }
+      const data = payload?.data;
+      if (!data || typeof data.id !== 'string' || !data.id || data.id.length > 100) {
+        throw new HttpError(400, 'Commande Popina illisible.');
+      }
+      const event = String(payload.meta?.event || req.headers['x-popina-webhook-event'] || '');
+      note(handlePopina(db.restaurant(link.restaurant_id), link, event, data));
+      return { received: true };
+    },
+    { raw: true, limit: 1024 * 1024 }
+  );
 
   // ---------- Abonnement ----------
 
@@ -655,6 +786,7 @@ export function createApp({ config, db, push, stripe = null, clock = () => Date.
     for (const o of db.staleOrders(now - config.orderMaxAgeMs)) removeOrder(o, 'expired');
     db.purgeSessions(now);
     db.purgeStripeEvents(now - 30 * 24 * 60 * 60 * 1000);
+    db.purgeExternalOrders(now - 48 * 60 * 60 * 1000);
     limiter.sweep();
   }
 

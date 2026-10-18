@@ -208,9 +208,9 @@ test('notifications : adresse hors des services connus refusée', async () => {
 
 test('personnalisation : nom, SIRET, palette, logo', async () => {
   const { cookie } = await t.signup('l@example.fr');
-  const upd = await t.request('PUT', '/api/restaurant', { name: 'Chez Max', theme: 'bistrot' }, { cookie });
+  const upd = await t.request('PUT', '/api/restaurant', { name: 'Chez Max', theme: 'rouge' }, { cookie });
   assert.equal(upd.json.restaurant.name, 'Chez Max');
-  assert.equal(upd.json.restaurant.theme, 'bistrot');
+  assert.equal(upd.json.restaurant.theme, 'rouge');
   assert.equal((await t.request('PUT', '/api/restaurant', { theme: 'fluo' }, { cookie })).status, 400);
   assert.equal((await t.request('PUT', '/api/restaurant', { siret: '123' }, { cookie })).status, 400);
 
@@ -234,14 +234,14 @@ test('personnalisation : nom, SIRET, palette, logo', async () => {
 
 test('sécurité : requêtes d’un autre site ou sans JSON refusées', async () => {
   const { cookie } = await t.signup('m@example.fr');
-  const form = await t.request('PUT', '/api/restaurant', 'theme=foret', {
+  const form = await t.request('PUT', '/api/restaurant', 'theme=vert', {
     cookie,
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
   });
   assert.equal(form.status, 415);
-  const foreign = await t.request('PUT', '/api/restaurant', { theme: 'foret' }, { cookie, headers: { Origin: 'https://pirate.example' } });
+  const foreign = await t.request('PUT', '/api/restaurant', { theme: 'vert' }, { cookie, headers: { Origin: 'https://pirate.example' } });
   assert.equal(foreign.status, 403);
-  const same = await t.request('PUT', '/api/restaurant', { theme: 'foret' }, { cookie, headers: { Origin: t.base } });
+  const same = await t.request('PUT', '/api/restaurant', { theme: 'vert' }, { cookie, headers: { Origin: t.base } });
   assert.equal(same.status, 200);
   assert.equal((await t.request('GET', '/../src/config.js')).status, 404);
   assert.equal((await t.request('GET', '/%2e%2e/package.json')).status, 404);
