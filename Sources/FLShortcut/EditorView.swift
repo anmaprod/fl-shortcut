@@ -462,8 +462,8 @@ struct EditorView: View {
                 }
             }
         }
-        // Nouvelle liste (et retour en haut) à chaque section, en fondu flou comme dans le guide.
-        .softSwitch(trimmedQuery.isEmpty ? selection : nil)
+        // Nouvelle liste (et retour en haut) à chaque section : l'ancienne s'efface, puis la nouvelle arrive nette.
+        .pageSwitch(trimmedQuery.isEmpty ? selection : nil)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         // Façon macOS 26 : la liste défile SOUS des éléments en verre qui flottent (avertissements en haut,
         // notification et statut en bas). Peu de surfaces, regroupées : le système les dessine ensemble.

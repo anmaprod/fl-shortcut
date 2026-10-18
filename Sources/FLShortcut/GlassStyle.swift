@@ -74,14 +74,24 @@ extension Motion {
 extension Motion {
     /// Bascule de toute la fenêtre (raccourcis ↔ créateur de macros). Ces pages sont faites de vues d'AppKit (barres
     /// latérales, listes, barre d'outils) que le flou et l'échelle de SwiftUI ne suivent pas : des morceaux sautaient
-    /// pendant que d'autres se brouillaient. Ici un fondu seulement : la page qui part s'efface vite (presque tout
-    /// de suite), celle qui arrive apparaît une fois l'autre partie. Captures au ralenti : avec un fondu enchaîné, les
-    /// deux pages restaient l'une sur l'autre (barres latérales et listes en double) pendant l'ouverture du créateur.
+    /// pendant que d'autres se brouillaient. Ici un fondu seulement, et seulement pour la page qui arrive : celle qui
+    /// part disparaît tout de suite. Captures au ralenti : les listes d'AppKit ne suivent pas le fondu de sortie de
+    /// SwiftUI (elles restaient pleines puis s'effaçaient en retard), les deux pages restaient l'une sur l'autre.
     static var windowSwap: AnyTransition {
         transition(.asymmetric(
-            insertion: .opacity.animation(.easeOut(duration: 0.3 * DebugSnapshot.slowMotion)
-                .delay(0.13 * DebugSnapshot.slowMotion)),
-            removal: .opacity.animation(.easeOut(duration: 0.13 * DebugSnapshot.slowMotion))))
+            insertion: .opacity.animation(.easeOut(duration: 0.28 * DebugSnapshot.slowMotion)),
+            removal: .identity))
+    }
+
+    /// Page de la barre latérale : celle qui part disparaît tout de suite, celle qui arrive monte un peu en devenant
+    /// nette (ressort). Captures au ralenti : avec le fondu croisé, les deux pages restaient l'une sur l'autre une
+    /// demi-seconde (titres en double, « Général » mêlé à « Mixer », et le bord de défilement sous la barre d'outils
+    /// dessiné deux fois : la barre au-dessus du titre) ; les listes d'AppKit ne suivent pas un fondu de sortie.
+    static var pageSwap: AnyTransition {
+        transition(.asymmetric(
+            insertion: .modifier(active: SoftFocus(amount: 1, rise: 10), identity: SoftFocus(amount: 0, rise: 10))
+                .animation(.spring(response: 0.45 * DebugSnapshot.slowMotion, dampingFraction: 0.9)),
+            removal: .identity))
     }
 
     /// Changement de contenu rapide (inspecteur du créateur, qui suit les flèches du clavier) : le même fondu flou,
@@ -105,6 +115,14 @@ extension View {
             self.id(key).transition(quick ? Motion.quickSwap : Motion.pageMorph)
         }
         .motion(quick ? Motion.quickMorph : Motion.morph, value: key)
+    }
+
+    /// Page de la barre latérale : l'une après l'autre, sans se superposer (Motion.pageSwap).
+    func pageSwitch<K: Hashable>(_ key: K) -> some View {
+        ZStack {
+            self.id(key).transition(Motion.pageSwap)
+        }
+        .motion(Motion.morph, value: key)
     }
 }
 
