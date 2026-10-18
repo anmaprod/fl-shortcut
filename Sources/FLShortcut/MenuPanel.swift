@@ -2,9 +2,10 @@
 // - il se ferme dès qu'on choisit une ligne, ou qu'on clique une fenêtre de l'app (il restait ouvert par-dessus) ;
 // - refermé d'un clic sur l'icône, il laisse devant la fenêtre de l'app qui y était (SwiftUI rendait le premier plan
 //   à FL, dont la fenêtre recouvrait tout : on aurait dit que tout se fermait) ;
-// - à chaque ouverture, son contenu sort de l'icône : fondu et léger agrandissement depuis le haut, puis les lignes
-//   l'une après l'autre, avec un ressort doux ; une ligne choisie le fait rentrer dans l'icône de la même façon,
-//   à l'envers, avant qu'il se ferme. « Réduire les animations » : fondu seul.
+// - à chaque ouverture, son contenu sort de l'icône : il passe du flou au net en grandissant depuis le haut, puis les
+//   options arrivent l'une après l'autre (flou → net, de haut en bas, ressort) et leur icône éclot ; une option
+//   choisie le fait rentrer dans l'icône à l'envers (les options du bas d'abord, puis le panneau) avant qu'il se
+//   ferme. « Réduire les animations » : fondu seul.
 // Fermer passe par le bouton de l'icône (comme un clic dessus) : SwiftUI reste d'accord sur l'état du menu, et le
 // clic suivant sur l'icône l'ouvre du premier coup.
 import AppKit
@@ -61,8 +62,9 @@ final class MenuPanel: ObservableObject {
         guard let panel, panel.isVisible, !closing else { return }
         closing = true
         let reduce = NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
-        let duration = reduce ? 0.12 : 0.22
-        withAnimation(.easeIn(duration: duration)) { revealed = false }
+        // Les options repartent d'abord (MenuReveal), puis le panneau rentre dans l'icône.
+        let duration = reduce ? 0.12 : 0.36
+        withAnimation(reduce ? .easeIn(duration: 0.12) : .easeIn(duration: 0.22).delay(0.14)) { revealed = false }
         DispatchQueue.main.asyncAfter(deadline: .now() + duration) { [weak self] in
             guard let self, self.panel?.isVisible == true else { return }
             self.statusButton?.performClick(nil)
@@ -83,7 +85,7 @@ final class MenuPanel: ObservableObject {
 
     private func reveal() {
         let reduce = NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
-        withAnimation(reduce ? .easeOut(duration: 0.15) : .spring(response: 0.42, dampingFraction: 0.84)) {
+        withAnimation(reduce ? .easeOut(duration: 0.15) : .spring(response: 0.5, dampingFraction: 0.82)) {
             revealed = true
         }
     }
@@ -179,15 +181,23 @@ private struct MenuReveal: ViewModifier {
         if reduceMotion {
             content.opacity(revealed ? 1 : 0)
         } else if let index {
+            // Une option : du flou au net en descendant à sa place, juste après la précédente ; à la fermeture,
+            // celles du bas repartent d'abord.
             content
                 .opacity(revealed ? 1 : 0)
-                .offset(y: revealed ? 0 : -7)
-                .animation(revealed ? .spring(response: 0.36, dampingFraction: 0.86).delay(0.02 + Double(index) * 0.016)
-                                    : .easeIn(duration: 0.16), value: revealed)
-        } else {
-            content
-                .opacity(revealed ? 1 : 0)
+                .blur(radius: revealed ? 0 : 6)
                 .scaleEffect(revealed ? 1 : 0.94, anchor: .top)
+                .offset(y: revealed ? 0 : -12)
+                .animation(revealed
+                           ? .spring(response: 0.46, dampingFraction: 0.8).delay(0.06 + Double(index) * 0.035)
+                           : .easeIn(duration: 0.16).delay(Double(max(0, 10 - index)) * 0.012), value: revealed)
+        } else {
+            // Le panneau : sort de l'icône, du flou au net, en grandissant depuis le haut.
+            content
+                .opacity(revealed ? 1 : 0)
+                .blur(radius: revealed ? 0 : 10)
+                .scaleEffect(revealed ? 1 : 0.86, anchor: .top)
+                .offset(y: revealed ? 0 : -8)
         }
     }
 }

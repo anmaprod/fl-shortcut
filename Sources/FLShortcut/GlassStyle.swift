@@ -304,16 +304,11 @@ private struct SecondaryButtonStyleModifier: ViewModifier {
 }
 
 /// Fond de liste transparent quand la fenêtre est translucide : les sections (cartes) se posent dessus.
+/// Fond de la liste toujours transparent : la lueur de couleur de la page (comme dans le guide) passe dessous ; les
+/// cartes gardent leur propre fond, lisible.
 private struct GlassListBackground: ViewModifier {
-    @AppStorage(Appearance.glassKey) private var glassEnabled = true
-    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
-
     func body(content: Content) -> some View {
-        if Appearance.translucentWindow(glass: glassEnabled, reduceTransparency: reduceTransparency) {
-            content.scrollContentBackground(.hidden)
-        } else {
-            content
-        }
+        content.scrollContentBackground(.hidden)
     }
 }
 
@@ -331,31 +326,27 @@ private struct WindowGlass: ViewModifier {
     }
 }
 
-/// Lavis coloré en haut d'une page (couche de contenu : dégradé statique, sans flou ni animation). Il passe sous la
-/// barre d'outils et sous la barre latérale en verre, qui en prennent la couleur (WWDC25 356 : fonds teintés sous
-/// le verre). Seulement avec la fenêtre translucide ; Contraste élevé : rien.
+/// Fond de la page aux couleurs de sa section, comme le guide : lueur de sa couleur (halo en haut à gauche, reflet en
+/// haut à droite, une touche en bas, `TintGlow`) sur toute la page, sous la barre d'outils et la barre latérale.
+/// D'une page à l'autre, les couleurs se fondent l'une dans l'autre (0,9 s), jamais de changement sec. Dégradés
+/// statiques : rien ne tourne au repos. Contraste élevé : rien.
 private struct TintedBackdrop: ViewModifier {
     let tint: Color?
-    @AppStorage(Appearance.glassKey) private var glassEnabled = true
-    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
     @Environment(\.colorSchemeContrast) private var contrast
-    @Environment(\.colorScheme) private var scheme
-
-    private var visible: Bool {
-        tint != nil && contrast != .increased
-            && Appearance.translucentWindow(glass: glassEnabled, reduceTransparency: reduceTransparency)
-    }
 
     func body(content: Content) -> some View {
-        content.background(alignment: .top) {
-            if visible, let tint {
-                LinearGradient(colors: [tint.opacity(scheme == .dark ? 0.30 : 0.24), tint.opacity(0.07), .clear],
-                               startPoint: .top, endPoint: .bottom)
-                    .frame(height: 340)
-                    .ignoresSafeArea()           // sous la barre d'outils et la barre latérale flottante
-                    .allowsHitTesting(false)
-                    .accessibilityHidden(true)
+        content.background {
+            ZStack {
+                if contrast != .increased, let tint {
+                    TintGlow(tint: tint)
+                        .id(tint)
+                        .transition(.opacity)
+                }
             }
+            .animation(.easeInOut(duration: 0.9 * DebugSnapshot.slowMotion), value: tint)
+            .ignoresSafeArea()
+            .allowsHitTesting(false)
+            .accessibilityHidden(true)
         }
     }
 }

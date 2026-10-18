@@ -214,6 +214,7 @@ struct UninstallView: View {
         .padding(.top, 30)
         .padding(.bottom, 18)
         .frame(width: 340)
+        .background { BrandGlow() }                  // les couleurs de l'app, comme le guide
     }
 
     /// Étape affichée : chacune arrive en fondu flou, comme dans le guide.

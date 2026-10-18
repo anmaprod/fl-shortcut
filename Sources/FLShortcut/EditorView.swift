@@ -472,7 +472,7 @@ struct EditorView: View {
         // latérale (recherche, « FL Studio ») passait sous la barre de titre. Largeur minimale réaliste en plus.
         .frame(minWidth: 480, minHeight: 0, maxHeight: .infinity)
         // Couleur de la page sous la barre d'outils et la barre latérale en verre (aucune pendant la recherche).
-        .tintedBackdrop(trimmedQuery.isEmpty ? (selection ?? .section(.general)).tint : nil)
+        .tintedBackdrop(trimmedQuery.isEmpty ? (selection ?? .section(.general)).tint : Appearance.brand[1])
         .sheet(item: $editingRow) { row in
             CatalogEditSheet(row: row, notice: editNotice) { message, followUp in
                 show(message)

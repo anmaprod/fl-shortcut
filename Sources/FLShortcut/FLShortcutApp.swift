@@ -378,9 +378,9 @@ struct PauseBadge: View {
     }
 }
 
-/// Panneau de la barre des menus, façon menus de macOS 26 : en-tête avec l'icône de l'app et le statut, puis des
-/// lignes de menu avec leur symbole à gauche (WWDC25 310 / 356). Le fond est le matériau du système (verre des
-/// menus) : rien n'y est ajouté, jamais de verre sur du verre.
+/// Panneau de la barre des menus : en-tête avec l'icône de l'app et le statut, puis les options, chacune avec son
+/// icône de couleur et, au survol, la carte du guide (elle grossit avec son liseré de couleur). Sur le verre des
+/// menus, la lueur des couleurs de l'app (jamais de verre sur du verre).
 struct MenuContent: View {
     @EnvironmentObject var store: Store
     @ObservedObject private var library = MacroLibraryStore.shared
@@ -421,7 +421,7 @@ struct MenuContent: View {
                 .padding(.bottom, 6)
                 if !macro.ok {
                     // La page Aide, le formulaire prêt avec ce message d'erreur et le journal de la macro.
-                    PanelItem(symbol: "exclamationmark.bubble", title: "Signaler ce problème…", order: 1) {
+                    PanelItem(symbol: "exclamationmark.bubble", title: "Signaler ce problème…", tint: .orange, order: 1) {
                         HelpLink.shared.report("Macro : " + macro.text)
                         openWindow(id: "editor")
                         NSApp.activate(ignoringOtherApps: true)
@@ -442,36 +442,45 @@ struct MenuContent: View {
             MenuSeparator()
 
             if !status.accessibilityOK {
-                PanelItem(symbol: "lock.open", title: "Autoriser le clavier…", order: 2) { AccessibilityGuide.start() }
+                PanelItem(symbol: "lock.open", title: "Autoriser le clavier…", tint: .orange, order: 2) {
+                    AccessibilityGuide.start()
+                }
             }
-            PanelItem(symbol: "keyboard", title: "Modifier les raccourcis…", order: 3) {
+            PanelItem(symbol: "keyboard", title: "Modifier les raccourcis…", tint: .blue, order: 3) {
                 openWindow(id: "editor")
                 NSApp.activate(ignoringOtherApps: true)
             }
-            PanelItem(symbol: "square.stack.3d.up", title: "Organiser la page ouverte…", order: 4) { OrganizerWindow.open() }
-            PanelItem(symbol: "questionmark.circle", title: "Aide et contact…", order: 5) {
+            PanelItem(symbol: "square.stack.3d.up", title: "Organiser la page ouverte…", tint: OrganizerView.tint,
+                      order: 4) { OrganizerWindow.open() }
+            PanelItem(symbol: "questionmark.circle", title: "Aide et contact…", tint: SidebarItem.help.tint, order: 5) {
                 HelpLink.shared.show()
                 openWindow(id: "editor")
                 NSApp.activate(ignoringOtherApps: true)
             }
-            PanelItem(symbol: "book", title: "Guide de FL Shortcuts", order: 6) {
+            PanelItem(symbol: "book", title: "Guide de FL Shortcuts", tint: Appearance.brand[1], order: 6) {
                 GuideLink.shared.show()
                 openWindow(id: "editor")
                 NSApp.activate(ignoringOtherApps: true)
             }
             PanelItem(symbol: store.enabled ? "pause" : "play", title: store.enabled ? "Mettre en pause" : "Reprendre",
-                      shortcut: "⌃⌥⌘F", order: 7) { store.enabled.toggle() }
+                      shortcut: "⌃⌥⌘F", tint: store.enabled ? .yellow : .green, order: 7) { store.enabled.toggle() }
             if !AppMode.light {
-                PanelItem(symbol: "link", title: "Installer le lien avec FL Studio…", order: 8) { FLScriptInstaller.installWithAlert() }
+                PanelItem(symbol: "link", title: "Installer le lien avec FL Studio…", tint: .green, order: 8) {
+                    FLScriptInstaller.installWithAlert()
+                }
             }
 
             MenuSeparator()
 
-            PanelItem(symbol: "trash", title: "Désinstaller FL Shortcuts…", order: 9) { Uninstaller.confirmAndRun() }
-            PanelItem(symbol: "power", title: "Quitter FL Shortcuts", shortcut: "⌘Q", key: "q", order: 10) { NSApp.terminate(nil) }
+            PanelItem(symbol: "trash", title: "Désinstaller FL Shortcuts…", tint: .red, order: 9) { Uninstaller.confirmAndRun() }
+            PanelItem(symbol: "power", title: "Quitter FL Shortcuts", shortcut: "⌘Q", key: "q", tint: .gray, order: 10) {
+                NSApp.terminate(nil)
+            }
         }
-        .padding(6)
-        .frame(width: 280)
+        .padding(8)
+        .frame(width: 300)
+        // Fondu de couleur dans le fond, comme le guide (lueur fixe, aucune animation au repos).
+        .background { BrandGlow().opacity(0.55) }
         // Sort de l'icône à chaque ouverture ; se ferme au choix d'une ligne ou d'un clic ailleurs (MenuPanel).
         .menuReveal(panel.revealed)
         .background(WindowReader { MenuPanel.shared.attach($0) })
@@ -517,19 +526,23 @@ private struct MenuSeparator: View {
     }
 }
 
-/// Ligne du panneau : symbole à gauche (une colonne facile à parcourir), surlignage discret au survol, immédiat
-/// (aucune animation). Coins concentriques avec le panneau (rayon du panneau moins sa marge). Choisie, elle ferme
-/// le menu ; à l'ouverture, elle arrive à son tour (`order`).
+/// Option du panneau : icône de couleur à gauche (une colonne facile à parcourir) ; au survol, la carte du guide :
+/// voile clair et liseré de sa couleur, qui grossissent ensemble avec une ombre douce de sa couleur. Choisie, elle
+/// ferme le menu ; à l'ouverture, elle arrive à son tour (`order`), son icône éclot juste après.
 private struct PanelItem: View {
     let symbol: String
     let title: String
     var shortcut: String? = nil
     /// Raccourci réellement actif dans le panneau (avec ⌘).
     var key: KeyEquivalent? = nil
+    var tint: Color = .gray
     var order = 0
     let action: () -> Void
     @State private var hovering = false
     @ObservedObject private var panel = MenuPanel.shared
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    private var shape: RoundedRectangle { RoundedRectangle(cornerRadius: 10, style: .continuous) }
 
     var body: some View {
         Button {
@@ -538,12 +551,13 @@ private struct PanelItem: View {
             action()
             MenuPanel.shared.close()
         } label: {
-            HStack(spacing: 8) {
-                Image(systemName: symbol)
-                    .font(.system(size: 12, weight: .medium))
-                    .frame(width: 18)
-                    .foregroundStyle(.secondary)
-                    .accessibilityHidden(true)
+            HStack(spacing: 10) {
+                SectionIcon(symbol: symbol, tint: tint, size: 22)
+                    .scaleEffect(panel.revealed || reduceMotion ? 1 : 0.35)
+                    .rotationEffect(.degrees(panel.revealed || reduceMotion ? 0 : -25))
+                    .animation(panel.revealed
+                               ? .spring(response: 0.5, dampingFraction: 0.58).delay(0.12 + Double(order) * 0.04)
+                               : .easeIn(duration: 0.12), value: panel.revealed)
                 Text(title)
                 Spacer(minLength: 12)
                 if let shortcut {
@@ -552,14 +566,20 @@ private struct PanelItem: View {
             }
             .font(.system(size: 13))
             .padding(.horizontal, 8)
-            .frame(height: 26)
-            .contentShape(Rectangle())
-            .background(RoundedRectangle(cornerRadius: 8, style: .continuous)
-                .fill(hovering ? Color.primary.opacity(0.1) : Color.clear))
+            .frame(height: 34)
+            .contentShape(shape)
+            .background {
+                shape.fill(Color.primary.opacity(hovering ? 0.085 : 0))
+                    .overlay(shape.strokeBorder(tint.opacity(hovering ? 0.6 : 0), lineWidth: hovering ? 1.5 : 1))
+            }
         }
         .buttonStyle(.plain)
+        .scaleEffect(hovering && !reduceMotion ? 1.03 : 1)
+        .shadow(color: tint.opacity(hovering ? 0.3 : 0), radius: hovering ? 10 : 0, y: hovering ? 4 : 0)
         .keyboardShortcut(key.map { KeyboardShortcut($0, modifiers: .command) })
-        .onHover { hovering = $0 }
+        .onHover { inside in
+            withAnimation(reduceMotion ? Motion.reduced : Motion.lift) { hovering = inside }
+        }
         .menuRevealRow(panel.revealed, index: order)
     }
 }
