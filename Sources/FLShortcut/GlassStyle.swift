@@ -19,7 +19,8 @@ enum Motion {
     /// Remplacement quand l'utilisateur a demandé moins de mouvement.
     static let reduced = Animation.easeInOut(duration: 0.15)
 
-    static var reduce: Bool { NSWorkspace.shared.accessibilityDisplayShouldReduceMotion }
+    /// « Réduire les animations » de macOS (ignoré au ralenti du mode capture, pour photographier le vrai mouvement).
+    static var reduce: Bool { NSWorkspace.shared.accessibilityDisplayShouldReduceMotion && DebugSnapshot.slowMotion == 1 }
 
     /// Transition remplacée par un fondu quand le mouvement est réduit.
     static func transition(_ t: AnyTransition) -> AnyTransition { reduce ? .opacity : t }
@@ -34,7 +35,7 @@ private struct MotionModifier<V: Equatable>: ViewModifier {
     let value: V
 
     func body(content: Content) -> some View {
-        content.animation(reduceMotion ? Motion.reduced : animation, value: value)
+        content.animation(reduceMotion && DebugSnapshot.slowMotion == 1 ? Motion.reduced : animation, value: value)
     }
 }
 
@@ -68,7 +69,9 @@ extension Motion {
 private struct MorphIn: ViewModifier {
     let index: Int
     @State private var shown = false
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.accessibilityReduceMotion) private var reduceMotionSetting
+
+    private var reduceMotion: Bool { reduceMotionSetting && DebugSnapshot.slowMotion == 1 }
 
     func body(content: Content) -> some View {
         content
