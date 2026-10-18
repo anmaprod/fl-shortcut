@@ -189,12 +189,16 @@ final class InstallerTests: XCTestCase {
     /// Clé là mais script disparu de FL : remis avec la même clé (dossier enregistré, sinon celui de FL par défaut) ;
     /// jamais sans clé, jamais par-dessus un script modifié.
     func testRepairPutsMissingScriptBackWithSameKey() throws {
-        let hardware = dir.appendingPathComponent("Settings/Hardware", isDirectory: true)
+        // Chemin sans aucun lien (sur macOS, /var mène à /private/var) : un dossier de FL qui en contient est refusé.
+        let raw = try XCTUnwrap(realpath(dir.path, nil))
+        let real = URL(fileURLWithPath: String(cString: raw), isDirectory: true)
+        free(raw)
+        let hardware = real.appendingPathComponent("Settings/Hardware", isDirectory: true)
         try FileManager.default.createDirectory(at: hardware, withIntermediateDirectories: true)
         let defaults = try XCTUnwrap(UserDefaults(suiteName: "FLShortcutTests-\(UUID())"))
         let secrets = MemorySecrets()
         let template = "# name=FL Shortcuts\nKEY_HEX = \"__FLSHORTCUT_KEY__\"\n"
-        let absent = dir.appendingPathComponent("absent", isDirectory: true)
+        let absent = real.appendingPathComponent("absent", isDirectory: true)
         func repair(_ fallback: URL) -> URL? {
             FLScriptInstaller.repairIfNeeded(secrets: secrets, defaults: defaults, template: template,
                                              defaultHardware: fallback)
