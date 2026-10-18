@@ -206,4 +206,14 @@ final class MacroValidationTests: XCTestCase {
         XCTAssertEqual(BlockRegistry.journal(of: body), "nameColor")
     }
 
+
+    func testShortcutWaitingNamesTheBlockToSet() {
+        let blocks = [Block(.key(KeyRef(KeyCombo(keyCode: 1)), times: 1)), Block(.chooseFile(path: ""))]
+        XCTAssertEqual(MacroValidation.shortcutWaiting("Étape 2 : preset .fst attendu dans ton dossier personnel.", in: blocks),
+                       "Raccourci gardé, mais pas encore actif : règle d'abord le bloc 2 « \(BlockRegistry.spec(.chooseFile).label) » "
+                       + "(preset .fst attendu dans ton dossier personnel).")
+        XCTAssertEqual(MacroValidation.shortcutWaiting("La macro est vide.", in: []),
+                       "Raccourci gardé, mais pas encore actif : la macro est vide.")
+        XCTAssertFalse(ShortcutIssue.macroWaiting("x").isBlocking)
+    }
 }

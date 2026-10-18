@@ -75,6 +75,33 @@ final class MacroCreatorWindowTests: XCTestCase {
         }
     }
 
+    /// Raccourci donné à une macro pas encore prête : gardé, inactif, et le message nomme le bloc à régler ; bloc
+    /// réglé, le message disparaît et le raccourci compte.
+    func testShortcutOfAnIncompleteMacroWaitsForItsBlock() throws {
+        let library = makeLibrary()
+        let store = makeStore(library)
+        let doc = library.add(MacroDoc(name: "Preset", blocks: [
+            Block(.key(KeyRef(KeyCombo(keyCode: 1)), times: 1)),
+            Block(.chooseFile(path: "")),
+        ]))
+        let model = MacroEditorModel(store: store)
+        model.load(doc.id)
+        XCTAssertNotNil(model.problem)
+        let combo = KeyCombo(keyCode: 5, command: true, option: true, control: true)
+        model.setTrigger(combo)
+        XCTAssertEqual(store.remaps(forMacro: doc.id).first?.trigger, combo, "raccourci gardé")
+        guard case .macroWaiting(let why)? = model.triggerIssues.first(where: { if case .macroWaiting = $0 { return true }; return false })
+        else { return XCTFail("message attendu") }
+        XCTAssertTrue(why.hasPrefix("Raccourci gardé, mais pas encore actif : règle d'abord le bloc 2 « "), why)
+        XCTAssertFalse(model.triggerIssues.contains(where: \.isBlocking))
+        // Bloc réglé : plus de message.
+        let id = doc.blocks[1].id
+        model.updateBlock(id, key: "path") { $0.body = .chooseFile(path: NSHomeDirectory() + "/Presets/Voix.fst") }
+        XCTAssertNil(model.problem)
+        XCTAssertFalse(model.triggerIssues.contains { if case .macroWaiting = $0 { return true }; return false })
+        model.close()
+    }
+
     /// Deux fermetures : un seul enregistrement, besoins rendus ; ensuite plus rien n'est enregistré ni lancé.
     func testCloseIsIdempotent() throws {
         let library = makeLibrary()

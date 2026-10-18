@@ -182,6 +182,14 @@ extension MacroTemplates {
         return (doc, MacroProgram.compile(doc, forbidden: forbidden).problem)
     }
 
+    /// Modèle de la galerie « Enregistrement rapide » : les blocs du modèle livré jusqu'à l'armement de la piste
+    /// (la suite sera refaite, plus rapide).
+    static func untilArm(_ macro: Macro) -> [Block] {
+        let all = enregistrementRapide(macro)
+        guard let arm = all.firstIndex(where: { $0.id == id(.arm) }) else { return all }
+        return Array(all[...arm])
+    }
+
     /// Copie avec des ids neufs, imbrication comprise (deux copies d'un modèle ne partagent jamais un id).
     static func freshIDs(_ blocks: [Block]) -> [Block] {
         blocks.map { b in
@@ -198,33 +206,15 @@ extension MacroTemplates {
             KeyRef(KeyCombo(keyCode: KeyNames.commandKeyCode(for: letter, layout: layout) ?? fallback, command: true),
                    char: letter)
         }
-        func action(_ key: String, fallback: UInt16) -> BlockBody {
-            let native = FLActions.id(forKey: key).flatMap { AppMode.nativeEquivalent(of: $0, layout: layout) }
-            return .flAction(key: key, fallback: .key(KeyRef(native ?? KeyCombo(keyCode: fallback))))
-        }
         let rec = AppMode.nativeEquivalent(of: 3, layout: layout) ?? KeyCombo(keyCode: MacroLibrary.fallbackRecKeyCode)
         return [
             MacroTemplate(id: autoRecordID, title: "Enregistrement rapide",
-                          summary: "Le modèle livré, développé en blocs : menu de la piste, preset, armement, REC, entrée 1, puis le larsen. À modifier étape par étape.",
+                          summary: "Le début de l'enregistrement, en blocs : menu de la piste, preset, puis armement de la piste. À compléter étape par étape.",
                           symbol: "record.circle") { _ in
                 var m = Macro()
                 m.recKey = rec
-                return MacroDoc(name: "Enregistrement rapide (personnalisé)", blocks: freshIDs(enregistrementRapide(m)),
+                return MacroDoc(name: "Enregistrement rapide (personnalisé)", blocks: freshIDs(untilArm(m)),
                                 origin: .template(autoRecordID))
-            },
-            MacroTemplate(id: "saveNew", title: "Nouvelle version du projet",
-                          summary: "⌘N : FL enregistre une nouvelle version du projet (même nom, numéro suivant).",
-                          symbol: "doc.badge.plus") { _ in
-                MacroDoc(name: "Nouvelle version du projet",
-                         blocks: [Block(.key(cmd("n", 45), times: 1), note: "File › Save new version")],
-                         origin: .template("saveNew"))
-            },
-            MacroTemplate(id: "mixerPlaylist", title: "Afficher le Mixer et la Playlist",
-                          summary: "Par le lien avec FL : les deux fenêtres s'affichent (rien n'est fermé). Sans lien : F9 puis F5, qui ouvrent ou ferment.",
-                          symbol: "macwindow.on.rectangle") { _ in
-                MacroDoc(name: "Afficher le Mixer et la Playlist",
-                         blocks: [Block(action("mx", fallback: 101)), Block(action("pl", fallback: 96))],
-                         origin: .template("mixerPlaylist"))
             },
             MacroTemplate(id: "saveExport", title: "Enregistrer puis exporter en WAV",
                           summary: "⌘S (attend le nom si le projet est neuf), puis ⌘R : la macro attend que tu choisisses le nom du fichier WAV.",
@@ -239,14 +229,6 @@ extension MacroTemplates {
                     Block(.waitWindowClose(.dialog, timeoutMs: MacroValidation.maxWaitMs),
                           note: "Tu choisis le nom du fichier WAV"),
                 ], origin: .template("saveExport"))
-            },
-            MacroTemplate(id: "armRec", title: "Armer la piste et lancer le REC",
-                          summary: "Sur la dernière piste cliquée dans le Mixer. Avec le lien, rien de déjà allumé n'est éteint ; sans lien : menu de la piste, puis la touche REC.",
-                          symbol: "record.circle.fill") { _ in
-                MacroDoc(name: "Armer la piste et lancer le REC", blocks: [
-                    Block(.flAction(key: "armon", fallback: .trackMenuArm)),
-                    Block(.flAction(key: "recon", fallback: .key(KeyRef(rec)))),
-                ], origin: .template("armRec"))
             },
             MacroTemplate(id: "purgeAudio", title: "Supprimer les clips audio inutilisés",
                           summary: "Tools › Macros › Purge unused audio clips, par le menu de FL en haut de l'écran : FL retire du projet les clips audio qui ne sont pas dans la Playlist (rien n'est effacé de ton disque).",

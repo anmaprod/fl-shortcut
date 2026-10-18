@@ -414,13 +414,16 @@ enum ShortcutIssue: Hashable {
     case loop
     case unavailable(String)
     case macroInvalid(String)
+    /// Créateur : macro pas encore prête, raccourci gardé mais inactif tant que le bloc n'est pas réglé (le Store,
+    /// lui, l'écarte avec `macroInvalid`).
+    case macroWaiting(String)
 
     /// Bloquant : la ligne n'entre pas dans l'index.
     var isBlocking: Bool {
         switch self {
         case .noTrigger, .noTarget, .invalidKey, .unknownAction, .forbiddenTarget, .reservedToggle, .duplicate, .macroInvalid:
             return true
-        case .bareKey, .macOSConflict, .flConflict, .loop, .unavailable:
+        case .bareKey, .macOSConflict, .flConflict, .loop, .unavailable, .macroWaiting:
             return false
         }
     }
@@ -440,6 +443,7 @@ enum ShortcutIssue: Hashable {
         case .loop: return "La touche envoyée est aussi un déclencheur : elle sera envoyée telle quelle, sans enchaînement."
         case .unavailable(let why): return why
         case .macroInvalid(let why): return why
+        case .macroWaiting(let why): return why
         }
     }
 }

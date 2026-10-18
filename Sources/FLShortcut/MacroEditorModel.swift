@@ -132,6 +132,7 @@ final class MacroEditorModel: ObservableObject {
         selection = rows.first(where: { $0.kind == .block })?.id
         trigger = shortcut?.trigger
         triggerIssues = []
+        refreshTriggerIssues()
     }
 
     /// L'entrée « 1 » vient d'être oubliée ou apprise : badges « À apprendre » à jour.
@@ -225,6 +226,7 @@ final class MacroEditorModel: ObservableObject {
         let ctx = validationContext
         rows = MacroOutline.rows(draft.blocks, layout: layout, context: ctx, learnedInput: learnedInput)
         problem = MacroValidation.problem(in: draft, context: ctx)
+        refreshTriggerIssues()
         estimateMs = MacroValidation.estimateMs(draft.blocks)
         needs = MacroValidation.needs(of: draft.blocks)
         if !testing { store.setEditorNeeds(openNeeds) }
@@ -456,11 +458,32 @@ final class MacroEditorModel: ObservableObject {
         }
         var remap = existing.first ?? Remap(trigger: combo, macroRef: draft.id)
         remap.trigger = combo
-        let issues = store.draftIssues(remap).filter { if case .noTrigger = $0 { return false }; return true }
+        let issues = self.issues(for: remap)
         trigger = combo
         triggerIssues = issues
         guard !issues.contains(where: \.isBlocking) else { return }
         store.upsert(remap)
+    }
+
+    /// Problèmes du raccourci : ceux du Store (conflits, touche réservée…), sauf l'état de la macro, pris du
+    /// brouillon tel qu'il est. Macro pas encore prête : le raccourci est gardé, inactif jusqu'à ce que le bloc
+    /// manquant soit réglé, et le message le dit en nommant ce bloc.
+    private func issues(for remap: Remap) -> [ShortcutIssue] {
+        var issues = store.draftIssues(remap).filter {
+            switch $0 {
+            case .noTrigger, .macroInvalid: return false
+            default: return true
+            }
+        }
+        if let problem, let draft { issues.append(.macroWaiting(MacroValidation.shortcutWaiting(problem, in: draft.blocks))) }
+        return issues
+    }
+
+    /// Le brouillon a changé : le message du raccourci suit (bloc réglé : il disparaît ; bloc vidé : il revient).
+    private func refreshTriggerIssues() {
+        guard let draft, let trigger, !ephemeral else { return }
+        let remap = store.remaps(forMacro: draft.id).first ?? Remap(trigger: trigger, macroRef: draft.id)
+        triggerIssues = issues(for: remap)
     }
 
     // MARK: Essai

@@ -180,6 +180,21 @@ enum MacroValidation {
         return nil
     }
 
+    /// Pure (testée) : message du raccourci d'une macro pas encore prête. « Étape 3 : preset .fst attendu. » →
+    /// « Raccourci gardé, mais pas encore actif : règle d'abord le bloc 3 « Ouvrir un preset (boîte Open) » (preset
+    /// .fst attendu). »
+    static func shortcutWaiting(_ problem: String, in blocks: [Block]) -> String {
+        let lead = "Raccourci gardé, mais pas encore actif"
+        guard problem.hasPrefix("Étape "), let colon = problem.range(of: " : ") else {
+            return "\(lead) : " + problem.prefix(1).lowercased() + problem.dropFirst()
+        }
+        let path = String(problem[problem.index(problem.startIndex, offsetBy: 6)..<colon.lowerBound])
+        var reason = problem[colon.upperBound...].trimmingCharacters(in: .whitespaces)
+        if reason.hasSuffix(".") { reason.removeLast() }
+        let label = block(at: path, in: blocks)?.body.type.map { " « \(BlockRegistry.spec($0).label) »" } ?? ""
+        return "\(lead) : règle d'abord le bloc \(path)\(label) (\(reason))."
+    }
+
     /// Bloc désigné par un chemin (« 3.2 ») ; dans un « si », la numérotation du sinon suit celle du alors.
     static func block(at path: String, in blocks: [Block]) -> Block? {
         var list = blocks
