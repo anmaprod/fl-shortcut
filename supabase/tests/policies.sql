@@ -2,10 +2,11 @@
 -- vérification qui échoue arrête tout (ON_ERROR_STOP) avec un message clair.
 \set ON_ERROR_STOP on
 
--- Comptes : le déclencheur crée le profil avec le nom d'utilisateur envoyé par l'app.
-insert into auth.users (id, email, raw_user_meta_data) values
-  ('00000000-0000-0000-0000-00000000000a', 'malo@exemple.fr', '{"username":"malo"}'),
-  ('00000000-0000-0000-0000-00000000000b', 'leo@exemple.fr', '{"username":"leo.beats"}');
+-- Comptes confirmés : le déclencheur crée le profil avec le nom d'utilisateur envoyé par l'app (inscription en deux
+-- temps : supabase/tests/inscription.sql).
+insert into auth.users (id, email, raw_user_meta_data, email_confirmed_at) values
+  ('00000000-0000-0000-0000-00000000000a', 'malo@exemple.fr', '{"username":"malo"}', now()),
+  ('00000000-0000-0000-0000-00000000000b', 'leo@exemple.fr', '{"username":"leo.beats"}', now());
 
 do $$
 begin

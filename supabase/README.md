@@ -19,6 +19,11 @@ et l'étape 7 (modèles des mails avec le code).
    Garde le mot de passe de la base dans ton gestionnaire de mots de passe.
 2. **SQL Editor › New query** : colle tout `supabase/schema.sql`, puis **Run**. Cela crée les tables, les règles
    d'accès (rien pour les visiteurs sans compte), le nom d'utilisateur unique et la limite de 20 partages par jour.
+   Puis, dans une nouvelle requête, tout `supabase/inscription.sql`, puis **Run** : le compte (profil, nom
+   d'utilisateur) n'est créé qu'une fois le code du mail entré, et une inscription jamais confirmée est effacée au
+   bout de 24 h (avec **Integrations › Cron** activé ; sans lui, rien n'est effacé tout seul).
+   Projet déjà installé avant ce fichier : colle seulement `supabase/inscription.sql` ; les noms gardés par des
+   inscriptions jamais confirmées redeviennent libres.
 3. **Authentication › Sign In / Providers › Email** :
    - « Confirm email » : **activé** (chaque compte confirme son mail) ;
    - longueur minimale du mot de passe : **8** ;

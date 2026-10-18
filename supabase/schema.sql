@@ -67,17 +67,8 @@ create policy "chacun signale en son nom" on public.reports
 create policy "signalements lus par les administrateurs" on public.reports
   for select to authenticated using (public.is_admin());
 
--- Inscription : le nom d'utilisateur vient des métadonnées envoyées par l'app ; invalide ou déjà pris, l'inscription
--- échoue (contrainte de la table).
-create function public.handle_new_user() returns trigger
-language plpgsql security definer set search_path = public as $$
-begin
-  insert into public.profiles (id, username) values (new.id, new.raw_user_meta_data ->> 'username');
-  return new;
-end;
-$$;
-create trigger on_auth_user_created after insert on auth.users
-  for each row execute function public.handle_new_user();
+-- Inscription : le profil (nom d'utilisateur venu des métadonnées envoyées par l'app) n'est créé qu'une fois le code
+-- du mail entré : voir inscription.sql, à coller juste après ce fichier.
 
 -- Nom d'utilisateur libre ? Appelé par l'app avant l'inscription, pour un message clair (sans compte : c'est la
 -- seule chose que l'on peut demander sans être connecté, et elle ne révèle rien d'autre).
