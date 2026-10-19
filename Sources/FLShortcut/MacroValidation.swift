@@ -29,31 +29,30 @@ enum MacroValidation {
 
     /// Raison pour laquelle ces blocs ne peuvent pas tourner, ou nil.
     static func problem(in blocks: [Block], variables: [VariableDecl] = [], context: ValidationContext) -> String? {
-        guard !blocks.isEmpty else { return "La macro est vide." }
+        guard !blocks.isEmpty else { return String(localized: "La macro est vide.") }
         if let path = firstUnknown(blocks), case .unknown(let type, _)? = block(at: path, in: blocks)?.body {
-            return "Étape \(path) : bloc illisible ou d'une version plus récente de FL Shortcuts (« \(type.displaySafe(max: 30)) ») : "
-                + "la macro est bloquée."
+            return String(localized: "Étape \(path) : bloc illisible ou d'une version plus récente de FL Shortcuts (« \(type.displaySafe(max: 30)) ») : la macro est bloquée.")
         }
-        guard count(blocks) <= maxBlocks else { return "Macro trop longue (\(maxBlocks) blocs au plus)." }
-        guard depth(blocks) <= maxDepth else { return "Blocs trop imbriqués (\(maxDepth) niveaux au plus)." }
-        guard variables.count <= maxVariables else { return "Trop de variables (\(maxVariables) au plus)." }
+        guard count(blocks) <= maxBlocks else { return String(localized: "Macro trop longue (\(maxBlocks) blocs au plus).") }
+        guard depth(blocks) <= maxDepth else { return String(localized: "Blocs trop imbriqués (\(maxDepth) niveaux au plus).") }
+        guard variables.count <= maxVariables else { return String(localized: "Trop de variables (\(maxVariables) au plus).") }
         var names = Set<String>()
         for v in variables {
-            guard isVariableName(v.name), !names.contains(v.name) else { return "Nom de variable invalide." }
+            guard isVariableName(v.name), !names.contains(v.name) else { return String(localized: "Nom de variable invalide.") }
             names.insert(v.name)
         }
         var ctx = context
         ctx.variables = names
         if let why = check(blocks, prefix: "", ctx: ctx) { return why }
         if let wrong = PageOptions.misplaced(in: blocks) { return PageOptions.misplacedMessage(wrong) }
-        guard estimateMs(blocks) <= maxEstimateMs else { return "Macro trop longue (durée totale)." }
+        guard estimateMs(blocks) <= maxEstimateMs else { return String(localized: "Macro trop longue (durée totale).") }
         return nil
     }
 
     /// Macro de la bibliothèque : nom, format, puis ses blocs.
     static func problem(in doc: MacroDoc, context: ValidationContext) -> String? {
-        guard doc.format <= 2 else { return "Macro d'une version plus récente de FL Shortcuts : elle est bloquée." }
-        guard !doc.name.isEmpty, doc.name.count <= maxNameLength else { return "Nom de macro invalide." }
+        guard doc.format <= 2 else { return String(localized: "Macro d'une version plus récente de FL Shortcuts : elle est bloquée.") }
+        guard !doc.name.isEmpty, doc.name.count <= maxNameLength else { return String(localized: "Nom de macro invalide.") }
         return problem(in: doc.blocks, variables: doc.variables, context: context)
     }
 
@@ -61,8 +60,8 @@ enum MacroValidation {
         for (i, b) in blocks.enumerated() {
             var c = ctx
             c.path = path(prefix, offset + i + 1)
-            if let note = b.note, note.count > maxNoteLength { return c.fail("note trop longue.") }
-            guard let type = b.body.type else { return c.fail("bloc inconnu.") }
+            if let note = b.note, note.count > maxNoteLength { return c.fail(String(localized: "note trop longue.")) }
+            guard let type = b.body.type else { return c.fail(String(localized: "bloc inconnu.")) }
             if let why = BlockRegistry.spec(type).valider(b.body, c) { return why }
             for (start, child) in childLists(b.body) {
                 if let why = check(child, prefix: c.path, offset: start, ctx: ctx) { return why }
@@ -89,14 +88,14 @@ enum MacroValidation {
 
     static func conditionProblem(_ c: Condition, _ ctx: ValidationContext) -> String? {
         guard conditionDepth(c) <= maxConditionDepth, conditionTerms(c) <= maxConditionTerms else {
-            return ctx.fail("condition trop compliquée (\(maxConditionDepth) niveaux, \(maxConditionTerms) termes au plus).")
+            return ctx.fail(String(localized: "condition trop compliquée (\(maxConditionDepth) niveaux, \(maxConditionTerms) termes au plus)."))
         }
         return conditionLeaves(c).lazy.compactMap { leaf -> String? in
             switch leaf {
             case .variable(let name, _, _):
-                return ctx.variables.contains(name) ? nil : ctx.fail("variable inconnue.")
+                return ctx.variables.contains(name) ? nil : ctx.fail(String(localized: "variable inconnue."))
             case .flState(let q, _, _):
-                return flQueries.contains(q) ? nil : ctx.fail("état de FL inconnu.")
+                return flQueries.contains(q) ? nil : ctx.fail(String(localized: "état de FL inconnu."))
             default:
                 return nil
             }
@@ -106,8 +105,8 @@ enum MacroValidation {
     static func sourceProblem(_ v: IntSource, _ ctx: ValidationContext) -> String? {
         switch v {
         case .constant: return nil
-        case .variable(let name): return ctx.variables.contains(name) ? nil : ctx.fail("variable inconnue.")
-        case .flState(let q): return flQueries.contains(q) ? nil : ctx.fail("état de FL inconnu.")
+        case .variable(let name): return ctx.variables.contains(name) ? nil : ctx.fail(String(localized: "variable inconnue."))
+        case .flState(let q): return flQueries.contains(q) ? nil : ctx.fail(String(localized: "état de FL inconnu."))
         }
     }
 
@@ -184,15 +183,15 @@ enum MacroValidation {
     /// « Raccourci gardé, mais pas encore actif : règle d'abord le bloc 3 « Ouvrir un preset (boîte Open) » (preset
     /// .fst attendu). »
     static func shortcutWaiting(_ problem: String, in blocks: [Block]) -> String {
-        let lead = "Raccourci gardé, mais pas encore actif"
+        let lead = String(localized: "Raccourci gardé, mais pas encore actif")
         guard problem.hasPrefix("Étape "), let colon = problem.range(of: " : ") else {
-            return "\(lead) : " + problem.prefix(1).lowercased() + problem.dropFirst()
+            return String(localized: "\(lead) : ") + problem.prefix(1).lowercased() + problem.dropFirst()
         }
         let path = String(problem[problem.index(problem.startIndex, offsetBy: 6)..<colon.lowerBound])
         var reason = problem[colon.upperBound...].trimmingCharacters(in: .whitespaces)
         if reason.hasSuffix(".") { reason.removeLast() }
-        let label = block(at: path, in: blocks)?.body.type.map { " « \(BlockRegistry.spec($0).label) »" } ?? ""
-        return "\(lead) : règle d'abord le bloc \(path)\(label) (\(reason))."
+        let label = block(at: path, in: blocks)?.body.type.map { String(localized: " « \(BlockRegistry.spec($0).label) »") } ?? ""
+        return String(localized: "\(lead) : règle d'abord le bloc \(path)\(label) (\(reason)).")
     }
 
     /// Bloc désigné par un chemin (« 3.2 ») ; dans un « si », la numérotation du sinon suit celle du alors.

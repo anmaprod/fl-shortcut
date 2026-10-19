@@ -19,11 +19,11 @@ enum FLPage: String, CaseIterable, Identifiable {
 
     var title: String {
         switch self {
-        case .playlist: return "Playlist"
-        case .channelRack: return "Channel Rack"
-        case .pianoRoll: return "Piano Roll"
-        case .mixer: return "Mixer"
-        case .browser: return "Browser"
+        case .playlist: return String(localized: "Playlist")
+        case .channelRack: return String(localized: "Channel Rack")
+        case .pianoRoll: return String(localized: "Piano Roll")
+        case .mixer: return String(localized: "Mixer")
+        case .browser: return String(localized: "Browser")
         }
     }
 
@@ -140,33 +140,33 @@ enum PageOptions {
         }
         switch page {
         case .channelRack:
-            add("addInstrument", "Ajouter un instrument (VST, plugin…)", .addMenu("Channel"))
-            add("chMute", "Mute d'un canal (son numéro)", .channelToggle(solo: false))
-            add("chSolo", "Solo d'un canal (son numéro)", .channelToggle(solo: true))
-            add("chnext", "Instrument suivant", .action("chnext"))
-            add("chprev", "Instrument précédent", .action("chprev"))
-            add("presetnext", "Preset suivant", .action("presetnext"))
-            add("presetprev", "Preset précédent", .action("presetprev"))
+            add("addInstrument", String(localized: "Ajouter un instrument (VST, plugin…)"), .addMenu("Channel"))
+            add("chMute", String(localized: "Mute d'un canal (son numéro)"), .channelToggle(solo: false))
+            add("chSolo", String(localized: "Solo d'un canal (son numéro)"), .channelToggle(solo: true))
+            add("chnext", String(localized: "Instrument suivant"), .action("chnext"))
+            add("chprev", String(localized: "Instrument précédent"), .action("chprev"))
+            add("presetnext", String(localized: "Preset suivant"), .action("presetnext"))
+            add("presetprev", String(localized: "Preset précédent"), .action("presetprev"))
         case .mixer:
-            add("addEffect", "Ajouter un effet sur la piste (plugin)", .addMenu("Effect"))
-            add("rename", "Renommer la piste", .rename)
-            add("armon", "Armer la piste", .action("armon"))
-            add("arm", "Armer ou désarmer la piste", .action("arm"))
-            add("mute", "Mute de la piste (coupe ou remet le son)", .action("mute"))
-            add("solo", "Solo de la piste (met ou retire le solo)", .action("solo"))
-            add("unsolo", "Retirer tous les solos", .action("unsolo"))
-            add("bypass", "Couper les effets de la piste (bypass)", .action("bypass"))
-            add("trnext", "Piste suivante", .action("trnext"))
-            add("trprev", "Piste précédente", .action("trprev"))
-            add("volup", "Monter le volume de la piste", .action("volup"))
-            add("voldn", "Baisser le volume de la piste", .action("voldn"))
-            add("mono", "Master en mono", .action("mono"))
+            add("addEffect", String(localized: "Ajouter un effet sur la piste (plugin)"), .addMenu("Effect"))
+            add("rename", String(localized: "Renommer la piste"), .rename)
+            add("armon", String(localized: "Armer la piste"), .action("armon"))
+            add("arm", String(localized: "Armer ou désarmer la piste"), .action("arm"))
+            add("mute", String(localized: "Mute de la piste (coupe ou remet le son)"), .action("mute"))
+            add("solo", String(localized: "Solo de la piste (met ou retire le solo)"), .action("solo"))
+            add("unsolo", String(localized: "Retirer tous les solos"), .action("unsolo"))
+            add("bypass", String(localized: "Couper les effets de la piste (bypass)"), .action("bypass"))
+            add("trnext", String(localized: "Piste suivante"), .action("trnext"))
+            add("trprev", String(localized: "Piste précédente"), .action("trprev"))
+            add("volup", String(localized: "Monter le volume de la piste"), .action("volup"))
+            add("voldn", String(localized: "Baisser le volume de la piste"), .action("voldn"))
+            add("mono", String(localized: "Master en mono"), .action("mono"))
         case .playlist:
-            add("marker", "Poser un marqueur", .action("marker"))
-            add("snap", "Grille suivante", .action("snap"))
+            add("marker", String(localized: "Poser un marqueur"), .action("marker"))
+            add("snap", String(localized: "Grille suivante"), .action("snap"))
         case .pianoRoll:
-            add("quant", "Quantize rapide", .action("quant"))
-            add("snap", "Grille suivante", .action("snap"))
+            add("quant", String(localized: "Quantize rapide"), .action("quant"))
+            add("snap", String(localized: "Grille suivante"), .action("snap"))
         case .browser:
             break
         }
@@ -255,12 +255,12 @@ enum PageOptions {
             let path = pluginPath(trimmed)
             if trimmed.isEmpty || trimmed.count > maxName || path.contains(where: \.isEmpty)
                 || path.count > MenuBarAX.maxDepth - 2 {
-                return "choisis le plugin à ajouter (comme dans le menu Add de FL)."
+                return String(localized: "choisis le plugin à ajouter (comme dans le menu Add de FL).")
             }
         case .channel:
-            if channel(trimmed) == nil { return "écris le numéro du canal (1 à \(maxChannel))." }
+            if channel(trimmed) == nil { return String(localized: "écris le numéro du canal (1 à \(maxChannel)).") }
         case .name:
-            if trimmed.isEmpty { return "écris le nouveau nom de la piste." }
+            if trimmed.isEmpty { return String(localized: "écris le nouveau nom de la piste.") }
             if let problem = NameColorPayload.nameProblem(trimmed) { return problem }
         }
         return nil
@@ -302,9 +302,9 @@ enum PageOptions {
     /// Message de la validation pour une option hors de sa page.
     static func misplacedMessage(_ wrong: (path: String, page: FLPage?)) -> String {
         guard let page = wrong.page else {
-            return "Étape \(wrong.path) : ajoute « Ouvrir une page de FL » juste au-dessus et choisis la page de cette option."
+            return String(localized: "Étape \(wrong.path) : ajoute « Ouvrir une page de FL » juste au-dessus et choisis la page de cette option.")
         }
-        return "Étape \(wrong.path) : cette option n'est pas dans \(page.title), la page ouverte au-dessus : choisis-en une de cette page."
+        return String(localized: "Étape \(wrong.path) : cette option n'est pas dans \(page.title), la page ouverte au-dessus : choisis-en une de cette page.")
     }
 }
 

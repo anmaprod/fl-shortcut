@@ -39,14 +39,14 @@ enum MacroTemplates {
     /// menu de FL 2026, relevées sur les vidéos de l'utilisateur (les mêmes que le FL simulé). « Autre » garde les
     /// lettres tapées à la main.
     static let trackMenuChoices: [TrackMenuChoice] = [
-        TrackMenuChoice(id: "openState", name: "Ouvrir un état de piste (preset de piste)",
+        TrackMenuChoice(id: "openState", name: String(localized: "Ouvrir un état de piste (preset de piste)"),
                         labels: [Macro.fileMenuTitles[0], Macro.openStateTitles[0]], letters: ["f", "o"],
                         enter: .learned(legacyKey: MacroRunner.enterAfterLetterKey)),
-        TrackMenuChoice(id: "saveState", name: "Enregistrer l'état de la piste",
+        TrackMenuChoice(id: "saveState", name: String(localized: "Enregistrer l'état de la piste"),
                         labels: [Macro.fileMenuTitles[0], "Save mixer track state as"], letters: ["f", "s"], enter: .ifNeeded),
-        TrackMenuChoice(id: "rename", name: "Renommer, couleur et icône",
+        TrackMenuChoice(id: "rename", name: String(localized: "Renommer, couleur et icône"),
                         labels: ["Rename, color and icon"], letters: ["r"], enter: .ifNeeded),
-        TrackMenuChoice(id: "assignAudio", name: "Créer sa piste audio (Playlist)",
+        TrackMenuChoice(id: "assignAudio", name: String(localized: "Créer sa piste audio (Playlist)"),
                         labels: ["Assign to new Audio track(s)"], letters: ["a"], enter: .ifNeeded),
     ]
 
@@ -208,16 +208,16 @@ extension MacroTemplates {
         }
         let rec = AppMode.nativeEquivalent(of: 3, layout: layout) ?? KeyCombo(keyCode: MacroLibrary.fallbackRecKeyCode)
         return [
-            MacroTemplate(id: autoRecordID, title: "Enregistrement rapide",
-                          summary: "Le début de l'enregistrement, en blocs : menu de la piste, preset, puis armement de la piste. À compléter étape par étape.",
+            MacroTemplate(id: autoRecordID, title: String(localized: "Enregistrement rapide"),
+                          summary: String(localized: "Le début de l'enregistrement, en blocs : menu de la piste, preset, puis armement de la piste. À compléter étape par étape."),
                           symbol: "record.circle") { _ in
                 var m = Macro()
                 m.recKey = rec
                 return MacroDoc(name: "Enregistrement rapide (personnalisé)", blocks: freshIDs(untilArm(m)),
                                 origin: .template(autoRecordID))
             },
-            MacroTemplate(id: "saveExport", title: "Enregistrer puis exporter en WAV",
-                          summary: "⌘S (attend le nom si le projet est neuf), puis ⌘R : la macro attend que tu choisisses le nom du fichier WAV.",
+            MacroTemplate(id: "saveExport", title: String(localized: "Enregistrer puis exporter en WAV"),
+                          summary: String(localized: "⌘S (attend le nom si le projet est neuf), puis ⌘R : la macro attend que tu choisisses le nom du fichier WAV."),
                           symbol: "waveform.badge.plus") { _ in
                 MacroDoc(name: "Enregistrer puis exporter en WAV", blocks: [
                     Block(.key(cmd("s", 1), times: 1), note: "Enregistrer le projet"),
@@ -230,8 +230,8 @@ extension MacroTemplates {
                           note: "Tu choisis le nom du fichier WAV"),
                 ], origin: .template("saveExport"))
             },
-            MacroTemplate(id: "purgeAudio", title: "Supprimer les clips audio inutilisés",
-                          summary: "Tools › Purge unused audio clips, par le menu de FL en haut de l'écran : FL retire du projet les clips audio qui ne sont pas dans la Playlist (rien n'est effacé de ton disque).",
+            MacroTemplate(id: "purgeAudio", title: String(localized: "Supprimer les clips audio inutilisés"),
+                          summary: String(localized: "Tools › Purge unused audio clips, par le menu de FL en haut de l'écran : FL retire du projet les clips audio qui ne sont pas dans la Playlist (rien n'est effacé de ton disque)."),
                           symbol: "trash") { _ in
                 MacroDoc(name: "Supprimer les clips audio inutilisés",
                          // Dans la barre des menus de macOS, FL met ses macros à plat dans Tools (vidéo de
@@ -240,8 +240,8 @@ extension MacroTemplates {
                                         note: "Commande de FL (FL 2024.2 et plus : ses menus dans la barre de macOS)")],
                          origin: .template("purgeAudio"))
             },
-            MacroTemplate(id: organizeID, title: "Organiser la page ouverte",
-                          summary: "Écoute chaque son sans que tu l'entendes, le classe (Voix, Mélodies, Basse, Drums, FX), puis colore après ton accord : regroupe aussi le Channel rack, renomme les pistes de la Playlist (Kick, Snare…).",
+            MacroTemplate(id: organizeID, title: String(localized: "Organiser la page ouverte"),
+                          summary: String(localized: "Écoute chaque son sans que tu l'entendes, le classe (Voix, Mélodies, Basse, Drums, FX), puis colore après ton accord : regroupe aussi le Channel rack, renomme les pistes de la Playlist (Kick, Snare…)."),
                           symbol: "square.stack.3d.up") { _ in
                 MacroDoc(name: "Organiser la page ouverte", blocks: [Block(.organize)], origin: .template(organizeID))
             },
