@@ -116,7 +116,18 @@ enum OrganizerPayload {
     }
 
     static func selectOne(_ kind: ItemKind, _ index: Int) -> [UInt8] { [5, kind.rawValue] + be16(index) }
-    static func playSolo(_ channel: Int) -> [UInt8] { [6] + be16(channel) }
+    /// `pattern` : 1 = le premier pattern de FL ; nil : celui qui est ouvert (script v11 pour le pattern).
+    static func playSolo(_ channel: Int, pattern: Int? = nil) -> [UInt8] {
+        [6] + be16(channel) + (pattern.map(be16) ?? [])
+    }
+    /// Opération 6 sans canal seul : tous audibles (repérage des sons de chaque pattern).
+    static let allChannels = 0xFFFF
+    /// Opérations 14 à 16 (script v11) : ce qui joue, les patterns, toute la chanson à une position.
+    static func activity(_ kind: ItemKind) -> [UInt8] { [14, kind.rawValue] }
+    static let patterns: [UInt8] = [15]
+    static func playSong(_ fraction: Double) -> [UInt8] {
+        [16] + be16(Int((min(max(fraction, 0), 1) * 1000).rounded()))
+    }
     static let stopRestore: [UInt8] = [7]
 
     static func gradient(first a: RGBColor, last b: RGBColor) -> [UInt8] { [8, a.r, a.g, a.b, b.r, b.g, b.b] }
@@ -230,6 +241,22 @@ enum OrganizerPayload {
         return Int(bytes[0]) << 8 | Int(bytes[1])
     }
 
+    /// Réponse de l'opération 14 : `[genre, n (2), bits]` → index des éléments qui jouent ; nil si illisible.
+    static func decodeActivity(_ bytes: [UInt8], kind: ItemKind) -> Set<Int>? {
+        guard bytes.count >= 3, bytes[0] == kind.rawValue else { return nil }
+        let n = Int(bytes[1]) << 8 | Int(bytes[2])
+        guard bytes.count == 3 + (n + 7) / 8 else { return nil }
+        var out = Set<Int>()
+        for i in 0..<n where bytes[3 + i / 8] & (1 << UInt8(i % 8)) != 0 { out.insert(i) }
+        return out
+    }
+
+    /// Réponse de l'opération 15 : nombre de patterns et pattern ouvert.
+    static func decodePatterns(_ bytes: [UInt8]) -> (count: Int, current: Int)? {
+        guard bytes.count == 4 else { return nil }
+        return (Int(bytes[0]) << 8 | Int(bytes[1]), Int(bytes[2]) << 8 | Int(bytes[3]))
+    }
+
     static func decodePlaylist(_ bytes: [UInt8]) -> Page<PlaylistTrackInfo>? {
         var r = Reader(bytes: bytes)
         guard let h = header(&r, kind: .playlist) else { return nil }
@@ -270,7 +297,17 @@ protocol OrganizerLink: AnyObject {
     func setColors(_ kind: ItemKind, _ colors: [(index: Int, color: RGBColor)]) throws
     func setNames(_ kind: ItemKind, _ names: [(index: Int, name: String)]) throws
     func selectOne(_ kind: ItemKind, _ index: Int) throws
-    func playSolo(_ channel: Int) throws
+    /// Ce canal seul audible, dans ce pattern (1 = le premier ; nil : celui qui est ouvert) ;
+    /// `OrganizerPayload.allChannels` : tous audibles.
+    func playSolo(_ channel: Int, pattern: Int?) throws
+    /// Nombre de patterns et pattern ouvert (script v11).
+    func patterns() throws -> (count: Int, current: Int)
+    /// Canaux affichés dont une note joue en ce moment, d'après FL (script v11, API 9).
+    func activeChannels() throws -> Set<Int>
+    /// Pistes de la Playlist dont un clip passe sous la tête de lecture (index 0 = piste 1).
+    func activeTracks() throws -> Set<Int>
+    /// Toute la chanson jouée à cette position (0…1), rien de coupé ; renvoie sa longueur en mesures (0 : inconnue).
+    func playSong(at fraction: Double) throws -> Int
     /// Piste de la Playlist seule audible, chanson jouée depuis son début ; renvoie sa longueur en mesures (0 si
     /// inconnue).
     func playTrack(_ index: Int) throws -> Int
@@ -279,6 +316,10 @@ protocol OrganizerLink: AnyObject {
     /// Toujours sans erreur : FL est remis comme avant autant que possible (appelé aussi après une erreur).
     func stopRestore()
     func audition(_ channel: Int, note: UInt8, velocity: UInt8) throws
+}
+
+extension OrganizerLink {
+    func playSolo(_ channel: Int) throws { try playSolo(channel, pattern: nil) }
 }
 
 /// Opérations envoyées une par une, 60 ms au moins entre deux (le script refuse plus de 20 trames par seconde).
@@ -408,7 +449,47 @@ final class RequestOrganizerLink: OrganizerLink {
     }
 
     func selectOne(_ kind: ItemKind, _ index: Int) throws { try send(OrganizerPayload.selectOne(kind, index)) }
-    func playSolo(_ channel: Int) throws { try send(OrganizerPayload.playSolo(channel)) }
+
+    func playSolo(_ channel: Int, pattern: Int?) throws {
+        if pattern == nil {
+            try send(OrganizerPayload.playSolo(channel))
+        } else {
+            try v11 { try send(OrganizerPayload.playSolo(channel, pattern: pattern)) }
+        }
+    }
+
+    func patterns() throws -> (count: Int, current: Int) {
+        let answer = try v11 { try send(OrganizerPayload.patterns) }
+        guard let info = OrganizerPayload.decodePatterns(answer) else { throw OrganizerError.failed("réponse de FL illisible") }
+        return info
+    }
+
+    func activeChannels() throws -> Set<Int> { try activity(.channels) }
+    func activeTracks() throws -> Set<Int> { try activity(.playlist) }
+
+    private func activity(_ kind: ItemKind) throws -> Set<Int> {
+        let answer = try v11 { try send(OrganizerPayload.activity(kind)) }
+        guard let set = OrganizerPayload.decodeActivity(answer, kind: kind) else {
+            throw OrganizerError.failed("réponse de FL illisible")
+        }
+        return set
+    }
+
+    func playSong(at fraction: Double) throws -> Int {
+        let answer = try v11 { try send(OrganizerPayload.playSong(fraction)) }
+        guard let bars = OrganizerPayload.decodeBars(answer) else { throw OrganizerError.failed("réponse de FL illisible") }
+        return bars
+    }
+
+    /// Opérations du script v11 : un script plus ancien les refuse (5) ; FL doit charger la nouvelle version.
+    @discardableResult
+    private func v11<T>(_ body: () throws -> T) throws -> T {
+        do {
+            return try body()
+        } catch OrganizerError.refused(5) {
+            throw OrganizerError.outdatedScript
+        }
+    }
 
     func stopRestore() {
         // Deux essais : c'est ce qui remet les sourdines de l'utilisateur.

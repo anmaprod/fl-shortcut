@@ -63,6 +63,66 @@ enum DrumKind: String, CaseIterable, Codable {
     }
 }
 
+/// Famille d'un son d'après son nom (« BEAM KICK », « ZEBRA 808 », « Vocal Chop ») : la plupart des sons de packs
+/// le disent, rien n'est écouté pour eux. Mots entiers, sans casse ni accents (« Kick01 » compte comme « kick ») ;
+/// nil si le nom ne dit rien (« Serum 2 », « Sampler »).
+enum SoundNames {
+    /// Mot → sorte de drums.
+    static let drumWords: [String: DrumKind] = [
+        "kick": .kick, "kicks": .kick, "kck": .kick, "kik": .kick, "bd": .kick, "bassdrum": .kick,
+        "snare": .snare, "snares": .snare, "snr": .snare, "sd": .snare, "rim": .snare, "rimshot": .snare,
+        "hat": .hiHat, "hats": .hiHat, "hihat": .hiHat, "hihats": .hiHat, "hh": .hiHat, "oh": .hiHat,
+        "openhat": .hiHat, "closedhat": .hiHat,
+        "clap": .clap, "claps": .clap, "clp": .clap, "snap": .clap, "snaps": .clap,
+        "crash": .cymbal, "ride": .cymbal, "cymbal": .cymbal, "cym": .cymbal, "splash": .cymbal, "china": .cymbal,
+        "perc": .perc, "percs": .perc, "percussion": .perc, "tom": .perc, "toms": .perc, "shaker": .perc,
+        "tamb": .perc, "tambourine": .perc, "conga": .perc, "bongo": .perc, "cowbell": .perc, "clave": .perc,
+        "drum": .kit, "drums": .kit, "drumloop": .kit, "breakbeat": .kit, "kit": .kit,
+    ]
+    /// Mot → famille (hors drums).
+    static let familyWords: [String: SoundFamily] = [
+        "808": .bass, "808s": .bass, "bass": .bass, "basse": .bass, "sub": .bass, "subbass": .bass, "reese": .bass,
+        "vox": .vocals, "vocal": .vocals, "vocals": .vocals, "voice": .vocals, "voix": .vocals, "acapella": .vocals,
+        "adlib": .vocals, "adlibs": .vocals, "choir": .vocals, "chant": .vocals,
+        "fx": .fx, "sfx": .fx, "riser": .fx, "risers": .fx, "uplifter": .fx, "downlifter": .fx, "sweep": .fx,
+        "impact": .fx, "whoosh": .fx, "noise": .fx, "transition": .fx, "reverse": .fx, "zap": .fx, "laser": .fx,
+        "lead": .melody, "leads": .melody, "pad": .melody, "pads": .melody, "pluck": .melody, "plucks": .melody,
+        "keys": .melody, "piano": .melody, "synth": .melody, "arp": .melody, "arpeggio": .melody, "chord": .melody,
+        "chords": .melody, "guitar": .melody, "guitare": .melody, "gtr": .melody, "string": .melody,
+        "strings": .melody, "bell": .melody, "bells": .melody, "flute": .melody, "brass": .melody, "horn": .melody,
+        "melody": .melody, "melodie": .melody, "mel": .melody, "organ": .melody, "rhodes": .melody, "harp": .melody,
+        "sax": .melody, "violin": .melody, "cello": .melody, "marimba": .melody, "kalimba": .melody,
+    ]
+
+    /// Mots du nom, sans casse ni accents ; un nombre collé à la fin d'un mot est retiré (« kick01 » → « kick »),
+    /// sauf pour un mot qui n'est fait que de chiffres (« 808 »).
+    static func words(_ name: String) -> [String] {
+        let folded = name.folding(options: [.caseInsensitive, .diacriticInsensitive], locale: Locale(identifier: "fr_FR"))
+        return folded.lowercased().split(whereSeparator: { !$0.isLetter && !$0.isNumber }).map { part in
+            var w = String(part)
+            if w.contains(where: \.isLetter) {
+                while let last = w.last, last.isNumber { w.removeLast() }
+            }
+            return w
+        }
+    }
+
+    /// Un mot de drums précis (kick, hat…) l'emporte ; sinon la première famille nommée dans l'ordre Voix, Basse,
+    /// FX, Mélodies, Drums (« Synth Bass » : Basse ; « Vocal Chop » : Voix).
+    static func family(of name: String) -> SoundFamily? {
+        let w = words(name)
+        if w.contains(where: { drumWords[$0].map { $0 != .kit } ?? false }) { return .drums }
+        let found = Set(w.compactMap { familyWords[$0] })
+        for family in [SoundFamily.vocals, .bass, .fx, .melody] where found.contains(family) { return family }
+        return w.contains(where: { drumWords[$0] != nil }) ? .drums : nil
+    }
+
+    /// Sorte de drums d'après le nom (le premier mot qui la dit).
+    static func drum(of name: String) -> DrumKind? {
+        words(name).lazy.compactMap { drumWords[$0] }.first
+    }
+}
+
 enum DrumNaming {
     /// Étiquettes de l'IA de macOS → sorte de drums (toutes dans `FamilyFusion.labelTable`).
     static let labels: [String: DrumKind] = [

@@ -93,6 +93,10 @@ class FLState(object):
         # Groupe affiché par le Channel rack : index global de chaque canal affiché (tous par défaut).
         self.ch_group = list(kw.get("ch_group", range(n)))
         self.metronome = kw.get("metronome", False)
+        # Ce qui joue (Organiser, opération 14) : niveau d'activité des canaux (index affiché) et des pistes de la
+        # Playlist (index 1 = piste 1).
+        self.ch_activity = dict(kw.get("ch_activity", {}))
+        self.pl_activity = dict(kw.get("pl_activity", {}))
         self.notes = []                  # (index global, note, vélocité)
         self.playing = kw.get("playing", False)
         self.song_pos = kw.get("song_pos", 0.5)
@@ -335,6 +339,7 @@ def build_fl(api=45, missing=(), extra=None, **kw):
         st.ch_solo.symmetric_difference_update({i})
     reg("channels", "soloChannel", 1, solo_chan)
     reg("channels", "isChannelSelected", 1, lambda i, *a: (chk_chan(i), i in st.ch_sel)[1])
+    reg("channels", "getActivityLevel", 9, lambda i, *a: (chk_chan(i), st.ch_activity.get(i, 0.0))[1])
     reg("channels", "setChannelName", 1,
         lambda i, name, *a: (chk_chan(i), st.given_names.__setitem__(("channels", i), name))[1])
     reg("channels", "setChannelColor", 1,
@@ -390,6 +395,7 @@ def build_fl(api=45, missing=(), extra=None, **kw):
     reg("playlist", "getTrackName", 1, lambda i: (chk_pl(i), st.pl_names.get(i, "Track %d" % i))[1])
     reg("playlist", "getTrackColor", 1, lambda i: (chk_pl(i), st.pl_colors.get(i, 0x565E66))[1])
     reg("playlist", "isTrackMuted", 1, lambda i: (chk_pl(i), i in st.pl_muted)[1])
+    reg("playlist", "getTrackActivityLevel", 1, lambda i: (chk_pl(i), st.pl_activity.get(i, 0.0))[1])
 
     def pl_mute(i, *a):
         chk_pl(i)

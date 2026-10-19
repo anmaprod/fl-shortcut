@@ -44,6 +44,17 @@ final class CaptureBuffer {
         defer { lock.unlock() }
         samples.append(contentsOf: mono)
         if samples.count > capacity { samples.removeFirst(samples.count - capacity) }
+        chunks += 1
+        for v in mono where abs(v) > peak { peak = abs(v) }
+    }
+
+    /// Blocs reçus depuis la création, et la crête de tout ce qui a été reçu (diagnostic : rien n'est gardé).
+    private var chunks = 0
+    private var peak: Float = 0
+    var received: (chunks: Int, peak: Float) {
+        lock.lock()
+        defer { lock.unlock() }
+        return (chunks, peak)
     }
 
     /// Le son reçu depuis le dernier `reset` (les `capacity` derniers échantillons), puis le tampon est vidé.
@@ -71,4 +82,33 @@ protocol AudioSource: AnyObject {
     /// Le son reçu depuis le dernier `reset`.
     func take() -> [Float]
     func stop()
+    /// Ce que la capture a reçu, pour « Copier le diagnostic ».
+    var stats: CaptureStats { get }
+}
+
+extension AudioSource {
+    var stats: CaptureStats { CaptureStats() }
+}
+
+/// Diagnostic de la capture (aucun son, aucun nom) : de quoi savoir pourquoi l'Organiser n'entend rien.
+struct CaptureStats: Equatable {
+    /// « tap seul » (l'agrégat ne contient que le son de FL) ou « carte » (avec l'appareil de sortie).
+    var mode = ""
+    /// Blocs reçus, et la crête de tout le son reçu (dBFS).
+    var chunks = 0
+    var peakDB = -180.0
+    /// Tampons d'entrée vus par la lecture, et le premier lu.
+    var buffers = 0
+    var used = 0
+    /// Flux d'entrée de l'appareil de sortie de macOS (une carte son en a).
+    var outputInputs = 0
+    var rate = 0.0
+    var tapChannels = 0
+    var interleaved = true
+
+    var text: String {
+        "capture=\(mode.isEmpty ? "aucune" : mode) blocs=\(chunks) crête=\(Int(peakDB.rounded()))dB "
+            + "tampons=\(buffers) lu=\(used) entrées-sortie=\(outputInputs) fréq=\(Int(rate)) "
+            + "tap=\(tapChannels)ch\(interleaved ? "" : "-plan")"
+    }
 }

@@ -245,6 +245,30 @@ final class OrganizerWindowTests: XCTestCase {
         XCTAssertTrue(OrganizerError.noSound.message.contains("Audio du système"))
     }
 
+    /// « Copier le diagnostic » : versions, étape et ce que l'écoute a fait, jamais un nom de son.
+    func testDiagnosticIsCopiedWithoutNames() {
+        let link = FakeOrganizerLink()
+        link.channels = [ChannelInfo(index: 0, type: 2, mixerTrack: 0, color: RGBColor(r: 1, g: 2, b: 3),
+                                     name: "Secret Serum")]
+        var e = env(link, FakeAudio(link: link), saved: { _ in })
+        var copied: [String] = []
+        e.about = { "app 1.0 · audio=granted" }
+        e.copy = { copied.append($0) }
+        let controller = OrganizerController(env: e)
+        controller.start()
+        waitFor(controller) { if case .failed = $0 { return true } else { return false } }
+        XCTAssertEqual(controller.phase, .failed(OrganizerError.noSound.message), "nom qui ne dit rien : écouté, muet")
+        controller.copyDiagnostic()
+        let text = try? XCTUnwrap(copied.first)
+        XCTAssertTrue(text?.contains("app 1.0 · audio=granted") ?? false)
+        XCTAssertTrue(text?.contains("étape=échec") ?? false)
+        XCTAssertTrue(text?.contains("sons=1") ?? false)
+        XCTAssertTrue(text?.contains("capture=") ?? false)
+        XCTAssertFalse(text?.contains("Secret") ?? true, "jamais un nom")
+        XCTAssertTrue(controller.copied)
+        controller.close()
+    }
+
     func testOrganizeBlockJSON() throws {
         let block = Block(.organize)
         let data = try JSONEncoder().encode(block)

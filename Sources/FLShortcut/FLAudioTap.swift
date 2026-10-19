@@ -60,6 +60,11 @@ final class FLAudioTap: AudioSource {
     private var procID: AudioDeviceIOProcID?
     private var buffer: CaptureBuffer?
     private(set) var rate: Double = 48_000
+    private var info = CaptureStats()
+    /// Tampons vus par la lecture (écrits sur sa file, lus pour le diagnostic).
+    private let seen = NSLock()
+    private var seenBuffers = 0
+    private var seenUsed = 0
 
     init(pid: pid_t) {
         self.pid = pid
@@ -67,7 +72,40 @@ final class FLAudioTap: AudioSource {
 
     deinit { stop() }
 
+    var stats: CaptureStats {
+        var out = info
+        if let buffer {
+            let received = buffer.received
+            out.chunks = received.chunks
+            out.peakDB = 20 * log10(max(Double(received.peak), 1e-9))
+        }
+        seen.lock()
+        out.buffers = seenBuffers
+        out.used = seenUsed
+        seen.unlock()
+        return out
+    }
+
+    /// D'abord un agrégat qui ne contient que le son de FL (aucune entrée de carte son ne peut s'y mêler) ; s'il ne
+    /// reçoit rien en 0,6 s, l'agrégat avec l'appareil de sortie de macOS (son FL lu après les entrées de la carte).
     func start() throws {
+        try start(withOutput: false)
+        if waitForSound(0.6) { return }
+        MacroLog.shared.write("ORGANIZE", "tap-only aggregate silent: output device used")
+        try start(withOutput: true)
+    }
+
+    /// Des blocs arrivent (même muets : la lecture tourne).
+    private func waitForSound(_ seconds: TimeInterval) -> Bool {
+        let end = Date().addingTimeInterval(seconds)
+        while Date() < end {
+            if (buffer?.received.chunks ?? 0) > 0 { return true }
+            Thread.sleep(forTimeInterval: 0.05)
+        }
+        return (buffer?.received.chunks ?? 0) > 0
+    }
+
+    private func start(withOutput: Bool) throws {
         stop()
         let process = try Self.processObject(pid: pid)
         let description = CATapDescription(stereoMixdownOfProcesses: [process])
@@ -92,7 +130,7 @@ final class FLAudioTap: AudioSource {
         }
         rate = format.mSampleRate
 
-        let output = Self.defaultOutput()
+        let output = withOutput ? Self.defaultOutput() : nil
         var aggregate: [String: Any] = [
             kAudioAggregateDeviceNameKey: "FL Shortcuts – écoute de FL",
             kAudioAggregateDeviceUIDKey: "app.flshortcut.organizer." + UUID().uuidString,
@@ -120,9 +158,18 @@ final class FLAudioTap: AudioSource {
         // Une carte son a des entrées (SSL 2+…) : dans l'agrégat, elles passent avant le son de FL. Le son de FL :
         // les tampons après elles (audit : sinon on écoutait l'entrée de la carte son, pas FL).
         let skip = output.map { Self.inputStreamCount($0.id) } ?? 0
-        status = AudioDeviceCreateIOProcIDWithBlock(&procID, device, queue) { _, input, _, _, _ in
+        info = CaptureStats(mode: withOutput ? "carte" : "tap seul", outputInputs: skip, rate: rate,
+                            tapChannels: Int(format.mChannelsPerFrame), interleaved: interleaved)
+        let seen = self.seen
+        status = AudioDeviceCreateIOProcIDWithBlock(&procID, device, queue) { [weak self] _, input, _, _, _ in
             let list = UnsafeMutableAudioBufferListPointer(UnsafeMutablePointer(mutating: input))
             let from = list.count >= skip + tapBuffers ? skip : max(list.count - tapBuffers, 0)
+            if let self {
+                seen.lock()
+                self.seenBuffers = list.count
+                self.seenUsed = from
+                seen.unlock()
+            }
             guard from < list.count else { return }
             if interleaved {
                 let first = list[from]

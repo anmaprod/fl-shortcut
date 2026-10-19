@@ -75,6 +75,9 @@ struct OrganizerEnvironment {
     /// Fenêtre de macOS pour la demander ; faux : rien n'a pu être demandé. `done` sur le fil principal.
     var requestAudioPermission: (@escaping (Bool) -> Void) -> Bool = { _ in false }
     var openAudioSettings: () -> Void = {}
+    /// En-tête du diagnostic : versions et état du lien (aucun nom).
+    var about: () -> String = { "" }
+    var copy: (String) -> Void = { _ in }
     /// FL mis devant (le panneau flotte au-dessus) : sa page devant et ses touches en dépendent.
     var focusFL: () -> Void = {}
 
@@ -109,6 +112,21 @@ struct OrganizerEnvironment {
                 return AudioCapturePermission.request(done)
             },
             openAudioSettings: { ScreenLook.openSettings() },
+            about: {
+                let app = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "?"
+                let build = Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "?"
+                let os = ProcessInfo.processInfo.operatingSystemVersion
+                let snap = MIDILink.shared.core.snapshot
+                let api = snap.hello.map { "\($0.apiVersion)" } ?? "?"
+                let fl = FLDetector.installedVersion().map { "\($0)" } ?? "?"
+                return "app \(app) (\(build)) · macOS \(os.majorVersion).\(os.minorVersion).\(os.patchVersion) · FL \(fl) "
+                    + "· API \(api) · lien \(snap.hello == nil ? "muet" : "ok") · audio=\(AudioCapturePermission.status) "
+                    + "· écran=\(ScreenLook.allowed ? "oui" : "non") · AX=\(AXIsProcessTrusted() ? "oui" : "non")"
+            },
+            copy: { text in
+                NSPasteboard.general.clearContents()
+                NSPasteboard.general.setString(text, forType: .string)
+            },
             focusFL: {
                 guard let pid = OrganizerEnvironment.flPID() else { return }
                 if EventTap.shared.currentConfig.frontmostPID != pid {
@@ -238,6 +256,10 @@ final class OrganizerController: ObservableObject {
     private var askedAudio = false
     /// Écoute en cours : la fin d'une écoute remplacée (nouvel essai) est ignorée (audit : deux écoutes à la fois).
     private var runToken = 0
+    /// Ce que la dernière écoute a fait, en nombres (« Copier le diagnostic »).
+    @Published private(set) var diagnostics: OrganizerDiagnostics?
+    /// « Copié » montré un instant après « Copier le diagnostic ».
+    @Published private(set) var copied = false
 
     init(env: OrganizerEnvironment) {
         self.env = env
@@ -320,8 +342,10 @@ final class OrganizerController: ObservableObject {
         queue.async { [weak self] in                           // file en série : jamais deux écoutes en même temps
             if warmUp > 0 { sleep(warmUp) }
             let outcome = session.run(on: chosen)
+            let diagnostics = session.diagnostics
             DispatchQueue.main.async {
                 guard self?.runToken == token else { return }
+                self?.diagnostics = diagnostics
                 self?.finishListening(outcome)
             }
         }
@@ -361,6 +385,36 @@ final class OrganizerController: ObservableObject {
     }
 
     func openAudioSettings() { env.openAudioSettings() }
+
+    /// Texte à m'envoyer quand ça ne marche pas : versions, autorisations, état, et ce que l'écoute a fait — des
+    /// nombres seulement, jamais le nom d'un son ou d'une piste.
+    var diagnosticText: String {
+        var lines = ["FL Shortcuts · diagnostic de l'Organiser", env.about(), "étape=\(Self.phaseCode(phase))"]
+        if let diagnostics { lines.append(diagnostics.text) }
+        return lines.filter { !$0.isEmpty }.joined(separator: "\n")
+    }
+
+    func copyDiagnostic() {
+        env.copy(diagnosticText)
+        copied = true
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2) { [weak self] in self?.copied = false }
+    }
+
+    /// Étape en un mot (diagnostic) : jamais le texte d'un message qui pourrait citer un nom.
+    static func phaseCode(_ phase: Phase) -> String {
+        switch phase {
+        case .starting: return "début"
+        case .setup: return "installation"
+        case .waiting(let wait): return "attente-\(wait)"
+        case .listening(let done, let total): return "écoute-\(done)/\(total)"
+        case .preview: return "aperçu"
+        case .applying: return "application"
+        case .applied(let error): return "appliqué" + (error.map { "-\($0)" } ?? "")
+        case .undoing: return "retour"
+        case .undone(let error): return "revenu" + (error.map { "-\($0)" } ?? "")
+        case .failed: return "échec"
+        }
+    }
 
     /// « Réessayer » : après un échec, ou tout de suite pendant une attente.
     var canRetry: Bool {
@@ -449,6 +503,8 @@ final class OrganizerController: ObservableObject {
         let id: Int
         let name: String
         let testNotes: Bool
+        /// Classé d'après son nom (rien n'a été écouté).
+        var byName = false
         /// Playlist : nom qu'elle prendra.
         var newName: String? = nil
     }
@@ -460,7 +516,7 @@ final class OrganizerController: ObservableObject {
         switch result.page {
         case .channelRack:
             for item in result.items where families[item.index] == family {
-                out.append(Member(id: item.index, name: item.name, testNotes: item.testNotes))
+                out.append(Member(id: item.index, name: item.name, testNotes: item.testNotes, byName: item.byName))
             }
         case .mixer:
             for track in result.mixer where families[track.index] == family {
@@ -471,7 +527,7 @@ final class OrganizerController: ObservableObject {
             let names = plannedNames
             for item in result.items where families[item.index] == family {
                 out.append(Member(id: item.index, name: item.name.isEmpty ? "Track \(item.index + 1)" : item.name,
-                                  testNotes: false, newName: names[item.index]))
+                                  testNotes: false, byName: item.byName, newName: names[item.index]))
             }
         }
         return out
@@ -801,8 +857,9 @@ struct OrganizerView: View {
                 .padding(14)
                 .organizerCard()
                 .morphIn(1)
-                Text("Chaque son joue seul, sans que tu l'entendes (dans la Playlist, la chanson est parcourue jusqu'à "
-                     + "ce que la piste sonne). Ne touche pas à FL ; Échap arrête.")
+                Text("Un son dont le nom dit la famille (Kick, 808, Hat…) est classé tout de suite ; les autres jouent "
+                     + "seuls, dans un pattern où ils jouent, sans que tu les entendes. Dans la Playlist, la chanson est "
+                     + "parcourue : FL dit quels sons jouent sur chaque piste. Ne touche pas à FL ; Échap arrête.")
                     .font(.system(size: 11))
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
@@ -907,10 +964,21 @@ struct OrganizerView: View {
         .organizerCard(present ? Self.tint : .orange)
     }
 
+    /// « Copier le diagnostic » : un texte court à m'envoyer (aucun nom de son ni de piste).
+    private var diagnosticButton: some View {
+        Button(controller.copied ? "Copié" : "Copier le diagnostic") { controller.copyDiagnostic() }
+            .help("Copie un court texte technique (versions, autorisations, ce que l'écoute a reçu), sans aucun nom de "
+                  + "son ni de piste : colle-le dans ton message pour qu'on trouve ce qui bloque.")
+    }
+
     @ViewBuilder private var buttons: some View {
         HStack {
             if controller.canUndo {
                 Button("Revenir comme avant") { controller.undo() }
+            } else if case .failed = controller.phase {
+                diagnosticButton
+            } else if case .applied(let error) = controller.phase, error != nil {
+                diagnosticButton
             }
             Spacer()
             if controller.canRetry {
@@ -1010,6 +1078,7 @@ struct OrganizerView: View {
                 }
             }
             HStack {
+                diagnosticButton
                 Spacer()
                 Button("Fermer") { controller.close() }.keyboardShortcut(.cancelAction)
                 Button("Réessayer maintenant") { controller.retry() }
@@ -1091,7 +1160,7 @@ struct OrganizerView: View {
         case .mixer?:
             return "Chaque piste prend la famille des sons qui y sont reliés. Clique sur une famille pour la changer."
         case .playlist?:
-            return "Chaque piste a été écoutée seule. Clique sur sa famille pour la changer. Appliquer colore les pistes par famille."
+            return "Chaque piste prend la famille des sons qui jouent dessus (patterns, clips audio). Clique sur sa famille pour la changer. Appliquer colore les pistes par famille."
         default:
             return "Vérifie chaque son et clique sur sa famille pour la changer. Appliquer colore et regroupe les sons par famille."
         }
@@ -1129,6 +1198,7 @@ struct OrganizerView: View {
             }
             HStack {
                 Button("Annuler") { controller.close() }.keyboardShortcut(.cancelAction)
+                diagnosticButton
                 Spacer()
                 Button("Appliquer") { controller.apply() }
                     .primaryButton()
@@ -1337,7 +1407,12 @@ private struct FamilySection: View {
             if member.testNotes {
                 Image(systemName: "music.note")
                     .foregroundStyle(.secondary)
-                    .help("Muet dans le pattern : classé avec deux notes d'essai. Vérifie sa famille.")
+                    .help("Muet dans ses patterns : classé avec deux notes d'essai. Vérifie sa famille.")
+            }
+            if member.byName {
+                Image(systemName: "textformat")
+                    .foregroundStyle(.secondary)
+                    .help("Classé d'après son nom, sans l'écouter.")
             }
             Spacer()
             Menu {

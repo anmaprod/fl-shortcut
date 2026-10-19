@@ -27,7 +27,7 @@ bornes vérifiées, seuls les CC du protocole (canal 16) sont marqués « handle
 # La ligne suivante est remplacée par l'appli à l'installation (16 octets en hex).
 KEY_HEX = "__FLSHORTCUT_KEY__"
 
-SCRIPT_VERSION = 10
+SCRIPT_VERSION = 11
 PROTOCOL_VERSION = 2
 
 MIDI_CHANNEL = 15          # canal 16, 0-indexé
@@ -81,6 +81,12 @@ OP_SET_NAMES = 10          # noms des pistes de la Playlist
 OP_PLAY_TRACK = 11         # écoute d'une piste de la Playlist seule
 OP_SEEK = 12               # position de la chanson pendant cette écoute
 OP_CHANNEL_TOGGLE = 13     # mute ou solo d'un canal du Channel rack, par son numéro (macro « Cliquer sur… »)
+OP_ACTIVITY = 14           # ce qui joue en ce moment : canaux, pistes de la Playlist (Organiser, script v11)
+OP_PATTERNS = 15           # nombre de patterns et pattern ouvert
+OP_PLAY_SONG = 16          # toute la chanson à une position, rien de coupé
+ALL_CHANNELS = 0xFFFF      # opération 6 : aucun canal seul, tous audibles (sons de chaque pattern)
+MAX_ACTIVITY = 512         # éléments au plus dans la réponse de l'opération 14
+ACTIVITY_MIN = 0.01        # au-dessus : une note joue (canal), un clip passe (piste, 0,5)
 HELLO_WRONG_INPUT = 64     # CC 120 = 64 au démarrage : script posé sur une autre entrée que « FL Shortcuts Link »
 KIND_CHANNELS = 1
 KIND_MIXER = 2
@@ -1671,18 +1677,38 @@ def _mute_scope():
     return _channel_count(), is_muted, mute, lambda i: i
 
 
+def _pattern_number():
+    f = _fn("patterns", "patternNumber")
+    try:
+        n = f() if f is not None else None
+    except Exception:
+        return None
+    return n if _is_int(n) else None
+
+
 def _op_play_solo(raw, seq3):
-    """[6, canal (2)] : au premier appel, mémo des sourdines, du mode et de la position ; puis ce canal seul
-    audible (les autres en sourdine, en ne basculant que ceux qui doivent changer), mode pattern, début, lecture.
-    Le canal est compté dans le groupe affiché par le Channel rack, comme pour les opérations 2 à 5."""
-    if len(raw) != 3:
+    """[6, canal (2)] ou [6, canal (2), pattern (2)] : au premier appel, mémo des sourdines, du mode, de la
+    position, du pattern ouvert et du métronome ; puis ce canal seul audible (les autres en sourdine, en ne
+    basculant que ceux qui doivent changer ; ALL_CHANNELS : tous audibles), dans ce pattern (1 = le premier ;
+    sinon celui qui est ouvert), mode pattern, début, lecture. Le canal est compté dans le groupe affiché par le
+    Channel rack, comme pour les opérations 2 à 5."""
+    if len(raw) not in (3, 5):
         return REASON_DATA
     if any(_fn(m, n) is None for m, n in _PLAY_FNS):
         return REASON_OLD_FL
     index = _be16(raw[1], raw[2])
     shown = _channel_count()
-    if not _is_int(shown) or not 0 <= index < shown:
+    if not _is_int(shown) or not (index == ALL_CHANNELS or 0 <= index < shown):
         return REASON_DATA
+    pattern = _be16(raw[3], raw[4]) if len(raw) == 5 else None
+    jump = None
+    if pattern is not None:
+        count, jump = _fn("patterns", "patternCount"), _fn("patterns", "jumpToPattern")
+        if count is None or jump is None:
+            return REASON_OLD_FL
+        n = count()
+        if not _is_int(n) or not 1 <= pattern <= n:
+            return REASON_DATA
     total, is_muted, mute, scoped = _mute_scope()
     if not _is_int(total):
         return REASON_DATA
@@ -1693,15 +1719,18 @@ def _op_play_solo(raw, seq3):
         if playing:
             return REASON_PLAYING          # l'utilisateur joue : on ne coupe rien
         _st.memo = {"kind": "ch", "n": total, "muted": [bool(is_muted(i)) for i in range(total)],
-                    "mode": _fn("transport", "getLoopMode")(), "pos": _fn("transport", "getSongPos")()}
+                    "mode": _fn("transport", "getLoopMode")(), "pos": _fn("transport", "getSongPos")(),
+                    "pat": _pattern_number()}
         _st.memo["metro"] = _metronome_off()
     elif playing:
         _fn("transport", "stop")()
-    target = scoped(index)
+    target = None if index == ALL_CHANNELS else scoped(index)
     for i in range(total):
-        want = i != target
+        want = target is not None and i != target
         if bool(is_muted(i)) != want:
             mute(i)
+    if pattern is not None and _pattern_number() != pattern:
+        jump(pattern)
     if _fn("transport", "getLoopMode")() != 0:
         _fn("transport", "setLoopMode")()
     _fn("transport", "setSongPos")(0.0)
@@ -1735,7 +1764,8 @@ def _op_play_track(raw, seq3):
         if playing:
             return REASON_PLAYING
         _st.memo = {"kind": "pl", "n": total, "muted": [bool(is_muted(i + 1)) for i in range(total)],
-                    "mode": _fn("transport", "getLoopMode")(), "pos": _fn("transport", "getSongPos")()}
+                    "mode": _fn("transport", "getLoopMode")(), "pos": _fn("transport", "getSongPos")(),
+                    "pat": _pattern_number()}
         _st.memo["metro"] = _metronome_off()
     elif playing:
         _fn("transport", "stop")()
@@ -1747,14 +1777,107 @@ def _op_play_track(raw, seq3):
         _fn("transport", "setLoopMode")()
     _fn("transport", "setSongPos")(0.0)
     _fn("transport", "start")()
+    return 0 if _respond(OP_PLAY_TRACK, _u16(_song_bars()), seq3) else REASON_DATA
+
+
+def _song_bars():
+    """Longueur de la chanson en mesures (transport.getSongLength, API 3) ; 0 si inconnue."""
     length = _fn("transport", "getSongLength")
-    bars = 0
-    if length is not None and _api_at_least(3):
-        try:
-            bars = int(length(_const("SONGLENGTH_BARS", 3)))
-        except Exception:
-            bars = 0
-    return 0 if _respond(OP_PLAY_TRACK, _u16(max(0, bars)), seq3) else REASON_DATA
+    if length is None or not _api_at_least(3):
+        return 0
+    try:
+        return max(0, int(length(_const("SONGLENGTH_BARS", 3))))
+    except Exception:
+        return 0
+
+
+_SONG_FNS = (("transport", "start"), ("transport", "stop"), ("transport", "isPlaying"),
+             ("transport", "getLoopMode"), ("transport", "setLoopMode"), ("transport", "getSongPos"),
+             ("transport", "setSongPos"))
+
+
+def _op_play_song(raw, seq3):
+    """[16, pour mille (2)] -> [longueur de la chanson en mesures (2)] : toute la chanson à cette position, rien de
+    coupé (ce qui joue se lit avec l'opération 14). Au premier appel, mémo du mode, de la position, du pattern et du
+    métronome, remis par l'opération 7. FL qui joue sans écoute en cours : raison 4, rien n'est touché."""
+    if len(raw) != 3:
+        return REASON_DATA
+    permille = _be16(raw[1], raw[2])
+    if permille > 1000:
+        return REASON_DATA
+    if any(_fn(m, n) is None for m, n in _SONG_FNS):
+        return REASON_OLD_FL
+    if _st.memo is not None and _st.memo.get("kind") != "song":
+        _restore_memo()                    # une autre écoute était en cours
+    if _st.memo is None:
+        if _fn("transport", "isPlaying")():
+            return REASON_PLAYING
+        _st.memo = {"kind": "song", "mode": _fn("transport", "getLoopMode")(),
+                    "pos": _fn("transport", "getSongPos")(), "pat": _pattern_number()}
+        _st.memo["metro"] = _metronome_off()
+    if _fn("transport", "getLoopMode")() != 1:
+        _fn("transport", "setLoopMode")()
+    _fn("transport", "setSongPos")(permille / 1000.0)
+    if not _fn("transport", "isPlaying")():
+        _fn("transport", "start")()
+    return 0 if _respond(OP_PLAY_SONG, _u16(_song_bars()), seq3) else REASON_DATA
+
+
+def _active(level, index):
+    try:
+        v = level(index)
+    except Exception:
+        return False
+    return isinstance(v, (int, float)) and not isinstance(v, bool) and v > ACTIVITY_MIN
+
+
+def _bits(flags):
+    out = [0] * ((len(flags) + 7) // 8)
+    for i, on in enumerate(flags):
+        if on:
+            out[i // 8] |= 1 << (i % 8)
+    return out
+
+
+def _op_activity(raw, seq3):
+    """[14, genre] -> [genre, n (2), bits] : ce qui joue en ce moment, un bit par élément (bit i % 8 de l'octet
+    i // 8), MAX_ACTIVITY au plus. Genre 1 : canaux affichés du Channel rack dont une note joue (getActivityLevel,
+    API 9) ; genre 3 : pistes de la Playlist dont un clip est sous la tête de lecture (index 0 = piste 1). FL le
+    dit lui-même : rien n'est écouté."""
+    if len(raw) != 2:
+        return REASON_DATA
+    kind = raw[1]
+    if kind == KIND_CHANNELS:
+        fns = _fns("channels", "channelCount", "getActivityLevel")
+        if fns is None or not _api_at_least(9):
+            return REASON_OLD_FL
+        count, level = fns
+        n = count()
+        first = 0
+    elif kind == KIND_PLAYLIST:
+        fns = _fns("playlist", "trackCount", "getTrackActivityLevel")
+        if fns is None:
+            return REASON_OLD_FL
+        count, level = fns
+        n = count()
+        first = 1
+    else:
+        return REASON_DATA
+    if not _is_int(n) or n < 0:
+        return REASON_DATA
+    n = min(n, MAX_ACTIVITY)
+    flags = [_active(level, i + first) for i in range(n)]
+    return 0 if _respond(OP_ACTIVITY, [kind] + _u16(n) + _bits(flags), seq3) else REASON_DATA
+
+
+def _op_patterns(raw, seq3):
+    """[15] -> [nombre de patterns (2), pattern ouvert (2)]."""
+    if len(raw) != 1:
+        return REASON_DATA
+    count = _fn("patterns", "patternCount")
+    n = count() if count is not None else 0
+    return 0 if _respond(OP_PATTERNS, _u16(n if _is_int(n) else 0) + _u16(_pattern_number() or 0), seq3) \
+        else REASON_DATA
 
 
 def _op_seek(raw, seq3):
@@ -1820,6 +1943,8 @@ def _restore_memo():
         _fn("transport", "stop")()
 
     def mutes():
+        if memo.get("kind") == "song":
+            return                         # rien n'a été coupé
         if memo.get("kind", "ch") == "pl":
             is_muted, mute = _fn("playlist", "isTrackMuted"), _fn("playlist", "muteTrack")
             count = _fn("playlist", "trackCount")()
@@ -1843,7 +1968,12 @@ def _restore_memo():
         if memo.get("metro"):
             _gt("FPT_Metronome", 110)
 
-    for step in (stop, mutes, mode, pos, metro):
+    def pattern():
+        p = memo.get("pat")
+        if _is_int(p) and p >= 1 and _pattern_number() != p:
+            _fn("patterns", "jumpToPattern")(p)
+
+    for step in (stop, mutes, mode, pos, metro, pattern):
         try:                               # une étape qui échoue n'empêche pas les suivantes
             step()
         except Exception as exc:
@@ -1953,6 +2083,9 @@ _EXT_OPS = {
     OP_PLAY_TRACK: _op_play_track,
     OP_SEEK: _op_seek,
     OP_CHANNEL_TOGGLE: _op_channel_toggle,
+    OP_ACTIVITY: _op_activity,
+    OP_PATTERNS: _op_patterns,
+    OP_PLAY_SONG: _op_play_song,
 }
 
 

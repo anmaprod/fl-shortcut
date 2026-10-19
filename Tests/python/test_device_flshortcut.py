@@ -1584,6 +1584,77 @@ class TestDataV5(TestData):
         self.assertEqual((self.fl.loop_mode, self.fl.song_pos), (0, 0.25))
         self.assertIsNone(self.dev._st.memo)
 
+    # ------------------------------------------------------------ Organiser (script v11) : patterns, ce qui joue
+    def test_play_solo_in_another_pattern_then_restore(self):
+        self.make(n_channels=3, pattern=2, pattern_count=5)
+        self.data_command([6] + M.be16(1) + M.be16(4))       # canal 2, joué dans le pattern 4
+        self.assertEqual(self.last_ack(), DATA_ID)
+        self.assertEqual(self.fl.pattern, 4)
+        self.assertEqual(self.fl.ch_muted, {0, 2})
+        self.clock.t += 0.1
+        self.data_command([7])
+        self.assertEqual(self.fl.pattern, 2, "le pattern ouvert revient")
+        self.assertEqual(self.fl.ch_muted, set())
+        self.clock.t += 0.1
+        self.data_command([6] + M.be16(1) + M.be16(6))       # pattern inexistant
+        self.assertEqual(self.reasons(), [5])
+        self.assertIsNone(self.dev._st.memo)
+
+    def test_play_all_channels_of_a_pattern(self):
+        # Repérage : tous les canaux audibles (même ceux que l'utilisateur avait coupés), remis ensuite.
+        self.make(n_channels=3, ch_muted={1}, pattern=1, pattern_count=3)
+        self.data_command([6, 0xFF, 0xFF] + M.be16(3))
+        self.assertEqual(self.last_ack(), DATA_ID)
+        self.assertEqual((self.fl.ch_muted, self.fl.pattern), (set(), 3))
+        self.assertTrue(self.fl.playing)
+        self.clock.t += 0.1
+        self.data_command([7])
+        self.assertEqual((self.fl.ch_muted, self.fl.pattern), ({1}, 1))
+
+    def test_activity_of_channels_and_tracks(self):
+        self.make(n_channels=10, ch_activity={0: 0.7, 9: 0.2, 4: 0.005}, pl_tracks=12,
+                  pl_activity={1: 0.5, 12: 0.5})
+        self.data_command([14, 1])
+        op, data = self.answer()
+        self.assertEqual((op, data[:3]), (14, [1, 0, 10]))
+        self.assertEqual(data[3:], [0b00000001, 0b00000010], "canaux 1 et 10 ; 0,005 : rien ne joue")
+        self.clock.t += 0.1
+        self.data_command([14, 3])
+        op, data = self.answer()
+        self.assertEqual(data, [3, 0, 12, 0b00000001, 0b00001000])
+        self.clock.t += 0.1
+        self.data_command([14, 2])
+        self.assertEqual(self.reasons(), [5])
+        self.make(api=8, n_channels=2)
+        self.data_command([14, 1])
+        self.assertEqual(self.reasons(), [6], "getActivityLevel : API 9")
+
+    def test_patterns_info(self):
+        self.make(pattern=3, pattern_count=7)
+        self.data_command([15])
+        self.assertEqual(self.answer(), (15, [0, 7, 0, 3]))
+
+    def test_play_song_keeps_everything_and_restores(self):
+        self.make(pl_tracks=4, pl_muted={2}, loop_mode=0, song_pos=0.25, song_bars=40, pattern=2, metronome=True)
+        self.data_command([16] + M.be16(500))
+        self.assertEqual(self.last_ack(), DATA_ID)
+        self.assertEqual(self.answer(), (16, [0, 40]))
+        self.assertEqual((self.fl.loop_mode, self.fl.song_pos, self.fl.playing), (1, 0.5, True))
+        self.assertEqual(self.fl.pl_muted, {2}, "rien de coupé")
+        self.assertFalse(self.fl.metronome)
+        self.clock.t += 0.1
+        self.data_command([16] + M.be16(750))                 # autre position, même écoute
+        self.assertEqual(self.fl.song_pos, 0.75)
+        self.clock.t += 0.1
+        self.data_command([7])
+        self.assertEqual((self.fl.loop_mode, self.fl.song_pos, self.fl.playing), (0, 0.25, False))
+        self.assertTrue(self.fl.metronome)
+        self.assertIsNone(self.dev._st.memo)
+        self.make(playing=True)
+        self.data_command([16] + M.be16(0))
+        self.assertEqual(self.reasons(), [4])
+        self.assertTrue(self.fl.playing)
+
     def test_play_track_refuses_when_playing_or_bad(self):
         self.make(pl_tracks=4, playing=True)
         self.data_command([11] + M.be16(1))

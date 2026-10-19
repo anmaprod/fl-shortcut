@@ -213,6 +213,34 @@ final class OrganizerLinkTests: XCTestCase {
         XCTAssertNil(OrganizerPayload.decodeChannels(playlistPage(total: 1, start: 0, count: 1)), "autre genre")
     }
 
+    /// Script v11 : son joué dans un pattern, ce qui joue, patterns, toute la chanson.
+    func testV11Payloads() throws {
+        XCTAssertEqual(OrganizerPayload.playSolo(3), [6, 0, 3])
+        XCTAssertEqual(OrganizerPayload.playSolo(3, pattern: 12), [6, 0, 3, 0, 12])
+        XCTAssertEqual(OrganizerPayload.playSolo(OrganizerPayload.allChannels, pattern: 1), [6, 0xFF, 0xFF, 0, 1])
+        XCTAssertEqual(OrganizerPayload.activity(.channels), [14, 1])
+        XCTAssertEqual(OrganizerPayload.activity(.playlist), [14, 3])
+        XCTAssertEqual(OrganizerPayload.patterns, [15])
+        XCTAssertEqual(OrganizerPayload.playSong(0.5), [16, 0x01, 0xF4])
+        XCTAssertEqual(OrganizerPayload.decodeActivity([1, 0, 10, 0b0000_0001, 0b0000_0010], kind: .channels), [0, 9])
+        XCTAssertNil(OrganizerPayload.decodeActivity([1, 0, 10, 1], kind: .channels), "octet manquant")
+        XCTAssertNil(OrganizerPayload.decodeActivity([3, 0, 1, 1], kind: .channels), "autre genre")
+        XCTAssertEqual(OrganizerPayload.decodeActivity([3, 0, 0], kind: .playlist), [])
+        let info = try XCTUnwrap(OrganizerPayload.decodePatterns([0, 7, 0, 3]))
+        XCTAssertEqual([info.count, info.current], [7, 3])
+
+        // Un script plus ancien refuse ces opérations (5) : FL doit le recharger.
+        let old = RequestOrganizerLink(request: { _ in .refused(5) }, window: { .channelRack }, sleep: { _ in })
+        XCTAssertThrowsError(try old.activeChannels()) { XCTAssertEqual($0 as? OrganizerError, .outdatedScript) }
+        XCTAssertThrowsError(try old.playSolo(1, pattern: 2)) { XCTAssertEqual($0 as? OrganizerError, .outdatedScript) }
+        XCTAssertThrowsError(try old.playSolo(1)) { XCTAssertEqual($0 as? OrganizerError, .refused(5)) }
+        let now = RequestOrganizerLink(request: { bytes in
+            bytes[0] == 14 ? .answered([3, 0, 2, 0b10]) : .answered([0, 40])
+        }, window: { .playlist }, sleep: { _ in })
+        XCTAssertEqual(try now.activeTracks(), [1])
+        XCTAssertEqual(try now.playSong(at: 0.25), 40)
+    }
+
     func testPageAskedThenOldScriptFallback() throws {
         // Script v6 : la page vient de l'opération 9.
         let v6 = RequestOrganizerLink(request: { _ in .answered([1]) }, window: { .unknown }, sleep: { _ in })
