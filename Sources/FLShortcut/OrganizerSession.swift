@@ -39,16 +39,20 @@ struct OrganizerResult: Equatable {
 
 final class OrganizerSession {
     struct Timing {
-        /// Écoute de ta partie (le pattern depuis son début).
+        /// Écoute de ta partie (le pattern depuis son début), au plus.
         var listen: TimeInterval = 3
         /// Durée de chaque note d'essai.
         var testNote: TimeInterval = 0.3
         /// Queue du son après les notes d'essai.
-        var tail: TimeInterval = 0.6
+        var tail: TimeInterval = 0.4
         /// Échap est vu au plus tard après ce délai.
         var slice: TimeInterval = 0.05
         /// Playlist : écoute à chaque position essayée, jusqu'à ce que la piste sonne.
         var probe: TimeInterval = 0.4
+        /// Écoute après le premier son entendu : assez pour le classer (avant : `listen` entier pour chaque son).
+        var afterSound: TimeInterval = 1.5
+        /// Encore rien entendu au bout de ce délai : les notes d'essai tout de suite.
+        var silentGiveUp: TimeInterval = 1.5
     }
 
     typealias Classify = ([Float], Double) -> (family: SoundFamily, confidence: Double)
@@ -150,8 +154,7 @@ final class OrganizerSession {
             if isCancelled { throw OrganizerError.cancelled }
             audio.reset()
             try link.playSolo(channel.index)
-            try pause(timing.listen)
-            var samples = audio.take()
+            var samples = try listenUntilHeard()
             let tested = Self.peakDB(samples) < FamilyFusion.silenceDB
             if tested { samples = try playTestNotes(channel.index) }
             let verdict = classify(samples, audio.rate)
@@ -219,11 +222,27 @@ final class OrganizerSession {
             try pause(timing.probe)
             let heard = audio.take()
             if Self.peakDB(heard) >= FamilyFusion.silenceDB {
-                try pause(timing.listen)
+                try pause(min(timing.listen, timing.afterSound))
                 return heard + audio.take()
             }
         }
         return nil
+    }
+
+    /// Écoute jusqu'à `afterSound` après le premier son entendu (`listen` au plus) ; toujours muet au bout de
+    /// `silentGiveUp` : on arrête là (les notes d'essai prennent le relais). Le son reçu depuis `reset`.
+    private func listenUntilHeard() throws -> [Float] {
+        let step = timing.slice
+        let steps = max(1, Int((timing.listen / step).rounded(.up)))
+        var heardAt: Int?
+        for k in 1...steps {
+            try pause(step)
+            let elapsed = Double(k) * step
+            if heardAt == nil, Self.peakDB(audio.take()) >= FamilyFusion.silenceDB { heardAt = k }
+            if let at = heardAt, Double(k - at) * step >= timing.afterSound - 1e-9 { break }
+            if heardAt == nil, elapsed >= timing.silentGiveUp - 1e-9 { break }
+        }
+        return audio.take()
     }
 
     /// Chaque note est toujours coupée (vélocité 0), même après Échap.

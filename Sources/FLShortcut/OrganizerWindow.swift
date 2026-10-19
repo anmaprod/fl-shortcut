@@ -17,6 +17,26 @@ enum OrganizerLinkState: Equatable {
     case restored
 }
 
+extension OrganizerPage: Hashable {
+    var flPage: FLPage {
+        switch self {
+        case .channelRack: return .channelRack
+        case .mixer: return .mixer
+        case .playlist: return .playlist
+        }
+    }
+
+    var title: String { flPage.title }
+
+    var symbol: String {
+        switch self {
+        case .channelRack: return "square.stack.3d.up"
+        case .mixer: return "slider.vertical.3"
+        case .playlist: return "rectangle.split.3x1"
+        }
+    }
+}
+
 /// Ce dont l'Organiser a besoin du monde réel (des faux dans les tests).
 struct OrganizerEnvironment {
     var link: () -> OrganizerLink
@@ -46,6 +66,8 @@ struct OrganizerEnvironment {
     var reveal: (URL) -> Void = { _ in }
     /// Le script a dit être posé sur une autre entrée MIDI que « FL Shortcuts Link » (PROTOCOL.md §3).
     var wrongInput: () -> Bool = { false }
+    /// Met la page devant dans FL (hors du fil principal : réveil du lien).
+    var showPage: (OrganizerPage) -> Void = { _ in }
     var nameDrum: () -> OrganizerSession.NameDrum = { { _, _ in .perc } }
 
     static func live() -> OrganizerEnvironment {
@@ -68,6 +90,10 @@ struct OrganizerEnvironment {
             scriptPlace: { FLScriptInstaller.installedScript() },
             reveal: { NSWorkspace.shared.activateFileViewerSelecting([$0]) },
             wrongInput: { MIDILink.shared.core.snapshot.wrongInput },
+            showPage: { page in
+                guard let id = FLActions.id(forKey: page.flPage.actionKey) else { return }
+                _ = MIDILink.shared.runBriefly([id])
+            },
             nameDrum: { OrganizerSession.liveDrumNamer() })
     }
 
@@ -268,6 +294,16 @@ final class OrganizerController: ObservableObject {
         switch phase {
         case .setup, .failed, .waiting: return snapshot == nil
         default: return false
+        }
+    }
+
+    /// La page mise devant dans FL (lien avec FL, comme « Ouvrir une page de FL »), puis un nouvel essai.
+    func open(_ page: OrganizerPage) {
+        guard !closed else { return }
+        let show = env.showPage
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            show(page)
+            DispatchQueue.main.async { self?.retry() }
         }
     }
 
@@ -870,6 +906,19 @@ struct OrganizerView: View {
                     .foregroundStyle(.secondary)
             }
             .morphIn(2)
+            if reason == .openPage {
+                // La page mise devant dans FL par le lien, puis l'écoute tout de suite (plus besoin d'aller cliquer
+                // dans FL : signalé, l'Organiser semblait bloqué ici).
+                HStack(spacing: 8) {
+                    ForEach([OrganizerPage.channelRack, .mixer, .playlist], id: \.self) { page in
+                        Button { controller.open(page) } label: {
+                            Label(page.title, systemImage: page.symbol).frame(maxWidth: .infinity)
+                        }
+                        .controlSize(.large)
+                    }
+                }
+                .morphIn(3)
+            }
             if reason == .noResponse || reason == .restartFL || reason == .wrongInput {
                 linkHelpToggle.morphIn(3)
                 if controller.showLinkHelp {
@@ -904,8 +953,9 @@ struct OrganizerView: View {
         case .openFL:
             return ("macwindow", "Ouvre FL Studio", "Organiser commence dès que FL est ouvert, avec ton projet.")
         case .openPage:
-            return ("square.stack.3d.up", "Ouvre la page à organiser",
-                    "Clique dans le Channel rack, le Mixer ou la Playlist de FL.")
+            return ("square.stack.3d.up", "Choisis la page à organiser",
+                    "Elle s'ouvre dans FL et l'écoute commence. Ou clique toi-même dans le Channel rack, le Mixer "
+                    + "ou la Playlist de FL.")
         case .stopPlayback:
             return ("stop.fill", "Arrête la lecture dans FL",
                     "Organiser écoute chaque son seul : FL doit être à l'arrêt.")

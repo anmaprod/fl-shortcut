@@ -203,6 +203,25 @@ final class OrganizerSessionTests: XCTestCase {
         XCTAssertEqual(slept, 0.6, accuracy: 1e-9, "3 canaux × 0,2 s d'écoute")
     }
 
+    /// Plus rapide : un son entendu tout de suite n'est écouté que `afterSound` de plus ; un canal muet passe aux notes
+    /// d'essai au bout de `silentGiveUp` (avant : `listen` entier dans les deux cas).
+    func testListeningStopsOnceTheSoundIsHeard() throws {
+        let link = FakeOrganizerLink()
+        link.channels = [channel(0), channel(1)]
+        let audio = FakeAudio(link: link)
+        audio.parts = [0: tone(.bass)]
+        audio.testSounds = [1: tone(.melody)]
+        let fast = OrganizerSession.Timing(listen: 3, testNote: 0.1, tail: 0.1, slice: 0.1, probe: 0.1,
+                                           afterSound: 0.5, silentGiveUp: 1)
+        var slept = 0.0
+        let result = try OrganizerSession(link: link, audio: audio, classify: classify, nameDrum: { _, _ in .kick },
+                                          timing: fast, sleep: { slept += $0 }, progress: { _, _ in }).run().get()
+        XCTAssertEqual(result.items.map(\.family), [.bass, .melody])
+        XCTAssertEqual(result.items.map(\.testNotes), [false, true])
+        // Canal 0 : entendu à 0,1 s, puis 0,5 s ; canal 1 : muet 1 s, puis 2 notes de 0,1 s et 0,1 s de queue.
+        XCTAssertEqual(slept, 0.6 + 1 + 0.3, accuracy: 1e-6)
+    }
+
     func testSkipsLayerAndAutomation() throws {
         let link = FakeOrganizerLink()
         link.channels = [channel(0, type: 0), channel(1, type: ChannelInfo.layerType),
