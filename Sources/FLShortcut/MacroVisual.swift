@@ -371,14 +371,20 @@ enum ScreenLook {
     @discardableResult
     static func requestAccess() -> Bool { CGRequestScreenCaptureAccess() }
 
-    /// Demandée une seule fois en tout : avec le clavier (accueil, « Tout autoriser »), sinon au premier
-    /// enregistrement des clics. Jamais redemandée ensuite : sans elle, les clics gardent leur place apprise.
+    /// Demandée une seule fois en tout, avec le clavier (accueil, « Tout autoriser ») ou à l'option « Retrouver ce
+    /// bouton s'il bouge » : jamais au milieu d'autre chose (la fenêtre de macOS passait derrière FL, ou derrière
+    /// Réglages Système). Sans elle, les clics gardent leur place apprise.
     static let askedKey = "screenNamesAsked"
 
-    static func requestOnce(_ defaults: UserDefaults = .standard) {
-        guard available, !allowed, !defaults.bool(forKey: askedKey) else { return }
+    /// Vrai si la fenêtre de macOS vient d'être demandée (première fois) : elle porte son propre bouton « Ouvrir
+    /// Réglages Système… », rien d'autre ne doit passer devant elle.
+    @discardableResult
+    static func requestOnce(_ defaults: UserDefaults = .standard) -> Bool {
+        guard available, !allowed, !defaults.bool(forKey: askedKey) else { return false }
         defaults.set(true, forKey: askedKey)
+        NSApp.activate(ignoringOtherApps: true)          // la fenêtre de macOS au premier plan, devant FL
         requestAccess()
+        return true
     }
 
     static func openSettings() {

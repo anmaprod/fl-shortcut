@@ -53,8 +53,9 @@ final class AccessibilityGuide: ObservableObject {
     /// Inscrit FL Shortcuts dans la liste « Enregistrement de l'écran » (fenêtre de macOS la première fois) et l'ouvre.
     private func askScreen() {
         stage = .screen
-        ScreenLook.requestOnce()
-        ScreenLook.openSettings()
+        // Première fois : la fenêtre de macOS, avec son bouton « Ouvrir Réglages Système… » (ouvrir les réglages en
+        // même temps la cachait derrière eux). Déjà demandée : directement la bonne liste des réglages.
+        if !ScreenLook.requestOnce() { ScreenLook.openSettings() }
     }
 
     private func check() {
@@ -177,14 +178,16 @@ private struct AccessibilityGuideView: View {
         } else {
             HStack(spacing: 10) {
                 AppIcon().frame(width: 36, height: 36)
-                Text("Dans la fenêtre Enregistrement de l'écran qui vient de s'ouvrir :")
+                Text("Autorise « Enregistrement de l'écran » :")
                     .font(.headline)
                     .fixedSize(horizontal: false, vertical: true)
             }
-            step(1, "Active l'interrupteur à côté de FL Shortcuts.")
+            step(1, "Dans la fenêtre de macOS, clique « Ouvrir Réglages Système… » (pas de fenêtre ? « Ouvrir les "
+                 + "réglages » ci-dessous).")
+            step(2, "Active l'interrupteur à côté de FL Shortcuts.")
             SwitchPreview()
                 .padding(.leading, 28)
-            step(2, "macOS propose « Quitter et rouvrir » : accepte, FL Shortcuts revient tout seul.")
+            step(3, "macOS propose « Quitter et rouvrir » : accepte, FL Shortcuts revient tout seul.")
             Text("Facultatif : sert seulement à retrouver les boutons de FL par leur nom. Seule la fenêtre de FL est lue, "
                  + "au moment du clic, jamais enregistrée.")
                 .font(.callout)
@@ -193,6 +196,7 @@ private struct AccessibilityGuideView: View {
             HStack {
                 Spacer()
                 Button("Plus tard") { guide.close() }
+                Button("Ouvrir les réglages") { ScreenLook.openSettings() }
             }
         }
     }

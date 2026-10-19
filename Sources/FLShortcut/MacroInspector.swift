@@ -670,10 +670,11 @@ private struct BlockInspector: View {
             setBody(key: "target") { if case .click(_, let b) = $0 { $0 = .click(place, button: b) } }
             return
         }
-        guard ScreenLook.allowed || ScreenLook.requestAccess() else {
+        guard ScreenLook.allowed else {
             teacher.say("Autorise FL Shortcuts dans Réglages Système › Confidentialité et sécurité › Enregistrement de "
                         + "l'écran (rouvre l'app si macOS le demande), puis réactive l'option.", for: block.id)
-            ScreenLook.openSettings()
+            // Pas encore demandée : la fenêtre de macOS seule (les réglages ouverts en même temps la cachaient).
+            if !ScreenLook.requestOnce() { ScreenLook.openSettings() }
             return
         }
         teach(visual: true)

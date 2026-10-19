@@ -150,9 +150,8 @@ final class MuteSwitchTeacher: ObservableObject {
             message = "Ouvre FL Studio, puis recommence."
             return
         }
-        // L'image du bouton demande de lire la fenêtre de FL : autorisation demandée une seule fois en tout (sans
-        // elle, la hauteur seule).
-        ScreenLook.requestOnce()
+        // L'image du bouton demande de lire la fenêtre de FL : autorisation demandée à l'accueil seulement (FL passe
+        // ici devant la fenêtre de macOS) ; sans elle, la hauteur seule.
         self.pid = pid
         returnWindow = window
         first = nil

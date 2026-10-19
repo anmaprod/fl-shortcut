@@ -481,9 +481,9 @@ final class ClickSequenceRecorder: ObservableObject {
         naming = DispatchGroup()
         finishing = false
         generation += 1
-        // Boutons retenus par leur nom : il faut lire la fenêtre de FL au moment du clic. Demandé une seule fois en
-        // tout (d'habitude déjà à l'accueil) ; sans l'autorisation, les clics gardent leur place, comme avant.
-        if MacroRunner.testFLPID == nil { ScreenLook.requestOnce() }
+        // Boutons retenus par leur nom : il faut lire la fenêtre de FL au moment du clic, autorisation demandée à
+        // l'accueil seulement (ici, FL passait aussitôt devant la fenêtre de macOS) ; sans elle, les clics gardent
+        // leur place, comme avant.
         history = [WinSnapshot.take(pid: pid)]
         started = Date()
         count = 0
