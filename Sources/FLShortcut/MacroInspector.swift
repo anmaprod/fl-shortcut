@@ -142,10 +142,9 @@ private struct BlockInspector: View {
     @ViewBuilder private var noSettings: some View {
         switch block.body {
         case .menuBar(let titles):
-            Text("\(titles.map { $0.displaySafe(max: 40) }.joined(separator: " › ")) : choisi par son nom dans la barre "
-                 + "des menus de macOS (rien n'est cliqué à l'écran). Pour un autre élément, enregistre de nouveau tes clics.")
-                .font(.system(size: 12))
-                .fixedSize(horizontal: false, vertical: true)
+            MenuBarField(titles: titles) { path in
+                setBody(key: "titles") { $0 = .menuBar(titles: path) }
+            }
         case .selectInput:
             VStack(alignment: .leading, spacing: 6) {
                 Text(MacroSpots.loadPath(.input) != nil

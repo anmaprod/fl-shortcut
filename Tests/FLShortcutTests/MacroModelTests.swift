@@ -156,9 +156,10 @@ final class MacroModelTests: XCTestCase {
     }
 
     /// Valeur par défaut de chaque type : valide seule (variable « n » déclarée). « Cliquer sur… » demande sa page
-    /// au-dessus : valide sous « Ouvrir une page de FL » par défaut.
+    /// au-dessus : valide sous « Ouvrir une page de FL » par défaut. « Menu de FL » : vide, à choisir dans les menus
+    /// de FL (MacroClickSequenceTests).
     func testDefaultsAreValid() {
-        for t in BlockType.allCases where t != .pageOption {
+        for t in BlockType.allCases where t != .pageOption && t != .menuBar {
             let p = program([Block(BlockRegistry.spec(t).parDefaut())], variables: [VariableDecl(name: "n")])
             XCTAssertNil(p.problem, "\(t)")
         }
@@ -174,6 +175,7 @@ final class MacroModelTests: XCTestCase {
         }
         XCTAssertFalse(shown.contains(.menuAX))
         XCTAssertTrue(shown.contains(.trackMenu))
+        XCTAssertTrue(shown.contains(.menuBar))
         XCTAssertEqual(Set(shown).count, shown.count)
     }
 

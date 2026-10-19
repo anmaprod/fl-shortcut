@@ -782,20 +782,21 @@ private enum Specs {
         import_: .ok, plateformes: .mac)
 
     static let menuBar = BlockSpec(
-        type: .menuBar, label: "Menu de FL (barre des menus)", category: .fl, symbol: "menubar.rectangle",
-        aide: "Choisit un élément des menus de FL dans la barre des menus de macOS (Options › Audio settings…) par son nom, grâce à l'Accessibilité : rien n'est cliqué à l'écran. Créé par « Enregistrer des clics ».",
+        type: .menuBar, label: "Menu de FL", category: .fl, symbol: "menubar.rectangle",
+        aide: "Choisit un élément des menus de FL (File › Export › …) : tu parcours ses menus comme dans FL, puis la macro le choisit par son nom dans la barre des menus de macOS, grâce à l'Accessibilité : rien n'est cliqué à l'écran.",
         params: [],
-        conteneur: .aucun, dansLaPalette: false,
+        conteneur: .aucun, dansLaPalette: true,
         needs: { _ in base },
-        parDefaut: { .menuBar(titles: ["Options", "Audio settings"]) },
+        parDefaut: { .menuBar(titles: []) },
         resume: { body, _ in
             guard case .menuBar(let titles) = body else { return "" }
-            return titles.map { $0.displaySafe(max: 30) }.joined(separator: " › ")
+            return titles.isEmpty ? "à choisir" : titles.map { $0.displaySafe(max: 30) }.joined(separator: " › ")
         },
         journal: { _ in "menuBar" },
         estimationMs: { _ in 400 },
         valider: { body, ctx in
             guard case .menuBar(let titles) = body else { return nil }
+            guard !titles.isEmpty else { return ctx.fail("choisis l'élément dans les menus de FL.") }
             guard (2...MenuBarAX.maxDepth).contains(titles.count),
                   titles.allSatisfy({ !$0.trimmingCharacters(in: .whitespaces).isEmpty && $0.count <= 80 }) else {
                 return ctx.fail("chemin de menu invalide.")

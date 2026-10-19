@@ -411,7 +411,7 @@ enum MacroOutline {
         case .pageOption:
             return ("Cliquer sur", resumeAfter(""))
         case .menuBar(let titles):
-            return ("Menu de FL", titles.map { $0.displaySafe(max: 30) }.joined(separator: " › "))
+            return ("Menu de FL", titles.isEmpty ? "à choisir" : titles.map { $0.displaySafe(max: 30) }.joined(separator: " › "))
         case .menuAX(let titles, _):
             return ("Menu", titles.map { $0.displaySafe(max: 30) }.joined(separator: " › "))
         case .ifElse:

@@ -119,18 +119,59 @@ enum MenuBarAX {
     /// barre de macOS.
     static func entries(pid: Int32, under path: [String], limit: Int = 400) -> [[String]] {
         defer { closeMenus(pid: pid) }                     // ouverts par `find` ou ici : jamais laissés ouverts
-        guard let parent = find(pid: pid, titles: path, openIfNeeded: true, stop: { nil }) else { return [] }
-        var menu = submenu(of: parent)
-        if menu.map({ children($0).isEmpty }) ?? true {
-            AXUIElementPerformAction(parent, kAXPressAction as CFString)
-            Thread.sleep(forTimeInterval: 0.25)
-            menu = submenu(of: parent)
-        }
-        guard let menu else { return [] }
+        guard let menu = filledMenu(pid: pid, under: path) else { return [] }
         var out: [[String]] = []
         collect(menu, prefix: [], depth: maxDepth - path.count, into: &out, limit: limit)
         return out
     }
+
+    /// Un élément d'un niveau des menus de FL : son titre, s'il ouvre un sous-menu, s'il est grisé en ce moment.
+    struct Entry: Equatable {
+        let title: String
+        let submenu: Bool
+        var enabled = true
+    }
+
+    /// Un niveau des menus de FL, pour les parcourir comme dans FL (« Menu de FL ») : `path` vide → les menus de la
+    /// barre (File, Edit, Add…) ; sinon les éléments du menu `path`, ouvert le temps de le lire si FL ne le remplit
+    /// qu'à son ouverture, puis refermé. Vide si FL n'a pas ses menus dans la barre de macOS. Jamais journalisé.
+    static func level(pid: Int32, under path: [String], limit: Int = 150) -> [Entry] {
+        if path.isEmpty {
+            let app = AXUIElementCreateApplication(pid)
+            AXUIElementSetMessagingTimeout(app, 0.5)
+            guard let bar = element(app, kAXMenuBarAttribute as String) else { return [] }
+            return children(bar).prefix(20).compactMap { item in
+                guard let t = title(item), t != "Apple" else { return nil }      // le menu Apple n'est pas celui de FL
+                return Entry(title: t, submenu: true)
+            }
+        }
+        defer { closeMenus(pid: pid) }
+        guard let menu = filledMenu(pid: pid, under: path) else { return [] }
+        return children(menu).prefix(limit).compactMap { entry in
+            guard let t = title(entry), !t.contains("›") else { return nil }    // séparateurs : sans titre
+            return Entry(title: t, submenu: submenu(of: entry) != nil,
+                         enabled: bool(entry, kAXEnabledAttribute as String) != false)
+        }
+    }
+
+    /// Menu de `path` (celui de son dernier titre), ouvert s'il est encore vide (FL remplit certains menus à leur
+    /// ouverture : Add › Channel, Tools › Macros…). Les menus ouverts sont à refermer par l'appelant.
+    private static func filledMenu(pid: Int32, under path: [String]) -> AXUIElement? {
+        guard let parent = find(pid: pid, titles: path, openIfNeeded: true, stop: { nil }) else { return nil }
+        var menu = submenu(of: parent)
+        if menu.map({ children($0).isEmpty }) ?? true {
+            AXUIElementPerformAction(parent, kAXPressAction as CFString)
+            for _ in 0..<Self.fillSteps {
+                Thread.sleep(forTimeInterval: 0.1)
+                menu = submenu(of: parent)
+                if menu.map({ !children($0).isEmpty }) ?? false { break }
+            }
+        }
+        return menu
+    }
+
+    /// Menu que FL remplit à son ouverture : relu toutes les 100 ms, 1 s au plus (0,15 s ne suffisait pas toujours).
+    static let fillSteps = 10
 
     /// Feuilles de `menu` (avec les titres des sous-menus traversés), `depth` titres au plus par chemin.
     private static func collect(_ menu: AXUIElement, prefix: [String], depth: Int, into out: inout [[String]],
@@ -168,8 +209,10 @@ enum MenuBarAX {
             if next == nil, level > 0, openIfNeeded {
                 AXUIElementPerformAction(current, kAXPressAction as CFString)
                 opened = true
-                Thread.sleep(forTimeInterval: 0.15)
-                next = child(of: current, titled: wanted, inMenu: true)
+                for _ in 0..<Self.fillSteps where next == nil && stop() == nil {
+                    Thread.sleep(forTimeInterval: 0.1)
+                    next = child(of: current, titled: wanted, inMenu: true)
+                }
             }
             guard let found = next else {
                 if opened { closeMenus(pid: pid) }

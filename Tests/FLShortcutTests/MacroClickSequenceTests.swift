@@ -100,7 +100,38 @@ final class MacroClickSequenceTests: XCTestCase {
         XCTAssertNotNil(spec.valider(.menuBar(titles: ["Options", " "]), ctx))
         XCTAssertNotNil(spec.valider(.menuBar(titles: Array(repeating: "Niveau", count: MenuBarAX.maxDepth + 1)), ctx))
         XCTAssertEqual(BlockRegistry.journal(of: .menuBar(titles: ["Secret", "Voix"])), "menuBar")
-        XCTAssertFalse(spec.dansLaPalette)
+        XCTAssertTrue(spec.dansLaPalette)
+        // Ajouté depuis la palette : vide, à choisir dans les menus de FL.
+        XCTAssertEqual(spec.parDefaut(), .menuBar(titles: []))
+        XCTAssertEqual(spec.valider(.menuBar(titles: []), ctx)?.contains("menus de FL"), true)
+        XCTAssertEqual(spec.resume(.menuBar(titles: []), FakeLayout.qwerty), "à choisir")
+    }
+
+    /// Menus de FL parcourus comme dans FL : un menu de la barre, puis ses sous-menus, jusqu'à l'élément choisi.
+    func testMenuNavigation() {
+        let file = MenuBarAX.Entry(title: "File", submenu: true)
+        let export = MenuBarAX.Entry(title: "Export", submenu: true)
+        let stems = MenuBarAX.Entry(title: "All playlist tracks", submenu: false)
+        XCTAssertEqual(FLMenuNav.step(path: [], entry: file), .open(["File"]))
+        XCTAssertEqual(FLMenuNav.step(path: ["File"], entry: export), .open(["File", "Export"]))
+        XCTAssertEqual(FLMenuNav.step(path: ["File", "Export"], entry: stems), .choose(["File", "Export", "All playlist tracks"]))
+        // Grisé dans FL en ce moment : se choisit quand même (il peut être actif quand la macro tourne).
+        let paste = MenuBarAX.Entry(title: "Paste", submenu: false, enabled: false)
+        XCTAssertEqual(FLMenuNav.step(path: ["Edit"], entry: paste), .choose(["Edit", "Paste"]))
+        // Un sous-menu dont les éléments dépasseraient ce que le bloc rejoue ne s'ouvre pas ; un titre de la barre
+        // seul n'est pas un choix.
+        let deep = Array(repeating: "Niveau", count: MenuBarAX.maxDepth - 1)
+        XCTAssertEqual(FLMenuNav.step(path: deep, entry: export), .none)
+        XCTAssertEqual(FLMenuNav.step(path: [], entry: MenuBarAX.Entry(title: "Help", submenu: false)), .none)
+        // Chaque chemin choisi est valable pour le bloc.
+        let ctx = ValidationContext(forbidden: .physical)
+        if case .choose(let path) = FLMenuNav.step(path: Array(deep.dropLast()), entry: stems) {
+            XCTAssertNil(BlockRegistry.spec(.menuBar).valider(.menuBar(titles: path), ctx))
+        } else {
+            XCTFail("élément au dernier niveau rejouable")
+        }
+        XCTAssertEqual(FLMenuNav.start(for: ["File", "Export", "Wave file"]), ["File", "Export"])
+        XCTAssertEqual(FLMenuNav.start(for: []), [])
     }
 
     private func key(_ code: UInt16, _ char: String?, menu: Bool = false, command: Bool = false,
