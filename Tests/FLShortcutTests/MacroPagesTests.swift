@@ -99,6 +99,47 @@ final class MacroPagesTests: XCTestCase {
     }
 
     /// Plugin choisi dans la liste lue dans FL : un sous-menu du menu Add devient un niveau de plus du chemin.
+    /// Tous les plugins installés (Plugin database de FL), pas seulement les favoris du menu Add ; un plugin choisi
+    /// hors des favoris y est ajouté (dossier « FL Shortcuts »), retiré à la désinstallation.
+    func testInstalledPluginsAndFavorites() throws {
+        let fm = FileManager.default
+        let root = fm.temporaryDirectory.appendingPathComponent("plugin-db-\(UUID().uuidString)", isDirectory: true)
+        defer { try? fm.removeItem(at: root) }
+        func touch(_ path: String) throws {
+            let url = root.appendingPathComponent(path)
+            try fm.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+            try Data("x".utf8).write(to: url)
+        }
+        try touch("Installed/Generators/VST3/Serum 2.fst")
+        try touch("Installed/Generators/VST3/Serum 2.nfo")
+        try touch("Installed/Generators/AU/Kontakt 8.nfo")
+        try touch("Installed/Generators/VST3/notes.txt")
+        try touch("Installed/Effects/VST3/Pro-Q 4.fst")
+        let generators = FLPluginDatabase.installed(.generators, root: root)
+        XCTAssertEqual(generators.map(\.name), ["Kontakt 8", "Serum 2"])
+        XCTAssertEqual(generators.map(\.format), ["AU", "VST3"])
+        XCTAssertEqual(generators[1].files.count, 2)
+        XCTAssertEqual(FLPluginDatabase.installed(.effects, root: root).map(\.name), ["Pro-Q 4"])
+        XCTAssertEqual(FLPluginList.formats(generators).map(\.format), ["AU", "VST3"])
+        XCTAssertEqual(FLPluginList.formats(generators)[1].items.map(\.index), [1])
+
+        let path = try XCTUnwrap(FLPluginDatabase.addFavorite(generators[1], kind: .generators, root: root))
+        XCTAssertEqual(path, "FL Shortcuts › Serum 2")
+        XCTAssertTrue(fm.fileExists(atPath: root.appendingPathComponent("Generators/FL Shortcuts/Serum 2.fst").path))
+        XCTAssertEqual(FLPluginDatabase.addFavorite(generators[1], kind: .generators, root: root), path, "déjà là")
+        // Rejoué par le menu : Add › Channel › FL Shortcuts › Serum 2.
+        let add = try XCTUnwrap(PageOptions.option("channelRack.addInstrument", layout: layout))
+        XCTAssertEqual(PageOptions.body(add, name: path, layout: layout),
+                       .menuBar(titles: ["Add", "Channel", "FL Shortcuts", "Serum 2"]))
+        XCTAssertEqual(FLPluginDatabase.favoriteFolders(root: root).map(\.lastPathComponent), ["FL Shortcuts"])
+        try touch("Generators/FL Shortcuts/autre chose.flp")
+        XCTAssertTrue(FLPluginDatabase.favoriteFolders(root: root).isEmpty, "jamais un dossier avec autre chose")
+        // Dossier de données de FL : à côté du script installé.
+        let script = URL(fileURLWithPath: "/Users/x/Documents/Image-Line/FL Studio/Settings/Hardware/FL Shortcuts/device_FLShortcut.py")
+        XCTAssertEqual(FLPluginDatabase.root(script: script).path,
+                       "/Users/x/Documents/Image-Line/FL Studio/Presets/Plugin database")
+    }
+
     func testPluginPathsAndGroups() throws {
         let add = try XCTUnwrap(PageOptions.option("mixer.addEffect", layout: layout))
         XCTAssertEqual(PageOptions.body(add, name: "Fruity › Fruity Limiter", layout: layout),

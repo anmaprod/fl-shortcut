@@ -1093,14 +1093,17 @@ private struct SoundCardField: View {
     }
 }
 
-/// Plugin à ajouter : la liste de ceux du menu Add › Channel ou Effect de FL (lue sans rien ouvrir ni cliquer), sinon
-/// le nom à écrire.
+/// Plugin à ajouter : les favoris du menu Add › Channel ou Effect de FL, puis tous les plugins installés (Plugin
+/// database de FL) ; sinon le nom à écrire. Un plugin hors des favoris y est ajouté (FLPluginDatabase).
 private struct PluginField: View {
     let item: String
     let value: String
     let set: (String) -> Void
     @ObservedObject private var list: FLPluginList
     @State private var typing = false
+    @State private var problem: String?
+
+    private static let installedTag = "installed:"
 
     init(item: String, value: String, set: @escaping (String) -> Void) {
         self.item = item
@@ -1113,23 +1116,36 @@ private struct PluginField: View {
         VStack(alignment: .leading, spacing: 6) {
             if case .loaded(let names) = list.state, !typing {
                 HStack(spacing: 6) {
-                    Picker("Plugin", selection: Binding(get: { value }, set: set)) {
+                    Picker("Plugin", selection: Binding(get: { value }, set: { choose($0, names: names) })) {
                         if value.isEmpty { Text("À choisir").tag("") }
                         if !value.isEmpty, !names.contains(value) { Text(value).tag(value) }
                         ForEach(Array(FLPluginList.groups(names).enumerated()), id: \.offset) { _, group in
-                            if let title = group.title {
-                                Section(title) {
-                                    ForEach(group.names, id: \.self) { name in
-                                        Text(PageOptions.pluginPath(name).dropFirst().joined(separator: PageOptions.pathSeparator))
-                                            .tag(name)
-                                    }
+                            Section(group.title.map { "Favoris · \($0)" } ?? "Favoris du menu Add") {
+                                ForEach(group.names, id: \.self) { name in
+                                    Text(group.title == nil ? name
+                                         : PageOptions.pluginPath(name).dropFirst().joined(separator: PageOptions.pathSeparator))
+                                        .tag(name)
                                 }
-                            } else {
-                                ForEach(group.names, id: \.self) { name in Text(name).tag(name) }
+                            }
+                        }
+                        ForEach(FLPluginList.formats(list.installed), id: \.format) { format in
+                            Section("Tous les plugins · \(format.format)") {
+                                ForEach(format.items, id: \.index) { entry in
+                                    Text(entry.name).tag(Self.installedTag + String(entry.index))
+                                }
                             }
                         }
                     }
                     reloadButton
+                }
+                if let problem {
+                    Text(problem).foregroundStyle(.orange).font(.system(size: 11))
+                } else if value.hasPrefix(FLPluginDatabase.folderName + PageOptions.pathSeparator), !names.contains(value) {
+                    Text("Ajouté à tes favoris de FL (Add › \(item) › \(FLPluginDatabase.folderName)) pour que la macro le "
+                         + "choisisse sans souris. Si FL est ouvert, quitte-le et rouvre-le une fois pour qu'il le voie.")
+                        .font(.system(size: 11))
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
                 Button("Écrire le nom moi-même") { withAnimation(Motion.quickMorph) { typing = true } }
                     .buttonStyle(.link)
@@ -1161,6 +1177,25 @@ private struct PluginField: View {
         .onAppear { list.loadIfNeeded() }
     }
 
+    /// Un favori du menu : tel quel. Un plugin installé : son favori s'il en a un, sinon ajouté aux favoris de FL.
+    private func choose(_ choice: String, names: [String]) {
+        problem = nil
+        guard choice.hasPrefix(Self.installedTag), let i = Int(choice.dropFirst(Self.installedTag.count)),
+              list.installed.indices.contains(i) else {
+            set(choice)
+            return
+        }
+        let plugin = list.installed[i]
+        if let favorite = names.first(where: { PageOptions.pluginPath($0).last == plugin.name }) {
+            set(favorite)
+        } else if let path = FLPluginDatabase.addFavorite(plugin, kind: list.kind, root: FLPluginDatabase.root()) {
+            set(path)
+        } else {
+            problem = "Impossible de l'ajouter aux favoris de FL (dossier Plugin database de FL protégé ?) : écris le nom "
+                + "d'un plugin du menu Add."
+        }
+    }
+
     private var reloadButton: some View {
         Button { list.reload() } label: { Image(systemName: "arrow.clockwise") }
             .buttonStyle(.borderless)
@@ -1168,11 +1203,13 @@ private struct PluginField: View {
     }
 }
 
-/// Plugins du menu Add › Channel ou Effect de FL, lus dans la barre des menus de macOS (Accessibilité, sans rien
-/// ouvrir ni cliquer), pour « Cliquer sur… ». Lus à la première demande, relus avec le bouton ; jamais journalisés.
+/// Plugins du menu Add › Channel ou Effect de FL (barre des menus de macOS, Accessibilité, sans clic), et tous les
+/// plugins installés (Plugin database de FL, sur le disque), pour « Cliquer sur… ». Lus à la première demande, relus
+/// avec le bouton ; jamais journalisés.
 final class FLPluginList: ObservableObject {
     enum State: Equatable {
         case loading
+        /// Favoris du menu Add (peut être vide quand seuls les plugins installés sont connus).
         case loaded([String])
         case unavailable(String)
     }
@@ -1183,6 +1220,10 @@ final class FLPluginList: ObservableObject {
 
     let item: String
     @Published private(set) var state: State?
+    /// Tous les plugins installés de cette sorte (Plugin database de FL).
+    @Published private(set) var installed: [FLPluginDatabase.Plugin] = []
+
+    var kind: FLPluginDatabase.Kind { item == "Effect" ? .effects : .generators }
 
     private init(item: String) { self.item = item }
 
@@ -1192,24 +1233,55 @@ final class FLPluginList: ObservableObject {
 
     func reload() {
         guard state != .loading else { return }
-        guard AXIsProcessTrusted() else {
-            state = .unavailable("Autorise l'Accessibilité à FL Shortcuts pour voir la liste de tes plugins, ou écris le nom.")
-            return
-        }
-        guard let pid = OrganizerEnvironment.flPID() else {
-            state = .unavailable(Self.flClosed)
-            return
-        }
+        let trusted = AXIsProcessTrusted()
+        let pid = trusted ? OrganizerEnvironment.flPID() : nil
         state = .loading
         let path = ["Add", item]
+        let kind = self.kind
         DispatchQueue.global(qos: .userInitiated).async {
-            let names = MenuBarAX.entries(pid: pid, under: path).map { $0.joined(separator: PageOptions.pathSeparator) }
+            let installed = FLPluginDatabase.installed(kind, root: FLPluginDatabase.root())
+            let names = pid.map { pid in
+                MenuBarAX.entries(pid: pid, under: path).map { $0.joined(separator: PageOptions.pathSeparator) }
+            } ?? []
             DispatchQueue.main.async {
-                self.state = names.isEmpty
-                    ? .unavailable("Liste introuvable dans les menus de FL (FL 2024.2 ou plus récent) : écris le nom.")
-                    : .loaded(names)
+                self.installed = installed
+                if !names.isEmpty || !installed.isEmpty {
+                    self.state = .loaded(names)
+                } else if !trusted {
+                    self.state = .unavailable("Autorise l'Accessibilité à FL Shortcuts pour voir la liste de tes plugins, "
+                                              + "ou écris le nom.")
+                } else if pid == nil {
+                    self.state = .unavailable(Self.flClosed)
+                } else {
+                    self.state = .unavailable("Liste introuvable dans FL : écris le nom.")
+                }
             }
         }
+    }
+
+    struct Format: Equatable {
+        struct Entry: Equatable {
+            /// Place dans `installed`.
+            let index: Int
+            let name: String
+        }
+
+        let format: String
+        var items: [Entry]
+    }
+
+    /// Pure (testée) : plugins installés rangés par format (VST, VST3, AU…), avec leur place dans la liste.
+    static func formats(_ plugins: [FLPluginDatabase.Plugin]) -> [Format] {
+        var out: [Format] = []
+        for (i, plugin) in plugins.enumerated() {
+            let entry = Format.Entry(index: i, name: plugin.name)
+            if let last = out.indices.last, out[last].format == plugin.format {
+                out[last].items.append(entry)
+            } else {
+                out.append(Format(format: plugin.format, items: [entry]))
+            }
+        }
+        return out
     }
 
     private static let flClosed = "Ouvre FL Studio pour choisir dans la liste de tes plugins, ou écris le nom."

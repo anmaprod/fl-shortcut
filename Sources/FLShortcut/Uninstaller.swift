@@ -251,6 +251,14 @@ enum Uninstaller {
         for folder in scripts where FLScriptInstaller.isOurScriptFolder(folder) {
             if (try? fm.removeItem(at: folder)) != nil { note("le script FL Shortcuts dans FL Studio") }
         }
+        // Favoris ajoutés par « Cliquer sur… » dans la base de plugins de FL (dossiers « FL Shortcuts », que des
+        // fichiers de plugins dedans).
+        let recordedScript = defaults.string(forKey: ScriptIntegrity.pathKey).map { URL(fileURLWithPath: $0) }
+        let pluginRoots = Set([FLPluginDatabase.root(script: recordedScript, home: home),
+                               FLPluginDatabase.root(script: nil, home: home)].map(\.standardizedFileURL))
+        for folder in pluginRoots.flatMap({ FLPluginDatabase.favoriteFolders(root: $0) }) {
+            if (try? fm.removeItem(at: folder)) != nil { note("les plugins ajoutés aux favoris de FL") }
+        }
 
         // 3. Trousseau : clé du script (et son fichier de repli), session du compte (jamais le mot de passe).
         // Seule la présence est lue, jamais le secret : rangé par une autre version de l'app, le lire ferait
