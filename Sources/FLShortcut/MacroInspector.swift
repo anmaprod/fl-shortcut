@@ -1120,7 +1120,8 @@ private struct PluginField: View {
                             if let title = group.title {
                                 Section(title) {
                                     ForEach(group.names, id: \.self) { name in
-                                        Text(PageOptions.pluginPath(name).last ?? name).tag(name)
+                                        Text(PageOptions.pluginPath(name).dropFirst().joined(separator: PageOptions.pathSeparator))
+                                            .tag(name)
                                     }
                                 }
                             } else {

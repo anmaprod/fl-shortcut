@@ -112,29 +112,39 @@ enum MenuBarAX {
         return nil
     }
 
-    /// Éléments d'un menu de la barre de FL (`path` : titre du menu, puis élément), avec ceux de ses sous-menus (un
-    /// niveau : [sous-menu, élément]) : les plugins d'Add › Channel ou Effect pour « Cliquer sur… ». Lu sans rien
-    /// ouvrir (FL n'est pas devant) : vide si FL n'a pas ses menus dans la barre de macOS, ou ne les remplit qu'ouverts.
+    /// Éléments d'un menu de la barre de FL (`path` : titre du menu, puis élément), avec ceux de ses sous-menus
+    /// (chemins complets sous `path`, jusqu'à la profondeur que « Menu de FL » sait rejouer) : les plugins d'Add ›
+    /// Channel ou Effect pour « Cliquer sur… ». Un menu que FL ne remplit qu'à son ouverture (signalé : Add › Channel
+    /// vide, Add › Effect rempli) est ouvert le temps de le lire, puis refermé. Vide si FL n'a pas ses menus dans la
+    /// barre de macOS.
     static func entries(pid: Int32, under path: [String], limit: Int = 400) -> [[String]] {
-        guard let parent = find(pid: pid, titles: path, openIfNeeded: false, stop: { nil }),
-              let menu = submenu(of: parent) else { return [] }
-        var out: [[String]] = []
-        func usable(_ el: AXUIElement) -> String? {
-            guard let t = title(el), !t.contains("›"),
-                  bool(el, kAXEnabledAttribute as String) != false else { return nil }
-            return t
+        defer { closeMenus(pid: pid) }                     // ouverts par `find` ou ici : jamais laissés ouverts
+        guard let parent = find(pid: pid, titles: path, openIfNeeded: true, stop: { nil }) else { return [] }
+        var menu = submenu(of: parent)
+        if menu.map({ children($0).isEmpty }) ?? true {
+            AXUIElementPerformAction(parent, kAXPressAction as CFString)
+            Thread.sleep(forTimeInterval: 0.25)
+            menu = submenu(of: parent)
         }
+        guard let menu else { return [] }
+        var out: [[String]] = []
+        collect(menu, prefix: [], depth: maxDepth - path.count, into: &out, limit: limit)
+        return out
+    }
+
+    /// Feuilles de `menu` (avec les titres des sous-menus traversés), `depth` titres au plus par chemin.
+    private static func collect(_ menu: AXUIElement, prefix: [String], depth: Int, into out: inout [[String]],
+                                limit: Int) {
         for entry in children(menu).prefix(limit) where out.count < limit {
-            guard let t = usable(entry) else { continue }
+            guard let t = title(entry), !t.contains("›"), bool(entry, kAXEnabledAttribute as String) != false else {
+                continue
+            }
             if let sub = submenu(of: entry) {
-                for leaf in children(sub).prefix(limit) where out.count < limit && submenu(of: leaf) == nil {
-                    if let l = usable(leaf) { out.append([t, l]) }
-                }
+                if depth > 1 { collect(sub, prefix: prefix + [t], depth: depth - 1, into: &out, limit: limit) }
             } else {
-                out.append([t])
+                out.append(prefix + [t])
             }
         }
-        return out
     }
 
     private static func submenu(of el: AXUIElement) -> AXUIElement? {
