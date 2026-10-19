@@ -76,7 +76,8 @@ struct OrganizerEnvironment {
     static func livePrepareLink() -> OrganizerLinkState {
         let midi = MIDILink.shared
         guard midi.snapshot.hasKey else { return .notInstalled }
-        let restored = FLScriptInstaller.repairIfNeeded() != nil
+        // Remis maintenant, ou mis à jour au lancement de l'appli pendant que FL tournait : FL doit le relire.
+        let restored = FLScriptInstaller.repairIfNeeded() != nil || AppStatus.shared.scriptNeedsFLRestart
         let fresh = AppMode.light && !midi.onDemand
         midi.setOnDemand(true)
         return restored ? .restored : .ready(warmUp: fresh && midi.onDemand ? 2 : 0)

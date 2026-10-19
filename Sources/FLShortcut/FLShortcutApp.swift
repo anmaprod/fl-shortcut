@@ -142,6 +142,9 @@ final class AppStatus: ObservableObject {
     @Published private(set) var flVersion: FLVersion? = nil
     /// Résultat de la dernière macro (« Macro terminée », « Macro arrêtée à l'étape 3 : … »), nil avant la première.
     @Published private(set) var lastMacro: (ok: Bool, text: String)? = nil
+    /// Script de FL réécrit (nouvelle version, ou remis) pendant que FL tournait : FL ne relit ses scripts qu'en
+    /// démarrant (« FL Shortcuts » absent de Controller type, ou ancienne version chargée). Effacé quand FL se ferme.
+    @Published private(set) var scriptNeedsFLRestart = false
 
     private var timer: Timer?
     private var cancellables = Set<AnyCancellable>()
@@ -172,6 +175,13 @@ final class AppStatus: ObservableObject {
             .sink { [weak self] _ in if !AppMode.light { self?.refreshScriptState() } }
             .store(in: &cancellables)
 
+        FLMonitor.shared.$running
+            .dropFirst()                                 // valeur de départ : pas une fermeture de FL
+            .removeDuplicates()
+            .receive(on: RunLoop.main)
+            .sink { [weak self] running in if !running { self?.scriptNeedsFLRestart = false } }
+            .store(in: &cancellables)
+
         FLMonitor.shared.$version
             .removeDuplicates()
             .receive(on: RunLoop.main)
@@ -199,8 +209,10 @@ final class AppStatus: ObservableObject {
             })
         }
 
-        FLScriptInstaller.updateInstalledIfNeeded()     // script déjà installé : nouvelle version, même clé
-        FLScriptInstaller.repairIfNeeded()              // clé là mais script disparu de FL : remis, même clé
+        let updated = FLScriptInstaller.updateInstalledIfNeeded()   // script déjà installé : nouvelle version, même clé
+        let repaired = FLScriptInstaller.repairIfNeeded() != nil    // clé là mais script disparu de FL : remis, même clé
+        let flOpen = NSWorkspace.shared.runningApplications.contains { FLMatcher.isFL(bundleID: $0.bundleIdentifier) }
+        if updated || repaired, flOpen { scriptNeedsFLRestart = true }
         if !AppMode.light { refreshScriptState() }
         supervise()
         let t = Timer(timeInterval: 2, repeats: true) { [weak self] _ in self?.supervise() }
@@ -505,6 +517,9 @@ struct MenuContent: View {
 
     private var alerts: [String] {
         var out: [String] = []
+        if status.scriptNeedsFLRestart {
+            out.append("Le lien avec FL vient d'être mis à jour : quitte et rouvre FL Studio pour qu'il le charge.")
+        }
         if status.staleTCC { out.append("Autorisation périmée : retire FL Shortcuts de la liste Accessibilité puis ajoute-le.") }
         if status.secureInput { out.append("Saisie sécurisée active dans une autre app : raccourcis muets.") }
         if status.tapUnstable { out.append("macOS a coupé l'interception plusieurs fois : elle a été relancée.") }
