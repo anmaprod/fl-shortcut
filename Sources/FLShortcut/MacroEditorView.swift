@@ -618,13 +618,6 @@ private struct MacroHeader: View {
                 Image(systemName: "checkmark.circle.fill").foregroundStyle(.green)
                 Text("Prête · \(blocks)\(duration)").lineLimit(1)
             }
-            if model.needs.contains(.lienMIDI) {
-                Label("Lien FL", systemImage: "link")
-                    .fixedSize()
-                    .font(.system(size: 10, weight: .medium))
-                    .foregroundStyle(.blue)
-                    .help("Des actions de FL passent par le lien avec FL quand il est installé (sinon leur touche de secours).")
-            }
         }
         .font(.system(size: 12))
         .foregroundStyle(.secondary)

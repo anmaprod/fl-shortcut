@@ -1374,7 +1374,6 @@ extension MacroBadge {
     var symbol: String {
         switch self {
         case .pauseFixe: return "timer"
-        case .lienFL: return "link"
         case .aApprendre: return "hand.point.up.left"
         case .probleme: return "exclamationmark.triangle.fill"
         case .continueSiEchec: return "arrow.uturn.forward"
@@ -1384,7 +1383,6 @@ extension MacroBadge {
     var tint: Color {
         switch self {
         case .pauseFixe: return .orange
-        case .lienFL: return .blue
         case .aApprendre: return .purple
         case .probleme: return .red
         case .continueSiEchec: return .secondary

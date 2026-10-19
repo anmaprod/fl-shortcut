@@ -1085,6 +1085,7 @@ private struct ResetButton: View {
         .buttonStyle(.borderless)
         .font(.system(size: 11))
         .foregroundStyle(.secondary)
+        .fixedSize()
         .disabled(!enabled)
         .help(help)
     }
@@ -1112,10 +1113,11 @@ private struct CatalogRowView: View {
             VStack(alignment: .leading, spacing: 1) {
                 Text(row.entry.title).lineLimit(1)
                 if let caption {
-                    Text(caption).font(.system(size: 11)).foregroundStyle(.secondary)
+                    Text(caption).font(.system(size: 11)).foregroundStyle(.secondary).lineLimit(1)
                 }
             }
             .help(titleHelp)
+            .layoutPriority(-1)                          // fenêtre étroite : le titre se raccourcit, pas la touche
             Spacer(minLength: 12)
             if let takenBy = row.takenBy {
                 Image(systemName: "exclamationmark.triangle.fill")
@@ -1169,10 +1171,11 @@ private struct ShortcutRow: View {
             VStack(alignment: .leading, spacing: 1) {
                 Text(remap.title).lineLimit(1)
                 if let caption {
-                    Text(caption).font(.system(size: 11)).foregroundStyle(.secondary)
+                    Text(caption).font(.system(size: 11)).foregroundStyle(.secondary).lineLimit(1)
                 }
             }
             .help(remap.subtitle)
+            .layoutPriority(-1)
             Spacer(minLength: 12)
             if !issues.isEmpty {
                 IssueIcon(issues: issues)
@@ -1191,6 +1194,7 @@ private struct ShortcutRow: View {
             .buttonStyle(.borderless)
             .font(.system(size: 11))
             .foregroundStyle(.secondary)
+            .fixedSize()
         }
         .padding(.vertical, 2)
         .opacity(remap.enabled ? 1 : 0.55)

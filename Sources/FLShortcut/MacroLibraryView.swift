@@ -1,5 +1,5 @@
-// Fenêtre « Raccourcis » › Macros : la bibliothèque des macros en blocs (nom, raccourci, badges « Lien FL »,
-// « À apprendre », « Désactivée », « À corriger »), « Nouvelle macro », « Modèles… », « Importer… » ; chaque macro
+// Fenêtre « Raccourcis » › Macros : la bibliothèque des macros en blocs (nom, raccourci, badges « À apprendre »,
+// « Désactivée », « À corriger », « Nouvelle macro », « Modèles… », « Importer… » ; chaque macro
 // s'ouvre dans le créateur (un clic, ou « Modifier… »). Page en cartes comme les autres, aucun verre par ligne.
 // Aussi : export / import .flsmacro (fichier relu avant d'être accepté) et le champ « Macro » d'un raccourci relié
 // à la bibliothèque.
@@ -151,9 +151,6 @@ struct MacroLibraryPage: View {
         let program = store.programs[doc.id]
         let flags = MacroOutline.flags(doc.blocks, learnedInput: MacroSpots.loadPath(.input) != nil)
         var badges: [(String, String, Color, String)] = []
-        if flags.usesLink {
-            badges.append(("Lien FL", "link", .blue, "Des actions passent par le lien avec FL quand il est installé (sinon leur touche de secours)."))
-        }
         if flags.toLearn {
             badges.append(("À apprendre", "hand.point.up.left", .purple, "Un endroit ou l'entrée 1 est à montrer dans FL."))
         } else if let problem = program?.problem {
@@ -283,6 +280,7 @@ private struct MacroLibraryRow: View {
                 Text(doc.name.displaySafe(max: 60)).lineLimit(1)
                 Text(caption).font(.system(size: 11)).foregroundStyle(.secondary).lineLimit(1)
             }
+            .layoutPriority(-1)                          // fenêtre étroite : le nom se raccourcit, pas le raccourci
             Spacer(minLength: 8)
             ForEach(badges.indices, id: \.self) { i in
                 Label(badges[i].0, systemImage: badges[i].1)
@@ -291,12 +289,14 @@ private struct MacroLibraryRow: View {
                     .padding(.horizontal, 6)
                     .padding(.vertical, 1)
                     .background(Capsule().fill(badges[i].2.opacity(0.13)))
+                    .fixedSize()
                     .help(badges[i].3)
             }
             KeyLabel(combo: trigger, placeholder: "Sans raccourci")
             Button("Modifier…", action: onOpen)
                 .buttonStyle(.borderless)
                 .font(.system(size: 12))
+                .fixedSize()
             // Options de la macro, au style du menu de l'icône (le clic droit garde le menu de macOS).
             StyledMenuButton(help: "Options de la macro", entries: { options }) {
                 Image(systemName: "ellipsis.circle")

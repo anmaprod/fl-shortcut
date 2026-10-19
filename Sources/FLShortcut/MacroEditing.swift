@@ -37,8 +37,6 @@ enum MoveTarget: Equatable {
 enum MacroBadge: Hashable {
     /// Pause fixe : trop courte sur un projet lourd, trop longue ailleurs.
     case pauseFixe
-    /// Échoue sans le lien avec FL (aucun équivalent au clavier).
-    case lienFL
     /// Position ou entrée à montrer dans FL.
     case aApprendre(String)
     /// Le bloc bloque la macro (message de la validation).
@@ -49,7 +47,6 @@ enum MacroBadge: Hashable {
     var title: String {
         switch self {
         case .pauseFixe: return "Pause fixe"
-        case .lienFL: return "Lien FL"
         case .aApprendre: return "À apprendre"
         case .probleme: return "À corriger"
         case .continueSiEchec: return "Continue si échec"
@@ -59,7 +56,6 @@ enum MacroBadge: Hashable {
     var help: String {
         switch self {
         case .pauseFixe: return "Une pause fixe est trop courte sur un projet lourd : préfère « Attendre une fenêtre » quand FL ouvre quelque chose."
-        case .lienFL: return "Ce bloc demande le lien avec FL (script MIDI) : sans lui, il échoue."
         case .aApprendre(let why), .probleme(let why): return why
         case .continueSiEchec: return "Si ce bloc échoue, la macro continue (l'échec est signalé à la fin)."
         }
@@ -323,7 +319,7 @@ enum MacroOutline {
             if !MuteSwitch.isLearned { out.append(.aApprendre(MuteSwitch.toLearn)) }
         case .flAction("solo", .none):
             break                                   // sans le script : bouton mute (clic droit) ou touche S
-        case .flAction(_, .none): out.append(.lienFL)
+        // « Lien FL » retiré avec l'utilisateur : sans le lien, l'échec du bloc le dit au moment voulu.
         case .selectInput where !learnedInput:
             out.append(.aApprendre("L'entrée « 1 » est montrée une seule fois, pendant la macro : une bulle te le demande."))
         default: break

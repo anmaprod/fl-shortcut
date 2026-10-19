@@ -601,6 +601,8 @@ struct KeyLabel: View {
         .overlay(shape.strokeBorder(accent ? Color.accentColor.opacity(0.5) : Color(nsColor: .separatorColor),
                                     lineWidth: 0.5))
         .contentShape(shape)
+        // Jamais écrasé ni coupé quand la fenêtre est étroite : c'est le titre de la ligne qui se raccourcit.
+        .fixedSize()
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(combo?.spoken ?? placeholder)
     }

@@ -51,7 +51,7 @@ final class MacroEditingTests: XCTestCase {
             Block(.key(KeyRef(KeyCombo(keyCode: 12, command: true)), times: 1), onFailure: .keepGoing),
         ]
         let r = rows(blocks, learned: false)
-        XCTAssertEqual(r[0].badges, [.lienFL])
+        XCTAssertTrue(r[0].badges.isEmpty, "plus de « Lien FL »")
         XCTAssertTrue(r[1].badges.contains { if case .aApprendre = $0 { return true }; return false })
         XCTAssertEqual(r[2].badges.count, 1)
         XCTAssertTrue(r[2].badges.contains { if case .aApprendre = $0 { return true }; return false })
