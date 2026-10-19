@@ -106,18 +106,23 @@ final class KeyboardLayoutCopy {
 /// Noms lisibles des touches, selon la disposition clavier active (AZERTY, QWERTY…).
 enum KeyNames {
     private static let special: [UInt16: String] = [
-        36: "↩", 48: "⇥", 49: "Espace", 51: "⌫", 53: "Échap", 117: "⌦", 114: "Aide",
+        36: "↩", 48: "⇥", 49: String(localized: "Espace"), 51: "⌫", 53: String(localized: "Échap"), 117: "⌦",
+        114: String(localized: "Aide"),
         123: "←", 124: "→", 125: "↓", 126: "↑",
-        115: "Début", 119: "Fin", 116: "PgPréc", 121: "PgSuiv",
+        115: String(localized: "Début"), 119: String(localized: "Fin"), 116: String(localized: "PgPréc"),
+        121: String(localized: "PgSuiv"),
         122: "F1", 120: "F2", 99: "F3", 118: "F4", 96: "F5", 97: "F6",
         98: "F7", 100: "F8", 101: "F9", 109: "F10", 103: "F11", 111: "F12",
         105: "F13", 107: "F14", 113: "F15", 106: "F16", 64: "F17", 79: "F18", 80: "F19", 90: "F20",
         // Rangée des chiffres : on affiche le chiffre, même en AZERTY
         18: "1", 19: "2", 20: "3", 21: "4", 23: "5", 22: "6", 26: "7", 28: "8", 25: "9", 29: "0",
         // Pavé numérique (REL-17) : distinct de la rangée des chiffres
-        82: "0 (pavé)", 83: "1 (pavé)", 84: "2 (pavé)", 85: "3 (pavé)", 86: "4 (pavé)",
-        87: "5 (pavé)", 88: "6 (pavé)", 89: "7 (pavé)", 91: "8 (pavé)", 92: "9 (pavé)",
-        65: ". (pavé)", 67: "× (pavé)", 69: "+ (pavé)", 75: "÷ (pavé)", 78: "− (pavé)", 81: "= (pavé)",
+        82: String(localized: "0 (pavé)"), 83: String(localized: "1 (pavé)"), 84: String(localized: "2 (pavé)"),
+        85: String(localized: "3 (pavé)"), 86: String(localized: "4 (pavé)"), 87: String(localized: "5 (pavé)"),
+        88: String(localized: "6 (pavé)"), 89: String(localized: "7 (pavé)"), 91: String(localized: "8 (pavé)"),
+        92: String(localized: "9 (pavé)"),
+        65: String(localized: ". (pavé)"), 67: String(localized: "× (pavé)"), 69: String(localized: "+ (pavé)"),
+        75: String(localized: "÷ (pavé)"), 78: String(localized: "− (pavé)"), 81: String(localized: "= (pavé)"),
         76: "⌤", 71: "⌧",
         // Touches JIS
         102: "英数", 104: "かな", 93: "¥", 94: "_ (JIS)",
@@ -132,7 +137,7 @@ enum KeyNames {
         if let c = layout.character(for: keyCode), isPrintable(c) {
             return c.uppercased()
         }
-        return "Touche \(keyCode)"
+        return String(localized: "Touche \(keyCode)")
     }
 
     /// Code de touche qui produit ce caractère dans la disposition donnée.

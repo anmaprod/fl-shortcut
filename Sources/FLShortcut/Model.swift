@@ -101,12 +101,12 @@ enum ShortcutContext: String, Codable, CaseIterable, Identifiable {
 
     var label: String {
         switch self {
-        case .everywhere: return "Partout"
-        case .pianoRoll: return "Piano Roll"
-        case .playlist: return "Playlist"
-        case .mixer: return "Mixer"
-        case .channelRack: return "Channel Rack"
-        case .browser: return "Browser"
+        case .everywhere: return String(localized: "Partout")
+        case .pianoRoll: return String(localized: "Piano Roll")
+        case .playlist: return String(localized: "Playlist")
+        case .mixer: return String(localized: "Mixer")
+        case .channelRack: return String(localized: "Channel Rack")
+        case .browser: return String(localized: "Browser")
         }
     }
 
@@ -339,7 +339,7 @@ enum ProfileCodec {
 
     enum Failure: Error, LocalizedError {
         case unreadable
-        var errorDescription: String? { "Format de profil illisible." }
+        var errorDescription: String? { String(localized: "Format de profil illisible.") }
     }
 
     private struct Versioned: Decodable {
@@ -431,17 +431,17 @@ enum ShortcutIssue: Hashable {
 
     var message: String {
         switch self {
-        case .noTrigger: return "Aucun raccourci défini."
-        case .noTarget: return "Aucune touche de FL choisie."
-        case .invalidKey: return "Touche non prise en charge."
-        case .unknownAction(let raw): return "Action inconnue (« \(raw.displaySafe()) ») : mets à jour FL Shortcuts."
-        case .forbiddenTarget(let why): return "Cible interdite : \(why)."
-        case .reservedToggle: return "Réservé à ⌃⌥⌘F (mettre FL Shortcuts en pause)."
-        case .duplicate: return "Déjà utilisé dans ce contexte : seul le premier compte."
-        case .bareKey: return "Touche seule : laissée à FL quand tu tapes du texte, qu'un menu de FL est ouvert ou que le clavier-piano est actif."
-        case .macOSConflict(let what): return "Conflit : \(what)."
-        case .flConflict(let what): return "Remplace un raccourci natif — \(what)."
-        case .loop: return "La touche envoyée est aussi un déclencheur : elle sera envoyée telle quelle, sans enchaînement."
+        case .noTrigger: return String(localized: "Aucun raccourci défini.")
+        case .noTarget: return String(localized: "Aucune touche de FL choisie.")
+        case .invalidKey: return String(localized: "Touche non prise en charge.")
+        case .unknownAction(let raw): return String(localized: "Action inconnue (« \(raw.displaySafe()) ») : mets à jour FL Shortcuts.")
+        case .forbiddenTarget(let why): return String(localized: "Cible interdite : \(why).")
+        case .reservedToggle: return String(localized: "Réservé à ⌃⌥⌘F (mettre FL Shortcuts en pause).")
+        case .duplicate: return String(localized: "Déjà utilisé dans ce contexte : seul le premier compte.")
+        case .bareKey: return String(localized: "Touche seule : laissée à FL quand tu tapes du texte, qu'un menu de FL est ouvert ou que le clavier-piano est actif.")
+        case .macOSConflict(let what): return String(localized: "Conflit : \(what).")
+        case .flConflict(let what): return String(localized: "Remplace un raccourci natif — \(what).")
+        case .loop: return String(localized: "La touche envoyée est aussi un déclencheur : elle sera envoyée telle quelle, sans enchaînement.")
         case .unavailable(let why): return why
         case .macroInvalid(let why): return why
         case .macroWaiting(let why): return why
@@ -485,12 +485,12 @@ enum ShortcutAnalyzer {
                     if let program = context.programs[ref] {
                         if let why = program.problem { list.append(.macroInvalid(why)) }
                     } else {
-                        list.append(.macroInvalid("Macro introuvable dans la bibliothèque (supprimée ?)."))
+                        list.append(.macroInvalid(String(localized: "Macro introuvable dans la bibliothèque (supprimée ?).")))
                     }
                 } else if let m = r.macro {
                     if let why = MacroLibrary.problem(in: m, forbidden: context.forbidden) { list.append(.macroInvalid(why)) }
                 } else {
-                    list.append(.macroInvalid("Aucune macro configurée."))
+                    list.append(.macroInvalid(String(localized: "Aucune macro configurée.")))
                 }
             }
 
@@ -537,25 +537,25 @@ enum ProfilePreset: String, CaseIterable, Identifiable {
 
     var label: String {
         switch self {
-        case .recommended: return "Recommandé"
-        case .ableton: return "Ableton dans FL"
-        case .logic: return "Logic Pro dans FL"
-        case .empty: return "Vide"
+        case .recommended: return String(localized: "Recommandé")
+        case .ableton: return String(localized: "Ableton dans FL")
+        case .logic: return String(localized: "Logic Pro dans FL")
+        case .empty: return String(localized: "Vide")
         }
     }
 
     var summary: String {
         switch self {
-        case .recommended: return "⌃1…⌃5 pour les fenêtres, ⌃D/⌃F patterns, ⌃T/⌃S mute/solo, ⌃M métronome, ⌘⇧Z rétablir, ⌃R enregistrement rapide (macro). Rien n'écrase FL."
-        case .ableton: return "Les raccourcis d'Ableton Live font la même chose dans FL : F9 enregistre, ⌘D duplique, ⌘E découpe, "
-            + "⌘J consolide, ⌘U quantize, ⌘R renomme, 0 coupe le son de la sélection, B dessine, O métronome, ⌘4 "
-            + "magnétisme, ⌘+/⌘− et Z zooment, ⌘⌥B Browser, ⌘⌥M Mixer, ⇧⇥ Piano Roll, ⌘Z annule pas à pas. "
-            + "Remplace certaines touches de FL (F9, B, O, Z…)."
-        case .logic: return "Les raccourcis de Logic Pro font la même chose dans FL : Retour revient au début, K métronome, "
-            + "X Mixer, P Piano Roll, F Browser, Y instruments et effets, T outils, Q quantize, ⌘T découpe, ⌘R répète, "
-            + "⌘J joint, ⌃M coupe le son des clips, ⌘←/⌘→ et Z zooment, « , » et « . » changent de mesure, ⌘K clavier "
-            + "musical, ⌘B exporte. Remplace certaines touches de FL (P, F, T, Z…)."
-        case .empty: return "Aucun raccourci."
+        case .recommended: return String(localized: "⌃1…⌃5 pour les fenêtres, ⌃D/⌃F patterns, ⌃T/⌃S mute/solo, ⌃M métronome, ⌘⇧Z rétablir, ⌃R enregistrement rapide (macro). Rien n'écrase FL.")
+        case .ableton: return String(localized: "Les raccourcis d'Ableton Live font la même chose dans FL : F9 enregistre, ⌘D duplique, ⌘E découpe, ")
+            + String(localized: "⌘J consolide, ⌘U quantize, ⌘R renomme, 0 coupe le son de la sélection, B dessine, O métronome, ⌘4 ")
+            + String(localized: "magnétisme, ⌘+/⌘− et Z zooment, ⌘⌥B Browser, ⌘⌥M Mixer, ⇧⇥ Piano Roll, ⌘Z annule pas à pas. ")
+            + String(localized: "Remplace certaines touches de FL (F9, B, O, Z…).")
+        case .logic: return String(localized: "Les raccourcis de Logic Pro font la même chose dans FL : Retour revient au début, K métronome, ")
+            + String(localized: "X Mixer, P Piano Roll, F Browser, Y instruments et effets, T outils, Q quantize, ⌘T découpe, ⌘R répète, ")
+            + String(localized: "⌘J joint, ⌃M coupe le son des clips, ⌘←/⌘→ et Z zooment, « , » et « . » changent de mesure, ⌘K clavier ")
+            + String(localized: "musical, ⌘B exporte. Remplace certaines touches de FL (P, F, T, Z…).")
+        case .empty: return String(localized: "Aucun raccourci.")
         }
     }
 
@@ -685,8 +685,8 @@ enum ProfileImporter {
         case tooLarge, tooMany
         var errorDescription: String? {
             switch self {
-            case .tooLarge: return "Fichier trop volumineux pour un profil."
-            case .tooMany: return "Trop de raccourcis dans ce profil (\(ProfileImporter.maxRemaps) au maximum)."
+            case .tooLarge: return String(localized: "Fichier trop volumineux pour un profil.")
+            case .tooMany: return String(localized: "Trop de raccourcis dans ce profil (\(ProfileImporter.maxRemaps) au maximum).")
             }
         }
     }
@@ -699,46 +699,47 @@ enum ProfileImporter {
         var kept: [Remap] = []
         var rejected: [String] = []
         var summary: [String] = []
-        if decoded.dropped > 0 { rejected.append("\(decoded.dropped) ligne(s) illisible(s)") }
+        if decoded.dropped > 0 { rejected.append(String(localized: "\(decoded.dropped) ligne(s) illisible(s)")) }
 
         for var r in decoded.remaps {
             r.id = UUID()
-            let trigger = r.trigger.map { $0.displayName(layout: layout) } ?? "(sans raccourci)"
+            let trigger = r.trigger.map { $0.displayName(layout: layout) } ?? String(localized: "(sans raccourci)")
             if let t = r.trigger, !t.isValidKey {
-                rejected.append("\(trigger) : touche non prise en charge")
+                rejected.append(String(localized: "\(trigger) : touche non prise en charge"))
                 continue
             }
             if r.kind == .macro, r.macroRef != nil {
                 // Macro de la bibliothèque : elle voyage seule, en .flsmacro, relue avant d'être acceptée.
-                rejected.append("\(trigger) : macro non importée (importe-la en .flsmacro pour la relire)")
+                rejected.append(String(localized: "\(trigger) : macro non importée (importe-la en .flsmacro pour la relire)"))
                 continue
             }
             if r.kind == .macro, r.macro == nil || r.macro?.template == .custom {
                 // Une macro personnalisée (étapes libres) n'est jamais acceptée depuis un fichier importé.
-                rejected.append("\(trigger) : macro non importée (seul le modèle « Enregistrement rapide » l'est)")
+                rejected.append(String(localized: "\(trigger) : macro non importée (seul le modèle « Enregistrement rapide » l'est)"))
                 continue
             }
             if r.kind == .keystroke, let target = r.target {
                 if !target.isValidKey {
-                    rejected.append("\(trigger) : touche envoyée non prise en charge")
+                    rejected.append(String(localized: "\(trigger) : touche envoyée non prise en charge"))
                     continue
                 }
                 if let why = forbidden.reason(for: target) {
-                    rejected.append("\(trigger) → \(target.displayName(layout: layout)) : interdit (\(why))")
+                    rejected.append(String(localized: "\(trigger) → \(target.displayName(layout: layout)) : interdit (\(why))"))
                     continue
                 }
             }
             let what: String
             switch r.kind {
             case .flAction:
-                what = r.actionID.flatMap(FLActions.info).map(\.label) ?? "action inconnue (désactivée)"
+                what = r.actionID.flatMap(FLActions.info).map(\.label) ?? String(localized: "action inconnue (désactivée)")
             case .keystroke:
-                what = "touche " + (r.target.map { $0.displayName(layout: layout) } ?? "(aucune)")
+                what = String(localized: "touche ")
+                    + (r.target.map { $0.displayName(layout: layout) } ?? String(localized: "(aucune)"))
             case .macro:
-                what = "macro " + (r.macro?.name.displaySafe() ?? "(aucune)")
+                what = String(localized: "macro ") + (r.macro?.name.displaySafe() ?? String(localized: "(aucune)"))
             }
             let ctx = r.context == .everywhere ? "" : " [\(r.context.label)]"
-            summary.append("\(trigger)\(ctx) → \(what)\(r.enabled ? "" : " (désactivé)")")
+            summary.append("\(trigger)\(ctx) → \(what)\(r.enabled ? "" : String(localized: " (désactivé)"))")
             kept.append(r)
         }
         return ImportPreview(remaps: kept, rejected: rejected, summary: summary)
