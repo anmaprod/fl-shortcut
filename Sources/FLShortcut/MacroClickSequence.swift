@@ -69,7 +69,7 @@ enum MenuBarAX {
     /// menu ouvert à l'écran. Un menu que FL ne remplit qu'à son ouverture est ouvert, relu une fois, puis refermé
     /// si l'élément n'y est pas.
     static func press(pid: Int32, titles: [String], stop: () -> String?) -> Outcome {
-        guard titles.count >= 2 else { return .failed("chemin de menu incomplet") }
+        guard titles.count >= 2 else { return .failed(String(localized: "chemin de menu incomplet")) }
         let t0 = DispatchTime.now().uptimeNanoseconds
         func ms() -> Int { Int((DispatchTime.now().uptimeNanoseconds &- t0) / 1_000_000) }
         var found = find(pid: pid, titles: titles, openIfNeeded: true, stop: stop)
@@ -83,18 +83,18 @@ enum MenuBarAX {
         guard let item = found else {
             if let why = stop() { return .cancelled(why) }
             MacroLog.shared.write("MENU", "menu bar item not found (\(titles.count) levels) · \(ms()) ms")
-            return .failed("élément introuvable dans les menus de FL (renommé, ou FL dans une autre langue ? enregistre de nouveau tes clics)")
+            return .failed(String(localized: "élément introuvable dans les menus de FL (renommé, ou FL dans une autre langue ? enregistre de nouveau tes clics)"))
         }
         if let why = stop() { return .cancelled(why) }
         if bool(item, kAXEnabledAttribute as String) == false {
             closeMenus(pid: pid)
-            return .failed("élément grisé dans le menu de FL")
+            return .failed(String(localized: "élément grisé dans le menu de FL"))
         }
         let err = AXUIElementPerformAction(item, kAXPressAction as CFString)
         MacroLog.shared.write("MENU", "menu bar item pressed (\(titles.count) levels): AX \(err.rawValue) · \(ms()) ms")
         guard err == .success else {
             closeMenus(pid: pid)
-            return .failed("FL n'a pas répondu à son menu (Accessibilité \(err.rawValue))")
+            return .failed(String(localized: "FL n'a pas répondu à son menu (Accessibilité \(err.rawValue))"))
         }
         return .done
     }
@@ -815,10 +815,10 @@ private struct RecordingBar: View {
     private var detail: String {
         let keys = recorder.keyCount
         let clicks = recorder.count - keys
-        guard recorder.count > 0 else { return "Clique et tape dans FL (flèches, raccourcis…), dans l'ordre." }
+        guard recorder.count > 0 else { return String(localized: "Clique et tape dans FL (flèches, raccourcis…), dans l'ordre.") }
         var parts: [String] = []
-        if clicks > 0 { parts.append(clicks == 1 ? "1 clic" : "\(clicks) clics") }
-        if keys > 0 { parts.append(keys == 1 ? "1 touche" : "\(keys) touches") }
-        return parts.joined(separator: " · ") + (recorder.count == 1 ? " enregistré" : " enregistrés")
+        if clicks > 0 { parts.append(clicks == 1 ? String(localized: "1 clic") : String(localized: "\(clicks) clics")) }
+        if keys > 0 { parts.append(keys == 1 ? String(localized: "1 touche") : String(localized: "\(keys) touches")) }
+        return parts.joined(separator: " · ") + (recorder.count == 1 ? String(localized: " enregistré") : String(localized: " enregistrés"))
     }
 }

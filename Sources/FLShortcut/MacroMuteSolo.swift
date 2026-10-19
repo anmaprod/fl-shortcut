@@ -46,7 +46,7 @@ struct MuteSwitch: Codable, Equatable {
 
     static var isLearned: Bool { load() != nil }
 
-    static let toLearn = "Avec le lien avec FL, rien à faire (aucun clic). Sans lui : bouton mute à montrer une fois sur ce Mac, avec « Montrer le bouton mute dans FL… »."
+    static let toLearn = String(localized: "Avec le lien avec FL, rien à faire (aucun clic). Sans lui : bouton mute à montrer une fois sur ce Mac, avec « Montrer le bouton mute dans FL… ».")
 
     /// Pure (testée) : centre du bouton de la piste dont la colonne contient `expected` (repère de l'image : la
     /// fenêtre de FL, 1 pixel par point), ou nil s'il n'est pas reconnu. Jamais hors de cette colonne ; à image égale,
@@ -80,16 +80,16 @@ extension MacroEffectsMac {
     /// Bouton mute de la piste cliquée juste avant la macro (point global), ou la raison de l'échec.
     private func muteSwitchPoint(ctx: Context) -> Result<CGPoint, MenuStop> {
         guard let spot = MuteSwitch.load() else {
-            return .failure(.fail("bouton mute pas encore montré : choisis le bloc, puis « Montrer le bouton mute dans FL… »"))
+            return .failure(.fail(String(localized: "bouton mute pas encore montré : choisis le bloc, puis « Montrer le bouton mute dans FL… »")))
         }
         guard targetTrackIsInFL(),
               let window = WinSnapshot.take(pid: ctx.pid).fl.first(where: { $0.layer == 0 && $0.bounds.contains(ctx.track) })
         else {
-            return .failure(.fail("clique d'abord sur ta piste dans le Mixer, puis lance la macro"))
+            return .failure(.fail(String(localized: "clique d'abord sur ta piste dans le Mixer, puis lance la macro")))
         }
         let expected = CGPoint(x: ctx.track.x - window.bounds.minX, y: spot.dy)
         guard expected.y < window.bounds.height else {
-            return .failure(.fail("bouton mute hors de la fenêtre de FL : montre-le de nouveau"))
+            return .failure(.fail(String(localized: "bouton mute hors de la fenêtre de FL : montre-le de nouveau")))
         }
         var found: CGPoint?
         if !spot.patches.isEmpty, MacroEffectsMac.canRead,
@@ -147,7 +147,7 @@ final class MuteSwitchTeacher: ObservableObject {
     func start(pid: Int32, returnTo window: NSWindow?) {
         stop()
         guard let fl = NSRunningApplication(processIdentifier: pid) else {
-            message = "Ouvre FL Studio, puis recommence."
+            message = String(localized: "Ouvre FL Studio, puis recommence.")
             return
         }
         // L'image du bouton demande de lire la fenêtre de FL : autorisation demandée à l'accueil seulement (FL passe
@@ -160,7 +160,7 @@ final class MuteSwitchTeacher: ObservableObject {
         capturing = false
         active = true
         started = Date()
-        message = "Dans FL : clique le bouton mute d'une piste du Mixer, puis reclique-le (Échap pour annuler)."
+        message = String(localized: "Dans FL : clique le bouton mute d'une piste du Mixer, puis reclique-le (Échap pour annuler).")
         CreatorPresence.stepAside()
         fl.activate(options: [])
         ClickRecorder.shared.start()
@@ -168,8 +168,7 @@ final class MuteSwitchTeacher: ObservableObject {
             guard let self, self.active,
                   let main = FLWindows.list(pid: pid).filter({ $0.layer == 0 })
                     .max(by: { $0.bounds.width * $0.bounds.height < $1.bounds.width * $1.bounds.height }) else { return }
-            HintPanel.shared.show("Clique le bouton mute (le petit rond en haut) d'une piste du Mixer, puis reclique-le "
-                                  + "pour remettre le son. Échap : annuler.",
+            HintPanel.shared.show(String(localized: "Clique le bouton mute (le petit rond en haut) d'une piste du Mixer, puis reclique-le pour remettre le son. Échap : annuler."),
                                   near: CGPoint(x: main.bounds.midX, y: main.bounds.minY + 70))
         }
         let t = Timer(timeInterval: 0.05, repeats: true) { [weak self] _ in self?.tick() }
@@ -185,15 +184,15 @@ final class MuteSwitchTeacher: ObservableObject {
     }
 
     private func tick() {
-        if CGEventSource.keyState(.combinedSessionState, key: 53) { return cancel("Annulé.") }
+        if CGEventSource.keyState(.combinedSessionState, key: 53) { return cancel(String(localized: "Annulé.")) }
         if Date().timeIntervalSince(started) > 40 {
-            return first == nil ? cancel("Aucun clic montré dans FL en 40 s.") : save()
+            return first == nil ? cancel(String(localized: "Aucun clic montré dans FL en 40 s.")) : save()
         }
         guard !capturing else { return }
         let samples = ClickRecorder.shared.capturedSamples
         if first == nil, let sample = samples.first {
             guard let window = WinSnapshot.take(pid: pid).hit(sample.point), window.layer == 0 else {
-                return cancel("Ce clic n'était pas dans une fenêtre de FL : recommence sur le bouton mute d'une piste.")
+                return cancel(String(localized: "Ce clic n'était pas dans une fenêtre de FL : recommence sur le bouton mute d'une piste."))
             }
             first = (sample.point, window)
             shots = 1
@@ -224,15 +223,16 @@ final class MuteSwitchTeacher: ObservableObject {
     }
 
     private func save() {
-        guard let first else { return cancel("Aucun clic montré dans FL.") }
+        guard let first else { return cancel(String(localized: "Aucun clic montré dans FL.")) }
         let spot = MuteSwitch(dy: Double(first.point.y - first.window.bounds.minY), side: MuteSwitch.defaultSide,
                               patches: patches)
         stop()
-        guard spot.isValid else { return finish("Ce bouton n'a pas pu être retenu : recommence.") }
+        guard spot.isValid else { return finish(String(localized: "Ce bouton n'a pas pu être retenu : recommence.")) }
         spot.save()
-        let again = ClickRecorder.shared.capturedSamples.count < 2 ? " Pense à remettre le son de cette piste." : ""
-        finish((spot.patches.isEmpty ? "Bouton mute retenu à sa hauteur (écran non lisible : clique tes pistes au "
-                    + "milieu, sur leur nom)." : "Bouton mute retenu : il sera retrouvé sur chaque piste.") + again)
+        let again = ClickRecorder.shared.capturedSamples.count < 2 ? String(localized: " Pense à remettre le son de cette piste.") : ""
+        finish((spot.patches.isEmpty
+                    ? String(localized: "Bouton mute retenu à sa hauteur (écran non lisible : clique tes pistes au milieu, sur leur nom).")
+                    : String(localized: "Bouton mute retenu : il sera retrouvé sur chaque piste.")) + again)
     }
 
     private func stop() {

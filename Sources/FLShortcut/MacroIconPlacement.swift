@@ -35,14 +35,16 @@ enum IconPlacement {
 
         var message: String {
             switch self {
-            case .stopped: return "arrêtée (Échap, ou FL n'est plus devant)"
+            case .stopped: return String(localized: "arrêtée (Échap, ou FL n'est plus devant)")
             case .noNameWindow:
-                return "la fenêtre du nom de FL (F2) ne s'est pas ouverte : clique sur le nom d'une seule piste ou d'un seul canal, puis relance"
-            case .notShown: return "clic sur l'icône de la fenêtre du nom non montré"
-            case .clickRefused: return "clic refusé (FL fermé ou couvert)"
-            case .noGrid: return "la grille des icônes ne s'est pas ouverte : relance pour montrer de nouveau le bouton de l'icône"
-            case .gridStayed: return "la grille des icônes de FL est restée ouverte : choisis une case ou clique à côté"
-            case .nameStayed: return "la fenêtre du nom de FL est restée ouverte"
+                return String(localized: "la fenêtre du nom de FL (F2) ne s'est pas ouverte : clique sur le nom d'une seule piste ou d'un seul canal, puis relance")
+            case .notShown: return String(localized: "clic sur l'icône de la fenêtre du nom non montré")
+            case .clickRefused: return String(localized: "clic refusé (FL fermé ou couvert)")
+            case .noGrid:
+                return String(localized: "la grille des icônes ne s'est pas ouverte : relance pour montrer de nouveau le bouton de l'icône")
+            case .gridStayed:
+                return String(localized: "la grille des icônes de FL est restée ouverte : choisis une case ou clique à côté")
+            case .nameStayed: return String(localized: "la fenêtre du nom de FL est restée ouverte")
             }
         }
     }
@@ -81,7 +83,7 @@ enum IconPlacement {
     static let escape = KeyCombo(keyCode: 53)
     /// Relevé sur le FL de l'utilisateur (16/10) : le bouton de l'icône est à gauche du nom, dans une fenêtre du nom de
     /// 260 × 52 points.
-    static let hint = "Une seule fois : clique sur le bouton de l'icône, à gauche du nom."
+    static let hint = String(localized: "Une seule fois : clique sur le bouton de l'icône, à gauche du nom.")
 
     /// Fenêtre du nom plausible : petite fenêtre de FL, plus haute qu'une ligne de menu.
     static func isNameWindow(_ w: WinInfo) -> Bool {
@@ -255,12 +257,13 @@ extension MacroEffectsMac {
     /// Icône de FL sur l'élément sélectionné (bloc « Nom et couleur », Organiser). `alsoColored` : le nom ou la
     /// couleur est déjà posé, une icône manquée n'est alors qu'un avertissement.
     func placeIcon(_ icon: FLIcon, alsoColored: Bool) -> StepResult {
-        guard waitForKeyboardIdle(timeout: 1.5) else { return .cancel("relâche les touches du raccourci") }
+        guard waitForKeyboardIdle(timeout: 1.5) else { return .cancel(String(localized: "relâche les touches du raccourci")) }
         MacroLog.shared.write("FL", "icon \(icon.code)")
         defer { restoreCursor() }
         guard let failure = IconPlacement.place(icon, driver: FLIconDriver(fx: self)) else { return .ok }
         MacroLog.shared.write("FL", "icon not placed: \(failure)")
         if failure == .stopped { return .cancel(failure.message) }
-        return alsoColored ? .warn("icône non posée : " + failure.message) : .fail("icône non posée : " + failure.message)
+        return alsoColored ? .warn(String(localized: "icône non posée : ") + failure.message)
+                           : .fail(String(localized: "icône non posée : ") + failure.message)
     }
 }

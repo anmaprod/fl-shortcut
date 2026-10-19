@@ -33,8 +33,10 @@ extension MacroEffectsMac {
     /// (sinon une lettre irait à FL : clavier-piano…).
     func trackMenu(letters: [Character], labels: [String], at target: CGPoint, enter memory: EnterMemory,
                    ctx: Context) -> StepResult {
-        guard !letters.isEmpty, letters.allSatisfy({ Self.letterKeyCodes[$0] != nil }) else { return .fail("menu de piste mal décrit") }
-        guard waitForKeyboardIdle(timeout: 1.5) else { return .cancel("relâche les touches du raccourci") }
+        guard !letters.isEmpty, letters.allSatisfy({ Self.letterKeyCodes[$0] != nil }) else {
+            return .fail(String(localized: "menu de piste mal décrit"))
+        }
+        guard waitForKeyboardIdle(timeout: 1.5) else { return .cancel(String(localized: "relâche les touches du raccourci")) }
         let before = WinSnapshot.take(pid: ctx.pid)
         MacroLog.shared.windows("before right-click", before)
         // Clic droit là où tu as cliqué la piste (comme dans la version validée).
@@ -56,14 +58,14 @@ extension MacroEffectsMac {
             return .cancel(why)
         case .failure(.timeout):
             MacroLog.shared.windows("no menu after the right-click", WinSnapshot.take(pid: ctx.pid))
-            return .fail("le menu de la piste ne s'est pas ouvert (clique sur le nom de ta piste dans le Mixer)")
+            return .fail(String(localized: "le menu de la piste ne s'est pas ouvert (clique sur le nom de ta piste dans le Mixer)"))
         }
 
         // 2. Lettres des sous-menus (File) : le sous-menu doit apparaître ; sinon flèche droite.
         for letter in letters.dropLast() {
             guard menusOpen(opened, ctx: ctx) else {
                 MacroLog.shared.windows("menu closed before « \(letter) »", WinSnapshot.take(pid: ctx.pid))
-                return .fail("le menu de FL s'est fermé tout seul")
+                return .fail(String(localized: "le menu de FL s'est fermé tout seul"))
             }
             let known = WinSnapshot.take(pid: ctx.pid).numbers
             postLetter(letter, pid: ctx.pid)
@@ -86,14 +88,14 @@ extension MacroEffectsMac {
                 MacroLog.shared.windows("« \(letter) » : still no submenu", WinSnapshot.take(pid: ctx.pid),
                                         mark: WinSnapshot.take(pid: ctx.pid).numbers.subtracting(before.numbers))
                 closePopups(base: before.numbers, ctx: ctx)
-                return .fail("le sous-menu « \(labels.first ?? "File") » ne s'est pas ouvert")
+                return .fail(String(localized: "le sous-menu « \(labels.first ?? "File") » ne s'est pas ouvert"))
             }
         }
 
         // 3. Dernière lettre (Open mixer track state) : tous les menus se ferment ; sinon Entrée (lettre partagée
         //    par plusieurs éléments : FL la surligne seulement).
-        guard let last = letters.last else { return .fail("menu de piste mal décrit") }
-        guard menusOpen(opened, ctx: ctx) else { return .fail("le menu de FL s'est fermé trop tôt") }
+        guard let last = letters.last else { return .fail(String(localized: "menu de piste mal décrit")) }
+        guard menusOpen(opened, ctx: ctx) else { return .fail(String(localized: "le menu de FL s'est fermé trop tôt")) }
         postLetter(last, pid: ctx.pid)
         // La lettre ouvre l'élément, ou seulement le surligne (plusieurs éléments la partagent) : il faut alors Entrée.
         // Appris au premier passage, puis Entrée part aussitôt (sinon 0,6 s d'attente à chaque fois).
@@ -131,7 +133,7 @@ extension MacroEffectsMac {
         case .failure(.timeout):
             closePopups(base: before.numbers, ctx: ctx)
             memory.write(nil)
-            return .fail("« \(labels.last ?? "Open mixer track state") » n'a pas répondu")
+            return .fail(String(localized: "« \(labels.last ?? "Open mixer track state") » n'a pas répondu"))
         }
     }
 
@@ -142,7 +144,7 @@ extension MacroEffectsMac {
     /// Actions consécutives d'une macro : un seul réveil du lien (généralisation de l'ancien armement + REC).
     func flActions(_ group: [FLActionCall], state: inout RunState) -> StepResult {
         let ids = group.compactMap { FLActions.id(forKey: $0.key) }
-        guard ids.count == group.count, !ids.isEmpty else { return .fail("action de FL inconnue") }
+        guard ids.count == group.count, !ids.isEmpty else { return .fail(String(localized: "action de FL inconnue")) }
         let names = group.map { $0.key == "armon" ? "arm" : $0.key == "recon" ? "REC" : $0.key }
         guard let why = MIDILink.shared.runBriefly(ids) else {
             MacroLog.shared.write("MIDI", "\(names.joined(separator: " + ")) acknowledged")
@@ -156,14 +158,15 @@ extension MacroEffectsMac {
                 let r = armViaKeyboard(ctx: ctx)
                 switch r {
                 case .cancel: return r
-                case .fail(let w), .warn(let w): warnings.append("armement non fait : \(w)")
+                case .fail(let w), .warn(let w): warnings.append(String(localized: "armement non fait : \(w)"))
                 case .ok: break
                 }
             case .key(let ref):
                 if let stop = shouldStop(ctx.pid) { return .cancel(stop) }
                 let rec = call.key == "recon"
                 if EventTap.shared.currentConfig.forbidden.isForbidden(ref.combo) {
-                    warnings.append(rec ? "REC non lancé (touche interdite)" : "action « \(call.key) » non faite (touche interdite)")
+                    warnings.append(rec ? String(localized: "REC non lancé (touche interdite)")
+                                        : String(localized: "action « \(call.key) » non faite (touche interdite)"))
                 } else {
                     Thread.sleep(forTimeInterval: 0.03)
                     postKey(ref.combo, pid: ctx.pid)
@@ -174,7 +177,7 @@ extension MacroEffectsMac {
                 let r = call.key == "mute" ? muteWithoutLink(ctx: ctx) : soloWithoutLink(ctx: ctx)
                 guard case .ok = r else { return r }
             case .none:
-                return .fail("ce bloc a besoin du lien avec FL (\(why))")
+                return .fail(String(localized: "ce bloc a besoin du lien avec FL (\(why))"))
             }
         }
         return warnings.isEmpty ? .ok : .warn(warnings.joined(separator: " ; "))
@@ -183,7 +186,7 @@ extension MacroEffectsMac {
     /// Menu de la piste au clavier : « S » (Select, lettre soulignée) ouvre son sous-menu, ← le referme en laissant
     /// « Select » surligné, puis ↓ ×5 et Entrée. Chaque touche n'est envoyée que si le menu de piste est encore ouvert.
     func armViaKeyboard(ctx: Context) -> StepResult {
-        guard waitForKeyboardIdle(timeout: 1.0) else { return .cancel("relâche les touches du raccourci") }
+        guard waitForKeyboardIdle(timeout: 1.0) else { return .cancel(String(localized: "relâche les touches du raccourci")) }
         let before = WinSnapshot.take(pid: ctx.pid)
         let r = click(at: trackTarget ?? ctx.track, right: true, ctx: ctx)
         guard case .ok = r else { return r }
@@ -195,7 +198,7 @@ extension MacroEffectsMac {
             closePopups(base: before.numbers, ctx: ctx)
             return .cancel(why)
         case .failure(.timeout):
-            return .fail("le menu de la piste ne s'est pas ouvert")
+            return .fail(String(localized: "le menu de la piste ne s'est pas ouvert"))
         }
         MacroLog.shared.write("ARM", "track menu \(menu)")
         hoverOutside(menu.bounds, pid: ctx.pid)
@@ -205,20 +208,20 @@ extension MacroEffectsMac {
         guard case .success(let sub) = WindowWait.newWindow(pid: ctx.pid, excluding: known, timeout: 0.45,
                                                             accept: { $0.isMenuLike }, stop: stopReason) else {
             closePopups(base: before.numbers, ctx: ctx)
-            return .fail("sous-menu « Select » non ouvert")
+            return .fail(String(localized: "sous-menu « Select » non ouvert"))
         }
         MacroLog.shared.write("ARM", "« s » → submenu \(sub)")
         postKey(KeyCombo(keyCode: 123), pid: ctx.pid)                       // ←
         guard case .success = WindowWait.gone(pid: ctx.pid, numbers: [sub.number], timeout: 0.4, stop: stopReason),
               menusOpen([menu.number], ctx: ctx) else {
             closePopups(base: before.numbers, ctx: ctx)
-            return .fail("le menu de FL n'a pas suivi les flèches")
+            return .fail(String(localized: "le menu de FL n'a pas suivi les flèches"))
         }
         for _ in 0..<Self.armDownCount {
             postKey(KeyCombo(keyCode: 125), pid: ctx.pid)                   // ↓
             Thread.sleep(forTimeInterval: 0.015)
         }
-        guard menusOpen([menu.number], ctx: ctx) else { return .fail("le menu de FL s'est fermé") }
+        guard menusOpen([menu.number], ctx: ctx) else { return .fail(String(localized: "le menu de FL s'est fermé")) }
         postKey(KeyCombo(keyCode: 36), pid: ctx.pid)                        // Entrée
         switch WindowWait.gone(pid: ctx.pid, numbers: [menu.number], timeout: 0.8, stop: stopReason) {
         case .success:
@@ -229,7 +232,7 @@ extension MacroEffectsMac {
             return .cancel(why)
         case .failure(.timeout):
             closePopups(base: before.numbers, ctx: ctx)
-            return .fail("« Arm selected track(s) » n'a pas répondu")
+            return .fail(String(localized: "« Arm selected track(s) » n'a pas répondu"))
         }
     }
 
@@ -257,10 +260,9 @@ extension MacroEffectsMac {
             let other = snap.fl.first { !base.contains($0.number) && $0.isMenuLike }
             closePopups(base: base, ctx: ctx)
             if let other {
-                return .failure(.fail("FL a ouvert un autre menu (\(Int(other.bounds.width))x\(Int(other.bounds.height))) : "
-                                      + "clique sur le nom de ta piste dans le Mixer, ou réapprends les clics"))
+                return .failure(.fail(String(localized: "FL a ouvert un autre menu (\(Int(other.bounds.width))x\(Int(other.bounds.height))) : clique sur le nom de ta piste dans le Mixer, ou réapprends les clics")))
             }
-            return .failure(.fail("le menu de FL ne s'est pas ouvert"))
+            return .failure(.fail(String(localized: "le menu de FL ne s'est pas ouvert")))
         }
     }
 
@@ -298,7 +300,7 @@ extension MacroEffectsMac {
                     return .cancel(why)
                 case .failure(.timeout):
                     closePopups(base: base, ctx: ctx)
-                    return .fail("le menu de FL est resté ouvert après le clic (élément manqué : réapprends les clics)")
+                    return .fail(String(localized: "le menu de FL est resté ouvert après le clic (élément manqué : réapprends les clics)"))
                 }
             }
         }
@@ -325,7 +327,7 @@ extension MacroEffectsMac {
     /// attribué à la fenêtre tout devant sous lui dans le dernier relevé pris avant l'instant du clic.
     func learnPath(_ kind: MacroSpots.PathKind, clicks n: Int, hint: String, hintAt: CGPoint,
                            rightClick: Bool, ctx: Context) -> StepResult {
-        guard waitForKeyboardIdle(timeout: 1.5) else { return .cancel("relâche les touches du raccourci") }
+        guard waitForKeyboardIdle(timeout: 1.5) else { return .cancel(String(localized: "relâche les touches du raccourci")) }
         DispatchQueue.main.sync {
             ClickRecorder.shared.start()
             HintPanel.shared.show(hint, near: hintAt)
@@ -347,7 +349,7 @@ extension MacroEffectsMac {
         let deadline = Date().addingTimeInterval(60)
         while samples.count < n {
             if let stop = shouldStop(ctx.pid) { return .cancel(stop) }
-            guard Date() < deadline else { return .fail("clics non montrés (60 s)") }
+            guard Date() < deadline else { return .fail(String(localized: "clics non montrés (60 s)")) }
             let snap = WinSnapshot.take(pid: ctx.pid)
             if let last = history.last, last.numbers != snap.numbers {
                 MacroLog.shared.windows("learn: windows changed", snap, mark: snap.numbers.subtracting(before.numbers))
@@ -366,7 +368,7 @@ extension MacroEffectsMac {
             MacroLog.shared.write("LEARN", "click \(i + 1) at \(s.point.logText) in \(hitWindow?.description ?? "no FL window")")
         }
         MacroLog.shared.write("LEARN", "\(kind.rawValue) = \(MacroSpots.describe(path))")
-        guard path.isValid else { return .fail("clics non reconnus : refais le raccourci pour recommencer") }
+        guard path.isValid else { return .fail(String(localized: "clics non reconnus : refais le raccourci pour recommencer")) }
         MacroSpots.savePath(path, kind)
         return .ok
     }
@@ -377,7 +379,7 @@ extension MacroEffectsMac {
         let snap = WinSnapshot.take(pid: ctx.pid)
         if let path = MacroSpots.loadPath(.input), let start = path.start,
            let window = Self.inputWindow(in: snap, size: start.windowSize, track: ctx.track) {
-            guard waitForKeyboardIdle(timeout: 1.5) else { return .cancel("relâche les touches du raccourci") }
+            guard waitForKeyboardIdle(timeout: 1.5) else { return .cancel(String(localized: "relâche les touches du raccourci")) }
             let p0 = CGPoint(x: window.bounds.maxX + start.fromTopRight.dx, y: window.bounds.minY + start.fromTopRight.dy)
             MacroLog.shared.write("INPUT", "selector \(p0.logText) in \(window)")
             let r = click(at: p0, right: false, ctx: ctx)
@@ -389,14 +391,15 @@ extension MacroEffectsMac {
                 }
             }
             if let inline = path.inline { return replayChain(inline.offsets, from: p0, ctx: ctx) }
-            return .fail("entrée à réapprendre (fiche du raccourci)")
+            return .fail(String(localized: "entrée à réapprendre (fiche du raccourci)"))
         }
         // Pas appris, ou la fenêtre de FL a changé de taille : l'utilisateur le montre (une fois).
         guard let main = snap.fl.filter({ $0.layer == 0 })
                 .max(by: { $0.bounds.width * $0.bounds.height < $1.bounds.width * $1.bounds.height }) else {
-            return .fail("fenêtre de FL introuvable")
+            return .fail(String(localized: "fenêtre de FL introuvable"))
         }
-        return learnPath(.input, clicks: 2, hint: "Une seule fois : clique sur « (none) » de la piste, puis sur l'entrée « 1 ».",
+        return learnPath(.input, clicks: 2,
+                         hint: String(localized: "Une seule fois : clique sur « (none) » de la piste, puis sur l'entrée « 1 »."),
                          hintAt: CGPoint(x: main.bounds.maxX - 160, y: main.bounds.minY + 90), rightClick: false, ctx: ctx)
     }
 
@@ -422,16 +425,16 @@ extension MacroEffectsMac {
                 return .ok
             case .refused(5) where key == nil:
                 // Aussi la réponse d'un script d'avant la v7 (opération inconnue).
-                return .fail("canal \(number) absent du Channel rack (ou script de FL pas à jour : redémarre FL)")
+                return .fail(String(localized: "canal \(number) absent du Channel rack (ou script de FL pas à jour : redémarre FL)"))
             case .refused(let reason) where key == nil:
-                return .fail("FL a refusé le \(what) du canal (raison \(reason))")
+                return .fail(String(localized: "FL a refusé le \(what) du canal (raison \(reason))"))
             case .failed(let why) where key == nil:
-                return .fail(why + " (au-delà du canal 10, seul le lien avec FL le fait)")
+                return .fail(why + String(localized: " (au-delà du canal 10, seul le lien avec FL le fait)"))
             default:
                 MacroLog.shared.write("FL", "channel \(what): link unavailable, FL key")
             }
         }
-        guard let key else { return .fail("canal \(number) : lien avec FL nécessaire") }
+        guard let key else { return .fail(String(localized: "canal \(number) : lien avec FL nécessaire")) }
         if let stop = shouldStop(ctx.pid) { return .cancel(stop) }
         postKey(key, pid: ctx.pid)
         MacroLog.shared.write("FL", "channel \(what) by key")
@@ -442,7 +445,7 @@ extension MacroEffectsMac {
     /// la fenêtre F2 de FL, le nom tapé par-dessus l'ancien, puis Entrée. Le nom n'est jamais journalisé.
     func renameTrack(_ name: String, ctx: Context) -> StepResult {
         let payload = NameColorPayload(name: name, color: nil)
-        guard let clean = payload.name else { return .fail("nouveau nom de la piste à écrire dans « Cliquer sur… »") }
+        guard let clean = payload.name else { return .fail(String(localized: "nouveau nom de la piste à écrire dans « Cliquer sur… »")) }
         switch MIDILink.shared.runMacroData(payload.units) {
         case .done:
             MacroLog.shared.write("FL", "track renamed by link")
@@ -452,7 +455,7 @@ extension MacroEffectsMac {
         case .failed:
             MacroLog.shared.write("FL", "rename: link unavailable, F2 window")
         }
-        guard waitForKeyboardIdle(timeout: 1.5) else { return .cancel("relâche les touches du raccourci") }
+        guard waitForKeyboardIdle(timeout: 1.5) else { return .cancel(String(localized: "relâche les touches du raccourci")) }
         let before = WinSnapshot.take(pid: ctx.pid)
         postKey(KeyCombo(keyCode: 120), pid: ctx.pid)                                    // F2
         let box: WinInfo
@@ -461,13 +464,13 @@ extension MacroEffectsMac {
         case .success(let w): box = w
         case .failure(.stopped(let why)): return .cancel(why)
         case .failure(.timeout):
-            return .fail("la fenêtre « Renommer » de FL ne s'est pas ouverte (sélectionne ta piste dans le Mixer)")
+            return .fail(String(localized: "la fenêtre « Renommer » de FL ne s'est pas ouverte (sélectionne ta piste dans le Mixer)"))
         }
         let layout = SystemKeyboardLayout()
         postKey(KeyCombo(keyCode: KeyNames.commandKeyCode(for: "a", layout: layout) ?? 0, command: true), pid: ctx.pid)
         usleep(30_000)
         guard PresetChooser.type(clean, pid: ctx.pid, stop: stopReason) else {
-            return .cancel(stopReason() ?? "FL n'est plus au premier plan")
+            return .cancel(stopReason() ?? String(localized: "FL n'est plus au premier plan"))
         }
         usleep(30_000)
         postKey(KeyCombo(keyCode: 36), pid: ctx.pid)                                     // Entrée
@@ -476,7 +479,7 @@ extension MacroEffectsMac {
             MacroLog.shared.write("FL", "track renamed by F2 window")
             return .ok
         case .failure(.stopped(let why)): return .cancel(why)
-        case .failure(.timeout): return .fail("la fenêtre « Renommer » de FL est restée ouverte")
+        case .failure(.timeout): return .fail(String(localized: "la fenêtre « Renommer » de FL est restée ouverte"))
         }
     }
 }
