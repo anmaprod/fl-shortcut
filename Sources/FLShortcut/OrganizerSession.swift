@@ -65,10 +65,13 @@ final class OrganizerSession {
     /// Un classement fait avec les notes d'essai compte moins.
     static let testNotesFactor = 0.7
     /// Playlist sans piste sélectionnée : pistes écoutées après la dernière piste renommée (des pistes jamais
-    /// renommées ont souvent des clips), 64 au plus ; l'écoute s'arrête après 3 pistes muettes de suite au-delà.
+    /// renommées ont souvent des clips), 64 au plus ; l'écoute s'arrête après 3 pistes muettes de suite au-delà,
+    /// mais jamais avant les 12 premières pistes (vidéo de l'utilisateur : pistes 3 à 5 vides, des clips en 6 à 9 ;
+    /// l'écoute s'arrêtait à la 5).
     static let extraTracks = 32
     static let maxTracks = 64
     static let silentRunStop = 3
+    static let minTracksScanned = 12
 
     private let link: OrganizerLink
     private let audio: AudioSource
@@ -111,16 +114,23 @@ final class OrganizerSession {
     }
 
     /// Bloquant (à lancer hors du fil principal) ; `progress(fait, total)` est appelé avant chaque canal et à la fin.
-    /// La page devant est demandée à FL (la première commande réveille le script : rien n'est su avant).
-    func run() -> Result<OrganizerResult, OrganizerError> {
+    /// `chosen` : la page choisie dans l'Organiser (ses boutons), prise telle quelle ; sinon la page devant est
+    /// demandée à FL (la première commande réveille le script : rien n'est su avant). Vidéo de l'utilisateur : le
+    /// Mixer et la Playlist bien devant, FL ne les disait pas « focused » et l'Organiser attendait sans fin.
+    func run(on chosen: OrganizerPage? = nil) -> Result<OrganizerResult, OrganizerError> {
         do {
             let page: OrganizerPage
-            switch try link.page() {
-            case .channelRack: page = .channelRack
-            case .mixer: page = .mixer
-            case .playlist: return .success(try runPlaylist())
-            default: return .failure(.refused(1))
+            if let chosen {
+                page = chosen
+            } else {
+                switch try link.page() {
+                case .channelRack: page = .channelRack
+                case .mixer: page = .mixer
+                case .playlist: page = .playlist
+                default: return .failure(.refused(1))
+                }
             }
+            if page == .playlist { return .success(try runPlaylist()) }
             // Un groupe affiché (« Unsorted »…) : ses canaux seulement, les autres ne sont pas touchés.
             let channels = try link.listChannels()
             let mixer: [MixerTrackInfo] = try page == .mixer ? link.listMixer() : []
@@ -149,6 +159,7 @@ final class OrganizerSession {
             audio.stop()
         }
         var items: [OrganizerItem] = []
+        var heardAny = false
         for (done, channel) in targets.enumerated() {
             progress(done, targets.count)
             if isCancelled { throw OrganizerError.cancelled }
@@ -157,12 +168,16 @@ final class OrganizerSession {
             var samples = try listenUntilHeard()
             let tested = Self.peakDB(samples) < FamilyFusion.silenceDB
             if tested { samples = try playTestNotes(channel.index) }
+            if Self.peakDB(samples) >= FamilyFusion.silenceDB { heardAny = true }
             let verdict = classify(samples, audio.rate)
             items.append(OrganizerItem(index: channel.index, name: channel.name, family: verdict.family,
                                        confidence: tested ? verdict.confidence * Self.testNotesFactor : verdict.confidence,
                                        testNotes: tested, mixerTrack: channel.mixerTrack, color: channel.color))
         }
         progress(targets.count, targets.count)
+        // Pas un son, même avec les notes d'essai : la capture ne reçoit rien (autorisation « Audio du système »
+        // absente : macOS donne du silence), plutôt que des sons tous « À vérifier ».
+        if !heardAny { throw OrganizerError.noSound }
         return items
     }
 
@@ -192,7 +207,7 @@ final class OrganizerSession {
             progress(done, targets.count)
             if isCancelled { throw OrganizerError.cancelled }
             guard let samples = try hear(track.index) else {
-                if let last = stopAfterSilence, track.index > last {
+                if let last = stopAfterSilence, track.index > max(last, Self.minTracksScanned - 1) {
                     silentRun += 1
                     if silentRun >= Self.silentRunStop { break }
                 }
@@ -206,6 +221,7 @@ final class OrganizerSession {
                                        color: track.color, drum: drum))
         }
         progress(targets.count, targets.count)
+        if items.isEmpty { throw OrganizerError.noSound }
         return items
     }
 

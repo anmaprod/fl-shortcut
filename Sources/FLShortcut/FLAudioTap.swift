@@ -19,6 +19,38 @@ enum CaptureError: Error, Equatable {
     }
 }
 
+/// Autorisation « Audio du système » (Réglages Système › Confidentialité et sécurité › Enregistrement de l'écran et de
+/// l'audio du système). Sans elle, macOS ne refuse pas la capture : il donne du silence (chaque son finissait « À
+/// vérifier »). macOS n'a pas de fonction publique pour la lire : celle de TCC, chargée à la demande ; introuvable,
+/// l'état reste inconnu et l'écoute part comme avant.
+enum AudioCapturePermission: Equatable {
+    case granted, denied, unknown
+
+    private static let service = "kTCCServiceAudioCapture" as CFString
+    private static let tcc = dlopen("/System/Library/PrivateFrameworks/TCC.framework/Versions/A/TCC", RTLD_NOW)
+
+    static var status: AudioCapturePermission {
+        typealias Preflight = @convention(c) (CFString, CFDictionary?) -> Int32     // 0 oui, 1 non, 2 pas demandé
+        guard let tcc, let symbol = dlsym(tcc, "TCCAccessPreflight") else { return .unknown }
+        switch unsafeBitCast(symbol, to: Preflight.self)(service, nil) {
+        case 0: return .granted
+        case 1: return .denied
+        default: return .unknown
+        }
+    }
+
+    /// Fenêtre de macOS (une seule fois) ; `done(autorisé)` sur le fil principal. Faux : rien n'a pu être demandé.
+    @discardableResult
+    static func request(_ done: @escaping (Bool) -> Void) -> Bool {
+        typealias Request = @convention(c) (CFString, CFDictionary?, @convention(block) (Bool) -> Void) -> Void
+        guard let tcc, let symbol = dlsym(tcc, "TCCAccessRequest") else { return false }
+        unsafeBitCast(symbol, to: Request.self)(service, nil) { granted in
+            DispatchQueue.main.async { done(granted) }
+        }
+        return true
+    }
+}
+
 @available(macOS 14.2, *)
 final class FLAudioTap: AudioSource {
     private let pid: pid_t

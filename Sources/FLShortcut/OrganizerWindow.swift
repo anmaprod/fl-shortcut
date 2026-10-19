@@ -69,6 +69,11 @@ struct OrganizerEnvironment {
     /// Met la page devant dans FL (hors du fil principal : réveil du lien).
     var showPage: (OrganizerPage) -> Void = { _ in }
     var nameDrum: () -> OrganizerSession.NameDrum = { { _, _ in .perc } }
+    /// Autorisation « Audio du système » (sans elle, macOS donne du silence à la capture).
+    var audioPermission: () -> AudioCapturePermission = { .granted }
+    /// Fenêtre de macOS pour la demander ; faux : rien n'a pu être demandé. `done` sur le fil principal.
+    var requestAudioPermission: (@escaping (Bool) -> Void) -> Bool = { _ in false }
+    var openAudioSettings: () -> Void = {}
 
     static func live() -> OrganizerEnvironment {
         OrganizerEnvironment(
@@ -94,7 +99,13 @@ struct OrganizerEnvironment {
                 guard let id = FLActions.id(forKey: page.flPage.actionKey) else { return }
                 _ = MIDILink.shared.runBriefly([id])
             },
-            nameDrum: { OrganizerSession.liveDrumNamer() })
+            nameDrum: { OrganizerSession.liveDrumNamer() },
+            audioPermission: { AudioCapturePermission.status },
+            requestAudioPermission: { done in
+                NSApp.activate(ignoringOtherApps: true)        // la fenêtre de macOS devant FL, pas derrière
+                return AudioCapturePermission.request(done)
+            },
+            openAudioSettings: { ScreenLook.openSettings() })
     }
 
     /// Lien installé : script remis dans FL s'il en a disparu, ports « FL Shortcuts Link » créés s'ils ne sont pas là
@@ -164,6 +175,8 @@ final class OrganizerController: ObservableObject {
         /// Aucune page à organiser devant dans FL.
         case openPage
         case stopPlayback
+        /// « Audio du système » refusée, ou sa fenêtre de macOS ouverte : l'écoute n'entendrait que du silence.
+        case audioPermission
     }
 
     enum Phase: Equatable {
@@ -200,6 +213,11 @@ final class OrganizerController: ObservableObject {
     private var session: OrganizerSession?
     private var snapshot: OrganizerSnapshot?
     private var closed = false
+    /// Page choisie avec les boutons de l'Organiser : organisée telle quelle, sans redemander à FL quelle page est
+    /// devant (FL ne disait pas toujours le Mixer ou la Playlist « focused »).
+    private(set) var chosenPage: OrganizerPage?
+    /// La fenêtre de macOS pour « Audio du système » est montrée une fois par Organiser ouvert.
+    private var askedAudio = false
 
     init(env: OrganizerEnvironment) {
         self.env = env
@@ -236,6 +254,22 @@ final class OrganizerController: ObservableObject {
         case .ready(let delay):
             warmUp = delay
         }
+        // « Audio du système » : sans elle, macOS donne du silence (chaque son finissait « À vérifier »). Pas encore
+        // demandée : la fenêtre de macOS, une fois, avant l'écoute ; refusée : Organiser attend qu'elle soit donnée.
+        switch env.audioPermission() {
+        case .denied:
+            wait(.audioPermission)
+            return
+        case .unknown where !askedAudio:
+            askedAudio = true
+            if env.requestAudioPermission({ [weak self] _ in self?.afterAudioPermission() }) {
+                waitSerial += 1                               // pas d'essai tout seul pendant la fenêtre de macOS
+                phase = .waiting(.audioPermission)
+                return
+            }
+        default:
+            break
+        }
         let audio: AudioSource
         switch env.audio() {
         case .success(let source):
@@ -255,9 +289,10 @@ final class OrganizerController: ObservableObject {
         self.session = session
         if !quiet { phase = .listening(done: 0, total: 0) }
         let sleep = env.sleep
+        let chosen = chosenPage
         queue.async { [weak self] in
             if warmUp > 0 { sleep(warmUp) }
-            let outcome = session.run()
+            let outcome = session.run(on: chosen)
             DispatchQueue.main.async { self?.finishListening(outcome) }
         }
     }
@@ -289,6 +324,14 @@ final class OrganizerController: ObservableObject {
         }
     }
 
+    /// Réponse à la fenêtre de macOS : l'écoute part (ou attend l'autorisation, refusée).
+    private func afterAudioPermission() {
+        guard !closed, phase == .waiting(.audioPermission) else { return }
+        retry()
+    }
+
+    func openAudioSettings() { env.openAudioSettings() }
+
     /// « Réessayer » : après un échec, ou tout de suite pendant une attente.
     var canRetry: Bool {
         switch phase {
@@ -297,9 +340,11 @@ final class OrganizerController: ObservableObject {
         }
     }
 
-    /// La page mise devant dans FL (lien avec FL, comme « Ouvrir une page de FL »), puis un nouvel essai.
+    /// La page mise devant dans FL (lien avec FL, comme « Ouvrir une page de FL »), puis un nouvel essai sur cette
+    /// page, sans redemander à FL laquelle est devant.
     func open(_ page: OrganizerPage) {
         guard !closed else { return }
+        chosenPage = page
         let show = env.showPage
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
             show(page)
@@ -919,6 +964,11 @@ struct OrganizerView: View {
                 }
                 .morphIn(3)
             }
+            if reason == .audioPermission {
+                Button("Ouvrir les réglages") { controller.openAudioSettings() }
+                    .controlSize(.large)
+                    .morphIn(3)
+            }
             if reason == .noResponse || reason == .restartFL || reason == .wrongInput {
                 linkHelpToggle.morphIn(3)
                 if controller.showLinkHelp {
@@ -959,6 +1009,11 @@ struct OrganizerView: View {
         case .stopPlayback:
             return ("stop.fill", "Arrête la lecture dans FL",
                     "Organiser écoute chaque son seul : FL doit être à l'arrêt.")
+        case .audioPermission:
+            return ("speaker.wave.2.fill", "Autorise « Audio du système »",
+                    "Organiser écoute seulement le son de FL, sans l'enregistrer. Réglages Système › Confidentialité et "
+                    + "sécurité › Enregistrement de l'écran et de l'audio du système : active FL Shortcuts dans « Audio "
+                    + "du système uniquement ».")
         }
     }
 

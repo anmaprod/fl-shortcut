@@ -60,6 +60,8 @@ enum OrganizerError: Error, Equatable {
     case noResponse
     /// FL Studio n'est pas ouvert.
     case flClosed
+    /// Pas un son reçu de FL pendant toute l'écoute (autorisation « Audio du système », sortie de FL coupée…).
+    case noSound
 
     var message: String {
         switch self {
@@ -70,6 +72,10 @@ enum OrganizerError: Error, Equatable {
         case .noResponse:
             return "FL ne répond pas : le script FL Shortcuts n'est pas chargé dans FL. Vérifie ces réglages, puis « Réessayer »."
         case .flClosed: return "FL Studio n'est pas ouvert."
+        case .noSound:
+            return "Aucun son reçu de FL pendant l'écoute. Vérifie que FL Shortcuts a l'autorisation « Audio du système » "
+                + "(Réglages Système › Confidentialité et sécurité › Enregistrement de l'écran et de l'audio du système), "
+                + "et que les sons choisis jouent bien dans FL (Master pas coupé), puis « Réessayer »."
         case .outdatedScript:
             return "FL utilise encore l'ancienne version du lien : redémarre FL Studio (il charge la nouvelle au lancement), puis clique sur « Réessayer »."
         case .refused(1): return "Ouvre le Channel rack, le Mixer ou la Playlist de FL (clique dedans), puis clique sur « Réessayer »."

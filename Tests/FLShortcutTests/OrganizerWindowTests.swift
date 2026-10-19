@@ -214,6 +214,37 @@ final class OrganizerWindowTests: XCTestCase {
         waiting.close()
     }
 
+    /// « Audio du système » : refusée, Organiser attend (sans rien envoyer à FL) et continue dès qu'elle est donnée ;
+    /// jamais demandée, la fenêtre de macOS est montrée une fois avant l'écoute.
+    func testAudioPermissionIsAskedBeforeListening() {
+        let link = FakeOrganizerLink()
+        var e = env(link, FakeAudio(link: link), saved: { _ in })
+        var permission = AudioCapturePermission.denied
+        e.audioPermission = { permission }
+        let denied = OrganizerController(env: e)
+        denied.start()
+        XCTAssertEqual(denied.phase, .waiting(.audioPermission))
+        XCTAssertEqual(link.log, [], "rien n'est envoyé à FL")
+        permission = .granted
+        waitFor(denied) { if case .failed = $0 { return true } else { return false } }
+        XCTAssertEqual(denied.phase, .failed("Aucun son à écouter dans le Channel rack."))
+        denied.close()
+
+        permission = .unknown
+        var asked: [(Bool) -> Void] = []
+        e.requestAudioPermission = { done in asked.append(done); return true }
+        let fresh = OrganizerController(env: e)
+        fresh.start()
+        XCTAssertEqual(fresh.phase, .waiting(.audioPermission))
+        XCTAssertEqual(asked.count, 1)
+        permission = .granted
+        asked[0](true)
+        waitFor(fresh) { if case .failed = $0 { return true } else { return false } }
+        XCTAssertEqual(asked.count, 1, "demandée une seule fois")
+        fresh.close()
+        XCTAssertTrue(OrganizerError.noSound.message.contains("Audio du système"))
+    }
+
     func testOrganizeBlockJSON() throws {
         let block = Block(.organize)
         let data = try JSONEncoder().encode(block)

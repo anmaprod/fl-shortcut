@@ -321,6 +321,25 @@ final class OrganizerSessionTests: XCTestCase {
         XCTAssertEqual(audio.started, 0)
     }
 
+    /// Page choisie avec les boutons de l'Organiser : organisée telle quelle, même si FL ne la dit pas devant (vidéo
+    /// de l'utilisateur : Mixer et Playlist bien affichés, FL répondait « aucune page »).
+    func testChosenPageIsUsedWhateverFLSays() throws {
+        let link = FakeOrganizerLink()
+        link.window = .unknown
+        link.channels = [channel(0, fx: 1)]
+        link.mixer = (0...1).map { MixerTrackInfo(index: $0, color: red, name: "Piste \($0)") }
+        let audio = FakeAudio(link: link)
+        audio.parts = [0: tone(.drums)]
+        let mixer = try make(link, audio).run(on: .mixer).get()
+        XCTAssertEqual(mixer.page, .mixer)
+        XCTAssertEqual(mixer.mixerFamilies, [1: .drums])
+        link.playlist = [track(0, "Lead")]
+        audio.tracks = [0: (from: 0, samples: tone(.melody))]
+        let playlist = try make(link, audio).run(on: .playlist).get()
+        XCTAssertEqual(playlist.page, .playlist)
+        XCTAssertEqual(playlist.items.map(\.family), [.melody])
+    }
+
     // MARK: Playlist
 
     private func track(_ index: Int, _ name: String? = nil, selected: Bool = false) -> PlaylistTrackInfo {
@@ -342,8 +361,8 @@ final class OrganizerSessionTests: XCTestCase {
         XCTAssertEqual(result.items.map(\.family), [.melody, .drums, .bass])
         XCTAssertEqual(result.items.map(\.drum), [nil, .kick, nil], "sorte des drums seulement")
         XCTAssertEqual(result.items[0].name, "Lead")
-        // Après la dernière piste renommée (0), 3 pistes muettes de suite (4, 5, 6) arrêtent l'écoute.
-        XCTAssertEqual(link.log.filter { $0.hasPrefix("track") }, (0...6).map { "track \($0)" })
+        // Les 12 premières pistes sont toujours écoutées (des pistes vides peuvent précéder des clips) : ici toutes.
+        XCTAssertEqual(link.log.filter { $0.hasPrefix("track") }, (0...9).map { "track \($0)" })
         XCTAssertEqual(link.log.first, "playlist")
         XCTAssertEqual(link.log.last, "restore")
         // Piste 1 : 32 mesures → 8 positions ; son trouvé à la 5e (moitié de la chanson).
@@ -353,6 +372,19 @@ final class OrganizerSessionTests: XCTestCase {
         XCTAssertEqual(steps.last, [10, 10])
         XCTAssertEqual(audio.started, 1)
         XCTAssertEqual(audio.stopped, 1)
+    }
+
+    /// Pistes vides au début, des clips plus loin (projet de l'utilisateur) : rien n'est manqué dans les 12
+    /// premières ; au-delà, 3 pistes muettes de suite arrêtent l'écoute.
+    func testPlaylistEmptyTracksBeforeClips() throws {
+        let link = FakeOrganizerLink()
+        link.window = .playlist
+        link.playlist = (0..<20).map { track($0) }
+        let audio = FakeAudio(link: link)
+        audio.tracks = [0: (from: 0, samples: tone(.melody)), 7: (from: 0, samples: tone(.drums))]
+        let result = try make(link, audio).run().get()
+        XCTAssertEqual(result.items.map(\.index), [0, 7])
+        XCTAssertEqual(link.log.filter { $0.hasPrefix("track") }, (0...14).map { "track \($0)" })
     }
 
     func testPlaylistSelectedTracksOnly() throws {
