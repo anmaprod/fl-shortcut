@@ -311,13 +311,22 @@ final class OrganizerApplier {
         let colors = Self.plannedColors(families: families, styles: styles, order: plan.final)
         var outcome = ApplyOutcome(snapshot: OrganizerSnapshot(kind: .channels, colors: originals,
                                                                arrangement: Array(channels.indices)))
+        let names = channels.map(\.name)
         do {
             // Couleurs d'abord (les places sont encore celles d'origine), puis les remontées.
             try link.setColors(.channels, Self.pairs(colors))
             try move(plan.moves, &outcome.snapshot.arrangement)
-            let now: [RGBColor?] = try link.listChannels().map { $0.color }
+            let listed = try link.listChannels()
+            // L'ordre que FL montre vraiment (une touche ⌥↑ perdue) : « Revenir comme avant » remet alors chaque
+            // couleur sur son son, et le regroupement manqué est dit.
+            var regrouped = true
+            if let seen = Self.arrangement(names: listed.map(\.name), original: names) {
+                regrouped = seen == outcome.snapshot.arrangement
+                outcome.snapshot.arrangement = seen
+            }
+            let now: [RGBColor?] = listed.map { $0.color }
             let expected: [RGBColor?] = outcome.snapshot.arrangement.map { colors[$0] ?? originals[$0] }
-            if now != expected {
+            if !regrouped || now != expected {
                 outcome.error = .mismatch
             } else {
                 let arrangement = outcome.snapshot.arrangement
@@ -327,8 +336,22 @@ final class OrganizerApplier {
             }
         } catch {
             outcome.error = Self.failure(error)
+            if let listed = try? link.listChannels(),
+               let seen = Self.arrangement(names: listed.map(\.name), original: names) {
+                outcome.snapshot.arrangement = seen               // arrêt en route : l'ordre relu dans FL
+            }
         }
         return outcome
+    }
+
+    /// Pur (testé) : place → index d'origine, d'après les noms relus dans FL ; nil si un nom se répète ou ne
+    /// correspond pas (la disposition supposée reste alors).
+    static func arrangement(names now: [String], original: [String]) -> [Int]? {
+        guard now.count == original.count, Set(original).count == original.count else { return nil }
+        var at: [String: Int] = [:]
+        for (index, name) in original.enumerated() { at[name] = index }
+        let out = now.compactMap { at[$0] }
+        return out.count == now.count && Set(out).count == out.count ? out : nil
     }
 
     /// Remontées une par une ; la disposition suit ce qui a vraiment été fait.

@@ -92,6 +92,7 @@ class FLState(object):
         self.n_channels_global = kw.get("n_channels_global", n)
         # Groupe affiché par le Channel rack : index global de chaque canal affiché (tous par défaut).
         self.ch_group = list(kw.get("ch_group", range(n)))
+        self.metronome = kw.get("metronome", False)
         self.notes = []                  # (index global, note, vélocité)
         self.playing = kw.get("playing", False)
         self.song_pos = kw.get("song_pos", 0.5)
@@ -181,7 +182,12 @@ def build_fl(api=45, missing=(), extra=None, **kw):
         st.recording = not st.recording
     reg("transport", "record", 1, maxargs(0, record))
     reg("transport", "isRecording", 1, maxargs(0, lambda: st.recording))
-    reg("transport", "globalTransport", 1, lambda cmd, value, *a: 1)
+    def global_transport(cmd, value, *a):
+        if cmd == 110:                                    # FPT_Metronome : bascule
+            st.metronome = not st.metronome
+        return 1
+    reg("transport", "globalTransport", 1, global_transport)
+    reg("ui", "isMetronomeEnabled", 1, lambda: st.metronome)
     reg("transport", "getLoopMode", 1, lambda: st.loop_mode)
     reg("transport", "getSongLength", 3, lambda mode: st.song_bars if mode == 3 else st.song_bars * 384)
     reg("transport", "getSongPos", 1,

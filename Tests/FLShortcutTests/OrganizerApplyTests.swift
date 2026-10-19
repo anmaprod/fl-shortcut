@@ -249,6 +249,23 @@ final class OrganizerApplyTests: XCTestCase {
         XCTAssertTrue(OrganizerError.interrupted.message.contains("Revenir comme avant"))
     }
 
+    /// Touches ⌥↑ perdues (FL sans fenêtre active) : l'ordre relu dans FL remplace l'ordre supposé, et « Revenir
+    /// comme avant » remet chaque couleur sur son son au lieu de les mélanger.
+    func testLostMovesAreReadBackForUndo() {
+        let (link, result) = rack([.drums, .melody, .vocals])
+        let original = link.channels
+        let lost = OrganizerApplier(link: link, moveUp: { count in count })      // touches comptées, rien ne bouge
+        let outcome = lost.apply(result: result, families: OrganizerApplier.families(of: result),
+                                 styles: FamilyStyles.initial)
+        XCTAssertEqual(outcome.error, .mismatch)
+        XCTAssertEqual(outcome.snapshot.arrangement, [0, 1, 2])
+        XCTAssertNil(OrganizerApplier(link: link, moveUp: link.moveSelectedUp).undo(outcome.snapshot).error)
+        XCTAssertEqual(link.channels, original)
+        XCTAssertEqual(OrganizerApplier.arrangement(names: ["b", "a"], original: ["a", "b"]), [1, 0])
+        XCTAssertNil(OrganizerApplier.arrangement(names: ["a", "a"], original: ["a", "a"]), "noms répétés")
+        XCTAssertNil(OrganizerApplier.arrangement(names: ["a", "c"], original: ["a", "b"]))
+    }
+
     // MARK: Playlist
 
     /// Une Playlist simulée : la piste 0 renommée, les autres au nom de FL ; `families[i]` nil = muette.

@@ -27,7 +27,7 @@ bornes vérifiées, seuls les CC du protocole (canal 16) sont marqués « handle
 # La ligne suivante est remplacée par l'appli à l'installation (16 octets en hex).
 KEY_HEX = "__FLSHORTCUT_KEY__"
 
-SCRIPT_VERSION = 9
+SCRIPT_VERSION = 10
 PROTOCOL_VERSION = 2
 
 MIDI_CHANNEL = 15          # canal 16, 0-indexé
@@ -1649,6 +1649,16 @@ _PLAY_FNS = (("channels", "channelCount"), ("channels", "isChannelMuted"), ("cha
              ("transport", "setSongPos"))
 
 
+def _metronome_off():
+    """Métronome allumé : éteint pour l'écoute (il sonnerait avec chaque son, tous classés pareil) ; vrai s'il faut
+    le rallumer à la remise."""
+    on = _fn("ui", "isMetronomeEnabled")
+    try:
+        return bool(on is not None and on() and _gt("FPT_Metronome", 110))
+    except Exception:
+        return False
+
+
 def _mute_scope():
     """(nombre, est en sourdine, basculer, canal affiché -> index utilisé) des sourdines de l'écoute : tout le projet
     avec l'API 33 (index globaux : les canaux des autres groupes du Channel rack aussi, sinon ils joueraient avec le
@@ -1684,6 +1694,7 @@ def _op_play_solo(raw, seq3):
             return REASON_PLAYING          # l'utilisateur joue : on ne coupe rien
         _st.memo = {"kind": "ch", "n": total, "muted": [bool(is_muted(i)) for i in range(total)],
                     "mode": _fn("transport", "getLoopMode")(), "pos": _fn("transport", "getSongPos")()}
+        _st.memo["metro"] = _metronome_off()
     elif playing:
         _fn("transport", "stop")()
     target = scoped(index)
@@ -1725,6 +1736,7 @@ def _op_play_track(raw, seq3):
             return REASON_PLAYING
         _st.memo = {"kind": "pl", "n": total, "muted": [bool(is_muted(i + 1)) for i in range(total)],
                     "mode": _fn("transport", "getLoopMode")(), "pos": _fn("transport", "getSongPos")()}
+        _st.memo["metro"] = _metronome_off()
     elif playing:
         _fn("transport", "stop")()
     for i in range(total):
@@ -1827,7 +1839,11 @@ def _restore_memo():
     def pos():
         _fn("transport", "setSongPos")(memo["pos"])
 
-    for step in (stop, mutes, mode, pos):
+    def metro():
+        if memo.get("metro"):
+            _gt("FPT_Metronome", 110)
+
+    for step in (stop, mutes, mode, pos, metro):
         try:                               # une étape qui échoue n'empêche pas les suivantes
             step()
         except Exception as exc:

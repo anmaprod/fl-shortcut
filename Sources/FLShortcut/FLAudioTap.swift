@@ -91,10 +91,8 @@ final class FLAudioTap: AudioSource {
             throw CaptureError.unsupportedFormat
         }
         rate = format.mSampleRate
-        let capture = CaptureBuffer(rate: rate, seconds: 4)
-        buffer = capture
 
-        let output = Self.defaultOutputUID() ?? ""
+        let output = Self.defaultOutput()
         var aggregate: [String: Any] = [
             kAudioAggregateDeviceNameKey: "FL Shortcuts – écoute de FL",
             kAudioAggregateDeviceUIDKey: "app.flshortcut.organizer." + UUID().uuidString,
@@ -104,27 +102,39 @@ final class FLAudioTap: AudioSource {
             kAudioAggregateDeviceTapListKey: [[kAudioSubTapDriftCompensationKey: true,
                                                kAudioSubTapUIDKey: description.uuid.uuidString]],
         ]
-        if !output.isEmpty {
-            aggregate[kAudioAggregateDeviceMainSubDeviceKey] = output
-            aggregate[kAudioAggregateDeviceSubDeviceListKey] = [[kAudioSubDeviceUIDKey: output]]
+        if let output {
+            aggregate[kAudioAggregateDeviceMainSubDeviceKey] = output.uid
+            aggregate[kAudioAggregateDeviceSubDeviceListKey] = [[kAudioSubDeviceUIDKey: output.uid]]
         }
         var device = AudioObjectID(kAudioObjectUnknown)
         status = AudioHardwareCreateAggregateDevice(aggregate as CFDictionary, &device)
         guard status == noErr else { stop(); throw CaptureError.failed("agrégat", status) }
         aggregateID = device
+        // Le son arrive à la fréquence de l'agrégat (celle de son appareil principal), pas forcément celle du tap.
+        if let nominal = Self.nominalRate(device), nominal >= 8_000 { rate = nominal }
+        let capture = CaptureBuffer(rate: rate, seconds: 4)
+        buffer = capture
 
         let interleaved = format.mFormatFlags & kAudioFormatFlagIsNonInterleaved == 0
+        let tapBuffers = interleaved ? 1 : Int(max(format.mChannelsPerFrame, 1))
+        // Une carte son a des entrées (SSL 2+…) : dans l'agrégat, elles passent avant le son de FL. Le son de FL :
+        // les tampons après elles (audit : sinon on écoutait l'entrée de la carte son, pas FL).
+        let skip = output.map { Self.inputStreamCount($0.id) } ?? 0
         status = AudioDeviceCreateIOProcIDWithBlock(&procID, device, queue) { _, input, _, _, _ in
             let list = UnsafeMutableAudioBufferListPointer(UnsafeMutablePointer(mutating: input))
-            if interleaved, let first = list.first, let data = first.mData {
+            let from = list.count >= skip + tapBuffers ? skip : max(list.count - tapBuffers, 0)
+            guard from < list.count else { return }
+            if interleaved {
+                let first = list[from]
+                guard let data = first.mData else { return }
                 let channels = Int(max(first.mNumberChannels, 1))
                 let frames = Int(first.mDataByteSize) / (MemoryLayout<Float>.size * channels)
                 capture.appendInterleaved(data.assumingMemoryBound(to: Float.self), frames: frames, channels: channels)
             } else {
-                let planes: [UnsafePointer<Float>] = list.compactMap { buffer in
-                    buffer.mData.map { UnsafePointer($0.assumingMemoryBound(to: Float.self)) }
+                let planes: [UnsafePointer<Float>] = (from..<min(from + tapBuffers, list.count)).compactMap { i in
+                    list[i].mData.map { UnsafePointer($0.assumingMemoryBound(to: Float.self)) }
                 }
-                let frames = list.first.map { Int($0.mDataByteSize) / MemoryLayout<Float>.size } ?? 0
+                let frames = Int(list[from].mDataByteSize) / MemoryLayout<Float>.size
                 capture.appendPlanar(planes, frames: frames)
             }
         }
@@ -170,7 +180,7 @@ final class FLAudioTap: AudioSource {
         return object
     }
 
-    private static func defaultOutputUID() -> String? {
+    private static func defaultOutput() -> (id: AudioObjectID, uid: String)? {
         var address = Self.address(kAudioHardwarePropertyDefaultSystemOutputDevice)
         var device = AudioObjectID(kAudioObjectUnknown)
         var size = UInt32(MemoryLayout<AudioObjectID>.size)
@@ -183,6 +193,25 @@ final class FLAudioTap: AudioSource {
             AudioObjectGetPropertyData(device, &uidAddress, 0, nil, &uidSize, $0)
         }
         guard status == noErr, let uid else { return nil }
-        return uid.takeRetainedValue() as String
+        let text = uid.takeRetainedValue() as String
+        return text.isEmpty ? nil : (id: device, uid: text)
+    }
+
+    /// Flux d'entrée d'un appareil (un tampon chacun dans l'agrégat) : 0 pour des haut-parleurs.
+    private static func inputStreamCount(_ device: AudioObjectID) -> Int {
+        var address = AudioObjectPropertyAddress(mSelector: kAudioDevicePropertyStreams,
+                                                 mScope: kAudioObjectPropertyScopeInput,
+                                                 mElement: kAudioObjectPropertyElementMain)
+        var size: UInt32 = 0
+        guard AudioObjectGetPropertyDataSize(device, &address, 0, nil, &size) == noErr else { return 0 }
+        return Int(size) / MemoryLayout<AudioStreamID>.size
+    }
+
+    private static func nominalRate(_ device: AudioObjectID) -> Double? {
+        var address = Self.address(kAudioDevicePropertyNominalSampleRate)
+        var value = Float64(0)
+        var size = UInt32(MemoryLayout<Float64>.size)
+        guard AudioObjectGetPropertyData(device, &address, 0, nil, &size, &value) == noErr else { return nil }
+        return value
     }
 }

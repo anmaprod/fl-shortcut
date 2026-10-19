@@ -307,10 +307,10 @@ final class RequestOrganizerLink: OrganizerLink {
                              window: { MIDILink.shared.core.routingView().window })
     }
 
-    /// Celle reçue par le lien ; inconnue (lien endormi, mode léger) : demandée au script.
+    /// Demandée au script à chaque fois (audit : celle reçue par le lien pouvait dater d'avant son sommeil et laisser
+    /// passer ⌥↑ vers une autre page) ; celle reçue par le lien seulement si le script ne répond pas.
     var window: FLWindow {
-        let routed = currentWindow()
-        return routed != .unknown ? routed : ((try? page()) ?? .unknown)
+        (try? page()) ?? currentWindow()
     }
 
     /// Script v5 (l'opération 9 lui est inconnue : refus 5) : la page que le script envoie juste après son réveil,

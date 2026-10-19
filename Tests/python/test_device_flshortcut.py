@@ -1379,6 +1379,23 @@ class TestDataV5(TestData):
         self.data_command([6] + M.be16(2))                    # hors du groupe affiché
         self.assertEqual(self.reasons(), [5])
 
+    def test_listening_turns_the_metronome_off_then_back_on(self):
+        # Allumé, le métronome sonnerait avec chaque son écouté : éteint pendant l'écoute, rallumé à la remise.
+        self.make(n_channels=2, metronome=True)
+        self.data_command([6] + M.be16(0))
+        self.assertFalse(self.fl.metronome)
+        self.clock.t += 0.1
+        self.data_command([6] + M.be16(1))
+        self.assertFalse(self.fl.metronome)
+        self.clock.t += 0.1
+        self.data_command([7])
+        self.assertTrue(self.fl.metronome)
+        self.make(n_channels=2)                               # éteint : jamais allumé par l'écoute
+        self.data_command([6] + M.be16(0))
+        self.clock.t += 0.1
+        self.data_command([7])
+        self.assertFalse(self.fl.metronome)
+
     def test_play_solo_in_group_before_api33(self):
         self.make(api=30, n_channels=2, n_channels_global=4, ch_group=[1, 3])
         self.data_command([6] + M.be16(0))

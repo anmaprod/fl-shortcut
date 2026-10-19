@@ -4,6 +4,7 @@
 // modifiable, nouveaux noms des pistes de la Playlist), application, puis « Revenir comme avant ». Tout est libéré à
 // la fermeture (session, capture, IA, panneau) : rien ne tourne au repos. Aucune lecture de l'écran.
 import AppKit
+import ApplicationServices
 import Combine
 import SwiftUI
 
@@ -74,6 +75,8 @@ struct OrganizerEnvironment {
     /// Fenêtre de macOS pour la demander ; faux : rien n'a pu être demandé. `done` sur le fil principal.
     var requestAudioPermission: (@escaping (Bool) -> Void) -> Bool = { _ in false }
     var openAudioSettings: () -> Void = {}
+    /// FL mis devant (le panneau flotte au-dessus) : sa page devant et ses touches en dépendent.
+    var focusFL: () -> Void = {}
 
     static func live() -> OrganizerEnvironment {
         OrganizerEnvironment(
@@ -105,7 +108,21 @@ struct OrganizerEnvironment {
                 NSApp.activate(ignoringOtherApps: true)        // la fenêtre de macOS devant FL, pas derrière
                 return AudioCapturePermission.request(done)
             },
-            openAudioSettings: { ScreenLook.openSettings() })
+            openAudioSettings: { ScreenLook.openSettings() },
+            focusFL: {
+                guard let pid = OrganizerEnvironment.flPID() else { return }
+                if EventTap.shared.currentConfig.frontmostPID != pid {
+                    _ = NSRunningApplication(processIdentifier: pid)?.activate(options: [])
+                }
+                // Sa fenêtre principale de nouveau active (un champ de texte du panneau a pu prendre le clavier).
+                let app = AXUIElementCreateApplication(pid)
+                AXUIElementSetMessagingTimeout(app, 0.3)
+                var value: CFTypeRef?
+                if AXUIElementCopyAttributeValue(app, kAXMainWindowAttribute as CFString, &value) == .success,
+                   let value, CFGetTypeID(value) == AXUIElementGetTypeID() {
+                    AXUIElementPerformAction(value as! AXUIElement, kAXRaiseAction as CFString)
+                }
+            })
     }
 
     /// Lien installé : script remis dans FL s'il en a disparu, ports « FL Shortcuts Link » créés s'ils ne sont pas là
@@ -151,9 +168,10 @@ struct OrganizerEnvironment {
         }
         let effects = MacroEffectsMac(pid: pid)
         let up = KeyCombo(keyCode: 126, option: true)
+        guard link.window == .channelRack else { return 0 }  // demandé à FL (une requête), pas à chaque touche
         var done = 0
         while done < count {
-            guard EventTap.shared.currentConfig.frontmostPID == pid, link.window == .channelRack else { break }
+            guard EventTap.shared.currentConfig.frontmostPID == pid else { break }
             effects.postKey(up, pid: pid)
             done += 1
             Thread.sleep(forTimeInterval: 0.015)
@@ -218,6 +236,8 @@ final class OrganizerController: ObservableObject {
     private(set) var chosenPage: OrganizerPage?
     /// La fenêtre de macOS pour « Audio du système » est montrée une fois par Organiser ouvert.
     private var askedAudio = false
+    /// Écoute en cours : la fin d'une écoute remplacée (nouvel essai) est ignorée (audit : deux écoutes à la fois).
+    private var runToken = 0
 
     init(env: OrganizerEnvironment) {
         self.env = env
@@ -278,22 +298,32 @@ final class OrganizerController: ObservableObject {
             if let reason = Self.waitReason(for: error, wrongInput: env.wrongInput()) { wait(reason) } else { phase = .failed(error.message) }
             return
         }
+        if !quiet { env.focusFL() }
+        self.session?.cancel()                                // l'ancienne écoute s'arrête (FL remis comme avant)
+        runToken += 1
+        let token = runToken
         let link = env.link()
         let session = OrganizerSession(
             link: link, audio: audio, classify: env.classify(), nameDrum: env.nameDrum(), timing: env.timing,
             sleep: env.sleep, escape: env.escapePressed,
             progress: { [weak self] done, total in
-                DispatchQueue.main.async { self?.listening(done, total) }
+                DispatchQueue.main.async {
+                    guard self?.runToken == token else { return }
+                    self?.listening(done, total)
+                }
             })
         self.link = link
         self.session = session
         if !quiet { phase = .listening(done: 0, total: 0) }
         let sleep = env.sleep
         let chosen = chosenPage
-        queue.async { [weak self] in
+        queue.async { [weak self] in                           // file en série : jamais deux écoutes en même temps
             if warmUp > 0 { sleep(warmUp) }
             let outcome = session.run(on: chosen)
-            DispatchQueue.main.async { self?.finishListening(outcome) }
+            DispatchQueue.main.async {
+                guard self?.runToken == token else { return }
+                self?.finishListening(outcome)
+            }
         }
     }
 
@@ -345,6 +375,7 @@ final class OrganizerController: ObservableObject {
     func open(_ page: OrganizerPage) {
         guard !closed else { return }
         chosenPage = page
+        waitSerial += 1                                       // pas d'essai tout seul pendant que la page s'ouvre
         let show = env.showPage
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
             show(page)
@@ -491,6 +522,7 @@ final class OrganizerController: ObservableObject {
     func apply() {
         guard phase == .preview, let result, let link else { return }
         env.saveStyles(styles)
+        env.focusFL()                                         // ⌥↑ et F2 vont à FL
         phase = .applying
         let applier = OrganizerApplier(link: link, moveUp: env.moveUp(link), placeIcon: env.placeIcon)
         let families = self.families, styles = self.styles, names = plannedNames
@@ -601,7 +633,6 @@ enum OrganizerWindow {
     static func open(env: OrganizerEnvironment = .live(), start: Bool = true) {
         if let panel {
             panel.orderFrontRegardless()
-            panel.makeKey()
             return
         }
         let controller = OrganizerController(env: env)
@@ -615,6 +646,9 @@ enum OrganizerWindow {
         p.titleVisibility = .hidden
         p.titlebarAppearsTransparent = true
         p.isMovableByWindowBackground = true
+        // Jamais la fenêtre active à la place de FL (audit : avec makeKey, FL perdait sa fenêtre active, ne disait plus
+        // quelle page était devant, et ⌥↑ / F2 partaient dans le vide) ; un champ de texte la rend active au clic.
+        p.becomesKeyOnlyIfNeeded = true
         p.isFloatingPanel = true
         p.level = .floating
         p.hidesOnDeactivate = false
@@ -638,7 +672,6 @@ enum OrganizerWindow {
             }
         }
         p.orderFrontRegardless()
-        p.makeKey()
         if start { controller.start() }
     }
 

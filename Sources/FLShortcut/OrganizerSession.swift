@@ -119,11 +119,18 @@ final class OrganizerSession {
     /// Mixer et la Playlist bien devant, FL ne les disait pas « focused » et l'Organiser attendait sans fin.
     func run(on chosen: OrganizerPage? = nil) -> Result<OrganizerResult, OrganizerError> {
         do {
+            // Toujours demandée : c'est elle qui reconnaît un ancien script chargé dans FL (à redémarrer).
+            let reported: FLWindow
+            do {
+                reported = try link.page()
+            } catch OrganizerError.failed(_) where chosen != nil {
+                reported = .unknown
+            }
             let page: OrganizerPage
             if let chosen {
                 page = chosen
             } else {
-                switch try link.page() {
+                switch reported {
                 case .channelRack: page = .channelRack
                 case .mixer: page = .mixer
                 case .playlist: page = .playlist
