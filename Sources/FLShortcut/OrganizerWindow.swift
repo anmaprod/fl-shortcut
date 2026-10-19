@@ -233,6 +233,9 @@ final class OrganizerController: ObservableObject {
     @Published private(set) var phase: Phase = .starting
     /// Famille de chaque élément (canal, piste du Mixer ou de la Playlist), modifiable dans l'aperçu.
     @Published var families: [Int: SoundFamily] = [:]
+    /// Ce qu'est chaque élément (Kick, 808, Open Hat…), modifiable dans l'aperçu ; oublié s'il ne va plus avec sa
+    /// famille.
+    @Published var kinds: [Int: SoundKind] = [:]
     @Published var styles: [SoundFamily: FamilyStyle]
     @Published private(set) var result: OrganizerResult?
     /// Playlist : renommer les pistes qui ont encore le nom de FL.
@@ -442,6 +445,7 @@ final class OrganizerController: ObservableObject {
         waitSerial += 1
         result = nil
         families = [:]
+        kinds = [:]
         phase = .starting
         start()
     }
@@ -477,6 +481,7 @@ final class OrganizerController: ObservableObject {
         case .success(let result):
             self.result = result
             families = OrganizerApplier.families(of: result)
+            kinds = OrganizerApplier.kinds(of: result)
             if !families.isEmpty {
                 phase = .preview
             } else if result.page == .mixer {
@@ -507,36 +512,61 @@ final class OrganizerController: ObservableObject {
         var byName = false
         /// Playlist : nom qu'elle prendra.
         var newName: String? = nil
+        /// Ce qu'est le son (Kick, 808…), s'il va avec sa famille.
+        var kind: SoundKind? = nil
     }
 
-    /// Éléments d'une famille, dans l'ordre de FL.
+    /// Éléments d'une famille, dans l'ordre de FL ; Channel rack : dans l'ordre où ils finiront (les Kick
+    /// ensemble, puis les Snare…).
     func members(of family: SoundFamily) -> [Member] {
         guard let result else { return [] }
         var out: [Member] = []
         switch result.page {
         case .channelRack:
             for item in result.items where families[item.index] == family {
-                out.append(Member(id: item.index, name: item.name, testNotes: item.testNotes, byName: item.byName))
+                out.append(Member(id: item.index, name: item.name, testNotes: item.testNotes, byName: item.byName,
+                                  kind: kind(of: item.index)))
             }
+            let rank = { (m: Member) in m.kind?.rank ?? SoundKind.allCases.count }
+            out = out.enumerated().sorted { a, b in
+                rank(a.element) != rank(b.element) ? rank(a.element) < rank(b.element) : a.offset < b.offset
+            }.map { $0.element }
         case .mixer:
             for track in result.mixer where families[track.index] == family {
                 out.append(Member(id: track.index, name: track.name.isEmpty ? "Piste \(track.index)" : track.name,
-                                  testNotes: false))
+                                  testNotes: false, kind: kind(of: track.index)))
             }
         case .playlist:
             let names = plannedNames
             for item in result.items where families[item.index] == family {
                 out.append(Member(id: item.index, name: item.name.isEmpty ? "Track \(item.index + 1)" : item.name,
-                                  testNotes: false, byName: item.byName, newName: names[item.index]))
+                                  testNotes: false, byName: item.byName, newName: names[item.index],
+                                  kind: kind(of: item.index)))
             }
         }
         return out
     }
 
+    /// Ce qu'est l'élément, s'il va avec sa famille.
+    func kind(of index: Int) -> SoundKind? {
+        OrganizerApplier.kind(index, families: families, kinds: kinds)
+    }
+
+    /// Changé dans l'aperçu : une famille seule (ce qu'était le son est oublié), ou ce qu'est le son (sa famille suit).
+    func setFamily(_ index: Int, _ family: SoundFamily) {
+        families[index] = family
+        kinds[index] = nil
+    }
+
+    func setKind(_ index: Int, _ kind: SoundKind) {
+        families[index] = kind.family
+        kinds[index] = kind
+    }
+
     /// Playlist : nouveaux noms (vide si « Renommer les pistes » est décoché).
     var plannedNames: [Int: String] {
         guard renameTracks, let result, result.page == .playlist else { return [:] }
-        return OrganizerApplier.plannedNames(result: result, families: families)
+        return OrganizerApplier.plannedNames(result: result, families: families, kinds: kinds)
     }
 
     /// Couleur prévue de chaque élément (dégradés répartis dans l'ordre final).
@@ -546,7 +576,7 @@ final class OrganizerController: ObservableObject {
         switch result.page {
         case .channelRack:
             let channels = result.channels.sorted { $0.index < $1.index }
-            order = RegroupPlan.make(order: channels.map { families[$0.index] }).final
+            order = OrganizerApplier.rackPlan(channels, families: families, kinds: kinds).final
         case .mixer:
             order = result.mixer.map(\.index)
         case .playlist:
@@ -571,7 +601,7 @@ final class OrganizerController: ObservableObject {
         case .playlist?:
             return plannedNames.isEmpty ? "C'est fait : les pistes de la Playlist sont colorées par famille."
                                         : "C'est fait : les pistes de la Playlist sont colorées et renommées."
-        default: return "C'est fait : les sons sont colorés et regroupés par famille."
+        default: return "C'est fait : les sons sont colorés par famille et rangés par sorte (Kick, Snare, 808…)."
         }
     }
 
@@ -581,9 +611,9 @@ final class OrganizerController: ObservableObject {
         env.focusFL()                                         // ⌥↑ et F2 vont à FL
         phase = .applying
         let applier = OrganizerApplier(link: link, moveUp: env.moveUp(link), placeIcon: env.placeIcon)
-        let families = self.families, styles = self.styles, names = plannedNames
+        let families = self.families, styles = self.styles, names = plannedNames, kinds = self.kinds
         queue.async { [weak self] in
-            let outcome = applier.apply(result: result, families: families, styles: styles, names: names)
+            let outcome = applier.apply(result: result, families: families, styles: styles, names: names, kinds: kinds)
             DispatchQueue.main.async {
                 self?.snapshot = outcome.snapshot
                 self?.phase = .applied(outcome.error)
@@ -628,6 +658,7 @@ final class OrganizerController: ObservableObject {
             let result = Self.demoResult
             self.result = result
             families = OrganizerApplier.families(of: result)
+            kinds = OrganizerApplier.kinds(of: result)
             phase = screen == "fini" ? .applied(nil) : .preview
         default: break
         }
@@ -643,7 +674,7 @@ final class OrganizerController: ObservableObject {
         }
         let items = sounds.enumerated().map {
             OrganizerItem(index: $0.offset, name: $0.element.0, family: $0.element.1, confidence: 0.9, testNotes: false,
-                          mixerTrack: $0.offset + 1, color: gray)
+                          mixerTrack: $0.offset + 1, color: gray, kind: SoundNames.kind(of: $0.element.0))
         }
         return OrganizerResult(page: .channelRack, channels: channels, items: items, mixer: [], mixerFamilies: [:])
     }
@@ -1160,9 +1191,9 @@ struct OrganizerView: View {
         case .mixer?:
             return "Chaque piste prend la famille des sons qui y sont reliés. Clique sur une famille pour la changer."
         case .playlist?:
-            return "Chaque piste prend la famille des sons qui jouent dessus (patterns, clips audio). Clique sur sa famille pour la changer. Appliquer colore les pistes par famille."
+            return "Chaque piste prend ce que jouent ses sons (Kick, 808…, sinon leur famille), d'après leur nom ou leur écoute. Clique dessus pour le changer. Appliquer colore les pistes par famille."
         default:
-            return "Vérifie chaque son et clique sur sa famille pour la changer. Appliquer colore et regroupe les sons par famille."
+            return "Chaque son est rangé d'après son nom (« BEAM KICK » : Kick), sinon d'après son écoute. Clique sur Kick, 808… pour le changer. Appliquer colore les sons par famille et met ensemble ceux de même sorte."
         }
     }
 
@@ -1415,17 +1446,26 @@ private struct FamilySection: View {
                     .help("Classé d'après son nom, sans l'écouter.")
             }
             Spacer()
+            // Ce qu'est le son (« BEAM KICK » : Kick), sinon sa famille ; chaque famille propose ses sortes.
             Menu {
                 ForEach(SoundFamily.order, id: \.self) { choice in
-                    Button(choice.label) { controller.families[member.id] = choice }
+                    if choice.kinds.isEmpty {
+                        Button(choice.label) { controller.setFamily(member.id, choice) }
+                    } else {
+                        Menu(choice.label) {
+                            ForEach(choice.kinds, id: \.self) { kind in
+                                Button(kind.name) { controller.setKind(member.id, kind) }
+                            }
+                        }
+                    }
                 }
             } label: {
-                Text(family.label).font(.system(size: 11))
+                Text(member.kind?.name ?? family.label).font(.system(size: 11))
             }
             .menuStyle(.button)
             .buttonStyle(.borderless)
             .fixedSize()
-            .help("Changer la famille de ce son")
+            .help("Changer ce qu'est ce son (Kick, 808, Lead…) ou sa famille")
         }
         .font(.system(size: 12))
     }

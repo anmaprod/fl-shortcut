@@ -86,11 +86,21 @@ struct Move: Equatable {
 }
 
 enum RegroupPlan {
-    /// Tri stable par famille (ordre des familles ; canaux non écoutés, layers et automations, à la fin). `final[p]` est
-    /// l'index d'origine du canal qui finit à la place p. Au plus n × (n − 1) / 2 pas.
-    static func make(order: [SoundFamily?]) -> (moves: [Move], final: [Int]) {
+    /// Tri stable par famille (ordre des familles ; canaux non écoutés, layers et automations, à la fin), et dans une
+    /// famille par ce qu'est le son (`kinds`, même ordre que `order` : les Kick ensemble, puis les Snare… ; les sons
+    /// qui ne disent rien après). `final[p]` est l'index d'origine du canal qui finit à la place p. Au plus
+    /// n × (n − 1) / 2 pas.
+    static func make(order: [SoundFamily?], kinds: [SoundKind?] = []) -> (moves: [Move], final: [Int]) {
         let rank: [Int] = order.map { $0?.rank ?? SoundFamily.order.count }
-        let final = Array(order.indices).sorted { rank[$0] != rank[$1] ? rank[$0] < rank[$1] : $0 < $1 }
+        let sub: [Int] = order.indices.map { i -> Int in
+            guard i < kinds.count, let kind = kinds[i], kind.family == order[i] else { return SoundKind.allCases.count }
+            return kind.rank
+        }
+        let final = Array(order.indices).sorted { a, b in
+            if rank[a] != rank[b] { return rank[a] < rank[b] }
+            if sub[a] != sub[b] { return sub[a] < sub[b] }
+            return a < b
+        }
         return (moves(from: Array(order.indices), to: final), final)
     }
 
@@ -203,15 +213,34 @@ final class OrganizerApplier {
         return out
     }
 
-    /// Nouveau nom des pistes de la Playlist qui ont encore le nom de FL : la sorte des drums (Kick, Snare…) ou la
-    /// famille (Voix, Mélodie, Basse, FX) ; numérotés dans l'ordre de la Playlist quand il y en a plusieurs
-    /// (« Kick », « Kick 2 »…). « À vérifier » : pas renommée.
-    static func plannedNames(result: OrganizerResult, families: [Int: SoundFamily]) -> [Int: String] {
-        let drums = Dictionary(result.items.map { ($0.index, $0.drum) }, uniquingKeysWith: { a, _ in a })
+    /// Ce qu'est chaque élément écouté (par index d'origine), quand c'est connu (Kick, 808…). Mixer : rien (les
+    /// éléments sont ses pistes, pas les sons écoutés).
+    static func kinds(of result: OrganizerResult) -> [Int: SoundKind] {
+        guard result.page != .mixer else { return [:] }
+        var out: [Int: SoundKind] = [:]
+        for item in result.items {
+            if let kind = item.kind { out[item.index] = kind }
+        }
+        return out
+    }
+
+    /// Ce qu'est l'élément s'il va avec sa famille (une famille changée dans l'aperçu fait oublier l'ancien : un
+    /// « Kick » mis en Basse s'appelle « Basse »).
+    static func kind(_ index: Int, families: [Int: SoundFamily], kinds: [Int: SoundKind]) -> SoundKind? {
+        guard let kind = kinds[index], kind.family == families[index] else { return nil }
+        return kind
+    }
+
+    /// Nouveau nom des pistes de la Playlist qui ont encore le nom de FL : ce qu'elles jouent (Kick, 808, Open
+    /// Hat…), sinon leur famille (Drums, Voix, Mélodie, Basse, FX) ; numérotés dans l'ordre de la Playlist quand il
+    /// y en a plusieurs (« Kick », « Kick 2 »…). « À vérifier » : pas renommée. `kinds` : ceux de l'écoute si nil.
+    static func plannedNames(result: OrganizerResult, families: [Int: SoundFamily],
+                             kinds: [Int: SoundKind]? = nil) -> [Int: String] {
+        let known = kinds ?? Self.kinds(of: result)
         var base: [(index: Int, name: String)] = []
         for track in result.playlist where track.hasDefaultName {
             guard let family = families[track.index], var name = family.trackName else { continue }
-            if family == .drums, let kind = drums[track.index] ?? nil { name = kind.name }
+            if let kind = Self.kind(track.index, families: families, kinds: known) { name = kind.name }
             base.append((track.index, name))
         }
         var seen: [String: Int] = [:]
@@ -236,14 +265,22 @@ final class OrganizerApplier {
         (error as? OrganizerError) ?? .failed("Organiser : étape impossible (\(type(of: error))).")
     }
 
-    /// `names` : nouveaux noms des pistes de la Playlist (voir `plannedNames`).
-    func apply(result: OrganizerResult, families: [Int: SoundFamily],
-               styles: [SoundFamily: FamilyStyle], names: [Int: String] = [:]) -> ApplyOutcome {
+    /// `names` : nouveaux noms des pistes de la Playlist (voir `plannedNames`). `kinds` : ce qu'est chaque son, pour
+    /// les mettre ensemble dans le Channel rack (ceux de l'écoute si nil).
+    func apply(result: OrganizerResult, families: [Int: SoundFamily], styles: [SoundFamily: FamilyStyle],
+               names: [Int: String] = [:], kinds: [Int: SoundKind]? = nil) -> ApplyOutcome {
         switch result.page {
         case .mixer: return applyMixer(result, families, styles)
-        case .channelRack: return applyRack(result, families, styles)
+        case .channelRack: return applyRack(result, families, styles, kinds ?? Self.kinds(of: result))
         case .playlist: return applyPlaylist(result, families, styles, names)
         }
+    }
+
+    /// Plan de regroupement du Channel rack : par famille, puis par ce qu'est chaque son.
+    static func rackPlan(_ channels: [ChannelInfo], families: [Int: SoundFamily],
+                         kinds: [Int: SoundKind]) -> (moves: [Move], final: [Int]) {
+        RegroupPlan.make(order: channels.map { families[$0.index] },
+                         kinds: channels.map { Self.kind($0.index, families: families, kinds: kinds) })
     }
 
     /// Couleurs et noms, puis vérification sur les pistes touchées (lues jusqu'à la dernière).
@@ -303,11 +340,11 @@ final class OrganizerApplier {
     }
 
     private func applyRack(_ result: OrganizerResult, _ families: [Int: SoundFamily],
-                           _ styles: [SoundFamily: FamilyStyle]) -> ApplyOutcome {
+                           _ styles: [SoundFamily: FamilyStyle], _ kinds: [Int: SoundKind]) -> ApplyOutcome {
         let channels = result.channels.sorted { $0.index < $1.index }
         var originals: [Int: RGBColor] = [:]
         for channel in channels { originals[channel.index] = channel.color }
-        let plan = RegroupPlan.make(order: channels.map { families[$0.index] })
+        let plan = Self.rackPlan(channels, families: families, kinds: kinds)
         let colors = Self.plannedColors(families: families, styles: styles, order: plan.final)
         var outcome = ApplyOutcome(snapshot: OrganizerSnapshot(kind: .channels, colors: originals,
                                                                arrangement: Array(channels.indices)))

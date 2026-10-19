@@ -377,7 +377,7 @@ final class OrganizerSessionTests: XCTestCase {
         let result = try make(link, audio).run().get()
         XCTAssertEqual(result.items.map(\.family), [.drums, .bass, .melody])
         XCTAssertEqual(result.items.map(\.byName), [true, true, false])
-        XCTAssertEqual(result.items[0].drum, .kick)
+        XCTAssertEqual(result.items.map(\.kind), [.kick, .bass808, nil], "« BEAM KICK » : Kick ; « ZEBRA 808 » : 808")
         XCTAssertEqual(link.log, ["list", "solo 2", "restore"], "seul « Serum 2 » est écouté")
     }
 
@@ -433,7 +433,7 @@ final class OrganizerSessionTests: XCTestCase {
         XCTAssertEqual(result.page, .playlist)
         XCTAssertEqual(result.items.map(\.index), [0, 1, 2])
         XCTAssertEqual(result.items.map(\.family), [.drums, .bass, .melody])
-        XCTAssertEqual(result.items[0].drum, .kit, "kick et hi-hat : « Drums »")
+        XCTAssertEqual(result.items.map(\.kind), [.drums, .bass808, nil], "kick et open hat : « Drums » ; 808 seul : « 808 »")
         XCTAssertEqual(result.items.map(\.byName), [true, true, false])
         XCTAssertEqual(link.log.filter { $0.hasPrefix("song") }.count, 8, "16 mesures : toutes les 2")
         XCTAssertEqual(link.log.filter { $0.hasPrefix("solo") }, ["solo 2"])
@@ -452,34 +452,55 @@ final class OrganizerSessionTests: XCTestCase {
             5: OrganizerItem(index: 5, name: "", family: .unsure, confidence: 0.2, testNotes: true, mixerTrack: 0,
                              color: red),
             6: OrganizerItem(index: 6, name: "", family: .drums, confidence: 0.9, testNotes: false, mixerTrack: 0,
-                             color: red, drum: .snare),
+                             color: red, kind: .snare),
         ]
         XCTAssertEqual(OrganizerSession.trackFamily([5: 1], items: items)?.family, .unsure, "rien d'autre")
         XCTAssertEqual(OrganizerSession.trackFamily([5: 1, 6: 0.5], items: items)?.family, .drums)
-        XCTAssertEqual(OrganizerSession.trackFamily([6: 1], items: items)?.drum, .snare)
+        XCTAssertEqual(OrganizerSession.trackFamily([6: 1], items: items)?.kind, .snare)
         XCTAssertNil(OrganizerSession.trackFamily([9: 1], items: items))
         XCTAssertEqual(OrganizerSession.songPositions(bars: 16).count, 8)
         XCTAssertEqual(OrganizerSession.songPositions(bars: 0).count, 16)
         XCTAssertEqual(OrganizerSession.songPositions(bars: 500).count, OrganizerSession.maxPositions)
     }
 
+    /// Rangé d'après le mot de son nom qui dit ce qu'il est (vidéo de l'utilisateur : « BEAM KICK » doit être un Kick).
     func testSoundNames() {
+        XCTAssertEqual(SoundNames.kind(of: "BEAM KICK"), .kick)
+        XCTAssertEqual(SoundNames.kind(of: "ZEBRA 808"), .bass808)
+        XCTAssertEqual(SoundNames.kind(of: "ALTER OPEN HAT"), .openHat)
+        XCTAssertEqual(SoundNames.kind(of: "@MEH CLAP"), .clap)
+        XCTAssertEqual(SoundNames.kind(of: "ANOTHER BASIC HI HAT"), .hiHat)
+        XCTAssertEqual(SoundNames.kind(of: "ALSO GOOD..OLD CRASH"), .crash)
+        XCTAssertEqual(SoundNames.kind(of: "Trap OH 01"), .openHat)
+        XCTAssertEqual(SoundNames.kind(of: "808 Kick"), .kick, "un mot de drums précis l'emporte")
+        XCTAssertEqual(SoundNames.kind(of: "Kick01"), .kick)
+        XCTAssertEqual(SoundNames.kind(of: "Sub 808"), .bass808, "le premier dans l'ordre de la famille")
+        XCTAssertEqual(SoundNames.kind(of: "Synth Bass"), .bass)
+        XCTAssertEqual(SoundNames.kind(of: "Vocal Chop"), .vocal)
+        XCTAssertEqual(SoundNames.kind(of: "Adlib Vox"), .adlib, "un mot précis passe avant le mot général")
+        XCTAssertEqual(SoundNames.kind(of: "Riser FX"), .riser)
+        XCTAssertEqual(SoundNames.kind(of: "Synth Lead"), .lead)
+        XCTAssertEqual(SoundNames.kind(of: "Drum Loop"), .drums)
+        XCTAssertEqual(SoundNames.kind(of: "Mélodie"), .melody)
         XCTAssertEqual(SoundNames.family(of: "BEAM KICK"), .drums)
-        XCTAssertEqual(SoundNames.drum(of: "BEAM KICK"), .kick)
         XCTAssertEqual(SoundNames.family(of: "ZEBRA 808"), .bass)
-        XCTAssertEqual(SoundNames.drum(of: "ANOTHER BASIC HI HAT"), .hiHat)
-        XCTAssertEqual(SoundNames.drum(of: "@MEH CLAP"), .clap)
-        XCTAssertEqual(SoundNames.drum(of: "ALSO GOOD..OLD CRASH"), .cymbal)
-        XCTAssertEqual(SoundNames.family(of: "808 Kick"), .drums, "un mot de drums précis l'emporte")
-        XCTAssertEqual(SoundNames.family(of: "Kick01"), .drums)
-        XCTAssertEqual(SoundNames.family(of: "Synth Bass"), .bass)
-        XCTAssertEqual(SoundNames.family(of: "Vocal Chop"), .vocals)
-        XCTAssertEqual(SoundNames.family(of: "Riser FX"), .fx)
         XCTAssertEqual(SoundNames.family(of: "Piano"), .melody)
-        XCTAssertEqual(SoundNames.family(of: "Mélodie"), .melody)
-        XCTAssertNil(SoundNames.family(of: "Serum 2"))
-        XCTAssertNil(SoundNames.family(of: "1SHOT - ARPME"))
-        XCTAssertNil(SoundNames.family(of: "Subtle"), "mots entiers seulement")
+        XCTAssertNil(SoundNames.kind(of: "Serum 2"))
+        XCTAssertNil(SoundNames.kind(of: "1SHOT - ARPME"))
+        XCTAssertNil(SoundNames.kind(of: "Subtle"), "mots entiers seulement")
+        XCTAssertNil(SoundNames.kind(of: "Open Sampler"))
+        // Chaque sorte a un nom et sa famille la propose ; un seul mot général par famille, au nom de la famille.
+        XCTAssertEqual(SoundKind.kick.name, "Kick")
+        XCTAssertEqual(SoundKind.bass808.name, "808")
+        XCTAssertEqual(SoundKind.openHat.name, "Open Hat")
+        for family in SoundFamily.order where family != .unsure {
+            let general = family.kinds.filter(\.isGeneral)
+            XCTAssertEqual(general.count, 1, "\(family)")
+            XCTAssertEqual(general.first?.name, family.trackName, "\(family)")
+        }
+        XCTAssertEqual(SoundFamily.unsure.kinds, [])
+        XCTAssertEqual(Set(SoundKind.allCases.map(\.name)).count, SoundKind.allCases.count)
+        XCTAssertEqual(DrumKind.allCases.map(\.sound.family), Array(repeating: .drums, count: DrumKind.allCases.count))
     }
 
     func testOtherPageRefused() {
@@ -530,7 +551,7 @@ final class OrganizerSessionTests: XCTestCase {
         XCTAssertEqual(result.playlist.count, 10)
         XCTAssertEqual(result.items.map(\.index), [0, 1, 3])
         XCTAssertEqual(result.items.map(\.family), [.melody, .drums, .bass])
-        XCTAssertEqual(result.items.map(\.drum), [nil, .kick, nil], "sorte des drums seulement")
+        XCTAssertEqual(result.items.map(\.kind), [nil, .kick, nil], "sorte des drums seulement")
         XCTAssertEqual(result.items[0].name, "Lead")
         // Les 12 premières pistes sont toujours écoutées (des pistes vides peuvent précéder des clips) : ici toutes.
         XCTAssertEqual(link.log.filter { $0.hasPrefix("track") }, (0...9).map { "track \($0)" })

@@ -9,8 +9,10 @@ final class OrganizerApplyTests: XCTestCase {
         FamilyStyles.initial[family]?.color ?? RGBColor(r: 0, g: 0, b: 0)
     }
 
-    /// Un Channel rack simulé : canal i de couleur (i, 0, 0) ; nil = automation (non écoutée).
-    private func rack(_ families: [SoundFamily?]) -> (link: FakeOrganizerLink, result: OrganizerResult) {
+    /// Un Channel rack simulé : canal i de couleur (i, 0, 0) ; nil = automation (non écoutée). `kinds` : ce qu'est
+    /// le son i (Kick…).
+    private func rack(_ families: [SoundFamily?], kinds: [Int: SoundKind] = [:])
+        -> (link: FakeOrganizerLink, result: OrganizerResult) {
         let link = FakeOrganizerLink()
         link.channels = families.indices.map { i in
             ChannelInfo(index: i, type: families[i] == nil ? ChannelInfo.automationType : 2, mixerTrack: 0,
@@ -20,7 +22,7 @@ final class OrganizerApplyTests: XCTestCase {
         for (i, family) in families.enumerated() {
             guard let family else { continue }
             items.append(OrganizerItem(index: i, name: "Son \(i)", family: family, confidence: 0.9, testNotes: false,
-                                       mixerTrack: 0, color: RGBColor(r: UInt8(i), g: 0, b: 0)))
+                                       mixerTrack: 0, color: RGBColor(r: UInt8(i), g: 0, b: 0), kind: kinds[i]))
         }
         return (link, OrganizerResult(page: .channelRack, channels: link.channels, items: items, mixer: [],
                                       mixerFamilies: [:]))
@@ -65,6 +67,22 @@ final class OrganizerApplyTests: XCTestCase {
             XCTAssertLessThanOrEqual(plan.moves.reduce(0) { $0 + $1.up }, n * (n - 1) / 2)
             XCTAssertTrue(plan.moves.allSatisfy { $0.up >= 1 })
         }
+    }
+
+    /// Dans une famille, les sons d'une même sorte ensemble (les Kick, puis les Snare, les Hi-hat…), ceux qui ne
+    /// disent rien après ; un son changé de famille dans l'aperçu n'est plus rangé selon son ancienne sorte.
+    func testRackGroupsSameKinds() {
+        let (link, result) = rack([.drums, .drums, .melody, .drums, .drums, .drums],
+                                  kinds: [0: .hiHat, 1: .kick, 2: .lead, 3: .snare, 4: .kick])
+        XCTAssertNil(apply(link, result).error)
+        XCTAssertEqual(link.channels.map(\.name), ["Son 2", "Son 1", "Son 4", "Son 3", "Son 0", "Son 5"])
+        var families = OrganizerApplier.families(of: result)
+        families[4] = .bass
+        let plan = OrganizerApplier.rackPlan(result.channels, families: families,
+                                             kinds: OrganizerApplier.kinds(of: result))
+        XCTAssertEqual(plan.final, [2, 4, 1, 3, 0, 5])
+        XCTAssertNil(OrganizerApplier.kind(4, families: families, kinds: OrganizerApplier.kinds(of: result)))
+        XCTAssertEqual(RegroupPlan.make(order: [.drums, .drums], kinds: [.snare]).final, [0, 1], "sorte manquante : après")
     }
 
     func testPlanBackRestoresOrder() {
@@ -269,7 +287,7 @@ final class OrganizerApplyTests: XCTestCase {
     // MARK: Playlist
 
     /// Une Playlist simulée : la piste 0 renommée, les autres au nom de FL ; `families[i]` nil = muette.
-    private func playlist(_ families: [SoundFamily?], drums: [Int: DrumKind] = [:])
+    private func playlist(_ families: [SoundFamily?], kinds: [Int: SoundKind] = [:])
         -> (link: FakeOrganizerLink, result: OrganizerResult) {
         let link = FakeOrganizerLink()
         link.window = .playlist
@@ -280,23 +298,32 @@ final class OrganizerApplyTests: XCTestCase {
         for (i, family) in families.enumerated() {
             guard let family else { continue }
             items.append(OrganizerItem(index: i, name: link.playlist[i].name, family: family, confidence: 0.9,
-                                       testNotes: false, mixerTrack: 0, color: gray, drum: drums[i]))
+                                       testNotes: false, mixerTrack: 0, color: gray, kind: kinds[i]))
         }
         return (link, OrganizerResult(page: .playlist, channels: [], items: items, mixer: [], mixerFamilies: [:],
                                       playlist: link.playlist))
     }
 
     func testPlaylistNames() {
-        let (_, result) = playlist([.melody, .drums, .drums, .drums, .unsure, nil, .vocals, .drums],
-                                   drums: [1: .kick, 2: .kick, 3: .hiHat])
-        let names = OrganizerApplier.plannedNames(result: result, families: OrganizerApplier.families(of: result))
-        // La piste 0 garde son nom (renommée par l'utilisateur) ; « À vérifier » et la piste muette aussi.
-        XCTAssertEqual(names, [1: "Kick", 2: "Kick 2", 3: "Hi-hat", 6: "Voix", 7: "Drums"])
+        let (_, result) = playlist([.melody, .drums, .drums, .drums, .unsure, nil, .vocals, .drums, .bass, .drums],
+                                   kinds: [1: .kick, 2: .kick, 3: .openHat, 8: .bass808, 9: .lead])
+        var families = OrganizerApplier.families(of: result)
+        let names = OrganizerApplier.plannedNames(result: result, families: families)
+        // La piste 0 garde son nom (renommée par l'utilisateur) ; « À vérifier » et la piste muette aussi. Une sorte
+        // qui ne va pas avec la famille (9 : Lead en Drums) ne compte pas.
+        XCTAssertEqual(names, [1: "Kick", 2: "Kick 2", 3: "Open Hat", 6: "Voix", 7: "Drums", 8: "808", 9: "Drums 2"])
+        // Changé dans l'aperçu : une sorte choisie donne son nom ; une famille seule, le nom de la famille.
+        families[1] = .bass
+        families[7] = .bass
+        let changed = OrganizerApplier.plannedNames(result: result, families: families, kinds: [7: .sub, 8: .bass808])
+        XCTAssertEqual(changed[1], "Basse")
+        XCTAssertEqual(changed[7], "Sub")
+        XCTAssertEqual(changed[2], "Drums")
         XCTAssertEqual(SoundFamily.order.compactMap(\.trackName), ["Voix", "Mélodie", "Basse", "Drums", "FX"])
     }
 
     func testPlaylistColorsNamesAndUndo() {
-        let (link, result) = playlist([.melody, .drums, .bass, nil], drums: [1: .snare])
+        let (link, result) = playlist([.melody, .drums, .bass, nil], kinds: [1: .snare])
         let original = link.playlist
         let families = OrganizerApplier.families(of: result)
         let names = OrganizerApplier.plannedNames(result: result, families: families)

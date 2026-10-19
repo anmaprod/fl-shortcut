@@ -165,6 +165,36 @@ final class OrganizerWindowTests: XCTestCase {
         controller.close()
     }
 
+    /// Rangés d'après leur nom (« BEAM KICK » : Kick) : l'aperçu montre ce qu'est chaque son, les met dans l'ordre
+    /// du Channel rack organisé (les Kick, puis les Clap, puis les Open Hat) ; changé à la main, il suit.
+    func testPreviewShowsWhatEachSoundIs() {
+        let link = FakeOrganizerLink()
+        let gray = RGBColor(r: 9, g: 9, b: 9)
+        link.channels = ["ALTER OPEN HAT", "BEAM KICK", "ZEBRA 808", "@MEH CLAP"].enumerated().map {
+            ChannelInfo(index: $0.offset, type: 2, mixerTrack: 0, color: gray, name: $0.element)
+        }
+        let controller = OrganizerController(env: env(link, FakeAudio(link: link), saved: { _ in }))
+        controller.start()
+        waitFor(controller) { $0 == .preview }
+        XCTAssertEqual(controller.presentFamilies, [.bass, .drums])
+        XCTAssertEqual(controller.members(of: .drums).map(\.name), ["BEAM KICK", "@MEH CLAP", "ALTER OPEN HAT"])
+        XCTAssertEqual(controller.members(of: .drums).map { $0.kind?.name }, ["Kick", "Clap", "Open Hat"])
+        XCTAssertEqual(controller.members(of: .bass).map { $0.kind?.name }, ["808"])
+
+        controller.setFamily(1, .bass)
+        XCTAssertEqual(controller.members(of: .bass).map(\.name), ["ZEBRA 808", "BEAM KICK"])
+        XCTAssertEqual(controller.members(of: .bass).map(\.kind), [.bass808, nil], "une famille seule : plus un Kick")
+        controller.setKind(1, .kick)
+        XCTAssertEqual(controller.families[1], .drums)
+        XCTAssertEqual(controller.members(of: .drums).first?.kind, .kick)
+
+        controller.apply()
+        waitFor(controller, OrganizerWindowTests.isApplied)
+        XCTAssertEqual(controller.phase, .applied(nil))
+        XCTAssertEqual(link.channels.map(\.name), ["ZEBRA 808", "BEAM KICK", "@MEH CLAP", "ALTER OPEN HAT"])
+        controller.close()
+    }
+
     func testPlaylistPreviewNamesAndApply() {
         let link = FakeOrganizerLink()
         link.window = .playlist

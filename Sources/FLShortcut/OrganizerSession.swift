@@ -21,8 +21,9 @@ struct OrganizerItem: Equatable {
     var testNotes: Bool
     let mixerTrack: Int
     let color: RGBColor
-    /// Drums d'une piste de la Playlist : leur sorte (le nouveau nom de la piste).
-    var drum: DrumKind? = nil
+    /// Ce qu'est le son (Kick, 808, Open Hat…) : d'après son nom, ou pour des drums écoutés, leur sorte. Piste de
+    /// la Playlist : ce que tous ses sons disent (son nouveau nom).
+    var kind: SoundKind? = nil
     /// Classé d'après son nom, sans écoute.
     var byName = false
 }
@@ -244,11 +245,10 @@ final class OrganizerSession {
         var byIndex: [Int: OrganizerItem] = [:]
         var toListen: [ChannelInfo] = []
         for channel in targets {
-            if let family = SoundNames.family(of: channel.name) {
+            if let kind = SoundNames.kind(of: channel.name) {
                 byIndex[channel.index] = OrganizerItem(
-                    index: channel.index, name: channel.name, family: family, confidence: Self.nameConfidence,
-                    testNotes: false, mixerTrack: channel.mixerTrack, color: channel.color,
-                    drum: family == .drums ? SoundNames.drum(of: channel.name) : nil, byName: true)
+                    index: channel.index, name: channel.name, family: kind.family, confidence: Self.nameConfidence,
+                    testNotes: false, mixerTrack: channel.mixerTrack, color: channel.color, kind: kind, byName: true)
             } else {
                 toListen.append(channel)
             }
@@ -281,11 +281,12 @@ final class OrganizerSession {
             if heard { heardAny = true }
             note { $0.listened += 1; $0.heard += heard ? 1 : 0; $0.testNotes += tested ? 1 : 0 }
             let verdict = classify(samples, audio.rate)
-            let drum = verdict.family == .drums && heard ? nameDrum?(samples, audio.rate) : nil
+            var kind: SoundKind?
+            if verdict.family == .drums && heard, let drum = nameDrum?(samples, audio.rate) { kind = drum.sound }
             items.append(OrganizerItem(index: channel.index, name: channel.name, family: verdict.family,
                                        confidence: tested ? verdict.confidence * Self.testNotesFactor : verdict.confidence,
                                        testNotes: tested, mixerTrack: channel.mixerTrack, color: channel.color,
-                                       drum: drum))
+                                       kind: kind))
         }
         return (items, heardAny)
     }
@@ -387,7 +388,7 @@ final class OrganizerSession {
                   let verdict = Self.trackFamily(mine, items: byChannel) else { continue }
             items.append(OrganizerItem(index: track.index, name: track.name, family: verdict.family,
                                        confidence: verdict.confidence, testNotes: false, mixerTrack: 0,
-                                       color: track.color, drum: verdict.drum,
+                                       color: track.color, kind: verdict.kind,
                                        byName: mine.keys.allSatisfy { byChannel[$0]?.byName ?? false }))
         }
         note { $0.tracks = items.count }
@@ -462,9 +463,10 @@ final class OrganizerSession {
     }
 
     /// Pur (testé) : famille d'une piste d'après ses sons (poids × confiance ; « À vérifier » seulement si rien
-    /// d'autre) et la sorte de ses drums quand tous la disent pareille (sinon « Drums »).
+    /// d'autre) et ce qu'ils sont quand tous ceux de la famille le disent pareil (Kick, 808…) ; sinon, pour des
+    /// drums, « Drums ».
     static func trackFamily(_ sounds: [Int: Double], items: [Int: OrganizerItem])
-        -> (family: SoundFamily, confidence: Double, drum: DrumKind?)? {
+        -> (family: SoundFamily, confidence: Double, kind: SoundKind?)? {
         var weight: [SoundFamily: Double] = [:]
         var total = 0.0
         for (channel, score) in sounds {
@@ -479,12 +481,10 @@ final class OrganizerSession {
         }
         guard let best = pick else { return nil }
         let family = best.key, w = best.value
-        var drum: DrumKind?
-        if family == .drums {
-            let kinds = Set(sounds.keys.compactMap { items[$0].flatMap { $0.family == .drums ? $0.drum : nil } })
-            drum = kinds.count == 1 ? kinds.first : .kit
-        }
-        return (family, min(1, w / total), drum)
+        let kinds = Set(sounds.keys.compactMap { items[$0].flatMap { $0.family == family ? $0.kind : nil } })
+        var kind: SoundKind? = kinds.count == 1 ? kinds.first : nil
+        if kind == nil && family == .drums { kind = SoundKind.drums }
+        return (family, min(1, w / total), kind)
     }
 
     /// `stopAfterSilence` : index de la dernière piste renommée ; au-delà, l'écoute s'arrête après
@@ -510,10 +510,11 @@ final class OrganizerSession {
             }
             silentRun = 0
             let verdict = classify(samples, audio.rate)
-            let drum = verdict.family == .drums ? nameDrum?(samples, audio.rate) : nil
+            var kind: SoundKind?
+            if verdict.family == .drums, let drum = nameDrum?(samples, audio.rate) { kind = drum.sound }
             items.append(OrganizerItem(index: track.index, name: track.name, family: verdict.family,
                                        confidence: verdict.confidence, testNotes: false, mixerTrack: 0,
-                                       color: track.color, drum: drum))
+                                       color: track.color, kind: kind))
         }
         progress(targets.count, targets.count)
         if items.isEmpty { throw OrganizerError.noSound }

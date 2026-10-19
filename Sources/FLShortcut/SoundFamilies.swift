@@ -1,4 +1,4 @@
-// Organiser : les familles de sons (et la sorte des drums, pour nommer les pistes de la Playlist) et les règles qui
+// Organiser : les familles de sons, ce qu'est chaque son d'après son nom (Kick, 808, Open Hat…) et les règles qui
 // fusionnent les mesures du son (SoundFeatures) et l'avis de l'IA de macOS (SoundAnalysis, sur le Mac). Règles
 // réglées sur des sons de synthèse (prototype, puis test de la CI) ; elles tiennent même si l'IA se trompe (une montée
 // de bruit reste FX, une nappe reste une mélodie).
@@ -29,7 +29,7 @@ enum SoundFamily: String, CaseIterable, Codable {
         }
     }
 
-    /// Nom d'une piste de la Playlist renommée (drums : leur sorte, voir `DrumKind`).
+    /// Nom d'une piste de la Playlist renommée quand ses sons ne disent pas tous la même chose (voir `SoundKind`).
     var trackName: String? {
         switch self {
         case .drums: return "Drums"
@@ -44,55 +44,136 @@ enum SoundFamily: String, CaseIterable, Codable {
     /// Ordre des familles (choisi par l'utilisateur) : dans le Channel rack une fois organisé, et dans l'aperçu.
     static let order: [SoundFamily] = [.vocals, .melody, .bass, .drums, .fx, .unsure]
     var rank: Int { Self.order.firstIndex(of: self) ?? Self.order.count }
+
+    /// Ce qu'un son de la famille peut être, dans l'ordre du Channel rack organisé.
+    var kinds: [SoundKind] { SoundKind.allCases.filter { $0.family == self } }
 }
 
-/// Sorte d'un son de drums : le nom d'une piste de la Playlist renommée.
-enum DrumKind: String, CaseIterable, Codable {
-    case kick, snare, hiHat, clap, cymbal, perc, kit
+/// Ce qu'est un son, d'après le mot de son nom qui le dit (« BEAM KICK » : Kick, « ZEBRA 808 » : 808, « ALTER OPEN
+/// HAT » : Open Hat, « @MEH CLAP » : Clap) : montré dans l'aperçu et donné aux pistes de la Playlist renommées. Dans
+/// une famille, le Channel rack organisé met ensemble les sons d'une même sorte, dans cet ordre. Chaque famille a
+/// un mot général (« Drums », « Basse », « Voix »…) : un son qui n'en dit pas plus.
+enum SoundKind: String, CaseIterable, Codable {
+    case vocal, adlib, choir
+    case lead, pluck, pad, keys, piano, synth, arp, chords, guitar, strings, bell, flute, brass, organ, melody
+    case bass808, sub, reese, bass
+    case kick, snare, clap, rim, snap, hiHat, openHat, perc, tom, shaker, crash, ride, cymbal, drums
+    case riser, downlifter, impact, sweep, fx
+
+    var family: SoundFamily {
+        switch self {
+        case .vocal, .adlib, .choir: return .vocals
+        case .lead, .pluck, .pad, .keys, .piano, .synth, .arp, .chords, .guitar, .strings, .bell, .flute, .brass,
+             .organ, .melody: return .melody
+        case .bass808, .sub, .reese, .bass: return .bass
+        case .kick, .snare, .clap, .rim, .snap, .hiHat, .openHat, .perc, .tom, .shaker, .crash, .ride, .cymbal,
+             .drums: return .drums
+        case .riser, .downlifter, .impact, .sweep, .fx: return .fx
+        }
+    }
 
     var name: String {
         switch self {
+        case .vocal: return "Voix"
+        case .adlib: return "Adlib"
+        case .choir: return "Chœur"
+        case .lead: return "Lead"
+        case .pluck: return "Pluck"
+        case .pad: return "Pad"
+        case .keys: return "Keys"
+        case .piano: return "Piano"
+        case .synth: return "Synth"
+        case .arp: return "Arp"
+        case .chords: return "Chords"
+        case .guitar: return "Guitare"
+        case .strings: return "Strings"
+        case .bell: return "Bell"
+        case .flute: return "Flûte"
+        case .brass: return "Brass"
+        case .organ: return "Orgue"
+        case .melody: return "Mélodie"
+        case .bass808: return "808"
+        case .sub: return "Sub"
+        case .reese: return "Reese"
+        case .bass: return "Basse"
         case .kick: return "Kick"
         case .snare: return "Snare"
-        case .hiHat: return "Hi-hat"
         case .clap: return "Clap"
-        case .cymbal: return "Cymbal"
+        case .rim: return "Rim"
+        case .snap: return "Snap"
+        case .hiHat: return "Hi-hat"
+        case .openHat: return "Open Hat"
         case .perc: return "Perc"
-        case .kit: return "Drums"
+        case .tom: return "Tom"
+        case .shaker: return "Shaker"
+        case .crash: return "Crash"
+        case .ride: return "Ride"
+        case .cymbal: return "Cymbal"
+        case .drums: return "Drums"
+        case .riser: return "Riser"
+        case .downlifter: return "Downlifter"
+        case .impact: return "Impact"
+        case .sweep: return "Sweep"
+        case .fx: return "FX"
+        }
+    }
+
+    /// Le mot général de sa famille (« Drums », « Basse », « Voix », « FX », « Mélodie ») : un mot précis l'emporte.
+    var isGeneral: Bool { self == .vocal || self == .melody || self == .bass || self == .drums || self == .fx }
+
+    var rank: Int { Self.allCases.firstIndex(of: self) ?? Self.allCases.count }
+}
+
+/// Sorte d'un son de drums reconnue à l'écoute (pas de nom qui la dise).
+enum DrumKind: String, CaseIterable, Codable {
+    case kick, snare, hiHat, clap, cymbal, perc, kit
+
+    var name: String { sound.name }
+
+    var sound: SoundKind {
+        switch self {
+        case .kick: return .kick
+        case .snare: return .snare
+        case .hiHat: return .hiHat
+        case .clap: return .clap
+        case .cymbal: return .cymbal
+        case .perc: return .perc
+        case .kit: return .drums
         }
     }
 }
 
-/// Famille d'un son d'après son nom (« BEAM KICK », « ZEBRA 808 », « Vocal Chop ») : la plupart des sons de packs
+/// Ce qu'est un son d'après son nom (« BEAM KICK », « ZEBRA 808 », « Vocal Chop ») : la plupart des sons de packs
 /// le disent, rien n'est écouté pour eux. Mots entiers, sans casse ni accents (« Kick01 » compte comme « kick ») ;
 /// nil si le nom ne dit rien (« Serum 2 », « Sampler »).
 enum SoundNames {
-    /// Mot → sorte de drums.
-    static let drumWords: [String: DrumKind] = [
+    /// Mot → ce qu'est le son.
+    static let kindWords: [String: SoundKind] = [
+        "vox": .vocal, "vocal": .vocal, "vocals": .vocal, "voice": .vocal, "voix": .vocal, "acapella": .vocal,
+        "chant": .vocal, "adlib": .adlib, "adlibs": .adlib, "choir": .choir, "choeur": .choir,
+        "lead": .lead, "leads": .lead, "pluck": .pluck, "plucks": .pluck, "pad": .pad, "pads": .pad,
+        "keys": .keys, "rhodes": .keys, "piano": .piano, "synth": .synth, "arp": .arp, "arpeggio": .arp,
+        "chord": .chords, "chords": .chords, "guitar": .guitar, "guitare": .guitar, "gtr": .guitar,
+        "string": .strings, "strings": .strings, "violin": .strings, "cello": .strings, "bell": .bell, "bells": .bell,
+        "flute": .flute, "brass": .brass, "horn": .brass, "organ": .organ, "orgue": .organ, "melody": .melody,
+        "melodie": .melody, "mel": .melody, "harp": .melody, "sax": .melody, "marimba": .melody, "kalimba": .melody,
+        "808": .bass808, "808s": .bass808, "sub": .sub, "subbass": .sub, "reese": .reese, "bass": .bass,
+        "basse": .bass,
         "kick": .kick, "kicks": .kick, "kck": .kick, "kik": .kick, "bd": .kick, "bassdrum": .kick,
-        "snare": .snare, "snares": .snare, "snr": .snare, "sd": .snare, "rim": .snare, "rimshot": .snare,
-        "hat": .hiHat, "hats": .hiHat, "hihat": .hiHat, "hihats": .hiHat, "hh": .hiHat, "oh": .hiHat,
-        "openhat": .hiHat, "closedhat": .hiHat,
-        "clap": .clap, "claps": .clap, "clp": .clap, "snap": .clap, "snaps": .clap,
-        "crash": .cymbal, "ride": .cymbal, "cymbal": .cymbal, "cym": .cymbal, "splash": .cymbal, "china": .cymbal,
-        "perc": .perc, "percs": .perc, "percussion": .perc, "tom": .perc, "toms": .perc, "shaker": .perc,
-        "tamb": .perc, "tambourine": .perc, "conga": .perc, "bongo": .perc, "cowbell": .perc, "clave": .perc,
-        "drum": .kit, "drums": .kit, "drumloop": .kit, "breakbeat": .kit, "kit": .kit,
+        "snare": .snare, "snares": .snare, "snr": .snare, "sd": .snare, "clap": .clap, "claps": .clap, "clp": .clap,
+        "rim": .rim, "rimshot": .rim, "snap": .snap, "snaps": .snap,
+        "hat": .hiHat, "hats": .hiHat, "hihat": .hiHat, "hihats": .hiHat, "hh": .hiHat, "chh": .hiHat,
+        "closedhat": .hiHat, "oh": .openHat, "ohh": .openHat, "openhat": .openHat, "openhats": .openHat,
+        "perc": .perc, "percs": .perc, "percussion": .perc, "conga": .perc, "bongo": .perc, "cowbell": .perc,
+        "clave": .perc, "tom": .tom, "toms": .tom, "shaker": .shaker, "tamb": .shaker, "tambourine": .shaker,
+        "crash": .crash, "ride": .ride, "cymbal": .cymbal, "cym": .cymbal, "splash": .cymbal, "china": .cymbal,
+        "drum": .drums, "drums": .drums, "drumloop": .drums, "breakbeat": .drums, "kit": .drums,
+        "riser": .riser, "risers": .riser, "uplifter": .riser, "downlifter": .downlifter, "impact": .impact,
+        "sweep": .sweep, "fx": .fx, "sfx": .fx, "whoosh": .fx, "noise": .fx, "transition": .fx, "reverse": .fx,
+        "zap": .fx, "laser": .fx,
     ]
-    /// Mot → famille (hors drums).
-    static let familyWords: [String: SoundFamily] = [
-        "808": .bass, "808s": .bass, "bass": .bass, "basse": .bass, "sub": .bass, "subbass": .bass, "reese": .bass,
-        "vox": .vocals, "vocal": .vocals, "vocals": .vocals, "voice": .vocals, "voix": .vocals, "acapella": .vocals,
-        "adlib": .vocals, "adlibs": .vocals, "choir": .vocals, "chant": .vocals,
-        "fx": .fx, "sfx": .fx, "riser": .fx, "risers": .fx, "uplifter": .fx, "downlifter": .fx, "sweep": .fx,
-        "impact": .fx, "whoosh": .fx, "noise": .fx, "transition": .fx, "reverse": .fx, "zap": .fx, "laser": .fx,
-        "lead": .melody, "leads": .melody, "pad": .melody, "pads": .melody, "pluck": .melody, "plucks": .melody,
-        "keys": .melody, "piano": .melody, "synth": .melody, "arp": .melody, "arpeggio": .melody, "chord": .melody,
-        "chords": .melody, "guitar": .melody, "guitare": .melody, "gtr": .melody, "string": .melody,
-        "strings": .melody, "bell": .melody, "bells": .melody, "flute": .melody, "brass": .melody, "horn": .melody,
-        "melody": .melody, "melodie": .melody, "mel": .melody, "organ": .melody, "rhodes": .melody, "harp": .melody,
-        "sax": .melody, "violin": .melody, "cello": .melody, "marimba": .melody, "kalimba": .melody,
-    ]
+    /// Mots de charleston : précédés de « open » (« OPEN HAT »), c'est un Open Hat.
+    static let hatWords: Set<String> = ["hat", "hats", "hihat", "hihats", "hh"]
 
     /// Mots du nom, sans casse ni accents ; un nombre collé à la fin d'un mot est retiré (« kick01 » → « kick »),
     /// sauf pour un mot qui n'est fait que de chiffres (« 808 »).
@@ -107,19 +188,35 @@ enum SoundNames {
         }
     }
 
-    /// Un mot de drums précis (kick, hat…) l'emporte ; sinon la première famille nommée dans l'ordre Voix, Basse,
-    /// FX, Mélodies, Drums (« Synth Bass » : Basse ; « Vocal Chop » : Voix).
-    static func family(of name: String) -> SoundFamily? {
-        let w = words(name)
-        if w.contains(where: { drumWords[$0].map { $0 != .kit } ?? false }) { return .drums }
-        let found = Set(w.compactMap { familyWords[$0] })
-        for family in [SoundFamily.vocals, .bass, .fx, .melody] where found.contains(family) { return family }
-        return w.contains(where: { drumWords[$0] != nil }) ? .drums : nil
+    /// Ce que dit chaque mot du nom, dans l'ordre (« ALTER OPEN HAT » : Open Hat).
+    static func kinds(in words: [String]) -> [SoundKind] {
+        words.indices.compactMap { i -> SoundKind? in
+            if hatWords.contains(words[i]), i > 0, words[i - 1] == "open" { return SoundKind.openHat }
+            return kindWords[words[i]]
+        }
     }
 
-    /// Sorte de drums d'après le nom (le premier mot qui la dit).
-    static func drum(of name: String) -> DrumKind? {
-        words(name).lazy.compactMap { drumWords[$0] }.first
+    /// La famille : un mot de drums précis (kick, hat…) l'emporte, sinon la première nommée dans l'ordre Voix,
+    /// Basse, FX, Mélodies, Drums (« Synth Bass » : Basse ; « Vocal Chop » : Voix ; « 808 Kick » : Kick). Dans la
+    /// famille, un mot précis passe avant le mot général, et le premier dans l'ordre de `SoundKind` l'emporte
+    /// (« Sub 808 » : 808 ; « Adlib Vox » : Adlib).
+    static func kind(of name: String) -> SoundKind? {
+        let found = kinds(in: words(name))
+        let named = Set(found.map { $0.family })
+        let family: SoundFamily
+        if found.contains(where: { $0.family == .drums && !$0.isGeneral }) {
+            family = .drums
+        } else if let first = [SoundFamily.vocals, .bass, .fx, .melody, .drums].first(where: { named.contains($0) }) {
+            family = first
+        } else {
+            return nil
+        }
+        let mine = found.filter { $0.family == family }
+        return mine.min { a, b in a.isGeneral != b.isGeneral ? !a.isGeneral : a.rank < b.rank }
+    }
+
+    static func family(of name: String) -> SoundFamily? {
+        kind(of: name)?.family
     }
 }
 
