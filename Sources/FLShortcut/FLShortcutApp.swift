@@ -425,22 +425,20 @@ struct MenuContent: View {
             .padding(.bottom, 8)
             .accessibilityElement(children: .combine)
 
-            if let macro = status.lastMacro {
+            // Seulement un échec (« Macro terminée » retiré à la demande de l'utilisateur : rien à dire quand tout va bien).
+            if let macro = status.lastMacro, !macro.ok {
                 HStack(alignment: .firstTextBaseline, spacing: 5) {
-                    Image(systemName: macro.ok ? "checkmark.circle.fill" : "xmark.circle.fill")
-                        .foregroundStyle(macro.ok ? Color.green : Color.orange)
+                    Image(systemName: "xmark.circle.fill").foregroundStyle(Color.orange)
                     Text(macro.text).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
                 }
                 .font(.system(size: 11))
                 .padding(.horizontal, 8)
                 .padding(.bottom, 6)
-                if !macro.ok {
-                    // La page Aide, le formulaire prêt avec ce message d'erreur et le journal de la macro.
-                    PanelItem(symbol: "exclamationmark.bubble", title: "Signaler ce problème…", tint: .orange, order: 1) {
-                        HelpLink.shared.report("Macro : " + macro.text)
-                        openWindow(id: "editor")
-                        NSApp.activate(ignoringOtherApps: true)
-                    }
+                // La page Aide, le formulaire prêt avec ce message d'erreur et le journal de la macro.
+                PanelItem(symbol: "exclamationmark.bubble", title: "Signaler ce problème…", tint: .orange, order: 1) {
+                    HelpLink.shared.report("Macro : " + macro.text)
+                    openWindow(id: "editor")
+                    NSApp.activate(ignoringOtherApps: true)
                 }
             }
 
