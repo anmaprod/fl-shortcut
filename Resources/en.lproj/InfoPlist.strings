@@ -1,0 +1,3 @@
+/* Textes de Info.plist en anglais (le Mac dans une autre langue que le français). */
+"NSAudioCaptureUsageDescription" = "During “Organize” only, FL Shortcuts listens to FL Studio, and FL Studio alone, to recognize your sounds (drums, bass, melodies, vocals, FX). Nothing is recorded or sent.";
+"NSHumanReadableCopyright" = "FL Shortcuts — independent tool, not affiliated with Image-Line.";

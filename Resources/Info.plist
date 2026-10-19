@@ -4,6 +4,14 @@
 <dict>
 	<key>CFBundleIconFile</key>
 	<string>AppIcon</string>
+    <!-- Langue : celle du Mac (en.lproj, fr.lproj) ; toute autre langue prend l'anglais (région de développement). -->
+    <key>CFBundleDevelopmentRegion</key>
+    <string>en</string>
+    <key>CFBundleLocalizations</key>
+    <array>
+        <string>en</string>
+        <string>fr</string>
+    </array>
     <key>CFBundleName</key>
     <string>FL Shortcuts</string>
     <key>CFBundleDisplayName</key>

@@ -155,6 +155,11 @@ jobs:
           fi
           chmod +x build.sh
           ./build.sh
+      - name: Textes en anglais (textes de l'app comparés à en.lproj)
+        continue-on-error: true      # indicatif tant que la traduction n'est pas finie
+        run: |
+          set -o pipefail
+          scripts/cles-traduction.sh dist/mesure | tee -a "$GITHUB_STEP_SUMMARY"
       - name: Mesure de l'interface (mémoire et processeur, avec et sans verre)
         continue-on-error: true      # mesure indicative : n'empêche jamais la publication
         run: |
@@ -162,6 +167,9 @@ jobs:
             echo "## Mesure de l'interface (macOS 26)"
             scripts/mesure-interface.sh "dist/FL Shortcuts.app" dist/mesure
           } | tee -a "$GITHUB_STEP_SUMMARY"
+      - name: Captures en anglais (app réglée sur l'anglais)
+        continue-on-error: true      # captures à relire : n'empêchent jamais la publication
+        run: scripts/captures-anglais.sh "dist/FL Shortcuts.app" dist/mesure/anglais
       - name: Essai du choix automatique du preset (vraie boîte « Open » de macOS)
         continue-on-error: true      # dépend de l'autorisation d'envoi d'événements du runner
         run: |

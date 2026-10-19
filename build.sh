@@ -54,6 +54,8 @@ if [[ -n "${FLS_SUPPORT_EMAIL:-}" ]]; then
   plutil -replace FLSSupportEmail -string "$FLS_SUPPORT_EMAIL" "$APP/Contents/Info.plist"
 fi
 cp Resources/device_FLShortcut.py "$APP/Contents/Resources/"
+# Textes de l'app dans la langue du Mac (anglais pour toute langue autre que le français).
+cp -R Resources/en.lproj Resources/fr.lproj "$APP/Contents/Resources/"
 cp Resources/AppIcon.icns "$APP/Contents/Resources/AppIcon.icns"
 chmod -R go-w "$APP"
 

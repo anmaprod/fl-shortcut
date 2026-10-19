@@ -1,0 +1,3 @@
+/* Textes de Info.plist en français. */
+"NSAudioCaptureUsageDescription" = "Pendant « Organiser » seulement, FL Shortcuts écoute FL Studio, et lui seul, pour reconnaître tes sons (drums, basse, mélodies, voix, FX). Rien n'est enregistré ni envoyé.";
+"NSHumanReadableCopyright" = "FL Shortcuts — outil indépendant, non affilié à Image-Line.";
