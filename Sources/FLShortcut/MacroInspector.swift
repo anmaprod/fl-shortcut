@@ -1197,9 +1197,9 @@ private struct PluginField: View {
     }
 
     private var reloadButton: some View {
-        Button { list.reload() } label: { Image(systemName: "arrow.clockwise") }
+        Button { list.reload(open: true) } label: { Image(systemName: "arrow.clockwise") }
             .buttonStyle(.borderless)
-            .help("Relire la liste dans FL (plugins ajoutés depuis)")
+            .help("Relire la liste dans FL (plugins ajoutés depuis) : le menu Add s'ouvre un instant s'il le faut")
     }
 }
 
@@ -1231,7 +1231,9 @@ final class FLPluginList: ObservableObject {
         if state == nil || state == .unavailable(Self.flClosed) { reload() }
     }
 
-    func reload() {
+    /// `open` : seulement sur un clic de l'utilisateur (⟳) — un menu que FL ne remplit qu'à son ouverture est alors
+    /// ouvert un instant ; sinon rien ne s'ouvre dans FL.
+    func reload(open: Bool = false) {
         guard state != .loading else { return }
         let trusted = AXIsProcessTrusted()
         let pid = trusted ? OrganizerEnvironment.flPID() : nil
@@ -1241,7 +1243,7 @@ final class FLPluginList: ObservableObject {
         DispatchQueue.global(qos: .userInitiated).async {
             let installed = FLPluginDatabase.installed(kind, root: FLPluginDatabase.root())
             let names = pid.map { pid in
-                MenuBarAX.entries(pid: pid, under: path).map { $0.joined(separator: PageOptions.pathSeparator) }
+                MenuBarAX.entries(pid: pid, under: path, open: open).map { $0.joined(separator: PageOptions.pathSeparator) }
             } ?? []
             DispatchQueue.main.async {
                 self.installed = installed
@@ -1253,7 +1255,8 @@ final class FLPluginList: ObservableObject {
                 } else if pid == nil {
                     self.state = .unavailable(Self.flClosed)
                 } else {
-                    self.state = .unavailable("Liste introuvable dans FL : écris le nom.")
+                    self.state = .unavailable(open ? "Liste introuvable dans FL : écris le nom."
+                                              : "Clique sur ⟳ pour lire la liste dans FL (le menu Add s'ouvre un instant), ou écris le nom.")
                 }
             }
         }

@@ -72,8 +72,15 @@ enum MenuBarAX {
         guard titles.count >= 2 else { return .failed("chemin de menu incomplet") }
         let t0 = DispatchTime.now().uptimeNanoseconds
         func ms() -> Int { Int((DispatchTime.now().uptimeNanoseconds &- t0) / 1_000_000) }
+        var found = find(pid: pid, titles: titles, openIfNeeded: true, stop: stop)
+        // FL met certains de ses sous-menus à plat dans la barre de macOS (vidéo de l'utilisateur : son « Tools ›
+        // Macros › Purge unused audio clips » y est « Tools › Purge unused audio clips ») : l'élément sans le titre de
+        // son sous-menu.
+        if found == nil, stop() == nil, let flat = flattened(titles) {
+            found = find(pid: pid, titles: flat, openIfNeeded: true, stop: stop)
+        }
         // Messages sans les titres : ils finissent dans le journal (un titre peut être un nom de projet récent).
-        guard let item = find(pid: pid, titles: titles, openIfNeeded: true, stop: stop) else {
+        guard let item = found else {
             if let why = stop() { return .cancelled(why) }
             MacroLog.shared.write("MENU", "menu bar item not found (\(titles.count) levels) · \(ms()) ms")
             return .failed("élément introuvable dans les menus de FL (renommé, ou FL dans une autre langue ? enregistre de nouveau tes clics)")
@@ -90,6 +97,15 @@ enum MenuBarAX {
             return .failed("FL n'a pas répondu à son menu (Accessibilité \(err.rawValue))")
         }
         return .done
+    }
+
+    /// Pur (testé) : le chemin sans le titre du sous-menu qui contient l'élément (« Tools › Macros › Purge… » →
+    /// « Tools › Purge… ») ; nil s'il ne reste pas au moins un menu de la barre et l'élément.
+    static func flattened(_ titles: [String]) -> [String]? {
+        guard titles.count >= 3 else { return nil }
+        var out = titles
+        out.remove(at: titles.count - 2)
+        return out
     }
 
     /// Élément d'un menu de la barre de FL dont le titre contient l'un des `fragments` (sans casse ; premier niveau des
@@ -114,12 +130,12 @@ enum MenuBarAX {
 
     /// Éléments d'un menu de la barre de FL (`path` : titre du menu, puis élément), avec ceux de ses sous-menus
     /// (chemins complets sous `path`, jusqu'à la profondeur que « Menu de FL » sait rejouer) : les plugins d'Add ›
-    /// Channel ou Effect pour « Cliquer sur… ». Un menu que FL ne remplit qu'à son ouverture (signalé : Add › Channel
-    /// vide, Add › Effect rempli) est ouvert le temps de le lire, puis refermé. Vide si FL n'a pas ses menus dans la
-    /// barre de macOS.
-    static func entries(pid: Int32, under path: [String], limit: Int = 400) -> [[String]] {
-        defer { closeMenus(pid: pid) }                     // ouverts par `find` ou ici : jamais laissés ouverts
-        guard let menu = filledMenu(pid: pid, under: path) else { return [] }
+    /// Channel ou Effect pour « Cliquer sur… ». Lu sans rien ouvrir ; `open` (demandé par l'utilisateur, bouton ⟳) :
+    /// un menu que FL ne remplit qu'à son ouverture (signalé : Add › Channel vide, Add › Effect rempli) est ouvert le
+    /// temps de le lire, puis refermé. Vide si FL n'a pas ses menus dans la barre de macOS.
+    static func entries(pid: Int32, under path: [String], open: Bool = false, limit: Int = 400) -> [[String]] {
+        defer { if open { closeMenus(pid: pid) } }        // ouverts par `find` ou ici : jamais laissés ouverts
+        guard let menu = readMenu(pid: pid, under: path, open: open) else { return [] }
         var out: [[String]] = []
         collect(menu, prefix: [], depth: maxDepth - path.count, into: &out, limit: limit)
         return out
@@ -132,32 +148,50 @@ enum MenuBarAX {
         var enabled = true
     }
 
+    /// Ce qu'un niveau des menus de FL donne à la lecture.
+    enum Level: Equatable {
+        case entries([Entry])
+        /// Le menu est là, mais vide : FL ne le remplit qu'à son ouverture (à lire avec `open`).
+        case needsOpening
+        /// Chemin introuvable (FL sans ses menus dans la barre de macOS, ou menu changé).
+        case missing
+    }
+
     /// Un niveau des menus de FL, pour les parcourir comme dans FL (« Menu de FL ») : `path` vide → les menus de la
-    /// barre (File, Edit, Add…) ; sinon les éléments du menu `path`, ouvert le temps de le lire si FL ne le remplit
-    /// qu'à son ouverture, puis refermé. Vide si FL n'a pas ses menus dans la barre de macOS. Jamais journalisé.
-    static func level(pid: Int32, under path: [String], limit: Int = 150) -> [Entry] {
+    /// barre (File, Edit, Add…) ; sinon les éléments du menu `path`. Lu sans rien ouvrir dans FL (signalé : le menu
+    /// Tools s'ouvrait tout seul dès qu'on choisissait le bloc) ; `open` seulement sur demande de l'utilisateur : le
+    /// menu est ouvert le temps de le lire, puis refermé. Jamais journalisé.
+    static func level(pid: Int32, under path: [String], open: Bool = false, limit: Int = 150) -> Level {
         if path.isEmpty {
             let app = AXUIElementCreateApplication(pid)
             AXUIElementSetMessagingTimeout(app, 0.5)
-            guard let bar = element(app, kAXMenuBarAttribute as String) else { return [] }
-            return children(bar).prefix(20).compactMap { item in
+            guard let bar = element(app, kAXMenuBarAttribute as String) else { return .missing }
+            let menus = children(bar).prefix(20).compactMap { item -> Entry? in
                 guard let t = title(item), t != "Apple" else { return nil }      // le menu Apple n'est pas celui de FL
                 return Entry(title: t, submenu: true)
             }
+            return menus.isEmpty ? .missing : .entries(menus)
         }
-        defer { closeMenus(pid: pid) }
-        guard let menu = filledMenu(pid: pid, under: path) else { return [] }
-        return children(menu).prefix(limit).compactMap { entry in
+        defer { if open { closeMenus(pid: pid) } }
+        guard let parent = find(pid: pid, titles: path, openIfNeeded: open, stop: { nil }) else { return .missing }
+        guard let menu = open ? filledMenu(parent) : submenu(of: parent) else { return open ? .missing : .needsOpening }
+        let entries = children(menu).prefix(limit).compactMap { entry -> Entry? in
             guard let t = title(entry), !t.contains("›") else { return nil }    // séparateurs : sans titre
             return Entry(title: t, submenu: submenu(of: entry) != nil,
                          enabled: bool(entry, kAXEnabledAttribute as String) != false)
         }
+        if entries.isEmpty { return open ? .missing : .needsOpening }
+        return .entries(entries)
     }
 
-    /// Menu de `path` (celui de son dernier titre), ouvert s'il est encore vide (FL remplit certains menus à leur
-    /// ouverture : Add › Channel, Tools › Macros…). Les menus ouverts sont à refermer par l'appelant.
-    private static func filledMenu(pid: Int32, under path: [String]) -> AXUIElement? {
-        guard let parent = find(pid: pid, titles: path, openIfNeeded: true, stop: { nil }) else { return nil }
+    /// Menu de `path` (celui de son dernier titre) ; `open` : ouvert s'il est encore vide (FL remplit certains menus à
+    /// leur ouverture : Add › Channel…), à refermer par l'appelant. Sans `open`, rien n'est ouvert.
+    private static func readMenu(pid: Int32, under path: [String], open: Bool) -> AXUIElement? {
+        guard let parent = find(pid: pid, titles: path, openIfNeeded: open, stop: { nil }) else { return nil }
+        return open ? filledMenu(parent) : submenu(of: parent)
+    }
+
+    private static func filledMenu(_ parent: AXUIElement) -> AXUIElement? {
         var menu = submenu(of: parent)
         if menu.map({ children($0).isEmpty }) ?? true {
             AXUIElementPerformAction(parent, kAXPressAction as CFString)

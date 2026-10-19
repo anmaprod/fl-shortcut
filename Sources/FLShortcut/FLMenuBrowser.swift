@@ -32,10 +32,13 @@ enum FLMenuNav {
 }
 
 /// Un niveau des menus de FL à la fois, lu hors du fil principal ; les niveaux déjà lus reviennent tout de suite.
+/// Rien n'est ouvert dans FL sans un clic de l'utilisateur (signalé : le menu Tools s'ouvrait tout seul).
 final class FLMenuBrowser: ObservableObject {
     enum State: Equatable {
         case loading
         case loaded([MenuBarAX.Entry])
+        /// FL ne remplit ce menu qu'à son ouverture : bouton « Lire ce menu dans FL ».
+        case needsOpening
         case unavailable(String)
     }
 
@@ -44,15 +47,17 @@ final class FLMenuBrowser: ObservableObject {
 
     /// Partagé par tous les blocs (thread principal) ; vidé par « Relire ».
     private static var cache: [[String]: [MenuBarAX.Entry]] = [:]
-    /// Une lecture à la fois : chacune ouvre et referme des menus de FL.
+    /// Une lecture à la fois (une lecture demandée ouvre et referme un menu de FL).
     private static let queue = DispatchQueue(label: "fl-menu-browser", qos: .userInitiated)
     private var generation = 0
 
-    func show(_ path: [String], reload: Bool = false) {
+    /// `open` : seulement sur un clic de l'utilisateur. `fallBack` : un chemin introuvable (bloc enregistré pour un
+    /// autre FL) montre le niveau au-dessus qui existe.
+    func show(_ path: [String], reload: Bool = false, open: Bool = false, fallBack: Bool = false) {
         self.path = path
         generation += 1
         if reload { Self.cache = [:] }
-        if let cached = Self.cache[path] {
+        if !open, let cached = Self.cache[path] {
             state = .loaded(cached)
             return
         }
@@ -67,16 +72,25 @@ final class FLMenuBrowser: ObservableObject {
         state = .loading
         let ticket = generation
         Self.queue.async {
-            let entries = MenuBarAX.level(pid: pid, under: path)
+            var shown = path
+            var read = MenuBarAX.level(pid: pid, under: shown, open: open)
+            while fallBack, read == .missing, !shown.isEmpty {
+                shown.removeLast()
+                read = MenuBarAX.level(pid: pid, under: shown)
+            }
             DispatchQueue.main.async {
                 guard ticket == self.generation else { return }
-                if entries.isEmpty {
-                    self.state = .unavailable(path.isEmpty
+                self.path = shown
+                switch read {
+                case .entries(let entries):
+                    Self.cache[shown] = entries
+                    self.state = .loaded(entries)
+                case .needsOpening:
+                    self.state = .needsOpening
+                case .missing:
+                    self.state = .unavailable(shown.isEmpty
                         ? "Menus de FL introuvables dans la barre des menus de macOS (FL Studio 2024.2 ou plus récent)."
                         : "Ce menu est vide, ou FL l'a changé : reviens en arrière, ou relis les menus.")
-                } else {
-                    Self.cache[path] = entries
-                    self.state = .loaded(entries)
                 }
             }
         }
@@ -96,7 +110,7 @@ struct MenuBarField: View {
             navigation
             content
         }
-        .onAppear { browser.show(FLMenuNav.start(for: titles)) }
+        .onAppear { browser.show(FLMenuNav.start(for: titles), fallBack: true) }
     }
 
     private var chosen: some View {
@@ -151,6 +165,15 @@ struct MenuBarField: View {
                 Text("Lecture du menu dans FL…").foregroundStyle(.secondary)
             }
             .font(.system(size: 12))
+        case .needsOpening:
+            VStack(alignment: .leading, spacing: 6) {
+                Text("FL ne remplit ce menu qu'en l'ouvrant.")
+                    .font(.system(size: 12))
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                Button("Lire ce menu dans FL") { browser.show(browser.path, open: true) }
+                    .help("Le menu s'ouvre un instant dans FL, le temps de le lire, puis se referme")
+            }
         case .unavailable(let why):
             Text(why)
                 .font(.system(size: 12))

@@ -134,6 +134,15 @@ final class MacroClickSequenceTests: XCTestCase {
         XCTAssertEqual(FLMenuNav.start(for: []), [])
     }
 
+    /// FL met certains sous-menus à plat dans la barre de macOS : au rejeu, l'élément est aussi cherché sans le titre
+    /// de son sous-menu (Tools › Macros › Purge… → Tools › Purge…).
+    func testMenuPathFlattened() {
+        XCTAssertEqual(MenuBarAX.flattened(["Tools", "Macros", "Purge unused audio clips"]),
+                       ["Tools", "Purge unused audio clips"])
+        XCTAssertEqual(MenuBarAX.flattened(["File", "Export", "Stems", "All"]), ["File", "Export", "All"])
+        XCTAssertNil(MenuBarAX.flattened(["Tools", "Purge unused audio clips"]))
+    }
+
     private func key(_ code: UInt16, _ char: String?, menu: Bool = false, command: Bool = false,
                      shift: Bool = false) -> RecordedInput {
         .key(RecordedKey(combo: KeyCombo(keyCode: code, command: command, shift: shift), char: char, menuOpen: menu))

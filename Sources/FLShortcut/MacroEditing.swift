@@ -551,6 +551,9 @@ enum PaletteCatalog {
             // FL Studio
             item("openPage", .openPage) { .openPage(nil) },
             item("pageOption", .pageOption) { .pageOption(id: nil, name: "") },
+            // Les menus de FL (File, Edit, Tools…) parcourus comme dans FL, jusqu'à l'élément voulu (demandé par
+            // l'utilisateur : File › Export › …).
+            item("menuBar", .menuBar) { .menuBar(titles: []) },
             // « Menu de la piste » retiré avec l'utilisateur : outil technique (clic droit sur la piste, puis une ligne
             // du menu), que « Cliquer sur… » et « Enregistrer clics et touches » remplacent. Toujours compris.
             // « Ouvrir un preset (boîte Open) » retiré avec l'utilisateur : « Déposer un preset » fait la même chose, plus

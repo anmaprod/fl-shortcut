@@ -231,10 +231,12 @@ extension MacroTemplates {
                 ], origin: .template("saveExport"))
             },
             MacroTemplate(id: "purgeAudio", title: "Supprimer les clips audio inutilisés",
-                          summary: "Tools › Macros › Purge unused audio clips, par le menu de FL en haut de l'écran : FL retire du projet les clips audio qui ne sont pas dans la Playlist (rien n'est effacé de ton disque).",
+                          summary: "Tools › Purge unused audio clips, par le menu de FL en haut de l'écran : FL retire du projet les clips audio qui ne sont pas dans la Playlist (rien n'est effacé de ton disque).",
                           symbol: "trash") { _ in
                 MacroDoc(name: "Supprimer les clips audio inutilisés",
-                         blocks: [Block(.menuBar(titles: ["Tools", "Macros", "Purge unused audio clips"]),
+                         // Dans la barre des menus de macOS, FL met ses macros à plat dans Tools (vidéo de
+                         // l'utilisateur) : pas de sous-menu « Macros » comme dans son menu TOOLS.
+                         blocks: [Block(.menuBar(titles: ["Tools", "Purge unused audio clips"]),
                                         note: "Commande de FL (FL 2024.2 et plus : ses menus dans la barre de macOS)")],
                          origin: .template("purgeAudio"))
             },
