@@ -742,7 +742,8 @@ struct OrganizerView: View {
                                   + "et le relie tout seul. Puis « Réessayer ».")
                     OrganizerStep(n: 2, text: "Toujours rien : Options › MIDI Settings, entrée « FL Shortcuts Link », "
                                   + "Controller type « FL Shortcuts » (pas « generic controller »), Enable, et le même "
-                                  + "numéro de Port à l'entrée et à la sortie.")
+                                  + "numéro de Port à l'entrée et à la sortie. Dans Output, « FL Shortcuts Link » seul "
+                                  + "sur ce numéro : « FL Shortcuts » doit s'afficher à côté de lui, pas de ta carte son.")
                     OrganizerStep(n: 3, text: "« FL Shortcuts » absent des Controller types : FL ne lit pas le dossier du "
                                   + "script ci-dessous. Compare-le avec Options › File settings › User data folder dans "
                                   + "FL (pas sur iCloud) ; s'il diffère, « Autre dossier de FL… » et choisis celui-là.")
@@ -892,7 +893,8 @@ struct OrganizerView: View {
                     "Le lien est prêt : FL le lit en démarrant et relie « FL Shortcuts Link » tout seul.")
         case .noResponse:
             return ("antenna.radiowaves.left.and.right", "En attente de FL Studio",
-                    "FL ne répond pas encore. Quitte et rouvre FL Studio : il relie « FL Shortcuts Link » en démarrant.")
+                    "FL ne répond pas encore. Dans FL › MIDI Settings › Output, « FL Shortcuts » doit s'afficher à côté "
+                    + "de « FL Shortcuts Link », seul sur son Port. Sinon : « Ça ne marche toujours pas ? » ci-dessous.")
         case .wrongInput:
             return ("cable.connector", "Le lien est sur la mauvaise entrée",
                     "Dans FL : Options › MIDI Settings › Input, ta carte son (ou ton clavier) a le Controller type « FL "
@@ -930,13 +932,16 @@ struct OrganizerView: View {
         VStack(alignment: .leading, spacing: 8) {
             OrganizerStep(n: 1, text: "Dans FL : Options › MIDI Settings › Input, clique d'abord la ligne « FL Shortcuts "
                           + "Link » (le Controller type, en bas, change la ligne choisie), puis Controller type « FL "
-                          + "Shortcuts », Enable, et un numéro de Port que rien d'autre n'utilise. Dans Output, « FL "
-                          + "Shortcuts Link » sur ce même Port. Ta carte son ou ton clavier MIDI restent sur « (generic "
+                          + "Shortcuts », Enable, Port 7. Ta carte son ou ton clavier MIDI restent sur « (generic "
                           + "controller) ».")
-            OrganizerStep(n: 2, text: "« FL Shortcuts » absent des Controller types : FL ne lit pas le dossier du "
+            OrganizerStep(n: 2, text: "Dans Output : « FL Shortcuts Link » sur ce même Port 7, et SEUL sur ce numéro. "
+                          + "Clique ta carte son (SSL 2+…) et donne-lui un autre Port (8…) : FL répond à la première "
+                          + "sortie du numéro. C'est bon quand « FL Shortcuts » s'affiche à côté de « FL Shortcuts "
+                          + "Link » dans Output (pas à côté de ta carte son). Puis quitte et rouvre FL.")
+            OrganizerStep(n: 3, text: "« FL Shortcuts » absent des Controller types : FL ne lit pas le dossier du "
                           + "script ci-dessous. Compare-le avec Options › File settings › User data folder (pas sur "
                           + "iCloud) ; s'il diffère, « Autre dossier de FL… » et choisis celui-là.")
-            OrganizerStep(n: 3, text: "Réglages Système › Confidentialité et sécurité › Fichiers et dossiers › "
+            OrganizerStep(n: 4, text: "Réglages Système › Confidentialité et sécurité › Fichiers et dossiers › "
                           + "FL Studio : « Dossier Documents » doit être coché.")
             scriptCard
         }
