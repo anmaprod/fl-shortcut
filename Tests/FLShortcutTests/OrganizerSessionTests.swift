@@ -5,7 +5,6 @@ import XCTest
 final class FakeOrganizerLink: OrganizerLink {
     var window: FLWindow = .channelRack
     var channels: [ChannelInfo] = []
-    var filtered = false
     var mixer: [MixerTrackInfo] = []
     var playlist: [PlaylistTrackInfo] = []
     /// Longueur de la chanson rendue par l'écoute d'une piste (opération 11).
@@ -49,9 +48,9 @@ final class FakeOrganizerLink: OrganizerLink {
         log.append("seek \(Int((fraction * 1000).rounded()))")
     }
 
-    func listChannels() throws -> (channels: [ChannelInfo], filtered: Bool) {
+    func listChannels() throws -> [ChannelInfo] {
         log.append("list")
-        return (channels, filtered)
+        return channels
     }
 
     func listMixer() throws -> [MixerTrackInfo] {
@@ -291,17 +290,6 @@ final class OrganizerSessionTests: XCTestCase {
         XCTAssertTrue(link.playing, "la lecture de l'utilisateur n'est pas coupée")
         XCTAssertEqual(audio.stopped, 1)
         XCTAssertTrue(OrganizerError.refused(4).message.contains("Stop"))
-    }
-
-    func testFilteredGroupRefused() {
-        let link = FakeOrganizerLink()
-        link.channels = [channel(0)]
-        link.filtered = true
-        let audio = FakeAudio(link: link)
-        XCTAssertEqual(make(link, audio).run(), .failure(.filteredGroup))
-        XCTAssertEqual(link.log, ["list"])
-        XCTAssertEqual(audio.started, 0)
-        XCTAssertTrue(OrganizerError.filteredGroup.message.contains("« All »"))
     }
 
     func testMixerMajority() throws {

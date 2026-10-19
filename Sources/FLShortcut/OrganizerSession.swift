@@ -121,15 +121,15 @@ final class OrganizerSession {
             case .playlist: return .success(try runPlaylist())
             default: return .failure(.refused(1))
             }
-            let list = try link.listChannels()
-            if list.filtered { return .failure(.filteredGroup) }
+            // Un groupe affiché (« Unsorted »…) : ses canaux seulement, les autres ne sont pas touchés.
+            let channels = try link.listChannels()
             let mixer: [MixerTrackInfo] = try page == .mixer ? link.listMixer() : []
-            let targets = list.channels.filter {
+            let targets = channels.filter {
                 $0.type != ChannelInfo.layerType && $0.type != ChannelInfo.automationType
             }
             let items = try listen(targets)
             let families = page == .mixer ? Self.mixerFamilies(items, mixer: mixer) : [:]
-            return .success(OrganizerResult(page: page, channels: list.channels, items: items, mixer: mixer,
+            return .success(OrganizerResult(page: page, channels: channels, items: items, mixer: mixer,
                                             mixerFamilies: families))
         } catch let error as OrganizerError {
             return .failure(error)

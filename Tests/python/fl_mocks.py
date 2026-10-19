@@ -88,8 +88,10 @@ class FLState(object):
         self.ch_colors = list(kw.get("ch_colors", [0x5F6B78] * n))     # couleurs FL (0xRRGGBB dans ce faux FL)
         self.ch_types = list(kw.get("ch_types", [2] * n))              # 2 = plugin générateur
         self.ch_fx = list(kw.get("ch_fx", list(range(1, n + 1))))
-        self.ch_muted = set(kw.get("ch_muted", ()))
+        self.ch_muted = set(kw.get("ch_muted", ()))      # index globaux
         self.n_channels_global = kw.get("n_channels_global", n)
+        # Groupe affiché par le Channel rack : index global de chaque canal affiché (tous par défaut).
+        self.ch_group = list(kw.get("ch_group", range(n)))
         self.notes = []                  # (index global, note, vélocité)
         self.playing = kw.get("playing", False)
         self.song_pos = kw.get("song_pos", 0.5)
@@ -287,8 +289,19 @@ def build_fl(api=45, missing=(), extra=None, **kw):
     reg("channels", "getChannelColor", 1, lambda i, *a: (chk_chan(i), st.ch_colors[i])[1])
     reg("channels", "getChannelType", 19, lambda i, *a: (chk_chan(i), st.ch_types[i])[1])
     reg("channels", "getTargetFxTrack", 1, lambda i, *a: (chk_chan(i), st.ch_fx[i])[1])
-    reg("channels", "getChannelIndex", 1, lambda i: (chk_chan(i), i)[1])
-    reg("channels", "isChannelMuted", 1, lambda i, *a: (chk_chan(i), i in st.ch_muted)[1])
+    reg("channels", "getChannelIndex", 1, lambda i: (chk_chan(i), st.ch_group[i])[1])
+
+    def global_chan(i, use_global):
+        """Index global du canal : `i` lui-même avec useGlobalIndex (API 33), sinon le i-ème canal affiché."""
+        if not use_global:
+            chk_chan(i)
+            return st.ch_group[i]
+        if api < 33:
+            raise TypeError("too many arguments")
+        if not isinstance(i, int) or not 0 <= i < st.n_channels_global:
+            raise TypeError("Channel index out of range")
+        return i
+    reg("channels", "isChannelMuted", 1, lambda i, g=False: global_chan(i, g) in st.ch_muted)
 
     def note_on(i, note, vel, *a):
         chk_chan(i)
@@ -303,9 +316,11 @@ def build_fl(api=45, missing=(), extra=None, **kw):
     reg("channels", "selectOneChannel", 8, select_one)
     reg("channels", "selectChannel", 1, lambda i, *a: chk_chan(i))
     reg("channels", "quickQuantize", 9, lambda i, *a: chk_chan(i))
-    def mute_chan(i, *a):
-        chk_chan(i)
-        st.ch_muted.symmetric_difference_update({i})     # bascule, comme la valeur par défaut -1 de FL
+    def mute_chan(i, value=-1, use_global=False):
+        g = global_chan(i, use_global)
+        if value != -1:
+            raise ValueError("mute value not used by the script")
+        st.ch_muted.symmetric_difference_update({g})     # bascule, comme la valeur par défaut -1 de FL
     reg("channels", "muteChannel", 1, mute_chan)
     reg("channels", "isChannelSolo", 1, lambda i, *a: (chk_chan(i), i in st.ch_solo)[1])
 

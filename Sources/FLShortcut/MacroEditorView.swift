@@ -586,11 +586,15 @@ private struct MacroHeader: View {
                     statusLine
                 }
             }
+            // Fenêtre au plus étroit : le champ rétrécit, le mot « Raccourci » reste sur une ligne (le champ de largeur
+            // fixe l'écrasait en une lettre par ligne).
             HStack(spacing: 10) {
                 Text("Raccourci").font(.system(size: 12)).foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .fixedSize()
                 CaptureField(id: "macro-trigger-\(model.draft?.id.uuidString ?? "")", role: .trigger, combo: triggerBinding)
                     .disabled(model.ephemeral)               // exemple de la mesure : jamais enregistré
-                    .frame(width: 230)
+                    .frame(minWidth: 120, maxWidth: 230)
                 Spacer(minLength: 0)
             }
             if !model.triggerIssues.isEmpty {

@@ -1362,6 +1362,32 @@ class TestDataV5(TestData):
         self.assertEqual((self.fl.loop_mode, self.fl.song_pos), (1, 0.5))
         self.assertIsNone(self.dev._st.memo)
 
+    def test_play_solo_in_group_mutes_whole_project(self):
+        # Channel rack sur un groupe (« Unsorted ») : canal compté dans le groupe affiché, sourdines sur tout le
+        # projet (API 33), canaux masqués compris.
+        self.make(n_channels=2, n_channels_global=4, ch_group=[1, 3], ch_muted={0})
+        self.data_command([6] + M.be16(0))
+        self.assertEqual(self.last_ack(), DATA_ID)
+        self.assertEqual(self.fl.ch_muted, {0, 2, 3})
+        self.clock.t += 0.1
+        self.data_command([6] + M.be16(1))
+        self.assertEqual(self.fl.ch_muted, {0, 1, 2})
+        self.clock.t += 0.1
+        self.data_command([7])
+        self.assertEqual(self.fl.ch_muted, {0})
+        self.clock.t += 0.1
+        self.data_command([6] + M.be16(2))                    # hors du groupe affiché
+        self.assertEqual(self.reasons(), [5])
+
+    def test_play_solo_in_group_before_api33(self):
+        self.make(api=30, n_channels=2, n_channels_global=4, ch_group=[1, 3])
+        self.data_command([6] + M.be16(0))
+        self.assertEqual(self.last_ack(), DATA_ID)
+        self.assertEqual(self.fl.ch_muted, {3})               # les canaux affichés seulement
+        self.clock.t += 0.1
+        self.data_command([7])
+        self.assertEqual(self.fl.ch_muted, set())
+
     def test_play_solo_refuses_when_playing(self):
         self.make(n_channels=4, playing=True)
         self.data_command([6] + M.be16(1))

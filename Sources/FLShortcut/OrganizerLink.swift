@@ -50,8 +50,6 @@ enum OrganizerError: Error, Equatable {
     case failed(String)
     /// Échap pendant l'écoute.
     case cancelled
-    /// Le Channel rack affiche un groupe : les numéros des canaux ne seraient pas ceux de tout le projet.
-    case filteredGroup
     /// Le Channel rack n'est plus devant pendant les déplacements.
     case interrupted
     /// Après l'application, FL ne montre pas ce qui était prévu.
@@ -66,7 +64,6 @@ enum OrganizerError: Error, Equatable {
     var message: String {
         switch self {
         case .cancelled: return "Organiser arrêté : FL est remis comme avant."
-        case .filteredGroup: return "Le Channel rack affiche un groupe : choisis le groupe « All », puis relance Organiser."
         case .interrupted:
             return "Le Channel rack n'est plus devant : Organiser s'est arrêté. « Revenir comme avant » défait ce qui a été fait."
         case .mismatch: return "FL n'a pas tout pris : vérifie dans FL, ou clique sur « Revenir comme avant »."
@@ -258,7 +255,9 @@ protocol OrganizerLink: AnyObject {
     var window: FLWindow { get }
     /// Page de FL devant, demandée au script (opération 9) ; script v5 : celle reçue au réveil (CC 117).
     func page() throws -> FLWindow
-    func listChannels() throws -> (channels: [ChannelInfo], filtered: Bool)
+    /// Canaux affichés par le Channel rack : ceux du groupe choisi s'il en montre un (« Unsorted »…), avec les index
+    /// que les autres opérations attendent.
+    func listChannels() throws -> [ChannelInfo]
     func listMixer() throws -> [MixerTrackInfo]
     /// Les `limit` premières pistes de la Playlist (toutes si elle en a moins).
     func listPlaylist(limit: Int) throws -> [PlaylistTrackInfo]
@@ -341,15 +340,13 @@ final class RequestOrganizerLink: OrganizerLink {
         }
     }
 
-    func listChannels() throws -> (channels: [ChannelInfo], filtered: Bool) {
+    func listChannels() throws -> [ChannelInfo] {
         var all: [ChannelInfo] = []
-        var filtered = false
         for _ in 0..<Self.maxPages {
             guard let page = OrganizerPayload.decodeChannels(try send(OrganizerPayload.list(.channels, start: all.count))),
                   page.start == all.count else { throw OrganizerError.failed("liste des canaux illisible") }
             all += page.items
-            filtered = filtered || page.filtered
-            if all.count >= page.total || page.items.isEmpty { return (all, filtered) }
+            if all.count >= page.total || page.items.isEmpty { return all }
         }
         throw OrganizerError.failed("trop de canaux")
     }

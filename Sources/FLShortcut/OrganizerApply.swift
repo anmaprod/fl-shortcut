@@ -315,7 +315,7 @@ final class OrganizerApplier {
             // Couleurs d'abord (les places sont encore celles d'origine), puis les remontées.
             try link.setColors(.channels, Self.pairs(colors))
             try move(plan.moves, &outcome.snapshot.arrangement)
-            let now: [RGBColor?] = try link.listChannels().channels.map { $0.color }
+            let now: [RGBColor?] = try link.listChannels().map { $0.color }
             let expected: [RGBColor?] = outcome.snapshot.arrangement.map { colors[$0] ?? originals[$0] }
             if now != expected {
                 outcome.error = .mismatch

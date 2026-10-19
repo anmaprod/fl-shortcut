@@ -140,14 +140,14 @@ final class OrganizerLinkTests: XCTestCase {
             requests.append(bytes)
             let start = Int(bytes[2]) << 8 | Int(bytes[3])
             let page = Array(names[start..<min(start + 16, names.count)])
+            // Un groupe affiché (« Unsorted »…) : ses canaux sont lus comme les autres.
             return .answered(self.channelPage(total: 20, start: start, names: page, filtered: start == 16))
         }, window: { .channelRack }, sleep: { slept.append($0) })
-        let (channels, filtered) = try link.listChannels()
+        let channels = try link.listChannels()
         XCTAssertEqual(requests, [[2, 1, 0, 0], [2, 1, 0, 16]])
         XCTAssertEqual(channels.count, 20)
         XCTAssertEqual(channels[17], ChannelInfo(index: 17, type: 2, mixerTrack: 18, color: RGBColor(r: 0x10, g: 0x20, b: 1),
                                                  name: "Son 17 é"))
-        XCTAssertTrue(filtered)
         XCTAssertEqual(slept.count, 1)                              // 60 ms au moins entre deux commandes
         XCTAssertNil(OrganizerPayload.decodeChannels(channelPage(total: 20, start: 0, names: ["a"]) + [0]))   // octet de trop
         XCTAssertNil(OrganizerPayload.decodeChannels(Array(channelPage(total: 20, start: 0, names: ["abc"]).dropLast())))

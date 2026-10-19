@@ -139,7 +139,6 @@ final class OrganizerWindowTests: XCTestCase {
         XCTAssertEqual(OrganizerController.waitReason(for: .outdatedScript), .restartFL)
         XCTAssertEqual(OrganizerController.waitReason(for: .flClosed), .openFL)
         XCTAssertEqual(OrganizerController.waitReason(for: .refused(4)), .stopPlayback)
-        XCTAssertNil(OrganizerController.waitReason(for: .filteredGroup))
         XCTAssertNil(OrganizerController.waitReason(for: .cancelled))
         XCTAssertEqual(controller.scriptPlace?.url, script)
         controller.revealScript()

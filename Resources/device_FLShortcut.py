@@ -27,7 +27,7 @@ bornes vérifiées, seuls les CC du protocole (canal 16) sont marqués « handle
 # La ligne suivante est remplacée par l'appli à l'installation (16 octets en hex).
 KEY_HEX = "__FLSHORTCUT_KEY__"
 
-SCRIPT_VERSION = 8
+SCRIPT_VERSION = 9
 PROTOCOL_VERSION = 2
 
 MIDI_CHANNEL = 15          # canal 16, 0-indexé
@@ -1649,18 +1649,33 @@ _PLAY_FNS = (("channels", "channelCount"), ("channels", "isChannelMuted"), ("cha
              ("transport", "setSongPos"))
 
 
+def _mute_scope():
+    """(nombre, est en sourdine, basculer, canal affiché -> index utilisé) des sourdines de l'écoute : tout le projet
+    avec l'API 33 (index globaux : les canaux des autres groupes du Channel rack aussi, sinon ils joueraient avec le
+    canal écouté) ; avant, les canaux affichés."""
+    is_muted, mute = _fn("channels", "isChannelMuted"), _fn("channels", "muteChannel")
+    to_global = _fn("channels", "getChannelIndex")
+    if _api_at_least(33) and to_global is not None:
+        return (_fn("channels", "channelCount")(True), lambda i: is_muted(i, True),
+                lambda i: mute(i, -1, True), to_global)
+    return _channel_count(), is_muted, mute, lambda i: i
+
+
 def _op_play_solo(raw, seq3):
     """[6, canal (2)] : au premier appel, mémo des sourdines, du mode et de la position ; puis ce canal seul
-    audible (les autres en sourdine, en ne basculant que ceux qui doivent changer), mode pattern, début, lecture."""
+    audible (les autres en sourdine, en ne basculant que ceux qui doivent changer), mode pattern, début, lecture.
+    Le canal est compté dans le groupe affiché par le Channel rack, comme pour les opérations 2 à 5."""
     if len(raw) != 3:
         return REASON_DATA
     if any(_fn(m, n) is None for m, n in _PLAY_FNS):
         return REASON_OLD_FL
     index = _be16(raw[1], raw[2])
-    total = _channel_count()
-    if not _is_int(total) or not 0 <= index < total:
+    shown = _channel_count()
+    if not _is_int(shown) or not 0 <= index < shown:
         return REASON_DATA
-    is_muted, mute = _fn("channels", "isChannelMuted"), _fn("channels", "muteChannel")
+    total, is_muted, mute, scoped = _mute_scope()
+    if not _is_int(total):
+        return REASON_DATA
     if _st.memo is not None and _st.memo.get("kind", "ch") != "ch":
         _restore_memo()                    # une écoute de la Playlist était en cours
     playing = _fn("transport", "isPlaying")()
@@ -1671,8 +1686,9 @@ def _op_play_solo(raw, seq3):
                     "mode": _fn("transport", "getLoopMode")(), "pos": _fn("transport", "getSongPos")()}
     elif playing:
         _fn("transport", "stop")()
+    target = scoped(index)
     for i in range(total):
-        want = i != index
+        want = i != target
         if bool(is_muted(i)) != want:
             mute(i)
     if _fn("transport", "getLoopMode")() != 0:
@@ -1799,8 +1815,8 @@ def _restore_memo():
                 if bool(is_muted(i + 1)) != memo["muted"][i]:
                     mute(i + 1)
             return
-        is_muted, mute = _fn("channels", "isChannelMuted"), _fn("channels", "muteChannel")
-        for i in range(min(memo["n"], _channel_count())):
+        total, is_muted, mute = _mute_scope()[:3]        # la même portée qu'au mémo
+        for i in range(min(memo["n"], total if _is_int(total) else 0)):
             if bool(is_muted(i)) != memo["muted"][i]:
                 mute(i)
 

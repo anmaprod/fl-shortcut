@@ -1674,6 +1674,8 @@ struct CaptureField: View {
                     }
                 }
                 .font(.system(size: 13))
+                .multilineTextAlignment(.center)                // champ étroit : texte sur deux lignes, centré
+                .padding(.horizontal, 8)
                 .frame(maxWidth: .infinity, minHeight: 52)
                 .contentShape(Rectangle())
             }
