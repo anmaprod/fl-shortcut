@@ -33,6 +33,7 @@ MIDI_CONSTS = {
     "FPT_LoopRecord": (113, 9), "FPT_CountDown": (115, 9),
     "SONGLENGTH_ABSTICKS": (2, 3), "FFNEP_DontPromptName": (1, 1),
     "curfxScrollToMakeVisible": (1, 1), "HW_Dirty_FocusedWindow": (32, 1),
+    "REC_Tempo": (0x105, 1), "REC_Control": (0x20000000, 1), "REC_UpdateControl": (0x10000000, 1),
 }
 
 
@@ -110,8 +111,11 @@ class FLState(object):
         # Patterns (index 1 = pattern 1 de FL) : noms et couleurs ; envois du Mixer : piste -> destinations.
         self.pat_names = kw.get("pat_names", {})
         self.pat_colors = kw.get("pat_colors", {})
-        self.routes = dict(kw.get("routes", {}))
+        self.routes = dict((k, set(v)) for k, v in kw.get("routes", {}).items())
         self.shown = []
+        # Longueur des patterns (en temps, index 1 = pattern 1) et tempo (BPM).
+        self.pat_lengths = kw.get("pat_lengths", {})
+        self.tempo = kw.get("tempo", 140.0)
 
     def cc_out(self):
         """Liste (statut, cc, valeur) des messages envoyés."""
@@ -221,6 +225,11 @@ def build_fl(api=45, missing=(), extra=None, **kw):
 
     # general
     reg("general", "getVersion", 1, lambda: api)
+
+    def rec_event(rec, value, flags):
+        if rec == MIDI_CONSTS["REC_Tempo"][0]:
+            st.tempo = value / 1000.0
+    reg("general", "processRECEvent", 1, rec_event)
     reg("general", "undoUp", 1, lambda: None)
     reg("general", "undoDown", 1, lambda: None)
 
@@ -288,6 +297,18 @@ def build_fl(api=45, missing=(), extra=None, **kw):
 
     reg("mixer", "getRouteSendActive", 1,
         lambda i, d: (chk_track(i), chk_track(d), d in st.routes.get(i, ()))[2])
+
+    def set_route(i, d, value, *a):
+        chk_track(i)
+        chk_track(d)
+        routes = st.routes.setdefault(i, set())
+        if value:
+            routes.add(d)
+        else:
+            routes.discard(d)
+    reg("mixer", "setRouteTo", 1, set_route)
+    reg("mixer", "afterRoutingChanged", 1, lambda: None)
+    reg("mixer", "getCurrentTempo", 1, lambda *a: st.tempo)
 
     def mx_select(i):
         chk_track(i)
@@ -375,6 +396,7 @@ def build_fl(api=45, missing=(), extra=None, **kw):
     reg("patterns", "setPatternColor", 1,
         lambda i, c: (chk_pat(i), st.given_colors.__setitem__(("patterns", i), c))[1])
     reg("patterns", "clonePattern", 25, lambda *a: None)
+    reg("patterns", "getPatternLength", 1, lambda i: (chk_pat(i), st.pat_lengths.get(i, 16))[1])
 
     # device
     def midi_out(msg, *a):

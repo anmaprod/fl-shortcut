@@ -10,8 +10,14 @@ final class FakeOrganizerLink: OrganizerLink {
     var mixer: [MixerTrackInfo] = []
     var playlist: [PlaylistTrackInfo] = []
     var patternList: [PatternInfo] = []
-    /// Script v12 simulé ; faux : un ancien script, qui refuse les patterns (FL à redémarrer).
-    var v12 = true
+    /// Script v13 simulé ; faux : un ancien script, qui refuse ses nouvelles opérations (FL à redémarrer).
+    var v13 = true
+    /// Longueur de chaque pattern en temps (16 si absente) et tempo ; tempo pendant le relevé (opération 22).
+    var lengths: [Int] = []
+    var tempo = 120.0
+    private(set) var speedFactor = 1
+    /// Canaux sélectionnés par « Select unused channels » de FL.
+    var unusedSelection: Set<Int> = []
     /// Faux : FL trop ancien pour jouer toute la chanson (relevé de la Playlist impossible).
     var song = true
     /// Sons qui jouent dans chaque pattern (1 = le premier), pistes et sons qui jouent à chaque position de la
@@ -57,7 +63,6 @@ final class FakeOrganizerLink: OrganizerLink {
     }
 
     func listPatterns() throws -> [PatternInfo] {
-        guard v12 else { throw OrganizerError.outdatedScript }
         log.append("patterns")
         return patternList
     }
@@ -66,6 +71,27 @@ final class FakeOrganizerLink: OrganizerLink {
         log.append("routes \(track)")
         return routes[track] ?? []
     }
+
+    func setRoutes(_ track: Int, to dests: [Int]) throws {
+        log.append("send \(track) \(dests.sorted().map(String.init).joined(separator: ","))")
+        routes[track] = dests.sorted()
+    }
+
+    func patternLengths() throws -> (tempo: Double, beats: [Int]) {
+        guard v13 else { throw OrganizerError.outdatedScript }
+        return (tempo, patternList.indices.map { $0 < lengths.count ? lengths[$0] : 16 })
+    }
+
+    func speed(_ factor: Int) throws -> (before: Double, now: Double) {
+        guard memo else { throw OrganizerError.refused(5) }
+        log.append("speed \(factor)")
+        speedFactor = factor
+        return (tempo, min(tempo * Double(factor), 520))
+    }
+
+    func heardChannels() throws -> Set<Int> { try activeChannels() }
+
+    func selectedChannels() throws -> Set<Int> { unusedSelection }
 
     func show(_ window: FLWindow) throws {
         log.append("show \(window)")
@@ -147,10 +173,12 @@ final class FakeOrganizerLink: OrganizerLink {
         var done = 0
         while done < count, window == .mixer, let at = selectedTrack, at > 1, at < mixer.count {
             mixer.swapAt(at, at - 1)
+            func swapped(_ t: Int) -> Int { t == at ? at - 1 : t == at - 1 ? at : t }
             channels = channels.map { c in
-                let fx = c.mixerTrack == at ? at - 1 : c.mixerTrack == at - 1 ? at : c.mixerTrack
-                return ChannelInfo(index: c.index, type: c.type, mixerTrack: fx, color: c.color, name: c.name)
+                ChannelInfo(index: c.index, type: c.type, mixerTrack: swapped(c.mixerTrack), color: c.color, name: c.name)
             }
+            // Les envois suivent les pistes, comme dans FL.
+            routes = Dictionary(uniqueKeysWithValues: routes.map { (swapped($0.key), $0.value.map(swapped).sorted()) })
             selectedTrack = at - 1
             done += 1
         }
@@ -225,6 +253,7 @@ final class FakeOrganizerLink: OrganizerLink {
         log.append("restore")
         if memo { playing = false }
         memo = false
+        speedFactor = 1
         solo = nil
         track = nil
         playedPattern = nil
@@ -291,9 +320,10 @@ final class OrganizerSessionTests: XCTestCase {
 
     private func make(_ link: FakeOrganizerLink, _ audio: FakeAudio, timing: OrganizerSession.Timing? = nil,
                       sleep: @escaping (TimeInterval) -> Void = { _ in },
+                      prepare: @escaping () -> Bool = { false },
                       progress: @escaping (Int, Int) -> Void = { _, _ in }) -> OrganizerSession {
         OrganizerSession(link: link, audio: audio, classify: classify, nameDrum: { _, _ in .kick },
-                         timing: timing ?? self.timing, sleep: sleep, progress: progress)
+                         timing: timing ?? self.timing, sleep: sleep, prepare: prepare, progress: progress)
     }
 
     /// Tout le projet : sons d'après leur nom ou écoutés dans leur pattern, sons de chaque pattern, sons de chaque
@@ -325,9 +355,11 @@ final class OrganizerSessionTests: XCTestCase {
         XCTAssertEqual(result.trackSounds, [0: [0, 3], 1: [1], 2: [2]])
         XCTAssertEqual(result.playlist.count, 3, "lue jusqu'à la dernière piste qui joue")
         XCTAssertEqual(result.routes, [1: [4], 2: [], 3: [4], 4: []], "la piste de groupe est lue aussi")
-        XCTAssertEqual(link.log, ["patterns", "list", "mixer", "all 1", "all 2", "solo 1 p2", "song 0", "song 500",
-                                  "playlist", "track 0", "track 1", "track 2", "seek 500",
-                                  "routes 1", "routes 2", "routes 3", "routes 4", "restore"])
+        // Patterns relevés en entier, tempo accéléré puis remis ; la Playlist avant l'écoute des sons (un son qui joue
+        // dans la chanson n'est jamais laissé de côté).
+        XCTAssertEqual(link.log, ["patterns", "list", "mixer", "all 1", "speed 4", "all 1", "all 2", "speed 1",
+                                  "song 0", "song 500", "playlist", "track 0", "track 1", "track 2", "seek 500",
+                                  "solo 1 p2", "routes 1", "routes 2", "routes 3", "routes 4", "restore"])
         XCTAssertEqual(steps.last.map { $0[0] == $0[1] }, true, "fini à 100 %")
         XCTAssertEqual([audio.started, audio.stopped], [1, 1])
         let diag = session.diagnostics
@@ -339,7 +371,7 @@ final class OrganizerSessionTests: XCTestCase {
     /// Un ancien script (v11 ou avant) : rien n'est touché, FL doit être redémarré.
     func testOldScriptAsksForARestart() {
         let link = FakeOrganizerLink()
-        link.v12 = false
+        link.v13 = false
         link.channels = [channel(0)]
         let audio = FakeAudio(link: link)
         XCTAssertEqual(make(link, audio).run(), .failure(.outdatedScript))
@@ -429,6 +461,7 @@ final class OrganizerSessionTests: XCTestCase {
 
         // Échap pendant une note d'essai : la note est coupée, puis FL remis.
         let quiet = FakeOrganizerLink()
+        quiet.song = false
         quiet.channels = [channel(0)]
         let silentAudio = FakeAudio(link: quiet)
         var second: OrganizerSession?
@@ -468,6 +501,44 @@ final class OrganizerSessionTests: XCTestCase {
         XCTAssertEqual(result.trackItems.map(\.index), [0])
         XCTAssertEqual(result.trackItems.map(\.family), [.vocals])
         XCTAssertEqual(result.trackSounds, [1: [0]], "repli : ce qui joue avec elle")
+    }
+
+    /// FL sélectionne les sons sans note (« Select unused channels ») : laissés de côté, ni écoutés ni classés ; un
+    /// clip audio sélectionné reste (il joue dans la Playlist sans note), un son entendu aussi.
+    func testUnusedSoundsAreLeftAside() throws {
+        let link = FakeOrganizerLink()
+        link.song = false
+        link.channels = [named(0, "BEAM KICK"), named(1, "Kick 2"), channel(2, type: ChannelInfo.audioClipType),
+                         channel(3)]
+        link.patternList = [PatternInfo(index: 0, color: red, name: "Pattern 1")]
+        link.patternSounds = [1: [0, 3]]
+        link.unusedSelection = [1, 2, 3]
+        let audio = FakeAudio(link: link)
+        audio.parts = [2: tone(.vocals), 3: tone(.melody)]
+        var prepared = 0
+        let session = make(link, audio, prepare: { prepared += 1; return true })
+        let result = try session.run().get()
+        XCTAssertEqual(prepared, 1)
+        XCTAssertEqual(result.unused, [1])
+        XCTAssertEqual(result.items.map(\.index), [0, 2, 3])
+        XCTAssertFalse(link.log.contains("solo 1"), "pas écouté")
+        XCTAssertEqual(session.diagnostics.unused, 1)
+        XCTAssertEqual(session.diagnostics.selection, "oui")
+    }
+
+    func testUnusedAndPatternLength() {
+        let channels = [channel(0), channel(1), channel(2, type: ChannelInfo.audioClipType),
+                        channel(3, type: ChannelInfo.automationType)]
+        XCTAssertEqual(OrganizerSession.unused(channels, selected: [1, 2, 3], heard: [], complete: false), [1])
+        XCTAssertEqual(OrganizerSession.unused(channels, selected: [0, 1], heard: [0], complete: true), [1],
+                       "entendu : jamais de côté")
+        XCTAssertEqual(OrganizerSession.unused(channels, selected: nil, heard: [0], complete: true), [1],
+                       "sans la sélection de FL : ce qui n'a joué nulle part")
+        XCTAssertEqual(OrganizerSession.unused(channels, selected: nil, heard: [0], complete: false), [])
+        XCTAssertEqual(OrganizerSession.unused(channels, selected: nil, heard: [], complete: true), [], "rien relevé")
+        XCTAssertEqual(OrganizerSession.patternSeconds(beats: 16, tempo: 120, cap: 8), 8)
+        XCTAssertEqual(OrganizerSession.patternSeconds(beats: 16, tempo: 480, cap: 8), 2)
+        XCTAssertEqual(OrganizerSession.patternSeconds(beats: 0, tempo: 0, cap: 20), 8, "4 mesures à 120 par défaut")
     }
 
     func testPureHelpers() {

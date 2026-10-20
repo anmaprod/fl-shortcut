@@ -156,12 +156,12 @@ final class OrganizerWindowTests: XCTestCase {
     /// Un ancien script chargé dans FL : Organiser attend que FL redémarre, puis continue tout seul.
     func testOldScriptWaitsThenGoesOn() {
         let link = FakeOrganizerLink()
-        link.v12 = false
+        link.v13 = false
         let controller = OrganizerController(env: env(link, FakeAudio(link: link), saved: { _ in }))
         controller.start()
         waitFor(controller) { $0 == .waiting(.restartFL) }
         XCTAssertTrue(controller.canRetry)
-        link.v12 = true
+        link.v13 = true
         waitFor(controller) { if case .failed = $0 { return true } else { return false } }
         XCTAssertEqual(controller.phase, .failed("Aucun son à organiser dans ce projet."))
         controller.close()

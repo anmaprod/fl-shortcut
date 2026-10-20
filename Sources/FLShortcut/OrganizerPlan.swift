@@ -1,8 +1,9 @@
 // Organiser : ce qui sera fait dans tout le projet, d'après ce qu'est chaque son du Channel rack (sa famille, sa
-// sorte) : Channel rack regroupé (familles, puis sortes), pistes du Mixer dans le même ordre (pistes reliées par un
-// envoi côte à côte, la piste qui reçoit après celles qui lui envoient), patterns et pistes de la Playlist (que FL ne
-// laisse pas déplacer), le tout coloré par famille et renommé simplement (« Kick », « Kick 2 », « 808 »…). Pur
-// (testé) : l'application et « Revenir comme avant » sont dans OrganizerApply.
+// sorte) : Channel rack regroupé (familles, puis sortes), pistes du Mixer dans le même ordre avec un bus par famille
+// juste après ses pistes (808 avec les drums), chaque son envoyé seulement à son bus, patterns et pistes de la Playlist
+// (que FL ne laisse pas déplacer), le tout coloré par famille et renommé simplement (« Kick », « Kick 2 », « 808 »…).
+// Les sons sans aucune note (sans famille) ne sont pas touchés. Pur (testé) : l'application et « Revenir comme
+// avant » sont dans OrganizerApply.
 import Foundation
 
 /// Ce que l'utilisateur garde dans « Tout organiser ».
@@ -13,6 +14,9 @@ struct OrganizerOptions: Equatable {
     var playlist = true
     /// Renommer (sinon : couleurs et ordre seulement).
     var rename = true
+    /// Mixer : un bus par famille (les 808 avec les drums), chaque son envoyé seulement à son bus (retour de
+    /// l'utilisateur) ; sinon les envois restent et les pistes reliées restent côte à côte.
+    var buses = true
 }
 
 /// Famille et sorte d'un élément (sorte nil : sa famille seule).
@@ -25,6 +29,9 @@ struct Verdict: Equatable {
         guard family != .unsure else { return nil }
         return kind?.name ?? family.trackName
     }
+
+    /// Le bus du Mixer où il va (808 : Drums).
+    var busFamily: SoundFamily { kind?.busFamily ?? family }
 }
 
 struct OrganizerPlan: Equatable {
@@ -38,8 +45,12 @@ struct OrganizerPlan: Equatable {
         var final: [Int] = []
         /// Ce qu'est chaque élément (aperçu, icônes).
         var verdicts: [Int: Verdict] = [:]
+        /// Mixer : pistes vers lesquelles chaque piste d'origine enverra seulement (0 = le Master), et les bus
+        /// (piste d'origine → famille).
+        var routes: [Int: [Int]] = [:]
+        var buses: [Int: SoundFamily] = [:]
 
-        var isEmpty: Bool { colors.isEmpty && names.isEmpty && moves.isEmpty }
+        var isEmpty: Bool { colors.isEmpty && names.isEmpty && moves.isEmpty && routes.isEmpty }
     }
 
     var rack = Area()
@@ -76,8 +87,8 @@ struct OrganizerPlan: Equatable {
         }
 
         // Patterns : le nom qu'ils ont déjà s'il dit ce qu'ils sont (« kick », « hi hat »), sinon ce qui y joue (un
-        // « Drums 1 » qui ne joue que des kicks devient « Kick ») ; renommés s'ils ont encore le nom de FL ou un nom
-        // qui dit ce qu'ils sont (un « Intro » garde son nom).
+        // « Drums 1 » qui ne joue que des kicks devient « Kick ») ; renommés, sauf un nom de partie du morceau
+        // (« Intro ») : « Serum 2 #3 », nom donné par FL d'après le son, devient « Mélodie » (retour de l'utilisateur).
         if options.patterns {
             var verdicts: [Int: Verdict] = [:]
             var renamable = Set<Int>()
@@ -85,7 +96,7 @@ struct OrganizerPlan: Equatable {
             for pattern in result.patterns {
                 let heard = result.patternSounds[pattern.index].flatMap { groupVerdict($0.sorted().compactMap(verdict)) }
                 verdicts[pattern.index] = named(pattern.name, heard: heard)
-                if pattern.hasDefaultName || SoundNames.kind(of: pattern.name) != nil { renamable.insert(pattern.index) }
+                if !SoundNames.isSection(pattern.name) { renamable.insert(pattern.index) }
                 current[pattern.index] = pattern.name
             }
             plan.patterns = area(verdicts, order: result.patterns.map(\.index), current: current, styles: styles,
@@ -95,11 +106,11 @@ struct OrganizerPlan: Equatable {
         // Mixer : même ordre que le Channel rack.
         if options.mixer {
             plan.mixer = mixerArea(result, verdict: verdict, rackPlace: rackPlace, channelNames: channelNames,
-                                   styles: styles, rename: options.rename)
+                                   styles: styles, rename: options.rename, buses: options.buses)
         }
 
         // Playlist : chaque piste prend ce que jouent ses sons (ou ce qu'elle fait entendre, pour un clip audio) ;
-        // renommée si elle a encore le nom de FL ou un nom qui dit déjà ce qu'elle est (« Drums 2 », « kick »).
+        // renommée, sauf un nom de partie du morceau (« Intro »).
         if options.playlist {
             var heard: [Int: Verdict] = [:]
             for (track, sounds) in result.trackSounds {
@@ -113,7 +124,7 @@ struct OrganizerPlan: Equatable {
             var current: [Int: String] = [:]
             for track in result.playlist {
                 verdicts[track.index] = named(track.name, heard: heard[track.index])
-                if track.hasDefaultName || SoundNames.kind(of: track.name) != nil { renamable.insert(track.index) }
+                if !SoundNames.isSection(track.name) { renamable.insert(track.index) }
                 current[track.index] = track.name
             }
             plan.playlist = area(verdicts, order: result.playlist.map(\.index), current: current, styles: styles,
@@ -145,82 +156,49 @@ struct OrganizerPlan: Equatable {
         return out
     }
 
-    /// Pistes du Mixer reliées à un son (et celles qui en reçoivent les envois) : dans l'ordre du Channel rack, les
-    /// pistes reliées par un envoi côte à côte, celle qui reçoit après celles qui lui envoient ; les autres pistes
-    /// suivent, dans leur ordre. Une piste avec un seul son prend le nom de ce son ; une piste de groupe (aucun son,
-    /// des envois reçus) « <famille> Bus », si elle a encore le nom de FL.
+    /// Pistes du Mixer reliées à un son classé (les sons laissés de côté ne comptent pas), dans l'ordre du Channel
+    /// rack. Avec `buses` : un bus par famille juste après ses pistes (une piste sans son qui reçoit déjà surtout de
+    /// cette famille, sinon une piste libre), chaque piste envoyée seulement à son bus, le bus au Master ; « À
+    /// vérifier » : sans bus. Sans : les pistes reliées par un envoi côte à côte, celle qui reçoit après celles qui
+    /// lui envoient. Les autres pistes suivent, dans leur ordre. Une piste avec un seul son prend le nom de ce son ;
+    /// un bus « <famille> Bus », s'il a encore le nom de FL.
     private static func mixerArea(_ result: OrganizerResult, verdict: (Int) -> Verdict?, rackPlace: [Int: Int],
                                   channelNames: [Int: String], styles: [SoundFamily: FamilyStyle],
-                                  rename: Bool) -> Area {
+                                  rename: Bool, buses: Bool) -> Area {
         let last = result.mixer.count - 2                         // la dernière piste est « Current »
         guard last >= 1 else { return Area() }
         var linked: [Int: [Int]] = [:]                          // piste -> sons, dans l'ordre du Channel rack
-        for channel in OrganizerSession.sounds(result.channels) where (1...last).contains(channel.mixerTrack) {
+        for channel in OrganizerSession.sounds(result.channels)
+        where (1...last).contains(channel.mixerTrack) && verdict(channel.index) != nil {
             linked[channel.mixerTrack, default: []].append(channel.index)
         }
         for track in linked.keys { linked[track]?.sort { (rackPlace[$0] ?? .max) < (rackPlace[$1] ?? .max) } }
-        // Envois entre pistes utiles, et pistes de groupe (qui reçoivent sans avoir de son).
+        guard !linked.isEmpty else { return Area() }
+        // Envois entre pistes (sans le Master).
         var sources: [Int: [Int]] = [:]
         for (from, dests) in result.routes where (1...last).contains(from) {
             for d in dests where (1...last).contains(d) && d != from { sources[d, default: []].append(from) }
         }
-        var relevant = Set(linked.keys)
-        var grew = true
-        while grew {
-            grew = false
-            for (d, froms) in sources where !relevant.contains(d) && froms.contains(where: { relevant.contains($0) }) {
-                relevant.insert(d)
-                grew = true
-            }
-        }
-        guard !relevant.isEmpty else { return Area() }
-
-        // Clés de rangement : la place du premier son dans le Channel rack ; une piste de groupe juste après la
-        // dernière piste qui lui envoie.
+        var out = Area()
         var key: [Int: Double] = [:]
-        for (track, sounds) in linked { key[track] = Double(sounds.compactMap { rackPlace[$0] }.min() ?? Int.max / 2) }
-        for _ in 0..<relevant.count {                           // groupes de groupes : une passe par niveau
-            for track in relevant where linked[track] == nil {
-                let fromKeys = (sources[track] ?? []).compactMap { key[$0] }
-                if let top = fromKeys.max() { key[track] = top + 0.5 }
-            }
+        for (track, sounds) in linked {
+            key[track] = Double(sounds.compactMap { rackPlace[$0] }.min() ?? Int.max / 2)
+            if let v = groupVerdict(sounds.compactMap(verdict)) { out.verdicts[track] = v }
         }
-        // Ensembles reliés par des envois : chacun d'un bloc, rangés par leur plus petite clé.
-        var group: [Int: Int] = [:]
-        func root(_ t: Int) -> Int {
-            var t = t
-            while let up = group[t], up != t { t = up }
-            return t
+        func sortKey(_ t: Int) -> (Double, Int) { (key[t] ?? Double(Int.max / 2), t) }
+
+        let layout: [Int]
+        if buses {
+            layout = busLayout(result, linked: linked, sources: sources, last: last, sortKey: sortKey, out: &out)
+        } else {
+            layout = groupedLayout(linked: linked, sources: sources, key: &key, out: &out)
         }
-        for track in relevant { group[track] = track }
-        for (d, froms) in sources where relevant.contains(d) {
-            for from in froms where relevant.contains(from) {
-                let a = root(from), b = root(d)
-                if a != b { group[max(a, b)] = min(a, b) }
-            }
-        }
-        var blocks: [Int: [Int]] = [:]
-        for track in relevant { blocks[root(track), default: []].append(track) }
-        let sortKey = { (t: Int) -> (Double, Int) in (key[t] ?? Double(Int.max / 2), t) }
-        let layout = blocks.values
-            .map { $0.sorted { sortKey($0) < sortKey($1) } }
-            .sorted { sortKey($0[0]) < sortKey($1[0]) }
-            .flatMap { $0 }
+        let relevant = Set(layout)
         let span = relevant.max() ?? 0
         let current = Array(1...span)
         let target = layout + current.filter { !relevant.contains($0) }
-
-        var out = Area()
         out.moves = RegroupPlan.moves(from: current, to: target)
         out.final = target
-        // Ce qu'est chaque piste : ses sons, ou ceux des pistes qui lui envoient.
-        for track in layout {
-            if let sounds = linked[track] {
-                if let v = groupVerdict(sounds.compactMap(verdict)) { out.verdicts[track] = v }
-            } else if let v = groupVerdict((sources[track] ?? []).compactMap { out.verdicts[$0] }) {
-                out.verdicts[track] = Verdict(family: v.family)
-            }
-        }
         out.colors = OrganizerApplier.plannedColors(families: out.verdicts.mapValues(\.family), styles: styles,
                                                     order: target)
         if rename {
@@ -239,11 +217,114 @@ struct OrganizerPlan: Equatable {
                 }
             }
             out.names.merge(numbered(bases, taken: taken)) { a, _ in a }
-            var current: [Int: String] = [:]
-            for track in result.mixer { current[track.index] = track.name }
-            out.names = out.names.filter { current[$0.key] != $0.value }
+            var names: [Int: String] = [:]
+            for track in result.mixer { names[track.index] = track.name }
+            out.names = out.names.filter { names[$0.key] != $0.value }
         }
         return out
+    }
+
+    /// Un bus par famille : les pistes de la famille (808 : Drums) dans l'ordre du Channel rack, puis son bus ; les
+    /// familles dans l'ordre de leur premier son ; une piste « À vérifier » seule à sa place.
+    private static func busLayout(_ result: OrganizerResult, linked: [Int: [Int]], sources: [Int: [Int]], last: Int,
+                                  sortKey: (Int) -> (Double, Int), out: inout Area) -> [Int] {
+        var members: [SoundFamily: [Int]] = [:]
+        var alone: [Int] = []
+        for track in linked.keys {
+            if let v = out.verdicts[track], v.family != .unsure {
+                members[v.busFamily, default: []].append(track)
+            } else {
+                alone.append(track)
+            }
+        }
+        // Bus déjà là : une piste sans son qui reçoit le plus de pistes de la famille.
+        var taken = Set(linked.keys)
+        var busOf: [SoundFamily: Int] = [:]
+        for family in SoundFamily.order {
+            guard let tracks = members[family] else { continue }
+            let mine = Set(tracks)
+            let candidates = sources.compactMap { d, froms -> (track: Int, count: Int)? in
+                guard !taken.contains(d) else { return nil }
+                let count = froms.filter { mine.contains($0) }.count
+                return count > 0 ? (d, count) : nil
+            }
+            if let best = candidates.max(by: { a, b in a.count != b.count ? a.count < b.count : a.track > b.track }) {
+                busOf[family] = best.track
+                taken.insert(best.track)
+            }
+        }
+        // Sinon une piste libre : nom de FL, aucun son ni canal relié, aucun envoi connu vers elle ou depuis elle.
+        let occupied = Set(result.channels.map(\.mixerTrack))
+        let routed = Set(sources.keys).union(sources.values.flatMap { $0 })
+        var free = result.mixer.filter { t in
+            (1...last).contains(t.index) && t.hasDefaultName && !occupied.contains(t.index)
+                && !taken.contains(t.index) && !routed.contains(t.index)
+        }.map(\.index).sorted()
+        for family in SoundFamily.order where members[family] != nil && busOf[family] == nil && !free.isEmpty {
+            busOf[family] = free.removeFirst()
+        }
+        var blocks: [[Int]] = alone.map { [$0] }
+        for (family, tracks) in members {
+            let sorted = tracks.sorted { sortKey($0) < sortKey($1) }
+            guard let bus = busOf[family] else {
+                blocks.append(sorted)
+                continue
+            }
+            blocks.append(sorted + [bus])
+            for t in sorted { out.routes[t] = [bus] }
+            out.routes[bus] = [0]
+            out.buses[bus] = family
+            out.verdicts[bus] = Verdict(family: family)
+        }
+        return blocks.sorted { sortKey($0[0]) < sortKey($1[0]) }.flatMap { $0 }
+    }
+
+    /// Sans bus : les pistes reliées par un envoi d'un bloc, celle qui reçoit juste après la dernière qui lui envoie.
+    private static func groupedLayout(linked: [Int: [Int]], sources: [Int: [Int]], key: inout [Int: Double],
+                                      out: inout Area) -> [Int] {
+        var relevant = Set(linked.keys)
+        var grew = true
+        while grew {
+            grew = false
+            for (d, froms) in sources where !relevant.contains(d) && froms.contains(where: { relevant.contains($0) }) {
+                relevant.insert(d)
+                grew = true
+            }
+        }
+        for _ in 0..<relevant.count {                           // groupes de groupes : une passe par niveau
+            for track in relevant where linked[track] == nil {
+                let fromKeys = (sources[track] ?? []).compactMap { key[$0] }
+                if let top = fromKeys.max() { key[track] = top + 0.5 }
+            }
+        }
+        var group: [Int: Int] = [:]
+        func root(_ t: Int) -> Int {
+            var t = t
+            while let up = group[t], up != t { t = up }
+            return t
+        }
+        for track in relevant { group[track] = track }
+        for (d, froms) in sources where relevant.contains(d) {
+            for from in froms where relevant.contains(from) {
+                let a = root(from), b = root(d)
+                if a != b { group[max(a, b)] = min(a, b) }
+            }
+        }
+        var blocks: [Int: [Int]] = [:]
+        for track in relevant { blocks[root(track), default: []].append(track) }
+        let keys = key
+        func ordered(_ t: Int) -> (Double, Int) { (keys[t] ?? Double(Int.max / 2), t) }
+        let layout = blocks.values
+            .map { $0.sorted { ordered($0) < ordered($1) } }
+            .sorted { ordered($0[0]) < ordered($1[0]) }
+            .flatMap { $0 }
+        // Une piste de groupe : la famille des pistes qui lui envoient.
+        for track in layout where linked[track] == nil {
+            if let v = groupVerdict((sources[track] ?? []).compactMap { out.verdicts[$0] }) {
+                out.verdicts[track] = Verdict(family: v.family)
+            }
+        }
+        return layout
     }
 
     /// Pur (testé) : ce qu'est un ensemble de sons : la famille la plus présente (« À vérifier » seulement s'il n'y a

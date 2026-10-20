@@ -242,6 +242,28 @@ final class OrganizerLinkTests: XCTestCase {
     }
 
     /// Script v12 : patterns, envois du Mixer, page mise devant.
+    func testV13Payloads() throws {
+        XCTAssertEqual(OrganizerPayload.heardChannels, [14, 1, 1])
+        XCTAssertEqual(OrganizerPayload.lengths(start: 70), [19, 0, 70])
+        XCTAssertEqual(OrganizerPayload.setRoutes(3, [0, 9]), [20, 0, 3, 2, 0, 0, 0, 9])
+        XCTAssertEqual(OrganizerPayload.selected, [21])
+        XCTAssertEqual(OrganizerPayload.speed(4), [22, 4])
+        XCTAssertEqual(OrganizerPayload.speed(20), [22, 8], "8 au plus")
+        let lengths = try XCTUnwrap(OrganizerPayload.decodeLengths([0x32, 0xC8, 0, 3, 0, 0, 3, 0, 16, 0, 16, 0, 4]))
+        XCTAssertEqual(lengths.tempo, 130)
+        XCTAssertEqual([lengths.total, lengths.start], [3, 0])
+        XCTAssertEqual(lengths.beats, [16, 16, 4])
+        XCTAssertNil(OrganizerPayload.decodeLengths([0x32, 0xC8, 0, 3, 0, 0, 3, 0, 16]), "coupée")
+        XCTAssertEqual(OrganizerPayload.decodeSelected([0, 10, 0b10, 0b10]), [1, 9])
+        XCTAssertNil(OrganizerPayload.decodeSelected([0, 10, 0b10]))
+        let speed = try XCTUnwrap(OrganizerPayload.decodeSpeed([0x32, 0xC8, 0xCB, 0x20]))
+        XCTAssertEqual([speed.before, speed.now], [130, 520])
+
+        // Script plus ancien : la première opération v13 est refusée (5) → FL à redémarrer.
+        let old = RequestOrganizerLink(request: { _ in .refused(5) }, window: { .channelRack }, sleep: { _ in })
+        XCTAssertThrowsError(try old.patternLengths()) { XCTAssertEqual($0 as? OrganizerError, .outdatedScript) }
+    }
+
     func testV12Payloads() throws {
         XCTAssertEqual(OrganizerPayload.list(.patterns, start: 8), [2, 4, 0, 8])
         XCTAssertEqual(OrganizerPayload.routes(300), [17, 1, 44])

@@ -76,6 +76,7 @@
 "%lld raccourcis" = "%lld shortcuts";
 "%lld résultats chez %@" = "%lld results from %@";
 "%lld s" = "%lld s";
+"%lld sons sans aucune note laissés de côté (ni rangés, ni colorés, ni renommés)" = "%lld sounds without any notes left aside (not sorted, colored or renamed)";
 "%lld touches" = "%lld keys";
 "%lld étapes tapent des touches, cliquent ou ouvrent des fichiers : relis-les dans le créateur." = "%lld steps press keys, click or open files: check them in the creator.";
 "%lld/%lld" = "%lld/%lld";
@@ -778,6 +779,7 @@
 "FL passe devant : fais le glisser-déposer une fois (il agit aussi dans FL). Échap annule." = "FL comes to the front: do the drag and drop once (it also works in FL). Esc cancels.";
 "FL passe devant : place la souris sur une piste du Mixer avant la fin du compte à rebours. Échap arrête la macro." = "FL comes to the front: put the mouse on a Mixer track before the countdown ends. Esc stops the macro.";
 "FL passe devant et la macro vise la dernière piste sur laquelle tu as cliqué. Échap l'arrête." = "FL comes to the front and the macro targets the last track you clicked. Esc stops it.";
+"FL retire d'abord les clips audio inutilisés et repère les sons sans aucune note (laissés de côté). Un son dont le nom dit ce qu'il est (Kick, 808, Hat…) est classé tout de suite ; les autres jouent seuls, sans que tu les entendes. Chaque pattern joue en entier, en accéléré, puis chaque piste de la Playlist un instant : FL dit quels sons y jouent (même ceux que tu as coupés). Ne touche pas à FL ; Échap arrête." = "FL first removes unused audio clips and finds sounds without any notes (left aside). A sound whose name says what it is (Kick, 808, Hat…) is sorted right away; the others play alone, without you hearing them. Each pattern plays in full, sped up, then each Playlist track for a moment: FL tells which sounds play in it (even the ones you muted). Don't touch FL; Esc stops.";
 "FL répond : le lien est prêt." = "FL responds: the link is ready.";
 "FL trouve « FL Shortcuts Link » en démarrant et le relie tout seul. C'est détecté ici dès que c'est fait." = "FL finds “FL Shortcuts Link” when it starts and links it on its own. It shows up here as soon as it's done.";
 "FL utilise encore l'ancienne version du lien : redémarre FL Studio (il charge la nouvelle au lancement), puis clique sur « Réessayer »." = "FL is still using the old version of the link: restart FL Studio (it loads the new one at launch), then click “Try again”.";
@@ -1064,6 +1066,7 @@
 "Mission Control" = "Mission Control";
 "Mix" = "Mix";
 "Mixer" = "Mixer";
+"Mixer : %lld pistes dans l'ordre du Channel rack, %lld bus (un par famille), %lld renommées" = "Mixer: %lld tracks in Channel rack order, %lld buses (one per family), %lld renamed";
 "Mixer : %lld pistes dans l'ordre du Channel rack, %lld renommées" = "Mixer: %lld tracks in Channel rack order, %lld renamed";
 "Mode Performance" = "Performance mode";
 "Mode Step Edit" = "Step Edit mode";
@@ -1689,6 +1692,7 @@
 "Tête de lecture au début" = "Playhead to start";
 "Un bloc caché de l'ancien format est inclus : relis-le dans le créateur avant de t'en servir." = "A hidden block in the old format is included: review it in the creator before using it.";
 "Un bloc vient d'une version plus récente de FL Shortcuts : la macro ne tournera pas." = "A block comes from a newer version of FL Shortcuts: the macro won't run.";
+"Un bus par famille dans le Mixer (les 808 avec les drums), chaque son envoyé seulement à son bus" = "One bus per family in the Mixer (808s with the drums), each sound sent only to its bus";
 "Un code vient de partir à %@ : entre-le ici pour confirmer ton compte." = "A code was just sent to %@: enter it here to confirm your account.";
 "Un compte existe déjà avec ce mail." = "An account already exists with this email.";
 "Un de ses blocs clique à un endroit qu'il faut montrer une fois sur ton Mac (les positions ne sont jamais partagées). Ouvre la macro, choisis le bloc marqué, puis « Montrer dans FL… » et clique à l'endroit voulu." = "One of its blocks clicks a spot you need to show once on your Mac (positions are never shared). Open the macro, pick the marked block, then “Show in FL…” and click the right spot.";
@@ -1696,7 +1700,6 @@
 "Un petit lien avec FL, une seule fois" = "A small link with FL, just once";
 "Un problème" = "A problem";
 "Un raccourci personnalisé lance une action ou envoie une touche de FL Studio." = "A custom shortcut runs an action or sends an FL Studio key.";
-"Un son dont le nom dit ce qu'il est (Kick, 808, Hat…) est classé tout de suite ; les autres jouent seuls, sans que tu les entendes. Chaque pattern puis chaque piste de la Playlist joue un instant : FL dit quels sons y jouent (même ceux que tu as coupés). Ne touche pas à FL ; Échap arrête." = "A sound whose name says what it is (Kick, 808, Hat…) is sorted right away; the others play alone, without you hearing them. Each pattern, then each Playlist track, plays for a moment: FL tells which sounds play in it (even the ones you muted). Don't touch FL; Esc stops.";
 "Un « ! » apparaît sur l'icône en haut de l'écran" = "A “!” appears on the menu bar icon";
 "Un « ! » sur l'icône : le clavier n'est pas autorisé. Ouvre son menu pour savoir quoi faire." = "A “!” on the icon: keyboard access isn't allowed. Open its menu to see what to do.";
 "Un état de piste du Mixer (.fst) dans ton dossier personnel. La boîte « Open » de FL doit être ouverte juste avant (bloc « Attendre une fenêtre »)." = "A Mixer track state (.fst) in your home folder. FL's “Open” dialog must be open just before (“Wait for a window” block).";

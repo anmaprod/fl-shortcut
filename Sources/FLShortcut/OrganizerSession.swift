@@ -3,8 +3,12 @@
 // qui joue), ceux de chaque piste de la Playlist (la chanson relevée, puis chaque piste jouée seule : FL dit quels sons
 // jouent ; un clip audio sans son reconnu est écouté) et les envois du Mixer. Les sons et pistes coupés par
 // l'utilisateur sont audibles le temps de l'analyse (retour de l'utilisateur : trois pistes sautées, leurs sons étaient
-// coupés). Tourne hors du fil principal ; FL est toujours remis comme avant (opération 7) avant que le son de FL
-// revienne, même après une erreur ou Échap. Les noms ne sont jamais journalisés (le diagnostic n'a que des nombres).
+// coupés). Avant l'analyse, les menus de FL retirent les clips audio inutilisés et sélectionnent les sons sans aucune
+// note : ces sons sont laissés de côté (retour de l'utilisateur : des sons sans note étaient rangés, colorés,
+// renommés). Ce qui joue est relevé en continu par le script (une note brève entre deux lectures compte : Kick et Open
+// Hat oubliés), chaque pattern en entier, tempo accéléré le temps du relevé. Tourne hors du fil principal ; FL est
+// toujours remis comme avant (opération 7 : sourdines, tempo…) avant que le son de FL revienne, même après une erreur
+// ou Échap. Les noms ne sont jamais journalisés (le diagnostic n'a que des nombres).
 import Accelerate
 import Foundation
 
@@ -43,6 +47,10 @@ struct OrganizerDiagnostics: Equatable {
     var tracksHeard = 0
     var mixerUsed = 0
     var routes = 0
+    /// « Select unused channels » de FL fait (oui / non), sons laissés de côté, tempo pendant le relevé (BPM).
+    var selection = "?"
+    var unused = 0
+    var scanTempo = 0
     var capture = CaptureStats()
     var error = ""
 
@@ -51,6 +59,7 @@ struct OrganizerDiagnostics: Equatable {
          "patterns=\(patterns) relevés=\(scanned) avec-sons=\(withSounds) activité=\(activity) positions=\(positions) "
             + "relevés-chanson=\(activeSamples) pistes=\(tracks) seules=\(tracksSolo) écoutées=\(tracksHeard) "
             + "mixer=\(mixerUsed) envois=\(routes)",
+         "sélection=\(selection) inutilisés=\(unused) tempo-relevé=\(scanTempo)",
          capture.text,
          error.isEmpty ? "" : "erreur=\(error)"].filter { !$0.isEmpty }.joined(separator: "\n")
     }
@@ -75,6 +84,8 @@ struct OrganizerResult: Equatable {
     var trackSounds: [Int: Set<Int>] = [:]
     /// Pistes sans son du Channel rack reconnu (clips audio), classées à l'écoute.
     var trackItems: [OrganizerItem] = []
+    /// Sons sans aucune note (index des canaux) : laissés de côté, ni rangés ni colorés ni renommés.
+    var unused: Set<Int> = []
 }
 
 final class OrganizerSession {
@@ -93,11 +104,17 @@ final class OrganizerSession {
         var afterSound: TimeInterval = 1.5
         /// Encore rien entendu au bout de ce délai : les notes d'essai tout de suite.
         var silentGiveUp: TimeInterval = 1.5
-        /// Relevé de ce qui joue (pattern, position de la chanson, piste seule) : à cet intervalle, `scanReads` fois.
+        /// Relevé des pistes qui jouent à une position de la chanson : à cet intervalle, `scanReads` fois.
         var scanStep: TimeInterval = 0.2
         var scanReads = 4
-        /// Après un saut dans la chanson, avant le premier relevé.
+        /// Après un changement de pattern ou un saut dans la chanson : la fin du son d'avant ne compte pas.
         var settle: TimeInterval = 0.2
+        /// Relevé des patterns : tempo multiplié par ce facteur (1 : tel quel), chaque pattern écouté en entier,
+        /// `patternCap` au plus.
+        var speedFactor = 4
+        var patternCap: TimeInterval = 8
+        /// Piste de la Playlist jouée seule : ce qui y joue, relevé pendant ce temps.
+        var trackListen: TimeInterval = 1.5
     }
 
     typealias Classify = ([Float], Double) -> (family: SoundFamily, confidence: Double)
@@ -128,6 +145,7 @@ final class OrganizerSession {
     private let sleep: (TimeInterval) -> Void
     private let progress: (Int, Int) -> Void
     private let escape: () -> Bool
+    private let prepare: () -> Bool
     private let lock = NSLock()
     private var stopped = false
     private var diag = OrganizerDiagnostics()
@@ -150,11 +168,14 @@ final class OrganizerSession {
         lock.unlock()
     }
 
-    /// `escape` : Échap pressé, regardé à chaque tranche d'attente (même quand FL est devant).
+    /// `escape` : Échap pressé, regardé à chaque tranche d'attente (même quand FL est devant). `prepare` : avant
+    /// l'analyse, par les menus de FL, les clips audio inutilisés retirés et les sons sans note sélectionnés ; vrai si
+    /// la sélection a été faite.
     init(link: OrganizerLink, audio: AudioSource, classify: @escaping Classify, nameDrum: NameDrum? = nil,
          timing: Timing = Timing(),
          sleep: @escaping (TimeInterval) -> Void = { Thread.sleep(forTimeInterval: $0) },
          escape: @escaping () -> Bool = { false },
+         prepare: @escaping () -> Bool = { false },
          progress: @escaping (Int, Int) -> Void = { _, _ in }) {
         self.link = link
         self.audio = audio
@@ -163,6 +184,7 @@ final class OrganizerSession {
         self.timing = timing
         self.sleep = sleep
         self.escape = escape
+        self.prepare = prepare
         self.progress = progress
     }
 
@@ -193,27 +215,38 @@ final class OrganizerSession {
     /// Bloquant (à lancer hors du fil principal) ; `progress(fait, total)` est appelé à chaque étape et à la fin.
     func run() -> Result<OrganizerResult, OrganizerError> {
         do {
-            // La première commande réveille le script ; un script d'avant la v12 la refuse : FL à redémarrer.
+            // La première commande réveille le script ; un script d'avant la v13 la refuse : FL à redémarrer, rien
+            // n'est touché.
+            _ = try link.patternLengths()
+            let selection = prepare()
+            let lengths = try link.patternLengths()
             let patterns = try link.listPatterns()
             let channels = try link.listChannels()
             let mixer = try link.listMixer()
-            let targets = Self.sounds(channels)
-            note { $0.listed = channels.count; $0.patterns = patterns.count }
+            var selected: Set<Int>?
+            if selection { selected = try? link.selectedChannels() }
+            note { $0.listed = channels.count; $0.patterns = patterns.count; $0.selection = selected != nil ? "oui" : "non" }
             plan(min(patterns.count, Self.maxPatternsScanned))
             try audio.start()
             defer {
-                // FL d'abord remis (lecture arrêtée, sourdines), puis la capture détruite : FL redevient audible.
+                // FL d'abord remis (lecture arrêtée, sourdines, tempo), puis la capture détruite : FL redevient audible.
                 link.stopRestore()
                 audio.stop()
             }
-            let patternSounds = try scanPatterns(count: patterns.count)
-            let items = try classifyChannels(targets, homes: Self.homes(patternSounds))
+            let scan = try scanPatterns(count: patterns.count, lengths: lengths)
             let song = try readPlaylist()
+            // Ce que FL a entendu jouer quelque part : jamais laissé de côté.
+            let heard = (Array(scan.sounds.values) + Array(song.sounds.values)).reduce(into: Set<Int>()) { $0.formUnion($1) }
+            let unused = Self.unused(channels, selected: selected, heard: heard, complete: scan.complete)
+            let targets = Self.sounds(channels).filter { !unused.contains($0.index) }
+            note { $0.unused = unused.count }
+            let items = try classifyChannels(targets, homes: Self.homes(scan.sounds))
             let routes = try readRoutes(targets, mixer: mixer)
             progress(stepsTotal, stepsTotal)
             return .success(OrganizerResult(channels: channels, items: items, patterns: patterns,
-                                            patternSounds: patternSounds, mixer: mixer, routes: routes,
-                                            playlist: song.tracks, trackSounds: song.sounds, trackItems: song.heard))
+                                            patternSounds: scan.sounds, mixer: mixer, routes: routes,
+                                            playlist: song.tracks, trackSounds: song.sounds, trackItems: song.heard,
+                                            unused: unused))
         } catch let error as OrganizerError {
             note { $0.error = "\(error)" }
             return .failure(error)
@@ -231,32 +264,66 @@ final class OrganizerSession {
         channels.filter { $0.type != ChannelInfo.layerType && $0.type != ChannelInfo.automationType }
     }
 
+    /// Pur (testé) : sons laissés de côté. Ceux que FL a sélectionnés (« Select unused channels » : aucune note) ;
+    /// sans cette sélection, ceux qui n'ont joué nulle part, si tous les patterns ont été relevés. Jamais un clip audio
+    /// (il joue dans la Playlist sans note) ni un son entendu (`heard` : dans un pattern ou une piste).
+    static func unused(_ channels: [ChannelInfo], selected: Set<Int>?, heard: Set<Int>, complete: Bool) -> Set<Int> {
+        let candidates = sounds(channels)
+            .filter { $0.type != ChannelInfo.audioClipType && !heard.contains($0.index) }.map(\.index)
+        if let selected { return Set(candidates.filter { selected.contains($0) }) }
+        guard complete, !heard.isEmpty else { return [] }
+        return Set(candidates)
+    }
+
     // MARK: Patterns
 
-    /// Sons qui jouent dans chaque pattern (index 0 = pattern 1) : chaque pattern joué avec tous les sons audibles,
-    /// FL dit lesquels jouent (aucune écoute). FL trop ancien pour le dire : rien.
-    private func scanPatterns(count: Int) throws -> [Int: Set<Int>] {
+    /// Sons qui jouent dans chaque pattern (index 0 = pattern 1) : chaque pattern joué en entier avec tous les sons
+    /// audibles, le tempo accéléré le temps du relevé ; FL dit ce qui a joué (aucune écoute). `complete` : tous les
+    /// patterns relevés. FL trop ancien pour le dire : rien.
+    private func scanPatterns(count: Int, lengths: (tempo: Double, beats: [Int])) throws
+        -> (sounds: [Int: Set<Int>], complete: Bool) {
         let n = min(count, Self.maxPatternsScanned)
-        guard n > 0 else { return [:] }
+        guard n > 0 else { return ([:], true) }
         var out: [Int: Set<Int>] = [:]
+        var tempo = lengths.tempo
+        var sped = false
+        defer {
+            // Le tempo d'avant pour écouter les sons et la chanson (l'opération 7 le remet aussi à la fin).
+            if sped { _ = try? link.speed(1) }
+        }
         for pattern in 1...n {
             try step()
-            let active: Set<Int>
+            let heard: Set<Int>
             do {
                 try link.playSolo(OrganizerPayload.allChannels, pattern: pattern)
-                active = try readActive { try self.link.activeChannels() }
+                if pattern == 1, timing.speedFactor > 1, let speed = try? link.speed(timing.speedFactor), speed.now > 0 {
+                    sped = true
+                    tempo = speed.now
+                    note { $0.scanTempo = Int(speed.now.rounded()) }
+                    try link.playSolo(OrganizerPayload.allChannels, pattern: pattern)   // depuis son début
+                }
+                let beats = pattern - 1 < lengths.beats.count ? lengths.beats[pattern - 1] : 0
+                heard = try heardFor(Self.patternSeconds(beats: beats, tempo: tempo, cap: timing.patternCap))
             } catch OrganizerError.cancelled {
                 throw OrganizerError.cancelled
             } catch OrganizerError.refused(4) {
                 throw OrganizerError.refused(4)
             } catch {
                 note { $0.activity = "non (\(error))" }
-                return out
+                return (out, false)
             }
-            note { $0.scanned += 1; $0.activity = "oui"; $0.withSounds += active.isEmpty ? 0 : 1 }
-            if !active.isEmpty { out[pattern - 1] = active }
+            note { $0.scanned += 1; $0.activity = "oui"; $0.withSounds += heard.isEmpty ? 0 : 1 }
+            if !heard.isEmpty { out[pattern - 1] = heard }
         }
-        return out
+        return (out, count <= Self.maxPatternsScanned)
+    }
+
+    /// Pur (testé) : durée d'un pattern de `beats` temps à `tempo` (4 mesures, 120 BPM si FL ne les donne pas),
+    /// `cap` au plus.
+    static func patternSeconds(beats: Int, tempo: Double, cap: TimeInterval) -> TimeInterval {
+        let b = beats > 0 ? Double(beats) : 16
+        let bpm = tempo > 0 ? tempo : 120
+        return min(cap, b * 60 / bpm)
     }
 
     /// Pur (testé) : le premier pattern (1 = le premier de FL) où joue chaque son.
@@ -268,14 +335,13 @@ final class OrganizerSession {
         return out
     }
 
-    /// Ce qui joue, relevé `scanReads` fois (FL éteint une activité peu après la note) ; l'union des relevés.
-    private func readActive(_ read: () throws -> Set<Int>) throws -> Set<Int> {
-        var out = Set<Int>()
-        for _ in 0..<max(1, timing.scanReads) {
-            try pause(timing.scanStep)
-            out.formUnion(try read())
-        }
-        return out
+    /// Ce qui a joué pendant `seconds`, relevé en continu par le script ; les `settle` premières secondes ne comptent
+    /// pas (la fin du son d'avant).
+    private func heardFor(_ seconds: TimeInterval) throws -> Set<Int> {
+        try pause(timing.settle)
+        _ = try link.heardChannels()
+        try pause(seconds)
+        return try link.heardChannels()
     }
 
     // MARK: Sons du Channel rack
@@ -356,9 +422,8 @@ final class OrganizerSession {
             let fraction = at.map { samples[$0].position } ?? 0
             _ = try link.playTrack(t)
             if fraction > 0 { try link.seek(fraction) }
-            try pause(timing.settle)
             audio.reset()
-            let playing = try readActive { try self.link.activeChannels() }
+            let playing = try heardFor(timing.trackListen)
             if !playing.isEmpty {
                 sounds[t] = playing
                 note { $0.tracksSolo += 1 }
@@ -394,12 +459,13 @@ final class OrganizerSession {
                 try step()
                 if k > 0 { _ = try link.playSong(at: position) }
                 try pause(timing.settle)
-                var tracks = Set<Int>(), channels = Set<Int>()
+                _ = try link.heardChannels()
+                var tracks = Set<Int>()
                 for _ in 0..<max(1, timing.scanReads) {
                     try pause(timing.scanStep)
                     tracks.formUnion(try link.activeTracks())
-                    channels.formUnion(try link.activeChannels())
                 }
+                let channels = try link.heardChannels()
                 if !tracks.isEmpty { out.append((position: position, tracks: tracks, channels: channels)) }
             }
         } catch OrganizerError.cancelled {

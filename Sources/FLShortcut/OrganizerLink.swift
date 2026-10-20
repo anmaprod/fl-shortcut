@@ -1,5 +1,6 @@
-// Organiser : le lien avec FL pour les opérations 2 à 18 du script (PROTOCOL.md §8 ; 9 à 12 : script v6, 14 à 16 :
-// v11, patterns, noms de tout genre, envois du Mixer et page à mettre devant : v12). Les octets de chaque opération et
+// Organiser : le lien avec FL pour les opérations 2 à 22 du script (PROTOCOL.md §8 ; 9 à 12 : script v6, 14 à 16 :
+// v11, patterns, noms de tout genre, envois du Mixer et page à mettre devant : v12 ; ce qui a joué entre deux
+// lectures, longueur des patterns, tempo, envois posés, canaux sélectionnés : v13). Les octets de chaque opération et
 // le décodage des listes sont purs (testés) ; `RequestOrganizerLink` les envoie par le lien, à 20 par seconde au plus
 // comme le veut le script. Les noms des sons servent à l'aperçu et aux nouveaux noms seulement : jamais journalisés.
 import Foundation
@@ -20,6 +21,7 @@ struct ChannelInfo: Equatable {
     let name: String
 
     static let layerType = 3
+    static let audioClipType = 4
     static let automationType = 5
 }
 
@@ -151,6 +153,19 @@ enum OrganizerPayload {
         [16] + be16(Int((min(max(fraction, 0), 1) * 1000).rounded()))
     }
     static let stopRestore: [UInt8] = [7]
+    /// Opération 14, mode 1 (script v13) : les canaux qui jouent, ou ont joué depuis la lecture précédente pendant
+    /// l'écoute (relevés par le script à chaque passage de la boucle de FL).
+    static let heardChannels: [UInt8] = [14, ItemKind.channels.rawValue, 1]
+    /// Opération 19 (script v13) : le tempo et la longueur de chaque pattern, 64 patterns par réponse.
+    static func lengths(start: Int) -> [UInt8] { [19] + be16(start) }
+    /// Opération 20 (script v13) : la piste du Mixer n'envoie plus qu'à ces pistes (0 = le Master).
+    static func setRoutes(_ track: Int, _ dests: [Int]) -> [UInt8] {
+        [20] + be16(track) + [UInt8(clamping: dests.count)] + dests.flatMap(be16)
+    }
+    /// Opération 21 (script v13) : les canaux sélectionnés.
+    static let selected: [UInt8] = [21]
+    /// Opération 22 (script v13) : le tempo multiplié pendant l'écoute (1 : le tempo d'avant).
+    static func speed(_ factor: Int) -> [UInt8] { [22, UInt8(clamping: min(max(factor, 1), 8))] }
 
     static func gradient(first a: RGBColor, last b: RGBColor) -> [UInt8] { [8, a.r, a.g, a.b, b.r, b.g, b.b] }
 
@@ -287,6 +302,40 @@ enum OrganizerPayload {
         return out
     }
 
+    /// Bits `[n (2), bits]` (bit i % 8 de l'octet i // 8) → index des éléments à 1 ; nil si illisible.
+    private static func bits(_ bytes: ArraySlice<UInt8>) -> Set<Int>? {
+        let b = Array(bytes)
+        guard b.count >= 2 else { return nil }
+        let n = Int(b[0]) << 8 | Int(b[1])
+        guard b.count == 2 + (n + 7) / 8 else { return nil }
+        var out = Set<Int>()
+        for i in 0..<n where b[2 + i / 8] & (1 << UInt8(i % 8)) != 0 { out.insert(i) }
+        return out
+    }
+
+    /// Réponse de l'opération 21 : les canaux sélectionnés ; nil si illisible.
+    static func decodeSelected(_ bytes: [UInt8]) -> Set<Int>? { bits(bytes[...]) }
+
+    /// Réponse de l'opération 19 : `[tempo × 100 (2), total (2), début (2), n, temps (2) × n]` ; nil si illisible.
+    static func decodeLengths(_ bytes: [UInt8]) -> (tempo: Double, total: Int, start: Int, beats: [Int])? {
+        var r = Reader(bytes: bytes)
+        guard let tempo = r.u16(), let total = r.u16(), let start = r.u16(), let n = r.u8(), start + n <= total
+        else { return nil }
+        var beats: [Int] = []
+        for _ in 0..<n {
+            guard let b = r.u16() else { return nil }
+            beats.append(b)
+        }
+        guard r.at == bytes.count else { return nil }
+        return (Double(tempo) / 100, total, start, beats)
+    }
+
+    /// Réponse de l'opération 22 : `[tempo d'avant × 100 (2), tempo maintenant × 100 (2)]`.
+    static func decodeSpeed(_ bytes: [UInt8]) -> (before: Double, now: Double)? {
+        guard bytes.count == 4 else { return nil }
+        return (Double(Int(bytes[0]) << 8 | Int(bytes[1])) / 100, Double(Int(bytes[2]) << 8 | Int(bytes[3])) / 100)
+    }
+
     /// Réponse de l'opération 15 : nombre de patterns et pattern ouvert.
     static func decodePatterns(_ bytes: [UInt8]) -> (count: Int, current: Int)? {
         guard bytes.count == 4 else { return nil }
@@ -356,8 +405,19 @@ protocol OrganizerLink: AnyObject {
     func listPlaylist(limit: Int) throws -> [PlaylistTrackInfo]
     /// Tous les patterns (script v12 : un script plus ancien répond `outdatedScript`).
     func listPatterns() throws -> [PatternInfo]
-    /// Pistes du Mixer vers lesquelles cette piste envoie (sans le Master).
+    /// Pistes du Mixer vers lesquelles cette piste envoie (le Master compris : 0, script v13).
     func routes(from track: Int) throws -> [Int]
+    /// Cette piste du Mixer n'envoie plus qu'à ces pistes (0 = le Master ; script v13).
+    func setRoutes(_ track: Int, to dests: [Int]) throws
+    /// Tempo (BPM ; 0 si inconnu) et longueur de chaque pattern en temps (0 si inconnue) ; script v13 : un script
+    /// plus ancien répond `outdatedScript`.
+    func patternLengths() throws -> (tempo: Double, beats: [Int])
+    /// Pendant l'écoute, le tempo multiplié (remis par `stopRestore`) : le tempo d'avant et celui pris (BPM).
+    func speed(_ factor: Int) throws -> (before: Double, now: Double)
+    /// Canaux affichés qui jouent, ou ont joué depuis la lecture précédente pendant l'écoute (script v13).
+    func heardChannels() throws -> Set<Int>
+    /// Canaux affichés sélectionnés dans FL (après « Select unused channels » : ceux qui n'ont aucune note).
+    func selectedChannels() throws -> Set<Int>
     /// Cette page de FL devant (Channel rack, Mixer, Playlist), comme ses raccourcis F6, F9, F5.
     func show(_ window: FLWindow) throws
     func setColors(_ kind: ItemKind, _ colors: [(index: Int, color: RGBColor)]) throws
@@ -513,6 +573,49 @@ final class RequestOrganizerLink: OrganizerLink {
         try v11 { try send(bytes) }
     }
 
+    func setRoutes(_ track: Int, to dests: [Int]) throws {
+        try v11 { try send(OrganizerPayload.setRoutes(track, dests)) }
+    }
+
+    func patternLengths() throws -> (tempo: Double, beats: [Int]) {
+        var beats: [Int] = []
+        var tempo = 0.0
+        for _ in 0..<Self.maxPages {
+            let answer = try v11 { try send(OrganizerPayload.lengths(start: beats.count)) }
+            guard let page = OrganizerPayload.decodeLengths(answer), page.start == beats.count else {
+                throw OrganizerError.failed(String(localized: "réponse de FL illisible"))
+            }
+            tempo = page.tempo
+            beats += page.beats
+            if beats.count >= page.total || page.beats.isEmpty { return (tempo, beats) }
+        }
+        throw OrganizerError.failed(String(localized: "trop de patterns"))
+    }
+
+    func speed(_ factor: Int) throws -> (before: Double, now: Double) {
+        let answer = try v11 { try send(OrganizerPayload.speed(factor)) }
+        guard let speed = OrganizerPayload.decodeSpeed(answer) else {
+            throw OrganizerError.failed(String(localized: "réponse de FL illisible"))
+        }
+        return speed
+    }
+
+    func heardChannels() throws -> Set<Int> {
+        let answer = try v11 { try send(OrganizerPayload.heardChannels) }
+        guard let set = OrganizerPayload.decodeActivity(answer, kind: .channels) else {
+            throw OrganizerError.failed(String(localized: "réponse de FL illisible"))
+        }
+        return set
+    }
+
+    func selectedChannels() throws -> Set<Int> {
+        let answer = try v11 { try send(OrganizerPayload.selected) }
+        guard let set = OrganizerPayload.decodeSelected(answer) else {
+            throw OrganizerError.failed(String(localized: "réponse de FL illisible"))
+        }
+        return set
+    }
+
     func setColors(_ kind: ItemKind, _ colors: [(index: Int, color: RGBColor)]) throws {
         for chunk in OrganizerPayload.setColors(kind, colors) { try send(chunk) }
     }
@@ -574,7 +677,7 @@ final class RequestOrganizerLink: OrganizerLink {
         return bars
     }
 
-    /// Opérations du script v11 et v12 : un script plus ancien les refuse (5) ; FL doit charger la nouvelle version.
+    /// Opérations du script v11 à v13 : un script plus ancien les refuse (5) ; FL doit charger la nouvelle version.
     @discardableResult
     private func v11<T>(_ body: () throws -> T) throws -> T {
         do {

@@ -94,8 +94,8 @@ enum RegroupPlan {
     static func make(order: [SoundFamily?], kinds: [SoundKind?] = []) -> (moves: [Move], final: [Int]) {
         let rank: [Int] = order.map { $0?.rank ?? SoundFamily.order.count }
         let sub: [Int] = order.indices.map { i -> Int in
-            guard i < kinds.count, let kind = kinds[i], kind.family == order[i] else { return SoundKind.allCases.count }
-            return kind.rank
+            guard i < kinds.count, let kind = kinds[i], kind.family == order[i] else { return SoundKind.rackOrder.count }
+            return kind.rackRank
         }
         let final = Array(order.indices).sorted { a, b in
             if rank[a] != rank[b] { return rank[a] < rank[b] }
@@ -141,6 +141,8 @@ struct AreaSnapshot: Equatable {
     /// Place → index d'origine, après ce qui a déjà été fait (Mixer : place 0 = piste 1, numéros des pistes) ; vide
     /// si rien ne bouge.
     var arrangement: [Int] = []
+    /// Mixer : envois d'origine des pistes changées (numéros d'origine ; 0 = le Master).
+    var routes: [Int: [Int]] = [:]
 }
 
 /// Ce qu'il faut pour « Revenir comme avant » : chaque page touchée, jusqu'à là où l'application s'est arrêtée.
@@ -299,12 +301,19 @@ final class OrganizerApplier {
             }
             throw error
         }
-        let listed = try link.listChannels()
-        // L'ordre que FL montre vraiment (une touche ⌥↑ perdue) : « Revenir comme avant » remet alors chaque couleur
-        // sur son son, et le regroupement manqué est dit.
+        var listed = try link.listChannels()
+        // L'ordre que FL montre vraiment (une touche ⌥↑ perdue) : une seconde passe depuis cet ordre ; s'il reste un
+        // écart, « Revenir comme avant » remet chaque couleur sur son son, et le regroupement manqué est dit.
         var regrouped = true
+        if let seen = Self.arrangement(names: listed.map { $0.name }, original: names), seen != area.final,
+           !area.final.isEmpty {
+            snap.arrangement = seen
+            try move(RegroupPlan.moves(from: seen, to: area.final), &snap.arrangement, page: .channelRack,
+                     kind: .channels, offset: 0, key: moveUp)
+            listed = try link.listChannels()
+        }
         if let seen = Self.arrangement(names: listed.map { $0.name }, original: names) {
-            regrouped = seen == snap.arrangement
+            regrouped = area.final.isEmpty || seen == area.final
             snap.arrangement = seen
         }
         let now: [RGBColor?] = listed.map { $0.color }
@@ -343,6 +352,18 @@ final class OrganizerApplier {
         for index in area.names.keys { if let t = byIndex[index] { snap.names[index] = t.name } }
         let span = area.final.count                                   // pistes 1…span
         snap.arrangement = span > 0 ? Array(1...span) : []
+        // Envois (numéros d'origine, avant tout déplacement : FL les fait suivre les pistes) : ceux d'avant gardés
+        // pour « Revenir comme avant », posés, relus.
+        var routesOK = true
+        for track in area.routes.keys.sorted() {
+            let wanted = Set(area.routes[track] ?? [])
+            let before = try link.routes(from: track)
+            guard Set(before) != wanted else { continue }
+            snap.routes[track] = before
+            try link.setRoutes(track, to: wanted.sorted())
+            let after = try link.routes(from: track)
+            if Set(after) != wanted { routesOK = false }
+        }
         try link.setColors(.mixer, Self.pairs(area.colors))
         try link.setNames(.mixer, Self.namePairs(area.names))
         // Noms tels qu'ils sont maintenant dans FL, par piste d'origine (pistes 1…span) : pour relire l'ordre.
@@ -358,13 +379,22 @@ final class OrganizerApplier {
             }
             throw error
         }
-        let listed = try link.listMixer()
+        var listed = try link.listMixer()
+        // Seconde passe depuis l'ordre que FL montre, s'il n'est pas celui prévu (une touche ⌥← perdue).
+        if span > 0, let seen = Self.arrangement(names: Self.tracks(listed, 1...span).map { $0.name }, original: names),
+           seen.map({ $0 + 1 }) != area.final {
+            let start = seen.map { $0 + 1 }
+            snap.arrangement = start
+            try move(RegroupPlan.moves(from: start, to: area.final), &snap.arrangement, page: .mixer,
+                     kind: .mixer, offset: 1, key: moveLeft)
+            listed = try link.listMixer()
+        }
         var now: [Int: MixerTrackInfo] = [:]
         for track in listed { now[track.index] = track }
         var regrouped = true
         if span > 0, let seen = Self.arrangement(names: Self.tracks(listed, 1...span).map { $0.name }, original: names) {
             let tracks = seen.map { $0 + 1 }
-            regrouped = tracks == snap.arrangement
+            regrouped = tracks == area.final
             snap.arrangement = tracks
         }
         // Chaque piste d'origine est maintenant à la place où l'ordre relu la met.
@@ -376,7 +406,7 @@ final class OrganizerApplier {
         let colorsOK = area.colors.allSatisfy { now[place($0.key)]?.color == $0.value }
         var read: [Int: String] = [:]
         for index in area.names.keys { if let t = now[place(index)] { read[index] = t.name } }
-        guard regrouped, colorsOK, Self.namesMatch(area.names, read) else { return false }
+        guard regrouped, colorsOK, routesOK, Self.namesMatch(area.names, read) else { return false }
         try placeIcons(icons, kind: .mixer) { place($0) }
         return true
     }
@@ -466,6 +496,11 @@ final class OrganizerApplier {
             }
             if snapshot.mixer != nil {
                 try undoArranged(&outcome.snapshot.mixer!, kind: .mixer, page: .mixer, offset: 1, key: moveLeft)
+                // Les envois d'origine, une fois chaque piste revenue à sa place.
+                for (track, dests) in (outcome.snapshot.mixer?.routes ?? [:]).sorted(by: { $0.key < $1.key }) {
+                    try link.setRoutes(track, to: dests)
+                    outcome.snapshot.mixer?.routes[track] = nil
+                }
                 outcome.snapshot.mixer = nil
             }
             if let s = snapshot.patterns {

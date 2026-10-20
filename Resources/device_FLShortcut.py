@@ -27,7 +27,7 @@ bornes vérifiées, seuls les CC du protocole (canal 16) sont marqués « handle
 # La ligne suivante est remplacée par l'appli à l'installation (16 octets en hex).
 KEY_HEX = "__FLSHORTCUT_KEY__"
 
-SCRIPT_VERSION = 12
+SCRIPT_VERSION = 13
 PROTOCOL_VERSION = 2
 
 MIDI_CHANNEL = 15          # canal 16, 0-indexé
@@ -86,6 +86,14 @@ OP_PATTERNS = 15           # nombre de patterns et pattern ouvert
 OP_PLAY_SONG = 16          # toute la chanson à une position, tout audible (sons coupés compris)
 OP_ROUTES = 17             # envois d'une piste du Mixer vers d'autres pistes (Organiser, script v12)
 OP_SHOW = 18               # page de FL mise devant (Organiser, script v12)
+OP_LENGTHS = 19            # longueur de chaque pattern et tempo (Organiser, script v13)
+OP_SET_ROUTES = 20         # envois d'une piste du Mixer posés (un bus par famille)
+OP_SELECTED = 21           # canaux sélectionnés (après « Select unused channels » de FL : les sons sans note)
+OP_SPEED = 22              # tempo multiplié pendant le relevé des patterns, remis par l'opération 7
+ACTIVITY_HEARD = 1         # opération 14, 3e octet : ce qui a joué depuis la lecture précédente (script v13)
+MAX_LENGTHS = 64           # patterns au plus par réponse de l'opération 19
+MAX_SPEED = 8              # facteur de tempo au plus (opération 22)
+MAX_TEMPO = 520.0          # BPM au plus pendant le relevé (FL : 522)
 ALL_CHANNELS = 0xFFFF      # opération 6 : aucun canal seul, tous audibles (sons de chaque pattern)
 MAX_ACTIVITY = 512         # éléments au plus dans la réponse de l'opération 14
 ACTIVITY_MIN = 0.01        # au-dessus : une note joue (canal), un clip passe (piste, 0,5)
@@ -482,6 +490,7 @@ class _State(object):
         self.awake = False            # endormi au chargement : rien n'est envoyé ni vérifié
         self.awake_until = None       # None : éveillé sans limite (mode MIDI complet)
         self.memo = None              # Organiser : sourdines, mode et position d'avant l'écoute (opération 6)
+        self.heard = None             # Organiser : canaux qui ont joué depuis la dernière lecture (opération 14)
 
 
 _st = _State()
@@ -1735,6 +1744,7 @@ def _memo_begin(kind):
                 memo["pl"] = [bool(pl[1](i + 1)) for i in range(n)]
         memo["metro"] = _metronome_off()
         _st.memo = memo
+        _st.heard = set()
     elif playing:
         _fn("transport", "stop")()
     _st.memo["kind"] = kind
@@ -1887,34 +1897,66 @@ def _bits(flags):
     return out
 
 
-def _op_activity(raw, seq3):
-    """[14, genre] -> [genre, n (2), bits] : ce qui joue en ce moment, un bit par élément (bit i % 8 de l'octet
-    i // 8), MAX_ACTIVITY au plus. Genre 1 : canaux affichés du Channel rack dont une note joue (getActivityLevel,
-    API 9) ; genre 3 : pistes de la Playlist dont un clip est sous la tête de lecture (index 0 = piste 1). FL le
-    dit lui-même : rien n'est écouté."""
-    if len(raw) != 2:
-        return REASON_DATA
-    kind = raw[1]
+def _activity_source(kind):
+    """(niveau, nombre, index FL du premier) de ce qui joue : canaux affichés du Channel rack (getActivityLevel,
+    API 9) ou pistes de la Playlist (getTrackActivityLevel, index 0 = piste 1) ; sinon une raison de refus."""
     if kind == KIND_CHANNELS:
         fns = _fns("channels", "channelCount", "getActivityLevel")
         if fns is None or not _api_at_least(9):
             return REASON_OLD_FL
-        count, level = fns
-        n = count()
         first = 0
     elif kind == KIND_PLAYLIST:
         fns = _fns("playlist", "trackCount", "getTrackActivityLevel")
         if fns is None:
             return REASON_OLD_FL
-        count, level = fns
-        n = count()
         first = 1
     else:
         return REASON_DATA
+    count, level = fns
+    n = count()
     if not _is_int(n) or n < 0:
         return REASON_DATA
-    n = min(n, MAX_ACTIVITY)
+    return level, min(n, MAX_ACTIVITY), first
+
+
+def _note_heard():
+    """Pendant une écoute (mémo), à chaque passage de la boucle de FL (~20 ms) : les canaux affichés dont une note
+    joue sont retenus jusqu'à la lecture suivante (opération 14, mode 1). Une note brève (kick, open hat) jouée
+    entre deux lectures de l'appli compte aussi."""
+    src = _activity_source(KIND_CHANNELS)
+    if _is_int(src):
+        return
+    level, n, first = src
+    if _st.heard is None:
+        _st.heard = set()
+    for i in range(n):
+        if _active(level, i + first):
+            _st.heard.add(i)
+
+
+def _op_activity(raw, seq3):
+    """[14, genre] ou [14, genre, mode] -> [genre, n (2), bits] : ce qui joue, un bit par élément (bit i % 8 de
+    l'octet i // 8), MAX_ACTIVITY au plus. Genre 1 : canaux affichés du Channel rack dont une note joue
+    (getActivityLevel, API 9) ; genre 3 : pistes de la Playlist dont un clip est sous la tête de lecture (index 0 =
+    piste 1). Mode 1 (canaux, script v13) : aussi ceux qui ont joué depuis la lecture précédente pendant l'écoute,
+    relevés à chaque passage de la boucle de FL. FL le dit lui-même : rien n'est écouté."""
+    if len(raw) not in (2, 3):
+        return REASON_DATA
+    kind = raw[1]
+    heard = len(raw) == 3 and raw[2] == ACTIVITY_HEARD
+    if len(raw) == 3 and (raw[2] not in (0, ACTIVITY_HEARD) or (heard and kind != KIND_CHANNELS)):
+        return REASON_DATA
+    src = _activity_source(kind)
+    if _is_int(src):
+        return src
+    level, n, first = src
     flags = [_active(level, i + first) for i in range(n)]
+    if heard:
+        for i in (_st.heard or ()):
+            if 0 <= i < n:
+                flags[i] = True
+        if _st.heard is not None:
+            _st.heard = set()
     return 0 if _respond(OP_ACTIVITY, [kind] + _u16(n) + _bits(flags), seq3) else REASON_DATA
 
 
@@ -2006,7 +2048,8 @@ def _op_set_names(raw, seq3):
 
 def _op_routes(raw, seq3):
     """[17, piste (2)] -> [piste (2), n, (destination (2)) x n] : pistes du Mixer vers lesquelles cette piste envoie
-    (getRouteSendActive), sans le Master ni la piste « Current » (la dernière), MAX_ROUTES au plus."""
+    (getRouteSendActive), le Master compris (0, script v13), sans la piste « Current » (la dernière), MAX_ROUTES au
+    plus."""
     if len(raw) != 3:
         return REASON_DATA
     fns = _fns("mixer", "trackCount", "getRouteSendActive")
@@ -2018,7 +2061,7 @@ def _op_routes(raw, seq3):
     if not _is_int(total) or not 1 <= track < total - 1:
         return REASON_DATA
     found = []
-    for d in range(1, total - 1):
+    for d in range(0, total - 1):
         if d != track and sends(track, d):
             found.append(d)
             if len(found) >= MAX_ROUTES:
@@ -2027,6 +2070,129 @@ def _op_routes(raw, seq3):
     for d in found:
         data += _u16(d)
     return 0 if _respond(OP_ROUTES, data, seq3) else REASON_DATA
+
+
+def _op_set_routes(raw, seq3):
+    """[20, piste (2), n, (destination (2)) x n] : cette piste du Mixer n'envoie plus que vers ces pistes (0 = le
+    Master) : un bus par famille, chaque son envoyé seulement à son bus. Ni le Master ni la piste « Current » (la
+    dernière) ne sont changés ; tout est vérifié avant le premier envoi changé (mixer.setRouteTo, puis
+    afterRoutingChanged)."""
+    if len(raw) < 4:
+        return REASON_DATA
+    fns = _fns("mixer", "trackCount", "getRouteSendActive", "setRouteTo")
+    if fns is None:
+        return REASON_OLD_FL
+    count, sends, set_route = fns
+    total = count()
+    track, n = _be16(raw[1], raw[2]), raw[3]
+    if not _is_int(total) or not 1 <= track < total - 1 or n > MAX_ROUTES or len(raw) != 4 + 2 * n:
+        return REASON_DATA
+    wanted = set()
+    for k in range(n):
+        d = _be16(raw[4 + 2 * k], raw[5 + 2 * k])
+        if not 0 <= d < total - 1 or d == track:
+            return REASON_DATA
+        wanted.add(d)
+    for d in range(0, total - 1):
+        if d != track and bool(sends(track, d)) != (d in wanted):
+            set_route(track, d, d in wanted)
+    after = _fn("mixer", "afterRoutingChanged")
+    if after is not None:
+        after()
+    return 0
+
+
+def _op_lengths(raw, seq3):
+    """[19, début (2)] -> [tempo x 100 (2), total (2), début (2), n, (temps (2)) x n] : longueur de chaque pattern en
+    temps (patterns.getPatternLength ; 0 si inconnue), MAX_LENGTHS au plus, et le tempo (0 si inconnu) : l'appli
+    écoute chaque pattern en entier."""
+    if len(raw) != 3:
+        return REASON_DATA
+    count = _fn("patterns", "patternCount")
+    if count is None:
+        return REASON_OLD_FL
+    total = count()
+    start = _be16(raw[1], raw[2])
+    if not _is_int(total) or not 0 <= start <= total:
+        return REASON_DATA
+    n = min(MAX_LENGTHS, total - start)
+    length = _fn("patterns", "getPatternLength")
+    bpm = _tempo()
+    data = _u16(int(round(bpm * 100)) if bpm is not None else 0) + _u16(total) + _u16(start) + [n]
+    for i in range(start, start + n):
+        beats = 0
+        try:
+            v = length(i + 1) if length is not None else 0
+            if isinstance(v, (int, float)) and not isinstance(v, bool) and v > 0:
+                beats = min(int(v), 0xFFFF)
+        except Exception:
+            beats = 0
+        data += _u16(beats)
+    return 0 if _respond(OP_LENGTHS, data, seq3) else REASON_DATA
+
+
+def _op_selected(raw, seq3):
+    """[21] -> [n (2), bits] : canaux affichés du Channel rack qui sont sélectionnés (après « Select unused
+    channels » de FL : ceux qui n'ont aucune note), MAX_ACTIVITY au plus."""
+    if len(raw) != 1:
+        return REASON_DATA
+    fns = _fns("channels", "channelCount", "isChannelSelected")
+    if fns is None:
+        return REASON_OLD_FL
+    n = fns[0]()
+    if not _is_int(n) or n < 0:
+        return REASON_DATA
+    n = min(n, MAX_ACTIVITY)
+    flags = []
+    for i in range(n):
+        try:
+            flags.append(bool(fns[1](i)))
+        except Exception:
+            flags.append(False)
+    return 0 if _respond(OP_SELECTED, _u16(n) + _bits(flags), seq3) else REASON_DATA
+
+
+def _tempo():
+    """Tempo en BPM (mixer.getCurrentTempo, qui le donne x 1000 dans certaines versions) ; None si inconnu."""
+    f = _fn("mixer", "getCurrentTempo")
+    try:
+        v = f() if f is not None else None
+    except Exception:
+        return None
+    if not isinstance(v, (int, float)) or isinstance(v, bool) or v <= 0:
+        return None
+    return v / 1000.0 if v > 1000 else float(v)
+
+
+def _set_tempo(bpm):
+    """Tempo posé comme le fait la souris (REC_Tempo, x 1000) ; faux si FL ne le permet pas."""
+    proc = _fn("general", "processRECEvent")
+    rec = _const("REC_Tempo", -1)
+    control, update = _const("REC_Control", -1), _const("REC_UpdateControl", -1)
+    if proc is None or rec < 0 or control < 0 or update < 0:
+        return False
+    proc(rec, int(round(bpm * 1000)), control | update)
+    return True
+
+
+def _op_speed(raw, seq3):
+    """[22, facteur] -> [tempo d'avant x 100 (2), tempo maintenant x 100 (2)] : pendant une écoute (mémo), le tempo
+    multiplié (MAX_TEMPO au plus) pour parcourir chaque pattern en entier plus vite ; facteur 1 : le tempo d'avant.
+    Le mémo le garde : l'opération 7 (et le sommeil du script) le remet."""
+    if len(raw) != 2 or not 1 <= raw[1] <= MAX_SPEED or _st.memo is None:
+        return REASON_DATA
+    before = _st.memo.get("tempo")
+    if before is None:
+        before = _tempo()
+        if before is None:
+            return REASON_OLD_FL
+        _st.memo["tempo"] = before
+    target = max(before, min(before * raw[1], MAX_TEMPO)) if raw[1] > 1 else before
+    if _tempo() != target and not _set_tempo(target):
+        return REASON_OLD_FL
+    now = _tempo() or before
+    return 0 if _respond(OP_SPEED, _u16(int(round(before * 100))) + _u16(int(round(now * 100))), seq3) \
+        else REASON_DATA
 
 
 _SHOW_PAGES = {0: W_MIXER, 1: W_CHANNELRACK, 2: W_PLAYLIST}
@@ -2045,11 +2211,17 @@ def _restore_memo():
     mémo, mémo vidé. Rien sans mémo."""
     memo = _st.memo
     _st.memo = None
+    _st.heard = None
     if memo is None:
         return
 
     def stop():
         _fn("transport", "stop")()
+
+    def tempo():
+        saved = memo.get("tempo")
+        if saved is not None and _tempo() != saved:
+            _set_tempo(saved)
 
     def channel_mutes():
         saved = memo.get("ch")
@@ -2086,7 +2258,7 @@ def _restore_memo():
         if _is_int(p) and p >= 1 and _pattern_number() != p:
             _fn("patterns", "jumpToPattern")(p)
 
-    for step in (stop, channel_mutes, track_mutes, mode, pos, metro, pattern):
+    for step in (stop, tempo, channel_mutes, track_mutes, mode, pos, metro, pattern):
         try:                               # une étape qui échoue n'empêche pas les suivantes
             step()
         except Exception as exc:
@@ -2098,6 +2270,7 @@ def _restore_memo_safely():
         _restore_memo()
     except Exception:
         _st.memo = None
+        _st.heard = None
 
 
 def _op_stop_restore(raw, seq3):
@@ -2201,6 +2374,10 @@ _EXT_OPS = {
     OP_PLAY_SONG: _op_play_song,
     OP_ROUTES: _op_routes,
     OP_SHOW: _op_show,
+    OP_LENGTHS: _op_lengths,
+    OP_SET_ROUTES: _op_set_routes,
+    OP_SELECTED: _op_selected,
+    OP_SPEED: _op_speed,
 }
 
 
@@ -2414,6 +2591,8 @@ def _idle():
         _sleep()
         return
     st.ticks += 1
+    if st.memo is not None:
+        _note_heard()
     # Changement de fenêtre signalé par OnRefresh : traité au passage suivant (~20 ms), au plus toutes les
     # 100 ms, et seulement si l'appli peut le recevoir.
     if st.win_dirty and st.out_ok and (st.win_checked is None

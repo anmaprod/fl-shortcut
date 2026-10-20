@@ -122,6 +122,16 @@ enum SoundKind: String, CaseIterable, Codable {
     var isGeneral: Bool { self == .vocal || self == .melody || self == .bass || self == .drums || self == .fx }
 
     var rank: Int { Self.allCases.firstIndex(of: self) ?? Self.allCases.count }
+
+    /// Ordre dans le Channel rack organisé : celui des cas, sauf dans la basse : Basse, Reese, Sub, puis 808, juste
+    /// avant les drums (retour de l'utilisateur : « Voix › Mélodie › Basse › 808 › Drums › FX »). `rank` reste
+    /// l'ordre de préférence d'un mot dans un nom (« 808 Sub » : 808).
+    var rackRank: Int { Self.rackOrder.firstIndex(of: self) ?? Self.rackOrder.count }
+    static let rackOrder: [SoundKind] = allCases.filter { $0.family != .bass } + [.bass, .reese, .sub, .bass808]
+
+    /// Le bus du Mixer où va un son de cette sorte : celui de sa famille, sauf les 808 avec les drums (retour de
+    /// l'utilisateur : « Drums (avec les 808 dedans, pas les Bass) »).
+    var busFamily: SoundFamily { self == .bass808 ? .drums : family }
 }
 
 /// Sorte d'un son de drums reconnue à l'écoute (pas de nom qui la dise).
@@ -217,6 +227,19 @@ enum SoundNames {
 
     static func family(of name: String) -> SoundFamily? {
         kind(of: name)?.family
+    }
+
+    /// Mots d'une partie du morceau : un pattern ou une piste ainsi nommés gardent leur nom.
+    static let sectionWords: Set<String> = [
+        "intro", "outro", "verse", "couplet", "chorus", "refrain", "hook", "drop", "bridge", "pont", "break",
+        "breakdown", "build", "buildup", "interlude", "prechorus", "skit", "ending", "part", "partie", "section",
+        "theme",
+    ]
+
+    /// Un nom choisi pour une partie du morceau (« Intro », « Refrain 2 ») qui ne dit pas ce qu'est le son : gardé.
+    /// Tout autre nom (« Pattern 3 », « Serum 2 #3 », « hi hat », « Track 8 ») est remplacé par un nom simple.
+    static func isSection(_ name: String) -> Bool {
+        kind(of: name) == nil && words(name).contains(where: sectionWords.contains)
     }
 }
 

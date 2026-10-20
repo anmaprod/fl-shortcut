@@ -1750,7 +1750,7 @@ class TestDataV5(TestData):
         self.make(n_tracks=8, routes={2: {5, 0}, 3: {5}, 5: {6}})
         self.data_command([17] + M.be16(2))
         self.assertEqual(self.last_ack(), DATA_ID)
-        self.assertEqual(self.answer(), (17, [0, 2, 1, 0, 5]), "le Master ne compte pas")
+        self.assertEqual(self.answer(), (17, [0, 2, 2, 0, 0, 0, 5]), "le Master compte (script v13)")
         self.clock.t += 0.1
         self.data_command([17] + M.be16(5))
         self.assertEqual(self.answer(), (17, [0, 5, 1, 0, 6]))
@@ -1761,6 +1761,97 @@ class TestDataV5(TestData):
             self.make(n_tracks=8)
             self.data_command([17] + M.be16(track))
             self.assertEqual(self.reasons(), [5], track)
+
+    def test_set_routes(self):
+        # Un bus par famille : la piste n'envoie plus qu'à son bus (le Master compris dans ce qui est retiré).
+        self.make(n_tracks=8, routes={2: {0, 5}, 3: {5}})
+        self.data_command([20] + M.be16(2) + [1] + M.be16(4))
+        self.assertEqual(self.last_ack(), DATA_ID)
+        self.assertEqual(self.fl.routes[2], {4})
+        self.assertTrue(self.fl.called("mixer.afterRoutingChanged"))
+        self.clock.t += 0.1
+        self.data_command([20] + M.be16(3) + [2] + M.be16(0) + M.be16(6))
+        self.assertEqual(self.fl.routes[3], {0, 6})
+        for bad in ([20] + M.be16(3) + [1] + M.be16(3),          # vers elle-même
+                    [20] + M.be16(0) + [1] + M.be16(4),          # le Master
+                    [20] + M.be16(7) + [1] + M.be16(4),          # « Current »
+                    [20] + M.be16(3) + [1] + M.be16(7),          # vers « Current »
+                    [20] + M.be16(3) + [2] + M.be16(4)):         # destinations manquantes
+            self.make(n_tracks=8, routes={3: {0}})
+            self.data_command(bad)
+            self.assertEqual(self.reasons(), [5], bad)
+            self.assertEqual(self.fl.routes[3], {0}, "rien de changé")
+
+    def test_pattern_lengths_and_tempo(self):
+        self.make(pattern_count=3, pat_lengths={1: 16, 3: 4}, tempo=130.0)
+        self.data_command([19] + M.be16(0))
+        self.assertEqual(self.answer(), (19, M.be16(13000) + [0, 3, 0, 0, 3] + M.be16(16) + M.be16(16) + M.be16(4)))
+        self.clock.t += 0.1
+        self.data_command([19] + M.be16(2))
+        self.assertEqual(self.answer(), (19, M.be16(13000) + [0, 3, 0, 2, 1] + M.be16(4)))
+        self.clock.t += 0.1
+        self.data_command([19] + M.be16(4))
+        self.assertEqual(self.reasons(), [5])
+
+    def test_speed_during_listening_then_restored(self):
+        self.make(n_channels=2, tempo=130.0)
+        self.data_command([22, 4])
+        self.assertEqual(self.reasons(), [5], "sans écoute en cours : rien")
+        self.clock.t += 0.1
+        self.data_command([6] + M.be16(0xFFFF))
+        self.clock.t += 0.1
+        self.data_command([22, 4])
+        self.assertEqual(self.answer(), (22, M.be16(13000) + M.be16(52000)), "520 BPM au plus")
+        self.assertEqual(self.fl.tempo, 520.0)
+        self.clock.t += 0.1
+        self.data_command([22, 2])
+        self.assertEqual(self.answer(), (22, M.be16(13000) + M.be16(26000)), "toujours d'après le tempo d'avant")
+        self.clock.t += 0.1
+        self.data_command([7])
+        self.assertEqual(self.fl.tempo, 130.0, "remis par l'opération 7")
+        self.make(n_channels=2, tempo=130.0, missing=("general.processRECEvent",))
+        self.data_command([6] + M.be16(0xFFFF))
+        self.clock.t += 0.1
+        self.data_command([22, 4])
+        self.assertEqual(self.reasons(), [6])
+        self.clock.t += 0.1
+        self.data_command([7])
+        self.assertEqual(self.fl.tempo, 130.0)
+
+    def test_heard_channels_between_reads(self):
+        # Une note brève entre deux lectures de l'appli compte aussi (retour de l'utilisateur : Kick et Open Hat
+        # oubliés).
+        self.make(n_channels=4)
+        self.data_command([6] + M.be16(0xFFFF))
+        self.fl.ch_activity = {2: 0.5}
+        self.dev.OnIdle()
+        self.fl.ch_activity = {}
+        self.dev.OnIdle()
+        self.clock.t += 0.1
+        self.data_command([14, 1, 1])
+        self.assertEqual(self.answer(), (14, [1, 0, 4, 0b0100]))
+        self.clock.t += 0.1
+        self.data_command([14, 1, 1])
+        self.assertEqual(self.answer(), (14, [1, 0, 4, 0]), "relevé remis à zéro à chaque lecture")
+        self.clock.t += 0.1
+        self.data_command([14, 3, 1])
+        self.assertEqual(self.reasons(), [5], "pistes : seulement ce qui joue")
+        self.clock.t += 0.1
+        self.data_command([7])
+        self.fl.ch_activity = {1: 0.5}
+        self.dev.OnIdle()
+        self.fl.ch_activity = {}
+        self.clock.t += 0.1
+        self.data_command([14, 1, 1])
+        self.assertEqual(self.answer(), (14, [1, 0, 4, 0]), "sans écoute : rien n'est retenu")
+
+    def test_selected_channels(self):
+        self.make(n_channels=10, ch_sel={1, 9})
+        self.data_command([21])
+        self.assertEqual(self.answer(), (21, [0, 10, 0b10, 0b10]))
+        self.clock.t += 0.1
+        self.data_command([21, 0])
+        self.assertEqual(self.reasons(), [5])
 
     def test_show_page(self):
         self.make()

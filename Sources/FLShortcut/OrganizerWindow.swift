@@ -61,6 +61,9 @@ struct OrganizerEnvironment {
     var copy: (String) -> Void = { _ in }
     /// FL mis devant (le panneau flotte au-dessus) : sa page devant et ses touches en dépendent.
     var focusFL: () -> Void = {}
+    /// Avant l'analyse (hors du fil principal), par les menus de FL : clips audio inutilisés retirés, sons sans note
+    /// sélectionnés ; vrai si la sélection a été faite.
+    var prepareProject: () -> Bool = { false }
 
     static func live() -> OrganizerEnvironment {
         OrganizerEnvironment(
@@ -118,7 +121,21 @@ struct OrganizerEnvironment {
                    let value, CFGetTypeID(value) == AXUIElementGetTypeID() {
                     AXUIElementPerformAction(value as! AXUIElement, kAXRaiseAction as CFString)
                 }
-            })
+            },
+            prepareProject: { OrganizerEnvironment.livePrepareProject() })
+    }
+
+    /// Par les menus de FL dans la barre de macOS (comme le modèle « Supprimer les clips audio inutilisés ») : Tools ›
+    /// Purge unused audio clips, puis Tools › Select unused channels (les sons sans aucune note, laissés de côté par
+    /// l'Organiser) ; vrai si la sélection a été faite. Un menu absent (FL plus ancien) : rien.
+    static func livePrepareProject() -> Bool {
+        guard let pid = flPID() else { return false }
+        _ = MenuBarAX.press(pid: pid, titles: ["Tools", "Macros", "Purge unused audio clips"], stop: { nil })
+        Thread.sleep(forTimeInterval: 0.5)
+        guard MenuBarAX.press(pid: pid, titles: ["Tools", "Macros", "Select unused channels"], stop: { nil }) == .done
+        else { return false }
+        Thread.sleep(forTimeInterval: 0.3)
+        return true
     }
 
     /// Lien installé : script remis dans FL s'il en a disparu, ports « FL Shortcuts Link » créés s'ils ne sont pas là
@@ -296,7 +313,7 @@ final class OrganizerController: ObservableObject {
         let link = env.link()
         let session = OrganizerSession(
             link: link, audio: audio, classify: env.classify(), nameDrum: env.nameDrum(), timing: env.timing,
-            sleep: env.sleep, escape: env.escapePressed,
+            sleep: env.sleep, escape: env.escapePressed, prepare: env.prepareProject,
             progress: { [weak self] done, total in
                 DispatchQueue.main.async {
                     guard self?.runToken == token else { return }
@@ -519,7 +536,14 @@ final class OrganizerController: ObservableObject {
             out.append(("square.stack", String(localized: "Patterns : \(plan.patterns.colors.count) colorés, \(plan.patterns.names.count) renommés")))
         }
         if options.mixer, !plan.mixer.isEmpty {
-            out.append(("slider.vertical.3", String(localized: "Mixer : \(plan.mixer.verdicts.count) pistes dans l'ordre du Channel rack, \(plan.mixer.names.count) renommées")))
+            let buses = plan.mixer.buses.count
+            let tracks = plan.mixer.verdicts.count - buses
+            out.append(("slider.vertical.3", buses > 0
+                ? String(localized: "Mixer : \(tracks) pistes dans l'ordre du Channel rack, \(buses) bus (un par famille), \(plan.mixer.names.count) renommées")
+                : String(localized: "Mixer : \(tracks) pistes dans l'ordre du Channel rack, \(plan.mixer.names.count) renommées")))
+        }
+        if let unused = result?.unused.count, unused > 0 {
+            out.append(("moon.zzz", String(localized: "\(unused) sons sans aucune note laissés de côté (ni rangés, ni colorés, ni renommés)")))
         }
         if options.playlist, !plan.playlist.isEmpty {
             out.append(("rectangle.split.3x1", String(localized: "Playlist : \(plan.playlist.colors.count) pistes colorées, \(plan.playlist.names.count) renommées")))
@@ -833,9 +857,11 @@ struct OrganizerView: View {
                 .organizerCard()
                 .morphIn(1)
                 Text(String(localized: """
+                    FL retire d'abord les clips audio inutilisés et repère les sons sans aucune note (laissés de côté). \
                     Un son dont le nom dit ce qu'il est (Kick, 808, Hat…) est classé tout de suite ; les autres jouent \
-                    seuls, sans que tu les entendes. Chaque pattern puis chaque piste de la Playlist joue un instant : FL \
-                    dit quels sons y jouent (même ceux que tu as coupés). Ne touche pas à FL ; Échap arrête.
+                    seuls, sans que tu les entendes. Chaque pattern joue en entier, en accéléré, puis chaque piste de la \
+                    Playlist un instant : FL dit quels sons y jouent (même ceux que tu as coupés). Ne touche pas à FL ; \
+                    Échap arrête.
                     """))
                     .font(.system(size: 11))
                     .foregroundStyle(.secondary)
@@ -1329,6 +1355,11 @@ private struct ProjectSummary: View {
             Toggle("Renommer simplement (Kick, Kick 2, 808…)", isOn: $controller.options.rename)
                 .toggleStyle(.checkbox)
                 .font(.system(size: 11))
+            Toggle("Un bus par famille dans le Mixer (les 808 avec les drums), chaque son envoyé seulement à son bus",
+                   isOn: $controller.options.buses)
+                .toggleStyle(.checkbox)
+                .font(.system(size: 11))
+                .disabled(!controller.options.mixer)
             Text(String(localized: """
                 FL ne laisse pas un script déplacer les pistes de la Playlist ni les patterns : ils sont colorés et \
                 renommés, à leur place.

@@ -312,7 +312,8 @@ final class OrganizerApplyTests: XCTestCase {
         })
         result.mixer = (0...8).map { MixerTrackInfo(index: $0, color: gray, name: $0 == 0 ? "Master" : "Insert \($0)") }
         result.routes = [1: [5], 3: [5], 2: [], 6: []]
-        let mixer = plan(result).mixer
+        let noBus = OrganizerOptions(buses: false)
+        let mixer = plan(result, options: noBus).mixer
         // Lead (2), puis 808 et Sub (6), puis Kick (1), Clap (3) et leur piste de groupe (5) ; la piste 4 suit.
         XCTAssertEqual(mixer.final, [2, 6, 1, 3, 5, 4])
         XCTAssertEqual(mixer.names, [2: "Lead", 6: "Basse", 1: "Kick", 3: "Clap", 5: "Drums Bus"])
@@ -324,9 +325,9 @@ final class OrganizerApplyTests: XCTestCase {
 
         // Piste de groupe déjà nommée : gardée ; Mixer ou renommage désactivés : rien.
         result.mixer[5] = MixerTrackInfo(index: 5, color: gray, name: "Drum Bus perso")
-        XCTAssertNil(plan(result).mixer.names[5])
+        XCTAssertNil(plan(result, options: noBus).mixer.names[5])
         XCTAssertTrue(plan(result, options: OrganizerOptions(mixer: false)).mixer.isEmpty)
-        XCTAssertTrue(plan(result, options: OrganizerOptions(rename: false)).mixer.names.isEmpty)
+        XCTAssertTrue(plan(result, options: OrganizerOptions(rename: false, buses: false)).mixer.names.isEmpty)
     }
 
     /// Mixer rangé dans FL (⌥← sur chaque piste), les sons suivent leur piste ; « Revenir comme avant » remet tout.
@@ -342,7 +343,8 @@ final class OrganizerApplyTests: XCTestCase {
                           color: gray, kind: .vocal, byName: true),
         ], mixer: link.mixer)
         let originalMixer = link.mixer
-        let outcome = apply(link, result, options: OrganizerOptions(rack: false, patterns: false, playlist: false))
+        let outcome = apply(link, result, options: OrganizerOptions(rack: false, patterns: false, playlist: false,
+                                                                     buses: false))
         XCTAssertNil(outcome.error)
         XCTAssertEqual(link.mixer.map(\.name), ["Master", "Voix", "Kick", "Insert 3", "Insert 4"])
         XCTAssertEqual(link.mixer[1].color, style(.vocals))
@@ -353,6 +355,74 @@ final class OrganizerApplyTests: XCTestCase {
         XCTAssertNil(applier(link).undo(outcome.snapshot).error)
         XCTAssertEqual(link.mixer, originalMixer)
         XCTAssertEqual(link.channels.map(\.mixerTrack), [1, 2])
+    }
+
+    /// Un bus par famille, juste après ses pistes ; les 808 dans le bus Drums ; chaque son envoyé seulement à son
+    /// bus, le bus au Master ; un bus déjà là est repris ; un son sans note n'est pas touché. « Revenir comme avant »
+    /// remet aussi les envois.
+    func testBusPerFamilyAppliedThenUndone() {
+        let link = FakeOrganizerLink()
+        let kinds: [SoundKind?] = [.lead, .lead, .bass, .bass808, .kick, .clap, nil]
+        let tracks = [1, 2, 4, 5, 6, 7, 8]
+        link.channels = kinds.indices.map {
+            ChannelInfo(index: $0, type: 2, mixerTrack: tracks[$0], color: gray, name: "Son \($0)")
+        }
+        link.mixer = (0...12).map {
+            MixerTrackInfo(index: $0, color: gray, name: $0 == 0 ? "Master" : $0 == 3 ? "Melody Bus" : "Insert \($0)")
+        }
+        link.routes = [1: [3], 2: [3], 3: [0], 4: [0], 5: [0], 6: [0], 7: [0], 8: [0]]
+        let items = kinds.indices.compactMap { i -> OrganizerItem? in
+            guard let kind = kinds[i] else { return nil }            // le canal 6 n'a aucune note
+            return OrganizerItem(index: i, name: "Son \(i)", family: kind.family, confidence: 0.9, testNotes: false,
+                                 mixerTrack: tracks[i], color: gray, kind: kind)
+        }
+        var result = OrganizerResult(channels: link.channels, items: items, mixer: link.mixer, routes: link.routes)
+        result.unused = [6]
+        let mixer = plan(result).mixer
+        // Mélodies et leur bus (déjà là : la piste 3), Basse et son bus (piste libre 9), puis 808, Kick, Clap et le
+        // bus Drums (piste libre 10) ; la piste du son sans note après.
+        XCTAssertEqual(mixer.final, [1, 2, 3, 4, 9, 5, 6, 7, 10, 8])
+        XCTAssertEqual(mixer.buses, [3: .melody, 9: .bass, 10: .drums])
+        XCTAssertEqual(mixer.routes, [1: [3], 2: [3], 3: [0], 4: [9], 9: [0], 5: [10], 6: [10], 7: [10], 10: [0]])
+        XCTAssertEqual(mixer.names, [1: "Lead", 2: "Lead 2", 4: "Basse", 9: "Basse Bus", 5: "808", 6: "Kick",
+                                     7: "Clap", 10: "Drums Bus"], "« Melody Bus » garde son nom")
+        XCTAssertEqual(mixer.colors[10], style(.drums))
+        XCTAssertNil(mixer.colors[8], "son sans note : pas touché")
+
+        let originalMixer = link.mixer, originalRoutes = link.routes
+        let outcome = apply(link, result, options: OrganizerOptions(rack: false, patterns: false, playlist: false))
+        XCTAssertNil(outcome.error)
+        XCTAssertEqual(link.mixer.map(\.name), ["Master", "Lead", "Lead 2", "Melody Bus", "Basse", "Basse Bus", "808",
+                                                "Kick", "Clap", "Drums Bus", "Insert 8", "Insert 11", "Insert 12"])
+        XCTAssertEqual(link.routes.filter { !$0.value.isEmpty },
+                       [1: [3], 2: [3], 3: [0], 4: [5], 5: [0], 6: [9], 7: [9], 8: [9], 9: [0], 10: [0]],
+                       "chaque son vers le bus de sa famille, à sa nouvelle place")
+        XCTAssertEqual(link.channels.map(\.mixerTrack), [1, 2, 4, 6, 7, 8, 10], "chaque son suit sa piste")
+
+        XCTAssertNil(applier(link).undo(outcome.snapshot).error)
+        XCTAssertEqual(link.mixer, originalMixer)
+        XCTAssertEqual(link.routes.filter { !$0.value.isEmpty }, originalRoutes)
+        XCTAssertEqual(link.channels.map(\.mixerTrack), tracks)
+    }
+
+    /// Un nom de partie du morceau est gardé ; tout autre nom est remplacé par un nom simple.
+    func testSectionNamesAreKept() {
+        XCTAssertTrue(SoundNames.isSection("Intro"))
+        XCTAssertTrue(SoundNames.isSection("Refrain 2"))
+        XCTAssertTrue(SoundNames.isSection("HOOK"))
+        XCTAssertFalse(SoundNames.isSection("Kick Intro"), "dit ce qu'est le son")
+        XCTAssertFalse(SoundNames.isSection("Serum 2 #3"))
+        XCTAssertFalse(SoundNames.isSection("Pattern 3"))
+        XCTAssertFalse(SoundNames.isSection("Track 8"))
+    }
+
+    /// Ordre du Channel rack dans la basse : Basse, puis 808, juste avant les drums.
+    func testBassBefore808() {
+        let (link, result) = rack([.drums, .bass, .bass, .melody], kinds: [0: .kick, 1: .bass808, 2: .bass])
+        XCTAssertNil(apply(link, result).error)
+        XCTAssertEqual(link.channels.map(\.name), ["Son 3", "Son 2", "Son 1", "Son 0"])
+        XCTAssertEqual(SoundKind.bass808.busFamily, .drums)
+        XCTAssertEqual(SoundKind.bass.busFamily, .bass)
     }
 
     // MARK: Playlist

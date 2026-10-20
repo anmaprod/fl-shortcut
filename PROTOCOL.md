@@ -174,14 +174,14 @@ unités  = [4, 1, 3, 96, 69, 58, 4, 75, 0, 105, 99, 107]
 MAC     = [116, 112, 71, 62]
 ```
 
-## 8. Organiser et dégradé (script v5, Playlist : script v6, tout le projet : script v12)
+## 8. Organiser et dégradé (script v5, Playlist : script v6, tout le projet : script v12, bus et relevé continu : v13)
 
 Opérations 2 à 12 de la commande avec données (§7), annoncées par le bit **42** du masque de capacités (le bit 41
 seul = opération 1 seulement). Un script qui annonce 42 a aussi `utils.ColorToRGB` et `utils.RGBToColor` de FL.
 Les opérations 9 à 12 (script v6) n'ont pas de bit à elles : un script v5 les refuse avec la raison 5 sans rien
 toucher, et l'appli demande alors de redémarrer FL (le script mis à jour n'est lu qu'au lancement de FL). Il en va
-de même des opérations 13 à 18 et du genre 4 (patterns) : l'Organiser commence par lister les patterns ; un script
-d'avant la v12 refuse (raison 5) et l'appli attend que FL soit redémarré.
+de même des opérations 13 à 22 et du genre 4 (patterns) : l'Organiser commence par l'opération 19 ; un script
+d'avant la v13 refuse (raison 5) et l'appli attend que FL soit redémarré, sans rien avoir touché.
 
 - **Réponse FL → appli** (opération 2) : CC **112** = début (valeur = opération), un CC **113** par unité de 7 bits
   (empaquetage du §7, **600 unités** au plus), CC **114** = fin, puis 4 CC **115** =
@@ -206,11 +206,15 @@ d'avant la v12 refuse (raison 5) et l'appli attend que FL soit redémarré.
 | op 11 : écoute d'une piste de la Playlist | piste (2) | comme l'op 6 pour la Playlist : FL qui joue sans écoute en cours → raison 4. 1er appel : mémo des sourdines de toutes les pistes, du mode, de la position et du métronome (comme l'op 6) (une écoute du Channel rack en cours est d'abord remise comme avant, et inversement). Puis cette piste seule audible (script v12 : avec tous les canaux du Channel rack, coupés compris ; remis par l'op 7), mode song, position 0, lecture. Réponse `[mesures (2)]` : longueur de la chanson (`transport.getSongLength`, API 3 ; 0 si inconnue) |
 | op 12 : position | pour mille (2) | position de la chanson (`setSongPos`, 0 à 1000 ‰), seulement pendant une écoute de la Playlist (sinon raison 5). L'appli parcourt la chanson jusqu'à ce que la piste sonne |
 | op 13 : mute / solo d'un canal | 0 mute ou 1 solo, index (2) | bascule le mute (`muteChannel`) ou le solo (`soloChannel`) de ce canal du Channel rack, comme son bouton ; index hors du Channel rack : raison 5. Bloc « Cliquer sur… » › Mute ou Solo d'un canal (son numéro) : ni clic ni touche ; sans le lien, les touches 1 à 0 de FL jusqu'au canal 10 seulement ; script v7 |
-| op 14 : ce qui joue (script v11) | genre (1 canaux, 3 pistes de la Playlist) | réponse `[genre, n (2), bits]` : un bit par élément (bit i % 8 de l'octet i // 8), 512 au plus ; canaux affichés dont une note joue (`channels.getActivityLevel` > 0,01, API 9 ; sinon raison 6), pistes dont un clip passe sous la tête de lecture (`playlist.getTrackActivityLevel`, index 0 = piste 1). Rien n'est écouté : FL le dit lui-même |
+| op 14 : ce qui joue (script v11) | genre (1 canaux, 3 pistes de la Playlist), mode (facultatif, script v13) | réponse `[genre, n (2), bits]` : un bit par élément (bit i % 8 de l'octet i // 8), 512 au plus ; canaux affichés dont une note joue (`channels.getActivityLevel` > 0,01, API 9 ; sinon raison 6), pistes dont un clip passe sous la tête de lecture (`playlist.getTrackActivityLevel`, index 0 = piste 1). Rien n'est écouté : FL le dit lui-même. Mode 1 (canaux seulement, sinon raison 5) : aussi les canaux qui ont joué depuis la lecture précédente pendant l'écoute, relevés par le script à chaque passage de sa boucle (~20 ms) ; le relevé repart de zéro à chaque lecture (une note brève entre deux lectures compte) |
 | op 15 : patterns (script v11) | — | réponse `[nombre de patterns (2), pattern ouvert (2)]` |
 | op 16 : toute la chanson (script v11) | pour mille (2) | toute la chanson à cette position, rien de coupé (script v12 : canaux et pistes coupés par l'utilisateur rendus audibles au 1er appel) ; 1er appel : mémo des sourdines, du mode, de la position, du pattern et du métronome (op 7 remet) ; FL qui joue sans écoute en cours → raison 4. Réponse `[mesures (2)]` |
-| op 17 : envois du Mixer (script v12) | piste (2) | réponse `[piste (2), n, destination (2) × n]` : pistes vers lesquelles cette piste envoie (`mixer.getRouteSendActive`), sans le Master ni la dernière piste (« Current ») ; 64 au plus. Piste 0, la dernière ou hors du Mixer : raison 5. L'Organiser garde côte à côte les pistes reliées par un envoi |
+| op 17 : envois du Mixer (script v12) | piste (2) | réponse `[piste (2), n, destination (2) × n]` : pistes vers lesquelles cette piste envoie (`mixer.getRouteSendActive`), le Master compris (0, script v13), sans la dernière piste (« Current ») ; 64 au plus. Piste 0, la dernière ou hors du Mixer : raison 5. L'Organiser garde côte à côte les pistes reliées par un envoi |
 | op 18 : page devant (script v12) | code (0 Mixer, 1 Channel rack, 2 Playlist) | ouvre cette page de FL et la met devant (`ui.showWindow`, comme F9, F6 et F5) ; autre code : raison 5. L'Organiser l'ouvre avant d'y déplacer des éléments au clavier |
+| op 19 : longueur des patterns (script v13) | début (2) | réponse `[tempo × 100 (2), total (2), début (2), n, temps (2) × n]` : longueur de chaque pattern en temps (`patterns.getPatternLength` ; 0 si inconnue), 64 au plus, et le tempo (`mixer.getCurrentTempo` ; 0 si inconnu). L'Organiser écoute chaque pattern en entier ; première opération qu'il envoie |
+| op 20 : envois posés (script v13) | piste (2), n, destination (2) × n | la piste n'envoie plus qu'à ces pistes (0 = le Master ; `mixer.setRouteTo`, puis `afterRoutingChanged`) ; ni le Master ni « Current » ne sont changés, une destination hors du Mixer ou la piste elle-même : raison 5, rien n'est changé. Un bus par famille : chaque son envoyé seulement à son bus |
+| op 21 : canaux sélectionnés (script v13) | — | réponse `[n (2), bits]` : canaux affichés sélectionnés (`channels.isChannelSelected`), 512 au plus. Après « Tools › Select unused channels » de FL : les sons sans aucune note, laissés de côté par l'Organiser |
+| op 22 : tempo du relevé (script v13) | facteur (1 à 8) | pendant une écoute (sinon raison 5) : le tempo d'avant × facteur, 520 BPM au plus (REC_Tempo) ; 1 : le tempo d'avant. Réponse `[tempo d'avant × 100 (2), tempo maintenant × 100 (2)]`. Le mémo le garde : l'opération 7 (et le sommeil du script) le remet ; FL sans REC_Tempo : raison 6 |
 
 - **Raisons** en plus (CC 116) : 4 FL joue déjà, 7 au moins 2 éléments sélectionnés pour un dégradé. Une fonction
   de FL absente pour une opération → raison 6.
