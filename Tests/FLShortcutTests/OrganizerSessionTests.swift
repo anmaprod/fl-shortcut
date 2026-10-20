@@ -329,7 +329,7 @@ final class OrganizerSessionTests: XCTestCase {
                                   "playlist", "track 0", "track 1", "track 2", "seek 500",
                                   "routes 1", "routes 2", "routes 3", "routes 4", "restore"])
         XCTAssertEqual(steps.last.map { $0[0] == $0[1] }, true, "fini à 100 %")
-        XCTAssertEqual((audio.started, audio.stopped), (1, 1))
+        XCTAssertEqual([audio.started, audio.stopped], [1, 1])
         let diag = session.diagnostics
         XCTAssertEqual([diag.byName, diag.listened, diag.scanned, diag.withSounds, diag.tracks, diag.tracksSolo],
                        [3, 1, 2, 2, 3, 3])
