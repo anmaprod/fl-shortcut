@@ -100,20 +100,28 @@ struct SoundFeatures: Equatable {
         }
         var f0s: [Double] = []
         var seq: [(f0: Double, pos: Int)] = []
-        y.withUnsafeBufferPointer { p in
+        // Types donnés et calculs découpés : un Mac de compilation lent abandonnait la vérification des types de ce
+        // bloc (« unable to type-check this expression in reasonable time »).
+        y.withUnsafeBufferPointer { (p: UnsafeBufferPointer<Float>) -> Void in
             var nacf = [Double](repeating: 0, count: lmax + 2)
             var cumulative = [Double](repeating: 0, count: frameN + 1)
             for s in chosen {
                 let w = p.baseAddress! + s
-                for i in 0..<frameN { cumulative[i + 1] = cumulative[i] + Double(w[i]) * Double(w[i]) }
+                for i in 0..<frameN {
+                    let v = Double(w[i])
+                    cumulative[i + 1] = cumulative[i] + v * v
+                }
                 for lag in lmin...lmax {
                     var dot: Float = 0
                     vDSP_dotpr(w, 1, w + lag, 1, &dot, vDSP_Length(frameN - lag))
-                    let e0 = cumulative[frameN - lag], eL = cumulative[frameN] - cumulative[lag]
-                    nacf[lag] = Double(dot) / ((e0 * eL).squareRoot() + 1e-12)
+                    let e0: Double = cumulative[frameN - lag]
+                    let eL: Double = cumulative[frameN] - cumulative[lag]
+                    let norm: Double = (e0 * eL).squareRoot() + 1e-12
+                    nacf[lag] = Double(dot) / norm
                 }
-                let pos = Int((Double(s) + Double(frameN) / 2) * Double(d) / Double(hop))
-                let best = nacf[lmin...lmax].max() ?? 0
+                let center: Double = Double(s) + Double(frameN) / 2
+                let pos = Int(center * Double(d) / Double(hop))
+                let best: Double = nacf[lmin...lmax].max() ?? 0
                 guard best >= 0.75 else {
                     seq.append((f0: 0, pos: pos))
                     continue
@@ -134,13 +142,14 @@ struct SoundFeatures: Equatable {
                 }
                 var exact = Double(lag)
                 if lag > lmin && lag < lmax {
-                    let a = nacf[lag - 1], b = nacf[lag], c = nacf[lag + 1]
-                    let den = a - 2 * b + c
-                    let off = abs(den) > 1e-12 ? 0.5 * (a - c) / den : 0
+                    let a: Double = nacf[lag - 1], b: Double = nacf[lag], c: Double = nacf[lag + 1]
+                    let den: Double = a - 2 * b + c
+                    let off: Double = abs(den) > 1e-12 ? 0.5 * (a - c) / den : 0
                     exact += max(-0.5, min(0.5, off))
                 }
-                f0s.append(rd / exact)
-                seq.append((f0: rd / exact, pos: pos))
+                let f0: Double = rd / exact
+                f0s.append(f0)
+                seq.append((f0: f0, pos: pos))
             }
         }
         let pitchedFraction = chosen.isEmpty ? 0 : Double(f0s.count) / Double(chosen.count)
