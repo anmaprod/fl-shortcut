@@ -13,6 +13,8 @@ choisit le fichier, l'anglais sert pour toute langue autre que le français (Inf
   localisation.py generer TRADUCTIONS.json [...]
       Ajoute ou remplace des traductions ({ "clé française": "English" }) dans en.lproj, puis réécrit fr.lproj
       (chaque clé traduite par elle-même, pour qu'un Mac en français ne prenne jamais l'anglais).
+  localisation.py nettoyer CLES.json
+      Retire de en.lproj et fr.lproj les traductions que l'app n'utilise plus.
 """
 import json
 import os
@@ -153,6 +155,16 @@ def generer(paths):
     return 0
 
 
+def nettoyer(keys_path):
+    keys = {e["key"] for e in json.load(open(keys_path, encoding="utf-8"))}
+    en = read_strings(EN)
+    kept = {k: v for k, v in en.items() if k in keys}
+    write_strings(EN, kept, HEADER["en"])
+    write_strings(FR, {k: k for k in kept}, HEADER["fr"])
+    print(f"{len(en) - len(kept)} traductions retirées, {len(kept)} gardées")
+    return 0
+
+
 def main(argv):
     if len(argv) >= 3 and argv[0] == "extraire":
         return extraire(argv[1], argv[2])
@@ -160,6 +172,8 @@ def main(argv):
         return verifier(argv[1], "--strict" in argv[2:])
     if len(argv) >= 1 and argv[0] == "generer":
         return generer(argv[1:])
+    if len(argv) >= 2 and argv[0] == "nettoyer":
+        return nettoyer(argv[1])
     print(__doc__)
     return 2
 

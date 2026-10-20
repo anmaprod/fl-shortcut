@@ -156,10 +156,13 @@ jobs:
           chmod +x build.sh
           ./build.sh
       - name: Textes en anglais (textes de l'app comparés à en.lproj)
-        continue-on-error: true      # indicatif tant que la traduction n'est pas finie
+        id: anglais
+        # Un texte sans anglais rend la CI rouge à la fin du job (un Mac réglé dans une autre langue que le français
+        # le verrait en français) ; les essais et le .dmg passent quand même.
+        continue-on-error: true
         run: |
           set -o pipefail
-          scripts/cles-traduction.sh dist/mesure | tee -a "$GITHUB_STEP_SUMMARY"
+          scripts/cles-traduction.sh dist/mesure --strict | tee -a "$GITHUB_STEP_SUMMARY"
       - name: Mesure de l'interface (mémoire et processeur, avec et sans verre)
         continue-on-error: true      # mesure indicative : n'empêche jamais la publication
         run: |
@@ -273,6 +276,11 @@ jobs:
           name: FLShortcut-mac-mesure
           path: dist/mesure
           if-no-files-found: ignore
+      - name: Textes sans anglais (voir « Textes en anglais » dans le résumé)
+        if: steps.anglais.outcome == 'failure'
+        run: |
+          echo "::error::Des textes de l'app n'ont pas de traduction anglaise : scripts/localisation.py generer"
+          exit 1
 
   release:
     name: Publication (tag v*)

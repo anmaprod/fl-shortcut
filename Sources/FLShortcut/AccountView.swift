@@ -21,10 +21,12 @@ enum AccountText {
         ("lock.shield", String(localized: "Personne d'autre ne peut lire ta sauvegarde. Ton mail reste privé.")),
     ]
 
-    /// « aujourd'hui à 21:07 », « hier à 9:12 », « 14 oct. 2026 à 18:00 ».
+    /// « aujourd'hui à 21:07 », « hier à 9:12 », « 14 oct. 2026 à 18:00 » ; dans la langue de l'app (« today at
+    /// 9:07 PM » sur un Mac en anglais).
     static func when(_ date: Date) -> String {
         let f = DateFormatter()
-        f.locale = Locale(identifier: "fr_FR")
+        let language = Bundle.main.preferredLocalizations.first ?? "fr"
+        f.locale = Locale(identifier: Locale.current.region.map { "\(language)_\($0.identifier)" } ?? language)
         f.dateStyle = .medium
         f.timeStyle = .short
         f.doesRelativeDateFormatting = true
