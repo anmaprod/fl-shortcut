@@ -1,8 +1,9 @@
 // Organiser : réglage de chaque famille (une couleur ou un dégradé, une icône), plan de regroupement du Channel rack,
-// noms des pistes de la Playlist, application dans FL et « Revenir comme avant ». Le plan, les couleurs et les noms
-// sont purs (testés) ; l'application passe par OrganizerLink (couleurs, noms, sélection, vérification) et par ⌥↑
-// envoyé à FL seul pour remonter un canal. FL ne permet pas de déplacer les pistes de la Playlist ni de poser leur
-// icône depuis un script : la Playlist garde son ordre et ses icônes.
+// application de tout le plan dans FL (OrganizerPlan) et « Revenir comme avant ». Le plan, les couleurs et les noms
+// sont purs (testés) ; l'application passe par OrganizerLink (couleurs, noms, sélection, page devant, vérification)
+// et par des touches envoyées à FL seul pour déplacer un élément : ⌥↑ remonte un canal du Channel rack, ⌥← une piste
+// du Mixer. FL ne permet pas de déplacer les pistes de la Playlist ni les patterns depuis un script : ils gardent leur
+// place.
 import Foundation
 
 /// Réglage d'une famille, gardé dans les préférences.
@@ -132,15 +133,24 @@ enum RegroupPlan {
     }
 }
 
-/// Ce qu'il faut pour « Revenir comme avant ».
-struct OrganizerSnapshot: Equatable {
-    let kind: ItemKind
-    /// Couleur d'origine de chaque élément (par index d'origine).
-    let colors: [Int: RGBColor]
-    /// Channel rack : place → index d'origine, après ce qui a déjà été fait ; vide pour le Mixer et la Playlist.
-    var arrangement: [Int]
-    /// Playlist : nom d'origine des pistes renommées.
+/// Ce qu'il faut pour « Revenir comme avant » dans une page de FL.
+struct AreaSnapshot: Equatable {
+    /// Couleur et nom d'origine de chaque élément touché, par index d'origine (Mixer : numéro de la piste).
+    var colors: [Int: RGBColor] = [:]
     var names: [Int: String] = [:]
+    /// Place → index d'origine, après ce qui a déjà été fait (Mixer : place 0 = piste 1, numéros des pistes) ; vide
+    /// si rien ne bouge.
+    var arrangement: [Int] = []
+}
+
+/// Ce qu'il faut pour « Revenir comme avant » : chaque page touchée, jusqu'à là où l'application s'est arrêtée.
+struct OrganizerSnapshot: Equatable {
+    var rack: AreaSnapshot?
+    var patterns: AreaSnapshot?
+    var mixer: AreaSnapshot?
+    var playlist: AreaSnapshot?
+
+    var isEmpty: Bool { rack == nil && patterns == nil && mixer == nil && playlist == nil }
 }
 
 struct ApplyOutcome: Equatable {
@@ -152,53 +162,57 @@ struct ApplyOutcome: Equatable {
 final class OrganizerApplier {
     private let link: OrganizerLink
     private let moveUp: (Int) -> Int
+    private let moveLeft: (Int) -> Int
     private let placeIcon: (FLIcon) -> OrganizerError?
 
-    /// `moveUp(n)` envoie ⌥↑ n fois à FL seul (15 ms entre deux, Channel rack devant à chaque pas) et renvoie le
-    /// nombre de pas faits. `placeIcon` pose une icône sur l'élément sélectionné par la fenêtre de FL (F2) ; nil si
-    /// c'est fait.
-    init(link: OrganizerLink, moveUp: @escaping (Int) -> Int,
+    /// `moveUp(n)` envoie ⌥↑ n fois à FL seul (Channel rack devant), `moveLeft(n)` ⌥← (Mixer devant) ; chacun
+    /// renvoie le nombre de pas faits. `placeIcon` pose une icône sur l'élément sélectionné par la fenêtre de FL
+    /// (F2) ; nil si c'est fait.
+    init(link: OrganizerLink, moveUp: @escaping (Int) -> Int, moveLeft: @escaping (Int) -> Int = { _ in 0 },
          placeIcon: @escaping (FLIcon) -> OrganizerError? = { _ in nil }) {
         self.link = link
         self.moveUp = moveUp
+        self.moveLeft = moveLeft
         self.placeIcon = placeIcon
     }
 
-    /// Icône de chaque élément (par index d'origine) : celle de sa famille ; aucune si la famille n'en a pas.
+    /// Ce qu'est chaque son classé (par index du canal), quand c'est connu (Kick, 808…).
+    static func kinds(of result: OrganizerResult) -> [Int: SoundKind] {
+        var out: [Int: SoundKind] = [:]
+        for item in result.items {
+            if let kind = item.kind { out[item.index] = kind }
+        }
+        return out
+    }
+
+    /// Famille de chaque son classé (par index du canal).
+    static func families(of result: OrganizerResult) -> [Int: SoundFamily] {
+        var out: [Int: SoundFamily] = [:]
+        for item in result.items { out[item.index] = item.family }
+        return out
+    }
+
+    /// Ce qu'est l'élément s'il va avec sa famille (une famille changée dans l'aperçu fait oublier l'ancien : un
+    /// « Kick » mis en Basse s'appelle « Basse »).
+    static func kind(_ index: Int, families: [Int: SoundFamily], kinds: [Int: SoundKind]) -> SoundKind? {
+        guard let kind = kinds[index], kind.family == families[index] else { return nil }
+        return kind
+    }
+
+    /// Plan de regroupement du Channel rack : par famille, puis par ce qu'est chaque son.
+    static func rackPlan(_ channels: [ChannelInfo], families: [Int: SoundFamily],
+                         kinds: [Int: SoundKind]) -> (moves: [Move], final: [Int]) {
+        RegroupPlan.make(order: channels.map { families[$0.index] },
+                         kinds: channels.map { Self.kind($0.index, families: families, kinds: kinds) })
+    }
+
+    /// Icône de chaque élément : celle de sa famille ; aucune si la famille n'en a pas.
     static func plannedIcons(families: [Int: SoundFamily], styles: [SoundFamily: FamilyStyle]) -> [Int: FLIcon] {
         var out: [Int: FLIcon] = [:]
         for (index, family) in families {
             if let icon = (styles[family] ?? FamilyStyles.initial[family])?.icon { out[index] = icon }
         }
         return out
-    }
-
-    /// Icônes en dernier (FL ne dit pas lesquelles étaient là : « Revenir comme avant » ne les retire pas). Chaque
-    /// élément est sélectionné seul, puis la pose passe par la fenêtre de FL ; la page doit rester devant.
-    private func placeIcons(_ icons: [Int: FLIcon], kind: ItemKind, place: (Int) -> Int?) throws {
-        let page: FLWindow = kind == .channels ? .channelRack : .mixer
-        for index in icons.keys.sorted() {
-            guard let icon = icons[index], let at = place(index) else { continue }
-            guard link.window == page else {
-                throw kind == .channels ? OrganizerError.interrupted
-                                        : OrganizerError.failed(String(localized: "Le Mixer n'est plus devant : icônes non posées."))
-            }
-            try link.selectOne(kind, at)
-            if let error = placeIcon(icon) { throw error }
-        }
-    }
-
-    /// Famille de départ de chaque élément à colorer : canaux ou pistes de la Playlist écoutés, ou pistes du Mixer
-    /// reliées.
-    static func families(of result: OrganizerResult) -> [Int: SoundFamily] {
-        switch result.page {
-        case .channelRack, .playlist:
-            var out: [Int: SoundFamily] = [:]
-            for item in result.items { out[item.index] = item.family }
-            return out
-        case .mixer:
-            return result.mixerFamilies
-        }
     }
 
     /// Couleur prévue de chaque élément (par index d'origine), famille par famille dans l'ordre `order`.
@@ -213,46 +227,6 @@ final class OrganizerApplier {
         return out
     }
 
-    /// Ce qu'est chaque élément écouté (par index d'origine), quand c'est connu (Kick, 808…). Mixer : rien (les
-    /// éléments sont ses pistes, pas les sons écoutés).
-    static func kinds(of result: OrganizerResult) -> [Int: SoundKind] {
-        guard result.page != .mixer else { return [:] }
-        var out: [Int: SoundKind] = [:]
-        for item in result.items {
-            if let kind = item.kind { out[item.index] = kind }
-        }
-        return out
-    }
-
-    /// Ce qu'est l'élément s'il va avec sa famille (une famille changée dans l'aperçu fait oublier l'ancien : un
-    /// « Kick » mis en Basse s'appelle « Basse »).
-    static func kind(_ index: Int, families: [Int: SoundFamily], kinds: [Int: SoundKind]) -> SoundKind? {
-        guard let kind = kinds[index], kind.family == families[index] else { return nil }
-        return kind
-    }
-
-    /// Nouveau nom des pistes de la Playlist qui ont encore le nom de FL : ce qu'elles jouent (Kick, 808, Open
-    /// Hat…), sinon leur famille (Drums, Voix, Mélodie, Basse, FX) ; numérotés dans l'ordre de la Playlist quand il
-    /// y en a plusieurs (« Kick », « Kick 2 »…). « À vérifier » : pas renommée. `kinds` : ceux de l'écoute si nil.
-    static func plannedNames(result: OrganizerResult, families: [Int: SoundFamily],
-                             kinds: [Int: SoundKind]? = nil) -> [Int: String] {
-        let known = kinds ?? Self.kinds(of: result)
-        var base: [(index: Int, name: String)] = []
-        for track in result.playlist where track.hasDefaultName {
-            guard let family = families[track.index], var name = family.trackName else { continue }
-            if let kind = Self.kind(track.index, families: families, kinds: known) { name = kind.name }
-            base.append((track.index, name))
-        }
-        var seen: [String: Int] = [:]
-        var out: [Int: String] = [:]
-        for item in base {
-            seen[item.name, default: 0] += 1
-            let n = seen[item.name] ?? 1
-            out[item.index] = n > 1 ? "\(item.name) \(n)" : item.name
-        }
-        return out
-    }
-
     private static func pairs(_ colors: [Int: RGBColor]) -> [(index: Int, color: RGBColor)] {
         colors.keys.sorted().compactMap { index in colors[index].map { (index: index, color: $0) } }
     }
@@ -262,123 +236,198 @@ final class OrganizerApplier {
     }
 
     private static func failure(_ error: Error) -> OrganizerError {
-        (error as? OrganizerError) ?? .failed(String(localized: "Organiser : étape impossible (\(String(describing: type(of: error))))."))
+        (error as? OrganizerError)
+            ?? .failed(String(localized: "Organiser : étape impossible (\(String(describing: type(of: error))))."))
     }
 
-    /// `names` : nouveaux noms des pistes de la Playlist (voir `plannedNames`). `kinds` : ce qu'est chaque son, pour
-    /// les mettre ensemble dans le Channel rack (ceux de l'écoute si nil).
-    func apply(result: OrganizerResult, families: [Int: SoundFamily], styles: [SoundFamily: FamilyStyle],
-               names: [Int: String] = [:], kinds: [Int: SoundKind]? = nil) -> ApplyOutcome {
-        switch result.page {
-        case .mixer: return applyMixer(result, families, styles)
-        case .channelRack: return applyRack(result, families, styles, kinds ?? Self.kinds(of: result))
-        case .playlist: return applyPlaylist(result, families, styles, names)
-        }
-    }
-
-    /// Plan de regroupement du Channel rack : par famille, puis par ce qu'est chaque son.
-    static func rackPlan(_ channels: [ChannelInfo], families: [Int: SoundFamily],
-                         kinds: [Int: SoundKind]) -> (moves: [Move], final: [Int]) {
-        RegroupPlan.make(order: channels.map { families[$0.index] },
-                         kinds: channels.map { Self.kind($0.index, families: families, kinds: kinds) })
-    }
-
-    /// Couleurs et noms, puis vérification sur les pistes touchées (lues jusqu'à la dernière).
-    private func applyPlaylist(_ result: OrganizerResult, _ families: [Int: SoundFamily],
-                               _ styles: [SoundFamily: FamilyStyle], _ names: [Int: String]) -> ApplyOutcome {
-        var originals: [Int: RGBColor] = [:]
-        var originalNames: [Int: String] = [:]
-        for track in result.playlist {
-            if families[track.index] != nil { originals[track.index] = track.color }
-            // Nom de FL lu vide : remis en « Track n » (un nom vide ne peut pas être posé).
-            if names[track.index] != nil {
-                originalNames[track.index] = track.name.isEmpty ? "Track \(track.index + 1)" : track.name
-            }
-        }
-        let colors = Self.plannedColors(families: families, styles: styles, order: result.playlist.map(\.index))
-        var outcome = ApplyOutcome(snapshot: OrganizerSnapshot(kind: .playlist, colors: originals, arrangement: [],
-                                                               names: originalNames))
+    /// Tout le plan, page par page : Channel rack, patterns, Mixer, Playlist. Une page que FL n'a pas toute prise
+    /// (vérifiée en relisant) n'arrête pas les suivantes : elle est dite à la fin (`mismatch`) ; une erreur arrête là.
+    /// Le mémo de chaque page est posé avant d'y toucher : « Revenir comme avant » défait ce qui a été fait.
+    func apply(_ plan: OrganizerPlan, result: OrganizerResult, styles: [SoundFamily: FamilyStyle]) -> ApplyOutcome {
+        var outcome = ApplyOutcome(snapshot: OrganizerSnapshot())
+        var verified = true
         do {
-            try link.setColors(.playlist, Self.pairs(colors))
-            try link.setNames(.playlist, Self.namePairs(names))
-            let last = max(colors.keys.max() ?? -1, names.keys.max() ?? -1)
-            guard last >= 0 else { return outcome }
-            var now: [Int: PlaylistTrackInfo] = [:]
-            for track in try link.listPlaylist(limit: last + 1) { now[track.index] = track }
-            let wrongColor = colors.contains { now[$0.key]?.color != $0.value }
-            // Noms comparés tels que le script les lit (coupés à 24 octets) ; les nouveaux noms sont courts.
-            let wrongName = names.contains { item in
-                guard let read = now[item.key]?.name, let sent = OrganizerPayload.nameUTF8(item.value) else { return true }
-                return Array(read.utf8) != Array(sent.prefix(24))
+            if !plan.rack.isEmpty {
+                outcome.snapshot.rack = AreaSnapshot()
+                let ok = try applyRack(plan.rack, result, styles, &outcome.snapshot.rack!)
+                if !ok { verified = false }
             }
-            if wrongColor || wrongName { outcome.error = .mismatch }
+            if !plan.patterns.isEmpty {
+                outcome.snapshot.patterns = AreaSnapshot()
+                let ok = try applyPatterns(plan.patterns, result, &outcome.snapshot.patterns!)
+                if !ok { verified = false }
+            }
+            if !plan.mixer.isEmpty {
+                outcome.snapshot.mixer = AreaSnapshot()
+                let ok = try applyMixer(plan.mixer, result, styles, &outcome.snapshot.mixer!)
+                if !ok { verified = false }
+            }
+            if !plan.playlist.isEmpty {
+                outcome.snapshot.playlist = AreaSnapshot()
+                let ok = try applyPlaylist(plan.playlist, result, &outcome.snapshot.playlist!)
+                if !ok { verified = false }
+            }
+            if !verified { outcome.error = .mismatch }
         } catch {
             outcome.error = Self.failure(error)
         }
         return outcome
     }
 
-    private func applyMixer(_ result: OrganizerResult, _ families: [Int: SoundFamily],
-                            _ styles: [SoundFamily: FamilyStyle]) -> ApplyOutcome {
-        var originals: [Int: RGBColor] = [:]
-        for track in result.mixer { originals[track.index] = track.color }
-        let colors = Self.plannedColors(families: families, styles: styles, order: result.mixer.map(\.index))
-        var outcome = ApplyOutcome(snapshot: OrganizerSnapshot(kind: .mixer, colors: originals, arrangement: []))
-        do {
-            try link.setColors(.mixer, Self.pairs(colors))
-            var now: [Int: RGBColor] = [:]
-            for track in try link.listMixer() { now[track.index] = track.color }
-            if colors.contains(where: { now[$0.key] != $0.value }) {
-                outcome.error = .mismatch
-            } else {
-                try placeIcons(Self.plannedIcons(families: families, styles: styles), kind: .mixer) { $0 }
-            }
-        } catch {
-            outcome.error = Self.failure(error)
-        }
-        return outcome
-    }
-
-    private func applyRack(_ result: OrganizerResult, _ families: [Int: SoundFamily],
-                           _ styles: [SoundFamily: FamilyStyle], _ kinds: [Int: SoundKind]) -> ApplyOutcome {
+    /// Channel rack : couleurs et noms (places d'origine), remontées, relecture de l'ordre et des couleurs, icônes.
+    private func applyRack(_ area: OrganizerPlan.Area, _ result: OrganizerResult, _ styles: [SoundFamily: FamilyStyle],
+                           _ snap: inout AreaSnapshot) throws -> Bool {
         let channels = result.channels.sorted { $0.index < $1.index }
-        var originals: [Int: RGBColor] = [:]
-        for channel in channels { originals[channel.index] = channel.color }
-        let plan = Self.rackPlan(channels, families: families, kinds: kinds)
-        let colors = Self.plannedColors(families: families, styles: styles, order: plan.final)
-        var outcome = ApplyOutcome(snapshot: OrganizerSnapshot(kind: .channels, colors: originals,
-                                                               arrangement: Array(channels.indices)))
-        let names = channels.map(\.name)
+        for channel in channels {
+            if area.colors[channel.index] != nil { snap.colors[channel.index] = channel.color }
+            if area.names[channel.index] != nil { snap.names[channel.index] = channel.name }
+        }
+        snap.arrangement = Array(channels.indices)
+        let icons = Self.plannedIcons(families: area.verdicts.mapValues { $0.family }, styles: styles)
+        if !area.moves.isEmpty || !icons.isEmpty { try link.show(.channelRack) }
+        try link.setColors(.channels, Self.pairs(area.colors))
+        try link.setNames(.channels, Self.namePairs(area.names))
+        // Noms tels qu'ils sont maintenant dans FL, par index d'origine : pour relire l'ordre.
+        let names = channels.map { area.names[$0.index] ?? $0.name }
         do {
-            // Couleurs d'abord (les places sont encore celles d'origine), puis les remontées.
-            try link.setColors(.channels, Self.pairs(colors))
-            try move(plan.moves, &outcome.snapshot.arrangement)
-            let listed = try link.listChannels()
-            // L'ordre que FL montre vraiment (une touche ⌥↑ perdue) : « Revenir comme avant » remet alors chaque
-            // couleur sur son son, et le regroupement manqué est dit.
-            var regrouped = true
-            if let seen = Self.arrangement(names: listed.map(\.name), original: names) {
-                regrouped = seen == outcome.snapshot.arrangement
-                outcome.snapshot.arrangement = seen
-            }
-            let now: [RGBColor?] = listed.map { $0.color }
-            let expected: [RGBColor?] = outcome.snapshot.arrangement.map { colors[$0] ?? originals[$0] }
-            if !regrouped || now != expected {
-                outcome.error = .mismatch
-            } else {
-                let arrangement = outcome.snapshot.arrangement
-                try placeIcons(Self.plannedIcons(families: families, styles: styles), kind: .channels) {
-                    arrangement.firstIndex(of: $0)
-                }
-            }
+            try move(area.moves, &snap.arrangement, page: .channelRack, kind: .channels, offset: 0, key: moveUp)
         } catch {
-            outcome.error = Self.failure(error)
+            // Arrêt en route : l'ordre relu dans FL, pour que « Revenir comme avant » remette chaque chose à sa place.
             if let listed = try? link.listChannels(),
-               let seen = Self.arrangement(names: listed.map(\.name), original: names) {
-                outcome.snapshot.arrangement = seen               // arrêt en route : l'ordre relu dans FL
+               let seen = Self.arrangement(names: listed.map { $0.name }, original: names) {
+                snap.arrangement = seen
+            }
+            throw error
+        }
+        let listed = try link.listChannels()
+        // L'ordre que FL montre vraiment (une touche ⌥↑ perdue) : « Revenir comme avant » remet alors chaque couleur
+        // sur son son, et le regroupement manqué est dit.
+        var regrouped = true
+        if let seen = Self.arrangement(names: listed.map { $0.name }, original: names) {
+            regrouped = seen == snap.arrangement
+            snap.arrangement = seen
+        }
+        let now: [RGBColor?] = listed.map { $0.color }
+        let expected: [RGBColor?] = snap.arrangement.map { area.colors[$0] ?? channels[$0].color }
+        guard regrouped, now == expected else { return false }
+        let arrangement = snap.arrangement
+        try placeIcons(icons, kind: .channels) { arrangement.firstIndex(of: $0) }
+        return true
+    }
+
+    /// Patterns : couleurs et noms, puis relecture.
+    private func applyPatterns(_ area: OrganizerPlan.Area, _ result: OrganizerResult,
+                               _ snap: inout AreaSnapshot) throws -> Bool {
+        for pattern in result.patterns {
+            if area.colors[pattern.index] != nil { snap.colors[pattern.index] = pattern.color }
+            if area.names[pattern.index] != nil { snap.names[pattern.index] = pattern.name }
+        }
+        try link.setColors(.patterns, Self.pairs(area.colors))
+        try link.setNames(.patterns, Self.namePairs(area.names))
+        var colors: [Int: RGBColor] = [:]
+        var names: [Int: String] = [:]
+        for pattern in try link.listPatterns() {
+            colors[pattern.index] = pattern.color
+            names[pattern.index] = pattern.name
+        }
+        return area.colors.allSatisfy { colors[$0.key] == $0.value } && Self.namesMatch(area.names, names)
+    }
+
+    /// Mixer : couleurs et noms (pistes d'origine), puis Mixer devant et chaque piste décalée à gauche (⌥←),
+    /// relecture de l'ordre, des couleurs et des noms, icônes. Le Master ne bouge jamais.
+    private func applyMixer(_ area: OrganizerPlan.Area, _ result: OrganizerResult, _ styles: [SoundFamily: FamilyStyle],
+                            _ snap: inout AreaSnapshot) throws -> Bool {
+        var byIndex: [Int: MixerTrackInfo] = [:]
+        for track in result.mixer { byIndex[track.index] = track }
+        for index in area.colors.keys { if let t = byIndex[index] { snap.colors[index] = t.color } }
+        for index in area.names.keys { if let t = byIndex[index] { snap.names[index] = t.name } }
+        let span = area.final.count                                   // pistes 1…span
+        snap.arrangement = span > 0 ? Array(1...span) : []
+        try link.setColors(.mixer, Self.pairs(area.colors))
+        try link.setNames(.mixer, Self.namePairs(area.names))
+        // Noms tels qu'ils sont maintenant dans FL, par piste d'origine (pistes 1…span) : pour relire l'ordre.
+        let names: [String] = span > 0 ? (1...span).map { area.names[$0] ?? byIndex[$0]?.name ?? "" } : []
+        let icons = Self.plannedIcons(families: area.verdicts.mapValues { $0.family }, styles: styles)
+        if !area.moves.isEmpty || !icons.isEmpty { try link.show(.mixer) }
+        do {
+            try move(area.moves, &snap.arrangement, page: .mixer, kind: .mixer, offset: 1, key: moveLeft)
+        } catch {
+            if span > 0, let listed = try? link.listMixer(),
+               let seen = Self.arrangement(names: Self.tracks(listed, 1...span).map { $0.name }, original: names) {
+                snap.arrangement = seen.map { $0 + 1 }
+            }
+            throw error
+        }
+        let listed = try link.listMixer()
+        var now: [Int: MixerTrackInfo] = [:]
+        for track in listed { now[track.index] = track }
+        var regrouped = true
+        if span > 0, let seen = Self.arrangement(names: Self.tracks(listed, 1...span).map { $0.name }, original: names) {
+            let tracks = seen.map { $0 + 1 }
+            regrouped = tracks == snap.arrangement
+            snap.arrangement = tracks
+        }
+        // Chaque piste d'origine est maintenant à la place où l'ordre relu la met.
+        let arrangement = snap.arrangement
+        func place(_ original: Int) -> Int {
+            guard let at = arrangement.firstIndex(of: original) else { return original }
+            return at + 1
+        }
+        let colorsOK = area.colors.allSatisfy { now[place($0.key)]?.color == $0.value }
+        var read: [Int: String] = [:]
+        for index in area.names.keys { if let t = now[place(index)] { read[index] = t.name } }
+        guard regrouped, colorsOK, Self.namesMatch(area.names, read) else { return false }
+        try placeIcons(icons, kind: .mixer) { place($0) }
+        return true
+    }
+
+    /// Pistes du Mixer de cette plage, dans l'ordre.
+    private static func tracks(_ listed: [MixerTrackInfo], _ range: ClosedRange<Int>) -> [MixerTrackInfo] {
+        listed.filter { range.contains($0.index) }.sorted { $0.index < $1.index }
+    }
+
+    /// Playlist : couleurs et noms, puis vérification sur les pistes touchées (lues jusqu'à la dernière).
+    private func applyPlaylist(_ area: OrganizerPlan.Area, _ result: OrganizerResult,
+                               _ snap: inout AreaSnapshot) throws -> Bool {
+        for track in result.playlist {
+            if area.colors[track.index] != nil { snap.colors[track.index] = track.color }
+            // Nom de FL lu vide : remis en « Track n » (un nom vide ne peut pas être posé).
+            if area.names[track.index] != nil {
+                snap.names[track.index] = track.name.isEmpty ? "Track \(track.index + 1)" : track.name
             }
         }
-        return outcome
+        try link.setColors(.playlist, Self.pairs(area.colors))
+        try link.setNames(.playlist, Self.namePairs(area.names))
+        let last = max(area.colors.keys.max() ?? -1, area.names.keys.max() ?? -1)
+        guard last >= 0 else { return true }
+        var colors: [Int: RGBColor] = [:]
+        var names: [Int: String] = [:]
+        for track in try link.listPlaylist(limit: last + 1) {
+            colors[track.index] = track.color
+            names[track.index] = track.name
+        }
+        return area.colors.allSatisfy { colors[$0.key] == $0.value } && Self.namesMatch(area.names, names)
+    }
+
+    /// Noms comparés tels que le script les lit (coupés) : le nom relu est le début du nom posé.
+    static func namesMatch(_ sent: [Int: String], _ read: [Int: String]) -> Bool {
+        sent.allSatisfy { item in
+            guard let got = read[item.key], let bytes = OrganizerPayload.nameUTF8(item.value) else { return false }
+            let readBytes = Array(got.utf8)
+            return !readBytes.isEmpty && Array(bytes.prefix(readBytes.count)) == readBytes
+        }
+    }
+
+    /// Icônes en dernier (FL ne dit pas lesquelles étaient là : « Revenir comme avant » ne les retire pas). Chaque
+    /// élément est sélectionné seul, puis la pose passe par la fenêtre de FL ; la page doit rester devant.
+    private func placeIcons(_ icons: [Int: FLIcon], kind: ItemKind, place: (Int) -> Int?) throws {
+        let page: FLWindow = kind == .channels ? .channelRack : .mixer
+        for index in icons.keys.sorted() {
+            guard let icon = icons[index], let at = place(index) else { continue }
+            guard link.window == page else { throw OrganizerError.interrupted }
+            try link.selectOne(kind, at)
+            if let error = placeIcon(icon) { throw error }
+        }
     }
 
     /// Pur (testé) : place → index d'origine, d'après les noms relus dans FL ; nil si un nom se répète ou ne
@@ -391,36 +440,72 @@ final class OrganizerApplier {
         return out.count == now.count && Set(out).count == out.count ? out : nil
     }
 
-    /// Remontées une par une ; la disposition suit ce qui a vraiment été fait.
-    private func move(_ moves: [Move], _ arrangement: inout [Int]) throws {
+    /// Déplacements un par un (élément sélectionné puis touches) ; la disposition suit ce qui a vraiment été fait.
+    /// `offset` : index FL de la place 0 (Mixer : 1, le Master ne bouge pas).
+    private func move(_ moves: [Move], _ arrangement: inout [Int], page: FLWindow, kind: ItemKind, offset: Int,
+                      key: (Int) -> Int) throws {
         for step in moves {
-            guard link.window == .channelRack else { throw OrganizerError.interrupted }
-            try link.selectOne(.channels, step.from)
-            let done = moveUp(step.up)
+            guard link.window == page else { throw OrganizerError.interrupted }
+            try link.selectOne(kind, step.from + offset)
+            let done = key(step.up)
             arrangement = RegroupPlan.applying(Move(from: step.from, up: done), to: arrangement)
             if done < step.up { throw OrganizerError.interrupted }
         }
     }
 
-    /// « Revenir comme avant » : couleurs d'origine (selon la disposition actuelle), puis ordre d'origine.
+    /// « Revenir comme avant » : Playlist, Mixer, patterns puis Channel rack (couleurs et noms d'origine remis sur la
+    /// place actuelle de chaque élément, puis l'ordre d'origine). Chaque page remise sort du mémo : un retour
+    /// interrompu reprend là où il s'est arrêté.
     func undo(_ snapshot: OrganizerSnapshot) -> ApplyOutcome {
         var outcome = ApplyOutcome(snapshot: snapshot)
         do {
-            switch snapshot.kind {
-            case .mixer:
-                try link.setColors(.mixer, Self.pairs(snapshot.colors))
-            case .playlist:
-                try link.setColors(.playlist, Self.pairs(snapshot.colors))
-                try link.setNames(.playlist, Self.namePairs(snapshot.names))
-            case .channels:
-                var byPlace: [Int: RGBColor] = [:]
-                for (place, id) in snapshot.arrangement.enumerated() { byPlace[place] = snapshot.colors[id] }
-                try link.setColors(.channels, Self.pairs(byPlace))
-                try move(RegroupPlan.back(final: snapshot.arrangement), &outcome.snapshot.arrangement)
+            if let s = snapshot.playlist {
+                try link.setColors(.playlist, Self.pairs(s.colors))
+                try link.setNames(.playlist, Self.namePairs(s.names))
+                outcome.snapshot.playlist = nil
+            }
+            if snapshot.mixer != nil {
+                try undoArranged(&outcome.snapshot.mixer!, kind: .mixer, page: .mixer, offset: 1, key: moveLeft)
+                outcome.snapshot.mixer = nil
+            }
+            if let s = snapshot.patterns {
+                try link.setColors(.patterns, Self.pairs(s.colors))
+                try link.setNames(.patterns, Self.namePairs(s.names))
+                outcome.snapshot.patterns = nil
+            }
+            if snapshot.rack != nil {
+                try undoArranged(&outcome.snapshot.rack!, kind: .channels, page: .channelRack, offset: 0, key: moveUp)
+                outcome.snapshot.rack = nil
             }
         } catch {
             outcome.error = Self.failure(error)
         }
         return outcome
+    }
+
+    /// Couleurs et noms d'origine sur la place actuelle de chaque élément, puis déplacements vers l'ordre d'origine.
+    /// `offset` : index FL de la place 0 (Mixer : 1, et la disposition y est en numéros de pistes).
+    private func undoArranged(_ s: inout AreaSnapshot, kind: ItemKind, page: FLWindow, offset: Int,
+                              key: (Int) -> Int) throws {
+        let arrangement = s.arrangement
+        func current(_ original: Int) -> Int {
+            guard let place = arrangement.firstIndex(of: original) else { return original }
+            return place + offset
+        }
+        var colors: [Int: RGBColor] = [:]
+        for (original, color) in s.colors { colors[current(original)] = color }
+        var names: [Int: String] = [:]
+        for (original, name) in s.names { names[current(original)] = name }
+        try link.setColors(kind, Self.pairs(colors))
+        try link.setNames(kind, Self.namePairs(names))
+        s.colors = [:]
+        s.names = [:]
+        // Places (0 = premier élément déplaçable) → index d'origine, ramenés à la même base pour le plan de retour.
+        var places = arrangement.map { $0 - offset }
+        let back = RegroupPlan.back(final: places)
+        guard !back.isEmpty else { return }
+        try link.show(page)
+        defer { s.arrangement = places.map { $0 + offset } }
+        try move(back, &places, page: page, kind: kind, offset: offset, key: key)
     }
 }

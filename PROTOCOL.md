@@ -174,12 +174,14 @@ unités  = [4, 1, 3, 96, 69, 58, 4, 75, 0, 105, 99, 107]
 MAC     = [116, 112, 71, 62]
 ```
 
-## 8. Organiser et dégradé (script v5, Playlist : script v6)
+## 8. Organiser et dégradé (script v5, Playlist : script v6, tout le projet : script v12)
 
 Opérations 2 à 12 de la commande avec données (§7), annoncées par le bit **42** du masque de capacités (le bit 41
 seul = opération 1 seulement). Un script qui annonce 42 a aussi `utils.ColorToRGB` et `utils.RGBToColor` de FL.
 Les opérations 9 à 12 (script v6) n'ont pas de bit à elles : un script v5 les refuse avec la raison 5 sans rien
-toucher, et l'appli demande alors de redémarrer FL (le script mis à jour n'est lu qu'au lancement de FL).
+toucher, et l'appli demande alors de redémarrer FL (le script mis à jour n'est lu qu'au lancement de FL). Il en va
+de même des opérations 13 à 18 et du genre 4 (patterns) : l'Organiser commence par lister les patterns ; un script
+d'avant la v12 refuse (raison 5) et l'appli attend que FL soit redémarré.
 
 - **Réponse FL → appli** (opération 2) : CC **112** = début (valeur = opération), un CC **113** par unité de 7 bits
   (empaquetage du §7, **600 unités** au plus), CC **114** = fin, puis 4 CC **115** =
@@ -187,30 +189,35 @@ toucher, et l'appli demande alors de redémarrer FL (le script mis à jour n'est
   avant l'accusé 41 : liée à sa commande, elle ne peut pas être rejouée pour une autre. L'appli ignore une réponse au
   MAC faux, incomplète, ou qui ne suit pas sa commande.
 - Index sur 2 octets, poids fort d'abord. Genre : 1 = canaux du Channel rack, 2 = pistes du Mixer, 3 = pistes de
-  la Playlist (index 0 = piste 1 de FL ; l'API de la Playlist compte depuis 1).
+  la Playlist (index 0 = piste 1 de FL ; l'API de la Playlist compte depuis 1), 4 = patterns (script v12 ; index 0 =
+  pattern 1 de FL).
 
 | Opération | Données | Effet |
 |---|---|---|
-| op 2 : liste | genre, début (2) | réponse `[genre, total (2), début (2), n, filtré]` puis n entrées (16 au plus). Canal : `[type, piste du Mixer (2), R, G, B, longueur, nom]` (type 0 avant l'API 19) ; piste du Mixer : `[R, G, B, longueur, nom]` ; piste de la Playlist : `[sélectionnée, R, G, B, longueur, nom]` (sélectionnée = 0 avant l'API 12). Noms UTF-8 coupés à 24 octets sans couper un caractère, pour l'aperçu seulement. filtré = 1 si le Channel rack montre un groupe (les index des opérations 2 à 6 sont alors ceux du groupe affiché ; l'appli organise ce groupe) |
+| op 2 : liste | genre, début (2) | réponse `[genre, total (2), début (2), n, filtré]` puis n entrées (8 au plus ; 16 avant la v12). Canal : `[type, piste du Mixer (2), R, G, B, longueur, nom]` (type 0 avant l'API 19) ; piste du Mixer : `[R, G, B, longueur, nom]` ; piste de la Playlist : `[sélectionnée, R, G, B, longueur, nom]` (sélectionnée = 0 avant l'API 12) ; pattern : `[R, G, B, longueur, nom]`. Noms UTF-8 coupés à 48 octets (24 avant la v12) sans couper un caractère : aperçu, et noms remis par « Revenir comme avant ». filtré = 1 si le Channel rack montre un groupe (les index des opérations 2 à 6 sont alors ceux du groupe affiché ; l'appli organise ce groupe) |
 | op 3 : note d'essai | canal (2), note, vélocité | `channels.midiNoteOn` ; vélocité 0 = arrêt |
-| op 4 : couleurs | genre, n, (index (2), R, G, B) × n | n ≤ 64 ; tout est vérifié avant de poser la première couleur |
+| op 4 : couleurs | genre, n, (index (2), R, G, B) × n | n ≤ 64 ; tout est vérifié avant de poser la première couleur ; patterns : `patterns.setPatternColor` (script v12) |
 | op 5 : sélection | genre, index (2) | cet élément seul sélectionné (`selectOneChannel` API 8 ; Mixer `setActiveTrack` API 27, sinon `deselectAll` + `selectTrack`) |
-| op 6 : écoute d'un canal | canal (2), pattern (2) facultatif (script v11) | FL qui joue sans écoute en cours → raison 4, rien n'est touché. 1er appel : mémo des sourdines de tous les canaux (API 33 : de tout le projet, groupes du Channel rack masqués compris ; avant : les canaux affichés), du mode (pattern / song), de la position et du métronome (allumé : éteint pendant l'écoute, rallumé à la remise, op 7). Puis ce canal seul audible (canal 0xFFFF : tous audibles, pour repérer les sons d'un pattern), dans le pattern donné (1 = le premier ; le pattern ouvert est remis par l'op 7) (on ne bascule que les sourdines qui doivent changer), mode pattern, position 0, lecture |
+| op 6 : écoute d'un canal | canal (2), pattern (2) facultatif (script v11) | FL qui joue sans écoute en cours → raison 4, rien n'est touché. 1er appel : mémo des sourdines de tous les canaux (API 33 : de tout le projet, groupes du Channel rack masqués compris ; avant : les canaux affichés), du mode (pattern / song), de la position et du métronome (allumé : éteint pendant l'écoute, rallumé à la remise, op 7). Puis ce canal seul audible (canal 0xFFFF : tous audibles, pour repérer les sons d'un pattern ; script v12 : les canaux coupés par l'utilisateur aussi, leurs sons comptent), dans le pattern donné (1 = le premier ; le pattern ouvert est remis par l'op 7) (on ne bascule que les sourdines qui doivent changer), mode pattern, position 0, lecture |
 | op 7 : fin de l'écoute | — | arrêt, sourdines, mode et position remis comme au mémo, mémo vidé ; **sans effet** sans mémo (la lecture de l'utilisateur n'est jamais coupée). Aussi fait par le script quand il se rendort ou est déchargé |
 | op 8 : dégradé | First R, G, B, Last R, G, B | page devant (comme l'op 1) ; tous les éléments sélectionnés, du premier au dernier ; composante k = `int(a + (b − a) × k / (n − 1) + 0,5)`, comme « Gradient color… » de FL. 0 sélectionné → raison 2, 1 seul → raison 7 |
 | op 9 : page devant | — | réponse `[code]` : le code de la page devant (§3, CC 117 : 0 Mixer, 1 Channel rack, 2 Playlist, 3 Piano roll, 4 Browser, 5 plugin, 127 aucune). L'appli le demande avant d'organiser : en mode léger, rien n'est su de FL avant le réveil |
-| op 10 : noms | genre (3 seulement), n, (index (2), longueur, nom UTF-8) × n | 1 ≤ n ≤ 16, nom de 1 à 32 octets ; tout est vérifié (index, longueurs, UTF-8, aucun octet en trop) avant de poser le premier nom (`playlist.setTrackName`) |
-| op 11 : écoute d'une piste de la Playlist | piste (2) | comme l'op 6 pour la Playlist : FL qui joue sans écoute en cours → raison 4. 1er appel : mémo des sourdines de toutes les pistes, du mode, de la position et du métronome (comme l'op 6) (une écoute du Channel rack en cours est d'abord remise comme avant, et inversement). Puis cette piste seule audible, mode song, position 0, lecture. Réponse `[mesures (2)]` : longueur de la chanson (`transport.getSongLength`, API 3 ; 0 si inconnue) |
+| op 10 : noms | genre (1 à 4 ; 3 seulement avant la v12), n, (index (2), longueur, nom UTF-8) × n | 1 ≤ n ≤ 16, nom de 1 à 64 octets (32 avant la v12), aucun caractère de contrôle ; tout est vérifié (index, longueurs, UTF-8, aucun octet en trop) avant de poser le premier nom (`setChannelName`, `mixer.setTrackName`, `playlist.setTrackName`, `setPatternName`) ; canaux : index du groupe affiché, comme les opérations 2 à 5 |
+| op 11 : écoute d'une piste de la Playlist | piste (2) | comme l'op 6 pour la Playlist : FL qui joue sans écoute en cours → raison 4. 1er appel : mémo des sourdines de toutes les pistes, du mode, de la position et du métronome (comme l'op 6) (une écoute du Channel rack en cours est d'abord remise comme avant, et inversement). Puis cette piste seule audible (script v12 : avec tous les canaux du Channel rack, coupés compris ; remis par l'op 7), mode song, position 0, lecture. Réponse `[mesures (2)]` : longueur de la chanson (`transport.getSongLength`, API 3 ; 0 si inconnue) |
 | op 12 : position | pour mille (2) | position de la chanson (`setSongPos`, 0 à 1000 ‰), seulement pendant une écoute de la Playlist (sinon raison 5). L'appli parcourt la chanson jusqu'à ce que la piste sonne |
 | op 13 : mute / solo d'un canal | 0 mute ou 1 solo, index (2) | bascule le mute (`muteChannel`) ou le solo (`soloChannel`) de ce canal du Channel rack, comme son bouton ; index hors du Channel rack : raison 5. Bloc « Cliquer sur… » › Mute ou Solo d'un canal (son numéro) : ni clic ni touche ; sans le lien, les touches 1 à 0 de FL jusqu'au canal 10 seulement ; script v7 |
 | op 14 : ce qui joue (script v11) | genre (1 canaux, 3 pistes de la Playlist) | réponse `[genre, n (2), bits]` : un bit par élément (bit i % 8 de l'octet i // 8), 512 au plus ; canaux affichés dont une note joue (`channels.getActivityLevel` > 0,01, API 9 ; sinon raison 6), pistes dont un clip passe sous la tête de lecture (`playlist.getTrackActivityLevel`, index 0 = piste 1). Rien n'est écouté : FL le dit lui-même |
 | op 15 : patterns (script v11) | — | réponse `[nombre de patterns (2), pattern ouvert (2)]` |
-| op 16 : toute la chanson (script v11) | pour mille (2) | toute la chanson à cette position, rien de coupé ; 1er appel : mémo du mode, de la position, du pattern et du métronome (op 7 remet) ; FL qui joue sans écoute en cours → raison 4. Réponse `[mesures (2)]` |
+| op 16 : toute la chanson (script v11) | pour mille (2) | toute la chanson à cette position, rien de coupé (script v12 : canaux et pistes coupés par l'utilisateur rendus audibles au 1er appel) ; 1er appel : mémo des sourdines, du mode, de la position, du pattern et du métronome (op 7 remet) ; FL qui joue sans écoute en cours → raison 4. Réponse `[mesures (2)]` |
+| op 17 : envois du Mixer (script v12) | piste (2) | réponse `[piste (2), n, destination (2) × n]` : pistes vers lesquelles cette piste envoie (`mixer.getRouteSendActive`), sans le Master ni la dernière piste (« Current ») ; 64 au plus. Piste 0, la dernière ou hors du Mixer : raison 5. L'Organiser garde côte à côte les pistes reliées par un envoi |
+| op 18 : page devant (script v12) | code (0 Mixer, 1 Channel rack, 2 Playlist) | ouvre cette page de FL et la met devant (`ui.showWindow`, comme F9, F6 et F5) ; autre code : raison 5. L'Organiser l'ouvre avant d'y déplacer des éléments au clavier |
 
 - **Raisons** en plus (CC 116) : 4 FL joue déjà, 7 au moins 2 éléments sélectionnés pour un dégradé. Une fonction
   de FL absente pour une opération → raison 6.
 - L'API de FL ne permet ni de déplacer une piste de la Playlist, ni de lire ou poser son icône, ni de lister ses
-  clips : la Playlist est colorée et renommée, jamais réordonnée.
+  clips : la Playlist est colorée et renommée, jamais réordonnée. Les patterns non plus ne se déplacent pas. Le
+  Channel rack et le Mixer sont réordonnés au clavier, élément sélectionné (op 5) puis ⌥↑ (Channel rack) ou ⌥←
+  (Mixer ; les canaux reliés suivent leur piste), page devant (op 18).
 - Les noms des sons et des pistes n'apparaissent jamais dans les messages de FL : une erreur ne donne que son type.
 
 **Vecteur de test de la réponse** (mêmes valeurs des deux côtés) :

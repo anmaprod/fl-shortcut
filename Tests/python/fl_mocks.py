@@ -107,6 +107,11 @@ class FLState(object):
         self.pl_colors = kw.get("pl_colors", {})
         self.pl_muted = set(kw.get("pl_muted", ()))
         self.song_bars = kw.get("song_bars", 32)
+        # Patterns (index 1 = pattern 1 de FL) : noms et couleurs ; envois du Mixer : piste -> destinations.
+        self.pat_names = kw.get("pat_names", {})
+        self.pat_colors = kw.get("pat_colors", {})
+        self.routes = dict(kw.get("routes", {}))
+        self.shown = []
 
     def cc_out(self):
         """Liste (statut, cc, valeur) des messages envoyés."""
@@ -198,7 +203,7 @@ def build_fl(api=45, missing=(), extra=None, **kw):
         maxargs(1 if api >= 3 else 0, lambda *a: 1920 if a else st.song_pos))
 
     # ui
-    reg("ui", "showWindow", 1, lambda w: None)
+    reg("ui", "showWindow", 1, lambda w: st.shown.append(w))
     reg("ui", "setFocused", 2, lambda w: None)
     reg("ui", "getFocused", 1, lambda w: 1 if w in st.focused else 0)
     reg("ui", "setHintMsg", 1, lambda text: st.hints.append(text))
@@ -281,6 +286,9 @@ def build_fl(api=45, missing=(), extra=None, **kw):
     reg("mixer", "getTrackName", 1, lambda i: (chk_track(i), st.mx_names.get(i, "Insert %d" % i))[1])
     reg("mixer", "getTrackColor", 1, lambda i: (chk_track(i), st.mx_colors.get(i, 0x4B5560))[1])
 
+    reg("mixer", "getRouteSendActive", 1,
+        lambda i, d: (chk_track(i), chk_track(d), d in st.routes.get(i, ()))[2])
+
     def mx_select(i):
         chk_track(i)
         st.mx_sel.symmetric_difference_update({i})
@@ -356,6 +364,16 @@ def build_fl(api=45, missing=(), extra=None, **kw):
         st.pattern = i
     reg("patterns", "jumpToPattern", 1, jump)
     reg("patterns", "findFirstNextEmptyPat", 1, lambda flags, *a: None)
+
+    def chk_pat(i):
+        if not isinstance(i, int) or not 1 <= i <= st.pattern_count:
+            raise TypeError("Pattern index out of range")
+    reg("patterns", "getPatternName", 1, lambda i: (chk_pat(i), st.pat_names.get(i, "Pattern %d" % i))[1])
+    reg("patterns", "getPatternColor", 1, lambda i: (chk_pat(i), st.pat_colors.get(i, 0x485058))[1])
+    reg("patterns", "setPatternName", 1,
+        lambda i, name: (chk_pat(i), st.given_names.__setitem__(("patterns", i), name))[1])
+    reg("patterns", "setPatternColor", 1,
+        lambda i, c: (chk_pat(i), st.given_colors.__setitem__(("patterns", i), c))[1])
     reg("patterns", "clonePattern", 25, lambda *a: None)
 
     # device

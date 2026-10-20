@@ -2,7 +2,7 @@ import Combine
 import XCTest
 @testable import FLShortcut
 
-/// Organiser : contrôleur de la fenêtre (sans fenêtre), bloc « Organiser la page ouverte » et son modèle.
+/// Organiser : contrôleur de la fenêtre (sans fenêtre), bloc « Tout organiser » et son modèle.
 final class OrganizerWindowTests: XCTestCase {
     private static func classify(_ samples: [Float], _ rate: Double) -> (family: SoundFamily, confidence: Double) {
         samples.isEmpty ? (.unsure, 0) : (.drums, 0.9)
@@ -13,6 +13,7 @@ final class OrganizerWindowTests: XCTestCase {
         var e = OrganizerEnvironment(link: { link }, audio: { .success(audio) },
                                      classify: { OrganizerWindowTests.classify },
                                      moveUp: { _ in { count in link.moveSelectedUp(count) } },
+                                     moveLeft: { _ in { count in link.moveSelectedLeft(count) } },
                                      timing: OrganizerSession.Timing(listen: 0.01, testNote: 0.01, tail: 0.01, slice: 0.01),
                                      sleep: { _ in }, escapePressed: { false },
                                      loadStyles: { FamilyStyles.initial }, saveStyles: saved)
@@ -56,7 +57,7 @@ final class OrganizerWindowTests: XCTestCase {
             controller.onClose = { closings += 1 }
             controller.start()
             waitFor(controller) { $0 == .preview }
-            XCTAssertEqual(controller.title, "Organiser le Channel rack")
+            XCTAssertEqual(controller.title, "Organiser le projet")
             XCTAssertEqual(controller.presentFamilies, [.drums])
             XCTAssertEqual(controller.members(of: .drums).map(\.name), ["Son 0", "Son 1"])
 
@@ -69,6 +70,7 @@ final class OrganizerWindowTests: XCTestCase {
             XCTAssertEqual(controller.phase, .applied(nil))
             XCTAssertEqual(saved?[.drums]?.fade, black)
             XCTAssertEqual(link.channels.map(\.color), [bass, drums], "la basse remonte avant les drums")
+            XCTAssertEqual(link.channels.map(\.name), ["Basse", "Perc"], "renommés simplement")
 
             XCTAssertTrue(controller.canUndo)
             controller.undo()
@@ -76,6 +78,7 @@ final class OrganizerWindowTests: XCTestCase {
             XCTAssertEqual(controller.phase, .undone(nil))
             XCTAssertFalse(controller.canUndo)
             XCTAssertEqual(link.channels.map(\.color), [first, second])
+            XCTAssertEqual(link.channels.map(\.name), ["Son 0", "Son 1"])
 
             controller.close()
             controller.close()
@@ -150,23 +153,23 @@ final class OrganizerWindowTests: XCTestCase {
         controller.close()
     }
 
-    func testFailureCanBeRetried() {
+    /// Un ancien script chargé dans FL : Organiser attend que FL redémarre, puis continue tout seul.
+    func testOldScriptWaitsThenGoesOn() {
         let link = FakeOrganizerLink()
-        link.window = .browser
+        link.v12 = false
         let controller = OrganizerController(env: env(link, FakeAudio(link: link), saved: { _ in }))
         controller.start()
-        // Aucune page à organiser devant : Organiser attend, puis continue tout seul quand elle s'ouvre.
-        waitFor(controller) { $0 == .waiting(.openPage) }
-        XCTAssertTrue(OrganizerError.refused(1).message.contains("Playlist"))
+        waitFor(controller) { $0 == .waiting(.restartFL) }
         XCTAssertTrue(controller.canRetry)
-        link.window = .channelRack
+        link.v12 = true
         waitFor(controller) { if case .failed = $0 { return true } else { return false } }
-        XCTAssertEqual(controller.phase, .failed("Aucun son à écouter dans le Channel rack."))
+        XCTAssertEqual(controller.phase, .failed("Aucun son à organiser dans ce projet."))
         controller.close()
     }
 
-    /// Rangés d'après leur nom (« BEAM KICK » : Kick) : l'aperçu montre ce qu'est chaque son, les met dans l'ordre
-    /// du Channel rack organisé (les Kick, puis les Clap, puis les Open Hat) ; changé à la main, il suit.
+    /// Rangés d'après leur nom (« BEAM KICK » : Kick) : l'aperçu montre ce qu'est chaque son et le nom qu'il prendra,
+    /// les met dans l'ordre du Channel rack organisé (les Kick, puis les Clap, puis les Open Hat) ; changé à la main,
+    /// il suit.
     func testPreviewShowsWhatEachSoundIs() {
         let link = FakeOrganizerLink()
         let gray = RGBColor(r: 9, g: 9, b: 9)
@@ -179,6 +182,7 @@ final class OrganizerWindowTests: XCTestCase {
         XCTAssertEqual(controller.presentFamilies, [.bass, .drums])
         XCTAssertEqual(controller.members(of: .drums).map(\.name), ["BEAM KICK", "@MEH CLAP", "ALTER OPEN HAT"])
         XCTAssertEqual(controller.members(of: .drums).map { $0.kind?.name }, ["Kick", "Clap", "Open Hat"])
+        XCTAssertEqual(controller.members(of: .drums).map(\.newName), ["Kick", "Clap", "Open Hat"])
         XCTAssertEqual(controller.members(of: .bass).map { $0.kind?.name }, ["808"])
 
         controller.setFamily(1, .bass)
@@ -187,40 +191,59 @@ final class OrganizerWindowTests: XCTestCase {
         controller.setKind(1, .kick)
         XCTAssertEqual(controller.families[1], .drums)
         XCTAssertEqual(controller.members(of: .drums).first?.kind, .kick)
+        controller.options.rename = false
+        XCTAssertEqual(controller.members(of: .drums).map(\.newName), [nil, nil, nil])
+        controller.options.rename = true
 
         controller.apply()
         waitFor(controller, OrganizerWindowTests.isApplied)
         XCTAssertEqual(controller.phase, .applied(nil))
-        XCTAssertEqual(link.channels.map(\.name), ["ZEBRA 808", "BEAM KICK", "@MEH CLAP", "ALTER OPEN HAT"])
+        XCTAssertEqual(link.channels.map(\.name), ["808", "Kick", "Clap", "Open Hat"])
         controller.close()
     }
 
-    func testPlaylistPreviewNamesAndApply() {
+    /// « Tout organiser » : Channel rack, patterns, Mixer (même ordre, pistes de groupe après leurs pistes) et
+    /// Playlist d'un coup ; « Revenir comme avant » remet tout.
+    func testWholeProjectAppliedThenUndone() {
         let link = FakeOrganizerLink()
-        link.window = .playlist
         let gray = RGBColor(r: 9, g: 9, b: 9)
-        link.playlist = (0..<3).map { PlaylistTrackInfo(index: $0, selected: false, color: gray, name: "Track \($0 + 1)") }
-        let audio = FakeAudio(link: link)
-        audio.tracks = [0: (from: 0, samples: [Float](repeating: 0.3, count: 64)),
-                        2: (from: 0, samples: [Float](repeating: 0.3, count: 64))]
-        var e = env(link, audio, saved: { _ in })
-        e.nameDrum = { { _, _ in .snare } }
-        let controller = OrganizerController(env: e)
+        link.channels = [ChannelInfo(index: 0, type: 2, mixerTrack: 1, color: gray, name: "BEAM KICK"),
+                         ChannelInfo(index: 1, type: 2, mixerTrack: 2, color: gray, name: "Lead Synth"),
+                         ChannelInfo(index: 2, type: 2, mixerTrack: 3, color: gray, name: "@MEH CLAP")]
+        link.mixer = (0...5).map { MixerTrackInfo(index: $0, color: gray, name: $0 == 0 ? "Master" : "Insert \($0)") }
+        link.routes = [1: [4], 3: [4]]
+        link.patternList = [PatternInfo(index: 0, color: gray, name: "hi hat"),
+                            PatternInfo(index: 1, color: gray, name: "Pattern 2")]
+        link.patternSounds = [2: [1]]
+        link.bars = 2
+        link.songAt = { _ in ([0, 1], [0, 1]) }
+        link.trackChannels = [0: [0, 2], 1: [1]]
+        link.playlist = (0..<2).map { PlaylistTrackInfo(index: $0, selected: false, color: gray, name: "Track \($0 + 1)") }
+        let original = (link.channels, link.mixer, link.patternList, link.playlist)
+        let controller = OrganizerController(env: env(link, FakeAudio(link: link), saved: { _ in }))
         controller.start()
         waitFor(controller) { $0 == .preview }
-        XCTAssertEqual(controller.title, "Organiser la Playlist")
-        XCTAssertEqual(controller.members(of: .drums).map(\.newName), ["Snare", "Snare 2"])
-        controller.renameTracks = false
-        XCTAssertEqual(controller.members(of: .drums).map(\.newName), [nil, nil])
-        controller.renameTracks = true
+        XCTAssertEqual(controller.summary.count, 4, "une ligne par page de FL")
         controller.apply()
         waitFor(controller, OrganizerWindowTests.isApplied)
         XCTAssertEqual(controller.phase, .applied(nil))
-        XCTAssertEqual(link.playlist.map(\.name), ["Snare", "Track 2", "Snare 2"])
+        // Channel rack : la mélodie d'abord, puis les drums (Kick, Clap) ; noms simples.
+        XCTAssertEqual(link.channels.map(\.name), ["Lead", "Kick", "Clap"])
+        // Patterns : « hi hat » prend son nom simple, le pattern 2 ce qui y joue.
+        XCTAssertEqual(link.patternList.map(\.name), ["Hi-hat", "Lead"])
+        // Mixer : même ordre que le Channel rack ; la piste de groupe juste après les pistes qui lui envoient.
+        XCTAssertEqual(link.mixer.map(\.name), ["Master", "Lead", "Kick", "Clap", "Drums Bus", "Insert 5"])
+        XCTAssertEqual(link.channels.map(\.mixerTrack), [1, 2, 3], "chaque son suit sa piste")
+        // Playlist : chaque piste prend ce qu'elle joue.
+        XCTAssertEqual(link.playlist.map(\.name), ["Drums", "Lead"])
+
         controller.undo()
         waitFor(controller, OrganizerWindowTests.isUndone)
-        XCTAssertEqual(link.playlist.map(\.name), ["Track 1", "Track 2", "Track 3"])
-        XCTAssertEqual(link.playlist.map(\.color), [gray, gray, gray])
+        XCTAssertEqual(controller.phase, .undone(nil))
+        XCTAssertEqual(link.channels, original.0)
+        XCTAssertEqual(link.mixer, original.1)
+        XCTAssertEqual(link.patternList, original.2)
+        XCTAssertEqual(link.playlist, original.3)
         controller.close()
     }
 
@@ -240,7 +263,7 @@ final class OrganizerWindowTests: XCTestCase {
         XCTAssertEqual(waiting.phase, .waiting(.openFL))
         open = true
         waitFor(waiting) { if case .failed = $0 { return true } else { return false } }
-        XCTAssertEqual(waiting.phase, .failed("Aucun son à écouter dans le Channel rack."))
+        XCTAssertEqual(waiting.phase, .failed("Aucun son à organiser dans ce projet."))
         waiting.close()
     }
 
@@ -257,7 +280,7 @@ final class OrganizerWindowTests: XCTestCase {
         XCTAssertEqual(link.log, [], "rien n'est envoyé à FL")
         permission = .granted
         waitFor(denied) { if case .failed = $0 { return true } else { return false } }
-        XCTAssertEqual(denied.phase, .failed("Aucun son à écouter dans le Channel rack."))
+        XCTAssertEqual(denied.phase, .failed("Aucun son à organiser dans ce projet."))
         denied.close()
 
         permission = .unknown

@@ -1,12 +1,12 @@
-// Organiser : le lien avec FL pour les opérations 2 à 12 du script (PROTOCOL.md §8 ; 9 à 12 : script v6). Les
-// octets de chaque opération et le décodage des listes sont purs (testés) ; `RequestOrganizerLink` les envoie par le
-// lien, à 20 par seconde au plus comme le veut le script. Les noms des sons servent à l'aperçu et aux nouveaux noms
-// seulement : jamais journalisés.
+// Organiser : le lien avec FL pour les opérations 2 à 18 du script (PROTOCOL.md §8 ; 9 à 12 : script v6, 14 à 16 :
+// v11, patterns, noms de tout genre, envois du Mixer et page à mettre devant : v12). Les octets de chaque opération et
+// le décodage des listes sont purs (testés) ; `RequestOrganizerLink` les envoie par le lien, à 20 par seconde au plus
+// comme le veut le script. Les noms des sons servent à l'aperçu et aux nouveaux noms seulement : jamais journalisés.
 import Foundation
 
-/// Genre d'éléments de FL : canaux du Channel rack, pistes du Mixer ou de la Playlist.
+/// Genre d'éléments de FL : canaux du Channel rack, pistes du Mixer ou de la Playlist, patterns.
 enum ItemKind: UInt8 {
-    case channels = 1, mixer = 2, playlist = 3
+    case channels = 1, mixer = 2, playlist = 3, patterns = 4
 }
 
 /// Un canal du Channel rack, tel que le script le décrit.
@@ -27,6 +27,26 @@ struct MixerTrackInfo: Equatable {
     let index: Int
     let color: RGBColor
     let name: String
+
+    /// Nom donné par FL à une piste jamais renommée (« Insert 3 », ou vide).
+    var hasDefaultName: Bool {
+        let trimmed = name.trimmingCharacters(in: .whitespaces)
+        return trimmed.isEmpty || trimmed == "Insert \(index)"
+    }
+}
+
+/// Un pattern : index 0 = pattern 1 de FL.
+struct PatternInfo: Equatable {
+    let index: Int
+    let color: RGBColor
+    /// Coupé par le script (aperçu et « Revenir comme avant »).
+    let name: String
+
+    /// Nom donné par FL à un pattern jamais renommé (« Pattern 3 », ou vide).
+    var hasDefaultName: Bool {
+        let trimmed = name.trimmingCharacters(in: .whitespaces)
+        return trimmed.isEmpty || trimmed == "Pattern \(index + 1)"
+    }
 }
 
 /// Une piste de la Playlist : index 0 = piste 1 de FL.
@@ -50,7 +70,7 @@ enum OrganizerError: Error, Equatable {
     case failed(String)
     /// Échap pendant l'écoute.
     case cancelled
-    /// Le Channel rack n'est plus devant pendant les déplacements.
+    /// La page de FL où les éléments sont déplacés (Channel rack, Mixer) n'est plus devant.
     case interrupted
     /// Après l'application, FL ne montre pas ce qui était prévu.
     case mismatch
@@ -67,7 +87,7 @@ enum OrganizerError: Error, Equatable {
         switch self {
         case .cancelled: return String(localized: "Organiser arrêté : FL est remis comme avant.")
         case .interrupted:
-            return String(localized: "Le Channel rack n'est plus devant : Organiser s'est arrêté. « Revenir comme avant » défait ce qui a été fait.")
+            return String(localized: "La page de FL a changé pendant le rangement : Organiser s'est arrêté. « Revenir comme avant » défait ce qui a été fait.")
         case .mismatch: return String(localized: "FL n'a pas tout pris : vérifie dans FL, ou clique sur « Revenir comme avant ».")
         case .noResponse:
             return String(localized: "FL ne répond pas : le script FL Shortcuts n'est pas chargé dans FL. Vérifie ces réglages, puis « Réessayer ».")
@@ -94,9 +114,9 @@ enum OrganizerError: Error, Equatable {
 enum OrganizerPayload {
     static let pageSize = 16
     static let maxColors = 64
-    /// Opération 10 : 16 noms au plus par commande, 32 octets UTF-8 au plus chacun.
+    /// Opération 10 : 16 noms au plus par commande, 64 octets UTF-8 au plus chacun (script v12 ; 32 avant).
     static let maxNames = 16
-    static let nameBytes = 32
+    static let nameBytes = 64
 
     static func be16(_ n: Int) -> [UInt8] {
         let v = UInt16(clamping: n)
@@ -135,6 +155,20 @@ enum OrganizerPayload {
     static func gradient(first a: RGBColor, last b: RGBColor) -> [UInt8] { [8, a.r, a.g, a.b, b.r, b.g, b.b] }
 
     static let page: [UInt8] = [9]
+
+    /// Opération 17 (script v12) : les pistes du Mixer vers lesquelles cette piste envoie.
+    static func routes(_ track: Int) -> [UInt8] { [17] + be16(track) }
+
+    /// Opération 18 (script v12) : cette page de FL devant (codes de `FLWindow` : 0 Mixer, 1 Channel rack,
+    /// 2 Playlist) ; nil pour une autre page.
+    static func show(_ window: FLWindow) -> [UInt8]? {
+        switch window {
+        case .mixer: return [18, 0]
+        case .channelRack: return [18, 1]
+        case .playlist: return [18, 2]
+        default: return nil
+        }
+    }
 
     /// Opération 13 (script v7) : bascule le mute, ou le solo, du canal `index` (0 = canal 1 du Channel rack).
     static func toggleChannel(_ index: Int, solo: Bool) -> [UInt8] { [13, solo ? 1 : 0] + be16(index) }
@@ -271,6 +305,30 @@ enum OrganizerPayload {
         return Page(total: h.total, start: h.start, items: items, filtered: h.filtered)
     }
 
+    static func decodePatternList(_ bytes: [UInt8]) -> Page<PatternInfo>? {
+        var r = Reader(bytes: bytes)
+        guard let h = header(&r, kind: .patterns) else { return nil }
+        var items: [PatternInfo] = []
+        for i in 0..<h.n {
+            guard let color = r.color(), let name = r.name() else { return nil }
+            items.append(PatternInfo(index: h.start + i, color: color, name: name))
+        }
+        guard r.at == bytes.count else { return nil }
+        return Page(total: h.total, start: h.start, items: items, filtered: h.filtered)
+    }
+
+    /// Réponse de l'opération 17 : `[piste (2), n, (destination (2)) × n]` ; nil si illisible ou d'une autre piste.
+    static func decodeRoutes(_ bytes: [UInt8], track: Int) -> [Int]? {
+        var r = Reader(bytes: bytes)
+        guard r.u16() == track, let n = r.u8() else { return nil }
+        var out: [Int] = []
+        for _ in 0..<n {
+            guard let d = r.u16() else { return nil }
+            out.append(d)
+        }
+        return r.at == bytes.count ? out : nil
+    }
+
     static func decodeMixer(_ bytes: [UInt8]) -> Page<MixerTrackInfo>? {
         var r = Reader(bytes: bytes)
         guard let h = header(&r, kind: .mixer) else { return nil }
@@ -296,6 +354,12 @@ protocol OrganizerLink: AnyObject {
     func listMixer() throws -> [MixerTrackInfo]
     /// Les `limit` premières pistes de la Playlist (toutes si elle en a moins).
     func listPlaylist(limit: Int) throws -> [PlaylistTrackInfo]
+    /// Tous les patterns (script v12 : un script plus ancien répond `outdatedScript`).
+    func listPatterns() throws -> [PatternInfo]
+    /// Pistes du Mixer vers lesquelles cette piste envoie (sans le Master).
+    func routes(from track: Int) throws -> [Int]
+    /// Cette page de FL devant (Channel rack, Mixer, Playlist), comme ses raccourcis F6, F9, F5.
+    func show(_ window: FLWindow) throws
     func setColors(_ kind: ItemKind, _ colors: [(index: Int, color: RGBColor)]) throws
     func setNames(_ kind: ItemKind, _ names: [(index: Int, name: String)]) throws
     func selectOne(_ kind: ItemKind, _ index: Int) throws
@@ -308,12 +372,13 @@ protocol OrganizerLink: AnyObject {
     func activeChannels() throws -> Set<Int>
     /// Pistes de la Playlist dont un clip passe sous la tête de lecture (index 0 = piste 1).
     func activeTracks() throws -> Set<Int>
-    /// Toute la chanson jouée à cette position (0…1), rien de coupé ; renvoie sa longueur en mesures (0 : inconnue).
+    /// Toute la chanson jouée à cette position (0…1), tout audible (pistes et sons coupés compris) ; renvoie sa
+    /// longueur en mesures (0 : inconnue).
     func playSong(at fraction: Double) throws -> Int
-    /// Piste de la Playlist seule audible, chanson jouée depuis son début ; renvoie sa longueur en mesures (0 si
-    /// inconnue).
+    /// Piste de la Playlist seule audible (tous les sons du Channel rack audibles), chanson jouée depuis son début ;
+    /// renvoie sa longueur en mesures (0 si inconnue).
     func playTrack(_ index: Int) throws -> Int
-    /// Position (0…1) de la chanson pendant l'écoute d'une piste.
+    /// Position (0…1) de la chanson pendant l'écoute d'une piste seule.
     func seek(_ fraction: Double) throws
     /// Toujours sans erreur : FL est remis comme avant autant que possible (appelé aussi après une erreur).
     func stopRestore()
@@ -422,6 +487,32 @@ final class RequestOrganizerLink: OrganizerLink {
         throw OrganizerError.failed(String(localized: "trop de pistes"))
     }
 
+    func listPatterns() throws -> [PatternInfo] {
+        var all: [PatternInfo] = []
+        for _ in 0..<Self.maxPages {
+            let answer = try v11 { try send(OrganizerPayload.list(.patterns, start: all.count)) }
+            guard let page = OrganizerPayload.decodePatternList(answer), page.start == all.count else {
+                throw OrganizerError.failed(String(localized: "liste des patterns illisible"))
+            }
+            all += page.items
+            if all.count >= page.total || page.items.isEmpty { return all }
+        }
+        throw OrganizerError.failed(String(localized: "trop de patterns"))
+    }
+
+    func routes(from track: Int) throws -> [Int] {
+        let answer = try v11 { try send(OrganizerPayload.routes(track)) }
+        guard let routes = OrganizerPayload.decodeRoutes(answer, track: track) else {
+            throw OrganizerError.failed(String(localized: "réponse de FL illisible"))
+        }
+        return routes
+    }
+
+    func show(_ window: FLWindow) throws {
+        guard let bytes = OrganizerPayload.show(window) else { return }
+        try v11 { try send(bytes) }
+    }
+
     func setColors(_ kind: ItemKind, _ colors: [(index: Int, color: RGBColor)]) throws {
         for chunk in OrganizerPayload.setColors(kind, colors) { try send(chunk) }
     }
@@ -483,7 +574,7 @@ final class RequestOrganizerLink: OrganizerLink {
         return bars
     }
 
-    /// Opérations du script v11 : un script plus ancien les refuse (5) ; FL doit charger la nouvelle version.
+    /// Opérations du script v11 et v12 : un script plus ancien les refuse (5) ; FL doit charger la nouvelle version.
     @discardableResult
     private func v11<T>(_ body: () throws -> T) throws -> T {
         do {

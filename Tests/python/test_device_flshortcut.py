@@ -1253,26 +1253,26 @@ class TestDataV5(TestData):
         self.assertEqual(rest, [5, 1, 44, 0xAB, 0xCD, 0xEF, 4] + list(b"Lead"))
 
     def test_list_pages_and_utf8_cut(self):
-        self.make(n_channels=20, ch_names=["é" * 20] * 20)
+        self.make(n_channels=20, ch_names=["é" * 30] * 20)
         self.data_command([2, 1, 0, 0])
         _, data = self.answer()
-        self.assertEqual(data[:7], [1, 0, 20, 0, 0, 16, 0])
+        self.assertEqual(data[:7], [1, 0, 20, 0, 0, 8, 0])
         first_len = data[7 + 6]
-        self.assertEqual(first_len, 24)                       # 12 « é » : coupé entre deux caractères
-        self.assertEqual(bytes(data[14:14 + 24]).decode(), "é" * 12)
+        self.assertEqual(first_len, 48)                       # 24 « é » : coupé entre deux caractères
+        self.assertEqual(bytes(data[14:14 + 48]).decode(), "é" * 24)
         self.clock.t += 0.1
         self.data_command([2, 1, 0, 16])
         _, data = self.answer()
         self.assertEqual(data[:7], [1, 0, 20, 0, 16, 4, 0])
-        self.make(n_channels=16, ch_names=["x" * 40] * 16)     # page pleine : 600 unités au plus
+        self.make(n_channels=8, ch_names=["x" * 60] * 8)       # page pleine : 600 unités au plus
         self.data_command([2, 1, 0, 0])
         _, data = self.answer()
-        self.assertEqual(data[5], 16)
-        cut = "\U0001F3B9" * 7                                 # 4 octets chacun : coupé à 24 → 6 caractères
+        self.assertEqual(data[5], 8)
+        cut = "\U0001F3B9" * 13                                # 4 octets chacun : coupé à 48 → 12 caractères
         self.make(n_channels=1, ch_names=[cut])
         self.data_command([2, 1, 0, 0])
         _, data = self.answer()
-        self.assertEqual(bytes(data[14:]).decode(), "\U0001F3B9" * 6)
+        self.assertEqual(bytes(data[14:]).decode(), "\U0001F3B9" * 12)
 
     def test_list_filtered_group(self):
         self.make(n_channels=3, n_channels_global=5)
@@ -1289,7 +1289,7 @@ class TestDataV5(TestData):
         self.assertEqual(data[-8:], [0xE0, 0x45, 0x3A, 4] + list(b"Kick"))
 
     def test_list_bad_kind_or_start(self):
-        for payload in ([2, 4, 0, 0], [2, 1, 0, 9], [2, 1], [2, 3, 1, 245]):
+        for payload in ([2, 5, 0, 0], [2, 1, 0, 9], [2, 1], [2, 3, 1, 245]):
             self.make(n_channels=4)
             self.data_command(payload)
             self.assertEqual(self.last_ack(), 0, payload)
@@ -1548,11 +1548,11 @@ class TestDataV5(TestData):
     def test_set_names_checks_everything_first(self):
         good = M.be16(0) + [4] + list(b"Kick")
         for payload in ([10, 3, 2] + good + M.be16(4) + [4] + list(b"Clap"),   # piste 5 sur 4
-                        [10, 2, 1] + good,                                     # pas la Playlist
+                        [10, 5, 1] + good,                                     # genre inconnu
                         [10, 3, 1] + good + [0],                               # octet en trop
                         [10, 3, 2] + good,                                     # un nom manquant
                         [10, 3, 1] + M.be16(1) + [0],                          # nom vide
-                        [10, 3, 1] + M.be16(1) + [33] + [65] * 33,             # nom trop long
+                        [10, 3, 1] + M.be16(1) + [65] + [65] * 65,             # nom trop long
                         [10, 3, 1] + M.be16(1) + [2, 0xC3, 0x28],              # UTF-8 invalide
                         [10, 3, 0], [10, 3, 17] + good * 17):
             self.make(pl_tracks=4)
@@ -1635,13 +1635,16 @@ class TestDataV5(TestData):
         self.data_command([15])
         self.assertEqual(self.answer(), (15, [0, 7, 0, 3]))
 
-    def test_play_song_keeps_everything_and_restores(self):
-        self.make(pl_tracks=4, pl_muted={2}, loop_mode=0, song_pos=0.25, song_bars=40, pattern=2, metronome=True)
+    def test_play_song_hears_everything_and_restores(self):
+        # Pistes et canaux coupés par l'utilisateur audibles le temps du relevé (retour de l'utilisateur : trois
+        # pistes sautées, leurs sons étaient coupés dans le Channel rack), puis remis.
+        self.make(n_channels=3, ch_muted={1}, pl_tracks=4, pl_muted={2}, loop_mode=0, song_pos=0.25, song_bars=40,
+                  pattern=2, metronome=True)
         self.data_command([16] + M.be16(500))
         self.assertEqual(self.last_ack(), DATA_ID)
         self.assertEqual(self.answer(), (16, [0, 40]))
         self.assertEqual((self.fl.loop_mode, self.fl.song_pos, self.fl.playing), (1, 0.5, True))
-        self.assertEqual(self.fl.pl_muted, {2}, "rien de coupé")
+        self.assertEqual((self.fl.pl_muted, self.fl.ch_muted), (set(), set()), "tout audible")
         self.assertFalse(self.fl.metronome)
         self.clock.t += 0.1
         self.data_command([16] + M.be16(750))                 # autre position, même écoute
@@ -1649,6 +1652,7 @@ class TestDataV5(TestData):
         self.clock.t += 0.1
         self.data_command([7])
         self.assertEqual((self.fl.loop_mode, self.fl.song_pos, self.fl.playing), (0, 0.25, False))
+        self.assertEqual((self.fl.pl_muted, self.fl.ch_muted), ({2}, {1}))
         self.assertTrue(self.fl.metronome)
         self.assertIsNone(self.dev._st.memo)
         self.make(playing=True)
@@ -1682,17 +1686,17 @@ class TestDataV5(TestData):
         self.assertEqual(self.answer(), (11, [0, 0]))
 
     def test_channel_then_playlist_listening(self):
-        # Passer d'une écoute du Channel rack à la Playlist remet d'abord les canaux comme avant, et inversement.
+        # Une seule écoute, un seul mémo : une piste écoutée seule fait entendre tous ses canaux (même coupés), et
+        # tout revient comme avant à la fin.
         self.make(n_channels=4, pl_tracks=3, ch_muted={0}, pl_muted={2})
         self.data_command([6] + M.be16(1))
         self.assertEqual(self.fl.ch_muted, {0, 2, 3})
         self.clock.t += 0.1
         self.data_command([11] + M.be16(0))
-        self.assertEqual(self.fl.ch_muted, {0})
+        self.assertEqual(self.fl.ch_muted, set())
         self.assertEqual(self.fl.pl_muted, {2, 3})
         self.clock.t += 0.1
         self.data_command([6] + M.be16(2))
-        self.assertEqual(self.fl.pl_muted, {2})
         self.assertEqual(self.fl.ch_muted, {0, 1, 3})
         self.dev.OnDeInit()
         self.assertEqual((self.fl.ch_muted, self.fl.pl_muted), ({0}, {2}))
@@ -1707,6 +1711,75 @@ class TestDataV5(TestData):
         self.dev.OnIdle()
         self.assertEqual(self.fl.pl_muted, {1})
         self.assertFalse(self.fl.playing)
+
+    # ------------------------------------------------------------ Organiser (script v12) : tout le projet
+    def test_list_patterns(self):
+        self.make(pattern_count=3, pat_names={1: "Kick", 3: "hi hat"}, pat_colors={1: 0xE0453A})
+        self.data_command([2, 4, 0, 0])
+        self.assertEqual(self.last_ack(), DATA_ID)
+        op, data = self.answer()
+        self.assertEqual((op, data[:7]), (2, [4, 0, 3, 0, 0, 3, 0]))
+        rest = data[7:]
+        self.assertEqual(rest[:4] + [bytes(rest[4:8]).decode()], [0xE0, 0x45, 0x3A, 4, "Kick"])
+        rest = rest[8:]
+        self.assertEqual(rest[:4] + [bytes(rest[4:13]).decode()], [0x48, 0x50, 0x58, 9, "Pattern 2"])
+        self.assertEqual(rest[13:], [0x48, 0x50, 0x58, 6] + list(b"hi hat"))
+
+    def test_set_names_and_colors_of_every_kind(self):
+        self.make(n_channels=3, pattern_count=4)
+        name = lambda i, text: M.be16(i) + [len(text.encode())] + list(text.encode())
+        for kind, index in ((1, 2), (2, 5), (3, 0), (4, 3)):
+            self.clock.t += 0.1
+            self.data_command([10, kind, 1] + name(index, "Kick 2"))
+            self.assertEqual(self.last_ack(), DATA_ID, kind)
+        self.assertEqual(self.fl.given_names, {("channels", 2): "Kick 2", ("mixer", 5): "Kick 2",
+                                               ("playlist", 1): "Kick 2", ("patterns", 4): "Kick 2"})
+        self.clock.t += 0.1
+        self.data_command([4, 4, 1] + M.be16(0) + [1, 2, 3])
+        self.assertEqual(self.fl.given_colors, {("patterns", 1): 0x010203})
+        for payload in ([10, 4, 1] + name(4, "Kick"),            # pattern 5 sur 4
+                        [10, 1, 1] + name(3, "Kick"),            # canal 4 sur 3
+                        [10, 2, 1] + name(0, "a\tb"),           # caractère de contrôle
+                        [4, 4, 1] + M.be16(4) + [1, 2, 3]):
+            self.make(n_channels=3, pattern_count=4)
+            self.data_command(payload)
+            self.assertEqual(self.reasons(), [5], payload)
+            self.assertEqual((self.fl.given_names, self.fl.given_colors), ({}, {}), payload)
+
+    def test_mixer_routes(self):
+        self.make(n_tracks=8, routes={2: {5, 0}, 3: {5}, 5: {6}})
+        self.data_command([17] + M.be16(2))
+        self.assertEqual(self.last_ack(), DATA_ID)
+        self.assertEqual(self.answer(), (17, [0, 2, 1, 0, 5]), "le Master ne compte pas")
+        self.clock.t += 0.1
+        self.data_command([17] + M.be16(5))
+        self.assertEqual(self.answer(), (17, [0, 5, 1, 0, 6]))
+        self.clock.t += 0.1
+        self.data_command([17] + M.be16(4))
+        self.assertEqual(self.answer(), (17, [0, 4, 0]))
+        for track in (0, 7, 8):                                 # Master, « Current », hors du Mixer
+            self.make(n_tracks=8)
+            self.data_command([17] + M.be16(track))
+            self.assertEqual(self.reasons(), [5], track)
+
+    def test_show_page(self):
+        self.make()
+        self.data_command([18, 0])
+        self.assertEqual(self.last_ack(), DATA_ID)
+        self.clock.t += 0.1
+        self.data_command([18, 1])
+        self.assertEqual(self.fl.shown, [0, 1])
+        self.clock.t += 0.1
+        self.data_command([18, 3])
+        self.assertEqual(self.reasons(), [5])
+
+    def test_track_listening_hears_muted_channels(self):
+        self.make(n_channels=3, ch_muted={0, 2}, pl_tracks=3)
+        self.data_command([11] + M.be16(1))
+        self.assertEqual((self.fl.ch_muted, self.fl.pl_muted), (set(), {1, 3}))
+        self.clock.t += 0.1
+        self.data_command([7])
+        self.assertEqual((self.fl.ch_muted, self.fl.pl_muted), ({0, 2}, set()))
 
     def test_names_never_in_hints(self):
         self.make(n_channels=2, ch_names=["SecretTrack", "SecretTrack"],

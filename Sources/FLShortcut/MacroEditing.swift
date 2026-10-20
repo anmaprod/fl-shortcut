@@ -408,7 +408,7 @@ enum MacroOutline {
         case .soundCard:
             return (String(localized: "Carte son branchée"), String(localized: "sortie et entrée du Mac"))
         case .organize:
-            return (String(localized: "Organiser la page ouverte"), String(localized: "écoute, classe, colore"))
+            return (String(localized: "Tout organiser"), String(localized: "range, colore, renomme le projet"))
         case .openPage(let page):
             return (String(localized: "Ouvrir une page de FL"), page?.title ?? String(localized: "à choisir"))
         case .pageOption:

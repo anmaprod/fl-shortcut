@@ -1,8 +1,9 @@
 // Organiser : la fenêtre (panneau flottant qui laisse FL au premier plan) et son contrôleur. Ouverte par le bloc
-// « Organiser la page ouverte » ou par le menu de la barre des menus. Lien avec FL installé à la demande (écran
-// d'installation s'il manque), écoute, aperçu par famille (une couleur ou un dégradé chacune, famille de chaque son
-// modifiable, nouveaux noms des pistes de la Playlist), application, puis « Revenir comme avant ». Tout est libéré à
-// la fermeture (session, capture, IA, panneau) : rien ne tourne au repos. Aucune lecture de l'écran.
+// « Organiser le projet » ou par le menu de la barre des menus. Lien avec FL installé à la demande (écran
+// d'installation s'il manque), analyse de tout le projet, aperçu par famille (une couleur ou un dégradé chacune, ce
+// qu'est chaque son modifiable, ce qui sera fait dans le Channel rack, les patterns, le Mixer et la Playlist), un seul
+// « Tout organiser », puis « Revenir comme avant ». Tout est libéré à la fermeture (session, capture, IA, panneau) :
+// rien ne tourne au repos. Aucune lecture de l'écran.
 import AppKit
 import ApplicationServices
 import Combine
@@ -18,26 +19,6 @@ enum OrganizerLinkState: Equatable {
     case restored
 }
 
-extension OrganizerPage: Hashable {
-    var flPage: FLPage {
-        switch self {
-        case .channelRack: return .channelRack
-        case .mixer: return .mixer
-        case .playlist: return .playlist
-        }
-    }
-
-    var title: String { flPage.title }
-
-    var symbol: String {
-        switch self {
-        case .channelRack: return "square.stack.3d.up"
-        case .mixer: return "slider.vertical.3"
-        case .playlist: return "rectangle.split.3x1"
-        }
-    }
-}
-
 /// Ce dont l'Organiser a besoin du monde réel (des faux dans les tests).
 struct OrganizerEnvironment {
     var link: () -> OrganizerLink
@@ -46,6 +27,8 @@ struct OrganizerEnvironment {
     var classify: () -> OrganizerSession.Classify
     /// ⌥↑ envoyé à FL : `moveUp(link)(n)` renvoie le nombre de pas faits.
     var moveUp: (OrganizerLink) -> (Int) -> Int
+    /// ⌥← envoyé à FL (piste du Mixer décalée à gauche) : `moveLeft(link)(n)` renvoie le nombre de pas faits.
+    var moveLeft: (OrganizerLink) -> (Int) -> Int = { _ in { _ in 0 } }
     var timing = OrganizerSession.Timing()
     var sleep: (TimeInterval) -> Void = { Thread.sleep(forTimeInterval: $0) }
     var escapePressed: () -> Bool = { false }
@@ -67,8 +50,6 @@ struct OrganizerEnvironment {
     var reveal: (URL) -> Void = { _ in }
     /// Le script a dit être posé sur une autre entrée MIDI que « FL Shortcuts Link » (PROTOCOL.md §3).
     var wrongInput: () -> Bool = { false }
-    /// Met la page devant dans FL (hors du fil principal : réveil du lien).
-    var showPage: (OrganizerPage) -> Void = { _ in }
     var nameDrum: () -> OrganizerSession.NameDrum = { { _, _ in .perc } }
     /// Autorisation « Audio du système » (sans elle, macOS donne du silence à la capture).
     var audioPermission: () -> AudioCapturePermission = { .granted }
@@ -92,7 +73,8 @@ struct OrganizerEnvironment {
                 return .success(FLAudioTap(pid: pid))
             },
             classify: { OrganizerSession.liveClassifier() },
-            moveUp: { link in { count in OrganizerEnvironment.liveMoveUp(count, link: link) } },
+            moveUp: { link in { count in OrganizerEnvironment.liveMove(count, key: 126, page: .channelRack, link: link) } },
+            moveLeft: { link in { count in OrganizerEnvironment.liveMove(count, key: 123, page: .mixer, link: link) } },
             escapePressed: { CGEventSource.keyState(.combinedSessionState, key: 53) },
             placeIcon: { OrganizerEnvironment.livePlaceIcon($0) },
             prepareLink: { OrganizerEnvironment.livePrepareLink() },
@@ -101,10 +83,6 @@ struct OrganizerEnvironment {
             scriptPlace: { FLScriptInstaller.installedScript() },
             reveal: { NSWorkspace.shared.activateFileViewerSelecting([$0]) },
             wrongInput: { MIDILink.shared.core.snapshot.wrongInput },
-            showPage: { page in
-                guard let id = FLActions.id(forKey: page.flPage.actionKey) else { return }
-                _ = MIDILink.shared.runBriefly([id])
-            },
             nameDrum: { OrganizerSession.liveDrumNamer() },
             audioPermission: { AudioCapturePermission.status },
             requestAudioPermission: { done in
@@ -176,17 +154,17 @@ struct OrganizerEnvironment {
         return cfg.flPIDs.min()
     }
 
-    /// ⌥↑ envoyé à FL seul, 15 ms entre deux ; s'arrête dès que FL n'est plus au premier plan ou que le Channel rack
-    /// n'est plus devant dans FL.
-    static func liveMoveUp(_ count: Int, link: OrganizerLink) -> Int {
+    /// ⌥ + flèche (`key` : 126 ↑ dans le Channel rack, 123 ← dans le Mixer) envoyé à FL seul, 15 ms entre deux ;
+    /// s'arrête dès que FL n'est plus au premier plan ou que la page n'est plus devant dans FL.
+    static func liveMove(_ count: Int, key: UInt16, page: FLWindow, link: OrganizerLink) -> Int {
         guard count > 0, let pid = flPID() else { return 0 }
         if EventTap.shared.currentConfig.frontmostPID != pid {
             _ = NSRunningApplication(processIdentifier: pid)?.activate(options: [])
             Thread.sleep(forTimeInterval: 0.3)
         }
         let effects = MacroEffectsMac(pid: pid)
-        let up = KeyCombo(keyCode: 126, option: true)
-        guard link.window == .channelRack else { return 0 }  // demandé à FL (une requête), pas à chaque touche
+        let up = KeyCombo(keyCode: key, option: true)
+        guard link.window == page else { return 0 }          // demandé à FL (une requête), pas à chaque touche
         var done = 0
         while done < count {
             guard EventTap.shared.currentConfig.frontmostPID == pid else { break }
@@ -208,8 +186,6 @@ final class OrganizerController: ObservableObject {
         /// Le script est chargé, mais sur une autre entrée MIDI (carte son, clavier) : il ne reçoit rien.
         case wrongInput
         case openFL
-        /// Aucune page à organiser devant dans FL.
-        case openPage
         case stopPlayback
         /// « Audio du système » refusée, ou sa fenêtre de macOS ouverte : l'écoute n'entendrait que du silence.
         case audioPermission
@@ -231,15 +207,15 @@ final class OrganizerController: ObservableObject {
     }
 
     @Published private(set) var phase: Phase = .starting
-    /// Famille de chaque élément (canal, piste du Mixer ou de la Playlist), modifiable dans l'aperçu.
+    /// Famille de chaque son du Channel rack (index du canal), modifiable dans l'aperçu.
     @Published var families: [Int: SoundFamily] = [:]
-    /// Ce qu'est chaque élément (Kick, 808, Open Hat…), modifiable dans l'aperçu ; oublié s'il ne va plus avec sa
+    /// Ce qu'est chaque son (Kick, 808, Open Hat…), modifiable dans l'aperçu ; oublié s'il ne va plus avec sa
     /// famille.
     @Published var kinds: [Int: SoundKind] = [:]
     @Published var styles: [SoundFamily: FamilyStyle]
     @Published private(set) var result: OrganizerResult?
-    /// Playlist : renommer les pistes qui ont encore le nom de FL.
-    @Published var renameTracks = true
+    /// Ce que « Tout organiser » fait : les pages de FL touchées, et les noms.
+    @Published var options = OrganizerOptions()
     /// En attente de FL : l'aide détaillée (réglages de FL, dossier du script) dépliée.
     @Published var showLinkHelp = false
 
@@ -252,9 +228,6 @@ final class OrganizerController: ObservableObject {
     private var session: OrganizerSession?
     private var snapshot: OrganizerSnapshot?
     private var closed = false
-    /// Page choisie avec les boutons de l'Organiser : organisée telle quelle, sans redemander à FL quelle page est
-    /// devant (FL ne disait pas toujours le Mixer ou la Playlist « focused »).
-    private(set) var chosenPage: OrganizerPage?
     /// La fenêtre de macOS pour « Audio du système » est montrée une fois par Organiser ouvert.
     private var askedAudio = false
     /// Écoute en cours : la fin d'une écoute remplacée (nouvel essai) est ignorée (audit : deux écoutes à la fois).
@@ -269,14 +242,7 @@ final class OrganizerController: ObservableObject {
         styles = env.loadStyles()
     }
 
-    var title: String {
-        switch result?.page {
-        case .mixer?: return String(localized: "Organiser le Mixer")
-        case .channelRack?: return String(localized: "Organiser le Channel rack")
-        case .playlist?: return String(localized: "Organiser la Playlist")
-        case nil: return String(localized: "Organiser")
-        }
-    }
+    var title: String { String(localized: "Organiser le projet") }
 
     /// Écoute de chaque son, hors du fil principal.
     func start() {
@@ -341,10 +307,9 @@ final class OrganizerController: ObservableObject {
         self.session = session
         if !quiet { phase = .listening(done: 0, total: 0) }
         let sleep = env.sleep
-        let chosen = chosenPage
         queue.async { [weak self] in                           // file en série : jamais deux écoutes en même temps
             if warmUp > 0 { sleep(warmUp) }
-            let outcome = session.run(on: chosen)
+            let outcome = session.run()
             let diagnostics = session.diagnostics
             DispatchQueue.main.async {
                 guard self?.runToken == token else { return }
@@ -361,7 +326,6 @@ final class OrganizerController: ObservableObject {
         case .noResponse: return wrongInput ? .wrongInput : .noResponse
         case .outdatedScript: return .restartFL
         case .flClosed: return .openFL
-        case .refused(1): return .openPage
         case .refused(4): return .stopPlayback
         default: return nil
         }
@@ -427,19 +391,6 @@ final class OrganizerController: ObservableObject {
         }
     }
 
-    /// La page mise devant dans FL (lien avec FL, comme « Ouvrir une page de FL »), puis un nouvel essai sur cette
-    /// page, sans redemander à FL laquelle est devant.
-    func open(_ page: OrganizerPage) {
-        guard !closed else { return }
-        chosenPage = page
-        waitSerial += 1                                       // pas d'essai tout seul pendant que la page s'ouvre
-        let show = env.showPage
-        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
-            show(page)
-            DispatchQueue.main.async { self?.retry() }
-        }
-    }
-
     func retry() {
         guard canRetry, !closed else { return }
         waitSerial += 1
@@ -482,21 +433,20 @@ final class OrganizerController: ObservableObject {
             self.result = result
             families = OrganizerApplier.families(of: result)
             kinds = OrganizerApplier.kinds(of: result)
-            if !families.isEmpty {
+            if !families.isEmpty || !plan.isEmpty {
                 phase = .preview
-            } else if result.page == .mixer {
-                phase = .failed(String(localized: "Aucune piste du Mixer n'est reliée à un son du Channel rack."))
-            } else if result.page == .playlist {
-                phase = .failed(String(localized: """
-                    Aucune piste de la Playlist ne joue de son. Sélectionne les pistes à organiser \
-                    (clic sur leur nom), puis clique sur « Réessayer ».
-                    """))
             } else {
-                phase = .failed(String(localized: "Aucun son à écouter dans le Channel rack."))
+                phase = .failed(String(localized: "Aucun son à organiser dans ce projet."))
             }
         case .failure(let error):
             if let reason = Self.waitReason(for: error, wrongInput: env.wrongInput()) { wait(reason) } else { phase = .failed(error.message) }
         }
+    }
+
+    /// Ce que « Tout organiser » fera, d'après ce qu'est chaque son (modifiable) et les options.
+    var plan: OrganizerPlan {
+        guard let result else { return OrganizerPlan() }
+        return OrganizerPlan.make(result, families: families, kinds: kinds, styles: styles, options: options)
     }
 
     /// Familles présentes, dans l'ordre Voix, Mélodies, Basse, Drums, FX, À vérifier (les familles absentes sont
@@ -512,44 +462,28 @@ final class OrganizerController: ObservableObject {
         let testNotes: Bool
         /// Classé d'après son nom (rien n'a été écouté).
         var byName = false
-        /// Playlist : nom qu'elle prendra.
+        /// Nom qu'il prendra (nil : il garde le sien).
         var newName: String? = nil
         /// Ce qu'est le son (Kick, 808…), s'il va avec sa famille.
         var kind: SoundKind? = nil
     }
 
-    /// Éléments d'une famille, dans l'ordre de FL ; Channel rack : dans l'ordre où ils finiront (les Kick
-    /// ensemble, puis les Snare…).
+    /// Sons d'une famille, dans l'ordre où ils finiront dans le Channel rack (les Kick ensemble, puis les Snare…).
     func members(of family: SoundFamily) -> [Member] {
         guard let result else { return [] }
-        var out: [Member] = []
-        switch result.page {
-        case .channelRack:
-            for item in result.items where families[item.index] == family {
-                out.append(Member(id: item.index, name: item.name, testNotes: item.testNotes, byName: item.byName,
-                                  kind: kind(of: item.index)))
-            }
-            let rank = { (m: Member) in m.kind?.rank ?? SoundKind.allCases.count }
-            out = out.enumerated().sorted { a, b in
-                rank(a.element) != rank(b.element) ? rank(a.element) < rank(b.element) : a.offset < b.offset
-            }.map { $0.element }
-        case .mixer:
-            for track in result.mixer where families[track.index] == family {
-                out.append(Member(id: track.index, name: track.name.isEmpty ? String(localized: "Piste \(track.index)") : track.name,
-                                  testNotes: false, kind: kind(of: track.index)))
-            }
-        case .playlist:
-            let names = plannedNames
-            for item in result.items where families[item.index] == family {
-                out.append(Member(id: item.index, name: item.name.isEmpty ? "Track \(item.index + 1)" : item.name,
-                                  testNotes: false, byName: item.byName, newName: names[item.index],
-                                  kind: kind(of: item.index)))
-            }
+        let channels = result.channels.sorted { $0.index < $1.index }
+        let order = OrganizerApplier.rackPlan(channels, families: families, kinds: kinds).final
+        var byIndex: [Int: OrganizerItem] = [:]
+        for item in result.items { byIndex[item.index] = item }
+        let names = plan.rack.names
+        return order.compactMap { index in
+            guard families[index] == family, let item = byIndex[index] else { return nil }
+            return Member(id: index, name: item.name, testNotes: item.testNotes, byName: item.byName,
+                          newName: names[index].flatMap { $0 == item.name ? nil : $0 }, kind: kind(of: index))
         }
-        return out
     }
 
-    /// Ce qu'est l'élément, s'il va avec sa famille.
+    /// Ce qu'est le son, s'il va avec sa famille.
     func kind(of index: Int) -> SoundKind? {
         OrganizerApplier.kind(index, families: families, kinds: kinds)
     }
@@ -565,26 +499,32 @@ final class OrganizerController: ObservableObject {
         kinds[index] = kind
     }
 
-    /// Playlist : nouveaux noms (vide si « Renommer les pistes » est décoché).
-    var plannedNames: [Int: String] {
-        guard renameTracks, let result, result.page == .playlist else { return [:] }
-        return OrganizerApplier.plannedNames(result: result, families: families, kinds: kinds)
-    }
-
-    /// Couleur prévue de chaque élément (dégradés répartis dans l'ordre final).
+    /// Couleur prévue de chaque son du Channel rack (dégradés répartis dans l'ordre final), même si le Channel rack
+    /// n'est pas touché : la couleur de sa famille dans l'aperçu.
     var plannedColors: [Int: RGBColor] {
         guard let result else { return [:] }
-        let order: [Int]
-        switch result.page {
-        case .channelRack:
-            let channels = result.channels.sorted { $0.index < $1.index }
-            order = OrganizerApplier.rackPlan(channels, families: families, kinds: kinds).final
-        case .mixer:
-            order = result.mixer.map(\.index)
-        case .playlist:
-            order = result.playlist.map(\.index)
-        }
+        let channels = result.channels.sorted { $0.index < $1.index }
+        let order = OrganizerApplier.rackPlan(channels, families: families, kinds: kinds).final
         return OrganizerApplier.plannedColors(families: families, styles: styles, order: order)
+    }
+
+    /// Une ligne par page de FL touchée, pour l'aperçu : combien d'éléments seront rangés, colorés, renommés.
+    var summary: [(symbol: String, text: String)] {
+        let plan = self.plan
+        var out: [(symbol: String, text: String)] = []
+        if options.rack, !plan.rack.isEmpty {
+            out.append(("square.stack.3d.up", String(localized: "Channel rack : \(plan.rack.colors.count) sons regroupés et colorés, \(plan.rack.names.count) renommés")))
+        }
+        if options.patterns, !plan.patterns.isEmpty {
+            out.append(("square.stack", String(localized: "Patterns : \(plan.patterns.colors.count) colorés, \(plan.patterns.names.count) renommés")))
+        }
+        if options.mixer, !plan.mixer.isEmpty {
+            out.append(("slider.vertical.3", String(localized: "Mixer : \(plan.mixer.verdicts.count) pistes dans l'ordre du Channel rack, \(plan.mixer.names.count) renommées")))
+        }
+        if options.playlist, !plan.playlist.isEmpty {
+            out.append(("rectangle.split.3x1", String(localized: "Playlist : \(plan.playlist.colors.count) pistes colorées, \(plan.playlist.names.count) renommées")))
+        }
+        return out
     }
 
     func style(of family: SoundFamily) -> FamilyStyle {
@@ -598,24 +538,19 @@ final class OrganizerController: ObservableObject {
     }
 
     var doneText: String {
-        switch result?.page {
-        case .mixer?: return String(localized: "C'est fait : les pistes du Mixer sont colorées.")
-        case .playlist?:
-            return plannedNames.isEmpty ? String(localized: "C'est fait : les pistes de la Playlist sont colorées par famille.")
-                                        : String(localized: "C'est fait : les pistes de la Playlist sont colorées et renommées.")
-        default: return String(localized: "C'est fait : les sons sont colorés par famille et rangés par sorte (Kick, Snare, 808…).")
-        }
+        String(localized: "C'est fait : le projet est rangé, coloré et renommé. « Revenir comme avant » défait tout.")
     }
 
     func apply() {
         guard phase == .preview, let result, let link else { return }
         env.saveStyles(styles)
-        env.focusFL()                                         // ⌥↑ et F2 vont à FL
+        env.focusFL()                                         // ⌥↑, ⌥← et F2 vont à FL
         phase = .applying
-        let applier = OrganizerApplier(link: link, moveUp: env.moveUp(link), placeIcon: env.placeIcon)
-        let families = self.families, styles = self.styles, names = plannedNames, kinds = self.kinds
+        let applier = OrganizerApplier(link: link, moveUp: env.moveUp(link), moveLeft: env.moveLeft(link),
+                                       placeIcon: env.placeIcon)
+        let plan = self.plan, styles = self.styles
         queue.async { [weak self] in
-            let outcome = applier.apply(result: result, families: families, styles: styles, names: names, kinds: kinds)
+            let outcome = applier.apply(plan, result: result, styles: styles)
             DispatchQueue.main.async {
                 self?.snapshot = outcome.snapshot
                 self?.phase = .applied(outcome.error)
@@ -625,7 +560,7 @@ final class OrganizerController: ObservableObject {
 
     /// « Revenir comme avant » : après l'application, ou pour finir un retour interrompu.
     var canUndo: Bool {
-        guard snapshot != nil else { return false }
+        guard let snapshot, !snapshot.isEmpty else { return false }
         switch phase {
         case .applied: return true
         case .undone(let error): return error != nil
@@ -635,8 +570,9 @@ final class OrganizerController: ObservableObject {
 
     func undo() {
         guard canUndo, let snapshot, let link else { return }
+        env.focusFL()
         phase = .undoing
-        let applier = OrganizerApplier(link: link, moveUp: env.moveUp(link))
+        let applier = OrganizerApplier(link: link, moveUp: env.moveUp(link), moveLeft: env.moveLeft(link))
         queue.async { [weak self] in
             let outcome = applier.undo(snapshot)
             DispatchQueue.main.async {
@@ -654,7 +590,6 @@ final class OrganizerController: ObservableObject {
         case "installer": phase = .setup
         case "attente": phase = .waiting(.restartFL)
         case "aide": phase = .waiting(.noResponse)
-        case "page": phase = .waiting(.openPage)
         case "ecoute": phase = .listening(done: 3, total: 8)
         case "apercu", "fini":
             let result = Self.demoResult
@@ -666,19 +601,26 @@ final class OrganizerController: ObservableObject {
         }
     }
 
+    /// Un petit projet d'exemple : des sons nommés comme dans les packs, leurs patterns, leurs pistes du Mixer et
+    /// de la Playlist.
     static var demoResult: OrganizerResult {
-        let sounds: [(String, SoundFamily)] = [("Voix lead", .vocals), ("Piano", .melody), ("Pluck", .melody),
-                                               ("808", .bass), ("Kick", .drums), ("Snare", .drums),
-                                               ("Hi-hat", .drums), ("Riser", .fx)]
+        let names = ["BEAM KICK", "Serum Lead", "ZEBRA 808", "@MEH CLAP", "ALTER OPEN HAT", "Vocal Chop", "Riser FX",
+                     "Pluck"]
         let gray = RGBColor(r: 92, g: 101, b: 107)
-        let channels = sounds.enumerated().map {
-            ChannelInfo(index: $0.offset, type: 2, mixerTrack: $0.offset + 1, color: gray, name: $0.element.0)
+        let channels = names.enumerated().map {
+            ChannelInfo(index: $0.offset, type: 2, mixerTrack: $0.offset + 1, color: gray, name: $0.element)
         }
-        let items = sounds.enumerated().map {
-            OrganizerItem(index: $0.offset, name: $0.element.0, family: $0.element.1, confidence: 0.9, testNotes: false,
-                          mixerTrack: $0.offset + 1, color: gray, kind: SoundNames.kind(of: $0.element.0))
+        let items = names.enumerated().compactMap { entry -> OrganizerItem? in
+            guard let kind = SoundNames.kind(of: entry.element) else { return nil }
+            return OrganizerItem(index: entry.offset, name: entry.element, family: kind.family, confidence: 0.9,
+                                 testNotes: false, mixerTrack: entry.offset + 1, color: gray, kind: kind, byName: true)
         }
-        return OrganizerResult(page: .channelRack, channels: channels, items: items, mixer: [], mixerFamilies: [:])
+        let patterns = (0..<4).map { PatternInfo(index: $0, color: gray, name: "Pattern \($0 + 1)") }
+        let mixer = (0...10).map { MixerTrackInfo(index: $0, color: gray, name: $0 == 0 ? "Master" : "Insert \($0)") }
+        let playlist = (0..<4).map { PlaylistTrackInfo(index: $0, selected: false, color: gray, name: "Track \($0 + 1)") }
+        return OrganizerResult(channels: channels, items: items, patterns: patterns,
+                               patternSounds: [0: [0, 3, 4], 1: [2], 2: [1, 7], 3: [5]], mixer: mixer, routes: [:],
+                               playlist: playlist, trackSounds: [0: [0], 1: [3, 4], 2: [2], 3: [1, 7]])
     }
 
     /// Arrête l'écoute (la session remet FL comme avant) et ferme la fenêtre.
@@ -847,7 +789,7 @@ struct OrganizerView: View {
                 .shadow(color: Self.tint.opacity(0.35), radius: 12, y: 4)
             VStack(alignment: .leading, spacing: 2) {
                 Text(controller.title).font(.system(size: 18, weight: .bold))
-                Text("Écoute, classe et colore tes sons")
+                Text("Range, colore et renomme tout le projet")
                     .font(.system(size: 12))
                     .foregroundStyle(.secondary)
             }
@@ -857,7 +799,7 @@ struct OrganizerView: View {
     }
 
     private static func listeningText(_ done: Int, _ total: Int) -> String {
-        total == 0 ? String(localized: "Préparation de l'écoute…") : String(localized: "Écoute \(min(done + 1, total)) sur \(total)")
+        total == 0 ? String(localized: "Préparation de l'analyse…") : String(localized: "Analyse du projet : \(min(done + 1, total)) sur \(total)")
     }
 
     @ViewBuilder private var content: some View {
@@ -891,9 +833,9 @@ struct OrganizerView: View {
                 .organizerCard()
                 .morphIn(1)
                 Text(String(localized: """
-                    Un son dont le nom dit la famille (Kick, 808, Hat…) est classé tout de suite ; les autres jouent \
-                    seuls, dans un pattern où ils jouent, sans que tu les entendes. Dans la Playlist, la chanson est \
-                    parcourue : FL dit quels sons jouent sur chaque piste. Ne touche pas à FL ; Échap arrête.
+                    Un son dont le nom dit ce qu'il est (Kick, 808, Hat…) est classé tout de suite ; les autres jouent \
+                    seuls, sans que tu les entendes. Chaque pattern puis chaque piste de la Playlist joue un instant : FL \
+                    dit quels sons y jouent (même ceux que tu as coupés). Ne touche pas à FL ; Échap arrête.
                     """))
                     .font(.system(size: 11))
                     .foregroundStyle(.secondary)
@@ -1102,19 +1044,6 @@ struct OrganizerView: View {
                     .foregroundStyle(.secondary)
             }
             .morphIn(2)
-            if reason == .openPage {
-                // La page mise devant dans FL par le lien, puis l'écoute tout de suite (plus besoin d'aller cliquer
-                // dans FL : signalé, l'Organiser semblait bloqué ici).
-                HStack(spacing: 8) {
-                    ForEach([OrganizerPage.channelRack, .mixer, .playlist], id: \.self) { page in
-                        Button { controller.open(page) } label: {
-                            Label(page.title, systemImage: page.symbol).frame(maxWidth: .infinity)
-                        }
-                        .controlSize(.large)
-                    }
-                }
-                .morphIn(3)
-            }
             if reason == .audioPermission {
                 Button("Ouvrir les réglages") { controller.openAudioSettings() }
                     .controlSize(.large)
@@ -1159,12 +1088,6 @@ struct OrganizerView: View {
         case .openFL:
             return ("macwindow", String(localized: "Ouvre FL Studio"),
                     String(localized: "Organiser commence dès que FL est ouvert, avec ton projet."))
-        case .openPage:
-            return ("square.stack.3d.up", String(localized: "Choisis la page à organiser"),
-                    String(localized: """
-                        Elle s'ouvre dans FL et l'écoute commence. Ou clique toi-même dans le Channel rack, le Mixer \
-                        ou la Playlist de FL.
-                        """))
         case .stopPlayback:
             return ("stop.fill", String(localized: "Arrête la lecture dans FL"),
                     String(localized: "Organiser écoute chaque son seul : FL doit être à l'arrêt."))
@@ -1223,14 +1146,10 @@ struct OrganizerView: View {
     }
 
     private var hint: String {
-        switch controller.result?.page {
-        case .mixer?:
-            return String(localized: "Chaque piste prend la famille des sons qui y sont reliés. Clique sur une famille pour la changer.")
-        case .playlist?:
-            return String(localized: "Chaque piste prend ce que jouent ses sons (Kick, 808…, sinon leur famille), d'après leur nom ou leur écoute. Clique dessus pour le changer. Appliquer colore les pistes par famille.")
-        default:
-            return String(localized: "Chaque son est rangé d'après son nom (« BEAM KICK » : Kick), sinon d'après son écoute. Clique sur Kick, 808… pour le changer. Appliquer colore les sons par famille et met ensemble ceux de même sorte.")
-        }
+        String(localized: """
+            Chaque son est rangé d'après son nom (« BEAM KICK » : Kick), sinon d'après son écoute. Clique sur Kick, \
+            808… pour le changer : tout le projet suit (Channel rack, patterns, Mixer, Playlist).
+            """)
     }
 
     private var preview: some View {
@@ -1253,23 +1172,12 @@ struct OrganizerView: View {
                 .padding(.vertical, 6)
             }
             .padding(.horizontal, -4)
-            if controller.result?.page == .playlist {
-                Toggle("Renommer les pistes qui ont encore le nom de FL (Kick, Snare, Voix…)",
-                       isOn: $controller.renameTracks)
-                    .font(.system(size: 12))
-                Text(String(localized: """
-                    FL ne laisse pas un script déplacer les pistes de la Playlist ni changer leur icône : leur ordre \
-                    et leurs icônes restent comme ils sont.
-                    """))
-                    .font(.system(size: 11))
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
+            ProjectSummary(controller: controller)
             HStack {
                 Button("Annuler") { controller.close() }.keyboardShortcut(.cancelAction)
                 diagnosticButton
                 Spacer()
-                Button("Appliquer") { controller.apply() }
+                Button("Tout organiser") { controller.apply() }
                     .primaryButton()
                     .keyboardShortcut(.defaultAction)
             }
@@ -1391,6 +1299,49 @@ private struct OrganizerStep: View {
     }
 }
 
+/// Ce que « Tout organiser » fera dans chaque page de FL, avec une case par page et une pour les noms.
+private struct ProjectSummary: View {
+    @ObservedObject var controller: OrganizerController
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 7) {
+            ForEach(Array(controller.summary.enumerated()), id: \.offset) { _, line in
+                HStack(alignment: .firstTextBaseline, spacing: 8) {
+                    Image(systemName: line.symbol)
+                        .font(.system(size: 11))
+                        .foregroundStyle(OrganizerView.tint)
+                        .frame(width: 16)
+                    Text(line.text)
+                        .font(.system(size: 11))
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                    Spacer(minLength: 0)
+                }
+            }
+            HStack(spacing: 12) {
+                Toggle("Channel rack", isOn: $controller.options.rack)
+                Toggle("Patterns", isOn: $controller.options.patterns)
+                Toggle("Mixer", isOn: $controller.options.mixer)
+                Toggle("Playlist", isOn: $controller.options.playlist)
+            }
+            .toggleStyle(.checkbox)
+            .font(.system(size: 11))
+            Toggle("Renommer simplement (Kick, Kick 2, 808…)", isOn: $controller.options.rename)
+                .toggleStyle(.checkbox)
+                .font(.system(size: 11))
+            Text(String(localized: """
+                FL ne laisse pas un script déplacer les pistes de la Playlist ni les patterns : ils sont colorés et \
+                renommés, à leur place.
+                """))
+                .font(.system(size: 10))
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(12)
+        .organizerCard()
+    }
+}
+
 /// Une famille de l'aperçu : son réglage (une couleur ou un dégradé) et ses sons.
 private struct FamilySection: View {
     @ObservedObject var controller: OrganizerController
@@ -1443,17 +1394,15 @@ private struct FamilySection: View {
                         controller.updateStyle(family) { $0.fade = picked }
                     }
                 }
-                if controller.result?.page != .playlist {
-                    Button { pickingIcon = true } label: { FLIconBadge(icon: style.icon, size: 18) }
-                        .buttonStyle(.plain)
-                        .help("Icône de FL de la famille (posée par la fenêtre de FL, F2 ; « Revenir comme avant » ne la retire pas)")
-                        .popover(isPresented: $pickingIcon, arrowEdge: .bottom) {
-                            FLIconPicker(selected: style.icon) { picked in
-                                controller.updateStyle(family) { $0.icon = picked }
-                                pickingIcon = false
-                            }
+                Button { pickingIcon = true } label: { FLIconBadge(icon: style.icon, size: 18) }
+                    .buttonStyle(.plain)
+                    .help("Icône de FL de la famille, sur ses sons et ses pistes du Mixer (posée par la fenêtre de FL, F2 ; « Revenir comme avant » ne la retire pas)")
+                    .popover(isPresented: $pickingIcon, arrowEdge: .bottom) {
+                        FLIconPicker(selected: style.icon) { picked in
+                            controller.updateStyle(family) { $0.icon = picked }
+                            pickingIcon = false
                         }
-                }
+                    }
             }
             ForEach(members) { member in
                 row(member, color: colors[member.id] ?? style.color)

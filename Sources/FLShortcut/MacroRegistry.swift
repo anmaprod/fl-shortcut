@@ -704,13 +704,13 @@ private enum Specs {
         import_: .ok, plateformes: .mac)
 
     static let organize = BlockSpec(
-        type: .organize, label: String(localized: "Organiser la page ouverte"), category: .fl, symbol: "square.stack.3d.up",
-        aide: String(localized: "Ouvre l'Organiser sur la page de FL qui est devant : il écoute chaque son (sans que tu l'entendes) et le classe en Voix, Mélodies, Basse, Drums, FX ; tu vérifies l'aperçu, puis il colore (une couleur ou un dégradé par famille). Channel rack : regroupe aussi les sons dans cet ordre. Mixer : colore les pistes. Playlist : colore les pistes et renomme celles qui ont encore le nom de FL (Kick, Snare, Hi-hat…). « Revenir comme avant » défait tout."),
+        type: .organize, label: String(localized: "Tout organiser"), category: .fl, symbol: "square.stack.3d.up",
+        aide: String(localized: "Ouvre l'Organiser sur tout le projet : chaque son est reconnu d'après son nom (« BEAM KICK » : Kick), sinon écouté sans que tu l'entendes ; tu vérifies l'aperçu, puis « Tout organiser » range le Channel rack (les Kick ensemble, puis les Snare…), met le Mixer dans le même ordre (pistes reliées côte à côte), colore et renomme simplement sons, patterns, pistes du Mixer et de la Playlist. « Revenir comme avant » défait tout."),
         params: [],
         conteneur: .aucun, dansLaPalette: true,
         needs: { _ in base.union(.lienMIDI) },
         parDefaut: { .organize },
-        resume: { _, _ in String(localized: "écoute, classe, colore") },
+        resume: { _, _ in String(localized: "range, colore, renomme le projet") },
         journal: { _ in "organize" },
         estimationMs: { _ in 200 },
         valider: { _, _ in nil },

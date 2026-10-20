@@ -219,7 +219,7 @@ run() {   # $1 : libellé, $2 : YES/NO effet verre
     done
     "$POST" app.flshortcut.debug.uninstall fermer; sleep 1
     # Organiser, avec des sons d'exemple (sans FL) : chaque écran, puis le passage de l'un à l'autre.
-    for screen in installer attente aide page ecoute apercu fini; do
+    for screen in installer attente aide ecoute apercu fini; do
       "$POST" app.flshortcut.debug.organizer "$screen"; sleep 3
       screencapture -x "$OUT/organiser-$screen.png" 2>/dev/null || true
     done

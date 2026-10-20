@@ -33,7 +33,7 @@ open "$APP"; sleep 6
 "$POST" app.flshortcut.debug.select macros; shot macros
 "$POST" app.flshortcut.debug.macro open; shot createur 5
 "$POST" app.flshortcut.debug.macro close; sleep 2
-for screen in installer page apercu fini; do
+for screen in installer ecoute apercu fini; do
   "$POST" app.flshortcut.debug.organizer "$screen"; shot "organiser-$screen"
 done
 "$POST" app.flshortcut.debug.organizer fermer; sleep 1
