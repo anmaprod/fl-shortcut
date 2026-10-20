@@ -4,43 +4,23 @@
 import Foundation
 import Security
 
-/// Session au Trousseau (élément générique de FL Shortcuts, compte « community-session »).
+/// Session au Trousseau, dans l'élément commun de FL Shortcuts (avec la clé du script : une seule demande d'accès).
 final class CommunitySessionKeychain {
-    private let service: String
-    private let account: String
+    private let vault: KeychainVault
 
-    init(service: String = "app.flshortcut.FLShortcut", account: String = "community-session") {
-        self.service = service
-        self.account = account
+    init(service: String = "app.flshortcut.FLShortcut") {
+        vault = .shared(service: service)
     }
 
-    private var query: [String: Any] {
-        [kSecClass as String: kSecClassGenericPassword,
-         kSecAttrService as String: service,
-         kSecAttrAccount as String: account]
-    }
-
-    func load() -> CommunitySession? {
-        var q = query
-        q[kSecReturnData as String] = true
-        q[kSecMatchLimit as String] = kSecMatchLimitOne
-        var item: CFTypeRef?
-        guard SecItemCopyMatching(q as CFDictionary, &item) == errSecSuccess, let data = item as? Data else { return nil }
-        return try? JSONDecoder().decode(CommunitySession.self, from: data)
-    }
+    func load() -> CommunitySession? { vault.read().session }
 
     func save(_ session: CommunitySession) {
-        guard let data = try? JSONEncoder().encode(session) else { return }
-        if SecItemUpdate(query as CFDictionary, [kSecValueData as String: data] as CFDictionary) == errSecItemNotFound {
-            var add = query
-            add[kSecValueData as String] = data
-            add[kSecAttrLabel as String] = "FL Shortcuts – session de la Communauté"
-            add[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
-            SecItemAdd(add as CFDictionary, nil)
-        }
+        try? vault.update { $0.session = session }
     }
 
-    func delete() { SecItemDelete(query as CFDictionary) }
+    func delete() {
+        try? vault.update { $0.session = nil }
+    }
 }
 
 @MainActor

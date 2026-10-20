@@ -134,7 +134,7 @@ enum Uninstaller {
 
     /// Réglages et fichiers de l'app réécrits après la suppression (fenêtres, réglages) : effacés une dernière fois.
     private static func sweepAgain(home: URL) {
-        CommunitySessionKeychain().delete()
+        KeychainVault.shared().deleteAll()
         UserDefaults.standard.removePersistentDomain(forName: bundleID)
         forgetPreferences()
         for trace in dataTraces(home: home) where trace.url.pathExtension != "keychain-db" && exists(trace.url) {
@@ -263,10 +263,11 @@ enum Uninstaller {
         // 3. Trousseau : clé du script (et son fichier de repli), session du compte (jamais le mot de passe).
         // Seule la présence est lue, jamais le secret : rangé par une autre version de l'app, le lire ferait
         // demander le mot de passe du Mac au milieu de la désinstallation.
-        if inKeychain(account: "fl-script-key") || exists(FileSecretStore().url) { note("la clé dans le Trousseau") }
-        PreferredSecretStore().delete()
-        if inKeychain(account: "community-session") { note("la session de ton compte dans le Trousseau") }
-        CommunitySessionKeychain().delete()
+        if inKeychain(account: KeychainVault.account) || inKeychain(account: KeychainVault.legacyKeyAccount)
+            || exists(FileSecretStore().url) { note("la clé dans le Trousseau") }
+        if inKeychain(account: KeychainVault.legacySessionAccount) { note("la session de ton compte dans le Trousseau") }
+        KeychainVault.shared().deleteAll()
+        FileSecretStore().delete()
         if interactive { MainActor.assumeIsolated { CommunityStore.shared.forgetSession() } }
 
         // 4. Réglages (vidés dans cfprefsd avant d'effacer le fichier), données, caches, journal.
