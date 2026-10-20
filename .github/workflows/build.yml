@@ -11,6 +11,12 @@ on:
     tags: ["v*"]
   pull_request:
   workflow_dispatch:
+    inputs:
+      mac_runner:
+        description: "Mac de compilation (macos-26 par défaut ; un autre quand GitHub manque de Mac arm64)"
+        type: choice
+        default: macos-26
+        options: [macos-26, macos-15-intel, macos-15]
 
 permissions:
   contents: read
@@ -106,7 +112,8 @@ jobs:
     name: App Mac (compilation + tests)
     # SDK macOS 26 (Xcode 26+) : sans lui, l'app garde l'ancien aspect, sans aucun Liquid Glass système
     # (barre latérale, barre d'outils, feuilles, boutons, panneau de la barre des menus).
-    runs-on: macos-26
+    # Lancement à la main : un autre Mac possible (GitHub manque parfois de Mac arm64 : « not acquired by Runner »).
+    runs-on: ${{ inputs.mac_runner || 'macos-26' }}
     needs: script-fl
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
