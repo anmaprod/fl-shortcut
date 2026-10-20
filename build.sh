@@ -56,6 +56,8 @@ fi
 cp Resources/device_FLShortcut.py "$APP/Contents/Resources/"
 # Textes de l'app dans la langue du Mac (anglais pour toute langue autre que le français).
 cp -R Resources/en.lproj Resources/fr.lproj "$APP/Contents/Resources/"
+# Un fichier illisible par macOS ferait tout retomber en français : la compilation s'arrête.
+plutil -lint -s "$APP"/Contents/Resources/*.lproj/*.strings
 cp Resources/AppIcon.icns "$APP/Contents/Resources/AppIcon.icns"
 chmod -R go-w "$APP"
 
