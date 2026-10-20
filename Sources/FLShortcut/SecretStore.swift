@@ -16,8 +16,8 @@ enum SecretStoreError: Error, LocalizedError {
 
     var errorDescription: String? {
         switch self {
-        case .keychain(let s): return "Trousseau indisponible (\(s))."
-        case .invalidKey: return "Clé invalide."
+        case .keychain(let s): return String(localized: "Trousseau indisponible (\(s)).")
+        case .invalidKey: return String(localized: "Clé invalide.")
         }
     }
 }
@@ -66,7 +66,7 @@ final class KeychainSecretStore: SecretStore {
         guard update == errSecItemNotFound else { throw SecretStoreError.keychain(update) }
         var add = baseQuery
         add[kSecValueData as String] = data
-        add[kSecAttrLabel as String] = "FL Shortcuts – clé du script FL Studio"
+        add[kSecAttrLabel as String] = String(localized: "FL Shortcuts – clé du script FL Studio")
         let status = SecItemAdd(add as CFDictionary, nil)
         guard status == errSecSuccess else { throw SecretStoreError.keychain(status) }
     }

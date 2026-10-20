@@ -44,11 +44,11 @@ struct BackupContent: Equatable {
 
     /// « 12 raccourcis · 3 macros ».
     static func summary(remaps: Int, macros: Int) -> String {
-        "\(remaps) raccourci\(remaps > 1 ? "s" : "") · \(macros) macro\(macros > 1 ? "s" : "")"
+        String(localized: "\(remaps) raccourci\(remaps > 1 ? "s" : "") · \(macros) macro\(macros > 1 ? "s" : "")")
     }
 
     var summary: String {
-        guard let d = try? decoded() else { return "illisible" }
+        guard let d = try? decoded() else { return String(localized: "illisible") }
         return Self.summary(remaps: d.remaps.count, macros: d.macros.count)
     }
 }
@@ -68,10 +68,14 @@ enum BackupFailure: Error, LocalizedError, Equatable {
 
     var errorDescription: String? {
         switch self {
-        case .unreadable: return "La sauvegarde de ton compte est illisible : rien n'a été changé sur ce Mac."
-        case .newerVersion: return "Ta sauvegarde vient d'une version plus récente de FL Shortcuts : mets l'app à jour."
+        case .unreadable: return String(localized: "La sauvegarde de ton compte est illisible : rien n'a été changé sur ce Mac.")
+        case .newerVersion:
+            return String(localized: "Ta sauvegarde vient d'une version plus récente de FL Shortcuts : mets l'app à jour.")
         case .cannotWrite: return MacroLibraryStore.writesDisabledMessage
-        case .copyFailed: return "Impossible de garder une copie de ce Mac avant de reprendre ta sauvegarde : rien n'a été remplacé."
+        case .copyFailed:
+            return String(localized: """
+                Impossible de garder une copie de ce Mac avant de reprendre ta sauvegarde : rien n'a été remplacé.
+                """)
         }
     }
 }
@@ -390,7 +394,7 @@ final class AccountBackup: ObservableObject {
         store.replaceAll(decoded.remaps, macros: decoded.macros)
         applying = false
         markSynced(account, remote.revision, at: remote.updatedAt, changesBefore: changes)
-        notice = "Tes raccourcis et tes macros sont revenus de ton compte (\(remote.content.summary))."
+        notice = String(localized: "Tes raccourcis et tes macros sont revenus de ton compte (\(remote.content.summary)).")
     }
 
     private func handle(_ error: Error) {
@@ -405,14 +409,14 @@ final class AccountBackup: ObservableObject {
         // Refus définitif du serveur (trop grande, compte supprimé ailleurs…) : pas de nouvel essai sans fin.
         if let e = error as? CommunityError, case .server(let code, let message) = e,
            (400..<500).contains(code), ![401, 408, 429].contains(code) {
-            status = .blocked("Sauvegarde refusée par le serveur : \(message)")
+            status = .blocked(String(localized: "Sauvegarde refusée par le serveur : \(message)"))
             return
         }
         let why: String
         if let e = error as? CommunityError, case .network = e {
-            why = "Pas de connexion : la sauvegarde partira dès que possible."
+            why = String(localized: "Pas de connexion : la sauvegarde partira dès que possible.")
         } else {
-            why = "Sauvegarde impossible pour l'instant : \(error.localizedDescription)"
+            why = String(localized: "Sauvegarde impossible pour l'instant : \(error.localizedDescription)")
         }
         status = .waiting(why)
         let wait = retryDelay
@@ -459,17 +463,21 @@ final class AccountBackup: ObservableObject {
         // dans le compte, ou si l'utilisateur l'accepte.
         if !evenIfNotSaved, community.session == nil,
            dirty || defaults.string(forKey: Keys.account) == nil {
-            return .notSaved("Ta session a expiré : reconnecte-toi pour mettre en ligne tes derniers changements.")
+            return .notSaved(String(localized: """
+                Ta session a expiré : reconnecte-toi pour mettre en ligne tes derniers changements.
+                """))
         }
         if !evenIfNotSaved, let user = community.session?.userID {
             if conflict == nil, dirty || syncedRevision(for: user) == nil { await sync() }
             if conflict != nil {
-                return .notSaved("Choisis d'abord quelle version garder : celle de ce Mac ou celle de ton compte.")
+                return .notSaved(String(localized: """
+                    Choisis d'abord quelle version garder : celle de ce Mac ou celle de ton compte.
+                    """))
             }
             if dirty || syncedRevision(for: user) == nil {
                 if case .waiting(let why) = status { return .notSaved(why) }
                 if case .blocked(let why) = status { return .notSaved(why) }
-                return .notSaved("Tes derniers changements ne sont pas encore en ligne.")
+                return .notSaved(String(localized: "Tes derniers changements ne sont pas encore en ligne."))
             }
         }
         await community.signOut()
@@ -494,7 +502,7 @@ final class AccountBackup: ObservableObject {
         }
         community.forgetSession()
         forgetSync()
-        notice = "Ton compte est supprimé. Tes raccourcis et tes macros restent sur ce Mac."
+        notice = String(localized: "Ton compte est supprimé. Tes raccourcis et tes macros restent sur ce Mac.")
         return nil
     }
 
@@ -522,7 +530,7 @@ final class AccountBackup: ObservableObject {
                                 account: BackupContent.summary(remaps: 12, macros: 5))
         case "attente":
             community.showDemo(signedIn: true)
-            status = .waiting("Pas de connexion : la sauvegarde partira dès que possible.")
+            status = .waiting(String(localized: "Pas de connexion : la sauvegarde partira dès que possible."))
         default:
             community.showDemo(signedIn: true)
             status = .upToDate(Date(timeIntervalSinceNow: -120))

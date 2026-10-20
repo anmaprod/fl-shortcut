@@ -184,14 +184,29 @@ enum MacroValidation {
     /// .fst attendu). »
     static func shortcutWaiting(_ problem: String, in blocks: [Block]) -> String {
         let lead = String(localized: "Raccourci gardé, mais pas encore actif")
-        guard problem.hasPrefix("Étape "), let colon = problem.range(of: " : ") else {
+        guard let step = splitStep(problem) else {
             return String(localized: "\(lead) : ") + problem.prefix(1).lowercased() + problem.dropFirst()
         }
-        let path = String(problem[problem.index(problem.startIndex, offsetBy: 6)..<colon.lowerBound])
-        var reason = problem[colon.upperBound...].trimmingCharacters(in: .whitespaces)
+        let path = step.path
+        var reason = step.text.trimmingCharacters(in: .whitespaces)
         if reason.hasSuffix(".") { reason.removeLast() }
         let label = block(at: path, in: blocks)?.body.type.map { String(localized: " « \(BlockRegistry.spec($0).label) »") } ?? ""
         return String(localized: "\(lead) : règle d'abord le bloc \(path)\(label) (\(reason)).")
+    }
+
+    /// Pure (testée) : un message au format « Étape 3.2 : position invalide. » coupé en chemin (« 3.2 ») et texte
+    /// (« position invalide. »), dans la langue de l'app (le format vient de la même traduction que `fail`) ; nil
+    /// pour un autre message.
+    static func splitStep(_ message: String) -> (path: String, text: String)? {
+        let template = String(localized: "Étape \("\u{1}") : \("\u{2}")")
+        guard let a = template.range(of: "\u{1}"), let b = template.range(of: "\u{2}"), a.upperBound <= b.lowerBound
+        else { return nil }
+        let lead = String(template[..<a.lowerBound]), separator = String(template[a.upperBound..<b.lowerBound])
+        guard !lead.isEmpty, !separator.isEmpty, message.hasPrefix(lead) else { return nil }
+        let start = message.index(message.startIndex, offsetBy: lead.count)
+        guard let sep = message.range(of: separator, range: start..<message.endIndex), sep.lowerBound > start
+        else { return nil }
+        return (String(message[start..<sep.lowerBound]), String(message[sep.upperBound...]))
     }
 
     /// Bloc désigné par un chemin (« 3.2 ») ; dans un « si », la numérotation du sinon suit celle du alors.

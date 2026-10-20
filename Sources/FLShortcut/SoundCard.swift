@@ -70,8 +70,8 @@ enum SoundCard {
         let status = setDefault(kAudioHardwarePropertyDefaultOutputDevice, card.id)
         guard waitForDefault(kAudioHardwarePropertyDefaultOutputDevice, card.id) else {
             MacroLog.shared.write("AUDIO", "output not taken (status \(status))")
-            return .failed("macOS a gardé l'ancienne sortie audio au lieu de « \(card.name.displaySafe(max: 40)) »"
-                           + (status == noErr ? "" : " (erreur \(status))"))
+            return .failed(String(localized: "macOS a gardé l'ancienne sortie audio au lieu de « \(card.name.displaySafe(max: 40)) »")
+                           + (status == noErr ? "" : String(localized: " (erreur \(status))")))
         }
         var input = false
         if card.inputs > 0 {

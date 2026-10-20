@@ -230,7 +230,7 @@ final class OrganizerSession {
             return .failure(.failed(error.message))
         } catch {
             note { $0.error = "\(type(of: error))" }
-            return .failure(.failed("Écoute de FL impossible (\(type(of: error)))."))
+            return .failure(.failed(String(localized: "Écoute de FL impossible (\(String(describing: type(of: error)))).")))
         }
     }
 

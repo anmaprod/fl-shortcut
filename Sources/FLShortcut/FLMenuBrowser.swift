@@ -62,11 +62,11 @@ final class FLMenuBrowser: ObservableObject {
             return
         }
         guard AXIsProcessTrusted() else {
-            state = .unavailable("Autorise l'Accessibilité à FL Shortcuts pour parcourir les menus de FL.")
+            state = .unavailable(String(localized: "Autorise l'Accessibilité à FL Shortcuts pour parcourir les menus de FL."))
             return
         }
         guard let pid = OrganizerEnvironment.flPID() else {
-            state = .unavailable("Ouvre FL Studio pour parcourir ses menus.")
+            state = .unavailable(String(localized: "Ouvre FL Studio pour parcourir ses menus."))
             return
         }
         state = .loading
@@ -89,8 +89,8 @@ final class FLMenuBrowser: ObservableObject {
                     self.state = .needsOpening
                 case .missing:
                     self.state = .unavailable(shown.isEmpty
-                        ? "Menus de FL introuvables dans la barre des menus de macOS (FL Studio 2024.2 ou plus récent)."
-                        : "Ce menu est vide, ou FL l'a changé : reviens en arrière, ou relis les menus.")
+                        ? String(localized: "Menus de FL introuvables dans la barre des menus de macOS (FL Studio 2024.2 ou plus récent).")
+                        : String(localized: "Ce menu est vide, ou FL l'a changé : reviens en arrière, ou relis les menus."))
                 }
             }
         }
@@ -131,7 +131,7 @@ struct MenuBarField: View {
     /// Titre du niveau précédent (bouton retour) ; nil sur les menus de la barre.
     private var backTitle: String? {
         guard !browser.path.isEmpty else { return nil }
-        return browser.path.count > 1 ? browser.path[browser.path.count - 2] : "Menus de FL"
+        return browser.path.count > 1 ? browser.path[browser.path.count - 2] : String(localized: "Menus de FL")
     }
 
     private var navigation: some View {
@@ -146,7 +146,7 @@ struct MenuBarField: View {
                 .buttonStyle(.borderless)
                 .help("Revenir au menu précédent")
             }
-            Text(browser.path.last.map { $0.displaySafe(max: 40) } ?? "Menus de FL")
+            Text(browser.path.last.map { $0.displaySafe(max: 40) } ?? String(localized: "Menus de FL"))
                 .font(.system(size: 12, weight: .semibold))
                 .lineLimit(1)
                 .frame(maxWidth: .infinity, alignment: browser.path.isEmpty ? .leading : .trailing)
@@ -232,8 +232,9 @@ private struct MenuEntryRow: View {
         .buttonStyle(.plain)
         .disabled(step == .none)
         .onHover { hovering = $0 }
-        .help(step == .none ? "Trop profond pour être rejoué par la macro" : entry.enabled ? "" : "Grisé dans FL en ce moment")
-        .accessibilityLabel(entry.submenu ? "\(entry.title), sous-menu" : entry.title)
+        .help(step == .none ? String(localized: "Trop profond pour être rejoué par la macro")
+              : entry.enabled ? "" : String(localized: "Grisé dans FL en ce moment"))
+        .accessibilityLabel(entry.submenu ? String(localized: "\(entry.title), sous-menu") : entry.title)
         .accessibilityAddTraits(selected ? .isSelected : [])
     }
 }

@@ -31,30 +31,30 @@ struct GuidePage: Identifiable {
 
 enum GuideContent {
     static let pages: [GuidePage] = [
-        GuidePage(id: 1, symbol: "keyboard", tint: .blue, title: "Tes raccourcis",
-                  summary: "Change les raccourcis de FL Studio, ou ajoute les tiens.",
-                  steps: ["À gauche, choisis une page : Général, Playlist, Mixer… Elle montre les raccourcis de FL qui s'y appliquent.",
-                          "Clique sur une touche, comme ⌘Z, puis tape la nouvelle : elle remplace celle de FL. « Réinitialiser » remet celle d'origine.",
-                          "Le « + » en haut à droite ajoute ton propre raccourci à la page affichée."],
-                  tip: "Le menu ⋯ charge un profil tout prêt, ou importe et exporte tes raccourcis."),
-        GuidePage(id: 2, symbol: SidebarItem.macros.symbol, tint: SidebarItem.macros.tint, title: "Les macros",
-                  summary: "Plusieurs actions de FL enchaînées, sur un seul raccourci.",
-                  steps: ["Page Macros, « Enregistrer une macro » : fais ta suite dans FL (clics, flèches, raccourcis), puis « Terminer ». Chaque geste devient un bloc.",
-                          "Retouche-la dans le créateur : ajoute des blocs de la palette d'un clic ou en les glissant, range les lignes en les glissant.",
-                          "Choisis-lui un raccourci, puis « Tester ». La flèche ← ramène à tes macros."],
-                  tip: "« Partir d'un modèle… » propose des macros toutes faites, à adapter."),
-        GuidePage(id: 3, symbol: SidebarItem.community.symbol, tint: SidebarItem.community.tint, title: "La Communauté",
-                  summary: "Les macros et les raccourcis des autres, et les tiens.",
-                  steps: ["Crée un compte : mail, mot de passe et nom d'utilisateur. Seul ton nom est visible des autres.",
-                          "Ouvre un partage pour lire son explication et chaque étape, puis « Ajouter à mes macros ».",
-                          "Le « + » partage une de tes macros, ou tous tes raccourcis, avec ton explication."],
-                  tip: "Une macro ajoutée arrive sans raccourci : rien ne se lance tant que tu ne lui en as pas choisi un."),
-        GuidePage(id: 4, symbol: "menubar.rectangle", tint: .orange, title: "Au quotidien",
-                  summary: "FL Shortcuts travaille en arrière-plan, depuis la barre des menus.",
-                  steps: ["L'icône en haut de l'écran ouvre son menu : modifier les raccourcis, organiser la page ouverte, mettre en pause.",
-                          "⌃⌥⌘F met en pause ou reprend, n'importe où. Une pastille le rappelle tant que c'est en pause.",
-                          "Un « ! » sur l'icône : le clavier n'est pas autorisé. Ouvre son menu pour savoir quoi faire."],
-                  tip: "Tes touches ne sont lues que quand FL Studio est devant. Rien n'est envoyé, sauf ce que tu publies dans la Communauté."),
+        GuidePage(id: 1, symbol: "keyboard", tint: .blue, title: String(localized: "Tes raccourcis"),
+                  summary: String(localized: "Change les raccourcis de FL Studio, ou ajoute les tiens."),
+                  steps: [String(localized: "À gauche, choisis une page : Général, Playlist, Mixer… Elle montre les raccourcis de FL qui s'y appliquent."),
+                          String(localized: "Clique sur une touche, comme ⌘Z, puis tape la nouvelle : elle remplace celle de FL. « Réinitialiser » remet celle d'origine."),
+                          String(localized: "Le « + » en haut à droite ajoute ton propre raccourci à la page affichée.")],
+                  tip: String(localized: "Le menu ⋯ charge un profil tout prêt, ou importe et exporte tes raccourcis.")),
+        GuidePage(id: 2, symbol: SidebarItem.macros.symbol, tint: SidebarItem.macros.tint, title: String(localized: "Les macros"),
+                  summary: String(localized: "Plusieurs actions de FL enchaînées, sur un seul raccourci."),
+                  steps: [String(localized: "Page Macros, « Enregistrer une macro » : fais ta suite dans FL (clics, flèches, raccourcis), puis « Terminer ». Chaque geste devient un bloc."),
+                          String(localized: "Retouche-la dans le créateur : ajoute des blocs de la palette d'un clic ou en les glissant, range les lignes en les glissant."),
+                          String(localized: "Choisis-lui un raccourci, puis « Tester ». La flèche ← ramène à tes macros.")],
+                  tip: String(localized: "« Partir d'un modèle… » propose des macros toutes faites, à adapter.")),
+        GuidePage(id: 3, symbol: SidebarItem.community.symbol, tint: SidebarItem.community.tint, title: String(localized: "La Communauté"),
+                  summary: String(localized: "Les macros et les raccourcis des autres, et les tiens."),
+                  steps: [String(localized: "Crée un compte : mail, mot de passe et nom d'utilisateur. Seul ton nom est visible des autres."),
+                          String(localized: "Ouvre un partage pour lire son explication et chaque étape, puis « Ajouter à mes macros »."),
+                          String(localized: "Le « + » partage une de tes macros, ou tous tes raccourcis, avec ton explication.")],
+                  tip: String(localized: "Une macro ajoutée arrive sans raccourci : rien ne se lance tant que tu ne lui en as pas choisi un.")),
+        GuidePage(id: 4, symbol: "menubar.rectangle", tint: .orange, title: String(localized: "Au quotidien"),
+                  summary: String(localized: "FL Shortcuts travaille en arrière-plan, depuis la barre des menus."),
+                  steps: [String(localized: "L'icône en haut de l'écran ouvre son menu : modifier les raccourcis, organiser la page ouverte, mettre en pause."),
+                          String(localized: "⌃⌥⌘F met en pause ou reprend, n'importe où. Une pastille le rappelle tant que c'est en pause."),
+                          String(localized: "Un « ! » sur l'icône : le clavier n'est pas autorisé. Ouvre son menu pour savoir quoi faire.")],
+                  tip: String(localized: "Tes touches ne sont lues que quand FL Studio est devant. Rien n'est envoyé, sauf ce que tu publies dans la Communauté.")),
     ]
 
     /// « Bienvenue », puis une page par partie.
@@ -162,7 +162,8 @@ struct GuideView: View {
                 if page > 0 {
                     Button("Précédent") { go(to: page - 1) }
                 }
-                Button(page == 0 ? "Découvrir" : last ? "C'est parti" : "Suivant") {
+                Button(page == 0 ? String(localized: "Découvrir") : last ? String(localized: "C'est parti")
+                       : String(localized: "Suivant")) {
                     if last { close() } else { go(to: page + 1) }
                 }
                 .primaryButton()

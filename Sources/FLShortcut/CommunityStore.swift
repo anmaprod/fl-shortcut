@@ -114,14 +114,16 @@ final class CommunityStore: ObservableObject {
     /// Session prête pour une requête : jeton rafraîchi s'il expire dans la minute. Refus du serveur : session
     /// oubliée et erreur « reconnecte-toi » ; hors ligne : l'erreur de connexion, session gardée.
     func validSession() async throws -> CommunitySession {
-        guard let client, var current = session else { throw CommunityError.invalid("Connecte-toi d'abord.") }
+        guard let client, var current = session else {
+            throw CommunityError.invalid(String(localized: "Connecte-toi d'abord."))
+        }
         if current.expiresAt < Date().addingTimeInterval(60) {
             do {
                 current = try await client.refresh(current)
                 set(current)
             } catch let error as CommunityError where Self.sessionRefused(error) {
                 set(nil)
-                throw CommunityError.invalid("Session expirée : reconnecte-toi.")
+                throw CommunityError.invalid(String(localized: "Session expirée : reconnecte-toi."))
             }
         }
         return current
@@ -148,7 +150,7 @@ final class CommunityStore: ObservableObject {
                 // Compte jamais confirmé (code pas tapé, app relancée…) : un nouveau code, et l'écran pour le taper.
                 try? await client.resendSignupCode(email: email)
                 self.pendingCode = PendingCode(kind: .signup, email: email)
-                self.notice = "Ton compte n'est pas encore confirmé : un code vient de partir à \(email)."
+                self.notice = String(localized: "Ton compte n'est pas encore confirmé : un code vient de partir à \(email).")
             }
         }
         if session != nil { await reload() }
@@ -160,7 +162,7 @@ final class CommunityStore: ObservableObject {
                 self.set(try await client.signUp(email: email, password: password, username: username))
             } catch CommunityError.emailToConfirm {
                 self.pendingCode = PendingCode(kind: .signup, email: email)
-                self.notice = "Un code vient de partir à \(email) : entre-le ici pour confirmer ton compte."
+                self.notice = String(localized: "Un code vient de partir à \(email) : entre-le ici pour confirmer ton compte.")
             }
         }
         if session != nil { await reload() }
@@ -171,7 +173,9 @@ final class CommunityStore: ObservableObject {
         await run { client in
             try await client.resetPassword(email: mail)
             self.pendingCode = PendingCode(kind: .recovery, email: mail)
-            self.notice = "Si un compte existe avec ce mail, un code vient d'y partir : entre-le ici avec ton nouveau mot de passe."
+            self.notice = String(localized: """
+                Si un compte existe avec ce mail, un code vient d'y partir : entre-le ici avec ton nouveau mot de passe.
+                """)
         }
     }
 
@@ -208,7 +212,7 @@ final class CommunityStore: ObservableObject {
             changed = true
         }
         if session != nil { await reload() }
-        if changed { notice = "Mot de passe changé : tu es connecté." }   // après reload, qui efface les messages
+        if changed { notice = String(localized: "Mot de passe changé : tu es connecté.") }   // après reload, qui efface les messages
     }
 
     /// Un nouveau code (il n'est pas arrivé, ou il a expiré).
@@ -219,7 +223,7 @@ final class CommunityStore: ObservableObject {
             case .signup: try await client.resendSignupCode(email: pending.email)
             case .recovery: try await client.resetPassword(email: pending.email)
             }
-            self.notice = "Nouveau code envoyé à \(pending.email)."
+            self.notice = String(localized: "Nouveau code envoyé à \(pending.email).")
         }
     }
 
@@ -239,7 +243,9 @@ final class CommunityStore: ObservableObject {
         notice = Self.confirmedByLinkNotice
     }
 
-    static let confirmedByLinkNotice = "Si tu as cliqué sur le lien du mail, ton adresse est confirmée : connecte-toi avec ton mot de passe."
+    static let confirmedByLinkNotice = String(localized: """
+        Si tu as cliqué sur le lien du mail, ton adresse est confirmée : connecte-toi avec ton mot de passe.
+        """)
 
     func signOut() async {
         guard !demo else {
@@ -303,7 +309,7 @@ final class CommunityStore: ObservableObject {
         }
         if ok {
             await reload()
-            notice = "Partage publié."                     // après reload, qui efface les messages
+            notice = String(localized: "Partage publié.")     // après reload, qui efface les messages
         }
         return ok
     }
@@ -323,7 +329,7 @@ final class CommunityStore: ObservableObject {
     func report(_ share: Share, reason: String) async {
         await authed { client, session in
             try await client.report(share.id, reason: reason, session: session)
-            self.notice = "Merci, le signalement est envoyé."
+            self.notice = String(localized: "Merci, le signalement est envoyé.")
         }
     }
 

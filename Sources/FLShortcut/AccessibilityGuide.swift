@@ -90,7 +90,7 @@ final class AccessibilityGuide: ObservableObject {
         let p = NSPanel(contentRect: NSRect(origin: .zero, size: host.fittingSize),
                         styleMask: [.titled, .closable, .nonactivatingPanel, .utilityWindow],
                         backing: .buffered, defer: false)
-        p.title = "Autoriser FL Shortcuts"
+        p.title = String(localized: "Autoriser FL Shortcuts")
         p.isFloatingPanel = true
         p.level = .floating
         p.hidesOnDeactivate = false
@@ -136,11 +136,13 @@ private struct AccessibilityGuideView: View {
                         .font(.headline)
                         .fixedSize(horizontal: false, vertical: true)
                 }
-                step(1, "Active l'interrupteur à côté de FL Shortcuts.")
+                step(1, String(localized: "Active l'interrupteur à côté de FL Shortcuts."))
                 SwitchPreview()
                     .padding(.leading, 28)
-                step(2, "Il n'est pas dans la liste, ou il est déjà activé mais rien ne marche ? "
-                     + "Retire-le avec « – », puis glisse FL Shortcuts depuis la fenêtre du Finder dans la liste.")
+                step(2, String(localized: """
+                    Il n'est pas dans la liste, ou il est déjà activé mais rien ne marche ? \
+                    Retire-le avec « – », puis glisse FL Shortcuts depuis la fenêtre du Finder dans la liste.
+                    """))
                 HStack(spacing: 6) {
                     Image(systemName: "hourglass").foregroundStyle(.secondary)   // fixe : aucune animation
                     Text("En attente… FL Shortcuts le détecte tout seul.")
@@ -157,9 +159,9 @@ private struct AccessibilityGuideView: View {
     /// Les deux autorisations demandées ensemble, cochées une à une.
     private var progress: some View {
         HStack(spacing: 14) {
-            mark("Clavier", done: guide.granted, current: guide.stage == .keyboard)
+            mark(String(localized: "Clavier"), done: guide.granted, current: guide.stage == .keyboard)
             if ScreenLook.available {
-                mark("Fenêtre de FL", done: guide.screenGranted, current: guide.stage == .screen)
+                mark(String(localized: "Fenêtre de FL"), done: guide.screenGranted, current: guide.stage == .screen)
             }
         }
         .font(.system(size: 11, weight: .medium))
@@ -182,14 +184,18 @@ private struct AccessibilityGuideView: View {
                     .font(.headline)
                     .fixedSize(horizontal: false, vertical: true)
             }
-            step(1, "Dans la fenêtre de macOS, clique « Ouvrir Réglages Système… » (pas de fenêtre ? « Ouvrir les "
-                 + "réglages » ci-dessous).")
-            step(2, "Active l'interrupteur à côté de FL Shortcuts.")
+            step(1, String(localized: """
+                Dans la fenêtre de macOS, clique « Ouvrir Réglages Système… » (pas de fenêtre ? « Ouvrir les \
+                réglages » ci-dessous).
+                """))
+            step(2, String(localized: "Active l'interrupteur à côté de FL Shortcuts."))
             SwitchPreview()
                 .padding(.leading, 28)
-            step(3, "macOS propose « Quitter et rouvrir » : accepte, FL Shortcuts revient tout seul.")
-            Text("Facultatif : sert seulement à retrouver les boutons de FL par leur nom. Seule la fenêtre de FL est lue, "
-                 + "au moment du clic, jamais enregistrée.")
+            step(3, String(localized: "macOS propose « Quitter et rouvrir » : accepte, FL Shortcuts revient tout seul."))
+            Text(String(localized: """
+                Facultatif : sert seulement à retrouver les boutons de FL par leur nom. Seule la fenêtre de FL est lue, \
+                au moment du clic, jamais enregistrée.
+                """))
                 .font(.callout)
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)

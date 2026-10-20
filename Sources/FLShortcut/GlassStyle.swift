@@ -522,10 +522,10 @@ extension KeyCombo {
     /// Touches à dessiner, dans l'ordre macOS (⌃ ⌥ ⇧ ⌘ puis la touche).
     var caps: [CapInfo] {
         var out: [CapInfo] = []
-        if control { out.append(CapInfo(id: "ctrl", symbol: "⌃", name: "ctrl")) }
-        if option { out.append(CapInfo(id: "option", symbol: "⌥", name: "option")) }
-        if shift { out.append(CapInfo(id: "shift", symbol: "⇧", name: "maj")) }
-        if command { out.append(CapInfo(id: "cmd", symbol: "⌘", name: "cmd")) }
+        if control { out.append(CapInfo(id: "ctrl", symbol: "⌃", name: String(localized: "ctrl"))) }
+        if option { out.append(CapInfo(id: "option", symbol: "⌥", name: String(localized: "option"))) }
+        if shift { out.append(CapInfo(id: "shift", symbol: "⇧", name: String(localized: "maj"))) }
+        if command { out.append(CapInfo(id: "cmd", symbol: "⌘", name: String(localized: "cmd"))) }
         out.append(CapInfo(id: "key-\(keyCode)", symbol: KeyNames.name(for: keyCode), name: ""))
         return out
     }
@@ -533,10 +533,10 @@ extension KeyCombo {
     /// Texte lu par VoiceOver : « contrôle option R ».
     var spoken: String {
         var parts: [String] = []
-        if control { parts.append("contrôle") }
-        if option { parts.append("option") }
-        if shift { parts.append("majuscule") }
-        if command { parts.append("commande") }
+        if control { parts.append(String(localized: "contrôle")) }
+        if option { parts.append(String(localized: "option")) }
+        if shift { parts.append(String(localized: "majuscule")) }
+        if command { parts.append(String(localized: "commande")) }
         parts.append(KeyNames.name(for: keyCode))
         return parts.joined(separator: " ")
     }
@@ -559,7 +559,7 @@ struct KeyCaps: View {
             }
         }
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel(combo?.spoken ?? "Aucun raccourci")
+        .accessibilityLabel(combo?.spoken ?? String(localized: "Aucun raccourci"))
     }
 
     private var row: some View {
@@ -580,7 +580,7 @@ struct KeyCaps: View {
 struct KeyLabel: View {
     let combo: KeyCombo?
     var accent = false
-    var placeholder = "Aucune"
+    var placeholder = String(localized: "Aucune")
 
     private var shape: RoundedRectangle { RoundedRectangle(cornerRadius: 6, style: .continuous) }
 
@@ -661,46 +661,46 @@ struct StepBadge: View {
 extension FLActionInfo {
     var detail: String {
         switch key {
-        case "play": return "Lance ou met en pause la lecture"
-        case "stop": return "Arrête la lecture"
-        case "rec": return "Démarre ou arrête l'enregistrement"
-        case "metro": return "Active ou coupe le métronome"
-        case "count": return "Décompte avant l'enregistrement"
-        case "loop": return "Enchaîne les prises sur la boucle"
-        case "wait": return "Le REC démarre à la première note jouée"
-        case "marker": return "Repère « bonne prise » à la position de lecture"
-        case "arm": return "Prépare la piste du Mixer sélectionnée à enregistrer"
-        case "tap": return "Tape le tempo en rythme"
-        case "newpat": return "Crée un pattern vide et ouvre le Piano Roll"
-        case "clone": return "Duplique le pattern en cours pour une variation"
-        case "pnext": return "Passe au pattern suivant"
-        case "pprev": return "Revient au pattern précédent"
-        case "chnext": return "Instrument suivant, sans quitter le Piano Roll"
-        case "chprev": return "Instrument précédent, sans quitter le Piano Roll"
-        case "snap": return "Change le magnétisme : 1/4, 1/8, triolets…"
-        case "quant": return "Aligne les notes de l'instrument sélectionné"
-        case "presetnext": return "Preset suivant du plugin ouvert"
-        case "presetprev": return "Preset précédent du plugin ouvert"
-        case "mute": return "Coupe la piste du Mixer sélectionnée"
-        case "solo": return "Écoute seulement la piste sélectionnée"
-        case "unsolo": return "Réécoute tout le morceau"
-        case "bypass": return "Compare la piste avec et sans effets"
-        case "mono": return "Vérifie que le mix tient en mono"
-        case "trnext": return "Sélectionne la piste suivante du Mixer"
-        case "trprev": return "Sélectionne la piste précédente du Mixer"
-        case "volup": return "Monte la piste sélectionnée"
-        case "voldn": return "Baisse la piste sélectionnée"
-        case "pl": return "Affiche la Playlist"
-        case "cr": return "Affiche le Channel Rack"
-        case "pr": return "Affiche le Piano Roll"
-        case "mx": return "Affiche le Mixer"
-        case "br": return "Affiche le Browser"
-        case "plmx": return "Bascule entre la Playlist et le Mixer"
-        case "undo": return "Annule la dernière action"
-        case "redo": return "Rétablit l'action annulée"
-        case "save": return "Sauvegarde le projet"
-        case "armon": return "Arme la piste sélectionnée, sans jamais la désarmer"
-        case "recon": return "Allume le REC, sans jamais l'éteindre"
+        case "play": return String(localized: "Lance ou met en pause la lecture")
+        case "stop": return String(localized: "Arrête la lecture")
+        case "rec": return String(localized: "Démarre ou arrête l'enregistrement")
+        case "metro": return String(localized: "Active ou coupe le métronome")
+        case "count": return String(localized: "Décompte avant l'enregistrement")
+        case "loop": return String(localized: "Enchaîne les prises sur la boucle")
+        case "wait": return String(localized: "Le REC démarre à la première note jouée")
+        case "marker": return String(localized: "Repère « bonne prise » à la position de lecture")
+        case "arm": return String(localized: "Prépare la piste du Mixer sélectionnée à enregistrer")
+        case "tap": return String(localized: "Tape le tempo en rythme")
+        case "newpat": return String(localized: "Crée un pattern vide et ouvre le Piano Roll")
+        case "clone": return String(localized: "Duplique le pattern en cours pour une variation")
+        case "pnext": return String(localized: "Passe au pattern suivant")
+        case "pprev": return String(localized: "Revient au pattern précédent")
+        case "chnext": return String(localized: "Instrument suivant, sans quitter le Piano Roll")
+        case "chprev": return String(localized: "Instrument précédent, sans quitter le Piano Roll")
+        case "snap": return String(localized: "Change le magnétisme : 1/4, 1/8, triolets…")
+        case "quant": return String(localized: "Aligne les notes de l'instrument sélectionné")
+        case "presetnext": return String(localized: "Preset suivant du plugin ouvert")
+        case "presetprev": return String(localized: "Preset précédent du plugin ouvert")
+        case "mute": return String(localized: "Coupe la piste du Mixer sélectionnée")
+        case "solo": return String(localized: "Écoute seulement la piste sélectionnée")
+        case "unsolo": return String(localized: "Réécoute tout le morceau")
+        case "bypass": return String(localized: "Compare la piste avec et sans effets")
+        case "mono": return String(localized: "Vérifie que le mix tient en mono")
+        case "trnext": return String(localized: "Sélectionne la piste suivante du Mixer")
+        case "trprev": return String(localized: "Sélectionne la piste précédente du Mixer")
+        case "volup": return String(localized: "Monte la piste sélectionnée")
+        case "voldn": return String(localized: "Baisse la piste sélectionnée")
+        case "pl": return String(localized: "Affiche la Playlist")
+        case "cr": return String(localized: "Affiche le Channel Rack")
+        case "pr": return String(localized: "Affiche le Piano Roll")
+        case "mx": return String(localized: "Affiche le Mixer")
+        case "br": return String(localized: "Affiche le Browser")
+        case "plmx": return String(localized: "Bascule entre la Playlist et le Mixer")
+        case "undo": return String(localized: "Annule la dernière action")
+        case "redo": return String(localized: "Rétablit l'action annulée")
+        case "save": return String(localized: "Sauvegarde le projet")
+        case "armon": return String(localized: "Arme la piste sélectionnée, sans jamais la désarmer")
+        case "recon": return String(localized: "Allume le REC, sans jamais l'éteindre")
         default: return label
         }
     }

@@ -72,13 +72,13 @@ extension FLSection {
 /// Textes de l'en-tête de page.
 enum PageSummary {
     /// Résumé des raccourcis de « Mes raccourcis ».
-    static let custom = "Un raccourci personnalisé lance une action ou envoie une touche de FL Studio."
+    static let custom = String(localized: "Un raccourci personnalisé lance une action ou envoie une touche de FL Studio.")
 
     /// « 34 raccourcis · 3 modifiés ».
     static func count(_ count: Int, modified: Int) -> String {
-        let total = count == 1 ? "1 raccourci" : "\(count) raccourcis"
+        let total = count == 1 ? String(localized: "1 raccourci") : String(localized: "\(count) raccourcis")
         guard modified > 0 else { return total }
-        return total + " · " + (modified == 1 ? "1 modifié" : "\(modified) modifiés")
+        return total + " · " + (modified == 1 ? String(localized: "1 modifié") : String(localized: "\(modified) modifiés"))
     }
 }
 
@@ -275,20 +275,23 @@ struct EditorView: View {
             editor.discardNew()
         case .askNew(let name):
             let shown = name.displaySafe(max: 40)
-            switch Dialogs.choose("Enregistrer « \(shown) » ?", "Si tu ne l'enregistres pas, cette nouvelle macro est supprimée.",
-                                  ["Enregistrer", "Supprimer", "Annuler"], destructive: 1) {
+            switch Dialogs.choose(String(localized: "Enregistrer « \(shown) » ?"),
+                                  String(localized: "Si tu ne l'enregistres pas, cette nouvelle macro est supprimée."),
+                                  [String(localized: "Enregistrer"), String(localized: "Supprimer"), String(localized: "Annuler")],
+                                  destructive: 1) {
             case 0:
                 editor.saveNow()
             case 1:
                 editor.discardNew()
-                show("« \(shown) » supprimée")
+                show(String(localized: "« \(shown) » supprimée"))
             default:
                 return
             }
         case .askChanges(let name):
-            switch Dialogs.choose("Enregistrer les modifications de « \(name.displaySafe(max: 40)) » ?",
-                                  "Sinon, la macro revient telle qu'elle était quand tu l'as ouverte.",
-                                  ["Enregistrer", "Annuler les modifications", "Rester"], destructive: 1) {
+            switch Dialogs.choose(String(localized: "Enregistrer les modifications de « \(name.displaySafe(max: 40)) » ?"),
+                                  String(localized: "Sinon, la macro revient telle qu'elle était quand tu l'as ouverte."),
+                                  [String(localized: "Enregistrer"), String(localized: "Annuler les modifications"),
+                                   String(localized: "Rester")], destructive: 1) {
             case 0: editor.saveNow()
             case 1: editor.revertChanges()
             default: return
@@ -359,14 +362,14 @@ struct EditorView: View {
     }
 
     private var title: String {
-        if !trimmedQuery.isEmpty { return "Recherche" }
+        if !trimmedQuery.isEmpty { return String(localized: "Recherche") }
         switch selection ?? .section(.general) {
         case .section(let s): return s.title
-        case .custom: return "Mes raccourcis"
-        case .macros: return "Macros"
-        case .community: return "Communauté"
-        case .help: return "Aide"
-        case .account: return "Mon compte"
+        case .custom: return String(localized: "Mes raccourcis")
+        case .macros: return String(localized: "Macros")
+        case .community: return String(localized: "Communauté")
+        case .help: return String(localized: "Aide")
+        case .account: return String(localized: "Mon compte")
         }
     }
 
@@ -501,8 +504,8 @@ struct EditorView: View {
                 if let followUp {
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
                         guard let next = store.catalogRows().rows.first(where: { $0.id == followUp }) else { return }
-                        editNotice = "« \(row.entry.title) » utilise maintenant cette touche. "
-                            + "Choisis une nouvelle touche pour « \(next.entry.title) »."
+                        editNotice = String(localized: "« \(row.entry.title) » utilise maintenant cette touche. ")
+                            + String(localized: "Choisis une nouvelle touche pour « \(next.entry.title) ».")
                         editingRow = next
                     }
                 }
@@ -568,11 +571,11 @@ struct EditorView: View {
         return Group {
             if rows.isEmpty && others.isEmpty {
                 if let combo {
-                    EmptyState(symbol: "keyboard", title: "Aucun raccourci",
-                               text: "Rien n'utilise \(combo.display) : ces touches sont libres.")
+                    EmptyState(symbol: "keyboard", title: String(localized: "Aucun raccourci"),
+                               text: String(localized: "Rien n'utilise \(combo.display) : ces touches sont libres."))
                 } else {
-                    EmptyState(symbol: "magnifyingglass", title: "Aucun résultat",
-                               text: "Aucun raccourci ne correspond à « \(q) ».")
+                    EmptyState(symbol: "magnifyingglass", title: String(localized: "Aucun résultat"),
+                               text: String(localized: "Aucun raccourci ne correspond à « \(q) »."))
                 }
             } else {
                 PageContainer {
@@ -588,7 +591,7 @@ struct EditorView: View {
                             CardRows(items: others) { customRow($0) }
                         } header: {
                             SectionHeader(symbol: SidebarItem.custom.symbol, tint: SidebarItem.custom.tint,
-                                          title: "Mes raccourcis")
+                                          title: String(localized: "Mes raccourcis"))
                         }
                     }
                 }
@@ -601,15 +604,15 @@ struct EditorView: View {
     private func customList(_ others: [Remap]) -> some View {
         Group {
             if others.isEmpty {
-                EmptyState(symbol: SidebarItem.custom.symbol, title: "Aucun raccourci personnalisé",
+                EmptyState(symbol: SidebarItem.custom.symbol, title: String(localized: "Aucun raccourci personnalisé"),
                            text: PageSummary.custom,
-                           actionTitle: "Nouveau raccourci…",
+                           actionTitle: String(localized: "Nouveau raccourci…"),
                            action: { newCustom() })
             } else {
                 PageContainer {
                     Section {
                         PageHeader(symbol: SidebarItem.custom.symbol, tint: SidebarItem.custom.tint,
-                                   title: "Mes raccourcis", subtitle: PageSummary.custom,
+                                   title: String(localized: "Mes raccourcis"), subtitle: PageSummary.custom,
                                    detail: PageSummary.count(others.count, modified: 0))
                             .cardRow(.single)
                     }
@@ -656,29 +659,29 @@ struct EditorView: View {
         var out: [NoticeItem] = []
         if recorder.activeID == Self.keySearchID {
             out.append(NoticeItem(id: "keysearch", symbol: "keyboard", tint: .accentColor,
-                                  text: "Appuie sur le raccourci que tu connais : la recherche montre ce qu'il fait.",
-                                  button: "Annuler", action: { Recorder.shared.stop() }))
+                                  text: String(localized: "Appuie sur le raccourci que tu connais : la recherche montre ce qu'il fait."),
+                                  button: String(localized: "Annuler"), action: { Recorder.shared.stop() }))
         } else if recorder.hintID == Self.keySearchID, let hint = recorder.hint {
             out.append(NoticeItem(id: "keysearch-hint", symbol: "keyboard", tint: .orange, text: hint,
-                                  button: "Réessayer", action: { startKeySearch() }))
+                                  button: String(localized: "Réessayer"), action: { startKeySearch() }))
         }
         if !status.accessibilityOK {
             out.append(NoticeItem(id: "ax", symbol: "exclamationmark.triangle.fill", tint: .orange,
-                                  text: "FL Shortcuts n'a pas accès au clavier : tes raccourcis sont inactifs.",
-                                  button: "Autoriser…", action: { AccessibilityGuide.start() }))
+                                  text: String(localized: "FL Shortcuts n'a pas accès au clavier : tes raccourcis sont inactifs."),
+                                  button: String(localized: "Autoriser…"), action: { AccessibilityGuide.start() }))
         } else if status.staleTCC {
             out.append(NoticeItem(id: "stale", symbol: "exclamationmark.triangle.fill", tint: .orange,
-                                  text: "Autorisation périmée : retire FL Shortcuts de la liste Accessibilité, puis ajoute-le.",
-                                  button: "Ouvrir…", action: { AccessibilityGuide.start() }))
+                                  text: String(localized: "Autorisation périmée : retire FL Shortcuts de la liste Accessibilité, puis ajoute-le."),
+                                  button: String(localized: "Ouvrir…"), action: { AccessibilityGuide.start() }))
         }
         if status.secureInput {
             out.append(NoticeItem(id: "secure", symbol: "lock.fill", tint: .orange,
-                                  text: "Saisie sécurisée active dans une autre app : macOS ne transmet plus les touches."))
+                                  text: String(localized: "Saisie sécurisée active dans une autre app : macOS ne transmet plus les touches.")))
         }
         if !AppMode.light, status.scriptState == .modified {
             out.append(NoticeItem(id: "script", symbol: "exclamationmark.shield.fill", tint: .red,
-                                  text: "Le script FL a été modifié depuis son installation.",
-                                  button: "Réinstaller", action: { FLScriptInstaller.installWithAlert() }))
+                                  text: String(localized: "Le script FL a été modifié depuis son installation."),
+                                  button: String(localized: "Réinstaller"), action: { FLScriptInstaller.installWithAlert() }))
         }
         if let error = store.saveError {
             out.append(NoticeItem(id: "save", symbol: "xmark.octagon.fill", tint: .red, text: error))
@@ -686,7 +689,7 @@ struct EditorView: View {
         if let warning = store.loadWarning {
             let model = store
             out.append(NoticeItem(id: "load", symbol: "info.circle.fill", tint: .secondary, text: warning,
-                                  button: "OK", action: { model.loadWarning = nil }))
+                                  button: String(localized: "OK"), action: { model.loadWarning = nil }))
         }
         return out
     }
@@ -748,7 +751,7 @@ struct EditorView: View {
             Label("Rechercher avec un raccourci", systemImage: listening ? "keyboard.fill" : "keyboard")
         }
         .help("Rechercher avec un raccourci : appuie sur les touches que tu connais")
-        .accessibilityValue(listening ? "En attente des touches" : "")
+        .accessibilityValue(listening ? String(localized: "En attente des touches") : "")
     }
 
     private func startKeySearch() {
@@ -779,11 +782,11 @@ struct EditorView: View {
         let current = page
         let help: String
         switch current {
-        case .macros: help = "Nouvelle macro"
-        case .community: help = "Partager une macro ou tes raccourcis"
+        case .macros: help = String(localized: "Nouvelle macro")
+        case .community: help = String(localized: "Partager une macro ou tes raccourcis")
         case .help, .account: help = ""
-        case .custom: help = "Nouveau raccourci personnalisé"
-        case .section(let s): help = "Nouveau raccourci pour la page « \(s.title) »"
+        case .custom: help = String(localized: "Nouveau raccourci personnalisé")
+        case .section(let s): help = String(localized: "Nouveau raccourci pour la page « \(s.title) »")
         }
         return Button {
             switch current {
@@ -801,34 +804,34 @@ struct EditorView: View {
 
     /// Menu ⋯ au style du menu de l'icône (StyledMenu.swift).
     private var profileMenu: some View {
-        StyledMenuButton(help: "Aide, compte, profil, import et export", width: 290) {
+        StyledMenuButton(help: String(localized: "Aide, compte, profil, import et export"), width: 290) {
             var entries: [StyledMenuEntry] = [
                 // Le guide est dans la page Aide (son seul endroit, avec les questions et le contact).
-                .item("Aide, guide et contact", symbol: "questionmark", tint: .teal) { query = ""; selection = .help },
-                .item("Mon compte et sauvegarde", symbol: "person.crop.circle", tint: .indigo) {
+                .item(String(localized: "Aide, guide et contact"), symbol: "questionmark", tint: .teal) { query = ""; selection = .help },
+                .item(String(localized: "Mon compte et sauvegarde"), symbol: "person.crop.circle", tint: .indigo) {
                     query = ""; selection = .account
                 },
                 .separator,
-                .group("Charger un profil", symbol: "rectangle.stack", tint: .purple, ProfilePreset.allCases.map { preset -> StyledMenuEntry in
+                .group(String(localized: "Charger un profil"), symbol: "rectangle.stack", tint: .purple, ProfilePreset.allCases.map { preset -> StyledMenuEntry in
                     .item(preset.label, symbol: "keyboard", tint: .purple) { load(preset) }
                 }),
-                .item("Importer…", symbol: "square.and.arrow.down", tint: .blue) { importProfile() },
-                .item("Exporter…", symbol: "square.and.arrow.up", tint: .blue) { exportProfile() },
+                .item(String(localized: "Importer…"), symbol: "square.and.arrow.down", tint: .blue) { importProfile() },
+                .item(String(localized: "Exporter…"), symbol: "square.and.arrow.up", tint: .blue) { exportProfile() },
                 .separator,
-                .item("Nouveau raccourci personnalisé…", symbol: "plus", tint: .green) { newCustom() },
+                .item(String(localized: "Nouveau raccourci personnalisé…"), symbol: "plus", tint: .green) { newCustom() },
                 .separator,
             ]
             if store.undoSnapshot != nil {
-                entries.append(.item("Annuler le dernier remplacement", symbol: "arrow.uturn.backward", tint: .orange) {
+                entries.append(.item(String(localized: "Annuler le dernier remplacement"), symbol: "arrow.uturn.backward", tint: .orange) {
                     store.undoReplace()
                 })
             }
-            entries.append(.item("Tout réinitialiser…", symbol: "arrow.counterclockwise", tint: .orange) { resetAll() })
+            entries.append(.item(String(localized: "Tout réinitialiser…"), symbol: "arrow.counterclockwise", tint: .orange) { resetAll() })
             if Appearance.glassAvailable {
-                entries += [.separator, .toggle("Effet Liquid Glass", symbol: "drop", tint: .cyan, isOn: $glassEnabled)]
+                entries += [.separator, .toggle(String(localized: "Effet Liquid Glass"), symbol: "drop", tint: .cyan, isOn: $glassEnabled)]
             }
             entries += [.separator,
-                        .item("Désinstaller FL Shortcuts…", symbol: "trash", tint: .red) { Uninstaller.confirmAndRun() }]
+                        .item(String(localized: "Désinstaller FL Shortcuts…"), symbol: "trash", tint: .red) { Uninstaller.confirmAndRun() }]
             return entries
         } label: {
             Label("Profil", systemImage: "ellipsis")
@@ -848,30 +851,30 @@ struct EditorView: View {
     }
 
     private func load(_ preset: ProfilePreset) {
-        guard Dialogs.confirm("Charger le profil « \(preset.label) » ?",
-                              preset.summary + "\n\nTes raccourcis actuels seront remplacés (annulable).")
+        guard Dialogs.confirm(String(localized: "Charger le profil « \(preset.label) » ?"),
+                              preset.summary + String(localized: "\n\nTes raccourcis actuels seront remplacés (annulable)."))
         else { return }
         store.apply(preset: preset)
-        show(ToastMessage(text: "Profil « \(preset.label) » chargé", undo: { store.undoReplace() }))
+        show(ToastMessage(text: String(localized: "Profil « \(preset.label) » chargé"), undo: { store.undoReplace() }))
     }
 
     private func reset(_ row: CatalogRow) {
         let before = store.remaps
         store.reset(row)
-        show(ToastMessage(text: "« \(row.entry.title) » réinitialisé", undo: { store.remaps = before }))
+        show(ToastMessage(text: String(localized: "« \(row.entry.title) » réinitialisé"), undo: { store.remaps = before }))
     }
 
     private func resetAll() {
-        guard Dialogs.confirm("Tout réinitialiser ?",
-                              "Tous les raccourcis reviennent à leur touche d'origine (profil Recommandé). C'est annulable.")
+        guard Dialogs.confirm(String(localized: "Tout réinitialiser ?"),
+                              String(localized: "Tous les raccourcis reviennent à leur touche d'origine (profil Recommandé). C'est annulable."))
         else { return }
         store.resetAll()
-        show(ToastMessage(text: "Tous les raccourcis sont réinitialisés", undo: { store.undoReplace() }))
+        show(ToastMessage(text: String(localized: "Tous les raccourcis sont réinitialisés"), undo: { store.undoReplace() }))
     }
 
     private func delete(_ remap: Remap) {
         store.delete(remap.id)
-        show(ToastMessage(text: "Raccourci supprimé", undo: { store.upsert(remap) }))
+        show(ToastMessage(text: String(localized: "Raccourci supprimé"), undo: { store.upsert(remap) }))
     }
 
     private func show(_ message: ToastMessage) {
@@ -895,13 +898,13 @@ struct EditorView: View {
             guard size <= ProfileImporter.maxBytes else { throw ProfileImporter.Failure.tooLarge }
             let preview = try store.prepareImport(try Data(contentsOf: url))
             var text = preview.summary.joined(separator: "\n")
-            if !preview.rejected.isEmpty { text += "\n\nRefusé(s) par sécurité :\n• " + preview.rejected.joined(separator: "\n• ") }
-            text += "\n\nTes raccourcis actuels seront remplacés (annulable)."
-            guard Dialogs.confirm("Importer ce profil ?", text) else { return }
+            if !preview.rejected.isEmpty { text += String(localized: "\n\nRefusé(s) par sécurité :\n• ") + preview.rejected.joined(separator: "\n• ") }
+            text += String(localized: "\n\nTes raccourcis actuels seront remplacés (annulable).")
+            guard Dialogs.confirm(String(localized: "Importer ce profil ?"), text) else { return }
             store.applyImport(preview)
-            show(ToastMessage(text: "Profil importé", undo: { store.undoReplace() }))
+            show(ToastMessage(text: String(localized: "Profil importé"), undo: { store.undoReplace() }))
         } catch {
-            Dialogs.inform("Import impossible", error.localizedDescription)
+            Dialogs.inform(String(localized: "Import impossible"), error.localizedDescription)
         }
     }
 
@@ -914,9 +917,9 @@ struct EditorView: View {
         guard panel.runModal() == .OK, let url = panel.url else { return }
         do {
             try store.exportData().write(to: url, options: .atomic)
-            show("Profil exporté")
+            show(String(localized: "Profil exporté"))
         } catch {
-            Dialogs.inform("Export impossible", error.localizedDescription)
+            Dialogs.inform(String(localized: "Export impossible"), error.localizedDescription)
         }
     }
 }
@@ -1029,16 +1032,16 @@ private struct StatusBar: View {
     }
 
     private var text: String? {
-        if !store.enabled { return "En pause : FL Studio utilise ses raccourcis d'origine" }
-        if !status.accessibilityOK { return "Clavier non autorisé" }
-        if AppMode.light { return fl.running ? nil : "FL Studio n'est pas ouvert" }
+        if !store.enabled { return String(localized: "En pause : FL Studio utilise ses raccourcis d'origine") }
+        if !status.accessibilityOK { return String(localized: "Clavier non autorisé") }
+        if AppMode.light { return fl.running ? nil : String(localized: "FL Studio n'est pas ouvert") }
         switch link.status {
         case .linked: return nil
-        case .flClosed: return "FL Studio n'est pas ouvert"
+        case .flClosed: return String(localized: "FL Studio n'est pas ouvert")
         case .inactive:
-            if !link.snapshot.hasKey { return "Lien avec FL Studio non installé" }
-            if link.snapshot.incompatibleProtocol != nil { return "Script FL d'une autre version" }
-            return "Lien inactif : quitte et rouvre FL (il relie « FL Shortcuts Link » tout seul)"
+            if !link.snapshot.hasKey { return String(localized: "Lien avec FL Studio non installé") }
+            if link.snapshot.incompatibleProtocol != nil { return String(localized: "Script FL d'une autre version") }
+            return String(localized: "Lien inactif : quitte et rouvre FL (il relie « FL Shortcuts Link » tout seul)")
         }
     }
 
@@ -1046,12 +1049,12 @@ private struct StatusBar: View {
     private var action: (label: String, run: () -> Void)? {
         let model = store
         let midi = link
-        guard model.enabled else { return ("Reprendre", { model.enabled = true }) }
+        guard model.enabled else { return (String(localized: "Reprendre"), { model.enabled = true }) }
         guard status.accessibilityOK, !AppMode.light, midi.status == .inactive else { return nil }
         if !midi.snapshot.hasKey || midi.snapshot.incompatibleProtocol != nil {
-            return ("Installer…", { FLScriptInstaller.installWithAlert() })
+            return (String(localized: "Installer…"), { FLScriptInstaller.installWithAlert() })
         }
-        return ("Tester", { midi.testLink() })
+        return (String(localized: "Tester"), { midi.testLink() })
     }
 }
 
@@ -1068,7 +1071,7 @@ private struct IssueIcon: View {
             .font(.system(size: 12))
             .foregroundStyle(blocking ? Color.red : Color.orange)
             .help(text)
-            .accessibilityLabel("Attention : " + text)
+            .accessibilityLabel(String(localized: "Attention : ") + text)
     }
 }
 
@@ -1101,11 +1104,11 @@ private struct CatalogRowView: View {
     /// Légende seulement quand la touche a changé.
     private var caption: String? {
         guard !row.isDefault else { return nil }
-        return "D'origine : " + (row.entry.defaultTrigger?.display ?? "aucune")
+        return String(localized: "D'origine : ") + (row.entry.defaultTrigger?.display ?? String(localized: "aucune"))
     }
 
     private var titleHelp: String {
-        row.entry.isNative ? "Raccourci d'origine de FL Studio" : row.entry.detail
+        row.entry.isNative ? String(localized: "Raccourci d'origine de FL Studio") : row.entry.detail
     }
 
     var body: some View {
@@ -1135,10 +1138,10 @@ private struct CatalogRowView: View {
             .buttonStyle(.plain)
             .help("Changer la touche")
             .accessibilityLabel("Changer la touche de \(row.entry.title)")
-            .accessibilityValue(row.current?.spoken ?? "aucune")
+            .accessibilityValue(row.current?.spoken ?? String(localized: "aucune"))
 
             ResetButton(enabled: !row.isDefault,
-                        help: "Revenir à : " + (row.entry.defaultTrigger?.display ?? "aucune touche"),
+                        help: String(localized: "Revenir à : ") + (row.entry.defaultTrigger?.display ?? String(localized: "aucune touche")),
                         action: onReset)
         }
         .padding(.vertical, 2)
@@ -1160,7 +1163,7 @@ private struct ShortcutRow: View {
     private var caption: String? {
         var parts: [String] = []
         if remap.context != .everywhere { parts.append(remap.context.label) }
-        if !remap.enabled { parts.append("désactivé") }
+        if !remap.enabled { parts.append(String(localized: "désactivé")) }
         guard !parts.isEmpty else { return nil }
         let text = parts.joined(separator: ", ")
         return text.prefix(1).uppercased() + text.dropFirst()
@@ -1186,7 +1189,7 @@ private struct ShortcutRow: View {
             .buttonStyle(.plain)
             .help("Modifier le raccourci")
             .accessibilityLabel("Modifier : \(remap.title)")
-            .accessibilityValue(remap.trigger?.spoken ?? "aucun raccourci")
+            .accessibilityValue(remap.trigger?.spoken ?? String(localized: "aucun raccourci"))
 
             Button(action: onDelete) {
                 Label("Supprimer", systemImage: "trash")
@@ -1200,7 +1203,7 @@ private struct ShortcutRow: View {
         .opacity(remap.enabled ? 1 : 0.55)
         .contextMenu {
             Button("Modifier…", action: onOpen)
-            Button(remap.enabled ? "Désactiver" : "Activer", action: onToggle)
+            Button(remap.enabled ? String(localized: "Désactiver") : String(localized: "Activer"), action: onToggle)
             Divider()
             Button("Supprimer", role: .destructive, action: onDelete)
         }
@@ -1349,8 +1352,8 @@ struct EditSheet: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             SheetHeader(symbol: kindSymbol, tint: SidebarItem.custom.tint,
-                        title: isNew ? "Nouveau raccourci" + (draft.page.map { " · " + $0.title } ?? "")
-                                     : "Modifier le raccourci")
+                        title: isNew ? String(localized: "Nouveau raccourci") + (draft.page.map { " · " + $0.title } ?? "")
+                                     : String(localized: "Modifier le raccourci"))
 
             Form {
                 LabeledContent("Raccourci") {
@@ -1389,7 +1392,7 @@ struct EditSheet: View {
                     Button("Supprimer", role: .destructive) {
                         let removed = draft
                         store.delete(draft.id)
-                        onDone(ToastMessage(text: "Raccourci supprimé", undo: { store.upsert(removed) }))
+                        onDone(ToastMessage(text: String(localized: "Raccourci supprimé"), undo: { store.upsert(removed) }))
                         dismiss()
                     }
                 }
@@ -1408,7 +1411,7 @@ struct EditSheet: View {
                         final.macroRef = nil
                     }
                     store.upsert(final)
-                    onDone(ToastMessage(text: isNew ? "Raccourci ajouté" : "Raccourci modifié", undo: nil))
+                    onDone(ToastMessage(text: isNew ? String(localized: "Raccourci ajouté") : String(localized: "Raccourci modifié"), undo: nil))
                     dismiss()
                 }
                 .keyboardShortcut(.defaultAction)
@@ -1430,15 +1433,16 @@ struct EditSheet: View {
     /// raccourci lance désormais ; elle s'ouvre dans le créateur (comme « Convertir » dans Raccourcis d'Apple).
     private func customizeTemplate() {
         let template = draft.macro ?? Macro()
-        guard Dialogs.confirm("Personnaliser « Enregistrement rapide » ?",
-                              "Le modèle devient une macro en blocs que tu modifies étape par étape dans le créateur. "
-                              + "Ce raccourci lancera ta version ; le modèle d'origine reste dans Macros › Modèles.")
+        guard Dialogs.confirm(String(localized: "Personnaliser « Enregistrement rapide » ?"),
+                              String(localized: "Le modèle devient une macro en blocs que tu modifies étape par étape dans le créateur. ")
+                              + String(localized: "Ce raccourci lancera ta version ; le modèle d'origine reste dans Macros › Modèles."))
         else { return }
         let copy = MacroTemplates.customizedCopy(of: template,
-                                                 name: store.library.uniqueName("Enregistrement rapide (personnalisé)"),
+                                                 name: store.library.uniqueName(String(localized: "Enregistrement rapide (personnalisé)")),
                                                  forbidden: store.forbidden)
         if let problem = copy.problem {
-            Dialogs.inform("Personnalisation impossible", "Le raccourci garde le modèle, qui continue de marcher. \(problem)")
+            Dialogs.inform(String(localized: "Personnalisation impossible"),
+                           String(localized: "Le raccourci garde le modèle, qui continue de marcher. \(problem)"))
             return
         }
         let doc = store.library.add(copy.doc)
@@ -1450,7 +1454,7 @@ struct EditSheet: View {
         final.target = nil
         recorder.stop()
         if final.trigger != nil { store.upsert(final) }
-        onDone(ToastMessage(text: "« \(doc.name) » est dans Macros : modifie-la bloc par bloc", undo: nil))
+        onDone(ToastMessage(text: String(localized: "« \(doc.name) » est dans Macros : modifie-la bloc par bloc"), undo: nil))
         dismiss()
         openCreator(doc.id)
     }
@@ -1485,7 +1489,7 @@ struct EditSheet: View {
                 }
                 Picker("Catégorie", selection: categoryBinding) {
                     ForEach(FLActionInfo.Category.allCases, id: \.self) { c in
-                        Text(c.rawValue).tag(c)
+                        Text(c.label).tag(c)
                     }
                 }
                 .pickerStyle(.segmented)
@@ -1533,7 +1537,7 @@ struct EditSheet: View {
             VStack(alignment: .leading, spacing: 6) {
                 CaptureField(id: "\(draft.id)-target", role: .target, combo: $draft.target)
                 if let t = draft.target, let name = store.conflicts.flConflict(t) {
-                    Text("Dans FL Studio : \(name.replacingOccurrences(of: "FL : ", with: ""))")
+                    Text("Dans FL Studio : \(name.replacingOccurrences(of: String(localized: "FL : "), with: ""))")
                         .font(.system(size: 11)).foregroundStyle(.secondary)
                 } else {
                     Text("Le raccourci de FL Studio à déplacer sur ta touche.")
@@ -1614,7 +1618,7 @@ final class Recorder: ObservableObject {
         }
         let work = DispatchWorkItem { [weak self] in
             self?.stop()
-            self?.hint = "Aucune touche reçue : macOS utilise peut-être ce raccourci."
+            self?.hint = String(localized: "Aucune touche reçue : macOS utilise peut-être ce raccourci.")
             self?.hintID = id
         }
         timeout = work
@@ -1653,7 +1657,7 @@ struct CaptureField: View {
     private var shape: RoundedRectangle { RoundedRectangle(cornerRadius: 12, style: .continuous) }
 
     private var footnote: (text: String, warning: Bool)? {
-        if recording { return ("Échap pour annuler, ⌫ pour effacer.", false) }
+        if recording { return (String(localized: "Échap pour annuler, ⌫ pour effacer."), false) }
         if recorder.hintID == id, let hint = recorder.hint { return (hint, true) }
         return nil
     }
@@ -1669,7 +1673,8 @@ struct CaptureField: View {
                     } else if let combo {
                         KeyCaps(combo: combo, large: true)
                     } else {
-                        Text(role == .trigger ? "Cliquer pour enregistrer" : "Cliquer, puis taper la touche de FL")
+                        Text(role == .trigger ? String(localized: "Cliquer pour enregistrer")
+                                              : String(localized: "Cliquer, puis taper la touche de FL"))
                             .foregroundStyle(.secondary)
                     }
                 }
@@ -1684,8 +1689,10 @@ struct CaptureField: View {
             .background(shape.fill(Color(nsColor: .textBackgroundColor)))
             .overlay(shape.strokeBorder(recording ? Color.accentColor : Color(nsColor: .separatorColor),
                                         lineWidth: recording ? 2 : 1))
-            .accessibilityLabel(role == .trigger ? "Raccourci déclencheur" : "Touche envoyée à FL")
-            .accessibilityValue(recording ? "Enregistrement en cours" : (combo?.spoken ?? "aucun"))
+            .accessibilityLabel(role == .trigger ? String(localized: "Raccourci déclencheur")
+                                                 : String(localized: "Touche envoyée à FL"))
+            .accessibilityValue(recording ? String(localized: "Enregistrement en cours")
+                                          : (combo?.spoken ?? String(localized: "aucun")))
 
             if let footnote {
                 Text(footnote.text)
@@ -1706,12 +1713,13 @@ struct CaptureField: View {
         switch role {
         case .target:
             if let why = Store.shared.forbiddenReason(candidate) {
-                Dialogs.inform("Touche interdite", "\(candidate.display) ne peut pas être envoyée à FL : \(why).")
+                Dialogs.inform(String(localized: "Touche interdite"),
+                               String(localized: "\(candidate.display) ne peut pas être envoyée à FL : \(why)."))
                 return
             }
         case .trigger:
             if candidate == Store.shared.toggleCombo {
-                Dialogs.inform("Raccourci réservé", "⌃⌥⌘F sert à mettre FL Shortcuts en pause.")
+                Dialogs.inform(String(localized: "Raccourci réservé"), String(localized: "⌃⌥⌘F sert à mettre FL Shortcuts en pause."))
                 return
             }
             // Touche seule : plus de question. Elle reste à FL quand elle y sert (texte en cours de saisie, menu
@@ -1760,8 +1768,8 @@ enum Dialogs {
         let a = NSAlert()
         a.messageText = title
         a.informativeText = text
-        a.addButton(withTitle: "Continuer")
-        a.addButton(withTitle: "Annuler")
+        a.addButton(withTitle: String(localized: "Continuer"))
+        a.addButton(withTitle: String(localized: "Annuler"))
         return a.runModal() == .alertFirstButtonReturn
     }
 
@@ -1798,24 +1806,30 @@ extension Remap {
 
     var title: String {
         switch kind {
-        case .keystroke: return target.map { "Envoie \($0.display)" } ?? "Touche de FL à choisir"
+        case .keystroke: return target.map { String(localized: "Envoie \($0.display)") } ?? String(localized: "Touche de FL à choisir")
         case .macro:
             if let ref = macroRef {
-                return "Macro : " + (MacroLibraryStore.shared.doc(ref)?.name.displaySafe() ?? "introuvable")
+                return String(localized: "Macro : ")
+                    + (MacroLibraryStore.shared.doc(ref)?.name.displaySafe() ?? String(localized: "introuvable"))
             }
-            return macro.map { "Macro : \($0.name.displaySafe())" } ?? "Macro à configurer"
+            return macro.map { String(localized: "Macro : \($0.name.displaySafe())") } ?? String(localized: "Macro à configurer")
         case .flAction:
             if let id = actionID, let info = FLActions.info(id) { return info.label }
-            return unknownAction.map { "Action inconnue (\($0.displaySafe()))" } ?? "Action à choisir"
+            return unknownAction.map { String(localized: "Action inconnue (\($0.displaySafe()))") }
+                ?? String(localized: "Action à choisir")
         }
     }
 
     var subtitle: String {
         switch kind {
-        case .keystroke: return "Raccourci de FL Studio"
-        case .macro: return macroRef != nil ? "Macro en blocs de la bibliothèque" : "Enchaîne des clics et des touches dans FL, sans MIDI"
+        case .keystroke: return String(localized: "Raccourci de FL Studio")
+        case .macro:
+            return macroRef != nil ? String(localized: "Macro en blocs de la bibliothèque")
+                                   : String(localized: "Enchaîne des clics et des touches dans FL, sans MIDI")
         case .flAction:
-            guard let id = actionID, let info = FLActions.info(id) else { return "Mets FL Shortcuts à jour pour l'utiliser" }
+            guard let id = actionID, let info = FLActions.info(id) else {
+                return String(localized: "Mets FL Shortcuts à jour pour l'utiliser")
+            }
             if case .unavailable(let reason) = AppStatus.shared.availability(id) { return reason }
             return info.detail
         }
@@ -1857,7 +1871,8 @@ struct CatalogEditSheet: View {
         recorder.stop()
         let followUp = toRelease.isEmpty ? nil : store.release(toRelease)
         store.setTrigger(combo, for: row)
-        onDone(ToastMessage(text: "« \(row.entry.title) » : " + (combo?.display ?? "aucune touche"), undo: nil), followUp)
+        onDone(ToastMessage(text: String(localized: "« \(row.entry.title) » : ")
+                                + (combo?.display ?? String(localized: "aucune touche")), undo: nil), followUp)
         dismiss()
     }
 
@@ -1912,7 +1927,7 @@ struct CatalogEditSheet: View {
                 }
                 LabeledContent("D'origine") {
                     VStack(alignment: .leading, spacing: 2) {
-                        Text(row.entry.defaultTrigger?.display ?? "Aucune")
+                        Text(row.entry.defaultTrigger?.display ?? String(localized: "Aucune"))
                         if nativeKey != nil {
                             Text("Elle continue de marcher dans FL : ta touche s'ajoute.")
                                 .font(.system(size: 11)).foregroundStyle(.secondary)
@@ -1962,13 +1977,13 @@ struct CatalogEditSheet: View {
         .frame(width: 480)
         .onDisappear { recorder.stop() }
         // Une touche ne sert qu'une fois : on annonce ce qui l'utilise avant de la reprendre.
-        .alert("\(combo?.display ?? "Cette touche") est déjà utilisée", isPresented: $showClashAlert) {
+        .alert("\(combo?.display ?? String(localized: "Cette touche")) est déjà utilisée", isPresented: $showClashAlert) {
             Button("Remplacer", role: .destructive) { apply(releasing: pendingClashes) }
             Button("Annuler", role: .cancel) { pendingClashes = [] }
         } message: {
             Text(pendingClashes.prefix(4).map(\.line).joined(separator: "\n")
-                 + "\n\nUn raccourci ne peut servir qu'une fois. Si tu remplaces, tu pourras choisir tout de suite "
-                 + "une autre touche pour « \(pendingClashes.first?.title ?? "l'autre raccourci") ».")
+                 + String(localized: "\n\nUn raccourci ne peut servir qu'une fois. Si tu remplaces, tu pourras choisir tout de suite ")
+                 + String(localized: "une autre touche pour « \(pendingClashes.first?.title ?? String(localized: "l'autre raccourci")) »."))
         }
     }
 

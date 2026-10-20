@@ -216,4 +216,14 @@ final class MacroValidationTests: XCTestCase {
                        "Raccourci gardé, mais pas encore actif : la macro est vide.")
         XCTAssertFalse(ShortcutIssue.macroWaiting("x").isBlocking)
     }
+
+    /// Le chemin d'un message d'étape est lu avec le même format que `fail` (traduit pareil en anglais).
+    func testStepMessagesAreSplitWithTheirOwnFormat() {
+        let failed = ctx.fail("position invalide.")
+        XCTAssertEqual(MacroValidation.splitStep(failed)?.path, "1")
+        XCTAssertEqual(MacroValidation.splitStep("Étape 3.2 : position invalide.")?.text, "position invalide.")
+        XCTAssertNil(MacroValidation.splitStep("La macro est vide."))
+        XCTAssertNil(MacroValidation.splitStep("Étape : rien"))
+        XCTAssertEqual(MacroOutline.stripPath("Étape 3.2 : position invalide."), "Position invalide.")
+    }
 }

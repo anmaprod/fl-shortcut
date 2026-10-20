@@ -116,7 +116,7 @@ struct FLIconField: View {
             Button { picking = true } label: { FLIconBadge(icon: icon, size: 22) }
                 .buttonStyle(.plain)
                 .help("Choisir dans la grille des icônes de FL")
-            Text(icon.map { FLIconGrid.cell($0)?.name ?? $0.code } ?? "Aucune")
+            Text(icon.map { FLIconGrid.cell($0)?.name ?? $0.code } ?? String(localized: "Aucune"))
                 .foregroundStyle(icon == nil ? Color.secondary : Color.primary)
             Spacer()
             Button("Choisir…") { picking = true }

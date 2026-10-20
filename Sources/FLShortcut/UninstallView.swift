@@ -84,7 +84,7 @@ final class UninstallFlow: ObservableObject {
         // La fenêtre de macOS (mot de passe) s'affiche ; l'étape « Ton mot de passe… » est dessinée avant.
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
             switch Uninstaller.runPrivileged(work) {
-            case .cancelled: self.back("Rien n'a été supprimé.")
+            case .cancelled: self.back(String(localized: "Rien n'a été supprimé."))
             case .done, .failed: self.finish()   // ce qui a résisté est dans le bilan
             }
         }
@@ -169,7 +169,7 @@ final class UninstallWindow: NSObject, NSWindowDelegate {
         w.titlebarAppearsTransparent = true
         w.titleVisibility = .hidden
         w.isMovableByWindowBackground = true
-        w.title = "Désinstaller FL Shortcuts"
+        w.title = String(localized: "Désinstaller FL Shortcuts")
         w.delegate = self
         w.isReleasedWhenClosed = false
         w.center()
@@ -202,8 +202,9 @@ struct UninstallView: View {
         Group {
             switch flow.step {
             case .confirm: confirm
-            case .authenticating: waiting(symbol: "lock", title: "Ton mot de passe du Mac, une seule fois (ancienne installation)")
-            case .working: waiting(symbol: "trash", title: "Suppression…")
+            case .authenticating:
+                waiting(symbol: "lock", title: String(localized: "Ton mot de passe du Mac, une seule fois (ancienne installation)"))
+            case .working: waiting(symbol: "trash", title: String(localized: "Suppression…"))
             case .done(let report): done(report)
             }
         }
@@ -273,10 +274,11 @@ struct UninstallView: View {
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
         case .notSignedIn:
-            warning("Tes raccourcis et tes macros ne sont pas sauvegardés : ils seront perdus.",
-                    link: "Les sauvegarder d'abord")
+            warning(String(localized: "Tes raccourcis et tes macros ne sont pas sauvegardés : ils seront perdus."),
+                    link: String(localized: "Les sauvegarder d'abord"))
         case .notSaved:
-            warning("Tes derniers changements ne sont pas encore sauvegardés.", link: "Ouvrir Mon compte")
+            warning(String(localized: "Tes derniers changements ne sont pas encore sauvegardés."),
+                    link: String(localized: "Ouvrir Mon compte"))
         }
     }
 
@@ -321,7 +323,8 @@ struct UninstallView: View {
                 SuccessMark()
                 Text("FL Shortcuts est désinstallé")
                     .font(.system(size: 13, weight: .bold))
-                Text(flow.demo ? "Plus rien ne reste sur ce Mac." : "Plus rien ne reste sur ce Mac. L'app se ferme…")
+                Text(flow.demo ? String(localized: "Plus rien ne reste sur ce Mac.")
+                     : String(localized: "Plus rien ne reste sur ce Mac. L'app se ferme…"))
                     .font(.system(size: 11))
                     .foregroundStyle(.secondary)
             } else {

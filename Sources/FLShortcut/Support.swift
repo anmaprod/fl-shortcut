@@ -26,6 +26,15 @@ enum SupportKind: String, CaseIterable, Identifiable {
 
     var label: String {
         switch self {
+        case .probleme: return String(localized: "Un problème")
+        case .question: return String(localized: "Une question")
+        case .idee: return String(localized: "Une idée")
+        }
+    }
+
+    /// Le genre dans le message lu par l'équipe : en français, quelle que soit la langue du Mac.
+    var teamLabel: String {
+        switch self {
         case .probleme: return "Un problème"
         case .question: return "Une question"
         case .idee: return "Une idée"
@@ -35,10 +44,12 @@ enum SupportKind: String, CaseIterable, Identifiable {
     var placeholder: String {
         switch self {
         case .probleme:
-            return "Ce que tu faisais, ce qui devait se passer, ce qui s'est passé. Ex. : « ma macro s'arrête au 3e bloc "
-                + "dans le Mixer »."
-        case .question: return "Ta question, le plus précisément possible."
-        case .idee: return "Ce qui te ferait gagner du temps dans FL Studio."
+            return String(localized: """
+                Ce que tu faisais, ce qui devait se passer, ce qui s'est passé. Ex. : « ma macro s'arrête au 3e bloc \
+                dans le Mixer ».
+                """)
+        case .question: return String(localized: "Ta question, le plus précisément possible.")
+        case .idee: return String(localized: "Ce qui te ferait gagner du temps dans FL Studio.")
         }
     }
 }
@@ -69,8 +80,10 @@ enum SupportRules {
     /// Ce qui empêche l'envoi (nil : prêt) ; mêmes règles que le serveur.
     static func problem(_ m: SupportMessage) -> String? {
         let n = m.text.trimmingCharacters(in: .whitespacesAndNewlines).count
-        if n < messageRange.lowerBound { return "Écris au moins quelques mots (\(messageRange.lowerBound) caractères)." }
-        if n > messageRange.upperBound { return "\(messageRange.upperBound) caractères au plus." }
+        if n < messageRange.lowerBound {
+            return String(localized: "Écris au moins quelques mots (\(messageRange.lowerBound) caractères).")
+        }
+        if n > messageRange.upperBound { return String(localized: "\(messageRange.upperBound) caractères au plus.") }
         let mail = m.email.trimmingCharacters(in: .whitespaces)
         if !mail.isEmpty, let why = CommunityRules.emailProblem(mail) { return why }
         return nil
@@ -78,7 +91,7 @@ enum SupportRules {
 
     /// Le message en texte, pour un mail, le presse-papiers ou un ticket : toujours le même plan, pour lire vite.
     static func plainText(_ m: SupportMessage, appVersion: String) -> String {
-        var out = "Référence : \(m.reference)\nGenre : \(m.kind.label)\nFL Shortcuts \(appVersion)"
+        var out = "Référence : \(m.reference)\nGenre : \(m.kind.teamLabel)\nFL Shortcuts \(appVersion)"
         let mail = m.email.trimmingCharacters(in: .whitespaces)
         if !mail.isEmpty { out += "\nPour répondre : \(mail)" }
         out += "\n\n— Message —\n" + m.text.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -90,7 +103,7 @@ enum SupportRules {
     /// « [FL Shortcuts] Problème · FLS-3F9A2C · Ma macro s'arrête… » : un filtre sur « [FL Shortcuts] » range tout.
     static func subject(_ m: SupportMessage) -> String {
         let first = m.text.trimmingCharacters(in: .whitespacesAndNewlines).split(separator: "\n").first.map(String.init) ?? ""
-        let kind = m.kind.label.split(separator: " ").last.map { $0.prefix(1).uppercased() + $0.dropFirst() } ?? ""
+        let kind = m.kind.teamLabel.split(separator: " ").last.map { $0.prefix(1).uppercased() + $0.dropFirst() } ?? ""
         return "[FL Shortcuts] \(kind) · \(m.reference) · \(first.prefix(60))"
     }
 
@@ -197,74 +210,98 @@ struct HelpEntry: Identifiable {
 
 enum HelpContent {
     static let faq: [HelpEntry] = [
-        HelpEntry(id: 1, question: "Mes raccourcis ne font rien dans FL",
-                  answer: "Vérifie trois choses. 1. FL Studio est la fenêtre au premier plan : tes raccourcis ne marchent "
-                      + "que là. 2. FL Shortcuts n'est pas en pause (⌃⌥⌘F, ou le menu de l'icône en haut de l'écran). "
-                      + "3. Le clavier est autorisé : Réglages Système › Confidentialité et sécurité › Accessibilité, "
-                      + "FL Shortcuts coché. Quand une autre app attend un mot de passe (saisie sécurisée), les raccourcis "
-                      + "se taisent le temps qu'elle le fasse.",
+        HelpEntry(id: 1, question: String(localized: "Mes raccourcis ne font rien dans FL"),
+                  answer: String(localized: """
+                      Vérifie trois choses. 1. FL Studio est la fenêtre au premier plan : tes raccourcis ne marchent \
+                      que là. 2. FL Shortcuts n'est pas en pause (⌃⌥⌘F, ou le menu de l'icône en haut de l'écran). \
+                      3. Le clavier est autorisé : Réglages Système › Confidentialité et sécurité › Accessibilité, \
+                      FL Shortcuts coché. Quand une autre app attend un mot de passe (saisie sécurisée), les raccourcis \
+                      se taisent le temps qu'elle le fasse.
+                      """),
                   keywords: "marche pas fonctionne touche inactif rien"),
-        HelpEntry(id: 2, question: "Un « ! » apparaît sur l'icône en haut de l'écran",
-                  answer: "Le clavier n'est pas, ou plus, autorisé. Ouvre Réglages Système › Confidentialité et sécurité "
-                      + "› Accessibilité, retire FL Shortcuts avec « − », puis ajoute-le de nouveau avec « + » (dans "
-                      + "Applications). Après une mise à jour de l'app, macOS demande parfois de refaire ce geste.",
+        HelpEntry(id: 2, question: String(localized: "Un « ! » apparaît sur l'icône en haut de l'écran"),
+                  answer: String(localized: """
+                      Le clavier n'est pas, ou plus, autorisé. Ouvre Réglages Système › Confidentialité et sécurité \
+                      › Accessibilité, retire FL Shortcuts avec « − », puis ajoute-le de nouveau avec « + » (dans \
+                      Applications). Après une mise à jour de l'app, macOS demande parfois de refaire ce geste.
+                      """),
                   keywords: "point exclamation alerte avertissement autorisation accessibilite barre des menus"),
-        HelpEntry(id: 3, question: "Comment créer une macro ?",
-                  answer: "Page Macros › « Enregistrer une macro » : FL passe devant, fais ta suite (clics, flèches, "
-                      + "raccourcis), puis « Terminer » en haut à droite. Chaque geste devient un bloc : retouche-les dans "
-                      + "le créateur, choisis un raccourci, puis « Tester ». Tu peux aussi partir d'un modèle.",
+        HelpEntry(id: 3, question: String(localized: "Comment créer une macro ?"),
+                  answer: String(localized: """
+                      Page Macros › « Enregistrer une macro » : FL passe devant, fais ta suite (clics, flèches, \
+                      raccourcis), puis « Terminer » en haut à droite. Chaque geste devient un bloc : retouche-les dans \
+                      le créateur, choisis un raccourci, puis « Tester ». Tu peux aussi partir d'un modèle.
+                      """),
                   keywords: "creer nouvelle enregistrer blocs createur"),
-        HelpEntry(id: 4, question: "« Enregistrer clics et touches » n'a rien enregistré",
-                  answer: "FL Studio doit être ouvert et au premier plan pendant l'enregistrement : les clics et les "
-                      + "touches faits ailleurs sont ignorés. Clique et tape dans les fenêtres et les menus de FL, puis "
-                      + "« Terminer » dans le petit panneau en haut à droite (« Annuler » n'ajoute rien).",
+        HelpEntry(id: 4, question: String(localized: "« Enregistrer clics et touches » n'a rien enregistré"),
+                  answer: String(localized: """
+                      FL Studio doit être ouvert et au premier plan pendant l'enregistrement : les clics et les \
+                      touches faits ailleurs sont ignorés. Clique et tape dans les fenêtres et les menus de FL, puis \
+                      « Terminer » dans le petit panneau en haut à droite (« Annuler » n'ajoute rien).
+                      """),
                   keywords: "enregistrement clic clavier vide rien ajoute"),
-        HelpEntry(id: 5, question: "Une macro est « À apprendre »",
-                  answer: "Un de ses blocs clique à un endroit qu'il faut montrer une fois sur ton Mac (les positions ne "
-                      + "sont jamais partagées). Ouvre la macro, choisis le bloc marqué, puis « Montrer dans FL… » et "
-                      + "clique à l'endroit voulu.",
+        HelpEntry(id: 5, question: String(localized: "Une macro est « À apprendre »"),
+                  answer: String(localized: """
+                      Un de ses blocs clique à un endroit qu'il faut montrer une fois sur ton Mac (les positions ne \
+                      sont jamais partagées). Ouvre la macro, choisis le bloc marqué, puis « Montrer dans FL… » et \
+                      clique à l'endroit voulu.
+                      """),
                   keywords: "apprendre position endroit montrer"),
-        HelpEntry(id: 6, question: "Une macro s'arrête ou clique au mauvais endroit",
-                  answer: "Le bandeau en bas du créateur dit à quel bloc elle s'est arrêtée (« Montrer le bloc »). Si FL "
-                      + "a changé de taille ou d'écran, remontre l'endroit de ce bloc. Un bouton qui porte un nom "
-                      + "(« FILE », « Insert 1 ») est retrouvé par son nom même s'il bouge, si l'app peut lire l'écran "
-                      + "(autorisation « Enregistrement de l'écran ») ; un bouton sans nom qui bouge (le « + » du Channel "
-                      + "rack) : active « Retrouver ce bouton s'il bouge » sur ce clic. Si une fenêtre de FL met du "
-                      + "temps à s'ouvrir, ajoute un bloc « Attendre » juste avant.",
+        HelpEntry(id: 6, question: String(localized: "Une macro s'arrête ou clique au mauvais endroit"),
+                  answer: String(localized: """
+                      Le bandeau en bas du créateur dit à quel bloc elle s'est arrêtée (« Montrer le bloc »). Si FL \
+                      a changé de taille ou d'écran, remontre l'endroit de ce bloc. Un bouton qui porte un nom \
+                      (« FILE », « Insert 1 ») est retrouvé par son nom même s'il bouge, si l'app peut lire l'écran \
+                      (autorisation « Enregistrement de l'écran ») ; un bouton sans nom qui bouge (le « + » du Channel \
+                      rack) : active « Retrouver ce bouton s'il bouge » sur ce clic. Si une fenêtre de FL met du \
+                      temps à s'ouvrir, ajoute un bloc « Attendre » juste avant.
+                      """),
                   keywords: "erreur echec arrete bloque mauvais clic bouge bouton plus channel rack"),
-        HelpEntry(id: 7, question: "Mettre en pause ou reprendre",
-                  answer: "⌃⌥⌘F, n'importe où, ou « Mettre en pause » dans le menu de l'icône en haut de l'écran. Une "
-                      + "pastille rappelle que c'est en pause.",
+        HelpEntry(id: 7, question: String(localized: "Mettre en pause ou reprendre"),
+                  answer: String(localized: """
+                      ⌃⌥⌘F, n'importe où, ou « Mettre en pause » dans le menu de l'icône en haut de l'écran. Une \
+                      pastille rappelle que c'est en pause.
+                      """),
                   keywords: "pause reprendre arreter desactiver"),
-        HelpEntry(id: 8, question: "Je n'ai pas reçu le code par mail",
-                  answer: "Regarde dans les courriers indésirables. Le code arrive en une minute environ ; sinon, "
-                      + "« Renvoyer le code ». Il sert à confirmer ton compte, ou à choisir un nouveau mot de passe "
-                      + "(« Mot de passe oublié ? »). Toujours rien ? Écris à l'équipe ci-dessous.",
+        HelpEntry(id: 8, question: String(localized: "Je n'ai pas reçu le code par mail"),
+                  answer: String(localized: """
+                      Regarde dans les courriers indésirables. Le code arrive en une minute environ ; sinon, \
+                      « Renvoyer le code ». Il sert à confirmer ton compte, ou à choisir un nouveau mot de passe \
+                      (« Mot de passe oublié ? »). Toujours rien ? Écris à l'équipe ci-dessous.
+                      """),
                   keywords: "compte inscription confirmation code mail spam connexion mot de passe oublie"),
-        HelpEntry(id: 9, question: "Mes données sont-elles envoyées quelque part ?",
-                  answer: "Tes touches ne sont lues que quand FL Studio est devant, et elles ne sont jamais enregistrées "
-                      + "ni envoyées. Seuls partent sur internet : tes raccourcis et tes macros si tu es connecté à ton "
-                      + "compte (ta sauvegarde, lisible par toi seul), ce que tu publies dans la Communauté, et ce que "
-                      + "tu écris à l'équipe depuis cette page. L'écran n'est lu qu'au moment d'un clic de macro, "
-                      + "seulement dans la fenêtre de FL, pour retrouver le bouton par son nom ou son image (autorisation "
-                      + "« Enregistrement de l'écran ») ; rien n'est enregistré ni envoyé. Le nom ou l'image du bouton "
-                      + "restent dans ta macro (et dans ta sauvegarde si tu es connecté), jamais dans un partage.",
+        HelpEntry(id: 9, question: String(localized: "Mes données sont-elles envoyées quelque part ?"),
+                  answer: String(localized: """
+                      Tes touches ne sont lues que quand FL Studio est devant, et elles ne sont jamais enregistrées \
+                      ni envoyées. Seuls partent sur internet : tes raccourcis et tes macros si tu es connecté à ton \
+                      compte (ta sauvegarde, lisible par toi seul), ce que tu publies dans la Communauté, et ce que \
+                      tu écris à l'équipe depuis cette page. L'écran n'est lu qu'au moment d'un clic de macro, \
+                      seulement dans la fenêtre de FL, pour retrouver le bouton par son nom ou son image (autorisation \
+                      « Enregistrement de l'écran ») ; rien n'est enregistré ni envoyé. Le nom ou l'image du bouton \
+                      restent dans ta macro (et dans ta sauvegarde si tu es connecté), jamais dans un partage.
+                      """),
                   keywords: "vie privee donnees confidentialite securite internet compte sauvegarde"),
-        HelpEntry(id: 12, question: "Retrouver mes raccourcis et mes macros sur un autre Mac",
-                  answer: "Connecte-toi dans « Mon compte » (barre latérale) : tes raccourcis et tes macros sont "
-                      + "sauvegardés en ligne quelques secondes après chaque changement. Sur un autre Mac, connecte-toi "
-                      + "avec le même compte : tout revient. À la déconnexion, ils quittent ce Mac et restent dans ton "
-                      + "compte. Si ce Mac et ton compte ont chacun des changements, l'app te demande lequel garder.",
+        HelpEntry(id: 12, question: String(localized: "Retrouver mes raccourcis et mes macros sur un autre Mac"),
+                  answer: String(localized: """
+                      Connecte-toi dans « Mon compte » (barre latérale) : tes raccourcis et tes macros sont \
+                      sauvegardés en ligne quelques secondes après chaque changement. Sur un autre Mac, connecte-toi \
+                      avec le même compte : tout revient. À la déconnexion, ils quittent ce Mac et restent dans ton \
+                      compte. Si ce Mac et ton compte ont chacun des changements, l'app te demande lequel garder.
+                      """),
                   keywords: "compte sauvegarde cloud synchronisation autre mac connexion deconnexion retrouver"),
-        HelpEntry(id: 11, question: "Signaler un problème",
-                  answer: "En bas de cette page, « Écrire à l'équipe ». Quand une macro échoue, le bouton « Signaler » "
-                      + "de son bandeau (ou « Signaler ce problème… » dans le menu de l'icône en haut de l'écran) prépare "
-                      + "le message avec l'erreur et le journal de la macro : tu vois tout ce qui est joint avant l'envoi.",
+        HelpEntry(id: 11, question: String(localized: "Signaler un problème"),
+                  answer: String(localized: """
+                      En bas de cette page, « Écrire à l'équipe ». Quand une macro échoue, le bouton « Signaler » \
+                      de son bandeau (ou « Signaler ce problème… » dans le menu de l'icône en haut de l'écran) prépare \
+                      le message avec l'erreur et le journal de la macro : tu vois tout ce qui est joint avant l'envoi.
+                      """),
                   keywords: "bug erreur contact equipe support aide ecrire"),
-        HelpEntry(id: 10, question: "Désinstaller FL Shortcuts",
-                  answer: "Menu de l'icône en haut de l'écran (ou menu ⋯ de la fenêtre) › « Désinstaller FL Shortcuts… » : "
-                      + "l'app, tes raccourcis, tes macros, ses réglages, ses autorisations et le lien avec FL sont retirés, "
-                      + "et le bilan dit s'il reste quelque chose à glisser dans la Corbeille.",
+        HelpEntry(id: 10, question: String(localized: "Désinstaller FL Shortcuts"),
+                  answer: String(localized: """
+                      Menu de l'icône en haut de l'écran (ou menu ⋯ de la fenêtre) › « Désinstaller FL Shortcuts… » : \
+                      l'app, tes raccourcis, tes macros, ses réglages, ses autorisations et le lien avec FL sont retirés, \
+                      et le bilan dit s'il reste quelque chose à glisser dans la Corbeille.
+                      """),
                   keywords: "supprimer enlever desinstallation"),
     ]
 }

@@ -86,7 +86,7 @@ struct OrganizerEnvironment {
             link: { RequestOrganizerLink.live() },
             audio: {
                 guard #available(macOS 14.2, *) else {
-                    return .failure(.failed("L'Organiser écoute FL avec macOS 14.2 ou plus récent : mets macOS à jour."))
+                    return .failure(.failed(String(localized: "L'Organiser écoute FL avec macOS 14.2 ou plus récent : mets macOS à jour.")))
                 }
                 guard let pid = OrganizerEnvironment.flPID() else { return .failure(.flClosed) }
                 return .success(FLAudioTap(pid: pid))
@@ -157,7 +157,7 @@ struct OrganizerEnvironment {
 
     /// Mêmes étapes et garde-fous que le bloc « Nom et couleur » (FL au premier plan, Échap).
     static func livePlaceIcon(_ icon: FLIcon) -> OrganizerError? {
-        guard let pid = flPID() else { return .failed("FL Studio n'est pas ouvert.") }
+        guard let pid = flPID() else { return .failed(String(localized: "FL Studio n'est pas ouvert.")) }
         if EventTap.shared.currentConfig.frontmostPID != pid {
             _ = NSRunningApplication(processIdentifier: pid)?.activate(options: [])
             Thread.sleep(forTimeInterval: 0.3)
@@ -165,7 +165,7 @@ struct OrganizerEnvironment {
         switch MacroEffectsMac(pid: pid).placeIcon(icon, alsoColored: false) {
         case .ok, .warn: return nil
         case .fail(let why), .cancel(let why):
-            return .failed(why.prefix(1).uppercased() + String(why.dropFirst()) + ". Les couleurs sont posées.")
+            return .failed(why.prefix(1).uppercased() + String(why.dropFirst()) + String(localized: ". Les couleurs sont posées."))
         }
     }
 
@@ -271,10 +271,10 @@ final class OrganizerController: ObservableObject {
 
     var title: String {
         switch result?.page {
-        case .mixer?: return "Organiser le Mixer"
-        case .channelRack?: return "Organiser le Channel rack"
-        case .playlist?: return "Organiser la Playlist"
-        case nil: return "Organiser"
+        case .mixer?: return String(localized: "Organiser le Mixer")
+        case .channelRack?: return String(localized: "Organiser le Channel rack")
+        case .playlist?: return String(localized: "Organiser la Playlist")
+        case nil: return String(localized: "Organiser")
         }
     }
 
@@ -485,12 +485,14 @@ final class OrganizerController: ObservableObject {
             if !families.isEmpty {
                 phase = .preview
             } else if result.page == .mixer {
-                phase = .failed("Aucune piste du Mixer n'est reliée à un son du Channel rack.")
+                phase = .failed(String(localized: "Aucune piste du Mixer n'est reliée à un son du Channel rack."))
             } else if result.page == .playlist {
-                phase = .failed("Aucune piste de la Playlist ne joue de son. Sélectionne les pistes à organiser "
-                                + "(clic sur leur nom), puis clique sur « Réessayer ».")
+                phase = .failed(String(localized: """
+                    Aucune piste de la Playlist ne joue de son. Sélectionne les pistes à organiser \
+                    (clic sur leur nom), puis clique sur « Réessayer ».
+                    """))
             } else {
-                phase = .failed("Aucun son à écouter dans le Channel rack.")
+                phase = .failed(String(localized: "Aucun son à écouter dans le Channel rack."))
             }
         case .failure(let error):
             if let reason = Self.waitReason(for: error, wrongInput: env.wrongInput()) { wait(reason) } else { phase = .failed(error.message) }
@@ -533,7 +535,7 @@ final class OrganizerController: ObservableObject {
             }.map { $0.element }
         case .mixer:
             for track in result.mixer where families[track.index] == family {
-                out.append(Member(id: track.index, name: track.name.isEmpty ? "Piste \(track.index)" : track.name,
+                out.append(Member(id: track.index, name: track.name.isEmpty ? String(localized: "Piste \(track.index)") : track.name,
                                   testNotes: false, kind: kind(of: track.index)))
             }
         case .playlist:
@@ -597,11 +599,11 @@ final class OrganizerController: ObservableObject {
 
     var doneText: String {
         switch result?.page {
-        case .mixer?: return "C'est fait : les pistes du Mixer sont colorées."
+        case .mixer?: return String(localized: "C'est fait : les pistes du Mixer sont colorées.")
         case .playlist?:
-            return plannedNames.isEmpty ? "C'est fait : les pistes de la Playlist sont colorées par famille."
-                                        : "C'est fait : les pistes de la Playlist sont colorées et renommées."
-        default: return "C'est fait : les sons sont colorés par famille et rangés par sorte (Kick, Snare, 808…)."
+            return plannedNames.isEmpty ? String(localized: "C'est fait : les pistes de la Playlist sont colorées par famille.")
+                                        : String(localized: "C'est fait : les pistes de la Playlist sont colorées et renommées.")
+        default: return String(localized: "C'est fait : les sons sont colorés par famille et rangés par sorte (Kick, Snare, 808…).")
         }
     }
 
@@ -729,7 +731,7 @@ enum OrganizerWindow {
         let p = NSPanel(contentRect: NSRect(x: 0, y: 0, width: OrganizerView.width, height: 220),
                         styleMask: [.titled, .closable, .fullSizeContentView, .nonactivatingPanel],
                         backing: .buffered, defer: false)
-        p.title = "Organiser"
+        p.title = String(localized: "Organiser")
         p.titleVisibility = .hidden
         p.titlebarAppearsTransparent = true
         p.isMovableByWindowBackground = true
@@ -855,13 +857,13 @@ struct OrganizerView: View {
     }
 
     private static func listeningText(_ done: Int, _ total: Int) -> String {
-        total == 0 ? "Préparation de l'écoute…" : "Écoute \(min(done + 1, total)) sur \(total)"
+        total == 0 ? String(localized: "Préparation de l'écoute…") : String(localized: "Écoute \(min(done + 1, total)) sur \(total)")
     }
 
     @ViewBuilder private var content: some View {
         switch controller.phase {
         case .starting:
-            working("Préparation…")
+            working(String(localized: "Préparation…"))
         case .setup:
             setup
         case .waiting(let reason):
@@ -888,9 +890,11 @@ struct OrganizerView: View {
                 .padding(14)
                 .organizerCard()
                 .morphIn(1)
-                Text("Un son dont le nom dit la famille (Kick, 808, Hat…) est classé tout de suite ; les autres jouent "
-                     + "seuls, dans un pattern où ils jouent, sans que tu les entendes. Dans la Playlist, la chanson est "
-                     + "parcourue : FL dit quels sons jouent sur chaque piste. Ne touche pas à FL ; Échap arrête.")
+                Text(String(localized: """
+                    Un son dont le nom dit la famille (Kick, 808, Hat…) est classé tout de suite ; les autres jouent \
+                    seuls, dans un pattern où ils jouent, sans que tu les entendes. Dans la Playlist, la chanson est \
+                    parcourue : FL dit quels sons jouent sur chaque piste. Ne touche pas à FL ; Échap arrête.
+                    """))
                     .font(.system(size: 11))
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
@@ -904,13 +908,14 @@ struct OrganizerView: View {
         case .preview:
             preview
         case .applying:
-            working("Application dans FL… Ne touche pas à FL.")
+            working(String(localized: "Application dans FL… Ne touche pas à FL."))
         case .undoing:
-            working("Retour comme avant…")
+            working(String(localized: "Retour comme avant…"))
         case .applied(let error):
             ending(error?.message ?? controller.doneText, ok: error == nil, linkHelp: error == .noResponse)
         case .undone(let error):
-            ending(error?.message ?? "FL est revenu comme avant.", ok: error == nil, linkHelp: error == .noResponse)
+            ending(error?.message ?? String(localized: "FL est revenu comme avant."), ok: error == nil,
+                   linkHelp: error == .noResponse)
         case .failed(let message):
             ending(message, ok: false, linkHelp: false)
         }
@@ -941,17 +946,25 @@ struct OrganizerView: View {
             .morphIn(1)
             if linkHelp {
                 VStack(alignment: .leading, spacing: 8) {
-                    OrganizerStep(n: 1, text: "Quitte et rouvre FL Studio : il trouve « FL Shortcuts Link » en démarrant "
-                                  + "et le relie tout seul. Puis « Réessayer ».")
-                    OrganizerStep(n: 2, text: "Toujours rien : Options › MIDI Settings, entrée « FL Shortcuts Link », "
-                                  + "Controller type « FL Shortcuts » (pas « generic controller »), Enable, et le même "
-                                  + "numéro de Port à l'entrée et à la sortie. Dans Output, « FL Shortcuts Link » seul "
-                                  + "sur ce numéro : « FL Shortcuts » doit s'afficher à côté de lui, pas de ta carte son.")
-                    OrganizerStep(n: 3, text: "« FL Shortcuts » absent des Controller types : FL ne lit pas le dossier du "
-                                  + "script ci-dessous. Compare-le avec Options › File settings › User data folder dans "
-                                  + "FL (pas sur iCloud) ; s'il diffère, « Autre dossier de FL… » et choisis celui-là.")
-                    OrganizerStep(n: 4, text: "Réglages Système › Confidentialité et sécurité › Fichiers et dossiers › "
-                                  + "FL Studio : « Dossier Documents » doit être coché.")
+                    OrganizerStep(n: 1, text: String(localized: """
+                        Quitte et rouvre FL Studio : il trouve « FL Shortcuts Link » en démarrant \
+                        et le relie tout seul. Puis « Réessayer ».
+                        """))
+                    OrganizerStep(n: 2, text: String(localized: """
+                        Toujours rien : Options › MIDI Settings, entrée « FL Shortcuts Link », \
+                        Controller type « FL Shortcuts » (pas « generic controller »), Enable, et le même \
+                        numéro de Port à l'entrée et à la sortie. Dans Output, « FL Shortcuts Link » seul \
+                        sur ce numéro : « FL Shortcuts » doit s'afficher à côté de lui, pas de ta carte son.
+                        """))
+                    OrganizerStep(n: 3, text: String(localized: """
+                        « FL Shortcuts » absent des Controller types : FL ne lit pas le dossier du \
+                        script ci-dessous. Compare-le avec Options › File settings › User data folder dans \
+                        FL (pas sur iCloud) ; s'il diffère, « Autre dossier de FL… » et choisis celui-là.
+                        """))
+                    OrganizerStep(n: 4, text: String(localized: """
+                        Réglages Système › Confidentialité et sécurité › Fichiers et dossiers › \
+                        FL Studio : « Dossier Documents » doit être coché.
+                        """))
                 }
                 scriptCard
                     .morphIn(6)
@@ -972,9 +985,9 @@ struct OrganizerView: View {
                     .foregroundStyle(present ? Self.tint : Color.orange)
                     .frame(width: 18)
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(present ? "Script du lien" : "Script introuvable dans FL Studio")
+                    Text(present ? String(localized: "Script du lien") : String(localized: "Script introuvable dans FL Studio"))
                         .font(.system(size: 12, weight: .semibold))
-                    Text(place.map { FLScriptInstaller.displayFolder(of: $0.url) } ?? "Aucun dossier enregistré.")
+                    Text(place.map { FLScriptInstaller.displayFolder(of: $0.url) } ?? String(localized: "Aucun dossier enregistré."))
                         .font(.system(size: 11))
                         .foregroundStyle(.secondary)
                         .textSelection(.enabled)
@@ -997,9 +1010,13 @@ struct OrganizerView: View {
 
     /// « Copier le diagnostic » : un texte court à m'envoyer (aucun nom de son ni de piste).
     private var diagnosticButton: some View {
-        Button(controller.copied ? "Copié" : "Copier le diagnostic") { controller.copyDiagnostic() }
-            .help("Copie un court texte technique (versions, autorisations, ce que l'écoute a reçu), sans aucun nom de "
-                  + "son ni de piste : colle-le dans ton message pour qu'on trouve ce qui bloque.")
+        Button(controller.copied ? String(localized: "Copié") : String(localized: "Copier le diagnostic")) {
+            controller.copyDiagnostic()
+        }
+        .help(String(localized: """
+            Copie un court texte technique (versions, autorisations, ce que l'écoute a reçu), sans aucun nom de \
+            son ni de piste : colle-le dans ton message pour qu'on trouve ce qui bloque.
+            """))
     }
 
     @ViewBuilder private var buttons: some View {
@@ -1033,8 +1050,10 @@ struct OrganizerView: View {
                 OrganizerBadge(symbol: "link", tint: Self.tint)
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Un petit lien avec FL, une seule fois").font(.system(size: 14, weight: .semibold))
-                    Text("Organiser parle à FL par un script que FL Shortcuts installe dans FL Studio. Ensuite, tout se "
-                         + "fait seul.")
+                    Text(String(localized: """
+                        Organiser parle à FL par un script que FL Shortcuts installe dans FL Studio. Ensuite, tout se \
+                        fait seul.
+                        """))
                         .font(.system(size: 12))
                         .foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
@@ -1122,31 +1141,40 @@ struct OrganizerView: View {
     static func waitText(_ reason: OrganizerController.Wait) -> (symbol: String, title: String, detail: String) {
         switch reason {
         case .restartFL:
-            return ("arrow.clockwise", "Quitte et rouvre FL Studio",
-                    "Le lien est prêt : FL le lit en démarrant et relie « FL Shortcuts Link » tout seul.")
+            return ("arrow.clockwise", String(localized: "Quitte et rouvre FL Studio"),
+                    String(localized: "Le lien est prêt : FL le lit en démarrant et relie « FL Shortcuts Link » tout seul."))
         case .noResponse:
-            return ("antenna.radiowaves.left.and.right", "En attente de FL Studio",
-                    "FL ne répond pas encore. Dans FL › MIDI Settings › Output, « FL Shortcuts » doit s'afficher à côté "
-                    + "de « FL Shortcuts Link », seul sur son Port. Sinon : « Ça ne marche toujours pas ? » ci-dessous.")
+            return ("antenna.radiowaves.left.and.right", String(localized: "En attente de FL Studio"),
+                    String(localized: """
+                        FL ne répond pas encore. Dans FL › MIDI Settings › Output, « FL Shortcuts » doit s'afficher à côté \
+                        de « FL Shortcuts Link », seul sur son Port. Sinon : « Ça ne marche toujours pas ? » ci-dessous.
+                        """))
         case .wrongInput:
-            return ("cable.connector", "Le lien est sur la mauvaise entrée",
-                    "Dans FL : Options › MIDI Settings › Input, ta carte son (ou ton clavier) a le Controller type « FL "
-                    + "Shortcuts ». Remets-la sur « (generic controller) », puis clique la ligne « FL Shortcuts Link » "
-                    + "et choisis « FL Shortcuts ».")
+            return ("cable.connector", String(localized: "Le lien est sur la mauvaise entrée"),
+                    String(localized: """
+                        Dans FL : Options › MIDI Settings › Input, ta carte son (ou ton clavier) a le Controller type « FL \
+                        Shortcuts ». Remets-la sur « (generic controller) », puis clique la ligne « FL Shortcuts Link » \
+                        et choisis « FL Shortcuts ».
+                        """))
         case .openFL:
-            return ("macwindow", "Ouvre FL Studio", "Organiser commence dès que FL est ouvert, avec ton projet.")
+            return ("macwindow", String(localized: "Ouvre FL Studio"),
+                    String(localized: "Organiser commence dès que FL est ouvert, avec ton projet."))
         case .openPage:
-            return ("square.stack.3d.up", "Choisis la page à organiser",
-                    "Elle s'ouvre dans FL et l'écoute commence. Ou clique toi-même dans le Channel rack, le Mixer "
-                    + "ou la Playlist de FL.")
+            return ("square.stack.3d.up", String(localized: "Choisis la page à organiser"),
+                    String(localized: """
+                        Elle s'ouvre dans FL et l'écoute commence. Ou clique toi-même dans le Channel rack, le Mixer \
+                        ou la Playlist de FL.
+                        """))
         case .stopPlayback:
-            return ("stop.fill", "Arrête la lecture dans FL",
-                    "Organiser écoute chaque son seul : FL doit être à l'arrêt.")
+            return ("stop.fill", String(localized: "Arrête la lecture dans FL"),
+                    String(localized: "Organiser écoute chaque son seul : FL doit être à l'arrêt."))
         case .audioPermission:
-            return ("speaker.wave.2.fill", "Autorise « Audio du système »",
-                    "Organiser écoute seulement le son de FL, sans l'enregistrer. Réglages Système › Confidentialité et "
-                    + "sécurité › Enregistrement de l'écran et de l'audio du système : active FL Shortcuts dans « Audio "
-                    + "du système uniquement ».")
+            return ("speaker.wave.2.fill", String(localized: "Autorise « Audio du système »"),
+                    String(localized: """
+                        Organiser écoute seulement le son de FL, sans l'enregistrer. Réglages Système › Confidentialité et \
+                        sécurité › Enregistrement de l'écran et de l'audio du système : active FL Shortcuts dans « Audio \
+                        du système uniquement ».
+                        """))
         }
     }
 
@@ -1169,19 +1197,27 @@ struct OrganizerView: View {
 
     private var linkHelpSteps: some View {
         VStack(alignment: .leading, spacing: 8) {
-            OrganizerStep(n: 1, text: "Dans FL : Options › MIDI Settings › Input, clique d'abord la ligne « FL Shortcuts "
-                          + "Link » (le Controller type, en bas, change la ligne choisie), puis Controller type « FL "
-                          + "Shortcuts », Enable, Port 7. Ta carte son ou ton clavier MIDI restent sur « (generic "
-                          + "controller) ».")
-            OrganizerStep(n: 2, text: "Dans Output : « FL Shortcuts Link » sur ce même Port 7, et SEUL sur ce numéro. "
-                          + "Clique ta carte son (SSL 2+…) et donne-lui un autre Port (8…) : FL répond à la première "
-                          + "sortie du numéro. C'est bon quand « FL Shortcuts » s'affiche à côté de « FL Shortcuts "
-                          + "Link » dans Output (pas à côté de ta carte son). Puis quitte et rouvre FL.")
-            OrganizerStep(n: 3, text: "« FL Shortcuts » absent des Controller types : FL ne lit pas le dossier du "
-                          + "script ci-dessous. Compare-le avec Options › File settings › User data folder (pas sur "
-                          + "iCloud) ; s'il diffère, « Autre dossier de FL… » et choisis celui-là.")
-            OrganizerStep(n: 4, text: "Réglages Système › Confidentialité et sécurité › Fichiers et dossiers › "
-                          + "FL Studio : « Dossier Documents » doit être coché.")
+            OrganizerStep(n: 1, text: String(localized: """
+                Dans FL : Options › MIDI Settings › Input, clique d'abord la ligne « FL Shortcuts \
+                Link » (le Controller type, en bas, change la ligne choisie), puis Controller type « FL \
+                Shortcuts », Enable, Port 7. Ta carte son ou ton clavier MIDI restent sur « (generic \
+                controller) ».
+                """))
+            OrganizerStep(n: 2, text: String(localized: """
+                Dans Output : « FL Shortcuts Link » sur ce même Port 7, et SEUL sur ce numéro. \
+                Clique ta carte son (SSL 2+…) et donne-lui un autre Port (8…) : FL répond à la première \
+                sortie du numéro. C'est bon quand « FL Shortcuts » s'affiche à côté de « FL Shortcuts \
+                Link » dans Output (pas à côté de ta carte son). Puis quitte et rouvre FL.
+                """))
+            OrganizerStep(n: 3, text: String(localized: """
+                « FL Shortcuts » absent des Controller types : FL ne lit pas le dossier du \
+                script ci-dessous. Compare-le avec Options › File settings › User data folder (pas sur \
+                iCloud) ; s'il diffère, « Autre dossier de FL… » et choisis celui-là.
+                """))
+            OrganizerStep(n: 4, text: String(localized: """
+                Réglages Système › Confidentialité et sécurité › Fichiers et dossiers › \
+                FL Studio : « Dossier Documents » doit être coché.
+                """))
             scriptCard
         }
     }
@@ -1189,11 +1225,11 @@ struct OrganizerView: View {
     private var hint: String {
         switch controller.result?.page {
         case .mixer?:
-            return "Chaque piste prend la famille des sons qui y sont reliés. Clique sur une famille pour la changer."
+            return String(localized: "Chaque piste prend la famille des sons qui y sont reliés. Clique sur une famille pour la changer.")
         case .playlist?:
-            return "Chaque piste prend ce que jouent ses sons (Kick, 808…, sinon leur famille), d'après leur nom ou leur écoute. Clique dessus pour le changer. Appliquer colore les pistes par famille."
+            return String(localized: "Chaque piste prend ce que jouent ses sons (Kick, 808…, sinon leur famille), d'après leur nom ou leur écoute. Clique dessus pour le changer. Appliquer colore les pistes par famille.")
         default:
-            return "Chaque son est rangé d'après son nom (« BEAM KICK » : Kick), sinon d'après son écoute. Clique sur Kick, 808… pour le changer. Appliquer colore les sons par famille et met ensemble ceux de même sorte."
+            return String(localized: "Chaque son est rangé d'après son nom (« BEAM KICK » : Kick), sinon d'après son écoute. Clique sur Kick, 808… pour le changer. Appliquer colore les sons par famille et met ensemble ceux de même sorte.")
         }
     }
 
@@ -1221,8 +1257,10 @@ struct OrganizerView: View {
                 Toggle("Renommer les pistes qui ont encore le nom de FL (Kick, Snare, Voix…)",
                        isOn: $controller.renameTracks)
                     .font(.system(size: 12))
-                Text("FL ne laisse pas un script déplacer les pistes de la Playlist ni changer leur icône : leur ordre "
-                     + "et leurs icônes restent comme ils sont.")
+                Text(String(localized: """
+                    FL ne laisse pas un script déplacer les pistes de la Playlist ni changer leur icône : leur ordre \
+                    et leurs icônes restent comme ils sont.
+                    """))
                     .font(.system(size: 11))
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
@@ -1430,7 +1468,7 @@ private struct FamilySection: View {
             RoundedRectangle(cornerRadius: 3, style: .continuous)
                 .fill(swiftColor(color))
                 .frame(width: 12, height: 12)
-            Text(member.name.isEmpty ? "(sans nom)" : member.name).lineLimit(1)
+            Text(member.name.isEmpty ? String(localized: "(sans nom)") : member.name).lineLimit(1)
             if let newName = member.newName {
                 Image(systemName: "arrow.right").font(.system(size: 9)).foregroundStyle(.secondary)
                 Text(newName).lineLimit(1).foregroundStyle(.secondary)
@@ -1478,7 +1516,7 @@ private struct FamilySection: View {
                 .overlay(RoundedRectangle(cornerRadius: 5, style: .continuous).strokeBorder(Color.primary.opacity(0.2)))
         }
         .buttonStyle(.plain)
-        .help("#" + color.hex + " : choisir dans la roue des couleurs de FL")
+        .help(String(localized: "#\(color.hex) : choisir dans la roue des couleurs de FL"))
         .popover(isPresented: picking, arrowEdge: .bottom) {
             FLColorSelector(initial: color) { picked in
                 set(picked)

@@ -26,7 +26,7 @@ enum ShareKind: String, Codable, CaseIterable, Identifiable {
     case macro, profile
 
     var id: String { rawValue }
-    var label: String { self == .macro ? "Macro" : "Raccourcis" }
+    var label: String { self == .macro ? String(localized: "Macro") : String(localized: "Raccourcis") }
     var symbol: String { self == .macro ? "wand.and.stars" : "keyboard" }
 }
 
@@ -83,13 +83,13 @@ enum CommunityError: Error, LocalizedError, Equatable {
 
     var errorDescription: String? {
         switch self {
-        case .notConfigured: return "La Communauté n'est pas encore ouverte dans cette version."
+        case .notConfigured: return String(localized: "La Communauté n'est pas encore ouverte dans cette version.")
         case .invalid(let why): return why
-        case .emailToConfirm: return "Compte créé : entre le code reçu par mail pour le confirmer."
+        case .emailToConfirm: return String(localized: "Compte créé : entre le code reçu par mail pour le confirmer.")
         case .server(_, let message): return message
-        case .network(let why): return "Connexion impossible : \(why)"
-        case .badResponse: return "Réponse inattendue du serveur."
-        case .backupConflict: return "La sauvegarde de ton compte a changé depuis un autre Mac."
+        case .network(let why): return String(localized: "Connexion impossible : \(why)")
+        case .badResponse: return String(localized: "Réponse inattendue du serveur.")
+        case .backupConflict: return String(localized: "La sauvegarde de ton compte a changé depuis un autre Mac.")
         }
     }
 }
@@ -104,7 +104,9 @@ enum CommunityRules {
     static func usernameProblem(_ s: String) -> String? {
         let allowed = CharacterSet(charactersIn: "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_.-")
         guard (3...24).contains(s.count), s.unicodeScalars.allSatisfy(allowed.contains) else {
-            return "Nom d'utilisateur : 3 à 24 caractères, lettres sans accent, chiffres, « _ », « . » ou « - »."
+            return String(localized: """
+                Nom d'utilisateur : 3 à 24 caractères, lettres sans accent, chiffres, « _ », « . » ou « - ».
+                """)
         }
         return nil
     }
@@ -112,25 +114,28 @@ enum CommunityRules {
     static func emailProblem(_ s: String) -> String? {
         let parts = s.split(separator: "@", omittingEmptySubsequences: false)
         guard parts.count == 2, !parts[0].isEmpty, parts[1].contains("."), !s.contains(" "), s.count <= 254 else {
-            return "Adresse mail invalide."
+            return String(localized: "Adresse mail invalide.")
         }
         return nil
     }
 
     /// Mêmes exigences que celles réglées dans Supabase (Authentication › Email › Password requirements :
     /// minuscules, majuscules, chiffres et symboles), avec les mêmes caractères : lettres sans accent.
-    static let passwordRule = "8 caractères au moins, avec une minuscule, une majuscule, un chiffre et un symbole"
+    static let passwordRule = String(localized: """
+        8 caractères au moins, avec une minuscule, une majuscule, un chiffre et un symbole
+        """)
     static let passwordSets: [(name: String, chars: String)] = [
-        ("une minuscule", "abcdefghijklmnopqrstuvwxyz"),
-        ("une majuscule", "ABCDEFGHIJKLMNOPQRSTUVWXYZ"),
-        ("un chiffre", "0123456789"),
-        ("un symbole", "!@#$%^&*()_+-=[]{};'\\:\"|<>?,./`~"),
+        (String(localized: "une minuscule"), "abcdefghijklmnopqrstuvwxyz"),
+        (String(localized: "une majuscule"), "ABCDEFGHIJKLMNOPQRSTUVWXYZ"),
+        (String(localized: "un chiffre"), "0123456789"),
+        (String(localized: "un symbole"), "!@#$%^&*()_+-=[]{};'\\:\"|<>?,./`~"),
     ]
 
     /// Ce qui manque encore au mot de passe, dans l'ordre (« 3 caractères », « une majuscule »…) ; vide : accepté.
     static func passwordMissing(_ s: String) -> [String] {
         let short = minPassword - s.count
-        let length: [String] = short <= 0 ? [] : [short == 1 ? "1 caractère" : "\(short) caractères"]
+        let length: [String] = short <= 0 ? []
+            : [short == 1 ? String(localized: "1 caractère") : String(localized: "\(short) caractères")]
         return length + passwordSets.filter { group in !s.contains { group.chars.contains($0) } }.map(\.name)
     }
 
@@ -141,15 +146,15 @@ enum CommunityRules {
     }
 
     static func passwordProblem(_ s: String) -> String? {
-        passwordMissing(s).isEmpty ? nil : "Mot de passe : \(passwordRule)."
+        passwordMissing(s).isEmpty ? nil : String(localized: "Mot de passe : \(passwordRule).")
     }
 
     static func shareProblem(title: String, notes: String, payload: Data) -> String? {
         if !titleRange.contains(title.trimmingCharacters(in: .whitespacesAndNewlines).count) {
-            return "Titre : \(titleRange.lowerBound) à \(titleRange.upperBound) caractères."
+            return String(localized: "Titre : \(titleRange.lowerBound) à \(titleRange.upperBound) caractères.")
         }
-        if notes.count > maxNotes { return "Notes : \(maxNotes) caractères au plus." }
-        if payload.count > maxPayload { return "Fichier trop volumineux pour être partagé." }
+        if notes.count > maxNotes { return String(localized: "Notes : \(maxNotes) caractères au plus.") }
+        if payload.count > maxPayload { return String(localized: "Fichier trop volumineux pour être partagé.") }
         return nil
     }
 }
@@ -198,7 +203,7 @@ struct CommunityClient {
             throw CommunityError.invalid(why)
         }
         guard try await usernameAvailable(username) else {
-            throw CommunityError.invalid("Ce nom d'utilisateur est déjà pris.")
+            throw CommunityError.invalid(String(localized: "Ce nom d'utilisateur est déjà pris."))
         }
         let data = try await call("POST", "auth/v1/signup",
                                   body: ["email": email, "password": password, "data": ["username": username]])
@@ -250,7 +255,7 @@ struct CommunityClient {
     /// Vérifie le code reçu par mail ; le serveur connecte le compte.
     func verifyCode(email: String, code: String, kind: CodeKind) async throws -> CommunitySession {
         guard let token = CommunityRules.code(code) else {
-            throw CommunityError.invalid("Le code fait 6 chiffres : recopie-le depuis le mail.")
+            throw CommunityError.invalid(String(localized: "Le code fait 6 chiffres : recopie-le depuis le mail."))
         }
         let data = try await call("POST", "auth/v1/verify",
                                   body: ["type": kind.rawValue, "email": email, "token": token])
@@ -356,7 +361,9 @@ struct CommunityClient {
         if let why = CommunityRules.shareProblem(title: title, notes: notes, payload: payload) {
             throw CommunityError.invalid(why)
         }
-        guard let text = String(data: payload, encoding: .utf8) else { throw CommunityError.invalid("Fichier illisible.") }
+        guard let text = String(data: payload, encoding: .utf8) else {
+            throw CommunityError.invalid(String(localized: "Fichier illisible."))
+        }
         _ = try await call("POST", "rest/v1/shares", token: session.accessToken,
                            body: ["kind": kind.rawValue, "title": title, "notes": notes, "payload": text,
                                   "app_version": String(appVersion.prefix(20))])
@@ -370,7 +377,9 @@ struct CommunityClient {
 
     func report(_ id: UUID, reason: String, session: CommunitySession) async throws {
         let reason = reason.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard (3...500).contains(reason.count) else { throw CommunityError.invalid("Raison : 3 à 500 caractères.") }
+        guard (3...500).contains(reason.count) else {
+            throw CommunityError.invalid(String(localized: "Raison : 3 à 500 caractères."))
+        }
         _ = try await call("POST", "rest/v1/reports", token: session.accessToken,
                            body: ["share_id": id.uuidString.lowercased(), "reason": reason])
     }
@@ -466,43 +475,48 @@ struct CommunityClient {
         return data
     }
 
-    static let unconfirmedMessage = "Confirme d'abord ton adresse mail avec le code reçu par mail."
+    static let unconfirmedMessage = String(localized: "Confirme d'abord ton adresse mail avec le code reçu par mail.")
 
     /// Message du serveur, traduit pour les cas courants.
     static func message(_ data: Data, status: Int) -> String {
         let json = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any]
         let raw = (json?["error_description"] ?? json?["msg"] ?? json?["message"] ?? json?["error"]) as? String ?? ""
         let lower = raw.lowercased()
-        if lower.contains("invalid login credentials") { return "Mail ou mot de passe incorrect." }
+        if lower.contains("invalid login credentials") { return String(localized: "Mail ou mot de passe incorrect.") }
         if lower.contains("email not confirmed") || (json?["error_code"] as? String) == "email_not_confirmed" {
             return unconfirmedMessage
         }
         if lower.contains("already registered") || lower.contains("already exists") {
-            return "Un compte existe déjà avec ce mail."
+            return String(localized: "Un compte existe déjà avec ce mail.")
         }
         let code = json?["error_code"] as? String
         if code == "otp_expired" || lower.contains("token has expired") || lower.contains("token is invalid")
             || lower.contains("otp has expired") {
-            return "Code incorrect ou expiré : vérifie-le, ou demande un nouveau code."
+            return String(localized: "Code incorrect ou expiré : vérifie-le, ou demande un nouveau code.")
         }
         if code == "same_password" || lower.contains("should be different") {
-            return "Choisis un mot de passe différent de l'ancien."
+            return String(localized: "Choisis un mot de passe différent de l'ancien.")
         }
         if (json?["error_code"] as? String) == "weak_password" || lower.contains("password should") {
-            return "Mot de passe trop faible : \(CommunityRules.passwordRule)."
+            return String(localized: "Mot de passe trop faible : \(CommunityRules.passwordRule).")
         }
         if lower.contains("error sending") || lower.contains("not authorized") {
-            return "Le mail de confirmation n'a pas pu partir. Réessaie plus tard, ou écris à l'équipe depuis la page Aide."
+            return String(localized: """
+                Le mail de confirmation n'a pas pu partir. Réessaie plus tard, ou écris à l'équipe depuis la page Aide.
+                """)
         }
         if lower.contains("trop de partages") || lower.contains("trop de messages") || lower.hasPrefix("sauvegarde plus récente") {
             return raw
         }
         if lower.contains("backups_profile_check") || lower.contains("backups_macros_check") {
-            return "Sauvegarde trop grande pour le serveur (2 Mo de raccourcis, 6 Mo de macros au plus)."
+            return String(localized: """
+                Sauvegarde trop grande pour le serveur (2 Mo de raccourcis, 6 Mo de macros au plus).
+                """)
         }
-        if status == 401 || status == 403 { return "Session expirée : reconnecte-toi." }
-        if status == 429 { return "Trop de tentatives : réessaie dans quelques minutes." }
-        return raw.isEmpty ? "Erreur du serveur (\(status))." : "Erreur du serveur : \(raw.prefix(200))"
+        if status == 401 || status == 403 { return String(localized: "Session expirée : reconnecte-toi.") }
+        if status == 429 { return String(localized: "Trop de tentatives : réessaie dans quelques minutes.") }
+        return raw.isEmpty ? String(localized: "Erreur du serveur (\(status)).")
+            : String(localized: "Erreur du serveur : \(String(raw.prefix(200)))")
     }
 
     func decodeSession(_ data: Data) throws -> CommunitySession {

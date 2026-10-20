@@ -65,25 +65,27 @@ enum OrganizerError: Error, Equatable {
 
     var message: String {
         switch self {
-        case .cancelled: return "Organiser arrêté : FL est remis comme avant."
+        case .cancelled: return String(localized: "Organiser arrêté : FL est remis comme avant.")
         case .interrupted:
-            return "Le Channel rack n'est plus devant : Organiser s'est arrêté. « Revenir comme avant » défait ce qui a été fait."
-        case .mismatch: return "FL n'a pas tout pris : vérifie dans FL, ou clique sur « Revenir comme avant »."
+            return String(localized: "Le Channel rack n'est plus devant : Organiser s'est arrêté. « Revenir comme avant » défait ce qui a été fait.")
+        case .mismatch: return String(localized: "FL n'a pas tout pris : vérifie dans FL, ou clique sur « Revenir comme avant ».")
         case .noResponse:
-            return "FL ne répond pas : le script FL Shortcuts n'est pas chargé dans FL. Vérifie ces réglages, puis « Réessayer »."
-        case .flClosed: return "FL Studio n'est pas ouvert."
+            return String(localized: "FL ne répond pas : le script FL Shortcuts n'est pas chargé dans FL. Vérifie ces réglages, puis « Réessayer ».")
+        case .flClosed: return String(localized: "FL Studio n'est pas ouvert.")
         case .noSound:
-            return "Aucun son reçu de FL pendant l'écoute. Vérifie que FL Shortcuts a l'autorisation « Audio du système » "
-                + "(Réglages Système › Confidentialité et sécurité › Enregistrement de l'écran et de l'audio du système), "
-                + "et que les sons choisis jouent bien dans FL (Master pas coupé), puis « Réessayer »."
+            return String(localized: """
+                Aucun son reçu de FL pendant l'écoute. Vérifie que FL Shortcuts a l'autorisation « Audio du système » \
+                (Réglages Système › Confidentialité et sécurité › Enregistrement de l'écran et de l'audio du système), \
+                et que les sons choisis jouent bien dans FL (Master pas coupé), puis « Réessayer ».
+                """)
         case .outdatedScript:
-            return "FL utilise encore l'ancienne version du lien : redémarre FL Studio (il charge la nouvelle au lancement), puis clique sur « Réessayer »."
-        case .refused(1): return "Ouvre le Channel rack, le Mixer ou la Playlist de FL (clique dedans), puis clique sur « Réessayer »."
-        case .refused(2): return "Sélectionne au moins un élément dans FL."
-        case .refused(4): return "FL joue : appuie sur Stop, puis relance Organiser."
-        case .refused(6): return "Ta version de FL ne permet pas cette étape : mets FL Studio à jour."
-        case .refused(7): return "Sélectionne au moins 2 pistes pour un dégradé."
-        case .refused(let r): return "FL a refusé l'opération (raison \(r))."
+            return String(localized: "FL utilise encore l'ancienne version du lien : redémarre FL Studio (il charge la nouvelle au lancement), puis clique sur « Réessayer ».")
+        case .refused(1): return String(localized: "Ouvre le Channel rack, le Mixer ou la Playlist de FL (clique dedans), puis clique sur « Réessayer ».")
+        case .refused(2): return String(localized: "Sélectionne au moins un élément dans FL.")
+        case .refused(4): return String(localized: "FL joue : appuie sur Stop, puis relance Organiser.")
+        case .refused(6): return String(localized: "Ta version de FL ne permet pas cette étape : mets FL Studio à jour.")
+        case .refused(7): return String(localized: "Sélectionne au moins 2 pistes pour un dégradé.")
+        case .refused(let r): return String(localized: "FL a refusé l'opération (raison \(r)).")
         case .failed(let why): return why.prefix(1).uppercased() + String(why.dropFirst())
         }
     }
@@ -359,7 +361,7 @@ final class RequestOrganizerLink: OrganizerLink {
     func page() throws -> FLWindow {
         do {
             guard let window = OrganizerPayload.decodePage(try send(OrganizerPayload.page)) else {
-                throw OrganizerError.failed("page de FL illisible")
+                throw OrganizerError.failed(String(localized: "page de FL illisible"))
             }
             newOpsSeen = true
             return window
@@ -391,33 +393,33 @@ final class RequestOrganizerLink: OrganizerLink {
         var all: [ChannelInfo] = []
         for _ in 0..<Self.maxPages {
             guard let page = OrganizerPayload.decodeChannels(try send(OrganizerPayload.list(.channels, start: all.count))),
-                  page.start == all.count else { throw OrganizerError.failed("liste des canaux illisible") }
+                  page.start == all.count else { throw OrganizerError.failed(String(localized: "liste des canaux illisible")) }
             all += page.items
             if all.count >= page.total || page.items.isEmpty { return all }
         }
-        throw OrganizerError.failed("trop de canaux")
+        throw OrganizerError.failed(String(localized: "trop de canaux"))
     }
 
     func listMixer() throws -> [MixerTrackInfo] {
         var all: [MixerTrackInfo] = []
         for _ in 0..<Self.maxPages {
             guard let page = OrganizerPayload.decodeMixer(try send(OrganizerPayload.list(.mixer, start: all.count))),
-                  page.start == all.count else { throw OrganizerError.failed("liste du Mixer illisible") }
+                  page.start == all.count else { throw OrganizerError.failed(String(localized: "liste du Mixer illisible")) }
             all += page.items
             if all.count >= page.total || page.items.isEmpty { return all }
         }
-        throw OrganizerError.failed("trop de pistes")
+        throw OrganizerError.failed(String(localized: "trop de pistes"))
     }
 
     func listPlaylist(limit: Int) throws -> [PlaylistTrackInfo] {
         var all: [PlaylistTrackInfo] = []
         for _ in 0..<Self.maxPages {
             guard let page = OrganizerPayload.decodePlaylist(try send(OrganizerPayload.list(.playlist, start: all.count))),
-                  page.start == all.count else { throw OrganizerError.failed("liste de la Playlist illisible") }
+                  page.start == all.count else { throw OrganizerError.failed(String(localized: "liste de la Playlist illisible")) }
             all += page.items
             if all.count >= min(page.total, limit) || page.items.isEmpty { return Array(all.prefix(limit)) }
         }
-        throw OrganizerError.failed("trop de pistes")
+        throw OrganizerError.failed(String(localized: "trop de pistes"))
     }
 
     func setColors(_ kind: ItemKind, _ colors: [(index: Int, color: RGBColor)]) throws {
@@ -430,7 +432,7 @@ final class RequestOrganizerLink: OrganizerLink {
 
     func playTrack(_ index: Int) throws -> Int {
         let answer = try newOps { try send(OrganizerPayload.playTrack(index)) }
-        guard let bars = OrganizerPayload.decodeBars(answer) else { throw OrganizerError.failed("réponse de FL illisible") }
+        guard let bars = OrganizerPayload.decodeBars(answer) else { throw OrganizerError.failed(String(localized: "réponse de FL illisible")) }
         return bars
     }
 
@@ -460,7 +462,7 @@ final class RequestOrganizerLink: OrganizerLink {
 
     func patterns() throws -> (count: Int, current: Int) {
         let answer = try v11 { try send(OrganizerPayload.patterns) }
-        guard let info = OrganizerPayload.decodePatterns(answer) else { throw OrganizerError.failed("réponse de FL illisible") }
+        guard let info = OrganizerPayload.decodePatterns(answer) else { throw OrganizerError.failed(String(localized: "réponse de FL illisible")) }
         return info
     }
 
@@ -470,14 +472,14 @@ final class RequestOrganizerLink: OrganizerLink {
     private func activity(_ kind: ItemKind) throws -> Set<Int> {
         let answer = try v11 { try send(OrganizerPayload.activity(kind)) }
         guard let set = OrganizerPayload.decodeActivity(answer, kind: kind) else {
-            throw OrganizerError.failed("réponse de FL illisible")
+            throw OrganizerError.failed(String(localized: "réponse de FL illisible"))
         }
         return set
     }
 
     func playSong(at fraction: Double) throws -> Int {
         let answer = try v11 { try send(OrganizerPayload.playSong(fraction)) }
-        guard let bars = OrganizerPayload.decodeBars(answer) else { throw OrganizerError.failed("réponse de FL illisible") }
+        guard let bars = OrganizerPayload.decodeBars(answer) else { throw OrganizerError.failed(String(localized: "réponse de FL illisible")) }
         return bars
     }
 

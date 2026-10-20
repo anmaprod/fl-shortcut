@@ -8,7 +8,7 @@ import SwiftUI
 import UniformTypeIdentifiers
 
 enum MacroPageText {
-    static let subtitle = "Enchaîne des clics, des touches et des menus de FL Studio sur un seul raccourci. Le plus simple : enregistre ce que tu fais dans FL, chaque geste devient un bloc."
+    static let subtitle = String(localized: "Enchaîne des clics, des touches et des menus de FL Studio sur un seul raccourci. Le plus simple : enregistre ce que tu fais dans FL, chaque geste devient un bloc.")
 }
 
 /// Problème de la bibliothèque (enregistrement impossible, fichier relu en partie) : page Macros, même vide, et
@@ -41,9 +41,10 @@ struct MacroLibraryPage: View {
                 // Même page en cartes que les raccourcis : chaque macro s'éclaire au survol, d'un filet à l'autre.
                 PageContainer {
                     Section {
-                        PageHeader(symbol: SidebarItem.macros.symbol, tint: SidebarItem.macros.tint, title: "Macros",
+                        PageHeader(symbol: SidebarItem.macros.symbol, tint: SidebarItem.macros.tint, title: String(localized: "Macros"),
                                    subtitle: MacroPageText.subtitle,
-                                   detail: library.macros.count == 1 ? "1 macro" : "\(library.macros.count) macros")
+                                   detail: library.macros.count == 1 ? String(localized: "1 macro")
+                                                                    : String(localized: "\(library.macros.count) macros"))
                             .cardRow(.first)
                         actions.cardRow(.last)
                     }
@@ -152,12 +153,14 @@ struct MacroLibraryPage: View {
         let flags = MacroOutline.flags(doc.blocks, learnedInput: MacroSpots.loadPath(.input) != nil)
         var badges: [(String, String, Color, String)] = []
         if flags.toLearn {
-            badges.append(("À apprendre", "hand.point.up.left", .purple, "Un endroit ou l'entrée 1 est à montrer dans FL."))
+            badges.append((String(localized: "À apprendre"), "hand.point.up.left", .purple,
+                            String(localized: "Un endroit ou l'entrée 1 est à montrer dans FL.")))
         } else if let problem = program?.problem {
-            badges.append(("À corriger", "exclamationmark.triangle.fill", .red, problem))
+            badges.append((String(localized: "À corriger"), "exclamationmark.triangle.fill", .red, problem))
         }
         if let remap, !remap.enabled {
-            badges.append(("Désactivée", "pause.circle", .secondary, "Le raccourci de cette macro est désactivé."))
+            badges.append((String(localized: "Désactivée"), "pause.circle", .secondary,
+                            String(localized: "Le raccourci de cette macro est désactivé.")))
         }
         return MacroLibraryRow(doc: doc, trigger: remap?.trigger, badges: badges,
                                onOpen: { open(doc.id) },
@@ -173,14 +176,14 @@ struct MacroLibraryPage: View {
 
     /// Nouvelle macro vide, ouverte dans le créateur (aussi le « + » de la barre d'outils sur la page Macros).
     static func newMacro(in library: MacroLibraryStore) {
-        let doc = library.add(MacroDoc(name: library.uniqueName("Nouvelle macro"), blocks: []))
+        let doc = library.add(MacroDoc(name: library.uniqueName(String(localized: "Nouvelle macro")), blocks: []))
         MacroCreatorLink.shared.open(doc.id, isNew: true)       // au retour : l'enregistrer ou la supprimer
     }
 
     /// « Enregistrer une macro » : nouvelle macro ouverte dans le créateur, et l'enregistrement des clics et des
     /// touches qui démarre aussitôt (FL passe devant).
     static func recordNewMacro(in library: MacroLibraryStore) {
-        let doc = library.add(MacroDoc(name: library.uniqueName("Nouvelle macro"), blocks: []))
+        let doc = library.add(MacroDoc(name: library.uniqueName(String(localized: "Nouvelle macro")), blocks: []))
         MacroCreatorLink.shared.open(doc.id, isNew: true, record: true)
     }
 
@@ -192,11 +195,11 @@ struct MacroLibraryPage: View {
     }
 
     private func duplicate(_ doc: MacroDoc) {
-        var copy = MacroDoc(name: library.uniqueName(doc.name + " (copie)"), blocks: MacroTemplates.freshIDs(doc.blocks),
+        var copy = MacroDoc(name: library.uniqueName(doc.name + String(localized: " (copie)")), blocks: MacroTemplates.freshIDs(doc.blocks),
                             variables: doc.variables, origin: doc.origin)
         copy.format = doc.format
         library.add(copy)
-        toast(ToastMessage(text: "« \(copy.name) » ajoutée, sans raccourci", undo: { library.remove(copy.id) }))
+        toast(ToastMessage(text: String(localized: "« \(copy.name) » ajoutée, sans raccourci"), undo: { library.remove(copy.id) }))
     }
 
     private func export(_ doc: MacroDoc) {
@@ -206,10 +209,10 @@ struct MacroLibraryPage: View {
     private func importFile() {
         let docs = MacroFileActions.importMacros(into: library, layout: store.layout)
         if docs.count == 1, let doc = docs.first {
-            toast(ToastMessage(text: "« \(doc.name) » importée, sans raccourci : relis-la dans le créateur", undo: nil))
+            toast(ToastMessage(text: String(localized: "« \(doc.name) » importée, sans raccourci : relis-la dans le créateur"), undo: nil))
             open(doc.id)
         } else if docs.count > 1 {
-            toast(ToastMessage(text: "\(docs.count) macros importées, sans raccourci", undo: nil))
+            toast(ToastMessage(text: String(localized: "\(docs.count) macros importées, sans raccourci"), undo: nil))
         }
     }
 
@@ -230,7 +233,7 @@ struct MacroLibraryPage: View {
         for r in shortcuts { store.delete(r.id) }
         let lib = library
         let model = store
-        toast(ToastMessage(text: "« \(doc.name.displaySafe()) » supprimée", undo: {
+        toast(ToastMessage(text: String(localized: "« \(doc.name.displaySafe()) » supprimée"), undo: {
             lib.add(removed.doc, at: removed.index)
             for r in shortcuts { model.upsert(r) }
         }))
@@ -250,26 +253,26 @@ private struct MacroLibraryRow: View {
 
     private var caption: String {
         let count = MacroValidation.count(doc.blocks)
-        let blocks = count == 1 ? "1 bloc" : "\(count) blocs"
+        let blocks = count == 1 ? String(localized: "1 bloc") : String(localized: "\(count) blocs")
         let first = doc.blocks.lazy.filter { $0.enabled && $0.body.type != .comment }.prefix(3)
             .map { BlockRegistry.label(of: $0.body) }
         return first.isEmpty ? blocks : blocks + " · " + first.joined(separator: ", ")
     }
 
-    private var disabled: Bool { badges.contains { $0.0 == "Désactivée" } }
+    private var disabled: Bool { badges.contains { $0.0 == String(localized: "Désactivée") } }
 
     private var options: [StyledMenuEntry] {
         var entries: [StyledMenuEntry] = [
-            .item("Modifier…", symbol: "pencil", tint: .blue, action: onOpen),
-            .item("Dupliquer", symbol: "plus.square.on.square", tint: .purple, action: onDuplicate),
-            .item("Exporter…", symbol: "square.and.arrow.up", tint: .teal, action: onExport),
+            .item(String(localized: "Modifier…"), symbol: "pencil", tint: .blue, action: onOpen),
+            .item(String(localized: "Dupliquer"), symbol: "plus.square.on.square", tint: .purple, action: onDuplicate),
+            .item(String(localized: "Exporter…"), symbol: "square.and.arrow.up", tint: .teal, action: onExport),
         ]
         if let onToggle {
             entries += [.separator,
-                        .item(disabled ? "Activer le raccourci" : "Désactiver le raccourci",
+                        .item(disabled ? String(localized: "Activer le raccourci") : String(localized: "Désactiver le raccourci"),
                               symbol: disabled ? "play" : "pause", tint: disabled ? .green : .yellow, action: onToggle)]
         }
-        entries += [.separator, .item("Supprimer", symbol: "trash", tint: .red, action: onDelete)]
+        entries += [.separator, .item(String(localized: "Supprimer"), symbol: "trash", tint: .red, action: onDelete)]
         return entries
     }
 
@@ -292,13 +295,13 @@ private struct MacroLibraryRow: View {
                     .fixedSize()
                     .help(badges[i].3)
             }
-            KeyLabel(combo: trigger, placeholder: "Sans raccourci")
+            KeyLabel(combo: trigger, placeholder: String(localized: "Sans raccourci"))
             Button("Modifier…", action: onOpen)
                 .buttonStyle(.borderless)
                 .font(.system(size: 12))
                 .fixedSize()
             // Options de la macro, au style du menu de l'icône (le clic droit garde le menu de macOS).
-            StyledMenuButton(help: "Options de la macro", entries: { options }) {
+            StyledMenuButton(help: String(localized: "Options de la macro"), entries: { options }) {
                 Image(systemName: "ellipsis.circle")
                     .font(.system(size: 14))
                     .foregroundStyle(.secondary)
@@ -314,7 +317,7 @@ private struct MacroLibraryRow: View {
             Button("Exporter…", action: onExport)
             if let onToggle {
                 Divider()
-                Button(disabled ? "Activer le raccourci" : "Désactiver le raccourci", action: onToggle)
+                Button(disabled ? String(localized: "Activer le raccourci") : String(localized: "Désactiver le raccourci"), action: onToggle)
             }
             Divider()
             Button("Supprimer", role: .destructive, action: onDelete)
@@ -422,13 +425,13 @@ enum MacroFileActions {
         panel.directoryURL = ExchangeFolder.macros.prepared()
         panel.canCreateDirectories = true
         panel.nameFieldStringValue = MacroExchange.suggestedFileName(doc.name)
-        panel.message = "Les endroits appris (clics montrés dans FL) ne sont pas exportés : ils se montrent sur chaque Mac."
+        panel.message = String(localized: "Les endroits appris (clics montrés dans FL) ne sont pas exportés : ils se montrent sur chaque Mac.")
         guard panel.runModal() == .OK, let url = panel.url else { return nil }
         do {
             try MacroExchange.export(doc, appVersion: appVersion).write(to: url, options: .atomic)
-            return "Macro exportée"
+            return String(localized: "Macro exportée")
         } catch {
-            Dialogs.inform("Export impossible", error.localizedDescription)
+            Dialogs.inform(String(localized: "Export impossible"), error.localizedDescription)
             return nil
         }
     }
@@ -443,8 +446,8 @@ enum MacroFileActions {
         panel.canCreateDirectories = true
         panel.allowsMultipleSelection = false
         panel.directoryURL = ExchangeFolder.macros.prepared()
-        panel.prompt = "Exporter ici"
-        panel.message = "Chaque macro devient un fichier .flsmacro. Les endroits appris (clics montrés dans FL) ne sont pas exportés."
+        panel.prompt = String(localized: "Exporter ici")
+        panel.message = String(localized: "Chaque macro devient un fichier .flsmacro. Les endroits appris (clics montrés dans FL) ne sont pas exportés.")
         guard panel.runModal() == .OK, let folder = panel.url else { return nil }
         var written = 0
         for doc in docs {
@@ -459,28 +462,29 @@ enum MacroFileActions {
                 try MacroExchange.export(doc, appVersion: appVersion).write(to: url, options: .withoutOverwriting)
                 written += 1
             } catch {
-                Dialogs.inform("Export impossible", "« \(doc.name.displaySafe(max: 40)) » : \(error.localizedDescription)")
+                Dialogs.inform(String(localized: "Export impossible"),
+                               String(localized: "« \(doc.name.displaySafe(max: 40)) » : \(error.localizedDescription)"))
                 break
             }
         }
         guard written > 0 else { return nil }
-        let what = written == 1 ? "1 macro exportée" : "\(written) macros exportées"
-        return what + " dans « \(folder.lastPathComponent) »"
+        let what = written == 1 ? String(localized: "1 macro exportée") : String(localized: "\(written) macros exportées")
+        return what + String(localized: " dans « \(folder.lastPathComponent) »")
     }
 
     /// Relecture d'un import : décompte en tête, TOUS les blocs dans une liste qui défile, ce qu'il faudra faire.
     static func confirmImport(_ preview: MacroExchange.Preview) -> Bool {
-        let count = preview.lines.count == 1 ? "1 bloc" : "\(preview.lines.count) blocs"
+        let count = preview.lines.count == 1 ? String(localized: "1 bloc") : String(localized: "\(preview.lines.count) blocs")
         let review = preview.sensitiveCount == 0 ? "" : preview.sensitiveCount == 1
-            ? ", dont 1 à relire" : ", dont \(preview.sensitiveCount) à relire"
-        var text = "« \(preview.doc.name) » — \(count)\(review)."
-        if !preview.warnings.isEmpty { text += "\n\nÀ faire :\n• " + preview.warnings.joined(separator: "\n• ") }
-        text += "\n\nElle arrive sans raccourci : relis-la dans le créateur, puis choisis-lui un raccourci."
+            ? String(localized: ", dont 1 à relire") : String(localized: ", dont \(preview.sensitiveCount) à relire")
+        var text = String(localized: "« \(preview.doc.name) » — \(count)\(review).")
+        if !preview.warnings.isEmpty { text += String(localized: "\n\nÀ faire :\n• ") + preview.warnings.joined(separator: "\n• ") }
+        text += String(localized: "\n\nElle arrive sans raccourci : relis-la dans le créateur, puis choisis-lui un raccourci.")
         let alert = NSAlert()
-        alert.messageText = "Importer cette macro ?"
+        alert.messageText = String(localized: "Importer cette macro ?")
         alert.informativeText = text
-        alert.addButton(withTitle: "Importer")
-        alert.addButton(withTitle: "Annuler")
+        alert.addButton(withTitle: String(localized: "Importer"))
+        alert.addButton(withTitle: String(localized: "Annuler"))
         let scroll = NSScrollView(frame: NSRect(x: 0, y: 0, width: 460, height: 220))
         scroll.hasVerticalScroller = true
         scroll.borderType = .bezelBorder
@@ -516,7 +520,7 @@ enum MacroFileActions {
                 doc.name = library.uniqueName(doc.name)
                 added.append(library.add(doc))
             } catch {
-                Dialogs.inform("Import impossible", "\(url.lastPathComponent) : \(error.localizedDescription)")
+                Dialogs.inform(String(localized: "Import impossible"), String(localized: "\(url.lastPathComponent) : \(error.localizedDescription)"))
             }
         }
         return added
@@ -533,7 +537,7 @@ struct LibraryMacroFields: View {
     var body: some View {
         LabeledContent("Macro") {
             VStack(alignment: .leading, spacing: 6) {
-                Text(library.doc(ref)?.name.displaySafe(max: 60) ?? "Macro introuvable (supprimée ?)")
+                Text(library.doc(ref)?.name.displaySafe(max: 60) ?? String(localized: "Macro introuvable (supprimée ?)"))
                     .fontWeight(.medium)
                 Text("Macro en blocs de la bibliothèque (Macros). Ses étapes se modifient dans le créateur.")
                     .font(.caption)

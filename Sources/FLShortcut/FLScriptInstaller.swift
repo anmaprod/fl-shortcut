@@ -20,9 +20,9 @@ enum ScriptTemplate {
 
         var errorDescription: String? {
             switch self {
-            case .invalidKey: return "Clé invalide (16 octets attendus)."
-            case .placeholderCount(let n): return "Script FL invalide : \(n) emplacement(s) de clé au lieu d'un seul."
-            case .keyLineMissing: return "Script FL invalide : ligne KEY_HEX introuvable."
+            case .invalidKey: return String(localized: "Clé invalide (16 octets attendus).")
+            case .placeholderCount(let n): return String(localized: "Script FL invalide : \(n) emplacement(s) de clé au lieu d'un seul.")
+            case .keyLineMissing: return String(localized: "Script FL invalide : ligne KEY_HEX introuvable.")
             }
         }
     }
@@ -228,14 +228,17 @@ enum FLScriptInstaller {
         NSApp.activate(ignoringOtherApps: true)
 
         guard let template = bundledTemplate() else {
-            alert("Script introuvable", "Le fichier \(fileName) manque dans l'application.", style: .critical)
+            alert(String(localized: "Script introuvable"),
+                  String(localized: "Le fichier \(fileName) manque dans l'application."), style: .critical)
             return false
         }
 
         if let version = FLDetector.installedVersion(), !version.supportsPython {
-            alert("FL Studio trop ancien",
-                  "Les actions FL demandent FL Studio \(FLActions.pythonMinFL) ou plus récent (tu as \(version)). "
-                  + "Les raccourcis « Touche de FL » restent disponibles sans le script.", style: .warning)
+            alert(String(localized: "FL Studio trop ancien"),
+                  String(localized: """
+                      Les actions FL demandent FL Studio \(FLActions.pythonMinFL) ou plus récent (tu as \(version.description)). \
+                      Les raccourcis « Touche de FL » restent disponibles sans le script.
+                      """), style: .warning)
             return false
         }
 
@@ -259,7 +262,7 @@ enum FLScriptInstaller {
             MIDILink.shared.reloadKey()
             AppStatus.shared.refreshScriptState()
             if quiet { return true }
-            alert("Script installé", """
+            alert(String(localized: "Script installé"), String(localized: """
             Dernière étape : quitte et rouvre FL Studio. Il trouve « FL Shortcuts Link » en démarrant et le relie tout seul.
 
             Seulement si ça ne marche pas : Options › MIDI Settings, entrée « FL Shortcuts Link », Controller type « FL Shortcuts » (pas « generic controller »), Enable, et le même numéro de Port pour l'entrée et la sortie « FL Shortcuts Link ».
@@ -267,10 +270,10 @@ enum FLScriptInstaller {
             « FL Shortcuts » absent des Controller types : FL lit un autre dossier. Le script est dans \(displayFolder(of: dest)) ; compare avec Options › File settings › User data folder dans FL.
 
             Chaque réinstallation crée une nouvelle clé : redémarre FL après coup.
-            """)
+            """))
             return true
         } catch {
-            alert("Installation impossible", error.localizedDescription, style: .critical)
+            alert(String(localized: "Installation impossible"), error.localizedDescription, style: .critical)
             return false
         }
     }
@@ -292,8 +295,10 @@ enum FLScriptInstaller {
     private static func pickHardwareFolder() -> URL? {
         let isDir: (URL) -> Bool = { SecureFile.kind(at: $0.path) == .directory }
         let panel = NSOpenPanel()
-        panel.message = "Choisis le dossier de données de FL Studio (Options › File settings › User data folder dans FL), "
-            + "ou son dossier « Settings/Hardware »."
+        panel.message = String(localized: """
+            Choisis le dossier de données de FL Studio (Options › File settings › User data folder dans FL), \
+            ou son dossier « Settings/Hardware ».
+            """)
         panel.directoryURL = defaultHardwareFolder.deletingLastPathComponent().deletingLastPathComponent()
             .deletingLastPathComponent()
         panel.canChooseDirectories = true
@@ -303,8 +308,8 @@ enum FLScriptInstaller {
         guard panel.runModal() == .OK, let picked = panel.url else { return nil }
         let real = picked.resolvingSymlinksInPath()
         guard let hardware = HardwareFolder.resolve(real, isDirectory: isDir), !SecureFile.pathContainsSymlink(hardware) else {
-            alert("Dossier incorrect",
-                  "Ce n'est ni le dossier de données de FL Studio ni son « Settings/Hardware ». FL ne verrait pas le script.",
+            alert(String(localized: "Dossier incorrect"),
+                  String(localized: "Ce n'est ni le dossier de données de FL Studio ni son « Settings/Hardware ». FL ne verrait pas le script."),
                   style: .warning)
             return nil
         }

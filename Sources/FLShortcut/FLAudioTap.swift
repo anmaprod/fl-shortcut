@@ -12,9 +12,9 @@ enum CaptureError: Error, Equatable {
 
     var message: String {
         switch self {
-        case .processNotFound: return "FL Studio n'envoie pas de son pour l'instant : ouvre ton projet dans FL, puis relance Organiser."
-        case .failed(let step, let status): return "Écoute de FL impossible (\(step), erreur \(status)) : vérifie l'autorisation « Audio système » de FL Shortcuts dans Réglages Système › Confidentialité et sécurité."
-        case .unsupportedFormat: return "Format du son de FL inattendu : écoute impossible."
+        case .processNotFound: return String(localized: "FL Studio n'envoie pas de son pour l'instant : ouvre ton projet dans FL, puis relance Organiser.")
+        case .failed(let step, let status): return String(localized: "Écoute de FL impossible (\(step), erreur \(status)) : vérifie l'autorisation « Audio système » de FL Shortcuts dans Réglages Système › Confidentialité et sécurité.")
+        case .unsupportedFormat: return String(localized: "Format du son de FL inattendu : écoute impossible.")
         }
     }
 }

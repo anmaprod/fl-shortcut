@@ -98,7 +98,7 @@ final class MacroEditorModel: ObservableObject {
     }
 
     /// Nom enregistré quand le champ est vide (la liste et le menu des macros n'affichent jamais une ligne vide).
-    static let untitled = "Macro sans nom"
+    static let untitled = String(localized: "Macro sans nom")
     /// Dernière demande d'ouverture traitée (MacroCreatorLink) : une même demande n'est jamais rejouée.
     var handledRequestSerial: Int?
 
@@ -176,7 +176,7 @@ final class MacroEditorModel: ObservableObject {
 
     /// Nouvelle macro vide dans la bibliothèque, ouverte aussitôt.
     func newMacro() {
-        let doc = library.add(MacroDoc(name: library.uniqueName("Nouvelle macro"), blocks: []))
+        let doc = library.add(MacroDoc(name: library.uniqueName(String(localized: "Nouvelle macro")), blocks: []))
         load(doc.id)
         markNew()
     }
@@ -311,18 +311,18 @@ final class MacroEditorModel: ObservableObject {
 
     func rename(_ name: String) {
         let clean = String(name.prefix(MacroValidation.maxNameLength))
-        mutate("Renommer la macro", coalesce: "name") { $0.name = clean }
+        mutate(String(localized: "Renommer la macro"), coalesce: "name") { $0.name = clean }
     }
 
     /// Modifie un bloc (inspecteur). `key` : champ modifié, pour regrouper les frappes.
-    func updateBlock(_ id: UUID, key: String, actionName: String = "Modifier le bloc", _ change: (inout Block) -> Void) {
+    func updateBlock(_ id: UUID, key: String, actionName: String = String(localized: "Modifier le bloc"), _ change: (inout Block) -> Void) {
         mutate(actionName, coalesce: "\(id)-\(key)") { doc in
             _ = MacroOutline.update(&doc.blocks, id: id, change)
         }
     }
 
     func setEnabled(_ id: UUID, _ on: Bool) {
-        updateBlock(id, key: "enabled", actionName: on ? "Activer le bloc" : "Désactiver le bloc") { $0.enabled = on }
+        updateBlock(id, key: "enabled", actionName: on ? String(localized: "Activer le bloc") : String(localized: "Désactiver le bloc")) { $0.enabled = on }
     }
 
     /// Ajoute un bloc de la palette sous la sélection (ou dans la boucle si sa ligne de fin est choisie).
@@ -355,21 +355,21 @@ final class MacroEditorModel: ObservableObject {
         let page = Block(.openPage(nil))
         let withPage = MacroOutline.needsPage(block, at: point, in: draft.blocks)
         guard MacroValidation.count(draft.blocks) + (withPage ? 2 : 1) <= MacroValidation.maxBlocks else {
-            notice = "Macro trop longue : \(MacroValidation.maxBlocks) blocs au plus."
+            notice = String(localized: "Macro trop longue : \(MacroValidation.maxBlocks) blocs au plus.")
             return
         }
         if !block.body.children.isEmpty || block.body.type == .repeatCount,
            MacroOutline.depth(of: point) + 1 > MacroValidation.maxDepth {
-            notice = "Trop de boucles l'une dans l'autre (\(MacroValidation.maxDepth) niveaux au plus)."
+            notice = String(localized: "Trop de boucles l'une dans l'autre (\(MacroValidation.maxDepth) niveaux au plus).")
             NSSound.beep()
             return
         }
         notice = nil
-        mutate("Ajouter « \(item.label) »", select: MacroStepRow.blockRowID(withPage ? page.id : block.id)) { doc in
+        mutate(String(localized: "Ajouter « \(item.label) »"), select: MacroStepRow.blockRowID(withPage ? page.id : block.id)) { doc in
             _ = MacroOutline.insertWithPage(block, page: page, into: &doc.blocks, at: point)
         }
         if withPage {
-            notice = "« Ouvrir une page de FL » ajouté juste au-dessus : choisis d'abord la page, puis l'option à cliquer dans cette page."
+            notice = String(localized: "« Ouvrir une page de FL » ajouté juste au-dessus : choisis d'abord la page, puis l'option à cliquer dans cette page.")
         }
     }
 
@@ -381,7 +381,7 @@ final class MacroEditorModel: ObservableObject {
               ClickSequenceRecorder.shared.start(pid: pid, returnTo: window, completion: { [weak self] result in
                   self?.insertRecorded(result)
               }) else {
-            notice = "Ouvre FL Studio, puis recommence."
+            notice = String(localized: "Ouvre FL Studio, puis recommence.")
             return
         }
         notice = nil
@@ -391,36 +391,36 @@ final class MacroEditorModel: ObservableObject {
     func insertRecorded(_ result: ClickSequenceCompiler.Result) {
         guard !closed, let draft else { return }
         let skipped = result.ignored == 0 ? ""
-            : " \(result.ignored) geste\(result.ignored > 1 ? "s" : "") hors de FL (ou dans un menu refermé) ignoré\(result.ignored > 1 ? "s" : "")."
+            : String(localized: " \(result.ignored) geste\(result.ignored > 1 ? "s" : "") hors de FL (ou dans un menu refermé) ignoré\(result.ignored > 1 ? "s" : "").")
         guard !result.blocks.isEmpty else {
-            notice = "Aucun clic ni aucune touche dans FL enregistrés." + skipped
+            notice = String(localized: "Aucun clic ni aucune touche dans FL enregistrés.") + skipped
             return
         }
         guard MacroValidation.count(draft.blocks) + result.blocks.count <= MacroValidation.maxBlocks else {
-            notice = "Macro trop longue : \(MacroValidation.maxBlocks) blocs au plus."
+            notice = String(localized: "Macro trop longue : \(MacroValidation.maxBlocks) blocs au plus.")
             return
         }
         let blocks = result.blocks.map { Block($0) }
         var point = MacroOutline.insertionPoint(after: selectedRow, in: draft.blocks)
-        mutate("Enregistrer clics et touches", select: blocks.last.map { MacroStepRow.blockRowID($0.id) }) { doc in
+        mutate(String(localized: "Enregistrer clics et touches"), select: blocks.last.map { MacroStepRow.blockRowID($0.id) }) { doc in
             for b in blocks {
                 _ = MacroOutline.insert(b, into: &doc.blocks, at: point)
                 point.index += 1
             }
         }
         let n = blocks.count
-        notice = "\(n) bloc\(n > 1 ? "s" : "") ajouté\(n > 1 ? "s" : "") d'après tes clics et tes touches." + skipped
+        notice = String(localized: "\(n) bloc\(n > 1 ? "s" : "") ajouté\(n > 1 ? "s" : "") d'après tes clics et tes touches.") + skipped
     }
 
     func duplicateSelection() {
         guard let block = selectedBlock, let draft else { return }
         guard MacroValidation.count(draft.blocks) + MacroValidation.count([block]) <= MacroValidation.maxBlocks else {
-            notice = "Macro trop longue : \(MacroValidation.maxBlocks) blocs au plus."
+            notice = String(localized: "Macro trop longue : \(MacroValidation.maxBlocks) blocs au plus.")
             return
         }
         guard let copy = MacroTemplates.freshIDs([block]).first, let row = selectedRow else { return }
         let point = MacroOutline.insertionPoint(after: row, in: draft.blocks)
-        mutate("Dupliquer", select: MacroStepRow.blockRowID(copy.id)) { doc in
+        mutate(String(localized: "Dupliquer"), select: MacroStepRow.blockRowID(copy.id)) { doc in
             _ = MacroOutline.insert(copy, into: &doc.blocks, at: point)
         }
     }
@@ -428,7 +428,7 @@ final class MacroEditorModel: ObservableObject {
     func deleteSelection() {
         guard let row = selectedRow, row.kind == .block else { return }
         let position = rows.firstIndex(of: row) ?? 0
-        mutate("Supprimer le bloc") { doc in
+        mutate(String(localized: "Supprimer le bloc")) { doc in
             _ = MacroOutline.remove(&doc.blocks, id: row.blockID)
         }
         // La ligne qui prend sa place (sinon la précédente) reste choisie : ⌫ ⌫ efface de proche en proche.
@@ -444,11 +444,11 @@ final class MacroEditorModel: ObservableObject {
         let id = rows[from].blockID
         let destination = target(beforeRow: to)
         var moved = false
-        mutate("Déplacer le bloc", select: MacroStepRow.blockRowID(id)) { doc in
+        mutate(String(localized: "Déplacer le bloc"), select: MacroStepRow.blockRowID(id)) { doc in
             moved = MacroOutline.move(&doc.blocks, id: id, to: destination)
         }
         if !moved {
-            notice = "Déplacement impossible : un bloc ne va pas dans lui-même, et \(MacroValidation.maxDepth) niveaux au plus."
+            notice = String(localized: "Déplacement impossible : un bloc ne va pas dans lui-même, et \(MacroValidation.maxDepth) niveaux au plus.")
             NSSound.beep()
         }
     }
@@ -472,7 +472,7 @@ final class MacroEditorModel: ObservableObject {
         dirty = false
         if draft.name.trimmingCharacters(in: .whitespaces).isEmpty { draft.name = Self.untitled }
         if library.update(draft) == nil {
-            notice = "Cette macro n'est plus dans la bibliothèque : tes modifications ne sont pas enregistrées."
+            notice = String(localized: "Cette macro n'est plus dans la bibliothèque : tes modifications ne sont pas enregistrées.")
         }
     }
 
@@ -526,7 +526,7 @@ final class MacroEditorModel: ObservableObject {
 
     /// Programme du brouillon tel qu'il est (sans cache : il change à chaque modification), ou ce qui l'empêche.
     func programForTest() -> (program: MacroProgram?, problem: String?) {
-        guard let draft else { return (nil, "Aucune macro ouverte.") }
+        guard let draft else { return (nil, String(localized: "Aucune macro ouverte.")) }
         let ctx = validationContext
         if let why = MacroValidation.problem(in: draft, context: ctx) { return (nil, why) }
         return (MacroProgram(blocks: draft.blocks, name: draft.name,
@@ -541,12 +541,12 @@ final class MacroEditorModel: ObservableObject {
         notice = nil
         let compiled = programForTest()
         guard let program = compiled.program else {
-            monitor.refuse(compiled.problem ?? "Macro invalide.")
+            monitor.refuse(compiled.problem ?? String(localized: "Macro invalide."))
             return
         }
         guard let pid = EventTap.shared.currentConfig.flPIDs.first,
               let fl = NSRunningApplication(processIdentifier: pid) else {
-            monitor.refuse("Ouvre FL Studio, puis recommence.")
+            monitor.refuse(String(localized: "Ouvre FL Studio, puis recommence."))
             return
         }
         monitor.clear()
@@ -568,7 +568,7 @@ final class MacroEditorModel: ObservableObject {
         }
         guard tries > 0 else {
             endTest()
-            monitor.refuse("FL Studio n'est pas passé au premier plan : recommence.")
+            monitor.refuse(String(localized: "FL Studio n'est pas passé au premier plan : recommence."))
             return
         }
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) { [weak self] in
@@ -593,10 +593,10 @@ final class MacroEditorModel: ObservableObject {
         case .started: break
         case .busy:
             endTest()
-            monitor.refuse("Une macro tourne déjà.")
+            monitor.refuse(String(localized: "Une macro tourne déjà."))
         case .refused:
             endTest()
-            monitor.refuse("FL Studio n'était plus au premier plan : recommence sans changer de fenêtre.")
+            monitor.refuse(String(localized: "FL Studio n'était plus au premier plan : recommence sans changer de fenêtre."))
         }
     }
 
@@ -618,19 +618,21 @@ final class MacroEditorModel: ObservableObject {
     func outcomeText(_ outcome: MacroOutcome) -> String {
         switch outcome {
         case .done:
-            return "Macro terminée" + (monitor.totalMs > 0 ? " en \(MacroOutline.seconds(max(monitor.totalMs / 100 * 100, 100)))" : "")
+            return String(localized: "Macro terminée")
+                + (monitor.totalMs > 0 ? String(localized: " en \(MacroOutline.seconds(max(monitor.totalMs / 100 * 100, 100)))") : "")
         case .doneWithWarning(let why):
-            return "Macro terminée, mais \(why)"
+            return String(localized: "Macro terminée, mais \(why)")
         case .failed(let step, let reason):
             let label = draft.flatMap { MacroValidation.block(at: "\(step)", in: $0.blocks) }
                 .map { " (\(BlockRegistry.label(of: $0.body)))" } ?? ""
-            return "Échec au bloc \(step)\(label) : \(reason)"
+            return String(localized: "Échec au bloc \(step)\(label) : \(reason)")
         case .failedInBlock(let path, let label, let reason):
-            return "Échec au bloc \(path) (\(label)) : \(reason)"
+            return String(localized: "Échec au bloc \(path) (\(label)) : \(reason)")
         case .stopped(let message):
-            return message.map { "Arrêtée : \($0.displaySafe(max: 80))" } ?? "Arrêtée par le bloc « Arrêter la macro »"
+            return message.map { String(localized: "Arrêtée : \($0.displaySafe(max: 80))") }
+                ?? String(localized: "Arrêtée par le bloc « Arrêter la macro »")
         case .cancelled(let reason):
-            return "Essai arrêté : \(reason)"
+            return String(localized: "Essai arrêté : \(reason)")
         }
     }
 }

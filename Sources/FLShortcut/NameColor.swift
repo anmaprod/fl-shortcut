@@ -83,8 +83,8 @@ struct NameColorPayload: Equatable {
     /// Nom acceptable par le script : 64 caractères au plus, 255 octets au plus, aucun caractère de contrôle.
     static func nameProblem(_ name: String) -> String? {
         let scalars = name.unicodeScalars
-        if scalars.contains(where: { $0.value < 32 || $0.value == 127 }) { return "le nom contient un caractère invisible." }
-        if scalars.count > maxNameScalars || name.utf8.count > maxNameBytes { return "nom trop long (64 caractères au plus)." }
+        if scalars.contains(where: { $0.value < 32 || $0.value == 127 }) { return String(localized: "le nom contient un caractère invisible.") }
+        if scalars.count > maxNameScalars || name.utf8.count > maxNameBytes { return String(localized: "nom trop long (64 caractères au plus).") }
         return nil
     }
 
@@ -102,25 +102,25 @@ struct NameColorPayload: Equatable {
 
     /// Ligne du bloc : « Kick · #E0453A », « Kick », « couleur #E0453A », « dégradé #F2A0D8 → #C02890 ».
     static func summary(name: String?, color: RGBColor?, fade: RGBColor? = nil, icon: FLIcon? = nil) -> String {
-        if let color, let fade { return "dégradé #\(color.hex) → #\(fade.hex)" }
+        if let color, let fade { return String(localized: "dégradé #\(color.hex) → #\(fade.hex)") }
         let n = NameColorPayload(name: name, color: color)
         var parts: [String] = []
         if let name = n.name { parts.append(name.displaySafe(max: 40)) }
-        if let color = n.color { parts.append(n.name == nil ? "couleur #\(color.hex)" : "#\(color.hex)") }
-        if let icon { parts.append("icône " + (FLIconGrid.cell(icon)?.name ?? icon.code)) }
-        return parts.isEmpty ? "nom et couleur à choisir" : parts.joined(separator: " · ")
+        if let color = n.color { parts.append(n.name == nil ? String(localized: "couleur #\(color.hex)") : "#\(color.hex)") }
+        if let icon { parts.append(String(localized: "icône \(FLIconGrid.cell(icon)?.name ?? icon.code)")) }
+        return parts.isEmpty ? String(localized: "nom et couleur à choisir") : parts.joined(separator: " · ")
     }
 
     /// Message d'un refus expliqué par FL (CC 116).
     static func message(forReason reason: Int) -> String {
         switch reason {
-        case 1: return "Ouvre le Mixer, le Channel rack ou la Playlist."
-        case 2: return "Sélectionne une piste ou un canal."
-        case 3: return "Sélectionne une seule piste ou un seul canal."
-        case 4: return "Arrête la lecture d'abord."
-        case 6: return "Ta version de FL ne le permet pas sur cette page : mets FL à jour."
-        case 7: return "Sélectionne au moins 2 pistes pour un dégradé."
-        default: return "FL a refusé le nom ou la couleur."
+        case 1: return String(localized: "Ouvre le Mixer, le Channel rack ou la Playlist.")
+        case 2: return String(localized: "Sélectionne une piste ou un canal.")
+        case 3: return String(localized: "Sélectionne une seule piste ou un seul canal.")
+        case 4: return String(localized: "Arrête la lecture d'abord.")
+        case 6: return String(localized: "Ta version de FL ne le permet pas sur cette page : mets FL à jour.")
+        case 7: return String(localized: "Sélectionne au moins 2 pistes pour un dégradé.")
+        default: return String(localized: "FL a refusé le nom ou la couleur.")
         }
     }
 }

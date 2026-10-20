@@ -36,7 +36,7 @@ final class OnboardingWindow {
         w.titleVisibility = .hidden
         w.isMovableByWindowBackground = true
         w.isReleasedWhenClosed = false
-        w.title = "Bienvenue dans FL Shortcuts"
+        w.title = String(localized: "Bienvenue dans FL Shortcuts")
         w.animationBehavior = .alertPanel          // ouverture « zoom » douce, comme les fenêtres d'accueil d'Apple
         w.contentView = host
         w.center()
@@ -195,8 +195,8 @@ struct OnboardingView: View {
                 .font(.system(size: 34, weight: .bold))
                 .padding(.top, 12)
                 .morphIn(1)
-            Text(accessOK ? "Le clavier est autorisé : tout est prêt."
-                          : "Une seule fois, tout ce dont FL Shortcuts a besoin, demandé ensemble.")
+            Text(accessOK ? String(localized: "Le clavier est autorisé : tout est prêt.")
+                          : String(localized: "Une seule fois, tout ce dont FL Shortcuts a besoin, demandé ensemble."))
                 .font(.system(size: 15))
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
@@ -270,13 +270,15 @@ struct OnboardingView: View {
     /// FL que macOS demande lui-même à la première écoute de l'Organiser.
     private var permissionList: some View {
         VStack(alignment: .leading, spacing: 8) {
-            permissionRow("keyboard", .blue, "Clavier", "Tes raccourcis dans FL Studio (indispensable)", done: accessOK)
+            permissionRow("keyboard", .blue, String(localized: "Clavier"),
+                          String(localized: "Tes raccourcis dans FL Studio (indispensable)"), done: accessOK)
             if ScreenLook.available {
-                permissionRow("macwindow", .purple, "Fenêtre de FL", "Retrouver ses boutons par leur nom, au moment du clic",
+                permissionRow("macwindow", .purple, String(localized: "Fenêtre de FL"),
+                              String(localized: "Retrouver ses boutons par leur nom, au moment du clic"),
                               done: permissions.screenGranted)
             }
-            permissionRow("waveform", .pink, "Son de FL", "Organiser : macOS le demande une fois, à la première écoute",
-                          done: nil)
+            permissionRow("waveform", .pink, String(localized: "Son de FL"),
+                          String(localized: "Organiser : macOS le demande une fois, à la première écoute"), done: nil)
         }
         .frame(maxWidth: 400)
     }
@@ -304,8 +306,9 @@ struct OnboardingView: View {
     private var linked: Bool { link.status == .linked }
 
     private var linkStatusText: String {
-        if linked { return "FL Studio est relié" }
-        return installed ? "En attente de FL Studio… fais les étapes 2 et 3" : "FL Studio pas encore relié"
+        if linked { return String(localized: "FL Studio est relié") }
+        return installed ? String(localized: "En attente de FL Studio… fais les étapes 2 et 3")
+            : String(localized: "FL Studio pas encore relié")
     }
 
     private var linkStep: some View {
@@ -317,9 +320,15 @@ struct OnboardingView: View {
 
             HStack(alignment: .top, spacing: 20) {
                 VStack(alignment: .leading, spacing: 12) {
-                    StepRow(number: 1, done: installed, text: "Installer le lien dans FL Studio (bouton ci-dessous), puis redémarrer FL.")
-                    StepRow(number: 2, done: linked, text: "FL trouve « FL Shortcuts Link » en démarrant et le relie tout seul. C'est détecté ici dès que c'est fait.")
-                    StepRow(number: 3, done: linked, text: "Seulement si rien ne se passe : Options › MIDI Settings, entrée « FL Shortcuts Link », Controller type « FL Shortcuts », même numéro de Port en entrée et en sortie.")
+                    StepRow(number: 1, done: installed,
+                            text: String(localized: "Installer le lien dans FL Studio (bouton ci-dessous), puis redémarrer FL."))
+                    StepRow(number: 2, done: linked, text: String(localized: """
+                        FL trouve « FL Shortcuts Link » en démarrant et le relie tout seul. C'est détecté ici dès que c'est fait.
+                        """))
+                    StepRow(number: 3, done: linked, text: String(localized: """
+                        Seulement si rien ne se passe : Options › MIDI Settings, entrée « FL Shortcuts Link », Controller \
+                        type « FL Shortcuts », même numéro de Port en entrée et en sortie.
+                        """))
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
 
@@ -361,7 +370,7 @@ struct OnboardingView: View {
                         installed = link.snapshot.hasKey
                     }
                 } label: {
-                    Text(installed ? "Continuer" : "Installer le lien").frame(minWidth: 140)
+                    Text(installed ? String(localized: "Continuer") : String(localized: "Installer le lien")).frame(minWidth: 140)
                 }
                 .primaryButton()
                 .controlSize(.large)
@@ -384,7 +393,7 @@ private struct StepRow: View {
         .font(.system(size: 13))
         .accessibilityElement(children: .combine)
         .accessibilityLabel("Étape \(number) : \(text)")
-        .accessibilityValue(done ? "fait" : "à faire")
+        .accessibilityValue(done ? String(localized: "fait") : String(localized: "à faire"))
     }
 }
 

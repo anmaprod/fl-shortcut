@@ -194,9 +194,10 @@ final class AppStatus: ObservableObject {
         observers.append(NotificationCenter.default.addObserver(forName: .macroFinished, object: nil, queue: .main) { [weak self] note in
             let ok = note.userInfo?["ok"] as? Bool ?? false
             let text = note.userInfo?["text"] as? String ?? ""
+            let feedbackOnly = note.userInfo?["feedbackOnly"] as? Bool ?? false
             self?.lastMacro = (ok, text)
             // Dire pourquoi, pas seulement un bip (le larsen a déjà sa fenêtre).
-            if !ok, !(text.hasPrefix("Macro terminée, mais risque de larsen") && !text.contains(" ; ")) {
+            if !ok, !feedbackOnly {
                 HintPanel.shared.flash(text)
             }
         })
@@ -226,7 +227,7 @@ final class AppStatus: ObservableObject {
         if AppMode.light {
             return AppMode.nativeEquivalent(of: id, layout: Store.shared.layout) != nil
                 ? .available
-                : .unavailable(reason: "Demande le script MIDI dans FL (désactivé en mode léger)")
+                : .unavailable(reason: String(localized: "Demande le script MIDI dans FL (désactivé en mode léger)"))
         }
         return AvailabilityResolver.availability(of: id, caps: capabilities, flVersion: flVersion)
     }
@@ -435,7 +436,7 @@ struct MenuContent: View {
                 .padding(.horizontal, 8)
                 .padding(.bottom, 6)
                 // La page Aide, le formulaire prêt avec ce message d'erreur et le journal de la macro.
-                PanelItem(symbol: "exclamationmark.bubble", title: "Signaler ce problème…", tint: .orange, order: 1) {
+                PanelItem(symbol: "exclamationmark.bubble", title: String(localized: "Signaler ce problème…"), tint: .orange, order: 1) {
                     HelpLink.shared.report("Macro : " + macro.text)
                     openWindow(id: "editor")
                     NSApp.activate(ignoringOtherApps: true)
@@ -455,33 +456,38 @@ struct MenuContent: View {
             MenuSeparator()
 
             if !status.accessibilityOK {
-                PanelItem(symbol: "lock.open", title: "Tout autoriser…", tint: .orange, order: 2) {
+                PanelItem(symbol: "lock.open", title: String(localized: "Tout autoriser…"), tint: .orange, order: 2) {
                     AccessibilityGuide.start()
                 }
             }
-            PanelItem(symbol: "keyboard", title: "Modifier les raccourcis…", tint: .blue, order: 3) {
+            PanelItem(symbol: "keyboard", title: String(localized: "Modifier les raccourcis…"), tint: .blue, order: 3) {
                 openWindow(id: "editor")
                 NSApp.activate(ignoringOtherApps: true)
             }
-            PanelItem(symbol: SidebarItem.macros.symbol, title: "Macros…", tint: SidebarItem.macros.tint, order: 4) {
+            PanelItem(symbol: SidebarItem.macros.symbol, title: String(localized: "Macros…"), tint: SidebarItem.macros.tint,
+                      order: 4) {
                 MacrosLink.shared.show()
                 openWindow(id: "editor")
                 NSApp.activate(ignoringOtherApps: true)
             }
-            PanelItem(symbol: "square.stack.3d.up", title: "Organiser la page ouverte…", tint: OrganizerView.tint,
-                      order: 5) { OrganizerWindow.open() }
-            PanelItem(symbol: store.enabled ? "pause" : "play", title: store.enabled ? "Mettre en pause" : "Reprendre",
+            PanelItem(symbol: "square.stack.3d.up", title: String(localized: "Organiser la page ouverte…"),
+                      tint: OrganizerView.tint, order: 5) { OrganizerWindow.open() }
+            PanelItem(symbol: store.enabled ? "pause" : "play",
+                      title: store.enabled ? String(localized: "Mettre en pause") : String(localized: "Reprendre"),
                       shortcut: "⌃⌥⌘F", tint: store.enabled ? .yellow : .green, order: 6) { store.enabled.toggle() }
             if !AppMode.light {
-                PanelItem(symbol: "link", title: "Installer le lien avec FL Studio…", tint: .green, order: 7) {
+                PanelItem(symbol: "link", title: String(localized: "Installer le lien avec FL Studio…"), tint: .green, order: 7) {
                     FLScriptInstaller.installWithAlert()
                 }
             }
 
             MenuSeparator()
 
-            PanelItem(symbol: "trash", title: "Désinstaller FL Shortcuts…", tint: .red, order: 8) { Uninstaller.confirmAndRun() }
-            PanelItem(symbol: "power", title: "Quitter FL Shortcuts", shortcut: "⌘Q", key: "q", tint: .gray, order: 9) {
+            PanelItem(symbol: "trash", title: String(localized: "Désinstaller FL Shortcuts…"), tint: .red, order: 8) {
+                Uninstaller.confirmAndRun()
+            }
+            PanelItem(symbol: "power", title: String(localized: "Quitter FL Shortcuts"), shortcut: "⌘Q", key: "q", tint: .gray,
+                      order: 9) {
                 NSApp.terminate(nil)
             }
         }
@@ -503,26 +509,32 @@ struct MenuContent: View {
     /// Chaîne calculée à part : pas de fermeture imbriquée dans une interpolation de LocalizedStringKey. nil quand
     /// tout va bien : ni « Actif », ni la version de FL (demandé par l'utilisateur), seulement ce qui cloche.
     private var statusLine: String? {
-        guard store.enabled else { return "En pause" }
-        if !status.accessibilityOK { return "Clavier non autorisé" }
-        if AppMode.light { return fl.running ? nil : "FL Studio n'est pas ouvert" }
+        guard store.enabled else { return String(localized: "En pause") }
+        if !status.accessibilityOK { return String(localized: "Clavier non autorisé") }
+        if AppMode.light { return fl.running ? nil : String(localized: "FL Studio n'est pas ouvert") }
         switch link.status {
         case .linked: return nil
-        case .inactive: return "Lien inactif"
-        case .flClosed: return "FL Studio n'est pas ouvert"
+        case .inactive: return String(localized: "Lien inactif")
+        case .flClosed: return String(localized: "FL Studio n'est pas ouvert")
         }
     }
 
     private var alerts: [String] {
         var out: [String] = []
         if status.scriptNeedsFLRestart {
-            out.append("Le lien avec FL vient d'être mis à jour : quitte et rouvre FL Studio pour qu'il le charge.")
+            out.append(String(localized: "Le lien avec FL vient d'être mis à jour : quitte et rouvre FL Studio pour qu'il le charge."))
         }
-        if status.staleTCC { out.append("Autorisation périmée : retire FL Shortcuts de la liste Accessibilité puis ajoute-le.") }
-        if status.secureInput { out.append("Saisie sécurisée active dans une autre app : raccourcis muets.") }
-        if status.tapUnstable { out.append("macOS a coupé l'interception plusieurs fois : elle a été relancée.") }
-        if !AppMode.light, status.scriptState == .modified { out.append("Le script FL a été modifié : réinstalle le lien.") }
-        if !AppMode.light, link.uniqueIDConflict { out.append("Conflit de port MIDI : une autre copie de FL Shortcuts tourne peut-être.") }
+        if status.staleTCC {
+            out.append(String(localized: "Autorisation périmée : retire FL Shortcuts de la liste Accessibilité puis ajoute-le."))
+        }
+        if status.secureInput { out.append(String(localized: "Saisie sécurisée active dans une autre app : raccourcis muets.")) }
+        if status.tapUnstable { out.append(String(localized: "macOS a coupé l'interception plusieurs fois : elle a été relancée.")) }
+        if !AppMode.light, status.scriptState == .modified {
+            out.append(String(localized: "Le script FL a été modifié : réinstalle le lien."))
+        }
+        if !AppMode.light, link.uniqueIDConflict {
+            out.append(String(localized: "Conflit de port MIDI : une autre copie de FL Shortcuts tourne peut-être."))
+        }
         if let warning = store.loadWarning { out.append(warning) }
         if let error = store.saveError { out.append(error) }
         if let problem = library.problem { out.append(problem) }

@@ -98,8 +98,10 @@ final class MacroRunner {
                 }
                 if !ok { ProblemLog.shared.add("Macro : " + outcome.text) }   // message d'aide : derniers problèmes
                 completion?(outcome)
+                // Larsen seul : sa fenêtre suffit (comparé à l'avertissement lui-même, pas au texte affiché).
+                let feedbackOnly = outcome == .doneWithWarning(MacroEffectsMac.feedbackWarning)
                 NotificationCenter.default.post(name: .macroFinished, object: nil,
-                                                userInfo: ["ok": ok, "text": outcome.text])
+                                                userInfo: ["ok": ok, "text": outcome.text, "feedbackOnly": feedbackOnly])
             }
         }
         return .started

@@ -114,7 +114,7 @@ struct FLColorSelector: View {
         }
         .buttonStyle(.plain)
         .disabled(c == nil)
-        .help(c.map { "#" + $0.hex } ?? "Case vide")
+        .help(c.map { "#" + $0.hex } ?? String(localized: "Case vide"))
     }
 
     private func number(_ value: Int, _ range: ClosedRange<Int>, _ set: @escaping (Int) -> Void) -> some View {

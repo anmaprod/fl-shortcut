@@ -608,8 +608,8 @@ enum MenuKey: String, CaseIterable {
         case .down: return "↓"
         case .left: return "←"
         case .right: return "→"
-        case .enter: return "Entrée"
-        case .escape: return "Échap"
+        case .enter: return String(localized: "Entrée")
+        case .escape: return String(localized: "Échap")
         }
     }
 }

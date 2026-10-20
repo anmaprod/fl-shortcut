@@ -99,7 +99,7 @@ struct MacroCreatorView: View {
             }
         }
         // Titre de la fenêtre (menu Fenêtre, VoiceOver) ; pas dans la barre d'outils : le nom est déjà au centre.
-        .navigationTitle(model.draft?.name ?? "Créateur de macros")
+        .navigationTitle(model.draft?.name ?? String(localized: "Créateur de macros"))
         .toolbarTitleHidden()
         .toolbar { toolbarContent }
         // Fondu de la couleur des macros dans le fond, comme le guide.
@@ -140,13 +140,13 @@ struct MacroCreatorView: View {
         Button {
             model.saveNow()
         } label: {
-            Label(model.dirty ? "Enregistrer" : "Enregistrée",
+            Label(model.dirty ? String(localized: "Enregistrer") : String(localized: "Enregistrée"),
                   systemImage: model.dirty ? "square.and.arrow.down" : "checkmark.circle")
         }
         .keyboardShortcut("s", modifiers: .command)
         .disabled(!model.dirty)
-        .help(model.dirty ? "Enregistrer maintenant (⌘S) : sinon c'est fait tout seul dans un instant"
-                          : "Tout est enregistré")
+        .help(model.dirty ? String(localized: "Enregistrer maintenant (⌘S) : sinon c'est fait tout seul dans un instant")
+                          : String(localized: "Tout est enregistré"))
     }
 
     private func exportDraft() {
@@ -226,8 +226,8 @@ private struct MacroStepsPane: View {
                         .foregroundStyle(.red)
                         .accessibilityHidden(true)
                     Text("Enregistre ce que tu fais dans FL").font(.title3.weight(.semibold))
-                    Text("Clique, utilise les flèches, tes raccourcis… : chaque geste devient un bloc, que tu peux "
-                         + "ensuite modifier, ranger ou supprimer.")
+                    Text(String(localized: "Clique, utilise les flèches, tes raccourcis… : chaque geste devient un bloc, que tu peux ")
+                         + String(localized: "ensuite modifier, ranger ou supprimer."))
                         .font(.system(size: 12))
                         .foregroundStyle(.secondary)
                         .multilineTextAlignment(.center)
@@ -264,7 +264,9 @@ private struct MacroStepsPane: View {
 
     @ViewBuilder private func contextMenu(_ row: MacroStepRow) -> some View {
         if row.kind == .block {
-            Button(row.ownEnabled ? "Désactiver" : "Activer") { model.setEnabled(row.blockID, !row.ownEnabled) }
+            Button(row.ownEnabled ? String(localized: "Désactiver") : String(localized: "Activer")) {
+                model.setEnabled(row.blockID, !row.ownEnabled)
+            }
             Button("Dupliquer") {
                 model.selection = row.id
                 withAnimation(Self.spring) { model.duplicateSelection() }
@@ -337,10 +339,11 @@ private struct RecordHero: View {
                     .font(.system(size: 22))
                     .foregroundStyle(.red)
                 VStack(alignment: .leading, spacing: 1) {
-                    Text(recorder.active ? "Enregistrement en cours…" : "Enregistrer clics et touches")
+                    Text(recorder.active ? String(localized: "Enregistrement en cours…")
+                                         : String(localized: "Enregistrer clics et touches"))
                         .font(.system(size: 13, weight: .semibold))
-                    Text(recorder.active ? "Clique et tape dans FL, puis « Terminer » en haut à droite."
-                         : "Fais ta suite dans FL : chaque clic, flèche ou raccourci devient un bloc.")
+                    Text(recorder.active ? String(localized: "Clique et tape dans FL, puis « Terminer » en haut à droite.")
+                         : String(localized: "Fais ta suite dans FL : chaque clic, flèche ou raccourci devient un bloc."))
                         .font(.system(size: 11))
                         .foregroundStyle(.secondary)
                         .lineLimit(2)
@@ -372,7 +375,8 @@ private struct RecordStartButton: View {
         Button {
             model.recordClicks()
         } label: {
-            Label(recorder.active ? "Enregistrement en cours…" : "Commencer l'enregistrement", systemImage: "record.circle")
+            Label(recorder.active ? String(localized: "Enregistrement en cours…") : String(localized: "Commencer l'enregistrement"),
+                  systemImage: "record.circle")
                 .frame(minWidth: 220)
         }
         .primaryButton()
@@ -392,12 +396,12 @@ private struct AddBlockMenu: View {
 
     var body: some View {
         // Au style du menu de l'icône : chaque bloc avec son icône et la couleur de sa catégorie.
-        StyledMenuButton(help: "Ajouter un bloc sous la ligne choisie (ou dans la boucle si sa ligne de fin est choisie)",
+        StyledMenuButton(help: String(localized: "Ajouter un bloc sous la ligne choisie (ou dans la boucle si sa ligne de fin est choisie)"),
                          arrowEdge: .top, width: 280) {
             BlockCategory.allCases.flatMap { category -> [StyledMenuEntry] in
                 let inCategory = items.filter { $0.category == category && !$0.soon }
                 guard !inCategory.isEmpty else { return [] }
-                return [StyledMenuEntry.header(category.rawValue)] + inCategory.map { item -> StyledMenuEntry in
+                return [StyledMenuEntry.header(category.label)] + inCategory.map { item -> StyledMenuEntry in
                     .item(item.label, symbol: item.symbol, tint: category.tint, help: item.aide) { insert(item) }
                 }
             }
@@ -435,7 +439,8 @@ private struct MacroStepRowView: View, Equatable {
             Toggle("", isOn: Binding(get: { row.ownEnabled }, set: onToggle))
                 .toggleStyle(.checkbox)
                 .labelsHidden()
-                .help(row.ownEnabled ? "Bloc actif : décoche pour le sauter sans le supprimer" : "Bloc sauté : coche pour le réactiver")
+                .help(row.ownEnabled ? String(localized: "Bloc actif : décoche pour le sauter sans le supprimer")
+                                     : String(localized: "Bloc sauté : coche pour le réactiver"))
             Text(row.number)
                 .font(.system(size: 11).monospacedDigit())
                 .foregroundStyle(.secondary)
@@ -531,12 +536,12 @@ private struct MacroStepRowView: View, Equatable {
     }
 
     private var accessibilityText: String {
-        var parts = ["Bloc \(row.number)", row.verb]
+        var parts = [String(localized: "Bloc \(row.number)"), row.verb]
         if let value = row.value { parts.append(value) }
-        if !row.ownEnabled { parts.append("désactivé") }
+        if !row.ownEnabled { parts.append(String(localized: "désactivé")) }
         parts += row.badges.map(\.title)
-        if current { parts.append("en cours") }
-        if let failure { parts.append("échec : " + failure) }
+        if current { parts.append(String(localized: "en cours")) }
+        if let failure { parts.append(String(localized: "échec : ") + failure) }
         return parts.joined(separator: ", ")
     }
 }
@@ -610,8 +615,9 @@ private struct MacroHeader: View {
 
     private var statusLine: some View {
         let count = MacroValidation.count(model.draft?.blocks ?? [])
-        let blocks = count == 1 ? "1 bloc" : "\(count) blocs"
-        let duration = model.estimateMs > 0 ? " · \(MacroOutline.seconds(max(100, model.estimateMs / 100 * 100))) au plus" : ""
+        let blocks = count == 1 ? String(localized: "1 bloc") : String(localized: "\(count) blocs")
+        let duration = model.estimateMs > 0
+            ? String(localized: " · \(MacroOutline.seconds(max(100, model.estimateMs / 100 * 100))) au plus") : ""
         return HStack(spacing: 6) {
             if let problem = model.problem {
                 Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.orange)
@@ -637,15 +643,15 @@ private struct MacroResultBanner: View {
     var body: some View {
         Group {
             if model.preparingTest {
-                banner(symbol: "arrow.up.forward.app", tint: .blue, text: "FL Studio passe devant…")
+                banner(symbol: "arrow.up.forward.app", tint: .blue, text: String(localized: "FL Studio passe devant…"))
             } else if monitor.running {
-                banner(symbol: "play.circle.fill", tint: .blue, text: "Essai en cours dans FL… Échap pour l'arrêter.")
+                banner(symbol: "play.circle.fill", tint: .blue, text: String(localized: "Essai en cours dans FL… Échap pour l'arrêter."))
             } else if let outcome = monitor.outcome {
                 outcomeBanner(outcome)
             } else if let notice = model.notice {
                 banner(symbol: "info.circle.fill", tint: nil, text: notice, close: { model.notice = nil })
             } else if let refusal = monitor.refusal {
-                banner(symbol: "exclamationmark.triangle.fill", tint: .orange, text: "Essai non lancé : \(refusal)",
+                banner(symbol: "exclamationmark.triangle.fill", tint: .orange, text: String(localized: "Essai non lancé : \(refusal)"),
                        close: { monitor.clear() })
             }
         }
@@ -664,7 +670,8 @@ private struct MacroResultBanner: View {
         case .failed, .failedInBlock:
             let editor = model
             let text = model.outcomeText(outcome)
-            let show: (String, () -> Void)? = monitor.failedBlock == nil ? nil : ("Montrer le bloc", { editor.showFailedBlock() })
+            let show: (String, () -> Void)? = monitor.failedBlock == nil ? nil
+                : (String(localized: "Montrer le bloc"), { editor.showFailedBlock() })
             // « Signaler » : la page Aide, le formulaire prêt avec ce message d'erreur et le journal de l'essai.
             banner(symbol: "xmark.octagon.fill", tint: .red, text: text, action: show,
                    report: { HelpLink.shared.report("Macro « \(editor.draft?.name ?? "?") » : \(text)") },
@@ -732,7 +739,8 @@ struct FinderArrows: View {
             }
             .disabled(forward == nil)
             .keyboardShortcut("]", modifiers: .command)
-            .help(forward == nil ? "Rien où retourner pour l'instant" : "Revenir dans la dernière macro quittée (⌘])")
+            .help(forward == nil ? String(localized: "Rien où retourner pour l'instant")
+                                 : String(localized: "Revenir dans la dernière macro quittée (⌘])"))
         }
     }
 }

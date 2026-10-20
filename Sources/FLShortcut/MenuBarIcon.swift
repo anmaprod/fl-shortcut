@@ -31,8 +31,8 @@ enum MenuBarIcon {
         image.isTemplate = true
         switch state {
         case .normal: image.accessibilityDescription = "FL Shortcuts"
-        case .warning: image.accessibilityDescription = "FL Shortcuts : raccourcis inactifs"
-        case .paused: image.accessibilityDescription = "FL Shortcuts : en pause"
+        case .warning: image.accessibilityDescription = String(localized: "FL Shortcuts : raccourcis inactifs")
+        case .paused: image.accessibilityDescription = String(localized: "FL Shortcuts : en pause")
         }
         cache.withLock { $0[state] = image }
         return image

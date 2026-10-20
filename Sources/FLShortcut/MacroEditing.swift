@@ -297,8 +297,7 @@ enum MacroOutline {
 
     /// « Étape 3.2 : position invalide. » → « Position invalide. »
     static func stripPath(_ message: String) -> String {
-        guard message.hasPrefix("Étape "), let colon = message.range(of: " : ") else { return message }
-        let rest = message[colon.upperBound...]
+        guard let rest = MacroValidation.splitStep(message)?.text else { return message }
         return rest.prefix(1).uppercased() + rest.dropFirst()
     }
 

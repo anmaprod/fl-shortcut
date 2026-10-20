@@ -9,12 +9,12 @@ enum SoundFamily: String, CaseIterable, Codable {
 
     var label: String {
         switch self {
-        case .drums: return "Drums"
-        case .bass: return "Basse"
-        case .melody: return "Mélodies"
-        case .vocals: return "Voix"
-        case .fx: return "FX"
-        case .unsure: return "À vérifier"
+        case .drums: return String(localized: "Drums")
+        case .bass: return String(localized: "Basse")
+        case .melody: return String(localized: "Mélodies")
+        case .vocals: return String(localized: "Voix")
+        case .fx: return String(localized: "FX")
+        case .unsure: return String(localized: "À vérifier")
         }
     }
 
@@ -32,11 +32,11 @@ enum SoundFamily: String, CaseIterable, Codable {
     /// Nom d'une piste de la Playlist renommée quand ses sons ne disent pas tous la même chose (voir `SoundKind`).
     var trackName: String? {
         switch self {
-        case .drums: return "Drums"
-        case .bass: return "Basse"
-        case .melody: return "Mélodie"
-        case .vocals: return "Voix"
-        case .fx: return "FX"
+        case .drums: return String(localized: "Drums")
+        case .bass: return String(localized: "Basse")
+        case .melody: return String(localized: "Mélodie")
+        case .vocals: return String(localized: "Voix")
+        case .fx: return String(localized: "FX")
         case .unsure: return nil
         }
     }
@@ -74,47 +74,47 @@ enum SoundKind: String, CaseIterable, Codable {
 
     var name: String {
         switch self {
-        case .vocal: return "Voix"
-        case .adlib: return "Adlib"
-        case .choir: return "Chœur"
-        case .lead: return "Lead"
-        case .pluck: return "Pluck"
-        case .pad: return "Pad"
-        case .keys: return "Keys"
-        case .piano: return "Piano"
-        case .synth: return "Synth"
-        case .arp: return "Arp"
-        case .chords: return "Chords"
-        case .guitar: return "Guitare"
-        case .strings: return "Strings"
-        case .bell: return "Bell"
-        case .flute: return "Flûte"
-        case .brass: return "Brass"
-        case .organ: return "Orgue"
-        case .melody: return "Mélodie"
-        case .bass808: return "808"
-        case .sub: return "Sub"
-        case .reese: return "Reese"
-        case .bass: return "Basse"
-        case .kick: return "Kick"
-        case .snare: return "Snare"
-        case .clap: return "Clap"
-        case .rim: return "Rim"
-        case .snap: return "Snap"
-        case .hiHat: return "Hi-hat"
-        case .openHat: return "Open Hat"
-        case .perc: return "Perc"
-        case .tom: return "Tom"
-        case .shaker: return "Shaker"
-        case .crash: return "Crash"
-        case .ride: return "Ride"
-        case .cymbal: return "Cymbal"
-        case .drums: return "Drums"
-        case .riser: return "Riser"
-        case .downlifter: return "Downlifter"
-        case .impact: return "Impact"
-        case .sweep: return "Sweep"
-        case .fx: return "FX"
+        case .vocal: return String(localized: "Voix")
+        case .adlib: return String(localized: "Adlib")
+        case .choir: return String(localized: "Chœur")
+        case .lead: return String(localized: "Lead")
+        case .pluck: return String(localized: "Pluck")
+        case .pad: return String(localized: "Pad")
+        case .keys: return String(localized: "Keys")
+        case .piano: return String(localized: "Piano")
+        case .synth: return String(localized: "Synth")
+        case .arp: return String(localized: "Arp")
+        case .chords: return String(localized: "Chords")
+        case .guitar: return String(localized: "Guitare")
+        case .strings: return String(localized: "Strings")
+        case .bell: return String(localized: "Bell")
+        case .flute: return String(localized: "Flûte")
+        case .brass: return String(localized: "Brass")
+        case .organ: return String(localized: "Orgue")
+        case .melody: return String(localized: "Mélodie")
+        case .bass808: return String(localized: "808")
+        case .sub: return String(localized: "Sub")
+        case .reese: return String(localized: "Reese")
+        case .bass: return String(localized: "Basse")
+        case .kick: return String(localized: "Kick")
+        case .snare: return String(localized: "Snare")
+        case .clap: return String(localized: "Clap")
+        case .rim: return String(localized: "Rim")
+        case .snap: return String(localized: "Snap")
+        case .hiHat: return String(localized: "Hi-hat")
+        case .openHat: return String(localized: "Open Hat")
+        case .perc: return String(localized: "Perc")
+        case .tom: return String(localized: "Tom")
+        case .shaker: return String(localized: "Shaker")
+        case .crash: return String(localized: "Crash")
+        case .ride: return String(localized: "Ride")
+        case .cymbal: return String(localized: "Cymbal")
+        case .drums: return String(localized: "Drums")
+        case .riser: return String(localized: "Riser")
+        case .downlifter: return String(localized: "Downlifter")
+        case .impact: return String(localized: "Impact")
+        case .sweep: return String(localized: "Sweep")
+        case .fx: return String(localized: "FX")
         }
     }
 

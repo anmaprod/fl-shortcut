@@ -181,7 +181,7 @@ final class OrganizerApplier {
             guard let icon = icons[index], let at = place(index) else { continue }
             guard link.window == page else {
                 throw kind == .channels ? OrganizerError.interrupted
-                                        : OrganizerError.failed("Le Mixer n'est plus devant : icônes non posées.")
+                                        : OrganizerError.failed(String(localized: "Le Mixer n'est plus devant : icônes non posées."))
             }
             try link.selectOne(kind, at)
             if let error = placeIcon(icon) { throw error }
@@ -262,7 +262,7 @@ final class OrganizerApplier {
     }
 
     private static func failure(_ error: Error) -> OrganizerError {
-        (error as? OrganizerError) ?? .failed("Organiser : étape impossible (\(type(of: error))).")
+        (error as? OrganizerError) ?? .failed(String(localized: "Organiser : étape impossible (\(String(describing: type(of: error))))."))
     }
 
     /// `names` : nouveaux noms des pistes de la Playlist (voir `plannedNames`). `kinds` : ce qu'est chaque son, pour

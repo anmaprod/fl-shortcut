@@ -169,6 +169,9 @@ enum AXMenus {
 // MARK: - Effets d'un passage
 
 final class MacroEffectsMac: MacroEffects {
+    /// Avertissement du bloc « Vérifier le larsen » : la fenêtre du larsen suffit, pas de bulle en plus.
+    static let feedbackWarning = String(localized: "risque de larsen : change d'entrée ou de sortie (casque, carte son)")
+
     struct Context {
         let pid: Int32
         let origin: CGPoint
@@ -369,7 +372,7 @@ final class MacroEffectsMac: MacroEffects {
             if ready.wait(timeout: .now() + 0.05) == .success {
                 guard let r = report.value, r.risky else { return .ok }
                 DispatchQueue.main.async { FeedbackAlert.show(r) }
-                return .warn(String(localized: "risque de larsen : change d'entrée ou de sortie (casque, carte son)"))
+                return .warn(Self.feedbackWarning)
             }
             DispatchQueue.global(qos: .utility).async {
                 _ = ready.wait(timeout: .now() + 10)

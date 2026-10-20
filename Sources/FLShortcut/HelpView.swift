@@ -50,8 +50,8 @@ struct HelpPage: View {
         ScrollViewReader { reader in
             PageContainer {
                 Section {
-                    PageHeader(symbol: "questionmark.circle", tint: .teal, title: "Aide",
-                               subtitle: "Les réponses aux questions fréquentes, et l'équipe si ça ne suffit pas.")
+                    PageHeader(symbol: "questionmark.circle", tint: .teal, title: String(localized: "Aide"),
+                               subtitle: String(localized: "Les réponses aux questions fréquentes, et l'équipe si ça ne suffit pas."))
                         .cardRow(.single)
                 }
                 Section {
@@ -187,7 +187,7 @@ struct HelpPage: View {
                     Toggle("Joindre l'état de l'appli (recommandé)", isOn: $includeDiagnostic)
                         .toggleStyle(.checkbox)
                     Spacer()
-                    Button(showDiagnostic ? "Masquer" : "Voir ce qui est joint") {
+                    Button(showDiagnostic ? String(localized: "Masquer") : String(localized: "Voir ce qui est joint")) {
                         refreshAttached()
                         withAnimation(Motion.smooth) { showDiagnostic.toggle() }
                     }
@@ -296,8 +296,10 @@ struct HelpPage: View {
                 .foregroundStyle(.green)
             let mail = message.email.trimmingCharacters(in: .whitespaces)
             Text(mail.isEmpty
-                 ? "On lira ton message. Sans mail, on ne peut pas te répondre : écris-en un la prochaine fois si tu veux une réponse."
-                 : "On te répond à \(mail) dès que possible.")
+                 ? String(localized: """
+                     On lira ton message. Sans mail, on ne peut pas te répondre : écris-en un la prochaine fois si tu veux une réponse.
+                     """)
+                 : String(localized: "On te répond à \(mail) dès que possible."))
                 .font(.system(size: 12))
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
@@ -323,7 +325,9 @@ struct HelpPage: View {
         defer { sending = false }
         refreshAttached()
         if let why = await community.sendSupport(outgoing) {
-            failure = "Envoi impossible : \(why) Tu peux " + (SupportConfig.email == nil ? "le copier ou ouvrir un ticket." : "l'envoyer par mail.")
+            failure = SupportConfig.email == nil
+                ? String(localized: "Envoi impossible : \(why) Tu peux le copier ou ouvrir un ticket.")
+                : String(localized: "Envoi impossible : \(why) Tu peux l'envoyer par mail.")
         } else {
             sent = true
         }
@@ -338,7 +342,9 @@ struct HelpPage: View {
         refreshAttached()
         if let url = SupportRules.mailURL(outgoing, to: address, appVersion: MacroFileActions.appVersion) {
             mailOpened = NSWorkspace.shared.open(url)
-            if !mailOpened { failure = "Aucune app de mail ne s'est ouverte : copie le message et envoie-le à \(address)." }
+            if !mailOpened {
+                failure = String(localized: "Aucune app de mail ne s'est ouverte : copie le message et envoie-le à \(address).")
+            }
         }
     }
 
@@ -385,7 +391,7 @@ private struct HelpEntryRow: View {
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
-            .accessibilityValue(open ? "ouverte" : "fermée")
+            .accessibilityValue(open ? String(localized: "ouverte") : String(localized: "fermée"))
             if open {
                 Text(entry.answer)
                     .font(.system(size: 12))

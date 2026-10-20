@@ -8,8 +8,10 @@ import AppKit
 import SwiftUI
 
 enum CommunityText {
-    static let subtitle = "Des macros et des raccourcis prêts à l'emploi, partagés par d'autres utilisateurs de "
-        + "FL Shortcuts, avec leur explication."
+    static let subtitle = String(localized: """
+        Des macros et des raccourcis prêts à l'emploi, partagés par d'autres utilisateurs de \
+        FL Shortcuts, avec leur explication.
+        """)
 
     /// « 2026-10-16T18:02:11… » → « 16/10/2026 ».
     static func day(_ iso: String) -> String {
@@ -35,7 +37,7 @@ enum CommunityText {
 
     /// « Macro · par @leo.beats · 15/10/2026 ».
     static func byline(_ share: Share) -> String {
-        "\(share.kind.label) · par @\(share.authorName.displaySafe(max: 24)) · \(day(share.createdAt))"
+        String(localized: "\(share.kind.label) · par @\(share.authorName.displaySafe(max: 24)) · \(day(share.createdAt))")
     }
 }
 
@@ -43,7 +45,9 @@ extension ShareKind {
     /// Couleur de l'icône : celle de la page Macros pour une macro, bleu clavier pour des raccourcis.
     var tint: Color { self == .macro ? SidebarItem.macros.tint : .blue }
     /// Bouton principal de la fiche.
-    var addLabel: String { self == .macro ? "Ajouter à mes macros" : "Utiliser ces raccourcis" }
+    var addLabel: String {
+        self == .macro ? String(localized: "Ajouter à mes macros") : String(localized: "Utiliser ces raccourcis")
+    }
 }
 
 struct CommunityPage: View {
@@ -57,10 +61,12 @@ struct CommunityPage: View {
     var body: some View {
         Group {
             if !community.isConfigured {
-                CommunityMessage(symbol: "network.slash", title: "La Communauté n'est pas encore ouverte",
-                                 text: "Bientôt, tu y trouveras des macros et des raccourcis partagés par d'autres "
-                                     + "utilisateurs, et tu pourras partager les tiens. En attendant, rien ne change "
-                                     + "pour tes raccourcis et tes macros.")
+                CommunityMessage(symbol: "network.slash", title: String(localized: "La Communauté n'est pas encore ouverte"),
+                                 text: String(localized: """
+                                     Bientôt, tu y trouveras des macros et des raccourcis partagés par d'autres \
+                                     utilisateurs, et tu pourras partager les tiens. En attendant, rien ne change \
+                                     pour tes raccourcis et tes macros.
+                                     """))
             } else if community.session == nil {
                 CommunitySignIn(community: community)
             } else {
@@ -97,8 +103,9 @@ struct CommunityPage: View {
     }
 
     private func delete(_ share: Share) async {
-        guard Dialogs.confirm("Supprimer « \(share.title.displaySafe(max: 40)) » ?",
-                              "Le partage disparaît pour tout le monde. Tes macros et raccourcis ne changent pas.") else { return }
+        let title = String(localized: "Supprimer « \(share.title.displaySafe(max: 40)) » ?")
+        let text = String(localized: "Le partage disparaît pour tout le monde. Tes macros et raccourcis ne changent pas.")
+        guard Dialogs.confirm(title, text) else { return }
         await community.delete(share)
     }
 
@@ -191,9 +198,12 @@ private struct CommunityBrowse: View {
     var body: some View {
         PageContainer {
             Section {
-                PageHeader(symbol: SidebarItem.community.symbol, tint: SidebarItem.community.tint, title: "Communauté",
+                PageHeader(symbol: SidebarItem.community.symbol, tint: SidebarItem.community.tint,
+                           title: String(localized: "Communauté"),
                            subtitle: CommunityText.subtitle,
-                           detail: community.session.map { "Connecté en tant que @\($0.username.isEmpty ? $0.email : $0.username)" })
+                           detail: community.session.map {
+                               String(localized: "Connecté en tant que @\($0.username.isEmpty ? $0.email : $0.username)")
+                           })
                     .cardRow(.single)
             }
             if !howToSeen {
@@ -253,16 +263,18 @@ private struct CommunityBrowse: View {
         let n = community.shares.count
         if let author = community.author {
             let name = "@\(author.username.displaySafe(max: 24))"
-            if !trimmedSearch.isEmpty { return n == 1 ? "1 résultat chez \(name)" : "\(n) résultats chez \(name)" }
-            return "Partages de \(name)"
+            if !trimmedSearch.isEmpty {
+                return n == 1 ? String(localized: "1 résultat chez \(name)") : String(localized: "\(n) résultats chez \(name)")
+            }
+            return String(localized: "Partages de \(name)")
         }
         if !trimmedSearch.isEmpty {
-            return n == 1 ? "1 partage trouvé" : "\(n) partages trouvés"
+            return n == 1 ? String(localized: "1 partage trouvé") : String(localized: "\(n) partages trouvés")
         }
         switch community.kind {
-        case .macro?: return "Macros partagées"
-        case .profile?: return "Raccourcis partagés"
-        case nil: return "Derniers partages"
+        case .macro?: return String(localized: "Macros partagées")
+        case .profile?: return String(localized: "Raccourcis partagés")
+        case nil: return String(localized: "Derniers partages")
         }
     }
 
@@ -275,34 +287,45 @@ private struct CommunityBrowse: View {
             .frame(maxWidth: .infinity)
             .padding(.vertical, 20)
         } else if !trimmedSearch.isEmpty {
-            CommunityMessage(symbol: "magnifyingglass", title: "Aucun partage pour « \(trimmedSearch.displaySafe(max: 30)) »",
+            CommunityMessage(symbol: "magnifyingglass",
+                             title: String(localized: "Aucun partage pour « \(trimmedSearch.displaySafe(max: 30)) »"),
                              text: community.members.isEmpty
-                                 ? "Essaie un autre mot : un titre, une fenêtre de FL (Mixer, Playlist…), une action ou "
-                                     + "le nom d'un membre."
-                                 : "Aucun titre ni aucune explication ne contient ce mot : choisis un membre plus haut "
-                                     + "pour voir ses partages.",
-                             button: "Effacer la recherche") {
+                                 ? String(localized: """
+                                     Essaie un autre mot : un titre, une fenêtre de FL (Mixer, Playlist…), une action ou \
+                                     le nom d'un membre.
+                                     """)
+                                 : String(localized: """
+                                     Aucun titre ni aucune explication ne contient ce mot : choisis un membre plus haut \
+                                     pour voir ses partages.
+                                     """),
+                             button: String(localized: "Effacer la recherche")) {
                 community.search = ""
                 Task { await community.reload() }
             }
         } else if let author = community.author {
-            CommunityMessage(symbol: "person.crop.circle", title: "Aucun partage de @\(author.username.displaySafe(max: 24))",
-                             text: "Ce membre n'a rien publié pour l'instant\(community.kind == nil ? "" : " de ce genre").",
-                             button: "Voir tout le monde") {
+            CommunityMessage(symbol: "person.crop.circle",
+                             title: String(localized: "Aucun partage de @\(author.username.displaySafe(max: 24))"),
+                             text: community.kind == nil ? String(localized: "Ce membre n'a rien publié pour l'instant.")
+                                 : String(localized: "Ce membre n'a rien publié pour l'instant de ce genre."),
+                             button: String(localized: "Voir tout le monde")) {
                 Task { await community.showEveryone() }
             }
         } else if community.kind != nil {
-            CommunityMessage(symbol: community.kind?.symbol ?? "square.stack", title: "Rien de ce genre pour l'instant",
-                             text: "Personne n'a encore partagé de \(community.kind == .macro ? "macro" : "raccourcis").",
-                             button: "Tout afficher") {
+            CommunityMessage(symbol: community.kind?.symbol ?? "square.stack",
+                             title: String(localized: "Rien de ce genre pour l'instant"),
+                             text: community.kind == .macro ? String(localized: "Personne n'a encore partagé de macro.")
+                                 : String(localized: "Personne n'a encore partagé de raccourcis."),
+                             button: String(localized: "Tout afficher")) {
                 community.kind = nil
                 Task { await community.reload() }
             }
         } else {
-            CommunityMessage(symbol: "sparkles", title: "Encore aucun partage",
-                             text: "Sois le premier : partage une macro qui te fait gagner du temps, avec une petite "
-                                 + "explication pour les autres.",
-                             button: "Partager une macro…") { community.composing = true }
+            CommunityMessage(symbol: "sparkles", title: String(localized: "Encore aucun partage"),
+                             text: String(localized: """
+                                 Sois le premier : partage une macro qui te fait gagner du temps, avec une petite \
+                                 explication pour les autres.
+                                 """),
+                             button: String(localized: "Partager une macro…")) { community.composing = true }
         }
     }
 }
@@ -318,10 +341,16 @@ private struct CommunityHowTo: View {
                 Spacer()
                 Button("J'ai compris", action: dismiss).buttonStyle(.borderless)
             }
-            step(1, "Clique sur un partage : tu lis l'explication de son auteur et ce qu'il fait, étape par étape.")
-            step(2, "« Ajouter à mes macros » la range avec les tiennes, sans raccourci : rien ne se lance tant que "
-                 + "tu ne lui en as pas choisi un.")
-            step(3, "Le « + » en haut à droite partage une de tes macros, ou tous tes raccourcis, avec ton explication.")
+            step(1, String(localized: """
+                Clique sur un partage : tu lis l'explication de son auteur et ce qu'il fait, étape par étape.
+                """))
+            step(2, String(localized: """
+                « Ajouter à mes macros » la range avec les tiennes, sans raccourci : rien ne se lance tant que \
+                tu ne lui en as pas choisi un.
+                """))
+            step(3, String(localized: """
+                Le « + » en haut à droite partage une de tes macros, ou tous tes raccourcis, avec ton explication.
+                """))
         }
         .padding(.vertical, 4)
     }
@@ -344,7 +373,8 @@ private struct CommunityMemberRow: View {
             SectionIcon(symbol: "person.fill", tint: SidebarItem.community.tint, size: 32)
             VStack(alignment: .leading, spacing: 2) {
                 Text("@\(member.username.displaySafe(max: 24))").fontWeight(.semibold).lineLimit(1)
-                Text(member.shareCount == 1 ? "1 partage" : "\(member.shareCount) partages")
+                Text(member.shareCount == 1 ? String(localized: "1 partage")
+                     : String(localized: "\(member.shareCount) partages"))
                     .font(.system(size: 11)).foregroundStyle(.secondary)
             }
             Spacer(minLength: 8)
@@ -372,8 +402,9 @@ private struct CommunityAuthorHeader: View {
             SectionIcon(symbol: "person.fill", tint: SidebarItem.community.tint, size: 32)
             VStack(alignment: .leading, spacing: 2) {
                 Text("@\(author.username.displaySafe(max: 24))").font(.headline).lineLimit(1)
-                Text(busy ? "Chargement…" : count == 1 ? "1 partage" : count >= 50 ? "50 partages les plus récents"
-                                                                                 : "\(count) partages")
+                Text(busy ? String(localized: "Chargement…") : count == 1 ? String(localized: "1 partage")
+                     : count >= 50 ? String(localized: "50 partages les plus récents")
+                     : String(localized: "\(count) partages"))
                     .font(.system(size: 11)).foregroundStyle(.secondary)
             }
             Spacer(minLength: 8)
@@ -487,8 +518,8 @@ private struct CommunityShareRow: View {
                     Button("Signaler…", action: report)
                 }
                 if canDelete {
-                    Button(mine ? "Supprimer mon partage…" : "Supprimer (administrateur)…", role: .destructive,
-                           action: delete)
+                    Button(mine ? String(localized: "Supprimer mon partage…") : String(localized: "Supprimer (administrateur)…"),
+                           role: .destructive, action: delete)
                 }
             } label: {
                 Image(systemName: "ellipsis.circle")
@@ -551,18 +582,19 @@ private struct CommunityShareDetail: View {
             Divider()
             ScrollView {
                 VStack(alignment: .leading, spacing: 20) {
-                    part("L'explication de @\(share.authorName.displaySafe(max: 24))") {
-                        Text(share.notes.isEmpty ? "L'auteur n'a pas écrit d'explication." : share.notes)
+                    part(String(localized: "L'explication de @\(share.authorName.displaySafe(max: 24))")) {
+                        Text(share.notes.isEmpty ? String(localized: "L'auteur n'a pas écrit d'explication.") : share.notes)
                             .font(.system(size: 13))
                             .foregroundStyle(share.notes.isEmpty ? .secondary : .primary)
                             .textSelection(.enabled)
                             .fixedSize(horizontal: false, vertical: true)
                     }
-                    part(share.kind == .macro ? "Ce que fait la macro, étape par étape" : "Les raccourcis qu'il contient") {
+                    part(share.kind == .macro ? String(localized: "Ce que fait la macro, étape par étape")
+                         : String(localized: "Les raccourcis qu'il contient")) {
                         steps
                     }
                     if !notes.isEmpty {
-                        part("Bon à savoir") {
+                        part(String(localized: "Bon à savoir")) {
                             VStack(alignment: .leading, spacing: 6) {
                                 ForEach(notes, id: \.self) { line in
                                     Label(line, systemImage: "info.circle")
@@ -641,17 +673,21 @@ private struct CommunityShareDetail: View {
             var out = preview.warnings
             if preview.sensitiveCount > 0 {
                 out.append(preview.sensitiveCount == 1
-                           ? "1 étape tape des touches, clique ou ouvre un fichier : relis-la dans le créateur."
-                           : "\(preview.sensitiveCount) étapes tapent des touches, cliquent ou ouvrent des fichiers : "
-                             + "relis-les dans le créateur.")
+                           ? String(localized: "1 étape tape des touches, clique ou ouvre un fichier : relis-la dans le créateur.")
+                           : String(localized: """
+                             \(preview.sensitiveCount) étapes tapent des touches, cliquent ou ouvrent des fichiers : \
+                             relis-les dans le créateur.
+                             """))
             }
-            out.append("Elle arrive sans raccourci : rien ne se lance tant que tu ne lui en as pas choisi un.")
+            out.append(String(localized: "Elle arrive sans raccourci : rien ne se lance tant que tu ne lui en as pas choisi un."))
             return out
         case .profile(let preview):
-            var out = ["Tes raccourcis actuels sont remplacés par ceux-ci. Tu peux annuler juste après, depuis la "
-                       + "notification en bas de la fenêtre."]
+            var out = [String(localized: """
+                Tes raccourcis actuels sont remplacés par ceux-ci. Tu peux annuler juste après, depuis la \
+                notification en bas de la fenêtre.
+                """)]
             if !preview.rejected.isEmpty {
-                out.append("Refusés par sécurité : " + preview.rejected.joined(separator: " ; "))
+                out.append(String(localized: "Refusés par sécurité : \(preview.rejected.joined(separator: " ; "))"))
             }
             return out
         case .loading, .failed:
@@ -661,7 +697,7 @@ private struct CommunityShareDetail: View {
 
     private func load() async {
         guard let data = await community.payload(of: share) else {
-            content = .failed(community.error ?? "téléchargement impossible.")
+            content = .failed(community.error ?? String(localized: "téléchargement impossible."))
             return
         }
         do {
@@ -684,12 +720,14 @@ private struct CommunityShareDetail: View {
             var doc = preview.doc
             doc.name = store.library.uniqueName(doc.name)
             _ = store.library.add(doc)
-            added(ToastMessage(text: "« \(doc.name.displaySafe(max: 40)) » ajoutée à tes macros : choisis-lui un raccourci "
-                               + "dans la page Macros", undo: nil))
+            added(ToastMessage(text: String(localized: """
+                « \(doc.name.displaySafe(max: 40)) » ajoutée à tes macros : choisis-lui un raccourci \
+                dans la page Macros
+                """), undo: nil))
         case .profile(let preview):
             let model = store
             model.applyImport(preview)
-            added(ToastMessage(text: "Raccourcis de @\(share.authorName.displaySafe(max: 24)) en place",
+            added(ToastMessage(text: String(localized: "Raccourcis de @\(share.authorName.displaySafe(max: 24)) en place"),
                                undo: { model.undoReplace() }))
         case .loading, .failed:
             return
@@ -704,12 +742,12 @@ private struct CommunityShareDetail: View {
 struct CommunitySignIn: View {
     @ObservedObject var community: CommunityStore
     var page: SidebarItem = .community
-    var title = "Communauté"
+    var title = String(localized: "Communauté")
     var subtitle = CommunityText.subtitle
     var benefits: [(symbol: String, text: String)] = [
-        ("square.and.arrow.down", "Ajoute des macros toutes faites, après avoir lu ce qu'elles font."),
-        ("square.and.arrow.up", "Partage les tiennes, avec une explication pour les autres."),
-        ("lock.shield", "Ton mail reste privé : les autres ne voient que ton nom d'utilisateur."),
+        ("square.and.arrow.down", String(localized: "Ajoute des macros toutes faites, après avoir lu ce qu'elles font.")),
+        ("square.and.arrow.up", String(localized: "Partage les tiennes, avec une explication pour les autres.")),
+        ("lock.shield", String(localized: "Ton mail reste privé : les autres ne voient que ton nom d'utilisateur.")),
     ]
     @State private var email = ""
     @State private var password = ""
@@ -760,11 +798,11 @@ struct CommunitySignIn: View {
                     .textContentType(.password)
                 let missing = CommunityRules.passwordMissing(newPassword)
                 if !newPassword.isEmpty, !missing.isEmpty {
-                    hint("Il faut encore : " + missing.joined(separator: ", ") + ".")
+                    hint(String(localized: "Il faut encore : \(missing.joined(separator: ", "))."))
                 }
             }
             HStack {
-                Button(recovery ? "Changer le mot de passe" : "Confirmer") {
+                Button(recovery ? String(localized: "Changer le mot de passe") : String(localized: "Confirmer")) {
                     let typed = code, chosen = newPassword
                     Task {
                         if recovery {
@@ -789,7 +827,7 @@ struct CommunitySignIn: View {
             .disabled(community.busy)
             CommunityStatus(community: community)
         } header: {
-            Text(recovery ? "Mot de passe oublié" : "Confirme ton adresse")
+            Text(recovery ? String(localized: "Mot de passe oublié") : String(localized: "Confirme ton adresse"))
         } footer: {
             VStack(alignment: .leading, spacing: 4) {
                 Text("Pas de mail ? Regarde dans les courriers indésirables, ou renvoie le code.")
@@ -830,14 +868,14 @@ struct CommunitySignIn: View {
                         .textContentType(.password)
                     let missing = CommunityRules.passwordMissing(password)
                     if !password.isEmpty, !missing.isEmpty {
-                        hint("Il faut encore : " + missing.joined(separator: ", ") + ".")
+                        hint(String(localized: "Il faut encore : \(missing.joined(separator: ", "))."))
                     }
                 } else {
                     SecureField("Mot de passe", text: $password)
                         .textContentType(.password)
                 }
                 HStack {
-                    Button(creating ? "Créer mon compte" : "Se connecter") { submit() }
+                    Button(creating ? String(localized: "Créer mon compte") : String(localized: "Se connecter")) { submit() }
                         .primaryButton()
                         .keyboardShortcut(.defaultAction)
                         .disabled(!canSubmit)
@@ -853,7 +891,7 @@ struct CommunitySignIn: View {
                 .disabled(community.busy)
                 CommunityStatus(community: community)
             } header: {
-                Text(creating ? "Nouveau compte" : "Connexion")
+                Text(creating ? String(localized: "Nouveau compte") : String(localized: "Connexion"))
             } footer: {
                 if creating {
                     Text("Visible par les autres : ton nom d'utilisateur et ce que tu partages. Jamais : ton mail.")
@@ -923,7 +961,7 @@ private struct CommunityPublishSheet: View {
                     .font(.system(size: 12))
                     .foregroundStyle(.secondary)
             }
-            field("Quoi") {
+            field(String(localized: "Quoi")) {
                 Picker("Quoi", selection: $kind) {
                     Text("Une macro").tag(ShareKind.macro)
                     Text("Tous mes raccourcis").tag(ShareKind.profile)
@@ -931,13 +969,13 @@ private struct CommunityPublishSheet: View {
                 .pickerStyle(.segmented)
                 .labelsHidden()
                 Text(kind == .macro
-                     ? "La macro choisie, avec ses étapes."
-                     : "Ton jeu de raccourcis complet : les autres pourront le mettre à la place du leur.")
+                     ? String(localized: "La macro choisie, avec ses étapes.")
+                     : String(localized: "Ton jeu de raccourcis complet : les autres pourront le mettre à la place du leur."))
                     .font(.system(size: 11))
                     .foregroundStyle(.secondary)
             }
             if kind == .macro {
-                field("Macro") {
+                field(String(localized: "Macro")) {
                     if library.macros.isEmpty {
                         Text("Tu n'as pas encore de macro : crée-en une dans la page Macros.")
                             .font(.system(size: 12))
@@ -951,18 +989,20 @@ private struct CommunityPublishSheet: View {
                     }
                 }
             }
-            field("Titre", count: "\(trimmedTitle.count)/\(CommunityRules.titleRange.upperBound)") {
+            field(String(localized: "Titre"), count: "\(trimmedTitle.count)/\(CommunityRules.titleRange.upperBound)") {
                 TextField("Titre", text: $title, prompt: Text("ex. Armer la piste et lancer l'enregistrement"))
                     .labelsHidden()
             }
-            field("Explication", count: "\(notes.count)/\(CommunityRules.maxNotes)") {
+            field(String(localized: "Explication"), count: "\(notes.count)/\(CommunityRules.maxNotes)") {
                 TextEditor(text: $notes)
                     .font(.system(size: 12))
                     .frame(minHeight: 110)
                     .overlay(alignment: .topLeading) {
                         if notes.isEmpty {
-                            Text("À quoi elle sert, où l'utiliser dans FL (Mixer, Playlist…), ce qu'il faut faire avant "
-                                 + "de la lancer.")
+                            Text(String(localized: """
+                                À quoi elle sert, où l'utiliser dans FL (Mixer, Playlist…), ce qu'il faut faire avant \
+                                de la lancer.
+                                """))
                                 .font(.system(size: 12))
                                 .foregroundStyle(.tertiary)
                                 .padding(.horizontal, 5)
@@ -973,8 +1013,10 @@ private struct CommunityPublishSheet: View {
                     .overlay(RoundedRectangle(cornerRadius: 6).stroke(.quaternary))
             }
             VStack(alignment: .leading, spacing: 4) {
-                Label("Partagé : \(kind == .macro ? "la macro" : "tes raccourcis"), le titre, ton explication, "
-                      + "ton nom d'utilisateur.", systemImage: "eye")
+                Label(kind == .macro
+                      ? String(localized: "Partagé : la macro, le titre, ton explication, ton nom d'utilisateur.")
+                      : String(localized: "Partagé : tes raccourcis, le titre, ton explication, ton nom d'utilisateur."),
+                      systemImage: "eye")
                 Label("Jamais partagé : ton mail, tes positions apprises, les chemins de tes fichiers.",
                       systemImage: "lock")
             }
@@ -993,9 +1035,9 @@ private struct CommunityPublishSheet: View {
                     .primaryButton()
                     .keyboardShortcut(.defaultAction)
                     .disabled(community.busy || !canPublish)
-                    .help(canPublish ? "Publier pour tous les membres de la Communauté"
-                          : kind == .macro && macroID == nil ? "Choisis d'abord la macro à partager"
-                          : "Écris un titre (\(CommunityRules.titleRange.lowerBound) caractères au moins)")
+                    .help(canPublish ? String(localized: "Publier pour tous les membres de la Communauté")
+                          : kind == .macro && macroID == nil ? String(localized: "Choisis d'abord la macro à partager")
+                          : String(localized: "Écris un titre (\(CommunityRules.titleRange.lowerBound) caractères au moins)"))
             }
         }
         .padding(20)
@@ -1016,9 +1058,13 @@ private struct CommunityPublishSheet: View {
     /// Saisie hors des limites (rien tant que le champ est vide : ce qui reste à remplir n'est pas une erreur).
     private var limitProblem: String? {
         if !trimmedTitle.isEmpty, !CommunityRules.titleRange.contains(trimmedTitle.count) {
-            return "Titre : \(CommunityRules.titleRange.lowerBound) à \(CommunityRules.titleRange.upperBound) caractères."
+            return String(localized: """
+                Titre : \(CommunityRules.titleRange.lowerBound) à \(CommunityRules.titleRange.upperBound) caractères.
+                """)
         }
-        if notes.count > CommunityRules.maxNotes { return "Explication : \(CommunityRules.maxNotes) caractères au plus." }
+        if notes.count > CommunityRules.maxNotes {
+            return String(localized: "Explication : \(CommunityRules.maxNotes) caractères au plus.")
+        }
         return nil
     }
 
@@ -1038,7 +1084,7 @@ private struct CommunityPublishSheet: View {
         switch kind {
         case .macro:
             guard let doc = macroID.flatMap(library.doc) else {
-                problem = "Choisis la macro à partager."
+                problem = String(localized: "Choisis la macro à partager.")
                 return
             }
             payload = try? MacroExchange.export(doc, appVersion: MacroFileActions.appVersion)
@@ -1046,7 +1092,7 @@ private struct CommunityPublishSheet: View {
             payload = profile()
         }
         guard let payload else {
-            problem = "Export impossible."
+            problem = String(localized: "Export impossible.")
             return
         }
         if await community.publish(kind: kind, title: title, notes: notes, payload: payload) {
@@ -1074,6 +1120,17 @@ private struct CommunityReportSheet: View {
         case other = "Autre"
 
         var id: String { rawValue }
+
+        /// Raison affichée ; le rawValue, en français, part tel quel au serveur.
+        var label: String {
+            switch self {
+            case .danger: return String(localized: "Dangereux : supprime, écrase ou envoie des choses sans prévenir")
+            case .misleading: return String(localized: "Ne fait pas ce que dit son explication")
+            case .offensive: return String(localized: "Contenu offensant")
+            case .spam: return String(localized: "Publicité ou spam")
+            case .other: return String(localized: "Autre")
+            }
+        }
     }
 
     var body: some View {
@@ -1086,7 +1143,7 @@ private struct CommunityReportSheet: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
             Picker("Raison", selection: $reason) {
-                ForEach(Reason.allCases) { r in Text(r.rawValue).tag(r) }
+                ForEach(Reason.allCases) { r in Text(r.label).tag(r) }
             }
             .pickerStyle(.radioGroup)
             .labelsHidden()

@@ -50,7 +50,7 @@ struct MacroPaletteView: View {
             Section {
                 ForEach(group) { item in row(item) }
             } header: {
-                Text(category.rawValue)
+                Text(category.label)
             }
         }
     }
@@ -62,7 +62,7 @@ struct MacroPaletteView: View {
         if item.soon {
             label(item)
                 .opacity(0.5)
-                .help("Bientôt : " + item.aide)
+                .help(String(localized: "Bientôt : \(item.aide)"))
                 .accessibilityElement(children: .combine)
                 .accessibilityHint("Pas encore disponible")
         } else {
@@ -70,7 +70,7 @@ struct MacroPaletteView: View {
                 .hoverLift()
                 .onTapGesture { insert(item) }
                 .onDrag { PaletteDrag.provider(item) } preview: { PaletteDragPreview(item: item) }
-                .help(item.aide + " Clique pour l'ajouter, ou glisse-le à sa place dans la liste.")
+                .help(String(localized: "\(item.aide) Clique pour l'ajouter, ou glisse-le à sa place dans la liste."))
                 .accessibilityElement(children: .combine)
                 .accessibilityAddTraits(.isButton)
                 .accessibilityAction { insert(item) }

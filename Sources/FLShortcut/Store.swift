@@ -183,7 +183,7 @@ final class Store: ObservableObject {
             stored = try storage.read()
         } catch {
             return LoadResult(remaps: ProfilePreset.recommended.remaps(layout: layout),
-                              warning: "Profil inaccessible (\(error.localizedDescription)). Profil recommandé chargé.",
+                              warning: String(localized: "Profil inaccessible (\(error.localizedDescription)). Profil recommandé chargé."),
                               needsSave: false, incomplete: true)
         }
         // Nom distinct : `guard let data` dans la portée d'une constante locale `data` ne compile pas.
@@ -198,20 +198,20 @@ final class Store: ObservableObject {
             if decoded.dropped > 0 || decoded.sourceVersion < ProfileCodec.currentVersion {
                 let label = decoded.sourceVersion < ProfileCodec.currentVersion ? "v1" : "partiel"
                 if let name = try? storage.backup(data, label: label) {
-                    notes.append("Copie de l'ancien profil : \(name).")
+                    notes.append(String(localized: "Copie de l'ancien profil : \(name)."))
                     needsSave = true                     // migration vers v2, original conservé
                 }
             }
-            if decoded.dropped > 0 { notes.append("\(decoded.dropped) raccourci(s) illisible(s) ignoré(s).") }
+            if decoded.dropped > 0 { notes.append(String(localized: "\(decoded.dropped) raccourci(s) illisible(s) ignoré(s).")) }
             let unknown = decoded.remaps.filter { $0.kind == .flAction && $0.actionID == nil }.count
-            if unknown > 0 { notes.append("\(unknown) raccourci(s) avec une action inconnue, désactivé(s).") }
+            if unknown > 0 { notes.append(String(localized: "\(unknown) raccourci(s) avec une action inconnue, désactivé(s).")) }
             return LoadResult(remaps: decoded.remaps, warning: notes.isEmpty ? nil : notes.joined(separator: " "),
                               needsSave: needsSave, incomplete: decoded.dropped > 0)
         } catch {
             let name = try? storage.backup(data, label: "illisible")
-            let where_ = name.map { " Une copie a été gardée (\($0))." } ?? ""
+            let where_ = name.map { String(localized: " Une copie a été gardée (\($0)).") } ?? ""
             return LoadResult(remaps: ProfilePreset.recommended.remaps(layout: layout),
-                              warning: "Profil illisible : profil recommandé chargé.\(where_)", needsSave: false,
+                              warning: String(localized: "Profil illisible : profil recommandé chargé.\(where_)"), needsSave: false,
                               incomplete: true)
         }
     }
@@ -379,7 +379,7 @@ final class Store: ObservableObject {
             }
             DispatchQueue.main.async {
                 guard let self else { return }
-                let message = failure.map { "Enregistrement impossible : \($0)" }
+                let message = failure.map { String(localized: "Enregistrement impossible : \($0)") }
                 if self.saveError != message { self.saveError = message }   // pas de publication inutile
             }
         }
@@ -396,7 +396,7 @@ final class Store: ObservableObject {
             try storage.write(ProfileCodec.encode(remaps))
             saveError = nil
         } catch {
-            saveError = "Enregistrement impossible : \(error.localizedDescription)"
+            saveError = String(localized: "Enregistrement impossible : \(error.localizedDescription)")
         }
     }
 }

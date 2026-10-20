@@ -5,12 +5,20 @@
 import SwiftUI
 
 enum AccountText {
-    static let subtitle = "Sauvegarde tes raccourcis et tes macros en ligne, et retrouve-les sur n'importe quel Mac."
+    static let subtitle = String(localized: """
+        Sauvegarde tes raccourcis et tes macros en ligne, et retrouve-les sur n'importe quel Mac.
+        """)
     static let benefits: [(symbol: String, text: String)] = [
-        ("icloud.and.arrow.up", "Tes raccourcis et tes macros sont sauvegardés en ligne, tout seuls, à chaque changement."),
-        ("laptopcomputer.and.arrow.down", "Connecte-toi sur un autre Mac : tout revient. À la déconnexion, ils quittent ce Mac et restent dans ton compte."),
-        ("person.2", "Le même compte sert à la Communauté : ajoute des macros toutes faites, partage les tiennes."),
-        ("lock.shield", "Personne d'autre ne peut lire ta sauvegarde. Ton mail reste privé."),
+        ("icloud.and.arrow.up", String(localized: """
+            Tes raccourcis et tes macros sont sauvegardés en ligne, tout seuls, à chaque changement.
+            """)),
+        ("laptopcomputer.and.arrow.down", String(localized: """
+            Connecte-toi sur un autre Mac : tout revient. À la déconnexion, ils quittent ce Mac et restent dans ton compte.
+            """)),
+        ("person.2", String(localized: """
+            Le même compte sert à la Communauté : ajoute des macros toutes faites, partage les tiennes.
+            """)),
+        ("lock.shield", String(localized: "Personne d'autre ne peut lire ta sauvegarde. Ton mail reste privé.")),
     ]
 
     /// « aujourd'hui à 21:07 », « hier à 9:12 », « 14 oct. 2026 à 18:00 ».
@@ -28,15 +36,18 @@ enum AccountText {
 @MainActor
 enum AccountActions {
     static func signOut(_ backup: AccountBackup = .shared) async {
-        guard Dialogs.choose("Se déconnecter ?",
-                             "Tes raccourcis et tes macros seront retirés de ce Mac. Ils restent dans ton compte : "
-                                 + "reconnecte-toi, ici ou sur un autre Mac, pour les retrouver.",
-                             ["Se déconnecter", "Annuler"]) == 0 else { return }
+        guard Dialogs.choose(String(localized: "Se déconnecter ?"),
+                             String(localized: """
+                                 Tes raccourcis et tes macros seront retirés de ce Mac. Ils restent dans ton compte : \
+                                 reconnecte-toi, ici ou sur un autre Mac, pour les retrouver.
+                                 """),
+                             [String(localized: "Se déconnecter"), String(localized: "Annuler")]) == 0 else { return }
         var outcome = await backup.signOut()
         while case .notSaved(let why) = outcome {
-            switch Dialogs.choose("Tes derniers changements ne sont pas en ligne",
-                                  why + " Si tu te déconnectes maintenant, ils seront perdus.",
-                                  ["Réessayer", "Se déconnecter quand même", "Annuler"], destructive: 1) {
+            switch Dialogs.choose(String(localized: "Tes derniers changements ne sont pas en ligne"),
+                                  String(localized: "\(why) Si tu te déconnectes maintenant, ils seront perdus."),
+                                  [String(localized: "Réessayer"), String(localized: "Se déconnecter quand même"),
+                                   String(localized: "Annuler")], destructive: 1) {
             case 0: outcome = await backup.signOut()
             case 1: outcome = await backup.signOut(evenIfNotSaved: true)
             default: return
@@ -46,10 +57,13 @@ enum AccountActions {
 
     /// nil : supprimé, ou rien fait (annulé) ; sinon, ce qui s'est passé.
     static func deleteAccount(_ backup: AccountBackup = .shared) async -> String? {
-        guard Dialogs.choose("Supprimer ton compte ?",
-                             "Ton compte, ta sauvegarde en ligne et tes partages dans la Communauté seront effacés "
-                                 + "pour toujours. Tes raccourcis et tes macros restent sur ce Mac.",
-                             ["Supprimer définitivement", "Annuler"], destructive: 0) == 0 else { return nil }
+        guard Dialogs.choose(String(localized: "Supprimer ton compte ?"),
+                             String(localized: """
+                                 Ton compte, ta sauvegarde en ligne et tes partages dans la Communauté seront effacés \
+                                 pour toujours. Tes raccourcis et tes macros restent sur ce Mac.
+                                 """),
+                             [String(localized: "Supprimer définitivement"), String(localized: "Annuler")],
+                             destructive: 0) == 0 else { return nil }
         return await backup.deleteAccount()
     }
 }
@@ -63,12 +77,12 @@ struct AccountPage: View {
         Group {
             if !community.isConfigured {
                 CommunityMessage(symbol: "person.crop.circle.badge.xmark", tint: SidebarItem.account.tint,
-                                 title: "Les comptes ne sont pas encore ouverts",
-                                 text: "Tes raccourcis et tes macros restent sur ce Mac en attendant.")
+                                 title: String(localized: "Les comptes ne sont pas encore ouverts"),
+                                 text: String(localized: "Tes raccourcis et tes macros restent sur ce Mac en attendant."))
             } else if let session = community.session {
                 signedIn(session)
             } else {
-                CommunitySignIn(community: community, page: .account, title: "Mon compte",
+                CommunitySignIn(community: community, page: .account, title: String(localized: "Mon compte"),
                                 subtitle: AccountText.subtitle, benefits: AccountText.benefits)
             }
         }
@@ -83,7 +97,8 @@ struct AccountPage: View {
     private func signedIn(_ session: CommunitySession) -> some View {
         Form {
             Section {
-                PageHeader(symbol: SidebarItem.account.symbol, tint: SidebarItem.account.tint, title: "Mon compte",
+                PageHeader(symbol: SidebarItem.account.symbol, tint: SidebarItem.account.tint,
+                           title: String(localized: "Mon compte"),
                            subtitle: AccountText.subtitle,
                            detail: "@\(session.username.displaySafe(max: 24)) · \(session.email.displaySafe(max: 60))")
             }
@@ -105,9 +120,11 @@ struct AccountPage: View {
             } header: {
                 Text("Sauvegarde en ligne")
             } footer: {
-                Text("Tes raccourcis et tes macros partent en ligne quelques secondes après chaque changement. Personne "
-                     + "d'autre ne peut les lire. Les réglages de ce Mac (pause, autorisations, endroits appris dans FL) "
-                     + "restent ici.")
+                Text(String(localized: """
+                    Tes raccourcis et tes macros partent en ligne quelques secondes après chaque changement. Personne \
+                    d'autre ne peut les lire. Les réglages de ce Mac (pause, autorisations, endroits appris dans FL) \
+                    restent ici.
+                    """))
                     .font(.system(size: 11))
                     .foregroundStyle(.secondary)
             }
@@ -125,8 +142,10 @@ struct AccountPage: View {
                 HStack {
                     VStack(alignment: .leading, spacing: 2) {
                         Text("Supprimer mon compte")
-                        Text("Efface ton compte, ta sauvegarde en ligne et tes partages. Tes raccourcis et tes macros "
-                             + "restent sur ce Mac.")
+                        Text(String(localized: """
+                            Efface ton compte, ta sauvegarde en ligne et tes partages. Tes raccourcis et tes macros \
+                            restent sur ce Mac.
+                            """))
                             .font(.system(size: 11))
                             .foregroundStyle(.secondary)
                     }
@@ -182,22 +201,26 @@ private struct AccountBackupStatus: View {
     private var look: (symbol: String, color: Color, title: String, detail: String, busy: Bool) {
         switch status {
         case .off, .checking:
-            return ("arrow.triangle.2.circlepath.icloud", .secondary, "Vérification de ta sauvegarde…",
-                    "Ce Mac et ton compte se comparent.", true)
+            return ("arrow.triangle.2.circlepath.icloud", .secondary, String(localized: "Vérification de ta sauvegarde…"),
+                    String(localized: "Ce Mac et ton compte se comparent."), true)
         case .upToDate(let date):
-            return ("checkmark.icloud.fill", .green, "À jour",
-                    date.map { "Dernière sauvegarde : \(AccountText.when($0))." } ?? "Tout est en ligne.", false)
+            return ("checkmark.icloud.fill", .green, String(localized: "À jour"),
+                    date.map { String(localized: "Dernière sauvegarde : \(AccountText.when($0)).") }
+                        ?? String(localized: "Tout est en ligne."), false)
         case .pending:
-            return ("icloud.and.arrow.up", .blue, "Changements à envoyer", "Ils partent dans quelques secondes.", false)
+            return ("icloud.and.arrow.up", .blue, String(localized: "Changements à envoyer"),
+                    String(localized: "Ils partent dans quelques secondes."), false)
         case .saving:
-            return ("icloud.and.arrow.up.fill", .blue, "Enregistrement en ligne…", "Ne quitte pas l'app tout de suite.", true)
+            return ("icloud.and.arrow.up.fill", .blue, String(localized: "Enregistrement en ligne…"),
+                    String(localized: "Ne quitte pas l'app tout de suite."), true)
         case .waiting(let why):
-            return ("exclamationmark.icloud.fill", .orange, "Pas encore en ligne", why, false)
+            return ("exclamationmark.icloud.fill", .orange, String(localized: "Pas encore en ligne"), why, false)
         case .choice:
-            return ("exclamationmark.icloud.fill", .orange, "À toi de choisir",
-                    "Ce Mac et ton compte ont chacun des changements : choisis la version à garder ci-dessus.", false)
+            return ("exclamationmark.icloud.fill", .orange, String(localized: "À toi de choisir"),
+                    String(localized: "Ce Mac et ton compte ont chacun des changements : choisis la version à garder ci-dessus."),
+                    false)
         case .blocked(let why):
-            return ("xmark.icloud.fill", .red, "Sauvegarde arrêtée", why, false)
+            return ("xmark.icloud.fill", .red, String(localized: "Sauvegarde arrêtée"), why, false)
         }
     }
 }
@@ -217,14 +240,16 @@ private struct AccountConflictCard: View {
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
             HStack(alignment: .top, spacing: 12) {
-                side(title: "Ce Mac", symbol: "laptopcomputer", summary: conflict.here,
-                     effect: "La sauvegarde de ton compte est remplacée par ce qu'il y a ici.",
-                     button: "Garder ce Mac") { choose(false) }
-                side(title: "Ton compte", symbol: "icloud", summary: conflict.account
+                side(title: String(localized: "Ce Mac"), symbol: "laptopcomputer", summary: conflict.here,
+                     effect: String(localized: "La sauvegarde de ton compte est remplacée par ce qu'il y a ici."),
+                     button: String(localized: "Garder ce Mac")) { choose(false) }
+                side(title: String(localized: "Ton compte"), symbol: "icloud", summary: conflict.account
                         + (conflict.remote.updatedAt.map { " · \(AccountText.when($0))" } ?? ""),
-                     effect: "Ce Mac reprend ta sauvegarde. Ce qu'il y avait ici est copié dans Application Support › "
-                         + "FL Shortcuts.",
-                     button: "Garder mon compte") { choose(true) }
+                     effect: String(localized: """
+                         Ce Mac reprend ta sauvegarde. Ce qu'il y avait ici est copié dans Application Support › \
+                         FL Shortcuts.
+                         """),
+                     button: String(localized: "Garder mon compte")) { choose(true) }
             }
         }
         .padding(.vertical, 4)
