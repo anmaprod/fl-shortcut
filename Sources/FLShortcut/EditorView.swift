@@ -327,6 +327,7 @@ struct EditorView: View {
         // Page Macros : pas de titre dans la barre d'outils, comme dans le créateur : les flèches ← → s'y posent à
         // gauche, au même endroit quand on entre dans une macro ou qu'on en sort.
         .toolbarTitleHidden(onMacrosPage)
+        .noToolbarBand()
         .windowGlass(glassEnabled)
         // Recherche en haut de la barre latérale (comme Réglages Système) : à droite, la barre d'outils ne porte que
         // les boutons de la page, et les flèches de la page Macros tombent au même endroit que dans le créateur.

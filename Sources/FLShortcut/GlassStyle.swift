@@ -400,6 +400,23 @@ extension View {
         modifier(WindowGlass(on: on))
     }
 
+    /// Pas de bande sous la barre d'outils (retour de l'utilisateur : un rectangle du titre jusqu'au « + » et au « ⋯ ») :
+    /// ni fond de barre d'outils, ni effet de bord en haut de la page (macOS 26) ; le titre et les boutons flottent
+    /// sur la page.
+    @ViewBuilder func noToolbarBand() -> some View {
+        #if compiler(>=6.2)
+        if #available(macOS 26.0, *) {
+            toolbarBackgroundVisibility(.hidden, for: .windowToolbar).scrollEdgeEffectHidden(true, for: .top)
+        } else if #available(macOS 15.0, *) {
+            toolbarBackgroundVisibility(.hidden, for: .windowToolbar)
+        } else {
+            self
+        }
+        #else
+        if #available(macOS 15.0, *) { toolbarBackgroundVisibility(.hidden, for: .windowToolbar) } else { self }
+        #endif
+    }
+
     /// Liste posée sur le fond translucide de la fenêtre.
     func glassListBackground() -> some View {
         modifier(GlassListBackground())

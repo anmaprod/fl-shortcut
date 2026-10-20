@@ -99,7 +99,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // Sauvegarde en ligne : seulement avec un compte connecté (session au Trousseau), sinon aucune requête.
         MainActor.assumeIsolated { AccountBackup.shared.start() }
 
-        if !UserDefaults.standard.bool(forKey: "didOnboard") {
+        // Accueil (autorisations, puis le guide) : au premier lancement, et de nouveau quand le clavier n'est plus
+        // autorisé. Une nouvelle version de l'app est une autre app pour macOS, ses autorisations sont à redonner
+        // (retour de l'utilisateur : ni page d'accès ni guide après une mise à jour). Jamais en mode capture (CI).
+        if !UserDefaults.standard.bool(forKey: "didOnboard") || (!AXIsProcessTrusted() && !DebugSnapshot.enabled) {
             DispatchQueue.main.async { AppDelegate.onboard() }
         }
     }
