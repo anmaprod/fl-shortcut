@@ -975,7 +975,8 @@ class TestSourceCompat(unittest.TestCase):
 
         swift = read("Sources", "FLShortcut", "Actions.swift")
         mac = dict((int(i), (k, v)) for i, k, v in re.findall(
-            r'FLActionInfo\(id: (\d+), key: "(\w+)", label: "[^"]*", category: \.\w+, minFL: "([\d.]+)"\)', swift))
+            r'FLActionInfo\(id: (\d+), key: "(\w+)", label: (?:String\(localized: )?"[^"]*"\)?, category: \.\w+, '
+            r'minFL: "([\d.]+)"\)', swift))
         cs = read("windows", "FLShortcut.Core", "Actions.cs")
         win = dict((int(i), (k, v)) for i, k, v in re.findall(
             r'new\((\d+), "(\w+)", "[^"]*", ActionCategory\.\w+, "([\d.]+)"\)', cs))
@@ -983,7 +984,7 @@ class TestSourceCompat(unittest.TestCase):
         self.assertEqual(win, script)
 
         # Descriptions affichées : identiques sur Mac et Windows, une par action.
-        mac_detail = dict(re.findall(r'case "(\w+)": return "([^"]*)"', read("Sources", "FLShortcut", "GlassStyle.swift")))
+        mac_detail = dict(re.findall(r'case "(\w+)": return (?:String\(localized: )?"([^"]*)"', read("Sources", "FLShortcut", "GlassStyle.swift")))
         win_detail = dict(re.findall(r'\["(\w+)"\] = "([^"]*)"', cs))
         self.assertEqual(mac_detail, win_detail)
         self.assertEqual(set(mac_detail), set(k for k, _ in script.values()))
