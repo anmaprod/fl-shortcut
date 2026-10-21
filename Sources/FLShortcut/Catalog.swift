@@ -439,6 +439,14 @@ enum KeySearch {
     }
 }
 
+/// « Mes raccourcis » : les raccourcis de FL que tu as changés, puis ceux que tu as créés. Jamais les macros (elles
+/// ont leur page) ni les touches de départ.
+enum MyShortcuts {
+    static func changed(_ rows: [CatalogRow]) -> [CatalogRow] { rows.filter { !$0.isDefault } }
+    static func created(_ others: [Remap]) -> [Remap] { others.filter { $0.kind != .macro } }
+    static func count(rows: [CatalogRow], others: [Remap]) -> Int { changed(rows).count + created(others).count }
+}
+
 /// Ce qui utilise déjà une touche : un de tes raccourcis, ou une touche d'origine de FL.
 struct KeyClash: Identifiable {
     let row: CatalogRow?          // entrée du catalogue (nil : raccourci personnalisé hors catalogue)

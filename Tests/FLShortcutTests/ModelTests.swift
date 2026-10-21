@@ -139,14 +139,14 @@ final class ModelTests: XCTestCase {
 
     func testRecommendedPresetHasNoBareKeysNorSpacesConflicts() {
         let remaps = ProfilePreset.recommended.remaps(layout: FakeLayout.qwerty)
-        XCTAssertEqual(remaps.count, 12)
+        XCTAssertEqual(remaps.count, 11)
         XCTAssertTrue(remaps.allSatisfy { $0.trigger?.hasModifiers == true })
         let triggers = Set(remaps.compactMap(\.trigger))
         XCTAssertFalse(triggers.contains(KeyCombo(keyCode: 123, control: true)))
         XCTAssertFalse(triggers.contains(KeyCombo(keyCode: 124, control: true)))
         XCTAssertTrue(triggers.contains(KeyCombo(keyCode: 3, control: true)))      // ⌃F
         XCTAssertTrue(remaps.filter { $0.kind == .flAction }.allSatisfy { $0.actionID.map(FLActions.isKnown) == true })
-        XCTAssertEqual(remaps.filter { $0.kind == .macro }.map(\.trigger), [KeyCombo(keyCode: 15, control: true)])   // ⌃R
+        XCTAssertFalse(remaps.contains { $0.kind == .macro }, "plus de macro d'exemple dans « Mes raccourcis »")
     }
 
     func testPresetsWithRussianLayoutFallBackToQWERTYPositions() {
@@ -218,7 +218,7 @@ final class ModelTests: XCTestCase {
     func testFirstLaunchFreezesRecommendedProfile() {
         let storage = MemoryProfileStorage()
         let store = makeStore(storage)
-        XCTAssertEqual(store.remaps.count, 12)
+        XCTAssertEqual(store.remaps.count, 11)
         XCTAssertEqual(storage.writes, 1)
         XCTAssertNil(store.loadWarning)
     }
@@ -229,7 +229,7 @@ final class ModelTests: XCTestCase {
         XCTAssertEqual(storage.writes, 0)
         XCTAssertEqual(storage.backups.count, 1)
         XCTAssertNotNil(store.loadWarning)
-        XCTAssertEqual(store.remaps.count, 12)
+        XCTAssertEqual(store.remaps.count, 11)
     }
 
     func testV1ProfileIsBackedUpThenMigrated() throws {
@@ -240,7 +240,53 @@ final class ModelTests: XCTestCase {
         XCTAssertEqual(storage.writes, 1)
         let written = try ProfileCodec.decode(XCTUnwrap(storage.data))
         XCTAssertEqual(written.sourceVersion, 2)
-        XCTAssertEqual(store.remaps.last?.kind, .macro)            // macro d'exemple ajoutée une fois
+        XCTAssertFalse(store.remaps.contains { $0.kind == .macro })   // plus de macro d'exemple ajoutée
+    }
+
+    /// L'ancienne macro d'exemple (⌃R) jamais réglée quitte le profil, une seule fois ; réglée, elle reste.
+    func testUntouchedExampleMacroIsRemovedOnce() throws {
+        let example = ProfilePreset.exampleMacro(layout: FakeLayout.qwerty)
+        var quick = example
+        quick.id = UUID()
+        quick.macro?.template = .quickRecord                       // l'ancien modèle, jamais réglé
+        var learned = ProfilePreset.exampleMacro(layout: FakeLayout.qwerty)
+        learned.trigger = KeyCombo(keyCode: 15, control: true, shift: true)   // déplacée sur ⌃⇧R : gardée
+        let mixer = Remap(trigger: KeyCombo(keyCode: 21, control: true), action: 33)
+        let storage = MemoryProfileStorage(data: try ProfileCodec.encode([mixer, example, learned]))
+        let defaults = UserDefaults(suiteName: "FLShortcutTests-\(UUID())")!
+        let store = Store(storage: storage, layout: FakeLayout.qwerty, defaults: defaults, systemHotKeys: { [:] },
+                          pushToTap: false, saveDelay: 0)
+        XCTAssertEqual(store.remaps.map(\.id), [mixer.id, learned.id])
+        XCTAssertEqual(try ProfileCodec.decode(XCTUnwrap(storage.data)).remaps.count, 2, "enregistré sans elle")
+        XCTAssertTrue(Store.isUntouchedExample(quick, layout: FakeLayout.qwerty))
+        // Une seule fois : remise à la main ensuite, elle reste.
+        let again = MemoryProfileStorage(data: try ProfileCodec.encode([example]))
+        let later = Store(storage: again, layout: FakeLayout.qwerty, defaults: defaults, systemHotKeys: { [:] },
+                          pushToTap: false, saveDelay: 0)
+        XCTAssertEqual(later.remaps.map(\.id), [example.id])
+    }
+
+    /// Plus aucune note sous les blocs des macros enregistrées (imbrications comprises), une seule fois.
+    func testMacroNotesAreRemovedOnce() throws {
+        let noted = MacroDoc(name: "Notée", blocks: [
+            Block(.delay(ms: 100), note: "Attendre"),
+            Block(.repeatCount(2, [Block(.menuKey(.down, times: 1), note: "Descendre")])),
+        ])
+        let plain = MacroDoc(name: "Sans note", blocks: [Block(.delay(ms: 50))])
+        let library = MacroLibraryStore(storage: MemoryMacroLibraryStorage(data: try MacroLibraryCodec.encode([noted, plain])),
+                                        saveDelay: 0)
+        let store = Store(storage: MemoryProfileStorage(data: try ProfileCodec.encode([])), layout: FakeLayout.qwerty,
+                          defaults: UserDefaults(suiteName: "FLShortcutTests-\(UUID())")!, systemHotKeys: { [:] },
+                          pushToTap: false, saveDelay: 0, library: library)
+        let cleaned = try XCTUnwrap(store.library.doc(noted.id))
+        XCTAssertNil(cleaned.blocks[0].note)
+        XCTAssertNil(cleaned.blocks[1].body.children.first?.first?.note)
+        XCTAssertEqual(cleaned.revision, noted.revision + 1)
+        XCTAssertEqual(store.library.doc(plain.id)?.revision, plain.revision, "une macro sans note n'est pas réécrite")
+        for template in MacroTemplates.gallery(layout: FakeLayout.qwerty) {
+            let blocks = template.make(FakeLayout.qwerty).blocks
+            XCTAssertEqual(MacroTemplates.withoutNotes(blocks), blocks, "\(template.id) : aucune note")
+        }
     }
 
     func testSaveErrorIsPublished() {

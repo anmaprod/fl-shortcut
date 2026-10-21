@@ -49,6 +49,26 @@ final class CatalogTests: XCTestCase {
         XCTAssertNil(back.remap)
     }
 
+    /// « Mes raccourcis » : vide au départ ; un raccourci changé y arrive, un raccourci créé aussi, jamais une macro.
+    func testMyShortcutsListsOnlyWhatYouChangedOrCreated() throws {
+        let store = makeStore()
+        var data = store.catalogRows()
+        XCTAssertEqual(MyShortcuts.count(rows: data.rows, others: data.others), 0, "rien de changé au départ")
+        let row = try XCTUnwrap(data.rows.first { $0.entry.id == "fl.pianoRoll.p" })
+        store.setTrigger(KeyCombo(keyCode: 35, control: true), for: row)                 // ⌃P
+        let created = Remap(trigger: KeyCombo(keyCode: 5, control: true),                  // ⌃G : créé à la main
+                            sends: KeyCombo(keyCode: 111, option: true, shift: true))    // ⌥⇧F12, hors catalogue
+        store.upsert(created)
+        store.upsert(Remap(trigger: KeyCombo(keyCode: 9, control: true), macroRef: UUID()))   // ⌃V : une macro
+        data = store.catalogRows()
+        XCTAssertEqual(MyShortcuts.changed(data.rows).map(\.id), ["fl.pianoRoll.p"])
+        XCTAssertEqual(MyShortcuts.created(data.others).map(\.id), [created.id])
+        XCTAssertEqual(MyShortcuts.count(rows: data.rows, others: data.others), 2)
+        store.reset(try XCTUnwrap(data.rows.first { $0.entry.id == "fl.pianoRoll.p" }))
+        data = store.catalogRows()
+        XCTAssertTrue(MyShortcuts.changed(data.rows).isEmpty, "revenu à la touche d'origine : il repart")
+    }
+
     func testSearchWithAShortcutFindsWhatItDoesNowAndInFL() throws {
         let store = makeStore()
         let row = try XCTUnwrap(store.catalogRows().rows.first { $0.entry.id == "fl.pianoRoll.p" })

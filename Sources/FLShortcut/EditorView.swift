@@ -72,7 +72,7 @@ extension FLSection {
 /// Textes de l'en-tête de page.
 enum PageSummary {
     /// Résumé des raccourcis de « Mes raccourcis ».
-    static let custom = String(localized: "Un raccourci personnalisé lance une action ou envoie une touche de FL Studio.")
+    static let custom = String(localized: "Chaque raccourci que tu changes arrive ici, avec ceux que tu crées. Les macros ont leur page.")
 
     /// « 34 raccourcis · 3 modifiés ».
     static func count(_ count: Int, modified: Int) -> String {
@@ -104,15 +104,17 @@ struct PageContainer<Content: View>: View {
 }
 
 /// Lignes d'une carte, chacune à sa place (première, intérieure, dernière). `trailing` : lignes posées après
-/// (bouton « Nouveau… »), comptées pour arrondir la bonne. Chaque ligne s'éclaire au survol, d'un filet à l'autre.
+/// (bouton « Nouveau… »), comptées pour arrondir la bonne. Au survol, chaque ligne s'allume de la couleur de sa
+/// page (`tint`), comme une ligne du menu de la barre des menus.
 private struct CardRows<Item: Identifiable, Row: View>: View {
     let items: [Item]
+    let tint: Color
     var trailing = 0
     @ViewBuilder let row: (Item) -> Row
 
     var body: some View {
         ForEach(Array(items.enumerated()), id: \.element.id) { index, item in
-            row(item).cardRow(.position(index: index, count: items.count + trailing), hover: true)
+            row(item).cardRow(.position(index: index, count: items.count + trailing), hover: tint)
         }
     }
 }
@@ -411,7 +413,7 @@ struct EditorView: View {
                 } icon: {
                     SectionIcon(symbol: SidebarItem.custom.symbol, tint: SidebarItem.custom.tint)
                 }
-                .badge(data.others.count)
+                .badge(MyShortcuts.count(rows: data.rows, others: data.others))
                 .tag(SidebarItem.custom)
             } header: {
                 Text("Personnalisé")
@@ -458,7 +460,7 @@ struct EditorView: View {
             } else {
                 switch selection ?? .section(.general) {
                 case .section(let s): sectionList(s, rows: data.rows, mine: data.others.filter { $0.belongs(to: s) })
-                case .custom: customList(data.others)
+                case .custom: customList(data)
                 case .macros: MacroLibraryPage(library: store.library, open: { id in openCreator(id) }, toast: { show($0) })
                 case .community: CommunityPage(community: CommunityStore.shared, toast: { show($0) })
                 case .help: HelpPage(community: CommunityStore.shared, showGuide: { GuideLink.shared.show() })
@@ -530,21 +532,21 @@ struct EditorView: View {
             }
             if !natives.isEmpty {
                 Section {
-                    CardRows(items: natives) { catalogRow($0) }
+                    CardRows(items: natives, tint: section.tint) { catalogRow($0) }
                 } header: {
                     Text("Raccourcis de FL Studio")
                 }
             }
             if !extras.isEmpty {
                 Section {
-                    CardRows(items: extras) { catalogRow($0) }
+                    CardRows(items: extras, tint: section.tint) { catalogRow($0) }
                 } header: {
                     Text("Actions en plus")
                 }
             }
             if !custom.isEmpty {
                 Section {
-                    CardRows(items: custom) { customRow($0) }
+                    CardRows(items: custom, tint: section.tint) { customRow($0) }
                 } header: {
                     Text("Tes raccourcis sur cette page")
                 }
@@ -582,14 +584,14 @@ struct EditorView: View {
                 PageContainer {
                     ForEach(sections) { s in
                         Section {
-                            CardRows(items: rows.filter { $0.entry.section == s }) { catalogRow($0) }
+                            CardRows(items: rows.filter { $0.entry.section == s }, tint: s.tint) { catalogRow($0) }
                         } header: {
                             SectionHeader(symbol: s.symbol, tint: s.tint, title: s.title)
                         }
                     }
                     if !others.isEmpty {
                         Section {
-                            CardRows(items: others) { customRow($0) }
+                            CardRows(items: others, tint: SidebarItem.custom.tint) { customRow($0) }
                         } header: {
                             SectionHeader(symbol: SidebarItem.custom.symbol, tint: SidebarItem.custom.tint,
                                           title: String(localized: "Mes raccourcis"))
@@ -601,11 +603,15 @@ struct EditorView: View {
         }
     }
 
-    /// Raccourcis du profil hors catalogue (créés ou importés).
-    private func customList(_ others: [Remap]) -> some View {
-        Group {
-            if others.isEmpty {
-                EmptyState(symbol: SidebarItem.custom.symbol, title: String(localized: "Aucun raccourci personnalisé"),
+    /// « Mes raccourcis » : les raccourcis de FL que tu as changés (rangés par page), puis ceux que tu as créés ou
+    /// importés. Jamais les macros (page Macros) ni les touches de départ.
+    private func customList(_ data: CatalogData) -> some View {
+        let changed = MyShortcuts.changed(data.rows)
+        let created = MyShortcuts.created(data.others)
+        let sections = FLSection.allCases.filter { s in changed.contains { $0.entry.section == s } }
+        return Group {
+            if changed.isEmpty && created.isEmpty {
+                EmptyState(symbol: SidebarItem.custom.symbol, title: String(localized: "Aucun raccourci changé"),
                            text: PageSummary.custom,
                            actionTitle: String(localized: "Nouveau raccourci…"),
                            action: { newCustom() })
@@ -614,11 +620,18 @@ struct EditorView: View {
                     Section {
                         PageHeader(symbol: SidebarItem.custom.symbol, tint: SidebarItem.custom.tint,
                                    title: String(localized: "Mes raccourcis"), subtitle: PageSummary.custom,
-                                   detail: PageSummary.count(others.count, modified: 0))
+                                   detail: PageSummary.count(changed.count + created.count, modified: 0))
                             .cardRow(.single)
                     }
+                    ForEach(sections) { s in
+                        Section {
+                            CardRows(items: changed.filter { $0.entry.section == s }, tint: s.tint) { catalogRow($0) }
+                        } header: {
+                            SectionHeader(symbol: s.symbol, tint: s.tint, title: s.title)
+                        }
+                    }
                     Section {
-                        CardRows(items: others, trailing: 1) { customRow($0) }
+                        CardRows(items: created, tint: SidebarItem.custom.tint, trailing: 1) { customRow($0) }
                         HStack {
                             Button {
                                 newCustom()
@@ -628,7 +641,9 @@ struct EditorView: View {
                             .buttonStyle(.borderless)
                             Spacer(minLength: 0)
                         }
-                        .cardRow(.last)
+                        .cardRow(created.isEmpty ? .single : .last)
+                    } header: {
+                        if !created.isEmpty { Text("Créés par toi") }
                     }
                 }
                 .cardList()

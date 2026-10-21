@@ -258,9 +258,9 @@
 "Aucun partage pour « %@ »" = "Aucun partage pour « %@ »";
 "Aucun preset choisi" = "Aucun preset choisi";
 "Aucun raccourci" = "Aucun raccourci";
+"Aucun raccourci changé" = "Aucun raccourci changé";
 "Aucun raccourci défini." = "Aucun raccourci défini.";
 "Aucun raccourci ne correspond à « %@ »." = "Aucun raccourci ne correspond à « %@ ».";
-"Aucun raccourci personnalisé" = "Aucun raccourci personnalisé";
 "Aucun raccourci." = "Aucun raccourci.";
 "Aucun résultat" = "Aucun résultat";
 "Aucun son reçu de FL pendant l'écoute. Vérifie que FL Shortcuts a l'autorisation « Audio du système » (Réglages Système › Confidentialité et sécurité › Enregistrement de l'écran et de l'audio du système), et que les sons choisis jouent bien dans FL (Master pas coupé), puis « Réessayer »." = "Aucun son reçu de FL pendant l'écoute. Vérifie que FL Shortcuts a l'autorisation « Audio du système » (Réglages Système › Confidentialité et sécurité › Enregistrement de l'écran et de l'audio du système), et que les sons choisis jouent bien dans FL (Master pas coupé), puis « Réessayer ».";
@@ -390,6 +390,7 @@
 "Channel rack" = "Channel rack";
 "Channel rack : %lld sons regroupés et colorés, %lld renommés" = "Channel rack : %lld sons regroupés et colorés, %lld renommés";
 "Chaque macro devient un fichier .flsmacro. Les endroits appris (clics montrés dans FL) ne sont pas exportés." = "Chaque macro devient un fichier .flsmacro. Les endroits appris (clics montrés dans FL) ne sont pas exportés.";
+"Chaque raccourci que tu changes arrive ici, avec ceux que tu crées. Les macros ont leur page." = "Chaque raccourci que tu changes arrive ici, avec ceux que tu crées. Les macros ont leur page.";
 "Chaque son est rangé d'après son nom (« BEAM KICK » : Kick), sinon d'après son écoute. Clique sur Kick, 808… pour le changer : tout le projet suit (Channel rack, patterns, Mixer, Playlist)." = "Chaque son est rangé d'après son nom (« BEAM KICK » : Kick), sinon d'après son écoute. Clique sur Kick, 808… pour le changer : tout le projet suit (Channel rack, patterns, Mixer, Playlist).";
 "Chargement des partages…" = "Chargement des partages…";
 "Chargement…" = "Chargement…";
@@ -550,6 +551,7 @@
 "Créer mon compte" = "Créer mon compte";
 "Créer sa piste audio (Playlist)" = "Créer sa piste audio (Playlist)";
 "Créer un compte" = "Créer un compte";
+"Créés par toi" = "Créés par toi";
 "Cymbal" = "Cymbal";
 "D'origine" = "D'origine";
 "D'origine : " = "D'origine : ";
@@ -1710,7 +1712,6 @@
 "Un endroit ou l'entrée 1 est à montrer dans FL." = "Un endroit ou l'entrée 1 est à montrer dans FL.";
 "Un petit lien avec FL, une seule fois" = "Un petit lien avec FL, une seule fois";
 "Un problème" = "Un problème";
-"Un raccourci personnalisé lance une action ou envoie une touche de FL Studio." = "Un raccourci personnalisé lance une action ou envoie une touche de FL Studio.";
 "Un « ! » apparaît sur l'icône en haut de l'écran" = "Un « ! » apparaît sur l'icône en haut de l'écran";
 "Un « ! » sur l'icône : le clavier n'est pas autorisé. Ouvre son menu pour savoir quoi faire." = "Un « ! » sur l'icône : le clavier n'est pas autorisé. Ouvre son menu pour savoir quoi faire.";
 "Un état de piste du Mixer (.fst) dans ton dossier personnel. La boîte « Open » de FL doit être ouverte juste avant (bloc « Attendre une fenêtre »)." = "Un état de piste du Mixer (.fst) dans ton dossier personnel. La boîte « Open » de FL doit être ouverte juste avant (bloc « Attendre une fenêtre »).";
@@ -2142,7 +2143,7 @@
 "÷ (pavé)" = "÷ (pavé)";
 "⇧⌘R" = "⇧⌘R";
 "− (pavé)" = "− (pavé)";
-"⌃1…⌃5 pour les fenêtres, ⌃D/⌃F patterns, ⌃T/⌃S mute/solo, ⌃M métronome, ⌘⇧Z rétablir, ⌃R enregistrement rapide (macro). Rien n'écrase FL." = "⌃1…⌃5 pour les fenêtres, ⌃D/⌃F patterns, ⌃T/⌃S mute/solo, ⌃M métronome, ⌘⇧Z rétablir, ⌃R enregistrement rapide (macro). Rien n'écrase FL.";
+"⌃1…⌃5 pour les fenêtres, ⌃D/⌃F patterns, ⌃T/⌃S mute/solo, ⌃M métronome, ⌘⇧Z rétablir. Rien n'écrase FL." = "⌃1…⌃5 pour les fenêtres, ⌃D/⌃F patterns, ⌃T/⌃S mute/solo, ⌃M métronome, ⌘⇧Z rétablir. Rien n'écrase FL.";
 "⌃⌥⌘F" = "⌃⌥⌘F";
 "⌃⌥⌘F met en pause ou reprend, n'importe où. Une pastille le rappelle tant que c'est en pause." = "⌃⌥⌘F met en pause ou reprend, n'importe où. Une pastille le rappelle tant que c'est en pause.";
 "⌃⌥⌘F sert à mettre FL Shortcuts en pause." = "⌃⌥⌘F sert à mettre FL Shortcuts en pause.";

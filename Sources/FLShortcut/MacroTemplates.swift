@@ -190,6 +190,16 @@ extension MacroTemplates {
         return Array(all[...arm])
     }
 
+    /// Les mêmes blocs sans aucune note, imbrications comprises (notes retirées à la demande de l'utilisateur).
+    static func withoutNotes(_ blocks: [Block]) -> [Block] {
+        blocks.map { b in
+            var copy = b
+            copy.note = nil
+            copy.body = b.body.replacingChildren(b.body.children.map(withoutNotes))
+            return copy
+        }
+    }
+
     /// Copie avec des ids neufs, imbrication comprise (deux copies d'un modèle ne partagent jamais un id).
     static func freshIDs(_ blocks: [Block]) -> [Block] {
         blocks.map { b in
@@ -220,14 +230,12 @@ extension MacroTemplates {
                           summary: String(localized: "⌘S (attend le nom si le projet est neuf), puis ⌘R : la macro attend que tu choisisses le nom du fichier WAV."),
                           symbol: "waveform.badge.plus") { _ in
                 MacroDoc(name: "Enregistrer puis exporter en WAV", blocks: [
-                    Block(.key(cmd("s", 1), times: 1), note: "Enregistrer le projet"),
+                    Block(.key(cmd("s", 1), times: 1)),
                     Block(.delay(ms: 500)),
-                    Block(.waitWindowClose(.dialog, timeoutMs: MacroValidation.maxWaitMs),
-                          note: "Projet jamais enregistré : FL demande un nom"),
-                    Block(.key(cmd("r", 15), times: 1), note: "File › Export › Wave file"),
+                    Block(.waitWindowClose(.dialog, timeoutMs: MacroValidation.maxWaitMs)),     // projet neuf : son nom
+                    Block(.key(cmd("r", 15), times: 1)),                                            // File › Export › Wave file
                     Block(.waitWindow(.dialog, timeoutMs: 4_000)),
-                    Block(.waitWindowClose(.dialog, timeoutMs: MacroValidation.maxWaitMs),
-                          note: "Tu choisis le nom du fichier WAV"),
+                    Block(.waitWindowClose(.dialog, timeoutMs: MacroValidation.maxWaitMs)),     // nom du fichier WAV
                 ], origin: .template("saveExport"))
             },
             MacroTemplate(id: "purgeAudio", title: String(localized: "Supprimer les clips audio inutilisés"),
@@ -236,8 +244,7 @@ extension MacroTemplates {
                 MacroDoc(name: "Supprimer les clips audio inutilisés",
                          // Dans la barre des menus de macOS, FL met ses macros à plat dans Tools (vidéo de
                          // l'utilisateur) : pas de sous-menu « Macros » comme dans son menu TOOLS.
-                         blocks: [Block(.menuBar(titles: ["Tools", "Purge unused audio clips"]),
-                                        note: "Commande de FL (FL 2024.2 et plus : ses menus dans la barre de macOS)")],
+                         blocks: [Block(.menuBar(titles: ["Tools", "Purge unused audio clips"]))],
                          origin: .template("purgeAudio"))
             },
             MacroTemplate(id: organizeID, title: String(localized: "Organiser"),
@@ -255,15 +262,15 @@ extension MacroTemplates {
     /// puis la touche REC de FL.
     static func armThroughTrackMenu(rec: KeyRef) -> [Block] {
         [
-            Block(.click(.track(dx: 0, dy: 0), button: .right), note: "Ouvre le menu de la piste"),
+            Block(.click(.track(dx: 0, dy: 0), button: .right)),                // menu de la piste
             Block(.waitWindow(.menu, timeoutMs: 1_500)),
-            Block(.menuLetters(["s"], finalEnter: .never), note: "Select"),
+            Block(.menuLetters(["s"], finalEnter: .never)),                      // Select
             Block(.delay(ms: 200)),
             Block(.menuKey(.left, times: 1)),
-            Block(.menuKey(.down, times: 5), note: "Jusqu'à « Arm selected track(s) »"),
+            Block(.menuKey(.down, times: 5)),                                    // jusqu'à « Arm selected track(s) »
             Block(.menuKey(.enter, times: 1)),
             Block(.waitWindowClose(.menu, timeoutMs: 1_000)),
-            Block(.key(rec, times: 1), note: "Touche REC de FL"),
+            Block(.key(rec, times: 1)),                                          // touche REC de FL
         ]
     }
 

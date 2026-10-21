@@ -129,19 +129,26 @@ final class Store: ObservableObject {
                 needsSave = true
             }
         }
-        // Une seule fois : la macro d'exemple rejoint un profil existant (jamais le profil « Vide », jamais à la
-        // place d'une touche déjà prise). Ajoutée avant la publication du profil : une seule écriture.
-        if !defaults.bool(forKey: Self.exampleMacroKey) {
-            defaults.set(true, forKey: Self.exampleMacroKey)
-            let example = ProfilePreset.exampleMacro(layout: layout)
-            if !initial.isEmpty, !initial.contains(where: { $0.kind == .macro }),
-               !initial.contains(where: { $0.trigger == example.trigger }) {
-                initial.append(example)
-                needsSave = true
-            }
+        // Une seule fois : l'ancienne macro d'exemple (⌃R), jamais réglée, quitte le profil : « Mes raccourcis »
+        // ne montre que ce que tu as changé ou créé. Retirée avant la publication du profil : une seule écriture.
+        if !defaults.bool(forKey: Self.exampleMacroRemovalKey) {
+            defaults.set(true, forKey: Self.exampleMacroRemovalKey)
+            let before = initial.count
+            initial.removeAll { Self.isUntouchedExample($0, layout: layout) }
+            if initial.count != before { needsSave = true }
         }
         remaps = initial
         loadWarning = loaded.warning
+        // Une seule fois : plus aucune note sous les blocs des macros enregistrées (demande de l'utilisateur).
+        // Une macro sans note n'est pas réécrite.
+        if !defaults.bool(forKey: Self.macroNotesRemovalKey) {
+            defaults.set(true, forKey: Self.macroNotesRemovalKey)
+            for doc in self.library.macros {
+                var clean = doc
+                clean.blocks = MacroTemplates.withoutNotes(doc.blocks)
+                self.library.update(clean)
+            }
+        }
         self.library.onChange = { [weak self] in
             self?.recompute()
             self?.onDataChange?()
@@ -165,7 +172,20 @@ final class Store: ObservableObject {
 
     // MARK: Chargement
 
-    static let exampleMacroKey = "exampleMacroAdded"
+    static let exampleMacroRemovalKey = "exampleMacroRemoved"
+    static let macroNotesRemovalKey = "macroNotesRemoved"
+
+    /// L'ancienne macro d'exemple telle que livrée : sur ⌃R, rien d'appris ni de réglé (modèle automatique, ou
+    /// l'ancien « quickRecord »). Une macro que tu as réglée ou déplacée sur une autre touche reste.
+    static func isUntouchedExample(_ remap: Remap, layout: KeyboardLayout) -> Bool {
+        let example = ProfilePreset.exampleMacro(layout: layout)
+        guard remap.kind == .macro, remap.macroRef == nil, remap.trigger == example.trigger,
+              var macro = remap.macro, var reference = example.macro else { return false }
+        macro.template = .autoRecord
+        macro.recKey = nil
+        reference.recKey = nil
+        return macro == reference
+    }
     static let autoRecordMigrationKey = "autoRecordMigrated"
 
     struct LoadResult {

@@ -258,9 +258,9 @@
 "Aucun partage pour « %@ »" = "No posts for “%@”";
 "Aucun preset choisi" = "No preset chosen";
 "Aucun raccourci" = "No shortcut";
+"Aucun raccourci changé" = "No changed shortcuts";
 "Aucun raccourci défini." = "No shortcut set.";
 "Aucun raccourci ne correspond à « %@ »." = "No shortcut matches “%@”.";
-"Aucun raccourci personnalisé" = "No custom shortcuts";
 "Aucun raccourci." = "No shortcuts.";
 "Aucun résultat" = "No results";
 "Aucun son reçu de FL pendant l'écoute. Vérifie que FL Shortcuts a l'autorisation « Audio du système » (Réglages Système › Confidentialité et sécurité › Enregistrement de l'écran et de l'audio du système), et que les sons choisis jouent bien dans FL (Master pas coupé), puis « Réessayer »." = "No sound came from FL while listening. Check that FL Shortcuts has the “System Audio” permission (System Settings › Privacy & Security › Screen & System Audio Recording), and that the chosen sounds really play in FL (Master not muted), then “Try again”.";
@@ -390,6 +390,7 @@
 "Channel rack" = "Channel rack";
 "Channel rack : %lld sons regroupés et colorés, %lld renommés" = "Channel rack: %lld sounds grouped and colored, %lld renamed";
 "Chaque macro devient un fichier .flsmacro. Les endroits appris (clics montrés dans FL) ne sont pas exportés." = "Each macro becomes a .flsmacro file. Learned spots (clicks shown in FL) aren't exported.";
+"Chaque raccourci que tu changes arrive ici, avec ceux que tu crées. Les macros ont leur page." = "Every shortcut you change shows up here, along with the ones you create. Macros have their own page.";
 "Chaque son est rangé d'après son nom (« BEAM KICK » : Kick), sinon d'après son écoute. Clique sur Kick, 808… pour le changer : tout le projet suit (Channel rack, patterns, Mixer, Playlist)." = "Each sound is sorted by its name (“BEAM KICK”: Kick), otherwise by listening to it. Click Kick, 808… to change it: the whole project follows (Channel rack, patterns, Mixer, Playlist).";
 "Chargement des partages…" = "Loading posts…";
 "Chargement…" = "Loading…";
@@ -550,6 +551,7 @@
 "Créer mon compte" = "Create my account";
 "Créer sa piste audio (Playlist)" = "Create your audio track (Playlist)";
 "Créer un compte" = "Create an account";
+"Créés par toi" = "Created by you";
 "Cymbal" = "Cymbal";
 "D'origine" = "Default";
 "D'origine : " = "Default: ";
@@ -1710,7 +1712,6 @@
 "Un endroit ou l'entrée 1 est à montrer dans FL." = "A spot or input 1 needs to be shown in FL.";
 "Un petit lien avec FL, une seule fois" = "A small link with FL, just once";
 "Un problème" = "A problem";
-"Un raccourci personnalisé lance une action ou envoie une touche de FL Studio." = "A custom shortcut runs an action or sends an FL Studio key.";
 "Un « ! » apparaît sur l'icône en haut de l'écran" = "A “!” appears on the menu bar icon";
 "Un « ! » sur l'icône : le clavier n'est pas autorisé. Ouvre son menu pour savoir quoi faire." = "A “!” on the icon: keyboard access isn't allowed. Open its menu to see what to do.";
 "Un état de piste du Mixer (.fst) dans ton dossier personnel. La boîte « Open » de FL doit être ouverte juste avant (bloc « Attendre une fenêtre »)." = "A Mixer track state (.fst) in your home folder. FL's “Open” dialog must be open just before (“Wait for a window” block).";
@@ -2142,7 +2143,7 @@
 "÷ (pavé)" = "÷ (keypad)";
 "⇧⌘R" = "⇧⌘R";
 "− (pavé)" = "− (keypad)";
-"⌃1…⌃5 pour les fenêtres, ⌃D/⌃F patterns, ⌃T/⌃S mute/solo, ⌃M métronome, ⌘⇧Z rétablir, ⌃R enregistrement rapide (macro). Rien n'écrase FL." = "⌃1…⌃5 for windows, ⌃D/⌃F patterns, ⌃T/⌃S mute/solo, ⌃M metronome, ⌘⇧Z redo, ⌃R quick record (macro). Nothing overrides FL.";
+"⌃1…⌃5 pour les fenêtres, ⌃D/⌃F patterns, ⌃T/⌃S mute/solo, ⌃M métronome, ⌘⇧Z rétablir. Rien n'écrase FL." = "⌃1…⌃5 for windows, ⌃D/⌃F patterns, ⌃T/⌃S mute/solo, ⌃M metronome, ⌘⇧Z redo. Nothing overrides FL.";
 "⌃⌥⌘F" = "⌃⌥⌘F";
 "⌃⌥⌘F met en pause ou reprend, n'importe où. Une pastille le rappelle tant que c'est en pause." = "⌃⌥⌘F pauses or resumes, from anywhere. A badge reminds you while it's paused.";
 "⌃⌥⌘F sert à mettre FL Shortcuts en pause." = "⌃⌥⌘F is used to pause FL Shortcuts.";

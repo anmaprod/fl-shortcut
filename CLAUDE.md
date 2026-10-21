@@ -26,7 +26,12 @@
   - classement réglé (arpège → mélodie, drum loop → Drums, hi-hat par ses aigus) ;
   - « Organiser » : sons sans note supprimés (⌥ + Suppr de FL), Channel rack, Mixer (un bus par famille, son sur le
     Master relié à une piste libre, pistes inutiles remises à neuf), patterns et Playlist dans le même ordre (menu
-    « Move up » de chaque piste), mêmes noms partout ; « Revenir comme avant » défait tout sauf les suppressions.
+    « Move up » de chaque piste), mêmes noms partout ; « Revenir comme avant » défait tout sauf les suppressions ;
+  - IA de macOS sur une fenêtre de 1 s (son court complété) ; « Voix » seulement si l'IA entend une voix ; écoute
+    toujours au tempo d'origine (vérifié, sinon arrêt) ; règle de chaque son dans le diagnostic (`c4:melodie+ia`).
+- Interface : survol des barres (pages, Macros, palette, blocs) comme le menu de la barre des menus (`menuHover`) ;
+  « Mes raccourcis » = raccourcis changés + créés, jamais de macro (macro d'exemple ⌃R retirée) ; plus aucune note
+  sous les blocs des macros ; « Menu de FL » en tête des blocs FL Studio de la palette.
 
 ## Pas encore vérifié sur le vrai FL
 - La suppression par ⌥ + Suppr et le rangement de la Playlist par « Move up » (si ça échoue, l'app le dit).

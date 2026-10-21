@@ -546,7 +546,7 @@ enum ProfilePreset: String, CaseIterable, Identifiable {
 
     var summary: String {
         switch self {
-        case .recommended: return String(localized: "⌃1…⌃5 pour les fenêtres, ⌃D/⌃F patterns, ⌃T/⌃S mute/solo, ⌃M métronome, ⌘⇧Z rétablir, ⌃R enregistrement rapide (macro). Rien n'écrase FL.")
+        case .recommended: return String(localized: "⌃1…⌃5 pour les fenêtres, ⌃D/⌃F patterns, ⌃T/⌃S mute/solo, ⌃M métronome, ⌘⇧Z rétablir. Rien n'écrase FL.")
         case .ableton: return String(localized: "Les raccourcis d'Ableton Live font la même chose dans FL : F9 enregistre, ⌘D duplique, ⌘E découpe, ")
             + String(localized: "⌘J consolide, ⌘U quantize, ⌘R renomme, 0 coupe le son de la sélection, B dessine, O métronome, ⌘4 ")
             + String(localized: "magnétisme, ⌘+/⌘− et Z zooment, ⌘⌥B Browser, ⌘⌥M Mixer, ⇧⇥ Piano Roll, ⌘Z annule pas à pas. ")
@@ -559,7 +559,8 @@ enum ProfilePreset: String, CaseIterable, Identifiable {
         }
     }
 
-    /// Macro livrée en exemple : « Enregistrement rapide » sur ⌃R (positions à apprendre dans sa fiche).
+    /// Ancienne macro livrée en exemple : « Enregistrement rapide » sur ⌃R. Plus dans aucun profil : elle sert
+    /// seulement à la retirer des profils où elle n'a jamais été réglée (Store).
     static func exampleMacro(layout: KeyboardLayout) -> Remap {
         var macro = Macro()
         macro.recKey = AppMode.nativeEquivalent(of: 3, layout: layout)
@@ -600,7 +601,6 @@ enum ProfilePreset: String, CaseIterable, Identifiable {
                 Remap(trigger: KeyCombo(keyCode: key("s", 1), control: true), action: 22),   // solo
                 Remap(trigger: KeyCombo(keyCode: key("m", 46), control: true), action: 4),   // métronome
                 redo,
-                Self.exampleMacro(layout: layout),
             ]
             return list
         case .ableton:
