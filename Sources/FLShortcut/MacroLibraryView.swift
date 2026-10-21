@@ -55,7 +55,7 @@ struct MacroLibraryPage: View {
                     }
                     Section {
                         ForEach(Array(library.macros.enumerated()), id: \.element.id) { index, doc in
-                            row(doc).cardRow(.position(index: index, count: library.macros.count), hover: .purple)
+                            row(doc).cardRow(.position(index: index, count: library.macros.count), hover: true)
                         }
                     } header: {
                         Text("Mes macros")

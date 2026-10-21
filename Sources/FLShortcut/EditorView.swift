@@ -104,17 +104,15 @@ struct PageContainer<Content: View>: View {
 }
 
 /// Lignes d'une carte, chacune à sa place (première, intérieure, dernière). `trailing` : lignes posées après
-/// (bouton « Nouveau… »), comptées pour arrondir la bonne. Au survol, chaque ligne s'allume de la couleur de sa
-/// page (`tint`), comme une ligne du menu de la barre des menus.
+/// (bouton « Nouveau… »), comptées pour arrondir la bonne. Chaque ligne s'éclaire au survol, d'un filet à l'autre.
 private struct CardRows<Item: Identifiable, Row: View>: View {
     let items: [Item]
-    let tint: Color
     var trailing = 0
     @ViewBuilder let row: (Item) -> Row
 
     var body: some View {
         ForEach(Array(items.enumerated()), id: \.element.id) { index, item in
-            row(item).cardRow(.position(index: index, count: items.count + trailing), hover: tint)
+            row(item).cardRow(.position(index: index, count: items.count + trailing), hover: true)
         }
     }
 }
@@ -532,21 +530,21 @@ struct EditorView: View {
             }
             if !natives.isEmpty {
                 Section {
-                    CardRows(items: natives, tint: section.tint) { catalogRow($0) }
+                    CardRows(items: natives) { catalogRow($0) }
                 } header: {
                     Text("Raccourcis de FL Studio")
                 }
             }
             if !extras.isEmpty {
                 Section {
-                    CardRows(items: extras, tint: section.tint) { catalogRow($0) }
+                    CardRows(items: extras) { catalogRow($0) }
                 } header: {
                     Text("Actions en plus")
                 }
             }
             if !custom.isEmpty {
                 Section {
-                    CardRows(items: custom, tint: section.tint) { customRow($0) }
+                    CardRows(items: custom) { customRow($0) }
                 } header: {
                     Text("Tes raccourcis sur cette page")
                 }
@@ -584,14 +582,14 @@ struct EditorView: View {
                 PageContainer {
                     ForEach(sections) { s in
                         Section {
-                            CardRows(items: rows.filter { $0.entry.section == s }, tint: s.tint) { catalogRow($0) }
+                            CardRows(items: rows.filter { $0.entry.section == s }) { catalogRow($0) }
                         } header: {
                             SectionHeader(symbol: s.symbol, tint: s.tint, title: s.title)
                         }
                     }
                     if !others.isEmpty {
                         Section {
-                            CardRows(items: others, tint: SidebarItem.custom.tint) { customRow($0) }
+                            CardRows(items: others) { customRow($0) }
                         } header: {
                             SectionHeader(symbol: SidebarItem.custom.symbol, tint: SidebarItem.custom.tint,
                                           title: String(localized: "Mes raccourcis"))
@@ -625,13 +623,13 @@ struct EditorView: View {
                     }
                     ForEach(sections) { s in
                         Section {
-                            CardRows(items: changed.filter { $0.entry.section == s }, tint: s.tint) { catalogRow($0) }
+                            CardRows(items: changed.filter { $0.entry.section == s }) { catalogRow($0) }
                         } header: {
                             SectionHeader(symbol: s.symbol, tint: s.tint, title: s.title)
                         }
                     }
                     Section {
-                        CardRows(items: created, tint: SidebarItem.custom.tint, trailing: 1) { customRow($0) }
+                        CardRows(items: created, trailing: 1) { customRow($0) }
                         HStack {
                             Button {
                                 newCustom()

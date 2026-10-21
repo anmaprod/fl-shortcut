@@ -45,10 +45,10 @@ extension View {
         modifier(MotionModifier(animation: animation, value: value))
     }
 
-    /// Survol du menu de la barre des menus : contour arrondi qui s'allume de la couleur de l'élément, fond léger,
-    /// l'élément grandit un peu avec une ombre de sa couleur (ressort). Seul l'élément survolé est redessiné.
-    func menuHover(tint: Color, cornerRadius: CGFloat = 10) -> some View {
-        modifier(MenuHover(tint: tint, cornerRadius: cornerRadius))
+    /// Survol : l'élément se soulève un peu (fond, légère montée en taille, ombre douce) avec un ressort, comme dans
+    /// les apps d'Apple. Seul l'élément survolé est redessiné ; rien ne tourne au repos.
+    func hoverLift(cornerRadius: CGFloat = 8) -> some View {
+        modifier(HoverLift(cornerRadius: cornerRadius))
     }
 }
 
@@ -192,35 +192,21 @@ extension Motion {
     static let lift = Animation.spring(response: 0.28, dampingFraction: 0.72)
 }
 
-struct MenuHover: ViewModifier {
-    let tint: Color
+private struct HoverLift: ViewModifier {
     let cornerRadius: CGFloat
     @State private var hovered = false
-    @State private var width: CGFloat = 0
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
-    /// Taille au survol : ×1,03 comme les lignes du menu, mais jamais plus de 9 points de large en plus (une
-    /// longue barre de page grandit d'autant qu'une ligne du menu, sans déborder de sa carte).
-    static func scale(width: CGFloat) -> CGFloat {
-        guard width > 0 else { return 1.03 }
-        return min(1.03, 1 + 9 / width)
-    }
-
     func body(content: Content) -> some View {
-        let shape = RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
         content
             .background {
                 // Exactement aux bords de l'élément (jamais au-delà de son contour).
-                shape.fill(Color.primary.opacity(hovered ? 0.085 : 0))
-                    .overlay(shape.strokeBorder(tint.opacity(hovered ? 0.6 : 0), lineWidth: hovered ? 1.5 : 1))
-                    .background(GeometryReader { geo in
-                        Color.clear
-                            .onAppear { width = geo.size.width }
-                            .onChange(of: geo.size.width) { width = $0 }
-                    })
+                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                    .fill(Color.primary.opacity(hovered ? 0.06 : 0))
+                    .shadow(color: .black.opacity(hovered && !reduceMotion ? 0.12 : 0), radius: hovered ? 8 : 0,
+                            y: hovered ? 3 : 0)
             }
-            .scaleEffect(hovered && !reduceMotion ? Self.scale(width: width) : 1)
-            .shadow(color: tint.opacity(hovered ? 0.3 : 0), radius: hovered ? 10 : 0, y: hovered ? 4 : 0)
+            .scaleEffect(hovered && !reduceMotion ? 1.015 : 1)
             .onHover { inside in
                 withAnimation(reduceMotion ? Motion.reduced : Motion.lift) { hovered = inside }
             }
@@ -755,9 +741,8 @@ enum CardRowPosition: Equatable {
 
 extension View {
     /// Ligne d'une page en cartes : fond arrondi selon sa place dans la section, sans séparateur de la liste.
-    /// `hover` : au survol, la ligne entière s'allume comme une ligne du menu de la barre des menus (contour de
-    /// cette couleur, d'un filet à l'autre et toute la largeur de la carte).
-    func cardRow(_ position: CardRowPosition, hover: Color? = nil) -> some View {
+    /// `hover` : la ligne entière s'éclaire au survol, d'un filet à l'autre (toute la largeur de la carte).
+    func cardRow(_ position: CardRowPosition, hover: Bool = false) -> some View {
         modifier(CardRowModifier(position: position, hover: hover))
     }
 }
@@ -766,7 +751,8 @@ extension View {
 /// jusqu'aux filets qui la séparent de ses voisines.
 private struct CardRowModifier: ViewModifier {
     let position: CardRowPosition
-    let hover: Color?
+    let hover: Bool
+    @State private var hovered = false
 
     func body(content: Content) -> some View {
         let gap = CardRowBackground.gap
@@ -775,10 +761,10 @@ private struct CardRowModifier: ViewModifier {
             .padding(.horizontal, 12)
             .frame(maxWidth: .infinity, alignment: .leading)
         return Group {
-            if let hover {
+            if hover {
                 row
                     .contentShape(Rectangle())
-                    .menuHover(tint: hover)
+                    .onHover { inside in withAnimation(.easeOut(duration: 0.18)) { hovered = inside } }
             } else {
                 row
             }
@@ -786,20 +772,22 @@ private struct CardRowModifier: ViewModifier {
         .listRowInsets(EdgeInsets(top: position.roundsTop ? gap : 0, leading: CardRowBackground.inset,
                                   bottom: position.roundsBottom ? gap : 0, trailing: CardRowBackground.inset))
         .listRowSeparator(.hidden)
-        .listRowBackground(CardRowBackground(position: position))
+        .listRowBackground(CardRowBackground(position: position, hovered: hover && hovered))
     }
 }
 
 /// Fond d'une ligne de carte : rectangle arrondi seulement aux bouts de la carte, filet sous les lignes intérieures.
-/// Carte grise sur le fond de la page, comme le Form groupé (verre ou non).
+/// Carte grise sur le fond de la page, comme le Form groupé (verre ou non) ; un peu plus claire au survol.
 struct CardRowBackground: View {
     static let inset: CGFloat = 10                       // marge de la carte dans la liste
     static let gap: CGFloat = 4                          // espace au-dessus et au-dessous d'une carte
     let position: CardRowPosition
+    var hovered = false
     @Environment(\.colorScheme) private var scheme
 
     private var fill: Color {
-        scheme == .dark ? Color.white.opacity(0.07) : Color.black.opacity(0.045)
+        if scheme == .dark { return Color.white.opacity(hovered ? 0.12 : 0.07) }
+        return Color.black.opacity(hovered ? 0.08 : 0.045)
     }
 
     var body: some View {

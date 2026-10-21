@@ -67,7 +67,7 @@ struct MacroPaletteView: View {
                 .accessibilityHint("Pas encore disponible")
         } else {
             label(item)
-                .menuHover(tint: item.category.tint, cornerRadius: 8)
+                .hoverLift()
                 .onTapGesture { insert(item) }
                 .onDrag { PaletteDrag.provider(item) } preview: { PaletteDragPreview(item: item) }
                 .help(String(localized: "\(item.aide) Clique pour l'ajouter, ou glisse-le à sa place dans la liste."))
@@ -89,8 +89,6 @@ struct MacroPaletteView: View {
                     .foregroundStyle(.secondary)
             }
         }
-        .padding(.horizontal, 4)                         // le contour du survol ne colle pas à l'icône
-        .padding(.vertical, 2)
         .contentShape(Rectangle())
     }
 }

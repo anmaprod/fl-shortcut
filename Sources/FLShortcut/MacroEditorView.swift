@@ -358,7 +358,7 @@ private struct RecordHero: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .menuHover(tint: .red)
+        .hoverLift(cornerRadius: 10)
         .keyboardShortcut("r", modifiers: [.command, .shift])
         .disabled(recorder.active)
         .help("FL passe devant : clique et tape dans l'ordre (menus, Options › Audio, boutons de ses fenêtres, flèches, raccourcis…), puis « Terminer ». Chaque clic et chaque touche devient un bloc, ajouté sous la ligne choisie.")
@@ -465,7 +465,6 @@ private struct MacroStepRowView: View, Equatable {
         .padding(.vertical, 3)
         .opacity(row.enabled ? 1 : 0.45)
         .background(stateBackground)
-        .menuHover(tint: tint, cornerRadius: 8)
         .accessibilityElement(children: .combine)
         .accessibilityLabel(accessibilityText)
     }

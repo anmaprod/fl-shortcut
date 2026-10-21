@@ -32,7 +32,8 @@
   - Playlist, un son par piste : un pattern qui partage sa piste avec un autre (sûr : ses sons nulle part ailleurs)
     est ouvert par le script (op 26), ses clips sélectionnés (⌘D, ⇧C) et descendus sur une piste vide (⇧↓), vérifié
     à l'écoute piste seule, sinon remonté ; puis les pistes rangées par famille (« Move up »).
-- Interface : survol des barres (pages, Macros, palette, blocs) comme le menu de la barre des menus (`menuHover`) ;
+- Interface : aspect remis comme le matin du 21/10 à la demande du propriétaire (survol discret `hoverLift` et
+  lignes qui s'éclaircissent ; NE PAS remettre le survol coloré `menuHover` qui grandit) ;
   « Mes raccourcis » = raccourcis changés + créés, jamais de macro (macro d'exemple ⌃R retirée) ; plus aucune note
   sous les blocs des macros ; « Menu de FL » en tête des blocs FL Studio de la palette ; recherche qui lâche la main
   au premier clic ailleurs ; « Cliquer sur… » › Playlist : tout le menu « Arrangement » (bouton retrouvé à son nom).
