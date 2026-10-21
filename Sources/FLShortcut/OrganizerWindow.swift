@@ -599,7 +599,7 @@ final class OrganizerController: ObservableObject {
                 out.append(("arrow.triangle.branch", String(localized: "\(plan.mixer.links.count) sons envoyés au Master reliés chacun à une piste libre du Mixer")))
             }
             if !plan.mixer.resets.isEmpty {
-                out.append(("eraser", String(localized: "\(plan.mixer.resets.count) pistes du Mixer des sons supprimés remises comme neuves")))
+                out.append(("eraser", String(localized: "\(plan.mixer.resets.count) pistes du Mixer sans son remises comme neuves (nom et couleur de FL)")))
             }
         }
         if plan.deleted.isEmpty, let unused = result?.unused.count, unused > 0 {

@@ -423,6 +423,7 @@ final class OrganizerApplyTests: XCTestCase {
             case 0: return MixerTrackInfo(index: 0, color: gray, name: "Master")
             case 2: return MixerTrackInfo(index: 2, color: black, name: "Serum 2")
             case 4: return MixerTrackInfo(index: 4, color: black, name: "KiCK - BREW")
+            case 9: return MixerTrackInfo(index: 9, color: black, name: "Serum 2")      // aucun son, aucun envoi
             default: return MixerTrackInfo(index: i, color: gray, name: "Insert \(i)")
             }
         }
@@ -445,7 +446,7 @@ final class OrganizerApplyTests: XCTestCase {
         let preview = plan(result)
         XCTAssertEqual(preview.deleted, [1, 3])
         XCTAssertEqual(preview.mixer.links, [4: 5], "la première piste libre")
-        XCTAssertEqual(preview.mixer.resets, [2, 4])
+        XCTAssertEqual(preview.mixer.resets, [2, 4, 9], "aussi la piste nommée sans aucun son ni envoi")
 
         let outcome = applier(link).apply(preview, result: result, styles: FamilyStyles.initial)
         XCTAssertNil(outcome.error)
@@ -461,6 +462,7 @@ final class OrganizerApplyTests: XCTestCase {
         XCTAssertEqual(link.mixer[6].color, gray, "couleur des pistes jamais touchées")
         XCTAssertEqual(link.mixer[7].color, gray)
         XCTAssertTrue(link.mixer[6].hasDefaultName)
+        XCTAssertEqual([link.mixer[9].name, link.mixer[9].color.hex], ["", gray.hex])
 
         // « Revenir comme avant » : tout sauf les sons supprimés.
         XCTAssertNil(applier(link).undo(outcome.snapshot).error)
@@ -468,6 +470,7 @@ final class OrganizerApplyTests: XCTestCase {
         XCTAssertEqual(link.channels.map(\.mixerTrack), [1, 3, 0])
         XCTAssertEqual(Array(link.mixer.map(\.name).prefix(5)), ["Master", "Insert 1", "Serum 2", "Insert 3", "KiCK - BREW"])
         XCTAssertEqual(link.mixer[2].color, RGBColor(r: 0, g: 0, b: 0))
+        XCTAssertEqual(link.mixer[9].name, "Serum 2")
     }
 
     /// FL ne supprime rien (raccourci sans effet) : les sons restent sélectionnés, le reste est fait sans les toucher.

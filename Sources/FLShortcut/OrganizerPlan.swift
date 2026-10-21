@@ -139,7 +139,8 @@ struct OrganizerPlan: Equatable {
         // Mixer : même ordre que le Channel rack.
         if options.mixer {
             plan.mixer = mixerArea(result, verdict: verdict, rackPlace: rackPlace, channelNames: channelNames,
-                                   styles: styles, rename: options.rename, buses: options.buses, deleted: deleted)
+                                   styles: styles, rename: options.rename, buses: options.buses, deleted: deleted,
+                                   cleanup: options.deleteUnused)
         }
 
         // Playlist : chaque piste prend ce que jouent ses sons (ou ce qu'elle fait entendre, pour un clip audio),
@@ -182,15 +183,16 @@ struct OrganizerPlan: Equatable {
     /// rien supprimer de plus.
     func replanned(_ result: OrganizerResult, map: [Int: Int], styles: [SoundFamily: FamilyStyle]) -> OrganizerPlan {
         guard let source else { return self }
-        var options = source.options
-        options.deleteUnused = false
+        // Rien de plus à supprimer : ni les sons supprimés (déjà partis), ni ceux que FL n'a pas supprimés.
+        var rest = result
+        rest.unused = []
         func moved<T>(_ values: [Int: T]) -> [Int: T] {
             var out: [Int: T] = [:]
             for (index, value) in values { if let now = map[index] { out[now] = value } }
             return out
         }
-        return Self.make(result, families: moved(source.families), kinds: moved(source.kinds), styles: styles,
-                         options: options)
+        return Self.make(rest, families: moved(source.families), kinds: moved(source.kinds), styles: styles,
+                         options: source.options)
     }
 
     /// Pistes de la Playlist lues, dans l'ordre du Channel rack : familles dans leur ordre, puis sortes ; à égalité,
@@ -241,11 +243,13 @@ struct OrganizerPlan: Equatable {
     /// famille juste après ses pistes (une piste sans son qui reçoit déjà surtout de cette famille, sinon une piste
     /// libre), chaque piste envoyée seulement à son bus, le bus au Master ; « À vérifier » : sans bus. Sans : les
     /// pistes reliées par un envoi côte à côte, celle qui reçoit après celles qui lui envoient. Les autres pistes
-    /// suivent, dans leur ordre ; celles des sons supprimés sont remises comme neuves (nom et couleur de FL). Une
-    /// piste avec un seul son prend le nom de ce son ; un bus « <famille> Bus », s'il a encore le nom de FL.
+    /// suivent, dans leur ordre ; avec `cleanup`, celles des sons supprimés et celles qui ont un nom sans aucun son
+    /// relié ni envoi reçu (retour de l'utilisateur : deux pistes « en trop », en noir) sont remises comme neuves (nom
+    /// et couleur de FL ; leurs effets restent). Une piste avec un seul son prend le nom de ce son ; un bus
+    /// « <famille> Bus », s'il a encore le nom de FL.
     private static func mixerArea(_ result: OrganizerResult, verdict: (Int) -> Verdict?, rackPlace: [Int: Int],
                                   channelNames: [Int: String], styles: [SoundFamily: FamilyStyle],
-                                  rename: Bool, buses: Bool, deleted: Set<Int>) -> Area {
+                                  rename: Bool, buses: Bool, deleted: Set<Int>, cleanup: Bool) -> Area {
         let last = result.mixer.count - 2                         // la dernière piste est « Current »
         guard last >= 1 else { return Area() }
         var out = Area()
@@ -294,8 +298,12 @@ struct OrganizerPlan: Equatable {
                 layout = groupedLayout(linked: linked, sources: sources, key: &key, out: &out)
             }
         }
-        // Pistes des sons supprimés pas reprises : comme neuves (nom de FL, couleur des pistes jamais touchées).
-        out.resets = freed.subtracting(layout).subtracting(out.links.values)
+        // Pistes des sons supprimés pas reprises, et pistes nommées sans aucun son ni envoi reçu : comme neuves (nom
+        // de FL, couleur des pistes jamais touchées).
+        let idle = cleanup ? Set(result.mixer.filter { t in
+            (1...last).contains(t.index) && !t.hasDefaultName && !everUsed.contains(t.index) && sources[t.index] == nil
+        }.map(\.index)) : []
+        out.resets = freed.union(idle).subtracting(layout).subtracting(out.links.values)
         let relevant = Set(layout)
         if let span = relevant.max() {
             let current = Array(1...span)

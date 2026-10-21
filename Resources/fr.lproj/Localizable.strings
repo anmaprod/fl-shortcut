@@ -70,7 +70,7 @@
 "%lld ms" = "%lld ms";
 "%lld partages" = "%lld partages";
 "%lld partages trouvés" = "%lld partages trouvés";
-"%lld pistes du Mixer des sons supprimés remises comme neuves" = "%lld pistes du Mixer des sons supprimés remises comme neuves";
+"%lld pistes du Mixer sans son remises comme neuves (nom et couleur de FL)" = "%lld pistes du Mixer sans son remises comme neuves (nom et couleur de FL)";
 "%lld raccourci%@ · %lld macro%@" = "%lld raccourci%@ · %lld macro%@";
 "%lld raccourci(s) avec une action inconnue, désactivé(s)." = "%lld raccourci(s) avec une action inconnue, désactivé(s).";
 "%lld raccourci(s) illisible(s) ignoré(s)." = "%lld raccourci(s) illisible(s) ignoré(s).";
