@@ -258,7 +258,7 @@ final class AccountBackupTests: XCTestCase {
         await b.signIn()
         await wait("choix demandé") { b.backup.conflict != nil }
         XCTAssertEqual(b.backup.status, .choice)
-        XCTAssertEqual(b.backup.conflict?.here, "12 raccourcis · 1 macro")
+        XCTAssertEqual(b.backup.conflict?.here, "11 raccourcis · 1 macro")
         XCTAssertEqual(server.saves.count, 1, "rien envoyé avant le choix")
         XCTAssertEqual(b.macroNames, ["De ce Mac"], "rien remplacé avant le choix")
         await b.backup.resolve(keepAccount: true)

@@ -443,8 +443,21 @@ enum KeySearch {
 /// ont leur page) ni les touches de départ.
 enum MyShortcuts {
     static func changed(_ rows: [CatalogRow]) -> [CatalogRow] { rows.filter { !$0.isDefault } }
-    static func created(_ others: [Remap]) -> [Remap] { others.filter { $0.kind != .macro } }
-    static func count(rows: [CatalogRow], others: [Remap]) -> Int { changed(rows).count + created(others).count }
+
+    /// `starters` : les raccourcis de départ (profil Recommandé), jamais comptés comme créés, même sans ligne dans les
+    /// pages de FL (sans le lien avec FL, certaines actions n'y sont pas).
+    static func created(_ others: [Remap], starters: [Remap]) -> [Remap] {
+        others.filter { r in r.kind != .macro && !starters.contains { same($0, r) } }
+    }
+
+    static func count(rows: [CatalogRow], others: [Remap], starters: [Remap]) -> Int {
+        changed(rows).count + created(others, starters: starters).count
+    }
+
+    private static func same(_ a: Remap, _ b: Remap) -> Bool {
+        a.kind == b.kind && a.actionID == b.actionID && a.trigger == b.trigger && a.target == b.target
+            && a.context == b.context
+    }
 }
 
 /// Ce qui utilise déjà une touche : un de tes raccourcis, ou une touche d'origine de FL.

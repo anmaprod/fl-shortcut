@@ -413,7 +413,7 @@ struct EditorView: View {
                 } icon: {
                     SectionIcon(symbol: SidebarItem.custom.symbol, tint: SidebarItem.custom.tint)
                 }
-                .badge(MyShortcuts.count(rows: data.rows, others: data.others))
+                .badge(MyShortcuts.count(rows: data.rows, others: data.others, starters: store.freshRemaps()))
                 .tag(SidebarItem.custom)
             } header: {
                 Text("Personnalisé")
@@ -607,7 +607,7 @@ struct EditorView: View {
     /// importés. Jamais les macros (page Macros) ni les touches de départ.
     private func customList(_ data: CatalogData) -> some View {
         let changed = MyShortcuts.changed(data.rows)
-        let created = MyShortcuts.created(data.others)
+        let created = MyShortcuts.created(data.others, starters: store.freshRemaps())
         let sections = FLSection.allCases.filter { s in changed.contains { $0.entry.section == s } }
         return Group {
             if changed.isEmpty && created.isEmpty {
