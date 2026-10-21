@@ -216,7 +216,7 @@ enum OrganizerPayload {
     static let maxCommandBytes = FLProtocol.maxDataUnits * 7 / 8
 
     /// Une commande par paquet de 16 noms au plus, et qui tient dans une trame ; un nom vide n'est pas envoyé, sauf
-    /// pour une piste du Mixer ou de la Playlist : FL lui remet son nom (« Insert 3 » ; script v14).
+    /// pour une piste du Mixer : FL lui remet son nom (« Insert 3 » ; script v14 : piste d'un son supprimé).
     static func setNames(_ kind: ItemKind, _ names: [(index: Int, name: String)]) -> [[UInt8]] {
         var out: [[UInt8]] = []
         var entries: [[UInt8]] = []
@@ -226,7 +226,7 @@ enum OrganizerPayload {
             entries = []
         }
         for item in names {
-            let reset = item.name.isEmpty && (kind == .mixer || kind == .playlist)
+            let reset = item.name.isEmpty && kind == .mixer
             guard let bytes = nameUTF8(item.name) ?? (reset ? [] : nil) else { continue }
             let entry = be16(item.index) + [UInt8(bytes.count)] + bytes
             if entries.count == maxNames || 3 + entries.reduce(0, { $0 + $1.count }) + entry.count > maxCommandBytes {
