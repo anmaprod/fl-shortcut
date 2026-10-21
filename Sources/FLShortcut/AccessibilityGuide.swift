@@ -77,6 +77,9 @@ final class AccessibilityGuide: ObservableObject {
         }
     }
 
+    /// Panneau affiché (noté pour la reprise après « Quitter et rouvrir »).
+    var isShowing: Bool { panel != nil }
+
     func close() {
         timer?.invalidate()
         timer = nil

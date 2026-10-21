@@ -77,15 +77,32 @@ enum AppStatusColor {
 }
 
 enum SingleInstance {
+    /// Noté par une copie qui se ferme. « Quitter et rouvrir » de macOS relance l'app pendant que l'ancienne copie
+    /// finit de se fermer : la nouvelle la voyait encore et partait aussitôt, rien ne se rouvrait (retour du
+    /// propriétaire). Elle attend maintenant que l'ancienne soit partie.
+    static let quittingKey = "quittingPID"
+
     static func enforce() {
         let me = NSRunningApplication.current
         let id = Bundle.main.bundleIdentifier ?? "app.flshortcut.FLShortcut"
         let others = NSRunningApplication.runningApplications(withBundleIdentifier: id)
             .filter { $0.processIdentifier != me.processIdentifier && !$0.isTerminated }
-        if let first = others.first {
-            first.activate(options: [])
-            exit(0)
-        }
+        guard let first = others.first else { return }
+        // Copie qui se ferme (notée) : jusqu'à 10 s ; sinon un court instant, au cas où la note n'est pas encore lue.
+        let quitting = UserDefaults.standard.integer(forKey: quittingKey) == Int(first.processIdentifier)
+        if waitForExit(first.processIdentifier, timeout: quitting ? 10 : 1.5) { return }
+        first.activate(options: [])
+        exit(0)
+    }
+
+    /// Vrai dès que le processus `pid` n'existe plus ; faux s'il est toujours là au bout de `timeout` secondes.
+    static func waitForExit(_ pid: pid_t, timeout: TimeInterval) -> Bool {
+        let end = Date().addingTimeInterval(timeout)
+        repeat {
+            if kill(pid, 0) != 0 && errno == ESRCH { return true }
+            usleep(100_000)
+        } while Date() < end
+        return false
     }
 }
 
@@ -102,18 +119,41 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // Accueil (autorisations, puis le guide) : au premier lancement, et de nouveau quand le clavier n'est plus
         // autorisé. Une nouvelle version de l'app est une autre app pour macOS, ses autorisations sont à redonner
         // (retour de l'utilisateur : ni page d'accès ni guide après une mise à jour). Jamais en mode capture (CI).
-        if !UserDefaults.standard.bool(forKey: "didOnboard") || (!AXIsProcessTrusted() && !DebugSnapshot.enabled) {
+        // Relancée par « Quitter et rouvrir » (ou juste après avoir quitté) : ce qui était ouvert revient (AppResume).
+        let resume = DebugSnapshot.enabled ? nil : AppResume.shared.load()
+        let onboarding = !UserDefaults.standard.bool(forKey: "didOnboard") || (!AXIsProcessTrusted() && !DebugSnapshot.enabled)
+        if onboarding || resume?.onboarding != nil {
             DispatchQueue.main.async { AppDelegate.onboard() }
         }
+        if let resume {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { AppDelegate.reopen(resume, onboarding: onboarding) }
+        }
+    }
+
+    /// Rouvre ce qui l'était avant de quitter. Pendant l'accueil, la fenêtre principale attend sa fin (elle s'ouvre
+    /// alors, sur la page et la macro d'avant).
+    private static func reopen(_ resume: ResumeState, onboarding: Bool) {
+        if resume.permissions { AccessibilityGuide.start() }
+        if resume.editor && !onboarding && resume.onboarding == nil {
+            NotificationCenter.default.post(name: AccountLink.openEditor, object: nil)
+        }
+        if resume.organizer { OrganizerWindow.open() }
     }
 
     /// Après la désinstallation, quitter (⌘Q, fermeture de session…) ne doit rien réécrire : sortie directe.
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
         if Uninstaller.didUninstall { Uninstaller.quitAfterUninstall() }
+        // Une copie relancée (« Quitter et rouvrir ») attend celle-ci au lieu de partir (SingleInstance).
+        UserDefaults.standard.set(Int(getpid()), forKey: SingleInstance.quittingKey)
         return .terminateNow
     }
 
     func applicationWillTerminate(_ notification: Notification) {
+        // Ce qui est ouvert (et la macro en cours, enregistrée), pour reprendre là si l'app est rouverte aussitôt.
+        if !DebugSnapshot.enabled {
+            AppResume.shared.saveOnQuit(permissions: AccessibilityGuide.shared.isShowing,
+                                        organizer: OrganizerWindow.controller != nil)
+        }
         Store.shared.saveNow()
         Store.shared.library.saveNow()
         EventTap.shared.stop()

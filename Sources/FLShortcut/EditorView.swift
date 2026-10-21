@@ -69,6 +69,37 @@ extension FLSection {
     }
 }
 
+extension SidebarItem {
+    /// Nom de la page noté pour la reprise après « Quitter et rouvrir » (AppResume) : « section:mixer », « macros »…
+    var resumeKey: String {
+        switch self {
+        case .section(let s): return "section:" + s.rawValue
+        case .custom: return "custom"
+        case .macros: return "macros"
+        case .community: return "community"
+        case .help: return "help"
+        case .account: return "account"
+        }
+    }
+
+    init?(resumeKey key: String) {
+        let prefix = "section:"
+        if key.hasPrefix(prefix) {
+            guard let s = FLSection(rawValue: String(key.dropFirst(prefix.count))) else { return nil }
+            self = .section(s)
+            return
+        }
+        switch key {
+        case "custom": self = .custom
+        case "macros": self = .macros
+        case "community": self = .community
+        case "help": self = .help
+        case "account": self = .account
+        default: return nil
+        }
+    }
+}
+
 /// Textes de l'en-tête de page.
 enum PageSummary {
     /// Résumé des raccourcis de « Mes raccourcis ».
@@ -194,10 +225,15 @@ struct EditorView: View {
         .onChange(of: creatorLink.closeSerial) { _ in closeCreator() }
         // Fenêtre fermée pendant le créateur : brouillon enregistré, modèle lâché (rien ne reste en mémoire).
         .onDisappear { closeCreator() }
+        // Reprise après « Quitter et rouvrir » : la fenêtre, sa page et la macro ouverte sont notées à la fermeture.
+        .background(WindowReader { AppResume.shared.editorWindow = $0 })
+        .onChange(of: selection) { AppResume.shared.page = $0 }
         .sheet(isPresented: $showGuide, onDismiss: { guideSeen = true }) {
             GuideSheet(initialPage: guidePage) { showGuide = false }
         }
         .onAppear {
+            resumeIfAsked()
+            AppResume.shared.page = selection
             showGuideIfNeeded()
             showHelpIfAsked()
             showMacrosIfAsked()
@@ -226,6 +262,16 @@ struct EditorView: View {
             } else {
                 showGuide = false
             }
+        }
+    }
+
+    /// Relancée par « Quitter et rouvrir » (ou juste après avoir quitté) : la page et la macro d'avant reviennent.
+    private func resumeIfAsked() {
+        guard let resume = AppResume.shared.takeEditor() else { return }
+        if let page = resume.page { selection = page }
+        if let id = resume.macro, store.library.doc(id) != nil {
+            MacroCreatorLink.shared.open(id, isNew: resume.isNew)
+            if macroEditor == nil { enterCreator() }
         }
     }
 
@@ -274,6 +320,7 @@ struct EditorView: View {
         editor.handle(creatorLink.request)
         _ = editor.paletteItems
         macroEditor = editor
+        AppResume.shared.creator = editor
     }
 
     /// Flèche ← : macro neuve → l'enregistrer ou la supprimer ; macro modifiée → enregistrer ou annuler les
@@ -319,6 +366,7 @@ struct EditorView: View {
         MacroCreatorLink.shared.lastClosedID = id.flatMap { id in store.library.macros.contains { $0.id == id } ? id : nil }
         CreatorPresence.detach()
         macroEditor = nil
+        AppResume.shared.creator = nil
         selection = .macros
         CreatorPresence.releaseMemory()
     }

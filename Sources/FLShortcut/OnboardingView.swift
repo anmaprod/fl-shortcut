@@ -46,6 +46,7 @@ final class OnboardingWindow {
                                                                object: w, queue: .main) { [weak self, weak w] _ in
             DispatchQueue.main.async {
                 guard let self, let w else { return }
+                AppResume.shared.onboardingStage = nil      // accueil fermé : rien à reprendre ici
                 w.contentView = nil
                 if self.window === w { self.window = nil }
                 if let o = self.closeObserver { NotificationCenter.default.removeObserver(o) }
@@ -114,7 +115,7 @@ struct OnboardingView: View {
     @EnvironmentObject var fl: FLMonitor
     let onFinish: () -> Void
 
-    private enum Stage: Hashable { case keyboard, link, guide }
+    private enum Stage: String, Hashable { case keyboard, link, guide }
 
     @State private var stage = Stage.keyboard
     @State private var guidePage = 0
@@ -152,7 +153,22 @@ struct OnboardingView: View {
         .frame(width: onboardingSize.width, height: onboardingSize.height)
         .background { GuideBackdrop(page: stage == .guide ? guidePage : 0) }
         .motion(Motion.morph, value: stage)
-        .onAppear { installed = link.snapshot.hasKey }
+        .onAppear {
+            installed = link.snapshot.hasKey
+            // Relancée par « Quitter et rouvrir » : l'accueil reprend à l'écran où il en était, sans transition.
+            if let resume = AppResume.shared.takeOnboarding(), let saved = Stage(rawValue: resume.stage) {
+                var t = Transaction()
+                t.disablesAnimations = true
+                withTransaction(t) {
+                    stage = saved
+                    guidePage = resume.guidePage
+                }
+            }
+            AppResume.shared.onboardingStage = stage.rawValue
+            AppResume.shared.guidePage = guidePage
+        }
+        .onChange(of: stage) { AppResume.shared.onboardingStage = $0.rawValue }
+        .onChange(of: guidePage) { AppResume.shared.guidePage = $0 }
         .onChange(of: status.accessibilityOK) { ok in
             if ok, stage == .keyboard { OnboardingWindow.shared.bringToFront() }
         }
