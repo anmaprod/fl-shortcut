@@ -29,6 +29,7 @@ struct FLShortcutApp: App {
         FakeFL.runIfRequested()                  // `--fake-fl` : FL Studio simulé pour l'essai de bout en bout (CI)
         MacroSelfTest.runIfRequested()           // `--selftest-macro` : la macro complète contre le FL simulé, puis quitte
         Uninstaller.runCheckIfRequested()        // `--essai-desinstallation` (CI) : tout supprimer, vérifier, quitter
+        SingleInstance.started = Date()
         SingleInstance.enforce()                 // avant de créer quoi que ce soit (REL-07)
         _store = StateObject(wrappedValue: Store.shared)
         _status = StateObject(wrappedValue: AppStatus.shared)
@@ -81,6 +82,9 @@ enum SingleInstance {
     /// finit de se fermer : la nouvelle la voyait encore et partait aussitôt, rien ne se rouvrait (retour du
     /// propriétaire). Elle attend maintenant que l'ancienne soit partie.
     static let quittingKey = "quittingPID"
+    /// Lancement (journal : combien de temps la réouverture a pris, en millisecondes).
+    static var started = Date()
+    static var waitedMs = 0
 
     static func enforce() {
         let me = NSRunningApplication.current
@@ -88,9 +92,11 @@ enum SingleInstance {
         let others = NSRunningApplication.runningApplications(withBundleIdentifier: id)
             .filter { $0.processIdentifier != me.processIdentifier && !$0.isTerminated }
         guard let first = others.first else { return }
-        // Copie qui se ferme (notée) : jusqu'à 10 s ; sinon un court instant, au cas où la note n'est pas encore lue.
+        // Copie qui se ferme (notée) : jusqu'à 5 s ; sinon un court instant, au cas où la note n'est pas encore lue.
         let quitting = UserDefaults.standard.integer(forKey: quittingKey) == Int(first.processIdentifier)
-        if waitForExit(first.processIdentifier, timeout: quitting ? 10 : 1.5) { return }
+        let waitStart = Date()
+        defer { waitedMs = Int(Date().timeIntervalSince(waitStart) * 1000) }
+        if waitForExit(first.processIdentifier, timeout: quitting ? 5 : 1.5) { return }
         first.activate(options: [])
         exit(0)
     }
@@ -100,7 +106,7 @@ enum SingleInstance {
         let end = Date().addingTimeInterval(timeout)
         repeat {
             if kill(pid, 0) != 0 && errno == ESRCH { return true }
-            usleep(100_000)
+            usleep(30_000)                           // repart dès que l'ancienne copie est partie
         } while Date() < end
         return false
     }
@@ -126,8 +132,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             DispatchQueue.main.async { AppDelegate.onboard() }
         }
         if let resume {
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { AppDelegate.reopen(resume, onboarding: onboarding) }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) { AppDelegate.reopen(resume, onboarding: onboarding) }
         }
+        // Durées seulement : l'attente de l'ancienne copie, puis le lancement jusqu'ici.
+        let readyMs = Int(Date().timeIntervalSince(SingleInstance.started) * 1000)
+        MacroLog.shared.write("LAUNCH", "waited \(SingleInstance.waitedMs) ms, ready in \(readyMs) ms, resume \(resume != nil)")
     }
 
     /// Rouvre ce qui l'était avant de quitter. Pendant l'accueil, la fenêtre principale attend sa fin (elle s'ouvre
