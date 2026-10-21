@@ -1,9 +1,11 @@
 // Recherche de la fenêtre principale active seulement quand on l'a choisie, comme une barre de recherche ordinaire.
-// AppKit donne la main au premier champ de la fenêtre (la recherche de la barre latérale) dès qu'elle s'ouvre, ou
-// quand une page change : toute frappe s'y écrivait sans qu'on ait cliqué dedans. Elle ne garde la main qu'après un
-// clic dedans (ou ⌘F) ; sinon la fenêtre la lui reprend aussitôt. Un clic ailleurs la lui reprend aussi (plus de
-// curseur qui clignote dans la recherche quand on est passé à autre chose). Rien ne tourne au repos : un observateur de la
-// fenêtre et un moniteur local (clics et touches de cette fenêtre seulement), retirés avec la vue.
+// AppKit donne la main au premier champ de la fenêtre (la recherche de la barre latérale) dès qu'elle s'ouvre, qu'elle
+// reprend la main (après le menu de l'icône, une autre app) ou qu'une page change : toute frappe s'y écrivait sans
+// qu'on ait cliqué dedans. Elle ne garde la main qu'après un clic dedans (ou ⌘F), et jusqu'au premier clic ailleurs
+// (une page, une option de la barre latérale, un bouton) : sinon la fenêtre la lui reprend, tout de suite et encore
+// une fois la page changée (retour de l'utilisateur : cliquée puis une option choisie dans la seconde, elle gardait
+// la main pour de bon). Son texte reste. Rien ne tourne au repos : un observateur de la fenêtre et un moniteur local
+// (clics et touches de cette fenêtre seulement), retirés avec la vue.
 import AppKit
 import SwiftUI
 
@@ -16,54 +18,71 @@ struct SearchFocusGuard: NSViewRepresentable {
     final class GuardView: NSView {
         private var observation: NSKeyValueObservation?
         private var monitor: Any?
-        /// Dernière fois que l'utilisateur a choisi la recherche (clic dedans, ⌘F).
-        private var chosenAt = Date.distantPast
-
-        /// Délai pendant lequel la recherche qui prend la main est celle qu'on vient de choisir.
-        static let choiceWindow: TimeInterval = 1
+        private var keyObserver: NSObjectProtocol?
+        /// La recherche a été choisie (clic dedans, ⌘F) : elle garde la main jusqu'au premier clic ailleurs.
+        private(set) var chosen = false
 
         override func viewDidMoveToWindow() {
             super.viewDidMoveToWindow()
             detach()
             guard let window else { return }
-            monitor = NSEvent.addLocalMonitorForEvents(matching: [.leftMouseDown, .keyDown]) { [weak self] event in
+            monitor = NSEvent.addLocalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown, .keyDown]) { [weak self] event in
                 guard let self, let window = self.window, event.window === window else { return event }
-                switch event.type {
-                case .keyDown:
+                if event.type == .keyDown {
                     if event.modifierFlags.intersection(.deviceIndependentFlagsMask) == .command,
                        event.charactersIgnoringModifiers?.lowercased() == "f" {
-                        self.chosenAt = Date()
+                        self.chosen = true
                     }
-                default:
-                    if Self.searchField(at: event.locationInWindow, in: window) {
-                        self.chosenAt = Date()
-                    } else if Self.isSearchEditor(window.firstResponder) {
-                        // Clic ailleurs (une page, un bouton, la liste) : la recherche lâche la main, le curseur ne
-                        // clignote plus, son texte reste. Un autre champ cliqué prend la main lui-même.
-                        DispatchQueue.main.async {
-                            if Self.isSearchEditor(window.firstResponder) { window.makeFirstResponder(nil) }
-                        }
-                    }
+                } else {
+                    self.clicked(inSearch: Self.searchField(at: event.locationInWindow, in: window), window: window)
                 }
                 return event
             }
             observation = window.observe(\.firstResponder, options: [.new]) { [weak self] window, _ in
                 DispatchQueue.main.async { self?.check(window) }
             }
+            // La fenêtre reprend la main : AppKit redonne la main à la recherche, parfois un peu après.
+            keyObserver = NotificationCenter.default.addObserver(forName: NSWindow.didBecomeKeyNotification,
+                                                                 object: window, queue: .main) { [weak self] _ in
+                self?.checkSoon(window)
+            }
             // Fenêtre qui s'ouvre : la recherche a pu prendre la main avant que l'observateur soit là.
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { [weak self] in self?.check(window) }
+            checkSoon(window)
         }
 
         func detach() {
             observation = nil
             if let monitor { NSEvent.removeMonitor(monitor) }
             monitor = nil
+            if let keyObserver { NotificationCenter.default.removeObserver(keyObserver) }
+            keyObserver = nil
+        }
+
+        /// Clic dans la fenêtre : dans la recherche, elle est choisie ; ailleurs, elle lâche la main (un autre champ
+        /// cliqué la prend lui-même).
+        func clicked(inSearch: Bool, window: NSWindow) {
+            chosen = inSearch
+            guard !inSearch else { return }
+            DispatchQueue.main.async { [weak self, weak window] in
+                guard let window else { return }
+                self?.check(window)
+            }
+            checkSoon(window)
+        }
+
+        /// Vérifié encore un peu plus tard : la page changée, AppKit redonnait la main à la recherche.
+        private func checkSoon(_ window: NSWindow) {
+            for delay in [0.1, 0.35] {
+                DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self, weak window] in
+                    guard let window else { return }
+                    self?.check(window)
+                }
+            }
         }
 
         /// La recherche a la main sans avoir été choisie : la fenêtre la reprend (plus rien n'est tapé dedans).
-        private func check(_ window: NSWindow) {
-            guard Self.isSearchEditor(window.firstResponder),
-                  Date().timeIntervalSince(chosenAt) > Self.choiceWindow else { return }
+        func check(_ window: NSWindow) {
+            guard !chosen, Self.isSearchEditor(window.firstResponder) else { return }
             window.makeFirstResponder(nil)
         }
 
