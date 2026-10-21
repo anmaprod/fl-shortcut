@@ -261,7 +261,14 @@ final class SoundClassificationTests: XCTestCase {
         XCTAssertEqual(FamilyFusion.decide(f(len: 0.3, pitched: 0.9, f0: 50, low: 1, flat: 0), .none).family, .drums)      // kick
         XCTAssertEqual(FamilyFusion.decide(f(len: 0.1, pitched: 0, f0: 0, low: 0, flat: 0.3), .none).family, .drums)       // charleston
         XCTAssertEqual(FamilyFusion.decide(f(len: 2, pitched: 0, f0: 0, low: 0, flat: 0.45), AILabels(instrument: 0.9)).family, .fx)
-        XCTAssertEqual(FamilyFusion.decide(f(len: 1.5, pitched: 1, f0: 150, low: 0, flat: 0, vib: 0.3), .none).family, .vocals)
+        // Voix au vibrato : l'IA doit entendre un peu de voix (retour de l'utilisateur : un FX dont la hauteur bouge
+        // était classé « Voix » quand l'IA ne disait rien).
+        XCTAssertEqual(FamilyFusion.decide(f(len: 1.5, pitched: 1, f0: 150, low: 0, flat: 0, vib: 0.3), AILabels(voice: 0.2)).family, .vocals)
+        XCTAssertEqual(FamilyFusion.decideWithRule(f(len: 1.5, pitched: 1, f0: 150, low: 0, flat: 0, vib: 0.3), .none).rule, "melodie")
+        XCTAssertEqual(FamilyFusion.decideWithRule(f(len: 1.5, pitched: 1, f0: 150, low: 0, flat: 0, vib: 0.3), AILabels(voice: 0.1)).family, .melody)
+        XCTAssertEqual(FamilyFusion.decideWithRule(f(len: 1, pitched: 1, f0: 150, low: 0, flat: 0), AILabels(voice: 0.8)).rule, "voix-ia")
+        XCTAssertTrue(AILabels(scores: ["applause": 0.4]).heard, "l'IA a répondu, même hors table")
+        XCTAssertFalse(AILabels(scores: [:]).heard)
         XCTAssertEqual(FamilyFusion.decide(f(len: 0.45, pitched: 1, f0: 440, low: 0, flat: 0), AILabels(drums: 0.7)).family, .melody)
         XCTAssertEqual(FamilyFusion.decide(f(len: 2, pitched: 0.2, f0: 220, low: 0, flat: 0.1), .none).family, .melody)    // nappe
         XCTAssertEqual(FamilyFusion.decide(f(len: 2, pitched: 0.2, f0: 0, low: 0, flat: 0.2), .none).family, .fx)
@@ -347,7 +354,7 @@ final class SoundClassificationTests: XCTestCase {
         return ok
     }
 
-    /// Mesures seules (sans l'IA) : le réglage du prototype, 9 sur 9.
+    /// Mesures seules (sans l'IA) : 8 sur 9 au moins ; la voix demande l'IA (sans elle, une mélodie).
     func testSynthSoundsByFeatures() {
         var rows: [(String, SoundFamily, SoundFamily, String)] = []
         for s in SynthSounds.all() {
@@ -369,6 +376,8 @@ final class SoundClassificationTests: XCTestCase {
         for s in sounds {
             let f = SoundFeatures.measure(s.samples, rate: SynthSounds.rate)
             let scores = ai.scores(s.samples, rate: SynthSounds.rate)
+            // La CI montrait « résultats 0, fenêtre 3.00 s » : l'IA ne disait jamais rien. Chaque son a un résultat.
+            XCTAssertGreaterThan(ai.lastResults, 0, "\(s.name) : l'IA doit répondre (\(ai.lastReport))")
             let top = scores.sorted { $0.value > $1.value }.prefix(3).map { "\($0.key) \(String(format: "%.2f", $0.value))" }
             let detail = "IA : " + top.joined(separator: ", ") + " (" + ai.lastReport + ")"
             rows.append((s.name, FamilyFusion.decide(f, AILabels(scores: scores)).family, s.expected, detail))
@@ -377,6 +386,15 @@ final class SoundClassificationTests: XCTestCase {
         print("ORGANISER: classement complet \(String(format: "%.0f", perSound * 1000)) ms par son")
         XCTAssertGreaterThanOrEqual(table(rows), 8)
         XCTAssertLessThan(perSound, 0.5)
+    }
+
+    /// Fenêtre d'analyse de l'IA : 1 s visée, dans ce que macOS permet.
+    func testAIWindowFitsShortSounds() {
+        XCTAssertEqual(SoundClassifier.pickWindow(allowed: [], range: 0.5...15), 1)
+        XCTAssertEqual(SoundClassifier.pickWindow(allowed: [], range: 1.5...15), 1.5)
+        XCTAssertEqual(SoundClassifier.pickWindow(allowed: [], range: 0.2...0.8), 0.8)
+        XCTAssertEqual(SoundClassifier.pickWindow(allowed: [3, 0.975, 2], range: nil), 0.975)
+        XCTAssertNil(SoundClassifier.pickWindow(allowed: [0, -1], range: nil))
     }
 
     /// Étiquettes de la table connues de macOS : les principales doivent y être ; les autres sont listées.

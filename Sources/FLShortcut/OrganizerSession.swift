@@ -54,6 +54,11 @@ struct OrganizerDiagnostics: Equatable {
     var selection = "?"
     var unused = 0
     var scanTempo = 0
+    /// Tempo de FL vérifié avant d'écouter les sons (BPM ; 0 : pas de relevé accéléré).
+    var listenTempo = 0
+    /// Règle de chaque son écouté : « c4:melodie+ia » (canal 4 ; +ia : l'IA de macOS a répondu), « p2:fx-long »
+    /// (piste 2 de la Playlist). Des numéros, jamais un nom.
+    var rules: [String] = []
     var capture = CaptureStats()
     var error = ""
 
@@ -62,7 +67,8 @@ struct OrganizerDiagnostics: Equatable {
          "patterns=\(patterns) relevés=\(scanned) avec-sons=\(withSounds) activité=\(activity) positions=\(positions) "
             + "relevés-chanson=\(activeSamples) pistes=\(tracks) seules=\(tracksSolo) écoutées=\(tracksHeard) "
             + "mixer=\(mixerUsed) envois=\(routes)",
-         "sélection=\(selection) inutilisés=\(unused) tempo-relevé=\(scanTempo)",
+         "sélection=\(selection) inutilisés=\(unused) tempo-relevé=\(scanTempo) tempo-écoute=\(listenTempo)",
+         rules.isEmpty ? "" : "règles=" + rules.joined(separator: " "),
          capture.text,
          error.isEmpty ? "" : "erreur=\(error)"].filter { !$0.isEmpty }.joined(separator: "\n")
     }
@@ -125,7 +131,8 @@ final class OrganizerSession {
         var clipListen: TimeInterval = 1.5
     }
 
-    typealias Classify = ([Float], Double) -> (family: SoundFamily, confidence: Double)
+    /// Famille, confiance et règle appliquée (diagnostic : « melodie+ia », jamais un nom).
+    typealias Classify = ([Float], Double) -> (family: SoundFamily, confidence: Double, rule: String)
     /// Sorte d'un son classé en drums.
     typealias NameDrum = ([Float], Double) -> DrumKind
 
@@ -157,6 +164,8 @@ final class OrganizerSession {
     private let prepare: () -> Bool
     private let lock = NSLock()
     private var stopped = false
+    /// Le tempo de FL a été accéléré pour un relevé : vérifié avant d'écouter un son.
+    private var spedUp = false
     private var diag = OrganizerDiagnostics()
     /// Avancement : étapes faites et prévues (le total grandit quand une étape en découvre d'autres).
     private var stepsDone = 0
@@ -249,6 +258,7 @@ final class OrganizerSession {
             let unused = Self.unused(channels, selected: selected, heard: heard, complete: scan.complete)
             let targets = Self.sounds(channels).filter { !unused.contains($0.index) }
             note { $0.unused = unused.count }
+            try ensureOriginalTempo()
             let items = try classifyChannels(targets, homes: Self.homes(scan.sounds))
             let routes = try readRoutes(targets, mixer: mixer)
             progress(stepsTotal, stepsTotal)
@@ -298,7 +308,7 @@ final class OrganizerSession {
         var sped = false
         defer {
             // Le tempo d'avant pour écouter les sons et la chanson (l'opération 7 le remet aussi à la fin).
-            if sped { _ = try? link.speed(1) }
+            if sped { spedUp = !restoreTempo() }
         }
         for pattern in 1...n {
             try step()
@@ -307,6 +317,7 @@ final class OrganizerSession {
                 try link.playSolo(OrganizerPayload.allChannels, pattern: pattern)
                 if pattern == 1, timing.speedFactor > 1, let speed = try? link.speed(timing.speedFactor), speed.now > 0 {
                     sped = true
+                    spedUp = true
                     tempo = speed.now
                     note { $0.scanTempo = Int(speed.now.rounded()) }
                     try link.playSolo(OrganizerPayload.allChannels, pattern: pattern)   // depuis son début
@@ -412,8 +423,11 @@ final class OrganizerSession {
             }
             let heard = Self.peakDB(samples) >= FamilyFusion.silenceDB
             if heard { heardAny = true }
-            note { $0.listened += 1; $0.heard += heard ? 1 : 0; $0.testNotes += tested ? 1 : 0 }
             let verdict = classify(samples, audio.rate)
+            note {
+                $0.listened += 1; $0.heard += heard ? 1 : 0; $0.testNotes += tested ? 1 : 0
+                $0.rules.append("c\(channel.index):\(verdict.rule)")
+            }
             var kind: SoundKind?
             if verdict.family == .drums && heard, let drum = nameDrum?(samples, audio.rate) { kind = drum.sound }
             items.append(OrganizerItem(index: channel.index, name: channel.name, family: verdict.family,
@@ -433,6 +447,7 @@ final class OrganizerSession {
     private func readPlaylist(tempo: Double) throws
         -> (tracks: [PlaylistTrackInfo], sounds: [Int: Set<Int>], heard: [OrganizerItem]) {
         guard let samples = try sampleSong(tempo: tempo), !samples.isEmpty else { return ([], [:], []) }
+        try ensureOriginalTempo()                      // chaque piste est ensuite écoutée à son tempo
         var activeAt: [Int: [Int]] = [:]          // piste -> relevés où elle joue
         for (k, sample) in samples.enumerated() {
             for t in sample.tracks { activeAt[t, default: []].append(k) }
@@ -462,6 +477,7 @@ final class OrganizerSession {
             let samplesHeard = audio.take()
             if Self.peakDB(samplesHeard) >= FamilyFusion.silenceDB, let track = tracks.first(where: { $0.index == t }) {
                 let verdict = classify(samplesHeard, audio.rate)
+                note { $0.rules.append("p\(t):\(verdict.rule)") }
                 var kind: SoundKind?
                 if verdict.family == .drums, let drum = nameDrum?(samplesHeard, audio.rate) { kind = drum.sound }
                 heard.append(OrganizerItem(index: t, name: track.name, family: verdict.family,
@@ -484,13 +500,14 @@ final class OrganizerSession {
         var sped = false
         defer {
             // Le tempo d'avant pour écouter chaque piste seule (l'opération 7 le remet aussi à la fin).
-            if sped { _ = try? link.speed(1) }
+            if sped { spedUp = !restoreTempo() }
         }
         do {
             let bars = try link.playSong(at: 0)
             var now = tempo
             if timing.speedFactor > 1, let speed = try? link.speed(timing.speedFactor), speed.now > 0 {
                 sped = true
+                spedUp = true
                 now = speed.now
                 _ = try link.playSong(at: 0)                     // depuis le début, au nouveau tempo
             }
@@ -666,13 +683,37 @@ final class OrganizerSession {
         return 20 * log10(max(Double(peak), 1e-9))
     }
 
-    /// Classement réel : mesures du son et, si macOS l'a, son IA (sur le Mac, sans internet).
+    /// Classement réel : mesures du son et, si macOS l'a, son IA (sur le Mac, sans internet). La règle dit aussi si
+    /// l'IA a répondu (« +ia »).
     static func liveClassifier(ai: SoundClassifier? = SoundClassifier()) -> Classify {
         { samples, rate in
             let features = SoundFeatures.measure(samples, rate: rate)
             let labels = ai.map { AILabels(scores: $0.scores(samples, rate: rate)) } ?? AILabels.none
-            return FamilyFusion.decide(features, labels)
+            let verdict = FamilyFusion.decideWithRule(features, labels)
+            return (verdict.family, verdict.confidence, verdict.rule + (labels.heard ? "+ia" : ""))
         }
+    }
+
+    // MARK: Tempo
+
+    /// Avant d'écouter un son : le tempo d'origine, vérifié (retour de l'utilisateur : « elle écoutait en 500 BPM »).
+    /// Le relevé accéléré sert seulement à ce que FL dise ce qui joue ; un son écouté plus vite serait mal classé :
+    /// tempo pas revenu, l'écoute s'arrête (FL est remis comme avant par l'appelant).
+    private func ensureOriginalTempo() throws {
+        for _ in 0..<2 where spedUp {
+            try pause(timing.settle)
+            spedUp = !restoreTempo()
+        }
+        if spedUp {
+            throw OrganizerError.failed(String(localized: "FL n'a pas repris son tempo : l'écoute s'arrête pour ne pas mal classer les sons."))
+        }
+    }
+
+    /// Le tempo d'avant le relevé ; vrai si FL confirme l'avoir repris (à une demi-pulsation près).
+    private func restoreTempo() -> Bool {
+        guard let speed = try? link.speed(1), speed.before <= 0 || abs(speed.now - speed.before) < 0.5 else { return false }
+        note { $0.listenTempo = Int(speed.now.rounded()) }
+        return true
     }
 
     /// Sorte des drums : étiquettes de l'IA de macOS, sinon les mesures du son.

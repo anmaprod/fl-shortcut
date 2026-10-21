@@ -316,6 +316,8 @@ struct AILabels: Equatable {
     var voice = 0.0
     var drums = 0.0
     var instrument = 0.0
+    /// L'IA a rendu au moins un résultat (même hors table).
+    var heard = false
 
     static let none = AILabels()
 
@@ -323,10 +325,12 @@ struct AILabels: Equatable {
         self.voice = voice
         self.drums = drums
         self.instrument = instrument
+        heard = voice > 0 || drums > 0 || instrument > 0
     }
 
     /// Depuis les scores de SoundAnalysis (étiquette → confiance) ; les étiquettes hors table sont ignorées.
     init(scores: [String: Double]) {
+        heard = !scores.isEmpty
         for (label, confidence) in scores {
             switch FamilyFusion.labelTable[label] {
             case .voice?: voice = max(voice, confidence)
@@ -380,27 +384,39 @@ enum FamilyFusion {
     /// reconnu) → mélodie (tonale) → FX (long) → à vérifier. Un son court et tonal sans hauteur nette (accord, arpège
     /// réverbéré) est une mélodie, plus des drums (retour de l'utilisateur : un arpège renommé « Snare »).
     static func decide(_ f: SoundFeatures, _ ai: AILabels) -> (family: SoundFamily, confidence: Double) {
-        guard f.peakDB >= silenceDB else { return (.unsure, 0) }
-        if ai.voice >= 0.5 { return (.vocals, ai.voice) }
+        let verdict = decideWithRule(f, ai)
+        return (verdict.family, verdict.confidence)
+    }
+
+    /// Voix au vibrato : l'IA doit au moins entendre un peu de voix (retour de l'utilisateur : un FX dont la hauteur
+    /// bouge était classé « Voix » quand l'IA ne disait rien).
+    static let vibratoVoice = 0.15
+
+    /// Comme `decide`, avec la règle appliquée (diagnostic, jamais un nom) : silence, voix-ia, boucle, basse,
+    /// drums-court, drums-ia, cymbale, fx-bruit, voix-vibrato, melodie, fx-long, incertain.
+    static func decideWithRule(_ f: SoundFeatures, _ ai: AILabels)
+        -> (family: SoundFamily, confidence: Double, rule: String) {
+        guard f.peakDB >= silenceDB else { return (.unsure, 0, "silence") }
+        if ai.voice >= 0.5 { return (.vocals, ai.voice, "voix-ia") }
         let low = f.pitchedFraction >= 0.4 && f.medianF0 > 0 && f.medianF0 < lowF0 && f.lowRatio >= 0.5
         let short = f.noteLength < shortNote
         let isNoisy = f.flatness >= noisy, isTonal = f.flatness < tonal
-        if low && short && f.highRatio >= loopHigh { return (.drums, max(ai.drums, 0.75)) }
-        if low && (f.noteLength >= 0.35 || f.distinctPitches >= 2) { return (.bass, 0.8) }
-        if (short && isNoisy) || (low && f.noteLength < 0.35) { return (.drums, max(ai.drums, 0.75)) }
+        if low && short && f.highRatio >= loopHigh { return (.drums, max(ai.drums, 0.75), "boucle") }
+        if low && (f.noteLength >= 0.35 || f.distinctPitches >= 2) { return (.bass, 0.8, "basse") }
+        if (short && isNoisy) || (low && f.noteLength < 0.35) { return (.drums, max(ai.drums, 0.75), "drums-court") }
         if short && ai.drums >= 0.6 && ai.drums > ai.instrument && !(isTonal && f.distinctPitches >= 3) {
-            return (.drums, ai.drums)
+            return (.drums, ai.drums, "drums-ia")
         }
-        if !short && isNoisy && f.highRatio >= ringHigh && f.onsetsPerSecond > 0 { return (.drums, 0.7) }
-        if !short && f.pitchedFraction < 0.3 && isNoisy { return (.fx, 0.7) }
+        if !short && isNoisy && f.highRatio >= ringHigh && f.onsetsPerSecond > 0 { return (.drums, 0.7, "cymbale") }
+        if !short && f.pitchedFraction < 0.3 && isNoisy { return (.fx, 0.7, "fx-bruit") }
         if (0.12...0.8).contains(f.vibrato) && (80...500).contains(f.medianF0) && f.pitchedFraction >= 0.6
-            && f.noteLength >= 0.5 && f.distinctPitches <= 2 && ai.instrument < 0.5 {
-            return (.vocals, 0.55)
+            && f.noteLength >= 0.5 && f.distinctPitches <= 2 && ai.instrument < 0.5 && ai.voice >= vibratoVoice {
+            return (.vocals, 0.55, "voix-vibrato")
         }
         if f.pitchedFraction >= 0.5 || ai.instrument >= 0.5 || isTonal {
-            return (.melody, max(ai.instrument, 0.7))
+            return (.melody, max(ai.instrument, 0.7), "melodie")
         }
-        if !short { return (.fx, 0.5) }
-        return (.unsure, 0.3)
+        if !short { return (.fx, 0.5, "fx-long") }
+        return (.unsure, 0.3, "incertain")
     }
 }

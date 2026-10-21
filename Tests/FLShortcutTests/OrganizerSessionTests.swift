@@ -16,6 +16,8 @@ final class FakeOrganizerLink: OrganizerLink {
     var lengths: [Int] = []
     var tempo = 120.0
     private(set) var speedFactor = 1
+    /// Vrai : FL ne reprend pas son tempo d'avant (l'opération 22 avec le facteur 1 le laisse accéléré).
+    var stuckTempo = false
     /// Canaux sélectionnés dans FL : par « Select unused channels », ou par le script (opération 23).
     var unusedSelection: Set<Int> = []
     /// Faux : FL trop ancien pour jouer toute la chanson (relevé de la Playlist impossible).
@@ -87,6 +89,7 @@ final class FakeOrganizerLink: OrganizerLink {
     func speed(_ factor: Int) throws -> (before: Double, now: Double) {
         guard memo else { throw OrganizerError.refused(5) }
         log.append("speed \(factor)")
+        if stuckTempo && factor == 1 { return (tempo, min(tempo * Double(speedFactor), 520)) }
         speedFactor = factor
         return (tempo, min(tempo * Double(factor), 520))
     }
@@ -358,8 +361,8 @@ final class OrganizerSessionTests: XCTestCase {
     }
 
     private let classify: OrganizerSession.Classify = { samples, _ in
-        guard let v = samples.first, v > 0.01 else { return (.unsure, 0) }
-        return (SoundFamily.order[Int((v / 0.1).rounded()) - 1], 0.9)
+        guard let v = samples.first, v > 0.01 else { return (.unsure, 0, "silence") }
+        return (SoundFamily.order[Int((v / 0.1).rounded()) - 1], 0.9, "faux")
     }
 
     private func channel(_ index: Int, type: Int = 2, fx: Int = 0) -> ChannelInfo {
@@ -419,6 +422,26 @@ final class OrganizerSessionTests: XCTestCase {
         XCTAssertEqual([diag.byName, diag.listened, diag.scanned, diag.withSounds, diag.tracks, diag.tracksSolo],
                        [3, 1, 2, 2, 3, 3])
         XCTAssertFalse(diag.text.contains("KICK"), "jamais un nom dans le diagnostic")
+        XCTAssertEqual(diag.rules, ["c1:faux"], "règle de chaque son écouté, par son numéro")
+        XCTAssertEqual(diag.listenTempo, 120, "écouté au tempo d'origine, vérifié")
+        XCTAssertTrue(diag.text.contains("tempo-écoute=120"))
+    }
+
+    /// Retour de l'utilisateur : « elle écoutait en 500 BPM ». Un tempo qui ne revient pas après le relevé accéléré :
+    /// aucun son n'est écouté (il serait mal classé), FL est remis comme avant et le message le dit.
+    func testListeningNeedsTheOriginalTempo() {
+        let link = FakeOrganizerLink()
+        link.channels = [channel(0), channel(1)]
+        link.patternSounds = [1: [0, 1]]
+        link.stuckTempo = true
+        let audio = FakeAudio(link: link)
+        audio.parts = [0: tone(.melody), 1: tone(.drums)]
+        let session = make(link, audio)
+        guard case .failure(.failed(let message)) = session.run() else { return XCTFail("le tempo n'est pas revenu") }
+        XCTAssertTrue(message.contains("tempo"), message)
+        XCTAssertFalse(link.log.contains { $0.hasPrefix("solo") }, "aucun son écouté accéléré")
+        XCTAssertEqual(link.log.last, "restore")
+        XCTAssertEqual(session.diagnostics.listened, 0)
     }
 
     /// Un ancien script (v11 ou avant) : rien n'est touché, FL doit être redémarré.

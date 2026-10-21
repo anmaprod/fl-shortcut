@@ -4,8 +4,9 @@ import XCTest
 
 /// Organiser : contrôleur de la fenêtre (sans fenêtre), bloc « Organiser » et son modèle.
 final class OrganizerWindowTests: XCTestCase {
-    private static func classify(_ samples: [Float], _ rate: Double) -> (family: SoundFamily, confidence: Double) {
-        samples.isEmpty ? (.unsure, 0) : (.drums, 0.9)
+    private static func classify(_ samples: [Float], _ rate: Double)
+        -> (family: SoundFamily, confidence: Double, rule: String) {
+        samples.isEmpty ? (.unsure, 0, "silence") : (.drums, 0.9, "faux")
     }
 
     private func env(_ link: FakeOrganizerLink, _ audio: FakeAudio,

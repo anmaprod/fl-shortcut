@@ -944,9 +944,10 @@ struct OrganizerView: View {
                 Text(String(localized: """
                     FL retire d'abord les clips audio inutilisés et repère les sons sans aucune note (supprimés si tu \
                     organises). Un son dont le nom dit ce qu'il est (Kick, 808, Hat…) est classé tout de suite ; les \
-                    autres jouent seuls, sans que tu les entendes. Chaque pattern, puis toute la chanson, jouent en \
-                    entier, en accéléré, puis chaque piste de la Playlist un instant : FL dit quels sons y jouent (même \
-                    ceux que tu as coupés). Ne touche pas à FL ; Échap arrête.
+                    autres jouent seuls, à ton tempo, sans que tu les entendes. Chaque pattern, puis toute la chanson, \
+                    jouent en entier en accéléré : FL dit seulement quels sons jouent (même ceux que tu as coupés), \
+                    rien n'est écouté à cette vitesse. Puis chaque piste de la Playlist joue un instant. Ne touche pas \
+                    à FL ; Échap arrête.
                     """))
                     .font(.system(size: 11))
                     .foregroundStyle(.secondary)
