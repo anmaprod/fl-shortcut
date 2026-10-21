@@ -1551,7 +1551,7 @@ class TestDataV5(TestData):
                         [10, 5, 1] + good,                                     # genre inconnu
                         [10, 3, 1] + good + [0],                               # octet en trop
                         [10, 3, 2] + good,                                     # un nom manquant
-                        [10, 3, 1] + M.be16(1) + [0],                          # nom vide
+                        [10, 1, 1] + M.be16(1) + [0],                          # nom vide (canal)
                         [10, 3, 1] + M.be16(1) + [65] + [65] * 65,             # nom trop long
                         [10, 3, 1] + M.be16(1) + [2, 0xC3, 0x28],              # UTF-8 invalide
                         [10, 3, 0], [10, 3, 17] + good * 17):
@@ -1834,9 +1834,6 @@ class TestDataV5(TestData):
         self.data_command([14, 1, 1])
         self.assertEqual(self.answer(), (14, [1, 0, 4, 0]), "relevé remis à zéro à chaque lecture")
         self.clock.t += 0.1
-        self.data_command([14, 3, 1])
-        self.assertEqual(self.reasons(), [5], "pistes : seulement ce qui joue")
-        self.clock.t += 0.1
         self.data_command([7])
         self.fl.ch_activity = {1: 0.5}
         self.dev.OnIdle()
@@ -1844,6 +1841,98 @@ class TestDataV5(TestData):
         self.clock.t += 0.1
         self.data_command([14, 1, 1])
         self.assertEqual(self.answer(), (14, [1, 0, 4, 0]), "sans écoute : rien n'est retenu")
+
+    def test_heard_tracks_while_the_song_plays(self):
+        # Script v14 : un clip court entre deux lectures compte (retour de l'utilisateur : pistes oubliées, des trous).
+        self.make(n_channels=2, pl_tracks=6)
+        self.data_command([16] + M.be16(0))
+        self.fl.pl_activity = {3: 0.5}
+        self.dev.OnIdle()
+        self.fl.pl_activity = {}
+        self.dev.OnIdle()
+        self.clock.t += 0.1
+        self.data_command([14, 3, 1])
+        self.assertEqual(self.answer(), (14, [3, 0, 6, 0b0100]))
+        self.clock.t += 0.1
+        self.data_command([14, 3, 1])
+        self.assertEqual(self.answer(), (14, [3, 0, 6, 0]), "relevé remis à zéro à chaque lecture")
+        self.clock.t += 0.1
+        self.data_command([14, 3, 2])
+        self.assertEqual(self.reasons(), [5])
+        # Pendant l'écoute d'un pattern, les pistes ne sont pas relevées.
+        self.clock.t += 0.1
+        self.data_command([7])
+        self.clock.t += 0.1
+        self.data_command([6] + M.be16(0xFFFF))
+        self.fl.pl_activity = {2: 0.5}
+        self.dev.OnIdle()
+        self.fl.pl_activity = {}
+        self.clock.t += 0.1
+        self.data_command([14, 3, 1])
+        self.assertEqual(self.answer(), (14, [3, 0, 6, 0]))
+
+    def test_select_set_of_channels(self):
+        self.make(n_channels=10, ch_sel={0, 3})
+        self.data_command([23] + M.be16(10) + [0b10010, 0b10])
+        self.assertEqual(self.last_ack(), DATA_ID)
+        self.assertEqual(self.fl.ch_sel, {1, 4, 9})
+        for bad in ([23] + M.be16(9) + [0b10010, 0],               # le Channel rack a changé
+                    [23] + M.be16(10) + [0b10010],                 # octets manquants
+                    [23, 0]):
+            self.make(n_channels=10, ch_sel={0})
+            self.data_command(bad)
+            self.assertEqual(self.reasons(), [5], bad)
+            self.assertEqual(self.fl.ch_sel, {0}, "rien de changé")
+
+    def test_link_channel_to_mixer_track(self):
+        self.make(n_channels=3, n_tracks=8, ch_fx=[1, 0, 2])
+        self.data_command([24] + M.be16(1) + M.be16(5))
+        self.assertEqual(self.last_ack(), DATA_ID)
+        self.assertEqual(self.fl.ch_fx, [1, 5, 2])
+        for bad in ([24] + M.be16(3) + M.be16(5),                  # canal hors du Channel rack
+                    [24] + M.be16(1) + M.be16(7),                  # « Current »
+                    [24] + M.be16(1)):
+            self.make(n_channels=3, n_tracks=8, ch_fx=[1, 0, 2])
+            self.data_command(bad)
+            self.assertEqual(self.reasons(), [5], bad)
+            self.assertEqual(self.fl.ch_fx, [1, 0, 2])
+        self.make(api=25, n_channels=3, n_tracks=8, ch_fx=[1, 0, 2])
+        self.data_command([24] + M.be16(1) + M.be16(4))
+        self.assertEqual(self.fl.ch_fx, [1, 4, 2], "avant l'API 28 : mixer.linkChannelToTrack")
+        self.assertTrue(self.fl.called("mixer.linkChannelToTrack"))
+
+    def test_select_one_playlist_track(self):
+        # Script v14 : le menu « Move up » de FL remonte la piste sélectionnée.
+        self.make(pl_tracks=6, pl_sel={2, 5})
+        self.data_command([5, 3] + M.be16(3))
+        self.assertEqual(self.last_ack(), DATA_ID)
+        self.assertEqual(self.fl.pl_sel, {4}, "index 0 = piste 1")
+        self.make(pl_tracks=6, pl_sel={2})
+        self.data_command([5, 3] + M.be16(6))
+        self.assertEqual(self.reasons(), [5])
+        self.assertEqual(self.fl.pl_sel, {2})
+        self.make(api=11, pl_tracks=6)
+        self.data_command([5, 3] + M.be16(1))
+        self.assertEqual(self.reasons(), [6], "avant l'API 12")
+
+    def test_song_position(self):
+        self.make(song_pos=0.4567)
+        self.data_command([25])
+        self.assertEqual(self.answer(), (25, M.be16(457)))
+        self.clock.t += 0.1
+        self.data_command([25, 0])
+        self.assertEqual(self.reasons(), [5])
+
+    def test_empty_name_puts_back_the_name_of_fl(self):
+        # Script v14 : la piste du Mixer d'un son supprimé reprend son nom de FL (« Insert 5 »).
+        self.make(n_channels=3)
+        self.data_command([10, 2, 1] + M.be16(5) + [0])
+        self.assertEqual(self.last_ack(), DATA_ID)
+        self.assertEqual(self.fl.given_names, {("mixer", 5): ""})
+        self.make(n_channels=3)
+        self.data_command([10, 1, 1] + M.be16(1) + [0])
+        self.assertEqual(self.reasons(), [5], "un canal garde toujours un nom")
+        self.assertEqual(self.fl.given_names, {})
 
     def test_selected_channels(self):
         self.make(n_channels=10, ch_sel={1, 9})

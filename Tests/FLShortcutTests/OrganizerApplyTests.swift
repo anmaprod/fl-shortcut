@@ -38,7 +38,8 @@ final class OrganizerApplyTests: XCTestCase {
 
     private func applier(_ link: FakeOrganizerLink, placeIcon: @escaping (FLIcon) -> OrganizerError? = { _ in nil })
         -> OrganizerApplier {
-        OrganizerApplier(link: link, moveUp: link.moveSelectedUp, moveLeft: link.moveSelectedLeft, placeIcon: placeIcon)
+        OrganizerApplier(link: link, moveUp: link.moveSelectedUp, moveLeft: link.moveSelectedLeft, placeIcon: placeIcon,
+                         deleteSelected: link.deleteSelected, moveTrack: link.moveTrackUp)
     }
 
     private func apply(_ link: FakeOrganizerLink, _ result: OrganizerResult,
@@ -280,10 +281,11 @@ final class OrganizerApplyTests: XCTestCase {
         result.patterns = ["hi hat", "Pattern 2", "Pattern 3", "Intro", "Pattern 5", "Pattern 6", "Drums 1"]
             .enumerated().map { PatternInfo(index: $0.offset, color: gray, name: $0.element) }
         // Pattern 3 : un Kick et un 808 (égalité : l'ordre des familles) ; pattern 6 : deux basses différentes ;
-        // « Drums 1 » (nom général) : ce qui y joue.
+        // « Drums 1 » (nom général) : ce qui y joue. Un pattern où ne joue qu'un son prend son nom du Channel rack
+        // (retour de l'utilisateur : le même son ne doit pas s'appeler autrement ailleurs).
         result.patternSounds = [1: [0], 2: [0, 1], 3: [1, 3], 5: [1, 3], 6: [0]]
         let patterns = plan(result).patterns
-        XCTAssertEqual(patterns.names, [0: "Hi-hat", 1: "Kick", 2: "808", 5: "Basse", 6: "Kick 2"],
+        XCTAssertEqual(patterns.names, [0: "Hi-hat", 1: "Kick", 2: "808", 5: "Basse", 6: "Kick"],
                        "son nom d'abord ; sinon ce qui y joue ; « Intro » et le pattern vide gardent leur nom")
         XCTAssertEqual(patterns.colors[0], style(.drums))
         XCTAssertEqual(patterns.colors[3], style(.bass), "« Intro » coloré quand même")
@@ -390,7 +392,8 @@ final class OrganizerApplyTests: XCTestCase {
         XCTAssertNil(mixer.colors[8], "son sans note : pas touché")
 
         let originalMixer = link.mixer, originalRoutes = link.routes
-        let outcome = apply(link, result, options: OrganizerOptions(rack: false, patterns: false, playlist: false))
+        let outcome = apply(link, result, options: OrganizerOptions(rack: false, patterns: false, playlist: false,
+                                                                    deleteUnused: false))
         XCTAssertNil(outcome.error)
         XCTAssertEqual(link.mixer.map(\.name), ["Master", "Lead", "Lead 2", "Melody Bus", "Basse", "Basse Bus", "808",
                                                 "Kick", "Clap", "Drums Bus", "Insert 8", "Insert 11", "Insert 12"])
@@ -403,6 +406,99 @@ final class OrganizerApplyTests: XCTestCase {
         XCTAssertEqual(link.mixer, originalMixer)
         XCTAssertEqual(link.routes.filter { !$0.value.isEmpty }, originalRoutes)
         XCTAssertEqual(link.channels.map(\.mixerTrack), tracks)
+    }
+
+    /// Un projet comme celui de la vidéo de l'utilisateur : deux sons sans note (leurs pistes du Mixer en noir), une
+    /// boucle de batterie envoyée au Master.
+    private func cleanupProject() -> (link: FakeOrganizerLink, result: OrganizerResult) {
+        let link = FakeOrganizerLink()
+        let black = RGBColor(r: 0, g: 0, b: 0)
+        link.channels = [ChannelInfo(index: 0, type: 2, mixerTrack: 1, color: gray, name: "Son 0"),
+                         ChannelInfo(index: 1, type: 2, mixerTrack: 2, color: gray, name: "Serum 2"),
+                         ChannelInfo(index: 2, type: 2, mixerTrack: 3, color: gray, name: "Son 2"),
+                         ChannelInfo(index: 3, type: 0, mixerTrack: 4, color: gray, name: "KiCK - BREW"),
+                         ChannelInfo(index: 4, type: ChannelInfo.audioClipType, mixerTrack: 0, color: gray, name: "Son 4")]
+        link.mixer = (0...12).map { i in
+            switch i {
+            case 0: return MixerTrackInfo(index: 0, color: gray, name: "Master")
+            case 2: return MixerTrackInfo(index: 2, color: black, name: "Serum 2")
+            case 4: return MixerTrackInfo(index: 4, color: black, name: "KiCK - BREW")
+            default: return MixerTrackInfo(index: i, color: gray, name: "Insert \(i)")
+            }
+        }
+        link.routes = [1: [0], 3: [0]]
+        let kinds: [Int: SoundKind] = [0: .kick, 2: .lead, 4: .drums]
+        let items = kinds.keys.sorted().map { i in
+            OrganizerItem(index: i, name: link.channels[i].name, family: kinds[i]!.family, confidence: 0.9,
+                          testNotes: false, mixerTrack: link.channels[i].mixerTrack, color: gray, kind: kinds[i])
+        }
+        var result = OrganizerResult(channels: link.channels, items: items, mixer: link.mixer, routes: link.routes)
+        result.unused = [1, 3]
+        return (link, result)
+    }
+
+    /// Retour de l'utilisateur : les sons sans note disparaissent (« bass » et « kick » sans son compris), leurs pistes
+    /// du Mixer redeviennent neuves, et la boucle de batterie envoyée au Master prend une piste. Le reste est fait sur
+    /// le Channel rack tel qu'il est après la suppression.
+    func testUnusedSoundsDeletedAndMasterSoundGetsATrack() {
+        let (link, result) = cleanupProject()
+        let preview = plan(result)
+        XCTAssertEqual(preview.deleted, [1, 3])
+        XCTAssertEqual(preview.mixer.links, [4: 5], "la première piste libre")
+        XCTAssertEqual(preview.mixer.resets, [2, 4])
+
+        let outcome = applier(link).apply(preview, result: result, styles: FamilyStyles.initial)
+        XCTAssertNil(outcome.error)
+        XCTAssertEqual(outcome.deleted, 2)
+        XCTAssertEqual(Array(link.log.prefix(3)), ["list", "select 1,3", "show channelRack"])
+        XCTAssertTrue(link.log.contains("delete"))
+        XCTAssertTrue(link.log.contains("link 2 5"), "après la suppression, la boucle est le canal 2")
+        XCTAssertEqual(link.channels.map(\.name), ["Lead", "Kick", "Drums"])
+        XCTAssertEqual(link.channels.map(\.mixerTrack), [1, 3, 4])
+        XCTAssertEqual(Array(link.mixer.map(\.name).prefix(8)),
+                       ["Master", "Lead", "Mélodie Bus", "Kick", "Drums", "Drums Bus", "", ""],
+                       "les pistes des sons supprimés : nom de FL")
+        XCTAssertEqual(link.mixer[6].color, gray, "couleur des pistes jamais touchées")
+        XCTAssertEqual(link.mixer[7].color, gray)
+        XCTAssertTrue(link.mixer[6].hasDefaultName)
+
+        // « Revenir comme avant » : tout sauf les sons supprimés.
+        XCTAssertNil(applier(link).undo(outcome.snapshot).error)
+        XCTAssertEqual(link.channels.map(\.name), ["Son 0", "Son 2", "Son 4"])
+        XCTAssertEqual(link.channels.map(\.mixerTrack), [1, 3, 0])
+        XCTAssertEqual(Array(link.mixer.map(\.name).prefix(5)), ["Master", "Insert 1", "Serum 2", "Insert 3", "KiCK - BREW"])
+        XCTAssertEqual(link.mixer[2].color, RGBColor(r: 0, g: 0, b: 0))
+    }
+
+    /// FL ne supprime rien (raccourci sans effet) : les sons restent sélectionnés, le reste est fait sans les toucher.
+    func testDeletionRefusedKeepsTheRest() {
+        let (link, result) = cleanupProject()
+        let refusing = OrganizerApplier(link: link, moveUp: link.moveSelectedUp, moveLeft: link.moveSelectedLeft,
+                                        deleteSelected: { false })
+        let outcome = refusing.apply(plan(result), result: result, styles: FamilyStyles.initial)
+        XCTAssertNil(outcome.error)
+        XCTAssertEqual([outcome.deleted, outcome.notDeleted], [0, 2])
+        XCTAssertEqual(link.channels.map(\.name), ["Lead", "Kick", "Drums", "Serum 2", "KiCK - BREW"])
+        XCTAssertEqual(link.unusedSelection, [3, 4], "toujours sélectionnés, à leur nouvelle place")
+        XCTAssertTrue(link.mixer.contains { $0.name == "Serum 2" }, "leurs pistes ne sont pas touchées")
+    }
+
+    /// Le projet après la suppression : les canaux suivants remontent ; les pistes du Mixer que seuls eux utilisaient
+    /// sont libérées.
+    func testRemovingChannels() {
+        let (_, result) = cleanupProject()
+        var full = result
+        full.patternSounds = [0: [0, 1], 1: [3]]
+        full.trackSounds = [2: [2, 3, 4]]
+        let (after, map) = full.removing([1, 3])
+        XCTAssertEqual(map, [0: 0, 2: 1, 4: 2])
+        XCTAssertEqual(after.channels.map(\.index), [0, 1, 2])
+        XCTAssertEqual(after.channels.map(\.name), ["Son 0", "Son 2", "Son 4"])
+        XCTAssertEqual(after.items.map(\.index), [0, 1, 2])
+        XCTAssertEqual(after.patternSounds, [0: [0]])
+        XCTAssertEqual(after.trackSounds, [2: [1, 2]])
+        XCTAssertEqual(after.unused, [])
+        XCTAssertEqual(after.freed, [2, 4])
     }
 
     /// Un nom de partie du morceau est gardé ; tout autre nom est remplacé par un nom simple.
@@ -450,8 +546,9 @@ final class OrganizerApplyTests: XCTestCase {
                                           (.unsure, nil)],
                                          sounds: [0: [0], 1: [1], 2: [1], 3: [2], 4: [4], 6: [3], 7: [1, 2]], tracks: 8)
         let names = plan(result).playlist.names
-        // La piste 0 garde son nom (renommée par l'utilisateur) ; « À vérifier » et la piste muette aussi.
-        XCTAssertEqual(names, [1: "Kick", 2: "Kick 2", 3: "Open Hat", 6: "Voix", 7: "Drums"])
+        // La piste 0 garde son nom (renommée par l'utilisateur) ; « À vérifier » et la piste muette aussi. Une piste
+        // où ne joue qu'un son prend son nom du Channel rack, même si une autre piste le joue aussi.
+        XCTAssertEqual(names, [1: "Kick", 2: "Kick", 3: "Open Hat", 6: "Voix", 7: "Drums"])
         XCTAssertEqual(SoundFamily.order.compactMap(\.trackName), ["Voix", "Mélodie", "Basse", "Drums", "FX"])
         // Un nom qui dit déjà ce qu'est la piste (« Drums 2 », « kick ») est remis au propre.
         var renamed = result
@@ -465,10 +562,13 @@ final class OrganizerApplyTests: XCTestCase {
         let original = link.playlist
         let outcome = apply(link, result, options: OrganizerOptions(rack: false, patterns: false, mixer: false))
         XCTAssertNil(outcome.error)
-        XCTAssertEqual(link.log, ["colors playlist 3", "names playlist 2", "playlist"])
-        XCTAssertEqual(link.playlist.map(\.name), ["Lead", "Snare", "Basse", "Track 4"])
-        XCTAssertEqual(link.playlist.map(\.color), [style(.melody), style(.drums), style(.bass), gray])
+        XCTAssertFalse(outcome.playlistUnordered)
+        XCTAssertEqual(link.log, ["colors playlist 3", "names playlist 2", "playlist", "show playlist"])
+        // Rangée comme le Channel rack (retour de l'utilisateur) : Mélodie, Basse, Drums, puis la piste vide.
+        XCTAssertEqual(link.playlist.map(\.name), ["Lead", "Basse", "Snare", "Track 4"])
+        XCTAssertEqual(link.playlist.map(\.color), [style(.melody), style(.bass), style(.drums), gray])
         XCTAssertEqual(outcome.snapshot.playlist?.names, [1: "Track 2", 2: "Track 3"])
+        XCTAssertEqual(outcome.snapshot.playlist?.arrangement, [0, 2, 1, 3])
 
         let back = applier(link).undo(outcome.snapshot)
         XCTAssertNil(back.error)

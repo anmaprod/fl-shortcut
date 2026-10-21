@@ -166,6 +166,19 @@ enum OrganizerPayload {
     static let selected: [UInt8] = [21]
     /// Opération 22 (script v13) : le tempo multiplié pendant l'écoute (1 : le tempo d'avant).
     static func speed(_ factor: Int) -> [UInt8] { [22, UInt8(clamping: min(max(factor, 1), 8))] }
+    /// Opération 14, mode 1, pistes de la Playlist (script v14) : celles qui jouent, ou ont joué depuis la lecture
+    /// précédente pendant que la chanson joue.
+    static let heardTracks: [UInt8] = [14, ItemKind.playlist.rawValue, 1]
+    /// Opération 23 (script v14) : ces canaux seuls sélectionnés ; `count` : le nombre de canaux affichés.
+    static func selectChannels(_ channels: Set<Int>, count: Int) -> [UInt8] {
+        var bits = [UInt8](repeating: 0, count: (count + 7) / 8)
+        for i in channels where (0..<count).contains(i) { bits[i / 8] |= 1 << UInt8(i % 8) }
+        return [23] + be16(count) + bits
+    }
+    /// Opération 24 (script v14) : ce canal relié à cette piste du Mixer.
+    static func linkChannel(_ channel: Int, to track: Int) -> [UInt8] { [24] + be16(channel) + be16(track) }
+    /// Opération 25 (script v14) : la position de la chanson.
+    static let songPosition: [UInt8] = [25]
 
     static func gradient(first a: RGBColor, last b: RGBColor) -> [UInt8] { [8, a.r, a.g, a.b, b.r, b.g, b.b] }
 
@@ -202,7 +215,8 @@ enum OrganizerPayload {
     /// Octets d'une commande qui tiennent dans `FLProtocol.maxDataUnits` unités une fois en 7 bits.
     static let maxCommandBytes = FLProtocol.maxDataUnits * 7 / 8
 
-    /// Une commande par paquet de 16 noms au plus, et qui tient dans une trame ; un nom vide n'est pas envoyé.
+    /// Une commande par paquet de 16 noms au plus, et qui tient dans une trame ; un nom vide n'est pas envoyé, sauf
+    /// pour une piste du Mixer ou de la Playlist : FL lui remet son nom (« Insert 3 » ; script v14).
     static func setNames(_ kind: ItemKind, _ names: [(index: Int, name: String)]) -> [[UInt8]] {
         var out: [[UInt8]] = []
         var entries: [[UInt8]] = []
@@ -212,7 +226,8 @@ enum OrganizerPayload {
             entries = []
         }
         for item in names {
-            guard let bytes = nameUTF8(item.name) else { continue }
+            let reset = item.name.isEmpty && (kind == .mixer || kind == .playlist)
+            guard let bytes = nameUTF8(item.name) ?? (reset ? [] : nil) else { continue }
             let entry = be16(item.index) + [UInt8(bytes.count)] + bytes
             if entries.count == maxNames || 3 + entries.reduce(0, { $0 + $1.count }) + entry.count > maxCommandBytes {
                 flush()
@@ -336,6 +351,13 @@ enum OrganizerPayload {
         return (Double(Int(bytes[0]) << 8 | Int(bytes[1])) / 100, Double(Int(bytes[2]) << 8 | Int(bytes[3])) / 100)
     }
 
+    /// Réponse de l'opération 25 : la position de la chanson (0…1).
+    static func decodePosition(_ bytes: [UInt8]) -> Double? {
+        guard bytes.count == 2 else { return nil }
+        let permille = Int(bytes[0]) << 8 | Int(bytes[1])
+        return permille <= 1000 ? Double(permille) / 1000 : nil
+    }
+
     /// Réponse de l'opération 15 : nombre de patterns et pattern ouvert.
     static func decodePatterns(_ bytes: [UInt8]) -> (count: Int, current: Int)? {
         guard bytes.count == 4 else { return nil }
@@ -418,6 +440,15 @@ protocol OrganizerLink: AnyObject {
     func heardChannels() throws -> Set<Int>
     /// Canaux affichés sélectionnés dans FL (après « Select unused channels » : ceux qui n'ont aucune note).
     func selectedChannels() throws -> Set<Int>
+    /// Pistes de la Playlist qui jouent, ou ont joué depuis la lecture précédente pendant que la chanson joue
+    /// (script v14 : un script plus ancien répond `outdatedScript`).
+    func heardTracks() throws -> Set<Int>
+    /// Position de la chanson (0…1) pendant l'écoute.
+    func songPosition() throws -> Double
+    /// Ces canaux affichés seuls sélectionnés (`count` : le nombre de canaux affichés, refus s'il a changé).
+    func selectChannels(_ channels: Set<Int>, count: Int) throws
+    /// Ce canal affiché relié à cette piste du Mixer.
+    func linkChannel(_ channel: Int, to track: Int) throws
     /// Cette page de FL devant (Channel rack, Mixer, Playlist), comme ses raccourcis F6, F9, F5.
     func show(_ window: FLWindow) throws
     func setColors(_ kind: ItemKind, _ colors: [(index: Int, color: RGBColor)]) throws
@@ -614,6 +645,30 @@ final class RequestOrganizerLink: OrganizerLink {
             throw OrganizerError.failed(String(localized: "réponse de FL illisible"))
         }
         return set
+    }
+
+    func heardTracks() throws -> Set<Int> {
+        let answer = try v11 { try send(OrganizerPayload.heardTracks) }
+        guard let set = OrganizerPayload.decodeActivity(answer, kind: .playlist) else {
+            throw OrganizerError.failed(String(localized: "réponse de FL illisible"))
+        }
+        return set
+    }
+
+    func songPosition() throws -> Double {
+        let answer = try v11 { try send(OrganizerPayload.songPosition) }
+        guard let position = OrganizerPayload.decodePosition(answer) else {
+            throw OrganizerError.failed(String(localized: "réponse de FL illisible"))
+        }
+        return position
+    }
+
+    func selectChannels(_ channels: Set<Int>, count: Int) throws {
+        try v11 { try send(OrganizerPayload.selectChannels(channels, count: count)) }
+    }
+
+    func linkChannel(_ channel: Int, to track: Int) throws {
+        try v11 { try send(OrganizerPayload.linkChannel(channel, to: track)) }
     }
 
     func setColors(_ kind: ItemKind, _ colors: [(index: Int, color: RGBColor)]) throws {

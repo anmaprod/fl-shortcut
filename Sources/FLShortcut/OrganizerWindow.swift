@@ -2,8 +2,9 @@
 // « Organiser le projet » ou par le menu de la barre des menus. Lien avec FL installé à la demande (écran
 // d'installation s'il manque), analyse de tout le projet, aperçu par famille (une couleur ou un dégradé chacune, ce
 // qu'est chaque son modifiable, ce qui sera fait dans le Channel rack, les patterns, le Mixer et la Playlist), un seul
-// « Tout organiser », puis « Revenir comme avant ». Tout est libéré à la fermeture (session, capture, IA, panneau) :
-// rien ne tourne au repos. Aucune lecture de l'écran.
+// « Organiser », puis « Revenir comme avant ». Tout est libéré à la fermeture (session, capture, IA, panneau) :
+// rien ne tourne au repos. Aucune lecture de l'écran, sauf pour ranger la Playlist : le nom de chaque piste et
+// « Move up » retrouvés dans la fenêtre de FL au moment du clic (OrganizerPlaylistMover).
 import AppKit
 import ApplicationServices
 import Combine
@@ -64,6 +65,10 @@ struct OrganizerEnvironment {
     /// Avant l'analyse (hors du fil principal), par les menus de FL : clips audio inutilisés retirés, sons sans note
     /// sélectionnés ; vrai si la sélection a été faite.
     var prepareProject: () -> Bool = { false }
+    /// « Delete selected » du Channel rack (⌥ + Suppr) envoyé à FL ; faux si rien n'a pu être envoyé.
+    var deleteSelected: (OrganizerLink) -> () -> Bool = { _ in { false } }
+    /// Piste de la Playlist à cette place remontée de n places par son menu (« Move up ») ; le nombre fait.
+    var moveTrack: (OrganizerLink) -> (Int, Int) -> Int = { _ in { _, _ in 0 } }
 
     static func live() -> OrganizerEnvironment {
         OrganizerEnvironment(
@@ -122,7 +127,9 @@ struct OrganizerEnvironment {
                     AXUIElementPerformAction(value as! AXUIElement, kAXRaiseAction as CFString)
                 }
             },
-            prepareProject: { OrganizerEnvironment.livePrepareProject() })
+            prepareProject: { OrganizerEnvironment.livePrepareProject() },
+            deleteSelected: { link in { OrganizerEnvironment.liveDeleteSelected(link: link) } },
+            moveTrack: { link in { place, count in OrganizerEnvironment.liveMoveTrack(place, count, link: link) } })
     }
 
     /// Par les menus de FL dans la barre de macOS (comme le modèle « Supprimer les clips audio inutilisés ») : Tools ›
@@ -136,6 +143,48 @@ struct OrganizerEnvironment {
         else { return false }
         Thread.sleep(forTimeInterval: 0.3)
         return true
+    }
+
+    /// « Delete selected » du Channel rack comme le ferait l'utilisateur : ⌥ + Suppr (fn + ⌫) envoyé à FL seul, le
+    /// Channel rack devant. Une fenêtre de FL ouverte par la touche (une confirmation) est validée par Entrée.
+    static func liveDeleteSelected(link: OrganizerLink) -> Bool {
+        guard let pid = flPID() else { return false }
+        if EventTap.shared.currentConfig.frontmostPID != pid {
+            _ = NSRunningApplication(processIdentifier: pid)?.activate(options: [])
+            Thread.sleep(forTimeInterval: 0.3)
+        }
+        guard link.window == .channelRack, EventTap.shared.currentConfig.frontmostPID == pid else { return false }
+        let before = WinSnapshot.take(pid: pid).numbers
+        let effects = MacroEffectsMac(pid: pid)
+        effects.postKey(KeyCombo(keyCode: 117, option: true), pid: pid)
+        for _ in 0..<10 {
+            Thread.sleep(forTimeInterval: 0.1)
+            let opened = WinSnapshot.take(pid: pid).fl.filter {
+                !before.contains($0.number) && $0.bounds.width >= 150 && $0.bounds.height >= 80
+            }
+            if !opened.isEmpty {
+                MacroLog.shared.write("ORGANIZE", "delete: FL asked for a confirmation, Return")
+                effects.postKey(KeyCombo(keyCode: 36), pid: pid)
+                _ = WindowWait.gone(pid: pid, numbers: Set(opened.map(\.number)), timeout: 1, stop: { nil })
+                break
+            }
+        }
+        Thread.sleep(forTimeInterval: 0.2)
+        return true
+    }
+
+    /// Piste de la Playlist remontée par son menu (OrganizerPlaylistMover), FL au premier plan et la Playlist devant ;
+    /// le panneau de l'Organiser laisse passer les clics le temps du rangement.
+    static func liveMoveTrack(_ place: Int, _ count: Int, link: OrganizerLink) -> Int {
+        guard let pid = flPID() else { return 0 }
+        if EventTap.shared.currentConfig.frontmostPID != pid {
+            _ = NSRunningApplication(processIdentifier: pid)?.activate(options: [])
+            Thread.sleep(forTimeInterval: 0.3)
+        }
+        guard link.window == .playlist else { return 0 }
+        OrganizerWindow.clickThrough(true)
+        defer { OrganizerWindow.clickThrough(false) }
+        return PlaylistMover.moveUp(place, count, link: link, pid: pid)
     }
 
     /// Lien installé : script remis dans FL s'il en a disparu, ports « FL Shortcuts Link » créés s'ils ne sont pas là
@@ -231,8 +280,10 @@ final class OrganizerController: ObservableObject {
     @Published var kinds: [Int: SoundKind] = [:]
     @Published var styles: [SoundFamily: FamilyStyle]
     @Published private(set) var result: OrganizerResult?
-    /// Ce que « Tout organiser » fait : les pages de FL touchées, et les noms.
+    /// Ce que « Organiser » fait : les pages de FL touchées, et les noms.
     @Published var options = OrganizerOptions()
+    /// Ce que la dernière application a fait de plus (sons supprimés, Playlist rangée ou non).
+    @Published private(set) var lastApply: ApplyOutcome?
     /// En attente de FL : l'aide détaillée (réglages de FL, dossier du script) dépliée.
     @Published var showLinkHelp = false
 
@@ -460,7 +511,7 @@ final class OrganizerController: ObservableObject {
         }
     }
 
-    /// Ce que « Tout organiser » fera, d'après ce qu'est chaque son (modifiable) et les options.
+    /// Ce que « Organiser » fera, d'après ce qu'est chaque son (modifiable) et les options.
     var plan: OrganizerPlan {
         guard let result else { return OrganizerPlan() }
         return OrganizerPlan.make(result, families: families, kinds: kinds, styles: styles, options: options)
@@ -529,6 +580,9 @@ final class OrganizerController: ObservableObject {
     var summary: [(symbol: String, text: String)] {
         let plan = self.plan
         var out: [(symbol: String, text: String)] = []
+        if !plan.deleted.isEmpty {
+            out.append(("trash", String(localized: "\(plan.deleted.count) sons sans aucune note supprimés du Channel rack (on ne peut pas les remettre avec « Revenir comme avant »)")))
+        }
         if options.rack, !plan.rack.isEmpty {
             out.append(("square.stack.3d.up", String(localized: "Channel rack : \(plan.rack.colors.count) sons regroupés et colorés, \(plan.rack.names.count) renommés")))
         }
@@ -541,12 +595,20 @@ final class OrganizerController: ObservableObject {
             out.append(("slider.vertical.3", buses > 0
                 ? String(localized: "Mixer : \(tracks) pistes dans l'ordre du Channel rack, \(buses) bus (un par famille), \(plan.mixer.names.count) renommées")
                 : String(localized: "Mixer : \(tracks) pistes dans l'ordre du Channel rack, \(plan.mixer.names.count) renommées")))
+            if !plan.mixer.links.isEmpty {
+                out.append(("arrow.triangle.branch", String(localized: "\(plan.mixer.links.count) sons envoyés au Master reliés chacun à une piste libre du Mixer")))
+            }
+            if !plan.mixer.resets.isEmpty {
+                out.append(("eraser", String(localized: "\(plan.mixer.resets.count) pistes du Mixer des sons supprimés remises comme neuves")))
+            }
         }
-        if let unused = result?.unused.count, unused > 0 {
+        if plan.deleted.isEmpty, let unused = result?.unused.count, unused > 0 {
             out.append(("moon.zzz", String(localized: "\(unused) sons sans aucune note laissés de côté (ni rangés, ni colorés, ni renommés)")))
         }
         if options.playlist, !plan.playlist.isEmpty {
-            out.append(("rectangle.split.3x1", String(localized: "Playlist : \(plan.playlist.colors.count) pistes colorées, \(plan.playlist.names.count) renommées")))
+            out.append(("rectangle.split.3x1", plan.playlist.moves.isEmpty
+                ? String(localized: "Playlist : \(plan.playlist.colors.count) pistes colorées, \(plan.playlist.names.count) renommées")
+                : String(localized: "Playlist : \(plan.playlist.colors.count) pistes colorées, \(plan.playlist.names.count) renommées, rangées comme le Channel rack")))
         }
         return out
     }
@@ -562,7 +624,21 @@ final class OrganizerController: ObservableObject {
     }
 
     var doneText: String {
-        String(localized: "C'est fait : le projet est rangé, coloré et renommé. « Revenir comme avant » défait tout.")
+        var lines = [String(localized: "C'est fait : le projet est rangé, coloré et renommé. « Revenir comme avant » défait tout, sauf les sons supprimés.")]
+        if let outcome = lastApply {
+            if outcome.deleted > 0 {
+                lines.append(String(localized: "\(outcome.deleted) sons sans aucune note supprimés."))
+            }
+            if outcome.notDeleted > 0 {
+                lines.append(String(localized: "FL n'a pas supprimé les \(outcome.notDeleted) sons sans aucune note : ils sont sélectionnés dans le Channel rack, supprime-les avec clic droit › Delete."))
+            }
+            if outcome.playlistUnordered {
+                lines.append(ScreenLook.allowed
+                    ? String(localized: "Playlist pas rangée : FL n'a pas montré le menu de ses pistes (la Playlist doit être visible, ses noms de piste à l'écran). Noms et couleurs sont posés.")
+                    : String(localized: "Playlist pas rangée : pour remonter ses pistes, FL Shortcuts doit voir la fenêtre de FL (Réglages Système › Confidentialité et sécurité › Enregistrement de l'écran). Noms et couleurs sont posés."))
+            }
+        }
+        return lines.joined(separator: "\n")
     }
 
     func apply() {
@@ -571,12 +647,14 @@ final class OrganizerController: ObservableObject {
         env.focusFL()                                         // ⌥↑, ⌥← et F2 vont à FL
         phase = .applying
         let applier = OrganizerApplier(link: link, moveUp: env.moveUp(link), moveLeft: env.moveLeft(link),
-                                       placeIcon: env.placeIcon)
+                                       placeIcon: env.placeIcon, deleteSelected: env.deleteSelected(link),
+                                       moveTrack: env.moveTrack(link))
         let plan = self.plan, styles = self.styles
         queue.async { [weak self] in
             let outcome = applier.apply(plan, result: result, styles: styles)
             DispatchQueue.main.async {
                 self?.snapshot = outcome.snapshot
+                self?.lastApply = outcome
                 self?.phase = .applied(outcome.error)
             }
         }
@@ -596,7 +674,8 @@ final class OrganizerController: ObservableObject {
         guard canUndo, let snapshot, let link else { return }
         env.focusFL()
         phase = .undoing
-        let applier = OrganizerApplier(link: link, moveUp: env.moveUp(link), moveLeft: env.moveLeft(link))
+        let applier = OrganizerApplier(link: link, moveUp: env.moveUp(link), moveLeft: env.moveLeft(link),
+                                       moveTrack: env.moveTrack(link))
         queue.async { [weak self] in
             let outcome = applier.undo(snapshot)
             DispatchQueue.main.async {
@@ -742,6 +821,12 @@ enum OrganizerWindow {
         panel.setFrame(frame, display: true, animate: animate && panel.isVisible && !Motion.reduce)
     }
 
+    /// Pendant que l'Organiser clique dans FL (Playlist) : les clics traversent le panneau, qui flotte au-dessus de FL.
+    static func clickThrough(_ on: Bool) {
+        let set: () -> Void = { panel?.ignoresMouseEvents = on }
+        if Thread.isMainThread { set() } else { DispatchQueue.main.sync(execute: set) }
+    }
+
     /// Ferme et lâche tout ; l'écoute en cours s'arrête et FL est remis comme avant.
     static func close() {
         guard let p = panel else { return }
@@ -857,11 +942,11 @@ struct OrganizerView: View {
                 .organizerCard()
                 .morphIn(1)
                 Text(String(localized: """
-                    FL retire d'abord les clips audio inutilisés et repère les sons sans aucune note (laissés de côté). \
-                    Un son dont le nom dit ce qu'il est (Kick, 808, Hat…) est classé tout de suite ; les autres jouent \
-                    seuls, sans que tu les entendes. Chaque pattern joue en entier, en accéléré, puis chaque piste de la \
-                    Playlist un instant : FL dit quels sons y jouent (même ceux que tu as coupés). Ne touche pas à FL ; \
-                    Échap arrête.
+                    FL retire d'abord les clips audio inutilisés et repère les sons sans aucune note (supprimés si tu \
+                    organises). Un son dont le nom dit ce qu'il est (Kick, 808, Hat…) est classé tout de suite ; les \
+                    autres jouent seuls, sans que tu les entendes. Chaque pattern, puis toute la chanson, jouent en \
+                    entier, en accéléré, puis chaque piste de la Playlist un instant : FL dit quels sons y jouent (même \
+                    ceux que tu as coupés). Ne touche pas à FL ; Échap arrête.
                     """))
                     .font(.system(size: 11))
                     .foregroundStyle(.secondary)
@@ -1203,7 +1288,7 @@ struct OrganizerView: View {
                 Button("Annuler") { controller.close() }.keyboardShortcut(.cancelAction)
                 diagnosticButton
                 Spacer()
-                Button("Tout organiser") { controller.apply() }
+                Button("Organiser") { controller.apply() }
                     .primaryButton()
                     .keyboardShortcut(.defaultAction)
             }
@@ -1325,7 +1410,7 @@ private struct OrganizerStep: View {
     }
 }
 
-/// Ce que « Tout organiser » fera dans chaque page de FL, avec une case par page et une pour les noms.
+/// Ce que « Organiser » fera dans chaque page de FL, avec une case par page et une pour les noms.
 private struct ProjectSummary: View {
     @ObservedObject var controller: OrganizerController
 
@@ -1360,9 +1445,12 @@ private struct ProjectSummary: View {
                 .toggleStyle(.checkbox)
                 .font(.system(size: 11))
                 .disabled(!controller.options.mixer)
+            Toggle("Supprimer les sons sans aucune note (on ne peut pas les remettre)", isOn: $controller.options.deleteUnused)
+                .toggleStyle(.checkbox)
+                .font(.system(size: 11))
             Text(String(localized: """
-                FL ne laisse pas un script déplacer les pistes de la Playlist ni les patterns : ils sont colorés et \
-                renommés, à leur place.
+                Les pistes de la Playlist sont remontées par leur menu (« Move up ») : FL Shortcuts lit alors la \
+                fenêtre de FL (autorisation « Enregistrement de l'écran »). Les patterns restent à leur place.
                 """))
                 .font(.system(size: 10))
                 .foregroundStyle(.secondary)

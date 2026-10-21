@@ -704,8 +704,8 @@ private enum Specs {
         import_: .ok, plateformes: .mac)
 
     static let organize = BlockSpec(
-        type: .organize, label: String(localized: "Tout organiser"), category: .fl, symbol: "square.stack.3d.up",
-        aide: String(localized: "Ouvre l'Organiser sur tout le projet : chaque son est reconnu d'après son nom (« BEAM KICK » : Kick), sinon écouté sans que tu l'entendes ; tu vérifies l'aperçu, puis « Tout organiser » range le Channel rack (les Kick ensemble, puis les Snare…), met le Mixer dans le même ordre (pistes reliées côte à côte), colore et renomme simplement sons, patterns, pistes du Mixer et de la Playlist. « Revenir comme avant » défait tout."),
+        type: .organize, label: String(localized: "Organiser"), category: .fl, symbol: "square.stack.3d.up",
+        aide: String(localized: "Ouvre l'Organiser sur tout le projet : chaque son est reconnu d'après son nom (« BEAM KICK » : Kick), sinon écouté sans que tu l'entendes ; tu vérifies l'aperçu, puis « Organiser » supprime les sons sans aucune note, range le Channel rack (les Kick ensemble, puis les Snare…), met le Mixer et la Playlist dans le même ordre, colore et renomme simplement sons, patterns, pistes du Mixer et de la Playlist (le même nom partout pour un même son). « Revenir comme avant » défait tout, sauf les sons supprimés."),
         params: [],
         conteneur: .aucun, dansLaPalette: true,
         needs: { _ in base.union(.lienMIDI) },

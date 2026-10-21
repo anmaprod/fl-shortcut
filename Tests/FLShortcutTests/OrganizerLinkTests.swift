@@ -264,6 +264,33 @@ final class OrganizerLinkTests: XCTestCase {
         XCTAssertThrowsError(try old.patternLengths()) { XCTAssertEqual($0 as? OrganizerError, .outdatedScript) }
     }
 
+    func testV14Payloads() throws {
+        XCTAssertEqual(OrganizerPayload.heardTracks, [14, 3, 1])
+        XCTAssertEqual(OrganizerPayload.selectChannels([1, 4, 9], count: 10), [23, 0, 10, 0b10010, 0b10])
+        XCTAssertEqual(OrganizerPayload.selectChannels([12], count: 10), [23, 0, 10, 0, 0], "hors du Channel rack : ignoré")
+        XCTAssertEqual(OrganizerPayload.linkChannel(2, to: 300), [24, 0, 2, 1, 44])
+        XCTAssertEqual(OrganizerPayload.songPosition, [25])
+        XCTAssertEqual(OrganizerPayload.decodePosition([1, 201]), 0.457)
+        XCTAssertNil(OrganizerPayload.decodePosition([3, 233]), "plus de 1000")
+        XCTAssertNil(OrganizerPayload.decodePosition([1]))
+        // Nom vide : le nom de FL remis (piste du Mixer d'un son supprimé), jamais pour un canal.
+        XCTAssertEqual(OrganizerPayload.setNames(.mixer, [(index: 5, name: "")]), [[10, 2, 1, 0, 5, 0]])
+        XCTAssertEqual(OrganizerPayload.setNames(.channels, [(index: 5, name: "")]), [])
+
+        // Script plus ancien : la première opération v14 est refusée (5) → FL à redémarrer.
+        let old = RequestOrganizerLink(request: { _ in .refused(5) }, window: { .channelRack }, sleep: { _ in })
+        XCTAssertThrowsError(try old.heardTracks()) { XCTAssertEqual($0 as? OrganizerError, .outdatedScript) }
+        var asked: [[UInt8]] = []
+        let link = RequestOrganizerLink(request: { bytes in
+            asked.append(bytes)
+            return bytes == [25] ? .answered([0, 250]) : .answered([3, 0, 4, 0b0101])
+        }, window: { .playlist }, sleep: { _ in })
+        XCTAssertEqual(try link.heardTracks(), [0, 2])
+        XCTAssertEqual(try link.songPosition(), 0.25)
+        try link.linkChannel(1, to: 7)
+        XCTAssertEqual(asked.last, [24, 0, 1, 0, 7])
+    }
+
     func testV12Payloads() throws {
         XCTAssertEqual(OrganizerPayload.list(.patterns, start: 8), [2, 4, 0, 8])
         XCTAssertEqual(OrganizerPayload.routes(300), [17, 1, 44])

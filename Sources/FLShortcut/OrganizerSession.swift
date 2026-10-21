@@ -1,14 +1,17 @@
 // Organiser : tout le projet d'un coup. Ce qu'est chaque son du Channel rack (son nom, sinon son écoute dans un
-// pattern où il joue, avec deux notes d'essai en secours), les sons de chaque pattern (chaque pattern joué, FL dit ce
-// qui joue), ceux de chaque piste de la Playlist (la chanson relevée, puis chaque piste jouée seule : FL dit quels sons
-// jouent ; un clip audio sans son reconnu est écouté) et les envois du Mixer. Les sons et pistes coupés par
-// l'utilisateur sont audibles le temps de l'analyse (retour de l'utilisateur : trois pistes sautées, leurs sons étaient
-// coupés). Avant l'analyse, les menus de FL retirent les clips audio inutilisés et sélectionnent les sons sans aucune
-// note : ces sons sont laissés de côté (retour de l'utilisateur : des sons sans note étaient rangés, colorés,
-// renommés). Ce qui joue est relevé en continu par le script (une note brève entre deux lectures compte : Kick et Open
-// Hat oubliés), chaque pattern en entier, tempo accéléré le temps du relevé. Tourne hors du fil principal ; FL est
-// toujours remis comme avant (opération 7 : sourdines, tempo…) avant que le son de FL revienne, même après une erreur
-// ou Échap. Les noms ne sont jamais journalisés (le diagnostic n'a que des nombres).
+// pattern où il joue, avec deux notes d'essai en secours ; un clip audio, sa note de base : il joue tel quel), les sons
+// de chaque pattern (chaque pattern joué, FL dit ce qui joue), ceux de chaque piste de la Playlist (toute la chanson
+// jouée d'un bout à l'autre, puis chaque piste jouée seule : FL dit quels sons jouent ; un clip audio sans son reconnu
+// est écouté) et les envois du Mixer. Les sons et pistes coupés par l'utilisateur sont audibles le temps de l'analyse
+// (retour de l'utilisateur : trois pistes sautées, leurs sons étaient coupés). Avant l'analyse, les menus de FL
+// retirent les clips audio inutilisés et sélectionnent les sons sans aucune note : ces sons sont laissés de côté, puis
+// supprimés par « Organiser » (retour de l'utilisateur). Ce qui joue est relevé en continu par le script (une note
+// brève ou un clip court entre deux lectures comptent : Kick et Open Hat oubliés, pistes de la Playlist manquées),
+// patterns et chanson en entier, tempo accéléré le temps du relevé. Un nom que l'Organiser a pu donner (« Mélodie 3 »)
+// ne dit rien de sûr : le son est écouté (retour de l'utilisateur : une boucle de batterie restait « Mélodie 3 »).
+// Tourne hors du fil principal ; FL est toujours remis comme avant (opération 7 : sourdines, tempo…) avant que le son
+// de FL revienne, même après une erreur ou Échap. Les noms ne sont jamais journalisés (le diagnostic n'a que des
+// nombres).
 import Accelerate
 import Foundation
 
@@ -84,8 +87,10 @@ struct OrganizerResult: Equatable {
     var trackSounds: [Int: Set<Int>] = [:]
     /// Pistes sans son du Channel rack reconnu (clips audio), classées à l'écoute.
     var trackItems: [OrganizerItem] = []
-    /// Sons sans aucune note (index des canaux) : laissés de côté, ni rangés ni colorés ni renommés.
+    /// Sons sans aucune note (index des canaux) : laissés de côté, ni rangés ni colorés ni renommés, puis supprimés.
     var unused: Set<Int> = []
+    /// Pistes du Mixer que seuls des sons supprimés utilisaient (remises comme neuves par « Organiser »).
+    var freed: Set<Int> = []
 }
 
 final class OrganizerSession {
@@ -104,9 +109,10 @@ final class OrganizerSession {
         var afterSound: TimeInterval = 1.5
         /// Encore rien entendu au bout de ce délai : les notes d'essai tout de suite.
         var silentGiveUp: TimeInterval = 1.5
-        /// Relevé des pistes qui jouent à une position de la chanson : à cet intervalle, `scanReads` fois.
-        var scanStep: TimeInterval = 0.2
-        var scanReads = 4
+        /// Chanson jouée d'un bout à l'autre (tempo accéléré) : ce qui a joué relevé à cet intervalle, `songCap` au
+        /// plus.
+        var songSlice: TimeInterval = 0.25
+        var songCap: TimeInterval = 90
         /// Après un changement de pattern ou un saut dans la chanson : la fin du son d'avant ne compte pas.
         var settle: TimeInterval = 0.2
         /// Relevé des patterns : tempo multiplié par ce facteur (1 : tel quel), chaque pattern écouté en entier,
@@ -115,6 +121,8 @@ final class OrganizerSession {
         var patternCap: TimeInterval = 8
         /// Piste de la Playlist jouée seule : ce qui y joue, relevé pendant ce temps.
         var trackListen: TimeInterval = 1.5
+        /// Clip audio : sa note de base tenue ce temps-là.
+        var clipListen: TimeInterval = 1.5
     }
 
     typealias Classify = ([Float], Double) -> (family: SoundFamily, confidence: Double)
@@ -123,6 +131,9 @@ final class OrganizerSession {
 
     /// Notes d'essai : C3 puis C5 (pour FPC, ses deux premiers pads).
     static let testNotes: [UInt8] = [48, 60]
+    /// Note de base d'un clip audio (C5) : il joue tel quel, ni plus grave ni plus lent (retour de l'utilisateur : une
+    /// boucle de batterie entendue deux octaves plus bas, avec C3, était classée « Mélodie »).
+    static let clipNote: UInt8 = 60
     static let testVelocity: UInt8 = 100
     /// Un classement fait avec les notes d'essai compte moins.
     static let testNotesFactor = 0.7
@@ -130,8 +141,6 @@ final class OrganizerSession {
     static let nameConfidence = 0.9
     /// Patterns relevés au plus (une seconde chacun environ).
     static let maxPatternsScanned = 64
-    /// Positions de la chanson relevées au plus.
-    static let maxPositions = 64
     /// Pistes de la Playlist jouées seules au plus.
     static let maxTracks = 64
     /// Pistes du Mixer dont les envois sont lus au plus.
@@ -215,9 +224,9 @@ final class OrganizerSession {
     /// Bloquant (à lancer hors du fil principal) ; `progress(fait, total)` est appelé à chaque étape et à la fin.
     func run() -> Result<OrganizerResult, OrganizerError> {
         do {
-            // La première commande réveille le script ; un script d'avant la v13 la refuse : FL à redémarrer, rien
+            // La première commande réveille le script ; un script d'avant la v14 la refuse : FL à redémarrer, rien
             // n'est touché.
-            _ = try link.patternLengths()
+            _ = try link.heardTracks()
             let selection = prepare()
             let lengths = try link.patternLengths()
             let patterns = try link.listPatterns()
@@ -234,7 +243,7 @@ final class OrganizerSession {
                 audio.stop()
             }
             let scan = try scanPatterns(count: patterns.count, lengths: lengths)
-            let song = try readPlaylist()
+            let song = try readPlaylist(tempo: lengths.tempo)
             // Ce que FL a entendu jouer quelque part : jamais laissé de côté.
             let heard = (Array(scan.sounds.values) + Array(song.sounds.values)).reduce(into: Set<Int>()) { $0.formUnion($1) }
             let unused = Self.unused(channels, selected: selected, heard: heard, complete: scan.complete)
@@ -347,15 +356,14 @@ final class OrganizerSession {
     // MARK: Sons du Channel rack
 
     /// Chaque son : son nom s'il dit ce qu'il est, sinon son écoute (la capture est déjà lancée), dans le pattern où il
-    /// joue. Pas un son entendu et rien d'après les noms : la capture ne reçoit rien (`noSound`).
+    /// joue. Un nom que l'Organiser a pu donner (« Mélodie 3 », « Snare 2 ») reste seulement si l'écoute ne le
+    /// contredit pas. Pas un son entendu et rien d'après les noms : la capture ne reçoit rien (`noSound`).
     private func classifyChannels(_ targets: [ChannelInfo], homes: [Int: Int]) throws -> [OrganizerItem] {
         var byIndex: [Int: OrganizerItem] = [:]
         var toListen: [ChannelInfo] = []
         for channel in targets {
-            if let kind = SoundNames.kind(of: channel.name) {
-                byIndex[channel.index] = OrganizerItem(
-                    index: channel.index, name: channel.name, family: kind.family, confidence: Self.nameConfidence,
-                    testNotes: false, mixerTrack: channel.mixerTrack, color: channel.color, kind: kind, byName: true)
+            if let kind = SoundNames.kind(of: channel.name), !SoundNames.isGenerated(channel.name) {
+                byIndex[channel.index] = Self.byName(channel, kind)
             } else {
                 toListen.append(channel)
             }
@@ -364,14 +372,28 @@ final class OrganizerSession {
         if !toListen.isEmpty {
             plan(toListen.count)
             let heard = try listen(toListen, homes: homes)
-            if heard.anyHeard == false && byIndex.isEmpty { throw OrganizerError.noSound }
-            for item in heard.items { byIndex[item.index] = item }
+            for item in heard.items {
+                if let channel = toListen.first(where: { $0.index == item.index }),
+                   let kind = SoundNames.kind(of: channel.name),
+                   SoundNames.keeps(kind, heard: Verdict(family: item.family, kind: item.kind)) {
+                    byIndex[item.index] = Self.byName(channel, kind)
+                } else {
+                    byIndex[item.index] = item
+                }
+            }
+            if !heard.anyHeard && !byIndex.values.contains(where: \.byName) { throw OrganizerError.noSound }
         }
         return targets.compactMap { byIndex[$0.index] }
     }
 
+    private static func byName(_ channel: ChannelInfo, _ kind: SoundKind) -> OrganizerItem {
+        OrganizerItem(index: channel.index, name: channel.name, family: kind.family, confidence: nameConfidence,
+                      testNotes: false, mixerTrack: channel.mixerTrack, color: channel.color, kind: kind, byName: true)
+    }
+
     /// Chaque son écouté seul, dans un pattern où il joue (sinon le pattern ouvert), puis deux notes d'essai s'il se
-    /// tait. La capture est déjà lancée ; FL est remis par l'appelant.
+    /// tait ; un clip audio (il ne joue pas dans les patterns), sa note de base. La capture est déjà lancée ; FL est
+    /// remis par l'appelant.
     private func listen(_ targets: [ChannelInfo], homes: [Int: Int]) throws -> (items: [OrganizerItem], anyHeard: Bool) {
         var items: [OrganizerItem] = []
         var heardAny = false
@@ -379,9 +401,15 @@ final class OrganizerSession {
             try step()
             audio.reset()
             try link.playSolo(channel.index, pattern: homes[channel.index])
-            var samples = try listenUntilHeard()
-            let tested = Self.peakDB(samples) < FamilyFusion.silenceDB
-            if tested { samples = try playTestNotes(channel.index) }
+            var samples: [Float]
+            var tested = false
+            if channel.type == ChannelInfo.audioClipType {
+                samples = try playClip(channel.index)
+            } else {
+                samples = try listenUntilHeard()
+                tested = Self.peakDB(samples) < FamilyFusion.silenceDB
+                if tested { samples = try playTestNotes(channel.index) }
+            }
             let heard = Self.peakDB(samples) >= FamilyFusion.silenceDB
             if heard { heardAny = true }
             note { $0.listened += 1; $0.heard += heard ? 1 : 0; $0.testNotes += tested ? 1 : 0 }
@@ -398,12 +426,13 @@ final class OrganizerSession {
 
     // MARK: Playlist
 
-    /// Pistes de la Playlist qui jouent et leurs sons : la chanson relevée à plusieurs positions (FL dit quelles pistes
-    /// jouent), puis chaque piste jouée seule à une position où elle joue avec le moins d'autres pistes (FL dit quels
-    /// sons jouent). Rien de reconnu (clip audio) : la piste est écoutée et classée à l'écoute ; FL ne dit rien du
-    /// tout : les sons qui jouent en même temps qu'elle. FL trop ancien pour le dire : aucune piste.
-    private func readPlaylist() throws -> (tracks: [PlaylistTrackInfo], sounds: [Int: Set<Int>], heard: [OrganizerItem]) {
-        guard let samples = try sampleSong(), !samples.isEmpty else { return ([], [:], []) }
+    /// Pistes de la Playlist qui jouent et leurs sons : toute la chanson jouée (FL dit quelles pistes jouent), puis
+    /// chaque piste jouée seule là où elle joue avec le moins d'autres pistes (FL dit quels sons jouent). Rien de
+    /// reconnu (clip audio) : la piste est écoutée et classée à l'écoute ; FL ne dit rien du tout : les sons qui jouent
+    /// en même temps qu'elle. FL trop ancien pour le dire : aucune piste.
+    private func readPlaylist(tempo: Double) throws
+        -> (tracks: [PlaylistTrackInfo], sounds: [Int: Set<Int>], heard: [OrganizerItem]) {
+        guard let samples = try sampleSong(tempo: tempo), !samples.isEmpty else { return ([], [:], []) }
         var activeAt: [Int: [Int]] = [:]          // piste -> relevés où elle joue
         for (k, sample) in samples.enumerated() {
             for t in sample.tracks { activeAt[t, default: []].append(k) }
@@ -446,27 +475,42 @@ final class OrganizerSession {
         return (tracks, sounds, heard)
     }
 
-    /// Relevés de ce qui joue à chaque position de la chanson (pistes, sons), tout audible ; nil si FL ou le script ne
-    /// savent pas le dire.
-    private func sampleSong() throws -> [(position: Double, tracks: Set<Int>, channels: Set<Int>)]? {
+    /// Toute la chanson jouée d'un bout à l'autre, tout audible, tempo accéléré le temps du relevé : à chaque tranche,
+    /// les pistes et les sons qui ont joué (relevés en continu par le script : un clip court entre deux lectures
+    /// compte ; retour de l'utilisateur : des pistes manquées, des trous) et la position où la tranche commence. nil
+    /// si FL ou le script ne savent pas le dire.
+    private func sampleSong(tempo: Double) throws -> [(position: Double, tracks: Set<Int>, channels: Set<Int>)]? {
         var out: [(position: Double, tracks: Set<Int>, channels: Set<Int>)] = []
+        var sped = false
+        defer {
+            // Le tempo d'avant pour écouter chaque piste seule (l'opération 7 le remet aussi à la fin).
+            if sped { _ = try? link.speed(1) }
+        }
         do {
             let bars = try link.playSong(at: 0)
-            let positions = Self.songPositions(bars: bars)
-            note { $0.positions = positions.count; $0.activity = "oui" }
-            plan(positions.count)
-            for (k, position) in positions.enumerated() {
+            var now = tempo
+            if timing.speedFactor > 1, let speed = try? link.speed(timing.speedFactor), speed.now > 0 {
+                sped = true
+                now = speed.now
+                _ = try link.playSong(at: 0)                     // depuis le début, au nouveau tempo
+            }
+            let slices = Self.songSlices(bars: bars, tempo: now, slice: timing.songSlice, cap: timing.songCap)
+            note { $0.positions = slices; $0.activity = "oui" }
+            plan(slices)
+            try pause(timing.settle)
+            _ = try link.heardTracks()
+            _ = try link.heardChannels()
+            var start = 0.0
+            for _ in 0..<slices {
                 try step()
-                if k > 0 { _ = try link.playSong(at: position) }
-                try pause(timing.settle)
-                _ = try link.heardChannels()
-                var tracks = Set<Int>()
-                for _ in 0..<max(1, timing.scanReads) {
-                    try pause(timing.scanStep)
-                    tracks.formUnion(try link.activeTracks())
-                }
+                try pause(timing.songSlice)
+                let tracks = try link.heardTracks()
                 let channels = try link.heardChannels()
-                if !tracks.isEmpty { out.append((position: position, tracks: tracks, channels: channels)) }
+                let position = try link.songPosition()
+                if !tracks.isEmpty { out.append((position: start, tracks: tracks, channels: channels)) }
+                // Chanson finie : FL repart du début, le relevé s'arrête là.
+                if position < start || position >= 0.999 { break }
+                start = position
             }
         } catch OrganizerError.cancelled {
             throw OrganizerError.cancelled
@@ -488,11 +532,13 @@ final class OrganizerSession {
         }
     }
 
-    /// Pur (testé) : positions (0…1) relevées dans la chanson : toutes les 2 mesures (`maxPositions` au plus), 16 si
-    /// FL ne donne pas sa longueur.
-    static func songPositions(bars: Int) -> [Double] {
-        let count = bars > 0 ? min(maxPositions, max(1, (bars + 1) / 2)) : 16
-        return (0..<count).map { Double($0) / Double(count) }
+    /// Pur (testé) : tranches de `slice` secondes pour jouer toute la chanson (`bars` mesures de 4 temps à `tempo`),
+    /// une de plus pour finir, `cap` secondes au plus ; 16 mesures à 120 si FL ne donne ni sa longueur ni son tempo.
+    static func songSlices(bars: Int, tempo: Double, slice: TimeInterval, cap: TimeInterval) -> Int {
+        let b = bars > 0 ? Double(bars) : 16
+        let bpm = tempo > 0 ? tempo : 120
+        let seconds = min(cap, b * 4 * 60 / bpm)
+        return max(1, Int((seconds / max(slice, 0.01)).rounded(.up)) + 1)
     }
 
     /// Pur (testé) : sons de chaque piste d'après les relevés seulement (repli quand FL ne dit rien de la piste jouée
@@ -569,6 +615,17 @@ final class OrganizerSession {
             if heardAt == nil, elapsed >= timing.silentGiveUp - 1e-9 { break }
         }
         return kept + audio.take()
+    }
+
+    /// Clip audio : sa note de base tenue `clipListen`, puis la queue ; la note est toujours coupée, même après Échap.
+    private func playClip(_ channel: Int) throws -> [Float] {
+        audio.reset()
+        try link.audition(channel, note: Self.clipNote, velocity: Self.testVelocity)
+        let finished = wait(timing.clipListen)
+        try link.audition(channel, note: Self.clipNote, velocity: 0)
+        if !finished { throw OrganizerError.cancelled }
+        try pause(timing.tail)
+        return audio.take()
     }
 
     /// Chaque note est toujours coupée (vélocité 0), même après Échap.

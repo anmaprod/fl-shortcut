@@ -10,13 +10,13 @@ final class FakeOrganizerLink: OrganizerLink {
     var mixer: [MixerTrackInfo] = []
     var playlist: [PlaylistTrackInfo] = []
     var patternList: [PatternInfo] = []
-    /// Script v13 simulé ; faux : un ancien script, qui refuse ses nouvelles opérations (FL à redémarrer).
-    var v13 = true
+    /// Script v14 simulé ; faux : un ancien script, qui refuse ses nouvelles opérations (FL à redémarrer).
+    var v14 = true
     /// Longueur de chaque pattern en temps (16 si absente) et tempo ; tempo pendant le relevé (opération 22).
     var lengths: [Int] = []
     var tempo = 120.0
     private(set) var speedFactor = 1
-    /// Canaux sélectionnés par « Select unused channels » de FL.
+    /// Canaux sélectionnés dans FL : par « Select unused channels », ou par le script (opération 23).
     var unusedSelection: Set<Int> = []
     /// Faux : FL trop ancien pour jouer toute la chanson (relevé de la Playlist impossible).
     var song = true
@@ -24,6 +24,8 @@ final class FakeOrganizerLink: OrganizerLink {
     /// chanson, sons qui jouent quand une piste de la Playlist joue seule (index 0 = piste 1).
     var patternSounds: [Int: Set<Int>] = [:]
     var songAt: (Double) -> (tracks: Set<Int>, channels: Set<Int>) = { _ in ([], []) }
+    /// Chanson jouée en entier : chaque lecture de sa position l'avance d'autant (finie : elle repart du début).
+    var songStep = 0.5
     var trackChannels: [Int: Set<Int>] = [:]
     var routes: [Int: [Int]] = [:]
     var currentPattern = 1
@@ -38,7 +40,7 @@ final class FakeOrganizerLink: OrganizerLink {
     private var memo = false
     /// Pattern joué par la dernière opération 6 (nil : celui qui est ouvert), position de la chanson jouée en entier.
     private(set) var playedPattern: Int?
-    private(set) var songPosition: Double?
+    private(set) var songCursor: Double?
     private(set) var selected: Int?
     private(set) var selectedTrack: Int?
     /// Index des couleurs ignorées par ce faux FL (pour tester la vérification), et genre concerné.
@@ -78,7 +80,7 @@ final class FakeOrganizerLink: OrganizerLink {
     }
 
     func patternLengths() throws -> (tempo: Double, beats: [Int]) {
-        guard v13 else { throw OrganizerError.outdatedScript }
+        guard v14 else { throw OrganizerError.outdatedScript }
         return (tempo, patternList.indices.map { $0 < lengths.count ? lengths[$0] : 16 })
     }
 
@@ -195,7 +197,7 @@ final class FakeOrganizerLink: OrganizerLink {
         memo = true
         playing = true
         playedPattern = pattern
-        songPosition = nil
+        songCursor = nil
         track = nil
         if channel == OrganizerPayload.allChannels {
             solo = nil
@@ -210,13 +212,63 @@ final class FakeOrganizerLink: OrganizerLink {
 
     func activeChannels() throws -> Set<Int> {
         if let track { return trackChannels[track] ?? [] }
-        if let at = songPosition { return songAt(at).channels }
+        if let at = songCursor { return songAt(at).channels }
         if solo == nil, let p = playedPattern { return patternSounds[p] ?? [] }
         return []
     }
 
     func activeTracks() throws -> Set<Int> {
-        songPosition.map { songAt($0).tracks } ?? []
+        songCursor.map { songAt($0).tracks } ?? []
+    }
+
+    func heardTracks() throws -> Set<Int> {
+        guard v14 else { throw OrganizerError.outdatedScript }
+        return try activeTracks()
+    }
+
+    func songPosition() throws -> Double {
+        guard let at = songCursor else { return 0 }
+        let next = at + songStep
+        songCursor = next >= 1 - 1e-9 ? 0 : next
+        return songCursor ?? 0
+    }
+
+    func selectChannels(_ set: Set<Int>, count: Int) throws {
+        guard count == channels.count else { throw OrganizerError.refused(5) }
+        log.append("select \(set.sorted().map(String.init).joined(separator: ","))")
+        unusedSelection = set
+    }
+
+    func linkChannel(_ channel: Int, to track: Int) throws {
+        guard channels.indices.contains(channel) else { throw OrganizerError.refused(5) }
+        log.append("link \(channel) \(track)")
+        let c = channels[channel]
+        channels[channel] = ChannelInfo(index: c.index, type: c.type, mixerTrack: track, color: c.color, name: c.name)
+    }
+
+    /// ⌥ + Suppr simulé : les canaux sélectionnés supprimés, les suivants remontent (Channel rack devant).
+    func deleteSelected() -> Bool {
+        guard window == .channelRack else { return false }
+        log.append("delete")
+        channels = channels.filter { !unusedSelection.contains($0.index) }.enumerated()
+            .map { Self.copy($0.element, index: $0.offset, color: $0.element.color) }
+        unusedSelection = []
+        return true
+    }
+
+    /// « Move up » simulé : la piste de la Playlist à cette place remonte d'autant (Playlist devant).
+    func moveTrackUp(_ place: Int, _ count: Int) -> Int {
+        var done = 0
+        var at = place
+        while done < count, window == .playlist, at > 0, at < playlist.count {
+            playlist.swapAt(at, at - 1)
+            at -= 1
+            done += 1
+        }
+        playlist = playlist.enumerated().map {
+            PlaylistTrackInfo(index: $0.offset, selected: $0.element.selected, color: $0.element.color, name: $0.element.name)
+        }
+        return done
     }
 
     func playSong(at fraction: Double) throws -> Int {
@@ -226,7 +278,7 @@ final class FakeOrganizerLink: OrganizerLink {
         playing = true
         solo = nil
         track = nil
-        songPosition = fraction
+        songCursor = fraction
         log.append("song \(Int((fraction * 1000).rounded()))")
         return bars
     }
@@ -235,7 +287,7 @@ final class FakeOrganizerLink: OrganizerLink {
         if !memo && playing { throw OrganizerError.refused(4) }
         memo = true
         playing = true
-        songPosition = nil
+        songCursor = nil
         track = index
         position = 0
         log.append("track \(index)")
@@ -257,7 +309,7 @@ final class FakeOrganizerLink: OrganizerLink {
         solo = nil
         track = nil
         playedPattern = nil
-        songPosition = nil
+        songCursor = nil
     }
 
     func audition(_ channel: Int, note: UInt8, velocity: UInt8) throws {
@@ -358,8 +410,9 @@ final class OrganizerSessionTests: XCTestCase {
         // Patterns relevés en entier, tempo accéléré puis remis ; la Playlist avant l'écoute des sons (un son qui joue
         // dans la chanson n'est jamais laissé de côté).
         XCTAssertEqual(link.log, ["patterns", "list", "mixer", "all 1", "speed 4", "all 1", "all 2", "speed 1",
-                                  "song 0", "song 500", "playlist", "track 0", "track 1", "track 2", "seek 500",
-                                  "solo 1 p2", "routes 1", "routes 2", "routes 3", "routes 4", "restore"])
+                                  "song 0", "speed 4", "song 0", "speed 1", "playlist", "track 0", "track 1",
+                                  "track 2", "seek 500", "solo 1 p2", "routes 1", "routes 2", "routes 3", "routes 4",
+                                  "restore"])
         XCTAssertEqual(steps.last.map { $0[0] == $0[1] }, true, "fini à 100 %")
         XCTAssertEqual([audio.started, audio.stopped], [1, 1])
         let diag = session.diagnostics
@@ -371,7 +424,7 @@ final class OrganizerSessionTests: XCTestCase {
     /// Un ancien script (v11 ou avant) : rien n'est touché, FL doit être redémarré.
     func testOldScriptAsksForARestart() {
         let link = FakeOrganizerLink()
-        link.v13 = false
+        link.v14 = false
         link.channels = [channel(0)]
         let audio = FakeAudio(link: link)
         XCTAssertEqual(make(link, audio).run(), .failure(.outdatedScript))
@@ -417,12 +470,17 @@ final class OrganizerSessionTests: XCTestCase {
         link.channels = [channel(0, type: 0), channel(1, type: ChannelInfo.layerType),
                          channel(2, type: ChannelInfo.automationType), channel(3, type: 4)]
         let audio = FakeAudio(link: link)
-        audio.parts = [0: tone(.drums), 3: tone(.vocals)]
+        audio.parts = [0: tone(.drums)]
+        audio.testSounds = [3: tone(.vocals)]
         let result = try make(link, audio).run().get()
         XCTAssertEqual(result.items.map(\.index), [0, 3])
         XCTAssertEqual(result.items.map(\.family), [.drums, .vocals])
+        XCTAssertEqual(result.items.map(\.testNotes), [false, false])
         XCTAssertEqual(result.channels.map(\.index), [0, 1, 2, 3])
-        XCTAssertEqual(link.log, ["patterns", "list", "mixer", "solo 0", "solo 3", "restore"])
+        // Le clip audio (canal 3) ne joue pas dans les patterns : sa note de base (C5), tel quel (retour de
+        // l'utilisateur : une boucle de batterie entendue deux octaves plus bas était classée « Mélodie »).
+        XCTAssertEqual(link.log, ["patterns", "list", "mixer", "solo 0", "solo 3", "note 3 60 100", "note 3 60 0",
+                                  "restore"])
     }
 
     func testSilentChannelUsesTestNotes() throws {
@@ -526,6 +584,49 @@ final class OrganizerSessionTests: XCTestCase {
         XCTAssertEqual(session.diagnostics.selection, "oui")
     }
 
+    /// Un nom que l'Organiser a pu donner est vérifié à l'écoute (retour de l'utilisateur : une boucle de batterie
+    /// restait « Mélodie 3 ») ; il reste s'il ne la contredit pas, ou si rien n'est entendu.
+    func testGeneratedNamesAreHeardAgain() throws {
+        let link = FakeOrganizerLink()
+        link.song = false
+        link.channels = [named(0, "Mélodie 3"), named(1, "Lead"), named(2, "Kick 2"), named(3, "BEAM KICK")]
+        let audio = FakeAudio(link: link)
+        audio.parts = [0: tone(.drums), 1: tone(.melody)]
+        let result = try make(link, audio).run().get()
+        XCTAssertEqual(result.items.map(\.family), [.drums, .melody, .drums, .drums])
+        XCTAssertEqual(result.items.map(\.kind), [.kick, .lead, .kick, .kick], "drums écoutés : leur sorte entendue")
+        XCTAssertEqual(result.items.map(\.byName), [false, true, true, true])
+        XCTAssertFalse(link.log.contains("solo 3"), "un nom de pack n'est pas écouté")
+        XCTAssertTrue(SoundNames.isGenerated("Mélodie 3"))
+        XCTAssertTrue(SoundNames.isGenerated("Hi-hat"))
+        XCTAssertTrue(SoundNames.isGenerated("Drums 12"))
+        XCTAssertFalse(SoundNames.isGenerated("BEAM KICK"))
+        XCTAssertFalse(SoundNames.isGenerated("kick"), "nom écrit par l'utilisateur")
+        XCTAssertTrue(SoundNames.keeps(.lead, heard: Verdict(family: .melody)))
+        XCTAssertFalse(SoundNames.keeps(.snare, heard: Verdict(family: .drums, kind: .hiHat)))
+        XCTAssertFalse(SoundNames.keeps(.melody, heard: Verdict(family: .drums, kind: .drums)))
+        XCTAssertTrue(SoundNames.keeps(.kick, heard: Verdict(family: .unsure)))
+    }
+
+    /// Toute la chanson jouée d'un bout à l'autre : une piste qui ne joue qu'à un endroit est trouvée (retour de
+    /// l'utilisateur : des pistes manquées, des trous).
+    func testWholeSongIsPlayed() throws {
+        let link = FakeOrganizerLink()
+        link.channels = [named(0, "BEAM KICK"), named(1, "ALTER OPEN HAT")]
+        link.bars = 8
+        link.songStep = 0.25
+        link.songAt = { at in at >= 0.5 && at < 0.75 ? ([0, 3], [0, 1]) : ([0], [0]) }
+        link.trackChannels = [0: [0], 3: [1]]
+        link.playlist = (0..<5).map { PlaylistTrackInfo(index: $0, selected: false, color: red, name: "Track \($0 + 1)") }
+        let audio = FakeAudio(link: link)
+        let session = make(link, audio)
+        let result = try session.run().get()
+        XCTAssertEqual(result.trackSounds, [0: [0], 3: [1]])
+        XCTAssertEqual(result.playlist.count, 4, "lue jusqu'à la dernière piste qui joue")
+        XCTAssertTrue(link.log.contains("seek 500"), "la piste 4 écoutée seule là où elle joue")
+        XCTAssertEqual(session.diagnostics.activeSamples, 4, "une tranche par quart de chanson, puis la fin")
+    }
+
     func testUnusedAndPatternLength() {
         let channels = [channel(0), channel(1), channel(2, type: ChannelInfo.audioClipType),
                         channel(3, type: ChannelInfo.automationType)]
@@ -552,9 +653,10 @@ final class OrganizerSessionTests: XCTestCase {
         XCTAssertEqual(sounds[0]?.keys.sorted(), [5])
         XCTAssertEqual(sounds[1]?.keys.sorted(), [5])
         XCTAssertEqual(sounds[2], [6: 1.0])
-        XCTAssertEqual(OrganizerSession.songPositions(bars: 16).count, 8)
-        XCTAssertEqual(OrganizerSession.songPositions(bars: 0).count, 16)
-        XCTAssertEqual(OrganizerSession.songPositions(bars: 500).count, OrganizerSession.maxPositions)
+        // 16 mesures à 480 BPM : 8 s, tranches de 0,25 s, une de plus pour finir ; 90 s au plus.
+        XCTAssertEqual(OrganizerSession.songSlices(bars: 16, tempo: 480, slice: 0.25, cap: 90), 33)
+        XCTAssertEqual(OrganizerSession.songSlices(bars: 0, tempo: 0, slice: 0.25, cap: 90), 129, "16 mesures à 120")
+        XCTAssertEqual(OrganizerSession.songSlices(bars: 500, tempo: 120, slice: 0.25, cap: 90), 361)
     }
 
     /// Rangé d'après le mot de son nom qui dit ce qu'il est (vidéo de l'utilisateur : « BEAM KICK » doit être un Kick).

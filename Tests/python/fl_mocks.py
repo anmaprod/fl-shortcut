@@ -353,7 +353,24 @@ def build_fl(api=45, missing=(), extra=None, **kw):
         chk_chan(i)
         st.channel = i
     reg("channels", "selectOneChannel", 8, select_one)
-    reg("channels", "selectChannel", 1, lambda i, *a: chk_chan(i))
+    def select_chan(i, value=-1, *a):
+        chk_chan(i)
+        if value == -1:
+            st.ch_sel.symmetric_difference_update({i})
+        elif value:
+            st.ch_sel.add(i)
+        else:
+            st.ch_sel.discard(i)
+    reg("channels", "selectChannel", 1, select_chan)
+    reg("channels", "deselectAll", 1, lambda: st.ch_sel.clear())
+
+    def set_fx(i, track, *a):
+        chk_chan(i)
+        if not isinstance(track, int) or not 0 <= track < st.n_tracks:
+            raise TypeError("Track index out of range")
+        st.ch_fx[i] = track
+    reg("channels", "setTargetFxTrack", 28, set_fx)
+    reg("mixer", "linkChannelToTrack", 23, lambda i, track, *a: set_fx(i, track))
     reg("channels", "quickQuantize", 9, lambda i, *a: chk_chan(i))
     def mute_chan(i, value=-1, use_global=False):
         g = global_chan(i, use_global)
@@ -430,6 +447,12 @@ def build_fl(api=45, missing=(), extra=None, **kw):
             raise TypeError("Playlist track index out of range")
     reg("playlist", "trackCount", 1, lambda: st.pl_tracks)
     reg("playlist", "isTrackSelected", 12, lambda i: (chk_pl(i), i in st.pl_sel)[1])
+    reg("playlist", "deselectAll", 12, lambda: st.pl_sel.clear())
+
+    def pl_select(i, *a):
+        chk_pl(i)
+        st.pl_sel.add(i)
+    reg("playlist", "selectTrack", 12, pl_select)
     reg("playlist", "setTrackName", 1, lambda i, name: (chk_pl(i), st.given_names.__setitem__(("playlist", i), name))[1])
     reg("playlist", "setTrackColor", 1, lambda i, c: (chk_pl(i), st.given_colors.__setitem__(("playlist", i), c))[1])
     reg("playlist", "getTrackName", 1, lambda i: (chk_pl(i), st.pl_names.get(i, "Track %d" % i))[1])

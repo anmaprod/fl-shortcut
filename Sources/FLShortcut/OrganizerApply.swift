@@ -1,9 +1,10 @@
 // Organiser : réglage de chaque famille (une couleur ou un dégradé, une icône), plan de regroupement du Channel rack,
 // application de tout le plan dans FL (OrganizerPlan) et « Revenir comme avant ». Le plan, les couleurs et les noms
 // sont purs (testés) ; l'application passe par OrganizerLink (couleurs, noms, sélection, page devant, vérification)
-// et par des touches envoyées à FL seul pour déplacer un élément : ⌥↑ remonte un canal du Channel rack, ⌥← une piste
-// du Mixer. FL ne permet pas de déplacer les pistes de la Playlist ni les patterns depuis un script : ils gardent leur
-// place.
+// et par ce que ferait l'utilisateur, envoyé à FL seul : ⌥↑ remonte un canal du Channel rack, ⌥← une piste du Mixer,
+// ⌥ + Suppr supprime les sons sélectionnés (sons sans aucune note : on ne peut pas les remettre), et le menu d'une
+// piste de la Playlist la remonte (« Move up » : FL ne permet pas de la déplacer depuis un script). Les patterns
+// gardent leur place.
 import Foundation
 
 /// Réglage d'une famille, gardé dans les préférences.
@@ -151,14 +152,54 @@ struct OrganizerSnapshot: Equatable {
     var patterns: AreaSnapshot?
     var mixer: AreaSnapshot?
     var playlist: AreaSnapshot?
+    /// Sons envoyés au Master reliés à une piste : leur piste d'avant (index d'origine du canal).
+    var links: [Int: Int]?
 
-    var isEmpty: Bool { rack == nil && patterns == nil && mixer == nil && playlist == nil }
+    var isEmpty: Bool { rack == nil && patterns == nil && mixer == nil && playlist == nil && links == nil }
 }
 
 struct ApplyOutcome: Equatable {
     var snapshot: OrganizerSnapshot
     /// nil si tout a été fait et vérifié.
     var error: OrganizerError?
+    /// Sons sans aucune note supprimés ; ou laissés là, FL ne les ayant pas supprimés (ils restent sélectionnés).
+    var deleted = 0
+    var notDeleted = 0
+    /// Pistes de la Playlist pas rangées (FL n'a pas montré leur menu) : noms et couleurs sont posés.
+    var playlistUnordered = false
+}
+
+extension OrganizerResult {
+    /// Pur (testé) : le projet une fois ces canaux supprimés de FL (les suivants remontent d'autant), et l'index de
+    /// chaque canal gardé, avant → maintenant. Les pistes du Mixer que seuls eux utilisaient vont dans `freed`.
+    func removing(_ deleted: Set<Int>) -> (result: OrganizerResult, map: [Int: Int]) {
+        var map: [Int: Int] = [:]
+        var kept: [ChannelInfo] = []
+        for c in channels.sorted(by: { $0.index < $1.index }) where !deleted.contains(c.index) {
+            map[c.index] = kept.count
+            kept.append(ChannelInfo(index: kept.count, type: c.type, mixerTrack: c.mixerTrack, color: c.color, name: c.name))
+        }
+        func moved(_ set: Set<Int>) -> Set<Int> { Set(set.compactMap { map[$0] }) }
+        let items = self.items.compactMap { item -> OrganizerItem? in
+            guard let now = map[item.index] else { return nil }
+            return OrganizerItem(index: now, name: item.name, family: item.family, confidence: item.confidence,
+                                 testNotes: item.testNotes, mixerTrack: item.mixerTrack, color: item.color,
+                                 kind: item.kind, byName: item.byName)
+        }
+        var out = OrganizerResult(channels: kept, items: items)
+        out.patterns = patterns
+        out.patternSounds = patternSounds.mapValues(moved).filter { !$0.value.isEmpty }
+        out.mixer = mixer
+        out.routes = routes
+        out.playlist = playlist
+        out.trackSounds = trackSounds.mapValues(moved).filter { !$0.value.isEmpty }
+        out.trackItems = trackItems
+        out.unused = moved(unused)
+        let keptTracks = Set(kept.map(\.mixerTrack))
+        out.freed = freed.union(channels.filter { deleted.contains($0.index) }.map(\.mixerTrack))
+            .filter { $0 > 0 && !keptTracks.contains($0) }
+        return (out, map)
+    }
 }
 
 final class OrganizerApplier {
@@ -166,16 +207,24 @@ final class OrganizerApplier {
     private let moveUp: (Int) -> Int
     private let moveLeft: (Int) -> Int
     private let placeIcon: (FLIcon) -> OrganizerError?
+    private let deleteSelected: () -> Bool
+    private let moveTrack: (Int, Int) -> Int
 
     /// `moveUp(n)` envoie ⌥↑ n fois à FL seul (Channel rack devant), `moveLeft(n)` ⌥← (Mixer devant) ; chacun
     /// renvoie le nombre de pas faits. `placeIcon` pose une icône sur l'élément sélectionné par la fenêtre de FL
-    /// (F2) ; nil si c'est fait.
+    /// (F2) ; nil si c'est fait. `deleteSelected` supprime les canaux sélectionnés (⌥ + Suppr, Channel rack devant) ;
+    /// faux si rien n'a pu être envoyé. `moveTrack(place, n)` remonte la piste de la Playlist à cette place (0 = la
+    /// piste 1) de n places par son menu ; le nombre de places faites.
     init(link: OrganizerLink, moveUp: @escaping (Int) -> Int, moveLeft: @escaping (Int) -> Int = { _ in 0 },
-         placeIcon: @escaping (FLIcon) -> OrganizerError? = { _ in nil }) {
+         placeIcon: @escaping (FLIcon) -> OrganizerError? = { _ in nil },
+         deleteSelected: @escaping () -> Bool = { false },
+         moveTrack: @escaping (Int, Int) -> Int = { _, _ in 0 }) {
         self.link = link
         self.moveUp = moveUp
         self.moveLeft = moveLeft
         self.placeIcon = placeIcon
+        self.deleteSelected = deleteSelected
+        self.moveTrack = moveTrack
     }
 
     /// Ce qu'est chaque son classé (par index du canal), quand c'est connu (Kick, 808…).
@@ -242,13 +291,35 @@ final class OrganizerApplier {
             ?? .failed(String(localized: "Organiser : étape impossible (\(String(describing: type(of: error))))."))
     }
 
-    /// Tout le plan, page par page : Channel rack, patterns, Mixer, Playlist. Une page que FL n'a pas toute prise
+    /// Tout le plan, page par page : sons sans note supprimés (puis le plan refait sur ce qui reste), sons envoyés au
+    /// Master reliés à leur piste, Channel rack, patterns, Mixer, Playlist. Une page que FL n'a pas toute prise
     /// (vérifiée en relisant) n'arrête pas les suivantes : elle est dite à la fin (`mismatch`) ; une erreur arrête là.
-    /// Le mémo de chaque page est posé avant d'y toucher : « Revenir comme avant » défait ce qui a été fait.
+    /// Le mémo de chaque page est posé avant d'y toucher : « Revenir comme avant » défait ce qui a été fait (sauf les
+    /// sons supprimés).
     func apply(_ plan: OrganizerPlan, result: OrganizerResult, styles: [SoundFamily: FamilyStyle]) -> ApplyOutcome {
         var outcome = ApplyOutcome(snapshot: OrganizerSnapshot())
         var verified = true
+        var plan = plan
+        var result = result
         do {
+            if !plan.deleted.isEmpty {
+                if let shifted = try deleteUnused(plan.deleted, result) {
+                    outcome.deleted = plan.deleted.count
+                    result = shifted.result
+                    plan = plan.replanned(shifted.result, map: shifted.map, styles: styles)
+                } else {
+                    // Rien de supprimé : le plan sans suppression (les sons restent de côté, leurs pistes aussi).
+                    outcome.notDeleted = plan.deleted.count
+                    var same: [Int: Int] = [:]
+                    for channel in result.channels { same[channel.index] = channel.index }
+                    plan = plan.replanned(result, map: same, styles: styles)
+                }
+            }
+            if !plan.mixer.links.isEmpty {
+                outcome.snapshot.links = [:]
+                let ok = try applyLinks(plan.mixer.links, result, &outcome.snapshot.links!)
+                if !ok { verified = false }
+            }
             if !plan.rack.isEmpty {
                 outcome.snapshot.rack = AreaSnapshot()
                 let ok = try applyRack(plan.rack, result, styles, &outcome.snapshot.rack!)
@@ -266,14 +337,57 @@ final class OrganizerApplier {
             }
             if !plan.playlist.isEmpty {
                 outcome.snapshot.playlist = AreaSnapshot()
-                let ok = try applyPlaylist(plan.playlist, result, &outcome.snapshot.playlist!)
+                let ok = try applyPlaylist(plan.playlist, result, &outcome.snapshot.playlist!,
+                                           unordered: &outcome.playlistUnordered)
                 if !ok { verified = false }
+            }
+            if outcome.notDeleted > 0 {
+                // Sons sans note pas supprimés : sélectionnés de nouveau à leur place d'arrivée (les déplacements ont
+                // changé la sélection), pour que l'utilisateur les supprime lui-même.
+                let arrangement = outcome.snapshot.rack?.arrangement ?? []
+                let places = result.unused.compactMap { arrangement.isEmpty ? $0 : arrangement.firstIndex(of: $0) }
+                try? link.selectChannels(Set(places), count: result.channels.count)
             }
             if !verified { outcome.error = .mismatch }
         } catch {
             outcome.error = Self.failure(error)
         }
         return outcome
+    }
+
+    /// Sons sans aucune note supprimés : sélectionnés seuls par le script (relus), Channel rack devant, puis « Delete
+    /// selected » de FL (⌥ + Suppr) ; vérifié en relisant le Channel rack : les autres sons, dans le même ordre. nil
+    /// si FL n'a rien supprimé (les sons restent sélectionnés : l'utilisateur peut les supprimer lui-même ; le reste
+    /// se fait sans eux). Autre chose de supprimé, ou un Channel rack changé depuis l'analyse : arrêt.
+    private func deleteUnused(_ deleted: [Int], _ result: OrganizerResult) throws
+        -> (result: OrganizerResult, map: [Int: Int])? {
+        let channels = result.channels.sorted { $0.index < $1.index }
+        guard try link.listChannels().map(\.name) == channels.map(\.name) else {
+            throw OrganizerError.failed(String(localized: "Le Channel rack a changé depuis l'analyse : relance Organiser."))
+        }
+        let set = Set(deleted)
+        try link.selectChannels(set, count: channels.count)
+        guard try link.selectedChannels() == set else { return nil }
+        try link.show(.channelRack)
+        guard link.window == .channelRack, deleteSelected() else { return nil }
+        let shifted = result.removing(set)
+        let now = try link.listChannels().map(\.name)
+        if now == shifted.result.channels.map(\.name) { return shifted }
+        if now == channels.map(\.name) { return nil }
+        throw OrganizerError.failed(String(localized: "FL n'a pas supprimé exactement les sons sans note : Organiser s'est arrêté avant de toucher au reste. Vérifie le Channel rack."))
+    }
+
+    /// Sons envoyés au Master reliés chacun à sa piste libre, avant tout déplacement (index d'origine), relus.
+    private func applyLinks(_ links: [Int: Int], _ result: OrganizerResult, _ saved: inout [Int: Int]) throws -> Bool {
+        var before: [Int: Int] = [:]
+        for channel in result.channels { before[channel.index] = channel.mixerTrack }
+        for (channel, track) in links.sorted(by: { $0.key < $1.key }) {
+            saved[channel] = before[channel] ?? 0
+            try link.linkChannel(channel, to: track)
+        }
+        var now: [Int: Int] = [:]
+        for channel in try link.listChannels() { now[channel.index] = channel.mixerTrack }
+        return links.allSatisfy { now[$0.key] == $0.value }
     }
 
     /// Channel rack : couleurs et noms (places d'origine), remontées, relecture de l'ordre et des couleurs, icônes.
@@ -364,10 +478,14 @@ final class OrganizerApplier {
             let after = try link.routes(from: track)
             if Set(after) != wanted { routesOK = false }
         }
+        // Pistes des sons supprimés : leur nom de FL remis une fois les pistes à leur place (un nom de FL suit sa
+        // place, il ne servirait pas à relire l'ordre).
+        let named = area.names.filter { !$0.value.isEmpty }
+        let resets = area.names.keys.filter { area.names[$0]?.isEmpty == true }.sorted()
         try link.setColors(.mixer, Self.pairs(area.colors))
-        try link.setNames(.mixer, Self.namePairs(area.names))
+        try link.setNames(.mixer, Self.namePairs(named))
         // Noms tels qu'ils sont maintenant dans FL, par piste d'origine (pistes 1…span) : pour relire l'ordre.
-        let names: [String] = span > 0 ? (1...span).map { area.names[$0] ?? byIndex[$0]?.name ?? "" } : []
+        let names: [String] = span > 0 ? (1...span).map { named[$0] ?? byIndex[$0]?.name ?? "" } : []
         let icons = Self.plannedIcons(families: area.verdicts.mapValues { $0.family }, styles: styles)
         if !area.moves.isEmpty || !icons.isEmpty { try link.show(.mixer) }
         do {
@@ -405,8 +523,15 @@ final class OrganizerApplier {
         }
         let colorsOK = area.colors.allSatisfy { now[place($0.key)]?.color == $0.value }
         var read: [Int: String] = [:]
-        for index in area.names.keys { if let t = now[place(index)] { read[index] = t.name } }
-        guard regrouped, colorsOK, routesOK, Self.namesMatch(area.names, read) else { return false }
+        for index in named.keys { if let t = now[place(index)] { read[index] = t.name } }
+        var resetOK = true
+        if !resets.isEmpty {
+            try link.setNames(.mixer, resets.map { (index: place($0), name: "") })
+            var after: [Int: MixerTrackInfo] = [:]
+            for track in try link.listMixer() { after[track.index] = track }
+            resetOK = resets.allSatisfy { after[place($0)]?.hasDefaultName == true }
+        }
+        guard regrouped, colorsOK, routesOK, resetOK, Self.namesMatch(named, read) else { return false }
         try placeIcons(icons, kind: .mixer) { place($0) }
         return true
     }
@@ -416,9 +541,11 @@ final class OrganizerApplier {
         listed.filter { range.contains($0.index) }.sorted { $0.index < $1.index }
     }
 
-    /// Playlist : couleurs et noms, puis vérification sur les pistes touchées (lues jusqu'à la dernière).
-    private func applyPlaylist(_ area: OrganizerPlan.Area, _ result: OrganizerResult,
-                               _ snap: inout AreaSnapshot) throws -> Bool {
+    /// Playlist : couleurs et noms (pistes d'origine), vérifiés sur les pistes touchées ; puis, Playlist devant, les
+    /// pistes remontées une à une par leur menu (« Move up »). FL qui ne laisse pas faire : `unordered` (noms et
+    /// couleurs restent posés, « Revenir comme avant » défait ce qui a bougé).
+    private func applyPlaylist(_ area: OrganizerPlan.Area, _ result: OrganizerResult, _ snap: inout AreaSnapshot,
+                               unordered: inout Bool) throws -> Bool {
         for track in result.playlist {
             if area.colors[track.index] != nil { snap.colors[track.index] = track.color }
             // Nom de FL lu vide : remis en « Track n » (un nom vide ne peut pas être posé).
@@ -428,15 +555,29 @@ final class OrganizerApplier {
         }
         try link.setColors(.playlist, Self.pairs(area.colors))
         try link.setNames(.playlist, Self.namePairs(area.names))
+        var ok = true
         let last = max(area.colors.keys.max() ?? -1, area.names.keys.max() ?? -1)
-        guard last >= 0 else { return true }
-        var colors: [Int: RGBColor] = [:]
-        var names: [Int: String] = [:]
-        for track in try link.listPlaylist(limit: last + 1) {
-            colors[track.index] = track.color
-            names[track.index] = track.name
+        if last >= 0 {
+            var colors: [Int: RGBColor] = [:]
+            var names: [Int: String] = [:]
+            for track in try link.listPlaylist(limit: last + 1) {
+                colors[track.index] = track.color
+                names[track.index] = track.name
+            }
+            ok = area.colors.allSatisfy { colors[$0.key] == $0.value } && Self.namesMatch(area.names, names)
         }
-        return area.colors.allSatisfy { colors[$0.key] == $0.value } && Self.namesMatch(area.names, names)
+        guard !area.moves.isEmpty else { return ok }
+        snap.arrangement = Array(0..<area.final.count)
+        try link.show(.playlist)
+        for step in area.moves {
+            let done = moveTrack(step.from, step.up)
+            snap.arrangement = RegroupPlan.applying(Move(from: step.from, up: done), to: snap.arrangement)
+            if done < step.up {
+                unordered = true
+                break
+            }
+        }
+        return ok
     }
 
     /// Noms comparés tels que le script les lit (coupés) : le nom relu est le début du nom posé.
@@ -483,15 +624,35 @@ final class OrganizerApplier {
         }
     }
 
-    /// « Revenir comme avant » : Playlist, Mixer, patterns puis Channel rack (couleurs et noms d'origine remis sur la
-    /// place actuelle de chaque élément, puis l'ordre d'origine). Chaque page remise sort du mémo : un retour
-    /// interrompu reprend là où il s'est arrêté.
+    /// « Revenir comme avant » : Playlist, Mixer, patterns, Channel rack (couleurs et noms d'origine remis sur la
+    /// place actuelle de chaque élément, puis l'ordre d'origine), puis les sons reliés à une piste renvoyés au Master.
+    /// Chaque page remise sort du mémo : un retour interrompu reprend là où il s'est arrêté. Les sons supprimés ne
+    /// reviennent pas.
     func undo(_ snapshot: OrganizerSnapshot) -> ApplyOutcome {
         var outcome = ApplyOutcome(snapshot: snapshot)
         do {
-            if let s = snapshot.playlist {
-                try link.setColors(.playlist, Self.pairs(s.colors))
-                try link.setNames(.playlist, Self.namePairs(s.names))
+            if var s = snapshot.playlist {
+                // Couleurs et noms d'origine sur la place actuelle de chaque piste, puis l'ordre d'origine.
+                let arrangement = s.arrangement
+                func current(_ original: Int) -> Int { arrangement.firstIndex(of: original) ?? original }
+                var colors: [Int: RGBColor] = [:]
+                for (original, color) in s.colors { colors[current(original)] = color }
+                var names: [Int: String] = [:]
+                for (original, name) in s.names { names[current(original)] = name }
+                try link.setColors(.playlist, Self.pairs(colors))
+                try link.setNames(.playlist, Self.namePairs(names))
+                s.colors = [:]
+                s.names = [:]
+                outcome.snapshot.playlist = s
+                var places = arrangement
+                let back = RegroupPlan.back(final: places)
+                if !back.isEmpty { try link.show(.playlist) }
+                for step in back {
+                    let done = moveTrack(step.from, step.up)
+                    places = RegroupPlan.applying(Move(from: step.from, up: done), to: places)
+                    outcome.snapshot.playlist?.arrangement = places
+                    if done < step.up { throw OrganizerError.interrupted }
+                }
                 outcome.snapshot.playlist = nil
             }
             if snapshot.mixer != nil {
@@ -512,6 +673,12 @@ final class OrganizerApplier {
                 try undoArranged(&outcome.snapshot.rack!, kind: .channels, page: .channelRack, offset: 0, key: moveUp)
                 outcome.snapshot.rack = nil
             }
+            // Les sons envoyés au Master y retournent, une fois chaque canal revenu à sa place.
+            for (channel, track) in (snapshot.links ?? [:]).sorted(by: { $0.key < $1.key }) {
+                try link.linkChannel(channel, to: track)
+                outcome.snapshot.links?[channel] = nil
+            }
+            outcome.snapshot.links = nil
         } catch {
             outcome.error = Self.failure(error)
         }

@@ -70,13 +70,17 @@
 "%lld ms" = "%lld ms";
 "%lld partages" = "%lld partages";
 "%lld partages trouvés" = "%lld partages trouvés";
+"%lld pistes du Mixer des sons supprimés remises comme neuves" = "%lld pistes du Mixer des sons supprimés remises comme neuves";
 "%lld raccourci%@ · %lld macro%@" = "%lld raccourci%@ · %lld macro%@";
 "%lld raccourci(s) avec une action inconnue, désactivé(s)." = "%lld raccourci(s) avec une action inconnue, désactivé(s).";
 "%lld raccourci(s) illisible(s) ignoré(s)." = "%lld raccourci(s) illisible(s) ignoré(s).";
 "%lld raccourcis" = "%lld raccourcis";
 "%lld résultats chez %@" = "%lld résultats chez %@";
 "%lld s" = "%lld s";
+"%lld sons envoyés au Master reliés chacun à une piste libre du Mixer" = "%lld sons envoyés au Master reliés chacun à une piste libre du Mixer";
 "%lld sons sans aucune note laissés de côté (ni rangés, ni colorés, ni renommés)" = "%lld sons sans aucune note laissés de côté (ni rangés, ni colorés, ni renommés)";
+"%lld sons sans aucune note supprimés du Channel rack (on ne peut pas les remettre avec « Revenir comme avant »)" = "%lld sons sans aucune note supprimés du Channel rack (on ne peut pas les remettre avec « Revenir comme avant »)";
+"%lld sons sans aucune note supprimés." = "%lld sons sans aucune note supprimés.";
 "%lld touches" = "%lld touches";
 "%lld étapes tapent des touches, cliquent ou ouvrent des fichiers : relis-les dans le créateur." = "%lld étapes tapent des touches, cliquent ou ouvrent des fichiers : relis-les dans le créateur.";
 "%lld/%lld" = "%lld/%lld";
@@ -331,7 +335,7 @@
 "Bureau de droite" = "Bureau de droite";
 "Bureau de gauche" = "Bureau de gauche";
 "Bypass des effets de la piste" = "Bypass des effets de la piste";
-"C'est fait : le projet est rangé, coloré et renommé. « Revenir comme avant » défait tout." = "C'est fait : le projet est rangé, coloré et renommé. « Revenir comme avant » défait tout.";
+"C'est fait : le projet est rangé, coloré et renommé. « Revenir comme avant » défait tout, sauf les sons supprimés." = "C'est fait : le projet est rangé, coloré et renommé. « Revenir comme avant » défait tout, sauf les sons supprimés.";
 "C'est parti" = "C'est parti";
 "Canal" = "Canal";
 "Canal au-dessus" = "Canal au-dessus";
@@ -764,9 +768,10 @@
 "FL n'a pas reçu la commande" = "FL n'a pas reçu la commande";
 "FL n'a pas répondu au dépôt du preset" = "FL n'a pas répondu au dépôt du preset";
 "FL n'a pas répondu à son menu (Accessibilité %d)" = "FL n'a pas répondu à son menu (Accessibilité %d)";
+"FL n'a pas supprimé exactement les sons sans note : Organiser s'est arrêté avant de toucher au reste. Vérifie le Channel rack." = "FL n'a pas supprimé exactement les sons sans note : Organiser s'est arrêté avant de toucher au reste. Vérifie le Channel rack.";
+"FL n'a pas supprimé les %lld sons sans aucune note : ils sont sélectionnés dans le Channel rack, supprime-les avec clic droit › Delete." = "FL n'a pas supprimé les %lld sons sans aucune note : ils sont sélectionnés dans le Channel rack, supprime-les avec clic droit › Delete.";
 "FL n'a pas tout pris : vérifie dans FL, ou clique sur « Revenir comme avant »." = "FL n'a pas tout pris : vérifie dans FL, ou clique sur « Revenir comme avant ».";
 "FL n'est plus au premier plan" = "FL n'est plus au premier plan";
-"FL ne laisse pas un script déplacer les pistes de la Playlist ni les patterns : ils sont colorés et renommés, à leur place." = "FL ne laisse pas un script déplacer les pistes de la Playlist ni les patterns : ils sont colorés et renommés, à leur place.";
 "FL ne permet pas de lire ces boutons : montre-les une fois en cliquant dessus dans FL." = "FL ne permet pas de lire ces boutons : montre-les une fois en cliquant dessus dans FL.";
 "FL ne remplit ce menu qu'en l'ouvrant." = "FL ne remplit ce menu qu'en l'ouvrant.";
 "FL ne répond pas (essayé il y a peu)" = "FL ne répond pas (essayé il y a peu)";
@@ -779,7 +784,7 @@
 "FL passe devant : fais le glisser-déposer une fois (il agit aussi dans FL). Échap annule." = "FL passe devant : fais le glisser-déposer une fois (il agit aussi dans FL). Échap annule.";
 "FL passe devant : place la souris sur une piste du Mixer avant la fin du compte à rebours. Échap arrête la macro." = "FL passe devant : place la souris sur une piste du Mixer avant la fin du compte à rebours. Échap arrête la macro.";
 "FL passe devant et la macro vise la dernière piste sur laquelle tu as cliqué. Échap l'arrête." = "FL passe devant et la macro vise la dernière piste sur laquelle tu as cliqué. Échap l'arrête.";
-"FL retire d'abord les clips audio inutilisés et repère les sons sans aucune note (laissés de côté). Un son dont le nom dit ce qu'il est (Kick, 808, Hat…) est classé tout de suite ; les autres jouent seuls, sans que tu les entendes. Chaque pattern joue en entier, en accéléré, puis chaque piste de la Playlist un instant : FL dit quels sons y jouent (même ceux que tu as coupés). Ne touche pas à FL ; Échap arrête." = "FL retire d'abord les clips audio inutilisés et repère les sons sans aucune note (laissés de côté). Un son dont le nom dit ce qu'il est (Kick, 808, Hat…) est classé tout de suite ; les autres jouent seuls, sans que tu les entendes. Chaque pattern joue en entier, en accéléré, puis chaque piste de la Playlist un instant : FL dit quels sons y jouent (même ceux que tu as coupés). Ne touche pas à FL ; Échap arrête.";
+"FL retire d'abord les clips audio inutilisés et repère les sons sans aucune note (supprimés si tu organises). Un son dont le nom dit ce qu'il est (Kick, 808, Hat…) est classé tout de suite ; les autres jouent seuls, sans que tu les entendes. Chaque pattern, puis toute la chanson, jouent en entier, en accéléré, puis chaque piste de la Playlist un instant : FL dit quels sons y jouent (même ceux que tu as coupés). Ne touche pas à FL ; Échap arrête." = "FL retire d'abord les clips audio inutilisés et repère les sons sans aucune note (supprimés si tu organises). Un son dont le nom dit ce qu'il est (Kick, 808, Hat…) est classé tout de suite ; les autres jouent seuls, sans que tu les entendes. Chaque pattern, puis toute la chanson, jouent en entier, en accéléré, puis chaque piste de la Playlist un instant : FL dit quels sons y jouent (même ceux que tu as coupés). Ne touche pas à FL ; Échap arrête.";
 "FL répond : le lien est prêt." = "FL répond : le lien est prêt.";
 "FL trouve « FL Shortcuts Link » en démarrant et le relie tout seul. C'est détecté ici dès que c'est fait." = "FL trouve « FL Shortcuts Link » en démarrant et le relie tout seul. C'est détecté ici dès que c'est fait.";
 "FL utilise encore l'ancienne version du lien : redémarre FL Studio (il charge la nouvelle au lancement), puis clique sur « Réessayer »." = "FL utilise encore l'ancienne version du lien : redémarre FL Studio (il charge la nouvelle au lancement), puis clique sur « Réessayer ».";
@@ -906,7 +911,7 @@
 "L'entrée « 1 » est montrée une seule fois, pendant la macro : une bulle te le demande." = "L'entrée « 1 » est montrée une seule fois, pendant la macro : une bulle te le demande.";
 "L'entrée « 1 » est retenue sur ce Mac (montrée une fois)." = "L'entrée « 1 » est retenue sur ce Mac (montrée une fois).";
 "L'explication de @%@" = "L'explication de @%@";
-"L'icône en haut de l'écran ouvre son menu : modifier les raccourcis, tout organiser, mettre en pause." = "L'icône en haut de l'écran ouvre son menu : modifier les raccourcis, tout organiser, mettre en pause.";
+"L'icône en haut de l'écran ouvre son menu : modifier les raccourcis, organiser, mettre en pause." = "L'icône en haut de l'écran ouvre son menu : modifier les raccourcis, organiser, mettre en pause.";
 "La Communauté" = "La Communauté";
 "La Communauté n'est pas encore ouverte" = "La Communauté n'est pas encore ouverte";
 "La Communauté n'est pas encore ouverte dans cette version." = "La Communauté n'est pas encore ouverte dans cette version.";
@@ -926,6 +931,7 @@
 "Lancer le REC" = "Lancer le REC";
 "Last devient aussi First" = "Last devient aussi First";
 "Le %@ du canal est basculé par le lien avec FL : ni souris, ni touche. Sans " = "Le %@ du canal est basculé par le lien avec FL : ni souris, ni touche. Sans ";
+"Le Channel rack a changé depuis l'analyse : relance Organiser." = "Le Channel rack a changé depuis l'analyse : relance Organiser.";
 "Le REC démarre à la première note jouée" = "Le REC démarre à la première note jouée";
 "Le bandeau en bas du créateur dit à quel bloc elle s'est arrêtée (« Montrer le bloc »). Si FL a changé de taille ou d'écran, remontre l'endroit de ce bloc. Un bouton qui porte un nom (« FILE », « Insert 1 ») est retrouvé par son nom même s'il bouge, si l'app peut lire l'écran (autorisation « Enregistrement de l'écran ») ; un bouton sans nom qui bouge (le « + » du Channel rack) : active « Retrouver ce bouton s'il bouge » sur ce clic. Si une fenêtre de FL met du temps à s'ouvrir, ajoute un bloc « Attendre » juste avant." = "Le bandeau en bas du créateur dit à quel bloc elle s'est arrêtée (« Montrer le bloc »). Si FL a changé de taille ou d'écran, remontre l'endroit de ce bloc. Un bouton qui porte un nom (« FILE », « Insert 1 ») est retrouvé par son nom même s'il bouge, si l'app peut lire l'écran (autorisation « Enregistrement de l'écran ») ; un bouton sans nom qui bouge (le « + » du Channel rack) : active « Retrouver ce bouton s'il bouge » sur ce clic. Si une fenêtre de FL met du temps à s'ouvrir, ajoute un bloc « Attendre » juste avant.";
 "Le clavier est autorisé : tout est prêt." = "Le clavier est autorisé : tout est prêt.";
@@ -975,6 +981,7 @@
 "Les endroits appris (clics montrés dans FL) ne sont pas exportés : ils se montrent sur chaque Mac." = "Les endroits appris (clics montrés dans FL) ne sont pas exportés : ils se montrent sur chaque Mac.";
 "Les macros" = "Les macros";
 "Les macros et les raccourcis des autres, et les tiens." = "Les macros et les raccourcis des autres, et les tiens.";
+"Les pistes de la Playlist sont remontées par leur menu (« Move up ») : FL Shortcuts lit alors la fenêtre de FL (autorisation « Enregistrement de l'écran »). Les patterns restent à leur place." = "Les pistes de la Playlist sont remontées par leur menu (« Move up ») : FL Shortcuts lit alors la fenêtre de FL (autorisation « Enregistrement de l'écran »). Les patterns restent à leur place.";
 "Les raccourcis d'Ableton Live font la même chose dans FL : F9 enregistre, ⌘D duplique, ⌘E découpe, " = "Les raccourcis d'Ableton Live font la même chose dans FL : F9 enregistre, ⌘D duplique, ⌘E découpe, ";
 "Les raccourcis de Logic Pro font la même chose dans FL : Retour revient au début, K métronome, " = "Les raccourcis de Logic Pro font la même chose dans FL : Retour revient au début, K métronome, ";
 "Les raccourcis qu'il contient" = "Les raccourcis qu'il contient";
@@ -1165,6 +1172,7 @@
 "Organiser parle à FL par un script que FL Shortcuts installe dans FL Studio. Ensuite, tout se fait seul." = "Organiser parle à FL par un script que FL Shortcuts installe dans FL Studio. Ensuite, tout se fait seul.";
 "Organiser écoute chaque son seul : FL doit être à l'arrêt." = "Organiser écoute chaque son seul : FL doit être à l'arrêt.";
 "Organiser écoute seulement le son de FL, sans l'enregistrer. Réglages Système › Confidentialité et sécurité › Enregistrement de l'écran et de l'audio du système : active FL Shortcuts dans « Audio du système uniquement »." = "Organiser écoute seulement le son de FL, sans l'enregistrer. Réglages Système › Confidentialité et sécurité › Enregistrement de l'écran et de l'audio du système : active FL Shortcuts dans « Audio du système uniquement ».";
+"Organiser…" = "Organiser…";
 "Orgue" = "Orgue";
 "Outil Articulate" = "Outil Articulate";
 "Outil Chop" = "Outil Chop";
@@ -1192,7 +1200,7 @@
 "Ouvre FL Studio pour parcourir ses menus." = "Ouvre FL Studio pour parcourir ses menus.";
 "Ouvre FL Studio, puis recommence." = "Ouvre FL Studio, puis recommence.";
 "Ouvre l'Organiser sur la page de FL qui est devant (Channel rack, Mixer ou Playlist). Les couleurs, dégradés et " = "Ouvre l'Organiser sur la page de FL qui est devant (Channel rack, Mixer ou Playlist). Les couleurs, dégradés et ";
-"Ouvre l'Organiser sur tout le projet : chaque son est reconnu d'après son nom (« BEAM KICK » : Kick), sinon écouté sans que tu l'entendes ; tu vérifies l'aperçu, puis « Tout organiser » range le Channel rack (les Kick ensemble, puis les Snare…), met le Mixer dans le même ordre (pistes reliées côte à côte), colore et renomme simplement sons, patterns, pistes du Mixer et de la Playlist. « Revenir comme avant » défait tout." = "Ouvre l'Organiser sur tout le projet : chaque son est reconnu d'après son nom (« BEAM KICK » : Kick), sinon écouté sans que tu l'entendes ; tu vérifies l'aperçu, puis « Tout organiser » range le Channel rack (les Kick ensemble, puis les Snare…), met le Mixer dans le même ordre (pistes reliées côte à côte), colore et renomme simplement sons, patterns, pistes du Mixer et de la Playlist. « Revenir comme avant » défait tout.";
+"Ouvre l'Organiser sur tout le projet : chaque son est reconnu d'après son nom (« BEAM KICK » : Kick), sinon écouté sans que tu l'entendes ; tu vérifies l'aperçu, puis « Organiser » supprime les sons sans aucune note, range le Channel rack (les Kick ensemble, puis les Snare…), met le Mixer et la Playlist dans le même ordre, colore et renomme simplement sons, patterns, pistes du Mixer et de la Playlist (le même nom partout pour un même son). « Revenir comme avant » défait tout, sauf les sons supprimés." = "Ouvre l'Organiser sur tout le projet : chaque son est reconnu d'après son nom (« BEAM KICK » : Kick), sinon écouté sans que tu l'entendes ; tu vérifies l'aperçu, puis « Organiser » supprime les sons sans aucune note, range le Channel rack (les Kick ensemble, puis les Snare…), met le Mixer et la Playlist dans le même ordre, colore et renomme simplement sons, patterns, pistes du Mixer et de la Playlist (le même nom partout pour un même son). « Revenir comme avant » défait tout, sauf les sons supprimés.";
 "Ouvre le Channel rack, le Mixer ou la Playlist de FL (clique dedans), puis clique sur « Réessayer »." = "Ouvre le Channel rack, le Mixer ou la Playlist de FL (clique dedans), puis clique sur « Réessayer ».";
 "Ouvre le Mixer dans FL Studio" = "Ouvre le Mixer dans FL Studio";
 "Ouvre le Mixer, le Channel rack ou la Playlist." = "Ouvre le Mixer, le Channel rack ou la Playlist.";
@@ -1298,6 +1306,9 @@
 "Pistes, solo, liens, rendu" = "Pistes, solo, liens, rendu";
 "Playlist" = "Playlist";
 "Playlist : %lld pistes colorées, %lld renommées" = "Playlist : %lld pistes colorées, %lld renommées";
+"Playlist : %lld pistes colorées, %lld renommées, rangées comme le Channel rack" = "Playlist : %lld pistes colorées, %lld renommées, rangées comme le Channel rack";
+"Playlist pas rangée : FL n'a pas montré le menu de ses pistes (la Playlist doit être visible, ses noms de piste à l'écran). Noms et couleurs sont posés." = "Playlist pas rangée : FL n'a pas montré le menu de ses pistes (la Playlist doit être visible, ses noms de piste à l'écran). Noms et couleurs sont posés.";
+"Playlist pas rangée : pour remonter ses pistes, FL Shortcuts doit voir la fenêtre de FL (Réglages Système › Confidentialité et sécurité › Enregistrement de l'écran). Noms et couleurs sont posés." = "Playlist pas rangée : pour remonter ses pistes, FL Shortcuts doit voir la fenêtre de FL (Réglages Système › Confidentialité et sécurité › Enregistrement de l'écran). Noms et couleurs sont posés.";
 "Playlist ↔ Mixer" = "Playlist ↔ Mixer";
 "Pluck" = "Pluck";
 "Plugin" = "Plugin";
@@ -1378,7 +1389,7 @@
 "Rechercher une action" = "Rechercher une action";
 "Rechoisis le preset : le fichier doit exister sur ce Mac." = "Rechoisis le preset : le fichier doit exister sur ce Mac.";
 "Recommandé" = "Recommandé";
-"Reconnaît chaque son (son nom, sinon son écoute), puis après ton accord range le Channel rack et le Mixer dans le même ordre, colore et renomme sons, patterns et pistes (Kick, Snare, 808…)." = "Reconnaît chaque son (son nom, sinon son écoute), puis après ton accord range le Channel rack et le Mixer dans le même ordre, colore et renomme sons, patterns et pistes (Kick, Snare, 808…).";
+"Reconnaît chaque son (son nom, sinon son écoute), puis après ton accord supprime les sons sans aucune note, range le Channel rack, le Mixer et la Playlist dans le même ordre, colore et renomme sons, patterns et pistes (Kick, Snare, 808…)." = "Reconnaît chaque son (son nom, sinon son écoute), puis après ton accord supprime les sons sans aucune note, range le Channel rack, le Mixer et la Playlist dans le même ordre, colore et renomme sons, patterns et pistes (Kick, Snare, 808…).";
 "Red" = "Red";
 "Redimensionner par la gauche" = "Redimensionner par la gauche";
 "Reese" = "Reese";
@@ -1565,6 +1576,7 @@
 "Supprimer le bloc choisi (⌫)" = "Supprimer le bloc choisi (⌫)";
 "Supprimer les canaux" = "Supprimer les canaux";
 "Supprimer les clips audio inutilisés" = "Supprimer les clips audio inutilisés";
+"Supprimer les sons sans aucune note (on ne peut pas les remettre)" = "Supprimer les sons sans aucune note (on ne peut pas les remettre)";
 "Supprimer mon compte" = "Supprimer mon compte";
 "Supprimer mon partage…" = "Supprimer mon partage…";
 "Supprimer ton compte ?" = "Supprimer ton compte ?";
@@ -1670,8 +1682,6 @@
 "Tout est en ligne." = "Tout est en ligne.";
 "Tout est enregistré" = "Tout est enregistré";
 "Tout est prêt, mais attention au larsen" = "Tout est prêt, mais attention au larsen";
-"Tout organiser" = "Tout organiser";
-"Tout organiser…" = "Tout organiser…";
 "Tout réinitialiser ?" = "Tout réinitialiser ?";
 "Tout réinitialiser…" = "Tout réinitialiser…";
 "Tout sélectionner" = "Tout sélectionner";

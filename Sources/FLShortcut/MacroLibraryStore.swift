@@ -188,6 +188,13 @@ final class MacroLibraryStore: ObservableObject {
         do {
             let decoded = try MacroLibraryCodec.decode(data)
             macros = decoded.macros
+            // « Tout organiser » s'appelle « Organiser » (retour de l'utilisateur) : la macro faite avec le modèle aussi.
+            let renamed = String(localized: "Organiser")
+            for i in macros.indices where macros[i].origin == .template(MacroTemplates.organizeID)
+                && ["Tout organiser", "Organize everything"].contains(macros[i].name)
+                && !macros.contains(where: { $0.name == renamed }) {
+                macros[i].name = renamed
+            }
             previousContent.withLock { $0 = data }
             var notes: [String] = []
             loadIncomplete = decoded.dropped > 0 || decoded.version > MacroLibraryCodec.currentVersion

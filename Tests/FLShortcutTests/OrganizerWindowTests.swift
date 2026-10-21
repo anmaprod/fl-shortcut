@@ -2,7 +2,7 @@ import Combine
 import XCTest
 @testable import FLShortcut
 
-/// Organiser : contrôleur de la fenêtre (sans fenêtre), bloc « Tout organiser » et son modèle.
+/// Organiser : contrôleur de la fenêtre (sans fenêtre), bloc « Organiser » et son modèle.
 final class OrganizerWindowTests: XCTestCase {
     private static func classify(_ samples: [Float], _ rate: Double) -> (family: SoundFamily, confidence: Double) {
         samples.isEmpty ? (.unsure, 0) : (.drums, 0.9)
@@ -18,6 +18,8 @@ final class OrganizerWindowTests: XCTestCase {
                                      sleep: { _ in }, escapePressed: { false },
                                      loadStyles: { FamilyStyles.initial }, saveStyles: saved)
         e.waitInterval = 0.05
+        e.deleteSelected = { _ in link.deleteSelected }
+        e.moveTrack = { _ in { place, count in link.moveTrackUp(place, count) } }
         return e
     }
 
@@ -156,12 +158,12 @@ final class OrganizerWindowTests: XCTestCase {
     /// Un ancien script chargé dans FL : Organiser attend que FL redémarre, puis continue tout seul.
     func testOldScriptWaitsThenGoesOn() {
         let link = FakeOrganizerLink()
-        link.v13 = false
+        link.v14 = false
         let controller = OrganizerController(env: env(link, FakeAudio(link: link), saved: { _ in }))
         controller.start()
         waitFor(controller) { $0 == .waiting(.restartFL) }
         XCTAssertTrue(controller.canRetry)
-        link.v13 = true
+        link.v14 = true
         waitFor(controller) { if case .failed = $0 { return true } else { return false } }
         XCTAssertEqual(controller.phase, .failed("Aucun son à organiser dans ce projet."))
         controller.close()
@@ -202,7 +204,7 @@ final class OrganizerWindowTests: XCTestCase {
         controller.close()
     }
 
-    /// « Tout organiser » : Channel rack, patterns, Mixer (même ordre, pistes de groupe après leurs pistes) et
+    /// « Organiser » : Channel rack, patterns, Mixer (même ordre, pistes de groupe après leurs pistes) et
     /// Playlist d'un coup ; « Revenir comme avant » remet tout.
     func testWholeProjectAppliedThenUndone() {
         let link = FakeOrganizerLink()
@@ -234,8 +236,9 @@ final class OrganizerWindowTests: XCTestCase {
         // Mixer : même ordre que le Channel rack ; la piste de groupe juste après les pistes qui lui envoient.
         XCTAssertEqual(link.mixer.map(\.name), ["Master", "Lead", "Kick", "Clap", "Drums Bus", "Insert 5"])
         XCTAssertEqual(link.channels.map(\.mixerTrack), [1, 2, 3], "chaque son suit sa piste")
-        // Playlist : chaque piste prend ce qu'elle joue.
-        XCTAssertEqual(link.playlist.map(\.name), ["Drums", "Lead"])
+        // Playlist : chaque piste prend ce qu'elle joue, rangée comme le Channel rack (la mélodie d'abord).
+        XCTAssertEqual(link.playlist.map(\.name), ["Lead", "Drums"])
+        XCTAssertEqual(controller.lastApply?.playlistUnordered, false)
 
         controller.undo()
         waitFor(controller, OrganizerWindowTests.isUndone)

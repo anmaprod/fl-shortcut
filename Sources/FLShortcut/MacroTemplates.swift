@@ -171,7 +171,7 @@ struct MacroTemplate: Identifiable {
 extension MacroTemplates {
     /// Modèle livré « Enregistrement rapide » (galerie et origine de sa copie personnalisée).
     static let autoRecordID = "autoRecord"
-    /// Modèle « Tout organiser » : l'utilisateur ne choisit que le raccourci.
+    /// Modèle « Organiser » : l'utilisateur ne choisit que le raccourci.
     static let organizeID = "organize"
 
     /// « Personnaliser » : copie en blocs du modèle, compilée avant de remplacer le raccourci. Problème : le
@@ -240,10 +240,10 @@ extension MacroTemplates {
                                         note: "Commande de FL (FL 2024.2 et plus : ses menus dans la barre de macOS)")],
                          origin: .template("purgeAudio"))
             },
-            MacroTemplate(id: organizeID, title: String(localized: "Tout organiser"),
-                          summary: String(localized: "Reconnaît chaque son (son nom, sinon son écoute), puis après ton accord range le Channel rack et le Mixer dans le même ordre, colore et renomme sons, patterns et pistes (Kick, Snare, 808…)."),
+            MacroTemplate(id: organizeID, title: String(localized: "Organiser"),
+                          summary: String(localized: "Reconnaît chaque son (son nom, sinon son écoute), puis après ton accord supprime les sons sans aucune note, range le Channel rack, le Mixer et la Playlist dans le même ordre, colore et renomme sons, patterns et pistes (Kick, Snare, 808…)."),
                           symbol: "square.stack.3d.up") { _ in
-                MacroDoc(name: String(localized: "Tout organiser"), blocks: [Block(.organize)], origin: .template(organizeID))
+                MacroDoc(name: String(localized: "Organiser"), blocks: [Block(.organize)], origin: .template(organizeID))
             },
         ]
     }

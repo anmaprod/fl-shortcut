@@ -473,7 +473,7 @@ struct MenuContent: View {
                 openWindow(id: "editor")
                 NSApp.activate(ignoringOtherApps: true)
             }
-            PanelItem(symbol: "square.stack.3d.up", title: String(localized: "Tout organiser…"),
+            PanelItem(symbol: "square.stack.3d.up", title: String(localized: "Organiser…"),
                       tint: OrganizerView.tint, order: 5) { OrganizerWindow.open() }
             PanelItem(symbol: store.enabled ? "pause" : "play",
                       title: store.enabled ? String(localized: "Mettre en pause") : String(localized: "Reprendre"),

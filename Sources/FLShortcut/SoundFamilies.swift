@@ -229,6 +229,29 @@ enum SoundNames {
         kind(of: name)?.family
     }
 
+    /// Un nom que l'Organiser a pu donner : une sorte ou une famille (« Mélodie », « Snare », « Hi-hat »), suivie ou
+    /// non d'un numéro (« Mélodie 3 »). Il ne dit rien de sûr : une analyse d'avant a pu se tromper (retour de
+    /// l'utilisateur : une boucle de batterie restait « Mélodie 3 », un hi-hat « Snare 3 »).
+    static func isGenerated(_ name: String) -> Bool {
+        var base = name.trimmingCharacters(in: .whitespaces)
+        if let space = base.lastIndex(of: " "), Int(base[base.index(after: space)...]) != nil {
+            base = String(base[..<space])
+        }
+        return generatedNames.contains(base)
+    }
+
+    /// Noms que l'Organiser donne, dans la langue de l'appli.
+    static var generatedNames: Set<String> {
+        Set(SoundKind.allCases.map(\.name) + SoundFamily.allCases.compactMap(\.trackName))
+    }
+
+    /// Un nom que l'Organiser a pu donner (`kind`) reste après l'écoute s'il ne la contredit pas : même famille, et
+    /// pas une autre sorte (« Lead » entendu comme une mélodie reste « Lead » ; « Snare 3 » entendu comme un hi-hat
+    /// devient « Hi-hat »). L'écoute qui ne dit rien laisse le nom.
+    static func keeps(_ kind: SoundKind, heard: Verdict) -> Bool {
+        heard.family == .unsure || (heard.family == kind.family && (heard.kind == nil || heard.kind == kind))
+    }
+
     /// Mots d'une partie du morceau : un pattern ou une piste ainsi nommés gardent leur nom.
     static let sectionWords: Set<String> = [
         "intro", "outro", "verse", "couplet", "chorus", "refrain", "hook", "drop", "bridge", "pont", "break",
@@ -253,9 +276,15 @@ enum DrumNaming {
     /// Confiance de l'IA à partir de laquelle son étiquette l'emporte sur les mesures.
     static let minConfidence = 0.3
 
-    /// L'étiquette de l'IA la plus sûre (égalité : l'ordre de `DrumKind`), sinon les mesures : grave → kick ; bruit
-    /// aigu → hi-hat (long : cymbale) ; bruit médium → snare ; le reste → perc.
+    /// Ce que les mesures disent sûrement l'emporte sur l'IA : le grave d'un kick avec des aigus (charleston) est une
+    /// boucle de batterie ; presque tout au-dessus de 6 kHz, un charleston (retour de l'utilisateur : un hi-hat
+    /// renommé « Snare 3 »). Sinon l'étiquette de l'IA la plus sûre (égalité : l'ordre de `DrumKind`), sinon les
+    /// mesures : grave → kick ; aigu → hi-hat (long : cymbale) ; tonal → perc ; bruit sans grave ni aigu → clap ;
+    /// bruit → snare ; le reste → perc.
     static func kind(_ f: SoundFeatures, scores: [String: Double]) -> DrumKind {
+        let low = f.lowRatio >= 0.5 || (f.medianF0 > 0 && f.medianF0 < FamilyFusion.lowF0 && f.pitchedFraction >= 0.3)
+        if low && f.highRatio >= FamilyFusion.loopHigh { return .kit }
+        if f.highRatio >= sureHatHigh && f.flatness >= FamilyFusion.noisy { return f.noteLength >= cymbalLength ? .cymbal : .hiHat }
         var best: (kind: DrumKind, confidence: Double)?
         for (label, confidence) in scores {
             guard let kind = labels[label], confidence >= minConfidence else { continue }
@@ -265,13 +294,21 @@ enum DrumNaming {
             best = (kind, confidence)
         }
         if let best { return best.kind }
-        if f.lowRatio >= 0.5 || (f.medianF0 > 0 && f.medianF0 < FamilyFusion.lowF0 && f.pitchedFraction >= 0.3) {
-            return .kick
+        if low { return .kick }
+        if f.highRatio >= hatHigh { return f.noteLength >= cymbalLength ? .cymbal : .hiHat }
+        if f.pitchedFraction >= 0.6 { return .perc }
+        if f.flatness >= FamilyFusion.noisy {
+            return f.highRatio < 0.05 && f.lowRatio < 0.05 ? .clap : .snare
         }
-        if f.flatness >= 0.4 && f.lowRatio < 0.1 { return f.noteLength >= 0.6 ? .cymbal : .hiHat }
-        if f.flatness >= 0.2 { return .snare }
         return .perc
     }
+
+    /// Part d'énergie au-dessus de 6 kHz : un charleston (une snare n'en a pas autant) ; au-delà de `sureHatHigh`,
+    /// plus sûr que l'IA.
+    static let hatHigh = 0.7
+    static let sureHatHigh = 0.85
+    /// Plus long (s) : une cymbale, plus court : un charleston (même ouvert).
+    static let cymbalLength = 1.0
 }
 
 /// Avis de l'IA de macOS, ramené à trois familles d'étiquettes (confiance 0…1, la plus forte de chaque famille).
@@ -322,29 +359,45 @@ enum FamilyFusion {
         return t
     }()
 
-    /// Seuils (secondes, Hz, 0…1) : les mêmes que le prototype.
+    /// Seuils (secondes, Hz, 0…1), réglés sur des sons de synthèse et des sons plus proches des vrais (réverbération,
+    /// accords, bruits filtrés) avec le même calcul.
     static let silenceDB = -50.0
     static let lowF0 = 130.0
     static let shortNote = 0.4
+    /// Platitude (`SoundFeatures.flatness`) : en dessous de `tonal`, un son tonal (même en accord ou réverbéré) ; à
+    /// partir de `noisy`, un bruit (charleston, snare, clap, montée).
+    static let tonal = 0.15
+    static let noisy = 0.2
+    /// Part d'énergie au-dessus de 6 kHz qui, avec le grave d'un kick, fait une boucle de batterie (une basse n'en a
+    /// pas) ; `ringHigh` : un son long et bruité qui attaque (open hat, cymbale), pas une montée.
+    static let loopHigh = 0.08
+    static let ringHigh = 0.6
 
-    /// Famille et confiance (0…1). Dans l'ordre : silence → voix reconnue → basse (grave, tonale, longue ou qui
-    /// change de note) → drums (court sans hauteur, ou grave court sur une seule note : kick) → FX (long et bruité)
-    /// → voix au vibrato (sans instrument reconnu) → mélodie (tonale) → FX (long) → à vérifier.
+    /// Famille et confiance (0…1). Dans l'ordre : silence → voix reconnue → boucle de batterie (grave de kick et
+    /// aigus) → basse (grave, tonale, longue ou qui change de note) → drums (court et bruité, ou grave court sur une
+    /// seule note : kick ; court et entendu comme des drums par l'IA, sauf un son tonal qui change de note) → open
+    /// hat, cymbale (long, bruité, aigu, qui attaque) → FX (long et bruité) → voix au vibrato (sans instrument
+    /// reconnu) → mélodie (tonale) → FX (long) → à vérifier. Un son court et tonal sans hauteur nette (accord, arpège
+    /// réverbéré) est une mélodie, plus des drums (retour de l'utilisateur : un arpège renommé « Snare »).
     static func decide(_ f: SoundFeatures, _ ai: AILabels) -> (family: SoundFamily, confidence: Double) {
         guard f.peakDB >= silenceDB else { return (.unsure, 0) }
         if ai.voice >= 0.5 { return (.vocals, ai.voice) }
         let low = f.pitchedFraction >= 0.4 && f.medianF0 > 0 && f.medianF0 < lowF0 && f.lowRatio >= 0.5
-        if low && (f.noteLength >= 0.35 || f.distinctPitches >= 2) { return (.bass, 0.8) }
         let short = f.noteLength < shortNote
-        if (short && (f.pitchedFraction < 0.3 || ai.drums >= 0.6)) || (low && f.noteLength < 0.35) {
-            return (.drums, max(ai.drums, 0.75))
+        let isNoisy = f.flatness >= noisy, isTonal = f.flatness < tonal
+        if low && short && f.highRatio >= loopHigh { return (.drums, max(ai.drums, 0.75)) }
+        if low && (f.noteLength >= 0.35 || f.distinctPitches >= 2) { return (.bass, 0.8) }
+        if (short && isNoisy) || (low && f.noteLength < 0.35) { return (.drums, max(ai.drums, 0.75)) }
+        if short && ai.drums >= 0.6 && ai.drums > ai.instrument && !(isTonal && f.distinctPitches >= 3) {
+            return (.drums, ai.drums)
         }
-        if !short && f.pitchedFraction < 0.3 && f.flatness >= 0.25 { return (.fx, 0.7) }
+        if !short && isNoisy && f.highRatio >= ringHigh && f.onsetsPerSecond > 0 { return (.drums, 0.7) }
+        if !short && f.pitchedFraction < 0.3 && isNoisy { return (.fx, 0.7) }
         if (0.12...0.8).contains(f.vibrato) && (80...500).contains(f.medianF0) && f.pitchedFraction >= 0.6
-            && f.noteLength >= 0.5 && ai.instrument < 0.5 {
+            && f.noteLength >= 0.5 && f.distinctPitches <= 2 && ai.instrument < 0.5 {
             return (.vocals, 0.55)
         }
-        if f.pitchedFraction >= 0.5 || ai.instrument >= 0.5 || (f.flatness < 0.15 && f.noteLength >= 0.3) {
+        if f.pitchedFraction >= 0.5 || ai.instrument >= 0.5 || isTonal {
             return (.melody, max(ai.instrument, 0.7))
         }
         if !short { return (.fx, 0.5) }

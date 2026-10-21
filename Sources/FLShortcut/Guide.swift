@@ -51,7 +51,7 @@ enum GuideContent {
                   tip: String(localized: "Une macro ajoutée arrive sans raccourci : rien ne se lance tant que tu ne lui en as pas choisi un.")),
         GuidePage(id: 4, symbol: "menubar.rectangle", tint: .orange, title: String(localized: "Au quotidien"),
                   summary: String(localized: "FL Shortcuts travaille en arrière-plan, depuis la barre des menus."),
-                  steps: [String(localized: "L'icône en haut de l'écran ouvre son menu : modifier les raccourcis, tout organiser, mettre en pause."),
+                  steps: [String(localized: "L'icône en haut de l'écran ouvre son menu : modifier les raccourcis, organiser, mettre en pause."),
                           String(localized: "⌃⌥⌘F met en pause ou reprend, n'importe où. Une pastille le rappelle tant que c'est en pause."),
                           String(localized: "Un « ! » sur l'icône : le clavier n'est pas autorisé. Ouvre son menu pour savoir quoi faire.")],
                   tip: String(localized: "Tes touches ne sont lues que quand FL Studio est devant. Rien n'est envoyé, sauf ce que tu publies dans la Communauté.")),

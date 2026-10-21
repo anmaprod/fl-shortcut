@@ -1,7 +1,8 @@
 // Organiser : mesures d'un son capté (mono, Float), même calcul que le prototype qui a réglé les règles :
 // enveloppe sur 40 ms (pas de 10 ms), attaques, longueur des notes, hauteur par autocorrélation normalisée (signal
-// ramené au quart, 40 à 1 000 Hz), hauteur de chaque note, vibrato, part d'énergie sous 200 Hz et platitude du spectre
-// (FFT de 4 096 points). Quelques millisecondes par son ; rien n'est gardé.
+// ramené au quart, 40 à 1 000 Hz), hauteur de chaque note, vibrato, part d'énergie sous 200 Hz et au-dessus de 6 kHz,
+// platitude du spectre dans la bande qui porte l'énergie (FFT de 4 096 points). Quelques millisecondes par son ; rien
+// n'est gardé.
 import Accelerate
 import Foundation
 
@@ -14,13 +15,17 @@ struct SoundFeatures: Equatable {
     var medianF0: Double
     /// Part d'énergie sous 200 Hz (0…1).
     var lowRatio: Double
-    /// Platitude du spectre de 100 Hz à 8 kHz : 0 tonal, 1 bruit blanc.
+    /// Platitude du spectre (moyenne géométrique / arithmétique) dans la bande qui porte l'énergie (de 5 % à 95 %,
+    /// 32 cases au moins) : 0 tonal (même en accord ou réverbéré), vers 0,56 un bruit (même filtré : charleston
+    /// au-dessus de 7 kHz, clap autour de 1,5 kHz).
     var flatness: Double
     var onsetsPerSecond: Double
     /// Nombre de hauteurs différentes d'une note à l'autre (demi-tons).
     var distinctPitches: Int
     /// Écart type des demi-tons autour de leur médiane glissante, dans les passages tenus.
     var vibrato: Double
+    /// Part d'énergie au-dessus de 6 kHz (0…1) : charleston, cymbale ; avec un grave de kick, une boucle de batterie.
+    var highRatio: Double = 0
 
     static let silent = SoundFeatures(peakDB: -120, noteLength: 0, pitchedFraction: 0, medianF0: 0, lowRatio: 0,
                                       flatness: 1, onsetsPerSecond: 0, distinctPitches: 0, vibrato: 0)
@@ -190,12 +195,12 @@ struct SoundFeatures: Equatable {
         }
 
         // Spectre : trames de 4 096 (16 au plus) parmi les passages actifs.
-        let (lowRatio, flatness) = spectrum(samples, rate: rate, active: active, hop: hop)
+        let spectral = spectrum(samples, rate: rate, active: active, hop: hop)
 
         return SoundFeatures(peakDB: peakDB, noteLength: noteLength, pitchedFraction: pitchedFraction,
-                             medianF0: medianF0, lowRatio: lowRatio, flatness: flatness,
+                             medianF0: medianF0, lowRatio: spectral.low, flatness: spectral.flatness,
                              onsetsPerSecond: Double(onsets.count) / (Double(samples.count) / rate),
-                             distinctPitches: distinct, vibrato: vibrato)
+                             distinctPitches: distinct, vibrato: vibrato, highRatio: spectral.high)
     }
 
     static func median(_ values: [Double]) -> Double? {
@@ -204,9 +209,10 @@ struct SoundFeatures: Equatable {
         return v.count % 2 == 1 ? v[v.count / 2] : (v[v.count / 2 - 1] + v[v.count / 2]) / 2
     }
 
-    private static func spectrum(_ x: [Float], rate: Double, active: [Bool], hop: Int) -> (low: Double, flatness: Double) {
+    private static func spectrum(_ x: [Float], rate: Double, active: [Bool], hop: Int)
+        -> (low: Double, flatness: Double, high: Double) {
         let m = 4096, log2n = vDSP_Length(12)
-        guard x.count >= m, let setup = vDSP_create_fftsetup(log2n, FFTRadix(kFFTRadix2)) else { return (0, 1) }
+        guard x.count >= m, let setup = vDSP_create_fftsetup(log2n, FFTRadix(kFFTRadix2)) else { return (0, 1, 0) }
         defer { vDSP_destroy_fftsetup(setup) }
         var starts = stride(from: 0, through: x.count - m, by: m).filter { s in
             let a = s / hop, b = min(active.count, (s + m) / hop)
@@ -215,14 +221,17 @@ struct SoundFeatures: Equatable {
         if starts.count > 16 {
             starts = (0..<16).map { starts[Int((Double($0) * Double(starts.count - 1) / 15).rounded())] }
         }
-        guard !starts.isEmpty else { return (0, 1) }
+        guard !starts.isEmpty else { return (0, 1, 0) }
         var window = [Float](repeating: 0, count: m)
         vDSP_hann_window(&window, vDSP_Length(m), Int32(vDSP_HANN_DENORM))
         var frame = [Float](repeating: 0, count: m)
         var real = [Float](repeating: 0, count: m / 2), imag = [Float](repeating: 0, count: m / 2)
         var power = [Double](repeating: 0, count: m / 2 + 1)
         let binHz = rate / Double(m)
-        var lows: [Double] = [], flats: [Double] = []
+        // Cases de 20 Hz à 20 kHz.
+        let first = Int((20 / binHz).rounded(.up)), last = min(m / 2, Int((20_000 / binHz).rounded(.down)))
+        guard first < last else { return (0, 1, 0) }
+        var lows: [Double] = [], flats: [Double] = [], highs: [Double] = []
         for s in starts {
             x.withUnsafeBufferPointer { p in vDSP_vmul(p.baseAddress! + s, 1, window, 1, &frame, 1, vDSP_Length(m)) }
             real.withUnsafeMutableBufferPointer { rp in
@@ -237,26 +246,51 @@ struct SoundFeatures: Equatable {
             power[0] = Double(real[0]) * Double(real[0])
             power[m / 2] = Double(imag[0]) * Double(imag[0])
             for k in 1..<(m / 2) { power[k] = Double(real[k]) * Double(real[k]) + Double(imag[k]) * Double(imag[k]) }
-            var total = 1e-12, low = 0.0
-            var logSum = 0.0, sum = 0.0, count = 0.0
-            for k in 0...(m / 2) {
+            var total = 1e-12, low = 0.0, high = 0.0
+            for k in first...last {
+                total += power[k]
                 let hz = Double(k) * binHz
-                if hz >= 20 && hz <= 20_000 {
-                    total += power[k]
-                    if hz < 200 { low += power[k] }
-                }
-                if hz >= 100 && hz <= 8_000 {
-                    let p = power[k] + 1e-12
-                    logSum += log(p)
-                    sum += p
-                    count += 1
-                }
+                if hz < 200 { low += power[k] } else if hz >= 6_000 { high += power[k] }
             }
             lows.append(low / total)
-            if count > 0 { flats.append(exp(logSum / count) / (sum / count)) }
+            highs.append(high / total)
+            flats.append(bandFlatness(power, first...last, total: total))
         }
-        let lowRatio = lows.reduce(0, +) / Double(lows.count)
-        let flatness = flats.isEmpty ? 1 : flats.reduce(0, +) / Double(flats.count)
-        return (lowRatio, flatness)
+        let count = Double(starts.count)
+        return (lows.reduce(0, +) / count, flats.reduce(0, +) / count, highs.reduce(0, +) / count)
+    }
+
+    /// Cases plus étroites que ça (un son pur : quelques cases) : élargies autour de leur milieu, sinon une sinusoïde
+    /// paraîtrait plate.
+    static let minFlatBins = 32
+
+    /// Pur (testé) : platitude des cases de `range` qui portent de 5 % à 95 % de l'énergie (`total`), élargies à
+    /// `minFlatBins` cases autour de leur milieu.
+    static func bandFlatness(_ power: [Double], _ range: ClosedRange<Int>, total: Double) -> Double {
+        var a = -1, b = range.upperBound
+        var acc = 0.0
+        for k in range {
+            acc += power[k]
+            if a < 0 && acc / total >= 0.05 { a = k }
+            if acc / total >= 0.95 {
+                b = k
+                break
+            }
+        }
+        if a < 0 { a = range.lowerBound }
+        if b - a + 1 < minFlatBins {
+            let mid = (a + b) / 2
+            a = max(range.lowerBound, mid - minFlatBins / 2)
+            b = min(range.upperBound, a + minFlatBins - 1)
+            a = max(range.lowerBound, b - minFlatBins + 1)
+        }
+        var logSum = 0.0, sum = 0.0
+        for k in a...b {
+            let p = power[k] + 1e-12
+            logSum += log(p)
+            sum += p
+        }
+        let n = Double(b - a + 1)
+        return exp(logSum / n) / (sum / n)
     }
 }
