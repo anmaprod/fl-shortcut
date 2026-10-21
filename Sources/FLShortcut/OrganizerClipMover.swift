@@ -1,12 +1,12 @@
 // Organiser : chaque son sur sa piste de la Playlist, et tous ses clips réunis sur cette piste (retour du
 // propriétaire : « ranger chaque son différent dans une piste individuelle » ; « si il reconnaît des sons à
 // l'identique, qu'il les mette dans la même piste »). Un même son : les patterns qui jouent exactement les mêmes sons.
-// FL ne dit pas à un script où sont les clips et n'a aucune commande pour sélectionner ceux d'une seule piste : chaque
-// clip est retrouvé dans la fenêtre de FL au nom de son pattern (écrit sur le clip), au moment de le déplacer, comme un
-// bouton retrouvé à son nom (lecture de cette fenêtre seule, autorisation « Enregistrement de l'écran »). Il est
-// sélectionné seul (⌘D, puis ⌘ + clic, la sélection de FL), puis monté ou descendu de piste en piste (⇧↑, ⇧↓). Chaque
-// déplacement est vérifié en relisant la fenêtre : ce clip seul a changé de piste ; au moindre doute, il revient et
-// tout s'arrête. Aucun nom n'est journalisé.
+// FL ne dit pas à un script où sont les clips et n'a aucune commande pour sélectionner ceux d'une seule piste : au
+// moment de ranger, les noms écrits sur les clips (ceux de leurs patterns) sont lus dans la fenêtre de FL, pour savoir
+// lesquels déplacer et les retrouver (lecture de cette fenêtre seule, autorisation « Enregistrement de l'écran »,
+// partie visible de la Playlist). Chaque clip est sélectionné seul (⌘D, puis ⌘ + clic, la sélection de FL), puis monté
+// ou descendu de piste en piste (⇧↑, ⇧↓) et vérifié en relisant la fenêtre : ce clip seul a changé de piste ; sinon il
+// revient. Un clip n'est jamais posé sur un autre au même moment. Aucun nom n'est journalisé ni gardé.
 import AppKit
 
 /// Un clip de pattern lu dans la Playlist.
@@ -57,7 +57,7 @@ enum ClipLayout {
         var candidates = [read]
         if let space = read.firstIndex(of: " ") { candidates.append(String(read[read.index(after: space)...])) }
         for candidate in candidates {
-            let exact = wanted.filter { $0.value == candidate }.map(\.key)
+            let exact = wanted.filter { $0.value == candidate }.map { $0.key }
             if exact.count == 1 { return exact[0] }
         }
         for candidate in candidates {
@@ -66,7 +66,7 @@ enum ClipLayout {
             let prefix = String(dots[..<range.lowerBound]).trimmingCharacters(in: .whitespaces)
             let suffix = String(dots[range.upperBound...]).trimmingCharacters(in: CharacterSet(charactersIn: ". "))
             guard prefix.count + suffix.count >= 2 else { continue }
-            let found = wanted.filter { $0.value.hasPrefix(prefix) && $0.value.hasSuffix(suffix) }.map(\.key)
+            let found = wanted.filter { $0.value.hasPrefix(prefix) && $0.value.hasSuffix(suffix) }.map { $0.key }
             if found.count == 1 { return found[0] }
         }
         return nil
@@ -74,15 +74,19 @@ enum ClipLayout {
 
     /// Pur (testé) : les clips lus. `names` : le nom de chaque pattern ; `rows` : le point visé sur le nom de chaque
     /// piste (PlaylistMover.rows), `pitch` : la hauteur d'une piste. Un clip est un texte à droite de la colonne des
-    /// noms de pistes qui est le nom d'un pattern ; sa piste est la plus proche en hauteur (à une demi-piste près).
+    /// noms de pistes qui est le nom d'un pattern ; sa piste est la plus proche en hauteur (à une demi-piste près). Les
+    /// lignes lues passent avant leurs mots : « Mélodie » dans « Mélodie 3 » n'est pas un autre clip.
     static func clips(items: [TextLook.Item], names: [Int: String], rows: [Int: CGPoint],
                       pitch: CGFloat) -> [ClipSpot] {
         guard pitch > 0, let left = rows.values.map(\.x).min() else { return [] }
         var out: [ClipSpot] = []
-        for item in items where item.box.minX > left + 40 {
+        var taken: [CGRect] = []
+        for item in items.sorted(by: { $0.box.width > $1.box.width }) where item.box.minX > left + 40 {
+            if taken.contains(where: { $0.insetBy(dx: -tolerance, dy: -tolerance).contains(item.box) }) { continue }
             guard let pattern = pattern(for: item.text, names: names),
                   let row = rows.min(by: { abs($0.value.y - item.box.midY) < abs($1.value.y - item.box.midY) }),
                   abs(row.value.y - item.box.midY) <= pitch / 2 else { continue }
+            taken.append(item.box)
             // Dans le clip, sous son nom : jamais sur l'icône du clip (son menu), à gauche du nom.
             let point = CGPoint(x: item.box.minX + min(8, item.box.width / 2), y: item.box.midY + pitch * 0.3)
             let spot = ClipSpot(pattern: pattern, track: row.key, x: item.box.minX, point: point)
@@ -99,7 +103,8 @@ enum ClipLayout {
     /// le pattern lui-même. Chaque piste appartient au son qui y a le plus de clips (égalité : celui qui y commence le
     /// plus tôt) ; un son
     /// va sur celle de ses pistes où il en a le plus (égalité : la plus haute) ; un son qui n'en a aucune, sur une
-    /// piste vide de `free`, dans l'ordre. Ses autres clips l'y rejoignent.
+    /// piste vide de `free`, dans l'ordre. Ses autres clips l'y rejoignent, sauf sur un clip déjà là au même moment
+    /// (FL l'écraserait).
     static func moves(_ clips: [ClipSpot], sounds: [Int: Set<Int>], free: [Int]) -> [ClipMove] {
         func group(_ pattern: Int) -> String {
             if let s = sounds[pattern], !s.isEmpty { return "s" + s.sorted().map(String.init).joined(separator: ",") }
@@ -129,10 +134,20 @@ enum ClipLayout {
         for g in firstSeen.keys.sorted(by: { firstSeen[$0, default: 0] < firstSeen[$1, default: 0] }) where home[g] == nil {
             home[g] = spare.next()
         }
-        return ordered.compactMap { clip in
-            guard let to = home[group(clip.pattern)], to != clip.track else { return nil }
-            return ClipMove(pattern: clip.pattern, from: clip.track, to: to, x: clip.x)
+        var placed: [Int: [CGFloat]] = [:]
+        for clip in ordered { placed[clip.track, default: []].append(clip.x) }
+        var out: [ClipMove] = []
+        for clip in ordered {
+            guard let to = home[group(clip.pattern)], to != clip.track,
+                  !(placed[to] ?? []).contains(where: { abs($0 - clip.x) <= tolerance }) else { continue }
+            // Parti de sa piste : la place qu'il y avait est libre.
+            if let i = placed[clip.track]?.firstIndex(where: { abs($0 - clip.x) <= tolerance }) {
+                placed[clip.track]?.remove(at: i)
+            }
+            placed[to, default: []].append(clip.x)
+            out.append(ClipMove(pattern: clip.pattern, from: clip.track, to: to, x: clip.x))
         }
+        return out
     }
 
     /// Pur (testé) : les clips une fois ces déplacements faits.
@@ -147,13 +162,20 @@ enum ClipLayout {
         return out
     }
 
-    /// Pur (testé) : les sons de chaque piste une fois les clips à leur place. Les pistes où des clips ont été lus
-    /// prennent les sons de leurs patterns ; les autres (clips audio, clips sans nom lisible) gardent ceux de l'analyse.
+    /// Pur (testé) : les sons de chaque piste une fois les clips à leur place : ceux de l'analyse (clips hors de la
+    /// fenêtre, clips audio, noms illisibles compris), moins ceux des patterns partis de la piste, plus ceux des patterns
+    /// qui y sont.
     static func trackSounds(_ original: [Int: Set<Int>], before: [ClipSpot], after: [ClipSpot],
                             sounds: [Int: Set<Int>]) -> [Int: Set<Int>] {
         var out = original
-        for track in Set(before.map(\.track)).union(after.map(\.track)) { out[track] = nil }
-        for clip in after { out[clip.track, default: []].formUnion(sounds[clip.pattern] ?? []) }
+        for track in Set(before.map(\.track)).union(after.map(\.track)) {
+            let was = Set(before.filter { $0.track == track }.map(\.pattern))
+            let now = Set(after.filter { $0.track == track }.map(\.pattern))
+            var here = original[track] ?? []
+            for pattern in was.subtracting(now) { here.subtract(sounds[pattern] ?? []) }
+            for pattern in now { here.formUnion(sounds[pattern] ?? []) }
+            out[track] = here
+        }
         return out.filter { !$0.value.isEmpty }
     }
 
@@ -192,7 +214,7 @@ enum ClipMover {
             let pitch = b.y - a.y
             // Pistes visibles : leur rangée tient dans la fenêtre (le nom et le clip sous lui).
             let visible = rows.filter { $0.value.y > 0 && $0.value.y + pitch * 0.5 < window.bounds.height }
-                .map(\.key).sorted()
+                .map { $0.key }.sorted()
             let clips = ClipLayout.clips(items: items, names: names, rows: rows, pitch: pitch)
                 .filter { visible.contains($0.track) }
             return (window.bounds, PlaylistView(clips: clips, visible: visible))
@@ -232,11 +254,13 @@ enum ClipMover {
         // La même sélection revient d'autant ; relu : le clip est de nouveau sur sa piste.
         _ = arrows(-sent, effects: effects, pid: pid)
         Thread.sleep(forTimeInterval: 0.15)
-        guard let back = read(link: link, pid: pid),
-              back.view.clips.contains(where: {
-                  $0.pattern == move.pattern && $0.track == move.from && abs($0.x - move.x) <= ClipLayout.tolerance
-              }) else { return .stuck }
-        return .notDone
+        for attempt in 0..<2 {
+            if attempt > 0 { Thread.sleep(forTimeInterval: 0.25) }
+            if let back = read(link: link, pid: pid), back.view.clips.contains(where: {
+                $0.pattern == move.pattern && $0.track == move.from && abs($0.x - move.x) <= ClipLayout.tolerance
+            }) { return .notDone }
+        }
+        return .stuck
     }
 
     /// ⇧↓ (positif) ou ⇧↑, envoyés à FL seul tant qu'il est devant ; le nombre envoyé, avec le signe du sens.

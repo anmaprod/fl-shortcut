@@ -232,11 +232,11 @@ enum SoundNames {
     /// Synthés de mélodies : FL donne au canal le nom du plugin (« ZENOLOGY », « Serum 2 »). Ce n'est pas une sorte
     /// (rien ne dit lead ou pad), mais ce son n'est ni des drums ni un FX : entendu comme tel (son percussif ou très
     /// bruité), il reste une mélodie (retour du propriétaire : un ZENOLOGY classé « Snare »). Les plugins qui ont
-    /// aussi des kits de batterie (FLEX, Kontakt…) n'y sont pas.
+    /// aussi des kits de batterie (FLEX, Kontakt, LABS…) n'y sont pas ; « 3x Osc » se lit « 3x » et « osc ».
     static let melodicSynthWords: Set<String> = [
         "zenology", "serum", "vital", "sylenth", "nexus", "omnisphere", "keyscape", "massive", "spire", "pigments",
         "diva", "hive", "electra", "harmor", "sytrus", "sakura", "harmless", "poizone", "morphine", "minisynth",
-        "3xosc", "toxic", "dune", "ana", "repro", "obxd", "surge", "dexed", "labs", "keyzone", "transistor",
+        "osc", "toxic", "dune", "ana", "repro", "obxd", "surge", "dexed", "keyzone", "transistor",
     ]
 
     /// Le nom est celui d'un synthé de mélodies et ne dit rien d'autre (« Serum 2 », pas « Serum Kick »).
@@ -397,7 +397,8 @@ enum FamilyFusion {
     /// seule note : kick ; court et entendu comme des drums par l'IA, sauf un son tonal qui change de note) → open
     /// hat, cymbale (long, bruité, aigu, qui attaque) → FX (long et bruité) → voix au vibrato (sans instrument
     /// reconnu) → mélodie (tonale) → FX (long) → à vérifier. Un son court et tonal sans hauteur nette (accord, arpège
-    /// réverbéré) est une mélodie, plus des drums (retour de l'utilisateur : un arpège renommé « Snare »).
+    /// réverbéré) est une mélodie, plus des drums (retour de l'utilisateur : un arpège renommé « Snare ») ; trois notes
+    /// nettes ou plus (pas dans le grave), aussi, avant toute règle de drums ou de FX (« melodie-notes »).
     static func decide(_ f: SoundFeatures, _ ai: AILabels) -> (family: SoundFamily, confidence: Double) {
         let verdict = decideWithRule(f, ai)
         return (verdict.family, verdict.confidence)

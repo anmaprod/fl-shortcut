@@ -717,6 +717,9 @@ final class OrganizerController: ObservableObject {
             if outcome.reunited > 0 {
                 lines.append(String(localized: "Playlist : \(outcome.reunited) clips déplacés sur la piste de leur son (un son par piste)."))
             }
+            if outcome.clipsLeft > 0 {
+                lines.append(String(localized: "Playlist : \(outcome.clipsLeft) clips n'ont pas pu rejoindre la piste de leur son (leur nom n'a pas été lu dans la fenêtre de FL, ou FL ne l'a pas laissé faire) : ils sont restés à leur place."))
+            }
             if outcome.playlistMixed {
                 lines.append(String(localized: "Playlist : des pistes gardent deux sons, FL n'a pas laissé descendre leurs clips sur une piste à eux (dans FL, « Typing keyboard to piano keyboard » doit être éteint)."))
             }

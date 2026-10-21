@@ -4,8 +4,8 @@ import XCTest
 @testable import FLShortcut
 
 final class OrganizerClipMoverTests: XCTestCase {
-    private func item(_ text: String, x: CGFloat, y: CGFloat) -> TextLook.Item {
-        TextLook.Item(text: text, box: CGRect(x: x, y: y - 7, width: 50, height: 14))
+    private func item(_ text: String, x: CGFloat, y: CGFloat, width: CGFloat = 50) -> TextLook.Item {
+        TextLook.Item(text: text, box: CGRect(x: x, y: y - 7, width: width, height: 14))
     }
 
     private func spot(_ pattern: Int, _ track: Int, _ x: CGFloat) -> ClipSpot {
@@ -34,6 +34,11 @@ final class OrganizerClipMoverTests: XCTestCase {
         XCTAssertEqual(clips.map(\.pattern), [2, 0, 1])
         XCTAssertEqual(clips.map(\.track), [0, 1, 2])
         XCTAssertEqual(clips[0].point, CGPoint(x: 588, y: 193 + 48 * 0.3), "dans le clip, sous son nom, pas sur l'icône")
+        // La ligne « Mélodie 3 » et son mot « Mélodie » (lus tous les deux) : un seul clip, du pattern « Mélodie 3 ».
+        let line = ClipLayout.clips(items: [item("Mélodie", x: 580, y: 241, width: 40),
+                                            item("Mélodie 3", x: 580, y: 241, width: 80)],
+                                    names: [0: "Mélodie", 1: "Mélodie 3"], rows: rows, pitch: 48)
+        XCTAssertEqual(line.map(\.pattern), [1])
     }
 
     /// La vidéo : pistes 1 à 4 : patterns 1 à 4 (mesures 1 à 8) ; pistes 4 à 7 : patterns 1 à 4 de nouveau (mesures
@@ -58,9 +63,11 @@ final class OrganizerClipMoverTests: XCTestCase {
     /// Deux patterns qui jouent exactement les mêmes sons (un pattern et sa copie) : le même son, la même piste ; un son
     /// qui n'a aucune piste à lui va sur une piste vide.
     func testSameSoundsAndFreeTracks() {
-        let clips = [spot(0, 0, 100), spot(1, 1, 100), spot(2, 1, 300)]
+        let clips = [spot(0, 0, 100), spot(1, 1, 200), spot(2, 1, 300)]
         XCTAssertEqual(ClipLayout.moves(clips, sounds: [0: [5], 1: [5], 2: [6]], free: [1, 2, 3]),
-                       [ClipMove(pattern: 1, from: 1, to: 0, x: 100), ClipMove(pattern: 2, from: 1, to: 2, x: 300)])
+                       [ClipMove(pattern: 1, from: 1, to: 0, x: 200), ClipMove(pattern: 2, from: 1, to: 2, x: 300)])
+        XCTAssertEqual(ClipLayout.moves([spot(0, 0, 100), spot(1, 1, 100)], sounds: [0: [5], 1: [5]], free: []), [],
+                       "le même son au même moment sur deux pistes : jamais l'un sur l'autre (FL l'écraserait)")
         XCTAssertEqual(ClipLayout.moves([spot(0, 0, 100), spot(1, 0, 300)], sounds: [0: [1], 1: [2]], free: [0, 4]),
                        [ClipMove(pattern: 1, from: 0, to: 4, x: 300)], "une piste vide de `free`, jamais une piste occupée")
     }

@@ -778,7 +778,6 @@
 "FL n'a pas confirmé" = "FL n'a pas confirmé";
 "FL n'a pas confirmé (armement / REC)" = "FL n'a pas confirmé (armement / REC)";
 "FL n'a pas pris le preset : clique d'abord au milieu de la tranche de ta piste" = "FL n'a pas pris le preset : clique d'abord au milieu de la tranche de ta piste";
-"FL n'a pas repris son tempo : l'écoute s'arrête pour ne pas mal classer les sons." = "FL n'a pas repris son tempo : l'écoute s'arrête pour ne pas mal classer les sons.";
 "FL n'a pas reçu la commande" = "FL n'a pas reçu la commande";
 "FL n'a pas répondu au dépôt du preset" = "FL n'a pas répondu au dépôt du preset";
 "FL n'a pas répondu à son menu (Accessibilité %d)" = "FL n'a pas répondu à son menu (Accessibilité %d)";
@@ -1320,6 +1319,7 @@
 "Pistes, solo, liens, rendu" = "Pistes, solo, liens, rendu";
 "Playlist" = "Playlist";
 "Playlist : %lld clips déplacés sur la piste de leur son (un son par piste)." = "Playlist : %lld clips déplacés sur la piste de leur son (un son par piste).";
+"Playlist : %lld clips n'ont pas pu rejoindre la piste de leur son (leur nom n'a pas été lu dans la fenêtre de FL, ou FL ne l'a pas laissé faire) : ils sont restés à leur place." = "Playlist : %lld clips n'ont pas pu rejoindre la piste de leur son (leur nom n'a pas été lu dans la fenêtre de FL, ou FL ne l'a pas laissé faire) : ils sont restés à leur place.";
 "Playlist : %lld pistes colorées, %lld renommées" = "Playlist : %lld pistes colorées, %lld renommées";
 "Playlist : %lld pistes colorées, %lld renommées, rangées comme le Channel rack" = "Playlist : %lld pistes colorées, %lld renommées, rangées comme le Channel rack";
 "Playlist : %lld sons qui partageaient une piste ont chacun la leur." = "Playlist : %lld sons qui partageaient une piste ont chacun la leur.";

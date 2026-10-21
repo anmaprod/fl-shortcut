@@ -700,7 +700,8 @@ final class OrganizerApplyTests: XCTestCase {
         XCTAssertEqual(link.playlist.map(\.name), ["Track 1", "Track 2", "Track 3"])
     }
 
-    /// Un clip que FL n'a pas laissé déplacer : la suite s'arrête, la Playlist est rangée avec ce qui a été fait.
+    /// Un clip que FL n'a pas laissé déplacer : il reste à sa place (dit à la fin), la Playlist est rangée avec ce
+    /// qui a été fait.
     func testClipNotMovedStopsThere() {
         let (link, result) = mixedPlaylist()
         let clips = [ClipSpot(pattern: 0, track: 1, x: 100, point: .zero), ClipSpot(pattern: 1, track: 1, x: 300, point: .zero)]
@@ -711,7 +712,7 @@ final class OrganizerApplyTests: XCTestCase {
         let outcome = applier.apply(plan(result, options: options), result: result, styles: FamilyStyles.initial)
         XCTAssertNil(outcome.error)
         XCTAssertEqual(outcome.reunited, 0)
-        XCTAssertTrue(outcome.playlistMixed)
+        XCTAssertEqual(outcome.clipsLeft, 1)
         XCTAssertNil(outcome.snapshot.clipMoves)
     }
 }

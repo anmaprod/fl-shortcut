@@ -778,7 +778,6 @@
 "FL n'a pas confirmé" = "FL didn't confirm";
 "FL n'a pas confirmé (armement / REC)" = "FL didn't confirm (arm / REC)";
 "FL n'a pas pris le preset : clique d'abord au milieu de la tranche de ta piste" = "FL didn't take the preset: first click in the middle of your track's strip";
-"FL n'a pas repris son tempo : l'écoute s'arrête pour ne pas mal classer les sons." = "FL didn't go back to its tempo: listening stops so that no sound is sorted wrongly.";
 "FL n'a pas reçu la commande" = "FL didn't receive the command";
 "FL n'a pas répondu au dépôt du preset" = "FL didn't respond to the preset drop";
 "FL n'a pas répondu à son menu (Accessibilité %d)" = "FL didn't respond to its menu (Accessibility %d)";
@@ -1320,6 +1319,7 @@
 "Pistes, solo, liens, rendu" = "Tracks, solo, links, render";
 "Playlist" = "Playlist";
 "Playlist : %lld clips déplacés sur la piste de leur son (un son par piste)." = "Playlist: %lld clips moved to their sound's track (one sound per track).";
+"Playlist : %lld clips n'ont pas pu rejoindre la piste de leur son (leur nom n'a pas été lu dans la fenêtre de FL, ou FL ne l'a pas laissé faire) : ils sont restés à leur place." = "Playlist: %lld clips could not join their sound's track (their name was not read in FL's window, or FL did not allow it): they stayed in place.";
 "Playlist : %lld pistes colorées, %lld renommées" = "Playlist: %lld tracks colored, %lld renamed";
 "Playlist : %lld pistes colorées, %lld renommées, rangées comme le Channel rack" = "Playlist: %lld tracks colored, %lld renamed, sorted like the Channel rack";
 "Playlist : %lld sons qui partageaient une piste ont chacun la leur." = "Playlist: %lld sounds that shared a track now each have their own.";

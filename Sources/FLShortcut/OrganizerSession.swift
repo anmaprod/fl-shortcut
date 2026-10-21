@@ -66,7 +66,7 @@ struct OrganizerDiagnostics: Equatable {
     var error = ""
 
     var text: String {
-        ["canaux=\(listed) sons=\(targets) nom=\(byName) écoutés=\(listened) entendus=\(heard) notes=\(testNotes)",
+        let lines: [String] = ["canaux=\(listed) sons=\(targets) nom=\(byName) écoutés=\(listened) entendus=\(heard) notes=\(testNotes)",
          "patterns=\(patterns) relevés=\(scanned) avec-sons=\(withSounds) activité=\(activity) positions=\(positions) "
             + "relevés-chanson=\(activeSamples) pistes=\(tracks) seules=\(tracksSolo) écoutées=\(tracksHeard) "
             + "mixer=\(mixerUsed) envois=\(routes)",
@@ -75,7 +75,8 @@ struct OrganizerDiagnostics: Equatable {
          patternMap.isEmpty ? "" : "patterns-sons=" + patternMap,
          trackMap.isEmpty ? "" : "pistes-sons=" + trackMap,
          capture.text,
-         error.isEmpty ? "" : "erreur=\(error)"].filter { !$0.isEmpty }.joined(separator: "\n")
+         error.isEmpty ? "" : "erreur=\(error)"]
+        return lines.filter { !$0.isEmpty }.joined(separator: "\n")
     }
 }
 

@@ -178,8 +178,9 @@ struct ApplyOutcome: Equatable {
     /// deux sons).
     var split = 0
     var playlistMixed = false
-    /// Clips de la Playlist réunis sur la piste de leur son (lus dans la fenêtre de FL).
+    /// Clips de la Playlist réunis sur la piste de leur son (lus dans la fenêtre de FL) ; ceux qui n'ont pas pu y aller.
     var reunited = 0
+    var clipsLeft = 0
 }
 
 extension OrganizerResult {
@@ -369,7 +370,7 @@ final class OrganizerApplier {
                 if !ok { verified = false }
             }
             if plan.source?.options.playlist == true, plan.source?.options.splitTracks == true,
-               let view = readClips() {
+               let view = readClips(), !view.clips.isEmpty {
                 // Les clips lus dans la fenêtre de FL : chaque son sur sa piste, ses clips réunis (les patterns
                 // descendus en entier ne savent pas réunir les clips d'un son posés sur plusieurs pistes).
                 try reunite(view, &plan, &result, &outcome, styles: styles)
@@ -636,9 +637,9 @@ final class OrganizerApplier {
     }
 
     /// Playlist, un son par piste et chaque son sur une seule piste : les clips lus dans la fenêtre de FL, chacun
-    /// déplacé seul vers la piste de son son (ClipLayout.moves) et vérifié ; au premier qui ne se fait pas, la suite
-    /// s'arrête (pistes qui gardent deux sons : `playlistMixed`). Puis la Playlist prévue de nouveau sur les clips à
-    /// leur place (noms, couleurs, ordre).
+    /// déplacé seul vers la piste de son son (ClipLayout.moves) et vérifié ; un clip qui ne se fait pas reste à sa
+    /// place (`clipsLeft`), les autres continuent ; au troisième, la suite s'arrête (FL ne laisse pas faire). Puis la
+    /// Playlist prévue de nouveau sur les clips à leur place (noms, couleurs, ordre).
     private func reunite(_ view: PlaylistView, _ plan: inout OrganizerPlan, _ result: inout OrganizerResult,
                          _ outcome: inout ApplyOutcome, styles: [SoundFamily: FamilyStyle]) throws {
         // Pistes vides : aucun clip lu, aucun son entendu à l'analyse (un clip audio y est peut-être).
@@ -646,6 +647,7 @@ final class OrganizerApplier {
         let free = view.visible.filter { !used.contains($0) }
         let moves = ClipLayout.moves(view.clips, sounds: result.patternSounds, free: free)
         var done: [ClipMove] = []
+        var failed = 0
         outcome.snapshot.clipMoves = []
         for move in moves {
             let moved = moveClip(move)
@@ -653,12 +655,14 @@ final class OrganizerApplier {
                 throw OrganizerError.failed(String(localized: "Un clip de la Playlist n'a pas pu être remis à sa place : annule dans FL (Edit › Undo), puis réessaie."))
             }
             guard moved == .done else {
-                outcome.playlistMixed = true
-                break
+                failed += 1
+                if failed >= 3 { break }
+                continue
             }
             done.append(move)
             outcome.snapshot.clipMoves?.append(move)
         }
+        outcome.clipsLeft = moves.count - done.count
         MacroLog.shared.write("PLAYLIST", "clips reunited \(done.count)/\(moves.count)")
         outcome.reunited = done.count
         if done.isEmpty { outcome.snapshot.clipMoves = nil }

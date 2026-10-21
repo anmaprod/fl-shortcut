@@ -29,11 +29,13 @@
   - « Organiser » : sons sans note supprimés (⌥ + Suppr de FL), Channel rack, Mixer (un bus par famille, son sur le
     Master relié à une piste libre, pistes inutiles remises à neuf), patterns et Playlist dans le même ordre (menu
     « Move up » de chaque piste), mêmes noms partout ; « Revenir comme avant » défait tout sauf les suppressions ;
-  - IA de macOS sur une fenêtre de 1 s (son court complété) ; « Voix » seulement si l'IA entend une voix ; écoute
-    toujours au tempo d'origine (vérifié, sinon arrêt) ; règle de chaque son dans le diagnostic (`c4:melodie+ia`) ;
+  - IA de macOS sur une fenêtre de 1 s (son court complété) ; « Voix » seulement si l'IA entend une voix ; tempo du
+    projet jamais changé ; règle de chaque son dans le diagnostic (`c4:melodie+ia`) ;
   - Playlist, un son par piste et les clips d'un même son (mêmes sons joués) réunis sur sa piste
-    (`OrganizerClipMover.swift`) : chaque clip retrouvé dans la fenêtre de FL au nom de son pattern au moment de le
-    déplacer, sélectionné seul (⌘D, ⌘ + clic), monté/descendu (⇧↑/⇧↓), vérifié en relisant la fenêtre, sinon remis ;
+    (`OrganizerClipMover.swift`) : au moment de ranger, les noms des clips (partie visible de la Playlist) lus dans la
+    fenêtre de FL (À FAIRE CONFIRMER par le propriétaire : lecture plus large que « un bouton à son nom ») ; chaque clip
+    sélectionné seul (⌘D, ⌘ + clic), monté/descendu (⇧↑/⇧↓), vérifié en relisant la fenêtre, sinon remis ; jamais posé
+    sur un autre clip au même moment ; un clip pas déplacé est dit à la fin, les autres continuent ;
     sans l'autorisation d'écran : l'ancien découpage (pattern entier : op 26, ⇧C, ⇧↓) ; puis les pistes rangées par
     famille (« Move up »). FL n'a aucune commande pour sélectionner les clips d'une seule piste (manuel lu).
   - aperçu : couleur ou dégradé de chaque famille en haut, résumé et choix dessous, dans la même zone qui défile.
