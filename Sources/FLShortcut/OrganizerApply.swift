@@ -154,8 +154,12 @@ struct OrganizerSnapshot: Equatable {
     var playlist: AreaSnapshot?
     /// Sons envoyés au Master reliés à une piste : leur piste d'avant (index d'origine du canal).
     var links: [Int: Int]?
+    /// Patterns descendus chacun sur sa piste de la Playlist, dans l'ordre (remontés à l'envers).
+    var splits: [PlaylistSplit]?
 
-    var isEmpty: Bool { rack == nil && patterns == nil && mixer == nil && playlist == nil && links == nil }
+    var isEmpty: Bool {
+        rack == nil && patterns == nil && mixer == nil && playlist == nil && links == nil && splits == nil
+    }
 }
 
 struct ApplyOutcome: Equatable {
@@ -167,6 +171,10 @@ struct ApplyOutcome: Equatable {
     var notDeleted = 0
     /// Pistes de la Playlist pas rangées (FL n'a pas montré leur menu) : noms et couleurs sont posés.
     var playlistUnordered = false
+    /// Patterns descendus chacun sur sa piste ; d'autres prévus, que FL n'a pas laissé descendre (pistes qui gardent
+    /// deux sons).
+    var split = 0
+    var playlistMixed = false
 }
 
 extension OrganizerResult {
@@ -195,6 +203,7 @@ extension OrganizerResult {
         out.trackSounds = trackSounds.mapValues(moved).filter { !$0.value.isEmpty }
         out.trackItems = trackItems
         out.unused = moved(unused)
+        for (channel, position) in soundAt { if let now = map[channel] { out.soundAt[now] = position } }
         let keptTracks = Set(kept.map(\.mixerTrack))
         out.freed = freed.union(channels.filter { deleted.contains($0.index) }.map(\.mixerTrack))
             .filter { $0 > 0 && !keptTracks.contains($0) }
@@ -209,22 +218,34 @@ final class OrganizerApplier {
     private let placeIcon: (FLIcon) -> OrganizerError?
     private let deleteSelected: () -> Bool
     private let moveTrack: (Int, Int) -> Int
+    private let moveClips: (Int?, Int) -> Int
+    private let wait: (TimeInterval) -> Void
+    /// Écoute d'une piste seule, pour vérifier qu'un pattern a bien changé de piste.
+    private let listen: TimeInterval
 
     /// `moveUp(n)` envoie ⌥↑ n fois à FL seul (Channel rack devant), `moveLeft(n)` ⌥← (Mixer devant) ; chacun
     /// renvoie le nombre de pas faits. `placeIcon` pose une icône sur l'élément sélectionné par la fenêtre de FL
     /// (F2) ; nil si c'est fait. `deleteSelected` supprime les canaux sélectionnés (⌥ + Suppr, Channel rack devant) ;
     /// faux si rien n'a pu être envoyé. `moveTrack(place, n)` remonte la piste de la Playlist à cette place (0 = la
-    /// piste 1) de n places par son menu ; le nombre de places faites.
+    /// piste 1) de n places par son menu ; le nombre de places faites. `moveClips(pattern, n)` décale de n pistes (vers
+    /// le bas ; négatif : vers le haut) tous les clips de ce pattern (1 = le premier ; nil : la sélection en cours) ;
+    /// le nombre de pas faits.
     init(link: OrganizerLink, moveUp: @escaping (Int) -> Int, moveLeft: @escaping (Int) -> Int = { _ in 0 },
          placeIcon: @escaping (FLIcon) -> OrganizerError? = { _ in nil },
          deleteSelected: @escaping () -> Bool = { false },
-         moveTrack: @escaping (Int, Int) -> Int = { _, _ in 0 }) {
+         moveTrack: @escaping (Int, Int) -> Int = { _, _ in 0 },
+         moveClips: @escaping (Int?, Int) -> Int = { _, _ in 0 },
+         wait: @escaping (TimeInterval) -> Void = { Thread.sleep(forTimeInterval: $0) },
+         listen: TimeInterval = 1.5) {
         self.link = link
         self.moveUp = moveUp
         self.moveLeft = moveLeft
         self.placeIcon = placeIcon
         self.deleteSelected = deleteSelected
         self.moveTrack = moveTrack
+        self.moveClips = moveClips
+        self.wait = wait
+        self.listen = listen
     }
 
     /// Ce qu'est chaque son classé (par index du canal), quand c'est connu (Kick, 808…).
@@ -334,6 +355,23 @@ final class OrganizerApplier {
                 outcome.snapshot.mixer = AreaSnapshot()
                 let ok = try applyMixer(plan.mixer, result, styles, &outcome.snapshot.mixer!)
                 if !ok { verified = false }
+            }
+            if !plan.splits.isEmpty {
+                outcome.snapshot.splits = []
+                let done = try applySplits(plan.splits, &outcome.snapshot.splits!)
+                outcome.split = done
+                if done < plan.splits.count {
+                    // FL n'a pas laissé faire : la Playlist prévue de nouveau avec ceux qui sont descendus.
+                    outcome.playlistMixed = true
+                    let replanned = plan.limitingSplits(to: done, result, styles: styles)
+                    plan.playlist = replanned.playlist
+                    plan.splits = replanned.splits
+                }
+                if outcome.snapshot.splits?.isEmpty == true { outcome.snapshot.splits = nil }
+                // Les nouvelles pistes telles que FL les montre (nom et couleur d'avant, pour « Revenir comme avant »).
+                if let last = plan.splits.map(\.to).max() {
+                    result.playlist = try link.listPlaylist(limit: last + 1)
+                }
             }
             if !plan.playlist.isEmpty {
                 outcome.snapshot.playlist = AreaSnapshot()
@@ -580,6 +618,43 @@ final class OrganizerApplier {
         return ok
     }
 
+    /// Playlist, un son par piste : chaque pattern à descendre est ouvert par le script, tous ses clips sélectionnés
+    /// (⌘D puis ⇧C de FL, « Select by selected source ») et descendus sur sa piste vide (⇧↓), puis vérifié à l'écoute,
+    /// piste seule : son son joue sur la nouvelle piste, et l'autre son de l'ancienne y joue encore (sans sélection,
+    /// FL aurait descendu tous les clips). Au moindre doute, les clips remontent (⇧↑, même sélection) et tout
+    /// s'arrête là. Renvoie le nombre de patterns descendus (dans `done`, pour « Revenir comme avant »).
+    private func applySplits(_ splits: [PlaylistSplit], _ done: inout [PlaylistSplit]) throws -> Int {
+        for split in splits {
+            let rows = split.to - split.from
+            let moved = moveClips(split.pattern + 1, rows)
+            if moved == rows, heard(split.to, at: split.at).contains(split.sound),
+               heard(split.from, at: split.keptAt).contains(split.kept) {
+                done.append(split)
+                continue
+            }
+            MacroLog.shared.write("PLAYLIST", "split \(done.count + 1) not confirmed (\(moved)/\(rows) steps)")
+            guard moved > 0 else { break }
+            let back = moveClips(nil, -moved)
+            guard back == moved, heard(split.from, at: split.keptAt).contains(split.kept) else {
+                throw OrganizerError.failed(String(localized: "Des clips de la Playlist n'ont pas pu être remis à leur place : annule dans FL (Edit › Undo), puis réessaie."))
+            }
+            break
+        }
+        MacroLog.shared.write("PLAYLIST", "split \(done.count)/\(splits.count)")
+        return done.count
+    }
+
+    /// Sons qui jouent sur cette piste seule, à cette position de la chanson (écoutée `listen`, FL remis ensuite).
+    private func heard(_ track: Int, at position: Double) -> Set<Int> {
+        defer { link.stopRestore() }
+        guard (try? link.playTrack(track)) != nil else { return [] }
+        if position > 0 { try? link.seek(position) }
+        wait(0.2)
+        _ = try? link.heardChannels()
+        wait(listen)
+        return (try? link.heardChannels()) ?? []
+    }
+
     /// Noms comparés tels que le script les lit (coupés) : le nom relu est le début du nom posé.
     static func namesMatch(_ sent: [Int: String], _ read: [Int: String]) -> Bool {
         sent.allSatisfy { item in
@@ -654,6 +729,15 @@ final class OrganizerApplier {
                     if done < step.up { throw OrganizerError.interrupted }
                 }
                 outcome.snapshot.playlist = nil
+            }
+            if let splits = snapshot.splits {
+                // Les pistes revenues à leur place : chaque pattern descendu remonte sur sa piste d'avant.
+                for split in splits.reversed() {
+                    let rows = split.to - split.from
+                    if moveClips(split.pattern + 1, -rows) != rows { throw OrganizerError.interrupted }
+                    outcome.snapshot.splits?.removeLast()
+                }
+                outcome.snapshot.splits = nil
             }
             if snapshot.mixer != nil {
                 try undoArranged(&outcome.snapshot.mixer!, kind: .mixer, page: .mixer, offset: 1, key: moveLeft)

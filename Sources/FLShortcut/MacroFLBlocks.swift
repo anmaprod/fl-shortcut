@@ -483,3 +483,76 @@ extension MacroEffectsMac {
         }
     }
 }
+
+extension MacroEffectsMac {
+    // MARK: « Cliquer sur… » : le menu « Arrangement » de la Playlist
+
+    /// Bouton « Arrangement » de la Playlist retrouvé à son nom dans la fenêtre de FL au moment du clic (lecture de
+    /// cette fenêtre seule, autorisation « Enregistrement de l'écran »), puis `item` dans le menu qu'il ouvre, retrouvé
+    /// lui aussi à son nom : « Add one », « Clone », « Rename », « Delete », « Merge with » (son sous-menu reste
+    /// ouvert) ou le nom d'un arrangement. Aucun nom n'est journalisé.
+    func arrangementMenu(_ item: String, ctx: Context) -> StepResult {
+        let wanted = TextLook.normalized(item)
+        guard !wanted.isEmpty else { return .fail(String(localized: "nom de l'arrangement à écrire dans « Cliquer sur… »")) }
+        guard ScreenLook.allowed else {
+            return .fail(String(localized: "pour retrouver le bouton « Arrangement », FL Shortcuts doit voir la fenêtre de FL (Réglages Système › Confidentialité et sécurité › Enregistrement de l'écran)"))
+        }
+        if let stop = shouldStop(ctx.pid) { return .cancel(stop) }
+        guard let button = Self.arrangementButton(pid: ctx.pid) else {
+            return .fail(String(localized: "bouton « Arrangement » introuvable : ouvre la Playlist juste au-dessus (son titre visible)"))
+        }
+        let before = WinSnapshot.take(pid: ctx.pid).numbers
+        let pressed = click(at: button, right: false, ctx: ctx)
+        guard case .ok = pressed else { return pressed }
+        let menu: WinInfo
+        switch WindowWait.newWindow(pid: ctx.pid, excluding: before, timeout: 1.5, stop: stopReason) {
+        case .success(let w): menu = w
+        case .failure(.stopped(let why)): return .cancel(why)
+        case .failure(.timeout): return .fail(String(localized: "le menu « Arrangement » de FL ne s'est pas ouvert"))
+        }
+        guard let image = ScreenLook.captureImage(windowNumber: menu.number, size: menu.bounds.size, scale: 2),
+              let line = TextLook.read(image, size: menu.bounds.size)
+                .first(where: { TextLook.normalized($0.text) == wanted }) else {
+            postKey(KeyCombo(keyCode: 53), pid: ctx.pid)                                 // Échap : menu refermé
+            return .fail(String(localized: "cette ligne est introuvable dans le menu « Arrangement » de FL"))
+        }
+        let chosen = click(at: CGPoint(x: menu.bounds.minX + line.center.x, y: menu.bounds.minY + line.center.y),
+                           right: false, ctx: ctx)
+        guard case .ok = chosen else {
+            postKey(KeyCombo(keyCode: 53), pid: ctx.pid)
+            return chosen
+        }
+        usleep(150_000)
+        MacroLog.shared.write("FL", "arrangement menu item chosen")
+        return .ok
+    }
+
+    /// Le bouton « Arrangement » dans les fenêtres de FL (la plus grande d'abord : la Playlist peut être détachée).
+    static func arrangementButton(pid: Int32) -> CGPoint? {
+        let windows = WinSnapshot.take(pid: pid).fl.filter { $0.layer == 0 && $0.bounds.width >= 300 && $0.bounds.height >= 200 }
+        for window in windows.sorted(by: { $0.bounds.width * $0.bounds.height > $1.bounds.width * $1.bounds.height }) {
+            guard let image = ScreenLook.captureImage(windowNumber: window.number, size: window.bounds.size, scale: 2)
+            else { continue }
+            if let p = arrangementLabel(in: TextLook.read(image, size: window.bounds.size)) {
+                return CGPoint(x: window.bounds.minX + p.x, y: window.bounds.minY + p.y)
+            }
+        }
+        return nil
+    }
+
+    /// Pur (testé) : où cliquer le nom de l'arrangement (« Arrangement », « Arrangement 2 », nom donné par FL) parmi
+    /// les textes lus : le plus haut qui le contient ; dans une ligne plus longue (« Playlist - Arrangement »), à sa
+    /// place dans la ligne.
+    static func arrangementLabel(in items: [TextLook.Item]) -> CGPoint? {
+        let spots = items.compactMap { item -> (point: CGPoint, top: CGFloat)? in
+            let text = item.text
+            guard let range = text.range(of: "arrangement", options: [.caseInsensitive, .diacriticInsensitive])
+            else { return nil }
+            let start = CGFloat(text.distance(from: text.startIndex, to: range.lowerBound))
+            let length = CGFloat(text.distance(from: range.lowerBound, to: range.upperBound))
+            let middle = (start + length / 2) / CGFloat(max(text.count, 1))
+            return (CGPoint(x: item.box.minX + item.box.width * middle, y: item.box.midY), item.box.minY)
+        }
+        return spots.min { $0.top < $1.top }?.point
+    }
+}

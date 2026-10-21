@@ -52,6 +52,34 @@ final class MacroPagesTests: XCTestCase {
         guard case .flAction("mx", _) = FLPage.mixer.openBody(layout: layout) else { return XCTFail("lien attendu") }
     }
 
+    /// Retour de l'utilisateur : tout le menu « Arrangement » de la Playlist dans « Cliquer sur… ».
+    func testPlaylistArrangementMenu() throws {
+        let ids = PageOptions.options(for: .playlist, layout: layout).map(\.id)
+        for id in ["Go", "Add", "Clone", "Rename", "Delete", "Merge"] {
+            XCTAssertTrue(ids.contains("playlist.arrangement\(id)"), id)
+            XCTAssertTrue(PageOptions.clicks("playlist.arrangement\(id)"), id)
+            XCTAssertFalse(PageOptions.usesLink("playlist.arrangement\(id)"), id)
+        }
+        XCTAssertEqual(PageOptions.field(of: "playlist.arrangementGo"), .arrangement, "son nom à écrire")
+        XCTAssertNil(PageOptions.field(of: "playlist.arrangementClone"))
+        XCTAssertFalse(PageOptions.clicks("mixer.armon"))
+        let clone = try XCTUnwrap(PageOptions.option("playlist.arrangementClone", layout: layout))
+        XCTAssertEqual(clone.kind, .arrangement("Clone"))
+        XCTAssertNil(PageOptions.body(clone, name: "", layout: layout), "joué par l'effet lui-même")
+        XCTAssertNotNil(PageOptions.valueProblem(.arrangement, "  "))
+        XCTAssertNil(PageOptions.valueProblem(.arrangement, "Arrangement 2"))
+
+        // Le bouton retrouvé à son nom : seul, ou dans le titre de la Playlist (à sa place dans la ligne), le plus haut.
+        let alone = TextLook.Item(text: "Arrangement", box: CGRect(x: 100, y: 40, width: 80, height: 14))
+        XCTAssertEqual(MacroEffectsMac.arrangementLabel(in: [alone]), CGPoint(x: 140, y: 47))
+        let title = TextLook.Item(text: "Playlist - Arrangement", box: CGRect(x: 0, y: 10, width: 220, height: 14))
+        let browser = TextLook.Item(text: "Arrangements", box: CGRect(x: 0, y: 300, width: 90, height: 14))
+        let point = try XCTUnwrap(MacroEffectsMac.arrangementLabel(in: [browser, title]))
+        XCTAssertEqual(point.y, 17)
+        XCTAssertEqual(point.x, 165, accuracy: 0.01, "milieu du mot dans « Playlist - Arrangement »")
+        XCTAssertNil(MacroEffectsMac.arrangementLabel(in: [TextLook.Item(text: "Pattern 1", box: .zero)]))
+    }
+
     /// Mute ou solo d'un canal par son numéro (au lieu des touches 1 à 9), nom de la piste à écrire (au lieu de F2) :
     /// les anciens raccourcis ne sont plus proposés mais restent compris.
     func testChannelNumberAndTrackNameAreAskedFor() throws {

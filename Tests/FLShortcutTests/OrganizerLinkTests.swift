@@ -270,6 +270,7 @@ final class OrganizerLinkTests: XCTestCase {
         XCTAssertEqual(OrganizerPayload.selectChannels([12], count: 10), [23, 0, 10, 0, 0], "hors du Channel rack : ignoré")
         XCTAssertEqual(OrganizerPayload.linkChannel(2, to: 300), [24, 0, 2, 1, 44])
         XCTAssertEqual(OrganizerPayload.songPosition, [25])
+        XCTAssertEqual(OrganizerPayload.pickPattern(3), [26, 0, 3], "script v15 : ce pattern ouvert")
         XCTAssertEqual(OrganizerPayload.decodePosition([1, 201]), 0.457)
         XCTAssertNil(OrganizerPayload.decodePosition([3, 233]), "plus de 1000")
         XCTAssertNil(OrganizerPayload.decodePosition([1]))

@@ -753,10 +753,11 @@ private enum Specs {
 
     static let pageOption = BlockSpec(
         type: .pageOption, label: String(localized: "Cliquer sur…"), category: .fl, symbol: "cursorarrow.click.2",
-        aide: String(localized: "Une option de la page de FL ouverte juste au-dessus : ajouter un instrument ou un effet, armer la piste, mute ou solo d'un canal par son numéro, renommer la piste, ou un raccourci de FL de cette page. Jamais de clic de souris. Ajouté avec « Ouvrir une page de FL » au-dessus."),
+        aide: String(localized: "Une option de la page de FL ouverte juste au-dessus : ajouter un instrument ou un effet, armer la piste, mute ou solo d'un canal par son numéro, renommer la piste, le menu « Arrangement » de la Playlist, ou un raccourci de FL de cette page. Ajouté avec « Ouvrir une page de FL » au-dessus."),
         params: [ParamSpec("option", String(localized: "Option"), .actionFL), ParamSpec("name", String(localized: "Valeur"), .texte(max: PageOptions.maxName))],
         conteneur: .aucun, dansLaPalette: true,
         needs: { body in
+            if case .pageOption(let id?, _) = body, PageOptions.clicks(id) { return base.union(.cliqueHID) }
             guard case .pageOption(let id?, _) = body, PageOptions.usesLink(id) else { return base }
             // Armer, mute ou solo sans le lien : par la piste visée (comme « Action de FL »).
             let byTrack: Set<String> = ["mixer.armon", "mixer.mute", "mixer.solo"]
@@ -772,7 +773,7 @@ private enum Specs {
             case .channel?:
                 guard let n = PageOptions.channel(value), case .channelToggle(let solo) = option.kind else { return option.label }
                 return String(localized: "\(solo ? "Solo" : "Mute") du canal \(n)")
-            case .plugin?, .name?:
+            case .plugin?, .name?, .arrangement?:
                 return value.isEmpty ? option.label : String(localized: "\(option.label) : \(value.displaySafe(max: 30))")
             case nil:
                 return option.label

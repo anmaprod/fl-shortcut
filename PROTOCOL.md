@@ -174,7 +174,7 @@ unités  = [4, 1, 3, 96, 69, 58, 4, 75, 0, 105, 99, 107]
 MAC     = [116, 112, 71, 62]
 ```
 
-## 8. Organiser et dégradé (script v5, Playlist : script v6, tout le projet : script v12, bus et relevé continu : v13, suppression et chanson entière : v14)
+## 8. Organiser et dégradé (script v5, Playlist : script v6, tout le projet : script v12, bus et relevé continu : v13, suppression et chanson entière : v14, un son par piste : v15)
 
 Opérations 2 à 12 de la commande avec données (§7), annoncées par le bit **42** du masque de capacités (le bit 41
 seul = opération 1 seulement). Un script qui annonce 42 a aussi `utils.ColorToRGB` et `utils.RGBToColor` de FL.
@@ -218,6 +218,7 @@ redémarré, sans rien avoir touché.
 | op 23 : sélection exacte (script v14) | n (2), bits | ces canaux affichés seuls sélectionnés (bit i % 8 de l'octet i // 8 ; `channels.deselectAll`, puis `selectChannel(i, 1)`), relus avant de répondre ; n différent du nombre de canaux affichés (le Channel rack a changé) : raison 5. L'Organiser supprime ensuite cette sélection (sons sans aucune note) avec « Delete selected » de FL (⌥ + Suppr), seulement si l'opération 21 la relit exactement |
 | op 24 : canal relié au Mixer (script v14) | canal (2), piste (2) | ce canal affiché envoie à cette piste du Mixer (`channels.setTargetFxTrack`, API 28 ; sinon `mixer.linkChannelToTrack`, API 23), relu avant de répondre ; la dernière piste (« Current ») ou hors du Mixer : raison 5. Un son classé envoyé au Master prend une piste libre |
 | op 25 : position de la chanson (script v14) | — | réponse `[pour mille (2)]` (`transport.getSongPos`, 0 à 1). L'Organiser joue toute la chanson en accéléré et situe chaque tranche relevée |
+| op 26 : pattern ouvert (script v15) | pattern (2) | réponse `[nombre de patterns (2), pattern ouvert (2)]` : ce pattern ouvert (1 = le premier, `patterns.jumpToPattern`), relu avant de répondre ; hors des patterns : raison 5. L'Organiser sélectionne ensuite tous ses clips dans la Playlist (« Select by selected source », ⇧C de FL) et les descend sur une piste vide (⇧↓) : un son par piste, vérifié à l'écoute de chaque piste seule (opérations 11, 12 et 14) ; au moindre doute, les clips remontent (⇧↑). Un script d'avant la v15 refuse (raison 5) : la Playlist est rangée sans séparer ses pistes |
 | op 22 : tempo du relevé (script v13) | facteur (1 à 8) | pendant une écoute (sinon raison 5) : le tempo d'avant × facteur, 520 BPM au plus (REC_Tempo) ; 1 : le tempo d'avant. Réponse `[tempo d'avant × 100 (2), tempo maintenant × 100 (2)]`. Le mémo le garde : l'opération 7 (et le sommeil du script) le remet ; FL sans REC_Tempo : raison 6 |
 
 - **Raisons** en plus (CC 116) : 4 FL joue déjà, 7 au moins 2 éléments sélectionnés pour un dégradé. Une fonction

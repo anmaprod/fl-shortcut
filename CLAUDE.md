@@ -6,7 +6,7 @@
   Pas de nouvelle PR sans demande (anmaprod/fl-shortcut#1 existe). Un push lance la CI ; ne pas la relancer à la main
   sans demande. Dernière CI verte : commit 7f45bea (443 tests Mac).
 - Tout texte affiché doit avoir son anglais (la CI échoue sinon) : `python3 scripts/localisation.py generer trad.json`.
-- Historique, décisions et échecs : `docs/contexte/HISTORIQUE.md` ; lien avec FL (script v14) : `PROTOCOL.md`.
+- Historique, décisions et échecs : `docs/contexte/HISTORIQUE.md` ; lien avec FL (script v15) : `PROTOCOL.md`.
 
 ## Règles du propriétaire
 - Pas de lecture de l'écran, sauf pour retrouver un bouton à son nom ou son image, dans la seule fenêtre de FL, au
@@ -20,7 +20,7 @@
 - Langue du Mac : toute l'app en anglais (`Resources/en.lproj`), français par défaut.
 - Trousseau : un seul élément pour la clé du script et la session du compte (une seule demande d'accès).
 - Fenêtre principale sans bande sous la barre d'outils ; accueil remontré si l'autorisation clavier manque.
-- **Organiser v5** (`Sources/FLShortcut/Organizer*.swift`, `SoundFeatures.swift`, `SoundFamilies.swift`, script FL v14) :
+- **Organiser v5** (`Sources/FLShortcut/Organizer*.swift`, `SoundFeatures.swift`, `SoundFamilies.swift`, script FL v15) :
   - analyse : sons classés par leur nom ou écoutés (clip audio : sa note C5), patterns et chanson entière joués en
     accéléré, FL dit ce qui joue (relevé continu) ; un nom déjà donné par l'Organiser est revérifié à l'écoute ;
   - classement réglé (arpège → mélodie, drum loop → Drums, hi-hat par ses aigus) ;
@@ -28,12 +28,18 @@
     Master relié à une piste libre, pistes inutiles remises à neuf), patterns et Playlist dans le même ordre (menu
     « Move up » de chaque piste), mêmes noms partout ; « Revenir comme avant » défait tout sauf les suppressions ;
   - IA de macOS sur une fenêtre de 1 s (son court complété) ; « Voix » seulement si l'IA entend une voix ; écoute
-    toujours au tempo d'origine (vérifié, sinon arrêt) ; règle de chaque son dans le diagnostic (`c4:melodie+ia`).
+    toujours au tempo d'origine (vérifié, sinon arrêt) ; règle de chaque son dans le diagnostic (`c4:melodie+ia`) ;
+  - Playlist, un son par piste : un pattern qui partage sa piste avec un autre (sûr : ses sons nulle part ailleurs)
+    est ouvert par le script (op 26), ses clips sélectionnés (⌘D, ⇧C) et descendus sur une piste vide (⇧↓), vérifié
+    à l'écoute piste seule, sinon remonté ; puis les pistes rangées par famille (« Move up »).
 - Interface : survol des barres (pages, Macros, palette, blocs) comme le menu de la barre des menus (`menuHover`) ;
   « Mes raccourcis » = raccourcis changés + créés, jamais de macro (macro d'exemple ⌃R retirée) ; plus aucune note
-  sous les blocs des macros ; « Menu de FL » en tête des blocs FL Studio de la palette.
+  sous les blocs des macros ; « Menu de FL » en tête des blocs FL Studio de la palette ; recherche qui lâche la main
+  au premier clic ailleurs ; « Cliquer sur… » › Playlist : tout le menu « Arrangement » (bouton retrouvé à son nom).
 
 ## Pas encore vérifié sur le vrai FL
 - La suppression par ⌥ + Suppr et le rangement de la Playlist par « Move up » (si ça échoue, l'app le dit).
+- Un son par piste : ⇧C sélectionne-t-il bien les clips du pattern ouvert par le script ? (sinon, tout remonte et
+  l'app le dit) ; le bouton « Arrangement » lu dans le titre de la Playlist.
 - Questions sans réponse : lire la fenêtre Playlist pour un « split by channel » ? l'accueil manquant venait-il d'une
   installation sans désinstallation ?

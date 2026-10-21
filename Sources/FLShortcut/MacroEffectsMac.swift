@@ -449,6 +449,8 @@ final class MacroEffectsMac: MacroEffects {
                 return toggleChannel(number, solo: solo, layout: layout, ctx: ctx)
             case .rename:
                 return renameTrack(name, ctx: ctx)
+            case .arrangement(let item):
+                return arrangementMenu(item ?? name.trimmingCharacters(in: .whitespaces), ctx: ctx)
             case .action, .key, .addMenu:
                 break
             }

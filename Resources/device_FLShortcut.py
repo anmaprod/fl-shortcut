@@ -27,7 +27,7 @@ bornes vérifiées, seuls les CC du protocole (canal 16) sont marqués « handle
 # La ligne suivante est remplacée par l'appli à l'installation (16 octets en hex).
 KEY_HEX = "__FLSHORTCUT_KEY__"
 
-SCRIPT_VERSION = 14
+SCRIPT_VERSION = 15
 PROTOCOL_VERSION = 2
 
 MIDI_CHANNEL = 15          # canal 16, 0-indexé
@@ -93,6 +93,7 @@ OP_SPEED = 22              # tempo multiplié pendant le relevé des patterns, r
 OP_SELECT_SET = 23         # ces canaux seuls sélectionnés (Organiser : sons inutilisés à supprimer, script v14)
 OP_LINK = 24               # canal relié à une piste du Mixer (Organiser : son envoyé au Master, script v14)
 OP_SONG_POS = 25           # position de la chanson pendant l'écoute (Organiser : chanson jouée d'un bout à l'autre)
+OP_PATTERN_PICK = 26       # ce pattern ouvert (Organiser : ⇧C de la Playlist sélectionne ensuite ses clips, script v15)
 ACTIVITY_HEARD = 1         # opération 14, 3e octet : ce qui a joué depuis la lecture précédente (script v13 ;
                            # pistes de la Playlist : script v14)
 MAX_LENGTHS = 64           # patterns au plus par réponse de l'opération 19
@@ -2248,6 +2249,24 @@ def _op_song_pos(raw, seq3):
     return 0 if _respond(OP_SONG_POS, _u16(permille), seq3) else REASON_DATA
 
 
+def _op_pattern_pick(raw, seq3):
+    """[26, pattern (2)] -> [nombre de patterns (2), pattern ouvert (2)] : ce pattern ouvert (1 = le premier,
+    patterns.jumpToPattern), relu avant de répondre. L'Organiser sélectionne ensuite tous ses clips dans la Playlist
+    (« Select by selected source », ⇧C) pour les descendre sur une piste à eux : un son par piste."""
+    if len(raw) != 3:
+        return REASON_DATA
+    wanted = _be16(raw[1], raw[2])
+    count_fn = _fn("patterns", "patternCount")
+    jump = _fn("patterns", "jumpToPattern")
+    if count_fn is None or jump is None:
+        return REASON_OLD_FL
+    count = count_fn()
+    if not _is_int(count) or not 1 <= wanted <= count:
+        return REASON_DATA
+    jump(wanted)
+    return 0 if _respond(OP_PATTERN_PICK, _u16(count) + _u16(_pattern_number() or 0), seq3) else REASON_DATA
+
+
 def _tempo():
     """Tempo en BPM (mixer.getCurrentTempo, qui le donne x 1000 dans certaines versions) ; None si inconnu."""
     f = _fn("mixer", "getCurrentTempo")
@@ -2479,6 +2498,7 @@ _EXT_OPS = {
     OP_SELECT_SET: _op_select_set,
     OP_LINK: _op_link,
     OP_SONG_POS: _op_song_pos,
+    OP_PATTERN_PICK: _op_pattern_pick,
 }
 
 

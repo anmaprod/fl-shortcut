@@ -87,6 +87,9 @@ struct PageOption: Identifiable, Equatable {
         case channelToggle(solo: Bool)
         /// Nouveau nom de la piste sélectionnée : le lien avec FL, sinon la fenêtre F2 de FL.
         case rename
+        /// Bouton « Arrangement » de la Playlist (retrouvé à son nom dans la fenêtre de FL), puis cette ligne de son
+        /// menu ; nil : l'arrangement dont le nom est écrit dans le bloc.
+        case arrangement(String?)
     }
 
     /// Ce que l'option demande en plus, écrit dans le bloc (son texte « name »).
@@ -97,6 +100,8 @@ struct PageOption: Identifiable, Equatable {
         case channel
         /// Nouveau nom de la piste.
         case name
+        /// Nom de l'arrangement à ouvrir.
+        case arrangement
     }
 
     /// « mixer.arm », « channelRack.addInstrument », « channelRack.fl.channelRack.c »…
@@ -110,7 +115,8 @@ struct PageOption: Identifiable, Equatable {
         case .addMenu: return .plugin
         case .channelToggle: return .channel
         case .rename: return .name
-        case .action, .key: return nil
+        case .arrangement(nil): return .arrangement
+        case .action, .key, .arrangement: return nil
         }
     }
 }
@@ -164,6 +170,14 @@ enum PageOptions {
         case .playlist:
             add("marker", String(localized: "Poser un marqueur"), .action("marker"))
             add("snap", String(localized: "Grille suivante"), .action("snap"))
+            // Le menu « Arrangement » de la Playlist (retour de l'utilisateur : il est dans la page).
+            add("arrangementGo", String(localized: "Arrangement : ouvrir un arrangement (son nom)"), .arrangement(nil))
+            add("arrangementAdd", String(localized: "Arrangement : en ajouter un (Add one)"), .arrangement("Add one"))
+            add("arrangementClone", String(localized: "Arrangement : le dupliquer (Clone)"), .arrangement("Clone"))
+            add("arrangementRename", String(localized: "Arrangement : le renommer (Rename)"), .arrangement("Rename"))
+            add("arrangementDelete", String(localized: "Arrangement : le supprimer (Delete)"), .arrangement("Delete"))
+            add("arrangementMerge", String(localized: "Arrangement : fusionner avec… (Merge with, sous-menu ouvert)"),
+                .arrangement("Merge with"))
         case .pianoRoll:
             add("quant", String(localized: "Quantize rapide"), .action("quant"))
             add("snap", String(localized: "Grille suivante"), .action("snap"))
@@ -187,7 +201,7 @@ enum PageOptions {
         let link = all.filter {
             switch $0.kind {
             case .action, .channelToggle, .rename: return true
-            case .key, .addMenu: return false
+            case .key, .addMenu, .arrangement: return false
             }
         }
         return (Set(all.map(\.id)), Set(link.map(\.id)),
@@ -196,6 +210,8 @@ enum PageOptions {
 
     static func isKnown(_ id: String) -> Bool { known.all.contains(id) }
     static func usesLink(_ id: String) -> Bool { known.link.contains(id) }
+    /// Option qui clique dans FL (le menu « Arrangement » de la Playlist).
+    static func clicks(_ id: String) -> Bool { id.hasPrefix("playlist.arrangement") }
     static func field(of id: String) -> PageOption.Field? { known.fields[id] }
 
     /// Page d'une option, d'après son identifiant.
@@ -242,7 +258,7 @@ enum PageOptions {
             return .key(KeyRef(combo), times: 1)
         case .addMenu(let item):
             return .menuBar(titles: ["Add", item] + pluginPath(name))
-        case .channelToggle, .rename:
+        case .channelToggle, .rename, .arrangement:
             return nil
         }
     }
@@ -262,6 +278,10 @@ enum PageOptions {
         case .name:
             if trimmed.isEmpty { return String(localized: "écris le nouveau nom de la piste.") }
             if let problem = NameColorPayload.nameProblem(trimmed) { return problem }
+        case .arrangement:
+            if trimmed.isEmpty || trimmed.count > maxName {
+                return String(localized: "écris le nom de l'arrangement, comme dans FL (Arrangement 2…).")
+            }
         }
         return nil
     }

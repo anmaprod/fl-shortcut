@@ -213,6 +213,39 @@ final class FakeOrganizerLink: OrganizerLink {
 
     func patterns() throws -> (count: Int, current: Int) { (patternList.count, currentPattern) }
 
+    func pickPattern(_ pattern: Int) throws -> Int {
+        guard v14 else { throw OrganizerError.outdatedScript }
+        log.append("pick \(pattern)")
+        currentPattern = pattern
+        return pattern
+    }
+
+    /// Clips de la Playlist : piste de chaque pattern (1 = le premier) ; `trackChannels` en est déduit. Faux : ⇧C ne
+    /// sélectionne rien (« Typing keyboard to piano » allumé…), et FL décale alors tous les clips.
+    var clipTracks: [Int: Int] = [:] { didSet { syncClips() } }
+    var selectBySource = true
+    private var clipSelection: Int?
+
+    private func syncClips() {
+        var tracks: [Int: Set<Int>] = [:]
+        for (pattern, track) in clipTracks { tracks[track, default: []].formUnion(patternSounds[pattern] ?? []) }
+        trackChannels = tracks
+    }
+
+    /// ⌘D, ⇧C puis ⇧↓ ou ⇧↑ simulés : les clips du pattern ouvert (sans sélection : tous) changent de piste.
+    func moveClips(_ pattern: Int?, _ rows: Int) -> Int {
+        if let pattern {
+            guard (try? pickPattern(pattern)) != nil else { return 0 }
+            clipSelection = selectBySource ? pattern : nil
+        }
+        log.append("clips \(rows)")
+        let moving = clipSelection.map { [$0] } ?? Array(clipTracks.keys)
+        var tracks = clipTracks
+        for p in moving { if let t = tracks[p] { tracks[p] = max(t + rows, 0) } }
+        clipTracks = tracks
+        return abs(rows)
+    }
+
     func activeChannels() throws -> Set<Int> {
         if let track { return trackChannels[track] ?? [] }
         if let at = songCursor { return songAt(at).channels }
@@ -680,6 +713,10 @@ final class OrganizerSessionTests: XCTestCase {
         XCTAssertEqual(OrganizerSession.songSlices(bars: 16, tempo: 480, slice: 0.25, cap: 90), 33)
         XCTAssertEqual(OrganizerSession.songSlices(bars: 0, tempo: 0, slice: 0.25, cap: 90), 129, "16 mesures à 120")
         XCTAssertEqual(OrganizerSession.songSlices(bars: 500, tempo: 120, slice: 0.25, cap: 90), 361)
+        // Où écouter chaque son pour vérifier qu'il a changé de piste : la tranche où le moins de pistes jouent.
+        let song: [(position: Double, tracks: Set<Int>, channels: Set<Int>)] =
+            [(0, [0, 1], [5, 6]), (0.25, [1], [6]), (0.5, [0, 2], [5, 7])]
+        XCTAssertEqual(OrganizerSession.soundPositions(song), [5: 0, 6: 0.25, 7: 0.5])
     }
 
     /// Rangé d'après le mot de son nom qui dit ce qu'il est (vidéo de l'utilisateur : « BEAM KICK » doit être un Kick).

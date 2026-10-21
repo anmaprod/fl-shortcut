@@ -972,6 +972,11 @@ private struct BlockInspector: View {
         case .rename:
             return String(localized: "La piste sélectionnée dans le Mixer prend ce nom, par le lien avec FL. Sans le lien : la fenêtre ")
                 + String(localized: "« Renommer » de FL (F2), le nom tapé, puis Entrée.")
+        case .arrangement(let item):
+            let then = item.map { String(localized: "puis « \($0) » dans son menu.") }
+                ?? String(localized: "puis l'arrangement de ce nom dans son menu.")
+            return String(localized: "Clic sur le bouton « Arrangement » de la Playlist, retrouvé à son nom dans la fenêtre de FL ")
+                + String(localized: "(autorisation « Enregistrement de l'écran »), ") + then
         }
     }
 
@@ -999,6 +1004,13 @@ private struct BlockInspector: View {
                 TextField("Nouveau nom", text: Binding(get: { value }, set: { text in
                     set(String(String.UnicodeScalarView(text.unicodeScalars.prefix(NameColorPayload.maxNameScalars))))
                 }), prompt: Text("Kick, Lead, Voix…"))
+            case .arrangement:
+                TextField("Arrangement", text: Binding(get: { value }, set: { text in
+                    set(String(text.prefix(PageOptions.maxName)))
+                }), prompt: Text("Arrangement 2"))
+                Text("Son nom, tel qu'il est écrit dans le menu « Arrangement » de FL.")
+                    .font(.system(size: 11))
+                    .foregroundStyle(.secondary)
             }
             if let problem {
                 Label(problem.prefix(1).uppercased() + problem.dropFirst(), systemImage: "exclamationmark.triangle.fill")

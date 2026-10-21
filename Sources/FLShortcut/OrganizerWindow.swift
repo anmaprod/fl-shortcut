@@ -69,6 +69,9 @@ struct OrganizerEnvironment {
     var deleteSelected: (OrganizerLink) -> () -> Bool = { _ in { false } }
     /// Piste de la Playlist à cette place remontée de n places par son menu (« Move up ») ; le nombre fait.
     var moveTrack: (OrganizerLink) -> (Int, Int) -> Int = { _ in { _, _ in 0 } }
+    /// Clips de la Playlist décalés de n pistes (négatif : vers le haut) : tous ceux de ce pattern (1 = le premier),
+    /// ou la sélection en cours (nil) ; le nombre de pas faits.
+    var moveClips: (OrganizerLink) -> (Int?, Int) -> Int = { _ in { _, _ in 0 } }
 
     static func live() -> OrganizerEnvironment {
         OrganizerEnvironment(
@@ -129,7 +132,8 @@ struct OrganizerEnvironment {
             },
             prepareProject: { OrganizerEnvironment.livePrepareProject() },
             deleteSelected: { link in { OrganizerEnvironment.liveDeleteSelected(link: link) } },
-            moveTrack: { link in { place, count in OrganizerEnvironment.liveMoveTrack(place, count, link: link) } })
+            moveTrack: { link in { place, count in OrganizerEnvironment.liveMoveTrack(place, count, link: link) } },
+            moveClips: { link in { pattern, rows in OrganizerEnvironment.liveMoveClips(pattern, rows, link: link) } })
     }
 
     /// Par les menus de FL dans la barre de macOS (comme le modèle « Supprimer les clips audio inutilisés ») : Tools ›
@@ -185,6 +189,43 @@ struct OrganizerEnvironment {
         OrganizerWindow.clickThrough(true)
         defer { OrganizerWindow.clickThrough(false) }
         return PlaylistMover.moveUp(place, count, link: link, pid: pid)
+    }
+
+    /// Clips de la Playlist décalés de `rows` pistes (négatif : vers le haut), FL au premier plan, la Playlist devant,
+    /// comme le ferait l'utilisateur : avec un pattern, d'abord tous ses clips sélectionnés (le script l'ouvre, puis ⌘D
+    /// et ⇧C de FL : « Select by selected source ») ; sans, la sélection en cours. ⇧↓ ou ⇧↑ envoyés à FL seul ;
+    /// renvoie le nombre de pas faits.
+    static func liveMoveClips(_ pattern: Int?, _ rows: Int, link: OrganizerLink) -> Int {
+        guard rows != 0, let pid = flPID() else { return 0 }
+        if let pattern {
+            guard (try? link.pickPattern(pattern)) == pattern else { return 0 }
+        }
+        guard (try? link.show(.playlist)) != nil else { return 0 }
+        if EventTap.shared.currentConfig.frontmostPID != pid {
+            _ = NSRunningApplication(processIdentifier: pid)?.activate(options: [])
+            Thread.sleep(forTimeInterval: 0.3)
+        }
+        guard link.window == .playlist, EventTap.shared.currentConfig.frontmostPID == pid else { return 0 }
+        let effects = MacroEffectsMac(pid: pid)
+        if pattern != nil {
+            let layout = SystemKeyboardLayout()
+            let d = KeyNames.commandKeyCode(for: "d", layout: layout) ?? 2
+            let c = KeyNames.keyCode(for: "c", layout: layout) ?? 8
+            effects.postKey(KeyCombo(keyCode: d, command: true), pid: pid)      // rien de sélectionné
+            Thread.sleep(forTimeInterval: 0.08)
+            effects.postKey(KeyCombo(keyCode: c, shift: true), pid: pid)        // tous les clips du pattern ouvert
+            Thread.sleep(forTimeInterval: 0.15)
+        }
+        let arrow = KeyCombo(keyCode: rows > 0 ? 125 : 126, shift: true)
+        var done = 0
+        while done < abs(rows) {
+            guard EventTap.shared.currentConfig.frontmostPID == pid else { break }
+            effects.postKey(arrow, pid: pid)
+            done += 1
+            Thread.sleep(forTimeInterval: 0.03)
+        }
+        Thread.sleep(forTimeInterval: 0.1)
+        return done
     }
 
     /// Lien installé : script remis dans FL s'il en a disparu, ports « FL Shortcuts Link » créés s'ils ne sont pas là
@@ -610,6 +651,9 @@ final class OrganizerController: ObservableObject {
                 ? String(localized: "Playlist : \(plan.playlist.colors.count) pistes colorées, \(plan.playlist.names.count) renommées")
                 : String(localized: "Playlist : \(plan.playlist.colors.count) pistes colorées, \(plan.playlist.names.count) renommées, rangées comme le Channel rack")))
         }
+        if options.playlist, !plan.splits.isEmpty {
+            out.append(("square.split.1x2", String(localized: "Playlist : \(plan.splits.count) sons qui partagent une piste avec un autre auront chacun la leur")))
+        }
         return out
     }
 
@@ -632,6 +676,12 @@ final class OrganizerController: ObservableObject {
             if outcome.notDeleted > 0 {
                 lines.append(String(localized: "FL n'a pas supprimé les \(outcome.notDeleted) sons sans aucune note : ils sont sélectionnés dans le Channel rack, supprime-les avec clic droit › Delete."))
             }
+            if outcome.split > 0 {
+                lines.append(String(localized: "Playlist : \(outcome.split) sons qui partageaient une piste ont chacun la leur."))
+            }
+            if outcome.playlistMixed {
+                lines.append(String(localized: "Playlist : des pistes gardent deux sons, FL n'a pas laissé descendre leurs clips sur une piste à eux (dans FL, « Typing keyboard to piano keyboard » doit être éteint)."))
+            }
             if outcome.playlistUnordered {
                 lines.append(ScreenLook.allowed
                     ? String(localized: "Playlist pas rangée : FL n'a pas montré le menu de ses pistes (la Playlist doit être visible, ses noms de piste à l'écran). Noms et couleurs sont posés.")
@@ -648,7 +698,8 @@ final class OrganizerController: ObservableObject {
         phase = .applying
         let applier = OrganizerApplier(link: link, moveUp: env.moveUp(link), moveLeft: env.moveLeft(link),
                                        placeIcon: env.placeIcon, deleteSelected: env.deleteSelected(link),
-                                       moveTrack: env.moveTrack(link))
+                                       moveTrack: env.moveTrack(link), moveClips: env.moveClips(link),
+                                       wait: env.sleep, listen: env.timing.trackListen)
         let plan = self.plan, styles = self.styles
         queue.async { [weak self] in
             let outcome = applier.apply(plan, result: result, styles: styles)
@@ -675,7 +726,8 @@ final class OrganizerController: ObservableObject {
         env.focusFL()
         phase = .undoing
         let applier = OrganizerApplier(link: link, moveUp: env.moveUp(link), moveLeft: env.moveLeft(link),
-                                       moveTrack: env.moveTrack(link))
+                                       moveTrack: env.moveTrack(link), moveClips: env.moveClips(link),
+                                       wait: env.sleep, listen: env.timing.trackListen)
         queue.async { [weak self] in
             let outcome = applier.undo(snapshot)
             DispatchQueue.main.async {

@@ -584,4 +584,86 @@ final class OrganizerApplyTests: XCTestCase {
         let missed = apply(other, otherResult, options: OrganizerOptions(rack: false, patterns: false, mixer: false))
         XCTAssertEqual(missed.error, .mismatch)
     }
+
+    // MARK: Un son par piste
+
+    /// Retour de l'utilisateur (vidéo) : « deux sons différents ne doivent pas être sur la même ligne ». Piste 1 :
+    /// la mélodie (pattern 1) et un FX (pattern 2) ; piste 0 : le kick (pattern 3).
+    private func mixedPlaylist() -> (link: FakeOrganizerLink, result: OrganizerResult) {
+        let made = playlistResult([(.melody, nil), (.fx, nil), (.drums, .kick)], sounds: [0: [2], 1: [0, 1]], tracks: 3)
+        let link = made.link
+        var result = made.result
+        link.playlist[0] = PlaylistTrackInfo(index: 0, selected: false, color: gray, name: "Track 1")
+        result.playlist[0] = link.playlist[0]
+        link.patternSounds = [1: [0], 2: [1], 3: [2]]
+        link.clipTracks = [1: 1, 2: 1, 3: 0]
+        result.patternSounds = [0: [0], 1: [1], 2: [2]]
+        result.soundAt = [0: 0.25, 1: 0.5, 2: 0.1]
+        result.playlist = Array(result.playlist.prefix(2))          // lue jusqu'à la dernière piste qui joue
+        return (link, result)
+    }
+
+    private func clipApplier(_ link: FakeOrganizerLink) -> OrganizerApplier {
+        OrganizerApplier(link: link, moveUp: link.moveSelectedUp, moveTrack: link.moveTrackUp,
+                         moveClips: link.moveClips, wait: { _ in }, listen: 0)
+    }
+
+    func testSplitsOnlySafePatterns() {
+        let (_, result) = mixedPlaylist()
+        let key: (Set<Int>) -> (Int, Int, Int) = { sounds in (sounds.contains(1) ? 4 : 1, 0, sounds.min() ?? 0) }
+        let splits = OrganizerPlan.playlistSplits(result, key: key)
+        // La mélodie (avant le FX dans l'ordre des familles) reste ; le FX va sur la première piste vide.
+        XCTAssertEqual(splits, [PlaylistSplit(pattern: 1, from: 1, to: 2, sound: 1, at: 0.5, kept: 0, keptAt: 0.25)])
+        XCTAssertEqual(result.splitting(splits).trackSounds, [0: [2], 1: [0], 2: [1]])
+        XCTAssertEqual(result.splitting(splits).playlist.map(\.index), [0, 1, 2])
+        // Pas sûr : un son aussi sur une autre piste, un son joué par deux patterns, une position inconnue.
+        var elsewhere = result
+        elsewhere.trackSounds[0] = [1, 2]
+        XCTAssertTrue(OrganizerPlan.playlistSplits(elsewhere, key: key).isEmpty)
+        var shared = result
+        shared.patternSounds[2] = [2, 1]
+        XCTAssertTrue(OrganizerPlan.playlistSplits(shared, key: key).isEmpty)
+        var unheard = result
+        unheard.soundAt[1] = nil
+        XCTAssertTrue(OrganizerPlan.playlistSplits(unheard, key: key).isEmpty)
+    }
+
+    func testOneSoundPerTrackAndUndo() {
+        let (link, result) = mixedPlaylist()
+        let options = OrganizerOptions(rack: false, patterns: false, mixer: false)
+        let planned = plan(result, options: options)
+        XCTAssertEqual(planned.splits.map(\.pattern), [1])
+        let outcome = clipApplier(link).apply(planned, result: result, styles: FamilyStyles.initial)
+        XCTAssertNil(outcome.error)
+        XCTAssertEqual(outcome.split, 1)
+        XCTAssertFalse(outcome.playlistMixed)
+        XCTAssertEqual(link.clipTracks, [1: 1, 2: 2, 3: 0], "le FX a sa piste")
+        // Vérifié à l'écoute, piste seule : le FX sur la nouvelle piste, la mélodie encore sur l'ancienne.
+        XCTAssertTrue(link.log.contains("pick 2"))
+        XCTAssertEqual(link.log.filter { $0.hasPrefix("track ") }, ["track 2", "track 1"])
+        // Puis la Playlist rangée comme le Channel rack : Mélodie, Drums, FX.
+        XCTAssertEqual(link.playlist.map(\.name), ["Mélodie", "Kick", "FX"])
+        XCTAssertEqual(outcome.snapshot.splits?.count, 1)
+
+        let back = clipApplier(link).undo(outcome.snapshot)
+        XCTAssertNil(back.error)
+        XCTAssertEqual(link.clipTracks, [1: 1, 2: 1, 3: 0], "le FX revenu sur sa piste d'avant")
+        XCTAssertEqual(link.playlist.map(\.name), ["Track 1", "Track 2", "Track 3"])
+        XCTAssertNil(back.snapshot.splits)
+    }
+
+    /// FL n'a rien sélectionné (⇧C sans effet) : tous les clips sont descendus ; vu à l'écoute (la mélodie n'est plus
+    /// sur sa piste), ils remontent tous, et la Playlist est rangée sans séparer cette piste.
+    func testNothingSelectedPutsEverythingBack() {
+        let (link, result) = mixedPlaylist()
+        link.selectBySource = false
+        let options = OrganizerOptions(rack: false, patterns: false, mixer: false)
+        let outcome = clipApplier(link).apply(plan(result, options: options), result: result, styles: FamilyStyles.initial)
+        XCTAssertNil(outcome.error)
+        XCTAssertEqual(outcome.split, 0)
+        XCTAssertTrue(outcome.playlistMixed)
+        XCTAssertEqual(link.clipTracks, [1: 1, 2: 1, 3: 0], "tout remis à sa place")
+        XCTAssertNil(outcome.snapshot.splits)
+        XCTAssertEqual(link.playlist.prefix(2).map(\.name), ["Mélodie", "Kick"], "rangée quand même")
+    }
 }

@@ -179,6 +179,8 @@ enum OrganizerPayload {
     static func linkChannel(_ channel: Int, to track: Int) -> [UInt8] { [24] + be16(channel) + be16(track) }
     /// Opération 25 (script v14) : la position de la chanson.
     static let songPosition: [UInt8] = [25]
+    /// Opération 26 (script v15) : ce pattern ouvert (1 = le premier).
+    static func pickPattern(_ pattern: Int) -> [UInt8] { [26] + be16(pattern) }
 
     static func gradient(first a: RGBColor, last b: RGBColor) -> [UInt8] { [8, a.r, a.g, a.b, b.r, b.g, b.b] }
 
@@ -459,6 +461,9 @@ protocol OrganizerLink: AnyObject {
     func playSolo(_ channel: Int, pattern: Int?) throws
     /// Nombre de patterns et pattern ouvert (script v11).
     func patterns() throws -> (count: Int, current: Int)
+    /// Ce pattern ouvert (1 = le premier, script v15) : ⇧C de la Playlist sélectionne ensuite tous ses clips. Renvoie
+    /// le pattern ouvert, relu par le script.
+    func pickPattern(_ pattern: Int) throws -> Int
     /// Canaux affichés dont une note joue en ce moment, d'après FL (script v11, API 9).
     func activeChannels() throws -> Set<Int>
     /// Pistes de la Playlist dont un clip passe sous la tête de lecture (index 0 = piste 1).
@@ -713,6 +718,12 @@ final class RequestOrganizerLink: OrganizerLink {
         let answer = try v11 { try send(OrganizerPayload.patterns) }
         guard let info = OrganizerPayload.decodePatterns(answer) else { throw OrganizerError.failed(String(localized: "réponse de FL illisible")) }
         return info
+    }
+
+    func pickPattern(_ pattern: Int) throws -> Int {
+        let answer = try v11 { try send(OrganizerPayload.pickPattern(pattern)) }
+        guard let info = OrganizerPayload.decodePatterns(answer) else { throw OrganizerError.failed(String(localized: "réponse de FL illisible")) }
+        return info.current
     }
 
     func activeChannels() throws -> Set<Int> { try activity(.channels) }

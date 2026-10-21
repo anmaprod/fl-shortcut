@@ -85,6 +85,7 @@
 "%lld étapes tapent des touches, cliquent ou ouvrent des fichiers : relis-les dans le créateur." = "%lld étapes tapent des touches, cliquent ou ouvrent des fichiers : relis-les dans le créateur.";
 "%lld/%lld" = "%lld/%lld";
 "(aucune)" = "(aucune)";
+"(autorisation « Enregistrement de l'écran »), " = "(autorisation « Enregistrement de l'écran »), ";
 "(none) → 1" = "(none) → 1";
 "(sans nom)" = "(sans nom)";
 "(sans raccourci)" = "(sans raccourci)";
@@ -217,6 +218,14 @@
 "Armer ou désarmer la piste" = "Armer ou désarmer la piste";
 "Arp" = "Arp";
 "Arpégiateur" = "Arpégiateur";
+"Arrangement" = "Arrangement";
+"Arrangement 2" = "Arrangement 2";
+"Arrangement : en ajouter un (Add one)" = "Arrangement : en ajouter un (Add one)";
+"Arrangement : fusionner avec… (Merge with, sous-menu ouvert)" = "Arrangement : fusionner avec… (Merge with, sous-menu ouvert)";
+"Arrangement : le dupliquer (Clone)" = "Arrangement : le dupliquer (Clone)";
+"Arrangement : le renommer (Rename)" = "Arrangement : le renommer (Rename)";
+"Arrangement : le supprimer (Delete)" = "Arrangement : le supprimer (Delete)";
+"Arrangement : ouvrir un arrangement (son nom)" = "Arrangement : ouvrir un arrangement (son nom)";
 "Arrête la lecture" = "Arrête la lecture";
 "Arrête la lecture d'abord." = "Arrête la lecture d'abord.";
 "Arrête la lecture dans FL" = "Arrête la lecture dans FL";
@@ -458,6 +467,7 @@
 "Clic droit · " = "Clic droit · ";
 "Clic gauche ou droit à un endroit que tu montres une fois dans FL (« Montrer dans FL… »), retrouvé ensuite par rapport à la fenêtre ou au menu de FL ; ou sur la piste visée. Jamais hors de FL ni sous une autre app." = "Clic gauche ou droit à un endroit que tu montres une fois dans FL (« Montrer dans FL… »), retrouvé ensuite par rapport à la fenêtre ou au menu de FL ; ou sur la piste visée. Jamais hors de FL ni sous une autre app.";
 "Clic gauche ou droit à un endroit retrouvé à chaque fois (coin d'une fenêtre de FL, piste visée, menu ouvert, fenêtre d'un plugin comme Serum…). Toujours dans une fenêtre de FL ou de ses plugins, jamais sous une autre app." = "Clic gauche ou droit à un endroit retrouvé à chaque fois (coin d'une fenêtre de FL, piste visée, menu ouvert, fenêtre d'un plugin comme Serum…). Toujours dans une fenêtre de FL ou de ses plugins, jamais sous une autre app.";
+"Clic sur le bouton « Arrangement » de la Playlist, retrouvé à son nom dans la fenêtre de FL " = "Clic sur le bouton « Arrangement » de la Playlist, retrouvé à son nom dans la fenêtre de FL ";
 "Clic · " = "Clic · ";
 "Clic à un endroit appris" = "Clic à un endroit appris";
 "Clics appris" = "Clics appris";
@@ -574,6 +584,7 @@
 "Derniers partages" = "Derniers partages";
 "Dernière sauvegarde : %@." = "Dernière sauvegarde : %@.";
 "Dernière étape : quitte et rouvre FL Studio. Il trouve « FL Shortcuts Link » en démarrant et le relie tout seul.\n\nSeulement si ça ne marche pas : Options › MIDI Settings, entrée « FL Shortcuts Link », Controller type « FL Shortcuts » (pas « generic controller »), Enable, et le même numéro de Port pour l'entrée et la sortie « FL Shortcuts Link ».\n\n« FL Shortcuts » absent des Controller types : FL lit un autre dossier. Le script est dans %@ ; compare avec Options › File settings › User data folder dans FL.\n\nChaque réinstallation crée une nouvelle clé : redémarre FL après coup." = "Dernière étape : quitte et rouvre FL Studio. Il trouve « FL Shortcuts Link » en démarrant et le relie tout seul.\n\nSeulement si ça ne marche pas : Options › MIDI Settings, entrée « FL Shortcuts Link », Controller type « FL Shortcuts » (pas « generic controller »), Enable, et le même numéro de Port pour l'entrée et la sortie « FL Shortcuts Link ».\n\n« FL Shortcuts » absent des Controller types : FL lit un autre dossier. Le script est dans %@ ; compare avec Options › File settings › User data folder dans FL.\n\nChaque réinstallation crée une nouvelle clé : redémarre FL après coup.";
+"Des clips de la Playlist n'ont pas pu être remis à leur place : annule dans FL (Edit › Undo), puis réessaie." = "Des clips de la Playlist n'ont pas pu être remis à leur place : annule dans FL (Edit › Undo), puis réessaie.";
 "Des macros et des raccourcis prêts à l'emploi, partagés par d'autres utilisateurs de FL Shortcuts, avec leur explication." = "Des macros et des raccourcis prêts à l'emploi, partagés par d'autres utilisateurs de FL Shortcuts, avec leur explication.";
 "Descendre les canaux" = "Descendre les canaux";
 "Dis en quelques mots ce que tu faisais juste avant : ça nous aide beaucoup." = "Dis en quelques mots ce que tu faisais juste avant : ça nous aide beaucoup.";
@@ -1310,6 +1321,9 @@
 "Playlist" = "Playlist";
 "Playlist : %lld pistes colorées, %lld renommées" = "Playlist : %lld pistes colorées, %lld renommées";
 "Playlist : %lld pistes colorées, %lld renommées, rangées comme le Channel rack" = "Playlist : %lld pistes colorées, %lld renommées, rangées comme le Channel rack";
+"Playlist : %lld sons qui partageaient une piste ont chacun la leur." = "Playlist : %lld sons qui partageaient une piste ont chacun la leur.";
+"Playlist : %lld sons qui partagent une piste avec un autre auront chacun la leur" = "Playlist : %lld sons qui partagent une piste avec un autre auront chacun la leur";
+"Playlist : des pistes gardent deux sons, FL n'a pas laissé descendre leurs clips sur une piste à eux (dans FL, « Typing keyboard to piano keyboard » doit être éteint)." = "Playlist : des pistes gardent deux sons, FL n'a pas laissé descendre leurs clips sur une piste à eux (dans FL, « Typing keyboard to piano keyboard » doit être éteint).";
 "Playlist pas rangée : FL n'a pas montré le menu de ses pistes (la Playlist doit être visible, ses noms de piste à l'écran). Noms et couleurs sont posés." = "Playlist pas rangée : FL n'a pas montré le menu de ses pistes (la Playlist doit être visible, ses noms de piste à l'écran). Noms et couleurs sont posés.";
 "Playlist pas rangée : pour remonter ses pistes, FL Shortcuts doit voir la fenêtre de FL (Réglages Système › Confidentialité et sécurité › Enregistrement de l'écran). Noms et couleurs sont posés." = "Playlist pas rangée : pour remonter ses pistes, FL Shortcuts doit voir la fenêtre de FL (Réglages Système › Confidentialité et sécurité › Enregistrement de l'écran). Noms et couleurs sont posés.";
 "Playlist ↔ Mixer" = "Playlist ↔ Mixer";
@@ -1556,6 +1570,7 @@
 "Solo du canal 9" = "Solo du canal 9";
 "Solo piste Mixer sélectionnée" = "Solo piste Mixer sélectionnée";
 "Son de FL" = "Son de FL";
+"Son nom, tel qu'il est écrit dans le menu « Arrangement » de FL." = "Son nom, tel qu'il est écrit dans le menu « Arrangement » de FL.";
 "Sortie du Mac : " = "Sortie du Mac : ";
 "Sortie du Mac en ce moment : " = "Sortie du Mac en ce moment : ";
 "Sortie et entrée du Mac : " = "Sortie et entrée du Mac : ";
@@ -1725,7 +1740,7 @@
 "Une macro tourne déjà." = "Une macro tourne déjà.";
 "Une nouvelle macro s'ouvre et FL passe devant : clique et tape ta suite (menus, flèches, raccourcis…), puis « Terminer ». Chaque geste devient un bloc." = "Une nouvelle macro s'ouvre et FL passe devant : clique et tape ta suite (menus, flèches, raccourcis…), puis « Terminer ». Chaque geste devient un bloc.";
 "Une nouvelle macro s'ouvre et FL passe devant : clique et tape ta suite, puis « Terminer »" = "Une nouvelle macro s'ouvre et FL passe devant : clique et tape ta suite, puis « Terminer »";
-"Une option de la page de FL ouverte juste au-dessus : ajouter un instrument ou un effet, armer la piste, mute ou solo d'un canal par son numéro, renommer la piste, ou un raccourci de FL de cette page. Jamais de clic de souris. Ajouté avec « Ouvrir une page de FL » au-dessus." = "Une option de la page de FL ouverte juste au-dessus : ajouter un instrument ou un effet, armer la piste, mute ou solo d'un canal par son numéro, renommer la piste, ou un raccourci de FL de cette page. Jamais de clic de souris. Ajouté avec « Ouvrir une page de FL » au-dessus.";
+"Une option de la page de FL ouverte juste au-dessus : ajouter un instrument ou un effet, armer la piste, mute ou solo d'un canal par son numéro, renommer la piste, le menu « Arrangement » de la Playlist, ou un raccourci de FL de cette page. Ajouté avec « Ouvrir une page de FL » au-dessus." = "Une option de la page de FL ouverte juste au-dessus : ajouter un instrument ou un effet, armer la piste, mute ou solo d'un canal par son numéro, renommer la piste, le menu « Arrangement » de la Playlist, ou un raccourci de FL de cette page. Ajouté avec « Ouvrir une page de FL » au-dessus.";
 "Une pause fixe est trop courte sur un projet lourd : préfère « Attendre une fenêtre » quand FL ouvre quelque chose." = "Une pause fixe est trop courte sur un projet lourd : préfère « Attendre une fenêtre » quand FL ouvre quelque chose.";
 "Une question" = "Une question";
 "Une seule fois : clique sur le bouton de l'icône, à gauche du nom." = "Une seule fois : clique sur le bouton de l'icône, à gauche du nom.";
@@ -1798,12 +1813,14 @@
 "bouton mute, ou la touche S de FL tant qu'il n'est pas montré." = "bouton mute, ou la touche S de FL tant qu'il n'est pas montré.";
 "bouton retrouvé à son image" = "bouton retrouvé à son image";
 "bouton retrouvé à son nom" = "bouton retrouvé à son nom";
+"bouton « Arrangement » introuvable : ouvre la Playlist juste au-dessus (son titre visible)" = "bouton « Arrangement » introuvable : ouvre la Playlist juste au-dessus (son titre visible)";
 "boîte de dialogue introuvable" = "boîte de dialogue introuvable";
 "boîte « Open » introuvable" = "boîte « Open » introuvable";
 "boîte…) : le clic attend qu'elle s'ouvre. Si elle change de taille, montre-le de nouveau." = "boîte…) : le clic attend qu'elle s'ouvre. Si elle change de taille, montre-le de nouveau.";
 "canal %lld : lien avec FL nécessaire" = "canal %lld : lien avec FL nécessaire";
 "canal %lld absent du Channel rack (ou script de FL pas à jour : redémarre FL)" = "canal %lld absent du Channel rack (ou script de FL pas à jour : redémarre FL)";
 "ce bloc a besoin du lien avec FL (%@)" = "ce bloc a besoin du lien avec FL (%@)";
+"cette ligne est introuvable dans le menu « Arrangement » de FL" = "cette ligne est introuvable dans le menu « Arrangement » de FL";
 "chemin de fichier invalide." = "chemin de fichier invalide.";
 "chemin de menu incomplet" = "chemin de menu incomplet";
 "chemin de menu invalide." = "chemin de menu invalide.";
@@ -1910,6 +1927,7 @@
 "le menu de la piste ne s'est pas ouvert" = "le menu de la piste ne s'est pas ouvert";
 "le menu de la piste ne s'est pas ouvert (clique sur le nom de ta piste dans le Mixer)" = "le menu de la piste ne s'est pas ouvert (clique sur le nom de ta piste dans le Mixer)";
 "le menu de la piste ne sait qu'armer la piste." = "le menu de la piste ne sait qu'armer la piste.";
+"le menu « Arrangement » de FL ne s'est pas ouvert" = "le menu « Arrangement » de FL ne s'est pas ouvert";
 "le nom contient un caractère invisible." = "le nom contient un caractère invisible.";
 "le point visé est hors de FL" = "le point visé est hors de FL";
 "le sous-menu « %@ » ne s'est pas ouvert" = "le sous-menu « %@ » ne s'est pas ouvert";
@@ -1963,6 +1981,7 @@
 "musical, ⌘B exporte. Remplace certaines touches de FL (P, F, T, Z…)." = "musical, ⌘B exporte. Remplace certaines touches de FL (P, F, T, Z…).";
 "mémoire de l'Entrée inconnue." = "mémoire de l'Entrée inconnue.";
 "même s'il bouge." = "même s'il bouge.";
+"nom de l'arrangement à écrire dans « Cliquer sur… »" = "nom de l'arrangement à écrire dans « Cliquer sur… »";
 "nom et couleur à choisir" = "nom et couleur à choisir";
 "nom trop long (64 caractères au plus)." = "nom trop long (64 caractères au plus).";
 "nombre de fois hors limites." = "nombre de fois hors limites.";
@@ -1996,6 +2015,7 @@
 "positions apprises inconnues" = "positions apprises inconnues";
 "positions apprises inconnues." = "positions apprises inconnues.";
 "positions de secours invalides." = "positions de secours invalides.";
+"pour retrouver le bouton « Arrangement », FL Shortcuts doit voir la fenêtre de FL (Réglages Système › Confidentialité et sécurité › Enregistrement de l'écran)" = "pour retrouver le bouton « Arrangement », FL Shortcuts doit voir la fenêtre de FL (Réglages Système › Confidentialité et sécurité › Enregistrement de l'écran)";
 "première entrée" = "première entrée";
 "preset .fst attendu dans ton dossier personnel." = "preset .fst attendu dans ton dossier personnel.";
 "preset .fst attendu." = "preset .fst attendu.";
@@ -2003,6 +2023,8 @@
 "près de la piste visée" = "près de la piste visée";
 "près du clic précédent" = "près du clic précédent";
 "près du curseur" = "près du curseur";
+"puis l'arrangement de ce nom dans son menu." = "puis l'arrangement de ce nom dans son menu.";
+"puis « %@ » dans son menu." = "puis « %@ » dans son menu.";
 "qu'un menu de FL s'ouvre" = "qu'un menu de FL s'ouvre";
 "qu'une boîte de FL s'ouvre" = "qu'une boîte de FL s'ouvre";
 "que la boîte se ferme" = "que la boîte se ferme";
@@ -2134,6 +2156,7 @@
 "à l'endroit appris (« %@ »)" = "à l'endroit appris (« %@ »)";
 "à montrer dans FL" = "à montrer dans FL";
 "échec : " = "échec : ";
+"écris le nom de l'arrangement, comme dans FL (Arrangement 2…)." = "écris le nom de l'arrangement, comme dans FL (Arrangement 2…).";
 "écris le nouveau nom de la piste." = "écris le nouveau nom de la piste.";
 "écris le numéro du canal (1 à %lld)." = "écris le numéro du canal (1 à %lld).";
 "élément grisé dans le menu de FL" = "élément grisé dans le menu de FL";

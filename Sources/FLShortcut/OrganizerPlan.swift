@@ -22,6 +22,24 @@ struct OrganizerOptions: Equatable {
     /// Sons sans aucune note supprimés du Channel rack, leurs pistes du Mixer remises comme neuves (retour de
     /// l'utilisateur : « je veux qu'elles disparaissent »).
     var deleteUnused = true
+    /// Playlist : un son par piste (retour de l'utilisateur : « deux sons différents ne doivent pas être sur la même
+    /// ligne ») ; `maxSplits` : les premiers seulement (ceux que FL a laissé faire).
+    var splitTracks = true
+    var maxSplits: Int?
+}
+
+/// Un pattern descendu de la piste de la Playlist qu'il partage avec un autre son vers une piste vide, à lui.
+struct PlaylistSplit: Equatable {
+    /// Le pattern (index 0 = pattern 1 de FL), sa piste et la piste vide où vont tous ses clips (index 0 = piste 1).
+    let pattern: Int
+    let from: Int
+    let to: Int
+    /// Un de ses sons et une position de la chanson où il joue (vérifié sur `to`, piste seule) ; un son du pattern
+    /// qui reste sur `from`, et où il joue (vérifié aussi : FL n'a pas descendu tous les clips).
+    let sound: Int
+    let at: Double
+    let kept: Int
+    let keptAt: Double
 }
 
 /// Famille et sorte d'un élément (sorte nil : sa famille seule).
@@ -68,6 +86,8 @@ struct OrganizerPlan: Equatable {
     var playlist = Area()
     /// Sons sans aucune note supprimés du Channel rack avant tout le reste (index d'origine, dans l'ordre).
     var deleted: [Int] = []
+    /// Playlist : patterns descendus chacun sur sa piste, avant ses noms, couleurs et son ordre (prévus d'après).
+    var splits: [PlaylistSplit] = []
     /// Ce qui a servi à faire le plan : il est refait sur le Channel rack une fois les sons supprimés.
     struct Source: Equatable {
         var families: [Int: SoundFamily]
@@ -76,7 +96,12 @@ struct OrganizerPlan: Equatable {
     }
     var source: Source?
 
-    var isEmpty: Bool { rack.isEmpty && patterns.isEmpty && mixer.isEmpty && playlist.isEmpty && deleted.isEmpty }
+    var isEmpty: Bool {
+        rack.isEmpty && patterns.isEmpty && mixer.isEmpty && playlist.isEmpty && deleted.isEmpty && splits.isEmpty
+    }
+
+    /// Patterns descendus au plus : au-delà, la Playlist reste comme elle est.
+    static let maxSplits = 32
 
     /// `families` et `kinds` : ce qu'est chaque son du Channel rack (index du canal), modifiable dans l'aperçu.
     static func make(_ result: OrganizerResult, families: [Int: SoundFamily], kinds: [Int: SoundKind],
@@ -147,6 +172,18 @@ struct OrganizerPlan: Equatable {
         // renommée, sauf un nom de partie du morceau (« Intro ») ; les pistes rangées comme le Channel rack (retour de
         // l'utilisateur), celles qui ne jouent rien après.
         if options.playlist {
+            // Un son par piste : la Playlist prévue telle qu'elle sera une fois les patterns descendus.
+            var result = result
+            if options.splitTracks {
+                let key: (Set<Int>) -> (Int, Int, Int) = { sounds in
+                    guard let v = groupVerdict(sounds.sorted().compactMap(verdict)), v.family != .unsure
+                    else { return (Int.max, 0, 0) }
+                    return (v.family.rank, v.kind?.rackRank ?? SoundKind.rackOrder.count,
+                            sounds.compactMap { rackPlace[$0] }.min() ?? Int.max / 2)
+                }
+                plan.splits = Array(playlistSplits(result, key: key).prefix(options.maxSplits ?? Self.maxSplits))
+                result = result.splitting(plan.splits)
+            }
             var heard: [Int: Verdict] = [:]
             for (track, sounds) in result.trackSounds {
                 if let v = groupVerdict(sounds.sorted().compactMap(verdict)) { heard[track] = v }
@@ -193,6 +230,56 @@ struct OrganizerPlan: Equatable {
         }
         return Self.make(rest, families: moved(source.families), kinds: moved(source.kinds), styles: styles,
                          options: source.options)
+    }
+
+    /// Pur (testé) : les patterns à descendre pour qu'aucune piste de la Playlist ne mêle deux sons. Seul un pattern
+    /// sûr bouge : chacun de ses sons ne joue dans aucun autre pattern ni sur aucune autre piste, et une position de
+    /// la chanson où il joue est connue (la vérification l'y écoute). Sur chaque piste où jouent au moins deux de ces
+    /// patterns, le premier dans l'ordre des familles (`key`) reste ; les autres vont, dans cet ordre, sur les pistes
+    /// vides qui suivent la dernière lue.
+    static func playlistSplits(_ result: OrganizerResult, key: (Set<Int>) -> (Int, Int, Int)) -> [PlaylistSplit] {
+        let patterns = result.patternSounds.filter { !$0.value.isEmpty }
+        var owners: [Int: Set<Int>] = [:]
+        for (pattern, sounds) in patterns { for sound in sounds { owners[sound, default: []].insert(pattern) } }
+        var places: [Int: Set<Int>] = [:]
+        for (track, sounds) in result.trackSounds { for sound in sounds { places[sound, default: []].insert(track) } }
+        var next = ((result.playlist.map(\.index) + Array(result.trackSounds.keys)).max() ?? -1) + 1
+        func heardAt(_ sounds: Set<Int>) -> (sound: Int, at: Double)? {
+            for sound in sounds.sorted() { if let at = result.soundAt[sound] { return (sound, at) } }
+            return nil
+        }
+        var out: [PlaylistSplit] = []
+        for track in result.trackSounds.keys.sorted() {
+            let sounds = result.trackSounds[track] ?? []
+            let here = patterns.filter { pattern, own in
+                guard !own.isDisjoint(with: sounds), heardAt(own) != nil else { return false }
+                let onlyPattern: Set<Int> = [pattern], onlyTrack: Set<Int> = [track]
+                return own.allSatisfy { owners[$0] == onlyPattern && places[$0] == onlyTrack }
+            }
+            guard here.count >= 2 else { continue }
+            let ordered = here.keys.sorted { a, b in
+                let ka = key(here[a]!), kb = key(here[b]!)
+                return (ka.0, ka.1, ka.2, a) < (kb.0, kb.1, kb.2, b)
+            }
+            guard let stay = heardAt(here[ordered[0]]!) else { continue }
+            for pattern in ordered.dropFirst() {
+                guard let moved = heardAt(here[pattern]!) else { continue }
+                out.append(PlaylistSplit(pattern: pattern, from: track, to: next, sound: moved.sound, at: moved.at,
+                                         kept: stay.sound, keptAt: stay.at))
+                next += 1
+            }
+        }
+        return out
+    }
+
+    /// Le même plan, les patterns descendus limités aux `count` premiers (ceux que FL a laissé faire) : la Playlist
+    /// prévue de nouveau, sans rien supprimer de plus.
+    func limitingSplits(to count: Int, _ result: OrganizerResult, styles: [SoundFamily: FamilyStyle]) -> OrganizerPlan {
+        guard var source else { return self }
+        source.options.maxSplits = count
+        var rest = result
+        rest.unused = []
+        return Self.make(rest, families: source.families, kinds: source.kinds, styles: styles, options: source.options)
     }
 
     /// Pistes de la Playlist lues, dans l'ordre du Channel rack : familles dans leur ordre, puis sortes ; à égalité,
@@ -485,6 +572,25 @@ struct OrganizerPlan: Equatable {
             used.insert(name)
             out[item.index] = name
         }
+        return out
+    }
+}
+
+extension OrganizerResult {
+    /// Pur (testé) : la Playlist une fois ces patterns descendus : leurs sons quittent leur piste pour la nouvelle,
+    /// une piste vide (sans nom ; sa vraie couleur est relue dans FL avant d'y toucher).
+    func splitting(_ splits: [PlaylistSplit]) -> OrganizerResult {
+        var out = self
+        for split in splits {
+            let moved = patternSounds[split.pattern] ?? []
+            out.trackSounds[split.from]?.subtract(moved)
+            out.trackSounds[split.to] = moved
+            if !out.playlist.contains(where: { $0.index == split.to }) {
+                out.playlist.append(PlaylistTrackInfo(index: split.to, selected: false,
+                                                      color: RGBColor(r: 0x56, g: 0x5D, b: 0x6A), name: ""))
+            }
+        }
+        out.playlist.sort { $0.index < $1.index }
         return out
     }
 }

@@ -97,6 +97,9 @@ struct OrganizerResult: Equatable {
     var unused: Set<Int> = []
     /// Pistes du Mixer que seuls des sons supprimés utilisaient (remises comme neuves par « Organiser »).
     var freed: Set<Int> = []
+    /// Pour chaque son (index du canal) : une position de la chanson (0…1) où il joue, là où le moins de pistes
+    /// jouent ; l'Organiser y vérifie, piste seule, qu'il a bien changé de piste (un son par piste).
+    var soundAt: [Int: Double] = [:]
 }
 
 final class OrganizerSession {
@@ -265,7 +268,7 @@ final class OrganizerSession {
             return .success(OrganizerResult(channels: channels, items: items, patterns: patterns,
                                             patternSounds: scan.sounds, mixer: mixer, routes: routes,
                                             playlist: song.tracks, trackSounds: song.sounds, trackItems: song.heard,
-                                            unused: unused))
+                                            unused: unused, soundAt: song.at))
         } catch let error as OrganizerError {
             note { $0.error = "\(error)" }
             return .failure(error)
@@ -445,15 +448,15 @@ final class OrganizerSession {
     /// reconnu (clip audio) : la piste est écoutée et classée à l'écoute ; FL ne dit rien du tout : les sons qui jouent
     /// en même temps qu'elle. FL trop ancien pour le dire : aucune piste.
     private func readPlaylist(tempo: Double) throws
-        -> (tracks: [PlaylistTrackInfo], sounds: [Int: Set<Int>], heard: [OrganizerItem]) {
-        guard let samples = try sampleSong(tempo: tempo), !samples.isEmpty else { return ([], [:], []) }
+        -> (tracks: [PlaylistTrackInfo], sounds: [Int: Set<Int>], heard: [OrganizerItem], at: [Int: Double]) {
+        guard let samples = try sampleSong(tempo: tempo), !samples.isEmpty else { return ([], [:], [], [:]) }
         try ensureOriginalTempo()                      // chaque piste est ensuite écoutée à son tempo
         var activeAt: [Int: [Int]] = [:]          // piste -> relevés où elle joue
         for (k, sample) in samples.enumerated() {
             for t in sample.tracks { activeAt[t, default: []].append(k) }
         }
         let active = Array(activeAt.keys.sorted().prefix(Self.maxTracks))
-        guard let last = active.last else { return ([], [:], []) }
+        guard let last = active.last else { return ([], [:], [], [:]) }
         let tracks = try link.listPlaylist(limit: last + 1)
         let together = Self.trackSounds(samples.map { (tracks: $0.tracks, channels: $0.channels) })
         note { $0.tracks = active.count }
@@ -488,7 +491,19 @@ final class OrganizerSession {
                 sounds[t] = Set(guess.keys)
             }
         }
-        return (tracks, sounds, heard)
+        return (tracks, sounds, heard, Self.soundPositions(samples))
+    }
+
+    /// Pur (testé) : pour chaque son, la position de la tranche où il joue avec le moins de pistes (égalité : la
+    /// première).
+    static func soundPositions(_ samples: [(position: Double, tracks: Set<Int>, channels: Set<Int>)]) -> [Int: Double] {
+        var best: [Int: (tracks: Int, position: Double)] = [:]
+        for sample in samples {
+            for channel in sample.channels where sample.tracks.count < best[channel]?.tracks ?? Int.max {
+                best[channel] = (sample.tracks.count, sample.position)
+            }
+        }
+        return best.mapValues(\.position)
     }
 
     /// Toute la chanson jouée d'un bout à l'autre, tout audible, tempo accéléré le temps du relevé : à chaque tranche,

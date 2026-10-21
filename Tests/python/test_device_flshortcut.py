@@ -1923,6 +1923,18 @@ class TestDataV5(TestData):
         self.data_command([25, 0])
         self.assertEqual(self.reasons(), [5])
 
+    def test_pattern_pick(self):
+        # Script v15 : l'Organiser ouvre un pattern, puis ⇧C sélectionne tous ses clips dans la Playlist.
+        self.make(pattern_count=4)
+        self.data_command([26] + M.be16(3))
+        self.assertEqual(self.answer(), (26, M.be16(4) + M.be16(3)))
+        self.assertEqual(self.fl.pattern, 3)
+        for bad in ([26] + M.be16(0), [26] + M.be16(5), [26, 1]):
+            self.clock.t += 0.1
+            self.data_command(bad)
+            self.assertEqual(self.reasons()[-1], 5)
+        self.assertEqual(self.fl.pattern, 3)
+
     def test_empty_name_puts_back_the_name_of_fl(self):
         # Script v14 : la piste du Mixer d'un son supprimé reprend son nom de FL (« Insert 5 »).
         self.make(n_channels=3)

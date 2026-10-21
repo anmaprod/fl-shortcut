@@ -21,14 +21,18 @@ final class SoundClassifier {
     /// mesures classaient (retour de l'utilisateur : un FX pris pour une voix).
     static let wantedWindow = 1.0
 
-    /// La fenêtre que macOS permet la plus proche de `wantedWindow` (type 1 : durées permises ; 2 : intervalle).
+    /// La fenêtre que macOS permet la plus proche de `wantedWindow` (durées permises, ou intervalle).
     private static func window(allowedBy c: SNTimeDurationConstraint) -> Double? {
-        if c.type.rawValue == 1 {
-            return pickWindow(allowed: c.enumeratedDurations.map { $0.timeValue.seconds }, range: nil)
+        switch c {
+        case .enumeratedDurations(let durations):
+            return pickWindow(allowed: durations.map(\.seconds), range: nil)
+        case .durationRange(let range):
+            let low = range.start.seconds, high = range.end.seconds
+            guard low.isFinite, high.isFinite, low > 0, low <= high else { return nil }
+            return pickWindow(allowed: [], range: low...high)
+        @unknown default:
+            return nil
         }
-        let low = c.durationRange.start.seconds, high = c.durationRange.end.seconds
-        guard low.isFinite, high.isFinite, low > 0, low <= high else { return nil }
-        return pickWindow(allowed: [], range: low...high)
     }
 
     /// Pur (testé) : dans l'intervalle permis, `wantedWindow` ramenée dedans ; sinon la durée permise la plus proche.
