@@ -72,6 +72,11 @@ struct OrganizerEnvironment {
     /// Clips de la Playlist décalés de n pistes (négatif : vers le haut) : tous ceux de ce pattern (1 = le premier),
     /// ou la sélection en cours (nil) ; le nombre de pas faits.
     var moveClips: (OrganizerLink) -> (Int?, Int) -> Int = { _ in { _, _ in 0 } }
+    /// La Playlist lue dans la fenêtre de FL (nil : impossible), et un clip déplacé seul vers une autre piste
+    /// (ClipMover) ; `canReadPlaylist` : l'autorisation de lire la fenêtre de FL est là.
+    var readClips: (OrganizerLink) -> () -> PlaylistView? = { _ in { nil } }
+    var moveClip: (OrganizerLink) -> (ClipMove) -> ClipMoveResult = { _ in { _ in .notDone } }
+    var canReadPlaylist: () -> Bool = { false }
 
     static func live() -> OrganizerEnvironment {
         OrganizerEnvironment(
@@ -133,7 +138,35 @@ struct OrganizerEnvironment {
             prepareProject: { OrganizerEnvironment.livePrepareProject() },
             deleteSelected: { link in { OrganizerEnvironment.liveDeleteSelected(link: link) } },
             moveTrack: { link in { place, count in OrganizerEnvironment.liveMoveTrack(place, count, link: link) } },
-            moveClips: { link in { pattern, rows in OrganizerEnvironment.liveMoveClips(pattern, rows, link: link) } })
+            moveClips: { link in { pattern, rows in OrganizerEnvironment.liveMoveClips(pattern, rows, link: link) } },
+            readClips: { link in { OrganizerEnvironment.liveReadClips(link: link) } },
+            moveClip: { link in { move in OrganizerEnvironment.liveMoveClip(move, link: link) } },
+            canReadPlaylist: { ScreenLook.allowed })
+    }
+
+    /// La Playlist devant (FL au premier plan), lue dans sa fenêtre.
+    static func liveReadClips(link: OrganizerLink) -> PlaylistView? {
+        guard let pid = playlistInFront(link: link) else { return nil }
+        return ClipMover.read(link: link, pid: pid)?.view
+    }
+
+    /// Un clip déplacé seul vers une autre piste, Playlist devant ; le panneau de l'Organiser laisse passer le clic.
+    static func liveMoveClip(_ move: ClipMove, link: OrganizerLink) -> ClipMoveResult {
+        guard let pid = playlistInFront(link: link) else { return .notDone }
+        OrganizerWindow.clickThrough(true)
+        defer { OrganizerWindow.clickThrough(false) }
+        return ClipMover.move(move, link: link, pid: pid)
+    }
+
+    /// FL au premier plan et sa Playlist devant ; son processus, ou nil.
+    private static func playlistInFront(link: OrganizerLink) -> Int32? {
+        guard let pid = flPID(), (try? link.show(.playlist)) != nil else { return nil }
+        if EventTap.shared.currentConfig.frontmostPID != pid {
+            _ = NSRunningApplication(processIdentifier: pid)?.activate(options: [])
+            Thread.sleep(forTimeInterval: 0.3)
+        }
+        guard link.window == .playlist, EventTap.shared.currentConfig.frontmostPID == pid else { return nil }
+        return pid
     }
 
     /// Par les menus de FL dans la barre de macOS (comme le modèle « Supprimer les clips audio inutilisés ») : Tools ›
@@ -651,7 +684,9 @@ final class OrganizerController: ObservableObject {
                 ? String(localized: "Playlist : \(plan.playlist.colors.count) pistes colorées, \(plan.playlist.names.count) renommées")
                 : String(localized: "Playlist : \(plan.playlist.colors.count) pistes colorées, \(plan.playlist.names.count) renommées, rangées comme le Channel rack")))
         }
-        if options.playlist, !plan.splits.isEmpty {
+        if options.playlist, options.splitTracks, env.canReadPlaylist() {
+            out.append(("square.split.1x2", String(localized: "Playlist : un son par piste, et les clips d'un même son réunis sur sa piste (FL Shortcuts lit la fenêtre de FL au moment de les déplacer)")))
+        } else if options.playlist, !plan.splits.isEmpty {
             out.append(("square.split.1x2", String(localized: "Playlist : \(plan.splits.count) sons qui partagent une piste avec un autre auront chacun la leur")))
         }
         return out
@@ -679,6 +714,9 @@ final class OrganizerController: ObservableObject {
             if outcome.split > 0 {
                 lines.append(String(localized: "Playlist : \(outcome.split) sons qui partageaient une piste ont chacun la leur."))
             }
+            if outcome.reunited > 0 {
+                lines.append(String(localized: "Playlist : \(outcome.reunited) clips déplacés sur la piste de leur son (un son par piste)."))
+            }
             if outcome.playlistMixed {
                 lines.append(String(localized: "Playlist : des pistes gardent deux sons, FL n'a pas laissé descendre leurs clips sur une piste à eux (dans FL, « Typing keyboard to piano keyboard » doit être éteint)."))
             }
@@ -699,6 +737,7 @@ final class OrganizerController: ObservableObject {
         let applier = OrganizerApplier(link: link, moveUp: env.moveUp(link), moveLeft: env.moveLeft(link),
                                        placeIcon: env.placeIcon, deleteSelected: env.deleteSelected(link),
                                        moveTrack: env.moveTrack(link), moveClips: env.moveClips(link),
+                                       readClips: env.readClips(link), moveClip: env.moveClip(link),
                                        wait: env.sleep, listen: env.timing.trackListen)
         let plan = self.plan, styles = self.styles
         queue.async { [weak self] in
@@ -727,6 +766,7 @@ final class OrganizerController: ObservableObject {
         phase = .undoing
         let applier = OrganizerApplier(link: link, moveUp: env.moveUp(link), moveLeft: env.moveLeft(link),
                                        moveTrack: env.moveTrack(link), moveClips: env.moveClips(link),
+                                       readClips: env.readClips(link), moveClip: env.moveClip(link),
                                        wait: env.sleep, listen: env.timing.trackListen)
         queue.async { [weak self] in
             let outcome = applier.undo(snapshot)
@@ -897,7 +937,7 @@ enum OrganizerWindow {
 struct OrganizerView: View {
     static let width: CGFloat = 440
     /// Hauteur de l'aperçu (la liste des familles y défile).
-    static let height: CGFloat = 560
+    static let height: CGFloat = 600
     /// Couleur de l'Organiser (icône, fond, numéros des étapes).
     static let tint = Color.indigo
 
@@ -997,9 +1037,8 @@ struct OrganizerView: View {
                     FL retire d'abord les clips audio inutilisés et repère les sons sans aucune note (supprimés si tu \
                     organises). Un son dont le nom dit ce qu'il est (Kick, 808, Hat…) est classé tout de suite ; les \
                     autres jouent seuls, à ton tempo, sans que tu les entendes. Chaque pattern, puis toute la chanson, \
-                    jouent en entier en accéléré : FL dit seulement quels sons jouent (même ceux que tu as coupés), \
-                    rien n'est écouté à cette vitesse. Puis chaque piste de la Playlist joue un instant. Ne touche pas \
-                    à FL ; Échap arrête.
+                    jouent en entier à ton tempo : FL dit quels sons jouent (même ceux que tu as coupés). Puis chaque \
+                    piste de la Playlist joue un instant. Ne touche pas à FL ; Échap arrête.
                     """))
                     .font(.system(size: 11))
                     .foregroundStyle(.secondary)
@@ -1323,6 +1362,9 @@ struct OrganizerView: View {
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
                 .morphIn(1)
+            // Les familles (couleur ou dégradé de chacune), puis le résumé et les choix, dans la même zone qui défile :
+            // le résumé, devenu long, écrasait les familles à une hauteur nulle (retour du propriétaire : les
+            // couleurs n'étaient plus proposées). Seuls les boutons restent en bas.
             ScrollView {
                 VStack(alignment: .leading, spacing: 10) {
                     let colors = controller.plannedColors
@@ -1330,13 +1372,13 @@ struct OrganizerView: View {
                         FamilySection(controller: controller, family: family, colors: colors)
                             .morphIn(index + 2)
                     }
+                    ProjectSummary(controller: controller)
                 }
                 // Place pour la carte survolée qui grandit et son ombre.
                 .padding(.horizontal, 4)
                 .padding(.vertical, 6)
             }
             .padding(.horizontal, -4)
-            ProjectSummary(controller: controller)
             HStack {
                 Button("Annuler") { controller.close() }.keyboardShortcut(.cancelAction)
                 diagnosticButton

@@ -229,6 +229,21 @@ enum SoundNames {
         kind(of: name)?.family
     }
 
+    /// Synthés de mélodies : FL donne au canal le nom du plugin (« ZENOLOGY », « Serum 2 »). Ce n'est pas une sorte
+    /// (rien ne dit lead ou pad), mais ce son n'est ni des drums ni un FX : entendu comme tel (son percussif ou très
+    /// bruité), il reste une mélodie (retour du propriétaire : un ZENOLOGY classé « Snare »). Les plugins qui ont
+    /// aussi des kits de batterie (FLEX, Kontakt…) n'y sont pas.
+    static let melodicSynthWords: Set<String> = [
+        "zenology", "serum", "vital", "sylenth", "nexus", "omnisphere", "keyscape", "massive", "spire", "pigments",
+        "diva", "hive", "electra", "harmor", "sytrus", "sakura", "harmless", "poizone", "morphine", "minisynth",
+        "3xosc", "toxic", "dune", "ana", "repro", "obxd", "surge", "dexed", "labs", "keyzone", "transistor",
+    ]
+
+    /// Le nom est celui d'un synthé de mélodies et ne dit rien d'autre (« Serum 2 », pas « Serum Kick »).
+    static func isMelodicSynth(_ name: String) -> Bool {
+        kind(of: name) == nil && words(name).contains(where: melodicSynthWords.contains)
+    }
+
     /// Un nom que l'Organiser a pu donner : une sorte ou une famille (« Mélodie », « Snare », « Hi-hat »), suivie ou
     /// non d'un numéro (« Mélodie 3 »). Il ne dit rien de sûr : une analyse d'avant a pu se tromper (retour de
     /// l'utilisateur : une boucle de batterie restait « Mélodie 3 », un hi-hat « Snare 3 »).
@@ -403,6 +418,11 @@ enum FamilyFusion {
         let isNoisy = f.flatness >= noisy, isTonal = f.flatness < tonal
         if low && short && f.highRatio >= loopHigh { return (.drums, max(ai.drums, 0.75), "boucle") }
         if low && (f.noteLength >= 0.35 || f.distinctPitches >= 2) { return (.bass, 0.8, "basse") }
+        // Plusieurs notes différentes : une mélodie, même courte ou bruitée (retour du propriétaire : une mélodie
+        // classée « Snare », une autre « FX »). Des drums ne jouent pas trois hauteurs nettes.
+        if !low && f.distinctPitches >= 3 && f.pitchedFraction >= 0.3 {
+            return (.melody, max(ai.instrument, 0.7), "melodie-notes")
+        }
         if (short && isNoisy) || (low && f.noteLength < 0.35) { return (.drums, max(ai.drums, 0.75), "drums-court") }
         if short && ai.drums >= 0.6 && ai.drums > ai.instrument && !(isTonal && f.distinctPitches >= 3) {
             return (.drums, ai.drums, "drums-ia")

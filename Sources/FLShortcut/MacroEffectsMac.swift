@@ -1144,7 +1144,8 @@ final class MacroEffectsMac: MacroEffects {
         flags([])
     }
 
-    func click(at p: CGPoint, right: Bool, ctx: Context) -> StepResult {
+    /// `flags` : touches tenues pendant l'appui (⌘ : sélectionner un clip de la Playlist).
+    func click(at p: CGPoint, right: Bool, ctx: Context, flags: CGEventFlags = []) -> StepResult {
         // FL, ou la fenêtre d'un plugin que FL fait tourner à part (pont des plugins Intel) : le clic va à son processus.
         let helper = FLHelpers.pids(of: ctx.pid).first { FLWindows.contains(p, pid: $0) }
         guard helper != nil || FLWindows.contains(p, pid: ctx.pid) else {
@@ -1155,7 +1156,8 @@ final class MacroEffectsMac: MacroEffects {
             return .fail(String(localized: "« \(name) » couvre FL à cet endroit"))
         }
         let front = WinSnapshot.take(pid: ctx.pid).hit(p)?.pid
-        postClick(at: p, right: right, pid: front.flatMap { $0 == ctx.pid || $0 == helper ? $0 : nil } ?? ctx.pid)
+        postClick(at: p, right: right, pid: front.flatMap { $0 == ctx.pid || $0 == helper ? $0 : nil } ?? ctx.pid,
+                  flags: flags)
         lastClickPoint = p
         return .ok
     }
@@ -1257,7 +1259,7 @@ final class MacroEffectsMac: MacroEffects {
         }
     }
 
-    func postClick(at p: CGPoint, right: Bool, pid: Int32, hoverMs: Int = 30) {
+    func postClick(at p: CGPoint, right: Bool, pid: Int32, hoverMs: Int = 30, flags: CGEventFlags = []) {
         if cursorBeforeBurst == nil { cursorBeforeBurst = FLWindows.cursor() }
         let held = CGEventSource.flagsState(.combinedSessionState).intersection([.maskCommand, .maskAlternate, .maskControl, .maskShift])
         MacroLog.shared.write("CLICK", "\(right ? "right" : "left") \(p.logText)"
@@ -1273,7 +1275,7 @@ final class MacroEffectsMac: MacroEffects {
         var postMs = 0
         func send(_ type: CGEventType) {
             guard let e = CGEvent(mouseEventSource: source, mouseType: type, mouseCursorPosition: p, mouseButton: button) else { return }
-            e.flags = []
+            e.flags = type == .mouseMoved ? [] : flags
             e.setIntegerValueField(.mouseEventClickState, value: 1)
             e.setIntegerValueField(.eventSourceUserData, value: EventTap.mark)
             let t = DispatchTime.now().uptimeNanoseconds

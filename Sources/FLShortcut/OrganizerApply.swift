@@ -156,9 +156,12 @@ struct OrganizerSnapshot: Equatable {
     var links: [Int: Int]?
     /// Patterns descendus chacun sur sa piste de la Playlist, dans l'ordre (remontés à l'envers).
     var splits: [PlaylistSplit]?
+    /// Clips de la Playlist réunis sur la piste de leur son, dans l'ordre (remis à l'envers).
+    var clipMoves: [ClipMove]?
 
     var isEmpty: Bool {
         rack == nil && patterns == nil && mixer == nil && playlist == nil && links == nil && splits == nil
+            && clipMoves == nil
     }
 }
 
@@ -175,6 +178,8 @@ struct ApplyOutcome: Equatable {
     /// deux sons).
     var split = 0
     var playlistMixed = false
+    /// Clips de la Playlist réunis sur la piste de leur son (lus dans la fenêtre de FL).
+    var reunited = 0
 }
 
 extension OrganizerResult {
@@ -219,6 +224,8 @@ final class OrganizerApplier {
     private let deleteSelected: () -> Bool
     private let moveTrack: (Int, Int) -> Int
     private let moveClips: (Int?, Int) -> Int
+    private let readClips: () -> PlaylistView?
+    private let moveClip: (ClipMove) -> ClipMoveResult
     private let wait: (TimeInterval) -> Void
     /// Écoute d'une piste seule, pour vérifier qu'un pattern a bien changé de piste.
     private let listen: TimeInterval
@@ -229,12 +236,15 @@ final class OrganizerApplier {
     /// faux si rien n'a pu être envoyé. `moveTrack(place, n)` remonte la piste de la Playlist à cette place (0 = la
     /// piste 1) de n places par son menu ; le nombre de places faites. `moveClips(pattern, n)` décale de n pistes (vers
     /// le bas ; négatif : vers le haut) tous les clips de ce pattern (1 = le premier ; nil : la sélection en cours) ;
-    /// le nombre de pas faits.
+    /// le nombre de pas faits. `readClips` lit la Playlist dans la fenêtre de FL (nil : impossible) ; `moveClip`
+    /// déplace un seul clip et le vérifie (ClipMover).
     init(link: OrganizerLink, moveUp: @escaping (Int) -> Int, moveLeft: @escaping (Int) -> Int = { _ in 0 },
          placeIcon: @escaping (FLIcon) -> OrganizerError? = { _ in nil },
          deleteSelected: @escaping () -> Bool = { false },
          moveTrack: @escaping (Int, Int) -> Int = { _, _ in 0 },
          moveClips: @escaping (Int?, Int) -> Int = { _, _ in 0 },
+         readClips: @escaping () -> PlaylistView? = { nil },
+         moveClip: @escaping (ClipMove) -> ClipMoveResult = { _ in .notDone },
          wait: @escaping (TimeInterval) -> Void = { Thread.sleep(forTimeInterval: $0) },
          listen: TimeInterval = 1.5) {
         self.link = link
@@ -244,6 +254,8 @@ final class OrganizerApplier {
         self.deleteSelected = deleteSelected
         self.moveTrack = moveTrack
         self.moveClips = moveClips
+        self.readClips = readClips
+        self.moveClip = moveClip
         self.wait = wait
         self.listen = listen
     }
@@ -356,7 +368,12 @@ final class OrganizerApplier {
                 let ok = try applyMixer(plan.mixer, result, styles, &outcome.snapshot.mixer!)
                 if !ok { verified = false }
             }
-            if !plan.splits.isEmpty {
+            if plan.source?.options.playlist == true, plan.source?.options.splitTracks == true,
+               let view = readClips() {
+                // Les clips lus dans la fenêtre de FL : chaque son sur sa piste, ses clips réunis (les patterns
+                // descendus en entier ne savent pas réunir les clips d'un son posés sur plusieurs pistes).
+                try reunite(view, &plan, &result, &outcome, styles: styles)
+            } else if !plan.splits.isEmpty {
                 outcome.snapshot.splits = []
                 let done = try applySplits(plan.splits, &outcome.snapshot.splits!)
                 outcome.split = done
@@ -618,6 +635,43 @@ final class OrganizerApplier {
         return ok
     }
 
+    /// Playlist, un son par piste et chaque son sur une seule piste : les clips lus dans la fenêtre de FL, chacun
+    /// déplacé seul vers la piste de son son (ClipLayout.moves) et vérifié ; au premier qui ne se fait pas, la suite
+    /// s'arrête (pistes qui gardent deux sons : `playlistMixed`). Puis la Playlist prévue de nouveau sur les clips à
+    /// leur place (noms, couleurs, ordre).
+    private func reunite(_ view: PlaylistView, _ plan: inout OrganizerPlan, _ result: inout OrganizerResult,
+                         _ outcome: inout ApplyOutcome, styles: [SoundFamily: FamilyStyle]) throws {
+        // Pistes vides : aucun clip lu, aucun son entendu à l'analyse (un clip audio y est peut-être).
+        let used = Set(result.trackSounds.keys).union(result.trackItems.map(\.index)).union(view.clips.map(\.track))
+        let free = view.visible.filter { !used.contains($0) }
+        let moves = ClipLayout.moves(view.clips, sounds: result.patternSounds, free: free)
+        var done: [ClipMove] = []
+        outcome.snapshot.clipMoves = []
+        for move in moves {
+            let moved = moveClip(move)
+            if moved == .stuck {
+                throw OrganizerError.failed(String(localized: "Un clip de la Playlist n'a pas pu être remis à sa place : annule dans FL (Edit › Undo), puis réessaie."))
+            }
+            guard moved == .done else {
+                outcome.playlistMixed = true
+                break
+            }
+            done.append(move)
+            outcome.snapshot.clipMoves?.append(move)
+        }
+        MacroLog.shared.write("PLAYLIST", "clips reunited \(done.count)/\(moves.count)")
+        outcome.reunited = done.count
+        if done.isEmpty { outcome.snapshot.clipMoves = nil }
+        let after = ClipLayout.applying(done, to: view.clips)
+        result.trackSounds = ClipLayout.trackSounds(result.trackSounds, before: view.clips, after: after,
+                                                    sounds: result.patternSounds)
+        let last = max(result.trackSounds.keys.max() ?? -1, result.trackItems.map(\.index).max() ?? -1,
+                       result.playlist.count - 1)
+        if last >= 0 { result.playlist = try link.listPlaylist(limit: last + 1) }
+        plan.splits = []
+        plan.playlist = plan.replannedPlaylist(result, styles: styles)
+    }
+
     /// Playlist, un son par piste : chaque pattern à descendre est ouvert par le script, tous ses clips sélectionnés
     /// (⌘D puis ⇧C de FL, « Select by selected source ») et descendus sur sa piste vide (⇧↓), puis vérifié à l'écoute,
     /// piste seule : son son joue sur la nouvelle piste, et l'autre son de l'ancienne y joue encore (sans sélection,
@@ -729,6 +783,14 @@ final class OrganizerApplier {
                     if done < step.up { throw OrganizerError.interrupted }
                 }
                 outcome.snapshot.playlist = nil
+            }
+            if let moves = snapshot.clipMoves {
+                // Les pistes revenues à leur place : chaque clip réuni retourne sur sa piste d'avant.
+                for move in moves.reversed() {
+                    guard moveClip(move.reversed) == .done else { throw OrganizerError.interrupted }
+                    outcome.snapshot.clipMoves?.removeLast()
+                }
+                outcome.snapshot.clipMoves = nil
             }
             if let splits = snapshot.splits {
                 // Les pistes revenues à leur place : chaque pattern descendu remonte sur sa piste d'avant.

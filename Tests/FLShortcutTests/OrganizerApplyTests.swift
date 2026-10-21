@@ -666,4 +666,52 @@ final class OrganizerApplyTests: XCTestCase {
         XCTAssertNil(outcome.snapshot.splits)
         XCTAssertEqual(link.playlist.prefix(2).map(\.name), ["Mélodie", "Kick"], "rangée quand même")
     }
+
+    /// Fenêtre de FL lue : chaque clip déplacé seul vers la piste de son son (vérifié), au lieu des patterns
+    /// descendus en entier ; « Revenir comme avant » les remet.
+    func testClipsReunitedFromFLWindowAndUndo() {
+        let (link, result) = mixedPlaylist()
+        var clips = [ClipSpot(pattern: 2, track: 0, x: 100, point: .zero),
+                     ClipSpot(pattern: 0, track: 1, x: 100, point: .zero),
+                     ClipSpot(pattern: 1, track: 1, x: 300, point: .zero)]
+        var moved: [ClipMove] = []
+        let applier = OrganizerApplier(link: link, moveUp: link.moveSelectedUp, moveTrack: link.moveTrackUp,
+                                       moveClips: link.moveClips,
+                                       readClips: { PlaylistView(clips: clips, visible: Array(0..<6)) },
+                                       moveClip: { move in
+                                           moved.append(move)
+                                           clips = ClipLayout.applying([move], to: clips)
+                                           return .done
+                                       }, wait: { _ in }, listen: 0)
+        let options = OrganizerOptions(rack: false, patterns: false, mixer: false)
+        let outcome = applier.apply(plan(result, options: options), result: result, styles: FamilyStyles.initial)
+        XCTAssertNil(outcome.error)
+        XCTAssertEqual(moved, [ClipMove(pattern: 1, from: 1, to: 2, x: 300)], "le FX sur une piste vide, à lui")
+        XCTAssertEqual(outcome.reunited, 1)
+        XCTAssertEqual(outcome.split, 0)
+        XCTAssertFalse(link.log.contains("pick 2"), "plus de pattern descendu en entier")
+        XCTAssertEqual(link.playlist.map(\.name), ["Mélodie", "Kick", "FX"])
+        XCTAssertEqual(outcome.snapshot.clipMoves, moved)
+
+        let back = applier.undo(outcome.snapshot)
+        XCTAssertNil(back.error)
+        XCTAssertEqual(moved.last, ClipMove(pattern: 1, from: 2, to: 1, x: 300), "remis sur sa piste d'avant")
+        XCTAssertNil(back.snapshot.clipMoves)
+        XCTAssertEqual(link.playlist.map(\.name), ["Track 1", "Track 2", "Track 3"])
+    }
+
+    /// Un clip que FL n'a pas laissé déplacer : la suite s'arrête, la Playlist est rangée avec ce qui a été fait.
+    func testClipNotMovedStopsThere() {
+        let (link, result) = mixedPlaylist()
+        let clips = [ClipSpot(pattern: 0, track: 1, x: 100, point: .zero), ClipSpot(pattern: 1, track: 1, x: 300, point: .zero)]
+        let applier = OrganizerApplier(link: link, moveUp: link.moveSelectedUp, moveTrack: link.moveTrackUp,
+                                       readClips: { PlaylistView(clips: clips, visible: Array(0..<6)) },
+                                       moveClip: { _ in .notDone }, wait: { _ in }, listen: 0)
+        let options = OrganizerOptions(rack: false, patterns: false, mixer: false)
+        let outcome = applier.apply(plan(result, options: options), result: result, styles: FamilyStyles.initial)
+        XCTAssertNil(outcome.error)
+        XCTAssertEqual(outcome.reunited, 0)
+        XCTAssertTrue(outcome.playlistMixed)
+        XCTAssertNil(outcome.snapshot.clipMoves)
+    }
 }

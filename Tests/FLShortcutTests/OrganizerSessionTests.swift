@@ -12,12 +12,9 @@ final class FakeOrganizerLink: OrganizerLink {
     var patternList: [PatternInfo] = []
     /// Script v14 simulé ; faux : un ancien script, qui refuse ses nouvelles opérations (FL à redémarrer).
     var v14 = true
-    /// Longueur de chaque pattern en temps (16 si absente) et tempo ; tempo pendant le relevé (opération 22).
+    /// Longueur de chaque pattern en temps (16 si absente) et tempo du projet.
     var lengths: [Int] = []
     var tempo = 120.0
-    private(set) var speedFactor = 1
-    /// Vrai : FL ne reprend pas son tempo d'avant (l'opération 22 avec le facteur 1 le laisse accéléré).
-    var stuckTempo = false
     /// Canaux sélectionnés dans FL : par « Select unused channels », ou par le script (opération 23).
     var unusedSelection: Set<Int> = []
     /// Faux : FL trop ancien pour jouer toute la chanson (relevé de la Playlist impossible).
@@ -89,8 +86,6 @@ final class FakeOrganizerLink: OrganizerLink {
     func speed(_ factor: Int) throws -> (before: Double, now: Double) {
         guard memo else { throw OrganizerError.refused(5) }
         log.append("speed \(factor)")
-        if stuckTempo && factor == 1 { return (tempo, min(tempo * Double(speedFactor), 520)) }
-        speedFactor = factor
         return (tempo, min(tempo * Double(factor), 520))
     }
 
@@ -341,7 +336,6 @@ final class FakeOrganizerLink: OrganizerLink {
         log.append("restore")
         if memo { playing = false }
         memo = false
-        speedFactor = 1
         solo = nil
         track = nil
         playedPattern = nil
@@ -443,12 +437,11 @@ final class OrganizerSessionTests: XCTestCase {
         XCTAssertEqual(result.trackSounds, [0: [0, 3], 1: [1], 2: [2]])
         XCTAssertEqual(result.playlist.count, 3, "lue jusqu'à la dernière piste qui joue")
         XCTAssertEqual(result.routes, [1: [4], 2: [], 3: [4], 4: []], "la piste de groupe est lue aussi")
-        // Patterns relevés en entier, tempo accéléré puis remis ; la Playlist avant l'écoute des sons (un son qui joue
-        // dans la chanson n'est jamais laissé de côté).
-        XCTAssertEqual(link.log, ["patterns", "list", "mixer", "all 1", "speed 4", "all 1", "all 2", "speed 1",
-                                  "song 0", "speed 4", "song 0", "speed 1", "playlist", "track 0", "track 1",
-                                  "track 2", "seek 500", "solo 1 p2", "routes 1", "routes 2", "routes 3", "routes 4",
-                                  "restore"])
+        // Patterns relevés en entier, à leur tempo (jamais accéléré) ; la Playlist avant l'écoute des sons (un son qui
+        // joue dans la chanson n'est jamais laissé de côté).
+        XCTAssertEqual(link.log, ["patterns", "list", "mixer", "all 1", "all 2", "song 0", "playlist", "track 0",
+                                  "track 1", "track 2", "seek 500", "solo 1 p2", "routes 1", "routes 2", "routes 3",
+                                  "routes 4", "restore"])
         XCTAssertEqual(steps.last.map { $0[0] == $0[1] }, true, "fini à 100 %")
         XCTAssertEqual([audio.started, audio.stopped], [1, 1])
         let diag = session.diagnostics
@@ -456,25 +449,28 @@ final class OrganizerSessionTests: XCTestCase {
                        [3, 1, 2, 2, 3, 3])
         XCTAssertFalse(diag.text.contains("KICK"), "jamais un nom dans le diagnostic")
         XCTAssertEqual(diag.rules, ["c1:faux"], "règle de chaque son écouté, par son numéro")
-        XCTAssertEqual(diag.listenTempo, 120, "écouté au tempo d'origine, vérifié")
-        XCTAssertTrue(diag.text.contains("tempo-écoute=120"))
+        XCTAssertEqual(diag.tempo, 120, "le tempo du projet, jamais changé")
+        XCTAssertTrue(diag.text.contains("tempo=120"))
+        XCTAssertTrue(diag.text.contains("patterns-sons=pattern1:c0,c3 pattern2:c1"), diag.text)
     }
 
-    /// Retour de l'utilisateur : « elle écoutait en 500 BPM ». Un tempo qui ne revient pas après le relevé accéléré :
-    /// aucun son n'est écouté (il serait mal classé), FL est remis comme avant et le message le dit.
-    func testListeningNeedsTheOriginalTempo() {
+    /// Retour de l'utilisateur : « j'avais dit non pour l'accélérateur de BPM ». Patterns, chanson et sons : tout
+    /// joue au tempo du projet, il n'est jamais changé.
+    func testTempoIsNeverChanged() throws {
         let link = FakeOrganizerLink()
         link.channels = [channel(0), channel(1)]
         link.patternSounds = [1: [0, 1]]
-        link.stuckTempo = true
+        link.bars = 4
+        link.songAt = { _ in ([0], [0, 1]) }
+        link.trackChannels = [0: [0, 1]]
+        link.playlist = [PlaylistTrackInfo(index: 0, selected: false, color: red, name: "Track 1")]
         let audio = FakeAudio(link: link)
         audio.parts = [0: tone(.melody), 1: tone(.drums)]
         let session = make(link, audio)
-        guard case .failure(.failed(let message)) = session.run() else { return XCTFail("le tempo n'est pas revenu") }
-        XCTAssertTrue(message.contains("tempo"), message)
-        XCTAssertFalse(link.log.contains { $0.hasPrefix("solo") }, "aucun son écouté accéléré")
-        XCTAssertEqual(link.log.last, "restore")
-        XCTAssertEqual(session.diagnostics.listened, 0)
+        _ = try session.run().get()
+        XCTAssertFalse(link.log.contains { $0.hasPrefix("speed") }, "aucune accélération")
+        XCTAssertTrue(link.log.contains("song 0"))
+        XCTAssertEqual(session.diagnostics.listened, 2)
     }
 
     /// Un ancien script (v11 ou avant) : rien n'est touché, FL doit être redémarré.
@@ -700,6 +696,8 @@ final class OrganizerSessionTests: XCTestCase {
 
     func testPureHelpers() {
         XCTAssertEqual(OrganizerSession.homes([2: [5, 1], 0: [1]]), [1: 1, 5: 3], "le premier pattern où le son joue")
+        XCTAssertEqual(OrganizerSession.soundMap([3: [2, 0], 0: [1]], label: "piste"), "piste1:c1 piste4:c0,c2",
+                       "des numéros seulement, dans l'ordre")
         XCTAssertEqual(OrganizerSession.quietestSample([0, 1, 2], samples: [[0, 1, 2], [0], [0, 3]]), 1)
         XCTAssertEqual(OrganizerSession.quietestSample([0, 2], samples: [[0, 1], [5], [0, 3]]), 0, "égalité : le premier")
         XCTAssertNil(OrganizerSession.quietestSample([], samples: [[0]]))

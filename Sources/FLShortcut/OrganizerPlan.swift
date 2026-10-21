@@ -282,6 +282,17 @@ struct OrganizerPlan: Equatable {
         return Self.make(rest, families: source.families, kinds: source.kinds, styles: styles, options: source.options)
     }
 
+    /// La Playlist prévue de nouveau sur ce projet (clips réunis sur la piste de leur son, lus dans FL), sans pattern
+    /// à descendre en entier.
+    func replannedPlaylist(_ result: OrganizerResult, styles: [SoundFamily: FamilyStyle]) -> Area {
+        guard var source else { return playlist }
+        source.options.splitTracks = false
+        var rest = result
+        rest.unused = []
+        return Self.make(rest, families: source.families, kinds: source.kinds, styles: styles,
+                         options: source.options).playlist
+    }
+
     /// Pistes de la Playlist lues, dans l'ordre du Channel rack : familles dans leur ordre, puis sortes ; à égalité,
     /// celle dont le premier son est le plus haut dans le Channel rack, puis leur ordre d'avant. Celles qui ne jouent
     /// rien de classé suivent, dans leur ordre.

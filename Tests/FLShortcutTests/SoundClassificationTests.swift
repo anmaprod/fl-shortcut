@@ -320,6 +320,22 @@ final class SoundClassificationTests: XCTestCase {
     }
 
     /// Sorte des drums (nom d'une piste de la Playlist) : l'IA d'abord, sinon les mesures.
+    /// Retour du propriétaire : une mélodie (un ZENOLOGY) classée « Snare », une autre « FX ». Trois notes nettes :
+    /// une mélodie, même brève et bruitée ; un synthé de mélodies se reconnaît à son nom de plugin.
+    func testSeveralNotesAreAMelody() {
+        var stabs = SoundFeatures(peakDB: -6, noteLength: 0.15, pitchedFraction: 0.35, medianF0: 330, lowRatio: 0,
+                                  flatness: 0.4, onsetsPerSecond: 4, distinctPitches: 3, vibrato: 0, highRatio: 0.2)
+        XCTAssertEqual(FamilyFusion.decideWithRule(stabs, AILabels(drums: 0.8)).rule, "melodie-notes")
+        stabs.distinctPitches = 1
+        XCTAssertEqual(FamilyFusion.decide(stabs, .none).family, .drums, "une seule hauteur, bruitée et brève : drums")
+        XCTAssertTrue(SoundNames.isMelodicSynth("ZENOLOGY"))
+        XCTAssertTrue(SoundNames.isMelodicSynth("Serum 2"))
+        XCTAssertTrue(SoundNames.isMelodicSynth("Sylenth1 #2"))
+        XCTAssertFalse(SoundNames.isMelodicSynth("Serum Kick"), "le nom dit ce qu'est le son")
+        XCTAssertFalse(SoundNames.isMelodicSynth("FPC"))
+        XCTAssertFalse(SoundNames.isMelodicSynth("Sampler"))
+    }
+
     func testDrumNaming() {
         func f(len: Double, low: Double, flat: Double, f0: Double = 0, pitched: Double = 0,
                high: Double = 0) -> SoundFeatures {

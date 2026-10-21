@@ -7,9 +7,10 @@
 // retirent les clips audio inutilisés et sélectionnent les sons sans aucune note : ces sons sont laissés de côté, puis
 // supprimés par « Organiser » (retour de l'utilisateur). Ce qui joue est relevé en continu par le script (une note
 // brève ou un clip court entre deux lectures comptent : Kick et Open Hat oubliés, pistes de la Playlist manquées),
-// patterns et chanson en entier, tempo accéléré le temps du relevé. Un nom que l'Organiser a pu donner (« Mélodie 3 »)
-// ne dit rien de sûr : le son est écouté (retour de l'utilisateur : une boucle de batterie restait « Mélodie 3 »).
-// Tourne hors du fil principal ; FL est toujours remis comme avant (opération 7 : sourdines, tempo…) avant que le son
+// patterns et chanson en entier, toujours au tempo du projet (retour de l'utilisateur : « j'avais dit non pour
+// l'accélérateur de BPM »). Un nom que l'Organiser a pu donner (« Mélodie 3 ») ne dit rien de sûr : le son est
+// écouté (retour de l'utilisateur : une boucle de batterie restait « Mélodie 3 »).
+// Tourne hors du fil principal ; FL est toujours remis comme avant (opération 7 : sourdines…) avant que le son
 // de FL revienne, même après une erreur ou Échap. Les noms ne sont jamais journalisés (le diagnostic n'a que des
 // nombres).
 import Accelerate
@@ -50,15 +51,17 @@ struct OrganizerDiagnostics: Equatable {
     var tracksHeard = 0
     var mixerUsed = 0
     var routes = 0
-    /// « Select unused channels » de FL fait (oui / non), sons laissés de côté, tempo pendant le relevé (BPM).
+    /// « Select unused channels » de FL fait (oui / non), sons laissés de côté, tempo du projet (BPM, jamais changé).
     var selection = "?"
     var unused = 0
-    var scanTempo = 0
-    /// Tempo de FL vérifié avant d'écouter les sons (BPM ; 0 : pas de relevé accéléré).
-    var listenTempo = 0
+    var tempo = 0
     /// Règle de chaque son écouté : « c4:melodie+ia » (canal 4 ; +ia : l'IA de macOS a répondu), « p2:fx-long »
     /// (piste 2 de la Playlist). Des numéros, jamais un nom.
     var rules: [String] = []
+    /// Sons de chaque pattern et de chaque piste de la Playlist relevés (« pattern1:c0,c3 », « piste4:c1,c2 ») : où
+    /// le rangement de la Playlist s'est trompé, sans aucun nom.
+    var patternMap = ""
+    var trackMap = ""
     var capture = CaptureStats()
     var error = ""
 
@@ -67,8 +70,10 @@ struct OrganizerDiagnostics: Equatable {
          "patterns=\(patterns) relevés=\(scanned) avec-sons=\(withSounds) activité=\(activity) positions=\(positions) "
             + "relevés-chanson=\(activeSamples) pistes=\(tracks) seules=\(tracksSolo) écoutées=\(tracksHeard) "
             + "mixer=\(mixerUsed) envois=\(routes)",
-         "sélection=\(selection) inutilisés=\(unused) tempo-relevé=\(scanTempo) tempo-écoute=\(listenTempo)",
+         "sélection=\(selection) inutilisés=\(unused) tempo=\(tempo)",
          rules.isEmpty ? "" : "règles=" + rules.joined(separator: " "),
+         patternMap.isEmpty ? "" : "patterns-sons=" + patternMap,
+         trackMap.isEmpty ? "" : "pistes-sons=" + trackMap,
          capture.text,
          error.isEmpty ? "" : "erreur=\(error)"].filter { !$0.isEmpty }.joined(separator: "\n")
     }
@@ -118,16 +123,14 @@ final class OrganizerSession {
         var afterSound: TimeInterval = 1.5
         /// Encore rien entendu au bout de ce délai : les notes d'essai tout de suite.
         var silentGiveUp: TimeInterval = 1.5
-        /// Chanson jouée d'un bout à l'autre (tempo accéléré) : ce qui a joué relevé à cet intervalle, `songCap` au
-        /// plus.
+        /// Chanson jouée d'un bout à l'autre, à son tempo : ce qui a joué relevé à cet intervalle, `songCap` au plus
+        /// (6 minutes).
         var songSlice: TimeInterval = 0.25
-        var songCap: TimeInterval = 90
+        var songCap: TimeInterval = 360
         /// Après un changement de pattern ou un saut dans la chanson : la fin du son d'avant ne compte pas.
         var settle: TimeInterval = 0.2
-        /// Relevé des patterns : tempo multiplié par ce facteur (1 : tel quel), chaque pattern écouté en entier,
-        /// `patternCap` au plus.
-        var speedFactor = 4
-        var patternCap: TimeInterval = 8
+        /// Relevé des patterns : chaque pattern joué en entier à son tempo, `patternCap` au plus (16 mesures à 120).
+        var patternCap: TimeInterval = 32
         /// Piste de la Playlist jouée seule : ce qui y joue, relevé pendant ce temps.
         var trackListen: TimeInterval = 1.5
         /// Clip audio : sa note de base tenue ce temps-là.
@@ -167,8 +170,6 @@ final class OrganizerSession {
     private let prepare: () -> Bool
     private let lock = NSLock()
     private var stopped = false
-    /// Le tempo de FL a été accéléré pour un relevé : vérifié avant d'écouter un son.
-    private var spedUp = false
     private var diag = OrganizerDiagnostics()
     /// Avancement : étapes faites et prévues (le total grandit quand une étape en découvre d'autres).
     private var stepsDone = 0
@@ -256,12 +257,15 @@ final class OrganizerSession {
             }
             let scan = try scanPatterns(count: patterns.count, lengths: lengths)
             let song = try readPlaylist(tempo: lengths.tempo)
+            note {
+                $0.patternMap = Self.soundMap(scan.sounds, label: "pattern")
+                $0.trackMap = Self.soundMap(song.sounds, label: "piste")
+            }
             // Ce que FL a entendu jouer quelque part : jamais laissé de côté.
             let heard = (Array(scan.sounds.values) + Array(song.sounds.values)).reduce(into: Set<Int>()) { $0.formUnion($1) }
             let unused = Self.unused(channels, selected: selected, heard: heard, complete: scan.complete)
             let targets = Self.sounds(channels).filter { !unused.contains($0.index) }
             note { $0.unused = unused.count }
-            try ensureOriginalTempo()
             let items = try classifyChannels(targets, homes: Self.homes(scan.sounds))
             let routes = try readRoutes(targets, mixer: mixer)
             progress(stepsTotal, stepsTotal)
@@ -300,31 +304,20 @@ final class OrganizerSession {
     // MARK: Patterns
 
     /// Sons qui jouent dans chaque pattern (index 0 = pattern 1) : chaque pattern joué en entier avec tous les sons
-    /// audibles, le tempo accéléré le temps du relevé ; FL dit ce qui a joué (aucune écoute). `complete` : tous les
-    /// patterns relevés. FL trop ancien pour le dire : rien.
+    /// audibles, à son tempo ; FL dit ce qui a joué (aucune écoute). `complete` : tous les patterns relevés. FL trop
+    /// ancien pour le dire : rien.
     private func scanPatterns(count: Int, lengths: (tempo: Double, beats: [Int])) throws
         -> (sounds: [Int: Set<Int>], complete: Bool) {
         let n = min(count, Self.maxPatternsScanned)
         guard n > 0 else { return ([:], true) }
         var out: [Int: Set<Int>] = [:]
-        var tempo = lengths.tempo
-        var sped = false
-        defer {
-            // Le tempo d'avant pour écouter les sons et la chanson (l'opération 7 le remet aussi à la fin).
-            if sped { spedUp = !restoreTempo() }
-        }
+        let tempo = lengths.tempo
+        note { $0.tempo = Int(tempo.rounded()) }
         for pattern in 1...n {
             try step()
             let heard: Set<Int>
             do {
                 try link.playSolo(OrganizerPayload.allChannels, pattern: pattern)
-                if pattern == 1, timing.speedFactor > 1, let speed = try? link.speed(timing.speedFactor), speed.now > 0 {
-                    sped = true
-                    spedUp = true
-                    tempo = speed.now
-                    note { $0.scanTempo = Int(speed.now.rounded()) }
-                    try link.playSolo(OrganizerPayload.allChannels, pattern: pattern)   // depuis son début
-                }
                 let beats = pattern - 1 < lengths.beats.count ? lengths.beats[pattern - 1] : 0
                 heard = try heardFor(Self.patternSeconds(beats: beats, tempo: tempo, cap: timing.patternCap))
             } catch OrganizerError.cancelled {
@@ -347,6 +340,14 @@ final class OrganizerSession {
         let b = beats > 0 ? Double(beats) : 16
         let bpm = tempo > 0 ? tempo : 120
         return min(cap, b * 60 / bpm)
+    }
+
+    /// Pur (testé) : les sons de chaque pattern ou piste (index 0 = le premier de FL), en numéros pour le diagnostic :
+    /// « pattern1:c0,c3 pattern2:c1 ».
+    static func soundMap(_ sounds: [Int: Set<Int>], label: String) -> String {
+        sounds.keys.sorted().map { key in
+            "\(label)\(key + 1):" + (sounds[key] ?? []).sorted().map { "c\($0)" }.joined(separator: ",")
+        }.joined(separator: " ")
     }
 
     /// Pur (testé) : le premier pattern (1 = le premier de FL) où joue chaque son.
@@ -387,10 +388,17 @@ final class OrganizerSession {
             plan(toListen.count)
             let heard = try listen(toListen, homes: homes)
             for item in heard.items {
-                if let channel = toListen.first(where: { $0.index == item.index }),
-                   let kind = SoundNames.kind(of: channel.name),
+                let channel = toListen.first(where: { $0.index == item.index })
+                if let channel, let kind = SoundNames.kind(of: channel.name),
                    SoundNames.keeps(kind, heard: Verdict(family: item.family, kind: item.kind)) {
                     byIndex[item.index] = Self.byName(channel, kind)
+                } else if let channel, SoundNames.isMelodicSynth(channel.name), item.family == .drums || item.family == .fx {
+                    // Un synthé de mélodies entendu comme des drums ou un FX : une mélodie (SoundNames).
+                    var melody = item
+                    melody.family = .melody
+                    melody.kind = nil
+                    byIndex[item.index] = melody
+                    note { $0.rules.append("c\(item.index):synthe") }
                 } else {
                     byIndex[item.index] = item
                 }
@@ -450,7 +458,6 @@ final class OrganizerSession {
     private func readPlaylist(tempo: Double) throws
         -> (tracks: [PlaylistTrackInfo], sounds: [Int: Set<Int>], heard: [OrganizerItem], at: [Int: Double]) {
         guard let samples = try sampleSong(tempo: tempo), !samples.isEmpty else { return ([], [:], [], [:]) }
-        try ensureOriginalTempo()                      // chaque piste est ensuite écoutée à son tempo
         var activeAt: [Int: [Int]] = [:]          // piste -> relevés où elle joue
         for (k, sample) in samples.enumerated() {
             for t in sample.tracks { activeAt[t, default: []].append(k) }
@@ -506,27 +513,15 @@ final class OrganizerSession {
         return best.mapValues(\.position)
     }
 
-    /// Toute la chanson jouée d'un bout à l'autre, tout audible, tempo accéléré le temps du relevé : à chaque tranche,
+    /// Toute la chanson jouée d'un bout à l'autre, tout audible, à son tempo : à chaque tranche,
     /// les pistes et les sons qui ont joué (relevés en continu par le script : un clip court entre deux lectures
     /// compte ; retour de l'utilisateur : des pistes manquées, des trous) et la position où la tranche commence. nil
     /// si FL ou le script ne savent pas le dire.
     private func sampleSong(tempo: Double) throws -> [(position: Double, tracks: Set<Int>, channels: Set<Int>)]? {
         var out: [(position: Double, tracks: Set<Int>, channels: Set<Int>)] = []
-        var sped = false
-        defer {
-            // Le tempo d'avant pour écouter chaque piste seule (l'opération 7 le remet aussi à la fin).
-            if sped { spedUp = !restoreTempo() }
-        }
         do {
             let bars = try link.playSong(at: 0)
-            var now = tempo
-            if timing.speedFactor > 1, let speed = try? link.speed(timing.speedFactor), speed.now > 0 {
-                sped = true
-                spedUp = true
-                now = speed.now
-                _ = try link.playSong(at: 0)                     // depuis le début, au nouveau tempo
-            }
-            let slices = Self.songSlices(bars: bars, tempo: now, slice: timing.songSlice, cap: timing.songCap)
+            let slices = Self.songSlices(bars: bars, tempo: tempo, slice: timing.songSlice, cap: timing.songCap)
             note { $0.positions = slices; $0.activity = "oui" }
             plan(slices)
             try pause(timing.settle)
@@ -707,28 +702,6 @@ final class OrganizerSession {
             let verdict = FamilyFusion.decideWithRule(features, labels)
             return (verdict.family, verdict.confidence, verdict.rule + (labels.heard ? "+ia" : ""))
         }
-    }
-
-    // MARK: Tempo
-
-    /// Avant d'écouter un son : le tempo d'origine, vérifié (retour de l'utilisateur : « elle écoutait en 500 BPM »).
-    /// Le relevé accéléré sert seulement à ce que FL dise ce qui joue ; un son écouté plus vite serait mal classé :
-    /// tempo pas revenu, l'écoute s'arrête (FL est remis comme avant par l'appelant).
-    private func ensureOriginalTempo() throws {
-        for _ in 0..<2 where spedUp {
-            try pause(timing.settle)
-            spedUp = !restoreTempo()
-        }
-        if spedUp {
-            throw OrganizerError.failed(String(localized: "FL n'a pas repris son tempo : l'écoute s'arrête pour ne pas mal classer les sons."))
-        }
-    }
-
-    /// Le tempo d'avant le relevé ; vrai si FL confirme l'avoir repris (à une demi-pulsation près).
-    private func restoreTempo() -> Bool {
-        guard let speed = try? link.speed(1), speed.before <= 0 || abs(speed.now - speed.before) < 0.5 else { return false }
-        note { $0.listenTempo = Int(speed.now.rounded()) }
-        return true
     }
 
     /// Sorte des drums : étiquettes de l'IA de macOS, sinon les mesures du son.
