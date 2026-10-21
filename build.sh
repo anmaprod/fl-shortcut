@@ -47,14 +47,17 @@ fi
 
 echo "▸ Compilation release"
 if [[ -n "$KIT" ]]; then
-  # Une architecture à la fois, avec le système de compilation de SwiftPM : il prend ce kit et inscrit sa version
-  # dans l'app. Celui d'Xcode (deux architectures d'un coup) compilait avec ce kit mais inscrivait « sdk 13.0 ».
+  # Une architecture à la fois, avec le système de compilation propre à SwiftPM (« native ») : il prend ce kit et
+  # inscrit sa version dans l'app. Celui d'Xcode compilait avec ce kit mais inscrivait « sdk 13.0 », et celui de
+  # Swift 6.4 (Xcode 27, par défaut) rangeait les deux architectures au même endroit.
   echo "  kit : $KIT"
   PARTS=()
   for A in arm64 x86_64; do
     if [[ "${FLS_NATIVE:-0}" == "1" && "$A" != "$(uname -m)" ]]; then continue; fi
-    SDKROOT="$KIT" swift build -c release --arch "$A"
-    PARTS+=("$(SDKROOT="$KIT" swift build -c release --arch "$A" --show-bin-path)/$EXE")
+    SDKROOT="$KIT" swift build -c release --build-system native --arch "$A"
+    P="$(SDKROOT="$KIT" swift build -c release --build-system native --arch "$A" --show-bin-path)/$EXE"
+    [[ "$(lipo -archs "$P")" == "$A" ]] || { echo "✗ $P n'est pas pour $A ($(lipo -archs "$P"))" >&2; exit 1; }
+    PARTS+=("$P")
   done
   BIN_DIR=".build/universel"
   mkdir -p "$BIN_DIR"
