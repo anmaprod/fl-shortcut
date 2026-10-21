@@ -30,14 +30,57 @@ if [[ "${FLS_SKIP_TESTS:-0}" != "1" ]]; then
   swift test
 fi
 
+# Kit de compilation : celui de macOS 26, comme GitHub (Xcode 26.6) pour toutes les versions d'avant. Avec le kit 27
+# (Xcode 27 sur le Mac du propriétaire), macOS 27 dessine l'app autrement (boutons en rectangle arrondi, barres…) :
+# s'il est le kit par défaut et qu'un kit 26 est installé (outils en ligne de commande, Xcode), on prend le 26.
+# SDKROOT=… : ce kit-là ; FLS_SDK=defaut : garder le kit par défaut.
+KIT="${SDKROOT:-}"
+if [[ -z "$KIT" && "${FLS_SDK:-}" != "defaut" ]]; then
+  DEFAULT_SDK=$(xcrun --sdk macosx --show-sdk-version 2>/dev/null || echo 0)
+  if (( ${DEFAULT_SDK%%.*} > 26 )); then
+    KIT=$(ls -d /Library/Developer/CommandLineTools/SDKs/MacOSX26.*.sdk \
+                "$(xcode-select -p 2>/dev/null)"/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.*.sdk 2>/dev/null \
+          | sort -V | tail -1 || true)
+    [[ -n "$KIT" ]] || echo "  (aucun kit de macOS 26 installé : kit $DEFAULT_SDK, l'app aura un autre aspect)"
+  fi
+fi
+
 echo "▸ Compilation release"
-swift build -c release ${ARCHS[@]+"${ARCHS[@]}"}
-BIN_DIR=$(swift build -c release ${ARCHS[@]+"${ARCHS[@]}"} --show-bin-path)
+if [[ -n "$KIT" ]]; then
+  # Une architecture à la fois, avec le système de compilation de SwiftPM : il prend ce kit et inscrit sa version
+  # dans l'app. Celui d'Xcode (deux architectures d'un coup) compilait avec ce kit mais inscrivait « sdk 13.0 ».
+  echo "  kit : $KIT"
+  PARTS=()
+  for A in arm64 x86_64; do
+    if [[ "${FLS_NATIVE:-0}" == "1" && "$A" != "$(uname -m)" ]]; then continue; fi
+    SDKROOT="$KIT" swift build -c release --arch "$A"
+    PARTS+=("$(SDKROOT="$KIT" swift build -c release --arch "$A" --show-bin-path)/$EXE")
+  done
+  BIN_DIR=".build/universel"
+  mkdir -p "$BIN_DIR"
+  lipo -create -output "$BIN_DIR/$EXE" "${PARTS[@]}"
+else
+  swift build -c release ${ARCHS[@]+"${ARCHS[@]}"}
+  BIN_DIR=$(swift build -c release ${ARCHS[@]+"${ARCHS[@]}"} --show-bin-path)
+fi
 
 echo "▸ Assemblage de l'app"
 rm -rf dist
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp "$BIN_DIR/$EXE" "$APP/Contents/MacOS/$EXE"
+# Kit inscrit dans l'app, celui qui décide de son aspect sur macOS 26 et plus (chaque architecture). Un kit choisi
+# qui n'est pas celui inscrit arrête tout : l'app n'aurait pas l'aspect voulu.
+if command -v vtool >/dev/null 2>&1; then
+  INSCRIT=$(vtool -show-build "$APP/Contents/MacOS/$EXE" 2>/dev/null | awk '$1 == "sdk" { print $2 }' | sort -u | tr '\n' ' ')
+  echo "  kit inscrit dans l'app : macOS ${INSCRIT:-?}"
+  if [[ -n "$KIT" ]]; then
+    VOULU=$(basename "$KIT" .sdk)
+    VOULU=${VOULU#MacOSX}
+    for V in $INSCRIT; do
+      [[ "${V%%.*}" == "${VOULU%%.*}" ]] || { echo "✗ kit inscrit ($V) différent du kit choisi ($VOULU)" >&2; exit 1; }
+    done
+  fi
+fi
 cp Resources/Info.plist "$APP/Contents/Info.plist"
 # Version de la release (tag vX.Y.Z en CI) : affichée par le Finder et « À propos ».
 if [[ -n "${FLS_VERSION:-}" ]]; then
