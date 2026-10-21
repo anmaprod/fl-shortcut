@@ -70,7 +70,7 @@ struct HelpPage: View {
                                     if opened.contains(entry.id) { opened.remove(entry.id) } else { opened.insert(entry.id) }
                                 }
                             }
-                            .cardRow(.position(index: index, count: entries.count))
+                            .cardRow(.position(index: index, count: entries.count), hover: SidebarItem.help.tint)
                         }
                     }
                 } header: {

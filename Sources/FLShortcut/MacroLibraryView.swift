@@ -55,7 +55,7 @@ struct MacroLibraryPage: View {
                     }
                     Section {
                         ForEach(Array(library.macros.enumerated()), id: \.element.id) { index, doc in
-                            row(doc).cardRow(.position(index: index, count: library.macros.count), hover: true)
+                            row(doc).cardRow(.position(index: index, count: library.macros.count), hover: .purple)
                         }
                     } header: {
                         Text("Mes macros")
@@ -374,8 +374,10 @@ struct MacroTemplatesSheet: View {
                         }
                         .padding(10)
                         .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(Color.primary.opacity(0.04)))
+                        .menuHover(tint: .purple, cornerRadius: 12)
                     }
                 }
+                .padding(6)                              // place pour le survol, qui grandit un peu
             }
             HStack {
                 Spacer()
@@ -569,6 +571,7 @@ struct MacroSidebarRow: View {
         } icon: {
             SectionIcon(symbol: SidebarItem.macros.symbol, tint: SidebarItem.macros.tint)
         }
+        .sidebarHover(SidebarItem.macros.tint)
         .badge(library.macros.count)
         .help(MacroPageText.subtitle)
     }

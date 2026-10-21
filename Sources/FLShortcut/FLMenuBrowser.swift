@@ -204,7 +204,6 @@ private struct MenuEntryRow: View {
     let step: FLMenuNav.Step
     let selected: Bool
     let action: (FLMenuNav.Step) -> Void
-    @State private var hovering = false
 
     var body: some View {
         Button { action(step) } label: {
@@ -226,12 +225,10 @@ private struct MenuEntryRow: View {
             .padding(.horizontal, 6)
             .padding(.vertical, 4)
             .contentShape(Rectangle())
-            .background(RoundedRectangle(cornerRadius: 5, style: .continuous)
-                .fill(hovering && step != .none ? Color.accentColor.opacity(0.18) : Color.clear))
         }
         .buttonStyle(.plain)
+        .menuHover(tint: BlockCategory.fl.tint, cornerRadius: 6, enabled: step != .none)
         .disabled(step == .none)
-        .onHover { hovering = $0 }
         .help(step == .none ? String(localized: "Trop profond pour être rejoué par la macro")
               : entry.enabled ? "" : String(localized: "Grisé dans FL en ce moment"))
         .accessibilityLabel(entry.submenu ? String(localized: "\(entry.title), sous-menu") : entry.title)

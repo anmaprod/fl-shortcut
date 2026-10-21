@@ -230,7 +230,7 @@ private struct CommunityBrowse: View {
                 Section {
                     ForEach(Array(community.members.enumerated()), id: \.element.id) { index, member in
                         CommunityMemberRow(member: member) { Task { await community.showAuthor(member) } }
-                            .cardRow(.position(index: index, count: community.members.count), hover: true)
+                            .cardRow(.position(index: index, count: community.members.count), hover: SidebarItem.community.tint)
                     }
                 } header: {
                     Text("Membres")
@@ -247,7 +247,7 @@ private struct CommunityBrowse: View {
                                               Task { await community.showAuthor(of: share) }
                                           },
                                           open: { open(share) }, report: { report(share) }, delete: { delete(share) })
-                            .cardRow(.position(index: index, count: community.shares.count), hover: true)
+                            .cardRow(.position(index: index, count: community.shares.count), hover: SidebarItem.community.tint)
                     }
                 }
             } header: {
