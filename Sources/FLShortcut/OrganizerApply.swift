@@ -467,15 +467,17 @@ final class OrganizerApplier {
         // La copie montre tous les sons (« All ») : le groupe affiché, compté par le script, est celui de l'analyse.
         link.allChannels = false
         let read = try ProjectFile.read(files, known: project.url, channels: result.channels, patterns: result.patterns)
+        // Séparé son par son comme à l'analyse : les mêmes clips, les mêmes sons, sinon le projet a changé.
+        let split = try ProjectFile.splitting(read.project, read.file)
         let notSounds = Set(result.channels.filter { $0.type == ChannelInfo.automationType }.map(\.index))
-        guard read.project.clips == project.clips,
-              ProjectFile.sounds(read.project, notSounds: notSounds).patterns == result.patternSounds else {
+        guard split.project.clips == project.clips,
+              ProjectFile.sounds(split.project, notSounds: notSounds).patterns == result.patternSounds else {
             throw OrganizerError.failed(String(localized: "Ton projet a changé depuis l'analyse : rien n'a été touché. Ferme l'Organiser, puis relance-le."))
         }
         let copy: FLPFile
         do {
-            copy = try layout.map { try read.project.rearranged(read.file, tracks: $0.tracks) }
-                ?? read.project.showingAll(read.file)
+            copy = try layout.map { try split.project.rearranged(split.file, tracks: $0.tracks) }
+                ?? split.project.showingAll(split.file)
         } catch {
             let what = "clips"
             throw OrganizerError.failed(String(localized: "L'Organiser ne sait pas encore ranger ce projet sans risque (\(what)) : rien n'a été touché."))

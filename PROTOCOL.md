@@ -264,7 +264,8 @@ avant de commencer : c'est le point de retour). Vérifié sur le projet de test 
   224, longueur multiple de 24 » (les notes d'un pattern) doit commencer là où la lecture a vu un événement ; sinon,
   arrêt. Le nombre de canaux lus doit être celui de l'en-tête.
 - **Canal** : 64 (rang dans le Channel rack, 0, 1, 2… sans trou) **suivi aussitôt de 21** (type : 0 échantillon,
-  2 plugin, 3 layer) ; 203 son nom ; 94 un canal joué par un layer. Un 64 sans 21 derrière sert à autre chose
+  2 plugin, 3 layer) ; 203 son nom ; 196 le chemin de son fichier de son (clip audio, sampler : son nom dit souvent
+  ce qu'est le son quand celui du canal ne le dit pas) ; 94 un canal joué par un layer. Un 64 sans 21 derrière sert à autre chose
   (réglages MIDI du projet) : ignoré.
 - **Pattern** : 65 (1 = pattern 1) ; suivi de 224 (ses notes, 24 octets chacune, le canal sur 2 octets à la place 6)
   dans la partie des notes, ou de 193 (nom), 150 (couleur)… dans sa description (écrite au milieu du premier canal).
@@ -275,6 +276,11 @@ avant de commencer : c'est le point de retour). Vérifié sur le projet de test 
   place 12 si elle joue, 0 si elle est coupée…), 239 son nom s'il en a un. Plusieurs arrangements : 100, écrit après
   eux, dit celui qui est ouvert (son 99) ; c'est lui qui est rangé, les autres ne bougent pas.
 - **Channel rack** : 146, écrit avant les canaux, est le groupe qu'il affiche (-1, soit FF FF FF FF : « All »).
+- **Séparation son par son** (« Split by channel » de FL, dans la copie) : un pattern dont les notes jouent plusieurs
+  canaux garde celles de son premier canal (224 réécrit) ; chaque autre canal a un nouveau pattern (numéro après le
+  dernier 65 du fichier, 999 au plus) : « 65 numéro » et ses notes (224), écrits juste avant le premier canal ; chaque
+  clip de ce pattern, dans chaque arrangement, a son double (même place, même piste, même longueur) ; les clips sont
+  ensuite écrits dans l'ordre de leur début. Le morceau sonne pareil ; l'analyse se fait sur ce projet séparé.
 - **La copie** ne change que la piste de chaque clip (place 12), et, pour les pistes où il y avait ou où il y a des
   clips, leur nom (239 retiré), leur couleur (celle des pistes jamais touchées) et leur mute (elles jouent) ; son
   Channel rack montre « All » (146). Elle est faite même sans ranger la Playlist (seul « All » change alors). Le

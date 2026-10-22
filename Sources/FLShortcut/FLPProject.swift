@@ -14,6 +14,8 @@ struct FLPProject: Equatable {
         let name: String?
         /// Canaux que joue un layer.
         let children: [Int]
+        /// Nom du fichier de son (clip audio, sampler), sans dossier ni extension ; nil s'il n'y en a pas.
+        var sample: String? = nil
     }
 
     struct Clip: Equatable {
@@ -47,6 +49,8 @@ struct FLPProject: Equatable {
         /// Groupe affiché par le Channel rack (-1 : « All »), écrit avant les canaux.
         static let channelGroup: UInt8 = 146
         static let patternName: UInt8 = 193
+        /// Chemin du fichier de son d'un canal.
+        static let samplePath: UInt8 = 196
         static let channelName: UInt8 = 203
         static let mixerName: UInt8 = 204
         static let notes: UInt8 = 224
@@ -77,6 +81,9 @@ struct FLPProject: Equatable {
     let playlistEvent: Int?
     let itemSize: Int
     let trackEvents: [Int]
+    /// Notes de chaque pattern (1 = pattern 1) : l'événement 224 ; et le premier canal (les notes sont écrites avant).
+    let noteEvents: [Int: Int]
+    let firstChannelEvent: Int?
     /// Événement du groupe affiché par le Channel rack (nil : pas écrit) ; vrai si ce n'est pas « All ».
     let groupEvent: Int?
     let showsGroup: Bool
@@ -88,15 +95,19 @@ struct FLPProject: Equatable {
 
     init(_ file: FLPFile) throws {
         var channels: [Channel] = []
-        var channel: (iid: Int, type: Int?, name: String?, children: [Int])?
+        var channel: (iid: Int, type: Int?, name: String?, children: [Int], sample: String?)?
         var notes: [Int: [Int: Int]] = [:]
+        var noteEvents: [Int: Int] = [:]
+        var firstChannel: Int?
         var names: [Int: String] = [:]
         var pattern: Int?
         var arrangements: [(index: Int, playlist: Int?, tracks: [Int])] = []
         var current: Int?
         var group: (event: Int, value: UInt32)?
         func closeChannel() {
-            if let c = channel { channels.append(Channel(iid: c.iid, type: c.type, name: c.name, children: c.children)) }
+            if let c = channel {
+                channels.append(Channel(iid: c.iid, type: c.type, name: c.name, children: c.children, sample: c.sample))
+            }
             channel = nil
         }
         for (i, event) in file.events.enumerated() {
@@ -107,9 +118,12 @@ struct FLPProject: Equatable {
                 guard i + 1 < file.events.count, file.events[i + 1].id == Event.channelType else { break }
                 closeChannel()
                 guard Int(event.value) == channels.count else { throw FLPError.unsupported("canaux") }
-                channel = (Int(event.value), Int(file.events[i + 1].value), nil, [])
+                channel = (Int(event.value), Int(file.events[i + 1].value), nil, [], nil)
+                if firstChannel == nil { firstChannel = i }
             case Event.channelName:
                 if channel != nil, channel?.name == nil { channel?.name = event.text }
+            case Event.samplePath:
+                if channel != nil, channel?.sample == nil { channel?.sample = Self.fileName(event.text) }
             case Event.children:
                 channel?.children.append(Int(event.value))
             case Event.pattern:
@@ -121,6 +135,7 @@ struct FLPProject: Equatable {
                 if let pattern { names[pattern] = event.text }
             case Event.notes:
                 guard let pattern, event.bytes.count % Self.noteSize == 0 else { throw FLPError.unsupported("notes") }
+                if firstChannel == nil { noteEvents[pattern] = i }
                 for start in stride(from: 0, to: event.bytes.count, by: Self.noteSize) {
                     let on = Int(FLPBytes.uint(event.bytes, at: start + 6, size: 2))
                     notes[pattern, default: [:]][on, default: 0] += 1
@@ -154,6 +169,8 @@ struct FLPProject: Equatable {
         }
         self.channels = channels
         self.notes = notes
+        self.noteEvents = noteEvents
+        firstChannelEvent = firstChannel
         self.patternNames = names
         ppq = Int(file.ppq)
         guard ppq > 0 else { throw FLPError.unsupported("ppq") }
@@ -239,6 +256,70 @@ struct FLPProject: Equatable {
             if children.isEmpty { out.insert(c) } else { todo += children }
         }
         return out
+    }
+
+    /// Nom d'un fichier d'après son chemin (« …/Packs/Drums/D30 Kick 85.wav » : « D30 Kick 85 ») ; nil s'il est vide.
+    static func fileName(_ path: String) -> String? {
+        let last = path.split(whereSeparator: { $0 == "/" || $0 == "\\" }).last.map(String.init) ?? ""
+        let name = last.contains(".") ? String(last[..<last.lastIndex(of: ".")!]) : last
+        return name.isEmpty ? nil : name
+    }
+
+    /// Pur (testé) : « Split by channel » de FL sur tout le projet (retour du propriétaire : un pattern de plusieurs
+    /// sons restait un seul bloc). Un pattern où jouent plusieurs canaux garde les notes de son premier canal ; chaque
+    /// autre canal a son nouveau pattern (numéros après le dernier), avec ses notes, et chaque clip de ce pattern, dans
+    /// chaque arrangement, a son double à la même place et sur la même piste pour chaque nouveau pattern. Le morceau
+    /// sonne pareil. Les clips sont ensuite écrits dans l'ordre de leur début, comme FL. Renvoie le fichier et le nombre
+    /// de patterns ajoutés.
+    func splitByChannel(_ file: FLPFile) throws -> (file: FLPFile, added: Int) {
+        let several = noteEvents.keys.sorted().filter { (notes[$0]?.count ?? 0) > 1 }
+        guard !several.isEmpty else { return (file, 0) }
+        guard let insertAt = firstChannelEvent else { throw FLPError.unsupported("patterns") }
+        var out = file
+        var next = (file.events.filter { $0.id == Event.pattern }.map { Int($0.value) }.max() ?? 0) + 1
+        var added: [FLPEvent] = []
+        var copies: [Int: [Int]] = [:]                        // pattern d'origine → nouveaux patterns
+        for pattern in several {
+            guard let index = noteEvents[pattern] else { continue }
+            let bytes = file.events[index].bytes
+            var byChannel: [Int: [UInt8]] = [:]
+            for start in stride(from: 0, to: bytes.count, by: Self.noteSize) {
+                let on = Int(FLPBytes.uint(bytes, at: start + 6, size: 2))
+                byChannel[on, default: []] += bytes[start..<start + Self.noteSize]
+            }
+            let order = byChannel.keys.sorted()
+            guard let keep = order.first else { continue }
+            out.events[index].bytes = byChannel[keep] ?? []
+            for on in order.dropFirst() {
+                guard next <= 999 else { throw FLPError.unsupported("patterns") }
+                added.append(FLPEvent(id: Event.pattern, bytes: FLPBytes.le(next, size: 2)))
+                added.append(FLPEvent(id: Event.notes, bytes: byChannel[on] ?? []))
+                copies[pattern, default: []].append(next)
+                next += 1
+            }
+        }
+        for (i, event) in out.events.enumerated() where event.id == Event.playlist && !event.bytes.isEmpty {
+            guard let size = Self.itemSize(event.bytes) else { throw FLPError.unsupported("clips") }
+            var items: [[UInt8]] = []
+            for start in stride(from: 0, to: event.bytes.count, by: size) {
+                let item = Array(event.bytes[start..<start + size])
+                items.append(item)
+                let source = Int(FLPBytes.uint(item, at: 6, size: 2))
+                guard source > Self.patternBase else { continue }
+                for pattern in copies[source - Self.patternBase] ?? [] {
+                    var copy = item
+                    FLPBytes.put(UInt32(Self.patternBase + pattern), into: &copy, at: 6, size: 2)
+                    items.append(copy)
+                }
+            }
+            let sorted = items.enumerated().sorted { a, b in
+                let pa = FLPBytes.uint(a.element, at: 0, size: 4), pb = FLPBytes.uint(b.element, at: 0, size: 4)
+                return pa != pb ? pa < pb : a.offset < b.offset
+            }
+            out.events[i].bytes = sorted.flatMap { $0.element }
+        }
+        out.events.insert(contentsOf: added, at: insertAt)
+        return (out, added.count / 2)
     }
 
     /// Le Channel rack de la copie montre tous les sons (« All ») : la suite se fait sur tous. Rien d'autre ne change.

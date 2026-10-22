@@ -83,6 +83,7 @@
 "%lld sons sans aucune note supprimés du Channel rack (on ne peut pas les remettre avec « Revenir comme avant »)" = "%lld sounds without any notes deleted from the Channel rack (“Undo changes” can't bring them back)";
 "%lld sons sans aucune note supprimés du Channel rack de la copie rangée" = "%lld sounds without any notes deleted from the Channel rack of the organized copy";
 "%lld sons sans aucune note supprimés." = "%lld sounds without any notes deleted.";
+"%lld sons sortis des patterns qui en avaient plusieurs : chacun dans son pattern (comme « Split by channel » de FL)" = "%lld sounds taken out of patterns that had several: each in its own pattern (like FL's “Split by channel”)";
 "%lld touches" = "%lld keys";
 "%lld étapes tapent des touches, cliquent ou ouvrent des fichiers : relis-les dans le créateur." = "%lld steps press keys, click or open files: check them in the creator.";
 "%lld/%lld" = "%lld/%lld";

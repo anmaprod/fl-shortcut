@@ -106,6 +106,49 @@ final class FLPProjectTests: XCTestCase {
         XCTAssertEqual(first(copy), first(file), "ni ses pistes")
     }
 
+    /// « Split by channel » de FL (vidéo du propriétaire : un pattern de plusieurs sons restait un seul bloc) : le
+    /// pattern 2 (Snare et 808) garde la Snare ; la 808 a son pattern 5, et chaque clip du pattern 2 son double à la
+    /// même place, sur la même piste. Le reste ne change pas ; sans pattern de plusieurs sons, rien ne change.
+    func testSplitByChannel() throws {
+        let file = FLPSample.sample()
+        let project = try FLPProject(file)
+        let split = try project.splitByChannel(file)
+        XCTAssertEqual(split.added, 1)
+        let after = try FLPProject(FLPFile(bytes: split.file.encoded()))
+        XCTAssertEqual(after.sounds(of: 1), [2])
+        XCTAssertEqual(after.sounds(of: 2), [3])
+        XCTAssertEqual(after.sounds(of: 5), [4])
+        XCTAssertEqual(after.notes[5], [4: 1])
+        XCTAssertEqual(after.clips.count, project.clips.count + 2)
+        let copies = after.clips.filter { $0.source == .pattern(5) }
+        let originals = project.clips.filter { $0.source == .pattern(2) }
+        XCTAssertEqual(copies.map(\.position), originals.map(\.position))
+        XCTAssertEqual(copies.map(\.track), originals.map(\.track))
+        XCTAssertEqual(copies.map(\.length), originals.map(\.length))
+        XCTAssertEqual(after.clips.map(\.position), after.clips.map(\.position).sorted(), "dans l'ordre de leur début")
+        XCTAssertEqual(after.patternNames, project.patternNames)
+        XCTAssertEqual(after.channels, project.channels)
+        XCTAssertEqual(after.trackCount, project.trackCount)
+
+        var single = FLPSample.sample()
+        let second = single.events.indices.filter { single.events[$0].id == 224 }[1]
+        single.events[second] = FLPSample.notes([(3, 48)])
+        let none = try FLPProject(single).splitByChannel(single)
+        XCTAssertEqual(none.added, 0)
+        XCTAssertEqual(none.file, single, "un son par pattern : rien ne change")
+    }
+
+    /// Clips audio, samplers : le nom du fichier de son, sans dossier ni extension.
+    func testSampleFileNames() throws {
+        let file = FLPSample.sample(samples: [1: "C:\\Packs\\Drums\\D30 Kick 85 Sexyy.wav", 3: "/Users/x/Packs/ANMA - Hat House.wav"])
+        let project = try FLPProject(file)
+        XCTAssertEqual(project.channels.map(\.sample), [nil, "D30 Kick 85 Sexyy", nil, "ANMA - Hat House", nil])
+        XCTAssertEqual(ProjectFile.sampleNames(project), [1: "D30 Kick 85 Sexyy", 3: "ANMA - Hat House"])
+        XCTAssertEqual(FLPProject.fileName("Kick.final.wav"), "Kick.final")
+        XCTAssertEqual(FLPProject.fileName("Kick"), "Kick")
+        XCTAssertNil(FLPProject.fileName(""))
+    }
+
     /// Channel rack sur un groupe (« Unsorted »…) : la copie le montre sur « All », rien d'autre ne change.
     func testCopyShowsAllChannels() throws {
         let file = FLPSample.sample(group: 2)

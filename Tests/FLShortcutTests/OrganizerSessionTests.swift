@@ -847,21 +847,24 @@ final class OrganizerSessionTests: XCTestCase {
 
         XCTAssertEqual(saves, 1, "FL enregistre le projet avant la lecture")
         XCTAssertFalse(prepared, "rien n'est retiré ni sélectionné dans FL avant l'enregistrement")
-        XCTAssertEqual(result.patternSounds, [0: [2], 1: [3, 4], 2: [1]], "index 0 = pattern 1")
+        XCTAssertEqual(result.patternSounds, [0: [2], 1: [3], 2: [1], 4: [4]],
+                       "index 0 = pattern 1 ; le pattern 2 séparé son par son, la 808 dans le pattern 5")
+        XCTAssertEqual(result.patterns.last, PatternInfo(index: 4, color: red, name: "Pattern 5"))
         XCTAssertEqual(result.trackSounds, [0: [2], 1: [3, 4], 2: [2], 3: [3, 4], 5: [1]])
         XCTAssertEqual(result.unused, [0], "ni note ni clip")
         XCTAssertEqual(result.items.map(\.index), [1, 2, 3, 4])
         XCTAssertEqual(result.items.first { $0.index == 2 }?.family, .melody, "écouté seul dans son pattern")
         XCTAssertEqual(result.project?.url, url)
-        XCTAssertEqual(result.project?.clips.count, 6)
+        XCTAssertEqual(result.project?.clips.count, 8, "chaque clip du pattern 2 et son double")
         XCTAssertEqual(result.project?.silentPatterns, 1)
+        XCTAssertEqual(result.project?.splitPatterns, 1)
         XCTAssertFalse(link.log.contains { $0.hasPrefix("all") || $0.hasPrefix("song") || $0.hasPrefix("track") },
                        "rien n'est deviné : \(link.log)")
         XCTAssertTrue(link.log.contains("solo 2 p1"), "\(link.log)")
         let diag = session.diagnostics
         XCTAssertEqual(diag.file, "oui")
-        XCTAssertEqual(diag.clips, 6)
-        XCTAssertTrue(diag.text.contains("fichier=oui clips=6"), diag.text)
+        XCTAssertEqual(diag.clips, 8)
+        XCTAssertTrue(diag.text.contains("fichier=oui clips=8 séparés=1"), diag.text)
         XCTAssertFalse(diag.text.contains("ZENOLOGY"), "jamais un nom dans le diagnostic")
     }
 
@@ -892,6 +895,32 @@ final class OrganizerSessionTests: XCTestCase {
         let live = OrganizerSession(link: link, audio: audio, classify: classify, timing: timing, sleep: { _ in })
         _ = live.run()
         XCTAssertFalse(link.allChannels, "sans le fichier : le groupe affiché, comme avant")
+    }
+
+    /// Clips audio (vidéo du propriétaire : un kick nommé « Keys », un hi-hat « Snare ») : le nom du fichier de son dit ce
+    /// qu'est le son quand le nom du canal ne le dit pas, ou a été donné par l'Organiser ; rien n'est écouté pour eux.
+    func testSampleFileNameTellsWhatTheSoundIs() throws {
+        let names = ["Pad", "Keys 2", "ZENOLOGY", "Snare 3", "808"]
+        let link = FakeOrganizerLink()
+        link.channels = names.enumerated().map {
+            ChannelInfo(index: $0.offset, type: 2, mixerTrack: $0.offset + 1, color: red, name: $0.element)
+        }
+        link.patternList = ["Mélodie", "Drums", "Pattern 3", "Vide"].enumerated().map {
+            PatternInfo(index: $0.offset, color: red, name: $0.element)
+        }
+        link.mixer = (0...6).map { MixerTrackInfo(index: $0, color: red, name: $0 == 0 ? "Master" : "Insert \($0)") }
+        let audio = FakeAudio(link: link)
+        audio.parts = [1: tone(.melody), 2: tone(.melody), 3: tone(.drums)]
+        let file = FLPSample.sample(names: names, samples: [1: "/Packs/D30 Kick 85 Sexyy.wav", 3: "/Packs/ANMA - Hat House.wav"])
+        let files = ProjectFileAccess(save: { _ in .success(URL(fileURLWithPath: "/projets/Mon son.flp")) },
+                                      open: { _ in false }, read: { _ in file })
+        let session = OrganizerSession(link: link, audio: audio, classify: classify, nameDrum: { _, _ in .snare },
+                                       timing: timing, sleep: { _ in }, files: files)
+        let result = try session.run().get()
+        XCTAssertEqual(result.items.first { $0.index == 1 }?.kind, .kick)
+        XCTAssertEqual(result.items.first { $0.index == 3 }?.kind, .hiHat)
+        XCTAssertFalse(link.log.contains { $0.hasPrefix("solo 1") || $0.hasPrefix("solo 3") }, "\(link.log)")
+        XCTAssertFalse(session.diagnostics.text.contains("Kick"), "jamais un nom dans le diagnostic")
     }
 
     /// Le fichier enregistré n'est pas le projet ouvert (autres sons) : rien n'est touché, la raison est dite.

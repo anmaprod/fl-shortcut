@@ -701,6 +701,9 @@ final class OrganizerController: ObservableObject {
                 ? String(localized: "Playlist : \(plan.playlist.colors.count) pistes colorées, \(plan.playlist.names.count) renommées")
                 : String(localized: "Playlist : \(plan.playlist.colors.count) pistes colorées, \(plan.playlist.names.count) renommées, rangées comme le Channel rack")))
         }
+        if let split = result?.project?.splitPatterns, split > 0 {
+            out.append(("scissors", String(localized: "\(split) sons sortis des patterns qui en avaient plusieurs : chacun dans son pattern (comme « Split by channel » de FL)")))
+        }
         if options.playlist, let layout = plan.layout {
             out.append(("square.split.1x2", String(localized: "Playlist rangée dans une copie de ton projet : chaque son sur sa piste, tous les clips des mêmes sons réunis (\(layout.count) pistes). Ton projet d'origine ne bouge pas.")))
             if let silent = result?.project?.silentPatterns, silent > 0 {

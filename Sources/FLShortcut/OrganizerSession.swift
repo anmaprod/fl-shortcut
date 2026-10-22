@@ -58,6 +58,8 @@ struct OrganizerDiagnostics: Equatable {
     /// Projet lu dans son fichier (oui, ou ce qui l'a empêché, en mots), et ses clips dans la Playlist.
     var file = "non"
     var clips = 0
+    /// Patterns ajoutés en séparant son par son ceux qui en avaient plusieurs.
+    var split = 0
     /// Règle de chaque son écouté : « c4:melodie+ia » (canal 4 ; +ia : l'IA de macOS a répondu), « p2:fx-long »
     /// (piste 2 de la Playlist). Des numéros, jamais un nom.
     var rules: [String] = []
@@ -73,7 +75,7 @@ struct OrganizerDiagnostics: Equatable {
          "patterns=\(patterns) relevés=\(scanned) avec-sons=\(withSounds) activité=\(activity) positions=\(positions) "
             + "relevés-chanson=\(activeSamples) pistes=\(tracks) seules=\(tracksSolo) écoutées=\(tracksHeard) "
             + "mixer=\(mixerUsed) envois=\(routes)",
-         "sélection=\(selection) inutilisés=\(unused) tempo=\(tempo) fichier=\(file) clips=\(clips)",
+         "sélection=\(selection) inutilisés=\(unused) tempo=\(tempo) fichier=\(file) clips=\(clips) séparés=\(split)",
          rules.isEmpty ? "" : "règles=" + rules.joined(separator: " "),
          patternMap.isEmpty ? "" : "patterns-sons=" + patternMap,
          trackMap.isEmpty ? "" : "pistes-sons=" + trackMap,
@@ -324,11 +326,16 @@ final class OrganizerSession {
         }
         let read = try ProjectFile.read(files, known: nil, channels: channels, patterns: patterns,
                                         why: { why in self.note { $0.file = why } })
+        // Chaque pattern de plusieurs sons séparé son par son (« Split by channel » de FL, retour du propriétaire),
+        // comme il le sera dans la copie rangée. L'écoute se fait dans le projet ouvert : les patterns d'avant.
+        let split = try ProjectFile.splitting(read.project, read.file)
         let notSounds = Set(channels.filter { $0.type == ChannelInfo.automationType }.map(\.index))
-        let exact = ProjectFile.sounds(read.project, notSounds: notSounds)
+        let exact = ProjectFile.sounds(split.project, notSounds: notSounds)
+        let homes = Self.homes(ProjectFile.sounds(read.project, notSounds: notSounds).patterns)
         note {
             $0.file = "oui"
-            $0.clips = read.project.clips.count
+            $0.clips = split.project.clips.count
+            $0.split = split.added
             $0.patternMap = Self.soundMap(exact.patterns, label: "pattern")
             $0.trackMap = Self.soundMap(exact.tracks, label: "piste")
         }
@@ -340,12 +347,15 @@ final class OrganizerSession {
             link.stopRestore()
             audio.stop()
         }
-        let items = try classifyChannels(targets, homes: Self.homes(exact.patterns))
+        let items = try classifyChannels(targets, homes: homes, hints: ProjectFile.sampleNames(read.project))
         let routes = try readRoutes(targets, mixer: mixer)
         progress(stepsTotal, stepsTotal)
-        var result = OrganizerResult(channels: channels, items: items, patterns: patterns, patternSounds: exact.patterns,
-                                     mixer: mixer, routes: routes, trackSounds: exact.tracks, unused: unused)
-        result.project = ProjectFile.snapshot(read.project, url: read.url, notSounds: notSounds)
+        var result = OrganizerResult(channels: channels, items: items,
+                                     patterns: ProjectFile.patterns(patterns, adding: split.project),
+                                     patternSounds: exact.patterns, mixer: mixer, routes: routes,
+                                     trackSounds: exact.tracks, unused: unused)
+        result.project = ProjectFile.snapshot(split.project, url: read.url, notSounds: notSounds,
+                                              splitPatterns: split.added)
         return result
     }
 
@@ -437,11 +447,15 @@ final class OrganizerSession {
     /// Chaque son : son nom s'il dit ce qu'il est, sinon son écoute (la capture est déjà lancée), dans le pattern où il
     /// joue. Un nom que l'Organiser a pu donner (« Mélodie 3 », « Snare 2 ») reste seulement si l'écoute ne le
     /// contredit pas. Pas un son entendu et rien d'après les noms : la capture ne reçoit rien (`noSound`).
-    private func classifyChannels(_ targets: [ChannelInfo], homes: [Int: Int]) throws -> [OrganizerItem] {
+    private func classifyChannels(_ targets: [ChannelInfo], homes: [Int: Int],
+                                  hints: [Int: String] = [:]) throws -> [OrganizerItem] {
         var byIndex: [Int: OrganizerItem] = [:]
         var toListen: [ChannelInfo] = []
         for channel in targets {
-            if let kind = SoundNames.kind(of: channel.name), !SoundNames.isGenerated(channel.name) {
+            // Le nom du canal, sinon celui de son fichier de son (clip audio : vidéo du propriétaire, un kick nommé
+            // « Keys », un hi-hat « Snare » à l'écoute).
+            let named = SoundNames.isGenerated(channel.name) ? nil : SoundNames.kind(of: channel.name)
+            if let kind = named ?? hints[channel.index].flatMap({ SoundNames.kind(of: $0) }) {
                 byIndex[channel.index] = Self.byName(channel, kind)
             } else {
                 toListen.append(channel)

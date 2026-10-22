@@ -219,3 +219,10 @@ entrée 1 ≈ 0,5 s.
   « Privacy », TCC, ou tout processus du système sans nom d'app), et un surveillant, posé dès que l'app ouvre les
   Réglages pour une autorisation, la rouvre une fois partie, même fermée de force ; jamais après ⌘Q, le menu, le Dock
   ou la fin de session. Le journal dit qui a demandé la fermeture (« QUIT asked by … »).
+- Vidéo bug-4 (prod « dafftttt ») : un pattern de plusieurs sons restait un seul bloc (« il a pas split by
+  channel »), les drums en clips audio étaient mal nommés (kick en « Keys », hi-hat en « Snare », clap en « Drums »,
+  d'où l'impression de deux bus Drums). Maintenant : dans la copie, chaque pattern de plusieurs sons est séparé son par
+  son (comme « Split by channel » de FL : nouveaux patterns, chaque clip doublé à la même place), l'analyse et la
+  Playlist se font sur ce projet séparé (aperçu : « N sons sortis des patterns… ») ; le nom du fichier de son
+  (« D30 Kick 85 », « ANMA - Hat House ») reconnaît un son quand le nom du canal ne dit rien ou a été donné par
+  l'Organiser. L'écoute se fait toujours dans les patterns d'avant (le projet ouvert dans FL).

@@ -30,6 +30,8 @@ struct ProjectSnapshot: Equatable {
     /// Ce que joue chaque clip (rang du clip → groupe).
     var groups: [Int: PlaylistLayout.Group]
     let trackCount: Int
+    /// Patterns ajoutés en séparant son par son ceux qui en avaient plusieurs (« Split by channel » de FL).
+    var splitPatterns = 0
 
     /// Patterns posés dans la Playlist où rien ne joue (aucune note) : chacun sur sa piste, après les sons.
     var silentPatterns: Int {
@@ -97,10 +99,42 @@ enum ProjectFile {
         }
     }
 
-    static func snapshot(_ project: FLPProject, url: URL, notSounds: Set<Int>) -> ProjectSnapshot {
+    static func snapshot(_ project: FLPProject, url: URL, notSounds: Set<Int>, splitPatterns: Int = 0) -> ProjectSnapshot {
         var groups: [Int: PlaylistLayout.Group] = [:]
         for clip in project.clips { groups[clip.item] = group(clip, project: project, notSounds: notSounds) }
-        return ProjectSnapshot(url: url, clips: project.clips, groups: groups, trackCount: project.trackCount)
+        return ProjectSnapshot(url: url, clips: project.clips, groups: groups, trackCount: project.trackCount,
+                               splitPatterns: splitPatterns)
+    }
+
+    /// Le projet séparé son par son (« Split by channel » de FL : `FLPProject.splitByChannel`), relu : c'est lui que
+    /// la copie rangée contient, l'analyse le prend donc aussi. Une forme inattendue : rien n'est touché.
+    static func splitting(_ project: FLPProject, _ file: FLPFile) throws -> (file: FLPFile, project: FLPProject, added: Int) {
+        do {
+            let split = try project.splitByChannel(file)
+            guard split.added > 0 else { return (file, project, 0) }
+            return (split.file, try FLPProject(split.file), split.added)
+        } catch {
+            let what = "séparation"
+            throw OrganizerError.failed(String(localized: "L'Organiser ne sait pas encore ranger ce projet sans risque (\(what)) : rien n'a été touché."))
+        }
+    }
+
+    /// Les patterns de FL, plus ceux que la séparation ajoute (nommés comme FL les nomme : « Pattern 12 »).
+    static func patterns(_ live: [PatternInfo], adding project: FLPProject) -> [PatternInfo] {
+        let known = Set(live.map(\.index))
+        let color = live.first?.color ?? RGBColor(r: 0x48, g: 0x50, b: 0x58)
+        let added = project.notes.keys.filter { !known.contains($0 - 1) }.sorted().map {
+            PatternInfo(index: $0 - 1, color: color, name: "Pattern \($0)")
+        }
+        return live + added
+    }
+
+    /// Nom du fichier de son de chaque canal qui en a un (clip audio, sampler) : il dit souvent ce qu'est le son
+    /// (« D30 Kick 85 ») quand le nom du canal ne le dit pas, ou a été donné par l'Organiser.
+    static func sampleNames(_ project: FLPProject) -> [Int: String] {
+        var out: [Int: String] = [:]
+        for channel in project.channels { if let sample = channel.sample { out[channel.iid] = sample } }
+        return out
     }
 
     /// Pur (testé) : le fichier est-il celui du projet ouvert dans FL ? nil si oui ; sinon ce qui diffère, en mots et

@@ -793,10 +793,13 @@ final class OrganizerApplyTests: XCTestCase {
             OrganizerItem(index: $0.0, name: names[$0.0], family: $0.1, confidence: 0.9, testNotes: false, mixerTrack: 0,
                           color: gray, kind: $0.2)
         }
-        let project = try FLPProject(XCTUnwrap(disk.files[disk.original]))
-        var result = OrganizerResult(channels: link.channels, items: items, patterns: link.patternList,
-                                     patternSounds: ProjectFile.sounds(project, notSounds: []).patterns, unused: [0])
-        result.project = ProjectFile.snapshot(project, url: disk.original, notSounds: [])
+        let file = try XCTUnwrap(disk.files[disk.original])
+        let split = try ProjectFile.splitting(try FLPProject(file), file)        // comme l'analyse
+        var result = OrganizerResult(channels: link.channels, items: items,
+                                     patterns: ProjectFile.patterns(link.patternList, adding: split.project),
+                                     patternSounds: ProjectFile.sounds(split.project, notSounds: []).patterns, unused: [0])
+        result.project = ProjectFile.snapshot(split.project, url: disk.original, notSounds: [],
+                                              splitPatterns: split.added)
         return (link, result)
     }
 
@@ -815,11 +818,11 @@ final class OrganizerApplyTests: XCTestCase {
         let layout = try XCTUnwrap(plan.layout)
         XCTAssertTrue(plan.splits.isEmpty)
         XCTAssertTrue(plan.playlist.moves.isEmpty, "les pistes sont déjà dans l'ordre des familles")
-        XCTAssertEqual(layout.count, 4)
-        XCTAssertEqual(layout.tracks[0], 0, "la mélodie en haut")
-        XCTAssertEqual(layout.tracks[2], 0, "ses deux clips sur la même piste")
-        XCTAssertEqual(layout.tracks[1], layout.tracks[3], "le même pattern, la même piste")
-        XCTAssertEqual(layout.tracks[4], 3, "le pattern vide en bas")
+        // Le pattern 2 (Snare et 808) séparé son par son : la 808 a son pattern 5. Clips dans l'ordre de leur début :
+        // 0 mélodie, 1 Snare, 2 808, 3 pattern vide, 4 mélodie, 5 Snare, 6 808, 7 clip du Kick.
+        XCTAssertEqual(layout.count, 5)
+        XCTAssertEqual(layout.tracks, [0: 0, 4: 0, 2: 1, 6: 1, 7: 2, 1: 3, 5: 3, 3: 4],
+                       "Mélodies, Basse, Kick, Snare, puis le pattern vide en bas")
 
         let outcome = applier.apply(plan, result: result, styles: FamilyStyles.initial)
         XCTAssertNil(outcome.error)
@@ -828,8 +831,10 @@ final class OrganizerApplyTests: XCTestCase {
         XCTAssertEqual(disk.opened, [copyURL])
         XCTAssertEqual(disk.saved, [disk.original, copyURL], "le projet enregistré avant, la copie rangée à la fin")
         XCTAssertEqual(disk.files[disk.original], FLPSample.sample(), "l'original n'a pas bougé")
-        let before = try FLPProject(FLPSample.sample())
+        let sample = FLPSample.sample()
+        let before = try ProjectFile.splitting(try FLPProject(sample), sample).project
         let copy = try FLPProject(XCTUnwrap(disk.files[copyURL]))
+        XCTAssertEqual(copy.notes[5], [4: 1], "la 808 dans son pattern")
         XCTAssertEqual(copy.clips.map(\.track), before.clips.map { layout.tracks[$0.item]! })
         XCTAssertEqual(copy.clips.map(\.source), before.clips.map(\.source))
         XCTAssertEqual(copy.clips.map(\.position), before.clips.map(\.position))
@@ -919,6 +924,13 @@ final class FakeDisk {
             else { return true }
             for (n, name) in project.patternNames where n - 1 < link.patternList.count {
                 link.patternList[n - 1] = PatternInfo(index: n - 1, color: link.patternList[n - 1].color, name: name)
+            }
+            // Les patterns ajoutés par la séparation, comme FL les montre.
+            let last = (project.notes.keys.max() ?? 0)
+            while link.patternList.count < last {
+                let n = link.patternList.count + 1
+                link.patternList.append(PatternInfo(index: n - 1, color: RGBColor(r: 0x48, g: 0x50, b: 0x58),
+                                                    name: "Pattern \(n)"))
             }
             return true
         }, read: { url in
