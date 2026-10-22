@@ -98,4 +98,14 @@ final class AppResumeTests: XCTestCase {
         XCTAssertTrue(SingleInstance.isQuitting(other))
         XCTAssertFalse(SingleInstance.isQuitting(other - 1))
     }
+
+    /// « Quitter et rouvrir » vient de Réglages Système : l'app se relance elle-même ; quittée par l'utilisateur ou
+    /// une autre app : non.
+    func testOnlySystemSettingsAsksForARelaunch() {
+        XCTAssertTrue(SingleInstance.isSettings("com.apple.systempreferences"))
+        XCTAssertTrue(SingleInstance.isSettings("com.apple.Settings"))
+        XCTAssertFalse(SingleInstance.isSettings(nil), "⌘Q : pas de relance")
+        XCTAssertFalse(SingleInstance.isSettings("com.apple.loginwindow"), "fermeture de session : pas de relance")
+        XCTAssertNil(SingleInstance.quitSender(), "aucun événement « quit » en cours")
+    }
 }

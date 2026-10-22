@@ -128,6 +128,34 @@ enum SingleInstance {
         exit(0)
     }
 
+    /// L'app qui demande la fermeture (identifiant de macOS : « com.apple.systempreferences »…), si c'est une autre
+    /// app (événement « quit » de macOS) ; nil : l'utilisateur a quitté lui-même (⌘Q, menu).
+    static func quitSender() -> String? {
+        guard let event = NSAppleEventManager.shared().currentAppleEvent,
+              event.eventClass == 0x6165_7674, event.eventID == 0x7175_6974,      // 'aevt' 'quit'
+              let sender = event.attributeDescriptor(forKeyword: 0x7370_6964)  // 'spid' : l'app qui l'envoie
+        else { return nil }
+        let pid = pid_t(sender.int32Value)
+        guard pid > 0, pid != getpid() else { return nil }
+        return NSRunningApplication(processIdentifier: pid)?.bundleIdentifier ?? "pid"
+    }
+
+    /// Réglages Système (« Quitter et rouvrir », après une autorisation).
+    static func isSettings(_ sender: String?) -> Bool {
+        guard let sender else { return false }
+        return sender.hasPrefix("com.apple.systempreferences") || sender == "com.apple.Settings"
+    }
+
+    /// Rouvre l'app une fois cette copie partie (60 s au plus) : `open` la lance, ou la met devant si macOS l'a déjà
+    /// relancée (jamais deux copies).
+    static func relaunchAfterQuit() {
+        let task = Process()
+        task.executableURL = URL(fileURLWithPath: "/bin/sh")
+        task.arguments = ["-c", "i=0; while /bin/kill -0 \(getpid()) 2>/dev/null && [ $i -lt 600 ]; do /bin/sleep 0.1; "
+                          + "i=$((i+1)); done; /usr/bin/open \"$0\"", Bundle.main.bundleURL.path]
+        try? task.run()
+    }
+
     /// Vrai dès que le processus `pid` n'existe plus ; faux s'il est toujours là au bout de `timeout` secondes
     /// (`longTimeout` tant que `longer` est vrai, relu à chaque tour).
     static func waitForExit(_ pid: pid_t, timeout: TimeInterval, longer: () -> Bool = { false },
@@ -194,6 +222,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // Une copie relancée (« Quitter et rouvrir ») attend celle-ci au lieu de partir (SingleInstance).
         SingleInstance.markQuitting()
         quitAsked = Date()
+        // « Quitter et rouvrir » de macOS : l'app quittait sans revenir (retour du propriétaire, deux fois) ; elle
+        // se relance elle-même une fois partie (si macOS l'a déjà fait, ça ne fait que la mettre devant).
+        let sender = SingleInstance.quitSender()
+        let bySettings = SingleInstance.isSettings(sender)
+        if bySettings { SingleInstance.relaunchAfterQuit() }
+        MacroLog.shared.write("QUIT", "asked by \(sender ?? "user")\(bySettings ? ", relaunch" : "")")
         return .terminateNow
     }
 
