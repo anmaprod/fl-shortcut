@@ -253,7 +253,11 @@ avant de commencer : c'est le point de retour). Vérifié sur le projet de test 
   « FLdt », longueur (4) et les événements. Nombres petit-boutistes.
 - **Événement** : un octet de numéro, puis 1 octet (numéros 0 à 63), 2 (64 à 127), 4 (128 à 191), ou une longueur
   (7 bits par octet, le bit du haut dit qu'un octet suit) et autant d'octets (192 et plus). Textes : UTF-16 terminé
-  par un zéro.
+  par un zéro. **Exception (FL 2025)** : l'événement 172 a un octet de forme, puis 4 octets (forme 0) ou 2 (forme 1) ;
+  lu comme les autres, il décalait la lecture, qui se recalait plus loin par hasard (les notes du pattern 1 du projet
+  de test disparaissaient). Une autre forme arrête tout. Contrôle : avant les canaux, toute suite « 65, numéro,
+  224, longueur multiple de 24 » (les notes d'un pattern) doit commencer là où la lecture a vu un événement ; sinon,
+  arrêt. Le nombre de canaux lus doit être celui de l'en-tête.
 - **Canal** : 64 (rang dans le Channel rack, 0, 1, 2… sans trou) **suivi aussitôt de 21** (type : 0 échantillon,
   2 plugin, 3 layer) ; 203 son nom ; 94 un canal joué par un layer. Un 64 sans 21 derrière sert à autre chose
   (réglages MIDI du projet) : ignoré.

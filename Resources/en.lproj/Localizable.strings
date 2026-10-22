@@ -780,6 +780,7 @@
 "FL enregistre ton projet, puis FL Shortcuts lit son fichier : ce que joue chaque pattern et où est chaque clip, exactement (rien n'est deviné). Un son dont le nom dit ce qu'il est (Kick, 808, Hat…) est classé tout de suite ; les autres jouent seuls, à ton tempo, sans que tu les entendes. Ne touche pas à FL ; Échap arrête." = "FL saves your project, then FL Shortcuts reads its file: what each pattern plays and where each clip is, exactly (nothing is guessed). A sound whose name says what it is (Kick, 808, Hat…) is sorted right away; the others play alone, at your tempo, without you hearing them. Don't touch FL; Esc stops.";
 "FL est revenu comme avant." = "FL is back as it was.";
 "FL joue : appuie sur Stop, puis relance Organiser." = "FL is playing: press Stop, then run Organizer again.";
+"FL met trop de temps à ouvrir la copie rangée : attends qu'il ait fini, puis relance l'Organiser. Ton projet n'a pas bougé." = "FL is taking too long to open the organized copy: wait until it's done, then run the Organizer again. Your project wasn't changed.";
 "FL n'a pas confirmé" = "FL didn't confirm";
 "FL n'a pas confirmé (armement / REC)" = "FL didn't confirm (arm / REC)";
 "FL n'a pas enregistré la copie rangée : enregistre-la dans FL (⌘S)." = "FL didn't save the organized copy: save it in FL (⌘S).";

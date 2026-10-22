@@ -18,6 +18,11 @@ struct FLPEvent: Equatable {
         }
     }
 
+    /// Événement 172 de FL 2025 : un octet de forme, puis 4 octets (forme 0) ou 2 (forme 1). Il ne suit pas la règle
+    /// des numéros 128 à 191 (vu dans le projet de test du propriétaire : lu comme les autres, il décalait la suite et
+    /// les notes du pattern 1 disparaissaient). Une autre forme arrête tout.
+    static let shaped: UInt8 = 172
+
     /// Valeur d'un événement de 1, 2 ou 4 octets.
     var value: UInt32 { FLPBytes.uint(bytes, at: 0, size: bytes.count) }
 
@@ -105,15 +110,64 @@ struct FLPFile: Equatable {
         let size = try reader.int(4)
         guard size <= bytes.count - reader.offset else { throw FLPError.damaged }
         let end = reader.offset + size
+        let dataStart = reader.offset
         var events: [FLPEvent] = []
+        var starts = Set<Int>()
+        var firstChannel = end
         while reader.offset < end {
+            let start = reader.offset
             let id = try reader.byte()
-            let size = try FLPEvent.fixedSize(id) ?? reader.varint()
+            let size: Int
+            if id == FLPEvent.shaped {
+                switch try reader.peek() {
+                case 0: size = 5
+                case 1: size = 3
+                default: throw FLPError.unsupported("événement 172")
+                }
+            } else {
+                size = try FLPEvent.fixedSize(id) ?? reader.varint()
+            }
             guard size <= end - reader.offset else { throw FLPError.damaged }
+            // Un canal : son numéro puis son type (21).
+            if firstChannel == end, id == 64, reader.offset + size < end, bytes[reader.offset + size] == 21 {
+                firstChannel = start
+            }
+            starts.insert(start)
             events.append(FLPEvent(id: id, bytes: try reader.take(size)))
+        }
+        guard Self.notesAligned(bytes, from: dataStart, to: firstChannel, starts: starts) else {
+            throw FLPError.unsupported("lecture")
         }
         self.events = events
         trailer = Array(bytes[end...])
+    }
+
+    /// Les notes de chaque pattern (65, son numéro, puis 224 et des notes de 24 octets) sont écrites avant les
+    /// canaux : chacune doit commencer là où la lecture a vu commencer un événement. Sinon un événement inconnu a
+    /// décalé la lecture (des notes auraient disparu) : rien n'est deviné, tout s'arrête.
+    static func notesAligned(_ bytes: [UInt8], from: Int, to: Int, starts: Set<Int>) -> Bool {
+        var p = max(from, 0)
+        while p + 5 < min(to, bytes.count) {
+            defer { p += 1 }
+            guard bytes[p] == 65, bytes[p + 3] == 224 else { continue }
+            let pattern = Int(bytes[p + 1]) | Int(bytes[p + 2]) << 8
+            guard (1...999).contains(pattern) else { continue }
+            var size = 0
+            var q = p + 4
+            var ok = false
+            for shift in stride(from: 0, through: 21, by: 7) where q < bytes.count {
+                let b = bytes[q]
+                q += 1
+                size |= Int(b & 0x7F) << shift
+                if b & 0x80 == 0 {
+                    ok = true
+                    break
+                }
+            }
+            guard ok, size > 0, size % 24 == 0, q + size <= bytes.count else { continue }
+            if !starts.contains(p) { return false }
+        }
+        return true
     }
 
     init(contentsOf url: URL) throws {
@@ -137,6 +191,11 @@ struct FLPFile: Equatable {
     private struct Reader {
         let bytes: [UInt8]
         var offset = 0
+
+        func peek() throws -> UInt8 {
+            guard offset < bytes.count else { throw FLPError.damaged }
+            return bytes[offset]
+        }
 
         mutating func byte() throws -> UInt8 {
             guard offset < bytes.count else { throw FLPError.damaged }

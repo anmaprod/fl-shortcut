@@ -135,6 +135,10 @@ struct FLPProject: Equatable {
             }
         }
         closeChannel()
+        // L'en-tête dit combien de canaux le projet a : la lecture doit les avoir tous trouvés.
+        guard file.channelCount == 0 || channels.count == Int(file.channelCount) else {
+            throw FLPError.unsupported("canaux")
+        }
         self.channels = channels
         self.notes = notes
         self.patternNames = names

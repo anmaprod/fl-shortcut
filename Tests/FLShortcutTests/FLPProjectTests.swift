@@ -179,4 +179,38 @@ final class FLPProjectTests: XCTestCase {
         XCTAssertEqual(try FLPProject(FLPProject(quiet).rearranged(quiet, tracks: [:])).mutedTracks, [9],
                        "une piste coupée jamais touchée le reste")
     }
+
+    /// FL 2025 (projet de test du propriétaire, vidéo du 22/10) : l'événement 172 a un octet de forme, puis 2 ou 4
+    /// octets. Lu comme les autres, il décalait la lecture et les notes du pattern 1 (ZENOLOGY) disparaissaient : la
+    /// mélodie finissait en bas, comme un pattern vide.
+    func testFL2025EventKeepsTheReadingAligned() throws {
+        var file = FLPSample.sample()
+        file.events.insert(contentsOf: [FLPEvent(id: 172, bytes: [1, 1, 0]), FLPSample.text(192, "FL Studio 26.1"),
+                                        FLPEvent(id: 172, bytes: [0, 1, 0, 0, 0]), FLPSample.ev(37, 2)], at: 1)
+        let read = try FLPFile(bytes: file.encoded())
+        XCTAssertEqual(read, file)
+        XCTAssertEqual(read.encoded(), file.encoded())
+        XCTAssertEqual(try FLPProject(read).sounds(of: 1), [2], "les notes du pattern 1 sont lues")
+        var odd = FLPSample.sample()
+        odd.events.insert(FLPEvent(id: 172, bytes: [2, 0, 0, 0]), at: 1)
+        XCTAssertThrowsError(try FLPFile(bytes: odd.encoded())) {
+            XCTAssertEqual($0 as? FLPError, .unsupported("événement 172"), "forme inconnue : rien n'est deviné")
+        }
+    }
+
+    /// Des notes de pattern ailleurs qu'au début d'un événement (avant les canaux) : la lecture s'est décalée sur un
+    /// événement inconnu, des notes manqueraient. Tout s'arrête.
+    func testHiddenNotesStopEverything() {
+        var file = FLPSample.sample()
+        let notes = FLPSample.notes([(2, 60)])
+        let hidden = [UInt8(65), 1, 0, 224, UInt8(notes.bytes.count)] + notes.bytes
+        file.events.insert(FLPEvent(id: 212, bytes: [9, 9] + hidden), at: 1)
+        XCTAssertThrowsError(try FLPFile(bytes: file.encoded())) {
+            XCTAssertEqual($0 as? FLPError, .unsupported("lecture"))
+        }
+        let fewer = FLPFile(channelCount: 9, ppq: 96, events: FLPSample.sample().events)
+        XCTAssertThrowsError(try FLPProject(fewer)) {
+            XCTAssertEqual($0 as? FLPError, .unsupported("canaux"), "l'en-tête dit 9 canaux, la lecture en trouve 5")
+        }
+    }
 }

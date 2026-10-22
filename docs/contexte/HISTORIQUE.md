@@ -180,4 +180,11 @@ entrée 1 ≈ 0,5 s.
   le projet enregistré avant de commencer : « Revenir comme avant » le rouvre, la copie étant enregistrée, FL ne
   demande rien. Pour les macros, un bloc « Point de retour » (historique d'annulation de FL, `general.getUndoHistoryPos`
   / `setUndoHistoryPos` du script) reste à proposer.
+- Vidéo du 22/10 (10:34) : la Playlist rangée (un pattern par piste) plaît, mais le pattern 1 « ZENOLOGY » est parti en
+  bas et le reste (couleurs, noms, Channel rack, Mixer) ne s'est pas fait. Causes : (1) l'événement 172 de FL 2025 a
+  une taille à part ; lu comme les autres, la lecture se décalait et se recalait par hasard, en sautant les 13 notes
+  du pattern 1 (pattern pris pour vide, son ZENOLOGY « sans note ») ; corrigé, et un contrôle arrête tout si des notes
+  sont vues hors d'un début d'événement. (2) Juste après l'ouverture de la copie, FL chargeait encore ses plugins
+  (« Opening: Fruity Wrapper ») et n'a pas confirmé le premier renommage : tout s'arrêtait. L'Organiser attend
+  maintenant que FL réponde vite trois fois de suite, puis réessaie ses premières demandes.
 

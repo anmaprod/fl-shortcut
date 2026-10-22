@@ -496,9 +496,44 @@ final class OrganizerApplier {
         // Son nom d'avant ; une marque restée d'un essai où FL l'avait ouverte trop tard n'est jamais reprise.
         let before = read.project.patternNames[marked.pattern].flatMap { ProjectFile.isMarker($0) ? nil : $0 }
         let original = before ?? "Pattern \(marked.pattern)"
-        try link.setNames(.patterns, [(index: index, name: plan.patterns.names[index] ?? original)])
-        result.playlist = try link.listPlaylist(limit: layout.count)
+        try waitUntilCalm(channels: result.channels.count)
+        try retrying { try link.setNames(.patterns, [(index: index, name: plan.patterns.names[index] ?? original)]) }
+        result.playlist = try retrying { try link.listPlaylist(limit: layout.count) }
         plan.playlist = plan.replannedPlaylist(result, styles: styles)
+    }
+
+    /// FL a ouvert la copie mais charge encore ses plugins (« Opening: Fruity Wrapper ») : il ne répond pas toujours à
+    /// temps (vidéo du propriétaire : « FL n'a pas confirmé », et rien d'autre ne s'est fait). La suite attend qu'il
+    /// réponde vite trois fois de suite (2 minutes au plus).
+    static let calmChecks = 240
+
+    private func waitUntilCalm(channels: Int) throws {
+        var calm = 0
+        for _ in 0..<Self.calmChecks {
+            wait(0.5)
+            let asked = Date()
+            let answered = (try? link.listChannels())?.count == channels
+            calm = answered && Date().timeIntervalSince(asked) < 1 ? calm + 1 : 0
+            if calm >= 3 { return }
+        }
+        throw OrganizerError.failed(String(localized: "FL met trop de temps à ouvrir la copie rangée : attends qu'il ait fini, puis relance l'Organiser. Ton projet n'a pas bougé."))
+    }
+
+    /// Une demande à FL réessayée (3 fois, une seconde d'écart) : juste après l'ouverture, FL peut encore être occupé.
+    /// Un refus de FL n'est pas réessayé.
+    private func retrying<T>(_ request: () throws -> T) throws -> T {
+        var last: Error = OrganizerError.noResponse
+        for attempt in 0..<3 {
+            if attempt > 0 { wait(1) }
+            do {
+                return try request()
+            } catch OrganizerError.refused(let reason) {
+                throw OrganizerError.refused(reason)
+            } catch {
+                last = error
+            }
+        }
+        throw last
     }
 
     /// Sons sans aucune note supprimés : sélectionnés seuls par le script (relus), Channel rack devant, puis « Delete
