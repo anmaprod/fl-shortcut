@@ -76,12 +76,23 @@ struct MacroCreatorView: View {
     /// Flèche ← : retour aux raccourcis (avec la question « Enregistrer ou supprimer » si besoin).
     let onBack: () -> Void
     @Environment(\.undoManager) private var undoManager
+    @Environment(\.flightCenter) private var flights
     @AppStorage(Appearance.glassKey) private var glassEnabled = true
+    /// Bloc ajouté d'un clic dans la palette : son vol vers sa ligne suffit (pas de second vol vers l'inspecteur).
+    @State private var addedFromPalette = false
 
     var body: some View {
         NavigationSplitView {
-            MacroPaletteView(items: model.paletteItems, insert: { [model] item in
+            MacroPaletteView(items: model.paletteItems, insert: { [model, flights] item in
+                addedFromPalette = true
                 withAnimation(MacroStepsPane.spring) { model.insert(item) }
+                // Ajouté d'un clic : son icône vole de la palette jusqu'à sa ligne (lue après la mise en page).
+                DispatchQueue.main.async { [weak model] in
+                    addedFromPalette = false
+                    guard let block = model?.selectedBlock, block.body.type == item.type else { return }
+                    flights?.fly(.icon(symbol: item.symbol, tint: item.category.tint, size: 22),
+                                 from: "palette.\(item.id)", to: "bloc.\(block.id)")
+                }
             })
                 .navigationSplitViewColumnWidth(min: 190, ideal: 230, max: 300)
         } detail: {
@@ -115,6 +126,18 @@ struct MacroCreatorView: View {
             model.handle(link.request)                  // déjà fait avant l'ouverture : sans effet
         }
         .onChange(of: link.request) { request in model.handle(request) }
+        .onChange(of: model.selection) { _ in flyToInspector() }
+    }
+
+    /// Bloc choisi à la souris (pas aux flèches du clavier, pas ajouté depuis la palette) : son icône vole de sa
+    /// ligne jusqu'en haut de l'inspecteur.
+    private func flyToInspector() {
+        guard !addedFromPalette, let type = NSApp.currentEvent?.type, type == .leftMouseDown || type == .leftMouseUp,
+              let block = model.selectedBlock, let spec = block.body.type.map(BlockRegistry.spec) else { return }
+        DispatchQueue.main.async {
+            flights?.fly(.icon(symbol: spec.symbol, tint: spec.category.tint, size: 30), from: "bloc.\(block.id)",
+                         to: InspectorFlight.icon)
+        }
     }
 
     // MARK: Barre d'outils
@@ -200,6 +223,7 @@ private struct MacroStepsPane: View {
         List(selection: $model.selection) {
             ForEach(model.rows) { row in
                 MacroStepRowView(row: row, status: status(row), current: monitor.current == row.blockID && row.kind == .block,
+                                 landed: model.landed == row.blockID && row.kind == .block,
                                  onToggle: { on in model.setEnabled(row.blockID, on) })
                     .equatable()
                     .tag(row.id)
@@ -296,22 +320,25 @@ private struct MacroStepsPane: View {
 
     private func actionButtons(hint: Bool) -> some View {
         HStack(spacing: 10) {
-            AddBlockMenu(items: paletteItems, insert: { [model] item in withAnimation(Self.spring) { model.insert(item) } })
-            Button {
-                withAnimation(Self.spring) { model.duplicateSelection() }
-            } label: {
-                Label("Dupliquer", systemImage: "plus.square.on.square")
+            // Gouttes de verre : « Dupliquer » et « Supprimer » sortent de « Ajouter » quand un bloc est choisi.
+            LiquidDropsBar(showsExtra: model.selectedBlock != nil) {
+                AddBlockMenu(items: paletteItems, insert: { [model] item in withAnimation(Self.spring) { model.insert(item) } })
+            } duplicate: {
+                Button {
+                    withAnimation(Self.spring) { model.duplicateSelection() }
+                } label: {
+                    Label("Dupliquer", systemImage: "plus.square.on.square")
+                }
+                .keyboardShortcut("d", modifiers: .command)
+                .help("Dupliquer le bloc choisi (⌘D)")
+            } delete: {
+                Button {
+                    withAnimation(Self.spring) { model.deleteSelection() }
+                } label: {
+                    Label("Supprimer", systemImage: "trash")
+                }
+                .help("Supprimer le bloc choisi (⌫)")
             }
-            .keyboardShortcut("d", modifiers: .command)
-            .disabled(model.selectedBlock == nil)
-            .help("Dupliquer le bloc choisi (⌘D)")
-            Button {
-                withAnimation(Self.spring) { model.deleteSelection() }
-            } label: {
-                Label("Supprimer", systemImage: "trash")
-            }
-            .disabled(model.selectedBlock == nil)
-            .help("Supprimer le bloc choisi (⌫)")
             Spacer(minLength: 8)
             if hint {
                 Text("Glisse les lignes pour les ranger")
@@ -417,10 +444,12 @@ private struct MacroStepRowView: View, Equatable {
     let row: MacroStepRow
     let status: MacroRunMonitor.Status?
     let current: Bool
+    /// Bloc qui vient d'être posé : son fond s'éclaire de sa couleur, puis s'éteint (ressort vif).
+    let landed: Bool
     let onToggle: (Bool) -> Void
 
     static func == (a: MacroStepRowView, b: MacroStepRowView) -> Bool {
-        a.row == b.row && a.status == b.status && a.current == b.current
+        a.row == b.row && a.status == b.status && a.current == b.current && a.landed == b.landed
     }
 
     private var indent: CGFloat { CGFloat(row.depth) * 22 }
@@ -446,6 +475,8 @@ private struct MacroStepRowView: View, Equatable {
                 .foregroundStyle(.secondary)
                 .frame(minWidth: 24, alignment: .trailing)
             SectionIcon(symbol: row.symbol, tint: tint, size: 22)
+                .frameProbe("bloc.\(row.blockID)")
+                .flightTarget("bloc.\(row.blockID)")
             VStack(alignment: .leading, spacing: 2) {
                 sentence
                 if let note = row.note {
@@ -465,6 +496,8 @@ private struct MacroStepRowView: View, Equatable {
         .padding(.vertical, 3)
         .opacity(row.enabled ? 1 : 0.45)
         .background(stateBackground)
+        .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(tint.opacity(landed ? 0.25 : 0))
+            .motion(Motion.spring(.vif), value: landed))
         .menuHover(tint: tint, cornerRadius: 8)
         .accessibilityElement(children: .combine)
         .accessibilityLabel(accessibilityText)

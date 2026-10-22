@@ -81,6 +81,7 @@ struct MacroPaletteView: View {
     private func label(_ item: PaletteItem) -> some View {
         HStack(spacing: 8) {
             SectionIcon(symbol: item.symbol, tint: item.category.tint, size: 22)
+                .frameProbe("palette.\(item.id)")          // départ du vol vers sa ligne
             Text(item.label).lineLimit(1)
             Spacer(minLength: 4)
             if item.soon {
