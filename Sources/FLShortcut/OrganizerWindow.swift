@@ -363,6 +363,8 @@ final class OrganizerController: ObservableObject {
     @Published var options = OrganizerOptions()
     /// Ce que la dernière application a fait de plus (sons supprimés, Playlist rangée ou non).
     @Published private(set) var lastApply: ApplyOutcome?
+    /// Où en est l'application (« FL ouvre la copie rangée… 12 s ») ; nil : le texte général.
+    @Published private(set) var applyStep: String?
     /// En attente de FL : l'aide détaillée (réglages de FL, dossier du script) dépliée.
     @Published var showLinkHelp = false
 
@@ -505,6 +507,7 @@ final class OrganizerController: ObservableObject {
     var diagnosticText: String {
         var lines = ["FL Shortcuts · diagnostic de l'Organiser", env.about(), "étape=\(Self.phaseCode(phase))"]
         if let diagnostics { lines.append(diagnostics.text) }
+        if let trace = lastApply?.trace, !trace.isEmpty { lines.append("application=" + trace.joined(separator: " ; ")) }
         return lines.filter { !$0.isEmpty }.joined(separator: "\n")
     }
 
@@ -655,8 +658,9 @@ final class OrganizerController: ObservableObject {
         return OrganizerApplier.plannedColors(families: families, styles: styles, order: order)
     }
 
-    /// Analyse sur le fichier, Playlist cochée : tout se fait dans une copie rangée du projet (OrganizerProjectFile).
-    var organizesCopy: Bool { result?.project != nil && options.playlist }
+    /// Analyse sur le fichier : tout se fait dans une copie rangée du projet (OrganizerProjectFile), Channel rack sur
+    /// « All » ; sa Playlist n'est rangée que si « Playlist » est cochée.
+    var organizesCopy: Bool { result?.project != nil }
 
     /// Une ligne par page de FL touchée, pour l'aperçu : combien d'éléments seront rangés, colorés, renommés.
     var summary: [(symbol: String, text: String)] {
@@ -699,7 +703,7 @@ final class OrganizerController: ObservableObject {
             if let silent = result?.project?.silentPatterns, silent > 0 {
                 out.append(("moon.zzz", String(localized: "\(silent) patterns sans aucune note (rien n'y joue) : chacun sur sa piste, en bas de la Playlist")))
             }
-        } else if organizesCopy {
+        } else if organizesCopy, options.playlist {
             out.append(("exclamationmark.triangle", String(localized: "Playlist : il faudrait plus de pistes que FL n'en a pour mettre chaque son sur la sienne ; décoche « Playlist » pour ranger le reste.")))
         } else if options.playlist, options.splitTracks, env.canReadPlaylist() {
             out.append(("square.split.1x2", String(localized: "Playlist : un son par piste, et les clips d'un même son réunis sur sa piste (FL Shortcuts lit la fenêtre de FL au moment de les déplacer)")))
@@ -761,11 +765,15 @@ final class OrganizerController: ObservableObject {
         env.saveStyles(styles)
         env.focusFL()                                         // ⌥↑, ⌥← et F2 vont à FL
         phase = .applying
+        applyStep = nil
         let applier = OrganizerApplier(link: link, moveUp: env.moveUp(link), moveLeft: env.moveLeft(link),
                                        placeIcon: env.placeIcon, deleteSelected: env.deleteSelected(link),
                                        moveTrack: env.moveTrack(link), moveClips: env.moveClips(link),
                                        readClips: env.readClips(link), moveClip: env.moveClip(link),
-                                       wait: env.sleep, listen: env.timing.trackListen, files: env.projectFiles())
+                                       wait: env.sleep, listen: env.timing.trackListen, files: env.projectFiles(),
+                                       report: { [weak self] text in
+                                           DispatchQueue.main.async { self?.applyStep = text }
+                                       })
         let plan = self.plan, styles = self.styles
         queue.async { [weak self] in
             let outcome = applier.apply(plan, result: result, styles: styles)
@@ -1079,9 +1087,10 @@ struct OrganizerView: View {
         case .preview:
             preview
         case .applying:
-            working(controller.organizesCopy
+            working(controller.applyStep.map { $0 + " " + String(localized: "Ne touche pas à FL.") }
+                ?? (controller.organizesCopy
                 ? String(localized: "FL ouvre la copie rangée de ton projet, puis tout s'y range… Ne touche pas à FL.")
-                : String(localized: "Application dans FL… Ne touche pas à FL."))
+                : String(localized: "Application dans FL… Ne touche pas à FL.")))
         case .undoing:
             working(String(localized: "Retour comme avant…"))
         case .applied(let error):

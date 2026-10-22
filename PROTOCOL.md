@@ -174,7 +174,7 @@ unités  = [4, 1, 3, 96, 69, 58, 4, 75, 0, 105, 99, 107]
 MAC     = [116, 112, 71, 62]
 ```
 
-## 8. Organiser et dégradé (script v5, Playlist : script v6, tout le projet : script v12, bus et relevé continu : v13, suppression et chanson entière : v14, un son par piste : v15)
+## 8. Organiser et dégradé (script v5, Playlist : script v6, tout le projet : script v12, bus et relevé continu : v13, suppression et chanson entière : v14, un son par piste : v15, tous les canaux (« All ») : v16)
 
 Opérations 2 à 12 de la commande avec données (§7), annoncées par le bit **42** du masque de capacités (le bit 41
 seul = opération 1 seulement). Un script qui annonce 42 a aussi `utils.ColorToRGB` et `utils.RGBToColor` de FL.
@@ -192,14 +192,19 @@ redémarré, sans rien avoir touché.
 - Index sur 2 octets, poids fort d'abord. Genre : 1 = canaux du Channel rack, 2 = pistes du Mixer, 3 = pistes de
   la Playlist (index 0 = piste 1 de FL ; l'API de la Playlist compte depuis 1), 4 = patterns (script v12 ; index 0 =
   pattern 1 de FL).
+- Les canaux sont comptés dans le groupe que le Channel rack affiche (« Unsorted »…). Script v16, API 33 : le genre
+  5 de l'opération 2 et le drapeau 1 des opérations 3 et 6 les comptent dans « All » (index globaux, groupes
+  masqués compris). L'analyse sur le fichier s'en sert : l'utilisateur n'a pas à choisir « All ». Un script plus
+  ancien refuse le genre 5 (raison 5), un FL d'avant l'API 33 aussi (raison 6) : l'appli liste alors le groupe
+  affiché, comme avant. La copie rangée s'ouvre sur « All » (§9, événement 146).
 
 | Opération | Données | Effet |
 |---|---|---|
 | op 2 : liste | genre, début (2) | réponse `[genre, total (2), début (2), n, filtré]` puis n entrées (8 au plus ; 16 avant la v12). Canal : `[type, piste du Mixer (2), R, G, B, longueur, nom]` (type 0 avant l'API 19) ; piste du Mixer : `[R, G, B, longueur, nom]` ; piste de la Playlist : `[sélectionnée, R, G, B, longueur, nom]` (sélectionnée = 0 avant l'API 12) ; pattern : `[R, G, B, longueur, nom]`. Noms UTF-8 coupés à 48 octets (24 avant la v12) sans couper un caractère : aperçu, et noms remis par « Revenir comme avant ». filtré = 1 si le Channel rack montre un groupe (les index des opérations 2 à 6 sont alors ceux du groupe affiché ; l'appli organise ce groupe) |
-| op 3 : note d'essai | canal (2), note, vélocité | `channels.midiNoteOn` ; vélocité 0 = arrêt |
+| op 3 : note d'essai | canal (2), note, vélocité, drapeaux (facultatif, script v16) | `channels.midiNoteOn` ; vélocité 0 = arrêt ; drapeau 1 : canal compté dans « All » (API 33, sinon raison 6) |
 | op 4 : couleurs | genre, n, (index (2), R, G, B) × n | n ≤ 64 ; tout est vérifié avant de poser la première couleur ; patterns : `patterns.setPatternColor` (script v12) |
 | op 5 : sélection | genre, index (2) | cet élément seul sélectionné (`selectOneChannel` API 8 ; Mixer `setActiveTrack` API 27, sinon `deselectAll` + `selectTrack` ; piste de la Playlist, script v14 : `deselectAll` + `selectTrack`, API 12 — son menu « Move up » remonte la piste sélectionnée) |
-| op 6 : écoute d'un canal | canal (2), pattern (2) facultatif (script v11) | FL qui joue sans écoute en cours → raison 4, rien n'est touché. 1er appel : mémo des sourdines de tous les canaux (API 33 : de tout le projet, groupes du Channel rack masqués compris ; avant : les canaux affichés), du mode (pattern / song), de la position et du métronome (allumé : éteint pendant l'écoute, rallumé à la remise, op 7). Puis ce canal seul audible (canal 0xFFFF : tous audibles, pour repérer les sons d'un pattern ; script v12 : les canaux coupés par l'utilisateur aussi, leurs sons comptent), dans le pattern donné (1 = le premier ; le pattern ouvert est remis par l'op 7) (on ne bascule que les sourdines qui doivent changer), mode pattern, position 0, lecture |
+| op 6 : écoute d'un canal | canal (2), pattern (2) facultatif (script v11), drapeaux (facultatif, script v16 : 1 = canal compté dans « All », API 33, sinon raison 6 ; pattern 0 = celui qui est ouvert) | FL qui joue sans écoute en cours → raison 4, rien n'est touché. 1er appel : mémo des sourdines de tous les canaux (API 33 : de tout le projet, groupes du Channel rack masqués compris ; avant : les canaux affichés), du mode (pattern / song), de la position et du métronome (allumé : éteint pendant l'écoute, rallumé à la remise, op 7). Puis ce canal seul audible (canal 0xFFFF : tous audibles, pour repérer les sons d'un pattern ; script v12 : les canaux coupés par l'utilisateur aussi, leurs sons comptent), dans le pattern donné (1 = le premier ; le pattern ouvert est remis par l'op 7) (on ne bascule que les sourdines qui doivent changer), mode pattern, position 0, lecture |
 | op 7 : fin de l'écoute | — | arrêt, sourdines, mode et position remis comme au mémo, mémo vidé ; **sans effet** sans mémo (la lecture de l'utilisateur n'est jamais coupée). Aussi fait par le script quand il se rendort ou est déchargé |
 | op 8 : dégradé | First R, G, B, Last R, G, B | page devant (comme l'op 1) ; tous les éléments sélectionnés, du premier au dernier ; composante k = `int(a + (b − a) × k / (n − 1) + 0,5)`, comme « Gradient color… » de FL. 0 sélectionné → raison 2, 1 seul → raison 7 |
 | op 9 : page devant | — | réponse `[code]` : le code de la page devant (§3, CC 117 : 0 Mixer, 1 Channel rack, 2 Playlist, 3 Piano roll, 4 Browser, 5 plugin, 127 aucune). L'appli le demande avant d'organiser : en mode léger, rien n'est su de FL avant le réveil |
@@ -267,11 +272,17 @@ avant de commencer : c'est le point de retour). Vérifié sur le projet de test 
   celle où chaque clip porte 0x5000 à la place 4). Dans un clip : début (4 octets, en pas), 0x5000 (2), numéro (2 :
   au-delà de 0x5000, un pattern ; sinon un canal : clip audio, automation), longueur (4), piste à l'envers (2 :
   499 = piste 1 quand il y a 500 pistes). Puis chaque piste : 238 (numéro à partir de 1, couleur à la place 4, 1 à la
-  place 12 si elle joue, 0 si elle est coupée…), 239 son nom s'il en a un.
+  place 12 si elle joue, 0 si elle est coupée…), 239 son nom s'il en a un. Plusieurs arrangements : 100, écrit après
+  eux, dit celui qui est ouvert (son 99) ; c'est lui qui est rangé, les autres ne bougent pas.
+- **Channel rack** : 146, écrit avant les canaux, est le groupe qu'il affiche (-1, soit FF FF FF FF : « All »).
 - **La copie** ne change que la piste de chaque clip (place 12), et, pour les pistes où il y avait ou où il y a des
-  clips, leur nom (239 retiré), leur couleur (celle des pistes jamais touchées) et leur mute (elles jouent) ; le premier pattern nommé prend un
-  nom « FL Shortcuts nnnn » (FL a ouvert la copie quand le script le lit), remis aussitôt par le script.
+  clips, leur nom (239 retiré), leur couleur (celle des pistes jamais touchées) et leur mute (elles jouent) ; son
+  Channel rack montre « All » (146). Elle est faite même sans ranger la Playlist (seul « All » change alors). Le
+  premier pattern nommé prend un nom « FL Shortcuts nnnn » (FL a ouvert la copie quand le script le lit, ou quand la
+  fenêtre de FL porte son nom), remis aussitôt par le script ; sans pattern nommé, le premier pattern décrit sans
+  nom ; sinon (un seul pattern jamais nommé) le premier canal nommé (203), qui reprend ensuite son nom.
 - **Arrêt sans rien toucher** : fichier abîmé, forme inattendue (taille de clip ambiguë, pistes avec un trou, note d'un
-  canal inconnu, plusieurs arrangements avec des clips), un clip sur une piste coupée, fichier qui n'est pas le
-  projet ouvert (autres canaux ou patterns ; ou le Channel rack qui ne montre qu'un groupe), dossier refusé par macOS
+  canal inconnu, plusieurs arrangements avec des clips sans savoir lequel est ouvert), un clip sur une piste coupée,
+  fichier qui n'est pas le projet ouvert (autres canaux ou patterns ; avant la v16 du script ou l'API 33, le Channel
+  rack qui ne montre qu'un groupe), dossier refusé par macOS
   (Fichiers et dossiers : textes dans Info.plist), ou projet changé entre l'analyse et « Organiser ».

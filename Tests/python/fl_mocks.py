@@ -324,11 +324,6 @@ def build_fl(api=45, missing=(), extra=None, **kw):
 
     # channels
     reg("channels", "channelCount", 1, lambda *a: st.n_channels_global if a and a[0] else st.n_channels)
-    reg("channels", "getChannelName", 1, lambda i, *a: (chk_chan(i), st.ch_names[i])[1])
-    reg("channels", "getChannelColor", 1, lambda i, *a: (chk_chan(i), st.ch_colors[i])[1])
-    reg("channels", "getChannelType", 19, lambda i, *a: (chk_chan(i), st.ch_types[i])[1])
-    reg("channels", "getTargetFxTrack", 1, lambda i, *a: (chk_chan(i), st.ch_fx[i])[1])
-    reg("channels", "getChannelIndex", 1, lambda i: (chk_chan(i), st.ch_group[i])[1])
 
     def global_chan(i, use_global):
         """Index global du canal : `i` lui-même avec useGlobalIndex (API 33), sinon le i-ème canal affiché."""
@@ -340,10 +335,29 @@ def build_fl(api=45, missing=(), extra=None, **kw):
         if not isinstance(i, int) or not 0 <= i < st.n_channels_global:
             raise TypeError("Channel index out of range")
         return i
+
+    def chan_getter(field, hidden):
+        """Valeur d'un canal : dans le groupe affiché, ou dans « All » avec useGlobalIndex (les canaux masqués par le
+        groupe prennent `hidden(index global)`)."""
+        def get(i, use_global=False, *a):
+            if not use_global:
+                chk_chan(i)
+                return getattr(st, field)[i]
+            g = global_chan(i, True)
+            shown = [k for k, gi in enumerate(st.ch_group) if gi == g]
+            return getattr(st, field)[shown[0]] if shown else hidden(g)
+        return get
+    reg("channels", "getChannelName", 1, chan_getter("ch_names", lambda g: "Masqué %d" % g))
+    reg("channels", "getChannelColor", 1, chan_getter("ch_colors", lambda g: 0x5F6B78))
+    reg("channels", "getChannelType", 19, chan_getter("ch_types", lambda g: 2))
+    reg("channels", "getTargetFxTrack", 1, chan_getter("ch_fx", lambda g: g + 1))
+    reg("channels", "getChannelIndex", 1, lambda i: (chk_chan(i), st.ch_group[i])[1])
     reg("channels", "isChannelMuted", 1, lambda i, g=False: global_chan(i, g) in st.ch_muted)
 
     def note_on(i, note, vel, *a):
-        chk_chan(i)
+        # Index global (comme dans FL) : tous les canaux, même masqués par le groupe affiché.
+        if not isinstance(i, int) or not 0 <= i < st.n_channels_global:
+            raise TypeError("Channel index out of range")
         st.notes.append((i, note, vel))
     reg("channels", "midiNoteOn", 1, note_on)
     reg("channels", "channelNumber", 1, lambda *a: st.channel)

@@ -186,6 +186,8 @@ struct ApplyOutcome: Equatable {
     /// La copie rangée ouverte dans FL ; FL ne l'a pas enregistrée à la fin (à faire soi-même : ⌘S).
     var copy: URL?
     var copyNotSaved = false
+    /// Étapes de l'application en mots et nombres (diagnostic : jamais un nom).
+    var trace: [String] = []
 }
 
 extension OrganizerResult {
@@ -240,6 +242,10 @@ final class OrganizerApplier {
     /// la copie pour savoir que FL l'a ouverte.
     private let files: ProjectFileAccess?
     private let marker: String
+    /// Où en est l'application (texte pour la fenêtre : « FL ouvre la copie rangée… 12 s »).
+    private let report: (String) -> Void
+    /// Fois où une page de FL a été remise devant pendant les déplacements (diagnostic).
+    private var restored = 0
 
     /// `moveUp(n)` envoie ⌥↑ n fois à FL seul (Channel rack devant), `moveLeft(n)` ⌥← (Mixer devant) ; chacun
     /// renvoie le nombre de pas faits. `placeIcon` pose une icône sur l'élément sélectionné par la fenêtre de FL
@@ -259,9 +265,11 @@ final class OrganizerApplier {
          wait: @escaping (TimeInterval) -> Void = { Thread.sleep(forTimeInterval: $0) },
          listen: TimeInterval = 1.5,
          files: ProjectFileAccess? = nil,
-         marker: String = ProjectFile.marker(Int.random(in: 1000...9999))) {
+         marker: String = ProjectFile.marker(Int.random(in: 1000...9999)),
+         report: @escaping (String) -> Void = { _ in }) {
         self.files = files
         self.marker = marker
+        self.report = report
         self.link = link
         self.moveUp = moveUp
         self.moveLeft = moveLeft
@@ -349,9 +357,13 @@ final class OrganizerApplier {
         var verified = true
         var plan = plan
         var result = result
+        restored = 0
         do {
-            if let project = result.project, plan.source?.options.playlist == true {
-                try openOrganizedCopy(project, &plan, &result, &outcome, styles: styles)
+            if let project = result.project {
+                // Toujours dans une copie (son Channel rack sur « All ») ; la Playlist n'y est rangée que si on l'a
+                // demandé.
+                try openOrganizedCopy(project, &plan, &result, &outcome, styles: styles,
+                                      arrange: plan.source?.options.playlist == true)
             }
             if !plan.deleted.isEmpty {
                 if let shifted = try deleteUnused(plan.deleted, result) {
@@ -429,6 +441,7 @@ final class OrganizerApplier {
         } catch {
             outcome.error = Self.failure(error)
         }
+        if restored > 0 { outcome.trace.append("page remise \(restored)") }
         return outcome
     }
 
@@ -443,13 +456,16 @@ final class OrganizerApplier {
     /// « Revenir comme avant » le rouvre.
     private func openOrganizedCopy(_ project: ProjectSnapshot, _ plan: inout OrganizerPlan,
                                    _ result: inout OrganizerResult, _ outcome: inout ApplyOutcome,
-                                   styles: [SoundFamily: FamilyStyle]) throws {
+                                   styles: [SoundFamily: FamilyStyle], arrange: Bool) throws {
         guard let files else {
             throw OrganizerError.failed(String(localized: "Le fichier de ton projet n'est pas accessible : rien n'a été touché."))
         }
-        guard let layout = plan.layout else {
+        let layout = arrange ? plan.layout : nil
+        if arrange && layout == nil {
             throw OrganizerError.failed(String(localized: "Ta Playlist a plus de pistes à remplir que FL n'en a : rien n'a été touché."))
         }
+        // La copie montre tous les sons (« All ») : le groupe affiché, compté par le script, est celui de l'analyse.
+        link.allChannels = false
         let read = try ProjectFile.read(files, known: project.url, channels: result.channels, patterns: result.patterns)
         let notSounds = Set(result.channels.filter { $0.type == ChannelInfo.automationType }.map(\.index))
         guard read.project.clips == project.clips,
@@ -458,7 +474,8 @@ final class OrganizerApplier {
         }
         let copy: FLPFile
         do {
-            copy = try read.project.rearranged(read.file, tracks: layout.tracks)
+            copy = try layout.map { try read.project.rearranged(read.file, tracks: $0.tracks) }
+                ?? read.project.showingAll(read.file)
         } catch {
             let what = "clips"
             throw OrganizerError.failed(String(localized: "L'Organiser ne sait pas encore ranger ce projet sans risque (\(what)) : rien n'a été touché."))
@@ -479,27 +496,57 @@ final class OrganizerApplier {
         }
         outcome.copy = url
         outcome.snapshot.original = read.url
-        MacroLog.shared.write("ORGANIZE", "organized copy written (\(project.clips.count) clips, \(layout.count) tracks), opening")
-        let index = marked.pattern - 1
+        MacroLog.shared.write("ORGANIZE", "organized copy written (\(project.clips.count) clips, \(layout?.count ?? 0) tracks), opening")
+        // FL l'a ouverte quand le script lit la marque, ou quand sa fenêtre porte le nom de la copie.
+        report(String(localized: "FL ouvre la copie rangée…"))
+        let started = Date()
         var opened = false
-        for _ in 0..<Self.openChecks {
+        for check in 0..<Self.openChecks {
             wait(0.5)
-            if let name = (try? link.listPatterns())?.first(where: { $0.index == index })?.name,
-               ProjectFile.same(name, marker) {
+            if showsMark(marked.mark) || files.isOpen(url) {
                 opened = true
                 break
             }
+            if check % 4 == 3 {
+                let seconds = Int(Date().timeIntervalSince(started))
+                report(String(localized: "FL ouvre la copie rangée… \(seconds) s"))
+            }
         }
+        outcome.trace.append("ouverture=\(opened ? "oui" : "non") \(Int(Date().timeIntervalSince(started))) s")
         guard opened else {
             throw OrganizerError.failed(String(localized: "FL n'a pas ouvert la copie rangée à temps : elle est à côté de ton projet, ouvre-la dans FL, puis relance l'Organiser. Ton projet n'a pas bougé."))
         }
-        // Son nom d'avant ; une marque restée d'un essai où FL l'avait ouverte trop tard n'est jamais reprise.
-        let before = read.project.patternNames[marked.pattern].flatMap { ProjectFile.isMarker($0) ? nil : $0 }
-        let original = before ?? "Pattern \(marked.pattern)"
+        report(String(localized: "FL charge les sons de la copie…"))
+        let calmFrom = Date()
         try waitUntilCalm(channels: result.channels.count)
-        try retrying { try link.setNames(.patterns, [(index: index, name: plan.patterns.names[index] ?? original)]) }
-        result.playlist = try retrying { try link.listPlaylist(limit: layout.count) }
-        plan.playlist = plan.replannedPlaylist(result, styles: styles)
+        outcome.trace.append("calme \(Int(Date().timeIntervalSince(calmFrom))) s")
+        // La marque remise : le nom d'avant (une marque restée d'un essai où FL l'avait ouverte trop tard n'est jamais
+        // reprise). Un canal garde son nom d'avant (le Channel rack est comparé à l'analyse avant les suppressions).
+        switch marked.mark {
+        case .pattern(let n):
+            let before = read.project.patternNames[n].flatMap { ProjectFile.isMarker($0) ? nil : $0 }
+            let name = plan.patterns.names[n - 1] ?? before ?? "Pattern \(n)"
+            try retrying { try link.setNames(.patterns, [(index: n - 1, name: name)]) }
+        case .channel(let c):
+            let before = read.project.channels[c].name.flatMap { ProjectFile.isMarker($0) ? nil : $0 }
+            let name = before ?? result.channels.first { $0.index == c }?.name ?? "Channel \(c + 1)"
+            try retrying { try link.setNames(.channels, [(index: c, name: name)]) }
+        }
+        report(String(localized: "Rangement dans la copie…"))
+        if let layout {
+            result.playlist = try retrying { try link.listPlaylist(limit: layout.count) }
+            plan.playlist = plan.replannedPlaylist(result, styles: styles)
+        }
+    }
+
+    /// La marque de la copie, lue par le script.
+    private func showsMark(_ mark: ProjectFile.Mark) -> Bool {
+        let name: String?
+        switch mark {
+        case .pattern(let n): name = (try? link.listPatterns())?.first { $0.index == n - 1 }?.name
+        case .channel(let c): name = (try? link.listChannels())?.first { $0.index == c }?.name
+        }
+        return name.map { ProjectFile.same($0, marker) } ?? false
     }
 
     /// FL a ouvert la copie mais charge encore ses plugins (« Opening: Fruity Wrapper ») : il ne répond pas toujours à
@@ -507,16 +554,24 @@ final class OrganizerApplier {
     /// réponde vite trois fois de suite (2 minutes au plus).
     static let calmChecks = 240
 
-    private func waitUntilCalm(channels: Int) throws {
+    private func waitUntilCalm(channels expected: Int) throws {
         var calm = 0
+        var count = -1
         for _ in 0..<Self.calmChecks {
             wait(0.5)
             let asked = Date()
-            let answered = (try? link.listChannels())?.count == channels
-            calm = answered && Date().timeIntervalSince(asked) < 1 ? calm + 1 : 0
-            if calm >= 3 { return }
+            let listed = try? link.listChannels()
+            calm = listed != nil && Date().timeIntervalSince(asked) < 1 ? calm + 1 : 0
+            if let listed { count = listed.count }
+            if calm >= 3 { break }
         }
-        throw OrganizerError.failed(String(localized: "FL met trop de temps à ouvrir la copie rangée : attends qu'il ait fini, puis relance l'Organiser. Ton projet n'a pas bougé."))
+        guard calm >= 3 else {
+            throw OrganizerError.failed(String(localized: "FL met trop de temps à ouvrir la copie rangée : attends qu'il ait fini, puis relance l'Organiser. Ton projet n'a pas bougé."))
+        }
+        // La copie montre tous les sons (« All ») : autant que l'analyse, sinon rien ne serait à sa place.
+        guard count == expected else {
+            throw OrganizerError.failed(String(localized: "La copie rangée ouverte dans FL n'a pas les mêmes sons que l'analyse (\(count) au lieu de \(expected)) : rien d'autre n'a été fait. Ton projet n'a pas bougé."))
+        }
     }
 
     /// Une demande à FL réessayée (3 fois, une seconde d'écart) : juste après l'ouverture, FL peut encore être occupé.
@@ -869,16 +924,39 @@ final class OrganizerApplier {
         return out.count == now.count && Set(out).count == out.count ? out : nil
     }
 
+    /// Une page de FL qui n'est plus devant pendant les déplacements (FL qui finit d'ouvrir la copie, une fenêtre de
+    /// plugin : capture du propriétaire, Channel rack à moitié rangé) est remise devant ; arrêt si elle repart encore
+    /// après `pageRetries` fois.
+    static let pageRetries = 4
+
     /// Déplacements un par un (élément sélectionné puis touches) ; la disposition suit ce qui a vraiment été fait.
-    /// `offset` : index FL de la place 0 (Mixer : 1, le Master ne bouge pas).
+    /// `offset` : index FL de la place 0 (Mixer : 1, le Master ne bouge pas). Page plus devant ou touches perdues :
+    /// la page remise devant, puis le reste du déplacement.
     private func move(_ moves: [Move], _ arrangement: inout [Int], page: FLWindow, kind: ItemKind, offset: Int,
                       key: (Int) -> Int) throws {
+        var retries = 0
+        func restore() throws {
+            retries += 1
+            restored += 1
+            guard retries <= Self.pageRetries else { throw OrganizerError.interrupted }
+            try? link.show(page)
+            wait(0.5)
+        }
         for step in moves {
-            guard link.window == page else { throw OrganizerError.interrupted }
-            try link.selectOne(kind, step.from + offset)
-            let done = key(step.up)
-            arrangement = RegroupPlan.applying(Move(from: step.from, up: done), to: arrangement)
-            if done < step.up { throw OrganizerError.interrupted }
+            var place = step.from
+            var left = step.up
+            while left > 0 {
+                guard link.window == page else {
+                    try restore()
+                    continue
+                }
+                try link.selectOne(kind, place + offset)
+                let done = min(max(key(left), 0), left)
+                arrangement = RegroupPlan.applying(Move(from: place, up: done), to: arrangement)
+                place -= done
+                left -= done
+                if done == 0 { try restore() }
+            }
         }
     }
 

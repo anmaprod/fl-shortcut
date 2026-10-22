@@ -126,9 +126,14 @@ enum OrganizerPayload {
     }
 
     static func list(_ kind: ItemKind, start: Int) -> [UInt8] { [2, kind.rawValue] + be16(start) }
+    /// Opération 2, genre 5 (script v16, API 33) : tous les canaux, comptés dans « All » même si le Channel rack
+    /// montre un groupe ; réponse comme pour `.channels`.
+    static func listAllChannels(start: Int) -> [UInt8] { [2, 5] + be16(start) }
+    /// Drapeau des opérations 3 et 6 (script v16) : le canal est compté dans « All ».
+    static let inAll: UInt8 = 1
 
-    static func audition(channel: Int, note: UInt8, velocity: UInt8) -> [UInt8] {
-        [3] + be16(channel) + [min(note, 127), min(velocity, 127)]
+    static func audition(channel: Int, note: UInt8, velocity: UInt8, all: Bool = false) -> [UInt8] {
+        [3] + be16(channel) + [min(note, 127), min(velocity, 127)] + (all ? [inAll] : [])
     }
 
     /// Une commande par paquet de 64 couleurs au plus.
@@ -141,8 +146,9 @@ enum OrganizerPayload {
 
     static func selectOne(_ kind: ItemKind, _ index: Int) -> [UInt8] { [5, kind.rawValue] + be16(index) }
     /// `pattern` : 1 = le premier pattern de FL ; nil : celui qui est ouvert (script v11 pour le pattern).
-    static func playSolo(_ channel: Int, pattern: Int? = nil) -> [UInt8] {
-        [6] + be16(channel) + (pattern.map(be16) ?? [])
+    static func playSolo(_ channel: Int, pattern: Int? = nil, all: Bool = false) -> [UInt8] {
+        // Avec le drapeau, pattern 0 : celui qui est ouvert.
+        all ? [6] + be16(channel) + be16(pattern ?? 0) + [inAll] : [6] + be16(channel) + (pattern.map(be16) ?? [])
     }
     /// Opération 6 sans canal seul : tous audibles (repérage des sons de chaque pattern).
     static let allChannels = 0xFFFF
@@ -421,8 +427,12 @@ protocol OrganizerLink: AnyObject {
     var window: FLWindow { get }
     /// Page de FL devant, demandée au script (opération 9) ; script v5 : celle reçue au réveil (CC 117).
     func page() throws -> FLWindow
+    /// Canaux comptés dans « All » (script v16, API 33), même si le Channel rack montre un groupe : listés, joués
+    /// seuls et notes d'essai (l'analyse sur le fichier, qui a tous les sons). Remis à faux par `listChannels` si le
+    /// script ou FL ne le permettent pas : le groupe affiché est alors listé.
+    var allChannels: Bool { get set }
     /// Canaux affichés par le Channel rack : ceux du groupe choisi s'il en montre un (« Unsorted »…), avec les index
-    /// que les autres opérations attendent.
+    /// que les autres opérations attendent ; tous avec `allChannels`.
     func listChannels() throws -> [ChannelInfo]
     func listMixer() throws -> [MixerTrackInfo]
     /// Les `limit` premières pistes de la Playlist (toutes si elle en a moins).
@@ -495,6 +505,7 @@ final class RequestOrganizerLink: OrganizerLink {
     private let currentWindow: () -> FLWindow
     private let sleep: (TimeInterval) -> Void
     private var last: Date?
+    var allChannels = false
     /// Une opération 9 à 12 a déjà répondu : le script est le v6 (un refus 5 est alors une vraie donnée refusée).
     private var newOpsSeen = false
 
@@ -551,9 +562,21 @@ final class RequestOrganizerLink: OrganizerLink {
     }
 
     func listChannels() throws -> [ChannelInfo] {
+        if allChannels {
+            do {
+                return try channelPages { OrganizerPayload.listAllChannels(start: $0) }
+            } catch OrganizerError.refused(let reason) where reason == 5 || reason == 6 {
+                // Script d'avant la v16 (genre inconnu : 5) ou FL d'avant l'API 33 (6) : le groupe affiché.
+                allChannels = false
+            }
+        }
+        return try channelPages { OrganizerPayload.list(.channels, start: $0) }
+    }
+
+    private func channelPages(_ list: (Int) -> [UInt8]) throws -> [ChannelInfo] {
         var all: [ChannelInfo] = []
         for _ in 0..<Self.maxPages {
-            guard let page = OrganizerPayload.decodeChannels(try send(OrganizerPayload.list(.channels, start: all.count))),
+            guard let page = OrganizerPayload.decodeChannels(try send(list(all.count))),
                   page.start == all.count else { throw OrganizerError.failed(String(localized: "liste des canaux illisible")) }
             all += page.items
             if all.count >= page.total || page.items.isEmpty { return all }
@@ -707,7 +730,9 @@ final class RequestOrganizerLink: OrganizerLink {
     func selectOne(_ kind: ItemKind, _ index: Int) throws { try send(OrganizerPayload.selectOne(kind, index)) }
 
     func playSolo(_ channel: Int, pattern: Int?) throws {
-        if pattern == nil {
+        if allChannels {
+            try send(OrganizerPayload.playSolo(channel, pattern: pattern, all: true))
+        } else if pattern == nil {
             try send(OrganizerPayload.playSolo(channel))
         } else {
             try v11 { try send(OrganizerPayload.playSolo(channel, pattern: pattern)) }
@@ -761,6 +786,6 @@ final class RequestOrganizerLink: OrganizerLink {
     }
 
     func audition(_ channel: Int, note: UInt8, velocity: UInt8) throws {
-        try send(OrganizerPayload.audition(channel: channel, note: note, velocity: velocity))
+        try send(OrganizerPayload.audition(channel: channel, note: note, velocity: velocity, all: allChannels))
     }
 }

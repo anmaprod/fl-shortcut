@@ -382,4 +382,43 @@ final class OrganizerLinkTests: XCTestCase {
         link.stopRestore()                                          // jamais d'erreur ; deux essais
         XCTAssertEqual(calls, 2)
     }
+
+    /// Channel rack sur un groupe (« Unsorted »…) : l'analyse sur le fichier compte tous les canaux, comme « All »
+    /// (script v16) ; un script plus ancien ou FL d'avant l'API 33 : le groupe affiché, comme avant.
+    func testAllChannelsWhateverTheGroup() throws {
+        XCTAssertEqual(OrganizerPayload.listAllChannels(start: 16), [2, 5, 0, 16])
+        XCTAssertEqual(OrganizerPayload.playSolo(3, pattern: nil, all: true), [6, 0, 3, 0, 0, 1], "0 : pattern ouvert")
+        XCTAssertEqual(OrganizerPayload.playSolo(3, pattern: 2, all: true), [6, 0, 3, 0, 2, 1])
+        XCTAssertEqual(OrganizerPayload.audition(channel: 3, note: 60, velocity: 100, all: true), [3, 0, 3, 60, 100, 1])
+        XCTAssertEqual(OrganizerPayload.audition(channel: 3, note: 60, velocity: 100), [3, 0, 3, 60, 100])
+
+        let page: [UInt8] = [1, 0, 1, 0, 0, 1, 0] + [2, 0, 1, 0xE0, 0x45, 0x3A, 4] + Array("Kick".utf8)
+        var sent: [[UInt8]] = []
+        let v16 = RequestOrganizerLink(request: { bytes in
+            sent.append(bytes)
+            return .answered(page)
+        }, window: { .channelRack }, sleep: { _ in })
+        v16.allChannels = true
+        XCTAssertEqual(try v16.listChannels().map(\.name), ["Kick"])
+        try v16.playSolo(0, pattern: 1)
+        try v16.audition(0, note: 60, velocity: 0)
+        XCTAssertEqual(sent, [[2, 5, 0, 0], [6, 0, 0, 0, 1, 1], [3, 0, 0, 60, 0, 1]])
+        XCTAssertTrue(v16.allChannels)
+
+        for reason in [5, 6] {
+            sent = []
+            let old = RequestOrganizerLink(request: { bytes in
+                sent.append(bytes)
+                return bytes[1] == 5 ? .refused(reason) : .answered(page)
+            }, window: { .channelRack }, sleep: { _ in })
+            old.allChannels = true
+            XCTAssertEqual(try old.listChannels().map(\.name), ["Kick"], "\(reason)")
+            XCTAssertFalse(old.allChannels, "le groupe affiché ensuite (\(reason))")
+            try old.playSolo(0, pattern: 1)
+            XCTAssertEqual(sent, [[2, 5, 0, 0], [2, 1, 0, 0], [6, 0, 0, 0, 1]], "\(reason)")
+        }
+        let refused = RequestOrganizerLink(request: { _ in .refused(4) }, window: { .channelRack }, sleep: { _ in })
+        refused.allChannels = true
+        XCTAssertThrowsError(try refused.listChannels()) { XCTAssertEqual($0 as? OrganizerError, .refused(4)) }
+    }
 }

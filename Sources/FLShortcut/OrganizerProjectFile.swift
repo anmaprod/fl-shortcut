@@ -19,6 +19,8 @@ struct ProjectFileAccess {
         try Data(file.encoded()).write(to: url, options: .withoutOverwriting)
     }
     var exists: (URL) -> Bool = { FileManager.default.fileExists(atPath: $0.path) }
+    /// La fenêtre de FL porte le nom de ce fichier (FL l'a ouvert).
+    var isOpen: (URL) -> Bool = { _ in false }
 }
 
 /// Le fichier lu à l'analyse : où il est, chaque clip de la Playlist et ce qu'il joue.
@@ -142,22 +144,33 @@ enum ProjectFile {
         return folder.appendingPathComponent("\(base)_\(UUID().uuidString.prefix(8)).flp")
     }
 
+    /// Ce qui porte la marque de la copie.
+    enum Mark: Equatable {
+        /// Un pattern (1 = pattern 1).
+        case pattern(Int)
+        /// Un canal (rang dans le Channel rack, tous les canaux).
+        case channel(Int)
+    }
+
     /// Pur (testé) : la copie marquée, pour savoir que FL l'a ouverte : le premier pattern nommé (d'un nom que le
     /// script peut remettre en entier) prend le nom `marker` ; le script le lit une fois la copie chargée, puis il est
-    /// remis. Sinon le nom est ajouté au premier pattern décrit qui n'en a pas. Renvoie aussi ce pattern (1 = pattern
-    /// 1) ; nil : aucun pattern possible.
-    static func marking(_ file: FLPFile, marker: String) -> (file: FLPFile, pattern: Int)? {
-        let name = FLPEvent(id: FLPProject.Event.patternName,
-                            bytes: marker.utf16.flatMap { FLPBytes.le(Int($0), size: 2) } + [0, 0])
+    /// remis. Sinon le nom est ajouté au premier pattern décrit qui n'en a pas ; sinon (un seul pattern jamais nommé,
+    /// prod « Mechanical » du propriétaire) il va sur le premier canal nommé. nil : rien de possible.
+    static func marking(_ file: FLPFile, marker: String) -> (file: FLPFile, mark: Mark)? {
+        let text = marker.utf16.flatMap { FLPBytes.le(Int($0), size: 2) } + [0, 0]
+        let name = FLPEvent(id: FLPProject.Event.patternName, bytes: text)
         var out = file
         var pattern: Int?
         var named = Set<Int>()
         var described: [(index: Int, pattern: Int)] = []
+        var channel: (iid: Int, named: Int?)?
+        var channelMark: (index: Int, iid: Int)?
         for (i, event) in file.events.enumerated() {
+            let next = i + 1 < file.events.count ? file.events[i + 1].id : 0
             switch event.id {
             case FLPProject.Event.pattern:
                 pattern = Int(event.value)
-                let next = i + 1 < file.events.count ? file.events[i + 1].id : 0
+                channel = nil
                 // Le pattern et ses notes (224, contrôles 223) ; ou sa description (nom, couleur…).
                 if next != FLPProject.Event.notes, next != 223 { described.append((i, Int(event.value))) }
             case FLPProject.Event.patternName:
@@ -165,17 +178,29 @@ enum ProjectFile {
                 named.insert(pattern)
                 if event.text.utf8.count <= OrganizerPayload.nameBytes {
                     out.events[i] = name
-                    return (out, pattern)
+                    return (out, .pattern(pattern))
                 }
-            case FLPProject.Event.arrangement:
+            case FLPProject.Event.channel where next == FLPProject.Event.channelType:
+                channel = (Int(event.value), nil)
+            case FLPProject.Event.channelName:
+                if let c = channel, c.named == nil {
+                    channel?.named = i
+                    if channelMark == nil, event.text.utf8.count <= OrganizerPayload.nameBytes { channelMark = (i, c.iid) }
+                }
+            case FLPProject.Event.arrangement, FLPProject.Event.mixerName, FLPProject.Event.mixerParams:
                 pattern = nil
+                channel = nil
             default:
                 break
             }
         }
-        guard let free = described.first(where: { !named.contains($0.pattern) }) else { return nil }
-        out.events.insert(name, at: free.index + 1)
-        return (out, free.pattern)
+        if let free = described.first(where: { !named.contains($0.pattern) }) {
+            out.events.insert(name, at: free.index + 1)
+            return (out, .pattern(free.pattern))
+        }
+        guard let channelMark else { return nil }
+        out.events[channelMark.index] = FLPEvent(id: FLPProject.Event.channelName, bytes: text)
+        return (out, .channel(channelMark.iid))
     }
 
     /// Nom de pattern qui marque la copie : jamais celui d'un son.

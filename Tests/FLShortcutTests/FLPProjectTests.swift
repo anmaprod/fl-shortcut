@@ -82,6 +82,46 @@ final class FLPProjectTests: XCTestCase {
         }
     }
 
+    /// Plusieurs arrangements (retour du propriétaire : « si j'en ai deux il bloque ») : celui qui est ouvert dans FL
+    /// est rangé, l'autre ne bouge pas ; sans savoir lequel est ouvert, rien n'est deviné.
+    func testOpenArrangementIsTheOneOrganized() throws {
+        let second = [FLPSample.ClipSpec(pattern: 2, track: 0, bar: 1)]
+        let file = FLPSample.sample(second: second, current: 1)
+        let open = try FLPProject(file)
+        XCTAssertEqual(open.clips.map(\.source), [.pattern(2)])
+        XCTAssertEqual(open.trackCount, 12)
+        XCTAssertEqual(try FLPProject(FLPSample.sample(second: second, current: 0)).clips.count, 6)
+        XCTAssertThrowsError(try FLPProject(FLPSample.sample(second: second))) {
+            XCTAssertEqual($0 as? FLPError, .unsupported("arrangements"))
+        }
+        XCTAssertEqual(try FLPProject(FLPSample.sample(second: [])).clips.count, 6, "un seul a des clips")
+        let copy = try open.rearranged(file, tracks: [0: 3])
+        XCTAssertEqual(try FLPProject(copy).clips.map(\.track), [3])
+        let playlists: (FLPFile) -> [FLPEvent] = { $0.events.filter { $0.id == 233 } }
+        XCTAssertEqual(playlists(copy).first, playlists(file).first, "l'autre arrangement ne bouge pas")
+        let first: (FLPFile) -> [FLPEvent] = { f in
+            let at = f.events.firstIndex { $0.id == 99 && $0.value == 1 }!
+            return Array(f.events[..<at].filter { $0.id == 238 || $0.id == 239 })
+        }
+        XCTAssertEqual(first(copy), first(file), "ni ses pistes")
+    }
+
+    /// Channel rack sur un groupe (« Unsorted »…) : la copie le montre sur « All », rien d'autre ne change.
+    func testCopyShowsAllChannels() throws {
+        let file = FLPSample.sample(group: 2)
+        let project = try FLPProject(file)
+        XCTAssertTrue(project.showsGroup)
+        let all = project.showingAll(file)
+        XCTAssertFalse(try FLPProject(all).showsGroup)
+        XCTAssertEqual(all.events.filter { $0.id == 146 }.map(\.bytes), [[0xFF, 0xFF, 0xFF, 0xFF]])
+        XCTAssertEqual(all.events.filter { $0.id != 146 }, file.events.filter { $0.id != 146 })
+        let copy = try project.rearranged(file, tracks: [:])
+        XCTAssertEqual(copy.events.filter { $0.id == 146 }.map(\.bytes), [[0xFF, 0xFF, 0xFF, 0xFF]])
+        XCTAssertFalse(try FLPProject(FLPSample.sample(group: -1)).showsGroup)
+        XCTAssertEqual(FLPSample.sample().events.filter { $0.id == 146 }, [], "pas écrit : rien à changer")
+        XCTAssertEqual(try FLPProject(FLPSample.sample()).showingAll(FLPSample.sample()), FLPSample.sample())
+    }
+
     func testLayerPlaysItsChildren() throws {
         var file = FLPSample.sample()
         let pad = file.events.firstIndex { $0.id == 203 && $0.text == "Pad" }!

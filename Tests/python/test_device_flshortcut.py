@@ -1280,6 +1280,22 @@ class TestDataV5(TestData):
         _, data = self.answer()
         self.assertEqual(data[6], 1)
 
+    def test_list_all_channels_whatever_the_group(self):
+        # Channel rack sur un groupe : l'Organiser liste quand même tous les canaux (« All », script v16).
+        self.make(n_channels=2, n_channels_global=4, ch_group=[1, 3], ch_names=["Kick", "Bass"])
+        self.data_command([2, 5, 0, 0])
+        op, data = self.answer()
+        self.assertEqual((op, data[:7]), (2, [1, 0, 4, 0, 0, 4, 0]), "genre 1, 4 canaux, jamais filtré")
+        names, rest = [], data[7:]
+        while rest:
+            n = rest[6]
+            names.append(bytes(rest[7:7 + n]).decode())
+            rest = rest[7 + n:]
+        self.assertEqual(names, ["Masqué 0", "Kick", "Masqué 2", "Bass"])
+        self.make(api=30, n_channels=2, n_channels_global=4, ch_group=[1, 3])
+        self.data_command([2, 5, 0, 0])
+        self.assertEqual(self.reasons(), [6], "avant l'API 33 : FL trop ancien, l'appli liste le groupe affiché")
+
     def test_list_mixer(self):
         self.make(n_tracks=3, mx_names={0: "Master", 2: "Kick"}, mx_colors={2: 0xE0453A})
         self.data_command([2, 2, 0, 0])
@@ -1289,7 +1305,7 @@ class TestDataV5(TestData):
         self.assertEqual(data[-8:], [0xE0, 0x45, 0x3A, 4] + list(b"Kick"))
 
     def test_list_bad_kind_or_start(self):
-        for payload in ([2, 5, 0, 0], [2, 1, 0, 9], [2, 1], [2, 3, 1, 245]):
+        for payload in ([2, 6, 0, 0], [2, 1, 0, 9], [2, 1], [2, 3, 1, 245]):
             self.make(n_channels=4)
             self.data_command(payload)
             self.assertEqual(self.last_ack(), 0, payload)
@@ -1396,6 +1412,28 @@ class TestDataV5(TestData):
         self.clock.t += 0.1
         self.data_command([7])
         self.assertFalse(self.fl.metronome)
+
+    def test_play_solo_and_audition_counted_in_all(self):
+        # Drapeau « All » (script v16) : canal compté dans tous les canaux, même masqués par le groupe affiché.
+        self.make(n_channels=2, n_channels_global=4, ch_group=[1, 3])
+        self.data_command([6] + M.be16(2) + M.be16(0) + [1])
+        self.assertEqual(self.last_ack(), DATA_ID)
+        self.assertEqual(self.fl.ch_muted, {0, 1, 3}, "le canal 3 de « All » seul audible")
+        self.assertEqual(self.fl.pattern, 1, "pattern 0 : celui qui est ouvert")
+        self.clock.t += 0.1
+        self.data_command([7])
+        self.assertEqual(self.fl.ch_muted, set())
+        self.clock.t += 0.1
+        self.data_command([3] + M.be16(2) + [48, 100, 1])
+        self.assertEqual(self.last_ack(), DATA_ID)
+        self.assertEqual(self.fl.notes, [(2, 48, 100)], "index global tel quel")
+        self.clock.t += 0.1
+        self.data_command([3] + M.be16(4) + [48, 100, 1])       # hors de « All »
+        self.assertEqual(self.reasons(), [5])
+        self.make(api=30, n_channels=2, n_channels_global=4, ch_group=[1, 3])
+        self.data_command([6] + M.be16(2) + M.be16(0) + [1])
+        self.assertEqual(self.reasons(), [6])
+        self.assertEqual(self.fl.ch_muted, set())
 
     def test_play_solo_in_group_before_api33(self):
         self.make(api=30, n_channels=2, n_channels_global=4, ch_group=[1, 3])

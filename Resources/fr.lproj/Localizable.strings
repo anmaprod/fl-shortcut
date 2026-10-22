@@ -776,6 +776,7 @@
 "FL a refusé la commande : redémarre FL si le script vient d'être mis à jour" = "FL a refusé la commande : redémarre FL si le script vient d'être mis à jour";
 "FL a refusé le %@ du canal (raison %lld)" = "FL a refusé le %@ du canal (raison %lld)";
 "FL a refusé le nom ou la couleur." = "FL a refusé le nom ou la couleur.";
+"FL charge les sons de la copie…" = "FL charge les sons de la copie…";
 "FL enregistre avec « %@ » et joue le son sur « %@ » : le micro reprendrait le son des haut-parleurs (larsen). Branche un casque, ou choisis ta carte son dans FL (Options › Audio Settings) avant de lancer la lecture." = "FL enregistre avec « %@ » et joue le son sur « %@ » : le micro reprendrait le son des haut-parleurs (larsen). Branche un casque, ou choisis ta carte son dans FL (Options › Audio Settings) avant de lancer la lecture.";
 "FL enregistre ton projet, puis FL Shortcuts lit son fichier : ce que joue chaque pattern et où est chaque clip, exactement (rien n'est deviné). Un son dont le nom dit ce qu'il est (Kick, 808, Hat…) est classé tout de suite ; les autres jouent seuls, à ton tempo, sans que tu les entendes. Ne touche pas à FL ; Échap arrête." = "FL enregistre ton projet, puis FL Shortcuts lit son fichier : ce que joue chaque pattern et où est chaque clip, exactement (rien n'est deviné). Un son dont le nom dit ce qu'il est (Kick, 808, Hat…) est classé tout de suite ; les autres jouent seuls, à ton tempo, sans que tu les entendes. Ne touche pas à FL ; Échap arrête.";
 "FL est revenu comme avant." = "FL est revenu comme avant.";
@@ -803,6 +804,8 @@
 "FL ne répond pas : quitte et rouvre FL Studio, il relie « %@ » tout seul en démarrant. Toujours rien : dans Options › MIDI Settings, entrée « %@ », choisis le Controller type « FL Shortcuts » (pas « generic controller »), et donne le même numéro de Port à l'entrée et à la sortie" = "FL ne répond pas : quitte et rouvre FL Studio, il relie « %@ » tout seul en démarrant. Toujours rien : dans Options › MIDI Settings, entrée « %@ », choisis le Controller type « FL Shortcuts » (pas « generic controller »), et donne le même numéro de Port à l'entrée et à la sortie";
 "FL ne répond pas encore. Dans FL › MIDI Settings › Output, « FL Shortcuts » doit s'afficher à côté de « FL Shortcuts Link », seul sur son Port. Sinon : « Ça ne marche toujours pas ? » ci-dessous." = "FL ne répond pas encore. Dans FL › MIDI Settings › Output, « FL Shortcuts » doit s'afficher à côté de « FL Shortcuts Link », seul sur son Port. Sinon : « Ça ne marche toujours pas ? » ci-dessous.";
 "FL ouvre la copie rangée de ton projet, puis tout s'y range… Ne touche pas à FL." = "FL ouvre la copie rangée de ton projet, puis tout s'y range… Ne touche pas à FL.";
+"FL ouvre la copie rangée…" = "FL ouvre la copie rangée…";
+"FL ouvre la copie rangée… %lld s" = "FL ouvre la copie rangée… %lld s";
 "FL passe devant : clique et tape dans l'ordre (menus, Options › Audio, boutons de ses fenêtres, flèches, raccourcis…), puis « Terminer ». Chaque clic et chaque touche devient un bloc, ajouté sous la ligne choisie." = "FL passe devant : clique et tape dans l'ordre (menus, Options › Audio, boutons de ses fenêtres, flèches, raccourcis…), puis « Terminer ». Chaque clic et chaque touche devient un bloc, ajouté sous la ligne choisie.";
 "FL passe devant : clique et tape dans l'ordre, puis « Terminer » en haut à droite (⇧⌘R)." = "FL passe devant : clique et tape dans l'ordre, puis « Terminer » en haut à droite (⇧⌘R).";
 "FL passe devant : clique une fois à l'endroit voulu (le clic agit aussi dans FL). Échap annule." = "FL passe devant : clique une fois à l'endroit voulu (le clic agit aussi dans FL). Échap annule.";
@@ -943,6 +946,7 @@
 "La carte devient la sortie et l'entrée du Mac. Une seule fois, dans FL › Options › Audio settings : " = "La carte devient la sortie et l'entrée du Mac. Une seule fois, dans FL › Options › Audio settings : ";
 "La carte son branchée (USB, Thunderbolt…) devient la sortie et l'entrée du Mac ; FL la suit tout seul s'il est réglé une fois sur « Default audio device » (Output) et « Default input device » (Input) dans Options › Audio settings." = "La carte son branchée (USB, Thunderbolt…) devient la sortie et l'entrée du Mac ; FL la suit tout seul s'il est réglé une fois sur « Default audio device » (Output) et « Default input device » (Input) dans Options › Audio settings.";
 "La copie rangée n'a pas pu être écrite à côté de ton projet : rien n'a été touché." = "La copie rangée n'a pas pu être écrite à côté de ton projet : rien n'a été touché.";
+"La copie rangée ouverte dans FL n'a pas les mêmes sons que l'analyse (%lld au lieu de %lld) : rien d'autre n'a été fait. Ton projet n'a pas bougé." = "La copie rangée ouverte dans FL n'a pas les mêmes sons que l'analyse (%lld au lieu de %lld) : rien d'autre n'a été fait. Ton projet n'a pas bougé.";
 "La macro choisie, avec ses étapes." = "La macro choisie, avec ses étapes.";
 "La macro est vide." = "La macro est vide.";
 "La macro ne tourne pas tant qu'il n'est pas montré." = "La macro ne tourne pas tant qu'il n'est pas montré.";
@@ -1160,6 +1164,7 @@
 "Ne fait pas ce que dit son explication" = "Ne fait pas ce que dit son explication";
 "Ne pas toucher à l'icône dans FL" = "Ne pas toucher à l'icône dans FL";
 "Ne quitte pas l'app tout de suite." = "Ne quitte pas l'app tout de suite.";
+"Ne touche pas à FL." = "Ne touche pas à FL.";
 "Nom" = "Nom";
 "Nom d'utilisateur" = "Nom d'utilisateur";
 "Nom d'utilisateur : 3 à 24 caractères, lettres sans accent, chiffres, « _ », « . » ou « - »." = "Nom d'utilisateur : 3 à 24 caractères, lettres sans accent, chiffres, « _ », « . » ou « - ».";
@@ -1417,6 +1422,7 @@
 "Raison" = "Raison";
 "Raison : 3 à 500 caractères." = "Raison : 3 à 500 caractères.";
 "Range, colore et renomme tout le projet" = "Range, colore et renomme tout le projet";
+"Rangement dans la copie…" = "Rangement dans la copie…";
 "Re-stretch de tous les clips audio" = "Re-stretch de tous les clips audio";
 "Recherche" = "Recherche";
 "Rechercher" = "Rechercher";

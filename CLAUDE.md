@@ -6,7 +6,7 @@
   Pas de nouvelle PR sans demande (anmaprod/fl-shortcut#1 existe). Un push lance la CI ; ne pas la relancer à la main
   sans demande. Derniers tests Mac verts : commit efa3fee (488 tests, lancés par le propriétaire sur son Mac).
 - Tout texte affiché doit avoir son anglais (la CI échoue sinon) : `python3 scripts/localisation.py generer trad.json`.
-- Historique, décisions et échecs : `docs/contexte/HISTORIQUE.md` ; lien avec FL (script v15) : `PROTOCOL.md`.
+- Historique, décisions et échecs : `docs/contexte/HISTORIQUE.md` ; lien avec FL (script v16) : `PROTOCOL.md`.
 
 ## Règles du propriétaire
 - Pas de lecture de l'écran, sauf pour retrouver un bouton à son nom ou son image, dans la seule fenêtre de FL, au
@@ -20,7 +20,7 @@
 - Langue du Mac : toute l'app en anglais (`Resources/en.lproj`), français par défaut.
 - Trousseau : un seul élément pour la clé du script et la session du compte (une seule demande d'accès).
 - Fenêtre principale sans bande sous la barre d'outils ; accueil remontré si l'autorisation clavier manque.
-- **Organiser v5** (`Sources/FLShortcut/Organizer*.swift`, `SoundFeatures.swift`, `SoundFamilies.swift`, script FL v15) :
+- **Organiser v5** (`Sources/FLShortcut/Organizer*.swift`, `SoundFeatures.swift`, `SoundFamilies.swift`, script FL v16) :
   - analyse sur le fichier du projet (PROTOCOL.md §9, `FLP*.swift`, `OrganizerProject*.swift`) : FL enregistre (⌘S),
     le .flp est lu ; sons de chaque pattern et de chaque piste d'après les notes et les clips (plus rien de deviné :
     ni relevé des patterns, ni chanson jouée, ni piste écoutée) ; chaque son classé par son nom ou écouté seul dans son
@@ -40,6 +40,9 @@
     avant » le rouvre (tout revient, suppressions comprises). Plus aucune lecture de l'écran pour la Playlist ; l'ancien
     code (réunion des clips lus dans la fenêtre, patterns descendus, « Move up ») ne sert plus que sans fichier (tests).
   - aperçu : couleur ou dégradé de chaque famille en haut, résumé et choix dessous, dans la même zone qui défile.
+  - « All » automatique (script v16, API 33) ; copie toujours faite sur le fichier (Channel rack sur « All ») ;
+    arrangement ouvert rangé (événement 100) ; marque sur un canal si aucun pattern n'est nommé ; page de FL remise
+    devant (4 fois) au lieu de s'arrêter ; Mixer : piste qui envoie déjà ailleurs que le Master = famille sans bus.
 - Interface : survol coloré du menu de l'icône (`menuHover` : contour de sa couleur, grandit, ombre) voulu par le
   propriétaire partout : barre latérale (`sidebarHover`), lignes des pages, Macros, modèles, Communauté, Aide,
   palette, blocs, bouton d'enregistrement, « Menu de FL » du créateur ;

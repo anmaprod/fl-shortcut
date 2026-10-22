@@ -54,8 +54,12 @@ enum FLPSample {
 
     /// Le projet de test du propriétaire, en petit : réglages MIDI (où 64 sert à autre chose), canal 0 qui contient
     /// les noms des patterns, notes, Playlist (deux fois les mêmes patterns sur deux pistes), pistes, Mixer.
-    static func sample(clips: [ClipSpec]? = nil, trackNames: [Int: String] = [:], trackCount: Int = 12) -> FLPFile {
+    /// `group` : groupe affiché par le Channel rack (-1 : « All ») ; `second` : un deuxième arrangement et ses clips ;
+    /// `current` : l'arrangement ouvert (0 = le premier).
+    static func sample(clips: [ClipSpec]? = nil, trackNames: [Int: String] = [:], trackCount: Int = 12,
+                       group: Int? = nil, second: [ClipSpec]? = nil, current: Int? = nil) -> FLPFile {
         var events: [FLPEvent] = [text(199, "26.1"), ev(0, 64), ev(100, 32896), ev(64, 2), ev(96, 0), ev(0, 71)]
+        if let group { events.append(ev(146, group)) }
         events += [ev(65, 1), notes([(2, 60), (2, 64), (2, 67)]), ev(65, 2), notes([(3, 48), (4, 36)]),
                    ev(65, 3), notes([(1, 60)])]
         let names = ["Pad", "Kick", "ZENOLOGY", "Snare", "808"]
@@ -70,12 +74,16 @@ enum FLPSample {
         let spec = clips ?? [ClipSpec(pattern: 1, track: 0, bar: 1), ClipSpec(pattern: 2, track: 1, bar: 1),
                              ClipSpec(pattern: 1, track: 2, bar: 5), ClipSpec(pattern: 2, track: 3, bar: 5),
                              ClipSpec(pattern: 4, track: 4, bar: 1), ClipSpec(channel: 1, track: 5, bar: 9)]
-        events += [ev(99, 0), text(241, "Arrangement"), playlist(spec, tracks: trackCount)]
-        for t in 0..<trackCount {
-            events.append(track(t + 1))
-            if let name = trackNames[t] { events.append(text(239, name)) }
-            events.append(ev(43, 0))
+        for (n, clips) in [spec, second].enumerated() {
+            guard let clips else { continue }
+            events += [ev(99, n), text(241, "Arrangement"), playlist(clips, tracks: trackCount)]
+            for t in 0..<trackCount {
+                events.append(track(t + 1))
+                if let name = trackNames[t] { events.append(text(239, name)) }
+                events.append(ev(43, 0))
+            }
         }
+        if let current { events.append(ev(100, current)) }
         events += [text(204, "Insert 1"), text(201, "Fruity Wrapper"), text(203, "Reverb"), text(236, "")]
         return FLPFile(channelCount: UInt16(names.count), ppq: 96, events: events)
     }

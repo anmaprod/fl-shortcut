@@ -8,7 +8,17 @@ import Foundation
 
 enum ProjectFileLive {
     static func access() -> ProjectFileAccess {
-        ProjectFileAccess(save: { save(known: $0) }, open: { open($0) })
+        ProjectFileAccess(save: { save(known: $0) }, open: { open($0) }, isOpen: { isOpen($0) })
+    }
+
+    /// La fenêtre de FL porte le nom de ce fichier, ou le désigne (macOS) : FL l'a ouvert.
+    static func isOpen(_ url: URL) -> Bool {
+        guard let pid = OrganizerEnvironment.flPID() else { return false }
+        let window = mainWindow(pid: pid)
+        if let document = window.document, URL(string: document)?.standardizedFileURL == url.standardizedFileURL {
+            return true
+        }
+        return window.title?.contains(url.deletingPathExtension().lastPathComponent) ?? false
     }
 
     /// FL enregistre ; le fichier qu'il vient d'écrire. Le projet jamais enregistré (FL demande où) ou FL qui ne

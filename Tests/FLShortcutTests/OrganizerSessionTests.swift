@@ -48,9 +48,17 @@ final class FakeOrganizerLink: OrganizerLink {
 
     func page() throws -> FLWindow { window }
 
+    var allChannels = false
+    /// Channel rack sur un groupe : les rangs dans « All » des canaux qu'il montre ; nil : tous (« All »).
+    var group: [Int]?
+
     func listChannels() throws -> [ChannelInfo] {
         log.append("list")
-        return channels
+        guard let group, !allChannels else { return channels }
+        return group.enumerated().map { k, i in
+            let c = channels[i]
+            return ChannelInfo(index: k, type: c.type, mixerTrack: c.mixerTrack, color: c.color, name: c.name)
+        }
     }
 
     func listMixer() throws -> [MixerTrackInfo] {
@@ -93,9 +101,12 @@ final class FakeOrganizerLink: OrganizerLink {
 
     func selectedChannels() throws -> Set<Int> { unusedSelection }
 
+    /// Page que l'utilisateur garde devant : `show` ne la change pas.
+    var keptWindow: FLWindow?
+
     func show(_ window: FLWindow) throws {
         log.append("show \(window)")
-        self.window = window
+        self.window = keptWindow ?? window
     }
 
     func setColors(_ kind: ItemKind, _ colors: [(index: Int, color: FLShortcut.RGBColor)]) throws {
@@ -805,6 +816,34 @@ final class OrganizerSessionTests: XCTestCase {
         XCTAssertEqual(diag.clips, 6)
         XCTAssertTrue(diag.text.contains("fichier=oui clips=6"), diag.text)
         XCTAssertFalse(diag.text.contains("ZENOLOGY"), "jamais un nom dans le diagnostic")
+    }
+
+    /// Channel rack sur un groupe (retour du propriétaire : « le truc du All […] c'est pas à la personne de le
+    /// faire ») : sur le fichier, tous les sons sont comptés comme dans « All », sans rien demander.
+    func testProjectFileCountsAllChannelsWhateverTheGroup() throws {
+        let link = FakeOrganizerLink()
+        link.channels = ["Pad", "Kick", "ZENOLOGY", "Snare", "808"].enumerated().map {
+            ChannelInfo(index: $0.offset, type: 2, mixerTrack: $0.offset + 1, color: red, name: $0.element)
+        }
+        link.group = [1, 3]
+        link.patternList = ["Mélodie", "Drums", "Pattern 3", "Vide"].enumerated().map {
+            PatternInfo(index: $0.offset, color: red, name: $0.element)
+        }
+        link.mixer = (0...6).map { MixerTrackInfo(index: $0, color: red, name: $0 == 0 ? "Master" : "Insert \($0)") }
+        let audio = FakeAudio(link: link)
+        audio.parts = [2: tone(.melody)]
+        let files = ProjectFileAccess(save: { _ in .success(URL(fileURLWithPath: "/projets/Mon son.flp")) },
+                                      open: { _ in false }, read: { _ in FLPSample.sample() })
+        let session = OrganizerSession(link: link, audio: audio, classify: classify, nameDrum: { _, _ in .kick },
+                                       timing: timing, sleep: { _ in }, files: files)
+        let result = try session.run().get()
+        XCTAssertTrue(link.allChannels)
+        XCTAssertEqual(result.channels.count, 5)
+        XCTAssertEqual(result.items.map(\.index), [1, 2, 3, 4])
+
+        let live = OrganizerSession(link: link, audio: audio, classify: classify, timing: timing, sleep: { _ in })
+        _ = live.run()
+        XCTAssertFalse(link.allChannels, "sans le fichier : le groupe affiché, comme avant")
     }
 
     /// Le fichier enregistré n'est pas le projet ouvert (autres sons) : rien n'est touché, la raison est dite.

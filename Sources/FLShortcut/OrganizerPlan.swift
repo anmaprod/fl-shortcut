@@ -362,7 +362,9 @@ struct OrganizerPlan: Equatable {
     /// Pistes du Mixer reliées à un son classé (les sons laissés de côté ou supprimés ne comptent pas), dans l'ordre
     /// du Channel rack ; un son classé envoyé au Master prend d'abord une piste libre. Avec `buses` : un bus par
     /// famille juste après ses pistes (une piste sans son qui reçoit déjà surtout de cette famille, sinon une piste
-    /// libre), chaque piste envoyée seulement à son bus, le bus au Master ; « À vérifier » : sans bus. Sans : les
+    /// libre), chaque piste envoyée seulement à son bus, le bus au Master ; une piste qui envoie déjà à une autre
+    /// piste que le Master (groupe, sidechain, effet : règle du propriétaire) reste avec sa famille sans que ses
+    /// envois changent ; « À vérifier » : sans bus. Sans : les
     /// pistes reliées par un envoi côte à côte, celle qui reçoit après celles qui lui envoient. Les autres pistes
     /// suivent, dans leur ordre ; avec `cleanup`, celles des sons supprimés et celles qui ont un nom sans aucun son
     /// relié ni envoi reçu (retour de l'utilisateur : deux pistes « en trop », en noir) sont remises comme neuves (nom
@@ -414,7 +416,8 @@ struct OrganizerPlan: Equatable {
         var layout: [Int] = []
         if !linked.isEmpty {
             if buses {
-                layout = busLayout(linked: linked, sources: sources, free: &free, sortKey: sortKey, out: &out)
+                layout = busLayout(linked: linked, sources: sources, routes: result.routes, free: &free,
+                                   sortKey: sortKey, out: &out)
             } else {
                 layout = groupedLayout(linked: linked, sources: sources, key: &key, out: &out)
             }
@@ -477,9 +480,13 @@ struct OrganizerPlan: Equatable {
 
     /// Un bus par famille : les pistes de la famille (808 : Drums) dans l'ordre du Channel rack, puis son bus ; les
     /// familles dans l'ordre de leur premier son ; une piste « À vérifier » seule à sa place. Un bus pris dans `free`
-    /// en est retiré.
-    private static func busLayout(linked: [Int: [Int]], sources: [Int: [Int]], free: inout [Int],
-                                  sortKey: (Int) -> (Double, Int), out: inout Area) -> [Int] {
+    /// en est retiré. Seules les pistes qui n'envoient qu'au Master vont dans le bus : les autres gardent leurs envois
+    /// (une famille dont aucune piste ne va au bus n'en prend pas de libre). Un bus déjà là reçoit des pistes de la
+    /// famille qui n'envoient qu'à lui (une piste qui reçoit aussi du Master, comme un sidechain, n'en est pas un).
+    private static func busLayout(linked: [Int: [Int]], sources: [Int: [Int]], routes: [Int: [Int]],
+                                  free: inout [Int], sortKey: (Int) -> (Double, Int), out: inout Area) -> [Int] {
+        // Pistes qui envoient déjà à une autre piste que le Master : leurs envois ne changent pas.
+        let sendsOn = Set(sources.values.flatMap { $0 })
         var members: [SoundFamily: [Int]] = [:]
         var alone: [Int] = []
         for track in linked.keys {
@@ -497,7 +504,7 @@ struct OrganizerPlan: Equatable {
             let mine = Set(tracks)
             let candidates = sources.compactMap { d, froms -> (track: Int, count: Int)? in
                 guard !taken.contains(d) else { return nil }
-                let count = froms.filter { mine.contains($0) }.count
+                let count = froms.filter { mine.contains($0) && routes[$0] == [d] }.count
                 return count > 0 ? (d, count) : nil
             }
             if let best = candidates.max(by: { a, b in a.count != b.count ? a.count < b.count : a.track > b.track }) {
@@ -507,7 +514,8 @@ struct OrganizerPlan: Equatable {
         }
         // Sinon une piste libre.
         free.removeAll { taken.contains($0) }
-        for family in SoundFamily.order where members[family] != nil && busOf[family] == nil && !free.isEmpty {
+        for family in SoundFamily.order where busOf[family] == nil && !free.isEmpty
+            && (members[family] ?? []).contains(where: { !sendsOn.contains($0) }) {
             busOf[family] = free.removeFirst()
         }
         var blocks: [[Int]] = alone.map { [$0] }
@@ -518,8 +526,8 @@ struct OrganizerPlan: Equatable {
                 continue
             }
             blocks.append(sorted + [bus])
-            for t in sorted { out.routes[t] = [bus] }
-            out.routes[bus] = [0]
+            for t in sorted where !sendsOn.contains(t) { out.routes[t] = [bus] }
+            if !sendsOn.contains(bus) { out.routes[bus] = [0] }
             out.buses[bus] = family
             out.verdicts[bus] = Verdict(family: family)
         }

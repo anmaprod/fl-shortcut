@@ -27,7 +27,7 @@ bornes vérifiées, seuls les CC du protocole (canal 16) sont marqués « handle
 # La ligne suivante est remplacée par l'appli à l'installation (16 octets en hex).
 KEY_HEX = "__FLSHORTCUT_KEY__"
 
-SCRIPT_VERSION = 15
+SCRIPT_VERSION = 16
 PROTOCOL_VERSION = 2
 
 MIDI_CHANNEL = 15          # canal 16, 0-indexé
@@ -107,6 +107,8 @@ KIND_CHANNELS = 1
 KIND_MIXER = 2
 KIND_PLAYLIST = 3          # pistes de la Playlist (index 0 = piste 1 de FL)
 KIND_PATTERNS = 4          # patterns (index 0 = pattern 1 de FL ; script v12)
+KIND_CHANNELS_ALL = 5      # tous les canaux, comptés dans « All » même si un groupe est affiché (script v16, API 33)
+FLAG_GLOBAL = 1            # opérations 3 et 6 (script v16) : le canal est compté dans « All »
 MAX_ROUTES = 64            # destinations au plus dans la réponse de l'opération 17
 REASON_PLAYING = 4         # FL joue déjà (opération 6)
 REASON_FEW = 7             # dégradé : au moins 2 éléments sélectionnés
@@ -1537,7 +1539,7 @@ def _op_list(raw, seq3):
     """[2, genre, début (2)] -> [genre, total (2), début (2), n, filtré] + entrées (16 au plus). Playlist : entrée
     [sélectionnée, R, G, B, longueur, nom], index 0 = piste 1 de FL. Patterns (script v12) : entrée [R, G, B,
     longueur, nom], index 0 = pattern 1."""
-    if len(raw) != 4 or raw[1] not in (KIND_CHANNELS, KIND_MIXER, KIND_PLAYLIST, KIND_PATTERNS):
+    if len(raw) != 4 or raw[1] not in (KIND_CHANNELS, KIND_MIXER, KIND_PLAYLIST, KIND_PATTERNS, KIND_CHANNELS_ALL):
         return REASON_DATA
     kind, start = raw[1], _be16(raw[2], raw[3])
     get_type = None
@@ -1545,6 +1547,8 @@ def _op_list(raw, seq3):
         return _list_playlist(start, seq3)
     if kind == KIND_PATTERNS:
         return _list_patterns(start, seq3)
+    if kind == KIND_CHANNELS_ALL:
+        return _list_all_channels(start, seq3)
     if kind == KIND_CHANNELS:
         fns = _fns("channels", "channelCount", "getChannelName", "getChannelColor", "getTargetFxTrack")
         if fns is None:
@@ -1577,6 +1581,27 @@ def _op_list(raw, seq3):
             data += [t] + _u16(get_fx(i)) + rgb + [len(name)] + name
         else:
             data += rgb + [len(name)] + name
+    return 0 if _respond(OP_LIST, data, seq3) else REASON_DATA
+
+
+def _list_all_channels(start, seq3):
+    """Tous les canaux du Channel rack, comptés dans « All » (index globaux), même si un groupe est affiché : réponse
+    comme pour KIND_CHANNELS (genre 1, jamais filtré). API 33 (useGlobalIndex)."""
+    fns = _fns("channels", "channelCount", "getChannelName", "getChannelColor", "getTargetFxTrack")
+    if fns is None or not _api_at_least(33):
+        return REASON_OLD_FL
+    count, get_name, get_color, get_fx = fns
+    get_type = _fn("channels", "getChannelType")
+    total = count(True)
+    if not _is_int(total) or not 0 <= start <= total:
+        return REASON_DATA
+    n = min(LIST_PAGE, total - start)
+    data = [KIND_CHANNELS] + _u16(total) + _u16(start) + [n, 0]
+    for i in range(start, start + n):
+        name = _name_bytes(get_name(i, True))
+        t = get_type(i, True) if get_type is not None else 0
+        t = t if _is_int(t) and 0 <= t <= 255 else 0
+        data += [t] + _u16(get_fx(i, True)) + _rgb_of(get_color(i, True)) + [len(name)] + name
     return 0 if _respond(OP_LIST, data, seq3) else REASON_DATA
 
 
@@ -1792,19 +1817,25 @@ def _tracks_audible(target):
 
 
 def _op_play_solo(raw, seq3):
-    """[6, canal (2)] ou [6, canal (2), pattern (2)] : ce canal seul audible (ALL_CHANNELS : tous audibles, coupés
-    compris), dans ce pattern (1 = le premier ; sinon celui qui est ouvert), mode pattern, début, lecture. Mémo au
-    premier appel (_memo_begin). Le canal est compté dans le groupe affiché par le Channel rack, comme pour les
-    opérations 2 à 5."""
-    if len(raw) not in (3, 5):
+    """[6, canal (2)], [6, canal (2), pattern (2)] ou [6, canal (2), pattern (2), drapeaux] : ce canal seul audible
+    (ALL_CHANNELS : tous audibles, coupés compris), dans ce pattern (1 = le premier ; sinon, ou 0, celui qui est
+    ouvert), mode pattern, début, lecture. Mémo au premier appel (_memo_begin). Le canal est compté dans le groupe
+    affiché par le Channel rack, comme pour les opérations 2 à 5 ; avec FLAG_GLOBAL (script v16, API 33), dans
+    « All »."""
+    if len(raw) not in (3, 5, 6):
         return REASON_DATA
     if any(_fn(m, n) is None for m, n in _PLAY_FNS):
         return REASON_OLD_FL
     index = _be16(raw[1], raw[2])
-    shown = _channel_count()
+    is_global = len(raw) == 6 and raw[5] & FLAG_GLOBAL
+    if is_global and not _api_at_least(33):
+        return REASON_OLD_FL
+    shown = _fn("channels", "channelCount")(True) if is_global else _channel_count()
     if not _is_int(shown) or not (index == ALL_CHANNELS or 0 <= index < shown):
         return REASON_DATA
-    pattern = _be16(raw[3], raw[4]) if len(raw) == 5 else None
+    pattern = _be16(raw[3], raw[4]) if len(raw) >= 5 else None
+    if pattern == 0 and len(raw) == 6:
+        pattern = None
     jump = None
     if pattern is not None:
         count, jump = _fn("patterns", "patternCount"), _fn("patterns", "jumpToPattern")
@@ -1819,7 +1850,7 @@ def _op_play_solo(raw, seq3):
         return REASON_DATA
     if not _memo_begin("ch"):
         return REASON_PLAYING              # l'utilisateur joue : on ne coupe rien
-    _channels_audible(None if index == ALL_CHANNELS else scoped(index))
+    _channels_audible(None if index == ALL_CHANNELS else (index if is_global else scoped(index)))
     if pattern is not None and _pattern_number() != pattern:
         jump(pattern)
     if _fn("transport", "getLoopMode")() != 0:
@@ -2399,18 +2430,25 @@ def _op_stop_restore(raw, seq3):
 
 
 def _op_audition(raw, seq3):
-    """[3, canal (2), note, vélocité] : note jouée sur le canal (vélocité 0 = arrêt)."""
-    if len(raw) != 5 or raw[3] > 127 or raw[4] > 127:
+    """[3, canal (2), note, vélocité] ou [3, canal (2), note, vélocité, drapeaux] : note jouée sur le canal (vélocité
+    0 = arrêt) ; avec FLAG_GLOBAL (script v16, API 33), le canal est compté dans « All »."""
+    if len(raw) not in (5, 6) or raw[3] > 127 or raw[4] > 127:
         return REASON_DATA
     note_on = _fn("channels", "midiNoteOn")
     if note_on is None:
         return REASON_OLD_FL
     index = _be16(raw[1], raw[2])
-    total = _channel_count()
+    is_global = len(raw) == 6 and raw[5] & FLAG_GLOBAL
+    if is_global and not _api_at_least(33):
+        return REASON_OLD_FL
+    total = _fn("channels", "channelCount")(True) if is_global else _channel_count()
     if not _is_int(total) or not 0 <= index < total:
         return REASON_DATA
     to_global = _fn("channels", "getChannelIndex")
-    note_on(to_global(index) if to_global is not None else index, raw[3], raw[4])
+    if is_global or to_global is None:
+        note_on(index, raw[3], raw[4])
+    else:
+        note_on(to_global(index), raw[3], raw[4])
     return 0
 
 

@@ -53,7 +53,7 @@ final class OrganizerProjectFileTests: XCTestCase {
     func testMarkerIsPutOnANamedPattern() throws {
         let file = FLPSample.sample()
         let marked = try XCTUnwrap(ProjectFile.marking(file, marker: "FL Shortcuts 42"))
-        XCTAssertEqual(marked.pattern, 1)
+        XCTAssertEqual(marked.mark, .pattern(1))
         let project = try FLPProject(marked.file)
         XCTAssertEqual(project.patternNames, [1: "FL Shortcuts 42", 2: "Drums", 4: "Vide"])
         XCTAssertEqual(project.clips, try FLPProject(file).clips, "rien d'autre ne change")
@@ -61,12 +61,23 @@ final class OrganizerProjectFileTests: XCTestCase {
         var unnamed = file
         unnamed.events.removeAll { $0.id == 193 }
         let added = try XCTUnwrap(ProjectFile.marking(unnamed, marker: "FL Shortcuts 42"))
-        XCTAssertEqual(added.pattern, 1)
+        XCTAssertEqual(added.mark, .pattern(1))
         XCTAssertEqual(try FLPProject(added.file).patternNames, [1: "FL Shortcuts 42"])
         XCTAssertEqual(try FLPProject(added.file).notes, try FLPProject(file).notes)
+        // Un seul pattern, jamais nommé (prod « Mechanical » du propriétaire : « (patterns) ») : la marque va sur le
+        // premier canal nommé ; rien d'autre ne change.
         var bare = unnamed
-        bare.events.removeAll { $0.id == 65 }
-        XCTAssertNil(ProjectFile.marking(bare, marker: "FL Shortcuts 42"), "aucun pattern décrit")
+        bare.events = unnamed.events.enumerated().filter { i, event in
+            event.id != 65 || (i + 1 < unnamed.events.count && unnamed.events[i + 1].id == 224)
+        }.map(\.element)
+        let onChannel = try XCTUnwrap(ProjectFile.marking(bare, marker: "FL Shortcuts 42"))
+        XCTAssertEqual(onChannel.mark, .channel(0))
+        let channels = try FLPProject(onChannel.file).channels
+        XCTAssertEqual(channels.map(\.name), ["FL Shortcuts 42", "Kick", "ZENOLOGY", "Snare", "808"])
+        XCTAssertEqual(onChannel.file.events.count, bare.events.count)
+        var nameless = bare
+        nameless.events.removeAll { $0.id == 203 }
+        XCTAssertNil(ProjectFile.marking(nameless, marker: "FL Shortcuts 42"), "ni pattern décrit, ni canal nommé")
     }
 
     func testProjectNameInFLTitle() {
@@ -108,6 +119,6 @@ final class OrganizerProjectFileTests: XCTestCase {
         var long = FLPSample.sample()
         let first = long.events.firstIndex { $0.id == 193 }!
         long.events[first] = FLPSample.text(193, String(repeating: "é", count: 40))
-        XCTAssertEqual(ProjectFile.marking(long, marker: "FL Shortcuts 1")?.pattern, 2)
+        XCTAssertEqual(ProjectFile.marking(long, marker: "FL Shortcuts 1")?.mark, .pattern(2))
     }
 }

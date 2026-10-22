@@ -209,27 +209,54 @@ final class OrganizerApplyTests: XCTestCase {
         XCTAssertEqual(missed.snapshot.rack?.arrangement, [0, 2, 1])
     }
 
+    /// Capture du propriétaire (Channel rack à moitié rangé, « La page de FL a changé ») : la page qui n'est plus
+    /// devant (FL qui finit d'ouvrir la copie) est remise devant et le rangement continue ; arrêt seulement si elle
+    /// ne revient pas.
+    func testPageThatChangesIsShownAgain() {
+        let (link, result) = rack([.drums, .melody, .vocals])
+        var left = 1
+        let once = OrganizerApplier(link: link, moveUp: { count in
+            let done = link.moveSelectedUp(count)
+            if left > 0 {
+                left -= 1
+                link.window = .playlist
+            }
+            return done
+        }, wait: { _ in })
+        let outcome = once.apply(plan(result, options: rackOnly), result: result, styles: FamilyStyles.initial)
+        XCTAssertNil(outcome.error)
+        XCTAssertEqual(link.channels.map(\.name), ["Son 2", "Son 1", "Son 0"], "Voix, Mélodies, Drums")
+        XCTAssertEqual(link.log.filter { $0 == "show channelRack" }.count, 2, "remis devant une fois")
+        XCTAssertTrue(outcome.trace.contains("page remise 1"), "\(outcome.trace)")
+    }
+
     func testStopsWhenPageChanges() {
-        // La Playlist passe devant après le premier déplacement (deux sont prévus).
+        // La Playlist passe devant après le premier déplacement (deux sont prévus) et y reste.
         let (link, result) = rack([.drums, .melody, .vocals])
         let original = link.channels
         let leaving = OrganizerApplier(link: link, moveUp: { count in
             let done = link.moveSelectedUp(count)
             link.window = .playlist
+            link.keptWindow = .playlist
             return done
-        })
+        }, wait: { _ in })
         let outcome = leaving.apply(plan(result, options: rackOnly), result: result, styles: FamilyStyles.initial)
         XCTAssertEqual(outcome.error, .interrupted)
         XCTAssertEqual(outcome.snapshot.rack?.arrangement, [2, 0, 1])
         XCTAssertEqual(link.channels.map(\.name), ["Son 2", "Son 0", "Son 1"])
+        link.keptWindow = nil
         let back = applier(link).undo(outcome.snapshot)
         XCTAssertNil(back.error)
         XCTAssertEqual(link.channels, original, "le retour remet le Channel rack devant tout seul")
 
-        // Arrêt au milieu d'une remontée de 2 places : la disposition suit le pas fait.
+        // Arrêt au milieu d'une remontée de 2 places (plus aucune touche prise) : la disposition suit le pas fait.
         let (half, halfResult) = rack([.drums, .drums, .melody])
         let halfOriginal = half.channels
-        let partial = OrganizerApplier(link: half, moveUp: { _ in half.moveSelectedUp(1) })
+        var calls = 0
+        let partial = OrganizerApplier(link: half, moveUp: { _ in
+            calls += 1
+            return calls == 1 ? half.moveSelectedUp(1) : 0
+        }, wait: { _ in })
             .apply(plan(halfResult, options: rackOnly), result: halfResult, styles: FamilyStyles.initial)
         XCTAssertEqual(partial.error, .interrupted)
         XCTAssertEqual(partial.snapshot.rack?.arrangement, [0, 2, 1])
@@ -385,7 +412,8 @@ final class OrganizerApplyTests: XCTestCase {
         // bus Drums (piste libre 10) ; la piste du son sans note après.
         XCTAssertEqual(mixer.final, [1, 2, 3, 4, 9, 5, 6, 7, 10, 8])
         XCTAssertEqual(mixer.buses, [3: .melody, 9: .bass, 10: .drums])
-        XCTAssertEqual(mixer.routes, [1: [3], 2: [3], 3: [0], 4: [9], 9: [0], 5: [10], 6: [10], 7: [10], 10: [0]])
+        XCTAssertEqual(mixer.routes, [3: [0], 4: [9], 9: [0], 5: [10], 6: [10], 7: [10], 10: [0]],
+                       "les mélodies envoient déjà à leur bus : rien n'y change")
         XCTAssertEqual(mixer.names, [1: "Lead", 2: "Lead 2", 4: "Basse", 9: "Basse Bus", 5: "808", 6: "Kick",
                                      7: "Clap", 10: "Drums Bus"], "« Melody Bus » garde son nom")
         XCTAssertEqual(mixer.colors[10], style(.drums))
@@ -406,6 +434,34 @@ final class OrganizerApplyTests: XCTestCase {
         XCTAssertEqual(link.mixer, originalMixer)
         XCTAssertEqual(link.routes.filter { !$0.value.isEmpty }, originalRoutes)
         XCTAssertEqual(link.channels.map(\.mixerTrack), tracks)
+    }
+
+    /// Règle du propriétaire : un son déjà relié à une autre piste que le Master (ici un sidechain, en plus du Master)
+    /// garde ses envois et va avec sa famille ; un son relié au seul Master va dans le bus de sa famille. Le sidechain
+    /// n'est pas pris pour un bus.
+    func testTracksAlreadySentElsewhereKeepTheirSends() {
+        let kinds: [SoundKind] = [.lead, .lead, .kick, .snare]
+        var result = OrganizerResult(channels: kinds.indices.map {
+            ChannelInfo(index: $0, type: 2, mixerTrack: $0 + 1, color: gray, name: "Son \($0)")
+        }, items: kinds.indices.map {
+            OrganizerItem(index: $0, name: "Son \($0)", family: kinds[$0].family, confidence: 0.9, testNotes: false,
+                          mixerTrack: $0 + 1, color: gray, kind: kinds[$0])
+        })
+        result.mixer = (0...10).map {
+            MixerTrackInfo(index: $0, color: gray, name: $0 == 0 ? "Master" : $0 == 5 ? "Sidechain" : "Insert \($0)")
+        }
+        result.routes = [1: [0], 2: [0, 5], 3: [0], 4: [0], 5: [0]]
+        let mixer = plan(result).mixer
+        XCTAssertEqual(mixer.buses, [6: .melody, 7: .drums])
+        XCTAssertEqual(mixer.routes, [1: [6], 6: [0], 3: [7], 4: [7], 7: [0]], "la piste 2 garde ses envois")
+        XCTAssertEqual(mixer.final, [1, 2, 6, 3, 4, 7, 5], "la piste 2 reste avec les mélodies")
+
+        // Toutes les pistes d'une famille envoient déjà ailleurs : pas de bus pris pour elle.
+        result.routes = [1: [0, 5], 2: [0, 5], 3: [0], 4: [0], 5: [0]]
+        let shared = plan(result).mixer
+        XCTAssertEqual(shared.buses, [6: .drums])
+        XCTAssertEqual(shared.routes, [3: [6], 4: [6], 6: [0]])
+        XCTAssertEqual(shared.final, [1, 2, 3, 4, 6, 5])
     }
 
     /// Un projet comme celui de la vidéo de l'utilisateur : deux sons sans note (leurs pistes du Mixer en noir), une

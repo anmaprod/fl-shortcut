@@ -42,6 +42,10 @@ struct FLPProject: Equatable {
         static let pattern: UInt8 = 65
         static let children: UInt8 = 94
         static let arrangement: UInt8 = 99
+        /// Arrangement ouvert (écrit après les arrangements).
+        static let currentArrangement: UInt8 = 100
+        /// Groupe affiché par le Channel rack (-1 : « All »), écrit avant les canaux.
+        static let channelGroup: UInt8 = 146
         static let patternName: UInt8 = 193
         static let channelName: UInt8 = 203
         static let mixerName: UInt8 = 204
@@ -73,6 +77,9 @@ struct FLPProject: Equatable {
     let playlistEvent: Int?
     let itemSize: Int
     let trackEvents: [Int]
+    /// Événement du groupe affiché par le Channel rack (nil : pas écrit) ; vrai si ce n'est pas « All ».
+    let groupEvent: Int?
+    let showsGroup: Bool
     /// Pistes coupées (mute) dans FL (0 = piste 1) : un clip qui en part ou y arrive changerait de son.
     let mutedTracks: Set<Int>
 
@@ -85,7 +92,9 @@ struct FLPProject: Equatable {
         var notes: [Int: [Int: Int]] = [:]
         var names: [Int: String] = [:]
         var pattern: Int?
-        var arrangements: [(playlist: Int?, tracks: [Int])] = []
+        var arrangements: [(index: Int, playlist: Int?, tracks: [Int])] = []
+        var current: Int?
+        var group: (event: Int, value: UInt32)?
         func closeChannel() {
             if let c = channel { channels.append(Channel(iid: c.iid, type: c.type, name: c.name, children: c.children)) }
             channel = nil
@@ -119,7 +128,11 @@ struct FLPProject: Equatable {
             case Event.arrangement:
                 closeChannel()
                 pattern = nil
-                arrangements.append((nil, []))
+                arrangements.append((Int(event.value), nil, []))
+            case Event.currentArrangement:
+                if !arrangements.isEmpty { current = Int(event.value) }
+            case Event.channelGroup:
+                if channels.isEmpty, channel == nil, group == nil { group = (i, event.value) }
             case Event.playlist:
                 guard !arrangements.isEmpty, arrangements[arrangements.count - 1].playlist == nil
                 else { throw FLPError.unsupported("playlist") }
@@ -148,13 +161,17 @@ struct FLPProject: Equatable {
             throw FLPError.unsupported("notes")
         }
 
-        // L'arrangement lu : le seul qui a des clips (plusieurs : on ne sait pas lequel FL montre).
+        groupEvent = group?.event
+        showsGroup = group.map { $0.value != 0xFFFF_FFFF } ?? false
+        // L'arrangement rangé : celui qui est ouvert dans FL ; sans le savoir, le seul qui a des clips.
         let filled = arrangements.filter { a in a.playlist.map { !file.events[$0].bytes.isEmpty } ?? false }
-        guard filled.count <= 1 else { throw FLPError.unsupported("arrangements") }
-        guard let arrangement = filled.first, let playlist = arrangement.playlist else {
+        let open = current.flatMap { c in arrangements.first { $0.index == c } }
+        guard open != nil || filled.count <= 1 else { throw FLPError.unsupported("arrangements") }
+        guard let arrangement = open ?? filled.first, let playlist = arrangement.playlist,
+              !file.events[playlist].bytes.isEmpty else {
             playlistEvent = nil
             itemSize = Self.itemSizes[0]
-            trackEvents = arrangements.first?.tracks ?? []
+            trackEvents = (open ?? arrangements.first)?.tracks ?? []
             trackCount = trackEvents.count
             mutedTracks = []
             clips = []
@@ -224,14 +241,21 @@ struct FLPProject: Equatable {
         return out
     }
 
+    /// Le Channel rack de la copie montre tous les sons (« All ») : la suite se fait sur tous. Rien d'autre ne change.
+    func showingAll(_ file: FLPFile) -> FLPFile {
+        var out = file
+        if let groupEvent { out.events[groupEvent].bytes = [0xFF, 0xFF, 0xFF, 0xFF] }
+        return out
+    }
+
     /// La copie rangée : chaque clip sur sa nouvelle piste (`tracks` : rang du clip → piste, 0 = piste 1). Les pistes
     /// où il y a des clips, avant ou après, perdent leur nom, reprennent la couleur des pistes jamais touchées et
     /// jouent (leur nom disait ce qu'elles jouaient avant ; l'Organiser les nomme ensuite d'après ce qui y joue). Un
     /// clip sur une piste coupée arrête tout (il se mettrait à jouer). Tout le reste est recopié octet pour octet.
     func rearranged(_ file: FLPFile, tracks: [Int: Int]) throws -> FLPFile {
-        guard let playlistEvent else { return file }
+        var out = showingAll(file)
+        guard let playlistEvent else { return out }
         guard clips.allSatisfy({ !mutedTracks.contains($0.track) }) else { throw FLPError.unsupported("piste coupée") }
-        var out = file
         var bytes = out.events[playlistEvent].bytes
         for (item, track) in tracks {
             guard (0..<clips.count).contains(item), (0..<trackCount).contains(track) else {

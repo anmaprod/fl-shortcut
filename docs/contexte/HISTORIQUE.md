@@ -188,3 +188,17 @@ entrée 1 ≈ 0,5 s.
   (« Opening: Fruity Wrapper ») et n'a pas confirmé le premier renommage : tout s'arrêtait. L'Organiser attend
   maintenant que FL réponde vite trois fois de suite, puis réessaie ses premières demandes.
 
+- Retours du 22/10 (prods, projets de voix, « Mechanical ») :
+  - « All » du Channel rack automatique : l'analyse sur le fichier compte tous les canaux même si un groupe est
+    affiché (script v16 : genre 5 de l'opération 2, drapeau 1 des opérations 3 et 6, API 33 ; avant : le groupe affiché,
+    comme avant). La copie s'ouvre sur « All » (événement 146) et elle est faite même si « Playlist » est décochée.
+  - Deux arrangements : celui qui est ouvert (événement 100) est rangé, les autres ne bougent pas.
+  - « Mechanical » (un seul pattern, jamais nommé) refusé « (patterns) » : la marque de la copie va alors sur le
+    premier canal nommé, qui reprend son nom ensuite. Ouverture aussi reconnue au titre de la fenêtre de FL.
+  - « bug ne fait rien » (resté longtemps sur « FL ouvre la copie… ») : l'attente dit où elle en est (secondes, « FL
+    charge les sons… », « Rangement dans la copie… ») et le diagnostic donne `application=ouverture=… ; calme … s`.
+  - Capture « La page de FL a changé » (Channel rack à moitié rangé) : la page qui n'est plus devant est remise devant
+    (4 fois au plus) et le rangement continue ; diagnostic `page remise N`.
+  - Règle du propriétaire pour le Mixer : une piste qui envoie déjà à une autre piste que le Master (groupe, sidechain,
+    effet) reste avec sa famille sans que ses envois changent ; reliée au seul Master : famille et bus. Un bus déjà là
+    reçoit des pistes qui n'envoient qu'à lui (le Master est maintenant gardé dans les envois lus).

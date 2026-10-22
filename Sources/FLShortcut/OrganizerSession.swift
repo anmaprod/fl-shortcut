@@ -250,6 +250,9 @@ final class OrganizerSession {
             // La première commande réveille le script ; un script d'avant la v14 la refuse : FL à redémarrer, rien
             // n'est touché.
             _ = try link.heardTracks()
+            // Sur le fichier : tous les sons, comme « All » dans le Channel rack, même s'il montre un groupe (le
+            // fichier les a tous ; l'utilisateur n'a rien à choisir).
+            link.allChannels = files != nil
             // Sur le fichier : rien n'est retiré ni sélectionné dans FL avant qu'il l'enregistre (l'original reste
             // tel quel ; les sons sans note sont supprimés dans la copie rangée).
             let selection = files == nil ? prepare() : false
@@ -652,7 +655,7 @@ final class OrganizerSession {
     // MARK: Mixer
 
     /// Envois des pistes du Mixer reliées à un son, puis de celles qui les reçoivent (pistes de groupe), `maxRouted`
-    /// pistes au plus. Le Master et la piste « Current » (la dernière) ne comptent pas.
+    /// pistes au plus. La piste « Current » (la dernière) ne compte pas ; le Master (0) est dit, mais pas suivi.
     private func readRoutes(_ targets: [ChannelInfo], mixer: [MixerTrackInfo]) throws -> [Int: [Int]] {
         let last = mixer.count - 2
         guard last >= 1 else { return [:] }
@@ -663,14 +666,17 @@ final class OrganizerSession {
         while !todo.isEmpty, out.count < Self.maxRouted {
             if isCancelled { throw OrganizerError.cancelled }
             let track = todo.removeFirst()
-            let dests = try link.routes(from: track).filter { (1...last).contains($0) && $0 != track }
-            out[track] = dests
+            let all = try link.routes(from: track)
+            let dests = all.filter { (1...last).contains($0) && $0 != track }
+            // Le Master (0) gardé s'il y est : une piste qui envoie au Master et à une autre (sidechain, effet) n'est
+            // pas une piste de groupe.
+            out[track] = all.contains(0) ? [0] + dests : dests
             for d in dests where !seen.contains(d) {
                 seen.insert(d)
                 todo.append(d)
             }
         }
-        note { $0.routes = out.values.reduce(0) { $0 + $1.count } }
+        note { $0.routes = out.values.reduce(0) { $0 + $1.filter { $0 != 0 }.count } }
         return out
     }
 
