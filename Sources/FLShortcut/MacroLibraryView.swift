@@ -223,14 +223,18 @@ struct MacroLibraryPage: View {
     private func toggle(_ remap: Remap) {
         var copy = remap
         copy.enabled.toggle()
-        store.upsert(copy)
+        withListAnimation(changes: 1) { store.upsert(copy) }
     }
 
     /// Supprime la macro et ses raccourcis (annulable depuis la notification).
     private func delete(_ doc: MacroDoc) {
         let shortcuts = store.remaps(forMacro: doc.id)
-        guard let removed = library.remove(doc.id) else { return }
-        for r in shortcuts { store.delete(r.id) }
+        let removal = withListAnimation(changes: 1 + shortcuts.count) { () -> (doc: MacroDoc, index: Int)? in
+            guard let removed = library.remove(doc.id) else { return nil }
+            for r in shortcuts { store.delete(r.id) }
+            return removed
+        }
+        guard let removed = removal else { return }
         let lib = library
         let model = store
         toast(ToastMessage(text: String(localized: "« \(doc.name.displaySafe()) » supprimée"), undo: {
@@ -570,6 +574,7 @@ struct MacroSidebarRow: View {
             Text("Macros")
         } icon: {
             SectionIcon(symbol: SidebarItem.macros.symbol, tint: SidebarItem.macros.tint)
+                .frameProbe(SidebarItem.macros.flightID)
         }
         .sidebarHover(SidebarItem.macros.tint)
         .badge(library.macros.count)

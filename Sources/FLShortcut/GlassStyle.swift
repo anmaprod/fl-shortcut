@@ -100,8 +100,9 @@ extension View {
         .motion(quick ? Motion.quickMorph : Motion.morph, value: key)
     }
 
-    /// Page de la barre latérale : une nouvelle page à chaque `key`, qui arrive du flou au net en montant un peu. Le
-    /// changement lui-même n'est pas animé : la page qui part s'en va tout de suite (PageReveal).
+    /// Page de la barre latérale : une nouvelle page à chaque `key`, qui arrive du flou au net sur place (l'icône de
+    /// la ligne choisie y vole jusqu'à l'en-tête). Le changement lui-même n'est pas animé : la page qui part s'en va
+    /// tout de suite (PageReveal).
     func pageSwitch<K: Hashable>(_ key: K) -> some View {
         modifier(PageReveal(focus: true)).id(key)
     }
@@ -114,16 +115,19 @@ extension View {
 }
 
 /// « Mise au point » : `amount` 1 = hors champ (transparent, flou, décalé, à peine plus petit), 0 = en place.
+/// `still` : ni décalage ni échelle, flou et transparence seulement (page où l'icône de la barre latérale atterrit :
+/// elle doit être à sa place exacte).
 private struct SoftFocus: ViewModifier {
     let amount: CGFloat
     let rise: CGFloat
+    var still = false
 
     func body(content: Content) -> some View {
         content
             .opacity(1 - amount)
             .blur(radius: 12 * amount)
-            .scaleEffect(1 - 0.03 * amount, anchor: .top)
-            .offset(y: rise * amount)
+            .scaleEffect(still ? 1 : 1 - 0.03 * amount, anchor: .top)
+            .offset(y: still ? 0 : rise * amount)
     }
 }
 
@@ -145,7 +149,7 @@ private struct PageReveal: ViewModifier {
         let reduced = MotionMode.effective(.full, reduceMotion: reduceMotion) == .reduced
         Group {
             if focus && !reduced {
-                content.modifier(SoftFocus(amount: shown ? 0 : 1, rise: 10))
+                content.modifier(SoftFocus(amount: shown ? 0 : 1, rise: 10, still: true))
             } else {
                 content.opacity(shown ? 1 : 0)
             }

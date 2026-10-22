@@ -229,3 +229,53 @@ extension View {
         modifier(GlassHighlight(shape: shape))
     }
 }
+
+// MARK: - Listes
+
+/// Listes (`List`, dessinées par AppKit) : un ajout, une suppression, un déplacement ou un filtrage glisse (AppKit
+/// anime lui-même ses lignes) au lieu de sauter ; au-delà de `limit` lignes changées d'un coup, changement direct.
+enum ListMotion {
+    static let limit = 60
+
+    static func animates(changes: Int) -> Bool {
+        changes > 0 && changes <= limit
+    }
+
+    /// Lignes changées entre deux listes : parties + arrivées + gardées mais déplacées (hors de la plus longue suite
+    /// gardée dans le même ordre). Au-delà de `limit`, le compte s'arrête (inutile d'aller plus loin).
+    static func changes<ID: Hashable>(from old: [ID], to new: [ID]) -> Int {
+        let oldSet = Set(old), newSet = Set(new)
+        let kept = old.filter { newSet.contains($0) }
+        let removed = old.count - kept.count
+        let added = new.filter { !oldSet.contains($0) }.count
+        guard removed + added <= limit else { return removed + added }
+        let keptNew = new.filter { oldSet.contains($0) }
+        return removed + added + kept.count - longestCommonRun(kept, keptNew)
+    }
+
+    /// Plus longue sous-suite commune (programmation dynamique sur deux lignes).
+    private static func longestCommonRun<ID: Hashable>(_ a: [ID], _ b: [ID]) -> Int {
+        guard !a.isEmpty, !b.isEmpty else { return 0 }
+        if a == b { return a.count }
+        var previous = [Int](repeating: 0, count: b.count + 1)
+        for x in a {
+            var current = [Int](repeating: 0, count: b.count + 1)
+            for (j, y) in b.enumerated() {
+                current[j + 1] = x == y ? previous[j] + 1 : max(previous[j + 1], current[j])
+            }
+            previous = current
+        }
+        return previous[b.count]
+    }
+}
+
+/// Change une liste : animé (ressort vif ; fondu court en mouvement réduit) si peu de lignes changent, sinon direct.
+@discardableResult
+func withListAnimation<R>(changes: Int, _ body: () throws -> R) rethrows -> R {
+    guard ListMotion.animates(changes: changes) else {
+        var transaction = Transaction()
+        transaction.disablesAnimations = true
+        return try withTransaction(transaction, body)
+    }
+    return try withAnimation(Motion.reduce ? Motion.reduced : Motion.spring(.vif), body)
+}

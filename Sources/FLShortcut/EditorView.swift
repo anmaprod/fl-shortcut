@@ -17,6 +17,11 @@ import UniformTypeIdentifiers
 // MARK: - Fenêtre principale
 
 /// Élément de la barre latérale.
+extension SidebarItem {
+    /// Cadre de son icône dans la barre latérale (couche de vol).
+    var flightID: String { "page.\(self)" }
+}
+
 enum SidebarItem: Hashable {
     case section(FLSection)
     case custom
@@ -178,6 +183,8 @@ struct EditorView: View {
     @AppStorage(InterfaceSound.key) private var interfaceSounds = true
     /// Ce qui vole d'un endroit à l'autre de la fenêtre (FlightLayer), créateur compris.
     @StateObject private var flights = FlightCenter()
+    /// Page choisie par l'app (reprise, commande de la CI sans ralenti) : l'icône ne vole pas jusqu'à l'en-tête.
+    @State private var quietPage = false
     @Namespace private var glassNS
 
     private var trimmedQuery: String { query.trimmingCharacters(in: .whitespaces) }
@@ -236,7 +243,10 @@ struct EditorView: View {
             AppResume.shared.editorWindow = $0
             WindowLauncher.shared.remember($0, key: EditorWindowFrame.key)   // cadre visé par la bulle, fermeture
         })
-        .onChange(of: selection) { AppResume.shared.page = $0 }
+        .onChange(of: selection) { newValue in
+            AppResume.shared.page = newValue
+            flyToHeader(newValue)
+        }
         .sheet(isPresented: $showGuide, onDismiss: { guideSeen = true }) {
             GuideSheet(initialPage: guidePage) { showGuide = false }
         }
@@ -277,10 +287,27 @@ struct EditorView: View {
     /// Relancée par « Quitter et rouvrir » (ou juste après avoir quitté) : la page et la macro d'avant reviennent.
     private func resumeIfAsked() {
         guard let resume = AppResume.shared.takeEditor() else { return }
-        if let page = resume.page { selection = page }
+        if let page = resume.page { selectQuietly(page) }
         if let id = resume.macro, store.library.doc(id) != nil {
             MacroCreatorLink.shared.open(id, isNew: resume.isNew)
             if macroEditor == nil { enterCreator() }
+        }
+    }
+
+    /// Page posée par l'app : l'icône ne vole pas jusqu'à l'en-tête.
+    private func selectQuietly(_ page: SidebarItem?) {
+        quietPage = true
+        selection = page
+        DispatchQueue.main.async { quietPage = false }
+    }
+
+    /// Page choisie d'un clic ou au clavier : l'icône de sa ligne vole jusqu'à l'en-tête de la page qui arrive (lue
+    /// après la mise en page ; rien si l'une des deux n'est pas là, en recherche ou dans le créateur).
+    private func flyToHeader(_ item: SidebarItem?) {
+        guard let item, !quietPage, trimmedQuery.isEmpty, macroEditor == nil else { return }
+        DispatchQueue.main.async {
+            flights.fly(.icon(symbol: item.symbol, tint: item.tint, size: 44), from: item.flightID,
+                        to: PageHeader.flightID)
         }
     }
 
@@ -399,7 +426,7 @@ struct EditorView: View {
         .windowGlass(glassEnabled)
         // Recherche en haut de la barre latérale (comme Réglages Système) : à droite, la barre d'outils ne porte que
         // les boutons de la page, et les flèches de la page Macros tombent au même endroit que dans le créateur.
-        .searchable(text: $query, placement: .sidebar, prompt: "Rechercher")
+        .searchable(text: searchText, placement: .sidebar, prompt: "Rechercher")
         // Active seulement après un clic dedans (ou ⌘F) : taper ailleurs n'y écrit plus rien.
         .background(SearchFocusGuard())
         // Le texte de la recherche n'est plus le nom du raccourci appuyé : recherche ordinaire.
@@ -415,9 +442,11 @@ struct EditorView: View {
             let words = (note.object as? String ?? "").split(separator: " ")
             DebugSnapshot.slowMotion = words.contains("lent") ? 10 : 1
             let name = words.first.map(String.init) ?? ""
-            selection = FLSection(rawValue: name).map(SidebarItem.section)
+            let page = FLSection(rawValue: name).map(SidebarItem.section)
                 ?? (name == "custom" ? .custom : name == "macros" ? .macros : name == "community" ? .community
                     : name == "aide" ? .help : name == "compte" ? .account : selection)
+            // Au ralenti, comme un clic (l'icône vole, photographiée) ; sinon page posée sans vol.
+            if words.contains("lent") { selection = page } else { selectQuietly(page) }
         }
         .onReceive(DebugSnapshot.publisher(DebugSnapshot.search)) { note in
             query = note.object as? String ?? ""
@@ -457,6 +486,7 @@ struct EditorView: View {
                         Text(section.title)
                     } icon: {
                         SectionIcon(symbol: section.symbol, tint: section.tint)
+                            .frameProbe(SidebarItem.section(section).flightID)
                     }
                     .sidebarHover(section.tint)
                     .badge(modified[section] ?? 0)
@@ -479,6 +509,7 @@ struct EditorView: View {
                     Text("Mes raccourcis")
                 } icon: {
                     SectionIcon(symbol: SidebarItem.custom.symbol, tint: SidebarItem.custom.tint)
+                        .frameProbe(SidebarItem.custom.flightID)
                 }
                 .sidebarHover(SidebarItem.custom.tint)
                 .badge(MyShortcuts.count(rows: data.rows, others: data.others, starters: store.freshRemaps()))
@@ -491,6 +522,7 @@ struct EditorView: View {
                     Text("Communauté")
                 } icon: {
                     SectionIcon(symbol: SidebarItem.community.symbol, tint: SidebarItem.community.tint)
+                        .frameProbe(SidebarItem.community.flightID)
                 }
                 .sidebarHover(SidebarItem.community.tint)
                 .help(CommunityText.subtitle)
@@ -503,6 +535,7 @@ struct EditorView: View {
                     Text("Mon compte")
                 } icon: {
                     SectionIcon(symbol: SidebarItem.account.symbol, tint: SidebarItem.account.tint)
+                        .frameProbe(SidebarItem.account.flightID)
                 }
                 .sidebarHover(SidebarItem.account.tint)
                 .badge(backup.conflict != nil ? Text("!") : nil)
@@ -512,6 +545,7 @@ struct EditorView: View {
                     Text("Aide")
                 } icon: {
                     SectionIcon(symbol: SidebarItem.help.symbol, tint: SidebarItem.help.tint)
+                        .frameProbe(SidebarItem.help.flightID)
                 }
                 .sidebarHover(SidebarItem.help.tint)
                 .help("Questions fréquentes, et écrire à l'équipe")
@@ -629,8 +663,8 @@ struct EditorView: View {
 
     /// Recherche : toutes les sections, regroupées par section. Avec un raccourci appuyé (bouton clavier) : ce qui se
     /// lance sur ces touches, ou les portait dans FL.
-    private func searchResults(_ data: CatalogData) -> some View {
-        let q = trimmedQuery
+    /// Raccourcis trouvés par la recherche `q` (ou par la touche cherchée, quand `q` est son nom).
+    private func searchMatches(_ data: CatalogData, _ q: String) -> (rows: [CatalogRow], others: [Remap]) {
         let combo = keySearch.flatMap { $0.display == q ? $0 : nil }
         let rows = data.rows.filter { row in
             if let combo { return KeySearch.matches(row, combo) }
@@ -641,6 +675,32 @@ struct EditorView: View {
             if let combo { return KeySearch.matches(r, combo) }
             return [r.title, r.subtitle, r.trigger?.display ?? ""].joined(separator: " ").localizedCaseInsensitiveContains(q)
         }
+        return (rows, others)
+    }
+
+    /// Texte de la recherche : en tapant, les lignes filtrées glissent (peu de changements) au lieu de sauter ;
+    /// entrer dans la recherche ou en sortir change de page, sans animation (PageReveal).
+    private var searchText: Binding<String> {
+        Binding(get: { query }, set: { new in
+            let old = query.trimmingCharacters(in: .whitespaces)
+            let next = new.trimmingCharacters(in: .whitespaces)
+            guard !old.isEmpty, !next.isEmpty, old != next else {
+                query = new
+                return
+            }
+            let data = store.catalogRows()
+            let ids = { (q: String) -> [AnyHashable] in
+                let found = searchMatches(data, q)
+                return found.rows.map { AnyHashable($0.id) } + found.others.map { AnyHashable($0.id) }
+            }
+            withListAnimation(changes: ListMotion.changes(from: ids(old), to: ids(next))) { query = new }
+        })
+    }
+
+    private func searchResults(_ data: CatalogData) -> some View {
+        let q = trimmedQuery
+        let combo = keySearch.flatMap { $0.display == q ? $0 : nil }
+        let (rows, others) = searchMatches(data, q)
         let sections = FLSection.allCases.filter { s in rows.contains { $0.entry.section == s } }
         return Group {
             if rows.isEmpty && others.isEmpty {
@@ -944,13 +1004,13 @@ struct EditorView: View {
         guard Dialogs.confirm(String(localized: "Charger le profil « \(preset.label) » ?"),
                               preset.summary + String(localized: "\n\nTes raccourcis actuels seront remplacés (annulable)."))
         else { return }
-        store.apply(preset: preset)
+        withListAnimation(changes: store.remaps.count) { store.apply(preset: preset) }
         show(ToastMessage(text: String(localized: "Profil « \(preset.label) » chargé"), undo: { store.undoReplace() }))
     }
 
     private func reset(_ row: CatalogRow) {
         let before = store.remaps
-        store.reset(row)
+        withListAnimation(changes: 1) { store.reset(row) }
         show(ToastMessage(text: String(localized: "« \(row.entry.title) » réinitialisé"), undo: { store.remaps = before }))
     }
 
@@ -958,12 +1018,12 @@ struct EditorView: View {
         guard Dialogs.confirm(String(localized: "Tout réinitialiser ?"),
                               String(localized: "Tous les raccourcis reviennent à leur touche d'origine (profil Recommandé). C'est annulable."))
         else { return }
-        store.resetAll()
+        withListAnimation(changes: store.remaps.count) { store.resetAll() }
         show(ToastMessage(text: String(localized: "Tous les raccourcis sont réinitialisés"), undo: { store.undoReplace() }))
     }
 
     private func delete(_ remap: Remap) {
-        store.delete(remap.id)
+        withListAnimation(changes: 1) { store.delete(remap.id) }
         show(ToastMessage(text: String(localized: "Raccourci supprimé"), undo: { store.upsert(remap) }))
     }
 
@@ -1344,6 +1404,9 @@ private struct EmptyState: View {
 /// En-tête de page façon Réglages Système (macOS 26) : grande icône colorée, titre gras aligné à gauche, résumé.
 /// Dans la première carte de la page (couche de contenu, aucun verre).
 struct PageHeader: View {
+    /// Cadre de l'icône d'en-tête dans la couche de vol (une seule page à la fois).
+    static let flightID = "page.entete"
+
     let symbol: String
     let tint: Color
     let title: String
@@ -1352,13 +1415,18 @@ struct PageHeader: View {
 
     var body: some View {
         HStack(spacing: 14) {
+            // L'icône de la ligne choisie dans la barre latérale vole jusqu'ici (cachée jusqu'à l'atterrissage).
             SectionIcon(symbol: symbol, tint: tint, size: 44)
+                .frameProbe(PageHeader.flightID)
+                .flightTarget(PageHeader.flightID)
             VStack(alignment: .leading, spacing: 2) {
                 Text(title).font(.title3.weight(.semibold))
                 Text(subtitle)
                     .font(.system(size: 12))
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
+                    .contentTransition(.numericText())         // les chiffres défilent (compte de la page)
+                    .motion(Motion.spring(.vif), value: subtitle)
                 if let detail {
                     Text(detail).font(.system(size: 11)).foregroundStyle(.tertiary)
                 }
@@ -1481,7 +1549,7 @@ struct EditSheet: View {
                 if !isNew {
                     Button("Supprimer", role: .destructive) {
                         let removed = draft
-                        store.delete(draft.id)
+                        withListAnimation(changes: 1) { store.delete(draft.id) }
                         onDone(ToastMessage(text: String(localized: "Raccourci supprimé"), undo: { store.upsert(removed) }))
                         dismiss()
                     }
@@ -1500,7 +1568,7 @@ struct EditSheet: View {
                         final.macro = nil
                         final.macroRef = nil
                     }
-                    store.upsert(final)
+                    withListAnimation(changes: 1) { store.upsert(final) }
                     onDone(ToastMessage(text: isNew ? String(localized: "Raccourci ajouté") : String(localized: "Raccourci modifié"), undo: nil))
                     dismiss()
                 }
@@ -1960,7 +2028,7 @@ struct CatalogEditSheet: View {
     private func apply(releasing toRelease: [KeyClash]) {
         recorder.stop()
         let followUp = toRelease.isEmpty ? nil : store.release(toRelease)
-        store.setTrigger(combo, for: row)
+        withListAnimation(changes: 1 + toRelease.count) { store.setTrigger(combo, for: row) }
         onDone(ToastMessage(text: String(localized: "« \(row.entry.title) » : ")
                                 + (combo?.display ?? String(localized: "aucune touche")), undo: nil), followUp)
         dismiss()

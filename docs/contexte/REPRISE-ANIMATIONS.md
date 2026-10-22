@@ -24,7 +24,8 @@ toute la branche à la fin (agent le plus capable, avec la « Review Focus » du
 | 2 Couche de vol | Commit 86761da. CI à lire (compilation + `FlightLayerTests`). |
 | 3 Menu de l'icône en bulle | Codée (`MenuBubble.swift`, `MenuPanel.swift`, commande CI `menu`, `MenuBubbleTests`), poussée avec les tâches 1 et 2 : une seule CI vérifie les trois. Reste l'étape 7 ci-dessous (vérifier les images et l'arbre des vues). |
 | 4 Fenêtres qui sortent du clic | Codée (`WindowLauncher.swift`, lignes du menu, Organiser, accueil, désinstallation, guide des autorisations, cadre mémorisé de la fenêtre principale, commande CI `vol`, `WindowLauncherTests`), poussée avec 1 à 3. À vérifier : images `vol-organiser-*`, `vol-organiser-fermeture-*`, `vol-editeur-*` (bulle du cadre d'exemple au cadre de la fenêtre, puis vers l'icône), aucune fenêtre de vol dans les captures de repos, mémoire + 5 Mo au plus. |
-| 5 à 9 | Pas commencées. Suivre le plan tel quel. |
+| 5 Pages et listes | Codée dans le commit qui suit la note (icône de la barre latérale qui vole jusqu'à l'en-tête `PageHeader`, page qui arrive sans glisser, listes et recherche qui glissent via `withListAnimation`, chiffres qui défilent dans `PageHeader`, `ListMotionTests`). Poussée après la CI de 1 à 4. À vérifier : `page-change-*` (l'icône vole, pas de titre en double). |
+| 6 à 9 | Pas commencées. Suivre le plan tel quel. |
 
 ### À vérifier sur la CI pour les tâches 1 et 2 (avant d'aller plus loin)
 
