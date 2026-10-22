@@ -205,7 +205,9 @@ extension MacroEffectsMac {
 
         let known = WinSnapshot.take(pid: ctx.pid).numbers
         postLetter("s", pid: ctx.pid)
-        guard case .success(let sub) = WindowWait.newWindow(pid: ctx.pid, excluding: known, timeout: 0.45,
+        // Plafond seulement (on repart dès que le sous-menu est là) : 1 s, pas 0,45 — sur un Mac chargé il est apparu
+        // à 0,63 s (CI, premier passage) et l'armement était abandonné alors que le menu s'ouvrait.
+        guard case .success(let sub) = WindowWait.newWindow(pid: ctx.pid, excluding: known, timeout: 1.0,
                                                             accept: { $0.isMenuLike }, stop: stopReason) else {
             closePopups(base: before.numbers, ctx: ctx)
             return .fail(String(localized: "sous-menu « Select » non ouvert"))
