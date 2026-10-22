@@ -157,7 +157,7 @@ enum ProjectFile {
     /// remis. Sinon le nom est ajouté au premier pattern décrit qui n'en a pas ; sinon (un seul pattern jamais nommé,
     /// prod « Mechanical » du propriétaire) il va sur le premier canal nommé. nil : rien de possible.
     static func marking(_ file: FLPFile, marker: String) -> (file: FLPFile, mark: Mark)? {
-        let text = marker.utf16.flatMap { FLPBytes.le(Int($0), size: 2) } + [0, 0]
+        let text: [UInt8] = marker.utf16.flatMap { FLPBytes.le(Int($0), size: 2) } + [0, 0]
         let name = FLPEvent(id: FLPProject.Event.patternName, bytes: text)
         var out = file
         var pattern: Int?
