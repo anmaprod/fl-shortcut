@@ -48,6 +48,10 @@ enum DebugSnapshot {
     /// « ecoute », « apercu », « fini » ; « fermer » le ferme.
     static let organizer = Notification.Name("app.flshortcut.debug.organizer")
     private static var organizerObserver: NSObjectProtocol?
+    /// Menu de l'icône : « ouvrir » (un clic sur l'icône) ou « fermer » (comme une ligne choisie) ; « lent » : au
+    /// ralenti (10 fois), pour photographier la bulle en route.
+    static let menu = Notification.Name("app.flshortcut.debug.menu")
+    private static var menuObserver: NSObjectProtocol?
 
     static func publisher(_ name: Notification.Name) -> AnyPublisher<Notification, Never> {
         guard enabled else { return Empty().eraseToAnyPublisher() }
@@ -68,6 +72,11 @@ enum DebugSnapshot {
         }
         organizerObserver = DistributedNotificationCenter.default().addObserver(forName: organizer, object: nil, queue: .main) { note in
             OrganizerWindow.showDemo(note.object as? String ?? "attente")
+        }
+        menuObserver = DistributedNotificationCenter.default().addObserver(forName: menu, object: nil, queue: .main) { note in
+            let words = (note.object as? String ?? "").split(separator: " ")
+            slowMotion = words.contains("lent") ? 10 : 1
+            if words.first == "fermer" { MenuPanel.shared.close() } else { MenuPanel.shared.clickIcon() }
         }
         observer = DistributedNotificationCenter.default().addObserver(forName: snapshot, object: nil, queue: .main) { note in
             capture(tag: note.object as? String ?? "capture")
@@ -120,7 +129,29 @@ enum DebugSnapshot {
         for w in NSApp.windows where w.isVisible {
             text += windowLines(w)
         }
+        // Menu de l'icône ouvert : structure de sa fenêtre (classes et cadres seulement), preuve de ce que la bulle
+        // masque (MenuBubbleSupport).
+        if let menuWindow = MenuPanel.shared.window, menuWindow.isVisible,
+           let root = menuWindow.contentView?.superview ?? menuWindow.contentView {
+            text += "menu : bulle \(MenuPanel.shared.bubble ? "oui" : "non") · opaque \(menuWindow.isOpaque ? "oui" : "non")"
+                + " · ombre \(menuWindow.hasShadow ? "oui" : "non")\n" + viewTree(root, depth: 1)
+        }
         try? text.write(to: cacheDirectory.appendingPathComponent("report.txt"), atomically: true, encoding: .utf8)
+    }
+
+    /// Arbre des vues sous `view` (6 niveaux au plus) : classe, cadre, caché, transparence, masque d'un fond de
+    /// macOS. Jamais de texte.
+    private static func viewTree(_ view: NSView, depth: Int) -> String {
+        var line = String(repeating: "  ", count: depth) + "\(type(of: view)) \(rect(view.frame))"
+        if view.isHidden { line += " caché" }
+        if view.alphaValue < 1 { line += " alpha \(view.alphaValue)" }
+        if let effect = view as? NSVisualEffectView {
+            line += " fond-macOS matériau \(effect.material.rawValue) masque \(effect.maskImage == nil ? "non" : "oui")"
+        }
+        var out = line + "\n"
+        guard depth < 6 else { return out }
+        for sub in view.subviews { out += viewTree(sub, depth: depth + 1) }
+        return out
     }
 
     /// Toutes les zones de défilement visibles sous `view` (assez grandes pour être une liste).

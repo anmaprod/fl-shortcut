@@ -228,6 +228,19 @@ run() {   # $1 : libellé, $2 : YES/NO effet verre
     cp ~/Library/Logs/DiagnosticReports/FLShortcut*.ips "$OUT/" 2>/dev/null || true
     tail -40 ~/Library/Logs/"FL Shortcuts"/macro.log > "$OUT/organiser-journal.txt" 2>/dev/null || true
     "$POST" app.flshortcut.debug.organizer fermer; sleep 1
+    # Menu de l'icône au ralenti (10 fois) : la bulle naît de l'icône, puis y rentre ; aucun fond de macOS derrière.
+    # Le rapport donne la structure de sa fenêtre (ce que la bulle masque).
+    "$POST" app.flshortcut.debug.menu "ouvrir lent"
+    for i in 1 2 3 4 5 6 7 8; do
+      sleep 0.5; screencapture -x "$OUT/menu-ouverture-$i.png" 2>/dev/null || true
+    done
+    sleep 4
+    report "$label-menu" >/dev/null
+    "$POST" app.flshortcut.debug.menu "fermer lent"
+    for i in 1 2 3 4 5 6; do
+      sleep 0.5; screencapture -x "$OUT/menu-fermeture-$i.png" 2>/dev/null || true
+    done
+    sleep 8
     # Changement de page au ralenti (10 fois) : Général → Mixer, photographié en route (barre au-dessus du titre ?).
     "$POST" app.flshortcut.debug.select general; sleep 2
     "$POST" app.flshortcut.debug.select "mixer lent"

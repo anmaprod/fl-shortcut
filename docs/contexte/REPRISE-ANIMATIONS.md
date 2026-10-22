@@ -20,9 +20,9 @@ toute la branche à la fin (agent le plus capable, avec la « Review Focus » du
 
 | Tâche | État |
 |---|---|
-| 1 Moteur de mouvement | Commit 541d81c. CI : compilation, « Tests Swift » et « Textes en anglais » verts. Mesures, captures et essais pas encore lus (CI remplacée par le push de cette note : relire la CI du dernier commit). |
-| 2 Couche de vol | Commit 86761da, poussé avec cette note. CI à lire (compilation + `FlightLayerTests`). |
-| 3 Menu de l'icône en bulle | Commencée : brouillon `docs/contexte/brouillons/MenuBubble.swift.txt` (à renommer en `Sources/FLShortcut/MenuBubble.swift`). Reste à faire : voir plus bas. |
+| 1 Moteur de mouvement | Commit 541d81c. CI : compilation, « Tests Swift » et « Textes en anglais » verts. Mesures, captures et essais pas encore lus : relire la CI du dernier commit. |
+| 2 Couche de vol | Commit 86761da. CI à lire (compilation + `FlightLayerTests`). |
+| 3 Menu de l'icône en bulle | Codée (`MenuBubble.swift`, `MenuPanel.swift`, commande CI `menu`, `MenuBubbleTests`), poussée avec les tâches 1 et 2 : une seule CI vérifie les trois. Reste l'étape 7 ci-dessous (vérifier les images et l'arbre des vues). |
 | 4 à 9 | Pas commencées. Suivre le plan tel quel. |
 
 ### À vérifier sur la CI pour les tâches 1 et 2 (avant d'aller plus loin)
@@ -39,45 +39,18 @@ toute la branche à la fin (agent le plus capable, avec la « Review Focus » du
   (colonne « Bloc glissé de la palette » du tableau de mesure).
 - Mémoire : menu ≈ 15 Mo, fenêtre ≈ 54 Mo (budget + 5 Mo au plus).
 
-## Tâche 3 : ce qui reste (le brouillon couvre `MenuBubble.swift`)
+## Tâche 3 : à vérifier sur la CI
 
-1. `MenuPanel.swift` :
-   - `@Published private(set) var bubble = false`, `var statusIconFrame: CGRect?`,
-     `@Published private(set) var pillFrame: CGRect = .zero`, `var window: NSWindow? { panel }` (pour le rapport) ;
-   - `attach(_:)` : appeler aussi la préparation (bulle prête avant le premier affichage) et suivre
-     `NSWindow.didResizeNotification` / `didMoveNotification` de la fenêtre pour recalculer `pillFrame` (la fenêtre
-     grandit de la marge quand la bulle s'active) ;
-   - `opened()` : `bubble = MenuBubbleSupport.prepare(panel, legacy: UserDefaults.standard.bool(forKey:
-     MenuBubbleSupport.legacyKey))`, `statusIconFrame = statusButton?.window?.frame`,
-     `pillFrame = MenuBubbleGeometry.pill(icon:window: panel.frame)`, puis `reveal()` ; ne publier que si la valeur
-     change ;
-   - `close()` en bulle : pas de fondu de toute la fenêtre ; `withAnimation(Motion.reduce ? Motion.reduced :
-     Motion.spring(.doux)) { revealed = false }`, puis la suite d'aujourd'hui (`performClick` + filet) après
-     `Motion.settleTime(.doux)` (ou `Motion.reducedDuration`). Ancien menu : inchangé ;
-   - `func clickIcon() { statusButton?.performClick(nil) }` (commande CI).
-2. `FLShortcutApp.swift` : dans `MenuContent`, remplacer `.menuReveal(panel.revealed)` par `.menuBubble(panel)`
-   (garder `.background(WindowReader…)` après) ; `PanelItem` passe `panel.bubble` à `menuRevealRow`.
-3. `MenuPanel.swift`, `menuRevealRow(_:index:bubble: Bool = false)` : en bulle, délai d'arrivée
-   `0.6 * Motion.settleTime(.doux) + Motion.stagger(index, start: 0, step: 0.035)` (les lignes arrivent quand la
-   bulle est presque posée).
-4. `DebugSnapshot.swift` : `static let menu = Notification.Name("app.flshortcut.debug.menu")`, observé dans `start()`
-   comme `organizer` : mots « ouvrir » / « fermer » (+ « lent » → `slowMotion = 10`, sinon 1) →
-   `MenuPanel.shared.clickIcon()` / `MenuPanel.shared.close()`. Dans `writeReport`, pour la fenêtre du menu, écrire
-   l'arbre des vues (classe, cadre, caché, alpha ; jamais de texte) : c'est la preuve de la vraie structure de la
-   fenêtre de `MenuBarExtra`, que personne n'a encore vue.
-5. `scripts/mesure-interface.sh`, dans le bloc `if [[ "$label" == verre ]]`, juste avant « Changement de page au
-   ralenti » : `menu "ouvrir lent"`, 8 captures `menu-ouverture-$i.png` toutes les 0,5 s, `sleep 4`,
-   `report "$label-menu" >/dev/null`, `menu "fermer lent"`, 6 captures `menu-fermeture-$i.png`, `sleep 8`.
-6. `Tests/FLShortcutTests/MenuBubbleTests.swift` : les tests du plan, **avec deux corrections** décidées ensuite :
-   - fond de macOS qui CONTIENT notre contenu (vue de contenu ancêtre de la vue SwiftUI) : il n'est pas caché (cela
-     cacherait le menu), son verre est masqué : `XCTAssertNotNil(background.maskImage)`,
-     `XCTAssertFalse(background.isHidden)` ; ajouter un test « fond frère » : celui-là est caché (`isHidden`) ;
-   - test de l'ancien menu : poser `window.hasShadow = true` avant l'appel (valeur par défaut incertaine pour une
-     fenêtre sans bord).
-7. Vérifier sur la CI : `menu-ouverture-*` = une pastille sous l'icône qui grandit en bulle, aucun fond de macOS
-   derrière ; lire l'arbre des vues dans `verre-menu-report.txt`. Si le verre est plat ou sans flou :
-   `MenuBubbleStyle.glass = false`. Si le menu est vide ou cassé : corriger `prepare` d'après l'arbre (et au pire
-   renvoyer faux = ancien menu, jamais un menu cassé).
+Tout est codé comme prévu par le plan, avec ces choix : un fond de macOS qui CONTIENT notre contenu n'est pas caché
+(cela cacherait le menu) mais son verre est masqué (`maskImage` transparent) ; un fond posé à côté est caché ; une
+fois la bulle en place, elle le reste jusqu'au prochain lancement (la préférence `legacyMenu` compte au lancement) ;
+les lignes arrivent à 60 % de l'ouverture de la bulle ; la bulle rentre dans l'icône en ressort doux, puis le clic sur
+l'icône ferme la fenêtre.
+
+- `menu-ouverture-*` = une pastille sous l'icône qui grandit en bulle, aucun fond de macOS
+  derrière ; lire l'arbre des vues dans `verre-menu-report.txt`. Si le verre est plat ou sans flou :
+  `MenuBubbleStyle.glass = false`. Si le menu est vide ou cassé : corriger `prepare` d'après l'arbre (et au pire
+  renvoyer faux = ancien menu, jamais un menu cassé).
 
 ## Décisions prises en route (à garder)
 
@@ -94,7 +67,8 @@ toute la branche à la fin (agent le plus capable, avec la « Review Focus » du
   ne doit renvoyer que `MotionEngine.swift`, la section Motion de `GlassStyle.swift` et ce `WaitingPulse`).
 - Couche de vol : la sonde AppKit (`FlightProbeView`) ne répond jamais à la souris (`hitTest` → nil) : aucun clic ni
   dépôt volé ; `cancelAll()` à la fermeture de la fenêtre appelle la fin de chaque vol.
-- Le push de cette note a remplacé la CI de la tâche 1 : la CI suivante vérifie les tâches 1 et 2 ensemble.
+- La limite de la session approchant, les tâches 1, 2 et 3 ont été poussées sans attendre leurs CI une à une : la CI
+  du dernier commit les vérifie ensemble (lire « Tests Swift », puis les captures de chacune).
 
 ## Façon de travailler (apprise ici)
 
@@ -114,4 +88,4 @@ toute la branche à la fin (agent le plus capable, avec la « Review Focus » du
 Relecture indépendante de toute la branche (depuis 7f68c9f) par un agent le plus capable, avec la conception, le plan
 et sa « Review Focus » ; corriger ; puis donner au propriétaire la liste des décisions prises en route et des petits
 défauts remis à plus tard ; mettre `CLAUDE.md` et `docs/contexte/HISTORIQUE.md` à jour ; supprimer ce fichier et le
-brouillon ; pas de PR sans demande.
+pas de PR sans demande.

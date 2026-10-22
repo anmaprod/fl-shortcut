@@ -714,8 +714,9 @@ struct MenuContent: View {
         .frame(width: 300)
         // Fondu de couleur dans le fond, comme le guide (lueur fixe, aucune animation au repos).
         .background { BrandGlow().opacity(0.55) }
-        // Sort de l'icône à chaque ouverture ; se ferme au choix d'une ligne ou d'un clic ailleurs (MenuPanel).
-        .menuReveal(panel.revealed)
+        // Naît de l'icône en bulle à chaque ouverture (MenuBubble ; repli : se déploie dans la bulle de macOS) ; se
+        // ferme au choix d'une ligne ou d'un clic ailleurs (MenuPanel).
+        .menuBubble(panel)
         .background(WindowReader { MenuPanel.shared.attach($0) })
         .onAppear { MenuPanel.shared.appeared() }
     }
@@ -822,6 +823,6 @@ private struct PanelItem: View {
         .onHover { inside in
             withAnimation(reduceMotion ? Motion.reduced : Motion.lift) { hovering = inside }
         }
-        .menuRevealRow(panel.revealed, index: order)
+        .menuRevealRow(panel.revealed, index: order, bubble: panel.bubble)
     }
 }
