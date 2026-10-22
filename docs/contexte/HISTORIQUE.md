@@ -171,4 +171,13 @@ entrée 1 ≈ 0,5 s.
 - Rien n'est touché si le fichier n'est pas le projet ouvert, a une forme inattendue, ou a changé depuis l'analyse.
 - Pas encore vérifié sur le vrai FL : ⌘S enregistre-t-il bien, le fichier est-il retrouvé (titre de la fenêtre,
   Spotlight), FL ouvre-t-il la copie sans rien demander ?
+- Relecture : piste coupée (mute) portant des clips → arrêt (sinon la copie sonnerait autrement), pistes touchées
+  réactivées ; textes d'autorisation des dossiers (Documents, Bureau, Téléchargements, disques) ; dossier refusé dit
+  avec où l'autoriser ; Channel rack réduit à un groupe signalé ; 3 minutes pour que FL ouvre la copie ; une marque
+  restée n'est jamais reprise comme nom.
+- Réponses du propriétaire : ⌘S enregistre bien dans FL ; ouvrir un autre projet sans avoir enregistré fait demander
+  à FL s'il faut enregistrer. Idée de sa part : un « point de retour » (⌘Z, ou une macro). Ici le point de retour est
+  le projet enregistré avant de commencer : « Revenir comme avant » le rouvre, la copie étant enregistrée, FL ne
+  demande rien. Pour les macros, un bloc « Point de retour » (historique d'annulation de FL, `general.getUndoHistoryPos`
+  / `setUndoHistoryPos` du script) reste à proposer.
 

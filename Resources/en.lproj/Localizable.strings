@@ -968,7 +968,7 @@
 "Le fichier de ton projet n'est pas accessible : rien n'a été touché." = "Your project file can't be reached: nothing was changed.";
 "Le fichier des macros est illisible et n'a pas pu être copié : il n'est pas modifié, tes nouvelles macros ne seront pas enregistrées." = "The macros file is unreadable and couldn't be copied: it's left unchanged, and your new macros won't be saved.";
 "Le fichier des macros était illisible : une copie datée a été gardée dans Application Support › FL Shortcuts (%@)." = "The macros file was unreadable: a dated copy was kept in Application Support › FL Shortcuts (%@).";
-"Le fichier enregistré n'est pas le projet ouvert dans FL : rien n'a été touché. Enregistre ton projet dans FL, puis clique sur « Réessayer »." = "The saved file isn't the project open in FL: nothing was changed. Save your project in FL, then click “Try again”.";
+"Le fichier enregistré ne correspond pas au projet ouvert dans FL : rien n'a été touché. Si le Channel rack ne montre qu'un groupe de sons, choisis « All » en haut du Channel rack. Puis clique sur « Réessayer »." = "The saved file doesn't match the project open in FL: nothing was changed. If the Channel rack shows only one group of sounds, choose “All” at the top of the Channel rack. Then click “Try again”.";
 "Le glisser doit commencer et finir dans une fenêtre de FL (pas dans un menu) : recommence." = "The drag must start and end in an FL window (not in a menu): try again.";
 "Le lien avec FL vient d'être mis à jour : quitte et rouvre FL Studio pour qu'il le charge." = "The FL link was just updated: quit and reopen FL Studio so it loads it.";
 "Le lien est prêt : FL le lit en démarrant et relie « FL Shortcuts Link » tout seul." = "The link is ready: FL reads it when it starts and links “FL Shortcuts Link” on its own.";
@@ -1340,6 +1340,7 @@
 "Playlist : %lld sons qui partageaient une piste ont chacun la leur." = "Playlist: %lld sounds that shared a track now each have their own.";
 "Playlist : %lld sons qui partagent une piste avec un autre auront chacun la leur" = "Playlist: %lld sounds that share a track with another will each get their own";
 "Playlist : des pistes gardent deux sons, FL n'a pas laissé descendre leurs clips sur une piste à eux (dans FL, « Typing keyboard to piano keyboard » doit être éteint)." = "Playlist: some tracks still hold two sounds; FL didn't let their clips move down to a track of their own (in FL, \"Typing keyboard to piano keyboard\" must be off).";
+"Playlist : il faudrait plus de pistes que FL n'en a pour mettre chaque son sur la sienne ; décoche « Playlist » pour ranger le reste." = "Playlist: putting each sound on its own track would need more tracks than FL has; uncheck “Playlist” to organize the rest.";
 "Playlist : un son par piste, et les clips d'un même son réunis sur sa piste (FL Shortcuts lit la fenêtre de FL au moment de les déplacer)" = "Playlist: one sound per track, and the clips of the same sound gathered on its track (FL Shortcuts reads FL's window when moving them)";
 "Playlist pas rangée : FL n'a pas montré le menu de ses pistes (la Playlist doit être visible, ses noms de piste à l'écran). Noms et couleurs sont posés." = "Playlist not sorted: FL didn't show its track menu (the Playlist must be visible, with its track names on screen). Names and colors are set.";
 "Playlist pas rangée : pour remonter ses pistes, FL Shortcuts doit voir la fenêtre de FL (Réglages Système › Confidentialité et sécurité › Enregistrement de l'écran). Noms et couleurs sont posés." = "Playlist not sorted: to move its tracks up, FL Shortcuts needs to see FL's window (System Settings › Privacy & Security › Screen Recording). Names and colors are set.";
@@ -1613,6 +1614,7 @@
 "Supprimer les canaux" = "Delete channels";
 "Supprimer les clips audio inutilisés" = "Delete unused audio clips";
 "Supprimer les sons sans aucune note (on ne peut pas les remettre)" = "Delete sounds without any notes (they can't be brought back)";
+"Supprimer les sons sans aucune note de la copie rangée" = "Delete sounds without any notes from the organized copy";
 "Supprimer mon compte" = "Delete my account";
 "Supprimer mon partage…" = "Delete my post…";
 "Supprimer ton compte ?" = "Delete your account?";
@@ -1724,6 +1726,7 @@
 "Tout est prêt, mais attention au larsen" = "All set, but watch out for feedback";
 "Tout réinitialiser ?" = "Reset everything?";
 "Tout réinitialiser…" = "Reset all…";
+"Tout se range dans une copie de ton projet, « (rangé) », à côté de l'original : ton projet d'origine ne bouge pas, « Revenir comme avant » le rouvre. Aucune lecture de l'écran." = "Everything is organized in a copy of your project, “(organized)”, next to the original: your original project isn't changed, “Undo changes” reopens it. No screen reading.";
 "Tout sélectionner" = "Select all";
 "Toutes les macros, un fichier chacune, pour les partager (par défaut dans Documents › FL Shortcuts › Macros)" = "All macros, one file each, to share them (by default in Documents › FL Shortcuts › Macros)";
 "Transposer d'une octave vers le bas" = "Transpose down an octave";
@@ -1765,6 +1768,7 @@
 "Une nouvelle macro s'ouvre et FL passe devant : clique et tape ta suite, puis « Terminer »" = "A new macro opens and FL comes to the front: click and type your sequence, then “Finish”";
 "Une option de la page de FL ouverte juste au-dessus : ajouter un instrument ou un effet, armer la piste, mute ou solo d'un canal par son numéro, renommer la piste, le menu « Arrangement » de la Playlist, ou un raccourci de FL de cette page. Ajouté avec « Ouvrir une page de FL » au-dessus." = "An option of the FL page opened just above: add an instrument or effect, arm the track, mute or solo a channel by number, rename the track, the Playlist's “Arrangement” menu, or an FL shortcut for that page. Added with “Open an FL page” above.";
 "Une pause fixe est trop courte sur un projet lourd : préfère « Attendre une fenêtre » quand FL ouvre quelque chose." = "A fixed pause is too short on a heavy project: use “Wait for a window” when FL opens something.";
+"Une piste de ta Playlist est coupée (mute) : réactive-la dans FL (ou retire ses clips), puis clique sur « Réessayer ». Rien n'a été touché." = "A track of your Playlist is muted: unmute it in FL (or remove its clips), then click “Try again”. Nothing was changed.";
 "Une question" = "A question";
 "Une seule fois : clique sur le bouton de l'icône, à gauche du nom." = "Just once: click the icon button, left of the name.";
 "Une seule fois : clique sur « (none) » de la piste, puis sur l'entrée « 1 »." = "Just once: click the track's “(none)”, then input “1”.";
@@ -1986,6 +1990,7 @@
 "macOS : verrouiller l'écran" = "macOS: lock screen";
 "macOS a coupé l'interception plusieurs fois : elle a été relancée." = "macOS cut off key capture several times: it was restarted.";
 "macOS a gardé l'ancienne sortie audio au lieu de « %@ »" = "macOS kept the old audio output instead of “%@”";
+"macOS n'a pas laissé FL Shortcuts ouvrir le dossier de ton projet : autorise-le dans Réglages Système › Confidentialité et sécurité › Fichiers et dossiers, puis clique sur « Réessayer ». Rien n'a été touché." = "macOS didn't let FL Shortcuts open your project's folder: allow it in System Settings › Privacy & Security › Files and Folders, then click “Try again”. Nothing was changed.";
 "macOS propose « Quitter et rouvrir » : accepte, FL Shortcuts revient tout seul." = "macOS offers “Quit & Reopen”: accept, and FL Shortcuts comes back on its own.";
 "macro " = "macro ";
 "macro invalide" = "invalid macro";

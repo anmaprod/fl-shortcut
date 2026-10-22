@@ -245,7 +245,8 @@ MAC     = [89, 95, 58, 61]
 
 L'Organiser ne devine plus ce que joue chaque pattern ni où sont les clips : FL enregistre le projet ouvert (⌘S), son
 fichier est lu (`FLPFile`, `FLPProject`), et la Playlist est rangée dans une **copie** « <nom> (rangé).flp » écrite à
-côté de l'original, que FL ouvre ensuite. L'original n'est jamais écrit. Vérifié sur le projet de test du propriétaire
+côté de l'original, que FL ouvre ensuite. L'Organiser n'écrit jamais l'original (seul FL l'enregistre, comme avec ⌘S,
+avant de commencer : c'est le point de retour). Vérifié sur le projet de test du propriétaire
 (FL 26.1, octobre 2026) : relu puis réécrit octet pour octet à l'identique.
 
 - **En-tête** : « FLhd », longueur (4 octets, 6), format (2), nombre de canaux (2), pas par noire (2, `ppq`) ; puis
@@ -261,11 +262,12 @@ côté de l'original, que FL ouvre ensuite. L'original n'est jamais écrit. Vér
 - **Playlist** : 99 (arrangement), puis 233 : ses clips, 88 octets chacun (60 dans FL 21, 32 avant ; la taille est
   celle où chaque clip porte 0x5000 à la place 4). Dans un clip : début (4 octets, en pas), 0x5000 (2), numéro (2 :
   au-delà de 0x5000, un pattern ; sinon un canal : clip audio, automation), longueur (4), piste à l'envers (2 :
-  499 = piste 1 quand il y a 500 pistes). Puis chaque piste : 238 (numéro à partir de 1, couleur à la place 4…),
-  239 son nom s'il en a un.
+  499 = piste 1 quand il y a 500 pistes). Puis chaque piste : 238 (numéro à partir de 1, couleur à la place 4, 1 à la
+  place 12 si elle joue, 0 si elle est coupée…), 239 son nom s'il en a un.
 - **La copie** ne change que la piste de chaque clip (place 12), et, pour les pistes où il y avait ou où il y a des
-  clips, leur nom (239 retiré) et leur couleur (celle des pistes jamais touchées) ; le premier pattern nommé prend un
+  clips, leur nom (239 retiré), leur couleur (celle des pistes jamais touchées) et leur mute (elles jouent) ; le premier pattern nommé prend un
   nom « FL Shortcuts nnnn » (FL a ouvert la copie quand le script le lit), remis aussitôt par le script.
 - **Arrêt sans rien toucher** : fichier abîmé, forme inattendue (taille de clip ambiguë, pistes avec un trou, note d'un
-  canal inconnu, plusieurs arrangements avec des clips), fichier qui n'est pas le projet ouvert (autres canaux ou
-  patterns), ou projet changé entre l'analyse et « Organiser ».
+  canal inconnu, plusieurs arrangements avec des clips), un clip sur une piste coupée, fichier qui n'est pas le
+  projet ouvert (autres canaux ou patterns ; ou le Channel rack qui ne montre qu'un groupe), dossier refusé par macOS
+  (Fichiers et dossiers : textes dans Info.plist), ou projet changé entre l'analyse et « Organiser ».

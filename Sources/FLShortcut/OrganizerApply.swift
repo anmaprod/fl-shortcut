@@ -433,8 +433,8 @@ final class OrganizerApplier {
     }
 
     /// FL ouvre la copie rangée attendue : un nom de pattern posé pour ça dans la copie, lu par le script (au plus
-    /// `openChecks` fois, toutes les demi-secondes : les plugins se chargent).
-    static let openChecks = 120
+    /// `openChecks` fois, toutes les demi-secondes, 3 minutes : un gros projet charge ses plugins).
+    static let openChecks = 360
 
     /// Analyse sur le fichier : FL enregistre le projet, qui doit être resté tel qu'à l'analyse (sinon rien n'est
     /// touché) ; la copie rangée est écrite à côté de l'original (chaque clip sur la piste de ses sons, rien d'autre ne
@@ -471,7 +471,8 @@ final class OrganizerApplier {
         do {
             try files.write(marked.file, url)
         } catch {
-            throw OrganizerError.failed(String(localized: "La copie rangée n'a pas pu être écrite à côté de ton projet : rien n'a été touché."))
+            throw ProjectFile.denied(error) ? ProjectFile.deniedError
+                : OrganizerError.failed(String(localized: "La copie rangée n'a pas pu être écrite à côté de ton projet : rien n'a été touché."))
         }
         guard files.open(url) else {
             throw OrganizerError.failed(String(localized: "FL n'a pas pu ouvrir la copie rangée : elle est à côté de ton projet, ouvre-la dans FL. Ton projet n'a pas bougé."))
@@ -492,7 +493,9 @@ final class OrganizerApplier {
         guard opened else {
             throw OrganizerError.failed(String(localized: "FL n'a pas ouvert la copie rangée à temps : elle est à côté de ton projet, ouvre-la dans FL, puis relance l'Organiser. Ton projet n'a pas bougé."))
         }
-        let original = read.project.patternNames[marked.pattern] ?? "Pattern \(marked.pattern)"
+        // Son nom d'avant ; une marque restée d'un essai où FL l'avait ouverte trop tard n'est jamais reprise.
+        let before = read.project.patternNames[marked.pattern].flatMap { ProjectFile.isMarker($0) ? nil : $0 }
+        let original = before ?? "Pattern \(marked.pattern)"
         try link.setNames(.patterns, [(index: index, name: plan.patterns.names[index] ?? original)])
         result.playlist = try link.listPlaylist(limit: layout.count)
         plan.playlist = plan.replannedPlaylist(result, styles: styles)

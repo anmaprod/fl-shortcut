@@ -142,24 +142,28 @@ enum ProjectFile {
         return folder.appendingPathComponent("\(base) (\(word) \(UUID().uuidString.prefix(8))).flp")
     }
 
-    /// Pur (testé) : la copie marquée, pour savoir que FL l'a ouverte : le premier pattern nommé prend le nom
-    /// `marker` (le script le lit une fois la copie chargée, puis il est remis). Aucun pattern nommé : le nom est
-    /// ajouté au premier pattern décrit. Renvoie aussi ce pattern (1 = pattern 1) ; nil : aucun pattern décrit.
+    /// Pur (testé) : la copie marquée, pour savoir que FL l'a ouverte : le premier pattern nommé (d'un nom que le
+    /// script peut remettre en entier) prend le nom `marker` ; le script le lit une fois la copie chargée, puis il est
+    /// remis. Sinon le nom est ajouté au premier pattern décrit qui n'en a pas. Renvoie aussi ce pattern (1 = pattern
+    /// 1) ; nil : aucun pattern possible.
     static func marking(_ file: FLPFile, marker: String) -> (file: FLPFile, pattern: Int)? {
         let name = FLPEvent(id: FLPProject.Event.patternName,
                             bytes: marker.utf16.flatMap { FLPBytes.le(Int($0), size: 2) } + [0, 0])
         var out = file
         var pattern: Int?
-        var described: (index: Int, pattern: Int)?
+        var named = Set<Int>()
+        var described: [(index: Int, pattern: Int)] = []
         for (i, event) in file.events.enumerated() {
             switch event.id {
             case FLPProject.Event.pattern:
                 pattern = Int(event.value)
                 let next = i + 1 < file.events.count ? file.events[i + 1].id : 0
                 // Le pattern et ses notes (224, contrôles 223) ; ou sa description (nom, couleur…).
-                if described == nil, next != FLPProject.Event.notes, next != 223 { described = (i, Int(event.value)) }
+                if next != FLPProject.Event.notes, next != 223 { described.append((i, Int(event.value))) }
             case FLPProject.Event.patternName:
-                if let pattern {
+                guard let pattern else { break }
+                named.insert(pattern)
+                if event.text.utf8.count <= OrganizerPayload.nameBytes {
                     out.events[i] = name
                     return (out, pattern)
                 }
@@ -169,9 +173,9 @@ enum ProjectFile {
                 break
             }
         }
-        guard let described else { return nil }
-        out.events.insert(name, at: described.index + 1)
-        return (out, described.pattern)
+        guard let free = described.first(where: { !named.contains($0.pattern) }) else { return nil }
+        out.events.insert(name, at: free.index + 1)
+        return (out, free.pattern)
     }
 
     /// Nom de pattern qui marque la copie : jamais celui d'un son.
@@ -212,16 +216,38 @@ enum ProjectFile {
             }
             throw OrganizerError.failed(String(localized: "L'Organiser ne sait pas encore ranger ce projet sans risque (\(what)) : rien n'a été touché."))
         } catch {
-            why("lecture")
-            throw OrganizerError.failed(String(localized: "Le fichier de ton projet n'a pas pu être lu : rien n'a été touché."))
+            why(denied(error) ? "autorisation" : "lecture")
+            throw denied(error) ? Self.deniedError
+                : OrganizerError.failed(String(localized: "Le fichier de ton projet n'a pas pu être lu : rien n'a été touché."))
         }
         var names: [Int: String] = [:]
         for pattern in patterns { names[pattern.index] = pattern.name }
         let live = channels.sorted { $0.index < $1.index }.map(\.name)
         if let what = mismatch(project, channels: live, patterns: names) {
             why(what)
-            throw OrganizerError.failed(String(localized: "Le fichier enregistré n'est pas le projet ouvert dans FL : rien n'a été touché. Enregistre ton projet dans FL, puis clique sur « Réessayer »."))
+            throw OrganizerError.failed(String(localized: "Le fichier enregistré ne correspond pas au projet ouvert dans FL : rien n'a été touché. Si le Channel rack ne montre qu'un groupe de sons, choisis « All » en haut du Channel rack. Puis clique sur « Réessayer »."))
+        }
+        if project.clips.contains(where: { project.mutedTracks.contains($0.track) }) {
+            why("piste coupée")
+            throw OrganizerError.failed(String(localized: "Une piste de ta Playlist est coupée (mute) : réactive-la dans FL (ou retire ses clips), puis clique sur « Réessayer ». Rien n'a été touché."))
         }
         return (url, file, project)
+    }
+
+    /// macOS n'a pas laissé lire ou écrire le dossier du projet (Documents, Bureau, disque externe…).
+    static func denied(_ error: Error) -> Bool {
+        let e = error as NSError
+        if e.domain == NSCocoaErrorDomain { return [NSFileReadNoPermissionError, NSFileWriteNoPermissionError].contains(e.code) }
+        if e.domain == NSPOSIXErrorDomain { return [Int(EPERM), Int(EACCES)].contains(e.code) }
+        return false
+    }
+
+    static var deniedError: OrganizerError {
+        .failed(String(localized: "macOS n'a pas laissé FL Shortcuts ouvrir le dossier de ton projet : autorise-le dans Réglages Système › Confidentialité et sécurité › Fichiers et dossiers, puis clique sur « Réessayer ». Rien n'a été touché."))
+    }
+
+    /// Nom posé dans une copie pour la reconnaître (resté si FL l'a ouverte trop tard) : jamais repris comme nom.
+    static func isMarker(_ name: String) -> Bool {
+        name.range(of: "^FL Shortcuts [0-9]+$", options: .regularExpression) != nil
     }
 }

@@ -75,4 +75,38 @@ final class OrganizerProjectFileTests: XCTestCase {
         XCTAssertEqual(ProjectFile.titleNames("FL Studio 2025"), [])
         XCTAssertEqual(ProjectFile.titleNames(""), [])
     }
+
+    /// Rien n'est touché, avec ce qu'il faut faire : piste coupée, dossier refusé par macOS, marque restée d'un essai.
+    func testReadingStopsWithAClearReason() throws {
+        let channels = ["Pad", "Kick", "ZENOLOGY", "Snare", "808"].enumerated().map {
+            ChannelInfo(index: $0.offset, type: 2, mixerTrack: 0, color: RGBColor(r: 0, g: 0, b: 0), name: $0.element)
+        }
+        let patterns = ["Mélodie", "Drums", "Pattern 3", "Vide"].enumerated().map {
+            PatternInfo(index: $0.offset, color: RGBColor(r: 0, g: 0, b: 0), name: $0.element)
+        }
+        let url = URL(fileURLWithPath: "/projets/Mon son.flp")
+        var muted = FLPSample.sample()
+        let track = muted.events.firstIndex { $0.id == 238 }!
+        muted.events[track] = FLPSample.track(1, muted: true)
+        var why = ""
+        let files = ProjectFileAccess(save: { _ in .success(url) }, open: { _ in false }, read: { _ in muted })
+        XCTAssertThrowsError(try ProjectFile.read(files, known: nil, channels: channels, patterns: patterns,
+                                                  why: { why = $0 }))
+        XCTAssertEqual(why, "piste coupée")
+        let locked = ProjectFileAccess(save: { _ in .success(url) }, open: { _ in false }, read: { _ in
+            throw CocoaError(.fileReadNoPermission)
+        })
+        XCTAssertThrowsError(try ProjectFile.read(locked, known: nil, channels: channels, patterns: patterns,
+                                                  why: { why = $0 })) {
+            XCTAssertEqual($0 as? OrganizerError, ProjectFile.deniedError)
+        }
+        XCTAssertEqual(why, "autorisation")
+        XCTAssertTrue(ProjectFile.isMarker("FL Shortcuts 4821"))
+        XCTAssertFalse(ProjectFile.isMarker("FL Shortcuts 4821 bis"))
+        // Un nom trop long pour être remis par le script n'est pas pris pour la marque.
+        var long = FLPSample.sample()
+        let first = long.events.firstIndex { $0.id == 193 }!
+        long.events[first] = FLPSample.text(193, String(repeating: "é", count: 40))
+        XCTAssertEqual(ProjectFile.marking(long, marker: "FL Shortcuts 1")?.pattern, 2)
+    }
 }

@@ -160,4 +160,23 @@ final class FLPProjectTests: XCTestCase {
             XCTAssertEqual($0 as? FLPError, .unsupported("clips"))
         }
     }
+
+    /// Une piste coupée (mute) : un clip qui en part se mettrait à jouer dans la copie, donc rien n'est fait ; une
+    /// piste coupée sans clip reste coupée, les pistes touchées jouent.
+    func testMutedTrackStopsTheCopy() throws {
+        var file = FLPSample.sample()
+        let tracks = file.events.indices.filter { file.events[$0].id == 238 }
+        file.events[tracks[3]] = FLPSample.track(4, muted: true)
+        let project = try FLPProject(file)
+        XCTAssertEqual(project.mutedTracks, [3])
+        XCTAssertThrowsError(try project.rearranged(file, tracks: [3: 2])) {
+            XCTAssertEqual($0 as? FLPError, .unsupported("piste coupée"))
+        }
+        var quiet = FLPSample.sample()
+        quiet.events[tracks[9]] = FLPSample.track(10, muted: true)
+        let copy = try FLPProject(quiet).rearranged(quiet, tracks: [0: 9, 5: 0])
+        XCTAssertEqual(try FLPProject(copy).mutedTracks, [], "la piste qui reçoit un clip joue")
+        XCTAssertEqual(try FLPProject(FLPProject(quiet).rearranged(quiet, tracks: [:])).mutedTracks, [9],
+                       "une piste coupée jamais touchée le reste")
+    }
 }

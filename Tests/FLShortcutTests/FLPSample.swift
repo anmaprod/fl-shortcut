@@ -44,10 +44,11 @@ enum FLPSample {
         return FLPEvent(id: 233, bytes: bytes)
     }
 
-    static func track(_ number: Int, color: Int = 0x404040) -> FLPEvent {
+    static func track(_ number: Int, color: Int = 0x404040, muted: Bool = false) -> FLPEvent {
         var data = [UInt8](repeating: 0, count: 70)
         FLPBytes.put(UInt32(number), into: &data, at: 0, size: 4)
         FLPBytes.put(UInt32(color), into: &data, at: 4, size: 4)
+        data[FLPProject.trackEnabled] = muted ? 0 : 1
         return FLPEvent(id: 238, bytes: data)
     }
 

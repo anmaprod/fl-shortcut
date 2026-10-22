@@ -73,6 +73,11 @@ struct FLPProject: Equatable {
     let playlistEvent: Int?
     let itemSize: Int
     let trackEvents: [Int]
+    /// Pistes coupées (mute) dans FL (0 = piste 1) : un clip qui en part ou y arrive changerait de son.
+    let mutedTracks: Set<Int>
+
+    /// Dans une piste (238) : 1 à cette place si elle joue, 0 si elle est coupée.
+    static let trackEnabled = 12
 
     init(_ file: FLPFile) throws {
         var channels: [Channel] = []
@@ -147,6 +152,7 @@ struct FLPProject: Equatable {
             itemSize = Self.itemSizes[0]
             trackEvents = arrangements.first?.tracks ?? []
             trackCount = trackEvents.count
+            mutedTracks = []
             clips = []
             return
         }
@@ -154,13 +160,16 @@ struct FLPProject: Equatable {
         trackEvents = arrangement.tracks
         trackCount = trackEvents.count
         guard trackCount > 0 else { throw FLPError.unsupported("pistes") }
+        var muted = Set<Int>()
         for (t, index) in trackEvents.enumerated() {
             let data = file.events[index].bytes
-            // Chaque piste dit son numéro (1 = piste 1) et sa couleur : dans l'ordre, sans trou.
-            guard data.count >= 8, FLPBytes.uint(data, at: 0, size: 4) == t + 1 else {
+            // Chaque piste dit son numéro (1 = piste 1), sa couleur et si elle joue : dans l'ordre, sans trou.
+            guard data.count > Self.trackEnabled, FLPBytes.uint(data, at: 0, size: 4) == t + 1 else {
                 throw FLPError.unsupported("pistes")
             }
+            if data[Self.trackEnabled] == 0 { muted.insert(t) }
         }
+        mutedTracks = muted
         let bytes = file.events[playlist].bytes
         guard let size = Self.itemSize(bytes) else { throw FLPError.unsupported("clips") }
         itemSize = size
@@ -212,11 +221,12 @@ struct FLPProject: Equatable {
     }
 
     /// La copie rangée : chaque clip sur sa nouvelle piste (`tracks` : rang du clip → piste, 0 = piste 1). Les pistes
-    /// où il y a des clips, avant ou après, perdent leur nom et reprennent la couleur des pistes jamais touchées (leur
-    /// nom disait ce qu'elles jouaient avant ; l'Organiser les nomme ensuite d'après ce qui y joue). Tout le reste du
-    /// fichier est recopié octet pour octet.
+    /// où il y a des clips, avant ou après, perdent leur nom, reprennent la couleur des pistes jamais touchées et
+    /// jouent (leur nom disait ce qu'elles jouaient avant ; l'Organiser les nomme ensuite d'après ce qui y joue). Un
+    /// clip sur une piste coupée arrête tout (il se mettrait à jouer). Tout le reste est recopié octet pour octet.
     func rearranged(_ file: FLPFile, tracks: [Int: Int]) throws -> FLPFile {
         guard let playlistEvent else { return file }
+        guard clips.allSatisfy({ !mutedTracks.contains($0.track) }) else { throw FLPError.unsupported("piste coupée") }
         var out = file
         var bytes = out.events[playlistEvent].bytes
         for (item, track) in tracks {
@@ -235,6 +245,7 @@ struct FLPProject: Equatable {
         for track in touched.sorted() {
             let index = trackEvents[track]
             FLPBytes.put(plain, into: &out.events[index].bytes, at: 4, size: 4)
+            out.events[index].bytes[Self.trackEnabled] = 1
             var next = index + 1
             while next < out.events.count, next <= index + 3, out.events[next].id != Event.track,
                   out.events[next].id != Event.arrangement {

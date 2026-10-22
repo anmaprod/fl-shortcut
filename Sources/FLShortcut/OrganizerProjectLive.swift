@@ -37,18 +37,36 @@ enum ProjectFileLive {
         return .failure(.failed(String(localized: "FL n'a pas enregistré ton projet (ou il n'a jamais été enregistré). Enregistre-le dans FL (Fichier › Enregistrer), puis clique sur « Réessayer ».")))
     }
 
-    /// FL ouvre ce fichier (comme un double-clic dans le Finder).
+    /// FL ouvre ce fichier (comme un double-clic dans le Finder) ; faux si macOS dit que ça n'a pas pu se faire
+    /// (10 secondes au plus pour le savoir).
     static func open(_ url: URL) -> Bool {
         guard let pid = OrganizerEnvironment.flPID(),
               let app = NSRunningApplication(processIdentifier: pid)?.bundleURL else { return false }
-        DispatchQueue.main.async {
+        let done = DispatchSemaphore(value: 0)
+        let failed = NSLock()
+        var refused = false
+        let start = {
             let configuration = NSWorkspace.OpenConfiguration()
             configuration.activates = true
             NSWorkspace.shared.open([url], withApplicationAt: app, configuration: configuration) { _, error in
-                if error != nil { MacroLog.shared.write("ORGANIZE", "FL could not open the project file") }
+                if error != nil {
+                    MacroLog.shared.write("ORGANIZE", "FL could not open the project file")
+                    failed.lock()
+                    refused = true
+                    failed.unlock()
+                }
+                done.signal()
             }
         }
-        return true
+        if Thread.isMainThread {
+            start()
+            return true
+        }
+        DispatchQueue.main.async(execute: start)
+        _ = done.wait(timeout: .now() + 10)
+        failed.lock()
+        defer { failed.unlock() }
+        return !refused
     }
 
     // MARK: - Le fichier du projet
@@ -100,7 +118,7 @@ enum ProjectFileLive {
         }
         if let best { return best.url }
         let home = FileManager.default.homeDirectoryForCurrentUser
-        let folders = ["Documents", "Desktop", "Music", "Downloads"].map { home.appendingPathComponent($0) }
+        let folders = ["Documents", "Desktop", "Music"].map { home.appendingPathComponent($0) }
         let budget = Date().addingTimeInterval(3)
         for folder in folders where Date() < budget {
             guard let walk = FileManager.default.enumerator(

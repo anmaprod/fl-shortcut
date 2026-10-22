@@ -1,3 +1,8 @@
 /* Textes de Info.plist en anglais (le Mac dans une autre langue que le français). */
 "NSAudioCaptureUsageDescription" = "During “Organize” only, FL Shortcuts listens to FL Studio, and FL Studio alone, to recognize your sounds (drums, bass, melodies, vocals, FX). Nothing is recorded or sent.";
 "NSHumanReadableCopyright" = "FL Shortcuts — independent tool, not affiliated with Image-Line.";
+"NSDocumentsFolderUsageDescription" = "For “Organize” only, FL Shortcuts reads your FL Studio project file and writes its organized copy next to it. Your project is never changed.";
+"NSDesktopFolderUsageDescription" = "For “Organize” only, FL Shortcuts reads your FL Studio project file and writes its organized copy next to it. Your project is never changed.";
+"NSDownloadsFolderUsageDescription" = "For “Organize” only, FL Shortcuts reads your FL Studio project file and writes its organized copy next to it. Your project is never changed.";
+"NSRemovableVolumesUsageDescription" = "For “Organize” only, FL Shortcuts reads your FL Studio project file and writes its organized copy next to it. Your project is never changed.";
+"NSNetworkVolumesUsageDescription" = "For “Organize” only, FL Shortcuts reads your FL Studio project file and writes its organized copy next to it. Your project is never changed.";

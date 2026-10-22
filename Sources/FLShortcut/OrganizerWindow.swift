@@ -699,6 +699,8 @@ final class OrganizerController: ObservableObject {
             if let silent = result?.project?.silentPatterns, silent > 0 {
                 out.append(("moon.zzz", String(localized: "\(silent) patterns sans aucune note (rien n'y joue) : chacun sur sa piste, en bas de la Playlist")))
             }
+        } else if organizesCopy {
+            out.append(("exclamationmark.triangle", String(localized: "Playlist : il faudrait plus de pistes que FL n'en a pour mettre chaque son sur la sienne ; décoche « Playlist » pour ranger le reste.")))
         } else if options.playlist, options.splitTracks, env.canReadPlaylist() {
             out.append(("square.split.1x2", String(localized: "Playlist : un son par piste, et les clips d'un même son réunis sur sa piste (FL Shortcuts lit la fenêtre de FL au moment de les déplacer)")))
         } else if options.playlist, !plan.splits.isEmpty {
@@ -1568,13 +1570,22 @@ private struct ProjectSummary: View {
                 .toggleStyle(.checkbox)
                 .font(.system(size: 11))
                 .disabled(!controller.options.mixer)
-            Toggle("Supprimer les sons sans aucune note (on ne peut pas les remettre)", isOn: $controller.options.deleteUnused)
+            Toggle(isOn: $controller.options.deleteUnused) {
+                Text(controller.organizesCopy
+                    ? String(localized: "Supprimer les sons sans aucune note de la copie rangée")
+                    : String(localized: "Supprimer les sons sans aucune note (on ne peut pas les remettre)"))
+            }
                 .toggleStyle(.checkbox)
                 .font(.system(size: 11))
-            Text(String(localized: """
-                Les pistes de la Playlist sont remontées par leur menu (« Move up ») : FL Shortcuts lit alors la \
-                fenêtre de FL (autorisation « Enregistrement de l'écran »). Les patterns restent à leur place.
-                """))
+            Text(controller.organizesCopy
+                ? String(localized: """
+                    Tout se range dans une copie de ton projet, « (rangé) », à côté de l'original : ton projet \
+                    d'origine ne bouge pas, « Revenir comme avant » le rouvre. Aucune lecture de l'écran.
+                    """)
+                : String(localized: """
+                    Les pistes de la Playlist sont remontées par leur menu (« Move up ») : FL Shortcuts lit alors la \
+                    fenêtre de FL (autorisation « Enregistrement de l'écran »). Les patterns restent à leur place.
+                    """))
                 .font(.system(size: 10))
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
