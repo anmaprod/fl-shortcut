@@ -27,7 +27,8 @@ toute la branche à la fin (agent le plus capable, avec la « Review Focus » du
 | 5 Pages et listes | Codée (icône de la barre latérale qui vole jusqu'à l'en-tête `PageHeader`, page qui arrive sans glisser, listes et recherche qui glissent via `withListAnimation`, chiffres qui défilent dans `PageHeader`, `ListMotionTests`). À vérifier : `page-change-*` (l'icône vole, pas de titre en double). |
 | 6 Cartes au lieu des feuilles | Codée (`CardPresenter.swift` : file, présentateur, hôte `cardHost` avec voile, carte de verre qui sort de la ligne cliquée — sondes `ligne.<id>` et `partage.<id>` — et y retourne, vraie modale, fenêtre non fermable pendant une carte, sons ; `cardDismiss` remplace `dismiss` ; guide, fiche d'un raccourci, touche d'une action de FL, modèles, fiche/partage/signalement de la Communauté). Pas fait : vols du nom et de la touche jusqu'en haut de la fiche, focus posé dans la carte, commande CI `carte` (les captures `communaute-detail/partager/signaler` montrent déjà des cartes). À vérifier sur la CI : ces captures, et la fenêtre de 480 de haut. |
 | 7 Créateur de macros | En grande partie codée : barre du bas en gouttes (`LiquidDropsBar` : « Dupliquer » et « Supprimer » n'existent qu'avec un bloc choisi ; macOS 26 + verre : fusion native `GlassEffectContainer` ; sinon gouttes dessinées qui sortent de « Ajouter » — sans le dessin flou + seuil du plan, les boutons ayant des libellés de largeurs différentes), bloc qui s'éclaire à la pose (`landed`), icône qui vole de la palette à sa ligne (clic seulement) et de la ligne choisie à la souris jusqu'à l'inspecteur. Reste : entrée et sortie du créateur depuis la ligne de la macro (vol `.card`), commande CI `gouttes`. |
-| 8 et 9 | Pas commencées. Suivre le plan tel quel. |
+| 8 Organiser | En partie codée : plus rien en boucle (onde `WaitingPulse`, icône qui clignote et roues remplacées par un compteur de secondes `SecondsCounter`/`SecondsLabel`), progression de l'écoute dessinée par l'app (`OrganizerProgress`, ressort doux), son « Glass » à la fin d'un rangement ou d'un retour réussi. Reste : familles signalées son par son pendant l'écoute (`classified` dans `OrganizerSession`, pastilles qui deviennent les cartes de l'aperçu), fenêtre qui grandit avant l'aperçu, bouton « Organiser » qui devient la pastille de progression puis « ✓ N sons rangés ». |
+| 9 Relecture finale | Pas commencée. |
 
 ### À vérifier sur la CI pour les tâches 1 et 2 (avant d'aller plus loin)
 
@@ -66,9 +67,8 @@ l'icône ferme la fenêtre.
 - **Jamais de `switch`/`if` de vues selon le mode de mouvement** : le gel va et vient avec FL ; changer de branche
   recréerait la page (défilement, champs perdus). Choisir la valeur (animation, opacité), pas la vue.
 - Cadre de l'Organiser animé par `NSAnimationContext` (non bloquant) au lieu de `setFrame(animate:)`.
-- `WaitingPulse` (Organiser, animation sans fin) laissé : la tâche 8 le retire ; c'est la seule valeur en dur restante
-  (vérification : `grep -rn "spring(response\|easeInOut(duration\|easeIn(duration\|easeOut(duration" Sources/FLShortcut`
-  ne doit renvoyer que `MotionEngine.swift`, la section Motion de `GlassStyle.swift` et ce `WaitingPulse`).
+- Plus aucune valeur d'animation en dur (vérification : `grep -rn "spring(response\|easeInOut(duration\|easeIn(duration\|easeOut(duration" Sources/FLShortcut`
+  ne renvoie que `MotionEngine.swift` et la section Motion de `GlassStyle.swift`).
 - Fenêtres (tâche 4) : un seul vol à la fois ; une ouverture de la fenêtre principale en attente est toujours faite
   (même si le vol est arrêté) ; `open(window:)` est appelé juste AVANT de montrer la fenêtre (elle reste à
   `alphaValue = 0` jusqu'à 85 % du vol, puis fondu) ; départ = dernier clic d'une ligne du menu (moins d'1 s,

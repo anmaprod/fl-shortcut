@@ -373,4 +373,11 @@ final class OrganizerWindowTests: XCTestCase {
         XCTAssertEqual(doc.blocks.map(\.body), [.organize])
         XCTAssertNil(MacroProgram.compile(doc, forbidden: .physical).problem)
     }
+
+    /// Attentes de l'Organiser : un compteur de secondes entières au lieu d'une roue qui tourne.
+    func testSecondsCounter() {
+        XCTAssertEqual(SecondsCounter.text(0), "0 s")
+        XCTAssertEqual(SecondsCounter.text(4.7), "4 s")
+        XCTAssertEqual(SecondsCounter.text(-1), "0 s")
+    }
 }

@@ -791,6 +791,7 @@ final class OrganizerController: ObservableObject {
                 self?.snapshot = outcome.snapshot
                 self?.lastApply = outcome
                 self?.phase = .applied(outcome.error)
+                if outcome.error == nil { InterfaceSound.play(.organiserDone) }   // FL vient d'être rangé
             }
         }
     }
@@ -818,6 +819,7 @@ final class OrganizerController: ObservableObject {
             DispatchQueue.main.async {
                 self?.snapshot = outcome.snapshot
                 self?.phase = .undone(outcome.error)
+                if outcome.error == nil { InterfaceSound.play(.organiserDone) }
             }
         }
     }
@@ -1114,7 +1116,7 @@ struct OrganizerView: View {
         case .listening(let done, let total):
             VStack(alignment: .leading, spacing: 12) {
                 HStack(spacing: 12) {
-                    OrganizerBadge(symbol: "waveform", tint: Self.tint, live: true)
+                    OrganizerBadge(symbol: "waveform", tint: Self.tint)
                     VStack(alignment: .leading, spacing: 8) {
                         HStack {
                             Text(Self.listeningText(done, total)).font(.system(size: 13, weight: .semibold))
@@ -1125,9 +1127,7 @@ struct OrganizerView: View {
                                     .foregroundStyle(.secondary)
                             }
                         }
-                        ProgressView(value: Double(done), total: Double(max(total, 1)))
-                            .tint(Self.tint)
-                            .motion(Motion.smooth, value: done)
+                        OrganizerProgress(fraction: Double(done) / Double(max(total, 1)), tint: Self.tint)
                     }
                 }
                 .padding(14)
@@ -1169,9 +1169,9 @@ struct OrganizerView: View {
 
     private func working(_ text: String) -> some View {
         HStack(spacing: 12) {
-            ProgressView().controlSize(.small)
             Text(text).font(.system(size: 13))
             Spacer(minLength: 0)
+            SecondsLabel()                              // le temps qui passe, sans rien qui tourne
         }
         .padding(14)
         .organizerCard()
@@ -1328,7 +1328,7 @@ struct OrganizerView: View {
         let tint: Color = reason == .stopPlayback ? .orange : Self.tint
         return VStack(alignment: .leading, spacing: 14) {
             HStack(alignment: .center, spacing: 16) {
-                WaitingPulse(symbol: text.symbol, tint: tint)
+                OrganizerBadge(symbol: text.symbol, tint: tint)
                 VStack(alignment: .leading, spacing: 4) {
                     Text(text.title).font(.system(size: 14, weight: .semibold))
                     Text(text.detail)
@@ -1342,10 +1342,11 @@ struct OrganizerView: View {
             .organizerCard(tint)
             .morphIn(1)
             HStack(spacing: 8) {
-                ProgressView().controlSize(.mini)
                 Text("Organiser continue tout seul dès que FL est prêt.")
                     .font(.system(size: 11))
                     .foregroundStyle(.secondary)
+                Spacer(minLength: 0)
+                SecondsLabel()
             }
             .morphIn(2)
             if reason == .audioPermission {
@@ -1527,39 +1528,9 @@ private extension View {
     func organizerCard(_ tint: Color = OrganizerView.tint) -> some View { modifier(OrganizerHoverCard(tint: tint)) }
 }
 
-/// Attente de FL : la pastille de couleur et deux ondes qui s'en éloignent sans fin, comme un appel (rien ne tourne
-/// une fois la fenêtre fermée). Mouvement réduit demandé : la pastille seule.
-private struct WaitingPulse: View {
-    let symbol: String
-    let tint: Color
-    @State private var going = false
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-
-    var body: some View {
-        ZStack {
-            if !reduceMotion {
-                ForEach(0..<2, id: \.self) { i in
-                    Circle()
-                        .stroke(tint.opacity(0.45), lineWidth: 1.5)
-                        .frame(width: 34, height: 34)
-                        .scaleEffect(going ? 1.9 : 1)
-                        .opacity(going ? 0 : 0.9)
-                        .animation(.easeOut(duration: 1.6).repeatForever(autoreverses: false).delay(Double(i) * 0.8),
-                                   value: going)
-                }
-            }
-            OrganizerBadge(symbol: symbol, tint: tint)
-        }
-        .frame(width: 56, height: 56)
-        .onAppear { going = true }
-    }
-}
-
-/// Pastille ronde de couleur avec son symbole (résultat, écoute en cours : l'onde s'anime).
 private struct OrganizerBadge: View {
     let symbol: String
     let tint: Color
-    var live = false
 
     var body: some View {
         icon
@@ -1571,16 +1542,9 @@ private struct OrganizerBadge: View {
             .accessibilityHidden(true)
     }
 
-    @ViewBuilder private var icon: some View {
-        if live {
-            if #available(macOS 14.0, *) {
-                Image(systemName: symbol).symbolEffect(.variableColor.iterative, options: .repeating)
-            } else {
-                Image(systemName: symbol)
-            }
-        } else {
-            Image(systemName: symbol)
-        }
+    /// Fixe : rien ne clignote ni ne tourne pendant que FL travaille.
+    private var icon: some View {
+        Image(systemName: symbol)
     }
 }
 
@@ -1798,5 +1762,52 @@ private struct FamilySection: View {
                 picking.wrappedValue = false
             }
         }
+    }
+}
+
+// MARK: - Temps et progression (sans rien qui tourne en boucle)
+
+/// Texte du compteur de secondes d'une attente : « 4 s » (secondes entières écoulées).
+enum SecondsCounter {
+    static func text(_ elapsed: TimeInterval) -> String {
+        let seconds = Int(max(elapsed, 0))
+        return String(localized: "\(seconds) s")
+    }
+}
+
+/// Secondes écoulées depuis l'apparition, mises à jour une fois par seconde (le chiffre défile).
+private struct SecondsLabel: View {
+    @State private var start = Date()
+
+    var body: some View {
+        TimelineView(.periodic(from: start, by: 1)) { context in
+            Text(SecondsCounter.text(context.date.timeIntervalSince(start)))
+                .font(.system(size: 11).monospacedDigit())
+                .foregroundStyle(.secondary)
+                .contentTransition(.numericText())
+                .motion(Motion.spring(.vif), value: Int(context.date.timeIntervalSince(start)))
+        }
+        .accessibilityHidden(true)
+    }
+}
+
+/// Progression de l'écoute dessinée par l'app : une capsule de sa couleur qui glisse (ressort doux).
+private struct OrganizerProgress: View {
+    let fraction: Double
+    let tint: Color
+
+    var body: some View {
+        GeometryReader { geo in
+            ZStack(alignment: .leading) {
+                Capsule(style: .continuous).fill(Color.primary.opacity(0.08))
+                Capsule(style: .continuous)
+                    .fill(tint.gradient)
+                    .frame(width: max(geo.size.width * min(max(fraction, 0), 1), 6))
+                    .motion(Motion.spring(.doux), value: fraction)
+            }
+        }
+        .frame(height: 6)
+        .accessibilityElement()
+        .accessibilityValue(Text("\(Int((min(max(fraction, 0), 1) * 100).rounded())) %"))
     }
 }
