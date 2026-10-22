@@ -151,3 +151,24 @@ entrée 1 ≈ 0,5 s.
 - Gardé sur le Mac, jamais envoyé : réglages (pause, autorisations), endroits appris hors des macros, journal.
 - Supabase par défaut n'envoie les mails de confirmation qu'aux membres de l'organisation (2 par heure) : serveur de
   mail à soi (Gmail de l'équipe) obligatoire avant l'ouverture à tous.
+
+## 21–22 octobre : l'Organiser lit le fichier du projet
+- Vidéo du propriétaire (00:32) : des mélodies classées « FX » alors qu'il n'y en a pas, des patterns mal placés dans
+  la Playlist, des mélodies ni renommées ni colorées ; « je veux quelque chose de solide qui fasse qu'à 100 % il rende
+  le travail sûr ». Cause : tout reposait sur des devinettes. Ce que FL disait jouer (relevé d'activité) ne voyait pas
+  les canaux ZENOLOGY : leurs patterns sans son connu (ni nom ni couleur), leurs pistes classées à l'écoute (« FX »),
+  et la réunion des clips par lecture de la fenêtre de FL n'a déplacé qu'un clip sur trois.
+- Son projet de test lu : chaque pattern et chaque clip y sont exactement (26 clips, 88 octets chacun). Le pattern 1
+  « ZENOLOGY » n'a aucune note (rien n'y joue), « ZENOLOGY #4 » une seule.
+- Maintenant (PROTOCOL.md §9, `FLPFile`, `FLPProject`, `OrganizerProjectFile`, `OrganizerProjectLive`) : FL enregistre
+  le projet, l'Organiser lit le fichier ; sons de chaque pattern et de chaque piste d'après les notes et les clips
+  (plus de relevé des patterns, de chanson jouée ni de piste écoutée : l'analyse est bien plus courte) ; chaque son
+  reste reconnu à son nom ou écouté seul dans son pattern. « Organiser » écrit une copie « <nom> (rangé).flp » où
+  chaque clip est sur la piste de ses sons (les mêmes sons, la même piste ; un clip qui en chevaucherait un autre :
+  une piste de plus, juste dessous ; patterns vides en bas), FL l'ouvre, puis Channel rack, patterns, Mixer, noms et
+  couleurs s'y font par le script ; FL l'enregistre. L'original ne bouge jamais : « Revenir comme avant » le rouvre
+  (tout revient, sons supprimés compris). Plus aucune lecture de l'écran pour la Playlist.
+- Rien n'est touché si le fichier n'est pas le projet ouvert, a une forme inattendue, ou a changé depuis l'analyse.
+- Pas encore vérifié sur le vrai FL : ⌘S enregistre-t-il bien, le fichier est-il retrouvé (titre de la fenêtre,
+  Spotlight), FL ouvre-t-il la copie sans rien demander ?
+

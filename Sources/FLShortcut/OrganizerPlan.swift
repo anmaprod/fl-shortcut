@@ -88,6 +88,8 @@ struct OrganizerPlan: Equatable {
     var deleted: [Int] = []
     /// Playlist : patterns descendus chacun sur sa piste, avant ses noms, couleurs et son ordre (prévus d'après).
     var splits: [PlaylistSplit] = []
+    /// Analyse sur le fichier : la piste de chaque clip dans la copie rangée (OrganizerProjectFile).
+    var layout: PlaylistLayout.Result?
     /// Ce qui a servi à faire le plan : il est refait sur le Channel rack une fois les sons supprimés.
     struct Source: Equatable {
         var families: [Int: SoundFamily]
@@ -102,6 +104,8 @@ struct OrganizerPlan: Equatable {
 
     /// Patterns descendus au plus : au-delà, la Playlist reste comme elle est.
     static let maxSplits = 32
+    /// Couleur d'une piste de la Playlist jamais touchée (gris de FL).
+    static let plainTrack = RGBColor(r: 64, g: 64, b: 64)
 
     /// `families` et `kinds` : ce qu'est chaque son du Channel rack (index du canal), modifiable dans l'aperçu.
     static func make(_ result: OrganizerResult, families: [Int: SoundFamily], kinds: [Int: SoundKind],
@@ -174,13 +178,32 @@ struct OrganizerPlan: Equatable {
         if options.playlist {
             // Un son par piste : la Playlist prévue telle qu'elle sera une fois les patterns descendus.
             var result = result
-            if options.splitTracks {
-                let key: (Set<Int>) -> (Int, Int, Int) = { sounds in
-                    guard let v = groupVerdict(sounds.sorted().compactMap(verdict)), v.family != .unsure
-                    else { return (Int.max, 0, 0) }
-                    return (v.family.rank, v.kind?.rackRank ?? SoundKind.rackOrder.count,
-                            sounds.compactMap { rackPlace[$0] }.min() ?? Int.max / 2)
+            // Place d'un groupe de sons : sa famille, sa sorte, puis son premier son dans le Channel rack.
+            let key: (Set<Int>) -> (Int, Int, Int) = { sounds in
+                guard let v = groupVerdict(sounds.sorted().compactMap(verdict)), v.family != .unsure
+                else { return (Int.max, 0, 0) }
+                return (v.family.rank, v.kind?.rackRank ?? SoundKind.rackOrder.count,
+                        sounds.compactMap { rackPlace[$0] }.min() ?? Int.max / 2)
+            }
+            if let project = result.project {
+                // Analyse sur le fichier : chaque clip ira, dans la copie rangée, sur la piste de ses sons (les mêmes
+                // sons, la même piste), les pistes déjà dans l'ordre des familles ; rien à descendre ni à remonter dans
+                // FL. Les pistes perdent leur ancien nom dans la copie : elles sont nommées d'après ce qui y joue.
+                if let layout = PlaylistLayout.make(project.clips, group: { project.groups[$0.item] ?? .silent(0) },
+                                                    key: key, trackCount: project.trackCount) {
+                    plan.layout = layout
+                    var listed: [Int: PlaylistTrackInfo] = [:]
+                    for track in result.playlist { listed[track.index] = track }
+                    result.playlist = (0..<layout.count).map {
+                        listed[$0] ?? PlaylistTrackInfo(index: $0, selected: false, color: Self.plainTrack, name: "")
+                    }
+                    result.trackSounds = layout.sounds
+                } else {
+                    result.playlist = []
+                    result.trackSounds = [:]
                 }
+                result.trackItems = []
+            } else if options.splitTracks {
                 plan.splits = Array(playlistSplits(result, key: key).prefix(options.maxSplits ?? Self.maxSplits))
                 result = result.splitting(plan.splits)
             }
@@ -208,7 +231,7 @@ struct OrganizerPlan: Equatable {
             plan.playlist = area(verdicts, order: order, current: current, styles: styles, rename: options.rename,
                                  renamable: renamable, fixed: fixed)
             let indices = result.playlist.map(\.index).sorted()
-            if order != indices, let span = indices.last {
+            if result.project == nil, order != indices, let span = indices.last {
                 plan.playlist.moves = RegroupPlan.moves(from: Array(0...span), to: order)
                 plan.playlist.final = order
             }

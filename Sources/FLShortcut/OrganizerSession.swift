@@ -55,6 +55,9 @@ struct OrganizerDiagnostics: Equatable {
     var selection = "?"
     var unused = 0
     var tempo = 0
+    /// Projet lu dans son fichier (oui, ou ce qui l'a empêché, en mots), et ses clips dans la Playlist.
+    var file = "non"
+    var clips = 0
     /// Règle de chaque son écouté : « c4:melodie+ia » (canal 4 ; +ia : l'IA de macOS a répondu), « p2:fx-long »
     /// (piste 2 de la Playlist). Des numéros, jamais un nom.
     var rules: [String] = []
@@ -70,7 +73,7 @@ struct OrganizerDiagnostics: Equatable {
          "patterns=\(patterns) relevés=\(scanned) avec-sons=\(withSounds) activité=\(activity) positions=\(positions) "
             + "relevés-chanson=\(activeSamples) pistes=\(tracks) seules=\(tracksSolo) écoutées=\(tracksHeard) "
             + "mixer=\(mixerUsed) envois=\(routes)",
-         "sélection=\(selection) inutilisés=\(unused) tempo=\(tempo)",
+         "sélection=\(selection) inutilisés=\(unused) tempo=\(tempo) fichier=\(file) clips=\(clips)",
          rules.isEmpty ? "" : "règles=" + rules.joined(separator: " "),
          patternMap.isEmpty ? "" : "patterns-sons=" + patternMap,
          trackMap.isEmpty ? "" : "pistes-sons=" + trackMap,
@@ -106,6 +109,8 @@ struct OrganizerResult: Equatable {
     /// Pour chaque son (index du canal) : une position de la chanson (0…1) où il joue, là où le moins de pistes
     /// jouent ; l'Organiser y vérifie, piste seule, qu'il a bien changé de piste (un son par piste).
     var soundAt: [Int: Double] = [:]
+    /// Analyse faite sur le fichier du projet (OrganizerProjectFile) : la Playlist y est rangée, dans une copie.
+    var project: ProjectSnapshot? = nil
 }
 
 final class OrganizerSession {
@@ -169,6 +174,8 @@ final class OrganizerSession {
     private let progress: (Int, Int) -> Void
     private let escape: () -> Bool
     private let prepare: () -> Bool
+    /// Le fichier du projet (nil : l'ancienne analyse, à l'écoute de FL seulement).
+    private let files: ProjectFileAccess?
     private let lock = NSLock()
     private var stopped = false
     private var diag = OrganizerDiagnostics()
@@ -199,6 +206,7 @@ final class OrganizerSession {
          sleep: @escaping (TimeInterval) -> Void = { Thread.sleep(forTimeInterval: $0) },
          escape: @escaping () -> Bool = { false },
          prepare: @escaping () -> Bool = { false },
+         files: ProjectFileAccess? = nil,
          progress: @escaping (Int, Int) -> Void = { _, _ in }) {
         self.link = link
         self.audio = audio
@@ -208,6 +216,7 @@ final class OrganizerSession {
         self.sleep = sleep
         self.escape = escape
         self.prepare = prepare
+        self.files = files
         self.progress = progress
     }
 
@@ -241,11 +250,17 @@ final class OrganizerSession {
             // La première commande réveille le script ; un script d'avant la v14 la refuse : FL à redémarrer, rien
             // n'est touché.
             _ = try link.heardTracks()
-            let selection = prepare()
+            // Sur le fichier : rien n'est retiré ni sélectionné dans FL avant qu'il l'enregistre (l'original reste
+            // tel quel ; les sons sans note sont supprimés dans la copie rangée).
+            let selection = files == nil ? prepare() : false
             let lengths = try link.patternLengths()
             let patterns = try link.listPatterns()
             let channels = try link.listChannels()
             let mixer = try link.listMixer()
+            if let files {
+                return .success(try runOnFile(files, channels: channels, patterns: patterns, mixer: mixer,
+                                              tempo: lengths.tempo))
+            }
             var selected: Set<Int>?
             if selection { selected = try? link.selectedChannels() }
             note { $0.listed = channels.count; $0.patterns = patterns.count; $0.selection = selected != nil ? "oui" : "non" }
@@ -284,6 +299,45 @@ final class OrganizerSession {
             note { $0.error = String(describing: type(of: error)) }
             return .failure(.failed(String(localized: "Écoute de FL impossible (\(String(describing: type(of: error)))).")))
         }
+    }
+
+    /// L'analyse sur le fichier du projet : FL l'enregistre, l'Organiser le lit. Les sons de chaque pattern et de chaque
+    /// piste sont ceux de ses notes et de ses clips (rien n'est deviné : ni relevé des patterns, ni chanson jouée, ni
+    /// piste écoutée) ; les sons sans note ni clip sont laissés de côté. Puis chaque son est reconnu à son nom ou
+    /// écouté seul, dans le premier pattern où il a des notes.
+    private func runOnFile(_ files: ProjectFileAccess, channels: [ChannelInfo], patterns: [PatternInfo],
+                           mixer: [MixerTrackInfo], tempo: Double) throws -> OrganizerResult {
+        note {
+            $0.listed = channels.count
+            $0.patterns = patterns.count
+            $0.selection = "fichier"
+            $0.tempo = Int(tempo.rounded())
+        }
+        let read = try ProjectFile.read(files, known: nil, channels: channels, patterns: patterns,
+                                        why: { why in self.note { $0.file = why } })
+        let notSounds = Set(channels.filter { $0.type == ChannelInfo.automationType }.map(\.index))
+        let exact = ProjectFile.sounds(read.project, notSounds: notSounds)
+        note {
+            $0.file = "oui"
+            $0.clips = read.project.clips.count
+            $0.patternMap = Self.soundMap(exact.patterns, label: "pattern")
+            $0.trackMap = Self.soundMap(exact.tracks, label: "piste")
+        }
+        let unused = Set(Self.sounds(channels).map(\.index).filter { !exact.used.contains($0) })
+        let targets = Self.sounds(channels).filter { !unused.contains($0.index) }
+        note { $0.unused = unused.count }
+        try audio.start()
+        defer {
+            link.stopRestore()
+            audio.stop()
+        }
+        let items = try classifyChannels(targets, homes: Self.homes(exact.patterns))
+        let routes = try readRoutes(targets, mixer: mixer)
+        progress(stepsTotal, stepsTotal)
+        var result = OrganizerResult(channels: channels, items: items, patterns: patterns, patternSounds: exact.patterns,
+                                     mixer: mixer, routes: routes, trackSounds: exact.tracks, unused: unused)
+        result.project = ProjectFile.snapshot(read.project, url: read.url, notSounds: notSounds)
+        return result
     }
 
     /// Sons à classer : ni layers ni automations.

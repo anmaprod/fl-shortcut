@@ -758,4 +758,71 @@ final class OrganizerSessionTests: XCTestCase {
         XCTAssertEqual(Set(SoundKind.allCases.map(\.name)).count, SoundKind.allCases.count)
         XCTAssertEqual(DrumKind.allCases.map(\.sound.family), Array(repeating: .drums, count: DrumKind.allCases.count))
     }
+
+    /// Analyse sur le fichier du projet (retour du propriétaire, vidéo du 21/10 : des mélodies classées « FX », des
+    /// patterns oubliés) : FL enregistre le projet, les sons de chaque pattern et de chaque piste viennent de ses notes
+    /// et de ses clips. Ni pattern relevé, ni chanson jouée, ni piste écoutée ; rien n'est retiré de FL avant.
+    func testProjectFileGivesExactSounds() throws {
+        let link = FakeOrganizerLink()
+        link.channels = ["Pad", "Kick", "ZENOLOGY", "Snare", "808"].enumerated().map {
+            ChannelInfo(index: $0.offset, type: 2, mixerTrack: $0.offset + 1, color: red, name: $0.element)
+        }
+        link.patternList = ["Mélodie", "Drums", "Pattern 3", "Vide"].enumerated().map {
+            PatternInfo(index: $0.offset, color: red, name: $0.element)
+        }
+        link.mixer = (0...6).map { MixerTrackInfo(index: $0, color: red, name: $0 == 0 ? "Master" : "Insert \($0)") }
+        let audio = FakeAudio(link: link)
+        audio.parts = [2: tone(.melody)]
+        let url = URL(fileURLWithPath: "/projets/Mon son.flp")
+        var saves = 0
+        let files = ProjectFileAccess(save: { _ in
+            saves += 1
+            return .success(url)
+        }, open: { _ in false }, read: { _ in FLPSample.sample() })
+        var prepared = false
+        let session = OrganizerSession(link: link, audio: audio, classify: classify, nameDrum: { _, _ in .kick },
+                                       timing: timing, sleep: { _ in }, prepare: {
+                                           prepared = true
+                                           return true
+                                       }, files: files)
+        let result = try session.run().get()
+
+        XCTAssertEqual(saves, 1, "FL enregistre le projet avant la lecture")
+        XCTAssertFalse(prepared, "rien n'est retiré ni sélectionné dans FL avant l'enregistrement")
+        XCTAssertEqual(result.patternSounds, [0: [2], 1: [3, 4], 2: [1]], "index 0 = pattern 1")
+        XCTAssertEqual(result.trackSounds, [0: [2], 1: [3, 4], 2: [2], 3: [3, 4], 5: [1]])
+        XCTAssertEqual(result.unused, [0], "ni note ni clip")
+        XCTAssertEqual(result.items.map(\.index), [1, 2, 3, 4])
+        XCTAssertEqual(result.items.first { $0.index == 2 }?.family, .melody, "écouté seul dans son pattern")
+        XCTAssertEqual(result.project?.url, url)
+        XCTAssertEqual(result.project?.clips.count, 6)
+        XCTAssertEqual(result.project?.silentPatterns, 1)
+        XCTAssertFalse(link.log.contains { $0.hasPrefix("all") || $0.hasPrefix("song") || $0.hasPrefix("track") },
+                       "rien n'est deviné : \(link.log)")
+        XCTAssertTrue(link.log.contains("solo 2 p1"), "\(link.log)")
+        let diag = session.diagnostics
+        XCTAssertEqual(diag.file, "oui")
+        XCTAssertEqual(diag.clips, 6)
+        XCTAssertTrue(diag.text.contains("fichier=oui clips=6"), diag.text)
+        XCTAssertFalse(diag.text.contains("ZENOLOGY"), "jamais un nom dans le diagnostic")
+    }
+
+    /// Le fichier enregistré n'est pas le projet ouvert (autres sons) : rien n'est touché, la raison est dite.
+    func testOtherProjectFileStopsEverything() {
+        let link = FakeOrganizerLink()
+        link.channels = [named(0, "Pad"), named(1, "Kick")]
+        let audio = FakeAudio(link: link)
+        let files = ProjectFileAccess(save: { _ in .success(URL(fileURLWithPath: "/projets/Autre.flp")) },
+                                      open: { _ in false }, read: { _ in FLPSample.sample() })
+        let session = OrganizerSession(link: link, audio: audio, classify: classify, timing: timing, sleep: { _ in },
+                                       files: files)
+        guard case .failure(.failed(let message)) = session.run() else { return XCTFail("refusé") }
+        XCTAssertTrue(message.contains("rien n'a été touché"), message)
+        XCTAssertEqual(session.diagnostics.file, "canaux 5/2")
+        XCTAssertEqual(audio.started, 0, "rien n'est écouté")
+        let unsaved = OrganizerSession(link: link, audio: audio, classify: classify, timing: timing, sleep: { _ in },
+                                       files: ProjectFileAccess(save: { _ in .failure(.failed("pas enregistré")) },
+                                                                open: { _ in false }))
+        XCTAssertEqual(unsaved.run(), .failure(.failed("pas enregistré")))
+    }
 }

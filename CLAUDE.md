@@ -21,23 +21,24 @@
 - Trousseau : un seul élément pour la clé du script et la session du compte (une seule demande d'accès).
 - Fenêtre principale sans bande sous la barre d'outils ; accueil remontré si l'autorisation clavier manque.
 - **Organiser v5** (`Sources/FLShortcut/Organizer*.swift`, `SoundFeatures.swift`, `SoundFamilies.swift`, script FL v15) :
-  - analyse : sons classés par leur nom ou écoutés (clip audio : sa note C5), patterns et chanson entière joués à leur
-    tempo (JAMAIS accéléré : refusé par le propriétaire), FL dit ce qui joue (relevé continu) ; un nom déjà donné par
-    l'Organiser est revérifié à l'écoute ; le diagnostic donne les sons de chaque pattern et piste (numéros) ;
+  - analyse sur le fichier du projet (PROTOCOL.md §9, `FLP*.swift`, `OrganizerProject*.swift`) : FL enregistre (⌘S),
+    le .flp est lu ; sons de chaque pattern et de chaque piste d'après les notes et les clips (plus rien de deviné :
+    ni relevé des patterns, ni chanson jouée, ni piste écoutée) ; chaque son classé par son nom ou écouté seul dans son
+    pattern, à son tempo (JAMAIS accéléré : refusé par le propriétaire) ; rien n'est touché si le fichier n'est pas le
+    projet ouvert ou a une forme inattendue ; le diagnostic donne les sons de chaque pattern et piste (numéros) ;
   - classement réglé (arpège → mélodie, drum loop → Drums, hi-hat par ses aigus ; 3 notes nettes ou plus → mélodie,
     jamais drums ni FX ; un canal au nom d'un synthé de mélodies, ZENOLOGY, Serum… → jamais drums ni FX) ;
   - « Organiser » : sons sans note supprimés (⌥ + Suppr de FL), Channel rack, Mixer (un bus par famille, son sur le
-    Master relié à une piste libre, pistes inutiles remises à neuf), patterns et Playlist dans le même ordre (menu
-    « Move up » de chaque piste), mêmes noms partout ; « Revenir comme avant » défait tout sauf les suppressions ;
+    Master relié à une piste libre, pistes inutiles remises à neuf), patterns et Playlist dans le même ordre, mêmes noms
+    partout, le tout dans une copie « <nom> (rangé).flp » (voir Playlist) ;
   - IA de macOS sur une fenêtre de 1 s (son court complété) ; « Voix » seulement si l'IA entend une voix ; tempo du
     projet jamais changé ; règle de chaque son dans le diagnostic (`c4:melodie+ia`) ;
-  - Playlist, un son par piste et les clips d'un même son (mêmes sons joués) réunis sur sa piste
-    (`OrganizerClipMover.swift`) : au moment de ranger, les noms des clips (partie visible de la Playlist) lus dans la
-    fenêtre de FL (À FAIRE CONFIRMER par le propriétaire : lecture plus large que « un bouton à son nom ») ; chaque clip
-    sélectionné seul (⌘D, ⌘ + clic), monté/descendu (⇧↑/⇧↓), vérifié en relisant la fenêtre, sinon remis ; jamais posé
-    sur un autre clip au même moment ; un clip pas déplacé est dit à la fin, les autres continuent ;
-    sans l'autorisation d'écran : l'ancien découpage (pattern entier : op 26, ⇧C, ⇧↓) ; puis les pistes rangées par
-    famille (« Move up »). FL n'a aucune commande pour sélectionner les clips d'une seule piste (manuel lu).
+  - Playlist rangée dans une copie « <nom> (rangé).flp » écrite à côté de l'original : chaque clip sur la piste de ses
+    sons (les mêmes sons, la même piste ; un clip qui en chevaucherait un autre : une piste de plus dessous ; patterns
+    vides en bas), pistes dans l'ordre des familles ; FL ouvre la copie (reconnue à un nom de pattern posé pour ça,
+    remis aussitôt), le reste s'y fait par le script, FL l'enregistre. L'original ne bouge jamais : « Revenir comme
+    avant » le rouvre (tout revient, suppressions comprises). Plus aucune lecture de l'écran pour la Playlist ; l'ancien
+    code (réunion des clips lus dans la fenêtre, patterns descendus, « Move up ») ne sert plus que sans fichier (tests).
   - aperçu : couleur ou dégradé de chaque famille en haut, résumé et choix dessous, dans la même zone qui défile.
 - Interface : survol coloré du menu de l'icône (`menuHover` : contour de sa couleur, grandit, ombre) voulu par le
   propriétaire partout : barre latérale (`sidebarHover`), lignes des pages, Macros, modèles, Communauté, Aide,
@@ -55,9 +56,7 @@
   « sdk 13.0 ») et vérifie le kit inscrit (`vtool`). Ne pas « corriger » l'aspect en code.
 
 ## Pas encore vérifié sur le vrai FL
-- Réunion des clips : ⌘ + clic sélectionne-t-il bien un seul clip ? Les noms des clips (abrégés « M..3 ») sont-ils lus ?
-- La suppression par ⌥ + Suppr et le rangement de la Playlist par « Move up » (si ça échoue, l'app le dit).
-- Un son par piste : ⇧C sélectionne-t-il bien les clips du pattern ouvert par le script ? (sinon, tout remonte et
-  l'app le dit) ; le bouton « Arrangement » lu dans le titre de la Playlist.
-- Questions sans réponse : lire la fenêtre Playlist pour un « split by channel » ? l'accueil manquant venait-il d'une
-  installation sans désinstallation ?
+- Organiser sur le fichier : ⌘S enregistre-t-il le projet ? Son fichier est-il retrouvé (titre de la fenêtre de FL,
+  Spotlight, dossiers habituels) ? FL ouvre-t-il la copie rangée sans rien demander, et le script lit-il la marque ?
+- La suppression par ⌥ + Suppr (si ça échoue, l'app le dit).
+- Questions sans réponse : l'accueil manquant venait-il d'une installation sans désinstallation ?

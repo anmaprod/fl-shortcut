@@ -240,3 +240,32 @@ données = [1, 0, 2, 0, 0, 0, 0]                 (liste des canaux : total 2, d�
 unités  = [0, 1, 0, 2, 0, 0, 0, 0]
 MAC     = [89, 95, 58, 61]
 ```
+
+## 9. Fichier de projet de FL (.flp), lu et rangé par l'Organiser
+
+L'Organiser ne devine plus ce que joue chaque pattern ni où sont les clips : FL enregistre le projet ouvert (⌘S), son
+fichier est lu (`FLPFile`, `FLPProject`), et la Playlist est rangée dans une **copie** « <nom> (rangé).flp » écrite à
+côté de l'original, que FL ouvre ensuite. L'original n'est jamais écrit. Vérifié sur le projet de test du propriétaire
+(FL 26.1, octobre 2026) : relu puis réécrit octet pour octet à l'identique.
+
+- **En-tête** : « FLhd », longueur (4 octets, 6), format (2), nombre de canaux (2), pas par noire (2, `ppq`) ; puis
+  « FLdt », longueur (4) et les événements. Nombres petit-boutistes.
+- **Événement** : un octet de numéro, puis 1 octet (numéros 0 à 63), 2 (64 à 127), 4 (128 à 191), ou une longueur
+  (7 bits par octet, le bit du haut dit qu'un octet suit) et autant d'octets (192 et plus). Textes : UTF-16 terminé
+  par un zéro.
+- **Canal** : 64 (rang dans le Channel rack, 0, 1, 2… sans trou) **suivi aussitôt de 21** (type : 0 échantillon,
+  2 plugin, 3 layer) ; 203 son nom ; 94 un canal joué par un layer. Un 64 sans 21 derrière sert à autre chose
+  (réglages MIDI du projet) : ignoré.
+- **Pattern** : 65 (1 = pattern 1) ; suivi de 224 (ses notes, 24 octets chacune, le canal sur 2 octets à la place 6)
+  dans la partie des notes, ou de 193 (nom), 150 (couleur)… dans sa description (écrite au milieu du premier canal).
+- **Playlist** : 99 (arrangement), puis 233 : ses clips, 88 octets chacun (60 dans FL 21, 32 avant ; la taille est
+  celle où chaque clip porte 0x5000 à la place 4). Dans un clip : début (4 octets, en pas), 0x5000 (2), numéro (2 :
+  au-delà de 0x5000, un pattern ; sinon un canal : clip audio, automation), longueur (4), piste à l'envers (2 :
+  499 = piste 1 quand il y a 500 pistes). Puis chaque piste : 238 (numéro à partir de 1, couleur à la place 4…),
+  239 son nom s'il en a un.
+- **La copie** ne change que la piste de chaque clip (place 12), et, pour les pistes où il y avait ou où il y a des
+  clips, leur nom (239 retiré) et leur couleur (celle des pistes jamais touchées) ; le premier pattern nommé prend un
+  nom « FL Shortcuts nnnn » (FL a ouvert la copie quand le script le lit), remis aussitôt par le script.
+- **Arrêt sans rien toucher** : fichier abîmé, forme inattendue (taille de clip ambiguë, pistes avec un trou, note d'un
+  canal inconnu, plusieurs arrangements avec des clips), fichier qui n'est pas le projet ouvert (autres canaux ou
+  patterns), ou projet changé entre l'analyse et « Organiser ».

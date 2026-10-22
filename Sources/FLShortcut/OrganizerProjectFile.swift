@@ -1,0 +1,227 @@
+// Organiser sur le fichier du projet (retour du propriétaire, vidéo du 21/10 : des mélodies classées « FX », des
+// patterns ni renommés ni colorés, des clips mal posés ; « je veux quelque chose de solide qui fasse qu'à 100 % il
+// rende le travail sûr »). FL enregistre le projet ouvert et l'Organiser lit son fichier : les sons de chaque pattern
+// et de chaque piste sont ceux de ses notes et de ses clips, rien n'est deviné. La Playlist est rangée dans une copie,
+// « <nom> (rangé).flp », à côté de l'original, qui ne bouge pas ; FL ouvre la copie, puis Channel rack, patterns,
+// Mixer et noms se font par le script, comme avant. « Revenir comme avant » rouvre l'original. Pur (testé).
+import Foundation
+
+/// Le fichier du projet ouvert dans FL (des faux dans les tests).
+struct ProjectFileAccess {
+    /// FL enregistre le projet ouvert ; renvoie son fichier, celui que FL vient d'écrire (`known` : celui qu'on
+    /// attend, s'il est connu).
+    var save: (_ known: URL?) -> Result<URL, OrganizerError>
+    /// FL ouvre ce fichier à la place du projet ouvert ; faux si rien n'a pu être demandé.
+    var open: (URL) -> Bool
+    var read: (URL) throws -> FLPFile = { try FLPFile(contentsOf: $0) }
+    /// Jamais par-dessus un fichier qui existe.
+    var write: (FLPFile, URL) throws -> Void = { file, url in
+        try Data(file.encoded()).write(to: url, options: .withoutOverwriting)
+    }
+    var exists: (URL) -> Bool = { FileManager.default.fileExists(atPath: $0.path) }
+}
+
+/// Le fichier lu à l'analyse : où il est, chaque clip de la Playlist et ce qu'il joue.
+struct ProjectSnapshot: Equatable {
+    let url: URL
+    let clips: [FLPProject.Clip]
+    /// Ce que joue chaque clip (rang du clip → groupe).
+    var groups: [Int: PlaylistLayout.Group]
+    let trackCount: Int
+
+    /// Patterns posés dans la Playlist où rien ne joue (aucune note) : chacun sur sa piste, après les sons.
+    var silentPatterns: Int {
+        Set(groups.values.compactMap { group -> Int? in
+            if case .silent(let n) = group { return n }
+            return nil
+        }).count
+    }
+
+    /// Les mêmes clips une fois des canaux supprimés de FL (`map` : index d'avant → maintenant).
+    func moving(_ map: [Int: Int]) -> ProjectSnapshot {
+        var out = self
+        out.groups = groups.mapValues { group in
+            switch group {
+            case .sounds(let s): return .sounds(Set(s.compactMap { map[$0] }))
+            case .other(let c): return .other(map[c] ?? c)
+            case .silent: return group
+            }
+        }
+        return out
+    }
+}
+
+enum ProjectFile {
+    struct Sounds: Equatable {
+        /// Sons de chaque pattern qui en a (0 = pattern 1, comme `PatternInfo.index`).
+        var patterns: [Int: Set<Int>] = [:]
+        /// Sons de chaque piste de la Playlist qui en a (0 = piste 1).
+        var tracks: [Int: Set<Int>] = [:]
+        /// Sons qui ont des notes dans un pattern ou un clip dans la Playlist.
+        var used: Set<Int> = []
+    }
+
+    /// Ce que joue chaque pattern et chaque piste, d'après les notes et les clips. `notSounds` : canaux qui ne sont
+    /// pas des sons (automations).
+    static func sounds(_ project: FLPProject, notSounds: Set<Int>) -> Sounds {
+        var out = Sounds()
+        for pattern in project.notes.keys {
+            let sounds = project.sounds(of: pattern).subtracting(notSounds)
+            if !sounds.isEmpty { out.patterns[pattern - 1] = sounds }
+            out.used.formUnion(sounds)
+        }
+        for clip in project.clips {
+            let sounds = played(clip, project, notSounds)
+            if !sounds.isEmpty { out.tracks[clip.track, default: []].formUnion(sounds) }
+            out.used.formUnion(sounds)
+        }
+        return out
+    }
+
+    private static func played(_ clip: FLPProject.Clip, _ project: FLPProject, _ notSounds: Set<Int>) -> Set<Int> {
+        switch clip.source {
+        case .pattern(let n): return project.sounds(of: n).subtracting(notSounds)
+        case .channel(let c): return project.played([c]).subtracting(notSounds)
+        }
+    }
+
+    /// Ce que joue un clip, pour ranger la Playlist.
+    static func group(_ clip: FLPProject.Clip, project: FLPProject, notSounds: Set<Int>) -> PlaylistLayout.Group {
+        let sounds = played(clip, project, notSounds)
+        if !sounds.isEmpty { return .sounds(sounds) }
+        switch clip.source {
+        case .pattern(let n): return .silent(n)
+        case .channel(let c): return .other(c)
+        }
+    }
+
+    static func snapshot(_ project: FLPProject, url: URL, notSounds: Set<Int>) -> ProjectSnapshot {
+        var groups: [Int: PlaylistLayout.Group] = [:]
+        for clip in project.clips { groups[clip.item] = group(clip, project: project, notSounds: notSounds) }
+        return ProjectSnapshot(url: url, clips: project.clips, groups: groups, trackCount: project.trackCount)
+    }
+
+    /// Pur (testé) : le fichier est-il celui du projet ouvert dans FL ? nil si oui ; sinon ce qui diffère, en mots et
+    /// nombres pour le diagnostic (jamais un nom). Autant de canaux, chacun du même nom quand le fichier le dit (le
+    /// script coupe les noms longs : son nom est le début de celui du fichier), chaque pattern nommé dans le fichier
+    /// du même nom dans FL (`patterns` : 0 = pattern 1).
+    static func mismatch(_ project: FLPProject, channels: [String], patterns: [Int: String]) -> String? {
+        guard project.channels.count == channels.count else {
+            return "canaux \(project.channels.count)/\(channels.count)"
+        }
+        for (c, live) in zip(project.channels, channels) {
+            if let name = c.name, !same(live, name) { return "nom c\(c.iid)" }
+        }
+        for (n, name) in project.patternNames.sorted(by: { $0.key < $1.key }) {
+            guard let live = patterns[n - 1], same(live, name) else { return "pattern \(n)" }
+        }
+        return nil
+    }
+
+    /// Nom lu par le script (peut-être coupé) comparé au nom complet du fichier.
+    static func same(_ live: String, _ full: String) -> Bool {
+        let l = live.trimmingCharacters(in: .whitespaces), f = full.trimmingCharacters(in: .whitespaces)
+        return l == f || (l.count >= 8 && f.hasPrefix(l))
+    }
+
+    /// Pur (testé) : la copie rangée, à côté de l'original : « Mon son (rangé).flp », sinon « (rangé 2) »… Jamais un
+    /// fichier qui existe ; une copie rangée de nouveau garde son nom de base.
+    static func copyURL(for original: URL, exists: (URL) -> Bool) -> URL {
+        let folder = original.deletingLastPathComponent()
+        var base = original.deletingPathExtension().lastPathComponent
+        let word = String(localized: "rangé")
+        let suffix = " \\((rangé|organized|\(NSRegularExpression.escapedPattern(for: word)))( [0-9]+)?\\)$"
+        if let range = base.range(of: suffix, options: .regularExpression), range.lowerBound > base.startIndex {
+            base.removeSubrange(range)
+        }
+        for n in 1...999 {
+            let name = n == 1 ? "\(base) (\(word)).flp" : "\(base) (\(word) \(n)).flp"
+            let url = folder.appendingPathComponent(name)
+            if !exists(url) { return url }
+        }
+        return folder.appendingPathComponent("\(base) (\(word) \(UUID().uuidString.prefix(8))).flp")
+    }
+
+    /// Pur (testé) : la copie marquée, pour savoir que FL l'a ouverte : le premier pattern nommé prend le nom
+    /// `marker` (le script le lit une fois la copie chargée, puis il est remis). Aucun pattern nommé : le nom est
+    /// ajouté au premier pattern décrit. Renvoie aussi ce pattern (1 = pattern 1) ; nil : aucun pattern décrit.
+    static func marking(_ file: FLPFile, marker: String) -> (file: FLPFile, pattern: Int)? {
+        let name = FLPEvent(id: FLPProject.Event.patternName,
+                            bytes: marker.utf16.flatMap { FLPBytes.le(Int($0), size: 2) } + [0, 0])
+        var out = file
+        var pattern: Int?
+        var described: (index: Int, pattern: Int)?
+        for (i, event) in file.events.enumerated() {
+            switch event.id {
+            case FLPProject.Event.pattern:
+                pattern = Int(event.value)
+                let next = i + 1 < file.events.count ? file.events[i + 1].id : 0
+                // Le pattern et ses notes (224, contrôles 223) ; ou sa description (nom, couleur…).
+                if described == nil, next != FLPProject.Event.notes, next != 223 { described = (i, Int(event.value)) }
+            case FLPProject.Event.patternName:
+                if let pattern {
+                    out.events[i] = name
+                    return (out, pattern)
+                }
+            case FLPProject.Event.arrangement:
+                pattern = nil
+            default:
+                break
+            }
+        }
+        guard let described else { return nil }
+        out.events.insert(name, at: described.index + 1)
+        return (out, described.pattern)
+    }
+
+    /// Nom de pattern qui marque la copie : jamais celui d'un son.
+    static func marker(_ n: Int) -> String { "FL Shortcuts \(n)" }
+
+    /// Pur (testé) : les noms de projet possibles dans le titre de la fenêtre de FL (« Mon son - FL Studio 2025 »,
+    /// « Mon son.flp * ») : chaque morceau, sans « FL Studio », sans « .flp » ni la marque des changements.
+    static func titleNames(_ title: String) -> [String] {
+        var parts = [title]
+        for separator in [" - ", " — ", " – "] { parts = parts.flatMap { $0.components(separatedBy: separator) } }
+        var out: [String] = []
+        for part in parts {
+            var name = part.trimmingCharacters(in: .whitespaces)
+            while name.hasSuffix("*") { name = String(name.dropLast()).trimmingCharacters(in: .whitespaces) }
+            if name.lowercased().hasSuffix(".flp") { name = String(name.dropLast(4)) }
+            name = name.trimmingCharacters(in: .whitespaces)
+            guard !name.isEmpty, !name.localizedCaseInsensitiveContains("FL Studio"), !out.contains(name) else { continue }
+            out.append(name)
+        }
+        return out
+    }
+
+    /// Le projet ouvert dans FL, lu dans son fichier : FL l'enregistre, puis le fichier est lu et comparé au projet
+    /// ouvert (mêmes canaux, mêmes patterns). Ce qui ne va pas arrête tout, avant que rien ne soit touché ; `why`
+    /// reçoit la raison en mots (diagnostic : jamais un nom).
+    static func read(_ files: ProjectFileAccess, known: URL?, channels: [ChannelInfo], patterns: [PatternInfo],
+                     why: (String) -> Void = { _ in }) throws -> (url: URL, file: FLPFile, project: FLPProject) {
+        let url = try files.save(known).get()
+        let file: FLPFile
+        let project: FLPProject
+        do {
+            file = try files.read(url)
+            project = try FLPProject(file)
+        } catch FLPError.unsupported(let what) {
+            why(what)
+            if what == "arrangements" {
+                throw OrganizerError.failed(String(localized: "Ton projet a plusieurs arrangements avec des clips : l'Organiser ne range pour l'instant qu'un seul arrangement. Rien n'a été touché."))
+            }
+            throw OrganizerError.failed(String(localized: "L'Organiser ne sait pas encore ranger ce projet sans risque (\(what)) : rien n'a été touché."))
+        } catch {
+            why("lecture")
+            throw OrganizerError.failed(String(localized: "Le fichier de ton projet n'a pas pu être lu : rien n'a été touché."))
+        }
+        var names: [Int: String] = [:]
+        for pattern in patterns { names[pattern.index] = pattern.name }
+        let live = channels.sorted { $0.index < $1.index }.map(\.name)
+        if let what = mismatch(project, channels: live, patterns: names) {
+            why(what)
+            throw OrganizerError.failed(String(localized: "Le fichier enregistré n'est pas le projet ouvert dans FL : rien n'a été touché. Enregistre ton projet dans FL, puis clique sur « Réessayer »."))
+        }
+        return (url, file, project)
+    }
+}

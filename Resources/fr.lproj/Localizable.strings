@@ -70,6 +70,7 @@
 "%lld ms" = "%lld ms";
 "%lld partages" = "%lld partages";
 "%lld partages trouvés" = "%lld partages trouvés";
+"%lld patterns sans aucune note (rien n'y joue) : chacun sur sa piste, en bas de la Playlist" = "%lld patterns sans aucune note (rien n'y joue) : chacun sur sa piste, en bas de la Playlist";
 "%lld pistes du Mixer sans son remises comme neuves (nom et couleur de FL)" = "%lld pistes du Mixer sans son remises comme neuves (nom et couleur de FL)";
 "%lld raccourci%@ · %lld macro%@" = "%lld raccourci%@ · %lld macro%@";
 "%lld raccourci(s) avec une action inconnue, désactivé(s)." = "%lld raccourci(s) avec une action inconnue, désactivé(s).";
@@ -80,6 +81,7 @@
 "%lld sons envoyés au Master reliés chacun à une piste libre du Mixer" = "%lld sons envoyés au Master reliés chacun à une piste libre du Mixer";
 "%lld sons sans aucune note laissés de côté (ni rangés, ni colorés, ni renommés)" = "%lld sons sans aucune note laissés de côté (ni rangés, ni colorés, ni renommés)";
 "%lld sons sans aucune note supprimés du Channel rack (on ne peut pas les remettre avec « Revenir comme avant »)" = "%lld sons sans aucune note supprimés du Channel rack (on ne peut pas les remettre avec « Revenir comme avant »)";
+"%lld sons sans aucune note supprimés du Channel rack de la copie rangée" = "%lld sons sans aucune note supprimés du Channel rack de la copie rangée";
 "%lld sons sans aucune note supprimés." = "%lld sons sans aucune note supprimés.";
 "%lld touches" = "%lld touches";
 "%lld étapes tapent des touches, cliquent ou ouvrent des fichiers : relis-les dans le créateur." = "%lld étapes tapent des touches, cliquent ou ouvrent des fichiers : relis-les dans le créateur.";
@@ -345,6 +347,7 @@
 "Bureau de gauche" = "Bureau de gauche";
 "Bypass des effets de la piste" = "Bypass des effets de la piste";
 "C'est fait : le projet est rangé, coloré et renommé. « Revenir comme avant » défait tout, sauf les sons supprimés." = "C'est fait : le projet est rangé, coloré et renommé. « Revenir comme avant » défait tout, sauf les sons supprimés.";
+"C'est fait : ton projet est rangé, coloré et renommé dans une copie, « %@ », à côté de l'original. L'original n'a pas bougé : « Revenir comme avant » le rouvre." = "C'est fait : ton projet est rangé, coloré et renommé dans une copie, « %@ », à côté de l'original. L'original n'a pas bougé : « Revenir comme avant » le rouvre.";
 "C'est parti" = "C'est parti";
 "Canal" = "Canal";
 "Canal au-dessus" = "Canal au-dessus";
@@ -755,6 +758,7 @@
 "FL Shortcuts – Raccourcis" = "FL Shortcuts – Raccourcis";
 "FL Shortcuts – clé du script FL Studio" = "FL Shortcuts – clé du script FL Studio";
 "FL Studio" = "FL Studio";
+"FL Studio doit être au premier plan pour enregistrer ton projet : clique dans sa fenêtre, puis sur « Réessayer »." = "FL Studio doit être au premier plan pour enregistrer ton projet : clique dans sa fenêtre, puis sur « Réessayer ».";
 "FL Studio doit être ouvert et au premier plan pendant l'enregistrement : les clics et les touches faits ailleurs sont ignorés. Clique et tape dans les fenêtres et les menus de FL, puis « Terminer » dans le petit panneau en haut à droite (« Annuler » n'ajoute rien)." = "FL Studio doit être ouvert et au premier plan pendant l'enregistrement : les clics et les touches faits ailleurs sont ignorés. Clique et tape dans les fenêtres et les menus de FL, puis « Terminer » dans le petit panneau en haut à droite (« Annuler » n'ajoute rien).";
 "FL Studio est relié" = "FL Studio est relié";
 "FL Studio n'envoie pas de son pour l'instant : ouvre ton projet dans FL, puis relance Organiser." = "FL Studio n'envoie pas de son pour l'instant : ouvre ton projet dans FL, puis relance Organiser.";
@@ -773,11 +777,17 @@
 "FL a refusé le %@ du canal (raison %lld)" = "FL a refusé le %@ du canal (raison %lld)";
 "FL a refusé le nom ou la couleur." = "FL a refusé le nom ou la couleur.";
 "FL enregistre avec « %@ » et joue le son sur « %@ » : le micro reprendrait le son des haut-parleurs (larsen). Branche un casque, ou choisis ta carte son dans FL (Options › Audio Settings) avant de lancer la lecture." = "FL enregistre avec « %@ » et joue le son sur « %@ » : le micro reprendrait le son des haut-parleurs (larsen). Branche un casque, ou choisis ta carte son dans FL (Options › Audio Settings) avant de lancer la lecture.";
+"FL enregistre ton projet, puis FL Shortcuts lit son fichier : ce que joue chaque pattern et où est chaque clip, exactement (rien n'est deviné). Un son dont le nom dit ce qu'il est (Kick, 808, Hat…) est classé tout de suite ; les autres jouent seuls, à ton tempo, sans que tu les entendes. Ne touche pas à FL ; Échap arrête." = "FL enregistre ton projet, puis FL Shortcuts lit son fichier : ce que joue chaque pattern et où est chaque clip, exactement (rien n'est deviné). Un son dont le nom dit ce qu'il est (Kick, 808, Hat…) est classé tout de suite ; les autres jouent seuls, à ton tempo, sans que tu les entendes. Ne touche pas à FL ; Échap arrête.";
 "FL est revenu comme avant." = "FL est revenu comme avant.";
 "FL joue : appuie sur Stop, puis relance Organiser." = "FL joue : appuie sur Stop, puis relance Organiser.";
 "FL n'a pas confirmé" = "FL n'a pas confirmé";
 "FL n'a pas confirmé (armement / REC)" = "FL n'a pas confirmé (armement / REC)";
+"FL n'a pas enregistré la copie rangée : enregistre-la dans FL (⌘S)." = "FL n'a pas enregistré la copie rangée : enregistre-la dans FL (⌘S).";
+"FL n'a pas enregistré ton projet (ou il n'a jamais été enregistré). Enregistre-le dans FL (Fichier › Enregistrer), puis clique sur « Réessayer »." = "FL n'a pas enregistré ton projet (ou il n'a jamais été enregistré). Enregistre-le dans FL (Fichier › Enregistrer), puis clique sur « Réessayer ».";
+"FL n'a pas ouvert la copie rangée à temps : elle est à côté de ton projet, ouvre-la dans FL, puis relance l'Organiser. Ton projet n'a pas bougé." = "FL n'a pas ouvert la copie rangée à temps : elle est à côté de ton projet, ouvre-la dans FL, puis relance l'Organiser. Ton projet n'a pas bougé.";
 "FL n'a pas pris le preset : clique d'abord au milieu de la tranche de ta piste" = "FL n'a pas pris le preset : clique d'abord au milieu de la tranche de ta piste";
+"FL n'a pas pu ouvrir la copie rangée : elle est à côté de ton projet, ouvre-la dans FL. Ton projet n'a pas bougé." = "FL n'a pas pu ouvrir la copie rangée : elle est à côté de ton projet, ouvre-la dans FL. Ton projet n'a pas bougé.";
+"FL n'a pas pu rouvrir ton projet d'origine : il est toujours là, ouvre-le dans FL." = "FL n'a pas pu rouvrir ton projet d'origine : il est toujours là, ouvre-le dans FL.";
 "FL n'a pas reçu la commande" = "FL n'a pas reçu la commande";
 "FL n'a pas répondu au dépôt du preset" = "FL n'a pas répondu au dépôt du preset";
 "FL n'a pas répondu à son menu (Accessibilité %d)" = "FL n'a pas répondu à son menu (Accessibilité %d)";
@@ -791,13 +801,13 @@
 "FL ne répond pas : le script FL Shortcuts n'est pas chargé dans FL. Vérifie ces réglages, puis « Réessayer »." = "FL ne répond pas : le script FL Shortcuts n'est pas chargé dans FL. Vérifie ces réglages, puis « Réessayer ».";
 "FL ne répond pas : quitte et rouvre FL Studio, il relie « %@ » tout seul en démarrant. Toujours rien : dans Options › MIDI Settings, entrée « %@ », choisis le Controller type « FL Shortcuts » (pas « generic controller »), et donne le même numéro de Port à l'entrée et à la sortie" = "FL ne répond pas : quitte et rouvre FL Studio, il relie « %@ » tout seul en démarrant. Toujours rien : dans Options › MIDI Settings, entrée « %@ », choisis le Controller type « FL Shortcuts » (pas « generic controller »), et donne le même numéro de Port à l'entrée et à la sortie";
 "FL ne répond pas encore. Dans FL › MIDI Settings › Output, « FL Shortcuts » doit s'afficher à côté de « FL Shortcuts Link », seul sur son Port. Sinon : « Ça ne marche toujours pas ? » ci-dessous." = "FL ne répond pas encore. Dans FL › MIDI Settings › Output, « FL Shortcuts » doit s'afficher à côté de « FL Shortcuts Link », seul sur son Port. Sinon : « Ça ne marche toujours pas ? » ci-dessous.";
+"FL ouvre la copie rangée de ton projet, puis tout s'y range… Ne touche pas à FL." = "FL ouvre la copie rangée de ton projet, puis tout s'y range… Ne touche pas à FL.";
 "FL passe devant : clique et tape dans l'ordre (menus, Options › Audio, boutons de ses fenêtres, flèches, raccourcis…), puis « Terminer ». Chaque clic et chaque touche devient un bloc, ajouté sous la ligne choisie." = "FL passe devant : clique et tape dans l'ordre (menus, Options › Audio, boutons de ses fenêtres, flèches, raccourcis…), puis « Terminer ». Chaque clic et chaque touche devient un bloc, ajouté sous la ligne choisie.";
 "FL passe devant : clique et tape dans l'ordre, puis « Terminer » en haut à droite (⇧⌘R)." = "FL passe devant : clique et tape dans l'ordre, puis « Terminer » en haut à droite (⇧⌘R).";
 "FL passe devant : clique une fois à l'endroit voulu (le clic agit aussi dans FL). Échap annule." = "FL passe devant : clique une fois à l'endroit voulu (le clic agit aussi dans FL). Échap annule.";
 "FL passe devant : fais le glisser-déposer une fois (il agit aussi dans FL). Échap annule." = "FL passe devant : fais le glisser-déposer une fois (il agit aussi dans FL). Échap annule.";
 "FL passe devant : place la souris sur une piste du Mixer avant la fin du compte à rebours. Échap arrête la macro." = "FL passe devant : place la souris sur une piste du Mixer avant la fin du compte à rebours. Échap arrête la macro.";
 "FL passe devant et la macro vise la dernière piste sur laquelle tu as cliqué. Échap l'arrête." = "FL passe devant et la macro vise la dernière piste sur laquelle tu as cliqué. Échap l'arrête.";
-"FL retire d'abord les clips audio inutilisés et repère les sons sans aucune note (supprimés si tu organises). Un son dont le nom dit ce qu'il est (Kick, 808, Hat…) est classé tout de suite ; les autres jouent seuls, à ton tempo, sans que tu les entendes. Chaque pattern, puis toute la chanson, jouent en entier à ton tempo : FL dit quels sons jouent (même ceux que tu as coupés). Puis chaque piste de la Playlist joue un instant. Ne touche pas à FL ; Échap arrête." = "FL retire d'abord les clips audio inutilisés et repère les sons sans aucune note (supprimés si tu organises). Un son dont le nom dit ce qu'il est (Kick, 808, Hat…) est classé tout de suite ; les autres jouent seuls, à ton tempo, sans que tu les entendes. Chaque pattern, puis toute la chanson, jouent en entier à ton tempo : FL dit quels sons jouent (même ceux que tu as coupés). Puis chaque piste de la Playlist joue un instant. Ne touche pas à FL ; Échap arrête.";
 "FL répond : le lien est prêt." = "FL répond : le lien est prêt.";
 "FL trouve « FL Shortcuts Link » en démarrant et le relie tout seul. C'est détecté ici dès que c'est fait." = "FL trouve « FL Shortcuts Link » en démarrant et le relie tout seul. C'est détecté ici dès que c'est fait.";
 "FL utilise encore l'ancienne version du lien : redémarre FL Studio (il charge la nouvelle au lancement), puis clique sur « Réessayer »." = "FL utilise encore l'ancienne version du lien : redémarre FL Studio (il charge la nouvelle au lancement), puis clique sur « Réessayer ».";
@@ -917,6 +927,7 @@
 "Kick" = "Kick";
 "Kick, Lead, Voix…" = "Kick, Lead, Voix…";
 "Kick, Lead, Voix… (facultatif)" = "Kick, Lead, Voix… (facultatif)";
+"L'Organiser ne sait pas encore ranger ce projet sans risque (%@) : rien n'a été touché." = "L'Organiser ne sait pas encore ranger ce projet sans risque (%@) : rien n'a été touché.";
 "L'Organiser écoute FL avec macOS 14.2 ou plus récent : mets macOS à jour." = "L'Organiser écoute FL avec macOS 14.2 ou plus récent : mets macOS à jour.";
 "L'app et tous ses réglages seront supprimés de ce Mac." = "L'app et tous ses réglages seront supprimés de ce Mac.";
 "L'auteur n'a pas écrit d'explication." = "L'auteur n'a pas écrit d'explication.";
@@ -930,6 +941,7 @@
 "La Communauté n'est pas encore ouverte dans cette version." = "La Communauté n'est pas encore ouverte dans cette version.";
 "La carte devient la sortie et l'entrée du Mac. Une seule fois, dans FL › Options › Audio settings : " = "La carte devient la sortie et l'entrée du Mac. Une seule fois, dans FL › Options › Audio settings : ";
 "La carte son branchée (USB, Thunderbolt…) devient la sortie et l'entrée du Mac ; FL la suit tout seul s'il est réglé une fois sur « Default audio device » (Output) et « Default input device » (Input) dans Options › Audio settings." = "La carte son branchée (USB, Thunderbolt…) devient la sortie et l'entrée du Mac ; FL la suit tout seul s'il est réglé une fois sur « Default audio device » (Output) et « Default input device » (Input) dans Options › Audio settings.";
+"La copie rangée n'a pas pu être écrite à côté de ton projet : rien n'a été touché." = "La copie rangée n'a pas pu être écrite à côté de ton projet : rien n'a été touché.";
 "La macro choisie, avec ses étapes." = "La macro choisie, avec ses étapes.";
 "La macro est vide." = "La macro est vide.";
 "La macro ne tourne pas tant qu'il n'est pas montré." = "La macro ne tourne pas tant qu'il n'est pas montré.";
@@ -952,8 +964,11 @@
 "Le code fait 6 chiffres : recopie-le depuis le mail." = "Le code fait 6 chiffres : recopie-le depuis le mail.";
 "Le début de l'enregistrement, en blocs : menu de la piste, preset, puis armement de la piste. À compléter étape par étape." = "Le début de l'enregistrement, en blocs : menu de la piste, preset, puis armement de la piste. À compléter étape par étape.";
 "Le fichier %@ manque dans l'application." = "Le fichier %@ manque dans l'application.";
+"Le fichier de ton projet n'a pas pu être lu : rien n'a été touché." = "Le fichier de ton projet n'a pas pu être lu : rien n'a été touché.";
+"Le fichier de ton projet n'est pas accessible : rien n'a été touché." = "Le fichier de ton projet n'est pas accessible : rien n'a été touché.";
 "Le fichier des macros est illisible et n'a pas pu être copié : il n'est pas modifié, tes nouvelles macros ne seront pas enregistrées." = "Le fichier des macros est illisible et n'a pas pu être copié : il n'est pas modifié, tes nouvelles macros ne seront pas enregistrées.";
 "Le fichier des macros était illisible : une copie datée a été gardée dans Application Support › FL Shortcuts (%@)." = "Le fichier des macros était illisible : une copie datée a été gardée dans Application Support › FL Shortcuts (%@).";
+"Le fichier enregistré n'est pas le projet ouvert dans FL : rien n'a été touché. Enregistre ton projet dans FL, puis clique sur « Réessayer »." = "Le fichier enregistré n'est pas le projet ouvert dans FL : rien n'a été touché. Enregistre ton projet dans FL, puis clique sur « Réessayer ».";
 "Le glisser doit commencer et finir dans une fenêtre de FL (pas dans un menu) : recommence." = "Le glisser doit commencer et finir dans une fenêtre de FL (pas dans un menu) : recommence.";
 "Le lien avec FL vient d'être mis à jour : quitte et rouvre FL Studio pour qu'il le charge." = "Le lien avec FL vient d'être mis à jour : quitte et rouvre FL Studio pour qu'il le charge.";
 "Le lien est prêt : FL le lit en démarrant et relie « FL Shortcuts Link » tout seul." = "Le lien est prêt : FL le lit en démarrant et relie « FL Shortcuts Link » tout seul.";
@@ -1328,6 +1343,7 @@
 "Playlist : un son par piste, et les clips d'un même son réunis sur sa piste (FL Shortcuts lit la fenêtre de FL au moment de les déplacer)" = "Playlist : un son par piste, et les clips d'un même son réunis sur sa piste (FL Shortcuts lit la fenêtre de FL au moment de les déplacer)";
 "Playlist pas rangée : FL n'a pas montré le menu de ses pistes (la Playlist doit être visible, ses noms de piste à l'écran). Noms et couleurs sont posés." = "Playlist pas rangée : FL n'a pas montré le menu de ses pistes (la Playlist doit être visible, ses noms de piste à l'écran). Noms et couleurs sont posés.";
 "Playlist pas rangée : pour remonter ses pistes, FL Shortcuts doit voir la fenêtre de FL (Réglages Système › Confidentialité et sécurité › Enregistrement de l'écran). Noms et couleurs sont posés." = "Playlist pas rangée : pour remonter ses pistes, FL Shortcuts doit voir la fenêtre de FL (Réglages Système › Confidentialité et sécurité › Enregistrement de l'écran). Noms et couleurs sont posés.";
+"Playlist rangée dans une copie de ton projet : chaque son sur sa piste, tous les clips des mêmes sons réunis (%lld pistes). Ton projet d'origine ne bouge pas." = "Playlist rangée dans une copie de ton projet : chaque son sur sa piste, tous les clips des mêmes sons réunis (%lld pistes). Ton projet d'origine ne bouge pas.";
 "Playlist ↔ Mixer" = "Playlist ↔ Mixer";
 "Pluck" = "Pluck";
 "Plugin" = "Plugin";
@@ -1621,6 +1637,7 @@
 "Sélectionner les clips de même source" = "Sélectionner les clips de même source";
 "Sélectionner par couleur" = "Sélectionner par couleur";
 "Sélectionner toutes les pistes" = "Sélectionner toutes les pistes";
+"Ta Playlist a plus de pistes à remplir que FL n'en a : rien n'a été touché." = "Ta Playlist a plus de pistes à remplir que FL n'en a : rien n'a été touché.";
 "Ta question, le plus précisément possible." = "Ta question, le plus précisément possible.";
 "Ta sauvegarde vient d'une version plus récente de FL Shortcuts : mets l'app à jour." = "Ta sauvegarde vient d'une version plus récente de FL Shortcuts : mets l'app à jour.";
 "Ta session a expiré : reconnecte-toi pour mettre en ligne tes derniers changements." = "Ta session a expiré : reconnecte-toi pour mettre en ligne tes derniers changements.";
@@ -1672,6 +1689,9 @@
 "Ton mail, pour qu'on te réponde (facultatif)" = "Ton mail, pour qu'on te réponde (facultatif)";
 "Ton mot de passe du Mac, une seule fois (ancienne installation)" = "Ton mot de passe du Mac, une seule fois (ancienne installation)";
 "Ton partage" = "Ton partage";
+"Ton projet a changé depuis l'analyse : rien n'a été touché. Ferme l'Organiser, puis relance-le." = "Ton projet a changé depuis l'analyse : rien n'a été touché. Ferme l'Organiser, puis relance-le.";
+"Ton projet a plusieurs arrangements avec des clips : l'Organiser ne range pour l'instant qu'un seul arrangement. Rien n'a été touché." = "Ton projet a plusieurs arrangements avec des clips : l'Organiser ne range pour l'instant qu'un seul arrangement. Rien n'a été touché.";
+"Ton projet d'origine se rouvre dans FL, tel qu'il était. La copie rangée reste à côté, si tu la veux." = "Ton projet d'origine se rouvre dans FL, tel qu'il était. La copie rangée reste à côté, si tu la veux.";
 "Tools › Purge unused audio clips, par le menu de FL en haut de l'écran : FL retire du projet les clips audio qui ne sont pas dans la Playlist (rien n'est effacé de ton disque)." = "Tools › Purge unused audio clips, par le menu de FL en haut de l'écran : FL retire du projet les clips audio qui ne sont pas dans la Playlist (rien n'est effacé de ton disque).";
 "Touche" = "Touche";
 "Touche %u" = "Touche %u";
@@ -2034,6 +2054,7 @@
 "que le menu se ferme" = "que le menu se ferme";
 "raccourci système (Réglages › Clavier)" = "raccourci système (Réglages › Clavier)";
 "range, colore, renomme le projet" = "range, colore, renomme le projet";
+"rangé" = "rangé";
 "relâche les touches du raccourci" = "relâche les touches du raccourci";
 "risque de larsen : change d'entrée ou de sortie (casque, carte son)" = "risque de larsen : change d'entrée ou de sortie (casque, carte son)";
 "réponse de FL illisible" = "réponse de FL illisible";

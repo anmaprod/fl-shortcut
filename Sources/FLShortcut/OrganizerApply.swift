@@ -158,10 +158,12 @@ struct OrganizerSnapshot: Equatable {
     var splits: [PlaylistSplit]?
     /// Clips de la Playlist réunis sur la piste de leur son, dans l'ordre (remis à l'envers).
     var clipMoves: [ClipMove]?
+    /// Rangé dans une copie du projet : l'original, que « Revenir comme avant » rouvre dans FL (il n'a pas bougé).
+    var original: URL?
 
     var isEmpty: Bool {
         rack == nil && patterns == nil && mixer == nil && playlist == nil && links == nil && splits == nil
-            && clipMoves == nil
+            && clipMoves == nil && original == nil
     }
 }
 
@@ -181,6 +183,9 @@ struct ApplyOutcome: Equatable {
     /// Clips de la Playlist réunis sur la piste de leur son (lus dans la fenêtre de FL) ; ceux qui n'ont pas pu y aller.
     var reunited = 0
     var clipsLeft = 0
+    /// La copie rangée ouverte dans FL ; FL ne l'a pas enregistrée à la fin (à faire soi-même : ⌘S).
+    var copy: URL?
+    var copyNotSaved = false
 }
 
 extension OrganizerResult {
@@ -210,6 +215,7 @@ extension OrganizerResult {
         out.trackItems = trackItems
         out.unused = moved(unused)
         for (channel, position) in soundAt { if let now = map[channel] { out.soundAt[now] = position } }
+        out.project = project?.moving(map)
         let keptTracks = Set(kept.map(\.mixerTrack))
         out.freed = freed.union(channels.filter { deleted.contains($0.index) }.map(\.mixerTrack))
             .filter { $0 > 0 && !keptTracks.contains($0) }
@@ -230,6 +236,10 @@ final class OrganizerApplier {
     private let wait: (TimeInterval) -> Void
     /// Écoute d'une piste seule, pour vérifier qu'un pattern a bien changé de piste.
     private let listen: TimeInterval
+    /// Le fichier du projet (analyse sur le fichier : la Playlist rangée dans une copie) ; le nom de pattern posé dans
+    /// la copie pour savoir que FL l'a ouverte.
+    private let files: ProjectFileAccess?
+    private let marker: String
 
     /// `moveUp(n)` envoie ⌥↑ n fois à FL seul (Channel rack devant), `moveLeft(n)` ⌥← (Mixer devant) ; chacun
     /// renvoie le nombre de pas faits. `placeIcon` pose une icône sur l'élément sélectionné par la fenêtre de FL
@@ -247,7 +257,11 @@ final class OrganizerApplier {
          readClips: @escaping () -> PlaylistView? = { nil },
          moveClip: @escaping (ClipMove) -> ClipMoveResult = { _ in .notDone },
          wait: @escaping (TimeInterval) -> Void = { Thread.sleep(forTimeInterval: $0) },
-         listen: TimeInterval = 1.5) {
+         listen: TimeInterval = 1.5,
+         files: ProjectFileAccess? = nil,
+         marker: String = ProjectFile.marker(Int.random(in: 1000...9999))) {
+        self.files = files
+        self.marker = marker
         self.link = link
         self.moveUp = moveUp
         self.moveLeft = moveLeft
@@ -336,6 +350,9 @@ final class OrganizerApplier {
         var plan = plan
         var result = result
         do {
+            if let project = result.project, plan.source?.options.playlist == true {
+                try openOrganizedCopy(project, &plan, &result, &outcome, styles: styles)
+            }
             if !plan.deleted.isEmpty {
                 if let shifted = try deleteUnused(plan.deleted, result) {
                     outcome.deleted = plan.deleted.count
@@ -369,7 +386,7 @@ final class OrganizerApplier {
                 let ok = try applyMixer(plan.mixer, result, styles, &outcome.snapshot.mixer!)
                 if !ok { verified = false }
             }
-            if plan.source?.options.playlist == true, plan.source?.options.splitTracks == true,
+            if result.project == nil, plan.source?.options.playlist == true, plan.source?.options.splitTracks == true,
                let view = readClips(), !view.clips.isEmpty {
                 // Les clips lus dans la fenêtre de FL : chaque son sur sa piste, ses clips réunis (les patterns
                 // descendus en entier ne savent pas réunir les clips d'un son posés sur plusieurs pistes).
@@ -405,10 +422,80 @@ final class OrganizerApplier {
                 try? link.selectChannels(Set(places), count: result.channels.count)
             }
             if !verified { outcome.error = .mismatch }
+            if let copy = outcome.copy, let files, case .failure = files.save(copy) {
+                // La copie rangée n'a pas été enregistrée par FL : l'utilisateur le fera (⌘S).
+                outcome.copyNotSaved = true
+            }
         } catch {
             outcome.error = Self.failure(error)
         }
         return outcome
+    }
+
+    /// FL ouvre la copie rangée attendue : un nom de pattern posé pour ça dans la copie, lu par le script (au plus
+    /// `openChecks` fois, toutes les demi-secondes : les plugins se chargent).
+    static let openChecks = 120
+
+    /// Analyse sur le fichier : FL enregistre le projet, qui doit être resté tel qu'à l'analyse (sinon rien n'est
+    /// touché) ; la copie rangée est écrite à côté de l'original (chaque clip sur la piste de ses sons, rien d'autre ne
+    /// change) et FL l'ouvre. Le nom de pattern qui la marque est remis aussitôt, puis tout le reste (suppressions,
+    /// Channel rack, patterns, Mixer, noms et couleurs des pistes) se fait dans la copie. L'original ne bouge pas :
+    /// « Revenir comme avant » le rouvre.
+    private func openOrganizedCopy(_ project: ProjectSnapshot, _ plan: inout OrganizerPlan,
+                                   _ result: inout OrganizerResult, _ outcome: inout ApplyOutcome,
+                                   styles: [SoundFamily: FamilyStyle]) throws {
+        guard let files else {
+            throw OrganizerError.failed(String(localized: "Le fichier de ton projet n'est pas accessible : rien n'a été touché."))
+        }
+        guard let layout = plan.layout else {
+            throw OrganizerError.failed(String(localized: "Ta Playlist a plus de pistes à remplir que FL n'en a : rien n'a été touché."))
+        }
+        let read = try ProjectFile.read(files, known: project.url, channels: result.channels, patterns: result.patterns)
+        let notSounds = Set(result.channels.filter { $0.type == ChannelInfo.automationType }.map(\.index))
+        guard read.project.clips == project.clips,
+              ProjectFile.sounds(read.project, notSounds: notSounds).patterns == result.patternSounds else {
+            throw OrganizerError.failed(String(localized: "Ton projet a changé depuis l'analyse : rien n'a été touché. Ferme l'Organiser, puis relance-le."))
+        }
+        let copy: FLPFile
+        do {
+            copy = try read.project.rearranged(read.file, tracks: layout.tracks)
+        } catch {
+            let what = "clips"
+            throw OrganizerError.failed(String(localized: "L'Organiser ne sait pas encore ranger ce projet sans risque (\(what)) : rien n'a été touché."))
+        }
+        guard let marked = ProjectFile.marking(copy, marker: marker) else {
+            let what = "patterns"
+            throw OrganizerError.failed(String(localized: "L'Organiser ne sait pas encore ranger ce projet sans risque (\(what)) : rien n'a été touché."))
+        }
+        let url = ProjectFile.copyURL(for: read.url, exists: files.exists)
+        do {
+            try files.write(marked.file, url)
+        } catch {
+            throw OrganizerError.failed(String(localized: "La copie rangée n'a pas pu être écrite à côté de ton projet : rien n'a été touché."))
+        }
+        guard files.open(url) else {
+            throw OrganizerError.failed(String(localized: "FL n'a pas pu ouvrir la copie rangée : elle est à côté de ton projet, ouvre-la dans FL. Ton projet n'a pas bougé."))
+        }
+        outcome.copy = url
+        outcome.snapshot.original = read.url
+        MacroLog.shared.write("ORGANIZE", "organized copy written (\(project.clips.count) clips, \(layout.count) tracks), opening")
+        let index = marked.pattern - 1
+        var opened = false
+        for _ in 0..<Self.openChecks {
+            wait(0.5)
+            if let name = (try? link.listPatterns())?.first(where: { $0.index == index })?.name,
+               ProjectFile.same(name, marker) {
+                opened = true
+                break
+            }
+        }
+        guard opened else {
+            throw OrganizerError.failed(String(localized: "FL n'a pas ouvert la copie rangée à temps : elle est à côté de ton projet, ouvre-la dans FL, puis relance l'Organiser. Ton projet n'a pas bougé."))
+        }
+        let original = read.project.patternNames[marked.pattern] ?? "Pattern \(marked.pattern)"
+        try link.setNames(.patterns, [(index: index, name: plan.patterns.names[index] ?? original)])
+        result.playlist = try link.listPlaylist(limit: layout.count)
+        plan.playlist = plan.replannedPlaylist(result, styles: styles)
     }
 
     /// Sons sans aucune note supprimés : sélectionnés seuls par le script (relus), Channel rack devant, puis « Delete
@@ -763,6 +850,16 @@ final class OrganizerApplier {
     /// reviennent pas.
     func undo(_ snapshot: OrganizerSnapshot) -> ApplyOutcome {
         var outcome = ApplyOutcome(snapshot: snapshot)
+        if let original = snapshot.original {
+            // Rangé dans une copie : l'original, qui n'a pas bougé, rouvert dans FL (tout revient, sons supprimés
+            // compris). FL demande peut-être s'il faut enregistrer la copie : l'utilisateur choisit.
+            guard let files, files.open(original) else {
+                outcome.error = .failed(String(localized: "FL n'a pas pu rouvrir ton projet d'origine : il est toujours là, ouvre-le dans FL."))
+                return outcome
+            }
+            outcome.snapshot = OrganizerSnapshot()
+            return outcome
+        }
         do {
             if var s = snapshot.playlist {
                 // Couleurs et noms d'origine sur la place actuelle de chaque piste, puis l'ordre d'origine.

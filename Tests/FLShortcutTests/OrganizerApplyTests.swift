@@ -715,4 +715,135 @@ final class OrganizerApplyTests: XCTestCase {
         XCTAssertEqual(outcome.clipsLeft, 1)
         XCTAssertNil(outcome.snapshot.clipMoves)
     }
+
+    // MARK: Sur le fichier du projet
+
+    /// Le projet de test en petit, analysé sur son fichier : sons, patterns, Playlist (FLPSample) ; Kick, mélodie,
+    /// Snare et 808 classés, « Pad » sans note.
+    private func fileProject(_ disk: FakeDisk) throws -> (link: FakeOrganizerLink, result: OrganizerResult) {
+        let link = FakeOrganizerLink()
+        let names = ["Pad", "Kick", "ZENOLOGY", "Snare", "808"]
+        link.channels = names.enumerated().map {
+            ChannelInfo(index: $0.offset, type: 2, mixerTrack: 0, color: gray, name: $0.element)
+        }
+        link.patternList = ["Mélodie", "Drums", "Pattern 3", "Vide"].enumerated().map {
+            PatternInfo(index: $0.offset, color: gray, name: $0.element)
+        }
+        link.playlist = (0..<12).map { PlaylistTrackInfo(index: $0, selected: false, color: gray, name: "Track \($0 + 1)") }
+        disk.link = link
+        let verdicts: [(Int, SoundFamily, SoundKind?)] = [(1, .drums, .kick), (2, .melody, nil), (3, .drums, .snare),
+                                                          (4, .bass, .bass808)]
+        let items = verdicts.map {
+            OrganizerItem(index: $0.0, name: names[$0.0], family: $0.1, confidence: 0.9, testNotes: false, mixerTrack: 0,
+                          color: gray, kind: $0.2)
+        }
+        let project = try FLPProject(XCTUnwrap(disk.files[disk.original]))
+        var result = OrganizerResult(channels: link.channels, items: items, patterns: link.patternList,
+                                     patternSounds: ProjectFile.sounds(project, notSounds: []).patterns, unused: [0])
+        result.project = ProjectFile.snapshot(project, url: disk.original, notSounds: [])
+        return (link, result)
+    }
+
+    private let fileOptions = OrganizerOptions(rack: false, mixer: false, deleteUnused: false)
+
+    /// Retour du propriétaire (vidéo du 21/10) : « quelque chose de solide ». FL enregistre le projet, la copie rangée
+    /// est écrite à côté (chaque pattern seul sur sa piste avec toutes ses répétitions, rien d'autre ne change) et FL
+    /// l'ouvre ; le reste se fait dans la copie, que FL enregistre ; « Revenir comme avant » rouvre l'original, qui
+    /// n'a pas bougé.
+    func testPlaylistOrganizedInACopyOfTheProject() throws {
+        let disk = FakeDisk()
+        let (link, result) = try fileProject(disk)
+        let applier = OrganizerApplier(link: link, moveUp: link.moveSelectedUp, wait: { _ in }, listen: 0,
+                                       files: disk.access, marker: "FL Shortcuts 1234")
+        let plan = self.plan(result, options: fileOptions)
+        let layout = try XCTUnwrap(plan.layout)
+        XCTAssertTrue(plan.splits.isEmpty)
+        XCTAssertTrue(plan.playlist.moves.isEmpty, "les pistes sont déjà dans l'ordre des familles")
+        XCTAssertEqual(layout.count, 4)
+        XCTAssertEqual(layout.tracks[0], 0, "la mélodie en haut")
+        XCTAssertEqual(layout.tracks[2], 0, "ses deux clips sur la même piste")
+        XCTAssertEqual(layout.tracks[1], layout.tracks[3], "le même pattern, la même piste")
+        XCTAssertEqual(layout.tracks[4], 3, "le pattern vide en bas")
+
+        let outcome = applier.apply(plan, result: result, styles: FamilyStyles.initial)
+        XCTAssertNil(outcome.error)
+        let copyURL = URL(fileURLWithPath: "/projets/Mon son (\(String(localized: "rangé"))).flp")
+        XCTAssertEqual(outcome.copy, copyURL)
+        XCTAssertEqual(disk.opened, [copyURL])
+        XCTAssertEqual(disk.saved, [disk.original, copyURL], "le projet enregistré avant, la copie rangée à la fin")
+        XCTAssertEqual(disk.files[disk.original], FLPSample.sample(), "l'original n'a pas bougé")
+        let before = try FLPProject(FLPSample.sample())
+        let copy = try FLPProject(XCTUnwrap(disk.files[copyURL]))
+        XCTAssertEqual(copy.clips.map(\.track), before.clips.map { layout.tracks[$0.item]! })
+        XCTAssertEqual(copy.clips.map(\.source), before.clips.map(\.source))
+        XCTAssertEqual(copy.clips.map(\.position), before.clips.map(\.position))
+        XCTAssertFalse(link.patternList.contains { $0.name.hasPrefix("FL Shortcuts") }, "la marque de la copie remise")
+        XCTAssertEqual(outcome.snapshot.original, disk.original)
+
+        let back = applier.undo(outcome.snapshot)
+        XCTAssertNil(back.error)
+        XCTAssertEqual(disk.opened.last, disk.original, "l'original rouvert dans FL")
+        XCTAssertTrue(back.snapshot.isEmpty)
+    }
+
+    /// Le projet a changé depuis l'analyse, ou FL n'ouvre pas la copie : rien n'est touché dans FL, et dans le second
+    /// cas « Revenir comme avant » rouvre l'original.
+    func testCopyRefusedWhenTheProjectChangedOrDoesNotOpen() throws {
+        let disk = FakeDisk()
+        let (link, result) = try fileProject(disk)
+        let plan = self.plan(result, options: fileOptions)
+        disk.files[disk.original] = FLPSample.sample(clips: [FLPSample.ClipSpec(pattern: 1, track: 0, bar: 1)])
+        let changed = OrganizerApplier(link: link, moveUp: link.moveSelectedUp, wait: { _ in }, listen: 0,
+                                       files: disk.access).apply(plan, result: result, styles: FamilyStyles.initial)
+        XCTAssertEqual(changed.error, .failed(String(localized: "Ton projet a changé depuis l'analyse : rien n'a été touché. Ferme l'Organiser, puis relance-le.")))
+        XCTAssertNil(changed.copy)
+        XCTAssertTrue(changed.snapshot.isEmpty)
+        XCTAssertTrue(disk.opened.isEmpty)
+        XCTAssertEqual(disk.files.count, 1, "aucune copie écrite")
+        XCTAssertFalse(link.log.contains { $0.hasPrefix("colors") || $0.hasPrefix("names") }, "rien de touché dans FL")
+
+        disk.files[disk.original] = FLPSample.sample()
+        disk.loads = false
+        let stuck = OrganizerApplier(link: link, moveUp: link.moveSelectedUp, wait: { _ in }, listen: 0,
+                                     files: disk.access).apply(plan, result: result, styles: FamilyStyles.initial)
+        XCTAssertEqual(stuck.error, .failed(String(localized: "FL n'a pas ouvert la copie rangée à temps : elle est à côté de ton projet, ouvre-la dans FL, puis relance l'Organiser. Ton projet n'a pas bougé.")))
+        XCTAssertEqual(stuck.snapshot.original, disk.original, "« Revenir comme avant » le rouvre")
+        XCTAssertFalse(link.log.contains { $0.hasPrefix("colors") || $0.hasPrefix("names") }, "rien de touché dans FL")
+    }
+}
+
+/// Disque et FL simulés pour l'Organiser sur le fichier : le projet (« /projets/Mon son.flp »), la copie rangée,
+/// FL qui enregistre et qui ouvre un fichier (le Channel rack et les noms de ses patterns deviennent les siens).
+final class FakeDisk {
+    let original = URL(fileURLWithPath: "/projets/Mon son.flp")
+    var files: [URL: FLPFile]
+    var opened: [URL] = []
+    var saved: [URL] = []
+    /// Faux : FL ne charge jamais le fichier demandé.
+    var loads = true
+    weak var link: FakeOrganizerLink?
+
+    init() { files = [original: FLPSample.sample()] }
+
+    var access: ProjectFileAccess {
+        ProjectFileAccess(save: { known in
+            let url = known ?? self.original
+            self.saved.append(url)
+            return .success(url)
+        }, open: { url in
+            self.opened.append(url)
+            guard self.loads, let link = self.link, let file = self.files[url], let project = try? FLPProject(file)
+            else { return true }
+            for (n, name) in project.patternNames where n - 1 < link.patternList.count {
+                link.patternList[n - 1] = PatternInfo(index: n - 1, color: link.patternList[n - 1].color, name: name)
+            }
+            return true
+        }, read: { url in
+            guard let file = self.files[url] else { throw FLPError.damaged }
+            return file
+        }, write: { file, url in
+            guard self.files[url] == nil else { throw FLPError.damaged }
+            self.files[url] = file
+        }, exists: { self.files[$0] != nil })
+    }
 }

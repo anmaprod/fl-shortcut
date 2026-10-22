@@ -3,8 +3,9 @@
 // d'installation s'il manque), analyse de tout le projet, aperçu par famille (une couleur ou un dégradé chacune, ce
 // qu'est chaque son modifiable, ce qui sera fait dans le Channel rack, les patterns, le Mixer et la Playlist), un seul
 // « Organiser », puis « Revenir comme avant ». Tout est libéré à la fermeture (session, capture, IA, panneau) :
-// rien ne tourne au repos. Aucune lecture de l'écran, sauf pour ranger la Playlist : le nom de chaque piste et
-// « Move up » retrouvés dans la fenêtre de FL au moment du clic (OrganizerPlaylistMover).
+// rien ne tourne au repos. L'analyse lit le fichier du projet que FL vient d'enregistrer, et la Playlist est rangée
+// dans une copie que FL ouvre (OrganizerProjectFile) : aucune lecture de l'écran. Sans fichier (tests), l'ancien
+// rangement, qui lisait la fenêtre de FL (OrganizerPlaylistMover, OrganizerClipMover).
 import AppKit
 import ApplicationServices
 import Combine
@@ -77,6 +78,9 @@ struct OrganizerEnvironment {
     var readClips: (OrganizerLink) -> () -> PlaylistView? = { _ in { nil } }
     var moveClip: (OrganizerLink) -> (ClipMove) -> ClipMoveResult = { _ in { _ in .notDone } }
     var canReadPlaylist: () -> Bool = { false }
+    /// Le fichier du projet ouvert dans FL (enregistré par FL, lu, sa copie rangée ouverte) ; nil : l'ancienne
+    /// analyse, à l'écoute de FL seulement.
+    var projectFiles: () -> ProjectFileAccess? = { nil }
 
     static func live() -> OrganizerEnvironment {
         OrganizerEnvironment(
@@ -141,7 +145,8 @@ struct OrganizerEnvironment {
             moveClips: { link in { pattern, rows in OrganizerEnvironment.liveMoveClips(pattern, rows, link: link) } },
             readClips: { link in { OrganizerEnvironment.liveReadClips(link: link) } },
             moveClip: { link in { move in OrganizerEnvironment.liveMoveClip(move, link: link) } },
-            canReadPlaylist: { ScreenLook.allowed })
+            canReadPlaylist: { ScreenLook.allowed },
+            projectFiles: { ProjectFileLive.access() })
     }
 
     /// La Playlist devant (FL au premier plan), lue dans sa fenêtre.
@@ -438,7 +443,7 @@ final class OrganizerController: ObservableObject {
         let link = env.link()
         let session = OrganizerSession(
             link: link, audio: audio, classify: env.classify(), nameDrum: env.nameDrum(), timing: env.timing,
-            sleep: env.sleep, escape: env.escapePressed, prepare: env.prepareProject,
+            sleep: env.sleep, escape: env.escapePressed, prepare: env.prepareProject, files: env.projectFiles(),
             progress: { [weak self] done, total in
                 DispatchQueue.main.async {
                     guard self?.runToken == token else { return }
@@ -650,12 +655,17 @@ final class OrganizerController: ObservableObject {
         return OrganizerApplier.plannedColors(families: families, styles: styles, order: order)
     }
 
+    /// Analyse sur le fichier, Playlist cochée : tout se fait dans une copie rangée du projet (OrganizerProjectFile).
+    var organizesCopy: Bool { result?.project != nil && options.playlist }
+
     /// Une ligne par page de FL touchée, pour l'aperçu : combien d'éléments seront rangés, colorés, renommés.
     var summary: [(symbol: String, text: String)] {
         let plan = self.plan
         var out: [(symbol: String, text: String)] = []
         if !plan.deleted.isEmpty {
-            out.append(("trash", String(localized: "\(plan.deleted.count) sons sans aucune note supprimés du Channel rack (on ne peut pas les remettre avec « Revenir comme avant »)")))
+            out.append(("trash", organizesCopy
+                ? String(localized: "\(plan.deleted.count) sons sans aucune note supprimés du Channel rack de la copie rangée")
+                : String(localized: "\(plan.deleted.count) sons sans aucune note supprimés du Channel rack (on ne peut pas les remettre avec « Revenir comme avant »)")))
         }
         if options.rack, !plan.rack.isEmpty {
             out.append(("square.stack.3d.up", String(localized: "Channel rack : \(plan.rack.colors.count) sons regroupés et colorés, \(plan.rack.names.count) renommés")))
@@ -684,7 +694,12 @@ final class OrganizerController: ObservableObject {
                 ? String(localized: "Playlist : \(plan.playlist.colors.count) pistes colorées, \(plan.playlist.names.count) renommées")
                 : String(localized: "Playlist : \(plan.playlist.colors.count) pistes colorées, \(plan.playlist.names.count) renommées, rangées comme le Channel rack")))
         }
-        if options.playlist, options.splitTracks, env.canReadPlaylist() {
+        if options.playlist, let layout = plan.layout {
+            out.append(("square.split.1x2", String(localized: "Playlist rangée dans une copie de ton projet : chaque son sur sa piste, tous les clips des mêmes sons réunis (\(layout.count) pistes). Ton projet d'origine ne bouge pas.")))
+            if let silent = result?.project?.silentPatterns, silent > 0 {
+                out.append(("moon.zzz", String(localized: "\(silent) patterns sans aucune note (rien n'y joue) : chacun sur sa piste, en bas de la Playlist")))
+            }
+        } else if options.playlist, options.splitTracks, env.canReadPlaylist() {
             out.append(("square.split.1x2", String(localized: "Playlist : un son par piste, et les clips d'un même son réunis sur sa piste (FL Shortcuts lit la fenêtre de FL au moment de les déplacer)")))
         } else if options.playlist, !plan.splits.isEmpty {
             out.append(("square.split.1x2", String(localized: "Playlist : \(plan.splits.count) sons qui partagent une piste avec un autre auront chacun la leur")))
@@ -704,6 +719,13 @@ final class OrganizerController: ObservableObject {
 
     var doneText: String {
         var lines = [String(localized: "C'est fait : le projet est rangé, coloré et renommé. « Revenir comme avant » défait tout, sauf les sons supprimés.")]
+        if let copy = lastApply?.copy {
+            // Rangé dans une copie : son nom à l'écran (jamais dans le journal).
+            lines = [String(localized: "C'est fait : ton projet est rangé, coloré et renommé dans une copie, « \(copy.lastPathComponent) », à côté de l'original. L'original n'a pas bougé : « Revenir comme avant » le rouvre.")]
+            if lastApply?.copyNotSaved == true {
+                lines.append(String(localized: "FL n'a pas enregistré la copie rangée : enregistre-la dans FL (⌘S)."))
+            }
+        }
         if let outcome = lastApply {
             if outcome.deleted > 0 {
                 lines.append(String(localized: "\(outcome.deleted) sons sans aucune note supprimés."))
@@ -741,7 +763,7 @@ final class OrganizerController: ObservableObject {
                                        placeIcon: env.placeIcon, deleteSelected: env.deleteSelected(link),
                                        moveTrack: env.moveTrack(link), moveClips: env.moveClips(link),
                                        readClips: env.readClips(link), moveClip: env.moveClip(link),
-                                       wait: env.sleep, listen: env.timing.trackListen)
+                                       wait: env.sleep, listen: env.timing.trackListen, files: env.projectFiles())
         let plan = self.plan, styles = self.styles
         queue.async { [weak self] in
             let outcome = applier.apply(plan, result: result, styles: styles)
@@ -770,7 +792,7 @@ final class OrganizerController: ObservableObject {
         let applier = OrganizerApplier(link: link, moveUp: env.moveUp(link), moveLeft: env.moveLeft(link),
                                        moveTrack: env.moveTrack(link), moveClips: env.moveClips(link),
                                        readClips: env.readClips(link), moveClip: env.moveClip(link),
-                                       wait: env.sleep, listen: env.timing.trackListen)
+                                       wait: env.sleep, listen: env.timing.trackListen, files: env.projectFiles())
         queue.async { [weak self] in
             let outcome = applier.undo(snapshot)
             DispatchQueue.main.async {
@@ -1037,11 +1059,10 @@ struct OrganizerView: View {
                 .organizerCard()
                 .morphIn(1)
                 Text(String(localized: """
-                    FL retire d'abord les clips audio inutilisés et repère les sons sans aucune note (supprimés si tu \
-                    organises). Un son dont le nom dit ce qu'il est (Kick, 808, Hat…) est classé tout de suite ; les \
-                    autres jouent seuls, à ton tempo, sans que tu les entendes. Chaque pattern, puis toute la chanson, \
-                    jouent en entier à ton tempo : FL dit quels sons jouent (même ceux que tu as coupés). Puis chaque \
-                    piste de la Playlist joue un instant. Ne touche pas à FL ; Échap arrête.
+                    FL enregistre ton projet, puis FL Shortcuts lit son fichier : ce que joue chaque pattern et où est \
+                    chaque clip, exactement (rien n'est deviné). Un son dont le nom dit ce qu'il est (Kick, 808, Hat…) \
+                    est classé tout de suite ; les autres jouent seuls, à ton tempo, sans que tu les entendes. Ne \
+                    touche pas à FL ; Échap arrête.
                     """))
                     .font(.system(size: 11))
                     .foregroundStyle(.secondary)
@@ -1056,14 +1077,18 @@ struct OrganizerView: View {
         case .preview:
             preview
         case .applying:
-            working(String(localized: "Application dans FL… Ne touche pas à FL."))
+            working(controller.organizesCopy
+                ? String(localized: "FL ouvre la copie rangée de ton projet, puis tout s'y range… Ne touche pas à FL.")
+                : String(localized: "Application dans FL… Ne touche pas à FL."))
         case .undoing:
             working(String(localized: "Retour comme avant…"))
         case .applied(let error):
             ending(error?.message ?? controller.doneText, ok: error == nil, linkHelp: error == .noResponse)
         case .undone(let error):
-            ending(error?.message ?? String(localized: "FL est revenu comme avant."), ok: error == nil,
-                   linkHelp: error == .noResponse)
+            ending(error?.message ?? (controller.lastApply?.copy != nil
+                    ? String(localized: "Ton projet d'origine se rouvre dans FL, tel qu'il était. La copie rangée reste à côté, si tu la veux.")
+                    : String(localized: "FL est revenu comme avant.")),
+                   ok: error == nil, linkHelp: error == .noResponse)
         case .failed(let message):
             ending(message, ok: false, linkHelp: false)
         }
