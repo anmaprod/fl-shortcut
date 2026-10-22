@@ -238,3 +238,12 @@ entrée 1 ≈ 0,5 s.
   voir où ça bloque s'il bloque encore. Même principe prévu pour Windows (Media Foundation). Prochain grand chantier
   convenu : une IA embarquée dans l'app (YAMNet, licence Apache 2.0, plus une petite tête entraînée sur des sons
   libres d'usage commercial), la même sur Mac et Windows, gratuite.
+- Vérification complète demandée par le propriétaire (« refait un test… tu as mon accord »), CI lue jusqu'au bout :
+  « Quitter et rouvrir » abandonnait trop tôt l'attente de l'ancienne copie sur un Mac chargé (test AppResume rouge,
+  0,38 s) ; `build.sh` : « write: Permission denied » ×4 sur macOS 27 (`plutil -o /dev/null`, remplacé par
+  `-o -`) ; trois alertes « erreur en Swift 6 » du compte (valeur par défaut `.shared` lue hors du fil principal) ;
+  armement sans lien MIDI : le sous-menu « Select » n'était attendu que 0,45 s alors qu'il est apparu à 0,63 s sur
+  la CI (plafond 1 s, rien de plus lent quand il s'ouvre vite). Captures « apercu » et « fini » de l'Organiser
+  parfois restées sur l'écoute (runs d7c7f55 et 289f215, pas sur 0c18d51) : pas de plantage (même processus), écrans
+  vérifiés par `testDemoScreensRender` ; le script de mesure note le processus après chaque écran et joint les
+  rapports de plantage et le journal, au cas où ça revient. CI entièrement verte sur 0c18d51 (512 tests).
