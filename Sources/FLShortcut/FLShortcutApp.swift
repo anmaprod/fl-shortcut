@@ -226,19 +226,21 @@ enum SingleInstance {
     }
 
     /// Vrai dès que le processus `pid` n'existe plus ; faux s'il est toujours là au bout de `timeout` secondes
-    /// (`longTimeout` tant que `longer` est vrai, relu à chaque tour).
+    /// (`longTimeout` si `longer` devient vrai : relu tous les 5 tours, et toujours une dernière fois avant
+    /// d'abandonner, car sur un Mac chargé le délai court pouvait passer avant la deuxième lecture — CI, 0,38 s).
     static func waitForExit(_ pid: pid_t, timeout: TimeInterval, longer: () -> Bool = { false },
                             longTimeout: TimeInterval = 0) -> Bool {
         let start = Date()
         var checks = 0
         var long = false
-        repeat {
+        while true {
             if kill(pid, 0) != 0 && errno == ESRCH { return true }
+            let elapsed = Date().timeIntervalSince(start)
+            if !long, checks % 5 == 0 || elapsed >= timeout { long = longer() }
+            if elapsed >= (long ? max(timeout, longTimeout) : timeout) { return false }
             usleep(30_000)                           // repart dès que l'ancienne copie est partie
             checks += 1
-            if !long, checks % 5 == 1 { long = longer() }
-        } while Date().timeIntervalSince(start) < (long ? max(timeout, longTimeout) : timeout)
-        return false
+        }
     }
 }
 
