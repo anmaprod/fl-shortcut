@@ -4,7 +4,7 @@
   commits en français. Priorité macOS ; Windows en pause (compilé seulement pour un tag `v*`).
 - Branche la plus récente : **`claude/great-hopper-qihaiy`** (en avance de 138 commits sur `claude/relaxed-mayer-ndguzv`).
   Pas de nouvelle PR sans demande (anmaprod/fl-shortcut#1 existe). Un push lance la CI ; ne pas la relancer à la main
-  sans demande. Dernière CI verte : commit 7f45bea (443 tests Mac).
+  sans demande. Derniers tests Mac verts : commit efa3fee (488 tests, lancés par le propriétaire sur son Mac).
 - Tout texte affiché doit avoir son anglais (la CI échoue sinon) : `python3 scripts/localisation.py generer trad.json`.
 - Historique, décisions et échecs : `docs/contexte/HISTORIQUE.md` ; lien avec FL (script v15) : `PROTOCOL.md`.
 
