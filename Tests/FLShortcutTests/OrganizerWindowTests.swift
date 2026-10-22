@@ -1,4 +1,6 @@
+import AppKit
 import Combine
+import SwiftUI
 import XCTest
 @testable import FLShortcut
 
@@ -202,6 +204,31 @@ final class OrganizerWindowTests: XCTestCase {
         waitFor(controller, OrganizerWindowTests.isApplied)
         XCTAssertEqual(controller.phase, .applied(nil))
         XCTAssertEqual(link.channels.map(\.name), ["808", "Kick", "Clap", "Open Hat"])
+        controller.close()
+    }
+
+    /// Écrans de démonstration (captures de la CI), avec les sons d'exemple : chacun se construit et se dessine.
+    /// Sur la CI, « apercu » et « fini » restaient sur l'écran de l'écoute ; ce test dit si leur vue plante.
+    func testDemoScreensRender() {
+        let link = FakeOrganizerLink()
+        let controller = OrganizerController(env: env(link, FakeAudio(link: link), saved: { _ in }))
+        for screen in ["installer", "attente", "aide", "ecoute", "apercu", "fini"] {
+            controller.showDemo(screen)
+            if screen == "apercu" {
+                XCTAssertEqual(controller.phase, .preview)
+                XCTAssertFalse(controller.presentFamilies.isEmpty, "familles des sons d'exemple")
+            }
+            let host = NSHostingView(rootView: OrganizerView(controller: controller))
+            host.frame = NSRect(x: 0, y: 0, width: OrganizerView.width, height: OrganizerView.height)
+            host.layoutSubtreeIfNeeded()
+            guard let image = host.bitmapImageRepForCachingDisplay(in: host.bounds) else {
+                XCTFail("écran « \(screen) » : rien à dessiner")
+                continue
+            }
+            host.cacheDisplay(in: host.bounds, to: image)
+            XCTAssertGreaterThan(host.fittingSize.height, 0, screen)
+        }
+        XCTAssertEqual(controller.phase, .applied(nil))
         controller.close()
     }
 

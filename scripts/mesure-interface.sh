@@ -222,7 +222,11 @@ run() {   # $1 : libellé, $2 : YES/NO effet verre
     for screen in installer attente aide ecoute apercu fini; do
       "$POST" app.flshortcut.debug.organizer "$screen"; sleep 3
       screencapture -x "$OUT/organiser-$screen.png" 2>/dev/null || true
+      # L'app a-t-elle redémarré (plantage relancé) pendant cet écran ? (« apercu » et « fini » restaient sur l'écoute)
+      echo "organiser $screen : pid $(pgrep -x FLShortcut | tr '\n' ' ')" >> "$OUT/organiser-pid.txt"
     done
+    cp ~/Library/Logs/DiagnosticReports/FLShortcut*.ips "$OUT/" 2>/dev/null || true
+    tail -40 ~/Library/Logs/"FL Shortcuts"/macro.log > "$OUT/organiser-journal.txt" 2>/dev/null || true
     "$POST" app.flshortcut.debug.organizer fermer; sleep 1
     # Changement de page au ralenti (10 fois) : Général → Mixer, photographié en route (barre au-dessus du titre ?).
     "$POST" app.flshortcut.debug.select general; sleep 2
