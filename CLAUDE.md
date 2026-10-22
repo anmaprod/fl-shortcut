@@ -30,10 +30,10 @@
     jamais drums ni FX ; un canal au nom d'un synthé de mélodies, ZENOLOGY, Serum… → jamais drums ni FX) ;
   - « Organiser » : sons sans note supprimés (⌥ + Suppr de FL), Channel rack, Mixer (un bus par famille, son sur le
     Master relié à une piste libre, pistes inutiles remises à neuf), patterns et Playlist dans le même ordre, mêmes noms
-    partout, le tout dans une copie « <nom> (rangé).flp » (voir Playlist) ;
+    partout, le tout dans une copie « <nom>_2.flp » (voir Playlist) ;
   - IA de macOS sur une fenêtre de 1 s (son court complété) ; « Voix » seulement si l'IA entend une voix ; tempo du
     projet jamais changé ; règle de chaque son dans le diagnostic (`c4:melodie+ia`) ;
-  - Playlist rangée dans une copie « <nom> (rangé).flp » écrite à côté de l'original : chaque clip sur la piste de ses
+  - Playlist rangée dans une copie « <nom>_2.flp » (comme « Save new version » de FL ; puis _3…) à côté de l'original : chaque clip sur la piste de ses
     sons (les mêmes sons, la même piste ; un clip qui en chevaucherait un autre : une piste de plus dessous ; patterns
     vides en bas), pistes dans l'ordre des familles ; FL ouvre la copie (reconnue à un nom de pattern posé pour ça,
     remis aussitôt), le reste s'y fait par le script, FL l'enregistre. L'original ne bouge jamais : « Revenir comme

@@ -767,7 +767,7 @@ final class OrganizerApplyTests: XCTestCase {
 
         let outcome = applier.apply(plan, result: result, styles: FamilyStyles.initial)
         XCTAssertNil(outcome.error)
-        let copyURL = URL(fileURLWithPath: "/projets/Mon son (\(String(localized: "rangé"))).flp")
+        let copyURL = URL(fileURLWithPath: "/projets/Mon son_2.flp")
         XCTAssertEqual(outcome.copy, copyURL)
         XCTAssertEqual(disk.opened, [copyURL])
         XCTAssertEqual(disk.saved, [disk.original, copyURL], "le projet enregistré avant, la copie rangée à la fin")

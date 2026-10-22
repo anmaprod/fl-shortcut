@@ -1726,7 +1726,7 @@
 "Tout est prêt, mais attention au larsen" = "Tout est prêt, mais attention au larsen";
 "Tout réinitialiser ?" = "Tout réinitialiser ?";
 "Tout réinitialiser…" = "Tout réinitialiser…";
-"Tout se range dans une copie de ton projet, « (rangé) », à côté de l'original : ton projet d'origine ne bouge pas, « Revenir comme avant » le rouvre. Aucune lecture de l'écran." = "Tout se range dans une copie de ton projet, « (rangé) », à côté de l'original : ton projet d'origine ne bouge pas, « Revenir comme avant » le rouvre. Aucune lecture de l'écran.";
+"Tout se range dans une nouvelle version de ton projet (« _2 », comme « Save new version » de FL), à côté de l'original : ton projet d'origine ne bouge pas, « Revenir comme avant » le rouvre. Aucune lecture de l'écran." = "Tout se range dans une nouvelle version de ton projet (« _2 », comme « Save new version » de FL), à côté de l'original : ton projet d'origine ne bouge pas, « Revenir comme avant » le rouvre. Aucune lecture de l'écran.";
 "Tout sélectionner" = "Tout sélectionner";
 "Toutes les macros, un fichier chacune, pour les partager (par défaut dans Documents › FL Shortcuts › Macros)" = "Toutes les macros, un fichier chacune, pour les partager (par défaut dans Documents › FL Shortcuts › Macros)";
 "Transposer d'une octave vers le bas" = "Transposer d'une octave vers le bas";
@@ -2059,7 +2059,6 @@
 "que le menu se ferme" = "que le menu se ferme";
 "raccourci système (Réglages › Clavier)" = "raccourci système (Réglages › Clavier)";
 "range, colore, renomme le projet" = "range, colore, renomme le projet";
-"rangé" = "rangé";
 "relâche les touches du raccourci" = "relâche les touches du raccourci";
 "risque de larsen : change d'entrée ou de sortie (casque, carte son)" = "risque de larsen : change d'entrée ou de sortie (casque, carte son)";
 "réponse de FL illisible" = "réponse de FL illisible";

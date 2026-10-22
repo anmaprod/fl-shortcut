@@ -244,7 +244,7 @@ MAC     = [89, 95, 58, 61]
 ## 9. Fichier de projet de FL (.flp), lu et rangé par l'Organiser
 
 L'Organiser ne devine plus ce que joue chaque pattern ni où sont les clips : FL enregistre le projet ouvert (⌘S), son
-fichier est lu (`FLPFile`, `FLPProject`), et la Playlist est rangée dans une **copie** « <nom> (rangé).flp » écrite à
+fichier est lu (`FLPFile`, `FLPProject`), et la Playlist est rangée dans une **copie** « <nom>_2.flp » (comme « Save new version » de FL) écrite à
 côté de l'original, que FL ouvre ensuite. L'Organiser n'écrit jamais l'original (seul FL l'enregistre, comme avec ⌘S,
 avant de commencer : c'est le point de retour). Vérifié sur le projet de test du propriétaire
 (FL 26.1, octobre 2026) : relu puis réécrit octet pour octet à l'identique.

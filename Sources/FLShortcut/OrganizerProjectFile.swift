@@ -2,7 +2,7 @@
 // patterns ni renommés ni colorés, des clips mal posés ; « je veux quelque chose de solide qui fasse qu'à 100 % il
 // rende le travail sûr »). FL enregistre le projet ouvert et l'Organiser lit son fichier : les sons de chaque pattern
 // et de chaque piste sont ceux de ses notes et de ses clips, rien n'est deviné. La Playlist est rangée dans une copie,
-// « <nom> (rangé).flp », à côté de l'original, qui ne bouge pas ; FL ouvre la copie, puis Channel rack, patterns,
+// « <nom>_2.flp » (comme « Save new version » de FL), à côté de l'original, qui ne bouge pas ; FL ouvre la copie, puis Channel rack, patterns,
 // Mixer et noms se font par le script, comme avant. « Revenir comme avant » rouvre l'original. Pur (testé).
 import Foundation
 
@@ -124,22 +124,22 @@ enum ProjectFile {
         return l == f || (l.count >= 8 && f.hasPrefix(l))
     }
 
-    /// Pur (testé) : la copie rangée, à côté de l'original : « Mon son (rangé).flp », sinon « (rangé 2) »… Jamais un
-    /// fichier qui existe ; une copie rangée de nouveau garde son nom de base.
+    /// Pur (testé) : la copie rangée, à côté de l'original, nommée comme « Save new version » de FL : « Mon son.flp »
+    /// donne « Mon son_2.flp », « Mon son_2.flp » donne « Mon son_3.flp »… Jamais un fichier qui existe.
     static func copyURL(for original: URL, exists: (URL) -> Bool) -> URL {
         let folder = original.deletingLastPathComponent()
         var base = original.deletingPathExtension().lastPathComponent
-        let word = String(localized: "rangé")
-        let suffix = " \\((rangé|organized|\(NSRegularExpression.escapedPattern(for: word)))( [0-9]+)?\\)$"
-        if let range = base.range(of: suffix, options: .regularExpression), range.lowerBound > base.startIndex {
+        var version = 1
+        if let range = base.range(of: "_[0-9]+$", options: .regularExpression), range.lowerBound > base.startIndex,
+           let n = Int(base[range].dropFirst()), n < 1_000_000 {
+            version = n
             base.removeSubrange(range)
         }
-        for n in 1...999 {
-            let name = n == 1 ? "\(base) (\(word)).flp" : "\(base) (\(word) \(n)).flp"
-            let url = folder.appendingPathComponent(name)
+        for n in (version + 1)...(version + 999) {
+            let url = folder.appendingPathComponent("\(base)_\(n).flp")
             if !exists(url) { return url }
         }
-        return folder.appendingPathComponent("\(base) (\(word) \(UUID().uuidString.prefix(8))).flp")
+        return folder.appendingPathComponent("\(base)_\(UUID().uuidString.prefix(8)).flp")
     }
 
     /// Pur (testé) : la copie marquée, pour savoir que FL l'a ouverte : le premier pattern nommé (d'un nom que le

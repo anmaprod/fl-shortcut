@@ -163,7 +163,7 @@ entrée 1 ≈ 0,5 s.
 - Maintenant (PROTOCOL.md §9, `FLPFile`, `FLPProject`, `OrganizerProjectFile`, `OrganizerProjectLive`) : FL enregistre
   le projet, l'Organiser lit le fichier ; sons de chaque pattern et de chaque piste d'après les notes et les clips
   (plus de relevé des patterns, de chanson jouée ni de piste écoutée : l'analyse est bien plus courte) ; chaque son
-  reste reconnu à son nom ou écouté seul dans son pattern. « Organiser » écrit une copie « <nom> (rangé).flp » où
+  reste reconnu à son nom ou écouté seul dans son pattern. « Organiser » écrit une copie « <nom>_2.flp » (nommée comme « Save new version » de FL, demande du propriétaire) où
   chaque clip est sur la piste de ses sons (les mêmes sons, la même piste ; un clip qui en chevaucherait un autre :
   une piste de plus, juste dessous ; patterns vides en bas), FL l'ouvre, puis Channel rack, patterns, Mixer, noms et
   couleurs s'y font par le script ; FL l'enregistre. L'original ne bouge jamais : « Revenir comme avant » le rouvre

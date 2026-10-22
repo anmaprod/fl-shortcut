@@ -1726,7 +1726,7 @@
 "Tout est prêt, mais attention au larsen" = "All set, but watch out for feedback";
 "Tout réinitialiser ?" = "Reset everything?";
 "Tout réinitialiser…" = "Reset all…";
-"Tout se range dans une copie de ton projet, « (rangé) », à côté de l'original : ton projet d'origine ne bouge pas, « Revenir comme avant » le rouvre. Aucune lecture de l'écran." = "Everything is organized in a copy of your project, “(organized)”, next to the original: your original project isn't changed, “Undo changes” reopens it. No screen reading.";
+"Tout se range dans une nouvelle version de ton projet (« _2 », comme « Save new version » de FL), à côté de l'original : ton projet d'origine ne bouge pas, « Revenir comme avant » le rouvre. Aucune lecture de l'écran." = "Everything is organized in a new version of your project (“_2”, like FL's “Save new version”), next to the original: your original project isn't changed, “Undo changes” reopens it. No screen reading.";
 "Tout sélectionner" = "Select all";
 "Toutes les macros, un fichier chacune, pour les partager (par défaut dans Documents › FL Shortcuts › Macros)" = "All macros, one file each, to share them (by default in Documents › FL Shortcuts › Macros)";
 "Transposer d'une octave vers le bas" = "Transpose down an octave";
@@ -2059,7 +2059,6 @@
 "que le menu se ferme" = "the menu to close";
 "raccourci système (Réglages › Clavier)" = "system shortcut (System Settings › Keyboard)";
 "range, colore, renomme le projet" = "sorts, colors, renames the project";
-"rangé" = "organized";
 "relâche les touches du raccourci" = "release the shortcut keys";
 "risque de larsen : change d'entrée ou de sortie (casque, carte son)" = "feedback risk: change the input or output (headphones, sound card)";
 "réponse de FL illisible" = "FL reply unreadable";

@@ -36,17 +36,18 @@ final class OrganizerProjectFileTests: XCTestCase {
         XCTAssertFalse(ProjectFile.same("Hat", "Hat 2"), "un nom court n'est jamais pris pour un début")
     }
 
+    /// Nommée comme « Save new version » de FL (retour du propriétaire), jamais par-dessus un fichier.
     func testCopyNameNeverOverwrites() {
-        let word = String(localized: "rangé")
         let original = URL(fileURLWithPath: "/projets/Mon son.flp")
-        XCTAssertEqual(ProjectFile.copyURL(for: original, exists: { _ in false }).lastPathComponent,
-                       "Mon son (\(word)).flp")
-        let taken: Set<String> = ["Mon son (\(word)).flp", "Mon son (\(word) 2).flp"]
+        XCTAssertEqual(ProjectFile.copyURL(for: original, exists: { _ in false }).lastPathComponent, "Mon son_2.flp")
+        let taken: Set<String> = ["Mon son_2.flp", "Mon son_3.flp"]
         XCTAssertEqual(ProjectFile.copyURL(for: original, exists: { taken.contains($0.lastPathComponent) })
-                        .lastPathComponent, "Mon son (\(word) 3).flp")
-        let organized = URL(fileURLWithPath: "/projets/Mon son (\(word)).flp")
-        XCTAssertEqual(ProjectFile.copyURL(for: organized, exists: { taken.contains($0.lastPathComponent) }).path,
-                       "/projets/Mon son (\(word) 3).flp", "une copie rangée de nouveau garde son nom de base")
+                        .lastPathComponent, "Mon son_4.flp")
+        XCTAssertEqual(ProjectFile.copyURL(for: URL(fileURLWithPath: "/projets/Mon son_2.flp"),
+                                           exists: { taken.contains($0.lastPathComponent) }).path,
+                       "/projets/Mon son_4.flp", "la version suivante")
+        XCTAssertEqual(ProjectFile.copyURL(for: URL(fileURLWithPath: "/projets/_7.flp"), exists: { _ in false })
+                        .lastPathComponent, "_7_2.flp", "un nom fait seulement d'un numéro garde son numéro")
     }
 
     func testMarkerIsPutOnANamedPattern() throws {

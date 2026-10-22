@@ -1579,8 +1579,9 @@ private struct ProjectSummary: View {
                 .font(.system(size: 11))
             Text(controller.organizesCopy
                 ? String(localized: """
-                    Tout se range dans une copie de ton projet, « (rangé) », à côté de l'original : ton projet \
-                    d'origine ne bouge pas, « Revenir comme avant » le rouvre. Aucune lecture de l'écran.
+                    Tout se range dans une nouvelle version de ton projet (« _2 », comme « Save new version » de FL), \
+                    à côté de l'original : ton projet d'origine ne bouge pas, « Revenir comme avant » le rouvre. \
+                    Aucune lecture de l'écran.
                     """)
                 : String(localized: """
                     Les pistes de la Playlist sont remontées par leur menu (« Move up ») : FL Shortcuts lit alors la \
