@@ -170,9 +170,10 @@ final class AccountBackup: ObservableObject {
     private var lastCheck = Date.distantPast
     private var watching: AnyCancellable?
 
-    init(community: CommunityStore = .shared, store: Store = .shared, defaults: UserDefaults = .standard,
+    /// `community` nil : celle de l'app (lue ici, sur le fil principal, et pas en valeur par défaut : Swift 6).
+    init(community: CommunityStore? = nil, store: Store = .shared, defaults: UserDefaults = .standard,
          delay: TimeInterval = 4, firstRetry: TimeInterval = 30) {
-        self.community = community
+        self.community = community ?? .shared
         self.store = store
         self.defaults = defaults
         self.delay = delay

@@ -37,7 +37,9 @@ enum AccountText {
 /// Déconnexion et suppression du compte, avec leurs confirmations (page Mon compte, menu de la Communauté).
 @MainActor
 enum AccountActions {
-    static func signOut(_ backup: AccountBackup = .shared) async {
+    /// `backup` nil : le compte de l'app (lu ici, sur le fil principal, et pas en valeur par défaut : Swift 6).
+    static func signOut(_ backup: AccountBackup? = nil) async {
+        let backup = backup ?? .shared
         guard Dialogs.choose(String(localized: "Se déconnecter ?"),
                              String(localized: """
                                  Tes raccourcis et tes macros seront retirés de ce Mac. Ils restent dans ton compte : \
@@ -58,7 +60,8 @@ enum AccountActions {
     }
 
     /// nil : supprimé, ou rien fait (annulé) ; sinon, ce qui s'est passé.
-    static func deleteAccount(_ backup: AccountBackup = .shared) async -> String? {
+    static func deleteAccount(_ backup: AccountBackup? = nil) async -> String? {
+        let backup = backup ?? .shared
         guard Dialogs.choose(String(localized: "Supprimer ton compte ?"),
                              String(localized: """
                                  Ton compte, ta sauvegarde en ligne et tes partages dans la Communauté seront effacés \

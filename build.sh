@@ -202,7 +202,9 @@ pkgbuild --analyze --root "$PKG_ROOT" "$PKG_PLIST" >/dev/null
 # Toujours dans /Applications : sans cela, Installer « met à jour » une autre copie du même identifiant
 # (par exemple un build de développement dans ~/Applications) au lieu d'installer celle-ci.
 n=0
-while plutil -extract "$n" xml1 -o /dev/null "$PKG_PLIST" 2>/dev/null; do
+# (Sortie lue sur la sortie standard puis jetée : avec « -o /dev/null », le plutil de macOS 27 écrivait
+# « write: Permission denied » à chaque entrée.)
+while plutil -extract "$n" xml1 -o - "$PKG_PLIST" >/dev/null 2>&1; do
   plutil -replace "$n.BundleIsRelocatable" -bool NO "$PKG_PLIST"
   n=$((n + 1))
 done
