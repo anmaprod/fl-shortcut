@@ -226,3 +226,15 @@ entrée 1 ≈ 0,5 s.
   Playlist se font sur ce projet séparé (aperçu : « N sons sortis des patterns… ») ; le nom du fichier de son
   (« D30 Kick 85 », « ANMA - Hat House ») reconnaît un son quand le nom du canal ne dit rien ou a été donné par
   l'Organiser. L'écoute se fait toujours dans les patterns d'avant (le projet ouvert dans FL).
+- Essais du propriétaire : les prods se rangent très bien, mais les voix restent mal reconnues et les projets de voix
+  « chargent sans rien faire ». Cause probable : chaque prise était jouée dans FL et attendue jusqu'à ce qu'elle
+  sonne (prises qui commencent par un long silence, 10 s d'attente chacune, puis un passage de bruit ou de souffle
+  écouté). Maintenant, analyse sur le fichier : le fichier de chaque clip audio (événement 196) est lu directement par
+  l'app (`SampleFiles.swift`, AVAudioFile), son passage le plus fort (3 s) est classé, en un instant et sans rien
+  jouer dans FL ; le fichier est retrouvé à son chemin (dossiers de FL à la place de « %FLStudioUserData% »…), à côté
+  du projet, sinon par Spotlight à son nom ; introuvable : joué dans FL comme avant (attente ramenée à 5 s). Le nom du
+  dossier du son compte aussi quand celui du fichier ne dit rien (« …/Hat/BX 17.wav »). Règle `+fichier` dans le
+  diagnostic, et chaque étape notée dans le journal (`grep ORGANIZE ~/Library/Logs/"FL Shortcuts"/macro.log`) pour
+  voir où ça bloque s'il bloque encore. Même principe prévu pour Windows (Media Foundation). Prochain grand chantier
+  convenu : une IA embarquée dans l'app (YAMNet, licence Apache 2.0, plus une petite tête entraînée sur des sons
+  libres d'usage commercial), la même sur Mac et Windows, gratuite.

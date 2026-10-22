@@ -54,6 +54,8 @@ struct OrganizerEnvironment {
     var wrongInput: () -> Bool = { false }
     var nameDrum: () -> OrganizerSession.NameDrum = { { _, _ in .perc } }
     var nameMelody: () -> OrganizerSession.NameMelody = { { _, _ in nil } }
+    /// Fichier de son d'un clip audio lu directement (analyse sur le fichier) ; nil : joué dans FL.
+    var soundFile: () -> OrganizerSession.SoundFile? = { nil }
     /// Autorisation « Audio du système » (sans elle, macOS donne du silence à la capture).
     var audioPermission: () -> AudioCapturePermission = { .granted }
     /// Fenêtre de macOS pour la demander ; faux : rien n'a pu être demandé. `done` sur le fil principal.
@@ -106,6 +108,7 @@ struct OrganizerEnvironment {
             wrongInput: { MIDILink.shared.core.snapshot.wrongInput },
             nameDrum: { OrganizerSession.liveDrumNamer() },
             nameMelody: { OrganizerSession.liveMelodyNamer() },
+            soundFile: { SampleFiles.liveReader() },
             audioPermission: { AudioCapturePermission.status },
             requestAudioPermission: { done in
                 NSApp.activate(ignoringOtherApps: true)        // la fenêtre de macOS devant FL, pas derrière
@@ -449,6 +452,7 @@ final class OrganizerController: ObservableObject {
             link: link, audio: audio, classify: env.classify(), nameDrum: env.nameDrum(), nameMelody: env.nameMelody(),
             timing: env.timing,
             sleep: env.sleep, escape: env.escapePressed, prepare: env.prepareProject, files: env.projectFiles(),
+            soundFile: env.soundFile(),
             progress: { [weak self] done, total in
                 DispatchQueue.main.async {
                     guard self?.runToken == token else { return }

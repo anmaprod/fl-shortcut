@@ -923,6 +923,41 @@ final class OrganizerSessionTests: XCTestCase {
         XCTAssertFalse(session.diagnostics.text.contains("Kick"), "jamais un nom dans le diagnostic")
     }
 
+    /// Analyse sur le fichier : un clip audio (une prise de voix) est lu directement dans son fichier, sans le faire
+    /// jouer par FL (projets de voix du propriétaire : jouées dans FL, elles commençaient par un silence, étaient mal
+    /// reconnues, et l'attente durait).
+    func testAudioClipIsReadFromItsFile() throws {
+        let names = ["Pad", "untitled_2026-10-15 23-37-42_Insert 5", "ZENOLOGY", "Snare", "808"]
+        let link = FakeOrganizerLink()
+        link.channels = names.enumerated().map {
+            ChannelInfo(index: $0.offset, type: $0.offset == 1 ? ChannelInfo.audioClipType : 2, mixerTrack: $0.offset + 1,
+                        color: red, name: $0.element)
+        }
+        link.patternList = ["Mélodie", "Drums", "Pattern 3", "Vide"].enumerated().map {
+            PatternInfo(index: $0.offset, color: red, name: $0.element)
+        }
+        link.mixer = (0...6).map { MixerTrackInfo(index: $0, color: red, name: $0 == 0 ? "Master" : "Insert \($0)") }
+        let audio = FakeAudio(link: link)
+        audio.parts = [2: tone(.melody)]
+        let path = "%FLStudioUserData%/Audio/Recorded/untitled_2026-10-15 23-37-42_Insert 5.wav"
+        let file = FLPSample.sample(names: names, samples: [1: path], types: [1: ChannelInfo.audioClipType])
+        let files = ProjectFileAccess(save: { _ in .success(URL(fileURLWithPath: "/projets/Mon son.flp")) },
+                                      open: { _ in false }, read: { _ in file })
+        let voice = tone(.vocals)
+        var asked: [String] = []
+        let session = OrganizerSession(link: link, audio: audio, classify: classify, nameDrum: { _, _ in .kick },
+                                       timing: timing, sleep: { _ in }, files: files,
+                                       soundFile: { wanted, _ in
+                                           asked.append(wanted)
+                                           return SampleSound(samples: voice, rate: 48_000)
+                                       })
+        let result = try session.run().get()
+        XCTAssertEqual(result.items.first { $0.index == 1 }?.family, .vocals)
+        XCTAssertEqual(asked, [path])
+        XCTAssertFalse(link.log.contains { $0.hasPrefix("solo 1") || $0.hasPrefix("note 1 ") }, "rien joué dans FL : \(link.log)")
+        XCTAssertTrue(session.diagnostics.rules.contains("c1:faux+fichier"), "\(session.diagnostics.rules)")
+    }
+
     /// Le fichier enregistré n'est pas le projet ouvert (autres sons) : rien n'est touché, la raison est dite.
     func testOtherProjectFileStopsEverything() {
         let link = FakeOrganizerLink()

@@ -47,7 +47,10 @@
     d'office : guitare, piano, synthé aussi) ; voix et enregistrements : une ligne de Playlist par sorte ; sorte des
     mélodies à l'écoute (`MelodyNaming`) ; fenêtre redimensionnable qui suit son contenu ; patterns de plusieurs sons
     séparés son par son dans la copie (`splitByChannel`, comme « Split by channel » de FL) ; nom du fichier de son
-    (événement 196) pour reconnaître un clip audio dont le canal ne dit rien (`sampleNames`).
+    (événement 196) pour reconnaître un clip audio dont le canal ne dit rien (`sampleNames`, sinon son dossier) ;
+    fichier de chaque clip audio lu directement, son passage le plus fort (`SampleFiles.swift`, règle `+fichier`),
+    joué dans FL seulement s'il est introuvable ; étapes dans le journal (`ORGANIZE`).
+- Prochain chantier convenu : IA embarquée (YAMNet, Apache 2.0, + petite tête sur sons libres), même sur Mac et Windows.
 - Interface : survol coloré du menu de l'icône (`menuHover` : contour de sa couleur, grandit, ombre) voulu par le
   propriétaire partout : barre latérale (`sidebarHover`), lignes des pages, Macros, modèles, Communauté, Aide,
   palette, blocs, bouton d'enregistrement, « Menu de FL » du créateur ;

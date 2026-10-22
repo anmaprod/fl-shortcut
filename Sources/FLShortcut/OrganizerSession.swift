@@ -143,8 +143,9 @@ final class OrganizerSession {
         var trackListen: TimeInterval = 1.5
         /// Clip audio : sa note de base tenue ce temps-là une fois qu'il sonne…
         var clipListen: TimeInterval = 1.5
-        /// … attendu au plus ce temps-là (un enregistrement commence souvent par un silence).
-        var clipWait: TimeInterval = 10
+        /// … attendu au plus ce temps-là (un enregistrement commence souvent par un silence ; sur le fichier, il est lu
+        /// directement : cette attente ne sert que s'il n'est pas retrouvé).
+        var clipWait: TimeInterval = 5
     }
 
     /// Famille, confiance et règle appliquée (diagnostic : « melodie+ia », jamais un nom).
@@ -153,6 +154,9 @@ final class OrganizerSession {
     typealias NameDrum = ([Float], Double) -> DrumKind
     /// Sorte d'un son classé en mélodie (Piano, Pad, Pluck…) ; nil : rien de sûr.
     typealias NameMelody = ([Float], Double) -> SoundKind?
+    /// Le fichier de son d'un clip audio, lu directement (chemin écrit par FL, fichier du projet) : son passage le plus
+    /// fort ; nil s'il n'est pas retrouvé (le clip est alors joué dans FL).
+    typealias SoundFile = (_ path: String, _ project: URL) -> SampleSound?
 
     /// Notes d'essai : C3 puis C5 (pour FPC, ses deux premiers pads).
     static let testNotes: [UInt8] = [48, 60]
@@ -176,6 +180,10 @@ final class OrganizerSession {
     private let classify: Classify
     private let nameDrum: NameDrum?
     private let nameMelody: NameMelody?
+    private let soundFile: SoundFile?
+    /// Analyse sur le fichier : le chemin du fichier de chaque clip audio, et le projet (pour le retrouver).
+    private var clipPaths: [Int: String] = [:]
+    private var projectURL: URL?
     private let timing: Timing
     private let sleep: (TimeInterval) -> Void
     private let progress: (Int, Int) -> Void
@@ -214,6 +222,7 @@ final class OrganizerSession {
          escape: @escaping () -> Bool = { false },
          prepare: @escaping () -> Bool = { false },
          files: ProjectFileAccess? = nil,
+         soundFile: SoundFile? = nil,
          progress: @escaping (Int, Int) -> Void = { _, _ in }) {
         self.link = link
         self.audio = audio
@@ -225,6 +234,7 @@ final class OrganizerSession {
         self.escape = escape
         self.prepare = prepare
         self.files = files
+        self.soundFile = soundFile
         self.progress = progress
     }
 
@@ -347,6 +357,10 @@ final class OrganizerSession {
             link.stopRestore()
             audio.stop()
         }
+        clipPaths = ProjectFile.clipPaths(read.project)
+        projectURL = read.url
+        MacroLog.shared.write("ORGANIZE", "project read: \(split.project.clips.count) clips, \(split.added) split, "
+                              + "\(clipPaths.count) audio files, \(targets.count) sounds")
         let items = try classifyChannels(targets, homes: homes, hints: ProjectFile.sampleNames(read.project))
         let routes = try readRoutes(targets, mixer: mixer)
         progress(stepsTotal, stepsTotal)
@@ -492,40 +506,56 @@ final class OrganizerSession {
     }
 
     /// Chaque son écouté seul, dans un pattern où il joue (sinon le pattern ouvert), puis deux notes d'essai s'il se
-    /// tait ; un clip audio (il ne joue pas dans les patterns), sa note de base. La capture est déjà lancée ; FL est
-    /// remis par l'appelant.
+    /// tait ; un clip audio (il ne joue pas dans les patterns) : son fichier lu directement, son passage le plus fort
+    /// (analyse sur le fichier ; les voix enregistrées commencent souvent par un silence), sinon sa note de base jouée
+    /// dans FL. La capture est déjà lancée ; FL est remis par l'appelant.
     private func listen(_ targets: [ChannelInfo], homes: [Int: Int]) throws -> (items: [OrganizerItem], anyHeard: Bool) {
         var items: [OrganizerItem] = []
         var heardAny = false
-        for channel in targets {
+        for (k, channel) in targets.enumerated() {
             try step()
-            audio.reset()
-            try link.playSolo(channel.index, pattern: homes[channel.index])
             var samples: [Float]
+            var rate = audio.rate
             var tested = false
-            if channel.type == ChannelInfo.audioClipType {
-                samples = try playClip(channel.index)
+            var source = ""
+            if channel.type == ChannelInfo.audioClipType, let sound = fileSound(channel.index) {
+                samples = sound.samples
+                rate = sound.rate
+                source = "+fichier"
             } else {
-                samples = try listenUntilHeard()
-                tested = Self.peakDB(samples) < FamilyFusion.silenceDB
-                if tested { samples = try playTestNotes(channel.index) }
+                audio.reset()
+                try link.playSolo(channel.index, pattern: homes[channel.index])
+                if channel.type == ChannelInfo.audioClipType {
+                    samples = try playClip(channel.index)
+                } else {
+                    samples = try listenUntilHeard()
+                    tested = Self.peakDB(samples) < FamilyFusion.silenceDB
+                    if tested { samples = try playTestNotes(channel.index) }
+                }
             }
+            MacroLog.shared.write("ORGANIZE", "listen \(k + 1)/\(targets.count)\(source.isEmpty ? "" : " file")")
             let heard = Self.peakDB(samples) >= FamilyFusion.silenceDB
             if heard { heardAny = true }
-            let verdict = classify(samples, audio.rate)
+            let verdict = classify(samples, rate)
             note {
                 $0.listened += 1; $0.heard += heard ? 1 : 0; $0.testNotes += tested ? 1 : 0
-                $0.rules.append("c\(channel.index):\(verdict.rule)")
+                $0.rules.append("c\(channel.index):\(verdict.rule)\(source)")
             }
             var kind: SoundKind?
-            if verdict.family == .drums && heard, let drum = nameDrum?(samples, audio.rate) { kind = drum.sound }
-            if verdict.family == .melody && heard { kind = nameMelody?(samples, audio.rate) }
+            if verdict.family == .drums && heard, let drum = nameDrum?(samples, rate) { kind = drum.sound }
+            if verdict.family == .melody && heard { kind = nameMelody?(samples, rate) }
             items.append(OrganizerItem(index: channel.index, name: channel.name, family: verdict.family,
                                        confidence: tested ? verdict.confidence * Self.testNotesFactor : verdict.confidence,
                                        testNotes: tested, mixerTrack: channel.mixerTrack, color: channel.color,
                                        kind: kind))
         }
         return (items, heardAny)
+    }
+
+    /// Le fichier d'un clip audio lu directement (analyse sur le fichier) ; nil sans fichier retrouvé.
+    private func fileSound(_ channel: Int) -> SampleSound? {
+        guard let path = clipPaths[channel], let projectURL, let soundFile else { return nil }
+        return soundFile(path, projectURL)
     }
 
     // MARK: Playlist

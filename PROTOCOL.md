@@ -264,8 +264,11 @@ avant de commencer : c'est le point de retour). Vérifié sur le projet de test 
   224, longueur multiple de 24 » (les notes d'un pattern) doit commencer là où la lecture a vu un événement ; sinon,
   arrêt. Le nombre de canaux lus doit être celui de l'en-tête.
 - **Canal** : 64 (rang dans le Channel rack, 0, 1, 2… sans trou) **suivi aussitôt de 21** (type : 0 échantillon,
-  2 plugin, 3 layer) ; 203 son nom ; 196 le chemin de son fichier de son (clip audio, sampler : son nom dit souvent
-  ce qu'est le son quand celui du canal ne le dit pas) ; 94 un canal joué par un layer. Un 64 sans 21 derrière sert à autre chose
+  2 plugin, 3 layer, 4 clip audio) ; 203 son nom ; 196 le chemin de son fichier de son (clip audio, sampler : son nom,
+  sinon celui de son dossier, dit souvent ce qu'est le son quand celui du canal ne le dit pas ; « %FLStudioUserData% »,
+  « %FLStudioFactoryData% » à la place des dossiers de FL). Le fichier d'un clip audio est lu directement par l'app
+  (son passage le plus fort, 3 s), au lieu de le faire jouer par FL ; retrouvé à ce chemin, à côté du projet, sinon
+  par Spotlight à son nom ; introuvable : joué dans FL comme avant. 94 un canal joué par un layer. Un 64 sans 21 derrière sert à autre chose
   (réglages MIDI du projet) : ignoré.
 - **Pattern** : 65 (1 = pattern 1) ; suivi de 224 (ses notes, 24 octets chacune, le canal sur 2 octets à la place 6)
   dans la partie des notes, ou de 193 (nom), 150 (couleur)… dans sa description (écrite au milieu du premier canal).

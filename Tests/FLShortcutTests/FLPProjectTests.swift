@@ -149,6 +149,19 @@ final class FLPProjectTests: XCTestCase {
         XCTAssertNil(FLPProject.fileName(""))
     }
 
+    /// Nom du fichier qui ne dit rien : le dossier qui le contient (« …/Hat/BX 17.wav » : « Hat »). Chemin de chaque
+    /// clip audio, pour le lire directement.
+    func testSampleFolderAndClipPaths() throws {
+        let hat = "%FLStudioFactoryData%/Data/Patches/Packs/Drums/Hat/BX 17.wav"
+        let take = "%FLStudioUserData%/Audio/Recorded/prise 2.wav"
+        let file = FLPSample.sample(samples: [1: hat, 3: take], types: [3: ChannelInfo.audioClipType])
+        let project = try FLPProject(file)
+        XCTAssertEqual(ProjectFile.sampleNames(project), [1: "Hat", 3: "prise 2"])
+        XCTAssertEqual(ProjectFile.clipPaths(project), [3: take], "seulement les clips audio")
+        XCTAssertEqual(ProjectFile.folderName("C:\\Packs\\Snare\\x.wav"), "Snare")
+        XCTAssertNil(ProjectFile.folderName("x.wav"))
+    }
+
     /// Channel rack sur un groupe (« Unsorted »…) : la copie le montre sur « All », rien d'autre ne change.
     func testCopyShowsAllChannels() throws {
         let file = FLPSample.sample(group: 2)

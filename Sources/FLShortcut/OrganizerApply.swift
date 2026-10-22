@@ -515,6 +515,7 @@ final class OrganizerApplier {
             }
         }
         outcome.trace.append("ouverture=\(opened ? "oui" : "non") \(Int(Date().timeIntervalSince(started))) s")
+        MacroLog.shared.write("ORGANIZE", "copy \(opened ? "open" : "not open") after \(Int(Date().timeIntervalSince(started))) s")
         guard opened else {
             throw OrganizerError.failed(String(localized: "FL n'a pas ouvert la copie rangée à temps : elle est à côté de ton projet, ouvre-la dans FL, puis relance l'Organiser. Ton projet n'a pas bougé."))
         }
@@ -522,6 +523,7 @@ final class OrganizerApplier {
         let calmFrom = Date()
         try waitUntilCalm(channels: result.channels.count)
         outcome.trace.append("calme \(Int(Date().timeIntervalSince(calmFrom))) s")
+        MacroLog.shared.write("ORGANIZE", "FL answers after \(Int(Date().timeIntervalSince(calmFrom))) s, arranging")
         // La marque remise : le nom d'avant (une marque restée d'un essai où FL l'avait ouverte trop tard n'est jamais
         // reprise). Un canal garde son nom d'avant (le Channel rack est comparé à l'analyse avant les suppressions).
         switch marked.mark {

@@ -130,10 +130,34 @@ enum ProjectFile {
     }
 
     /// Nom du fichier de son de chaque canal qui en a un (clip audio, sampler) : il dit souvent ce qu'est le son
-    /// (« D30 Kick 85 ») quand le nom du canal ne le dit pas, ou a été donné par l'Organiser.
+    /// (« D30 Kick 85 ») quand le nom du canal ne le dit pas, ou a été donné par l'Organiser. S'il ne dit rien, le
+    /// dossier qui le contient (« …/Hat/BX 17.wav » : « Hat »).
     static func sampleNames(_ project: FLPProject) -> [Int: String] {
         var out: [Int: String] = [:]
-        for channel in project.channels { if let sample = channel.sample { out[channel.iid] = sample } }
+        for channel in project.channels {
+            guard let sample = channel.sample else { continue }
+            let folder = channel.samplePath.flatMap(folderName)
+            if SoundNames.kind(of: sample) == nil, let folder, SoundNames.kind(of: folder) != nil {
+                out[channel.iid] = folder
+            } else {
+                out[channel.iid] = sample
+            }
+        }
+        return out
+    }
+
+    /// Le dossier qui contient le fichier (« …/Packs/Hat/BX 17.wav » : « Hat »).
+    static func folderName(_ path: String) -> String? {
+        let parts = path.split(whereSeparator: { $0 == "/" || $0 == "\\" })
+        return parts.count >= 2 ? String(parts[parts.count - 2]) : nil
+    }
+
+    /// Chemin du fichier de son de chaque clip audio (analyse sur le fichier : il est lu directement).
+    static func clipPaths(_ project: FLPProject) -> [Int: String] {
+        var out: [Int: String] = [:]
+        for channel in project.channels where channel.type == ChannelInfo.audioClipType {
+            if let path = channel.samplePath { out[channel.iid] = path }
+        }
         return out
     }
 

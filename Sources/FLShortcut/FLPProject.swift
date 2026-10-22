@@ -14,8 +14,12 @@ struct FLPProject: Equatable {
         let name: String?
         /// Canaux que joue un layer.
         let children: [Int]
-        /// Nom du fichier de son (clip audio, sampler), sans dossier ni extension ; nil s'il n'y en a pas.
-        var sample: String? = nil
+        /// Chemin du fichier de son (clip audio, sampler), tel que FL l'écrit (« %FLStudioUserData%/… ») ; nil s'il
+        /// n'y en a pas.
+        var samplePath: String? = nil
+
+        /// Nom de ce fichier, sans dossier ni extension.
+        var sample: String? { samplePath.flatMap(FLPProject.fileName) }
     }
 
     struct Clip: Equatable {
@@ -95,7 +99,7 @@ struct FLPProject: Equatable {
 
     init(_ file: FLPFile) throws {
         var channels: [Channel] = []
-        var channel: (iid: Int, type: Int?, name: String?, children: [Int], sample: String?)?
+        var channel: (iid: Int, type: Int?, name: String?, children: [Int], samplePath: String?)?
         var notes: [Int: [Int: Int]] = [:]
         var noteEvents: [Int: Int] = [:]
         var firstChannel: Int?
@@ -106,7 +110,8 @@ struct FLPProject: Equatable {
         var group: (event: Int, value: UInt32)?
         func closeChannel() {
             if let c = channel {
-                channels.append(Channel(iid: c.iid, type: c.type, name: c.name, children: c.children, sample: c.sample))
+                channels.append(Channel(iid: c.iid, type: c.type, name: c.name, children: c.children,
+                                        samplePath: c.samplePath))
             }
             channel = nil
         }
@@ -123,7 +128,7 @@ struct FLPProject: Equatable {
             case Event.channelName:
                 if channel != nil, channel?.name == nil { channel?.name = event.text }
             case Event.samplePath:
-                if channel != nil, channel?.sample == nil { channel?.sample = Self.fileName(event.text) }
+                if channel != nil, channel?.samplePath == nil { channel?.samplePath = event.text }
             case Event.children:
                 channel?.children.append(Int(event.value))
             case Event.pattern:
