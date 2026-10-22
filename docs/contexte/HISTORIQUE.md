@@ -202,10 +202,12 @@ entrée 1 ≈ 0,5 s.
   - Règle du propriétaire pour le Mixer : une piste qui envoie déjà à une autre piste que le Master (groupe, sidechain,
     effet) reste avec sa famille sans que ses envois changent ; reliée au seul Master : famille et bus. Un bus déjà là
     reçoit des pistes qui n'envoient qu'à lui (le Master est maintenant gardé dans les envois lus).
-  - Voix (« test voix » : des voix enregistrées rangées en Mélodies, FX et Drums) : un enregistrement de FL
-    (« <projet>_<date> <heure>_Insert 5 ») est une voix, reconnue à son nom ; sortes « Voix lead », « Back »,
-    « Ambiance » (d'après les mots d'un nom de voix, ou au choix dans l'aperçu). Dans la Playlist, les clips d'une même
-    sorte de voix vont sur une seule piste, ceux qui se chevauchent juste dessous.
+  - Voix (« test voix » : des voix enregistrées rangées en Mélodies, FX et Drums) : sortes « Voix lead », « Back »,
+    « Ambiance » (d'après les mots d'un nom de voix, ou au choix dans l'aperçu). Un enregistrement de FL
+    (« <projet>_<date> <heure>_Insert 5 ») n'est PAS une voix d'office (guitare, piano, synthé aussi : retour du
+    propriétaire) : seul le nom de sa piste du Mixer, après la date, compte ; sinon il est écouté, une fois qu'il sonne
+    (une prise commence souvent par un silence, qui était classé ; 10 s d'attente au plus). Dans la Playlist, les
+    clips des voix et des enregistrements d'une même sorte vont sur une seule piste, ceux qui se chevauchent dessous.
   - Mélodies : à l'écoute, leur sorte (Piano, Keys, Orgue, Guitare, Strings, Flûte, Brass, Bell d'après l'IA de
     macOS ; sinon Arp, Pluck, Pad ou Lead d'après la forme du son ; rien de sûr : « Mélodie »), changeable dans l'aperçu.
   - Fenêtre de l'Organiser redimensionnable ; sa hauteur suit le contenu mesuré à chaque changement (elle restait

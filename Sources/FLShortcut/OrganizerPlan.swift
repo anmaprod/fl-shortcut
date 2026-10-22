@@ -43,7 +43,7 @@ struct PlaylistSplit: Equatable {
 }
 
 /// Famille et sorte d'un élément (sorte nil : sa famille seule).
-struct Verdict: Equatable {
+struct Verdict: Hashable {
     var family: SoundFamily
     var kind: SoundKind? = nil
 
@@ -189,20 +189,23 @@ struct OrganizerPlan: Equatable {
                 // Analyse sur le fichier : chaque clip ira, dans la copie rangée, sur la piste de ses sons (les mêmes
                 // sons, la même piste), les pistes déjà dans l'ordre des familles ; rien à descendre ni à remonter dans
                 // FL. Les pistes perdent leur ancien nom dans la copie : elles sont nommées d'après ce qui y joue.
-                // Voix (projets de voix enregistrées du propriétaire : « tout sur la même ligne ») : les clips d'une même
-                // sorte de voix (Voix lead, Back, Ambiance…) sur une seule piste, ceux qui se chevauchent juste dessous.
-                func vocalKind(_ sounds: Set<Int>) -> SoundKind?? {
+                // Une ligne par sorte (retour du propriétaire : « tout sur la même ligne, surtout quand c'est du rec ») :
+                // les clips des voix, et ceux des enregistrements faits dans FL (voix, guitare, piano, synthé…), d'une
+                // même sorte (Voix lead, Back, Guitare…) sur une seule piste, ceux qui se chevauchent juste dessous.
+                let recorded = Set(result.channels.filter { SoundNames.isRecording($0.name) }.map(\.index))
+                func lineVerdict(_ sounds: Set<Int>) -> Verdict? {
                     let verdicts = sounds.sorted().compactMap(verdict)
-                    guard !sounds.isEmpty, verdicts.count == sounds.count, verdicts.allSatisfy({ $0.family == .vocals })
-                    else { return nil }
-                    return .some(groupVerdict(verdicts)?.kind)
+                    guard !sounds.isEmpty, verdicts.count == sounds.count,
+                          verdicts.allSatisfy({ $0.family == .vocals }) || sounds.isSubset(of: recorded),
+                          let v = groupVerdict(verdicts), v.family != .unsure else { return nil }
+                    return v
                 }
-                var lines: [SoundKind?: Set<Int>] = [:]
+                var lines: [Verdict: Set<Int>] = [:]
                 for case .sounds(let sounds) in project.groups.values {
-                    if let kind = vocalKind(sounds) { lines[kind, default: []].formUnion(sounds) }
+                    if let v = lineVerdict(sounds) { lines[v, default: []].formUnion(sounds) }
                 }
                 func line(_ group: PlaylistLayout.Group) -> PlaylistLayout.Group {
-                    guard case .sounds(let sounds) = group, let kind = vocalKind(sounds), let all = lines[kind]
+                    guard case .sounds(let sounds) = group, let v = lineVerdict(sounds), let all = lines[v]
                     else { return group }
                     return .sounds(all)
                 }

@@ -842,29 +842,31 @@ final class OrganizerApplyTests: XCTestCase {
         XCTAssertTrue(back.snapshot.isEmpty)
     }
 
-    /// Projets de voix enregistrées (retour du propriétaire : « tout sur la même ligne […] si deux sont en même temps
-    /// il met l'une en dessous de l'autre ») : les clips d'une même sorte de voix sur une seule piste, ceux qui se
-    /// chevauchent juste dessous ; les backs sur leur ligne à eux, avant (ordre des sortes : Voix lead, Back,
-    /// Ambiance…, Voix).
-    func testVocalRecordingsShareOneLine() throws {
+    /// Projets de voix enregistrées (retour du propriétaire : « tout sur la même ligne, surtout quand c'est du rec […]
+    /// si deux sont en même temps il met l'une en dessous de l'autre ») : les clips d'une même sorte de voix sur une
+    /// seule piste, ceux qui se chevauchent juste dessous, les backs sur leur ligne à eux, avant (ordre des sortes) ;
+    /// les enregistrements de guitare aussi, sur leur ligne, après les voix.
+    func testRecordingsShareOneLinePerKind() throws {
         let clips = [FLPSample.ClipSpec(channel: 0, track: 0, bar: 1), FLPSample.ClipSpec(channel: 1, track: 3, bar: 9),
-                     FLPSample.ClipSpec(channel: 0, track: 6, bar: 3), FLPSample.ClipSpec(channel: 3, track: 2, bar: 1)]
+                     FLPSample.ClipSpec(channel: 0, track: 6, bar: 3), FLPSample.ClipSpec(channel: 3, track: 2, bar: 1),
+                     FLPSample.ClipSpec(channel: 2, track: 7, bar: 1), FLPSample.ClipSpec(channel: 4, track: 9, bar: 9)]
         let project = try FLPProject(FLPSample.sample(clips: clips))
-        let channels = ["Pad", "Kick", "ZENOLOGY", "Snare", "808"].enumerated().map {
+        let names = ["Pad", "Kick", "untitled_2026-10-15 23-37-42_Insert 5", "Snare", "untitled_2026-10-15 23-50-12_Insert 5"]
+        let channels = names.enumerated().map {
             ChannelInfo(index: $0.offset, type: ChannelInfo.audioClipType, mixerTrack: 0, color: gray, name: $0.element)
         }
-        let kinds: [Int: SoundKind] = [0: .vocal, 1: .vocal, 3: .backing]
+        let kinds: [Int: SoundKind] = [0: .vocal, 1: .vocal, 2: .guitar, 3: .backing, 4: .guitar]
         let items = kinds.keys.sorted().map {
-            OrganizerItem(index: $0, name: channels[$0].name, family: .vocals, confidence: 0.9, testNotes: false,
+            OrganizerItem(index: $0, name: names[$0], family: kinds[$0]!.family, confidence: 0.9, testNotes: false,
                           mixerTrack: 0, color: gray, kind: kinds[$0])
         }
         var result = OrganizerResult(channels: channels, items: items, patterns: [],
-                                     patternSounds: ProjectFile.sounds(project, notSounds: []).patterns, unused: [2, 4])
+                                     patternSounds: ProjectFile.sounds(project, notSounds: []).patterns, unused: [])
         result.project = ProjectFile.snapshot(project, url: URL(fileURLWithPath: "/projets/Voix.flp"), notSounds: [])
         let layout = try XCTUnwrap(plan(result, options: OrganizerOptions(rack: false, patterns: false, mixer: false)).layout)
-        XCTAssertEqual(layout.tracks, [3: 0, 0: 1, 1: 1, 2: 2], "le 2e clip du son 0 chevauche le 1er : dessous")
-        XCTAssertEqual(layout.count, 3)
-        XCTAssertEqual(layout.sounds, [0: [3], 1: [0, 1], 2: [0, 1]])
+        XCTAssertEqual(layout.tracks, [3: 0, 0: 1, 1: 1, 2: 2, 4: 3, 5: 3], "le 2e clip du son 0 chevauche le 1er : dessous")
+        XCTAssertEqual(layout.count, 4)
+        XCTAssertEqual(layout.sounds, [0: [3], 1: [0, 1], 2: [0, 1], 3: [2, 4]])
     }
 
     /// Le projet a changé depuis l'analyse, ou FL n'ouvre pas la copie : rien n'est touché dans FL, et dans le second

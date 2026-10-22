@@ -139,8 +139,10 @@ final class OrganizerSession {
         var patternCap: TimeInterval = 32
         /// Piste de la Playlist jouée seule : ce qui y joue, relevé pendant ce temps.
         var trackListen: TimeInterval = 1.5
-        /// Clip audio : sa note de base tenue ce temps-là.
+        /// Clip audio : sa note de base tenue ce temps-là une fois qu'il sonne…
         var clipListen: TimeInterval = 1.5
+        /// … attendu au plus ce temps-là (un enregistrement commence souvent par un silence).
+        var clipWait: TimeInterval = 10
     }
 
     /// Famille, confiance et règle appliquée (diagnostic : « melodie+ia », jamais un nom).
@@ -711,15 +713,33 @@ final class OrganizerSession {
         return kept + audio.take()
     }
 
-    /// Clip audio : sa note de base tenue `clipListen`, puis la queue ; la note est toujours coupée, même après Échap.
+    /// Clip audio : sa note de base tenue jusqu'à ce qu'il sonne (`clipWait` au plus : une prise de voix commence
+    /// souvent par un silence, et ce silence était classé, projets de voix du propriétaire), puis `clipListen` de son
+    /// et la queue ; le silence du début ne compte pas. La note est toujours coupée, même après Échap.
     private func playClip(_ channel: Int) throws -> [Float] {
         audio.reset()
         try link.audition(channel, note: Self.clipNote, velocity: Self.testVelocity)
-        let finished = wait(timing.clipListen)
+        var kept: [Float] = []
+        var silent = 0.0, sounding = 0.0
+        var finished = true
+        while sounding < timing.clipListen - 1e-9 {
+            guard wait(timing.slice) else {
+                finished = false
+                break
+            }
+            let chunk = audio.take()
+            if kept.isEmpty && Self.peakDB(chunk) < FamilyFusion.silenceDB {
+                silent += timing.slice
+                if silent >= timing.clipWait - 1e-9 { break }
+                continue
+            }
+            kept += chunk
+            sounding += timing.slice
+        }
         try link.audition(channel, note: Self.clipNote, velocity: 0)
         if !finished { throw OrganizerError.cancelled }
         try pause(timing.tail)
-        return audio.take()
+        return kept + audio.take()
     }
 
     /// Chaque note est toujours coupée (vélocité 0), même après Échap.

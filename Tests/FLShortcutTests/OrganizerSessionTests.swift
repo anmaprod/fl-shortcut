@@ -379,11 +379,20 @@ final class FakeAudio: AudioSource {
     func stop() { stopped += 1 }
     func reset() { mark = link.log.count }
 
+    /// Clip audio qui commence par un silence : lectures muettes avant son son.
+    var silentTakes: [Int: Int] = [:]
+
     func take() -> [Float] {
         if let track = link.track { return clips[track] ?? [] }
         guard let channel = link.solo else { return [] }
         let since = link.log[mark...]
-        if since.contains(where: { $0.hasPrefix("note \(channel) ") }) { return testSounds[channel] ?? [] }
+        if since.contains(where: { $0.hasPrefix("note \(channel) ") }) {
+            if let n = silentTakes[channel], n > 0 {
+                silentTakes[channel] = n - 1
+                return []
+            }
+            return testSounds[channel] ?? []
+        }
         if let only = partPattern[channel], (link.playedPattern ?? link.currentPattern) != only { return [] }
         return parts[channel] ?? []
     }
@@ -770,12 +779,34 @@ final class OrganizerSessionTests: XCTestCase {
         XCTAssertEqual(DrumKind.allCases.map(\.sound.family), Array(repeating: .drums, count: DrumKind.allCases.count))
     }
 
-    /// Voix enregistrées dans FL (projets du propriétaire : rangées en Mélodies, FX et Drums à l'écoute) : reconnues à
-    /// leur nom ; lead, back et ambiance d'après les mots d'un nom de voix.
-    func testRecordedVocalsAndVocalLayers() {
-        XCTAssertEqual(SoundNames.kind(of: "untitled_2026-10-15 23-37-42_Insert 5"), .vocal)
-        XCTAssertEqual(SoundNames.kind(of: "Kick Prod_2026-10-15 23-37-42_Insert 3"), .vocal, "le nom du projet ne compte pas")
-        XCTAssertEqual(SoundNames.kind(of: "number one_2026-10-15 23-37-42_Back"), .backing)
+    /// Une prise commence souvent par un silence (projets de voix du propriétaire : des voix classées en Mélodies, FX
+    /// ou Drums) : le clip est écouté une fois qu'il sonne, son silence du début ne compte pas ; muet jusqu'au bout :
+    /// « À vérifier ».
+    func testRecordingIsHeardOnceItSounds() throws {
+        let link = FakeOrganizerLink()
+        link.song = false
+        link.channels = ["untitled_2026-10-15 23-37-42_Insert 5", "untitled_2026-10-15 23-40-01_Insert 5"].enumerated().map {
+            ChannelInfo(index: $0.offset, type: ChannelInfo.audioClipType, mixerTrack: 0, color: red, name: $0.element)
+        }
+        let audio = FakeAudio(link: link)
+        audio.testSounds = [0: tone(.vocals)]
+        audio.silentTakes = [0: 60, 1: 10_000]
+        let result = try make(link, audio).run().get()
+        XCTAssertEqual(result.items.map(\.family), [.vocals, .unsure])
+        XCTAssertEqual(link.log.filter { $0.hasPrefix("note ") }.count, 4, "chaque note toujours coupée")
+    }
+
+    /// Enregistrements faits dans FL : leur nom ne dit pas ce qui a été enregistré (voix, guitare, piano, synthé :
+    /// retour du propriétaire), seul le nom de leur piste du Mixer peut le dire ; sinon ils sont écoutés. Lead, back et
+    /// ambiance d'après les mots d'un nom de voix.
+    func testRecordingsAndVocalLayers() {
+        XCTAssertNil(SoundNames.kind(of: "untitled_2026-10-15 23-37-42_Insert 5"), "écouté")
+        XCTAssertNil(SoundNames.kind(of: "Kick Prod_2026-10-15 23-37-42_Insert 3"), "le nom du projet ne compte pas")
+        XCTAssertFalse(SoundNames.isMelodicSynth("Serum beat_2026-10-15 23-37-42_Insert 3"))
+        XCTAssertEqual(SoundNames.kind(of: "number one_2026-10-15 23-37-42_Vocal Back"), .backing)
+        XCTAssertEqual(SoundNames.kind(of: "untitled_2026-10-15 23-37-42_Guitar"), .guitar)
+        XCTAssertTrue(SoundNames.isRecording("untitled_2026-10-15 23-37-42_Insert 5"))
+        XCTAssertFalse(SoundNames.isRecording("Vocal Chop 2026"))
         XCTAssertEqual(SoundNames.kind(of: "Lead Vox"), .vocalLead)
         XCTAssertEqual(SoundNames.kind(of: "Lead"), .lead, "sans mot de voix : une mélodie")
         XCTAssertEqual(SoundNames.kind(of: "Backs"), .backing)

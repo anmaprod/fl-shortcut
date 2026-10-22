@@ -215,8 +215,8 @@ enum SoundNames {
     /// famille, un mot précis passe avant le mot général, et le premier dans l'ordre de `SoundKind` l'emporte
     /// (« Sub 808 » : 808 ; « Adlib Vox » : Adlib).
     static func kind(of name: String) -> SoundKind? {
-        if let recorded = recording(name) { return recorded }
-        let parts = words(name)
+        // Enregistrement fait dans FL : seul le nom de sa piste du Mixer, après la date, peut dire ce que c'est.
+        let parts = words(recordedTrack(name) ?? name)
         let found = kinds(in: parts)
         let named = Set(found.map { $0.family })
         let family: SoundFamily
@@ -242,13 +242,16 @@ enum SoundNames {
     }
 
     /// Enregistrement fait dans FL (« untitled_2026-10-15 23-37-42_Insert 5 », « <projet>_<date> <heure>_Insert 5 ») :
-    /// une voix (projets de voix du propriétaire : à l'écoute, elles partaient en Mélodies, FX et Drums). Le nom du
-    /// projet devant ne compte pas ; ce qui suit la date peut dire lead, back ou ambiance (piste du Mixer nommée).
-    static func recording(_ name: String) -> SoundKind? {
+    /// ce qui suit la date, le nom de sa piste du Mixer ; nil : pas un enregistrement. Le nom ne dit pas ce qui a été
+    /// enregistré (voix, guitare, piano, synthé : retour du propriétaire) ni le nom du projet devant : sans piste du
+    /// Mixer nommée (« Guitar », « Vocal Back »), le son est écouté.
+    static func recordedTrack(_ name: String) -> String? {
         guard let date = name.range(of: #"_\d{4}-\d{2}-\d{2}[ _]\d{2}-\d{2}-\d{2}"#, options: .regularExpression)
         else { return nil }
-        return vocalLayer(words(String(name[date.upperBound...]))) ?? .vocal
+        return String(name[date.upperBound...])
     }
+
+    static func isRecording(_ name: String) -> Bool { recordedTrack(name) != nil }
 
     static func family(of name: String) -> SoundFamily? {
         kind(of: name)?.family
@@ -266,7 +269,7 @@ enum SoundNames {
 
     /// Le nom est celui d'un synthé de mélodies et ne dit rien d'autre (« Serum 2 », pas « Serum Kick »).
     static func isMelodicSynth(_ name: String) -> Bool {
-        kind(of: name) == nil && words(name).contains(where: melodicSynthWords.contains)
+        kind(of: name) == nil && words(recordedTrack(name) ?? name).contains(where: melodicSynthWords.contains)
     }
 
     /// Un nom que l'Organiser a pu donner : une sorte ou une famille (« Mélodie », « Snare », « Hi-hat »), suivie ou
