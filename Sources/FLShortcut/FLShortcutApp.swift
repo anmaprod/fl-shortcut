@@ -80,11 +80,28 @@ enum AppStatusColor {
 enum SingleInstance {
     /// Noté par une copie qui se ferme. « Quitter et rouvrir » de macOS relance l'app pendant que l'ancienne copie
     /// finit de se fermer : la nouvelle la voyait encore et partait aussitôt, rien ne se rouvrait (retour du
-    /// propriétaire). Elle attend maintenant que l'ancienne soit partie.
+    /// propriétaire). Elle attend maintenant que l'ancienne soit partie, aussi longtemps qu'il le faut (une limite de
+    /// 5 s la faisait de nouveau partir : l'ancienne mettait plus longtemps à se fermer). La note est un fichier (lu
+    /// tout de suite par l'autre copie, relu à chaque tour : la relance peut arriver avant qu'elle ne soit écrite).
     static let quittingKey = "quittingPID"
+    static var quittingFile: URL { URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("FLShortcuts.quitting") }
+    /// Une copie qui se ferme est attendue jusque-là ; bloquée au-delà, elle est arrêtée (elle a demandé à partir).
+    static let quittingTimeout: TimeInterval = 30
     /// Lancement (journal : combien de temps la réouverture a pris, en millisecondes).
     static var started = Date()
     static var waitedMs = 0
+
+    /// Fermeture de cette copie notée (avant tout le reste de la fermeture).
+    static func markQuitting() {
+        UserDefaults.standard.set(Int(getpid()), forKey: quittingKey)
+        try? Data("\(getpid())".utf8).write(to: quittingFile, options: .atomic)
+    }
+
+    /// Cette copie (`pid`) a-t-elle noté qu'elle se ferme ?
+    static func isQuitting(_ pid: pid_t) -> Bool {
+        if let text = try? String(contentsOf: quittingFile, encoding: .utf8), Int(text) == Int(pid) { return true }
+        return UserDefaults.standard.integer(forKey: quittingKey) == Int(pid)
+    }
 
     static func enforce() {
         let me = NSRunningApplication.current
@@ -92,28 +109,47 @@ enum SingleInstance {
         let others = NSRunningApplication.runningApplications(withBundleIdentifier: id)
             .filter { $0.processIdentifier != me.processIdentifier && !$0.isTerminated }
         guard let first = others.first else { return }
-        // Copie qui se ferme (notée) : jusqu'à 5 s ; sinon un court instant, au cas où la note n'est pas encore lue.
-        let quitting = UserDefaults.standard.integer(forKey: quittingKey) == Int(first.processIdentifier)
+        let pid = first.processIdentifier
         let waitStart = Date()
         defer { waitedMs = Int(Date().timeIntervalSince(waitStart) * 1000) }
-        if waitForExit(first.processIdentifier, timeout: quitting ? 5 : 1.5) { return }
+        // Copie qui se ferme : attendue jusqu'à ce qu'elle soit partie ; sinon un court instant.
+        if waitForExit(pid, timeout: 1.5, longer: { isQuitting(pid) }, longTimeout: quittingTimeout) { return }
+        if isQuitting(pid) {
+            // Elle a demandé à se fermer mais reste bloquée : arrêtée, pour que l'app se rouvre quand même.
+            kill(pid, SIGKILL)
+            if waitForExit(pid, timeout: 2) {
+                MacroLog.shared.write("LAUNCH", "old copy stuck while quitting, stopped")
+                return
+            }
+        }
+        MacroLog.shared.write("LAUNCH", "another copy is running (\(Int(Date().timeIntervalSince(waitStart) * 1000)) ms), this one leaves")
+        MacroLog.shared.flush()
         first.activate(options: [])
         exit(0)
     }
 
-    /// Vrai dès que le processus `pid` n'existe plus ; faux s'il est toujours là au bout de `timeout` secondes.
-    static func waitForExit(_ pid: pid_t, timeout: TimeInterval) -> Bool {
-        let end = Date().addingTimeInterval(timeout)
+    /// Vrai dès que le processus `pid` n'existe plus ; faux s'il est toujours là au bout de `timeout` secondes
+    /// (`longTimeout` tant que `longer` est vrai, relu à chaque tour).
+    static func waitForExit(_ pid: pid_t, timeout: TimeInterval, longer: () -> Bool = { false },
+                            longTimeout: TimeInterval = 0) -> Bool {
+        let start = Date()
+        var checks = 0
+        var long = false
         repeat {
             if kill(pid, 0) != 0 && errno == ESRCH { return true }
             usleep(30_000)                           // repart dès que l'ancienne copie est partie
-        } while Date() < end
+            checks += 1
+            if !long, checks % 5 == 1 { long = longer() }
+        } while Date().timeIntervalSince(start) < (long ? max(timeout, longTimeout) : timeout)
         return false
     }
 }
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
+        // La note de l'ancienne copie ne sert plus (elle est partie) : jamais prise pour celle d'une autre plus tard.
+        try? FileManager.default.removeItem(at: SingleInstance.quittingFile)
+        UserDefaults.standard.removeObject(forKey: SingleInstance.quittingKey)
         if !AppMode.light { MIDILink.shared.start() }  // mode léger : aucun port MIDI, rien dans FL
         FLMonitor.shared.start()
         AppStatus.shared.start()
@@ -150,23 +186,41 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     /// Après la désinstallation, quitter (⌘Q, fermeture de session…) ne doit rien réécrire : sortie directe.
+    /// Début de la fermeture (journal : combien de temps elle prend).
+    private var quitAsked: Date?
+
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
         if Uninstaller.didUninstall { Uninstaller.quitAfterUninstall() }
         // Une copie relancée (« Quitter et rouvrir ») attend celle-ci au lieu de partir (SingleInstance).
-        UserDefaults.standard.set(Int(getpid()), forKey: SingleInstance.quittingKey)
+        SingleInstance.markQuitting()
+        quitAsked = Date()
         return .terminateNow
     }
 
     func applicationWillTerminate(_ notification: Notification) {
+        // Durée de chaque étape (millisecondes seulement) : où la fermeture passe son temps.
+        var steps: [String] = []
+        var mark = Date()
+        func step(_ name: String) {
+            steps.append("\(name) \(Int(Date().timeIntervalSince(mark) * 1000))")
+            mark = Date()
+        }
         // Ce qui est ouvert (et la macro en cours, enregistrée), pour reprendre là si l'app est rouverte aussitôt.
         if !DebugSnapshot.enabled {
             AppResume.shared.saveOnQuit(permissions: AccessibilityGuide.shared.isShowing,
                                         organizer: OrganizerWindow.controller != nil)
         }
+        step("reprise")
         Store.shared.saveNow()
         Store.shared.library.saveNow()
+        step("sauvegarde")
         EventTap.shared.stop()
+        step("clavier")
         MIDILink.shared.stop()
+        step("midi")
+        let total = quitAsked.map { Int(Date().timeIntervalSince($0) * 1000) } ?? -1
+        MacroLog.shared.write("QUIT", "\(total) ms since asked (" + steps.joined(separator: ", ") + ")")
+        MacroLog.shared.flush()
     }
 
     private static func onboard() {

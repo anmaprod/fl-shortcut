@@ -73,5 +73,29 @@ final class AppResumeTests: XCTestCase {
         let start = Date()
         XCTAssertFalse(SingleInstance.waitForExit(getpid(), timeout: 0.3), "toujours là : pas de deuxième copie")
         XCTAssertLessThan(Date().timeIntervalSince(start), 2)
+        // Une copie qui se ferme est attendue plus longtemps (la note peut n'arriver qu'après le début de l'attente).
+        var asked = 0
+        let longer = Date()
+        XCTAssertFalse(SingleInstance.waitForExit(getpid(), timeout: 0.3, longer: {
+            asked += 1
+            return asked > 1
+        }, longTimeout: 0.6))
+        XCTAssertGreaterThanOrEqual(Date().timeIntervalSince(longer), 0.5, "attendue jusqu'au bout")
+    }
+
+    /// La note « je me ferme » d'une copie : lue par la copie relancée.
+    func testQuittingNoteIsReadByTheRelaunchedCopy() {
+        let saved = try? Data(contentsOf: SingleInstance.quittingFile)
+        defer {
+            if let saved { try? saved.write(to: SingleInstance.quittingFile) } else {
+                try? FileManager.default.removeItem(at: SingleInstance.quittingFile)
+            }
+        }
+        try? FileManager.default.removeItem(at: SingleInstance.quittingFile)
+        let other: pid_t = 999_999
+        XCTAssertFalse(SingleInstance.isQuitting(other))
+        try? Data("\(other)".utf8).write(to: SingleInstance.quittingFile)
+        XCTAssertTrue(SingleInstance.isQuitting(other))
+        XCTAssertFalse(SingleInstance.isQuitting(other - 1))
     }
 }
