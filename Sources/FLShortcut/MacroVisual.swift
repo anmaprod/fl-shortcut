@@ -383,11 +383,13 @@ enum ScreenLook {
         guard available, !allowed, !defaults.bool(forKey: askedKey) else { return false }
         defaults.set(true, forKey: askedKey)
         NSApp.activate(ignoringOtherApps: true)          // la fenêtre de macOS au premier plan, devant FL
+        SingleInstance.watchForRelaunch()                // « Quitter et rouvrir » : l'app revient
         requestAccess()
         return true
     }
 
     static func openSettings() {
+        SingleInstance.watchForRelaunch()                // « Quitter et rouvrir » : l'app revient
         if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture") {
             NSWorkspace.shared.open(url)
         }

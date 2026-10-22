@@ -128,32 +128,101 @@ enum SingleInstance {
         exit(0)
     }
 
-    /// L'app qui demande la fermeture (identifiant de macOS : « com.apple.systempreferences »…), si c'est une autre
-    /// app (événement « quit » de macOS) ; nil : l'utilisateur a quitté lui-même (⌘Q, menu).
-    static func quitSender() -> String? {
+    /// Qui demande la fermeture, quand c'est une autre app ou un processus du système (événement « quit » de macOS) :
+    /// son identifiant d'app s'il en a un, le chemin de son programme, et si c'est la fin de la session (raison donnée).
+    struct QuitSender: Equatable {
+        var bundle: String?
+        var path: String?
+        var sessionEnd = false
+
+        /// Pour le journal : l'identifiant, sinon le nom du programme (rien de l'utilisateur).
+        var label: String { bundle ?? path.map { URL(fileURLWithPath: $0).lastPathComponent } ?? "inconnu" }
+    }
+
+    /// nil : l'utilisateur a quitté lui-même (⌘Q, menu : aucun événement « quit »).
+    static func quitSender() -> QuitSender? {
         guard let event = NSAppleEventManager.shared().currentAppleEvent,
               event.eventClass == 0x6165_7674, event.eventID == 0x7175_6974,      // 'aevt' 'quit'
-              let sender = event.attributeDescriptor(forKeyword: 0x7370_6964)  // 'spid' : l'app qui l'envoie
+              let sender = event.attributeDescriptor(forKeyword: 0x7370_6964)  // 'spid' : qui l'envoie
         else { return nil }
         let pid = pid_t(sender.int32Value)
         guard pid > 0, pid != getpid() else { return nil }
-        return NSRunningApplication(processIdentifier: pid)?.bundleIdentifier ?? "pid"
+        let why: AEKeyword = 0x7768_7921                                       // 'why?' : fin de session…
+        let reason = event.attributeDescriptor(forKeyword: why) ?? event.paramDescriptor(forKeyword: why)
+        return QuitSender(bundle: NSRunningApplication(processIdentifier: pid)?.bundleIdentifier,
+                          path: processPath(pid), sessionEnd: reason != nil)
     }
 
-    /// Réglages Système (« Quitter et rouvrir », après une autorisation).
-    static func isSettings(_ sender: String?) -> Bool {
-        guard let sender else { return false }
-        return sender.hasPrefix("com.apple.systempreferences") || sender == "com.apple.Settings"
+    /// Chemin du programme du processus `pid` (nil s'il est déjà parti).
+    static func processPath(_ pid: pid_t) -> String? {
+        var buffer = [CChar](repeating: 0, count: 4096)
+        guard proc_pidpath(pid, &buffer, UInt32(buffer.count)) > 0 else { return nil }
+        return buffer.withUnsafeBufferPointer { String(cString: $0.baseAddress!) }
     }
 
-    /// Rouvre l'app une fois cette copie partie (60 s au plus) : `open` la lance, ou la met devant si macOS l'a déjà
-    /// relancée (jamais deux copies).
+    /// L'app Réglages Système, ou une de ses pages (« com.apple.settings.PrivacySecurity.extension »).
+    static func isSettings(_ bundle: String?) -> Bool {
+        guard let bundle else { return false }
+        return bundle.hasPrefix("com.apple.systempreferences") || bundle.hasPrefix("com.apple.settings")
+            || bundle == "com.apple.Settings"
+    }
+
+    /// Pur (testé) : rouvrir l'app après cette fermeture ? Oui quand Réglages Système la demande (« Quitter et
+    /// rouvrir », après une autorisation) : l'app des Réglages, une de ses pages, ou un processus du système sans nom
+    /// d'app (la page « Confidentialité et sécurité » est une extension à part depuis macOS 13 : elle n'était pas
+    /// reconnue et l'app quittait sans revenir, retour du propriétaire, trois fois), ou un envoyeur déjà parti. Non
+    /// pour ⌘Q (nil), la fin de session, ni une autre app (Dock, Moniteur d'activité…).
+    static func relaunches(_ sender: QuitSender?) -> Bool {
+        guard let sender, !sender.sessionEnd else { return false }
+        if isSettings(sender.bundle) { return true }
+        let path = (sender.path ?? "").lowercased()
+        if ["settings", "preference", "privacy", "/tcc"].contains(where: { path.contains($0) }) { return true }
+        guard sender.bundle == nil else { return false }
+        guard let full = sender.path else { return true }
+        return full.hasPrefix("/System/") || full.hasPrefix("/usr/")
+    }
+
+    /// Note laissée par une copie que l'utilisateur a quittée lui-même : le surveillant ne la rouvre pas.
+    static var noRelaunchFile: URL {
+        URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("FLShortcuts.norelaunch")
+    }
+    private static var watching = false
+
+    /// Surveillant posé quand l'app ouvre les Réglages pour une autorisation (une fois par lancement) : dès que cette
+    /// copie est partie, même fermée de force par macOS, il la rouvre (`open` : la lance, ou la met devant si macOS
+    /// l'a déjà relancée) ; pas si l'utilisateur l'a quittée (note `noRelaunchFile`), ni après 30 minutes.
+    static func watchForRelaunch() {
+        guard !watching, !DebugSnapshot.enabled else { return }
+        watching = true
+        try? FileManager.default.removeItem(at: noRelaunchFile)
+        let me = getpid()
+        relaunch(after: me, limit: 9_000, skipIfNoted: true)
+    }
+
+    /// Rouvre l'app une fois cette copie partie (60 s au plus).
     static func relaunchAfterQuit() {
+        relaunch(after: getpid(), limit: 300, skipIfNoted: false)
+    }
+
+    /// Attend que `pid` soit parti (`limit` tours de 0,2 s au plus), puis `open` sur l'app ; avec `skipIfNoted`, rien
+    /// si la note dit que l'utilisateur l'a quittée.
+    private static func relaunch(after pid: pid_t, limit: Int, skipIfNoted: Bool) {
+        // Seulement l'app elle-même (jamais les tests, ni un autre programme qui contiendrait ce code).
+        guard Bundle.main.bundleURL.pathExtension == "app",
+              Bundle.main.bundleIdentifier?.hasPrefix("app.flshortcut") == true else { return }
+        var script = "i=0; while /bin/kill -0 \(pid) 2>/dev/null; do /bin/sleep 0.2; i=$((i+1)); "
+        script += "[ $i -gt \(limit) ] && exit 0; done; "
+        if skipIfNoted { script += "[ \"$(/bin/cat \"$1\" 2>/dev/null)\" = \"\(pid)\" ] && exit 0; " }
+        script += "/bin/sleep 0.5; /usr/bin/open \"$0\""
         let task = Process()
         task.executableURL = URL(fileURLWithPath: "/bin/sh")
-        task.arguments = ["-c", "i=0; while /bin/kill -0 \(getpid()) 2>/dev/null && [ $i -lt 600 ]; do /bin/sleep 0.1; "
-                          + "i=$((i+1)); done; /usr/bin/open \"$0\"", Bundle.main.bundleURL.path]
+        task.arguments = ["-c", script, Bundle.main.bundleURL.path, noRelaunchFile.path]
         try? task.run()
+    }
+
+    /// Fermeture voulue par l'utilisateur (ou la fin de session) : le surveillant ne rouvre pas l'app.
+    static func noteNoRelaunch() {
+        try? Data("\(getpid())".utf8).write(to: noRelaunchFile, options: .atomic)
     }
 
     /// Vrai dès que le processus `pid` n'existe plus ; faux s'il est toujours là au bout de `timeout` secondes
@@ -218,16 +287,24 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var quitAsked: Date?
 
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
-        if Uninstaller.didUninstall { Uninstaller.quitAfterUninstall() }
+        if Uninstaller.didUninstall {
+            SingleInstance.noteNoRelaunch()
+            Uninstaller.quitAfterUninstall()
+        }
         // Une copie relancée (« Quitter et rouvrir ») attend celle-ci au lieu de partir (SingleInstance).
         SingleInstance.markQuitting()
         quitAsked = Date()
-        // « Quitter et rouvrir » de macOS : l'app quittait sans revenir (retour du propriétaire, deux fois) ; elle
-        // se relance elle-même une fois partie (si macOS l'a déjà fait, ça ne fait que la mettre devant).
-        let sender = SingleInstance.quitSender()
-        let bySettings = SingleInstance.isSettings(sender)
-        if bySettings { SingleInstance.relaunchAfterQuit() }
-        MacroLog.shared.write("QUIT", "asked by \(sender ?? "user")\(bySettings ? ", relaunch" : "")")
+        // « Quitter et rouvrir » de macOS : l'app quittait sans revenir (retour du propriétaire, trois fois) ; elle
+        // se relance elle-même une fois partie (si macOS l'a déjà fait, ça ne fait que la mettre devant). Quittée
+        // par l'utilisateur : le surveillant posé avec les Réglages ne la rouvre pas.
+        let quit = SingleInstance.quitSender()
+        let relaunch = SingleInstance.relaunches(quit)
+        if relaunch {
+            SingleInstance.relaunchAfterQuit()
+        } else {
+            SingleInstance.noteNoRelaunch()
+        }
+        MacroLog.shared.write("QUIT", "asked by \(quit?.label ?? "user")\(relaunch ? ", relaunch" : "")")
         return .terminateNow
     }
 

@@ -99,13 +99,32 @@ final class AppResumeTests: XCTestCase {
         XCTAssertFalse(SingleInstance.isQuitting(other - 1))
     }
 
-    /// « Quitter et rouvrir » vient de Réglages Système : l'app se relance elle-même ; quittée par l'utilisateur ou
-    /// une autre app : non.
+    /// « Quitter et rouvrir » vient de Réglages Système, ou de sa page « Confidentialité et sécurité » (une extension
+    /// à part, parfois sans nom d'app : retour du propriétaire, l'app ne revenait pas) : l'app se relance elle-même ;
+    /// quittée par l'utilisateur, la fin de session ou une autre app : non.
     func testOnlySystemSettingsAsksForARelaunch() {
+        typealias Sender = SingleInstance.QuitSender
         XCTAssertTrue(SingleInstance.isSettings("com.apple.systempreferences"))
         XCTAssertTrue(SingleInstance.isSettings("com.apple.Settings"))
-        XCTAssertFalse(SingleInstance.isSettings(nil), "⌘Q : pas de relance")
-        XCTAssertFalse(SingleInstance.isSettings("com.apple.loginwindow"), "fermeture de session : pas de relance")
+        XCTAssertTrue(SingleInstance.isSettings("com.apple.settings.PrivacySecurity.extension"))
+        XCTAssertFalse(SingleInstance.isSettings(nil))
+        XCTAssertTrue(SingleInstance.relaunches(Sender(bundle: "com.apple.systempreferences")))
+        XCTAssertTrue(SingleInstance.relaunches(Sender(bundle: nil,
+            path: "/System/Library/ExtensionKit/Extensions/SecurityPrivacyExtension.appex/Contents/MacOS/SecurityPrivacyExtension")))
+        XCTAssertTrue(SingleInstance.relaunches(Sender(bundle: nil, path: "/System/Library/PrivateFrameworks/TCC.framework/Support/tccd")))
+        XCTAssertTrue(SingleInstance.relaunches(Sender(bundle: nil, path: nil)), "envoyeur déjà parti")
+        XCTAssertFalse(SingleInstance.relaunches(nil), "⌘Q : pas de relance")
+        XCTAssertFalse(SingleInstance.relaunches(Sender(bundle: "com.apple.loginwindow",
+            path: "/System/Library/CoreServices/loginwindow.app/Contents/MacOS/loginwindow", sessionEnd: true)),
+                       "fin de session : pas de relance")
+        XCTAssertFalse(SingleInstance.relaunches(Sender(bundle: "com.apple.dock",
+            path: "/System/Library/CoreServices/Dock.app/Contents/MacOS/Dock")), "quittée depuis le Dock")
+        XCTAssertFalse(SingleInstance.relaunches(Sender(bundle: "com.apple.ActivityMonitor",
+            path: "/System/Applications/Utilities/Activity Monitor.app/Contents/MacOS/Activity Monitor")))
+        XCTAssertFalse(SingleInstance.relaunches(Sender(bundle: "com.raycast.macos",
+            path: "/Applications/Raycast.app/Contents/MacOS/Raycast")), "une autre app : pas de relance")
+        XCTAssertEqual(Sender(bundle: nil, path: "/System/Library/x/tccd").label, "tccd")
         XCTAssertNil(SingleInstance.quitSender(), "aucun événement « quit » en cours")
+        XCTAssertNotNil(SingleInstance.processPath(getpid()))
     }
 }

@@ -44,6 +44,7 @@ enum AudioCapturePermission: Equatable {
     static func request(_ done: @escaping (Bool) -> Void) -> Bool {
         typealias Request = @convention(c) (CFString, CFDictionary?, @convention(block) (Bool) -> Void) -> Void
         guard let tcc, let symbol = dlsym(tcc, "TCCAccessRequest") else { return false }
+        SingleInstance.watchForRelaunch()                // « Quitter et rouvrir » : l'app revient
         unsafeBitCast(symbol, to: Request.self)(service, nil) { granted in
             DispatchQueue.main.async { done(granted) }
         }

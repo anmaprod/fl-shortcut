@@ -212,3 +212,10 @@ entrée 1 ≈ 0,5 s.
     macOS ; sinon Arp, Pluck, Pad ou Lead d'après la forme du son ; rien de sûr : « Mélodie »), changeable dans l'aperçu.
   - Fenêtre de l'Organiser redimensionnable ; sa hauteur suit le contenu mesuré à chaque changement (elle restait
     grande après l'aperçu, le texte en haut) ; l'aperçu garde la hauteur qu'on lui donne.
+- « Quitter et rouvrir » ne rouvrait toujours pas (troisième retour). La relance ne se faisait que si la demande de
+  fermeture venait de l'app Réglages Système (identifiant « com.apple.systempreferences ») ; or la page
+  « Confidentialité et sécurité » est une extension à part (macOS 13 et plus), souvent sans identifiant d'app :
+  l'app quittait sans revenir. Maintenant : reconnue aussi par le chemin de son programme (« Settings »,
+  « Privacy », TCC, ou tout processus du système sans nom d'app), et un surveillant, posé dès que l'app ouvre les
+  Réglages pour une autorisation, la rouvre une fois partie, même fermée de force ; jamais après ⌘Q, le menu, le Dock
+  ou la fin de session. Le journal dit qui a demandé la fermeture (« QUIT asked by … »).

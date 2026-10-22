@@ -30,6 +30,7 @@ final class AccessibilityGuide: ObservableObject {
             // Inscrit FL Shortcuts dans la liste (décoché) : il ne reste qu'à l'activer.
             let options = [kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: false] as CFDictionary
             _ = AXIsProcessTrustedWithOptions(options)
+            SingleInstance.watchForRelaunch()           // « Quitter et rouvrir » : l'app revient
             if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") {
                 NSWorkspace.shared.open(url)
             }
