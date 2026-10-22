@@ -176,6 +176,8 @@ struct EditorView: View {
     @State private var editNotice: String? = nil
     @AppStorage(Appearance.glassKey) private var glassEnabled = true
     @AppStorage(InterfaceSound.key) private var interfaceSounds = true
+    /// Ce qui vole d'un endroit à l'autre de la fenêtre (FlightLayer), créateur compris.
+    @StateObject private var flights = FlightCenter()
     @Namespace private var glassNS
 
     private var trimmedQuery: String { query.trimmingCharacters(in: .whitespaces) }
@@ -219,6 +221,7 @@ struct EditorView: View {
                     .zIndex(0)
             }
         }
+        .flightLayer(flights)
         // Rien ne bouge dans cette fenêtre pendant que FL est devant (MotionPolicy) ; tout repart quand elle revient.
         .motionGate(.window)
         .onChange(of: creatorLink.request) { request in
