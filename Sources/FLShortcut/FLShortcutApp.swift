@@ -536,9 +536,9 @@ final class PauseIndicator {
             .sink { [weak self] enabled in self?.update(paused: !enabled) }
     }
 
-    /// Fondu d'entrée / de sortie (instantané si « Réduire les animations » est activé).
+    /// Fondu d'entrée / de sortie (court si « Réduire les animations » est activé).
     private func update(paused: Bool) {
-        let duration = Motion.reduce ? 0 : 0.22
+        let duration = Motion.reduce ? Motion.reducedDuration : Motion.appKitDuration
         wantsVisible = paused
         guard paused else {
             guard let p = panel, p.isVisible else { return }
@@ -798,8 +798,8 @@ private struct PanelItem: View {
                     .scaleEffect(panel.revealed || reduceMotion ? 1 : 0.35)
                     .rotationEffect(.degrees(panel.revealed || reduceMotion ? 0 : -25))
                     .animation(panel.revealed
-                               ? .spring(response: 0.5, dampingFraction: 0.58).delay(0.12 + Double(order) * 0.04)
-                               : .easeIn(duration: 0.12), value: panel.revealed)
+                               ? Motion.spring(.vif).delay(Motion.stagger(order, start: 0.12, step: 0.04))
+                               : Motion.exit, value: panel.revealed)
                 Text(title)
                 Spacer(minLength: 12)
                 if let shortcut {

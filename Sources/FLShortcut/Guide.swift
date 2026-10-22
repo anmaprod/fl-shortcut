@@ -334,7 +334,7 @@ struct GuideBackdrop: View {
                 }
             }
             .id(page)
-            .transition(.opacity.animation(.easeInOut(duration: 0.9 * DebugSnapshot.slowMotion)))
+            .transition(.opacity.animation(Motion.colorFlow))
         }
         .ignoresSafeArea()
         .allowsHitTesting(false)

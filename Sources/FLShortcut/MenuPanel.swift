@@ -61,10 +61,10 @@ final class MenuPanel: ObservableObject {
     func close() {
         guard let panel, panel.isVisible, !closing else { return }
         closing = true
-        let reduce = NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
+        let reduce = Motion.reduce
         // Les options repartent d'abord (MenuReveal), puis le panneau rentre dans l'icône.
-        let duration = reduce ? 0.12 : 0.36
-        withAnimation(reduce ? .easeIn(duration: 0.12) : .easeIn(duration: 0.22).delay(0.14)) { revealed = false }
+        let duration = reduce ? Motion.reducedDuration : 2 * Motion.exitDuration
+        withAnimation(reduce ? Motion.reduced : Motion.exit.delay(Motion.exitDuration)) { revealed = false }
         // La bulle (le fond du menu, dessiné par macOS) s'efface avec les options : elle restait seule au-dessus de
         // la fenêtre qu'une option venait d'ouvrir.
         NSAnimationContext.runAnimationGroup { context in
@@ -99,8 +99,7 @@ final class MenuPanel: ObservableObject {
 
     private func reveal() {
         panel?.alphaValue = 1                              // effacée à la dernière fermeture
-        let reduce = NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
-        withAnimation(reduce ? .easeOut(duration: 0.15) : .spring(response: 0.5, dampingFraction: 0.82)) {
+        withAnimation(Motion.reduce ? Motion.reduced : Motion.spring(.doux)) {
             revealed = true
         }
     }
@@ -190,7 +189,9 @@ extension View {
 private struct MenuReveal: ViewModifier {
     let revealed: Bool
     let index: Int?
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.accessibilityReduceMotion) private var reduceMotionSetting
+
+    private var reduceMotion: Bool { reduceMotionSetting && DebugSnapshot.slowMotion == 1 }
 
     func body(content: Content) -> some View {
         if reduceMotion {
@@ -204,8 +205,8 @@ private struct MenuReveal: ViewModifier {
                 .scaleEffect(revealed ? 1 : 0.94, anchor: .top)
                 .offset(y: revealed ? 0 : -12)
                 .animation(revealed
-                           ? .spring(response: 0.46, dampingFraction: 0.8).delay(0.06 + Double(index) * 0.035)
-                           : .easeIn(duration: 0.16).delay(Double(max(0, 10 - index)) * 0.012), value: revealed)
+                           ? Motion.spring(.doux).delay(Motion.stagger(index))
+                           : Motion.exit.delay(Motion.stagger(10 - index, start: 0, step: 0.012)), value: revealed)
         } else {
             // Le panneau : sort de l'icône, du flou au net, en grandissant depuis le haut.
             content

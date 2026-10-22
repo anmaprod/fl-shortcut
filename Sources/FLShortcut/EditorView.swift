@@ -175,6 +175,7 @@ struct EditorView: View {
     /// Annonce affichée en tête de la fiche quand on doit choisir une nouvelle touche pour un autre raccourci.
     @State private var editNotice: String? = nil
     @AppStorage(Appearance.glassKey) private var glassEnabled = true
+    @AppStorage(InterfaceSound.key) private var interfaceSounds = true
     @Namespace private var glassNS
 
     private var trimmedQuery: String { query.trimmingCharacters(in: .whitespaces) }
@@ -218,6 +219,8 @@ struct EditorView: View {
                     .zIndex(0)
             }
         }
+        // Rien ne bouge dans cette fenêtre pendant que FL est devant (MotionPolicy) ; tout repart quand elle revient.
+        .motionGate(.window)
         .onChange(of: creatorLink.request) { request in
             guard request != nil, macroEditor == nil else { return }    // déjà affiché : il passe à cette macro
             enterCreator()
@@ -905,9 +908,12 @@ struct EditorView: View {
                 })
             }
             entries.append(.item(String(localized: "Tout réinitialiser…"), symbol: "arrow.counterclockwise", tint: .orange) { resetAll() })
+            entries.append(.separator)
             if Appearance.glassAvailable {
-                entries += [.separator, .toggle(String(localized: "Effet Liquid Glass"), symbol: "drop", tint: .cyan, isOn: $glassEnabled)]
+                entries.append(.toggle(String(localized: "Effet Liquid Glass"), symbol: "drop", tint: .cyan, isOn: $glassEnabled))
             }
+            entries.append(.toggle(String(localized: "Sons de l'interface"), symbol: "speaker.wave.2", tint: .pink,
+                                   isOn: $interfaceSounds))
             entries += [.separator,
                         .item(String(localized: "Désinstaller FL Shortcuts…"), symbol: "trash", tint: .red) { Uninstaller.confirmAndRun() }]
             return entries

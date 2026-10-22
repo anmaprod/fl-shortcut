@@ -157,7 +157,8 @@ private struct AccessibilityGuideView: View {
         }
         .padding(18)
         .frame(width: 360, alignment: .leading)
-        .animation(Motion.quickMorph, value: guide.stage)
+        .motion(Motion.quickMorph, value: guide.stage)
+        .motionGate(.guide)                     // toujours vivant : les Réglages de macOS sont devant
     }
 
     /// Les deux autorisations demandées ensemble, cochées une à une.

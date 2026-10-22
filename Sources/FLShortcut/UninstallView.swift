@@ -383,8 +383,8 @@ struct SuccessMark: View {
                 drawn = true
                 return
             }
-            withAnimation(.spring(response: 0.45, dampingFraction: 0.62)) { grown = true }
-            withAnimation(.easeOut(duration: 0.32).delay(0.28)) { drawn = true }
+            withAnimation(Motion.spring(.vif)) { grown = true }
+            withAnimation(Motion.spring(.doux).delay(Motion.stagger(0, start: 0.28))) { drawn = true }
         }
     }
 }

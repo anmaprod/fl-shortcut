@@ -971,7 +971,16 @@ enum OrganizerWindow {
             frame.origin.y = max(frame.origin.y, screen.minY)
             if frame.maxY > screen.maxY { frame.origin.y = screen.maxY - frame.height }
         }
-        panel.setFrame(frame, display: true, animate: panel.isVisible && !Motion.reduce)
+        guard panel.isVisible, !Motion.reduce else {
+            panel.setFrame(frame, display: true)
+            return
+        }
+        // Courbe d'AppKit, durée du moteur (ralentie en capture) ; sans bloquer comme `setFrame(_:display:animate:)`.
+        NSAnimationContext.runAnimationGroup { context in
+            context.duration = Motion.appKitDuration
+            context.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
+            panel.animator().setFrame(frame, display: true)
+        }
     }
 
     /// Depuis la vue : après sa mise à jour (la fenêtre ne change pas de taille au milieu d'un dessin de SwiftUI).
@@ -1067,6 +1076,7 @@ struct OrganizerView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .background { TintGlow(tint: Self.tint) }
         .motion(Motion.morph, value: stepKey)
+        .motionGate(.organiser)                 // toujours vivant : il travaille pendant que FL est devant
     }
 
     private var header: some View {
@@ -1499,6 +1509,7 @@ private struct OrganizerHoverCard: ViewModifier {
     func body(content: Content) -> some View {
         content
             .background(OrganizerCard(tint: tint, hovered: hovered))
+            .glassHighlight(cornerRadius: 14)
             .scaleEffect(hovered && !reduceMotion ? 1.015 : 1)
             .shadow(color: tint.opacity(hovered ? 0.25 : 0), radius: hovered ? 12 : 0, y: hovered ? 4 : 0)
             .onHover { inside in

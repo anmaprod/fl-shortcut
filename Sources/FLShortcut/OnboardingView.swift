@@ -76,7 +76,7 @@ final class OnboardingWindow {
         guard let w = window else { return }
         window = nil
         NSAnimationContext.runAnimationGroup({ context in
-            context.duration = 0.45
+            context.duration = Motion.reduce ? Motion.reducedDuration : Motion.appKitDuration
             context.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
             w.animator().alphaValue = 0
         }, completionHandler: {

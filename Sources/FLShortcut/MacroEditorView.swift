@@ -192,9 +192,9 @@ private struct MacroStepsPane: View {
         }
     }
 
-    /// Ressort court et sans rebond visible, façon Apple : les lignes s'écartent pour le bloc ajouté, glissent quand
-    /// on les range, se resserrent quand on en supprime. Seulement au moment du changement : rien ne tourne au repos.
-    static let spring = Animation.spring(response: 0.32, dampingFraction: 0.86)
+    /// Ressort vif du moteur, façon Apple : les lignes s'écartent pour le bloc ajouté, glissent quand on les range, se
+    /// resserrent quand on en supprime. Seulement au moment du changement : rien ne tourne au repos.
+    static var spring: Animation { Motion.spring(.vif) }
 
     private var list: some View {
         List(selection: $model.selection) {

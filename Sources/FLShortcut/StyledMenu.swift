@@ -166,8 +166,8 @@ private struct StyledMenuRow: View {
                     .scaleEffect(revealed || reduceMotion ? 1 : 0.35)
                     .rotationEffect(.degrees(revealed || reduceMotion ? 0 : -25))
                     .animation(revealed
-                               ? .spring(response: 0.5, dampingFraction: 0.58).delay(0.12 + Double(order) * 0.04)
-                               : .easeIn(duration: 0.12), value: revealed)
+                               ? Motion.spring(.vif).delay(Motion.stagger(order, start: 0.12, step: 0.04))
+                               : Motion.exit, value: revealed)
                 Text(entry.title)
                     .lineLimit(1)
                 Spacer(minLength: 12)
