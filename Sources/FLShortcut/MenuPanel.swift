@@ -89,6 +89,11 @@ final class MenuPanel: ObservableObject {
         if pill != pillFrame { pillFrame = pill }
     }
 
+    /// Cadre de l'icône à l'écran, maintenant (départ et arrivée des fenêtres : WindowLauncher).
+    func iconFrameNow() -> CGRect? {
+        statusButton?.window?.frame
+    }
+
     /// Commande de la CI : un clic sur l'icône (ouvre ou ferme le menu, comme la souris).
     func clickIcon() {
         statusButton?.performClick(nil)

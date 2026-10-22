@@ -942,6 +942,10 @@ enum OrganizerWindow {
             adapt(height: first.height, preview: first.preview)
         }
         p.center()
+        // Sort de la ligne cliquée (ou de l'icône) : invisible jusqu'à ce que la bulle se pose (WindowLauncher).
+        WindowLauncher.shared.open(source: nil, icon: .icon(symbol: "square.stack.3d.up", tint: OrganizerView.tint,
+                                                             size: 22),
+                                   title: String(localized: "Organiser"), window: p)
         p.orderFrontRegardless()
         if start { controller.start() }
     }
@@ -1004,6 +1008,7 @@ enum OrganizerWindow {
         pending = nil
         c?.close()
         p.delegate = nil
+        WindowLauncher.shared.userClosed(p)            // rentre dans l'icône (contrôleur déjà lâché)
         p.orderOut(nil)
         p.contentView = nil
         CreatorPresence.releaseMemory()

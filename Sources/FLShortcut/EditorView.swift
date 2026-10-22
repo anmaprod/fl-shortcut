@@ -232,7 +232,10 @@ struct EditorView: View {
         // Fenêtre fermée pendant le créateur : brouillon enregistré, modèle lâché (rien ne reste en mémoire).
         .onDisappear { closeCreator() }
         // Reprise après « Quitter et rouvrir » : la fenêtre, sa page et la macro ouverte sont notées à la fermeture.
-        .background(WindowReader { AppResume.shared.editorWindow = $0 })
+        .background(WindowReader {
+            AppResume.shared.editorWindow = $0
+            WindowLauncher.shared.remember($0, key: EditorWindowFrame.key)   // cadre visé par la bulle, fermeture
+        })
         .onChange(of: selection) { AppResume.shared.page = $0 }
         .sheet(isPresented: $showGuide, onDismiss: { guideSeen = true }) {
             GuideSheet(initialPage: guidePage) { showGuide = false }

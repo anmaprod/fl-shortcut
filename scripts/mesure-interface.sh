@@ -241,6 +241,17 @@ run() {   # $1 : libellé, $2 : YES/NO effet verre
       sleep 0.5; screencapture -x "$OUT/menu-fermeture-$i.png" 2>/dev/null || true
     done
     sleep 8
+    # Organiser au ralenti : il sort d'un cadre d'exemple au milieu de l'écran, puis rentre dans l'icône en se fermant.
+    "$POST" app.flshortcut.debug.vol "organiser lent"
+    for i in 1 2 3 4 5 6 7 8; do
+      sleep 0.5; screencapture -x "$OUT/vol-organiser-$i.png" 2>/dev/null || true
+    done
+    sleep 4
+    "$POST" app.flshortcut.debug.organizer fermer
+    for i in 1 2 3 4; do
+      sleep 0.7; screencapture -x "$OUT/vol-organiser-fermeture-$i.png" 2>/dev/null || true
+    done
+    sleep 8
     # Changement de page au ralenti (10 fois) : Général → Mixer, photographié en route (barre au-dessus du titre ?).
     "$POST" app.flshortcut.debug.select general; sleep 2
     "$POST" app.flshortcut.debug.select "mixer lent"
@@ -262,6 +273,13 @@ run() {   # $1 : libellé, $2 : YES/NO effet verre
     done
     sleep 5
     "$POST" app.flshortcut.debug.macro close; sleep 1
+    # Fenêtre principale au ralenti : fermée, puis elle ressort d'un cadre d'exemple et s'ouvre à son cadre mémorisé.
+    "$POST" app.flshortcut.debug.vol "editeur lent"
+    for i in 1 2 3 4 5 6 7 8; do
+      sleep 0.6; screencapture -x "$OUT/vol-editeur-$i.png" 2>/dev/null || true
+    done
+    sleep 12
+    "$POST" app.flshortcut.debug.open; sleep 2
     "$POST" app.flshortcut.debug.select macros; sleep 2
   fi
   # Témoin : aucun modèle du créateur avant sa première ouverture (fenêtres : toutes, et visibles seulement).

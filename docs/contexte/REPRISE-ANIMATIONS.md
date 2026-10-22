@@ -23,7 +23,8 @@ toute la branche à la fin (agent le plus capable, avec la « Review Focus » du
 | 1 Moteur de mouvement | Commit 541d81c. CI : compilation, « Tests Swift » et « Textes en anglais » verts. Mesures, captures et essais pas encore lus : relire la CI du dernier commit. |
 | 2 Couche de vol | Commit 86761da. CI à lire (compilation + `FlightLayerTests`). |
 | 3 Menu de l'icône en bulle | Codée (`MenuBubble.swift`, `MenuPanel.swift`, commande CI `menu`, `MenuBubbleTests`), poussée avec les tâches 1 et 2 : une seule CI vérifie les trois. Reste l'étape 7 ci-dessous (vérifier les images et l'arbre des vues). |
-| 4 à 9 | Pas commencées. Suivre le plan tel quel. |
+| 4 Fenêtres qui sortent du clic | Codée (`WindowLauncher.swift`, lignes du menu, Organiser, accueil, désinstallation, guide des autorisations, cadre mémorisé de la fenêtre principale, commande CI `vol`, `WindowLauncherTests`), poussée avec 1 à 3. À vérifier : images `vol-organiser-*`, `vol-organiser-fermeture-*`, `vol-editeur-*` (bulle du cadre d'exemple au cadre de la fenêtre, puis vers l'icône), aucune fenêtre de vol dans les captures de repos, mémoire + 5 Mo au plus. |
+| 5 à 9 | Pas commencées. Suivre le plan tel quel. |
 
 ### À vérifier sur la CI pour les tâches 1 et 2 (avant d'aller plus loin)
 
@@ -65,9 +66,14 @@ l'icône ferme la fenêtre.
 - `WaitingPulse` (Organiser, animation sans fin) laissé : la tâche 8 le retire ; c'est la seule valeur en dur restante
   (vérification : `grep -rn "spring(response\|easeInOut(duration\|easeIn(duration\|easeOut(duration" Sources/FLShortcut`
   ne doit renvoyer que `MotionEngine.swift`, la section Motion de `GlassStyle.swift` et ce `WaitingPulse`).
+- Fenêtres (tâche 4) : un seul vol à la fois ; une ouverture de la fenêtre principale en attente est toujours faite
+  (même si le vol est arrêté) ; `open(window:)` est appelé juste AVANT de montrer la fenêtre (elle reste à
+  `alphaValue = 0` jusqu'à 85 % du vol, puis fondu) ; départ = dernier clic d'une ligne du menu (moins d'1 s,
+  `WindowLauncher.clicked`) sinon l'icône ; fermeture par l'app = `quietClose` (fin de l'accueil, captures CI de
+  l'accueil, commande `vol editeur`) ; l'accueil photographié par la CI s'ouvre sans vol (`show(fly: false)`).
 - Couche de vol : la sonde AppKit (`FlightProbeView`) ne répond jamais à la souris (`hitTest` → nil) : aucun clic ni
   dépôt volé ; `cancelAll()` à la fermeture de la fenêtre appelle la fin de chaque vol.
-- La limite de la session approchant, les tâches 1, 2 et 3 ont été poussées sans attendre leurs CI une à une : la CI
+- La limite de la session approchant, les tâches 1 à 4 ont été poussées sans attendre leurs CI une à une : la CI
   du dernier commit les vérifie ensemble (lire « Tests Swift », puis les captures de chacune).
 
 ## Façon de travailler (apprise ici)

@@ -174,6 +174,8 @@ final class UninstallWindow: NSObject, NSWindowDelegate {
         w.isReleasedWhenClosed = false
         w.center()
         window = w
+        WindowLauncher.shared.open(source: nil, icon: .icon(symbol: "trash", tint: .red, size: 22),
+                                   title: String(localized: "Désinstaller FL Shortcuts"), window: w)
         w.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
     }

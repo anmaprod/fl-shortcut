@@ -104,6 +104,8 @@ final class AccessibilityGuide: ObservableObject {
             let f = screen.visibleFrame
             p.setFrameOrigin(NSPoint(x: f.maxX - p.frame.width - 24, y: f.minY + 24))
         }
+        WindowLauncher.shared.open(source: nil, icon: .icon(symbol: "lock.open", tint: .orange, size: 22), title: nil,
+                                   window: p)
         p.orderFrontRegardless()
         panel = p
     }

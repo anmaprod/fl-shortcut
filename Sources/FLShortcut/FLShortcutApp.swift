@@ -657,8 +657,7 @@ struct MenuContent: View {
                 // La page Aide, le formulaire prêt avec ce message d'erreur et le journal de la macro.
                 PanelItem(symbol: "exclamationmark.bubble", title: String(localized: "Signaler ce problème…"), tint: .orange, order: 1) {
                     HelpLink.shared.report("Macro : " + macro.text)
-                    openWindow(id: "editor")
-                    NSApp.activate(ignoringOtherApps: true)
+                    openEditor(symbol: "exclamationmark.bubble", tint: .orange, title: String(localized: "Signaler ce problème…"))
                 }
             }
 
@@ -680,14 +679,12 @@ struct MenuContent: View {
                 }
             }
             PanelItem(symbol: "keyboard", title: String(localized: "Modifier les raccourcis…"), tint: .blue, order: 3) {
-                openWindow(id: "editor")
-                NSApp.activate(ignoringOtherApps: true)
+                openEditor(symbol: "keyboard", tint: .blue, title: String(localized: "Modifier les raccourcis…"))
             }
             PanelItem(symbol: SidebarItem.macros.symbol, title: String(localized: "Macros…"), tint: SidebarItem.macros.tint,
                       order: 4) {
                 MacrosLink.shared.show()
-                openWindow(id: "editor")
-                NSApp.activate(ignoringOtherApps: true)
+                openEditor(symbol: SidebarItem.macros.symbol, tint: SidebarItem.macros.tint, title: String(localized: "Macros…"))
             }
             PanelItem(symbol: "square.stack.3d.up", title: String(localized: "Organiser…"),
                       tint: OrganizerView.tint, order: 5) { OrganizerWindow.open() }
@@ -719,6 +716,16 @@ struct MenuContent: View {
         .menuBubble(panel)
         .background(WindowReader { MenuPanel.shared.attach($0) })
         .onAppear { MenuPanel.shared.appeared() }
+    }
+
+    /// Fenêtre principale : elle sort de la ligne cliquée (WindowLauncher), `openWindow` à l'atterrissage.
+    private func openEditor(symbol: String, tint: Color, title: String) {
+        WindowLauncher.shared.openScene(source: nil, icon: .icon(symbol: symbol, tint: tint, size: 22), title: title,
+                                        frameKey: EditorWindowFrame.key, size: EditorWindowFrame.size,
+                                        window: AppResume.shared.editorWindow) {
+            openWindow(id: "editor")
+            NSApp.activate(ignoringOtherApps: true)
+        }
     }
 
     private var dotColor: Color {
@@ -782,6 +789,8 @@ private struct PanelItem: View {
     var order = 0
     let action: () -> Void
     @State private var hovering = false
+    /// Vue de la ligne, pour son cadre à l'écran au clic : la fenêtre ouverte en sort (WindowLauncher).
+    @State private var frameBox = ScreenFrameBox()
     @ObservedObject private var panel = MenuPanel.shared
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
@@ -791,6 +800,7 @@ private struct PanelItem: View {
         Button {
             // L'action d'abord (une fenêtre qui s'ouvre prend la main), puis le menu se ferme : la fenêtre ouverte
             // reste devant (MenuPanel).
+            WindowLauncher.shared.clicked(frameBox.screenFrame)
             action()
             MenuPanel.shared.close()
         } label: {
@@ -811,6 +821,7 @@ private struct PanelItem: View {
             .padding(.horizontal, 8)
             .frame(height: 34)
             .contentShape(shape)
+            .background(ScreenFrameProbe(box: frameBox))
             .background {
                 shape.fill(Color.primary.opacity(hovering ? 0.085 : 0))
                     .overlay(shape.strokeBorder(tint.opacity(hovering ? 0.6 : 0), lineWidth: hovering ? 1.5 : 1))
