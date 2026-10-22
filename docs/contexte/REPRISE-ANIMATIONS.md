@@ -20,12 +20,12 @@ toute la branche à la fin (agent le plus capable, avec la « Review Focus » du
 
 | Tâche | État |
 |---|---|
-| 1 Moteur de mouvement | Commit 541d81c. CI : « Tests Swift » verts avec les tâches 1 à 4 (run 39869965561). Mesures, captures et essais pas encore lus : relire la CI du dernier commit. |
+| 1 Moteur de mouvement | Commit 541d81c. CI : « Tests Swift », compilation universelle et textes anglais verts avec les tâches 1 à 5 (run 39870476151). Mesures, captures et essais pas encore lus : relire la CI du dernier commit. |
 | 2 Couche de vol | Commit 86761da. CI à lire (compilation + `FlightLayerTests`). |
 | 3 Menu de l'icône en bulle | Codée (`MenuBubble.swift`, `MenuPanel.swift`, commande CI `menu`, `MenuBubbleTests`), poussée avec les tâches 1 et 2 : une seule CI vérifie les trois. Reste l'étape 7 ci-dessous (vérifier les images et l'arbre des vues). |
 | 4 Fenêtres qui sortent du clic | Codée (`WindowLauncher.swift`, lignes du menu, Organiser, accueil, désinstallation, guide des autorisations, cadre mémorisé de la fenêtre principale, commande CI `vol`, `WindowLauncherTests`), poussée avec 1 à 3. À vérifier : images `vol-organiser-*`, `vol-organiser-fermeture-*`, `vol-editeur-*` (bulle du cadre d'exemple au cadre de la fenêtre, puis vers l'icône), aucune fenêtre de vol dans les captures de repos, mémoire + 5 Mo au plus. |
 | 5 Pages et listes | Codée (icône de la barre latérale qui vole jusqu'à l'en-tête `PageHeader`, page qui arrive sans glisser, listes et recherche qui glissent via `withListAnimation`, chiffres qui défilent dans `PageHeader`, `ListMotionTests`). À vérifier : `page-change-*` (l'icône vole, pas de titre en double). |
-| 6 Cartes au lieu des feuilles | Commencée : `CardPresenter.swift` ne contient que la file pure (`CardKind`, `CardRequest`, `CardQueue`) et `CardPresenterTests`. Reste tout le reste de la tâche 6 du plan : `CardPresenter` (ObservableObject), `cardHost` (voile, carte qui sort de la ligne, vraie modale, `.closable` retiré, sons), `cardDismiss`, remplacement de chaque `.sheet` listé, vols du nom et de la touche, commande CI `carte`. |
+| 6 Cartes au lieu des feuilles | Codée (`CardPresenter.swift` : file, présentateur, hôte `cardHost` avec voile, carte de verre qui sort de la ligne cliquée — sondes `ligne.<id>` et `partage.<id>` — et y retourne, vraie modale, fenêtre non fermable pendant une carte, sons ; `cardDismiss` remplace `dismiss` ; guide, fiche d'un raccourci, touche d'une action de FL, modèles, fiche/partage/signalement de la Communauté). Pas fait : vols du nom et de la touche jusqu'en haut de la fiche, focus posé dans la carte, commande CI `carte` (les captures `communaute-detail/partager/signaler` montrent déjà des cartes). À vérifier sur la CI : ces captures, et la fenêtre de 480 de haut. |
 | 7 à 9 | Pas commencées. Suivre le plan tel quel. |
 
 ### À vérifier sur la CI pour les tâches 1 et 2 (avant d'aller plus loin)
@@ -75,7 +75,7 @@ l'icône ferme la fenêtre.
   l'accueil, commande `vol editeur`) ; l'accueil photographié par la CI s'ouvre sans vol (`show(fly: false)`).
 - Couche de vol : la sonde AppKit (`FlightProbeView`) ne répond jamais à la souris (`hitTest` → nil) : aucun clic ni
   dépôt volé ; `cancelAll()` à la fermeture de la fenêtre appelle la fin de chaque vol.
-- La limite de la session approchant, les tâches 1 à 5 ont été poussées sans attendre leurs CI une à une : la CI
+- La limite de la session approchant, les tâches 1 à 6 ont été poussées sans attendre leurs CI une à une : la CI
   du dernier commit les vérifie ensemble (lire « Tests Swift », puis les captures de chacune).
 
 ## Façon de travailler (apprise ici)

@@ -32,6 +32,7 @@ struct MacroLibraryPage: View {
     let open: (UUID) -> Void
     let toast: (ToastMessage) -> Void
     @State private var showTemplates = false
+    @Environment(\.cardPresenter) private var cards
 
     var body: some View {
         Group {
@@ -64,10 +65,14 @@ struct MacroLibraryPage: View {
                 .glassListBackground()
             }
         }
-        .sheet(isPresented: $showTemplates) {
-            MacroTemplatesSheet(templates: MacroTemplates.gallery(layout: store.layout)) { template in
-                use(template)
-            }
+        // Modèles en carte (sortie du centre) ; hors de la fenêtre principale (aucune carte possible), rien.
+        .onChange(of: showTemplates) { open in
+            guard open else { return }
+            guard let cards else { showTemplates = false; return }
+            let gallery = MacroTemplates.gallery(layout: store.layout)
+            cards.present(CardRequest(kind: .templates, source: nil,
+                                      content: { AnyView(MacroTemplatesSheet(templates: gallery) { use($0) }) },
+                                      onClose: { showTemplates = false }))
         }
     }
 
@@ -344,7 +349,7 @@ final class MacrosLink: ObservableObject {
 struct MacroTemplatesSheet: View {
     let templates: [MacroTemplate]
     let choose: (MacroTemplate) -> Void
-    @Environment(\.dismiss) private var dismiss
+    @Environment(\.cardDismiss) private var dismiss
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {

@@ -7,7 +7,7 @@
   sans demande. Derniers tests Mac verts : commit 1843b87 (502 tests, lancés par le propriétaire sur son Mac) ; CI
   entièrement verte sur 0c18d51 (512 tests, tous les essais PASS, mémoire 15 / 54 Mo). La lecture de GitHub (CI,
   artefacts, images) marche : vérifier chaque push dessus.
-- **Chantier en cours : animations « morph » (tâches 1 à 5 sur 9 codées, 6 commencée ; tests Swift verts sur 1 à 4, captures à vérifier). Avant tout, lire
+- **Chantier en cours : animations « morph » (tâches 1 à 6 sur 9 codées ; tests Swift verts sur 1 à 5, captures à vérifier). Avant tout, lire
   `docs/contexte/REPRISE-ANIMATIONS.md`** (état exact, décisions, ce qui reste, façon de vérifier sur la CI).
 - Tout texte affiché doit avoir son anglais (la CI échoue sinon) : `python3 scripts/localisation.py generer trad.json`.
 - Historique, décisions et échecs : `docs/contexte/HISTORIQUE.md` ; lien avec FL (script v16) : `PROTOCOL.md`.

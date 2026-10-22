@@ -57,6 +57,7 @@ struct CommunityPage: View {
     /// Fiche ouverte (lecture avant d'ajouter).
     @State private var opened: Share?
     @State private var reporting: Share?
+    @Environment(\.cardPresenter) private var cards
 
     var body: some View {
         Group {
@@ -76,30 +77,44 @@ struct CommunityPage: View {
         }
         .softSwitch(!community.isConfigured ? 0 : community.session == nil ? 1 : 2)
         .task { await community.open() }
-        .sheet(item: $opened) { share in
-            CommunityShareDetail(community: community, store: store, share: share, added: toast,
-                                 report: { reportLater(share) })
+        // Fiches en cartes : la fiche d'un partage sort de sa carte dans la liste ; partager et signaler sortent du
+        // centre. Hors de la fenêtre principale (aucune carte possible), la demande est oubliée.
+        .onChange(of: opened?.id) { _ in
+            guard let share = opened else { return }
+            guard let cards else { opened = nil; return }
+            cards.present(CardRequest(kind: .communityShare(share), source: "partage.\(share.id)",
+                                      content: {
+                                          AnyView(CommunityShareDetail(community: community, store: store, share: share,
+                                                                       added: toast, report: { reportLater(share) }))
+                                      },
+                                      onClose: { if opened?.id == share.id { opened = nil } }))
         }
-        .background {
-            // Feuilles posées sur des vues différentes : une seule par vue, comme le veut SwiftUI.
-            Color.clear
-                .sheet(isPresented: $community.composing) {
-                    CommunityPublishSheet(community: community, library: store.library,
-                                          profile: { try? store.exportData() })
-                }
-                .sheet(item: $reporting) { share in
-                    CommunityReportSheet(community: community, share: share)
-                }
+        .onChange(of: community.composing) { composing in
+            guard composing else { return }
+            guard let cards else { community.composing = false; return }
+            cards.present(CardRequest(kind: .communityCompose, source: nil,
+                                      content: {
+                                          AnyView(CommunityPublishSheet(community: community, library: store.library,
+                                                                        profile: { try? store.exportData() }))
+                                      },
+                                      onClose: { community.composing = false }))
+        }
+        .onChange(of: reporting?.id) { _ in
+            guard let share = reporting else { return }
+            guard let cards else { reporting = nil; return }
+            cards.present(CardRequest(kind: .communityReport(share), source: nil,
+                                      content: { AnyView(CommunityReportSheet(community: community, share: share)) },
+                                      onClose: { if reporting?.id == share.id { reporting = nil } }))
         }
         .onReceive(DebugSnapshot.publisher(DebugSnapshot.community)) { note in
             showCapture(note.object as? String ?? "")
         }
     }
 
-    /// « Signaler… » depuis la fiche : la fiche se ferme, puis la feuille du signalement s'ouvre.
+    /// « Signaler… » depuis la fiche : la fiche se ferme, puis la carte du signalement s'ouvre (la file attend la
+    /// fin de la fermeture).
     private func reportLater(_ share: Share) {
-        opened = nil
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) { reporting = share }
+        reporting = share
     }
 
     private func delete(_ share: Share) async {
@@ -111,6 +126,7 @@ struct CommunityPage: View {
 
     /// Mode capture (mesure de la CI) : chaque écran de la page, avec des exemples et sans réseau.
     private func showCapture(_ screen: String) {
+        cards?.reset()
         opened = nil
         reporting = nil
         community.composing = false
@@ -247,6 +263,7 @@ private struct CommunityBrowse: View {
                                               Task { await community.showAuthor(of: share) }
                                           },
                                           open: { open(share) }, report: { report(share) }, delete: { delete(share) })
+                            .frameProbe("partage.\(share.id)")      // sa fiche en sort
                             .cardRow(.position(index: index, count: community.shares.count), hover: SidebarItem.community.tint)
                     }
                 }
@@ -541,7 +558,7 @@ private struct CommunityShareDetail: View {
     let share: Share
     let added: (ToastMessage) -> Void
     let report: () -> Void
-    @Environment(\.dismiss) private var dismiss
+    @Environment(\.cardDismiss) private var dismiss
     @State private var content = Content.loading
 
     enum Content {
@@ -946,7 +963,7 @@ private struct CommunityPublishSheet: View {
     @ObservedObject var community: CommunityStore
     @ObservedObject var library: MacroLibraryStore
     let profile: () -> Data?
-    @Environment(\.dismiss) private var dismiss
+    @Environment(\.cardDismiss) private var dismiss
     @State private var kind = ShareKind.macro
     @State private var macroID: UUID?
     @State private var title = ""
@@ -1108,7 +1125,7 @@ private struct CommunityPublishSheet: View {
 private struct CommunityReportSheet: View {
     @ObservedObject var community: CommunityStore
     let share: Share
-    @Environment(\.dismiss) private var dismiss
+    @Environment(\.cardDismiss) private var dismiss
     @State private var reason = Reason.danger
     @State private var details = ""
 
