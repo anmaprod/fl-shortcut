@@ -189,7 +189,24 @@ struct OrganizerPlan: Equatable {
                 // Analyse sur le fichier : chaque clip ira, dans la copie rangée, sur la piste de ses sons (les mêmes
                 // sons, la même piste), les pistes déjà dans l'ordre des familles ; rien à descendre ni à remonter dans
                 // FL. Les pistes perdent leur ancien nom dans la copie : elles sont nommées d'après ce qui y joue.
-                if let layout = PlaylistLayout.make(project.clips, group: { project.groups[$0.item] ?? .silent(0) },
+                // Voix (projets de voix enregistrées du propriétaire : « tout sur la même ligne ») : les clips d'une même
+                // sorte de voix (Voix lead, Back, Ambiance…) sur une seule piste, ceux qui se chevauchent juste dessous.
+                func vocalKind(_ sounds: Set<Int>) -> SoundKind?? {
+                    let verdicts = sounds.sorted().compactMap(verdict)
+                    guard !sounds.isEmpty, verdicts.count == sounds.count, verdicts.allSatisfy({ $0.family == .vocals })
+                    else { return nil }
+                    return .some(groupVerdict(verdicts)?.kind)
+                }
+                var lines: [SoundKind?: Set<Int>] = [:]
+                for case .sounds(let sounds) in project.groups.values {
+                    if let kind = vocalKind(sounds) { lines[kind, default: []].formUnion(sounds) }
+                }
+                func line(_ group: PlaylistLayout.Group) -> PlaylistLayout.Group {
+                    guard case .sounds(let sounds) = group, let kind = vocalKind(sounds), let all = lines[kind]
+                    else { return group }
+                    return .sounds(all)
+                }
+                if let layout = PlaylistLayout.make(project.clips, group: { line(project.groups[$0.item] ?? .silent(0)) },
                                                     key: key, trackCount: project.trackCount) {
                     plan.layout = layout
                     var listed: [Int: PlaylistTrackInfo] = [:]

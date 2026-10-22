@@ -770,6 +770,22 @@ final class OrganizerSessionTests: XCTestCase {
         XCTAssertEqual(DrumKind.allCases.map(\.sound.family), Array(repeating: .drums, count: DrumKind.allCases.count))
     }
 
+    /// Voix enregistrées dans FL (projets du propriétaire : rangées en Mélodies, FX et Drums à l'écoute) : reconnues à
+    /// leur nom ; lead, back et ambiance d'après les mots d'un nom de voix.
+    func testRecordedVocalsAndVocalLayers() {
+        XCTAssertEqual(SoundNames.kind(of: "untitled_2026-10-15 23-37-42_Insert 5"), .vocal)
+        XCTAssertEqual(SoundNames.kind(of: "Kick Prod_2026-10-15 23-37-42_Insert 3"), .vocal, "le nom du projet ne compte pas")
+        XCTAssertEqual(SoundNames.kind(of: "number one_2026-10-15 23-37-42_Back"), .backing)
+        XCTAssertEqual(SoundNames.kind(of: "Lead Vox"), .vocalLead)
+        XCTAssertEqual(SoundNames.kind(of: "Lead"), .lead, "sans mot de voix : une mélodie")
+        XCTAssertEqual(SoundNames.kind(of: "Backs"), .backing)
+        XCTAssertEqual(SoundNames.kind(of: "Vocal Ambiance"), .ambiance)
+        XCTAssertNil(SoundNames.kind(of: "Ambiance"), "sans mot de voix : rien de sûr")
+        XCTAssertEqual(SoundNames.kind(of: "Adlib Vox"), .adlib)
+        XCTAssertEqual(SoundFamily.vocals.kinds, [.vocalLead, .backing, .ambiance, .adlib, .choir, .vocal])
+        XCTAssertTrue(SoundNames.isGenerated("Voix lead 2"))
+    }
+
     /// Analyse sur le fichier du projet (retour du propriétaire, vidéo du 21/10 : des mélodies classées « FX », des
     /// patterns oubliés) : FL enregistre le projet, les sons de chaque pattern et de chaque piste viennent de ses notes
     /// et de ses clips. Ni pattern relevé, ni chanson jouée, ni piste écoutée ; rien n'est retiré de FL avant.
@@ -835,11 +851,12 @@ final class OrganizerSessionTests: XCTestCase {
         let files = ProjectFileAccess(save: { _ in .success(URL(fileURLWithPath: "/projets/Mon son.flp")) },
                                       open: { _ in false }, read: { _ in FLPSample.sample() })
         let session = OrganizerSession(link: link, audio: audio, classify: classify, nameDrum: { _, _ in .kick },
-                                       timing: timing, sleep: { _ in }, files: files)
+                                       nameMelody: { _, _ in .pad }, timing: timing, sleep: { _ in }, files: files)
         let result = try session.run().get()
         XCTAssertTrue(link.allChannels)
         XCTAssertEqual(result.channels.count, 5)
         XCTAssertEqual(result.items.map(\.index), [1, 2, 3, 4])
+        XCTAssertEqual(result.items.first { $0.index == 2 }?.kind, .pad, "mélodie écoutée : sa sorte (retour du propriétaire)")
 
         let live = OrganizerSession(link: link, audio: audio, classify: classify, timing: timing, sleep: { _ in })
         _ = live.run()

@@ -362,6 +362,30 @@ final class SoundClassificationTests: XCTestCase {
         }
     }
 
+    /// Sorte d'une mélodie (retour du propriétaire : « si il repère un type de mélo il le renomme ») : l'IA d'abord
+    /// (piano, guitare, cordes…), sinon la forme du son ; rien de sûr : nil (elle reste « Mélodie »).
+    func testMelodyNaming() {
+        func f(len: Double, onsets: Double = 2, distinct: Int = 1, pitched: Double = 0.8) -> SoundFeatures {
+            SoundFeatures(peakDB: -6, noteLength: len, pitchedFraction: pitched, medianF0: 440, lowRatio: 0,
+                          flatness: 0.05, onsetsPerSecond: onsets, distinctPitches: distinct, vibrato: 0, highRatio: 0)
+        }
+        let line = f(len: 0.6)
+        XCTAssertEqual(MelodyNaming.kind(line, scores: ["piano": 0.7, "guitar": 0.4]), .piano)
+        XCTAssertEqual(MelodyNaming.kind(line, scores: ["electric_piano": 0.5]), .keys)
+        XCTAssertEqual(MelodyNaming.kind(line, scores: ["violin_fiddle": 0.6, "synthesizer": 0.9]), .strings,
+                       "« synthesizer » ne dit pas quelle sorte")
+        XCTAssertEqual(MelodyNaming.kind(line, scores: ["guitar": 0.2]), .lead, "trop peu sûr : les mesures")
+        XCTAssertEqual(MelodyNaming.kind(f(len: 0.15), scores: [:]), .pluck)
+        XCTAssertEqual(MelodyNaming.kind(f(len: 0.15, onsets: 6, distinct: 4), scores: [:]), .arp)
+        XCTAssertEqual(MelodyNaming.kind(f(len: 2, onsets: 0.5), scores: [:]), .pad)
+        XCTAssertNil(MelodyNaming.kind(f(len: 0.6, pitched: 0.3), scores: [:]), "rien de sûr")
+        XCTAssertNil(MelodyNaming.kind(.silent, scores: [:]))
+        for (label, kind) in MelodyNaming.labels {
+            XCTAssertEqual(FamilyFusion.labelTable[label], .instrument, "\(label) : étiquette d'instrument connue")
+            XCTAssertEqual(kind.family, .melody, label)
+        }
+    }
+
     private func table(_ rows: [(String, SoundFamily, SoundFamily, String)]) -> Int {
         var ok = 0
         for (name, got, expected, detail) in rows {

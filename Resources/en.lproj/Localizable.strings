@@ -194,6 +194,7 @@
 "Allumer le REC (si éteint)" = "Turn on REC (if off)";
 "Allumer le REC à la fin (s'il est éteint)" = "Turn on REC at the end (if it's off)";
 "Alors" = "Then";
+"Ambiance" = "Ambience";
 "Analyse du projet : %lld sur %lld" = "Analyzing the project: %lld of %lld";
 "Ancienne position apprise (colonne du curseur)." = "Old learned position (cursor column).";
 "Annule la dernière action" = "Undoes the last action";
@@ -309,6 +310,7 @@
 "Avec le lien avec FL : la piste choisie passe en solo (ou le perd) tout de suite, sans aucun clic." = "With the FL link: the chosen track is soloed (or unsoloed) right away, with no clicks.";
 "Avec le lien avec FL : le son de la piste choisie est coupé (ou remis) tout de suite, sans aucun clic." = "With the FL link: the chosen track is muted (or unmuted) right away, with no clicks.";
 "Avec le lien avec FL, rien à faire (aucun clic). Sans lui : bouton mute à montrer une fois sur ce Mac, avec « Montrer le bouton mute dans FL… »." = "With the FL link, nothing to do (no clicks). Without it: show the mute button once on this Mac, with “Show the mute button in FL…”.";
+"Back" = "Backing";
 "Baisse la piste sélectionnée" = "Turns the selected track down";
 "Baisser le volume de la piste" = "Turn the track volume down";
 "Bascule Pattern / Song" = "Toggle Pattern / Song";
@@ -1793,6 +1795,7 @@
 "Voir tout le monde" = "See everyone";
 "Voir « %@ »" = "See “%@”";
 "Voix" = "Vocals";
+"Voix lead" = "Lead vocal";
 "Volume piste +0,5 dB" = "Track volume +0.5 dB";
 "Volume piste −0,5 dB" = "Track volume −0.5 dB";
 "Vue forme d'onde" = "Waveform view";

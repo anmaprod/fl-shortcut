@@ -53,6 +53,7 @@ struct OrganizerEnvironment {
     /// Le script a dit être posé sur une autre entrée MIDI que « FL Shortcuts Link » (PROTOCOL.md §3).
     var wrongInput: () -> Bool = { false }
     var nameDrum: () -> OrganizerSession.NameDrum = { { _, _ in .perc } }
+    var nameMelody: () -> OrganizerSession.NameMelody = { { _, _ in nil } }
     /// Autorisation « Audio du système » (sans elle, macOS donne du silence à la capture).
     var audioPermission: () -> AudioCapturePermission = { .granted }
     /// Fenêtre de macOS pour la demander ; faux : rien n'a pu être demandé. `done` sur le fil principal.
@@ -104,6 +105,7 @@ struct OrganizerEnvironment {
             reveal: { NSWorkspace.shared.activateFileViewerSelecting([$0]) },
             wrongInput: { MIDILink.shared.core.snapshot.wrongInput },
             nameDrum: { OrganizerSession.liveDrumNamer() },
+            nameMelody: { OrganizerSession.liveMelodyNamer() },
             audioPermission: { AudioCapturePermission.status },
             requestAudioPermission: { done in
                 NSApp.activate(ignoringOtherApps: true)        // la fenêtre de macOS devant FL, pas derrière
@@ -444,7 +446,8 @@ final class OrganizerController: ObservableObject {
         let token = runToken
         let link = env.link()
         let session = OrganizerSession(
-            link: link, audio: audio, classify: env.classify(), nameDrum: env.nameDrum(), timing: env.timing,
+            link: link, audio: audio, classify: env.classify(), nameDrum: env.nameDrum(), nameMelody: env.nameMelody(),
+            timing: env.timing,
             sleep: env.sleep, escape: env.escapePressed, prepare: env.prepareProject, files: env.projectFiles(),
             progress: { [weak self] done, total in
                 DispatchQueue.main.async {
@@ -866,15 +869,20 @@ final class OrganizerController: ObservableObject {
 }
 
 /// Le panneau de l'Organiser : un seul à la fois, détruit à la fermeture. Sans barre de titre visible (contenu sous
-/// les boutons de fenêtre, déplaçable par le fond) ; sa hauteur suit son contenu (un message court : un petit
-/// panneau), l'aperçu garde une hauteur fixe qui défile.
+/// les boutons de fenêtre, déplaçable par le fond) ; redimensionnable (retour du propriétaire). Sa hauteur suit son
+/// contenu, mesuré à chaque changement (un message court : un petit panneau, même juste après l'aperçu) ; l'aperçu
+/// prend la hauteur que l'utilisateur lui a donnée (600 la première fois), sa liste défile.
 enum OrganizerWindow {
     private static var panel: NSPanel?
     /// Le contrôleur affiché (nil quand la fenêtre est fermée).
     private(set) static var controller: OrganizerController?
     private static let delegate = Delegate()
-    /// Taille ajustée à chaque étape.
-    private static var sizing: AnyCancellable?
+    /// Hauteur de l'aperçu, gardée quand l'utilisateur tire la fenêtre (pour la session de l'app).
+    private static var previewHeight = OrganizerView.height
+    /// L'aperçu est affiché (sa hauteur ne suit pas le contenu).
+    private static var showingPreview = false
+    /// Hauteur mesurée avant que le panneau existe.
+    private static var pending: (height: CGFloat, preview: Bool)?
 
     private final class Delegate: NSObject, NSWindowDelegate {
         func windowWillClose(_ notification: Notification) { OrganizerWindow.close() }
@@ -901,8 +909,9 @@ enum OrganizerWindow {
         let host = NSHostingView(rootView: OrganizerView(controller: controller))
         host.sizingOptions = []                                       // taille posée ici, à chaque étape
         let p = NSPanel(contentRect: NSRect(x: 0, y: 0, width: OrganizerView.width, height: 220),
-                        styleMask: [.titled, .closable, .fullSizeContentView, .nonactivatingPanel],
+                        styleMask: [.titled, .closable, .resizable, .fullSizeContentView, .nonactivatingPanel],
                         backing: .buffered, defer: false)
+        p.contentMinSize = NSSize(width: OrganizerView.width, height: 160)
         p.title = String(localized: "Organiser")
         p.titleVisibility = .hidden
         p.titlebarAppearsTransparent = true
@@ -917,35 +926,50 @@ enum OrganizerWindow {
         p.collectionBehavior = [.fullScreenAuxiliary]
         p.contentView = host
         p.delegate = delegate
-        fit(p, host, animate: false)
-        p.center()
+        showingPreview = false
         panel = p
         self.controller = controller
-        // Nouvelle étape, ou aide dépliée / repliée : le panneau suit la hauteur du contenu.
-        sizing = controller.$phase.map { _ in () }.merge(with: controller.$showLinkHelp.map { _ in () }).sink { _ in
-            // Après le dessin de la nouvelle étape, puis une fois le fondu fini : pendant le fondu, l'ancienne étape
-            // compte encore dans la hauteur (la fenêtre restait trop grande).
-            for delay in [0.05, 0.85 * DebugSnapshot.slowMotion] {
-                DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
-                    guard let panel = OrganizerWindow.panel, panel === p else { return }
-                    fit(p, host, animate: true)
-                }
-            }
+        host.layoutSubtreeIfNeeded()
+        if let first = pending {
+            pending = nil
+            adapt(height: first.height, preview: first.preview)
         }
+        p.center()
         p.orderFrontRegardless()
         if start { controller.start() }
     }
 
-    /// Hauteur du contenu, le haut du panneau restant à sa place.
-    private static func fit(_ panel: NSPanel, _ host: NSView, animate: Bool) {
-        host.layoutSubtreeIfNeeded()
-        let size = host.fittingSize
-        guard size.width > 0, size.height > 0 else { return }
-        var frame = panel.frameRect(forContentRect: NSRect(origin: .zero, size: size))
-        let old = panel.frame
-        frame.origin = NSPoint(x: old.minX, y: old.maxY - frame.height)
-        guard abs(frame.height - old.height) > 0.5 || abs(frame.width - old.width) > 0.5 else { return }
-        panel.setFrame(frame, display: true, animate: animate && panel.isVisible && !Motion.reduce)
+    /// Hauteur demandée par le contenu (`OrganizerView`, à chaque changement : nouvelle étape, fondu fini, aide
+    /// dépliée, texte de l'application), le haut du panneau restant à sa place et la largeur choisie gardée. Pendant
+    /// l'aperçu, la fenêtre garde la hauteur que l'utilisateur lui donne ; elle est reprise au prochain aperçu.
+    static func adapt(height: CGFloat, preview: Bool) {
+        guard height > 0 else { return }
+        guard let panel else {
+            pending = (height, preview)
+            return
+        }
+        let content = panel.contentRect(forFrameRect: panel.frame)
+        if showingPreview && !preview { previewHeight = content.height }
+        let entering = preview && !showingPreview
+        showingPreview = preview
+        if preview && !entering { return }
+        let screen = (panel.screen ?? NSScreen.main)?.visibleFrame
+        var target = preview ? previewHeight : height
+        if let screen { target = min(target, screen.height - 40) }
+        target = max(target, panel.contentMinSize.height)
+        guard abs(target - content.height) > 0.5 else { return }
+        var frame = panel.frameRect(forContentRect: NSRect(x: 0, y: 0, width: content.width, height: target))
+        frame.origin = NSPoint(x: panel.frame.minX, y: panel.frame.maxY - frame.height)
+        if let screen {                                              // jamais sous le bas de l'écran
+            frame.origin.y = max(frame.origin.y, screen.minY)
+            if frame.maxY > screen.maxY { frame.origin.y = screen.maxY - frame.height }
+        }
+        panel.setFrame(frame, display: true, animate: panel.isVisible && !Motion.reduce)
+    }
+
+    /// Depuis la vue : après sa mise à jour (la fenêtre ne change pas de taille au milieu d'un dessin de SwiftUI).
+    static func contentChanged(height: CGFloat, preview: Bool) {
+        DispatchQueue.main.async { adapt(height: height, preview: preview) }
     }
 
     /// Pendant que l'Organiser clique dans FL (Playlist) : les clics traversent le panneau, qui flotte au-dessus de FL.
@@ -960,7 +984,8 @@ enum OrganizerWindow {
         let c = controller
         panel = nil
         controller = nil
-        sizing = nil
+        showingPreview = false
+        pending = nil
         c?.close()
         p.delegate = nil
         p.orderOut(nil)
@@ -1009,9 +1034,17 @@ struct OrganizerView: View {
         .padding(.horizontal, 22)
         .padding(.top, 34)                           // sous les boutons de la fenêtre
         .padding(.bottom, 20)
-        .frame(width: Self.width, alignment: .top)
-        .frame(height: isPreview ? Self.height : nil, alignment: .top)
+        // La largeur de la fenêtre (que l'utilisateur peut tirer) ; l'aperçu remplit sa hauteur, les autres étapes
+        // demandent la leur.
+        .frame(minWidth: Self.width, maxWidth: .infinity, alignment: .top)
+        .frame(maxHeight: isPreview ? .infinity : nil, alignment: .top)
         .fixedSize(horizontal: false, vertical: !isPreview)
+        .background(GeometryReader { geo in
+            Color.clear
+                .onAppear { OrganizerWindow.contentChanged(height: geo.size.height, preview: isPreview) }
+                .onChange(of: geo.size.height) { OrganizerWindow.contentChanged(height: $0, preview: isPreview) }
+                .onChange(of: isPreview) { OrganizerWindow.contentChanged(height: geo.size.height, preview: $0) }
+        })
         // Collé en haut, et le fond remplit toute la fenêtre : pendant qu'elle change de taille (Réessayer, étape
         // suivante), plus de bandes noires en haut et en bas (vidéo de l'utilisateur : le contenu se centrait).
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)

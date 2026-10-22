@@ -54,7 +54,7 @@ enum SoundFamily: String, CaseIterable, Codable {
 /// une famille, le Channel rack organisé met ensemble les sons d'une même sorte, dans cet ordre. Chaque famille a
 /// un mot général (« Drums », « Basse », « Voix »…) : un son qui n'en dit pas plus.
 enum SoundKind: String, CaseIterable, Codable {
-    case vocal, adlib, choir
+    case vocalLead, backing, ambiance, adlib, choir, vocal
     case lead, pluck, pad, keys, piano, synth, arp, chords, guitar, strings, bell, flute, brass, organ, melody
     case bass808, sub, reese, bass
     case kick, snare, clap, rim, snap, hiHat, openHat, perc, tom, shaker, crash, ride, cymbal, drums
@@ -62,7 +62,7 @@ enum SoundKind: String, CaseIterable, Codable {
 
     var family: SoundFamily {
         switch self {
-        case .vocal, .adlib, .choir: return .vocals
+        case .vocalLead, .backing, .ambiance, .adlib, .choir, .vocal: return .vocals
         case .lead, .pluck, .pad, .keys, .piano, .synth, .arp, .chords, .guitar, .strings, .bell, .flute, .brass,
              .organ, .melody: return .melody
         case .bass808, .sub, .reese, .bass: return .bass
@@ -75,6 +75,9 @@ enum SoundKind: String, CaseIterable, Codable {
     var name: String {
         switch self {
         case .vocal: return String(localized: "Voix")
+        case .vocalLead: return String(localized: "Voix lead")
+        case .backing: return String(localized: "Back")
+        case .ambiance: return String(localized: "Ambiance")
         case .adlib: return String(localized: "Adlib")
         case .choir: return String(localized: "Chœur")
         case .lead: return String(localized: "Lead")
@@ -161,6 +164,7 @@ enum SoundNames {
     static let kindWords: [String: SoundKind] = [
         "vox": .vocal, "vocal": .vocal, "vocals": .vocal, "voice": .vocal, "voix": .vocal, "acapella": .vocal,
         "chant": .vocal, "adlib": .adlib, "adlibs": .adlib, "choir": .choir, "choeur": .choir,
+        "backs": .backing, "backing": .backing, "bvs": .backing,
         "lead": .lead, "leads": .lead, "pluck": .pluck, "plucks": .pluck, "pad": .pad, "pads": .pad,
         "keys": .keys, "rhodes": .keys, "piano": .piano, "synth": .synth, "arp": .arp, "arpeggio": .arp,
         "chord": .chords, "chords": .chords, "guitar": .guitar, "guitare": .guitar, "gtr": .guitar,
@@ -211,7 +215,9 @@ enum SoundNames {
     /// famille, un mot précis passe avant le mot général, et le premier dans l'ordre de `SoundKind` l'emporte
     /// (« Sub 808 » : 808 ; « Adlib Vox » : Adlib).
     static func kind(of name: String) -> SoundKind? {
-        let found = kinds(in: words(name))
+        if let recorded = recording(name) { return recorded }
+        let parts = words(name)
+        let found = kinds(in: parts)
         let named = Set(found.map { $0.family })
         let family: SoundFamily
         if found.contains(where: { $0.family == .drums && !$0.isGeneral }) {
@@ -221,8 +227,27 @@ enum SoundNames {
         } else {
             return nil
         }
+        if family == .vocals, let layer = vocalLayer(parts) { return layer }
         let mine = found.filter { $0.family == family }
         return mine.min { a, b in a.isGeneral != b.isGeneral ? !a.isGeneral : a.rank < b.rank }
+    }
+
+    /// Une voix lead, des backs ou une ambiance, d'après les mots d'un nom de voix (« Lead Vox », « Vocal Back 2 »,
+    /// « Ambiance voix ») ; nil : rien de plus précis.
+    static func vocalLayer(_ parts: [String]) -> SoundKind? {
+        if parts.contains("lead") { return .vocalLead }
+        if parts.contains(where: ["back", "backs", "backing", "bv", "bvs"].contains) { return .backing }
+        if parts.contains(where: ["ambiance", "ambience", "amb", "atmo"].contains) { return .ambiance }
+        return nil
+    }
+
+    /// Enregistrement fait dans FL (« untitled_2026-10-15 23-37-42_Insert 5 », « <projet>_<date> <heure>_Insert 5 ») :
+    /// une voix (projets de voix du propriétaire : à l'écoute, elles partaient en Mélodies, FX et Drums). Le nom du
+    /// projet devant ne compte pas ; ce qui suit la date peut dire lead, back ou ambiance (piste du Mixer nommée).
+    static func recording(_ name: String) -> SoundKind? {
+        guard let date = name.range(of: #"_\d{4}-\d{2}-\d{2}[ _]\d{2}-\d{2}-\d{2}"#, options: .regularExpression)
+        else { return nil }
+        return vocalLayer(words(String(name[date.upperBound...]))) ?? .vocal
     }
 
     static func family(of name: String) -> SoundFamily? {
@@ -324,6 +349,52 @@ enum DrumNaming {
     static let sureHatHigh = 0.85
     /// Plus long (s) : une cymbale, plus court : un charleston (même ouvert).
     static let cymbalLength = 1.0
+}
+
+/// Sorte d'une mélodie reconnue à l'écoute (retour du propriétaire : « si il repère un type de mélo il le renomme »,
+/// l'aperçu permet toujours d'en changer). nil : rien de sûr, elle reste « Mélodie ».
+enum MelodyNaming {
+    /// Étiquettes de l'IA de macOS → sorte de mélodie (toutes des instruments de `FamilyFusion.labelTable`).
+    static let labels: [String: SoundKind] = [
+        "piano": .piano, "harpsichord": .piano, "electric_piano": .keys, "keyboard_musical": .keys,
+        "organ": .organ, "electronic_organ": .organ, "hammond_organ": .organ, "accordion": .organ,
+        "guitar": .guitar, "electric_guitar": .guitar, "acoustic_guitar": .guitar, "steel_guitar_slide_guitar": .guitar,
+        "banjo": .guitar, "mandolin": .guitar, "ukulele": .guitar, "sitar": .guitar,
+        "bowed_string_instrument": .strings, "violin_fiddle": .strings, "cello": .strings, "orchestra": .strings,
+        "flute": .flute, "clarinet": .flute, "oboe": .flute, "wind_instrument": .flute,
+        "brass_instrument": .brass, "french_horn": .brass, "trumpet": .brass, "trombone": .brass,
+        "bell": .bell, "church_bell": .bell, "chime": .bell, "wind_chime": .bell, "glockenspiel": .bell,
+        "vibraphone": .bell, "marimba_xylophone": .bell, "steelpan": .bell,
+    ]
+    /// Confiance de l'IA à partir de laquelle son étiquette l'emporte sur les mesures.
+    static let minConfidence = 0.3
+    /// Notes plus courtes (s) : un pluck (beaucoup de notes différentes, vite : un arpège) ; plus longues et peu
+    /// d'attaques : un pad.
+    static let pluckLength = 0.35
+    static let padLength = 1.2
+    static let arpOnsets = 4.0
+
+    /// L'étiquette d'instrument la plus sûre de l'IA (égalité : l'ordre de `SoundKind`), sinon les mesures : notes
+    /// brèves et rapides sur plusieurs hauteurs → arp ; brèves → pluck ; longues et peu d'attaques → pad ; une ligne
+    /// nette, tenue → lead ; sinon rien.
+    static func kind(_ f: SoundFeatures, scores: [String: Double]) -> SoundKind? {
+        var best: (kind: SoundKind, confidence: Double)?
+        for (label, confidence) in scores {
+            guard let kind = labels[label], confidence >= minConfidence else { continue }
+            if let b = best, b.confidence > confidence || (b.confidence == confidence && b.kind.rank <= kind.rank) {
+                continue
+            }
+            best = (kind, confidence)
+        }
+        if let best { return best.kind }
+        guard f.peakDB >= FamilyFusion.silenceDB, f.noteLength > 0 else { return nil }
+        if f.noteLength < pluckLength {
+            return f.onsetsPerSecond >= arpOnsets && f.distinctPitches >= 3 ? .arp : .pluck
+        }
+        if f.noteLength >= padLength && f.onsetsPerSecond < 1.5 { return .pad }
+        if f.pitchedFraction >= 0.6 { return .lead }
+        return nil
+    }
 }
 
 /// Avis de l'IA de macOS, ramené à trois familles d'étiquettes (confiance 0…1, la plus forte de chaque famille).

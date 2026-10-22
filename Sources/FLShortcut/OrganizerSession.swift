@@ -147,6 +147,8 @@ final class OrganizerSession {
     typealias Classify = ([Float], Double) -> (family: SoundFamily, confidence: Double, rule: String)
     /// Sorte d'un son classé en drums.
     typealias NameDrum = ([Float], Double) -> DrumKind
+    /// Sorte d'un son classé en mélodie (Piano, Pad, Pluck…) ; nil : rien de sûr.
+    typealias NameMelody = ([Float], Double) -> SoundKind?
 
     /// Notes d'essai : C3 puis C5 (pour FPC, ses deux premiers pads).
     static let testNotes: [UInt8] = [48, 60]
@@ -169,6 +171,7 @@ final class OrganizerSession {
     private let audio: AudioSource
     private let classify: Classify
     private let nameDrum: NameDrum?
+    private let nameMelody: NameMelody?
     private let timing: Timing
     private let sleep: (TimeInterval) -> Void
     private let progress: (Int, Int) -> Void
@@ -202,7 +205,7 @@ final class OrganizerSession {
     /// l'analyse, par les menus de FL, les clips audio inutilisés retirés et les sons sans note sélectionnés ; vrai si
     /// la sélection a été faite.
     init(link: OrganizerLink, audio: AudioSource, classify: @escaping Classify, nameDrum: NameDrum? = nil,
-         timing: Timing = Timing(),
+         nameMelody: NameMelody? = nil, timing: Timing = Timing(),
          sleep: @escaping (TimeInterval) -> Void = { Thread.sleep(forTimeInterval: $0) },
          escape: @escaping () -> Bool = { false },
          prepare: @escaping () -> Bool = { false },
@@ -212,6 +215,7 @@ final class OrganizerSession {
         self.audio = audio
         self.classify = classify
         self.nameDrum = nameDrum
+        self.nameMelody = nameMelody
         self.timing = timing
         self.sleep = sleep
         self.escape = escape
@@ -499,6 +503,7 @@ final class OrganizerSession {
             }
             var kind: SoundKind?
             if verdict.family == .drums && heard, let drum = nameDrum?(samples, audio.rate) { kind = drum.sound }
+            if verdict.family == .melody && heard { kind = nameMelody?(samples, audio.rate) }
             items.append(OrganizerItem(index: channel.index, name: channel.name, family: verdict.family,
                                        confidence: tested ? verdict.confidence * Self.testNotesFactor : verdict.confidence,
                                        testNotes: tested, mixerTrack: channel.mixerTrack, color: channel.color,
@@ -548,6 +553,7 @@ final class OrganizerSession {
                 note { $0.rules.append("p\(t):\(verdict.rule)") }
                 var kind: SoundKind?
                 if verdict.family == .drums, let drum = nameDrum?(samplesHeard, audio.rate) { kind = drum.sound }
+                if verdict.family == .melody { kind = nameMelody?(samplesHeard, audio.rate) }
                 heard.append(OrganizerItem(index: t, name: track.name, family: verdict.family,
                                            confidence: verdict.confidence, testNotes: false, mixerTrack: 0,
                                            color: track.color, kind: kind))
@@ -769,6 +775,13 @@ final class OrganizerSession {
     static func liveDrumNamer(ai: SoundClassifier? = SoundClassifier()) -> NameDrum {
         { samples, rate in
             DrumNaming.kind(SoundFeatures.measure(samples, rate: rate), scores: ai?.scores(samples, rate: rate) ?? [:])
+        }
+    }
+
+    /// Sorte des mélodies : étiquettes de l'IA de macOS, sinon les mesures du son.
+    static func liveMelodyNamer(ai: SoundClassifier? = SoundClassifier()) -> NameMelody {
+        { samples, rate in
+            MelodyNaming.kind(SoundFeatures.measure(samples, rate: rate), scores: ai?.scores(samples, rate: rate) ?? [:])
         }
     }
 }
