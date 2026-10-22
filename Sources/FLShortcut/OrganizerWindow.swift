@@ -1005,6 +1005,16 @@ struct OrganizerView: View {
 
     private var isPreview: Bool { controller.phase == .preview }
 
+    /// Pendant l'application : l'étape en cours (« FL ouvre la copie rangée… 12 s »), sinon le texte général.
+    private var applyingText: String {
+        let hands = String(localized: "Ne touche pas à FL.")
+        if let step = controller.applyStep { return step + " " + hands }
+        if controller.organizesCopy {
+            return String(localized: "FL ouvre la copie rangée de ton projet, puis tout s'y range… Ne touche pas à FL.")
+        }
+        return String(localized: "Application dans FL… Ne touche pas à FL.")
+    }
+
     /// Étape affichée : une nouvelle étape remplace l'ancienne en fondu (la progression de l'écoute, non).
     private var stepKey: String {
         switch controller.phase {
@@ -1120,10 +1130,7 @@ struct OrganizerView: View {
         case .preview:
             preview
         case .applying:
-            working(controller.applyStep.map { $0 + " " + String(localized: "Ne touche pas à FL.") }
-                ?? (controller.organizesCopy
-                ? String(localized: "FL ouvre la copie rangée de ton projet, puis tout s'y range… Ne touche pas à FL.")
-                : String(localized: "Application dans FL… Ne touche pas à FL.")))
+            working(applyingText)
         case .undoing:
             working(String(localized: "Retour comme avant…"))
         case .applied(let error):

@@ -236,10 +236,12 @@ enum SoundNames {
     /// « Ambiance voix ») ; nil : rien de plus précis.
     static func vocalLayer(_ parts: [String]) -> SoundKind? {
         if parts.contains("lead") { return .vocalLead }
-        if parts.contains(where: ["back", "backs", "backing", "bv", "bvs"].contains) { return .backing }
-        if parts.contains(where: ["ambiance", "ambience", "amb", "atmo"].contains) { return .ambiance }
+        if parts.contains(where: { backWords.contains($0) }) { return .backing }
+        if parts.contains(where: { ambianceWords.contains($0) }) { return .ambiance }
         return nil
     }
+    static let backWords: Set<String> = ["back", "backs", "backing", "bv", "bvs"]
+    static let ambianceWords: Set<String> = ["ambiance", "ambience", "amb", "atmo"]
 
     /// Enregistrement fait dans FL (« untitled_2026-10-15 23-37-42_Insert 5 », « <projet>_<date> <heure>_Insert 5 ») :
     /// ce qui suit la date, le nom de sa piste du Mixer ; nil : pas un enregistrement. Le nom ne dit pas ce qui a été

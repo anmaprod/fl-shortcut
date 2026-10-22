@@ -133,7 +133,10 @@ enum OrganizerPayload {
     static let inAll: UInt8 = 1
 
     static func audition(channel: Int, note: UInt8, velocity: UInt8, all: Bool = false) -> [UInt8] {
-        [3] + be16(channel) + [min(note, 127), min(velocity, 127)] + (all ? [inAll] : [])
+        var out: [UInt8] = [3] + be16(channel)
+        out += [min(note, 127), min(velocity, 127)]
+        if all { out.append(inAll) }
+        return out
     }
 
     /// Une commande par paquet de 64 couleurs au plus.
@@ -147,8 +150,15 @@ enum OrganizerPayload {
     static func selectOne(_ kind: ItemKind, _ index: Int) -> [UInt8] { [5, kind.rawValue] + be16(index) }
     /// `pattern` : 1 = le premier pattern de FL ; nil : celui qui est ouvert (script v11 pour le pattern).
     static func playSolo(_ channel: Int, pattern: Int? = nil, all: Bool = false) -> [UInt8] {
-        // Avec le drapeau, pattern 0 : celui qui est ouvert.
-        all ? [6] + be16(channel) + be16(pattern ?? 0) + [inAll] : [6] + be16(channel) + (pattern.map(be16) ?? [])
+        var out: [UInt8] = [6] + be16(channel)
+        if all {
+            // Avec le drapeau, pattern 0 : celui qui est ouvert.
+            out += be16(pattern ?? 0)
+            out.append(inAll)
+        } else if let pattern {
+            out += be16(pattern)
+        }
+        return out
     }
     /// Opération 6 sans canal seul : tous audibles (repérage des sons de chaque pattern).
     static let allChannels = 0xFFFF

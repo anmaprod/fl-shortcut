@@ -684,7 +684,8 @@ final class OrganizerSession {
                 todo.append(d)
             }
         }
-        note { $0.routes = out.values.reduce(0) { $0 + $1.filter { $0 != 0 }.count } }
+        let sends = out.values.reduce(0) { total, dests in total + dests.filter { $0 != 0 }.count }
+        note { $0.routes = sends }
         return out
     }
 
