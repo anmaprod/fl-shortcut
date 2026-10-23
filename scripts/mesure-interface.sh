@@ -327,6 +327,20 @@ run() {   # $1 : libellé, $2 : YES/NO effet verre
   cp "$HOME/Library/Caches/$DOMAIN/$label-createur-"*.png "$OUT/" 2>/dev/null || true
   mc=$(mem_mb "$p"); cc=$(cpu_avg "$p")
   categories "$p" "$label-createur-ouvert"
+  # Gouttes du créateur au ralenti (10 fois) : un bloc choisi, « Dupliquer » et « Supprimer » sortent de « Ajouter »
+  # (verre de macOS 26 dans la passe avec verre, gouttes dessinées dans l'autre), puis y rentrent.
+  "$POST" app.flshortcut.debug.gouttes lacher; sleep 1
+  "$POST" app.flshortcut.debug.gouttes "choisir lent"
+  for i in 1 2 3 4; do
+    sleep 0.6; screencapture -x "$OUT/$label-gouttes-$i.png" 2>/dev/null || true
+  done
+  sleep 3
+  "$POST" app.flshortcut.debug.gouttes "lacher lent"
+  for i in 5 6 7 8; do
+    sleep 0.6; screencapture -x "$OUT/$label-gouttes-$i.png" 2>/dev/null || true
+  done
+  sleep 3
+  "$POST" app.flshortcut.debug.gouttes choisir; sleep 1
   "$POST" app.flshortcut.debug.macro close; sleep 4
   md=$(mem_mb "$p")
   categories "$p" "$label-createur-referme"

@@ -127,6 +127,11 @@ struct MacroCreatorView: View {
         }
         .onChange(of: link.request) { request in model.handle(request) }
         .onChange(of: model.selection) { _ in flyToInspector() }
+        .onReceive(DebugSnapshot.publisher(DebugSnapshot.gouttes)) { note in
+            let words = (note.object as? String ?? "").split(separator: " ")
+            DebugSnapshot.slowMotion = words.contains("lent") ? 10 : 1
+            model.selection = words.first == "choisir" ? model.rows.first(where: { $0.kind == .block })?.id : nil
+        }
     }
 
     /// Bloc choisi à la souris (pas aux flèches du clavier, pas ajouté depuis la palette) : son icône vole de sa

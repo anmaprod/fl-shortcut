@@ -57,6 +57,8 @@ struct MacroLibraryPage: View {
                     Section {
                         ForEach(Array(library.macros.enumerated()), id: \.element.id) { index, doc in
                             row(doc).cardRow(.position(index: index, count: library.macros.count), hover: .purple)
+                                .frameProbe(CreatorFlight.row(doc.id))   // le créateur en sort et y rentre
+                                .flightTarget(CreatorFlight.row(doc.id))
                         }
                     } header: {
                         Text("Mes macros")

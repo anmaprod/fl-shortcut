@@ -76,4 +76,15 @@ final class FlightLayerTests: XCTestCase {
         XCTAssertEqual(done, 1)
         XCTAssertTrue(center.flights.isEmpty)
     }
+
+    /// Créateur : il sort de la ligne de sa macro et y rentre seulement si elle se voit dans la fenêtre (une ligne
+    /// défilée hors de la vue : rien ne vole).
+    func testCreatorFlightNeedsAVisibleRow() {
+        let window = CGRect(x: 0, y: 0, width: 900, height: 600)
+        XCTAssertTrue(CreatorFlight.visible(CGRect(x: 260, y: 200, width: 600, height: 50), in: window))
+        XCTAssertFalse(CreatorFlight.visible(CGRect(x: 260, y: 640, width: 600, height: 50), in: window))
+        XCTAssertFalse(CreatorFlight.visible(CGRect(x: 260, y: -80, width: 600, height: 50), in: window))
+        XCTAssertFalse(CreatorFlight.visible(.zero, in: window))
+        XCTAssertNotEqual(CreatorFlight.row(UUID()), CreatorFlight.window)
+    }
 }

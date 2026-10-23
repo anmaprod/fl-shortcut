@@ -197,6 +197,8 @@ struct EditorView: View {
     /// Créateur de macros affiché dans la fenêtre, comme un dossier ouvert dans le Finder (nil : les raccourcis).
     /// Le modèle n'existe que pendant qu'il est affiché.
     @State private var macroEditor: MacroEditorModel?
+    /// Créateur en route : la ligne de sa macro grandit jusqu'à toute la fenêtre, puis il apparaît.
+    @State private var pendingCreator: MacroEditorModel?
     @ObservedObject private var creatorLink = MacroCreatorLink.shared
     /// Page Communauté : le « + » (partager) n'apparaît qu'une fois connecté.
     @ObservedObject private var community = CommunityStore.shared
@@ -233,6 +235,7 @@ struct EditorView: View {
                     .zIndex(0)
             }
         }
+        .frameProbe(CreatorFlight.window)                // le créateur occupe tout ce cadre
         .cardHost(cards)
         .flightLayer(flights)
         // Rien ne bouge dans cette fenêtre pendant que FL est devant (MotionPolicy) ; tout repart quand elle revient.
@@ -297,7 +300,7 @@ struct EditorView: View {
         if let page = resume.page { selectQuietly(page) }
         if let id = resume.macro, store.library.doc(id) != nil {
             MacroCreatorLink.shared.open(id, isNew: resume.isNew)
-            if macroEditor == nil { enterCreator() }
+            if macroEditor == nil { enterCreator(sound: false) }
         }
     }
 
@@ -408,7 +411,9 @@ struct EditorView: View {
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { showGuide = true }
     }
 
-    private func enterCreator() {
+    /// `sound` : faux à la reprise après « Quitter et rouvrir » (rien n'a été cliqué).
+    private func enterCreator(sound: Bool = true) {
+        guard pendingCreator == nil else { return }    // déjà en route : il arrive
         cards.reset()                                   // le créateur prend toute la fenêtre : plus de carte
         editing = nil
         editingRow = nil
@@ -416,8 +421,36 @@ struct EditorView: View {
         // Macro chargée et palette prête avant l'animation : le créateur arrive rempli, rien n'apparaît en route.
         editor.handle(creatorLink.request)
         _ = editor.paletteItems
+        if sound { InterfaceSound.play(.creatorOpen) }
+        // La ligne de la macro (page Macros) devient une carte qui grandit jusqu'à toute la fenêtre, puis le créateur
+        // y apparaît en fondu. Ligne invisible, ouvert d'ailleurs, mouvement réduit : tout de suite.
+        let request = creatorLink.request
+        let source = request?.id ?? (request?.sample == true ? store.library.macros.first?.id : nil)
+        guard let source, let row = flights.frame(of: CreatorFlight.row(source)),
+              let window = flights.frame(of: CreatorFlight.window), CreatorFlight.visible(row, in: window) else {
+            showCreator(editor)
+            return
+        }
+        pendingCreator = editor
+        flights.fly(.card(cornerRadius: 12), fromRect: row, to: CreatorFlight.window) {
+            guard pendingCreator === editor else { return }   // fermé (ou fenêtre fermée) pendant le vol
+            pendingCreator = nil
+            showCreator(editor)
+        }
+    }
+
+    private func showCreator(_ editor: MacroEditorModel) {
         macroEditor = editor
         AppResume.shared.creator = editor
+    }
+
+    /// Retour par ← : toute la fenêtre rentre dans la ligne de la macro, si elle se voit (la page Macros revient).
+    private func flyBackToRow(_ id: UUID) {
+        DispatchQueue.main.async {                      // la page Macros posée : sa ligne a son cadre
+            guard let row = flights.frame(of: CreatorFlight.row(id)),
+                  let window = flights.frame(of: CreatorFlight.window), CreatorFlight.visible(row, in: window) else { return }
+            flights.fly(.card(cornerRadius: 12), fromRect: window, to: CreatorFlight.row(id))
+        }
     }
 
     /// Flèche ← : macro neuve → l'enregistrer ou la supprimer ; macro modifiée → enregistrer ou annuler les
@@ -453,9 +486,15 @@ struct EditorView: View {
             }
         }
         closeCreator()
+        InterfaceSound.play(.creatorClose)
+        if let back = MacroCreatorLink.shared.lastClosedID { flyBackToRow(back) }
     }
 
     private func closeCreator() {
+        if let pending = pendingCreator {               // fermé pendant son arrivée : il n'arrive plus
+            pendingCreator = nil
+            pending.close()
+        }
         guard let editor = macroEditor else { return }
         let id = editor.draft?.id
         editor.close()
@@ -1445,6 +1484,18 @@ private struct EmptyState: View {
         }
         .frame(maxWidth: 320)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+}
+
+/// Entrée dans le créateur : la ligne d'une macro (page Macros) devient toute la fenêtre, et l'inverse au retour.
+enum CreatorFlight {
+    static let window = "fenetre.contenu"
+
+    static func row(_ id: UUID) -> String { "macro.\(id)" }
+
+    /// La ligne se voit dans la fenêtre (son centre y est) : sinon, ni départ ni retour par elle.
+    static func visible(_ row: CGRect, in window: CGRect) -> Bool {
+        row.width > 0 && row.height > 0 && window.contains(CGPoint(x: row.midX, y: row.midY))
     }
 }
 
