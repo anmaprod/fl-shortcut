@@ -18,8 +18,7 @@ final class OnboardingWindow {
     private var window: NSWindow?
     private var closeObserver: NSObjectProtocol?
 
-    /// `fly` : faux pour les captures de la CI (l'accueil photographié tout de suite, sans bulle).
-    func show(fly: Bool = true) {
+    func show() {
         if let window {
             window.makeKeyAndOrderFront(nil)
             NSApp.activate(ignoringOtherApps: true)
@@ -45,7 +44,6 @@ final class OnboardingWindow {
         // Fermée (y compris par le bouton rouge) : la vue et ses abonnements sont libérés, plus rien ne tourne.
         closeObserver = NotificationCenter.default.addObserver(forName: NSWindow.willCloseNotification,
                                                                object: w, queue: .main) { [weak self, weak w] _ in
-            if let w { WindowLauncher.shared.userClosed(w) }     // bouton rouge : rentre dans l'icône
             DispatchQueue.main.async {
                 guard let self, let w else { return }
                 AppResume.shared.onboardingStage = nil      // accueil fermé : rien à reprendre ici
@@ -55,7 +53,6 @@ final class OnboardingWindow {
                 self.closeObserver = nil
             }
         }
-        if fly { WindowLauncher.shared.open(source: nil, icon: nil, title: nil, window: w) }   // sort de l'icône
         w.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
     }
@@ -78,9 +75,8 @@ final class OnboardingWindow {
     private func fadeOutAndClose() {
         guard let w = window else { return }
         window = nil
-        WindowLauncher.shared.quietClose(w)             // fermée par l'app : son fondu, pas de bulle
         NSAnimationContext.runAnimationGroup({ context in
-            context.duration = Motion.reduce ? Motion.reducedDuration : Motion.appKitDuration
+            context.duration = 0.45
             context.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
             w.animator().alphaValue = 0
         }, completionHandler: {
@@ -96,14 +92,12 @@ final class OnboardingWindow {
         guard let first = words.first else { return }
         switch first {
         case "clavier":
-            if let window { WindowLauncher.shared.quietClose(window) }
             window?.close()
             window = nil
             DebugSnapshot.slowMotion = words.contains("lent") ? 10 : 1
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { self.show(fly: false) }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { self.show() }
         case "fin":
             DebugSnapshot.slowMotion = 1
-            if let window { WindowLauncher.shared.quietClose(window) }
             window?.close()
             window = nil
         default:

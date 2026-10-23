@@ -18,8 +18,6 @@ import Foundation
 final class MacroEditorModel: ObservableObject {
     @Published private(set) var draft: MacroDoc?
     @Published private(set) var rows: [MacroStepRow] = []
-    /// Bloc qui vient d'être posé à la souris (il s'éclaire brièvement de sa couleur), remis à nil aussitôt après.
-    @Published private(set) var landed: UUID?
     @Published var selection: String?
     @Published private(set) var dirty = false
     /// Ce qui empêche la macro de tourner (validation stricte de la bibliothèque), sinon nil.
@@ -452,11 +450,6 @@ final class MacroEditorModel: ObservableObject {
         if !moved {
             notice = String(localized: "Déplacement impossible : un bloc ne va pas dans lui-même, et \(MacroValidation.maxDepth) niveaux au plus.")
             NSSound.beep()
-            return
-        }
-        landed = id
-        DispatchQueue.main.asyncAfter(deadline: .now() + Motion.settleTime(.vif)) { [weak self] in
-            if self?.landed == id { self?.landed = nil }
         }
     }
 

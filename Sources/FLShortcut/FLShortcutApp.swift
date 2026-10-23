@@ -536,9 +536,9 @@ final class PauseIndicator {
             .sink { [weak self] enabled in self?.update(paused: !enabled) }
     }
 
-    /// Fondu d'entrée / de sortie (court si « Réduire les animations » est activé).
+    /// Fondu d'entrée / de sortie (instantané si « Réduire les animations » est activé).
     private func update(paused: Bool) {
-        let duration = Motion.reduce ? Motion.reducedDuration : Motion.appKitDuration
+        let duration = Motion.reduce ? 0 : 0.22
         wantsVisible = paused
         guard paused else {
             guard let p = panel, p.isVisible else { return }
@@ -657,7 +657,8 @@ struct MenuContent: View {
                 // La page Aide, le formulaire prêt avec ce message d'erreur et le journal de la macro.
                 PanelItem(symbol: "exclamationmark.bubble", title: String(localized: "Signaler ce problème…"), tint: .orange, order: 1) {
                     HelpLink.shared.report("Macro : " + macro.text)
-                    openEditor(symbol: "exclamationmark.bubble", tint: .orange, title: String(localized: "Signaler ce problème…"))
+                    openWindow(id: "editor")
+                    NSApp.activate(ignoringOtherApps: true)
                 }
             }
 
@@ -679,12 +680,14 @@ struct MenuContent: View {
                 }
             }
             PanelItem(symbol: "keyboard", title: String(localized: "Modifier les raccourcis…"), tint: .blue, order: 3) {
-                openEditor(symbol: "keyboard", tint: .blue, title: String(localized: "Modifier les raccourcis…"))
+                openWindow(id: "editor")
+                NSApp.activate(ignoringOtherApps: true)
             }
             PanelItem(symbol: SidebarItem.macros.symbol, title: String(localized: "Macros…"), tint: SidebarItem.macros.tint,
                       order: 4) {
                 MacrosLink.shared.show()
-                openEditor(symbol: SidebarItem.macros.symbol, tint: SidebarItem.macros.tint, title: String(localized: "Macros…"))
+                openWindow(id: "editor")
+                NSApp.activate(ignoringOtherApps: true)
             }
             PanelItem(symbol: "square.stack.3d.up", title: String(localized: "Organiser…"),
                       tint: OrganizerView.tint, order: 5) { OrganizerWindow.open() }
@@ -711,22 +714,10 @@ struct MenuContent: View {
         .frame(width: 300)
         // Fondu de couleur dans le fond, comme le guide (lueur fixe, aucune animation au repos).
         .background { BrandGlow().opacity(0.55) }
-        // Naît de l'icône en bulle à chaque ouverture (MenuBubble ; repli : se déploie dans la bulle de macOS) ; se
-        // ferme au choix d'une ligne ou d'un clic ailleurs (MenuPanel).
-        .menuBubble(panel)
+        // Sort de l'icône à chaque ouverture ; se ferme au choix d'une ligne ou d'un clic ailleurs (MenuPanel).
+        .menuReveal(panel.revealed)
         .background(WindowReader { MenuPanel.shared.attach($0) })
         .onAppear { MenuPanel.shared.appeared() }
-    }
-
-    /// Fenêtre principale : elle sort de la ligne cliquée (WindowLauncher) et s'ouvre à l'atterrissage, le menu
-    /// étant alors fermé : par l'icône de la barre des menus (`MenuBarLabel`, toujours vivante), pas par
-    /// l'`openWindow` de ce menu.
-    private func openEditor(symbol: String, tint: Color, title: String) {
-        WindowLauncher.shared.openScene(source: nil, icon: .icon(symbol: symbol, tint: tint, size: 22), title: title,
-                                        frameKey: EditorWindowFrame.key, size: EditorWindowFrame.size,
-                                        window: AppResume.shared.editorWindow) {
-            NotificationCenter.default.post(name: AccountLink.openEditor, object: nil)
-        }
     }
 
     private var dotColor: Color {
@@ -790,8 +781,6 @@ private struct PanelItem: View {
     var order = 0
     let action: () -> Void
     @State private var hovering = false
-    /// Vue de la ligne, pour son cadre à l'écran au clic : la fenêtre ouverte en sort (WindowLauncher).
-    @State private var frameBox = ScreenFrameBox()
     @ObservedObject private var panel = MenuPanel.shared
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
@@ -801,7 +790,6 @@ private struct PanelItem: View {
         Button {
             // L'action d'abord (une fenêtre qui s'ouvre prend la main), puis le menu se ferme : la fenêtre ouverte
             // reste devant (MenuPanel).
-            WindowLauncher.shared.clicked(frameBox.screenFrame)
             action()
             MenuPanel.shared.close()
         } label: {
@@ -810,8 +798,8 @@ private struct PanelItem: View {
                     .scaleEffect(panel.revealed || reduceMotion ? 1 : 0.35)
                     .rotationEffect(.degrees(panel.revealed || reduceMotion ? 0 : -25))
                     .animation(panel.revealed
-                               ? Motion.spring(.vif).delay(Motion.stagger(order, start: 0.12, step: 0.04))
-                               : Motion.exit, value: panel.revealed)
+                               ? .spring(response: 0.5, dampingFraction: 0.58).delay(0.12 + Double(order) * 0.04)
+                               : .easeIn(duration: 0.12), value: panel.revealed)
                 Text(title)
                 Spacer(minLength: 12)
                 if let shortcut {
@@ -822,7 +810,6 @@ private struct PanelItem: View {
             .padding(.horizontal, 8)
             .frame(height: 34)
             .contentShape(shape)
-            .background(ScreenFrameProbe(box: frameBox))
             .background {
                 shape.fill(Color.primary.opacity(hovering ? 0.085 : 0))
                     .overlay(shape.strokeBorder(tint.opacity(hovering ? 0.6 : 0), lineWidth: hovering ? 1.5 : 1))
@@ -835,6 +822,6 @@ private struct PanelItem: View {
         .onHover { inside in
             withAnimation(reduceMotion ? Motion.reduced : Motion.lift) { hovering = inside }
         }
-        .menuRevealRow(panel.revealed, index: order, bubble: panel.bubble)
+        .menuRevealRow(panel.revealed, index: order)
     }
 }

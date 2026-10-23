@@ -13,8 +13,12 @@ import SwiftUI
 
 // MARK: - Mouvement
 
-/// Ressorts, durées, gel et reflet : MotionEngine.swift. Ici, les transitions de page.
 enum Motion {
+    /// Changement d'état ordinaire (notification).
+    static let smooth = Animation.easeInOut(duration: 0.2)
+    /// Remplacement quand l'utilisateur a demandé moins de mouvement.
+    static let reduced = Animation.easeInOut(duration: 0.15)
+
     /// « Réduire les animations » de macOS (ignoré au ralenti du mode capture, pour photographier le vrai mouvement).
     static var reduce: Bool { NSWorkspace.shared.accessibilityDisplayShouldReduceMotion && DebugSnapshot.slowMotion == 1 }
 
@@ -27,26 +31,16 @@ enum Motion {
 
 private struct MotionModifier<V: Equatable>: ViewModifier {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @Environment(\.motionMode) private var mode
     let animation: Animation
     let value: V
 
-    /// Une seule expression (pas de `switch` de vues) : geler ne recrée pas le contenu.
-    private var chosen: Animation? {
-        switch MotionMode.effective(mode, reduceMotion: reduceMotion) {
-        case .full: return animation
-        case .reduced: return Motion.reduced
-        case .frozen: return nil
-        }
-    }
-
     func body(content: Content) -> some View {
-        content.animation(chosen, value: value)
+        content.animation(reduceMotion && DebugSnapshot.slowMotion == 1 ? Motion.reduced : animation, value: value)
     }
 }
 
 extension View {
-    /// `.animation(_:value:)` qui respecte « Réduire les animations » et le gel de la fenêtre.
+    /// `.animation(_:value:)` qui respecte « Réduire les animations ».
     func motion<V: Equatable>(_ animation: Animation = Motion.smooth, value: V) -> some View {
         modifier(MotionModifier(animation: animation, value: value))
     }
@@ -60,9 +54,12 @@ extension View {
     }
 }
 
-// Changement de page « morph » (comme la Morphose de PowerPoint ou le Magic Move de Keynote) : ce qui se retrouve
-// d'une page à l'autre glisse à sa nouvelle place (`Motion.morph`, ressort doux), le reste se fond.
 extension Motion {
+    /// Changement de page « morph » (comme la Morphose de PowerPoint ou le Magic Move de Keynote) : ce qui se
+    /// retrouve d'une page à l'autre glisse à sa nouvelle place, le reste se fond. Ressort lent et doux (0,8 s), sans
+    /// rebond visible.
+    static var morph: Animation { .spring(response: 0.8 * DebugSnapshot.slowMotion, dampingFraction: 0.9) }
+
     /// Page qui s'en va : un vrai fondu, assez long pour se croiser avec celle qui arrive (jamais de disparition sèche).
     static var fadeOut: Animation { .easeInOut(duration: 0.5 * DebugSnapshot.slowMotion) }
 
@@ -100,9 +97,8 @@ extension View {
         .motion(quick ? Motion.quickMorph : Motion.morph, value: key)
     }
 
-    /// Page de la barre latérale : une nouvelle page à chaque `key`, qui arrive du flou au net sur place (l'icône de
-    /// la ligne choisie y vole jusqu'à l'en-tête). Le changement lui-même n'est pas animé : la page qui part s'en va
-    /// tout de suite (PageReveal).
+    /// Page de la barre latérale : une nouvelle page à chaque `key`, qui arrive du flou au net en montant un peu. Le
+    /// changement lui-même n'est pas animé : la page qui part s'en va tout de suite (PageReveal).
     func pageSwitch<K: Hashable>(_ key: K) -> some View {
         modifier(PageReveal(focus: true)).id(key)
     }
@@ -115,19 +111,16 @@ extension View {
 }
 
 /// « Mise au point » : `amount` 1 = hors champ (transparent, flou, décalé, à peine plus petit), 0 = en place.
-/// `still` : ni décalage ni échelle, flou et transparence seulement (page où l'icône de la barre latérale atterrit :
-/// elle doit être à sa place exacte).
 private struct SoftFocus: ViewModifier {
     let amount: CGFloat
     let rise: CGFloat
-    var still = false
 
     func body(content: Content) -> some View {
         content
             .opacity(1 - amount)
             .blur(radius: 12 * amount)
-            .scaleEffect(still ? 1 : 1 - 0.03 * amount, anchor: .top)
-            .offset(y: still ? 0 : rise * amount)
+            .scaleEffect(1 - 0.03 * amount, anchor: .top)
+            .offset(y: rise * amount)
     }
 }
 
@@ -140,26 +133,23 @@ private struct PageReveal: ViewModifier {
     /// Vrai : du flou au net en montant un peu (une page) ; faux : opacité seule (toute la fenêtre).
     let focus: Bool
     @State private var shown = false
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @Environment(\.motionMode) private var motionMode
+    @Environment(\.accessibilityReduceMotion) private var reduceMotionSetting
+
+    private var reduceMotion: Bool { reduceMotionSetting && DebugSnapshot.slowMotion == 1 }
 
     func body(content: Content) -> some View {
-        // Le choix de la forme ne dépend que de « Réduire les animations » (stable) : le gel de la fenêtre, qui va et
-        // vient avec FL, ne doit jamais recréer la page (défilement, champs).
-        let reduced = MotionMode.effective(.full, reduceMotion: reduceMotion) == .reduced
         Group {
-            if focus && !reduced {
-                content.modifier(SoftFocus(amount: shown ? 0 : 1, rise: 10, still: true))
+            if focus && !reduceMotion {
+                content.modifier(SoftFocus(amount: shown ? 0 : 1, rise: 10))
             } else {
                 content.opacity(shown ? 1 : 0)
             }
         }
         .onAppear {
-            switch MotionMode.effective(motionMode, reduceMotion: reduceMotion) {
-            case .full: withAnimation(Motion.morph) { shown = true }
-            case .reduced: withAnimation(Motion.reduced) { shown = true }
-            case .frozen: shown = true
-            }
+            let animation: Animation = reduceMotion ? Motion.reduced
+                : focus ? .spring(response: 0.45 * DebugSnapshot.slowMotion, dampingFraction: 0.9)
+                : .easeOut(duration: 0.28 * DebugSnapshot.slowMotion)
+            withAnimation(animation) { shown = true }
         }
     }
 }
@@ -167,21 +157,19 @@ private struct PageReveal: ViewModifier {
 private struct MorphIn: ViewModifier {
     let index: Int
     @State private var shown = false
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @Environment(\.motionMode) private var motionMode
+    @Environment(\.accessibilityReduceMotion) private var reduceMotionSetting
+
+    private var reduceMotion: Bool { reduceMotionSetting && DebugSnapshot.slowMotion == 1 }
 
     func body(content: Content) -> some View {
-        let mode = MotionMode.effective(motionMode, reduceMotion: reduceMotion)
         content
             .opacity(shown ? 1 : 0)
-            .blur(radius: shown || mode != .full ? 0 : 8)
-            .offset(y: shown || mode != .full ? 0 : 16)
+            .blur(radius: shown || reduceMotion ? 0 : 8)
+            .offset(y: shown || reduceMotion ? 0 : 16)
             .onAppear {
-                switch mode {
-                case .full:
-                    withAnimation(Motion.morph.delay(Motion.stagger(index, start: 0.15, step: 0.1))) { shown = true }
-                case .reduced: withAnimation(Motion.reduced) { shown = true }
-                case .frozen: shown = true
+                withAnimation(reduceMotion ? Motion.reduced
+                                           : Motion.morph.delay((0.15 + 0.1 * Double(index)) * DebugSnapshot.slowMotion)) {
+                    shown = true
                 }
             }
     }
@@ -199,6 +187,11 @@ extension View {
     func morphIn(_ index: Int) -> some View {
         modifier(MorphIn(index: index))
     }
+}
+
+extension Motion {
+    /// Survol et prise d'un élément : ressort court et souple.
+    static let lift = Animation.spring(response: 0.28, dampingFraction: 0.72)
 }
 
 struct MenuHover: ViewModifier {
@@ -324,10 +317,6 @@ private struct PrimaryButtonStyleModifier: ViewModifier {
     @AppStorage(Appearance.glassKey) private var glassEnabled = true
 
     func body(content: Content) -> some View {
-        styled(content).glassHighlight(Capsule())          // reflet qui suit la souris, dans la capsule du bouton
-    }
-
-    @ViewBuilder private func styled(_ content: Content) -> some View {
         #if compiler(>=6.2)
         if #available(macOS 26.0, *), glassEnabled {
             content.buttonStyle(.glassProminent)
@@ -364,10 +353,6 @@ private struct SecondaryButtonStyleModifier: ViewModifier {
     @AppStorage(Appearance.glassKey) private var glassEnabled = true
 
     func body(content: Content) -> some View {
-        styled(content).glassHighlight(Capsule())          // reflet qui suit la souris, dans la capsule du bouton
-    }
-
-    @ViewBuilder private func styled(_ content: Content) -> some View {
         #if compiler(>=6.2)
         if #available(macOS 26.0, *), glassEnabled {
             content.buttonStyle(.glass)
@@ -405,8 +390,8 @@ private struct WindowGlass: ViewModifier {
 
 /// Fond de la page aux couleurs de sa section, comme le guide : lueur de sa couleur (halo en haut à gauche, reflet en
 /// haut à droite, une touche en bas, `TintGlow`) sur toute la page, sous la barre d'outils et la barre latérale.
-/// D'une page à l'autre, les couleurs se fondent l'une dans l'autre (`Motion.colorFlow`), jamais de changement sec.
-/// Dégradés statiques : rien ne tourne au repos. Contraste élevé : rien.
+/// D'une page à l'autre, les couleurs se fondent l'une dans l'autre (0,9 s), jamais de changement sec. Dégradés
+/// statiques : rien ne tourne au repos. Contraste élevé : rien.
 private struct TintedBackdrop: ViewModifier {
     let tint: Color?
     @Environment(\.colorSchemeContrast) private var contrast
@@ -420,7 +405,7 @@ private struct TintedBackdrop: ViewModifier {
                         .transition(.opacity)
                 }
             }
-            .motion(Motion.colorFlow, value: tint)
+            .animation(.easeInOut(duration: 0.9 * DebugSnapshot.slowMotion), value: tint)
             .ignoresSafeArea()
             .allowsHitTesting(false)
             .accessibilityHidden(true)
@@ -799,7 +784,6 @@ private struct CardRowModifier: ViewModifier {
             if let hover {
                 row
                     .contentShape(Rectangle())
-                    .glassHighlight(cornerRadius: 10)
                     .menuHover(tint: hover)
             } else {
                 row

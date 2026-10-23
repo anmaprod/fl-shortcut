@@ -32,7 +32,6 @@ struct MacroLibraryPage: View {
     let open: (UUID) -> Void
     let toast: (ToastMessage) -> Void
     @State private var showTemplates = false
-    @Environment(\.cardPresenter) private var cards
 
     var body: some View {
         Group {
@@ -57,8 +56,6 @@ struct MacroLibraryPage: View {
                     Section {
                         ForEach(Array(library.macros.enumerated()), id: \.element.id) { index, doc in
                             row(doc).cardRow(.position(index: index, count: library.macros.count), hover: .purple)
-                                .frameProbe(CreatorFlight.row(doc.id))   // le créateur en sort et y rentre
-                                .flightTarget(CreatorFlight.row(doc.id))
                         }
                     } header: {
                         Text("Mes macros")
@@ -67,14 +64,10 @@ struct MacroLibraryPage: View {
                 .glassListBackground()
             }
         }
-        // Modèles en carte (sortie du centre) ; hors de la fenêtre principale (aucune carte possible), rien.
-        .onChange(of: showTemplates) { open in
-            guard open else { return }
-            guard let cards else { showTemplates = false; return }
-            let gallery = MacroTemplates.gallery(layout: store.layout)
-            cards.present(CardRequest(kind: .templates, source: nil,
-                                      content: { AnyView(MacroTemplatesSheet(templates: gallery) { use($0) }) },
-                                      onClose: { showTemplates = false }))
+        .sheet(isPresented: $showTemplates) {
+            MacroTemplatesSheet(templates: MacroTemplates.gallery(layout: store.layout)) { template in
+                use(template)
+            }
         }
     }
 
@@ -230,18 +223,14 @@ struct MacroLibraryPage: View {
     private func toggle(_ remap: Remap) {
         var copy = remap
         copy.enabled.toggle()
-        withListAnimation(changes: 1) { store.upsert(copy) }
+        store.upsert(copy)
     }
 
     /// Supprime la macro et ses raccourcis (annulable depuis la notification).
     private func delete(_ doc: MacroDoc) {
         let shortcuts = store.remaps(forMacro: doc.id)
-        let removal = withListAnimation(changes: 1 + shortcuts.count) { () -> (doc: MacroDoc, index: Int)? in
-            guard let removed = library.remove(doc.id) else { return nil }
-            for r in shortcuts { store.delete(r.id) }
-            return removed
-        }
-        guard let removed = removal else { return }
+        guard let removed = library.remove(doc.id) else { return }
+        for r in shortcuts { store.delete(r.id) }
         let lib = library
         let model = store
         toast(ToastMessage(text: String(localized: "« \(doc.name.displaySafe()) » supprimée"), undo: {
@@ -351,8 +340,7 @@ final class MacrosLink: ObservableObject {
 struct MacroTemplatesSheet: View {
     let templates: [MacroTemplate]
     let choose: (MacroTemplate) -> Void
-    @Environment(\.cardDismiss) private var dismiss
-    @Environment(\.cardMaxHeight) private var cardMaxHeight
+    @Environment(\.dismiss) private var dismiss
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
@@ -398,7 +386,7 @@ struct MacroTemplatesSheet: View {
             }
         }
         .padding(20)
-        .frame(width: 540, height: min(470, cardMaxHeight))   // la liste défile elle-même : pas plus haute que la carte
+        .frame(width: 540, height: 470)
     }
 }
 
@@ -582,7 +570,6 @@ struct MacroSidebarRow: View {
             Text("Macros")
         } icon: {
             SectionIcon(symbol: SidebarItem.macros.symbol, tint: SidebarItem.macros.tint)
-                .frameProbe(SidebarItem.macros.flightID)
         }
         .sidebarHover(SidebarItem.macros.tint)
         .badge(library.macros.count)

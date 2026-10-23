@@ -76,23 +76,12 @@ struct MacroCreatorView: View {
     /// Flèche ← : retour aux raccourcis (avec la question « Enregistrer ou supprimer » si besoin).
     let onBack: () -> Void
     @Environment(\.undoManager) private var undoManager
-    @Environment(\.flightCenter) private var flights
     @AppStorage(Appearance.glassKey) private var glassEnabled = true
-    /// Bloc ajouté d'un clic dans la palette : son vol vers sa ligne suffit (pas de second vol vers l'inspecteur).
-    @State private var addedFromPalette = false
 
     var body: some View {
         NavigationSplitView {
-            MacroPaletteView(items: model.paletteItems, insert: { [model, flights] item in
-                addedFromPalette = true
+            MacroPaletteView(items: model.paletteItems, insert: { [model] item in
                 withAnimation(MacroStepsPane.spring) { model.insert(item) }
-                // Ajouté d'un clic : son icône vole de la palette jusqu'à sa ligne (lue après la mise en page).
-                DispatchQueue.main.async { [weak model] in
-                    addedFromPalette = false
-                    guard let block = model?.selectedBlock, block.body.type == item.type else { return }
-                    flights?.fly(.icon(symbol: item.symbol, tint: item.category.tint, size: 22),
-                                 from: "palette.\(item.id)", to: "bloc.\(block.id)")
-                }
             })
                 .navigationSplitViewColumnWidth(min: 190, ideal: 230, max: 300)
         } detail: {
@@ -126,39 +115,6 @@ struct MacroCreatorView: View {
             model.handle(link.request)                  // déjà fait avant l'ouverture : sans effet
         }
         .onChange(of: link.request) { request in model.handle(request) }
-        .onChange(of: model.selection) { _ in flyToInspector() }
-        .onReceive(DebugSnapshot.publisher(DebugSnapshot.gouttes)) { note in
-            let words = (note.object as? String ?? "").split(separator: " ")
-            DebugSnapshot.slowMotion = words.contains("lent") ? 10 : 1
-            // Au tour suivant : la porte du mouvement a pris le nouveau ralenti.
-            DispatchQueue.main.async {
-                model.selection = words.first == "choisir" ? model.rows.first(where: { $0.kind == .block })?.id : nil
-            }
-        }
-    }
-
-    /// Bloc choisi à la souris dans la liste (pas aux flèches du clavier, pas ajouté depuis la palette, ni choisi par
-    /// « Dupliquer », « Supprimer » ou le menu « Ajouter ») : son icône vole de sa ligne jusqu'en haut de l'inspecteur.
-    private func flyToInspector() {
-        guard !addedFromPalette, let event = NSApp.currentEvent,
-              event.type == .leftMouseDown || event.type == .leftMouseUp, Self.clickedInList(event),
-              let block = model.selectedBlock, let spec = block.body.type.map(BlockRegistry.spec) else { return }
-        DispatchQueue.main.async {
-            flights?.fly(.icon(symbol: spec.symbol, tint: spec.category.tint, size: 30), from: "bloc.\(block.id)",
-                         to: InspectorFlight.icon)
-        }
-    }
-
-    /// Le clic a eu lieu dans une liste (vue d'AppKit `NSTableView` des `List`), pas sur un bouton dessiné par SwiftUI.
-    private static func clickedInList(_ event: NSEvent) -> Bool {
-        guard let content = event.window?.contentView else { return false }
-        let point = content.superview?.convert(event.locationInWindow, from: nil) ?? event.locationInWindow
-        var view = content.hitTest(point)
-        while let current = view {
-            if current is NSTableView { return true }
-            view = current.superview
-        }
-        return false
     }
 
     // MARK: Barre d'outils
@@ -206,8 +162,6 @@ private struct MacroStepsPane: View {
     @ObservedObject var model: MacroEditorModel
     @ObservedObject var monitor: MacroRunMonitor
     let paletteItems: [PaletteItem]
-    /// Barre du bas trop étroite pour les libellés des gouttes (voir `ActionsFitProbe`) : icônes seules.
-    @State private var compactActions = false
 
     var body: some View {
         Group {
@@ -238,15 +192,14 @@ private struct MacroStepsPane: View {
         }
     }
 
-    /// Ressort vif du moteur, façon Apple : les lignes s'écartent pour le bloc ajouté, glissent quand on les range, se
-    /// resserrent quand on en supprime. Seulement au moment du changement : rien ne tourne au repos.
-    static var spring: Animation { Motion.spring(.vif) }
+    /// Ressort court et sans rebond visible, façon Apple : les lignes s'écartent pour le bloc ajouté, glissent quand
+    /// on les range, se resserrent quand on en supprime. Seulement au moment du changement : rien ne tourne au repos.
+    static let spring = Animation.spring(response: 0.32, dampingFraction: 0.86)
 
     private var list: some View {
         List(selection: $model.selection) {
             ForEach(model.rows) { row in
                 MacroStepRowView(row: row, status: status(row), current: monitor.current == row.blockID && row.kind == .block,
-                                 landed: model.landed == row.blockID && row.kind == .block,
                                  onToggle: { on in model.setEnabled(row.blockID, on) })
                     .equatable()
                     .tag(row.id)
@@ -326,102 +279,47 @@ private struct MacroStepsPane: View {
         }
     }
 
-    /// Sous la liste : ajouter (sous la sélection), dupliquer (⌘D), supprimer (⌫), avec l'aide du moment. Une seule
-    /// barre de gouttes, jamais plusieurs versions qui s'échangent selon la place : la version changeait quand un bloc
-    /// était choisi, et « Dupliquer » et « Supprimer » apparaissaient d'un coup au lieu de sortir de « Ajouter » (CI).
-    /// Fenêtre étroite : icônes seules (leur bulle d'aide reste), décidé par une sonde qui ne dépend pas du bloc
-    /// choisi ; jamais un libellé coupé.
+    /// Sous la liste : ajouter (sous la sélection), dupliquer (⌘D), supprimer (⌫), avec l'aide du moment.
     private var actionBar: some View {
-        let chosen = model.selectedBlock != nil
-        return HStack(spacing: 10) {
-            // Gouttes de verre : « Dupliquer » et « Supprimer » sortent de « Ajouter » quand un bloc est choisi.
-            LiquidDropsBar(showsExtra: chosen) {
-                AddBlockMenu(items: paletteItems, insert: { [model] item in withAnimation(Self.spring) { model.insert(item) } })
-            } duplicate: {
-                Button {
-                    withAnimation(Self.spring) { model.duplicateSelection() }
-                } label: {
-                    Label("Dupliquer", systemImage: "plus.square.on.square")
-                }
-                .keyboardShortcut("d", modifiers: .command)
-                .help("Dupliquer le bloc choisi (⌘D)")
-            } delete: {
-                Button {
-                    withAnimation(Self.spring) { model.deleteSelection() }
-                } label: {
-                    Label("Supprimer", systemImage: "trash")
-                }
-                .help("Supprimer le bloc choisi (⌫)")
-            }
-            .labelStyle(DropLabelStyle(compact: compactActions))
-            .layoutPriority(1)                               // les gouttes d'abord, l'astuce dans ce qui reste
-            // L'astuce, à droite, sans bloc choisi et seulement si elle tient en entier : elle disparaît d'un coup
-            // quand les gouttes sortent et ne revient qu'une fois qu'elles sont rentrées (jamais par-dessus
-            // « Supprimer »).
-            if !chosen {
-                ViewThatFits(in: .horizontal) {
-                    Text("Glisse les lignes pour les ranger")
-                        .font(.system(size: 11))
-                        .foregroundStyle(.tertiary)
-                    Color.clear.frame(width: 0, height: 0)
-                }
-                .frame(maxWidth: .infinity, alignment: .trailing)
-                .transition(Motion.transition(.asymmetric(
-                    insertion: .opacity.animation(Motion.spring(.vif).delay(Motion.settleTime(.vif))),
-                    removal: .opacity.animation(nil))))
-            }
+        // Fenêtre étroite : d'abord sans l'astuce, puis les icônes seules (leur bulle d'aide reste) ; jamais un
+        // libellé coupé sur deux lignes.
+        ViewThatFits(in: .horizontal) {
+            actionButtons(hint: true)
+            actionButtons(hint: false)
+            actionButtons(hint: false).labelStyle(.iconOnly)
         }
-        .lineLimit(1)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background { ActionsFitProbe(compact: $compactActions) }
-        .motion(Motion.spring(.vif), value: chosen)
         .buttonStyle(.borderless)
         .font(.system(size: 12))
         .padding(.horizontal, 14)
         .frame(height: 34)
     }
-}
 
-/// Libellés des gouttes : icône et texte, ou icône seule dans une barre étroite. Même barre dans les deux cas : seul
-/// le texte part.
-private struct DropLabelStyle: LabelStyle {
-    let compact: Bool
-
-    @ViewBuilder func makeBody(configuration: Configuration) -> some View {
-        if compact {
-            Label(configuration).labelStyle(.iconOnly)
-        } else {
-            Label(configuration).labelStyle(.titleAndIcon)
-        }
-    }
-}
-
-/// Sonde invisible de la barre du bas : les trois libellés côte à côte, comme si un bloc était choisi (sans bouton ni
-/// raccourci). S'ils dépassent la largeur de la barre, `compact` passe à vrai : icônes seules. Elle ne dépend pas du
-/// bloc choisi : la barre ne change jamais de forme quand on choisit un bloc.
-private struct ActionsFitProbe: View {
-    @Binding var compact: Bool
-
-    var body: some View {
-        GeometryReader { bar in
-            HStack(spacing: 10) {
-                Label("Ajouter", systemImage: "plus").padding(.horizontal, 10)
-                Label("Dupliquer", systemImage: "plus.square.on.square").padding(.horizontal, 10)
-                Label("Supprimer", systemImage: "trash").padding(.horizontal, 10)
+    private func actionButtons(hint: Bool) -> some View {
+        HStack(spacing: 10) {
+            AddBlockMenu(items: paletteItems, insert: { [model] item in withAnimation(Self.spring) { model.insert(item) } })
+            Button {
+                withAnimation(Self.spring) { model.duplicateSelection() }
+            } label: {
+                Label("Dupliquer", systemImage: "plus.square.on.square")
             }
-            .labelStyle(.titleAndIcon)
-            .padding(.trailing, 16)                          // marge : ce que les boutons ajoutent autour du libellé
-            .fixedSize()
-            .background(GeometryReader { labels in
-                let tooWide = labels.size.width > bar.size.width
-                Color.clear
-                    .onAppear { compact = tooWide }
-                    .onChange(of: tooWide) { compact = $0 }
-            })
+            .keyboardShortcut("d", modifiers: .command)
+            .disabled(model.selectedBlock == nil)
+            .help("Dupliquer le bloc choisi (⌘D)")
+            Button {
+                withAnimation(Self.spring) { model.deleteSelection() }
+            } label: {
+                Label("Supprimer", systemImage: "trash")
+            }
+            .disabled(model.selectedBlock == nil)
+            .help("Supprimer le bloc choisi (⌫)")
+            Spacer(minLength: 8)
+            if hint {
+                Text("Glisse les lignes pour les ranger")
+                    .font(.system(size: 11))
+                    .foregroundStyle(.tertiary)
+            }
         }
-        .opacity(0)
-        .allowsHitTesting(false)
-        .accessibilityHidden(true)
+        .lineLimit(1)
     }
 }
 
@@ -519,12 +417,10 @@ private struct MacroStepRowView: View, Equatable {
     let row: MacroStepRow
     let status: MacroRunMonitor.Status?
     let current: Bool
-    /// Bloc qui vient d'être posé : son fond s'éclaire de sa couleur, puis s'éteint (ressort vif).
-    let landed: Bool
     let onToggle: (Bool) -> Void
 
     static func == (a: MacroStepRowView, b: MacroStepRowView) -> Bool {
-        a.row == b.row && a.status == b.status && a.current == b.current && a.landed == b.landed
+        a.row == b.row && a.status == b.status && a.current == b.current
     }
 
     private var indent: CGFloat { CGFloat(row.depth) * 22 }
@@ -550,8 +446,6 @@ private struct MacroStepRowView: View, Equatable {
                 .foregroundStyle(.secondary)
                 .frame(minWidth: 24, alignment: .trailing)
             SectionIcon(symbol: row.symbol, tint: tint, size: 22)
-                .frameProbe("bloc.\(row.blockID)")
-                .flightTarget("bloc.\(row.blockID)")
             VStack(alignment: .leading, spacing: 2) {
                 sentence
                 if let note = row.note {
@@ -571,8 +465,6 @@ private struct MacroStepRowView: View, Equatable {
         .padding(.vertical, 3)
         .opacity(row.enabled ? 1 : 0.45)
         .background(stateBackground)
-        .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(tint.opacity(landed ? 0.25 : 0))
-            .motion(Motion.spring(.vif), value: landed))
         .menuHover(tint: tint, cornerRadius: 8)
         .accessibilityElement(children: .combine)
         .accessibilityLabel(accessibilityText)

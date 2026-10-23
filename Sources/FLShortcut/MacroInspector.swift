@@ -57,11 +57,6 @@ struct MacroInspectorView: View {
 
 // MARK: - Bloc choisi
 
-/// Icône d'en-tête de l'inspecteur dans la couche de vol (arrivée de l'icône du bloc choisi à la souris).
-enum InspectorFlight {
-    static let icon = "inspecteur.icone"
-}
-
 private struct BlockInspector: View {
     @ObservedObject var model: MacroEditorModel
     @ObservedObject private var teacher = ClickTeacher.shared
@@ -129,10 +124,7 @@ private struct BlockInspector: View {
 
     private var header: some View {
         HStack(alignment: .top, spacing: 10) {
-            // Bloc choisi à la souris : l'icône de sa ligne vole jusqu'ici (MacroCreatorView).
             SectionIcon(symbol: spec?.symbol ?? "questionmark.square.dashed", tint: spec?.category.tint ?? .gray, size: 30)
-                .frameProbe(InspectorFlight.icon)
-                .flightTarget(InspectorFlight.icon)
             VStack(alignment: .leading, spacing: 3) {
                 Text(spec?.label ?? String(localized: "Bloc inconnu")).font(.headline)
                 if let aide = spec?.aide {

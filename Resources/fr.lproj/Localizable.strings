@@ -1475,7 +1475,7 @@
 "Retirer tous les solos" = "Retirer tous les solos";
 "Retouche-la dans le créateur : ajoute des blocs de la palette d'un clic ou en les glissant, range les lignes en les glissant." = "Retouche-la dans le créateur : ajoute des blocs de la palette d'un clic ou en les glissant, range les lignes en les glissant.";
 "Retour" = "Retour";
-"Retour en arrière…" = "Retour en arrière…";
+"Retour comme avant…" = "Retour comme avant…";
 "Retrouver ce bouton s'il bouge" = "Retrouver ce bouton s'il bouge";
 "Retrouver mes raccourcis et mes macros sur un autre Mac" = "Retrouver mes raccourcis et mes macros sur un autre Mac";
 "Retrouver ses boutons par leur nom, au moment du clic" = "Retrouver ses boutons par leur nom, au moment du clic";
@@ -1600,7 +1600,6 @@
 "Solo piste Mixer sélectionnée" = "Solo piste Mixer sélectionnée";
 "Son de FL" = "Son de FL";
 "Son nom, tel qu'il est écrit dans le menu « Arrangement » de FL." = "Son nom, tel qu'il est écrit dans le menu « Arrangement » de FL.";
-"Sons de l'interface" = "Sons de l'interface";
 "Sortie du Mac : " = "Sortie du Mac : ";
 "Sortie du Mac en ce moment : " = "Sortie du Mac en ce moment : ";
 "Sortie et entrée du Mac : " = "Sortie et entrée du Mac : ";
@@ -2221,5 +2220,3 @@
 "⌘⌥Échap ouvre « Forcer à quitter »" = "⌘⌥Échap ouvre « Forcer à quitter »";
 "⌘⌫ supprime (fichiers, corbeille)" = "⌘⌫ supprime (fichiers, corbeille)";
 "⌫ dans le champ : aucune touche (le bloc demande alors le lien avec FL)." = "⌫ dans le champ : aucune touche (le bloc demande alors le lien avec FL).";
-"✓ %lld sons rangés" = "✓ %lld sons rangés";
-"✓ 1 son rangé" = "✓ 1 son rangé";

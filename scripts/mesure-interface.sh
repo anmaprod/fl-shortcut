@@ -119,75 +119,6 @@ order() {   # $1 : rapport gardé ; ordre des blocs du créateur (genres seuleme
   sed -n 's/^créateur : //p' "$OUT/$1-report.txt" 2>/dev/null | head -1
 }
 
-# Animations du chantier « morph » au ralenti (10 fois), photographiées une seule fois (passe avec verre) APRÈS
-# les mesures de mémoire : photographiées avant le créateur, elles le faisaient paraître 25 Mo plus lourd (mémoire
-# gardée par malloc après tous ces écrans) et le tableau n'était plus comparable à celui d'avant le chantier.
-ralentis() {   # $1 : libellé (rapport du menu)
-  local label=$1 i
-  # Menu de l'icône au ralenti (10 fois) : la bulle naît de l'icône, puis y rentre ; aucun fond de macOS derrière.
-  # Le rapport donne la structure de sa fenêtre (ce que la bulle masque).
-  "$POST" app.flshortcut.debug.menu "ouvrir lent"
-  for i in 1 2 3 4 5 6 7 8; do
-    sleep 0.5; screencapture -x "$OUT/menu-ouverture-$i.png" 2>/dev/null || true
-  done
-  sleep 4
-  report "$label-menu" >/dev/null
-  "$POST" app.flshortcut.debug.menu "fermer lent"
-  for i in 1 2 3 4 5 6; do
-    sleep 0.5; screencapture -x "$OUT/menu-fermeture-$i.png" 2>/dev/null || true
-  done
-  sleep 8
-  # Organiser au ralenti : il sort d'un cadre d'exemple au milieu de l'écran, puis rentre dans l'icône en se fermant.
-  "$POST" app.flshortcut.debug.vol "organiser lent"
-  for i in 1 2 3 4 5 6 7 8; do
-    sleep 0.5; screencapture -x "$OUT/vol-organiser-$i.png" 2>/dev/null || true
-  done
-  sleep 4
-  # Puis, toujours au ralenti : l'écoute (une pastille par famille, son nombre qui défile), l'aperçu (la fenêtre
-  # grandit, puis les pastilles deviennent les cartes des familles), « Organiser » qui devient la pastille du
-  # rangement, puis « ✓ N sons rangés ». Aucune roue qui tourne.
-  "$POST" app.flshortcut.debug.organizer "ecoute lent"
-  for i in 1 2 3 4 5 6 7 8; do
-    sleep 0.5; screencapture -x "$OUT/organiser-ecoute-$i.png" 2>/dev/null || true
-  done
-  sleep 2
-  "$POST" app.flshortcut.debug.organizer "apercu lent"
-  for i in 1 2 3 4 5 6 7 8; do
-    sleep 0.9; screencapture -x "$OUT/organiser-apercu-$i.png" 2>/dev/null || true
-  done
-  sleep 2
-  "$POST" app.flshortcut.debug.organizer "fini lent"
-  for i in 1 2 3 4 5 6 7 8; do
-    sleep 0.7; screencapture -x "$OUT/organiser-fini-$i.png" 2>/dev/null || true
-  done
-  sleep 6
-  "$POST" app.flshortcut.debug.organizer fermer
-  for i in 1 2 3 4; do
-    sleep 0.7; screencapture -x "$OUT/vol-organiser-fermeture-$i.png" 2>/dev/null || true
-  done
-  sleep 8
-  "$POST" app.flshortcut.debug.select general; sleep 2
-  # Fiche d'une touche au ralenti (10 fois) : une carte de verre sort de sa ligne sur un voile, puis y rentre.
-  "$POST" app.flshortcut.debug.carte lent
-  for i in 1 2 3 4 5 6 7 8; do
-    sleep 0.5; screencapture -x "$OUT/carte-ouverture-$i.png" 2>/dev/null || true
-  done
-  sleep 4
-  "$POST" app.flshortcut.debug.carte "fermer lent"
-  for i in 1 2 3 4 5 6; do
-    sleep 0.5; screencapture -x "$OUT/carte-fermeture-$i.png" 2>/dev/null || true
-  done
-  sleep 5
-  "$POST" app.flshortcut.debug.carte fermer; sleep 1
-  # Fenêtre principale au ralenti : fermée, puis elle ressort d'un cadre d'exemple et s'ouvre à son cadre mémorisé.
-  "$POST" app.flshortcut.debug.vol "editeur lent"
-  for i in 1 2 3 4 5 6 7 8; do
-    sleep 0.6; screencapture -x "$OUT/vol-editeur-$i.png" 2>/dev/null || true
-  done
-  sleep 12
-  "$POST" app.flshortcut.debug.open; sleep 2
-}
-
 run() {   # $1 : libellé, $2 : YES/NO effet verre
   local label=$1 glass=$2 p
   pkill -x FLShortcut 2>/dev/null; sleep 1
@@ -347,20 +278,6 @@ run() {   # $1 : libellé, $2 : YES/NO effet verre
   cp "$HOME/Library/Caches/$DOMAIN/$label-createur-"*.png "$OUT/" 2>/dev/null || true
   mc=$(mem_mb "$p"); cc=$(cpu_avg "$p")
   categories "$p" "$label-createur-ouvert"
-  # Gouttes du créateur au ralenti (10 fois) : un bloc choisi, « Dupliquer » et « Supprimer » sortent de « Ajouter »
-  # (verre de macOS 26 dans la passe avec verre, gouttes dessinées dans l'autre), puis y rentrent.
-  "$POST" app.flshortcut.debug.gouttes lacher; sleep 1
-  "$POST" app.flshortcut.debug.gouttes "choisir lent"
-  for i in 1 2 3 4; do
-    sleep 0.6; screencapture -x "$OUT/$label-gouttes-$i.png" 2>/dev/null || true
-  done
-  sleep 3
-  "$POST" app.flshortcut.debug.gouttes "lacher lent"
-  for i in 5 6 7 8; do
-    sleep 0.6; screencapture -x "$OUT/$label-gouttes-$i.png" 2>/dev/null || true
-  done
-  sleep 3
-  "$POST" app.flshortcut.debug.gouttes choisir; sleep 1
   "$POST" app.flshortcut.debug.macro close; sleep 4
   md=$(mem_mb "$p")
   categories "$p" "$label-createur-referme"
@@ -383,7 +300,6 @@ run() {   # $1 : libellé, $2 : YES/NO effet verre
   m3=$(mem_mb "$p")
   categories "$p" "$label-recherche"
   "$POST" app.flshortcut.debug.search ""; sleep 1
-  if [[ "$label" == verre ]]; then ralentis "$label"; fi
   echo "| $label | $m0 | $c0 | $m1 | $c1 | $c1b | $mb | $mc | $cc | $md | $m2 | $m3 | ${co[2]} | ${cf[2]} | ${co[3]} | ${cf[3]} | $n0 ; ${nm[1]} / ${nm[2]} / ${nm[3]} | $fit | $drop | $moved |"
 }
 

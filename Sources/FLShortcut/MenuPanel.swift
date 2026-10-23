@@ -16,16 +16,8 @@ final class MenuPanel: ObservableObject {
 
     /// Contenu déployé : faux pendant que le menu est fermé, vrai (animé) à chaque ouverture.
     @Published private(set) var revealed = false
-    /// Notre bulle (MenuBubble) dans une fenêtre rendue transparente ; faux : menu de macOS d'avant (repli).
-    @Published private(set) var bubble = false
-    /// Pastille de départ de la bulle, sous l'icône (contenu de la fenêtre, origine en haut à gauche).
-    @Published private(set) var pillFrame: CGRect = .zero
-    /// Cadre de l'icône à l'écran (origine en bas), lu à chaque ouverture.
-    private(set) var statusIconFrame: CGRect?
 
     private weak var panel: NSWindow?
-    /// Fenêtre du menu (rapport de la CI : sa structure).
-    var window: NSWindow? { panel }
     private var observers: [NSObjectProtocol] = []
     /// Dernière fois que l'app est passée au premier plan.
     private var activeSince = Date.distantPast
@@ -54,50 +46,7 @@ final class MenuPanel: ObservableObject {
                                             queue: .main) { [weak self] _ in self?.resigned() })
         observers.append(center.addObserver(forName: NSWindow.didChangeOcclusionStateNotification, object: window,
                                             queue: .main) { [weak self] _ in self?.visibilityChanged() })
-        // La fenêtre grandit de la marge de la bulle, ou macOS la décale près d'un bord : la pastille reste sous
-        // l'icône.
-        for name in [NSWindow.didResizeNotification, NSWindow.didMoveNotification] {
-            observers.append(center.addObserver(forName: name, object: window, queue: .main) { [weak self] _ in
-                self?.placePill()
-            })
-        }
-        prepareBubble()                                    // bulle prête avant le premier affichage
         if window.isKeyWindow || window.occlusionState.contains(.visible) { opened() }
-    }
-
-    /// Fenêtre transparente pour notre bulle (ou repli sur le menu d'avant), pastille sous l'icône. À chaque
-    /// ouverture : macOS peut remettre son fond.
-    private func prepareBubble() {
-        guard let panel else { return }
-        // La préférence de repli compte au lancement : une fenêtre déjà rendue transparente garde sa bulle (le menu
-        // d'avant n'y aurait plus de fond).
-        let legacy = !MenuBubbleStyle.enabled
-            || (!bubble && UserDefaults.standard.bool(forKey: MenuBubbleSupport.legacyKey))
-        let ours = MenuBubbleSupport.prepare(panel, legacy: legacy) || bubble
-        if ours != bubble {
-            var quiet = Transaction()
-            quiet.disablesAnimations = true
-            withTransaction(quiet) { bubble = ours }
-        }
-        placePill()
-    }
-
-    private func placePill() {
-        guard let panel else { return }
-        statusIconFrame = statusButton?.window?.frame
-        guard let icon = statusIconFrame else { return }
-        let pill = MenuBubbleGeometry.pill(icon: icon, window: panel.frame)
-        if pill != pillFrame { pillFrame = pill }
-    }
-
-    /// Cadre de l'icône à l'écran, maintenant (départ et arrivée des fenêtres : WindowLauncher).
-    func iconFrameNow() -> CGRect? {
-        statusButton?.window?.frame
-    }
-
-    /// Commande de la CI : un clic sur l'icône (ouvre ou ferme le menu, comme la souris).
-    func clickIcon() {
-        statusButton?.performClick(nil)
     }
 
     /// Contenu affiché : si la fenêtre n'a rien signalé (cas imprévu), le contenu se montre quand même.
@@ -112,24 +61,16 @@ final class MenuPanel: ObservableObject {
     func close() {
         guard let panel, panel.isVisible, !closing else { return }
         closing = true
-        let reduce = Motion.reduce
-        let duration: TimeInterval
-        if bubble {
-            // Les lignes partent d'abord (MenuReveal), notre bulle rentre dans l'icône ; la fenêtre, transparente,
-            // n'a rien d'autre à effacer.
-            duration = reduce ? Motion.reducedDuration : Motion.settleTime(.doux)
-            withAnimation(reduce ? Motion.reduced : Motion.spring(.doux)) { revealed = false }
-        } else {
-            // Les options repartent d'abord (MenuReveal), puis le panneau rentre dans l'icône.
-            duration = reduce ? Motion.reducedDuration : 2 * Motion.exitDuration
-            withAnimation(reduce ? Motion.reduced : Motion.exit.delay(Motion.exitDuration)) { revealed = false }
-            // La bulle de macOS s'efface avec les options : elle restait seule au-dessus de la fenêtre qu'une option
-            // venait d'ouvrir.
-            NSAnimationContext.runAnimationGroup { context in
-                context.duration = duration
-                context.timingFunction = CAMediaTimingFunction(name: .easeIn)
-                panel.animator().alphaValue = 0
-            }
+        let reduce = NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
+        // Les options repartent d'abord (MenuReveal), puis le panneau rentre dans l'icône.
+        let duration = reduce ? 0.12 : 0.36
+        withAnimation(reduce ? .easeIn(duration: 0.12) : .easeIn(duration: 0.22).delay(0.14)) { revealed = false }
+        // La bulle (le fond du menu, dessiné par macOS) s'efface avec les options : elle restait seule au-dessus de
+        // la fenêtre qu'une option venait d'ouvrir.
+        NSAnimationContext.runAnimationGroup { context in
+            context.duration = duration
+            context.timingFunction = CAMediaTimingFunction(name: .easeIn)
+            panel.animator().alphaValue = 0
         }
         DispatchQueue.main.asyncAfter(deadline: .now() + duration) { [weak self] in
             guard let self, let panel = self.panel, panel.isVisible else { return }
@@ -153,13 +94,13 @@ final class MenuPanel: ObservableObject {
         // L'app était déjà au premier plan avant le clic sur l'icône (pas activée par l'ouverture du menu).
         let alreadyFront = NSApp.isActive && Date().timeIntervalSince(activeSince) > 0.4
         frontWindow = alreadyFront ? appWindows.first : nil
-        prepareBubble()
         reveal()
     }
 
     private func reveal() {
         panel?.alphaValue = 1                              // effacée à la dernière fermeture
-        withAnimation(Motion.reduce ? Motion.reduced : Motion.spring(.doux)) {
+        let reduce = NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
+        withAnimation(reduce ? .easeOut(duration: 0.15) : .spring(response: 0.5, dampingFraction: 0.82)) {
             revealed = true
         }
     }
@@ -241,19 +182,15 @@ extension View {
     }
 
     /// Ligne du menu : arrive juste après la précédente (`index` : sa place dans le menu).
-    /// En bulle (`bubble`), les lignes attendent que la bulle soit presque posée.
-    func menuRevealRow(_ revealed: Bool, index: Int, bubble: Bool = false) -> some View {
-        modifier(MenuReveal(revealed: revealed, index: index, bubble: bubble))
+    func menuRevealRow(_ revealed: Bool, index: Int) -> some View {
+        modifier(MenuReveal(revealed: revealed, index: index))
     }
 }
 
 private struct MenuReveal: ViewModifier {
     let revealed: Bool
     let index: Int?
-    var bubble = false
-    @Environment(\.accessibilityReduceMotion) private var reduceMotionSetting
-
-    private var reduceMotion: Bool { reduceMotionSetting && DebugSnapshot.slowMotion == 1 }
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     func body(content: Content) -> some View {
         if reduceMotion {
@@ -267,8 +204,8 @@ private struct MenuReveal: ViewModifier {
                 .scaleEffect(revealed ? 1 : 0.94, anchor: .top)
                 .offset(y: revealed ? 0 : -12)
                 .animation(revealed
-                           ? Motion.spring(.doux).delay(arrival(index))
-                           : Motion.exit.delay(Motion.stagger(10 - index, start: 0, step: 0.012)), value: revealed)
+                           ? .spring(response: 0.46, dampingFraction: 0.8).delay(0.06 + Double(index) * 0.035)
+                           : .easeIn(duration: 0.16).delay(Double(max(0, 10 - index)) * 0.012), value: revealed)
         } else {
             // Le panneau : sort de l'icône, du flou au net, en grandissant depuis le haut.
             content
@@ -277,11 +214,5 @@ private struct MenuReveal: ViewModifier {
                 .scaleEffect(revealed ? 1 : 0.86, anchor: .top)
                 .offset(y: revealed ? 0 : -8)
         }
-    }
-
-    /// Délai d'arrivée d'une ligne : juste après la précédente ; en bulle, à partir de 60 % de son ouverture.
-    private func arrival(_ index: Int) -> TimeInterval {
-        guard bubble else { return Motion.stagger(index) }
-        return 0.6 * Motion.settleTime(.doux) + Motion.stagger(index, start: 0, step: 0.035)
     }
 }

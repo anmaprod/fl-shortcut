@@ -372,12 +372,6 @@ final class OrganizerController: ObservableObject {
     @Published private(set) var applyStep: String?
     /// En attente de FL : l'aide détaillée (réglages de FL, dossier du script) dépliée.
     @Published var showLinkHelp = false
-    /// Pendant l'écoute : nombre de sons de chaque famille déjà classés (pastilles), mêmes nombres que l'aperçu.
-    @Published private(set) var liveFamilies: [SoundFamily: Int] = [:]
-    /// « ✓ N sons rangés » montré un instant après un rangement réussi, avant l'écran de fin.
-    @Published private(set) var showingDone = false
-    /// Durée de « ✓ N sons rangés » (ralentie en capture).
-    static let doneDuration: TimeInterval = 1.2
 
     /// Appelé une fois, à la fermeture (la fenêtre se ferme et lâche le contrôleur).
     var onClose: (() -> Void)?
@@ -453,7 +447,6 @@ final class OrganizerController: ObservableObject {
         self.session?.cancel()                                // l'ancienne écoute s'arrête (FL remis comme avant)
         runToken += 1
         let token = runToken
-        liveFamilies = [:]                                    // nouvelle écoute : plus aucune pastille
         let link = env.link()
         let session = OrganizerSession(
             link: link, audio: audio, classify: env.classify(), nameDrum: env.nameDrum(), nameMelody: env.nameMelody(),
@@ -464,12 +457,6 @@ final class OrganizerController: ObservableObject {
                 DispatchQueue.main.async {
                     guard self?.runToken == token else { return }
                     self?.listening(done, total)
-                }
-            },
-            classified: { [weak self] family in
-                DispatchQueue.main.async {
-                    guard let self, self.runToken == token else { return }
-                    self.liveFamilies[family, default: 0] += 1
                 }
             })
         self.link = link
@@ -604,12 +591,7 @@ final class OrganizerController: ObservableObject {
             families = OrganizerApplier.families(of: result)
             kinds = OrganizerApplier.kinds(of: result)
             if !families.isEmpty || !plan.isEmpty {
-                // La fenêtre prend d'abord la hauteur de l'aperçu, puis les pastilles deviennent ses cartes.
-                let token = runToken
-                OrganizerWindow.growForPreview(for: self) { [weak self] in
-                    guard let self, !self.closed, self.runToken == token else { return }
-                    self.phase = .preview
-                }
+                phase = .preview
             } else {
                 phase = .failed(String(localized: "Aucun son à organiser dans ce projet."))
             }
@@ -629,11 +611,6 @@ final class OrganizerController: ObservableObject {
     var presentFamilies: [SoundFamily] {
         let used = Set(families.values)
         return SoundFamily.order.filter { used.contains($0) }
-    }
-
-    /// Sons rangés (« ✓ N sons rangés ») : ceux des familles de l'aperçu.
-    var organizedCount: Int {
-        presentFamilies.reduce(0) { $0 + members(of: $1).count }
     }
 
     struct Member: Identifiable, Equatable {
@@ -813,25 +790,8 @@ final class OrganizerController: ObservableObject {
             DispatchQueue.main.async {
                 self?.snapshot = outcome.snapshot
                 self?.lastApply = outcome
-                if outcome.error == nil {
-                    self?.showDone()                          // « ✓ N sons rangés », puis l'écran de fin
-                    InterfaceSound.play(.organiserDone)       // FL vient d'être rangé
-                }
                 self?.phase = .applied(outcome.error)
             }
-        }
-    }
-
-    private var doneSerial = 0
-
-    /// « ✓ N sons rangés » pendant `doneDuration`, puis l'écran de fin.
-    private func showDone() {
-        showingDone = true
-        doneSerial += 1
-        let serial = doneSerial
-        DispatchQueue.main.asyncAfter(deadline: .now() + Self.doneDuration * DebugSnapshot.slowMotion) { [weak self] in
-            guard let self, self.doneSerial == serial else { return }
-            self.showingDone = false
         }
     }
 
@@ -848,8 +808,6 @@ final class OrganizerController: ObservableObject {
     func undo() {
         guard canUndo, let snapshot, let link else { return }
         env.focusFL()
-        doneSerial += 1
-        showingDone = false
         phase = .undoing
         let applier = OrganizerApplier(link: link, moveUp: env.moveUp(link), moveLeft: env.moveLeft(link),
                                        moveTrack: env.moveTrack(link), moveClips: env.moveClips(link),
@@ -860,71 +818,27 @@ final class OrganizerController: ObservableObject {
             DispatchQueue.main.async {
                 self?.snapshot = outcome.snapshot
                 self?.phase = .undone(outcome.error)
-                if outcome.error == nil { InterfaceSound.play(.organiserDone) }
             }
         }
     }
 
-    /// Écran d'exemple en cours : un nouvel écran arrête ce que le précédent avait prévu.
-    private var demoSerial = 0
-
-    /// Mode capture (mesure de la CI) : un écran donné, avec des sons d'exemple ; rien n'est envoyé à FL. `slow`
-    /// (« lent », au ralenti) : l'écoute classe les sons d'exemple un à un ; « fini » part de l'aperçu et passe par
-    /// le rangement. L'aperçu arrive toujours comme après une écoute (la fenêtre grandit, puis les pastilles
-    /// deviennent ses cartes) et « fini » montre d'abord « ✓ N sons rangés ».
-    func showDemo(_ screen: String, slow: Bool = false) {
+    /// Mode capture (mesure de la CI) : un écran donné, avec des sons d'exemple ; rien n'est envoyé à FL.
+    func showDemo(_ screen: String) {
         waitSerial += 1
-        demoSerial += 1
-        let serial = demoSerial
         showLinkHelp = screen == "aide"
         switch screen {
         case "installer": phase = .setup
         case "attente": phase = .waiting(.restartFL)
         case "aide": phase = .waiting(.noResponse)
-        case "ecoute":
-            let found = Self.demoResult.items.map(\.family)
-            let shown = slow ? 0 : min(3, found.count)
-            liveFamilies = Dictionary(grouping: found.prefix(shown), by: { $0 }).mapValues(\.count)
-            phase = .listening(done: shown, total: found.count)
-            guard slow else { return }
-            for (k, family) in found.enumerated() {
-                DispatchQueue.main.asyncAfter(deadline: .now() + Double(k + 1) * 0.06 * DebugSnapshot.slowMotion) { [weak self] in
-                    guard let self, self.demoSerial == serial else { return }
-                    self.liveFamilies[family, default: 0] += 1
-                    self.phase = .listening(done: min(k + 1, found.count - 1), total: found.count)
-                }
-            }
-        case "apercu":
-            loadDemo()
-            OrganizerWindow.growForPreview(for: self) { [weak self] in
-                guard let self, self.demoSerial == serial else { return }
-                self.phase = .preview
-            }
-        case "fini":
-            loadDemo()
-            guard slow, phase == .preview else {
-                showDone()
-                phase = .applied(nil)
-                return
-            }
-            applyStep = nil
-            phase = .applying
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.25 * DebugSnapshot.slowMotion) { [weak self] in
-                guard let self, self.demoSerial == serial else { return }
-                self.showDone()
-                self.phase = .applied(nil)
-            }
+        case "ecoute": phase = .listening(done: 3, total: 8)
+        case "apercu", "fini":
+            let result = Self.demoResult
+            self.result = result
+            families = OrganizerApplier.families(of: result)
+            kinds = OrganizerApplier.kinds(of: result)
+            phase = screen == "fini" ? .applied(nil) : .preview
         default: break
         }
-    }
-
-    /// Sons d'exemple, comme après une écoute (pastilles comprises).
-    private func loadDemo() {
-        let result = Self.demoResult
-        self.result = result
-        families = OrganizerApplier.families(of: result)
-        kinds = OrganizerApplier.kinds(of: result)
-        liveFamilies = Dictionary(grouping: families.values, by: { $0 }).mapValues(\.count)
     }
 
     /// Un petit projet d'exemple : des sons nommés comme dans les packs, leurs patterns, leurs pistes du Mixer et
@@ -969,15 +883,6 @@ enum OrganizerWindow {
     private static var panel: NSPanel?
     /// Le contrôleur affiché (nil quand la fenêtre est fermée).
     private(set) static var controller: OrganizerController?
-
-    /// L'Organiser travaille (écoute, rangement, retour) : les sons de l'interface se taisent.
-    static var isWorking: Bool {
-        guard let phase = controller?.phase else { return false }
-        switch phase {
-        case .listening, .applying, .undoing: return true
-        default: return false
-        }
-    }
     private static let delegate = Delegate()
     /// Hauteur de l'aperçu, gardée quand l'utilisateur tire la fenêtre (pour la session de l'app).
     private static var previewHeight = OrganizerView.height
@@ -985,26 +890,19 @@ enum OrganizerWindow {
     private static var showingPreview = false
     /// Hauteur mesurée avant que le panneau existe.
     private static var pending: (height: CGFloat, preview: Bool)?
-    /// La fenêtre grandit pour l'aperçu : une dernière pastille de l'écoute ne la fait plus rapetisser.
-    private static var growing = false
 
     private final class Delegate: NSObject, NSWindowDelegate {
         func windowWillClose(_ notification: Notification) { OrganizerWindow.close() }
     }
 
-    /// Mode capture : l'Organiser sur un écran d'exemple (sans écoute ni lien) ; « fermer » le ferme ; « lent » : au
-    /// ralenti (10 fois ; jamais remis à 1 ici, la commande `vol` l'a peut-être demandé avant).
-    static func showDemo(_ command: String) {
-        let words = command.split(separator: " ").map(String.init)
-        let screen = words.first ?? "attente"
+    /// Mode capture : l'Organiser sur un écran d'exemple (sans écoute ni lien) ; « fermer » le ferme.
+    static func showDemo(_ screen: String) {
         guard screen != "fermer" else {
             controller?.close()
             return
         }
-        let slow = words.contains("lent")
-        if slow { DebugSnapshot.slowMotion = 10 }
         if panel == nil { open(start: false) }
-        controller?.showDemo(screen, slow: slow)
+        controller?.showDemo(screen)
     }
 
     /// Ouvre l'Organiser (ou le ramène devant). Fil principal.
@@ -1044,10 +942,6 @@ enum OrganizerWindow {
             adapt(height: first.height, preview: first.preview)
         }
         p.center()
-        // Sort de la ligne cliquée (ou de l'icône) : invisible jusqu'à ce que la bulle se pose (WindowLauncher).
-        WindowLauncher.shared.open(source: nil, icon: .icon(symbol: "square.stack.3d.up", tint: OrganizerView.tint,
-                                                             size: 22),
-                                   title: String(localized: "Organiser"), window: p)
         p.orderFrontRegardless()
         if start { controller.start() }
     }
@@ -1061,61 +955,23 @@ enum OrganizerWindow {
             pending = (height, preview)
             return
         }
-        if growing && !preview { return }
         let content = panel.contentRect(forFrameRect: panel.frame)
         if showingPreview && !preview { previewHeight = content.height }
         let entering = preview && !showingPreview
         showingPreview = preview
         if preview && !entering { return }
-        resize(panel, to: preview ? previewHeight : height)
-    }
-
-    /// Avant l'aperçu : la fenêtre prend d'abord la hauteur de l'aperçu (courbe d'AppKit), puis `completion` le
-    /// montre, dans une fenêtre déjà à sa taille. Tout de suite si ce contrôleur n'est pas celui de la fenêtre
-    /// (tests) ou si l'aperçu est déjà là.
-    static func growForPreview(for controller: OrganizerController, completion: @escaping () -> Void) {
-        guard let panel, self.controller === controller, !showingPreview else {
-            completion()
-            return
-        }
-        growing = true
-        resize(panel, to: previewHeight) {
-            growing = false
-            completion()
-        }
-    }
-
-    /// Le contenu du panneau à `height` (au plus la hauteur de l'écran moins 40), le haut restant à sa place et la
-    /// largeur choisie gardée ; animé sans bloquer quand le panneau est visible. `completion` : une fois la taille
-    /// prise.
-    private static func resize(_ panel: NSPanel, to height: CGFloat, completion: (() -> Void)? = nil) {
-        let content = panel.contentRect(forFrameRect: panel.frame)
         let screen = (panel.screen ?? NSScreen.main)?.visibleFrame
-        var target = height
+        var target = preview ? previewHeight : height
         if let screen { target = min(target, screen.height - 40) }
         target = max(target, panel.contentMinSize.height)
-        guard abs(target - content.height) > 0.5 else {
-            completion?()
-            return
-        }
+        guard abs(target - content.height) > 0.5 else { return }
         var frame = panel.frameRect(forContentRect: NSRect(x: 0, y: 0, width: content.width, height: target))
         frame.origin = NSPoint(x: panel.frame.minX, y: panel.frame.maxY - frame.height)
         if let screen {                                              // jamais sous le bas de l'écran
             frame.origin.y = max(frame.origin.y, screen.minY)
             if frame.maxY > screen.maxY { frame.origin.y = screen.maxY - frame.height }
         }
-        guard panel.isVisible, !Motion.reduce else {
-            panel.setFrame(frame, display: true)
-            completion?()
-            return
-        }
-        // Courbe d'AppKit, durée du moteur (ralentie en capture) ; sans bloquer comme `setFrame(_:display:animate:)`.
-        NSAnimationContext.runAnimationGroup { context in
-            context.duration = Motion.appKitDuration
-            context.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
-            panel.animator().setFrame(frame, display: true)
-        }
-        if let completion { DispatchQueue.main.asyncAfter(deadline: .now() + Motion.appKitDuration, execute: completion) }
+        panel.setFrame(frame, display: true, animate: panel.isVisible && !Motion.reduce)
     }
 
     /// Depuis la vue : après sa mise à jour (la fenêtre ne change pas de taille au milieu d'un dessin de SwiftUI).
@@ -1136,11 +992,9 @@ enum OrganizerWindow {
         panel = nil
         controller = nil
         showingPreview = false
-        growing = false
         pending = nil
         c?.close()
         p.delegate = nil
-        WindowLauncher.shared.userClosed(p)            // rentre dans l'icône (contrôleur déjà lâché)
         p.orderOut(nil)
         p.contentView = nil
         CreatorPresence.releaseMemory()
@@ -1155,8 +1009,6 @@ struct OrganizerView: View {
     static let tint = Color.indigo
 
     @ObservedObject var controller: OrganizerController
-    /// Ce qui devient autre chose sur place : pastille d'une famille → icône de sa carte, bouton → pastille.
-    @Namespace private var ns
 
     private var isPreview: Bool { controller.phase == .preview }
 
@@ -1176,9 +1028,10 @@ struct OrganizerView: View {
         case .starting: return "starting"
         case .setup: return "setup"
         case .waiting(let reason): return "waiting:\(reason)"
-        case .listening, .preview: return "analysis"          // l'écoute devient l'aperçu sur place
+        case .listening: return "listening"
+        case .preview: return "preview"
         case .applying: return "applying"
-        case .applied: return controller.showingDone ? "done" : "applied"
+        case .applied: return "applied"
         case .undoing: return "undoing"
         case .undone: return "undone"
         case .failed(let message): return "failed:" + message
@@ -1214,8 +1067,6 @@ struct OrganizerView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .background { TintGlow(tint: Self.tint) }
         .motion(Motion.morph, value: stepKey)
-        .motion(Motion.spring(.doux), value: isPreview)       // les pastilles deviennent les cartes
-        .motionGate(.organiser)                 // toujours vivant : il travaille pendant que FL est devant
     }
 
     private var header: some View {
@@ -1245,26 +1096,52 @@ struct OrganizerView: View {
             setup
         case .waiting(let reason):
             waiting(reason)
-        case .listening, .preview:
-            // Une seule étape : à la fin de l'écoute, ses pastilles deviennent les cartes de l'aperçu (leur icône glisse
-            // à sa place), le reste de l'écoute s'efface et le reste de l'aperçu arrive.
-            if case .listening(let done, let total) = controller.phase {
-                listening(done, total)
-                    .transition(.opacity)
-            } else {
-                preview
-                    .transition(.opacity)
+        case .listening(let done, let total):
+            VStack(alignment: .leading, spacing: 12) {
+                HStack(spacing: 12) {
+                    OrganizerBadge(symbol: "waveform", tint: Self.tint, live: true)
+                    VStack(alignment: .leading, spacing: 8) {
+                        HStack {
+                            Text(Self.listeningText(done, total)).font(.system(size: 13, weight: .semibold))
+                            Spacer()
+                            if total > 0 {
+                                Text("\(Int((Double(done) / Double(max(total, 1)) * 100).rounded())) %")
+                                    .font(.system(size: 12).monospacedDigit())
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                        ProgressView(value: Double(done), total: Double(max(total, 1)))
+                            .tint(Self.tint)
+                            .motion(Motion.smooth, value: done)
+                    }
+                }
+                .padding(14)
+                .organizerCard()
+                .morphIn(1)
+                Text(String(localized: """
+                    FL enregistre ton projet, puis FL Shortcuts lit son fichier : ce que joue chaque pattern et où est \
+                    chaque clip, exactement (rien n'est deviné). Un son dont le nom dit ce qu'il est (Kick, 808, Hat…) \
+                    est classé tout de suite ; les autres jouent seuls, à ton tempo, sans que tu les entendes. Ne \
+                    touche pas à FL ; Échap arrête.
+                    """))
+                    .font(.system(size: 11))
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .morphIn(2)
+                HStack {
+                    Spacer()
+                    Button("Arrêter") { controller.close() }.keyboardShortcut(.cancelAction)
+                }
+                .morphIn(3)
             }
+        case .preview:
+            preview
         case .applying:
-            working(applyingText, becomes: "action")           // le bouton « Organiser » devenu pastille
+            working(applyingText)
         case .undoing:
-            working(String(localized: "Retour en arrière…"), becomes: "retour")
+            working(String(localized: "Retour comme avant…"))
         case .applied(let error):
-            if error == nil && controller.showingDone {
-                organized
-            } else {
-                ending(error?.message ?? controller.doneText, ok: error == nil, linkHelp: error == .noResponse)
-            }
+            ending(error?.message ?? controller.doneText, ok: error == nil, linkHelp: error == .noResponse)
         case .undone(let error):
             ending(error?.message ?? (controller.lastApply?.copy != nil
                     ? String(localized: "Ton projet d'origine se rouvre dans FL, tel qu'il était. La copie rangée reste à côté, si tu la veux.")
@@ -1275,85 +1152,15 @@ struct OrganizerView: View {
         }
     }
 
-    /// Écoute : progression, pastilles des familles (une par famille dès son premier son classé, son nombre qui
-    /// défile), ce qui se passe, « Arrêter ».
-    private func listening(_ done: Int, _ total: Int) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack(spacing: 12) {
-                OrganizerBadge(symbol: "waveform", tint: Self.tint)
-                VStack(alignment: .leading, spacing: 8) {
-                    HStack {
-                        Text(Self.listeningText(done, total)).font(.system(size: 13, weight: .semibold))
-                        Spacer()
-                        if total > 0 {
-                            Text("\(Int((Double(done) / Double(max(total, 1)) * 100).rounded())) %")
-                                .font(.system(size: 12).monospacedDigit())
-                                .foregroundStyle(.secondary)
-                        }
-                    }
-                    OrganizerProgress(fraction: Double(done) / Double(max(total, 1)), tint: Self.tint)
-                }
-            }
-            .padding(14)
-            .organizerCard()
-            .morphIn(1)
-            if !controller.liveFamilies.isEmpty {
-                FlowRow(spacing: 8) {
-                    ForEach(SoundFamily.order.filter { controller.liveFamilies[$0] != nil }, id: \.self) { family in
-                        FamilyPill(family: family, count: controller.liveFamilies[family] ?? 0,
-                                   color: swiftColor(controller.style(of: family).color), ns: ns)
-                            .transition(Motion.transition(.scale(scale: 0.6).combined(with: .opacity)))
-                    }
-                }
-            }
-            Text(String(localized: """
-                FL enregistre ton projet, puis FL Shortcuts lit son fichier : ce que joue chaque pattern et où est \
-                chaque clip, exactement (rien n'est deviné). Un son dont le nom dit ce qu'il est (Kick, 808, Hat…) \
-                est classé tout de suite ; les autres jouent seuls, à ton tempo, sans que tu les entendes. Ne \
-                touche pas à FL ; Échap arrête.
-                """))
-                .font(.system(size: 11))
-                .foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
-                .morphIn(2)
-            HStack {
-                Spacer()
-                Button("Arrêter") { controller.close() }.keyboardShortcut(.cancelAction)
-            }
-            .morphIn(3)
-        }
-        .motion(Motion.spring(.vif), value: controller.liveFamilies)
-    }
-
-    /// Ce qui se fait dans FL, avec le temps qui passe. `becomes` : le bouton qui vient de devenir cette pastille
-    /// (elle prend sa place, puis la sienne) ; sinon elle arrive comme le reste.
-    @ViewBuilder private func working(_ text: String, becomes action: String? = nil) -> some View {
-        let card = HStack(spacing: 12) {
+    private func working(_ text: String) -> some View {
+        HStack(spacing: 12) {
+            ProgressView().controlSize(.small)
             Text(text).font(.system(size: 13))
             Spacer(minLength: 0)
-            SecondsLabel()                              // le temps qui passe, sans rien qui tourne
         }
         .padding(14)
         .organizerCard()
-        if let action {
-            card.organizerMatch(action, side: "pastille", in: ns)
-        } else {
-            card.morphIn(1)
-        }
-    }
-
-    /// « ✓ N sons rangés » : la pastille du rangement devenue verte, un instant, avant l'écran de fin.
-    private var organized: some View {
-        let count = controller.organizedCount
-        return HStack(spacing: 12) {
-            Text(count == 1 ? String(localized: "✓ 1 son rangé") : String(localized: "✓ \(count) sons rangés"))
-                .font(.system(size: 13, weight: .semibold))
-                .foregroundStyle(Color.green)
-            Spacer(minLength: 0)
-        }
-        .padding(14)
-        .organizerCard(.green)
-        .organizerMatch("action", side: "fin", in: ns)
+        .morphIn(1)
     }
 
     /// Fin d'une étape : le message dans une carte (coche verte ou triangle orange) ; FL muet : les réglages de FL
@@ -1447,7 +1254,6 @@ struct OrganizerView: View {
         HStack {
             if controller.canUndo {
                 Button("Revenir comme avant") { controller.undo() }
-                    .organizerMatch("retour", side: "bouton", in: ns)   // devient la pastille « Retour en arrière… »
             } else if case .failed = controller.phase {
                 diagnosticButton
             } else if case .applied(let error) = controller.phase, error != nil {
@@ -1507,7 +1313,7 @@ struct OrganizerView: View {
         let tint: Color = reason == .stopPlayback ? .orange : Self.tint
         return VStack(alignment: .leading, spacing: 14) {
             HStack(alignment: .center, spacing: 16) {
-                OrganizerBadge(symbol: text.symbol, tint: tint)
+                WaitingPulse(symbol: text.symbol, tint: tint)
                 VStack(alignment: .leading, spacing: 4) {
                     Text(text.title).font(.system(size: 14, weight: .semibold))
                     Text(text.detail)
@@ -1521,11 +1327,10 @@ struct OrganizerView: View {
             .organizerCard(tint)
             .morphIn(1)
             HStack(spacing: 8) {
+                ProgressView().controlSize(.mini)
                 Text("Organiser continue tout seul dès que FL est prêt.")
                     .font(.system(size: 11))
                     .foregroundStyle(.secondary)
-                Spacer(minLength: 0)
-                SecondsLabel()
             }
             .morphIn(2)
             if reason == .audioPermission {
@@ -1649,9 +1454,9 @@ struct OrganizerView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 10) {
                     let colors = controller.plannedColors
-                    // Sans `morphIn` : chaque carte naît de la pastille de sa famille (son icône y glisse).
-                    ForEach(controller.presentFamilies, id: \.self) { family in
-                        FamilySection(controller: controller, family: family, colors: colors, ns: ns)
+                    ForEach(Array(controller.presentFamilies.enumerated()), id: \.element) { index, family in
+                        FamilySection(controller: controller, family: family, colors: colors)
+                            .morphIn(index + 2)
                     }
                     ProjectSummary(controller: controller)
                 }
@@ -1667,7 +1472,6 @@ struct OrganizerView: View {
                 Button("Organiser") { controller.apply() }
                     .primaryButton()
                     .keyboardShortcut(.defaultAction)
-                    .organizerMatch("action", side: "bouton", in: ns)   // devient la pastille du rangement
             }
         }
     }
@@ -1695,7 +1499,6 @@ private struct OrganizerHoverCard: ViewModifier {
     func body(content: Content) -> some View {
         content
             .background(OrganizerCard(tint: tint, hovered: hovered))
-            .glassHighlight(cornerRadius: 14)
             .scaleEffect(hovered && !reduceMotion ? 1.015 : 1)
             .shadow(color: tint.opacity(hovered ? 0.25 : 0), radius: hovered ? 12 : 0, y: hovered ? 4 : 0)
             .onHover { inside in
@@ -1708,9 +1511,39 @@ private extension View {
     func organizerCard(_ tint: Color = OrganizerView.tint) -> some View { modifier(OrganizerHoverCard(tint: tint)) }
 }
 
+/// Attente de FL : la pastille de couleur et deux ondes qui s'en éloignent sans fin, comme un appel (rien ne tourne
+/// une fois la fenêtre fermée). Mouvement réduit demandé : la pastille seule.
+private struct WaitingPulse: View {
+    let symbol: String
+    let tint: Color
+    @State private var going = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    var body: some View {
+        ZStack {
+            if !reduceMotion {
+                ForEach(0..<2, id: \.self) { i in
+                    Circle()
+                        .stroke(tint.opacity(0.45), lineWidth: 1.5)
+                        .frame(width: 34, height: 34)
+                        .scaleEffect(going ? 1.9 : 1)
+                        .opacity(going ? 0 : 0.9)
+                        .animation(.easeOut(duration: 1.6).repeatForever(autoreverses: false).delay(Double(i) * 0.8),
+                                   value: going)
+                }
+            }
+            OrganizerBadge(symbol: symbol, tint: tint)
+        }
+        .frame(width: 56, height: 56)
+        .onAppear { going = true }
+    }
+}
+
+/// Pastille ronde de couleur avec son symbole (résultat, écoute en cours : l'onde s'anime).
 private struct OrganizerBadge: View {
     let symbol: String
     let tint: Color
+    var live = false
 
     var body: some View {
         icon
@@ -1722,9 +1555,16 @@ private struct OrganizerBadge: View {
             .accessibilityHidden(true)
     }
 
-    /// Fixe : rien ne clignote ni ne tourne pendant que FL travaille.
-    private var icon: some View {
-        Image(systemName: symbol)
+    @ViewBuilder private var icon: some View {
+        if live {
+            if #available(macOS 14.0, *) {
+                Image(systemName: symbol).symbolEffect(.variableColor.iterative, options: .repeating)
+            } else {
+                Image(systemName: symbol)
+            }
+        } else {
+            Image(systemName: symbol)
+        }
     }
 }
 
@@ -1817,8 +1657,6 @@ private struct FamilySection: View {
     @ObservedObject var controller: OrganizerController
     let family: SoundFamily
     let colors: [Int: RGBColor]
-    /// Espace de l'Organiser : l'icône de la carte est celle de la pastille de la famille pendant l'écoute.
-    let ns: Namespace.ID
     @State private var pickingFirst = false
     @State private var pickingLast = false
     @State private var pickingIcon = false
@@ -1841,7 +1679,6 @@ private struct FamilySection: View {
                     .foregroundStyle(Color.white)
                     .frame(width: 24, height: 24)
                     .background(Circle().fill(swiftColor(style.color).gradient))
-                    .organizerMatch(FamilyPill.matchID(family), side: "carte", in: ns)
                     .accessibilityHidden(true)
                 Text(family.label).font(.system(size: 13, weight: .semibold))
                 Text("\(members.count)")
@@ -1945,132 +1782,5 @@ private struct FamilySection: View {
                 picking.wrappedValue = false
             }
         }
-    }
-}
-
-// MARK: - Temps et progression (sans rien qui tourne en boucle)
-
-/// Texte du compteur de secondes d'une attente : « 4 s » (secondes entières écoulées).
-enum SecondsCounter {
-    static func text(_ elapsed: TimeInterval) -> String {
-        let seconds = Int(max(elapsed, 0))
-        return String(localized: "\(seconds) s")
-    }
-}
-
-/// Secondes écoulées depuis l'apparition, mises à jour une fois par seconde (le chiffre défile).
-private struct SecondsLabel: View {
-    @State private var start = Date()
-
-    var body: some View {
-        TimelineView(.periodic(from: start, by: 1)) { context in
-            Text(SecondsCounter.text(context.date.timeIntervalSince(start)))
-                .font(.system(size: 11).monospacedDigit())
-                .foregroundStyle(.secondary)
-                .contentTransition(.numericText())
-                .motion(Motion.spring(.vif), value: Int(context.date.timeIntervalSince(start)))
-        }
-        .accessibilityHidden(true)
-    }
-}
-
-/// Progression de l'écoute dessinée par l'app : une capsule de sa couleur qui glisse (ressort doux).
-private struct OrganizerProgress: View {
-    let fraction: Double
-    let tint: Color
-
-    var body: some View {
-        GeometryReader { geo in
-            ZStack(alignment: .leading) {
-                Capsule(style: .continuous).fill(Color.primary.opacity(0.08))
-                Capsule(style: .continuous)
-                    .fill(tint.gradient)
-                    .frame(width: max(geo.size.width * min(max(fraction, 0), 1), 6))
-                    .motion(Motion.spring(.doux), value: fraction)
-            }
-        }
-        .frame(height: 6)
-        .accessibilityElement()
-        .accessibilityValue(Text("\(Int((min(max(fraction, 0), 1) * 100).rounded())) %"))
-    }
-}
-
-// MARK: - Pastilles des familles (écoute)
-
-/// Pastille d'une famille pendant l'écoute : son icône dans sa couleur (qui deviendra celle de sa carte dans
-/// l'aperçu), son nom, son nombre de sons (qui défile).
-private struct FamilyPill: View {
-    let family: SoundFamily
-    let count: Int
-    let color: Color
-    let ns: Namespace.ID
-
-    /// Même icône dans la pastille et dans la carte de l'aperçu.
-    static func matchID(_ family: SoundFamily) -> String { "famille.\(family)" }
-
-    var body: some View {
-        HStack(spacing: 6) {
-            Image(systemName: family.symbol)
-                .font(.system(size: 9, weight: .bold))
-                .foregroundStyle(Color.white)
-                .frame(width: 18, height: 18)
-                .background(Circle().fill(color.gradient))
-                .organizerMatch(Self.matchID(family), side: "pastille", in: ns)
-            Text(family.label).font(.system(size: 12, weight: .semibold))
-            Text("\(count)")
-                .font(.system(size: 11, weight: .semibold).monospacedDigit())
-                .foregroundStyle(.secondary)
-                .contentTransition(.numericText())
-        }
-        .padding(.leading, 4)
-        .padding(.trailing, 10)
-        .padding(.vertical, 4)
-        .background(Capsule(style: .continuous).fill(color.opacity(0.12)))
-        .overlay(Capsule(style: .continuous).strokeBorder(color.opacity(0.35), lineWidth: 0.5))
-        .accessibilityElement(children: .combine)
-    }
-}
-
-/// Rangée qui passe à la ligne quand la place manque (pastilles des familles), dans l'ordre donné.
-private struct FlowRow: Layout {
-    var spacing: CGFloat = 8
-
-    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
-        let placed = arrange(width: proposal.width ?? .infinity, subviews: subviews)
-        return placed.size
-    }
-
-    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
-        let placed = arrange(width: bounds.width, subviews: subviews)
-        for (subview, point) in zip(subviews, placed.points) {
-            subview.place(at: CGPoint(x: bounds.minX + point.x, y: bounds.minY + point.y), proposal: .unspecified)
-        }
-    }
-
-    /// Place de chaque vue, ligne après ligne, et la taille de l'ensemble.
-    private func arrange(width: CGFloat, subviews: Subviews) -> (points: [CGPoint], size: CGSize) {
-        var points: [CGPoint] = []
-        var x: CGFloat = 0, y: CGFloat = 0, line: CGFloat = 0, widest: CGFloat = 0
-        for subview in subviews {
-            let size = subview.sizeThatFits(.unspecified)
-            if x > 0 && x + size.width > width {
-                x = 0
-                y += line + spacing
-                line = 0
-            }
-            points.append(CGPoint(x: x, y: y))
-            widest = max(widest, x + size.width)
-            x += size.width + spacing
-            line = max(line, size.height)
-        }
-        return (points, CGSize(width: widest, height: y + line))
-    }
-}
-
-private extension View {
-    /// `matchedGeometryEffect` de l'Organiser (pastille → carte, bouton → pastille) ; avec « Réduire les animations »,
-    /// plus rien n'est relié : simple fondu, sans glissement. Même vue dans les deux cas, seul l'identifiant change.
-    func organizerMatch(_ id: String, side: String, in ns: Namespace.ID) -> some View {
-        matchedGeometryEffect(id: Motion.reduce ? "\(id).\(side)" : id, in: ns)
     }
 }

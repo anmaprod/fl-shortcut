@@ -8,12 +8,8 @@ import SwiftUI
 
 enum DebugSnapshot {
     static var enabled: Bool { UserDefaults.standard.bool(forKey: "debugSnapshots") }
-    /// Mode capture : multiplie toutes les durées d'animation (1 : vitesse normale ; jamais changé hors capture).
-    /// Chaque changement est annoncé : les portes du mouvement (`motionGate`) le suivent.
-    static var slowMotion: Double = 1 {
-        didSet { if slowMotion != oldValue { NotificationCenter.default.post(name: slowMotionChanged, object: nil) } }
-    }
-    static let slowMotionChanged = Notification.Name("app.flshortcut.debug.slowMotionChanged")
+    /// Mode capture : multiplie la durée du « morph » du guide (1 : vitesse normale ; jamais changé hors capture).
+    static var slowMotion: Double = 1
     static let open = Notification.Name("app.flshortcut.debug.open")
     static let select = Notification.Name("app.flshortcut.debug.select")
     /// Texte de recherche de l'éditeur (mesure de la mémoire avec presque toutes les lignes affichées).
@@ -52,28 +48,6 @@ enum DebugSnapshot {
     /// « ecoute », « apercu », « fini » ; « fermer » le ferme.
     static let organizer = Notification.Name("app.flshortcut.debug.organizer")
     private static var organizerObserver: NSObjectProtocol?
-    /// Menu de l'icône : « ouvrir » (un clic sur l'icône) ou « fermer » (comme une ligne choisie) ; « lent » : au
-    /// ralenti (10 fois), pour photographier la bulle en route.
-    static let menu = Notification.Name("app.flshortcut.debug.menu")
-    private static var menuObserver: NSObjectProtocol?
-    /// Fenêtre qui sort d'un clic : « organiser » ou « editeur » (fermée puis rouverte), depuis un cadre d'exemple au
-    /// milieu de l'écran (280 × 34) ; « lent » : au ralenti (10 fois).
-    static let vol = Notification.Name("app.flshortcut.debug.vol")
-    /// Gouttes du créateur : « choisir » (le premier bloc choisi : « Dupliquer » et « Supprimer » sortent de
-    /// « Ajouter ») ou « lacher » (plus rien de choisi : elles y rentrent) ; « lent » : au ralenti (10 fois).
-    static let gouttes = Notification.Name("app.flshortcut.debug.gouttes")
-    /// Fiche d'une touche : celle de la première ligne de la page sort de sa ligne ; « fermer » : elle y rentre ;
-    /// « lent » : au ralenti (10 fois).
-    static let carte = Notification.Name("app.flshortcut.debug.carte")
-
-    /// Fenêtres de l'app, sans les fenêtres de vol (une bulle en route n'est ni une fenêtre de l'app ni à mesurer).
-    static var appWindows: [NSWindow] { NSApp.windows.filter { !($0 is FlightWindow) } }
-
-    /// Cadre d'exemple d'où part une fenêtre (commande `vol`).
-    static var sampleClick: CGRect? {
-        guard let screen = NSScreen.main?.visibleFrame else { return nil }
-        return CGRect(x: screen.midX - 140, y: screen.midY - 17, width: 280, height: 34)
-    }
 
     static func publisher(_ name: Notification.Name) -> AnyPublisher<Notification, Never> {
         guard enabled else { return Empty().eraseToAnyPublisher() }
@@ -95,11 +69,6 @@ enum DebugSnapshot {
         organizerObserver = DistributedNotificationCenter.default().addObserver(forName: organizer, object: nil, queue: .main) { note in
             OrganizerWindow.showDemo(note.object as? String ?? "attente")
         }
-        menuObserver = DistributedNotificationCenter.default().addObserver(forName: menu, object: nil, queue: .main) { note in
-            let words = (note.object as? String ?? "").split(separator: " ")
-            slowMotion = words.contains("lent") ? 10 : 1
-            if words.first == "fermer" { MenuPanel.shared.close() } else { MenuPanel.shared.clickIcon() }
-        }
         observer = DistributedNotificationCenter.default().addObserver(forName: snapshot, object: nil, queue: .main) { note in
             capture(tag: note.object as? String ?? "capture")
         }
@@ -111,7 +80,7 @@ enum DebugSnapshot {
         resizeObserver = DistributedNotificationCenter.default().addObserver(forName: resize, object: nil, queue: .main) { note in
             let parts = (note.object as? String ?? "").split(separator: ",").compactMap { Double($0) }
             guard parts.count == 2, (400...3000).contains(parts[0]), (300...2000).contains(parts[1]),
-                  let w = appWindows.first(where: { $0.isVisible && $0.frame.width > 400 }) else { return }
+                  let w = NSApp.windows.first(where: { $0.isVisible && $0.frame.width > 400 }) else { return }
             w.setContentSize(NSSize(width: parts[0], height: parts[1]))
         }
         reportObserver = DistributedNotificationCenter.default().addObserver(forName: report, object: nil, queue: .main) { _ in
@@ -134,9 +103,9 @@ enum DebugSnapshot {
     /// mesure de la CI ; ensuite, l'état exact de chaque fenêtre visible (cadre, écran, barre de titre, barre
     /// d'outils, boutons fermer / réduire / agrandir), pour juger l'interface sans capture d'écran.
     private static func writeReport() {
-        let hidden = appWindows.filter { !$0.isVisible }.map { String(describing: type(of: $0)) }
-        var text = "editorModels=\(MacroEditorModel.liveCount) windows=\(appWindows.count) "
-            + "visible=\(appWindows.count - hidden.count) hidden=\(hidden.joined(separator: ","))\n"
+        let hidden = NSApp.windows.filter { !$0.isVisible }.map { String(describing: type(of: $0)) }
+        var text = "editorModels=\(MacroEditorModel.liveCount) windows=\(NSApp.windows.count) "
+            + "visible=\(NSApp.windows.count - hidden.count) hidden=\(hidden.joined(separator: ","))\n"
         // Envoi d'événements (vrais clics de « debug.click ») : refusé, ils n'arrivent nulle part.
         text += "envoi d'événements : \(CGPreflightPostEventAccess() ? "autorisé" : "REFUSÉ")\n"
         // « Réduire les animations » de macOS : les transitions deviennent de simples fondus courts.
@@ -148,69 +117,10 @@ enum DebugSnapshot {
         for (i, s) in NSScreen.screens.enumerated() {
             text += "écran \(i): frame \(rect(s.frame)) visible \(rect(s.visibleFrame)) échelle \(s.backingScaleFactor)\n"
         }
-        for w in appWindows where w.isVisible {
+        for w in NSApp.windows where w.isVisible {
             text += windowLines(w)
         }
-        // Menu de l'icône ouvert : structure de sa fenêtre (classes et cadres seulement), preuve de ce que la bulle
-        // masque (MenuBubbleSupport).
-        if let menuWindow = MenuPanel.shared.window, menuWindow.isVisible,
-           let root = menuWindow.contentView?.superview ?? menuWindow.contentView {
-            text += "menu : bulle \(MenuPanel.shared.bubble ? "oui" : "non") · opaque \(menuWindow.isOpaque ? "oui" : "non")"
-                + " · ombre \(menuWindow.hasShadow ? "oui" : "non")"
-                + " · fond de fenêtre \(colorText(menuWindow.backgroundColor.cgColor))\n" + viewTree(root, depth: 1)
-        }
         try? text.write(to: cacheDirectory.appendingPathComponent("report.txt"), atomically: true, encoding: .utf8)
-    }
-
-    /// Arbre des vues sous `view` (6 niveaux au plus) : classe, cadre, caché, transparence, masque d'un fond de
-    /// macOS. Jamais de texte.
-    private static func viewTree(_ view: NSView, depth: Int) -> String {
-        var line = String(repeating: "  ", count: depth) + "\(type(of: view)) \(rect(view.frame))"
-        if view.isHidden { line += " caché" }
-        if view.alphaValue < 1 { line += " alpha \(view.alphaValue)" }
-        if let effect = view as? NSVisualEffectView {
-            line += " fond-macOS matériau \(effect.material.rawValue) masque \(effect.maskImage == nil ? "non" : "oui")"
-        }
-        if let layer = view.layer { line += " · " + layerText(layer) }
-        var out = line + "\n"
-        guard depth < 6 else { return out }
-        // Calques posés sans vue (fond ou verre de macOS) sous le cadre de la fenêtre et la vue du menu seulement :
-        // plus bas, SwiftUI dessine le menu lui-même en calques (trop nombreux, et rien de macOS).
-        if depth <= 2, let layer = view.layer {
-            let owned = Set(view.subviews.compactMap { $0.layer }.map { ObjectIdentifier($0) })
-            for sub in (layer.sublayers ?? []).prefix(8) where !owned.contains(ObjectIdentifier(sub)) {
-                out += layerTree(sub, depth: depth + 1, levels: 3)
-            }
-        }
-        for sub in view.subviews { out += viewTree(sub, depth: depth + 1) }
-        return out
-    }
-
-    /// Calque sans vue et ses sous-calques (`levels` niveaux, 8 par niveau au plus).
-    private static func layerTree(_ layer: CALayer, depth: Int, levels: Int) -> String {
-        var out = String(repeating: "  ", count: depth) + "calque " + layerText(layer) + "\n"
-        guard levels > 1 else { return out }
-        for sub in (layer.sublayers ?? []).prefix(8) { out += layerTree(sub, depth: depth + 1, levels: levels - 1) }
-        return out
-    }
-
-    /// Calque : classe, cadre, fond, rayon, ce qui le change (filtres, image, masque). Jamais de texte.
-    private static func layerText(_ layer: CALayer) -> String {
-        var t = "\(type(of: layer)) \(rect(layer.frame)) fond \(colorText(layer.backgroundColor))"
-            + " rayon \(Int(layer.cornerRadius))"
-        if layer.isHidden { t += " caché" }
-        if layer.opacity < 1 { t += " opacité " + String(format: "%.2f", layer.opacity) }
-        if let filters = layer.filters, !filters.isEmpty { t += " filtres \(filters.count)" }
-        if layer.compositingFilter != nil { t += " composition" }
-        if layer.contents != nil { t += " image" }
-        if layer.mask != nil { t += " masque" }
-        return t
-    }
-
-    /// Couleur d'un fond : sa seule transparence (« aucun » sans fond).
-    private static func colorText(_ color: CGColor?) -> String {
-        guard let color else { return "aucun" }
-        return "alpha " + String(format: "%.2f", color.alpha)
     }
 
     /// Toutes les zones de défilement visibles sous `view` (assez grandes pour être une liste).
@@ -316,7 +226,7 @@ enum DebugSnapshot {
 
     /// Point de l'écran (origine en haut à gauche, comme CGEvent) d'un point « x,y » de notre fenêtre, mise devant.
     private static func screenPoint(x: Double, y: Double) -> CGPoint? {
-        guard let w = appWindows.first(where: { $0.isVisible && $0.frame.width > 400 }),
+        guard let w = NSApp.windows.first(where: { $0.isVisible && $0.frame.width > 400 }),
               let screenHeight = NSScreen.screens.first?.frame.height,
               (0...w.frame.width).contains(x), (0...w.frame.height).contains(y) else { return nil }   // notre fenêtre seulement
         NSApp.activate(ignoringOtherApps: true)
@@ -342,7 +252,7 @@ enum DebugSnapshot {
         let dir = cacheDirectory
         var n = 0
         var sizes: [String] = []
-        for w in appWindows where w.isVisible && w.frame.width > 150 && w.frame.height > 80 {
+        for w in NSApp.windows where w.isVisible && w.frame.width > 150 && w.frame.height > 80 {
             if let content = w.contentView {
                 sizes.append("fenêtre \(Int(w.frame.width))×\(Int(w.frame.height)), contenu minimal "
                              + "\(Int(content.fittingSize.width))×\(Int(content.fittingSize.height)), "
@@ -376,30 +286,6 @@ struct MenuBarLabel: View {
             .onReceive(DebugSnapshot.publisher(DebugSnapshot.open)) { _ in
                 openWindow(id: "editor")
                 NSApp.activate(ignoringOtherApps: true)
-            }
-            .onReceive(DebugSnapshot.publisher(DebugSnapshot.vol)) { note in
-                let words = (note.object as? String ?? "").split(separator: " ")
-                DebugSnapshot.slowMotion = words.contains("lent") ? 10 : 1
-                if words.first == "editeur" {
-                    // Fermée par l'app (pas de bulle vers l'icône), puis rouverte depuis le cadre d'exemple.
-                    if let window = AppResume.shared.editorWindow, window.isVisible {
-                        WindowLauncher.shared.quietClose(window)
-                        window.close()
-                    }
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
-                        WindowLauncher.shared.openScene(source: DebugSnapshot.sampleClick,
-                                                        icon: .icon(symbol: "keyboard", tint: .blue, size: 22),
-                                                        title: String(localized: "Modifier les raccourcis…"),
-                                                        frameKey: EditorWindowFrame.key, size: EditorWindowFrame.size,
-                                                        window: AppResume.shared.editorWindow) {
-                            openWindow(id: "editor")
-                            NSApp.activate(ignoringOtherApps: true)
-                        }
-                    }
-                } else {
-                    WindowLauncher.shared.clicked(DebugSnapshot.sampleClick)
-                    OrganizerWindow.showDemo("attente")
-                }
             }
             .onReceive(DebugSnapshot.publisher(DebugSnapshot.macro)) { note in
                 // « open lent » / « close lent » : la transition au ralenti (10 fois), photographiée en route.

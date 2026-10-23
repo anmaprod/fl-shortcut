@@ -18,8 +18,6 @@ final class AccessibilityGuide: ObservableObject {
     @Published private(set) var stage = Stage.keyboard
     private var panel: NSPanel?
     private var timer: Timer?
-    /// Bouton rouge du panneau : il rentre dans l'icône de la barre des menus.
-    private var closeObserver: NSObjectProtocol?
 
     static func start() { shared.start() }
 
@@ -88,8 +86,6 @@ final class AccessibilityGuide: ObservableObject {
         timer = nil
         panel?.orderOut(nil)
         panel = nil
-        if let closeObserver { NotificationCenter.default.removeObserver(closeObserver) }
-        closeObserver = nil
     }
 
     private func showPanel() {
@@ -108,14 +104,8 @@ final class AccessibilityGuide: ObservableObject {
             let f = screen.visibleFrame
             p.setFrameOrigin(NSPoint(x: f.maxX - p.frame.width - 24, y: f.minY + 24))
         }
-        WindowLauncher.shared.open(source: nil, icon: .icon(symbol: "lock.open", tint: .orange, size: 22), title: nil,
-                                   window: p)
         p.orderFrontRegardless()
         panel = p
-        closeObserver = NotificationCenter.default.addObserver(forName: NSWindow.willCloseNotification, object: p,
-                                                               queue: .main) { [weak p] _ in
-            if let p { WindowLauncher.shared.userClosed(p) }
-        }
     }
 }
 
@@ -167,8 +157,7 @@ private struct AccessibilityGuideView: View {
         }
         .padding(18)
         .frame(width: 360, alignment: .leading)
-        .motion(Motion.quickMorph, value: guide.stage)
-        .motionGate(.guide)                     // toujours vivant : les Réglages de macOS sont devant
+        .animation(Motion.quickMorph, value: guide.stage)
     }
 
     /// Les deux autorisations demandées ensemble, cochées une à une.

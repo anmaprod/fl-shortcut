@@ -248,31 +248,10 @@ entrée 1 ≈ 0,5 s.
   vérifiés par `testDemoScreensRender` ; le script de mesure note le processus après chaque écran et joint les
   rapports de plantage et le journal, au cas où ça revient. CI entièrement verte sur 0c18d51 (512 tests).
 
-## 22–23 octobre : animations « morph »
-- Demande : « des très belles animations type Apple […] SANS BUG ET SANS DÉFAUTS ». Conception et plan validés
-  (`docs/superpowers/specs/2026-10-22-animations-morph-design.md`, `docs/superpowers/plans/2026-10-22-animations-morph.md`),
-  9 tâches, une relecture indépendante de toute la branche à la fin, puis ses corrections. CI verte sur 17228ed.
-- Fait : moteur de mouvement (trois ressorts vif / doux / liquide, durées calculées, gel de la fenêtre principale
-  quand FL est devant, « Réduire les animations » = fondu de 0,18 s, ralenti ×10 des captures de la CI) ; sons très
-  discrets (Pop, Bottle, Tink, Glass ; réglage « Sons de l'interface » du menu ⋯, muets pendant que l'Organiser
-  travaille) ; reflet qui suit la souris ; couche de vol (l'icône d'une page vole jusqu'à son en-tête) ; fenêtres qui
-  sortent du clic et rentrent dans l'icône (principale, Organiser, accueil, désinstallation, guide des autorisations) ;
-  fiches en cartes de verre qui sortent de la ligne cliquée, voile, vraie modale, focus dans le premier champ ;
-  créateur qui sort de la ligne de sa macro ; gouttes « Dupliquer » / « Supprimer » ; blocs qui s'éclairent à la pose ;
-  Organiser sans rien en boucle (compteur de secondes, progression dessinée, pastilles des familles qui deviennent les
-  cartes de l'aperçu, bouton qui devient la pastille du rangement, « ✓ N sons rangés »). Liste de contrôle à faire sur
-  le Mac : `docs/contexte/CONTROLE-ANIMATIONS.md`.
-- Décisions : menu de l'icône en bulle maison coupé (macOS 26 dessine le verre du menu dans la vue de SwiftUI ; il ne
-  se masque pas sans masquer le menu) : le menu de macOS, déjà en verre, reste. Les `List` (dessinées par AppKit) gardent
-  leurs propres glissements (pas de ressort, pas de flou de page, image du glisser de macOS). Gouttes en verre simple
-  (`.regular`) : avec le reflet `.interactive()`, le créateur prenait 11 Mo de plus.
-- Leçons de la CI : (1) une vue animée ne doit jamais être dans un `ViewThatFits` (la barre du créateur changeait de
-  version au choix d'un bloc, les gouttes apparaissaient d'un coup) ; (2) la porte du mouvement doit suivre le
-  ralenti, sinon la CI (« Réduire les animations » activé) photographie un simple fondu ; (3) la mémoire se mesure
-  avant les longues séries de captures (malloc garde le plus haut atteint) : avec verre 15 / 56 / 116 / 110 Mo (menu,
-  fenêtre, créateur ouvert, refermé ; avant le chantier 15 / 54 / 110 / 105), sans verre 15 / 58 / 91 / 86 (15 / 56 /
-  86 / 82) ; le créateur lui-même ajoute 10 Mo, trois ouvertures de suite restent au même niveau.
-- Remis à plus tard (petits) : vol du nom et de la touche jusqu'en haut d'une fiche ; chiffres qui défilent dans
-  l'en-tête de la Communauté ; en verre, les gouttes apparaissent sur place plus qu'elles ne sortent de « Ajouter » ;
-  test du double clic sur le vrai code des fenêtres (seul l'enchaînement d'états est testé) ; non filmés : macOS 13 à
-  25 (la CI est en macOS 26).
+## 22–23 octobre : animations « morph », faites puis retirées
+- Conception et plan validés (`docs/superpowers/specs/2026-10-22-animations-morph-design.md`, `docs/superpowers/plans/`),
+  9 tâches codées et vérifiées sur la CI (commits 541d81c → dcd01f0) : moteur de mouvement, couche de vol, fenêtres
+  qui sortent du clic, cartes au lieu des feuilles, gouttes du créateur, Organiser en morph, relecture indépendante.
+- Le propriétaire les a essayées sur son Mac : « c'est vraiment nul, je veux que tu enlèves tout ce qui a été rajouté
+  de 1 à 9 ». Tout est retiré : le code est revenu à 7f68c9f (seuls les noms des fichiers de la CI restent changés :
+  FLShortcuts-mac, FLShortcuts-windows, FLShortcuts-mac-mesure). Ne pas les refaire sans qu'il le demande.

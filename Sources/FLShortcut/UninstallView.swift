@@ -174,8 +174,6 @@ final class UninstallWindow: NSObject, NSWindowDelegate {
         w.isReleasedWhenClosed = false
         w.center()
         window = w
-        WindowLauncher.shared.open(source: nil, icon: .icon(symbol: "trash", tint: .red, size: 22),
-                                   title: String(localized: "Désinstaller FL Shortcuts"), window: w)
         w.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
     }
@@ -187,11 +185,6 @@ final class UninstallWindow: NSObject, NSWindowDelegate {
     }
 
     func windowWillClose(_ notification: Notification) {
-        // Fermée (bouton rouge, « Annuler », « Fermer ») : elle rentre dans l'icône ; pas après une désinstallation
-        // (l'app quitte) ni pour les écrans d'exemple de la CI.
-        let quits: Bool
-        if case .done = flow?.step { quits = true } else { quits = false }
-        if let w = notification.object as? NSWindow, flow?.demo == false, !quits { WindowLauncher.shared.userClosed(w) }
         if case .done = flow?.step, flow?.demo == false { Uninstaller.quitAfterUninstall() }
         window = nil
         flow = nil
@@ -390,8 +383,8 @@ struct SuccessMark: View {
                 drawn = true
                 return
             }
-            withAnimation(Motion.spring(.vif)) { grown = true }
-            withAnimation(Motion.spring(.doux).delay(Motion.stagger(0, start: 0.28))) { drawn = true }
+            withAnimation(.spring(response: 0.45, dampingFraction: 0.62)) { grown = true }
+            withAnimation(.easeOut(duration: 0.32).delay(0.28)) { drawn = true }
         }
     }
 }

@@ -1475,7 +1475,7 @@
 "Retirer tous les solos" = "Clear all solos";
 "Retouche-la dans le créateur : ajoute des blocs de la palette d'un clic ou en les glissant, range les lignes en les glissant." = "Fine-tune it in the creator: add blocks from the palette with a click or by dragging, and drag rows to reorder them.";
 "Retour" = "Back";
-"Retour en arrière…" = "Going back…";
+"Retour comme avant…" = "Undoing changes…";
 "Retrouver ce bouton s'il bouge" = "Find this button if it moves";
 "Retrouver mes raccourcis et mes macros sur un autre Mac" = "Get my shortcuts and macros on another Mac";
 "Retrouver ses boutons par leur nom, au moment du clic" = "Find its buttons by name when clicking";
@@ -1600,7 +1600,6 @@
 "Solo piste Mixer sélectionnée" = "Solo selected Mixer track";
 "Son de FL" = "FL sound";
 "Son nom, tel qu'il est écrit dans le menu « Arrangement » de FL." = "Its name, as written in FL's “Arrangement” menu.";
-"Sons de l'interface" = "Interface sounds";
 "Sortie du Mac : " = "Mac output: ";
 "Sortie du Mac en ce moment : " = "Mac output right now: ";
 "Sortie et entrée du Mac : " = "Mac output and input: ";
@@ -2221,5 +2220,3 @@
 "⌘⌥Échap ouvre « Forcer à quitter »" = "⌘⌥Esc opens “Force Quit”";
 "⌘⌫ supprime (fichiers, corbeille)" = "⌘⌫ deletes (files, Trash)";
 "⌫ dans le champ : aucune touche (le bloc demande alors le lien avec FL)." = "⌫ in the field: no key (the block then needs the FL link).";
-"✓ %lld sons rangés" = "✓ %lld sounds organized";
-"✓ 1 son rangé" = "✓ 1 sound organized";

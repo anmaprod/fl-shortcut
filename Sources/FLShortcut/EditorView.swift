@@ -17,11 +17,6 @@ import UniformTypeIdentifiers
 // MARK: - Fenêtre principale
 
 /// Élément de la barre latérale.
-extension SidebarItem {
-    /// Cadre de son icône dans la barre latérale (couche de vol).
-    var flightID: String { "page.\(self)" }
-}
-
 enum SidebarItem: Hashable {
     case section(FLSection)
     case custom
@@ -180,16 +175,6 @@ struct EditorView: View {
     /// Annonce affichée en tête de la fiche quand on doit choisir une nouvelle touche pour un autre raccourci.
     @State private var editNotice: String? = nil
     @AppStorage(Appearance.glassKey) private var glassEnabled = true
-    @AppStorage(InterfaceSound.key) private var interfaceSounds = true
-    /// Ce qui vole d'un endroit à l'autre de la fenêtre (FlightLayer), créateur compris.
-    @StateObject private var flights = FlightCenter()
-    /// Page choisie par l'app (reprise, commande de la CI sans ralenti) : l'icône ne vole pas jusqu'à l'en-tête.
-    @State private var quietPage = false
-    /// Fiches de la fenêtre : des cartes qui sortent de la ligne cliquée (CardPresenter).
-    @StateObject private var cards = CardPresenter()
-    /// Carte du guide ouverte (fermée par « fin » de la CI) et sa page (changée par la CI pendant qu'il est ouvert).
-    @State private var guideCard: UUID?
-    @StateObject private var guideModel = GuideCardPage()
     @Namespace private var glassNS
 
     private var trimmedQuery: String { query.trimmingCharacters(in: .whitespaces) }
@@ -197,8 +182,6 @@ struct EditorView: View {
     /// Créateur de macros affiché dans la fenêtre, comme un dossier ouvert dans le Finder (nil : les raccourcis).
     /// Le modèle n'existe que pendant qu'il est affiché.
     @State private var macroEditor: MacroEditorModel?
-    /// Créateur en route : la ligne de sa macro grandit jusqu'à toute la fenêtre, puis il apparaît.
-    @State private var pendingCreator: MacroEditorModel?
     @ObservedObject private var creatorLink = MacroCreatorLink.shared
     /// Page Communauté : le « + » (partager) n'apparaît qu'une fois connecté.
     @ObservedObject private var community = CommunityStore.shared
@@ -235,36 +218,19 @@ struct EditorView: View {
                     .zIndex(0)
             }
         }
-        .frameProbe(CreatorFlight.window)                // le créateur occupe tout ce cadre
-        .cardHost(cards)
-        .flightLayer(flights)
-        // Rien ne bouge dans cette fenêtre pendant que FL est devant (MotionPolicy) ; tout repart quand elle revient.
-        .motionGate(.window)
         .onChange(of: creatorLink.request) { request in
             guard request != nil, macroEditor == nil else { return }    // déjà affiché : il passe à cette macro
             enterCreator()
         }
         .onChange(of: creatorLink.closeSerial) { _ in closeCreator() }
-        // Fenêtre fermée pendant le créateur : brouillon enregistré, modèle lâché (rien ne reste en mémoire). Fermée
-        // par l'app pendant une carte : carte oubliée, et la fenêtre redevient fermable si SwiftUI la réutilise.
-        .onDisappear {
-            closeCreator()
-            cards.reset()
-            AppResume.shared.editorWindow?.styleMask.insert(.closable)
-        }
+        // Fenêtre fermée pendant le créateur : brouillon enregistré, modèle lâché (rien ne reste en mémoire).
+        .onDisappear { closeCreator() }
         // Reprise après « Quitter et rouvrir » : la fenêtre, sa page et la macro ouverte sont notées à la fermeture.
-        .background(WindowReader {
-            AppResume.shared.editorWindow = $0
-            WindowLauncher.shared.remember($0, key: EditorWindowFrame.key)   // cadre visé par la bulle, fermeture
-        })
-        .onChange(of: selection) { newValue in
-            AppResume.shared.page = newValue
-            flyToHeader(newValue)
+        .background(WindowReader { AppResume.shared.editorWindow = $0 })
+        .onChange(of: selection) { AppResume.shared.page = $0 }
+        .sheet(isPresented: $showGuide, onDismiss: { guideSeen = true }) {
+            GuideSheet(initialPage: guidePage) { showGuide = false }
         }
-        .onChange(of: showGuide) { open in
-            if open { presentGuide() } else if let guideCard { cards.dismiss(guideCard) }
-        }
-        .onChange(of: guidePage) { guideModel.page = $0 }
         .onAppear {
             resumeIfAsked()
             AppResume.shared.page = selection
@@ -302,80 +268,10 @@ struct EditorView: View {
     /// Relancée par « Quitter et rouvrir » (ou juste après avoir quitté) : la page et la macro d'avant reviennent.
     private func resumeIfAsked() {
         guard let resume = AppResume.shared.takeEditor() else { return }
-        if let page = resume.page { selectQuietly(page) }
+        if let page = resume.page { selection = page }
         if let id = resume.macro, store.library.doc(id) != nil {
             MacroCreatorLink.shared.open(id, isNew: resume.isNew)
-            if macroEditor == nil { enterCreator(sound: false) }
-        }
-    }
-
-    // MARK: Cartes
-
-    /// Guide en carte (sortie du centre) ; vu une fois fermé.
-    private func presentGuide() {
-        guideModel.page = guidePage
-        let model = guideModel, presenter = cards
-        let request = CardRequest(kind: .guide(page: guidePage), source: nil,
-                                  content: { AnyView(GuideCardContent(model: model) { presenter.dismiss() }) },
-                                  onClose: {
-                                      showGuide = false
-                                      guideSeen = true
-                                      guideCard = nil
-                                  })
-        guideCard = request.id
-        cards.present(request)
-    }
-
-    /// Fiche d'un raccourci, sortie de sa ligne.
-    private func presentEdit(_ remap: Remap, isNew: Bool) {
-        let id = remap.id
-        cards.present(CardRequest(kind: .editRemap(remap, isNew: isNew), source: isNew ? nil : "ligne.\(id)",
-                                  content: {
-                                      AnyView(EditSheet(original: remap, isNew: isNew,
-                                                        openCreator: { id in openCreator(id) }) { message in show(message) }
-                                          .environmentObject(store)
-                                          .environmentObject(status)
-                                          .environmentObject(link))
-                                  },
-                                  onClose: { if editing?.id == id { editing = nil } }))
-    }
-
-    /// Touche d'une action de FL, sortie de sa ligne. Touche reprise à un autre raccourci : sa carte suit aussitôt
-    /// (la file attend la fin de la fermeture).
-    private func presentCatalogEdit(_ row: CatalogRow) {
-        let notice = editNotice
-        let id = row.id
-        cards.present(CardRequest(kind: .editCatalog(row, notice: notice), source: "ligne.\(id)",
-                                  content: {
-                                      AnyView(CatalogEditSheet(row: row, notice: notice) { message, followUp in
-                                          show(message)
-                                          guard let followUp,
-                                                let next = store.catalogRows().rows.first(where: { $0.id == followUp })
-                                          else { return }
-                                          editNotice = String(localized: "« \(row.entry.title) » utilise maintenant cette touche. ")
-                                              + String(localized: "Choisis une nouvelle touche pour « \(next.entry.title) ».")
-                                          editingRow = next
-                                      }
-                                      .environmentObject(store)
-                                      .environmentObject(link))
-                                  },
-                                  onClose: { if editingRow?.id == id { editingRow = nil } }))
-    }
-
-    /// Page posée par l'app : l'icône ne vole pas jusqu'à l'en-tête.
-    private func selectQuietly(_ page: SidebarItem?) {
-        quietPage = true
-        selection = page
-        DispatchQueue.main.async { quietPage = false }
-    }
-
-    /// Page choisie d'un clic ou au clavier : l'icône de sa ligne vole jusqu'à l'en-tête de la page qui arrive (lue
-    /// après la mise en page ; rien si l'une des deux n'est pas là, en recherche ou dans le créateur).
-    private func flyToHeader(_ item: SidebarItem?) {
-        guard let item, !quietPage, trimmedQuery.isEmpty, macroEditor == nil else { return }
-        DispatchQueue.main.async {
-            flights.fly(.icon(symbol: item.symbol, tint: item.tint, size: 44), from: item.flightID,
-                        to: PageHeader.flightID)
+            if macroEditor == nil { enterCreator() }
         }
     }
 
@@ -416,46 +312,15 @@ struct EditorView: View {
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { showGuide = true }
     }
 
-    /// `sound` : faux à la reprise après « Quitter et rouvrir » (rien n'a été cliqué).
-    private func enterCreator(sound: Bool = true) {
-        guard pendingCreator == nil else { return }    // déjà en route : il arrive
-        cards.reset()                                   // le créateur prend toute la fenêtre : plus de carte
+    private func enterCreator() {
         editing = nil
         editingRow = nil
         let editor = MacroEditorModel(store: store)
         // Macro chargée et palette prête avant l'animation : le créateur arrive rempli, rien n'apparaît en route.
         editor.handle(creatorLink.request)
         _ = editor.paletteItems
-        if sound { InterfaceSound.play(.creatorOpen) }
-        // La ligne de la macro (page Macros) devient une carte qui grandit jusqu'à toute la fenêtre, puis le créateur
-        // y apparaît en fondu. Ligne invisible, ouvert d'ailleurs, mouvement réduit : tout de suite.
-        let request = creatorLink.request
-        let source = request?.id ?? (request?.sample == true ? store.library.macros.first?.id : nil)
-        guard let source, let row = flights.frame(of: CreatorFlight.row(source)),
-              let window = flights.frame(of: CreatorFlight.window), CreatorFlight.visible(row, in: window) else {
-            showCreator(editor)
-            return
-        }
-        pendingCreator = editor
-        flights.fly(.card(cornerRadius: 12), fromRect: row, to: CreatorFlight.window) {
-            guard pendingCreator === editor else { return }   // fermé (ou fenêtre fermée) pendant le vol
-            pendingCreator = nil
-            showCreator(editor)
-        }
-    }
-
-    private func showCreator(_ editor: MacroEditorModel) {
         macroEditor = editor
         AppResume.shared.creator = editor
-    }
-
-    /// Retour par ← : toute la fenêtre rentre dans la ligne de la macro, si elle se voit (la page Macros revient).
-    private func flyBackToRow(_ id: UUID) {
-        DispatchQueue.main.async {                      // la page Macros posée : sa ligne a son cadre
-            guard let row = flights.frame(of: CreatorFlight.row(id)),
-                  let window = flights.frame(of: CreatorFlight.window), CreatorFlight.visible(row, in: window) else { return }
-            flights.fly(.card(cornerRadius: 12), fromRect: window, to: CreatorFlight.row(id))
-        }
     }
 
     /// Flèche ← : macro neuve → l'enregistrer ou la supprimer ; macro modifiée → enregistrer ou annuler les
@@ -491,15 +356,9 @@ struct EditorView: View {
             }
         }
         closeCreator()
-        InterfaceSound.play(.creatorClose)
-        if let back = MacroCreatorLink.shared.lastClosedID { flyBackToRow(back) }
     }
 
     private func closeCreator() {
-        if let pending = pendingCreator {               // fermé pendant son arrivée : il n'arrive plus
-            pendingCreator = nil
-            pending.close()
-        }
         guard let editor = macroEditor else { return }
         let id = editor.draft?.id
         editor.close()
@@ -531,7 +390,7 @@ struct EditorView: View {
         .windowGlass(glassEnabled)
         // Recherche en haut de la barre latérale (comme Réglages Système) : à droite, la barre d'outils ne porte que
         // les boutons de la page, et les flèches de la page Macros tombent au même endroit que dans le créateur.
-        .searchable(text: searchText, placement: .sidebar, prompt: "Rechercher")
+        .searchable(text: $query, placement: .sidebar, prompt: "Rechercher")
         // Active seulement après un clic dedans (ou ⌘F) : taper ailleurs n'y écrit plus rien.
         .background(SearchFocusGuard())
         // Le texte de la recherche n'est plus le nom du raccourci appuyé : recherche ordinaire.
@@ -547,34 +406,18 @@ struct EditorView: View {
             let words = (note.object as? String ?? "").split(separator: " ")
             DebugSnapshot.slowMotion = words.contains("lent") ? 10 : 1
             let name = words.first.map(String.init) ?? ""
-            let page = FLSection(rawValue: name).map(SidebarItem.section)
+            selection = FLSection(rawValue: name).map(SidebarItem.section)
                 ?? (name == "custom" ? .custom : name == "macros" ? .macros : name == "community" ? .community
                     : name == "aide" ? .help : name == "compte" ? .account : selection)
-            // Au ralenti, comme un clic (l'icône vole, photographiée) ; sinon page posée sans vol.
-            if words.contains("lent") { selection = page } else { selectQuietly(page) }
         }
         .onReceive(DebugSnapshot.publisher(DebugSnapshot.search)) { note in
             query = note.object as? String ?? ""
         }
-        .onReceive(DebugSnapshot.publisher(DebugSnapshot.carte)) { note in
-            // « lent » : la fiche de la première ligne de la page sort de sa ligne au ralenti ; « fermer » : elle y
-            // rentre.
-            let words = (note.object as? String ?? "").split(separator: " ")
-            DebugSnapshot.slowMotion = words.contains("lent") ? 10 : 1
-            if words.first == "fermer" {
-                cards.dismiss()
-                return
-            }
-            guard case .section(let section) = selection ?? .section(.general),
-                  let row = store.catalogRows().rows.first(where: { $0.entry.section == section }) else { return }
-            // Au tour suivant : la fenêtre a pris le nouveau ralenti (sa liste vient d'être redessinée).
-            DispatchQueue.main.async {
-                editNotice = nil
-                editingRow = row
-            }
-        }
-        .onChange(of: editing?.id) { _ in
-            if let remap = editing { presentEdit(remap, isNew: editingIsNew) }
+        .sheet(item: $editing) { remap in
+            EditSheet(original: remap, isNew: editingIsNew, openCreator: { id in openCreator(id) }) { message in show(message) }
+                .environmentObject(store)
+                .environmentObject(status)
+                .environmentObject(link)
         }
     }
 
@@ -605,7 +448,6 @@ struct EditorView: View {
                         Text(section.title)
                     } icon: {
                         SectionIcon(symbol: section.symbol, tint: section.tint)
-                            .frameProbe(SidebarItem.section(section).flightID)
                     }
                     .sidebarHover(section.tint)
                     .badge(modified[section] ?? 0)
@@ -628,7 +470,6 @@ struct EditorView: View {
                     Text("Mes raccourcis")
                 } icon: {
                     SectionIcon(symbol: SidebarItem.custom.symbol, tint: SidebarItem.custom.tint)
-                        .frameProbe(SidebarItem.custom.flightID)
                 }
                 .sidebarHover(SidebarItem.custom.tint)
                 .badge(MyShortcuts.count(rows: data.rows, others: data.others, starters: store.freshRemaps()))
@@ -641,7 +482,6 @@ struct EditorView: View {
                     Text("Communauté")
                 } icon: {
                     SectionIcon(symbol: SidebarItem.community.symbol, tint: SidebarItem.community.tint)
-                        .frameProbe(SidebarItem.community.flightID)
                 }
                 .sidebarHover(SidebarItem.community.tint)
                 .help(CommunityText.subtitle)
@@ -654,7 +494,6 @@ struct EditorView: View {
                     Text("Mon compte")
                 } icon: {
                     SectionIcon(symbol: SidebarItem.account.symbol, tint: SidebarItem.account.tint)
-                        .frameProbe(SidebarItem.account.flightID)
                 }
                 .sidebarHover(SidebarItem.account.tint)
                 .badge(backup.conflict != nil ? Text("!") : nil)
@@ -664,7 +503,6 @@ struct EditorView: View {
                     Text("Aide")
                 } icon: {
                     SectionIcon(symbol: SidebarItem.help.symbol, tint: SidebarItem.help.tint)
-                        .frameProbe(SidebarItem.help.flightID)
                 }
                 .sidebarHover(SidebarItem.help.tint)
                 .help("Questions fréquentes, et écrire à l'équipe")
@@ -724,8 +562,21 @@ struct EditorView: View {
         .frame(minWidth: 480, minHeight: 0, maxHeight: .infinity)
         // Couleur de la page sous la barre d'outils et la barre latérale en verre (aucune pendant la recherche).
         .tintedBackdrop(trimmedQuery.isEmpty ? (selection ?? .section(.general)).tint : Appearance.brand[1])
-        .onChange(of: editingRow?.id) { _ in
-            if let row = editingRow { presentCatalogEdit(row) }
+        .sheet(item: $editingRow) { row in
+            CatalogEditSheet(row: row, notice: editNotice) { message, followUp in
+                show(message)
+                // La touche a été reprise à un autre raccourci : on propose aussitôt de lui en choisir une autre.
+                if let followUp {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
+                        guard let next = store.catalogRows().rows.first(where: { $0.id == followUp }) else { return }
+                        editNotice = String(localized: "« \(row.entry.title) » utilise maintenant cette touche. ")
+                            + String(localized: "Choisis une nouvelle touche pour « \(next.entry.title) ».")
+                        editingRow = next
+                    }
+                }
+            }
+            .environmentObject(store)
+            .environmentObject(link)
         }
     }
 
@@ -769,8 +620,8 @@ struct EditorView: View {
 
     /// Recherche : toutes les sections, regroupées par section. Avec un raccourci appuyé (bouton clavier) : ce qui se
     /// lance sur ces touches, ou les portait dans FL.
-    /// Raccourcis trouvés par la recherche `q` (ou par la touche cherchée, quand `q` est son nom).
-    private func searchMatches(_ data: CatalogData, _ q: String) -> (rows: [CatalogRow], others: [Remap]) {
+    private func searchResults(_ data: CatalogData) -> some View {
+        let q = trimmedQuery
         let combo = keySearch.flatMap { $0.display == q ? $0 : nil }
         let rows = data.rows.filter { row in
             if let combo { return KeySearch.matches(row, combo) }
@@ -781,32 +632,6 @@ struct EditorView: View {
             if let combo { return KeySearch.matches(r, combo) }
             return [r.title, r.subtitle, r.trigger?.display ?? ""].joined(separator: " ").localizedCaseInsensitiveContains(q)
         }
-        return (rows, others)
-    }
-
-    /// Texte de la recherche : en tapant, les lignes filtrées glissent (peu de changements) au lieu de sauter ;
-    /// entrer dans la recherche ou en sortir change de page, sans animation (PageReveal).
-    private var searchText: Binding<String> {
-        Binding(get: { query }, set: { new in
-            let old = query.trimmingCharacters(in: .whitespaces)
-            let next = new.trimmingCharacters(in: .whitespaces)
-            guard !old.isEmpty, !next.isEmpty, old != next else {
-                query = new
-                return
-            }
-            let data = store.catalogRows()
-            let ids = { (q: String) -> [AnyHashable] in
-                let found = searchMatches(data, q)
-                return found.rows.map { AnyHashable($0.id) } + found.others.map { AnyHashable($0.id) }
-            }
-            withListAnimation(changes: ListMotion.changes(from: ids(old), to: ids(next))) { query = new }
-        })
-    }
-
-    private func searchResults(_ data: CatalogData) -> some View {
-        let q = trimmedQuery
-        let combo = keySearch.flatMap { $0.display == q ? $0 : nil }
-        let (rows, others) = searchMatches(data, q)
         let sections = FLSection.allCases.filter { s in rows.contains { $0.entry.section == s } }
         return Group {
             if rows.isEmpty && others.isEmpty {
@@ -893,7 +718,6 @@ struct EditorView: View {
                        issues: row.remap.map { store.issues(for: $0.id) } ?? [],
                        onEdit: { editNotice = nil; editingRow = row },
                        onReset: { reset(row) })
-            .frameProbe("ligne.\(row.id)")                // la carte de sa touche en sort
     }
 
     private func customRow(_ remap: Remap) -> some View {
@@ -902,10 +726,9 @@ struct EditorView: View {
                     onToggle: {
                         var copy = remap
                         copy.enabled.toggle()
-                        withListAnimation(changes: 1) { store.upsert(copy) }
+                        store.upsert(copy)
                     },
                     onDelete: { delete(remap) })
-            .frameProbe("ligne.\(remap.id)")                  // sa fiche en sort
     }
 
     // MARK: Avertissements (seulement quand il faut agir)
@@ -1082,12 +905,9 @@ struct EditorView: View {
                 })
             }
             entries.append(.item(String(localized: "Tout réinitialiser…"), symbol: "arrow.counterclockwise", tint: .orange) { resetAll() })
-            entries.append(.separator)
             if Appearance.glassAvailable {
-                entries.append(.toggle(String(localized: "Effet Liquid Glass"), symbol: "drop", tint: .cyan, isOn: $glassEnabled))
+                entries += [.separator, .toggle(String(localized: "Effet Liquid Glass"), symbol: "drop", tint: .cyan, isOn: $glassEnabled)]
             }
-            entries.append(.toggle(String(localized: "Sons de l'interface"), symbol: "speaker.wave.2", tint: .pink,
-                                   isOn: $interfaceSounds))
             entries += [.separator,
                         .item(String(localized: "Désinstaller FL Shortcuts…"), symbol: "trash", tint: .red) { Uninstaller.confirmAndRun() }]
             return entries
@@ -1112,13 +932,13 @@ struct EditorView: View {
         guard Dialogs.confirm(String(localized: "Charger le profil « \(preset.label) » ?"),
                               preset.summary + String(localized: "\n\nTes raccourcis actuels seront remplacés (annulable)."))
         else { return }
-        withListAnimation(changes: store.remaps.count) { store.apply(preset: preset) }
+        store.apply(preset: preset)
         show(ToastMessage(text: String(localized: "Profil « \(preset.label) » chargé"), undo: { store.undoReplace() }))
     }
 
     private func reset(_ row: CatalogRow) {
         let before = store.remaps
-        withListAnimation(changes: 1) { store.reset(row) }
+        store.reset(row)
         show(ToastMessage(text: String(localized: "« \(row.entry.title) » réinitialisé"), undo: { store.remaps = before }))
     }
 
@@ -1126,12 +946,12 @@ struct EditorView: View {
         guard Dialogs.confirm(String(localized: "Tout réinitialiser ?"),
                               String(localized: "Tous les raccourcis reviennent à leur touche d'origine (profil Recommandé). C'est annulable."))
         else { return }
-        withListAnimation(changes: store.remaps.count) { store.resetAll() }
+        store.resetAll()
         show(ToastMessage(text: String(localized: "Tous les raccourcis sont réinitialisés"), undo: { store.undoReplace() }))
     }
 
     private func delete(_ remap: Remap) {
-        withListAnimation(changes: 1) { store.delete(remap.id) }
+        store.delete(remap.id)
         show(ToastMessage(text: String(localized: "Raccourci supprimé"), undo: { store.upsert(remap) }))
     }
 
@@ -1509,38 +1329,9 @@ private struct EmptyState: View {
     }
 }
 
-/// Entrée dans le créateur : la ligne d'une macro (page Macros) devient toute la fenêtre, et l'inverse au retour.
-enum CreatorFlight {
-    static let window = "fenetre.contenu"
-
-    static func row(_ id: UUID) -> String { "macro.\(id)" }
-
-    /// La ligne se voit dans la fenêtre (son centre y est) : sinon, ni départ ni retour par elle.
-    static func visible(_ row: CGRect, in window: CGRect) -> Bool {
-        row.width > 0 && row.height > 0 && window.contains(CGPoint(x: row.midX, y: row.midY))
-    }
-}
-
-/// Page du guide ouvert en carte : la CI la change pendant qu'il est ouvert (GuideSheet suit `initialPage`).
-final class GuideCardPage: ObservableObject {
-    @Published var page = 0
-}
-
-private struct GuideCardContent: View {
-    @ObservedObject var model: GuideCardPage
-    let close: () -> Void
-
-    var body: some View {
-        GuideSheet(initialPage: model.page, close: close)
-    }
-}
-
 /// En-tête de page façon Réglages Système (macOS 26) : grande icône colorée, titre gras aligné à gauche, résumé.
 /// Dans la première carte de la page (couche de contenu, aucun verre).
 struct PageHeader: View {
-    /// Cadre de l'icône d'en-tête dans la couche de vol (une seule page à la fois).
-    static let flightID = "page.entete"
-
     let symbol: String
     let tint: Color
     let title: String
@@ -1549,18 +1340,13 @@ struct PageHeader: View {
 
     var body: some View {
         HStack(spacing: 14) {
-            // L'icône de la ligne choisie dans la barre latérale vole jusqu'ici (cachée jusqu'à l'atterrissage).
             SectionIcon(symbol: symbol, tint: tint, size: 44)
-                .frameProbe(PageHeader.flightID)
-                .flightTarget(PageHeader.flightID)
             VStack(alignment: .leading, spacing: 2) {
                 Text(title).font(.title3.weight(.semibold))
                 Text(subtitle)
                     .font(.system(size: 12))
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
-                    .contentTransition(.numericText())         // les chiffres défilent (compte de la page)
-                    .motion(Motion.spring(.vif), value: subtitle)
                 if let detail {
                     Text(detail).font(.system(size: 11)).foregroundStyle(.tertiary)
                 }
@@ -1593,7 +1379,7 @@ struct EditSheet: View {
     @EnvironmentObject var store: Store
     @EnvironmentObject var status: AppStatus
     @EnvironmentObject var link: MIDILink
-    @Environment(\.cardDismiss) private var dismiss
+    @Environment(\.dismiss) private var dismiss
     @ObservedObject private var recorder = Recorder.shared
 
     let isNew: Bool
@@ -1683,7 +1469,7 @@ struct EditSheet: View {
                 if !isNew {
                     Button("Supprimer", role: .destructive) {
                         let removed = draft
-                        withListAnimation(changes: 1) { store.delete(draft.id) }
+                        store.delete(draft.id)
                         onDone(ToastMessage(text: String(localized: "Raccourci supprimé"), undo: { store.upsert(removed) }))
                         dismiss()
                     }
@@ -1702,7 +1488,7 @@ struct EditSheet: View {
                         final.macro = nil
                         final.macroRef = nil
                     }
-                    withListAnimation(changes: 1) { store.upsert(final) }
+                    store.upsert(final)
                     onDone(ToastMessage(text: isNew ? String(localized: "Raccourci ajouté") : String(localized: "Raccourci modifié"), undo: nil))
                     dismiss()
                 }
@@ -2135,7 +1921,7 @@ extension Remap {
 struct CatalogEditSheet: View {
     @EnvironmentObject var store: Store
     @EnvironmentObject var link: MIDILink
-    @Environment(\.cardDismiss) private var dismiss
+    @Environment(\.dismiss) private var dismiss
     @ObservedObject private var recorder = Recorder.shared
 
     let row: CatalogRow
@@ -2162,7 +1948,7 @@ struct CatalogEditSheet: View {
     private func apply(releasing toRelease: [KeyClash]) {
         recorder.stop()
         let followUp = toRelease.isEmpty ? nil : store.release(toRelease)
-        withListAnimation(changes: 1 + toRelease.count) { store.setTrigger(combo, for: row) }
+        store.setTrigger(combo, for: row)
         onDone(ToastMessage(text: String(localized: "« \(row.entry.title) » : ")
                                 + (combo?.display ?? String(localized: "aucune touche")), undo: nil), followUp)
         dismiss()

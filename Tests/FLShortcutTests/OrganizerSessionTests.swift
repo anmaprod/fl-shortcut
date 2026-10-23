@@ -923,32 +923,6 @@ final class OrganizerSessionTests: XCTestCase {
         XCTAssertFalse(session.diagnostics.text.contains("Kick"), "jamais un nom dans le diagnostic")
     }
 
-    /// Familles signalées son par son pendant l'écoute (pastilles de l'Organiser) : au nom tout de suite, sinon juste
-    /// après l'écoute, règles d'après le nom déjà appliquées (ZENOLOGY entendu comme des drums : une mélodie).
-    func testLiveFamiliesMatchTheResult() throws {
-        let names = ["Pad", "Keys 2", "ZENOLOGY", "Snare 3", "808"]
-        let link = FakeOrganizerLink()
-        link.channels = names.enumerated().map {
-            ChannelInfo(index: $0.offset, type: 2, mixerTrack: $0.offset + 1, color: red, name: $0.element)
-        }
-        link.patternList = ["Mélodie", "Drums", "Pattern 3", "Vide"].enumerated().map {
-            PatternInfo(index: $0.offset, color: red, name: $0.element)
-        }
-        link.mixer = (0...6).map { MixerTrackInfo(index: $0, color: red, name: $0 == 0 ? "Master" : "Insert \($0)") }
-        let audio = FakeAudio(link: link)
-        audio.parts = [2: tone(.drums)]
-        let file = FLPSample.sample(names: names, samples: [1: "/Packs/D30 Kick 85 Sexyy.wav", 3: "/Packs/ANMA - Hat House.wav"])
-        let files = ProjectFileAccess(save: { _ in .success(URL(fileURLWithPath: "/projets/Mon son.flp")) },
-                                      open: { _ in false }, read: { _ in file })
-        var live: [SoundFamily: Int] = [:]
-        let session = OrganizerSession(link: link, audio: audio, classify: classify, nameDrum: { _, _ in .kick },
-                                       timing: timing, sleep: { _ in }, files: files,
-                                       classified: { live[$0, default: 0] += 1 })
-        let result = try session.run().get()
-        XCTAssertEqual(result.items.first { $0.index == 2 }?.family, .melody)
-        XCTAssertEqual(live, Dictionary(grouping: result.items, by: \.family).mapValues(\.count))
-    }
-
     /// Analyse sur le fichier : un clip audio (une prise de voix) est lu directement dans son fichier, sans le faire
     /// jouer par FL (projets de voix du propriétaire : jouées dans FL, elles commençaient par un silence, étaient mal
     /// reconnues, et l'attente durait).
