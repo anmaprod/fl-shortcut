@@ -281,3 +281,14 @@ entrée 1 ≈ 0,5 s.
 - Erreurs en route : préparation plantée sur des accords de notes de longueurs différentes (30 min perdues ; chaque
   étape est maintenant gardée) ; poids des têtes illisibles par nom (`.weights.h5`) ; sorties Core ML renommées
   après conversion ; ONNX Runtime ne calibre pas un Softmax qui est une sortie.
+- Le propriétaire veut « 99 % minimum pour tout ». Plus de sons : NSynth train (≈ 1000 instruments, 24 Go) et
+  Medley-solos-DB (vraies chanteuses et instruments, 8 Go ; flux coupé en route, une partie seulement) lus au fil du
+  téléchargement (rien sur le disque), voix hachées en plus, notes NSynth gardées dans leur tessiture : 67 043 sons.
+  Résultats (6 837 sons jamais entendus) : voix 97,6 % (chops 93–96 %, stutters 86 %), drums 96,6 %, FX 94,2 %,
+  basse 93,5 %, mélodies 84,4 % (notes graves prises pour des basses, synthés étranges pour des FX) ; 99 % pas
+  encore atteint. Prochain levier : réapprendre aussi la fin de YAMNet, et les corrections des utilisateurs.
+- « Pas content ? » (demande du propriétaire : questions à cocher avec « Autre » en bas, pour que l'IA apprenne de
+  ses erreurs ; choix : apprend sur le Mac + pour tout le monde avec accord ; bouton à la fin, pas de question à
+  chaque fois) : `OrganizerFeedback.swift`, `CorrectionsIA.swift`, table `corrections_ia`
+  (`supabase/corrections-ia.sql`, à coller par le propriétaire), `ia/corrections.py`. Le modèle rend maintenant
+  aussi ses 1216 mesures par tranche (sortie « mesures »).

@@ -330,6 +330,17 @@ final class CommunityStore: ObservableObject {
         }
     }
 
+    /// Correction de l'Organiser partagée (accord donné), avec le compte s'il y en a un (jeton refusé : sans). Un
+    /// échec (hors ligne, serveur) est sans gravité : elle reste apprise sur ce Mac.
+    func shareCorrection(_ json: Data) async {
+        guard !demo, let client else { return }
+        do {
+            try await client.sendCorrection(json, token: session?.accessToken)
+        } catch CommunityError.server(let status, _) where session != nil && (status == 401 || status == 403) {
+            try? await client.sendCorrection(json, token: nil)
+        } catch {}
+    }
+
     func isMine(_ share: Share) -> Bool { share.authorID == session?.userID }
 
     /// Peut supprimer ce partage : le sien, ou n'importe lequel pour un administrateur.

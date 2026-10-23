@@ -30,6 +30,8 @@ struct OrganizerItem: Equatable {
     var kind: SoundKind? = nil
     /// Classé d'après son nom, sans écoute.
     var byName = false
+    /// Écouté : ce que l'IA intégrée en a retenu (des nombres), pour apprendre si on le corrige (CorrectionsIA).
+    var soundPrint: SoundPrint? = nil
 }
 
 /// Ce que la dernière analyse a fait, en nombres seulement (« Copier le diagnostic ») : jamais un nom.
@@ -61,8 +63,8 @@ struct OrganizerDiagnostics: Equatable {
     /// Patterns ajoutés en séparant son par son ceux qui en avaient plusieurs.
     var split = 0
     /// Règle de chaque son écouté : « c4:melodie+ia+iv12 » (canal 4 ; +ia : l'IA de macOS a répondu ; +iv12 : l'IA
-    /// intégrée y entend une voix à 12 %), « c7:voix-iv+ia+iv91 », « p2:fx-long » (piste 2 de la Playlist). Des
-    /// numéros, jamais un nom.
+    /// intégrée y entend une voix à 12 %), « c7:voix-iv+ia+iv91 », « c3:corrige+iv2 » (un son que l'utilisateur
+    /// avait corrigé), « p2:fx-long » (piste 2 de la Playlist). Des numéros, jamais un nom.
     var rules: [String] = []
     /// Sons de chaque pattern et de chaque piste de la Playlist relevés (« pattern1:c0,c3 », « piste4:c1,c2 ») : où
     /// le rangement de la Playlist s'est trompé, sans aucun nom.
@@ -158,6 +160,8 @@ final class OrganizerSession {
     /// Sorte d'une voix, d'une basse ou d'un FX, parmi les choix de l'aperçu (IA intégrée : Voix lead, Chœur, 808,
     /// Sub, Riser…) ; nil : rien de sûr, le mot général de la famille.
     typealias NameKind = ([Float], Double, SoundFamily) -> SoundKind?
+    /// Ce que l'IA intégrée retient d'un son écouté (des nombres), pour apprendre s'il est corrigé ; nil sans elle.
+    typealias Fingerprint = ([Float], Double) -> SoundPrint?
     /// Le fichier de son d'un clip audio, lu directement (chemin écrit par FL, fichier du projet) : son passage le plus
     /// fort ; nil s'il n'est pas retrouvé (le clip est alors joué dans FL).
     typealias SoundFile = (_ path: String, _ project: URL) -> SampleSound?
@@ -185,6 +189,7 @@ final class OrganizerSession {
     private let nameDrum: NameDrum?
     private let nameMelody: NameMelody?
     private let nameKind: NameKind?
+    private let fingerprint: Fingerprint?
     private let soundFile: SoundFile?
     /// Analyse sur le fichier : le chemin du fichier de chaque clip audio, et le projet (pour le retrouver).
     private var clipPaths: [Int: String] = [:]
@@ -222,7 +227,8 @@ final class OrganizerSession {
     /// l'analyse, par les menus de FL, les clips audio inutilisés retirés et les sons sans note sélectionnés ; vrai si
     /// la sélection a été faite.
     init(link: OrganizerLink, audio: AudioSource, classify: @escaping Classify, nameDrum: NameDrum? = nil,
-         nameMelody: NameMelody? = nil, nameKind: NameKind? = nil, timing: Timing = Timing(),
+         nameMelody: NameMelody? = nil, nameKind: NameKind? = nil, fingerprint: Fingerprint? = nil,
+         timing: Timing = Timing(),
          sleep: @escaping (TimeInterval) -> Void = { Thread.sleep(forTimeInterval: $0) },
          escape: @escaping () -> Bool = { false },
          prepare: @escaping () -> Bool = { false },
@@ -235,6 +241,7 @@ final class OrganizerSession {
         self.nameDrum = nameDrum
         self.nameMelody = nameMelody
         self.nameKind = nameKind
+        self.fingerprint = fingerprint
         self.timing = timing
         self.sleep = sleep
         self.escape = escape
@@ -551,7 +558,7 @@ final class OrganizerSession {
             items.append(OrganizerItem(index: channel.index, name: channel.name, family: verdict.family,
                                        confidence: tested ? verdict.confidence * Self.testNotesFactor : verdict.confidence,
                                        testNotes: tested, mixerTrack: channel.mixerTrack, color: channel.color,
-                                       kind: kind))
+                                       kind: kind, soundPrint: heard ? fingerprint?(samples, rate) : nil))
         }
         return (items, heardAny)
     }
@@ -843,13 +850,18 @@ final class OrganizerSession {
     /// de macOS a répondu (« +ia ») et ce que l'IA intégrée a entendu (« +iv » et sa probabilité de voix en %, un
     /// nombre seulement).
     static func liveClassifier(ai: SoundClassifier? = SoundClassifier(),
-                               classeur: ClasseurSons? = ClasseurSons.partage()) -> Classify {
+                               classeur: ClasseurSons? = ClasseurSons.partage(),
+                               corrections: CorrectionsIA? = .shared) -> Classify {
         { samples, rate in
             let features = SoundFeatures.measure(samples, rate: rate)
             var labels = ai.map { AILabels(scores: $0.scores(samples, rate: rate)) } ?? AILabels.none
             let avis = classeur?.avis(samples, rate: rate)
             if let avis { labels.merge(embedded: avis) }
             var verdict = FamilyFusion.decideWithRule(features, labels)
+            // Un son déjà corrigé par l'utilisateur (le même, ou presque) : sa réponse, avant toute règle.
+            if verdict.rule != "silence", let corrige = corrections?.cherche(avis?.empreinte) {
+                verdict = (corrige.famille, 1, "corrige")
+            }
             // Les règles hésitent (« à vérifier ») : l'avis de l'IA intégrée s'il est net.
             if verdict.family == .unsure, verdict.rule != "silence", let avis,
                avis.familles[avis.famille.rawValue] >= 0.6 {
@@ -862,26 +874,55 @@ final class OrganizerSession {
     }
 
     /// Sorte d'après l'IA intégrée (le même classeur que le classement : le son n'est écouté qu'une fois), si elle
-    /// l'emporte nettement parmi celles de la famille.
-    static func liveKindNamer(classeur: ClasseurSons? = ClasseurSons.partage()) -> NameKind {
-        { samples, rate, family in classeur?.avis(samples, rate: rate)?.sorteNette(dans: family) }
-    }
-
-    /// Sorte des drums : ce que les mesures disent sûrement, puis l'IA intégrée, l'IA de macOS, les mesures.
-    static func liveDrumNamer(ai: SoundClassifier? = SoundClassifier(),
-                              classeur: ClasseurSons? = ClasseurSons.partage()) -> NameDrum {
-        { samples, rate in
-            DrumNaming.kind(SoundFeatures.measure(samples, rate: rate), scores: ai?.scores(samples, rate: rate) ?? [:],
-                            embedded: classeur?.avis(samples, rate: rate)?.sorteNette(dans: .drums))
+    /// l'emporte nettement parmi celles de la famille ; celle d'une correction de l'utilisateur d'abord.
+    static func liveKindNamer(classeur: ClasseurSons? = ClasseurSons.partage(),
+                              corrections: CorrectionsIA? = .shared) -> NameKind {
+        { samples, rate, family in
+            let avis = classeur?.avis(samples, rate: rate)
+            return corrigee(avis, family, corrections) ?? avis?.sorteNette(dans: family)
         }
     }
 
-    /// Sorte des mélodies : l'IA intégrée, puis l'IA de macOS, puis les mesures du son.
-    static func liveMelodyNamer(ai: SoundClassifier? = SoundClassifier(),
-                                classeur: ClasseurSons? = ClasseurSons.partage()) -> NameMelody {
+    /// Sorte des drums : celle d'une correction de l'utilisateur, puis ce que les mesures disent sûrement, l'IA
+    /// intégrée, l'IA de macOS, les mesures.
+    static func liveDrumNamer(ai: SoundClassifier? = SoundClassifier(),
+                              classeur: ClasseurSons? = ClasseurSons.partage(),
+                              corrections: CorrectionsIA? = .shared) -> NameDrum {
         { samples, rate in
-            MelodyNaming.kind(SoundFeatures.measure(samples, rate: rate), scores: ai?.scores(samples, rate: rate) ?? [:],
-                              embedded: classeur?.avis(samples, rate: rate)?.sorteNette(dans: .melody))
+            let avis = classeur?.avis(samples, rate: rate)
+            if let kind = corrigee(avis, .drums, corrections) { return kind }
+            return DrumNaming.kind(SoundFeatures.measure(samples, rate: rate),
+                                   scores: ai?.scores(samples, rate: rate) ?? [:], embedded: avis?.sorteNette(dans: .drums))
+        }
+    }
+
+    /// Sorte des mélodies : celle d'une correction de l'utilisateur, puis l'IA intégrée, l'IA de macOS, les mesures.
+    static func liveMelodyNamer(ai: SoundClassifier? = SoundClassifier(),
+                                classeur: ClasseurSons? = ClasseurSons.partage(),
+                                corrections: CorrectionsIA? = .shared) -> NameMelody {
+        { samples, rate in
+            let avis = classeur?.avis(samples, rate: rate)
+            if let kind = corrigee(avis, .melody, corrections) { return kind }
+            return MelodyNaming.kind(SoundFeatures.measure(samples, rate: rate),
+                                     scores: ai?.scores(samples, rate: rate) ?? [:],
+                                     embedded: avis?.sorteNette(dans: .melody))
+        }
+    }
+
+    /// La sorte qu'un utilisateur a donnée à ce son (le même, ou presque), si elle va avec la famille.
+    private static func corrigee(_ avis: ClasseurSons.Avis?, _ family: SoundFamily,
+                                 _ corrections: CorrectionsIA?) -> SoundKind? {
+        guard let corrige = corrections?.cherche(avis?.empreinte), corrige.famille == family else { return nil }
+        return corrige.sorte
+    }
+
+    /// Ce que l'IA intégrée retient d'un son écouté (même classeur : rien n'est réécouté) ; nil sans ses mesures.
+    static func liveFingerprint(classeur: ClasseurSons? = ClasseurSons.partage()) -> Fingerprint {
+        { samples, rate in
+            guard let avis = classeur?.avis(samples, rate: rate), let empreinte = avis.empreinte else { return nil }
+            let famille = ClasseurSons.famille(avis.famille)
+            return SoundPrint(mesures: avis.mesures, empreinte: empreinte, familleIA: famille,
+                              sorteIA: avis.sorteNette(dans: famille))
         }
     }
 }

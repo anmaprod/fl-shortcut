@@ -56,6 +56,14 @@ struct OrganizerEnvironment {
     var nameMelody: () -> OrganizerSession.NameMelody = { { _, _ in nil } }
     /// Sorte d'un son par l'IA intégrée (nil : aucune, les deux précédentes servent).
     var nameKind: () -> OrganizerSession.NameKind? = { nil }
+    /// Ce que l'IA intégrée retient d'un son écouté (nil : aucune correction ne pourra en apprendre).
+    var fingerprint: () -> OrganizerSession.Fingerprint? = { nil }
+    /// Les corrections gardées sur le Mac (et l'accord pour les partager) ; nil : rien n'est appris.
+    var corrections: () -> CorrectionsIA? = { nil }
+    /// Une correction partagée (accord donné, JSON de CorrectionsIA.envoi) envoyée au serveur, en tâche de fond.
+    var shareCorrection: (Data) -> Void = { _ in }
+    /// « Pas content ? » : le message pour l'équipe et le diagnostic (nombres), envoyés en tâche de fond.
+    var sendFeedback: (_ message: String, _ diagnostic: String) -> Void = { _, _ in }
     /// Fichier de son d'un clip audio lu directement (analyse sur le fichier) ; nil : joué dans FL.
     var soundFile: () -> OrganizerSession.SoundFile? = { nil }
     /// Autorisation « Audio du système » (sans elle, macOS donne du silence à la capture).
@@ -111,6 +119,15 @@ struct OrganizerEnvironment {
             nameDrum: { OrganizerSession.liveDrumNamer() },
             nameMelody: { OrganizerSession.liveMelodyNamer() },
             nameKind: { OrganizerSession.liveKindNamer() },
+            fingerprint: { OrganizerSession.liveFingerprint() },
+            corrections: { CorrectionsIA.shared },
+            shareCorrection: { json in Task { @MainActor in await CommunityStore.shared.shareCorrection(json) } },
+            sendFeedback: { message, diagnostic in
+                Task { @MainActor in
+                    _ = await CommunityStore.shared.sendSupport(
+                        SupportMessage(kind: .probleme, text: message, diagnostic: diagnostic))
+                }
+            },
             soundFile: { SampleFiles.liveReader() },
             audioPermission: { AudioCapturePermission.status },
             requestAudioPermission: { done in
@@ -393,6 +410,11 @@ final class OrganizerController: ObservableObject {
     @Published private(set) var diagnostics: OrganizerDiagnostics?
     /// « Copié » montré un instant après « Copier le diagnostic ».
     @Published private(set) var copied = false
+    /// Sons corrigés que l'IA a retenus (aperçu et « Pas content ? »), dit à la fin.
+    @Published private(set) var learned = 0
+    /// « Pas content ? » ouvert, puis envoyé.
+    @Published var feedbackShown = false
+    @Published private(set) var feedbackSent = false
 
     init(env: OrganizerEnvironment) {
         self.env = env
@@ -453,7 +475,7 @@ final class OrganizerController: ObservableObject {
         let link = env.link()
         let session = OrganizerSession(
             link: link, audio: audio, classify: env.classify(), nameDrum: env.nameDrum(), nameMelody: env.nameMelody(),
-            nameKind: env.nameKind(), timing: env.timing,
+            nameKind: env.nameKind(), fingerprint: env.fingerprint(), timing: env.timing,
             sleep: env.sleep, escape: env.escapePressed, prepare: env.prepareProject, files: env.projectFiles(),
             soundFile: env.soundFile(),
             progress: { [weak self] done, total in
@@ -554,6 +576,8 @@ final class OrganizerController: ObservableObject {
     func retry() {
         guard canRetry, !closed else { return }
         waitSerial += 1
+        learned = 0
+        feedbackSent = false
         result = nil
         families = [:]
         kinds = [:]
@@ -770,12 +794,25 @@ final class OrganizerController: ObservableObject {
                     : String(localized: "Playlist pas rangée : pour remonter ses pistes, FL Shortcuts doit voir la fenêtre de FL (Réglages Système › Confidentialité et sécurité › Enregistrement de l'écran). Noms et couleurs sont posés."))
             }
         }
+        if learned > 0 {
+            lines.append(String(localized: """
+                L'IA retient \(learned) sons corrigés sur ce Mac : la prochaine fois, ils seront rangés comme tu l'as dit.
+                """))
+        }
+        if feedbackSent {
+            lines.append(String(localized: """
+                Merci ! Pour ranger ce projet avec tes corrections : « Revenir comme avant », puis relance Organiser.
+                """))
+        }
         return lines.joined(separator: "\n")
     }
 
     func apply() {
         guard phase == .preview, let result, let link else { return }
         env.saveStyles(styles)
+        // Les sons changés dans l'aperçu : l'IA s'en souvient (demande du propriétaire), sans rien demander.
+        learned = learn(OrganizerFeedback.previewFixes(result.items, families: families, kinds: kinds),
+                        reasons: ["apercu"])
         env.focusFL()                                         // ⌥↑, ⌥← et F2 vont à FL
         phase = .applying
         applyStep = nil
@@ -796,6 +833,47 @@ final class OrganizerController: ObservableObject {
                 self?.phase = .applied(outcome.error)
             }
         }
+    }
+
+    // MARK: L'IA apprend de ses erreurs
+
+    /// Sons écoutés que l'on peut corriger (ceux classés d'après leur nom n'ont pas été écoutés).
+    var correctable: [OrganizerItem] { (result?.items ?? []).filter { $0.soundPrint != nil } }
+
+    /// « Pas content ? » : après l'application, une fois.
+    var canGiveFeedback: Bool {
+        guard case .applied = phase, result != nil else { return false }
+        return !feedbackSent
+    }
+
+    /// L'accord déjà donné pour aider l'IA de tout le monde.
+    var sharingCorrections: Bool { env.corrections()?.partage == true }
+
+    /// Chaque son corrigé retenu sur le Mac et, avec l'accord, partagé (des nombres seulement) ; le nombre retenu.
+    private func learn(_ fixes: [Int: OrganizerFeedback.Fix], reasons: [String]) -> Int {
+        guard !fixes.isEmpty, let store = env.corrections(), let result else { return 0 }
+        var count = 0
+        for item in result.items {
+            guard let fix = fixes[item.index], fix.family != .unsure, let heard = item.soundPrint else { continue }
+            store.ajoute(CorrectionIA(empreinte: heard.empreinte, famille: fix.family, sorte: fix.kind, date: Date()))
+            count += 1
+            if store.partage == true,
+               let corps = CorrectionsIA.envoi(heard, avant: (item.family, item.kind), apres: (fix.family, fix.kind),
+                                               raisons: reasons, appVersion: MacroFileActions.appVersion),
+               let json = try? JSONSerialization.data(withJSONObject: corps) {
+                env.shareCorrection(json)
+            }
+        }
+        return count
+    }
+
+    /// « Envoyer » : les sons corrigés retenus (et partagés si la case est cochée), le reste dit à l'équipe.
+    func submitFeedback(_ feedback: OrganizerFeedback) {
+        if !feedback.fixes.isEmpty { env.corrections()?.partage = feedback.share }
+        learned += learn(feedback.fixes, reasons: feedback.reasons.map(\.rawValue).sorted())
+        if let message = feedback.teamMessage() { env.sendFeedback(message, diagnosticText) }
+        feedbackSent = true
+        feedbackShown = false
     }
 
     /// « Revenir comme avant » : après l'application, ou pour finir un retour interrompu.
@@ -1070,6 +1148,7 @@ struct OrganizerView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .background { TintGlow(tint: Self.tint) }
         .motion(Motion.morph, value: stepKey)
+        .sheet(isPresented: $controller.feedbackShown) { OrganizerFeedbackView(controller: controller) }
     }
 
     private var header: some View {
@@ -1261,6 +1340,10 @@ struct OrganizerView: View {
                 diagnosticButton
             } else if case .applied(let error) = controller.phase, error != nil {
                 diagnosticButton
+            }
+            if controller.canGiveFeedback {
+                Button("Pas content ?") { controller.feedbackShown = true }
+                    .help("Dis ce qui n'allait pas : l'IA apprend de ses erreurs")
             }
             Spacer()
             if controller.canRetry {

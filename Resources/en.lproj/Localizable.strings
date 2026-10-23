@@ -173,6 +173,7 @@
 "Aide" = "Help";
 "Aide, compte, profil, import et export" = "Help, account, profile, import and export";
 "Aide, guide et contact" = "Help, guide and contact";
+"Aider l'IA de tout le monde : envoyer des nombres qui décrivent ces sons (jamais le son, son nom ni ce que tu écris)" = "Help everyone's AI: send numbers that describe these sounds (never the sound, its name or what you type)";
 "Aides de notes" = "Note helpers";
 "Ajoute ce bloc sous la ligne choisie" = "Adds this block below the selected row";
 "Ajoute des macros toutes faites, après avoir lu ce qu'elles font." = "Add ready-made macros, after reading what they do.";
@@ -276,6 +277,7 @@
 "Aucun raccourci ne correspond à « %@ »." = "No shortcut matches “%@”.";
 "Aucun raccourci." = "No shortcuts.";
 "Aucun résultat" = "No results";
+"Aucun son n'a été écouté : tous ont été rangés d'après leur nom. Change leur nom dans FL." = "No sound was listened to: all were organized by their name. Change their name in FL.";
 "Aucun son reçu de FL pendant l'écoute. Vérifie que FL Shortcuts a l'autorisation « Audio du système » (Réglages Système › Confidentialité et sécurité › Enregistrement de l'écran et de l'audio du système), et que les sons choisis jouent bien dans FL (Master pas coupé), puis « Réessayer »." = "No sound came from FL while listening. Check that FL Shortcuts has the “System Audio” permission (System Settings › Privacy & Security › Screen & System Audio Recording), and that the chosen sounds really play in FL (Master not muted), then “Try again”.";
 "Aucun son à organiser dans ce projet." = "No sounds to organize in this project.";
 "Aucun titre ni aucune explication ne contient ce mot : choisis un membre plus haut pour voir ses partages." = "No title or description contains this word: pick a member above to see their posts.";
@@ -382,11 +384,13 @@
 "Ce n'était pas un glisser : reste cliqué et glisse jusqu'à l'endroit voulu, puis recommence." = "That wasn't a drag: hold the click and drag to the spot you want. Try again.";
 "Ce nom d'utilisateur est déjà pris." = "This username is already taken.";
 "Ce partage ne peut pas être ajouté : %@" = "This post can't be added: %@";
+"Ce qu'est vraiment ce son" = "What this sound really is";
 "Ce que fait la macro, étape par étape" = "What the macro does, step by step";
 "Ce que tu faisais, ce qui devait se passer, ce qui s'est passé. Ex. : « ma macro s'arrête au 3e bloc dans le Mixer »." = "What you were doing, what should have happened, what happened. E.g.: “my macro stops at the 3rd block in the Mixer”.";
 "Ce qui te ferait gagner du temps dans FL Studio." = "What would save you time in FL Studio.";
 "Ce raccourci lancera ta version ; le modèle d'origine reste dans Macros › Modèles." = "This shortcut will run your version; the original template stays in Macros › Templates.";
 "Centrer sur la tête de lecture" = "Center on playhead";
+"Ces réponses partent à l'équipe de FL Shortcuts avec le diagnostic (des nombres, aucun nom de son)." = "These answers go to the FL Shortcuts team with the diagnostic (numbers only, no sound names).";
 "Cette macro n'est plus dans la bibliothèque : tes modifications ne sont pas enregistrées." = "This macro is no longer in the library: your changes aren't saved.";
 "Cette option n'est pas dans %@ : choisis-en une de cette page." = "This option isn't in %@: choose one from that page.";
 "Cette touche" = "This key";
@@ -502,6 +506,7 @@
 "Cloner les canaux" = "Clone channels";
 "Clé invalide (16 octets attendus)." = "Invalid key (16 bytes expected).";
 "Clé invalide." = "Invalid key.";
+"Coche tout ce qui ne va pas : l'IA apprend de ses erreurs." = "Check everything that's wrong: the AI learns from its mistakes.";
 "Code" = "Code";
 "Code de la couleur (#RRGGBB), comme dans FL" = "Color code (#RRGGBB), as in FL";
 "Code de la couleur, comme dans la fenêtre de couleur de FL (Entrée pour la garder dans les récentes)" = "Color code, as in FL's color window (Return to keep it in recent colors)";
@@ -593,7 +598,9 @@
 "Des clips de la Playlist n'ont pas pu être remis à leur place : annule dans FL (Edit › Undo), puis réessaie." = "Some Playlist clips couldn't be put back in place: undo in FL (Edit › Undo), then try again.";
 "Des macros et des raccourcis prêts à l'emploi, partagés par d'autres utilisateurs de FL Shortcuts, avec leur explication." = "Ready-to-use macros and shortcuts, shared by other FL Shortcuts users, with their description.";
 "Descendre les canaux" = "Move channels down";
+"Dis ce qui n'allait pas : l'IA apprend de ses erreurs" = "Say what went wrong: the AI learns from its mistakes";
 "Dis en quelques mots ce que tu faisais juste avant : ça nous aide beaucoup." = "Tell us in a few words what you were doing just before: it helps us a lot.";
+"Dis-nous ce qui ne va pas" = "Tell us what's wrong";
 "Disponible à partir de FL %@" = "Available from FL %@";
 "Donne un nom et/ou une couleur à la piste ou au canal sélectionné dans la page de FL qui est devant (Mixer, Channel rack ou Playlist), par le lien avec FL, et une icône de FL par sa fenêtre (F2). Un seul élément doit être sélectionné." = "Gives a name and/or color to the track or channel selected in the FL page in front (Mixer, Channel rack or Playlist) through the FL link, and an FL icon through its window (F2). Only one item must be selected.";
 "Donne une valeur (nombre entier) à une variable de la macro." = "Sets a macro variable to a value (whole number).";
@@ -934,6 +941,7 @@
 "Kick" = "Kick";
 "Kick, Lead, Voix…" = "Kick, Lead, Vocals…";
 "Kick, Lead, Voix… (facultatif)" = "Kick, Lead, Vocals… (optional)";
+"L'IA retient %lld sons corrigés sur ce Mac : la prochaine fois, ils seront rangés comme tu l'as dit." = "The AI remembers %lld corrected sounds on this Mac: next time, they'll be organized the way you said.";
 "L'Organiser ne sait pas encore ranger ce projet sans risque (%@) : rien n'a été touché." = "The Organizer can't safely organize this project yet (%@): nothing was changed.";
 "L'Organiser écoute FL avec macOS 14.2 ou plus récent : mets macOS à jour." = "Organizer listens to FL on macOS 14.2 or later: update macOS.";
 "L'app et tous ses réglages seront supprimés de ce Mac." = "The app and all its settings will be removed from this Mac.";
@@ -946,6 +954,7 @@
 "La Communauté" = "The Community";
 "La Communauté n'est pas encore ouverte" = "The Community isn't open yet";
 "La Communauté n'est pas encore ouverte dans cette version." = "The Community isn't open yet in this version.";
+"La Playlist n'est pas bien rangée" = "The Playlist isn't organized well";
 "La carte devient la sortie et l'entrée du Mac. Une seule fois, dans FL › Options › Audio settings : " = "The card becomes the Mac's output and input. Just once, in FL › Options › Audio settings: ";
 "La carte son branchée (USB, Thunderbolt…) devient la sortie et l'entrée du Mac ; FL la suit tout seul s'il est réglé une fois sur « Default audio device » (Output) et « Default input device » (Input) dans Options › Audio settings." = "The connected sound card (USB, Thunderbolt…) becomes the Mac's output and input; FL follows it on its own if it's set once to “Default audio device” (Output) and “Default input device” (Input) in Options › Audio settings.";
 "La copie rangée n'a pas pu être écrite à côté de ton projet : rien n'a été touché." = "The organized copy couldn't be written next to your project: nothing was changed.";
@@ -965,6 +974,7 @@
 "Last devient aussi First" = "Last also becomes First";
 "Le %@ du canal est basculé par le lien avec FL : ni souris, ni touche. Sans " = "The channel's %@ is toggled through the FL link: no mouse, no keys. Without ";
 "Le Channel rack a changé depuis l'analyse : relance Organiser." = "The Channel rack changed since the analysis: run Organize again.";
+"Le Mixer n'est pas bien rangé" = "The Mixer isn't organized well";
 "Le REC démarre à la première note jouée" = "Recording starts on the first note you play";
 "Le bandeau en bas du créateur dit à quel bloc elle s'est arrêtée (« Montrer le bloc »). Si FL a changé de taille ou d'écran, remontre l'endroit de ce bloc. Un bouton qui porte un nom (« FILE », « Insert 1 ») est retrouvé par son nom même s'il bouge, si l'app peut lire l'écran (autorisation « Enregistrement de l'écran ») ; un bouton sans nom qui bouge (le « + » du Channel rack) : active « Retrouver ce bouton s'il bouge » sur ce clic. Si une fenêtre de FL met du temps à s'ouvrir, ajoute un bloc « Attendre » juste avant." = "The banner at the bottom of the creator tells you which block it stopped at (“Show block”). If FL changed size or screen, show that block's spot again. A button with a name (“FILE”, “Insert 1”) is found by its name even if it moves, if the app can read the screen (“Screen Recording” permission); for a button with no name that moves (the Channel rack's “+”), turn on “Find this button if it moves” for that click. If an FL window takes a while to open, add a “Wait” block just before.";
 "Le clavier est autorisé : tout est prêt." = "The keyboard is allowed: you're all set.";
@@ -1014,6 +1024,7 @@
 "Les autres pourront lire ton explication, voir chaque étape, puis l'ajouter chez eux." = "Others can read your description, see each step, then add it to their own.";
 "Les blocs ajoutés maintenant (palette à gauche) vont à la fin de cette liste. Tu peux aussi y glisser une ligne." = "Blocks you add now (palette on the left) go at the end of this list. You can also drag a row here.";
 "Les comptes ne sont pas encore ouverts" = "Accounts aren't open yet";
+"Les couleurs ou les noms ne me plaisent pas" = "I don't like the colors or the names";
 "Les endroits appris (clics montrés dans FL) ne sont pas exportés : ils se montrent sur chaque Mac." = "Learned spots (clicks shown in FL) aren't exported: they're shown on each Mac.";
 "Les macros" = "Macros";
 "Les macros et les raccourcis des autres, et les tiens." = "Other people's macros and shortcuts, and yours.";
@@ -1023,6 +1034,7 @@
 "Les raccourcis qu'il contient" = "The shortcuts it contains";
 "Les réponses aux questions fréquentes, et l'équipe si ça ne suffit pas." = "Answers to common questions, and the team if that's not enough.";
 "Les sauvegarder d'abord" = "Back them up first";
+"Les sons rangés d'après leur nom n'y sont pas : l'IA ne les a pas écoutés." = "Sounds organized by their name aren't listed: the AI didn't listen to them.";
 "Lettres" = "Letters";
 "Lettres d'un menu de FL" = "FL menu letters";
 "Lettres du menu" = "Menu letters";
@@ -1089,6 +1101,7 @@
 "Menu de la piste › Arm selected track(s)" = "Track menu › Arm selected track(s)";
 "Menus de FL" = "FL menus";
 "Menus de FL introuvables dans la barre des menus de macOS (FL Studio 2024.2 ou plus récent)." = "FL menus not found in the macOS menu bar (FL Studio 2024.2 or later).";
+"Merci ! Pour ranger ce projet avec tes corrections : « Revenir comme avant », puis relance Organiser." = "Thanks! To organize this project with your corrections: “Undo changes”, then run Organize again.";
 "Merci, c'est envoyé !" = "Thanks, it's sent!";
 "Merci, le signalement est envoyé." = "Thanks, your report was sent.";
 "Mes données sont-elles envoyées quelque part ?" = "Is my data sent anywhere?";
@@ -1294,6 +1307,7 @@
 "Partagé : tes raccourcis, le titre, ton explication, ton nom d'utilisateur." = "Shared: your shortcuts, the title, your description, your username.";
 "Partir d'un modèle…" = "Start from a template…";
 "Partout" = "Everywhere";
+"Pas content ?" = "Not happy?";
 "Pas d'icône avec un dégradé (FL la pose sur un seul élément)." = "No icon with a gradient (FL sets it on one item only).";
 "Pas de connexion : la sauvegarde partira dès que possible." = "No connection: your backup will go out as soon as possible.";
 "Pas de mail ? Regarde dans les courriers indésirables, ou renvoie le code." = "No email? Check your spam folder, or resend the code.";
@@ -1395,10 +1409,12 @@
 "Publicité ou spam" = "Ads or spam";
 "Publier" = "Publish";
 "Publier pour tous les membres de la Communauté" = "Publish for all Community members";
+"Qu'est-ce qui n'allait pas ?" = "What went wrong?";
 "Quand FL a ouvert sa boîte « Open » (preset d'un plugin, d'un canal…) : va au fichier .fst choisi et l'ouvre. À placer après les clics qui ouvrent la boîte et un « Attendre »." = "When FL has opened its “Open” dialog (preset of a plugin, a channel…): goes to the chosen .fst file and opens it. Place it after the clicks that open the dialog and a “Wait”.";
 "Quantize" = "Quantize";
 "Quantize rapide" = "Quick quantize";
 "Quantize rapide du début des clips" = "Quick quantize clip starts";
+"Quels sons étaient mal rangés ?" = "Which sounds were in the wrong place?";
 "Questions fréquentes" = "Frequently asked questions";
 "Questions fréquentes, et écrire à l'équipe" = "FAQ, and write to the team";
 "Quitte et rouvre FL Studio" = "Quit and reopen FL Studio";
@@ -1763,6 +1779,8 @@
 "Un endroit ou l'entrée 1 est à montrer dans FL." = "A spot or input 1 needs to be shown in FL.";
 "Un petit lien avec FL, une seule fois" = "A small link with FL, just once";
 "Un problème" = "A problem";
+"Un son a le mauvais nom (Kick, Snare, Pad…)" = "A sound has the wrong name (Kick, Snare, Pad…)";
+"Un son est dans la mauvaise famille" = "A sound is in the wrong family";
 "Un « ! » apparaît sur l'icône en haut de l'écran" = "A “!” appears on the menu bar icon";
 "Un « ! » sur l'icône : le clavier n'est pas autorisé. Ouvre son menu pour savoir quoi faire." = "A “!” on the icon: keyboard access isn't allowed. Open its menu to see what to do.";
 "Un état de piste du Mixer (.fst) dans ton dossier personnel. La boîte « Open » de FL doit être ouverte juste avant (bloc « Attendre une fenêtre »)." = "A Mixer track state (.fst) in your home folder. FL's “Open” dialog must be open just before (“Wait for a window” block).";
@@ -1783,6 +1801,7 @@
 "Une seule fois : clique sur le bouton de l'icône, à gauche du nom." = "Just once: click the icon button, left of the name.";
 "Une seule fois : clique sur « (none) » de la piste, puis sur l'entrée « 1 »." = "Just once: click the track's “(none)”, then input “1”.";
 "Une seule fois, tout ce dont FL Shortcuts a besoin, demandé ensemble." = "Just once: everything FL Shortcuts needs, asked all together.";
+"Une voix n'est pas rangée dans Voix" = "A vocal isn't in Vocals";
 "Utiliser" = "Use";
 "Utiliser ces raccourcis" = "Use these shortcuts";
 "Valeur" = "Value";

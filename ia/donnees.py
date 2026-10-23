@@ -3,7 +3,9 @@
 - YAMNet : code et poids de Google (tensorflow/models, licence Apache 2.0) ;
 - VocalSet : chant, 20 chanteurs (Wilkins et al., 2018 ; CC BY 4.0) ;
 - LibriSpeech dev-clean et test-clean : parole, 80 locuteurs (Panayotov et al., 2015 ; CC BY 4.0) ;
-- NSynth test et valid : notes de 53 instruments (Engel et al., 2017 ; CC BY 4.0) ;
+- NSynth test et valid : notes de 53 instruments (Engel et al., 2017 ; CC BY 4.0) ; nsynth-train (≈ 1000 autres
+  instruments) et Medley-solos-DB (Lostanlen et al., 2019 ; CC BY 4.0) sont lus au fil du téléchargement par
+  preparer.py (24 Go et 8 Go, rien n'est gardé sur le disque) ;
 - Freesound One-Shot Percussive Sounds (Ramires et al., 2020) : sons de batterie, chacun sous sa licence Freesound ;
   preparer.py ne garde que CC0 et CC BY (pas de NC).
 Usage : python ia/donnees.py"""

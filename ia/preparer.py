@@ -473,33 +473,36 @@ def nsynth(c, archive="nsynth-test.tar.gz", notes_max=None):
         if m.name.endswith(".wav") and os.path.basename(m.name)[:-4] in meta:
             audio[os.path.basename(m.name)[:-4]] = lire(t.extractfile(m).read())[: SR * 2]
     gardes = set(sorted({v["instrument_str"] for v in meta_nsynth("nsynth-test.tar.gz").values()})[::5])
+    jouer_nsynth(c, [(v["instrument_str"], v["instrument_family_str"], v["instrument_source_str"], audio[cle],
+                      "val" if v["instrument_str"] in gardes else "train") for cle, v in meta.items() if cle in audio])
+
+
+def jouer_nsynth(c, notes, plus=4):
+    """Les notes [(instrument, famille NSynth, source, son, part)] telles quelles (parfois à l'envers : un FX), puis,
+    par instrument, `plus` phrases, accords, plucks et arpèges (sons de synthé), un pad et des pièges au vibrato."""
     par_inst = {}
-    for cle, v in meta.items():
-        if cle not in audio:
-            continue
-        son = audio[cle]
-        split = "val" if v["instrument_str"] in gardes else "train"
-        sorte = sorte_nsynth(v["instrument_family_str"], v["instrument_source_str"])
+    for inst, fam, source, son, split in notes:
+        sorte = sorte_nsynth(fam, source)
         famille = FAMILLE_DE_SORTE[sorte]
-        par_inst.setdefault((v["instrument_str"], sorte, v["instrument_source_str"], split), []).append(son)
+        par_inst.setdefault((inst, sorte, source, split), []).append(son)
         c.ajouter("nsynth", famille, sorte, split, son)
         if famille == "melodie" and rng.random() < 0.15:       # note à l'envers + réverb : un FX
             c.ajouter("note-envers", "fx", "fx", split, reverb(son[::-1].copy(), rng.uniform(1, 2.5)))
     for (inst, sorte, source, split), notes in par_inst.items():
         famille = FAMILLE_DE_SORTE[sorte]
-        for _ in range(4):                                     # phrases de cet instrument
+        for _ in range(plus):                                  # phrases de cet instrument
             parts = [rng.choice(notes)[: int(rng.uniform(0.1, 0.6) * SR)] for _ in range(rng.randint(4, 10))]
             c.ajouter("phrase", famille, sorte, split, norm(np.concatenate(parts)))
         if famille != "melodie":
             continue
         if len(notes) >= 3:                                    # accords (au piano ou à la guitare : leur sorte)
-            for _ in range(4):
+            for _ in range(plus):
                 duree = int(rng.uniform(0.4, 1.0) * SR)
                 suite = [sum(n[:duree] for n in rng.sample(notes, 3)) for _ in range(rng.randint(1, 3))]
                 c.ajouter("accord", "melodie", sorte if sorte in ("piano", "guitar") else "chords", split,
                           norm(np.concatenate(suite)))
         if source != "acoustic":                               # sons de synthé : pluck, arp, pad
-            for _ in range(4):
+            for _ in range(plus):
                 c.ajouter("pluck", "melodie", "pluck", split, pluck(rng.choice(notes)))
                 c.ajouter("arp", "melodie", "arp", split, arpege(notes))
             if sorte in ("strings", "organ", "lead", "keys", "brass", "flute"):
@@ -507,13 +510,91 @@ def nsynth(c, archive="nsynth-test.tar.gz", notes_max=None):
                 c.ajouter("pad-note", "melodie", "pad", split,
                           reverb(norm(onepole(note * env(len(note), rng.uniform(0.3, 0.8)), 2000)), rng.uniform(1.5, 3)))
         if sorte in ("lead", "flute", "strings", "melody", "brass", "organ", "keys"):
-            for _ in range(3):                                 # le piège des voix : vibrato
+            for _ in range(max(1, plus * 3 // 4)):             # le piège des voix : vibrato
                 c.ajouter("vibrato", "melodie", sorte, split, vibrato(rng.choice(notes)))
 
 
 def nsynth_valid(c):
     """D'autres notes des mêmes instruments (autres hauteurs et forces de jeu), 80 par instrument."""
     nsynth(c, "nsynth-valid.tar.gz", notes_max=80)
+
+
+URL_NSYNTH_TRAIN = "http://download.magenta.tensorflow.org/datasets/nsynth/nsynth-train.jsonwav.tar.gz"
+NOTES_PAR_INSTRUMENT = 16
+
+
+def flux_tar(url):
+    """Les fichiers d'une archive .tar.gz lue au fil du téléchargement (rien n'est gardé sur le disque) :
+    (nom, lecture des octets). Une coupure du réseau arrête la lecture, ce qui a été lu sert."""
+    import urllib.request
+    try:
+        with urllib.request.urlopen(url, timeout=120) as r:
+            t = tarfile.open(fileobj=r, mode="r|gz")
+            for m in t:
+                if m.isfile():
+                    yield os.path.basename(m.name), lambda m=m: t.extractfile(m).read()
+    except (OSError, EOFError, tarfile.ReadError) as e:
+        print("lecture arrêtée :", type(e).__name__, flush=True)
+
+
+def nsynth_train(c):
+    """Les ~1000 instruments de nsynth-train (24 Go lus au fil du téléchargement), 16 notes chacun dans sa
+    tessiture ; un instrument sur cinq (tiré une fois pour toutes) gardé pour la validation. Les notes arrivent dans
+    le désordre : les premières de chaque instrument sont prises au hasard."""
+    import zlib
+    gardees = {}
+    for nom, lire_octets in flux_tar(URL_NSYNTH_TRAIN):
+        if not nom.endswith(".wav"):
+            continue
+        inst, note, _ = nom[:-4].rsplit("-", 2)               # famille_source_NNN-hauteur-force
+        parts = inst.split("_")
+        fam, source = "_".join(parts[:-2]), parts[-2]
+        liste = gardees.setdefault(inst, [])
+        if fam == "vocal" or len(liste) >= NOTES_PAR_INSTRUMENT or not dans_sa_tessiture(fam, int(note)):
+            continue
+        liste.append((fam, source, lire(lire_octets())[: SR * 2].astype(np.float16)))
+    print("nsynth-train :", len(gardees), "instruments", flush=True)
+    jouer_nsynth(c, [(inst, fam, source, son.astype(np.float32), "val" if zlib.crc32(inst.encode()) % 5 == 0
+                      else "train") for inst, liste in gardees.items() for fam, source, son in liste], plus=2)
+
+
+URL_MEDLEY = "https://zenodo.org/api/records/3464194/files/Medley-solos-DB.tar.gz/content"
+URL_MEDLEY_META = "https://zenodo.org/api/records/3464194/files/Medley-solos-DB_metadata.csv/content"
+SORTES_MEDLEY = {"clarinet": "melody", "distorted electric guitar": "guitar", "flute": "flute", "piano": "piano",
+                 "tenor saxophone": "melody", "trumpet": "brass", "violin": "strings"}
+EXTRAITS_MEDLEY = 1200
+
+
+def medley(c):
+    """Medley-solos-DB (Lostanlen et al., 2019, CC BY 4.0) : extraits de 3 s de vrais morceaux, une chanteuse ou un
+    instrument seul (7,9 Go lus au fil du téléchargement). Toutes les chanteuses (et une voix hachée sur deux),
+    1200 extraits au plus par instrument, tirés dans les deux collections ; un morceau sur cinq gardé pour la
+    validation."""
+    import csv
+    import io
+    import urllib.request
+    import zlib
+    meta = {m["uuid4"]: m for m in csv.DictReader(io.StringIO(
+        urllib.request.urlopen(URL_MEDLEY_META, timeout=120).read().decode()))}
+    total = {}
+    for m in meta.values():
+        total[m["instrument"]] = total.get(m["instrument"], 0) + 1
+    for nom, lire_octets in flux_tar(URL_MEDLEY):
+        v = meta.get(nom[:-4].split("_")[-1]) if nom.endswith(".wav") and not nom.startswith("._") else None
+        if v is None:
+            continue
+        chanteuse = v["instrument"] == "female singer"
+        tirage = zlib.crc32(v["uuid4"].encode()) % 10000 / 10000
+        if not chanteuse and tirage >= EXTRAITS_MEDLEY / total[v["instrument"]]:
+            continue
+        split = "val" if zlib.crc32(f"{v['subset']}-{v['song_id']}".encode()) % 5 == 0 else "train"
+        son = lire(lire_octets())
+        if chanteuse:
+            c.voix("medley-voix", split, son, "vocalLead")
+            if tirage < 0.5:
+                c.ajouter("voix-hachee", "voix", "adlib", split, hacher(son))
+        else:
+            c.ajouter("medley-instrument", "melodie", SORTES_MEDLEY[v["instrument"]], split, son)
 
 
 def dans_sa_tessiture(famille, note):
@@ -612,7 +693,8 @@ def fabriques(c):
 
 def main():
     c = Collecte()
-    for etape in (vocalset, librispeech, librispeech_test, voix_hachees, nsynth, nsynth_valid, batterie, fabriques):
+    for etape in (vocalset, librispeech, librispeech_test, voix_hachees, nsynth, nsynth_valid, nsynth_train, medley,
+                  batterie, fabriques):
         chemin = os.path.join(TRAVAIL, f"etape_{etape.__name__}.npz")
         if os.path.exists(chemin):                             # déjà faite (relance après une erreur)
             c.charger_etape(chemin)

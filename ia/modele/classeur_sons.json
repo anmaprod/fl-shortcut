@@ -1,9 +1,10 @@
 {
- "version": 1,
+ "version": 2,
  "entree": "son",
  "sorties": [
   "famille",
-  "sorte"
+  "sorte",
+  "mesures"
  ],
  "precision": "poids int8",
  "familles": [
@@ -57,7 +58,7 @@
   "sweep",
   "fx"
  ],
- "seuil_voix": 0.7,
+ "seuil_voix": 0.34,
  "frequence": 16000,
  "tranche": 15600,
  "pas": 7680,
@@ -68,6 +69,7 @@
   "VocalSet (CC BY 4.0)",
   "LibriSpeech (CC BY 4.0)",
   "NSynth (CC BY 4.0)",
+  "Medley-solos-DB (CC BY 4.0)",
   "Freesound One-Shot Percussive Sounds (sons CC0 et CC BY)"
  ]
 }

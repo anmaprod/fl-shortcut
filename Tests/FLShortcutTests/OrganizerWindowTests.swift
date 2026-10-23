@@ -330,6 +330,79 @@ final class OrganizerWindowTests: XCTestCase {
     }
 
     /// « Copier le diagnostic » : versions, étape et ce que l'écoute a fait, jamais un nom de son.
+    /// L'IA apprend de ses erreurs (demande du propriétaire) : un son changé dans l'aperçu est retenu sans rien
+    /// demander (pas partagé : aucun accord) ; « Pas content ? » retient ses corrections et, la case cochée, les
+    /// partage (des nombres, jamais un nom) ; Playlist et texte libre vont à l'équipe.
+    func testCorrectionsAreLearnedThenShared() throws {
+        let link = FakeOrganizerLink()
+        link.channels = [ChannelInfo(index: 0, type: 2, mixerTrack: 0, color: RGBColor(r: 1, g: 2, b: 3), name: "Son 0"),
+                         ChannelInfo(index: 1, type: 2, mixerTrack: 0, color: RGBColor(r: 4, g: 5, b: 6), name: "Son 1")]
+        let audio = FakeAudio(link: link)
+        audio.parts = [0: [Float](repeating: 0.3, count: 64), 1: [Float](repeating: 0.25, count: 64)]
+        let dossier = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        let suite = "essai.corrections." + UUID().uuidString
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
+        defer {
+            try? FileManager.default.removeItem(at: dossier)
+            defaults.removePersistentDomain(forName: suite)
+        }
+        let store = CorrectionsIA(url: dossier.appendingPathComponent("corrections-ia.json"), defaults: defaults)
+        var shared: [Data] = []
+        var team: [(String, String)] = []
+        var e = env(link, audio, saved: { _ in })
+        // Une empreinte par son (d'après son niveau), les mesures de l'IA, son avis (Drums).
+        e.fingerprint = {
+            { samples, _ in
+                var empreinte = [Float](repeating: 0, count: ClasseurSons.tailleEmpreinte)
+                empreinte[Int((samples[0] * 100).rounded())] = 1
+                return SoundPrint(mesures: [[Float](repeating: 0.5, count: ClasseurSons.tailleMesures)],
+                                  empreinte: empreinte, familleIA: .drums, sorteIA: nil)
+            }
+        }
+        e.corrections = { store }
+        e.shareCorrection = { shared.append($0) }
+        e.sendFeedback = { team.append(($0, $1)) }
+        let controller = OrganizerController(env: e)
+        controller.start()
+        waitFor(controller) { $0 == .preview }
+        XCTAssertEqual(controller.correctable.map(\.index), [0, 1])
+        controller.setKind(1, .bass808)
+        controller.apply()
+        waitFor(controller, OrganizerWindowTests.isApplied)
+        XCTAssertEqual(controller.learned, 1, "le son changé dans l'aperçu")
+        XCTAssertEqual(store.nombre, 1)
+        XCTAssertNil(store.partage, "jamais demandé")
+        XCTAssertTrue(shared.isEmpty, "rien ne part sans accord")
+        XCTAssertTrue(controller.doneText.contains("1"), controller.doneText)
+
+        XCTAssertTrue(controller.canGiveFeedback)
+        var feedback = OrganizerFeedback()
+        feedback.reasons = [.kind, .playlist]
+        feedback.other = true
+        feedback.otherText = "Les clips de voix sont trop bas."
+        feedback.fixes = [0: .init(family: .drums, kind: .snare)]
+        feedback.share = true
+        controller.submitFeedback(feedback)
+        XCTAssertEqual(controller.learned, 2)
+        XCTAssertEqual(store.nombre, 2)
+        XCTAssertEqual(store.partage, true)
+        XCTAssertFalse(controller.canGiveFeedback, "une fois")
+        XCTAssertEqual(shared.count, 1)
+        let corps = try XCTUnwrap(JSONSerialization.jsonObject(with: shared[0]) as? [String: Any])
+        XCTAssertEqual(corps["famille"] as? String, "drums")
+        XCTAssertEqual(corps["sorte"] as? String, "snare")
+        XCTAssertEqual(corps["raisons"] as? String, "kind,playlist")
+        XCTAssertFalse(String(decoding: shared[0], as: UTF8.self).contains("Son 0"), "jamais un nom de son")
+        XCTAssertEqual(team.count, 1)
+        XCTAssertTrue(team[0].0.contains("Playlist") && team[0].0.contains("trop bas"), team[0].0)
+        XCTAssertFalse(team[0].1.contains("Son 0"), "diagnostic sans nom")
+        // Le même son, la prochaine fois : rangé comme corrigé (Snare), avant toute règle.
+        var empreinte = [Float](repeating: 0, count: ClasseurSons.tailleEmpreinte)
+        empreinte[30] = 1
+        XCTAssertEqual(store.cherche(empreinte)?.sorte, .snare)
+        controller.close()
+    }
+
     func testDiagnosticIsCopiedWithoutNames() {
         let link = FakeOrganizerLink()
         link.channels = [ChannelInfo(index: 0, type: 2, mixerTrack: 0, color: RGBColor(r: 1, g: 2, b: 3),

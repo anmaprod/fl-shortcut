@@ -52,6 +52,12 @@ et l'étape 7 (modèles des mails avec le code).
    `schema.sql`). Cela crée la table `backups` (une ligne par compte, lisible et modifiable par lui seul), l'envoi qui
    refuse d'écraser une sauvegarde plus récente faite sur un autre Mac, et « Supprimer mon compte ». Place : une
    sauvegarde pèse quelques dizaines de Ko (2 Mo de raccourcis et 6 Mo de macros au plus).
+9. **Corrections de l'IA** (bouton « Pas content ? » de l'Organiser) : **SQL Editor › New query**, colle tout
+   `supabase/corrections-ia.sql`, puis **Run** (après `schema.sql`). Cela crée la table `corrections_ia`, où l'app
+   envoie, avec l'accord de la personne, les mesures des sons qu'elle a corrigés (des nombres, jamais le son, son nom
+   ni ce qu'elle écrit) ; avec ou sans compte, rien n'est relisible depuis l'app ; 300 par heure et par compte au
+   plus. Place : ≈ 26 Ko par correction. Pour s'en servir : `ia/corrections.py` (voir `ia/README.md`). Sans cette
+   étape, le partage échoue sans bruit : les corrections restent apprises sur le Mac de chacun.
 
 ## 2. Compiler l'app reliée au serveur
 
@@ -117,6 +123,11 @@ peut les relire depuis l'app ; 5 messages par heure et par mail au plus.
 
 - Envoyé : mail, mot de passe (seulement à la connexion ou à l'inscription), nom d'utilisateur, et ce que tu
   publies (titre, notes, fichier exporté **sans** positions apprises ni chemins de tes fichiers).
+- Organiser, « Pas content ? » : avec la case « Aider l'IA de tout le monde » cochée (une fois pour toutes), les
+  mesures des sons corrigés (8 tranches de 1216 nombres au plus) et les familles et sortes (avant, après) ; jamais le
+  son, son nom ni un texte tapé. Les cases Playlist, Mixer, aspect et « Autre » partent à l'équipe comme un message
+  « Écrire à l'équipe », avec le diagnostic de l'Organiser (des nombres). Sur le Mac : l'empreinte de chaque son
+  corrigé (`Application Support/FL Shortcuts/corrections-ia.json`, 500 au plus), effacée par la désinstallation.
 - Gardé sur le Mac : la session (jeton) au Trousseau, jamais le mot de passe ; supprimée par « Se déconnecter » et
   par la désinstallation.
 - Importer un partage passe par les mêmes contrôles qu'un fichier reçu : touches interdites refusées, macro relue

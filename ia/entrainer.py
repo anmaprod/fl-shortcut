@@ -26,7 +26,20 @@ def charger():
     split = d["split"].astype(str)
     # Validation coupée en deux par son : A (arrêt de l'apprentissage, seuil), B (chiffres annoncés).
     split = np.where(split == "val", np.where(clip % 2 == 0, "val_a", "val_b"), split)
-    return x, d["famille"], d["sorte"], split, d["source"].astype(str), clip, d["base"].astype(np.float32)
+    famille, sorte, source, base = d["famille"], d["sorte"], d["source"].astype(str), d["base"].astype(np.float32)
+    # Corrections des utilisateurs (ia/corrections.py), s'il y en a : apprises comme des sons de plus.
+    chemin = os.path.join(TRAVAIL, "corrections.npz")
+    if os.path.exists(chemin):
+        c = np.load(chemin)
+        n = len(c["famille"])
+        x = np.concatenate([x, c["x"].astype(np.float32)])
+        famille, sorte = np.concatenate([famille, c["famille"]]), np.concatenate([sorte, c["sorte"]])
+        clip = np.concatenate([clip, c["clip"] + clip.max() + 1])
+        split = np.concatenate([split, np.full(n, "train")])
+        source = np.concatenate([source, np.full(n, "corrections")])
+        base = np.concatenate([base, np.zeros(n, np.float32)])
+        print("corrections des utilisateurs :", c["clip"].max() + 1, "sons", flush=True)
+    return x, famille, sorte, split, source, clip, base
 
 
 def branche(x, suffixe="", abandon=0.0):
@@ -143,7 +156,11 @@ def main():
               f"(YAMNet seul, ses classes de voix ≥ 0,5 : {(bmax[vrai == 0] >= 0.5).mean() * 100:.1f} %)",
               f"- Autres sons pris pour des voix : **{(pred[vrai != 0] == 0).mean() * 100:.1f} %** "
               f"(YAMNet seul : {(bmax[vrai != 0] >= 0.5).mean() * 100:.1f} %)", "",
-              "## Par source", "", "| Source | Sons | Famille attendue | Bien classés | Pris pour des voix |",
+              "## Par famille (objectif : 99 %)", "", "| Famille | Sons | Bien classés |", "|---|---|---|"]
+    for i, f in enumerate(FAMILLES):
+        k = vrai == i
+        lignes.append(f"| {f} | {k.sum()} | {(pred[k] == i).mean() * 100:.1f} % |")
+    lignes += ["", "## Par source", "", "| Source | Sons | Famille attendue | Bien classés | Pris pour des voix |",
               "|---|---|---|---|---|"]
     for s in sorted(set(src)):
         k = src == s

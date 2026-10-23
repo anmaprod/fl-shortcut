@@ -64,6 +64,8 @@ chantée a des notes nettes), FX ou Drums. Ici :
 | VocalSet (Wilkins et al., 2018) | chant, 20 chanteurs | CC BY 4.0 | voix |
 | LibriSpeech dev-clean et test-clean (Panayotov et al., 2015) | parole, 80 locuteurs | CC BY 4.0 | voix |
 | NSynth test et valid (Engel et al., 2017) | notes de 53 instruments, chacune dans sa tessiture (basse jusqu'au do 4, mélodie du do 2 au do 7) | CC BY 4.0 | mélodie, basse |
+| NSynth train (Engel et al., 2017) | 16 notes de chacun des ≈ 1000 autres instruments (24 Go lus au fil du téléchargement) | CC BY 4.0 | mélodie, basse |
+| Medley-solos-DB (Lostanlen et al., 2019) | extraits de vrais morceaux : chanteuses, clarinette, guitare saturée, flûte, piano, saxophone, trompette, violon (lus au fil du téléchargement) | CC BY 4.0 | voix, mélodie |
 | Freesound One-Shot Percussive Sounds (Ramires et al., 2020) | ~9 500 sons de batterie | CC0 et CC BY gardés, NC exclus | drums (sorte d'après le nom) |
 | Fabriqués par `preparer.py` | 808, subs, reese, basses, pads, plucks, arpèges, accords, claps, hats, snaps, shakers, crashs, FX, boucles | domaine public | toutes |
 
@@ -109,7 +111,25 @@ python ia/essais_app.py   # sons d'essai et réponses attendues pour les tests d
 - **Faux positifs voix / FX** : seuil réglé à 2 % de faux positifs, pièges FX dans l'apprentissage, et l'Organiser
   garde ses autres règles (nom du son, mesures) quand l'IA n'entend pas de voix.
 
-## 5. Limites connues
+## 5. L'IA apprend de ses erreurs (« Pas content ? »)
+- **Sur le Mac, tout de suite** : un son écouté puis corrigé (dans l'aperçu, ou avec le bouton « Pas content ? » à
+  la fin de l'Organiser) est retenu par son empreinte (moyenne des empreintes YAMNet de ses tranches, des nombres,
+  `CorrectionsIA.swift`) avec la bonne famille et sorte. Un son presque identique (ressemblance ≥ 0,97 : le même
+  sample, coupé ou un peu traité) est ensuite rangé comme corrigé, avant toute règle (règle `corrige` du diagnostic).
+- **Pour tout le monde, avec l'accord de la personne** (case « Aider l'IA de tout le monde », une fois pour toutes) :
+  les mesures du son (1216 nombres par tranche, 8 tranches au plus, en 16 bits) et les familles et sortes (avant,
+  après) partent au serveur (`supabase/corrections-ia.sql`). Jamais le son, son nom ni ce qu'elle écrit.
+- **Réapprendre avec elles** :
+  ```
+  python ia/corrections.py export.csv            # export CSV de Supabase (Table Editor › corrections_ia › Export)
+  FLS_SUPABASE_SECRET=… python ia/corrections.py --serveur   # ou lues directement (clé JAMAIS dans le dépôt)
+  python ia/entrainer.py && python ia/exporter.py && python ia/essais_app.py
+  ```
+  Les corrections s'ajoutent à l'apprentissage comme des sons de plus (les doublons comptent une fois).
+- Les cases Playlist, Mixer et aspect, et « Autre » (texte libre), partent à l'équipe comme un message « Écrire à
+  l'équipe » : l'IA ne peut pas les apprendre.
+
+## 6. Limites connues
 - Pas de vraies voix de production sous licence libre en grand nombre : elles sont imitées par les variantes. Les
   packs de l'utilisateur servent à mesurer, jamais à apprendre (rien ne quitte son ordinateur).
 - Les 808, les subs, les reese, les pads et les FX sont surtout fabriqués : à surveiller sur de vrais packs.

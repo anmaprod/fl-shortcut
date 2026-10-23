@@ -445,6 +445,17 @@ struct CommunityClient {
         _ = try await call("POST", "rest/v1/support_requests", token: token, body: body)
     }
 
+    // MARK: IA intégrée
+
+    /// Une correction de l'Organiser partagée (accord donné) : des nombres et des noms de familles et de sortes,
+    /// jamais le son, son nom ni un texte tapé (supabase/corrections-ia.sql ; JSON fait par CorrectionsIA.envoi).
+    func sendCorrection(_ json: Data, token: String?) async throws {
+        guard let corps = (try? JSONSerialization.jsonObject(with: json)) as? [String: Any] else {
+            throw CommunityError.badResponse
+        }
+        _ = try await call("POST", "rest/v1/corrections_ia", token: token, body: corps)
+    }
+
     // MARK: Requêtes
 
     func request(_ method: String, _ path: String, query: [URLQueryItem] = [], token: String? = nil,

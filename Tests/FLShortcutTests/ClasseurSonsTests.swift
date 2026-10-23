@@ -175,6 +175,102 @@ final class ClasseurSonsTests: XCTestCase {
         XCTAssertEqual(FamilyFusion.decide(notes, AILabels(drums: 0.95)).family, .melody)
     }
 
+    /// Le modèle rend aussi les 1216 nombres de chaque tranche, et l'empreinte du son (longueur 1).
+    func testMesuresEtEmpreinte() throws {
+        let classeur = try XCTUnwrap(ClasseurSons())
+        let son = try lire("voix-chant-44k.wav")
+        let avis = try XCTUnwrap(classeur.avis(son.samples, rate: son.rate))
+        XCTAssertEqual(avis.mesures.count, ClasseurSons.tranches(ClasseurSons.resample(son.samples, from: son.rate)).count)
+        XCTAssertTrue(avis.mesures.allSatisfy { $0.count == ClasseurSons.tailleMesures })
+        let empreinte = try XCTUnwrap(avis.empreinte)
+        XCTAssertEqual(empreinte.count, ClasseurSons.tailleEmpreinte)
+        XCTAssertEqual(CorrectionsIA.ressemblance(empreinte, empreinte), 1, accuracy: 1e-4)
+        XCTAssertNil(ClasseurSons.empreinte([]))
+    }
+
+    /// Corrections dans un dossier et des réglages jetables : (magasin, son fichier, ménage).
+    private func magasin() throws -> (CorrectionsIA, URL, () -> Void) {
+        let dossier = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        let fichier = dossier.appendingPathComponent("corrections-ia.json")
+        let suite = "essai.corrections." + UUID().uuidString
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
+        return (CorrectionsIA(url: fichier, defaults: defaults), fichier, {
+            try? FileManager.default.removeItem(at: dossier)
+            defaults.removePersistentDomain(forName: suite)
+        })
+    }
+
+    private func unite(_ i: Int, _ j: Int? = nil) -> [Float] {
+        var v = [Float](repeating: 0, count: ClasseurSons.tailleEmpreinte)
+        v[i] = 1
+        if let j {
+            v[j] = 1
+            return v.map { $0 / sqrt(2) }
+        }
+        return v
+    }
+
+    /// Les corrections restent sur le Mac (relues au lancement suivant) ; seul un son presque identique est
+    /// retrouvé ; un même son corrigé deux fois garde la dernière réponse ; 500 au plus.
+    func testCorrectionsGardeesSurLeMac() throws {
+        let (store, fichier, fin) = try magasin()
+        defer { fin() }
+        XCTAssertNil(store.cherche(unite(3)))
+        store.ajoute(CorrectionIA(empreinte: unite(3), famille: .vocals, sorte: .choir, date: Date()))
+        XCTAssertEqual(store.cherche(unite(3))?.sorte, .choir)
+        XCTAssertNil(store.cherche(unite(3, 4)), "ressemblance 0,71 : un autre son")
+        XCTAssertNil(store.cherche(nil))
+        store.ajoute(CorrectionIA(empreinte: unite(3), famille: .vocals, sorte: .adlib, date: Date()))
+        XCTAssertEqual(store.nombre, 1)
+        XCTAssertEqual(CorrectionsIA(url: fichier).cherche(unite(3))?.sorte, .adlib, "gardée dans le fichier")
+        for i in 0..<(CorrectionsIA.maximum + 5) {
+            store.ajoute(CorrectionIA(empreinte: unite(i % 1000, (i / 1000) + 1000), famille: .drums, sorte: nil,
+                                      date: Date()))
+        }
+        XCTAssertEqual(store.nombre, CorrectionsIA.maximum)
+    }
+
+    /// Ce qui part au serveur (accord donné) : des nombres en 16 bits et des noms de familles et de sortes de l'IA,
+    /// jamais un nom de son ; rien pour « À vérifier » ; une sorte que l'IA n'apprend pas (Back) n'est pas envoyée.
+    func testEnvoiDesCorrections() throws {
+        let mesures = [[Float]](repeating: (0..<ClasseurSons.tailleMesures).map { Float($0) / 2 }, count: 10)
+        let ecoute = SoundPrint(mesures: mesures, empreinte: unite(1), familleIA: .melody, sorteIA: .lead)
+        let corps = try XCTUnwrap(CorrectionsIA.envoi(ecoute, avant: (.melody, .lead), apres: (.vocals, .backing),
+                                                      raisons: ["voice"], appVersion: "0.1.0"))
+        XCTAssertEqual(corps["famille_ia"] as? String, "melodie")
+        XCTAssertEqual(corps["sorte_ia"] as? String, "lead")
+        XCTAssertEqual(corps["famille"] as? String, "voix")
+        XCTAssertNil(corps["sorte"], "Back se décide au nom : pas appris")
+        XCTAssertEqual(corps["tranches"] as? Int, CorrectionsIA.tranchesEnvoyees, "8 tranches au plus")
+        let brut = try XCTUnwrap(Data(base64Encoded: try XCTUnwrap(corps["mesures"] as? String)))
+        XCTAssertEqual(brut.count, CorrectionsIA.tranchesEnvoyees * ClasseurSons.tailleMesures * 2)
+        let premiers = brut.withUnsafeBytes { Array($0.bindMemory(to: UInt16.self).prefix(3)) }
+        XCTAssertEqual(premiers, [0x0000, 0x3800, 0x3C00], "0 ; 0,5 ; 1 en 16 bits")
+        XCTAssertEqual(Set(corps.keys), ["famille_ia", "sorte_ia", "famille_avant", "sorte_avant", "famille",
+                                         "mesures", "tranches", "raisons", "modele", "app_version"])
+        XCTAssertNil(CorrectionsIA.envoi(ecoute, avant: (.melody, nil), apres: (.unsure, nil), raisons: [],
+                                         appVersion: "0.1.0"))
+    }
+
+    /// Un son corrigé par l'utilisateur est rangé comme il l'a dit, avant toute règle ; sa sorte aussi.
+    func testRegleCorrige() throws {
+        let classeur = try XCTUnwrap(ClasseurSons())
+        let (store, _, fin) = try magasin()
+        defer { fin() }
+        let son = try lire("voix-parole.wav")
+        let empreinte = try XCTUnwrap(classeur.avis(son.samples, rate: son.rate)?.empreinte)
+        let classer = OrganizerSession.liveClassifier(ai: nil, classeur: classeur, corrections: store)
+        XCTAssertEqual(classer(son.samples, son.rate).family, .vocals, "sans correction : une voix")
+        store.ajoute(CorrectionIA(empreinte: empreinte, famille: .drums, sorte: .rim, date: Date()))
+        let verdict = classer(son.samples, son.rate)
+        XCTAssertEqual(verdict.family, .drums)
+        XCTAssertTrue(verdict.rule.hasPrefix("corrige"), verdict.rule)
+        let drums = OrganizerSession.liveDrumNamer(ai: nil, classeur: classeur, corrections: store)
+        XCTAssertEqual(drums(son.samples, son.rate), .rim)
+        let sorte = OrganizerSession.liveKindNamer(classeur: classeur, corrections: store)
+        XCTAssertNotEqual(sorte(son.samples, son.rate, .fx), .rim, "une sorte d'une autre famille n'est pas reprise")
+    }
+
     /// Le classement réel écrit ce que l'IA intégrée a entendu (« +iv » et un nombre), jamais un nom.
     func testDiagnosticDeLIAIntegree() throws {
         let classeur = try XCTUnwrap(ClasseurSons())

@@ -6,8 +6,8 @@
   "sorte_voulue": "vocalLead",
   "sorte": "vocalLead",
   "familles": {
-   "voix": 0.999,
-   "melodie": 0.001,
+   "voix": 1.0,
+   "melodie": 0.0,
    "basse": 0.0,
    "drums": 0.0,
    "fx": 0.0
@@ -46,11 +46,11 @@
   "famille": "melodie",
   "voix_max": 0.0,
   "sorte_voulue": "guitar",
-  "sorte": "keys",
+  "sorte": null,
   "familles": {
    "voix": 0.0,
-   "melodie": 0.837,
-   "basse": 0.163,
+   "melodie": 0.593,
+   "basse": 0.407,
    "drums": 0.0,
    "fx": 0.0
   }
@@ -63,9 +63,9 @@
   "sorte": "bass808",
   "familles": {
    "voix": 0.0,
-   "melodie": 0.002,
-   "basse": 0.997,
-   "drums": 0.001,
+   "melodie": 0.008,
+   "basse": 0.992,
+   "drums": 0.0,
    "fx": 0.0
   }
  },
@@ -93,8 +93,8 @@
    "voix": 0.0,
    "melodie": 0.0,
    "basse": 0.0,
-   "drums": 0.999,
-   "fx": 0.001
+   "drums": 1.0,
+   "fx": 0.0
   }
  },
  "fx-riser.wav": {

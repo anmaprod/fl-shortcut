@@ -47,13 +47,19 @@ class LogMel(tf.keras.layers.Layer):
 
 
 class Mesures(tf.keras.layers.Layer):
-    """Empreinte + moyenne, écart-type et variation de chaque bande, puis normalisation de l'apprentissage."""
+    """Les 1216 nombres de l'apprentissage : empreinte + moyenne, écart-type et variation de chaque bande. Aussi une
+    sortie du modèle : l'app les garde quand on corrige un son (nombres seulement, jamais le son)."""
     def call(self, entrees):
         emb, logmel = entrees
         moy = tf.reduce_mean(logmel, axis=1)
         ecart = tf.sqrt(tf.reduce_mean(tf.square(logmel - moy[:, None, :]), axis=1))
         variation = tf.reduce_mean(tf.abs(logmel[:, 1:, :] - logmel[:, :-1, :]), axis=1)
-        x = tf.concat([emb, moy, ecart, variation], axis=1)
+        return tf.concat([emb, moy, ecart, variation], axis=1)
+
+
+class Normalise(tf.keras.layers.Layer):
+    """Normalisation de l'apprentissage (moyenne et écart-type de chacun des 1216 nombres)."""
+    def call(self, x):
         return (x - np.asarray(REGLAGES["mu"], np.float32)) / np.asarray(REGLAGES["sigma"], np.float32)
 
 
@@ -61,8 +67,8 @@ def construire():
     son = tf.keras.layers.Input(shape=(TRANCHE,), name="son")
     logmel = LogMel(name="logmel")(son)
     _, emb = ylib.yamnet(logmel, P)
-    x = Mesures(name="mesures")([emb, logmel])
-    m = tf.keras.Model(son, list(tetes(x)))
+    mesures = Mesures(name="mesures")([emb, logmel])
+    m = tf.keras.Model(son, [*tetes(Normalise(name="normalise")(mesures)), mesures])
     m.load_weights(os.path.join(ylib.__file__.rsplit("/", 1)[0], "yamnet.h5"), by_name=True)
     # Têtes : relues dans le modèle de l'apprentissage (même forme), puis recopiées couche par couche.
     tete = modele(len(REGLAGES["mu"]))
@@ -226,7 +232,7 @@ def coreml(m, chemin):
                      minimum_deployment_target=ct.target.macOS13, convert_to="mlprogram",
                      compute_precision=ct.precision.FLOAT32)
     sorties = mlm._mil_program.functions["main"].outputs
-    assert [v.shape[-1] for v in sorties] == [len(FAMILLES), len(SORTES)], [v.shape for v in sorties]
+    assert [v.shape[-1] for v in sorties] == [len(FAMILLES), len(SORTES), 1216], [v.shape for v in sorties]
     garder = {op.name for op in mlm._mil_program.functions["main"].operations
               if op.op_type == "const" and getattr(op.val.val, "shape", ()) in
               [(WIN, FFT // 2 + 1), (FFT // 2 + 1, 64)]}
@@ -234,17 +240,18 @@ def coreml(m, chemin):
         global_config=ct.optimize.coreml.OpLinearQuantizerConfig(mode="linear_symmetric", weight_threshold=4096),
         op_name_configs={nom: None for nom in garder})
     q = ct.optimize.coreml.linear_quantize_weights(mlm, config=cfg)
-    # Sorties nommées comme dans l'ONNX (TensorFlow les appelle Identity, Identity_1, dans l'ordre du modèle).
+    # Sorties nommées comme dans l'ONNX (TensorFlow les appelle Identity, Identity_1…, dans l'ordre du modèle).
     spec = q.get_spec()
-    for ancien, nouveau in zip([o.name for o in spec.description.output], ("famille", "sorte")):
+    for ancien, nouveau in zip([o.name for o in spec.description.output], ("famille", "sorte", "mesures")):
         ct.utils.rename_feature(spec, ancien, nouveau)
     q = ct.models.MLModel(spec, weights_dir=q.weights_dir)
     q.short_description = "FL Shortcuts : famille et sorte d'un son (YAMNet Apache 2.0 + têtes apprises sur des sons libres)"
-    q.license = "YAMNet : Apache 2.0 (Google) ; têtes : apprises sur VocalSet, LibriSpeech, NSynth (CC BY 4.0) et " \
-                "Freesound One-Shot Percussive Sounds (CC0, CC BY) — voir ia/modele/CREDITS.md"
+    q.license = "YAMNet : Apache 2.0 (Google) ; têtes : apprises sur VocalSet, LibriSpeech, NSynth, Medley-solos-DB " \
+                "(CC BY 4.0) et Freesound One-Shot Percussive Sounds (CC0, CC BY) — voir ia/modele/CREDITS.md"
     q.input_description["son"] = "Tranches de 15 600 échantillons, 16 kHz, mono, crête du son à 0,7"
     q.output_description["famille"] = "Probabilités : " + ", ".join(FAMILLES)
     q.output_description["sorte"] = "Probabilités : " + ", ".join(SORTES)
+    q.output_description["mesures"] = "Les 1216 nombres de chaque tranche (empreinte YAMNet + spectre), avant normalisation"
     if os.path.exists(chemin):
         shutil.rmtree(chemin)
     q.save(chemin)
@@ -259,7 +266,7 @@ def main():
     pire = 0.0
     for nom, son in essais.items():
         son = son.astype(np.float32)
-        f, s = m(son[None])
+        f, s, _ = m(son[None])
         rf, rs = reference(m, son)
         pire = max(pire, float(np.abs(f.numpy()[0] - rf).max()), float(np.abs(s.numpy()[0] - rs).max()))
     print("écart avec le pipeline d'apprentissage :", pire)
@@ -271,12 +278,13 @@ def main():
     os.makedirs(MODELE, exist_ok=True)
     chemin, precision = onnx(m, TRAVAIL)
     shutil.copyfile(chemin, os.path.join(MODELE, "classeur_sons.onnx"))
-    json.dump({"version": 1, "entree": "son", "sorties": ["famille", "sorte"], "precision": precision,
+    json.dump({"version": 2, "entree": "son", "sorties": ["famille", "sorte", "mesures"], "precision": precision,
                "familles": FAMILLES, "sortes": SORTES,
                "seuil_voix": REGLAGES["seuil_voix"], "frequence": SR, "tranche": TRANCHE, "pas": PAS,
                "max_tranches": MAX_TRANCHES, "crete": 0.7,
                "credits": ["YAMNet (Google, Apache 2.0)", "VocalSet (CC BY 4.0)", "LibriSpeech (CC BY 4.0)",
-                           "NSynth (CC BY 4.0)", "Freesound One-Shot Percussive Sounds (sons CC0 et CC BY)"]},
+                           "NSynth (CC BY 4.0)", "Medley-solos-DB (CC BY 4.0)",
+                           "Freesound One-Shot Percussive Sounds (sons CC0 et CC BY)"]},
               open(os.path.join(MODELE, "classeur_sons.json"), "w"), ensure_ascii=False, indent=1)
 
 

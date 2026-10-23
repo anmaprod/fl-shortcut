@@ -1,12 +1,12 @@
-// Organiser : l'IA intégrée qui classe les sons (YAMNet de Google, licence Apache 2.0, plus deux têtes apprises sur
+// Organiser : l'IA intégrée qui classe les sons (YAMNet de Google, licence Apache 2.0, plus des têtes apprises sur
 // des sons libres de droits ; sur le Mac, sans internet ; même modèle que l'ONNX de Windows, voir ia/README.md). Le
 // son est ramené en mono 16 kHz, crête à 0,7, coupé en tranches de 0,975 s (pas 0,48 s ; 16 au plus, les plus
-// fortes) ; le modèle rend pour chaque tranche la famille (voix, mélodie, basse, drums, FX) et la sorte, parmi les
-// choix de l'aperçu de l'Organiser (Voix lead, Chœur, Pad, Piano, 808, Sub, Kick, Open Hat, Riser…). C'est une voix
-// dès que la tranche la plus « voix » passe le seuil ; sinon la famille est la moyenne des tranches. Le modèle
-// (`ClasseurSons`) est compilé par build.sh dans l'app ; à défaut (tests, build sans Xcode), le paquet du dépôt est
-// compilé à la première écoute. Partagé par les écoutes d'un Organiser et libéré avec elles : rien ne reste en
-// mémoire au repos.
+// fortes) ; le modèle rend pour chaque tranche la famille (voix, mélodie, basse, drums, FX), la sorte parmi les
+// choix de l'aperçu de l'Organiser (Voix lead, Chœur, Pad, Piano, 808, Sub, Kick, Open Hat, Riser…) et ses 1216
+// mesures (gardées quand on corrige le son : CorrectionsIA). C'est une voix dès que la tranche la plus « voix » passe
+// le seuil ; sinon la famille est la moyenne des tranches. Le modèle (`ClasseurSons`) est compilé par build.sh dans
+// l'app ; à défaut (tests, build sans Xcode), le paquet du dépôt est compilé à la première écoute. Partagé par les
+// écoutes d'un Organiser et libéré avec elles : rien ne reste en mémoire au repos.
 import AVFoundation
 import CoreML
 import Foundation
@@ -33,6 +33,13 @@ final class ClasseurSons {
         var famille: Famille
         /// Probabilité moyenne de chaque sorte sur les tranches (ordre de `sortes`).
         var sortes: [Double]
+        /// Les 1216 nombres de chaque tranche (empreinte YAMNet + spectre) : gardés quand on corrige le son, jamais le
+        /// son lui-même. Vide avec un modèle qui ne les rend pas.
+        var mesures: [[Float]] = []
+
+        /// Pour retrouver un son déjà corrigé (CorrectionsIA) : moyenne des empreintes YAMNet des tranches, de
+        /// longueur 1 ; nil sans mesures.
+        var empreinte: [Float]? { ClasseurSons.empreinte(mesures) }
 
         /// La sorte la plus probable parmi celles d'une famille de l'Organiser, et sa part parmi elles (0…1) ; nil
         /// pour « À vérifier ».
@@ -52,7 +59,7 @@ final class ClasseurSons {
 
     /// Seuil des voix appris (ia/modele/classeur_sons.json, vérifié par les tests) : au plus 2 % des autres sons
     /// (FX, mélodies, drums, basses, leads au vibrato) passent au-dessus, sur des sons jamais entendus.
-    static let seuilVoix = 0.7
+    static let seuilVoix = 0.34
     /// Une sorte n'est donnée que si elle l'emporte nettement sur les autres de sa famille.
     static let partMin = 0.5
     static let frequence = 16_000.0
@@ -60,6 +67,11 @@ final class ClasseurSons {
     static let pas = 7_680
     static let maxTranches = 16
     static let nomModele = "ClasseurSons"
+    /// Version du modèle (ia/modele/classeur_sons.json), envoyée avec une correction partagée.
+    static let versionModele = 2
+    /// Nombres par tranche : empreinte YAMNet (1024) + 192 mesures du spectre.
+    static let tailleMesures = 1216
+    static let tailleEmpreinte = 1024
 
     private let modele: MLModel
     /// Dernier son écouté et son avis : le classement puis la sorte d'un même son ne l'écoutent qu'une fois.
@@ -119,16 +131,40 @@ final class ClasseurSons {
         let moyFamilles = Famille.allCases.map { moyenne(familles, $0.rawValue) }
         let moySortes = Self.sortes.indices.map { moyenne(sortes, $0) }
         let voixMax = (0..<lot.count).map { valeur(familles, $0, Famille.voix.rawValue) }.max() ?? 0
-        return Self.decider(familles: moyFamilles, voixMax: voixMax, sortes: moySortes)
+        let mesures = sortie.featureValue(for: "mesures")?.multiArrayValue.map { Self.lignes($0, n: lot.count) } ?? []
+        return Self.decider(familles: moyFamilles, voixMax: voixMax, sortes: moySortes, mesures: mesures)
+    }
+
+    /// Lignes d'une sortie [n, 1216] du modèle ; vide si sa forme est autre.
+    static func lignes(_ a: MLMultiArray, n: Int) -> [[Float]] {
+        guard a.shape.count == 2, a.shape[0].intValue == n, a.shape[1].intValue == tailleMesures else { return [] }
+        let pas0 = a.strides[0].intValue, pas1 = a.strides[1].intValue
+        if a.dataType == .float32 {
+            let p = a.dataPointer.bindMemory(to: Float.self, capacity: (n - 1) * pas0 + (tailleMesures - 1) * pas1 + 1)
+            return (0..<n).map { i in (0..<tailleMesures).map { p[i * pas0 + $0 * pas1] } }
+        }
+        return (0..<n).map { i in (0..<tailleMesures).map { a[[NSNumber(value: i), NSNumber(value: $0)]].floatValue } }
+    }
+
+    /// Moyenne des empreintes YAMNet (les 1024 premiers nombres) des tranches, ramenée à une longueur de 1.
+    static func empreinte(_ mesures: [[Float]]) -> [Float]? {
+        guard !mesures.isEmpty, mesures.allSatisfy({ $0.count >= tailleEmpreinte }) else { return nil }
+        var somme = [Float](repeating: 0, count: tailleEmpreinte)
+        for tranche in mesures {
+            for i in 0..<tailleEmpreinte { somme[i] += tranche[i] }
+        }
+        let norme = sqrt(somme.reduce(0) { $0 + $1 * $1 })
+        guard norme > 0 else { return nil }
+        return somme.map { $0 / norme }
     }
 
     // MARK: Pur
 
     /// Décision : voix si la tranche la plus « voix » passe le seuil, sinon la meilleure autre famille.
-    static func decider(familles: [Double], voixMax: Double, sortes: [Double]) -> Avis {
+    static func decider(familles: [Double], voixMax: Double, sortes: [Double], mesures: [[Float]] = []) -> Avis {
         let famille: Famille = voixMax >= seuilVoix ? .voix
             : Famille.allCases.filter { $0 != .voix }.max { familles[$0.rawValue] < familles[$1.rawValue] } ?? .fx
-        return Avis(familles: familles, voixMax: voixMax, famille: famille, sortes: sortes)
+        return Avis(familles: familles, voixMax: voixMax, famille: famille, sortes: sortes, mesures: mesures)
     }
 
     /// Crête ramenée à 0,7 (le niveau d'un sample ne doit pas compter, comme à l'apprentissage).
