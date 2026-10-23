@@ -34,14 +34,14 @@ struct LiquidDropsBar<Add: View, Duplicate: View, Delete: View>: View {
     @ViewBuilder private func bar(native: Bool) -> some View {
         #if compiler(>=6.2)
         if #available(macOS 26.0, *), native {
+            // Verre simple, sans `.interactive()` (reflet qui suit la souris) : avec lui, le créateur prenait 11 Mo de
+            // plus, gardés après sa fermeture (mesure de la CI) ; le verre simple est celui du reste de la fenêtre.
             GlassEffectContainer(spacing: 20) {
                 HStack(spacing: 10) {
-                    add().dropPadding().glassEffect(.regular.interactive()).glassEffectID("ajouter", in: drops)
+                    add().dropPadding().glassEffect(.regular).glassEffectID("ajouter", in: drops)
                     if showsExtra {
-                        duplicate().dropPadding().glassEffect(.regular.interactive())
-                            .glassEffectID("dupliquer", in: drops)
-                        delete().dropPadding().glassEffect(.regular.interactive())
-                            .glassEffectID("supprimer", in: drops)
+                        duplicate().dropPadding().glassEffect(.regular).glassEffectID("dupliquer", in: drops)
+                        delete().dropPadding().glassEffect(.regular).glassEffectID("supprimer", in: drops)
                     }
                 }
             }

@@ -71,7 +71,8 @@ final class MenuPanel: ObservableObject {
         guard let panel else { return }
         // La préférence de repli compte au lancement : une fenêtre déjà rendue transparente garde sa bulle (le menu
         // d'avant n'y aurait plus de fond).
-        let legacy = !bubble && UserDefaults.standard.bool(forKey: MenuBubbleSupport.legacyKey)
+        let legacy = !MenuBubbleStyle.enabled
+            || (!bubble && UserDefaults.standard.bool(forKey: MenuBubbleSupport.legacyKey))
         let ours = MenuBubbleSupport.prepare(panel, legacy: legacy) || bubble
         if ours != bubble {
             var quiet = Transaction()

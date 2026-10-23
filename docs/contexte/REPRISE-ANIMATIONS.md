@@ -22,7 +22,7 @@ toute la branche à la fin (agent le plus capable, avec la « Review Focus » du
 |---|---|
 | 1 Moteur de mouvement | Fait. CI du commit 57de6a2 (run 39871515697) : « Tests Swift », compilation universelle, textes anglais, mesures, captures anglaises, essais (preset, macro, blocs, clics, touches), désinstallation : tout vert ou PASS. |
 | 2 Couche de vol | Fait, vérifié sur la même CI (`page-change-*` : l'icône vole et se pose pile, aucun titre en double ; captures de repos sans fenêtre de vol). |
-| 3 Menu de l'icône en bulle | Codée, mais la bulle ne s'active pas sur la CI (macOS 26) : la vue du menu s'appelle `MenuBarExtraHostingView` (pas `NSHostingView`) et il n'y a AUCUN `NSVisualEffectView` : le fond est dessiné ailleurs (calque ?). Le repli marche (ancien menu, lignes qui arrivent l'une après l'autre). Le relevé `verre-menu-report.txt` donne maintenant aussi les calques et le fond de la fenêtre : le lire avant de toucher à `prepare` (ne JAMAIS activer la bulle sans l'avoir vue sur les images). |
+| 3 Menu de l'icône en bulle | Codée mais COUPÉE (`MenuBubbleStyle.enabled = false`) : le relevé de la CI (run 39908154099) montre que macOS 26 dessine le fond du menu lui-même, en verre, DANS la vue de SwiftUI (`MenuBarExtraHostingView` → `_NSGraphicsView` → calque `SDFLayer`, fenêtre et cadre transparents, aucun `NSVisualEffectView`) : il ne se masque pas sans masquer le menu. Avant macOS 26, la bulle n'a jamais été vue. Le menu de macOS (déjà en verre) reste, ses lignes arrivant l'une après l'autre. Décision à dire au propriétaire. |
 | 4 Fenêtres qui sortent du clic | Fait, vérifié (`vol-organiser-*`, `vol-editeur-*` : la bulle vole et se pose ; un peu plate et blanche, à revoir à la relecture). Mémoire : 98 Mo / pic 102 Mo dans `verre-avant-createur-footprint` — à comparer au tableau de mémoire du résumé de la CI (budget + 5 Mo). |
 | 5 Pages et listes | Fait, vérifié (`page-change-*`). |
 | 6 Cartes au lieu des feuilles | Codée (`CardPresenter.swift` : file, présentateur, hôte `cardHost` avec voile, carte de verre qui sort de la ligne cliquée — sondes `ligne.<id>` et `partage.<id>` — et y retourne, vraie modale, fenêtre non fermable pendant une carte, sons ; `cardDismiss` remplace `dismiss` ; guide, fiche d'un raccourci, touche d'une action de FL, modèles, fiche/partage/signalement de la Communauté). Vérifié sur la CI de 57de6a2 (`communaute-detail` : voile, carte, fenêtre non fermable) ; la double barre de défilement vue alors (fiche de 580 de haut dans une carte qui défile) est corrigée par `cardMaxHeight` (l'hôte donne sa hauteur, les fiches qui défilent elles-mêmes s'y tiennent) : à revérifier. Pas fait : vols du nom et de la touche jusqu'en haut de la fiche, focus posé dans la carte, commande CI `carte`. |
@@ -32,8 +32,10 @@ toute la branche à la fin (agent le plus capable, avec la « Review Focus » du
 
 ### Encore à vérifier sur la CI
 
-- Mémoire : menu ≈ 15 Mo, fenêtre ≈ 54 Mo avant le chantier (budget + 5 Mo au plus) : lire le tableau de mémoire du
-  résumé de la CI (le fichier `*-footprint` mesure autrement : 98 Mo, pic 102 Mo).
+- Mémoire (tableau du résumé de la CI ; avant le chantier, run 39853955464 : avec verre menu 15, fenêtre 54, créateur
+  110, refermé 105 ; sans verre 15 / 56 / 86 / 82 Mo ; budget + 5 Mo). Tâches 1 à 6 : + 2 à + 3 Mo. Avec les gouttes
+  en verre `.interactive()` (tâche 7) : créateur 121, refermé 116 Mo avec verre (+ 11) ; essai en verre simple
+  (`.regular`) : relire le tableau. Si ça ne suffit pas : gouttes dessinées aussi avec le verre.
 - La CI a « Réduire les animations » activé (« animations réduites : oui ») : les captures ralenties montrent quand
   même le mouvement (mode capture), mais un défaut qui n'existe qu'en mouvement réduit ne s'y voit pas.
 

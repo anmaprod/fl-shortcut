@@ -11,6 +11,11 @@ import AppKit
 import SwiftUI
 
 enum MenuBubbleStyle {
+    /// Bulle à nous seulement là où les captures de la CI l'ont montrée : nulle part pour l'instant. macOS 26 dessine
+    /// le fond du menu lui-même, en verre, DANS la vue de SwiftUI (calque `SDFLayer`, relevé `verre-menu-report.txt`) :
+    /// il ne se masque pas sans masquer le menu. Avant macOS 26 (un `NSVisualEffectView` derrière), la bulle n'a
+    /// jamais été vue. Faux : le menu de macOS, ses lignes arrivant l'une après l'autre.
+    static let enabled = false
     /// Verre de macOS 26 pour la bulle ; faux : bulle opaque partout (si le verre se montrait plat ou sans flou).
     static var glass = true
 }
