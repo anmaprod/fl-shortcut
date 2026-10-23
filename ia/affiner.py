@@ -21,15 +21,20 @@ COUCHE14 = [nom for nom in ORDRE14 if not nom.endswith("/relu")]
 FORME13 = (3, 2, 1024)
 
 
-def couche13():
-    """Sorties de la couche 13 de toutes les tranches, dans l'ordre du jeu (étapes de preparer.ETAPES)."""
+def parts13():
+    """Sorties de la couche 13 de chaque étape (lues sur le disque au besoin), dans l'ordre du jeu."""
     import preparer
     parts = []
     for etape in preparer.ETAPES:
         base = os.path.join(TRAVAIL, f"etape_{etape.__name__}")
         n = len(np.load(base + ".npz")["famille"])
         parts.append(np.memmap(base + ".c13", dtype=np.float16, mode="r", shape=(n, *FORME13)))
-    return np.concatenate(parts)                               # une seule copie en mémoire (environ 4 Go)
+    return parts
+
+
+def couche13():
+    """Sorties de la couche 13 de toutes les tranches, en mémoire (environ 4,5 Go)."""
+    return np.concatenate(parts13())
 
 
 def yamnet():
@@ -51,7 +56,8 @@ def poser_couche14(modele, chemin=os.path.join(TRAVAIL, "couche14.npz")):
     return True
 
 
-def main():
+def apprendre():
+    """Apprend la couche 14 avec une tête famille + sorte, puis écrit ses poids (couche14.npz)."""
     import tensorflow as tf
     tf.keras.utils.set_random_seed(7)
     x, famille, sorte, split, source, clip, base = E.charger(corrections=False)
@@ -118,14 +124,38 @@ def main():
 
     np.savez(os.path.join(TRAVAIL, "couche14.npz"),
              **{f"{c.name}:{i}": w for c in couches for i, w in enumerate(c.get_weights())})
-    # Empreintes de la couche réapprise, à la place de celles de YAMNet ; le reste du jeu ne change pas.
-    vers_empreinte = tf.keras.Model(entree, empreinte)
-    nouvelles = np.concatenate([vers_empreinte.predict(c13[k:k + 4096].astype(np.float32), verbose=0)
-                                for k in range(0, len(c13), 4096)])
+    print("couche 14 réapprise →", os.path.join(TRAVAIL, "couche14.npz"), flush=True)
+
+
+def ecrire_jeu():
+    """Le jeu avec les empreintes de la couche réapprise à la place de celles de YAMNet (le reste ne change pas),
+    étape par étape pour tenir en mémoire (le faire d'un coup après l'apprentissage dépassait 15 Go)."""
+    import tensorflow as tf
+    y = yamnet()
+    assert poser_couche14(y)
+    entree = tf.keras.layers.Input(shape=FORME13, name="couche13")
+    h = entree
+    for nom in ORDRE14:
+        h = y.get_layer(nom)(h)
+    vers_empreinte = tf.keras.Model(entree, tf.keras.layers.GlobalAveragePooling2D()(h))
     d = dict(np.load(os.path.join(TRAVAIL, "jeu.npz")))
-    d["x"] = np.concatenate([nouvelles, x[:, 1024:]], axis=1).astype(np.float16)
+    debut = 0
+    for part in parts13():
+        for k in range(0, len(part), 4096):
+            lot = vers_empreinte.predict(np.asarray(part[k:k + 4096], dtype=np.float32), verbose=0)
+            d["x"][debut + k:debut + k + len(lot), :1024] = lot.astype(np.float16)
+        debut += len(part)
+    assert debut == len(d["x"]), (debut, len(d["x"]))
     np.savez_compressed(os.path.join(TRAVAIL, "jeu_affine.npz"), **d)
-    print("couche 14 réapprise →", os.path.join(TRAVAIL, "couche14.npz"), "; jeu → jeu_affine.npz", flush=True)
+    print("jeu →", os.path.join(TRAVAIL, "jeu_affine.npz"), flush=True)
+
+
+def main():
+    if os.path.exists(os.path.join(TRAVAIL, "couche14.npz")):  # déjà apprise (relance) : enlève-la pour recommencer
+        print("couche 14 déjà réapprise : jeu seulement", flush=True)
+    else:
+        apprendre()
+    ecrire_jeu()
 
 
 if __name__ == "__main__":
