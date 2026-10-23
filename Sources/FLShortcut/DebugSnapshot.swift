@@ -146,7 +146,8 @@ enum DebugSnapshot {
         if let menuWindow = MenuPanel.shared.window, menuWindow.isVisible,
            let root = menuWindow.contentView?.superview ?? menuWindow.contentView {
             text += "menu : bulle \(MenuPanel.shared.bubble ? "oui" : "non") · opaque \(menuWindow.isOpaque ? "oui" : "non")"
-                + " · ombre \(menuWindow.hasShadow ? "oui" : "non")\n" + viewTree(root, depth: 1)
+                + " · ombre \(menuWindow.hasShadow ? "oui" : "non")"
+                + " · fond de fenêtre \(colorText(menuWindow.backgroundColor.cgColor))\n" + viewTree(root, depth: 1)
         }
         try? text.write(to: cacheDirectory.appendingPathComponent("report.txt"), atomically: true, encoding: .utf8)
     }
@@ -160,10 +161,46 @@ enum DebugSnapshot {
         if let effect = view as? NSVisualEffectView {
             line += " fond-macOS matériau \(effect.material.rawValue) masque \(effect.maskImage == nil ? "non" : "oui")"
         }
+        if let layer = view.layer { line += " · " + layerText(layer) }
         var out = line + "\n"
         guard depth < 6 else { return out }
+        // Calques posés sans vue (fond ou verre de macOS) sous le cadre de la fenêtre et la vue du menu seulement :
+        // plus bas, SwiftUI dessine le menu lui-même en calques (trop nombreux, et rien de macOS).
+        if depth <= 2, let layer = view.layer {
+            let owned = Set(view.subviews.compactMap { $0.layer }.map { ObjectIdentifier($0) })
+            for sub in (layer.sublayers ?? []).prefix(8) where !owned.contains(ObjectIdentifier(sub)) {
+                out += layerTree(sub, depth: depth + 1, levels: 3)
+            }
+        }
         for sub in view.subviews { out += viewTree(sub, depth: depth + 1) }
         return out
+    }
+
+    /// Calque sans vue et ses sous-calques (`levels` niveaux, 8 par niveau au plus).
+    private static func layerTree(_ layer: CALayer, depth: Int, levels: Int) -> String {
+        var out = String(repeating: "  ", count: depth) + "calque " + layerText(layer) + "\n"
+        guard levels > 1 else { return out }
+        for sub in (layer.sublayers ?? []).prefix(8) { out += layerTree(sub, depth: depth + 1, levels: levels - 1) }
+        return out
+    }
+
+    /// Calque : classe, cadre, fond, rayon, ce qui le change (filtres, image, masque). Jamais de texte.
+    private static func layerText(_ layer: CALayer) -> String {
+        var t = "\(type(of: layer)) \(rect(layer.frame)) fond \(colorText(layer.backgroundColor))"
+            + " rayon \(Int(layer.cornerRadius))"
+        if layer.isHidden { t += " caché" }
+        if layer.opacity < 1 { t += " opacité " + String(format: "%.2f", layer.opacity) }
+        if let filters = layer.filters, !filters.isEmpty { t += " filtres \(filters.count)" }
+        if layer.compositingFilter != nil { t += " composition" }
+        if layer.contents != nil { t += " image" }
+        if layer.mask != nil { t += " masque" }
+        return t
+    }
+
+    /// Couleur d'un fond : sa seule transparence (« aucun » sans fond).
+    private static func colorText(_ color: CGColor?) -> String {
+        guard let color else { return "aucun" }
+        return "alpha " + String(format: "%.2f", color.alpha)
     }
 
     /// Toutes les zones de défilement visibles sous `view` (assez grandes pour être une liste).

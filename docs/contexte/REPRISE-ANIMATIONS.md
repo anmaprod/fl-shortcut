@@ -20,29 +20,22 @@ toute la branche à la fin (agent le plus capable, avec la « Review Focus » du
 
 | Tâche | État |
 |---|---|
-| 1 Moteur de mouvement | Commit 541d81c. CI : « Tests Swift », compilation universelle et textes anglais verts avec les tâches 1 à 5 (run 39870476151). Mesures, captures et essais pas encore lus : relire la CI du dernier commit. |
-| 2 Couche de vol | Commit 86761da. CI à lire (compilation + `FlightLayerTests`). |
-| 3 Menu de l'icône en bulle | Codée (`MenuBubble.swift`, `MenuPanel.swift`, commande CI `menu`, `MenuBubbleTests`), poussée avec les tâches 1 et 2 : une seule CI vérifie les trois. Reste l'étape 7 ci-dessous (vérifier les images et l'arbre des vues). |
-| 4 Fenêtres qui sortent du clic | Codée (`WindowLauncher.swift`, lignes du menu, Organiser, accueil, désinstallation, guide des autorisations, cadre mémorisé de la fenêtre principale, commande CI `vol`, `WindowLauncherTests`), poussée avec 1 à 3. À vérifier : images `vol-organiser-*`, `vol-organiser-fermeture-*`, `vol-editeur-*` (bulle du cadre d'exemple au cadre de la fenêtre, puis vers l'icône), aucune fenêtre de vol dans les captures de repos, mémoire + 5 Mo au plus. |
-| 5 Pages et listes | Codée (icône de la barre latérale qui vole jusqu'à l'en-tête `PageHeader`, page qui arrive sans glisser, listes et recherche qui glissent via `withListAnimation`, chiffres qui défilent dans `PageHeader`, `ListMotionTests`). À vérifier : `page-change-*` (l'icône vole, pas de titre en double). |
-| 6 Cartes au lieu des feuilles | Codée (`CardPresenter.swift` : file, présentateur, hôte `cardHost` avec voile, carte de verre qui sort de la ligne cliquée — sondes `ligne.<id>` et `partage.<id>` — et y retourne, vraie modale, fenêtre non fermable pendant une carte, sons ; `cardDismiss` remplace `dismiss` ; guide, fiche d'un raccourci, touche d'une action de FL, modèles, fiche/partage/signalement de la Communauté). Pas fait : vols du nom et de la touche jusqu'en haut de la fiche, focus posé dans la carte, commande CI `carte` (les captures `communaute-detail/partager/signaler` montrent déjà des cartes). À vérifier sur la CI : ces captures, et la fenêtre de 480 de haut. |
+| 1 Moteur de mouvement | Fait. CI du commit 57de6a2 (run 39871515697) : « Tests Swift », compilation universelle, textes anglais, mesures, captures anglaises, essais (preset, macro, blocs, clics, touches), désinstallation : tout vert ou PASS. |
+| 2 Couche de vol | Fait, vérifié sur la même CI (`page-change-*` : l'icône vole et se pose pile, aucun titre en double ; captures de repos sans fenêtre de vol). |
+| 3 Menu de l'icône en bulle | Codée, mais la bulle ne s'active pas sur la CI (macOS 26) : la vue du menu s'appelle `MenuBarExtraHostingView` (pas `NSHostingView`) et il n'y a AUCUN `NSVisualEffectView` : le fond est dessiné ailleurs (calque ?). Le repli marche (ancien menu, lignes qui arrivent l'une après l'autre). Le relevé `verre-menu-report.txt` donne maintenant aussi les calques et le fond de la fenêtre : le lire avant de toucher à `prepare` (ne JAMAIS activer la bulle sans l'avoir vue sur les images). |
+| 4 Fenêtres qui sortent du clic | Fait, vérifié (`vol-organiser-*`, `vol-editeur-*` : la bulle vole et se pose ; un peu plate et blanche, à revoir à la relecture). Mémoire : 98 Mo / pic 102 Mo dans `verre-avant-createur-footprint` — à comparer au tableau de mémoire du résumé de la CI (budget + 5 Mo). |
+| 5 Pages et listes | Fait, vérifié (`page-change-*`). |
+| 6 Cartes au lieu des feuilles | Codée (`CardPresenter.swift` : file, présentateur, hôte `cardHost` avec voile, carte de verre qui sort de la ligne cliquée — sondes `ligne.<id>` et `partage.<id>` — et y retourne, vraie modale, fenêtre non fermable pendant une carte, sons ; `cardDismiss` remplace `dismiss` ; guide, fiche d'un raccourci, touche d'une action de FL, modèles, fiche/partage/signalement de la Communauté). Vérifié sur la CI de 57de6a2 (`communaute-detail` : voile, carte, fenêtre non fermable) ; la double barre de défilement vue alors (fiche de 580 de haut dans une carte qui défile) est corrigée par `cardMaxHeight` (l'hôte donne sa hauteur, les fiches qui défilent elles-mêmes s'y tiennent) : à revérifier. Pas fait : vols du nom et de la touche jusqu'en haut de la fiche, focus posé dans la carte, commande CI `carte`. |
 | 7 Créateur de macros | En grande partie codée : barre du bas en gouttes (`LiquidDropsBar` : « Dupliquer » et « Supprimer » n'existent qu'avec un bloc choisi ; macOS 26 + verre : fusion native `GlassEffectContainer` ; sinon gouttes dessinées qui sortent de « Ajouter » — sans le dessin flou + seuil du plan, les boutons ayant des libellés de largeurs différentes), bloc qui s'éclaire à la pose (`landed`), icône qui vole de la palette à sa ligne (clic seulement) et de la ligne choisie à la souris jusqu'à l'inspecteur. Reste : entrée et sortie du créateur depuis la ligne de la macro (vol `.card`), commande CI `gouttes`. |
 | 8 Organiser | En partie codée : plus rien en boucle (onde `WaitingPulse`, icône qui clignote et roues remplacées par un compteur de secondes `SecondsCounter`/`SecondsLabel`), progression de l'écoute dessinée par l'app (`OrganizerProgress`, ressort doux), son « Glass » à la fin d'un rangement ou d'un retour réussi. Reste : familles signalées son par son pendant l'écoute (`classified` dans `OrganizerSession`, pastilles qui deviennent les cartes de l'aperçu), fenêtre qui grandit avant l'aperçu, bouton « Organiser » qui devient la pastille de progression puis « ✓ N sons rangés ». |
 | 9 Relecture finale | Pas commencée. |
 
-### À vérifier sur la CI pour les tâches 1 et 2 (avant d'aller plus loin)
+### Encore à vérifier sur la CI
 
-- « Tests Swift » : `Executed N tests, with 0 failures` (N ≈ 512 + les nouveaux de `MotionEngineTests` et
-  `FlightLayerTests`).
-- Captures de l'artefact `FLShortcut-mac-mesure` : `page-change-*`, `createur-ouverture-*`, `createur-retour-*`,
-  `accueil-partie-*` doivent montrer le mouvement en cours de route (ralenti × 10), comme avant mais plus court.
-  **Risque connu** : la fenêtre principale gèle quand l'app n'est pas active (règle de la conception). Si ces images
-  montrent un changement sec (aucun état intermédiaire), c'est que l'app n'était pas active pendant la capture : dans
-  `EditorView.swift`, le récepteur de `DebugSnapshot.select` (et `DebugSnapshot.macro` dans `DebugSnapshot.swift`)
-  doit alors faire `NSApp.activate(ignoringOtherApps: true)` avant de changer de page. Ne PAS changer la règle de gel.
-- `*-general.png` inchangée (la couche de vol ne doit rien montrer au repos), glisser-déposer du créateur toujours OK
-  (colonne « Bloc glissé de la palette » du tableau de mesure).
-- Mémoire : menu ≈ 15 Mo, fenêtre ≈ 54 Mo (budget + 5 Mo au plus).
+- Mémoire : menu ≈ 15 Mo, fenêtre ≈ 54 Mo avant le chantier (budget + 5 Mo au plus) : lire le tableau de mémoire du
+  résumé de la CI (le fichier `*-footprint` mesure autrement : 98 Mo, pic 102 Mo).
+- La CI a « Réduire les animations » activé (« animations réduites : oui ») : les captures ralenties montrent quand
+  même le mouvement (mode capture), mais un défaut qui n'existe qu'en mouvement réduit ne s'y voit pas.
 
 ## Tâche 3 : à vérifier sur la CI
 

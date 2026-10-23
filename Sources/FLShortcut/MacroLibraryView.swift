@@ -350,6 +350,7 @@ struct MacroTemplatesSheet: View {
     let templates: [MacroTemplate]
     let choose: (MacroTemplate) -> Void
     @Environment(\.cardDismiss) private var dismiss
+    @Environment(\.cardMaxHeight) private var cardMaxHeight
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
@@ -395,7 +396,7 @@ struct MacroTemplatesSheet: View {
             }
         }
         .padding(20)
-        .frame(width: 540, height: 470)
+        .frame(width: 540, height: min(470, cardMaxHeight))   // la liste défile elle-même : pas plus haute que la carte
     }
 }
 

@@ -1448,8 +1448,6 @@ private struct EmptyState: View {
     }
 }
 
-/// En-tête de page façon Réglages Système (macOS 26) : grande icône colorée, titre gras aligné à gauche, résumé.
-/// Dans la première carte de la page (couche de contenu, aucun verre).
 /// Page du guide ouvert en carte : la CI la change pendant qu'il est ouvert (GuideSheet suit `initialPage`).
 final class GuideCardPage: ObservableObject {
     @Published var page = 0
@@ -1464,6 +1462,8 @@ private struct GuideCardContent: View {
     }
 }
 
+/// En-tête de page façon Réglages Système (macOS 26) : grande icône colorée, titre gras aligné à gauche, résumé.
+/// Dans la première carte de la page (couche de contenu, aucun verre).
 struct PageHeader: View {
     /// Cadre de l'icône d'en-tête dans la couche de vol (une seule page à la fois).
     static let flightID = "page.entete"

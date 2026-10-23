@@ -119,6 +119,10 @@ private struct CardDismissKey: EnvironmentKey {
     static let defaultValue: () -> Void = {}
 }
 
+private struct CardMaxHeightKey: EnvironmentKey {
+    static let defaultValue: CGFloat = .infinity
+}
+
 extension EnvironmentValues {
     /// Présentateur de cartes de la fenêtre (nil hors de la fenêtre principale).
     var cardPresenter: CardPresenter? {
@@ -130,6 +134,13 @@ extension EnvironmentValues {
     var cardDismiss: () -> Void {
         get { self[CardDismissKey.self] }
         set { self[CardDismissKey.self] = newValue }
+    }
+
+    /// Hauteur au plus de la carte où se trouve la vue : une fiche qui défile déjà elle-même s'y tient (une seule
+    /// barre de défilement). Hors d'une carte : sans limite.
+    var cardMaxHeight: CGFloat {
+        get { self[CardMaxHeightKey.self] }
+        set { self[CardMaxHeightKey.self] = newValue }
     }
 }
 
@@ -201,11 +212,13 @@ private struct CardHost: ViewModifier {
                 .allowsHitTesting(false)
             // La fiche, à sa place, qui défile au-delà de la hauteur de la fenêtre.
             GeometryReader { geo in
+                let maxHeight = max(geo.size.height - 48, 160)
                 ScrollView {
                     (request.content?() ?? AnyView(EmptyView()))
                         .environment(\.cardDismiss, { presenter.dismiss() })
+                        .environment(\.cardMaxHeight, maxHeight)
                 }
-                .frame(maxHeight: max(geo.size.height - 48, 160))
+                .frame(maxHeight: maxHeight)
                 .fixedSize(horizontal: true, vertical: true)
                 .clipShape(shape)
                 .frameProbe(Self.placeID)

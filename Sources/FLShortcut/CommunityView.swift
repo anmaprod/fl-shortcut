@@ -559,6 +559,7 @@ private struct CommunityShareDetail: View {
     let added: (ToastMessage) -> Void
     let report: () -> Void
     @Environment(\.cardDismiss) private var dismiss
+    @Environment(\.cardMaxHeight) private var cardMaxHeight
     @State private var content = Content.loading
 
     enum Content {
@@ -641,7 +642,7 @@ private struct CommunityShareDetail: View {
             }
             .padding(16)
         }
-        .frame(width: 540, height: 580)
+        .frame(width: 540, height: min(580, cardMaxHeight))   // la fiche défile elle-même : pas plus haute que la carte
         .task { await load() }
     }
 
