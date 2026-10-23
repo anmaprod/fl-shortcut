@@ -5,7 +5,7 @@
 - Branche la plus récente : **`claude/great-hopper-qihaiy`** (en avance de 138 commits sur `claude/relaxed-mayer-ndguzv`).
   Pas de nouvelle PR sans demande (anmaprod/fl-shortcut#1 existe). Un push lance la CI ; ne pas la relancer à la main
   sans demande. Derniers tests Mac verts : commit 1843b87 (502 tests, lancés par le propriétaire sur son Mac) ; CI
-  entièrement verte sur 0c18d51 (512 tests, tous les essais PASS, mémoire 15 / 54 Mo). La lecture de GitHub (CI,
+  entièrement verte sur ec527b1 (« Pas content ? » et corrections de l'IA, tous les essais PASS). La lecture de GitHub (CI,
   artefacts, images) marche : vérifier chaque push dessus.
 - Tout texte affiché doit avoir son anglais (la CI échoue sinon) : `python3 scripts/localisation.py generer trad.json`.
 - Historique, décisions et échecs : `docs/contexte/HISTORIQUE.md` ; lien avec FL (script v16) : `PROTOCOL.md`.
@@ -74,6 +74,8 @@
   l'IA de tout le monde » (des nombres : jamais le son, son nom ni le texte tapé) vers la table `corrections_ia`
   (`supabase/corrections-ia.sql`, À COLLER PAR LE PROPRIÉTAIRE dans Supabase, étape 9 du README) ; réappris par
   `ia/corrections.py` puis `entrainer.py`. Playlist, Mixer, aspect et « Autre » : message à l'équipe (support).
+  Chiffres de l'IA seule (7 379 sons jamais entendus) : ≈ 92,7 % (voix 97, drums 97, basse 95, FX 94, mélodies 86) ;
+  plafond : plus de sons et couche 14 de YAMNet réapprise (`ia/affiner.py`) n'y changent rien (essai non livré).
 - Interface : survol coloré du menu de l'icône (`menuHover` : contour de sa couleur, grandit, ombre) voulu par le
   propriétaire partout : barre latérale (`sidebarHover`), lignes des pages, Macros, modèles, Communauté, Aide,
   palette, blocs, bouton d'enregistrement, « Menu de FL » du créateur ;
@@ -90,6 +92,15 @@
   a Xcode 27 : avec le kit 27, macOS 27 dessine l'app autrement (boutons en rectangle arrondi…). `build.sh` prend
   alors tout seul le kit 26 des outils en ligne de commande (`--build-system native`, une architecture à la fois : l'outil d'Xcode inscrivait
   « sdk 13.0 ») et vérifie le kit inscrit (`vtool`). Ne pas « corriger » l'aspect en code.
+
+## Sortie (plan validé le 23/10 ; à faire SEULEMENT quand la version finale sera validée par le propriétaire)
+- Gratuit, sans frais fixes : page Gumroad en « 0 € + » (prix libre, Gumroad gère la TVA ; 10 % + 0,50 $ seulement sur
+  les tips). Dépôt public : CI et versions GitHub gratuites ; Supabase gratuit (500 Mo : plafonner `corrections_ia`).
+- « Tampon » gratuit : signature stable par un certificat à nous gardé dans les secrets GitHub (jamais dans le dépôt),
+  pour que macOS garde les autorisations d'une mise à jour à l'autre. Plus tard, avec les tips : compte Apple
+  (99 €/an) → notarisation, plus de « Ouvrir quand même » (build.sh est prêt : SIGN_IDENTITY, NOTARY_*).
+- Aussi : « Nouvelle version disponible » dans l'app, page de téléchargement à jour (`site/index.html` dit encore
+  « n'utilise pas le réseau ») avec guide en images pour « Ouvrir quand même ».
 
 ## Pas encore vérifié sur le vrai FL
 - IA intégrée : voix de ses projets enfin rangées en Voix ? Sortes proposées justes sur ses packs ?

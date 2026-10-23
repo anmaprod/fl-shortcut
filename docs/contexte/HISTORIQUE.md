@@ -287,6 +287,11 @@ entrée 1 ≈ 0,5 s.
   Résultats (6 837 sons jamais entendus) : voix 97,6 % (chops 93–96 %, stutters 86 %), drums 96,6 %, FX 94,2 %,
   basse 93,5 %, mélodies 84,4 % (notes graves prises pour des basses, synthés étranges pour des FX) ; 99 % pas
   encore atteint. Prochain levier : réapprendre aussi la fin de YAMNet, et les corrections des utilisateurs.
+- Couche 14 de YAMNet réapprise sur nos sons (`ia/affiner.py`, préparation refaite : 72 643 sons, Medley complet,
+  tessitures plus nettes ; ≈ 1 h 10 de préparation + 25 min) : sur les mêmes 7 379 sons jamais entendus, 92,6 %
+  avec ou sans elle, et 92,7 % pour le modèle livré. Aucun gain : rien n'a changé dans l'app. Erreurs restantes :
+  notes seules de NSynth ambiguës (claviers graves → basse 46, cuivres → FX 45, plucks → drums 28, guitares → voix
+  26). Premier essai tué par la mémoire (écriture du jeu d'un coup) : écrit maintenant étape par étape.
 - « Pas content ? » (demande du propriétaire : questions à cocher avec « Autre » en bas, pour que l'IA apprenne de
   ses erreurs ; choix : apprend sur le Mac + pour tout le monde avec accord ; bouton à la fin, pas de question à
   chaque fois) : `OrganizerFeedback.swift`, `CorrectionsIA.swift`, table `corrections_ia`

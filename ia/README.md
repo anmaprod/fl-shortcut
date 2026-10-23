@@ -81,6 +81,11 @@ python ia/entrainer.py    # têtes, seuil des voix, RESULTATS.md (≈ 5 min)
 python ia/exporter.py     # vérifie, puis écrit ia/modele/classeur_sons.onnx (+ .json) et Resources/ClasseurSons.mlpackage
 python ia/essais_app.py   # sons d'essai et réponses attendues pour les tests de l'app
 ```
+Essai (non retenu) : réapprendre aussi la dernière couche de YAMNet. `FLS_IA_COUCHE13=1 python ia/preparer.py`
+garde la sortie de sa couche 13 (≈ 4,5 Go), `python ia/affiner.py` réapprend la couche 14 (≈ 25 min) et écrit
+`jeu_affine.npz`, puis `FLS_IA_JEU=jeu_affine.npz python ia/entrainer.py` ; `exporter.py` pose la couche réapprise
+si `couche14.npz` est là. Le 23/10, sur les mêmes 7 379 sons jamais entendus : 92,6 % comme sans elle (voix +0,6,
+basse +0,4, FX −2,9) ; le modèle livré, appris avant, fait 92,7 % sur ces mêmes sons. Pas de gain : non livrée.
 
 ## 3. Classer des sons (hors-ligne)
 - **Script (Windows, macOS, Linux)** : `python ia/classer.py mon_pack/ --ranger ~/Desktop/Tri` copie chaque son dans
@@ -133,5 +138,9 @@ python ia/essais_app.py   # sons d'essai et réponses attendues pour les tests d
 - Pas de vraies voix de production sous licence libre en grand nombre : elles sont imitées par les variantes. Les
   packs de l'utilisateur servent à mesurer, jamais à apprendre (rien ne quitte son ordinateur).
 - Les 808, les subs, les reese, les pads et les FX sont surtout fabriqués : à surveiller sur de vrais packs.
+- Plafond de l'IA seule ≈ 92–93 % sur les notes isolées de NSynth : plus de sons (72 643) ou la couche 14 réapprise
+  n'y changent rien. Les erreurs restantes sont des notes seules ambiguës même à l'oreille : note grave de clavier
+  prise pour une basse, note courte de pluck pour une percussion, cuivre de synthé étrange pour un FX. Dans
+  l'Organiser, le nom et les règles sûres passent avant (3 notes nettes ou plus → mélodie, jamais drums ni FX).
 - Les sortes de voix (Voix lead, Chœur, Adlib, Ambiance) sont apprises sur des imitations : un nom de son qui dit
   la sorte reste prioritaire dans l'Organiser.
