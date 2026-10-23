@@ -247,6 +247,24 @@ run() {   # $1 : libellé, $2 : YES/NO effet verre
       sleep 0.5; screencapture -x "$OUT/vol-organiser-$i.png" 2>/dev/null || true
     done
     sleep 4
+    # Puis, toujours au ralenti : l'écoute (une pastille par famille, son nombre qui défile), l'aperçu (la fenêtre
+    # grandit, puis les pastilles deviennent les cartes des familles), « Organiser » qui devient la pastille du
+    # rangement, puis « ✓ N sons rangés ». Aucune roue qui tourne.
+    "$POST" app.flshortcut.debug.organizer "ecoute lent"
+    for i in 1 2 3 4 5 6 7 8; do
+      sleep 0.5; screencapture -x "$OUT/organiser-ecoute-$i.png" 2>/dev/null || true
+    done
+    sleep 2
+    "$POST" app.flshortcut.debug.organizer "apercu lent"
+    for i in 1 2 3 4 5 6 7 8; do
+      sleep 0.9; screencapture -x "$OUT/organiser-apercu-$i.png" 2>/dev/null || true
+    done
+    sleep 2
+    "$POST" app.flshortcut.debug.organizer "fini lent"
+    for i in 1 2 3 4 5 6 7 8; do
+      sleep 0.7; screencapture -x "$OUT/organiser-fini-$i.png" 2>/dev/null || true
+    done
+    sleep 6
     "$POST" app.flshortcut.debug.organizer fermer
     for i in 1 2 3 4; do
       sleep 0.7; screencapture -x "$OUT/vol-organiser-fermeture-$i.png" 2>/dev/null || true

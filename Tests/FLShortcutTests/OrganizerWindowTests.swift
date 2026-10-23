@@ -203,7 +203,29 @@ final class OrganizerWindowTests: XCTestCase {
         controller.apply()
         waitFor(controller, OrganizerWindowTests.isApplied)
         XCTAssertEqual(controller.phase, .applied(nil))
+        XCTAssertTrue(controller.showingDone, "« ✓ N sons rangés » d'abord, puis l'écran de fin")
         XCTAssertEqual(link.channels.map(\.name), ["808", "Kick", "Clap", "Open Hat"])
+        controller.close()
+    }
+
+    /// Pastilles de l'écoute : une par famille, au nombre de sons de l'aperçu ; « ✓ N sons rangés » compte les sons de
+    /// l'aperçu ; une nouvelle écoute repart sans pastille.
+    func testLiveFamiliesAndOrganizedCount() {
+        let link = FakeOrganizerLink()
+        let gray = RGBColor(r: 9, g: 9, b: 9)
+        link.channels = ["ALTER OPEN HAT", "BEAM KICK", "ZEBRA 808", "@MEH CLAP"].enumerated().map {
+            ChannelInfo(index: $0.offset, type: 2, mixerTrack: 0, color: gray, name: $0.element)
+        }
+        let controller = OrganizerController(env: env(link, FakeAudio(link: link), saved: { _ in }))
+        controller.start()
+        waitFor(controller) { $0 == .preview }
+        XCTAssertEqual(controller.liveFamilies, [.drums: 3, .bass: 1])
+        XCTAssertEqual(controller.organizedCount, 4)
+        XCTAssertEqual(controller.organizedCount,
+                       controller.presentFamilies.map { controller.members(of: $0).count }.reduce(0, +))
+        controller.showDemo("attente")
+        controller.retry()
+        XCTAssertTrue(controller.liveFamilies.isEmpty, "nouvelle écoute : plus aucune pastille")
         controller.close()
     }
 

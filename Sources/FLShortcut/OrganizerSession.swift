@@ -187,6 +187,8 @@ final class OrganizerSession {
     private let timing: Timing
     private let sleep: (TimeInterval) -> Void
     private let progress: (Int, Int) -> Void
+    /// Famille définitive de chaque son, dès qu'elle est connue (au nom tout de suite, sinon juste après son écoute).
+    private let classified: (SoundFamily) -> Void
     private let escape: () -> Bool
     private let prepare: () -> Bool
     /// Le fichier du projet (nil : l'ancienne analyse, à l'écoute de FL seulement).
@@ -223,7 +225,8 @@ final class OrganizerSession {
          prepare: @escaping () -> Bool = { false },
          files: ProjectFileAccess? = nil,
          soundFile: SoundFile? = nil,
-         progress: @escaping (Int, Int) -> Void = { _, _ in }) {
+         progress: @escaping (Int, Int) -> Void = { _, _ in },
+         classified: @escaping (SoundFamily) -> Void = { _ in }) {
         self.link = link
         self.audio = audio
         self.classify = classify
@@ -236,6 +239,7 @@ final class OrganizerSession {
         self.files = files
         self.soundFile = soundFile
         self.progress = progress
+        self.classified = classified
     }
 
     /// Échap : l'analyse s'arrête au plus tard après `Timing.slice`, puis FL est remis comme avant.
@@ -470,7 +474,9 @@ final class OrganizerSession {
             // « Keys », un hi-hat « Snare » à l'écoute).
             let named = SoundNames.isGenerated(channel.name) ? nil : SoundNames.kind(of: channel.name)
             if let kind = named ?? hints[channel.index].flatMap({ SoundNames.kind(of: $0) }) {
-                byIndex[channel.index] = Self.byName(channel, kind)
+                let item = Self.byName(channel, kind)
+                byIndex[channel.index] = item
+                classified(item.family)
             } else {
                 toListen.append(channel)
             }
@@ -478,26 +484,31 @@ final class OrganizerSession {
         note { $0.targets = targets.count; $0.byName = targets.count - toListen.count }
         if !toListen.isEmpty {
             plan(toListen.count)
-            let heard = try listen(toListen, homes: homes)
-            for item in heard.items {
-                let channel = toListen.first(where: { $0.index == item.index })
-                if let channel, let kind = SoundNames.kind(of: channel.name),
-                   SoundNames.keeps(kind, heard: Verdict(family: item.family, kind: item.kind)) {
-                    byIndex[item.index] = Self.byName(channel, kind)
-                } else if let channel, SoundNames.isMelodicSynth(channel.name), item.family == .drums || item.family == .fx {
-                    // Un synthé de mélodies entendu comme des drums ou un FX : une mélodie (SoundNames).
-                    var melody = item
-                    melody.family = .melody
-                    melody.kind = nil
-                    byIndex[item.index] = melody
-                    note { $0.rules.append("c\(item.index):synthe") }
-                } else {
-                    byIndex[item.index] = item
-                }
+            let anyHeard = try listen(toListen, homes: homes) { item, channel in
+                let final = finalize(item, channel: channel)
+                byIndex[final.index] = final
+                classified(final.family)
             }
-            if !heard.anyHeard && !byIndex.values.contains(where: \.byName) { throw OrganizerError.noSound }
+            if !anyHeard && !byIndex.values.contains(where: \.byName) { throw OrganizerError.noSound }
         }
         return targets.compactMap { byIndex[$0.index] }
+    }
+
+    /// Famille définitive d'un son écouté : le nom qu'il porte s'il dit ce qu'il est et que l'écoute ne le contredit
+    /// pas ; un synthé de mélodies entendu comme des drums ou un FX : une mélodie (SoundNames).
+    private func finalize(_ item: OrganizerItem, channel: ChannelInfo) -> OrganizerItem {
+        if let kind = SoundNames.kind(of: channel.name),
+           SoundNames.keeps(kind, heard: Verdict(family: item.family, kind: item.kind)) {
+            return Self.byName(channel, kind)
+        }
+        if SoundNames.isMelodicSynth(channel.name), item.family == .drums || item.family == .fx {
+            var melody = item
+            melody.family = .melody
+            melody.kind = nil
+            note { $0.rules.append("c\(item.index):synthe") }
+            return melody
+        }
+        return item
     }
 
     private static func byName(_ channel: ChannelInfo, _ kind: SoundKind) -> OrganizerItem {
@@ -508,9 +519,10 @@ final class OrganizerSession {
     /// Chaque son écouté seul, dans un pattern où il joue (sinon le pattern ouvert), puis deux notes d'essai s'il se
     /// tait ; un clip audio (il ne joue pas dans les patterns) : son fichier lu directement, son passage le plus fort
     /// (analyse sur le fichier ; les voix enregistrées commencent souvent par un silence), sinon sa note de base jouée
-    /// dans FL. La capture est déjà lancée ; FL est remis par l'appelant.
-    private func listen(_ targets: [ChannelInfo], homes: [Int: Int]) throws -> (items: [OrganizerItem], anyHeard: Bool) {
-        var items: [OrganizerItem] = []
+    /// dans FL. La capture est déjà lancée ; FL est remis par l'appelant. `heard` reçoit chaque son juste après son
+    /// écoute ; vrai si au moins un son a été entendu.
+    private func listen(_ targets: [ChannelInfo], homes: [Int: Int],
+                        heard done: (OrganizerItem, ChannelInfo) -> Void) throws -> Bool {
         var heardAny = false
         for (k, channel) in targets.enumerated() {
             try step()
@@ -544,12 +556,12 @@ final class OrganizerSession {
             var kind: SoundKind?
             if verdict.family == .drums && heard, let drum = nameDrum?(samples, rate) { kind = drum.sound }
             if verdict.family == .melody && heard { kind = nameMelody?(samples, rate) }
-            items.append(OrganizerItem(index: channel.index, name: channel.name, family: verdict.family,
-                                       confidence: tested ? verdict.confidence * Self.testNotesFactor : verdict.confidence,
-                                       testNotes: tested, mixerTrack: channel.mixerTrack, color: channel.color,
-                                       kind: kind))
+            done(OrganizerItem(index: channel.index, name: channel.name, family: verdict.family,
+                               confidence: tested ? verdict.confidence * Self.testNotesFactor : verdict.confidence,
+                               testNotes: tested, mixerTrack: channel.mixerTrack, color: channel.color, kind: kind),
+                 channel)
         }
-        return (items, heardAny)
+        return heardAny
     }
 
     /// Le fichier d'un clip audio lu directement (analyse sur le fichier) ; nil sans fichier retrouvé.

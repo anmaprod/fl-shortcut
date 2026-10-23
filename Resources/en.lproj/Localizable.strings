@@ -1475,7 +1475,7 @@
 "Retirer tous les solos" = "Clear all solos";
 "Retouche-la dans le créateur : ajoute des blocs de la palette d'un clic ou en les glissant, range les lignes en les glissant." = "Fine-tune it in the creator: add blocks from the palette with a click or by dragging, and drag rows to reorder them.";
 "Retour" = "Back";
-"Retour comme avant…" = "Undoing changes…";
+"Retour en arrière…" = "Going back…";
 "Retrouver ce bouton s'il bouge" = "Find this button if it moves";
 "Retrouver mes raccourcis et mes macros sur un autre Mac" = "Get my shortcuts and macros on another Mac";
 "Retrouver ses boutons par leur nom, au moment du clic" = "Find its buttons by name when clicking";
@@ -2221,3 +2221,5 @@
 "⌘⌥Échap ouvre « Forcer à quitter »" = "⌘⌥Esc opens “Force Quit”";
 "⌘⌫ supprime (fichiers, corbeille)" = "⌘⌫ deletes (files, Trash)";
 "⌫ dans le champ : aucune touche (le bloc demande alors le lien avec FL)." = "⌫ in the field: no key (the block then needs the FL link).";
+"✓ %lld sons rangés" = "✓ %lld sounds organized";
+"✓ 1 son rangé" = "✓ 1 sound organized";
