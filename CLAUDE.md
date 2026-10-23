@@ -5,10 +5,9 @@
 - Branche la plus récente : **`claude/great-hopper-qihaiy`** (en avance de 138 commits sur `claude/relaxed-mayer-ndguzv`).
   Pas de nouvelle PR sans demande (anmaprod/fl-shortcut#1 existe). Un push lance la CI ; ne pas la relancer à la main
   sans demande. Derniers tests Mac verts : commit 1843b87 (502 tests, lancés par le propriétaire sur son Mac) ; CI
-  entièrement verte sur 0c18d51 (512 tests, tous les essais PASS, mémoire 15 / 54 Mo). La lecture de GitHub (CI,
-  artefacts, images) marche : vérifier chaque push dessus.
-- **Chantier en cours : animations « morph » (tâches 1 à 6 sur 9 codées, 7 commencée ; tests Swift verts sur 1 à 5, captures à vérifier). Avant tout, lire
-  `docs/contexte/REPRISE-ANIMATIONS.md`** (état exact, décisions, ce qui reste, façon de vérifier sur la CI).
+  entièrement verte sur 17228ed (555 tests, tous les essais PASS, mémoire 15 / 56 Mo avec verre). La lecture de GitHub
+  (CI, artefacts, images) marche : vérifier chaque push dessus, images comprises. Pas de Swift dans la session :
+  la CI est le seul compilateur, relire chaque diff avant de pousser.
 - Tout texte affiché doit avoir son anglais (la CI échoue sinon) : `python3 scripts/localisation.py generer trad.json`.
 - Historique, décisions et échecs : `docs/contexte/HISTORIQUE.md` ; lien avec FL (script v16) : `PROTOCOL.md`.
 
@@ -54,6 +53,15 @@
     (événement 196) pour reconnaître un clip audio dont le canal ne dit rien (`sampleNames`, sinon son dossier) ;
     fichier de chaque clip audio lu directement, son passage le plus fort (`SampleFiles.swift`, règle `+fichier`),
     joué dans FL seulement s'il est introuvable ; étapes dans le journal (`ORGANIZE`).
+- **Animations « morph »** (conception `docs/superpowers/specs/2026-10-22-animations-morph-design.md`, plan dans
+  `docs/superpowers/plans/`, détail dans HISTORIQUE) : moteur de mouvement (`MotionEngine.swift` : trois ressorts,
+  gel quand FL est devant, ralenti ×10 de la CI, sons `InterfaceSound.swift`), couche de vol (`FlightLayer.swift`),
+  fenêtres qui sortent du clic et rentrent dans l'icône (`WindowLauncher.swift`), cartes au lieu des feuilles
+  (`CardPresenter.swift`), gouttes du créateur (`LiquidDrops.swift`), Organiser sans rien en boucle. Règles : aucune
+  valeur d'animation hors `MotionEngine.swift` et de la section Motion de `GlassStyle.swift` ; jamais de `if`/`switch`
+  de vues selon le mode de mouvement (choisir des valeurs) ; jamais de `ViewThatFits` autour d'une vue animée. Menu de
+  l'icône : celui de macOS (la bulle maison est coupée, `MenuBubbleStyle.enabled = false` : macOS 26 dessine le verre
+  du menu dans la vue même). Mesure CI : les captures au ralenti du chantier sont prises APRÈS les mesures (`ralentis`).
 - Prochain chantier convenu : IA embarquée (YAMNet, Apache 2.0, + petite tête sur sons libres), même sur Mac et Windows.
 - Interface : survol coloré du menu de l'icône (`menuHover` : contour de sa couleur, grandit, ombre) voulu par le
   propriétaire partout : barre latérale (`sidebarHover`), lignes des pages, Macros, modèles, Communauté, Aide,
@@ -72,7 +80,9 @@
   alors tout seul le kit 26 des outils en ligne de commande (`--build-system native`, une architecture à la fois : l'outil d'Xcode inscrivait
   « sdk 13.0 ») et vérifie le kit inscrit (`vtool`). Ne pas « corriger » l'aspect en code.
 
-## Pas encore vérifié sur le vrai FL
+## Pas encore vérifié sur le vrai FL (ni sur le Mac du propriétaire)
+- Animations : la liste `docs/contexte/CONTROLE-ANIMATIONS.md` (une ligne par animation) ; surtout « Modifier les
+  raccourcis… » depuis le menu quand FL est devant (la fenêtre doit s'ouvrir devant FL).
 - Organiser sur le fichier : ⌘S enregistre-t-il le projet ? Son fichier est-il retrouvé (titre de la fenêtre de FL,
   Spotlight, dossiers habituels) ? FL ouvre-t-il la copie rangée sans rien demander, et le script lit-il la marque ?
 - La suppression par ⌥ + Suppr (si ça échoue, l'app le dit).

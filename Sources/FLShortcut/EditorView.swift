@@ -567,8 +567,11 @@ struct EditorView: View {
             }
             guard case .section(let section) = selection ?? .section(.general),
                   let row = store.catalogRows().rows.first(where: { $0.entry.section == section }) else { return }
-            editNotice = nil
-            editingRow = row
+            // Au tour suivant : la fenêtre a pris le nouveau ralenti (sa liste vient d'être redessinée).
+            DispatchQueue.main.async {
+                editNotice = nil
+                editingRow = row
+            }
         }
         .onChange(of: editing?.id) { _ in
             if let remap = editing { presentEdit(remap, isNew: editingIsNew) }

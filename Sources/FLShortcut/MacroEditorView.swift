@@ -355,8 +355,9 @@ private struct MacroStepsPane: View {
             }
             .labelStyle(DropLabelStyle(compact: compactActions))
             .layoutPriority(1)                               // les gouttes d'abord, l'astuce dans ce qui reste
-            // L'astuce, à droite, sans bloc choisi et seulement si elle tient en entier ; elle s'efface pendant que
-            // les gouttes sortent (et revient pendant qu'elles rentrent).
+            // L'astuce, à droite, sans bloc choisi et seulement si elle tient en entier : elle part tout de suite
+            // quand les gouttes sortent et ne revient qu'une fois qu'elles sont rentrées (jamais par-dessus
+            // « Supprimer »).
             if !chosen {
                 ViewThatFits(in: .horizontal) {
                     Text("Glisse les lignes pour les ranger")
@@ -365,7 +366,9 @@ private struct MacroStepsPane: View {
                     Color.clear.frame(width: 0, height: 0)
                 }
                 .frame(maxWidth: .infinity, alignment: .trailing)
-                .transition(.opacity)
+                .transition(Motion.transition(.asymmetric(
+                    insertion: .opacity.animation(Motion.spring(.vif).delay(Motion.settleTime(.vif))),
+                    removal: .opacity.animation(Motion.exit))))
             }
         }
         .lineLimit(1)

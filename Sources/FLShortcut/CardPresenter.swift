@@ -249,6 +249,8 @@ private struct CardHost: ViewModifier {
         source = presenter.queue.current?.source.flatMap { flights?.frame(of: $0) }
         DispatchQueue.main.async {
             target = flights?.frame(of: Self.placeID)
+            // Ligne pas encore relue (liste redessinée au même moment, l'app qui revient devant) : relue ici.
+            if source == nil { source = presenter.queue.current?.source.flatMap { flights?.frame(of: $0) } }
             let duration: TimeInterval
             switch mode {
             case .full where target != nil:
