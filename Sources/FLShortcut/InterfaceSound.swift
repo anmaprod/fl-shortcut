@@ -41,8 +41,10 @@ enum InterfaceSound {
     /// Joue le son de cet évènement s'il est permis. Une copie par lecture : deux sons proches se superposent.
     static func play(_ event: InterfaceSoundEvent, organiserBusy: Bool = false) {
         let enabled = UserDefaults.standard.object(forKey: key) as? Bool ?? true
-        guard allowed(event: event, enabled: enabled, systemSounds: systemSoundsEnabled, appActive: NSApp.isActive,
-                      organiserBusy: organiserBusy),
+        // L'Organiser au travail : silence (sa propre fin sonne). Pas d'application (tests) : rien n'est actif.
+        let busy = organiserBusy || (event != .organiserDone && OrganizerWindow.isWorking)
+        guard allowed(event: event, enabled: enabled, systemSounds: systemSoundsEnabled,
+                      appActive: NSApp?.isActive ?? false, organiserBusy: busy),
               let sound = NSSound(named: NSSound.Name(event.soundName))?.copy() as? NSSound else { return }
         sound.volume = volume
         sound.play()

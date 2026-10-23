@@ -164,6 +164,9 @@ private struct CardHost: ViewModifier {
     @State private var contentShown = false
     @State private var source: CGRect?
     @State private var target: CGRect?
+    /// Carte posée : son verre est le fond de la fiche elle-même (il suit sa hauteur quand elle change : type changé,
+    /// conflits affichés, fenêtre redimensionnée) ; avant et pendant la fermeture, c'est `CardPath` qui le dessine.
+    @State private var landed = false
 
     static let placeID = "carte.place"
 
@@ -207,7 +210,7 @@ private struct CardHost: ViewModifier {
             // Fond de la carte : du cadre de départ à sa place (mêmes coordonnées que la couche de vol).
             Color.clear
                 .modifier(CardPath(from: source ?? Self.center(of: target), to: target ?? .zero, progress: progress))
-                .opacity(target == nil ? 0 : 1)
+                .opacity(target == nil || landed ? 0 : 1)
                 .ignoresSafeArea()
                 .allowsHitTesting(false)
             // La fiche, à sa place, qui défile au-delà de la hauteur de la fenêtre.
@@ -224,32 +227,49 @@ private struct CardHost: ViewModifier {
                 .frameProbe(Self.placeID)
                 .opacity(contentShown ? 1 : 0)
                 .blur(radius: contentShown || mode != .full ? 0 : 8)
+                .background {
+                    Color.clear
+                        .glassSurface(shape)
+                        .shadow(color: Color.black.opacity(0.25), radius: 24, y: 10)
+                        .opacity(landed ? 1 : 0)
+                }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         }
     }
 
     /// Carte demandée : cadres lus après la mise en page, puis elle grandit depuis la ligne (ressort doux) ; la
-    /// fiche apparaît quand la carte a fait 40 % du chemin.
+    /// fiche apparaît quand la carte a fait 40 % du chemin ; une fois posée, son verre passe sous la fiche.
     private func open() {
+        let id = presenter.queue.current?.id
         progress = 0
         contentShown = false
+        landed = false
         target = nil
         source = presenter.queue.current?.source.flatMap { flights?.frame(of: $0) }
         DispatchQueue.main.async {
             target = flights?.frame(of: Self.placeID)
+            let duration: TimeInterval
             switch mode {
             case .full where target != nil:
                 withAnimation(Motion.spring(.doux)) { progress = 1 }
                 withAnimation(Motion.spring(.vif).delay(0.4 * Motion.settleTime(.doux))) { contentShown = true }
+                duration = Motion.settleTime(.doux)
             case .frozen:
                 progress = 1
                 contentShown = true
+                duration = 0
             default:
                 withAnimation(Motion.reduced) {
                     progress = 1
                     contentShown = true
                 }
+                duration = Motion.reducedDuration
+            }
+            DispatchQueue.main.asyncAfter(deadline: .now() + duration) {
+                guard presenter.queue.current?.id == id, !presenter.queue.closing else { return }
+                landed = true
+                Self.focusFirstField(in: flights?.windowFrame(of: Self.placeID))
             }
         }
     }
@@ -258,6 +278,9 @@ private struct CardHost: ViewModifier {
     private func close() {
         let id = presenter.queue.current?.id
         source = presenter.queue.current?.source.flatMap { flights?.frame(of: $0) }
+        // La carte rentre depuis là où est la fiche maintenant (elle a pu changer de taille depuis l'ouverture).
+        target = flights?.frame(of: Self.placeID) ?? target
+        landed = false
         let duration: TimeInterval
         switch mode {
         case .full:
@@ -279,6 +302,29 @@ private struct CardHost: ViewModifier {
             guard presenter.queue.current?.id == id else { return }
             presenter.closeFinished()
         }
+    }
+
+    /// Focus dans la carte posée, comme dans une feuille de macOS : son champ de texte le plus haut (champs actifs
+    /// et visibles dans le cadre de la carte, `card`, coordonnées de la fenêtre ; tout ce qui est derrière est
+    /// désactivé). Cadre inconnu : rien. Déjà dans un de ses champs : rien ne change.
+    private static func focusFirstField(in card: CGRect?) {
+        guard let card, let window = AppResume.shared.editorWindow, let root = window.contentView else { return }
+        var fields: [NSTextField] = []
+        var stack: [NSView] = [root]
+        while let view = stack.popLast() {
+            if let field = view as? NSTextField, field.isEditable, field.isEnabled, !field.isHiddenOrHasHiddenAncestor {
+                let frame = field.convert(field.bounds, to: nil)
+                if card.contains(CGPoint(x: frame.midX, y: frame.midY)) { fields.append(field) }
+            }
+            stack.append(contentsOf: view.subviews)
+        }
+        if let editor = window.firstResponder as? NSText, let owner = editor.delegate as? NSTextField,
+           fields.contains(owner) { return }
+        let top = fields.max { a, b in
+            let fa = a.convert(a.bounds, to: nil), fb = b.convert(b.bounds, to: nil)
+            return fa.maxY != fb.maxY ? fa.maxY < fb.maxY : fa.minX > fb.minX
+        }
+        if let top { window.makeFirstResponder(top) }
     }
 
     /// Départ sans ligne : un rectangle de 60 % au milieu de la place de la carte.

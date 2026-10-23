@@ -23,6 +23,18 @@ enum FlightContent {
         if case .card = self { return false }
         return true
     }
+
+    /// Même chose dessinée (même symbole, texte ou touche) : un nouveau vol vers la même place repart alors d'où
+    /// l'autre en était ; sinon c'est un autre élément (navigation rapide dans la barre latérale), parti de chez lui.
+    func isSame(as other: FlightContent) -> Bool {
+        switch (self, other) {
+        case let (.icon(a, _, _), .icon(b, _, _)): return a == b
+        case let (.text(a, _), .text(b, _)): return a == b
+        case let (.key(a), .key(b)): return a == b
+        case (.card, .card): return true
+        default: return false
+        }
+    }
 }
 
 /// Dessin d'un contenu qui vole (aussi utilisé par les fenêtres qui sortent du clic).
@@ -141,6 +153,12 @@ final class FlightCenter: ObservableObject {
         return rect.width > 0 && rect.height > 0 ? rect : nil
     }
 
+    /// Cadre de `id` dans sa fenêtre (coordonnées d'AppKit) ; nil si sa vue n'est plus dans une fenêtre.
+    func windowFrame(of id: String) -> CGRect? {
+        guard let view = views[id]?.view, view.window != nil else { return nil }
+        return view.convert(view.bounds, to: nil)
+    }
+
     // MARK: Vols
 
     func fly(_ content: FlightContent, from: String, to: String, completion: (() -> Void)? = nil) {
@@ -173,7 +191,7 @@ final class FlightCenter: ObservableObject {
         let start = now()
         var origin = from
         if let previous = flights.first(where: { $0.target == target }) {
-            origin = previous.rect(at: start)                 // repart d'où l'autre en était
+            if previous.content.isSame(as: content) { origin = previous.rect(at: start) }   // d'où l'autre en était
             finish(previous.id)
         }
         let slow = DebugSnapshot.slowMotion

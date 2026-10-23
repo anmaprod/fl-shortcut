@@ -9,6 +9,7 @@
 // FL est devant (l'app n'est pas active) ; le menu, l'Organiser, le guide des autorisations, le badge de pause, la
 // bulle d'aide, la barre d'enregistrement et les vols restent vivants (ils servent pendant que FL est devant).
 import AppKit
+import Combine
 import SwiftUI
 
 // MARK: - Ressorts et durées
@@ -155,9 +156,12 @@ private struct MotionGate: ViewModifier {
     let surface: MotionSurface
     @Environment(\.controlActiveState) private var activeState
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    /// Ralenti de la CI, suivi : la porte se recalcule quand il change (sinon, avec « Réduire les animations », elle
+    /// restait en mode réduit tant que rien d'autre ne redessinait la fenêtre). Toujours 1 hors capture.
+    @State private var slowMotion = DebugSnapshot.slowMotion
 
     func body(content: Content) -> some View {
-        let mode = MotionPolicy.mode(reduceMotion: reduceMotion, slowMotion: DebugSnapshot.slowMotion,
+        let mode = MotionPolicy.mode(reduceMotion: reduceMotion, slowMotion: slowMotion,
                                      surface: surface, isKey: activeState == .key,
                                      appActive: activeState != .inactive)
         content
@@ -166,6 +170,9 @@ private struct MotionGate: ViewModifier {
                 guard mode == .frozen else { return }
                 transaction.animation = nil
                 transaction.disablesAnimations = true
+            }
+            .onReceive(NotificationCenter.default.publisher(for: DebugSnapshot.slowMotionChanged)) { _ in
+                slowMotion = DebugSnapshot.slowMotion
             }
     }
 }

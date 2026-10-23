@@ -109,8 +109,8 @@ final class WindowLauncher {
     private var lastClick: (frame: CGRect, at: Date)?
     /// Fenêtres que l'app ferme elle-même (pas de bulle vers l'icône).
     private let quiet = NSHashTable<NSWindow>.weakObjects()
-    /// Fenêtres dont le cadre est mémorisé.
-    private let remembered = NSHashTable<NSWindow>.weakObjects()
+    /// Fenêtres dont le cadre est mémorisé, avec leurs observateurs (retirés quand la fenêtre a disparu).
+    private var remembered: [RememberedWindow] = []
     /// Fenêtre principale attendue après un vol (`openScene`) : elle s'ouvre sans l'animation de macOS.
     private(set) var sceneExpected = false
 
@@ -180,21 +180,28 @@ final class WindowLauncher {
             window.animationBehavior = .none               // la bulle a fait l'animation
             sceneExpected = false
         }
-        guard !remembered.contains(window) else { return }
-        remembered.add(window)
         let center = NotificationCenter.default
+        // Fenêtres disparues (SwiftUI en a créé une autre) : leurs observateurs sont retirés, rien ne s'accumule.
+        remembered.removeAll { entry in
+            guard entry.window == nil else { return false }
+            for token in entry.tokens { center.removeObserver(token) }
+            return true
+        }
+        guard !remembered.contains(where: { $0.window === window }) else { return }
+        let entry = RememberedWindow(window)
         for name in [NSWindow.didMoveNotification, NSWindow.didEndLiveResizeNotification] {
-            _ = center.addObserver(forName: name, object: window, queue: .main) { [weak window] _ in
+            entry.tokens.append(center.addObserver(forName: name, object: window, queue: .main) { [weak window] _ in
                 guard let window, window.isVisible, !window.styleMask.contains(.fullScreen) else { return }
                 WindowFrameMemory.save(window.frame, key: key)
-            }
+            })
         }
-        _ = center.addObserver(forName: NSWindow.willCloseNotification, object: window, queue: .main) {
+        entry.tokens.append(center.addObserver(forName: NSWindow.willCloseNotification, object: window, queue: .main) {
             [weak self, weak window] _ in
             guard let self, let window else { return }
             if !window.styleMask.contains(.fullScreen) { WindowFrameMemory.save(window.frame, key: key) }
             self.userClosed(window)
-        }
+        })
+        remembered.append(entry)
     }
 
     /// Fermée par l'utilisateur : une bulle part de son cadre et rentre dans l'icône (même écran seulement). À
@@ -344,6 +351,14 @@ final class WindowLauncher {
         let point = CGPoint(x: rect.midX, y: rect.midY)
         return NSScreen.screens.first { $0.frame.insetBy(dx: -1, dy: -1).contains(point) }
     }
+}
+
+/// Fenêtre mémorisée (sans la retenir) et ses observateurs.
+private final class RememberedWindow {
+    weak var window: NSWindow?
+    var tokens: [NSObjectProtocol] = []
+
+    init(_ window: NSWindow) { self.window = window }
 }
 
 // MARK: - La bulle

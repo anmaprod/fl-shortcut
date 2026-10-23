@@ -130,19 +130,35 @@ struct MacroCreatorView: View {
         .onReceive(DebugSnapshot.publisher(DebugSnapshot.gouttes)) { note in
             let words = (note.object as? String ?? "").split(separator: " ")
             DebugSnapshot.slowMotion = words.contains("lent") ? 10 : 1
-            model.selection = words.first == "choisir" ? model.rows.first(where: { $0.kind == .block })?.id : nil
+            // Au tour suivant : la porte du mouvement a pris le nouveau ralenti.
+            DispatchQueue.main.async {
+                model.selection = words.first == "choisir" ? model.rows.first(where: { $0.kind == .block })?.id : nil
+            }
         }
     }
 
-    /// Bloc choisi à la souris (pas aux flèches du clavier, pas ajouté depuis la palette) : son icône vole de sa
-    /// ligne jusqu'en haut de l'inspecteur.
+    /// Bloc choisi à la souris dans la liste (pas aux flèches du clavier, pas ajouté depuis la palette, ni choisi par
+    /// « Dupliquer », « Supprimer » ou le menu « Ajouter ») : son icône vole de sa ligne jusqu'en haut de l'inspecteur.
     private func flyToInspector() {
-        guard !addedFromPalette, let type = NSApp.currentEvent?.type, type == .leftMouseDown || type == .leftMouseUp,
+        guard !addedFromPalette, let event = NSApp.currentEvent,
+              event.type == .leftMouseDown || event.type == .leftMouseUp, Self.clickedInList(event),
               let block = model.selectedBlock, let spec = block.body.type.map(BlockRegistry.spec) else { return }
         DispatchQueue.main.async {
             flights?.fly(.icon(symbol: spec.symbol, tint: spec.category.tint, size: 30), from: "bloc.\(block.id)",
                          to: InspectorFlight.icon)
         }
+    }
+
+    /// Le clic a eu lieu dans une liste (vue d'AppKit `NSTableView` des `List`), pas sur un bouton dessiné par SwiftUI.
+    private static func clickedInList(_ event: NSEvent) -> Bool {
+        guard let content = event.window?.contentView else { return false }
+        let point = content.superview?.convert(event.locationInWindow, from: nil) ?? event.locationInWindow
+        var view = content.hitTest(point)
+        while let current = view {
+            if current is NSTableView { return true }
+            view = current.superview
+        }
+        return false
     }
 
     // MARK: Barre d'outils

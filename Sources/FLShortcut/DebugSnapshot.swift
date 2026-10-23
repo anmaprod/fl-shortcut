@@ -8,8 +8,12 @@ import SwiftUI
 
 enum DebugSnapshot {
     static var enabled: Bool { UserDefaults.standard.bool(forKey: "debugSnapshots") }
-    /// Mode capture : multiplie la durée du « morph » du guide (1 : vitesse normale ; jamais changé hors capture).
-    static var slowMotion: Double = 1
+    /// Mode capture : multiplie toutes les durées d'animation (1 : vitesse normale ; jamais changé hors capture).
+    /// Chaque changement est annoncé : les portes du mouvement (`motionGate`) le suivent.
+    static var slowMotion: Double = 1 {
+        didSet { if slowMotion != oldValue { NotificationCenter.default.post(name: slowMotionChanged, object: nil) } }
+    }
+    static let slowMotionChanged = Notification.Name("app.flshortcut.debug.slowMotionChanged")
     static let open = Notification.Name("app.flshortcut.debug.open")
     static let select = Notification.Name("app.flshortcut.debug.select")
     /// Texte de recherche de l'éditeur (mesure de la mémoire avec presque toutes les lignes affichées).

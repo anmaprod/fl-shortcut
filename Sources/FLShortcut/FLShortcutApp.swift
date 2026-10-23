@@ -718,13 +718,14 @@ struct MenuContent: View {
         .onAppear { MenuPanel.shared.appeared() }
     }
 
-    /// Fenêtre principale : elle sort de la ligne cliquée (WindowLauncher), `openWindow` à l'atterrissage.
+    /// Fenêtre principale : elle sort de la ligne cliquée (WindowLauncher) et s'ouvre à l'atterrissage, le menu
+    /// étant alors fermé : par l'icône de la barre des menus (`MenuBarLabel`, toujours vivante), pas par
+    /// l'`openWindow` de ce menu.
     private func openEditor(symbol: String, tint: Color, title: String) {
         WindowLauncher.shared.openScene(source: nil, icon: .icon(symbol: symbol, tint: tint, size: 22), title: title,
                                         frameKey: EditorWindowFrame.key, size: EditorWindowFrame.size,
                                         window: AppResume.shared.editorWindow) {
-            openWindow(id: "editor")
-            NSApp.activate(ignoringOtherApps: true)
+            NotificationCenter.default.post(name: AccountLink.openEditor, object: nil)
         }
     }
 

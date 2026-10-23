@@ -969,6 +969,15 @@ enum OrganizerWindow {
     private static var panel: NSPanel?
     /// Le contrôleur affiché (nil quand la fenêtre est fermée).
     private(set) static var controller: OrganizerController?
+
+    /// L'Organiser travaille (écoute, rangement, retour) : les sons de l'interface se taisent.
+    static var isWorking: Bool {
+        guard let phase = controller?.phase else { return false }
+        switch phase {
+        case .listening, .applying, .undoing: return true
+        default: return false
+        }
+    }
     private static let delegate = Delegate()
     /// Hauteur de l'aperçu, gardée quand l'utilisateur tire la fenêtre (pour la session de l'app).
     private static var previewHeight = OrganizerView.height
@@ -1293,7 +1302,7 @@ struct OrganizerView: View {
                     ForEach(SoundFamily.order.filter { controller.liveFamilies[$0] != nil }, id: \.self) { family in
                         FamilyPill(family: family, count: controller.liveFamilies[family] ?? 0,
                                    color: swiftColor(controller.style(of: family).color), ns: ns)
-                            .transition(.scale(scale: 0.6).combined(with: .opacity))
+                            .transition(Motion.transition(.scale(scale: 0.6).combined(with: .opacity)))
                     }
                 }
             }
@@ -1327,7 +1336,7 @@ struct OrganizerView: View {
         .padding(14)
         .organizerCard()
         if let action {
-            card.matchedGeometryEffect(id: action, in: ns)
+            card.organizerMatch(action, side: "pastille", in: ns)
         } else {
             card.morphIn(1)
         }
@@ -1344,7 +1353,7 @@ struct OrganizerView: View {
         }
         .padding(14)
         .organizerCard(.green)
-        .matchedGeometryEffect(id: "action", in: ns)
+        .organizerMatch("action", side: "fin", in: ns)
     }
 
     /// Fin d'une étape : le message dans une carte (coche verte ou triangle orange) ; FL muet : les réglages de FL
@@ -1438,7 +1447,7 @@ struct OrganizerView: View {
         HStack {
             if controller.canUndo {
                 Button("Revenir comme avant") { controller.undo() }
-                    .matchedGeometryEffect(id: "retour", in: ns)   // devient la pastille « Retour en arrière… »
+                    .organizerMatch("retour", side: "bouton", in: ns)   // devient la pastille « Retour en arrière… »
             } else if case .failed = controller.phase {
                 diagnosticButton
             } else if case .applied(let error) = controller.phase, error != nil {
@@ -1658,7 +1667,7 @@ struct OrganizerView: View {
                 Button("Organiser") { controller.apply() }
                     .primaryButton()
                     .keyboardShortcut(.defaultAction)
-                    .matchedGeometryEffect(id: "action", in: ns)   // devient la pastille du rangement
+                    .organizerMatch("action", side: "bouton", in: ns)   // devient la pastille du rangement
             }
         }
     }
@@ -1832,7 +1841,7 @@ private struct FamilySection: View {
                     .foregroundStyle(Color.white)
                     .frame(width: 24, height: 24)
                     .background(Circle().fill(swiftColor(style.color).gradient))
-                    .matchedGeometryEffect(id: FamilyPill.matchID(family), in: ns)
+                    .organizerMatch(FamilyPill.matchID(family), side: "carte", in: ns)
                     .accessibilityHidden(true)
                 Text(family.label).font(.system(size: 13, weight: .semibold))
                 Text("\(members.count)")
@@ -2006,7 +2015,7 @@ private struct FamilyPill: View {
                 .foregroundStyle(Color.white)
                 .frame(width: 18, height: 18)
                 .background(Circle().fill(color.gradient))
-                .matchedGeometryEffect(id: Self.matchID(family), in: ns)
+                .organizerMatch(Self.matchID(family), side: "pastille", in: ns)
             Text(family.label).font(.system(size: 12, weight: .semibold))
             Text("\(count)")
                 .font(.system(size: 11, weight: .semibold).monospacedDigit())
@@ -2055,5 +2064,13 @@ private struct FlowRow: Layout {
             line = max(line, size.height)
         }
         return (points, CGSize(width: widest, height: y + line))
+    }
+}
+
+private extension View {
+    /// `matchedGeometryEffect` de l'Organiser (pastille → carte, bouton → pastille) ; avec « Réduire les animations »,
+    /// plus rien n'est relié : simple fondu, sans glissement. Même vue dans les deux cas, seul l'identifiant change.
+    func organizerMatch(_ id: String, side: String, in ns: Namespace.ID) -> some View {
+        matchedGeometryEffect(id: Motion.reduce ? "\(id).\(side)" : id, in: ns)
     }
 }

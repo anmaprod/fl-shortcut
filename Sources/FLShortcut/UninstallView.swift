@@ -187,6 +187,11 @@ final class UninstallWindow: NSObject, NSWindowDelegate {
     }
 
     func windowWillClose(_ notification: Notification) {
+        // Fermée (bouton rouge, « Annuler », « Fermer ») : elle rentre dans l'icône ; pas après une désinstallation
+        // (l'app quitte) ni pour les écrans d'exemple de la CI.
+        let quits: Bool
+        if case .done = flow?.step { quits = true } else { quits = false }
+        if let w = notification.object as? NSWindow, flow?.demo == false, !quits { WindowLauncher.shared.userClosed(w) }
         if case .done = flow?.step, flow?.demo == false { Uninstaller.quitAfterUninstall() }
         window = nil
         flow = nil

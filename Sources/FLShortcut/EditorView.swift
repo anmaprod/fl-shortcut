@@ -245,8 +245,13 @@ struct EditorView: View {
             enterCreator()
         }
         .onChange(of: creatorLink.closeSerial) { _ in closeCreator() }
-        // Fenêtre fermée pendant le créateur : brouillon enregistré, modèle lâché (rien ne reste en mémoire).
-        .onDisappear { closeCreator() }
+        // Fenêtre fermée pendant le créateur : brouillon enregistré, modèle lâché (rien ne reste en mémoire). Fermée
+        // par l'app pendant une carte : carte oubliée, et la fenêtre redevient fermable si SwiftUI la réutilise.
+        .onDisappear {
+            closeCreator()
+            cards.reset()
+            AppResume.shared.editorWindow?.styleMask.insert(.closable)
+        }
         // Reprise après « Quitter et rouvrir » : la fenêtre, sa page et la macro ouverte sont notées à la fermeture.
         .background(WindowReader {
             AppResume.shared.editorWindow = $0
