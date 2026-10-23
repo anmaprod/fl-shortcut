@@ -57,7 +57,9 @@ et l'étape 7 (modèles des mails avec le code).
    envoie, avec l'accord de la personne, les mesures des sons qu'elle a corrigés (des nombres, jamais le son, son nom
    ni ce qu'elle écrit) ; avec ou sans compte, rien n'est relisible depuis l'app ; 300 par heure et par compte au
    plus. Place : ≈ 26 Ko par correction. Pour s'en servir : `ia/corrections.py` (voir `ia/README.md`). Sans cette
-   étape, le partage échoue sans bruit : les corrections restent apprises sur le Mac de chacun.
+   étape, le partage échoue sans bruit : les corrections restent apprises sur le Mac de chacun. Il peut être recollé
+   sans risque (« relation "corrections_ia" already exists » venait de l'ancienne version, collée une deuxième fois :
+   la table était déjà là) ; « Success. No rows returned » : tout est en place.
 
 ## 2. Compiler l'app reliée au serveur
 
