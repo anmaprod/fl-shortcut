@@ -551,6 +551,20 @@ struct EditorView: View {
         .onReceive(DebugSnapshot.publisher(DebugSnapshot.search)) { note in
             query = note.object as? String ?? ""
         }
+        .onReceive(DebugSnapshot.publisher(DebugSnapshot.carte)) { note in
+            // « lent » : la fiche de la première ligne de la page sort de sa ligne au ralenti ; « fermer » : elle y
+            // rentre.
+            let words = (note.object as? String ?? "").split(separator: " ")
+            DebugSnapshot.slowMotion = words.contains("lent") ? 10 : 1
+            if words.first == "fermer" {
+                cards.dismiss()
+                return
+            }
+            guard case .section(let section) = selection ?? .section(.general),
+                  let row = store.catalogRows().rows.first(where: { $0.entry.section == section }) else { return }
+            editNotice = nil
+            editingRow = row
+        }
         .onChange(of: editing?.id) { _ in
             if let remap = editing { presentEdit(remap, isNew: editingIsNew) }
         }

@@ -58,6 +58,9 @@ enum DebugSnapshot {
     /// Gouttes du créateur : « choisir » (le premier bloc choisi : « Dupliquer » et « Supprimer » sortent de
     /// « Ajouter ») ou « lacher » (plus rien de choisi : elles y rentrent) ; « lent » : au ralenti (10 fois).
     static let gouttes = Notification.Name("app.flshortcut.debug.gouttes")
+    /// Fiche d'une touche : celle de la première ligne de la page sort de sa ligne ; « fermer » : elle y rentre ;
+    /// « lent » : au ralenti (10 fois).
+    static let carte = Notification.Name("app.flshortcut.debug.carte")
 
     /// Fenêtres de l'app, sans les fenêtres de vol (une bulle en route n'est ni une fenêtre de l'app ni à mesurer).
     static var appWindows: [NSWindow] { NSApp.windows.filter { !($0 is FlightWindow) } }

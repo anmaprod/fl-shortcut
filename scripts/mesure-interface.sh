@@ -278,6 +278,18 @@ run() {   # $1 : libellé, $2 : YES/NO effet verre
     done
     sleep 5
     "$POST" app.flshortcut.debug.select general; sleep 2
+    # Fiche d'une touche au ralenti (10 fois) : une carte de verre sort de sa ligne sur un voile, puis y rentre.
+    "$POST" app.flshortcut.debug.carte lent
+    for i in 1 2 3 4 5 6 7 8; do
+      sleep 0.5; screencapture -x "$OUT/carte-ouverture-$i.png" 2>/dev/null || true
+    done
+    sleep 4
+    "$POST" app.flshortcut.debug.carte "fermer lent"
+    for i in 1 2 3 4 5 6; do
+      sleep 0.5; screencapture -x "$OUT/carte-fermeture-$i.png" 2>/dev/null || true
+    done
+    sleep 5
+    "$POST" app.flshortcut.debug.carte fermer; sleep 1
     # Créateur de macros au ralenti (10 fois) : ouverture depuis la page Macros, puis retour, photographiés en route.
     "$POST" app.flshortcut.debug.select macros; sleep 2
     "$POST" app.flshortcut.debug.macro "open lent"
