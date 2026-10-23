@@ -190,6 +190,8 @@ private struct MacroStepsPane: View {
     @ObservedObject var model: MacroEditorModel
     @ObservedObject var monitor: MacroRunMonitor
     let paletteItems: [PaletteItem]
+    /// Barre du bas trop étroite pour les libellés des gouttes (voir `ActionsFitProbe`) : icônes seules.
+    @State private var compactActions = false
 
     var body: some View {
         Group {
@@ -308,25 +310,16 @@ private struct MacroStepsPane: View {
         }
     }
 
-    /// Sous la liste : ajouter (sous la sélection), dupliquer (⌘D), supprimer (⌫), avec l'aide du moment.
+    /// Sous la liste : ajouter (sous la sélection), dupliquer (⌘D), supprimer (⌫), avec l'aide du moment. Une seule
+    /// barre de gouttes, jamais plusieurs versions qui s'échangent selon la place : la version changeait quand un bloc
+    /// était choisi, et « Dupliquer » et « Supprimer » apparaissaient d'un coup au lieu de sortir de « Ajouter » (CI).
+    /// Fenêtre étroite : icônes seules (leur bulle d'aide reste), décidé par une sonde qui ne dépend pas du bloc
+    /// choisi ; jamais un libellé coupé.
     private var actionBar: some View {
-        // Fenêtre étroite : d'abord sans l'astuce, puis les icônes seules (leur bulle d'aide reste) ; jamais un
-        // libellé coupé sur deux lignes.
-        ViewThatFits(in: .horizontal) {
-            actionButtons(hint: true)
-            actionButtons(hint: false)
-            actionButtons(hint: false).labelStyle(.iconOnly)
-        }
-        .buttonStyle(.borderless)
-        .font(.system(size: 12))
-        .padding(.horizontal, 14)
-        .frame(height: 34)
-    }
-
-    private func actionButtons(hint: Bool) -> some View {
-        HStack(spacing: 10) {
+        let chosen = model.selectedBlock != nil
+        return HStack(spacing: 10) {
             // Gouttes de verre : « Dupliquer » et « Supprimer » sortent de « Ajouter » quand un bloc est choisi.
-            LiquidDropsBar(showsExtra: model.selectedBlock != nil) {
+            LiquidDropsBar(showsExtra: chosen) {
                 AddBlockMenu(items: paletteItems, insert: { [model] item in withAnimation(Self.spring) { model.insert(item) } })
             } duplicate: {
                 Button {
@@ -344,14 +337,72 @@ private struct MacroStepsPane: View {
                 }
                 .help("Supprimer le bloc choisi (⌫)")
             }
-            Spacer(minLength: 8)
-            if hint {
-                Text("Glisse les lignes pour les ranger")
-                    .font(.system(size: 11))
-                    .foregroundStyle(.tertiary)
+            .labelStyle(DropLabelStyle(compact: compactActions))
+            .layoutPriority(1)                               // les gouttes d'abord, l'astuce dans ce qui reste
+            // L'astuce, à droite, sans bloc choisi et seulement si elle tient en entier ; elle s'efface pendant que
+            // les gouttes sortent (et revient pendant qu'elles rentrent).
+            if !chosen {
+                ViewThatFits(in: .horizontal) {
+                    Text("Glisse les lignes pour les ranger")
+                        .font(.system(size: 11))
+                        .foregroundStyle(.tertiary)
+                    Color.clear.frame(width: 0, height: 0)
+                }
+                .frame(maxWidth: .infinity, alignment: .trailing)
+                .transition(.opacity)
             }
         }
         .lineLimit(1)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background { ActionsFitProbe(compact: $compactActions) }
+        .motion(Motion.spring(.vif), value: chosen)
+        .buttonStyle(.borderless)
+        .font(.system(size: 12))
+        .padding(.horizontal, 14)
+        .frame(height: 34)
+    }
+}
+
+/// Libellés des gouttes : icône et texte, ou icône seule dans une barre étroite. Même barre dans les deux cas : seul
+/// le texte part.
+private struct DropLabelStyle: LabelStyle {
+    let compact: Bool
+
+    @ViewBuilder func makeBody(configuration: Configuration) -> some View {
+        if compact {
+            Label(configuration).labelStyle(.iconOnly)
+        } else {
+            Label(configuration).labelStyle(.titleAndIcon)
+        }
+    }
+}
+
+/// Sonde invisible de la barre du bas : les trois libellés côte à côte, comme si un bloc était choisi (sans bouton ni
+/// raccourci). S'ils dépassent la largeur de la barre, `compact` passe à vrai : icônes seules. Elle ne dépend pas du
+/// bloc choisi : la barre ne change jamais de forme quand on choisit un bloc.
+private struct ActionsFitProbe: View {
+    @Binding var compact: Bool
+
+    var body: some View {
+        GeometryReader { bar in
+            HStack(spacing: 10) {
+                Label("Ajouter", systemImage: "plus").padding(.horizontal, 10)
+                Label("Dupliquer", systemImage: "plus.square.on.square").padding(.horizontal, 10)
+                Label("Supprimer", systemImage: "trash").padding(.horizontal, 10)
+            }
+            .labelStyle(.titleAndIcon)
+            .padding(.trailing, 16)                          // marge : ce que les boutons ajoutent autour du libellé
+            .fixedSize()
+            .background(GeometryReader { labels in
+                let tooWide = labels.size.width > bar.size.width
+                Color.clear
+                    .onAppear { compact = tooWide }
+                    .onChange(of: tooWide) { compact = $0 }
+            })
+        }
+        .opacity(0)
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
     }
 }
 

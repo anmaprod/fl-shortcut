@@ -30,6 +30,17 @@ toute la branche à la fin (agent le plus capable, avec la « Review Focus » du
 | 8 Organiser | Codée : plus rien en boucle (compteur de secondes `SecondsCounter`/`SecondsLabel`, progression dessinée `OrganizerProgress`) ; la session annonce la famille définitive de chaque son (`classified`, règles du nom et du synthé appliquées son par son : `finalize`) ; pastilles des familles pendant l'écoute (`liveFamilies`, `FamilyPill`, `FlowRow`) ; la fenêtre grandit d'abord (`growForPreview`, une pastille tardive ne la fait plus rapetisser), puis l'écoute devient l'aperçu sur place (même étape « analysis » : l'icône de chaque pastille glisse dans sa carte, `matchedGeometryEffect`, cartes sans `morphIn`) ; « Organiser » devient la pastille du rangement, puis « ✓ N sons rangés » (`organizedCount`, `showingDone` 1,2 s, son « Glass ») ; « Revenir comme avant » devient « Retour en arrière… ». CI : `organizer "ecoute lent"`, `"apercu lent"`, `"fini lent"` → `organiser-ecoute-*`, `organiser-apercu-*`, `organiser-fini-*`. À vérifier sur ces images : pastilles → cartes sans saut, bouton → pastille, aucune roue. |
 | 9 Relecture finale | Pas commencée. |
 
+### CI de 7e4eeae (run 39910472461), lue le 2026-10-23
+
+Tout vert. Captures bonnes : fiches (`carte-*` : sortent de la ligne et y rentrent ; plus de double barre dans
+`communaute-detail`), créateur, Organiser (écoute → aperçu → « ✓ 8 sons rangés »). Deux corrections dans le commit
+suivant : (1) gouttes jamais vues en mouvement : la barre du bas était un `ViewThatFits` de 3 versions et changeait de
+version quand un bloc était choisi (l'astuce ne tenait plus) → une seule barre, astuce à part, icônes seules décidées
+par une sonde (`ActionsFitProbe`) ; (2) mémoire avec verre 135 / 129 Mo : les captures au ralenti du chantier étaient
+prises AVANT la mesure du créateur (malloc garde la mémoire de tous ces écrans ; 3 cycles ouverts/fermés stables,
+0 modèle vivant) → déplacées après les mesures (`ralentis` dans `scripts/mesure-interface.sh`). Sans verre (mêmes
+conditions qu'avant) : 59 / 91 / 87 Mo, soit + 3 à + 5.
+
 ### Encore à vérifier sur la CI
 
 - Mémoire (tableau du résumé de la CI ; avant le chantier, run 39853955464 : avec verre menu 15, fenêtre 54, créateur
