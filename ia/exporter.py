@@ -25,6 +25,7 @@ import tensorflow as tf  # noqa: E402
 P = yparams.Params()
 WIN, HOP, FFT, CADRES = 400, 160, 512, 96
 REGLAGES = json.load(open(os.path.join(TRAVAIL, "tete.json")))
+from affiner import poser_couche14  # noqa: E402
 from entrainer import COUCHES, TETES, modele, tetes  # noqa: E402
 assert (REGLAGES["couches"], REGLAGES["tetes"]) == (COUCHES, TETES), "têtes apprises avec d'autres réglages"
 RACINE = os.path.dirname(ICI)
@@ -70,6 +71,8 @@ def construire():
     mesures = Mesures(name="mesures")([emb, logmel])
     m = tf.keras.Model(son, [*tetes(Normalise(name="normalise")(mesures)), mesures])
     m.load_weights(os.path.join(ylib.__file__.rsplit("/", 1)[0], "yamnet.h5"), by_name=True)
+    if poser_couche14(m):                                      # couche 14 réapprise sur nos sons (affiner.py)
+        print("couche 14 de YAMNet : celle réapprise par affiner.py")
     # Têtes : relues dans le modèle de l'apprentissage (même forme), puis recopiées couche par couche.
     tete = modele(len(REGLAGES["mu"]))
     tete.load_weights(os.path.join(TRAVAIL, "tete.weights.h5"))
@@ -86,6 +89,7 @@ def reference(m, son):
     """Pipeline d'apprentissage : YAMNet d'origine (spectre de TensorFlow) + mesures numpy + têtes du modèle."""
     full = ylib.yamnet_frames_model(P)
     full.load_weights(os.path.join(ylib.__file__.rsplit("/", 1)[0], "yamnet.h5"))
+    poser_couche14(full)
     _, emb, logmel = full(son)
     x = np.concatenate([emb.numpy()[0], stats_logmel(logmel.numpy()[:96])])
     x = (x - np.asarray(REGLAGES["mu"])) / np.asarray(REGLAGES["sigma"])

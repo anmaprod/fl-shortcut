@@ -22,6 +22,10 @@ import numpy as np
 
 from commun import FAMILLE_DE_SORTE, FAMILLES, INCONNUE, SORTES, SR, TRAVAIL, charger_yamnet, lire, stats_logmel
 
+# FLS_IA_COUCHE13=1 : garde aussi la sortie de la couche 13 de YAMNet de chaque tranche (etape_*.c13, 3 × 2 × 1024
+# nombres en 16 bits), pour réapprendre sa dernière couche (affiner.py). Demande une préparation complète.
+COUCHE13 = os.environ.get("FLS_IA_COUCHE13") == "1"
+
 rng = random.Random(7)
 nrng = np.random.default_rng(7)
 D = os.path.join(TRAVAIL, "donnees")
@@ -321,7 +325,10 @@ class Collecte:
         p = yparams.Params()
         model = ylib.yamnet_frames_model(p)
         model.load_weights(os.path.join(os.path.dirname(ylib.__file__), "yamnet.h5"))
+        if COUCHE13:
+            model = tf.keras.Model(model.inputs, model.outputs + [model.get_layer("layer13/pointwise_conv/relu").output])
         self.run = tf.function(lambda w: model(w), input_signature=[tf.TensorSpec([None], tf.float32)])
+        self.c13 = None                                        # fichier de la couche 13 de l'étape en cours
         self.tf = tf
         noms = [l.split(",", 2)[2].strip().strip('"') for l in
                 open(os.path.join(os.path.dirname(ylib.__file__), "yamnet_class_map.csv")).read().splitlines()[1:]]
@@ -337,8 +344,11 @@ class Collecte:
         assert sorte is None or FAMILLE_DE_SORTE[sorte] == famille, (sorte, famille)
         if son.size < 160 or float(np.abs(son).max()) < 1e-3:
             return
-        scores, emb, logmel = self.run(self.tf.constant(son))
+        sorties = self.run(self.tf.constant(son))
+        scores, emb, logmel = sorties[:3]
         emb, logmel, scores = emb.numpy()[:16], logmel.numpy(), scores.numpy()[:16]
+        if self.c13 is not None:
+            self.c13.write(sorties[3].numpy()[:16].astype(np.float16).tobytes())
         stats = np.stack([stats_logmel(logmel[i * 48: i * 48 + 96]) for i in range(len(emb))])
         self.x.append(np.concatenate([emb, stats], axis=1).astype(np.float16))
         self.base.append(scores[:, self.classes_voix].max(axis=1).astype(np.float16))
@@ -523,9 +533,10 @@ URL_NSYNTH_TRAIN = "http://download.magenta.tensorflow.org/datasets/nsynth/nsynt
 NOTES_PAR_INSTRUMENT = 16
 
 
-def flux_tar(url):
+def flux_tar(url, coupures=None):
     """Les fichiers d'une archive .tar.gz lue au fil du téléchargement (rien n'est gardé sur le disque) :
-    (nom, lecture des octets). Une coupure du réseau arrête la lecture, ce qui a été lu sert."""
+    (nom, lecture des octets). Une coupure du réseau arrête la lecture, ce qui a été lu sert (notée dans
+    `coupures`)."""
     import urllib.request
     try:
         with urllib.request.urlopen(url, timeout=120) as r:
@@ -535,6 +546,8 @@ def flux_tar(url):
                     yield os.path.basename(m.name), lambda m=m: t.extractfile(m).read()
     except (OSError, EOFError, tarfile.ReadError) as e:
         print("lecture arrêtée :", type(e).__name__, flush=True)
+        if coupures is not None:
+            coupures.append(e)
 
 
 def nsynth_train(c):
@@ -542,17 +555,22 @@ def nsynth_train(c):
     tessiture ; un instrument sur cinq (tiré une fois pour toutes) gardé pour la validation. Les notes arrivent dans
     le désordre : les premières de chaque instrument sont prises au hasard."""
     import zlib
-    gardees = {}
-    for nom, lire_octets in flux_tar(URL_NSYNTH_TRAIN):
-        if not nom.endswith(".wav"):
-            continue
-        inst, note, _ = nom[:-4].rsplit("-", 2)               # famille_source_NNN-hauteur-force
-        parts = inst.split("_")
-        fam, source = "_".join(parts[:-2]), parts[-2]
-        liste = gardees.setdefault(inst, [])
-        if fam == "vocal" or len(liste) >= NOTES_PAR_INSTRUMENT or not dans_sa_tessiture(fam, int(note)):
-            continue
-        liste.append((fam, source, lire(lire_octets())[: SR * 2].astype(np.float16)))
+    gardees, vues = {}, set()
+    for _ in range(3):                                         # coupure en route : relue, en sautant ce qui est lu
+        coupures = []
+        for nom, lire_octets in flux_tar(URL_NSYNTH_TRAIN, coupures):
+            if not nom.endswith(".wav") or nom in vues:
+                continue
+            vues.add(nom)
+            inst, note, _ = nom[:-4].rsplit("-", 2)           # famille_source_NNN-hauteur-force
+            parts = inst.split("_")
+            fam, source = "_".join(parts[:-2]), parts[-2]
+            liste = gardees.setdefault(inst, [])
+            if fam == "vocal" or len(liste) >= NOTES_PAR_INSTRUMENT or not dans_sa_tessiture(fam, int(note)):
+                continue
+            liste.append((fam, source, lire(lire_octets())[: SR * 2].astype(np.float16)))
+        if not coupures:
+            break
     print("nsynth-train :", len(gardees), "instruments", flush=True)
     jouer_nsynth(c, [(inst, fam, source, son.astype(np.float32), "val" if zlib.crc32(inst.encode()) % 5 == 0
                       else "train") for inst, liste in gardees.items() for fam, source, son in liste], plus=2)
@@ -573,34 +591,46 @@ def medley(c):
     import csv
     import io
     import urllib.request
-    import zlib
     meta = {m["uuid4"]: m for m in csv.DictReader(io.StringIO(
         urllib.request.urlopen(URL_MEDLEY_META, timeout=120).read().decode()))}
     total = {}
     for m in meta.values():
         total[m["instrument"]] = total.get(m["instrument"], 0) + 1
-    for nom, lire_octets in flux_tar(URL_MEDLEY):
-        v = meta.get(nom[:-4].split("_")[-1]) if nom.endswith(".wav") and not nom.startswith("._") else None
-        if v is None:
-            continue
-        chanteuse = v["instrument"] == "female singer"
-        tirage = zlib.crc32(v["uuid4"].encode()) % 10000 / 10000
-        if not chanteuse and tirage >= EXTRAITS_MEDLEY / total[v["instrument"]]:
-            continue
-        split = "val" if zlib.crc32(f"{v['subset']}-{v['song_id']}".encode()) % 5 == 0 else "train"
-        son = lire(lire_octets())
-        if chanteuse:
-            c.voix("medley-voix", split, son, "vocalLead")
-            if tirage < 0.5:
-                c.ajouter("voix-hachee", "voix", "adlib", split, hacher(son))
-        else:
-            c.ajouter("medley-instrument", "melodie", SORTES_MEDLEY[v["instrument"]], split, son)
+    vus = set()
+    for _ in range(3):                                         # coupure en route : relue, en sautant ce qui est lu
+        coupures = []
+        for nom, lire_octets in flux_tar(URL_MEDLEY, coupures):
+            v = meta.get(nom[:-4].split("_")[-1]) if nom.endswith(".wav") and not nom.startswith("._") else None
+            if v is None or v["uuid4"] in vus:
+                continue
+            vus.add(v["uuid4"])
+            medley_extrait(c, v, total, lire_octets)
+        if not coupures:
+            break
+
+
+def medley_extrait(c, v, total, lire_octets):
+    """Un extrait de Medley-solos-DB : une chanteuse (et parfois sa voix hachée), ou un instrument tiré au sort."""
+    import zlib
+    chanteuse = v["instrument"] == "female singer"
+    tirage = zlib.crc32(v["uuid4"].encode()) % 10000 / 10000
+    if not chanteuse and tirage >= EXTRAITS_MEDLEY / total[v["instrument"]]:
+        return
+    split = "val" if zlib.crc32(f"{v['subset']}-{v['song_id']}".encode()) % 5 == 0 else "train"
+    son = lire(lire_octets())
+    if chanteuse:
+        c.voix("medley-voix", split, son, "vocalLead")
+        if tirage < 0.5:
+            c.ajouter("voix-hachee", "voix", "adlib", split, hacher(son))
+    else:
+        c.ajouter("medley-instrument", "melodie", SORTES_MEDLEY[v["instrument"]], split, son)
 
 
 def dans_sa_tessiture(famille, note):
-    """Note NSynth gardée si elle sonne comme sa famille en production : une basse jusqu'au do 4 (MIDI 60), une
-    mélodie du do 2 au do 7 (MIDI 36 à 96) ; plus grave, une note de piano est une basse, plus aiguë un sifflement."""
-    return 24 <= note <= 60 if famille == "bass" else 36 <= note <= 96
+    """Note NSynth gardée si elle sonne comme sa famille en production : une basse jusqu'au sol 3 (MIDI 55), une
+    mélodie du sol 2 au do 7 (MIDI 43 à 96) ; plus grave, une note de piano sonne comme une basse, plus aiguë comme un
+    sifflement (essai : des mélodies trop graves prises pour des basses)."""
+    return 24 <= note <= 55 if famille == "bass" else 43 <= note <= 96
 
 
 def sorte_nsynth(famille, source):
@@ -691,16 +721,28 @@ def fabriques(c):
             c.ajouter("crash-synth", "drums", "crash", split, synth_crash())
 
 
+ETAPES = (vocalset, librispeech, librispeech_test, voix_hachees, nsynth, nsynth_valid, nsynth_train, medley, batterie,
+          fabriques)
+
+
 def main():
     c = Collecte()
-    for etape in (vocalset, librispeech, librispeech_test, voix_hachees, nsynth, nsynth_valid, nsynth_train, medley,
-                  batterie, fabriques):
+    for etape in ETAPES:
         chemin = os.path.join(TRAVAIL, f"etape_{etape.__name__}.npz")
+        c13 = chemin[:-4] + ".c13"
         if os.path.exists(chemin):                             # déjà faite (relance après une erreur)
+            if COUCHE13 and not os.path.exists(c13):
+                raise SystemExit(f"{chemin} n'a pas la couche 13 : enlève les etape_*.npz et recommence")
             c.charger_etape(chemin)
         else:
             marque = c.marque()
+            if COUCHE13:
+                c.c13 = open(c13 + ".part", "wb")
             etape(c)
+            if COUCHE13:
+                c.c13.close()
+                c.c13 = None
+                os.replace(c13 + ".part", c13)
             c.sauver_etape(chemin, marque)
         print("✓", etape.__name__, c.n, "sons", flush=True)
     c.sauver()

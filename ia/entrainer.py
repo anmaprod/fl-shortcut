@@ -19,8 +19,10 @@ TETES = 5                        # têtes apprises chacune de leur côté, moyen
 PART_MIN = 0.5                   # une sorte n'est donnée que si elle l'emporte nettement dans sa famille (comme l'app)
 
 
-def charger():
-    d = np.load(os.path.join(TRAVAIL, "jeu.npz"))
+def charger(corrections=True):
+    """Le jeu d'apprentissage (FLS_IA_JEU, par défaut jeu.npz ; jeu_affine.npz après affiner.py) et, si
+    `corrections`, les corrections des utilisateurs."""
+    d = np.load(os.path.join(TRAVAIL, os.environ.get("FLS_IA_JEU", "jeu.npz")))
     x = d["x"].astype(np.float32)
     clip = d["clip"]
     split = d["split"].astype(str)
@@ -29,7 +31,7 @@ def charger():
     famille, sorte, source, base = d["famille"], d["sorte"], d["source"].astype(str), d["base"].astype(np.float32)
     # Corrections des utilisateurs (ia/corrections.py), s'il y en a : apprises comme des sons de plus.
     chemin = os.path.join(TRAVAIL, "corrections.npz")
-    if os.path.exists(chemin):
+    if corrections and os.path.exists(chemin):
         c = np.load(chemin)
         n = len(c["famille"])
         x = np.concatenate([x, c["x"].astype(np.float32)])
