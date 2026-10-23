@@ -5,7 +5,7 @@
 - Branche la plus récente : **`claude/great-hopper-qihaiy`** (en avance de 138 commits sur `claude/relaxed-mayer-ndguzv`).
   Pas de nouvelle PR sans demande (anmaprod/fl-shortcut#1 existe). Un push lance la CI ; ne pas la relancer à la main
   sans demande. Derniers tests Mac verts : commit 1843b87 (502 tests, lancés par le propriétaire sur son Mac) ; CI
-  entièrement verte sur 17228ed (555 tests, tous les essais PASS, mémoire 15 / 56 Mo avec verre). La lecture de GitHub
+  entièrement verte sur 5e36fca (555 tests, tous les essais PASS, mémoire 15 / 56 Mo avec verre). La lecture de GitHub
   (CI, artefacts, images) marche : vérifier chaque push dessus, images comprises. Pas de Swift dans la session :
   la CI est le seul compilateur, relire chaque diff avant de pousser.
 - Tout texte affiché doit avoir son anglais (la CI échoue sinon) : `python3 scripts/localisation.py generer trad.json`.

@@ -355,7 +355,7 @@ private struct MacroStepsPane: View {
             }
             .labelStyle(DropLabelStyle(compact: compactActions))
             .layoutPriority(1)                               // les gouttes d'abord, l'astuce dans ce qui reste
-            // L'astuce, à droite, sans bloc choisi et seulement si elle tient en entier : elle part tout de suite
+            // L'astuce, à droite, sans bloc choisi et seulement si elle tient en entier : elle disparaît d'un coup
             // quand les gouttes sortent et ne revient qu'une fois qu'elles sont rentrées (jamais par-dessus
             // « Supprimer »).
             if !chosen {
@@ -368,7 +368,7 @@ private struct MacroStepsPane: View {
                 .frame(maxWidth: .infinity, alignment: .trailing)
                 .transition(Motion.transition(.asymmetric(
                     insertion: .opacity.animation(Motion.spring(.vif).delay(Motion.settleTime(.vif))),
-                    removal: .opacity.animation(Motion.exit))))
+                    removal: .opacity.animation(nil))))
             }
         }
         .lineLimit(1)
