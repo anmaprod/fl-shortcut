@@ -105,6 +105,18 @@ cp -R Resources/en.lproj Resources/fr.lproj "$APP/Contents/Resources/"
 # Un fichier illisible par macOS ferait tout retomber en français : la compilation s'arrête.
 plutil -lint -s "$APP"/Contents/Resources/*.lproj/*.strings
 cp Resources/AppIcon.icns "$APP/Contents/Resources/AppIcon.icns"
+# IA intégrée de l'Organiser (famille et sorte des sons) : le modèle Core ML compilé ici ; sans compilateur (outils
+# sans Xcode), le paquet est copié tel quel et l'app le compile à sa première écoute.
+if [[ -d Resources/ClasseurSons.mlpackage ]]; then
+  if xcrun coremlcompiler compile Resources/ClasseurSons.mlpackage "$APP/Contents/Resources/" >/dev/null 2>&1; then
+    echo "▸ IA intégrée : modèle compilé"
+  else
+    cp -R Resources/ClasseurSons.mlpackage "$APP/Contents/Resources/"
+    echo "▸ IA intégrée : modèle copié (compilé par l'app à la première écoute)"
+  fi
+  cp ia/modele/CREDITS.md "$APP/Contents/Resources/ClasseurSons-CREDITS.md"
+  cp ia/modele/LICENCE-YAMNET.txt "$APP/Contents/Resources/ClasseurSons-LICENCE-YAMNET.txt"
+fi
 chmod -R go-w "$APP"
 
 # Identité de signature locale, créée une seule fois dans un trousseau dédié (jamais le trousseau de session) :

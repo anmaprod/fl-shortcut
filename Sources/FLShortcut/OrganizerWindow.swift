@@ -54,6 +54,8 @@ struct OrganizerEnvironment {
     var wrongInput: () -> Bool = { false }
     var nameDrum: () -> OrganizerSession.NameDrum = { { _, _ in .perc } }
     var nameMelody: () -> OrganizerSession.NameMelody = { { _, _ in nil } }
+    /// Sorte d'un son par l'IA intégrée (nil : aucune, les deux précédentes servent).
+    var nameKind: () -> OrganizerSession.NameKind? = { nil }
     /// Fichier de son d'un clip audio lu directement (analyse sur le fichier) ; nil : joué dans FL.
     var soundFile: () -> OrganizerSession.SoundFile? = { nil }
     /// Autorisation « Audio du système » (sans elle, macOS donne du silence à la capture).
@@ -108,6 +110,7 @@ struct OrganizerEnvironment {
             wrongInput: { MIDILink.shared.core.snapshot.wrongInput },
             nameDrum: { OrganizerSession.liveDrumNamer() },
             nameMelody: { OrganizerSession.liveMelodyNamer() },
+            nameKind: { OrganizerSession.liveKindNamer() },
             soundFile: { SampleFiles.liveReader() },
             audioPermission: { AudioCapturePermission.status },
             requestAudioPermission: { done in
@@ -450,7 +453,7 @@ final class OrganizerController: ObservableObject {
         let link = env.link()
         let session = OrganizerSession(
             link: link, audio: audio, classify: env.classify(), nameDrum: env.nameDrum(), nameMelody: env.nameMelody(),
-            timing: env.timing,
+            nameKind: env.nameKind(), timing: env.timing,
             sleep: env.sleep, escape: env.escapePressed, prepare: env.prepareProject, files: env.projectFiles(),
             soundFile: env.soundFile(),
             progress: { [weak self] done, total in

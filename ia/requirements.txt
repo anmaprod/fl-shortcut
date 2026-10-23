@@ -1,0 +1,12 @@
+# Apprentissage et export (Python 3.11) :
+tensorflow-cpu==2.15.*
+numpy<2
+scipy
+soundfile
+tf2onnx==1.16.1
+onnx==1.16.2
+onnxruntime==1.19.2
+protobuf<4
+coremltools>=8
+# Classement seul (classer.py) : numpy, scipy, soundfile, onnxruntime suffisent
+# (onnxruntime-gpu ou onnxruntime-directml pour la carte graphique).

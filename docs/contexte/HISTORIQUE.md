@@ -255,3 +255,29 @@ entrée 1 ≈ 0,5 s.
 - Le propriétaire les a essayées sur son Mac : « c'est vraiment nul, je veux que tu enlèves tout ce qui a été rajouté
   de 1 à 9 ». Tout est retiré : le code est revenu à 7f68c9f (seuls les noms des fichiers de la CI restent changés :
   FLShortcuts-mac, FLShortcuts-windows, FLShortcuts-mac-mesure). Ne pas les refaire sans qu'il le demande.
+
+## 23 octobre : IA intégrée (classement des sons, Mac et Windows)
+- Demande du propriétaire : « viens on bosse sur l'IA intégrée », priorité aux voix (« rangées ailleurs mais jsp
+  pourquoi »), apprentissage sur des sons libres (ses packs seulement pour essayer), essai directement dans
+  l'Organiser ; puis cahier des charges détaillé (hors-ligne, Mac et Windows, ONNX, quelques ms, quantification,
+  faux positifs voix/FX) ; puis « la même classification qu'on avait fait sur le logiciel avec les options qu'on peut
+  changer » ; puis « toute l'organisation dans Organiser ne doit pas changer même si on change d'IA […] le + c'est de
+  l'entraîner pour qu'elle reconnaisse extrêmement facilement les sons en lui en donnant plein ».
+- Cause des voix mal rangées : la première règle demandait à l'IA de macOS au moins 0,5 de « voix » ; une voix de
+  production (réverb, pitch, chop) restait souvent dessous et, ayant des notes nettes, finissait en Mélodies.
+- Fait (`ia/`, voir `ia/README.md`) : YAMNet (Google, Apache 2.0) + 192 mesures du spectre + 5 têtes moyennées
+  (famille + sorte parmi les choix de l'aperçu, sauf Back et Synth), apprises sur 39 459 sons libres (VocalSet,
+  LibriSpeech dev/test-clean, NSynth test/valid dans leur tessiture, Freesound one-shot CC0/CC BY, sons fabriqués)
+  déclinés comme en production ; validation sur des chanteurs, locuteurs, instruments et sons jamais entendus.
+  Résultats (`ia/RESULTATS.md`) : famille juste 93 %, voix reconnues 94 % (YAMNet seul 66 %), voix normales ou
+  traitées 98–100 %, chops 79–90 %, stutters 66 %, autres sons pris pour des voix 1,7 %.
+- Modèle ≈ 8 Mo (poids en 8 bits, calculs en 32 bits) en Core ML (`Resources/ClasseurSons.mlpackage`) et en ONNX
+  (`ia/modele/classeur_sons.onnx`, exemple C# pour Windows) ; ≈ 21 ms pour un sample court sur un processeur. Essayé
+  et refusé : calculs en 8 bits d'ONNX Runtime (même famille pour 78 % / 37 % des tranches seulement).
+- Dans l'app : l'organisation ne change pas, l'IA intégrée prend la place de l'IA de macOS dans les mêmes règles
+  (nom d'abord, mesures sûres d'abord) : `voix-iv` après `voix-ia`, ses drums/instruments mis avec ceux de macOS,
+  `famille-iv` quand les règles hésitent, sortes des drums et mélodies à la place des étiquettes de macOS, sortes des
+  voix, basses et FX ; diagnostic `+ivNN`. Crédits et licence de YAMNet copiés dans l'app.
+- Erreurs en route : préparation plantée sur des accords de notes de longueurs différentes (30 min perdues ; chaque
+  étape est maintenant gardée) ; poids des têtes illisibles par nom (`.weights.h5`) ; sorties Core ML renommées
+  après conversion ; ONNX Runtime ne calibre pas un Softmax qui est une sortie.

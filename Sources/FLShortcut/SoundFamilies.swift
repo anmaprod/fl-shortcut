@@ -327,9 +327,7 @@ enum DrumNaming {
     /// mesures : grave → kick ; aigu → hi-hat (long : cymbale) ; tonal → perc ; bruit sans grave ni aigu → clap ;
     /// bruit → snare ; le reste → perc.
     static func kind(_ f: SoundFeatures, scores: [String: Double]) -> DrumKind {
-        let low = f.lowRatio >= 0.5 || (f.medianF0 > 0 && f.medianF0 < FamilyFusion.lowF0 && f.pitchedFraction >= 0.3)
-        if low && f.highRatio >= FamilyFusion.loopHigh { return .kit }
-        if f.highRatio >= sureHatHigh && f.flatness >= FamilyFusion.noisy { return f.noteLength >= cymbalLength ? .cymbal : .hiHat }
+        if let sure = measured(f) { return sure }
         var best: (kind: DrumKind, confidence: Double)?
         for (label, confidence) in scores {
             guard let kind = labels[label], confidence >= minConfidence else { continue }
@@ -339,13 +337,40 @@ enum DrumNaming {
             best = (kind, confidence)
         }
         if let best { return best.kind }
-        if low { return .kick }
+        if isLow(f) { return .kick }
         if f.highRatio >= hatHigh { return f.noteLength >= cymbalLength ? .cymbal : .hiHat }
         if f.pitchedFraction >= 0.6 { return .perc }
         if f.flatness >= FamilyFusion.noisy {
             return f.highRatio < 0.05 && f.lowRatio < 0.05 ? .clap : .snare
         }
         return .perc
+    }
+
+    /// Mêmes règles avec l'IA intégrée à la place de celle de macOS (retour du propriétaire : l'organisation ne
+    /// change pas avec l'IA) : ce que les mesures disent sûrement d'abord, l'IA intégrée pouvant seulement préciser
+    /// un métal (Open Hat, Crash, Ride au lieu de Hi-hat ou Cymbal) ; puis sa sorte (`embedded`, nette) ; puis les
+    /// étiquettes de l'IA de macOS et les mesures, comme avant.
+    static func kind(_ f: SoundFeatures, scores: [String: Double], embedded: SoundKind?) -> SoundKind {
+        if let sure = measured(f) {
+            if sure != .kit, let embedded, metals.contains(embedded) { return embedded }
+            return sure.sound
+        }
+        return embedded ?? kind(f, scores: scores).sound
+    }
+
+    /// Les métaux, que l'IA intégrée peut préciser après les mesures.
+    static let metals: Set<SoundKind> = [.hiHat, .openHat, .cymbal, .crash, .ride]
+
+    /// Ce que les mesures disent sûrement, plus sûr que toute IA : le grave d'un kick avec des aigus (charleston) est
+    /// une boucle de batterie ; presque tout au-dessus de 6 kHz, un charleston (long : une cymbale). nil sinon.
+    static func measured(_ f: SoundFeatures) -> DrumKind? {
+        if isLow(f) && f.highRatio >= FamilyFusion.loopHigh { return .kit }
+        if f.highRatio >= sureHatHigh && f.flatness >= FamilyFusion.noisy { return f.noteLength >= cymbalLength ? .cymbal : .hiHat }
+        return nil
+    }
+
+    private static func isLow(_ f: SoundFeatures) -> Bool {
+        f.lowRatio >= 0.5 || (f.medianF0 > 0 && f.medianF0 < FamilyFusion.lowF0 && f.pitchedFraction >= 0.3)
     }
 
     /// Part d'énergie au-dessus de 6 kHz : un charleston (une snare n'en a pas autant) ; au-delà de `sureHatHigh`,
@@ -400,15 +425,24 @@ enum MelodyNaming {
         if f.pitchedFraction >= 0.6 { return .lead }
         return nil
     }
+
+    /// Mêmes règles avec l'IA intégrée à la place de celle de macOS : sa sorte (`embedded`, nette) d'abord, puis les
+    /// étiquettes de l'IA de macOS et les mesures, comme avant.
+    static func kind(_ f: SoundFeatures, scores: [String: Double], embedded: SoundKind?) -> SoundKind? {
+        embedded ?? kind(f, scores: scores)
+    }
 }
 
-/// Avis de l'IA de macOS, ramené à trois familles d'étiquettes (confiance 0…1, la plus forte de chaque famille).
+/// Avis de l'IA de macOS, ramené à trois familles d'étiquettes (confiance 0…1, la plus forte de chaque famille), et
+/// celui de l'IA intégrée qui prend la même place dans les règles (`merge(embedded:)`).
 struct AILabels: Equatable {
     var voice = 0.0
     var drums = 0.0
     var instrument = 0.0
     /// L'IA a rendu au moins un résultat (même hors table).
     var heard = false
+    /// Probabilité de voix de l'IA intégrée (`ClasseurSons`, tranche la plus « voix ») ; nil si elle n'a pas écouté.
+    var embeddedVoice: Double?
 
     static let none = AILabels()
 
@@ -480,8 +514,8 @@ enum FamilyFusion {
         return (verdict.family, verdict.confidence)
     }
 
-    /// Voix au vibrato : l'IA doit au moins entendre un peu de voix (retour de l'utilisateur : un FX dont la hauteur
-    /// bouge était classé « Voix » quand l'IA ne disait rien).
+    /// Voix au vibrato : l'IA (celle de macOS ou l'IA intégrée) doit au moins entendre un peu de voix (retour de
+    /// l'utilisateur : un FX dont la hauteur bouge était classé « Voix » quand l'IA ne disait rien).
     static let vibratoVoice = 0.15
 
     /// Comme `decide`, avec la règle appliquée (diagnostic, jamais un nom) : silence, voix-ia, boucle, basse,
@@ -490,6 +524,9 @@ enum FamilyFusion {
         -> (family: SoundFamily, confidence: Double, rule: String) {
         guard f.peakDB >= silenceDB else { return (.unsure, 0, "silence") }
         if ai.voice >= 0.5 { return (.vocals, ai.voice, "voix-ia") }
+        // L'IA intégrée entend une voix que celle de macOS a manquée (retour du propriétaire : des voix rangées en
+        // Mélodies, FX ou Drums, l'IA de macOS restant sous 0,5).
+        if let voice = ai.embeddedVoice, voice >= ClasseurSons.seuilVoix { return (.vocals, voice, "voix-iv") }
         let low = f.pitchedFraction >= 0.4 && f.medianF0 > 0 && f.medianF0 < lowF0 && f.lowRatio >= 0.5
         let short = f.noteLength < shortNote
         let isNoisy = f.flatness >= noisy, isTonal = f.flatness < tonal
@@ -507,7 +544,8 @@ enum FamilyFusion {
         if !short && isNoisy && f.highRatio >= ringHigh && f.onsetsPerSecond > 0 { return (.drums, 0.7, "cymbale") }
         if !short && f.pitchedFraction < 0.3 && isNoisy { return (.fx, 0.7, "fx-bruit") }
         if (0.12...0.8).contains(f.vibrato) && (80...500).contains(f.medianF0) && f.pitchedFraction >= 0.6
-            && f.noteLength >= 0.5 && f.distinctPitches <= 2 && ai.instrument < 0.5 && ai.voice >= vibratoVoice {
+            && f.noteLength >= 0.5 && f.distinctPitches <= 2 && ai.instrument < 0.5
+            && max(ai.voice, ai.embeddedVoice ?? 0) >= vibratoVoice {
             return (.vocals, 0.55, "voix-vibrato")
         }
         if f.pitchedFraction >= 0.5 || ai.instrument >= 0.5 || isTonal {

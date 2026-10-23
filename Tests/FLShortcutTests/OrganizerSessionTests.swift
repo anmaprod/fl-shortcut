@@ -897,6 +897,37 @@ final class OrganizerSessionTests: XCTestCase {
         XCTAssertFalse(link.allChannels, "sans le fichier : le groupe affiché, comme avant")
     }
 
+    /// IA intégrée (demande du propriétaire : les mêmes choix que l'aperçu, sans changer l'organisation) : la sorte
+    /// d'une voix, d'une basse ou d'un FX vient d'elle (une voix : Chœur) ; drums et mélodies gardent leurs règles,
+    /// où elle a pris la place de l'IA de macOS.
+    func testEmbeddedAINamesTheKindOfEveryFamily() throws {
+        let names = ["Pad", "Son 1", "Son 2", "Snare", "808"]
+        let link = FakeOrganizerLink()
+        link.channels = names.enumerated().map {
+            ChannelInfo(index: $0.offset, type: 2, mixerTrack: $0.offset + 1, color: red, name: $0.element)
+        }
+        link.patternList = ["Mélodie", "Drums", "Pattern 3", "Vide"].enumerated().map {
+            PatternInfo(index: $0.offset, color: red, name: $0.element)
+        }
+        link.mixer = (0...6).map { MixerTrackInfo(index: $0, color: red, name: $0 == 0 ? "Master" : "Insert \($0)") }
+        let audio = FakeAudio(link: link)
+        audio.parts = [1: tone(.drums), 2: tone(.vocals)]
+        let file = FLPSample.sample(names: names)
+        let files = ProjectFileAccess(save: { _ in .success(URL(fileURLWithPath: "/projets/Mon son.flp")) },
+                                      open: { _ in false }, read: { _ in file })
+        var asked: [SoundFamily] = []
+        let session = OrganizerSession(link: link, audio: audio, classify: classify, nameDrum: { _, _ in .kick },
+                                       nameKind: { _, _, family in
+                                           asked.append(family)
+                                           return family == .vocals ? .choir : nil
+                                       },
+                                       timing: timing, sleep: { _ in }, files: files)
+        let result = try session.run().get()
+        XCTAssertEqual(result.items.first { $0.index == 2 }?.kind, .choir)
+        XCTAssertEqual(result.items.first { $0.index == 1 }?.kind, .kick, "drums : leurs règles")
+        XCTAssertEqual(asked, [.vocals])
+    }
+
     /// Clips audio (vidéo du propriétaire : un kick nommé « Keys », un hi-hat « Snare ») : le nom du fichier de son dit ce
     /// qu'est le son quand le nom du canal ne le dit pas, ou a été donné par l'Organiser ; rien n'est écouté pour eux.
     func testSampleFileNameTellsWhatTheSoundIs() throws {
