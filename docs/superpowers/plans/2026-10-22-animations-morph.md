@@ -31,7 +31,7 @@ macOS (`macos-26`) compile, teste et photographie.
   (`python3 scripts/localisation.py generer trad.json`) ; jamais de nom de son ni de texte tapé dans les journaux.
 - Pas de Swift ici : tests et code d'une tâche sont poussés ensemble ; la vérification est la CI, lue avec les outils
   GitHub (`actions_list` → job « App Mac (compilation + tests) », étape « Tests Swift » : `Executed N tests, with 0
-  failures` ; artefact `FLShortcut-mac-mesure` : images relues une à une). Une tâche n'est finie qu'avec la CI verte.
+  failures` ; artefact `FLShortcuts-mac-mesure` : images relues une à une). Une tâche n'est finie qu'avec la CI verte.
 - Commits : message en français, puis les deux lignes `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>` et
   `Claude-Session: https://claude.ai/code/session_015cWn3nRUmsQoCfPZgGBtCt`. Branche `claude/great-hopper-qihaiy`.
 
@@ -690,7 +690,7 @@ func testLiveFamiliesResetAtStart() {
 
 - [ ] **Étape 1 : relecture de toute la branche** par un relecteur indépendant (diff depuis `30f11fa`), avec la
   conception et ce plan ; corriger chaque constat bloquant, repousser, CI verte.
-- [ ] **Étape 2 : mesure** — artefact `FLShortcut-mac-mesure` : mémoire menu seul et fenêtre ouverte, avec et sans
+- [ ] **Étape 2 : mesure** — artefact `FLShortcuts-mac-mesure` : mémoire menu seul et fenêtre ouverte, avec et sans
   verre, comparée à ~14 Mo / ~54 Mo (+5 Mo au plus) ; processeur au repos 0 %.
 - [ ] **Étape 3 : `CONTROLE-ANIMATIONS.md`** — une ligne par animation : quoi faire sur le Mac (ouvrir le menu, choisir
   « Macros… », changer de page, ouvrir une fiche, Échap, glisser un bloc, choisir un bloc, lancer l'Organiser sur un

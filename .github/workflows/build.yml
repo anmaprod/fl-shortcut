@@ -101,7 +101,7 @@ jobs:
           Get-FileHash dist/FLShortcuts-Windows-Setup.exe, dist/*.zip -Algorithm SHA256 | ForEach-Object { "$($_.Hash.ToLower())  $(Split-Path $_.Path -Leaf)" } | Out-File -Encoding ascii dist/FLShortcuts-win.sha256
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: FLShortcut-windows
+          name: FLShortcuts-windows
           path: |
             dist/FLShortcuts-Windows-Setup.exe
             dist/FLShortcuts-win-*.zip
@@ -273,7 +273,7 @@ jobs:
           exit "$status2"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: FLShortcut-mac
+          name: FLShortcuts-mac
           path: |
             dist/FLShortcuts.dmg
             dist/FLShortcuts.dmg.sha256
@@ -283,7 +283,7 @@ jobs:
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always()
         with:
-          name: FLShortcut-mac-mesure
+          name: FLShortcuts-mac-mesure
           path: dist/mesure
           if-no-files-found: ignore
       - name: Textes sans anglais (voir « Textes en anglais » dans le résumé)
@@ -310,8 +310,8 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh run download "$GITHUB_RUN_ID" --repo "$GITHUB_REPOSITORY" --name FLShortcut-mac --dir dist
-          gh run download "$GITHUB_RUN_ID" --repo "$GITHUB_REPOSITORY" --name FLShortcut-windows --dir dist
+          gh run download "$GITHUB_RUN_ID" --repo "$GITHUB_REPOSITORY" --name FLShortcuts-mac --dir dist
+          gh run download "$GITHUB_RUN_ID" --repo "$GITHUB_REPOSITORY" --name FLShortcuts-windows --dir dist
       - name: Vérifier les empreintes
         run: cd dist && sha256sum -c FLShortcuts.dmg.sha256 FLShortcuts.pkg.sha256 FLShortcuts-win.sha256
       - uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
