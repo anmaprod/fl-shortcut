@@ -127,7 +127,7 @@ struct OnboardingView: View {
     @Namespace private var morph
 
     private var accessOK: Bool { demoAccess || status.accessibilityOK }
-    /// Autorisations demandées ensemble (clavier, puis fenêtre de FL).
+    /// Autorisations demandées ensemble (clavier, puis son de FL).
     @ObservedObject private var permissions = AccessibilityGuide.shared
 
     var body: some View {
@@ -197,7 +197,7 @@ struct OnboardingView: View {
         }
     }
 
-    // MARK: Étape 1 — autorisations (clavier, fenêtre de FL), demandées ensemble
+    // MARK: Étape 1 — autorisations (clavier, son de FL), demandées ensemble
 
     private var permissionStep: some View {
         VStack(spacing: 0) {
@@ -245,7 +245,7 @@ struct OnboardingView: View {
                 } else {
                     Button {
                         askedPermission = true
-                        AccessibilityGuide.start()
+                        AccessibilityGuide.start(panel: false)      // seule la page de réglages s'ouvre
                     } label: {
                         Text("Tout autoriser…").frame(minWidth: 220)
                     }
@@ -254,7 +254,7 @@ struct OnboardingView: View {
                     .keyboardShortcut(.defaultAction)
                     .transition(Motion.pageMorph)
                     if askedPermission {
-                        Text("Suis le petit panneau en bas à droite : clavier, puis fenêtre de FL. C'est détecté tout seul.")
+                        Text("Active FL Shortcuts dans la page qui vient de s'ouvrir, puis autorise le son. C'est détecté tout seul.")
                             .font(.system(size: 11))
                             .foregroundStyle(.secondary)
                             .multilineTextAlignment(.center)
@@ -282,19 +282,16 @@ struct OnboardingView: View {
         .motion(Motion.morph, value: askedPermission)
     }
 
-    /// Ce qui est demandé, d'un coup d'œil : le clavier (indispensable), la fenêtre de FL (conseillée), et le son de
-    /// FL que macOS demande lui-même à la première écoute de l'Organiser.
+    /// Ce qui est demandé, d'un coup d'œil : le clavier (indispensable), puis le son de FL (pour l'Organiser).
     private var permissionList: some View {
         VStack(alignment: .leading, spacing: 8) {
             permissionRow("keyboard", .blue, String(localized: "Clavier"),
                           String(localized: "Tes raccourcis dans FL Studio (indispensable)"), done: accessOK)
-            if ScreenLook.available {
-                permissionRow("macwindow", .purple, String(localized: "Fenêtre de FL"),
-                              String(localized: "Retrouver ses boutons par leur nom, au moment du clic"),
-                              done: permissions.screenGranted)
+            if #available(macOS 14.2, *) {
+                permissionRow("waveform", .pink, String(localized: "Son de FL"),
+                              String(localized: "Pour l'Organiser : il écoute chaque son pour le ranger"),
+                              done: permissions.audioGranted)
             }
-            permissionRow("waveform", .pink, String(localized: "Son de FL"),
-                          String(localized: "Organiser : macOS le demande une fois, à la première écoute"), done: nil)
         }
         .frame(maxWidth: 400)
     }

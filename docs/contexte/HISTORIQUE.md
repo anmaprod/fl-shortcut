@@ -312,3 +312,7 @@ entrée 1 ≈ 0,5 s.
   projet non réécrit pris tel quel (sa lecture vérifie toujours que c'est le projet ouvert), sinon l'erreur
   `projectNotFound` et le bouton « Choisir le fichier… ». Diagnostic : ligne `recherche` (fenêtres, noms, candidats,
   récents, parcourus, pris=écrit|récent|dossier|déjà-enregistré|aucun).
+- Autorisations au premier lancement (retour du propriétaire) : « Tout autoriser… » n'ouvre plus que la page
+  Accessibilité de Réglages Système (plus de fenêtre du Finder sur Applications, plus de petit panneau depuis
+  l'accueil), puis demande le son de FL (Audio du système, pour l'Organiser) au lieu de « Enregistrement de
+  l'écran ». Celui-ci n'est plus demandé qu'au créateur de macros, quand un bloc en a besoin.

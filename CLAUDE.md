@@ -21,6 +21,8 @@
 - Raccourcis, créateur de macros, compte et sauvegarde en ligne, Communauté, aide, désinstallation : voir HISTORIQUE.
 - Langue du Mac : toute l'app en anglais (`Resources/en.lproj`), français par défaut.
 - Trousseau : un seul élément pour la clé du script et la session du compte (une seule demande d'accès).
+- Autorisations au début (`AccessibilityGuide`) : page Accessibilité seule (ni Finder, ni panneau depuis l'accueil),
+  puis le son de FL (Audio du système) ; « Enregistrement de l'écran » jamais au début (créateur de macros seulement).
 - Fenêtre principale sans bande sous la barre d'outils ; accueil remontré si l'autorisation clavier manque.
 - **Organiser v5** (`Sources/FLShortcut/Organizer*.swift`, `SoundFeatures.swift`, `SoundFamilies.swift`, script FL v16) :
   - analyse sur le fichier du projet (PROTOCOL.md §9, `FLP*.swift`, `OrganizerProject*.swift`) : FL enregistre (⌘S),

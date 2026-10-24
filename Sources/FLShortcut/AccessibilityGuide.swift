@@ -1,9 +1,9 @@
 // Autorisations, demandées en une seule fois (demandé par l'utilisateur : plus de demandes éparpillées) : le clavier
-// (Accessibilité, indispensable), puis la lecture de la fenêtre de FL (Enregistrement de l'écran, pour retrouver les
-// boutons par leur nom ; facultative). On ouvre nous-mêmes Réglages Système sur la bonne liste (et le Finder sur l'app
-// pour le clavier), un petit panneau dit quoi faire, et on détecte tout seul quand c'est autorisé. Le son de FL
-// (Organiser) n'a pas de réglage à ouvrir : macOS le demande lui-même, une fois, à la première écoute.
-// Le panneau ne vérifie qu'une fois par seconde, et seulement tant qu'il est affiché.
+// (Accessibilité, indispensable), puis le son de FL (Audio du système, pour l'Organiser). Seule la page de réglages
+// utile s'ouvre (retour du propriétaire, 24/10 : ni fenêtre du Finder, ni demande « Enregistrement de l'écran », qui
+// n'est faite que dans le créateur de macros, au moment où un bloc en a besoin). On détecte tout seul quand c'est
+// autorisé ; depuis l'accueil, qui explique déjà tout, sans le petit panneau.
+// Le panneau ne vérifie qu'une fois par seconde, et seulement tant qu'il est affiché (ou que l'accueil attend).
 import AppKit
 import ApplicationServices
 import SwiftUI
@@ -11,20 +11,24 @@ import SwiftUI
 final class AccessibilityGuide: ObservableObject {
     static let shared = AccessibilityGuide()
 
-    enum Stage { case keyboard, screen }
+    enum Stage { case keyboard, audio }
 
     @Published private(set) var granted = AXIsProcessTrusted()
-    @Published private(set) var screenGranted = ScreenLook.allowed
+    @Published private(set) var audioGranted = AccessibilityGuide.audioAllowed
     @Published private(set) var stage = Stage.keyboard
     private var panel: NSPanel?
     private var timer: Timer?
+    /// Montrer le petit panneau (faux depuis l'accueil, qui explique déjà quoi faire).
+    private var showsPanel = true
 
-    static func start() { shared.start() }
+    /// `panel` : faux depuis l'accueil (seule la page de réglages s'ouvre).
+    static func start(panel: Bool = true) { shared.start(panel: panel) }
 
-    /// Tout ce qui manque, à la suite : le clavier, puis la fenêtre de FL.
-    func start() {
+    /// Tout ce qui manque, à la suite : le clavier, puis le son de FL.
+    func start(panel: Bool = true) {
+        showsPanel = panel
         granted = AXIsProcessTrusted()
-        screenGranted = ScreenLook.allowed
+        audioGranted = Self.audioAllowed
         if !granted {
             stage = .keyboard
             // Inscrit FL Shortcuts dans la liste (décoché) : il ne reste qu'à l'activer.
@@ -34,13 +38,12 @@ final class AccessibilityGuide: ObservableObject {
             if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") {
                 NSWorkspace.shared.open(url)
             }
-            NSWorkspace.shared.activateFileViewerSelecting([Bundle.main.bundleURL])
-        } else if Self.screenMissing {
-            askScreen()
+        } else if Self.audioMissing {
+            askAudio()
         } else {
             return
         }
-        showPanel()
+        if panel { showPanel() }
         timer?.invalidate()
         let t = Timer(timeInterval: 1, repeats: true) { [weak self] _ in self?.check() }
         t.tolerance = 0.3
@@ -48,15 +51,30 @@ final class AccessibilityGuide: ObservableObject {
         timer = t
     }
 
-    /// Lecture de la fenêtre de FL possible sur ce Mac et pas encore autorisée.
-    static var screenMissing: Bool { ScreenLook.available && !ScreenLook.allowed }
+    /// Son de FL autorisé (Audio du système) ; vrai là où l'Organiser ne peut pas écouter (macOS avant 14.2).
+    static var audioAllowed: Bool {
+        guard #available(macOS 14.2, *) else { return true }
+        return AudioCapturePermission.status == .granted
+    }
 
-    /// Inscrit FL Shortcuts dans la liste « Enregistrement de l'écran » (fenêtre de macOS la première fois) et l'ouvre.
-    private func askScreen() {
-        stage = .screen
-        // Première fois : la fenêtre de macOS, avec son bouton « Ouvrir Réglages Système… » (ouvrir les réglages en
-        // même temps la cachait derrière eux). Déjà demandée : directement la bonne liste des réglages.
-        if !ScreenLook.requestOnce() { ScreenLook.openSettings() }
+    /// Son de FL demandable sur ce Mac et pas encore autorisé.
+    static var audioMissing: Bool { !audioAllowed }
+
+    /// La fenêtre de macOS pour le son, la première fois ; déjà refusé : la page de réglages où l'activer.
+    private func askAudio() {
+        stage = .audio
+        guard #available(macOS 14.2, *) else { return }
+        switch AudioCapturePermission.status {
+        case .unknown:
+            NSApp.activate(ignoringOtherApps: true)         // la fenêtre de macOS devant, pas derrière les réglages
+            if !AudioCapturePermission.request({ [weak self] ok in if ok { self?.audioGranted = true } }) {
+                ScreenLook.openSettings()
+            }
+        case .denied:
+            ScreenLook.openSettings()
+        case .granted:
+            audioGranted = true
+        }
     }
 
     private func check() {
@@ -65,15 +83,18 @@ final class AccessibilityGuide: ObservableObject {
             guard AXIsProcessTrusted() else { return }
             granted = true
             AppStatus.shared.recheck()
-            // Laisse voir la coche, puis la fenêtre de FL (même panneau), ou tout est rangé.
+            // Laisse voir la coche, puis le son (même panneau), ou tout est rangé.
             DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) { [weak self] in
                 guard let self else { return }
-                if Self.screenMissing { withAnimation(Motion.quickMorph) { self.askScreen() } } else { self.close() }
+                if Self.audioMissing { withAnimation(Motion.quickMorph) { self.askAudio() } } else { self.close() }
             }
-        case .screen:
-            // macOS ne le dit souvent qu'après « Quitter et rouvrir » : le panneau reste jusque-là, ou « Plus tard ».
-            guard ScreenLook.allowed else { return }
-            screenGranted = true
+        case .audio:
+            if #available(macOS 14.2, *), !showsPanel, AudioCapturePermission.status == .denied {
+                close()                                     // refusé depuis l'accueil : redemandé à l'Organiser
+                return
+            }
+            guard Self.audioAllowed else { return }
+            audioGranted = true
             DispatchQueue.main.asyncAfter(deadline: .now() + 1.4) { [weak self] in self?.close() }
         }
     }
@@ -117,8 +138,8 @@ private struct AccessibilityGuideView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             progress
-            if guide.stage == .screen {
-                screenSteps
+            if guide.stage == .audio {
+                audioSteps
             } else if guide.granted {
                 HStack(spacing: 12) {
                     Image(systemName: "checkmark.circle.fill")
@@ -145,7 +166,7 @@ private struct AccessibilityGuideView: View {
                     .padding(.leading, 28)
                 step(2, String(localized: """
                     Il n'est pas dans la liste, ou il est déjà activé mais rien ne marche ? \
-                    Retire-le avec « – », puis glisse FL Shortcuts depuis la fenêtre du Finder dans la liste.
+                    Retire-le avec « – », puis ajoute-le avec « + » (dossier Applications).
                     """))
                 HStack(spacing: 6) {
                     Image(systemName: "hourglass").foregroundStyle(.secondary)   // fixe : aucune animation
@@ -164,8 +185,8 @@ private struct AccessibilityGuideView: View {
     private var progress: some View {
         HStack(spacing: 14) {
             mark(String(localized: "Clavier"), done: guide.granted, current: guide.stage == .keyboard)
-            if ScreenLook.available {
-                mark(String(localized: "Fenêtre de FL"), done: guide.screenGranted, current: guide.stage == .screen)
+            if #available(macOS 14.2, *) {
+                mark(String(localized: "Son de FL"), done: guide.audioGranted, current: guide.stage == .audio)
             }
         }
         .font(.system(size: 11, weight: .medium))
@@ -176,29 +197,25 @@ private struct AccessibilityGuideView: View {
             .foregroundStyle(done ? Color.green : current ? Color.primary : Color.secondary)
     }
 
-    @ViewBuilder private var screenSteps: some View {
-        if guide.screenGranted {
-            Label("Fenêtre de FL autorisée : tout est prêt.", systemImage: "checkmark.circle.fill")
+    @ViewBuilder private var audioSteps: some View {
+        if guide.audioGranted {
+            Label("Son de FL autorisé : tout est prêt.", systemImage: "checkmark.circle.fill")
                 .font(.headline)
                 .foregroundStyle(Color.green)
         } else {
             HStack(spacing: 10) {
                 AppIcon().frame(width: 36, height: 36)
-                Text("Autorise « Enregistrement de l'écran » :")
+                Text("Autorise le son de FL :")
                     .font(.headline)
                     .fixedSize(horizontal: false, vertical: true)
             }
-            step(1, String(localized: """
-                Dans la fenêtre de macOS, clique « Ouvrir Réglages Système… » (pas de fenêtre ? « Ouvrir les \
-                réglages » ci-dessous).
+            step(1, String(localized: "Dans la fenêtre de macOS, clique « Autoriser »."))
+            step(2, String(localized: """
+                Pas de fenêtre ? Dans les réglages qui s'ouvrent, active l'interrupteur à côté de FL Shortcuts, dans \
+                la partie audio.
                 """))
-            step(2, String(localized: "Active l'interrupteur à côté de FL Shortcuts."))
-            SwitchPreview()
-                .padding(.leading, 28)
-            step(3, String(localized: "macOS propose « Quitter et rouvrir » : accepte, FL Shortcuts revient tout seul."))
             Text(String(localized: """
-                Facultatif : sert seulement à retrouver les boutons de FL par leur nom. Seule la fenêtre de FL est lue, \
-                au moment du clic, jamais enregistrée.
+                Sert à l'Organiser : il écoute chaque son de FL pour le ranger. Rien n'est enregistré ni envoyé.
                 """))
                 .font(.callout)
                 .foregroundStyle(.secondary)

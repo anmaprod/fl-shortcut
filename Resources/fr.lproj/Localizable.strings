@@ -144,6 +144,7 @@
 "Action inconnue (« %@ ») : mets à jour FL Shortcuts." = "Action inconnue (« %@ ») : mets à jour FL Shortcuts.";
 "Action à choisir" = "Action à choisir";
 "Actions en plus" = "Actions en plus";
+"Active FL Shortcuts dans la page qui vient de s'ouvrir, puis autorise le son. C'est détecté tout seul." = "Active FL Shortcuts dans la page qui vient de s'ouvrir, puis autorise le son. C'est détecté tout seul.";
 "Active l'interrupteur à côté de FL Shortcuts." = "Active l'interrupteur à côté de FL Shortcuts.";
 "Active ou coupe le métronome" = "Active ou coupe le métronome";
 "Activer" = "Activer";
@@ -301,6 +302,7 @@
 "Autorise FL Shortcuts dans Réglages Système › Confidentialité et sécurité › Enregistrement de " = "Autorise FL Shortcuts dans Réglages Système › Confidentialité et sécurité › Enregistrement de ";
 "Autorise l'Accessibilité à FL Shortcuts pour parcourir les menus de FL." = "Autorise l'Accessibilité à FL Shortcuts pour parcourir les menus de FL.";
 "Autorise l'Accessibilité à FL Shortcuts pour voir la liste de tes plugins, " = "Autorise l'Accessibilité à FL Shortcuts pour voir la liste de tes plugins, ";
+"Autorise le son de FL :" = "Autorise le son de FL :";
 "Autorise « Audio du système »" = "Autorise « Audio du système »";
 "Autorise « Enregistrement de l'écran » :" = "Autorise « Enregistrement de l'écran » :";
 "Autoriser FL Shortcuts" = "Autoriser FL Shortcuts";
@@ -590,6 +592,7 @@
 "Dans FL, clique le bouton mute (le petit rond en haut) d'une piste, puis reclique-le pour remettre le son." = "Dans FL, clique le bouton mute (le petit rond en haut) d'une piste, puis reclique-le pour remettre le son.";
 "Dans Output : « FL Shortcuts Link » sur ce même Port 7, et SEUL sur ce numéro. Clique ta carte son (SSL 2+…) et donne-lui un autre Port (8…) : FL répond à la première sortie du numéro. C'est bon quand « FL Shortcuts » s'affiche à côté de « FL Shortcuts Link » dans Output (pas à côté de ta carte son). Puis quitte et rouvre FL." = "Dans Output : « FL Shortcuts Link » sur ce même Port 7, et SEUL sur ce numéro. Clique ta carte son (SSL 2+…) et donne-lui un autre Port (8…) : FL répond à la première sortie du numéro. C'est bon quand « FL Shortcuts » s'affiche à côté de « FL Shortcuts Link » dans Output (pas à côté de ta carte son). Puis quitte et rouvre FL.";
 "Dans la fenêtre Accessibilité qui vient de s'ouvrir :" = "Dans la fenêtre Accessibilité qui vient de s'ouvrir :";
+"Dans la fenêtre de macOS, clique « Autoriser »." = "Dans la fenêtre de macOS, clique « Autoriser ».";
 "Dans la fenêtre de macOS, clique « Ouvrir Réglages Système… » (pas de fenêtre ? « Ouvrir les réglages » ci-dessous)." = "Dans la fenêtre de macOS, clique « Ouvrir Réglages Système… » (pas de fenêtre ? « Ouvrir les réglages » ci-dessous).";
 "Dans le menu" = "Dans le menu";
 "Demande le script MIDI dans FL (désactivé en mode léger)" = "Demande le script MIDI dans FL (désactivé en mode léger)";
@@ -895,6 +898,7 @@
 "Icône de FL" = "Icône de FL";
 "Icône de FL de la famille, sur ses sons et ses pistes du Mixer (posée par la fenêtre de FL, F2 ; « Revenir comme avant » ne la retire pas)" = "Icône de FL de la famille, sur ses sons et ses pistes du Mixer (posée par la fenêtre de FL, F2 ; « Revenir comme avant » ne la retire pas)";
 "Il faut encore : %@." = "Il faut encore : %@.";
+"Il n'est pas dans la liste, ou il est déjà activé mais rien ne marche ? Retire-le avec « – », puis ajoute-le avec « + » (dossier Applications)." = "Il n'est pas dans la liste, ou il est déjà activé mais rien ne marche ? Retire-le avec « – », puis ajoute-le avec « + » (dossier Applications).";
 "Il n'est pas dans la liste, ou il est déjà activé mais rien ne marche ? Retire-le avec « – », puis glisse FL Shortcuts depuis la fenêtre du Finder dans la liste." = "Il n'est pas dans la liste, ou il est déjà activé mais rien ne marche ? Retire-le avec « – », puis glisse FL Shortcuts depuis la fenêtre du Finder dans la liste.";
 "Ils partent dans quelques secondes." = "Ils partent dans quelques secondes.";
 "Impact" = "Impact";
@@ -1313,6 +1317,7 @@
 "Pas content ?" = "Pas content ?";
 "Pas d'icône avec un dégradé (FL la pose sur un seul élément)." = "Pas d'icône avec un dégradé (FL la pose sur un seul élément).";
 "Pas de connexion : la sauvegarde partira dès que possible." = "Pas de connexion : la sauvegarde partira dès que possible.";
+"Pas de fenêtre ? Dans les réglages qui s'ouvrent, active l'interrupteur à côté de FL Shortcuts, dans la partie audio." = "Pas de fenêtre ? Dans les réglages qui s'ouvrent, active l'interrupteur à côté de FL Shortcuts, dans la partie audio.";
 "Pas de mail ? Regarde dans les courriers indésirables, ou renvoie le code." = "Pas de mail ? Regarde dans les courriers indésirables, ou renvoie le code.";
 "Pas de nom pour un dégradé" = "Pas de nom pour un dégradé";
 "Pas de réponse : %@." = "Pas de réponse : %@.";
@@ -1385,6 +1390,7 @@
 "Position(s) à apprendre : %@." = "Position(s) à apprendre : %@.";
 "Positions" = "Positions";
 "Posée par la fenêtre de FL (F2). La première fois, montre une fois le bouton de l'icône." = "Posée par la fenêtre de FL (F2). La première fois, montre une fois le bouton de l'icône.";
+"Pour l'Organiser : il écoute chaque son pour le ranger" = "Pour l'Organiser : il écoute chaque son pour le ranger";
 "Pour toi (facultatif)" = "Pour toi (facultatif)";
 "Pour un bouton qui change de place (une piste du Mixer, le « + » du Channel rack…) : il est " = "Pour un bouton qui change de place (une piste du Mixer, le « + » du Channel rack…) : il est ";
 "Preset" = "Preset";
@@ -1579,6 +1585,7 @@
 "Se déconnecter quand même" = "Se déconnecter quand même";
 "Se déconnecter…" = "Se déconnecter…";
 "Sert seulement pendant la macro, à vérifier si la piste et le REC sont déjà armés. Le reste du temps, rien ne circule : FL ne ralentit pas. Une fois dans FL : Options › MIDI Settings, Input « FL Shortcuts » : Enable et Controller type « FL Shortcuts » ; Output « FL Shortcuts » : même numéro de port." = "Sert seulement pendant la macro, à vérifier si la piste et le REC sont déjà armés. Le reste du temps, rien ne circule : FL ne ralentit pas. Une fois dans FL : Options › MIDI Settings, Input « FL Shortcuts » : Enable et Controller type « FL Shortcuts » ; Output « FL Shortcuts » : même numéro de port.";
+"Sert à l'Organiser : il écoute chaque son de FL pour le ranger. Rien n'est enregistré ni envoyé." = "Sert à l'Organiser : il écoute chaque son de FL pour le ranger. Rien n'est enregistré ni envoyé.";
 "Serum, FLEX, Sytrus…" = "Serum, FLEX, Sytrus…";
 "Session expirée : reconnecte-toi." = "Session expirée : reconnecte-toi.";
 "Seulement si rien ne se passe : Options › MIDI Settings, entrée « FL Shortcuts Link », Controller type « FL Shortcuts », même numéro de Port en entrée et en sortie." = "Seulement si rien ne se passe : Options › MIDI Settings, entrée « FL Shortcuts Link », Controller type « FL Shortcuts », même numéro de Port en entrée et en sortie.";
@@ -1618,6 +1625,7 @@
 "Solo du canal 9" = "Solo du canal 9";
 "Solo piste Mixer sélectionnée" = "Solo piste Mixer sélectionnée";
 "Son de FL" = "Son de FL";
+"Son de FL autorisé : tout est prêt." = "Son de FL autorisé : tout est prêt.";
 "Son nom, tel qu'il est écrit dans le menu « Arrangement » de FL." = "Son nom, tel qu'il est écrit dans le menu « Arrangement » de FL.";
 "Sortie du Mac : " = "Sortie du Mac : ";
 "Sortie du Mac en ce moment : " = "Sortie du Mac en ce moment : ";
