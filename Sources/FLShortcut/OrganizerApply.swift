@@ -503,9 +503,15 @@ final class OrganizerApplier {
         report(String(localized: "FL ouvre la copie rangée…"))
         let started = Date()
         var opened = false
+        var how = "non"                                         // diagnostic : le script a lu la marque, ou la fenêtre
         for check in 0..<Self.openChecks {
             wait(0.5)
-            if showsMark(marked.mark) || files.isOpen(url) {
+            if showsMark(marked.mark) {
+                how = "marque"
+            } else if files.isOpen(url) {
+                how = "fenêtre"
+            }
+            if how != "non" {
                 opened = true
                 break
             }
@@ -514,7 +520,7 @@ final class OrganizerApplier {
                 report(String(localized: "FL ouvre la copie rangée… \(seconds) s"))
             }
         }
-        outcome.trace.append("ouverture=\(opened ? "oui" : "non") \(Int(Date().timeIntervalSince(started))) s")
+        outcome.trace.append("ouverture=\(how) \(Int(Date().timeIntervalSince(started))) s")
         MacroLog.shared.write("ORGANIZE", "copy \(opened ? "open" : "not open") after \(Int(Date().timeIntervalSince(started))) s")
         guard opened else {
             throw OrganizerError.failed(String(localized: "FL n'a pas ouvert la copie rangée à temps : elle est à côté de ton projet, ouvre-la dans FL, puis relance l'Organiser. Ton projet n'a pas bougé."))
