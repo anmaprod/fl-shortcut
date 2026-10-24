@@ -334,8 +334,16 @@ entrée 1 ≈ 0,5 s.
   et fills, CC BY 4.0), les packs de batterie donnés par le propriétaire (Google Drive, 437 sons uniques, 7 packs ;
   jamais dans le dépôt ; « tu lui montres les sons du drive et tu lui expliques que là ça s'appelle comme ça ») et
   600 boucles + 600 fills trap fabriqués avec leurs sons seuls. Sorte de chaque son de pack d'après son type avant
-  « -- » (« © FILL -- … », « LOW -- … (C) » = 808, « TEXTURE -- … » = FX). Essai d'abord sans 2 packs : boucles
+  « -- » (« © FILL -- … », « TEXTURE -- … » = FX). Essai d'abord sans 2 packs : boucles
   trap clairsemées encore souvent prises pour des voix hachées (28 %), fills courts pris pour des boucles ; « deux
   tranches voix au lieu d'une » essayé, pas retenu. Modèle livré appris sur tous les packs : 92,9 % (voix 96,5,
   drums 97,3 ; Drum loop 86, Fill 91), seuil des voix 0,37. Note d'essai des tests (guitare) prise au-dessus du
   do 4 : le sol 3 d'avant, déjà à 59 % mélodie, passait à 57 % basse.
+- « Il y a des pièges, il faut lire les noms dans les dossiers » (propriétaire) : chaque dossier et chaque type de
+  son relus et écoutés (YAMNet). Piège : les « LOW -- NOM (C) » n'étaient pas des 808 mais des sons graves de toutes
+  sortes (basses de synthé, nappes, grondements ; 30 sur 31 ont plus de 75 % de leur énergie sous 150 Hz) : appris
+  comme Basse sans sorte, et un son « basse » d'après son nom qui n'est pas grave est écarté. Un dossier ne nomme
+  plus un son que si son nom ne dit rien, et jamais un dossier mélangé (« fill + chop »). Le reste suit bien les
+  noms (CLAP, HAT, KICK, SNARE, TOM, PERCUSSION, FILL, LOOP, FX, TEXTURE ; LAYER ignoré). Réappris : 92,4 %
+  (voix 96,3, drums 97,2, basse 95,4 ; Drum loop 86, Fill 88), seuil 0,37 ; l'écart avec 92,9 % vient surtout des
+  mélodies (86,0 contre 87,3), sans lien avec ce changement : variation d'un apprentissage à l'autre.

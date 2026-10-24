@@ -802,21 +802,44 @@ def sorte_du_texte(texte, type_du_son=False):
         return "fx", next((s for s, m in MOTS_FX.items() if re.search(m, nom)), "fx")
     if re.search(r"loops?\b|drumloop|break ?beat", texte):
         return None if re.search(MOTS_NON_DRUMS, texte) else ("drums", "drumLoop")
-    if re.search(r"\b808", nom) or (type_du_son and re.search(r"\b(low|sub)\b", nom)):
+    if re.search(r"\b808", nom):
         return "basse", "bass808"
+    if type_du_son and re.search(r"\b(low|sub)\b", nom):     # « LOW -- NOM (C) » : un son grave, pas forcément une 808
+        return "basse", None
     sorte = sorte_du_nom(nom) or sorte_du_nom(texte)
     return ("drums", sorte) if sorte else None
 
 
 def sorte_du_kit(chemin):
-    """(famille, sorte) d'un son de kit d'après son chemin ; « © KICK -- NOM » : le type du son, avant « -- », passe
-    d'abord (« TEXTURE -- NOMLOOP » est une texture, pas une boucle ; « LOW -- NOM (C) », une 808)."""
+    """(famille, sorte) d'un son de kit d'après son chemin. Le nom du son d'abord : « © KICK -- NOM », son type avant
+    « -- » (« TEXTURE -- NOMLOOP » est une texture, pas une boucle ; « LOW -- NOM (C) », un son grave), puis le nom
+    entier ; ses dossiers seulement s'il ne dit rien, du plus proche au plus loin, et jamais un dossier mélangé
+    (« fill + chop » : des fills ET des chops, 24/10 : « il n'y a pas que des fills et drumloops dans le drive »)."""
     nom = os.path.basename(chemin).lower()
     if " -- " in nom:
         quoi = sorte_du_texte(nom.split(" -- ")[0], type_du_son=True)
         if quoi:
             return quoi
-    return sorte_du_texte(chemin.lower())
+    quoi = sorte_du_texte(nom)
+    if quoi:
+        return quoi
+    dossier = os.path.dirname(chemin.lower())
+    while dossier and dossier != ".":
+        dernier = os.path.basename(dossier)
+        if re.search(r"\+|&|\band\b|\bet\b", dernier):
+            return None
+        quoi = sorte_du_texte(dernier)
+        if quoi:
+            return quoi
+        dossier = os.path.dirname(dossier)
+    return None
+
+
+def grave(son):
+    """Part de l'énergie sous 150 Hz."""
+    spectre = np.abs(np.fft.rfft(son)) ** 2
+    f = np.fft.rfftfreq(len(son), 1 / SR)
+    return float(spectre[f < 150].sum() / max(spectre.sum(), 1e-12))
 
 
 def packs_des_kits(fichiers):
@@ -895,9 +918,12 @@ def kits_proprietaire(c):
         except Exception:
             continue
         famille, sorte = quoi
+        if famille == "basse" and grave(son) < 0.6:                # « basse » d'après le nom mais pas grave : écarté
+            vus[("pas grave", split)] += 1
+            continue
         source = "kit-" + {"fill": "fill", "drumLoop": "boucle"}.get(sorte, "oneshot")
         c.ajouter(source, famille, sorte, split, son)
-        vus[(sorte, split)] += 1
+        vus[(sorte or famille, split)] += 1
         if split == "train" and sorte in ("fill", "drumLoop") and rng.random() < 0.5:
             c.ajouter(source + "+prod", famille, sorte, split, saturer(son))
     print("kits du propriétaire :", sum(vus.values()), "sons", dict(sorted(vus.items())), flush=True)

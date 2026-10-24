@@ -68,7 +68,7 @@ chantée a des notes nettes), FX ou Drums. Ici :
 | Medley-solos-DB (Lostanlen et al., 2019) | extraits de vrais morceaux : chanteuses, clarinette, guitare saturée, flûte, piano, saxophone, trompette, violon (lus au fil du téléchargement) | CC BY 4.0 | voix, mélodie |
 | Freesound One-Shot Percussive Sounds (Ramires et al., 2020) | ~9 500 sons de batterie | CC0 et CC BY gardés, NC exclus | drums (sorte d'après le nom) |
 | Groove MIDI Dataset (Gillick et al., 2019) | 10 batteurs enregistrés : boucles (« beat », coupées en 1, 2 ou 4 mesures) et fills | CC BY 4.0 | drums (Drum loop, Fill) |
-| Packs du propriétaire (`FLS_IA_KITS`, jamais dans le dépôt) | fills, drum loops, sons seuls, 808, textures ; sorte d'après le type du son (« © FILL -- … », « LOW -- … (C) » = 808) ; des packs entiers gardés pour la vérification | à sa demande (24/10) | drums, basse, FX |
+| Packs du propriétaire (`FLS_IA_KITS`, jamais dans le dépôt) | fills, drum loops, sons seuls, basses, textures ; sorte d'après le type du son dans son nom (« © FILL -- … » ; « LOW -- … (C) » = basse sans sorte précise, et seulement s'il est vraiment grave), puis le nom entier, puis ses dossiers (jamais un dossier mélangé comme « fill + chop ») ; tous les packs appris pour la version livrée (chiffres mesurés avant sur deux packs gardés) | à sa demande (24/10) | drums, basse, FX |
 | Fabriqués par `preparer.py` | 808, subs, reese, basses, pads, plucks, arpèges, accords, claps, hats, snaps, shakers, crashs, FX, boucles | domaine public | toutes |
 
 **Validation honnête** : des chanteurs, des locuteurs, des instruments et des sons de batterie entiers sont mis de
