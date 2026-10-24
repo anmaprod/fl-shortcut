@@ -10,6 +10,7 @@ import AppKit
 import ApplicationServices
 import Combine
 import SwiftUI
+import UniformTypeIdentifiers
 
 /// État du lien avec FL à l'ouverture de l'Organiser.
 enum OrganizerLinkState: Equatable {
@@ -94,6 +95,8 @@ struct OrganizerEnvironment {
     /// Le fichier du projet ouvert dans FL (enregistré par FL, lu, sa copie rangée ouverte) ; nil : l'ancienne
     /// analyse, à l'écoute de FL seulement.
     var projectFiles: () -> ProjectFileAccess? = { nil }
+    /// « Choisir le fichier… » : l'utilisateur montre le projet ouvert dans FL (fil principal) ; faux : annulé.
+    var chooseProject: () -> Bool = { false }
 
     static func live() -> OrganizerEnvironment {
         OrganizerEnvironment(
@@ -171,7 +174,18 @@ struct OrganizerEnvironment {
             readClips: { link in { OrganizerEnvironment.liveReadClips(link: link) } },
             moveClip: { link in { move in OrganizerEnvironment.liveMoveClip(move, link: link) } },
             canReadPlaylist: { ScreenLook.allowed },
-            projectFiles: { ProjectFileLive.access() })
+            projectFiles: { ProjectFileLive.access() },
+            chooseProject: {
+                let panel = NSOpenPanel()
+                panel.message = String(localized: "Choisis le fichier du projet ouvert dans FL Studio (.flp).")
+                panel.allowedContentTypes = [UTType(filenameExtension: "flp") ?? .data]
+                panel.allowsMultipleSelection = false
+                panel.canChooseDirectories = false
+                NSApp.activate(ignoringOtherApps: true)
+                guard panel.runModal() == .OK, let url = panel.url else { return false }
+                ProjectFileLive.chosen = url
+                return true
+            })
     }
 
     /// La Playlist devant (FL au premier plan), lue dans sa fenêtre.
@@ -410,6 +424,8 @@ final class OrganizerController: ObservableObject {
     @Published private(set) var diagnostics: OrganizerDiagnostics?
     /// « Copié » montré un instant après « Copier le diagnostic ».
     @Published private(set) var copied = false
+    /// Le fichier du projet reste introuvable : « Choisir le fichier… » le fait montrer.
+    @Published private(set) var projectMissing = false
     /// Sons corrigés que l'IA a retenus (aperçu et « Pas content ? »), dit à la fin.
     @Published private(set) var learned = 0
     /// « Pas content ? » ouvert, puis envoyé.
@@ -576,6 +592,7 @@ final class OrganizerController: ObservableObject {
     func retry() {
         guard canRetry, !closed else { return }
         waitSerial += 1
+        projectMissing = false
         learned = 0
         feedbackSent = false
         result = nil
@@ -583,6 +600,12 @@ final class OrganizerController: ObservableObject {
         kinds = [:]
         phase = .starting
         start()
+    }
+
+    /// « Choisir le fichier… » : le projet montré, l'analyse repart dessus.
+    func chooseProject() {
+        guard projectMissing, env.chooseProject() else { return }
+        retry()
     }
 
     /// Lien installé en un clic : FL doit redémarrer pour le lire, Organiser attend et continue tout seul.
@@ -623,6 +646,7 @@ final class OrganizerController: ObservableObject {
                 phase = .failed(String(localized: "Aucun son à organiser dans ce projet."))
             }
         case .failure(let error):
+            projectMissing = error == .projectNotFound
             if let reason = Self.waitReason(for: error, wrongInput: env.wrongInput()) { wait(reason) } else { phase = .failed(error.message) }
         }
     }
@@ -1346,7 +1370,13 @@ struct OrganizerView: View {
                     .help("Dis ce qui n'allait pas : l'IA apprend de ses erreurs")
             }
             Spacer()
-            if controller.canRetry {
+            if controller.canRetry && controller.projectMissing {
+                Button("Fermer") { controller.close() }.keyboardShortcut(.cancelAction)
+                Button("Réessayer") { controller.retry() }
+                Button("Choisir le fichier…") { controller.chooseProject() }
+                    .primaryButton()
+                    .keyboardShortcut(.defaultAction)
+            } else if controller.canRetry {
                 Button("Fermer") { controller.close() }.keyboardShortcut(.cancelAction)
                 Button("Réessayer") { controller.retry() }
                     .primaryButton()

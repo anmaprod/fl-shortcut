@@ -106,7 +106,10 @@
 
 ## Pas encore vérifié sur le vrai FL
 - IA intégrée : voix de ses projets enfin rangées en Voix ? Sortes proposées justes sur ses packs ?
-- Organiser sur le fichier : ⌘S enregistre-t-il le projet ? Son fichier est-il retrouvé (titre de la fenêtre de FL,
-  Spotlight, dossiers habituels) ? FL ouvre-t-il la copie rangée sans rien demander, et le script lit-il la marque ?
+- Organiser sur le fichier : 1er essai du propriétaire (24/10, ancienne version) : « FL n'a pas enregistré ton
+  projet » sur chaque projet, pourtant enregistré. Corrigé sans preuve (titres de toutes les fenêtres de FL, Spotlight
+  relu chaque seconde, dossier Projects de FL d'abord, projet déjà enregistré pris tel quel, bouton « Choisir le
+  fichier… ») ; la ligne `recherche` du diagnostic dit ce qui a été vu. FL ouvre-t-il la copie rangée sans rien
+  demander, et le script lit-il la marque ?
 - La suppression par ⌥ + Suppr (si ça échoue, l'app le dit).
 - Questions sans réponse : l'accueil manquant venait-il d'une installation sans désinstallation ?

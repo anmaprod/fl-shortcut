@@ -59,6 +59,9 @@ struct OrganizerDiagnostics: Equatable {
     var tempo = 0
     /// Projet lu dans son fichier (oui, ou ce qui l'a empêché, en mots), et ses clips dans la Playlist.
     var file = "non"
+    /// Recherche du fichier du projet : fenêtres de FL, noms, fichiers possibles, lequel a été pris (nombres et mots
+    /// fixes, jamais un nom ni un chemin).
+    var search = ""
     var clips = 0
     /// Patterns ajoutés en séparant son par son ceux qui en avaient plusieurs.
     var split = 0
@@ -79,6 +82,7 @@ struct OrganizerDiagnostics: Equatable {
             + "relevés-chanson=\(activeSamples) pistes=\(tracks) seules=\(tracksSolo) écoutées=\(tracksHeard) "
             + "mixer=\(mixerUsed) envois=\(routes)",
          "sélection=\(selection) inutilisés=\(unused) tempo=\(tempo) fichier=\(file) clips=\(clips) séparés=\(split)",
+         search.isEmpty ? "" : "recherche " + search,
          rules.isEmpty ? "" : "règles=" + rules.joined(separator: " "),
          patternMap.isEmpty ? "" : "patterns-sons=" + patternMap,
          trackMap.isEmpty ? "" : "pistes-sons=" + trackMap,
@@ -346,6 +350,10 @@ final class OrganizerSession {
             $0.patterns = patterns.count
             $0.selection = "fichier"
             $0.tempo = Int(tempo.rounded())
+        }
+        defer {
+            let found = files.search()
+            note { $0.search = found }
         }
         let read = try ProjectFile.read(files, known: nil, channels: channels, patterns: patterns,
                                         why: { why in self.note { $0.file = why } })

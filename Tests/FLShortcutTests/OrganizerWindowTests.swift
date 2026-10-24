@@ -158,6 +158,29 @@ final class OrganizerWindowTests: XCTestCase {
         controller.close()
     }
 
+    /// Fichier du projet introuvable : « Choisir le fichier… » le fait montrer, puis l'analyse repart toute seule.
+    func testProjectNotFoundAsksForTheFile() {
+        let link = FakeOrganizerLink()
+        var e = env(link, FakeAudio(link: link), saved: { _ in })
+        var saves = 0
+        var asked = 0
+        e.projectFiles = { ProjectFileAccess(save: { _ in saves += 1; return .failure(.projectNotFound) },
+                                             open: { _ in false }) }
+        e.chooseProject = { asked += 1; return true }
+        let controller = OrganizerController(env: e)
+        controller.start()
+        waitFor(controller) { if case .failed = $0 { return true } else { return false } }
+        XCTAssertTrue(controller.projectMissing)
+        XCTAssertEqual(controller.phase, .failed(OrganizerError.projectNotFound.message))
+        controller.chooseProject()
+        XCTAssertEqual(asked, 1)
+        XCTAssertFalse(controller.projectMissing, "l'analyse repart")
+        waitFor(controller) { if case .failed = $0 { return true } else { return false } }
+        XCTAssertEqual(saves, 2)
+        XCTAssertTrue(controller.projectMissing)
+        controller.close()
+    }
+
     /// Un ancien script chargé dans FL : Organiser attend que FL redémarre, puis continue tout seul.
     func testOldScriptWaitsThenGoesOn() {
         let link = FakeOrganizerLink()

@@ -84,6 +84,9 @@ enum OrganizerError: Error, Equatable {
     case flClosed
     /// Pas un son reçu de FL pendant toute l'écoute (autorisation « Audio du système », sortie de FL coupée…).
     case noSound
+    /// Le fichier du projet ouvert reste introuvable après ⌘S : l'utilisateur peut le montrer (« Choisir le
+    /// fichier… »).
+    case projectNotFound
 
     var message: String {
         switch self {
@@ -99,6 +102,12 @@ enum OrganizerError: Error, Equatable {
                 Aucun son reçu de FL pendant l'écoute. Vérifie que FL Shortcuts a l'autorisation « Audio du système » \
                 (Réglages Système › Confidentialité et sécurité › Enregistrement de l'écran et de l'audio du système), \
                 et que les sons choisis jouent bien dans FL (Master pas coupé), puis « Réessayer ».
+                """)
+        case .projectNotFound:
+            return String(localized: """
+                Je ne retrouve pas le fichier de ton projet. Clique sur « Choisir le fichier… » et montre-moi le projet \
+                ouvert dans FL (le fichier .flp). S'il n'a jamais été enregistré, enregistre-le d'abord dans FL \
+                (Fichier › Enregistrer).
                 """)
         case .outdatedScript:
             return String(localized: "FL utilise encore l'ancienne version du lien : redémarre FL Studio (il charge la nouvelle au lancement), puis clique sur « Réessayer ».")

@@ -21,6 +21,9 @@ struct ProjectFileAccess {
     var exists: (URL) -> Bool = { FileManager.default.fileExists(atPath: $0.path) }
     /// La fenêtre de FL porte le nom de ce fichier (FL l'a ouvert).
     var isOpen: (URL) -> Bool = { _ in false }
+    /// Ce que la dernière recherche du fichier a trouvé, en nombres et en mots fixes (diagnostic : jamais un nom ni
+    /// un chemin).
+    var search: () -> String = { "" }
 }
 
 /// Le fichier lu à l'analyse : où il est, chaque clip de la Playlist et ce qu'il joue.
@@ -286,7 +289,14 @@ enum ProjectFile {
     /// reçoit la raison en mots (diagnostic : jamais un nom).
     static func read(_ files: ProjectFileAccess, known: URL?, channels: [ChannelInfo], patterns: [PatternInfo],
                      why: (String) -> Void = { _ in }) throws -> (url: URL, file: FLPFile, project: FLPProject) {
-        let url = try files.save(known).get()
+        let url: URL
+        switch files.save(known) {
+        case .success(let found):
+            url = found
+        case .failure(let error):
+            why(error == .projectNotFound ? "introuvable" : "enregistrement")
+            throw error
+        }
         let file: FLPFile
         let project: FLPProject
         do {

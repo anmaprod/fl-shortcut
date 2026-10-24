@@ -300,3 +300,15 @@ entrée 1 ≈ 0,5 s.
   chaque fois) : `OrganizerFeedback.swift`, `CorrectionsIA.swift`, table `corrections_ia`
   (`supabase/corrections-ia.sql`, à coller par le propriétaire), `ia/corrections.py`. Le modèle rend maintenant
   aussi ses 1216 mesures par tranche (sortie « mesures »).
+
+## 24 octobre : premier essai de l'Organiser sur le vrai Mac
+- Le propriétaire avait encore la version du 23/10 avec le chantier des animations (la bulle qui sort de l'icône) :
+  le code ne l'a plus depuis e6d0d52, il faut installer une version plus récente.
+- Sur chaque projet ouvert, pourtant enregistré : « FL n'a pas enregistré ton projet », `fichier=non`. Causes
+  possibles, aucune prouvée : titre de la fenêtre principale de FL sans le nom du projet, Spotlight en retard (1,5 s
+  d'attente seulement sans fichier connu), dossiers trop gros parcourus en 3 s, projet déjà enregistré que FL ne
+  réécrit pas (l'ancien code exigeait une écriture). Corrigé : titres et documents de toutes les fenêtres de FL,
+  6 s d'attente avec Spotlight relu chaque seconde, Documents › Image-Line › FL Studio › Projects parcouru d'abord,
+  projet non réécrit pris tel quel (sa lecture vérifie toujours que c'est le projet ouvert), sinon l'erreur
+  `projectNotFound` et le bouton « Choisir le fichier… ». Diagnostic : ligne `recherche` (fenêtres, noms, candidats,
+  récents, parcourus, pris=écrit|récent|dossier|déjà-enregistré|aucun).

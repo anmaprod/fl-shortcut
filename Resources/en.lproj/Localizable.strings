@@ -422,6 +422,7 @@
 "Choisir l'entrée" = "Choose the input";
 "Choisir l'entrée 1" = "Choose input 1";
 "Choisir l'entrée 1 et armer la piste" = "Pick input 1 and arm the track";
+"Choisir le fichier…" = "Choose the file…";
 "Choisir le pattern 1" = "Select pattern 1";
 "Choisir le pattern 2" = "Select pattern 2";
 "Choisir le pattern 3" = "Select pattern 3";
@@ -446,6 +447,7 @@
 "Choisis la page de FL à ouvrir : les options de « Cliquer sur… » en dessous viennent d'elle." = "Choose the FL page to open: the “Click on…” options below come from it.";
 "Choisis la version à garder. Rien n'est envoyé ni remplacé avant ton choix." = "Choose the version to keep. Nothing is uploaded or replaced until you choose.";
 "Choisis le dossier de données de FL Studio (Options › File settings › User data folder dans FL), ou son dossier « Settings/Hardware »." = "Choose FL Studio's data folder (Options › File settings › User data folder in FL), or its “Settings/Hardware” folder.";
+"Choisis le fichier du projet ouvert dans FL Studio (.flp)." = "Choose the file of the project open in FL Studio (.flp).";
 "Choisis un menu de FL, puis ce qu'il contient, jusqu'à l'élément voulu." = "Choose an FL menu, then what's inside, down to the item you want.";
 "Choisis un mot de passe différent de l'ancien." = "Choose a password different from your old one.";
 "Choisis un état de piste du Mixer (.fst)" = "Choose a Mixer track state (.fst)";
@@ -933,6 +935,7 @@
 "Jamais envoyé : tes touches, tes noms de pistes, tes fichiers." = "Never sent: your keystrokes, your track names, your files.";
 "Jamais partagé : ton mail, tes positions apprises, les chemins de tes fichiers." = "Never shared: your email, your learned positions, your file paths.";
 "Je n'ai pas reçu le code par mail" = "I didn't get the code by email";
+"Je ne retrouve pas le fichier de ton projet. Clique sur « Choisir le fichier… » et montre-moi le projet ouvert dans FL (le fichier .flp). S'il n'a jamais été enregistré, enregistre-le d'abord dans FL (Fichier › Enregistrer)." = "I can't find your project's file. Click “Choose the file…” and show me the project open in FL (the .flp file). If it has never been saved, save it in FL first (File › Save).";
 "Joindre l'état de l'appli (recommandé)" = "Attach the app's status (recommended)";
 "Journal" = "Log";
 "Jusqu'à ce que " = "Until ";

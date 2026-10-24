@@ -422,6 +422,7 @@
 "Choisir l'entrée" = "Choisir l'entrée";
 "Choisir l'entrée 1" = "Choisir l'entrée 1";
 "Choisir l'entrée 1 et armer la piste" = "Choisir l'entrée 1 et armer la piste";
+"Choisir le fichier…" = "Choisir le fichier…";
 "Choisir le pattern 1" = "Choisir le pattern 1";
 "Choisir le pattern 2" = "Choisir le pattern 2";
 "Choisir le pattern 3" = "Choisir le pattern 3";
@@ -446,6 +447,7 @@
 "Choisis la page de FL à ouvrir : les options de « Cliquer sur… » en dessous viennent d'elle." = "Choisis la page de FL à ouvrir : les options de « Cliquer sur… » en dessous viennent d'elle.";
 "Choisis la version à garder. Rien n'est envoyé ni remplacé avant ton choix." = "Choisis la version à garder. Rien n'est envoyé ni remplacé avant ton choix.";
 "Choisis le dossier de données de FL Studio (Options › File settings › User data folder dans FL), ou son dossier « Settings/Hardware »." = "Choisis le dossier de données de FL Studio (Options › File settings › User data folder dans FL), ou son dossier « Settings/Hardware ».";
+"Choisis le fichier du projet ouvert dans FL Studio (.flp)." = "Choisis le fichier du projet ouvert dans FL Studio (.flp).";
 "Choisis un menu de FL, puis ce qu'il contient, jusqu'à l'élément voulu." = "Choisis un menu de FL, puis ce qu'il contient, jusqu'à l'élément voulu.";
 "Choisis un mot de passe différent de l'ancien." = "Choisis un mot de passe différent de l'ancien.";
 "Choisis un état de piste du Mixer (.fst)" = "Choisis un état de piste du Mixer (.fst)";
@@ -933,6 +935,7 @@
 "Jamais envoyé : tes touches, tes noms de pistes, tes fichiers." = "Jamais envoyé : tes touches, tes noms de pistes, tes fichiers.";
 "Jamais partagé : ton mail, tes positions apprises, les chemins de tes fichiers." = "Jamais partagé : ton mail, tes positions apprises, les chemins de tes fichiers.";
 "Je n'ai pas reçu le code par mail" = "Je n'ai pas reçu le code par mail";
+"Je ne retrouve pas le fichier de ton projet. Clique sur « Choisir le fichier… » et montre-moi le projet ouvert dans FL (le fichier .flp). S'il n'a jamais été enregistré, enregistre-le d'abord dans FL (Fichier › Enregistrer)." = "Je ne retrouve pas le fichier de ton projet. Clique sur « Choisir le fichier… » et montre-moi le projet ouvert dans FL (le fichier .flp). S'il n'a jamais été enregistré, enregistre-le d'abord dans FL (Fichier › Enregistrer).";
 "Joindre l'état de l'appli (recommandé)" = "Joindre l'état de l'appli (recommandé)";
 "Journal" = "Journal";
 "Jusqu'à ce que " = "Jusqu'à ce que ";

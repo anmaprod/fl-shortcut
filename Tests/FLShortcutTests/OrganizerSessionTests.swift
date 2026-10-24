@@ -1007,4 +1007,22 @@ final class OrganizerSessionTests: XCTestCase {
                                                                 open: { _ in false }))
         XCTAssertEqual(unsaved.run(), .failure(.failed("pas enregistré")))
     }
+
+    /// Fichier du projet introuvable (essai du propriétaire, 24/10, sur chaque projet) : l'erreur le dit (bouton
+    /// « Choisir le fichier… »), et le diagnostic donne ce que la recherche a vu, en nombres.
+    func testProjectFileNotFoundIsDiagnosed() {
+        let link = FakeOrganizerLink()
+        link.channels = [named(0, "Pad")]
+        let audio = FakeAudio(link: link)
+        let files = ProjectFileAccess(save: { _ in .failure(.projectNotFound) }, open: { _ in false },
+                                      search: { "fenêtres=1 noms=0 candidats=0 récents=0 parcourus=12 pris=aucun" })
+        let session = OrganizerSession(link: link, audio: audio, classify: classify, timing: timing, sleep: { _ in },
+                                       files: files)
+        XCTAssertEqual(session.run(), .failure(.projectNotFound))
+        XCTAssertEqual(session.diagnostics.file, "introuvable")
+        XCTAssertTrue(session.diagnostics.text.contains("recherche fenêtres=1 noms=0 candidats=0"),
+                      session.diagnostics.text)
+        XCTAssertTrue(OrganizerError.projectNotFound.message.contains("Choisir le fichier"))
+        XCTAssertEqual(audio.started, 0, "rien n'est écouté")
+    }
 }
