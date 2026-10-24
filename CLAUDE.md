@@ -111,7 +111,9 @@
 - Organiser sur le fichier : 1er essai du propriétaire (24/10, ancienne version) : « FL n'a pas enregistré ton
   projet » sur chaque projet, pourtant enregistré. Corrigé sans preuve (titres de toutes les fenêtres de FL, Spotlight
   relu chaque seconde, dossier Projects de FL d'abord, projet déjà enregistré pris tel quel, bouton « Choisir le
-  fichier… ») ; la ligne `recherche` du diagnostic dit ce qui a été vu. FL ouvre-t-il la copie rangée sans rien
-  demander, et le script lit-il la marque ?
+  fichier… ») ; la ligne `recherche` du diagnostic dit ce qui a été vu. 2e essai (24/10, 842a969) : fichier trouvé,
+  copie « _5 » écrite et ouverte par FL (marque « FL Shortcuts 4922 » visible), résultat « 99 % » pour lui ; puis
+  bloqué sur « FL charge les sons de la copie… » (attente de 3 réponses < 1 s, sans compteur). Assoupli (2 réponses
+  < 3 s, 2 min 30 au plus, compteur, `réponses=… lente=…ds` dans l'application) : à revérifier.
 - La suppression par ⌥ + Suppr (si ça échoue, l'app le dit).
 - Questions sans réponse : l'accueil manquant venait-il d'une installation sans désinstallation ?

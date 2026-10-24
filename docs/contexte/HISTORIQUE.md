@@ -316,3 +316,8 @@ entrée 1 ≈ 0,5 s.
   Accessibilité de Réglages Système (plus de fenêtre du Finder sur Applications, plus de petit panneau depuis
   l'accueil), puis demande le son de FL (Audio du système, pour l'Organiser) au lieu de « Enregistrement de
   l'écran ». Celui-ci n'est plus demandé qu'au créateur de macros, quand un bloc en a besoin.
+- 2e essai de l'Organiser (version 842a969) : le fichier est trouvé, la copie « _5 » écrite et ouverte par FL (la
+  marque « FL Shortcuts 4922 » se voit dans la liste des patterns), résultat jugé à 99 % par le propriétaire. Mais
+  l'app reste sur « FL charge les sons de la copie… » : elle attendait 3 réponses de FL en moins d'une seconde
+  (jusqu'à 240 essais de plusieurs secondes, sans compteur). Maintenant : 2 réponses en moins de 3 s, 2 min 30 au
+  plus, compteur de secondes, et l'application note `réponses=N lente=Nds` pour savoir si FL répondait.

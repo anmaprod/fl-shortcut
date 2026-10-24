@@ -521,7 +521,7 @@ final class OrganizerApplier {
         }
         report(String(localized: "FL charge les sons de la copie…"))
         let calmFrom = Date()
-        try waitUntilCalm(channels: result.channels.count)
+        try waitUntilCalm(channels: result.channels.count, trace: &outcome.trace)
         outcome.trace.append("calme \(Int(Date().timeIntervalSince(calmFrom))) s")
         MacroLog.shared.write("ORGANIZE", "FL answers after \(Int(Date().timeIntervalSince(calmFrom))) s, arranging")
         // La marque remise : le nom d'avant (une marque restée d'un essai où FL l'avait ouverte trop tard n'est jamais
@@ -553,24 +553,41 @@ final class OrganizerApplier {
         return name.map { ProjectFile.same($0, marker) } ?? false
     }
 
-    /// FL a ouvert la copie mais charge encore ses plugins (« Opening: Fruity Wrapper ») : il ne répond pas toujours à
-    /// temps (vidéo du propriétaire : « FL n'a pas confirmé », et rien d'autre ne s'est fait). La suite attend qu'il
-    /// réponde vite trois fois de suite (2 minutes au plus).
-    static let calmChecks = 240
+    /// FL a ouvert la copie mais charge encore ses plugins et ses sons (« Opening: Fruity Wrapper ») : il ne répond pas
+    /// toujours vite (vidéo du propriétaire : « FL n'a pas confirmé » ; puis essai du 24/10 sur un gros projet : « FL
+    /// charge les sons de la copie… » sans fin apparente, la règle d'avant voulait 3 réponses en moins d'une seconde).
+    /// La suite attend qu'il réponde deux fois de suite en moins de 3 s, 2 min 30 au plus ; le temps passé est montré,
+    /// et le diagnostic dit combien de réponses sont venues et la plus lente.
+    static let calmChecks = 150
+    static let calmAnswer: TimeInterval = 3
+    static let calmLimit: TimeInterval = 150
 
-    private func waitUntilCalm(channels expected: Int) throws {
+    private func waitUntilCalm(channels expected: Int, trace: inout [String]) throws {
         var calm = 0
         var count = -1
-        for _ in 0..<Self.calmChecks {
+        var answers = 0
+        var slowest: TimeInterval = 0
+        let started = Date()
+        for check in 0..<Self.calmChecks {
             wait(0.5)
             let asked = Date()
             let listed = try? link.listChannels()
-            calm = listed != nil && Date().timeIntervalSince(asked) < 1 ? calm + 1 : 0
-            if let listed { count = listed.count }
-            if calm >= 3 { break }
+            let took = Date().timeIntervalSince(asked)
+            if let listed {
+                answers += 1
+                slowest = max(slowest, took)
+                count = listed.count
+            }
+            calm = listed != nil && took < Self.calmAnswer ? calm + 1 : 0
+            if calm >= 2 || Date().timeIntervalSince(started) > Self.calmLimit { break }
+            if check % 4 == 3 {
+                let seconds = Int(Date().timeIntervalSince(started))
+                report(String(localized: "FL charge les sons de la copie… \(seconds) s"))
+            }
         }
-        guard calm >= 3 else {
-            throw OrganizerError.failed(String(localized: "FL met trop de temps à ouvrir la copie rangée : attends qu'il ait fini, puis relance l'Organiser. Ton projet n'a pas bougé."))
+        trace.append("réponses=\(answers) lente=\(Int((slowest * 10).rounded()))ds")
+        guard calm >= 2 else {
+            throw OrganizerError.failed(String(localized: "FL ne répond plus assez vite depuis l'ouverture de la copie rangée. Elle est ouverte dans FL avec sa Playlist rangée : relance l'Organiser dessus pour finir le reste. Ton projet d'origine n'a pas bougé."))
         }
         // La copie montre tous les sons (« All ») : autant que l'analyse, sinon rien ne serait à sa place.
         guard count == expected else {
