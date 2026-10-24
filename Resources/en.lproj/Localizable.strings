@@ -834,6 +834,7 @@
 "FL passe devant : fais le glisser-déposer une fois (il agit aussi dans FL). Échap annule." = "FL comes to the front: do the drag and drop once (it also works in FL). Esc cancels.";
 "FL passe devant : place la souris sur une piste du Mixer avant la fin du compte à rebours. Échap arrête la macro." = "FL comes to the front: put the mouse on a Mixer track before the countdown ends. Esc stops the macro.";
 "FL passe devant et la macro vise la dernière piste sur laquelle tu as cliqué. Échap l'arrête." = "FL comes to the front and the macro targets the last track you clicked. Esc stops it.";
+"FL rouvre ton projet d'avant…" = "FL is reopening your previous project…";
 "FL répond : le lien est prêt." = "FL responds: the link is ready.";
 "FL trouve « FL Shortcuts Link » en démarrant et le relie tout seul. C'est détecté ici dès que c'est fait." = "FL finds “FL Shortcuts Link” when it starts and links it on its own. It shows up here as soon as it's done.";
 "FL utilise encore l'ancienne version du lien : redémarre FL Studio (il charge la nouvelle au lancement), puis clique sur « Réessayer »." = "FL is still using the old version of the link: restart FL Studio (it loads the new one at launch), then click “Try again”.";
@@ -879,7 +880,6 @@
 "Format du son de FL inattendu : écoute impossible." = "Unexpected FL audio format: can't listen.";
 "Fruity Limiter, Pro-Q 3…" = "Fruity Limiter, Pro-Q 3…";
 "Garder ce Mac" = "Keep this Mac";
-"Garder l'original" = "Keep the original";
 "Garder mon compte" = "Keep my account";
 "Gauche" = "Left";
 "Genre" = "Type";
@@ -1513,7 +1513,8 @@
 "Retouche-la dans le créateur : ajoute des blocs de la palette d'un clic ou en les glissant, range les lignes en les glissant." = "Fine-tune it in the creator: add blocks from the palette with a click or by dragging, and drag rows to reorder them.";
 "Retour" = "Back";
 "Retour comme avant…" = "Undoing changes…";
-"Retour à ton projet d'origine…" = "Going back to your original project…";
+"Retourner en arrière" = "Go back";
+"Retourner en arrière : la version organisée part à la Corbeille et FL rouvre ton projet d'avant." = "Go back: the organized version goes to the Trash and FL reopens your previous project.";
 "Retrouver ce bouton s'il bouge" = "Find this button if it moves";
 "Retrouver mes raccourcis et mes macros sur un autre Mac" = "Get my shortcuts and macros on another Mac";
 "Retrouver ses boutons par leur nom, au moment du clic" = "Find its buttons by name when clicking";
@@ -1743,6 +1744,7 @@
 "Ton partage" = "Your post";
 "Ton projet a changé depuis l'analyse : rien n'a été touché. Ferme l'Organiser, puis relance-le." = "Your project changed since the analysis: nothing was changed. Close the Organizer, then open it again.";
 "Ton projet a plusieurs arrangements avec des clips : l'Organiser ne range pour l'instant qu'un seul arrangement. Rien n'a été touché." = "Your project has several arrangements with clips: for now the Organizer only organizes one arrangement. Nothing was changed.";
+"Ton projet d'avant n'est plus à sa place : la version organisée est gardée." = "Your previous project is no longer where it was: the organized version is kept.";
 "Ton projet d'origine n'a pas pu aller à la Corbeille : rien n'a été touché." = "Your original project couldn't be moved to the Trash: nothing was changed.";
 "Ton projet d'origine se rouvre dans FL, tel qu'il était. La copie rangée reste à côté, si tu la veux." = "Your original project reopens in FL, as it was. The organized copy stays next to it, if you want it.";
 "Tools › Purge unused audio clips, par le menu de FL en haut de l'écran : FL retire du projet les clips audio qui ne sont pas dans la Playlist (rien n'est effacé de ton disque)." = "Tools › Purge unused audio clips, from the FL menu at the top of the screen: FL removes audio clips that aren't in the Playlist from the project (nothing is deleted from your disk).";
@@ -1791,8 +1793,8 @@
 "Trop de variables (%lld au plus)." = "Too many variables (%lld max).";
 "Trop profond pour être rejoué par la macro" = "Too deep for the macro to replay";
 "Trousseau indisponible (%d)." = "Keychain unavailable (%d).";
-"Tu gardes la version organisée ?" = "Keep the organized version?";
 "Tu n'as pas encore de macro : crée-en une dans la page Macros." = "You don't have any macros yet: create one on the Macros page.";
+"Tu valides la version organisée ?" = "Keep the organized version?";
 "Type" = "Type";
 "Tête de lecture au début" = "Playhead to start";
 "Un bloc caché de l'ancien format est inclus : relis-le dans le créateur avant de t'en servir." = "A hidden block in the old format is included: review it in the creator before using it.";
@@ -1812,7 +1814,7 @@
 "Un état de piste du Mixer (.fst) dans ton dossier personnel. La boîte « Open » de FL doit être ouverte juste avant (bloc « Attendre une fenêtre »)." = "A Mixer track state (.fst) in your home folder. FL's “Open” dialog must be open just before (“Wait for a window” block).";
 "Une action de FL Shortcuts (Mixer, Playlist, métronome…) : par le lien avec FL s'il est installé, sinon la touche équivalente de FL." = "An FL Shortcuts action (Mixer, Playlist, metronome…): through the FL link if it's installed, otherwise FL's matching key.";
 "Une couleur" = "One color";
-"Une fois l'Organiser fermé, FL Shortcuts te demandera si tu gardes cette version : ton projet d'origine partira alors à la Corbeille et elle prendra son nom." = "Once Organize is closed, FL Shortcuts will ask whether you keep this version: your original project will then go to the Trash and this one will take its name.";
+"Une fois l'Organiser fermé, FL Shortcuts te demandera si tu valides cette version : « Valider » met ton projet d'origine à la Corbeille et lui donne son nom, « Retourner en arrière » la supprime et rouvre ton projet d'avant." = "Once Organize is closed, FL Shortcuts will ask whether you keep this version: “Yes, keep it” moves your original project to the Trash and gives this one its name, “Go back” deletes it and reopens your previous project.";
 "Une idée" = "An idea";
 "Une macro" = "A macro";
 "Une macro ajoutée arrive sans raccourci : rien ne se lance tant que tu ne lui en as pas choisi un." = "An added macro comes without a shortcut: nothing runs until you choose one for it.";

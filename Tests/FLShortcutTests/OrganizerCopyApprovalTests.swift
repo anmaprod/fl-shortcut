@@ -119,13 +119,13 @@ final class OrganizerCopyApprovalTests: XCTestCase {
         XCTAssertEqual(text(original), "rangé")
     }
 
-    /// « Garder l'original » : la version organisée (et celles d'avant) à la Corbeille, l'original ne bouge pas.
-    func testKeepOriginalTrashesTheCopies() throws {
+    /// « Retourner en arrière » : la version organisée (et celles d'avant) à la Corbeille, l'original ne bouge pas.
+    func testGoBackTrashesTheCopies() throws {
         let original = try file("Nuit.flp", "avant")
         let older = try file("Nuit_2.flp", "rangé 1")
         let copy = try file("Nuit_3.flp", "rangé 2")
-        CopyApprovalRules.keepOriginal(PendingCopy(original: original, copy: copy, older: [older], date: Date()),
-                                       files: files())
+        CopyApprovalRules.goBack(PendingCopy(original: original, copy: copy, older: [older], date: Date()),
+                                 files: files())
         XCTAssertEqual(text(original), "avant")
         XCTAssertFalse(FileManager.default.fileExists(atPath: copy.path))
         XCTAssertFalse(FileManager.default.fileExists(atPath: older.path))

@@ -48,7 +48,7 @@ enum DebugSnapshot {
     /// « ecoute », « apercu », « fini » ; « fermer » le ferme.
     static let organizer = Notification.Name("app.flshortcut.debug.organizer")
     private static var organizerObserver: NSObjectProtocol?
-    /// Question « Tu gardes la version organisée ? » avec un exemple, sans toucher à aucun fichier : « question »,
+    /// Question « Tu valides la version organisée ? » avec un exemple, sans toucher à aucun fichier : « question »,
     /// « travail », « erreur » ; « fermer » la ferme.
     static let approval = Notification.Name("app.flshortcut.debug.approval")
     private static var approvalObserver: NSObjectProtocol?

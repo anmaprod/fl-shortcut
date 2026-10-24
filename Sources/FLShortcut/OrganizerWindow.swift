@@ -798,7 +798,7 @@ final class OrganizerController: ObservableObject {
             if lastApply?.copyNotSaved == true {
                 lines.append(String(localized: "FL n'a pas enregistré la copie rangée : enregistre-la dans FL (⌘S)."))
             }
-            lines.append(String(localized: "Une fois l'Organiser fermé, FL Shortcuts te demandera si tu gardes cette version : ton projet d'origine partira alors à la Corbeille et elle prendra son nom."))
+            lines.append(String(localized: "Une fois l'Organiser fermé, FL Shortcuts te demandera si tu valides cette version : « Valider » met ton projet d'origine à la Corbeille et lui donne son nom, « Retourner en arrière » la supprime et rouvre ton projet d'avant."))
         }
         if let outcome = lastApply {
             if outcome.deleted > 0 {

@@ -356,3 +356,6 @@ entrée 1 ≈ 0,5 s.
   lancement, ligne « Valider la version organisée… » dans le menu de l'icône. Rien n'est supprimé pour de bon ; un
   renommage raté remet l'original. Organiser relancé sur une copie en attente : la nouvelle la remplace (même
   original, l'ancienne copie part à la Corbeille avec la réponse). « Revenir comme avant » : plus de question.
+  Puis (propriétaire) : « Tu valides la version organisée ? », et « Retourner en arrière » à la place de « Garder
+  l'original » : la version organisée part à la Corbeille et FL rouvre toujours le projet d'avant (même s'il montrait
+  autre chose ; FL fermé : lancé sur ce projet). Projet d'avant disparu : rien n'est touché, la version reste.

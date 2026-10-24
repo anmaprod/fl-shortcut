@@ -1,9 +1,10 @@
 // Validation de la copie rangée (demande du propriétaire, 24/10). L'Organiser range toujours dans une copie
 // « <nom>_2.flp » à côté du projet. Une fois l'Organiser fermé, la prochaine fois qu'on rouvre FL Shortcuts (l'icône
-// de la barre des menus, l'app relancée ou rouverte), il demande si l'on garde cette version :
+// de la barre des menus, l'app relancée ou rouverte), il demande si l'on valide cette version :
 // - « Valider » : l'original part à la Corbeille et la version organisée prend son nom (FL enregistre d'abord la
 //   version organisée s'il l'a ouverte, puis rouvre le fichier renommé : il n'écrira jamais sous l'ancien nom) ;
-// - « Garder l'original » : la version organisée part à la Corbeille (FL rouvre l'original s'il l'avait ouverte) ;
+// - « Retourner en arrière » : la version organisée part à la Corbeille et FL rouvre le projet d'avant (lancé
+//   dessus s'il était fermé) ;
 // - « Plus tard » : plus demandé tout seul avant le prochain lancement ; une ligne du menu de l'icône y mène.
 // Rien n'est jamais supprimé pour de bon (Corbeille) ; un renommage raté remet l'original à sa place. Les chemins
 // restent dans les réglages de l'app sur le Mac, jamais dans le journal.
@@ -43,6 +44,8 @@ enum CopyApprovalError: Error, Equatable {
     case flNotSaved
     /// FL n'a pas ouvert le fichier attendu à temps : rien n'a été touché.
     case flBusy
+    /// Le projet d'avant n'est plus là (déplacé, supprimé) : la version organisée reste.
+    case originalMissing
 
     var message: String {
         switch self {
@@ -56,6 +59,8 @@ enum CopyApprovalError: Error, Equatable {
             return String(localized: "FL Studio doit être au premier plan pour enregistrer la version organisée : clique dans sa fenêtre, puis réessaie. Rien n'a été touché.")
         case .flBusy:
             return String(localized: "FL Studio n'a pas changé de projet à temps (une question attend peut-être dans FL) : rien n'a été touché.")
+        case .originalMissing:
+            return String(localized: "Ton projet d'avant n'est plus à sa place : la version organisée est gardée.")
         }
     }
 }
@@ -106,8 +111,8 @@ enum CopyApprovalRules {
         return p.original
     }
 
-    /// « Garder l'original » : la version organisée et celles d'avant à la Corbeille ; l'original ne bouge pas.
-    static func keepOriginal(_ p: PendingCopy, files: CopyFiles) {
+    /// « Retourner en arrière » : la version organisée et celles d'avant à la Corbeille ; l'original ne bouge pas.
+    static func goBack(_ p: PendingCopy, files: CopyFiles) {
         for url in [p.copy] + p.older where files.exists(url) { _ = try? files.trash(url) }
     }
 }
@@ -224,15 +229,23 @@ enum CopyApprovalLive {
         }
     }
 
-    /// « Garder l'original », avec FL : s'il montre la version organisée, il rouvre l'original (il demande peut-être
-    /// s'il faut l'enregistrer : l'utilisateur choisit) ; la version organisée part à la Corbeille une fois quittée.
-    static func keepOriginal(_ p: PendingCopy, files: CopyFiles) -> CopyApprovalError? {
-        if OrganizerEnvironment.flPID() != nil, flShows(p.copy) {
-            guard files.exists(p.original), ProjectFileLive.open(p.original),
-                  wait(seconds: 60, until: { !flShows(p.copy) }) else { return .flBusy }
+    /// « Retourner en arrière », avec FL : il rouvre le projet d'avant (sauf s'il le montre déjà ; il demande
+    /// peut-être s'il faut enregistrer celui qu'il quitte : l'utilisateur choisit), puis la version organisée part à
+    /// la Corbeille une fois quittée. FL fermé : il est lancé sur le projet d'avant. Le projet d'avant disparu : rien
+    /// n'est touché.
+    static func goBack(_ p: PendingCopy, files: CopyFiles) -> CopyApprovalError? {
+        guard files.exists(p.original) else { return .originalMissing }
+        if OrganizerEnvironment.flPID() != nil {
+            let showsCopy = flShows(p.copy)
+            if showsCopy || !flShows(p.original) {
+                guard ProjectFileLive.open(p.original) else { return .flBusy }
+                if showsCopy, !wait(seconds: 60, until: { !flShows(p.copy) }) { return .flBusy }
+            }
+        } else {
+            DispatchQueue.main.async { NSWorkspace.shared.open(p.original) }     // FL Studio, sur le projet d'avant
         }
-        CopyApprovalRules.keepOriginal(p, files: files)
-        MacroLog.shared.write("ORGANIZE", "organized copy discarded (\(p.older.count) older)")
+        CopyApprovalRules.goBack(p, files: files)
+        MacroLog.shared.write("ORGANIZE", "organized copy discarded, previous project reopened (\(p.older.count) older)")
         return nil
     }
 }
@@ -263,7 +276,7 @@ final class CopyApprovalFlow: ObservableObject {
     var remaining: Int { demo ? 0 : max(0, approval.pending.count - 1) }
 
     func validate() { answer(keep: true) }
-    func keepOriginal() { answer(keep: false) }
+    func goBack() { answer(keep: false) }
 
     func later() {
         approval.snooze()
@@ -273,14 +286,14 @@ final class CopyApprovalFlow: ObservableObject {
     private func answer(keep: Bool) {
         guard let p = current, !demo else { return }
         step = .working(keep ? String(localized: "FL enregistre la version organisée…")
-                             : String(localized: "Retour à ton projet d'origine…"))
+                             : String(localized: "FL rouvre ton projet d'avant…"))
         let files = approval.files
         DispatchQueue.global(qos: .userInitiated).async {
             let error: CopyApprovalError?
             if keep {
                 if case .failure(let e) = CopyApprovalLive.validate(p, files: files) { error = e } else { error = nil }
             } else {
-                error = CopyApprovalLive.keepOriginal(p, files: files)
+                error = CopyApprovalLive.goBack(p, files: files)
             }
             DispatchQueue.main.async { [weak self] in self?.finish(p, error: error) }
         }
@@ -411,24 +424,27 @@ struct CopyApprovalView: View {
                 .font(.system(size: 40))
                 .foregroundStyle(OrganizerView.tint)
                 .accessibilityHidden(true)
-            Text("Tu gardes la version organisée ?")
+            Text("Tu valides la version organisée ?")
                 .font(.system(size: 13, weight: .bold))
             Text("« \(name(flow.current?.copy)) » est ton projet « \(name(flow.current?.original)) » rangé par l'Organiser.")
                 .font(.system(size: 11))
                 .multilineTextAlignment(.center)
                 .fixedSize(horizontal: false, vertical: true)
-            Text("Valider : ton projet d'origine part à la Corbeille et la version organisée prend son nom.")
-                .font(.system(size: 11))
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
-                .fixedSize(horizontal: false, vertical: true)
+            VStack(spacing: 4) {
+                Text("Valider : ton projet d'origine part à la Corbeille et la version organisée prend son nom.")
+                Text("Retourner en arrière : la version organisée part à la Corbeille et FL rouvre ton projet d'avant.")
+            }
+            .font(.system(size: 11))
+            .foregroundStyle(.secondary)
+            .multilineTextAlignment(.center)
+            .fixedSize(horizontal: false, vertical: true)
             if flow.remaining > 0 {
                 Text("Encore \(flow.remaining) autre(s) projet(s) ensuite.")
                     .font(.system(size: 11))
                     .foregroundStyle(.secondary)
             }
             HStack(spacing: 8) {
-                Button { flow.keepOriginal() } label: { Text("Garder l'original").frame(maxWidth: .infinity) }
+                Button { flow.goBack() } label: { Text("Retourner en arrière").frame(maxWidth: .infinity) }
                 Button { flow.validate() } label: { Text("Oui, valider").frame(maxWidth: .infinity) }
                     .buttonStyle(.borderedProminent)
                     .keyboardShortcut(.defaultAction)

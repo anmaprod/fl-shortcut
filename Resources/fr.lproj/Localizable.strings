@@ -834,6 +834,7 @@
 "FL passe devant : fais le glisser-déposer une fois (il agit aussi dans FL). Échap annule." = "FL passe devant : fais le glisser-déposer une fois (il agit aussi dans FL). Échap annule.";
 "FL passe devant : place la souris sur une piste du Mixer avant la fin du compte à rebours. Échap arrête la macro." = "FL passe devant : place la souris sur une piste du Mixer avant la fin du compte à rebours. Échap arrête la macro.";
 "FL passe devant et la macro vise la dernière piste sur laquelle tu as cliqué. Échap l'arrête." = "FL passe devant et la macro vise la dernière piste sur laquelle tu as cliqué. Échap l'arrête.";
+"FL rouvre ton projet d'avant…" = "FL rouvre ton projet d'avant…";
 "FL répond : le lien est prêt." = "FL répond : le lien est prêt.";
 "FL trouve « FL Shortcuts Link » en démarrant et le relie tout seul. C'est détecté ici dès que c'est fait." = "FL trouve « FL Shortcuts Link » en démarrant et le relie tout seul. C'est détecté ici dès que c'est fait.";
 "FL utilise encore l'ancienne version du lien : redémarre FL Studio (il charge la nouvelle au lancement), puis clique sur « Réessayer »." = "FL utilise encore l'ancienne version du lien : redémarre FL Studio (il charge la nouvelle au lancement), puis clique sur « Réessayer ».";
@@ -879,7 +880,6 @@
 "Format du son de FL inattendu : écoute impossible." = "Format du son de FL inattendu : écoute impossible.";
 "Fruity Limiter, Pro-Q 3…" = "Fruity Limiter, Pro-Q 3…";
 "Garder ce Mac" = "Garder ce Mac";
-"Garder l'original" = "Garder l'original";
 "Garder mon compte" = "Garder mon compte";
 "Gauche" = "Gauche";
 "Genre" = "Genre";
@@ -1513,7 +1513,8 @@
 "Retouche-la dans le créateur : ajoute des blocs de la palette d'un clic ou en les glissant, range les lignes en les glissant." = "Retouche-la dans le créateur : ajoute des blocs de la palette d'un clic ou en les glissant, range les lignes en les glissant.";
 "Retour" = "Retour";
 "Retour comme avant…" = "Retour comme avant…";
-"Retour à ton projet d'origine…" = "Retour à ton projet d'origine…";
+"Retourner en arrière" = "Retourner en arrière";
+"Retourner en arrière : la version organisée part à la Corbeille et FL rouvre ton projet d'avant." = "Retourner en arrière : la version organisée part à la Corbeille et FL rouvre ton projet d'avant.";
 "Retrouver ce bouton s'il bouge" = "Retrouver ce bouton s'il bouge";
 "Retrouver mes raccourcis et mes macros sur un autre Mac" = "Retrouver mes raccourcis et mes macros sur un autre Mac";
 "Retrouver ses boutons par leur nom, au moment du clic" = "Retrouver ses boutons par leur nom, au moment du clic";
@@ -1743,6 +1744,7 @@
 "Ton partage" = "Ton partage";
 "Ton projet a changé depuis l'analyse : rien n'a été touché. Ferme l'Organiser, puis relance-le." = "Ton projet a changé depuis l'analyse : rien n'a été touché. Ferme l'Organiser, puis relance-le.";
 "Ton projet a plusieurs arrangements avec des clips : l'Organiser ne range pour l'instant qu'un seul arrangement. Rien n'a été touché." = "Ton projet a plusieurs arrangements avec des clips : l'Organiser ne range pour l'instant qu'un seul arrangement. Rien n'a été touché.";
+"Ton projet d'avant n'est plus à sa place : la version organisée est gardée." = "Ton projet d'avant n'est plus à sa place : la version organisée est gardée.";
 "Ton projet d'origine n'a pas pu aller à la Corbeille : rien n'a été touché." = "Ton projet d'origine n'a pas pu aller à la Corbeille : rien n'a été touché.";
 "Ton projet d'origine se rouvre dans FL, tel qu'il était. La copie rangée reste à côté, si tu la veux." = "Ton projet d'origine se rouvre dans FL, tel qu'il était. La copie rangée reste à côté, si tu la veux.";
 "Tools › Purge unused audio clips, par le menu de FL en haut de l'écran : FL retire du projet les clips audio qui ne sont pas dans la Playlist (rien n'est effacé de ton disque)." = "Tools › Purge unused audio clips, par le menu de FL en haut de l'écran : FL retire du projet les clips audio qui ne sont pas dans la Playlist (rien n'est effacé de ton disque).";
@@ -1791,8 +1793,8 @@
 "Trop de variables (%lld au plus)." = "Trop de variables (%lld au plus).";
 "Trop profond pour être rejoué par la macro" = "Trop profond pour être rejoué par la macro";
 "Trousseau indisponible (%d)." = "Trousseau indisponible (%d).";
-"Tu gardes la version organisée ?" = "Tu gardes la version organisée ?";
 "Tu n'as pas encore de macro : crée-en une dans la page Macros." = "Tu n'as pas encore de macro : crée-en une dans la page Macros.";
+"Tu valides la version organisée ?" = "Tu valides la version organisée ?";
 "Type" = "Type";
 "Tête de lecture au début" = "Tête de lecture au début";
 "Un bloc caché de l'ancien format est inclus : relis-le dans le créateur avant de t'en servir." = "Un bloc caché de l'ancien format est inclus : relis-le dans le créateur avant de t'en servir.";
@@ -1812,7 +1814,7 @@
 "Un état de piste du Mixer (.fst) dans ton dossier personnel. La boîte « Open » de FL doit être ouverte juste avant (bloc « Attendre une fenêtre »)." = "Un état de piste du Mixer (.fst) dans ton dossier personnel. La boîte « Open » de FL doit être ouverte juste avant (bloc « Attendre une fenêtre »).";
 "Une action de FL Shortcuts (Mixer, Playlist, métronome…) : par le lien avec FL s'il est installé, sinon la touche équivalente de FL." = "Une action de FL Shortcuts (Mixer, Playlist, métronome…) : par le lien avec FL s'il est installé, sinon la touche équivalente de FL.";
 "Une couleur" = "Une couleur";
-"Une fois l'Organiser fermé, FL Shortcuts te demandera si tu gardes cette version : ton projet d'origine partira alors à la Corbeille et elle prendra son nom." = "Une fois l'Organiser fermé, FL Shortcuts te demandera si tu gardes cette version : ton projet d'origine partira alors à la Corbeille et elle prendra son nom.";
+"Une fois l'Organiser fermé, FL Shortcuts te demandera si tu valides cette version : « Valider » met ton projet d'origine à la Corbeille et lui donne son nom, « Retourner en arrière » la supprime et rouvre ton projet d'avant." = "Une fois l'Organiser fermé, FL Shortcuts te demandera si tu valides cette version : « Valider » met ton projet d'origine à la Corbeille et lui donne son nom, « Retourner en arrière » la supprime et rouvre ton projet d'avant.";
 "Une idée" = "Une idée";
 "Une macro" = "Une macro";
 "Une macro ajoutée arrive sans raccourci : rien ne se lance tant que tu ne lui en as pas choisi un." = "Une macro ajoutée arrive sans raccourci : rien ne se lance tant que tu ne lui en as pas choisi un.";
