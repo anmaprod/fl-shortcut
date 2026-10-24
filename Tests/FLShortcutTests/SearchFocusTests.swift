@@ -54,4 +54,33 @@ final class SearchFocusTests: XCTestCase {
         XCTAssertFalse(searchHasFocus())
         XCTAssertFalse(window.firstResponder === window, "un autre champ garde la main")
     }
+
+    /// Retour de l'utilisateur (vidéo) : recherche cliquée, puis un clic hors de l'app ; la fenêtre revenue, elle était
+    /// encore active. La fenêtre qui perd la main la lui reprend, et elle ne la reprend pas au retour.
+    func testSearchLetsGoWhenTheWindowLosesFocus() {
+        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 400, height: 200), styleMask: [.titled],
+                              backing: .buffered, defer: false)
+        window.isReleasedWhenClosed = false
+        defer { window.close() }
+        let search = NSSearchField(frame: NSRect(x: 10, y: 150, width: 200, height: 24))
+        let guardView = SearchFocusGuard.GuardView(frame: .zero)
+        window.contentView?.addSubview(search)
+        window.contentView?.addSubview(guardView)
+        window.orderFrontRegardless()
+        func spin() { RunLoop.current.run(until: Date().addingTimeInterval(0.5)) }
+        func searchHasFocus() -> Bool { SearchFocusGuard.GuardView.isSearchEditor(window.firstResponder) }
+
+        guardView.clicked(inSearch: true, window: window)      // clic dedans
+        window.makeFirstResponder(search)
+        spin()
+        XCTAssertTrue(searchHasFocus(), "choisie : elle garde la main")
+
+        NotificationCenter.default.post(name: NSWindow.didResignKeyNotification, object: window)   // clic hors de l'app
+        spin()
+        XCTAssertFalse(searchHasFocus(), "fenêtre quittée : elle lâche la main")
+
+        window.makeFirstResponder(search)                      // la fenêtre revenue, AppKit la lui redonne
+        spin()
+        XCTAssertFalse(searchHasFocus(), "au retour : plus active")
+    }
 }

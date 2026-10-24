@@ -435,10 +435,32 @@ struct EditorView: View {
 
     // MARK: Barre latérale
 
+    /// Pendant une recherche, aucune page n'est choisie dans la barre latérale (la recherche les couvre toutes) : un
+    /// clic sur une page, même celle d'avant, quitte la recherche et l'ouvre (retour de l'utilisateur, vidéo : Mixer
+    /// cliqué pendant une recherche, rien ne changeait).
+    private var sidebarSelection: Binding<SidebarItem?> {
+        Binding(get: { trimmedQuery.isEmpty ? selection : nil },
+                set: { newValue in
+                    guard let newValue else {
+                        if trimmedQuery.isEmpty { selection = nil }
+                        return
+                    }
+                    if !trimmedQuery.isEmpty { endSearch() }
+                    selection = newValue
+                })
+    }
+
+    /// Fin de la recherche (texte vidé, attente d'un raccourci arrêtée) : la page choisie revient.
+    private func endSearch() {
+        if recorder.activeID == Self.keySearchID { recorder.stop() }
+        keySearch = nil
+        query = ""
+    }
+
     private func sidebar(_ data: CatalogData) -> some View {
         var modified: [FLSection: Int] = [:]
         for row in data.rows where !row.isDefault { modified[row.entry.section, default: 0] += 1 }
-        return List(selection: $selection) {
+        return List(selection: sidebarSelection) {
             Section {
                 // Sélection par étiquette (.tag) : un NavigationLink sans destination ne sélectionne rien sur
                 // macOS 26+ (clic capté, section inchangée).
@@ -1163,12 +1185,27 @@ private struct ResetButton: View {
         Button(action: action) {
             Label("Réinitialiser", systemImage: "arrow.counterclockwise")
         }
-        .buttonStyle(.borderless)
-        .font(.system(size: 11))
-        .foregroundStyle(.secondary)
+        .buttonStyle(RowActionStyle())
         .fixedSize()
         .disabled(!enabled)
         .help(help)
+    }
+}
+
+/// Petits boutons au bout des lignes (« Réinitialiser », « Supprimer ») : la même couleur au repos et au survol de
+/// la ligne. Le gris « secondaire » de macOS se peint autrement sous l'ombre du survol : il s'éteignait ligne après
+/// ligne quand la souris passait vite (retour de l'utilisateur, vidéo : « une sorte de vague »). Couleur simple ici.
+private struct RowActionStyle: ButtonStyle {
+    @Environment(\.isEnabled) private var isEnabled
+    @Environment(\.colorScheme) private var colorScheme
+
+    func makeBody(configuration: Configuration) -> some View {
+        let ink: Color = colorScheme == .dark ? .white : .black
+        let strength: Double = colorScheme == .dark ? 0.7 : 0.55
+        configuration.label
+            .font(.system(size: 11))
+            .foregroundStyle(ink.opacity(isEnabled ? (configuration.isPressed ? strength * 0.6 : strength) : strength * 0.5))
+            .contentShape(Rectangle())
     }
 }
 
@@ -1272,9 +1309,7 @@ private struct ShortcutRow: View {
             Button(action: onDelete) {
                 Label("Supprimer", systemImage: "trash")
             }
-            .buttonStyle(.borderless)
-            .font(.system(size: 11))
-            .foregroundStyle(.secondary)
+            .buttonStyle(RowActionStyle())
             .fixedSize()
         }
         .padding(.vertical, 2)

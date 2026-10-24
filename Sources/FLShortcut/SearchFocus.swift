@@ -4,8 +4,10 @@
 // qu'on ait cliqué dedans. Elle ne garde la main qu'après un clic dedans (ou ⌘F), et jusqu'au premier clic ailleurs
 // (une page, une option de la barre latérale, un bouton) : sinon la fenêtre la lui reprend, tout de suite et encore
 // une fois la page changée (retour de l'utilisateur : cliquée puis une option choisie dans la seconde, elle gardait
-// la main pour de bon). Son texte reste. Rien ne tourne au repos : un observateur de la fenêtre et un moniteur local
-// (clics et touches de cette fenêtre seulement), retirés avec la vue.
+// la main pour de bon). Un clic hors de la fenêtre (une autre app, le bureau, une autre fenêtre de l'app) la lui
+// reprend aussi, pour de bon : la fenêtre revenue, elle n'est plus active (retour de l'utilisateur, vidéo : cliquée,
+// puis un clic hors de l'app, elle était encore active au retour). Son texte reste. Rien ne tourne au repos : des
+// observateurs de la fenêtre et un moniteur local (clics et touches de cette fenêtre seulement), retirés avec la vue.
 import AppKit
 import SwiftUI
 
@@ -19,6 +21,7 @@ struct SearchFocusGuard: NSViewRepresentable {
         private var observation: NSKeyValueObservation?
         private var monitor: Any?
         private var keyObserver: NSObjectProtocol?
+        private var resignObserver: NSObjectProtocol?
         /// La recherche a été choisie (clic dedans, ⌘F) : elle garde la main jusqu'au premier clic ailleurs.
         private(set) var chosen = false
 
@@ -46,6 +49,11 @@ struct SearchFocusGuard: NSViewRepresentable {
                                                                  object: window, queue: .main) { [weak self] _ in
                 self?.checkSoon(window)
             }
+            // La fenêtre perd la main (clic hors d'elle) : la recherche la lâche aussi.
+            resignObserver = NotificationCenter.default.addObserver(forName: NSWindow.didResignKeyNotification,
+                                                                    object: window, queue: .main) { [weak self] _ in
+                self?.left(window)
+            }
             // Fenêtre qui s'ouvre : la recherche a pu prendre la main avant que l'observateur soit là.
             checkSoon(window)
         }
@@ -56,6 +64,14 @@ struct SearchFocusGuard: NSViewRepresentable {
             monitor = nil
             if let keyObserver { NotificationCenter.default.removeObserver(keyObserver) }
             keyObserver = nil
+            if let resignObserver { NotificationCenter.default.removeObserver(resignObserver) }
+            resignObserver = nil
+        }
+
+        /// Clic hors de la fenêtre : comme un clic ailleurs, la recherche n'est plus choisie et lâche la main.
+        func left(_ window: NSWindow) {
+            chosen = false
+            check(window)
         }
 
         /// Clic dans la fenêtre : dans la recherche, elle est choisie ; ailleurs, elle lâche la main (un autre champ

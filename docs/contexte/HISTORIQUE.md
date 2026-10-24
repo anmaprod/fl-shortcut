@@ -321,3 +321,9 @@ entrée 1 ≈ 0,5 s.
   l'app reste sur « FL charge les sons de la copie… » : elle attendait 3 réponses de FL en moins d'une seconde
   (jusqu'à 240 essais de plusieurs secondes, sans compteur). Maintenant : 2 réponses en moins de 3 s, 2 min 30 au
   plus, compteur de secondes, et l'application note `réponses=N lente=Nds` pour savoir si FL répondait.
+- Interface (vidéo du propriétaire) : « Réinitialiser » et « Supprimer » gardent la même couleur au survol de la
+  ligne (le gris « secondaire » de macOS s'éteignait sous l'ombre du survol : une vague quand la souris passait
+  vite ; couleur simple maintenant, `RowActionStyle`) ; la recherche lâche la main aussi quand la fenêtre la perd
+  (clic dans une autre app, le bureau, une autre fenêtre) et ne la reprend pas au retour ; pendant une recherche,
+  la barre latérale n'a plus de page choisie : un clic sur une page (même celle d'avant) vide la recherche et
+  l'ouvre (`sidebarSelection`).
