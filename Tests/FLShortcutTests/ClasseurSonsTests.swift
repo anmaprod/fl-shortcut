@@ -146,7 +146,8 @@ final class ClasseurSonsTests: XCTestCase {
                           flatness: flat, onsetsPerSecond: 4, distinctPitches: 1, vibrato: 0, highRatio: high)
         }
         let boucle = f(len: 0.17, low: 0.5, flat: 0.26, high: 0.41)
-        XCTAssertEqual(DrumNaming.kind(boucle, scores: [:], embedded: .kick), .drums, "boucle : les mesures d'abord")
+        XCTAssertEqual(DrumNaming.kind(boucle, scores: [:], embedded: .kick), .drumLoop, "boucle : les mesures d'abord")
+        XCTAssertEqual(DrumNaming.kind(boucle, scores: [:], embedded: .fill), .fill, "boucle que l'IA entend comme un fill")
         let hat = f(len: 0.1, low: 0, flat: 0.6, high: 0.9)
         XCTAssertEqual(DrumNaming.kind(hat, scores: [:], embedded: .snare), .hiHat, "hi-hat à ses aigus, même si l'IA dit snare")
         XCTAssertEqual(DrumNaming.kind(hat, scores: [:], embedded: .openHat), .openHat, "l'IA précise un métal")
