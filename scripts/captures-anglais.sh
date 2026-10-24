@@ -37,6 +37,8 @@ for screen in installer ecoute apercu fini; do
   "$POST" app.flshortcut.debug.organizer "$screen"; shot "organiser-$screen"
 done
 "$POST" app.flshortcut.debug.organizer fermer; sleep 1
+"$POST" app.flshortcut.debug.approval question; shot version-organisee
+"$POST" app.flshortcut.debug.approval fermer; sleep 1
 "$POST" app.flshortcut.debug.select aide
 for screen in aide ecrire; do "$POST" app.flshortcut.debug.help "$screen"; shot "aide-$screen"; done
 "$POST" app.flshortcut.debug.select compte

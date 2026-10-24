@@ -111,6 +111,24 @@ enum ProjectFileLive {
         return .failure(.projectNotFound)
     }
 
+    /// FL enregistre le projet qu'il montre (ce fichier) : ⌘S, FL au premier plan, puis 4 secondes au plus pour
+    /// l'écrire (rien à écrire s'il n'a pas changé). Faux si FL n'a pas pu passer au premier plan.
+    static func saveShown(_ url: URL) -> Bool {
+        guard let pid = OrganizerEnvironment.flPID() else { return false }
+        let before = modified(url)
+        let start = Date()
+        guard sendSave(pid: pid) else { return false }
+        let deadline = Date().addingTimeInterval(4)
+        while Date() < deadline {
+            Thread.sleep(forTimeInterval: 0.25)
+            if let date = modified(url), date >= start.addingTimeInterval(-1), before.map({ date > $0 }) ?? true {
+                Thread.sleep(forTimeInterval: 0.5)                 // FL finit d'écrire
+                return true
+            }
+        }
+        return true
+    }
+
     /// FL ouvre ce fichier (comme un double-clic dans le Finder) ; faux si macOS dit que ça n'a pas pu se faire
     /// (10 secondes au plus pour le savoir).
     static func open(_ url: URL) -> Bool {

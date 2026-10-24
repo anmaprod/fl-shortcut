@@ -347,3 +347,12 @@ entrée 1 ≈ 0,5 s.
   noms (CLAP, HAT, KICK, SNARE, TOM, PERCUSSION, FILL, LOOP, FX, TEXTURE ; LAYER ignoré). Réappris : 92,4 %
   (voix 96,3, drums 97,2, basse 95,4 ; Drum loop 86, Fill 88), seuil 0,37 ; l'écart avec 92,9 % vient surtout des
   mélodies (86,0 contre 87,3), sans lien avec ce changement : variation d'un apprentissage à l'autre.
+- Validation de la copie rangée (demande du propriétaire) : après un Organiser, la copie « _N.flp » et son original
+  sont retenus (`OrganizerCopyApproval.swift`, réglage `organizerPendingCopies`). Une fois l'Organiser fermé, à la
+  réouverture de FL Shortcuts (icône, lancement, app rouverte), la question « Tu gardes la version organisée ? » :
+  « Oui, valider » = l'original à la Corbeille, la copie prend son nom (si FL montre la copie : ⌘S d'abord, puis FL
+  rouvre le fichier renommé ; s'il montre l'original : il ouvre d'abord la copie) ; « Garder l'original » = la copie
+  à la Corbeille (FL rouvre l'original s'il avait la copie) ; « Plus tard » = plus demandé avant le prochain
+  lancement, ligne « Valider la version organisée… » dans le menu de l'icône. Rien n'est supprimé pour de bon ; un
+  renommage raté remet l'original. Organiser relancé sur une copie en attente : la nouvelle la remplace (même
+  original, l'ancienne copie part à la Corbeille avec la réponse). « Revenir comme avant » : plus de question.

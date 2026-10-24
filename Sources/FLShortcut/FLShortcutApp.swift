@@ -269,6 +269,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if let resume {
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) { AppDelegate.reopen(resume, onboarding: onboarding) }
         }
+        // Une version organisée attend (Organiser fermé avant de quitter) : la question, une fois l'app lancée.
+        if !onboarding {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1) { CopyApproval.shared.askIfNeeded() }
+        }
         // Durées seulement : l'attente de l'ancienne copie, puis le lancement jusqu'ici.
         let readyMs = Int(Date().timeIntervalSince(SingleInstance.started) * 1000)
         MacroLog.shared.write("LAUNCH", "waited \(SingleInstance.waitedMs) ms, ready in \(readyMs) ms, resume \(resume != nil)")
@@ -282,6 +286,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             NotificationCenter.default.post(name: AccountLink.openEditor, object: nil)
         }
         if resume.organizer { OrganizerWindow.open() }
+    }
+
+    /// FL Shortcuts rouvert (double-clic dans le Finder, le Dock, Spotlight) : une version organisée attend peut-être.
+    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+        CopyApproval.shared.askIfNeeded()
+        return true
     }
 
     /// Après la désinstallation, quitter (⌘Q, fermeture de session…) ne doit rien réécrire : sortie directe.
@@ -624,6 +634,7 @@ struct MenuContent: View {
     @EnvironmentObject var fl: FLMonitor
     @Environment(\.openWindow) private var openWindow
     @ObservedObject private var panel = MenuPanel.shared
+    @ObservedObject private var approval = CopyApproval.shared
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -688,6 +699,11 @@ struct MenuContent: View {
                 MacrosLink.shared.show()
                 openWindow(id: "editor")
                 NSApp.activate(ignoringOtherApps: true)
+            }
+            if !approval.pending.isEmpty {
+                // Une version organisée attend une réponse (« Plus tard », ou la question fermée).
+                PanelItem(symbol: "checkmark.seal", title: String(localized: "Valider la version organisée…"),
+                          tint: .green, order: 5) { CopyApprovalWindow.shared.show() }
             }
             PanelItem(symbol: "square.stack.3d.up", title: String(localized: "Organiser…"),
                       tint: OrganizerView.tint, order: 5) { OrganizerWindow.open() }

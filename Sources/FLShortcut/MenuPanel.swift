@@ -95,6 +95,8 @@ final class MenuPanel: ObservableObject {
         let alreadyFront = NSApp.isActive && Date().timeIntervalSince(activeSince) > 0.4
         frontWindow = alreadyFront ? appWindows.first : nil
         reveal()
+        // FL Shortcuts rouvert par son icône : une version organisée attend peut-être (Organiser fermé).
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) { CopyApproval.shared.askIfNeeded() }
     }
 
     private func reveal() {

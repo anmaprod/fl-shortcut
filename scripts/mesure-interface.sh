@@ -228,6 +228,12 @@ run() {   # $1 : libellé, $2 : YES/NO effet verre
     cp ~/Library/Logs/DiagnosticReports/FLShortcut*.ips "$OUT/" 2>/dev/null || true
     tail -40 ~/Library/Logs/"FL Shortcuts"/macro.log > "$OUT/organiser-journal.txt" 2>/dev/null || true
     "$POST" app.flshortcut.debug.organizer fermer; sleep 1
+    # Question « Tu gardes la version organisée ? » (après l'Organiser), avec un exemple : aucun fichier touché.
+    for screen in question travail erreur; do
+      "$POST" app.flshortcut.debug.approval "$screen"; sleep 3
+      screencapture -x "$OUT/version-organisee-$screen.png" 2>/dev/null || true
+    done
+    "$POST" app.flshortcut.debug.approval fermer; sleep 1
     # Changement de page au ralenti (10 fois) : Général → Mixer, photographié en route (barre au-dessus du titre ?).
     "$POST" app.flshortcut.debug.select general; sleep 2
     "$POST" app.flshortcut.debug.select "mixer lent"

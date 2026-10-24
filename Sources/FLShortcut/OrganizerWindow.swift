@@ -97,6 +97,10 @@ struct OrganizerEnvironment {
     var projectFiles: () -> ProjectFileAccess? = { nil }
     /// « Choisir le fichier… » : l'utilisateur montre le projet ouvert dans FL (fil principal) ; faux : annulé.
     var chooseProject: () -> Bool = { false }
+    /// Une copie rangée faite et ouverte dans FL (original, copie) : à valider à la réouverture de FL Shortcuts ; puis
+    /// « Revenir comme avant » réussi sur cette copie (plus rien à demander). Fil principal.
+    var copyMade: (_ original: URL, _ copy: URL) -> Void = { _, _ in }
+    var copyUndone: (_ copy: URL) -> Void = { _ in }
 
     static func live() -> OrganizerEnvironment {
         OrganizerEnvironment(
@@ -185,7 +189,9 @@ struct OrganizerEnvironment {
                 guard panel.runModal() == .OK, let url = panel.url else { return false }
                 ProjectFileLive.chosen = url
                 return true
-            })
+            },
+            copyMade: { CopyApproval.shared.record(original: $0, copy: $1) },
+            copyUndone: { CopyApproval.shared.forget(copy: $0) })
     }
 
     /// La Playlist devant (FL au premier plan), lue dans sa fenêtre.
@@ -792,6 +798,7 @@ final class OrganizerController: ObservableObject {
             if lastApply?.copyNotSaved == true {
                 lines.append(String(localized: "FL n'a pas enregistré la copie rangée : enregistre-la dans FL (⌘S)."))
             }
+            lines.append(String(localized: "Une fois l'Organiser fermé, FL Shortcuts te demandera si tu gardes cette version : ton projet d'origine partira alors à la Corbeille et elle prendra son nom."))
         }
         if let outcome = lastApply {
             if outcome.deleted > 0 {
@@ -855,8 +862,16 @@ final class OrganizerController: ObservableObject {
                 self?.snapshot = outcome.snapshot
                 self?.lastApply = outcome
                 self?.phase = .applied(outcome.error)
+                if let made = OrganizerController.madeCopy(outcome) { self?.env.copyMade(made.original, made.copy) }
             }
         }
+    }
+
+    /// La copie rangée faite et ouverte dans FL, avec son original (même si la suite s'est arrêtée en route : la
+    /// Playlist y est rangée, l'utilisateur dira s'il la garde).
+    static func madeCopy(_ outcome: ApplyOutcome) -> (original: URL, copy: URL)? {
+        guard let copy = outcome.copy, let original = outcome.snapshot.original else { return nil }
+        return (original, copy)
     }
 
     // MARK: L'IA apprend de ses erreurs
@@ -923,6 +938,9 @@ final class OrganizerController: ObservableObject {
             DispatchQueue.main.async {
                 self?.snapshot = outcome.snapshot
                 self?.phase = .undone(outcome.error)
+                if outcome.error == nil, snapshot.original != nil, let copy = self?.lastApply?.copy {
+                    self?.env.copyUndone(copy)
+                }
             }
         }
     }

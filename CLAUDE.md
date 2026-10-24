@@ -41,7 +41,9 @@
     sons (les mêmes sons, la même piste ; un clip qui en chevaucherait un autre : une piste de plus dessous ; patterns
     vides en bas), pistes dans l'ordre des familles ; FL ouvre la copie (reconnue à un nom de pattern posé pour ça,
     remis aussitôt), le reste s'y fait par le script, FL l'enregistre. L'original ne bouge jamais : « Revenir comme
-    avant » le rouvre (tout revient, suppressions comprises). Plus aucune lecture de l'écran pour la Playlist ; l'ancien
+    avant » le rouvre (tout revient, suppressions comprises). Validation (`OrganizerCopyApproval.swift`) : Organiser
+    fermé, à la réouverture de FL Shortcuts, « Tu gardes la version organisée ? » → original à la Corbeille, copie
+    renommée au nom de l'original (FL enregistre puis rouvre) ; « Garder l'original » → copie à la Corbeille. Plus aucune lecture de l'écran pour la Playlist ; l'ancien
     code (réunion des clips lus dans la fenêtre, patterns descendus, « Move up ») ne sert plus que sans fichier (tests).
   - aperçu : couleur ou dégradé de chaque famille en haut, résumé et choix dessous, dans la même zone qui défile.
   - « All » automatique (script v16, API 33) ; copie toujours faite sur le fichier (Channel rack sur « All ») ;

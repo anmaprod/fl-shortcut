@@ -48,6 +48,10 @@ enum DebugSnapshot {
     /// « ecoute », « apercu », « fini » ; « fermer » le ferme.
     static let organizer = Notification.Name("app.flshortcut.debug.organizer")
     private static var organizerObserver: NSObjectProtocol?
+    /// Question « Tu gardes la version organisée ? » avec un exemple, sans toucher à aucun fichier : « question »,
+    /// « travail », « erreur » ; « fermer » la ferme.
+    static let approval = Notification.Name("app.flshortcut.debug.approval")
+    private static var approvalObserver: NSObjectProtocol?
 
     static func publisher(_ name: Notification.Name) -> AnyPublisher<Notification, Never> {
         guard enabled else { return Empty().eraseToAnyPublisher() }
@@ -68,6 +72,10 @@ enum DebugSnapshot {
         }
         organizerObserver = DistributedNotificationCenter.default().addObserver(forName: organizer, object: nil, queue: .main) { note in
             OrganizerWindow.showDemo(note.object as? String ?? "attente")
+        }
+        approvalObserver = DistributedNotificationCenter.default().addObserver(forName: approval, object: nil, queue: .main) { note in
+            let screen = note.object as? String ?? "question"
+            MainActor.assumeIsolated { CopyApprovalWindow.shared.showDemo(screen) }
         }
         observer = DistributedNotificationCenter.default().addObserver(forName: snapshot, object: nil, queue: .main) { note in
             capture(tag: note.object as? String ?? "capture")
