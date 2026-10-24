@@ -19,7 +19,8 @@ enum Motion {
     /// Remplacement quand l'utilisateur a demandé moins de mouvement.
     static let reduced = Animation.easeInOut(duration: 0.15)
 
-    static var reduce: Bool { NSWorkspace.shared.accessibilityDisplayShouldReduceMotion }
+    /// « Réduire les animations » de macOS (ignoré au ralenti du mode capture, pour photographier le vrai mouvement).
+    static var reduce: Bool { NSWorkspace.shared.accessibilityDisplayShouldReduceMotion && DebugSnapshot.slowMotion == 1 }
 
     /// Transition remplacée par un fondu quand le mouvement est réduit.
     static func transition(_ t: AnyTransition) -> AnyTransition { reduce ? .opacity : t }
@@ -34,7 +35,7 @@ private struct MotionModifier<V: Equatable>: ViewModifier {
     let value: V
 
     func body(content: Content) -> some View {
-        content.animation(reduceMotion ? Motion.reduced : animation, value: value)
+        content.animation(reduceMotion && DebugSnapshot.slowMotion == 1 ? Motion.reduced : animation, value: value)
     }
 }
 
@@ -44,10 +45,137 @@ extension View {
         modifier(MotionModifier(animation: animation, value: value))
     }
 
-    /// Survol : l'élément se soulève un peu (fond, légère montée en taille, ombre douce) avec un ressort, comme dans
-    /// les apps d'Apple. Seul l'élément survolé est redessiné ; rien ne tourne au repos.
-    func hoverLift(cornerRadius: CGFloat = 8) -> some View {
-        modifier(HoverLift(cornerRadius: cornerRadius))
+    /// Survol du menu de la barre des menus : contour arrondi qui s'allume de la couleur de l'élément, fond léger,
+    /// l'élément grandit un peu avec une ombre de sa couleur (ressort). Seul l'élément survolé est redessiné.
+    /// `outset` : contour un peu plus grand que l'élément (ligne de la barre latérale) ; `enabled` : faux pour un
+    /// élément qu'on ne peut pas choisir (rien ne s'allume).
+    func menuHover(tint: Color, cornerRadius: CGFloat = 10, outset: CGFloat = 0, enabled: Bool = true) -> some View {
+        modifier(MenuHover(tint: tint, cornerRadius: cornerRadius, outset: outset, enabled: enabled))
+    }
+}
+
+extension Motion {
+    /// Changement de page « morph » (comme la Morphose de PowerPoint ou le Magic Move de Keynote) : ce qui se
+    /// retrouve d'une page à l'autre glisse à sa nouvelle place, le reste se fond. Ressort lent et doux (0,8 s), sans
+    /// rebond visible.
+    static var morph: Animation { .spring(response: 0.8 * DebugSnapshot.slowMotion, dampingFraction: 0.9) }
+
+    /// Page qui s'en va : un vrai fondu, assez long pour se croiser avec celle qui arrive (jamais de disparition sèche).
+    static var fadeOut: Animation { .easeInOut(duration: 0.5 * DebugSnapshot.slowMotion) }
+
+    /// Page qui arrive : floue, transparente, un peu plus bas et plus petite, puis nette à sa place (ressort) ; celle
+    /// qui part se brouille et monte en s'effaçant. Les deux se croisent.
+    static var pageMorph: AnyTransition {
+        transition(.asymmetric(
+            insertion: .modifier(active: SoftFocus(amount: 1, rise: 18), identity: SoftFocus(amount: 0, rise: 18)),
+            removal: .modifier(active: SoftFocus(amount: 1, rise: -12), identity: SoftFocus(amount: 0, rise: -12))
+                .animation(fadeOut)))
+    }
+}
+
+extension Motion {
+    /// Changement de contenu rapide (inspecteur du créateur, qui suit les flèches du clavier) : le même fondu flou,
+    /// en un tiers de seconde.
+    static var quickMorph: Animation { .spring(response: 0.35 * DebugSnapshot.slowMotion, dampingFraction: 0.92) }
+
+    static var quickSwap: AnyTransition {
+        transition(.asymmetric(
+            insertion: .modifier(active: SoftFocus(amount: 1, rise: 8), identity: SoftFocus(amount: 0, rise: 8)),
+            removal: .modifier(active: SoftFocus(amount: 1, rise: -6), identity: SoftFocus(amount: 0, rise: -6))
+                .animation(.easeOut(duration: 0.2 * DebugSnapshot.slowMotion))))
+    }
+}
+
+extension View {
+    /// Contenu qui change (page de la barre latérale, connecté ou non, étape suivante…) : comme dans le guide,
+    /// l'ancien se brouille et s'efface pendant que le nouveau passe du flou au net ; jamais de changement sec.
+    /// `key` : ce qui fait changer le contenu (un nouveau contenu repart aussi de zéro : liste en haut, champs neufs).
+    func softSwitch<K: Hashable>(_ key: K, quick: Bool = false) -> some View {
+        ZStack {
+            self.id(key).transition(quick ? Motion.quickSwap : Motion.pageMorph)
+        }
+        .motion(quick ? Motion.quickMorph : Motion.morph, value: key)
+    }
+
+    /// Page de la barre latérale : une nouvelle page à chaque `key` (liste neuve, en haut), affichée d'un coup. Plus
+    /// d'animation au changement de page (demande du propriétaire, 24/10 : ni fondu ni flou).
+    func pageSwitch<K: Hashable>(_ key: K) -> some View {
+        id(key)
+    }
+
+    /// Bascule de toute la fenêtre (raccourcis ↔ créateur de macros) : la page qui arrive apparaît en fondu, à sa
+    /// création. Opacité seule : ces pages sont faites de vues d'AppKit que le flou et l'échelle ne suivent pas.
+    func windowReveal() -> some View {
+        modifier(PageReveal())
+    }
+}
+
+/// « Mise au point » : `amount` 1 = hors champ (transparent, flou, décalé, à peine plus petit), 0 = en place.
+private struct SoftFocus: ViewModifier {
+    let amount: CGFloat
+    let rise: CGFloat
+
+    func body(content: Content) -> some View {
+        content
+            .opacity(1 - amount)
+            .blur(radius: 12 * amount)
+            .scaleEffect(1 - 0.03 * amount, anchor: .top)
+            .offset(y: rise * amount)
+    }
+}
+
+/// Apparition de toute la fenêtre (raccourcis ↔ créateur), une seule fois, à sa création : fondu seul. Le
+/// changement lui-même se fait SANS animation : avec une animation, SwiftUI garde la page qui part (ses listes et
+/// barres d'AppKit, qui ne suivent pas le fondu) pleine jusqu'au bout, et la nouvelle apparaissait par-dessus.
+private struct PageReveal: ViewModifier {
+    @State private var shown = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotionSetting
+
+    private var reduceMotion: Bool { reduceMotionSetting && DebugSnapshot.slowMotion == 1 }
+
+    func body(content: Content) -> some View {
+        content
+            .opacity(shown ? 1 : 0)
+            .onAppear {
+                withAnimation(reduceMotion ? Motion.reduced : .easeOut(duration: 0.28 * DebugSnapshot.slowMotion)) {
+                    shown = true
+                }
+            }
+    }
+}
+
+private struct MorphIn: ViewModifier {
+    let index: Int
+    @State private var shown = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotionSetting
+
+    private var reduceMotion: Bool { reduceMotionSetting && DebugSnapshot.slowMotion == 1 }
+
+    func body(content: Content) -> some View {
+        content
+            .opacity(shown ? 1 : 0)
+            .blur(radius: shown || reduceMotion ? 0 : 8)
+            .offset(y: shown || reduceMotion ? 0 : 16)
+            .onAppear {
+                withAnimation(reduceMotion ? Motion.reduced
+                                           : Motion.morph.delay((0.15 + 0.1 * Double(index)) * DebugSnapshot.slowMotion)) {
+                    shown = true
+                }
+            }
+    }
+}
+
+extension View {
+    /// Même place d'une vue à l'autre (`matchedGeometryEffect`) quand un espace de noms est donné ; sinon rien.
+    @ViewBuilder func morphing(_ id: String, in ns: Namespace.ID?) -> some View {
+        if let ns { matchedGeometryEffect(id: id, in: ns) } else { self }
+    }
+
+    /// Élément d'une page qui arrive : il passe du flou au net en montant à sa place, juste après le précédent
+    /// (`index`), une seule fois, à l'apparition de la page. Pas dans une liste (les lignes y apparaissent aussi en
+    /// défilant).
+    func morphIn(_ index: Int) -> some View {
+        modifier(MorphIn(index: index))
     }
 }
 
@@ -56,52 +184,42 @@ extension Motion {
     static let lift = Animation.spring(response: 0.28, dampingFraction: 0.72)
 }
 
-private struct HoverLift: ViewModifier {
+struct MenuHover: ViewModifier {
+    let tint: Color
     let cornerRadius: CGFloat
-    @State private var hovered = false
+    var outset: CGFloat = 0
+    var enabled = true
+    @State private var hovering = false
+    @State private var width: CGFloat = 0
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    /// Taille au survol : ×1,03 comme les lignes du menu, mais jamais plus de 9 points de large en plus (une
+    /// longue barre de page grandit d'autant qu'une ligne du menu, sans déborder de sa carte).
+    static func scale(width: CGFloat) -> CGFloat {
+        guard width > 0 else { return 1.03 }
+        return min(1.03, 1 + 9 / width)
+    }
 
     func body(content: Content) -> some View {
+        let shape = RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+        let hovered = hovering && enabled
         content
             .background {
-                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                    .fill(Color.primary.opacity(hovered ? 0.06 : 0))
-                    .shadow(color: .black.opacity(hovered && !reduceMotion ? 0.12 : 0), radius: hovered ? 8 : 0,
-                            y: hovered ? 3 : 0)
-                    .padding(.horizontal, -6)
-                    .padding(.vertical, -2)
+                // Aux bords de l'élément (ou `outset` au-delà), sans changer sa place.
+                shape.fill(Color.primary.opacity(hovered ? 0.085 : 0))
+                    .overlay(shape.strokeBorder(tint.opacity(hovered ? 0.6 : 0), lineWidth: hovered ? 1.5 : 1))
+                    .padding(-outset)
+                    .background(GeometryReader { geo in
+                        Color.clear
+                            .onAppear { width = geo.size.width }
+                            .onChange(of: geo.size.width) { width = $0 }
+                    })
             }
-            .scaleEffect(hovered && !reduceMotion ? 1.015 : 1)
+            .scaleEffect(hovered && !reduceMotion ? Self.scale(width: width) : 1)
+            .shadow(color: tint.opacity(hovered ? 0.3 : 0), radius: hovered ? 10 : 0, y: hovered ? 4 : 0)
             .onHover { inside in
-                withAnimation(reduceMotion ? Motion.reduced : Motion.lift) { hovered = inside }
+                withAnimation(reduceMotion ? Motion.reduced : Motion.lift) { hovering = inside }
             }
-    }
-}
-
-/// Bouton qu'on « prend » : appuyé, il se soulève et flotte (plus grand, ombre) ; relâché, il se repose avec un
-/// ressort. Sert aux blocs de la palette, qu'on peut aussi glisser dans la liste.
-struct LiftButtonStyle: ButtonStyle {
-    func makeBody(configuration: Configuration) -> some View {
-        LiftButtonBody(configuration: configuration)
-    }
-}
-
-private struct LiftButtonBody: View {
-    let configuration: ButtonStyleConfiguration
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-
-    var body: some View {
-        let pressed = configuration.isPressed && !reduceMotion
-        configuration.label
-            .background {
-                RoundedRectangle(cornerRadius: 8, style: .continuous)
-                    .fill(Color.primary.opacity(pressed ? 0.09 : 0))
-                    .shadow(color: .black.opacity(pressed ? 0.22 : 0), radius: pressed ? 12 : 0, y: pressed ? 6 : 0)
-                    .padding(.horizontal, -6)
-                    .padding(.vertical, -2)
-            }
-            .scaleEffect(pressed ? 1.05 : 1)
-            .animation(reduceMotion ? Motion.reduced : Motion.lift, value: configuration.isPressed)
     }
 }
 
@@ -134,7 +252,7 @@ enum Appearance {
 
 /// Surface flottante : verre natif sur macOS 26 quand la préférence est active et la fenêtre au premier plan ;
 /// matériau sur macOS 13-15 ; sinon fond opaque de fenêtre. Même structure de vue dans tous les cas (aucun arbre
-/// reconstruit au passage FL ↔ FL Shortcut) : seuls les paramètres changent.
+/// reconstruit au passage FL ↔ FL Shortcuts) : seuls les paramètres changent.
 /// `tint` : teinte qui porte un sens (avertissement), jamais décorative (WWDC25 219).
 /// `alwaysLive` : verre même quand l'app n'est pas active (bulle brève au-dessus de FL, macOS 26 seulement).
 struct GlassSurface<S: InsettableShape>: ViewModifier {
@@ -238,16 +356,11 @@ private struct SecondaryButtonStyleModifier: ViewModifier {
 }
 
 /// Fond de liste transparent quand la fenêtre est translucide : les sections (cartes) se posent dessus.
+/// Fond de la liste toujours transparent : la lueur de couleur de la page (comme dans le guide) passe dessous ; les
+/// cartes gardent leur propre fond, lisible.
 private struct GlassListBackground: ViewModifier {
-    @AppStorage(Appearance.glassKey) private var glassEnabled = true
-    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
-
     func body(content: Content) -> some View {
-        if Appearance.translucentWindow(glass: glassEnabled, reduceTransparency: reduceTransparency) {
-            content.scrollContentBackground(.hidden)
-        } else {
-            content
-        }
+        content.scrollContentBackground(.hidden)
     }
 }
 
@@ -265,31 +378,27 @@ private struct WindowGlass: ViewModifier {
     }
 }
 
-/// Lavis coloré en haut d'une page (couche de contenu : dégradé statique, sans flou ni animation). Il passe sous la
-/// barre d'outils et sous la barre latérale en verre, qui en prennent la couleur (WWDC25 356 : fonds teintés sous
-/// le verre). Seulement avec la fenêtre translucide ; Contraste élevé : rien.
+/// Fond de la page aux couleurs de sa section, comme le guide : lueur de sa couleur (halo en haut à gauche, reflet en
+/// haut à droite, une touche en bas, `TintGlow`) sur toute la page, sous la barre d'outils et la barre latérale.
+/// D'une page à l'autre, les couleurs se fondent l'une dans l'autre (0,9 s), jamais de changement sec. Dégradés
+/// statiques : rien ne tourne au repos. Contraste élevé : rien.
 private struct TintedBackdrop: ViewModifier {
     let tint: Color?
-    @AppStorage(Appearance.glassKey) private var glassEnabled = true
-    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
     @Environment(\.colorSchemeContrast) private var contrast
-    @Environment(\.colorScheme) private var scheme
-
-    private var visible: Bool {
-        tint != nil && contrast != .increased
-            && Appearance.translucentWindow(glass: glassEnabled, reduceTransparency: reduceTransparency)
-    }
 
     func body(content: Content) -> some View {
-        content.background(alignment: .top) {
-            if visible, let tint {
-                LinearGradient(colors: [tint.opacity(scheme == .dark ? 0.30 : 0.24), tint.opacity(0.07), .clear],
-                               startPoint: .top, endPoint: .bottom)
-                    .frame(height: 340)
-                    .ignoresSafeArea()           // sous la barre d'outils et la barre latérale flottante
-                    .allowsHitTesting(false)
-                    .accessibilityHidden(true)
+        content.background {
+            ZStack {
+                if contrast != .increased, let tint {
+                    TintGlow(tint: tint)
+                        .id(tint)
+                        .transition(.opacity)
+                }
             }
+            .animation(.easeInOut(duration: 0.9 * DebugSnapshot.slowMotion), value: tint)
+            .ignoresSafeArea()
+            .allowsHitTesting(false)
+            .accessibilityHidden(true)
         }
     }
 }
@@ -299,6 +408,23 @@ extension View {
     /// dessus restent lisibles. Composé par le système ; figé par macOS quand la fenêtre n'est plus active.
     func windowGlass(_ on: Bool) -> some View {
         modifier(WindowGlass(on: on))
+    }
+
+    /// Pas de bande sous la barre d'outils (retour de l'utilisateur : un rectangle du titre jusqu'au « + » et au « ⋯ ») :
+    /// ni fond de barre d'outils, ni effet de bord en haut de la page (macOS 26) ; le titre et les boutons flottent
+    /// sur la page.
+    @ViewBuilder func noToolbarBand() -> some View {
+        #if compiler(>=6.2)
+        if #available(macOS 26.0, *) {
+            toolbarBackgroundVisibility(.hidden, for: .windowToolbar).scrollEdgeEffectHidden(true, for: .top)
+        } else if #available(macOS 15.0, *) {
+            toolbarBackgroundVisibility(.hidden, for: .windowToolbar)
+        } else {
+            self
+        }
+        #else
+        if #available(macOS 15.0, *) { toolbarBackgroundVisibility(.hidden, for: .windowToolbar) } else { self }
+        #endif
     }
 
     /// Liste posée sur le fond translucide de la fenêtre.
@@ -423,10 +549,10 @@ extension KeyCombo {
     /// Touches à dessiner, dans l'ordre macOS (⌃ ⌥ ⇧ ⌘ puis la touche).
     var caps: [CapInfo] {
         var out: [CapInfo] = []
-        if control { out.append(CapInfo(id: "ctrl", symbol: "⌃", name: "ctrl")) }
-        if option { out.append(CapInfo(id: "option", symbol: "⌥", name: "option")) }
-        if shift { out.append(CapInfo(id: "shift", symbol: "⇧", name: "maj")) }
-        if command { out.append(CapInfo(id: "cmd", symbol: "⌘", name: "cmd")) }
+        if control { out.append(CapInfo(id: "ctrl", symbol: "⌃", name: String(localized: "ctrl"))) }
+        if option { out.append(CapInfo(id: "option", symbol: "⌥", name: String(localized: "option"))) }
+        if shift { out.append(CapInfo(id: "shift", symbol: "⇧", name: String(localized: "maj"))) }
+        if command { out.append(CapInfo(id: "cmd", symbol: "⌘", name: String(localized: "cmd"))) }
         out.append(CapInfo(id: "key-\(keyCode)", symbol: KeyNames.name(for: keyCode), name: ""))
         return out
     }
@@ -434,10 +560,10 @@ extension KeyCombo {
     /// Texte lu par VoiceOver : « contrôle option R ».
     var spoken: String {
         var parts: [String] = []
-        if control { parts.append("contrôle") }
-        if option { parts.append("option") }
-        if shift { parts.append("majuscule") }
-        if command { parts.append("commande") }
+        if control { parts.append(String(localized: "contrôle")) }
+        if option { parts.append(String(localized: "option")) }
+        if shift { parts.append(String(localized: "majuscule")) }
+        if command { parts.append(String(localized: "commande")) }
         parts.append(KeyNames.name(for: keyCode))
         return parts.joined(separator: " ")
     }
@@ -460,7 +586,7 @@ struct KeyCaps: View {
             }
         }
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel(combo?.spoken ?? "Aucun raccourci")
+        .accessibilityLabel(combo?.spoken ?? String(localized: "Aucun raccourci"))
     }
 
     private var row: some View {
@@ -481,7 +607,7 @@ struct KeyCaps: View {
 struct KeyLabel: View {
     let combo: KeyCombo?
     var accent = false
-    var placeholder = "Aucune"
+    var placeholder = String(localized: "Aucune")
 
     private var shape: RoundedRectangle { RoundedRectangle(cornerRadius: 6, style: .continuous) }
 
@@ -502,6 +628,8 @@ struct KeyLabel: View {
         .overlay(shape.strokeBorder(accent ? Color.accentColor.opacity(0.5) : Color(nsColor: .separatorColor),
                                     lineWidth: 0.5))
         .contentShape(shape)
+        // Jamais écrasé ni coupé quand la fenêtre est étroite : c'est le titre de la ligne qui se raccourcit.
+        .fixedSize()
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(combo?.spoken ?? placeholder)
     }
@@ -560,46 +688,46 @@ struct StepBadge: View {
 extension FLActionInfo {
     var detail: String {
         switch key {
-        case "play": return "Lance ou met en pause la lecture"
-        case "stop": return "Arrête la lecture"
-        case "rec": return "Démarre ou arrête l'enregistrement"
-        case "metro": return "Active ou coupe le métronome"
-        case "count": return "Décompte avant l'enregistrement"
-        case "loop": return "Enchaîne les prises sur la boucle"
-        case "wait": return "Le REC démarre à la première note jouée"
-        case "marker": return "Repère « bonne prise » à la position de lecture"
-        case "arm": return "Prépare la piste du Mixer sélectionnée à enregistrer"
-        case "tap": return "Tape le tempo en rythme"
-        case "newpat": return "Crée un pattern vide et ouvre le Piano Roll"
-        case "clone": return "Duplique le pattern en cours pour une variation"
-        case "pnext": return "Passe au pattern suivant"
-        case "pprev": return "Revient au pattern précédent"
-        case "chnext": return "Instrument suivant, sans quitter le Piano Roll"
-        case "chprev": return "Instrument précédent, sans quitter le Piano Roll"
-        case "snap": return "Change le magnétisme : 1/4, 1/8, triolets…"
-        case "quant": return "Aligne les notes de l'instrument sélectionné"
-        case "presetnext": return "Preset suivant du plugin ouvert"
-        case "presetprev": return "Preset précédent du plugin ouvert"
-        case "mute": return "Coupe la piste du Mixer sélectionnée"
-        case "solo": return "Écoute seulement la piste sélectionnée"
-        case "unsolo": return "Réécoute tout le morceau"
-        case "bypass": return "Compare la piste avec et sans effets"
-        case "mono": return "Vérifie que le mix tient en mono"
-        case "trnext": return "Sélectionne la piste suivante du Mixer"
-        case "trprev": return "Sélectionne la piste précédente du Mixer"
-        case "volup": return "Monte la piste sélectionnée"
-        case "voldn": return "Baisse la piste sélectionnée"
-        case "pl": return "Affiche la Playlist"
-        case "cr": return "Affiche le Channel Rack"
-        case "pr": return "Affiche le Piano Roll"
-        case "mx": return "Affiche le Mixer"
-        case "br": return "Affiche le Browser"
-        case "plmx": return "Bascule entre la Playlist et le Mixer"
-        case "undo": return "Annule la dernière action"
-        case "redo": return "Rétablit l'action annulée"
-        case "save": return "Sauvegarde le projet"
-        case "armon": return "Arme la piste sélectionnée, sans jamais la désarmer"
-        case "recon": return "Allume le REC, sans jamais l'éteindre"
+        case "play": return String(localized: "Lance ou met en pause la lecture")
+        case "stop": return String(localized: "Arrête la lecture")
+        case "rec": return String(localized: "Démarre ou arrête l'enregistrement")
+        case "metro": return String(localized: "Active ou coupe le métronome")
+        case "count": return String(localized: "Décompte avant l'enregistrement")
+        case "loop": return String(localized: "Enchaîne les prises sur la boucle")
+        case "wait": return String(localized: "Le REC démarre à la première note jouée")
+        case "marker": return String(localized: "Repère « bonne prise » à la position de lecture")
+        case "arm": return String(localized: "Prépare la piste du Mixer sélectionnée à enregistrer")
+        case "tap": return String(localized: "Tape le tempo en rythme")
+        case "newpat": return String(localized: "Crée un pattern vide et ouvre le Piano Roll")
+        case "clone": return String(localized: "Duplique le pattern en cours pour une variation")
+        case "pnext": return String(localized: "Passe au pattern suivant")
+        case "pprev": return String(localized: "Revient au pattern précédent")
+        case "chnext": return String(localized: "Instrument suivant, sans quitter le Piano Roll")
+        case "chprev": return String(localized: "Instrument précédent, sans quitter le Piano Roll")
+        case "snap": return String(localized: "Change le magnétisme : 1/4, 1/8, triolets…")
+        case "quant": return String(localized: "Aligne les notes de l'instrument sélectionné")
+        case "presetnext": return String(localized: "Preset suivant du plugin ouvert")
+        case "presetprev": return String(localized: "Preset précédent du plugin ouvert")
+        case "mute": return String(localized: "Coupe la piste du Mixer sélectionnée")
+        case "solo": return String(localized: "Écoute seulement la piste sélectionnée")
+        case "unsolo": return String(localized: "Réécoute tout le morceau")
+        case "bypass": return String(localized: "Compare la piste avec et sans effets")
+        case "mono": return String(localized: "Vérifie que le mix tient en mono")
+        case "trnext": return String(localized: "Sélectionne la piste suivante du Mixer")
+        case "trprev": return String(localized: "Sélectionne la piste précédente du Mixer")
+        case "volup": return String(localized: "Monte la piste sélectionnée")
+        case "voldn": return String(localized: "Baisse la piste sélectionnée")
+        case "pl": return String(localized: "Affiche la Playlist")
+        case "cr": return String(localized: "Affiche le Channel Rack")
+        case "pr": return String(localized: "Affiche le Piano Roll")
+        case "mx": return String(localized: "Affiche le Mixer")
+        case "br": return String(localized: "Affiche le Browser")
+        case "plmx": return String(localized: "Bascule entre la Playlist et le Mixer")
+        case "undo": return String(localized: "Annule la dernière action")
+        case "redo": return String(localized: "Rétablit l'action annulée")
+        case "save": return String(localized: "Sauvegarde le projet")
+        case "armon": return String(localized: "Arme la piste sélectionnée, sans jamais la désarmer")
+        case "recon": return String(localized: "Allume le REC, sans jamais l'éteindre")
         default: return label
         }
     }
@@ -623,13 +751,38 @@ enum CardRowPosition: Equatable {
 
 extension View {
     /// Ligne d'une page en cartes : fond arrondi selon sa place dans la section, sans séparateur de la liste.
-    func cardRow(_ position: CardRowPosition) -> some View {
+    /// `hover` : au survol, la ligne entière s'allume comme une ligne du menu de la barre des menus (contour de
+    /// cette couleur, d'un filet à l'autre et toute la largeur de la carte).
+    func cardRow(_ position: CardRowPosition, hover: Color? = nil) -> some View {
+        modifier(CardRowModifier(position: position, hover: hover))
+    }
+}
+
+/// La marge intérieure d'une ligne est dans la ligne elle-même (pas dans la liste) : le survol couvre toute la ligne,
+/// jusqu'aux filets qui la séparent de ses voisines.
+private struct CardRowModifier: ViewModifier {
+    let position: CardRowPosition
+    let hover: Color?
+
+    func body(content: Content) -> some View {
         let gap = CardRowBackground.gap
-        let side = CardRowBackground.inset + 12
-        return listRowInsets(EdgeInsets(top: 8 + (position.roundsTop ? gap : 0), leading: side,
-                                        bottom: 8 + (position.roundsBottom ? gap : 0), trailing: side))
-            .listRowSeparator(.hidden)
-            .listRowBackground(CardRowBackground(position: position))
+        let row = content
+            .padding(.vertical, 8)
+            .padding(.horizontal, 12)
+            .frame(maxWidth: .infinity, alignment: .leading)
+        return Group {
+            if let hover {
+                row
+                    .contentShape(Rectangle())
+                    .menuHover(tint: hover)
+            } else {
+                row
+            }
+        }
+        .listRowInsets(EdgeInsets(top: position.roundsTop ? gap : 0, leading: CardRowBackground.inset,
+                                  bottom: position.roundsBottom ? gap : 0, trailing: CardRowBackground.inset))
+        .listRowSeparator(.hidden)
+        .listRowBackground(CardRowBackground(position: position))
     }
 }
 
@@ -641,7 +794,9 @@ struct CardRowBackground: View {
     let position: CardRowPosition
     @Environment(\.colorScheme) private var scheme
 
-    private var fill: Color { scheme == .dark ? Color.white.opacity(0.07) : Color.black.opacity(0.045) }
+    private var fill: Color {
+        scheme == .dark ? Color.white.opacity(0.07) : Color.black.opacity(0.045)
+    }
 
     var body: some View {
         CardRowShape(roundsTop: position.roundsTop, roundsBottom: position.roundsBottom)

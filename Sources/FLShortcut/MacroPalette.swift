@@ -1,7 +1,7 @@
 // Créateur de macros : palette des blocs, à gauche (barre latérale en verre du système sur macOS 26).
 // Par catégorie. Un clic ajoute le bloc ; on peut aussi le prendre et le glisser à sa place dans la liste. Les blocs
-// pas encore réglables ici (conditions) sont grisés, « bientôt ». Survol : le bloc se soulève un peu ; appuyé, il
-// flotte ; pendant le glisser, une pastille qui flotte suit la souris. Aucun verre par ligne.
+// pas encore réglables ici (conditions) sont grisés, « bientôt ». Survol : le bloc se soulève un peu ; pendant le
+// glisser, une pastille qui flotte suit la souris. Aucun verre par ligne.
 import AppKit
 import SwiftUI
 
@@ -25,6 +25,11 @@ struct MacroPaletteView: View {
     let items: [PaletteItem]
     let insert: (PaletteItem) -> Void
 
+    /// Marge en haut de la palette : « Clavier » reste sous les boutons fermer / réduire / agrandir, à la distance
+    /// qu'avait la recherche de blocs (retirée), même quand la barre latérale en verre monte jusqu'en haut de la
+    /// fenêtre (macOS 26).
+    static let topClearance: CGFloat = 42
+
     /// La liste est la vue de la colonne elle-même, comme la barre latérale des raccourcis : macOS lui donne la marge
     /// du haut (sous les boutons fermer / réduire / agrandir). Dans une pile, elle montait jusque sous ces boutons.
     var body: some View {
@@ -34,6 +39,9 @@ struct MacroPaletteView: View {
             }
         }
         .listStyle(.sidebar)
+        .safeAreaInset(edge: .top, spacing: 0) {
+            Color.clear.frame(height: Self.topClearance)
+        }
     }
 
     @ViewBuilder private func section(_ category: BlockCategory) -> some View {
@@ -42,43 +50,48 @@ struct MacroPaletteView: View {
             Section {
                 ForEach(group) { item in row(item) }
             } header: {
-                Text(category.rawValue)
+                Text(category.label)
             }
         }
     }
 
     /// Un clic ajoute le bloc sous la sélection ; on peut aussi le glisser à la place voulue dans la liste.
+    /// Ligne simple, pas un bouton : sur macOS, un bouton garde l'appui de la souris pour lui et le glisser ne
+    /// démarrait jamais (vrai glisser à la souris de la mesure de la CI : liste inchangée).
     @ViewBuilder private func row(_ item: PaletteItem) -> some View {
         if item.soon {
-            button(item)
+            label(item)
+                .opacity(0.5)
+                .help(String(localized: "Bientôt : \(item.aide)"))
+                .accessibilityElement(children: .combine)
+                .accessibilityHint("Pas encore disponible")
         } else {
-            button(item)
+            label(item)
+                .menuHover(tint: item.category.tint, cornerRadius: 8)
+                .onTapGesture { insert(item) }
                 .onDrag { PaletteDrag.provider(item) } preview: { PaletteDragPreview(item: item) }
+                .help(String(localized: "\(item.aide) Clique pour l'ajouter, ou glisse-le à sa place dans la liste."))
+                .accessibilityElement(children: .combine)
+                .accessibilityAddTraits(.isButton)
+                .accessibilityAction { insert(item) }
+                .accessibilityHint("Ajoute ce bloc sous la ligne choisie")
         }
     }
 
-    private func button(_ item: PaletteItem) -> some View {
-        Button {
-            insert(item)
-        } label: {
-            HStack(spacing: 8) {
-                SectionIcon(symbol: item.symbol, tint: item.category.tint, size: 22)
-                Text(item.label).lineLimit(1)
-                Spacer(minLength: 4)
-                if item.soon {
-                    Text("bientôt")
-                        .font(.system(size: 10, weight: .medium))
-                        .foregroundStyle(.secondary)
-                }
+    private func label(_ item: PaletteItem) -> some View {
+        HStack(spacing: 8) {
+            SectionIcon(symbol: item.symbol, tint: item.category.tint, size: 22)
+            Text(item.label).lineLimit(1)
+            Spacer(minLength: 4)
+            if item.soon {
+                Text("bientôt")
+                    .font(.system(size: 10, weight: .medium))
+                    .foregroundStyle(.secondary)
             }
-            .contentShape(Rectangle())
         }
-        .buttonStyle(LiftButtonStyle())
-        .hoverLift()
-        .disabled(item.soon)
-        .opacity(item.soon ? 0.5 : 1)
-        .help(item.soon ? "Bientôt : " + item.aide : item.aide + " Clique pour l'ajouter, ou glisse-le à sa place dans la liste.")
-        .accessibilityHint(item.soon ? "Pas encore disponible" : "Ajoute ce bloc sous la ligne choisie")
+        .padding(.horizontal, 4)                         // le contour du survol ne colle pas à l'icône
+        .padding(.vertical, 2)
+        .contentShape(Rectangle())
     }
 }
 

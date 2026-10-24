@@ -1,0 +1,114 @@
+{
+ "voix-chant-44k.wav": {
+  "famille_voulue": "voix",
+  "famille": "voix",
+  "voix_max": 1.0,
+  "sorte_voulue": "vocalLead",
+  "sorte": "vocalLead",
+  "familles": {
+   "voix": 1.0,
+   "melodie": 0.0,
+   "basse": 0.0,
+   "drums": 0.0,
+   "fx": 0.0
+  }
+ },
+ "voix-parole.wav": {
+  "famille_voulue": "voix",
+  "famille": "voix",
+  "voix_max": 1.0,
+  "sorte_voulue": "vocal",
+  "sorte": "vocal",
+  "familles": {
+   "voix": 1.0,
+   "melodie": 0.0,
+   "basse": 0.0,
+   "drums": 0.0,
+   "fx": 0.0
+  }
+ },
+ "voix-chop-reverb.wav": {
+  "famille_voulue": "voix",
+  "famille": "voix",
+  "voix_max": 0.999,
+  "sorte_voulue": "adlib",
+  "sorte": "adlib",
+  "familles": {
+   "voix": 0.999,
+   "melodie": 0.0,
+   "basse": 0.0,
+   "drums": 0.0,
+   "fx": 0.001
+  }
+ },
+ "melodie-note.wav": {
+  "famille_voulue": "melodie",
+  "famille": "melodie",
+  "voix_max": 0.0,
+  "sorte_voulue": "guitar",
+  "sorte": "guitar",
+  "familles": {
+   "voix": 0.0,
+   "melodie": 0.986,
+   "basse": 0.014,
+   "drums": 0.0,
+   "fx": 0.0
+  }
+ },
+ "basse-808.wav": {
+  "famille_voulue": "basse",
+  "famille": "basse",
+  "voix_max": 0.0,
+  "sorte_voulue": "bass808",
+  "sorte": "bass808",
+  "familles": {
+   "voix": 0.0,
+   "melodie": 0.002,
+   "basse": 0.998,
+   "drums": 0.0,
+   "fx": 0.0
+  }
+ },
+ "drums-clap.wav": {
+  "famille_voulue": "drums",
+  "famille": "drums",
+  "voix_max": 0.0,
+  "sorte_voulue": "clap",
+  "sorte": "clap",
+  "familles": {
+   "voix": 0.0,
+   "melodie": 0.0,
+   "basse": 0.0,
+   "drums": 1.0,
+   "fx": 0.0
+  }
+ },
+ "drums-open-hat.wav": {
+  "famille_voulue": "drums",
+  "famille": "drums",
+  "voix_max": 0.0,
+  "sorte_voulue": "openHat",
+  "sorte": "openHat",
+  "familles": {
+   "voix": 0.0,
+   "melodie": 0.0,
+   "basse": 0.0,
+   "drums": 1.0,
+   "fx": 0.0
+  }
+ },
+ "fx-riser.wav": {
+  "famille_voulue": "fx",
+  "famille": "fx",
+  "voix_max": 0.0,
+  "sorte_voulue": "riser",
+  "sorte": "riser",
+  "familles": {
+   "voix": 0.0,
+   "melodie": 0.0,
+   "basse": 0.0,
+   "drums": 0.0,
+   "fx": 1.0
+  }
+ }
+}

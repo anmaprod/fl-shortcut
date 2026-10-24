@@ -194,6 +194,9 @@ final class MacroValidationTests: XCTestCase {
         XCTAssertEqual(problem([b(.nameColor(name: "Kick", color: red, fade: dark))]),
                        "Étape 1 : un dégradé ne change pas le nom : retire le nom.")
         XCTAssertNil(problem([b(.nameColor(name: nil, color: nil, icon: FLIcon(code: "1-0")))]))     // icône seule
+        // F2 n'agit que sur un seul élément : pas d'icône avec un dégradé.
+        XCTAssertEqual(problem([b(.nameColor(name: nil, color: red, fade: dark, icon: FLIcon(code: "1-0")))]),
+                       "Étape 1 : un dégradé ne pose pas d'icône : retire l'icône.")
         XCTAssertEqual(NameColorPayload.message(forReason: 7), "Sélectionne au moins 2 pistes pour un dégradé.")
     }
 
@@ -203,4 +206,24 @@ final class MacroValidationTests: XCTestCase {
         XCTAssertEqual(BlockRegistry.journal(of: body), "nameColor")
     }
 
+
+    func testShortcutWaitingNamesTheBlockToSet() {
+        let blocks = [Block(.key(KeyRef(KeyCombo(keyCode: 1)), times: 1)), Block(.chooseFile(path: ""))]
+        XCTAssertEqual(MacroValidation.shortcutWaiting("Étape 2 : preset .fst attendu dans ton dossier personnel.", in: blocks),
+                       "Raccourci gardé, mais pas encore actif : règle d'abord le bloc 2 « \(BlockRegistry.spec(.chooseFile).label) » "
+                       + "(preset .fst attendu dans ton dossier personnel).")
+        XCTAssertEqual(MacroValidation.shortcutWaiting("La macro est vide.", in: []),
+                       "Raccourci gardé, mais pas encore actif : la macro est vide.")
+        XCTAssertFalse(ShortcutIssue.macroWaiting("x").isBlocking)
+    }
+
+    /// Le chemin d'un message d'étape est lu avec le même format que `fail` (traduit pareil en anglais).
+    func testStepMessagesAreSplitWithTheirOwnFormat() {
+        let failed = ctx.fail("position invalide.")
+        XCTAssertEqual(MacroValidation.splitStep(failed)?.path, "1")
+        XCTAssertEqual(MacroValidation.splitStep("Étape 3.2 : position invalide.")?.text, "position invalide.")
+        XCTAssertNil(MacroValidation.splitStep("La macro est vide."))
+        XCTAssertNil(MacroValidation.splitStep("Étape : rien"))
+        XCTAssertEqual(MacroOutline.stripPath("Étape 3.2 : position invalide."), "Position invalide.")
+    }
 }

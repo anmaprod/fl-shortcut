@@ -44,7 +44,8 @@ final class MacroLibraryTests: XCTestCase {
     func testStoreSavesAfterAChangeAndKeepsThePreviousFileOnce() throws {
         let storage = MemoryMacroLibraryStorage(data: try MacroLibraryCodec.encode([sample()]))
         let original = storage.data
-        let store = MacroLibraryStore(storage: storage, saveDelay: 0)
+        // Délai long : seul saveNow écrit (avec 0, l'écriture différée pouvait passer avant et compter double).
+        let store = MacroLibraryStore(storage: storage, saveDelay: 60)
         XCTAssertEqual(store.macros.count, 1)
         XCTAssertNil(store.loadWarning)
         store.add(sample("Nouvelle"))
@@ -185,7 +186,7 @@ final class MacroLibraryTests: XCTestCase {
         let json = try JSONDecoder().decode(JSONValue.self, from: data)
         XCTAssertEqual(json["format"]?.string, "flsmacro")
         XCTAssertEqual(json["version"]?.int, 1)
-        XCTAssertEqual(json["exportedBy"]?.string, "FL Shortcut 1.2 (macOS)")
+        XCTAssertEqual(json["exportedBy"]?.string, "FL Shortcuts 1.2 (macOS)")
         XCTAssertEqual(json["macro"]?["name"]?.string, "Ma macro")
         let blocks = try XCTUnwrap(json["macro"]?["blocks"]?.array)
         XCTAssertEqual(blocks.count, 5)
@@ -303,9 +304,13 @@ final class MacroLibraryTests: XCTestCase {
         // Deux copies d'un modèle ne partagent aucun id.
         let a = gallery[0].make(FakeLayout.qwerty), b = gallery[0].make(FakeLayout.qwerty)
         XCTAssertTrue(Set(allIDs(a.blocks)).isDisjoint(with: allIDs(b.blocks)))
-        // « Enregistrement rapide » personnalisé : mêmes blocs que le modèle (ids mis à part).
+        // « Enregistrement rapide » de la galerie : les blocs du modèle livré jusqu'à l'armement de la piste.
         var m = Macro()
         m.recKey = AppMode.nativeEquivalent(of: 3, layout: FakeLayout.qwerty)
-        XCTAssertEqual(a.blocks.map(\.body), MacroTemplates.enregistrementRapide(m).map(\.body))
+        let full = MacroTemplates.enregistrementRapide(m).map(\.body)
+        XCTAssertEqual(a.blocks.map(\.body), Array(full.prefix(a.blocks.count)))
+        XCTAssertEqual(a.blocks.last?.body, .flAction(key: "armon", fallback: .trackMenuArm), "s'arrête à l'armement")
+        // Retirés de la galerie (à refaire) : nouvelle version, Mixer et Playlist, armer et REC.
+        XCTAssertTrue(Set(gallery.map(\.id)).isDisjoint(with: ["saveNew", "mixerPlaylist", "armRec"]))
     }
 }

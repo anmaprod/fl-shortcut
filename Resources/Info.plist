@@ -4,10 +4,18 @@
 <dict>
 	<key>CFBundleIconFile</key>
 	<string>AppIcon</string>
+    <!-- Langue : celle du Mac (en.lproj, fr.lproj) ; toute autre langue prend l'anglais (région de développement). -->
+    <key>CFBundleDevelopmentRegion</key>
+    <string>en</string>
+    <key>CFBundleLocalizations</key>
+    <array>
+        <string>en</string>
+        <string>fr</string>
+    </array>
     <key>CFBundleName</key>
-    <string>FL Shortcut</string>
+    <string>FL Shortcuts</string>
     <key>CFBundleDisplayName</key>
-    <string>FL Shortcut</string>
+    <string>FL Shortcuts</string>
     <key>CFBundleIdentifier</key>
     <string>app.flshortcut.FLShortcut</string>
     <key>CFBundleExecutable</key>
@@ -24,9 +32,26 @@
     <true/>
     <key>LSApplicationCategoryType</key>
     <string>public.app-category.music</string>
+    <key>NSDocumentsFolderUsageDescription</key>
+    <string>Pour « Organiser » seulement, FL Shortcuts lit le fichier de ton projet FL Studio et écrit sa copie rangée à côté. Ton projet n'est jamais modifié.</string>
+    <key>NSDesktopFolderUsageDescription</key>
+    <string>Pour « Organiser » seulement, FL Shortcuts lit le fichier de ton projet FL Studio et écrit sa copie rangée à côté. Ton projet n'est jamais modifié.</string>
+    <key>NSDownloadsFolderUsageDescription</key>
+    <string>Pour « Organiser » seulement, FL Shortcuts lit le fichier de ton projet FL Studio et écrit sa copie rangée à côté. Ton projet n'est jamais modifié.</string>
+    <key>NSRemovableVolumesUsageDescription</key>
+    <string>Pour « Organiser » seulement, FL Shortcuts lit le fichier de ton projet FL Studio et écrit sa copie rangée à côté. Ton projet n'est jamais modifié.</string>
+    <key>NSNetworkVolumesUsageDescription</key>
+    <string>Pour « Organiser » seulement, FL Shortcuts lit le fichier de ton projet FL Studio et écrit sa copie rangée à côté. Ton projet n'est jamais modifié.</string>
     <key>NSAudioCaptureUsageDescription</key>
-    <string>Pendant « Organiser » seulement, FL Shortcut écoute FL Studio, et lui seul, pour reconnaître tes sons (drums, basse, mélodies, voix, FX). Rien n'est enregistré ni envoyé.</string>
+    <string>Pendant « Organiser » seulement, FL Shortcuts écoute FL Studio, et lui seul, pour reconnaître tes sons (drums, basse, mélodies, voix, FX). Rien n'est enregistré ni envoyé.</string>
+    <!-- Communauté et page Aide : projet Supabase et sa clé publique (publique par conception, les règles de
+         supabase/schema.sql protègent les données). FLS_SUPABASE_URL / FLS_SUPABASE_ANON_KEY les remplacent à la
+         compilation. Jamais la clé secrète ici. -->
+    <key>FLSCommunityURL</key>
+    <string>https://ulzxunuytsakxrvovxen.supabase.co</string>
+    <key>FLSCommunityAnonKey</key>
+    <string>sb_publishable_uSqh6eUCCeoXMioONoQYIQ_rYlriiw8</string>
     <key>NSHumanReadableCopyright</key>
-    <string>FL Shortcut — outil indépendant, non affilié à Image-Line.</string>
+    <string>FL Shortcuts — outil indépendant, non affilié à Image-Line.</string>
 </dict>
 </plist>

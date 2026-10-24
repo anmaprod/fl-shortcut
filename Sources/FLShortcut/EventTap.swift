@@ -27,10 +27,16 @@ final class EventTap {
     private let reenableTimes = Locked<[Date]>([])
     private let restartFlag = Locked(false)
     /// Le tap n'est actif que lorsque FL Studio est au premier plan. Le reste du temps il est coupé :
-    /// aucune frappe ne transite par FL Shortcut, ni dans FL, ni ailleurs.
+    /// aucune frappe ne transite par FL Shortcuts, ni dans FL, ni ailleurs.
     private let wantsActive = Locked(false)
     /// Source privée : l'état des modificateurs postés ne se mélange pas au clavier physique (REL-13).
     private let postSource = CGEventSource(stateID: .privateState)
+    /// Appuis sur Échap vus par le tap (jamais les nôtres) : une macro s'arrête sur un appui survenu depuis son
+    /// départ, même plus bref que l'intervalle où elle relit l'état du clavier.
+    private let escapeDowns = Locked<UInt64>(0)
+
+    /// Nombre d'appuis sur Échap vus depuis le lancement de l'app (seule la différence compte).
+    var escapePresses: UInt64 { escapeDowns.value }
 
     private init() {}
 
@@ -181,6 +187,7 @@ final class EventTap {
 
         let cfg = config.value
         let code = UInt16(truncatingIfNeeded: event.getIntegerValueField(.keyboardEventKeycode))
+        if type == .keyDown, code == 53 { escapeDowns.withLock { $0 &+= 1 } }
         let target = Int32(truncatingIfNeeded: event.getIntegerValueField(.eventTargetUnixProcessID))
         let destination = target != 0 ? target : cfg.frontmostPID
         var input = RouterInput(kind: type == .keyDown ? .down : .up,

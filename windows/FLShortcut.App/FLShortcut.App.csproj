@@ -22,8 +22,8 @@
     <LangVersion>12</LangVersion>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <Version>0.2.0</Version>
-    <Product>FL Shortcut</Product>
-    <Company>FL Shortcut</Company>
+    <Product>FL Shortcuts</Product>
+    <Company>FL Shortcuts</Company>
     <Description>Raccourcis personnalisés pour FL Studio — outil indépendant, non affilié à Image-Line.</Description>
     <ApplicationIcon Condition="Exists('Assets\FLShortcut.ico')">Assets\FLShortcut.ico</ApplicationIcon>
   </PropertyGroup>

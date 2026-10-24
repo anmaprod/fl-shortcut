@@ -45,6 +45,8 @@ enum FLProtocol {
     static let ccProto: UInt8 = 126
     static let helloStart: UInt8 = 1
     static let helloEnd: UInt8 = 127
+    /// Script posé sur une autre entrée que « FL Shortcuts Link » (script v8, au démarrage ; PROTOCOL.md §3).
+    static let helloWrongInput: UInt8 = 64
 
     static let seqMax: UInt32 = (1 << 21) - 1
     static let keyLength = 16
@@ -220,6 +222,8 @@ enum IncomingEvent: Equatable {
     case reason(Int)
     /// Réponse complète (CC 112 à 115), MAC pas encore vérifié : seul LinkCore connaît le seq de la commande.
     case response(op: Int, units: [UInt8], mac: [UInt8])
+    /// FL a posé le script sur une autre entrée MIDI (carte son, clavier) : il ne recevra rien de l'appli.
+    case wrongInput
 }
 
 /// Découpe un flux d'octets MIDI en messages (statut courant géré, SysEx et temps réel ignorés).
@@ -314,7 +318,7 @@ struct IncomingDecoder {
                 return finish()
             }
             partial = nil
-            return nil
+            return value == FLProtocol.helloWrongInput ? .wrongInput : nil
         case FLProtocol.ccNonceFirst..<(FLProtocol.ccNonceFirst + 4):
             partial?.nonce[Int(cc - FLProtocol.ccNonceFirst)] = value
             return nil

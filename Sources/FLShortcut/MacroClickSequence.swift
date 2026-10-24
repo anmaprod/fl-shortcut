@@ -69,27 +69,43 @@ enum MenuBarAX {
     /// menu ouvert à l'écran. Un menu que FL ne remplit qu'à son ouverture est ouvert, relu une fois, puis refermé
     /// si l'élément n'y est pas.
     static func press(pid: Int32, titles: [String], stop: () -> String?) -> Outcome {
-        guard titles.count >= 2 else { return .failed("chemin de menu incomplet") }
+        guard titles.count >= 2 else { return .failed(String(localized: "chemin de menu incomplet")) }
         let t0 = DispatchTime.now().uptimeNanoseconds
         func ms() -> Int { Int((DispatchTime.now().uptimeNanoseconds &- t0) / 1_000_000) }
+        var found = find(pid: pid, titles: titles, openIfNeeded: true, stop: stop)
+        // FL met certains de ses sous-menus à plat dans la barre de macOS (vidéo de l'utilisateur : son « Tools ›
+        // Macros › Purge unused audio clips » y est « Tools › Purge unused audio clips ») : l'élément sans le titre de
+        // son sous-menu.
+        if found == nil, stop() == nil, let flat = flattened(titles) {
+            found = find(pid: pid, titles: flat, openIfNeeded: true, stop: stop)
+        }
         // Messages sans les titres : ils finissent dans le journal (un titre peut être un nom de projet récent).
-        guard let item = find(pid: pid, titles: titles, openIfNeeded: true, stop: stop) else {
+        guard let item = found else {
             if let why = stop() { return .cancelled(why) }
             MacroLog.shared.write("MENU", "menu bar item not found (\(titles.count) levels) · \(ms()) ms")
-            return .failed("élément introuvable dans les menus de FL (renommé, ou FL dans une autre langue ? enregistre de nouveau tes clics)")
+            return .failed(String(localized: "élément introuvable dans les menus de FL (renommé, ou FL dans une autre langue ? enregistre de nouveau tes clics)"))
         }
         if let why = stop() { return .cancelled(why) }
         if bool(item, kAXEnabledAttribute as String) == false {
             closeMenus(pid: pid)
-            return .failed("élément grisé dans le menu de FL")
+            return .failed(String(localized: "élément grisé dans le menu de FL"))
         }
         let err = AXUIElementPerformAction(item, kAXPressAction as CFString)
         MacroLog.shared.write("MENU", "menu bar item pressed (\(titles.count) levels): AX \(err.rawValue) · \(ms()) ms")
         guard err == .success else {
             closeMenus(pid: pid)
-            return .failed("FL n'a pas répondu à son menu (Accessibilité \(err.rawValue))")
+            return .failed(String(localized: "FL n'a pas répondu à son menu (Accessibilité \(err.rawValue))"))
         }
         return .done
+    }
+
+    /// Pur (testé) : le chemin sans le titre du sous-menu qui contient l'élément (« Tools › Macros › Purge… » →
+    /// « Tools › Purge… ») ; nil s'il ne reste pas au moins un menu de la barre et l'élément.
+    static func flattened(_ titles: [String]) -> [String]? {
+        guard titles.count >= 3 else { return nil }
+        var out = titles
+        out.remove(at: titles.count - 2)
+        return out
     }
 
     /// Élément d'un menu de la barre de FL dont le titre contient l'un des `fragments` (sans casse ; premier niveau des
@@ -112,6 +128,104 @@ enum MenuBarAX {
         return nil
     }
 
+    /// Éléments d'un menu de la barre de FL (`path` : titre du menu, puis élément), avec ceux de ses sous-menus
+    /// (chemins complets sous `path`, jusqu'à la profondeur que « Menu de FL » sait rejouer) : les plugins d'Add ›
+    /// Channel ou Effect pour « Cliquer sur… ». Lu sans rien ouvrir ; `open` (demandé par l'utilisateur, bouton ⟳) :
+    /// un menu que FL ne remplit qu'à son ouverture (signalé : Add › Channel vide, Add › Effect rempli) est ouvert le
+    /// temps de le lire, puis refermé. Vide si FL n'a pas ses menus dans la barre de macOS.
+    static func entries(pid: Int32, under path: [String], open: Bool = false, limit: Int = 400) -> [[String]] {
+        defer { if open { closeMenus(pid: pid) } }        // ouverts par `find` ou ici : jamais laissés ouverts
+        guard let menu = readMenu(pid: pid, under: path, open: open) else { return [] }
+        var out: [[String]] = []
+        collect(menu, prefix: [], depth: maxDepth - path.count, into: &out, limit: limit)
+        return out
+    }
+
+    /// Un élément d'un niveau des menus de FL : son titre, s'il ouvre un sous-menu, s'il est grisé en ce moment.
+    struct Entry: Equatable {
+        let title: String
+        let submenu: Bool
+        var enabled = true
+    }
+
+    /// Ce qu'un niveau des menus de FL donne à la lecture.
+    enum Level: Equatable {
+        case entries([Entry])
+        /// Le menu est là, mais vide : FL ne le remplit qu'à son ouverture (à lire avec `open`).
+        case needsOpening
+        /// Chemin introuvable (FL sans ses menus dans la barre de macOS, ou menu changé).
+        case missing
+    }
+
+    /// Un niveau des menus de FL, pour les parcourir comme dans FL (« Menu de FL ») : `path` vide → les menus de la
+    /// barre (File, Edit, Add…) ; sinon les éléments du menu `path`. Lu sans rien ouvrir dans FL (signalé : le menu
+    /// Tools s'ouvrait tout seul dès qu'on choisissait le bloc) ; `open` seulement sur demande de l'utilisateur : le
+    /// menu est ouvert le temps de le lire, puis refermé. Jamais journalisé.
+    static func level(pid: Int32, under path: [String], open: Bool = false, limit: Int = 150) -> Level {
+        if path.isEmpty {
+            let app = AXUIElementCreateApplication(pid)
+            AXUIElementSetMessagingTimeout(app, 0.5)
+            guard let bar = element(app, kAXMenuBarAttribute as String) else { return .missing }
+            let menus = children(bar).prefix(20).compactMap { item -> Entry? in
+                guard let t = title(item), t != "Apple" else { return nil }      // le menu Apple n'est pas celui de FL
+                return Entry(title: t, submenu: true)
+            }
+            return menus.isEmpty ? .missing : .entries(menus)
+        }
+        defer { if open { closeMenus(pid: pid) } }
+        guard let parent = find(pid: pid, titles: path, openIfNeeded: open, stop: { nil }) else { return .missing }
+        guard let menu = open ? filledMenu(parent) : submenu(of: parent) else { return open ? .missing : .needsOpening }
+        let entries = children(menu).prefix(limit).compactMap { entry -> Entry? in
+            guard let t = title(entry), !t.contains("›") else { return nil }    // séparateurs : sans titre
+            return Entry(title: t, submenu: submenu(of: entry) != nil,
+                         enabled: bool(entry, kAXEnabledAttribute as String) != false)
+        }
+        if entries.isEmpty { return open ? .missing : .needsOpening }
+        return .entries(entries)
+    }
+
+    /// Menu de `path` (celui de son dernier titre) ; `open` : ouvert s'il est encore vide (FL remplit certains menus à
+    /// leur ouverture : Add › Channel…), à refermer par l'appelant. Sans `open`, rien n'est ouvert.
+    private static func readMenu(pid: Int32, under path: [String], open: Bool) -> AXUIElement? {
+        guard let parent = find(pid: pid, titles: path, openIfNeeded: open, stop: { nil }) else { return nil }
+        return open ? filledMenu(parent) : submenu(of: parent)
+    }
+
+    private static func filledMenu(_ parent: AXUIElement) -> AXUIElement? {
+        var menu = submenu(of: parent)
+        if menu.map({ children($0).isEmpty }) ?? true {
+            AXUIElementPerformAction(parent, kAXPressAction as CFString)
+            for _ in 0..<Self.fillSteps {
+                Thread.sleep(forTimeInterval: 0.1)
+                menu = submenu(of: parent)
+                if menu.map({ !children($0).isEmpty }) ?? false { break }
+            }
+        }
+        return menu
+    }
+
+    /// Menu que FL remplit à son ouverture : relu toutes les 100 ms, 1 s au plus (0,15 s ne suffisait pas toujours).
+    static let fillSteps = 10
+
+    /// Feuilles de `menu` (avec les titres des sous-menus traversés), `depth` titres au plus par chemin.
+    private static func collect(_ menu: AXUIElement, prefix: [String], depth: Int, into out: inout [[String]],
+                                limit: Int) {
+        for entry in children(menu).prefix(limit) where out.count < limit {
+            guard let t = title(entry), !t.contains("›"), bool(entry, kAXEnabledAttribute as String) != false else {
+                continue
+            }
+            if let sub = submenu(of: entry) {
+                if depth > 1 { collect(sub, prefix: prefix + [t], depth: depth - 1, into: &out, limit: limit) }
+            } else {
+                out.append(prefix + [t])
+            }
+        }
+    }
+
+    private static func submenu(of el: AXUIElement) -> AXUIElement? {
+        children(el).first { role($0) == (kAXMenuRole as String) }
+    }
+
     /// Cadre à l'écran (repère CoreGraphics) d'un menu de la barre ou d'un de ses éléments déjà affiché.
     static func frame(pid: Int32, titles: [String]) -> CGRect? {
         find(pid: pid, titles: titles, openIfNeeded: false, stop: { nil }).flatMap { AXProbe.frame($0) }
@@ -129,8 +243,10 @@ enum MenuBarAX {
             if next == nil, level > 0, openIfNeeded {
                 AXUIElementPerformAction(current, kAXPressAction as CFString)
                 opened = true
-                Thread.sleep(forTimeInterval: 0.15)
-                next = child(of: current, titled: wanted, inMenu: true)
+                for _ in 0..<Self.fillSteps where next == nil && stop() == nil {
+                    Thread.sleep(forTimeInterval: 0.1)
+                    next = child(of: current, titled: wanted, inMenu: true)
+                }
             }
             guard let found = next else {
                 if opened { closeMenus(pid: pid) }
@@ -216,6 +332,58 @@ struct RecordedClick: Equatable {
     let windows: [WinInfo]
     /// Menu de la barre de macOS sous le clic (lu au moment du clic), sinon nil.
     let menu: MenuBarAX.Hit?
+    /// Fenêtre de plugin sous le clic (Serum, Vital…) : son titre, lu au moment du clic (Accessibilité).
+    var title: String? = nil
+    /// Nom du bouton cliqué (« FILE », « Insert 1 »), lu dans la fenêtre de FL juste après le clic, et où tombait le
+    /// clic par rapport au centre de ce nom.
+    var named: NamedHit? = nil
+    /// Bouton gauche relâché loin de l'appui : un glisser-déposer (où il est lâché, et les fenêtres de FL à ce moment).
+    var release: RecordedRelease? = nil
+}
+
+/// Fin d'un glisser-déposer enregistré.
+struct RecordedRelease: Equatable {
+    let point: CGPoint
+    let windows: [WinInfo]
+}
+
+/// Éléments des menus de FL (barre des menus de macOS) qui ont leur raccourci dans FL : enregistrés, ils deviennent
+/// ce raccourci (instantané, sans ouvrir de menu). Titres de FL en anglais, comparés sans casse ni « … ».
+enum MenuShortcuts {
+    static func key(for path: [String], layout: KeyboardLayout) -> KeyCombo? {
+        func cmd(_ letter: String, _ fallback: UInt16, shift: Bool = false) -> KeyCombo {
+            KeyCombo(keyCode: KeyNames.commandKeyCode(for: letter, layout: layout) ?? fallback, command: true, shift: shift)
+        }
+        let p = path.map { t -> String in
+            var s = t.lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
+            while s.hasSuffix("…") || s.hasSuffix(".") { s.removeLast() }
+            return s
+        }
+        switch p {
+        case ["view", "playlist"]: return KeyCombo(keyCode: 96)                      // F5
+        case ["view", "channel rack"]: return KeyCombo(keyCode: 97)                  // F6
+        case ["view", "piano roll"]: return KeyCombo(keyCode: 98)                    // F7
+        case ["view", "plugin picker"]: return KeyCombo(keyCode: 100)                // F8
+        case ["view", "mixer"]: return KeyCombo(keyCode: 101)                        // F9
+        case ["view", "browser"]: return KeyCombo(keyCode: 100, option: true)        // ⌥F8
+        case ["options", "midi settings"]: return KeyCombo(keyCode: 109)             // F10
+        case ["file", "open"]: return cmd("o", 31)
+        case ["file", "save"]: return cmd("s", 1)
+        case ["file", "save as"]: return cmd("s", 1, shift: true)
+        case ["file", "save new version"]: return cmd("n", 45)
+        case ["file", "export", "wave file"]: return cmd("r", 15)
+        case ["file", "export", "mp3 file"]: return cmd("r", 15, shift: true)
+        case ["file", "export", "midi file"]: return cmd("m", 46, shift: true)
+        case ["edit", "undo"]: return cmd("z", 6)
+        default: return nil
+        }
+    }
+}
+
+struct NamedHit: Equatable {
+    let label: String
+    let dx: Double
+    let dy: Double
 }
 
 /// Touche tapée dans FL pendant l'enregistrement (flèches, Entrée, Échap, raccourcis, lettres d'un menu).
@@ -244,8 +412,15 @@ enum ClickSequenceCompiler {
     static let maxTimes = 20
     static let maxMenuLetters = 8
 
-    static func compile(_ clicks: [RecordedClick]) -> Result {
-        compile(inputs: clicks.map(RecordedInput.click))
+    /// Clic dans une fenêtre de FL sur un bouton qui porte un nom : retenu par ce nom (sa place reste le repli).
+    static func named(_ target: ClickTarget, _ hit: NamedHit?) -> ClickTarget {
+        guard let hit, case .flWindow(let corner, let dx, let dy, let size?, let title) = target else { return target }
+        let spot = NamedSpot(label: hit.label, dx: hit.dx, dy: hit.dy, corner: corner, px: dx, py: dy, size: size, title: title)
+        return spot.isValid ? .named(spot) : target
+    }
+
+    static func compile(_ clicks: [RecordedClick], layout: KeyboardLayout = SystemKeyboardLayout()) -> Result {
+        compile(inputs: clicks.map(RecordedInput.click), layout: layout)
     }
 
     /// Une touche : dans un menu de FL ouvert, ↑ ↓ ← → Entrée Échap → « Dans le menu » et une lettre seule →
@@ -273,7 +448,9 @@ enum ClickSequenceCompiler {
     /// eux ; élément d'un menu de la barre → « Menu de FL » (le clic qui a ouvert ce menu n'est pas gardé). Un menu de
     /// la barre refermé sans choix (titre recliqué, ou clic ailleurs : macOS avale ce clic, FL ne le reçoit pas) est
     /// ignoré, ainsi que les touches tapées pendant qu'il est ouvert (on ne sait pas ce qu'elles y choisissent).
-    static func compile(inputs: [RecordedInput]) -> Result {
+    /// Un élément de menu qui a son raccourci dans FL devient ce raccourci ; un bouton gauche relâché loin de l'appui,
+    /// dans FL, devient un glisser-déposer.
+    static func compile(inputs: [RecordedInput], layout: KeyboardLayout = SystemKeyboardLayout()) -> Result {
         var out: [BlockBody] = []
         var ignored = 0
         var openBar: String?                            // menu de la barre ouvert, rien choisi encore
@@ -304,7 +481,11 @@ enum ClickSequenceCompiler {
                 continue
             case .item(let path)?:
                 openBar = nil
-                out.append(.menuBar(titles: path))
+                if let combo = MenuShortcuts.key(for: path, layout: layout) {
+                    out.append(.key(KeyRef(combo), times: 1))
+                } else {
+                    out.append(.menuBar(titles: path))
+                }
                 continue
             case nil:
                 if openBar != nil {
@@ -314,11 +495,18 @@ enum ClickSequenceCompiler {
                 }
             }
             let windows = c.windows.map { (layer: $0.layer, bounds: $0.bounds) }
-            guard let target = MacroOutline.learnedTarget(at: c.point, windows: windows) else {
+            guard let target = MacroOutline.learnedTarget(at: c.point, windows: windows, title: c.title) else {
                 ignored += 1
                 continue
             }
-            out.append(.click(target, button: c.right ? .right : .left))
+            if let release = c.release, !c.right,
+               let to = MacroOutline.learnedTarget(at: release.point,
+                                                   windows: release.windows.map { (layer: $0.layer, bounds: $0.bounds) },
+                                                   title: nil) {
+                out.append(.drag(from: Self.named(target, c.named), to: to))
+                continue
+            }
+            out.append(.click(Self.named(target, c.named), button: c.right ? .right : .left))
         }
         if openBar != nil { ignored += 1 }
         return Result(blocks: out, ignored: ignored)
@@ -332,6 +520,8 @@ final class ClickSequenceRecorder: ObservableObject {
     /// Clics et touches en tout.
     static let maxInputs = 80
     static let maxDuration: TimeInterval = 120
+    /// Au-delà (points), un appui relâché ailleurs est un glisser-déposer, pas un clic.
+    static let dragDistance: CGFloat = 8
 
     @Published private(set) var active = false
     @Published private(set) var count = 0
@@ -346,6 +536,11 @@ final class ClickSequenceRecorder: ObservableObject {
     private var completion: ((ClickSequenceCompiler.Result) -> Void)?
     private weak var returnWindow: NSWindow?
     private var panel: RecordingPanel?
+    /// Noms des boutons en cours de lecture (un par clic dans une fenêtre de FL) ; attendus à « Terminer ».
+    private var naming = DispatchGroup()
+    private var finishing = false
+    /// Numéro de l'enregistrement : une fin attendue d'un enregistrement précédent n'arrête jamais le suivant.
+    private var generation = 0
 
     private init() {}
 
@@ -360,6 +555,12 @@ final class ClickSequenceRecorder: ObservableObject {
         self.completion = completion
         returnWindow = window
         inputs = []
+        naming = DispatchGroup()
+        finishing = false
+        generation += 1
+        // Boutons retenus par leur nom : il faut lire la fenêtre de FL au moment du clic, autorisation demandée à
+        // l'accueil seulement (ici, FL passait aussitôt devant la fenêtre de macOS) ; sans elle, les clics gardent
+        // leur place, comme avant.
         history = [WinSnapshot.take(pid: pid)]
         started = Date()
         count = 0
@@ -368,7 +569,7 @@ final class ClickSequenceRecorder: ObservableObject {
         CreatorPresence.stepAside()
         fl.activate(options: [])
         // Touches aussi : flèches, Entrée, Échap, raccourcis, lettres des menus (seulement quand FL est devant ; les
-        // raccourcis de FL Shortcut, pris par le tap clavier, n'arrivent pas jusqu'ici).
+        // raccourcis de FL Shortcuts, pris par le tap clavier, n'arrivent pas jusqu'ici).
         monitor = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown, .leftMouseUp, .keyDown]) { [weak self] event in
             self?.record(event)
         }
@@ -381,9 +582,22 @@ final class ClickSequenceRecorder: ObservableObject {
         return true
     }
 
-    /// « Terminer » : les clics deviennent des blocs, retour dans le créateur.
+    /// « Terminer » : les clics deviennent des blocs (une fois lus les noms des derniers boutons, 2,5 s au plus),
+    /// retour dans le créateur.
     func finish() {
-        guard active else { return }
+        guard active, !finishing else { return }
+        finishing = true
+        if let m = monitor { NSEvent.removeMonitor(m) }            // plus rien d'enregistré
+        monitor = nil
+        let group = naming, current = generation
+        DispatchQueue.global(qos: .userInitiated).async {
+            _ = group.wait(timeout: .now() + 2.5)
+            DispatchQueue.main.async { [weak self] in self?.complete(current) }
+        }
+    }
+
+    private func complete(_ recording: Int) {
+        guard active, finishing, recording == generation else { return }
         let result = ClickSequenceCompiler.compile(inputs: inputs)
         let done = completion
         stop()
@@ -404,7 +618,8 @@ final class ClickSequenceRecorder: ObservableObject {
             guard NSWorkspace.shared.frontmostApplication?.processIdentifier == test else { return }
         } else {
             let cfg = EventTap.shared.currentConfig
-            guard cfg.flPIDs.contains(cfg.frontmostPID) else { return }
+            // FL devant, ou la fenêtre d'un plugin que FL fait tourner à part (pont des plugins Intel).
+            guard cfg.flPIDs.contains(cfg.frontmostPID) || FLHelpers.isFLOrHelper(cfg.frontmostPID, fl: pid) else { return }
         }
         guard active, event.cgEvent?.getIntegerValueField(.eventSourceUserData) != EventTap.mark else { return }
         if event.type == .keyDown {
@@ -415,10 +630,21 @@ final class ClickSequenceRecorder: ObservableObject {
         var barPending = false
         if case .bar? = lastClick?.menu { barPending = true }
         if event.type == .leftMouseUp {
-            // Menu de la barre choisi en glissant : appui sur son titre, relâché sur l'élément.
-            guard barPending, let down = lastClick, abs(p.x - down.point.x) + abs(p.y - down.point.y) > 4,
-                  let hit = MenuBarAX.hit(at: p, pid: pid), case .item = hit else { return }
-            append(RecordedClick(point: p, right: false, windows: [], menu: hit))
+            if barPending {
+                // Menu de la barre choisi en glissant : appui sur son titre, relâché sur l'élément.
+                guard let down = lastClick, abs(p.x - down.point.x) + abs(p.y - down.point.y) > 4,
+                      let hit = MenuBarAX.hit(at: p, pid: pid), case .item = hit else { return }
+                append(RecordedClick(point: p, right: false, windows: [], menu: hit))
+                return
+            }
+            // Glisser-déposer : le bouton gauche relâché loin de l'appui. Le clic d'appui devient un glisser-déposer
+            // (où il est lâché, et les fenêtres de FL à ce moment).
+            guard let i = inputs.lastIndex(where: { if case .click = $0 { return true } else { return false } }),
+                  case .click(var down) = inputs[i], !down.right, down.menu == nil, down.release == nil,
+                  hypot(p.x - down.point.x, p.y - down.point.y) > Self.dragDistance else { return }
+            let now = history.last(where: { $0.time <= event.timestamp }) ?? history.last ?? WinSnapshot.take(pid: pid)
+            down.release = RecordedRelease(point: p, windows: now.fl)
+            inputs[i] = .click(down)
             return
         }
         // Fenêtres de FL juste avant le clic, retenues tout de suite (un menu se ferme au clic). Menus de la barre de
@@ -432,7 +658,28 @@ final class ClickSequenceRecorder: ObservableObject {
         if menu == nil, before.hit(p) == nil, p.y - MacroEffectsMac.displayBounds(containing: p).minY <= 40 {
             menu = .bar("")
         }
-        append(RecordedClick(point: p, right: event.type == .rightMouseDown, windows: before.fl, menu: menu))
+        // Fenêtre de plugin : son titre la retrouvera au rejeu où qu'elle soit (jamais la fenêtre principale ni un menu).
+        let title = menu == nil ? FLWindowAX.pluginTitle(at: p, before: before, fl: pid) : nil
+        // Bouton qui porte un nom, dans une fenêtre de FL (pas un menu) : son nom est lu tout de suite (jamais pendant
+        // les essais automatiques). Attendu avant de compiler : entré dans le groupe avant l'ajout (le 80ᵉ clic
+        // termine l'enregistrement).
+        let window = before.hit(p)
+        let readName = menu == nil && MacroRunner.testFLPID == nil && MacroEffectsMac.canRead
+            && (window.map { $0.number > 0 && (MacroEffectsMac.clickWindowLayers.contains($0.layer) || title != nil) } ?? false)
+        let group = naming
+        if readName { group.enter() }
+        let index = inputs.count
+        append(RecordedClick(point: p, right: event.type == .rightMouseDown, windows: before.fl, menu: menu, title: title))
+        if readName, let window {
+            TextLook.lookup(at: p, window: window) { [weak self] found in
+                defer { group.leave() }
+                guard let self, let found, index < self.inputs.count,
+                      case .click(var click) = self.inputs[index], click.point == p else { return }
+                // Lu sur l'appui (le relâché d'un glisser-déposer a pu s'ajouter depuis : il est gardé).
+                click.named = NamedHit(label: found.label, dx: found.dx, dy: found.dy)
+                self.inputs[index] = .click(click)
+            }
+        }
     }
 
     private var lastClick: RecordedClick? {
@@ -481,6 +728,7 @@ final class ClickSequenceRecorder: ObservableObject {
         completion = nil
         history = []
         inputs = []
+        finishing = false
         if active { active = false }
     }
 
@@ -567,10 +815,10 @@ private struct RecordingBar: View {
     private var detail: String {
         let keys = recorder.keyCount
         let clicks = recorder.count - keys
-        guard recorder.count > 0 else { return "Clique et tape dans FL (flèches, raccourcis…), dans l'ordre." }
+        guard recorder.count > 0 else { return String(localized: "Clique et tape dans FL (flèches, raccourcis…), dans l'ordre.") }
         var parts: [String] = []
-        if clicks > 0 { parts.append(clicks == 1 ? "1 clic" : "\(clicks) clics") }
-        if keys > 0 { parts.append(keys == 1 ? "1 touche" : "\(keys) touches") }
-        return parts.joined(separator: " · ") + (recorder.count == 1 ? " enregistré" : " enregistrés")
+        if clicks > 0 { parts.append(clicks == 1 ? String(localized: "1 clic") : String(localized: "\(clicks) clics")) }
+        if keys > 0 { parts.append(keys == 1 ? String(localized: "1 touche") : String(localized: "\(keys) touches")) }
+        return parts.joined(separator: " · ") + (recorder.count == 1 ? String(localized: " enregistré") : String(localized: " enregistrés"))
     }
 }

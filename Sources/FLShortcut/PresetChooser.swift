@@ -33,8 +33,12 @@ enum PresetChooser {
             if case .failure(let f) = WindowWait.gone(pid: pid, numbers: numbers, timeout: timeout, stop: stop) { return f }
             return nil
         }
-        guard WinSnapshot.take(pid: pid).numbers.contains(dialog) else { return .failed("la boîte « Open » s'est fermée") }
-        guard MacroRunner.isFrontmost(pid) else { return .failed("la boîte « Open » n'est pas au premier plan") }
+        guard WinSnapshot.take(pid: pid).numbers.contains(dialog) else {
+            return .failed(String(localized: "la boîte « Open » s'est fermée"))
+        }
+        guard MacroRunner.isFrontmost(pid) else {
+            return .failed(String(localized: "la boîte « Open » n'est pas au premier plan"))
+        }
 
         // 1. « Aller au dossier » : nouvelle fenêtre du processus (feuille de la boîte), renvoyé tant qu'elle n'apparaît pas.
         // Fenêtres déjà là avant le premier ⌘⇧G : « Aller au dossier » est la nouvelle (elle s'anime à l'ouverture, d'où
@@ -58,13 +62,15 @@ enum PresetChooser {
             }
             if goTo != nil { break }
         }
-        guard let sheet = goTo else { return .failed("la boîte « Open » ne répond pas au clavier (⌘⇧G)") }
+        guard let sheet = goTo else {
+            return .failed(String(localized: "la boîte « Open » ne répond pas au clavier (⌘⇧G)"))
+        }
         Thread.sleep(forTimeInterval: 0.1)                  // fenêtre stable (animation finie) : champ prêt
 
         // 2. Chemin tapé (remplace le texte proposé : ⌘A d'abord).
         post(keyCode: 0, flags: .maskCommand, pid: pid)                                     // ⌘A
         Thread.sleep(forTimeInterval: 0.02)
-        guard type(path, pid: pid, stop: stop) else { return .cancelled(stop() ?? "arrêt") }
+        guard type(path, pid: pid, stop: stop) else { return .cancelled(stop() ?? String(localized: "arrêt")) }
         Thread.sleep(forTimeInterval: 0.1)
         log("path typed (\(path.count) characters)")
 
@@ -75,7 +81,7 @@ enum PresetChooser {
         case .stopped(let why)?: return .cancelled(why)
         case .timeout?:
             post(keyCode: 53, flags: [], pid: pid)                                         // Échap : referme la feuille
-            return .failed("chemin du preset refusé par la boîte « Open »")
+            return .failed(String(localized: "chemin du preset refusé par la boîte « Open »"))
         case nil: break
         }
         log("go-to-folder closed")
@@ -94,7 +100,7 @@ enum PresetChooser {
                 log("dialog still open after Enter attempt \(attempt)")
             }
         }
-        return .failed("la boîte « Open » ne s'est pas fermée sur le preset")
+        return .failed(String(localized: "la boîte « Open » ne s'est pas fermée sur le preset"))
     }
 
     /// Texte frappé caractère par caractère (Unicode joint à chaque événement : indépendant de la disposition du

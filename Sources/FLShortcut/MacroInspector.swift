@@ -3,6 +3,8 @@
 // action de FL du catalogue, endroit d'un clic montré dans FL, « Si le bloc échoue », note.
 // Construit seulement pour le bloc choisi ; chaque réglage passe par le brouillon (annulable, enregistré 0,5 s après).
 import AppKit
+import ApplicationServices
+import CoreAudio
 import SwiftUI
 import UniformTypeIdentifiers
 
@@ -16,15 +18,24 @@ struct MacroInspectorView: View {
                     .id(block.id)                         // nouveau bloc : champs neufs
             } else if let row = model.selectedRow, case .end = row.kind {
                 hint(symbol: "arrow.turn.left.up", title: row.verb,
-                     text: "Les blocs ajoutés maintenant (palette à gauche) vont à la fin de cette liste. Tu peux aussi y glisser une ligne.")
+                     text: String(localized: "Les blocs ajoutés maintenant (palette à gauche) vont à la fin de cette liste. Tu peux aussi y glisser une ligne."))
             } else if model.draft != nil {
-                hint(symbol: "slider.horizontal.3", title: "Aucun bloc choisi",
-                     text: "Choisis une ligne pour la régler. Ajoute des blocs depuis la palette, glisse les lignes pour les ranger ; ⌘D duplique, ⌫ supprime, ⌘Z annule.")
+                hint(symbol: "slider.horizontal.3", title: String(localized: "Aucun bloc choisi"),
+                     text: String(localized: "Choisis une ligne pour la régler. Ajoute des blocs depuis la palette, glisse les lignes pour les ranger ; ⌘D duplique, ⌫ supprime, ⌘Z annule."))
             } else {
                 Color.clear
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        // Autre bloc choisi : ses réglages arrivent en fondu flou, vite (les flèches du clavier le suivent).
+        .softSwitch(inspectorKey, quick: true)
+    }
+
+    /// Ce que montre l'inspecteur : un bloc, une fin de liste, le conseil, ou rien.
+    private var inspectorKey: String {
+        if let block = model.selectedBlock { return block.id.uuidString }
+        if let row = model.selectedRow, case .end = row.kind { return "fin-\(row.id)" }
+        return model.draft != nil ? "conseil" : "vide"
     }
 
     private func hint(symbol: String, title: String, text: String) -> some View {
@@ -72,7 +83,7 @@ private struct BlockInspector: View {
                 }
             } else {
                 Section {
-                    Text("Ce bloc vient d'une version plus récente de FL Shortcut. Il est gardé tel quel, mais la macro ne tourne pas tant qu'il est là : mets l'app à jour, ou supprime-le.")
+                    Text("Ce bloc vient d'une version plus récente de FL Shortcuts. Il est gardé tel quel, mais la macro ne tourne pas tant qu'il est là : mets l'app à jour, ou supprime-le.")
                         .font(.system(size: 12))
                         .fixedSize(horizontal: false, vertical: true)
                 }
@@ -99,7 +110,7 @@ private struct BlockInspector: View {
                 }
                 TextField("Note", text: Binding(get: { block.note ?? "" }, set: { text in
                     let clean = String(text.prefix(MacroValidation.maxNoteLength))
-                    model.updateBlock(block.id, key: "note", actionName: "Modifier la note") {
+                    model.updateBlock(block.id, key: "note", actionName: String(localized: "Modifier la note")) {
                         $0.note = clean.isEmpty ? nil : clean
                     }
                 }), prompt: Text("Pour toi (facultatif)"))
@@ -115,7 +126,7 @@ private struct BlockInspector: View {
         HStack(alignment: .top, spacing: 10) {
             SectionIcon(symbol: spec?.symbol ?? "questionmark.square.dashed", tint: spec?.category.tint ?? .gray, size: 30)
             VStack(alignment: .leading, spacing: 3) {
-                Text(spec?.label ?? "Bloc inconnu").font(.headline)
+                Text(spec?.label ?? String(localized: "Bloc inconnu")).font(.headline)
                 if let aide = spec?.aide {
                     Text(aide)
                         .font(.system(size: 11))
@@ -131,15 +142,14 @@ private struct BlockInspector: View {
     @ViewBuilder private var noSettings: some View {
         switch block.body {
         case .menuBar(let titles):
-            Text("\(titles.map { $0.displaySafe(max: 40) }.joined(separator: " › ")) : choisi par son nom dans la barre "
-                 + "des menus de macOS (rien n'est cliqué à l'écran). Pour un autre élément, enregistre de nouveau tes clics.")
-                .font(.system(size: 12))
-                .fixedSize(horizontal: false, vertical: true)
+            MenuBarField(titles: titles) { path in
+                setBody(key: "titles") { $0 = .menuBar(titles: path) }
+            }
         case .selectInput:
             VStack(alignment: .leading, spacing: 6) {
                 Text(MacroSpots.loadPath(.input) != nil
-                     ? "L'entrée « 1 » est retenue sur ce Mac (montrée une fois)."
-                     : "Pas encore montrée : la première fois, une bulle te demande de cliquer sur « (none) » puis sur l'entrée « 1 ».")
+                     ? String(localized: "L'entrée « 1 » est retenue sur ce Mac (montrée une fois).")
+                     : String(localized: "Pas encore montrée : la première fois, une bulle te demande de cliquer sur « (none) » puis sur l'entrée « 1 »."))
                     .font(.system(size: 12))
                     .fixedSize(horizontal: false, vertical: true)
                 if MacroSpots.loadPath(.input) != nil {
@@ -151,15 +161,11 @@ private struct BlockInspector: View {
                 }
             }
         case .soundCard:
-            Text("La carte son branchée (USB, Thunderbolt…) devient la sortie et l'entrée du Mac. Une seule fois, dans "
-                 + "FL › Options › Audio settings : Output sur « Default audio device » et Input sur « Default input "
-                 + "device » ; FL suit alors la carte tout seul. Plusieurs cartes branchées : celle choisie la dernière fois.")
-                .font(.system(size: 12))
-                .fixedSize(horizontal: false, vertical: true)
+            SoundCardField()
         case .organize:
-            Text("Ouvre l'Organiser sur la page de FL qui est devant (Channel rack ou Mixer). Les couleurs, dégradés et "
-                 + "icônes de chaque famille se règlent dans sa fenêtre et y restent gardés. macOS demande une fois "
-                 + "l'autorisation « Audio système » : seul le son de FL est écouté, rien n'est enregistré.")
+            Text(String(localized: "Ouvre l'Organiser sur la page de FL qui est devant (Channel rack, Mixer ou Playlist). Les couleurs, dégradés et ")
+                 + String(localized: "icônes de chaque famille se règlent dans sa fenêtre et y restent gardés. macOS demande une fois ")
+                 + String(localized: "l'autorisation « Audio système » : seul le son de FL est écouté, rien n'est enregistré."))
                 .font(.system(size: 12))
                 .fixedSize(horizontal: false, vertical: true)
         default:
@@ -178,7 +184,7 @@ private struct BlockInspector: View {
         case (.repeatCount(let n, _), "count"):
             LabeledContent(p.label) { countField(n, range: 1...MacroValidation.maxRepeat, key: "count") }
         case (.menuLetters(let l, _), "letters"):
-            lettersField(p.label, l, max: 8, hint: "Lettres soulignées du menu ouvert (F de File…), dans l'ordre.")
+            lettersField(p.label, l, max: 8, hint: String(localized: "Lettres soulignées du menu ouvert (F de File…), dans l'ordre."))
         case (.trackMenu(let l, _, _, _), "letters"):
             trackMenuPicker(p.label, l)
         case (.menuLetters(_, let e), "finalEnter"):
@@ -192,6 +198,8 @@ private struct BlockInspector: View {
             clickTarget(t)
         case (.click(_, let b), "button"):
             buttonPicker(p.label, b)
+        case (.drag(let from, let to), "from"):
+            dragField(from, to)
         case (.delay(let ms), "ms"):
             LabeledContent(p.label) { msField(ms) }
         case (.delay, "wait"), (.waitWindow, "wait"), (.waitWindowClose, "wait"):
@@ -204,6 +212,19 @@ private struct BlockInspector: View {
             actionPicker(key)
         case (.flAction(let key, let fallback), "fallback"):
             fallbackField(key, fallback)
+        case (.openPage(let page), "page"):
+            pagePicker(page)
+        case (.pageOption(let id, _), "option"):
+            pageOptionPicker(id)
+        case (.pageOption(let id?, let name), "name"):
+            // Seulement pour l'option qui demande une valeur : la ligne arrive en poussant les réglages du dessous.
+            if let field = PageOptions.field(of: id) {
+                pageOptionValue(field, id: id, value: name)
+                    .transition(Motion.transition(.asymmetric(
+                        insertion: .move(edge: .top).combined(with: .opacity), removal: .opacity)))
+            }
+        case (.pageOption, "name"):
+            EmptyView()
         case (.stop(let m), "message"):
             TextField(p.label, text: textBinding(m ?? "", max: MacroValidation.maxNoteLength) { text in
                 setBody(key: "message") { $0 = .stop(message: text.isEmpty ? nil : text) }
@@ -222,7 +243,8 @@ private struct BlockInspector: View {
                         body = .nameColor(name: cut.isEmpty ? nil : cut, color: c, fade: f, icon: i)
                     }
                 }
-            }), prompt: Text(fade == nil ? "Kick, Lead, Voix… (facultatif)" : "Pas de nom pour un dégradé"))
+            }), prompt: Text(fade == nil ? String(localized: "Kick, Lead, Voix… (facultatif)")
+                                         : String(localized: "Pas de nom pour un dégradé")))
             .disabled(fade != nil)
         case (.nameColor(_, let color, let fade, _), "color"):
             VStack(alignment: .leading, spacing: 10) {
@@ -238,7 +260,8 @@ private struct BlockInspector: View {
                     Toggle("Dégradé sur les pistes sélectionnées", isOn: Binding(get: { fade != nil }, set: { on in
                         setBody(key: "fade") { body in
                             guard case .nameColor(let n, let c?, _, let i) = body else { return }
-                            body = on ? .nameColor(name: nil, color: c, fade: GradientField.defaultLast(for: c), icon: i)
+                            // Dégradé : ni nom ni icône (plusieurs pistes).
+                            body = on ? .nameColor(name: nil, color: c, fade: GradientField.defaultLast(for: c), icon: nil)
                                       : .nameColor(name: n, color: c, fade: nil, icon: i)
                         }
                     }))
@@ -253,6 +276,23 @@ private struct BlockInspector: View {
                         }
                     }
                 }
+            }
+        case (.nameColor(_, _, let fade, let icon), "icon"):
+            // Posée par la fenêtre de FL (F2) : un seul élément à la fois, donc pas avec un dégradé.
+            VStack(alignment: .leading, spacing: 6) {
+                FLIconField(icon: icon) { picked in
+                    setBody(key: "icon") { body in
+                        if case .nameColor(let n, let c, let f, _) = body {
+                            body = .nameColor(name: n, color: c, fade: f, icon: picked)
+                        }
+                    }
+                }
+                .disabled(fade != nil)
+                Text(fade != nil ? String(localized: "Pas d'icône avec un dégradé (FL la pose sur un seul élément).")
+                                 : String(localized: "Posée par la fenêtre de FL (F2). La première fois, montre une fois le bouton de l'icône."))
+                    .font(.system(size: 11))
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
             }
         default:
             Text("Réglage disponible dans une prochaine version.")
@@ -345,10 +385,10 @@ private struct BlockInspector: View {
                 setKey(new)
             }))
             HStack(spacing: 4) {
-                modifierToggle("⌘", "Commande", \.command, combo)
-                modifierToggle("⌥", "Option", \.option, combo)
-                modifierToggle("⌃", "Contrôle", \.control, combo)
-                modifierToggle("⇧", "Majuscule", \.shift, combo)
+                modifierToggle("⌘", String(localized: "Commande"), \.command, combo)
+                modifierToggle("⌥", String(localized: "Option"), \.option, combo)
+                modifierToggle("⌃", String(localized: "Contrôle"), \.control, combo)
+                modifierToggle("⇧", String(localized: "Majuscule"), \.shift, combo)
             }
         }
     }
@@ -359,7 +399,8 @@ private struct BlockInspector: View {
             var new = combo
             new[keyPath: path] = on
             if let why = Store.shared.forbiddenReason(new) {
-                Dialogs.inform("Touche interdite", "\(new.display) ne peut pas être envoyée à FL : \(why).")
+                Dialogs.inform(String(localized: "Touche interdite"),
+                               String(localized: "\(new.display) ne peut pas être envoyée à FL : \(why)."))
                 return
             }
             setKey(new)
@@ -394,7 +435,7 @@ private struct BlockInspector: View {
                 }
             }
         }), in: range) {
-            Text(n == 1 ? "1 fois" : "\(n) fois").monospacedDigit()
+            Text(n == 1 ? String(localized: "1 fois") : String(localized: "\(n) fois")).monospacedDigit()
         }
     }
 
@@ -457,8 +498,8 @@ private struct BlockInspector: View {
                 Text("Autre (lettres soulignées)…").tag(other)
             }
             if current == other {
-                lettersField("Lettres", letters, max: 3,
-                             hint: "Lettres soulignées dans le menu de la piste de FL : les sous-menus (F de File), puis l'élément (O de Open…).")
+                lettersField(String(localized: "Lettres"), letters, max: 3,
+                             hint: String(localized: "Lettres soulignées dans le menu de la piste de FL : les sous-menus (F de File), puis l'élément (O de Open…)."))
             }
         }
     }
@@ -517,7 +558,7 @@ private struct BlockInspector: View {
 
     private func targetKind(_ t: ClickTarget) -> String {
         switch t {
-        case .flWindow, .openMenu, .cursorXWindowY, .toLearn: return "learned"
+        case .flWindow, .openMenu, .button, .named, .cursorXWindowY, .toLearn: return "learned"
         case .track: return "track"
         case .lastClick: return "lastClick"
         case .startCursor: return "startCursor"
@@ -542,7 +583,7 @@ private struct BlockInspector: View {
             Text("Près du curseur au départ").tag("startCursor")
         }
         switch t {
-        case .flWindow, .openMenu, .cursorXWindowY, .toLearn:
+        case .flWindow, .openMenu, .button, .named, .cursorXWindowY, .toLearn:
             learnedSpot(t)
         case .track(let dx, let dy), .lastClick(let dx, let dy), .startCursor(let dx, let dy):
             offsetFields(t, dx: dx, dy: dy)
@@ -553,32 +594,131 @@ private struct BlockInspector: View {
         let learning = teacher.activeBlock == block.id
         let text: String
         switch t {
-        case .flWindow(_, _, _, let size?):
-            text = "Retenu dans la fenêtre de FL de \(Int(size.width)) × \(Int(size.height)) (fenêtre principale, réglages, "
-                + "boîte…) : le clic attend qu'elle s'ouvre. Si elle change de taille, montre-le de nouveau."
+        case .flWindow(_, _, _, _, let title?):
+            text = String(localized: "Retenu dans la fenêtre du plugin « \(title.displaySafe(max: 40)) » : le clic la retrouve où qu'elle soit ")
+                + String(localized: "et attend qu'elle s'ouvre. Si elle change de taille, montre-le de nouveau.")
+        case .flWindow(_, _, _, let size?, _):
+            text = String(localized: "Retenu dans la fenêtre de FL de \(Int(size.width)) × \(Int(size.height)) (fenêtre principale, réglages, ")
+                + String(localized: "boîte…) : le clic attend qu'elle s'ouvre. Si elle change de taille, montre-le de nouveau.")
         case .flWindow:
-            text = "Retenu par rapport à la fenêtre de FL."
+            text = String(localized: "Retenu par rapport à la fenêtre de FL.")
         case .openMenu:
-            text = "Retenu dans le menu de FL ouvert par le clic précédent : le clic attend que ce menu s'ouvre."
+            text = String(localized: "Retenu dans le menu de FL ouvert par le clic précédent : le clic attend que ce menu s'ouvre.")
+        case .button:
+            text = String(localized: "Bouton retrouvé à son image dans la fenêtre de FL, même s'il a bougé. L'écran n'est lu qu'à ce ")
+                + String(localized: "moment-là, dans cette fenêtre.")
+        case .named(let spot):
+            text = String(localized: "Bouton retrouvé par son nom « \(spot.label.displaySafe(max: 30)) » dans la fenêtre de FL, même s'il a ")
+                + String(localized: "bougé. L'écran n'est lu qu'à ce moment-là, dans cette fenêtre ; sans l'autorisation, à sa place.")
         case .cursorXWindowY:
-            text = "Ancienne position apprise (colonne du curseur)."
+            text = String(localized: "Ancienne position apprise (colonne du curseur).")
         default:
-            text = "Pas encore montré : la macro ne tourne pas tant que l'endroit n'est pas montré."
+            text = String(localized: "Pas encore montré : la macro ne tourne pas tant que l'endroit n'est pas montré.")
         }
         return VStack(alignment: .leading, spacing: 6) {
             Text(text).font(.system(size: 12)).fixedSize(horizontal: false, vertical: true)
             HStack(spacing: 8) {
                 if learning {
                     ProgressView().controlSize(.small)
-                    Button("Annuler") { teacher.cancel("Annulé.") }.secondaryButton()
+                    Button("Annuler") { teacher.cancel(String(localized: "Annulé.")) }.secondaryButton()
                 } else {
                     Button {
-                        teach()
+                        // Bouton suivi à son image : son image est reprise en le montrant de nouveau.
+                        if case .button = t { teach(visual: true) } else { teach() }
                     } label: {
                         Label("Montrer dans FL…", systemImage: "hand.point.up.left")
                     }
                     .secondaryButton()
                     .help("FL passe devant : clique une fois à l'endroit voulu (le clic agit aussi dans FL). Échap annule.")
+                }
+            }
+            if ScreenLook.available, canFollow(t) {
+                Toggle("Retrouver ce bouton s'il bouge", isOn: Binding(get: {
+                    switch t {
+                    case .button, .named: return true
+                    default: return false
+                    }
+                }, set: { on in follow(on, t) }))
+                .disabled(learning)
+                .help(String(localized: "Pour un bouton qui change de place (une piste du Mixer, le « + » du Channel rack…) : il est ")
+                    + String(localized: "cherché par son nom (« Insert 1 »), ou à son image s'il n'en a pas, dans la fenêtre au moment du ")
+                    + String(localized: "clic. Demande l'autorisation « Enregistrement de l'écran »."))
+            }
+            if let message = teacher.message, teacher.lastBlock == block.id {
+                Text(message).font(.system(size: 11)).foregroundStyle(learning ? Color.accentColor : Color.secondary)
+            }
+        }
+    }
+
+    /// Clic dans une fenêtre de FL (taille retenue) : son bouton peut être retrouvé à son image.
+    private func canFollow(_ t: ClickTarget) -> Bool {
+        switch t {
+        case .flWindow(_, _, _, .some, _), .button, .named: return true
+        default: return false
+        }
+    }
+
+    /// Option « Retrouver ce bouton s'il bouge » : activée, l'autorisation de lire l'écran est demandée, puis on montre
+    /// le bouton dans FL (son image est prise à ce moment-là) ; désactivée, le clic garde sa place, sans image.
+    private func follow(_ on: Bool, _ t: ClickTarget) {
+        if !on {
+            let place: ClickTarget
+            switch t {
+            case .button(let spot): place = spot.place
+            case .named(let spot): place = spot.place
+            default: return
+            }
+            setBody(key: "target") { if case .click(_, let b) = $0 { $0 = .click(place, button: b) } }
+            return
+        }
+        guard ScreenLook.allowed else {
+            teacher.say(String(localized: "Autorise FL Shortcuts dans Réglages Système › Confidentialité et sécurité › Enregistrement de ")
+                        + String(localized: "l'écran (rouvre l'app si macOS le demande), puis réactive l'option."), for: block.id)
+            // Pas encore demandée : la fenêtre de macOS seule (les réglages ouverts en même temps la cachaient).
+            if !ScreenLook.requestOnce() { ScreenLook.openSettings() }
+            return
+        }
+        teach(visual: true)
+    }
+
+    private func teach(visual: Bool = false) {
+        guard let pid = EventTap.shared.currentConfig.flPIDs.first else {
+            teacher.say(String(localized: "Ouvre FL Studio, puis recommence."), for: block.id)
+            return
+        }
+        let id = block.id
+        let editor: MacroEditorModel = model
+        teacher.start(block: id, pid: pid, returnTo: editor.window, visual: visual) { [weak editor] target in
+            editor?.updateBlock(id, key: "target", actionName: String(localized: "Montrer l'endroit du clic")) { b in
+                if case .click(_, let button) = b.body { b.body = .click(target, button: button) }
+            }
+        }
+    }
+
+    // MARK: Glisser-déposer
+
+    private func dragField(_ from: ClickTarget, _ to: ClickTarget) -> some View {
+        let learning = teacher.activeBlock == block.id
+        let shown = from != .toLearn && to != .toLearn
+        return VStack(alignment: .leading, spacing: 6) {
+            if shown {
+                LabeledContent("Attraper") { Text(MacroOutline.targetText(from)).foregroundStyle(.secondary) }
+                LabeledContent("Lâcher") { Text(MacroOutline.targetText(to)).foregroundStyle(.secondary) }
+            }
+            Text(shown ? String(localized: "Retenu par rapport aux fenêtres de FL : la macro attrape et lâche aux mêmes endroits de ces ")
+                         + String(localized: "fenêtres. Si l'une change de taille ou de place dans FL, montre-le de nouveau.")
+                       : String(localized: "Pas encore montré : fais le glisser-déposer une fois dans FL (reste cliqué, glisse, lâche). ")
+                         + String(localized: "La macro ne tourne pas tant qu'il n'est pas montré."))
+                .font(.system(size: 12))
+                .fixedSize(horizontal: false, vertical: true)
+            HStack(spacing: 8) {
+                if learning {
+                    ProgressView().controlSize(.small)
+                    Button("Annuler") { teacher.cancel(String(localized: "Annulé.")) }.secondaryButton()
+                } else {
+                    Button { teachDrag() } label: { Label("Montrer dans FL…", systemImage: "hand.draw") }
+                        .secondaryButton()
+                        .help("FL passe devant : fais le glisser-déposer une fois (il agit aussi dans FL). Échap annule.")
                 }
             }
             if let message = teacher.message, teacher.lastBlock == block.id {
@@ -587,16 +727,16 @@ private struct BlockInspector: View {
         }
     }
 
-    private func teach() {
+    private func teachDrag() {
         guard let pid = EventTap.shared.currentConfig.flPIDs.first else {
-            teacher.say("Ouvre FL Studio, puis recommence.", for: block.id)
+            teacher.say(String(localized: "Ouvre FL Studio, puis recommence."), for: block.id)
             return
         }
         let id = block.id
         let editor: MacroEditorModel = model
-        teacher.start(block: id, pid: pid, returnTo: editor.window) { [weak editor] target in
-            editor?.updateBlock(id, key: "target", actionName: "Montrer l'endroit du clic") { b in
-                if case .click(_, let button) = b.body { b.body = .click(target, button: button) }
+        teacher.startDrag(block: id, pid: pid, returnTo: editor.window) { [weak editor] from, to in
+            editor?.updateBlock(id, key: "from", actionName: String(localized: "Montrer le glisser-déposer")) { b in
+                if case .drag = b.body { b.body = .drag(from: from, to: to) }
             }
         }
     }
@@ -630,7 +770,7 @@ private struct BlockInspector: View {
         VStack(alignment: .leading, spacing: 6) {
             HStack(spacing: 8) {
                 Image(systemName: "doc").foregroundStyle(.secondary)
-                Text(path.isEmpty ? "Aucun preset choisi" : URL(fileURLWithPath: path).lastPathComponent)
+                Text(path.isEmpty ? String(localized: "Aucun preset choisi") : URL(fileURLWithPath: path).lastPathComponent)
                     .lineLimit(1)
                     .truncationMode(.middle)
                     .foregroundStyle(path.isEmpty ? Color.secondary : Color.primary)
@@ -645,17 +785,7 @@ private struct BlockInspector: View {
     }
 
     private func choosePreset() {
-        let panel = NSOpenPanel()
-        panel.title = "Choisis un état de piste du Mixer (.fst)"
-        panel.canChooseFiles = true
-        panel.canChooseDirectories = false
-        panel.allowsMultipleSelection = false
-        if let type = UTType(filenameExtension: "fst") { panel.allowedContentTypes = [type] }
-        let home = FileManager.default.homeDirectoryForCurrentUser
-        panel.directoryURL = ["Documents/Image-Line", "Music/Image-Line", "Documents"].map { home.appendingPathComponent($0) }
-            .first { FileManager.default.fileExists(atPath: $0.path) }
-        guard panel.runModal() == .OK, let url = panel.url else { return }
-        let path = url.path
+        guard let path = PresetPanel.choose() else { return }
         setBody(key: "path") { body in
             if case .dropFile = body { body = .dropFile(path: path) } else { body = .chooseFile(path: path) }
         }
@@ -669,7 +799,7 @@ private struct BlockInspector: View {
         return VStack(alignment: .leading, spacing: 4) {
             Picker("Action", selection: Binding(get: { key }, set: { setAction($0) })) {
                 ForEach(FLActionInfo.Category.allCases, id: \.self) { category in
-                    Section(category.rawValue) {
+                    Section(category.label) {
                         ForEach(FLActions.all.filter { $0.category == category }) { a in
                             Text(a.label).tag(a.key)
                         }
@@ -679,7 +809,7 @@ private struct BlockInspector: View {
             if let info {
                 Text(info.detail).font(.system(size: 11)).foregroundStyle(.secondary)
             }
-            if case .unavailable(let reason)? = availability {
+            if case .unavailable(let reason)? = availability, !MuteSolo.handlesWithoutLink(key) {
                 Text(reason).font(.system(size: 11)).foregroundStyle(.orange)
             }
         }
@@ -720,6 +850,8 @@ private struct BlockInspector: View {
                 Text("⌫ dans le champ : aucune touche (le bloc demande alors le lien avec FL).")
                     .font(.system(size: 11)).foregroundStyle(.secondary)
             }
+        case .none where MuteSolo.handlesWithoutLink(key):
+            MuteSoloField(key: key, window: model.window) { model.refreshLearnedState() }
         case .none:
             VStack(alignment: .leading, spacing: 4) {
                 Text("Sans lien avec FL, ce bloc échoue (aucun équivalent au clavier).")
@@ -733,6 +865,520 @@ private struct BlockInspector: View {
                 }
                 .secondaryButton()
             }
+        }
+    }
+
+    // MARK: Pages de FL
+
+    private func pagePicker(_ page: FLPage?) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Picker("Page", selection: Binding<FLPage?>(get: { page }, set: { new in
+                setBody(key: "page") { $0 = .openPage(new) }
+            })) {
+                if page == nil { Text("À choisir").tag(FLPage?.none) }
+                ForEach(FLPage.allCases) { p in
+                    Text(p.title).tag(FLPage?.some(p))
+                }
+            }
+            if page == nil {
+                Label("Choisis la page de FL à ouvrir : les options de « Cliquer sur… » en dessous viennent d'elle.",
+                      systemImage: "exclamationmark.triangle.fill")
+                    .font(.system(size: 11))
+                    .foregroundStyle(.orange)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            Text(String(localized: "Ouverte seulement si elle n'est pas déjà devant (le lien avec FL le sait). Sans le lien : sa touche ")
+                 + String(localized: "de FL (F5, F6, F7, F9…), qui la referme si elle est déjà devant."))
+                .font(.system(size: 11))
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    /// Seulement les options de la page ouverte au-dessus (et l'option déjà choisie, même remplacée depuis).
+    private func pageOptionPicker(_ id: String?) -> some View {
+        let layout = SystemKeyboardLayout()
+        let page = PageOptions.pageAbove(block.id, in: model.draft?.blocks ?? []) ?? nil
+        var options = page.map { PageOptions.options(for: $0, layout: layout) } ?? []
+        if let id, !options.contains(where: { $0.id == id }), let old = PageOptions.option(id, layout: layout),
+           old.page == page {
+            options.append(old)
+        }
+        let current = options.first { $0.id == id }
+        let inPage = options.filter { if case .key = $0.kind { return false }; return true }
+        let keys = options.filter { if case .key = $0.kind { return true }; return false }
+        return VStack(alignment: .leading, spacing: 4) {
+            if let page {
+                Picker("Option", selection: Binding<String?>(get: { current?.id }, set: { new in
+                    // Une autre sorte de valeur (plugin, numéro, nom) : la valeur repart de zéro.
+                    let sameField = new.flatMap(PageOptions.field(of:)) == id.flatMap(PageOptions.field(of:))
+                    withAnimation(Motion.quickMorph) {
+                        setBody(key: "option") { body in
+                            guard case .pageOption(_, let name) = body else { return }
+                            body = .pageOption(id: new, name: sameField ? name : "")
+                        }
+                    }
+                })) {
+                    if current == nil { Text("À choisir").tag(String?.none) }
+                    if !inPage.isEmpty {
+                        Section(page.title) {
+                            ForEach(inPage) { o in Text(o.label).tag(String?.some(o.id)) }
+                        }
+                    }
+                    if !keys.isEmpty {
+                        Section("Raccourcis de FL dans \(page.title)") {
+                            ForEach(keys) { o in Text(o.label).tag(String?.some(o.id)) }
+                        }
+                    }
+                }
+                if let current, case .action(let key) = current.kind, MuteSolo.handlesWithoutLink(key) {
+                    MuteSoloField(key: key, window: model.window) { model.refreshLearnedState() }
+                } else if let current {
+                    Text(optionDetail(current, layout: layout))
+                        .font(.system(size: 11))
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                } else {
+                    Label(id == nil ? String(localized: "Choisis l'option à cliquer dans \(page.title).")
+                                    : String(localized: "Cette option n'est pas dans \(page.title) : choisis-en une de cette page."),
+                          systemImage: "exclamationmark.triangle.fill")
+                        .font(.system(size: 11))
+                        .foregroundStyle(.orange)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            } else {
+                Label(String(localized: "Choisis d'abord la page dans « Ouvrir une page de FL » juste au-dessus : seules ses options ")
+                      + String(localized: "apparaissent ici."), systemImage: "exclamationmark.triangle.fill")
+                    .font(.system(size: 12))
+                    .foregroundStyle(.orange)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+    }
+
+    private func optionDetail(_ option: PageOption, layout: KeyboardLayout) -> String {
+        switch option.kind {
+        case .action:
+            return option.id == "mixer.armon"
+                ? String(localized: "Par le lien avec FL ; sans lien : menu de la piste › Arm selected track(s).")
+                : String(localized: "Par le lien avec FL ; sans lien : sa touche de FL, si elle existe.")
+        case .key(let combo):
+            return String(localized: "Touche de FL : \(combo.displayName(layout: layout)).")
+        case .addMenu(let item):
+            return String(localized: "Par le menu Add › \(item) de FL (barre des menus de macOS), sans clic : choisis le plugin ci-dessous.")
+        case .channelToggle(let solo):
+            return String(localized: "Le \(solo ? "solo" : "mute") du canal est basculé par le lien avec FL : ni souris, ni touche. Sans ")
+                + String(localized: "le lien : la touche 1 à 0 de FL\(solo ? String(localized: " avec ⌘") : ""), jusqu'au canal 10.")
+        case .rename:
+            return String(localized: "La piste sélectionnée dans le Mixer prend ce nom, par le lien avec FL. Sans le lien : la fenêtre ")
+                + String(localized: "« Renommer » de FL (F2), le nom tapé, puis Entrée.")
+        case .arrangement(let item):
+            let then = item.map { String(localized: "puis « \($0) » dans son menu.") }
+                ?? String(localized: "puis l'arrangement de ce nom dans son menu.")
+            return String(localized: "Clic sur le bouton « Arrangement » de la Playlist, retrouvé à son nom dans la fenêtre de FL ")
+                + String(localized: "(autorisation « Enregistrement de l'écran »), ") + then
+        }
+    }
+
+    /// Valeur de l'option : le plugin (liste lue dans FL), le numéro du canal ou le nouveau nom.
+    @ViewBuilder private func pageOptionValue(_ field: PageOption.Field, id: String, value: String) -> some View {
+        let set: (String) -> Void = { text in
+            setBody(key: "name") { body in
+                guard case .pageOption(let i, _) = body else { return }
+                body = .pageOption(id: i, name: text)
+            }
+        }
+        let problem = value.isEmpty ? nil : PageOptions.valueProblem(field, value)
+        VStack(alignment: .leading, spacing: 4) {
+            switch field {
+            case .plugin:
+                PluginField(item: id.hasSuffix(".addEffect") ? "Effect" : "Channel", value: value, set: set)
+            case .channel:
+                TextField("Canal", text: Binding(get: { value }, set: { text in
+                    set(String(text.filter { $0.isASCII && $0.isNumber }.prefix(3)))
+                }), prompt: Text("1 à \(PageOptions.maxChannel)"))
+                Text("Numéro du canal dans le Channel rack (1 = le premier en haut).")
+                    .font(.system(size: 11))
+                    .foregroundStyle(.secondary)
+            case .name:
+                TextField("Nouveau nom", text: Binding(get: { value }, set: { text in
+                    set(String(String.UnicodeScalarView(text.unicodeScalars.prefix(NameColorPayload.maxNameScalars))))
+                }), prompt: Text("Kick, Lead, Voix…"))
+            case .arrangement:
+                TextField("Arrangement", text: Binding(get: { value }, set: { text in
+                    set(String(text.prefix(PageOptions.maxName)))
+                }), prompt: Text("Arrangement 2"))
+                Text("Son nom, tel qu'il est écrit dans le menu « Arrangement » de FL.")
+                    .font(.system(size: 11))
+                    .foregroundStyle(.secondary)
+            }
+            if let problem {
+                Label(problem.prefix(1).uppercased() + problem.dropFirst(), systemImage: "exclamationmark.triangle.fill")
+                    .font(.system(size: 11))
+                    .foregroundStyle(.orange)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+    }
+}
+
+/// « Carte son branchée » : la carte à prendre (automatique, ou celle choisie, retenue sur ce Mac), la sortie du Mac en
+/// ce moment, et un essai tout de suite, sans lancer la macro. CoreAudio n'est lu qu'à l'affichage et sur demande.
+private struct SoundCardField: View {
+    @State private var devices: [AudioDeviceInfo] = []
+    @State private var current: AudioObjectID?
+    @State private var chosen = UserDefaults.standard.string(forKey: SoundCard.chosenKey) ?? ""
+    @State private var result: (ok: Bool, text: String)?
+    @State private var trying = false
+
+    private var auto: AudioDeviceInfo? {
+        SoundCard.choose(devices, preferredUID: UserDefaults.standard.string(forKey: SoundCard.preferredKey))
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Picker("Carte son", selection: Binding(get: { chosen }, set: { uid in
+                chosen = uid
+                if uid.isEmpty {
+                    UserDefaults.standard.removeObject(forKey: SoundCard.chosenKey)
+                } else {
+                    UserDefaults.standard.set(uid, forKey: SoundCard.chosenKey)
+                }
+                result = nil
+            })) {
+                Text(auto.map { String(localized: "Automatique (\($0.name.displaySafe(max: 30)))") }
+                     ?? String(localized: "Automatique (aucune carte branchée)")).tag("")
+                ForEach(SoundCard.selectable(devices)) { d in
+                    Text(d.name.displaySafe(max: 40) + (d.isExternal ? "" : String(localized: " (du Mac)"))).tag(d.uid)
+                }
+                if !chosen.isEmpty, !devices.contains(where: { $0.uid == chosen }) {
+                    Text("Carte choisie, pas branchée").tag(chosen)
+                }
+            }
+            Text(String(localized: "Sortie du Mac en ce moment : ")
+                 + (devices.first { $0.id == current }?.name.displaySafe(max: 40) ?? String(localized: "inconnue")))
+                .font(.system(size: 11))
+                .foregroundStyle(.secondary)
+            HStack(spacing: 8) {
+                Button("Essayer maintenant", action: tryNow)
+                    .secondaryButton()
+                    .disabled(trying)
+                Button { reload() } label: { Image(systemName: "arrow.clockwise") }
+                    .buttonStyle(.borderless)
+                    .help("Relire les cartes branchées")
+            }
+            if let result {
+                Label(result.text, systemImage: result.ok ? "checkmark.circle.fill" : "exclamationmark.triangle.fill")
+                    .font(.system(size: 11))
+                    .foregroundStyle(result.ok ? Color.green : Color.orange)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            Text(String(localized: "La carte devient la sortie et l'entrée du Mac. Une seule fois, dans FL › Options › Audio settings : ")
+                 + String(localized: "Output sur « Default audio device » et Input sur « Default input device » ; FL suit alors la carte ")
+                 + String(localized: "tout seul."))
+                .font(.system(size: 11))
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .onAppear(perform: reload)
+    }
+
+    private func reload() {
+        devices = SoundCard.list()
+        current = SoundCard.currentDefault()
+    }
+
+    /// Le bloc tout seul, tout de suite : la réponse dit ce que macOS a fait.
+    private func tryNow() {
+        trying = true
+        DispatchQueue.global(qos: .userInitiated).async {
+            let outcome = SoundCard.apply()
+            DispatchQueue.main.async {
+                trying = false
+                switch outcome {
+                case .done(let name, let input):
+                    result = (true, (input ? String(localized: "Sortie et entrée du Mac : ") : String(localized: "Sortie du Mac : "))
+                                    + name.displaySafe(max: 40))
+                case .noCard:
+                    result = (false, String(localized: "Aucune carte son branchée trouvée (USB, Thunderbolt…) : choisis-la dans la liste."))
+                case .failed(let why):
+                    result = (false, why.prefix(1).uppercased() + why.dropFirst())
+                }
+                reload()
+            }
+        }
+    }
+}
+
+/// Plugin à ajouter : les favoris du menu Add › Channel ou Effect de FL, puis tous les plugins installés (Plugin
+/// database de FL) ; sinon le nom à écrire. Un plugin hors des favoris y est ajouté (FLPluginDatabase).
+private struct PluginField: View {
+    let item: String
+    let value: String
+    let set: (String) -> Void
+    @ObservedObject private var list: FLPluginList
+    @State private var typing = false
+    @State private var problem: String?
+
+    private static let installedTag = "installed:"
+
+    init(item: String, value: String, set: @escaping (String) -> Void) {
+        self.item = item
+        self.value = value
+        self.set = set
+        _list = ObservedObject(wrappedValue: FLPluginList.forItem(item))
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            if case .loaded(let names) = list.state, !typing {
+                HStack(spacing: 6) {
+                    Picker("Plugin", selection: Binding(get: { value }, set: { choose($0, names: names) })) {
+                        if value.isEmpty { Text("À choisir").tag("") }
+                        if !value.isEmpty, !names.contains(value) { Text(value).tag(value) }
+                        ForEach(Array(FLPluginList.groups(names).enumerated()), id: \.offset) { _, group in
+                            Section(group.title.map { String(localized: "Favoris · \($0)") } ?? String(localized: "Favoris du menu Add")) {
+                                ForEach(group.names, id: \.self) { name in
+                                    Text(group.title == nil ? name
+                                         : PageOptions.pluginPath(name).dropFirst().joined(separator: PageOptions.pathSeparator))
+                                        .tag(name)
+                                }
+                            }
+                        }
+                        ForEach(FLPluginList.formats(list.installed), id: \.format) { format in
+                            Section("Tous les plugins · \(format.format)") {
+                                ForEach(format.items, id: \.index) { entry in
+                                    Text(entry.name).tag(Self.installedTag + String(entry.index))
+                                }
+                            }
+                        }
+                    }
+                    reloadButton
+                }
+                if let problem {
+                    Text(problem).foregroundStyle(.orange).font(.system(size: 11))
+                } else if value.hasPrefix(FLPluginDatabase.folderName + PageOptions.pathSeparator), !names.contains(value) {
+                    Text(String(localized: "Ajouté à tes favoris de FL (Add › \(item) › \(FLPluginDatabase.folderName)) pour que la macro le ")
+                         + String(localized: "choisisse sans souris. Si FL est ouvert, quitte-le et rouvre-le une fois pour qu'il le voie."))
+                        .font(.system(size: 11))
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                Button("Écrire le nom moi-même") { withAnimation(Motion.quickMorph) { typing = true } }
+                    .buttonStyle(.link)
+                    .font(.system(size: 11))
+            } else {
+                HStack(spacing: 6) {
+                    TextField("Plugin", text: Binding(get: { value }, set: { set(String($0.prefix(PageOptions.maxName))) }),
+                              prompt: Text(item == "Effect" ? String(localized: "Fruity Limiter, Pro-Q 3…")
+                                                            : String(localized: "Serum, FLEX, Sytrus…")))
+                    if list.state == .loading {
+                        ProgressView().controlSize(.small)
+                    } else {
+                        reloadButton
+                    }
+                }
+                Group {
+                    if typing {
+                        Button("Choisir dans la liste de FL") { withAnimation(Motion.quickMorph) { typing = false } }
+                            .buttonStyle(.link)
+                    } else if case .unavailable(let why) = list.state {
+                        Text(why).foregroundStyle(.secondary)
+                    } else {
+                        Text("Écrit exactement comme dans le menu Add › \(item) de FL.").foregroundStyle(.secondary)
+                    }
+                }
+                .font(.system(size: 11))
+                .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .onAppear { list.loadIfNeeded() }
+    }
+
+    /// Un favori du menu : tel quel. Un plugin installé : son favori s'il en a un, sinon ajouté aux favoris de FL.
+    private func choose(_ choice: String, names: [String]) {
+        problem = nil
+        guard choice.hasPrefix(Self.installedTag), let i = Int(choice.dropFirst(Self.installedTag.count)),
+              list.installed.indices.contains(i) else {
+            set(choice)
+            return
+        }
+        let plugin = list.installed[i]
+        if let favorite = names.first(where: { PageOptions.pluginPath($0).last == plugin.name }) {
+            set(favorite)
+        } else if let path = FLPluginDatabase.addFavorite(plugin, kind: list.kind, root: FLPluginDatabase.root()) {
+            set(path)
+        } else {
+            problem = String(localized: "Impossible de l'ajouter aux favoris de FL (dossier Plugin database de FL protégé ?) : écris le nom ")
+                + String(localized: "d'un plugin du menu Add.")
+        }
+    }
+
+    private var reloadButton: some View {
+        Button { list.reload(open: true) } label: { Image(systemName: "arrow.clockwise") }
+            .buttonStyle(.borderless)
+            .help("Relire la liste dans FL (plugins ajoutés depuis) : le menu Add s'ouvre un instant s'il le faut")
+    }
+}
+
+/// Plugins du menu Add › Channel ou Effect de FL (barre des menus de macOS, Accessibilité, sans clic), et tous les
+/// plugins installés (Plugin database de FL, sur le disque), pour « Cliquer sur… ». Lus à la première demande, relus
+/// avec le bouton ; jamais journalisés.
+final class FLPluginList: ObservableObject {
+    enum State: Equatable {
+        case loading
+        /// Favoris du menu Add (peut être vide quand seuls les plugins installés sont connus).
+        case loaded([String])
+        case unavailable(String)
+    }
+
+    static let channel = FLPluginList(item: "Channel")
+    static let effect = FLPluginList(item: "Effect")
+    static func forItem(_ item: String) -> FLPluginList { item == "Effect" ? effect : channel }
+
+    let item: String
+    @Published private(set) var state: State?
+    /// Tous les plugins installés de cette sorte (Plugin database de FL).
+    @Published private(set) var installed: [FLPluginDatabase.Plugin] = []
+
+    var kind: FLPluginDatabase.Kind { item == "Effect" ? .effects : .generators }
+
+    private init(item: String) { self.item = item }
+
+    func loadIfNeeded() {
+        if state == nil || state == .unavailable(Self.flClosed) { reload() }
+    }
+
+    /// `open` : seulement sur un clic de l'utilisateur (⟳) — un menu que FL ne remplit qu'à son ouverture est alors
+    /// ouvert un instant ; sinon rien ne s'ouvre dans FL.
+    func reload(open: Bool = false) {
+        guard state != .loading else { return }
+        let trusted = AXIsProcessTrusted()
+        let pid = trusted ? OrganizerEnvironment.flPID() : nil
+        state = .loading
+        let path = ["Add", item]
+        let kind = self.kind
+        DispatchQueue.global(qos: .userInitiated).async {
+            let installed = FLPluginDatabase.installed(kind, root: FLPluginDatabase.root())
+            let names = pid.map { pid in
+                MenuBarAX.entries(pid: pid, under: path, open: open).map { $0.joined(separator: PageOptions.pathSeparator) }
+            } ?? []
+            DispatchQueue.main.async {
+                self.installed = installed
+                if !names.isEmpty || !installed.isEmpty {
+                    self.state = .loaded(names)
+                } else if !trusted {
+                    self.state = .unavailable(String(localized: "Autorise l'Accessibilité à FL Shortcuts pour voir la liste de tes plugins, ")
+                                              + String(localized: "ou écris le nom."))
+                } else if pid == nil {
+                    self.state = .unavailable(Self.flClosed)
+                } else {
+                    self.state = .unavailable(open ? String(localized: "Liste introuvable dans FL : écris le nom.")
+                                              : String(localized: "Clique sur ⟳ pour lire la liste dans FL (le menu Add s'ouvre un instant), ou écris le nom."))
+                }
+            }
+        }
+    }
+
+    struct Format: Equatable {
+        struct Entry: Equatable {
+            /// Place dans `installed`.
+            let index: Int
+            let name: String
+        }
+
+        let format: String
+        var items: [Entry]
+    }
+
+    /// Pure (testée) : plugins installés rangés par format (VST, VST3, AU…), avec leur place dans la liste.
+    static func formats(_ plugins: [FLPluginDatabase.Plugin]) -> [Format] {
+        var out: [Format] = []
+        for (i, plugin) in plugins.enumerated() {
+            let entry = Format.Entry(index: i, name: plugin.name)
+            if let last = out.indices.last, out[last].format == plugin.format {
+                out[last].items.append(entry)
+            } else {
+                out.append(Format(format: plugin.format, items: [entry]))
+            }
+        }
+        return out
+    }
+
+    private static let flClosed = String(localized: "Ouvre FL Studio pour choisir dans la liste de tes plugins, ou écris le nom.")
+
+    struct Folder: Equatable {
+        /// Sous-menu du menu Add ; nil pour les plugins de sa racine.
+        let title: String?
+        var names: [String]
+    }
+
+    /// Pure (testée) : plugins rangés par sous-menu, dans l'ordre du menu.
+    static func groups(_ names: [String]) -> [Folder] {
+        var out: [Folder] = []
+        for name in names {
+            let path = PageOptions.pluginPath(name)
+            let title = path.count > 1 ? path[0] : nil
+            if let last = out.indices.last, out[last].title == title {
+                out[last].names.append(name)
+            } else {
+                out.append(Folder(title: title, names: [name]))
+            }
+        }
+        return out
+    }
+}
+
+/// Mute / solo sans le script : le bouton mute de la piste cliquée dans le Mixer, montré une seule fois sur ce Mac.
+private struct MuteSoloField: View {
+    let key: String
+    let window: NSWindow?
+    let learnedChanged: () -> Void
+    @ObservedObject private var teacher = MuteSwitchTeacher.shared
+    @State private var learned = MuteSwitch.isLearned
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Label(key == "mute"
+                  ? String(localized: "Avec le lien avec FL : le son de la piste choisie est coupé (ou remis) tout de suite, sans aucun clic.")
+                  : String(localized: "Avec le lien avec FL : la piste choisie passe en solo (ou le perd) tout de suite, sans aucun clic."),
+                  systemImage: "link")
+                .font(.system(size: 11))
+                .foregroundStyle(.blue)
+                .fixedSize(horizontal: false, vertical: true)
+            Text(key == "mute"
+                 ? String(localized: "Sans le lien seulement : clique ta piste dans le Mixer, puis lance la macro ; son bouton mute est ")
+                     + String(localized: "cliqué (montré une fois ci-dessous).")
+                 : String(localized: "Sans le lien seulement : clique ta piste dans le Mixer, puis lance la macro ; clic droit sur son ")
+                     + String(localized: "bouton mute, ou la touche S de FL tant qu'il n'est pas montré."))
+                .font(.system(size: 11))
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+            Label(learned ? String(localized: "Bouton mute montré sur ce Mac") : String(localized: "Bouton mute à montrer une fois"),
+                  systemImage: learned ? "checkmark.circle.fill" : "hand.point.up.left")
+                .font(.system(size: 12))
+                .foregroundStyle(learned ? Color.green : Color.purple)
+            Button(learned ? String(localized: "Montrer de nouveau…") : String(localized: "Montrer le bouton mute dans FL…")) {
+                guard let pid = EventTap.shared.currentConfig.flPIDs.first else {
+                    teacher.say(String(localized: "Ouvre FL Studio, puis recommence."))
+                    return
+                }
+                teacher.start(pid: pid, returnTo: window)
+            }
+            .secondaryButton()
+            .disabled(teacher.active)
+            .help("Dans FL, clique le bouton mute (le petit rond en haut) d'une piste, puis reclique-le pour remettre le son.")
+            if let message = teacher.message {
+                Text(message)
+                    .font(.system(size: 11))
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .onChange(of: teacher.active) { active in
+            guard !active else { return }
+            learned = MuteSwitch.isLearned
+            learnedChanged()
         }
     }
 }
@@ -749,7 +1395,6 @@ extension MacroBadge {
     var symbol: String {
         switch self {
         case .pauseFixe: return "timer"
-        case .lienFL: return "link"
         case .aApprendre: return "hand.point.up.left"
         case .probleme: return "exclamationmark.triangle.fill"
         case .continueSiEchec: return "arrow.uturn.forward"
@@ -759,7 +1404,6 @@ extension MacroBadge {
     var tint: Color {
         switch self {
         case .pauseFixe: return .orange
-        case .lienFL: return .blue
         case .aApprendre: return .purple
         case .probleme: return .red
         case .continueSiEchec: return .secondary
@@ -785,7 +1429,12 @@ final class ClickTeacher: ObservableObject {
     private var started = Date()
     private var pid: Int32 = 0
     private var completion: ((ClickTarget) -> Void)?
+    /// Glisser-déposer montré : l'appui et le relâché du même geste.
+    private var dragCompletion: ((ClickTarget, ClickTarget) -> Void)?
+    private var dragging = false
     private weak var returnWindow: NSWindow?
+    /// « Retrouver ce bouton s'il bouge » : l'image du bouton est prise juste après le clic montré.
+    private var visual = false
 
     private init() {}
 
@@ -794,27 +1443,40 @@ final class ClickTeacher: ObservableObject {
         message = text
     }
 
-    func start(block: UUID, pid: Int32, returnTo window: NSWindow?, completion: @escaping (ClickTarget) -> Void) {
+    /// Glisser-déposer : FL passe devant, le premier geste « appui, glissé, relâché » dans FL est retenu.
+    func startDrag(block: UUID, pid: Int32, returnTo window: NSWindow?,
+                   completion: @escaping (ClickTarget, ClickTarget) -> Void) {
+        start(block: block, pid: pid, returnTo: window, drag: true) { _ in }
+        guard activeBlock == block else { return }
+        dragCompletion = completion
+    }
+
+    func start(block: UUID, pid: Int32, returnTo window: NSWindow?, visual: Bool = false, drag: Bool = false,
+               completion: @escaping (ClickTarget) -> Void) {
         stop()
+        self.visual = visual
+        dragging = drag
         guard let fl = NSRunningApplication(processIdentifier: pid) else {
-            say("Ouvre FL Studio, puis recommence.", for: block)
+            say(String(localized: "Ouvre FL Studio, puis recommence."), for: block)
             return
         }
         self.pid = pid
         self.completion = completion
         returnWindow = window
         activeBlock = block
-        say("Dans FL : clique une fois à l'endroit voulu (Échap pour annuler).", for: block)
+        say(drag ? String(localized: "Dans FL : reste cliqué sur ce qu'il faut attraper, glisse et lâche à l'endroit voulu (Échap pour annuler).")
+                 : String(localized: "Dans FL : clique une fois à l'endroit voulu (Échap pour annuler)."), for: block)
         history = []
         started = Date()
         CreatorPresence.stepAside()
         fl.activate(options: [])
-        ClickRecorder.shared.start()
+        ClickRecorder.shared.start(releases: drag)
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) { [weak self] in
             guard let self, self.activeBlock == block,
                   let main = FLWindows.list(pid: pid).filter({ $0.layer == 0 })
                     .max(by: { $0.bounds.width * $0.bounds.height < $1.bounds.width * $1.bounds.height }) else { return }
-            HintPanel.shared.show("Clique à l'endroit voulu dans FL (une fois). Échap : annuler.",
+            HintPanel.shared.show(drag ? String(localized: "Fais le glisser-déposer dans FL (une fois). Échap : annuler.")
+                                       : String(localized: "Clique à l'endroit voulu dans FL (une fois). Échap : annuler."),
                                   near: CGPoint(x: main.bounds.midX, y: main.bounds.minY + 70))
         }
         let t = Timer(timeInterval: 0.05, repeats: true) { [weak self] _ in self?.tick() }
@@ -838,11 +1500,16 @@ final class ClickTeacher: ObservableObject {
         history.append(snap)
         if history.count > 40 { history.removeFirst(history.count - 40) }
         if CGEventSource.keyState(.combinedSessionState, key: 53) {
-            cancel("Annulé.")
+            cancel(String(localized: "Annulé."))
             return
         }
         if Date().timeIntervalSince(started) > 30 {
-            cancel("Aucun clic montré dans FL en 30 s.")
+            cancel(dragging ? String(localized: "Aucun glisser-déposer montré dans FL en 30 s.")
+                            : String(localized: "Aucun clic montré dans FL en 30 s."))
+            return
+        }
+        if dragging {
+            tickDrag(snap)
             return
         }
         guard let sample = ClickRecorder.shared.capturedSamples.first else { return }
@@ -850,13 +1517,83 @@ final class ClickTeacher: ObservableObject {
         let before = history.last(where: { $0.time <= sample.time }) ?? history.first ?? snap
         let block = activeBlock
         let windows: [(layer: Int, bounds: CGRect)] = before.fl.map { (layer: $0.layer, bounds: $0.bounds) }
-        if let target = MacroOutline.learnedTarget(at: sample.point, windows: windows) {
+        let title = FLWindowAX.pluginTitle(at: sample.point, before: before, fl: pid)     // fenêtre de plugin
+        if let target = MacroOutline.learnedTarget(at: sample.point, windows: windows, title: title) {
             let done = completion
+            // Clic dans une fenêtre de FL, écran lisible : le bouton est retenu par son nom s'il en porte un, sinon
+            // (« Retrouver ce bouton s'il bouge ») par son image, sinon par sa place.
+            if MacroEffectsMac.canRead || visual, let block, let window = before.hit(sample.point), window.number > 0,
+               case .flWindow(let corner, let dx, let dy, let size?, let title) = target {
+                finish(target)
+                say(String(localized: "Lecture du bouton…"), for: block)
+                let point = sample.point, wantsImage = visual
+                TextLook.lookup(at: point, window: window) { [weak self] found in
+                    let spot = found.map { NamedSpot(label: $0.label, dx: $0.dx, dy: $0.dy, corner: corner, px: dx, py: dy,
+                                                     size: size, title: title) }
+                    if let spot, spot.isValid {
+                        done?(.named(spot))
+                        self?.say(String(localized: "Bouton retenu par son nom « \(spot.label.displaySafe(max: 30)) » : il sera retrouvé ")
+                                  + String(localized: "même s'il bouge."), for: block)
+                    } else if wantsImage {
+                        self?.learnImage(at: point, window: window, place: target, done: done, block: block)
+                    } else {
+                        done?(target)
+                        self?.say(String(localized: "Endroit retenu."), for: block)
+                    }
+                }
+                return
+            }
             finish(target)
             done?(target)
-            if let block { say("Endroit retenu.", for: block) }
+            if let block { say(String(localized: "Endroit retenu."), for: block) }
         } else {
-            cancel("Ce clic n'était ni dans une fenêtre de FL ni dans un de ses menus : recommence.")
+            cancel(String(localized: "Ce clic n'était ni dans une fenêtre de FL ni dans un de ses menus : recommence."))
+        }
+    }
+
+    /// Glisser : l'appui puis le relâché qui le suit, retenus par rapport aux fenêtres de FL telles qu'elles étaient
+    /// juste avant l'appui.
+    private func tickDrag(_ snap: WinSnapshot) {
+        let samples = ClickRecorder.shared.capturedSamples
+        guard let down = samples.first(where: { !$0.up }),
+              let up = samples.first(where: { $0.up && $0.time >= down.time }) else { return }
+        let before = history.last(where: { $0.time <= down.time }) ?? history.first ?? snap
+        let windows: [(layer: Int, bounds: CGRect)] = before.fl.map { (layer: $0.layer, bounds: $0.bounds) }
+        let titles = (FLWindowAX.pluginTitle(at: down.point, before: before, fl: pid),
+                      FLWindowAX.pluginTitle(at: up.point, before: before, fl: pid))
+        let block = activeBlock
+        let done = dragCompletion
+        switch MacroOutline.dragTargets(from: down.point, to: up.point, windows: windows, titles: titles) {
+        case .shown(let from, let to):
+            finish(nil)
+            done?(from, to)
+            if let block { say(String(localized: "Glisser-déposer retenu."), for: block) }
+        case .tooShort:
+            cancel(String(localized: "Ce n'était pas un glisser : reste cliqué et glisse jusqu'à l'endroit voulu, puis recommence."))
+        case .outside:
+            cancel(String(localized: "Le glisser doit commencer et finir dans une fenêtre de FL (pas dans un menu) : recommence."))
+        }
+    }
+
+    /// Image du bouton sous `point` (bouton sans nom, « Retrouver ce bouton s'il bouge ») ; sinon sa place.
+    private func learnImage(at point: CGPoint, window: WinInfo, place target: ClickTarget,
+                            done: ((ClickTarget) -> Void)?, block: UUID) {
+        guard case .flWindow(let corner, let dx, let dy, let size?, let title) = target else { return }
+        ScreenLook.capture(windowNumber: window.number, size: window.bounds.size) { [weak self] image in
+            let patch = image.flatMap { image -> GrayImage? in
+                let cx = Int((point.x - window.bounds.minX) * CGFloat(image.width) / window.bounds.width)
+                let cy = Int((point.y - window.bounds.minY) * CGFloat(image.height) / window.bounds.height)
+                return image.crop(centerX: cx, centerY: cy, side: VisualSpot.defaultSide)
+            }
+            if let patch, patch.contrast >= VisualMatch.minContrast {
+                done?(.button(VisualSpot(corner: corner, dx: dx, dy: dy, size: size, title: title,
+                                         side: patch.width, pixels: patch.pixels)))
+                self?.say(String(localized: "Bouton retenu : il sera cherché à son image."), for: block)
+            } else {
+                done?(target)
+                self?.say(image == nil ? String(localized: "Lecture de l'écran impossible : endroit retenu sans image.")
+                                       : String(localized: "Rien de reconnaissable à cet endroit : endroit retenu sans image."), for: block)
+            }
         }
     }
 
@@ -876,6 +1613,7 @@ final class ClickTeacher: ObservableObject {
         timer?.invalidate()
         timer = nil
         completion = nil
+        dragCompletion = nil
         if activeBlock != nil {
             ClickRecorder.shared.stop()
             HintPanel.shared.hide()

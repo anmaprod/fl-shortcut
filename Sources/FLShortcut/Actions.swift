@@ -9,6 +9,16 @@ struct FLActionInfo: Identifiable, Hashable {
         case recording = "Enregistrement"
         case mix = "Mix"
         case navigation = "Navigation"
+
+        /// Nom affiché (le rawValue reste tel quel).
+        var label: String {
+            switch self {
+            case .composition: return String(localized: "Composition")
+            case .recording: return String(localized: "Enregistrement")
+            case .mix: return String(localized: "Mix")
+            case .navigation: return String(localized: "Navigation")
+            }
+        }
     }
 
     let id: Int
@@ -25,46 +35,46 @@ enum FLActions {
     static let pythonMinFL = "20.7"
 
     static let all: [FLActionInfo] = [
-        FLActionInfo(id: 1, key: "play", label: "Lecture / Pause", category: .recording, minFL: "20.7"),
-        FLActionInfo(id: 2, key: "stop", label: "Stop", category: .recording, minFL: "20.7"),
-        FLActionInfo(id: 3, key: "rec", label: "Lancer le REC", category: .recording, minFL: "20.7"),
-        FLActionInfo(id: 4, key: "metro", label: "Métronome", category: .recording, minFL: "20.7"),
-        FLActionInfo(id: 5, key: "count", label: "Décompte", category: .recording, minFL: "20.7"),
-        FLActionInfo(id: 6, key: "loop", label: "Enregistrement en boucle", category: .recording, minFL: "20.7"),
-        FLActionInfo(id: 7, key: "wait", label: "Attendre une note", category: .recording, minFL: "20.7"),
-        FLActionInfo(id: 8, key: "marker", label: "Poser un marqueur", category: .recording, minFL: "20.7"),
-        FLActionInfo(id: 9, key: "arm", label: "Armer la piste (Mixer sélectionnée)", category: .recording, minFL: "20.7"),
-        FLActionInfo(id: 10, key: "tap", label: "Tap tempo", category: .composition, minFL: "20.7"),
-        FLActionInfo(id: 11, key: "newpat", label: "Nouveau pattern + Piano Roll", category: .composition, minFL: "20.7"),
-        FLActionInfo(id: 12, key: "clone", label: "Cloner le pattern", category: .composition, minFL: "21.0.3"),
-        FLActionInfo(id: 13, key: "pnext", label: "Pattern suivant", category: .composition, minFL: "20.7"),
-        FLActionInfo(id: 14, key: "pprev", label: "Pattern précédent", category: .composition, minFL: "20.7"),
-        FLActionInfo(id: 15, key: "chnext", label: "Instrument suivant", category: .composition, minFL: "20.7"),
-        FLActionInfo(id: 16, key: "chprev", label: "Instrument précédent", category: .composition, minFL: "20.7"),
-        FLActionInfo(id: 17, key: "snap", label: "Grille suivante", category: .composition, minFL: "20.7"),
-        FLActionInfo(id: 18, key: "quant", label: "Quantize rapide", category: .composition, minFL: "20.8"),
-        FLActionInfo(id: 19, key: "presetnext", label: "Preset suivant", category: .composition, minFL: "20.8.1"),
-        FLActionInfo(id: 20, key: "presetprev", label: "Preset précédent", category: .composition, minFL: "20.8.1"),
-        FLActionInfo(id: 21, key: "mute", label: "Mute piste Mixer sélectionnée", category: .mix, minFL: "20.7"),
-        FLActionInfo(id: 22, key: "solo", label: "Solo piste Mixer sélectionnée", category: .mix, minFL: "20.7"),
-        FLActionInfo(id: 23, key: "unsolo", label: "Retirer tous les solos", category: .mix, minFL: "20.7"),
-        FLActionInfo(id: 24, key: "bypass", label: "Bypass des effets de la piste", category: .mix, minFL: "20.9.1"),
-        FLActionInfo(id: 25, key: "mono", label: "Master en mono", category: .mix, minFL: "20.8.2"),
-        FLActionInfo(id: 26, key: "trnext", label: "Piste Mixer suivante", category: .mix, minFL: "20.7"),
-        FLActionInfo(id: 27, key: "trprev", label: "Piste Mixer précédente", category: .mix, minFL: "20.7"),
-        FLActionInfo(id: 28, key: "volup", label: "Volume piste +0,5 dB", category: .mix, minFL: "20.7"),
-        FLActionInfo(id: 29, key: "voldn", label: "Volume piste −0,5 dB", category: .mix, minFL: "20.7"),
-        FLActionInfo(id: 30, key: "pl", label: "Ouvrir la Playlist", category: .navigation, minFL: "20.7"),
-        FLActionInfo(id: 31, key: "cr", label: "Ouvrir le Channel Rack", category: .navigation, minFL: "20.7"),
-        FLActionInfo(id: 32, key: "pr", label: "Ouvrir le Piano Roll", category: .navigation, minFL: "20.7"),
-        FLActionInfo(id: 33, key: "mx", label: "Ouvrir le Mixer", category: .navigation, minFL: "20.7"),
-        FLActionInfo(id: 34, key: "br", label: "Ouvrir le Browser", category: .navigation, minFL: "20.7"),
-        FLActionInfo(id: 35, key: "plmx", label: "Playlist ↔ Mixer", category: .navigation, minFL: "20.7"),
-        FLActionInfo(id: 36, key: "undo", label: "Annuler", category: .navigation, minFL: "20.7"),
-        FLActionInfo(id: 37, key: "redo", label: "Rétablir", category: .navigation, minFL: "20.7"),
-        FLActionInfo(id: 38, key: "save", label: "Sauvegarder", category: .navigation, minFL: "20.7"),
-        FLActionInfo(id: 39, key: "armon", label: "Armer la piste (si éteinte)", category: .recording, minFL: "20.7"),
-        FLActionInfo(id: 40, key: "recon", label: "Allumer le REC (si éteint)", category: .recording, minFL: "20.7"),
+        FLActionInfo(id: 1, key: "play", label: String(localized: "Lecture / Pause"), category: .recording, minFL: "20.7"),
+        FLActionInfo(id: 2, key: "stop", label: String(localized: "Stop"), category: .recording, minFL: "20.7"),
+        FLActionInfo(id: 3, key: "rec", label: String(localized: "Lancer le REC"), category: .recording, minFL: "20.7"),
+        FLActionInfo(id: 4, key: "metro", label: String(localized: "Métronome"), category: .recording, minFL: "20.7"),
+        FLActionInfo(id: 5, key: "count", label: String(localized: "Décompte"), category: .recording, minFL: "20.7"),
+        FLActionInfo(id: 6, key: "loop", label: String(localized: "Enregistrement en boucle"), category: .recording, minFL: "20.7"),
+        FLActionInfo(id: 7, key: "wait", label: String(localized: "Attendre une note"), category: .recording, minFL: "20.7"),
+        FLActionInfo(id: 8, key: "marker", label: String(localized: "Poser un marqueur"), category: .recording, minFL: "20.7"),
+        FLActionInfo(id: 9, key: "arm", label: String(localized: "Armer la piste (Mixer sélectionnée)"), category: .recording, minFL: "20.7"),
+        FLActionInfo(id: 10, key: "tap", label: String(localized: "Tap tempo"), category: .composition, minFL: "20.7"),
+        FLActionInfo(id: 11, key: "newpat", label: String(localized: "Nouveau pattern + Piano Roll"), category: .composition, minFL: "20.7"),
+        FLActionInfo(id: 12, key: "clone", label: String(localized: "Cloner le pattern"), category: .composition, minFL: "21.0.3"),
+        FLActionInfo(id: 13, key: "pnext", label: String(localized: "Pattern suivant"), category: .composition, minFL: "20.7"),
+        FLActionInfo(id: 14, key: "pprev", label: String(localized: "Pattern précédent"), category: .composition, minFL: "20.7"),
+        FLActionInfo(id: 15, key: "chnext", label: String(localized: "Instrument suivant"), category: .composition, minFL: "20.7"),
+        FLActionInfo(id: 16, key: "chprev", label: String(localized: "Instrument précédent"), category: .composition, minFL: "20.7"),
+        FLActionInfo(id: 17, key: "snap", label: String(localized: "Grille suivante"), category: .composition, minFL: "20.7"),
+        FLActionInfo(id: 18, key: "quant", label: String(localized: "Quantize rapide"), category: .composition, minFL: "20.8"),
+        FLActionInfo(id: 19, key: "presetnext", label: String(localized: "Preset suivant"), category: .composition, minFL: "20.8.1"),
+        FLActionInfo(id: 20, key: "presetprev", label: String(localized: "Preset précédent"), category: .composition, minFL: "20.8.1"),
+        FLActionInfo(id: 21, key: "mute", label: String(localized: "Mute piste Mixer sélectionnée"), category: .mix, minFL: "20.7"),
+        FLActionInfo(id: 22, key: "solo", label: String(localized: "Solo piste Mixer sélectionnée"), category: .mix, minFL: "20.7"),
+        FLActionInfo(id: 23, key: "unsolo", label: String(localized: "Retirer tous les solos"), category: .mix, minFL: "20.7"),
+        FLActionInfo(id: 24, key: "bypass", label: String(localized: "Bypass des effets de la piste"), category: .mix, minFL: "20.9.1"),
+        FLActionInfo(id: 25, key: "mono", label: String(localized: "Master en mono"), category: .mix, minFL: "20.8.2"),
+        FLActionInfo(id: 26, key: "trnext", label: String(localized: "Piste Mixer suivante"), category: .mix, minFL: "20.7"),
+        FLActionInfo(id: 27, key: "trprev", label: String(localized: "Piste Mixer précédente"), category: .mix, minFL: "20.7"),
+        FLActionInfo(id: 28, key: "volup", label: String(localized: "Volume piste +0,5 dB"), category: .mix, minFL: "20.7"),
+        FLActionInfo(id: 29, key: "voldn", label: String(localized: "Volume piste −0,5 dB"), category: .mix, minFL: "20.7"),
+        FLActionInfo(id: 30, key: "pl", label: String(localized: "Ouvrir la Playlist"), category: .navigation, minFL: "20.7"),
+        FLActionInfo(id: 31, key: "cr", label: String(localized: "Ouvrir le Channel Rack"), category: .navigation, minFL: "20.7"),
+        FLActionInfo(id: 32, key: "pr", label: String(localized: "Ouvrir le Piano Roll"), category: .navigation, minFL: "20.7"),
+        FLActionInfo(id: 33, key: "mx", label: String(localized: "Ouvrir le Mixer"), category: .navigation, minFL: "20.7"),
+        FLActionInfo(id: 34, key: "br", label: String(localized: "Ouvrir le Browser"), category: .navigation, minFL: "20.7"),
+        FLActionInfo(id: 35, key: "plmx", label: String(localized: "Playlist ↔ Mixer"), category: .navigation, minFL: "20.7"),
+        FLActionInfo(id: 36, key: "undo", label: String(localized: "Annuler"), category: .navigation, minFL: "20.7"),
+        FLActionInfo(id: 37, key: "redo", label: String(localized: "Rétablir"), category: .navigation, minFL: "20.7"),
+        FLActionInfo(id: 38, key: "save", label: String(localized: "Sauvegarder"), category: .navigation, minFL: "20.7"),
+        FLActionInfo(id: 39, key: "armon", label: String(localized: "Armer la piste (si éteinte)"), category: .recording, minFL: "20.7"),
+        FLActionInfo(id: 40, key: "recon", label: String(localized: "Allumer le REC (si éteint)"), category: .recording, minFL: "20.7"),
     ]
 
     private static let byID: [Int: FLActionInfo] = Dictionary(uniqueKeysWithValues: all.map { ($0.id, $0) })
@@ -168,16 +178,16 @@ enum ActionAvailability: Equatable {
 enum AvailabilityResolver {
     /// Le masque du script fait foi ; à défaut, la version lue dans le bundle de FL.
     static func availability(of id: Int, caps: CapabilityMask?, flVersion: FLVersion?) -> ActionAvailability {
-        guard let info = FLActions.info(id) else { return .unavailable(reason: "Action inconnue") }
-        let message = "Disponible à partir de FL \(info.minFL)"
+        guard let info = FLActions.info(id) else { return .unavailable(reason: String(localized: "Action inconnue")) }
+        let message = String(localized: "Disponible à partir de FL \(info.minFL)")
         if let caps {
             if caps.contains(id) { return .available }
-            if caps.bits == 0 { return .unavailable(reason: "Le script FL n'a pas de clé : réinstalle-le") }
+            if caps.bits == 0 { return .unavailable(reason: String(localized: "Le script FL n'a pas de clé : réinstalle-le")) }
             return .unavailable(reason: message)
         }
         guard let flVersion else { return .unverified }
         guard flVersion.supportsPython else {
-            return .unavailable(reason: "Les actions FL demandent FL Studio \(FLActions.pythonMinFL) ou plus récent")
+            return .unavailable(reason: String(localized: "Les actions FL demandent FL Studio \(FLActions.pythonMinFL) ou plus récent"))
         }
         if let min = FLVersion(info.minFL), flVersion < min { return .unavailable(reason: message) }
         return .available

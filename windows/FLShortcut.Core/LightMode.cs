@@ -1,4 +1,4 @@
-// Mode léger (par défaut) : FL Shortcut ne met RIEN dans FL Studio. Pas de script, pas de port MIDI, pas de loopMIDI.
+// Mode léger (par défaut) : FL Shortcuts ne met RIEN dans FL Studio. Pas de script, pas de port MIDI, pas de loopMIDI.
 // Il n'envoie que des touches d'origine de FL, seulement quand FL est au premier plan.
 // - Raccourcis d'origine déplacés : ta touche → la touche de FL (FL l'applique à sa fenêtre active).
 // - Actions qui ont un équivalent clavier dans FL : ta touche → cette touche de FL.

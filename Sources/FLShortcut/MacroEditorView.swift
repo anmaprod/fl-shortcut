@@ -25,6 +25,8 @@ final class MacroCreatorLink: ObservableObject {
         let sample: Bool
         /// Macro créée à l'instant (nouvelle, modèle) : au retour, l'enregistrer ou la supprimer.
         var isNew = false
+        /// « Enregistrer une macro » : l'enregistrement des clics et des touches démarre dès l'ouverture.
+        var record = false
     }
 
     @Published private(set) var request: Request?
@@ -36,9 +38,9 @@ final class MacroCreatorLink: ObservableObject {
 
     private init() {}
 
-    func open(_ id: UUID?, isNew: Bool = false) {
+    func open(_ id: UUID?, isNew: Bool = false, record: Bool = false) {
         serial += 1
-        request = Request(serial: serial, id: id, sample: false, isNew: isNew)
+        request = Request(serial: serial, id: id, sample: false, isNew: isNew, record: record)
     }
 
     func openSample() {
@@ -75,11 +77,10 @@ struct MacroCreatorView: View {
     let onBack: () -> Void
     @Environment(\.undoManager) private var undoManager
     @AppStorage(Appearance.glassKey) private var glassEnabled = true
-    @State private var paletteItems: [PaletteItem] = []
 
     var body: some View {
         NavigationSplitView {
-            MacroPaletteView(items: paletteItems, insert: { [model] item in
+            MacroPaletteView(items: model.paletteItems, insert: { [model] item in
                 withAnimation(MacroStepsPane.spring) { model.insert(item) }
             })
                 .navigationSplitViewColumnWidth(min: 190, ideal: 230, max: 300)
@@ -89,7 +90,7 @@ struct MacroCreatorView: View {
             VStack(spacing: 0) {
                 LibraryProblemBanner(library: store.library)
                 HStack(spacing: 0) {
-                    MacroStepsPane(model: model, monitor: model.monitor, paletteItems: paletteItems)
+                    MacroStepsPane(model: model, monitor: model.monitor, paletteItems: model.paletteItems)
                         .frame(minWidth: 280, maxWidth: .infinity, maxHeight: .infinity)
                     Divider()
                     MacroInspectorView(model: model)
@@ -98,9 +99,11 @@ struct MacroCreatorView: View {
             }
         }
         // Titre de la fenêtre (menu Fenêtre, VoiceOver) ; pas dans la barre d'outils : le nom est déjà au centre.
-        .navigationTitle(model.draft?.name ?? "Créateur de macros")
+        .navigationTitle(model.draft?.name ?? String(localized: "Créateur de macros"))
         .toolbarTitleHidden()
         .toolbar { toolbarContent }
+        // Fondu de la couleur des macros dans le fond, comme le guide.
+        .tintedBackdrop(SidebarItem.macros.tint)
         .windowGlass(glassEnabled)
         // Fenêtre qui l'affiche : retour du focus après « Montrer dans FL… », et devant FL tant qu'il est affiché.
         .background(WindowReader { [model] window in
@@ -109,33 +112,9 @@ struct MacroCreatorView: View {
         })
         .onAppear {
             model.undoManager = undoManager
-            if paletteItems.isEmpty { paletteItems = PaletteCatalog.items(layout: store.layout) }
-            handle(link.request)
+            model.handle(link.request)                  // déjà fait avant l'ouverture : sans effet
         }
-        .onChange(of: link.request) { request in handle(request) }
-    }
-
-    private func handle(_ request: MacroCreatorLink.Request?) {
-        guard let request else {
-            if model.draft == nil { model.load(nil) }
-            return
-        }
-        // onAppear puis onChange peuvent livrer la même demande : la rejouer rechargerait le brouillon.
-        guard model.handledRequestSerial != request.serial else { return }
-        model.handledRequestSerial = request.serial
-        if request.sample {
-            let doc = MacroTemplates.sampleForCapture(layout: store.layout)
-            model.loadSample(doc)
-            // Capture : essai en cours sur l'exemple (couleurs des lignes), bloc 4 choisi (inspecteur).
-            let ids = doc.blocks.map(\.id)
-            if ids.count > 7 {
-                model.monitor.showSample(done: Array(ids[1...6]), running: ids[7])
-                model.selection = MacroStepRow.blockRowID(ids[3])
-            }
-        } else {
-            model.load(request.id)
-            if request.isNew { model.markNew() }
-        }
+        .onChange(of: link.request) { request in model.handle(request) }
     }
 
     // MARK: Barre d'outils
@@ -161,13 +140,13 @@ struct MacroCreatorView: View {
         Button {
             model.saveNow()
         } label: {
-            Label(model.dirty ? "Enregistrer" : "Enregistrée",
+            Label(model.dirty ? String(localized: "Enregistrer") : String(localized: "Enregistrée"),
                   systemImage: model.dirty ? "square.and.arrow.down" : "checkmark.circle")
         }
         .keyboardShortcut("s", modifiers: .command)
         .disabled(!model.dirty)
-        .help(model.dirty ? "Enregistrer maintenant (⌘S) : sinon c'est fait tout seul dans un instant"
-                          : "Tout est enregistré")
+        .help(model.dirty ? String(localized: "Enregistrer maintenant (⌘S) : sinon c'est fait tout seul dans un instant")
+                          : String(localized: "Tout est enregistré"))
     }
 
     private func exportDraft() {
@@ -240,17 +219,26 @@ private struct MacroStepsPane: View {
         .onDeleteCommand { withAnimation(Self.spring) { model.deleteSelection() } }
         .overlay {
             if model.rows.isEmpty {
-                VStack(spacing: 6) {
-                    Image(systemName: "square.stack.3d.down.right")
-                        .font(.system(size: 28, weight: .light))
-                        .foregroundStyle(.secondary)
-                    Text("Aucun bloc pour l'instant").font(.headline)
-                    Text("Glisse un bloc de la palette ici, clique-le, ou tape son nom dans « Ajouter un bloc… » puis ↩.")
+                // Le plus simple d'abord : enregistrer ce qu'on fait dans FL ; les blocs de la palette ensuite.
+                VStack(spacing: 10) {
+                    Image(systemName: "record.circle.fill")
+                        .font(.system(size: 40))
+                        .foregroundStyle(.red)
+                        .accessibilityHidden(true)
+                    Text("Enregistre ce que tu fais dans FL").font(.title3.weight(.semibold))
+                    Text(String(localized: "Clique, utilise les flèches, tes raccourcis… : chaque geste devient un bloc, que tu peux ")
+                         + String(localized: "ensuite modifier, ranger ou supprimer."))
                         .font(.system(size: 12))
                         .foregroundStyle(.secondary)
                         .multilineTextAlignment(.center)
-                        .frame(maxWidth: 320)
+                        .frame(maxWidth: 340)
+                        .fixedSize(horizontal: false, vertical: true)
+                    RecordStartButton(model: model)
+                    Text("ou glisse des blocs de la palette, à gauche")
+                        .font(.system(size: 11))
+                        .foregroundStyle(.tertiary)
                 }
+                .padding(20)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .contentShape(Rectangle())
                 .onDrop(of: [.plainText], isTargeted: nil) { providers in
@@ -276,7 +264,9 @@ private struct MacroStepsPane: View {
 
     @ViewBuilder private func contextMenu(_ row: MacroStepRow) -> some View {
         if row.kind == .block {
-            Button(row.ownEnabled ? "Désactiver" : "Activer") { model.setEnabled(row.blockID, !row.ownEnabled) }
+            Button(row.ownEnabled ? String(localized: "Désactiver") : String(localized: "Activer")) {
+                model.setEnabled(row.blockID, !row.ownEnabled)
+            }
             Button("Dupliquer") {
                 model.selection = row.id
                 withAnimation(Self.spring) { model.duplicateSelection() }
@@ -307,7 +297,6 @@ private struct MacroStepsPane: View {
     private func actionButtons(hint: Bool) -> some View {
         HStack(spacing: 10) {
             AddBlockMenu(items: paletteItems, insert: { [model] item in withAnimation(Self.spring) { model.insert(item) } })
-            RecordClicksButton(model: model)
             Button {
                 withAnimation(Self.spring) { model.duplicateSelection() }
             } label: {
@@ -334,9 +323,10 @@ private struct MacroStepsPane: View {
     }
 }
 
-/// « Enregistrer des clics » : FL passe devant, chaque clic devient un bloc (panneau « Terminer » en haut à droite).
-/// Observe seul l'enregistreur : le reste de la barre n'est pas redessiné.
-private struct RecordClicksButton: View {
+/// « Enregistrer clics et touches », le cœur des macros : FL passe devant, chaque clic, flèche ou raccourci devient
+/// un bloc (panneau « Terminer » en haut à droite). En grand dans l'en-tête du créateur (⇧⌘R) ; seul l'enregistreur
+/// est observé : le reste de l'en-tête n'est pas redessiné.
+private struct RecordHero: View {
     let model: MacroEditorModel
     @ObservedObject private var recorder = ClickSequenceRecorder.shared
 
@@ -344,11 +334,57 @@ private struct RecordClicksButton: View {
         Button {
             model.recordClicks()
         } label: {
-            Label(recorder.active ? "Enregistrement…" : "Enregistrer des clics",
-                  systemImage: recorder.active ? "record.circle.fill" : "record.circle")
+            HStack(spacing: 10) {
+                Image(systemName: recorder.active ? "record.circle.fill" : "record.circle")
+                    .font(.system(size: 22))
+                    .foregroundStyle(.red)
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(recorder.active ? String(localized: "Enregistrement en cours…")
+                                         : String(localized: "Enregistrer clics et touches"))
+                        .font(.system(size: 13, weight: .semibold))
+                    Text(recorder.active ? String(localized: "Clique et tape dans FL, puis « Terminer » en haut à droite.")
+                         : String(localized: "Fais ta suite dans FL : chaque clic, flèche ou raccourci devient un bloc."))
+                        .font(.system(size: 11))
+                        .foregroundStyle(.secondary)
+                        .lineLimit(2)
+                }
+                Spacer(minLength: 0)
+                Text("⇧⌘R").font(.system(size: 11).monospacedDigit()).foregroundStyle(.tertiary)
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
+            .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(Color.red.opacity(0.09)))
+            .overlay(RoundedRectangle(cornerRadius: 10, style: .continuous).strokeBorder(Color.red.opacity(0.3)))
+            .contentShape(Rectangle())
         }
+        .buttonStyle(.plain)
+        .menuHover(tint: .red)
+        .keyboardShortcut("r", modifiers: [.command, .shift])
         .disabled(recorder.active)
-        .help("FL passe devant : clique et tape dans l'ordre (menus, Options › Audio, boutons de ses fenêtres, flèches, raccourcis…), puis « Terminer ». Chaque clic et chaque touche devient un bloc.")
+        .help("FL passe devant : clique et tape dans l'ordre (menus, Options › Audio, boutons de ses fenêtres, flèches, raccourcis…), puis « Terminer ». Chaque clic et chaque touche devient un bloc, ajouté sous la ligne choisie.")
+        .accessibilityLabel("Enregistrer clics et touches")
+    }
+}
+
+/// Grand bouton rouge de la macro vide : « Commencer l'enregistrement ».
+private struct RecordStartButton: View {
+    let model: MacroEditorModel
+    @ObservedObject private var recorder = ClickSequenceRecorder.shared
+
+    var body: some View {
+        Button {
+            model.recordClicks()
+        } label: {
+            Label(recorder.active ? String(localized: "Enregistrement en cours…") : String(localized: "Commencer l'enregistrement"),
+                  systemImage: "record.circle")
+                .frame(minWidth: 220)
+        }
+        .primaryButton()
+        .tint(.red)
+        .controlSize(.large)
+        .keyboardShortcut("r", modifiers: [.command, .shift])
+        .disabled(recorder.active)
+        .help("FL passe devant : clique et tape dans l'ordre, puis « Terminer » en haut à droite (⇧⌘R).")
     }
 }
 
@@ -359,20 +395,20 @@ private struct AddBlockMenu: View {
     let insert: (PaletteItem) -> Void
 
     var body: some View {
-        Menu {
-            ForEach(BlockCategory.allCases, id: \.self) { category in
-                Section(category.rawValue) {
-                    ForEach(items.filter { $0.category == category && !$0.soon }) { item in
-                        Button(item.label) { insert(item) }
-                    }
+        // Au style du menu de l'icône : chaque bloc avec son icône et la couleur de sa catégorie.
+        StyledMenuButton(help: String(localized: "Ajouter un bloc sous la ligne choisie (ou dans la boucle si sa ligne de fin est choisie)"),
+                         arrowEdge: .top, width: 280) {
+            BlockCategory.allCases.flatMap { category -> [StyledMenuEntry] in
+                let inCategory = items.filter { $0.category == category && !$0.soon }
+                guard !inCategory.isEmpty else { return [] }
+                return [StyledMenuEntry.header(category.label)] + inCategory.map { item -> StyledMenuEntry in
+                    .item(item.label, symbol: item.symbol, tint: category.tint, help: item.aide) { insert(item) }
                 }
             }
         } label: {
             Label("Ajouter", systemImage: "plus")
         }
-        .menuIndicator(.hidden)
         .fixedSize()
-        .help("Ajouter un bloc sous la ligne choisie (ou dans la boucle si sa ligne de fin est choisie)")
     }
 }
 
@@ -403,7 +439,8 @@ private struct MacroStepRowView: View, Equatable {
             Toggle("", isOn: Binding(get: { row.ownEnabled }, set: onToggle))
                 .toggleStyle(.checkbox)
                 .labelsHidden()
-                .help(row.ownEnabled ? "Bloc actif : décoche pour le sauter sans le supprimer" : "Bloc sauté : coche pour le réactiver")
+                .help(row.ownEnabled ? String(localized: "Bloc actif : décoche pour le sauter sans le supprimer")
+                                     : String(localized: "Bloc sauté : coche pour le réactiver"))
             Text(row.number)
                 .font(.system(size: 11).monospacedDigit())
                 .foregroundStyle(.secondary)
@@ -428,6 +465,7 @@ private struct MacroStepRowView: View, Equatable {
         .padding(.vertical, 3)
         .opacity(row.enabled ? 1 : 0.45)
         .background(stateBackground)
+        .menuHover(tint: tint, cornerRadius: 8)
         .accessibilityElement(children: .combine)
         .accessibilityLabel(accessibilityText)
     }
@@ -499,12 +537,12 @@ private struct MacroStepRowView: View, Equatable {
     }
 
     private var accessibilityText: String {
-        var parts = ["Bloc \(row.number)", row.verb]
+        var parts = [String(localized: "Bloc \(row.number)"), row.verb]
         if let value = row.value { parts.append(value) }
-        if !row.ownEnabled { parts.append("désactivé") }
+        if !row.ownEnabled { parts.append(String(localized: "désactivé")) }
         parts += row.badges.map(\.title)
-        if current { parts.append("en cours") }
-        if let failure { parts.append("échec : " + failure) }
+        if current { parts.append(String(localized: "en cours")) }
+        if let failure { parts.append(String(localized: "échec : ") + failure) }
         return parts.joined(separator: ", ")
     }
 }
@@ -554,15 +592,22 @@ private struct MacroHeader: View {
                     statusLine
                 }
             }
+            // Fenêtre au plus étroit : le champ rétrécit, le mot « Raccourci » reste sur une ligne (le champ de largeur
+            // fixe l'écrasait en une lettre par ligne).
             HStack(spacing: 10) {
                 Text("Raccourci").font(.system(size: 12)).foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .fixedSize()
                 CaptureField(id: "macro-trigger-\(model.draft?.id.uuidString ?? "")", role: .trigger, combo: triggerBinding)
                     .disabled(model.ephemeral)               // exemple de la mesure : jamais enregistré
-                    .frame(width: 230)
+                    .frame(minWidth: 120, maxWidth: 230)
                 Spacer(minLength: 0)
             }
             if !model.triggerIssues.isEmpty {
                 IssuesView(issues: model.triggerIssues)
+            }
+            if !model.rows.isEmpty {
+                RecordHero(model: model)
             }
         }
         .padding(.horizontal, 16)
@@ -571,8 +616,9 @@ private struct MacroHeader: View {
 
     private var statusLine: some View {
         let count = MacroValidation.count(model.draft?.blocks ?? [])
-        let blocks = count == 1 ? "1 bloc" : "\(count) blocs"
-        let duration = model.estimateMs > 0 ? " · \(MacroOutline.seconds(max(100, model.estimateMs / 100 * 100))) au plus" : ""
+        let blocks = count == 1 ? String(localized: "1 bloc") : String(localized: "\(count) blocs")
+        let duration = model.estimateMs > 0
+            ? String(localized: " · \(MacroOutline.seconds(max(100, model.estimateMs / 100 * 100))) au plus") : ""
         return HStack(spacing: 6) {
             if let problem = model.problem {
                 Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.orange)
@@ -582,13 +628,6 @@ private struct MacroHeader: View {
             } else {
                 Image(systemName: "checkmark.circle.fill").foregroundStyle(.green)
                 Text("Prête · \(blocks)\(duration)").lineLimit(1)
-            }
-            if model.needs.contains(.lienMIDI) {
-                Label("Lien FL", systemImage: "link")
-                    .fixedSize()
-                    .font(.system(size: 10, weight: .medium))
-                    .foregroundStyle(.blue)
-                    .help("Des actions de FL passent par le lien avec FL quand il est installé (sinon leur touche de secours).")
             }
         }
         .font(.system(size: 12))
@@ -605,15 +644,15 @@ private struct MacroResultBanner: View {
     var body: some View {
         Group {
             if model.preparingTest {
-                banner(symbol: "arrow.up.forward.app", tint: .blue, text: "FL Studio passe devant…")
+                banner(symbol: "arrow.up.forward.app", tint: .blue, text: String(localized: "FL Studio passe devant…"))
             } else if monitor.running {
-                banner(symbol: "play.circle.fill", tint: .blue, text: "Essai en cours dans FL… Échap pour l'arrêter.")
+                banner(symbol: "play.circle.fill", tint: .blue, text: String(localized: "Essai en cours dans FL… Échap pour l'arrêter."))
             } else if let outcome = monitor.outcome {
                 outcomeBanner(outcome)
             } else if let notice = model.notice {
                 banner(symbol: "info.circle.fill", tint: nil, text: notice, close: { model.notice = nil })
             } else if let refusal = monitor.refusal {
-                banner(symbol: "exclamationmark.triangle.fill", tint: .orange, text: "Essai non lancé : \(refusal)",
+                banner(symbol: "exclamationmark.triangle.fill", tint: .orange, text: String(localized: "Essai non lancé : \(refusal)"),
                        close: { monitor.clear() })
             }
         }
@@ -631,14 +670,18 @@ private struct MacroResultBanner: View {
             banner(symbol: "stop.circle.fill", tint: .orange, text: model.outcomeText(outcome), close: { monitor.clear() })
         case .failed, .failedInBlock:
             let editor = model
-            let show: (String, () -> Void)? = monitor.failedBlock == nil ? nil : ("Montrer le bloc", { editor.showFailedBlock() })
-            banner(symbol: "xmark.octagon.fill", tint: .red, text: model.outcomeText(outcome), action: show,
+            let text = model.outcomeText(outcome)
+            let show: (String, () -> Void)? = monitor.failedBlock == nil ? nil
+                : (String(localized: "Montrer le bloc"), { editor.showFailedBlock() })
+            // « Signaler » : la page Aide, le formulaire prêt avec ce message d'erreur et le journal de l'essai.
+            banner(symbol: "xmark.octagon.fill", tint: .red, text: text, action: show,
+                   report: { HelpLink.shared.report("Macro « \(editor.draft?.name ?? "?") » : \(text)") },
                    close: { monitor.clear() })
         }
     }
 
     private func banner(symbol: String, tint: Color?, text: String, action: (String, () -> Void)? = nil,
-                        close: (() -> Void)? = nil) -> some View {
+                        report: (() -> Void)? = nil, close: (() -> Void)? = nil) -> some View {
         HStack(spacing: 10) {
             Image(systemName: symbol)
                 .font(.system(size: 14, weight: .semibold))
@@ -649,6 +692,12 @@ private struct MacroResultBanner: View {
             Spacer(minLength: 8)
             if let action {
                 Button(action.0, action: action.1).controlSize(.small).onGlassButton()
+            }
+            if let report {
+                Button("Signaler", action: report)
+                    .controlSize(.small)
+                    .onGlassButton()
+                    .help("Écrire à l'équipe : le message d'erreur et le journal de cet essai sont joints, tu les vois avant l'envoi")
             }
             if let close {
                 Button(action: close) {
@@ -691,16 +740,17 @@ struct FinderArrows: View {
             }
             .disabled(forward == nil)
             .keyboardShortcut("]", modifiers: .command)
-            .help(forward == nil ? "Rien où retourner pour l'instant" : "Revenir dans la dernière macro quittée (⌘])")
+            .help(forward == nil ? String(localized: "Rien où retourner pour l'instant")
+                                 : String(localized: "Revenir dans la dernière macro quittée (⌘])"))
         }
     }
 }
 
 extension View {
     /// Titre de la fenêtre gardé (menu Fenêtre, VoiceOver), retiré de la barre d'outils (macOS 15 et plus récent).
-    @ViewBuilder func toolbarTitleHidden() -> some View {
+    @ViewBuilder func toolbarTitleHidden(_ hidden: Bool = true) -> some View {
         if #available(macOS 15.0, *) {
-            toolbar(removing: .title)
+            toolbar(removing: hidden ? .title : nil)
         } else {
             self
         }

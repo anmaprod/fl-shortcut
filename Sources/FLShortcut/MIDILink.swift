@@ -32,6 +32,8 @@ final class LinkCore {
         /// Temps de réponse de FL (médiane des 15 dernières actions, en ms), mesuré de l'envoi de la trame
         /// à l'accusé d'exécution (CC 119). Aucune frappe n'est mémorisée : seulement des durées.
         var responseMs: Double? = nil
+        /// Le script a dit être sur une autre entrée MIDI que « FL Shortcuts Link » (jusqu'au prochain HELLO).
+        var wrongInput = false
     }
 
     private struct State {
@@ -56,6 +58,7 @@ final class LinkCore {
         /// Réponse vérifiée (MAC juste, liée à `dataSeq`), octets dépaquetés ; remise à nil à chaque envoi.
         var lastResponse: [UInt8]?
         var incompatible: Int?
+        var wrongInput = false
         var pendingSend: (id: Int, at: UInt64)?
         var latencies: [Double] = []
 
@@ -86,7 +89,7 @@ final class LinkCore {
 
     // MARK: Réception
 
-    /// Octets reçus sur la destination « FL Shortcut ». Renvoie les événements décodés.
+    /// Octets reçus sur la destination « FL Shortcuts ». Renvoie les événements décodés.
     @discardableResult
     func receive<S: Sequence>(_ bytes: S) -> [IncomingEvent] where S.Element == UInt8 {
         let now = clock()
@@ -106,6 +109,9 @@ final class LinkCore {
                     s.window = .unknown        // le script renvoie la fenêtre juste après
                     s.consecutiveRejects = 0
                     s.incompatible = nil
+                    s.wrongInput = false
+                case .wrongInput:
+                    s.wrongInput = true
                 case .incompatible(let p):
                     s.hello = nil
                     s.helloAt = nil
@@ -176,11 +182,11 @@ final class LinkCore {
         guard let last = ids.last else { return nil }
         state.withLock { $0.lastAckedID = nil }
         for id in ids {
-            guard hello.capabilities.contains(id) else { return "action indisponible dans ce FL (mets FL à jour)" }
+            guard hello.capabilities.contains(id) else { return String(localized: "action indisponible dans ce FL (mets FL à jour)") }
             switch sendAction(id) {
             case .sent: break
-            case .noKey: return "lien avec FL non installé"
-            default: return "FL n'a pas reçu la commande"
+            case .noKey: return String(localized: "lien avec FL non installé")
+            default: return String(localized: "FL n'a pas reçu la commande")
             }
         }
         // Les trames partent d'affilée et FL les exécute dans l'ordre : on attend l'accusé de la dernière.
@@ -188,17 +194,22 @@ final class LinkCore {
         while Date() < ackDeadline {
             switch state.withLock({ $0.lastAckedID }) {
             case .some(last): return nil
-            case .some(0): return "FL a refusé la commande : redémarre FL (le script vient d'être mis à jour)"
+            case .some(0): return String(localized: "FL a refusé la commande : redémarre FL (le script vient d'être mis à jour)")
             default: Thread.sleep(forTimeInterval: 0.01)
             }
         }
-        return "FL n'a pas confirmé (armement / REC)"
+        return String(localized: "FL n'a pas confirmé (armement / REC)")
     }
 
     private enum Wake {
         case ready(HelloInfo)
         case failed(String)
     }
+
+    /// Script de FL muet. FL relie lui-même le script à l'appareil « FL Shortcuts Link » quand il le trouve en
+    /// démarrant (en-tête `supportedDevices` du script) ; sinon, le plus souvent, l'entrée est activée avec le
+    /// Controller type « (generic controller) » (le script n'est pas chargé), ou sans le même Port que la sortie.
+    static let noResponse = String(localized: "FL ne répond pas : quitte et rouvre FL Studio, il relie « \(CoreMIDITransport.portName) » tout seul en démarrant. Toujours rien : dans Options › MIDI Settings, entrée « \(CoreMIDITransport.portName) », choisis le Controller type « FL Shortcuts » (pas « generic controller »), et donne le même numéro de Port à l'entrée et à la sortie")
 
     /// Réveille le script si besoin (PING) et attend son HELLO. Script déjà réveillé depuis peu : aucun PING, sauf
     /// `force` (il s'est rendormi alors que son dernier battement semblait récent).
@@ -208,23 +219,23 @@ final class LinkCore {
             let fresh = !force && s.hello != nil && (s.lastAlive.map { start.timeIntervalSince($0) < 4 } ?? false)
             return (s.signer != nil, fresh)
         }
-        guard state0.hasKey else { return .failed("lien avec FL non installé : fiche du raccourci › Installer le lien avec FL") }
+        guard state0.hasKey else {
+            return .failed(String(localized: "lien avec FL non installé : fiche du raccourci › Installer le lien avec FL"))
+        }
         if !state0.fresh {
             let sent: Bool = state.withLock { s in
                 s.hello = nil                  // le HELLO attendu est celui de ce réveil
                 s.lastPing = start
                 return transport.send([brief ? .pingBrief : .ping])
             }
-            guard sent else { return .failed("ports MIDI « FL Shortcut » indisponibles") }
+            guard sent else { return .failed(String(localized: "ports MIDI « FL Shortcuts Link » indisponibles")) }
             let deadline = Date().addingTimeInterval(timeout)
             while Date() < deadline {
                 if state.withLock({ s in s.hello != nil && (s.lastAlive.map { $0 >= start } ?? false) }) { break }
                 Thread.sleep(forTimeInterval: 0.03)
             }
         }
-        guard let hello = state.withLock({ $0.hello }) else {
-            return .failed("FL ne répond pas : redémarre FL (nouvelle version du script), et vérifie dans Options › MIDI Settings que « FL Shortcut » est activé en entrée et en sortie")
-        }
+        guard let hello = state.withLock({ $0.hello }) else { return .failed(Self.noResponse) }
         return .ready(hello)
     }
 
@@ -245,7 +256,7 @@ final class LinkCore {
         switch attemptData(units, brief: brief, timeout: timeout, forceWake: true, needs: capability) {
         case .reply(let r): return r
         case .refusedSilently:
-            return .failed("FL a refusé la commande : redémarre FL si le script vient d'être mis à jour")
+            return .failed(String(localized: "FL a refusé la commande : redémarre FL si le script vient d'être mis à jour"))
         }
     }
 
@@ -253,7 +264,7 @@ final class LinkCore {
     /// y en a une (`.answered([])` sinon). Demande le script v5 (capacité 42).
     func runRequest(_ bytes: [UInt8], brief: Bool, timeout: TimeInterval = 4) -> RequestReply {
         let units = Pack7.pack(bytes)
-        guard units.count <= FLProtocol.maxDataUnits else { return .failed("données trop longues") }
+        guard units.count <= FLProtocol.maxDataUnits else { return .failed(String(localized: "données trop longues")) }
         switch runData(units, brief: brief, timeout: timeout, needs: FLProtocol.extActionID) {
         case .done: return .answered(state.withLock { $0.lastResponse } ?? [])
         case .refused(let reason): return .refused(reason)
@@ -269,13 +280,13 @@ final class LinkCore {
         case .failed(let why): return .reply(.failed(why))
         }
         guard hello.capabilities.contains(capability) else {
-            return .reply(.failed("mets à jour le lien avec FL : redémarre FL pour charger le nouveau script"))
+            return .reply(.failed(String(localized: "mets à jour le lien avec FL : redémarre FL pour charger le nouveau script")))
         }
         state.withLock { $0.lastAckedID = nil }
         switch sendData(units) {
         case .sent: break
-        case .noKey: return .reply(.failed("lien avec FL non installé"))
-        default: return .reply(.failed("FL n'a pas reçu la commande"))
+        case .noKey: return .reply(.failed(String(localized: "lien avec FL non installé")))
+        default: return .reply(.failed(String(localized: "FL n'a pas reçu la commande")))
         }
         let ackDeadline = Date().addingTimeInterval(1.5)
         while Date() < ackDeadline {
@@ -288,7 +299,7 @@ final class LinkCore {
             default: Thread.sleep(forTimeInterval: 0.01)
             }
         }
-        return .reply(.failed("FL n'a pas confirmé"))
+        return .reply(.failed(String(localized: "FL n'a pas confirmé")))
     }
 
     /// Commande avec données : CC 96, unités, trame signée de l'action 41. Envoyée par paquets (256 octets au plus
@@ -324,7 +335,7 @@ final class LinkCore {
     }
 
     /// À appeler toutes les secondes : PING après 6 s sans battement (ou sans HELLO) quand FL tourne.
-    /// Sans réponse, l'intervalle double (6, 12, 24, 48, 60 s) : FL Shortcut se fait oublier.
+    /// Sans réponse, l'intervalle double (6, 12, 24, 48, 60 s) : FL Shortcuts se fait oublier.
     func tick(flRunning: Bool) {
         guard flRunning else { return }
         let now = clock()
@@ -386,16 +397,23 @@ final class LinkCore {
         return state.withLock { s in
             Snapshot(hello: s.hello, lastAlive: s.lastAlive, window: s.window, hasKey: s.signer != nil,
                      seq: s.seq, incompatibleProtocol: s.incompatible, transportReady: ready,
-                     responseMs: LinkCore.median(s.latencies).map { ($0 * 10).rounded() / 10 })
+                     responseMs: LinkCore.median(s.latencies).map { ($0 * 10).rounded() / 10 },
+                     wrongInput: s.wrongInput)
         }
     }
 }
 
-/// Source + destination virtuelles CoreMIDI « FL Shortcut ».
+/// Source + destination virtuelles CoreMIDI « FL Shortcuts Link ».
 final class CoreMIDITransport: MIDITransport {
+    /// Nom de l'appareil dans FL (Options › MIDI Settings), le même que dans l'en-tête `supportedDevices` du script :
+    /// FL y relie le script tout seul (Controller type et Port) quand il le trouve en démarrant. Nouveau nom (avant :
+    /// « FL Shortcuts ») : un FL qui avait gardé l'ancien appareil en « generic controller » le voit comme neuf.
+    static let portName = "FL Shortcuts Link"
+
+    /// Identifiants neufs avec le nouveau nom (FL voit un appareil neuf, sans réglage gardé).
     enum UniqueIDKey: String {
-        case source = "midiSourceUniqueID"
-        case destination = "midiDestinationUniqueID"
+        case source = "midiSourceUniqueID.v2"
+        case destination = "midiDestinationUniqueID.v2"
     }
 
     private struct Handles {
@@ -407,7 +425,7 @@ final class CoreMIDITransport: MIDITransport {
     }
 
     private let handles = Locked(Handles())
-    private let name = "FL Shortcut" as CFString
+    private let name = CoreMIDITransport.portName as CFString
     private let defaults: UserDefaults
     var onBytes: (([UInt8]) -> Void)?
     var onSetupChanged: (() -> Void)?
@@ -432,7 +450,7 @@ final class CoreMIDITransport: MIDITransport {
         return client
     }
 
-    /// Crée la source et la destination « FL Shortcut ». Si elles existent encore, ne touche à rien :
+    /// Crée la source et la destination « FL Shortcuts Link ». Si elles existent encore, ne touche à rien :
     /// chaque création ou destruction de port fait rescanner le MIDI à FL (à-coup, rechargement des scripts).
     @discardableResult
     func connect() -> Bool {
@@ -596,7 +614,8 @@ final class MIDILink: ObservableObject {
         onDemand = false
     }
 
-    /// Mode léger avec une macro qui arme / lance le REC : ports « FL Shortcut » présents (FL les voit), mais
+    /// Mode léger, lien installé : ports « FL Shortcuts Link » présents (FL les voit en démarrant et y relie son
+    /// script), mais
     /// aucun PING, aucune surveillance : rien ne circule tant qu'une macro ne réveille pas le script.
     private(set) var onDemand = false
 
@@ -612,8 +631,9 @@ final class MIDILink: ObservableObject {
     /// Macro : commande avec données (Nom et couleur…), même réveil bref que `runBriefly`.
     func runData(_ units: [UInt8]) -> DataReply {
         guard transport.isReady else {
-            return .failed(core.snapshot.hasKey ? "ports MIDI « FL Shortcut » indisponibles : relance FL Shortcut"
-                                                : "lien avec FL non installé : fiche du raccourci › Installer le lien avec FL")
+            return .failed(core.snapshot.hasKey
+                           ? String(localized: "ports MIDI « FL Shortcuts Link » indisponibles : relance FL Shortcuts")
+                           : String(localized: "lien avec FL non installé : fiche du raccourci › Installer le lien avec FL"))
         }
         return core.runData(units, brief: AppMode.light, timeout: 1.5)
     }
@@ -621,20 +641,57 @@ final class MIDILink: ObservableObject {
     /// Organiser : opération 2 à 8 du script v5, avec sa réponse signée (file de l'Organiser, bloquant).
     func runRequest(_ bytes: [UInt8]) -> RequestReply {
         guard transport.isReady else {
-            return .failed(core.snapshot.hasKey ? "ports MIDI « FL Shortcut » indisponibles : relance FL Shortcut"
-                                                : "lien avec FL non installé : fiche du raccourci › Installer le lien avec FL")
+            return .failed(core.snapshot.hasKey
+                           ? String(localized: "ports MIDI « FL Shortcuts Link » indisponibles : relance FL Shortcuts")
+                           : String(localized: "lien avec FL non installé : fiche du raccourci › Installer le lien avec FL"))
         }
         return core.runRequest(bytes, brief: AppMode.light, timeout: 1.5)
     }
 
     /// Macro : réveil bref du script, actions, puis il se rendort (file de la macro, bloquant).
+    /// Lien resté muet il y a moins de 20 s (FL sans le script) : les blocs passent tout de suite au clavier, sans
+    /// attendre 1,5 s chacun. Dès que FL répond de nouveau (annonce), le lien sert de nouveau.
+    private let mutedUntil = Locked(Date.distantPast)
+    static let muteDelay: TimeInterval = 20
+
     func runBriefly(_ ids: [Int]) -> String? {
         guard transport.isReady else {
-            return core.snapshot.hasKey ? "ports MIDI « FL Shortcut » indisponibles : relance FL Shortcut"
-                                   : "lien avec FL non installé : fiche du raccourci › Installer le lien avec FL"
+            return core.snapshot.hasKey
+                ? String(localized: "ports MIDI « FL Shortcuts Link » indisponibles : relance FL Shortcuts")
+                : String(localized: "lien avec FL non installé : fiche du raccourci › Installer le lien avec FL")
         }
+        if mutedRecently { return Self.mutedMessage }
         // 1,5 s au plus : un script qui ne répond pas ne doit pas figer la macro (réponse normale : quelques ms).
-        return core.runBriefly(ids, brief: AppMode.light, timeout: 1.5)
+        let why = core.runBriefly(ids, brief: AppMode.light, timeout: 1.5)
+        if why != nil { rememberSilence() }
+        return why
+    }
+
+    /// Macro : opération du script (canal par son numéro…), même mémoire du lien muet que `runBriefly` : le bloc
+    /// passe tout de suite à son repli.
+    func runMacroRequest(_ bytes: [UInt8]) -> RequestReply {
+        if mutedRecently { return .failed(Self.mutedMessage) }
+        let reply = runRequest(bytes)
+        if case .failed = reply { rememberSilence() }
+        return reply
+    }
+
+    /// Macro : commande avec données (nom de la piste…), même mémoire du lien muet que `runBriefly`.
+    func runMacroData(_ units: [UInt8]) -> DataReply {
+        if mutedRecently { return .failed(Self.mutedMessage) }
+        let reply = runData(units)
+        if case .failed = reply { rememberSilence() }
+        return reply
+    }
+
+    private static let mutedMessage = String(localized: "FL ne répond pas (essayé il y a peu)")
+
+    private var mutedRecently: Bool { core.snapshot.hello == nil && Date() < mutedUntil.value }
+
+    /// Script resté muet (aucune annonce de FL) : les blocs suivants passent à leur repli pendant 20 s.
+    private func rememberSilence() {
+        guard core.snapshot.hello == nil else { return }
+        mutedUntil.withLock { $0 = Date().addingTimeInterval(Self.muteDelay) }
     }
 
     func setFLRunning(_ running: Bool) {

@@ -22,12 +22,21 @@ enum SidebarItem: Hashable {
     case custom
     /// Bibliothèque des macros en blocs (MacroLibraryView.swift).
     case macros
+    /// Partages des membres, avec un compte (CommunityView.swift).
+    case community
+    /// Questions fréquentes et « Écrire à l'équipe » (HelpView.swift).
+    case help
+    /// Compte et sauvegarde en ligne des raccourcis et des macros (AccountView.swift).
+    case account
 
     var symbol: String {
         switch self {
         case .section(let s): return s.symbol
         case .custom: return "star"
         case .macros: return "wand.and.stars"
+        case .community: return "person.2"
+        case .help: return "questionmark.circle"
+        case .account: return "person.crop.circle"
         }
     }
 
@@ -36,6 +45,10 @@ enum SidebarItem: Hashable {
         case .section(let s): return s.tint
         case .custom: return .pink
         case .macros: return .purple
+        // Communauté : une couleur à elle (ambre, prise par aucune autre rubrique) ; Mon compte et Aide, groupés,
+        // partagent la leur.
+        case .community: return Color(red: 0.96, green: 0.68, blue: 0.0)
+        case .help, .account: return .teal
         }
     }
 }
@@ -56,16 +69,47 @@ extension FLSection {
     }
 }
 
+extension SidebarItem {
+    /// Nom de la page noté pour la reprise après « Quitter et rouvrir » (AppResume) : « section:mixer », « macros »…
+    var resumeKey: String {
+        switch self {
+        case .section(let s): return "section:" + s.rawValue
+        case .custom: return "custom"
+        case .macros: return "macros"
+        case .community: return "community"
+        case .help: return "help"
+        case .account: return "account"
+        }
+    }
+
+    init?(resumeKey key: String) {
+        let prefix = "section:"
+        if key.hasPrefix(prefix) {
+            guard let s = FLSection(rawValue: String(key.dropFirst(prefix.count))) else { return nil }
+            self = .section(s)
+            return
+        }
+        switch key {
+        case "custom": self = .custom
+        case "macros": self = .macros
+        case "community": self = .community
+        case "help": self = .help
+        case "account": self = .account
+        default: return nil
+        }
+    }
+}
+
 /// Textes de l'en-tête de page.
 enum PageSummary {
     /// Résumé des raccourcis de « Mes raccourcis ».
-    static let custom = "Un raccourci personnalisé lance une action ou envoie une touche de FL Studio."
+    static let custom = String(localized: "Chaque raccourci que tu changes arrive ici, avec ceux que tu crées. Les macros ont leur page.")
 
     /// « 34 raccourcis · 3 modifiés ».
     static func count(_ count: Int, modified: Int) -> String {
-        let total = count == 1 ? "1 raccourci" : "\(count) raccourcis"
+        let total = count == 1 ? String(localized: "1 raccourci") : String(localized: "\(count) raccourcis")
         guard modified > 0 else { return total }
-        return total + " · " + (modified == 1 ? "1 modifié" : "\(modified) modifiés")
+        return total + " · " + (modified == 1 ? String(localized: "1 modifié") : String(localized: "\(modified) modifiés"))
     }
 }
 
@@ -90,16 +134,27 @@ struct PageContainer<Content: View>: View {
     }
 }
 
+extension View {
+    /// Ligne de la barre latérale : au survol, elle s'allume de sa couleur comme une ligne du menu de la barre des
+    /// menus (contour un peu plus grand que l'icône et le titre, sur toute la largeur).
+    func sidebarHover(_ tint: Color) -> some View {
+        frame(maxWidth: .infinity, alignment: .leading)
+            .menuHover(tint: tint, cornerRadius: 8, outset: 4)
+    }
+}
+
 /// Lignes d'une carte, chacune à sa place (première, intérieure, dernière). `trailing` : lignes posées après
-/// (bouton « Nouveau… »), comptées pour arrondir la bonne.
+/// (bouton « Nouveau… »), comptées pour arrondir la bonne. Au survol, chaque ligne s'allume de la couleur de sa
+/// page (`tint`), comme une ligne du menu de la barre des menus.
 private struct CardRows<Item: Identifiable, Row: View>: View {
     let items: [Item]
+    let tint: Color
     var trailing = 0
     @ViewBuilder let row: (Item) -> Row
 
     var body: some View {
         ForEach(Array(items.enumerated()), id: \.element.id) { index, item in
-            row(item).cardRow(.position(index: index, count: items.count + trailing))
+            row(item).cardRow(.position(index: index, count: items.count + trailing), hover: tint)
         }
     }
 }
@@ -128,6 +183,21 @@ struct EditorView: View {
     /// Le modèle n'existe que pendant qu'il est affiché.
     @State private var macroEditor: MacroEditorModel?
     @ObservedObject private var creatorLink = MacroCreatorLink.shared
+    /// Page Communauté : le « + » (partager) n'apparaît qu'une fois connecté.
+    @ObservedObject private var community = CommunityStore.shared
+    @ObservedObject private var backup = AccountBackup.shared
+    /// Guide : montré une fois à la première ouverture, puis à la demande (menu ⋯, barre des menus).
+    @AppStorage("guideSeen") private var guideSeen = false
+    @ObservedObject private var guideLink = GuideLink.shared
+    @ObservedObject private var helpLink = HelpLink.shared
+    @ObservedObject private var macrosLink = MacrosLink.shared
+    @ObservedObject private var accountLink = AccountLink.shared
+    @State private var showGuide = false
+    @State private var guidePage = 0
+    /// Recherche avec un raccourci : la touche appuyée (la recherche affiche son nom, « ⌥⇧A »).
+    @State private var keySearch: KeyCombo?
+    @ObservedObject private var recorder = Recorder.shared
+    private static let keySearchID = "recherche-raccourci"
 
     /// Entre dans le créateur sur cette macro (la fenêtre reste la même ; la flèche ← y ramène).
     private func openCreator(_ id: UUID?) {
@@ -135,13 +205,17 @@ struct EditorView: View {
     }
 
     var body: some View {
-        Group {
+        // Bascule sans animation (la page qui part s'en va tout de suite), puis celle qui arrive apparaît en fondu.
+        ZStack {
             if let editor = macroEditor {
                 MacroCreatorView(model: editor, onBack: { leaveCreator(editor) })
                     .environmentObject(store)
-                    .transition(.opacity)
+                    .windowReveal()
+                    .zIndex(1)
             } else {
                 shortcuts
+                    .windowReveal()
+                    .zIndex(0)
             }
         }
         .onChange(of: creatorLink.request) { request in
@@ -151,13 +225,102 @@ struct EditorView: View {
         .onChange(of: creatorLink.closeSerial) { _ in closeCreator() }
         // Fenêtre fermée pendant le créateur : brouillon enregistré, modèle lâché (rien ne reste en mémoire).
         .onDisappear { closeCreator() }
+        // Reprise après « Quitter et rouvrir » : la fenêtre, sa page et la macro ouverte sont notées à la fermeture.
+        .background(WindowReader { AppResume.shared.editorWindow = $0 })
+        .onChange(of: selection) { AppResume.shared.page = $0 }
+        .sheet(isPresented: $showGuide, onDismiss: { guideSeen = true }) {
+            GuideSheet(initialPage: guidePage) { showGuide = false }
+        }
+        .onAppear {
+            resumeIfAsked()
+            AppResume.shared.page = selection
+            showGuideIfNeeded()
+            showHelpIfAsked()
+            showMacrosIfAsked()
+            showAccountIfAsked()
+            Task { await backup.refreshIfStale() }       // changé depuis un autre Mac ?
+        }
+        // Ce Mac et le compte ont chacun leurs changements : la page Mon compte montre le choix.
+        .onChange(of: backup.conflict?.id) { id in
+            guard id != nil, macroEditor == nil else { return }
+            query = ""
+            selection = .account
+        }
+        .onChange(of: guideLink.pending) { _ in showGuideIfNeeded() }
+        .onChange(of: helpLink.pending) { _ in showHelpIfAsked() }
+        .onChange(of: macrosLink.pending) { _ in showMacrosIfAsked() }
+        .onChange(of: accountLink.pending) { _ in showAccountIfAsked() }
+        .onReceive(DebugSnapshot.publisher(DebugSnapshot.guide)) { note in
+            // Mode capture : « 0 » à « 4 », la page du guide ; autre chose, le ferme. « 1 lent » (guide ouvert) :
+            // changée par le guide lui-même, au ralenti (GuideView).
+            let words = (note.object as? String ?? "").split(separator: " ")
+            if words.contains("lent"), showGuide { return }
+            if let n = words.first.flatMap({ Int($0) }) {
+                DebugSnapshot.slowMotion = 1
+                guidePage = max(0, min(n, GuideContent.count - 1))
+                showGuide = true
+            } else {
+                showGuide = false
+            }
+        }
+    }
+
+    /// Relancée par « Quitter et rouvrir » (ou juste après avoir quitté) : la page et la macro d'avant reviennent.
+    private func resumeIfAsked() {
+        guard let resume = AppResume.shared.takeEditor() else { return }
+        if let page = resume.page { selection = page }
+        if let id = resume.macro, store.library.doc(id) != nil {
+            MacroCreatorLink.shared.open(id, isNew: resume.isNew)
+            if macroEditor == nil { enterCreator() }
+        }
+    }
+
+    /// Page Mon compte demandée hors de la fenêtre (désinstallation : « Me connecter pour les sauvegarder d'abord »).
+    private func showAccountIfAsked() {
+        guard accountLink.pending else { return }
+        accountLink.pending = false
+        if macroEditor != nil { closeCreator() }
+        query = ""
+        selection = .account
+    }
+
+    /// Page Macros demandée depuis le menu de l'icône : les raccourcis (créateur refermé), page Macros.
+    private func showMacrosIfAsked() {
+        guard macrosLink.pending else { return }
+        macrosLink.pending = false
+        if macroEditor != nil { closeCreator() }
+        query = ""
+        selection = .macros
+    }
+
+    /// Page Aide demandée depuis le menu de la barre des menus : les raccourcis (créateur refermé), page Aide.
+    private func showHelpIfAsked() {
+        guard helpLink.pending else { return }
+        helpLink.pending = false
+        if macroEditor != nil { closeCreator() }
+        query = ""
+        selection = .help
+    }
+
+    /// Guide demandé (menu ⋯, barre des menus), ou jamais vu : première ouverture (sauf en mode capture, où la
+    /// mesure de la CI l'ouvre elle-même).
+    private func showGuideIfNeeded() {
+        let asked = guideLink.pending
+        guard asked || (!guideSeen && !DebugSnapshot.enabled) else { return }
+        guideLink.pending = false
+        guidePage = 0
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { showGuide = true }
     }
 
     private func enterCreator() {
         editing = nil
         editingRow = nil
         let editor = MacroEditorModel(store: store)
-        withAnimation(.easeInOut(duration: 0.2)) { macroEditor = editor }
+        // Macro chargée et palette prête avant l'animation : le créateur arrive rempli, rien n'apparaît en route.
+        editor.handle(creatorLink.request)
+        _ = editor.paletteItems
+        macroEditor = editor
+        AppResume.shared.creator = editor
     }
 
     /// Flèche ← : macro neuve → l'enregistrer ou la supprimer ; macro modifiée → enregistrer ou annuler les
@@ -170,20 +333,23 @@ struct EditorView: View {
             editor.discardNew()
         case .askNew(let name):
             let shown = name.displaySafe(max: 40)
-            switch Dialogs.choose("Enregistrer « \(shown) » ?", "Si tu ne l'enregistres pas, cette nouvelle macro est supprimée.",
-                                  ["Enregistrer", "Supprimer", "Annuler"], destructive: 1) {
+            switch Dialogs.choose(String(localized: "Enregistrer « \(shown) » ?"),
+                                  String(localized: "Si tu ne l'enregistres pas, cette nouvelle macro est supprimée."),
+                                  [String(localized: "Enregistrer"), String(localized: "Supprimer"), String(localized: "Annuler")],
+                                  destructive: 1) {
             case 0:
                 editor.saveNow()
             case 1:
                 editor.discardNew()
-                show("« \(shown) » supprimée")
+                show(String(localized: "« \(shown) » supprimée"))
             default:
                 return
             }
         case .askChanges(let name):
-            switch Dialogs.choose("Enregistrer les modifications de « \(name.displaySafe(max: 40)) » ?",
-                                  "Sinon, la macro revient telle qu'elle était quand tu l'as ouverte.",
-                                  ["Enregistrer", "Annuler les modifications", "Rester"], destructive: 1) {
+            switch Dialogs.choose(String(localized: "Enregistrer les modifications de « \(name.displaySafe(max: 40)) » ?"),
+                                  String(localized: "Sinon, la macro revient telle qu'elle était quand tu l'as ouverte."),
+                                  [String(localized: "Enregistrer"), String(localized: "Annuler les modifications"),
+                                   String(localized: "Rester")], destructive: 1) {
             case 0: editor.saveNow()
             case 1: editor.revertChanges()
             default: return
@@ -199,7 +365,8 @@ struct EditorView: View {
         // → des raccourcis : retour dans cette macro, si elle existe toujours (pas supprimée au retour).
         MacroCreatorLink.shared.lastClosedID = id.flatMap { id in store.library.macros.contains { $0.id == id } ? id : nil }
         CreatorPresence.detach()
-        withAnimation(.easeInOut(duration: 0.2)) { macroEditor = nil }
+        macroEditor = nil
+        AppResume.shared.creator = nil
         selection = .macros
         CreatorPresence.releaseMemory()
     }
@@ -210,22 +377,38 @@ struct EditorView: View {
         return withToolbar(NavigationSplitView {
             sidebar(data)
                 .navigationSplitViewColumnWidth(min: 220, ideal: 245, max: 300)
+                // À côté de la recherche : chercher avec le raccourci qu'on connaît plutôt que son nom.
+                .toolbar { ToolbarItem { keySearchButton } }
         } detail: {
             detail(data)
         })
         .navigationTitle(title)
+        // Page Macros : pas de titre dans la barre d'outils, comme dans le créateur : les flèches ← → s'y posent à
+        // gauche, au même endroit quand on entre dans une macro ou qu'on en sort.
+        .toolbarTitleHidden(onMacrosPage)
+        .noToolbarBand()
         .windowGlass(glassEnabled)
         // Recherche en haut de la barre latérale (comme Réglages Système) : à droite, la barre d'outils ne porte que
         // les boutons de la page, et les flèches de la page Macros tombent au même endroit que dans le créateur.
         .searchable(text: $query, placement: .sidebar, prompt: "Rechercher")
+        // Active seulement après un clic dedans (ou ⌘F) : taper ailleurs n'y écrit plus rien.
+        .background(SearchFocusGuard())
+        // Le texte de la recherche n'est plus le nom du raccourci appuyé : recherche ordinaire.
+        .onChange(of: query) { newValue in
+            if let combo = keySearch, newValue.trimmingCharacters(in: .whitespaces) != combo.display { keySearch = nil }
+        }
         // Un clic dans le vide de la barre latérale ne laisse jamais la fenêtre sans section.
         .onChange(of: selection) { newValue in
             if newValue == nil { selection = .section(.general) }
         }
         .onReceive(DebugSnapshot.publisher(DebugSnapshot.select)) { note in
-            let name = note.object as? String ?? ""
+            // « mixer lent » : le changement de page au ralenti (10 fois), photographié en route.
+            let words = (note.object as? String ?? "").split(separator: " ")
+            DebugSnapshot.slowMotion = words.contains("lent") ? 10 : 1
+            let name = words.first.map(String.init) ?? ""
             selection = FLSection(rawValue: name).map(SidebarItem.section)
-                ?? (name == "custom" ? .custom : name == "macros" ? .macros : selection)
+                ?? (name == "custom" ? .custom : name == "macros" ? .macros : name == "community" ? .community
+                    : name == "aide" ? .help : name == "compte" ? .account : selection)
         }
         .onReceive(DebugSnapshot.publisher(DebugSnapshot.search)) { note in
             query = note.object as? String ?? ""
@@ -239,20 +422,45 @@ struct EditorView: View {
     }
 
     private var title: String {
-        if !trimmedQuery.isEmpty { return "Recherche" }
+        if !trimmedQuery.isEmpty { return String(localized: "Recherche") }
         switch selection ?? .section(.general) {
         case .section(let s): return s.title
-        case .custom: return "Mes raccourcis"
-        case .macros: return "Macros"
+        case .custom: return String(localized: "Mes raccourcis")
+        case .macros: return String(localized: "Macros")
+        case .community: return String(localized: "Communauté")
+        case .help: return String(localized: "Aide")
+        case .account: return String(localized: "Mon compte")
         }
     }
 
     // MARK: Barre latérale
 
+    /// Pendant une recherche, aucune page n'est choisie dans la barre latérale (la recherche les couvre toutes) : un
+    /// clic sur une page, même celle d'avant, quitte la recherche et l'ouvre (retour de l'utilisateur, vidéo : Mixer
+    /// cliqué pendant une recherche, rien ne changeait).
+    private var sidebarSelection: Binding<SidebarItem?> {
+        Binding(get: { trimmedQuery.isEmpty ? selection : nil },
+                set: { newValue in
+                    guard let newValue else {
+                        if trimmedQuery.isEmpty { selection = nil }
+                        return
+                    }
+                    if !trimmedQuery.isEmpty { endSearch() }
+                    selection = newValue
+                })
+    }
+
+    /// Fin de la recherche (texte vidé, attente d'un raccourci arrêtée) : la page choisie revient.
+    private func endSearch() {
+        if recorder.activeID == Self.keySearchID { recorder.stop() }
+        keySearch = nil
+        query = ""
+    }
+
     private func sidebar(_ data: CatalogData) -> some View {
         var modified: [FLSection: Int] = [:]
         for row in data.rows where !row.isDefault { modified[row.entry.section, default: 0] += 1 }
-        return List(selection: $selection) {
+        return List(selection: sidebarSelection) {
             Section {
                 // Sélection par étiquette (.tag) : un NavigationLink sans destination ne sélectionne rien sur
                 // macOS 26+ (clic capté, section inchangée).
@@ -263,6 +471,7 @@ struct EditorView: View {
                     } icon: {
                         SectionIcon(symbol: section.symbol, tint: section.tint)
                     }
+                    .sidebarHover(section.tint)
                     .badge(modified[section] ?? 0)
                     .help(section.subtitle)
                     .tag(SidebarItem.section(section))
@@ -270,18 +479,58 @@ struct EditorView: View {
             } header: {
                 Text("FL Studio")
             }
+            // Chaque groupe a son titre gris, comme « FL Studio » : macros, tes raccourcis, la Communauté, puis
+            // ton compte et l'aide ensemble.
+            Section {
+                MacroSidebarRow(library: store.library)
+                    .tag(SidebarItem.macros)
+            } header: {
+                Text("Automatiser")
+            }
             Section {
                 Label {
                     Text("Mes raccourcis")
                 } icon: {
                     SectionIcon(symbol: SidebarItem.custom.symbol, tint: SidebarItem.custom.tint)
                 }
-                .badge(data.others.count)
+                .sidebarHover(SidebarItem.custom.tint)
+                .badge(MyShortcuts.count(rows: data.rows, others: data.others, starters: store.freshRemaps()))
                 .tag(SidebarItem.custom)
-                MacroSidebarRow(library: store.library)
-                    .tag(SidebarItem.macros)
             } header: {
-                Text("Personnalisés")
+                Text("Personnalisé")
+            }
+            Section {
+                Label {
+                    Text("Communauté")
+                } icon: {
+                    SectionIcon(symbol: SidebarItem.community.symbol, tint: SidebarItem.community.tint)
+                }
+                .sidebarHover(SidebarItem.community.tint)
+                .help(CommunityText.subtitle)
+                .tag(SidebarItem.community)
+            } header: {
+                Text("Partager")
+            }
+            Section {
+                Label {
+                    Text("Mon compte")
+                } icon: {
+                    SectionIcon(symbol: SidebarItem.account.symbol, tint: SidebarItem.account.tint)
+                }
+                .sidebarHover(SidebarItem.account.tint)
+                .badge(backup.conflict != nil ? Text("!") : nil)
+                .help(AccountText.subtitle)
+                .tag(SidebarItem.account)
+                Label {
+                    Text("Aide")
+                } icon: {
+                    SectionIcon(symbol: SidebarItem.help.symbol, tint: SidebarItem.help.tint)
+                }
+                .sidebarHover(SidebarItem.help.tint)
+                .help("Questions fréquentes, et écrire à l'équipe")
+                .tag(SidebarItem.help)
+            } header: {
+                Text("Compte et aide")
             }
         }
     }
@@ -295,12 +544,16 @@ struct EditorView: View {
             } else {
                 switch selection ?? .section(.general) {
                 case .section(let s): sectionList(s, rows: data.rows, mine: data.others.filter { $0.belongs(to: s) })
-                case .custom: customList(data.others)
+                case .custom: customList(data)
                 case .macros: MacroLibraryPage(library: store.library, open: { id in openCreator(id) }, toast: { show($0) })
+                case .community: CommunityPage(community: CommunityStore.shared, toast: { show($0) })
+                case .help: HelpPage(community: CommunityStore.shared, showGuide: { GuideLink.shared.show() })
+                case .account: AccountPage(community: CommunityStore.shared, backup: AccountBackup.shared)
                 }
             }
         }
-        .id(trimmedQuery.isEmpty ? selection : nil)          // nouvelle liste (et retour en haut) à chaque section
+        // Nouvelle liste (et retour en haut) à chaque section, affichée d'un coup (aucune animation).
+        .pageSwitch(trimmedQuery.isEmpty ? selection : nil)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         // Façon macOS 26 : la liste défile SOUS des éléments en verre qui flottent (avertissements en haut,
         // notification et statut en bas). Peu de surfaces, regroupées : le système les dessine ensemble.
@@ -324,8 +577,13 @@ struct EditorView: View {
             .padding(.bottom, 10)
             .motion(Motion.smooth, value: toast)
         }
+        // La page ne réclame jamais plus de hauteur que la fenêtre. Sans ce cadre, sa hauteur minimale était prise à
+        // sa largeur minimale, où le texte des avertissements se replie presque mot par mot (994 points sur la page
+        // Général) : les deux colonnes devenaient plus hautes que la fenêtre, centrées, et le haut de la barre
+        // latérale (recherche, « FL Studio ») passait sous la barre de titre. Largeur minimale réaliste en plus.
+        .frame(minWidth: 480, minHeight: 0, maxHeight: .infinity)
         // Couleur de la page sous la barre d'outils et la barre latérale en verre (aucune pendant la recherche).
-        .tintedBackdrop(trimmedQuery.isEmpty ? (selection ?? .section(.general)).tint : nil)
+        .tintedBackdrop(trimmedQuery.isEmpty ? (selection ?? .section(.general)).tint : Appearance.brand[1])
         .sheet(item: $editingRow) { row in
             CatalogEditSheet(row: row, notice: editNotice) { message, followUp in
                 show(message)
@@ -333,8 +591,8 @@ struct EditorView: View {
                 if let followUp {
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
                         guard let next = store.catalogRows().rows.first(where: { $0.id == followUp }) else { return }
-                        editNotice = "« \(row.entry.title) » utilise maintenant cette touche. "
-                            + "Choisis une nouvelle touche pour « \(next.entry.title) »."
+                        editNotice = String(localized: "« \(row.entry.title) » utilise maintenant cette touche. ")
+                            + String(localized: "Choisis une nouvelle touche pour « \(next.entry.title) ».")
                         editingRow = next
                     }
                 }
@@ -358,21 +616,21 @@ struct EditorView: View {
             }
             if !natives.isEmpty {
                 Section {
-                    CardRows(items: natives) { catalogRow($0) }
+                    CardRows(items: natives, tint: section.tint) { catalogRow($0) }
                 } header: {
                     Text("Raccourcis de FL Studio")
                 }
             }
             if !extras.isEmpty {
                 Section {
-                    CardRows(items: extras) { catalogRow($0) }
+                    CardRows(items: extras, tint: section.tint) { catalogRow($0) }
                 } header: {
                     Text("Actions en plus")
                 }
             }
             if !custom.isEmpty {
                 Section {
-                    CardRows(items: custom) { customRow($0) }
+                    CardRows(items: custom, tint: section.tint) { customRow($0) }
                 } header: {
                     Text("Tes raccourcis sur cette page")
                 }
@@ -382,36 +640,45 @@ struct EditorView: View {
         .id(section)                                     // nouvelle section : la liste repart du haut
     }
 
-    /// Recherche : toutes les sections, regroupées par section.
+    /// Recherche : toutes les sections, regroupées par section. Avec un raccourci appuyé (bouton clavier) : ce qui se
+    /// lance sur ces touches, ou les portait dans FL.
     private func searchResults(_ data: CatalogData) -> some View {
         let q = trimmedQuery
+        let combo = keySearch.flatMap { $0.display == q ? $0 : nil }
         let rows = data.rows.filter { row in
-            [row.entry.title, row.entry.detail, row.current?.display ?? "", row.entry.section.title]
+            if let combo { return KeySearch.matches(row, combo) }
+            return [row.entry.title, row.entry.detail, row.current?.display ?? "", row.entry.section.title]
                 .joined(separator: " ").localizedCaseInsensitiveContains(q)
         }
         let others = data.others.filter { r in
-            [r.title, r.subtitle, r.trigger?.display ?? ""].joined(separator: " ").localizedCaseInsensitiveContains(q)
+            if let combo { return KeySearch.matches(r, combo) }
+            return [r.title, r.subtitle, r.trigger?.display ?? ""].joined(separator: " ").localizedCaseInsensitiveContains(q)
         }
         let sections = FLSection.allCases.filter { s in rows.contains { $0.entry.section == s } }
         return Group {
             if rows.isEmpty && others.isEmpty {
-                EmptyState(symbol: "magnifyingglass", title: "Aucun résultat",
-                           text: "Aucun raccourci ne correspond à « \(q) ».")
+                if let combo {
+                    EmptyState(symbol: "keyboard", title: String(localized: "Aucun raccourci"),
+                               text: String(localized: "Rien n'utilise \(combo.display) : ces touches sont libres."))
+                } else {
+                    EmptyState(symbol: "magnifyingglass", title: String(localized: "Aucun résultat"),
+                               text: String(localized: "Aucun raccourci ne correspond à « \(q) »."))
+                }
             } else {
                 PageContainer {
                     ForEach(sections) { s in
                         Section {
-                            CardRows(items: rows.filter { $0.entry.section == s }) { catalogRow($0) }
+                            CardRows(items: rows.filter { $0.entry.section == s }, tint: s.tint) { catalogRow($0) }
                         } header: {
                             SectionHeader(symbol: s.symbol, tint: s.tint, title: s.title)
                         }
                     }
                     if !others.isEmpty {
                         Section {
-                            CardRows(items: others) { customRow($0) }
+                            CardRows(items: others, tint: SidebarItem.custom.tint) { customRow($0) }
                         } header: {
                             SectionHeader(symbol: SidebarItem.custom.symbol, tint: SidebarItem.custom.tint,
-                                          title: "Mes raccourcis")
+                                          title: String(localized: "Mes raccourcis"))
                         }
                     }
                 }
@@ -420,24 +687,35 @@ struct EditorView: View {
         }
     }
 
-    /// Raccourcis du profil hors catalogue (créés ou importés).
-    private func customList(_ others: [Remap]) -> some View {
-        Group {
-            if others.isEmpty {
-                EmptyState(symbol: SidebarItem.custom.symbol, title: "Aucun raccourci personnalisé",
+    /// « Mes raccourcis » : les raccourcis de FL que tu as changés (rangés par page), puis ceux que tu as créés ou
+    /// importés. Jamais les macros (page Macros) ni les touches de départ.
+    private func customList(_ data: CatalogData) -> some View {
+        let changed = MyShortcuts.changed(data.rows)
+        let created = MyShortcuts.created(data.others, starters: store.freshRemaps())
+        let sections = FLSection.allCases.filter { s in changed.contains { $0.entry.section == s } }
+        return Group {
+            if changed.isEmpty && created.isEmpty {
+                EmptyState(symbol: SidebarItem.custom.symbol, title: String(localized: "Aucun raccourci changé"),
                            text: PageSummary.custom,
-                           actionTitle: "Nouveau raccourci…",
+                           actionTitle: String(localized: "Nouveau raccourci…"),
                            action: { newCustom() })
             } else {
                 PageContainer {
                     Section {
                         PageHeader(symbol: SidebarItem.custom.symbol, tint: SidebarItem.custom.tint,
-                                   title: "Mes raccourcis", subtitle: PageSummary.custom,
-                                   detail: PageSummary.count(others.count, modified: 0))
+                                   title: String(localized: "Mes raccourcis"), subtitle: PageSummary.custom,
+                                   detail: PageSummary.count(changed.count + created.count, modified: 0))
                             .cardRow(.single)
                     }
+                    ForEach(sections) { s in
+                        Section {
+                            CardRows(items: changed.filter { $0.entry.section == s }, tint: s.tint) { catalogRow($0) }
+                        } header: {
+                            SectionHeader(symbol: s.symbol, tint: s.tint, title: s.title)
+                        }
+                    }
                     Section {
-                        CardRows(items: others, trailing: 1) { customRow($0) }
+                        CardRows(items: created, tint: SidebarItem.custom.tint, trailing: 1) { customRow($0) }
                         HStack {
                             Button {
                                 newCustom()
@@ -447,7 +725,9 @@ struct EditorView: View {
                             .buttonStyle(.borderless)
                             Spacer(minLength: 0)
                         }
-                        .cardRow(.last)
+                        .cardRow(created.isEmpty ? .single : .last)
+                    } header: {
+                        if !created.isEmpty { Text("Créés par toi") }
                     }
                 }
                 .cardList()
@@ -477,23 +757,31 @@ struct EditorView: View {
 
     private var notices: [NoticeItem] {
         var out: [NoticeItem] = []
+        if recorder.activeID == Self.keySearchID {
+            out.append(NoticeItem(id: "keysearch", symbol: "keyboard", tint: .accentColor,
+                                  text: String(localized: "Appuie sur le raccourci que tu connais : la recherche montre ce qu'il fait."),
+                                  button: String(localized: "Annuler"), action: { Recorder.shared.stop() }))
+        } else if recorder.hintID == Self.keySearchID, let hint = recorder.hint {
+            out.append(NoticeItem(id: "keysearch-hint", symbol: "keyboard", tint: .orange, text: hint,
+                                  button: String(localized: "Réessayer"), action: { startKeySearch() }))
+        }
         if !status.accessibilityOK {
             out.append(NoticeItem(id: "ax", symbol: "exclamationmark.triangle.fill", tint: .orange,
-                                  text: "FL Shortcut n'a pas accès au clavier : tes raccourcis sont inactifs.",
-                                  button: "Autoriser…", action: { AccessibilityGuide.start() }))
+                                  text: String(localized: "FL Shortcuts n'a pas accès au clavier : tes raccourcis sont inactifs."),
+                                  button: String(localized: "Autoriser…"), action: { AccessibilityGuide.start() }))
         } else if status.staleTCC {
             out.append(NoticeItem(id: "stale", symbol: "exclamationmark.triangle.fill", tint: .orange,
-                                  text: "Autorisation périmée : retire FL Shortcut de la liste Accessibilité, puis ajoute-le.",
-                                  button: "Ouvrir…", action: { AccessibilityGuide.start() }))
+                                  text: String(localized: "Autorisation périmée : retire FL Shortcuts de la liste Accessibilité, puis ajoute-le."),
+                                  button: String(localized: "Ouvrir…"), action: { AccessibilityGuide.start() }))
         }
         if status.secureInput {
             out.append(NoticeItem(id: "secure", symbol: "lock.fill", tint: .orange,
-                                  text: "Saisie sécurisée active dans une autre app : macOS ne transmet plus les touches."))
+                                  text: String(localized: "Saisie sécurisée active dans une autre app : macOS ne transmet plus les touches.")))
         }
         if !AppMode.light, status.scriptState == .modified {
             out.append(NoticeItem(id: "script", symbol: "exclamationmark.shield.fill", tint: .red,
-                                  text: "Le script FL a été modifié depuis son installation.",
-                                  button: "Réinstaller", action: { FLScriptInstaller.installWithAlert() }))
+                                  text: String(localized: "Le script FL a été modifié depuis son installation."),
+                                  button: String(localized: "Réinstaller"), action: { FLScriptInstaller.installWithAlert() }))
         }
         if let error = store.saveError {
             out.append(NoticeItem(id: "save", symbol: "xmark.octagon.fill", tint: .red, text: error))
@@ -501,7 +789,7 @@ struct EditorView: View {
         if let warning = store.loadWarning {
             let model = store
             out.append(NoticeItem(id: "load", symbol: "info.circle.fill", tint: .secondary, text: warning,
-                                  button: "OK", action: { model.loadWarning = nil }))
+                                  button: String(localized: "OK"), action: { model.loadWarning = nil }))
         }
         return out
     }
@@ -512,15 +800,16 @@ struct EditorView: View {
     private var page: SidebarItem { trimmedQuery.isEmpty ? (selection ?? .section(.general)) : .custom }
     private var onMacrosPage: Bool { page == .macros }
 
-    /// Page Macros : ← → puis + ‖, exactement comme ← → puis ⇪ ✓ dans le créateur : les flèches ne bougent pas
+    /// Page Macros : ← → puis +, exactement comme ← → puis ⇪ ✓ dans le créateur : les flèches ne bougent pas
     /// quand on entre dans une macro ou qu'on en sort. Pages de raccourcis : pas de flèches (elles ne servent
-    /// qu'aux macros).
+    /// qu'aux macros). Pas de bouton pause ici : il est dans le menu de la barre des menus (et ⌃⌥⌘F).
     @ToolbarContentBuilder private var toolbarContent: some ToolbarContent {
         if onMacrosPage {
             ToolbarItem(placement: .navigation) { arrows }
         }
-        ToolbarItem(placement: .primaryAction) { newButton }
-        ToolbarItem(placement: .primaryAction) { pauseToggle }
+        if showsNewButton {
+            ToolbarItem(placement: .primaryAction) { newButton }
+        }
         if !onMacrosPage {
             ToolbarItem(placement: .primaryAction) { profileMenu }
         }
@@ -534,10 +823,13 @@ struct EditorView: View {
                 if onMacrosPage {
                     ToolbarItem(placement: .navigation) { arrows }
                 }
-                ToolbarItem(placement: .primaryAction) { newButton }
-                ToolbarItem(placement: .primaryAction) { pauseToggle }
+                if showsNewButton {
+                    ToolbarItem(placement: .primaryAction) { newButton }
+                }
                 if !onMacrosPage {
-                    ToolbarSpacer(.fixed, placement: .primaryAction)
+                    if showsNewButton {
+                        ToolbarSpacer(.fixed, placement: .primaryAction)
+                    }
                     ToolbarItem(placement: .primaryAction) { profileMenu }
                 }
             }
@@ -549,24 +841,58 @@ struct EditorView: View {
         #endif
     }
 
+    /// Bouton clavier à côté de la recherche : appuie sur un raccourci, la recherche montre ce qu'il fait (pour qui
+    /// connaît ses touches mais pas le nom du raccourci). Échap annule.
+    private var keySearchButton: some View {
+        let listening = recorder.activeID == Self.keySearchID
+        return Button {
+            if listening { recorder.stop() } else { startKeySearch() }
+        } label: {
+            Label("Rechercher avec un raccourci", systemImage: listening ? "keyboard.fill" : "keyboard")
+        }
+        .help("Rechercher avec un raccourci : appuie sur les touches que tu connais")
+        .accessibilityValue(listening ? String(localized: "En attente des touches") : "")
+    }
+
+    private func startKeySearch() {
+        recorder.start(Self.keySearchID) { event in
+            let combo = KeyCombo(keyCode: event.keyCode,
+                                 modifiers: event.modifierFlags.intersection(.deviceIndependentFlagsMask))
+            if !combo.hasModifiers && event.keyCode == 53 { return }          // Échap : annuler
+            guard combo.isValidKey else { return }
+            keySearch = combo
+            query = combo.display
+        }
+    }
+
     /// → : rentrer dans la dernière macro quittée (comme Avancer dans le Finder) ; ← grisée ici.
     private var arrows: some View {
         let last = creatorLink.lastClosedID
         return FinderArrows(back: nil, forward: last.map { id in { openCreator(id) } })
     }
 
-    /// « + » de la page : une macro sur la page Macros, un raccourci de cette page ailleurs.
+    /// « + » partout, sauf sur la page Communauté tant qu'on n'est pas connecté (rien à partager sans compte).
+    private var showsNewButton: Bool {
+        page == .help || page == .account ? false : page != .community || community.session != nil
+    }
+
+    /// « + » de la page : une macro sur la page Macros, un partage sur la page Communauté, un raccourci de cette
+    /// page ailleurs.
     private var newButton: some View {
         let current = page
         let help: String
         switch current {
-        case .macros: help = "Nouvelle macro"
-        case .custom: help = "Nouveau raccourci personnalisé"
-        case .section(let s): help = "Nouveau raccourci pour la page « \(s.title) »"
+        case .macros: help = String(localized: "Nouvelle macro")
+        case .community: help = String(localized: "Partager une macro ou tes raccourcis")
+        case .help, .account: help = ""
+        case .custom: help = String(localized: "Nouveau raccourci personnalisé")
+        case .section(let s): help = String(localized: "Nouveau raccourci pour la page « \(s.title) »")
         }
         return Button {
             switch current {
             case .macros: MacroLibraryPage.newMacro(in: store.library)
+            case .community: community.composing = true
+            case .help, .account: break                        // pas de « + » sur ces pages
             case .custom: newCustom(page: nil)
             case .section(let s): newCustom(page: s)
             }
@@ -576,48 +902,40 @@ struct EditorView: View {
         .help(help)
     }
 
-    /// En pause, le bouton allumé prend la couleur de la pause (la teinte affiche un état, WWDC25 310).
-    private var pauseToggle: some View {
-        Toggle(isOn: pausedBinding) {
-            Label("Pause", systemImage: "pause")
-        }
-        .tint(.orange)
-        .help(store.enabled ? "Mettre en pause (⌃⌥⌘F)" : "Reprendre (⌃⌥⌘F)")
-    }
-
-    private var pausedBinding: Binding<Bool> {
-        let model = store
-        return Binding(get: { !model.enabled }, set: { model.enabled = !$0 })
-    }
-
+    /// Menu ⋯ au style du menu de l'icône (StyledMenu.swift).
     private var profileMenu: some View {
-        Menu {
-            Menu {
-                ForEach(ProfilePreset.allCases) { preset in
-                    Button(preset.label) { load(preset) }
-                }
-            } label: {
-                Label("Charger un profil", systemImage: "rectangle.stack")
-            }
-            Button { importProfile() } label: { Label("Importer…", systemImage: "square.and.arrow.down") }
-            Button { exportProfile() } label: { Label("Exporter…", systemImage: "square.and.arrow.up") }
-            Divider()
-            Button { newCustom() } label: { Label("Nouveau raccourci personnalisé…", systemImage: "plus") }
-            Divider()
+        StyledMenuButton(help: String(localized: "Aide, compte, profil, import et export"), width: 290) {
+            var entries: [StyledMenuEntry] = [
+                // Le guide est dans la page Aide (son seul endroit, avec les questions et le contact).
+                .item(String(localized: "Aide, guide et contact"), symbol: "questionmark", tint: .teal) { query = ""; selection = .help },
+                .item(String(localized: "Mon compte et sauvegarde"), symbol: "person.crop.circle", tint: .indigo) {
+                    query = ""; selection = .account
+                },
+                .separator,
+                .group(String(localized: "Charger un profil"), symbol: "rectangle.stack", tint: .purple, ProfilePreset.allCases.map { preset -> StyledMenuEntry in
+                    .item(preset.label, symbol: "keyboard", tint: .purple) { load(preset) }
+                }),
+                .item(String(localized: "Importer…"), symbol: "square.and.arrow.down", tint: .blue) { importProfile() },
+                .item(String(localized: "Exporter…"), symbol: "square.and.arrow.up", tint: .blue) { exportProfile() },
+                .separator,
+                .item(String(localized: "Nouveau raccourci personnalisé…"), symbol: "plus", tint: .green) { newCustom() },
+                .separator,
+            ]
             if store.undoSnapshot != nil {
-                Button { store.undoReplace() } label: { Label("Annuler le dernier remplacement", systemImage: "arrow.uturn.backward") }
+                entries.append(.item(String(localized: "Annuler le dernier remplacement"), symbol: "arrow.uturn.backward", tint: .orange) {
+                    store.undoReplace()
+                })
             }
-            Button(role: .destructive) { resetAll() } label: { Label("Tout réinitialiser…", systemImage: "arrow.counterclockwise") }
+            entries.append(.item(String(localized: "Tout réinitialiser…"), symbol: "arrow.counterclockwise", tint: .orange) { resetAll() })
             if Appearance.glassAvailable {
-                Divider()
-                Toggle(isOn: $glassEnabled) { Label("Effet Liquid Glass", systemImage: "drop") }
+                entries += [.separator, .toggle(String(localized: "Effet Liquid Glass"), symbol: "drop", tint: .cyan, isOn: $glassEnabled)]
             }
-            Divider()
-            Button(role: .destructive) { Uninstaller.confirmAndRun() } label: { Label("Désinstaller FL Shortcut…", systemImage: "trash") }
+            entries += [.separator,
+                        .item(String(localized: "Désinstaller FL Shortcuts…"), symbol: "trash", tint: .red) { Uninstaller.confirmAndRun() }]
+            return entries
         } label: {
             Label("Profil", systemImage: "ellipsis")
         }
-        .help("Profil, import et export")
     }
 
     // MARK: Actions
@@ -633,30 +951,30 @@ struct EditorView: View {
     }
 
     private func load(_ preset: ProfilePreset) {
-        guard Dialogs.confirm("Charger le profil « \(preset.label) » ?",
-                              preset.summary + "\n\nTes raccourcis actuels seront remplacés (annulable).")
+        guard Dialogs.confirm(String(localized: "Charger le profil « \(preset.label) » ?"),
+                              preset.summary + String(localized: "\n\nTes raccourcis actuels seront remplacés (annulable)."))
         else { return }
         store.apply(preset: preset)
-        show(ToastMessage(text: "Profil « \(preset.label) » chargé", undo: { store.undoReplace() }))
+        show(ToastMessage(text: String(localized: "Profil « \(preset.label) » chargé"), undo: { store.undoReplace() }))
     }
 
     private func reset(_ row: CatalogRow) {
         let before = store.remaps
         store.reset(row)
-        show(ToastMessage(text: "« \(row.entry.title) » réinitialisé", undo: { store.remaps = before }))
+        show(ToastMessage(text: String(localized: "« \(row.entry.title) » réinitialisé"), undo: { store.remaps = before }))
     }
 
     private func resetAll() {
-        guard Dialogs.confirm("Tout réinitialiser ?",
-                              "Tous les raccourcis reviennent à leur touche d'origine (profil Recommandé). C'est annulable.")
+        guard Dialogs.confirm(String(localized: "Tout réinitialiser ?"),
+                              String(localized: "Tous les raccourcis reviennent à leur touche d'origine (profil Recommandé). C'est annulable."))
         else { return }
         store.resetAll()
-        show(ToastMessage(text: "Tous les raccourcis sont réinitialisés", undo: { store.undoReplace() }))
+        show(ToastMessage(text: String(localized: "Tous les raccourcis sont réinitialisés"), undo: { store.undoReplace() }))
     }
 
     private func delete(_ remap: Remap) {
         store.delete(remap.id)
-        show(ToastMessage(text: "Raccourci supprimé", undo: { store.upsert(remap) }))
+        show(ToastMessage(text: String(localized: "Raccourci supprimé"), undo: { store.upsert(remap) }))
     }
 
     private func show(_ message: ToastMessage) {
@@ -673,35 +991,35 @@ struct EditorView: View {
         let panel = NSOpenPanel()
         panel.allowedContentTypes = [.json]
         panel.allowsMultipleSelection = false
-        panel.directoryURL = ExchangeFolder.shortcuts.prepared()       // Documents › FL Shortcut › Raccourcis
+        panel.directoryURL = ExchangeFolder.shortcuts.prepared()       // Documents › FL Shortcuts › Raccourcis
         guard panel.runModal() == .OK, let url = panel.url else { return }
         do {
             let size = (try? FileManager.default.attributesOfItem(atPath: url.path)[.size] as? Int) ?? 0
             guard size <= ProfileImporter.maxBytes else { throw ProfileImporter.Failure.tooLarge }
             let preview = try store.prepareImport(try Data(contentsOf: url))
             var text = preview.summary.joined(separator: "\n")
-            if !preview.rejected.isEmpty { text += "\n\nRefusé(s) par sécurité :\n• " + preview.rejected.joined(separator: "\n• ") }
-            text += "\n\nTes raccourcis actuels seront remplacés (annulable)."
-            guard Dialogs.confirm("Importer ce profil ?", text) else { return }
+            if !preview.rejected.isEmpty { text += String(localized: "\n\nRefusé(s) par sécurité :\n• ") + preview.rejected.joined(separator: "\n• ") }
+            text += String(localized: "\n\nTes raccourcis actuels seront remplacés (annulable).")
+            guard Dialogs.confirm(String(localized: "Importer ce profil ?"), text) else { return }
             store.applyImport(preview)
-            show(ToastMessage(text: "Profil importé", undo: { store.undoReplace() }))
+            show(ToastMessage(text: String(localized: "Profil importé"), undo: { store.undoReplace() }))
         } catch {
-            Dialogs.inform("Import impossible", error.localizedDescription)
+            Dialogs.inform(String(localized: "Import impossible"), error.localizedDescription)
         }
     }
 
     private func exportProfile() {
         let panel = NSSavePanel()
         panel.allowedContentTypes = [.json]
-        panel.directoryURL = ExchangeFolder.shortcuts.prepared()       // Documents › FL Shortcut › Raccourcis
+        panel.directoryURL = ExchangeFolder.shortcuts.prepared()       // Documents › FL Shortcuts › Raccourcis
         panel.canCreateDirectories = true
-        panel.nameFieldStringValue = "Mes raccourcis FL Shortcut.json"
+        panel.nameFieldStringValue = "Mes raccourcis FL Shortcuts.json"
         guard panel.runModal() == .OK, let url = panel.url else { return }
         do {
             try store.exportData().write(to: url, options: .atomic)
-            show("Profil exporté")
+            show(String(localized: "Profil exporté"))
         } catch {
-            Dialogs.inform("Export impossible", error.localizedDescription)
+            Dialogs.inform(String(localized: "Export impossible"), error.localizedDescription)
         }
     }
 }
@@ -794,14 +1112,8 @@ private struct StatusBar: View {
     }
 
     private var color: Color {
-        if !store.enabled { return .gray }
-        if !status.accessibilityOK { return .orange }
-        if AppMode.light { return fl.running ? .green : .gray }
-        switch link.status {
-        case .linked: return .green
-        case .inactive: return .orange
-        case .flClosed: return .gray
-        }
+        AppStatusColor.color(enabled: store.enabled, accessibilityOK: status.accessibilityOK, flRunning: fl.running,
+                             link: link.status)
     }
 
     private var symbol: String {
@@ -820,16 +1132,16 @@ private struct StatusBar: View {
     }
 
     private var text: String? {
-        if !store.enabled { return "En pause : FL Studio utilise ses raccourcis d'origine" }
-        if !status.accessibilityOK { return "Clavier non autorisé" }
-        if AppMode.light { return fl.running ? nil : "FL Studio n'est pas ouvert" }
+        if !store.enabled { return String(localized: "En pause : FL Studio utilise ses raccourcis d'origine") }
+        if !status.accessibilityOK { return String(localized: "Clavier non autorisé") }
+        if AppMode.light { return fl.running ? nil : String(localized: "FL Studio n'est pas ouvert") }
         switch link.status {
         case .linked: return nil
-        case .flClosed: return "FL Studio n'est pas ouvert"
+        case .flClosed: return String(localized: "FL Studio n'est pas ouvert")
         case .inactive:
-            if !link.snapshot.hasKey { return "Lien avec FL Studio non installé" }
-            if link.snapshot.incompatibleProtocol != nil { return "Script FL d'une autre version" }
-            return "Lien inactif : active « FL Shortcut » dans Options › MIDI Settings"
+            if !link.snapshot.hasKey { return String(localized: "Lien avec FL Studio non installé") }
+            if link.snapshot.incompatibleProtocol != nil { return String(localized: "Script FL d'une autre version") }
+            return String(localized: "Lien inactif : quitte et rouvre FL (il relie « FL Shortcuts Link » tout seul)")
         }
     }
 
@@ -837,12 +1149,12 @@ private struct StatusBar: View {
     private var action: (label: String, run: () -> Void)? {
         let model = store
         let midi = link
-        guard model.enabled else { return ("Reprendre", { model.enabled = true }) }
+        guard model.enabled else { return (String(localized: "Reprendre"), { model.enabled = true }) }
         guard status.accessibilityOK, !AppMode.light, midi.status == .inactive else { return nil }
         if !midi.snapshot.hasKey || midi.snapshot.incompatibleProtocol != nil {
-            return ("Installer…", { FLScriptInstaller.installWithAlert() })
+            return (String(localized: "Installer…"), { FLScriptInstaller.installWithAlert() })
         }
-        return ("Tester", { midi.testLink() })
+        return (String(localized: "Tester"), { midi.testLink() })
     }
 }
 
@@ -859,7 +1171,7 @@ private struct IssueIcon: View {
             .font(.system(size: 12))
             .foregroundStyle(blocking ? Color.red : Color.orange)
             .help(text)
-            .accessibilityLabel("Attention : " + text)
+            .accessibilityLabel(String(localized: "Attention : ") + text)
     }
 }
 
@@ -873,11 +1185,27 @@ private struct ResetButton: View {
         Button(action: action) {
             Label("Réinitialiser", systemImage: "arrow.counterclockwise")
         }
-        .buttonStyle(.borderless)
-        .font(.system(size: 11))
-        .foregroundStyle(.secondary)
+        .buttonStyle(RowActionStyle())
+        .fixedSize()
         .disabled(!enabled)
         .help(help)
+    }
+}
+
+/// Petits boutons au bout des lignes (« Réinitialiser », « Supprimer ») : la même couleur au repos et au survol de
+/// la ligne. Le gris « secondaire » de macOS se peint autrement sous l'ombre du survol : il s'éteignait ligne après
+/// ligne quand la souris passait vite (retour de l'utilisateur, vidéo : « une sorte de vague »). Couleur simple ici.
+private struct RowActionStyle: ButtonStyle {
+    @Environment(\.isEnabled) private var isEnabled
+    @Environment(\.colorScheme) private var colorScheme
+
+    func makeBody(configuration: Configuration) -> some View {
+        let ink: Color = colorScheme == .dark ? .white : .black
+        let strength: Double = colorScheme == .dark ? 0.7 : 0.55
+        configuration.label
+            .font(.system(size: 11))
+            .foregroundStyle(ink.opacity(isEnabled ? (configuration.isPressed ? strength * 0.6 : strength) : strength * 0.5))
+            .contentShape(Rectangle())
     }
 }
 
@@ -891,11 +1219,11 @@ private struct CatalogRowView: View {
     /// Légende seulement quand la touche a changé.
     private var caption: String? {
         guard !row.isDefault else { return nil }
-        return "D'origine : " + (row.entry.defaultTrigger?.display ?? "aucune")
+        return String(localized: "D'origine : ") + (row.entry.defaultTrigger?.display ?? String(localized: "aucune"))
     }
 
     private var titleHelp: String {
-        row.entry.isNative ? "Raccourci d'origine de FL Studio" : row.entry.detail
+        row.entry.isNative ? String(localized: "Raccourci d'origine de FL Studio") : row.entry.detail
     }
 
     var body: some View {
@@ -903,10 +1231,11 @@ private struct CatalogRowView: View {
             VStack(alignment: .leading, spacing: 1) {
                 Text(row.entry.title).lineLimit(1)
                 if let caption {
-                    Text(caption).font(.system(size: 11)).foregroundStyle(.secondary)
+                    Text(caption).font(.system(size: 11)).foregroundStyle(.secondary).lineLimit(1)
                 }
             }
             .help(titleHelp)
+            .layoutPriority(-1)                          // fenêtre étroite : le titre se raccourcit, pas la touche
             Spacer(minLength: 12)
             if let takenBy = row.takenBy {
                 Image(systemName: "exclamationmark.triangle.fill")
@@ -924,14 +1253,13 @@ private struct CatalogRowView: View {
             .buttonStyle(.plain)
             .help("Changer la touche")
             .accessibilityLabel("Changer la touche de \(row.entry.title)")
-            .accessibilityValue(row.current?.spoken ?? "aucune")
+            .accessibilityValue(row.current?.spoken ?? String(localized: "aucune"))
 
             ResetButton(enabled: !row.isDefault,
-                        help: "Revenir à : " + (row.entry.defaultTrigger?.display ?? "aucune touche"),
+                        help: String(localized: "Revenir à : ") + (row.entry.defaultTrigger?.display ?? String(localized: "aucune touche")),
                         action: onReset)
         }
         .padding(.vertical, 2)
-        .hoverLift()
         .contextMenu {
             Button("Changer la touche…", action: onEdit)
             Button("Réinitialiser", action: onReset).disabled(row.isDefault)
@@ -950,7 +1278,7 @@ private struct ShortcutRow: View {
     private var caption: String? {
         var parts: [String] = []
         if remap.context != .everywhere { parts.append(remap.context.label) }
-        if !remap.enabled { parts.append("désactivé") }
+        if !remap.enabled { parts.append(String(localized: "désactivé")) }
         guard !parts.isEmpty else { return nil }
         let text = parts.joined(separator: ", ")
         return text.prefix(1).uppercased() + text.dropFirst()
@@ -961,10 +1289,11 @@ private struct ShortcutRow: View {
             VStack(alignment: .leading, spacing: 1) {
                 Text(remap.title).lineLimit(1)
                 if let caption {
-                    Text(caption).font(.system(size: 11)).foregroundStyle(.secondary)
+                    Text(caption).font(.system(size: 11)).foregroundStyle(.secondary).lineLimit(1)
                 }
             }
             .help(remap.subtitle)
+            .layoutPriority(-1)
             Spacer(minLength: 12)
             if !issues.isEmpty {
                 IssueIcon(issues: issues)
@@ -975,21 +1304,19 @@ private struct ShortcutRow: View {
             .buttonStyle(.plain)
             .help("Modifier le raccourci")
             .accessibilityLabel("Modifier : \(remap.title)")
-            .accessibilityValue(remap.trigger?.spoken ?? "aucun raccourci")
+            .accessibilityValue(remap.trigger?.spoken ?? String(localized: "aucun raccourci"))
 
             Button(action: onDelete) {
                 Label("Supprimer", systemImage: "trash")
             }
-            .buttonStyle(.borderless)
-            .font(.system(size: 11))
-            .foregroundStyle(.secondary)
+            .buttonStyle(RowActionStyle())
+            .fixedSize()
         }
         .padding(.vertical, 2)
-        .hoverLift()
         .opacity(remap.enabled ? 1 : 0.55)
         .contextMenu {
             Button("Modifier…", action: onOpen)
-            Button(remap.enabled ? "Désactiver" : "Activer", action: onToggle)
+            Button(remap.enabled ? String(localized: "Désactiver") : String(localized: "Activer"), action: onToggle)
             Divider()
             Button("Supprimer", role: .destructive, action: onDelete)
         }
@@ -1138,8 +1465,8 @@ struct EditSheet: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             SheetHeader(symbol: kindSymbol, tint: SidebarItem.custom.tint,
-                        title: isNew ? "Nouveau raccourci" + (draft.page.map { " · " + $0.title } ?? "")
-                                     : "Modifier le raccourci")
+                        title: isNew ? String(localized: "Nouveau raccourci") + (draft.page.map { " · " + $0.title } ?? "")
+                                     : String(localized: "Modifier le raccourci"))
 
             Form {
                 LabeledContent("Raccourci") {
@@ -1178,7 +1505,7 @@ struct EditSheet: View {
                     Button("Supprimer", role: .destructive) {
                         let removed = draft
                         store.delete(draft.id)
-                        onDone(ToastMessage(text: "Raccourci supprimé", undo: { store.upsert(removed) }))
+                        onDone(ToastMessage(text: String(localized: "Raccourci supprimé"), undo: { store.upsert(removed) }))
                         dismiss()
                     }
                 }
@@ -1197,7 +1524,7 @@ struct EditSheet: View {
                         final.macroRef = nil
                     }
                     store.upsert(final)
-                    onDone(ToastMessage(text: isNew ? "Raccourci ajouté" : "Raccourci modifié", undo: nil))
+                    onDone(ToastMessage(text: isNew ? String(localized: "Raccourci ajouté") : String(localized: "Raccourci modifié"), undo: nil))
                     dismiss()
                 }
                 .keyboardShortcut(.defaultAction)
@@ -1219,15 +1546,16 @@ struct EditSheet: View {
     /// raccourci lance désormais ; elle s'ouvre dans le créateur (comme « Convertir » dans Raccourcis d'Apple).
     private func customizeTemplate() {
         let template = draft.macro ?? Macro()
-        guard Dialogs.confirm("Personnaliser « Enregistrement rapide » ?",
-                              "Le modèle devient une macro en blocs que tu modifies étape par étape dans le créateur. "
-                              + "Ce raccourci lancera ta version ; le modèle d'origine reste dans Macros › Modèles.")
+        guard Dialogs.confirm(String(localized: "Personnaliser « Enregistrement rapide » ?"),
+                              String(localized: "Le modèle devient une macro en blocs que tu modifies étape par étape dans le créateur. ")
+                              + String(localized: "Ce raccourci lancera ta version ; le modèle d'origine reste dans Macros › Modèles."))
         else { return }
         let copy = MacroTemplates.customizedCopy(of: template,
-                                                 name: store.library.uniqueName("Enregistrement rapide (personnalisé)"),
+                                                 name: store.library.uniqueName(String(localized: "Enregistrement rapide (personnalisé)")),
                                                  forbidden: store.forbidden)
         if let problem = copy.problem {
-            Dialogs.inform("Personnalisation impossible", "Le raccourci garde le modèle, qui continue de marcher. \(problem)")
+            Dialogs.inform(String(localized: "Personnalisation impossible"),
+                           String(localized: "Le raccourci garde le modèle, qui continue de marcher. \(problem)"))
             return
         }
         let doc = store.library.add(copy.doc)
@@ -1239,7 +1567,7 @@ struct EditSheet: View {
         final.target = nil
         recorder.stop()
         if final.trigger != nil { store.upsert(final) }
-        onDone(ToastMessage(text: "« \(doc.name) » est dans Macros : modifie-la bloc par bloc", undo: nil))
+        onDone(ToastMessage(text: String(localized: "« \(doc.name) » est dans Macros : modifie-la bloc par bloc"), undo: nil))
         dismiss()
         openCreator(doc.id)
     }
@@ -1274,7 +1602,7 @@ struct EditSheet: View {
                 }
                 Picker("Catégorie", selection: categoryBinding) {
                     ForEach(FLActionInfo.Category.allCases, id: \.self) { c in
-                        Text(c.rawValue).tag(c)
+                        Text(c.label).tag(c)
                     }
                 }
                 .pickerStyle(.segmented)
@@ -1322,7 +1650,7 @@ struct EditSheet: View {
             VStack(alignment: .leading, spacing: 6) {
                 CaptureField(id: "\(draft.id)-target", role: .target, combo: $draft.target)
                 if let t = draft.target, let name = store.conflicts.flConflict(t) {
-                    Text("Dans FL Studio : \(name.replacingOccurrences(of: "FL : ", with: ""))")
+                    Text("Dans FL Studio : \(name.replacingOccurrences(of: String(localized: "FL : "), with: ""))")
                         .font(.system(size: 11)).foregroundStyle(.secondary)
                 } else {
                     Text("Le raccourci de FL Studio à déplacer sur ta touche.")
@@ -1403,7 +1731,7 @@ final class Recorder: ObservableObject {
         }
         let work = DispatchWorkItem { [weak self] in
             self?.stop()
-            self?.hint = "Aucune touche reçue : macOS utilise peut-être ce raccourci."
+            self?.hint = String(localized: "Aucune touche reçue : macOS utilise peut-être ce raccourci.")
             self?.hintID = id
         }
         timeout = work
@@ -1442,7 +1770,7 @@ struct CaptureField: View {
     private var shape: RoundedRectangle { RoundedRectangle(cornerRadius: 12, style: .continuous) }
 
     private var footnote: (text: String, warning: Bool)? {
-        if recording { return ("Échap pour annuler, ⌫ pour effacer.", false) }
+        if recording { return (String(localized: "Échap pour annuler, ⌫ pour effacer."), false) }
         if recorder.hintID == id, let hint = recorder.hint { return (hint, true) }
         return nil
     }
@@ -1458,11 +1786,14 @@ struct CaptureField: View {
                     } else if let combo {
                         KeyCaps(combo: combo, large: true)
                     } else {
-                        Text(role == .trigger ? "Cliquer pour enregistrer" : "Cliquer, puis taper la touche de FL")
+                        Text(role == .trigger ? String(localized: "Cliquer pour enregistrer")
+                                              : String(localized: "Cliquer, puis taper la touche de FL"))
                             .foregroundStyle(.secondary)
                     }
                 }
                 .font(.system(size: 13))
+                .multilineTextAlignment(.center)                // champ étroit : texte sur deux lignes, centré
+                .padding(.horizontal, 8)
                 .frame(maxWidth: .infinity, minHeight: 52)
                 .contentShape(Rectangle())
             }
@@ -1471,8 +1802,10 @@ struct CaptureField: View {
             .background(shape.fill(Color(nsColor: .textBackgroundColor)))
             .overlay(shape.strokeBorder(recording ? Color.accentColor : Color(nsColor: .separatorColor),
                                         lineWidth: recording ? 2 : 1))
-            .accessibilityLabel(role == .trigger ? "Raccourci déclencheur" : "Touche envoyée à FL")
-            .accessibilityValue(recording ? "Enregistrement en cours" : (combo?.spoken ?? "aucun"))
+            .accessibilityLabel(role == .trigger ? String(localized: "Raccourci déclencheur")
+                                                 : String(localized: "Touche envoyée à FL"))
+            .accessibilityValue(recording ? String(localized: "Enregistrement en cours")
+                                          : (combo?.spoken ?? String(localized: "aucun")))
 
             if let footnote {
                 Text(footnote.text)
@@ -1493,12 +1826,13 @@ struct CaptureField: View {
         switch role {
         case .target:
             if let why = Store.shared.forbiddenReason(candidate) {
-                Dialogs.inform("Touche interdite", "\(candidate.display) ne peut pas être envoyée à FL : \(why).")
+                Dialogs.inform(String(localized: "Touche interdite"),
+                               String(localized: "\(candidate.display) ne peut pas être envoyée à FL : \(why)."))
                 return
             }
         case .trigger:
             if candidate == Store.shared.toggleCombo {
-                Dialogs.inform("Raccourci réservé", "⌃⌥⌘F sert à mettre FL Shortcut en pause.")
+                Dialogs.inform(String(localized: "Raccourci réservé"), String(localized: "⌃⌥⌘F sert à mettre FL Shortcuts en pause."))
                 return
             }
             // Touche seule : plus de question. Elle reste à FL quand elle y sert (texte en cours de saisie, menu
@@ -1547,8 +1881,8 @@ enum Dialogs {
         let a = NSAlert()
         a.messageText = title
         a.informativeText = text
-        a.addButton(withTitle: "Continuer")
-        a.addButton(withTitle: "Annuler")
+        a.addButton(withTitle: String(localized: "Continuer"))
+        a.addButton(withTitle: String(localized: "Annuler"))
         return a.runModal() == .alertFirstButtonReturn
     }
 
@@ -1585,24 +1919,30 @@ extension Remap {
 
     var title: String {
         switch kind {
-        case .keystroke: return target.map { "Envoie \($0.display)" } ?? "Touche de FL à choisir"
+        case .keystroke: return target.map { String(localized: "Envoie \($0.display)") } ?? String(localized: "Touche de FL à choisir")
         case .macro:
             if let ref = macroRef {
-                return "Macro : " + (MacroLibraryStore.shared.doc(ref)?.name.displaySafe() ?? "introuvable")
+                return String(localized: "Macro : ")
+                    + (MacroLibraryStore.shared.doc(ref)?.name.displaySafe() ?? String(localized: "introuvable"))
             }
-            return macro.map { "Macro : \($0.name.displaySafe())" } ?? "Macro à configurer"
+            return macro.map { String(localized: "Macro : \($0.name.displaySafe())") } ?? String(localized: "Macro à configurer")
         case .flAction:
             if let id = actionID, let info = FLActions.info(id) { return info.label }
-            return unknownAction.map { "Action inconnue (\($0.displaySafe()))" } ?? "Action à choisir"
+            return unknownAction.map { String(localized: "Action inconnue (\($0.displaySafe()))") }
+                ?? String(localized: "Action à choisir")
         }
     }
 
     var subtitle: String {
         switch kind {
-        case .keystroke: return "Raccourci de FL Studio"
-        case .macro: return macroRef != nil ? "Macro en blocs de la bibliothèque" : "Enchaîne des clics et des touches dans FL, sans MIDI"
+        case .keystroke: return String(localized: "Raccourci de FL Studio")
+        case .macro:
+            return macroRef != nil ? String(localized: "Macro en blocs de la bibliothèque")
+                                   : String(localized: "Enchaîne des clics et des touches dans FL, sans MIDI")
         case .flAction:
-            guard let id = actionID, let info = FLActions.info(id) else { return "Mets FL Shortcut à jour pour l'utiliser" }
+            guard let id = actionID, let info = FLActions.info(id) else {
+                return String(localized: "Mets FL Shortcuts à jour pour l'utiliser")
+            }
             if case .unavailable(let reason) = AppStatus.shared.availability(id) { return reason }
             return info.detail
         }
@@ -1644,7 +1984,8 @@ struct CatalogEditSheet: View {
         recorder.stop()
         let followUp = toRelease.isEmpty ? nil : store.release(toRelease)
         store.setTrigger(combo, for: row)
-        onDone(ToastMessage(text: "« \(row.entry.title) » : " + (combo?.display ?? "aucune touche"), undo: nil), followUp)
+        onDone(ToastMessage(text: String(localized: "« \(row.entry.title) » : ")
+                                + (combo?.display ?? String(localized: "aucune touche")), undo: nil), followUp)
         dismiss()
     }
 
@@ -1699,7 +2040,7 @@ struct CatalogEditSheet: View {
                 }
                 LabeledContent("D'origine") {
                     VStack(alignment: .leading, spacing: 2) {
-                        Text(row.entry.defaultTrigger?.display ?? "Aucune")
+                        Text(row.entry.defaultTrigger?.display ?? String(localized: "Aucune"))
                         if nativeKey != nil {
                             Text("Elle continue de marcher dans FL : ta touche s'ajoute.")
                                 .font(.system(size: 11)).foregroundStyle(.secondary)
@@ -1749,13 +2090,13 @@ struct CatalogEditSheet: View {
         .frame(width: 480)
         .onDisappear { recorder.stop() }
         // Une touche ne sert qu'une fois : on annonce ce qui l'utilise avant de la reprendre.
-        .alert("\(combo?.display ?? "Cette touche") est déjà utilisée", isPresented: $showClashAlert) {
+        .alert("\(combo?.display ?? String(localized: "Cette touche")) est déjà utilisée", isPresented: $showClashAlert) {
             Button("Remplacer", role: .destructive) { apply(releasing: pendingClashes) }
             Button("Annuler", role: .cancel) { pendingClashes = [] }
         } message: {
             Text(pendingClashes.prefix(4).map(\.line).joined(separator: "\n")
-                 + "\n\nUn raccourci ne peut servir qu'une fois. Si tu remplaces, tu pourras choisir tout de suite "
-                 + "une autre touche pour « \(pendingClashes.first?.title ?? "l'autre raccourci") ».")
+                 + String(localized: "\n\nUn raccourci ne peut servir qu'une fois. Si tu remplaces, tu pourras choisir tout de suite ")
+                 + String(localized: "une autre touche pour « \(pendingClashes.first?.title ?? String(localized: "l'autre raccourci")) »."))
         }
     }
 

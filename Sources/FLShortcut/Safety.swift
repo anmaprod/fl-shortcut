@@ -27,13 +27,13 @@ struct ForbiddenTargets: Hashable {
     /// Raison du refus, ou `nil` si la cible est autorisée.
     func reason(for c: KeyCombo) -> String? {
         guard c.command else { return nil }
-        if quitKeys.contains(c.keyCode) { return "⌘Q quitte l'application (⌃⌘Q verrouille la session)" }
-        if closeKeys.contains(c.keyCode) { return "⌘W ferme la fenêtre ou le projet" }
+        if quitKeys.contains(c.keyCode) { return String(localized: "⌘Q quitte l'application (⌃⌘Q verrouille la session)") }
+        if closeKeys.contains(c.keyCode) { return String(localized: "⌘W ferme la fenêtre ou le projet") }
         switch c.keyCode {
-        case 51, 117: return "⌘⌫ supprime (fichiers, corbeille)"
-        case 53 where c.option: return "⌘⌥Échap ouvre « Forcer à quitter »"
-        case 48: return "⌘⇥ change d'application"
-        case 49: return "⌘Espace ouvre Spotlight"
+        case 51, 117: return String(localized: "⌘⌫ supprime (fichiers, corbeille)")
+        case 53 where c.option: return String(localized: "⌘⌥Échap ouvre « Forcer à quitter »")
+        case 48: return String(localized: "⌘⇥ change d'application")
+        case 49: return String(localized: "⌘Espace ouvre Spotlight")
         default: return nil
         }
     }
@@ -58,43 +58,45 @@ struct ConflictTable: Equatable {
             KeyCombo(keyCode: KeyNames.commandKeyCode(for: ch, layout: layout) ?? fallback,
                      command: true, option: option, control: control, shift: shift)
         }
-        mac[cmd("q", 12)] = "macOS : quitter l'application"
-        mac[cmd("w", 13)] = "macOS : fermer la fenêtre"
-        mac[cmd("h", 4)] = "macOS : masquer l'application"
-        mac[cmd("m", 46)] = "macOS : placer la fenêtre dans le Dock"
-        mac[cmd(",", 43)] = "macOS : réglages de l'application"
-        mac[cmd("q", 12, control: true)] = "macOS : verrouiller l'écran"
-        mac[KeyCombo(keyCode: 48, command: true)] = "macOS : changer d'application"
-        mac[KeyCombo(keyCode: 49, command: true)] = "macOS : Spotlight"
-        mac[KeyCombo(keyCode: 49, control: true)] = "macOS : changer de source de saisie"
-        mac[KeyCombo(keyCode: 49, command: true, control: true)] = "macOS : emoji et symboles"
-        mac[KeyCombo(keyCode: 126, control: true)] = "macOS : Mission Control"
-        mac[KeyCombo(keyCode: 125, control: true)] = "macOS : fenêtres de l'application"
-        mac[KeyCombo(keyCode: 123, control: true)] = "macOS : bureau de gauche (Spaces)"
-        mac[KeyCombo(keyCode: 124, control: true)] = "macOS : bureau de droite (Spaces)"
-        mac[KeyCombo(keyCode: 53, command: true, option: true)] = "macOS : forcer à quitter"
-        mac[KeyCombo(keyCode: 20, command: true, shift: true)] = "macOS : capture d'écran"
-        mac[KeyCombo(keyCode: 21, command: true, shift: true)] = "macOS : capture d'une zone"
-        mac[KeyCombo(keyCode: 23, command: true, shift: true)] = "macOS : outil de capture"
+        mac[cmd("q", 12)] = String(localized: "macOS : quitter l'application")
+        mac[cmd("w", 13)] = String(localized: "macOS : fermer la fenêtre")
+        mac[cmd("h", 4)] = String(localized: "macOS : masquer l'application")
+        mac[cmd("m", 46)] = String(localized: "macOS : placer la fenêtre dans le Dock")
+        mac[cmd(",", 43)] = String(localized: "macOS : réglages de l'application")
+        mac[cmd("q", 12, control: true)] = String(localized: "macOS : verrouiller l'écran")
+        mac[KeyCombo(keyCode: 48, command: true)] = String(localized: "macOS : changer d'application")
+        mac[KeyCombo(keyCode: 49, command: true)] = String(localized: "macOS : Spotlight")
+        mac[KeyCombo(keyCode: 49, control: true)] = String(localized: "macOS : changer de source de saisie")
+        mac[KeyCombo(keyCode: 49, command: true, control: true)] = String(localized: "macOS : emoji et symboles")
+        mac[KeyCombo(keyCode: 126, control: true)] = String(localized: "macOS : Mission Control")
+        mac[KeyCombo(keyCode: 125, control: true)] = String(localized: "macOS : fenêtres de l'application")
+        mac[KeyCombo(keyCode: 123, control: true)] = String(localized: "macOS : bureau de gauche (Spaces)")
+        mac[KeyCombo(keyCode: 124, control: true)] = String(localized: "macOS : bureau de droite (Spaces)")
+        mac[KeyCombo(keyCode: 53, command: true, option: true)] = String(localized: "macOS : forcer à quitter")
+        mac[KeyCombo(keyCode: 20, command: true, shift: true)] = String(localized: "macOS : capture d'écran")
+        mac[KeyCombo(keyCode: 21, command: true, shift: true)] = String(localized: "macOS : capture d'une zone")
+        mac[KeyCombo(keyCode: 23, command: true, shift: true)] = String(localized: "macOS : outil de capture")
         for (combo, label) in systemHotKeys { mac[combo] = label }
 
         var fl: [KeyCombo: String] = [:]
-        fl[KeyCombo(keyCode: 49)] = "FL : lecture / stop"
-        fl[KeyCombo(keyCode: 96)] = "FL : Playlist (F5)"
-        fl[KeyCombo(keyCode: 97)] = "FL : Channel Rack (F6)"
-        fl[KeyCombo(keyCode: 98)] = "FL : Piano Roll (F7)"
-        fl[KeyCombo(keyCode: 100)] = "FL : Plugin picker (F8)"
-        fl[KeyCombo(keyCode: 101)] = "FL : Mixer (F9)"
-        fl[cmd("s", 1)] = "FL : enregistrer le projet"
-        fl[cmd("z", 6)] = "FL : annuler"
-        fl[cmd("o", 31)] = "FL : ouvrir un projet"
-        fl[cmd("n", 45)] = "FL : nouveau projet"
-        fl[cmd("r", 15)] = "FL : exporter en WAV"
+        fl[KeyCombo(keyCode: 49)] = String(localized: "FL : lecture / stop")
+        fl[KeyCombo(keyCode: 96)] = String(localized: "FL : Playlist (F5)")
+        fl[KeyCombo(keyCode: 97)] = String(localized: "FL : Channel Rack (F6)")
+        fl[KeyCombo(keyCode: 98)] = String(localized: "FL : Piano Roll (F7)")
+        fl[KeyCombo(keyCode: 100)] = String(localized: "FL : Plugin picker (F8)")
+        fl[KeyCombo(keyCode: 101)] = String(localized: "FL : Mixer (F9)")
+        fl[cmd("s", 1)] = String(localized: "FL : enregistrer le projet")
+        fl[cmd("z", 6)] = String(localized: "FL : annuler")
+        fl[cmd("o", 31)] = String(localized: "FL : ouvrir un projet")
+        fl[cmd("n", 45)] = String(localized: "FL : nouveau projet")
+        fl[cmd("r", 15)] = String(localized: "FL : exporter en WAV")
         let bare: [(String, UInt16, String)] = [
-            ("l", 37, "FL : bascule Pattern / Song"), ("r", 15, "FL : enregistrement"),
-            ("p", 35, "FL : outil crayon"), ("b", 11, "FL : outil pinceau"), ("d", 2, "FL : outil suppression"),
-            ("t", 17, "FL : outil mute"), ("s", 1, "FL : outil slip / solo du Mixer"), ("c", 8, "FL : outil découpe"),
-            ("e", 14, "FL : outil sélection"), ("z", 6, "FL : outil zoom"), ("y", 16, "FL : outil lecture"),
+            ("l", 37, String(localized: "FL : bascule Pattern / Song")), ("r", 15, String(localized: "FL : enregistrement")),
+            ("p", 35, String(localized: "FL : outil crayon")), ("b", 11, String(localized: "FL : outil pinceau")),
+            ("d", 2, String(localized: "FL : outil suppression")), ("t", 17, String(localized: "FL : outil mute")),
+            ("s", 1, String(localized: "FL : outil slip / solo du Mixer")), ("c", 8, String(localized: "FL : outil découpe")),
+            ("e", 14, String(localized: "FL : outil sélection")), ("z", 6, String(localized: "FL : outil zoom")),
+            ("y", 16, String(localized: "FL : outil lecture")),
         ]
         for (ch, fallback, label) in bare {
             fl[KeyCombo(keyCode: KeyNames.keyCode(for: ch, layout: layout) ?? fallback)] = label
@@ -106,13 +108,19 @@ struct ConflictTable: Equatable {
 /// Raccourcis système actifs (Réglages › Clavier › Raccourcis), lus dans com.apple.symbolichotkeys.
 enum SystemHotKeys {
     private static let names: [Int: String] = [
-        118: "Passer au bureau 1", 119: "Passer au bureau 2", 120: "Passer au bureau 3",
-        121: "Passer au bureau 4", 122: "Passer au bureau 5", 123: "Passer au bureau 6",
-        124: "Passer au bureau 7", 125: "Passer au bureau 8", 126: "Passer au bureau 9",
-        79: "Bureau de gauche", 81: "Bureau de droite", 32: "Mission Control", 33: "Fenêtres de l'application",
-        36: "Afficher le bureau", 60: "Source de saisie précédente", 61: "Source de saisie suivante",
-        64: "Spotlight", 65: "Fenêtre Spotlight", 28: "Capture d'écran", 29: "Capture dans le presse-papiers",
-        30: "Capture d'une zone", 31: "Capture d'une zone dans le presse-papiers", 184: "Outil de capture",
+        118: String(localized: "Passer au bureau 1"), 119: String(localized: "Passer au bureau 2"),
+        120: String(localized: "Passer au bureau 3"), 121: String(localized: "Passer au bureau 4"),
+        122: String(localized: "Passer au bureau 5"), 123: String(localized: "Passer au bureau 6"),
+        124: String(localized: "Passer au bureau 7"), 125: String(localized: "Passer au bureau 8"),
+        126: String(localized: "Passer au bureau 9"),
+        79: String(localized: "Bureau de gauche"), 81: String(localized: "Bureau de droite"),
+        32: String(localized: "Mission Control"), 33: String(localized: "Fenêtres de l'application"),
+        36: String(localized: "Afficher le bureau"), 60: String(localized: "Source de saisie précédente"),
+        61: String(localized: "Source de saisie suivante"),
+        64: String(localized: "Spotlight"), 65: String(localized: "Fenêtre Spotlight"),
+        28: String(localized: "Capture d'écran"), 29: String(localized: "Capture dans le presse-papiers"),
+        30: String(localized: "Capture d'une zone"), 31: String(localized: "Capture d'une zone dans le presse-papiers"),
+        184: String(localized: "Outil de capture"),
     ]
 
     /// Lecture tolérante : toute entrée mal formée est ignorée.
@@ -136,7 +144,7 @@ enum SystemHotKeys {
             let combo = KeyCombo(keyCode: UInt16(params[1]),
                                  command: mods & (1 << 20) != 0, option: mods & (1 << 19) != 0,
                                  control: mods & (1 << 18) != 0, shift: mods & (1 << 17) != 0)
-            out[combo] = "macOS : " + (names[id] ?? "raccourci système (Réglages › Clavier)")
+            out[combo] = String(localized: "macOS : ") + (names[id] ?? String(localized: "raccourci système (Réglages › Clavier)"))
         }
         return out
     }

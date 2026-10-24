@@ -82,7 +82,7 @@ internal sealed class TrayIcon : IDisposable
             Win32.AppendMenuW(menu, Win32.MF_STRING | (IsEnabled() ? 0 : Win32.MF_CHECKED), new UIntPtr(IdPause),
                 "Mettre en pause\tCtrl+Alt+Maj+F");
             Win32.AppendMenuW(menu, Win32.MF_SEPARATOR, UIntPtr.Zero, null);
-            Win32.AppendMenuW(menu, Win32.MF_STRING, new UIntPtr(IdQuit), "Quitter FL Shortcut");
+            Win32.AppendMenuW(menu, Win32.MF_STRING, new UIntPtr(IdQuit), "Quitter FL Shortcuts");
             Win32.GetCursorPos(out var pt);
             Win32.SetForegroundWindow(_hwnd);
             var cmd = (uint)Win32.TrackPopupMenuEx(menu, Win32.TPM_RETURNCMD | Win32.TPM_RIGHTBUTTON | Win32.TPM_BOTTOMALIGN,

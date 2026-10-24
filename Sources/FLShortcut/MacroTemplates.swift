@@ -39,14 +39,14 @@ enum MacroTemplates {
     /// menu de FL 2026, relevées sur les vidéos de l'utilisateur (les mêmes que le FL simulé). « Autre » garde les
     /// lettres tapées à la main.
     static let trackMenuChoices: [TrackMenuChoice] = [
-        TrackMenuChoice(id: "openState", name: "Ouvrir un état de piste (preset de piste)",
+        TrackMenuChoice(id: "openState", name: String(localized: "Ouvrir un état de piste (preset de piste)"),
                         labels: [Macro.fileMenuTitles[0], Macro.openStateTitles[0]], letters: ["f", "o"],
                         enter: .learned(legacyKey: MacroRunner.enterAfterLetterKey)),
-        TrackMenuChoice(id: "saveState", name: "Enregistrer l'état de la piste",
+        TrackMenuChoice(id: "saveState", name: String(localized: "Enregistrer l'état de la piste"),
                         labels: [Macro.fileMenuTitles[0], "Save mixer track state as"], letters: ["f", "s"], enter: .ifNeeded),
-        TrackMenuChoice(id: "rename", name: "Renommer, couleur et icône",
+        TrackMenuChoice(id: "rename", name: String(localized: "Renommer, couleur et icône"),
                         labels: ["Rename, color and icon"], letters: ["r"], enter: .ifNeeded),
-        TrackMenuChoice(id: "assignAudio", name: "Créer sa piste audio (Playlist)",
+        TrackMenuChoice(id: "assignAudio", name: String(localized: "Créer sa piste audio (Playlist)"),
                         labels: ["Assign to new Audio track(s)"], letters: ["a"], enter: .ifNeeded),
     ]
 
@@ -171,7 +171,7 @@ struct MacroTemplate: Identifiable {
 extension MacroTemplates {
     /// Modèle livré « Enregistrement rapide » (galerie et origine de sa copie personnalisée).
     static let autoRecordID = "autoRecord"
-    /// Modèle « Organiser la page ouverte » : l'utilisateur ne choisit que le raccourci.
+    /// Modèle « Organiser » : l'utilisateur ne choisit que le raccourci.
     static let organizeID = "organize"
 
     /// « Personnaliser » : copie en blocs du modèle, compilée avant de remplacer le raccourci. Problème : le
@@ -180,6 +180,24 @@ extension MacroTemplates {
                                forbidden: ForbiddenTargets) -> (doc: MacroDoc, problem: String?) {
         let doc = MacroDoc(name: name, blocks: freshIDs(enregistrementRapide(macro)), origin: .template(autoRecordID))
         return (doc, MacroProgram.compile(doc, forbidden: forbidden).problem)
+    }
+
+    /// Modèle de la galerie « Enregistrement rapide » : les blocs du modèle livré jusqu'à l'armement de la piste
+    /// (la suite sera refaite, plus rapide).
+    static func untilArm(_ macro: Macro) -> [Block] {
+        let all = enregistrementRapide(macro)
+        guard let arm = all.firstIndex(where: { $0.id == id(.arm) }) else { return all }
+        return Array(all[...arm])
+    }
+
+    /// Les mêmes blocs sans aucune note, imbrications comprises (notes retirées à la demande de l'utilisateur).
+    static func withoutNotes(_ blocks: [Block]) -> [Block] {
+        blocks.map { b in
+            var copy = b
+            copy.note = nil
+            copy.body = b.body.replacingChildren(b.body.children.map(withoutNotes))
+            return copy
+        }
     }
 
     /// Copie avec des ids neufs, imbrication comprise (deux copies d'un modèle ne partagent jamais un id).
@@ -198,60 +216,41 @@ extension MacroTemplates {
             KeyRef(KeyCombo(keyCode: KeyNames.commandKeyCode(for: letter, layout: layout) ?? fallback, command: true),
                    char: letter)
         }
-        func action(_ key: String, fallback: UInt16) -> BlockBody {
-            let native = FLActions.id(forKey: key).flatMap { AppMode.nativeEquivalent(of: $0, layout: layout) }
-            return .flAction(key: key, fallback: .key(KeyRef(native ?? KeyCombo(keyCode: fallback))))
-        }
         let rec = AppMode.nativeEquivalent(of: 3, layout: layout) ?? KeyCombo(keyCode: MacroLibrary.fallbackRecKeyCode)
         return [
-            MacroTemplate(id: autoRecordID, title: "Enregistrement rapide",
-                          summary: "Le modèle livré, développé en blocs : menu de la piste, preset, armement, REC, entrée 1, puis le larsen. À modifier étape par étape.",
+            MacroTemplate(id: autoRecordID, title: String(localized: "Enregistrement rapide"),
+                          summary: String(localized: "Le début de l'enregistrement, en blocs : menu de la piste, preset, puis armement de la piste. À compléter étape par étape."),
                           symbol: "record.circle") { _ in
                 var m = Macro()
                 m.recKey = rec
-                return MacroDoc(name: "Enregistrement rapide (personnalisé)", blocks: freshIDs(enregistrementRapide(m)),
+                return MacroDoc(name: "Enregistrement rapide (personnalisé)", blocks: freshIDs(untilArm(m)),
                                 origin: .template(autoRecordID))
             },
-            MacroTemplate(id: "saveNew", title: "Nouvelle version du projet",
-                          summary: "⌘N : FL enregistre une nouvelle version du projet (même nom, numéro suivant).",
-                          symbol: "doc.badge.plus") { _ in
-                MacroDoc(name: "Nouvelle version du projet",
-                         blocks: [Block(.key(cmd("n", 45), times: 1), note: "File › Save new version")],
-                         origin: .template("saveNew"))
-            },
-            MacroTemplate(id: "mixerPlaylist", title: "Afficher le Mixer et la Playlist",
-                          summary: "Par le lien avec FL : les deux fenêtres s'affichent (rien n'est fermé). Sans lien : F9 puis F5, qui ouvrent ou ferment.",
-                          symbol: "macwindow.on.rectangle") { _ in
-                MacroDoc(name: "Afficher le Mixer et la Playlist",
-                         blocks: [Block(action("mx", fallback: 101)), Block(action("pl", fallback: 96))],
-                         origin: .template("mixerPlaylist"))
-            },
-            MacroTemplate(id: "saveExport", title: "Enregistrer puis exporter en WAV",
-                          summary: "⌘S (attend le nom si le projet est neuf), puis ⌘R : la macro attend que tu choisisses le nom du fichier WAV.",
+            MacroTemplate(id: "saveExport", title: String(localized: "Enregistrer puis exporter en WAV"),
+                          summary: String(localized: "⌘S (attend le nom si le projet est neuf), puis ⌘R : la macro attend que tu choisisses le nom du fichier WAV."),
                           symbol: "waveform.badge.plus") { _ in
                 MacroDoc(name: "Enregistrer puis exporter en WAV", blocks: [
-                    Block(.key(cmd("s", 1), times: 1), note: "Enregistrer le projet"),
+                    Block(.key(cmd("s", 1), times: 1)),
                     Block(.delay(ms: 500)),
-                    Block(.waitWindowClose(.dialog, timeoutMs: MacroValidation.maxWaitMs),
-                          note: "Projet jamais enregistré : FL demande un nom"),
-                    Block(.key(cmd("r", 15), times: 1), note: "File › Export › Wave file"),
+                    Block(.waitWindowClose(.dialog, timeoutMs: MacroValidation.maxWaitMs)),     // projet neuf : son nom
+                    Block(.key(cmd("r", 15), times: 1)),                                            // File › Export › Wave file
                     Block(.waitWindow(.dialog, timeoutMs: 4_000)),
-                    Block(.waitWindowClose(.dialog, timeoutMs: MacroValidation.maxWaitMs),
-                          note: "Tu choisis le nom du fichier WAV"),
+                    Block(.waitWindowClose(.dialog, timeoutMs: MacroValidation.maxWaitMs)),     // nom du fichier WAV
                 ], origin: .template("saveExport"))
             },
-            MacroTemplate(id: "armRec", title: "Armer la piste et lancer le REC",
-                          summary: "Sur la dernière piste cliquée dans le Mixer. Avec le lien, rien de déjà allumé n'est éteint ; sans lien : menu de la piste, puis la touche REC.",
-                          symbol: "record.circle.fill") { _ in
-                MacroDoc(name: "Armer la piste et lancer le REC", blocks: [
-                    Block(.flAction(key: "armon", fallback: .trackMenuArm)),
-                    Block(.flAction(key: "recon", fallback: .key(KeyRef(rec)))),
-                ], origin: .template("armRec"))
+            MacroTemplate(id: "purgeAudio", title: String(localized: "Supprimer les clips audio inutilisés"),
+                          summary: String(localized: "Tools › Purge unused audio clips, par le menu de FL en haut de l'écran : FL retire du projet les clips audio qui ne sont pas dans la Playlist (rien n'est effacé de ton disque)."),
+                          symbol: "trash") { _ in
+                MacroDoc(name: "Supprimer les clips audio inutilisés",
+                         // Dans la barre des menus de macOS, FL met ses macros à plat dans Tools (vidéo de
+                         // l'utilisateur) : pas de sous-menu « Macros » comme dans son menu TOOLS.
+                         blocks: [Block(.menuBar(titles: ["Tools", "Purge unused audio clips"]))],
+                         origin: .template("purgeAudio"))
             },
-            MacroTemplate(id: organizeID, title: "Organiser la page ouverte",
-                          summary: "Écoute chaque son du Channel rack sans que tu l'entendes, le classe (Drums, Basse, Mélodies, Voix, FX), puis colore et regroupe après ton accord. Sur le Mixer, colore les pistes.",
+            MacroTemplate(id: organizeID, title: String(localized: "Organiser"),
+                          summary: String(localized: "Reconnaît chaque son (son nom, sinon son écoute), puis après ton accord supprime les sons sans aucune note, range le Channel rack, le Mixer et la Playlist dans le même ordre, colore et renomme sons, patterns et pistes (Kick, Snare, 808…)."),
                           symbol: "square.stack.3d.up") { _ in
-                MacroDoc(name: "Organiser la page ouverte", blocks: [Block(.organize)], origin: .template(organizeID))
+                MacroDoc(name: String(localized: "Organiser"), blocks: [Block(.organize)], origin: .template(organizeID))
             },
         ]
     }
@@ -263,15 +262,15 @@ extension MacroTemplates {
     /// puis la touche REC de FL.
     static func armThroughTrackMenu(rec: KeyRef) -> [Block] {
         [
-            Block(.click(.track(dx: 0, dy: 0), button: .right), note: "Ouvre le menu de la piste"),
+            Block(.click(.track(dx: 0, dy: 0), button: .right)),                // menu de la piste
             Block(.waitWindow(.menu, timeoutMs: 1_500)),
-            Block(.menuLetters(["s"], finalEnter: .never), note: "Select"),
+            Block(.menuLetters(["s"], finalEnter: .never)),                      // Select
             Block(.delay(ms: 200)),
             Block(.menuKey(.left, times: 1)),
-            Block(.menuKey(.down, times: 5), note: "Jusqu'à « Arm selected track(s) »"),
+            Block(.menuKey(.down, times: 5)),                                    // jusqu'à « Arm selected track(s) »
             Block(.menuKey(.enter, times: 1)),
             Block(.waitWindowClose(.menu, timeoutMs: 1_000)),
-            Block(.key(rec, times: 1), note: "Touche REC de FL"),
+            Block(.key(rec, times: 1)),                                          // touche REC de FL
         ]
     }
 
