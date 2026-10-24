@@ -61,8 +61,9 @@
   Le 24/10, il a aussi fait retirer l'animation d'avant du changement de page (barre de gauche) : la page s'affiche
   d'un coup (`pageSwitch`). Gardées : guide, accueil, menu de l'icône, Organiser, créateur, survols.
 - **IA intégrée** (`ia/`, mode d'emploi `ia/README.md`, chiffres `ia/RESULTATS.md`) : YAMNet (Apache 2.0) + deux
-  têtes apprises sur des sons libres d'usage commercial (VocalSet, LibriSpeech, NSynth, Freesound CC0/CC BY ;
-  JAMAIS les packs du propriétaire, qui servent seulement à mesurer). Famille + sorte parmi les choix de l'aperçu
+  têtes apprises sur des sons libres d'usage commercial (VocalSet, LibriSpeech, NSynth, Freesound CC0/CC BY, Groove
+  MIDI Dataset) et, à sa demande (24/10), les packs de batterie qu'il a donnés (`FLS_IA_KITS`, jamais dans le dépôt ;
+  des packs entiers gardés pour la vérification). Sortes Drum loop et Fill (demande du 24/10). Famille + sorte parmi les choix de l'aperçu
   (`SoundKind`, sauf Back et Synth : au nom). Mac : `ClasseurSons.swift` (Core ML `Resources/ClasseurSons.mlpackage`,
   compilé par build.sh). Demande du propriétaire : l'organisation ne change pas avec l'IA, elle prend la place de
   l'IA de macOS dans les MÊMES règles (nom d'abord, mesures sûres d'abord : boucle, hi-hat à ses aigus, 3 notes
@@ -78,7 +79,8 @@
   l'IA de tout le monde » (des nombres : jamais le son, son nom ni le texte tapé) vers la table `corrections_ia`
   (`supabase/corrections-ia.sql`, À COLLER PAR LE PROPRIÉTAIRE dans Supabase, étape 9 du README) ; réappris par
   `ia/corrections.py` puis `entrainer.py`. Playlist, Mixer, aspect et « Autre » : message à l'équipe (support).
-  Chiffres de l'IA seule (7 379 sons jamais entendus) : ≈ 92,7 % (voix 97, drums 97, basse 95, FX 94, mélodies 86) ;
+  Chiffres de l'IA seule (7 610 sons jamais entendus, 24/10) : ≈ 92,9 % (voix 96,5, drums 97, basse 95, FX 95,
+  mélodies 87 ; Drum loop 86, Fill 91 ; sur des packs du propriétaire jamais entendus, boucles 72 %, fills 82 %) ;
   plafond : plus de sons et couche 14 de YAMNet réapprise (`ia/affiner.py`) n'y changent rien (essai non livré).
 - Interface : survol coloré du menu de l'icône (`menuHover` : contour de sa couleur, grandit, ombre) voulu par le
   propriétaire partout : barre latérale (`sidebarHover`), lignes des pages, Macros, modèles, Communauté, Aide,

@@ -327,3 +327,15 @@ entrée 1 ≈ 0,5 s.
   (clic dans une autre app, le bureau, une autre fenêtre) et ne la reprend pas au retour ; pendant une recherche,
   la barre latérale n'a plus de page choisie : un clic sur une page (même celle d'avant) vide la recherche et
   l'ouvre (`sidebarSelection`).
+- Drums : sortes « Drum loop » et « Fill » (demande du propriétaire). Noms : « Drum Loop », « Hat Loop »,
+  « DrumLoop », « Top Loop » → Drum loop ; « Snare Fill », « Fill 1 » → Fill (« Piano Fill » reste un piano,
+  « Melody Loop » une mélodie, « Loop 4 » ne dit rien). Boucle mesurée (grave d'un kick + aigus) : Drum loop, ou
+  Fill si l'IA l'entend ainsi. IA réapprise (44 sortes) avec le Groove MIDI Dataset (batteurs enregistrés, boucles
+  et fills, CC BY 4.0), les packs de batterie donnés par le propriétaire (Google Drive, 437 sons uniques, 7 packs ;
+  jamais dans le dépôt ; « tu lui montres les sons du drive et tu lui expliques que là ça s'appelle comme ça ») et
+  600 boucles + 600 fills trap fabriqués avec leurs sons seuls. Sorte de chaque son de pack d'après son type avant
+  « -- » (« © FILL -- … », « LOW -- … (C) » = 808, « TEXTURE -- … » = FX). Essai d'abord sans 2 packs : boucles
+  trap clairsemées encore souvent prises pour des voix hachées (28 %), fills courts pris pour des boucles ; « deux
+  tranches voix au lieu d'une » essayé, pas retenu. Modèle livré appris sur tous les packs : 92,9 % (voix 96,5,
+  drums 97,3 ; Drum loop 86, Fill 91), seuil des voix 0,37. Note d'essai des tests (guitare) prise au-dessus du
+  do 4 : le sol 3 d'avant, déjà à 59 % mélodie, passait à 57 % basse.

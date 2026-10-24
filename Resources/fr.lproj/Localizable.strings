@@ -612,6 +612,7 @@
 "Dossier incorrect" = "Dossier incorrect";
 "Downlifter" = "Downlifter";
 "Droit" = "Droit";
+"Drum loop" = "Drum loop";
 "Drums" = "Drums";
 "Duplique le pattern en cours pour une variation" = "Duplique le pattern en cours pour une variation";
 "Dupliquer" = "Dupliquer";
@@ -860,6 +861,7 @@
 "Fichier trop volumineux pour une macro (256 Ko au plus)." = "Fichier trop volumineux pour une macro (256 Ko au plus).";
 "Fichier trop volumineux pour être partagé." = "Fichier trop volumineux pour être partagé.";
 "Fichier, fenêtres, annuler — partout dans FL" = "Fichier, fenêtres, annuler — partout dans FL";
+"Fill" = "Fill";
 "Fin" = "Fin";
 "Fin de la boucle" = "Fin de la boucle";
 "Fin de la macro" = "Fin de la macro";

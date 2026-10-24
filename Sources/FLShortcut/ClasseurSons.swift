@@ -20,7 +20,8 @@ final class ClasseurSons {
         .vocal, .vocalLead, .choir, .adlib, .ambiance,
         .lead, .pluck, .pad, .keys, .piano, .arp, .chords, .guitar, .strings, .bell, .flute, .brass, .organ, .melody,
         .bass808, .sub, .reese, .bass,
-        .kick, .snare, .clap, .rim, .snap, .hiHat, .openHat, .perc, .tom, .shaker, .crash, .ride, .cymbal, .drums,
+        .kick, .snare, .clap, .rim, .snap, .hiHat, .openHat, .perc, .tom, .shaker, .crash, .ride, .cymbal, .drumLoop,
+        .fill, .drums,
         .riser, .downlifter, .impact, .sweep, .fx,
     ]
 
@@ -59,7 +60,7 @@ final class ClasseurSons {
 
     /// Seuil des voix appris (ia/modele/classeur_sons.json, vérifié par les tests) : au plus 2 % des autres sons
     /// (FX, mélodies, drums, basses, leads au vibrato) passent au-dessus, sur des sons jamais entendus.
-    static let seuilVoix = 0.34
+    static let seuilVoix = 0.37
     /// Une sorte n'est donnée que si elle l'emporte nettement sur les autres de sa famille.
     static let partMin = 0.5
     static let frequence = 16_000.0

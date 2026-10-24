@@ -4,8 +4,8 @@ tranches, YAMNet. Tout tourne hors-ligne une fois les données et YAMNet téléc
 Le modèle : YAMNet (Google, licence Apache 2.0) donne pour chaque tranche de 0,975 s une empreinte de 1024 nombres ;
 on y ajoute 192 mesures du spectre log-mel de la même tranche (moyenne, écart-type et variation de chaque bande :
 les formants et le débit syllabique d'une voix y laissent une marque nette). Deux petites têtes apprises ici donnent
-la famille (voix, mélodie, basse, drums, FX) et la sorte : les 42 choix de l'aperçu de l'Organiser (Voix lead,
-Chœur, Pluck, Pad, Piano, 808, Sub, Reese, Kick, Open Hat, Riser…)."""
+la famille (voix, mélodie, basse, drums, FX) et la sorte : les 44 choix de l'aperçu de l'Organiser (Voix lead,
+Chœur, Pluck, Pad, Piano, 808, Sub, Reese, Kick, Open Hat, Drum loop, Fill, Riser…)."""
 import io
 import os
 import sys
@@ -32,10 +32,13 @@ SORTES_PAR_FAMILLE = {
                 "brass", "organ", "melody"],
     "basse": ["bass808", "sub", "reese", "bass"],
     "drums": ["kick", "snare", "clap", "rim", "snap", "hiHat", "openHat", "perc", "tom", "shaker", "crash", "ride",
-              "cymbal", "drums"],
+              "cymbal", "drumLoop", "fill", "drums"],
     "fx": ["riser", "downlifter", "impact", "sweep", "fx"],
 }
 SORTES = [s for f in FAMILLES for s in SORTES_PAR_FAMILLE[f]]
+# Les sortes d'avant « Drum loop » et « Fill » (demande du propriétaire, 24/10) : celles des étapes préparées avant,
+# dont les numéros de sorte sont relus dans cet ordre.
+SORTES_42 = [s for s in SORTES if s not in ("drumLoop", "fill")]
 FAMILLE_DE_SORTE = {s: f for f in FAMILLES for s in SORTES_PAR_FAMILLE[f]}
 # Noms affichés par l'app (SoundKind.name) : dossiers de classer.py --ranger.
 NOMS = {"vocal": "Voix", "vocalLead": "Voix lead", "choir": "Chœur", "adlib": "Adlib", "ambiance": "Ambiance",
@@ -44,7 +47,7 @@ NOMS = {"vocal": "Voix", "vocalLead": "Voix lead", "choir": "Chœur", "adlib": "
         "brass": "Brass", "organ": "Orgue", "melody": "Mélodie", "bass808": "808", "sub": "Sub", "reese": "Reese",
         "bass": "Basse", "kick": "Kick", "snare": "Snare", "clap": "Clap", "rim": "Rim", "snap": "Snap",
         "hiHat": "Hi-hat", "openHat": "Open Hat", "perc": "Perc", "tom": "Tom", "shaker": "Shaker", "crash": "Crash",
-        "ride": "Ride", "cymbal": "Cymbal", "drums": "Drums", "riser": "Riser", "downlifter": "Downlifter",
+        "ride": "Ride", "cymbal": "Cymbal", "drumLoop": "Drum loop", "fill": "Fill", "drums": "Drums", "riser": "Riser", "downlifter": "Downlifter",
         "impact": "Impact", "sweep": "Sweep", "fx": "FX"}
 INCONNUE = -1                    # sorte inconnue (son de batterie sans nom parlant) : seule la famille apprend
 

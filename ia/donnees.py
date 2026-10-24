@@ -7,7 +7,9 @@
   instruments) et Medley-solos-DB (Lostanlen et al., 2019 ; CC BY 4.0) sont lus au fil du téléchargement par
   preparer.py (24 Go et 8 Go, rien n'est gardé sur le disque) ;
 - Freesound One-Shot Percussive Sounds (Ramires et al., 2020) : sons de batterie, chacun sous sa licence Freesound ;
-  preparer.py ne garde que CC0 et CC BY (pas de NC).
+  preparer.py ne garde que CC0 et CC BY (pas de NC) ;
+- Groove MIDI Dataset (Gillick et al., 2019 ; CC BY 4.0) : batteurs enregistrés, boucles et fills (Drum loop, Fill).
+Les packs de batterie du propriétaire (FLS_IA_KITS) ne sont jamais téléchargés ici : il les donne lui-même.
 Usage : python ia/donnees.py"""
 import os
 import urllib.request
@@ -23,6 +25,7 @@ SOURCES = {
     "nsynth-valid.tar.gz": "http://download.magenta.tensorflow.org/datasets/nsynth/nsynth-valid.jsonwav.tar.gz",
     "oneshot.zip": "https://zenodo.org/records/3665275/files/one_shot_percussive_sounds.zip?download=1",
     "oneshot-licenses.txt": "https://zenodo.org/records/3665275/files/licenses.txt?download=1",
+    "groove-v1.0.0.zip": "https://storage.googleapis.com/magentadata/datasets/groove/groove-v1.0.0.zip",
 }
 
 

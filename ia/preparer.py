@@ -12,6 +12,7 @@ Séparation honnête : des chanteurs, locuteurs, instruments NSynth et sons de b
 validation, jamais vus à l'apprentissage.
 Usage : python ia/preparer.py   (≈ 1 h sur 4 cœurs ; chaque étape finie est gardée, une relance reprend après)"""
 import json
+from collections import Counter, defaultdict
 import os
 import random
 import re
@@ -20,7 +21,8 @@ import zipfile
 
 import numpy as np
 
-from commun import FAMILLE_DE_SORTE, FAMILLES, INCONNUE, SORTES, SR, TRAVAIL, charger_yamnet, lire, stats_logmel
+from commun import (FAMILLE_DE_SORTE, FAMILLES, INCONNUE, SORTES, SORTES_42, SR, TRAVAIL, charger_yamnet, lire,
+                    stats_logmel)
 
 # FLS_IA_COUCHE13=1 : garde aussi la sortie de la couche 13 de YAMNet de chaque tranche (etape_*.c13, 3 × 2 × 1024
 # nombres en 16 bits), pour réapprendre sa dernière couche (affiner.py). Demande une préparation complète.
@@ -378,14 +380,21 @@ class Collecte:
         np.savez_compressed(chemin, x=np.concatenate(self.x[ix:]), base=np.concatenate(self.base[ib:]),
                             famille=np.array(self.famille[it:]), sorte=np.array(self.sorte[it:]),
                             split=np.array(self.split[it:]), source=np.array(self.source[it:]),
-                            clip=np.array(self.clip[it:]) - n, n=self.n - n)
+                            clip=np.array(self.clip[it:]) - n, n=self.n - n, sortes=np.array(SORTES))
 
     def charger_etape(self, chemin):
+        """Une étape déjà faite. Ses numéros de sorte sont relus avec la liste de sortes qu'elle a gardée (avant
+        « Drum loop » et « Fill » : les 42 d'avant) ; les boucles fabriquées, alors « Drums », deviennent des Drum loop."""
         d = np.load(chemin)
+        noms = d["sortes"].astype(str).tolist() if "sortes" in d.files else SORTES_42
+        sources = d["source"].astype(str)
+        sortes = [INCONNUE if k < 0 else SORTES.index(noms[k]) for k in d["sorte"].tolist()]
+        sortes = [SORTES.index("drumLoop") if src == "boucle" and k == SORTES.index("drums") else k
+                  for src, k in zip(sources, sortes)]
         self.x.append(d["x"])
         self.base.append(d["base"])
         self.famille += d["famille"].tolist()
-        self.sorte += d["sorte"].tolist()
+        self.sorte += sortes
         self.split += d["split"].astype(str).tolist()
         self.source += d["source"].astype(str).tolist()
         self.clip += (d["clip"] + self.n).tolist()
@@ -693,7 +702,7 @@ def batterie(c):
                     s = rng.choice(pool[split])[: step * 2]
                     fin = min(len(boucle), k * step + len(s))
                     boucle[k * step: fin] += s[: fin - k * step]
-            c.ajouter("boucle", "drums", "drums", split, norm(boucle))
+            c.ajouter("boucle", "drums", "drumLoop", split, norm(boucle))
 
 
 def fabriques(c):
@@ -721,8 +730,288 @@ def fabriques(c):
             c.ajouter("crash-synth", "drums", "crash", split, synth_crash())
 
 
+
+# Groove MIDI Dataset (Magenta, CC BY 4.0) : 13,6 h de vrais batteurs sur une batterie électronique, chaque
+# enregistrement noté « beat » (une boucle) ou « fill ». Demande du propriétaire (24/10) : les sortes « Drum loop » et
+# « Fill ».
+GROOVE = "groove-v1.0.0.zip"
+
+
+def saturer(x):
+    """Variante de production d'un son de batterie : saturation douce, parfois une réverbération courte."""
+    y = np.tanh(x * rng.uniform(1.5, 4.0)).astype(np.float32)
+    if rng.random() < 0.4:
+        y = reverb(y, rng.uniform(0.3, 1.2))
+    return norm(y)
+
+
+def groove(c):
+    """Boucles (2 à 3 extraits d'une, 1, 2 ou 4 mesures) et fills des batteurs du Groove MIDI Dataset."""
+    import csv
+    import io as _io
+    chemin = os.path.join(D, GROOVE)
+    if not os.path.exists(chemin):
+        print("groove : archive absente, étape sautée", flush=True)
+        return
+    z = zipfile.ZipFile(chemin)
+    lignes = list(csv.DictReader(_io.StringIO(z.read("groove/info.csv").decode())))
+    for ligne in lignes:
+        if not ligne["audio_filename"]:
+            continue
+        split = "train" if ligne["split"] == "train" else "val"
+        try:
+            son = lire(z.read("groove/" + ligne["audio_filename"]))
+        except Exception:
+            continue
+        num, den = (int(v) for v in ligne["time_signature"].split("-"))
+        temps = num if den == 4 else num / 2
+        mesure = int(SR * 60 / float(ligne["bpm"]) * temps)
+        if ligne["beat_type"] == "fill":
+            sons = [son[: SR * 8]]
+            source = "groove-fill"
+            sorte = "fill"
+        else:
+            sons = []
+            for k, mesures in enumerate(rng.sample([1, 2, 4], 3 if len(son) > mesure * 8 else 2)):
+                debut = int((len(son) - mesure * mesures) * (k + 0.5) / 3)
+                if debut >= 0:
+                    sons.append(son[debut: debut + mesure * mesures])
+            source = "groove-boucle"
+            sorte = "drumLoop"
+        for x in sons:
+            c.ajouter(source, "drums", sorte, split, norm(x))
+            if split == "train" and rng.random() < 0.5:
+                c.ajouter(source + "+prod", "drums", sorte, split, saturer(x))
+
+
+# Kits du propriétaire (FLS_IA_KITS : dossier de ses packs ; demande du 24/10 : « tu lui montres les sons du drive et
+# tu lui expliques que là ça s'appelle comme ça »). La sorte vient des noms des dossiers et du fichier. Des packs entiers
+# sont gardés pour la vérification, jamais appris : l'IA est notée sur des packs qu'elle n'a jamais entendus.
+MOTS_NON_DRUMS = r"melod|melody|piano|guitar|keys|synth|vocal|\bvox\b|\b808|bass|pluck|\bpad|chord|string|\bbell"
+MOTS_FX = {"riser": r"\briser|uplifter", "downlifter": r"downlifter|\bdowner", "impact": r"\bimpact|\bboom\b",
+           "sweep": r"\bsweep"}
+
+
+def sorte_du_texte(texte, type_du_son=False):
+    """(famille, sorte) d'après un texte (chemin, nom, ou type du son avant « -- ») ; None si rien de sûr."""
+    texte = texte.replace("_", " ").replace("-", " ")
+    nom = os.path.basename(texte)
+    if re.search(r"\bfills?\b|drumfill|drum fill", texte):
+        return "drums", "fill"
+    if re.search(r"\bs?fx\b|\btextures?\b", nom):
+        return "fx", next((s for s, m in MOTS_FX.items() if re.search(m, nom)), "fx")
+    if re.search(r"loops?\b|drumloop|break ?beat", texte):
+        return None if re.search(MOTS_NON_DRUMS, texte) else ("drums", "drumLoop")
+    if re.search(r"\b808", nom) or (type_du_son and re.search(r"\b(low|sub)\b", nom)):
+        return "basse", "bass808"
+    sorte = sorte_du_nom(nom) or sorte_du_nom(texte)
+    return ("drums", sorte) if sorte else None
+
+
+def sorte_du_kit(chemin):
+    """(famille, sorte) d'un son de kit d'après son chemin ; « © KICK -- NOM » : le type du son, avant « -- », passe
+    d'abord (« TEXTURE -- NOMLOOP » est une texture, pas une boucle ; « LOW -- NOM (C) », une 808)."""
+    nom = os.path.basename(chemin).lower()
+    if " -- " in nom:
+        quoi = sorte_du_texte(nom.split(" -- ")[0], type_du_son=True)
+        if quoi:
+            return quoi
+    return sorte_du_texte(chemin.lower())
+
+
+def packs_des_kits(fichiers):
+    """Pack de chaque son : son dossier du premier niveau ; un son posé seul à la racine va avec ceux qui partagent
+    les mêmes mots (« Drum Loop - Nom 140BPM @Marque » : drum loop marque)."""
+    mots = {f: set(re.findall(r"[a-z]+", f.lower())) for r, f in fichiers if r == "."}
+    frequence = Counter(m for ms in mots.values() for m in ms)
+    packs = []
+    for relatif, f in fichiers:
+        if relatif != ".":
+            packs.append(relatif.split(os.sep)[0])
+        else:
+            communs = sorted(m for m in mots[f] if frequence[m] >= 3)
+            packs.append(" ".join(communs) or f)
+    return packs
+
+
+def packs_de_verification(sortes_par_pack):
+    """Packs gardés pour la vérification : pour chaque sorte principale, un pack sur quatre (le 2e, le 6e…) dans un
+    ordre fixe ; une sorte d'un seul pack est toute apprise."""
+    import zlib
+    par_sorte = defaultdict(list)
+    for pack, sortes in sortes_par_pack.items():
+        par_sorte[sortes.most_common(1)[0][0]].append(pack)
+    verification = set()
+    for packs in par_sorte.values():
+        packs.sort(key=lambda p: zlib.crc32(p.encode()))
+        verification.update(p for i, p in enumerate(packs) if i % 4 == 1)
+    return verification
+
+
+def sons_des_kits():
+    """Sons des packs du propriétaire : (chemin, pack, (famille, sorte) ou None, split). [] sans FLS_IA_KITS.
+    FLS_IA_KITS_VERIF=0 : tous les packs appris (version livrée, chiffres mesurés avant avec des packs gardés)."""
+    import hashlib
+    racine = os.environ.get("FLS_IA_KITS")
+    if not racine or not os.path.isdir(racine):
+        return []
+    fichiers, empreintes = [], set()
+    for dossier, sous, noms in os.walk(racine):
+        sous.sort()
+        relatif = os.path.relpath(dossier, racine)
+        for f in sorted(noms):
+            if not f.lower().endswith((".wav", ".aif", ".aiff", ".flac", ".mp3", ".ogg")):
+                continue
+            with open(os.path.join(dossier, f), "rb") as fh:
+                empreinte = hashlib.md5(fh.read()).hexdigest()
+            if empreinte in empreintes:                    # le même son dans deux dossiers : appris une fois
+                continue
+            empreintes.add(empreinte)
+            fichiers.append((relatif, f))
+    packs = packs_des_kits(fichiers)
+    sortes = [sorte_du_kit(os.path.join(r, f)) for r, f in fichiers]
+    sortes_par_pack = defaultdict(Counter)
+    for pack, quoi in zip(packs, sortes):
+        if quoi:
+            sortes_par_pack[pack][quoi[1]] += 1
+    verification = set() if os.environ.get("FLS_IA_KITS_VERIF") == "0" else packs_de_verification(sortes_par_pack)
+    print("kits du propriétaire :", len(sortes_par_pack), "packs,", len(verification), "gardés pour la vérification",
+          flush=True)
+    return [(os.path.join(racine, r, f), pack, quoi, "val" if pack in verification else "train")
+            for (r, f), pack, quoi in zip(fichiers, packs, sortes)]
+
+
+def kits_proprietaire(c):
+    sons = sons_des_kits()
+    if not sons:
+        print("kits du propriétaire : FLS_IA_KITS absent, étape sautée", flush=True)
+        return
+    vus = Counter()
+    for chemin, _, quoi, split in sons:
+        if quoi is None:
+            continue
+        try:
+            son = lire(chemin)[: SR * 8]
+        except Exception:
+            continue
+        famille, sorte = quoi
+        source = "kit-" + {"fill": "fill", "drumLoop": "boucle"}.get(sorte, "oneshot")
+        c.ajouter(source, famille, sorte, split, son)
+        vus[(sorte, split)] += 1
+        if split == "train" and sorte in ("fill", "drumLoop") and rng.random() < 0.5:
+            c.ajouter(source + "+prod", famille, sorte, split, saturer(son))
+    print("kits du propriétaire :", sum(vus.values()), "sons", dict(sorted(vus.items())), flush=True)
+
+
+# Boucles et fills de style trap (24/10 : les boucles trap du propriétaire passaient pour des voix hachées — rolls de
+# hats rapides —, ses fills courts pour des boucles). Faits avec les sons seuls des packs appris (ou fabriqués), pour
+# l'apprentissage seulement : la vérification reste sur les packs gardés.
+def synth_kick():
+    n = int(rng.uniform(0.15, 0.5) * SR)
+    t = np.arange(n) / SR
+    f = rng.uniform(45, 70) * (1 + rng.uniform(2, 6) * np.exp(-t * rng.uniform(25, 60)))
+    x = np.sin(2 * np.pi * np.cumsum(f) / SR) * env(n, 0.001, rng.uniform(0.06, 0.25))
+    return norm(np.tanh(x * rng.uniform(1, 4)))
+
+
+def coups_trap(sons):
+    """Sons seuls par sorte (kick, snare, clap, hiHat, openHat, perc, tom) : ceux des packs appris, sinon fabriqués."""
+    coups = defaultdict(list)
+    for chemin, _, quoi, split in sons:
+        if split == "train" and quoi and quoi[1] in ("kick", "snare", "clap", "hiHat", "openHat", "perc", "tom"):
+            try:
+                coups[quoi[1]].append(lire(chemin)[:SR])
+            except Exception:
+                pass
+    fabriques = {"kick": synth_kick, "snare": synth_clap, "clap": synth_clap, "hiHat": lambda: synth_hihat(False),
+                 "openHat": lambda: synth_hihat(True), "perc": synth_snap, "tom": synth_kick}
+    for sorte, fabrique in fabriques.items():
+        while len(coups[sorte]) < 8:
+            coups[sorte].append(fabrique())
+    return coups
+
+
+def poser(piste, son, debut, gain=1.0):
+    if debut >= len(piste):
+        return
+    fin = min(len(piste), debut + len(son))
+    piste[debut:fin] += son[: fin - debut] * gain
+
+
+def boucle_trap(coups):
+    """2 mesures à 130–185 BPM (snare au 3e temps), hats en croches ou doubles avec des rolls (1/32, triolets),
+    808 sur les kicks parfois ; répétées jusqu'à ≈ 8 s."""
+    temps = 60 / rng.uniform(130, 185) * SR
+    double = temps / 4
+    n = int(temps * 8)
+    x = np.zeros(n, np.float32)
+    kick, snare, hat = rng.choice(coups["kick"]), rng.choice(coups["snare"] + coups["clap"]), rng.choice(coups["hiHat"])
+    kicks = [0] + sorted(rng.sample([2, 3, 6, 7, 10, 11, 14, 15], rng.randint(1, 4)))
+    avec_808 = rng.random() < 0.4
+    for mesure in range(2):
+        base = mesure * 16
+        for k in kicks:
+            poser(x, kick, int((base + k) * double))
+            if avec_808:
+                poser(x, synth_808()[: int(double * 3)], int((base + k) * double), 0.7)
+        poser(x, snare, int((base + 8) * double))
+        if rng.random() < 0.3:
+            poser(x, rng.choice(coups["clap"]), int((base + 8) * double), 0.6)
+        pas_hat = rng.choice([1, 2])                           # doubles ou croches
+        k = 0
+        while k < 16:
+            if rng.random() < 0.18:                            # roll : un temps coupé en 6, 8 ou 12
+                parts = rng.choice([6, 8, 12])
+                for j in range(parts):
+                    poser(x, hat[: int(temps / parts)], int((base + k) * double + j * temps / parts),
+                          rng.uniform(0.4, 1.0))
+                k += 4
+                continue
+            poser(x, hat, int((base + k) * double), rng.uniform(0.5, 1.0))
+            k += pas_hat
+        if rng.random() < 0.4:
+            poser(x, rng.choice(coups["openHat"]), int((base + rng.choice([6, 14])) * double), 0.6)
+        if rng.random() < 0.4:
+            poser(x, rng.choice(coups["perc"]), int((base + rng.choice([3, 5, 11, 13])) * double), 0.6)
+    boucle = np.tile(x, int(np.ceil(8 * SR / n)))[: 8 * SR]
+    return norm(saturer(boucle) if rng.random() < 0.4 else boucle)
+
+
+def fill_trap(coups):
+    """1 à 4 temps : roll de snare, de hats ou de toms qui accélère (et monte), souvent de plus en plus fort."""
+    temps = 60 / rng.uniform(130, 185) * SR
+    n = int(temps * rng.choice([1, 2, 2, 3, 4]))
+    x = np.zeros(n, np.float32)
+    sorte = rng.choice(["snare", "snare", "tom", "hiHat", "clap", "perc"])
+    son = rng.choice(coups[sorte])
+    pos, ecart = 0.0, temps / rng.choice([2, 4])
+    fin_ecart = temps / rng.choice([8, 12, 16])
+    melange = rng.random() < 0.3                               # kick et snare mêlés
+    while pos < n:
+        avance = pos / n
+        coup = rng.choice(coups["kick"]) if melange and rng.random() < 0.3 else son
+        if sorte == "tom":
+            coup = pitch(coup, rng.uniform(-7, 7) * (1 - 2 * avance))
+        poser(x, coup[: int(ecart * 1.5)], int(pos), 0.3 + 0.7 * avance if rng.random() < 0.7 else 1.0)
+        pos += ecart
+        ecart = max(fin_ecart, ecart * rng.uniform(0.8, 0.95))
+    if rng.random() < 0.3:
+        x = reverb(x, rng.uniform(0.3, 1.0))
+    return norm(saturer(x) if rng.random() < 0.3 else x)
+
+
+def trap(c):
+    sons = sons_des_kits()
+    coups = coups_trap(sons)
+    for _ in range(600):
+        c.ajouter("trap-boucle", "drums", "drumLoop", "train", boucle_trap(coups))
+    for _ in range(600):
+        c.ajouter("trap-fill", "drums", "fill", "train", fill_trap(coups))
+    print("trap : 600 boucles, 600 fills (", ", ".join(f"{k} {len(v)}" for k, v in coups.items()), ")", flush=True)
+
+
 ETAPES = (vocalset, librispeech, librispeech_test, voix_hachees, nsynth, nsynth_valid, nsynth_train, medley, batterie,
-          fabriques)
+          fabriques, groove, kits_proprietaire, trap)
 
 
 def main():
@@ -743,6 +1032,9 @@ def main():
                 c.c13.close()
                 c.c13 = None
                 os.replace(c13 + ".part", c13)
+            if c.marque() == marque:                            # rien d'ajouté (données absentes) : refaite plus tard
+                print("·", etape.__name__, "rien à ajouter", flush=True)
+                continue
             c.sauver_etape(chemin, marque)
         print("✓", etape.__name__, c.n, "sons", flush=True)
     c.sauver()

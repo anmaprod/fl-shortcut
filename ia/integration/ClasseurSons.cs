@@ -27,7 +27,7 @@ public sealed class ClasseurSons : IDisposable
                 "organ", "melody" },
         new[] { "bass808", "sub", "reese", "bass" },
         new[] { "kick", "snare", "clap", "rim", "snap", "hiHat", "openHat", "perc", "tom", "shaker", "crash", "ride",
-                "cymbal", "drums" },
+                "cymbal", "drumLoop", "fill", "drums" },
         new[] { "riser", "downlifter", "impact", "sweep", "fx" },
     };
     public static readonly string[] Sortes = SortesParFamille.SelectMany(s => s).ToArray();

@@ -15,7 +15,8 @@ from commun import FAMILLE_DE_SORTE, FAMILLES, ICI, INCONNUE, NOMS, SORTES, TRAV
 
 FAUX_VOIX_MAX = 0.02
 COUCHES = [512, 256]             # tête : deux couches (essais : mieux qu'une seule, de 512 ou 1024)
-TETES = 5                        # têtes apprises chacune de leur côté, moyennées : l'avis ne dépend plus du hasard
+TETES = int(os.environ.get("FLS_IA_TETES", 5))   # têtes apprises chacune de leur côté, moyennées : l'avis ne dépend
+                                                  # plus du hasard (FLS_IA_TETES=1 : essai rapide)
 PART_MIN = 0.5                   # une sorte n'est donnée que si elle l'emporte nettement dans sa famille (comme l'app)
 
 
@@ -196,6 +197,11 @@ def main():
             faux = pred_s[k][pred_s[k] != i]
             erreur = NOMS[SORTES[np.bincount(faux).argmax()]] if faux.size else "—"
             lignes.append(f"| {NOMS[s]} | {k.sum()} | {(pred_s[k] == i).mean() * 100:.1f} % | {erreur} |")
+    # Par source : les packs du propriétaire (kit-…) et les sons enregistrés (groove-…) à part des sons fabriqués.
+    lignes += ["", "## Sorte par source", "", "| Source | Sons | Sorte juste |", "|---|---|---|"]
+    for s in sorted(set(src[k_connue])):
+        k = k_connue & (src == s)
+        lignes.append(f"| {s} | {k.sum()} | {(pred_s[k] == vrai_s[k]).mean() * 100:.1f} % |")
     texte = "\n".join(lignes) + "\n"
     print(texte)
     open(os.path.join(ICI, "RESULTATS.md"), "w").write(texte)

@@ -13,7 +13,7 @@ court en **une vingtaine de millisecondes** sur un simple processeur.
 son → mono 16 kHz, crête 0,7 → tranches de 0,975 s (pas 0,48 s ; 16 au plus, les plus fortes)
     → spectre log-mel (64 bandes, 125–7500 Hz)  ─┬→ YAMNet (MobileNet, Google, Apache 2.0) → empreinte 1024
                                                  └→ 192 mesures : moyenne, écart-type, variation de chaque bande
-    → 1216 nombres normalisés → 5 têtes (couches de 512 et 256 → « famille » (5) + « sorte » (42)), moyennées
+    → 1216 nombres normalisés → 5 têtes (couches de 512 et 256 → « famille » (5) + « sorte » (44)), moyennées
 ```
 - **YAMNet** est appris par Google sur AudioSet (2 millions de sons, 521 classes dont chant, parole, rap, chœur,
   chuchotement) : son empreinte sait déjà distinguer une voix d'un instrument. On ne le réentraîne pas (il reste
@@ -38,7 +38,7 @@ son → mono 16 kHz, crête 0,7 → tranches de 0,975 s (pas 0,48 s ; 16 au plus
 | Voix | Voix, Voix lead, Chœur, Adlib, Ambiance | parole ; chant ; voix superposées et désaccordées ; chops et stutters ; longue réverb |
 | Mélodies | Lead, Pluck, Pad, Keys, Piano, Arp, Chords, Guitare, Strings, Bell, Flûte, Brass, Orgue, Mélodie | instruments NSynth (piano acoustique = Piano, autres claviers = Keys, mallets = Bell, anches = Mélodie) ; plucks, arpèges, pads et accords fabriqués avec leurs notes |
 | Basse | 808, Sub, Reese, Basse | 808 (glissés, saturés), subs, reese désaccordées, basses de synthé et NSynth |
-| Drums | Kick, Snare, Clap, Rim, Snap, Hi-hat, Open Hat, Perc, Tom, Shaker, Crash, Ride, Cymbal, Drums | sons Freesound d'après leur nom (« open hat » = Open Hat, « crash cymbal » = Crash) ; boucles = Drums ; claps, hats, snaps, shakers, crashs fabriqués |
+| Drums | Kick, Snare, Clap, Rim, Snap, Hi-hat, Open Hat, Perc, Tom, Shaker, Crash, Ride, Cymbal, Drum loop, Fill, Drums | sons Freesound d'après leur nom (« open hat » = Open Hat, « crash cymbal » = Crash) ; boucles et fills de vrais batteurs (Groove MIDI Dataset) et des packs du propriétaire = Drum loop, Fill ; boucles fabriquées = Drum loop ; claps, hats, snaps, shakers, crashs fabriqués |
 | FX | Riser, Downlifter, Impact, Sweep, FX | fabriqués ; cymbales à l'envers = Riser ; notes à l'envers, lasers, vinyle, drones = FX |
 
 « Back » et « Synth » ne sont pas appris : ils se décident au nom du son (une voix de back n'a rien qui s'entende
@@ -58,7 +58,7 @@ chantée a des notes nettes), FX ou Drums. Ici :
 4. **Seuil réglé contre les faux positifs** : le plus bas qui garde au plus 2 % des autres sons (FX, mélodies,
    drums…) pris pour des voix, réglé sur une moitié des sons de validation et mesuré sur l'autre.
 
-### Les données (libres d'usage commercial seulement)
+### Les données (libres d'usage commercial, plus les packs du propriétaire à sa demande)
 | Source | Contenu | Licence | Famille |
 |---|---|---|---|
 | VocalSet (Wilkins et al., 2018) | chant, 20 chanteurs | CC BY 4.0 | voix |
@@ -67,6 +67,8 @@ chantée a des notes nettes), FX ou Drums. Ici :
 | NSynth train (Engel et al., 2017) | 16 notes de chacun des ≈ 1000 autres instruments (24 Go lus au fil du téléchargement) | CC BY 4.0 | mélodie, basse |
 | Medley-solos-DB (Lostanlen et al., 2019) | extraits de vrais morceaux : chanteuses, clarinette, guitare saturée, flûte, piano, saxophone, trompette, violon (lus au fil du téléchargement) | CC BY 4.0 | voix, mélodie |
 | Freesound One-Shot Percussive Sounds (Ramires et al., 2020) | ~9 500 sons de batterie | CC0 et CC BY gardés, NC exclus | drums (sorte d'après le nom) |
+| Groove MIDI Dataset (Gillick et al., 2019) | 10 batteurs enregistrés : boucles (« beat », coupées en 1, 2 ou 4 mesures) et fills | CC BY 4.0 | drums (Drum loop, Fill) |
+| Packs du propriétaire (`FLS_IA_KITS`, jamais dans le dépôt) | fills, drum loops, sons seuls, 808, textures ; sorte d'après le type du son (« © FILL -- … », « LOW -- … (C) » = 808) ; des packs entiers gardés pour la vérification | à sa demande (24/10) | drums, basse, FX |
 | Fabriqués par `preparer.py` | 808, subs, reese, basses, pads, plucks, arpèges, accords, claps, hats, snaps, shakers, crashs, FX, boucles | domaine public | toutes |
 
 **Validation honnête** : des chanteurs, des locuteurs, des instruments et des sons de batterie entiers sont mis de
@@ -77,6 +79,7 @@ côté avant l'apprentissage ; les chiffres annoncés (`RESULTATS.md`) sont mesu
 python3.11 -m venv .venv && . .venv/bin/activate && pip install -r ia/requirements.txt
 python ia/donnees.py      # ≈ 4,5 Go, une seule fois (dossier FLS_IA_TRAVAIL, par défaut ~/.cache/fl-shortcuts-ia)
 python ia/preparer.py     # sons, variantes, mesures de chaque tranche (≈ 1 h 15 sur 4 cœurs ; reprend après une erreur)
+                          # FLS_IA_KITS=dossier : ajoute des packs de batterie (une étape à part, refaite seule)
 python ia/entrainer.py    # têtes, seuil des voix, RESULTATS.md (≈ 5 min)
 python ia/exporter.py     # vérifie, puis écrit ia/modele/classeur_sons.onnx (+ .json) et Resources/ClasseurSons.mlpackage
 python ia/essais_app.py   # sons d'essai et réponses attendues pour les tests de l'app
@@ -136,7 +139,8 @@ basse +0,4, FX −2,9) ; le modèle livré, appris avant, fait 92,7 % sur ces m�
 
 ## 6. Limites connues
 - Pas de vraies voix de production sous licence libre en grand nombre : elles sont imitées par les variantes. Les
-  packs de l'utilisateur servent à mesurer, jamais à apprendre (rien ne quitte son ordinateur).
+  packs des utilisateurs ne quittent jamais leur ordinateur ; seuls ceux que le propriétaire a donnés (fills, drum
+  loops) ont servi à apprendre.
 - Les 808, les subs, les reese, les pads et les FX sont surtout fabriqués : à surveiller sur de vrais packs.
 - Plafond de l'IA seule ≈ 92–93 % sur les notes isolées de NSynth : plus de sons (72 643) ou la couche 14 réapprise
   n'y changent rien. Les erreurs restantes sont des notes seules ambiguës même à l'oreille : note grave de clavier

@@ -12,6 +12,10 @@ Le modèle `classeur_sons.onnx` (et sa version Core ML `ClasseurSons.mlpackage` 
   - Medley-solos-DB, Lostanlen, Cella, Bittner et Essid, 2019 — CC BY 4.0 ;
   - Freesound One-Shot Percussive Sounds, Ramires et al., 2020 — seuls les sons CC0 et CC BY, auteurs listés dans
     le fichier de licences du jeu de données ;
+  - Groove MIDI Dataset (sons de batterie enregistrés : boucles et fills), Gillick, Roberts, Engel, Eck et Bamman,
+    2019 — CC BY 4.0 ;
+  - des packs de batterie du propriétaire de FL Shortcuts (fills, drum loops, sons seuls), à sa demande ; ils ne
+    sont pas dans le dépôt ;
   - sons fabriqués par `ia/preparer.py` (domaine public).
 
 Aucun son d'utilisateur n'a servi à l'apprentissage. Les prochaines versions pourront aussi apprendre des

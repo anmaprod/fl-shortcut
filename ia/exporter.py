@@ -251,7 +251,8 @@ def coreml(m, chemin):
     q = ct.models.MLModel(spec, weights_dir=q.weights_dir)
     q.short_description = "FL Shortcuts : famille et sorte d'un son (YAMNet Apache 2.0 + têtes apprises sur des sons libres)"
     q.license = "YAMNet : Apache 2.0 (Google) ; têtes : apprises sur VocalSet, LibriSpeech, NSynth, Medley-solos-DB " \
-                "(CC BY 4.0) et Freesound One-Shot Percussive Sounds (CC0, CC BY) — voir ia/modele/CREDITS.md"
+                "(CC BY 4.0), Groove MIDI Dataset (CC BY 4.0) et Freesound One-Shot Percussive Sounds (CC0, CC BY) — voir " \
+                "ia/modele/CREDITS.md"
     q.input_description["son"] = "Tranches de 15 600 échantillons, 16 kHz, mono, crête du son à 0,7"
     q.output_description["famille"] = "Probabilités : " + ", ".join(FAMILLES)
     q.output_description["sorte"] = "Probabilités : " + ", ".join(SORTES)
@@ -287,7 +288,7 @@ def main():
                "seuil_voix": REGLAGES["seuil_voix"], "frequence": SR, "tranche": TRANCHE, "pas": PAS,
                "max_tranches": MAX_TRANCHES, "crete": 0.7,
                "credits": ["YAMNet (Google, Apache 2.0)", "VocalSet (CC BY 4.0)", "LibriSpeech (CC BY 4.0)",
-                           "NSynth (CC BY 4.0)", "Medley-solos-DB (CC BY 4.0)",
+                           "NSynth (CC BY 4.0)", "Medley-solos-DB (CC BY 4.0)", "Groove MIDI Dataset (CC BY 4.0)",
                            "Freesound One-Shot Percussive Sounds (sons CC0 et CC BY)"]},
               open(os.path.join(MODELE, "classeur_sons.json"), "w"), ensure_ascii=False, indent=1)
 

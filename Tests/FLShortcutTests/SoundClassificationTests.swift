@@ -192,7 +192,7 @@ enum SynthSounds {
         let loop = drumLoop(&noise)
         let hat = brightHat(&noise)
         let list: [(String, [Double], SoundFamily, DrumKind?)] = [
-            ("arp", arp(), .melody, nil), ("loop", loop, .drums, .kit), ("hat", hat, .drums, .hiHat),
+            ("arp", arp(), .melody, nil), ("loop", loop, .drums, .loop), ("hat", hat, .drums, .hiHat),
         ]
         return list.map { ($0.0, $0.1.map(Float.init), $0.2, $0.3) }
     }
@@ -294,7 +294,7 @@ final class SoundClassificationTests: XCTestCase {
         // Boucle de batterie : grave du kick (comme une basse qui change de note) et aigus du charleston.
         let loop = f(len: 0.17, pitched: 0.64, f0: 52, low: 0.5, flat: 0.26, high: 0.41, distinct: 2)
         XCTAssertEqual(FamilyFusion.decide(loop, .none).family, .drums)
-        XCTAssertEqual(DrumNaming.kind(loop, scores: ["bass_drum": 0.6]), .kit, "le grave et les aigus : plus sûr que l'IA")
+        XCTAssertEqual(DrumNaming.kind(loop, scores: ["bass_drum": 0.6]), .loop, "le grave et les aigus : plus sûr que l'IA")
         // Open hat : long, bruité, aigu, avec une attaque (une montée de bruit n'en a pas).
         let open = f(len: 0.6, pitched: 0, f0: 0, low: 0, flat: 0.59, high: 0.94, onsets: 1.2)
         XCTAssertEqual(FamilyFusion.decide(open, .none).family, .drums)
@@ -355,8 +355,9 @@ final class SoundClassificationTests: XCTestCase {
         XCTAssertEqual(DrumNaming.kind(f(len: 0.2, low: 0.2, flat: 0.3, high: 0.3), scores: [:]), .snare)
         XCTAssertEqual(DrumNaming.kind(f(len: 0.3, low: 0, flat: 0.56), scores: [:]), .clap)
         XCTAssertEqual(DrumNaming.kind(f(len: 0.1, low: 0, flat: 0.35, f0: 820, pitched: 1), scores: [:]), .perc)
-        XCTAssertEqual(DrumNaming.kind(f(len: 0.2, low: 0.6, flat: 0.26, high: 0.4), scores: [:]), .kit)
-        XCTAssertEqual(DrumKind.allCases.map(\.name), ["Kick", "Snare", "Hi-hat", "Clap", "Cymbal", "Perc", "Drums"])
+        XCTAssertEqual(DrumNaming.kind(f(len: 0.2, low: 0.6, flat: 0.26, high: 0.4), scores: [:]), .loop)
+        XCTAssertEqual(DrumKind.allCases.map(\.name), ["Kick", "Snare", "Hi-hat", "Clap", "Cymbal", "Perc", "Drums",
+                                                        "Drum loop"])
         for label in DrumNaming.labels.keys {
             XCTAssertEqual(FamilyFusion.labelTable[label], .drums, "\(label) : étiquette de drums connue")
         }

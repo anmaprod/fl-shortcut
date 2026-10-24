@@ -57,7 +57,7 @@ enum SoundKind: String, CaseIterable, Codable {
     case vocalLead, backing, ambiance, adlib, choir, vocal
     case lead, pluck, pad, keys, piano, synth, arp, chords, guitar, strings, bell, flute, brass, organ, melody
     case bass808, sub, reese, bass
-    case kick, snare, clap, rim, snap, hiHat, openHat, perc, tom, shaker, crash, ride, cymbal, drums
+    case kick, snare, clap, rim, snap, hiHat, openHat, perc, tom, shaker, crash, ride, cymbal, drumLoop, fill, drums
     case riser, downlifter, impact, sweep, fx
 
     var family: SoundFamily {
@@ -67,7 +67,7 @@ enum SoundKind: String, CaseIterable, Codable {
              .organ, .melody: return .melody
         case .bass808, .sub, .reese, .bass: return .bass
         case .kick, .snare, .clap, .rim, .snap, .hiHat, .openHat, .perc, .tom, .shaker, .crash, .ride, .cymbal,
-             .drums: return .drums
+             .drumLoop, .fill, .drums: return .drums
         case .riser, .downlifter, .impact, .sweep, .fx: return .fx
         }
     }
@@ -112,6 +112,8 @@ enum SoundKind: String, CaseIterable, Codable {
         case .crash: return String(localized: "Crash")
         case .ride: return String(localized: "Ride")
         case .cymbal: return String(localized: "Cymbal")
+        case .drumLoop: return String(localized: "Drum loop")
+        case .fill: return String(localized: "Fill")
         case .drums: return String(localized: "Drums")
         case .riser: return String(localized: "Riser")
         case .downlifter: return String(localized: "Downlifter")
@@ -137,9 +139,10 @@ enum SoundKind: String, CaseIterable, Codable {
     var busFamily: SoundFamily { self == .bass808 ? .drums : family }
 }
 
-/// Sorte d'un son de drums reconnue à l'écoute (pas de nom qui la dise).
+/// Sorte d'un son de drums reconnue à l'écoute (pas de nom qui la dise). `loop` : le grave d'un kick avec des aigus,
+/// une boucle de batterie mesurée (Drum loop) ; `kit` : l'IA de macOS entend « une batterie » sans dire quoi (Drums).
 enum DrumKind: String, CaseIterable, Codable {
-    case kick, snare, hiHat, clap, cymbal, perc, kit
+    case kick, snare, hiHat, clap, cymbal, perc, kit, loop
 
     var name: String { sound.name }
 
@@ -152,6 +155,7 @@ enum DrumKind: String, CaseIterable, Codable {
         case .cymbal: return .cymbal
         case .perc: return .perc
         case .kit: return .drums
+        case .loop: return .drumLoop
         }
     }
 }
@@ -181,13 +185,18 @@ enum SoundNames {
         "perc": .perc, "percs": .perc, "percussion": .perc, "conga": .perc, "bongo": .perc, "cowbell": .perc,
         "clave": .perc, "tom": .tom, "toms": .tom, "shaker": .shaker, "tamb": .shaker, "tambourine": .shaker,
         "crash": .crash, "ride": .ride, "cymbal": .cymbal, "cym": .cymbal, "splash": .cymbal, "china": .cymbal,
-        "drum": .drums, "drums": .drums, "drumloop": .drums, "breakbeat": .drums, "kit": .drums,
+        "drum": .drums, "drums": .drums, "kit": .drums,
+        "drumloop": .drumLoop, "drumloops": .drumLoop, "breakbeat": .drumLoop, "breakbeats": .drumLoop,
+        "toploop": .drumLoop, "fill": .fill, "fills": .fill, "drumfill": .fill, "drumfills": .fill,
         "riser": .riser, "risers": .riser, "uplifter": .riser, "downlifter": .downlifter, "impact": .impact,
         "sweep": .sweep, "fx": .fx, "sfx": .fx, "whoosh": .fx, "noise": .fx, "transition": .fx, "reverse": .fx,
         "zap": .fx, "laser": .fx,
     ]
     /// Mots de charleston : précédés de « open » (« OPEN HAT »), c'est un Open Hat.
     static let hatWords: Set<String> = ["hat", "hats", "hihat", "hihats", "hh"]
+    /// « Loop » seul ne dit pas quoi (une boucle de mélodie, de voix…) : avec un mot de drums (« Drum Loop », « Hat
+    /// Loop »), ou « top » (« Top Loop »), c'est une Drum loop (demande du propriétaire, 24/10).
+    static let loopWords: Set<String> = ["loop", "loops"]
 
     /// Mots du nom, sans casse ni accents ; un nombre collé à la fin d'un mot est retiré (« kick01 » → « kick »),
     /// sauf pour un mot qui n'est fait que de chiffres (« 808 »).
@@ -219,16 +228,24 @@ enum SoundNames {
         let parts = words(recordedTrack(name) ?? name)
         let found = kinds(in: parts)
         let named = Set(found.map { $0.family })
+        let looped = parts.contains(where: loopWords.contains)
         let family: SoundFamily
-        if found.contains(where: { $0.family == .drums && !$0.isGeneral }) {
+        if found.contains(where: { $0.family == .drums && !$0.isGeneral && $0 != .fill && $0 != .drumLoop }) {
             family = .drums
         } else if let first = [SoundFamily.vocals, .bass, .fx, .melody, .drums].first(where: { named.contains($0) }) {
             family = first
+        } else if looped && parts.contains("top") {
+            return .drumLoop
         } else {
             return nil
         }
         if family == .vocals, let layer = vocalLayer(parts) { return layer }
         let mine = found.filter { $0.family == family }
+        // Une boucle ou un fill de drums l'emporte sur l'élément joué (« Snare Fill » : Fill ; « Hat Loop » : Drum loop).
+        if family == .drums {
+            if mine.contains(.fill) { return .fill }
+            if mine.contains(.drumLoop) || looped { return .drumLoop }
+        }
         return mine.min { a, b in a.isGeneral != b.isGeneral ? !a.isGeneral : a.rank < b.rank }
     }
 
@@ -352,7 +369,10 @@ enum DrumNaming {
     /// étiquettes de l'IA de macOS et les mesures, comme avant.
     static func kind(_ f: SoundFeatures, scores: [String: Double], embedded: SoundKind?) -> SoundKind {
         if let sure = measured(f) {
-            if sure != .kit, let embedded, metals.contains(embedded) { return embedded }
+            // Une boucle mesurée : un Fill si l'IA intégrée l'entend ainsi (roulement de toms, de snare), sinon une
+            // Drum loop.
+            if sure == .loop { return embedded == .fill ? .fill : .drumLoop }
+            if let embedded, metals.contains(embedded) { return embedded }
             return sure.sound
         }
         return embedded ?? kind(f, scores: scores).sound
@@ -364,7 +384,7 @@ enum DrumNaming {
     /// Ce que les mesures disent sûrement, plus sûr que toute IA : le grave d'un kick avec des aigus (charleston) est
     /// une boucle de batterie ; presque tout au-dessus de 6 kHz, un charleston (long : une cymbale). nil sinon.
     static func measured(_ f: SoundFeatures) -> DrumKind? {
-        if isLow(f) && f.highRatio >= FamilyFusion.loopHigh { return .kit }
+        if isLow(f) && f.highRatio >= FamilyFusion.loopHigh { return .loop }
         if f.highRatio >= sureHatHigh && f.flatness >= FamilyFusion.noisy { return f.noteLength >= cymbalLength ? .cymbal : .hiHat }
         return nil
     }

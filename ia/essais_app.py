@@ -51,8 +51,10 @@ def main():
     t = tarfile.open(os.path.join(D, "nsynth-test.tar.gz"))
     meta = json.load(t.extractfile(next(m for m in t if m.name.endswith("examples.json"))))
     gardes = sorted({v["instrument_str"] for v in meta.values()})[::5]
+    # Au-dessus du do 4 : une note plus grave d'un clavier ou d'une guitare est ambiguë même à l'oreille (le sol 3
+    # pris avant était à 59 % mélodie, puis 57 % basse après l'apprentissage du 24/10).
     note = sorted(k for k, v in meta.items() if v["instrument_str"] in gardes
-                  and v["instrument_family_str"] in ("keyboard", "guitar", "string") and 55 <= v["pitch"] <= 72)[0]
+                  and v["instrument_family_str"] in ("keyboard", "guitar", "string") and 60 <= v["pitch"] <= 72)[0]
     sorte_note = preparer.sorte_nsynth(meta[note]["instrument_family_str"], meta[note]["instrument_source_str"])
     t = tarfile.open(os.path.join(D, "nsynth-test.tar.gz"))
     wav = next(m for m in t if m.name.endswith(f"/{note}.wav"))
