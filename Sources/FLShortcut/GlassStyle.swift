@@ -97,16 +97,16 @@ extension View {
         .motion(quick ? Motion.quickMorph : Motion.morph, value: key)
     }
 
-    /// Page de la barre latérale : une nouvelle page à chaque `key`, qui arrive du flou au net en montant un peu. Le
-    /// changement lui-même n'est pas animé : la page qui part s'en va tout de suite (PageReveal).
+    /// Page de la barre latérale : une nouvelle page à chaque `key` (liste neuve, en haut), affichée d'un coup. Plus
+    /// d'animation au changement de page (demande du propriétaire, 24/10 : ni fondu ni flou).
     func pageSwitch<K: Hashable>(_ key: K) -> some View {
-        modifier(PageReveal(focus: true)).id(key)
+        id(key)
     }
 
     /// Bascule de toute la fenêtre (raccourcis ↔ créateur de macros) : la page qui arrive apparaît en fondu, à sa
     /// création. Opacité seule : ces pages sont faites de vues d'AppKit que le flou et l'échelle ne suivent pas.
     func windowReveal() -> some View {
-        modifier(PageReveal(focus: false))
+        modifier(PageReveal())
     }
 }
 
@@ -124,33 +124,23 @@ private struct SoftFocus: ViewModifier {
     }
 }
 
-/// Apparition d'une page entière, une seule fois, à sa création. Le changement de page se fait SANS animation : avec
-/// une animation, SwiftUI garde la page qui part (ses listes et barres d'AppKit, qui ne suivent pas le fondu) pleine
-/// jusqu'au bout, et la nouvelle apparaissait par-dessus (captures au ralenti de la CI : titres en double, « Général »
-/// mêlé à « Mixer », bord de défilement dessiné deux fois sous la barre d'outils). Ici l'ancienne s'en va tout de
-/// suite, puis la nouvelle se dévoile (sa propre animation).
+/// Apparition de toute la fenêtre (raccourcis ↔ créateur), une seule fois, à sa création : fondu seul. Le
+/// changement lui-même se fait SANS animation : avec une animation, SwiftUI garde la page qui part (ses listes et
+/// barres d'AppKit, qui ne suivent pas le fondu) pleine jusqu'au bout, et la nouvelle apparaissait par-dessus.
 private struct PageReveal: ViewModifier {
-    /// Vrai : du flou au net en montant un peu (une page) ; faux : opacité seule (toute la fenêtre).
-    let focus: Bool
     @State private var shown = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotionSetting
 
     private var reduceMotion: Bool { reduceMotionSetting && DebugSnapshot.slowMotion == 1 }
 
     func body(content: Content) -> some View {
-        Group {
-            if focus && !reduceMotion {
-                content.modifier(SoftFocus(amount: shown ? 0 : 1, rise: 10))
-            } else {
-                content.opacity(shown ? 1 : 0)
+        content
+            .opacity(shown ? 1 : 0)
+            .onAppear {
+                withAnimation(reduceMotion ? Motion.reduced : .easeOut(duration: 0.28 * DebugSnapshot.slowMotion)) {
+                    shown = true
+                }
             }
-        }
-        .onAppear {
-            let animation: Animation = reduceMotion ? Motion.reduced
-                : focus ? .spring(response: 0.45 * DebugSnapshot.slowMotion, dampingFraction: 0.9)
-                : .easeOut(duration: 0.28 * DebugSnapshot.slowMotion)
-            withAnimation(animation) { shown = true }
-        }
     }
 }
 

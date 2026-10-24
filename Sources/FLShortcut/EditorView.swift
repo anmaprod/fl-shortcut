@@ -530,7 +530,7 @@ struct EditorView: View {
                 }
             }
         }
-        // Nouvelle liste (et retour en haut) à chaque section : l'ancienne s'efface, puis la nouvelle arrive nette.
+        // Nouvelle liste (et retour en haut) à chaque section, affichée d'un coup (aucune animation).
         .pageSwitch(trimmedQuery.isEmpty ? selection : nil)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         // Façon macOS 26 : la liste défile SOUS des éléments en verre qui flottent (avertissements en haut,

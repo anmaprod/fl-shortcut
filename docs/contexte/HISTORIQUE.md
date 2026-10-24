@@ -255,6 +255,9 @@ entrée 1 ≈ 0,5 s.
 - Le propriétaire les a essayées sur son Mac : « c'est vraiment nul, je veux que tu enlèves tout ce qui a été rajouté
   de 1 à 9 ». Tout est retiré : le code est revenu à 7f68c9f (seuls les noms des fichiers de la CI restent changés :
   FLShortcuts-mac, FLShortcuts-windows, FLShortcuts-mac-mesure). Ne pas les refaire sans qu'il le demande.
+- 24/10 : « tu n'as pas enlevé les choses que je voulais » ; sur les animations d'avant le chantier, il a choisi de
+  retirer seulement celle du changement de page (fondu et flou au clic dans la barre de gauche) : la page s'affiche
+  maintenant d'un coup. Guide, accueil, menu de l'icône, Organiser et créateur gardent les leurs.
 
 ## 23 octobre : IA intégrée (classement des sons, Mac et Windows)
 - Demande du propriétaire : « viens on bosse sur l'IA intégrée », priorité aux voix (« rangées ailleurs mais jsp
