@@ -46,6 +46,13 @@ public sealed class FakeOrganizerLink : IOrganizerLink
     public List<ChannelInfo> ListChannels()
     {
         Log.Add("list");
+        if (_pendingDeletes.Count > 0)
+        {
+            // FL supprime lentement : un son de plus à chaque relecture.
+            var gone = _pendingDeletes.Dequeue();
+            Channels = Channels.Where(c => c.Index != gone).Select((c, i) => c with { Index = i }).ToList();
+            _pendingDeletes = new Queue<int>(_pendingDeletes.Select(p => p > gone ? p - 1 : p));
+        }
         if (Group is null || AllChannels) return Channels.ToList();
         return Group.Select((i, k) => Channels[i] with { Index = k }).ToList();
     }
@@ -191,8 +198,13 @@ public sealed class FakeOrganizerLink : IOrganizerLink
         return done;
     }
 
+    /// Patterns et sons que ce FL refuse de jouer (données refusées, raison 5).
+    public HashSet<int> RefusedPatterns = new();
+    public HashSet<int> RefusedChannels = new();
+
     public void PlaySolo(int channel, int? pattern = null)
     {
+        if (pattern is { } p0 && RefusedPatterns.Contains(p0) || RefusedChannels.Contains(channel)) throw OrganizerError.Refused(5);
         if (!_memo && Playing) throw OrganizerError.Refused(4);
         _memo = true;
         Playing = true;
@@ -256,10 +268,27 @@ public sealed class FakeOrganizerLink : IOrganizerLink
     {
         if (Window != FlWindow.ChannelRack) return false;
         Log.Add("delete");
-        Channels = Channels.Where(c => !UnusedSelection.Contains(c.Index)).Select((c, i) => c with { Index = i }).ToList();
-        UnusedSelection = new HashSet<int>();
+        var doomed = UnusedSelection.OrderBy(i => i).Take(DeletesOnly ?? int.MaxValue).Concat(DeletesAlso).ToHashSet();
+        UnusedSelection = UnusedSelection.Except(doomed).ToHashSet();
+        if (DeletesSlowly)
+        {
+            // Le premier tout de suite, les autres un par un, à chaque relecture (index d'après les précédents).
+            var order = doomed.OrderByDescending(i => i).ToList();
+            var first = order[^1];
+            Channels = Channels.Where(c => c.Index != first).Select((c, i) => c with { Index = i }).ToList();
+            _pendingDeletes = new Queue<int>(order.Take(order.Count - 1).Select(i => i - 1));
+            return true;
+        }
+        Channels = Channels.Where(c => !doomed.Contains(c.Index)).Select((c, i) => c with { Index = i }).ToList();
+        UnusedSelection = UnusedSelection.Where(i => i < Channels.Count).ToHashSet();
         return true;
     }
+
+    /// FL qui supprime lentement (un son à chaque relecture), qui n'en supprime que les premiers, ou d'autres aussi.
+    public bool DeletesSlowly;
+    public int? DeletesOnly;
+    public List<int> DeletesAlso = new();
+    private Queue<int> _pendingDeletes = new();
 
     /// « Move up » simulé : la piste de la Playlist à cette place remonte d'autant (Playlist devant).
     public int MoveTrackUp(int place, int count)

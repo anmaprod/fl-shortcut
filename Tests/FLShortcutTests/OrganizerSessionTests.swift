@@ -54,6 +54,13 @@ final class FakeOrganizerLink: OrganizerLink {
 
     func listChannels() throws -> [ChannelInfo] {
         log.append("list")
+        if !pendingDeletes.isEmpty {
+            // FL supprime lentement : un son de plus à chaque relecture.
+            let gone = pendingDeletes.removeFirst()
+            channels = channels.filter { $0.index != gone }.enumerated()
+                .map { Self.copy($0.element, index: $0.offset, color: $0.element.color) }
+            pendingDeletes = pendingDeletes.map { $0 > gone ? $0 - 1 : $0 }
+        }
         guard let group, !allChannels else { return channels }
         return group.enumerated().map { k, i in
             let c = channels[i]
@@ -201,7 +208,14 @@ final class FakeOrganizerLink: OrganizerLink {
         ChannelInfo(index: index, type: c.type, mixerTrack: c.mixerTrack, color: color, name: c.name)
     }
 
+    /// Patterns et sons que ce FL refuse de jouer (données refusées, raison 5).
+    var refusedPatterns: Set<Int> = []
+    var refusedChannels: Set<Int> = []
+
     func playSolo(_ channel: Int, pattern: Int?) throws {
+        if pattern.map({ refusedPatterns.contains($0) }) == true || refusedChannels.contains(channel) {
+            throw OrganizerError.refused(5)
+        }
         if !memo && playing { throw OrganizerError.refused(4) }
         memo = true
         playing = true
@@ -292,11 +306,26 @@ final class FakeOrganizerLink: OrganizerLink {
     func deleteSelected() -> Bool {
         guard window == .channelRack else { return false }
         log.append("delete")
-        channels = channels.filter { !unusedSelection.contains($0.index) }.enumerated()
+        let doomed = Set(unusedSelection.sorted().prefix(deletesOnly ?? Int.max)).union(deletesAlso)
+        unusedSelection.subtract(doomed)
+        if deletesSlowly, let first = doomed.min() {
+            // Le premier tout de suite, les autres un par un, à chaque relecture (du dernier au premier).
+            channels = channels.filter { $0.index != first }.enumerated()
+                .map { Self.copy($0.element, index: $0.offset, color: $0.element.color) }
+            pendingDeletes = doomed.subtracting([first]).sorted(by: >).map { $0 - 1 }
+            return true
+        }
+        channels = channels.filter { !doomed.contains($0.index) }.enumerated()
             .map { Self.copy($0.element, index: $0.offset, color: $0.element.color) }
-        unusedSelection = []
+        unusedSelection = unusedSelection.filter { $0 < channels.count }
         return true
     }
+
+    /// FL qui supprime lentement (un son à chaque relecture), qui n'en supprime que les premiers, ou d'autres aussi.
+    var deletesSlowly = false
+    var deletesOnly: Int?
+    var deletesAlso: Set<Int> = []
+    private var pendingDeletes: [Int] = []
 
     /// « Move up » simulé : la piste de la Playlist à cette place remonte d'autant (Playlist devant).
     func moveTrackUp(_ place: Int, _ count: Int) -> Int {
@@ -998,6 +1027,35 @@ final class OrganizerSessionTests: XCTestCase {
         XCTAssertEqual(asked, [path])
         XCTAssertFalse(link.log.contains { $0.hasPrefix("solo 1") || $0.hasPrefix("note 1 ") }, "rien joué dans FL : \(link.log)")
         XCTAssertTrue(session.diagnostics.rules.contains("c1:faux+fichier"), "\(session.diagnostics.rules)")
+    }
+
+    /// Vidéo du propriétaire (25/10) : « FL a refusé l'opération (raison 5) » arrêtait toute l'analyse. Un pattern
+    /// refusé : le son est écouté dans le pattern ouvert ; un son refusé : « À vérifier », les autres sont écoutés.
+    func testRefusedSoundDoesNotStopTheAnalysis() throws {
+        let names = ["Pad", "Son 1", "Son 2", "Snare", "808"]
+        let link = FakeOrganizerLink()
+        link.channels = names.enumerated().map {
+            ChannelInfo(index: $0.offset, type: 2, mixerTrack: $0.offset + 1, color: red, name: $0.element)
+        }
+        link.patternList = ["Mélodie", "Drums", "Pattern 3", "Vide"].enumerated().map {
+            PatternInfo(index: $0.offset, color: red, name: $0.element)
+        }
+        link.mixer = (0...6).map { MixerTrackInfo(index: $0, color: red, name: $0 == 0 ? "Master" : "Insert \($0)") }
+        link.refusedPatterns = [3]
+        link.refusedChannels = [2]
+        let audio = FakeAudio(link: link)
+        audio.parts = [1: tone(.drums), 2: tone(.melody)]
+        let file = FLPSample.sample(names: names)
+        let files = ProjectFileAccess(save: { _ in .success(URL(fileURLWithPath: "/projets/Mon son.flp")) },
+                                      open: { _ in false }, read: { _ in file })
+        let session = OrganizerSession(link: link, audio: audio, classify: classify, nameDrum: { _, _ in .kick },
+                                       timing: timing, sleep: { _ in }, files: files)
+        let result = try session.run().get()
+        XCTAssertEqual(result.items.first { $0.index == 1 }?.family, .drums, "écouté dans le pattern ouvert")
+        XCTAssertEqual(result.items.first { $0.index == 2 }?.family, .unsure)
+        XCTAssertTrue(session.diagnostics.rules.contains("c1:pattern-refusé"), "\(session.diagnostics.rules)")
+        XCTAssertTrue(session.diagnostics.rules.contains("c2:silence+refus"), "\(session.diagnostics.rules)")
+        XCTAssertTrue(link.log.contains("solo 1"), "\(link.log)")
     }
 
     /// Le fichier enregistré n'est pas le projet ouvert (autres sons) : rien n'est touché, la raison est dite.

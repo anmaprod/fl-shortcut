@@ -91,7 +91,7 @@ public sealed class OrganizerError : Exception, IEquatable<OrganizerError>
             4 => Loc.T("FL joue : appuie sur Stop, puis relance Organiser."),
             6 => Loc.T("Ta version de FL ne permet pas cette étape : mets FL Studio à jour."),
             7 => Loc.T("Sélectionne au moins 2 pistes pour un dégradé."),
-            _ => Loc.F("FL a refusé l'opération (raison %lld).", Reason),
+            _ => Loc.F("FL a refusé une étape de l'Organiser (raison %lld). Clique sur « Réessayer » ; si ça recommence, « Copier le diagnostic » et envoie-le-moi : il dit laquelle.", Reason),
         },
         _ => Why.Length == 0 ? Why : char.ToUpperInvariant(Why[0]) + Why[1..],
     };
@@ -434,6 +434,8 @@ public interface IOrganizerLink
 {
     /// Page de FL devant, vérifiée pendant l'application (déplacements, icônes).
     FlWindow Window { get; }
+    /// Le dernier refus de FL, en nombres pour le diagnostic : « op6:5 » (opération 6 refusée, raison 5).
+    string? LastRefusal => null;
     /// Page de FL devant, demandée au script (opération 9).
     FlWindow Page();
     /// Canaux comptés dans « All » (script v16, API 33), même si le Channel rack montre un groupe. Remis à faux par
@@ -487,6 +489,7 @@ public sealed class RequestOrganizerLink : IOrganizerLink
     private DateTime? _last;
     /// Une opération 9 à 12 a déjà répondu : le script est le v6 (un refus 5 est alors une vraie donnée refusée).
     private bool _newOpsSeen;
+    public string? LastRefusal { get; private set; }
 
     public bool AllChannels { get; set; }
 
@@ -528,6 +531,12 @@ public sealed class RequestOrganizerLink : IOrganizerLink
         }
     }
 
+    private OrganizerError Refusal(byte[] bytes, int reason)
+    {
+        LastRefusal = $"op{(bytes.Length > 0 ? bytes[0] : 0)}" + (bytes.Length > 1 && bytes[0] == 2 ? $"-{bytes[1]}" : "") + $":{reason}";
+        return OrganizerError.Refused(reason);
+    }
+
     private byte[] Send(byte[] bytes)
     {
         if (_last is { } last)
@@ -540,7 +549,7 @@ public sealed class RequestOrganizerLink : IOrganizerLink
             return _request(bytes) switch
             {
                 RequestReply.Answered a => a.Bytes,
-                RequestReply.Refused r => throw OrganizerError.Refused(r.Reason),
+                RequestReply.Refused r => throw Refusal(bytes, r.Reason),
                 RequestReply.Failed f => throw (f.Why == LinkCore.NoResponse ? OrganizerError.NoResponse : OrganizerError.Failed(f.Why)),
                 _ => throw OrganizerError.Failed("?"),
             };

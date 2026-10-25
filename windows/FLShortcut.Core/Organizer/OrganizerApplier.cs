@@ -75,9 +75,11 @@ public sealed class OrganizerApplier
             }
             if (plan.Deleted.Count > 0)
             {
-                if (DeleteUnused(plan.Deleted, result) is { } shifted)
+                if (DeleteUnused(plan.Deleted, result, outcome.Trace) is { } shifted)
                 {
-                    outcome.Deleted = plan.Deleted.Count;
+                    // FL a pu n'en supprimer qu'une partie : les autres restent de côté (sélectionnés à la fin).
+                    outcome.Deleted = shifted.Gone;
+                    outcome.NotDeleted = plan.Deleted.Count - shifted.Gone;
                     result = shifted.Result;
                     plan = plan.Replanned(shifted.Result, shifted.Map, styles);
                 }
@@ -148,6 +150,7 @@ public sealed class OrganizerApplier
         catch (Exception e)
         {
             outcome.Error = Failure(e);
+            if (outcome.Error.Is(OrganizerError.Kinds.Refused) && _link.LastRefusal is { } refusal) outcome.Trace.Add($"refus {refusal}");
         }
         if (_restored > 0) outcome.Trace.Add($"page remise {_restored}");
         return outcome;
@@ -348,7 +351,18 @@ public sealed class OrganizerApplier
     /// Sons sans aucune note supprimés : sélectionnés seuls par le script (relus), Channel rack devant, puis « Delete
     /// selected » de FL (Alt+Suppr) ; vérifié en relisant le Channel rack. null si FL n'a rien supprimé. Autre chose
     /// de supprimé, ou un Channel rack changé depuis l'analyse : arrêt.
-    private (OrganizerResult Result, Dictionary<int, int> Map)? DeleteUnused(List<int> deleted, OrganizerResult result)
+    /// Relectures du Channel rack après la suppression (0,35 s d'écart, 6 s au plus) : FL supprime les sons un par un
+    /// (vidéo du propriétaire, 25/10 : relu trop tôt, il n'avait pas fini et l'Organiser s'arrêtait).
+    public const int DeleteChecks = 17;
+    public const double DeleteCheck = 0.35;
+
+    /// Sons sans aucune note supprimés : sélectionnés seuls par le script (relus), Channel rack devant, puis « Delete
+    /// selected » de FL (Alt+Suppr). Le Channel rack est relu jusqu'à ce que FL ait fini (tous partis, ou deux fois le
+    /// même) ; ce que FL a vraiment supprimé (`Removed`) sert pour la suite, même s'il n'en a supprimé qu'une partie.
+    /// null si rien n'est parti. Un autre son supprimé, ou un Channel rack changé autrement : arrêt (dans la copie :
+    /// « Revenir comme avant » rouvre l'original).
+    private (OrganizerResult Result, Dictionary<int, int> Map, int Gone)? DeleteUnused(List<int> deleted, OrganizerResult result,
+        List<string> trace)
     {
         var channels = result.Channels.OrderBy(c => c.Index).ToList();
         if (!_link.ListChannels().Select(c => c.Name).SequenceEqual(channels.Select(c => c.Name)))
@@ -358,11 +372,76 @@ public sealed class OrganizerApplier
         if (!_link.SelectedChannels().SetEquals(set)) return null;
         _link.Show(FlWindow.ChannelRack);
         if (_link.Window != FlWindow.ChannelRack || !_deleteSelected()) return null;
-        var shifted = result.Removing(set);
-        var now = _link.ListChannels().Select(c => c.Name).ToList();
-        if (now.SequenceEqual(shifted.Result.Channels.Select(c => c.Name))) return shifted;
-        if (now.SequenceEqual(channels.Select(c => c.Name))) return null;
-        throw OrganizerError.Failed(Loc.T("FL n'a pas supprimé exactement les sons sans note : Organiser s'est arrêté avant de toucher au reste. Vérifie le Channel rack."));
+        var expected = result.Removing(set).Result.Channels.Select(c => c.Name).ToList();
+        List<ChannelInfo>? previous = null;
+        var now = _link.ListChannels();
+        for (var check = 0; check < DeleteChecks; check++)
+        {
+            if (now.Select(c => c.Name).SequenceEqual(expected)) break;
+            if (previous is not null && check >= 3 && SameRack(previous, now)) break;
+            previous = now;
+            _wait(DeleteCheck);
+            now = _link.ListChannels();
+        }
+        var gone = Removed(channels, now, set);
+        var others = gone?.Count(i => !set.Contains(i)) ?? -1;
+        trace.Add($"suppression prévus={set.Count} avant={channels.Count} après={now.Count} partis={gone?.Count ?? -1} autres={others}");
+        if (gone is null)
+            throw OrganizerError.Failed(Loc.T("Après la suppression des sons sans note, le Channel rack de la copie rangée ne correspond plus à l'analyse : Organiser s'est arrêté. « Revenir comme avant » rouvre ton projet d'origine, qui n'a pas bougé."));
+        if (others > 0)
+            throw OrganizerError.Failed(Loc.T("FL a supprimé d'autres sons que ceux sans note dans la copie rangée : Organiser s'est arrêté. « Revenir comme avant » rouvre ton projet d'origine, qui n'a pas bougé."));
+        if (gone.Count == 0) return null;
+        var shifted = result.Removing(gone);
+        return (shifted.Result, shifted.Map, gone.Count);
+    }
+
+    private static bool SameRack(IReadOnlyList<ChannelInfo> a, IReadOnlyList<ChannelInfo> b) =>
+        a.Count == b.Count && a.Zip(b).All(p => SameChannel(p.First, p.Second));
+
+    /// Un même canal avant et après des suppressions : son nom, sa sorte, sa piste du Mixer et sa couleur (sa place
+    /// change).
+    private static bool SameChannel(ChannelInfo a, ChannelInfo b) =>
+        a.Name == b.Name && a.Type == b.Type && a.MixerTrack == b.MixerTrack && a.Color == b.Color;
+
+    /// Pur (testé) : les canaux (index d'avant) que FL a supprimés, d'après le Channel rack relu : `after` doit être
+    /// `before` moins quelques canaux, dans le même ordre. Deux canaux pareils : celui qui était prévu (`planned`) est
+    /// pris pour le supprimé. null : FL montre autre chose (un canal renommé, déplacé ou ajouté).
+    public static HashSet<int>? Removed(IReadOnlyList<ChannelInfo> before, IReadOnlyList<ChannelInfo> after, ISet<int> planned)
+    {
+        int n = before.Count, m = after.Count;
+        if (m > n) return null;
+        const int Impossible = int.MaxValue / 2;
+        // cost[i, j] : le moins de canaux non prévus supprimés pour que before[i…] devienne after[j…].
+        var cost = new int[n + 1, m + 1];
+        for (var j = 0; j <= m; j++) cost[n, j] = j == m ? 0 : Impossible;
+        for (var i = n - 1; i >= 0; i--)
+        {
+            var drop = planned.Contains(before[i].Index) ? 0 : 1;
+            for (var j = m; j >= 0; j--)
+            {
+                var best = Math.Min(Impossible, cost[i + 1, j] + drop);
+                if (j < m && SameChannel(before[i], after[j])) best = Math.Min(best, cost[i + 1, j + 1]);
+                cost[i, j] = best;
+            }
+        }
+        if (cost[0, 0] >= Impossible) return null;
+        var out_ = new HashSet<int>();
+        int a = 0, b = 0;
+        while (a < n)
+        {
+            // Garder le canal quand c'est aussi bien : le moins de suppressions possible.
+            if (b < m && SameChannel(before[a], after[b]) && cost[a + 1, b + 1] == cost[a, b])
+            {
+                a++;
+                b++;
+            }
+            else
+            {
+                out_.Add(before[a].Index);
+                a++;
+            }
+        }
+        return out_;
     }
 
     /// Sons envoyés au Master reliés chacun à sa piste libre, avant tout déplacement (index d'origine), relus.

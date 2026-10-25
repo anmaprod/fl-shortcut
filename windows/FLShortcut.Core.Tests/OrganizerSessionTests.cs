@@ -216,6 +216,27 @@ public sealed class OrganizerSessionTests
         Assert.Contains("c2:synthe", session.Diagnostics.Rules);
     }
 
+    /// Vidéo du propriétaire (25/10) : « FL a refusé l'opération (raison 5) » arrêtait toute l'analyse. Un pattern
+    /// refusé : le son est écouté dans le pattern ouvert ; un son refusé : « À vérifier », les autres sont écoutés.
+    [Fact]
+    public void RefusedSoundDoesNotStopTheAnalysis()
+    {
+        var names = new[] { "Pad", "Son 1", "Son 2", "Snare", "808" };
+        var link = Project(names);
+        link.RefusedPatterns.Add(3);
+        link.RefusedChannels.Add(2);
+        var audio = new FakeAudio(link) { Parts = { [1] = Tone(SoundFamily.Drums), [2] = Tone(SoundFamily.Melody) } };
+        var session = new OrganizerSession(link, audio, Classify, Files(FlpSample.Sample(names: names)),
+            nameDrum: (_, _) => SoundKind.Kick, timing: Fast, sleep: _ => { });
+        var (result, error) = session.Run();
+        Assert.Null(error);
+        Assert.Equal(SoundFamily.Drums, result!.Items.First(i => i.Index == 1).Family);   // écouté dans le pattern ouvert
+        Assert.Equal(SoundFamily.Unsure, result.Items.First(i => i.Index == 2).Family);
+        Assert.Contains("c1:pattern-refusé", session.Diagnostics.Rules);
+        Assert.Contains("c2:silence+refus", session.Diagnostics.Rules);
+        Assert.Contains("solo 1", link.Log);
+    }
+
     /// Tout muet et rien de nommé : `NoSound` (la capture ne reçoit rien).
     [Fact]
     public void SilentCaptureWithoutNamesIsNoSound()

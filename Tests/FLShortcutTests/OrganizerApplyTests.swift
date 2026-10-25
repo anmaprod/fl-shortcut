@@ -542,6 +542,61 @@ final class OrganizerApplyTests: XCTestCase {
         XCTAssertTrue(link.mixer.contains { $0.name == "Serum 2" }, "leurs pistes ne sont pas touchées")
     }
 
+    /// Vidéo du propriétaire (25/10) : FL supprime les sons un par un, l'Organiser relisait trop tôt et s'arrêtait
+    /// (« FL n'a pas supprimé exactement les sons sans note »). Il attend maintenant que FL ait fini.
+    func testSlowDeletionIsWaitedFor() {
+        let (link, result) = cleanupProject()
+        link.deletesSlowly = true
+        let outcome = applier(link).apply(plan(result), result: result, styles: FamilyStyles.initial)
+        XCTAssertNil(outcome.error)
+        XCTAssertEqual([outcome.deleted, outcome.notDeleted], [2, 0])
+        XCTAssertEqual(link.channels.map(\.name), ["Lead", "Kick", "Drums"])
+        XCTAssertTrue(outcome.trace.contains("suppression prévus=2 avant=5 après=3 partis=2 autres=0"), "\(outcome.trace)")
+    }
+
+    /// FL n'en supprime qu'une partie : la suite se fait avec ce qui a vraiment été supprimé, les autres restent
+    /// sélectionnés à leur place d'arrivée.
+    func testPartialDeletionGoesOnWithWhatWasDeleted() {
+        let (link, result) = cleanupProject()
+        link.deletesOnly = 1
+        let outcome = applier(link).apply(plan(result), result: result, styles: FamilyStyles.initial)
+        XCTAssertNil(outcome.error)
+        XCTAssertEqual([outcome.deleted, outcome.notDeleted], [1, 1])
+        XCTAssertEqual(link.channels.map(\.name), ["Lead", "Kick", "Drums", "KiCK - BREW"])
+        XCTAssertEqual(link.unusedSelection, [3])
+    }
+
+    /// FL supprime aussi un son qui joue : arrêt, la raison est dite (dans la copie : l'original n'a pas bougé).
+    func testOtherDeletedSoundStopsEverything() {
+        let (link, result) = cleanupProject()
+        link.deletesAlso = [0]
+        let outcome = applier(link).apply(plan(result), result: result, styles: FamilyStyles.initial)
+        XCTAssertTrue(outcome.error?.message.contains("d'autres sons que ceux sans note") ?? false, "\(String(describing: outcome.error))")
+        XCTAssertTrue(outcome.trace.contains("suppression prévus=2 avant=5 après=2 partis=3 autres=1"), "\(outcome.trace)")
+    }
+
+    func testRemovedChannelsAreFoundInTheRackReadAgain() {
+        func c(_ i: Int, _ name: String, fx: Int = 0) -> ChannelInfo {
+            ChannelInfo(index: i, type: 2, mixerTrack: fx, color: gray, name: name)
+        }
+        let before = [c(0, "Kick"), c(1, "Pad"), c(2, "Pad"), c(3, "Snare"), c(4, "Pad")]
+        func after(_ kept: Int...) -> [ChannelInfo] {
+            kept.enumerated().map { FakeOrganizerLink.copy(before[$0.element], index: $0.offset, color: gray) }
+        }
+        XCTAssertEqual(OrganizerApplier.removed(before: before, after: after(0, 2, 4), planned: [1, 3]), [1, 3])
+        XCTAssertEqual(OrganizerApplier.removed(before: before, after: after(0, 1, 3, 4), planned: [2]), [2],
+                       "deux « Pad » pareils : celui qui était prévu")
+        XCTAssertEqual(OrganizerApplier.removed(before: before, after: after(0, 1, 2, 3), planned: [4]), [4])
+        XCTAssertEqual(OrganizerApplier.removed(before: before, after: before, planned: [1]), [])
+        XCTAssertEqual(OrganizerApplier.removed(before: before, after: after(2, 3, 4), planned: [1]), [0, 1],
+                       "un son prévu et un autre : l'autre est dit")
+        XCTAssertNil(OrganizerApplier.removed(before: before, after: [c(0, "Kick"), c(1, "Lead")], planned: [1]))
+        XCTAssertNil(OrganizerApplier.removed(before: before, after: after(3, 0), planned: [1, 2, 4]))
+        XCTAssertNil(OrganizerApplier.removed(before: before, after: before + [c(5, "Clap")], planned: []))
+        XCTAssertNil(OrganizerApplier.removed(before: before, after: [c(0, "Kick", fx: 7)], planned: [1, 2, 3, 4]),
+                     "même nom, autre piste du Mixer : un autre canal")
+    }
+
     /// Le projet après la suppression : les canaux suivants remontent ; les pistes du Mixer que seuls eux utilisaient
     /// sont libérées.
     func testRemovingChannels() {

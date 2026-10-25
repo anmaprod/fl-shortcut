@@ -216,6 +216,7 @@
 "Appuie sur le raccourci que tu connais : la recherche montre ce qu'il fait." = "Appuie sur le raccourci que tu connais : la recherche montre ce qu'il fait.";
 "Appuie sur les touches…" = "Appuie sur les touches…";
 "Appuyer sur" = "Appuyer sur";
+"Après la suppression des sons sans note, le Channel rack de la copie rangée ne correspond plus à l'analyse : Organiser s'est arrêté. « Revenir comme avant » rouvre ton projet d'origine, qui n'a pas bougé." = "Après la suppression des sons sans note, le Channel rack de la copie rangée ne correspond plus à l'analyse : Organiser s'est arrêté. « Revenir comme avant » rouvre ton projet d'origine, qui n'a pas bougé.";
 "Arme la piste sélectionnée, sans jamais la désarmer" = "Arme la piste sélectionnée, sans jamais la désarmer";
 "Armement et entrée" = "Armement et entrée";
 "Armer la piste" = "Armer la piste";
@@ -799,6 +800,8 @@
 "FL a refusé la commande : redémarre FL si le script vient d'être mis à jour" = "FL a refusé la commande : redémarre FL si le script vient d'être mis à jour";
 "FL a refusé le %@ du canal (raison %lld)" = "FL a refusé le %@ du canal (raison %lld)";
 "FL a refusé le nom ou la couleur." = "FL a refusé le nom ou la couleur.";
+"FL a refusé une étape de l'Organiser (raison %lld). Clique sur « Réessayer » ; si ça recommence, « Copier le diagnostic » et envoie-le-moi : il dit laquelle." = "FL a refusé une étape de l'Organiser (raison %lld). Clique sur « Réessayer » ; si ça recommence, « Copier le diagnostic » et envoie-le-moi : il dit laquelle.";
+"FL a supprimé d'autres sons que ceux sans note dans la copie rangée : Organiser s'est arrêté. « Revenir comme avant » rouvre ton projet d'origine, qui n'a pas bougé." = "FL a supprimé d'autres sons que ceux sans note dans la copie rangée : Organiser s'est arrêté. « Revenir comme avant » rouvre ton projet d'origine, qui n'a pas bougé.";
 "FL charge les sons de la copie…" = "FL charge les sons de la copie…";
 "FL charge les sons de la copie… %lld s" = "FL charge les sons de la copie… %lld s";
 "FL enregistre avec « %@ » et joue le son sur « %@ » : le micro reprendrait le son des haut-parleurs (larsen). Branche un casque, ou choisis ta carte son dans FL (Options › Audio Settings) avant de lancer la lecture." = "FL enregistre avec « %@ » et joue le son sur « %@ » : le micro reprendrait le son des haut-parleurs (larsen). Branche un casque, ou choisis ta carte son dans FL (Options › Audio Settings) avant de lancer la lecture.";

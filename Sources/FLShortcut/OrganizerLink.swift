@@ -116,7 +116,8 @@ enum OrganizerError: Error, Equatable {
         case .refused(4): return String(localized: "FL joue : appuie sur Stop, puis relance Organiser.")
         case .refused(6): return String(localized: "Ta version de FL ne permet pas cette étape : mets FL Studio à jour.")
         case .refused(7): return String(localized: "Sélectionne au moins 2 pistes pour un dégradé.")
-        case .refused(let r): return String(localized: "FL a refusé l'opération (raison \(r)).")
+        case .refused(let r):
+            return String(localized: "FL a refusé une étape de l'Organiser (raison \(r)). Clique sur « Réessayer » ; si ça recommence, « Copier le diagnostic » et envoie-le-moi : il dit laquelle.")
         case .failed(let why): return why.prefix(1).uppercased() + String(why.dropFirst())
         }
     }
@@ -444,6 +445,8 @@ enum OrganizerPayload {
 protocol OrganizerLink: AnyObject {
     /// Page de FL devant, vérifiée pendant l'application (déplacements, icônes).
     var window: FLWindow { get }
+    /// Le dernier refus de FL, en nombres pour le diagnostic : « op6:5 » (opération 6 refusée, raison 5).
+    var lastRefusal: String? { get }
     /// Page de FL devant, demandée au script (opération 9) ; script v5 : celle reçue au réveil (CC 117).
     func page() throws -> FLWindow
     /// Canaux comptés dans « All » (script v16, API 33), même si le Channel rack montre un groupe : listés, joués
@@ -512,6 +515,7 @@ protocol OrganizerLink: AnyObject {
 
 extension OrganizerLink {
     func playSolo(_ channel: Int) throws { try playSolo(channel, pattern: nil) }
+    var lastRefusal: String? { nil }
 }
 
 /// Opérations envoyées une par une, 60 ms au moins entre deux (le script refuse plus de 20 trames par seconde).
@@ -527,6 +531,7 @@ final class RequestOrganizerLink: OrganizerLink {
     var allChannels = false
     /// Une opération 9 à 12 a déjà répondu : le script est le v6 (un refus 5 est alors une vraie donnée refusée).
     private var newOpsSeen = false
+    private(set) var lastRefusal: String?
 
     init(request: @escaping ([UInt8]) -> RequestReply, window: @escaping () -> FLWindow,
          sleep: @escaping (TimeInterval) -> Void = { Thread.sleep(forTimeInterval: $0) }) {
@@ -575,7 +580,9 @@ final class RequestOrganizerLink: OrganizerLink {
         defer { last = Date() }
         switch request(bytes) {
         case .answered(let answer): return answer
-        case .refused(let reason): throw OrganizerError.refused(reason)
+        case .refused(let reason):
+            lastRefusal = "op\(bytes.first ?? 0)" + (bytes.count > 1 && bytes[0] == 2 ? "-\(bytes[1])" : "") + ":\(reason)"
+            throw OrganizerError.refused(reason)
         case .failed(let why): throw why == LinkCore.noResponse ? OrganizerError.noResponse : OrganizerError.failed(why)
         }
     }

@@ -368,8 +368,10 @@ final class OrganizerApplier {
                                       arrange: plan.source?.options.playlist == true)
             }
             if !plan.deleted.isEmpty {
-                if let shifted = try deleteUnused(plan.deleted, result) {
-                    outcome.deleted = plan.deleted.count
+                if let shifted = try deleteUnused(plan.deleted, result, trace: &outcome.trace) {
+                    // FL a pu n'en supprimer qu'une partie : les autres restent de côté (sélectionnés à la fin).
+                    outcome.deleted = shifted.gone
+                    outcome.notDeleted = plan.deleted.count - shifted.gone
                     result = shifted.result
                     plan = plan.replanned(shifted.result, map: shifted.map, styles: styles)
                 } else {
@@ -442,6 +444,7 @@ final class OrganizerApplier {
             }
         } catch {
             outcome.error = Self.failure(error)
+            if case .refused? = outcome.error, let refusal = link.lastRefusal { outcome.trace.append("refus \(refusal)") }
         }
         if restored > 0 { outcome.trace.append("page remise \(restored)") }
         return outcome
@@ -638,12 +641,19 @@ final class OrganizerApplier {
         throw last
     }
 
+    /// Relectures du Channel rack après la suppression (0,35 s d'écart, 6 s au plus) : FL supprime les sons un par un
+    /// (vidéo du propriétaire, 25/10 : relu trop tôt, il n'avait pas fini et l'Organiser s'arrêtait).
+    static let deleteChecks = 17
+    static let deleteCheck: TimeInterval = 0.35
+
     /// Sons sans aucune note supprimés : sélectionnés seuls par le script (relus), Channel rack devant, puis « Delete
-    /// selected » de FL (⌥ + Suppr) ; vérifié en relisant le Channel rack : les autres sons, dans le même ordre. nil
-    /// si FL n'a rien supprimé (les sons restent sélectionnés : l'utilisateur peut les supprimer lui-même ; le reste
-    /// se fait sans eux). Autre chose de supprimé, ou un Channel rack changé depuis l'analyse : arrêt.
-    private func deleteUnused(_ deleted: [Int], _ result: OrganizerResult) throws
-        -> (result: OrganizerResult, map: [Int: Int])? {
+    /// selected » de FL (⌥ + Suppr). Le Channel rack est relu jusqu'à ce que FL ait fini (tous partis, ou deux fois le
+    /// même) ; ce que FL a vraiment supprimé (`removed`) sert pour la suite, même s'il n'en a supprimé qu'une partie.
+    /// nil si rien n'est parti (les sons restent sélectionnés : l'utilisateur peut les supprimer lui-même ; le reste
+    /// se fait sans eux). Un autre son supprimé, ou un Channel rack changé autrement : arrêt (dans la copie, « Revenir
+    /// comme avant » rouvre l'original).
+    private func deleteUnused(_ deleted: [Int], _ result: OrganizerResult, trace: inout [String]) throws
+        -> (result: OrganizerResult, map: [Int: Int], gone: Int)? {
         let channels = result.channels.sorted { $0.index < $1.index }
         guard try link.listChannels().map(\.name) == channels.map(\.name) else {
             throw OrganizerError.failed(String(localized: "Le Channel rack a changé depuis l'analyse : relance Organiser."))
@@ -653,11 +663,71 @@ final class OrganizerApplier {
         guard try link.selectedChannels() == set else { return nil }
         try link.show(.channelRack)
         guard link.window == .channelRack, deleteSelected() else { return nil }
-        let shifted = result.removing(set)
-        let now = try link.listChannels().map(\.name)
-        if now == shifted.result.channels.map(\.name) { return shifted }
-        if now == channels.map(\.name) { return nil }
-        throw OrganizerError.failed(String(localized: "FL n'a pas supprimé exactement les sons sans note : Organiser s'est arrêté avant de toucher au reste. Vérifie le Channel rack."))
+        let expected = result.removing(set).result.channels.map(\.name)
+        var previous: [ChannelInfo]?
+        var now = try link.listChannels()
+        for check in 0..<Self.deleteChecks {
+            if now.map(\.name) == expected { break }
+            if let previous, check >= 3, Self.sameRack(previous, now) { break }
+            previous = now
+            wait(Self.deleteCheck)
+            now = try link.listChannels()
+        }
+        let gone = Self.removed(before: channels, after: now, planned: set)
+        let others = gone.map { $0.subtracting(set).count } ?? -1
+        trace.append("suppression prévus=\(set.count) avant=\(channels.count) après=\(now.count) partis=\(gone?.count ?? -1) autres=\(others)")
+        guard let gone else {
+            throw OrganizerError.failed(String(localized: "Après la suppression des sons sans note, le Channel rack de la copie rangée ne correspond plus à l'analyse : Organiser s'est arrêté. « Revenir comme avant » rouvre ton projet d'origine, qui n'a pas bougé."))
+        }
+        guard others == 0 else {
+            throw OrganizerError.failed(String(localized: "FL a supprimé d'autres sons que ceux sans note dans la copie rangée : Organiser s'est arrêté. « Revenir comme avant » rouvre ton projet d'origine, qui n'a pas bougé."))
+        }
+        guard !gone.isEmpty else { return nil }
+        let shifted = result.removing(gone)
+        return (shifted.result, shifted.map, gone.count)
+    }
+
+    private static func sameRack(_ a: [ChannelInfo], _ b: [ChannelInfo]) -> Bool {
+        a.count == b.count && zip(a, b).allSatisfy { sameChannel($0, $1) }
+    }
+
+    /// Un même canal avant et après des suppressions : son nom, sa sorte, sa piste du Mixer et sa couleur (sa place
+    /// change).
+    private static func sameChannel(_ a: ChannelInfo, _ b: ChannelInfo) -> Bool {
+        a.name == b.name && a.type == b.type && a.mixerTrack == b.mixerTrack && a.color == b.color
+    }
+
+    /// Pur (testé) : les canaux (index d'avant) que FL a supprimés, d'après le Channel rack relu : `after` doit être
+    /// `before` moins quelques canaux, dans le même ordre. Deux canaux pareils : celui qui était prévu (`planned`) est
+    /// pris pour le supprimé. nil : FL montre autre chose (un canal renommé, déplacé ou ajouté).
+    static func removed(before: [ChannelInfo], after: [ChannelInfo], planned: Set<Int>) -> Set<Int>? {
+        let n = before.count, m = after.count
+        guard m <= n else { return nil }
+        let impossible = Int.max / 2
+        // cost[i][j] : le moins de canaux non prévus supprimés pour que before[i…] devienne after[j…].
+        var cost = [[Int]](repeating: [Int](repeating: impossible, count: m + 1), count: n + 1)
+        cost[n][m] = 0
+        for i in stride(from: n - 1, through: 0, by: -1) {
+            let drop = planned.contains(before[i].index) ? 0 : 1
+            for j in stride(from: m, through: 0, by: -1) {
+                var best = min(impossible, cost[i + 1][j] + drop)
+                if j < m, sameChannel(before[i], after[j]) { best = min(best, cost[i + 1][j + 1]) }
+                cost[i][j] = best
+            }
+        }
+        guard cost[0][0] < impossible else { return nil }
+        var out: Set<Int> = []
+        var a = 0, b = 0
+        while a < n {
+            // Garder le canal quand c'est aussi bien : le moins de suppressions possible.
+            if b < m, sameChannel(before[a], after[b]), cost[a + 1][b + 1] == cost[a][b] {
+                b += 1
+            } else {
+                out.insert(before[a].index)
+            }
+            a += 1
+        }
+        return out
     }
 
     /// Sons envoyés au Master reliés chacun à sa piste libre, avant tout déplacement (index d'origine), relus.

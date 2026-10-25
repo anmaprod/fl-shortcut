@@ -509,6 +509,68 @@ public class OrganizerApplyTests
         Assert.Contains(link.Mixer, t => t.Name == "Serum 2");
     }
 
+    /// Vidéo du propriétaire (25/10) : FL supprime les sons un par un, l'Organiser relisait trop tôt et s'arrêtait
+    /// (« FL n'a pas supprimé exactement les sons sans note »). Il attend maintenant que FL ait fini.
+    [Fact]
+    public void SlowDeletionIsWaitedFor()
+    {
+        var (link, result) = CleanupProject();
+        link.DeletesSlowly = true;
+        var outcome = Applier(link).Apply(Plan(result), result, Initial());
+        Assert.Null(outcome.Error);
+        Assert.Equal((2, 0), (outcome.Deleted, outcome.NotDeleted));
+        Assert.Equal(new[] { "Lead", "Kick", "Drums" }, Names(link.Channels));
+        Assert.Contains("suppression prévus=2 avant=5 après=3 partis=2 autres=0", outcome.Trace);
+    }
+
+    /// FL n'en supprime qu'une partie : la suite se fait avec ce qui a vraiment été supprimé, les autres restent
+    /// sélectionnés à leur place d'arrivée.
+    [Fact]
+    public void PartialDeletionGoesOnWithWhatWasDeleted()
+    {
+        var (link, result) = CleanupProject();
+        link.DeletesOnly = 1;
+        var outcome = Applier(link).Apply(Plan(result), result, Initial());
+        Assert.Null(outcome.Error);
+        Assert.Equal((1, 1), (outcome.Deleted, outcome.NotDeleted));
+        Assert.Equal(new[] { "Lead", "Kick", "Drums", "KiCK - BREW" }, Names(link.Channels));
+        Assert.Equal(new[] { 3 }, link.UnusedSelection.OrderBy(x => x));
+    }
+
+    /// FL supprime aussi un son qui joue : arrêt, la raison est dite (dans la copie : l'original n'a pas bougé).
+    [Fact]
+    public void OtherDeletedSoundStopsEverything()
+    {
+        var (link, result) = CleanupProject();
+        link.DeletesAlso.Add(0);
+        var outcome = Applier(link).Apply(Plan(result), result, Initial());
+        Assert.NotNull(outcome.Error);
+        Assert.Contains("d'autres sons que ceux sans note", outcome.Error!.UserMessage);
+        Assert.Contains("suppression prévus=2 avant=5 après=2 partis=3 autres=1", outcome.Trace);
+    }
+
+    [Fact]
+    public void RemovedChannelsAreFoundInTheRackReadAgain()
+    {
+        var gray = new RgbColor(9, 9, 9);
+        ChannelInfo C(int i, string name, int fx = 0) => new(i, 2, fx, gray, name);
+        var before = new List<ChannelInfo> { C(0, "Kick"), C(1, "Pad"), C(2, "Pad"), C(3, "Snare"), C(4, "Pad") };
+        List<ChannelInfo> After(params int[] kept) => kept.Select((k, i) => before[k] with { Index = i }).ToList();
+        Assert.Equal(new[] { 1, 3 }, OrganizerApplier.Removed(before, After(0, 2, 4), new HashSet<int> { 1, 3 })!.OrderBy(x => x));
+        // Deux « Pad » pareils : celui qui était prévu est le supprimé.
+        Assert.Equal(new[] { 2 }, OrganizerApplier.Removed(before, After(0, 1, 3, 4), new HashSet<int> { 2 })!.OrderBy(x => x));
+        Assert.Equal(new[] { 4 }, OrganizerApplier.Removed(before, After(0, 1, 2, 3), new HashSet<int> { 4 })!.OrderBy(x => x));
+        Assert.Empty(OrganizerApplier.Removed(before, before, new HashSet<int> { 1 })!);
+        // Un son prévu et un autre : l'autre est dit.
+        Assert.Equal(new[] { 0, 1 }, OrganizerApplier.Removed(before, After(2, 3, 4), new HashSet<int> { 1 })!.OrderBy(x => x));
+        // Renommé, déplacé, ajouté : ce n'est pas qu'une suppression.
+        Assert.Null(OrganizerApplier.Removed(before, new List<ChannelInfo> { C(0, "Kick"), C(1, "Lead") }, new HashSet<int> { 1 }));
+        Assert.Null(OrganizerApplier.Removed(before, After(3, 0), new HashSet<int> { 1, 2, 4 }));
+        Assert.Null(OrganizerApplier.Removed(before, before.Append(C(5, "Clap")).ToList(), new HashSet<int>()));
+        // Même nom, autre piste du Mixer : un autre canal.
+        Assert.Null(OrganizerApplier.Removed(before, new List<ChannelInfo> { C(0, "Kick", 7) }, new HashSet<int> { 1, 2, 3, 4 }));
+    }
+
     [Fact]
     public void RemovingChannels()
     {

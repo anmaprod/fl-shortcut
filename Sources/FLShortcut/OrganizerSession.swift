@@ -328,7 +328,8 @@ final class OrganizerSession {
                                             playlist: song.tracks, trackSounds: song.sounds, trackItems: song.heard,
                                             unused: unused, soundAt: song.at))
         } catch let error as OrganizerError {
-            note { $0.error = "\(error)" }
+            let refusal = link.lastRefusal
+            note { $0.error = "\(error)" + (refusal.map { " " + $0 } ?? "") }
             return .failure(error)
         } catch let error as CaptureError {
             note { $0.error = "\(error)" }
@@ -545,13 +546,21 @@ final class OrganizerSession {
                 source = "+fichier"
             } else {
                 audio.reset()
-                try link.playSolo(channel.index, pattern: homes[channel.index])
-                if channel.type == ChannelInfo.audioClipType {
-                    samples = try playClip(channel.index)
-                } else {
-                    samples = try listenUntilHeard()
-                    tested = Self.peakDB(samples) < FamilyFusion.silenceDB
-                    if tested { samples = try playTestNotes(channel.index) }
+                do {
+                    try playSolo(channel.index, home: homes[channel.index])
+                    if channel.type == ChannelInfo.audioClipType {
+                        samples = try playClip(channel.index)
+                    } else {
+                        samples = try listenUntilHeard()
+                        tested = Self.peakDB(samples) < FamilyFusion.silenceDB
+                        if tested { samples = try playTestNotes(channel.index) }
+                    }
+                } catch OrganizerError.refused(5) {
+                    // FL refuse de faire jouer ce son (vidéo du propriétaire, 25/10 : « raison 5 » arrêtait tout) :
+                    // il reste « À vérifier », les autres sont écoutés.
+                    samples = []
+                    tested = false
+                    source = "+refus"
                 }
             }
             MacroLog.shared.write("ORGANIZE", "listen \(k + 1)/\(targets.count)\(source.isEmpty ? "" : " file")")
@@ -569,6 +578,16 @@ final class OrganizerSession {
                                        kind: kind, soundPrint: heard ? fingerprint?(samples, rate) : nil))
         }
         return (items, heardAny)
+    }
+
+    /// Le son seul dans son pattern ; FL refuse ce pattern (données refusées) : dans le pattern ouvert.
+    private func playSolo(_ channel: Int, home: Int?) throws {
+        do {
+            try link.playSolo(channel, pattern: home)
+        } catch OrganizerError.refused(5) where home != nil {
+            note { $0.rules.append("c\(channel):pattern-refusé") }
+            try link.playSolo(channel, pattern: nil)
+        }
     }
 
     /// Sorte d'un son entendu et classé : drums et mélodies par leurs règles, voix, basses et FX par l'IA intégrée ;

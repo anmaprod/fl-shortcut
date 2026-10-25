@@ -216,6 +216,7 @@
 "Appuie sur le raccourci que tu connais : la recherche montre ce qu'il fait." = "Press a shortcut you know: the search shows what it does.";
 "Appuie sur les touches…" = "Press the keys…";
 "Appuyer sur" = "Press";
+"Après la suppression des sons sans note, le Channel rack de la copie rangée ne correspond plus à l'analyse : Organiser s'est arrêté. « Revenir comme avant » rouvre ton projet d'origine, qui n'a pas bougé." = "After deleting the sounds with no notes, the Channel rack of the organized copy no longer matches the analysis: Organize stopped. “Undo changes” reopens your original project, which hasn't changed.";
 "Arme la piste sélectionnée, sans jamais la désarmer" = "Arms the selected track, never disarms it";
 "Armement et entrée" = "Arm and input";
 "Armer la piste" = "Arm the track";
@@ -799,6 +800,8 @@
 "FL a refusé la commande : redémarre FL si le script vient d'être mis à jour" = "FL rejected the command: restart FL if the script was just updated";
 "FL a refusé le %@ du canal (raison %lld)" = "FL refused the channel %@ (reason %lld)";
 "FL a refusé le nom ou la couleur." = "FL refused the name or color.";
+"FL a refusé une étape de l'Organiser (raison %lld). Clique sur « Réessayer » ; si ça recommence, « Copier le diagnostic » et envoie-le-moi : il dit laquelle." = "FL refused a step of Organize (reason %lld). Click “Try again”; if it happens again, “Copy diagnostics” and send it to me: it says which one.";
+"FL a supprimé d'autres sons que ceux sans note dans la copie rangée : Organiser s'est arrêté. « Revenir comme avant » rouvre ton projet d'origine, qui n'a pas bougé." = "FL deleted other sounds than the ones with no notes in the organized copy: Organize stopped. “Undo changes” reopens your original project, which hasn't changed.";
 "FL charge les sons de la copie…" = "FL is loading the sounds of the copy…";
 "FL charge les sons de la copie… %lld s" = "FL is loading the sounds of the copy… %lld s";
 "FL enregistre avec « %@ » et joue le son sur « %@ » : le micro reprendrait le son des haut-parleurs (larsen). Branche un casque, ou choisis ta carte son dans FL (Options › Audio Settings) avant de lancer la lecture." = "FL records with “%@” and plays sound through “%@”: the mic would pick up the speakers (feedback). Plug in headphones, or choose your sound card in FL (Options › Audio Settings) before you hit play.";

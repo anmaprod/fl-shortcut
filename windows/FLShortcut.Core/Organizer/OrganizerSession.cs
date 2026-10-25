@@ -156,7 +156,8 @@ public sealed class OrganizerSession
         }
         catch (OrganizerError e)
         {
-            Note(d => d.Error = e.Code);
+            var refusal = _link.LastRefusal;
+            Note(d => d.Error = e.Code + (refusal is null ? "" : " " + refusal));
             return (null, e);
         }
         catch (Exception e)
@@ -340,16 +341,27 @@ public sealed class OrganizerSession
             else
             {
                 _audio.Reset();
-                _link.PlaySolo(channel.Index, homes.TryGetValue(channel.Index, out var home) ? home : null);
-                if (channel.Type == ChannelInfo.AudioClipType)
+                try
                 {
-                    samples = PlayClip(channel.Index);
+                    PlaySolo(channel.Index, homes.TryGetValue(channel.Index, out var home) ? home : null);
+                    if (channel.Type == ChannelInfo.AudioClipType)
+                    {
+                        samples = PlayClip(channel.Index);
+                    }
+                    else
+                    {
+                        samples = ListenUntilHeard();
+                        tested = PeakDB(samples) < FamilyFusion.SilenceDB;
+                        if (tested) samples = PlayTestNotes(channel.Index);
+                    }
                 }
-                else
+                catch (OrganizerError e) when (e.IsRefused(5))
                 {
-                    samples = ListenUntilHeard();
-                    tested = PeakDB(samples) < FamilyFusion.SilenceDB;
-                    if (tested) samples = PlayTestNotes(channel.Index);
+                    // FL refuse de faire jouer ce son (vidéo du propriétaire, 25/10 : « raison 5 » arrêtait tout) :
+                    // il reste « À vérifier », les autres sont écoutés.
+                    samples = Array.Empty<float>();
+                    tested = false;
+                    source = "+refus";
                 }
             }
             AppLog.Write("ORGANIZE", $"listen {k + 1}/{targets.Count}{(source.Length == 0 ? "" : " file")}");
@@ -373,6 +385,20 @@ public sealed class OrganizerSession
             });
         }
         return (items, heardAny);
+    }
+
+    /// Le son seul dans son pattern ; FL refuse ce pattern (données refusées) : dans le pattern ouvert.
+    private void PlaySolo(int channel, int? home)
+    {
+        try
+        {
+            _link.PlaySolo(channel, home);
+        }
+        catch (OrganizerError e) when (e.IsRefused(5) && home is not null)
+        {
+            Note(d => d.Rules.Add($"c{channel}:pattern-refusé"));
+            _link.PlaySolo(channel, null);
+        }
     }
 
     /// Sorte d'un son entendu et classé : drums et mélodies par leurs règles, voix, basses et FX par l'IA intégrée.
