@@ -21,6 +21,8 @@ final class OrganizerWindowTests: XCTestCase {
                                      sleep: { _ in }, escapePressed: { false },
                                      loadStyles: { FamilyStyles.initial }, saveStyles: saved)
         e.waitInterval = 0.05
+        e.loadFamilyOrder = { SoundFamily.order }               // jamais les réglages du Mac qui lance les essais
+        e.saveFamilyOrder = { _ in }
         e.deleteSelected = { _ in link.deleteSelected }
         e.moveTrack = { _ in { place, count in link.moveTrackUp(place, count) } }
         return e
@@ -227,6 +229,52 @@ final class OrganizerWindowTests: XCTestCase {
         waitFor(controller, OrganizerWindowTests.isApplied)
         XCTAssertEqual(controller.phase, .applied(nil))
         XCTAssertEqual(link.channels.map(\.name), ["808", "Kick", "Clap", "Open Hat"])
+        controller.close()
+    }
+
+    /// Demande du propriétaire (25/10) : chaque son montre sa piste du Mixer (sa case) et peut en changer, chaque
+    /// famille a son départ, « Rangement automatique » oublie tout ; « Écrire… » donne un nom ; l'ordre des familles
+    /// glissées est gardé.
+    func testPlacesNamesAndFamilyOrderInThePreview() {
+        let link = FakeOrganizerLink()
+        let gray = RGBColor(r: 9, g: 9, b: 9)
+        link.channels = ["Serum Lead", "BEAM KICK", "ZEBRA 808"].enumerated().map {
+            ChannelInfo(index: $0.offset, type: 2, mixerTrack: $0.offset + 1, color: gray, name: $0.element)
+        }
+        link.mixer = (0...40).map { MixerTrackInfo(index: $0, color: gray, name: $0 == 0 ? "Master" : "Insert \($0)") }
+        var savedOrder: [SoundFamily] = []
+        var e = env(link, FakeAudio(link: link), saved: { _ in })
+        e.loadFamilyOrder = { [.drums] }
+        e.saveFamilyOrder = { savedOrder = $0 }
+        let controller = OrganizerController(env: e)
+        XCTAssertEqual(controller.options.familyOrder, [.drums, .vocals, .melody, .bass, .fx, .unsure])
+        controller.start()
+        waitFor(controller) { $0 == .preview }
+        XCTAssertEqual(controller.presentFamilies, [.drums, .melody, .bass])
+        XCTAssertNotNil(controller.mixerSlot(of: 1))
+        controller.setSlot(1, 20)
+        XCTAssertEqual(controller.members(of: .drums).first?.slot, 20)
+        XCTAssertEqual(controller.members(of: .drums).first?.pinned, true)
+        controller.setMixerStart(.melody, 30)
+        XCTAssertEqual(controller.mixerRange(of: .melody)?.lowerBound, 30)
+        XCTAssertTrue(controller.placesChosen)
+        controller.autoArrange()
+        XCTAssertFalse(controller.placesChosen)
+        XCTAssertNil(controller.style(of: .melody).mixerStart)
+        controller.setName(1, "  Boom  ")
+        XCTAssertEqual(controller.members(of: .drums).first?.newName, "Boom")
+        XCTAssertEqual(controller.members(of: .drums).first?.written, true)
+        controller.setName(1, "")
+        XCTAssertNil(controller.names[1])
+        controller.moveFamily(.bass, onto: .drums)
+        XCTAssertEqual(controller.presentFamilies, [.bass, .drums, .melody])
+        controller.shiftFamily(.melody, by: -1)
+        XCTAssertEqual(controller.presentFamilies, [.bass, .melody, .drums])
+        controller.setName(0, "Ma mélodie")
+        controller.apply()
+        waitFor(controller, OrganizerWindowTests.isApplied)
+        XCTAssertEqual(savedOrder.prefix(3), [.bass, .melody, .drums])
+        XCTAssertEqual(link.channels.map(\.name), ["808", "Ma mélodie", "Kick"])
         controller.close()
     }
 

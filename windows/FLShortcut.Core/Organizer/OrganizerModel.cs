@@ -222,13 +222,33 @@ public sealed record OrganizerOptions
     /// Playlist : un son par piste ; `MaxSplits` : les premiers seulement (ceux que FL a laissé faire).
     public bool SplitTracks { get; init; } = true;
     public int? MaxSplits { get; init; }
+    /// Ordre des familles (glissées dans l'aperçu comme des dossiers) : Channel rack, Mixer et Playlist le suivent.
+    public IReadOnlyList<SoundFamily> FamilyOrder { get; init; } = SoundFamilies.Order;
+
+    /// Place d'une famille dans `FamilyOrder` (une famille absente : à la fin).
+    public int FamilyRank(SoundFamily family)
+    {
+        for (var i = 0; i < FamilyOrder.Count; i++) if (FamilyOrder[i] == family) return i;
+        return FamilyOrder.Count + family.Rank();
+    }
+
+    /// Pur (testé) : un ordre des familles gardé dans les réglages, les doubles retirés, complété à la fin des familles
+    /// qui y manquent (dans leur ordre de départ).
+    public static List<SoundFamily> CompleteOrder(IEnumerable<SoundFamily> order)
+    {
+        var out_ = order.Distinct().Where(f => SoundFamilies.Order.Contains(f)).ToList();
+        out_.AddRange(SoundFamilies.Order.Where(f => !out_.Contains(f)));
+        return out_;
+    }
 }
 
 /// Un pattern descendu de la piste de la Playlist qu'il partage avec un autre son vers une piste vide, à lui.
 public sealed record PlaylistSplit(int Pattern, int From, int To, int Sound, double At, int Kept, double KeptAt);
 
 /// Réglage d'une famille, gardé dans les réglages : couleur, dégradé (de `Color` à `Fade`), icône.
-public sealed record FamilyStyle(RgbColor Color, RgbColor? Fade = null, FlIcon? Icon = null)
+/// `MixerStart` : la piste du Mixer où commence la famille (« Drums de 27 à 32 », la 808 comprise) ; null : rangement
+/// automatique.
+public sealed record FamilyStyle(RgbColor Color, RgbColor? Fade = null, FlIcon? Icon = null, int? MixerStart = null)
 {
     /// Couleur de chaque son de la famille, dans l'ordre (même arrondi que l'opération 8 du script).
     public List<RgbColor> Colors(int count)
@@ -267,7 +287,8 @@ public static class FamilyStyles
                 if (o["color"]?.GetValue<string>() is not { } hex || RgbColor.FromHex(hex) is not { } color) continue;
                 var fade = o["fade"]?.GetValue<string>() is { } f ? RgbColor.FromHex(f) : null;
                 var icon = o["icon"]?.GetValue<string>() is { } i ? FlIcon.FromCode(i) : null;
-                out_[family] = new FamilyStyle(color, fade, icon);
+                var start = o["mixer"] is JsonValue m && m.TryGetValue<int>(out var n) && n >= 1 && n <= MaxMixerTrack ? n : (int?)null;
+                out_[family] = new FamilyStyle(color, fade, icon, start);
             }
         }
         catch (Exception e) when (e is JsonException or InvalidOperationException or FormatException)
@@ -277,6 +298,9 @@ public static class FamilyStyles
         return out_;
     }
 
+    /// Dernière piste du Mixer de FL (125 pistes en plus du Master).
+    public const int MaxMixerTrack = 125;
+
     public static string Encode(IReadOnlyDictionary<SoundFamily, FamilyStyle> styles)
     {
         var root = new JsonObject();
@@ -285,6 +309,7 @@ public static class FamilyStyles
             var o = new JsonObject { ["color"] = style.Color.Hex };
             if (style.Fade is { } fade) o["fade"] = fade.Hex;
             if (style.Icon is { } icon) o["icon"] = icon.Code;
+            if (style.MixerStart is { } start) o["mixer"] = start;
             root[family.Raw()] = o;
         }
         return root.ToJsonString();
@@ -298,10 +323,12 @@ public static class RegroupPlan
 {
     /// Tri stable par famille (ordre des familles ; canaux non écoutés à la fin), et dans une famille par ce qu'est le
     /// son. `Final[p]` est l'index d'origine du canal qui finit à la place p.
-    public static (List<Move> Moves, List<int> Final) Make(IReadOnlyList<SoundFamily?> order, IReadOnlyList<SoundKind?>? kinds = null)
+    public static (List<Move> Moves, List<int> Final) Make(IReadOnlyList<SoundFamily?> order, IReadOnlyList<SoundKind?>? kinds = null,
+        Func<SoundFamily, int>? familyRank = null)
     {
         kinds ??= Array.Empty<SoundKind?>();
-        var rank = order.Select(f => f?.Rank() ?? SoundFamilies.Order.Length).ToArray();
+        familyRank ??= f => f.Rank();
+        var rank = order.Select(f => f is { } x ? familyRank(x) : int.MaxValue / 2).ToArray();
         var sub = Enumerable.Range(0, order.Count).Select(i =>
             i < kinds.Count && kinds[i] is { } k && k.Family() == order[i] ? k.RackRank() : SoundKinds.RackOrder.Length).ToArray();
         var final = Enumerable.Range(0, order.Count).OrderBy(i => rank[i]).ThenBy(i => sub[i]).ThenBy(i => i).ToList();
@@ -410,9 +437,9 @@ public static class Organize
 
     /// Plan de regroupement du Channel rack : par famille, puis par ce qu'est chaque son.
     public static (List<Move> Moves, List<int> Final) RackPlan(IReadOnlyList<ChannelInfo> channels,
-        IReadOnlyDictionary<int, SoundFamily> families, IReadOnlyDictionary<int, SoundKind> kinds) =>
+        IReadOnlyDictionary<int, SoundFamily> families, IReadOnlyDictionary<int, SoundKind> kinds, OrganizerOptions? options = null) =>
         RegroupPlan.Make(channels.Select(c => families.TryGetValue(c.Index, out var f) ? f : (SoundFamily?)null).ToList(),
-            channels.Select(c => KindOf(c.Index, families, kinds)).ToList());
+            channels.Select(c => KindOf(c.Index, families, kinds)).ToList(), (options ?? new OrganizerOptions()).FamilyRank);
 
     /// Icône de chaque élément : celle de sa famille ; aucune si la famille n'en a pas.
     public static Dictionary<int, FlIcon> PlannedIcons(IReadOnlyDictionary<int, SoundFamily> families,

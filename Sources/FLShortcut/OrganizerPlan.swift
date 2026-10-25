@@ -26,6 +26,22 @@ struct OrganizerOptions: Equatable {
     /// ligne ») ; `maxSplits` : les premiers seulement (ceux que FL a laissé faire).
     var splitTracks = true
     var maxSplits: Int?
+    /// Ordre des familles (glissées dans l'aperçu comme des dossiers, demande du propriétaire du 25/10) : Channel rack,
+    /// Mixer et Playlist le suivent.
+    var familyOrder: [SoundFamily] = SoundFamily.order
+
+    /// Place d'une famille dans `familyOrder` (une famille absente : à la fin).
+    func familyRank(_ family: SoundFamily) -> Int {
+        familyOrder.firstIndex(of: family) ?? familyOrder.count + family.rank
+    }
+
+    /// Pur (testé) : un ordre des familles gardé dans les réglages, les doubles retirés, complété à la fin des familles
+    /// qui y manquent (dans leur ordre de départ).
+    static func completeOrder(_ order: [SoundFamily]) -> [SoundFamily] {
+        var out: [SoundFamily] = []
+        for family in order where !out.contains(family) { out.append(family) }
+        return out + SoundFamily.order.filter { !out.contains($0) }
+    }
 }
 
 /// Un pattern descendu de la piste de la Playlist qu'il partage avec un autre son vers une piste vide, à lui.
@@ -90,11 +106,14 @@ struct OrganizerPlan: Equatable {
     var splits: [PlaylistSplit] = []
     /// Analyse sur le fichier : la piste de chaque clip dans la copie rangée (OrganizerProjectFile).
     var layout: PlaylistLayout.Result?
-    /// Ce qui a servi à faire le plan : il est refait sur le Channel rack une fois les sons supprimés.
+    /// Ce qui a servi à faire le plan : il est refait sur le Channel rack une fois les sons supprimés. `names` : les noms
+    /// écrits dans l'aperçu (« Écrire… ») ; `slots` : la piste du Mixer choisie pour un son (1 = piste 1).
     struct Source: Equatable {
         var families: [Int: SoundFamily]
         var kinds: [Int: SoundKind]
         var options: OrganizerOptions
+        var names: [Int: String] = [:]
+        var slots: [Int: Int] = [:]
     }
     var source: Source?
 
@@ -107,31 +126,43 @@ struct OrganizerPlan: Equatable {
     /// Couleur d'une piste de la Playlist jamais touchée (gris de FL).
     static let plainTrack = RGBColor(r: 64, g: 64, b: 64)
 
-    /// `families` et `kinds` : ce qu'est chaque son du Channel rack (index du canal), modifiable dans l'aperçu.
+    /// `families` et `kinds` : ce qu'est chaque son du Channel rack (index du canal), modifiable dans l'aperçu ;
+    /// `names` : les noms écrits dans l'aperçu (« Écrire… »), posés tels quels partout où le son a son nom ; `slots` :
+    /// la piste du Mixer choisie pour un son (1 = piste 1, comme la case de FL dans le Channel rack).
     static func make(_ result: OrganizerResult, families: [Int: SoundFamily], kinds: [Int: SoundKind],
-                     styles: [SoundFamily: FamilyStyle], options: OrganizerOptions = OrganizerOptions()) -> OrganizerPlan {
+                     styles: [SoundFamily: FamilyStyle], options: OrganizerOptions = OrganizerOptions(),
+                     names: [Int: String] = [:], slots: [Int: Int] = [:]) -> OrganizerPlan {
         func verdict(_ channel: Int) -> Verdict? {
             families[channel].map { Verdict(family: $0, kind: OrganizerApplier.kind(channel, families: families, kinds: kinds)) }
         }
+        var written: [Int: String] = [:]
+        for (index, name) in names {
+            let trimmed = name.trimmingCharacters(in: .whitespaces)
+            if !trimmed.isEmpty { written[index] = trimmed }
+        }
         var plan = OrganizerPlan()
-        plan.source = Source(families: families, kinds: kinds, options: options)
+        plan.source = Source(families: families, kinds: kinds, options: options, names: written, slots: slots)
         if options.deleteUnused { plan.deleted = result.unused.sorted() }
         let deleted = Set(plan.deleted)
 
-        // Channel rack : l'ordre des familles, puis des sortes ; les noms numérotés dans cet ordre.
+        // Channel rack : l'ordre des familles, puis des sortes ; les noms numérotés dans cet ordre, sauf ceux écrits
+        // dans l'aperçu, posés tels quels (jamais repris par la numérotation).
         let channels = result.channels.sorted { $0.index < $1.index }
-        let rack = OrganizerApplier.rackPlan(channels, families: families, kinds: kinds)
+        let rack = OrganizerApplier.rackPlan(channels, families: families, kinds: kinds, options: options)
         var rackPlace: [Int: Int] = [:]
         for (place, index) in rack.final.enumerated() { rackPlace[index] = place }
-        let channelNames = numbered(rack.final.compactMap { i in verdict(i)?.baseName.map { (index: i, name: $0) } })
+        var channelNames = numbered(rack.final.filter { written[$0] == nil }
+            .compactMap { i in verdict(i)?.baseName.map { (index: i, name: $0) } }, taken: Set(written.values))
+        for (index, name) in written where channels.contains(where: { $0.index == index }) { channelNames[index] = name }
         if options.rack {
             plan.rack.moves = rack.moves
             plan.rack.final = rack.final
             plan.rack.colors = OrganizerApplier.plannedColors(families: families, styles: styles, order: rack.final)
-            if options.rename {
-                var current: [Int: String] = [:]
-                for channel in channels { current[channel.index] = channel.name }
-                plan.rack.names = channelNames.filter { current[$0.key] != $0.value }
+            var current: [Int: String] = [:]
+            for channel in channels { current[channel.index] = channel.name }
+            // « Renommer » décoché : seuls les noms écrits dans l'aperçu.
+            plan.rack.names = channelNames.filter {
+                (options.rename || written[$0.key] != nil) && current[$0.key] != $0.value
             }
             for channel in channels { if let v = verdict(channel.index) { plan.rack.verdicts[channel.index] = v } }
         }
@@ -139,7 +170,7 @@ struct OrganizerPlan: Equatable {
         // Le nom qu'un pattern ou une piste où ne joue qu'un son prend : celui de ce son dans le Channel rack, s'il y est
         // renommé.
         let sameName: (Set<Int>) -> String? = { sounds in
-            let classified = sounds.filter { verdict($0) != nil }
+            let classified = sounds.filter { verdict($0) != nil || written[$0] != nil }
             guard options.rack, options.rename, classified.count == 1, let only = classified.first else { return nil }
             return channelNames[only]
         }
@@ -168,8 +199,7 @@ struct OrganizerPlan: Equatable {
         // Mixer : même ordre que le Channel rack.
         if options.mixer {
             plan.mixer = mixerArea(result, verdict: verdict, rackPlace: rackPlace, channelNames: channelNames,
-                                   styles: styles, rename: options.rename, buses: options.buses, deleted: deleted,
-                                   cleanup: options.deleteUnused)
+                                   styles: styles, options: options, deleted: deleted, slots: slots)
         }
 
         // Playlist : chaque piste prend ce que jouent ses sons (ou ce qu'elle fait entendre, pour un clip audio),
@@ -182,7 +212,7 @@ struct OrganizerPlan: Equatable {
             let key: (Set<Int>) -> (Int, Int, Int) = { sounds in
                 guard let v = groupVerdict(sounds.sorted().compactMap(verdict)), v.family != .unsure
                 else { return (Int.max, 0, 0) }
-                return (v.family.rank, v.kind?.rackRank ?? SoundKind.rackOrder.count,
+                return (options.familyRank(v.family), v.kind?.rackRank ?? SoundKind.rackOrder.count,
                         sounds.compactMap { rackPlace[$0] }.min() ?? Int.max / 2)
             }
             if let project = result.project {
@@ -247,7 +277,7 @@ struct OrganizerPlan: Equatable {
                 if !SoundNames.isSection(track.name) { renamable.insert(track.index) }
                 current[track.index] = track.name
             }
-            let order = playlistOrder(result, verdicts: verdicts, rackPlace: rackPlace)
+            let order = playlistOrder(result, verdicts: verdicts, rackPlace: rackPlace, options: options)
             plan.playlist = area(verdicts, order: order, current: current, styles: styles, rename: options.rename,
                                  renamable: renamable, fixed: fixed)
             let indices = result.playlist.map(\.index).sorted()
@@ -272,7 +302,7 @@ struct OrganizerPlan: Equatable {
             return out
         }
         return Self.make(rest, families: moved(source.families), kinds: moved(source.kinds), styles: styles,
-                         options: source.options)
+                         options: source.options, names: moved(source.names), slots: moved(source.slots))
     }
 
     /// Pur (testé) : les patterns à descendre pour qu'aucune piste de la Playlist ne mêle deux sons. Seul un pattern
@@ -322,7 +352,8 @@ struct OrganizerPlan: Equatable {
         source.options.maxSplits = count
         var rest = result
         rest.unused = []
-        return Self.make(rest, families: source.families, kinds: source.kinds, styles: styles, options: source.options)
+        return Self.make(rest, families: source.families, kinds: source.kinds, styles: styles, options: source.options,
+                         names: source.names, slots: source.slots)
     }
 
     /// La Playlist prévue de nouveau sur ce projet (clips réunis sur la piste de leur son, lus dans FL), sans pattern
@@ -333,19 +364,19 @@ struct OrganizerPlan: Equatable {
         var rest = result
         rest.unused = []
         return Self.make(rest, families: source.families, kinds: source.kinds, styles: styles,
-                         options: source.options).playlist
+                         options: source.options, names: source.names, slots: source.slots).playlist
     }
 
     /// Pistes de la Playlist lues, dans l'ordre du Channel rack : familles dans leur ordre, puis sortes ; à égalité,
     /// celle dont le premier son est le plus haut dans le Channel rack, puis leur ordre d'avant. Celles qui ne jouent
     /// rien de classé suivent, dans leur ordre.
     private static func playlistOrder(_ result: OrganizerResult, verdicts: [Int: Verdict],
-                                      rackPlace: [Int: Int]) -> [Int] {
+                                      rackPlace: [Int: Int], options: OrganizerOptions) -> [Int] {
         let tracks = result.playlist.map(\.index).sorted()
         func key(_ t: Int) -> (Int, Int, Int, Int) {
             guard let v = verdicts[t], v.family != .unsure else { return (Int.max, 0, 0, t) }
             let first = (result.trackSounds[t] ?? []).compactMap { rackPlace[$0] }.min() ?? Int.max / 2
-            return (v.family.rank, v.kind?.rackRank ?? SoundKind.rackOrder.count, first, t)
+            return (options.familyRank(v.family), v.kind?.rackRank ?? SoundKind.rackOrder.count, first, t)
         }
         return tracks.sorted { key($0) < key($1) }
     }
@@ -392,7 +423,8 @@ struct OrganizerPlan: Equatable {
     /// « <famille> Bus », s'il a encore le nom de FL.
     private static func mixerArea(_ result: OrganizerResult, verdict: (Int) -> Verdict?, rackPlace: [Int: Int],
                                   channelNames: [Int: String], styles: [SoundFamily: FamilyStyle],
-                                  rename: Bool, buses: Bool, deleted: Set<Int>, cleanup: Bool) -> Area {
+                                  options: OrganizerOptions, deleted: Set<Int>, slots: [Int: Int]) -> Area {
+        let rename = options.rename, buses = options.buses, cleanup = options.deleteUnused
         let last = result.mixer.count - 2                         // la dernière piste est « Current »
         guard last >= 1 else { return Area() }
         var out = Area()
@@ -448,11 +480,22 @@ struct OrganizerPlan: Equatable {
             (1...last).contains(t.index) && !t.hasDefaultName && !everUsed.contains(t.index) && sources[t.index] == nil
         }.map(\.index)) : []
         out.resets = freed.union(idle).subtracting(layout).subtracting(out.links.values)
-        let relevant = Set(layout)
-        if let span = relevant.max() {
-            let current = Array(1...span)
-            let target = layout + current.filter { !relevant.contains($0) }
-            out.moves = RegroupPlan.moves(from: current, to: target)
+        // Places choisies dans l'aperçu : d'abord celles des sons (la case de chaque son, comme dans le Channel rack de
+        // FL), puis le départ de chaque famille, dans l'ordre des familles (ses pistes à la suite, son bus compris).
+        var pins: [(track: Int, slot: Int)] = []
+        for channel in kept.sorted(by: { (rackPlace[$0.index] ?? .max) < (rackPlace[$1.index] ?? .max) }) {
+            guard let slot = slots[channel.index], verdict(channel.index) != nil else { continue }
+            let track = out.links[channel.index] ?? channel.mixerTrack
+            if (1...last).contains(track) { pins.append((track, slot)) }
+        }
+        for family in options.familyOrder {
+            guard let start = (styles[family] ?? FamilyStyles.initial[family])?.mixerStart else { continue }
+            for track in layout where out.verdicts[track]?.busFamily == family { pins.append((track, start)) }
+        }
+        if !layout.isEmpty {
+            let target = pinned(auto: layout, pins: pins, last: last)
+            let current = Array(1...target.count)
+            if target != current { out.moves = RegroupPlan.moves(from: current, to: target) }
             out.final = target
             out.colors = OrganizerApplier.plannedColors(families: out.verdicts.mapValues(\.family), styles: styles,
                                                         order: target)
@@ -483,6 +526,28 @@ struct OrganizerPlan: Equatable {
             out.names = out.names.filter { byIndex[$0.key]?.name != $0.value }
         }
         return out
+    }
+
+    /// Pur (testé) : la disposition du Mixer (place p → piste d'origine, place 0 = piste 1) avec les places choisies :
+    /// chaque piste de `pins` à sa place (1 = piste 1), ou à la suivante libre si elle est prise (la première dans
+    /// `pins` l'emporte), jamais au-delà de `last` ; les autres pistes de `auto` dans leur ordre, puis toutes les autres
+    /// dans le leur. Sans place choisie : `auto`, puis les autres pistes jusqu'à la plus grande.
+    static func pinned(auto: [Int], pins: [(track: Int, slot: Int)], last: Int) -> [Int] {
+        var taken: [Int: Int] = [:]                              // place → piste
+        var fixed = Set<Int>()
+        for (track, slot) in pins where !fixed.contains(track) && (1...max(last, 1)).contains(track) {
+            var at = max(1, slot)
+            while at <= last, taken[at] != nil { at += 1 }
+            guard at <= last else { continue }
+            taken[at] = track
+            fixed.insert(track)
+        }
+        let size = (auto + Array(fixed) + Array(taken.keys)).max() ?? 0
+        let autoSet = Set(auto)
+        var rest = auto.filter { !fixed.contains($0) }
+            + (0..<size).map { $0 + 1 }.filter { !autoSet.contains($0) && !fixed.contains($0) }
+        rest.reverse()                                           // pris par la fin : dans l'ordre
+        return (0..<size).map { place in taken[place + 1] ?? rest.removeLast() }
     }
 
     /// Couleur d'une piste du Mixer jamais touchée (la plus fréquente parmi celles qui ont le nom de FL, sans son ni

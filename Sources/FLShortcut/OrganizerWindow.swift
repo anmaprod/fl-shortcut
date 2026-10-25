@@ -37,6 +37,9 @@ struct OrganizerEnvironment {
     var escapePressed: () -> Bool = { false }
     var loadStyles: () -> [SoundFamily: FamilyStyle] = { FamilyStyles.load() }
     var saveStyles: ([SoundFamily: FamilyStyle]) -> Void = { FamilyStyles.save($0) }
+    /// Ordre des familles glissées dans l'aperçu, gardé d'un projet à l'autre.
+    var loadFamilyOrder: () -> [SoundFamily] = { FamilyStyles.loadOrder() }
+    var saveFamilyOrder: ([SoundFamily]) -> Void = { FamilyStyles.saveOrder($0) }
     /// Icône posée sur l'élément sélectionné par la fenêtre de FL (F2) ; nil si c'est fait.
     var placeIcon: (FLIcon) -> OrganizerError? = { _ in nil }
     /// Fil principal, avant chaque écoute : lien installé ? Ports MIDI créés à la demande.
@@ -404,8 +407,12 @@ final class OrganizerController: ObservableObject {
     @Published var kinds: [Int: SoundKind] = [:]
     @Published var styles: [SoundFamily: FamilyStyle]
     @Published private(set) var result: OrganizerResult?
-    /// Ce que « Organiser » fait : les pages de FL touchées, et les noms.
+    /// Ce que « Organiser » fait : les pages de FL touchées, les noms, l'ordre des familles.
     @Published var options = OrganizerOptions()
+    /// Noms écrits dans l'aperçu (« Écrire… », demande du propriétaire du 25/10), par index du canal.
+    @Published var names: [Int: String] = [:]
+    /// Piste du Mixer choisie pour un son dans l'aperçu (la case de FL), par index du canal ; absent : automatique.
+    @Published var slots: [Int: Int] = [:]
     /// Ce que la dernière application a fait de plus (sons supprimés, Playlist rangée ou non).
     @Published private(set) var lastApply: ApplyOutcome?
     /// Où en est l'application (« FL ouvre la copie rangée… 12 s ») ; nil : le texte général.
@@ -441,6 +448,7 @@ final class OrganizerController: ObservableObject {
     init(env: OrganizerEnvironment) {
         self.env = env
         styles = env.loadStyles()
+        options.familyOrder = OrganizerOptions.completeOrder(env.loadFamilyOrder())
     }
 
     var title: String { String(localized: "Organiser le projet") }
@@ -604,6 +612,8 @@ final class OrganizerController: ObservableObject {
         result = nil
         families = [:]
         kinds = [:]
+        names = [:]
+        slots = [:]
         phase = .starting
         start()
     }
@@ -660,14 +670,92 @@ final class OrganizerController: ObservableObject {
     /// Ce que « Organiser » fera, d'après ce qu'est chaque son (modifiable) et les options.
     var plan: OrganizerPlan {
         guard let result else { return OrganizerPlan() }
-        return OrganizerPlan.make(result, families: families, kinds: kinds, styles: styles, options: options)
+        return OrganizerPlan.make(result, families: families, kinds: kinds, styles: styles, options: options,
+                                  names: names, slots: slots)
     }
 
-    /// Familles présentes, dans l'ordre Voix, Mélodies, Basse, Drums, FX, À vérifier (les familles absentes sont
-    /// sautées).
+    /// Familles présentes, dans l'ordre choisi (au départ Voix, Mélodies, Basse, Drums, FX, À vérifier ; les familles
+    /// absentes sont sautées).
     var presentFamilies: [SoundFamily] {
         let used = Set(families.values)
-        return SoundFamily.order.filter { used.contains($0) }
+        return options.familyOrder.filter { used.contains($0) }
+    }
+
+    /// Une famille glissée sur une autre (comme un dossier) : elle prend sa place, l'autre se décale vers là d'où elle
+    /// vient (glissée vers le bas : juste après elle ; vers le haut : juste avant). Tout le projet suit ce nouvel ordre.
+    func moveFamily(_ family: SoundFamily, onto target: SoundFamily) {
+        options.familyOrder = Self.moving(family, onto: target, in: options.familyOrder)
+    }
+
+    /// « Monter / Descendre la famille » : d'une famille présente vers le haut (-1) ou le bas (+1).
+    func shiftFamily(_ family: SoundFamily, by step: Int) {
+        let present = presentFamilies
+        guard let at = present.firstIndex(of: family), present.indices.contains(at + step) else { return }
+        moveFamily(family, onto: present[at + step])
+    }
+
+    /// Pur (testé) : l'ordre des familles après en avoir glissé une sur une autre.
+    static func moving(_ family: SoundFamily, onto target: SoundFamily, in order: [SoundFamily]) -> [SoundFamily] {
+        guard family != target, let from = order.firstIndex(of: family), let to = order.firstIndex(of: target) else {
+            return order
+        }
+        var out = order
+        out.remove(at: from)
+        let place = out.firstIndex(of: target) ?? out.count
+        out.insert(family, at: from < to ? place + 1 : place)
+        return out
+    }
+
+    // MARK: Places dans le Mixer (demande du propriétaire du 25/10)
+
+    /// Dernière piste du Mixer de ce projet (la toute dernière est « Current »).
+    var mixerLast: Int { max(1, min((result?.mixer.count ?? 2) - 2, FamilyStyle.maxMixerTrack)) }
+
+    /// La piste du Mixer où finira ce son (ce que montre sa case, comme dans le Channel rack de FL) ; nil : aucune
+    /// (envoyé au Master sans piste libre).
+    func mixerSlot(of index: Int, in plan: OrganizerPlan? = nil) -> Int? {
+        guard let channel = result?.channels.first(where: { $0.index == index }) else { return nil }
+        let mixer = (plan ?? self.plan).mixer
+        let track = mixer.links[index] ?? channel.mixerTrack
+        guard track >= 1 else { return nil }
+        if let place = mixer.final.firstIndex(of: track) { return place + 1 }
+        return track
+    }
+
+    /// Les pistes du Mixer où finira la famille (son bus compris ; la 808 avec les drums).
+    func mixerRange(of family: SoundFamily, in plan: OrganizerPlan? = nil) -> ClosedRange<Int>? {
+        let mixer = (plan ?? self.plan).mixer
+        let places = mixer.final.enumerated().compactMap { place, track in
+            mixer.verdicts[track]?.busFamily == family ? place + 1 : nil
+        }
+        guard let first = places.min(), let last = places.max() else { return nil }
+        return first...last
+    }
+
+    func setSlot(_ index: Int, _ slot: Int?) {
+        slots[index] = slot.map { min(max($0, 1), mixerLast) }
+    }
+
+    func setMixerStart(_ family: SoundFamily, _ start: Int?) {
+        updateStyle(family) { $0.mixerStart = start.map { min(max($0, 1), self.mixerLast) } }
+    }
+
+    /// Le Mixer rangé tout seul de nouveau : plus aucune place choisie (sons et familles).
+    func autoArrange() {
+        slots = [:]
+        for family in SoundFamily.order where style(of: family).mixerStart != nil {
+            updateStyle(family) { $0.mixerStart = nil }
+        }
+    }
+
+    var placesChosen: Bool {
+        !slots.isEmpty || SoundFamily.order.contains { style(of: $0).mixerStart != nil }
+    }
+
+    /// « Écrire… » : le nom que la personne donne à ce son ; vide : le nom automatique.
+    func setName(_ index: Int, _ name: String?) {
+        let trimmed = name?.trimmingCharacters(in: .whitespaces) ?? ""
+        names[index] = trimmed.isEmpty ? nil : String(trimmed.prefix(64))
     }
 
     struct Member: Identifiable, Equatable {
@@ -680,20 +768,27 @@ final class OrganizerController: ObservableObject {
         var newName: String? = nil
         /// Ce qu'est le son (Kick, 808…), s'il va avec sa famille.
         var kind: SoundKind? = nil
+        /// La piste du Mixer où il finira (sa case) ; choisie à la main ; son nom écrit dans l'aperçu.
+        var slot: Int? = nil
+        var pinned = false
+        var written = false
     }
 
     /// Sons d'une famille, dans l'ordre où ils finiront dans le Channel rack (les Kick ensemble, puis les Snare…).
     func members(of family: SoundFamily) -> [Member] {
         guard let result else { return [] }
         let channels = result.channels.sorted { $0.index < $1.index }
-        let order = OrganizerApplier.rackPlan(channels, families: families, kinds: kinds).final
+        let order = OrganizerApplier.rackPlan(channels, families: families, kinds: kinds, options: options).final
         var byIndex: [Int: OrganizerItem] = [:]
         for item in result.items { byIndex[item.index] = item }
-        let names = plan.rack.names
+        let plan = self.plan
+        let planned = plan.rack.names
         return order.compactMap { index in
             guard families[index] == family, let item = byIndex[index] else { return nil }
             return Member(id: index, name: item.name, testNotes: item.testNotes, byName: item.byName,
-                          newName: names[index].flatMap { $0 == item.name ? nil : $0 }, kind: kind(of: index))
+                          newName: (names[index] ?? planned[index]).flatMap { $0 == item.name ? nil : $0 },
+                          kind: kind(of: index), slot: mixerSlot(of: index, in: plan), pinned: slots[index] != nil,
+                          written: names[index] != nil)
         }
     }
 
@@ -718,7 +813,7 @@ final class OrganizerController: ObservableObject {
     var plannedColors: [Int: RGBColor] {
         guard let result else { return [:] }
         let channels = result.channels.sorted { $0.index < $1.index }
-        let order = OrganizerApplier.rackPlan(channels, families: families, kinds: kinds).final
+        let order = OrganizerApplier.rackPlan(channels, families: families, kinds: kinds, options: options).final
         return OrganizerApplier.plannedColors(families: families, styles: styles, order: order)
     }
 
@@ -841,6 +936,7 @@ final class OrganizerController: ObservableObject {
     func apply() {
         guard phase == .preview, let result, let link else { return }
         env.saveStyles(styles)
+        env.saveFamilyOrder(options.familyOrder)
         // Les sons changés dans l'aperçu : l'IA s'en souvient (demande du propriétaire), sans rien demander.
         learned = learn(OrganizerFeedback.previewFixes(result.items, families: families, kinds: kinds),
                         reasons: ["apercu"])
@@ -1600,7 +1696,8 @@ struct OrganizerView: View {
     private var hint: String {
         String(localized: """
             Chaque son est rangé d'après son nom (« BEAM KICK » : Kick), sinon d'après son écoute. Clique sur Kick, \
-            808… pour le changer : tout le projet suit (Channel rack, patterns, Mixer, Playlist).
+            808… pour le changer, ou « Écrire… » pour lui donner ton nom : tout le projet suit (Channel rack, \
+            patterns, Mixer, Playlist). Glisse une famille par sa poignée pour changer leur ordre.
             """)
     }
 
@@ -1611,6 +1708,23 @@ struct OrganizerView: View {
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
                 .morphIn(1)
+            if controller.options.mixer {
+                // Places dans le Mixer choisies à la main (case de chaque son, départ de chaque famille), ou rangées
+                // toutes seules (demande du propriétaire du 25/10).
+                HStack(spacing: 8) {
+                    Image(systemName: "slider.vertical.3").font(.system(size: 11)).foregroundStyle(Self.tint)
+                    Text("Mixer : tire le numéro d'un son ou d'une famille, comme dans FL.")
+                        .font(.system(size: 11))
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                    Spacer(minLength: 0)
+                    Button("Rangement automatique") { withAnimation(Motion.quickMorph) { controller.autoArrange() } }
+                        .controlSize(.small)
+                        .disabled(!controller.placesChosen)
+                        .help("Oublie les places choisies : chaque famille à la suite, dans l'ordre du Channel rack")
+                }
+                .morphIn(1)
+            }
             // Les familles (couleur ou dégradé de chacune), puis le résumé et les choix, dans la même zone qui défile :
             // le résumé, devenu long, écrasait les familles à une hauteur nulle (retour du propriétaire : les
             // couleurs n'étaient plus proposées). Seuls les boutons restent en bas.
@@ -1820,7 +1934,8 @@ private struct ProjectSummary: View {
     }
 }
 
-/// Une famille de l'aperçu : son réglage (une couleur ou un dégradé) et ses sons.
+/// Une famille de l'aperçu : son réglage (une couleur ou un dégradé, son départ dans le Mixer) et ses sons. Elle se
+/// glisse au-dessus ou en dessous d'une autre par sa poignée, comme un dossier (demande du propriétaire du 25/10).
 private struct FamilySection: View {
     @ObservedObject var controller: OrganizerController
     let family: SoundFamily
@@ -1828,6 +1943,10 @@ private struct FamilySection: View {
     @State private var pickingFirst = false
     @State private var pickingLast = false
     @State private var pickingIcon = false
+    @State private var dropTarget = false
+
+    /// Ce qui est glissé : une famille de l'aperçu (jamais pris pour autre chose).
+    static let dragPrefix = "organiser-famille:"
 
     private var fadeOn: Binding<Bool> {
         Binding(get: { controller.style(of: family).fade != nil }, set: { on in
@@ -1842,6 +1961,13 @@ private struct FamilySection: View {
         let members = controller.members(of: family)
         VStack(alignment: .leading, spacing: 6) {
             HStack(spacing: 8) {
+                Image(systemName: "line.3.horizontal")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(.secondary)
+                    .frame(width: 14, height: 24)
+                    .contentShape(Rectangle())
+                    .onDrag { NSItemProvider(object: (Self.dragPrefix + family.rawValue) as NSString) }
+                    .help("Glisse la famille au-dessus ou en dessous d'une autre : le Channel rack, le Mixer et la Playlist suivent cet ordre")
                 Image(systemName: family.symbol)
                     .font(.system(size: 11, weight: .bold))
                     .foregroundStyle(Color.white)
@@ -1882,57 +2008,48 @@ private struct FamilySection: View {
                         }
                     }
             }
+            if controller.options.mixer, let range = controller.mixerRange(of: family) {
+                HStack(spacing: 6) {
+                    Image(systemName: "slider.vertical.3").font(.system(size: 10)).foregroundStyle(.secondary)
+                    Text("Mixer").font(.system(size: 11)).foregroundStyle(.secondary)
+                    MixerSlotBox(value: style.mixerStart ?? range.lowerBound, chosen: style.mixerStart != nil,
+                                 last: controller.mixerLast) { controller.setMixerStart(family, $0) }
+                        .help("Première piste du Mixer de la famille (son bus compris ; la 808 avec les drums) : tire vers le haut ou le bas comme dans FL, ou clique pour l'écrire")
+                    Image(systemName: "arrow.right").font(.system(size: 9)).foregroundStyle(.secondary)
+                    Text("\(range.upperBound)")
+                        .font(.system(size: 11).monospacedDigit())
+                        .foregroundStyle(.secondary)
+                    Spacer()
+                }
+                .padding(.leading, 22)
+            }
             ForEach(members) { member in
-                row(member, color: colors[member.id] ?? style.color)
+                FamilyMemberRow(controller: controller, family: family, member: member,
+                                color: colors[member.id] ?? style.color)
             }
         }
         .padding(12)
         .organizerCard(swiftColor(style.color))
-    }
-
-    private func row(_ member: OrganizerController.Member, color: RGBColor) -> some View {
-        HStack(spacing: 8) {
-            RoundedRectangle(cornerRadius: 3, style: .continuous)
-                .fill(swiftColor(color))
-                .frame(width: 12, height: 12)
-            Text(member.name.isEmpty ? String(localized: "(sans nom)") : member.name).lineLimit(1)
-            if let newName = member.newName {
-                Image(systemName: "arrow.right").font(.system(size: 9)).foregroundStyle(.secondary)
-                Text(newName).lineLimit(1).foregroundStyle(.secondary)
+        .overlay(alignment: .top) {
+            if dropTarget {
+                Capsule().fill(OrganizerView.tint).frame(height: 3).padding(.horizontal, 10).offset(y: -6)
             }
-            if member.testNotes {
-                Image(systemName: "music.note")
-                    .foregroundStyle(.secondary)
-                    .help("Muet dans ses patterns : classé avec deux notes d'essai. Vérifie sa famille.")
-            }
-            if member.byName {
-                Image(systemName: "textformat")
-                    .foregroundStyle(.secondary)
-                    .help("Classé d'après son nom, sans l'écouter.")
-            }
-            Spacer()
-            // Ce qu'est le son (« BEAM KICK » : Kick), sinon sa famille ; chaque famille propose ses sortes.
-            Menu {
-                ForEach(SoundFamily.order, id: \.self) { choice in
-                    if choice.kinds.isEmpty {
-                        Button(choice.label) { controller.setFamily(member.id, choice) }
-                    } else {
-                        Menu(choice.label) {
-                            ForEach(choice.kinds, id: \.self) { kind in
-                                Button(kind.name) { controller.setKind(member.id, kind) }
-                            }
-                        }
-                    }
-                }
-            } label: {
-                Text(member.kind?.name ?? family.label).font(.system(size: 11))
-            }
-            .menuStyle(.button)
-            .buttonStyle(.borderless)
-            .fixedSize()
-            .help("Changer ce qu'est ce son (Kick, 808, Lead…) ou sa famille")
         }
-        .font(.system(size: 12))
+        .onDrop(of: [.plainText], isTargeted: $dropTarget) { providers in
+            guard let provider = providers.first else { return false }
+            _ = provider.loadObject(ofClass: NSString.self) { object, _ in
+                guard let text = (object as? NSString).map({ $0 as String }), text.hasPrefix(Self.dragPrefix),
+                      let dragged = SoundFamily(rawValue: String(text.dropFirst(Self.dragPrefix.count))) else { return }
+                DispatchQueue.main.async {
+                    withAnimation(Motion.quickMorph) { controller.moveFamily(dragged, onto: family) }
+                }
+            }
+            return true
+        }
+        .contextMenu {
+            Button("Monter la famille") { withAnimation(Motion.quickMorph) { controller.shiftFamily(family, by: -1) } }
+            Button("Descendre la famille") { withAnimation(Motion.quickMorph) { controller.shiftFamily(family, by: 1) } }
+        }
     }
 
     private func swatch(_ color: RGBColor, picking: Binding<Bool>, set: @escaping (RGBColor) -> Void) -> some View {
@@ -1950,5 +2067,169 @@ private struct FamilySection: View {
                 picking.wrappedValue = false
             }
         }
+    }
+}
+
+/// Un son de l'aperçu : sa couleur, son nom (et celui qu'il prendra), sa piste du Mixer (la case de FL) et ce qu'il est
+/// (« Écrire… » : son nom tapé à la main, à la place de « À vérifier », demande du propriétaire du 25/10).
+private struct FamilyMemberRow: View {
+    @ObservedObject var controller: OrganizerController
+    let family: SoundFamily
+    let member: OrganizerController.Member
+    let color: RGBColor
+    @State private var writing = false
+    @State private var draft = ""
+
+    var body: some View {
+        HStack(spacing: 8) {
+            RoundedRectangle(cornerRadius: 3, style: .continuous)
+                .fill(swiftColor(color))
+                .frame(width: 12, height: 12)
+            Text(member.name.isEmpty ? String(localized: "(sans nom)") : member.name).lineLimit(1)
+            if let newName = member.newName {
+                Image(systemName: "arrow.right").font(.system(size: 9)).foregroundStyle(.secondary)
+                Text(newName).lineLimit(1).foregroundStyle(member.written ? Color.primary : Color.secondary)
+            }
+            if member.testNotes {
+                Image(systemName: "music.note")
+                    .foregroundStyle(.secondary)
+                    .help("Muet dans ses patterns : classé avec deux notes d'essai. Vérifie sa famille.")
+            }
+            if member.byName {
+                Image(systemName: "textformat")
+                    .foregroundStyle(.secondary)
+                    .help("Classé d'après son nom, sans l'écouter.")
+            }
+            Spacer()
+            if controller.options.mixer, member.slot != nil || member.pinned {
+                MixerSlotBox(value: member.slot, chosen: member.pinned, last: controller.mixerLast) {
+                    controller.setSlot(member.id, $0)
+                }
+                .help("Piste du Mixer de ce son : tire vers le haut ou le bas comme dans FL, ou clique pour l'écrire")
+            }
+            // Ce qu'est le son (« BEAM KICK » : Kick), sinon sa famille ; chaque famille propose ses sortes ; en bas,
+            // « Écrire… » pour lui donner son propre nom.
+            Menu {
+                ForEach(SoundFamily.order.filter { !$0.kinds.isEmpty }, id: \.self) { choice in
+                    Menu(choice.label) {
+                        ForEach(choice.kinds, id: \.self) { kind in
+                            Button(kind.name) { controller.setKind(member.id, kind) }
+                        }
+                    }
+                }
+                Divider()
+                Button("Écrire…") {
+                    draft = controller.names[member.id] ?? ""
+                    writing = true
+                }
+                if member.written {
+                    Button("Nom automatique") { controller.setName(member.id, nil) }
+                }
+            } label: {
+                Text(member.kind?.name ?? family.label).font(.system(size: 11))
+            }
+            .menuStyle(.button)
+            .buttonStyle(.borderless)
+            .fixedSize()
+            .help("Changer ce qu'est ce son (Kick, 808, Lead…), ou écrire son nom")
+            .popover(isPresented: $writing, arrowEdge: .bottom) {
+                VStack(alignment: .leading, spacing: 10) {
+                    Text("Nom du son").font(.system(size: 12, weight: .semibold))
+                    TextField(String(localized: "Écris le nom que tu veux"), text: $draft)
+                        .textFieldStyle(.roundedBorder)
+                        .frame(width: 220)
+                        .onSubmit(save)
+                    HStack {
+                        Spacer()
+                        Button("Annuler") { writing = false }.keyboardShortcut(.cancelAction)
+                        Button("OK", action: save).keyboardShortcut(.defaultAction)
+                    }
+                }
+                .padding(14)
+            }
+        }
+        .font(.system(size: 12))
+    }
+
+    private func save() {
+        controller.setName(member.id, draft)
+        writing = false
+    }
+}
+
+/// La case du numéro de piste du Mixer, comme celle du Channel rack de FL (vidéo du propriétaire) : on la tire vers le
+/// haut ou le bas pour changer le numéro, ou on clique pour l'écrire ; ⌥ + clic : automatique. Un numéro choisi est
+/// clair, un numéro automatique est gris ; « --- » : aucune piste.
+struct MixerSlotBox: View {
+    let value: Int?
+    /// Choisi à la main (sinon : la place automatique).
+    let chosen: Bool
+    let last: Int
+    /// nil : automatique.
+    let set: (Int?) -> Void
+    @State private var dragStart: Int?
+    @State private var typing = false
+    @State private var draft = ""
+    @State private var hovered = false
+
+    /// Points de souris par numéro, comme la case de FL (tirer vers le haut : plus grand).
+    static let step: CGFloat = 6
+
+    var body: some View {
+        Text(value.map { "\($0)" } ?? "---")
+            .font(.system(size: 11, weight: chosen ? .semibold : .regular).monospacedDigit())
+            .foregroundStyle(chosen ? Color.primary : Color.secondary)
+            .frame(width: 34, height: 18)
+            .background(RoundedRectangle(cornerRadius: 4, style: .continuous).fill(Color.black.opacity(0.28)))
+            .overlay(RoundedRectangle(cornerRadius: 4, style: .continuous)
+                .strokeBorder(chosen ? OrganizerView.tint : Color.primary.opacity(hovered ? 0.35 : 0.12), lineWidth: 1))
+            .contentShape(Rectangle())
+            .onHover { inside in
+                hovered = inside
+                if inside { NSCursor.resizeUpDown.push() } else { NSCursor.pop() }
+            }
+            .gesture(DragGesture(minimumDistance: 2)
+                .onChanged { drag in
+                    let from = dragStart ?? value ?? 1
+                    if dragStart == nil { dragStart = from }
+                    set(Self.dragged(from: from, dy: drag.translation.height, last: last))
+                }
+                .onEnded { _ in dragStart = nil })
+            .onTapGesture {
+                if NSEvent.modifierFlags.contains(.option) {
+                    set(nil)
+                } else {
+                    draft = value.map { "\($0)" } ?? ""
+                    typing = true
+                }
+            }
+            .popover(isPresented: $typing, arrowEdge: .bottom) {
+                VStack(alignment: .leading, spacing: 10) {
+                    Text("Piste du Mixer").font(.system(size: 12, weight: .semibold))
+                    TextField(String("1…\(last)"), text: $draft)
+                        .textFieldStyle(.roundedBorder)
+                        .frame(width: 120)
+                        .onSubmit(save)
+                    HStack {
+                        Button("Automatique") {
+                            set(nil)
+                            typing = false
+                        }
+                        Spacer()
+                        Button("OK", action: save).keyboardShortcut(.defaultAction)
+                    }
+                }
+                .padding(14)
+            }
+    }
+
+    private func save() {
+        if let n = Int(draft.trimmingCharacters(in: .whitespaces)) { set(min(max(n, 1), last)) }
+        typing = false
+    }
+
+    /// Pur (testé) : le numéro après avoir tiré la case de `dy` points (vers le haut : négatif, plus grand).
+    static func dragged(from: Int, dy: CGFloat, last: Int) -> Int {
+        min(max(from + Int((-dy / step).rounded(.towardZero)), 1), max(last, 1))
     }
 }

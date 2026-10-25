@@ -13,12 +13,19 @@ struct FamilyStyle: Codable, Equatable {
     /// Dégradé : de `color` à `fade`, réparti sur les sons de la famille dans leur ordre final.
     var fade: RGBColor?
     var icon: FLIcon?
+    /// La piste du Mixer où commence la famille (« Drums de 27 à 32 », la 808 comprise, demande du propriétaire du
+    /// 25/10) ; nil : rangement automatique.
+    var mixerStart: Int?
 
-    init(color: RGBColor, fade: RGBColor? = nil, icon: FLIcon? = nil) {
+    init(color: RGBColor, fade: RGBColor? = nil, icon: FLIcon? = nil, mixerStart: Int? = nil) {
         self.color = color
         self.fade = fade
         self.icon = icon
+        self.mixerStart = mixerStart
     }
+
+    /// Dernière piste du Mixer de FL (125 pistes en plus du Master).
+    static let maxMixerTrack = 125
 
     /// Couleur de chaque son de la famille, dans l'ordre (même arrondi que l'opération 8 du script).
     func colors(count: Int) -> [RGBColor] {
@@ -27,7 +34,7 @@ struct FamilyStyle: Codable, Equatable {
         return (0..<count).map { color.lerp(fade, Double($0) / Double(count - 1)) }
     }
 
-    private enum CodingKeys: String, CodingKey { case color, fade, icon }
+    private enum CodingKeys: String, CodingKey { case color, fade, icon, mixer }
 
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
@@ -38,6 +45,8 @@ struct FamilyStyle: Codable, Equatable {
         self.color = color
         fade = try c.decodeIfPresent(String.self, forKey: .fade).flatMap { RGBColor(hex: $0) }
         icon = try c.decodeIfPresent(String.self, forKey: .icon).flatMap { FLIcon(code: $0) }
+        let start: Int? = try? c.decodeIfPresent(Int.self, forKey: .mixer)
+        mixerStart = start.flatMap { (1...Self.maxMixerTrack).contains($0) ? $0 : nil }
     }
 
     func encode(to encoder: Encoder) throws {
@@ -45,6 +54,7 @@ struct FamilyStyle: Codable, Equatable {
         try c.encode(color.hex, forKey: .color)
         try c.encodeIfPresent(fade?.hex, forKey: .fade)
         try c.encodeIfPresent(icon?.code, forKey: .icon)
+        try c.encodeIfPresent(mixerStart, forKey: .mixer)
     }
 }
 
@@ -79,6 +89,17 @@ enum FamilyStyles {
         encoder.outputFormatting = .sortedKeys
         if let data = try? encoder.encode(named) { defaults.set(data, forKey: key) }
     }
+
+    static let orderKey = "organize.familyOrder"
+
+    /// L'ordre des familles glissées dans l'aperçu (vide : l'ordre de départ) ; jamais qu'une liste de familles.
+    static func loadOrder(from defaults: UserDefaults = .standard) -> [SoundFamily] {
+        OrganizerOptions.completeOrder((defaults.stringArray(forKey: orderKey) ?? []).compactMap(SoundFamily.init(rawValue:)))
+    }
+
+    static func saveOrder(_ order: [SoundFamily], to defaults: UserDefaults = .standard) {
+        defaults.set(order.map(\.rawValue), forKey: orderKey)
+    }
 }
 
 /// Une remontée : le canal à la place `from` monte de `up` places (⌥↑ × up).
@@ -92,8 +113,9 @@ enum RegroupPlan {
     /// famille par ce qu'est le son (`kinds`, même ordre que `order` : les Kick ensemble, puis les Snare… ; les sons
     /// qui ne disent rien après). `final[p]` est l'index d'origine du canal qui finit à la place p. Au plus
     /// n × (n − 1) / 2 pas.
-    static func make(order: [SoundFamily?], kinds: [SoundKind?] = []) -> (moves: [Move], final: [Int]) {
-        let rank: [Int] = order.map { $0?.rank ?? SoundFamily.order.count }
+    static func make(order: [SoundFamily?], kinds: [SoundKind?] = [],
+                     familyRank: (SoundFamily) -> Int = { $0.rank }) -> (moves: [Move], final: [Int]) {
+        let rank: [Int] = order.map { $0.map(familyRank) ?? Int.max / 2 }
         let sub: [Int] = order.indices.map { i -> Int in
             guard i < kinds.count, let kind = kinds[i], kind.family == order[i] else { return SoundKind.rackOrder.count }
             return kind.rackRank
@@ -310,9 +332,10 @@ final class OrganizerApplier {
 
     /// Plan de regroupement du Channel rack : par famille, puis par ce qu'est chaque son.
     static func rackPlan(_ channels: [ChannelInfo], families: [Int: SoundFamily],
-                         kinds: [Int: SoundKind]) -> (moves: [Move], final: [Int]) {
+                         kinds: [Int: SoundKind], options: OrganizerOptions = OrganizerOptions()) -> (moves: [Move], final: [Int]) {
         RegroupPlan.make(order: channels.map { families[$0.index] },
-                         kinds: channels.map { Self.kind($0.index, families: families, kinds: kinds) })
+                         kinds: channels.map { Self.kind($0.index, families: families, kinds: kinds) },
+                         familyRank: options.familyRank)
     }
 
     /// Icône de chaque élément : celle de sa famille ; aucune si la famille n'en a pas.

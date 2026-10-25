@@ -296,6 +296,7 @@
 "Aucune touche" = "Aucune touche";
 "Aucune touche de FL choisie." = "Aucune touche de FL choisie.";
 "Aucune touche reçue : macOS utilise peut-être ce raccourci." = "Aucune touche reçue : macOS utilise peut-être ce raccourci.";
+"Automatique" = "Automatique";
 "Automatique (%@)" = "Automatique (%@)";
 "Automatique (aucune carte branchée)" = "Automatique (aucune carte branchée)";
 "Automatiser" = "Automatiser";
@@ -402,6 +403,7 @@
 "Change les raccourcis de FL Studio, ou ajoute les tiens." = "Change les raccourcis de FL Studio, ou ajoute les tiens.";
 "Changements à envoyer" = "Changements à envoyer";
 "Changer ce qu'est ce son (Kick, 808, Lead…) ou sa famille" = "Changer ce qu'est ce son (Kick, 808, Lead…) ou sa famille";
+"Changer ce qu'est ce son (Kick, 808, Lead…), ou écrire son nom" = "Changer ce qu'est ce son (Kick, 808, Lead…), ou écrire son nom";
 "Changer la couleur" = "Changer la couleur";
 "Changer la touche" = "Changer la touche";
 "Changer la touche de %@" = "Changer la touche de %@";
@@ -415,6 +417,7 @@
 "Chaque macro devient un fichier .flsmacro. Les endroits appris (clics montrés dans FL) ne sont pas exportés." = "Chaque macro devient un fichier .flsmacro. Les endroits appris (clics montrés dans FL) ne sont pas exportés.";
 "Chaque raccourci que tu changes arrive ici, avec ceux que tu crées. Les macros ont leur page." = "Chaque raccourci que tu changes arrive ici, avec ceux que tu crées. Les macros ont leur page.";
 "Chaque son est rangé d'après son nom (« BEAM KICK » : Kick), sinon d'après son écoute. Clique sur Kick, 808… pour le changer : tout le projet suit (Channel rack, patterns, Mixer, Playlist)." = "Chaque son est rangé d'après son nom (« BEAM KICK » : Kick), sinon d'après son écoute. Clique sur Kick, 808… pour le changer : tout le projet suit (Channel rack, patterns, Mixer, Playlist).";
+"Chaque son est rangé d'après son nom (« BEAM KICK » : Kick), sinon d'après son écoute. Clique sur Kick, 808… pour le changer, ou « Écrire… » pour lui donner ton nom : tout le projet suit (Channel rack, patterns, Mixer, Playlist). Glisse une famille par sa poignée pour changer leur ordre." = "Chaque son est rangé d'après son nom (« BEAM KICK » : Kick), sinon d'après son écoute. Clique sur Kick, 808… pour le changer, ou « Écrire… » pour lui donner ton nom : tout le projet suit (Channel rack, patterns, Mixer, Playlist). Glisse une famille par sa poignée pour changer leur ordre.";
 "Chargement des partages…" = "Chargement des partages…";
 "Chargement…" = "Chargement…";
 "Charger le profil « %@ » ?" = "Charger le profil « %@ » ?";
@@ -604,6 +607,7 @@
 "Dernière étape : quitte et rouvre FL Studio. Il trouve « FL Shortcuts Link » en démarrant et le relie tout seul.\n\nSeulement si ça ne marche pas : Options › MIDI Settings, entrée « FL Shortcuts Link », Controller type « FL Shortcuts » (pas « generic controller »), Enable, et le même numéro de Port pour l'entrée et la sortie « FL Shortcuts Link ».\n\n« FL Shortcuts » absent des Controller types : FL lit un autre dossier. Le script est dans %@ ; compare avec Options › File settings › User data folder dans FL.\n\nChaque réinstallation crée une nouvelle clé : redémarre FL après coup." = "Dernière étape : quitte et rouvre FL Studio. Il trouve « FL Shortcuts Link » en démarrant et le relie tout seul.\n\nSeulement si ça ne marche pas : Options › MIDI Settings, entrée « FL Shortcuts Link », Controller type « FL Shortcuts » (pas « generic controller »), Enable, et le même numéro de Port pour l'entrée et la sortie « FL Shortcuts Link ».\n\n« FL Shortcuts » absent des Controller types : FL lit un autre dossier. Le script est dans %@ ; compare avec Options › File settings › User data folder dans FL.\n\nChaque réinstallation crée une nouvelle clé : redémarre FL après coup.";
 "Des clips de la Playlist n'ont pas pu être remis à leur place : annule dans FL (Edit › Undo), puis réessaie." = "Des clips de la Playlist n'ont pas pu être remis à leur place : annule dans FL (Edit › Undo), puis réessaie.";
 "Des macros et des raccourcis prêts à l'emploi, partagés par d'autres utilisateurs de FL Shortcuts, avec leur explication." = "Des macros et des raccourcis prêts à l'emploi, partagés par d'autres utilisateurs de FL Shortcuts, avec leur explication.";
+"Descendre la famille" = "Descendre la famille";
 "Descendre les canaux" = "Descendre les canaux";
 "Dis ce qui n'allait pas : l'IA apprend de ses erreurs" = "Dis ce qui n'allait pas : l'IA apprend de ses erreurs";
 "Dis en quelques mots ce que tu faisais juste avant : ça nous aide beaucoup." = "Dis en quelques mots ce que tu faisais juste avant : ça nous aide beaucoup.";
@@ -893,6 +897,7 @@
 "Genre" = "Genre";
 "Ghost channels" = "Ghost channels";
 "Glisse FL Shortcuts dans la Corbeille." = "Glisse FL Shortcuts dans la Corbeille.";
+"Glisse la famille au-dessus ou en dessous d'une autre : le Channel rack, le Mixer et la Playlist suivent cet ordre" = "Glisse la famille au-dessus ou en dessous d'une autre : le Channel rack, le Mixer et la Playlist suivent cet ordre";
 "Glisse le fichier sur la dernière piste cliquée dans le Mixer, comme depuis le Finder : FL y charge l'état de piste, sans menu ni boîte « Open »." = "Glisse le fichier sur la dernière piste cliquée dans le Mixer, comme depuis le Finder : FL y charge l'état de piste, sans menu ni boîte « Open ».";
 "Glisse les lignes pour les ranger" = "Glisse les lignes pour les ranger";
 "Glisser" = "Glisser";
@@ -1150,6 +1155,7 @@
 "Mixer" = "Mixer";
 "Mixer : %lld pistes dans l'ordre du Channel rack, %lld bus (un par famille), %lld renommées" = "Mixer : %lld pistes dans l'ordre du Channel rack, %lld bus (un par famille), %lld renommées";
 "Mixer : %lld pistes dans l'ordre du Channel rack, %lld renommées" = "Mixer : %lld pistes dans l'ordre du Channel rack, %lld renommées";
+"Mixer : tire le numéro d'un son ou d'une famille, comme dans FL." = "Mixer : tire le numéro d'un son ou d'une famille, comme dans FL.";
 "Mode Performance" = "Mode Performance";
 "Mode Step Edit" = "Mode Step Edit";
 "Mode d'affichage du clavier" = "Mode d'affichage du clavier";
@@ -1166,6 +1172,7 @@
 "Mon compte" = "Mon compte";
 "Mon compte et sauvegarde" = "Mon compte et sauvegarde";
 "Monte la piste sélectionnée" = "Monte la piste sélectionnée";
+"Monter la famille" = "Monter la famille";
 "Monter le volume de la piste" = "Monter le volume de la piste";
 "Monter les canaux" = "Monter les canaux";
 "Montre de nouveau chaque clic dans FL (positions propres à chaque Mac)." = "Montre de nouveau chaque clic dans FL (positions propres à chaque Mac).";
@@ -1208,11 +1215,13 @@
 "Ne quitte pas l'app tout de suite." = "Ne quitte pas l'app tout de suite.";
 "Ne touche pas à FL." = "Ne touche pas à FL.";
 "Nom" = "Nom";
+"Nom automatique" = "Nom automatique";
 "Nom d'utilisateur" = "Nom d'utilisateur";
 "Nom d'utilisateur : 3 à 24 caractères, lettres sans accent, chiffres, « _ », « . » ou « - »." = "Nom d'utilisateur : 3 à 24 caractères, lettres sans accent, chiffres, « _ », « . » ou « - ».";
 "Nom de la macro" = "Nom de la macro";
 "Nom de macro invalide." = "Nom de macro invalide.";
 "Nom de variable invalide." = "Nom de variable invalide.";
+"Nom du son" = "Nom du son";
 "Nom et couleur" = "Nom et couleur";
 "Nombre de fois" = "Nombre de fois";
 "Note" = "Note";
@@ -1251,6 +1260,7 @@
 "Organiser écoute seulement le son de FL, sans l'enregistrer. Réglages Système › Confidentialité et sécurité › Enregistrement de l'écran et de l'audio du système : active FL Shortcuts dans « Audio du système uniquement »." = "Organiser écoute seulement le son de FL, sans l'enregistrer. Réglages Système › Confidentialité et sécurité › Enregistrement de l'écran et de l'audio du système : active FL Shortcuts dans « Audio du système uniquement ».";
 "Organiser…" = "Organiser…";
 "Orgue" = "Orgue";
+"Oublie les places choisies : chaque famille à la suite, dans l'ordre du Channel rack" = "Oublie les places choisies : chaque famille à la suite, dans l'ordre du Channel rack";
 "Oui, valider" = "Oui, valider";
 "Outil Articulate" = "Outil Articulate";
 "Outil Chop" = "Outil Chop";
@@ -1384,6 +1394,8 @@
 "Piano Roll" = "Piano Roll";
 "Piste Mixer précédente" = "Piste Mixer précédente";
 "Piste Mixer suivante" = "Piste Mixer suivante";
+"Piste du Mixer" = "Piste du Mixer";
+"Piste du Mixer de ce son : tire vers le haut ou le bas comme dans FL, ou clique pour l'écrire" = "Piste du Mixer de ce son : tire vers le haut ou le bas comme dans FL, ou clique pour l'écrire";
 "Piste précédente" = "Piste précédente";
 "Piste suivante" = "Piste suivante";
 "Pistes, solo, liens, rendu" = "Pistes, solo, liens, rendu";
@@ -1417,6 +1429,7 @@
 "Pour l'Organiser : il écoute chaque son pour le ranger" = "Pour l'Organiser : il écoute chaque son pour le ranger";
 "Pour toi (facultatif)" = "Pour toi (facultatif)";
 "Pour un bouton qui change de place (une piste du Mixer, le « + » du Channel rack…) : il est " = "Pour un bouton qui change de place (une piste du Mixer, le « + » du Channel rack…) : il est ";
+"Première piste du Mixer de la famille (son bus compris ; la 808 avec les drums) : tire vers le haut ou le bas comme dans FL, ou clique pour l'écrire" = "Première piste du Mixer de la famille (son bus compris ; la 808 avec les drums) : tire vers le haut ou le bas comme dans FL, ou clique pour l'écrire";
 "Preset" = "Preset";
 "Preset précédent" = "Preset précédent";
 "Preset précédent du plugin ouvert" = "Preset précédent du plugin ouvert";
@@ -1474,6 +1487,7 @@
 "Raison" = "Raison";
 "Raison : 3 à 500 caractères." = "Raison : 3 à 500 caractères.";
 "Range, colore et renomme tout le projet" = "Range, colore et renomme tout le projet";
+"Rangement automatique" = "Rangement automatique";
 "Rangement dans la copie…" = "Rangement dans la copie…";
 "Re-stretch de tous les clips audio" = "Re-stretch de tous les clips audio";
 "Recherche" = "Recherche";
@@ -2227,7 +2241,9 @@
 "Écrire un autre message" = "Écrire un autre message";
 "Écrire à l'équipe" = "Écrire à l'équipe";
 "Écrire à l'équipe : le message d'erreur et le journal de cet essai sont joints, tu les vois avant l'envoi" = "Écrire à l'équipe : le message d'erreur et le journal de cet essai sont joints, tu les vois avant l'envoi";
+"Écrire…" = "Écrire…";
 "Écris au moins quelques mots (%lld caractères)." = "Écris au moins quelques mots (%lld caractères).";
+"Écris le nom que tu veux" = "Écris le nom que tu veux";
 "Écris un titre (%lld caractères au moins)" = "Écris un titre (%lld caractères au moins)";
 "Écrit exactement comme dans le menu Add › %@ de FL." = "Écrit exactement comme dans le menu Add › %@ de FL.";
 "Élément" = "Élément";

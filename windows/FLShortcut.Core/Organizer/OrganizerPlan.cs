@@ -40,7 +40,9 @@ public sealed class OrganizerPlan
     public PlaylistLayout.Result? Layout { get; set; }
 
     /// Ce qui a servi à faire le plan : il est refait sur le Channel rack une fois les sons supprimés.
-    public sealed record PlanSource(Dictionary<int, SoundFamily> Families, Dictionary<int, SoundKind> Kinds, OrganizerOptions Options);
+    /// `Names` : les noms écrits dans l'aperçu (« Écrire… ») ; `Slots` : la piste du Mixer choisie pour un son (1 = piste 1).
+    public sealed record PlanSource(Dictionary<int, SoundFamily> Families, Dictionary<int, SoundKind> Kinds, OrganizerOptions Options,
+        Dictionary<int, string> Names, Dictionary<int, int> Slots);
     public PlanSource? Source { get; set; }
 
     public bool IsEmpty => Rack.IsEmpty && Patterns.IsEmpty && Mixer.IsEmpty && Playlist.IsEmpty && Deleted.Count == 0 && Splits.Count == 0;
@@ -53,37 +55,45 @@ public sealed class OrganizerPlan
     private const int IntMax = int.MaxValue;
 
     /// `families` et `kinds` : ce qu'est chaque son du Channel rack (index du canal), modifiable dans l'aperçu.
+    /// `names` : les noms écrits dans l'aperçu (« Écrire… »), posés tels quels partout où le son a son nom ; `slots` :
+    /// la piste du Mixer choisie pour un son (1 = piste 1, comme la case de FL dans le Channel rack).
     public static OrganizerPlan Make(OrganizerResult result, IReadOnlyDictionary<int, SoundFamily> families,
-        IReadOnlyDictionary<int, SoundKind> kinds, IReadOnlyDictionary<SoundFamily, FamilyStyle> styles, OrganizerOptions? options = null)
+        IReadOnlyDictionary<int, SoundKind> kinds, IReadOnlyDictionary<SoundFamily, FamilyStyle> styles, OrganizerOptions? options = null,
+        IReadOnlyDictionary<int, string>? names = null, IReadOnlyDictionary<int, int>? slots = null)
     {
         options ??= new OrganizerOptions();
+        var written = (names ?? new Dictionary<int, string>()).Where(kv => kv.Value.Trim().Length > 0)
+            .ToDictionary(kv => kv.Key, kv => kv.Value.Trim());
+        slots ??= new Dictionary<int, int>();
         Verdict? VerdictOf(int channel) =>
             families.TryGetValue(channel, out var f) ? new Verdict(f, Organize.KindOf(channel, families, kinds)) : null;
         var plan = new OrganizerPlan
         {
-            Source = new PlanSource(families.ToDictionary(kv => kv.Key, kv => kv.Value), kinds.ToDictionary(kv => kv.Key, kv => kv.Value), options),
+            Source = new PlanSource(families.ToDictionary(kv => kv.Key, kv => kv.Value), kinds.ToDictionary(kv => kv.Key, kv => kv.Value),
+                options, written, slots.ToDictionary(kv => kv.Key, kv => kv.Value)),
         };
         if (options.DeleteUnused) plan.Deleted = result.Unused.OrderBy(i => i).ToList();
         var deleted = plan.Deleted.ToHashSet();
 
-        // Channel rack : l'ordre des familles, puis des sortes ; les noms numérotés dans cet ordre.
+        // Channel rack : l'ordre des familles, puis des sortes ; les noms numérotés dans cet ordre, sauf ceux écrits
+        // dans l'aperçu, posés tels quels (jamais repris par la numérotation).
         var channels = result.Channels.OrderBy(c => c.Index).ToList();
-        var rack = Organize.RackPlan(channels, families, kinds);
+        var rack = Organize.RackPlan(channels, families, kinds, options);
         var rackPlace = new Dictionary<int, int>();
         for (var place = 0; place < rack.Final.Count; place++) rackPlace[rack.Final[place]] = place;
-        var channelNames = Numbered(rack.Final.Select(i => (Index: i, Name: VerdictOf(i)?.BaseName))
-            .Where(x => x.Name is not null).Select(x => (x.Index, x.Name!)).ToList());
+        var channelNames = Numbered(rack.Final.Where(i => !written.ContainsKey(i)).Select(i => (Index: i, Name: VerdictOf(i)?.BaseName))
+            .Where(x => x.Name is not null).Select(x => (x.Index, x.Name!)).ToList(), written.Values.ToHashSet());
+        foreach (var (i, name) in written) if (channels.Any(c => c.Index == i)) channelNames[i] = name;
         if (options.Rack)
         {
             plan.Rack.Moves = rack.Moves;
             plan.Rack.Final = rack.Final;
             plan.Rack.Colors = Organize.PlannedColors(families, styles, rack.Final);
-            if (options.Rename)
-            {
-                var current = channels.ToDictionary(c => c.Index, c => c.Name);
-                plan.Rack.Names = channelNames.Where(kv => !current.TryGetValue(kv.Key, out var n) || n != kv.Value)
-                    .ToDictionary(kv => kv.Key, kv => kv.Value);
-            }
+            var current = channels.ToDictionary(c => c.Index, c => c.Name);
+            // « Renommer » décoché : seuls les noms écrits dans l'aperçu.
+            plan.Rack.Names = channelNames.Where(kv => (options.Rename || written.ContainsKey(kv.Key))
+                    && (!current.TryGetValue(kv.Key, out var n) || n != kv.Value))
+                .ToDictionary(kv => kv.Key, kv => kv.Value);
             foreach (var channel in channels)
                 if (VerdictOf(channel.Index) is { } v) plan.Rack.Verdicts[channel.Index] = v;
         }
@@ -92,7 +102,7 @@ public sealed class OrganizerPlan
         // renommé.
         string? SameName(IEnumerable<int> sounds)
         {
-            var classified = sounds.Where(s => VerdictOf(s) is not null).ToList();
+            var classified = sounds.Where(s => VerdictOf(s) is not null || written.ContainsKey(s)).ToList();
             if (!options.Rack || !options.Rename || classified.Count != 1) return null;
             return channelNames.TryGetValue(classified[0], out var n) ? n : null;
         }
@@ -120,7 +130,7 @@ public sealed class OrganizerPlan
 
         // Mixer : même ordre que le Channel rack.
         if (options.Mixer)
-            plan.Mixer = MixerArea(result, VerdictOf, rackPlace, channelNames, styles, options.Rename, options.Buses, deleted, options.DeleteUnused);
+            plan.Mixer = MixerArea(result, VerdictOf, rackPlace, channelNames, styles, options, deleted, slots);
 
         // Playlist : chaque piste prend ce que jouent ses sons, renommée, sauf un nom de partie du morceau ; les pistes
         // rangées comme le Channel rack, celles qui ne jouent rien après.
@@ -133,7 +143,7 @@ public sealed class OrganizerPlan
                 if (GroupVerdict(sounds.OrderBy(s => s).Select(VerdictOf).OfType<Verdict>().ToList()) is not { } v
                     || v.Family == SoundFamily.Unsure) return (IntMax, 0, 0);
                 var first = sounds.Where(rackPlace.ContainsKey).Select(s => rackPlace[s]).DefaultIfEmpty(IntMax / 2).Min();
-                return (v.Family.Rank(), v.Kind?.RackRank() ?? SoundKinds.RackOrder.Length, first);
+                return (options.FamilyRank(v.Family), v.Kind?.RackRank() ?? SoundKinds.RackOrder.Length, first);
             }
             if (res.Project is { } project)
             {
@@ -205,7 +215,7 @@ public sealed class OrganizerPlan
                 if (!SoundNames.IsSection(track.Name)) renamable.Add(track.Index);
                 current[track.Index] = track.Name;
             }
-            var order = PlaylistOrder(res, verdicts, rackPlace);
+            var order = PlaylistOrder(res, verdicts, rackPlace, options);
             plan.Playlist = MakeArea(verdicts, order, current, styles, options.Rename, renamable, fix);
             var indices = res.Playlist.Select(t => t.Index).OrderBy(i => i).ToList();
             if (res.Project is null && !order.SequenceEqual(indices) && indices.Count > 0)
@@ -227,7 +237,8 @@ public sealed class OrganizerPlan
         if (Source is not { } source) return this;
         var rest = result.Clone();
         rest.Unused = new HashSet<int>();
-        return Make(rest, Moved(source.Families, map), Moved(source.Kinds, map), styles, source.Options);
+        return Make(rest, Moved(source.Families, map), Moved(source.Kinds, map), styles, source.Options, Moved(source.Names, map),
+            Moved(source.Slots, map));
     }
 
     /// Pur (testé) : les patterns à descendre pour qu'aucune piste de la Playlist ne mêle deux sons (sans fichier).
@@ -282,7 +293,7 @@ public sealed class OrganizerPlan
         if (Source is not { } source) return this;
         var rest = result.Clone();
         rest.Unused = new HashSet<int>();
-        return Make(rest, source.Families, source.Kinds, styles, source.Options with { MaxSplits = count });
+        return Make(rest, source.Families, source.Kinds, styles, source.Options with { MaxSplits = count }, source.Names, source.Slots);
     }
 
     /// La Playlist prévue de nouveau sur ce projet, sans pattern à descendre en entier.
@@ -291,19 +302,20 @@ public sealed class OrganizerPlan
         if (Source is not { } source) return Playlist;
         var rest = result.Clone();
         rest.Unused = new HashSet<int>();
-        return Make(rest, source.Families, source.Kinds, styles, source.Options with { SplitTracks = false }).Playlist;
+        return Make(rest, source.Families, source.Kinds, styles, source.Options with { SplitTracks = false }, source.Names, source.Slots).Playlist;
     }
 
     /// Pistes de la Playlist lues, dans l'ordre du Channel rack : familles dans leur ordre, puis sortes ; à égalité,
     /// celle dont le premier son est le plus haut dans le Channel rack, puis leur ordre d'avant.
-    private static List<int> PlaylistOrder(OrganizerResult result, IReadOnlyDictionary<int, Verdict?> verdicts, IReadOnlyDictionary<int, int> rackPlace)
+    private static List<int> PlaylistOrder(OrganizerResult result, IReadOnlyDictionary<int, Verdict?> verdicts, IReadOnlyDictionary<int, int> rackPlace,
+        OrganizerOptions options)
     {
         (int, int, int, int) Key(int t)
         {
             if (!verdicts.TryGetValue(t, out var vv) || vv is not { } v || v.Family == SoundFamily.Unsure) return (IntMax, 0, 0, t);
             var first = (result.TrackSounds.GetValueOrDefault(t) ?? new HashSet<int>()).Where(rackPlace.ContainsKey)
                 .Select(s => rackPlace[s]).DefaultIfEmpty(IntMax / 2).Min();
-            return (v.Family.Rank(), v.Kind?.RackRank() ?? SoundKinds.RackOrder.Length, first, t);
+            return (options.FamilyRank(v.Family), v.Kind?.RackRank() ?? SoundKinds.RackOrder.Length, first, t);
         }
         return result.Playlist.Select(t => t.Index).OrderBy(Key).ToList();
     }
@@ -348,8 +360,9 @@ public sealed class OrganizerPlan
     /// « <famille> Bus », s'il a encore le nom de FL.
     private static Area MixerArea(OrganizerResult result, Func<int, Verdict?> verdict, IReadOnlyDictionary<int, int> rackPlace,
         IReadOnlyDictionary<int, string> channelNames, IReadOnlyDictionary<SoundFamily, FamilyStyle> styles,
-        bool rename, bool buses, ISet<int> deleted, bool cleanup)
+        OrganizerOptions options, ISet<int> deleted, IReadOnlyDictionary<int, int> slots)
     {
+        bool rename = options.Rename, buses = options.Buses, cleanup = options.DeleteUnused;
         var last = result.Mixer.Count - 2;                            // la dernière piste est « Current »
         if (last < 1) return new Area();
         bool InRange(int t) => t >= 1 && t <= last;
@@ -417,13 +430,27 @@ public sealed class OrganizerPlan
                 .Select(t => t.Index).ToHashSet()
             : new HashSet<int>();
         out_.Resets = freed.Union(idle).Except(layout).Except(out_.Links.Values).ToHashSet();
+        // Places choisies dans l'aperçu : d'abord celles des sons (la case de chaque son, comme dans le Channel rack de
+        // FL), puis le départ de chaque famille, dans l'ordre des familles (ses pistes à la suite, son bus compris).
+        var pins = new List<(int Track, int Slot)>();
+        foreach (var channel in kept.OrderBy(c => Place(c.Index)))
+        {
+            if (!slots.TryGetValue(channel.Index, out var slot) || verdict(channel.Index) is null) continue;
+            var track = out_.Links.TryGetValue(channel.Index, out var l) ? l : channel.MixerTrack;
+            if (InRange(track)) pins.Add((track, slot));
+        }
+        foreach (var family in options.FamilyOrder)
+        {
+            if ((styles.TryGetValue(family, out var style) ? style : FamilyStyles.Initial.GetValueOrDefault(family))?.MixerStart is not { } start) continue;
+            foreach (var track in layout.Where(t => out_.Verdicts.TryGetValue(t, out var v) && v.BusFamily == family))
+                pins.Add((track, start));
+        }
         var relevant = layout.ToHashSet();
         if (relevant.Count > 0)
         {
-            var span = relevant.Max();
-            var currentOrder = Enumerable.Range(1, span).ToList();
-            var target = layout.Concat(currentOrder.Where(t => !relevant.Contains(t))).ToList();
-            out_.Moves = RegroupPlan.Moves(currentOrder, target);
+            var target = Pinned(layout, pins, last);
+            var currentOrder = Enumerable.Range(1, target.Count).ToList();
+            if (!target.SequenceEqual(currentOrder)) out_.Moves = RegroupPlan.Moves(currentOrder, target);
             out_.Final = target;
             out_.Colors = Organize.PlannedColors(out_.Verdicts.ToDictionary(kv => kv.Key, kv => kv.Value.Family), styles, target);
         }
@@ -456,6 +483,32 @@ public sealed class OrganizerPlan
             out_.Names = out_.Names.Where(kv => !byIndex.TryGetValue(kv.Key, out var info) || info.Name != kv.Value)
                 .ToDictionary(kv => kv.Key, kv => kv.Value);
         }
+        return out_;
+    }
+
+    /// Pur (testé) : la disposition du Mixer (place p → piste d'origine, place 0 = piste 1) avec les places choisies :
+    /// chaque piste de `pins` à sa place (1 = piste 1), ou à la suivante libre si elle est prise (la première dans
+    /// `pins` l'emporte), jamais au-delà de `last` ; les autres pistes de `auto` dans leur ordre, puis toutes les autres
+    /// dans le leur. Sans place choisie : `auto`, puis les autres pistes jusqu'à la plus grande.
+    public static List<int> Pinned(IReadOnlyList<int> auto, IReadOnlyList<(int Track, int Slot)> pins, int last)
+    {
+        var taken = new Dictionary<int, int>();                     // place → piste
+        var pinned = new HashSet<int>();
+        foreach (var (track, slot) in pins)
+        {
+            if (pinned.Contains(track) || track < 1 || track > last) continue;
+            var at = Math.Max(1, slot);
+            while (at <= last && taken.ContainsKey(at)) at++;
+            if (at > last) continue;
+            taken[at] = track;
+            pinned.Add(track);
+        }
+        var size = auto.Concat(pinned).Concat(taken.Keys).DefaultIfEmpty(0).Max();
+        var autoSet = auto.ToHashSet();
+        var rest = new Queue<int>(auto.Where(t => !pinned.Contains(t))
+            .Concat(Enumerable.Range(1, size).Where(t => !autoSet.Contains(t) && !pinned.Contains(t))));
+        var out_ = new List<int>(size);
+        for (var place = 1; place <= size; place++) out_.Add(taken.TryGetValue(place, out var t) ? t : rest.Dequeue());
         return out_;
     }
 
