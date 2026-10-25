@@ -1,8 +1,8 @@
 // Grille des icônes de FL (« Change icon… », ou le bouton de l'icône de « Rename, color and icon », F2) : 14
 // colonnes de cases carrées, 15 rangées, sous une barre de titres. L'API de FL ne lit ni ne pose les icônes : elles
 // passent par cette fenêtre de FL, et seule sa géométrie compte pour cliquer la bonne case (aucune lecture de
-// l'écran). Dans FL Shortcuts, chaque case est dessinée par un symbole de macOS proche de l'icône de FL (pas les
-// dessins de FL, qui appartiennent à Image-Line), avec le nom anglais de FL.
+// l'écran). Dans FL Shortcuts, chaque case montre la vraie icône de FL (demande du propriétaire du 25/10, découpée de
+// sa capture : FLIconArt), avec le nom anglais de FL ; le symbole de macOS proche ne sert que sans la planche.
 import CoreGraphics
 
 enum FLIconGrid {

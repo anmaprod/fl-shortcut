@@ -105,6 +105,8 @@ cp -R Resources/en.lproj Resources/fr.lproj "$APP/Contents/Resources/"
 # Un fichier illisible par macOS ferait tout retomber en français : la compilation s'arrête.
 plutil -lint -s "$APP"/Contents/Resources/*.lproj/*.strings
 cp Resources/AppIcon.icns "$APP/Contents/Resources/AppIcon.icns"
+# Les icônes de FL (grille « Change icon… »), pour le choix d'icône de l'Organiser et du bloc « Nom et couleur ».
+cp Resources/FLIcons.png "$APP/Contents/Resources/FLIcons.png"
 # IA intégrée de l'Organiser (famille et sorte des sons) : le modèle Core ML compilé ici ; sans compilateur (outils
 # sans Xcode), le paquet est copié tel quel et l'app le compile à sa première écoute.
 if [[ -d Resources/ClasseurSons.mlpackage ]]; then

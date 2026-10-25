@@ -1,7 +1,55 @@
 // Choix d'une icône de FL (Organiser, bloc « Nom et couleur ») dans une grille disposée comme celle de FL : mêmes
-// titres, mêmes cases vides, symboles de macOS. Ouverte à la demande seulement ; rien ne tourne au repos.
+// titres, mêmes cases vides, et les vraies icônes de FL (demande du propriétaire du 25/10 : « tu n'as pas mis les
+// vraies » ; découpées de sa capture de la grille, Resources/FLIcons.png) ; sans ce fichier (essais), des symboles de
+// macOS proches. Ouverte à la demande seulement ; rien ne tourne au repos.
 import AppKit
 import SwiftUI
+
+/// Les icônes de FL, une case de 88 points de côté par icône, dans la même disposition que la grille de FL (sans sa
+/// barre de titres) : blanches sur fond transparent, teintées par l'affichage.
+enum FLIconArt {
+    static let fileName = "FLIcons"
+    static let cell = 88
+
+    private static let sheet: CGImage? = {
+        guard let url = Bundle.main.url(forResource: fileName, withExtension: "png"),
+              let image = NSImage(contentsOf: url) else { return nil }
+        return image.cgImage(forProposedRect: nil, context: nil, hints: nil)
+    }()
+
+    private static let cache = Locked<[FLIcon: NSImage]>([:])
+
+    /// L'icône de FL de cette case ; nil sans la planche (essais) ou hors de la planche.
+    static func image(_ icon: FLIcon) -> NSImage? {
+        if let known = cache.value[icon] { return known }
+        guard let sheet else { return nil }
+        let rect = CGRect(x: icon.column * cell, y: icon.row * cell, width: cell, height: cell)
+        guard rect.maxX <= CGFloat(sheet.width), rect.maxY <= CGFloat(sheet.height),
+              let part = sheet.cropping(to: rect) else { return nil }
+        let image = NSImage(cgImage: part, size: NSSize(width: cell / 2, height: cell / 2))
+        image.isTemplate = true
+        cache.withLock { $0[icon] = image }
+        return image
+    }
+}
+
+/// Une icône de FL dessinée à `size` points : la vraie, sinon un symbole de macOS proche.
+struct FLIconGlyph: View {
+    let icon: FLIcon
+    let size: CGFloat
+
+    var body: some View {
+        if let image = FLIconArt.image(icon) {
+            Image(nsImage: image)
+                .renderingMode(.template)
+                .resizable()
+                .interpolation(.high)
+                .frame(width: size, height: size)
+        } else if let cell = FLIconGrid.cell(icon) {
+            Image(systemName: cell.shownSymbol).font(.system(size: size * 0.8))
+        }
+    }
+}
 
 extension FLIconGrid.Cell {
     /// Symbole d'un macOS plus récent (macOS 13 : 7 cases, Trumpet, Harp…) : un symbole présent partout le remplace,
@@ -89,8 +137,7 @@ struct FLIconPicker: View {
         if let icon = FLIcon(column: column, row: row), let found = FLIconGrid.cell(icon) {
             let isSelected = icon == selected
             Button { pick(icon) } label: {
-                Image(systemName: found.shownSymbol)
-                    .font(.system(size: 12))
+                FLIconGlyph(icon: icon, size: 18)
                     .frame(width: Self.side, height: Self.side)
                     .background(shape.fill(isSelected ? Color.accentColor.opacity(0.25) : Color.primary.opacity(0.06)))
                     .overlay(shape.strokeBorder(isSelected ? Color.accentColor : Color.clear, lineWidth: 1.5))
@@ -139,8 +186,8 @@ struct FLIconBadge: View {
     var body: some View {
         let shape = RoundedRectangle(cornerRadius: 5, style: .continuous)
         Group {
-            if let icon, let cell = FLIconGrid.cell(icon) {
-                Image(systemName: cell.shownSymbol).font(.system(size: size * 0.55))
+            if let icon, FLIconGrid.cell(icon) != nil {
+                FLIconGlyph(icon: icon, size: size * 0.7)
             } else {
                 Image(systemName: "square.dashed").font(.system(size: size * 0.55)).foregroundStyle(.secondary)
             }
