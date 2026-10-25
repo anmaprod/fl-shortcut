@@ -1974,7 +1974,11 @@ private struct FamilySection: View {
                     .frame(width: 24, height: 24)
                     .background(Circle().fill(swiftColor(style.color).gradient))
                     .accessibilityHidden(true)
+                // Jamais coupé en deux lignes (capture du 25/10 : « Melodie / s ») : le choix de couleur cède la place.
                 Text(family.label).font(.system(size: 13, weight: .semibold))
+                    .lineLimit(1)
+                    .fixedSize(horizontal: true, vertical: false)
+                    .layoutPriority(1)
                 Text("\(members.count)")
                     .font(.system(size: 11, weight: .semibold).monospacedDigit())
                     .foregroundStyle(.secondary)
@@ -2176,7 +2180,7 @@ struct MixerSlotBox: View {
     static let step: CGFloat = 6
 
     var body: some View {
-        Text(value.map { "\($0)" } ?? "---")
+        Text(verbatim: value.map { String($0) } ?? "---")
             .font(.system(size: 11, weight: chosen ? .semibold : .regular).monospacedDigit())
             .foregroundStyle(chosen ? Color.primary : Color.secondary)
             .frame(width: 34, height: 18)
