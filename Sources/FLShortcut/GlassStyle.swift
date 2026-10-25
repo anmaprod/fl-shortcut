@@ -45,10 +45,11 @@ extension View {
         modifier(MotionModifier(animation: animation, value: value))
     }
 
-    /// Survol du menu de la barre des menus : contour arrondi qui s'allume de la couleur de l'élément, l'élément grandit
-    /// un peu avec un halo de sa couleur autour (ressort). Seul l'élément survolé est redessiné. Ses couleurs ne
+    /// Survol du menu de la barre des menus : contour arrondi qui s'allume de la couleur de l'élément et s'écarte un peu
+    /// de lui, avec un halo de sa couleur autour (ressort). Seul l'élément survolé est redessiné. Ses couleurs ne
     /// changent jamais (demande du propriétaire, 25/10) : ni fond ajouté, ni ombre sur son contenu (elle ternissait
-    /// les gris et les boutons) ; le halo n'est que dehors. `outset` : contour un peu plus grand que l'élément (ligne de
+    /// les gris et les boutons) ; le halo n'est que dehors. Le contenu ne grossit plus (25/10 : « ça fait bizarre à
+    /// l'œil nu » : un texte agrandi est redessiné flou) : c'est le contour qui s'écarte, le texte reste net. `outset` : contour un peu plus grand que l'élément (ligne de
     /// la barre latérale) ; `enabled` : faux pour un élément qu'on ne peut pas choisir, ou déjà choisi (le fond de la
     /// sélection, plus grand, dépasserait du contour).
     func menuHover(tint: Color, cornerRadius: CGFloat = 10, outset: CGFloat = 0, enabled: Bool = true) -> some View {
@@ -192,39 +193,29 @@ struct MenuHover: ViewModifier {
     var outset: CGFloat = 0
     var enabled = true
     @State private var hovering = false
-    @State private var width: CGFloat = 0
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
-    /// Taille au survol : ×1,03 comme les lignes du menu, mais jamais plus de 9 points de large en plus (une
-    /// longue barre de page grandit d'autant qu'une ligne du menu, sans déborder de sa carte).
-    static func scale(width: CGFloat) -> CGFloat {
-        guard width > 0 else { return 1.03 }
-        return min(1.03, 1 + 9 / width)
-    }
+    /// Le contour s'écarte de 2 points au survol : l'élément semble se soulever, sans que son texte grossisse.
+    static let lift: CGFloat = 2
 
     func body(content: Content) -> some View {
         let shape = RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
         let hovered = hovering && enabled
+        let spread = outset + (hovered && !reduceMotion ? Self.lift : 0)
         content
             // Aux bords de l'élément (ou `outset` au-delà), sans changer sa place : le halo derrière, le contour
             // par-dessus (rien de l'élément ne dépasse de sa couleur).
             .background {
                 HoverGlow(shape: shape, tint: tint)
                     .opacity(hovered ? 1 : 0)
-                    .padding(-outset)
-                    .background(GeometryReader { geo in
-                        Color.clear
-                            .onAppear { width = geo.size.width }
-                            .onChange(of: geo.size.width) { width = $0 }
-                    })
+                    .padding(-spread)
             }
             .overlay {
                 shape.strokeBorder(tint, lineWidth: 1.5)
                     .opacity(hovered ? 1 : 0)
-                    .padding(-outset)
+                    .padding(-spread)
                     .allowsHitTesting(false)
             }
-            .scaleEffect(hovered && !reduceMotion ? Self.scale(width: width) : 1)
             .onHover { inside in
                 withAnimation(reduceMotion ? Motion.reduced : Motion.lift) { hovering = inside }
             }
@@ -786,7 +777,7 @@ extension View {
 /// La marge intérieure d'une ligne est dans la ligne elle-même (pas dans la liste) : le survol couvre toute la ligne,
 /// jusqu'aux filets qui la séparent de ses voisines. Survol (25/10, capture du propriétaire : la carte grise
 /// dépassait du contour coloré, la liste mettant sa propre marge autour du contenu) : c'est le fond de la ligne,
-/// toute la largeur de la carte, qui s'allume et grandit ; le contenu grandit avec lui, ses couleurs inchangées.
+/// toute la largeur de la carte, qui s'allume et s'élargit ; le contenu ne bouge pas (texte net, couleurs inchangées).
 private struct CardRowModifier: ViewModifier {
     let position: CardRowPosition
     let hover: Color?
@@ -804,7 +795,6 @@ private struct CardRowModifier: ViewModifier {
             if hover != nil {
                 row
                     .contentShape(Rectangle())
-                    .scaleEffect(lifted && !reduceMotion ? CardRowBackground.contentScale : 1)
                     .onHover { inside in
                         withAnimation(reduceMotion ? Motion.reduced : Motion.lift) { hovering = inside }
                     }
@@ -830,7 +820,6 @@ struct CardRowBackground: View {
     /// Survol : la ligne s'élargit de 6 points de chaque côté (dans la marge de la carte, jamais rognée) ; ses coins
     /// arrondis de 6 couvrent ceux de la carte.
     static let liftOutset: CGFloat = 6
-    static let contentScale: CGFloat = 1.015
     let position: CardRowPosition
     var hover: Color? = nil
     var grow = false

@@ -346,6 +346,11 @@ entrée 1 ≈ 0,5 s.
   (`SmartClicks`, voir CLAUDE.md), les noms lus aussi dans les menus de FL. Glisser-déposer : sur la CI, palette →
   liste (15 → 16 lignes) et rangement marchent, le bloc est dans la palette : question posée. Stems : FL ne documente
   pas les noms des fichiers d'un deuxième export : question posée avant de toucher aux fichiers.
+- Retours du 25/10 (suite) : le survol « fait bizarre à l'œil nu » : le contenu ne grossit plus (un texte agrandi par
+  `scaleEffect` est redessiné flou), seul le contour s'écarte ; le menu de l'icône mène toujours à sa page, même
+  fenêtre ouverte ailleurs (« Modifier les raccourcis… » restait sur Macros ; « c'est tous les menus de l'icône ») ;
+  glisser-déposer « ne fonctionne pas » chez lui : l'essai de la CI attendait 0,3 s entre l'appui et le glisser, un
+  essai « vite » (comme une vraie main) est ajouté pour le reproduire.
 - Drums : sortes « Drum loop » et « Fill » (demande du propriétaire). Noms : « Drum Loop », « Hat Loop »,
   « DrumLoop », « Top Loop » → Drum loop ; « Snare Fill », « Fill 1 » → Fill (« Piano Fill » reste un piano,
   « Melody Loop » une mélodie, « Loop 4 » ne dit rien). Boucle mesurée (grave d'un kick + aigus) : Drum loop, ou

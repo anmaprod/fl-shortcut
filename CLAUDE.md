@@ -96,10 +96,11 @@
   Chiffres de l'IA seule (7 610 sons jamais entendus, 24/10) : ≈ 92,4 % (voix 96, drums 97, basse 95, FX 95,
   mélodies 86 ; Drum loop 86, Fill 88 ; sur des packs du propriétaire jamais entendus, boucles 72 %, fills 82 %) ;
   plafond : plus de sons et couche 14 de YAMNet réapprise (`ia/affiner.py`) n'y changent rien (essai non livré).
-- Interface : survol coloré du menu de l'icône (`menuHover` : contour de sa couleur, grandit, halo autour) voulu par
-  le propriétaire partout ; depuis le 25/10 (sa capture) : couleurs de l'élément JAMAIS changées (ni fond ajouté, ni
+- Interface : survol coloré du menu de l'icône (`menuHover` : contour de sa couleur, halo autour) voulu par le
+  propriétaire partout ; depuis le 25/10 (sa capture) : couleurs de l'élément JAMAIS changées (ni fond ajouté, ni
   ombre sur le contenu : halo `HoverGlow` dehors seulement), rien de gris au-delà du contour (lignes des cartes : c'est
-  leur fond `CardRowBackground` qui s'allume et s'élargit ; page ou bloc déjà choisi : pas de survol) ; barre latérale (`sidebarHover`), lignes des pages, Macros, modèles, Communauté, Aide,
+  leur fond `CardRowBackground` qui s'allume et s'élargit ; page ou bloc déjà choisi : pas de survol), et le contenu
+  ne grossit plus (« bizarre à l'œil nu » : texte agrandi flou) : seul le contour s'écarte (2 points) ; barre latérale (`sidebarHover`), lignes des pages, Macros, modèles, Communauté, Aide,
   palette, blocs, bouton d'enregistrement, « Menu de FL » du créateur ;
   « Mes raccourcis » = raccourcis changés + créés, jamais de macro (macro d'exemple ⌃R retirée) ; plus aucune note
   sous les blocs des macros ; « Menu de FL » en tête des blocs FL Studio de la palette ; recherche qui lâche la main
@@ -113,6 +114,9 @@
   élément de son menu (noms lus au clic, menus de FL compris) → « Menu de FL › … » (chemin complet retrouvé dans la
   barre de macOS) ou son raccourci ; Add › Channel/Effect › … → « Cliquer sur… » Ajouter un instrument / un effet ;
   bouton Arrangement + ligne de son menu → option de la Playlist ; « Clic à un endroit appris » en dernier recours.
+- Menu de l'icône (25/10) : chaque ligne qui mène à la fenêtre (« Modifier les raccourcis… », « Macros… »,
+  « Signaler ce problème… ») y va toujours, même fenêtre déjà ouverte ailleurs (`EditorView.go(to:)` : créateur
+  refermé, recherche finie, fiche fermée ; `ShortcutsLink` ; `MainWindow.bringForward` : devant, même réduite).
 - « Quitter et rouvrir » (macOS, après une autorisation) : la copie relancée attend l'ancienne au lieu de partir
   (`SingleInstance`, clé `quittingPID`) ; la demande venant de l'extension « Confidentialité et sécurité » (sans nom
   d'app) est reconnue (`relaunches`) ; un surveillant posé à l'ouverture des Réglages rouvre l'app même fermée de
@@ -147,4 +151,4 @@
 - Clics intelligents sur le vrai FL : les noms des éléments de ses menus sont-ils lus avant que le menu se ferme ?
 - Questions sans réponse : l'accueil manquant venait-il d'une installation sans désinstallation ? Quel glisser-déposer
   des macros ne marche plus chez lui (25/10 : palette → liste et rangement des blocs marchent sur la CI, bloc
-  « Glisser-déposer » présent) ? Noms des stems après deux exports (« pas de double ») : à voir avant d'y toucher.
+  « Glisser-déposer » présent ; essai « vite » comme une vraie main ajouté à la mesure, `glisser-essai.txt`) ? Noms des stems après deux exports (« pas de double ») : à voir avant d'y toucher.

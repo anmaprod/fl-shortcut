@@ -30,22 +30,26 @@ cat > "$DRAG.swift" <<'SWIFT'
 import CoreGraphics
 import Foundation
 let n = CommandLine.arguments.dropFirst().compactMap { Double($0) }
-guard n.count == 4 else { print("usage : fls_drag x1 y1 x2 y2"); exit(2) }
+guard n.count == 4 else { print("usage : fls_drag x1 y1 x2 y2 [vite]"); exit(2) }
+// « vite » : comme une vraie main (25/10, « le drag and drop ne fonctionne pas » chez le propriétaire alors que
+// l'essai lent passait) : la souris part aussitôt l'appui fait, sans pause, et lâche dès l'arrivée.
+let quick = CommandLine.arguments.last == "vite"
 let start = CGPoint(x: n[0], y: n[1])
 let end = CGPoint(x: n[2], y: n[3])
 func post(_ type: CGEventType, _ p: CGPoint) {
     CGEvent(mouseEventSource: nil, mouseType: type, mouseCursorPosition: p, mouseButton: .left)?.post(tap: .cghidEventTap)
 }
-post(.mouseMoved, start); usleep(200_000)
-post(.leftMouseDown, start); usleep(300_000)
-for i in 1...30 {
-    let t = Double(i) / 30
+post(.mouseMoved, start); usleep(quick ? 60_000 : 200_000)
+post(.leftMouseDown, start); usleep(quick ? 8_000 : 300_000)
+let steps = quick ? 12 : 30
+for i in 1...steps {
+    let t = Double(i) / Double(steps)
     post(.leftMouseDragged, CGPoint(x: start.x + (end.x - start.x) * t, y: start.y + (end.y - start.y) * t))
-    usleep(25_000)
+    usleep(quick ? 16_000 : 25_000)
 }
-usleep(500_000)
+usleep(quick ? 120_000 : 500_000)
 post(.leftMouseUp, end)
-print("glisser (\(Int(start.x)),\(Int(start.y))) → (\(Int(end.x)),\(Int(end.y))) · envoi \(CGPreflightPostEventAccess() ? "autorisé" : "REFUSÉ")")
+print("glisser\(quick ? " vite" : "") (\(Int(start.x)),\(Int(start.y))) → (\(Int(end.x)),\(Int(end.y))) · envoi \(CGPreflightPostEventAccess() ? "autorisé" : "REFUSÉ")")
 SWIFT
 swiftc -O "$DRAG.swift" -o "$DRAG" 2>/dev/null || echo "fls_drag : compilation impossible" >&2
 
@@ -136,10 +140,10 @@ origin() {   # $1 : rapport gardé ; « x y » du coin haut-gauche de la fenêtr
   echo "$1 $(( sh - $2 - $3 ))"
 }
 
-drag() {   # $1 : rapport gardé (position de la fenêtre) ; $2..$5 : x1 y1 x2 y2 dans la fenêtre (depuis son coin haut-gauche)
+drag() {   # $1 : rapport gardé (position de la fenêtre) ; $2..$5 : x1 y1 x2 y2 dans la fenêtre (depuis son coin haut-gauche) ; $6 : « vite »
   local ox oy
   read -r ox oy < <(origin "$1") || { echo "glisser : position de la fenêtre inconnue" >&2; return; }
-  "$DRAG" $(( ox + $2 )) $(( oy + $3 )) $(( ox + $4 )) $(( oy + $5 )) >&2
+  "$DRAG" $(( ox + $2 )) $(( oy + $3 )) $(( ox + $4 )) $(( oy + $5 )) ${6:-} >&2
 }
 
 rows() {   # $1 : rapport gardé ; lignes de la liste des blocs du créateur (la plus large des listes)
@@ -363,6 +367,20 @@ run() {   # $1 : libellé, $2 : YES/NO effet verre
   if [[ -z "$(order "$label-createur-glisse")" ]]; then moved="?"
   elif [[ "$(order "$label-createur-glisse")" != "$(order "$label-createur-deplace")" ]]; then moved="oui"
   else moved="NON"; fi
+  # Les mêmes gestes faits vite, comme une vraie main (appui puis départ aussitôt) : la liste doit encore gagner une
+  # ligne, puis l'ordre changer. Résultat dans glisser-essai.txt.
+  drag "$label-createur-ouvert" 113 129 438 400 vite; sleep 2
+  report "$label-createur-glisse-vite" >/dev/null
+  screencapture -x "$OUT/$label-createur-glisse-vite.png" 2>/dev/null || true
+  drag "$label-createur-ouvert" 380 331 380 508 vite; sleep 2
+  report "$label-createur-deplace-vite" >/dev/null
+  { echo "$label : palette → liste lent $(rows "$label-createur-ouvert") → $(rows "$label-createur-glisse"), vite → $(rows "$label-createur-glisse-vite")"
+    if [[ "$(order "$label-createur-glisse-vite")" != "$(order "$label-createur-deplace-vite")" ]]; then
+      echo "$label : bloc rangé vite : oui"
+    else
+      echo "$label : bloc rangé vite : NON"
+    fi
+  } >> "$OUT/glisser-essai.txt"
   rm -f "$HOME/Library/Caches/$DOMAIN/$label-createur-"*
   "$POST" app.flshortcut.debug.snapshot "$label-createur"; sleep 2
   cp "$HOME/Library/Caches/$DOMAIN/$label-createur-"*.png "$OUT/" 2>/dev/null || true

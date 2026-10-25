@@ -623,6 +623,19 @@ struct PauseBadge: View {
     }
 }
 
+/// Fenêtre principale demandée depuis le menu de l'icône : devant, même réduite dans le Dock ou derrière une autre.
+enum MainWindow {
+    static func bringForward() {
+        NSApp.activate(ignoringOtherApps: true)
+        // Après `openWindow` (la fenêtre peut venir d'être créée).
+        DispatchQueue.main.async {
+            guard let window = AppResume.shared.editorWindow else { return }
+            if window.isMiniaturized { window.deminiaturize(nil) }
+            window.makeKeyAndOrderFront(nil)
+        }
+    }
+}
+
 /// Panneau de la barre des menus : en-tête avec l'icône de l'app et le statut, puis les options, chacune avec son
 /// icône de couleur et, au survol, la carte du guide (elle grossit avec son liseré de couleur). Sur le verre des
 /// menus, la lueur des couleurs de l'app (jamais de verre sur du verre).
@@ -669,7 +682,7 @@ struct MenuContent: View {
                 PanelItem(symbol: "exclamationmark.bubble", title: String(localized: "Signaler ce problème…"), tint: .orange, order: 1) {
                     HelpLink.shared.report("Macro : " + macro.text)
                     openWindow(id: "editor")
-                    NSApp.activate(ignoringOtherApps: true)
+                    MainWindow.bringForward()
                 }
             }
 
@@ -691,14 +704,15 @@ struct MenuContent: View {
                 }
             }
             PanelItem(symbol: "keyboard", title: String(localized: "Modifier les raccourcis…"), tint: .blue, order: 3) {
+                ShortcutsLink.shared.show()                 // jamais laissée sur Macros, Communauté ou le créateur
                 openWindow(id: "editor")
-                NSApp.activate(ignoringOtherApps: true)
+                MainWindow.bringForward()
             }
             PanelItem(symbol: SidebarItem.macros.symbol, title: String(localized: "Macros…"), tint: SidebarItem.macros.tint,
                       order: 4) {
                 MacrosLink.shared.show()
                 openWindow(id: "editor")
-                NSApp.activate(ignoringOtherApps: true)
+                MainWindow.bringForward()
             }
             if !approval.pending.isEmpty {
                 // Une version organisée attend une réponse (« Plus tard », ou la question fermée).

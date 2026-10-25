@@ -100,6 +100,22 @@ extension SidebarItem {
     }
 }
 
+/// Les raccourcis, demandés hors de la fenêtre principale (« Modifier les raccourcis… » du menu de l'icône).
+final class ShortcutsLink: ObservableObject {
+    static let shared = ShortcutsLink()
+    @Published var pending = false
+
+    func show() { pending = true }
+
+    /// Pure (testée) : la page de raccourcis à montrer : celle déjà ouverte si c'en est une, sinon Général.
+    static func page(from shown: SidebarItem?) -> SidebarItem {
+        switch shown {
+        case .section?, .custom?: return shown ?? .section(.general)
+        default: return .section(.general)
+        }
+    }
+}
+
 /// Textes de l'en-tête de page.
 enum PageSummary {
     /// Résumé des raccourcis de « Mes raccourcis ».
@@ -194,6 +210,7 @@ struct EditorView: View {
     @ObservedObject private var guideLink = GuideLink.shared
     @ObservedObject private var helpLink = HelpLink.shared
     @ObservedObject private var macrosLink = MacrosLink.shared
+    @ObservedObject private var shortcutsLink = ShortcutsLink.shared
     @ObservedObject private var accountLink = AccountLink.shared
     @State private var showGuide = false
     @State private var guidePage = 0
@@ -240,6 +257,7 @@ struct EditorView: View {
             showGuideIfNeeded()
             showHelpIfAsked()
             showMacrosIfAsked()
+            showShortcutsIfAsked()
             showAccountIfAsked()
             Task { await backup.refreshIfStale() }       // changé depuis un autre Mac ?
         }
@@ -252,6 +270,7 @@ struct EditorView: View {
         .onChange(of: guideLink.pending) { _ in showGuideIfNeeded() }
         .onChange(of: helpLink.pending) { _ in showHelpIfAsked() }
         .onChange(of: macrosLink.pending) { _ in showMacrosIfAsked() }
+        .onChange(of: shortcutsLink.pending) { _ in showShortcutsIfAsked() }
         .onChange(of: accountLink.pending) { _ in showAccountIfAsked() }
         .onReceive(DebugSnapshot.publisher(DebugSnapshot.guide)) { note in
             // Mode capture : « 0 » à « 4 », la page du guide ; autre chose, le ferme. « 1 lent » (guide ouvert) :
@@ -278,31 +297,44 @@ struct EditorView: View {
         }
     }
 
+    /// Une page demandée hors de la fenêtre (menu de l'icône, désinstallation…) : elle s'affiche toujours, même si la
+    /// fenêtre était ouverte ailleurs (retour de l'utilisateur, 25/10 : « Modifier les raccourcis… » laissait la
+    /// page Macros, et « c'est tous les menus dans l'icône ») : créateur refermé (brouillon gardé), recherche finie,
+    /// fiche d'un raccourci fermée.
+    private func go(to page: SidebarItem) {
+        if macroEditor != nil { closeCreator() }
+        endSearch()
+        editing = nil
+        editingRow = nil
+        selection = page
+    }
+
     /// Page Mon compte demandée hors de la fenêtre (désinstallation : « Me connecter pour les sauvegarder d'abord »).
     private func showAccountIfAsked() {
         guard accountLink.pending else { return }
         accountLink.pending = false
-        if macroEditor != nil { closeCreator() }
-        query = ""
-        selection = .account
+        go(to: .account)
     }
 
-    /// Page Macros demandée depuis le menu de l'icône : les raccourcis (créateur refermé), page Macros.
+    /// Page Macros demandée depuis le menu de l'icône.
     private func showMacrosIfAsked() {
         guard macrosLink.pending else { return }
         macrosLink.pending = false
-        if macroEditor != nil { closeCreator() }
-        query = ""
-        selection = .macros
+        go(to: .macros)
     }
 
-    /// Page Aide demandée depuis le menu de la barre des menus : les raccourcis (créateur refermé), page Aide.
+    /// « Modifier les raccourcis… » du menu de l'icône : une page de raccourcis (celle déjà ouverte si c'en est une).
+    private func showShortcutsIfAsked() {
+        guard shortcutsLink.pending else { return }
+        shortcutsLink.pending = false
+        go(to: ShortcutsLink.page(from: macroEditor == nil ? selection : nil))
+    }
+
+    /// Page Aide demandée depuis le menu de l'icône (« Signaler ce problème… ») ou la barre des menus.
     private func showHelpIfAsked() {
         guard helpLink.pending else { return }
         helpLink.pending = false
-        if macroEditor != nil { closeCreator() }
-        query = ""
-        selection = .help
+        go(to: .help)
     }
 
     /// Guide demandé (menu ⋯, barre des menus), ou jamais vu : première ouverture (sauf en mode capture, où la

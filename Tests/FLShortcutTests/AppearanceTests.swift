@@ -16,6 +16,16 @@ final class AppearanceTests: XCTestCase {
         XCTAssertEqual(Set(items.map(\.tint)).count, items.count, "une couleur par rubrique")
     }
 
+    /// « Modifier les raccourcis… » du menu de l'icône : la page de raccourcis déjà ouverte reste, sinon Général
+    /// (retour de l'utilisateur : la fenêtre restait sur Macros).
+    func testShortcutsLinkLeavesOtherPages() {
+        XCTAssertEqual(ShortcutsLink.page(from: .macros), .section(.general))
+        XCTAssertEqual(ShortcutsLink.page(from: .community), .section(.general))
+        XCTAssertEqual(ShortcutsLink.page(from: nil), .section(.general), "créateur ouvert, ou recherche")
+        XCTAssertEqual(ShortcutsLink.page(from: .section(.mixer)), .section(.mixer))
+        XCTAssertEqual(ShortcutsLink.page(from: .custom), .custom)
+    }
+
     func testCardRowPositions() {
         XCTAssertEqual(CardRowPosition.position(index: 0, count: 1), .single)
         XCTAssertEqual(CardRowPosition.position(index: 0, count: 3), .first)
