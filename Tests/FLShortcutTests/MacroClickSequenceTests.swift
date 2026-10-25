@@ -117,12 +117,13 @@ final class MacroClickSequenceTests: XCTestCase {
                        .pageOption(id: "mixer.addEffect", name: "Fruity Limiter"))
         XCTAssertNil(SmartClicks.pageOption(forMenu: ["Add", "Channel"]))
         XCTAssertNil(SmartClicks.pageOption(forMenu: ["Tools", "Channel", "X"]))
-        let main = CGRect(x: 0, y: 25, width: 800, height: 600)
-        let r = ClickSequenceCompiler.compile([
-            click(60, 10, [win(1, 0, main)], menu: .bar("Add")),
-            click(80, 60, [win(1, 0, main)], menu: .item(["Add", "Channel", "Serum"])),
+        let flWindow = [win(1, 0, CGRect(x: 0, y: 25, width: 800, height: 600))]
+        let add = ClickSequenceCompiler.compile([
+            click(60, 10, flWindow, menu: .bar("Add")),
+            click(80, 60, flWindow, menu: .item(["Add", "Channel", "Serum"])),
         ], layout: FakeLayout.qwerty)
-        XCTAssertEqual(r.blocks, [.openPage(.channelRack), .pageOption(id: "channelRack.addInstrument", name: "Serum")])
+        XCTAssertEqual(add.blocks, [.openPage(.channelRack),
+                                    .pageOption(id: "channelRack.addInstrument", name: "Serum")] as [BlockBody])
         // Rejoué comme avant : le même chemin dans les menus de FL.
         let option = PageOptions.option("channelRack.addInstrument", layout: FakeLayout.qwerty)!
         XCTAssertEqual(PageOptions.body(option, name: "Fruity › Fruity DX10", layout: FakeLayout.qwerty),
