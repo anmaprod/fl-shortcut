@@ -239,7 +239,7 @@ extension MacroTemplates {
                 ], origin: .template("exportStems"))
             },
             MacroTemplate(id: "openVST", title: String(localized: "Ouvre un VST"),
-                          summary: String(localized: "Ouvre le Channel rack, puis la liste des instruments (VST, plugins) pour en ajouter un."),
+                          summary: String(localized: "Ouvre le Channel rack et y ajoute un instrument (VST, plugin) : choisis-le une fois dans le créateur."),
                           symbol: "pianokeys") { _ in
                 MacroDoc(name: String(localized: "Ouvre un VST"), blocks: [
                     Block(.openPage(.channelRack)),

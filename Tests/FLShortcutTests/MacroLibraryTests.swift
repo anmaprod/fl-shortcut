@@ -295,8 +295,9 @@ final class MacroLibraryTests: XCTestCase {
     func testGalleryTemplatesAreValidExceptLearning() {
         let gallery = MacroTemplates.gallery(layout: FakeLayout.qwerty)
         XCTAssertGreaterThanOrEqual(gallery.count, 4)
-        // À régler sur chaque Mac : les deux clics de « 3/4 » (à montrer dans FL), le preset de « Enregistrement Rapide ».
-        let setup = ["threeFour": "2", "quickDrop": "1"]
+        // À régler sur chaque Mac : les deux clics de « 3/4 » (à montrer dans FL), le preset de « Enregistrement
+        // Rapide », le plugin de « Ouvre un VST ».
+        let setup = ["threeFour": "2", "quickDrop": "1", "openVST": "2"]
         for t in gallery {
             let doc = t.make(FakeLayout.qwerty)
             XCTAssertFalse(doc.blocks.isEmpty, t.id)
