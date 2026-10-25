@@ -13,6 +13,18 @@ final class SearchFocusTests: XCTestCase {
         let editor = NSTextView()
         editor.isFieldEditor = true
         XCTAssertFalse(SearchFocusGuard.GuardView.isSearchEditor(editor), "éditeur sans recherche")
+        // Recherche dessinée autrement (SwiftUI) : un champ qui en a la cellule, ou un champ placé dans une recherche.
+        let drawn = NSTextField()
+        drawn.cell = NSSearchFieldCell(textCell: "")
+        XCTAssertTrue(SearchFocusGuard.GuardView.isSearchEditor(drawn))
+        let search = NSSearchField()
+        let inner = EditedField()
+        search.addSubview(inner)
+        editor.delegate = inner
+        XCTAssertTrue(SearchFocusGuard.GuardView.isSearchEditor(editor), "le champ édité est dans une recherche")
+        let plain = EditedField()
+        editor.delegate = plain
+        XCTAssertFalse(SearchFocusGuard.GuardView.isSearchEditor(editor), "un autre champ n'est jamais repris")
     }
 
     /// Retour de l'utilisateur (vidéo) : recherche cliquée, puis une option choisie dans la seconde ; la page changée,
@@ -70,17 +82,24 @@ final class SearchFocusTests: XCTestCase {
         func spin() { RunLoop.current.run(until: Date().addingTimeInterval(0.5)) }
         func searchHasFocus() -> Bool { SearchFocusGuard.GuardView.isSearchEditor(window.firstResponder) }
 
+        var released = 0
+        guardView.release = { released += 1 }
         guardView.clicked(inSearch: true, window: window)      // clic dedans
         window.makeFirstResponder(search)
         spin()
         XCTAssertTrue(searchHasFocus(), "choisie : elle garde la main")
+        XCTAssertEqual(released, 0, "SwiftUI la laisse aussi")
 
         NotificationCenter.default.post(name: NSWindow.didResignKeyNotification, object: window)   // clic hors de l'app
         spin()
         XCTAssertFalse(searchHasFocus(), "fenêtre quittée : elle lâche la main")
+        XCTAssertGreaterThan(released, 0, "et SwiftUI aussi (searchFocused à faux)")
 
         window.makeFirstResponder(search)                      // la fenêtre revenue, AppKit la lui redonne
         spin()
         XCTAssertFalse(searchHasFocus(), "au retour : plus active")
     }
 }
+
+/// Un champ en cours d'édition (délégué de l'éditeur de la fenêtre), placé où l'on veut.
+private final class EditedField: NSView, NSTextViewDelegate {}

@@ -168,6 +168,8 @@ struct EditorView: View {
 
     @State private var selection: SidebarItem? = .section(.general)
     @State private var query = ""
+    /// La recherche a la main (SwiftUI, macOS 15 et plus) : remis à faux par la garde à chaque clic ailleurs.
+    @FocusState private var searchFocused: Bool
     @State private var editing: Remap? = nil
     @State private var editingIsNew = false
     @State private var toast: ToastMessage? = nil
@@ -391,8 +393,10 @@ struct EditorView: View {
         // Recherche en haut de la barre latérale (comme Réglages Système) : à droite, la barre d'outils ne porte que
         // les boutons de la page, et les flèches de la page Macros tombent au même endroit que dans le créateur.
         .searchable(text: $query, placement: .sidebar, prompt: "Rechercher")
-        // Active seulement après un clic dedans (ou ⌘F) : taper ailleurs n'y écrit plus rien.
-        .background(SearchFocusGuard())
+        .modifier(SearchFocusBinding(focused: $searchFocused))
+        // Active seulement après un clic dedans (ou ⌘F) : taper ailleurs n'y écrit plus rien ; un clic ailleurs, dans
+        // l'app ou dehors, la lui reprend (AppKit et SwiftUI).
+        .background(SearchFocusGuard(release: { if searchFocused { searchFocused = false } }))
         // Le texte de la recherche n'est plus le nom du raccourci appuyé : recherche ordinaire.
         .onChange(of: query) { newValue in
             if let combo = keySearch, newValue.trimmingCharacters(in: .whitespaces) != combo.display { keySearch = nil }

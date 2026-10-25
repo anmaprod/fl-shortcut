@@ -127,8 +127,54 @@ enum DebugSnapshot {
         }
         for w in NSApp.windows where w.isVisible {
             text += windowLines(w)
+            if w.styleMask.contains(.titled) { text += searchLines(w) }
         }
         try? text.write(to: cacheDirectory.appendingPathComponent("report.txt"), atomically: true, encoding: .utf8)
+    }
+
+    /// La recherche de la fenêtre (essai de la barre de recherche de la CI, à vrais clics) : chaque vue de recherche,
+    /// où elle est (centre en points de l'écran, origine en haut à gauche comme CGEvent), qui a la main, et si la
+    /// garde de la recherche (SearchFocusGuard) la reconnaît. Des noms de classes seulement, jamais un texte tapé.
+    static func searchLines(_ w: NSWindow) -> String {
+        guard let top = w.contentView?.superview ?? w.contentView else { return "" }
+        var found: [NSView] = []
+        func walk(_ view: NSView) {
+            let name = String(describing: type(of: view))
+            if view is NSSearchField || (view as? NSTextField)?.cell is NSSearchFieldCell
+                || name.localizedCaseInsensitiveContains("search") {
+                found.append(view)
+            }
+            view.subviews.forEach(walk)
+        }
+        walk(top)
+        let height = NSScreen.screens.first?.frame.height ?? 0
+        var s = ""
+        for view in found.prefix(10) {
+            let box = w.convertToScreen(view.convert(view.bounds, to: nil))
+            s += "  recherche : \(type(of: view))\(view.isHiddenOrHasHiddenAncestor ? " (cachée)" : "") écran \(rect(box))"
+                + " centre-cg \(Int(box.midX)) \(Int(height - box.midY))\n"
+        }
+        func chain(_ start: NSView?) -> String {
+            var names: [String] = []
+            var view = start
+            while let current = view, names.count < 7 {
+                names.append(String(describing: type(of: current)))
+                view = current.superview
+            }
+            return names.joined(separator: " < ")
+        }
+        let responder = w.firstResponder
+        s += "  répondant : \(responder.map { String(describing: type(of: $0)) } ?? "aucun")"
+        if let editor = responder as? NSTextView {
+            s += " · éditeur de champ \(editor.isFieldEditor ? "oui" : "non") · délégué "
+                + "\(editor.delegate.map { String(describing: type(of: $0)) } ?? "aucun") · \(chain(editor.delegate as? NSView))"
+        } else if let view = responder as? NSView {
+            s += " · \(chain(view))"
+        }
+        s += "\n  garde : reconnue \(SearchFocusGuard.GuardView.isSearchEditor(responder) ? "OUI" : "non")"
+            + " · choisie \(SearchFocusGuard.GuardView.latest.map { $0.chosen ? "oui" : "non" } ?? "pas de garde")"
+            + " · fenêtre de la garde \(SearchFocusGuard.GuardView.latest?.window === w ? "celle-ci" : "autre")\n"
+        return s
     }
 
     /// Toutes les zones de défilement visibles sous `view` (assez grandes pour être une liste).

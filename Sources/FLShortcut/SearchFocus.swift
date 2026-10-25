@@ -8,12 +8,23 @@
 // reprend aussi, pour de bon : la fenêtre revenue, elle n'est plus active (retour de l'utilisateur, vidéo : cliquée,
 // puis un clic hors de l'app, elle était encore active au retour). Son texte reste. Rien ne tourne au repos : des
 // observateurs de la fenêtre et un moniteur local (clics et touches de cette fenêtre seulement), retirés avec la vue.
+// La main est reprise des deux côtés (25/10, « toujours là ») : par AppKit (la fenêtre la reprend) et par SwiftUI
+// (`release`, qui met `searchFocused` à faux sur macOS 15 et plus : SwiftUI pouvait la lui redonner aussitôt). La
+// recherche est reconnue même quand le champ qui a la main n'en est qu'une partie (dessinée par SwiftUI).
 import AppKit
 import SwiftUI
 
 struct SearchFocusGuard: NSViewRepresentable {
-    func makeNSView(context: Context) -> GuardView { GuardView() }
-    func updateNSView(_ nsView: GuardView, context: Context) {}
+    /// SwiftUI : la recherche n'a plus la main (son `searchFocused` à faux).
+    var release: () -> Void = {}
+
+    func makeNSView(context: Context) -> GuardView {
+        let view = GuardView()
+        view.release = release
+        return view
+    }
+
+    func updateNSView(_ nsView: GuardView, context: Context) { nsView.release = release }
 
     static func dismantleNSView(_ nsView: GuardView, coordinator: ()) { nsView.detach() }
 
@@ -24,11 +35,15 @@ struct SearchFocusGuard: NSViewRepresentable {
         private var resignObserver: NSObjectProtocol?
         /// La recherche a été choisie (clic dedans, ⌘F) : elle garde la main jusqu'au premier clic ailleurs.
         private(set) var chosen = false
+        /// La dernière posée dans une fenêtre (rapport du mode capture : l'essai de la barre de recherche de la CI).
+        static weak var latest: GuardView?
+        var release: () -> Void = {}
 
         override func viewDidMoveToWindow() {
             super.viewDidMoveToWindow()
             detach()
             guard let window else { return }
+            Self.latest = self
             monitor = NSEvent.addLocalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown, .keyDown]) { [weak self] event in
                 guard let self, let window = self.window, event.window === window else { return event }
                 if event.type == .keyDown {
@@ -71,6 +86,7 @@ struct SearchFocusGuard: NSViewRepresentable {
         /// Clic hors de la fenêtre : comme un clic ailleurs, la recherche n'est plus choisie et lâche la main.
         func left(_ window: NSWindow) {
             chosen = false
+            release()
             check(window)
         }
 
@@ -79,6 +95,7 @@ struct SearchFocusGuard: NSViewRepresentable {
         func clicked(inSearch: Bool, window: NSWindow) {
             chosen = inSearch
             guard !inSearch else { return }
+            release()
             DispatchQueue.main.async { [weak self, weak window] in
                 guard let window else { return }
                 self?.check(window)
@@ -99,14 +116,26 @@ struct SearchFocusGuard: NSViewRepresentable {
         /// La recherche a la main sans avoir été choisie : la fenêtre la reprend (plus rien n'est tapé dedans).
         func check(_ window: NSWindow) {
             guard !chosen, Self.isSearchEditor(window.firstResponder) else { return }
+            release()
             window.makeFirstResponder(nil)
         }
 
-        /// Le champ qui a la main est celui d'une recherche (éditeur de texte partagé de la fenêtre).
+        /// Le champ qui a la main est celui d'une recherche (éditeur de texte partagé de la fenêtre) : le champ édité,
+        /// ou l'un de ses parents, est une recherche.
         static func isSearchEditor(_ responder: NSResponder?) -> Bool {
-            if responder is NSSearchField { return true }
+            if let view = responder as? NSView, isSearchView(view) { return true }
             guard let editor = responder as? NSTextView, editor.isFieldEditor else { return false }
-            return editor.delegate is NSSearchField
+            var view = editor.delegate as? NSView
+            while let current = view {
+                if isSearchView(current) { return true }
+                view = current.superview
+            }
+            return false
+        }
+
+        /// Une recherche d'AppKit (ou un champ dessiné comme elle).
+        static func isSearchView(_ view: NSView) -> Bool {
+            view is NSSearchField || (view as? NSTextField)?.cell is NSSearchFieldCell
         }
 
         /// Un clic tombe dans une recherche (ou dans son texte en cours d'édition).
@@ -117,6 +146,19 @@ struct SearchFocusGuard: NSViewRepresentable {
                 guard let parent = view.superview else { return false }
                 view = parent
             }
+        }
+    }
+}
+
+/// La main de la recherche suivie par SwiftUI (macOS 15 et plus) ; avant, la garde n'agit que côté AppKit.
+struct SearchFocusBinding: ViewModifier {
+    var focused: FocusState<Bool>.Binding
+
+    func body(content: Content) -> some View {
+        if #available(macOS 15.0, *) {
+            content.searchFocused(focused)
+        } else {
+            content
         }
     }
 }

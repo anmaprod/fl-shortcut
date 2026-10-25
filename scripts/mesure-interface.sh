@@ -49,6 +49,23 @@ print("glisser (\(Int(start.x)),\(Int(start.y))) → (\(Int(end.x)),\(Int(end.y)
 SWIFT
 swiftc -O "$DRAG.swift" -o "$DRAG" 2>/dev/null || echo "fls_drag : compilation impossible" >&2
 
+# Vrai clic à la souris (essai de la barre de recherche) : CLICK x y, points de l'écran (origine en haut à gauche).
+CLICK="$(dirname "$POST")/fls_click"
+cat > "$CLICK.swift" <<'SWIFT'
+import CoreGraphics
+import Foundation
+let n = CommandLine.arguments.dropFirst().compactMap { Double($0) }
+guard n.count == 2 else { print("usage : fls_click x y"); exit(2) }
+let p = CGPoint(x: n[0], y: n[1])
+func post(_ type: CGEventType) {
+    CGEvent(mouseEventSource: nil, mouseType: type, mouseCursorPosition: p, mouseButton: .left)?.post(tap: .cghidEventTap)
+}
+post(.mouseMoved); usleep(150_000)
+post(.leftMouseDown); usleep(80_000)
+post(.leftMouseUp)
+SWIFT
+swiftc -O "$CLICK.swift" -o "$CLICK" 2>/dev/null || echo "fls_click : compilation impossible" >&2
+
 had_snap=$(defaults read "$DOMAIN" debugSnapshots 2>/dev/null || echo "")
 had_glass=$(defaults read "$DOMAIN" liquidGlass 2>/dev/null || echo "")
 had_onb=$(defaults read "$DOMAIN" didOnboard 2>/dev/null || echo "")
@@ -119,6 +136,44 @@ order() {   # $1 : rapport gardé ; ordre des blocs du créateur (genres seuleme
   sed -n 's/^créateur : //p' "$OUT/$1-report.txt" 2>/dev/null | head -1
 }
 
+# Essai de la barre de recherche à vrais clics (retour du propriétaire : elle reste active après un clic ailleurs,
+# dans l'app comme dehors) : après chaque clic, qui a la main dans la fenêtre (rapport de l'app) et une photo.
+# Résultat : $OUT/recherche-essai.txt (+ recherche-<étape>.png).
+search_step() {   # $1 : étape ; $2 $3 : point du clic (écran, origine en haut à gauche) ou rien
+  local f="$OUT/recherche-essai.txt"
+  if [[ -n "${2:-}" ]]; then "$CLICK" "$2" "$3"; fi
+  sleep 1.2
+  report "recherche-$1" >/dev/null
+  screencapture -x "$OUT/recherche-$1.png" 2>/dev/null || true
+  { echo "== $1${2:+ (clic $2,$3)}"
+    grep -E '^fenêtre AppKitWindow|^  (recherche|répondant|garde) :|clé : ' "$OUT/recherche-$1-report.txt" 2>/dev/null \
+      | grep -A99 '^fenêtre AppKitWindow' | grep -E '^  (recherche|répondant|garde) :|clé : '
+  } >> "$f"
+}
+
+search_test() {   # $1 : rapport gardé (position de la fenêtre)
+  local ox oy sx sy f="$OUT/recherche-essai.txt"
+  : > "$f"
+  read -r ox oy < <(origin "$1") || { echo "recherche : position de la fenêtre inconnue" >> "$f"; return; }
+  read -r sx sy < <(sed -nE 's/^  recherche : NSSearchField.* centre-cg (-?[0-9]+) (-?[0-9]+).*/\1 \2/p' "$OUT/$1-report.txt" | head -1)
+  if [[ -z "${sx:-}" ]]; then
+    read -r sx sy < <(sed -nE 's/^  recherche : [^(]*écran .* centre-cg (-?[0-9]+) (-?[0-9]+).*/\1 \2/p' "$OUT/$1-report.txt" | head -1)
+  fi
+  echo "fenêtre en $ox,$oy · recherche en ${sx:-?},${sy:-?}" >> "$f"
+  [[ -z "${sx:-}" ]] && { echo "recherche introuvable dans le rapport" >> "$f"; return; }
+  search_step 0-depart
+  search_step 1-clic-dedans "$sx" "$sy"
+  search_step 2-barre-de-titre $(( ox + 520 )) $(( oy + 26 ))
+  search_step 3-clic-dedans "$sx" "$sy"
+  search_step 4-en-tete-de-page $(( ox + 600 )) $(( oy + 140 ))
+  search_step 5-clic-dedans "$sx" "$sy"
+  search_step 6-bureau 20 400
+  search_step 7-retour-barre-de-titre $(( ox + 520 )) $(( oy + 26 ))
+  search_step 8-clic-dedans "$sx" "$sy"
+  search_step 9-ligne-de-la-barre-laterale $(( ox + 120 )) $(( oy + 330 ))
+  cat "$f" >&2
+}
+
 run() {   # $1 : libellé, $2 : YES/NO effet verre
   local label=$1 glass=$2 p
   pkill -x FLShortcut 2>/dev/null; sleep 1
@@ -135,6 +190,10 @@ run() {   # $1 : libellé, $2 : YES/NO effet verre
   # État exact de la fenêtre au moment de la photo (cadre, barre de titre, boutons, listes défilées ou non).
   report "$label-fenetre" >/dev/null
   fit="$(fits "$label-fenetre")"
+  if [[ "$label" == verre ]]; then
+    search_test "$label-fenetre"
+    "$POST" app.flshortcut.debug.search ""; "$POST" app.flshortcut.debug.select general; sleep 2
+  fi
   # Rendu interne de la fenêtre (toute sa hauteur, même si l'écran de test est petit).
   rm -f "$HOME/Library/Caches/$DOMAIN/$label-"*
   "$POST" app.flshortcut.debug.snapshot "$label-fenetre"; sleep 2
