@@ -132,4 +132,6 @@
   bloqué sur « FL charge les sons de la copie… » (attente de 3 réponses < 1 s, sans compteur). Assoupli (2 réponses
   < 3 s, 2 min 30 au plus, compteur, `réponses=… lente=…ds` dans l'application) : à revérifier.
 - La suppression par ⌥ + Suppr (si ça échoue, l'app le dit).
+- Barre de recherche qui lâche la main au clic ailleurs : bonne à vrais clics sur la CI (15dcdc0, macOS 26, photos
+  `recherche-*.png` de la mesure) ; « toujours là » chez lui avec 992aa5b : à revérifier sur son Mac.
 - Questions sans réponse : l'accueil manquant venait-il d'une installation sans désinstallation ?

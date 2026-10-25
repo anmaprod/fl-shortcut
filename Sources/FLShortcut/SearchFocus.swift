@@ -10,9 +10,9 @@
 // observateurs de la fenêtre et un moniteur local (clics et touches de cette fenêtre seulement), retirés avec la vue.
 // La main est reprise des deux côtés (25/10, « toujours là ») : par AppKit (la fenêtre la reprend) et par SwiftUI
 // (`release`, qui met `searchFocused` à faux sur macOS 15 et plus : SwiftUI pouvait la lui redonner aussitôt). La
-// recherche est reconnue même quand le champ qui a la main n'en est qu'une partie (dessinée par SwiftUI). Celle de
-// SwiftUI sur macOS 26 n'est pas une recherche d'AppKit (`AppKitSearchField`) : la garde ne la voyait pas du tout,
-// d'où le bug resté sur le Mac du propriétaire ; elle est reconnue à son nom.
+// recherche est reconnue même quand le champ qui a la main n'en est qu'une partie (dessinée par SwiftUI). Vérifié à
+// vrais clics sur la CI (macOS 26, `AppKitSearchField` de SwiftUI, une NSSearchField, éditée par `SearchTextView`) :
+// elle lâche la main à chaque clic ailleurs, dans l'app comme dehors.
 import AppKit
 import SwiftUI
 
@@ -135,9 +135,9 @@ struct SearchFocusGuard: NSViewRepresentable {
             return false
         }
 
-        /// Une recherche d'AppKit, un champ dessiné comme elle, ou celle de SwiftUI : sur macOS 26, `.searchable` pose
-        /// un `AppKitSearchField` (loupe et ✕ dessinées par SwiftUI), que la garde ne reconnaissait pas (mesure de la
-        /// CI du 25/10) : reconnue à son nom de classe, sans ses paramètres (`Hôte<…SearchField…>` n'en est pas une).
+        /// Une recherche d'AppKit, un champ dessiné comme elle, ou celle de SwiftUI à son nom de classe (macOS 26 :
+        /// `AppKitSearchField`, une NSSearchField ; le nom, au cas où une autre version de macOS en ferait une vue
+        /// ordinaire), sans ses paramètres (un hôte `NSHostingView<…SearchField…>` n'en est pas une).
         static func isSearchView(_ view: NSView) -> Bool {
             if view is NSSearchField || (view as? NSTextField)?.cell is NSSearchFieldCell { return true }
             let name = String(describing: type(of: view))

@@ -327,12 +327,15 @@ entrée 1 ≈ 0,5 s.
   (clic dans une autre app, le bureau, une autre fenêtre) et ne la reprend pas au retour ; pendant une recherche,
   la barre latérale n'a plus de page choisie : un clic sur une page (même celle d'avant) vide la recherche et
   l'ouvre (`sidebarSelection`).
-- Recherche « toujours là » (25/10, après ces corrections) : l'essai à vrais clics de la CI montre que, sur macOS 26,
-  la recherche de `.searchable` est un `AppKitSearchField` de SwiftUI (loupe et ✕ dessinées par SwiftUI), pas une
-  recherche d'AppKit : la garde (`SearchFocusGuard`), qui ne reconnaissait que `NSSearchField`, ne la voyait jamais.
-  Reconnue maintenant à son nom de classe (sans ses paramètres : un hôte `NSHostingView<…>` n'en est pas une). Le
-  premier essai cliquait au milieu de la fenêtre (la première ligne « recherche » du rapport était la garde) : le
-  rapport marque `[champ …]` ce que la garde reconnaît, et l'essai clique dessus.
+- Recherche « toujours là » (25/10, après ces corrections) : la garde rend aussi la main côté SwiftUI
+  (`searchFocused` à faux, macOS 15 et plus) et reconnaît la recherche par ses parents et à son nom de classe (au cas
+  où). Essai à vrais clics sur la CI (`search_test` de `mesure-interface.sh`, 15dcdc0) : la recherche de
+  `.searchable` est un `AppKitSearchField` de SwiftUI (une NSSearchField, éditée par `SearchTextView`) ; cliquée,
+  elle a la main (contour bleu) ; un clic sur la barre de titre, l'en-tête de la page, le bureau, le retour dans
+  l'app ou Mixer dans la barre latérale (la page change) la lui reprend à chaque fois (photos `recherche-*.png`).
+  Le 1er essai (9eda6c2) cliquait au milieu de la fenêtre (la 1re ligne « recherche » du rapport était la garde) :
+  le rapport marque `[champ …]` ce que la garde reconnaît, l'essai clique dessus. Pas encore vérifié sur le Mac du
+  propriétaire (macOS 27 ?).
 - Drums : sortes « Drum loop » et « Fill » (demande du propriétaire). Noms : « Drum Loop », « Hat Loop »,
   « DrumLoop », « Top Loop » → Drum loop ; « Snare Fill », « Fill 1 » → Fill (« Piano Fill » reste un piano,
   « Melody Loop » une mélodie, « Loop 4 » ne dit rien). Boucle mesurée (grave d'un kick + aigus) : Drum loop, ou

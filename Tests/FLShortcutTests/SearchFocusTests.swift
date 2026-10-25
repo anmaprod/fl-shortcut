@@ -27,9 +27,9 @@ final class SearchFocusTests: XCTestCase {
         XCTAssertFalse(SearchFocusGuard.GuardView.isSearchEditor(editor), "un autre champ n'est jamais repris")
     }
 
-    /// Mesure de la CI (25/10) : sur macOS 26, la recherche de SwiftUI est un `AppKitSearchField`, champ ordinaire
-    /// (pas une recherche d'AppKit) : la garde ne la voyait pas. Reconnue à son nom ; un hôte dont seuls les
-    /// paramètres parlent de recherche, ou un autre champ, jamais.
+    /// La recherche de SwiftUI (`AppKitSearchField` sur macOS 26) reconnue aussi à son nom, au cas où une autre
+    /// version de macOS n'en ferait plus une NSSearchField ; un hôte dont seuls les paramètres parlent de recherche,
+    /// ou un autre champ, jamais.
     func testSwiftUISearchFieldIsRecognized() {
         let field = AppKitSearchFieldImitation()
         XCTAssertTrue(SearchFocusGuard.GuardView.isSearchEditor(field))
@@ -137,7 +137,7 @@ final class SearchFocusTests: XCTestCase {
 /// Un champ en cours d'édition (délégué de l'éditeur de la fenêtre), placé où l'on veut.
 private final class EditedField: NSView, NSTextViewDelegate {}
 
-/// La recherche de SwiftUI sur macOS 26 : un champ ordinaire au nom de recherche.
+/// Une recherche de SwiftUI qui ne serait qu'un champ ordinaire, à son nom.
 private final class AppKitSearchFieldImitation: NSTextField {}
 
 /// Un hôte de SwiftUI, dont le nom porte celui de ce qu'il affiche (`NSHostingView<…>`).
