@@ -102,6 +102,19 @@
   Chiffres de l'IA seule (7 610 sons jamais entendus, 24/10) : ≈ 92,4 % (voix 96, drums 97, basse 95, FX 95,
   mélodies 86 ; Drum loop 86, Fill 88 ; sur des packs du propriétaire jamais entendus, boucles 72 %, fills 82 %) ;
   plafond : plus de sons et couche 14 de YAMNet réapprise (`ia/affiner.py`) n'y changent rien (essai non livré).
+- **Organiser, demandes du 25/10** (vidéos du propriétaire) : case de la piste du Mixer à côté de chaque son (comme le
+  Channel rack de FL : tirer haut/bas, clic pour écrire, ⌥ + clic automatique ; `MixerSlotBox`, `slots`), départ de
+  chaque famille dans le Mixer (« Drums 27 → 32 », 808 et bus compris ; `FamilyStyle.mixerStart`, gardé), bouton
+  « Rangement automatique », familles glissées comme des dossiers (`options.familyOrder`, gardé ; Channel rack, Mixer et
+  Playlist suivent), « Écrire… » à la place de « À vérifier » dans la liste d'un son (nom tapé posé partout ;
+  `OrganizerPlan.make(names:slots:)`, `pinned`). Vraies icônes de FL découpées de sa capture (`Resources/FLIcons.png`,
+  `FLIconArt`). Bug « FL n'a pas supprimé exactement les sons sans note » : FL supprimait bien, relu trop tôt → relu
+  jusqu'à la fin (6 s), suite avec ce qui est vraiment parti (`removed`) ; « raison 5 » : un son refusé reste « À
+  vérifier », le diagnostic dit l'opération refusée (`lastRefusal`, « op6:5 »).
+- **Windows** (en cours, demande du 25/10 : « les fonctionnalités pareil », puis pack de test pour ses amis) : cœur
+  `windows/FLShortcut.Core/Organizer/*.cs` recopié du Mac (fichier .flp, copie rangée, classement, IA ONNX, plan, places,
+  application, validation, corrections, contrôleur ; 180+ essais `dotnet test`) ; reste l'app WinUI (lien MIDI sur
+  `LinkCore`, capture du son de FL, touches à FL, fenêtre de l'Organiser), puis macros, compte, Communauté, Aide.
 - Interface : survol coloré du menu de l'icône (`menuHover` : contour de sa couleur, halo autour) voulu par le
   propriétaire partout ; depuis le 25/10 (sa capture) : couleurs de l'élément JAMAIS changées (ni fond ajouté, ni
   ombre sur le contenu : halo `HoverGlow` dehors seulement), rien de gris au-delà du contour (lignes des cartes : c'est
