@@ -71,6 +71,13 @@ public sealed partial class MainWindow : Window
         _tray.OpenRequested += () => DispatcherQueue.TryEnqueue(ShowFromTray);
         _tray.ToggleRequested += () => DispatcherQueue.TryEnqueue(_app.Toggle);
         _tray.QuitRequested += () => DispatcherQueue.TryEnqueue(Quit);
+        _tray.HasPendingCopy = () => _app.Approval.Pending.Count > 0;
+        _tray.OrganizeRequested += () => DispatcherQueue.TryEnqueue(() => OrganizerWindow.Show(_app));
+        _tray.ApproveRequested += () => DispatcherQueue.TryEnqueue(() =>
+        {
+            ShowFromTray(ask: false);
+            CopyApprovalPrompt.Ask(Root.XamlRoot, _app, force: true);
+        });
 
         _poll = DispatcherQueue.CreateTimer();
         _poll.Interval = TimeSpan.FromSeconds(1);
@@ -82,6 +89,8 @@ public sealed partial class MainWindow : Window
         _app.Start();
         ShowScreen();
         if (_app.LoadWarning is { } warning) ShowToast(warning, InfoBarSeverity.Warning);
+        // Une version organisée attend (Organiser fermé) : la question à la réouverture de FL Shortcuts.
+        Root.Loaded += (_, _) => CopyApprovalPrompt.Ask(Root.XamlRoot, _app, force: false);
     }
 
     // ---------- Fenêtre et zone de notification ----------
@@ -93,10 +102,13 @@ public sealed partial class MainWindow : Window
         sender.Hide();
     }
 
-    private void ShowFromTray()
+    private void ShowFromTray() => ShowFromTray(ask: true);
+
+    private void ShowFromTray(bool ask)
     {
         AppWindow.Show();
         Activate();
+        if (ask) CopyApprovalPrompt.Ask(Root.XamlRoot, _app, force: false);
     }
 
     private void Quit()
@@ -296,6 +308,7 @@ public sealed partial class MainWindow : Window
     private void OnNavInvoked(NavigationView sender, NavigationViewItemInvokedEventArgs args)
     {
         if (args.InvokedItemContainer?.Tag is "#link") Repair();
+        else if (args.InvokedItemContainer?.Tag is "#organize") OrganizerWindow.Show(_app);
     }
 
     // ---------- Liste ----------

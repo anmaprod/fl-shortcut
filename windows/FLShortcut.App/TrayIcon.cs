@@ -6,7 +6,7 @@ namespace FLShortcut.App;
 internal sealed class TrayIcon : IDisposable
 {
     private const uint CallbackMessage = Win32.WM_APP + 10;
-    private const uint IdOpen = 1, IdPause = 2, IdQuit = 3;
+    private const uint IdOpen = 1, IdPause = 2, IdQuit = 3, IdOrganize = 4, IdApprove = 5;
 
     private readonly IntPtr _hwnd;
     private readonly Win32.SubclassProc _proc;
@@ -15,7 +15,11 @@ internal sealed class TrayIcon : IDisposable
     private bool _added;
 
     public Func<bool> IsEnabled { get; set; } = () => true;
+    /// Une version organisée attend d'être validée (la ligne « Valider la version organisée… » s'affiche).
+    public Func<bool> HasPendingCopy { get; set; } = () => false;
     public event Action? OpenRequested;
+    public event Action? OrganizeRequested;
+    public event Action? ApproveRequested;
     public event Action? ToggleRequested;
     public event Action? QuitRequested;
 
@@ -78,7 +82,10 @@ internal sealed class TrayIcon : IDisposable
         var menu = Win32.CreatePopupMenu();
         try
         {
-            Win32.AppendMenuW(menu, Win32.MF_STRING, new UIntPtr(IdOpen), "Modifier les raccourcis");
+            Win32.AppendMenuW(menu, Win32.MF_STRING, new UIntPtr(IdOpen), Core.Loc.T("Modifier les raccourcis…"));
+            if (HasPendingCopy())
+                Win32.AppendMenuW(menu, Win32.MF_STRING, new UIntPtr(IdApprove), Core.Loc.T("Valider la version organisée…"));
+            Win32.AppendMenuW(menu, Win32.MF_STRING, new UIntPtr(IdOrganize), Core.Loc.T("Organiser…"));
             Win32.AppendMenuW(menu, Win32.MF_STRING | (IsEnabled() ? 0 : Win32.MF_CHECKED), new UIntPtr(IdPause),
                 "Mettre en pause\tCtrl+Alt+Maj+F");
             Win32.AppendMenuW(menu, Win32.MF_SEPARATOR, UIntPtr.Zero, null);
@@ -90,6 +97,8 @@ internal sealed class TrayIcon : IDisposable
             switch (cmd)
             {
                 case IdOpen: OpenRequested?.Invoke(); break;
+                case IdOrganize: OrganizeRequested?.Invoke(); break;
+                case IdApprove: ApproveRequested?.Invoke(); break;
                 case IdPause: ToggleRequested?.Invoke(); break;
                 case IdQuit: QuitRequested?.Invoke(); break;
             }

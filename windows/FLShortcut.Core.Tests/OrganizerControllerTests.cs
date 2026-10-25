@@ -324,10 +324,12 @@ public sealed class OrganizerControllerTests
     {
         var root = Path.GetDirectoryName(typeof(OrganizerControllerTests).Assembly.Location)!;
         while (!File.Exists(Path.Combine(root, "PROTOCOL.md"))) root = Path.GetDirectoryName(root)!;
-        var core = Path.Combine(root, "windows", "FLShortcut.Core");
         var call = new Regex("Loc\\.[TF]\\(\\s*\"((?:[^\"\\\\]|\\\\.)*)\"", RegexOptions.CultureInvariant);
         var missing = new List<string>();
-        foreach (var file in Directory.EnumerateFiles(core, "*.cs", SearchOption.AllDirectories))
+        // Le cœur et l'appli (ses textes passent aussi par Loc).
+        var files = new[] { "FLShortcut.Core", "FLShortcut.App" }
+            .SelectMany(d => Directory.EnumerateFiles(Path.Combine(root, "windows", d), "*.cs", SearchOption.AllDirectories));
+        foreach (var file in files)
         {
             if (file.Contains($"{Path.DirectorySeparatorChar}obj{Path.DirectorySeparatorChar}")) continue;
             foreach (Match m in call.Matches(File.ReadAllText(file)))

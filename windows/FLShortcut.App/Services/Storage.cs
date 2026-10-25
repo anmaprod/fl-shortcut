@@ -116,6 +116,14 @@ internal sealed class AppSettings
     /// Absent (null) : mode léger pour une nouvelle installation, mode MIDI pour qui avait déjà installé le
     /// script (mise à jour sans rien casser).
     public bool? MidiActions { get; set; }
+    /// Organiser : couleur, dégradé, icône et départ dans le Mixer de chaque famille (JSON comme sur le Mac).
+    public string? OrganizerStyles { get; set; }
+    /// Organiser : l'ordre des familles glissées dans l'aperçu.
+    public List<string>? OrganizerFamilyOrder { get; set; }
+    /// Accord pour partager les corrections de l'IA (null : jamais demandé).
+    public bool? ShareCorrections { get; set; }
+    /// Versions organisées en attente de validation (relues par CopyApprovalRules.Decode : seules les sûres restent).
+    public string? PendingCopies { get; set; }
 
     private static string FilePath => Path.Combine(AppPaths.Local, "settings.json");
 

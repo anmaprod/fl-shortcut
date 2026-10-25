@@ -420,6 +420,13 @@ public sealed class OrganizerController
         return places.Count == 0 ? null : (places.Min(), places.Max());
     }
 
+    /// Points de souris par numéro, comme la case de FL (tirer vers le haut : plus grand).
+    public const double SlotStep = 6;
+
+    /// Pur (testé) : le numéro après avoir tiré la case de `dy` points (vers le haut : négatif, plus grand).
+    public static int DraggedSlot(int from, double dy, int last) =>
+        Math.Clamp(from + (int)Math.Truncate(-dy / SlotStep), 1, Math.Max(last, 1));
+
     public void SetSlot(int index, int? slot)
     {
         if (slot is { } n) Slots[index] = Math.Clamp(n, 1, MixerLast);

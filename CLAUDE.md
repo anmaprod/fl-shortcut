@@ -113,8 +113,14 @@
   vérifier », le diagnostic dit l'opération refusée (`lastRefusal`, « op6:5 »).
 - **Windows** (en cours, demande du 25/10 : « les fonctionnalités pareil », puis pack de test pour ses amis) : cœur
   `windows/FLShortcut.Core/Organizer/*.cs` recopié du Mac (fichier .flp, copie rangée, classement, IA ONNX, plan, places,
-  application, validation, corrections, contrôleur ; 180+ essais `dotnet test`) ; reste l'app WinUI (lien MIDI sur
-  `LinkCore`, capture du son de FL, touches à FL, fenêtre de l'Organiser), puis macros, compte, Communauté, Aide.
+  application, validation, corrections, contrôleur ; 180+ essais `dotnet test`). App WinUI : lien MIDI sur `LinkCore`
+  (`MidiLink`), son de FL seul (`FlAudioCapture` : « process loopback », sinon tout le PC ; un pilote ASIO de carte son
+  passe à côté de Windows), touches à FL devant seulement (`FlControl`), fichier du projet (`ProjectFileWindows` :
+  Ctrl+S, titres des fenêtres de FL, dossiers surveillés), `OrganizerLive`, fenêtre en code (`OrganizerWindow`, mêmes
+  textes que le Mac ; pas encore d'icônes de FL ni d'envoi à l'équipe), « Tu valides la version organisée ? »
+  (`CopyApprovalPrompt`, Corbeille par le shell). Vérifier sans Windows : projet temporaire `net8.0-windows` +
+  `EnableWindowsTargeting`, `EnableCoreMrtTooling=false`, tous les .cs de l'app sauf `*.xaml.cs` (compile sous Linux).
+  Reste : macros, compte, Communauté, Aide, photos de l'app Windows sur la CI.
 - Interface : survol coloré du menu de l'icône (`menuHover` : contour de sa couleur, halo autour) voulu par le
   propriétaire partout ; depuis le 25/10 (sa capture) : couleurs de l'élément JAMAIS changées (ni fond ajouté, ni
   ombre sur le contenu : halo `HoverGlow` dehors seulement), rien de gris au-delà du contour (lignes des cartes : c'est

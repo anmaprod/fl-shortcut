@@ -50,6 +50,11 @@ internal sealed class AppController : INotifyPropertyChanged, IDisposable
     public AppController(DispatcherQueue ui)
     {
         _ui = ui;
+        Approval = new Core.Organizer.CopyApproval(() => _settings.PendingCopies, json =>
+        {
+            _settings.PendingCopies = json;
+            _settings.Save();
+        }, RecycleBin.Files());
         _shortcuts = ProfileStore.Load(out var warning) ?? ProfilePreset.Recommended.Shortcuts();
         LoadWarning = warning;
         _midi.SetKey(SecretStore.Load());
@@ -81,6 +86,10 @@ internal sealed class AppController : INotifyPropertyChanged, IDisposable
     public string StatusText { get; private set; } = "";
     public bool PortsPresent => _midi.PortsPresent || MidiLink.PortsExist();
     public bool Linked => _midi.Alive;
+    /// Pour l'Organiser : le lien MIDI, les réglages, les versions organisées en attente de validation.
+    internal MidiLink Midi => _midi;
+    internal AppSettings Settings => _settings;
+    internal Core.Organizer.CopyApproval Approval { get; }
 
     public string Query
     {
@@ -130,6 +139,25 @@ internal sealed class AppController : INotifyPropertyChanged, IDisposable
         catch (Exception e)
         {
             return "Installation impossible : " + e.Message;
+        }
+    }
+
+    /// Le script a disparu de FL Studio (dossier vidé, FL réinstallé) : remis à sa place avec la même clé. Vrai s'il
+    /// vient d'être remis (FL ne le lira qu'à son prochain lancement).
+    public bool RepairScriptIfMissing()
+    {
+        if (_settings.ScriptPath is not { } path || File.Exists(path) || SecretStore.Load() is not { } key) return false;
+        try
+        {
+            var (installed, sha) = ScriptInstaller.Install(Path.GetDirectoryName(Path.GetDirectoryName(path)!)!, key);
+            _settings.ScriptPath = installed;
+            _settings.ScriptSha256 = sha;
+            _settings.Save();
+            return true;
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+        {
+            return false;
         }
     }
 

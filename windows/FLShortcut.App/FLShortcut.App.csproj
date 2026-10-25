@@ -46,6 +46,11 @@
     <ProjectReference Include="..\FLShortcut.Core\FLShortcut.Core.csproj" />
   </ItemGroup>
 
+  <!-- L'IA intégrée de l'Organiser (YAMNet + têtes apprises), à côté de l'exécutable (ClasseurSons.Partage). -->
+  <ItemGroup>
+    <None Include="..\..\ia\modele\classeur_sons.onnx" Link="classeur_sons.onnx" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
+
   <!-- Le script FL (modèle avec le marqueur de clé), embarqué dans l'exécutable. -->
   <ItemGroup>
     <EmbeddedResource Include="..\..\Resources\device_FLShortcut.py" LogicalName="device_FLShortcut.py" />

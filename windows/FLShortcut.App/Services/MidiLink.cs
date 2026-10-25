@@ -54,6 +54,9 @@ internal sealed class MidiLink : IDisposable, IMidiTransport
         Changed?.Invoke();
     }
 
+    /// Ports déjà ouverts et surveillés (mode avec actions MIDI, ou Organiser déjà lancé).
+    public bool Started => _timer is not null;
+
     /// Ports ouverts et surveillés, PING quand FL tourne (mode avec actions MIDI, ou à la demande : Organiser).
     public void Start()
     {
@@ -74,7 +77,7 @@ internal sealed class MidiLink : IDisposable, IMidiTransport
         {
             if (_out == IntPtr.Zero || _in == IntPtr.Zero) OpenUnlocked();
         }
-        return Core.RunRequest(bytes, brief);
+        return Core.RunRequest(bytes, brief, TimeSpan.FromSeconds(1.5));
     }
 
     // ---------- IMidiTransport ----------

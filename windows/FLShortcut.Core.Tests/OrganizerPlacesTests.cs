@@ -137,4 +137,15 @@ public sealed class OrganizerPlacesTests
         Assert.Null(FamilyStyles.Decode(json)[SoundFamily.Bass].MixerStart);
         Assert.Null(FamilyStyles.Decode("{\"drums\":{\"color\":\"E0453A\",\"mixer\":900}}")[SoundFamily.Drums].MixerStart);
     }
+
+    /// La case du numéro, comme dans FL : tirée vers le haut, plus grand ; jamais sous 1 ni au-delà du Mixer.
+    [Fact]
+    public void SlotBoxDrag()
+    {
+        Assert.Equal(15, OrganizerController.DraggedSlot(10, -30, 125));
+        Assert.Equal(5, OrganizerController.DraggedSlot(10, 30, 125));
+        Assert.Equal(10, OrganizerController.DraggedSlot(10, 2, 125));
+        Assert.Equal(1, OrganizerController.DraggedSlot(3, 600, 125));
+        Assert.Equal(125, OrganizerController.DraggedSlot(120, -600, 125));
+    }
 }
