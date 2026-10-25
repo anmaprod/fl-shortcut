@@ -11,7 +11,7 @@ import Foundation
 enum ProjectFileLive {
     static func access() -> ProjectFileAccess {
         ProjectFileAccess(save: { save(known: $0) }, open: { open($0) }, isOpen: { isOpen($0) },
-                          search: { lastSearch }, answerDialog: { answerDialog() })
+                          answerDialog: { answerDialog() }, search: { lastSearch })
     }
 
     // MARK: - Fichier montré par l'utilisateur, et ce que la recherche a trouvé (diagnostic)
