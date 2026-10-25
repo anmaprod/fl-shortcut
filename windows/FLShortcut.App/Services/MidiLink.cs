@@ -4,13 +4,15 @@
 //         rouverts paresseusement). Contrat : PROTOCOL.md v2.
 //
 // Ports (WinMM) : l'appli écrit sur la sortie « FL Shortcuts » (lue par FL) et lit l'entrée « FL Shortcuts Retour »
-// (écrite par FL). Ces deux ports de bouclage sont créés par loopMIDI ou par Windows MIDI Services.
+// (écrite par FL). Ces deux ports de bouclage sont créés par loopMIDI ou par Windows MIDI Services. Toute la logique
+// du lien (HELLO, battements, accusés, réponses signées, réveil du script, commandes de l'Organiser) est celle du cœur,
+// LinkCore, la même que sur le Mac ; ici, seulement les ports WinMM.
 using FLShortcut.App.Native;
 using FLShortcut.Core;
 
 namespace FLShortcut.App.Services;
 
-internal sealed class MidiLink : IDisposable
+internal sealed class MidiLink : IDisposable, IMidiTransport
 {
     public const string ToFlPortName = "FL Shortcuts";
     public const string FromFlPortName = "FL Shortcuts Retour";
@@ -19,85 +21,100 @@ internal sealed class MidiLink : IDisposable
     private const string OldFromFlPortName = "FL Shortcut Retour";
 
     private readonly object _gate = new();
-    private readonly IncomingDecoder _decoder = new();
-    private readonly LinkSession _session = new();
     private readonly Win32.MidiInProc _inProc;        // gardé vivant pour WinMM
     private IntPtr _out = IntPtr.Zero;
     private IntPtr _in = IntPtr.Zero;
-    private FrameSigner? _signer;
     private Timer? _timer;
-    private bool _resync;
+    private bool _wasAlive;
 
     /// Appelé (hors thread d'interface) à chaque changement visible : statut, fenêtre, capacités.
     public event Action? Changed;
 
-    public MidiLink() => _inProc = OnMidiIn;
+    /// La logique du lien, commune au Mac (PROTOCOL.md).
+    public LinkCore Core { get; }
+
+    public MidiLink()
+    {
+        _inProc = OnMidiIn;
+        Core = new LinkCore(this, null);
+    }
 
     public bool PortsPresent { get; private set; }
-    public bool Incompatible { get { lock (_gate) return _session.Incompatible; } }
-    public HelloInfo? Hello { get { lock (_gate) return _session.Hello; } }
-    public bool Alive { get { lock (_gate) return _session.Alive; } }
-    public FlWindow Window { get { lock (_gate) return _session.Window; } }
-    public bool HasKey { get { lock (_gate) return _signer is not null; } }
+    public bool Incompatible => Core.State.IncompatibleProtocol is not null;
+    public HelloInfo? Hello => Core.State.Hello;
+    public bool Alive => Core.RoutingView().Linked;
+    public FlWindow Window => Core.State.Window;
+    public bool HasKey => Core.State.HasKey;
+    /// Le script a dit être posé sur une autre entrée MIDI que « FL Shortcuts ».
+    public bool WrongInput => Core.State.WrongInput;
 
     public void SetKey(byte[]? key)
     {
-        lock (_gate) _signer = FrameSigner.Create(key);
+        Core.SetKey(key);
         Changed?.Invoke();
     }
 
+    /// Ports ouverts et surveillés, PING quand FL tourne (mode avec actions MIDI, ou à la demande : Organiser).
     public void Start()
     {
         _timer ??= new Timer(_ => Tick(), null, TimeSpan.Zero, TimeSpan.FromSeconds(1));
     }
 
     /// Vue pour le hook clavier (copie immuable).
-    public LinkRoutingView RoutingView()
-    {
-        lock (_gate)
-        {
-            return new LinkRoutingView(_session.Alive, _session.Window, _session.Hello?.Capabilities, _signer is not null);
-        }
-    }
+    public LinkRoutingView RoutingView() => Core.RoutingView();
 
     /// Envoie une action signée. Faux si le lien, la clé ou le port manquent (la touche sera rendue à FL).
-    public bool SendAction(int id)
+    public bool SendAction(int id) => Core.SendAction(id) == LinkCore.SendResult.Sent;
+
+    /// Opération de l'Organiser (PROTOCOL.md §8), bloquante : ports ouverts à la demande, script réveillé si besoin.
+    public RequestReply RunRequest(byte[] bytes, bool brief)
     {
+        Start();
         lock (_gate)
         {
-            if (_out == IntPtr.Zero || _signer is null || !_session.Alive) return false;
-            var frame = _session.NextFrame(id, _signer);
-            if (frame is null) return false;
-            foreach (var m in frame)
-            {
-                if (Win32.midiOutShortMsg(_out, m.ShortMessage) != Win32.MMSYSERR_NOERROR)
-                {
-                    CloseUnlocked();
-                    return false;
-                }
-            }
-            return true;
+            if (_out == IntPtr.Zero || _in == IntPtr.Zero) OpenUnlocked();
         }
+        return Core.RunRequest(bytes, brief);
+    }
+
+    // ---------- IMidiTransport ----------
+
+    bool IMidiTransport.IsReady
+    {
+        get { lock (_gate) return _out != IntPtr.Zero; }
+    }
+
+    // Appelé par le cœur sous son verrou : l'ordre est toujours « cœur puis ports », jamais l'inverse.
+    bool IMidiTransport.Send(IReadOnlyList<CcMessage> messages)
+    {
+        var failed = false;
+        lock (_gate)
+        {
+            if (_out == IntPtr.Zero) OpenUnlocked();
+            if (_out == IntPtr.Zero) return false;
+            foreach (var m in messages)
+            {
+                if (Win32.midiOutShortMsg(_out, m.ShortMessage) == Win32.MMSYSERR_NOERROR) continue;
+                CloseUnlocked();
+                failed = true;
+                break;
+            }
+        }
+        if (failed) Core.Reset();
+        return !failed;
     }
 
     private void Tick()
     {
-        bool changed = false;
+        var changed = false;
         lock (_gate)
         {
-            var wasAlive = _session.Alive;
             if (_out == IntPtr.Zero || _in == IntPtr.Zero) changed |= OpenUnlocked();
-            if (_out != IntPtr.Zero && _session.ShouldPing(_resync))
-            {
-                _resync = false;
-                if (Win32.midiOutShortMsg(_out, CcMessage.Ping.ShortMessage) != Win32.MMSYSERR_NOERROR)
-                {
-                    CloseUnlocked();
-                    changed = true;
-                }
-            }
-            changed |= wasAlive != _session.Alive;
         }
+        Core.Tick(FlPresence.IsRunning());
+        var alive = Alive;
+        changed |= alive != _wasAlive;
+        _wasAlive = alive;
         if (changed) Changed?.Invoke();
     }
 
@@ -114,7 +131,6 @@ internal sealed class MidiLink : IDisposable
         if (Interlocked.Exchange(ref _draining, 1) == 0) ThreadPool.UnsafeQueueUserWorkItem(_ => Drain(), null);
     }
 
-    /// Un accusé 0 (trame rejetée) déclenche une resynchronisation bornée (nouveau PING, nouveau nonce).
     private void Drain()
     {
         while (true)
@@ -122,14 +138,9 @@ internal sealed class MidiLink : IDisposable
             var notify = false;
             while (_incoming.TryDequeue(out var raw))
             {
-                lock (_gate)
-                {
-                    var e = _decoder.FeedShortMessage(raw);
-                    if (e is null) continue;
-                    _session.Apply(e);
-                    if (e is IncomingEvent.Ack { Id: 0 }) _resync = true;
-                    if (e is not IncomingEvent.Heartbeat and not IncomingEvent.Ack) notify = true;
-                }
+                var e = Core.ReceiveShort(raw);
+                if (e is not null and not IncomingEvent.Heartbeat and not IncomingEvent.Ack and not IncomingEvent.Response
+                    and not IncomingEvent.Reason) notify = true;
             }
             if (notify) Changed?.Invoke();
             Volatile.Write(ref _draining, 0);
@@ -159,7 +170,8 @@ internal sealed class MidiLink : IDisposable
 
     private void CloseUnlocked()
     {
-        // Le rappel d'entrée ne prend aucun verrou : fermer ici ne peut pas bloquer.
+        // Le rappel d'entrée ne prend aucun verrou : fermer ici ne peut pas bloquer. L'appelant remet ensuite le cœur à
+        // zéro (Core.Reset), hors de ce verrou.
         if (_in != IntPtr.Zero)
         {
             Win32.midiInStop(_in);
@@ -172,7 +184,6 @@ internal sealed class MidiLink : IDisposable
             Win32.midiOutClose(_out);
             _out = IntPtr.Zero;
         }
-        _session.Reset();
         _incoming.Clear();
     }
 
@@ -220,5 +231,6 @@ internal sealed class MidiLink : IDisposable
         _timer?.Dispose();
         _timer = null;
         lock (_gate) CloseUnlocked();
+        Core.Reset();
     }
 }
