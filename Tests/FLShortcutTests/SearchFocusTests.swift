@@ -27,6 +27,39 @@ final class SearchFocusTests: XCTestCase {
         XCTAssertFalse(SearchFocusGuard.GuardView.isSearchEditor(editor), "un autre champ n'est jamais repris")
     }
 
+    /// Mesure de la CI (25/10) : sur macOS 26, la recherche de SwiftUI est un `AppKitSearchField`, champ ordinaire
+    /// (pas une recherche d'AppKit) : la garde ne la voyait pas. Reconnue à son nom ; un hôte dont seuls les
+    /// paramètres parlent de recherche, ou un autre champ, jamais.
+    func testSwiftUISearchFieldIsRecognized() {
+        let field = AppKitSearchFieldImitation()
+        XCTAssertTrue(SearchFocusGuard.GuardView.isSearchEditor(field))
+        let editor = NSTextView()
+        editor.isFieldEditor = true
+        let inner = EditedField()
+        field.addSubview(inner)
+        editor.delegate = inner
+        XCTAssertTrue(SearchFocusGuard.GuardView.isSearchEditor(editor), "son texte en cours d'édition")
+        let host = Host<AppKitSearchFieldImitation>()
+        XCTAssertFalse(SearchFocusGuard.GuardView.isSearchView(host), "l'hôte de toute la fenêtre n'est pas la recherche")
+        let rename = EditedField()
+        host.addSubview(rename)
+        editor.delegate = rename
+        XCTAssertFalse(SearchFocusGuard.GuardView.isSearchEditor(editor), "un autre champ de la fenêtre n'est pas repris")
+
+        // Clic dedans (même sur sa loupe, dessinée dans le champ) : la recherche est choisie ; à côté, non.
+        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 400, height: 200), styleMask: [.titled],
+                              backing: .buffered, defer: false)
+        window.isReleasedWhenClosed = false
+        defer { window.close() }
+        let search = AppKitSearchFieldImitation(frame: NSRect(x: 10, y: 150, width: 200, height: 24))
+        let loupe = NSView(frame: NSRect(x: 4, y: 4, width: 16, height: 16))
+        search.addSubview(loupe)
+        window.contentView?.addSubview(search)
+        XCTAssertTrue(SearchFocusGuard.GuardView.searchField(at: NSPoint(x: 100, y: 162), in: window))
+        XCTAssertTrue(SearchFocusGuard.GuardView.searchField(at: NSPoint(x: 21, y: 162), in: window), "sur la loupe")
+        XCTAssertFalse(SearchFocusGuard.GuardView.searchField(at: NSPoint(x: 300, y: 50), in: window))
+    }
+
     /// Retour de l'utilisateur (vidéo) : recherche cliquée, puis une option choisie dans la seconde ; la page changée,
     /// AppKit lui redonnait la main et elle la gardait. Choisie, elle la garde ; un clic ailleurs la lui reprend, même
     /// redonnée après coup ; un autre champ n'est jamais touché.
@@ -103,3 +136,9 @@ final class SearchFocusTests: XCTestCase {
 
 /// Un champ en cours d'édition (délégué de l'éditeur de la fenêtre), placé où l'on veut.
 private final class EditedField: NSView, NSTextViewDelegate {}
+
+/// La recherche de SwiftUI sur macOS 26 : un champ ordinaire au nom de recherche.
+private final class AppKitSearchFieldImitation: NSTextField {}
+
+/// Un hôte de SwiftUI, dont le nom porte celui de ce qu'il affiche (`NSHostingView<…>`).
+private final class Host<Content>: NSView {}

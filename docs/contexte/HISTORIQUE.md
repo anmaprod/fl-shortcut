@@ -327,6 +327,12 @@ entrée 1 ≈ 0,5 s.
   (clic dans une autre app, le bureau, une autre fenêtre) et ne la reprend pas au retour ; pendant une recherche,
   la barre latérale n'a plus de page choisie : un clic sur une page (même celle d'avant) vide la recherche et
   l'ouvre (`sidebarSelection`).
+- Recherche « toujours là » (25/10, après ces corrections) : l'essai à vrais clics de la CI montre que, sur macOS 26,
+  la recherche de `.searchable` est un `AppKitSearchField` de SwiftUI (loupe et ✕ dessinées par SwiftUI), pas une
+  recherche d'AppKit : la garde (`SearchFocusGuard`), qui ne reconnaissait que `NSSearchField`, ne la voyait jamais.
+  Reconnue maintenant à son nom de classe (sans ses paramètres : un hôte `NSHostingView<…>` n'en est pas une). Le
+  premier essai cliquait au milieu de la fenêtre (la première ligne « recherche » du rapport était la garde) : le
+  rapport marque `[champ …]` ce que la garde reconnaît, et l'essai clique dessus.
 - Drums : sortes « Drum loop » et « Fill » (demande du propriétaire). Noms : « Drum Loop », « Hat Loop »,
   « DrumLoop », « Top Loop » → Drum loop ; « Snare Fill », « Fill 1 » → Fill (« Piano Fill » reste un piano,
   « Melody Loop » une mélodie, « Loop 4 » ne dit rien). Boucle mesurée (grave d'un kick + aigus) : Drum loop, ou

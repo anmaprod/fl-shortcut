@@ -155,9 +155,12 @@ search_test() {   # $1 : rapport gardé (position de la fenêtre)
   local ox oy sx sy f="$OUT/recherche-essai.txt"
   : > "$f"
   read -r ox oy < <(origin "$1") || { echo "recherche : position de la fenêtre inconnue" >> "$f"; return; }
-  read -r sx sy < <(sed -nE 's/^  recherche : NSSearchField.* centre-cg (-?[0-9]+) (-?[0-9]+).*/\1 \2/p' "$OUT/$1-report.txt" | head -1)
+  # Le premier champ reconnu par la garde (le 25/10, la première ligne était la garde elle-même, qui couvre toute la
+  # fenêtre : le clic tombait au milieu de la page).
+  read -r sx sy < <(sed -nE 's/^  recherche : .*\[champ .* centre-cg (-?[0-9]+) (-?[0-9]+).*/\1 \2/p' "$OUT/$1-report.txt" | head -1)
   if [[ -z "${sx:-}" ]]; then
-    read -r sx sy < <(sed -nE 's/^  recherche : [^(]*écran .* centre-cg (-?[0-9]+) (-?[0-9]+).*/\1 \2/p' "$OUT/$1-report.txt" | head -1)
+    read -r sx sy < <(grep -v 'SearchFocusGuard' "$OUT/$1-report.txt" \
+      | sed -nE 's/^  recherche : [A-Za-z_]*Search[A-Za-z_]* .*écran .* centre-cg (-?[0-9]+) (-?[0-9]+).*/\1 \2/p' | head -1)
   fi
   echo "fenêtre en $ox,$oy · recherche en ${sx:-?},${sy:-?}" >> "$f"
   [[ -z "${sx:-}" ]] && { echo "recherche introuvable dans le rapport" >> "$f"; return; }

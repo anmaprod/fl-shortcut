@@ -10,7 +10,9 @@
 // observateurs de la fenêtre et un moniteur local (clics et touches de cette fenêtre seulement), retirés avec la vue.
 // La main est reprise des deux côtés (25/10, « toujours là ») : par AppKit (la fenêtre la reprend) et par SwiftUI
 // (`release`, qui met `searchFocused` à faux sur macOS 15 et plus : SwiftUI pouvait la lui redonner aussitôt). La
-// recherche est reconnue même quand le champ qui a la main n'en est qu'une partie (dessinée par SwiftUI).
+// recherche est reconnue même quand le champ qui a la main n'en est qu'une partie (dessinée par SwiftUI). Celle de
+// SwiftUI sur macOS 26 n'est pas une recherche d'AppKit (`AppKitSearchField`) : la garde ne la voyait pas du tout,
+// d'où le bug resté sur le Mac du propriétaire ; elle est reconnue à son nom.
 import AppKit
 import SwiftUI
 
@@ -133,16 +135,20 @@ struct SearchFocusGuard: NSViewRepresentable {
             return false
         }
 
-        /// Une recherche d'AppKit (ou un champ dessiné comme elle).
+        /// Une recherche d'AppKit, un champ dessiné comme elle, ou celle de SwiftUI : sur macOS 26, `.searchable` pose
+        /// un `AppKitSearchField` (loupe et ✕ dessinées par SwiftUI), que la garde ne reconnaissait pas (mesure de la
+        /// CI du 25/10) : reconnue à son nom de classe, sans ses paramètres (`Hôte<…SearchField…>` n'en est pas une).
         static func isSearchView(_ view: NSView) -> Bool {
-            view is NSSearchField || (view as? NSTextField)?.cell is NSSearchFieldCell
+            if view is NSSearchField || (view as? NSTextField)?.cell is NSSearchFieldCell { return true }
+            let name = String(describing: type(of: view))
+            return name.prefix { $0 != "<" }.contains("SearchField")
         }
 
         /// Un clic tombe dans une recherche (ou dans son texte en cours d'édition).
         static func searchField(at point: NSPoint, in window: NSWindow) -> Bool {
             guard let frame = window.contentView?.superview, var view = frame.hitTest(point) else { return false }
             while true {
-                if view is NSSearchField || isSearchEditor(view) { return true }
+                if isSearchEditor(view) { return true }
                 guard let parent = view.superview else { return false }
                 view = parent
             }

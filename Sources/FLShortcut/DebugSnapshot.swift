@@ -145,8 +145,11 @@ enum DebugSnapshot {
         var s = ""
         for view in found.prefix(10) {
             let box = w.convertToScreen(view.convert(view.bounds, to: nil))
-            s += "  recherche : \(type(of: view))\(view.isHiddenOrHasHiddenAncestor ? " (cachée)" : "") écran \(rect(box))"
-                + " centre-cg \(Int(box.midX)) \(Int(height - box.midY))\n"
+            // Sorte de vue (l'essai de la CI clique au centre du premier champ reconnu par la garde).
+            let kind = view is NSSearchField ? "NSSearchField" : view is NSTextField ? "NSTextField" : "vue"
+            let known = SearchFocusGuard.GuardView.isSearchView(view) ? " [champ \(kind)]" : " [\(kind)]"
+            s += "  recherche : \(type(of: view))\(view.isHiddenOrHasHiddenAncestor ? " (cachée)" : "")\(known) écran "
+                + "\(rect(box)) centre-cg \(Int(box.midX)) \(Int(height - box.midY))\n"
         }
         func chain(_ start: NSView?) -> String {
             var names: [String] = []
