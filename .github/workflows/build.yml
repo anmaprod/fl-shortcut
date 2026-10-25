@@ -51,8 +51,7 @@ jobs:
 
   windows-core:
     name: Cœur Windows (tests .NET)
-    # Windows en pause (l'utilisateur : « restons focus sur Mac ») : seulement pour une publication (tag v*).
-    if: startsWith(github.ref, 'refs/tags/v')
+    # Version Windows reprise le 25/10 (demande du propriétaire) : compilée et essayée à chaque envoi.
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -63,7 +62,6 @@ jobs:
 
   windows:
     name: App Windows (compilation)
-    if: startsWith(github.ref, 'refs/tags/v')
     runs-on: windows-2025
     needs: [script-fl, windows-core]
     steps:
