@@ -97,6 +97,19 @@ jobs:
           & $iscc "/DAppVersion=$version" "/DDistDir=$PWD\dist" windows/installer/FLShortcut.iss
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           Get-FileHash dist/FLShortcuts-Windows-Setup.exe, dist/*.zip -Algorithm SHA256 | ForEach-Object { "$($_.Hash.ToLower())  $(Split-Path $_.Path -Leaf)" } | Out-File -Encoding ascii dist/FLShortcuts-win.sha256
+      - name: Photos de l'Organiser (mode photos, sons d'exemple, rien n'est envoyé à FL)
+        continue-on-error: true      # photos à relire : n'empêchent jamais la publication
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force dist/photos-windows | Out-Null
+          $app = Start-Process -FilePath dist/win-x64/FLShortcut.exe -ArgumentList '--photos', "$PWD\dist\photos-windows" -PassThru
+          if (-not $app.WaitForExit(120000)) { $app.Kill(); Write-Output "::warning::mode photos arrêté au bout de 2 min" }
+          Get-ChildItem dist/photos-windows | ForEach-Object { "$($_.Name)  $($_.Length) octets" }
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: FLShortcuts-windows-photos
+          path: dist/photos-windows
+          if-no-files-found: ignore
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: FLShortcuts-windows

@@ -58,13 +58,17 @@ internal sealed class OrganizerWindow : Window
     private bool _closing;
     private SoundFamily? _dragging;
 
-    private OrganizerWindow(AppController app)
+    /// Mode photos (CI) : un écran donné, avec des sons d'exemple ; rien n'est envoyé à FL.
+    public static OrganizerWindow Demo(AppController app, string screen) => new(app, screen);
+
+    private OrganizerWindow(AppController app, string? demo = null)
     {
         _app = app;
         _hwnd = WinRT.Interop.WindowNative.GetWindowHandle(this);
         Title = Loc.T("Organiser le projet");
-        if (MicaController.IsSupported()) SystemBackdrop = new MicaBackdrop { Kind = MicaKind.Base };
-        else if (DesktopAcrylicController.IsSupported()) SystemBackdrop = new DesktopAcrylicBackdrop();
+        // Les photos ne voient pas le fond Mica : fond uni pour elles.
+        if (demo is null && MicaController.IsSupported()) SystemBackdrop = new MicaBackdrop { Kind = MicaKind.Base };
+        else if (demo is null && DesktopAcrylicController.IsSupported()) SystemBackdrop = new DesktopAcrylicBackdrop();
         var scale = Win32.GetDpiForWindow(_hwnd) / 96.0;
         AppWindow.Resize(new Windows.Graphics.SizeInt32((int)(580 * scale), (int)(760 * scale)));
         if (AppWindow.Presenter is OverlappedPresenter presenter)
@@ -107,7 +111,8 @@ internal sealed class OrganizerWindow : Window
             OrganizerClosed?.Invoke();
         };
         Render();
-        _controller.Start();
+        if (demo is null) _controller.Start();
+        else _controller.ShowDemo(demo);
     }
 
     // ---------- Petits morceaux ----------

@@ -139,8 +139,10 @@ internal sealed class FlAudioCapture : IAudioSource, IDisposable
             Marshal.StructureToPtr(parameters, blob, false);
             Marshal.StructureToPtr(new Wasapi.PropVariantBlob { vt = Wasapi.VT_BLOB, cbSize = (uint)size, pBlobData = blob }, variant, false);
             var handler = new Wasapi.ActivationHandler();
-            Wasapi.ActivateAudioInterfaceAsync(Wasapi.VirtualProcessLoopback, Wasapi.IID_IAudioClient, variant, handler, out _);
-            if (!handler.Done.Wait(TimeSpan.FromSeconds(5))) return null;
+            Wasapi.ActivateAudioInterfaceAsync(Wasapi.VirtualProcessLoopback, Wasapi.IID_IAudioClient, variant, handler, out var operation);
+            var done = handler.Done.Wait(TimeSpan.FromSeconds(5));
+            GC.KeepAlive(operation);                    // vivante jusqu'à la réponse de Windows
+            if (!done) return null;
             if (handler.Result < 0 || handler.Client is null) return null;
             var client = handler.Client;
             // Pas de format « mixé » pour ce flux : on demande le nôtre (flottants, 48 kHz, stéréo), converti par Windows.
