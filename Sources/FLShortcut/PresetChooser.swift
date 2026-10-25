@@ -161,7 +161,10 @@ enum PresetSelfTest {
     static func runIfRequested() {
         guard let flag = CommandLine.arguments.firstIndex(of: "--selftest-preset") else { return }
         // Lancé par `open` (seul moyen d'être au premier plan comme FL) : la sortie va dans le fichier donné.
-        if let out = CommandLine.arguments.dropFirst(flag + 1).first, !out.hasPrefix("-") { freopen(out, "w", stdout) }
+        if let out = CommandLine.arguments.dropFirst(flag + 1).first, !out.hasPrefix("-") {
+            guard out.hasSuffix(".txt") else { exit(2) }          // un rapport seulement, jamais un autre fichier
+            freopen(out, "w", stdout)
+        }
         setvbuf(stdout, nil, _IOLBF, 0)
         guard CGPreflightPostEventAccess() else {
             print("SKIP: pas d'autorisation d'envoi d'événements pour ce programme")

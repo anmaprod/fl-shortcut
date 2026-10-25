@@ -20,10 +20,15 @@ enum MacroSelfTest {
     static func runIfRequested() {
         let args = CommandLine.arguments
         guard let i = args.firstIndex(of: "--selftest-macro"), args.count > i + 3 else { return }
+        // Un rapport .txt seulement (jamais un autre fichier écrasé) ; touches et clics envoyés au seul FL simulé de
+        // l'essai (ce même programme, --fake-fl) : un autre programme ne peut pas faire taper l'app, avec ses
+        // autorisations, dans l'app de son choix (audit du 25/10).
+        guard args[i + 1].hasSuffix(".txt") else { exit(2) }
         freopen(args[i + 1], "w", stdout)
         setvbuf(stdout, nil, _IOLBF, 0)
         let statePath = args[i + 2]
         guard let pid = Int32(args[i + 3]) else { print("FAIL: pid invalide"); exit(1) }
+        guard SelfTestTarget.isFakeFL(pid) else { print("FAIL: ce pid n'est pas le FL simulé de l'essai"); exit(1) }
         guard CGPreflightPostEventAccess() else {
             print("SKIP: pas d'autorisation d'envoi d'événements pour ce programme")
             exit(0)
@@ -605,5 +610,15 @@ enum MacroSelfTest {
             print("ÉCHEC rejeu des clics et des touches : " + problems.joined(separator: " ; "))
         }
         return problems.isEmpty
+    }
+}
+
+/// Cible des essais de la CI : seulement un FL simulé, c'est-à-dire ce même programme lancé avec --fake-fl.
+enum SelfTestTarget {
+    static func isFakeFL(_ pid: Int32, ownPath: String? = Bundle.main.executablePath,
+                         pathOf: (Int32) -> String? = { SingleInstance.processPath($0) }) -> Bool {
+        guard pid > 0, pid != getpid(), let ownPath, let path = pathOf(pid) else { return false }
+        return URL(fileURLWithPath: path).resolvingSymlinksInPath().path
+            == URL(fileURLWithPath: ownPath).resolvingSymlinksInPath().path
     }
 }

@@ -69,6 +69,30 @@ enum CopyApprovalError: Error, Equatable {
 enum CopyApprovalRules {
     static func same(_ a: URL, _ b: URL) -> Bool { a.standardizedFileURL.path == b.standardizedFileURL.path }
 
+    /// Le nom d'un projet sans « .flp » ni son « _N » de version (« Nuit_3.flp » → « Nuit »).
+    static func stem(_ url: URL) -> String {
+        let name = url.deletingPathExtension().lastPathComponent
+        guard let range = name.range(of: "_[0-9]+$", options: .regularExpression), range.lowerBound > name.startIndex
+        else { return name }
+        return String(name[..<range.lowerBound])
+    }
+
+    /// Une copie en attente qu'on peut toucher : rien que des projets .flp, dans le dossier de l'original, et des
+    /// versions « _N » du même projet. La liste est gardée dans les réglages de l'app, qu'un autre programme du Mac
+    /// peut écrire : sans cette vérification, il lui faisait mettre à la Corbeille, renommer ou ouvrir n'importe quel
+    /// fichier (audit du 25/10).
+    static func isSafe(_ p: PendingCopy) -> Bool {
+        let folder = p.original.deletingLastPathComponent().standardizedFileURL.path
+        func ok(_ url: URL, version: Bool) -> Bool {
+            url.isFileURL && url.pathExtension.lowercased() == "flp"
+                && url.deletingLastPathComponent().standardizedFileURL.path == folder
+                && stem(url) == stem(p.original)
+                && (!version || url.deletingPathExtension().lastPathComponent != stem(url))
+        }
+        return ok(p.original, version: false) && ok(p.copy, version: true) && !same(p.original, p.copy)
+            && p.older.allSatisfy { ok($0, version: true) && !same($0, p.original) }
+    }
+
     /// La liste après une nouvelle copie rangée de `original`. Rangé de nouveau depuis une version organisée en
     /// attente (ou depuis son original), elle la remplace et garde l'original d'origine ; l'ancienne version
     /// organisée partira à la Corbeille avec la réponse.
@@ -92,7 +116,7 @@ enum CopyApprovalRules {
     /// l'original ne peut pas aller à la Corbeille ; un renommage raté remet l'original à sa place.
     @discardableResult
     static func validate(_ p: PendingCopy, files: CopyFiles) throws -> URL {
-        guard files.exists(p.copy) else { throw CopyApprovalError.copyMissing }
+        guard isSafe(p), files.exists(p.copy) else { throw CopyApprovalError.copyMissing }
         var trashed: URL?
         if files.exists(p.original) {
             do {
@@ -113,6 +137,7 @@ enum CopyApprovalRules {
 
     /// « Retourner en arrière » : la version organisée et celles d'avant à la Corbeille ; l'original ne bouge pas.
     static func goBack(_ p: PendingCopy, files: CopyFiles) {
+        guard isSafe(p) else { return }
         for url in [p.copy] + p.older where files.exists(url) { _ = try? files.trash(url) }
     }
 }
@@ -132,7 +157,7 @@ final class CopyApproval: ObservableObject {
         self.defaults = defaults
         if let data = defaults.data(forKey: Self.key),
            let list = try? JSONDecoder().decode([PendingCopy].self, from: data) {
-            pending = list
+            pending = Array(list.filter(CopyApprovalRules.isSafe).prefix(20))
         }
     }
 
@@ -147,6 +172,7 @@ final class CopyApproval: ObservableObject {
     /// Une copie rangée vient d'être faite (et ouverte dans FL).
     func record(original: URL, copy: URL) {
         pending = CopyApprovalRules.recording(pending, original: original, copy: copy, date: Date())
+            .filter(CopyApprovalRules.isSafe)
         save()
     }
 
@@ -159,7 +185,7 @@ final class CopyApproval: ObservableObject {
     /// Les versions organisées qui ne sont plus là (déplacées, supprimées à la main) sont oubliées.
     func prune() {
         let before = pending.count
-        pending.removeAll { !files.exists($0.copy) }
+        pending.removeAll { !files.exists($0.copy) || !CopyApprovalRules.isSafe($0) }
         if pending.count != before { save() }
     }
 
@@ -234,6 +260,7 @@ enum CopyApprovalLive {
     /// la Corbeille une fois quittée. FL fermé : il est lancé sur le projet d'avant. Le projet d'avant disparu : rien
     /// n'est touché.
     static func goBack(_ p: PendingCopy, files: CopyFiles) -> CopyApprovalError? {
+        guard CopyApprovalRules.isSafe(p) else { return .copyMissing }
         guard files.exists(p.original) else { return .originalMissing }
         if OrganizerEnvironment.flPID() != nil {
             let showsCopy = flShows(p.copy)
@@ -242,7 +269,14 @@ enum CopyApprovalLive {
                 if showsCopy, !wait(seconds: 60, until: { !flShows(p.copy) }) { return .flBusy }
             }
         } else {
-            DispatchQueue.main.async { NSWorkspace.shared.open(p.original) }     // FL Studio, sur le projet d'avant
+            // FL Studio lui-même, sur le projet d'avant (jamais une autre app qui aurait pris les .flp).
+            guard let fl = NSWorkspace.shared.urlForApplication(withBundleIdentifier: "com.image-line.flstudio") else {
+                return .flBusy
+            }
+            DispatchQueue.main.async {
+                NSWorkspace.shared.open([p.original], withApplicationAt: fl, configuration: NSWorkspace.OpenConfiguration(),
+                                        completionHandler: nil)
+            }
         }
         CopyApprovalRules.goBack(p, files: files)
         MacroLog.shared.write("ORGANIZE", "organized copy discarded, previous project reopened (\(p.older.count) older)")

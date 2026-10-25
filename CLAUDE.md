@@ -17,6 +17,16 @@
 - Essais sur un projet de test seulement. Jamais de clé secrète Supabase ni de clé privée dans le dépôt. Pas
   d'identifiant de modèle dans les commits. Le bouton s'appelle « Organiser » (pas « Tout organiser »).
 
+## Sécurité (audit du 25/10, à garder)
+- Un autre programme du Mac peut écrire les réglages de l'app (`defaults`) et envoyer des notifications distribuées :
+  rien de sensible ne doit en dépendre. L'adresse du serveur du compte vient de l'Info.plist (les réglages seulement
+  pour une app compilée sans serveur, `CommunityConfig.resolve`) ; le mode capture (`debugSnapshots`) ne fait jamais
+  agir l'app avec ses autorisations (plus de « vrai clic » de l'app : les scripts de la CI cliquent eux-mêmes) ;
+  les modes d'essai de la CI ne visent que le faux FL (`SelfTestTarget`) et n'écrivent que leurs .txt/.json ; la liste
+  des versions organisées n'accepte que des .flp et leurs « _N » du même dossier (`CopyApprovalRules.isSafe`).
+- Déjà bon : touches et clics des macros au seul FL (devant), liste noire ⌘Q…, import borné, fichiers 0600 sans
+  lien symbolique, Trousseau « cet appareil seulement », HTTPS seulement, script FL signé (HMAC), aucune frappe gardée.
+
 ## Déjà fait (ne pas refaire)
 - Raccourcis, créateur de macros, compte et sauvegarde en ligne, Communauté, aide, désinstallation : voir HISTORIQUE.
 - Langue du Mac : toute l'app en anglais (`Resources/en.lproj`), français par défaut.

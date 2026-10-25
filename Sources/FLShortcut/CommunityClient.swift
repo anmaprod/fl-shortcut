@@ -6,18 +6,27 @@
 import Foundation
 
 /// Adresse du projet Supabase et sa clé publique (« anon », publique par conception : les règles du serveur
-/// protègent les données). Lues dans l'Info.plist (build.sh : FLS_SUPABASE_URL, FLS_SUPABASE_ANON_KEY), ou dans les
-/// réglages pour un essai (`defaults write app.flshortcut.FLShortcut communityURL …`).
+/// protègent les données). Lues dans l'Info.plist (build.sh : FLS_SUPABASE_URL, FLS_SUPABASE_ANON_KEY), scellée
+/// dans l'app signée. Les réglages (`defaults write app.flshortcut.FLShortcut communityURL …`) ne servent qu'à une
+/// app compilée sans serveur, pour un essai : sinon n'importe quel programme du Mac pouvait les écrire et envoyer le
+/// mot de passe, la session et la sauvegarde de l'utilisateur à son propre serveur (audit du 25/10).
 struct CommunityConfig: Equatable {
     let url: URL
     let anonKey: String
 
     static var current: CommunityConfig? {
-        let info = Bundle.main.infoDictionary
-        let defaults = UserDefaults.standard
-        let rawURL = defaults.string(forKey: "communityURL") ?? info?["FLSCommunityURL"] as? String ?? ""
-        let key = defaults.string(forKey: "communityAnonKey") ?? info?["FLSCommunityAnonKey"] as? String ?? ""
-        guard let url = URL(string: rawURL), url.scheme == "https", url.host != nil, !key.isEmpty else { return nil }
+        resolve(info: Bundle.main.infoDictionary, defaults: .standard)
+    }
+
+    /// Pur (testé) : l'adresse de l'app d'abord ; celle des réglages seulement si l'app n'en a pas. HTTPS seulement.
+    static func resolve(info: [String: Any]?, defaults: UserDefaults) -> CommunityConfig? {
+        let builtURL = info?["FLSCommunityURL"] as? String ?? ""
+        let builtKey = info?["FLSCommunityAnonKey"] as? String ?? ""
+        let built = !builtURL.isEmpty && !builtKey.isEmpty
+        let rawURL = built ? builtURL : defaults.string(forKey: "communityURL") ?? ""
+        let key = built ? builtKey : defaults.string(forKey: "communityAnonKey") ?? ""
+        guard let url = URL(string: rawURL), url.scheme == "https", url.host != nil, url.user == nil,
+              !key.isEmpty else { return nil }
         return CommunityConfig(url: url, anonKey: key)
     }
 }

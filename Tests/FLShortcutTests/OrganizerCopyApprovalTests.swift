@@ -154,6 +154,37 @@ final class OrganizerCopyApprovalTests: XCTestCase {
         XCTAssertNil(defaults.data(forKey: CopyApproval.key))
     }
 
+    /// Audit du 25/10 : la liste est dans les réglages de l'app, qu'un autre programme peut écrire. Seuls des projets
+    /// .flp et leurs versions « _N » du même dossier sont acceptés : jamais n'importe quel fichier mis à la Corbeille,
+    /// renommé ou ouvert.
+    func testOnlyProjectVersionsAreAccepted() throws {
+        let p = URL(fileURLWithPath: "/Users/moi/Projets")
+        func pending(_ original: String, _ copy: String, older: [String] = []) -> PendingCopy {
+            PendingCopy(original: p.appendingPathComponent(original), copy: p.appendingPathComponent(copy),
+                        older: older.map { p.appendingPathComponent($0) }, date: Date())
+        }
+        XCTAssertTrue(CopyApprovalRules.isSafe(pending("Nuit.flp", "Nuit_2.flp")))
+        XCTAssertTrue(CopyApprovalRules.isSafe(pending("Beat_7.flp", "Beat_8.flp")), "projet déjà numéroté")
+        XCTAssertTrue(CopyApprovalRules.isSafe(pending("Nuit.flp", "Nuit_3.flp", older: ["Nuit_2.flp"])))
+        XCTAssertFalse(CopyApprovalRules.isSafe(pending("Rapport.docx", "Rapport_2.docx")), "pas un projet")
+        XCTAssertFalse(CopyApprovalRules.isSafe(pending("Nuit.flp", "Autre_2.flp")), "pas une version du même projet")
+        XCTAssertFalse(CopyApprovalRules.isSafe(pending("Nuit.flp", "Nuit.flp")), "le même fichier")
+        XCTAssertFalse(CopyApprovalRules.isSafe(pending("Nuit.flp", "Nuit_2.flp", older: ["Nuit.flp"])))
+        XCTAssertFalse(CopyApprovalRules.isSafe(PendingCopy(original: p.appendingPathComponent("Nuit.flp"),
+                                                            copy: URL(fileURLWithPath: "/tmp/Nuit_2.flp"), date: Date())),
+                       "pas dans le dossier du projet")
+        XCTAssertFalse(CopyApprovalRules.isSafe(pending("Script.command", "Script_2.command")), "jamais un programme")
+
+        let suite = "approbation-\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let written = [pending("Nuit.flp", "Nuit_2.flp"), pending("Rapport.docx", "Rapport_2.docx")]
+        defaults.set(try JSONEncoder().encode(written), forKey: CopyApproval.key)
+        XCTAssertEqual(CopyApproval(defaults: defaults).pending.map(\.copy.lastPathComponent), ["Nuit_2.flp"],
+                       "une entrée écrite par un autre programme est ignorée")
+        XCTAssertThrowsError(try CopyApprovalRules.validate(pending("Rapport.docx", "Rapport_2.docx"), files: files()))
+    }
+
     /// La copie faite et ouverte dans FL est retenue, même si la suite s'est arrêtée en route.
     func testOrganizerReportsTheCopyItMade() {
         let original = URL(fileURLWithPath: "/p/Nuit.flp"), copy = URL(fileURLWithPath: "/p/Nuit_2.flp")

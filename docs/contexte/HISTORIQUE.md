@@ -359,3 +359,18 @@ entrée 1 ≈ 0,5 s.
   Puis (propriétaire) : « Tu valides la version organisée ? », et « Retourner en arrière » à la place de « Garder
   l'original » : la version organisée part à la Corbeille et FL rouvre toujours le projet d'avant (même s'il montrait
   autre chose ; FL fermé : lancé sur ce projet). Projet d'avant disparu : rien n'est touché, la version reste.
+
+## 25 octobre : sécurité (demande du propriétaire : « pas de hackers qui s'en servent pour accéder à des infos perso »)
+- Revue de tout ce qu'un autre programme du Mac pourrait détourner (l'app a l'Accessibilité, le son du système,
+  parfois l'écran, un compte en ligne). Trouvé et corrigé :
+  - l'adresse du serveur du compte pouvait être remplacée par un simple `defaults write` : un logiciel malveillant
+    recevait alors le mot de passe à la connexion, la session (jeton du Trousseau) et la sauvegarde. Maintenant
+    l'adresse scellée dans l'app gagne toujours (`CommunityConfig.resolve`, test) ;
+  - le mode capture (activable par `defaults`) acceptait un « vrai clic » dans la fenêtre de l'app, fait avec ses
+    autorisations : retiré (la CI clique elle-même, `fls_click`, `ui-pilote.sh click`) ;
+  - les modes d'essai de la CI (`--selftest-macro`) envoyaient touches et clics au PID donné, n'importe quelle app :
+    seulement le faux FL de l'essai maintenant (ce même programme), rapports .txt et état .json seulement ;
+  - la liste des versions organisées (réglages) pouvait désigner n'importe quel fichier à mettre à la Corbeille,
+    renommer ou ouvrir : seulement des .flp et leurs « _N » du même dossier ; le projet d'avant s'ouvre dans FL Studio.
+- Vérifié bon : commandes shell et AppleScript (chemins entre guillemets, jamais une donnée extérieure), macros (au
+  seul FL, devant, liste noire, import borné), script FL (fonctions fixes, messages signés HMAC), Trousseau, HTTPS.

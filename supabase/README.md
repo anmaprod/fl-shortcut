@@ -80,7 +80,8 @@ fichier).
 noms d'utilisateur, rien de lisible sans compte, publication en son nom seulement, partage non modifiable, suppression
 par l'auteur ou un administrateur, signalements lus par les administrateurs seulement, 20 partages par jour.
 
-Essai sans recompiler (cette machine seulement) :
+Essai sans recompiler (cette machine seulement, et seulement avec une app compilée sans serveur : une app qui a
+le sien n'écoute jamais ces réglages, qu'un autre programme pourrait écrire) :
 
 ```
 defaults write app.flshortcut.FLShortcut communityURL "https://xxxx.supabase.co"

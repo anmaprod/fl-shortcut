@@ -8,7 +8,8 @@
 #   select <page>      general, transport, patterns, playlist, pianoRoll, channelRack, mixer, browser, custom, macros
 #   search <texte>     recherche (texte vide : "" pour l'effacer)
 #   macro open|close   créateur sur une macro d'exemple jamais enregistrée / retour aux raccourcis
-#   click X,Y          vrai clic à X,Y (points depuis le coin haut-gauche de la fenêtre principale)
+#   click X Y          vrai clic à X,Y (points de l'écran, origine en haut à gauche) envoyé par ce script : le
+#                      Terminal doit avoir l'autorisation Accessibilité (l'app n'accepte plus d'ordre de clic)
 #   resize L,H         taille du contenu de la fenêtre principale (points)
 #   snapshot <nom>     photo des fenêtres de l'app → ~/Library/Caches/app.flshortcut.FLShortcut/<nom>-<n>.png
 #                      (+ <nom>-tailles.txt)
@@ -53,7 +54,23 @@ case "$cmd" in
   select) envoie select "$arg"; sleep 1 ;;
   search) envoie search "$arg"; sleep 1 ;;
   macro) envoie macro "$arg"; sleep 3 ;;
-  click) envoie click "$arg"; sleep 1 ;;
+  click)
+    CLICK="$OUT/fls_click"
+    if [[ ! -x "$CLICK" ]]; then
+      cat > "$CLICK.swift" <<'SWIFT'
+import CoreGraphics
+import Foundation
+let n = CommandLine.arguments.dropFirst().compactMap { Double($0) }
+guard n.count == 2 else { print("usage : fls_click x y"); exit(2) }
+let p = CGPoint(x: n[0], y: n[1])
+for type in [CGEventType.mouseMoved, .leftMouseDown, .leftMouseUp] {
+    CGEvent(mouseEventSource: nil, mouseType: type, mouseCursorPosition: p, mouseButton: .left)?.post(tap: .cghidEventTap)
+    usleep(80_000)
+}
+SWIFT
+      swiftc -O "$CLICK.swift" -o "$CLICK" 2>/dev/null || { echo "swiftc indisponible"; exit 1; }
+    fi
+    "$CLICK" $arg ${3-}; sleep 1 ;;
   resize) envoie resize "$arg"; sleep 1 ;;
   snapshot)
     rm -f "$CACHE/$arg"-*.png

@@ -17,6 +17,7 @@ enum FakeFL {
     static func runIfRequested() {
         guard let i = CommandLine.arguments.firstIndex(of: "--fake-fl") else { return }
         let path = CommandLine.arguments.dropFirst(i + 1).first ?? (NSTemporaryDirectory() + "fakefl.json")
+        guard path.hasSuffix(".json") else { exit(2) }            // son état seulement, jamais un autre fichier écrasé
         let app = NSApplication.shared
         app.setActivationPolicy(.regular)
         let c = FakeFLController(statePath: path, oHighlights: CommandLine.arguments.contains("--o-highlights"))

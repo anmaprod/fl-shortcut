@@ -243,14 +243,32 @@ final class CommunityTests: XCTestCase {
         XCTAssertEqual(msg("", 429), "Trop de tentatives : réessaie dans quelques minutes.")
     }
 
-    func testConfigNeedsHTTPS() {
-        let d = UserDefaults.standard
-        defer { d.removeObject(forKey: "communityURL"); d.removeObject(forKey: "communityAnonKey") }
+    func testConfigNeedsHTTPS() throws {
+        let suite = "config-\(UUID().uuidString)"
+        let d = try XCTUnwrap(UserDefaults(suiteName: suite))
+        defer { d.removePersistentDomain(forName: suite) }
         d.set("http://exemple.supabase.co", forKey: "communityURL")
         d.set("cle", forKey: "communityAnonKey")
-        XCTAssertNil(CommunityConfig.current, "jamais en clair")
+        XCTAssertNil(CommunityConfig.resolve(info: nil, defaults: d), "jamais en clair")
         d.set("https://exemple.supabase.co", forKey: "communityURL")
-        XCTAssertEqual(CommunityConfig.current?.anonKey, "cle")
+        XCTAssertEqual(CommunityConfig.resolve(info: nil, defaults: d)?.anonKey, "cle", "app sans serveur : essai")
+    }
+
+    /// Audit du 25/10 : un autre programme du Mac écrit une adresse dans les réglages de l'app ; l'app qui a la sienne
+    /// ne l'écoute jamais (sinon mot de passe, session et sauvegarde partaient chez lui).
+    func testBuiltInServerCannotBeRedirected() throws {
+        let suite = "config-\(UUID().uuidString)"
+        let d = try XCTUnwrap(UserDefaults(suiteName: suite))
+        defer { d.removePersistentDomain(forName: suite) }
+        d.set("https://pirate.example", forKey: "communityURL")
+        d.set("cle-pirate", forKey: "communityAnonKey")
+        let info: [String: Any] = ["FLSCommunityURL": "https://vrai.supabase.co", "FLSCommunityAnonKey": "cle"]
+        let config = CommunityConfig.resolve(info: info, defaults: d)
+        XCTAssertEqual(config?.url.host, "vrai.supabase.co")
+        XCTAssertEqual(config?.anonKey, "cle")
+        XCTAssertNil(CommunityConfig.resolve(info: ["FLSCommunityURL": "https://moi:secret@vrai.supabase.co",
+                                                    "FLSCommunityAnonKey": "cle"], defaults: d),
+                     "jamais d'identifiants dans l'adresse")
     }
 
     func testDayFormat() {

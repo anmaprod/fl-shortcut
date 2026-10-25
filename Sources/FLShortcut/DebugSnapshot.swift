@@ -1,7 +1,9 @@
 // Captures de l'interface pour le développement (désactivées par défaut) :
 //   defaults write app.flshortcut.FLShortcut debugSnapshots -bool YES
 // puis des notifications distribuées ouvrent l'éditeur, choisissent une section et photographient les fenêtres
-// de l'app (ses propres fenêtres : aucune autorisation d'enregistrement de l'écran nécessaire).
+// de l'app (ses propres fenêtres : aucune autorisation d'enregistrement de l'écran nécessaire). N'importe quel
+// programme du Mac peut écrire ce réglage et envoyer ces notifications : aucune ne fait agir l'app avec ses
+// autorisations (le « vrai clic » de l'app est retiré, audit du 25/10 : la CI clique elle-même, scripts/).
 import AppKit
 import Combine
 import SwiftUI
@@ -15,8 +17,6 @@ enum DebugSnapshot {
     /// Texte de recherche de l'éditeur (mesure de la mémoire avec presque toutes les lignes affichées).
     static let search = Notification.Name("app.flshortcut.debug.search")
     static let snapshot = Notification.Name("app.flshortcut.debug.snapshot")
-    /// Vrai clic de souris à « x,y » (points, depuis le coin haut-gauche de la fenêtre de l'éditeur).
-    static let click = Notification.Name("app.flshortcut.debug.click")
     /// Taille « l,h » (points) de la fenêtre de l'éditeur, pour les captures sur un petit écran de test.
     static let resize = Notification.Name("app.flshortcut.debug.resize")
     /// Créateur de macros : « open » l'ouvre sur une macro d'exemple jamais enregistrée, « close » le ferme.
@@ -80,11 +80,6 @@ enum DebugSnapshot {
         observer = DistributedNotificationCenter.default().addObserver(forName: snapshot, object: nil, queue: .main) { note in
             capture(tag: note.object as? String ?? "capture")
         }
-        clickObserver = DistributedNotificationCenter.default().addObserver(forName: click, object: nil, queue: .main) { note in
-            let parts = (note.object as? String ?? "").split(separator: ",").compactMap { Double($0) }
-            guard parts.count == 2 else { return }
-            realClick(x: parts[0], y: parts[1])
-        }
         resizeObserver = DistributedNotificationCenter.default().addObserver(forName: resize, object: nil, queue: .main) { note in
             let parts = (note.object as? String ?? "").split(separator: ",").compactMap { Double($0) }
             guard parts.count == 2, (400...3000).contains(parts[0]), (300...2000).contains(parts[1]),
@@ -96,7 +91,6 @@ enum DebugSnapshot {
         }
     }
 
-    private static var clickObserver: NSObjectProtocol?
     private static var resizeObserver: NSObjectProtocol?
     private static var reportObserver: NSObjectProtocol?
 
@@ -114,7 +108,7 @@ enum DebugSnapshot {
         let hidden = NSApp.windows.filter { !$0.isVisible }.map { String(describing: type(of: $0)) }
         var text = "editorModels=\(MacroEditorModel.liveCount) windows=\(NSApp.windows.count) "
             + "visible=\(NSApp.windows.count - hidden.count) hidden=\(hidden.joined(separator: ","))\n"
-        // Envoi d'événements (vrais clics de « debug.click ») : refusé, ils n'arrivent nulle part.
+        // Envoi d'événements : l'app y a-t-elle droit (sur la CI : non ; les scripts y cliquent eux-mêmes).
         text += "envoi d'événements : \(CGPreflightPostEventAccess() ? "autorisé" : "REFUSÉ")\n"
         // « Réduire les animations » de macOS : les transitions deviennent de simples fondus courts.
         text += "animations réduites : \(NSWorkspace.shared.accessibilityDisplayShouldReduceMotion ? "oui" : "non")\n"
@@ -276,29 +270,6 @@ enum DebugSnapshot {
                 + "dans la fenêtre \(rect(inWindow))\n"
         }
         return s
-    }
-
-    /// Point de l'écran (origine en haut à gauche, comme CGEvent) d'un point « x,y » de notre fenêtre, mise devant.
-    private static func screenPoint(x: Double, y: Double) -> CGPoint? {
-        guard let w = NSApp.windows.first(where: { $0.isVisible && $0.frame.width > 400 }),
-              let screenHeight = NSScreen.screens.first?.frame.height,
-              (0...w.frame.width).contains(x), (0...w.frame.height).contains(y) else { return nil }   // notre fenêtre seulement
-        NSApp.activate(ignoringOtherApps: true)
-        w.makeKeyAndOrderFront(nil)
-        return CGPoint(x: w.frame.minX + x, y: screenHeight - (w.frame.maxY - y))
-    }
-
-    private static func post(_ type: CGEventType, _ point: CGPoint) {
-        CGEvent(mouseEventSource: nil, mouseType: type, mouseCursorPosition: point, mouseButton: .left)?
-            .post(tap: .cghidEventTap)
-    }
-
-    private static func realClick(x: Double, y: Double) {
-        guard let point = screenPoint(x: x, y: y) else { return }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-            post(.leftMouseDown, point)
-            post(.leftMouseUp, point)
-        }
     }
 
     /// Une image PNG par fenêtre visible, dans ~/Library/Caches/app.flshortcut.FLShortcut/.
