@@ -30,7 +30,8 @@ public partial class App : Application
         var photos = Array.FindIndex(command, a => string.Equals(a, "--photos", StringComparison.OrdinalIgnoreCase));
         if (photos >= 0 && photos + 1 < command.Length)
         {
-            Photos.Take(command[photos + 1], new AppController(Microsoft.UI.Dispatching.DispatcherQueue.GetForCurrentThread()));
+            var ui = Microsoft.UI.Dispatching.DispatcherQueue.GetForCurrentThread();
+            Photos.Take(command[photos + 1], () => new AppController(ui));
             return;
         }
         _single = new Mutex(initiallyOwned: true, @"Local\FLShortcut.SingleInstance", out var created);

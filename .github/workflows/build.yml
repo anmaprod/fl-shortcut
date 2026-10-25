@@ -104,7 +104,9 @@ jobs:
           New-Item -ItemType Directory -Force dist/photos-windows | Out-Null
           $app = Start-Process -FilePath dist/win-x64/FLShortcut.exe -ArgumentList '--photos', "$PWD\dist\photos-windows" -PassThru
           if (-not $app.WaitForExit(120000)) { $app.Kill(); Write-Output "::warning::mode photos arrêté au bout de 2 min" }
+          "code de sortie : $($app.ExitCode)"
           Get-ChildItem dist/photos-windows | ForEach-Object { "$($_.Name)  $($_.Length) octets" }
+          Get-Content dist/photos-windows/photos-journal.txt -ErrorAction SilentlyContinue
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: FLShortcuts-windows-photos

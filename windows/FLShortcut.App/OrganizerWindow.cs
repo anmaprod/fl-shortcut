@@ -117,7 +117,16 @@ internal sealed class OrganizerWindow : Window
 
     // ---------- Petits morceaux ----------
 
-    private static Brush Res(string key) => (Brush)Application.Current.Resources[key];
+    /// Pinceau du thème ; clé absente (autre version du Windows App SDK) : gris, au lieu de faire tomber la fenêtre.
+    private static Brush Res(string key)
+    {
+        try
+        {
+            if (Application.Current.Resources[key] is Brush brush) return brush;
+        }
+        catch (Exception) { }                     // KeyNotFoundException ou COMException selon la projection
+        return new SolidColorBrush(Microsoft.UI.Colors.Gray);
+    }
 
     private static SolidColorBrush Fill(RgbColor c, byte alpha = 0xFF) => new(Color.FromArgb(alpha, c.R, c.G, c.B));
 

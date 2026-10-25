@@ -13,27 +13,46 @@ internal static class Photos
 {
     private static readonly string[] Screens = { "installer", "attente", "aide", "ecoute", "apercu", "fini" };
 
-    public static async void Take(string folder, AppController app)
+    /// `app` est créé ici (son échec est noté comme le reste) ; le journal « photos-journal.txt » dit chaque étape.
+    public static async void Take(string folder, Func<AppController> app)
     {
+        var journal = new List<string>();
+        void Note(string line) => journal.Add($"{DateTime.UtcNow:HH:mm:ss.fff} {line}");
         try
         {
             if (!Directory.Exists(folder)) return;
+            Note("début");
+            // Une fenêtre fermée avant l'ouverture de la suivante ne doit pas arrêter l'appli.
+            Application.Current.DispatcherShutdownMode = DispatcherShutdownMode.OnExplicitShutdown;
+            Application.Current.UnhandledException += (_, e) =>
+            {
+                Note("exception : " + e.Exception);
+                try { File.WriteAllLines(Path.Combine(folder, "photos-journal.txt"), journal); } catch (IOException) { }
+            };
+            var controller = app();
+            Note("appli prête");
             foreach (var screen in Screens)
             {
-                var window = OrganizerWindow.Demo(app, screen);
+                var window = OrganizerWindow.Demo(controller, screen);
                 window.Activate();
+                Note($"{screen} : fenêtre ouverte");
                 await Task.Delay(1500);
                 if (window.Content is UIElement content)
+                {
                     await Save(content, Path.Combine(folder, $"organiser-{screen}.png"));
+                    Note($"{screen} : photo");
+                }
                 window.Close();
             }
         }
         catch (Exception e)
         {
-            Console.Error.WriteLine("photos : " + e.GetType().Name + " " + e.Message);
+            Note("échec : " + e);
         }
         finally
         {
+            try { if (Directory.Exists(folder)) File.WriteAllLines(Path.Combine(folder, "photos-journal.txt"), journal); }
+            catch (IOException) { }
             Application.Current.Exit();
         }
     }
