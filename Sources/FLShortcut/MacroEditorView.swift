@@ -200,6 +200,7 @@ private struct MacroStepsPane: View {
         List(selection: $model.selection) {
             ForEach(model.rows) { row in
                 MacroStepRowView(row: row, status: status(row), current: monitor.current == row.blockID && row.kind == .block,
+                                 selected: model.selection == row.id,
                                  onToggle: { on in model.setEnabled(row.blockID, on) })
                     .equatable()
                     .tag(row.id)
@@ -417,10 +418,12 @@ private struct MacroStepRowView: View, Equatable {
     let row: MacroStepRow
     let status: MacroRunMonitor.Status?
     let current: Bool
+    /// Bloc choisi : il ne s'allume pas au survol (le fond de la sélection, plus grand, dépassait du contour).
+    let selected: Bool
     let onToggle: (Bool) -> Void
 
     static func == (a: MacroStepRowView, b: MacroStepRowView) -> Bool {
-        a.row == b.row && a.status == b.status && a.current == b.current
+        a.row == b.row && a.status == b.status && a.current == b.current && a.selected == b.selected
     }
 
     private var indent: CGFloat { CGFloat(row.depth) * 22 }
@@ -465,7 +468,7 @@ private struct MacroStepRowView: View, Equatable {
         .padding(.vertical, 3)
         .opacity(row.enabled ? 1 : 0.45)
         .background(stateBackground)
-        .menuHover(tint: tint, cornerRadius: 8)
+        .menuHover(tint: tint, cornerRadius: 8, enabled: !selected)
         .accessibilityElement(children: .combine)
         .accessibilityLabel(accessibilityText)
     }

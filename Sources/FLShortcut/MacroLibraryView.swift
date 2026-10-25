@@ -564,6 +564,7 @@ struct LibraryMacroFields: View {
 /// n'est pas redessinée en entier quand une macro change).
 struct MacroSidebarRow: View {
     @ObservedObject var library: MacroLibraryStore
+    var selected = false
 
     var body: some View {
         Label {
@@ -571,7 +572,7 @@ struct MacroSidebarRow: View {
         } icon: {
             SectionIcon(symbol: SidebarItem.macros.symbol, tint: SidebarItem.macros.tint)
         }
-        .sidebarHover(SidebarItem.macros.tint)
+        .sidebarHover(SidebarItem.macros.tint, selected: selected)
         .badge(library.macros.count)
         .help(MacroPageText.subtitle)
     }

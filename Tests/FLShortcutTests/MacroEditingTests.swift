@@ -273,4 +273,13 @@ final class MacroEditingTests: XCTestCase {
         XCTAssertEqual(RecentColors.list(defaults: defaults), [RGBColor(r: 0xE0, g: 0x45, b: 0x3A)])
     }
 
+    /// « Choisir… » du preset : la boîte s'ouvre directement dans Mixer presets de FL, sinon au plus proche.
+    func testPresetChooserOpensInMixerPresets() {
+        let home = URL(fileURLWithPath: "/Users/moi")
+        let all = PresetPanel.startFolder(home: home) { _ in true }
+        XCTAssertEqual(all?.path, "/Users/moi/Documents/Image-Line/FL Studio/Presets/Mixer presets")
+        let noMixer = PresetPanel.startFolder(home: home) { !$0.path.hasSuffix("Mixer presets") }
+        XCTAssertEqual(noMixer?.path, "/Users/moi/Documents/Image-Line/FL Studio/Presets")
+        XCTAssertNil(PresetPanel.startFolder(home: home) { _ in false })
+    }
 }

@@ -461,12 +461,4 @@ final class OrganizerWindowTests: XCTestCase {
         XCTAssertEqual(spec.category, .fl)
         XCTAssertTrue(PaletteCatalog.items(layout: FakeLayout.qwerty).contains { $0.type == .organize && !$0.soon })
     }
-
-    func testTemplateHasOrganize() throws {
-        let gallery = MacroTemplates.gallery(layout: FakeLayout.qwerty)
-        let template = try XCTUnwrap(gallery.first { $0.id == MacroTemplates.organizeID })
-        let doc = template.make(FakeLayout.qwerty)
-        XCTAssertEqual(doc.blocks.map(\.body), [.organize])
-        XCTAssertNil(MacroProgram.compile(doc, forbidden: .physical).problem)
-    }
 }

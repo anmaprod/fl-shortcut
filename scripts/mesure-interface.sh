@@ -66,6 +66,21 @@ post(.leftMouseUp)
 SWIFT
 swiftc -O "$CLICK.swift" -o "$CLICK" 2>/dev/null || echo "fls_click : compilation impossible" >&2
 
+# Souris posée sans clic (survol des lignes) : MOVE x y, points de l'écran (origine en haut à gauche).
+MOVE="$(dirname "$POST")/fls_move"
+cat > "$MOVE.swift" <<'SWIFT'
+import CoreGraphics
+import Foundation
+let n = CommandLine.arguments.dropFirst().compactMap { Double($0) }
+guard n.count == 2 else { print("usage : fls_move x y"); exit(2) }
+for dx in [-12.0, -6.0, 0.0] {          // la souris arrive sur la ligne, comme une vraie
+    CGEvent(mouseEventSource: nil, mouseType: .mouseMoved, mouseCursorPosition: CGPoint(x: n[0] + dx, y: n[1]),
+            mouseButton: .left)?.post(tap: .cghidEventTap)
+    usleep(60_000)
+}
+SWIFT
+swiftc -O "$MOVE.swift" -o "$MOVE" 2>/dev/null || echo "fls_move : compilation impossible" >&2
+
 had_snap=$(defaults read "$DOMAIN" debugSnapshots 2>/dev/null || echo "")
 had_glass=$(defaults read "$DOMAIN" liquidGlass 2>/dev/null || echo "")
 had_onb=$(defaults read "$DOMAIN" didOnboard 2>/dev/null || echo "")
@@ -175,6 +190,13 @@ search_test() {   # $1 : rapport gardé (position de la fenêtre)
   search_step 8-clic-dedans "$sx" "$sy"
   search_step 9-ligne-de-la-barre-laterale $(( ox + 120 )) $(( oy + 330 ))
   cat "$f" >&2
+  # Survol (demande du 25/10) : sur la page Mixer, la 1re ligne puis « Playlist » dans la barre latérale ; le contour
+  # est de la couleur, rien de gris ne le dépasse, les couleurs de la ligne ne changent pas.
+  "$MOVE" $(( ox + 560 )) $(( oy + 267 )); sleep 1.2
+  screencapture -x "$OUT/survol-ligne.png" 2>/dev/null || true
+  "$MOVE" $(( ox + 90 )) $(( oy + 229 )); sleep 1.2
+  screencapture -x "$OUT/survol-barre-laterale.png" 2>/dev/null || true
+  "$MOVE" 20 400
 }
 
 run() {   # $1 : libellé, $2 : YES/NO effet verre

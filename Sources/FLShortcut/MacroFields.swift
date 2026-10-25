@@ -271,11 +271,18 @@ enum PresetPanel {
         panel.canChooseDirectories = false
         panel.allowsMultipleSelection = false
         if let type = UTType(filenameExtension: "fst") { panel.allowedContentTypes = [type] }
-        let home = FileManager.default.homeDirectoryForCurrentUser
-        let candidates = ["Documents/Image-Line", "Music/Image-Line", "Documents"]
-        panel.directoryURL = candidates.map { home.appendingPathComponent($0) }
-            .first { FileManager.default.fileExists(atPath: $0.path) }
+        panel.directoryURL = startFolder(home: FileManager.default.homeDirectoryForCurrentUser) {
+            FileManager.default.fileExists(atPath: $0.path)
+        }
         guard panel.runModal() == .OK, let url = panel.url else { return nil }
         return url.path
+    }
+
+    /// Dossier où la boîte s'ouvre : directement Image-Line › FL Studio › Presets › Mixer presets (demande du
+    /// propriétaire, 25/10), sinon le plus proche qui existe.
+    static func startFolder(home: URL, exists: (URL) -> Bool) -> URL? {
+        let candidates = ["Documents/Image-Line/FL Studio/Presets/Mixer presets", "Documents/Image-Line/FL Studio/Presets",
+                          "Documents/Image-Line/FL Studio", "Documents/Image-Line", "Music/Image-Line", "Documents"]
+        return candidates.map { home.appendingPathComponent($0, isDirectory: true) }.first(where: exists)
     }
 }

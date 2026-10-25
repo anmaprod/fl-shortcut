@@ -45,10 +45,12 @@ extension View {
         modifier(MotionModifier(animation: animation, value: value))
     }
 
-    /// Survol du menu de la barre des menus : contour arrondi qui s'allume de la couleur de l'élément, fond léger,
-    /// l'élément grandit un peu avec une ombre de sa couleur (ressort). Seul l'élément survolé est redessiné.
-    /// `outset` : contour un peu plus grand que l'élément (ligne de la barre latérale) ; `enabled` : faux pour un
-    /// élément qu'on ne peut pas choisir (rien ne s'allume).
+    /// Survol du menu de la barre des menus : contour arrondi qui s'allume de la couleur de l'élément, l'élément grandit
+    /// un peu avec un halo de sa couleur autour (ressort). Seul l'élément survolé est redessiné. Ses couleurs ne
+    /// changent jamais (demande du propriétaire, 25/10) : ni fond ajouté, ni ombre sur son contenu (elle ternissait
+    /// les gris et les boutons) ; le halo n'est que dehors. `outset` : contour un peu plus grand que l'élément (ligne de
+    /// la barre latérale) ; `enabled` : faux pour un élément qu'on ne peut pas choisir, ou déjà choisi (le fond de la
+    /// sélection, plus grand, dépasserait du contour).
     func menuHover(tint: Color, cornerRadius: CGFloat = 10, outset: CGFloat = 0, enabled: Bool = true) -> some View {
         modifier(MenuHover(tint: tint, cornerRadius: cornerRadius, outset: outset, enabled: enabled))
     }
@@ -204,10 +206,11 @@ struct MenuHover: ViewModifier {
         let shape = RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
         let hovered = hovering && enabled
         content
+            // Aux bords de l'élément (ou `outset` au-delà), sans changer sa place : le halo derrière, le contour
+            // par-dessus (rien de l'élément ne dépasse de sa couleur).
             .background {
-                // Aux bords de l'élément (ou `outset` au-delà), sans changer sa place.
-                shape.fill(Color.primary.opacity(hovered ? 0.085 : 0))
-                    .overlay(shape.strokeBorder(tint.opacity(hovered ? 0.6 : 0), lineWidth: hovered ? 1.5 : 1))
+                HoverGlow(shape: shape, tint: tint)
+                    .opacity(hovered ? 1 : 0)
                     .padding(-outset)
                     .background(GeometryReader { geo in
                         Color.clear
@@ -215,11 +218,33 @@ struct MenuHover: ViewModifier {
                             .onChange(of: geo.size.width) { width = $0 }
                     })
             }
+            .overlay {
+                shape.strokeBorder(tint, lineWidth: 1.5)
+                    .opacity(hovered ? 1 : 0)
+                    .padding(-outset)
+                    .allowsHitTesting(false)
+            }
             .scaleEffect(hovered && !reduceMotion ? Self.scale(width: width) : 1)
-            .shadow(color: tint.opacity(hovered ? 0.3 : 0), radius: hovered ? 10 : 0, y: hovered ? 4 : 0)
             .onHover { inside in
                 withAnimation(reduceMotion ? Motion.reduced : Motion.lift) { hovering = inside }
             }
+    }
+}
+
+/// Halo du survol, de la couleur de l'élément, seulement autour de lui : l'intérieur est découpé, ses couleurs ne
+/// bougent pas (une ombre posée sur le contenu teintait ses textes et ses boutons).
+struct HoverGlow<S: Shape>: View {
+    let shape: S
+    let tint: Color
+
+    var body: some View {
+        ZStack {
+            shape.fill(tint.opacity(0.32)).blur(radius: 9).offset(y: 3)
+            shape.fill(Color.black).blendMode(.destinationOut)
+        }
+        .compositingGroup()
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
     }
 }
 
@@ -759,22 +784,30 @@ extension View {
 }
 
 /// La marge intérieure d'une ligne est dans la ligne elle-même (pas dans la liste) : le survol couvre toute la ligne,
-/// jusqu'aux filets qui la séparent de ses voisines.
+/// jusqu'aux filets qui la séparent de ses voisines. Survol (25/10, capture du propriétaire : la carte grise
+/// dépassait du contour coloré, la liste mettant sa propre marge autour du contenu) : c'est le fond de la ligne,
+/// toute la largeur de la carte, qui s'allume et grandit ; le contenu grandit avec lui, ses couleurs inchangées.
 private struct CardRowModifier: ViewModifier {
     let position: CardRowPosition
     let hover: Color?
+    @State private var hovering = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     func body(content: Content) -> some View {
         let gap = CardRowBackground.gap
+        let lifted = hovering && hover != nil
         let row = content
             .padding(.vertical, 8)
             .padding(.horizontal, 12)
             .frame(maxWidth: .infinity, alignment: .leading)
         return Group {
-            if let hover {
+            if hover != nil {
                 row
                     .contentShape(Rectangle())
-                    .menuHover(tint: hover)
+                    .scaleEffect(lifted && !reduceMotion ? CardRowBackground.contentScale : 1)
+                    .onHover { inside in
+                        withAnimation(reduceMotion ? Motion.reduced : Motion.lift) { hovering = inside }
+                    }
             } else {
                 row
             }
@@ -782,16 +815,25 @@ private struct CardRowModifier: ViewModifier {
         .listRowInsets(EdgeInsets(top: position.roundsTop ? gap : 0, leading: CardRowBackground.inset,
                                   bottom: position.roundsBottom ? gap : 0, trailing: CardRowBackground.inset))
         .listRowSeparator(.hidden)
-        .listRowBackground(CardRowBackground(position: position))
+        .listRowBackground(CardRowBackground(position: position, hover: lifted ? hover : nil,
+                                             grow: lifted && !reduceMotion))
     }
 }
 
 /// Fond d'une ligne de carte : rectangle arrondi seulement aux bouts de la carte, filet sous les lignes intérieures.
-/// Carte grise sur le fond de la page, comme le Form groupé (verre ou non).
+/// Carte grise sur le fond de la page, comme le Form groupé (verre ou non). Survolée (`hover`) : la même couleur,
+/// arrondie, un peu plus large que la carte (`grow`), cernée de la couleur de la page avec son halo autour ; rien de
+/// gris ne dépasse du contour.
 struct CardRowBackground: View {
     static let inset: CGFloat = 10                       // marge de la carte dans la liste
     static let gap: CGFloat = 4                          // espace au-dessus et au-dessous d'une carte
+    /// Survol : la ligne s'élargit de 6 points de chaque côté (dans la marge de la carte, jamais rognée) ; ses coins
+    /// arrondis de 6 couvrent ceux de la carte.
+    static let liftOutset: CGFloat = 6
+    static let contentScale: CGFloat = 1.015
     let position: CardRowPosition
+    var hover: Color? = nil
+    var grow = false
     @Environment(\.colorScheme) private var scheme
 
     private var fill: Color {
@@ -799,17 +841,27 @@ struct CardRowBackground: View {
     }
 
     var body: some View {
-        CardRowShape(roundsTop: position.roundsTop, roundsBottom: position.roundsBottom)
-            .fill(fill)
-            .overlay(alignment: .bottom) {
-                if !position.roundsBottom {
-                    Rectangle().fill(Color.primary.opacity(0.08)).frame(height: 0.5).padding(.leading, 12)
-                }
+        Group {
+            if let hover {
+                let shape = RoundedRectangle(cornerRadius: Self.liftOutset, style: .continuous)
+                shape.fill(fill)
+                    .background(HoverGlow(shape: shape, tint: hover))
+                    .overlay(shape.strokeBorder(hover, lineWidth: 1.5))
+                    .padding(.horizontal, grow ? -Self.liftOutset : 0)
+            } else {
+                CardRowShape(roundsTop: position.roundsTop, roundsBottom: position.roundsBottom)
+                    .fill(fill)
+                    .overlay(alignment: .bottom) {
+                        if !position.roundsBottom {
+                            Rectangle().fill(Color.primary.opacity(0.08)).frame(height: 0.5).padding(.leading, 12)
+                        }
+                    }
             }
-            .padding(.top, position.roundsTop ? Self.gap : 0)
-            .padding(.bottom, position.roundsBottom ? Self.gap : 0)
-            .padding(.horizontal, Self.inset)
-            .accessibilityHidden(true)
+        }
+        .padding(.top, position.roundsTop ? Self.gap : 0)
+        .padding(.bottom, position.roundsBottom ? Self.gap : 0)
+        .padding(.horizontal, Self.inset)
+        .accessibilityHidden(true)
     }
 }
 

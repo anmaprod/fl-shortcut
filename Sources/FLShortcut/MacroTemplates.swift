@@ -210,33 +210,41 @@ extension MacroTemplates {
         }
     }
 
-    /// Modèles construits seulement avec des blocs que l'interpréteur sait déjà jouer.
+    /// Modèles construits seulement avec des blocs que l'interpréteur sait déjà jouer. Les quatre premiers sont les
+    /// macros faites par le propriétaire (25/10, « tu as juste à les mettre ») ; retirés à sa demande : l'ancien
+    /// « Enregistrement rapide », « Organiser » et « Enregistrer puis exporter en WAV » (toujours compris dans les
+    /// macros déjà faites). Certains blocs se règlent sur chaque Mac : le preset à choisir, les clics à montrer.
     static func gallery(layout: KeyboardLayout) -> [MacroTemplate] {
-        func cmd(_ letter: String, _ fallback: UInt16) -> KeyRef {
-            KeyRef(KeyCombo(keyCode: KeyNames.commandKeyCode(for: letter, layout: layout) ?? fallback, command: true),
-                   char: letter)
-        }
-        let rec = AppMode.nativeEquivalent(of: 3, layout: layout) ?? KeyCombo(keyCode: MacroLibrary.fallbackRecKeyCode)
-        return [
-            MacroTemplate(id: autoRecordID, title: String(localized: "Enregistrement rapide"),
-                          summary: String(localized: "Le début de l'enregistrement, en blocs : menu de la piste, preset, puis armement de la piste. À compléter étape par étape."),
-                          symbol: "record.circle") { _ in
-                var m = Macro()
-                m.recKey = rec
-                return MacroDoc(name: "Enregistrement rapide (personnalisé)", blocks: freshIDs(untilArm(m)),
-                                origin: .template(autoRecordID))
+        [
+            MacroTemplate(id: "threeFour", title: String(localized: "3/4"),
+                          summary: String(localized: "Options › Project general settings, puis deux clics que tu montres une fois dans FL (par exemple la mesure en 3/4)."),
+                          symbol: "metronome") { _ in
+                MacroDoc(name: String(localized: "3/4"), blocks: [
+                    Block(.menuBar(titles: ["Options", "Project general settings"])),
+                    Block(.click(.toLearn, button: .left)),
+                    Block(.click(.toLearn, button: .left)),
+                ], origin: .template("threeFour"))
             },
-            MacroTemplate(id: "saveExport", title: String(localized: "Enregistrer puis exporter en WAV"),
-                          summary: String(localized: "⌘S (attend le nom si le projet est neuf), puis ⌘R : la macro attend que tu choisisses le nom du fichier WAV."),
-                          symbol: "waveform.badge.plus") { _ in
-                MacroDoc(name: "Enregistrer puis exporter en WAV", blocks: [
-                    Block(.key(cmd("s", 1), times: 1)),
-                    Block(.delay(ms: 500)),
-                    Block(.waitWindowClose(.dialog, timeoutMs: MacroValidation.maxWaitMs)),     // projet neuf : son nom
-                    Block(.key(cmd("r", 15), times: 1)),                                            // File › Export › Wave file
-                    Block(.waitWindow(.dialog, timeoutMs: 4_000)),
-                    Block(.waitWindowClose(.dialog, timeoutMs: MacroValidation.maxWaitMs)),     // nom du fichier WAV
-                ], origin: .template("saveExport"))
+            MacroTemplate(id: "quickDrop", title: String(localized: "Enregistrement Rapide"),
+                          summary: String(localized: "Dépose ton preset de piste sur la dernière piste cliquée du Mixer, sans menu ni boîte « Open ». Choisis le preset une fois dans le créateur."),
+                          symbol: "record.circle") { _ in
+                MacroDoc(name: String(localized: "Enregistrement Rapide"), blocks: [Block(.dropFile(path: ""))],
+                         origin: .template("quickDrop"))
+            },
+            MacroTemplate(id: "exportStems", title: String(localized: "Export Stems"),
+                          summary: String(localized: "File › Export › All playlist tracks › Time selection, par le menu de FL en haut de l'écran : une piste audio par piste de la Playlist."),
+                          symbol: "square.stack.3d.down.right") { _ in
+                MacroDoc(name: String(localized: "Export Stems"), blocks: [
+                    Block(.menuBar(titles: ["File", "Export", "All playlist tracks", "Time selection..."])),
+                ], origin: .template("exportStems"))
+            },
+            MacroTemplate(id: "openVST", title: String(localized: "Ouvre un VST"),
+                          summary: String(localized: "Ouvre le Channel rack, puis la liste des instruments (VST, plugins) pour en ajouter un."),
+                          symbol: "pianokeys") { _ in
+                MacroDoc(name: String(localized: "Ouvre un VST"), blocks: [
+                    Block(.openPage(.channelRack)),
+                    Block(.pageOption(id: "channelRack.addInstrument", name: "")),
+                ], origin: .template("openVST"))
             },
             MacroTemplate(id: "purgeAudio", title: String(localized: "Supprimer les clips audio inutilisés"),
                           summary: String(localized: "Tools › Purge unused audio clips, par le menu de FL en haut de l'écran : FL retire du projet les clips audio qui ne sont pas dans la Playlist (rien n'est effacé de ton disque)."),
@@ -246,11 +254,6 @@ extension MacroTemplates {
                          // l'utilisateur) : pas de sous-menu « Macros » comme dans son menu TOOLS.
                          blocks: [Block(.menuBar(titles: ["Tools", "Purge unused audio clips"]))],
                          origin: .template("purgeAudio"))
-            },
-            MacroTemplate(id: organizeID, title: String(localized: "Organiser"),
-                          summary: String(localized: "Reconnaît chaque son (son nom, sinon son écoute), puis après ton accord supprime les sons sans aucune note, range le Channel rack, le Mixer et la Playlist dans le même ordre, colore et renomme sons, patterns et pistes (Kick, Snare, 808…)."),
-                          symbol: "square.stack.3d.up") { _ in
-                MacroDoc(name: String(localized: "Organiser"), blocks: [Block(.organize)], origin: .template(organizeID))
             },
         ]
     }

@@ -118,6 +118,7 @@
 "123456" = "123456";
 "2 (pavé)" = "2 (keypad)";
 "3 (pavé)" = "3 (keypad)";
+"3/4" = "3/4";
 "4 (pavé)" = "4 (keypad)";
 "5 (pavé)" = "5 (keypad)";
 "50 partages les plus récents" = "50 most recent posts";
@@ -646,6 +647,7 @@
 "Déplacer la sélection à droite" = "Move selection right";
 "Déplacer la sélection à gauche" = "Move selection left";
 "Déplacer le bloc" = "Move block";
+"Dépose ton preset de piste sur la dernière piste cliquée du Mixer, sans menu ni boîte « Open ». Choisis le preset une fois dans le créateur." = "Drops your track preset on the last Mixer track you clicked, with no menu or “Open” box. Choose the preset once in the creator.";
 "Déposer le preset sur la piste" = "Drop the preset on the track";
 "Déposer un preset sur la piste" = "Drop a preset on the track";
 "Désactiver" = "Disable";
@@ -688,6 +690,7 @@
 "Enregistre ce que tu fais dans FL" = "Record what you do in FL";
 "Enregistre la macro dans un fichier .flsmacro à partager (positions apprises retirées)" = "Save the macro to a .flsmacro file to share (learned positions removed)";
 "Enregistrement" = "Recording";
+"Enregistrement Rapide" = "Quick Recording";
 "Enregistrement des clics et des touches" = "Recording clicks and keys";
 "Enregistrement en boucle" = "Loop recording";
 "Enregistrement en cours" = "Recording";
@@ -731,6 +734,7 @@
 "Exemple : FL Shortcuts, interrupteur activé" = "Example: FL Shortcuts, switch on";
 "Explication" = "Description";
 "Explication : %lld caractères au plus." = "Description: %lld characters max.";
+"Export Stems" = "Export Stems";
 "Export impossible" = "Export failed";
 "Export impossible." = "Export failed.";
 "Exporter en MIDI" = "Export as MIDI";
@@ -866,6 +870,7 @@
 "Fichier trop volumineux pour une macro (256 Ko au plus)." = "File too large for a macro (256 KB max).";
 "Fichier trop volumineux pour être partagé." = "File too large to share.";
 "Fichier, fenêtres, annuler — partout dans FL" = "File, windows, undo — anywhere in FL";
+"File › Export › All playlist tracks › Time selection, par le menu de FL en haut de l'écran : une piste audio par piste de la Playlist." = "File › Export › All playlist tracks › Time selection, through FL's menu at the top of the screen: one audio track per Playlist track.";
 "Fill" = "Fill";
 "Fin" = "End";
 "Fin de la boucle" = "End of loop";
@@ -1230,6 +1235,7 @@
 "Option" = "Option";
 "Options de la macro" = "Macro options";
 "Options › MIDI Settings" = "Options › MIDI Settings";
+"Options › Project general settings, puis deux clics que tu montres une fois dans FL (par exemple la mesure en 3/4)." = "Options › Project general settings, then two clicks you show once in FL (for example the 3/4 time signature).";
 "Organiser" = "Organize";
 "Organiser : macOS le demande une fois, à la première écoute" = "Organizer: macOS asks once, the first time it listens";
 "Organiser : étape impossible (%@)." = "Organizer: step failed (%@).";
@@ -1271,9 +1277,11 @@
 "Ouvre l'Organiser sur la page de FL qui est devant (Channel rack, Mixer ou Playlist). Les couleurs, dégradés et " = "Opens the Organizer on the FL page in front (Channel rack, Mixer or Playlist). Colors, gradients and ";
 "Ouvre l'Organiser sur tout le projet : chaque son est reconnu d'après son nom (« BEAM KICK » : Kick), sinon écouté sans que tu l'entendes ; tu vérifies l'aperçu, puis « Organiser » supprime les sons sans aucune note, range le Channel rack (les Kick ensemble, puis les Snare…), met le Mixer et la Playlist dans le même ordre, colore et renomme simplement sons, patterns, pistes du Mixer et de la Playlist (le même nom partout pour un même son). « Revenir comme avant » défait tout, sauf les sons supprimés." = "Opens the Organizer on the whole project: each sound is recognized by its name (“BEAM KICK”: Kick), otherwise listened to without you hearing it; you check the preview, then “Organize” deletes sounds without any notes, sorts the Channel rack (the Kicks together, then the Snares…), puts the Mixer and the Playlist in the same order, and colors and gives simple names to sounds, patterns, Mixer tracks and Playlist tracks (the same name everywhere for the same sound). “Undo changes” undoes everything except the deleted sounds.";
 "Ouvre le Channel rack, le Mixer ou la Playlist de FL (clique dedans), puis clique sur « Réessayer »." = "Open FL's Channel rack, Mixer or Playlist (click inside it), then click “Try again”.";
+"Ouvre le Channel rack, puis la liste des instruments (VST, plugins) pour en ajouter un." = "Opens the Channel rack, then the list of instruments (VSTs, plugins) to add one.";
 "Ouvre le Mixer dans FL Studio" = "Opens the Mixer in FL Studio";
 "Ouvre le Mixer, le Channel rack ou la Playlist." = "Open the Mixer, Channel rack or Playlist.";
 "Ouvre ton app de mail avec le message tout prêt, pour %@" = "Opens your mail app with the message ready, for %@";
+"Ouvre un VST" = "Open a VST";
 "Ouvre un partage pour lire son explication et chaque étape, puis « Ajouter à mes macros »." = "Open a post to read its explanation and each step, then “Add to my macros”.";
 "Ouvrir Mon compte" = "Open My account";
 "Ouvrir dans le créateur…" = "Open in the creator…";
@@ -2110,6 +2118,7 @@
 "preset .fst attendu dans ton dossier personnel." = ".fst preset expected in your home folder.";
 "preset .fst attendu." = ".fst preset expected.";
 "preset introuvable (%@)" = "preset not found (%@)";
+"preset à choisir dans le créateur." = "preset to choose in the creator.";
 "près de la piste visée" = "near the targeted track";
 "près du clic précédent" = "near the previous click";
 "près du curseur" = "near the cursor";

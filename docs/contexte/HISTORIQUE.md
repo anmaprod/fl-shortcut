@@ -336,6 +336,16 @@ entrée 1 ≈ 0,5 s.
   Le 1er essai (9eda6c2) cliquait au milieu de la fenêtre (la 1re ligne « recherche » du rapport était la garde) :
   le rapport marque `[champ …]` ce que la garde reconnaît, l'essai clique dessus. Pas encore vérifié sur le Mac du
   propriétaire (macOS 27 ?).
+- Retours du 25/10 (capture du survol, 4 macros) : survol sans changement de couleur (l'ombre posée sur le contenu
+  ternissait les gris et les boutons « Modifier… », « Réinitialiser ») et sans carte grise au-delà du contour (la
+  liste met sa propre marge autour du contenu : c'est maintenant le fond de la ligne qui s'allume, `CardRowBackground`,
+  halo `HoverGlow` découpé dehors) ; page choisie de la barre latérale et bloc choisi du créateur : pas de survol (le
+  fond de la sélection, plus grand, dépassait). Modèles : les 4 macros du propriétaire à la place de l'ancien
+  « Enregistrement rapide », d'« Organiser » et d'« Enregistrer puis exporter en WAV » ; preset vide : « preset à
+  choisir dans le créateur ». « Choisir… » du preset ouvert dans Mixer presets. Enregistrement : clics intelligents
+  (`SmartClicks`, voir CLAUDE.md), les noms lus aussi dans les menus de FL. Glisser-déposer : sur la CI, palette →
+  liste (15 → 16 lignes) et rangement marchent, le bloc est dans la palette : question posée. Stems : FL ne documente
+  pas les noms des fichiers d'un deuxième export : question posée avant de toucher aux fichiers.
 - Drums : sortes « Drum loop » et « Fill » (demande du propriétaire). Noms : « Drum Loop », « Hat Loop »,
   « DrumLoop », « Top Loop » → Drum loop ; « Snare Fill », « Fill 1 » → Fill (« Piano Fill » reste un piano,
   « Melody Loop » une mélodie, « Loop 4 » ne dit rien). Boucle mesurée (grave d'un kick + aigus) : Drum loop, ou

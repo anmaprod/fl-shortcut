@@ -556,7 +556,9 @@ private enum Specs {
 
     /// Chemin d'un preset (choisi dans la boîte « Open » ou déposé sur la piste) : mêmes règles pour les deux blocs.
     private static func presetFileProblem(_ p: String, _ ctx: ValidationContext) -> String? {
-        guard !p.isEmpty, p.count <= 1024,
+        // Modèle tout neuf, ou macro reçue d'un autre Mac : le preset est à choisir sur celui-ci.
+        guard !p.isEmpty else { return ctx.fail(String(localized: "preset à choisir dans le créateur.")) }
+        guard p.count <= 1024,
               !p.unicodeScalars.contains(where: { CharacterSet.controlCharacters.contains($0) }) else {
             return ctx.fail(String(localized: "chemin de fichier invalide."))
         }

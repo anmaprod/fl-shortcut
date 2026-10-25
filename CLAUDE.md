@@ -96,13 +96,23 @@
   Chiffres de l'IA seule (7 610 sons jamais entendus, 24/10) : ≈ 92,4 % (voix 96, drums 97, basse 95, FX 95,
   mélodies 86 ; Drum loop 86, Fill 88 ; sur des packs du propriétaire jamais entendus, boucles 72 %, fills 82 %) ;
   plafond : plus de sons et couche 14 de YAMNet réapprise (`ia/affiner.py`) n'y changent rien (essai non livré).
-- Interface : survol coloré du menu de l'icône (`menuHover` : contour de sa couleur, grandit, ombre) voulu par le
-  propriétaire partout : barre latérale (`sidebarHover`), lignes des pages, Macros, modèles, Communauté, Aide,
+- Interface : survol coloré du menu de l'icône (`menuHover` : contour de sa couleur, grandit, halo autour) voulu par
+  le propriétaire partout ; depuis le 25/10 (sa capture) : couleurs de l'élément JAMAIS changées (ni fond ajouté, ni
+  ombre sur le contenu : halo `HoverGlow` dehors seulement), rien de gris au-delà du contour (lignes des cartes : c'est
+  leur fond `CardRowBackground` qui s'allume et s'élargit ; page ou bloc déjà choisi : pas de survol) ; barre latérale (`sidebarHover`), lignes des pages, Macros, modèles, Communauté, Aide,
   palette, blocs, bouton d'enregistrement, « Menu de FL » du créateur ;
   « Mes raccourcis » = raccourcis changés + créés, jamais de macro (macro d'exemple ⌃R retirée) ; plus aucune note
   sous les blocs des macros ; « Menu de FL » en tête des blocs FL Studio de la palette ; recherche qui lâche la main
   au premier clic ailleurs ; « Cliquer sur… » › Playlist : tout le menu « Arrangement » (bouton retrouvé à son nom).
 
+- Modèles de macro (25/10, demande du propriétaire) : ses 4 macros « 3/4 », « Enregistrement Rapide », « Export
+  Stems », « Ouvre un VST », puis « Supprimer les clips audio inutilisés » ; retirés : l'ancien « Enregistrement
+  rapide », « Organiser », « Enregistrer puis exporter en WAV ». « Choisir… » du preset s'ouvre dans Image-Line › FL
+  Studio › Presets › Mixer presets (`PresetPanel.startFolder`).
+- Clics « intelligents » de l'enregistrement (`SmartClicks`, 25/10) : FILE/EDIT/ADD… dans la fenêtre de FL puis un
+  élément de son menu (noms lus au clic, menus de FL compris) → « Menu de FL › … » (chemin complet retrouvé dans la
+  barre de macOS) ou son raccourci ; Add › Channel/Effect › … → « Cliquer sur… » Ajouter un instrument / un effet ;
+  bouton Arrangement + ligne de son menu → option de la Playlist ; « Clic à un endroit appris » en dernier recours.
 - « Quitter et rouvrir » (macOS, après une autorisation) : la copie relancée attend l'ancienne au lieu de partir
   (`SingleInstance`, clé `quittingPID`) ; la demande venant de l'extension « Confidentialité et sécurité » (sans nom
   d'app) est reconnue (`relaunches`) ; un surveillant posé à l'ouverture des Réglages rouvre l'app même fermée de
@@ -134,4 +144,7 @@
 - La suppression par ⌥ + Suppr (si ça échoue, l'app le dit).
 - Barre de recherche qui lâche la main au clic ailleurs : bonne à vrais clics sur la CI (15dcdc0, macOS 26, photos
   `recherche-*.png` de la mesure) ; « toujours là » chez lui avec 992aa5b : à revérifier sur son Mac.
-- Questions sans réponse : l'accueil manquant venait-il d'une installation sans désinstallation ?
+- Clics intelligents sur le vrai FL : les noms des éléments de ses menus sont-ils lus avant que le menu se ferme ?
+- Questions sans réponse : l'accueil manquant venait-il d'une installation sans désinstallation ? Quel glisser-déposer
+  des macros ne marche plus chez lui (25/10 : palette → liste et rangement des blocs marchent sur la CI, bloc
+  « Glisser-déposer » présent) ? Noms des stems après deux exports (« pas de double ») : à voir avant d'y toucher.

@@ -419,8 +419,9 @@ enum ClickSequenceCompiler {
         return spot.isValid ? .named(spot) : target
     }
 
-    static func compile(_ clicks: [RecordedClick], layout: KeyboardLayout = SystemKeyboardLayout()) -> Result {
-        compile(inputs: clicks.map(RecordedInput.click), layout: layout)
+    static func compile(_ clicks: [RecordedClick], layout: KeyboardLayout = SystemKeyboardLayout(),
+                        menuEntries: (String) -> [[String]] = { _ in [] }) -> Result {
+        compile(inputs: clicks.map(RecordedInput.click), layout: layout, menuEntries: menuEntries)
     }
 
     /// Une touche : dans un menu de FL ouvert, ↑ ↓ ← → Entrée Échap → « Dans le menu » et une lettre seule →
@@ -449,12 +450,20 @@ enum ClickSequenceCompiler {
     /// la barre refermé sans choix (titre recliqué, ou clic ailleurs : macOS avale ce clic, FL ne le reçoit pas) est
     /// ignoré, ainsi que les touches tapées pendant qu'il est ouvert (on ne sait pas ce qu'elles y choisissent).
     /// Un élément de menu qui a son raccourci dans FL devient ce raccourci ; un bouton gauche relâché loin de l'appui,
-    /// dans FL, devient un glisser-déposer.
-    static func compile(inputs: [RecordedInput], layout: KeyboardLayout = SystemKeyboardLayout()) -> Result {
+    /// dans FL, devient un glisser-déposer. Clics « intelligents » (demande du propriétaire, 25/10 : le bloc le plus
+    /// précis, « Clic à un endroit appris » en dernier recours) : FILE, EDIT… dans la fenêtre de FL puis un élément de
+    /// son menu → « Menu de FL › File › … » (chemin complet retrouvé dans les menus de FL, `menuEntries`) ; le bouton
+    /// « Arrangement » de la Playlist puis une ligne de son menu → l'option « Cliquer sur… » de la Playlist. Il faut les
+    /// noms lus au clic ; sans eux, ou sans chemin sûr, les clics restent des clics.
+    static func compile(inputs: [RecordedInput], layout: KeyboardLayout = SystemKeyboardLayout(),
+                        menuEntries: (String) -> [[String]] = { _ in [] }) -> Result {
         var out: [BlockBody] = []
         var ignored = 0
         var openBar: String?                            // menu de la barre ouvert, rien choisi encore
-        for input in inputs {
+        var index = 0
+        while index < inputs.count {
+            let input = inputs[index]
+            index += 1
             let c: RecordedClick
             switch input {
             case .key(let k):
@@ -481,11 +490,7 @@ enum ClickSequenceCompiler {
                 continue
             case .item(let path)?:
                 openBar = nil
-                if let combo = MenuShortcuts.key(for: path, layout: layout) {
-                    out.append(.key(KeyRef(combo), times: 1))
-                } else {
-                    out.append(.menuBar(titles: path))
-                }
+                SmartClicks.append(.menuBar(titles: path), to: &out, layout: layout)
                 continue
             case nil:
                 if openBar != nil {
@@ -499,6 +504,12 @@ enum ClickSequenceCompiler {
                 ignored += 1
                 continue
             }
+            if case .flWindow = target, !c.right, c.release == nil, c.title == nil, let label = c.named?.label,
+               let smart = SmartClicks.menu(label, then: Array(inputs[index...]), menuEntries: menuEntries) {
+                smart.blocks.forEach { SmartClicks.append($0, to: &out, layout: layout) }
+                index += smart.used
+                continue
+            }
             if let release = c.release, !c.right,
                let to = MacroOutline.learnedTarget(at: release.point,
                                                    windows: release.windows.map { (layer: $0.layer, bounds: $0.bounds) },
@@ -510,6 +521,119 @@ enum ClickSequenceCompiler {
         }
         if openBar != nil { ignored += 1 }
         return Result(blocks: out, ignored: ignored)
+    }
+}
+
+// MARK: - Clics intelligents (pur, testé)
+
+/// Le bloc le plus précis pour un clic enregistré sur un bouton de FL qui porte un nom, suivi de clics dans le menu
+/// qu'il ouvre. Rien de deviné : le nom lu au clic, puis un seul chemin possible, sinon les clics restent des clics.
+enum SmartClicks {
+    /// Menus de FL dans sa fenêtre (FILE EDIT ADD…) : les mêmes que dans la barre des menus de macOS.
+    static let menuTitles = ["File", "Edit", "Add", "Patterns", "View", "Options", "Tools", "Help"]
+
+    /// Forme de comparaison d'un nom lu : sans « … » final, puis celle de `TextLook` (casse, accents, 0/O, 1/l).
+    static func key(_ s: String) -> String {
+        var t = s.trimmingCharacters(in: .whitespacesAndNewlines)
+        while t.hasSuffix("…") || t.hasSuffix(".") { t.removeLast() }
+        return TextLook.normalized(t)
+    }
+
+    /// Titre de la barre des menus pour un nom lu dans la fenêtre de FL (« FILE » → « File »).
+    static func menuTitle(_ label: String) -> String? {
+        let k = key(label)
+        return menuTitles.first { key($0) == k }
+    }
+
+    /// Bouton « Arrangement » de la Playlist (son nom affiché peut être celui de l'arrangement : « Arrangement 2 »).
+    static func isArrangement(_ label: String) -> Bool { key(label).hasPrefix("arrangement") }
+
+    /// Pure : chemin complet sous `top` de l'élément choisi (`clicked.last`), d'après les éléments des menus de FL
+    /// (`entries` : chemins sous `top`). Les autres noms cliqués (sous-menus) départagent ; un seul chemin, sinon nil.
+    static func menuPath(top: String, clicked: [String], entries: [[String]]) -> [String]? {
+        guard let chosen = clicked.last.map(key), !chosen.isEmpty else { return nil }
+        let matches = entries.filter { $0.last.map(key) == chosen }
+        let hints = clicked.dropLast().map(key)
+        let hinted = matches.filter { entry in hints.allSatisfy { h in entry.dropLast().contains { key($0) == h } } }
+        let pick = hinted.count == 1 ? hinted : matches
+        guard pick.count == 1 else { return nil }
+        return [top] + pick[0]
+    }
+
+    /// Pure : ligne du menu « Arrangement » → option de la Playlist (et le nom de l'arrangement à ouvrir).
+    static func arrangementOption(_ item: String) -> BlockBody? {
+        switch key(item) {
+        case key("Add one"): return .pageOption(id: "playlist.arrangementAdd", name: "")
+        case key("Clone"): return .pageOption(id: "playlist.arrangementClone", name: "")
+        case key("Rename"): return .pageOption(id: "playlist.arrangementRename", name: "")
+        case key("Delete"): return .pageOption(id: "playlist.arrangementDelete", name: "")
+        case key("Merge with"): return nil                       // sous-menu : l'arrangement choisi dedans compte
+        default:
+            let name = item.trimmingCharacters(in: .whitespacesAndNewlines)
+            return name.isEmpty || name.count > PageOptions.maxName ? nil : .pageOption(id: "playlist.arrangementGo", name: name)
+        }
+    }
+
+    /// Pure : clic sur `label` dans la fenêtre de FL, suivi de `next` (ce qui a été enregistré après) : les blocs qui
+    /// le remplacent et combien d'éléments de `next` ils prennent (les clics dans le menu ouvert). nil : un clic.
+    static func menu(_ label: String, then next: [RecordedInput],
+                     menuEntries: (String) -> [[String]]) -> (blocks: [BlockBody], used: Int)? {
+        let top = menuTitle(label)
+        guard top != nil || isArrangement(label) else { return nil }
+        // Clics qui suivent dans un menu de FL ouvert (fenêtre au-dessus des autres), avec leur nom lu.
+        var names: [String?] = []
+        for input in next {
+            guard case .click(let m) = input, m.menu == nil, !m.right, m.release == nil, m.title == nil,
+                  let w = m.windows.first(where: { $0.bounds.contains(m.point) }), w.layer > 8 else { break }
+            names.append(m.named?.label)
+        }
+        guard let last = names.last.flatMap({ $0 }) else { return nil }
+        let clicked = names.compactMap { $0 }
+        if let top {
+            guard let path = menuPath(top: top, clicked: clicked, entries: menuEntries(top)) else { return nil }
+            return ([.menuBar(titles: path)], names.count)
+        }
+        guard names.count == 1 || !clicked.dropLast().contains(where: { key($0) == key("Merge with") }),
+              let option = arrangementOption(last) else { return nil }
+        return ([option], names.count)
+    }
+
+    /// Pure : élément des menus de FL qui est une option de « Cliquer sur… » : Add › Channel › … (ajouter un
+    /// instrument, Channel rack) et Add › Effect › … (ajouter un effet, Mixer), avec le plugin choisi.
+    static func pageOption(forMenu path: [String]) -> BlockBody? {
+        guard path.count >= 3, key(path[0]) == key("Add") else { return nil }
+        let name = path.dropFirst(2).joined(separator: PageOptions.pathSeparator)
+        switch key(path[1]) {
+        case key("Channel"): return .pageOption(id: "channelRack.addInstrument", name: name)
+        case key("Effect"): return .pageOption(id: "mixer.addEffect", name: name)
+        default: return nil
+        }
+    }
+
+    /// Ajoute le bloc le plus précis : un élément de menu qui a son raccourci dans FL devient ce raccourci, une
+    /// option de « Cliquer sur… » cette option (avec sa page juste au-dessus, règle des options), sinon le bloc tel quel.
+    static func append(_ body: BlockBody, to out: inout [BlockBody], layout: KeyboardLayout) {
+        var body = body
+        if case .menuBar(let path) = body {
+            if let combo = MenuShortcuts.key(for: path, layout: layout) {
+                out.append(.key(KeyRef(combo), times: 1))
+                return
+            }
+            if let option = pageOption(forMenu: path) { body = option }
+        }
+        if case .pageOption(let id?, _) = body, let page = PageOptions.page(of: id), !pageShown(page, before: out) {
+            out.append(.openPage(page))
+        }
+        out.append(body)
+    }
+
+    /// La page est déjà devant juste au-dessus : « Ouvrir une page de FL » ou une option de cette page.
+    static func pageShown(_ page: FLPage, before blocks: [BlockBody]) -> Bool {
+        switch blocks.last {
+        case .openPage(let p)?: return p == page
+        case .pageOption(let id?, _)?: return PageOptions.page(of: id) == page
+        default: return false
+        }
     }
 }
 
@@ -598,7 +722,16 @@ final class ClickSequenceRecorder: ObservableObject {
 
     private func complete(_ recording: Int) {
         guard active, finishing, recording == generation else { return }
-        let result = ClickSequenceCompiler.compile(inputs: inputs)
+        // Menus de FL lus dans la barre de macOS (sans rien ouvrir), une fois par menu : chemins complets des éléments
+        // choisis dans ses menus FILE, EDIT… (jamais journalisés).
+        var menus: [String: [[String]]] = [:]
+        let flPID = pid
+        let result = ClickSequenceCompiler.compile(inputs: inputs) { top in
+            if let known = menus[top] { return known }
+            let entries = MenuBarAX.entries(pid: flPID, under: [top])
+            menus[top] = entries
+            return entries
+        }
         let done = completion
         stop()
         returnToCreator()
@@ -663,9 +796,12 @@ final class ClickSequenceRecorder: ObservableObject {
         // Bouton qui porte un nom, dans une fenêtre de FL (pas un menu) : son nom est lu tout de suite (jamais pendant
         // les essais automatiques). Attendu avant de compiler : entré dans le groupe avant l'ajout (le 80ᵉ clic
         // termine l'enregistrement).
+        // Dans un menu de FL aussi (FILE › …, menu « Arrangement ») : l'élément choisi devient « Menu de FL » ou une
+        // option de la page (`SmartClicks`), lu à l'appui, avant que le menu se ferme.
         let window = before.hit(p)
         let readName = menu == nil && MacroRunner.testFLPID == nil && MacroEffectsMac.canRead
-            && (window.map { $0.number > 0 && (MacroEffectsMac.clickWindowLayers.contains($0.layer) || title != nil) } ?? false)
+            && (window.map { $0.number > 0 && (MacroEffectsMac.clickWindowLayers.contains($0.layer) || title != nil
+                                               || ($0.layer > 8 && $0.isMenuLike)) } ?? false)
         let group = naming
         if readName { group.enter() }
         let index = inputs.count

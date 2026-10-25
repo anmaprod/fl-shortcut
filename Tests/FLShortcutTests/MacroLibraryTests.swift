@@ -295,22 +295,32 @@ final class MacroLibraryTests: XCTestCase {
     func testGalleryTemplatesAreValidExceptLearning() {
         let gallery = MacroTemplates.gallery(layout: FakeLayout.qwerty)
         XCTAssertGreaterThanOrEqual(gallery.count, 4)
+        // À régler sur chaque Mac : les deux clics de « 3/4 » (à montrer dans FL), le preset de « Enregistrement Rapide ».
+        let setup = ["threeFour": "2", "quickDrop": "1"]
         for t in gallery {
             let doc = t.make(FakeLayout.qwerty)
             XCTAssertFalse(doc.blocks.isEmpty, t.id)
-            XCTAssertNil(MacroProgram.compile(doc, forbidden: .physical).problem, t.id)
             XCTAssertFalse(t.summary.isEmpty)
+            let problem = MacroProgram.compile(doc, forbidden: .physical).problem
+            if let step = setup[t.id] {
+                XCTAssertTrue(problem?.contains("Étape \(step) ") ?? false, "\(t.id) : \(problem ?? "aucun problème")")
+            } else {
+                XCTAssertNil(problem, t.id)
+            }
         }
         // Deux copies d'un modèle ne partagent aucun id.
         let a = gallery[0].make(FakeLayout.qwerty), b = gallery[0].make(FakeLayout.qwerty)
         XCTAssertTrue(Set(allIDs(a.blocks)).isDisjoint(with: allIDs(b.blocks)))
-        // « Enregistrement rapide » de la galerie : les blocs du modèle livré jusqu'à l'armement de la piste.
-        var m = Macro()
-        m.recKey = AppMode.nativeEquivalent(of: 3, layout: FakeLayout.qwerty)
-        let full = MacroTemplates.enregistrementRapide(m).map(\.body)
-        XCTAssertEqual(a.blocks.map(\.body), Array(full.prefix(a.blocks.count)))
-        XCTAssertEqual(a.blocks.last?.body, .flAction(key: "armon", fallback: .trackMenuArm), "s'arrête à l'armement")
-        // Retirés de la galerie (à refaire) : nouvelle version, Mixer et Playlist, armer et REC.
-        XCTAssertTrue(Set(gallery.map(\.id)).isDisjoint(with: ["saveNew", "mixerPlaylist", "armRec"]))
+        // Les macros du propriétaire, telles qu'il les a faites (25/10).
+        func bodies(_ id: String) -> [BlockBody]? { gallery.first { $0.id == id }?.make(FakeLayout.qwerty).blocks.map(\.body) }
+        XCTAssertEqual(bodies("threeFour"), [.menuBar(titles: ["Options", "Project general settings"]),
+                                             .click(.toLearn, button: .left), .click(.toLearn, button: .left)])
+        XCTAssertEqual(bodies("quickDrop"), [.dropFile(path: "")])
+        XCTAssertEqual(bodies("exportStems"), [.menuBar(titles: ["File", "Export", "All playlist tracks", "Time selection..."])])
+        XCTAssertEqual(bodies("openVST"), [.openPage(.channelRack), .pageOption(id: "channelRack.addInstrument", name: "")])
+        // Retirés de la galerie : nouvelle version, Mixer et Playlist, armer et REC ; puis (25/10) l'ancien
+        // « Enregistrement rapide », « Organiser », « Enregistrer puis exporter en WAV ».
+        XCTAssertTrue(Set(gallery.map(\.id)).isDisjoint(with: ["saveNew", "mixerPlaylist", "armRec", MacroTemplates.autoRecordID,
+                                                               MacroTemplates.organizeID, "saveExport"]))
     }
 }

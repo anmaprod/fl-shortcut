@@ -136,10 +136,11 @@ struct PageContainer<Content: View>: View {
 
 extension View {
     /// Ligne de la barre latérale : au survol, elle s'allume de sa couleur comme une ligne du menu de la barre des
-    /// menus (contour un peu plus grand que l'icône et le titre, sur toute la largeur).
-    func sidebarHover(_ tint: Color) -> some View {
+    /// menus (contour un peu plus grand que l'icône et le titre, sur toute la largeur). La page choisie ne s'allume
+    /// pas : le fond gris de la sélection, plus grand, dépassait du contour.
+    func sidebarHover(_ tint: Color, selected: Bool = false) -> some View {
         frame(maxWidth: .infinity, alignment: .leading)
-            .menuHover(tint: tint, cornerRadius: 8, outset: 4)
+            .menuHover(tint: tint, cornerRadius: 8, outset: 4, enabled: !selected)
     }
 }
 
@@ -461,6 +462,9 @@ struct EditorView: View {
         query = ""
     }
 
+    /// Page choisie dans la barre latérale (aucune pendant une recherche).
+    private func isShown(_ item: SidebarItem) -> Bool { trimmedQuery.isEmpty && selection == item }
+
     private func sidebar(_ data: CatalogData) -> some View {
         var modified: [FLSection: Int] = [:]
         for row in data.rows where !row.isDefault { modified[row.entry.section, default: 0] += 1 }
@@ -475,7 +479,7 @@ struct EditorView: View {
                     } icon: {
                         SectionIcon(symbol: section.symbol, tint: section.tint)
                     }
-                    .sidebarHover(section.tint)
+                    .sidebarHover(section.tint, selected: isShown(.section(section)))
                     .badge(modified[section] ?? 0)
                     .help(section.subtitle)
                     .tag(SidebarItem.section(section))
@@ -486,7 +490,7 @@ struct EditorView: View {
             // Chaque groupe a son titre gris, comme « FL Studio » : macros, tes raccourcis, la Communauté, puis
             // ton compte et l'aide ensemble.
             Section {
-                MacroSidebarRow(library: store.library)
+                MacroSidebarRow(library: store.library, selected: isShown(.macros))
                     .tag(SidebarItem.macros)
             } header: {
                 Text("Automatiser")
@@ -497,7 +501,7 @@ struct EditorView: View {
                 } icon: {
                     SectionIcon(symbol: SidebarItem.custom.symbol, tint: SidebarItem.custom.tint)
                 }
-                .sidebarHover(SidebarItem.custom.tint)
+                .sidebarHover(SidebarItem.custom.tint, selected: isShown(.custom))
                 .badge(MyShortcuts.count(rows: data.rows, others: data.others, starters: store.freshRemaps()))
                 .tag(SidebarItem.custom)
             } header: {
@@ -509,7 +513,7 @@ struct EditorView: View {
                 } icon: {
                     SectionIcon(symbol: SidebarItem.community.symbol, tint: SidebarItem.community.tint)
                 }
-                .sidebarHover(SidebarItem.community.tint)
+                .sidebarHover(SidebarItem.community.tint, selected: isShown(.community))
                 .help(CommunityText.subtitle)
                 .tag(SidebarItem.community)
             } header: {
@@ -521,7 +525,7 @@ struct EditorView: View {
                 } icon: {
                     SectionIcon(symbol: SidebarItem.account.symbol, tint: SidebarItem.account.tint)
                 }
-                .sidebarHover(SidebarItem.account.tint)
+                .sidebarHover(SidebarItem.account.tint, selected: isShown(.account))
                 .badge(backup.conflict != nil ? Text("!") : nil)
                 .help(AccountText.subtitle)
                 .tag(SidebarItem.account)
@@ -530,7 +534,7 @@ struct EditorView: View {
                 } icon: {
                     SectionIcon(symbol: SidebarItem.help.symbol, tint: SidebarItem.help.tint)
                 }
-                .sidebarHover(SidebarItem.help.tint)
+                .sidebarHover(SidebarItem.help.tint, selected: isShown(.help))
                 .help("Questions fréquentes, et écrire à l'équipe")
                 .tag(SidebarItem.help)
             } header: {
