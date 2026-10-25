@@ -1001,7 +1001,10 @@ final class OrganizerController: ObservableObject {
 /// Le panneau de l'Organiser : un seul à la fois, détruit à la fermeture. Sans barre de titre visible (contenu sous
 /// les boutons de fenêtre, déplaçable par le fond) ; redimensionnable (retour du propriétaire). Sa hauteur suit son
 /// contenu, mesuré à chaque changement (un message court : un petit panneau, même juste après l'aperçu) ; l'aperçu
-/// prend la hauteur que l'utilisateur lui a donnée (600 la première fois), sa liste défile.
+/// prend la hauteur que l'utilisateur lui a donnée (600 la première fois), sa liste défile. Retour du 25/10 (« quand
+/// on la rétrécit et l'agrandit ») : hors aperçu, seule la largeur se tire (la hauteur est celle du contenu : rien de
+/// coupé en bas, aucun vide) ; l'aperçu se tire aussi en hauteur, jamais sous `previewMinHeight` ; la largeur reste
+/// entre `OrganizerView.width` et `maxWidth` (au-delà, les cartes s'étiraient sans fin).
 enum OrganizerWindow {
     private static var panel: NSPanel?
     /// Le contrôleur affiché (nil quand la fenêtre est fermée).
@@ -1013,6 +1016,11 @@ enum OrganizerWindow {
     private static var showingPreview = false
     /// Hauteur mesurée avant que le panneau existe.
     private static var pending: (height: CGFloat, preview: Bool)?
+    /// Bornes de la fenêtre : la plus petite hauteur d'une étape, celle de l'aperçu (texte, liste, boutons sans se
+    /// chevaucher), la plus grande largeur.
+    static let minHeight: CGFloat = 160
+    static let previewMinHeight: CGFloat = 420
+    static let maxWidth: CGFloat = 760
 
     private final class Delegate: NSObject, NSWindowDelegate {
         func windowWillClose(_ notification: Notification) { OrganizerWindow.close() }
@@ -1041,7 +1049,8 @@ enum OrganizerWindow {
         let p = NSPanel(contentRect: NSRect(x: 0, y: 0, width: OrganizerView.width, height: 220),
                         styleMask: [.titled, .closable, .resizable, .fullSizeContentView, .nonactivatingPanel],
                         backing: .buffered, defer: false)
-        p.contentMinSize = NSSize(width: OrganizerView.width, height: 160)
+        p.contentMinSize = NSSize(width: OrganizerView.width, height: minHeight)
+        p.contentMaxSize = NSSize(width: maxWidth, height: .greatestFiniteMagnitude)
         p.title = String(localized: "Organiser")
         p.titleVisibility = .hidden
         p.titlebarAppearsTransparent = true
@@ -1082,12 +1091,25 @@ enum OrganizerWindow {
         if showingPreview && !preview { previewHeight = content.height }
         let entering = preview && !showingPreview
         showingPreview = preview
-        if preview && !entering { return }
         let screen = (panel.screen ?? NSScreen.main)?.visibleFrame
-        var target = preview ? previewHeight : height
-        if let screen { target = min(target, screen.height - 40) }
-        target = max(target, panel.contentMinSize.height)
-        guard abs(target - content.height) > 0.5 else { return }
+        let tallest = screen.map { $0.height - 40 } ?? .greatestFiniteMagnitude
+        if preview {
+            // L'aperçu se tire en hauteur, sans descendre sous ce qu'il lui faut.
+            panel.contentMinSize = NSSize(width: OrganizerView.width, height: min(previewMinHeight, tallest))
+            panel.contentMaxSize = NSSize(width: maxWidth, height: .greatestFiniteMagnitude)
+            if !entering { return }
+        }
+        var target = preview ? max(previewHeight, previewMinHeight) : height
+        target = max(min(target, tallest), minHeight)
+        if !preview {
+            // Les autres étapes : la hauteur de leur contenu, fixe ; seule la largeur se tire.
+            panel.contentMinSize = NSSize(width: OrganizerView.width, height: min(target, content.height))
+            panel.contentMaxSize = NSSize(width: maxWidth, height: max(target, content.height))
+        }
+        guard abs(target - content.height) > 0.5 else {
+            if !preview { pin(panel, height: target) }
+            return
+        }
         var frame = panel.frameRect(forContentRect: NSRect(x: 0, y: 0, width: content.width, height: target))
         frame.origin = NSPoint(x: panel.frame.minX, y: panel.frame.maxY - frame.height)
         if let screen {                                              // jamais sous le bas de l'écran
@@ -1095,6 +1117,13 @@ enum OrganizerWindow {
             if frame.maxY > screen.maxY { frame.origin.y = screen.maxY - frame.height }
         }
         panel.setFrame(frame, display: true, animate: panel.isVisible && !Motion.reduce)
+        if !preview { pin(panel, height: target) }
+    }
+
+    /// Hauteur d'une étape fixée (après le changement de taille, qui doit pouvoir passer d'une hauteur à l'autre).
+    private static func pin(_ panel: NSPanel, height: CGFloat) {
+        panel.contentMinSize = NSSize(width: OrganizerView.width, height: height)
+        panel.contentMaxSize = NSSize(width: maxWidth, height: height)
     }
 
     /// Depuis la vue : après sa mise à jour (la fenêtre ne change pas de taille au milieu d'un dessin de SwiftUI).
@@ -1594,10 +1623,11 @@ struct OrganizerView: View {
                     }
                     ProjectSummary(controller: controller)
                 }
-                // Place pour la carte survolée qui grandit et son ombre.
+                // Place pour le contour survolé et son halo.
                 .padding(.horizontal, 4)
                 .padding(.vertical, 6)
             }
+            .frame(minHeight: 120)                       // fenêtre rétrécie : la liste défile, jamais écrasée
             .padding(.horizontal, -4)
             HStack {
                 Button("Annuler") { controller.close() }.keyboardShortcut(.cancelAction)
@@ -1611,20 +1641,22 @@ struct OrganizerView: View {
     }
 }
 
-/// Carte de l'Organiser, comme celles du guide : voile clair et liseré de sa couleur, qui s'épaissit au survol.
+/// Carte de l'Organiser, comme celles du guide : voile clair et liseré de sa couleur, qui prend toute sa couleur au
+/// survol (le voile ne change pas).
 private struct OrganizerCard: View {
     var tint: Color = OrganizerView.tint
     var hovered = false
 
     var body: some View {
-        RoundedRectangle(cornerRadius: 14, style: .continuous)
-            .fill(Color.primary.opacity(hovered ? 0.085 : 0.045))
-            .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .strokeBorder(tint.opacity(hovered ? 0.6 : 0.24), lineWidth: hovered ? 1.5 : 1))
+        let shape = RoundedRectangle(cornerRadius: 14, style: .continuous)
+        shape.fill(Color.primary.opacity(0.045))
+            .overlay(shape.strokeBorder(tint.opacity(hovered ? 1 : 0.24), lineWidth: hovered ? 1.5 : 1))
     }
 }
 
-/// Carte qui grandit un peu au survol avec son liseré, ombre douce de sa couleur (comme sur l'accueil du guide).
+/// Carte qui s'allume au survol : liseré de sa couleur, halo autour (comme le survol du reste de l'app). Elle ne
+/// grossit plus et ses couleurs ne changent pas (25/10 : le zoom faisait « bizarre », texte agrandi flou ; une ombre
+/// posée sur le contenu ternissait ses textes).
 private struct OrganizerHoverCard: ViewModifier {
     let tint: Color
     @State private var hovered = false
@@ -1633,8 +1665,10 @@ private struct OrganizerHoverCard: ViewModifier {
     func body(content: Content) -> some View {
         content
             .background(OrganizerCard(tint: tint, hovered: hovered))
-            .scaleEffect(hovered && !reduceMotion ? 1.015 : 1)
-            .shadow(color: tint.opacity(hovered ? 0.25 : 0), radius: hovered ? 12 : 0, y: hovered ? 4 : 0)
+            .background {
+                HoverGlow(shape: RoundedRectangle(cornerRadius: 14, style: .continuous), tint: tint)
+                    .opacity(hovered ? 1 : 0)
+            }
             .onHover { inside in
                 withAnimation(reduceMotion ? Motion.reduced : Motion.lift) { hovered = inside }
             }

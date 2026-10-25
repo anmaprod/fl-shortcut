@@ -62,7 +62,8 @@
     devant (4 fois) au lieu de s'arrêter ; Mixer : piste qui envoie déjà ailleurs que le Master = famille sans bus ;
     sortes de voix Voix lead, Back, Ambiance ; enregistrements de FL écoutés une fois qu'ils sonnent (JAMAIS « Voix »
     d'office : guitare, piano, synthé aussi) ; voix et enregistrements : une ligne de Playlist par sorte ; sorte des
-    mélodies à l'écoute (`MelodyNaming`) ; fenêtre redimensionnable qui suit son contenu ; patterns de plusieurs sons
+    mélodies à l'écoute (`MelodyNaming`) ; fenêtre redimensionnable qui suit son contenu (25/10 : hors aperçu, seule
+    la largeur se tire ; aperçu tiré en hauteur, jamais sous 420 ; largeur 440 à 760 ; cartes sans zoom) ; patterns de plusieurs sons
     séparés son par son dans la copie (`splitByChannel`, comme « Split by channel » de FL) ; nom du fichier de son
     (événement 196) pour reconnaître un clip audio dont le canal ne dit rien (`sampleNames`, sinon son dossier) ;
     fichier de chaque clip audio lu directement, son passage le plus fort (`SampleFiles.swift`, règle `+fichier`),

@@ -358,6 +358,10 @@ entrée 1 ≈ 0,5 s.
   Windows ; un dossier qui existe ou une variable %…% de FL est gardé) ; si FL montre quand même la boîte (titre lu
   par l'Accessibilité, pas l'écran), Entrée valide son choix par défaut « Do nothing » ; et les sons ne sont comptés
   qu'une fois FL calme ET tous les sons là (2 min 30 au plus). Tests sur le faux disque.
+- Organiser rétréci ou agrandi (retour du 25/10) : hors aperçu, la fenêtre ne se tire plus qu'en largeur (sa hauteur
+  est celle de l'étape : plus de boutons coupés en bas ni de vide) ; l'aperçu se tire en hauteur jusqu'à 420 au moins
+  (sa liste défile, jamais écrasée) ; largeur bornée à 440-760 (au-delà les cartes s'étiraient) ; les cartes ne
+  grossissent plus au survol (liseré de leur couleur et halo, comme le reste de l'app).
 - Drums : sortes « Drum loop » et « Fill » (demande du propriétaire). Noms : « Drum Loop », « Hat Loop »,
   « DrumLoop », « Top Loop » → Drum loop ; « Snare Fill », « Fill 1 » → Fill (« Piano Fill » reste un piano,
   « Melody Loop » une mélodie, « Loop 4 » ne dit rien). Boucle mesurée (grave d'un kick + aigus) : Drum loop, ou
