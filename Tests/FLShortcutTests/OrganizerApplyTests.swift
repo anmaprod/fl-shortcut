@@ -847,6 +847,31 @@ final class OrganizerApplyTests: XCTestCase {
         XCTAssertTrue(back.snapshot.isEmpty)
     }
 
+    /// Capture du propriétaire (25/10) : en ouvrant la copie, FL demande « Invalid project data folder » et ne finit de
+    /// charger qu'une fois répondu ; l'Organiser comptait les sons pendant ce temps (« pas les mêmes sons »). La boîte
+    /// est répondue par son choix par défaut, puis les sons sont comptés une fois tous là ; sans réponse possible, le
+    /// message le dit toujours.
+    func testDataFolderDialogIsAnsweredBeforeCountingSounds() throws {
+        let disk = FakeDisk()
+        disk.asksDataFolder = true
+        let (link, result) = try fileProject(disk)
+        let plan = self.plan(result, options: fileOptions)
+        let outcome = OrganizerApplier(link: link, moveUp: link.moveSelectedUp, wait: { _ in }, listen: 0,
+                                       files: disk.access).apply(plan, result: result, styles: FamilyStyles.initial)
+        XCTAssertNil(outcome.error)
+        XCTAssertEqual(disk.answered, 1)
+        XCTAssertTrue(outcome.trace.contains("boîte=dossier-données"))
+
+        let stuck = FakeDisk()
+        stuck.asksDataFolder = true
+        stuck.answersDialog = false
+        let (stuckLink, stuckResult) = try fileProject(stuck)
+        let blocked = OrganizerApplier(link: stuckLink, moveUp: stuckLink.moveSelectedUp, wait: { _ in }, listen: 0,
+                                       files: stuck.access).apply(self.plan(stuckResult, options: fileOptions),
+                                                                  result: stuckResult, styles: FamilyStyles.initial)
+        XCTAssertEqual(blocked.error, .failed(String(localized: "La copie rangée ouverte dans FL n'a pas les mêmes sons que l'analyse (\(2) au lieu de \(5)) : rien d'autre n'a été fait. Ton projet n'a pas bougé.")))
+    }
+
     /// Projets de voix enregistrées (retour du propriétaire : « tout sur la même ligne, surtout quand c'est du rec […]
     /// si deux sont en même temps il met l'une en dessous de l'autre ») : les clips d'une même sorte de voix sur une
     /// seule piste, ceux qui se chevauchent juste dessous, les backs sur leur ligne à eux, avant (ordre des sortes) ;
@@ -909,6 +934,12 @@ final class FakeDisk {
     var saved: [URL] = []
     /// Faux : FL ne charge jamais le fichier demandé.
     var loads = true
+    /// Vrai : en ouvrant un fichier, FL demande « Invalid project data folder » ; tant que la boîte n'est pas
+    /// répondue, son Channel rack n'a que 2 sons. `answersDialog` faux : la réponse n'arrive jamais.
+    var asksDataFolder = false
+    var answersDialog = true
+    var answered = 0
+    private var waiting: [ChannelInfo]?
     weak var link: FakeOrganizerLink?
 
     init() { files = [original: FLPSample.sample()] }
@@ -932,6 +963,10 @@ final class FakeDisk {
                 link.patternList.append(PatternInfo(index: n - 1, color: RGBColor(r: 0x48, g: 0x50, b: 0x58),
                                                     name: "Pattern \(n)"))
             }
+            if self.asksDataFolder {
+                self.waiting = link.channels
+                link.channels = Array(link.channels.prefix(2))
+            }
             return true
         }, read: { url in
             guard let file = self.files[url] else { throw FLPError.damaged }
@@ -939,6 +974,12 @@ final class FakeDisk {
         }, write: { file, url in
             guard self.files[url] == nil else { throw FLPError.damaged }
             self.files[url] = file
-        }, exists: { self.files[$0] != nil })
+        }, exists: { self.files[$0] != nil }, answerDialog: {
+            guard self.answersDialog, let full = self.waiting, let link = self.link else { return nil }
+            link.channels = full
+            self.waiting = nil
+            self.answered += 1
+            return "dossier-données"
+        })
     }
 }

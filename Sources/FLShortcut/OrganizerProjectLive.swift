@@ -11,7 +11,7 @@ import Foundation
 enum ProjectFileLive {
     static func access() -> ProjectFileAccess {
         ProjectFileAccess(save: { save(known: $0) }, open: { open($0) }, isOpen: { isOpen($0) },
-                          search: { lastSearch })
+                          search: { lastSearch }, answerDialog: { answerDialog() })
     }
 
     // MARK: - Fichier montré par l'utilisateur, et ce que la recherche a trouvé (diagnostic)
@@ -301,6 +301,25 @@ enum ProjectFileLive {
 
     private static func modified(_ url: URL) -> Date? {
         (try? FileManager.default.attributesOfItem(atPath: url.path))?[.modificationDate] as? Date
+    }
+
+    /// Une boîte de FL qui bloque l'ouverture de la copie (« Invalid project data folder ») : FL devant, Entrée valide
+    /// son choix par défaut (« Do nothing », comme l'utilisateur l'aurait fait). Lue par les titres des fenêtres de FL
+    /// (attributs de macOS, pas l'écran). nil : aucune boîte, ou FL pas devant.
+    static func answerDialog() -> String? {
+        guard let pid = OrganizerEnvironment.flPID(),
+              windows(pid: pid).contains(where: { ProjectFile.isBlockingDialog($0.title ?? "") }) else { return nil }
+        if EventTap.shared.currentConfig.frontmostPID != pid {
+            _ = NSRunningApplication(processIdentifier: pid)?.activate(options: [])
+            var waited = 0
+            while EventTap.shared.currentConfig.frontmostPID != pid, waited < 10 {
+                Thread.sleep(forTimeInterval: 0.1)
+                waited += 1
+            }
+        }
+        guard EventTap.shared.currentConfig.frontmostPID == pid else { return nil }
+        MacroEffectsMac(pid: pid).postKey(KeyCombo(keyCode: 36), pid: pid)       // Entrée : « Ok »
+        return "dossier-données"
     }
 
     /// ⌘S envoyé à FL seul, FL au premier plan.

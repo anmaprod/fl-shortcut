@@ -67,6 +67,11 @@
     (événement 196) pour reconnaître un clip audio dont le canal ne dit rien (`sampleNames`, sinon son dossier) ;
     fichier de chaque clip audio lu directement, son passage le plus fort (`SampleFiles.swift`, règle `+fichier`),
     joué dans FL seulement s'il est introuvable ; étapes dans le journal (`ORGANIZE`).
+  - boîte « Invalid project data folder » de FL à l'ouverture de la copie (capture du 25/10 : l'Organiser comptait
+    les sons pendant qu'elle attendait, « pas les mêmes sons ») : la copie ne garde pas un dossier de données qui
+    n'existe pas (événement 202, `withoutMissingDataFolder` ; l'original ne bouge pas) ; si FL la montre quand même,
+    Entrée valide « Do nothing » (`answerDialog`, 4 fois au plus) ; les sons ne sont comptés qu'une fois tous là
+    (attente jusqu'à 2 min 30). Diagnostic : `dossier-données=retiré`, `boîte=dossier-données`.
 - **Animations « morph » : RETIRÉES** le 23/10 à la demande du propriétaire (« c'est vraiment nul », après les avoir
   essayées). Les 9 tâches (moteur de mouvement, vols, fenêtres qui sortent du clic, cartes, gouttes, Organiser en
   morph) ont été enlevées : le code est revenu à 7f68c9f. Ne pas les refaire sans qu'il le demande ; tout reste dans

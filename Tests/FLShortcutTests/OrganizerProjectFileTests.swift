@@ -19,6 +19,33 @@ final class OrganizerProjectFileTests: XCTestCase {
                        "les sons suivent les canaux supprimés")
     }
 
+    /// Capture du propriétaire (25/10) : FL demandait « Invalid project data folder » en ouvrant la copie. La copie ne
+    /// garde pas un dossier de données qui ne mène nulle part ; un dossier qui existe, ou écrit avec une variable de
+    /// FL, reste. La boîte est reconnue à son titre.
+    func testCopyDropsAMissingDataFolder() throws {
+        func folder(_ path: String) -> FLPEvent {
+            FLPEvent(id: ProjectFile.dataFolderEvent, bytes: path.utf16.flatMap { FLPBytes.le(Int($0), size: 2) } + [0, 0])
+        }
+        let file = FLPSample.sample()
+        let projectFolder = URL(fileURLWithPath: "/projets", isDirectory: true)
+        let exists: (URL) -> Bool = { $0.path == "/projets/Nuit" || $0.path == "/Users/moi/Données" }
+        let cases: [(String, Bool)] = [("/Users/ailleurs/Nuit", false), ("C:\\Users\\moi\\Nuit", false), ("Ancien", false),
+                                       ("/Users/moi/Données", true), ("Nuit", true), ("%FLStudioUserData%/Nuit", true)]
+        for (path, kept) in cases {
+            var withFolder = file
+            withFolder.events.insert(folder(path), at: 1)
+            let cleaned = ProjectFile.withoutMissingDataFolder(withFolder, projectFolder: projectFolder, exists: exists)
+            if kept {
+                XCTAssertNil(cleaned, path)
+            } else {
+                XCTAssertEqual(cleaned, file, "\(path) : seul le dossier retiré")
+            }
+        }
+        XCTAssertNil(ProjectFile.withoutMissingDataFolder(file, projectFolder: projectFolder, exists: exists), "aucun dossier")
+        XCTAssertTrue(ProjectFile.isBlockingDialog("Invalid project data folder"))
+        XCTAssertFalse(ProjectFile.isBlockingDialog("Mon son - FL Studio 2025"))
+    }
+
     /// Le fichier enregistré doit être le projet ouvert dans FL : sinon rien n'est touché (raison sans aucun nom).
     func testFileMustBeTheOpenProject() throws {
         let project = try FLPProject(FLPSample.sample())

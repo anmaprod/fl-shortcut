@@ -21,6 +21,9 @@ struct ProjectFileAccess {
     var exists: (URL) -> Bool = { FileManager.default.fileExists(atPath: $0.path) }
     /// La fenêtre de FL porte le nom de ce fichier (FL l'a ouvert).
     var isOpen: (URL) -> Bool = { _ in false }
+    /// Une boîte de FL attend une réponse pendant l'ouverture (« Invalid project data folder ») : son choix par
+    /// défaut, qui ne change rien (« Do nothing »), validé ; son nom fixe pour le diagnostic. nil : aucune boîte.
+    var answerDialog: () -> String? = { nil }
     /// Ce que la dernière recherche du fichier a trouvé, en nombres et en mots fixes (diagnostic : jamais un nom ni
     /// un chemin).
     var search: () -> String = { "" }
@@ -203,6 +206,34 @@ enum ProjectFile {
             if !exists(url) { return url }
         }
         return folder.appendingPathComponent("\(base)_\(UUID().uuidString.prefix(8)).flp")
+    }
+
+    /// Événement du dossier de données du projet (« project data folder » de FL, texte).
+    static let dataFolderEvent: UInt8 = 202
+
+    /// Pur (testé) : la copie sans un dossier de données qui n'existe pas (capture du propriétaire, 25/10 : en
+    /// ouvrant la copie, FL demandait « Invalid project data folder », et l'Organiser comptait les sons pendant que
+    /// la boîte attendait : « pas les mêmes sons »). Seulement un chemin qui ne mène nulle part (absolu, ou à côté du
+    /// projet) : un dossier qui existe, ou écrit avec une variable de FL (%…%), est gardé. nil : rien à retirer.
+    static func withoutMissingDataFolder(_ file: FLPFile, projectFolder: URL, exists: (URL) -> Bool) -> FLPFile? {
+        var out = file
+        let before = out.events.count
+        out.events.removeAll { event in
+            guard event.id == dataFolderEvent else { return false }
+            let path = event.text.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !path.isEmpty, !path.contains("%") else { return false }
+            let windows = path.contains("\\") || (path.count >= 2 && path.dropFirst().first == ":")
+            if windows { return true }                                  // projet venu de Windows : rien sur ce Mac
+            let url = path.hasPrefix("/") ? URL(fileURLWithPath: path, isDirectory: true)
+                : projectFolder.appendingPathComponent(path, isDirectory: true)
+            return !exists(url)
+        }
+        return out.events.count == before ? nil : out
+    }
+
+    /// Pur (testé) : boîte de FL qui arrête l'ouverture d'un projet jusqu'à une réponse (titre de sa fenêtre).
+    static func isBlockingDialog(_ title: String) -> Bool {
+        title.lowercased().contains("invalid project data folder")
     }
 
     /// Ce qui porte la marque de la copie.

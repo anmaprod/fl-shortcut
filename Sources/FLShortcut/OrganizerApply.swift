@@ -246,6 +246,8 @@ final class OrganizerApplier {
     private let report: (String) -> Void
     /// Fois où une page de FL a été remise devant pendant les déplacements (diagnostic).
     private var restored = 0
+    /// Boîtes de FL répondues pendant l'ouverture de la copie (4 au plus : jamais Entrée sans fin).
+    private var dialogAnswers = 0
 
     /// `moveUp(n)` envoie ⌥↑ n fois à FL seul (Channel rack devant), `moveLeft(n)` ⌥← (Mixer devant) ; chacun
     /// renvoie le nombre de pas faits. `placeIcon` pose une icône sur l'élément sélectionné par la fenêtre de FL
@@ -482,9 +484,16 @@ final class OrganizerApplier {
             let what = "clips"
             throw OrganizerError.failed(String(localized: "L'Organiser ne sait pas encore ranger ce projet sans risque (\(what)) : rien n'a été touché."))
         }
-        guard let marked = ProjectFile.marking(copy, marker: marker) else {
+        guard var marked = ProjectFile.marking(copy, marker: marker) else {
             let what = "patterns"
             throw OrganizerError.failed(String(localized: "L'Organiser ne sait pas encore ranger ce projet sans risque (\(what)) : rien n'a été touché."))
+        }
+        // Un dossier de données qui n'existe plus (projet déplacé) : FL bloquerait l'ouverture de la copie sur sa
+        // question ; la copie ne le garde pas (l'original, lui, ne bouge pas).
+        if let cleaned = ProjectFile.withoutMissingDataFolder(marked.file, projectFolder: read.url.deletingLastPathComponent(),
+                                                              exists: files.exists) {
+            marked.file = cleaned
+            outcome.trace.append("dossier-données=retiré")
         }
         let url = ProjectFile.copyURL(for: read.url, exists: files.exists)
         do {
@@ -506,6 +515,7 @@ final class OrganizerApplier {
         var how = "non"                                         // diagnostic : le script a lu la marque, ou la fenêtre
         for check in 0..<Self.openChecks {
             wait(0.5)
+            answerDialogs(&outcome.trace)
             if showsMark(marked.mark) {
                 how = "marque"
             } else if files.isOpen(url) {
@@ -559,11 +569,20 @@ final class OrganizerApplier {
         return name.map { ProjectFile.same($0, marker) } ?? false
     }
 
+    /// Une boîte de FL qui attend une réponse pendant l'ouverture de la copie : répondue par son choix par défaut.
+    private func answerDialogs(_ trace: inout [String]) {
+        guard dialogAnswers < 4, let name = files?.answerDialog() else { return }
+        dialogAnswers += 1
+        trace.append("boîte=\(name)")
+        MacroLog.shared.write("ORGANIZE", "FL dialog answered (\(name))")
+    }
+
     /// FL a ouvert la copie mais charge encore ses plugins et ses sons (« Opening: Fruity Wrapper ») : il ne répond pas
     /// toujours vite (vidéo du propriétaire : « FL n'a pas confirmé » ; puis essai du 24/10 sur un gros projet : « FL
     /// charge les sons de la copie… » sans fin apparente, la règle d'avant voulait 3 réponses en moins d'une seconde).
-    /// La suite attend qu'il réponde deux fois de suite en moins de 3 s, 2 min 30 au plus ; le temps passé est montré,
-    /// et le diagnostic dit combien de réponses sont venues et la plus lente.
+    /// La suite attend qu'il réponde deux fois de suite en moins de 3 s AVEC tous les sons de l'analyse (25/10 : une
+    /// boîte de FL ouverte pendant le chargement, il répondait avec un Channel rack pas encore rempli), 2 min 30 au
+    /// plus ; le temps passé est montré, et le diagnostic dit combien de réponses sont venues et la plus lente.
     static let calmChecks = 150
     static let calmAnswer: TimeInterval = 3
     static let calmLimit: TimeInterval = 150
@@ -576,6 +595,7 @@ final class OrganizerApplier {
         let started = Date()
         for check in 0..<Self.calmChecks {
             wait(0.5)
+            answerDialogs(&trace)
             let asked = Date()
             let listed = try? link.listChannels()
             let took = Date().timeIntervalSince(asked)
@@ -585,7 +605,7 @@ final class OrganizerApplier {
                 count = listed.count
             }
             calm = listed != nil && took < Self.calmAnswer ? calm + 1 : 0
-            if calm >= 2 || Date().timeIntervalSince(started) > Self.calmLimit { break }
+            if (calm >= 2 && count == expected) || Date().timeIntervalSince(started) > Self.calmLimit { break }
             if check % 4 == 3 {
                 let seconds = Int(Date().timeIntervalSince(started))
                 report(String(localized: "FL charge les sons de la copie… \(seconds) s"))
