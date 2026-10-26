@@ -38,6 +38,9 @@ internal static class Photos
         {
             if (!Directory.Exists(folder)) return;
             Note("début");
+            // Toute exception .NET, même rattrapée : la dernière avant une chute de WinUI dit souvent pourquoi.
+            AppDomain.CurrentDomain.FirstChanceException += (_, e) =>
+                Note($"exception vue : {e.Exception.GetType().Name} {e.Exception.HResult:X8} {e.Exception.Message}");
             // Une fenêtre fermée avant l'ouverture de la suivante ne doit pas arrêter l'appli.
             Application.Current.DispatcherShutdownMode = DispatcherShutdownMode.OnExplicitShutdown;
             var controller = app();

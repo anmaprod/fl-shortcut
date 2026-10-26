@@ -52,9 +52,11 @@ internal sealed class OrganizerWindow : Window
     private readonly AppController _app;
     private readonly OrganizerController _controller;
     private readonly IntPtr _hwnd;
-    private readonly StackPanel _content = new() { Spacing = 12 };
-    private readonly StackPanel _left = new() { Orientation = Orientation.Horizontal, Spacing = 8 };
-    private readonly StackPanel _right = new() { Orientation = Orientation.Horizontal, Spacing = 8, HorizontalAlignment = HorizontalAlignment.Right };
+    // Créés dans le constructeur, APRÈS celui de Window : un élément de XAML créé avant (initialiseur de champ) fait
+    // tomber WinUI quand c'est la première fenêtre (CI, mode photos : 0xC000027B dans Microsoft.UI.Xaml.dll).
+    private readonly StackPanel _content;
+    private readonly StackPanel _left;
+    private readonly StackPanel _right;
     private bool _closing;
     private SoundFamily? _dragging;
 
@@ -63,7 +65,12 @@ internal sealed class OrganizerWindow : Window
 
     private OrganizerWindow(AppController app, string? demo = null)
     {
+        Photos.Note("fenêtre : constructeur");
         _app = app;
+        _content = new StackPanel { Spacing = 12 };
+        _left = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
+        _right = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, HorizontalAlignment = HorizontalAlignment.Right };
+        Photos.Note("fenêtre : panneaux");
         _hwnd = WinRT.Interop.WindowNative.GetWindowHandle(this);
         Title = Loc.T("Organiser le projet");
         // Les photos ne voient pas le fond Mica : fond uni pour elles.
@@ -77,6 +84,7 @@ internal sealed class OrganizerWindow : Window
             presenter.IsMinimizable = false;
         }
 
+        Photos.Note("fenêtre : taille");
         var root = new Grid { Padding = new Thickness(22, 18, 22, 18), RowSpacing = 14 };
         if (SystemBackdrop is null) root.Background = Res("ApplicationPageBackgroundThemeBrush");
         root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
@@ -96,6 +104,7 @@ internal sealed class OrganizerWindow : Window
         root.Children.Add(scroll);
         root.Children.Add(footer);
         Content = root;
+        Photos.Note("fenêtre : contenu");
 
         _controller = new OrganizerController(OrganizerLive.Make(app, DispatcherQueue, ChooseProject, InstallElsewhere));
         _controller.Changed += Render;
@@ -111,8 +120,10 @@ internal sealed class OrganizerWindow : Window
             OrganizerClosed?.Invoke();
         };
         Render();
+        Photos.Note("fenêtre : premier dessin");
         if (demo is null) _controller.Start();
         else _controller.ShowDemo(demo);
+        Photos.Note("fenêtre : prête");
     }
 
     // ---------- Petits morceaux ----------
