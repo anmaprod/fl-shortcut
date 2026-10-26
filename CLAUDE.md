@@ -120,7 +120,12 @@
   textes que le Mac ; pas encore d'icônes de FL ni d'envoi à l'équipe), « Tu valides la version organisée ? »
   (`CopyApprovalPrompt`, Corbeille par le shell). Vérifier sans Windows : projet temporaire `net8.0-windows` +
   `EnableWindowsTargeting`, `EnableCoreMrtTooling=false`, tous les .cs de l'app sauf `*.xaml.cs` (compile sous Linux).
-  Reste : macros, compte, Communauté, Aide, photos de l'app Windows sur la CI.
+  CI : `--photos <dossier>` photographie les 6 écrans de l'Organiser (sons d'exemple), sous le débogueur cdb (pile et
+  erreur d'origine si WinUI tombe). JAMAIS `SetDefaultDllDirectories` (la 1re fenêtre tombait : E_INVALIDARG du
+  Windows App SDK auto-contenu) : `SetDllDirectory("")`. Macros (cœur `windows/FLShortcut.Core/Macros/`) : modèle et JSON
+  communs au Mac, registre des blocs, validation, pages/« Cliquer sur… », modèles, catalogue des 270 raccourcis de FL
+  (`Catalog.cs`, généré depuis Catalog.swift). Reste : interpréteur et effets des macros, créateur, enregistrement,
+  compte, Communauté, Aide.
 - Interface : survol coloré du menu de l'icône (`menuHover` : contour de sa couleur, halo autour) voulu par le
   propriétaire partout ; depuis le 25/10 (sa capture) : couleurs de l'élément JAMAIS changées (ni fond ajouté, ni
   ombre sur le contenu : halo `HoverGlow` dehors seulement), rien de gris au-delà du contour (lignes des cartes : c'est
