@@ -19,19 +19,20 @@ public partial class App : Application
     public App()
     {
         SetDefaultDllDirectories(LOAD_LIBRARY_SEARCH_DEFAULT_DIRS);
+        Photos.Note("appli : démarrage");
+        UnhandledException += (_, e) => Photos.Note("exception : " + e.Exception);
         InitializeComponent();
+        Photos.Note("appli : ressources chargées");
     }
 
     protected override void OnLaunched(LaunchActivatedEventArgs args)
     {
         // Mode photos de la CI : les écrans de l'Organiser avec des sons d'exemple, en PNG, puis l'appli se ferme.
         // Rien n'est envoyé à FL ; ni hook clavier, ni port MIDI.
-        var command = Environment.GetCommandLineArgs();
-        var photos = Array.FindIndex(command, a => string.Equals(a, "--photos", StringComparison.OrdinalIgnoreCase));
-        if (photos >= 0 && photos + 1 < command.Length)
+        if (Photos.Folder is { } folder)
         {
             var ui = Microsoft.UI.Dispatching.DispatcherQueue.GetForCurrentThread();
-            Photos.Take(command[photos + 1], () => new AppController(ui));
+            Photos.Take(folder, () => new AppController(ui));
             return;
         }
         _single = new Mutex(initiallyOwned: true, @"Local\FLShortcut.SingleInstance", out var created);

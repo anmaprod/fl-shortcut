@@ -107,6 +107,10 @@ jobs:
           "code de sortie : $($app.ExitCode)"
           Get-ChildItem dist/photos-windows | ForEach-Object { "$($_.Name)  $($_.Length) octets" }
           Get-Content dist/photos-windows/photos-journal.txt -ErrorAction SilentlyContinue
+          "fichiers .pri : $((Get-ChildItem dist/win-x64 -Filter *.pri | ForEach-Object Name) -join ', ')"
+          # L'appli est tombée : ce que Windows a noté (exception .NET avec sa pile, module fautif).
+          Get-WinEvent -FilterHashtable @{ LogName = 'Application'; ProviderName = '.NET Runtime', 'Application Error' } -MaxEvents 4 -ErrorAction SilentlyContinue |
+            ForEach-Object { "---- $($_.ProviderName) $($_.TimeCreated)"; $_.Message }
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: FLShortcuts-windows-photos

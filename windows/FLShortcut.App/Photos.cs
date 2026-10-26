@@ -13,26 +13,38 @@ internal static class Photos
 {
     private static readonly string[] Screens = { "installer", "attente", "aide", "ecoute", "apercu", "fini" };
 
-    /// `app` est créé ici (son échec est noté comme le reste) ; le journal « photos-journal.txt » dit chaque étape.
+    /// Le dossier des photos donné après `--photos` (qui existe déjà), ou null : pas en mode photos.
+    public static string? Folder { get; } = FolderFromCommandLine();
+
+    private static string? FolderFromCommandLine()
+    {
+        var command = Environment.GetCommandLineArgs();
+        var at = Array.FindIndex(command, a => string.Equals(a, "--photos", StringComparison.OrdinalIgnoreCase));
+        return at >= 0 && at + 1 < command.Length && Directory.Exists(command[at + 1]) ? command[at + 1] : null;
+    }
+
+    /// Une ligne du journal « photos-journal.txt », écrite tout de suite (l'appli peut tomber juste après).
+    public static void Note(string line)
+    {
+        if (Folder is not { } folder) return;
+        try { File.AppendAllText(Path.Combine(folder, "photos-journal.txt"), $"{DateTime.UtcNow:HH:mm:ss.fff} {line}{Environment.NewLine}"); }
+        catch (IOException) { }
+    }
+
+    /// `app` est créé ici (son échec est noté comme le reste).
     public static async void Take(string folder, Func<AppController> app)
     {
-        var journal = new List<string>();
-        void Note(string line) => journal.Add($"{DateTime.UtcNow:HH:mm:ss.fff} {line}");
         try
         {
             if (!Directory.Exists(folder)) return;
             Note("début");
             // Une fenêtre fermée avant l'ouverture de la suivante ne doit pas arrêter l'appli.
             Application.Current.DispatcherShutdownMode = DispatcherShutdownMode.OnExplicitShutdown;
-            Application.Current.UnhandledException += (_, e) =>
-            {
-                Note("exception : " + e.Exception);
-                try { File.WriteAllLines(Path.Combine(folder, "photos-journal.txt"), journal); } catch (IOException) { }
-            };
             var controller = app();
             Note("appli prête");
             foreach (var screen in Screens)
             {
+                Note($"{screen} : création");
                 var window = OrganizerWindow.Demo(controller, screen);
                 window.Activate();
                 Note($"{screen} : fenêtre ouverte");
@@ -51,8 +63,7 @@ internal static class Photos
         }
         finally
         {
-            try { if (Directory.Exists(folder)) File.WriteAllLines(Path.Combine(folder, "photos-journal.txt"), journal); }
-            catch (IOException) { }
+            Note("fin");
             Application.Current.Exit();
         }
     }
