@@ -45,6 +45,11 @@ internal static class Photos
             Application.Current.DispatcherShutdownMode = DispatcherShutdownMode.OnExplicitShutdown;
             var controller = app();
             Note("appli prête");
+            // Une fenêtre toute simple d'abord : si elle tombe aussi, c'est WinUI sur cette machine, pas l'Organiser.
+            Note("fenêtre simple : création");
+            var probe = new Window { Title = "FL Shortcuts" };
+            Note("fenêtre simple : créée");
+            probe.Close();
             foreach (var screen in Screens)
             {
                 Note($"{screen} : création");
