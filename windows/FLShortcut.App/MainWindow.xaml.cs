@@ -41,7 +41,10 @@ public sealed partial class MainWindow : Window
     private bool? _shownPortsOk;
     private bool _toastLeaving;
 
-    public MainWindow()
+    public MainWindow() : this(photos: false) { }
+
+    /// `photos` : mode photos de la CI : ni hook clavier, ni port MIDI, ni question de validation.
+    internal MainWindow(bool photos)
     {
         InitializeComponent();
         _hwnd = WinRT.Interop.WindowNative.GetWindowHandle(this);
@@ -86,11 +89,11 @@ public sealed partial class MainWindow : Window
 
         BuildProfileMenu();
         if (_app.Light) NavLink.Visibility = Visibility.Collapsed;   // mode léger : rien à relier
-        _app.Start();
+        if (!photos) _app.Start();
         ShowScreen();
         if (_app.LoadWarning is { } warning) ShowToast(warning, InfoBarSeverity.Warning);
         // Une version organisée attend (Organiser fermé) : la question à la réouverture de FL Shortcuts.
-        Root.Loaded += (_, _) => CopyApprovalPrompt.Ask(Root.XamlRoot, _app, force: false);
+        if (!photos) Root.Loaded += (_, _) => CopyApprovalPrompt.Ask(Root.XamlRoot, _app, force: false);
     }
 
     // ---------- Fenêtre et zone de notification ----------

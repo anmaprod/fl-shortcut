@@ -1,6 +1,7 @@
-// Mode photos de la CI (`--photos <dossier>`) : chaque écran de l'Organiser, avec des sons d'exemple
-// (OrganizerController.ShowDemo), enregistré en PNG, puis l'appli se ferme. Rien n'est envoyé à FL, aucun hook ni port
-// MIDI n'est ouvert ; seuls des fichiers « organiser-<écran>.png » sont écrits, dans un dossier qui existe déjà.
+// Mode photos de la CI (`--photos <dossier>`) : la fenêtre principale, puis chaque écran de l'Organiser avec des sons
+// d'exemple (OrganizerController.ShowDemo), enregistrés en PNG, puis l'appli se ferme. Rien n'est envoyé à FL, aucun
+// hook ni port MIDI n'est ouvert ; seuls « principale.png » et des « organiser-<écran>.png » sont écrits, dans un
+// dossier qui existe déjà.
 using System.Runtime.InteropServices.WindowsRuntime;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Media.Imaging;
@@ -50,6 +51,18 @@ internal static class Photos
             var probe = new Window { Title = "FL Shortcuts" };
             Note("fenêtre simple : créée");
             probe.Close();
+            // La fenêtre principale (raccourcis), comme au premier lancement.
+            Note("principale : création");
+            var main = new MainWindow(photos: true);
+            main.Activate();
+            Note("principale : fenêtre ouverte");
+            await Task.Delay(2000);
+            if (main.Content is UIElement mainContent)
+            {
+                await Save(mainContent, Path.Combine(folder, "principale.png"));
+                Note("principale : photo");
+            }
+            main.Close();
             foreach (var screen in Screens)
             {
                 Note($"{screen} : création");
