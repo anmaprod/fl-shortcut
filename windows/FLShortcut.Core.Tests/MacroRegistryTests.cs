@@ -475,3 +475,86 @@ public class MacroRegistryTests
         Assert.All(all, e => Assert.NotNull(e.Combo));
     }
 }
+
+public class MacroTemplateTests
+{
+    /// Chaque modèle se lit et ne demande que ce qui se règle sur chaque ordinateur (clics à montrer, preset, plugin).
+    [Fact]
+    public void GalleryTemplatesAreReadyOrAskForTheirSetting()
+    {
+        var gallery = MacroTemplates.Gallery;
+        Assert.Equal(new[] { "threeFour", "quickDrop", "exportStems", "openVST", "purgeAudio" }, gallery.Select(t => t.Id));
+        foreach (var t in gallery)
+        {
+            Assert.True(Loc.Has(t.Title), t.Id);
+            Assert.True(Loc.Has(t.Summary), t.Id);
+            var doc = t.Make();
+            Assert.Equal(t.Id, doc.Origin?.Template);
+            var problem = MacroValidation.Problem(doc, new ValidationContext { StrictFiles = true });
+            switch (t.Id)
+            {
+                case "exportStems" or "purgeAudio":
+                    Assert.Null(problem);
+                    break;
+                case "threeFour":
+                    Assert.Equal("Étape 2 : position à montrer dans FL (« Montrer dans FL… » dans le créateur).", problem);
+                    break;
+                case "quickDrop":
+                    Assert.Equal("Étape 1 : preset à choisir dans le créateur.", problem);
+                    break;
+                case "openVST":
+                    Assert.Equal("Étape 2 : choisis le plugin à ajouter (comme dans le menu Add de FL).", problem);
+                    break;
+            }
+            // Le même JSON après un aller-retour (macro partagée avec un Mac).
+            var again = MacroDoc.FromJson(System.Text.Json.Nodes.JsonNode.Parse(doc.ToJson().ToJsonString()));
+            Assert.Equal(doc.ToJson().ToJsonString(), again.ToJson().ToJsonString());
+        }
+        // Deux copies d'un modèle ne partagent jamais un id.
+        Assert.NotEqual(gallery[0].Make().Blocks[0].Id, gallery[0].Make().Blocks[0].Id);
+    }
+
+    [Fact]
+    public void FreshIdsAndNotesReachNestedBlocks()
+    {
+        var inner = new Block(new BlockBody.Delay(1), note: "dedans");
+        var tree = new List<Block> { new(new BlockBody.RepeatCount(2, new List<Block> { inner }), note: "boucle") };
+        var fresh = MacroTemplates.FreshIds(tree);
+        var copied = ((BlockBody.RepeatCount)fresh[0].Body).Blocks[0];
+        Assert.NotEqual(inner.Id, copied.Id);
+        Assert.Equal("dedans", copied.Note);
+        var bare = MacroTemplates.WithoutNotes(tree);
+        Assert.Null(bare[0].Note);
+        Assert.Null(((BlockBody.RepeatCount)bare[0].Body).Blocks[0].Note);
+        Assert.Equal(inner.Id, ((BlockBody.RepeatCount)bare[0].Body).Blocks[0].Id);
+    }
+
+    /// Liste du « Menu de la piste » : chaque élément est valable, lettres distinctes, et « Ouvrir un état de piste »
+    /// est exactement le bloc du modèle.
+    [Fact]
+    public void TrackMenuChoices()
+    {
+        var choices = MacroTemplates.TrackMenuChoices;
+        Assert.Equal(choices.Count, choices.Select(c => c.Letters).Distinct().Count());
+        foreach (var c in choices)
+        {
+            var body = new BlockBody.TrackMenu(c.Letters, c.Labels, TrackTarget.LastClicked, c.Enter);
+            Assert.Null(MacroValidation.Problem(new[] { new Block(body) }, null, new ValidationContext()));
+            Assert.Equal(c.Id, MacroTemplates.TrackMenuChoice(c.Letters)?.Id);
+            Assert.True(Loc.Has(c.Name), c.Id);
+        }
+        var open = (BlockBody.TrackMenu)MacroTemplates.OpenStateMenu;
+        var choice = MacroTemplates.TrackMenuChoice(open.Letters)!;
+        Assert.Equal("openState", choice.Id);
+        Assert.Equal(open.Labels, choice.Labels);
+        Assert.Equal(open.FinalEnter, choice.Enter);
+        Assert.Null(MacroTemplates.TrackMenuChoice("xy"));
+    }
+
+    [Fact]
+    public void ArmThroughTrackMenuIsValid()
+    {
+        var rec = new KeyRef(new MacKey(15), "r");
+        Assert.Null(MacroValidation.Problem(MacroTemplates.ArmThroughTrackMenu(rec), null, new ValidationContext()));
+    }
+}
