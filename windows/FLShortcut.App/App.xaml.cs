@@ -1,5 +1,7 @@
 // Audit : REL-07 (instance unique vérifiée avant toute création de hook, de port ou de profil),
-//         WIN-06/07 (DLL chargées seulement depuis le dossier de l'appli et System32 : ni dossier courant, ni PATH).
+//         WIN-06/07 (DLL jamais chargées depuis le dossier courant : SetDllDirectory("")). Pas de
+//         SetDefaultDllDirectories : le Windows App SDK charge ses classes avec LOAD_WITH_ALTERED_SEARCH_PATH, refusé
+//         après lui (E_INVALIDARG) : la toute première fenêtre faisait tomber l'appli (débogueur de la CI, 26/10).
 using System.Runtime.InteropServices;
 using Microsoft.UI.Xaml;
 
@@ -10,15 +12,13 @@ public partial class App : Application
     private static Mutex? _single;
     private MainWindow? _window;
 
-    private const uint LOAD_LIBRARY_SEARCH_DEFAULT_DIRS = 0x00001000;
-
-    [DllImport("kernel32.dll", SetLastError = true)]
+    [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
-    private static extern bool SetDefaultDllDirectories(uint directoryFlags);
+    private static extern bool SetDllDirectory(string lpPathName);
 
     public App()
     {
-        SetDefaultDllDirectories(LOAD_LIBRARY_SEARCH_DEFAULT_DIRS);
+        SetDllDirectory("");                        // retire le dossier courant de la recherche des DLL
         Photos.Note("appli : démarrage");
         UnhandledException += (_, e) => Photos.Note("exception : " + e.Exception);
         InitializeComponent();
