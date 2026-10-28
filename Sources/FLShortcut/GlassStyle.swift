@@ -5,8 +5,10 @@
 // 8fb66a8) ni verre sur verre. La couleur va dans le contenu (icônes de rubrique) ; plus de lavis de couleur sous le
 // verre depuis le 28/10 (« garder que le Liquid Glass, pas de fond »). Le verre redevient opaque dès que la fenêtre n'est plus active
 // (FL au premier plan) : rien à recalculer pendant que tu travailles dans FL. Réduire la transparence et Contraste
-// élevé : le verre s'adapte tout seul, la fenêtre et le lavis redeviennent unis. Réglable dans le menu Profil
-// (« Effet Liquid Glass ») : coupé, tout est opaque. Audit 05 : touches affichées avec leur nom en clair.
+// élevé : le verre s'adapte tout seul, les cartes redeviennent grises. Fond de fenêtre plein depuis le 28/10 (« sans
+// le Liquid Glass derrière ») : le verre est devant, sur les cartes, les touches et les cartes de l'Organiser
+// (`GlassPlate`). Réglable dans le menu Profil (« Effet Liquid Glass ») : coupé, tout est opaque et les cartes
+// grises. Audit 05 : touches affichées avec leur nom en clair.
 // Mouvement : courtes transitions, remplacées par un simple fondu quand « Réduire les animations » est activé.
 import AppKit
 import SwiftUI
@@ -252,13 +254,6 @@ enum Appearance {
         return false
     }
 
-    /// Fenêtre translucide (le bureau se devine derrière) : macOS 15+, préférence active, transparence non réduite.
-    /// Une seule règle pour le fond de la fenêtre, les listes posées dessus et le lavis : jamais l'un sans l'autre.
-    static func translucentWindow(glass: Bool, reduceTransparency: Bool) -> Bool {
-        guard glass, !reduceTransparency else { return false }
-        if #available(macOS 15.0, *) { return true }
-        return false
-    }
 
     /// Couleurs de l'icône (orange → rose → violet), reprises par l'accueil.
     static let brand: [Color] = [Color(red: 1.0, green: 0.64, blue: 0.36),
@@ -380,20 +375,6 @@ private struct GlassListBackground: ViewModifier {
     }
 }
 
-/// Fond de fenêtre translucide (voir `windowGlass`).
-private struct WindowGlass: ViewModifier {
-    let on: Bool
-    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
-
-    func body(content: Content) -> some View {
-        if #available(macOS 15.0, *), Appearance.translucentWindow(glass: on, reduceTransparency: reduceTransparency) {
-            content.containerBackground(Material.thin, for: .window)
-        } else {
-            content
-        }
-    }
-}
-
 /// Fond de la page aux couleurs de sa section, comme le guide : lueur de sa couleur (halo en haut à gauche, reflet en
 /// haut à droite, une touche en bas, `TintGlow`) sur toute la page, sous la barre d'outils et la barre latérale.
 /// D'une page à l'autre, les couleurs se fondent l'une dans l'autre (0,9 s), jamais de changement sec. Dégradés
@@ -420,12 +401,6 @@ private struct TintedBackdrop: ViewModifier {
 }
 
 extension View {
-    /// Fenêtre entière translucide (matériau derrière la fenêtre) : le bureau se devine, les sections posées
-    /// dessus restent lisibles. Composé par le système ; figé par macOS quand la fenêtre n'est plus active.
-    func windowGlass(_ on: Bool) -> some View {
-        modifier(WindowGlass(on: on))
-    }
-
     /// Pas de bande sous la barre d'outils (retour de l'utilisateur : un rectangle du titre jusqu'au « + » et au « ⋯ ») :
     /// ni fond de barre d'outils, ni effet de bord en haut de la page (macOS 26) ; le titre et les boutons flottent
     /// sur la page.
@@ -624,8 +599,27 @@ struct KeyLabel: View {
     let combo: KeyCombo?
     var accent = false
     var placeholder = String(localized: "Aucune")
+    @Environment(\.colorScheme) private var scheme
+    @AppStorage(Appearance.glassKey) private var glassEnabled = true
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+    @Environment(\.colorSchemeContrast) private var contrast
 
     private var shape: RoundedRectangle { RoundedRectangle(cornerRadius: 6, style: .continuous) }
+
+    private var plate: Bool {
+        GlassPlate.on(glass: glassEnabled, reduceTransparency: reduceTransparency, increasedContrast: contrast == .increased)
+    }
+
+    /// Touche changée : teintée de bleu (maquette du 28/10) ; sinon un petit morceau de verre (gris sans l'effet).
+    private var fill: Color {
+        if accent { return Color.accentColor.opacity(0.18) }
+        return plate ? GlassPlate.fill(scheme) : Color.primary.opacity(0.05)
+    }
+
+    private var border: AnyShapeStyle {
+        if accent { return AnyShapeStyle(Color.accentColor.opacity(0.7)) }
+        return plate ? AnyShapeStyle(GlassPlate.rim(scheme)) : AnyShapeStyle(Color(nsColor: .separatorColor))
+    }
 
     var body: some View {
         Group {
@@ -640,10 +634,8 @@ struct KeyLabel: View {
         .lineLimit(1)
         .padding(.horizontal, 8)
         .frame(minWidth: 56, minHeight: 22)
-        // Touche changée : teintée de bleu (maquette du 28/10), sinon la capsule grise de toujours.
-        .background(shape.fill(accent ? Color.accentColor.opacity(0.18) : Color.primary.opacity(0.05)))
-        .overlay(shape.strokeBorder(accent ? Color.accentColor.opacity(0.7) : Color(nsColor: .separatorColor),
-                                    lineWidth: accent ? 1 : 0.5))
+        .background(shape.fill(fill))
+        .overlay(shape.strokeBorder(border, lineWidth: accent || plate ? 1 : 0.5))
         .contentShape(shape)
         // Jamais écrasé ni coupé quand la fenêtre est étroite : c'est le titre de la ligne qui se raccourcit.
         .fixedSize()
@@ -835,9 +827,17 @@ struct CardRowBackground: View {
     var hover: Color? = nil
     var grow = false
     @Environment(\.colorScheme) private var scheme
+    @AppStorage(Appearance.glassKey) private var glassEnabled = true
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+    @Environment(\.colorSchemeContrast) private var contrast
+
+    private var plate: Bool {
+        GlassPlate.on(glass: glassEnabled, reduceTransparency: reduceTransparency, increasedContrast: contrast == .increased)
+    }
 
     private var fill: Color {
-        scheme == .dark ? Color.white.opacity(0.07) : Color.black.opacity(0.045)
+        if plate { return GlassPlate.fill(scheme) }
+        return scheme == .dark ? Color.white.opacity(0.07) : Color.black.opacity(0.045)
     }
 
     var body: some View {
@@ -851,6 +851,15 @@ struct CardRowBackground: View {
             } else {
                 CardRowShape(roundsTop: position.roundsTop, roundsBottom: position.roundsBottom)
                     .fill(fill)
+                    .overlay {
+                        // Bord de verre : le reflet sur la première ligne, puis un bord fin ; ouvert entre deux
+                        // lignes, la carte reste d'un seul tenant.
+                        if plate {
+                            CardRimShape(roundsTop: position.roundsTop, roundsBottom: position.roundsBottom)
+                                .stroke(position.roundsTop ? AnyShapeStyle(GlassPlate.rim(scheme))
+                                                           : AnyShapeStyle(GlassPlate.edge(scheme)), lineWidth: 1)
+                        }
+                    }
                     .overlay(alignment: .bottom) {
                         if !position.roundsBottom {
                             Rectangle().fill(Color.primary.opacity(0.08)).frame(height: 0.5).padding(.leading, 12)
@@ -862,6 +871,70 @@ struct CardRowBackground: View {
         .padding(.bottom, position.roundsBottom ? Self.gap : 0)
         .padding(.horizontal, Self.inset)
         .accessibilityHidden(true)
+    }
+}
+
+/// Plaque de verre dessinée (maquette validée le 28/10 : « le verre seulement devant », fond de fenêtre plein) : un
+/// voile clair, un bord fin et un reflet en haut, comme le Liquid Glass posé sur un fond sombre. Dessinée plutôt que
+/// `glassEffect` : une couche de verre par ligne de liste coûtait cher (8fb66a8) et chaque ligne aurait eu son propre
+/// bord (des morceaux séparés) ; sur un fond plein, le vrai verre n'aurait rien d'autre à montrer. Effet Liquid Glass
+/// coupé, Réduire la transparence ou Contraste élevé : la carte grise de toujours.
+enum GlassPlate {
+    static func on(glass: Bool, reduceTransparency: Bool, increasedContrast: Bool) -> Bool {
+        glass && !reduceTransparency && !increasedContrast
+    }
+
+    /// Voile de la plaque.
+    static func fill(_ scheme: ColorScheme) -> Color {
+        scheme == .dark ? Color.white.opacity(0.085) : Color.white.opacity(0.62)
+    }
+
+    /// Bord fin.
+    static func edge(_ scheme: ColorScheme) -> Color {
+        scheme == .dark ? Color.white.opacity(0.12) : Color.black.opacity(0.09)
+    }
+
+    /// Bord qui part du reflet, en haut, et s'éteint vers le bas.
+    static func rim(_ scheme: ColorScheme) -> LinearGradient {
+        LinearGradient(colors: [scheme == .dark ? Color.white.opacity(0.34) : Color.white, edge(scheme)],
+                       startPoint: .top, endPoint: .bottom)
+    }
+}
+
+/// Bord d'une ligne de carte : ses côtés, plus le haut et/ou le bas arrondis aux bouts de la carte (rien entre deux
+/// lignes). Tracé à un demi-point du bord, dans la ligne, avec les mêmes arrondis que `CardRowShape`.
+private struct CardRimShape: Shape {
+    let roundsTop: Bool
+    let roundsBottom: Bool
+    var radius: CGFloat = 10
+
+    func path(in full: CGRect) -> Path {
+        let rect = full.insetBy(dx: 0.5, dy: 0)
+        let top = roundsTop ? rect.minY + 0.5 : rect.minY
+        let bottom = roundsBottom ? rect.maxY - 0.5 : rect.maxY
+        let r = max(0, min(radius, full.height / 2) - 0.5)
+        let t = roundsTop ? r : 0
+        let b = roundsBottom ? r : 0
+        var p = Path()
+        // Côté gauche de bas en haut, le haut s'il est arrondi, puis le côté droit vers le bas et le bas arrondi.
+        p.move(to: CGPoint(x: rect.minX, y: bottom - b))
+        p.addLine(to: CGPoint(x: rect.minX, y: top + t))
+        if roundsTop {
+            p.addArc(tangent1End: CGPoint(x: rect.minX, y: top), tangent2End: CGPoint(x: rect.minX + t, y: top), radius: t)
+            p.addLine(to: CGPoint(x: rect.maxX - t, y: top))
+            p.addArc(tangent1End: CGPoint(x: rect.maxX, y: top), tangent2End: CGPoint(x: rect.maxX, y: top + t), radius: t)
+        } else {
+            p.move(to: CGPoint(x: rect.maxX, y: top))
+        }
+        p.addLine(to: CGPoint(x: rect.maxX, y: bottom - b))
+        if roundsBottom {
+            p.addArc(tangent1End: CGPoint(x: rect.maxX, y: bottom), tangent2End: CGPoint(x: rect.maxX - b, y: bottom),
+                     radius: b)
+            p.addLine(to: CGPoint(x: rect.minX + b, y: bottom))
+            p.addArc(tangent1End: CGPoint(x: rect.minX, y: bottom), tangent2End: CGPoint(x: rect.minX, y: bottom - b),
+                     radius: b)
+        }
+        return p
     }
 }
 

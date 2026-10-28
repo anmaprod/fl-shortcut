@@ -457,6 +457,12 @@ entrée 1 ≈ 0,5 s.
   qui passe d'un nom à un autre »), sorte, case du Mixer à droite.
   Menu de l'icône (28/10, « enlève prêt, FL Shortcuts, le logo ») : plus d'en-tête ; seule une ligne d'état quand
   quelque chose cloche (en pause, clavier non autorisé, FL fermé…), puis les lignes.
+  « Pas tant de Liquid Glass » : maquette avec la fenêtre en verre et les cartes en verre ; retour : « je préfère
+  sans le Liquid Glass derrière », puis « parfait, go ». Fait : fenêtre principale et créateur au fond plein (plus
+  de matériau translucide, `windowGlass` retiré) ; cartes des listes, touches et cartes de l'Organiser en plaques de
+  verre dessinées (`GlassPlate` : voile clair, bord fin, reflet en haut ; ligne par ligne sans couture,
+  `CardRimShape`) ; effet coupé, Réduire la transparence ou Contraste élevé : les cartes grises d'avant. Pas de
+  `glassEffect` par ligne : coûteux (8fb66a8) et chaque ligne aurait son propre bord.
   Dans l'app, la page principale n'avait déjà ni bouton pause ni « Connecté à FL » (seulement dans la maquette).
 - Textes courts (28/10, suite) : « Pose le preset sur la dernière piste cliquée du Mixer » → « Ouvre le preset que tu
   veux dans ton Mixer », le bloc s'appelle « Ouvrir un preset » (ligne : « Ouvrir le preset [fichier] », plus de « sur

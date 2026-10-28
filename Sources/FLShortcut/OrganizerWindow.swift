@@ -1678,16 +1678,27 @@ struct OrganizerView: View {
     }
 }
 
-/// Carte de l'Organiser, comme celles du guide : voile clair et liseré de sa couleur, qui prend toute sa couleur au
-/// survol (le voile ne change pas).
+/// Carte de l'Organiser : plaque de verre (28/10, « le verre seulement devant ») qui prend sa couleur au survol ; sans
+/// l'effet, le voile clair et le liseré de sa couleur de toujours.
 private struct OrganizerCard: View {
     var tint: Color = OrganizerView.tint
     var hovered = false
+    @Environment(\.colorScheme) private var scheme
+    @AppStorage(Appearance.glassKey) private var glassEnabled = true
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+    @Environment(\.colorSchemeContrast) private var contrast
 
     var body: some View {
         let shape = RoundedRectangle(cornerRadius: 14, style: .continuous)
-        shape.fill(Color.primary.opacity(0.045))
-            .overlay(shape.strokeBorder(tint.opacity(hovered ? 1 : 0.24), lineWidth: hovered ? 1.5 : 1))
+        if GlassPlate.on(glass: glassEnabled, reduceTransparency: reduceTransparency,
+                         increasedContrast: contrast == .increased) {
+            shape.fill(GlassPlate.fill(scheme))
+                .overlay(shape.strokeBorder(GlassPlate.rim(scheme), lineWidth: 1))
+                .overlay(shape.strokeBorder(tint, lineWidth: 1.5).opacity(hovered ? 1 : 0))
+        } else {
+            shape.fill(Color.primary.opacity(0.045))
+                .overlay(shape.strokeBorder(tint.opacity(hovered ? 1 : 0.24), lineWidth: hovered ? 1.5 : 1))
+        }
     }
 }
 

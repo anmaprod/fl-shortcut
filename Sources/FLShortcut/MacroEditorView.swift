@@ -76,7 +76,6 @@ struct MacroCreatorView: View {
     /// Flèche ← : retour aux raccourcis (avec la question « Enregistrer ou supprimer » si besoin).
     let onBack: () -> Void
     @Environment(\.undoManager) private var undoManager
-    @AppStorage(Appearance.glassKey) private var glassEnabled = true
 
     var body: some View {
         NavigationSplitView {
@@ -102,8 +101,8 @@ struct MacroCreatorView: View {
         .navigationTitle(model.draft?.name ?? String(localized: "Créateur de macros"))
         .toolbarTitleHidden()
         .toolbar { toolbarContent }
-        // Plus de fondu de couleur dans le fond (28/10 : « garder que le Liquid Glass, pas de fond »).
-        .windowGlass(glassEnabled)
+        // Plus de fondu de couleur dans le fond (28/10 : « garder que le Liquid Glass, pas de fond ») ; fond plein,
+        // le verre est devant (« sans le Liquid Glass derrière »).
         // Fenêtre qui l'affiche : retour du focus après « Montrer dans FL… », et devant FL tant qu'il est affiché.
         .background(WindowReader { [model] window in
             model.window = window
