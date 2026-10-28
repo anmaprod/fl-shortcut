@@ -453,7 +453,8 @@ entrée 1 ≈ 0,5 s.
   si l'app est en pause par ⌃⌥⌘F), pied « Ouvrir FL Shortcuts » (bleu) / « Quitter ⌘Q » ; palette des macros sans
   Répéter ni Si… sinon (toujours compris dans les anciennes macros), rubrique « Attente » ; Organiser : titre seul,
   sans phrases, chaque famille sur une ligne (poignée, rond de couleur — « Une couleur / Dégradé » dans sa fenêtre —,
-  nom, départ du Mixer, icône), chaque son : nom qu'il prendra (ancien nom en gris), sorte, case du Mixer à droite.
+  nom, départ du Mixer, icône), chaque son : ancien nom → nom qu'il prendra (remis comme avant le 28/10 : « le nom
+  qui passe d'un nom à un autre »), sorte, case du Mixer à droite.
   Dans l'app, la page principale n'avait déjà ni bouton pause ni « Connecté à FL » (seulement dans la maquette).
 - Textes courts (28/10, suite) : « Pose le preset sur la dernière piste cliquée du Mixer » → « Ouvre le preset que tu
   veux dans ton Mixer », le bloc s'appelle « Ouvrir un preset » (ligne : « Ouvrir le preset [fichier] », plus de « sur

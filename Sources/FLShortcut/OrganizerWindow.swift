@@ -1984,11 +1984,11 @@ private struct FamilyMemberRow: View {
             Circle()
                 .fill(swiftColor(color))
                 .frame(width: 10, height: 10)
-            // Le nom qu'il prendra, en clair ; son nom d'origine en gris à côté quand il change (maquette du 28/10).
-            Text(member.newName ?? (member.name.isEmpty ? String(localized: "(sans nom)") : member.name))
-                .lineLimit(1)
-            if member.newName != nil, !member.name.isEmpty {
-                Text(member.name).font(.system(size: 11)).foregroundStyle(.secondary).lineLimit(1)
+            // Son nom d'origine → le nom qu'il prendra, comme avant (28/10 : « le nom qui passe d'un nom à un autre »).
+            Text(member.name.isEmpty ? String(localized: "(sans nom)") : member.name).lineLimit(1)
+            if let newName = member.newName {
+                Image(systemName: "arrow.right").font(.system(size: 9)).foregroundStyle(.secondary)
+                Text(newName).lineLimit(1).foregroundStyle(member.written ? Color.primary : Color.secondary)
             }
             if member.testNotes {
                 Image(systemName: "music.note")
