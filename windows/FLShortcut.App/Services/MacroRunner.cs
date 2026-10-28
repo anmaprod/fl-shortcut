@@ -260,6 +260,8 @@ internal sealed class WindowsFlDriver : IFlDriver
 
     public RequestReply RunRequest(byte[] bytes) => _midi.RunRequest(bytes, brief: _light());
 
+    public bool LinkInstalled => _midi.HasKey && (_midi.PortsPresent || MidiLink.PortsExist());
+
     /// Diagnostic du départ : classe, rôle et taille de chaque fenêtre de FL (jamais le titre).
     public void LogWindows()
     {

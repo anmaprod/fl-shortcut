@@ -70,6 +70,8 @@ public interface IFlDriver
     DataReply RunData(IReadOnlyList<byte> units);
     /// Opération 2 à 26 du lien (PROTOCOL.md §8 : dégradé), lien réveillé brièvement.
     RequestReply RunRequest(byte[] bytes);
+    /// Lien avec FL installé (clé et ports MIDI) : sinon, ses commandes échoueraient après une attente.
+    bool LinkInstalled { get; }
 }
 
 public sealed partial class MacroEffectsWindows : IMacroEffects
@@ -91,8 +93,10 @@ public sealed partial class MacroEffectsWindows : IMacroEffects
         BlockBody.Click { Target: ClickTarget.Button } or BlockBody.Drag { From: ClickTarget.Button }
             or BlockBody.Drag { To: ClickTarget.Button }
             => Loc.T("bouton retrouvé à son image : pas encore sur Windows (montre de nouveau le clic sur ce PC)."),
+        BlockBody.PageOption { Option: { } id } when PageOptions.Option(id)?.Kind is Macros.PageOption.OptionKind.Arrangement
+            => Loc.T("menu « Arrangement » de la Playlist : pas encore sur Windows."),
         BlockBody.TrackMenu or BlockBody.ChooseFile or BlockBody.DropFile
-            or BlockBody.SelectInput or BlockBody.FeedbackCheck or BlockBody.SoundCard or BlockBody.PageOption
+            or BlockBody.SelectInput or BlockBody.FeedbackCheck or BlockBody.SoundCard
             or BlockBody.MenuAX
             => Loc.F("bloc « %@ » pas encore pris en charge sur Windows.",
                 body.Type is { } type ? BlockRegistry.Spec(type).Label : "?"),
@@ -205,6 +209,8 @@ public sealed partial class MacroEffectsWindows : IMacroEffects
                 return OpenPage(p.Page, state);
             case BlockBody.NameColor n:
                 return NameColor(n);
+            case BlockBody.PageOption p:
+                return ClickOn(p, state);
             case BlockBody.Organize:
                 // La suite se passe dans la fenêtre de l'Organiser (ses propres garde-fous).
                 _fl.Log("FL", "organizer opened");
@@ -510,6 +516,79 @@ public sealed partial class MacroEffectsWindows : IMacroEffects
             }
         }
         return n.Icon is null ? new StepResult.Ok() : new StepResult.Warn(Loc.T("icône pas encore posée sous Windows (pose-la dans FL avec F2)"));
+    }
+
+    // ---------- « Cliquer sur… » ----------
+
+    /// Option d'une page de FL : action du lien ou touche de FL, menu Add de FL (plugin), mute/solo d'un canal, nouveau
+    /// nom de la piste. Journal : l'option, jamais le nom du plugin ni celui de la piste.
+    private StepResult ClickOn(BlockBody.PageOption p, RunState state)
+    {
+        if (p.Option is not { } id || PageOptions.Option(id) is not { } option)
+            return new StepResult.Fail(Loc.T("option de FL à choisir dans la macro"));
+        _fl.Log("FL", $"page option {id}");
+        switch (option.Kind)
+        {
+            case Macros.PageOption.OptionKind.ChannelToggle t:
+                return PageOptions.Channel(p.Name) is { } number ? ToggleChannel(number, t.Solo)
+                    : new StepResult.Fail(Loc.T("numéro du canal à écrire dans « Cliquer sur… »"));
+            case Macros.PageOption.OptionKind.Rename:
+                return RenameTrack(p.Name);
+        }
+        if (PageOptions.Body(option, p.Name) is not { } body) return new StepResult.Fail(Loc.T("option inconnue"));
+        var result = Perform(body, state);
+        // Plugin pas dans le menu Add : le dire comme tel (FL peut le ranger ailleurs, ou il a été désinstallé).
+        if (option.Field == PageField.Plugin && result is StepResult.Fail { Why: var why }
+            && why == Loc.T("élément introuvable dans le menu de FL (renommé, ou FL dans une autre langue ?)"))
+            return new StepResult.Fail(Loc.T("plugin introuvable dans le menu Add de FL : choisis-le de nouveau dans « Cliquer sur… »"));
+        return result;
+    }
+
+    /// Mute ou solo d'un canal : par le lien (tous les canaux), sinon la touche 1 à 0 de FL (canaux 1 à 10).
+    private StepResult ToggleChannel(int number, bool solo)
+    {
+        var what = solo ? "solo" : "mute";
+        var key = PageOptions.ChannelKey(number, solo);
+        if (key is null || _fl.LinkInstalled)
+        {
+            switch (_fl.RunRequest(OrganizerPayload.ToggleChannel(number - 1, solo)))
+            {
+                case RequestReply.Answered:
+                    _fl.Log("FL", $"channel {what} by link");
+                    return new StepResult.Ok();
+                case RequestReply.Refused { Reason: 5 } when key is null:
+                    return new StepResult.Fail(Loc.F("canal %lld absent du Channel rack (ou script de FL pas à jour : redémarre FL)", number));
+                case RequestReply.Refused r when key is null:
+                    return new StepResult.Fail(Loc.F("FL a refusé le %@ du canal (raison %lld)", what, r.Reason));
+                case RequestReply.Failed f when key is null:
+                    return new StepResult.Fail(f.Why + Loc.T(" (au-delà du canal 10, seul le lien avec FL le fait)"));
+                default:
+                    _fl.Log("FL", $"channel {what}: link unavailable, FL key");
+                    break;
+            }
+        }
+        if (key is null) return new StepResult.Fail(Loc.F("canal %lld : lien avec FL nécessaire", number));
+        return Key(key, 1);
+    }
+
+    /// Nouveau nom de la piste sélectionnée, posé par le script de FL (opération 1 : rien n'est tapé). Le nom n'est
+    /// jamais journalisé.
+    private StepResult RenameTrack(string name)
+    {
+        var payload = new NameColorPayload(name, null);
+        if (payload.Name is null) return new StepResult.Fail(Loc.T("nouveau nom de la piste à écrire dans « Cliquer sur… »"));
+        switch (_fl.RunData(Pack7.Pack(payload.Bytes)))
+        {
+            case DataReply.Done:
+                _fl.Log("FL", "track renamed by link");
+                return new StepResult.Ok();
+            case DataReply.Refused r:
+                return new StepResult.Fail(NameColorPayload.Message(r.Reason));
+            case DataReply.Failed f:
+                return new StepResult.Fail(f.Why);
+            default:
+                return new StepResult.Fail("?");
+        }
     }
 
     // ---------- Pages de FL ----------

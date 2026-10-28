@@ -33,7 +33,7 @@ internal sealed class MacrosWindow : Window
     {
         BlockType.Key, BlockType.Delay, BlockType.MenuLetters, BlockType.MenuKey, BlockType.WaitWindow,
         BlockType.WaitWindowClose, BlockType.FlAction, BlockType.OpenPage, BlockType.Organize, BlockType.Stop, BlockType.Comment,
-        BlockType.Click, BlockType.MenuBar, BlockType.NameColor,
+        BlockType.Click, BlockType.MenuBar, BlockType.NameColor, BlockType.PageOption,
     };
 
     public static void Show(AppController app, Guid? macro = null)
@@ -485,7 +485,7 @@ internal sealed class MacrosWindow : Window
         else if (body.Type is { } t && Editable.Contains(t))
         {
             void Set(BlockBody next) => Change(doc, d => d.Blocks[index].Body = next);
-            foreach (var editor in Editors(body, index, Set)) stack.Children.Add(editor);
+            foreach (var editor in Editors(doc, body, index, Set)) stack.Children.Add(editor);
         }
         else if (body is not BlockBody.Organize)
             stack.Children.Add(Label(Loc.T("Bloc à régler sur le Mac pour l'instant."), 12, secondary: true));
@@ -493,7 +493,7 @@ internal sealed class MacrosWindow : Window
     }
 
     /// Réglages d'un bloc (seulement ceux qui marchent sous Windows).
-    private IEnumerable<UIElement> Editors(BlockBody body, int index, Action<BlockBody> set)
+    private IEnumerable<UIElement> Editors(MacroDoc doc, BlockBody body, int index, Action<BlockBody> set)
     {
         switch (body)
         {
@@ -589,6 +589,28 @@ internal sealed class MacrosWindow : Window
                     else RenderSoon();
                 }, 120));
                 break;
+            case BlockBody.PageOption po:
+            {
+                // Les options de la page ouverte juste au-dessus (comme sur le Mac), sauf celles pas encore faites ici.
+                var above = doc.Blocks.Take(index).Select(b => b.Body).OfType<BlockBody.OpenPage>().LastOrDefault()?.Page;
+                if (above is not { } shown)
+                {
+                    yield return Label(Loc.T("Ajoute « Ouvrir une page de FL » juste au-dessus, puis choisis l'option."), 12, secondary: true);
+                    break;
+                }
+                var options = PageOptions.Options(shown)
+                    .Where(o => MacroEffectsWindows.Unsupported(new BlockBody.PageOption(o.Id, "")) is null).ToList();
+                yield return Param(Loc.T("Option"), Choice(options.Select(o => o.Label).ToList(), options.FindIndex(o => o.Id == po.Option),
+                    i => set(new BlockBody.PageOption(options[i].Id, options[i].Id == po.Option ? po.Name : "")), 320));
+                if (po.Option is { } id && PageOptions.FieldOf(id) is { } field)
+                    yield return Param(field switch
+                    {
+                        PageField.Plugin => Loc.T("Plugin"),
+                        PageField.Channel => Loc.T("Canal"),
+                        _ => Loc.T("Nom"),
+                    }, Field(po.Name, PageOptions.MaxName, typed => set(po with { Name = typed.Trim() }), 240));
+                break;
+            }
             case BlockBody.Stop s:
                 yield return Param(Loc.T("Message"), Field(s.Message ?? "", 120, typed =>
                     set(new BlockBody.Stop(typed.Trim().Length == 0 ? null : typed.Trim())), 320));

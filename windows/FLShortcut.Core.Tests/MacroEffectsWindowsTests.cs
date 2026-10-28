@@ -46,6 +46,7 @@ internal sealed class FakeFl : IFlDriver
     public List<byte[]> Requests { get; } = new();
     /// Réponse du lien aux commandes avec données (null : faites).
     public int? DataRefusal { get; set; }
+    public bool LinkInstalled { get; set; } = true;
 
     public DataReply RunData(IReadOnlyList<byte> units)
     {
@@ -461,6 +462,58 @@ public class MacroEffectsWindowsTests
         fl.DataRefusal = 2;
         Assert.Equal("Sélectionne une piste ou un canal.",
             Assert.IsType<StepResult.Fail>(fx.Perform(new BlockBody.NameColor("Kick", red), state)).Why);
+    }
+
+    // ---------- « Cliquer sur… » ----------
+
+    /// Mute d'un canal : par le lien, sinon la touche de FL (canaux 1 à 10) ; renommer : par le lien ; menu Arrangement :
+    /// pas encore sous Windows.
+    [Fact]
+    public void PageOptionsUseTheLinkOrTheirKey()
+    {
+        var (fl, fx, state) = Start();
+        Assert.IsType<StepResult.Ok>(fx.Perform(new BlockBody.PageOption("channelRack.chMute", "3"), state));
+        Assert.Equal(new byte[] { 13, 0, 0, 2 }, Assert.Single(fl.Requests));
+
+        fl.LinkInstalled = false;
+        Assert.IsType<StepResult.Ok>(fx.Perform(new BlockBody.PageOption("channelRack.chMute", "3"), state));
+        Assert.Equal(new KeyCombo(Vk.Digit(3)), Assert.Single(fl.Sent));
+        Assert.Single(fl.Requests);
+
+        Assert.IsType<StepResult.Ok>(fx.Perform(new BlockBody.PageOption("mixer.rename", "Lead"), state));
+        Assert.Equal(new byte[] { 1, 1, 0, 0, 0, 4, (byte)'L', (byte)'e', (byte)'a', (byte)'d' }, Assert.Single(fl.Data));
+        Assert.All(fl.Lines, l => Assert.DoesNotContain("Lead", l));
+
+        Assert.NotNull(MacroEffectsWindows.Unsupported(new BlockBody.PageOption("playlist.arrangementGo", "Arrangement 2")));
+    }
+
+    /// « Ajouter un instrument » : ADD › Channel › le plugin, par le menu de FL ; plugin absent : dit comme tel.
+    [Fact]
+    public void AddInstrumentGoesThroughTheAddMenu()
+    {
+        var done = new List<string>();
+        var fl = new FakeFl { Bar = new() { new("FILE", 10, 4, 30, 12), new("ADD", 90, 4, 30, 12) } };
+        var add = new List<TextItem> { Entry("Channel", 92, 24) };
+        var channel = new List<TextItem> { Entry("Serum", 292, 26), Entry("Sytrus", 292, 46) };
+        fl.OnClick = (x, y, _) =>
+        {
+            if (Hit(fl.Bar[1], x, y)) { fl.Show(30, FlWindowRole.Menu, 90, 20, 200, 60); fl.MenuTexts[30] = add; }
+            else if (fl.Open.Any(w => w.Id == 30) && Hit(add[0], x, y)) { fl.Show(31, FlWindowRole.Menu, 290, 22, 200, 60); fl.MenuTexts[31] = channel; }
+            else if (fl.Open.Any(w => w.Id == 31) && Hit(channel[0], x, y)) { done.Add("serum"); fl.Hide(31); fl.Hide(30); }
+        };
+        fl.OnKey = c =>
+        {
+            if (c.Vk != Vk.Escape) return;
+            var top = fl.Open.FirstOrDefault(w => w.Role == FlWindowRole.Menu);
+            if (top.Id != 0) fl.Hide(top.Id);
+        };
+        var (_, fx, state) = Start(fl);
+        Assert.IsType<StepResult.Ok>(fx.Perform(new BlockBody.PageOption("channelRack.addInstrument", "Serum"), state));
+        Assert.Equal(new[] { "serum" }, done);
+        Assert.All(fl.Lines, l => Assert.DoesNotContain("Serum", l));
+        Assert.Equal("plugin introuvable dans le menu Add de FL : choisis-le de nouveau dans « Cliquer sur… »",
+            Assert.IsType<StepResult.Fail>(fx.Perform(new BlockBody.PageOption("channelRack.addInstrument", "Massive"), state)).Why);
+        Assert.DoesNotContain(fl.Open, w => w.Role == FlWindowRole.Menu);
     }
 
     // ---------- Menu de FL ----------
