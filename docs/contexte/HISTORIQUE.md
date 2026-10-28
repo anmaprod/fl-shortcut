@@ -409,3 +409,20 @@ entrée 1 ≈ 0,5 s.
     renommer ou ouvrir : seulement des .flp et leurs « _N » du même dossier ; le projet d'avant s'ouvre dans FL Studio.
 - Vérifié bon : commandes shell et AppleScript (chemins entre guillemets, jamais une donnée extérieure), macros (au
   seul FL, devant, liste noire, import borné), script FL (fonctions fixes, messages signés HMAC), Trousseau, HTTPS.
+
+## 28 octobre : macros sous Windows (« les fonctionnalités pareil »)
+- Cœur (`windows/FLShortcut.Core/Macros/`, essais `dotnet test`) : programme compilé et interpréteur (miroir du Mac,
+  mêmes essais avec de faux effets), bibliothèque `macros.json` au même format que le Mac (copies de secours, jamais
+  écrasée sans copie, fichier illisible ou plus récent gardé), raccourcis de type macro (`macroRef` + lien caché, comme
+  le Mac), effets Windows derrière un pilote (`IFlDriver`) essayés sur un faux FL : touches à FL seul (liste noire
+  revérifiée), Échap et FL plus devant arrêtent, lettres et flèches seulement dans un menu ouvert par la macro (Entrée
+  apprise, menu refermé après un échec), boîte de dialogue suivie, actions de FL par le lien ou leur touche, pages
+  (F5, F6, F7, F9, Alt+F8), Organiser.
+- Appli : le hook avale le raccourci et lance la macro sur son propre fil (une à la fois, FL devant, pas en
+  administrateur) ; fenêtres de FL reconnues par leur classe et leur style, jamais leur titre ; journal enfin écrit
+  (`%LOCALAPPDATA%\FL Shortcuts\journal.txt`, mots fixes et nombres) ; page Macros (liste, modèles, créateur simple)
+  et 3e type « Macro » dans la fiche d'un raccourci.
+- PAS ENCORE sous Windows (la macro est bloquée, son raccourci reste à FL, la page le dit) : clics appris, glisser,
+  menu de la piste, preset (choisir, déposer), entrée, larsen, carte son, « Cliquer sur… », Menu de FL, Nom et
+  couleur, et les blocs imbriqués dans le créateur. Les 5 modèles du propriétaire en dépendent : ils demandent des
+  essais sur un vrai PC Windows avec FL (menus de FL : leurs fenêtres et leurs lettres soulignées sous Windows ?).
