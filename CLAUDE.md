@@ -14,6 +14,10 @@
 - Pas de lecture de l'écran, sauf pour retrouver un bouton à son nom ou son image, dans la seule fenêtre de FL, au
   moment du clic, avec l'autorisation « Enregistrement de l'écran ».
 - Jamais de nom de son, de piste ou de texte tapé dans les journaux ni le diagnostic (nombres seulement).
+- JAMAIS rien ajouté aux listes de plugins de FL (favoris, catégorie « FL Shortcuts » des menus Add : captures du
+  28/10) ; celle que créaient d'anciennes versions part à la Corbeille au lancement (`FLPluginDatabase`). Tous les
+  plugins restent choisissables : hors favoris, Add › Channel/Effect › More plugins..., nom lu au clic, double-clic
+  (jamais la case devant le nom : elle en ferait un favori) ; Mac et Windows.
 - Essais sur un projet de test seulement. Jamais de clé secrète Supabase ni de clé privée dans le dépôt. Pas
   d'identifiant de modèle dans les commits. Le bouton s'appelle « Organiser » (pas « Tout organiser »).
 
@@ -132,9 +136,14 @@
   de type macro (`macroRef` + lien caché comme le Mac), effets (`MacroEffectsWindows.cs` derrière `IFlDriver`, essayés
   sur un faux FL ; pilote Win32 et lanceur `Services/MacroRunner.cs`, Échap compté par le hook) : touches, menus et
   boîtes de FL (reconnus par classe/style, jamais le titre), actions de FL (lien) ou leur touche, pages, Organiser.
-  Blocs PAS ENCORE faits sur Windows (`MacroEffectsWindows.Unsupported` : la macro est bloquée, son raccourci reste à
-  FL) : clics, glisser, menu de la piste, preset (choisir/déposer), entrée, larsen, carte son, « Cliquer sur… », Menu
-  de FL, Nom et couleur — donc les 5 modèles du propriétaire ne tournent pas encore sous Windows. Journal :
+  Faits aussi (28/10) : clics appris (« Montrer dans FL… », sans crochet souris) et glisser, Menu de FL (titre en haut
+  de FL puis chaque élément cliqué comme à la main, retrouvé à son nom : menu standard lu par Windows avec l'état grisé,
+  sinon texte lu dans la seule fenêtre de FL, `FlScreen`), menu de la piste (piste visée = dernier clic dans FL, crochet
+  souris seulement si une macro la vise), preset déposé (glisser d'OLE comme depuis l'Explorateur) ou écrit dans la
+  boîte « Open », « Cliquer sur… » (sauf menu Arrangement), Nom et couleur (sans l'icône) : les 5 modèles peuvent
+  tourner. PAS ENCORE (`MacroEffectsWindows.Unsupported`, macro bloquée, raccourci laissé à FL) : bouton retrouvé à son
+  image, entrée, larsen, carte son, menu Arrangement. Essai CI `--selftest-macros` : faux FL dans l'appli (vraie
+  fenêtre Windows) et les vrais blocs joués dessus (`MacroSelfTest.cs`, rapport `macros-essai.txt`). Journal :
   `%LOCALAPPDATA%\FL Shortcuts\journal.txt` (`AppLogFile`, 512 Ko). Page Macros (`MacrosWindow.cs`, « Macros… » du
   menu de gauche et de l'icône ; logique dans `MacroDrafts.cs`) : liste, nouvelle macro (vide ou modèle), créateur
   simple (nom, raccourci, blocs activés/déplacés/retirés, réglages des blocs faits sur Windows ; les autres « à régler
@@ -184,8 +193,7 @@
 - Menu de FL (macOS), retour du 28/10 : « Export Stems » (File › Export › All playlist tracks › Time selection…) dit
   « grisé » même après ⌘A → FL ne met à jour l'état grisé qu'à l'ouverture du menu : élément lu grisé = ses menus
   ouverts un à un puis relu (`MenuBarAX.reopened`, essai CI sur le faux FL `scenarioGreyedItem`). Menu rempli à son
-  ouverture (Add › Channel) : menus ouverts niveau par niveau avant « introuvable » ; plugin ajouté aux favoris par
-  l'app : message « quitte FL et rouvre-le ». « Ajouter un effet » gelait FL (pas à la main) et « Ouvre un VST »
+  ouverture (Add › Channel) : menus ouverts niveau par niveau avant « introuvable ». « Ajouter un effet » gelait FL (pas à la main) et « Ouvre un VST »
   (favori) « bloquait » : par AXPress, FL fait l'action PENDANT la demande d'Accessibilité (plugin chargé là-dedans,
   attente de 6 s puis « FL n'a pas répondu »). Les macros choisissent maintenant l'élément comme à la main (menus
   ouverts, vrai clic, `MenuBarAX.press(click:)`), AXPress seulement en secours (élément hors écran), attente 1,5 s.

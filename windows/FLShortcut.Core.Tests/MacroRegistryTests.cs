@@ -412,6 +412,9 @@ public class MacroRegistryTests
         // Instrument : menu Add de FL › Channel › son nom (sous-menus compris).
         Assert.Equal(new[] { "Add", "Channel", "Fruity", "Fruity Limiter" },
             ((BlockBody.MenuBar)PageOptions.Body(PageOptions.Option("channelRack.addInstrument")!, "Fruity › Fruity Limiter")!).Titles);
+        // Choix d'une ancienne version du Mac (favori ajouté dans « FL Shortcuts », retiré depuis) : le plugin seul.
+        Assert.Equal(new[] { "Add", "Channel", "Serum 2" },
+            ((BlockBody.MenuBar)PageOptions.Body(PageOptions.Option("channelRack.addInstrument")!, "FL Shortcuts › Serum 2")!).Titles);
         // Raccourci de FL de la page : sa touche.
         var key = PageOptions.Options(FlPage.Playlist).First(o => o.Kind is PageOption.OptionKind.Shortcut);
         Assert.IsType<BlockBody.Key>(PageOptions.Body(key, ""));

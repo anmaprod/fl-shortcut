@@ -56,6 +56,25 @@ internal sealed class FakeFl : IFlDriver
         return null;
     }
 
+    public List<(int X, int Y)> DoubleClicks { get; } = new();
+    public Action<int, int>? OnDoubleClick { get; set; }
+    public int Scrolls { get; private set; }
+    public Action<int>? OnScroll { get; set; }
+
+    public bool DoubleClick(int x, int y)
+    {
+        if (!Front) return false;
+        DoubleClicks.Add((x, y));
+        OnDoubleClick?.Invoke(x, y);
+        return true;
+    }
+
+    public void Scroll(int x, int y, int notches)
+    {
+        Scrolls++;
+        OnScroll?.Invoke(notches);
+    }
+
     public string? ChooseFile(long dialog, string path)
     {
         Chosen.Add((dialog, path));
@@ -584,6 +603,53 @@ public class MacroEffectsWindowsTests
         Assert.Equal("plugin introuvable dans le menu Add de FL : choisis-le de nouveau dans « Cliquer sur… »",
             Assert.IsType<StepResult.Fail>(fx.Perform(new BlockBody.PageOption("channelRack.addInstrument", "Massive"), state)).Why);
         Assert.DoesNotContain(fl.Open, w => w.Role == FlWindowRole.Menu);
+    }
+
+    /// Plugin hors des favoris : ADD › Channel › More plugins..., la liste défilée jusqu'à son nom, double-cliqué ;
+    /// rien coché, rien au journal ; absent : dit, liste refermée.
+    [Fact]
+    public void PluginOutsideFavoritesIsTakenFromMorePlugins()
+    {
+        var fl = new FakeFl { Bar = new() { new("ADD", 90, 4, 30, 12) } };
+        var add = new List<TextItem> { Entry("Channel", 92, 24) };
+        var channel = new List<TextItem> { Entry("Serum 2", 292, 26), Entry("More plugins...", 292, 46) };
+        var offset = 0;
+        var names = Enumerable.Range(1, 60).Select(i => $"Fake Synth {i}").ToList();
+        List<TextItem> Visible() => names.Select((n, i) => new TextItem(n, 434, 210 + i * 20 - offset, 90, 16))
+            .Where(t => t.Y >= 200 && t.Y < 600).ToList();
+        var opened = new List<string>();
+        fl.OnClick = (x, y, _) =>
+        {
+            if (Hit(fl.Bar[0], x, y)) { fl.Show(30, FlWindowRole.Menu, 90, 20, 200, 60); fl.MenuTexts[30] = add; }
+            else if (fl.Open.Any(w => w.Id == 30) && Hit(add[0], x, y)) { fl.Show(31, FlWindowRole.Menu, 290, 22, 200, 60); fl.MenuTexts[31] = channel; }
+            else if (fl.Open.Any(w => w.Id == 31) && Hit(channel[1], x, y))
+            {
+                fl.Hide(31);
+                fl.Hide(30);
+                fl.After(100, () => { fl.Show(40, FlWindowRole.Dialog, 400, 200, 360, 400); fl.Texts[40] = Visible(); });
+            }
+        };
+        fl.OnScroll = notches => { offset = Math.Min(60 * 20 - 380, offset - notches * 60); fl.Texts[40] = Visible(); };
+        fl.OnDoubleClick = (x, y) =>
+        {
+            if (fl.Texts[40].FirstOrDefault(t => x >= t.X && x < t.X + t.Width && y >= t.Y && y < t.Y + t.Height) is { Text: { } n } && n.Length > 0)
+            {
+                opened.Add(n);
+                fl.Hide(40);
+            }
+        };
+        fl.OnKey = c => { if (c.Vk == Vk.Escape) fl.Hide(fl.Open.FirstOrDefault(w => w.Role != FlWindowRole.Main).Id); };
+        var (_, fx, state) = Start(fl);
+        Assert.IsType<StepResult.Ok>(fx.Perform(new BlockBody.PageOption("channelRack.addInstrument", "More plugins... › Fake Synth 37"), state));
+        Assert.Equal(new[] { "Fake Synth 37" }, opened);
+        Assert.True(fl.Scrolls > 0);
+        Assert.All(fl.Lines, l => Assert.DoesNotContain("Fake", l));
+
+        Assert.Equal("plugin introuvable dans « More plugins… » de FL : vérifie son nom, ou choisis-le de nouveau dans « Cliquer sur… »",
+            Assert.IsType<StepResult.Fail>(fx.Perform(new BlockBody.PageOption("channelRack.addInstrument", "More plugins... › Massive"), state)).Why);
+        Assert.DoesNotContain(fl.Open, w => w.Id == 40);
+        Assert.Equal("Massive", PageOptions.FromPluginList("More plugins... › Massive"));
+        Assert.Null(PageOptions.FromPluginList("Synths › Massive"));
     }
 
     // ---------- Menu de FL ----------

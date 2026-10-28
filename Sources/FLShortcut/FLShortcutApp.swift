@@ -254,6 +254,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         AppStatus.shared.start()
         PauseIndicator.shared.bind()
         DebugSnapshot.start()
+        // Plus jamais rien dans les listes de plugins de FL (demande du 28/10) : ce que d'anciennes versions y avaient
+        // ajouté (catégorie « FL Shortcuts » de Add › Channel et des effets) part à la Corbeille. Jamais en mode capture.
+        if !DebugSnapshot.enabled {
+            DispatchQueue.global(qos: .utility).async {
+                let removed = FLPluginDatabase.removeAddedFavorites()
+                if removed > 0 { MacroLog.shared.write("LAUNCH", "\(removed) added favorites folder(s) moved to the Trash") }
+            }
+        }
         // Sauvegarde en ligne : seulement avec un compte connecté (session au Trousseau), sinon aucune requête.
         MainActor.assumeIsolated { AccountBackup.shared.start() }
 

@@ -114,6 +114,8 @@ final class FakeFLController {
     /// Sélection dans la Playlist (⌘A) : File › Export › All playlist tracks › Time selection n'est dégrisé qu'à
     /// l'ouverture de son menu, et seulement avec elle (comme FL).
     var selection = false
+    /// Add › Channel › More plugins... : la liste de tous les plugins (fenêtre « Select plugin »).
+    var pluginListWindow: NSWindow?
 
     init(statePath: String, oHighlights: Bool) {
         self.statePath = statePath
@@ -162,6 +164,8 @@ final class FakeFLController {
         closeAll()
         settingsWindow?.orderOut(nil)
         settingsWindow = nil
+        pluginListWindow?.orderOut(nil)
+        pluginListWindow = nil
         settingsView = nil
         device = "Built-in"
         autoClose = false
@@ -513,6 +517,22 @@ final class FakeFLController {
         let fileItem = NSMenuItem(title: "File", action: nil, keyEquivalent: "")
         fileItem.submenu = file
         main.insertItem(fileItem, at: 1)
+        // Add › Channel : un favori, et « More plugins... » (la liste de tous les plugins, sans rien cocher).
+        let channel = NSMenu(title: "Channel")
+        for (title, tag) in [("Serum 2", 5), ("More plugins...", 6)] {
+            let item = NSMenuItem(title: title, action: #selector(FakeNativeMenuTarget.run(_:)), keyEquivalent: "")
+            item.target = nativeMenuTarget
+            item.tag = tag
+            channel.addItem(item)
+        }
+        let add = NSMenu(title: "Add")
+        let channelItem = NSMenuItem(title: "Channel", action: nil, keyEquivalent: "")
+        channelItem.submenu = channel
+        add.addItem(channelItem)
+        let addItem = NSMenuItem(title: "Add", action: nil, keyEquivalent: "")
+        addItem.submenu = add
+        main.insertItem(addItem, at: 2)
+        for menu in [add, channel] { menu.delegate = nativeMenuTarget }
         for menu in [options, file, export, allTracks] { menu.delegate = nativeMenuTarget }
         nativeMenuTarget.update = { [weak self] menu in
             guard menu === allTracks else { return }
@@ -524,6 +544,8 @@ final class FakeFLController {
             1: { [weak self] in self?.openSettings() },
             2: { [weak self] in self?.note("WRONG: General settings") },
             3: { [weak self] in self?.note("export time selection") },
+            5: { [weak self] in self?.note("favorite added") },
+            6: { [weak self] in self?.openPluginList() },
         ]
         NSApp.mainMenu = main
     }
@@ -541,6 +563,30 @@ final class FakeFLController {
         let r = mixer.optionsRect
         let below = window.convertPoint(toScreen: mixer.convert(NSPoint(x: r.minX, y: r.maxY), to: nil))
         _ = openMenu(items, topLeft: below, width: 220)
+    }
+
+    /// Liste de tous les plugins (« Select plugin » de FL) : une case de favori devant chaque nom (la cocher serait une
+    /// faute de la macro), double-clic sur le nom : le plugin s'ouvre et la liste se ferme.
+    func openPluginList() {
+        let w = NSWindow(contentRect: NSRect(x: 360, y: 140, width: 360, height: 420),
+                         styleMask: [.titled, .closable], backing: .buffered, defer: false)
+        w.title = "Select plugin"
+        w.level = .modalPanel
+        w.isReleasedWhenClosed = false
+        let v = FakePluginListView(frame: NSRect(x: 0, y: 0, width: 360, height: 420))
+        v.controller = self
+        w.contentView = v
+        pluginListWindow = w
+        w.makeKeyAndOrderFront(nil)
+        w.makeFirstResponder(v)
+        note("plugin list open")
+    }
+
+    func closePluginList(_ event: String) {
+        pluginListWindow?.orderOut(nil)
+        pluginListWindow = nil
+        window.makeKeyAndOrderFront(nil)
+        note(event)
     }
 
     func openSettings() {
@@ -617,6 +663,53 @@ final class FakeNativeMenuTarget: NSObject, NSMenuDelegate {
     @objc func run(_ sender: NSMenuItem) {
         let action = actions[sender.tag]
         DispatchQueue.main.async { action?() }        // après la fermeture du menu, comme une vraie appli
+    }
+}
+
+/// Liste « Select plugin » simulée : 60 plugins, 20 points par ligne, molette, case de favori à gauche de chaque nom.
+final class FakePluginListView: NSView {
+    weak var controller: FakeFLController?
+    static let names = (1...60).map { "Fake Synth \($0)" }
+    private var offset: CGFloat = 0
+
+    override var isFlipped: Bool { true }
+    override var acceptsFirstResponder: Bool { true }
+    override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
+
+    private var maxOffset: CGFloat { max(0, CGFloat(Self.names.count) * 20 + 20 - bounds.height) }
+
+    override func draw(_ dirtyRect: NSRect) {
+        NSColor(white: 0.17, alpha: 1).setFill()
+        bounds.fill()
+        let text: [NSAttributedString.Key: Any] = [.foregroundColor: NSColor.white, .font: NSFont.systemFont(ofSize: 13)]
+        for (i, name) in Self.names.enumerated() {
+            let y = 10 + CGFloat(i) * 20 - offset
+            guard y > -20, y < bounds.height else { continue }
+            NSColor(white: 0.45, alpha: 1).setFill()
+            NSRect(x: 10, y: y + 3, width: 13, height: 13).fill()
+            (name as NSString).draw(at: NSPoint(x: 34, y: y), withAttributes: text)
+        }
+    }
+
+    override func scrollWheel(with event: NSEvent) {
+        let lines = event.hasPreciseScrollingDeltas ? event.scrollingDeltaY / 20 : event.scrollingDeltaY
+        offset = min(maxOffset, max(0, offset - lines * 20))
+        needsDisplay = true
+    }
+
+    override func mouseDown(with event: NSEvent) {
+        let p = convert(event.locationInWindow, from: nil)
+        let row = Int((p.y + offset - 10) / 20)
+        guard Self.names.indices.contains(row) else { return }
+        if p.x < 28 {
+            controller?.note("WRONG: favorite checked")
+        } else if event.clickCount >= 2 {
+            controller?.closePluginList("plugin added \(Self.names[row])")
+        }
+    }
+
+    override func keyDown(with event: NSEvent) {
+        if event.keyCode == 53 { controller?.closePluginList("plugin list closed") } else { super.keyDown(with: event) }
     }
 }
 

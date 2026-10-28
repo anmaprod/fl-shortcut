@@ -77,6 +77,10 @@ public interface IFlDriver
     /// Chemin écrit dans la boîte « Open » de FL (cette fenêtre), puis Ouvrir ; null si elle s'est refermée, sinon la
     /// raison.
     string? ChooseFile(long dialog, string path);
+    /// Double-clic gauche en ce point ; faux si FL n'est plus devant.
+    bool DoubleClick(int x, int y);
+    /// Molette en ce point (crans négatifs : vers le bas).
+    void Scroll(int x, int y, int notches);
 }
 
 public sealed partial class MacroEffectsWindows : IMacroEffects
@@ -620,6 +624,9 @@ public sealed partial class MacroEffectsWindows : IMacroEffects
             case Macros.PageOption.OptionKind.Rename:
                 return RenameTrack(p.Name);
         }
+        // Plugin hors des favoris : pris dans « More plugins… » de FL (rien n'est ajouté à ses listes).
+        if (option.Kind is Macros.PageOption.OptionKind.AddMenu add && PageOptions.FromPluginList(p.Name) is { } plugin)
+            return AddFromPluginList(plugin, add.Item);
         if (PageOptions.Body(option, p.Name) is not { } body) return new StepResult.Fail(Loc.T("option inconnue"));
         var result = Perform(body, state);
         // Plugin pas dans le menu Add : le dire comme tel (FL peut le ranger ailleurs, ou il a été désinstallé).

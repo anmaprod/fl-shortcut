@@ -172,6 +172,14 @@ public static class PageOptions
         return Option($"channelRack.fl.channelRack.{(solo ? "cmd-" : "")}{digit}")?.Kind is PageOption.OptionKind.Shortcut s ? s.Key : null;
     }
 
+    /// Élément du menu Add de FL qui ouvre la liste de tous ses plugins (fenêtre « Select plugin ») ; aussi le premier
+    /// élément du nom d'un plugin choisi hors des favoris (« More plugins... › Serum 2 »), comme sur le Mac.
+    public const string MorePlugins = "More plugins...";
+
+    /// Nom du plugin à prendre dans « More plugins… », null pour un favori du menu Add.
+    public static string? FromPluginList(string name) =>
+        PluginPath(name) is [MorePlugins, { Length: > 0 } plugin] ? plugin : null;
+
     /// Chemin dans le menu Add › Channel ou Effect : « Fruity › Fruity Limiter » → [Fruity, Fruity Limiter].
     public static List<string> PluginPath(string name) => name.Split('›').Select(p => p.Trim()).ToList();
 
@@ -192,7 +200,13 @@ public static class PageOptions
             case PageOption.OptionKind.Shortcut s:
                 return new BlockBody.Key(s.Key, 1);
             case PageOption.OptionKind.AddMenu m:
-                return new BlockBody.MenuBar(new[] { "Add", m.Item }.Concat(PluginPath(name)).ToList());
+            {
+                // Choix d'une ancienne version du Mac (« FL Shortcuts › Serum 2 ») : ce dossier de favoris n'existe plus
+                // (FL Shortcuts ne touche plus aux listes de FL), le plugin seul.
+                var path = PluginPath(name);
+                if (path.Count > 1 && path[0] == "FL Shortcuts") path.RemoveAt(0);
+                return new BlockBody.MenuBar(new[] { "Add", m.Item }.Concat(path).ToList());
+            }
             default:
                 return null;
         }

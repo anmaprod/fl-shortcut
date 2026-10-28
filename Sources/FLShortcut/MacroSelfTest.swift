@@ -442,6 +442,7 @@ enum MacroSelfTest {
             print("ÉCHEC rejeu des clics : " + problems.joined(separator: " ; "))
         }
         return problems.isEmpty && scenarioGreyedItem(statePath: statePath, pid: pid)
+            && scenarioPluginList(statePath: statePath, pid: pid)
     }
 
     /// Élément que FL ne dégrise qu'à l'ouverture de son menu (signalé le 28/10 : File › Export › All playlist tracks ›
@@ -485,6 +486,32 @@ enum MacroSelfTest {
         } else {
             print("ÉCHEC élément grisé : " + problems.joined(separator: " ; "))
         }
+        return problems.isEmpty
+    }
+
+    /// Plugin hors des favoris (demande du 28/10 : tous les plugins, rien ajouté aux listes de FL) : Add › Channel ›
+    /// More plugins..., le nom retrouvé dans la liste (défilée), double-cliqué ; jamais la case de favori. Sans
+    /// l'autorisation « Enregistrement de l'écran » (CI) : SKIP.
+    static func scenarioPluginList(statePath: String, pid: Int32) -> Bool {
+        guard resetFake(statePath, pid: pid) else { return false }
+        print("\n== Plugin hors des favoris : « More plugins… », retrouvé à son nom ==")
+        guard ScreenLook.available, ScreenLook.allowed else {
+            print("SKIP plugin hors des favoris : lecture de l'écran pas autorisée sur cette machine")
+            return true
+        }
+        let blocks: [BlockBody] = [.openPage(.channelRack),
+                                   .pageOption(id: "channelRack.addInstrument", name: "More plugins... › Fake Synth 37")]
+        guard let replayed = replay(blocks, name: "Plugin hors des favoris", pid: pid) else { return false }
+        let (outcome, ms) = replayed
+        let state = waitState(statePath, timeout: 3, { $0.events.contains("plugin added Fake Synth 37") })
+            ?? read(statePath) ?? FakeState(raw: [:])
+        print("résultat : \(outcome?.text ?? "?") en \(ms) ms · actions : \(state.events)")
+        var problems: [String] = []
+        if outcome != .done { problems.append("« \(outcome?.text ?? "aucun résultat") »") }
+        if !state.events.contains("plugin added Fake Synth 37") { problems.append("plugin pas ouvert") }
+        if state.events.contains(where: { $0.hasPrefix("WRONG") }) { problems.append("favori coché") }
+        if state.nativeMenusOpen != 0 { problems.append("\(state.nativeMenusOpen) menu(s) resté(s) ouvert(s)") }
+        print(problems.isEmpty ? "OK plugin hors des favoris" : "ÉCHEC plugin hors des favoris : " + problems.joined(separator: " ; "))
         return problems.isEmpty
     }
 

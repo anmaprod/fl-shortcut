@@ -185,14 +185,17 @@ internal sealed class WindowsFlDriver : IFlDriver
         finally { Win32.CloseHandle(h); }
     }
 
-    private static void Mouse(uint flags)
+    private static void Mouse(uint flags, int data = 0)
     {
         var input = new[]
         {
             new Win32.INPUT
             {
                 type = Win32.INPUT_MOUSE,
-                U = new Win32.InputUnion { mi = new Win32.MOUSEINPUT { dwFlags = flags, dwExtraInfo = KeyboardHook.Magic } },
+                U = new Win32.InputUnion
+                {
+                    mi = new Win32.MOUSEINPUT { dwFlags = flags, mouseData = unchecked((uint)data), dwExtraInfo = KeyboardHook.Magic },
+                },
             },
         };
         Win32.SendInput(1, input, Marshal.SizeOf<Win32.INPUT>());
@@ -210,6 +213,32 @@ internal sealed class WindowsFlDriver : IFlDriver
         Thread.Sleep(50);
         Mouse(right ? Win32.MOUSEEVENTF_RIGHTUP : Win32.MOUSEEVENTF_LEFTUP);
         return true;
+    }
+
+    /// Double-clic gauche (deux appuis rapprochés, bien sous le délai de double-clic de Windows).
+    public bool DoubleClick(int x, int y)
+    {
+        if (!InFront()) return false;
+        Win32.SetCursorPos(x, y);
+        Mouse(Win32.MOUSEEVENTF_MOVE);
+        Thread.Sleep(40);
+        if (!InFront()) return false;
+        for (var i = 0; i < 2; i++)
+        {
+            Mouse(Win32.MOUSEEVENTF_LEFTDOWN);
+            Thread.Sleep(30);
+            Mouse(Win32.MOUSEEVENTF_LEFTUP);
+            if (i == 0) Thread.Sleep(60);
+        }
+        return true;
+    }
+
+    /// Molette en ce point (crans négatifs : vers le bas), seulement si FL est devant.
+    public void Scroll(int x, int y, int notches)
+    {
+        if (!InFront()) return;
+        Win32.SetCursorPos(x, y);
+        Mouse(Win32.MOUSEEVENTF_WHEEL, notches * Win32.WHEEL_DELTA);
     }
 
     /// Appui, une vingtaine de pas (16 ms chacun), un temps au-dessus de l'arrivée pour que FL la voie, relâché

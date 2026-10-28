@@ -1351,6 +1351,7 @@
 "Partout" = "Partout";
 "Pas content ?" = "Pas content ?";
 "Pas d'icône avec un dégradé (FL la pose sur un seul élément)." = "Pas d'icône avec un dégradé (FL la pose sur un seul élément).";
+"Pas dans tes favoris : la macro le prend dans « More plugins… » de FL, retrouvé à son nom (autorisation « Enregistrement de l'écran »). Rien n'est ajouté à tes listes." = "Pas dans tes favoris : la macro le prend dans « More plugins… » de FL, retrouvé à son nom (autorisation « Enregistrement de l'écran »). Rien n'est ajouté à tes listes.";
 "Pas de connexion : la sauvegarde partira dès que possible." = "Pas de connexion : la sauvegarde partira dès que possible.";
 "Pas de fenêtre ? Dans les réglages qui s'ouvrent, active l'interrupteur à côté de FL Shortcuts, dans la partie audio." = "Pas de fenêtre ? Dans les réglages qui s'ouvrent, active l'interrupteur à côté de FL Shortcuts, dans la partie audio.";
 "Pas de mail ? Regarde dans les courriers indésirables, ou renvoie le code." = "Pas de mail ? Regarde dans les courriers indésirables, ou renvoie le code.";
@@ -1732,6 +1733,7 @@
 "Tes derniers changements ne sont pas en ligne" = "Tes derniers changements ne sont pas en ligne";
 "Tes derniers changements ne sont pas encore en ligne." = "Tes derniers changements ne sont pas encore en ligne.";
 "Tes derniers changements ne sont pas encore sauvegardés." = "Tes derniers changements ne sont pas encore sauvegardés.";
+"Tes favoris du menu Add de FL, puis tous tes plugins installés. Rien n'est jamais ajouté à tes listes de FL." = "Tes favoris du menu Add de FL, puis tous tes plugins installés. Rien n'est jamais ajouté à tes listes de FL.";
 "Tes macros ne peuvent pas être enregistrées : %@" = "Tes macros ne peuvent pas être enregistrées : %@";
 "Tes macros ne peuvent pas être enregistrées : la copie de secours du fichier a échoué (%@). Le fichier n'est pas remplacé." = "Tes macros ne peuvent pas être enregistrées : la copie de secours du fichier a échoué (%@). Le fichier n'est pas remplacé.";
 "Tes macros ne peuvent pas être enregistrées : le fichier n'a pas pu être copié avant d'être remplacé." = "Tes macros ne peuvent pas être enregistrées : le fichier n'a pas pu être copié avant d'être remplacé.";
@@ -2026,6 +2028,7 @@
 "la fenêtre « Renommer » de FL ne s'est pas ouverte (sélectionne ta piste dans le Mixer)" = "la fenêtre « Renommer » de FL ne s'est pas ouverte (sélectionne ta piste dans le Mixer)";
 "la grille des icônes de FL est restée ouverte : choisis une case ou clique à côté" = "la grille des icônes de FL est restée ouverte : choisis une case ou clique à côté";
 "la grille des icônes ne s'est pas ouverte : relance pour montrer de nouveau le bouton de l'icône" = "la grille des icônes ne s'est pas ouverte : relance pour montrer de nouveau le bouton de l'icône";
+"la liste « More plugins… » de FL ne s'est pas ouverte" = "la liste « More plugins… » de FL ne s'est pas ouverte";
 "la piste visée est hors de FL : clique d'abord sur ta piste dans le Mixer" = "la piste visée est hors de FL : clique d'abord sur ta piste dans le Mixer";
 "le bloc précédent a échoué" = "le bloc précédent a échoué";
 "le glisser du preset n'a pas démarré (une fenêtre couvre la piste ?)" = "le glisser du preset n'a pas démarré (une fenêtre couvre la piste ?)";
@@ -2050,6 +2053,7 @@
 "le point visé est hors de FL" = "le point visé est hors de FL";
 "le sous-menu « %@ » ne s'est pas ouvert" = "le sous-menu « %@ » ne s'est pas ouvert";
 "lecture de l'écran pas autorisée (Réglages Système › Confidentialité et sécurité › Enregistrement de l'écran) : le bouton ne peut pas être cherché" = "lecture de l'écran pas autorisée (Réglages Système › Confidentialité et sécurité › Enregistrement de l'écran) : le bouton ne peut pas être cherché";
+"lecture de l'écran pas autorisée (Réglages Système › Confidentialité et sécurité › Enregistrement de l'écran) : le plugin ne peut pas être cherché dans « More plugins… » de FL" = "lecture de l'écran pas autorisée (Réglages Système › Confidentialité et sécurité › Enregistrement de l'écran) : le plugin ne peut pas être cherché dans « More plugins… » de FL";
 "lecture de l'état de FL : demande l'extension du lien avec FL" = "lecture de l'état de FL : demande l'extension du lien avec FL";
 "lettre de menu non prise en charge" = "lettre de menu non prise en charge";
 "lettres de menu invalides (a à z)." = "lettres de menu invalides (a à z).";
@@ -2060,6 +2064,7 @@
 "liste des canaux illisible" = "liste des canaux illisible";
 "liste des patterns illisible" = "liste des patterns illisible";
 "liste du Mixer illisible" = "liste du Mixer illisible";
+"liste « More plugins… » de FL illisible" = "liste « More plugins… » de FL illisible";
 "macOS : " = "macOS : ";
 "macOS : Mission Control" = "macOS : Mission Control";
 "macOS : Spotlight" = "macOS : Spotlight";
@@ -2125,6 +2130,7 @@
 "piste visée" = "piste visée";
 "plugin ajouté à tes favoris de FL : quitte FL et rouvre-le une fois pour qu'il apparaisse dans son menu Add" = "plugin ajouté à tes favoris de FL : quitte FL et rouvre-le une fois pour qu'il apparaisse dans son menu Add";
 "plugin introuvable dans le menu Add de FL : choisis-le de nouveau dans « Cliquer sur… »" = "plugin introuvable dans le menu Add de FL : choisis-le de nouveau dans « Cliquer sur… »";
+"plugin introuvable dans « More plugins… » de FL : vérifie son nom, ou choisis-le de nouveau dans « Cliquer sur… »" = "plugin introuvable dans « More plugins… » de FL : vérifie son nom, ou choisis-le de nouveau dans « Cliquer sur… »";
 "point hors du menu : réapprends les clics" = "point hors du menu : réapprends les clics";
 "ports MIDI « FL Shortcuts Link » indisponibles" = "ports MIDI « FL Shortcuts Link » indisponibles";
 "ports MIDI « FL Shortcuts Link » indisponibles : relance FL Shortcuts" = "ports MIDI « FL Shortcuts Link » indisponibles : relance FL Shortcuts";

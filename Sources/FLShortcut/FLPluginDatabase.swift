@@ -1,11 +1,11 @@
 // « Cliquer sur… › Ajouter un instrument / un effet » : tous les plugins installés, pas seulement les favoris du menu
-// Add de FL (signalé : ceux de « More plugins… » manquaient). FL les connaît dans sa « Plugin database » (dossier de
-// données de FL › Presets › Plugin database › Installed › Generators ou Effects) : un fichier par plugin (.fst, .nfo),
-// rangés par format (VST, VST3, AU, Fruity…). Rien n'est lu d'autre, et seulement quand la liste est demandée.
-// - Le menu Add de FL ne montre que les favoris (Plugin database › Generators ou Effects). Un plugin choisi hors des
-//   favoris y est ajouté, dans le dossier « FL Shortcuts » (copie de ses fichiers) : la macro le choisit alors par le
-//   menu, sans souris (Add › Channel › FL Shortcuts › Serum). FL relit sa base en démarrant. La désinstallation retire
-//   ce dossier.
+// Add de FL. FL les connaît dans sa « Plugin database » (dossier de données de FL › Presets › Plugin database ›
+// Installed › Generators ou Effects) : un fichier par plugin (.fst, .nfo), rangés par format (VST, VST3, AU…). Rien
+// n'est lu d'autre, et seulement quand la liste est demandée. Rien n'y est JAMAIS écrit (demande du propriétaire,
+// 28/10, captures) : un plugin hors des favoris est pris par la macro dans « More plugins… » du menu Add de FL
+// (`morePlugins`), sans rien cocher. Les favoris qu'ajoutaient d'anciennes versions (dossier « FL Shortcuts » dans
+// Generators ou Effects : une catégorie « FL Shortcuts » dans les menus Add) partent à la Corbeille au lancement (FL le
+// voit à son prochain démarrage) : seulement un dossier « FL Shortcuts » qui ne contient que des fichiers de plugins.
 import Foundation
 
 enum FLPluginDatabase {
@@ -24,7 +24,16 @@ enum FLPluginDatabase {
         let files: [URL]
     }
 
-    /// Dossier des favoris ajoutés par FL Shortcuts (dans Generators et Effects).
+    /// Élément du menu Add de FL qui ouvre la liste de tous ses plugins (fenêtre « Select plugin ») ; aussi le premier
+    /// élément du nom d'un plugin choisi hors des favoris (« More plugins... › Serum 2 »).
+    static let morePlugins = "More plugins..."
+
+    /// Pure (testée) : nom du plugin à prendre dans « More plugins… », nil pour un favori du menu Add.
+    static func fromPluginList(_ path: [String]) -> String? {
+        path.count == 2 && path[0] == morePlugins && !path[1].isEmpty ? path[1] : nil
+    }
+
+    /// Dossier des favoris ajoutés par les anciennes versions (dans Generators et Effects).
     static let folderName = "FL Shortcuts"
 
     /// « Plugin database » de FL : à côté du script installé (dossier de données choisi dans FL), sinon l'emplacement
@@ -65,33 +74,35 @@ enum FLPluginDatabase {
         return out
     }
 
-    /// Ajoute le plugin aux favoris de FL (dossier « FL Shortcuts » de Generators ou Effects) s'il n'y est pas déjà ;
-    /// renvoie son chemin dans le menu Add › Channel ou Effect (« FL Shortcuts › Serum »), ou nil si la copie échoue.
-    static func addFavorite(_ plugin: Plugin, kind: Kind, root: URL, fileManager: FileManager = .default) -> String? {
-        let folder = root.appendingPathComponent("\(kind.rawValue)/\(folderName)", isDirectory: true)
-        do {
-            try fileManager.createDirectory(at: folder, withIntermediateDirectories: true)
-            for file in plugin.files {
-                let dest = folder.appendingPathComponent(file.lastPathComponent)
-                if SecureFile.kind(at: dest.path) == .regular { continue }
-                try fileManager.copyItem(at: file, to: dest)
-            }
-        } catch {
-            return nil
-        }
-        return folderName + PageOptions.pathSeparator + plugin.name
-    }
-
-    /// Dossiers ajoutés par FL Shortcuts dans la base de FL (désinstallation) : seulement s'ils ne contiennent que des
-    /// fichiers de plugins (.fst, .nfo).
+    /// Dossiers ajoutés par FL Shortcuts dans la base de FL : seulement s'ils ne contiennent que des fichiers de
+    /// plugins (.fst, .nfo).
     static func favoriteFolders(root: URL, fileManager: FileManager = .default) -> [URL] {
-        [Kind.generators, .effects].compactMap { kind in
-            let folder = root.appendingPathComponent("\(kind.rawValue)/\(folderName)", isDirectory: true)
+        ["Generators", "Effects"].compactMap { kind in
+            let folder = root.appendingPathComponent("\(kind)/\(folderName)", isDirectory: true)
             guard SecureFile.kind(at: folder.path) == .directory,
                   let entries = try? fileManager.contentsOfDirectory(atPath: folder.path),
                   entries.allSatisfy({ $0 == ".DS_Store" || $0.hasPrefix("._")
                       || ["fst", "nfo"].contains(($0 as NSString).pathExtension.lowercased()) }) else { return nil }
             return folder
         }
+    }
+
+    /// Ces dossiers mis à la Corbeille (jamais effacés pour de bon) ; renvoie combien. Bases : celle du script
+    /// installé et l'emplacement par défaut.
+    @discardableResult
+    static func removeAddedFavorites(roots: [URL]? = nil, fileManager: FileManager = .default) -> Int {
+        let bases = roots ?? Array(Set([root(), root(script: nil)].map(\.standardizedFileURL)))
+        var removed = 0
+        for folder in bases.flatMap({ favoriteFolders(root: $0, fileManager: fileManager) })
+        where (try? fileManager.trashItem(at: folder, resultingItemURL: nil)) != nil {
+            removed += 1
+        }
+        return removed
+    }
+
+    /// Pure (testée) : chemin d'un plugin choisi par une ancienne version (« FL Shortcuts › Serum 2 ») : le plugin seul,
+    /// tel qu'il est dans les favoris de l'utilisateur.
+    static func withoutAddedFolder(_ path: [String]) -> [String] {
+        path.count > 1 && path[0] == folderName ? Array(path.dropFirst()) : path
     }
 }

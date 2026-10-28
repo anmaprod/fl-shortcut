@@ -405,4 +405,76 @@ public sealed partial class MacroEffectsWindows
             _fl.Sleep(40);
         }
     }
+
+    // ---------- Plugin hors des favoris (« More plugins… ») ----------
+
+    /// Pages de la liste lues au plus (une page : ce qu'on voit, puis la molette).
+    private const int PluginListPages = 15;
+
+    /// Add › Channel (ou Effect) › More plugins..., puis le plugin retrouvé à son nom dans la liste de FL (fenêtre
+    /// « Select plugin », lue au moment du clic, défilée si besoin) et double-cliqué : FL l'ouvre. Jamais la case devant
+    /// le nom (elle en ferait un favori) : le double-clic tombe au milieu du nom. Rien n'est ajouté aux listes de FL
+    /// (demande du propriétaire, 28/10). Le nom n'est jamais journalisé.
+    private StepResult AddFromPluginList(string plugin, string item)
+    {
+        var before = Ids();
+        var opened = MenuBar(new[] { "Add", item, PageOptions.MorePlugins });
+        if (opened is not StepResult.Ok) return opened;
+        FlWin? list = null;
+        var deadline = _fl.Now.AddMilliseconds(3_000);
+        while (list is null)
+        {
+            if (StopReason() is { } stop) return new StepResult.Cancel(stop);
+            list = _fl.Windows().Where(w => !before.Contains(w.Id) && w.Role != FlWindowRole.Menu && w.Width >= 320 && w.Height >= 200)
+                .Cast<FlWin?>().FirstOrDefault();
+            if (list is null && _fl.Now >= deadline) return new StepResult.Fail(Loc.T("la liste « More plugins… » de FL ne s'est pas ouverte"));
+            if (list is null) _fl.Sleep(50);
+        }
+        var window = list.Value;
+        _fl.Log("PLUGIN", $"plugin list {window.Width}x{window.Height}");
+        var wanted = MenuText.Normalized(plugin);
+        List<string>? previous = null;
+        for (var page = 0; page < PluginListPages; page++)
+        {
+            if (StopReason() is { } stop)
+            {
+                ClosePluginList(window);
+                return new StepResult.Cancel(stop);
+            }
+            if (_fl.ReadText(window.Id) is not { } items)
+            {
+                ClosePluginList(window);
+                return new StepResult.Fail(Loc.T("liste « More plugins… » de FL illisible"));
+            }
+            if (items.Where(t => MenuText.Normalized(t.Text) == wanted).OrderBy(t => t.Y).Cast<TextItem?>().FirstOrDefault() is { } hit)
+            {
+                _fl.Log("PLUGIN", $"found on page {page + 1}");
+                _cursorBefore ??= _fl.Cursor();
+                if (!_fl.DoubleClick(hit.CenterX, hit.CenterY)) return new StepResult.Cancel(Loc.T("FL n'est plus au premier plan"));
+                _lastClick = (hit.CenterX, hit.CenterY);
+                // La liste se ferme d'elle-même, ou reste ouverte : refermée (le plugin est ouvert).
+                if (Gone(new HashSet<long> { window.Id }, 1_500, checkStop: false) is not StepResult.Ok) ClosePluginList(window);
+                return new StepResult.Ok();
+            }
+            var texts = items.Select(t => t.Text).ToList();
+            if (previous is not null && texts.SequenceEqual(previous)) break;             // bas de la liste
+            previous = texts;
+            _cursorBefore ??= _fl.Cursor();
+            _fl.Scroll(window.X + window.Width / 2, window.Y + window.Height / 2, -3);
+            _fl.Sleep(200);
+        }
+        ClosePluginList(window);
+        _fl.Log("PLUGIN", "not found in the list");
+        return new StepResult.Fail(Loc.T("plugin introuvable dans « More plugins… » de FL : vérifie son nom, ou choisis-le de nouveau dans « Cliquer sur… »"));
+    }
+
+    /// Échap tant que la liste est encore là (jamais d'Échap à l'aveugle) : elle se referme.
+    private void ClosePluginList(FlWin list)
+    {
+        for (var attempt = 0; attempt < 2 && AnyOpen(new HashSet<long> { list.Id }); attempt++)
+        {
+            if (!_fl.Send(new KeyCombo(Vk.Escape))) return;
+            Gone(new HashSet<long> { list.Id }, 500, checkStop: false);
+        }
+    }
 }

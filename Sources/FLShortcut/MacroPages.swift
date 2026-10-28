@@ -257,7 +257,8 @@ enum PageOptions {
         case .key(let combo):
             return .key(KeyRef(combo), times: 1)
         case .addMenu(let item):
-            return .menuBar(titles: ["Add", item] + pluginPath(name))
+            // Choix d'une ancienne version (« FL Shortcuts › Serum 2 ») : ce dossier n'existe plus, le plugin seul.
+            return .menuBar(titles: ["Add", item] + FLPluginDatabase.withoutAddedFolder(pluginPath(name)))
         case .channelToggle, .rename, .arrangement:
             return nil
         }

@@ -453,7 +453,12 @@ final class MacroEffectsMac: MacroEffects {
                 return renameTrack(name, ctx: ctx)
             case .arrangement(let item):
                 return arrangementMenu(item ?? name.trimmingCharacters(in: .whitespaces), ctx: ctx)
-            case .action, .key, .addMenu:
+            case .addMenu(let item):
+                // Plugin hors des favoris : pris dans « More plugins… » de FL (rien n'est ajouté à ses listes).
+                if let plugin = FLPluginDatabase.fromPluginList(PageOptions.pluginPath(name)) {
+                    return addFromPluginList(plugin, item: item, ctx: ctx)
+                }
+            case .action, .key:
                 break
             }
             guard let body = PageOptions.body(option, name: name, layout: layout) else { return .fail(String(localized: "option inconnue")) }

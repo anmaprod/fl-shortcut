@@ -604,12 +604,26 @@ internal sealed class MacrosWindow : Window
                 yield return Param(Loc.T("Option"), Choice(options.Select(o => o.Label).ToList(), options.FindIndex(o => o.Id == po.Option),
                     i => set(new BlockBody.PageOption(options[i].Id, options[i].Id == po.Option ? po.Name : "")), 320));
                 if (po.Option is { } id && PageOptions.FieldOf(id) is { } field)
-                    yield return Param(field switch
+                {
+                    if (field == PageField.Plugin)
                     {
-                        PageField.Plugin => Loc.T("Plugin"),
-                        PageField.Channel => Loc.T("Canal"),
-                        _ => Loc.T("Nom"),
-                    }, Field(po.Name, PageOptions.MaxName, typed => set(po with { Name = typed.Trim() }), 240));
+                        // Un plugin hors des favoris : pris dans « More plugins… » de FL, rien n'est ajouté à ses listes.
+                        var outside = PageOptions.FromPluginList(po.Name);
+                        yield return Param(Loc.T("Plugin"), Field(outside ?? po.Name, PageOptions.MaxName, typed =>
+                            set(po with { Name = outside is not null && typed.Trim().Length > 0
+                                ? PageOptions.MorePlugins + PageOptions.PathSeparator + typed.Trim() : typed.Trim() }), 240));
+                        var more = new CheckBox { Content = Loc.T("Pas dans mes favoris (pris dans « More plugins… » de FL)"), IsChecked = outside is not null };
+                        more.Click += (_, _) =>
+                        {
+                            var name = outside ?? po.Name;
+                            set(po with { Name = more.IsChecked == true && name.Length > 0 ? PageOptions.MorePlugins + PageOptions.PathSeparator + name : name });
+                        };
+                        yield return more;
+                        break;
+                    }
+                    yield return Param(field == PageField.Channel ? Loc.T("Canal") : Loc.T("Nom"),
+                        Field(po.Name, PageOptions.MaxName, typed => set(po with { Name = typed.Trim() }), 240));
+                }
                 break;
             }
             case BlockBody.TrackMenu tm:

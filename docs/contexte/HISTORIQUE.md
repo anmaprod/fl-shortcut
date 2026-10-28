@@ -422,7 +422,17 @@ entrée 1 ≈ 0,5 s.
   administrateur) ; fenêtres de FL reconnues par leur classe et leur style, jamais leur titre ; journal enfin écrit
   (`%LOCALAPPDATA%\FL Shortcuts\journal.txt`, mots fixes et nombres) ; page Macros (liste, modèles, créateur simple)
   et 3e type « Macro » dans la fiche d'un raccourci.
-- PAS ENCORE sous Windows (la macro est bloquée, son raccourci reste à FL, la page le dit) : clics appris, glisser,
-  menu de la piste, preset (choisir, déposer), entrée, larsen, carte son, « Cliquer sur… », Menu de FL, Nom et
-  couleur, et les blocs imbriqués dans le créateur. Les 5 modèles du propriétaire en dépendent : ils demandent des
-  essais sur un vrai PC Windows avec FL (menus de FL : leurs fenêtres et leurs lettres soulignées sous Windows ?).
+- Puis (même jour, demande « fait aussi ce qui manque encore ») : clics appris (« Montrer dans FL… »), glisser, Menu
+  de FL (menu standard lu par Windows, sinon texte lu dans la seule fenêtre de FL au moment du clic), menu de la
+  piste (piste visée suivie par un crochet souris posé seulement si une macro la vise), preset déposé (glisser
+  d'OLE) ou écrit dans la boîte « Open », « Cliquer sur… », Nom et couleur. Essai CI sur un faux FL dans l'appli
+  (`--selftest-macros`). Reste : bouton à son image, entrée, larsen, carte son, menu Arrangement, icône, blocs
+  imbriqués dans le créateur ; tout est à essayer sur un vrai PC avec FL.
+- Mac, captures du propriétaire : « Ouvre un VST » ajoutait les plugins hors favoris dans une catégorie « FL
+  Shortcuts » des menus Add de FL (Channel et effets du Mixer) : « je ne veux absolument pas […] et si ça le fait ça
+  l'enlève ». Plus jamais rien d'ajouté ; la catégorie part à la Corbeille au lancement (FL la voit disparaître à son
+  prochain démarrage) ; un ancien choix « FL Shortcuts › X » vise le plugin seul. Puis : « il ne faut pas que ça soit
+  que les favoris qu'on puisse choisir » → tous les plugins installés restent proposés ; hors favoris, la macro ouvre
+  Add › Channel/Effect › More plugins..., lit la liste au moment du clic (autorisation « Enregistrement de
+  l'écran »), la fait défiler, et double-clique le nom (jamais la case de favori). Mac et Windows ; essai CI sur le
+  faux FL (SKIP sans l'autorisation).

@@ -1111,14 +1111,14 @@ private struct SoundCardField: View {
 }
 
 /// Plugin à ajouter : les favoris du menu Add › Channel ou Effect de FL, puis tous les plugins installés (Plugin
-/// database de FL) ; sinon le nom à écrire. Un plugin hors des favoris y est ajouté (FLPluginDatabase).
+/// database de FL) ; sinon le nom à écrire. FL Shortcuts n'ajoute JAMAIS rien aux listes de FL (demande du 28/10) : un
+/// plugin hors des favoris est pris par la macro dans « More plugins… » de FL (FLPluginDatabase.morePlugins).
 private struct PluginField: View {
     let item: String
     let value: String
     let set: (String) -> Void
     @ObservedObject private var list: FLPluginList
     @State private var typing = false
-    @State private var problem: String?
 
     private static let installedTag = "installed:"
 
@@ -1135,7 +1135,9 @@ private struct PluginField: View {
                 HStack(spacing: 6) {
                     Picker("Plugin", selection: Binding(get: { value }, set: { choose($0, names: names) })) {
                         if value.isEmpty { Text("À choisir").tag("") }
-                        if !value.isEmpty, !names.contains(value) { Text(value).tag(value) }
+                        if !value.isEmpty, !names.contains(value) {
+                            Text(FLPluginDatabase.fromPluginList(PageOptions.pluginPath(value)) ?? value).tag(value)
+                        }
                         ForEach(Array(FLPluginList.groups(names).enumerated()), id: \.offset) { _, group in
                             Section(group.title.map { String(localized: "Favoris · \($0)") } ?? String(localized: "Favoris du menu Add")) {
                                 ForEach(group.names, id: \.self) { name in
@@ -1155,15 +1157,12 @@ private struct PluginField: View {
                     }
                     reloadButton
                 }
-                if let problem {
-                    Text(problem).foregroundStyle(.orange).font(.system(size: 11))
-                } else if value.hasPrefix(FLPluginDatabase.folderName + PageOptions.pathSeparator), !names.contains(value) {
-                    Text(String(localized: "Ajouté à tes favoris de FL (Add › \(item) › \(FLPluginDatabase.folderName)) pour que la macro le ")
-                         + String(localized: "choisisse sans souris. Si FL est ouvert, quitte-le et rouvre-le une fois pour qu'il le voie."))
-                        .font(.system(size: 11))
-                        .foregroundStyle(.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
+                Text(FLPluginDatabase.fromPluginList(PageOptions.pluginPath(value)) != nil
+                     ? String(localized: "Pas dans tes favoris : la macro le prend dans « More plugins… » de FL, retrouvé à son nom (autorisation « Enregistrement de l'écran »). Rien n'est ajouté à tes listes.")
+                     : String(localized: "Tes favoris du menu Add de FL, puis tous tes plugins installés. Rien n'est jamais ajouté à tes listes de FL."))
+                    .font(.system(size: 11))
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
                 Button("Écrire le nom moi-même") { withAnimation(Motion.quickMorph) { typing = true } }
                     .buttonStyle(.link)
                     .font(.system(size: 11))
@@ -1195,23 +1194,17 @@ private struct PluginField: View {
         .onAppear { list.loadIfNeeded() }
     }
 
-    /// Un favori du menu : tel quel. Un plugin installé : son favori s'il en a un, sinon ajouté aux favoris de FL.
+    /// Un favori du menu : tel quel. Un plugin installé : son favori s'il en a un, sinon pris dans « More plugins… »
+    /// (rien n'est ajouté aux favoris de FL).
     private func choose(_ choice: String, names: [String]) {
-        problem = nil
         guard choice.hasPrefix(Self.installedTag), let i = Int(choice.dropFirst(Self.installedTag.count)),
               list.installed.indices.contains(i) else {
             set(choice)
             return
         }
         let plugin = list.installed[i]
-        if let favorite = names.first(where: { PageOptions.pluginPath($0).last == plugin.name }) {
-            set(favorite)
-        } else if let path = FLPluginDatabase.addFavorite(plugin, kind: list.kind, root: FLPluginDatabase.root()) {
-            set(path)
-        } else {
-            problem = String(localized: "Impossible de l'ajouter aux favoris de FL (dossier Plugin database de FL protégé ?) : écris le nom ")
-                + String(localized: "d'un plugin du menu Add.")
-        }
+        set(names.first(where: { PageOptions.pluginPath($0).last == plugin.name })
+            ?? FLPluginDatabase.morePlugins + PageOptions.pathSeparator + plugin.name)
     }
 
     private var reloadButton: some View {
@@ -1238,7 +1231,7 @@ final class FLPluginList: ObservableObject {
 
     let item: String
     @Published private(set) var state: State?
-    /// Tous les plugins installés de cette sorte (Plugin database de FL).
+    /// Tous les plugins installés de cette sorte (Plugin database de FL, lue seulement).
     @Published private(set) var installed: [FLPluginDatabase.Plugin] = []
 
     var kind: FLPluginDatabase.Kind { item == "Effect" ? .effects : .generators }
@@ -1260,9 +1253,11 @@ final class FLPluginList: ObservableObject {
         let kind = self.kind
         DispatchQueue.global(qos: .userInitiated).async {
             let installed = FLPluginDatabase.installed(kind, root: FLPluginDatabase.root())
-            let names = pid.map { pid in
-                MenuBarAX.entries(pid: pid, under: path, open: open).map { $0.joined(separator: PageOptions.pathSeparator) }
-            } ?? []
+            // Sans la catégorie qu'ajoutaient d'anciennes versions (retirée au lancement, encore là tant que FL n'a pas
+            // redémarré).
+            let names = (pid.map { pid in
+                MenuBarAX.entries(pid: pid, under: path, open: open)
+            } ?? []).filter { $0.first != FLPluginDatabase.folderName }.map { $0.joined(separator: PageOptions.pathSeparator) }
             DispatchQueue.main.async {
                 self.installed = installed
                 if !names.isEmpty || !installed.isEmpty {

@@ -95,10 +95,6 @@ enum MenuBarAX {
             closeMenus(pid: pid)
             if let why = stop() { return .cancelled(why) }
             MacroLog.shared.write("MENU", "menu bar item not found (\(titles.count) levels) · \(ms()) ms")
-            // Plugin ajouté par FL Shortcuts aux favoris de FL (FLPluginDatabase) : FL ne relit ses favoris qu'en démarrant.
-            if titles.count > 3, titles[0] == "Add", titles[2] == FLPluginDatabase.folderName {
-                return .failed(String(localized: "plugin ajouté à tes favoris de FL : quitte FL et rouvre-le une fois pour qu'il apparaisse dans son menu Add"))
-            }
             return .failed(String(localized: "élément introuvable dans les menus de FL (renommé, ou FL dans une autre langue ? enregistre de nouveau tes clics)"))
         }
         if let why = stop() {
