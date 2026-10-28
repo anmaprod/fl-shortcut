@@ -52,7 +52,7 @@ struct HelpPage: View {
                 Section {
                     PageHeader(symbol: "questionmark.circle", tint: .teal, title: String(localized: "Aide"),
                                subtitle: String(localized: "Les réponses aux questions fréquentes, et l'équipe si ça ne suffit pas."))
-                        .cardRow(.single)
+                        .pageTitleRow()
                 }
                 Section {
                     searchField.cardRow(.single)

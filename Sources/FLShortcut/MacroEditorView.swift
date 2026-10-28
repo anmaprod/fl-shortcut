@@ -102,8 +102,7 @@ struct MacroCreatorView: View {
         .navigationTitle(model.draft?.name ?? String(localized: "Créateur de macros"))
         .toolbarTitleHidden()
         .toolbar { toolbarContent }
-        // Fondu de la couleur des macros dans le fond, comme le guide.
-        .tintedBackdrop(SidebarItem.macros.tint)
+        // Plus de fondu de couleur dans le fond (28/10 : « garder que le Liquid Glass, pas de fond »).
         .windowGlass(glassEnabled)
         // Fenêtre qui l'affiche : retour du focus après « Montrer dans FL… », et devant FL tant qu'il est affiché.
         .background(WindowReader { [model] window in

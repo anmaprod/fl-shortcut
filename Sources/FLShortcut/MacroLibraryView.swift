@@ -42,11 +42,11 @@ struct MacroLibraryPage: View {
                 PageContainer {
                     Section {
                         PageHeader(symbol: SidebarItem.macros.symbol, tint: SidebarItem.macros.tint, title: String(localized: "Macros"),
-                                   subtitle: MacroPageText.subtitle,
-                                   detail: library.macros.count == 1 ? String(localized: "1 macro")
-                                                                    : String(localized: "\(library.macros.count) macros"))
-                            .cardRow(.first)
-                        actions.cardRow(.last)
+                                   subtitle: MacroPageText.subtitle)
+                            .pageTitleRow()
+                    }
+                    Section {
+                        actions.cardRow(.single)
                     }
                     if library.problem != nil {
                         Section {

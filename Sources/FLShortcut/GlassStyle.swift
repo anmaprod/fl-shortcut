@@ -2,8 +2,8 @@
 // Liquid Glass (macOS 26, WWDC25 219/310/323/356) : le verre est réservé à la couche de navigation et de contrôle
 // qui flotte au-dessus du contenu (barre latérale et barre d'outils du système, pastille de statut, notification,
 // avertissements, boutons, bulle d'aide), jamais ligne par ligne (une couche de verre par ligne coûtait cher :
-// 8fb66a8) ni verre sur verre. La couleur va dans le contenu (icônes de rubrique, lavis en haut de page) : c'est
-// elle que le verre réfracte et qui le rend visible. Le verre redevient opaque dès que la fenêtre n'est plus active
+// 8fb66a8) ni verre sur verre. La couleur va dans le contenu (icônes de rubrique) ; plus de lavis de couleur sous le
+// verre depuis le 28/10 (« garder que le Liquid Glass, pas de fond »). Le verre redevient opaque dès que la fenêtre n'est plus active
 // (FL au premier plan) : rien à recalculer pendant que tu travailles dans FL. Réduire la transparence et Contraste
 // élevé : le verre s'adapte tout seul, la fenêtre et le lavis redeviennent unis. Réglable dans le menu Profil
 // (« Effet Liquid Glass ») : coupé, tout est opaque. Audit 05 : touches affichées avec leur nom en clair.
@@ -640,9 +640,10 @@ struct KeyLabel: View {
         .lineLimit(1)
         .padding(.horizontal, 8)
         .frame(minWidth: 56, minHeight: 22)
-        .background(shape.fill(Color.primary.opacity(0.05)))
-        .overlay(shape.strokeBorder(accent ? Color.accentColor.opacity(0.5) : Color(nsColor: .separatorColor),
-                                    lineWidth: 0.5))
+        // Touche changée : teintée de bleu (maquette du 28/10), sinon la capsule grise de toujours.
+        .background(shape.fill(accent ? Color.accentColor.opacity(0.18) : Color.primary.opacity(0.05)))
+        .overlay(shape.strokeBorder(accent ? Color.accentColor.opacity(0.7) : Color(nsColor: .separatorColor),
+                                    lineWidth: accent ? 1 : 0.5))
         .contentShape(shape)
         // Jamais écrasé ni coupé quand la fenêtre est étroite : c'est le titre de la ligne qui se raccourcit.
         .fixedSize()
@@ -771,6 +772,16 @@ extension View {
     /// cette couleur, d'un filet à l'autre et toute la largeur de la carte).
     func cardRow(_ position: CardRowPosition, hover: Color? = nil) -> some View {
         modifier(CardRowModifier(position: position, hover: hover))
+    }
+
+    /// En-tête de page (28/10) : le titre posé sur la page, sans carte grise autour.
+    func pageTitleRow() -> some View {
+        padding(.horizontal, 12)
+            .padding(.top, 6)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .listRowInsets(EdgeInsets(top: 0, leading: CardRowBackground.inset, bottom: 0, trailing: CardRowBackground.inset))
+            .listRowSeparator(.hidden)
+            .listRowBackground(Color.clear)
     }
 }
 

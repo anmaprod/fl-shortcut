@@ -549,8 +549,10 @@ enum PaletteCatalog {
             item("drag", .drag) { .drag(from: .toLearn, to: .toLearn) },
             // Fenêtres et attentes : un seul « Attendre » (boîte ou menu qui s'ouvre ou se ferme, ou temps fixe), réglé
             // dans l'inspecteur. Les clics appris attendent déjà leur fenêtre tout seuls.
+            // Icône : une horloge (28/10, « revois son logo »).
             item("wait", .waitWindow, label: String(localized: "Attendre"),
-                 aide: String(localized: "Attend qu'une boîte ou un menu de FL s'ouvre ou se ferme (par exemple que tu aies choisi un preset), ou un temps fixe (pause). Les clics appris attendent déjà leur fenêtre tout seuls.")) {
+                 aide: String(localized: "Attend qu'une boîte ou un menu de FL s'ouvre ou se ferme (par exemple que tu aies choisi un preset), ou un temps fixe (pause). Les clics appris attendent déjà leur fenêtre tout seuls."),
+                 symbol: "clock") {
                 .waitWindow(.dialog, timeoutMs: 4_000)
             },
             // FL Studio. En tête, les menus de FL (File, Edit, Tools…) parcourus comme dans FL, jusqu'à l'élément
@@ -582,9 +584,8 @@ enum PaletteCatalog {
             item("nameColor", .nameColor) { .nameColor(name: nil, color: NameColorPayload.defaultColor) },
             item("soundCard", .soundCard) { .soundCard },
             item("organize", .organize) { .organize },
-            // Contrôle
-            item("repeat", .repeatCount) { .repeatCount(2, []) },
-            item("if", .ifElse, soon: true) { .ifElse(.windowOpen(.dialog), then: [], otherwise: []) },
+            // Contrôle (Répéter, Si… sinon) retiré de la palette le 28/10 (« supprime l'option contrôle ») : toujours
+            // compris dans les anciennes macros.
         ]
     }
 

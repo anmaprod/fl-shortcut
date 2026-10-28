@@ -439,3 +439,19 @@ entrée 1 ≈ 0,5 s.
   double-cliqué au lieu du 37 → la capture à 2 pixels par point n'avait la fenêtre que dans son quart haut-gauche
   (positions lues divisées par deux, aussi pour le menu « Arrangement ») : image remplie (`scalesToFit`). Windows :
   preset déposé depuis une petite fenêtre de l'app (bouton enfoncé hors de FL, sinon le glisser ne démarrait pas).
+- Nouvel aspect Mac (28/10), d'après deux vidéos du propriétaire (« backed. », app Mac de la barre des menus, et un
+  tableau de bord en verre) et une maquette validée écran par écran (page de dessin privée sur claude.ai). Ses
+  réponses : « garder que le Liquid Glass, pas de fond », logo à faire plus tard (par lui), pas de navigation éclatée
+  en morceaux, aucune animation en plus (« on reste comme on est »), le bleu. Retours sur la maquette : « ça paraît
+  trop IA », « trop de détails inutiles » ; enlevés : cartes à gros chiffres, lueurs, phrases d'explication,
+  « Connecté à FL », pause, recherche et « Tester » du créateur, catégorie Contrôle ; un seul « Attendre » (horloge).
+  Fait dans l'app : plus de lavis ni de lueur de couleur (fenêtre principale, créateur, Organiser, menu de l'icône) ;
+  en-tête de page = le titre seul (résumé dans la bulle d'aide ; « Connecté en tant que… » gardé) ; raccourcis sur
+  deux colonnes quand la page fait 760 points ou plus (`CardColumns`, liste toujours paresseuse : une ligne = deux
+  raccourcis, colonne de gauche = 1re moitié) ; touche changée teintée de bleu + ↺ seulement sur elle (plus de
+  « D'origine : » ni de « Réinitialiser » grisé) ; menu de l'icône : « Mettre en pause » retiré (« Reprendre » seulement
+  si l'app est en pause par ⌃⌥⌘F), pied « Ouvrir FL Shortcuts » (bleu) / « Quitter ⌘Q » ; palette des macros sans
+  Répéter ni Si… sinon (toujours compris dans les anciennes macros), rubrique « Attente » ; Organiser : titre seul,
+  sans phrases, chaque famille sur une ligne (poignée, rond de couleur — « Une couleur / Dégradé » dans sa fenêtre —,
+  nom, départ du Mixer, icône), chaque son : nom qu'il prendra (ancien nom en gris), sorte, case du Mixer à droite.
+  Dans l'app, la page principale n'avait déjà ni bouton pause ni « Connecté à FL » (seulement dans la maquette).

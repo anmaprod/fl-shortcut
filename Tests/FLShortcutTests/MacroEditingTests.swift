@@ -155,10 +155,15 @@ final class MacroEditingTests: XCTestCase {
         XCTAssertEqual(Set(items.map(\.id)).count, items.count)
         let ready = Set(items.filter { !$0.soon }.map(\.type))
         for t: BlockType in [.key, .click, .drag, .menuKey, .waitWindow, .dropFile, .flAction,
-                             .repeatCount, .openPage, .pageOption, .menuBar] {
+                             .openPage, .pageOption, .menuBar] {
             XCTAssertTrue(ready.contains(t), "\(t)")
         }
-        XCTAssertFalse(ready.contains(.ifElse))
+        // Contrôle retiré de la palette le 28/10 (Répéter, Si… sinon) : toujours compris dans les anciennes macros.
+        XCTAssertFalse(items.contains { $0.type == .repeatCount || $0.type == .ifElse })
+        XCTAssertFalse(items.contains { $0.category == .controle })
+        // Un seul « Attendre », avec l'horloge.
+        XCTAssertEqual(items.filter { $0.category == .fenetres }.map(\.id), ["wait"])
+        XCTAssertEqual(items.first { $0.id == "wait" }?.symbol, "clock")
         // Triés avec l'utilisateur : plus proposés (toujours compris dans les anciennes macros). Les attentes sont un
         // seul « Attendre ».
         // « Ouvrir un preset (boîte Open) » aussi : « Déposer un preset » fait la même chose, plus vite. « Menu de la

@@ -150,6 +150,10 @@
   simple (nom, raccourci, blocs activés/déplacés/retirés, réglages des blocs faits sur Windows ; les autres « à régler
   sur le Mac »), photos `macros-liste.png`/`macros-createur.png` sur la CI ; fiche d'un raccourci : 3e type « Macro ».
   Reste : ces blocs, blocs imbriqués (si/répéter) dans le créateur, enregistrement, compte, Communauté, Aide.
+- **Aspect validé le 28/10** (maquette, `HISTORIQUE`) : Liquid Glass seul, sans lavis ni lueur de couleur ; titre de
+  page seul ; raccourcis sur deux colonnes (`CardColumns`) ; touche changée en bleu + ↺ ; rien d'inutile (pas de
+  phrases d'explication, de compteurs, de pause dans les menus) ; bleu pour l'action ; aucune animation en plus ;
+  logo : c'est lui qui le fera.
 - Interface : survol coloré du menu de l'icône (`menuHover` : contour de sa couleur, halo autour) voulu par le
   propriétaire partout ; depuis le 25/10 (sa capture) : couleurs de l'élément JAMAIS changées (ni fond ajouté, ni
   ombre sur le contenu : halo `HoverGlow` dehors seulement), rien de gris au-delà du contour (lignes des cartes : c'est

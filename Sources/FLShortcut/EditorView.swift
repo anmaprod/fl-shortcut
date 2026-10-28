@@ -2,7 +2,7 @@
 // par fenêtre de FL, icônes colorées, puis « Mes raccourcis »), page à droite avec son en-tête et des sections en
 // cartes, une ligne par raccourci avec sa touche (cliquable) et « Réinitialiser ». Recherche, profil et pause dans
 // la barre d'outils en verre ; pastille de statut flottante en bas ; avertissements flottants en haut quand il
-// faut agir. La couleur de la page (lavis) passe sous le verre de la barre latérale et de la barre d'outils.
+// faut agir. Plus de lavis de couleur sous le verre (28/10) ; raccourcis sur deux colonnes quand la page est large.
 // Performance : verre seulement sur les quelques surfaces flottantes (jamais par ligne), aucun survol animé,
 // aucune animation infinie, aucun flou dans les listes.
 // Audit : REL-06 / PROTOCOL.md §5 (statut du lien), audit 04 §8.2 (actions grisées, « Disponible à partir de
@@ -176,6 +176,62 @@ private struct CardRows<Item: Identifiable, Row: View>: View {
     }
 }
 
+/// Les lignes d'une carte sur deux colonnes quand la page est assez large (maquette validée le 28/10 : plus de
+/// raccourcis d'un coup d'œil). Chaque ligne de la liste porte deux raccourcis : la colonne de gauche lit la première
+/// moitié, celle de droite la seconde. La liste reste paresseuse. Au survol, chaque raccourci s'allume seul (contour
+/// de la couleur de la page et halo dehors, comme une ligne).
+private struct CardColumns<Item: Identifiable, Cell: View>: View {
+    let items: [Item]
+    let tint: Color
+    let columns: Int
+    @ViewBuilder let cell: (Item) -> Cell
+
+    private struct Pair: Identifiable {
+        let left: Item
+        let right: Item?
+        var id: Item.ID { left.id }
+    }
+
+    var body: some View {
+        if columns < 2 || items.count < 2 {
+            CardRows(items: items, tint: tint) { cell($0) }
+        } else {
+            let half = (items.count + 1) / 2
+            let pairs = (0..<half).map { i in
+                Pair(left: items[i], right: i + half < items.count ? items[i + half] : nil)
+            }
+            ForEach(Array(pairs.enumerated()), id: \.element.id) { index, pair in
+                HStack(alignment: .center, spacing: 20) {
+                    cell(pair.left)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .menuHover(tint: tint, cornerRadius: 6, outset: 6)
+                    if let right = pair.right {
+                        cell(right)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .menuHover(tint: tint, cornerRadius: 6, outset: 6)
+                    } else {
+                        Color.clear.frame(maxWidth: .infinity, maxHeight: 1)
+                    }
+                }
+                .cardRow(.position(index: index, count: pairs.count))
+            }
+        }
+    }
+}
+
+/// Largeur de la page, lue sans rien redessiner tant qu'elle ne change pas.
+private struct WidthReader: View {
+    let report: (CGFloat) -> Void
+
+    var body: some View {
+        GeometryReader { proxy in
+            Color.clear
+                .onAppear { report(proxy.size.width) }
+                .onChange(of: proxy.size.width) { width in report(width) }
+        }
+    }
+}
+
 typealias CatalogData = (rows: [CatalogRow], others: [Remap])
 
 struct EditorView: View {
@@ -195,6 +251,12 @@ struct EditorView: View {
     @State private var editNotice: String? = nil
     @AppStorage(Appearance.glassKey) private var glassEnabled = true
     @Namespace private var glassNS
+    /// Page assez large pour deux colonnes de raccourcis (changé seulement quand on passe le seuil).
+    @State private var twoColumns = false
+    /// Largeur de page à partir de laquelle les raccourcis passent sur deux colonnes.
+    static let twoColumnWidth: CGFloat = 760
+
+    private var columnCount: Int { twoColumns ? 2 : 1 }
 
     private var trimmedQuery: String { query.trimmingCharacters(in: .whitespaces) }
 
@@ -595,6 +657,10 @@ struct EditorView: View {
         // Nouvelle liste (et retour en haut) à chaque section, affichée d'un coup (aucune animation).
         .pageSwitch(trimmedQuery.isEmpty ? selection : nil)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(WidthReader { width in
+            let wide = width >= Self.twoColumnWidth
+            if wide != twoColumns { twoColumns = wide }
+        })
         // Façon macOS 26 : la liste défile SOUS des éléments en verre qui flottent (avertissements en haut,
         // notification et statut en bas). Peu de surfaces, regroupées : le système les dessine ensemble.
         // macOS 26 : barres flottantes (safeAreaBar) : la liste défile dessous avec l'effet de bord, et sa dernière
@@ -622,8 +688,7 @@ struct EditorView: View {
         // Général) : les deux colonnes devenaient plus hautes que la fenêtre, centrées, et le haut de la barre
         // latérale (recherche, « FL Studio ») passait sous la barre de titre. Largeur minimale réaliste en plus.
         .frame(minWidth: 480, minHeight: 0, maxHeight: .infinity)
-        // Couleur de la page sous la barre d'outils et la barre latérale en verre (aucune pendant la recherche).
-        .tintedBackdrop(trimmedQuery.isEmpty ? (selection ?? .section(.general)).tint : Appearance.brand[1])
+        // Plus de lavis de couleur sous le verre (28/10, « garder que le Liquid Glass, pas de fond »).
         .sheet(item: $editingRow) { row in
             CatalogEditSheet(row: row, notice: editNotice) { message, followUp in
                 show(message)
@@ -650,27 +715,26 @@ struct EditorView: View {
         return PageContainer {
             Section {
                 PageHeader(symbol: section.symbol, tint: section.tint, title: section.title,
-                           subtitle: section.subtitle,
-                           detail: PageSummary.count(mine.count, modified: mine.filter { !$0.isDefault }.count))
-                    .cardRow(.single)
+                           subtitle: section.subtitle)
+                    .pageTitleRow()
             }
             if !natives.isEmpty {
                 Section {
-                    CardRows(items: natives, tint: section.tint) { catalogRow($0) }
+                    CardColumns(items: natives, tint: section.tint, columns: columnCount) { catalogRow($0) }
                 } header: {
                     Text("Raccourcis de FL Studio")
                 }
             }
             if !extras.isEmpty {
                 Section {
-                    CardRows(items: extras, tint: section.tint) { catalogRow($0) }
+                    CardColumns(items: extras, tint: section.tint, columns: columnCount) { catalogRow($0) }
                 } header: {
                     Text("Actions en plus")
                 }
             }
             if !custom.isEmpty {
                 Section {
-                    CardRows(items: custom, tint: section.tint) { customRow($0) }
+                    CardColumns(items: custom, tint: section.tint, columns: columnCount) { customRow($0) }
                 } header: {
                     Text("Tes raccourcis sur cette page")
                 }
@@ -743,13 +807,13 @@ struct EditorView: View {
                 PageContainer {
                     Section {
                         PageHeader(symbol: SidebarItem.custom.symbol, tint: SidebarItem.custom.tint,
-                                   title: String(localized: "Mes raccourcis"), subtitle: PageSummary.custom,
-                                   detail: PageSummary.count(changed.count + created.count, modified: 0))
-                            .cardRow(.single)
+                                   title: String(localized: "Mes raccourcis"), subtitle: PageSummary.custom)
+                            .pageTitleRow()
                     }
                     ForEach(sections) { s in
                         Section {
-                            CardRows(items: changed.filter { $0.entry.section == s }, tint: s.tint) { catalogRow($0) }
+                            CardColumns(items: changed.filter { $0.entry.section == s }, tint: s.tint,
+                                        columns: columnCount) { catalogRow($0) }
                         } header: {
                             SectionHeader(symbol: s.symbol, tint: s.tint, title: s.title)
                         }
@@ -1215,7 +1279,8 @@ private struct IssueIcon: View {
     }
 }
 
-/// « Réinitialiser » : présent sur chaque ligne, grisé quand la touche est déjà celle d'origine.
+/// ↺ : remet la touche d'origine de FL. Seulement sur une touche changée (maquette du 28/10 : rien d'inutile sur les
+/// autres lignes) ; son nom reste lu par VoiceOver et sa bulle dit la touche d'origine.
 private struct ResetButton: View {
     let enabled: Bool
     let help: String
@@ -1223,8 +1288,11 @@ private struct ResetButton: View {
 
     var body: some View {
         Button(action: action) {
-            Label("Réinitialiser", systemImage: "arrow.counterclockwise")
+            Image(systemName: "arrow.counterclockwise")
+                .font(.system(size: 12, weight: .medium))
+                .frame(width: 22, height: 22)
         }
+        .accessibilityLabel(String(localized: "Réinitialiser"))
         .buttonStyle(RowActionStyle())
         .fixedSize()
         .disabled(!enabled)
@@ -1256,26 +1324,17 @@ private struct CatalogRowView: View {
     let onEdit: () -> Void
     let onReset: () -> Void
 
-    /// Légende seulement quand la touche a changé.
-    private var caption: String? {
-        guard !row.isDefault else { return nil }
-        return String(localized: "D'origine : ") + (row.entry.defaultTrigger?.display ?? String(localized: "aucune"))
-    }
-
     private var titleHelp: String {
         row.entry.isNative ? String(localized: "Raccourci d'origine de FL Studio") : row.entry.detail
     }
 
     var body: some View {
         HStack(spacing: 10) {
-            VStack(alignment: .leading, spacing: 1) {
-                Text(row.entry.title).lineLimit(1)
-                if let caption {
-                    Text(caption).font(.system(size: 11)).foregroundStyle(.secondary).lineLimit(1)
-                }
-            }
-            .help(titleHelp)
-            .layoutPriority(-1)                          // fenêtre étroite : le titre se raccourcit, pas la touche
+            // Une seule ligne : le nom du raccourci (la touche d'origine est dans la bulle de ↺).
+            Text(row.entry.title)
+                .lineLimit(1)
+                .help(titleHelp)
+                .layoutPriority(-1)                      // fenêtre étroite : le titre se raccourcit, pas la touche
             Spacer(minLength: 12)
             if let takenBy = row.takenBy {
                 Image(systemName: "exclamationmark.triangle.fill")
@@ -1295,9 +1354,11 @@ private struct CatalogRowView: View {
             .accessibilityLabel("Changer la touche de \(row.entry.title)")
             .accessibilityValue(row.current?.spoken ?? String(localized: "aucune"))
 
-            ResetButton(enabled: !row.isDefault,
-                        help: String(localized: "Revenir à : ") + (row.entry.defaultTrigger?.display ?? String(localized: "aucune touche")),
-                        action: onReset)
+            if !row.isDefault {
+                ResetButton(enabled: true,
+                            help: String(localized: "Revenir à : ") + (row.entry.defaultTrigger?.display ?? String(localized: "aucune touche")),
+                            action: onReset)
+            }
         }
         .padding(.vertical, 2)
         .contextMenu {
@@ -1404,8 +1465,9 @@ private struct EmptyState: View {
     }
 }
 
-/// En-tête de page façon Réglages Système (macOS 26) : grande icône colorée, titre gras aligné à gauche, résumé.
-/// Dans la première carte de la page (couche de contenu, aucun verre).
+/// En-tête de page (maquette validée le 28/10 : « trop de détails inutiles ») : le titre en gras, seul ; `detail`
+/// seulement quand il dit qui est connecté (Compte, Communauté). Le résumé de la page reste dans sa bulle d'aide.
+/// `symbol` et `tint` : gardés pour les appels, plus dessinés.
 struct PageHeader: View {
     let symbol: String
     let tint: Color
@@ -1414,21 +1476,15 @@ struct PageHeader: View {
     var detail: String? = nil
 
     var body: some View {
-        HStack(spacing: 14) {
-            SectionIcon(symbol: symbol, tint: tint, size: 44)
-            VStack(alignment: .leading, spacing: 2) {
-                Text(title).font(.title3.weight(.semibold))
-                Text(subtitle)
-                    .font(.system(size: 12))
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-                if let detail {
-                    Text(detail).font(.system(size: 11)).foregroundStyle(.tertiary)
-                }
+        VStack(alignment: .leading, spacing: 2) {
+            Text(title).font(.system(size: 22, weight: .bold))
+            if let detail {
+                Text(detail).font(.system(size: 12)).foregroundStyle(.secondary).lineLimit(1)
             }
-            Spacer(minLength: 0)
         }
-        .padding(.vertical, 4)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.vertical, 2)
+        .help(subtitle)
         .accessibilityElement(children: .combine)
         .accessibilityAddTraits(.isHeader)
     }

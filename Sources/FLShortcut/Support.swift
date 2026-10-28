@@ -259,8 +259,8 @@ enum HelpContent {
                   keywords: "erreur echec arrete bloque mauvais clic bouge bouton plus channel rack"),
         HelpEntry(id: 7, question: String(localized: "Mettre en pause ou reprendre"),
                   answer: String(localized: """
-                      ⌃⌥⌘F, n'importe où, ou « Mettre en pause » dans le menu de l'icône en haut de l'écran. Une \
-                      pastille rappelle que c'est en pause.
+                      ⌃⌥⌘F, n'importe où. Une pastille rappelle que c'est en pause, et « Reprendre » apparaît alors \
+                      dans le menu de l'icône en haut de l'écran.
                       """),
                   keywords: "pause reprendre arreter desactiver"),
         HelpEntry(id: 8, question: String(localized: "Je n'ai pas reçu le code par mail"),

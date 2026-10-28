@@ -259,6 +259,7 @@
 "Attendre une fenêtre" = "Attendre une fenêtre";
 "Attendre une note" = "Attendre une note";
 "Attendre une note pour lancer l'enregistrement" = "Attendre une note pour lancer l'enregistrement";
+"Attente" = "Attente";
 "Attention : " = "Attention : ";
 "Attraper" = "Attraper";
 "Au plus" = "Au plus";
@@ -1298,6 +1299,7 @@
 "Ouvre ton app de mail avec le message tout prêt, pour %@" = "Ouvre ton app de mail avec le message tout prêt, pour %@";
 "Ouvre un VST" = "Ouvre un VST";
 "Ouvre un partage pour lire son explication et chaque étape, puis « Ajouter à mes macros »." = "Ouvre un partage pour lire son explication et chaque étape, puis « Ajouter à mes macros ».";
+"Ouvrir FL Shortcuts" = "Ouvrir FL Shortcuts";
 "Ouvrir Mon compte" = "Ouvrir Mon compte";
 "Ouvrir dans le créateur…" = "Ouvrir dans le créateur…";
 "Ouvrir la Playlist" = "Ouvrir la Playlist";
@@ -2301,6 +2303,7 @@
 "⌃⌥⌘F met en pause ou reprend, n'importe où. Une pastille le rappelle tant que c'est en pause." = "⌃⌥⌘F met en pause ou reprend, n'importe où. Une pastille le rappelle tant que c'est en pause.";
 "⌃⌥⌘F sert à mettre FL Shortcuts en pause." = "⌃⌥⌘F sert à mettre FL Shortcuts en pause.";
 "⌃⌥⌘F, n'importe où, ou « Mettre en pause » dans le menu de l'icône en haut de l'écran. Une pastille rappelle que c'est en pause." = "⌃⌥⌘F, n'importe où, ou « Mettre en pause » dans le menu de l'icône en haut de l'écran. Une pastille rappelle que c'est en pause.";
+"⌃⌥⌘F, n'importe où. Une pastille rappelle que c'est en pause, et « Reprendre » apparaît alors dans le menu de l'icône en haut de l'écran." = "⌃⌥⌘F, n'importe où. Une pastille rappelle que c'est en pause, et « Reprendre » apparaît alors dans le menu de l'icône en haut de l'écran.";
 "⌘Espace ouvre Spotlight" = "⌘Espace ouvre Spotlight";
 "⌘J consolide, ⌘U quantize, ⌘R renomme, 0 coupe le son de la sélection, B dessine, O métronome, ⌘4 " = "⌘J consolide, ⌘U quantize, ⌘R renomme, 0 coupe le son de la sélection, B dessine, O métronome, ⌘4 ";
 "⌘J joint, ⌃M coupe le son des clips, ⌘←/⌘→ et Z zooment, « , » et « . » changent de mesure, ⌘K clavier " = "⌘J joint, ⌃M coupe le son des clips, ⌘←/⌘→ et Z zooment, « , » et « . » changent de mesure, ⌘K clavier ";

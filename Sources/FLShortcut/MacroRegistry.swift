@@ -38,7 +38,7 @@ enum BlockCategory: String, CaseIterable {
         switch self {
         case .clavier: return String(localized: "Clavier")
         case .souris: return String(localized: "Souris")
-        case .fenetres: return String(localized: "Fenêtres et attentes")
+        case .fenetres: return String(localized: "Attente")       // un seul bloc « Attendre » (28/10)
         case .fl: return String(localized: "FL Studio")
         case .controle: return String(localized: "Contrôle")
         }
@@ -408,7 +408,7 @@ private enum Specs {
     // MARK: Fenêtres et attentes
 
     static let delay = BlockSpec(
-        type: .delay, label: String(localized: "Attendre un temps fixe"), category: .fenetres, symbol: "hourglass",
+        type: .delay, label: String(localized: "Attendre un temps fixe"), category: .fenetres, symbol: "clock",
         aide: String(localized: "Attend un moment (5 s au plus). Échap l'interrompt. À éviter : mieux vaut attendre qu'une fenêtre s'ouvre ou se ferme."),
         params: [ParamSpec("wait", String(localized: "Attendre"), .fenetre), ParamSpec("ms", String(localized: "Durée (ms)"), .ms(0...MacroValidation.maxDelayMs))],
         conteneur: .aucun, dansLaPalette: true,
@@ -439,7 +439,7 @@ private enum Specs {
     }
 
     static let waitWindow = BlockSpec(
-        type: .waitWindow, label: String(localized: "Attendre une fenêtre"), category: .fenetres, symbol: "macwindow.badge.plus",
+        type: .waitWindow, label: String(localized: "Attendre une fenêtre"), category: .fenetres, symbol: "clock",
         aide: String(localized: "Attend qu'une boîte de dialogue ou un menu de FL s'ouvre (120 s au plus)."),
         params: [ParamSpec("wait", String(localized: "Attendre"), .fenetre), ParamSpec("timeoutMs", String(localized: "Au plus (ms)"), .ms(100...MacroValidation.maxWaitMs))],
         conteneur: .aucun, dansLaPalette: true,
@@ -461,7 +461,7 @@ private enum Specs {
         import_: .ok, plateformes: .mac)
 
     static let waitWindowClose = BlockSpec(
-        type: .waitWindowClose, label: String(localized: "Attendre la fermeture"), category: .fenetres, symbol: "macwindow",
+        type: .waitWindowClose, label: String(localized: "Attendre la fermeture"), category: .fenetres, symbol: "clock",
         aide: String(localized: "Attend que la boîte ou le menu se ferme (par exemple pendant que tu choisis ton preset, 120 s au plus)."),
         params: [ParamSpec("wait", String(localized: "Attendre"), .fenetre), ParamSpec("timeoutMs", String(localized: "Au plus (ms)"), .ms(100...MacroValidation.maxWaitMs))],
         conteneur: .aucun, dansLaPalette: true,

@@ -729,9 +729,12 @@ struct MenuContent: View {
             }
             PanelItem(symbol: "square.stack.3d.up", title: String(localized: "Organiser…"),
                       tint: OrganizerView.tint, order: 5) { OrganizerWindow.open() }
-            PanelItem(symbol: store.enabled ? "pause" : "play",
-                      title: store.enabled ? String(localized: "Mettre en pause") : String(localized: "Reprendre"),
-                      shortcut: "⌃⌥⌘F", tint: store.enabled ? .yellow : .green, order: 6) { store.enabled.toggle() }
+            // « Mettre en pause » retiré (28/10, « il sert à rien ») ; si l'app est en pause (⌃⌥⌘F), on peut toujours
+            // reprendre d'ici.
+            if !store.enabled {
+                PanelItem(symbol: "play", title: String(localized: "Reprendre"), shortcut: "⌃⌥⌘F", tint: .green,
+                          order: 6) { store.enabled = true }
+            }
             if !AppMode.light {
                 PanelItem(symbol: "link", title: String(localized: "Installer le lien avec FL Studio…"), tint: .green, order: 7) {
                     FLScriptInstaller.installWithAlert()
@@ -743,15 +746,24 @@ struct MenuContent: View {
             PanelItem(symbol: "trash", title: String(localized: "Désinstaller FL Shortcuts…"), tint: .red, order: 8) {
                 Uninstaller.confirmAndRun()
             }
-            PanelItem(symbol: "power", title: String(localized: "Quitter FL Shortcuts"), shortcut: "⌘Q", key: "q", tint: .gray,
-                      order: 9) {
-                NSApp.terminate(nil)
+
+            MenuSeparator()
+
+            // Pied du panneau (maquette validée le 28/10) : ouvrir la fenêtre à gauche, quitter à droite.
+            HStack(spacing: 8) {
+                PanelFooterButton(title: String(localized: "Ouvrir FL Shortcuts"), tint: .blue, prominent: true) {
+                    openWindow(id: "editor")
+                    MainWindow.bringForward()
+                }
+                Spacer(minLength: 8)
+                PanelFooterButton(title: String(localized: "Quitter"), detail: "⌘Q", tint: .gray, key: "q") {
+                    NSApp.terminate(nil)
+                }
             }
         }
         .padding(8)
         .frame(width: 300)
-        // Fondu de couleur dans le fond, comme le guide (lueur fixe, aucune animation au repos).
-        .background { BrandGlow().opacity(0.55) }
+        // Rien que le verre du menu derrière (28/10 : « pas de fond ») : plus de fondu de couleur.
         // Sort de l'icône à chaque ouverture ; se ferme au choix d'une ligne ou d'un clic ailleurs (MenuPanel).
         .menuReveal(panel.revealed)
         .background(WindowReader { MenuPanel.shared.attach($0) })
@@ -803,6 +815,41 @@ struct MenuContent: View {
 private struct MenuSeparator: View {
     var body: some View {
         Divider().padding(.horizontal, 8).padding(.vertical, 4)
+    }
+}
+
+/// Lien du pied du panneau : « Ouvrir FL Shortcuts » en bleu, « Quitter ⌘Q » en gris. Même survol que les lignes
+/// (contour de sa couleur et halo dehors, le texte ne bouge pas).
+private struct PanelFooterButton: View {
+    let title: String
+    var detail: String? = nil
+    var tint: Color = .gray
+    var prominent = false
+    /// Raccourci réellement actif dans le panneau (avec ⌘).
+    var key: KeyEquivalent? = nil
+    let action: () -> Void
+
+    var body: some View {
+        Button {
+            action()
+            MenuPanel.shared.close()
+        } label: {
+            HStack(spacing: 6) {
+                Text(title)
+                    .fontWeight(prominent ? .medium : .regular)
+                    .foregroundStyle(prominent ? tint : Color.primary.opacity(0.75))
+                if let detail {
+                    Text(verbatim: detail).foregroundStyle(.secondary)
+                }
+            }
+            .font(.system(size: 13))
+            .padding(.horizontal, 8)
+            .frame(height: 30)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .menuHover(tint: tint, cornerRadius: 8)
+        .keyboardShortcut(key.map { KeyboardShortcut($0, modifiers: .command) })
     }
 }
 

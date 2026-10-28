@@ -204,7 +204,7 @@ private struct CommunityBrowse: View {
                            detail: community.session.map {
                                String(localized: "Connecté en tant que @\($0.username.isEmpty ? $0.email : $0.username)")
                            })
-                    .cardRow(.single)
+                    .pageTitleRow()
             }
             if !howToSeen {
                 Section {

@@ -259,6 +259,7 @@
 "Attendre une fenêtre" = "Wait for a window";
 "Attendre une note" = "Wait for a note";
 "Attendre une note pour lancer l'enregistrement" = "Wait for a note to start recording";
+"Attente" = "Waiting";
 "Attention : " = "Warning: ";
 "Attraper" = "Grab";
 "Au plus" = "At most";
@@ -1298,6 +1299,7 @@
 "Ouvre ton app de mail avec le message tout prêt, pour %@" = "Opens your mail app with the message ready, for %@";
 "Ouvre un VST" = "Open a VST";
 "Ouvre un partage pour lire son explication et chaque étape, puis « Ajouter à mes macros »." = "Open a post to read its explanation and each step, then “Add to my macros”.";
+"Ouvrir FL Shortcuts" = "Open FL Shortcuts";
 "Ouvrir Mon compte" = "Open My account";
 "Ouvrir dans le créateur…" = "Open in the creator…";
 "Ouvrir la Playlist" = "Open Playlist";
@@ -2301,6 +2303,7 @@
 "⌃⌥⌘F met en pause ou reprend, n'importe où. Une pastille le rappelle tant que c'est en pause." = "⌃⌥⌘F pauses or resumes, from anywhere. A badge reminds you while it's paused.";
 "⌃⌥⌘F sert à mettre FL Shortcuts en pause." = "⌃⌥⌘F is used to pause FL Shortcuts.";
 "⌃⌥⌘F, n'importe où, ou « Mettre en pause » dans le menu de l'icône en haut de l'écran. Une pastille rappelle que c'est en pause." = "⌃⌥⌘F, from anywhere, or “Pause” in the menu bar icon's menu. A badge reminds you that it's paused.";
+"⌃⌥⌘F, n'importe où. Une pastille rappelle que c'est en pause, et « Reprendre » apparaît alors dans le menu de l'icône en haut de l'écran." = "⌃⌥⌘F, from anywhere. A badge reminds you that it's paused, and “Resume” then appears in the menu bar icon's menu.";
 "⌘Espace ouvre Spotlight" = "⌘Space opens Spotlight";
 "⌘J consolide, ⌘U quantize, ⌘R renomme, 0 coupe le son de la sélection, B dessine, O métronome, ⌘4 " = "⌘J consolidates, ⌘U quantizes, ⌘R renames, 0 mutes the selection, B draws, O metronome, ⌘4 ";
 "⌘J joint, ⌃M coupe le son des clips, ⌘←/⌘→ et Z zooment, « , » et « . » changent de mesure, ⌘K clavier " = "⌘J joins, ⌃M mutes clips, ⌘←/⌘→ and Z zoom, “,” and “.” move by bar, ⌘K musical ";

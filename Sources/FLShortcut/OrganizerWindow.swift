@@ -1313,21 +1313,15 @@ struct OrganizerView: View {
         // Collé en haut, et le fond remplit toute la fenêtre : pendant qu'elle change de taille (Réessayer, étape
         // suivante), plus de bandes noires en haut et en bas (vidéo de l'utilisateur : le contenu se centrait).
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-        .background { TintGlow(tint: Self.tint) }
+        // Plus de lueur de couleur dans le fond (28/10, « pas de fond »).
         .motion(Motion.morph, value: stepKey)
         .sheet(isPresented: $controller.feedbackShown) { OrganizerFeedbackView(controller: controller) }
     }
 
+    /// Le titre seul (maquette validée le 28/10 : ni grande icône, ni phrase dessous).
     private var header: some View {
         HStack(spacing: 14) {
-            SectionIcon(symbol: "square.stack.3d.up", tint: Self.tint, size: 42)
-                .shadow(color: Self.tint.opacity(0.35), radius: 12, y: 4)
-            VStack(alignment: .leading, spacing: 2) {
-                Text(controller.title).font(.system(size: 18, weight: .bold))
-                Text("Range, colore et renomme tout le projet")
-                    .font(.system(size: 12))
-                    .foregroundStyle(.secondary)
-            }
+            Text(controller.title).font(.system(size: 20, weight: .bold))
             Spacer()
         }
         .morphIn(0)
@@ -1693,30 +1687,14 @@ struct OrganizerView: View {
         }
     }
 
-    private var hint: String {
-        String(localized: """
-            Chaque son est rangé d'après son nom (« BEAM KICK » : Kick), sinon d'après son écoute. Clique sur Kick, \
-            808… pour le changer, ou « Écrire… » pour lui donner ton nom : tout le projet suit (Channel rack, \
-            patterns, Mixer, Playlist). Glisse une famille par sa poignée pour changer leur ordre.
-            """)
-    }
-
     private var preview: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text(hint)
-                .font(.system(size: 12))
-                .foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
-                .morphIn(1)
+            // Plus de phrases d'explication (28/10, « ça aussi tu enlèves ») : ce qui se change se voit (poignée,
+            // couleur, nom, case du Mixer), et chaque élément garde sa bulle d'aide.
             if controller.options.mixer {
                 // Places dans le Mixer choisies à la main (case de chaque son, départ de chaque famille), ou rangées
                 // toutes seules (demande du propriétaire du 25/10).
                 HStack(spacing: 8) {
-                    Image(systemName: "slider.vertical.3").font(.system(size: 11)).foregroundStyle(Self.tint)
-                    Text("Mixer : tire le numéro d'un son ou d'une famille, comme dans FL.")
-                        .font(.system(size: 11))
-                        .foregroundStyle(.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
                     Spacer(minLength: 0)
                     Button("Rangement automatique") { withAnimation(Motion.quickMorph) { controller.autoArrange() } }
                         .controlSize(.small)
@@ -1968,39 +1946,31 @@ private struct FamilySection: View {
                     .contentShape(Rectangle())
                     .onDrag { NSItemProvider(object: (Self.dragPrefix + family.rawValue) as NSString) }
                     .help("Glisse la famille au-dessus ou en dessous d'une autre : le Channel rack, le Mixer et la Playlist suivent cet ordre")
-                Image(systemName: family.symbol)
-                    .font(.system(size: 11, weight: .bold))
-                    .foregroundStyle(Color.white)
-                    .frame(width: 24, height: 24)
-                    .background(Circle().fill(swiftColor(style.color).gradient))
-                    .accessibilityHidden(true)
-                // Jamais coupé en deux lignes (capture du 25/10 : « Melodie / s ») : le choix de couleur cède la place.
-                Text(family.label).font(.system(size: 13, weight: .semibold))
-                    .lineLimit(1)
-                    .fixedSize(horizontal: true, vertical: false)
-                    .layoutPriority(1)
-                Text("\(members.count)")
-                    .font(.system(size: 11, weight: .semibold).monospacedDigit())
-                    .foregroundStyle(.secondary)
-                    .padding(.horizontal, 6)
-                    .padding(.vertical, 1)
-                    .background(Capsule().fill(Color.primary.opacity(0.07)))
-                Spacer()
-                Picker("", selection: fadeOn) {
-                    Text("Une couleur").tag(false)
-                    Text("Dégradé").tag(true)
-                }
-                .pickerStyle(.segmented)
-                .labelsHidden()
-                .fixedSize()
-                .controlSize(.small)
-                swatch(style.color, picking: $pickingFirst) { picked in
+                // Sa couleur (et la fin de son dégradé) : un rond qu'on clique ; « Une couleur / Dégradé » est dans
+                // la fenêtre du premier rond (maquette du 28/10 : tout ce qui se change, sans rien autour).
+                swatch(style.color, picking: $pickingFirst, withFade: true) { picked in
                     controller.updateStyle(family) { $0.color = picked }
                 }
                 if let fade = style.fade {
                     swatch(fade, picking: $pickingLast) { picked in
                         controller.updateStyle(family) { $0.fade = picked }
                     }
+                }
+                // Jamais coupé en deux lignes (capture du 25/10 : « Melodie / s »).
+                Text(family.label).font(.system(size: 13, weight: .semibold))
+                    .lineLimit(1)
+                    .fixedSize(horizontal: true, vertical: false)
+                    .layoutPriority(1)
+                Spacer(minLength: 8)
+                if controller.options.mixer, let range = controller.mixerRange(of: family) {
+                    Text("Mixer").font(.system(size: 11)).foregroundStyle(.secondary)
+                    MixerSlotBox(value: style.mixerStart ?? range.lowerBound, chosen: style.mixerStart != nil,
+                                 last: controller.mixerLast) { controller.setMixerStart(family, $0) }
+                        .help("Première piste du Mixer de la famille (son bus compris ; la 808 avec les drums) : tire vers le haut ou le bas comme dans FL, ou clique pour l'écrire")
+                    Image(systemName: "arrow.right").font(.system(size: 9)).foregroundStyle(.secondary)
+                    Text("\(range.upperBound)")
+                        .font(.system(size: 11).monospacedDigit())
+                        .foregroundStyle(.secondary)
                 }
                 Button { pickingIcon = true } label: { FLIconBadge(icon: style.icon, size: 18) }
                     .buttonStyle(.plain)
@@ -2011,21 +1981,6 @@ private struct FamilySection: View {
                             pickingIcon = false
                         }
                     }
-            }
-            if controller.options.mixer, let range = controller.mixerRange(of: family) {
-                HStack(spacing: 6) {
-                    Image(systemName: "slider.vertical.3").font(.system(size: 10)).foregroundStyle(.secondary)
-                    Text("Mixer").font(.system(size: 11)).foregroundStyle(.secondary)
-                    MixerSlotBox(value: style.mixerStart ?? range.lowerBound, chosen: style.mixerStart != nil,
-                                 last: controller.mixerLast) { controller.setMixerStart(family, $0) }
-                        .help("Première piste du Mixer de la famille (son bus compris ; la 808 avec les drums) : tire vers le haut ou le bas comme dans FL, ou clique pour l'écrire")
-                    Image(systemName: "arrow.right").font(.system(size: 9)).foregroundStyle(.secondary)
-                    Text("\(range.upperBound)")
-                        .font(.system(size: 11).monospacedDigit())
-                        .foregroundStyle(.secondary)
-                    Spacer()
-                }
-                .padding(.leading, 22)
             }
             ForEach(members) { member in
                 FamilyMemberRow(controller: controller, family: family, member: member,
@@ -2056,19 +2011,34 @@ private struct FamilySection: View {
         }
     }
 
-    private func swatch(_ color: RGBColor, picking: Binding<Bool>, set: @escaping (RGBColor) -> Void) -> some View {
+    /// Un rond de couleur : la roue des couleurs de FL s'ouvre au clic. `withFade` : au-dessus de la roue, le choix
+    /// « Une couleur / Dégradé » de la famille.
+    private func swatch(_ color: RGBColor, picking: Binding<Bool>, withFade: Bool = false,
+                        set: @escaping (RGBColor) -> Void) -> some View {
         Button { picking.wrappedValue = true } label: {
-            RoundedRectangle(cornerRadius: 5, style: .continuous)
+            Circle()
                 .fill(swiftColor(color))
-                .frame(width: 22, height: 16)
-                .overlay(RoundedRectangle(cornerRadius: 5, style: .continuous).strokeBorder(Color.primary.opacity(0.2)))
+                .frame(width: 20, height: 20)
+                .overlay(Circle().strokeBorder(Color.white.opacity(0.3), lineWidth: 1.5))
         }
         .buttonStyle(.plain)
         .help(String(localized: "#\(color.hex) : choisir dans la roue des couleurs de FL"))
         .popover(isPresented: picking, arrowEdge: .bottom) {
-            FLColorSelector(initial: color) { picked in
-                set(picked)
-                picking.wrappedValue = false
+            VStack(alignment: .leading, spacing: 10) {
+                if withFade {
+                    Picker("", selection: fadeOn) {
+                        Text("Une couleur").tag(false)
+                        Text("Dégradé").tag(true)
+                    }
+                    .pickerStyle(.segmented)
+                    .labelsHidden()
+                    .fixedSize()
+                    .padding([.horizontal, .top], 12)
+                }
+                FLColorSelector(initial: color) { picked in
+                    set(picked)
+                    picking.wrappedValue = false
+                }
             }
         }
     }
@@ -2086,31 +2056,21 @@ private struct FamilyMemberRow: View {
 
     var body: some View {
         HStack(spacing: 8) {
-            RoundedRectangle(cornerRadius: 3, style: .continuous)
+            Circle()
                 .fill(swiftColor(color))
-                .frame(width: 12, height: 12)
-            Text(member.name.isEmpty ? String(localized: "(sans nom)") : member.name).lineLimit(1)
-            if let newName = member.newName {
-                Image(systemName: "arrow.right").font(.system(size: 9)).foregroundStyle(.secondary)
-                Text(newName).lineLimit(1).foregroundStyle(member.written ? Color.primary : Color.secondary)
+                .frame(width: 10, height: 10)
+            // Le nom qu'il prendra, en clair ; son nom d'origine en gris à côté quand il change (maquette du 28/10).
+            Text(member.newName ?? (member.name.isEmpty ? String(localized: "(sans nom)") : member.name))
+                .lineLimit(1)
+            if member.newName != nil, !member.name.isEmpty {
+                Text(member.name).font(.system(size: 11)).foregroundStyle(.secondary).lineLimit(1)
             }
             if member.testNotes {
                 Image(systemName: "music.note")
                     .foregroundStyle(.secondary)
                     .help("Muet dans ses patterns : classé avec deux notes d'essai. Vérifie sa famille.")
             }
-            if member.byName {
-                Image(systemName: "textformat")
-                    .foregroundStyle(.secondary)
-                    .help("Classé d'après son nom, sans l'écouter.")
-            }
             Spacer()
-            if controller.options.mixer, member.slot != nil || member.pinned {
-                MixerSlotBox(value: member.slot, chosen: member.pinned, last: controller.mixerLast) {
-                    controller.setSlot(member.id, $0)
-                }
-                .help("Piste du Mixer de ce son : tire vers le haut ou le bas comme dans FL, ou clique pour l'écrire")
-            }
             // Ce qu'est le son (« BEAM KICK » : Kick), sinon sa famille ; chaque famille propose ses sortes ; en bas,
             // « Écrire… » pour lui donner son propre nom.
             Menu {
@@ -2151,6 +2111,13 @@ private struct FamilyMemberRow: View {
                 }
                 .padding(14)
             }
+            // La case du Mixer tout à droite, alignée d'un son à l'autre.
+            if controller.options.mixer, member.slot != nil || member.pinned {
+                MixerSlotBox(value: member.slot, chosen: member.pinned, last: controller.mixerLast) {
+                    controller.setSlot(member.id, $0)
+                }
+                .help("Piste du Mixer de ce son : tire vers le haut ou le bas comme dans FL, ou clique pour l'écrire")
+            }
         }
         .font(.system(size: 12))
     }
@@ -2180,12 +2147,13 @@ struct MixerSlotBox: View {
     static let step: CGFloat = 6
 
     var body: some View {
+        // Un peu plus grande qu'avant (28/10) : c'est ce qu'on change le plus dans l'aperçu.
         Text(verbatim: value.map { String($0) } ?? "---")
-            .font(.system(size: 11, weight: chosen ? .semibold : .regular).monospacedDigit())
+            .font(.system(size: 12, weight: chosen ? .semibold : .regular).monospacedDigit())
             .foregroundStyle(chosen ? Color.primary : Color.secondary)
-            .frame(width: 34, height: 18)
-            .background(RoundedRectangle(cornerRadius: 4, style: .continuous).fill(Color.black.opacity(0.28)))
-            .overlay(RoundedRectangle(cornerRadius: 4, style: .continuous)
+            .frame(width: 40, height: 22)
+            .background(RoundedRectangle(cornerRadius: 6, style: .continuous).fill(Color.black.opacity(0.28)))
+            .overlay(RoundedRectangle(cornerRadius: 6, style: .continuous)
                 .strokeBorder(chosen ? OrganizerView.tint : Color.primary.opacity(hovered ? 0.35 : 0.12), lineWidth: 1))
             .contentShape(Rectangle())
             .onHover { inside in
