@@ -116,8 +116,9 @@ internal static class MacroSelfTest
             Play(new BlockBody.MenuBar(new[] { "Options", "Project general settings" })), true, $"cmd {CmdSettings}");
         Expect("clic appris dans la fenêtre des réglages",
             Play(new BlockBody.Click(new ClickTarget.FlWindowPoint(Corner.TopLeft, 60, 220, new Size2(400, 300)))), true, "settings click");
-        // 4. Menu de la piste : clic droit sur la piste visée, F puis O.
-        aimed = new AimedClick(m.Left + 300, m.Top + 300, _main.ToInt64(), m.Right - m.Left, m.Bottom - m.Top, DateTime.UtcNow);
+        // 4. Menu de la piste : clic droit sur la piste visée (dans le faux FL, hors de la fenêtre des réglages restée
+        // ouverte), F puis O.
+        aimed = new AimedClick(m.Left + 80, m.Bottom - 80, _main.ToInt64(), m.Right - m.Left, m.Bottom - m.Top, DateTime.UtcNow);
         Expect("menu de la piste (F, O)",
             Play(new BlockBody.TrackMenu("fo", new[] { "File", "Open mixer track state" }, TrackTarget.LastClicked, EnterPolicy.IfNeeded)),
             true, $"track {CmdTrackOpen}");

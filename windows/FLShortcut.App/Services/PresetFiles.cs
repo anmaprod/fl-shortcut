@@ -68,7 +68,10 @@ internal static class PresetFiles
             return why;
         }
 
-        if (!source.Started.Wait(800))
+        // Le glisser de Windows ne relit sa demande qu'à un mouvement de la souris : le pointeur frémit sur place
+        // (un pixel) jusqu'à ce qu'il démarre (essai de la CI : sans cela, il attendait sans fin).
+        for (var i = 0; i < 20 && !source.Started.Wait(40); i++) Win32.SetCursorPos(x + (i % 2), y);
+        if (!source.Started.IsSet)
         {
             AppLog.Write("MACRO", $"DROP not started · {Environment.TickCount64 - t0} ms");
             return Abandon(outcome.Failed ? Loc.T("preset illisible par Windows") : Loc.T("le glisser du preset n'a pas démarré (une fenêtre couvre la piste ?)"));
