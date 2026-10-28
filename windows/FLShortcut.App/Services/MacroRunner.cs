@@ -256,6 +256,10 @@ internal sealed class WindowsFlDriver : IFlDriver
     /// Pas encore suivi sur Windows : la piste visée est le pointeur au départ.
     public AimedClick? LastAimedClick => null;
 
+    public DataReply RunData(IReadOnlyList<byte> units) => _midi.RunData(units, brief: _light());
+
+    public RequestReply RunRequest(byte[] bytes) => _midi.RunRequest(bytes, brief: _light());
+
     /// Diagnostic du départ : classe, rôle et taille de chaque fenêtre de FL (jamais le titre).
     public void LogWindows()
     {

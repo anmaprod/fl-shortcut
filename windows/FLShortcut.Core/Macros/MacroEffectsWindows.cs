@@ -11,6 +11,8 @@
 //  - textes de FL lus seulement au moment du clic, dans la fenêtre visée, jamais gardés ;
 //  - journal : des noms de blocs, des nombres et des durées, jamais une touche, un titre, un texte lu ou un chemin.
 // Un bloc pas encore fait pour Windows bloque sa macro dès la validation (`Unsupported`) : son raccourci reste à FL.
+using FLShortcut.Core.Organizer;
+
 namespace FLShortcut.Core.Macros;
 
 public enum FlWindowRole { Main, Dialog, Menu, Other }
@@ -64,6 +66,10 @@ public interface IFlDriver
     void CancelMenus();
     /// Dernier clic de l'utilisateur dans une fenêtre normale de FL, s'il est récent (la piste visée).
     AimedClick? LastAimedClick { get; }
+    /// Commande avec données du lien (PROTOCOL.md §7 : Nom et couleur), lien réveillé brièvement.
+    DataReply RunData(IReadOnlyList<byte> units);
+    /// Opération 2 à 26 du lien (PROTOCOL.md §8 : dégradé), lien réveillé brièvement.
+    RequestReply RunRequest(byte[] bytes);
 }
 
 public sealed partial class MacroEffectsWindows : IMacroEffects
@@ -87,7 +93,7 @@ public sealed partial class MacroEffectsWindows : IMacroEffects
             => Loc.T("bouton retrouvé à son image : pas encore sur Windows (montre de nouveau le clic sur ce PC)."),
         BlockBody.TrackMenu or BlockBody.ChooseFile or BlockBody.DropFile
             or BlockBody.SelectInput or BlockBody.FeedbackCheck or BlockBody.SoundCard or BlockBody.PageOption
-            or BlockBody.MenuAX or BlockBody.NameColor
+            or BlockBody.MenuAX
             => Loc.F("bloc « %@ » pas encore pris en charge sur Windows.",
                 body.Type is { } type ? BlockRegistry.Spec(type).Label : "?"),
         _ => null,
@@ -197,6 +203,8 @@ public sealed partial class MacroEffectsWindows : IMacroEffects
                 return new StepResult.Fail(Loc.T("action avec valeur : demande l'extension du lien avec FL"));
             case BlockBody.OpenPage p:
                 return OpenPage(p.Page, state);
+            case BlockBody.NameColor n:
+                return NameColor(n);
             case BlockBody.Organize:
                 // La suite se passe dans la fenêtre de l'Organiser (ses propres garde-fous).
                 _fl.Log("FL", "organizer opened");
@@ -467,6 +475,41 @@ public sealed partial class MacroEffectsWindows : IMacroEffects
         if (gone is not StepResult.Ok) return new StepResult.Fail(Loc.T("le menu de FL est resté ouvert"));
         _fl.Log("MENU", "menus closed");
         return gone;
+    }
+
+    // ---------- Nom et couleur ----------
+
+    /// Dégradé de la première à la dernière couleur sur les éléments sélectionnés (opération 8), ou nom et couleur de
+    /// l'élément sélectionné (opération 1), par le lien avec FL. L'icône (fenêtre F2 de FL) n'est pas encore posée sous
+    /// Windows : dit, le reste est fait. Journal : jamais le nom.
+    private StepResult NameColor(BlockBody.NameColor n)
+    {
+        if (n.Color is { } from && n.Fade is { } to)
+        {
+            _fl.Log("FL", "gradient");
+            return _fl.RunRequest(OrganizerPayload.Gradient(from, to)) switch
+            {
+                RequestReply.Answered => new StepResult.Ok(),
+                RequestReply.Refused r => new StepResult.Fail(NameColorPayload.Message(r.Reason)),
+                RequestReply.Failed f => new StepResult.Fail(f.Why),
+                _ => new StepResult.Fail("?"),
+            };
+        }
+        var payload = new NameColorPayload(n.Name, n.Color);
+        if (payload.Name is not null || payload.Color is not null)
+        {
+            _fl.Log("FL", $"name/color ({(payload.Name is null ? "no name" : "name")} · {(payload.Color is null ? "no color" : "color")})");
+            switch (_fl.RunData(Pack7.Pack(payload.Bytes)))
+            {
+                case DataReply.Done:
+                    break;
+                case DataReply.Refused r:
+                    return new StepResult.Fail(NameColorPayload.Message(r.Reason));
+                case DataReply.Failed f:
+                    return new StepResult.Fail(f.Why);
+            }
+        }
+        return n.Icon is null ? new StepResult.Ok() : new StepResult.Warn(Loc.T("icône pas encore posée sous Windows (pose-la dans FL avec F2)"));
     }
 
     // ---------- Pages de FL ----------

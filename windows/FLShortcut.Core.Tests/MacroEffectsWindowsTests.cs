@@ -4,6 +4,7 @@
 // validation).
 using FLShortcut.Core;
 using FLShortcut.Core.Macros;
+using FLShortcut.Core.Organizer;
 using Xunit;
 
 namespace FLShortcut.Core.Tests;
@@ -41,6 +42,22 @@ internal sealed class FakeFl : IFlDriver
     public Dictionary<long, List<TextItem>> Texts { get; } = new();
     public int MenusCancelled { get; private set; }
     public AimedClick? LastAimedClick { get; set; }
+    public List<byte[]> Data { get; } = new();
+    public List<byte[]> Requests { get; } = new();
+    /// Réponse du lien aux commandes avec données (null : faites).
+    public int? DataRefusal { get; set; }
+
+    public DataReply RunData(IReadOnlyList<byte> units)
+    {
+        Data.Add(Pack7.Unpack(units.ToArray()) ?? Array.Empty<byte>());
+        return DataRefusal is { } r ? new DataReply.Refused(r) : new DataReply.Done();
+    }
+
+    public RequestReply RunRequest(byte[] bytes)
+    {
+        Requests.Add(bytes);
+        return DataRefusal is { } r ? new RequestReply.Refused(r) : new RequestReply.Answered(Array.Empty<byte>());
+    }
 
     public void After(int ms, Action a) => _timeline.Add((Now.AddMilliseconds(ms), a));
     public void Show(long id, FlWindowRole role) => Open.Insert(0, new FlWin(id, role, 100, 100, 300, 200));
@@ -424,6 +441,28 @@ public class MacroEffectsWindowsTests
             Assert.IsType<StepResult.Fail>(fx.Perform(new BlockBody.Drag(new ClickTarget.StartCursor(0, 0), new ClickTarget.StartCursor(5000, 0)), state)).Why);
     }
 
+    // ---------- Nom et couleur ----------
+
+    /// Nom et couleur par le lien (opération 1), dégradé (opération 8), refus de FL expliqué ; jamais le nom au journal.
+    [Fact]
+    public void NameAndColorGoThroughTheLink()
+    {
+        var (fl, fx, state) = Start();
+        var red = new RgbColor(0xE0, 0x45, 0x3A);
+        Assert.IsType<StepResult.Ok>(fx.Perform(new BlockBody.NameColor("Kick", red), state));
+        Assert.Equal(new byte[] { 1, 3, 0xE0, 0x45, 0x3A, 4, (byte)'K', (byte)'i', (byte)'c', (byte)'k' }, Assert.Single(fl.Data));
+        Assert.All(fl.Lines, l => Assert.DoesNotContain("Kick", l));
+
+        Assert.IsType<StepResult.Ok>(fx.Perform(new BlockBody.NameColor(null, red, new RgbColor(0, 0, 255)), state));
+        Assert.Equal(new byte[] { 8, 0xE0, 0x45, 0x3A, 0, 0, 255 }, Assert.Single(fl.Requests));
+
+        Assert.IsType<StepResult.Warn>(fx.Perform(new BlockBody.NameColor("Kick", red, null, FlIcon.Make(2, 3)), state));
+
+        fl.DataRefusal = 2;
+        Assert.Equal("Sélectionne une piste ou un canal.",
+            Assert.IsType<StepResult.Fail>(fx.Perform(new BlockBody.NameColor("Kick", red), state)).Why);
+    }
+
     // ---------- Menu de FL ----------
 
     private static TextItem Entry(string text, int x, int y, bool? greyed = null) => new(text, x, y, 150, 16, greyed);
@@ -585,6 +624,7 @@ public class MacroEffectsWindowsTests
                      "le menu de FL est resté ouvert (élément grisé ?)", "élément grisé dans le menu de FL",
                      "bouton retrouvé à son image : pas encore sur Windows (montre de nouveau le clic sur ce PC).",
                      "« %@ » couvre FL à cet endroit", "« %@ » couvre le menu de FL", "le point visé est hors de FL",
+                     "icône pas encore posée sous Windows (pose-la dans FL avec F2)",
                  })
             Assert.True(Loc.Has(key), $"« {key} » sans anglais");
     }

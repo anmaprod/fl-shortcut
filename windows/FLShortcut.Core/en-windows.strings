@@ -69,3 +69,5 @@
 "FL n'a pas pu passer devant : ouvre FL, puis recommence." = "FL couldn't come to the front: open FL, then try again.";
 "clic hors de FL : recommence en cliquant dans une fenêtre de FL." = "click outside FL: try again by clicking in an FL window.";
 "aucun clic dans FL pendant une minute : recommence." = "no click in FL for a minute: try again.";
+"icône pas encore posée sous Windows (pose-la dans FL avec F2)" = "icon not placed on Windows yet (place it in FL with F2)";
+"Dégradé jusqu'à" = "Gradient to";

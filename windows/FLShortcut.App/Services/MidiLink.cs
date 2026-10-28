@@ -82,6 +82,19 @@ internal sealed class MidiLink : IDisposable, IMidiTransport
         return Core.RunBriefly(ids, brief);
     }
 
+    /// Commande avec données (PROTOCOL.md §7 : Nom et couleur d'une macro), bloquante : ports ouverts à la demande,
+    /// script réveillé si besoin (`brief` : il se rendort ensuite).
+    public DataReply RunData(IReadOnlyList<byte> units, bool brief)
+    {
+        if (!HasKey || !(PortsPresent || PortsExist())) return new DataReply.Failed(Loc.T("lien avec FL non installé"));
+        Start();
+        lock (_gate)
+        {
+            if (_out == IntPtr.Zero || _in == IntPtr.Zero) OpenUnlocked();
+        }
+        return Core.RunData(units, brief);
+    }
+
     /// Opération de l'Organiser (PROTOCOL.md §8), bloquante : ports ouverts à la demande, script réveillé si besoin.
     public RequestReply RunRequest(byte[] bytes, bool brief)
     {

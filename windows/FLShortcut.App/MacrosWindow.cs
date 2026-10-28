@@ -33,7 +33,7 @@ internal sealed class MacrosWindow : Window
     {
         BlockType.Key, BlockType.Delay, BlockType.MenuLetters, BlockType.MenuKey, BlockType.WaitWindow,
         BlockType.WaitWindowClose, BlockType.FlAction, BlockType.OpenPage, BlockType.Organize, BlockType.Stop, BlockType.Comment,
-        BlockType.Click, BlockType.MenuBar,
+        BlockType.Click, BlockType.MenuBar, BlockType.NameColor,
     };
 
     public static void Show(AppController app, Guid? macro = null)
@@ -572,6 +572,22 @@ internal sealed class MacrosWindow : Window
                     else RenderSoon();
                 }, 360));
                 yield return Label(Loc.T("Comme dans FL, séparé par › : File › Export › All playlist tracks › Time selection..."), 12, secondary: true);
+                break;
+            case BlockBody.NameColor nc:
+                yield return Param(Loc.T("Nom"), Field(nc.Name ?? "", NameColorPayload.MaxNameScalars, typed =>
+                    set(nc with { Name = typed.Trim().Length == 0 ? null : typed.Trim() }), 240));
+                yield return Param(Loc.T("Couleur"), Field(nc.Color is { } color ? "#" + color.Hex : "", 7, typed =>
+                {
+                    if (typed.Trim().Length == 0) set(nc with { Color = null, Fade = null });
+                    else if (RgbColor.FromHex(typed.Trim()) is { } parsed) set(nc with { Color = parsed });
+                    else RenderSoon();
+                }, 120));
+                yield return Param(Loc.T("Dégradé jusqu'à"), Field(nc.Fade is { } fade ? "#" + fade.Hex : "", 7, typed =>
+                {
+                    if (typed.Trim().Length == 0) set(nc with { Fade = null });
+                    else if (RgbColor.FromHex(typed.Trim()) is { } parsed) set(nc with { Fade = parsed });
+                    else RenderSoon();
+                }, 120));
                 break;
             case BlockBody.Stop s:
                 yield return Param(Loc.T("Message"), Field(s.Message ?? "", 120, typed =>
