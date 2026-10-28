@@ -88,20 +88,9 @@ private struct BlockInspector: View {
                         .fixedSize(horizontal: false, vertical: true)
                 }
             }
-            if let row = model.selectedRow, !row.badges.isEmpty {
-                Section {
-                    ForEach(row.badges, id: \.self) { badge in
-                        Label(badge.help, systemImage: badge.symbol)
-                            .font(.system(size: 12))
-                            .foregroundStyle(badge.tint)
-                            .fixedSize(horizontal: false, vertical: true)
-                    }
-                } header: {
-                    Text("À savoir")
-                }
-            }
+            // Plus de rubrique « À savoir » ni de « Bloc actif » (maquette du 28/10) : les pastilles de la ligne
+            // (survol) et sa case à cocher disent déjà la même chose.
             Section {
-                Toggle("Bloc actif", isOn: Binding(get: { block.enabled }, set: { model.setEnabled(block.id, $0) }))
                 Picker("Si le bloc échoue", selection: Binding(get: { block.onFailure }, set: { policy in
                     model.updateBlock(block.id, key: "onFailure") { $0.onFailure = policy }
                 })) {

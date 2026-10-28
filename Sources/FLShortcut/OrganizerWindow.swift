@@ -1477,16 +1477,7 @@ struct OrganizerView: View {
         VStack(alignment: .leading, spacing: 14) {
             HStack(alignment: .center, spacing: 14) {
                 OrganizerBadge(symbol: "link", tint: Self.tint)
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Un petit lien avec FL, une seule fois").font(.system(size: 14, weight: .semibold))
-                    Text(String(localized: """
-                        Organiser parle à FL par un script que FL Shortcuts installe dans FL Studio. Ensuite, tout se \
-                        fait seul.
-                        """))
-                        .font(.system(size: 12))
-                        .foregroundStyle(.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
+                Text("Un petit lien avec FL, une seule fois").font(.system(size: 14, weight: .semibold))
                 Spacer(minLength: 0)
             }
             .padding(14)

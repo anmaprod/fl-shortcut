@@ -624,23 +624,36 @@ struct KeyLabel: View {
     var body: some View {
         Group {
             if let combo {
-                Text(combo.display)
-                    .foregroundStyle(accent ? Color.accentColor : Color.primary)
+                // Une case par touche, comme sur la maquette du 28/10 : ⌘ puis A, pas « ⌘A » dans un seul cadre.
+                HStack(spacing: 3) {
+                    ForEach(Array(Self.parts(of: combo).enumerated()), id: \.offset) { _, part in
+                        tile(Text(part).foregroundStyle(accent ? Color.accentColor : Color.primary))
+                    }
+                }
             } else {
-                Text(placeholder).foregroundStyle(.secondary)
+                tile(Text(placeholder).foregroundStyle(.secondary))
             }
         }
-        .font(.system(size: 12))
+        .font(.system(size: 12, weight: .medium))
         .lineLimit(1)
-        .padding(.horizontal, 8)
-        .frame(minWidth: 56, minHeight: 22)
-        .background(shape.fill(fill))
-        .overlay(shape.strokeBorder(border, lineWidth: accent || plate ? 1 : 0.5))
-        .contentShape(shape)
+        .contentShape(Rectangle())
         // Jamais écrasé ni coupé quand la fenêtre est étroite : c'est le titre de la ligne qui se raccourcit.
         .fixedSize()
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(combo?.spoken ?? placeholder)
+    }
+
+    /// Les modificateurs (⌃ ⌥ ⇧ ⌘) un par un, puis la touche.
+    static func parts(of combo: KeyCombo) -> [String] {
+        combo.modifierSymbols.map(String.init) + [KeyNames.name(for: combo.keyCode, layout: SystemKeyboardLayout())]
+    }
+
+    private func tile(_ label: some View) -> some View {
+        label
+            .padding(.horizontal, 6)
+            .frame(minWidth: 22, minHeight: 22)
+            .background(shape.fill(fill))
+            .overlay(shape.strokeBorder(border, lineWidth: accent || plate ? 1 : 0.5))
     }
 }
 

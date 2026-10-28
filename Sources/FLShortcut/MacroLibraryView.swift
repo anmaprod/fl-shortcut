@@ -75,11 +75,7 @@ struct MacroLibraryPage: View {
         VStack(spacing: 12) {
             SectionIcon(symbol: SidebarItem.macros.symbol, tint: SidebarItem.macros.tint, size: 52)
             Text("Aucune macro").font(.title2.weight(.semibold))
-            Text(MacroPageText.subtitle)
-                .font(.system(size: 12))
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
-                .frame(maxWidth: 380)
+            // Plus de phrases d'explication (maquette du 28/10) : le résumé reste dans la bulle d'aide.
             // Le plus simple d'abord : enregistrer ce qu'on fait dans FL.
             Button {
                 Self.recordNewMacro(in: library)
@@ -90,9 +86,6 @@ struct MacroLibraryPage: View {
             .tint(.red)
             .controlSize(.large)
             .help("Une nouvelle macro s'ouvre et FL passe devant : clique et tape ta suite (menus, flèches, raccourcis…), puis « Terminer ». Chaque geste devient un bloc.")
-            Text("Fais ta suite dans FL une fois : chaque clic, flèche ou raccourci devient un bloc.")
-                .font(.system(size: 11))
-                .foregroundStyle(.secondary)
             HStack(spacing: 10) {
                 Button("Macro vide") { newMacro() }
                     .secondaryButton()
@@ -346,12 +339,7 @@ struct MacroTemplatesSheet: View {
         VStack(alignment: .leading, spacing: 14) {
             HStack(spacing: 12) {
                 SectionIcon(symbol: "square.grid.2x2", tint: .purple, size: 34)
-                VStack(alignment: .leading, spacing: 1) {
-                    Text("Modèles de macros").font(.title3.weight(.semibold))
-                    Text("Pars d'un modèle, puis modifie-le bloc par bloc dans le créateur.")
-                        .font(.system(size: 11))
-                        .foregroundStyle(.secondary)
-                }
+                Text("Modèles de macros").font(.title3.weight(.semibold))
             }
             ScrollView {
                 VStack(spacing: 8) {

@@ -463,6 +463,16 @@ entrée 1 ≈ 0,5 s.
   verre dessinées (`GlassPlate` : voile clair, bord fin, reflet en haut ; ligne par ligne sans couture,
   `CardRimShape`) ; effet coupé, Réduire la transparence ou Contraste élevé : les cartes grises d'avant. Pas de
   `glassEffect` par ligne : coûteux (8fb66a8) et chaque ligne aurait son propre bord.
+- Vidéo du propriétaire (29/10, 00 h 24) : « le bouton FL n'est pas ouvert, tu peux l'enlever aussi » et « pas du tout
+  de changement comparé avec la version que j'ai validée ». Écarts vus entre l'app et la maquette, corrigés : pastille
+  « FL Studio n'est pas ouvert » (fenêtre) et ligne du menu de l'icône retirées (FL fermé n'est pas un problème) ; titre
+  de la page en double (barre d'outils + grand titre) → barre d'outils sans titre ; raccourcis sur deux colonnes dès
+  640 points (760 avant : à sa taille de fenêtre, une seule colonne) ; touches en petites cases, une par touche (⌘ puis
+  A, `KeyLabel.parts`) ; palette FL Studio d'abord (`BlockCategory.paletteOrder`) ; plus de phrases d'explication dans
+  la page Macros vide, la fenêtre des modèles, la carte « Enregistrer clics et touches » (seulement pendant
+  l'enregistrement) et l'installation du lien de l'Organiser ; réglages d'un bloc sans « À savoir » ni « Bloc actif »
+  (la case de la ligne et ses pastilles le disent). Restent différents : sélection de la barre latérale (gris du
+  système, bleue quand la liste a le focus), case à cocher des blocs à gauche (interrupteur à droite sur la maquette).
   Dans l'app, la page principale n'avait déjà ni bouton pause ni « Connecté à FL » (seulement dans la maquette).
 - Textes courts (28/10, suite) : « Pose le preset sur la dernière piste cliquée du Mixer » → « Ouvre le preset que tu
   veux dans ton Mixer », le bloc s'appelle « Ouvrir un preset » (ligne : « Ouvrir le preset [fichier] », plus de « sur

@@ -34,7 +34,7 @@ struct MacroPaletteView: View {
     /// du haut (sous les boutons fermer / réduire / agrandir). Dans une pile, elle montait jusque sous ces boutons.
     var body: some View {
         List {
-            ForEach(BlockCategory.allCases, id: \.self) { category in
+            ForEach(BlockCategory.paletteOrder, id: \.self) { category in
                 section(category)
             }
         }

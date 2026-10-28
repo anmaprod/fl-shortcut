@@ -254,7 +254,7 @@ struct EditorView: View {
     /// Page assez large pour deux colonnes de raccourcis (changé seulement quand on passe le seuil).
     @State private var twoColumns = false
     /// Largeur de page à partir de laquelle les raccourcis passent sur deux colonnes.
-    static let twoColumnWidth: CGFloat = 760
+    static let twoColumnWidth: CGFloat = 640
 
     private var columnCount: Int { twoColumns ? 2 : 1 }
 
@@ -480,9 +480,9 @@ struct EditorView: View {
             detail(data)
         })
         .navigationTitle(title)
-        // Page Macros : pas de titre dans la barre d'outils, comme dans le créateur : les flèches ← → s'y posent à
-        // gauche, au même endroit quand on entre dans une macro ou qu'on en sort.
-        .toolbarTitleHidden(onMacrosPage)
+        // Jamais de titre dans la barre d'outils (maquette validée le 28/10 : le titre de la page seul, pas deux
+        // fois) ; page Macros : les flèches ← → s'y posent à gauche, comme dans le créateur.
+        .toolbarTitleHidden()
         .noToolbarBand()
         // Recherche en haut de la barre latérale (comme Réglages Système) : à droite, la barre d'outils ne porte que
         // les boutons de la page, et les flèches de la page Macros tombent au même endroit que dans le créateur.
@@ -1234,13 +1234,13 @@ private struct StatusBar: View {
         ms < 10 ? String(format: "%.1f ms", ms).replacingOccurrences(of: ".", with: ",") : "\(Int(ms.rounded())) ms"
     }
 
+    /// FL fermé : rien non plus (29/10, « le bouton FL n'est pas ouvert, tu peux l'enlever »).
     private var text: String? {
         if !store.enabled { return String(localized: "En pause : FL Studio utilise ses raccourcis d'origine") }
         if !status.accessibilityOK { return String(localized: "Clavier non autorisé") }
-        if AppMode.light { return fl.running ? nil : String(localized: "FL Studio n'est pas ouvert") }
+        if AppMode.light { return nil }
         switch link.status {
-        case .linked: return nil
-        case .flClosed: return String(localized: "FL Studio n'est pas ouvert")
+        case .linked, .flClosed: return nil
         case .inactive:
             if !link.snapshot.hasKey { return String(localized: "Lien avec FL Studio non installé") }
             if link.snapshot.incompatibleProtocol != nil { return String(localized: "Script FL d'une autre version") }

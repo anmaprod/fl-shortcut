@@ -33,6 +33,9 @@ enum BlockCategory: String, CaseIterable {
     case fl = "FL Studio"
     case controle = "Contrôle"
 
+    /// Ordre de la palette et du menu « Ajouter » (maquette du 28/10) : FL Studio d'abord.
+    static let paletteOrder: [BlockCategory] = [.fl, .clavier, .souris, .fenetres, .controle]
+
     /// Nom affiché de la catégorie (palette, recherche) ; le rawValue reste tel quel.
     var label: String {
         switch self {

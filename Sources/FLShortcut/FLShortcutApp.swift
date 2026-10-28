@@ -781,11 +781,11 @@ struct MenuContent: View {
     private var statusLine: String? {
         guard store.enabled else { return String(localized: "En pause") }
         if !status.accessibilityOK { return String(localized: "Clavier non autorisé") }
-        if AppMode.light { return fl.running ? nil : String(localized: "FL Studio n'est pas ouvert") }
+        // FL fermé : rien (29/10, « FL n'est pas ouvert, tu peux l'enlever »).
+        if AppMode.light { return nil }
         switch link.status {
-        case .linked: return nil
+        case .linked, .flClosed: return nil
         case .inactive: return String(localized: "Lien inactif")
-        case .flClosed: return String(localized: "FL Studio n'est pas ouvert")
         }
     }
 

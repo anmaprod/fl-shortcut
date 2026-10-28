@@ -341,11 +341,13 @@ private struct RecordHero: View {
                     Text(recorder.active ? String(localized: "Enregistrement en cours…")
                                          : String(localized: "Enregistrer clics et touches"))
                         .font(.system(size: 13, weight: .semibold))
-                    Text(recorder.active ? String(localized: "Clique et tape dans FL, puis « Terminer » en haut à droite.")
-                         : String(localized: "Fais ta suite dans FL : chaque clic, flèche ou raccourci devient un bloc."))
-                        .font(.system(size: 11))
-                        .foregroundStyle(.secondary)
-                        .lineLimit(2)
+                    // Une phrase seulement pendant l'enregistrement : comment le finir.
+                    if recorder.active {
+                        Text("Clique et tape dans FL, puis « Terminer » en haut à droite.")
+                            .font(.system(size: 11))
+                            .foregroundStyle(.secondary)
+                            .lineLimit(2)
+                    }
                 }
                 Spacer(minLength: 0)
                 Text("⇧⌘R").font(.system(size: 11).monospacedDigit()).foregroundStyle(.tertiary)
@@ -397,7 +399,7 @@ private struct AddBlockMenu: View {
         // Au style du menu de l'icône : chaque bloc avec son icône et la couleur de sa catégorie.
         StyledMenuButton(help: String(localized: "Ajouter un bloc sous la ligne choisie (ou dans la boucle si sa ligne de fin est choisie)"),
                          arrowEdge: .top, width: 280) {
-            BlockCategory.allCases.flatMap { category -> [StyledMenuEntry] in
+            BlockCategory.paletteOrder.flatMap { category -> [StyledMenuEntry] in
                 let inCategory = items.filter { $0.category == category && !$0.soon }
                 guard !inCategory.isEmpty else { return [] }
                 return [StyledMenuEntry.header(category.label)] + inCategory.map { item -> StyledMenuEntry in
