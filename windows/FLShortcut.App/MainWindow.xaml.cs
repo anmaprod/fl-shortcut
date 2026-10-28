@@ -646,9 +646,10 @@ public sealed partial class MainWindow : Window
             SetCaptureContent(triggerButton, draft.Trigger, recordingFor == "trigger", "Clique ici, puis appuie sur tes touches");
             SetCaptureContent(targetButton, draft.Target, recordingFor == "target", "Clique ici, puis tape le raccourci de FL");
             var isAction = draft.Kind == ShortcutKind.FlAction;
-            kinds.SelectedIndex = isAction ? 0 : 1;
+            // Raccourci de macro : ni action ni touche (la macro se choisit dans la page Macros), type gardé.
+            kinds.SelectedIndex = isAction ? 0 : draft.Kind == ShortcutKind.Keystroke ? 1 : -1;
             actionPanel.Visibility = isAction ? Visibility.Visible : Visibility.Collapsed;
-            keyPanel.Visibility = isAction ? Visibility.Collapsed : Visibility.Visible;
+            keyPanel.Visibility = draft.Kind == ShortcutKind.Keystroke ? Visibility.Visible : Visibility.Collapsed;
             wheres.SelectedIndex = (int)draft.Context;
             cats.SelectedItem = query.Length == 0 ? cats.Items.FirstOrDefault(x => x.Tag is ActionCategory c && c == category) : null;
 
@@ -719,8 +720,9 @@ public sealed partial class MainWindow : Window
         targetButton.LostFocus += (_, _) => { if (recordingFor == "target") StopRecording(); };
         kinds.SelectionChanged += (_, _) =>
         {
+            if (kinds.SelectedIndex < 0) return;
             var kind = kinds.SelectedIndex == 1 ? ShortcutKind.Keystroke : ShortcutKind.FlAction;
-            if (kind != draft.Kind) { draft = draft with { Kind = kind }; Refresh(); }
+            if (kind != draft.Kind) { draft = draft with { Kind = kind, MacroRef = null }; Refresh(); }
         };
         cats.SelectionChanged += (bar, _) =>
         {
@@ -767,7 +769,12 @@ public sealed partial class MainWindow : Window
 
         if (result == ContentDialogResult.Primary)
         {
-            var final = draft.Kind == ShortcutKind.FlAction ? draft with { Target = null } : draft with { ActionId = null };
+            var final = draft.Kind switch
+            {
+                ShortcutKind.FlAction => draft with { Target = null },
+                ShortcutKind.Keystroke => draft with { ActionId = null },
+                _ => draft with { ActionId = null, Target = null },
+            };
             _app.Upsert(final with { Enabled = true });
             ShowToast(existing is null ? "Raccourci ajouté" : "Raccourci modifié", InfoBarSeverity.Success);
         }

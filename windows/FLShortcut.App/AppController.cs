@@ -323,12 +323,14 @@ internal sealed class AppController : INotifyPropertyChanged, IDisposable
 
     private static string CategoryOf(Shortcut s) =>
         s.Kind == ShortcutKind.Keystroke ? "Touches de FL"
+        : s.Kind == ShortcutKind.Macro ? "Macros"
         : s.ActionId is { } id && FlActions.Info(id) is { } info ? info.CategoryLabel : "Navigation";
 
     private ShortcutRow ToRow(Shortcut s)
     {
         var issues = _issues.TryGetValue(s.Id, out var l) ? l : new List<ShortcutIssue>();
-        var desc = s.Kind == ShortcutKind.Keystroke
+        var desc = s.Kind == ShortcutKind.Macro ? "Macro de ta bibliothèque"
+            : s.Kind == ShortcutKind.Keystroke
             ? (s.Target is { } t && ConflictTable.Default.FlConflict(t) is { } fl ? "Dans " + fl : "Raccourci de FL Studio")
             : s.ActionId is { } id && Availability(id) is ActionAvailability.Unavailable u ? u.Reason
             : s.ActionId is { } id2 && FlActions.Info(id2) is { } info ? info.Detail()

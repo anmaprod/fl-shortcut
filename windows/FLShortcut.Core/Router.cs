@@ -4,6 +4,8 @@
 //         REL-15 (pas d'action répétée), WIN-03 / SEC-05 (liste noire revérifiée avant chaque injection),
 //         filtrage par fenêtre FL active, AltGr toujours laissé passer.
 // Miroir de Sources/FLShortcut/KeyRouter.swift. Logique pure : testée par FLShortcut.Core.Tests.
+using FLShortcut.Core.Macros;
+
 namespace FLShortcut.Core;
 
 /// Index immuable des raccourcis actifs : (déclencheur, contexte) → action.
@@ -16,11 +18,14 @@ public sealed class ShortcutIndex
     public static readonly ShortcutIndex Empty = new(Array.Empty<Shortcut>(), new HashSet<Guid>());
 
     /// Les raccourcis doivent avoir été analysés : `blocked` contient les ids écartés (doublon, cible interdite…).
-    public ShortcutIndex(IEnumerable<Shortcut> shortcuts, ISet<Guid> blocked)
+    /// `programs` : macros de la bibliothèque déjà compilées (références partagées) ; sans elles, aucune macro.
+    public ShortcutIndex(IEnumerable<Shortcut> shortcuts, ISet<Guid> blocked,
+        IReadOnlyDictionary<Guid, MacroProgram>? programs = null)
     {
         foreach (var s in shortcuts)
         {
-            if (!s.Enabled || blocked.Contains(s.Id) || s.Trigger is not { } trigger || s.Routed is not { } action) continue;
+            if (!s.Enabled || blocked.Contains(s.Id) || s.Trigger is not { } trigger
+                || s.IndexedAction(programs) is not { } action) continue;
             if (!_table.TryGetValue(trigger, out var byCtx)) _table[trigger] = byCtx = new();
             byCtx.TryAdd(s.Context, new Entry(s.Id, action));      // le premier gagne (même règle que l'analyse)
         }
@@ -67,6 +72,7 @@ public abstract record RouterEffect
     public sealed record SendAction(int Id) : RouterEffect;
     public sealed record Post(KeyCombo Combo) : RouterEffect;
     public sealed record ToggleEnabled : RouterEffect;
+    public sealed record RunMacro(MacroProgram Program) : RouterEffect;
 }
 
 public sealed record RouterDecision(bool Swallow, IReadOnlyList<RouterEffect> Effects)
@@ -83,6 +89,7 @@ public sealed class KeyRouter
         public sealed record Toggle : Owner;
         public sealed record Action(int Id) : Owner;
         public sealed record Keystroke(KeyCombo Target) : Owner;
+        public sealed record Macro : Owner;
     }
 
     /// Code VK → propriétaire de l'appui en cours. Au plus 256 entrées (codes bornés).
@@ -113,7 +120,7 @@ public sealed class KeyRouter
                 if (!e.TargetIsFl || !config.Enabled || ForbiddenTargets.IsForbidden(ks.Target)) return RouterDecision.SwallowOnly;
                 return RouterDecision.Do(new RouterEffect.Post(ks.Target));
             }
-            return RouterDecision.SwallowOnly;                   // jamais de bascule ni d'action répétées
+            return RouterDecision.SwallowOnly;                   // jamais de bascule, d'action ni de macro répétées
         }
 
         _owned.Remove(vk);                                       // keyDown neuf : un keyUp manqué n'empoisonne plus
@@ -144,6 +151,9 @@ public sealed class KeyRouter
                 if (ForbiddenTargets.IsForbidden(k.Target)) return RouterDecision.Pass;
                 _owned[vk] = new Owner.Keystroke(k.Target);
                 return RouterDecision.Do(new RouterEffect.Post(k.Target));
+            case RoutedAction.Macro m:
+                _owned[vk] = new Owner.Macro();
+                return RouterDecision.Do(new RouterEffect.RunMacro(m.Program));
             default:
                 return RouterDecision.Pass;
         }
