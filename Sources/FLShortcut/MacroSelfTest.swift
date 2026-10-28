@@ -459,7 +459,8 @@ enum MacroSelfTest {
         Thread.sleep(forTimeInterval: 0.5)
         let before = read(statePath) ?? FakeState(raw: [:])
         print("sans sélection : \(refused?.text ?? "?") · menus ouverts : \(before.nativeMenusOpen) · actions : \(before.events)")
-        if case .failed(_, let reason)? = refused, reason.contains("grisé") {} else {
+        // Le message dans la langue de l'app (la CI tourne en anglais).
+        if case .failed(_, let reason)? = refused, reason == String(localized: "élément grisé dans le menu de FL") {} else {
             problems.append("sans sélection : « \(refused?.text ?? "aucun résultat") » au lieu du refus « grisé »")
         }
         if !before.events.isEmpty { problems.append("sans sélection : actions \(before.events)") }
