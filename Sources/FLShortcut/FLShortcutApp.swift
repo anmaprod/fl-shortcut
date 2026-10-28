@@ -659,23 +659,19 @@ struct MenuContent: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            HStack(spacing: 10) {
-                AppIcon().frame(width: 32, height: 32)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("FL Shortcuts").font(.system(size: 13, weight: .semibold))
-                    if let line = statusLine {
-                        HStack(spacing: 5) {
-                            Circle().fill(dotColor).frame(width: 7, height: 7)
-                            Text(line).foregroundStyle(.secondary).lineLimit(1)
-                        }
-                        .font(.system(size: 11))
-                    }
+            // Plus de logo ni de titre en haut (28/10, « enlève prêt, FL Shortcuts, le logo ») : seulement ce qui
+            // cloche (en pause, clavier non autorisé, FL fermé…), rien quand tout va bien.
+            if let line = statusLine {
+                HStack(spacing: 5) {
+                    Circle().fill(dotColor).frame(width: 7, height: 7)
+                    Text(line).foregroundStyle(.secondary).lineLimit(1)
                 }
+                .font(.system(size: 11))
+                .padding(.horizontal, 8)
+                .padding(.top, 4)
+                .padding(.bottom, 6)
+                .accessibilityElement(children: .combine)
             }
-            .padding(.horizontal, 8)
-            .padding(.top, 4)
-            .padding(.bottom, 8)
-            .accessibilityElement(children: .combine)
 
             // Seulement un échec (« Macro terminée » retiré à la demande de l'utilisateur : rien à dire quand tout va bien).
             if let macro = status.lastMacro, !macro.ok {
@@ -704,7 +700,7 @@ struct MenuContent: View {
                 .padding(.bottom, 6)
             }
 
-            MenuSeparator()
+            if hasNotice { MenuSeparator() }
 
             if !status.accessibilityOK {
                 PanelItem(symbol: "lock.open", title: String(localized: "Tout autoriser…"), tint: .orange, order: 2) {
@@ -768,6 +764,11 @@ struct MenuContent: View {
         .menuReveal(panel.revealed)
         .background(WindowReader { MenuPanel.shared.attach($0) })
         .onAppear { MenuPanel.shared.appeared() }
+    }
+
+    /// Quelque chose est écrit au-dessus des lignes (état, échec d'une macro, avertissement) : un filet les sépare.
+    private var hasNotice: Bool {
+        statusLine != nil || status.lastMacro.map { !$0.ok } == true || !alerts.isEmpty
     }
 
     private var dotColor: Color {

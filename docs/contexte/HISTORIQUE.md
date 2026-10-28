@@ -455,6 +455,8 @@ entrée 1 ≈ 0,5 s.
   sans phrases, chaque famille sur une ligne (poignée, rond de couleur — « Une couleur / Dégradé » dans sa fenêtre —,
   nom, départ du Mixer, icône), chaque son : ancien nom → nom qu'il prendra (remis comme avant le 28/10 : « le nom
   qui passe d'un nom à un autre »), sorte, case du Mixer à droite.
+  Menu de l'icône (28/10, « enlève prêt, FL Shortcuts, le logo ») : plus d'en-tête ; seule une ligne d'état quand
+  quelque chose cloche (en pause, clavier non autorisé, FL fermé…), puis les lignes.
   Dans l'app, la page principale n'avait déjà ni bouton pause ni « Connecté à FL » (seulement dans la maquette).
 - Textes courts (28/10, suite) : « Pose le preset sur la dernière piste cliquée du Mixer » → « Ouvre le preset que tu
   veux dans ton Mixer », le bloc s'appelle « Ouvrir un preset » (ligne : « Ouvrir le preset [fichier] », plus de « sur
