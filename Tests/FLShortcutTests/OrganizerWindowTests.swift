@@ -324,7 +324,7 @@ final class OrganizerWindowTests: XCTestCase {
         let controller = OrganizerController(env: env(link, FakeAudio(link: link), saved: { _ in }))
         controller.start()
         waitFor(controller) { $0 == .preview }
-        XCTAssertEqual(controller.summary.count, 4, "une ligne par page de FL")
+        XCTAssertFalse(controller.playlistTooBig, "aucun avertissement : la Playlist tient dans FL")
         controller.apply()
         waitFor(controller, OrganizerWindowTests.isApplied)
         XCTAssertEqual(controller.phase, .applied(nil))

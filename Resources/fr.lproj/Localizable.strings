@@ -139,6 +139,7 @@
 "Action dans FL" = "Action dans FL";
 "Action de FL" = "Action de FL";
 "Action de FL avec un nombre (piste N, pattern N…). Demande l'extension du lien avec FL." = "Action de FL avec un nombre (piste N, pattern N…). Demande l'extension du lien avec FL.";
+"Action de FL avec un nombre (piste, pattern…)." = "Action de FL avec un nombre (piste, pattern…).";
 "Action de FL avec valeur" = "Action de FL avec valeur";
 "Action inconnue" = "Action inconnue";
 "Action inconnue (%@)" = "Action inconnue (%@)";
@@ -179,6 +180,7 @@
 "Aides de notes" = "Aides de notes";
 "Ajoute ce bloc sous la ligne choisie" = "Ajoute ce bloc sous la ligne choisie";
 "Ajoute des macros toutes faites, après avoir lu ce qu'elles font." = "Ajoute des macros toutes faites, après avoir lu ce qu'elles font.";
+"Ajoute un instrument dans le Channel rack." = "Ajoute un instrument dans le Channel rack.";
 "Ajouter" = "Ajouter";
 "Ajouter des macros reçues (.flsmacro) ; la boîte s'ouvre dans Documents › FL Shortcuts › Macros" = "Ajouter des macros reçues (.flsmacro) ; la boîte s'ouvre dans Documents › FL Shortcuts › Macros";
 "Ajouter un bloc sous la ligne choisie (ou dans la boucle si sa ligne de fin est choisie)" = "Ajouter un bloc sous la ligne choisie (ou dans la boucle si sa ligne de fin est choisie)";
@@ -201,6 +203,7 @@
 "Ambiance" = "Ambiance";
 "Analyse du projet : %lld sur %lld" = "Analyse du projet : %lld sur %lld";
 "Ancienne position apprise (colonne du curseur)." = "Ancienne position apprise (colonne du curseur).";
+"Ancienne position apprise." = "Ancienne position apprise.";
 "Annule la dernière action" = "Annule la dernière action";
 "Annuler" = "Annuler";
 "Annuler / rétablir la dernière modification" = "Annuler / rétablir la dernière modification";
@@ -245,9 +248,13 @@
 "Arrêtée par le bloc « Arrêter la macro »" = "Arrêtée par le bloc « Arrêter la macro »";
 "Attend qu'une boîte de dialogue ou un menu de FL s'ouvre (120 s au plus)." = "Attend qu'une boîte de dialogue ou un menu de FL s'ouvre (120 s au plus).";
 "Attend qu'une boîte ou un menu de FL s'ouvre ou se ferme (par exemple que tu aies choisi un preset), ou un temps fixe (pause). Les clics appris attendent déjà leur fenêtre tout seuls." = "Attend qu'une boîte ou un menu de FL s'ouvre ou se ferme (par exemple que tu aies choisi un preset), ou un temps fixe (pause). Les clics appris attendent déjà leur fenêtre tout seuls.";
+"Attend qu'une boîte ou un menu de FL s'ouvre." = "Attend qu'une boîte ou un menu de FL s'ouvre.";
+"Attend qu'une boîte ou un menu de FL se ferme." = "Attend qu'une boîte ou un menu de FL se ferme.";
 "Attend que la boîte ou le menu se ferme (par exemple pendant que tu choisis ton preset, 120 s au plus)." = "Attend que la boîte ou le menu se ferme (par exemple pendant que tu choisis ton preset, 120 s au plus).";
 "Attend que la condition devienne vraie (vérifiée 4 fois par seconde, 120 s au plus)." = "Attend que la condition devienne vraie (vérifiée 4 fois par seconde, 120 s au plus).";
+"Attend que la condition soit vraie (120 s au plus)." = "Attend que la condition soit vraie (120 s au plus).";
 "Attend un moment (5 s au plus). Échap l'interrompt. À éviter : mieux vaut attendre qu'une fenêtre s'ouvre ou se ferme." = "Attend un moment (5 s au plus). Échap l'interrompt. À éviter : mieux vaut attendre qu'une fenêtre s'ouvre ou se ferme.";
+"Attend une boîte ou un menu de FL, ou fait une pause." = "Attend une boîte ou un menu de FL, ou fait une pause.";
 "Attendre" = "Attendre";
 "Attendre la fermeture" = "Attendre la fermeture";
 "Attendre la fermeture de la boîte" = "Attendre la fermeture de la boîte";
@@ -335,6 +342,7 @@
 "Bloc %@" = "Bloc %@";
 "Bloc actif" = "Bloc actif";
 "Bloc actif : décoche pour le sauter sans le supprimer" = "Bloc actif : décoche pour le sauter sans le supprimer";
+"Bloc d'une version plus récente : mets l'app à jour, ou supprime-le." = "Bloc d'une version plus récente : mets l'app à jour, ou supprime-le.";
 "Bloc inconnu" = "Bloc inconnu";
 "Bloc inconnu (version plus récente) : la macro restera bloquée" = "Bloc inconnu (version plus récente) : la macro restera bloquée";
 "Bloc sauté : coche pour le réactiver" = "Bloc sauté : coche pour le réactiver";
@@ -350,7 +358,9 @@
 "Bouton retenu : il sera cherché à son image." = "Bouton retenu : il sera cherché à son image.";
 "Bouton retenu par son nom « %@ » : il sera retrouvé " = "Bouton retenu par son nom « %@ » : il sera retrouvé ";
 "Bouton retrouvé par son nom « %@ » dans la fenêtre de FL, même s'il a " = "Bouton retrouvé par son nom « %@ » dans la fenêtre de FL, même s'il a ";
+"Bouton retrouvé par son nom « %@ »." = "Bouton retrouvé par son nom « %@ ».";
 "Bouton retrouvé à son image dans la fenêtre de FL, même s'il a bougé. L'écran n'est lu qu'à ce " = "Bouton retrouvé à son image dans la fenêtre de FL, même s'il a bougé. L'écran n'est lu qu'à ce ";
+"Bouton retrouvé à son image." = "Bouton retrouvé à son image.";
 "Boîte de dialogue" = "Boîte de dialogue";
 "Brass" = "Brass";
 "Browser" = "Browser";
@@ -400,6 +410,7 @@
 "Ces réponses partent à l'équipe de FL Shortcuts avec le diagnostic (des nombres, aucun nom de son)." = "Ces réponses partent à l'équipe de FL Shortcuts avec le diagnostic (des nombres, aucun nom de son).";
 "Cette macro n'est plus dans la bibliothèque : tes modifications ne sont pas enregistrées." = "Cette macro n'est plus dans la bibliothèque : tes modifications ne sont pas enregistrées.";
 "Cette option n'est pas dans %@ : choisis-en une de cette page." = "Cette option n'est pas dans %@ : choisis-en une de cette page.";
+"Cette option n'est pas dans %@." = "Cette option n'est pas dans %@.";
 "Cette touche" = "Cette touche";
 "Change le magnétisme : 1/4, 1/8, triolets…" = "Change le magnétisme : 1/4, 1/8, triolets…";
 "Change les raccourcis de FL Studio, ou ajoute les tiens." = "Change les raccourcis de FL Studio, ou ajoute les tiens.";
@@ -425,6 +436,7 @@
 "Charger le profil « %@ » ?" = "Charger le profil « %@ » ?";
 "Charger un profil" = "Charger un profil";
 "Cherche dans l'aide : raccourcis, macro, pause…" = "Cherche dans l'aide : raccourcis, macro, pause…";
+"Cherché par son nom ou son image au moment du clic (autorisation « Enregistrement de l'écran »)." = "Cherché par son nom ou son image au moment du clic (autorisation « Enregistrement de l'écran »).";
 "Choisir dans la grille des icônes de FL" = "Choisir dans la grille des icônes de FL";
 "Choisir dans la liste de FL" = "Choisir dans la liste de FL";
 "Choisir dans la roue des couleurs de FL" = "Choisir dans la roue des couleurs de FL";
@@ -449,22 +461,29 @@
 "Choisir…" = "Choisir…";
 "Choisis cette ligne pour ajouter des blocs à la fin de la liste, ou glisses-en une ici" = "Choisis cette ligne pour ajouter des blocs à la fin de la liste, ou glisses-en une ici";
 "Choisis d'abord la macro à partager" = "Choisis d'abord la macro à partager";
+"Choisis d'abord la page au-dessus." = "Choisis d'abord la page au-dessus.";
 "Choisis d'abord la page dans « Ouvrir une page de FL » juste au-dessus : seules ses options " = "Choisis d'abord la page dans « Ouvrir une page de FL » juste au-dessus : seules ses options ";
 "Choisis d'abord quelle version garder : celle de ce Mac ou celle de ton compte." = "Choisis d'abord quelle version garder : celle de ce Mac ou celle de ton compte.";
 "Choisis l'option à cliquer dans %@." = "Choisis l'option à cliquer dans %@.";
 "Choisis la macro à partager." = "Choisis la macro à partager.";
 "Choisis la page de FL à ouvrir : les options de « Cliquer sur… » en dessous viennent d'elle." = "Choisis la page de FL à ouvrir : les options de « Cliquer sur… » en dessous viennent d'elle.";
+"Choisis la page de FL à ouvrir." = "Choisis la page de FL à ouvrir.";
 "Choisis la version à garder. Rien n'est envoyé ni remplacé avant ton choix." = "Choisis la version à garder. Rien n'est envoyé ni remplacé avant ton choix.";
 "Choisis le dossier de données de FL Studio (Options › File settings › User data folder dans FL), ou son dossier « Settings/Hardware »." = "Choisis le dossier de données de FL Studio (Options › File settings › User data folder dans FL), ou son dossier « Settings/Hardware ».";
 "Choisis le fichier du projet ouvert dans FL Studio (.flp)." = "Choisis le fichier du projet ouvert dans FL Studio (.flp).";
 "Choisis un menu de FL, puis ce qu'il contient, jusqu'à l'élément voulu." = "Choisis un menu de FL, puis ce qu'il contient, jusqu'à l'élément voulu.";
 "Choisis un mot de passe différent de l'ancien." = "Choisis un mot de passe différent de l'ancien.";
 "Choisis un état de piste du Mixer (.fst)" = "Choisis un état de piste du Mixer (.fst)";
+"Choisis une ligne pour la régler." = "Choisis une ligne pour la régler.";
 "Choisis une ligne pour la régler. Ajoute des blocs depuis la palette, glisse les lignes pour les ranger ; ⌘D duplique, ⌫ supprime, ⌘Z annule." = "Choisis une ligne pour la régler. Ajoute des blocs depuis la palette, glisse les lignes pour les ranger ; ⌘D duplique, ⌫ supprime, ⌘Z annule.";
 "Choisis une nouvelle touche pour « %@ »." = "Choisis une nouvelle touche pour « %@ ».";
 "Choisis-lui un raccourci, puis « Tester ». La flèche ← ramène à tes macros." = "Choisis-lui un raccourci, puis « Tester ». La flèche ← ramène à tes macros.";
+"Choisit l'entrée 1 de la piste." = "Choisit l'entrée 1 de la piste.";
 "Choisit un élément de menu par son titre (Accessibilité), sinon par des clics de secours appris. Repris des anciennes macros, absent de la palette." = "Choisit un élément de menu par son titre (Accessibilité), sinon par des clics de secours appris. Repris des anciennes macros, absent de la palette.";
+"Choisit un élément de menu par son titre." = "Choisit un élément de menu par son titre.";
 "Choisit un élément des menus de FL (File › Export › …) : tu parcours ses menus comme dans FL, puis la macro le choisit par son nom dans la barre des menus de macOS, grâce à l'Accessibilité : rien n'est cliqué à l'écran." = "Choisit un élément des menus de FL (File › Export › …) : tu parcours ses menus comme dans FL, puis la macro le choisit par son nom dans la barre des menus de macOS, grâce à l'Accessibilité : rien n'est cliqué à l'écran.";
+"Choisit un élément des menus de FL (File › Export › …)." = "Choisit un élément des menus de FL (File › Export › …).";
+"Choisit un élément du menu d'une piste du Mixer." = "Choisit un élément du menu d'une piste du Mixer.";
 "Chop rapide" = "Chop rapide";
 "Chords" = "Chords";
 "Chœur" = "Chœur";
@@ -486,7 +505,9 @@
 "Clic droit sur la dernière piste cliquée dans le Mixer, puis l'élément choisi dans la liste (ouvrir un état de piste, renommer…), au clavier : rien à apprendre." = "Clic droit sur la dernière piste cliquée dans le Mixer, puis l'élément choisi dans la liste (ouvrir un état de piste, renommer…), au clavier : rien à apprendre.";
 "Clic droit sur la piste → File → Open mixer track state, preset, armement, entrée 1, REC." = "Clic droit sur la piste → File → Open mixer track state, preset, armement, entrée 1, REC.";
 "Clic droit · " = "Clic droit · ";
+"Clic gauche ou droit à un endroit de FL." = "Clic gauche ou droit à un endroit de FL.";
 "Clic gauche ou droit à un endroit que tu montres une fois dans FL (« Montrer dans FL… »), retrouvé ensuite par rapport à la fenêtre ou au menu de FL ; ou sur la piste visée. Jamais hors de FL ni sous une autre app." = "Clic gauche ou droit à un endroit que tu montres une fois dans FL (« Montrer dans FL… »), retrouvé ensuite par rapport à la fenêtre ou au menu de FL ; ou sur la piste visée. Jamais hors de FL ni sous une autre app.";
+"Clic gauche ou droit à un endroit que tu montres une fois dans FL." = "Clic gauche ou droit à un endroit que tu montres une fois dans FL.";
 "Clic gauche ou droit à un endroit retrouvé à chaque fois (coin d'une fenêtre de FL, piste visée, menu ouvert, fenêtre d'un plugin comme Serum…). Toujours dans une fenêtre de FL ou de ses plugins, jamais sous une autre app." = "Clic gauche ou droit à un endroit retrouvé à chaque fois (coin d'une fenêtre de FL, piste visée, menu ouvert, fenêtre d'un plugin comme Serum…). Toujours dans une fenêtre de FL ou de ses plugins, jamais sous une autre app.";
 "Clic sur le bouton « Arrangement » de la Playlist, retrouvé à son nom dans la fenêtre de FL " = "Clic sur le bouton « Arrangement » de la Playlist, retrouvé à son nom dans la fenêtre de FL ";
 "Clic · " = "Clic · ";
@@ -507,6 +528,7 @@
 "Clique sur « File »." = "Clique sur « File ».";
 "Clique sur « Open mixer track state… » (Échap pour fermer la boîte)." = "Clique sur « Open mixer track state… » (Échap pour fermer la boîte).";
 "Clique sur ⟳ pour lire la liste dans FL (le menu Add s'ouvre un instant), ou écris le nom." = "Clique sur ⟳ pour lire la liste dans FL (le menu Add s'ouvre un instant), ou écris le nom.";
+"Clique une fois à l'endroit voulu dans FL. Échap annule." = "Clique une fois à l'endroit voulu dans FL. Échap annule.";
 "Clique à l'endroit voulu dans FL (une fois). Échap : annuler." = "Clique à l'endroit voulu dans FL (une fois). Échap : annuler.";
 "Clique, utilise les flèches, tes raccourcis… : chaque geste devient un bloc, que tu peux " = "Clique, utilise les flèches, tes raccourcis… : chaque geste devient un bloc, que tu peux ";
 "Cliquer pour enregistrer" = "Cliquer pour enregistrer";
@@ -571,6 +593,7 @@
 "Couleur des notes" = "Couleur des notes";
 "Coupe la piste du Mixer sélectionnée" = "Coupe la piste du Mixer sélectionnée";
 "Coupe le son de la piste choisie dans le Mixer, ou le remet s'il était coupé : par le lien avec FL, tout de suite et sans aucun clic. Sans le lien : un clic sur son bouton mute (piste cliquée juste avant), montré une seule fois." = "Coupe le son de la piste choisie dans le Mixer, ou le remet s'il était coupé : par le lien avec FL, tout de suite et sans aucun clic. Sans le lien : un clic sur son bouton mute (piste cliquée juste avant), montré une seule fois.";
+"Coupe ou remet le son de la piste choisie dans le Mixer." = "Coupe ou remet le son de la piste choisie dans le Mixer.";
 "Couper" = "Couper";
 "Couper les effets de la piste (bypass)" = "Couper les effets de la piste (bypass)";
 "Couper les pas / la partition" = "Couper les pas / la partition";
@@ -602,6 +625,7 @@
 "Dans la fenêtre de macOS, clique « Autoriser »." = "Dans la fenêtre de macOS, clique « Autoriser ».";
 "Dans la fenêtre de macOS, clique « Ouvrir Réglages Système… » (pas de fenêtre ? « Ouvrir les réglages » ci-dessous)." = "Dans la fenêtre de macOS, clique « Ouvrir Réglages Système… » (pas de fenêtre ? « Ouvrir les réglages » ci-dessous).";
 "Dans le menu" = "Dans le menu";
+"Demande le lien avec FL." = "Demande le lien avec FL.";
 "Demande le script MIDI dans FL (désactivé en mode léger)" = "Demande le script MIDI dans FL (désactivé en mode léger)";
 "Dernier essai" = "Dernier essai";
 "Derniers partages" = "Derniers partages";
@@ -615,6 +639,7 @@
 "Dis en quelques mots ce que tu faisais juste avant : ça nous aide beaucoup." = "Dis en quelques mots ce que tu faisais juste avant : ça nous aide beaucoup.";
 "Dis-nous ce qui ne va pas" = "Dis-nous ce qui ne va pas";
 "Disponible à partir de FL %@" = "Disponible à partir de FL %@";
+"Donne un nom et une couleur à l'élément choisi dans FL." = "Donne un nom et une couleur à l'élément choisi dans FL.";
 "Donne un nom et/ou une couleur à la piste ou au canal sélectionné dans la page de FL qui est devant (Mixer, Channel rack ou Playlist), par le lien avec FL, et une icône de FL par sa fenêtre (F2). Un seul élément doit être sélectionné." = "Donne un nom et/ou une couleur à la piste ou au canal sélectionné dans la page de FL qui est devant (Mixer, Channel rack ou Playlist), par le lien avec FL, et une icône de FL par sa fenêtre (F2). Un seul élément doit être sélectionné.";
 "Donne une valeur (nombre entier) à une variable de la macro." = "Donne une valeur (nombre entier) à une variable de la macro.";
 "Dossier incorrect" = "Dossier incorrect";
@@ -693,6 +718,7 @@
 "Encore une étape" = "Encore une étape";
 "Endroit montré dans FL" = "Endroit montré dans FL";
 "Endroit retenu." = "Endroit retenu.";
+"Endroit à montrer dans FL." = "Endroit à montrer dans FL.";
 "Enlever le mute de la sélection" = "Enlever le mute de la sélection";
 "Enregistre ce que tu fais dans FL" = "Enregistre ce que tu fais dans FL";
 "Enregistre la macro dans un fichier .flsmacro à partager (positions apprises retirées)" = "Enregistre la macro dans un fichier .flsmacro à partager (positions apprises retirées)";
@@ -719,6 +745,8 @@
 "Enregistrer « %@ » ?" = "Enregistrer « %@ » ?";
 "Enregistrée" = "Enregistrée";
 "Entrée" = "Entrée";
+"Entrée « 1 » retenue sur ce Mac." = "Entrée « 1 » retenue sur ce Mac.";
+"Entrée « 1 » à montrer une fois." = "Entrée « 1 » à montrer une fois.";
 "Entrée à la fin" = "Entrée à la fin";
 "Envoi impossible : %@ Tu peux l'envoyer par mail." = "Envoi impossible : %@ Tu peux l'envoyer par mail.";
 "Envoi impossible : %@ Tu peux le copier ou ouvrir un ticket." = "Envoi impossible : %@ Tu peux le copier ou ouvrir un ticket.";
@@ -726,6 +754,7 @@
 "Envoie %@" = "Envoie %@";
 "Envoie l'action à FL Studio" = "Envoie l'action à FL Studio";
 "Envoie une touche ou un raccourci clavier à FL (⌘A, ⇧⌘S, F9…), seulement quand FL est au premier plan. Clique le champ puis tape le raccourci, ou coche ⌘ ⌥ ⌃ ⇧. Les raccourcis dangereux (⌘Q, ⌘W…) sont refusés." = "Envoie une touche ou un raccourci clavier à FL (⌘A, ⇧⌘S, F9…), seulement quand FL est au premier plan. Clique le champ puis tape le raccourci, ou coche ⌘ ⌥ ⌃ ⇧. Les raccourcis dangereux (⌘Q, ⌘W…) sont refusés.";
+"Envoie une touche ou un raccourci à FL." = "Envoie une touche ou un raccourci à FL.";
 "Envoyer" = "Envoyer";
 "Envoyer par mail" = "Envoyer par mail";
 "Envoyer vers des pistes Mixer libres" = "Envoyer vers des pistes Mixer libres";
@@ -744,6 +773,7 @@
 "Export Stems" = "Export Stems";
 "Export impossible" = "Export impossible";
 "Export impossible." = "Export impossible.";
+"Exporte une piste audio par piste de la Playlist." = "Exporte une piste audio par piste de la Playlist.";
 "Exporter en MIDI" = "Exporter en MIDI";
 "Exporter en MP3" = "Exporter en MP3";
 "Exporter en WAV" = "Exporter en WAV";
@@ -860,6 +890,7 @@
 "Fais un clic gauche." = "Fais un clic gauche.";
 "Fait" = "Fait";
 "Fait les blocs « alors » si la condition est vraie, sinon les blocs « sinon »." = "Fait les blocs « alors » si la condition est vraie, sinon les blocs « sinon ».";
+"Fait une pause (5 s au plus)." = "Fait une pause (5 s au plus).";
 "Fait, avec un avertissement" = "Fait, avec un avertissement";
 "Favoris du menu Add" = "Favoris du menu Add";
 "Favoris · %@" = "Favoris · %@";
@@ -888,6 +919,7 @@
 "First devient aussi Last" = "First devient aussi Last";
 "Flam" = "Flam";
 "Flèche, Entrée ou Échap dans un menu de FL ouvert par la macro (jamais ailleurs)." = "Flèche, Entrée ou Échap dans un menu de FL ouvert par la macro (jamais ailleurs).";
+"Flèche, Entrée ou Échap dans un menu de FL." = "Flèche, Entrée ou Échap dans un menu de FL.";
 "Flûte" = "Flûte";
 "Format de bibliothèque illisible." = "Format de bibliothèque illisible.";
 "Format de profil illisible." = "Format de profil illisible.";
@@ -899,11 +931,13 @@
 "Genre" = "Genre";
 "Ghost channels" = "Ghost channels";
 "Glisse FL Shortcuts dans la Corbeille." = "Glisse FL Shortcuts dans la Corbeille.";
+"Glisse d'un endroit de FL à un autre." = "Glisse d'un endroit de FL à un autre.";
 "Glisse la famille au-dessus ou en dessous d'une autre : le Channel rack, le Mixer et la Playlist suivent cet ordre" = "Glisse la famille au-dessus ou en dessous d'une autre : le Channel rack, le Mixer et la Playlist suivent cet ordre";
 "Glisse le fichier sur la dernière piste cliquée dans le Mixer, comme depuis le Finder : FL y charge l'état de piste, sans menu ni boîte « Open »." = "Glisse le fichier sur la dernière piste cliquée dans le Mixer, comme depuis le Finder : FL y charge l'état de piste, sans menu ni boîte « Open ».";
 "Glisse les lignes pour les ranger" = "Glisse les lignes pour les ranger";
 "Glisser" = "Glisser";
 "Glisser à montrer dans FL : choisis le bloc puis « Montrer dans FL… »." = "Glisser à montrer dans FL : choisis le bloc puis « Montrer dans FL… ».";
+"Glisser à montrer dans FL." = "Glisser à montrer dans FL.";
 "Glisser-déposer" = "Glisser-déposer";
 "Glisser-déposer retenu." = "Glisser-déposer retenu.";
 "Green" = "Green";
@@ -1002,6 +1036,7 @@
 "La version organisée n'a pas pu prendre le nom de ton projet : ton projet d'origine est revenu à sa place." = "La version organisée n'a pas pu prendre le nom de ton projet : ton projet d'origine est revenu à sa place.";
 "La version organisée n'est plus à côté de ton projet : rien n'a été touché." = "La version organisée n'est plus à côté de ton projet : rien n'a été touché.";
 "Lance ou met en pause la lecture" = "Lance ou met en pause la lecture";
+"Lance une action de FL (Mixer, Playlist, métronome…)." = "Lance une action de FL (Mixer, Playlist, métronome…).";
 "Lance une action de FL par le lien avec FL (réveil bref, puis il se rendort). Sans lien : son équivalent au clavier, s'il existe." = "Lance une action de FL par le lien avec FL (réveil bref, puis il se rendort). Sans lien : son équivalent au clavier, s'il existe.";
 "Lancer le REC" = "Lancer le REC";
 "Last devient aussi First" = "Last devient aussi First";
@@ -1056,6 +1091,7 @@
 "Les administrateurs le relisent et le retirent s'il le faut. L'auteur ne sait pas qui l'a signalé." = "Les administrateurs le relisent et le retirent s'il le faut. L'auteur ne sait pas qui l'a signalé.";
 "Les autres pourront lire ton explication, voir chaque étape, puis l'ajouter chez eux." = "Les autres pourront lire ton explication, voir chaque étape, puis l'ajouter chez eux.";
 "Les blocs ajoutés maintenant (palette à gauche) vont à la fin de cette liste. Tu peux aussi y glisser une ligne." = "Les blocs ajoutés maintenant (palette à gauche) vont à la fin de cette liste. Tu peux aussi y glisser une ligne.";
+"Les blocs ajoutés vont à la fin de cette liste." = "Les blocs ajoutés vont à la fin de cette liste.";
 "Les comptes ne sont pas encore ouverts" = "Les comptes ne sont pas encore ouverts";
 "Les couleurs ou les noms ne me plaisent pas" = "Les couleurs ou les noms ne me plaisent pas";
 "Les endroits appris (clics montrés dans FL) ne sont pas exportés : ils se montrent sur chaque Mac." = "Les endroits appris (clics montrés dans FL) ne sont pas exportés : ils se montrent sur chaque Mac.";
@@ -1071,6 +1107,8 @@
 "Lettres" = "Lettres";
 "Lettres d'un menu de FL" = "Lettres d'un menu de FL";
 "Lettres du menu" = "Lettres du menu";
+"Lettres soulignées (F de File, puis O de Open…)." = "Lettres soulignées (F de File, puis O de Open…).";
+"Lettres soulignées (F de File…)." = "Lettres soulignées (F de File…).";
 "Lettres soulignées dans le menu de la piste de FL : les sous-menus (F de File), puis l'élément (O de Open…)." = "Lettres soulignées dans le menu de la piste de FL : les sous-menus (F de File), puis l'élément (O de Open…).";
 "Lettres soulignées du menu ouvert (F de File…), dans l'ordre." = "Lettres soulignées du menu ouvert (F de File…), dans l'ordre.";
 "Lien avec FL" = "Lien avec FL";
@@ -1145,13 +1183,16 @@
 "Mesure précédente (mode Song)" = "Mesure précédente (mode Song)";
 "Mesure suivante (mode Song)" = "Mesure suivante (mode Song)";
 "Met devant une page de FL (Playlist, Channel Rack, Mixer…), seulement si elle n'y est pas déjà. Les options de « Cliquer sur… » juste en dessous sont celles de cette page." = "Met devant une page de FL (Playlist, Channel Rack, Mixer…), seulement si elle n'y est pas déjà. Les options de « Cliquer sur… » juste en dessous sont celles de cette page.";
+"Met devant une page de FL (Playlist, Mixer…)." = "Met devant une page de FL (Playlist, Mixer…).";
 "Met en solo la piste choisie dans le Mixer, ou retire son solo : par le lien avec FL, sans aucun clic. Sans le lien : la touche S de FL, ou un clic droit sur son bouton mute." = "Met en solo la piste choisie dans le Mixer, ou retire son solo : par le lien avec FL, sans aucun clic. Sans le lien : la touche S de FL, ou un clic droit sur son bouton mute.";
+"Met ou retire le solo de la piste choisie dans le Mixer." = "Met ou retire le solo de la piste choisie dans le Mixer.";
 "Mets FL Shortcuts à jour pour l'utiliser" = "Mets FL Shortcuts à jour pour l'utiliser";
 "Mettre en pause" = "Mettre en pause";
 "Mettre en pause ou reprendre" = "Mettre en pause ou reprendre";
 "Mettre la sélection en mute" = "Mettre la sélection en mute";
 "Micro et haut-parleurs de l'ordinateur sans casque : explique comment éviter le larsen. Vérifié dès le début de la macro, affiché à la fin." = "Micro et haut-parleurs de l'ordinateur sans casque : explique comment éviter le larsen. Vérifié dès le début de la macro, affiché à la fin.";
 "Micro et sortie de l'ordinateur" = "Micro et sortie de l'ordinateur";
+"Mieux vaut attendre une boîte ou un menu de FL." = "Mieux vaut attendre une boîte ou un menu de FL.";
 "Mission Control" = "Mission Control";
 "Mix" = "Mix";
 "Mixer" = "Mixer";
@@ -1296,7 +1337,10 @@
 "Ouvre le Channel rack, puis la liste des instruments (VST, plugins) pour en ajouter un." = "Ouvre le Channel rack, puis la liste des instruments (VST, plugins) pour en ajouter un.";
 "Ouvre le Mixer dans FL Studio" = "Ouvre le Mixer dans FL Studio";
 "Ouvre le Mixer, le Channel rack ou la Playlist." = "Ouvre le Mixer, le Channel rack ou la Playlist.";
+"Ouvre le preset choisi dans la boîte « Open » de FL." = "Ouvre le preset choisi dans la boîte « Open » de FL.";
+"Ouvre le preset que tu veux dans ton Mixer." = "Ouvre le preset que tu veux dans ton Mixer.";
 "Ouvre ton app de mail avec le message tout prêt, pour %@" = "Ouvre ton app de mail avec le message tout prêt, pour %@";
+"Ouvre ton preset dans le Mixer." = "Ouvre ton preset dans le Mixer.";
 "Ouvre un VST" = "Ouvre un VST";
 "Ouvre un partage pour lire son explication et chaque étape, puis « Ajouter à mes macros »." = "Ouvre un partage pour lire son explication et chaque étape, puis « Ajouter à mes macros ».";
 "Ouvrir FL Shortcuts" = "Ouvrir FL Shortcuts";
@@ -1310,6 +1354,7 @@
 "Ouvrir le Picker Panel" = "Ouvrir le Picker Panel";
 "Ouvrir le Plugin Picker" = "Ouvrir le Plugin Picker";
 "Ouvrir le Project Picker" = "Ouvrir le Project Picker";
+"Ouvrir le preset" = "Ouvrir le preset";
 "Ouvrir le projet récent 0" = "Ouvrir le projet récent 0";
 "Ouvrir le projet récent 1" = "Ouvrir le projet récent 1";
 "Ouvrir le projet récent 2" = "Ouvrir le projet récent 2";
@@ -1321,6 +1366,7 @@
 "Ouvrir le projet récent 8" = "Ouvrir le projet récent 8";
 "Ouvrir le projet récent 9" = "Ouvrir le projet récent 9";
 "Ouvrir les réglages" = "Ouvrir les réglages";
+"Ouvrir un preset" = "Ouvrir un preset";
 "Ouvrir un preset (boîte Open)" = "Ouvrir un preset (boîte Open)";
 "Ouvrir un projet" = "Ouvrir un projet";
 "Ouvrir un ticket sur GitHub" = "Ouvrir un ticket sur GitHub";
@@ -1353,6 +1399,7 @@
 "Partout" = "Partout";
 "Pas content ?" = "Pas content ?";
 "Pas d'icône avec un dégradé (FL la pose sur un seul élément)." = "Pas d'icône avec un dégradé (FL la pose sur un seul élément).";
+"Pas d'icône avec un dégradé." = "Pas d'icône avec un dégradé.";
 "Pas dans tes favoris : la macro le prend dans « More plugins… » de FL, retrouvé à son nom (autorisation « Enregistrement de l'écran »). Rien n'est ajouté à tes listes." = "Pas dans tes favoris : la macro le prend dans « More plugins… » de FL, retrouvé à son nom (autorisation « Enregistrement de l'écran »). Rien n'est ajouté à tes listes.";
 "Pas de connexion : la sauvegarde partira dès que possible." = "Pas de connexion : la sauvegarde partira dès que possible.";
 "Pas de fenêtre ? Dans les réglages qui s'ouvrent, active l'interrupteur à côté de FL Shortcuts, dans la partie audio." = "Pas de fenêtre ? Dans les réglages qui s'ouvrent, active l'interrupteur à côté de FL Shortcuts, dans la partie audio.";
@@ -1363,8 +1410,11 @@
 "Pas encore en ligne" = "Pas encore en ligne";
 "Pas encore montré : fais le glisser-déposer une fois dans FL (reste cliqué, glisse, lâche). " = "Pas encore montré : fais le glisser-déposer une fois dans FL (reste cliqué, glisse, lâche). ";
 "Pas encore montré : la macro ne tourne pas tant que l'endroit n'est pas montré." = "Pas encore montré : la macro ne tourne pas tant que l'endroit n'est pas montré.";
+"Pas encore montré." = "Pas encore montré.";
 "Pas encore montrée : la première fois, une bulle te demande de cliquer sur « (none) » puis sur l'entrée « 1 »." = "Pas encore montrée : la première fois, une bulle te demande de cliquer sur « (none) » puis sur l'entrée « 1 ».";
+"Pas encore montrée : une bulle te la demandera." = "Pas encore montrée : une bulle te la demandera.";
 "Passe au pattern suivant" = "Passe au pattern suivant";
+"Passe le son du Mac sur la carte son branchée." = "Passe le son du Mac sur la carte son branchée.";
 "Passer au bureau 1" = "Passer au bureau 1";
 "Passer au bureau 2" = "Passer au bureau 2";
 "Passer au bureau 3" = "Passer au bureau 3";
@@ -1416,6 +1466,7 @@
 "Playlist pas rangée : FL n'a pas montré le menu de ses pistes (la Playlist doit être visible, ses noms de piste à l'écran). Noms et couleurs sont posés." = "Playlist pas rangée : FL n'a pas montré le menu de ses pistes (la Playlist doit être visible, ses noms de piste à l'écran). Noms et couleurs sont posés.";
 "Playlist pas rangée : pour remonter ses pistes, FL Shortcuts doit voir la fenêtre de FL (Réglages Système › Confidentialité et sécurité › Enregistrement de l'écran). Noms et couleurs sont posés." = "Playlist pas rangée : pour remonter ses pistes, FL Shortcuts doit voir la fenêtre de FL (Réglages Système › Confidentialité et sécurité › Enregistrement de l'écran). Noms et couleurs sont posés.";
 "Playlist rangée dans une copie de ton projet : chaque son sur sa piste, tous les clips des mêmes sons réunis (%lld pistes). Ton projet d'origine ne bouge pas." = "Playlist rangée dans une copie de ton projet : chaque son sur sa piste, tous les clips des mêmes sons réunis (%lld pistes). Ton projet d'origine ne bouge pas.";
+"Playlist trop grande pour FL : décoche « Playlist »." = "Playlist trop grande pour FL : décoche « Playlist ».";
 "Playlist ↔ Mixer" = "Playlist ↔ Mixer";
 "Pluck" = "Pluck";
 "Plugin" = "Plugin";
@@ -1455,6 +1506,7 @@
 "Préparation…" = "Préparation…";
 "Prépare la piste du Mixer sélectionnée à enregistrer" = "Prépare la piste du Mixer sélectionnée à enregistrer";
 "Prévenir les administrateurs : partage dangereux, trompeur ou offensant" = "Prévenir les administrateurs : partage dangereux, trompeur ou offensant";
+"Prévient si le micro risque de faire du larsen." = "Prévient si le micro risque de faire du larsen.";
 "Prête · %@%@" = "Prête · %@%@";
 "Publicité ou spam" = "Publicité ou spam";
 "Publier" = "Publier";
@@ -1491,6 +1543,7 @@
 "Raison" = "Raison";
 "Raison : 3 à 500 caractères." = "Raison : 3 à 500 caractères.";
 "Range, colore et renomme tout le projet" = "Range, colore et renomme tout le projet";
+"Range, colore et renomme tout le projet." = "Range, colore et renomme tout le projet.";
 "Rangement automatique" = "Rangement automatique";
 "Rangement dans la copie…" = "Rangement dans la copie…";
 "Re-stretch de tous les clips audio" = "Re-stretch de tous les clips audio";
@@ -1522,6 +1575,7 @@
 "Remplacer" = "Remplacer";
 "Remplacer le canal par l'élément choisi" = "Remplacer le canal par l'élément choisi";
 "Rendu des pistes armées en .wav" = "Rendu des pistes armées en .wav";
+"Renommer" = "Renommer";
 "Renommer la macro" = "Renommer la macro";
 "Renommer la piste" = "Renommer la piste";
 "Renommer le pattern (et changer sa couleur)" = "Renommer le pattern (et changer sa couleur)";
@@ -1535,9 +1589,13 @@
 "Rester" = "Rester";
 "Retenu dans la fenêtre de FL de %lld × %lld (fenêtre principale, réglages, " = "Retenu dans la fenêtre de FL de %lld × %lld (fenêtre principale, réglages, ";
 "Retenu dans la fenêtre du plugin « %@ » : le clic la retrouve où qu'elle soit " = "Retenu dans la fenêtre du plugin « %@ » : le clic la retrouve où qu'elle soit ";
+"Retenu dans la fenêtre « %@ »." = "Retenu dans la fenêtre « %@ ».";
 "Retenu dans le menu de FL ouvert par le clic précédent : le clic attend que ce menu s'ouvre." = "Retenu dans le menu de FL ouvert par le clic précédent : le clic attend que ce menu s'ouvre.";
+"Retenu dans le menu ouvert juste avant." = "Retenu dans le menu ouvert juste avant.";
+"Retenu dans une fenêtre de FL de %lld × %lld." = "Retenu dans une fenêtre de FL de %lld × %lld.";
 "Retenu par rapport aux fenêtres de FL : la macro attrape et lâche aux mêmes endroits de ces " = "Retenu par rapport aux fenêtres de FL : la macro attrape et lâche aux mêmes endroits de ces ";
 "Retenu par rapport à la fenêtre de FL." = "Retenu par rapport à la fenêtre de FL.";
+"Retire du projet les clips audio inutilisés." = "Retire du projet les clips audio inutilisés.";
 "Retirer" = "Retirer";
 "Retirer tous les solos" = "Retirer tous les solos";
 "Retouche-la dans le créateur : ajoute des blocs de la palette d'un clic ou en les glissant, range les lignes en les glissant." = "Retouche-la dans le créateur : ajoute des blocs de la palette d'un clic ou en les glissant, range les lignes en les glissant.";
@@ -1570,6 +1628,7 @@
 "Rim" = "Rim";
 "Riser" = "Riser";
 "Roue des couleurs de FL" = "Roue des couleurs de FL";
+"Règle la mesure du projet en 3/4." = "Règle la mesure du projet en 3/4.";
 "Réapprendre l'entrée" = "Réapprendre l'entrée";
 "Réapprendre…" = "Réapprendre…";
 "Récentes" = "Récentes";
@@ -1598,6 +1657,7 @@
 "Réécoute tout le morceau" = "Réécoute tout le morceau";
 "Saisie sécurisée active dans une autre app : macOS ne transmet plus les touches." = "Saisie sécurisée active dans une autre app : macOS ne transmet plus les touches.";
 "Saisie sécurisée active dans une autre app : raccourcis muets." = "Saisie sécurisée active dans une autre app : raccourcis muets.";
+"Sans le lien avec FL : bouton mute à montrer une fois." = "Sans le lien avec FL : bouton mute à montrer une fois.";
 "Sans le lien seulement : clique ta piste dans le Mixer, puis lance la macro ; clic droit sur son " = "Sans le lien seulement : clique ta piste dans le Mixer, puis lance la macro ; clic droit sur son ";
 "Sans le lien seulement : clique ta piste dans le Mixer, puis lance la macro ; son bouton mute est " = "Sans le lien seulement : clique ta piste dans le Mixer, puis lance la macro ; son bouton mute est ";
 "Sans lien" = "Sans lien";
@@ -1637,6 +1697,7 @@
 "Si" = "Si";
 "Si " = "Si ";
 "Si ce bloc échoue, la macro continue (l'échec est signalé à la fin)." = "Si ce bloc échoue, la macro continue (l'échec est signalé à la fin).";
+"Si ce bloc échoue, la macro continue." = "Si ce bloc échoue, la macro continue.";
 "Si le bloc échoue" = "Si le bloc échoue";
 "Si le menu reste ouvert" = "Si le menu reste ouvert";
 "Si tu as cliqué sur le lien du mail, ton adresse est confirmée : connecte-toi avec ton mot de passe." = "Si tu as cliqué sur le lien du mail, ton adresse est confirmée : connecte-toi avec ton mot de passe.";
@@ -1696,6 +1757,8 @@
 "Supprimer les clips audio inutilisés" = "Supprimer les clips audio inutilisés";
 "Supprimer les sons sans aucune note (on ne peut pas les remettre)" = "Supprimer les sons sans aucune note (on ne peut pas les remettre)";
 "Supprimer les sons sans aucune note de la copie rangée" = "Supprimer les sons sans aucune note de la copie rangée";
+"Supprimer les sons sans note" = "Supprimer les sons sans note";
+"Supprimer les sons sans note (définitif)" = "Supprimer les sons sans note (définitif)";
 "Supprimer mon compte" = "Supprimer mon compte";
 "Supprimer mon partage…" = "Supprimer mon partage…";
 "Supprimer ton compte ?" = "Supprimer ton compte ?";
@@ -1731,6 +1794,7 @@
 "Tap tempo" = "Tap tempo";
 "Tape le tempo en rythme" = "Tape le tempo en rythme";
 "Tape les lettres soulignées d'un menu de FL déjà ouvert (F de File, O de Open…), seulement si un menu ouvert par la macro est encore là." = "Tape les lettres soulignées d'un menu de FL déjà ouvert (F de File, O de Open…), seulement si un menu ouvert par la macro est encore là.";
+"Tape les lettres soulignées d'un menu de FL ouvert." = "Tape les lettres soulignées d'un menu de FL ouvert.";
 "Terminer" = "Terminer";
 "Tes derniers changements ne sont pas en ligne" = "Tes derniers changements ne sont pas en ligne";
 "Tes derniers changements ne sont pas encore en ligne." = "Tes derniers changements ne sont pas encore en ligne.";
@@ -1832,6 +1896,7 @@
 "Tête de lecture au début" = "Tête de lecture au début";
 "Un bloc caché de l'ancien format est inclus : relis-le dans le créateur avant de t'en servir." = "Un bloc caché de l'ancien format est inclus : relis-le dans le créateur avant de t'en servir.";
 "Un bloc vient d'une version plus récente de FL Shortcuts : la macro ne tournera pas." = "Un bloc vient d'une version plus récente de FL Shortcuts : la macro ne tournera pas.";
+"Un bus par famille" = "Un bus par famille";
 "Un bus par famille dans le Mixer (les 808 avec les drums), chaque son envoyé seulement à son bus" = "Un bus par famille dans le Mixer (les 808 avec les drums), chaque son envoyé seulement à son bus";
 "Un clip de la Playlist n'a pas pu être remis à sa place : annule dans FL (Edit › Undo), puis réessaie." = "Un clip de la Playlist n'a pas pu être remis à sa place : annule dans FL (Edit › Undo), puis réessaie.";
 "Un code vient de partir à %@ : entre-le ici pour confirmer ton compte." = "Un code vient de partir à %@ : entre-le ici pour confirmer ton compte.";
@@ -1856,6 +1921,7 @@
 "Une macro tourne déjà." = "Une macro tourne déjà.";
 "Une nouvelle macro s'ouvre et FL passe devant : clique et tape ta suite (menus, flèches, raccourcis…), puis « Terminer ». Chaque geste devient un bloc." = "Une nouvelle macro s'ouvre et FL passe devant : clique et tape ta suite (menus, flèches, raccourcis…), puis « Terminer ». Chaque geste devient un bloc.";
 "Une nouvelle macro s'ouvre et FL passe devant : clique et tape ta suite, puis « Terminer »" = "Une nouvelle macro s'ouvre et FL passe devant : clique et tape ta suite, puis « Terminer »";
+"Une option de la page de FL ouverte au-dessus." = "Une option de la page de FL ouverte au-dessus.";
 "Une option de la page de FL ouverte juste au-dessus : ajouter un instrument ou un effet, armer la piste, mute ou solo d'un canal par son numéro, renommer la piste, le menu « Arrangement » de la Playlist, ou un raccourci de FL de cette page. Ajouté avec « Ouvrir une page de FL » au-dessus." = "Une option de la page de FL ouverte juste au-dessus : ajouter un instrument ou un effet, armer la piste, mute ou solo d'un canal par son numéro, renommer la piste, le menu « Arrangement » de la Playlist, ou un raccourci de FL de cette page. Ajouté avec « Ouvrir une page de FL » au-dessus.";
 "Une pause fixe est trop courte sur un projet lourd : préfère « Attendre une fenêtre » quand FL ouvre quelque chose." = "Une pause fixe est trop courte sur un projet lourd : préfère « Attendre une fenêtre » quand FL ouvre quelque chose.";
 "Une piste de ta Playlist est coupée (mute) : réactive-la dans FL (ou retire ses clips), puis clique sur « Réessayer ». Rien n'a été touché." = "Une piste de ta Playlist est coupée (mute) : réactive-la dans FL (ou retire ses clips), puis clique sur « Réessayer ». Rien n'a été touché.";
@@ -2191,6 +2257,7 @@
 "un menu de FL est ouvert" = "un menu de FL est ouvert";
 "un raccourci personnalisé" = "un raccourci personnalisé";
 "un symbole" = "un symbole";
+"un temps fixe" = "un temps fixe";
 "un temps fixe (à éviter)" = "un temps fixe (à éviter)";
 "une autre app" = "une autre app";
 "une autre fenêtre de FL couvre le menu" = "une autre fenêtre de FL couvre le menu";
@@ -2257,6 +2324,7 @@
 "Écris au moins quelques mots (%lld caractères)." = "Écris au moins quelques mots (%lld caractères).";
 "Écris le nom que tu veux" = "Écris le nom que tu veux";
 "Écris un titre (%lld caractères au moins)" = "Écris un titre (%lld caractères au moins)";
+"Écrit comme dans FL." = "Écrit comme dans FL.";
 "Écrit exactement comme dans le menu Add › %@ de FL." = "Écrit exactement comme dans le menu Add › %@ de FL.";
 "Élément" = "Élément";
 "Élément précédent, avec préécoute" = "Élément précédent, avec préécoute";

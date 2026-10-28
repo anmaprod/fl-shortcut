@@ -153,7 +153,8 @@
 - **Aspect validé le 28/10** (maquette, `HISTORIQUE`) : Liquid Glass seul, sans lavis ni lueur de couleur ; titre de
   page seul ; raccourcis sur deux colonnes (`CardColumns`) ; touche changée en bleu + ↺ ; rien d'inutile (pas de
   phrases d'explication, de compteurs, de pause dans les menus) ; bleu pour l'action ; aucune animation en plus ;
-  logo : c'est lui qui le fera.
+  logo : c'est lui qui le fera. Textes « clairs sans détail » : une phrase courte par bloc, aucune explication de
+  la façon de faire ; bloc « Ouvrir un preset » (ex-« Déposer un preset sur la piste »).
 - Interface : survol coloré du menu de l'icône (`menuHover` : contour de sa couleur, halo autour) voulu par le
   propriétaire partout ; depuis le 25/10 (sa capture) : couleurs de l'élément JAMAIS changées (ni fond ajouté, ni
   ombre sur le contenu : halo `HoverGlow` dehors seulement), rien de gris au-delà du contour (lignes des cartes : c'est

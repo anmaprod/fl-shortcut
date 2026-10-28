@@ -70,7 +70,7 @@ struct MacroPaletteView: View {
                 .menuHover(tint: item.category.tint, cornerRadius: 8)
                 .onTapGesture { insert(item) }
                 .onDrag { PaletteDrag.provider(item) } preview: { PaletteDragPreview(item: item) }
-                .help(String(localized: "\(item.aide) Clique pour l'ajouter, ou glisse-le à sa place dans la liste."))
+                .help(item.aide)
                 .accessibilityElement(children: .combine)
                 .accessibilityAddTraits(.isButton)
                 .accessibilityAction { insert(item) }

@@ -55,9 +55,9 @@ enum MacroBadge: Hashable {
 
     var help: String {
         switch self {
-        case .pauseFixe: return String(localized: "Une pause fixe est trop courte sur un projet lourd : préfère « Attendre une fenêtre » quand FL ouvre quelque chose.")
+        case .pauseFixe: return String(localized: "Mieux vaut attendre une boîte ou un menu de FL.")
         case .aApprendre(let why), .probleme(let why): return why
-        case .continueSiEchec: return String(localized: "Si ce bloc échoue, la macro continue (l'échec est signalé à la fin).")
+        case .continueSiEchec: return String(localized: "Si ce bloc échoue, la macro continue.")
         }
     }
 }
@@ -305,9 +305,9 @@ enum MacroOutline {
         var out: [MacroBadge] = []
         switch b.body {
         case .click(.toLearn, _):
-            out.append(.aApprendre(String(localized: "Position à montrer dans FL : choisis le bloc puis « Montrer dans FL… ».")))
+            out.append(.aApprendre(String(localized: "Endroit à montrer dans FL.")))
         case .drag(.toLearn, _), .drag(_, .toLearn):
-            out.append(.aApprendre(String(localized: "Glisser à montrer dans FL : choisis le bloc puis « Montrer dans FL… ».")))
+            out.append(.aApprendre(String(localized: "Glisser à montrer dans FL.")))
         default:
             if let problem { out.append(.probleme(problem)) }
         }
@@ -320,7 +320,7 @@ enum MacroOutline {
             break                                   // sans le script : bouton mute (clic droit) ou touche S
         // « Lien FL » retiré avec l'utilisateur : sans le lien, l'échec du bloc le dit au moment voulu.
         case .selectInput where !learnedInput:
-            out.append(.aApprendre(String(localized: "L'entrée « 1 » est montrée une seule fois, pendant la macro : une bulle te le demande.")))
+            out.append(.aApprendre(String(localized: "Entrée « 1 » à montrer une fois.")))
         default: break
         }
         if b.onFailure == .keepGoing { out.append(.continueSiEchec) }
@@ -395,7 +395,7 @@ enum MacroOutline {
             return (String(localized: "Choisir le preset"),
                     path.isEmpty ? String(localized: "à choisir") : URL(fileURLWithPath: path).lastPathComponent.displaySafe(max: 40))
         case .dropFile(let path):
-            return (String(localized: "Déposer le preset sur la piste"),
+            return (String(localized: "Ouvrir le preset"),
                     path.isEmpty ? String(localized: "à choisir") : URL(fileURLWithPath: path).lastPathComponent.displaySafe(max: 40))
         case .flAction(let key, _), .flActionValue(let key, _):
             return (String(localized: "Action de FL"), actionLabel(key))
@@ -543,7 +543,7 @@ enum PaletteCatalog {
             // Un seul bloc de clic : bouton gauche ou droit, endroit montré dans FL, piste visée, près du clic précédent…
             // (l'ancien « Clic droit sur la piste » en était un doublon).
             item("clickLearned", .click, label: String(localized: "Clic à un endroit appris"),
-                 aide: String(localized: "Clic gauche ou droit à un endroit que tu montres une fois dans FL (« Montrer dans FL… »), retrouvé ensuite par rapport à la fenêtre ou au menu de FL ; ou sur la piste visée. Jamais hors de FL ni sous une autre app.")) {
+                 aide: String(localized: "Clic gauche ou droit à un endroit que tu montres une fois dans FL.")) {
                 .click(.toLearn, button: .left)
             },
             item("drag", .drag) { .drag(from: .toLearn, to: .toLearn) },
@@ -551,7 +551,7 @@ enum PaletteCatalog {
             // dans l'inspecteur. Les clics appris attendent déjà leur fenêtre tout seuls.
             // Icône : une horloge (28/10, « revois son logo »).
             item("wait", .waitWindow, label: String(localized: "Attendre"),
-                 aide: String(localized: "Attend qu'une boîte ou un menu de FL s'ouvre ou se ferme (par exemple que tu aies choisi un preset), ou un temps fixe (pause). Les clics appris attendent déjà leur fenêtre tout seuls."),
+                 aide: String(localized: "Attend une boîte ou un menu de FL, ou fait une pause."),
                  symbol: "clock") {
                 .waitWindow(.dialog, timeoutMs: 4_000)
             },
@@ -562,22 +562,22 @@ enum PaletteCatalog {
             item("pageOption", .pageOption) { .pageOption(id: nil, name: "") },
             // « Menu de la piste » retiré avec l'utilisateur : outil technique (clic droit sur la piste, puis une ligne
             // du menu), que « Cliquer sur… » et « Enregistrer clics et touches » remplacent. Toujours compris.
-            // « Ouvrir un preset (boîte Open) » retiré avec l'utilisateur : « Déposer un preset » fait la même chose, plus
-            // vite (toujours compris dans les anciennes macros).
+            // « Ouvrir un preset (boîte Open) » retiré avec l'utilisateur : « Ouvrir un preset » (le fichier déposé sur
+            // la piste, ancien « Déposer un preset ») fait la même chose, plus vite ; toujours compris dans les anciennes
+            // macros.
             item("dropFile", .dropFile) { .dropFile(path: "") },
-            item("flAction", .flAction,
-                 aide: String(localized: "Une action de FL Shortcuts (Mixer, Playlist, métronome…) : par le lien avec FL s'il est installé, sinon la touche équivalente de FL.")) {
+            item("flAction", .flAction) {
                 .flAction(key: "mx", fallback: .key(KeyRef(mixer)))
             },
             // Armer la piste, allumer le REC, choisir l'entrée 1 et vérifier le larsen : retirés avec l'utilisateur
             // (l'enregistrement rapide sera refait) ; toujours compris dans les anciennes macros.
             item("mute", .flAction, label: String(localized: "Mute de la piste"),
-                 aide: String(localized: "Coupe le son de la piste choisie dans le Mixer, ou le remet s'il était coupé : par le lien avec FL, tout de suite et sans aucun clic. Sans le lien : un clic sur son bouton mute (piste cliquée juste avant), montré une seule fois."),
+                 aide: String(localized: "Coupe ou remet le son de la piste choisie dans le Mixer."),
                  symbol: "speaker.slash.fill") {
                 .flAction(key: "mute", fallback: .none)
             },
             item("solo", .flAction, label: String(localized: "Solo de la piste"),
-                 aide: String(localized: "Met en solo la piste choisie dans le Mixer, ou retire son solo : par le lien avec FL, sans aucun clic. Sans le lien : la touche S de FL, ou un clic droit sur son bouton mute."),
+                 aide: String(localized: "Met ou retire le solo de la piste choisie dans le Mixer."),
                  symbol: "headphones") {
                 .flAction(key: "solo", fallback: .none)
             },

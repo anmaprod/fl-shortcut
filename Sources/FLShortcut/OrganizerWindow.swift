@@ -821,59 +821,9 @@ final class OrganizerController: ObservableObject {
     /// « All » ; sa Playlist n'est rangée que si « Playlist » est cochée.
     var organizesCopy: Bool { result?.project != nil }
 
-    /// Une ligne par page de FL touchée, pour l'aperçu : combien d'éléments seront rangés, colorés, renommés.
-    var summary: [(symbol: String, text: String)] {
-        let plan = self.plan
-        var out: [(symbol: String, text: String)] = []
-        if !plan.deleted.isEmpty {
-            out.append(("trash", organizesCopy
-                ? String(localized: "\(plan.deleted.count) sons sans aucune note supprimés du Channel rack de la copie rangée")
-                : String(localized: "\(plan.deleted.count) sons sans aucune note supprimés du Channel rack (on ne peut pas les remettre avec « Revenir comme avant »)")))
-        }
-        if options.rack, !plan.rack.isEmpty {
-            out.append(("square.stack.3d.up", String(localized: "Channel rack : \(plan.rack.colors.count) sons regroupés et colorés, \(plan.rack.names.count) renommés")))
-        }
-        if options.patterns, !plan.patterns.isEmpty {
-            out.append(("square.stack", String(localized: "Patterns : \(plan.patterns.colors.count) colorés, \(plan.patterns.names.count) renommés")))
-        }
-        if options.mixer, !plan.mixer.isEmpty {
-            let buses = plan.mixer.buses.count
-            let tracks = plan.mixer.verdicts.count - buses
-            out.append(("slider.vertical.3", buses > 0
-                ? String(localized: "Mixer : \(tracks) pistes dans l'ordre du Channel rack, \(buses) bus (un par famille), \(plan.mixer.names.count) renommées")
-                : String(localized: "Mixer : \(tracks) pistes dans l'ordre du Channel rack, \(plan.mixer.names.count) renommées")))
-            if !plan.mixer.links.isEmpty {
-                out.append(("arrow.triangle.branch", String(localized: "\(plan.mixer.links.count) sons envoyés au Master reliés chacun à une piste libre du Mixer")))
-            }
-            if !plan.mixer.resets.isEmpty {
-                out.append(("eraser", String(localized: "\(plan.mixer.resets.count) pistes du Mixer sans son remises comme neuves (nom et couleur de FL)")))
-            }
-        }
-        if plan.deleted.isEmpty, let unused = result?.unused.count, unused > 0 {
-            out.append(("moon.zzz", String(localized: "\(unused) sons sans aucune note laissés de côté (ni rangés, ni colorés, ni renommés)")))
-        }
-        if options.playlist, !plan.playlist.isEmpty {
-            out.append(("rectangle.split.3x1", plan.playlist.moves.isEmpty
-                ? String(localized: "Playlist : \(plan.playlist.colors.count) pistes colorées, \(plan.playlist.names.count) renommées")
-                : String(localized: "Playlist : \(plan.playlist.colors.count) pistes colorées, \(plan.playlist.names.count) renommées, rangées comme le Channel rack")))
-        }
-        if let split = result?.project?.splitPatterns, split > 0 {
-            out.append(("scissors", String(localized: "\(split) sons sortis des patterns qui en avaient plusieurs : chacun dans son pattern (comme « Split by channel » de FL)")))
-        }
-        if options.playlist, let layout = plan.layout {
-            out.append(("square.split.1x2", String(localized: "Playlist rangée dans une copie de ton projet : chaque son sur sa piste, tous les clips des mêmes sons réunis (\(layout.count) pistes). Ton projet d'origine ne bouge pas.")))
-            if let silent = result?.project?.silentPatterns, silent > 0 {
-                out.append(("moon.zzz", String(localized: "\(silent) patterns sans aucune note (rien n'y joue) : chacun sur sa piste, en bas de la Playlist")))
-            }
-        } else if organizesCopy, options.playlist {
-            out.append(("exclamationmark.triangle", String(localized: "Playlist : il faudrait plus de pistes que FL n'en a pour mettre chaque son sur la sienne ; décoche « Playlist » pour ranger le reste.")))
-        } else if options.playlist, options.splitTracks, env.canReadPlaylist() {
-            out.append(("square.split.1x2", String(localized: "Playlist : un son par piste, et les clips d'un même son réunis sur sa piste (FL Shortcuts lit la fenêtre de FL au moment de les déplacer)")))
-        } else if options.playlist, !plan.splits.isEmpty {
-            out.append(("square.split.1x2", String(localized: "Playlist : \(plan.splits.count) sons qui partagent une piste avec un autre auront chacun la leur")))
-        }
-        return out
-    }
+    /// La Playlist rangée demanderait plus de pistes que FL n'en a : seul avertissement de l'aperçu (le résumé ligne
+    /// par ligne et ses phrases sont retirés le 28/10 : « ça j'aime pas non plus »).
+    var playlistTooBig: Bool { organizesCopy && options.playlist && plan.layout == nil }
 
     func style(of family: SoundFamily) -> FamilyStyle {
         styles[family] ?? FamilyStyles.initial[family] ?? FamilyStyle(color: NameColorPayload.defaultColor)
@@ -1361,15 +1311,10 @@ struct OrganizerView: View {
                 .padding(14)
                 .organizerCard()
                 .morphIn(1)
-                Text(String(localized: """
-                    FL enregistre ton projet, puis FL Shortcuts lit son fichier : ce que joue chaque pattern et où est \
-                    chaque clip, exactement (rien n'est deviné). Un son dont le nom dit ce qu'il est (Kick, 808, Hat…) \
-                    est classé tout de suite ; les autres jouent seuls, à ton tempo, sans que tu les entendes. Ne \
-                    touche pas à FL ; Échap arrête.
-                    """))
+                // Plus d'explication (28/10, « ça j'aime pas ») : la consigne seule.
+                Text(String(localized: "Ne touche pas à FL."))
                     .font(.system(size: 11))
                     .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
                     .morphIn(2)
                 HStack {
                     Spacer()
@@ -1851,24 +1796,18 @@ private struct OrganizerStep: View {
     }
 }
 
-/// Ce que « Organiser » fera dans chaque page de FL, avec une case par page et une pour les noms.
+/// Les choix de « Organiser » : une case par page de FL, les noms, les bus, les sons sans note.
 private struct ProjectSummary: View {
     @ObservedObject var controller: OrganizerController
 
     var body: some View {
         VStack(alignment: .leading, spacing: 7) {
-            ForEach(Array(controller.summary.enumerated()), id: \.offset) { _, line in
-                HStack(alignment: .firstTextBaseline, spacing: 8) {
-                    Image(systemName: line.symbol)
-                        .font(.system(size: 11))
-                        .foregroundStyle(OrganizerView.tint)
-                        .frame(width: 16)
-                    Text(line.text)
-                        .font(.system(size: 11))
-                        .foregroundStyle(.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
-                    Spacer(minLength: 0)
-                }
+            if controller.playlistTooBig {
+                Label(String(localized: "Playlist trop grande pour FL : décoche « Playlist »."),
+                      systemImage: "exclamationmark.triangle.fill")
+                    .font(.system(size: 11))
+                    .foregroundStyle(.orange)
+                    .fixedSize(horizontal: false, vertical: true)
             }
             HStack(spacing: 12) {
                 Toggle("Channel rack", isOn: $controller.options.rack)
@@ -1878,34 +1817,20 @@ private struct ProjectSummary: View {
             }
             .toggleStyle(.checkbox)
             .font(.system(size: 11))
-            Toggle("Renommer simplement (Kick, Kick 2, 808…)", isOn: $controller.options.rename)
+            Toggle("Renommer", isOn: $controller.options.rename)
                 .toggleStyle(.checkbox)
                 .font(.system(size: 11))
-            Toggle("Un bus par famille dans le Mixer (les 808 avec les drums), chaque son envoyé seulement à son bus",
-                   isOn: $controller.options.buses)
+            Toggle("Un bus par famille", isOn: $controller.options.buses)
                 .toggleStyle(.checkbox)
                 .font(.system(size: 11))
                 .disabled(!controller.options.mixer)
             Toggle(isOn: $controller.options.deleteUnused) {
                 Text(controller.organizesCopy
-                    ? String(localized: "Supprimer les sons sans aucune note de la copie rangée")
-                    : String(localized: "Supprimer les sons sans aucune note (on ne peut pas les remettre)"))
+                    ? String(localized: "Supprimer les sons sans note")
+                    : String(localized: "Supprimer les sons sans note (définitif)"))
             }
                 .toggleStyle(.checkbox)
                 .font(.system(size: 11))
-            Text(controller.organizesCopy
-                ? String(localized: """
-                    Tout se range dans une nouvelle version de ton projet (« _2 », comme « Save new version » de FL), \
-                    à côté de l'original : ton projet d'origine ne bouge pas, « Revenir comme avant » le rouvre et met la \
-                    nouvelle version à la Corbeille. Aucune lecture de l'écran.
-                    """)
-                : String(localized: """
-                    Les pistes de la Playlist sont remontées par leur menu (« Move up ») : FL Shortcuts lit alors la \
-                    fenêtre de FL (autorisation « Enregistrement de l'écran »). Les patterns restent à leur place.
-                    """))
-                .font(.system(size: 10))
-                .foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
         }
         .padding(12)
         .organizerCard()

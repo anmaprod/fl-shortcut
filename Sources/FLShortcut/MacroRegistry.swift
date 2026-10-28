@@ -282,7 +282,7 @@ private enum Specs {
 
     static let key = BlockSpec(
         type: .key, label: String(localized: "Touche ou raccourci"), category: .clavier, symbol: "keyboard",
-        aide: String(localized: "Envoie une touche ou un raccourci clavier à FL (⌘A, ⇧⌘S, F9…), seulement quand FL est au premier plan. Clique le champ puis tape le raccourci, ou coche ⌘ ⌥ ⌃ ⇧. Les raccourcis dangereux (⌘Q, ⌘W…) sont refusés."),
+        aide: String(localized: "Envoie une touche ou un raccourci à FL."),
         params: [ParamSpec("key", String(localized: "Touche"), .touche), ParamSpec("times", String(localized: "Nombre de fois"), .nombre(1...20))],
         conteneur: .aucun, dansLaPalette: true,
         needs: { _ in base },
@@ -305,7 +305,7 @@ private enum Specs {
 
     static let menuLetters = BlockSpec(
         type: .menuLetters, label: String(localized: "Lettres d'un menu de FL"), category: .clavier, symbol: "character.cursor.ibeam",
-        aide: String(localized: "Tape les lettres soulignées d'un menu de FL déjà ouvert (F de File, O de Open…), seulement si un menu ouvert par la macro est encore là."),
+        aide: String(localized: "Tape les lettres soulignées d'un menu de FL ouvert."),
         params: [ParamSpec("letters", String(localized: "Lettres"), .lettres(max: 8)), ParamSpec("finalEnter", String(localized: "Entrée à la fin"), .toucheMenu)],
         conteneur: .aucun, dansLaPalette: true,
         needs: { _ in base },
@@ -328,7 +328,7 @@ private enum Specs {
 
     static let menuKey = BlockSpec(
         type: .menuKey, label: String(localized: "Touche de menu"), category: .clavier, symbol: "arrow.up.arrow.down",
-        aide: String(localized: "Flèche, Entrée ou Échap dans un menu de FL ouvert par la macro (jamais ailleurs)."),
+        aide: String(localized: "Flèche, Entrée ou Échap dans un menu de FL."),
         params: [ParamSpec("menuKey", String(localized: "Touche"), .toucheMenu), ParamSpec("times", String(localized: "Nombre de fois"), .nombre(1...20))],
         conteneur: .aucun, dansLaPalette: true,
         needs: { _ in base },
@@ -352,7 +352,7 @@ private enum Specs {
 
     static let click = BlockSpec(
         type: .click, label: String(localized: "Clic"), category: .souris, symbol: "cursorarrow.click",
-        aide: String(localized: "Clic gauche ou droit à un endroit retrouvé à chaque fois (coin d'une fenêtre de FL, piste visée, menu ouvert, fenêtre d'un plugin comme Serum…). Toujours dans une fenêtre de FL ou de ses plugins, jamais sous une autre app."),
+        aide: String(localized: "Clic gauche ou droit à un endroit de FL."),
         params: [ParamSpec("target", String(localized: "Où"), .cible), ParamSpec("button", String(localized: "Bouton"), .nombre(0...1))],
         conteneur: .aucun, dansLaPalette: true,
         needs: { body in
@@ -378,7 +378,7 @@ private enum Specs {
 
     static let drag = BlockSpec(
         type: .drag, label: String(localized: "Glisser-déposer"), category: .souris, symbol: "hand.draw",
-        aide: String(localized: "Reste cliqué à un endroit de FL (un son du Browser, un clip, un plugin…), glisse jusqu'à un autre endroit de FL et lâche. Les deux endroits se montrent une fois en faisant le geste dans FL ; toujours dans les fenêtres de FL, jamais sous une autre app."),
+        aide: String(localized: "Glisse d'un endroit de FL à un autre."),
         params: [ParamSpec("from", String(localized: "Glisser"), .cible)],
         conteneur: .aucun, dansLaPalette: true,
         needs: { body in
@@ -409,7 +409,7 @@ private enum Specs {
 
     static let delay = BlockSpec(
         type: .delay, label: String(localized: "Attendre un temps fixe"), category: .fenetres, symbol: "clock",
-        aide: String(localized: "Attend un moment (5 s au plus). Échap l'interrompt. À éviter : mieux vaut attendre qu'une fenêtre s'ouvre ou se ferme."),
+        aide: String(localized: "Fait une pause (5 s au plus)."),
         params: [ParamSpec("wait", String(localized: "Attendre"), .fenetre), ParamSpec("ms", String(localized: "Durée (ms)"), .ms(0...MacroValidation.maxDelayMs))],
         conteneur: .aucun, dansLaPalette: true,
         needs: { _ in base },
@@ -440,7 +440,7 @@ private enum Specs {
 
     static let waitWindow = BlockSpec(
         type: .waitWindow, label: String(localized: "Attendre une fenêtre"), category: .fenetres, symbol: "clock",
-        aide: String(localized: "Attend qu'une boîte de dialogue ou un menu de FL s'ouvre (120 s au plus)."),
+        aide: String(localized: "Attend qu'une boîte ou un menu de FL s'ouvre."),
         params: [ParamSpec("wait", String(localized: "Attendre"), .fenetre), ParamSpec("timeoutMs", String(localized: "Au plus (ms)"), .ms(100...MacroValidation.maxWaitMs))],
         conteneur: .aucun, dansLaPalette: true,
         needs: { _ in base },
@@ -462,7 +462,7 @@ private enum Specs {
 
     static let waitWindowClose = BlockSpec(
         type: .waitWindowClose, label: String(localized: "Attendre la fermeture"), category: .fenetres, symbol: "clock",
-        aide: String(localized: "Attend que la boîte ou le menu se ferme (par exemple pendant que tu choisis ton preset, 120 s au plus)."),
+        aide: String(localized: "Attend qu'une boîte ou un menu de FL se ferme."),
         params: [ParamSpec("wait", String(localized: "Attendre"), .fenetre), ParamSpec("timeoutMs", String(localized: "Au plus (ms)"), .ms(100...MacroValidation.maxWaitMs))],
         conteneur: .aucun, dansLaPalette: true,
         needs: { _ in base },
@@ -486,7 +486,7 @@ private enum Specs {
 
     static let trackMenu = BlockSpec(
         type: .trackMenu, label: String(localized: "Menu de la piste"), category: .fl, symbol: "list.bullet.rectangle",
-        aide: String(localized: "Clic droit sur la dernière piste cliquée dans le Mixer, puis l'élément choisi dans la liste (ouvrir un état de piste, renommer…), au clavier : rien à apprendre."),
+        aide: String(localized: "Choisit un élément du menu d'une piste du Mixer."),
         params: [ParamSpec("letters", String(localized: "Élément"), .lettres(max: 3)), ParamSpec("finalEnter", String(localized: "Entrée à la fin"), .toucheMenu)],
         conteneur: .aucun, dansLaPalette: true,
         needs: { body in
@@ -518,7 +518,7 @@ private enum Specs {
 
     static let chooseFile = BlockSpec(
         type: .chooseFile, label: String(localized: "Ouvrir un preset (boîte Open)"), category: .fl, symbol: "doc.badge.arrow.up",
-        aide: String(localized: "Quand FL a ouvert sa boîte « Open » (preset d'un plugin, d'un canal…) : va au fichier .fst choisi et l'ouvre. À placer après les clics qui ouvrent la boîte et un « Attendre »."),
+        aide: String(localized: "Ouvre le preset choisi dans la boîte « Open » de FL."),
         params: [ParamSpec("path", String(localized: "Fichier"), .fichier(extensions: ["fst"]))],
         conteneur: .aucun, dansLaPalette: true,
         needs: { _ in base },
@@ -536,8 +536,8 @@ private enum Specs {
         import_: .aRelire("fichier à rechoisir sur cette machine"), plateformes: .mac)
 
     static let dropFile = BlockSpec(
-        type: .dropFile, label: String(localized: "Déposer un preset sur la piste"), category: .fl, symbol: "square.and.arrow.down.on.square",
-        aide: String(localized: "Glisse le fichier sur la dernière piste cliquée dans le Mixer, comme depuis le Finder : FL y charge l'état de piste, sans menu ni boîte « Open »."),
+        type: .dropFile, label: String(localized: "Ouvrir un preset"), category: .fl, symbol: "square.and.arrow.down.on.square",
+        aide: String(localized: "Ouvre le preset que tu veux dans ton Mixer."),
         params: [ParamSpec("path", String(localized: "Fichier"), .fichier(extensions: ["fst"]))],
         conteneur: .aucun, dansLaPalette: true,
         needs: { _ in base.union([.cliqueHID, .pisteVisee, .pisteRequise]) },
@@ -576,7 +576,7 @@ private enum Specs {
 
     static let flAction = BlockSpec(
         type: .flAction, label: String(localized: "Action de FL"), category: .fl, symbol: "bolt.horizontal",
-        aide: String(localized: "Lance une action de FL par le lien avec FL (réveil bref, puis il se rendort). Sans lien : son équivalent au clavier, s'il existe."),
+        aide: String(localized: "Lance une action de FL (Mixer, Playlist, métronome…)."),
         params: [ParamSpec("action", String(localized: "Action"), .actionFL), ParamSpec("fallback", String(localized: "Sans lien"), .touche)],
         conteneur: .aucun, dansLaPalette: true,
         needs: { body in
@@ -615,7 +615,7 @@ private enum Specs {
 
     static let flActionValue = BlockSpec(
         type: .flActionValue, label: String(localized: "Action de FL avec valeur"), category: .fl, symbol: "slider.horizontal.3",
-        aide: String(localized: "Action de FL avec un nombre (piste N, pattern N…). Demande l'extension du lien avec FL."),
+        aide: String(localized: "Action de FL avec un nombre (piste, pattern…)."),
         params: [ParamSpec("action", String(localized: "Action"), .actionFL), ParamSpec("value", String(localized: "Valeur"), .variable)],
         conteneur: .aucun, dansLaPalette: false,
         needs: { body in
@@ -642,7 +642,7 @@ private enum Specs {
 
     static let selectInput = BlockSpec(
         type: .selectInput, label: String(localized: "Choisir l'entrée 1"), category: .fl, symbol: "mic",
-        aide: String(localized: "« (none) » → entrée 1 de la piste. Montré une seule fois (une bulle le demande), puis refait seul."),
+        aide: String(localized: "Choisit l'entrée 1 de la piste."),
         params: [],
         conteneur: .aucun, dansLaPalette: true,
         needs: { _ in base.union([.cliqueHID, .pisteVisee]) },
@@ -658,7 +658,7 @@ private enum Specs {
 
     static let nameColor = BlockSpec(
         type: .nameColor, label: String(localized: "Nom et couleur"), category: .fl, symbol: "paintpalette",
-        aide: String(localized: "Donne un nom et/ou une couleur à la piste ou au canal sélectionné dans la page de FL qui est devant (Mixer, Channel rack ou Playlist), par le lien avec FL, et une icône de FL par sa fenêtre (F2). Un seul élément doit être sélectionné."),
+        aide: String(localized: "Donne un nom et une couleur à l'élément choisi dans FL."),
         params: [ParamSpec("name", String(localized: "Nom"), .texte(max: NameColorPayload.maxNameScalars)),
                  ParamSpec("color", String(localized: "Couleur"), .couleur),
                  ParamSpec("icon", String(localized: "Icône"), .icone)],
@@ -694,7 +694,7 @@ private enum Specs {
 
     static let soundCard = BlockSpec(
         type: .soundCard, label: String(localized: "Carte son branchée"), category: .fl, symbol: "hifispeaker.and.homepod",
-        aide: String(localized: "La carte son branchée (USB, Thunderbolt…) devient la sortie et l'entrée du Mac ; FL la suit tout seul s'il est réglé une fois sur « Default audio device » (Output) et « Default input device » (Input) dans Options › Audio settings."),
+        aide: String(localized: "Passe le son du Mac sur la carte son branchée."),
         params: [],
         conteneur: .aucun, dansLaPalette: true,
         needs: { _ in [] },
@@ -707,7 +707,7 @@ private enum Specs {
 
     static let organize = BlockSpec(
         type: .organize, label: String(localized: "Organiser"), category: .fl, symbol: "square.stack.3d.up",
-        aide: String(localized: "Ouvre l'Organiser sur tout le projet : chaque son est reconnu d'après son nom (« BEAM KICK » : Kick), sinon écouté sans que tu l'entendes ; tu vérifies l'aperçu, puis « Organiser » supprime les sons sans aucune note, range le Channel rack (les Kick ensemble, puis les Snare…), met le Mixer et la Playlist dans le même ordre, colore et renomme simplement sons, patterns, pistes du Mixer et de la Playlist (le même nom partout pour un même son). « Revenir comme avant » défait tout, sauf les sons supprimés."),
+        aide: String(localized: "Range, colore et renomme tout le projet."),
         params: [],
         conteneur: .aucun, dansLaPalette: true,
         needs: { _ in base.union(.lienMIDI) },
@@ -720,7 +720,7 @@ private enum Specs {
 
     static let feedbackCheck = BlockSpec(
         type: .feedbackCheck, label: String(localized: "Vérifier le larsen"), category: .fl, symbol: "speaker.wave.2",
-        aide: String(localized: "Micro et haut-parleurs de l'ordinateur sans casque : explique comment éviter le larsen. Vérifié dès le début de la macro, affiché à la fin."),
+        aide: String(localized: "Prévient si le micro risque de faire du larsen."),
         params: [],
         conteneur: .aucun, dansLaPalette: true,
         needs: { _ in base.union(.larsenEnAvance) },
@@ -733,7 +733,7 @@ private enum Specs {
 
     static let openPage = BlockSpec(
         type: .openPage, label: String(localized: "Ouvrir une page de FL"), category: .fl, symbol: "macwindow",
-        aide: String(localized: "Met devant une page de FL (Playlist, Channel Rack, Mixer…), seulement si elle n'y est pas déjà. Les options de « Cliquer sur… » juste en dessous sont celles de cette page."),
+        aide: String(localized: "Met devant une page de FL (Playlist, Mixer…)."),
         params: [ParamSpec("page", String(localized: "Page"), .fenetre)],
         conteneur: .aucun, dansLaPalette: true,
         needs: { _ in base.union(.lienMIDI) },
@@ -755,7 +755,7 @@ private enum Specs {
 
     static let pageOption = BlockSpec(
         type: .pageOption, label: String(localized: "Cliquer sur…"), category: .fl, symbol: "cursorarrow.click.2",
-        aide: String(localized: "Une option de la page de FL ouverte juste au-dessus : ajouter un instrument ou un effet, armer la piste, mute ou solo d'un canal par son numéro, renommer la piste, le menu « Arrangement » de la Playlist, ou un raccourci de FL de cette page. Ajouté avec « Ouvrir une page de FL » au-dessus."),
+        aide: String(localized: "Une option de la page de FL ouverte au-dessus."),
         params: [ParamSpec("option", String(localized: "Option"), .actionFL), ParamSpec("name", String(localized: "Valeur"), .texte(max: PageOptions.maxName))],
         conteneur: .aucun, dansLaPalette: true,
         needs: { body in
@@ -799,7 +799,7 @@ private enum Specs {
 
     static let menuBar = BlockSpec(
         type: .menuBar, label: String(localized: "Menu de FL"), category: .fl, symbol: "menubar.rectangle",
-        aide: String(localized: "Choisit un élément des menus de FL (File › Export › …) : tu parcours ses menus comme dans FL, puis la macro le choisit par son nom dans la barre des menus de macOS, grâce à l'Accessibilité : rien n'est cliqué à l'écran."),
+        aide: String(localized: "Choisit un élément des menus de FL (File › Export › …)."),
         params: [],
         conteneur: .aucun, dansLaPalette: true,
         needs: { _ in base },
@@ -823,7 +823,7 @@ private enum Specs {
 
     static let menuAX = BlockSpec(
         type: .menuAX, label: String(localized: "Menu (ancien format)"), category: .fl, symbol: "filemenu.and.selection",
-        aide: String(localized: "Choisit un élément de menu par son titre (Accessibilité), sinon par des clics de secours appris. Repris des anciennes macros, absent de la palette."),
+        aide: String(localized: "Choisit un élément de menu par son titre."),
         params: [ParamSpec("titles", String(localized: "Titres"), .texte(max: 80)), ParamSpec("fallback", String(localized: "Clics de secours"), .cible)],
         conteneur: .aucun, dansLaPalette: false,
         needs: { _ in base.union(.cliqueHID) },
@@ -907,7 +907,7 @@ private enum Specs {
 
     static let waitUntil = BlockSpec(
         type: .waitUntil, label: String(localized: "Attendre que"), category: .controle, symbol: "clock.badge.checkmark",
-        aide: String(localized: "Attend que la condition devienne vraie (vérifiée 4 fois par seconde, 120 s au plus)."),
+        aide: String(localized: "Attend que la condition soit vraie (120 s au plus)."),
         params: [ParamSpec("condition", String(localized: "Condition"), .condition), ParamSpec("timeoutMs", String(localized: "Au plus (ms)"), .ms(100...MacroValidation.maxWaitMs))],
         conteneur: .aucun, dansLaPalette: true,
         needs: { body in body.condition.map { base.union(conditionNeeds($0)) } ?? base },

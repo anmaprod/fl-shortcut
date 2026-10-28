@@ -455,3 +455,13 @@ entrée 1 ≈ 0,5 s.
   sans phrases, chaque famille sur une ligne (poignée, rond de couleur — « Une couleur / Dégradé » dans sa fenêtre —,
   nom, départ du Mixer, icône), chaque son : nom qu'il prendra (ancien nom en gris), sorte, case du Mixer à droite.
   Dans l'app, la page principale n'avait déjà ni bouton pause ni « Connecté à FL » (seulement dans la maquette).
+- Textes courts (28/10, suite) : « Pose le preset sur la dernière piste cliquée du Mixer » → « Ouvre le preset que tu
+  veux dans ton Mixer », le bloc s'appelle « Ouvrir un preset » (ligne : « Ouvrir le preset [fichier] », plus de « sur
+  la dernière piste cliquée ») ; puis « fais ça pour tous les blocs où il y a trop d'explications inutiles, il faut que
+  ça soit clair sans détail » : une phrase courte par bloc (registre, palette, modèles), réglages des blocs sans
+  phrases sur la façon de faire (clics appris : « Retenu dans… » / « Pas encore montré. », options de « Cliquer
+  sur… » : la touche seulement, plus rien sous Preset, carte son, plugin, mute/solo), bulle de la palette = la
+  phrase seule. Organiser : plus de paragraphe pendant l'analyse (« Ne touche pas à FL. » seul), plus de résumé ni de
+  paragraphe dans l'aperçu (« 3 sons sans note seront retirés. L'original ne bouge pas. » : « j'aime pas ») ; cases en
+  mots courts (Renommer, Un bus par famille, Supprimer les sons sans note) ; seul avertissement gardé : Playlist trop
+  grande pour FL (`playlistTooBig`). Windows non touché (en pause).

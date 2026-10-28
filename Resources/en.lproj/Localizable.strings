@@ -139,6 +139,7 @@
 "Action dans FL" = "FL action";
 "Action de FL" = "FL action";
 "Action de FL avec un nombre (piste N, pattern N…). Demande l'extension du lien avec FL." = "FL action with a number (track N, pattern N…). Needs the FL link extension.";
+"Action de FL avec un nombre (piste, pattern…)." = "FL action with a number (track, pattern…).";
 "Action de FL avec valeur" = "FL action with value";
 "Action inconnue" = "Unknown action";
 "Action inconnue (%@)" = "Unknown action (%@)";
@@ -179,6 +180,7 @@
 "Aides de notes" = "Note helpers";
 "Ajoute ce bloc sous la ligne choisie" = "Adds this block below the selected row";
 "Ajoute des macros toutes faites, après avoir lu ce qu'elles font." = "Add ready-made macros, after reading what they do.";
+"Ajoute un instrument dans le Channel rack." = "Adds an instrument to the Channel rack.";
 "Ajouter" = "Add";
 "Ajouter des macros reçues (.flsmacro) ; la boîte s'ouvre dans Documents › FL Shortcuts › Macros" = "Add macros you received (.flsmacro); the dialog opens in Documents › FL Shortcuts › Macros";
 "Ajouter un bloc sous la ligne choisie (ou dans la boucle si sa ligne de fin est choisie)" = "Add a block below the selected row (or inside the loop if its end row is selected)";
@@ -201,6 +203,7 @@
 "Ambiance" = "Ambience";
 "Analyse du projet : %lld sur %lld" = "Analyzing the project: %lld of %lld";
 "Ancienne position apprise (colonne du curseur)." = "Old learned position (cursor column).";
+"Ancienne position apprise." = "Old learned position.";
 "Annule la dernière action" = "Undoes the last action";
 "Annuler" = "Cancel";
 "Annuler / rétablir la dernière modification" = "Undo / redo last change";
@@ -245,9 +248,13 @@
 "Arrêtée par le bloc « Arrêter la macro »" = "Stopped by the “Stop the macro” block";
 "Attend qu'une boîte de dialogue ou un menu de FL s'ouvre (120 s au plus)." = "Waits for an FL dialog or menu to open (120 s max).";
 "Attend qu'une boîte ou un menu de FL s'ouvre ou se ferme (par exemple que tu aies choisi un preset), ou un temps fixe (pause). Les clics appris attendent déjà leur fenêtre tout seuls." = "Waits for an FL dialog or menu to open or close (for example, until you've chosen a preset), or for a fixed time (pause). Learned clicks already wait for their window on their own.";
+"Attend qu'une boîte ou un menu de FL s'ouvre." = "Waits for an FL dialog or menu to open.";
+"Attend qu'une boîte ou un menu de FL se ferme." = "Waits for an FL dialog or menu to close.";
 "Attend que la boîte ou le menu se ferme (par exemple pendant que tu choisis ton preset, 120 s au plus)." = "Waits for the dialog or menu to close (for example while you pick your preset, 120 s max).";
 "Attend que la condition devienne vraie (vérifiée 4 fois par seconde, 120 s au plus)." = "Waits for the condition to become true (checked 4 times per second, 120 s max).";
+"Attend que la condition soit vraie (120 s au plus)." = "Waits until the condition is true (120 s max).";
 "Attend un moment (5 s au plus). Échap l'interrompt. À éviter : mieux vaut attendre qu'une fenêtre s'ouvre ou se ferme." = "Waits a moment (5 s max). Esc stops it. Best avoided: it's better to wait for a window to open or close.";
+"Attend une boîte ou un menu de FL, ou fait une pause." = "Waits for an FL dialog or menu, or pauses.";
 "Attendre" = "Wait";
 "Attendre la fermeture" = "Wait for close";
 "Attendre la fermeture de la boîte" = "Wait for the dialog to close";
@@ -335,6 +342,7 @@
 "Bloc %@" = "Block %@";
 "Bloc actif" = "Block enabled";
 "Bloc actif : décoche pour le sauter sans le supprimer" = "Block enabled: uncheck to skip it without deleting it";
+"Bloc d'une version plus récente : mets l'app à jour, ou supprime-le." = "Block from a newer version: update the app, or delete it.";
 "Bloc inconnu" = "Unknown block";
 "Bloc inconnu (version plus récente) : la macro restera bloquée" = "Unknown block (newer version): the macro will stay blocked";
 "Bloc sauté : coche pour le réactiver" = "Block skipped: check to turn it back on";
@@ -350,7 +358,9 @@
 "Bouton retenu : il sera cherché à son image." = "Button saved: it will be looked for by its image.";
 "Bouton retenu par son nom « %@ » : il sera retrouvé " = "Button saved by its name “%@”: it will be found ";
 "Bouton retrouvé par son nom « %@ » dans la fenêtre de FL, même s'il a " = "Button found by its name “%@” in the FL window, even if it has ";
+"Bouton retrouvé par son nom « %@ »." = "Button found by its name “%@”.";
 "Bouton retrouvé à son image dans la fenêtre de FL, même s'il a bougé. L'écran n'est lu qu'à ce " = "Button found by its image in the FL window, even if it moved. The screen is only read at that ";
+"Bouton retrouvé à son image." = "Button found by its image.";
 "Boîte de dialogue" = "Dialog";
 "Brass" = "Brass";
 "Browser" = "Browser";
@@ -400,6 +410,7 @@
 "Ces réponses partent à l'équipe de FL Shortcuts avec le diagnostic (des nombres, aucun nom de son)." = "These answers go to the FL Shortcuts team with the diagnostic (numbers only, no sound names).";
 "Cette macro n'est plus dans la bibliothèque : tes modifications ne sont pas enregistrées." = "This macro is no longer in the library: your changes aren't saved.";
 "Cette option n'est pas dans %@ : choisis-en une de cette page." = "This option isn't in %@: choose one from that page.";
+"Cette option n'est pas dans %@." = "This option isn't in %@.";
 "Cette touche" = "This key";
 "Change le magnétisme : 1/4, 1/8, triolets…" = "Changes the snap: 1/4, 1/8, triplets…";
 "Change les raccourcis de FL Studio, ou ajoute les tiens." = "Change FL Studio's shortcuts, or add your own.";
@@ -425,6 +436,7 @@
 "Charger le profil « %@ » ?" = "Load the “%@” profile?";
 "Charger un profil" = "Load a profile";
 "Cherche dans l'aide : raccourcis, macro, pause…" = "Search help: shortcuts, macro, pause…";
+"Cherché par son nom ou son image au moment du clic (autorisation « Enregistrement de l'écran »)." = "Looked up by its name or image at click time (“Screen Recording” permission).";
 "Choisir dans la grille des icônes de FL" = "Choose from FL's icon grid";
 "Choisir dans la liste de FL" = "Choose from FL's list";
 "Choisir dans la roue des couleurs de FL" = "Choose from FL's color wheel";
@@ -449,22 +461,29 @@
 "Choisir…" = "Choose…";
 "Choisis cette ligne pour ajouter des blocs à la fin de la liste, ou glisses-en une ici" = "Select this row to add blocks at the end of the list, or drag one here";
 "Choisis d'abord la macro à partager" = "First choose the macro to share";
+"Choisis d'abord la page au-dessus." = "Choose the page above first.";
 "Choisis d'abord la page dans « Ouvrir une page de FL » juste au-dessus : seules ses options " = "First choose the page in “Open an FL page” just above: only its options ";
 "Choisis d'abord quelle version garder : celle de ce Mac ou celle de ton compte." = "First choose which version to keep: this Mac's or your account's.";
 "Choisis l'option à cliquer dans %@." = "Choose the option to click in %@.";
 "Choisis la macro à partager." = "Choose the macro to share.";
 "Choisis la page de FL à ouvrir : les options de « Cliquer sur… » en dessous viennent d'elle." = "Choose the FL page to open: the “Click on…” options below come from it.";
+"Choisis la page de FL à ouvrir." = "Choose the FL page to open.";
 "Choisis la version à garder. Rien n'est envoyé ni remplacé avant ton choix." = "Choose the version to keep. Nothing is uploaded or replaced until you choose.";
 "Choisis le dossier de données de FL Studio (Options › File settings › User data folder dans FL), ou son dossier « Settings/Hardware »." = "Choose FL Studio's data folder (Options › File settings › User data folder in FL), or its “Settings/Hardware” folder.";
 "Choisis le fichier du projet ouvert dans FL Studio (.flp)." = "Choose the file of the project open in FL Studio (.flp).";
 "Choisis un menu de FL, puis ce qu'il contient, jusqu'à l'élément voulu." = "Choose an FL menu, then what's inside, down to the item you want.";
 "Choisis un mot de passe différent de l'ancien." = "Choose a password different from your old one.";
 "Choisis un état de piste du Mixer (.fst)" = "Choose a Mixer track state (.fst)";
+"Choisis une ligne pour la régler." = "Pick a row to set it up.";
 "Choisis une ligne pour la régler. Ajoute des blocs depuis la palette, glisse les lignes pour les ranger ; ⌘D duplique, ⌫ supprime, ⌘Z annule." = "Select a row to set it up. Add blocks from the palette, drag rows to reorder them; ⌘D duplicates, ⌫ deletes, ⌘Z undoes.";
 "Choisis une nouvelle touche pour « %@ »." = "Choose a new key for “%@”.";
 "Choisis-lui un raccourci, puis « Tester ». La flèche ← ramène à tes macros." = "Give it a shortcut, then “Test”. The ← arrow takes you back to your macros.";
+"Choisit l'entrée 1 de la piste." = "Picks input 1 for the track.";
 "Choisit un élément de menu par son titre (Accessibilité), sinon par des clics de secours appris. Repris des anciennes macros, absent de la palette." = "Picks a menu item by its title (Accessibility), otherwise with learned backup clicks. Kept from old macros, not in the palette.";
+"Choisit un élément de menu par son titre." = "Picks a menu item by its title.";
 "Choisit un élément des menus de FL (File › Export › …) : tu parcours ses menus comme dans FL, puis la macro le choisit par son nom dans la barre des menus de macOS, grâce à l'Accessibilité : rien n'est cliqué à l'écran." = "Picks an item from FL's menus (File › Export › …): you browse its menus as in FL, then the macro picks it by name in the macOS menu bar, using Accessibility: nothing is clicked on screen.";
+"Choisit un élément des menus de FL (File › Export › …)." = "Picks an item from FL's menus (File › Export › …).";
+"Choisit un élément du menu d'une piste du Mixer." = "Picks an item from a Mixer track's menu.";
 "Chop rapide" = "Quick chop";
 "Chords" = "Chords";
 "Chœur" = "Choir";
@@ -486,7 +505,9 @@
 "Clic droit sur la dernière piste cliquée dans le Mixer, puis l'élément choisi dans la liste (ouvrir un état de piste, renommer…), au clavier : rien à apprendre." = "Right-clicks the last clicked track in the Mixer, then picks the chosen item in the list (open a track state, rename…) with the keyboard: nothing to learn.";
 "Clic droit sur la piste → File → Open mixer track state, preset, armement, entrée 1, REC." = "Right-click the track → File → Open mixer track state, preset, arm, input 1, REC.";
 "Clic droit · " = "Right-click · ";
+"Clic gauche ou droit à un endroit de FL." = "Left or right click on a spot in FL.";
 "Clic gauche ou droit à un endroit que tu montres une fois dans FL (« Montrer dans FL… »), retrouvé ensuite par rapport à la fenêtre ou au menu de FL ; ou sur la piste visée. Jamais hors de FL ni sous une autre app." = "Left- or right-click on a spot you show once in FL (“Show in FL…”), then found again relative to FL's window or menu; or on the targeted track. Never outside FL or under another app.";
+"Clic gauche ou droit à un endroit que tu montres une fois dans FL." = "Left or right click on a spot you show once in FL.";
 "Clic gauche ou droit à un endroit retrouvé à chaque fois (coin d'une fenêtre de FL, piste visée, menu ouvert, fenêtre d'un plugin comme Serum…). Toujours dans une fenêtre de FL ou de ses plugins, jamais sous une autre app." = "Left or right click on a spot found again each time (corner of an FL window, target track, open menu, a plugin window like Serum…). Always in an FL or plugin window, never over another app.";
 "Clic sur le bouton « Arrangement » de la Playlist, retrouvé à son nom dans la fenêtre de FL " = "Click on the Playlist's “Arrangement” button, found by its name in FL's window ";
 "Clic · " = "Click · ";
@@ -507,6 +528,7 @@
 "Clique sur « File »." = "Click “File”.";
 "Clique sur « Open mixer track state… » (Échap pour fermer la boîte)." = "Click “Open mixer track state…” (Esc to close the dialog).";
 "Clique sur ⟳ pour lire la liste dans FL (le menu Add s'ouvre un instant), ou écris le nom." = "Click ⟳ to read the list in FL (the Add menu opens for a moment), or type the name.";
+"Clique une fois à l'endroit voulu dans FL. Échap annule." = "Click once on the spot you want in FL. Esc cancels.";
 "Clique à l'endroit voulu dans FL (une fois). Échap : annuler." = "Click the spot you want in FL (once). Esc: cancel.";
 "Clique, utilise les flèches, tes raccourcis… : chaque geste devient un bloc, que tu peux " = "Click, use the arrows, your shortcuts…: each action becomes a block you can ";
 "Cliquer pour enregistrer" = "Click to record";
@@ -571,6 +593,7 @@
 "Couleur des notes" = "Note color";
 "Coupe la piste du Mixer sélectionnée" = "Mutes the selected Mixer track";
 "Coupe le son de la piste choisie dans le Mixer, ou le remet s'il était coupé : par le lien avec FL, tout de suite et sans aucun clic. Sans le lien : un clic sur son bouton mute (piste cliquée juste avant), montré une seule fois." = "Mutes the chosen Mixer track, or unmutes it if it was muted: through the FL link, instantly and without any click. Without the link: a click on its mute button (track clicked just before), shown only once.";
+"Coupe ou remet le son de la piste choisie dans le Mixer." = "Mutes or unmutes the selected Mixer track.";
 "Couper" = "Cut";
 "Couper les effets de la piste (bypass)" = "Turn off the track's effects (bypass)";
 "Couper les pas / la partition" = "Cut steps / score";
@@ -602,6 +625,7 @@
 "Dans la fenêtre de macOS, clique « Autoriser »." = "In the macOS window, click “Allow”.";
 "Dans la fenêtre de macOS, clique « Ouvrir Réglages Système… » (pas de fenêtre ? « Ouvrir les réglages » ci-dessous)." = "In the macOS window, click “Open System Settings…” (no window? Use “Open Settings” below).";
 "Dans le menu" = "In the menu";
+"Demande le lien avec FL." = "Needs the FL link.";
 "Demande le script MIDI dans FL (désactivé en mode léger)" = "Needs the MIDI script in FL (off in light mode)";
 "Dernier essai" = "Last test";
 "Derniers partages" = "Latest posts";
@@ -615,6 +639,7 @@
 "Dis en quelques mots ce que tu faisais juste avant : ça nous aide beaucoup." = "Tell us in a few words what you were doing just before: it helps us a lot.";
 "Dis-nous ce qui ne va pas" = "Tell us what's wrong";
 "Disponible à partir de FL %@" = "Available from FL %@";
+"Donne un nom et une couleur à l'élément choisi dans FL." = "Gives a name and a color to the item selected in FL.";
 "Donne un nom et/ou une couleur à la piste ou au canal sélectionné dans la page de FL qui est devant (Mixer, Channel rack ou Playlist), par le lien avec FL, et une icône de FL par sa fenêtre (F2). Un seul élément doit être sélectionné." = "Gives a name and/or color to the track or channel selected in the FL page in front (Mixer, Channel rack or Playlist) through the FL link, and an FL icon through its window (F2). Only one item must be selected.";
 "Donne une valeur (nombre entier) à une variable de la macro." = "Sets a macro variable to a value (whole number).";
 "Dossier incorrect" = "Wrong folder";
@@ -693,6 +718,7 @@
 "Encore une étape" = "One more step";
 "Endroit montré dans FL" = "Spot shown in FL";
 "Endroit retenu." = "Spot saved.";
+"Endroit à montrer dans FL." = "Spot to show in FL.";
 "Enlever le mute de la sélection" = "Unmute selection";
 "Enregistre ce que tu fais dans FL" = "Record what you do in FL";
 "Enregistre la macro dans un fichier .flsmacro à partager (positions apprises retirées)" = "Save the macro to a .flsmacro file to share (learned positions removed)";
@@ -719,6 +745,8 @@
 "Enregistrer « %@ » ?" = "Save “%@”?";
 "Enregistrée" = "Saved";
 "Entrée" = "Return";
+"Entrée « 1 » retenue sur ce Mac." = "Input “1” remembered on this Mac.";
+"Entrée « 1 » à montrer une fois." = "Input “1” to show once.";
 "Entrée à la fin" = "Return at the end";
 "Envoi impossible : %@ Tu peux l'envoyer par mail." = "Couldn't send: %@ You can send it by email.";
 "Envoi impossible : %@ Tu peux le copier ou ouvrir un ticket." = "Couldn't send: %@ You can copy it or open an issue.";
@@ -726,6 +754,7 @@
 "Envoie %@" = "Sends %@";
 "Envoie l'action à FL Studio" = "Sends the action to FL Studio";
 "Envoie une touche ou un raccourci clavier à FL (⌘A, ⇧⌘S, F9…), seulement quand FL est au premier plan. Clique le champ puis tape le raccourci, ou coche ⌘ ⌥ ⌃ ⇧. Les raccourcis dangereux (⌘Q, ⌘W…) sont refusés." = "Sends a key or keyboard shortcut to FL (⌘A, ⇧⌘S, F9…), only when FL is in front. Click the field, then type the shortcut, or check ⌘ ⌥ ⌃ ⇧. Dangerous shortcuts (⌘Q, ⌘W…) are refused.";
+"Envoie une touche ou un raccourci à FL." = "Sends a key or shortcut to FL.";
 "Envoyer" = "Send";
 "Envoyer par mail" = "Send by email";
 "Envoyer vers des pistes Mixer libres" = "Send to free Mixer tracks";
@@ -744,6 +773,7 @@
 "Export Stems" = "Export Stems";
 "Export impossible" = "Export failed";
 "Export impossible." = "Export failed.";
+"Exporte une piste audio par piste de la Playlist." = "Exports one audio track per Playlist track.";
 "Exporter en MIDI" = "Export as MIDI";
 "Exporter en MP3" = "Export as MP3";
 "Exporter en WAV" = "Export as WAV";
@@ -860,6 +890,7 @@
 "Fais un clic gauche." = "Left-click.";
 "Fait" = "Done";
 "Fait les blocs « alors » si la condition est vraie, sinon les blocs « sinon »." = "Runs the “then” blocks if the condition is true, otherwise the “else” blocks.";
+"Fait une pause (5 s au plus)." = "Pauses (5 s max).";
 "Fait, avec un avertissement" = "Done, with a warning";
 "Favoris du menu Add" = "Add menu favorites";
 "Favoris · %@" = "Favorites · %@";
@@ -888,6 +919,7 @@
 "First devient aussi Last" = "First also becomes Last";
 "Flam" = "Flam";
 "Flèche, Entrée ou Échap dans un menu de FL ouvert par la macro (jamais ailleurs)." = "Arrow, Return or Esc in an FL menu opened by the macro (never anywhere else).";
+"Flèche, Entrée ou Échap dans un menu de FL." = "Arrow, Return or Esc in an FL menu.";
 "Flûte" = "Flute";
 "Format de bibliothèque illisible." = "Unreadable library format.";
 "Format de profil illisible." = "Unreadable profile format.";
@@ -899,11 +931,13 @@
 "Genre" = "Type";
 "Ghost channels" = "Ghost channels";
 "Glisse FL Shortcuts dans la Corbeille." = "Drag FL Shortcuts to the Trash.";
+"Glisse d'un endroit de FL à un autre." = "Drags from one spot in FL to another.";
 "Glisse la famille au-dessus ou en dessous d'une autre : le Channel rack, le Mixer et la Playlist suivent cet ordre" = "Drag the family above or below another one: the Channel rack, Mixer and Playlist follow this order";
 "Glisse le fichier sur la dernière piste cliquée dans le Mixer, comme depuis le Finder : FL y charge l'état de piste, sans menu ni boîte « Open »." = "Drags the file onto the last clicked track in the Mixer, as from the Finder: FL loads the track state there, with no menu or “Open” dialog.";
 "Glisse les lignes pour les ranger" = "Drag rows to reorder them";
 "Glisser" = "Drag";
 "Glisser à montrer dans FL : choisis le bloc puis « Montrer dans FL… »." = "Drag to show in FL: choose the block, then “Show in FL…”.";
+"Glisser à montrer dans FL." = "Drag to show in FL.";
 "Glisser-déposer" = "Drag and drop";
 "Glisser-déposer retenu." = "Drag and drop saved.";
 "Green" = "Green";
@@ -1002,6 +1036,7 @@
 "La version organisée n'a pas pu prendre le nom de ton projet : ton projet d'origine est revenu à sa place." = "The organized version couldn't take your project's name: your original project is back in place.";
 "La version organisée n'est plus à côté de ton projet : rien n'a été touché." = "The organized version is no longer next to your project: nothing was changed.";
 "Lance ou met en pause la lecture" = "Starts or pauses playback";
+"Lance une action de FL (Mixer, Playlist, métronome…)." = "Runs an FL action (Mixer, Playlist, metronome…).";
 "Lance une action de FL par le lien avec FL (réveil bref, puis il se rendort). Sans lien : son équivalent au clavier, s'il existe." = "Runs an FL action through the FL link (it wakes briefly, then goes back to sleep). Without link: its keyboard equivalent, if there is one.";
 "Lancer le REC" = "Start REC";
 "Last devient aussi First" = "Last also becomes First";
@@ -1056,6 +1091,7 @@
 "Les administrateurs le relisent et le retirent s'il le faut. L'auteur ne sait pas qui l'a signalé." = "The admins review it and remove it if needed. The author doesn't know who reported it.";
 "Les autres pourront lire ton explication, voir chaque étape, puis l'ajouter chez eux." = "Others can read your description, see each step, then add it to their own.";
 "Les blocs ajoutés maintenant (palette à gauche) vont à la fin de cette liste. Tu peux aussi y glisser une ligne." = "Blocks you add now (palette on the left) go at the end of this list. You can also drag a row here.";
+"Les blocs ajoutés vont à la fin de cette liste." = "Added blocks go at the end of this list.";
 "Les comptes ne sont pas encore ouverts" = "Accounts aren't open yet";
 "Les couleurs ou les noms ne me plaisent pas" = "I don't like the colors or the names";
 "Les endroits appris (clics montrés dans FL) ne sont pas exportés : ils se montrent sur chaque Mac." = "Learned spots (clicks shown in FL) aren't exported: they're shown on each Mac.";
@@ -1071,6 +1107,8 @@
 "Lettres" = "Letters";
 "Lettres d'un menu de FL" = "FL menu letters";
 "Lettres du menu" = "Menu letters";
+"Lettres soulignées (F de File, puis O de Open…)." = "Underlined letters (F for File, then O for Open…).";
+"Lettres soulignées (F de File…)." = "Underlined letters (F for File…).";
 "Lettres soulignées dans le menu de la piste de FL : les sous-menus (F de File), puis l'élément (O de Open…)." = "Underlined letters in FL's track menu: the submenus (F for File), then the item (O for Open…).";
 "Lettres soulignées du menu ouvert (F de File…), dans l'ordre." = "Underlined letters of the open menu (F for File…), in order.";
 "Lien avec FL" = "FL link";
@@ -1145,13 +1183,16 @@
 "Mesure précédente (mode Song)" = "Previous bar (Song mode)";
 "Mesure suivante (mode Song)" = "Next bar (Song mode)";
 "Met devant une page de FL (Playlist, Channel Rack, Mixer…), seulement si elle n'y est pas déjà. Les options de « Cliquer sur… » juste en dessous sont celles de cette page." = "Brings an FL page to the front (Playlist, Channel Rack, Mixer…), only if it isn't there already. The “Click on…” options just below come from this page.";
+"Met devant une page de FL (Playlist, Mixer…)." = "Brings an FL page to the front (Playlist, Mixer…).";
 "Met en solo la piste choisie dans le Mixer, ou retire son solo : par le lien avec FL, sans aucun clic. Sans le lien : la touche S de FL, ou un clic droit sur son bouton mute." = "Solos the chosen Mixer track, or unsolos it: through the FL link, without any click. Without the link: FL's S key, or a right-click on its mute button.";
+"Met ou retire le solo de la piste choisie dans le Mixer." = "Solos or unsolos the selected Mixer track.";
 "Mets FL Shortcuts à jour pour l'utiliser" = "Update FL Shortcuts to use it";
 "Mettre en pause" = "Pause";
 "Mettre en pause ou reprendre" = "Pause or resume";
 "Mettre la sélection en mute" = "Mute selection";
 "Micro et haut-parleurs de l'ordinateur sans casque : explique comment éviter le larsen. Vérifié dès le début de la macro, affiché à la fin." = "Computer mic and speakers without headphones: explains how to avoid feedback. Checked at the start of the macro, shown at the end.";
 "Micro et sortie de l'ordinateur" = "Computer mic and output";
+"Mieux vaut attendre une boîte ou un menu de FL." = "Better to wait for an FL dialog or menu.";
 "Mission Control" = "Mission Control";
 "Mix" = "Mix";
 "Mixer" = "Mixer";
@@ -1296,7 +1337,10 @@
 "Ouvre le Channel rack, puis la liste des instruments (VST, plugins) pour en ajouter un." = "Opens the Channel rack, then the list of instruments (VSTs, plugins) to add one.";
 "Ouvre le Mixer dans FL Studio" = "Opens the Mixer in FL Studio";
 "Ouvre le Mixer, le Channel rack ou la Playlist." = "Open the Mixer, Channel rack or Playlist.";
+"Ouvre le preset choisi dans la boîte « Open » de FL." = "Opens the chosen preset in FL's “Open” dialog.";
+"Ouvre le preset que tu veux dans ton Mixer." = "Opens the preset you want in your Mixer.";
 "Ouvre ton app de mail avec le message tout prêt, pour %@" = "Opens your mail app with the message ready, for %@";
+"Ouvre ton preset dans le Mixer." = "Opens your preset in the Mixer.";
 "Ouvre un VST" = "Open a VST";
 "Ouvre un partage pour lire son explication et chaque étape, puis « Ajouter à mes macros »." = "Open a post to read its explanation and each step, then “Add to my macros”.";
 "Ouvrir FL Shortcuts" = "Open FL Shortcuts";
@@ -1310,6 +1354,7 @@
 "Ouvrir le Picker Panel" = "Open Picker Panel";
 "Ouvrir le Plugin Picker" = "Open Plugin Picker";
 "Ouvrir le Project Picker" = "Open Project Picker";
+"Ouvrir le preset" = "Open the preset";
 "Ouvrir le projet récent 0" = "Open recent project 0";
 "Ouvrir le projet récent 1" = "Open recent project 1";
 "Ouvrir le projet récent 2" = "Open recent project 2";
@@ -1321,6 +1366,7 @@
 "Ouvrir le projet récent 8" = "Open recent project 8";
 "Ouvrir le projet récent 9" = "Open recent project 9";
 "Ouvrir les réglages" = "Open Settings";
+"Ouvrir un preset" = "Open a preset";
 "Ouvrir un preset (boîte Open)" = "Open a preset (Open dialog)";
 "Ouvrir un projet" = "Open a project";
 "Ouvrir un ticket sur GitHub" = "Open an issue on GitHub";
@@ -1353,6 +1399,7 @@
 "Partout" = "Everywhere";
 "Pas content ?" = "Not happy?";
 "Pas d'icône avec un dégradé (FL la pose sur un seul élément)." = "No icon with a gradient (FL sets it on one item only).";
+"Pas d'icône avec un dégradé." = "No icon with a gradient.";
 "Pas dans tes favoris : la macro le prend dans « More plugins… » de FL, retrouvé à son nom (autorisation « Enregistrement de l'écran »). Rien n'est ajouté à tes listes." = "Not in your favorites: the macro takes it from FL's “More plugins…”, found by its name (“Screen Recording” permission). Nothing is added to your lists.";
 "Pas de connexion : la sauvegarde partira dès que possible." = "No connection: your backup will go out as soon as possible.";
 "Pas de fenêtre ? Dans les réglages qui s'ouvrent, active l'interrupteur à côté de FL Shortcuts, dans la partie audio." = "No window? In the settings that open, turn on the switch next to FL Shortcuts, in the audio section.";
@@ -1363,8 +1410,11 @@
 "Pas encore en ligne" = "Not online yet";
 "Pas encore montré : fais le glisser-déposer une fois dans FL (reste cliqué, glisse, lâche). " = "Not shown yet: do the drag and drop once in FL (hold the click, drag, release). ";
 "Pas encore montré : la macro ne tourne pas tant que l'endroit n'est pas montré." = "Not shown yet: the macro won't run until the spot is shown.";
+"Pas encore montré." = "Not shown yet.";
 "Pas encore montrée : la première fois, une bulle te demande de cliquer sur « (none) » puis sur l'entrée « 1 »." = "Not shown yet: the first time, a bubble asks you to click “(none)” then input “1”.";
+"Pas encore montrée : une bulle te la demandera." = "Not shown yet: a bubble will ask you for it.";
 "Passe au pattern suivant" = "Goes to the next pattern";
+"Passe le son du Mac sur la carte son branchée." = "Switches the Mac's sound to the plugged-in audio interface.";
 "Passer au bureau 1" = "Switch to Desktop 1";
 "Passer au bureau 2" = "Switch to Desktop 2";
 "Passer au bureau 3" = "Switch to Desktop 3";
@@ -1416,6 +1466,7 @@
 "Playlist pas rangée : FL n'a pas montré le menu de ses pistes (la Playlist doit être visible, ses noms de piste à l'écran). Noms et couleurs sont posés." = "Playlist not sorted: FL didn't show its track menu (the Playlist must be visible, with its track names on screen). Names and colors are set.";
 "Playlist pas rangée : pour remonter ses pistes, FL Shortcuts doit voir la fenêtre de FL (Réglages Système › Confidentialité et sécurité › Enregistrement de l'écran). Noms et couleurs sont posés." = "Playlist not sorted: to move its tracks up, FL Shortcuts needs to see FL's window (System Settings › Privacy & Security › Screen Recording). Names and colors are set.";
 "Playlist rangée dans une copie de ton projet : chaque son sur sa piste, tous les clips des mêmes sons réunis (%lld pistes). Ton projet d'origine ne bouge pas." = "Playlist organized in a copy of your project: each sound on its own track, all clips of the same sounds together (%lld tracks). Your original project isn't changed.";
+"Playlist trop grande pour FL : décoche « Playlist »." = "Playlist too big for FL: untick “Playlist”.";
 "Playlist ↔ Mixer" = "Playlist ↔ Mixer";
 "Pluck" = "Pluck";
 "Plugin" = "Plugin";
@@ -1455,6 +1506,7 @@
 "Préparation…" = "Preparing…";
 "Prépare la piste du Mixer sélectionnée à enregistrer" = "Arms the selected Mixer track for recording";
 "Prévenir les administrateurs : partage dangereux, trompeur ou offensant" = "Tell the admins: dangerous, misleading or offensive post";
+"Prévient si le micro risque de faire du larsen." = "Warns if the mic could cause feedback.";
 "Prête · %@%@" = "Ready · %@%@";
 "Publicité ou spam" = "Ads or spam";
 "Publier" = "Publish";
@@ -1491,6 +1543,7 @@
 "Raison" = "Reason";
 "Raison : 3 à 500 caractères." = "Reason: 3 to 500 characters.";
 "Range, colore et renomme tout le projet" = "Sort, color and rename the whole project";
+"Range, colore et renomme tout le projet." = "Sorts, colors and renames the whole project.";
 "Rangement automatique" = "Automatic layout";
 "Rangement dans la copie…" = "Organizing the copy…";
 "Re-stretch de tous les clips audio" = "Re-stretch all audio clips";
@@ -1522,6 +1575,7 @@
 "Remplacer" = "Replace";
 "Remplacer le canal par l'élément choisi" = "Replace channel with selected item";
 "Rendu des pistes armées en .wav" = "Render armed tracks to .wav";
+"Renommer" = "Rename";
 "Renommer la macro" = "Rename macro";
 "Renommer la piste" = "Rename track";
 "Renommer le pattern (et changer sa couleur)" = "Rename pattern (and change its color)";
@@ -1535,9 +1589,13 @@
 "Rester" = "Stay";
 "Retenu dans la fenêtre de FL de %lld × %lld (fenêtre principale, réglages, " = "Remembered in the %lld × %lld FL window (main window, settings, ";
 "Retenu dans la fenêtre du plugin « %@ » : le clic la retrouve où qu'elle soit " = "Remembered in the “%@” plugin window: the click finds it wherever it is ";
+"Retenu dans la fenêtre « %@ »." = "Remembered in the “%@” window.";
 "Retenu dans le menu de FL ouvert par le clic précédent : le clic attend que ce menu s'ouvre." = "Remembered in the FL menu opened by the previous click: the click waits for that menu to open.";
+"Retenu dans le menu ouvert juste avant." = "Remembered in the menu opened just before.";
+"Retenu dans une fenêtre de FL de %lld × %lld." = "Remembered in a %lld × %lld FL window.";
 "Retenu par rapport aux fenêtres de FL : la macro attrape et lâche aux mêmes endroits de ces " = "Remembered relative to FL's windows: the macro grabs and drops at the same spots in these ";
 "Retenu par rapport à la fenêtre de FL." = "Remembered relative to the FL window.";
+"Retire du projet les clips audio inutilisés." = "Removes unused audio clips from the project.";
 "Retirer" = "Remove";
 "Retirer tous les solos" = "Clear all solos";
 "Retouche-la dans le créateur : ajoute des blocs de la palette d'un clic ou en les glissant, range les lignes en les glissant." = "Fine-tune it in the creator: add blocks from the palette with a click or by dragging, and drag rows to reorder them.";
@@ -1570,6 +1628,7 @@
 "Rim" = "Rim";
 "Riser" = "Riser";
 "Roue des couleurs de FL" = "FL color wheel";
+"Règle la mesure du projet en 3/4." = "Sets the project's time signature to 3/4.";
 "Réapprendre l'entrée" = "Relearn the input";
 "Réapprendre…" = "Learn again…";
 "Récentes" = "Recent";
@@ -1598,6 +1657,7 @@
 "Réécoute tout le morceau" = "Plays the whole song again";
 "Saisie sécurisée active dans une autre app : macOS ne transmet plus les touches." = "Secure Input is on in another app: macOS no longer passes keys through.";
 "Saisie sécurisée active dans une autre app : raccourcis muets." = "Secure input is on in another app: shortcuts won't work.";
+"Sans le lien avec FL : bouton mute à montrer une fois." = "Without the FL link: mute button to show once.";
 "Sans le lien seulement : clique ta piste dans le Mixer, puis lance la macro ; clic droit sur son " = "Without the link only: click your track in the Mixer, then run the macro; right-click on its ";
 "Sans le lien seulement : clique ta piste dans le Mixer, puis lance la macro ; son bouton mute est " = "Without the link only: click your track in the Mixer, then run the macro; its mute button is ";
 "Sans lien" = "Without link";
@@ -1637,6 +1697,7 @@
 "Si" = "If";
 "Si " = "If ";
 "Si ce bloc échoue, la macro continue (l'échec est signalé à la fin)." = "If this block fails, the macro keeps going (the failure is reported at the end).";
+"Si ce bloc échoue, la macro continue." = "If this block fails, the macro keeps going.";
 "Si le bloc échoue" = "If the block fails";
 "Si le menu reste ouvert" = "If the menu stays open";
 "Si tu as cliqué sur le lien du mail, ton adresse est confirmée : connecte-toi avec ton mot de passe." = "If you clicked the link in the email, your address is confirmed: sign in with your password.";
@@ -1696,6 +1757,8 @@
 "Supprimer les clips audio inutilisés" = "Delete unused audio clips";
 "Supprimer les sons sans aucune note (on ne peut pas les remettre)" = "Delete sounds without any notes (they can't be brought back)";
 "Supprimer les sons sans aucune note de la copie rangée" = "Delete sounds without any notes from the organized copy";
+"Supprimer les sons sans note" = "Delete sounds without notes";
+"Supprimer les sons sans note (définitif)" = "Delete sounds without notes (permanent)";
 "Supprimer mon compte" = "Delete my account";
 "Supprimer mon partage…" = "Delete my post…";
 "Supprimer ton compte ?" = "Delete your account?";
@@ -1731,6 +1794,7 @@
 "Tap tempo" = "Tap tempo";
 "Tape le tempo en rythme" = "Sets the tempo as you tap in time";
 "Tape les lettres soulignées d'un menu de FL déjà ouvert (F de File, O de Open…), seulement si un menu ouvert par la macro est encore là." = "Types the underlined letters of an FL menu that's already open (F for File, O for Open…), only if a menu opened by the macro is still there.";
+"Tape les lettres soulignées d'un menu de FL ouvert." = "Types the underlined letters of an open FL menu.";
 "Terminer" = "Finish";
 "Tes derniers changements ne sont pas en ligne" = "Your latest changes aren't online";
 "Tes derniers changements ne sont pas encore en ligne." = "Your latest changes aren't online yet.";
@@ -1832,6 +1896,7 @@
 "Tête de lecture au début" = "Playhead to start";
 "Un bloc caché de l'ancien format est inclus : relis-le dans le créateur avant de t'en servir." = "A hidden block in the old format is included: review it in the creator before using it.";
 "Un bloc vient d'une version plus récente de FL Shortcuts : la macro ne tournera pas." = "A block comes from a newer version of FL Shortcuts: the macro won't run.";
+"Un bus par famille" = "One bus per family";
 "Un bus par famille dans le Mixer (les 808 avec les drums), chaque son envoyé seulement à son bus" = "One bus per family in the Mixer (808s with the drums), each sound sent only to its bus";
 "Un clip de la Playlist n'a pas pu être remis à sa place : annule dans FL (Edit › Undo), puis réessaie." = "A Playlist clip could not be put back in place: undo in FL (Edit › Undo), then try again.";
 "Un code vient de partir à %@ : entre-le ici pour confirmer ton compte." = "A code was just sent to %@: enter it here to confirm your account.";
@@ -1856,6 +1921,7 @@
 "Une macro tourne déjà." = "A macro is already running.";
 "Une nouvelle macro s'ouvre et FL passe devant : clique et tape ta suite (menus, flèches, raccourcis…), puis « Terminer ». Chaque geste devient un bloc." = "A new macro opens and FL comes to the front: click and type your sequence (menus, arrows, shortcuts…), then “Finish”. Each action becomes a block.";
 "Une nouvelle macro s'ouvre et FL passe devant : clique et tape ta suite, puis « Terminer »" = "A new macro opens and FL comes to the front: click and type your sequence, then “Finish”";
+"Une option de la page de FL ouverte au-dessus." = "An option of the FL page opened above.";
 "Une option de la page de FL ouverte juste au-dessus : ajouter un instrument ou un effet, armer la piste, mute ou solo d'un canal par son numéro, renommer la piste, le menu « Arrangement » de la Playlist, ou un raccourci de FL de cette page. Ajouté avec « Ouvrir une page de FL » au-dessus." = "An option of the FL page opened just above: add an instrument or effect, arm the track, mute or solo a channel by number, rename the track, the Playlist's “Arrangement” menu, or an FL shortcut for that page. Added with “Open an FL page” above.";
 "Une pause fixe est trop courte sur un projet lourd : préfère « Attendre une fenêtre » quand FL ouvre quelque chose." = "A fixed pause is too short on a heavy project: use “Wait for a window” when FL opens something.";
 "Une piste de ta Playlist est coupée (mute) : réactive-la dans FL (ou retire ses clips), puis clique sur « Réessayer ». Rien n'a été touché." = "A track of your Playlist is muted: unmute it in FL (or remove its clips), then click “Try again”. Nothing was changed.";
@@ -2191,6 +2257,7 @@
 "un menu de FL est ouvert" = "an FL menu is open";
 "un raccourci personnalisé" = "a custom shortcut";
 "un symbole" = "a symbol";
+"un temps fixe" = "a fixed time";
 "un temps fixe (à éviter)" = "a fixed time (avoid)";
 "une autre app" = "another app";
 "une autre fenêtre de FL couvre le menu" = "another FL window covers the menu";
@@ -2257,6 +2324,7 @@
 "Écris au moins quelques mots (%lld caractères)." = "Write at least a few words (%lld characters).";
 "Écris le nom que tu veux" = "Type any name you like";
 "Écris un titre (%lld caractères au moins)" = "Write a title (at least %lld characters)";
+"Écrit comme dans FL." = "Written as in FL.";
 "Écrit exactement comme dans le menu Add › %@ de FL." = "Written exactly as in FL's Add › %@ menu.";
 "Élément" = "Item";
 "Élément précédent, avec préécoute" = "Previous item, with preview";

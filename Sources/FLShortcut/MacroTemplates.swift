@@ -217,7 +217,7 @@ extension MacroTemplates {
     static func gallery(layout: KeyboardLayout) -> [MacroTemplate] {
         [
             MacroTemplate(id: "threeFour", title: String(localized: "3/4"),
-                          summary: String(localized: "Options › Project general settings, puis deux clics que tu montres une fois dans FL (par exemple la mesure en 3/4)."),
+                          summary: String(localized: "Règle la mesure du projet en 3/4."),
                           symbol: "metronome") { _ in
                 MacroDoc(name: String(localized: "3/4"), blocks: [
                     Block(.menuBar(titles: ["Options", "Project general settings"])),
@@ -226,20 +226,20 @@ extension MacroTemplates {
                 ], origin: .template("threeFour"))
             },
             MacroTemplate(id: "quickDrop", title: String(localized: "Enregistrement Rapide"),
-                          summary: String(localized: "Dépose ton preset de piste sur la dernière piste cliquée du Mixer, sans menu ni boîte « Open ». Choisis le preset une fois dans le créateur."),
+                          summary: String(localized: "Ouvre ton preset dans le Mixer."),
                           symbol: "record.circle") { _ in
                 MacroDoc(name: String(localized: "Enregistrement Rapide"), blocks: [Block(.dropFile(path: ""))],
                          origin: .template("quickDrop"))
             },
             MacroTemplate(id: "exportStems", title: String(localized: "Export Stems"),
-                          summary: String(localized: "File › Export › All playlist tracks › Time selection, par le menu de FL en haut de l'écran : une piste audio par piste de la Playlist."),
+                          summary: String(localized: "Exporte une piste audio par piste de la Playlist."),
                           symbol: "square.stack.3d.down.right") { _ in
                 MacroDoc(name: String(localized: "Export Stems"), blocks: [
                     Block(.menuBar(titles: ["File", "Export", "All playlist tracks", "Time selection..."])),
                 ], origin: .template("exportStems"))
             },
             MacroTemplate(id: "openVST", title: String(localized: "Ouvre un VST"),
-                          summary: String(localized: "Ouvre le Channel rack et y ajoute un instrument (VST, plugin) : choisis-le une fois dans le créateur."),
+                          summary: String(localized: "Ajoute un instrument dans le Channel rack."),
                           symbol: "pianokeys") { _ in
                 MacroDoc(name: String(localized: "Ouvre un VST"), blocks: [
                     Block(.openPage(.channelRack)),
@@ -247,7 +247,7 @@ extension MacroTemplates {
                 ], origin: .template("openVST"))
             },
             MacroTemplate(id: "purgeAudio", title: String(localized: "Supprimer les clips audio inutilisés"),
-                          summary: String(localized: "Tools › Purge unused audio clips, par le menu de FL en haut de l'écran : FL retire du projet les clips audio qui ne sont pas dans la Playlist (rien n'est effacé de ton disque)."),
+                          summary: String(localized: "Retire du projet les clips audio inutilisés."),
                           symbol: "trash") { _ in
                 MacroDoc(name: "Supprimer les clips audio inutilisés",
                          // Dans la barre des menus de macOS, FL met ses macros à plat dans Tools (vidéo de

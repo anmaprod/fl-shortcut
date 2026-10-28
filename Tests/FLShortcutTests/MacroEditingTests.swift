@@ -166,8 +166,8 @@ final class MacroEditingTests: XCTestCase {
         XCTAssertEqual(items.first { $0.id == "wait" }?.symbol, "clock")
         // Triés avec l'utilisateur : plus proposés (toujours compris dans les anciennes macros). Les attentes sont un
         // seul « Attendre ».
-        // « Ouvrir un preset (boîte Open) » aussi : « Déposer un preset » fait la même chose, plus vite. « Menu de la
-        // piste » : outil technique, remplacé par « Cliquer sur… » et l'enregistrement des clics.
+        // « Ouvrir un preset (boîte Open) » aussi : « Ouvrir un preset » (le fichier déposé) fait la même chose, plus
+        // vite. « Menu de la piste » : outil technique, remplacé par « Cliquer sur… » et l'enregistrement des clics.
         for t: BlockType in [.menuLetters, .stop, .comment, .repeatWhile, .waitUntil, .delay, .waitWindowClose,
                              .selectInput, .feedbackCheck, .chooseFile, .trackMenu] {
             XCTAssertFalse(items.contains { $0.type == t }, "\(t)")
@@ -191,7 +191,7 @@ final class MacroEditingTests: XCTestCase {
     func testPaletteSearchIgnoresCaseAndAccents() {
         let items = PaletteCatalog.items(layout: FakeLayout.qwerty)
         XCTAssertEqual(PaletteCatalog.search(items, "PAUSE").first?.id, "wait")
-        XCTAssertTrue(PaletteCatalog.search(items, "fenetre").contains { $0.id == "wait" })
+        XCTAssertTrue(PaletteCatalog.search(items, "boite").contains { $0.id == "wait" })
         XCTAssertEqual(PaletteCatalog.search(items, "SOLO").first?.id, "solo")
         XCTAssertTrue(PaletteCatalog.search(items, "zzz introuvable").isEmpty)
         XCTAssertEqual(PaletteCatalog.search(items, "  ").count, items.count)
