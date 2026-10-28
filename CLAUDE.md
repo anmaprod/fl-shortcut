@@ -124,8 +124,9 @@
   erreur d'origine si WinUI tombe). JAMAIS `SetDefaultDllDirectories` (la 1re fenêtre tombait : E_INVALIDARG du
   Windows App SDK auto-contenu) : `SetDllDirectory("")`. Macros (cœur `windows/FLShortcut.Core/Macros/`) : modèle et JSON
   communs au Mac, registre des blocs, validation, pages/« Cliquer sur… », modèles, catalogue des 270 raccourcis de FL
-  (`Catalog.cs`, généré depuis Catalog.swift). Reste : interpréteur et effets des macros, créateur, enregistrement,
-  compte, Communauté, Aide.
+  (`Catalog.cs`, généré depuis Catalog.swift), programme compilé et interpréteur (`MacroProgram.cs`,
+  `MacroInterpreter.cs` : miroir de MacroInterpreter.swift, mêmes essais avec de faux effets). Reste : effets réels des
+  macros (`IMacroEffects` dans l'appli : touches, clics, fenêtres, FL), créateur, enregistrement, compte, Communauté, Aide.
 - Interface : survol coloré du menu de l'icône (`menuHover` : contour de sa couleur, halo autour) voulu par le
   propriétaire partout ; depuis le 25/10 (sa capture) : couleurs de l'élément JAMAIS changées (ni fond ajouté, ni
   ombre sur le contenu : halo `HoverGlow` dehors seulement), rien de gris au-delà du contour (lignes des cartes : c'est
