@@ -73,3 +73,11 @@
 "Dégradé jusqu'à" = "Gradient to";
 "menu « Arrangement » de la Playlist : pas encore sur Windows." = "Playlist “Arrangement” menu: not on Windows yet.";
 "Ajoute « Ouvrir une page de FL » juste au-dessus, puis choisis l'option." = "Add “Open an FL page” just above, then choose the option.";
+"Piste" = "Track";
+"Dernière piste cliquée dans FL" = "Last track clicked in FL";
+"Là où est le pointeur" = "Where the pointer is";
+"État de piste du Mixer" = "Mixer track state";
+"preset illisible par Windows" = "preset unreadable by Windows";
+"champ du nom de fichier introuvable dans la boîte « Open »" = "file name field not found in the “Open” box";
+"la boîte « Open » n'a pas répondu" = "the “Open” box didn't respond";
+"la boîte « Open » n'a pas pris le fichier" = "the “Open” box didn't take the file";

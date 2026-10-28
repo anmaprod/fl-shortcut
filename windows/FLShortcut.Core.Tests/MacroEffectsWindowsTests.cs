@@ -47,6 +47,21 @@ internal sealed class FakeFl : IFlDriver
     /// Réponse du lien aux commandes avec données (null : faites).
     public int? DataRefusal { get; set; }
     public bool LinkInstalled { get; set; } = true;
+    public List<(string Path, int X, int Y)> Drops { get; } = new();
+    public List<(long Dialog, string Path)> Chosen { get; } = new();
+
+    public string? DropFile(string path, int x, int y)
+    {
+        Drops.Add((path, x, y));
+        return null;
+    }
+
+    public string? ChooseFile(long dialog, string path)
+    {
+        Chosen.Add((dialog, path));
+        Hide(dialog);
+        return null;
+    }
 
     public DataReply RunData(IReadOnlyList<byte> units)
     {
@@ -359,6 +374,7 @@ public class MacroEffectsWindowsTests
             },
         };
         Assert.Equal("Étape 2 : bloc « Carte son branchée » pas encore pris en charge sur Windows.", MacroProgram.Compile(doc, ctx).Problem);
+        Assert.Null(MacroEffectsWindows.Unsupported(new BlockBody.DropFile("x.fst")));
         Assert.Null(MacroProgram.Compile(doc).Problem);                          // sans règle du système : rien
 
         doc.Blocks[1].Enabled = false;
@@ -462,6 +478,60 @@ public class MacroEffectsWindowsTests
         fl.DataRefusal = 2;
         Assert.Equal("Sélectionne une piste ou un canal.",
             Assert.IsType<StepResult.Fail>(fx.Perform(new BlockBody.NameColor("Kick", red), state)).Why);
+    }
+
+    // ---------- Menu de la piste, preset ----------
+
+    /// Clic droit sur la dernière piste cliquée, puis F (sous-menu File) et O (Open mixer track state) : FL referme son
+    /// menu tout seul, pas d'Entrée.
+    [Fact]
+    public void TrackMenuRightClicksTheAimedTrackThenTypesTheLetters()
+    {
+        var (fl, fx, state) = Start(f => f.LastAimedClick = new AimedClick(700, 500, FakeFl.Main, 1200, 800, f.Now));
+        fl.OnClick = (_, _, right) => { if (right) fl.After(50, () => fl.Show(10, FlWindowRole.Menu, 690, 490, 180, 300)); };
+        fl.OnKey = c =>
+        {
+            if (c.Vk == Vk.Letter('F')) fl.After(60, () => fl.Show(11, FlWindowRole.Menu, 870, 500, 200, 120));
+            else if (c.Vk == Vk.Letter('O')) fl.After(40, () => { fl.Hide(11); fl.Hide(10); });
+        };
+        var block = new BlockBody.TrackMenu("fo", new[] { "File", "Open mixer track state" }, TrackTarget.LastClicked, EnterPolicy.IfNeeded);
+        Assert.IsType<StepResult.Ok>(fx.Perform(block, state));
+        Assert.Equal((700, 500, true), Assert.Single(fl.Clicks));
+        Assert.Equal(new[] { Vk.Letter('F'), Vk.Letter('O') }, fl.Sent.Select(c => c.Vk));
+        Assert.DoesNotContain(fl.Open, w => w.Role == FlWindowRole.Menu);
+        fx.Cleanup(state);
+        Assert.Equal((600, 400), fl.Pointer);
+    }
+
+    /// Preset déposé sur la piste visée ; preset absent ou piste hors de FL : dit, rien n'est glissé. Chemin jamais au
+    /// journal. Boîte « Open » : le chemin y est écrit.
+    [Fact]
+    public void PresetIsDroppedOnTheAimedTrackOrChosenInTheOpenBox()
+    {
+        var preset = Path.Combine(Path.GetTempPath(), $"FLS essai {Guid.NewGuid():N}.fst");
+        File.WriteAllBytes(preset, new byte[] { 1 });
+        try
+        {
+            var (fl, fx, state) = Start(f => f.LastAimedClick = new AimedClick(700, 500, FakeFl.Main, 1200, 800, f.Now));
+            Assert.IsType<StepResult.Ok>(fx.Perform(new BlockBody.DropFile(preset), state));
+            Assert.Equal((preset, 700, 500), Assert.Single(fl.Drops));
+            Assert.All(fl.Lines, l => Assert.DoesNotContain("essai", l));
+            Assert.StartsWith("preset introuvable (",
+                Assert.IsType<StepResult.Fail>(fx.Perform(new BlockBody.DropFile(preset + ".absent"), state)).Why);
+
+            (fl, fx, state) = Start(f => f.Pointer = (5000, 5000));
+            Assert.Equal("la piste visée est hors de FL : clique d'abord sur ta piste dans le Mixer",
+                Assert.IsType<StepResult.Fail>(fx.Perform(new BlockBody.DropFile(preset), state)).Why);
+            Assert.Empty(fl.Drops);
+
+            (fl, fx, state) = Start();
+            Assert.Equal("boîte « Open » introuvable",
+                Assert.IsType<StepResult.Fail>(fx.Perform(new BlockBody.ChooseFile(preset), state)).Why);
+            fl.Show(30, FlWindowRole.Dialog);
+            Assert.IsType<StepResult.Ok>(fx.Perform(new BlockBody.ChooseFile(preset), state));
+            Assert.Equal((30L, preset), Assert.Single(fl.Chosen));
+        }
+        finally { File.Delete(preset); }
     }
 
     // ---------- « Cliquer sur… » ----------

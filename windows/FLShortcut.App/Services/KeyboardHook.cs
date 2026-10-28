@@ -3,6 +3,9 @@
 //         différée sur le même thread, PID de FL revérifié juste avant SendInput, liste noire revérifiée),
 //         REL-03 (thread dédié avec sa propre boucle de messages ; configuration immuable lue par référence),
 //         REL-04 / SEC-11 (purge sur changement de fenêtre, état borné), REL-06 (effet impossible → touche rendue).
+// Piste visée des macros : crochet souris WH_MOUSE_LL posé SEULEMENT si FL est devant ET qu'une macro vise la dernière
+// piste cliquée (TrackClicks) ; son rappel ne retient que le point d'un appui gauche de l'utilisateur (rien d'autre),
+// la fenêtre de FL sous ce point est relue ensuite sur ce fil.
 using System.Runtime.InteropServices;
 using FLShortcut.App.Native;
 using FLShortcut.Core;
@@ -19,6 +22,9 @@ internal sealed class KeyboardHook : IDisposable
     private const uint MsgAction = Win32.WM_APP + 3;
     private const uint MsgRefresh = Win32.WM_APP + 4;
     private const uint MsgMask = Win32.WM_APP + 5;
+    private const uint MsgClick = Win32.WM_APP + 6;
+    /// Dernier clic retenu au plus 10 minutes (comme le Mac).
+    private static readonly TimeSpan AimedMaxAge = TimeSpan.FromMinutes(10);
 
     private readonly Func<int, bool> _sendAction;
     private readonly Action _onToggle;
@@ -32,6 +38,10 @@ internal sealed class KeyboardHook : IDisposable
     private uint _threadId;
     private IntPtr _kbHook = IntPtr.Zero;
     private IntPtr _fgHook = IntPtr.Zero;
+    private IntPtr _mouseHook = IntPtr.Zero;
+    private Win32.LowLevelMouseProc? _mouseProc;
+    private readonly object _aimedGate = new();
+    private AimedClick? _aimed;
     private Win32.LowLevelKeyboardProc? _kbProc;       // références gardées vivantes (sinon le GC libère le délégué)
     private Win32.WinEventProc? _fgProc;
     private volatile uint _flPid;
@@ -39,6 +49,9 @@ internal sealed class KeyboardHook : IDisposable
     private readonly ManualResetEventSlim _started = new();
 
     public volatile HookConfig Config = HookConfig.Default;
+    /// Une macro vise la dernière piste cliquée dans FL : le crochet souris est posé quand FL est devant (Refresh après
+    /// un changement).
+    public volatile bool TrackClicks;
     public volatile LinkRoutingView Link = LinkRoutingView.Offline;
 
     /// <param name="sendAction">Envoie une action FL (trame signée) ; faux si impossible.</param>
@@ -56,6 +69,16 @@ internal sealed class KeyboardHook : IDisposable
     public int EscapePresses => Volatile.Read(ref _escapes);
 
     public bool IsHookInstalled => _kbHook != IntPtr.Zero;
+
+    /// Dernier appui gauche de l'utilisateur dans une fenêtre normale de FL (pas un menu), de moins de 10 minutes.
+    public AimedClick? LastAimedClick
+    {
+        get
+        {
+            lock (_aimedGate)
+                return _aimed is { } a && DateTime.UtcNow - a.At < AimedMaxAge ? a : null;
+        }
+    }
 
     public void Start()
     {
@@ -82,6 +105,7 @@ internal sealed class KeyboardHook : IDisposable
     {
         _threadId = Win32.GetCurrentThreadId();
         _kbProc = HookProc;
+        _mouseProc = MouseProc;
         _fgProc = ForegroundProc;
         _fgHook = Win32.SetWinEventHook(Win32.EVENT_SYSTEM_FOREGROUND, Win32.EVENT_SYSTEM_FOREGROUND, IntPtr.Zero,
             _fgProc, 0, 0, Win32.WINEVENT_OUTOFCONTEXT);   // notre propre fenêtre aussi : le hook doit tomber (WIN-01)
@@ -104,6 +128,9 @@ internal sealed class KeyboardHook : IDisposable
                 case MsgMask:
                     Injector.SendMask();
                     break;
+                case MsgClick:
+                    Remember((int)(msg.lParam.ToInt64() & 0xFFFFFFFF), (int)(msg.lParam.ToInt64() >> 32));
+                    break;
                 default:
                     Win32.TranslateMessage(ref msg);
                     Win32.DispatchMessageW(ref msg);
@@ -112,6 +139,7 @@ internal sealed class KeyboardHook : IDisposable
         }
 
         Uninstall();
+        UninstallMouse();
         if (_fgHook != IntPtr.Zero) Win32.UnhookWinEvent(_fgHook);
         _fgHook = IntPtr.Zero;
         _threadId = 0;
@@ -128,6 +156,7 @@ internal sealed class KeyboardHook : IDisposable
         _router.Purge();
         _mods.Clear();
         if (_flPid != 0) Install(); else Uninstall();
+        if (_flPid != 0 && TrackClicks) InstallMouse(); else UninstallMouse();
         if (Equals(fl, _lastFl)) return;          // pas de rafraîchissement complet de l'appli à chaque Alt+Tab
         _lastFl = fl;
         try { _onForegroundChanged(fl); } catch { /* jamais d'exception dans la boucle */ }
@@ -144,6 +173,53 @@ internal sealed class KeyboardHook : IDisposable
         if (_kbHook == IntPtr.Zero) return;
         Win32.UnhookWindowsHookEx(_kbHook);
         _kbHook = IntPtr.Zero;
+    }
+
+    private void InstallMouse()
+    {
+        if (_mouseHook != IntPtr.Zero || _mouseProc is null) return;
+        _mouseHook = Win32.SetWindowsHookExMouse(Win32.WH_MOUSE_LL, _mouseProc, Win32.GetModuleHandleW(null), 0);
+    }
+
+    private void UninstallMouse()
+    {
+        if (_mouseHook == IntPtr.Zero) return;
+        Win32.UnhookWindowsHookEx(_mouseHook);
+        _mouseHook = IntPtr.Zero;
+    }
+
+    /// Rappel le plus court possible : seulement le point d'un appui gauche de l'utilisateur (jamais nos clics).
+    private IntPtr MouseProc(int nCode, IntPtr wParam, IntPtr lParam)
+    {
+        if (nCode == Win32.HC_ACTION && (int)wParam == Win32.WM_LBUTTONDOWN)
+        {
+            try
+            {
+                var data = Marshal.PtrToStructure<Win32.MSLLHOOKSTRUCT>(lParam);
+                if ((data.flags & Win32.LLMHF_INJECTED) == 0 && data.dwExtraInfo != Magic)
+                    Win32.PostThreadMessageW(_threadId, MsgClick, UIntPtr.Zero,
+                        new IntPtr((long)(uint)data.pt.X | (long)data.pt.Y << 32));
+            }
+            catch { /* jamais d'exception dans le rappel */ }
+        }
+        return Win32.CallNextHookEx(_mouseHook, nCode, wParam, lParam);
+    }
+
+    /// Le clic retenu s'il tombe dans une fenêtre de FL qui n'est pas un menu (le nom d'une piste dans le Mixer…).
+    private void Remember(int x, int y)
+    {
+        var pid = _flPid;
+        if (pid == 0) return;
+        var hit = Win32.WindowFromPoint(new Win32.POINT { X = x, Y = y });
+        var root = hit == IntPtr.Zero ? IntPtr.Zero : Win32.GetAncestor(hit, Win32.GA_ROOT);
+        if (root == IntPtr.Zero) return;
+        Win32.GetWindowThreadProcessId(root, out var owner);
+        if (owner != pid || !Win32.GetWindowRect(root, out var r)) return;
+        var cls = new System.Text.StringBuilder(64);
+        Win32.GetClassNameW(root, cls, cls.Capacity);
+        if (WindowsFlDriver.Role(root, FlControl.MainWindow(pid), cls.ToString(), r.Right - r.Left, r.Bottom - r.Top)
+            == FlWindowRole.Menu) return;
+        lock (_aimedGate) _aimed = new AimedClick(x, y, root.ToInt64(), r.Right - r.Left, r.Bottom - r.Top, DateTime.UtcNow);
     }
 
     private IntPtr HookProc(int nCode, IntPtr wParam, IntPtr lParam)

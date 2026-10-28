@@ -25,6 +25,7 @@ internal sealed class MacroRunner
     private readonly AppSettings _settings;
     private readonly Func<bool> _light;
     private readonly Func<int> _escapes;
+    private readonly Func<AimedClick?> _aimed;
     private readonly Action<Action> _onUi;
     private readonly Action _openOrganizer;
     private int _busy;
@@ -32,13 +33,14 @@ internal sealed class MacroRunner
     /// Fin d'une macro, sur le fil de l'interface : réussie (ou arrêtée par son bloc), et le texte du résultat.
     public event Action<bool, string>? Finished;
 
-    public MacroRunner(MidiLink midi, AppSettings settings, Func<bool> light, Func<int> escapes, Action<Action> onUi,
-                       Action openOrganizer)
+    public MacroRunner(MidiLink midi, AppSettings settings, Func<bool> light, Func<int> escapes, Func<AimedClick?> aimed,
+                       Action<Action> onUi, Action openOrganizer)
     {
         _midi = midi;
         _settings = settings;
         _light = light;
         _escapes = escapes;
+        _aimed = aimed;
         _onUi = onUi;
         _openOrganizer = openOrganizer;
     }
@@ -69,7 +71,7 @@ internal sealed class MacroRunner
 
     private MacroOutcome Execute(MacroProgram program, uint pid)
     {
-        var driver = new WindowsFlDriver(pid, _midi, _settings, _light, _escapes, _onUi, _openOrganizer);
+        var driver = new WindowsFlDriver(pid, _midi, _settings, _light, _escapes, _aimed, _onUi, _openOrganizer);
         AppLog.Write("MACRO", $"run {program.Title}");
         driver.LogWindows();
         // Effets neufs à chaque passage : rien de l'état d'un passage ne survit au suivant.
@@ -90,17 +92,19 @@ internal sealed class WindowsFlDriver : IFlDriver
     private readonly AppSettings _settings;
     private readonly Func<bool> _light;
     private readonly Func<int> _escapes;
+    private readonly Func<AimedClick?> _aimed;
     private readonly Action<Action> _onUi;
     private readonly Action _openOrganizer;
 
     public WindowsFlDriver(uint pid, MidiLink midi, AppSettings settings, Func<bool> light, Func<int> escapes,
-                           Action<Action> onUi, Action openOrganizer)
+                           Func<AimedClick?> aimed, Action<Action> onUi, Action openOrganizer)
     {
         _pid = pid;
         _midi = midi;
         _settings = settings;
         _light = light;
         _escapes = escapes;
+        _aimed = aimed;
         _onUi = onUi;
         _openOrganizer = openOrganizer;
     }
@@ -253,8 +257,12 @@ internal sealed class WindowsFlDriver : IFlDriver
         if (main != IntPtr.Zero) Win32.PostMessageW(main, Win32.WM_CANCELMODE, UIntPtr.Zero, IntPtr.Zero);
     }
 
-    /// Pas encore suivi sur Windows : la piste visée est le pointeur au départ.
-    public AimedClick? LastAimedClick => null;
+    /// Dernier clic de l'utilisateur dans FL, retenu par le crochet souris (seulement si une macro vise la piste).
+    public AimedClick? LastAimedClick => _aimed();
+
+    public string? DropFile(string path, int x, int y) => PresetFiles.Drop(path, x, y, InFront);
+
+    public string? ChooseFile(long dialog, string path) => PresetFiles.Choose((IntPtr)dialog, path, _pid);
 
     public DataReply RunData(IReadOnlyList<byte> units) => _midi.RunData(units, brief: _light());
 

@@ -33,7 +33,8 @@ internal sealed class MacrosWindow : Window
     {
         BlockType.Key, BlockType.Delay, BlockType.MenuLetters, BlockType.MenuKey, BlockType.WaitWindow,
         BlockType.WaitWindowClose, BlockType.FlAction, BlockType.OpenPage, BlockType.Organize, BlockType.Stop, BlockType.Comment,
-        BlockType.Click, BlockType.MenuBar, BlockType.NameColor, BlockType.PageOption,
+        BlockType.Click, BlockType.MenuBar, BlockType.NameColor, BlockType.PageOption, BlockType.TrackMenu,
+        BlockType.DropFile, BlockType.ChooseFile,
     };
 
     public static void Show(AppController app, Guid? macro = null)
@@ -611,6 +612,22 @@ internal sealed class MacrosWindow : Window
                     }, Field(po.Name, PageOptions.MaxName, typed => set(po with { Name = typed.Trim() }), 240));
                 break;
             }
+            case BlockBody.TrackMenu tm:
+            {
+                var choices = MacroTemplates.TrackMenuChoices;
+                var chosen = choices.ToList().FindIndex(c => c.Letters == tm.Letters);
+                yield return Param(Loc.T("Élément"), Choice(choices.Select(c => c.Name).ToList(), chosen, i =>
+                    set(new BlockBody.TrackMenu(choices[i].Letters, choices[i].Labels, tm.Target, choices[i].Enter)), 320));
+                yield return Param(Loc.T("Piste"), Choice(new[] { Loc.T("Dernière piste cliquée dans FL"), Loc.T("Là où est le pointeur") },
+                    tm.Target == TrackTarget.Cursor ? 1 : 0, i => set(tm with { Target = i == 1 ? TrackTarget.Cursor : TrackTarget.LastClicked }), 260));
+                break;
+            }
+            case BlockBody.DropFile df:
+                yield return Param(Loc.T("Preset"), PresetPicker(df.Path, path => set(new BlockBody.DropFile(path))));
+                break;
+            case BlockBody.ChooseFile cf:
+                yield return Param(Loc.T("Preset"), PresetPicker(cf.Path, path => set(new BlockBody.ChooseFile(path))));
+                break;
             case BlockBody.Stop s:
                 yield return Param(Loc.T("Message"), Field(s.Message ?? "", 120, typed =>
                     set(new BlockBody.Stop(typed.Trim().Length == 0 ? null : typed.Trim())), 320));
@@ -619,6 +636,23 @@ internal sealed class MacrosWindow : Window
                 yield return Param(Loc.T("Texte"), Field(c.Text, 200, typed => set(new BlockBody.Comment(typed.Trim())), 320));
                 break;
         }
+    }
+
+    /// Nom du preset choisi (jamais son chemin entier) et « Choisir… » : la boîte s'ouvre dans Image-Line › FL Studio ›
+    /// Presets › Mixer presets (comme sur le Mac), sinon le dossier le plus proche qui existe.
+    private UIElement PresetPicker(string path, Action<string> set)
+    {
+        var shown = path.Length == 0 ? Loc.T("à choisir") : System.IO.Path.GetFileName(path);
+        return Line(8, Label(shown, 12, secondary: path.Length == 0), Btn(Loc.T("Choisir…"), () =>
+        {
+            if (_demo) return;
+            var documents = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
+            var start = new[] { @"Image-Line\FL Studio\Presets\Mixer presets", @"Image-Line\FL Studio\Presets", @"Image-Line\FL Studio", "Image-Line" }
+                .Select(p => System.IO.Path.Combine(documents, p)).FirstOrDefault(Directory.Exists) ?? documents;
+            var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(this);
+            if (Native.FileDialogs.PickFile(hwnd, Loc.T("Choisis un état de piste du Mixer (.fst)"), Loc.T("État de piste du Mixer"), "fst", start)
+                is { } chosen) set(chosen);
+        }));
     }
 
     /// « Montrer dans FL… » : la page attend le clic (FL passe devant), puis revient devant avec la position retenue.

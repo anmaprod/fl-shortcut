@@ -10,8 +10,8 @@ internal static class FileDialogs
     private const uint SIGDN_FILESYSPATH = 0x80058000;
 
     /// Un fichier `extension` (« flp ») ; null : annulé.
-    public static string? PickFile(IntPtr owner, string title, string typeName, string extension) =>
-        Pick(owner, title, FOS_FORCEFILESYSTEM | FOS_PATHMUSTEXIST | FOS_FILEMUSTEXIST, (typeName, "*." + extension));
+    public static string? PickFile(IntPtr owner, string title, string typeName, string extension, string? start = null) =>
+        Pick(owner, title, FOS_FORCEFILESYSTEM | FOS_PATHMUSTEXIST | FOS_FILEMUSTEXIST, (typeName, "*." + extension), start);
 
     /// Un dossier ; null : annulé.
     public static string? PickFolder(IntPtr owner, string title, string? start = null) =>

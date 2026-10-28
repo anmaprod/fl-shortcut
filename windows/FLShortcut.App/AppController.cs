@@ -71,7 +71,8 @@ internal sealed class AppController : INotifyPropertyChanged, IDisposable
             ScheduleMacroSave();
             RefreshAll();
         });
-        _runner = new MacroRunner(_midi, _settings, () => Light, () => _hook!.EscapePresses, OnUi, () => OrganizerWindow.Show(this));
+        _runner = new MacroRunner(_midi, _settings, () => Light, () => _hook!.EscapePresses, () => _hook!.LastAimedClick, OnUi,
+            () => OrganizerWindow.Show(this));
         _runner.Finished += OnMacroFinished;
         _hook = new KeyboardHook(_midi.SendAction, () => OnUi(Toggle), fl => OnUi(() => OnForeground(fl)),
             program => OnUi(() => RunMacro(program)));
@@ -341,6 +342,13 @@ internal sealed class AppController : INotifyPropertyChanged, IDisposable
             AnyContext = Light,
         };
         _hook.Link = _midi.RoutingView();
+        // Crochet souris (piste visée) seulement si une macro prête vise la dernière piste cliquée.
+        var tracks = _macros.Programs(MacroContext).Values.Any(p => p.IsRunnable && p.Needs.HasFlag(BlockNeeds.AimedTrack));
+        if (tracks != _hook.TrackClicks)
+        {
+            _hook.TrackClicks = tracks;
+            _hook.Refresh();
+        }
         UpdateStatus();
         RebuildRows();
         Raise(nameof(Enabled));

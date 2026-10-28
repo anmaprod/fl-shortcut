@@ -72,6 +72,11 @@ public interface IFlDriver
     RequestReply RunRequest(byte[] bytes);
     /// Lien avec FL installé (clé et ports MIDI) : sinon, ses commandes échoueraient après une attente.
     bool LinkInstalled { get; }
+    /// Fichier glissé depuis l'Explorateur et déposé en ce point de FL ; null si FL l'a pris, sinon la raison.
+    string? DropFile(string path, int x, int y);
+    /// Chemin écrit dans la boîte « Open » de FL (cette fenêtre), puis Ouvrir ; null si elle s'est refermée, sinon la
+    /// raison.
+    string? ChooseFile(long dialog, string path);
 }
 
 public sealed partial class MacroEffectsWindows : IMacroEffects
@@ -95,9 +100,7 @@ public sealed partial class MacroEffectsWindows : IMacroEffects
             => Loc.T("bouton retrouvé à son image : pas encore sur Windows (montre de nouveau le clic sur ce PC)."),
         BlockBody.PageOption { Option: { } id } when PageOptions.Option(id)?.Kind is Macros.PageOption.OptionKind.Arrangement
             => Loc.T("menu « Arrangement » de la Playlist : pas encore sur Windows."),
-        BlockBody.TrackMenu or BlockBody.ChooseFile or BlockBody.DropFile
-            or BlockBody.SelectInput or BlockBody.FeedbackCheck or BlockBody.SoundCard
-            or BlockBody.MenuAX
+        BlockBody.SelectInput or BlockBody.FeedbackCheck or BlockBody.SoundCard or BlockBody.MenuAX
             => Loc.F("bloc « %@ » pas encore pris en charge sur Windows.",
                 body.Type is { } type ? BlockRegistry.Spec(type).Label : "?"),
         _ => null,
@@ -211,6 +214,12 @@ public sealed partial class MacroEffectsWindows : IMacroEffects
                 return NameColor(n);
             case BlockBody.PageOption p:
                 return ClickOn(p, state);
+            case BlockBody.TrackMenu t:
+                return TrackMenu(t);
+            case BlockBody.DropFile d:
+                return DropFile(d.Path);
+            case BlockBody.ChooseFile c:
+                return ChooseFile(c.Path);
             case BlockBody.Organize:
                 // La suite se passe dans la fenêtre de l'Organiser (ses propres garde-fous).
                 _fl.Log("FL", "organizer opened");
@@ -516,6 +525,82 @@ public sealed partial class MacroEffectsWindows : IMacroEffects
             }
         }
         return n.Icon is null ? new StepResult.Ok() : new StepResult.Warn(Loc.T("icône pas encore posée sous Windows (pose-la dans FL avec F2)"));
+    }
+
+    // ---------- Menu de la piste, preset ----------
+
+    /// Clic droit sur la piste visée (ou là où était le pointeur), puis les lettres soulignées de l'élément choisi (File
+    /// › Open mixer track state…) dans le menu qui s'ouvre, et Entrée selon la règle du bloc.
+    private StepResult TrackMenu(BlockBody.TrackMenu t)
+    {
+        var letters = t.Letters.ToLowerInvariant();
+        if (letters.Length == 0 || letters.Any(c => LetterVk(c) is null)) return new StepResult.Fail(Loc.T("menu de piste mal décrit"));
+        if (!WaitForKeyboardIdle(TimeSpan.FromSeconds(1.5))) return new StepResult.Cancel(Loc.T("relâche les touches du raccourci"));
+        var before = _fl.Windows().Select(w => w.Id).ToHashSet();
+        var target = t.Target == TrackTarget.Cursor ? _origin : _track;
+        var clicked = ClickAt(target, true, 30);
+        if (clicked is not StepResult.Ok) return clicked;
+        var (opened, menu) = NewWindow(before, FlWindowRole.Menu, 1_500);
+        if (opened is StepResult.Cancel)
+        {
+            CloseMenus();
+            return opened;
+        }
+        if (menu is not { } m)
+            return new StepResult.Fail(Loc.T("le menu de la piste ne s'est pas ouvert (clique sur le nom de ta piste dans le Mixer)"));
+        _fl.Log("MENU", $"track menu {m.Width}x{m.Height}");
+        // FL place souvent son menu sous le pointeur : son survol ouvrirait un sous-menu tout seul.
+        HoverOutside(m);
+        return MenuLetters(letters, t.FinalEnter);
+    }
+
+    /// Pointeur juste à côté du menu (à gauche, sinon à droite) : plus aucun élément survolé.
+    private void HoverOutside(FlWin menu)
+    {
+        _cursorBefore ??= _fl.Cursor();
+        var x = menu.X >= 24 ? menu.X - 24 : menu.X + menu.Width + 24;
+        _fl.MoveCursor(x, menu.Y + 12);
+        _fl.Sleep(40);
+    }
+
+    /// Échec si le preset n'est pas un fichier existant (nom du fichier seulement, jamais le chemin), sinon null.
+    private static StepResult? MissingPreset(string path)
+    {
+        if (path.Length > 0 && File.Exists(path)) return null;
+        return new StepResult.Fail(Loc.F("preset introuvable (%@)", Path.GetFileName(path)));
+    }
+
+    /// Preset glissé sur la piste visée, comme depuis l'Explorateur : dans une fenêtre de FL que rien ne couvre.
+    private StepResult DropFile(string path)
+    {
+        _fl.Log("FILE", $"preset dropped on the track ({path.Length} characters)");
+        if (MissingPreset(path) is { } missing) return missing;
+        var (window, cover) = _fl.At(_track.X, _track.Y);
+        if (window is null)
+        {
+            if (cover is not null) return new StepResult.Fail(Loc.F("« %@ » couvre FL à cet endroit", cover));
+            _fl.Log("DROP", "refused: outside every FL window");
+            return new StepResult.Fail(Loc.T("la piste visée est hors de FL : clique d'abord sur ta piste dans le Mixer"));
+        }
+        if (StopReason() is { } stop) return new StepResult.Cancel(stop);
+        _cursorBefore ??= _fl.Cursor();
+        if (_fl.DropFile(path, _track.X, _track.Y) is { } why) return new StepResult.Fail(why);
+        _lastClick = _track;
+        return new StepResult.Ok();
+    }
+
+    /// Chemin du preset dans la boîte « Open » ouverte par la macro (suivie par « Attendre une fenêtre »), sinon la
+    /// boîte apparue depuis le départ. Le chemin n'est jamais journalisé (seulement sa longueur).
+    private StepResult ChooseFile(string path)
+    {
+        _fl.Log("FILE", $"preset path typed ({path.Length} characters)");
+        if (MissingPreset(path) is { } missing) return missing;
+        if ((_dialog ?? FreshDialog()?.Id) is not { } dialog) return new StepResult.Fail(Loc.T("boîte « Open » introuvable"));
+        if (StopReason() is { } stop) return new StepResult.Cancel(stop);
+        if (_fl.ChooseFile(dialog, path) is { } why) return new StepResult.Fail(why);
+        if (_dialog == dialog) _dialog = null;
+        _fl.Log("DIALOG", "file chosen, dialog closed");
+        return new StepResult.Ok();
     }
 
     // ---------- « Cliquer sur… » ----------

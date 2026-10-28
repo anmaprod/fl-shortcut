@@ -369,6 +369,40 @@ internal static class Win32
     [return: MarshalAs(UnmanagedType.Bool)]
     public static extern bool PostMessageW(IntPtr hWnd, uint msg, UIntPtr wParam, IntPtr lParam);
 
+    // ---------- Macros : piste visée (dernier clic de l'utilisateur dans FL, crochet souris seulement si besoin) ----------
+    public const int WH_MOUSE_LL = 14, WM_LBUTTONDOWN = 0x0201;
+    public const uint LLMHF_INJECTED = 0x01;
+
+    [StructLayout(LayoutKind.Sequential)]
+    public struct MSLLHOOKSTRUCT
+    {
+        public POINT pt;
+        public uint mouseData;
+        public uint flags;
+        public uint time;
+        public UIntPtr dwExtraInfo;
+    }
+
+    public delegate IntPtr LowLevelMouseProc(int nCode, IntPtr wParam, IntPtr lParam);
+
+    [DllImport("user32.dll", SetLastError = true, EntryPoint = "SetWindowsHookExW")]
+    public static extern IntPtr SetWindowsHookExMouse(int idHook, LowLevelMouseProc lpfn, IntPtr hMod, uint dwThreadId);
+
+    // ---------- Macros : boîte « Open » de FL (chemin du preset écrit dans son champ, puis Ouvrir) ----------
+    public const uint WM_SETTEXT = 0x000C, WM_COMMAND = 0x0111;
+    public delegate bool EnumChildProc(IntPtr hWnd, IntPtr lParam);
+
+    [DllImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static extern bool EnumChildWindows(IntPtr hWndParent, EnumChildProc lpEnumFunc, IntPtr lParam);
+    [DllImport("user32.dll")] public static extern int GetDlgCtrlID(IntPtr hWnd);
+    [DllImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static extern bool IsWindow(IntPtr hWnd);
+    [DllImport("user32.dll", EntryPoint = "SendMessageTimeoutW", CharSet = CharSet.Unicode)]
+    public static extern IntPtr SendMessageTimeoutText(IntPtr hWnd, uint msg, UIntPtr wParam, string lParam, uint fuFlags,
+        uint uTimeout, out UIntPtr lpdwResult);
+
     // ---------- Macros : image d'une zone de l'écran (texte d'un bouton ou d'un menu de FL, au moment du clic) ----------
     public const uint SRCCOPY = 0x00CC0020, CAPTUREBLT = 0x40000000, DIB_RGB_COLORS = 0;
 
