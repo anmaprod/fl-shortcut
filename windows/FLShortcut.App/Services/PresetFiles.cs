@@ -1,7 +1,9 @@
 // Preset de piste pour les macros Windows (miroir de PresetDrop.swift et PresetChooser du Mac) :
 //  - dépôt : glissé comme depuis l'Explorateur (objet de données du fichier donné par le shell, le même que
-//    l'Explorateur ; glisser d'OLE sur son propre fil), pointeur amené sur la piste, bougé de quelques pixels pour que
-//    FL voie le fichier entrer, puis lâché. Jamais d'appui sur le bouton de la souris (FL pourrait déplacer la piste) ;
+//    l'Explorateur ; glisser d'OLE sur son propre fil). Le bouton est enfoncé sur une petite fenêtre de l'app posée
+//    sous la piste (jamais sur FL : il pourrait déplacer la piste) ; sans bouton enfoncé, Windows ne donne pas les
+//    mouvements du pointeur au glisser (essai de la CI : il ne démarrait jamais). La fenêtre se cache, le pointeur bouge
+//    de quelques pixels pour que FL voie le fichier entrer, puis le bouton est relâché : FL reçoit le fichier ;
 //  - boîte « Open » de FL : le chemin écrit dans son champ du nom de fichier, puis Ouvrir.
 // Seulement dans FL (vérifié par l'appelant), jamais le chemin au journal (seulement sa longueur).
 using System.Runtime.InteropServices;
@@ -23,58 +25,53 @@ internal static class PresetFiles
     /// Fichier glissé en (x, y) : null si FL l'a pris, sinon la raison. `inFront` : FL toujours devant.
     public static string? Drop(string path, int x, int y, Func<bool> inFront)
     {
-        var source = new DropSource();
-        var outcome = (Hr: 0, Effect: 0u, Failed: false);
-        var thread = new Thread(() =>
-        {
-            OleInitialize(IntPtr.Zero);
-            var data = IntPtr.Zero;
-            try
-            {
-                if (SHCreateItemFromParsingName(path, IntPtr.Zero, typeof(IShellItem).GUID, out var item) != 0)
-                {
-                    outcome.Failed = true;
-                    return;
-                }
-                var handler = BhidDataObject;
-                var iid = IidDataObject;
-                item.BindToHandler(IntPtr.Zero, ref handler, ref iid, out data);
-                Marshal.ReleaseComObject(item);
-                outcome.Hr = DoDragDrop(data, source, DROPEFFECT_COPY | DROPEFFECT_MOVE | DROPEFFECT_LINK, out var effect);
-                outcome.Effect = effect;
-            }
-            catch (Exception e)
-            {
-                AppLog.Write("MACRO", "DROP error " + e.GetType().Name);
-                outcome.Failed = true;
-            }
-            finally
-            {
-                if (data != IntPtr.Zero) Marshal.Release(data);
-                source.Ended.Set();
-                OleUninitialize();
-            }
-        }) { IsBackground = true, Name = "FL Shortcuts – dépôt du preset" };
-        thread.SetApartmentState(ApartmentState.STA);
         var t0 = Environment.TickCount64;
-        Win32.SetCursorPos(x, y);
+        var drop = new SourceWindow(path, x, y);
+        var thread = new Thread(drop.Run) { IsBackground = true, Name = "FL Shortcuts – dépôt du preset" };
+        thread.SetApartmentState(ApartmentState.STA);
         thread.Start();
+        if (!drop.Ready.Wait(3_000) || drop.Window == IntPtr.Zero)
+        {
+            drop.Source.Cancel = true;
+            Thread.MemoryBarrier();
+            drop.Close();
+            AppLog.Write("MACRO", "DROP unreadable");
+            return Loc.T("preset illisible par Windows");
+        }
+        var pressed = false;
 
         string? Abandon(string why)
         {
-            source.Cancel = true;
-            Win32.SetCursorPos(x, y);                         // le glisser relit sa demande à chaque mouvement
-            source.Ended.Wait(1_000);
+            drop.Source.Cancel = true;
+            if (pressed) Button(false);                        // jamais de bouton laissé enfoncé
+            drop.Close();
+            drop.Source.Ended.Wait(1_000);
             return why;
         }
 
-        // Le glisser de Windows ne relit sa demande qu'à un mouvement de la souris : le pointeur frémit sur place
-        // (un pixel) jusqu'à ce qu'il démarre (essai de la CI : sans cela, il attendait sans fin).
-        for (var i = 0; i < 20 && !source.Started.Wait(40); i++) Win32.SetCursorPos(x + (i % 2), y);
-        if (!source.Started.IsSet)
+        // La petite fenêtre de départ doit être sous le pointeur (sinon le clic irait à ce qui la couvre).
+        Win32.SetCursorPos(x, y);
+        var under = false;
+        for (var i = 0; i < 25 && !under; i++)
+        {
+            under = Win32.WindowFromPoint(new Win32.POINT { X = x, Y = y }) == drop.Window;
+            if (!under) Thread.Sleep(20);
+        }
+        if (!under)
+        {
+            AppLog.Write("MACRO", "DROP covered");
+            return Abandon(Loc.T("le glisser du preset n'a pas démarré (une fenêtre couvre la piste ?)"));
+        }
+        if (!inFront()) return Abandon(Loc.T("FL n'est plus au premier plan"));
+        Button(true);
+        pressed = true;
+        // Le glisser démarre à l'appui (dans la fenêtre de départ, cachée aussitôt) ; le pointeur frémit sur place pour
+        // que Windows relise l'état du glisser.
+        for (var i = 0; i < 25 && !drop.Source.Started.Wait(40); i++) Win32.SetCursorPos(x + (i % 2), y);
+        if (!drop.Source.Started.IsSet)
         {
             AppLog.Write("MACRO", $"DROP not started · {Environment.TickCount64 - t0} ms");
-            return Abandon(outcome.Failed ? Loc.T("preset illisible par Windows") : Loc.T("le glisser du preset n'a pas démarré (une fenêtre couvre la piste ?)"));
+            return Abandon(Loc.T("le glisser du preset n'a pas démarré (une fenêtre couvre la piste ?)"));
         }
         // Quelques pixels à droite puis retour : FL voit le fichier entrer sur la piste, puis le reçoit au point visé.
         foreach (var dx in new[] { 4, 8, 12, 8, 4, 0 })
@@ -84,16 +81,191 @@ internal static class PresetFiles
             Thread.Sleep(16);
         }
         Thread.Sleep(30);
-        source.Release = true;
-        Win32.SetCursorPos(x, y);
-        if (!source.Ended.Wait(2_000))
+        drop.Source.Release = true;
+        Button(false);
+        pressed = false;
+        if (!drop.Source.Ended.Wait(2_000))
         {
             AppLog.Write("MACRO", $"DROP not ended · {Environment.TickCount64 - t0} ms");
             return Abandon(Loc.T("FL n'a pas répondu au dépôt du preset"));
         }
-        AppLog.Write("MACRO", $"DROP ended · hr 0x{outcome.Hr:X} · effect {outcome.Effect} · {Environment.TickCount64 - t0} ms");
-        return !outcome.Failed && outcome.Hr == DRAGDROP_S_DROP && outcome.Effect != 0
+        AppLog.Write("MACRO", $"DROP ended · hr 0x{drop.Hr:X} · effect {drop.Effect} · {Environment.TickCount64 - t0} ms");
+        return drop.Hr == DRAGDROP_S_DROP && drop.Effect != 0
             ? null : Loc.T("FL n'a pas pris le preset : clique d'abord au milieu de la tranche de ta piste");
+    }
+
+    /// Bouton gauche enfoncé ou relâché là où est le pointeur (marqué comme venant de l'app).
+    private static void Button(bool down)
+    {
+        var input = new[]
+        {
+            new Win32.INPUT
+            {
+                type = Win32.INPUT_MOUSE,
+                U = new Win32.InputUnion
+                {
+                    mi = new Win32.MOUSEINPUT
+                    {
+                        dwFlags = down ? Win32.MOUSEEVENTF_LEFTDOWN : Win32.MOUSEEVENTF_LEFTUP,
+                        dwExtraInfo = KeyboardHook.Magic,
+                    },
+                },
+            },
+        };
+        Win32.SendInput(1, input, Marshal.SizeOf<Win32.INPUT>());
+    }
+
+    /// Fenêtre de départ du glisser : 8 × 8 points presque invisibles, au-dessus de tout, jamais activée, posée sous le
+    /// point visé. L'appui du bouton y arrive (pas à FL) ; le glisser d'OLE part de là, sur son propre fil, et la fenêtre
+    /// se cache dès qu'il a démarré (FL est alors sous le pointeur et voit le fichier entrer).
+    private sealed class SourceWindow
+    {
+        private const string ClassName = "FLShortcutsPresetDrag";
+        private const uint WS_POPUP = 0x80000000, WS_EX_LAYERED = 0x00080000, WS_EX_TOPMOST = 0x00000008,
+            WS_EX_TOOLWINDOW = 0x00000080, WS_EX_NOACTIVATE = 0x08000000, LWA_ALPHA = 0x2;
+        private const uint WM_CLOSE = 0x0010, WM_DESTROY = 0x0002, WM_LBUTTONDOWN = 0x0201;
+        private const int SW_HIDE = 0, SW_SHOWNOACTIVATE = 4, Half = 4;
+        private static readonly WndProc Proc = Dispatch;
+        private static int _registered;
+        [ThreadStatic] private static SourceWindow? _current;
+
+        private readonly string _path;
+        private readonly int _x, _y;
+        private IntPtr _data;
+        private bool _dragging;
+        public readonly DropSource Source = new();
+        public readonly ManualResetEventSlim Ready = new();
+        public volatile IntPtr Window;
+        public int Hr;
+        public uint Effect;
+
+        public SourceWindow(string path, int x, int y)
+        {
+            _path = path;
+            _x = x;
+            _y = y;
+        }
+
+        /// Fil STA : objet de données du fichier (celui de l'Explorateur), fenêtre, puis ses messages jusqu'à sa fin.
+        public void Run()
+        {
+            OleInitialize(IntPtr.Zero);
+            _current = this;
+            try
+            {
+                if (SHCreateItemFromParsingName(_path, IntPtr.Zero, typeof(IShellItem).GUID, out var item) != 0) return;
+                var handler = BhidDataObject;
+                var iid = IidDataObject;
+                item.BindToHandler(IntPtr.Zero, ref handler, ref iid, out _data);
+                Marshal.ReleaseComObject(item);
+                if (_data == IntPtr.Zero) return;
+                var instance = Win32.GetModuleHandleW(null);
+                if (Interlocked.Exchange(ref _registered, 1) == 0)
+                {
+                    var wc = new WNDCLASSEXW
+                    {
+                        cbSize = (uint)Marshal.SizeOf<WNDCLASSEXW>(),
+                        lpfnWndProc = Marshal.GetFunctionPointerForDelegate(Proc),
+                        hInstance = instance,
+                        lpszClassName = ClassName,
+                    };
+                    RegisterClassExW(ref wc);
+                }
+                var hwnd = CreateWindowExW(WS_EX_LAYERED | WS_EX_TOPMOST | WS_EX_TOOLWINDOW | WS_EX_NOACTIVATE, ClassName, null, WS_POPUP,
+                    _x - Half, _y - Half, 2 * Half, 2 * Half, IntPtr.Zero, IntPtr.Zero, instance, IntPtr.Zero);
+                if (hwnd == IntPtr.Zero) return;
+                SetLayeredWindowAttributes(hwnd, 0, 1, LWA_ALPHA);    // presque transparente, mais reçoit le clic
+                Source.Starting = () => ShowWindow(hwnd, SW_HIDE);
+                ShowWindow(hwnd, SW_SHOWNOACTIVATE);
+                Window = hwnd;
+                Thread.MemoryBarrier();
+                if (Source.Cancel) return;                       // l'appelant a déjà renoncé (fenêtre détruite plus bas)
+                Ready.Set();
+                while (Win32.GetMessageW(out var msg, IntPtr.Zero, 0, 0) > 0)
+                {
+                    Win32.TranslateMessage(ref msg);
+                    Win32.DispatchMessageW(ref msg);
+                }
+            }
+            catch (Exception e)
+            {
+                AppLog.Write("MACRO", "DROP error " + e.GetType().Name);
+            }
+            finally
+            {
+                Ready.Set();
+                if (Window != IntPtr.Zero && IsWindowAlive(Window)) DestroyWindow(Window);
+                if (_data != IntPtr.Zero) Marshal.Release(_data);
+                _current = null;
+                Source.Ended.Set();
+                OleUninitialize();
+            }
+        }
+
+        /// Fermeture demandée d'un autre fil (sans effet pendant le glisser : il s'arrête par Cancel).
+        public void Close()
+        {
+            if (Window != IntPtr.Zero) Win32.PostMessageW(Window, WM_CLOSE, UIntPtr.Zero, IntPtr.Zero);
+        }
+
+        private static IntPtr Dispatch(IntPtr hwnd, uint msg, IntPtr wParam, IntPtr lParam)
+        {
+            var self = _current;
+            switch (msg)
+            {
+                case WM_LBUTTONDOWN when self is { _dragging: false } && !self.Source.Cancel:
+                    self._dragging = true;
+                    self.Hr = DoDragDrop(self._data, self.Source, DROPEFFECT_COPY | DROPEFFECT_MOVE | DROPEFFECT_LINK, out self.Effect);
+                    self._dragging = false;
+                    DestroyWindow(hwnd);
+                    return IntPtr.Zero;
+                case WM_CLOSE:
+                    if (self is not { _dragging: true }) DestroyWindow(hwnd);
+                    return IntPtr.Zero;
+                case WM_DESTROY:
+                    PostQuitMessage(0);
+                    return IntPtr.Zero;
+            }
+            return DefWindowProcW(hwnd, msg, wParam, lParam);
+        }
+
+        private delegate IntPtr WndProc(IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam);
+
+        [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
+        private struct WNDCLASSEXW
+        {
+            public uint cbSize;
+            public uint style;
+            public IntPtr lpfnWndProc;
+            public int cbClsExtra;
+            public int cbWndExtra;
+            public IntPtr hInstance;
+            public IntPtr hIcon;
+            public IntPtr hCursor;
+            public IntPtr hbrBackground;
+            public string? lpszMenuName;
+            public string lpszClassName;
+            public IntPtr hIconSm;
+        }
+
+        [DllImport("user32.dll", CharSet = CharSet.Unicode)] private static extern ushort RegisterClassExW(ref WNDCLASSEXW wc);
+        [DllImport("user32.dll", CharSet = CharSet.Unicode)]
+        private static extern IntPtr CreateWindowExW(uint exStyle, string className, string? windowName, uint style, int x, int y, int width,
+            int height, IntPtr parent, IntPtr menu, IntPtr instance, IntPtr param);
+        [DllImport("user32.dll")] private static extern IntPtr DefWindowProcW(IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam);
+        [DllImport("user32.dll")]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        private static extern bool DestroyWindow(IntPtr hWnd);
+        [DllImport("user32.dll", EntryPoint = "IsWindow")]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        private static extern bool IsWindowAlive(IntPtr hWnd);
+        [DllImport("user32.dll")] private static extern void PostQuitMessage(int exitCode);
+        [DllImport("user32.dll")]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        private static extern bool ShowWindow(IntPtr hWnd, int command);
+        [DllImport("user32.dll")]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        private static extern bool SetLayeredWindowAttributes(IntPtr hWnd, uint colorKey, byte alpha, uint flags);
     }
 
     /// Chemin écrit dans la boîte « Open » (fenêtre de FL `pid`), puis Ouvrir : null si elle s'est refermée.
@@ -169,27 +341,38 @@ internal interface IDropSource
     [PreserveSig] int GiveFeedback(uint effect);
 }
 
-/// Source du glisser : continue tant que la macro n'a pas lâché ; Échap ou l'abandon l'annulent.
+/// Source du glisser : continue tant que le bouton est enfoncé ; relâché par la macro (Release) → déposé, relâché
+/// autrement, Échap ou l'abandon → annulé. `Starting` est appelé une fois, au premier tour du glisser.
 [ComVisible(true)]
 internal sealed class DropSource : IDropSource
 {
     private const int S_OK = 0, DRAGDROP_S_DROP = 0x00040100, DRAGDROP_S_CANCEL = 0x00040101, DRAGDROP_S_USEDEFAULTCURSORS = 0x00040102;
+    private const uint MK_LBUTTON = 0x1;
 
     public readonly ManualResetEventSlim Started = new();
     public readonly ManualResetEventSlim Ended = new();
     public volatile bool Release;
     public volatile bool Cancel;
+    public Action? Starting;
 
     public int QueryContinueDrag(bool escapePressed, uint keyState)
     {
-        Started.Set();
+        Begin();
         if (escapePressed || Cancel) return DRAGDROP_S_CANCEL;
-        return Release ? DRAGDROP_S_DROP : S_OK;
+        if ((keyState & MK_LBUTTON) != 0) return S_OK;
+        return Release ? DRAGDROP_S_DROP : DRAGDROP_S_CANCEL;
     }
 
     public int GiveFeedback(uint effect)
     {
-        Started.Set();
+        Begin();
         return DRAGDROP_S_USEDEFAULTCURSORS;
+    }
+
+    private void Begin()
+    {
+        if (Started.IsSet) return;
+        Starting?.Invoke();
+        Started.Set();
     }
 }
