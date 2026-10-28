@@ -126,7 +126,7 @@ jobs:
           # L'appli est tombée : ce que Windows a noté (exception .NET avec sa pile, module fautif).
           Get-WinEvent -FilterHashtable @{ LogName = 'Application'; ProviderName = '.NET Runtime', 'Application Error' } -MaxEvents 4 -ErrorAction SilentlyContinue |
             ForEach-Object { "---- $($_.ProviderName) $($_.TimeCreated)"; $_.Message }
-      - name: Essai des macros (faux FL dans l'appli : Menu de FL, grisé, clic appris, menu de la piste, preset déposé, boîte Open)
+      - name: Essai des macros (faux FL dans l'appli, Menu de FL, grisé, clic appris, menu de la piste, preset déposé, boîte Open)
         continue-on-error: true      # à relire (comme les essais du Mac) : n'empêche jamais la publication
         shell: pwsh
         run: |
