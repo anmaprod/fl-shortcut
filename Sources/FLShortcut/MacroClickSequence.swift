@@ -65,10 +65,10 @@ enum MenuBarAX {
         return nil
     }
 
-    /// Choisit l'élément `titles` (titre du menu de la barre, puis éléments) : AXPress sur l'élément, sans clic ni
-    /// menu ouvert à l'écran. Un menu que FL ne remplit qu'à son ouverture est ouvert, relu une fois, puis refermé
-    /// si l'élément n'y est pas.
-    static func press(pid: Int32, titles: [String], stop: () -> String?) -> Outcome {
+    /// Choisit l'élément `titles` (titre du menu de la barre, puis éléments). Avec `click` (macros) : comme à la main,
+    /// ses menus ouverts puis un vrai clic sur l'élément ; sinon (ou élément hors de l'écran) : AXPress, sans clic.
+    /// Un menu que FL ne remplit qu'à son ouverture est ouvert, relu, puis refermé si l'élément n'y est pas.
+    static func press(pid: Int32, titles: [String], stop: () -> String?, click: ((CGPoint) -> Void)? = nil) -> Outcome {
         guard titles.count >= 2 else { return .failed(String(localized: "chemin de menu incomplet")) }
         let t0 = DispatchTime.now().uptimeNanoseconds
         func ms() -> Int { Int((DispatchTime.now().uptimeNanoseconds &- t0) / 1_000_000) }
@@ -120,14 +120,62 @@ enum MenuBarAX {
                 return .failed(String(localized: "élément grisé dans le menu de FL"))
             }
             item = fresh
+            opened = true
         }
+        // Comme à la main (signalé le 28/10 : un effet ajouté par la macro gelait FL pendant son ouverture, pas à la
+        // main ; un VST « bloquait ») : par AXPress, FL fait l'action PENDANT la demande d'Accessibilité, et charger un
+        // plugin y prend des secondes (au-delà de 6 s : « FL n'a pas répondu »). Les menus sont ouverts, le pointeur
+        // posé sur l'élément, un vrai clic le choisit ; menus refermés = FL l'a pris.
+        if let click {
+            if !opened {
+                if let fresh = reopened(pid: pid, titles: path, stop: stop) {
+                    item = fresh
+                    opened = true
+                }
+                if let why = stop() {
+                    closeMenus(pid: pid)
+                    return .cancelled(why)
+                }
+            }
+            Thread.sleep(forTimeInterval: 0.08)
+            let menus = Set(WinSnapshot.take(pid: pid).fl.filter { $0.layer > 8 && $0.isMenuLike }.map(\.number))
+            if opened, !menus.isEmpty, let f = AXProbe.frame(item), f.width > 2, f.height > 2, onScreen(f) {
+                click(CGPoint(x: f.midX, y: f.midY))
+                switch WindowWait.gone(pid: pid, numbers: menus, timeout: 2, stop: stop) {
+                case .success:
+                    MacroLog.shared.write("MENU", "menu bar item clicked (\(titles.count) levels) · \(ms()) ms")
+                    return .done
+                case .failure(.stopped(let why)):
+                    closeMenus(pid: pid)
+                    return .cancelled(why)
+                case .failure(.timeout):
+                    MacroLog.shared.write("MENU", "menu bar item clicked but menus still open · \(ms()) ms")
+                    closeMenus(pid: pid)
+                    return .failed(String(localized: "le menu de FL est resté ouvert"))
+                }
+            }
+            MacroLog.shared.write("MENU", "menu bar item not clickable (\(menus.count) menus open, off screen?) → AXPress")
+        }
+        // Sans clic : AXPress, attente bornée (FL occupé par l'action : elle continue, pas une panne).
+        AXUIElementSetMessagingTimeout(item, 1.5)
         let err = AXUIElementPerformAction(item, kAXPressAction as CFString)
         MacroLog.shared.write("MENU", "menu bar item pressed (\(titles.count) levels): AX \(err.rawValue) · \(ms()) ms")
+        if err == .cannotComplete { return .done }
         guard err == .success else {
             closeMenus(pid: pid)
             return .failed(String(localized: "FL n'a pas répondu à son menu (Accessibilité \(err.rawValue))"))
         }
         return .done
+    }
+
+    /// Cadre visible sur un écran (un élément d'un long menu peut être hors de l'écran, à faire défiler).
+    private static func onScreen(_ f: CGRect) -> Bool {
+        var count: UInt32 = 0
+        guard CGGetActiveDisplayList(0, nil, &count) == .success, count > 0 else { return false }
+        var ids = [CGDirectDisplayID](repeating: 0, count: Int(count))
+        guard CGGetActiveDisplayList(count, &ids, &count) == .success else { return false }
+        let center = CGPoint(x: f.midX, y: f.midY)
+        return ids.prefix(Int(count)).contains { CGDisplayBounds($0).insetBy(dx: 2, dy: 2).contains(center) }
     }
 
     /// FL ne met à jour l'état grisé de ses éléments qu'à l'ouverture de leur menu : lu menus fermés, il peut dater de
@@ -136,6 +184,8 @@ enum MenuBarAX {
     /// met à jour leurs éléments), puis l'élément est rendu, menus ouverts : l'appelant le choisit (les menus se
     /// referment) ou les referme.
     private static func reopened(pid: Int32, titles: [String], stop: () -> String?) -> AXUIElement? {
+        closeMenus(pid: pid)                 // d'un état propre : rouvrir un menu déjà ouvert pourrait le refermer
+        Thread.sleep(forTimeInterval: 0.05)
         let app = AXUIElementCreateApplication(pid)
         AXUIElementSetMessagingTimeout(app, 0.5)
         guard let bar = element(app, kAXMenuBarAttribute as String) else { return nil }

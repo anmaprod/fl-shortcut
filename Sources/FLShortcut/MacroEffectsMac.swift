@@ -342,7 +342,9 @@ final class MacroEffectsMac: MacroEffects {
 
         case .menuBar(let titles):
             numbersBeforeLastClick = WinSnapshot.take(pid: ctx.pid).numbers
-            switch MenuBarAX.press(pid: ctx.pid, titles: titles, stop: stopReason) {
+            let pid = ctx.pid
+            switch MenuBarAX.press(pid: pid, titles: titles, stop: stopReason,
+                                   click: { [self] p in postClick(at: p, right: false, pid: pid, hoverMs: 60) }) {
             case .done: return .ok
             case .cancelled(let why): return .cancel(why)
             case .failed(let why): return .fail(why)

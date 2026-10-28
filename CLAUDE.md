@@ -183,8 +183,11 @@
   « grisé » même après ⌘A → FL ne met à jour l'état grisé qu'à l'ouverture du menu : élément lu grisé = ses menus
   ouverts un à un puis relu (`MenuBarAX.reopened`, essai CI sur le faux FL `scenarioGreyedItem`). Menu rempli à son
   ouverture (Add › Channel) : menus ouverts niveau par niveau avant « introuvable » ; plugin ajouté aux favoris par
-  l'app : message « quitte FL et rouvre-le ». À revérifier chez lui. « Ouvre un VST » ne marche pas et « Ajouter un
-  effet » gèle pendant l'ouverture : cause pas encore prouvée, journal (`~/Library/Logs/FL Shortcuts/macro.log`) demandé.
+  l'app : message « quitte FL et rouvre-le ». « Ajouter un effet » gelait FL (pas à la main) et « Ouvre un VST »
+  (favori) « bloquait » : par AXPress, FL fait l'action PENDANT la demande d'Accessibilité (plugin chargé là-dedans,
+  attente de 6 s puis « FL n'a pas répondu »). Les macros choisissent maintenant l'élément comme à la main (menus
+  ouverts, vrai clic, `MenuBarAX.press(click:)`), AXPress seulement en secours (élément hors écran), attente 1,5 s.
+  À revérifier chez lui (journal `~/Library/Logs/FL Shortcuts/macro.log`, lignes MENU).
 - IA intégrée : voix de ses projets enfin rangées en Voix ? Sortes proposées justes sur ses packs ?
 - Organiser sur le fichier : 1er essai du propriétaire (24/10, ancienne version) : « FL n'a pas enregistré ton
   projet » sur chaque projet, pourtant enregistré. Corrigé sans preuve (titres de toutes les fenêtres de FL, Spotlight
