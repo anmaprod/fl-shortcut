@@ -111,7 +111,7 @@ internal static class CopyApprovalPrompt
     }
 
     /// Ce que FL fait autour des fichiers (FL devant pour enregistrer ; un double-clic pour ouvrir).
-    private static CopyApprovalFl Fl => new()
+    internal static CopyApprovalFl Fl => new()
     {
         FlRunning = FlPresence.IsRunning,
         Shows = ProjectFileWindows.IsOpen,

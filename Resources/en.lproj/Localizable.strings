@@ -357,6 +357,7 @@
 "Bureau de gauche" = "Move left a space";
 "Bypass des effets de la piste" = "Bypass track effects";
 "C'est fait : le projet est rangé, coloré et renommé. « Revenir comme avant » défait tout, sauf les sons supprimés." = "Done: the project is sorted, colored and renamed. “Undo changes” undoes everything except the deleted sounds.";
+"C'est fait : ton projet est rangé, coloré et renommé dans une copie, « %@ », à côté de l'original. L'original n'a pas bougé : « Revenir comme avant » le rouvre et met la copie à la Corbeille." = "Done: your project is organized, colored and renamed in a copy, “%@”, next to the original. The original wasn't changed: “Undo changes” reopens it and moves the copy to the Trash.";
 "C'est fait : ton projet est rangé, coloré et renommé dans une copie, « %@ », à côté de l'original. L'original n'a pas bougé : « Revenir comme avant » le rouvre." = "Done: your project is organized, colored and renamed in a copy, “%@”, next to the original. The original wasn't changed: “Undo changes” reopens it.";
 "C'est parti" = "Let's go";
 "Canal" = "Channel";
@@ -1772,6 +1773,7 @@
 "Ton projet a plusieurs arrangements avec des clips : l'Organiser ne range pour l'instant qu'un seul arrangement. Rien n'a été touché." = "Your project has several arrangements with clips: for now the Organizer only organizes one arrangement. Nothing was changed.";
 "Ton projet d'avant n'est plus à sa place : la version organisée est gardée." = "Your previous project is no longer where it was: the organized version is kept.";
 "Ton projet d'origine n'a pas pu aller à la Corbeille : rien n'a été touché." = "Your original project couldn't be moved to the Trash: nothing was changed.";
+"Ton projet d'origine se rouvre dans FL, tel qu'il était. La copie rangée part à la Corbeille dès que FL l'a quittée." = "Your original project reopens in FL, as it was. The organized copy goes to the Trash as soon as FL has left it.";
 "Ton projet d'origine se rouvre dans FL, tel qu'il était. La copie rangée reste à côté, si tu la veux." = "Your original project reopens in FL, as it was. The organized copy stays next to it, if you want it.";
 "Tools › Purge unused audio clips, par le menu de FL en haut de l'écran : FL retire du projet les clips audio qui ne sont pas dans la Playlist (rien n'est effacé de ton disque)." = "Tools › Purge unused audio clips, from the FL menu at the top of the screen: FL removes audio clips that aren't in the Playlist from the project (nothing is deleted from your disk).";
 "Touche" = "Key";
@@ -1805,6 +1807,7 @@
 "Tout est prêt, mais attention au larsen" = "All set, but watch out for feedback";
 "Tout réinitialiser ?" = "Reset everything?";
 "Tout réinitialiser…" = "Reset all…";
+"Tout se range dans une nouvelle version de ton projet (« _2 », comme « Save new version » de FL), à côté de l'original : ton projet d'origine ne bouge pas, « Revenir comme avant » le rouvre et met la nouvelle version à la Corbeille. Aucune lecture de l'écran." = "Everything is organized in a new version of your project (“_2”, like FL's “Save new version”), next to the original: your original project isn't changed, “Undo changes” reopens it and moves the new version to the Trash. No screen reading.";
 "Tout se range dans une nouvelle version de ton projet (« _2 », comme « Save new version » de FL), à côté de l'original : ton projet d'origine ne bouge pas, « Revenir comme avant » le rouvre. Aucune lecture de l'écran." = "Everything is organized in a new version of your project (“_2”, like FL's “Save new version”), next to the original: your original project isn't changed, “Undo changes” reopens it. No screen reading.";
 "Tout sélectionner" = "Select all";
 "Toutes les macros, un fichier chacune, pour les partager (par défaut dans Documents › FL Shortcuts › Macros)" = "All macros, one file each, to share them (by default in Documents › FL Shortcuts › Macros)";

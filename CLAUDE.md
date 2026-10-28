@@ -51,7 +51,9 @@
     sons (les mêmes sons, la même piste ; un clip qui en chevaucherait un autre : une piste de plus dessous ; patterns
     vides en bas), pistes dans l'ordre des familles ; FL ouvre la copie (reconnue à un nom de pattern posé pour ça,
     remis aussitôt), le reste s'y fait par le script, FL l'enregistre. L'original ne bouge jamais : « Revenir comme
-    avant » le rouvre (tout revient, suppressions comprises). Validation (`OrganizerCopyApproval.swift`) : Organiser
+    avant » le rouvre (tout revient, suppressions comprises) et, demande du 28/10, met la copie (et les _N d'avant) à
+    la Corbeille dès que FL l'a quittée (`CopyApproval.discard` / `DiscardAfterUndo` ; encore ouverte au bout d'une
+    minute : gardée, la question revient). Validation (`OrganizerCopyApproval.swift`) : Organiser
     fermé, à la réouverture de FL Shortcuts, « Tu valides la version organisée ? » → original à la Corbeille, copie
     renommée au nom de l'original (FL enregistre puis rouvre) ; « Retourner en arrière » → copie à la Corbeille et FL
     rouvre le projet d'avant (lancé dessus s'il était fermé). Plus aucune lecture de l'écran pour la Playlist ; l'ancien

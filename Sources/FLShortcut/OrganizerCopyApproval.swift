@@ -182,6 +182,22 @@ final class CopyApproval: ObservableObject {
         save()
     }
 
+    /// « Revenir comme avant » dans l'Organiser (demande du propriétaire, 28/10) : la version organisée, et celles
+    /// d'avant du même projet, partent à la Corbeille dès que FL ne la montre plus (il vient de rouvrir l'original ; il
+    /// demande peut-être s'il faut l'enregistrer : l'utilisateur choisit). Toujours montrée au bout d'une minute : elle
+    /// reste, la question reviendra à la réouverture de FL Shortcuts. Jamais un autre fichier (CopyApprovalRules.isSafe).
+    func discard(copy: URL) {
+        guard let p = pending.first(where: { CopyApprovalRules.same($0.copy, copy) }) else { return }
+        let files = self.files
+        DispatchQueue.global(qos: .utility).async { [weak self] in
+            let left = CopyApprovalLive.wait(seconds: 60) { !CopyApprovalLive.flShows(p.copy) }
+            if left { CopyApprovalRules.goBack(p, files: files) }
+            MacroLog.shared.write("ORGANIZE", left ? "organized copy trashed after undo (\(p.older.count) older)"
+                                                   : "organized copy still open in FL after undo: kept, asked later")
+            DispatchQueue.main.async { if left { self?.done(p) } }
+        }
+    }
+
     /// Les versions organisées qui ne sont plus là (déplacées, supprimées à la main) sont oubliées.
     func prune() {
         let before = pending.count

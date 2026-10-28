@@ -101,7 +101,7 @@ struct OrganizerEnvironment {
     /// « Choisir le fichier… » : l'utilisateur montre le projet ouvert dans FL (fil principal) ; faux : annulé.
     var chooseProject: () -> Bool = { false }
     /// Une copie rangée faite et ouverte dans FL (original, copie) : à valider à la réouverture de FL Shortcuts ; puis
-    /// « Revenir comme avant » réussi sur cette copie (plus rien à demander). Fil principal.
+    /// « Revenir comme avant » réussi sur cette copie : elle part à la Corbeille (plus rien à demander). Fil principal.
     var copyMade: (_ original: URL, _ copy: URL) -> Void = { _, _ in }
     var copyUndone: (_ copy: URL) -> Void = { _ in }
 
@@ -194,7 +194,7 @@ struct OrganizerEnvironment {
                 return true
             },
             copyMade: { CopyApproval.shared.record(original: $0, copy: $1) },
-            copyUndone: { CopyApproval.shared.forget(copy: $0) })
+            copyUndone: { CopyApproval.shared.discard(copy: $0) })
     }
 
     /// La Playlist devant (FL au premier plan), lue dans sa fenêtre.
@@ -889,7 +889,7 @@ final class OrganizerController: ObservableObject {
         var lines = [String(localized: "C'est fait : le projet est rangé, coloré et renommé. « Revenir comme avant » défait tout, sauf les sons supprimés.")]
         if let copy = lastApply?.copy {
             // Rangé dans une copie : son nom à l'écran (jamais dans le journal).
-            lines = [String(localized: "C'est fait : ton projet est rangé, coloré et renommé dans une copie, « \(copy.lastPathComponent) », à côté de l'original. L'original n'a pas bougé : « Revenir comme avant » le rouvre.")]
+            lines = [String(localized: "C'est fait : ton projet est rangé, coloré et renommé dans une copie, « \(copy.lastPathComponent) », à côté de l'original. L'original n'a pas bougé : « Revenir comme avant » le rouvre et met la copie à la Corbeille.")]
             if lastApply?.copyNotSaved == true {
                 lines.append(String(localized: "FL n'a pas enregistré la copie rangée : enregistre-la dans FL (⌘S)."))
             }
@@ -1393,7 +1393,7 @@ struct OrganizerView: View {
             ending(error?.message ?? controller.doneText, ok: error == nil, linkHelp: error == .noResponse)
         case .undone(let error):
             ending(error?.message ?? (controller.lastApply?.copy != nil
-                    ? String(localized: "Ton projet d'origine se rouvre dans FL, tel qu'il était. La copie rangée reste à côté, si tu la veux.")
+                    ? String(localized: "Ton projet d'origine se rouvre dans FL, tel qu'il était. La copie rangée part à la Corbeille dès que FL l'a quittée.")
                     : String(localized: "FL est revenu comme avant.")),
                    ok: error == nil, linkHelp: error == .noResponse)
         case .failed(let message):
@@ -1918,8 +1918,8 @@ private struct ProjectSummary: View {
             Text(controller.organizesCopy
                 ? String(localized: """
                     Tout se range dans une nouvelle version de ton projet (« _2 », comme « Save new version » de FL), \
-                    à côté de l'original : ton projet d'origine ne bouge pas, « Revenir comme avant » le rouvre. \
-                    Aucune lecture de l'écran.
+                    à côté de l'original : ton projet d'origine ne bouge pas, « Revenir comme avant » le rouvre et met la \
+                    nouvelle version à la Corbeille. Aucune lecture de l'écran.
                     """)
                 : String(localized: """
                     Les pistes de la Playlist sont remontées par leur menu (« Move up ») : FL Shortcuts lit alors la \

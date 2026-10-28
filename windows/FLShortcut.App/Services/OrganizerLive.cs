@@ -71,7 +71,18 @@ internal static class OrganizerLive
             },
             ChooseProject = choose,
             CopyMade = (original, copy) => app.Approval.Record(original, copy),
-            CopyUndone = copy => app.Approval.Forget(copy),
+            // « Revenir comme avant » : la version organisée à la Corbeille dès que FL l'a quittée (demande du 28/10) ;
+            // encore ouverte au bout d'une minute : elle reste, la question reviendra.
+            CopyUndone = copy =>
+            {
+                if (app.Approval.Find(copy) is not { } pending) return;
+                var files = app.Approval.Files;
+                Task.Run(() =>
+                {
+                    var gone = CopyApprovalPrompt.Fl.DiscardAfterUndo(pending, files);
+                    ui.TryEnqueue(() => { if (gone) app.Approval.Done(pending); });
+                });
+            },
             AppVersion = AppVersion(),
             Post = action => ui.TryEnqueue(() => action()),
             Background = worker.Run,

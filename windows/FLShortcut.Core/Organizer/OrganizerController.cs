@@ -578,7 +578,7 @@ public sealed class OrganizerController
             if (LastApply?.Copy is { } copy)
             {
                 // Rangé dans une copie : son nom à l'écran (jamais dans le journal).
-                lines = new List<string> { Loc.F("C'est fait : ton projet est rangé, coloré et renommé dans une copie, « %@ », à côté de l'original. L'original n'a pas bougé : « Revenir comme avant » le rouvre.", Path.GetFileName(copy)) };
+                lines = new List<string> { Loc.F("C'est fait : ton projet est rangé, coloré et renommé dans une copie, « %@ », à côté de l'original. L'original n'a pas bougé : « Revenir comme avant » le rouvre et met la copie à la Corbeille.", Path.GetFileName(copy)) };
                 if (LastApply.CopyNotSaved) lines.Add(Loc.T("FL n'a pas enregistré la copie rangée : enregistre-la dans FL (Ctrl+S)."));
                 lines.Add(Loc.T("Une fois l'Organiser fermé, FL Shortcuts te demandera si tu valides cette version : « Valider » met ton projet d'origine à la Corbeille et lui donne son nom, « Retourner en arrière » la supprime et rouvre ton projet d'avant."));
             }

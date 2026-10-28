@@ -225,7 +225,10 @@ public sealed class CopyApproval
         Save();
     }
 
-    /// « Revenir comme avant » : l'utilisateur a déjà choisi l'original, plus rien à demander pour cette copie.
+    /// La version organisée en attente pour ce fichier, s'il y en a une.
+    public PendingCopy? Find(string copy) => Pending.FirstOrDefault(p => CopyApprovalRules.Same(p.Copy, copy));
+
+    /// L'utilisateur a déjà choisi l'original, plus rien à demander pour cette copie.
     public void Forget(string copy)
     {
         Pending.RemoveAll(p => CopyApprovalRules.Same(p.Copy, copy));
@@ -270,11 +273,13 @@ public sealed class CopyApprovalFl
     public required Func<string, bool> SaveShown { get; init; }
     public required Func<string, bool> Launch { get; init; }
     public Action<double> Sleep { get; init; } = s => Thread.Sleep(TimeSpan.FromSeconds(s));
+    /// Horloge des attentes (essais : simulée, avancée par `Sleep`).
+    public Func<DateTime> Now { get; init; } = () => DateTime.UtcNow;
 
     private bool WaitUntil(double seconds, Func<bool> condition)
     {
-        var deadline = DateTime.UtcNow.AddSeconds(seconds);
-        while (DateTime.UtcNow < deadline)
+        var deadline = Now().AddSeconds(seconds);
+        while (Now() < deadline)
         {
             if (condition()) return true;
             Sleep(0.5);
@@ -314,6 +319,23 @@ public sealed class CopyApprovalFl
             AppLog.Write("ORGANIZE", $"organized copy not approved ({e.Error})");
             return e.Error;
         }
+    }
+
+    /// « Revenir comme avant » dans l'Organiser (demande du propriétaire, 28/10) : FL vient de rouvrir l'original ; la
+    /// version organisée (et celles d'avant) part à la Corbeille dès qu'il ne la montre plus (il demande peut-être s'il
+    /// faut l'enregistrer : l'utilisateur choisit). Encore montrée au bout d'une minute : elle reste, la question
+    /// reviendra à la réouverture de FL Shortcuts. Vrai si elle est partie.
+    public bool DiscardAfterUndo(PendingCopy p, CopyFiles files)
+    {
+        if (!CopyApprovalRules.IsSafe(p)) return false;
+        if (!WaitUntil(60, () => !Shows(p.Copy)))
+        {
+            AppLog.Write("ORGANIZE", "organized copy still open in FL after undo: kept, asked later");
+            return false;
+        }
+        CopyApprovalRules.GoBack(p, files);
+        AppLog.Write("ORGANIZE", $"organized copy trashed after undo ({p.Older.Count} older)");
+        return true;
     }
 
     /// « Retourner en arrière », avec FL : il rouvre le projet d'avant (sauf s'il le montre déjà), puis la version

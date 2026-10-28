@@ -243,6 +243,44 @@ public sealed class OrganizerCopyApprovalTests : IDisposable
         Assert.Equal("rangé 2", Text(copy2));
     }
 
+    /// « Revenir comme avant » (28/10) : la version organisée et celles d'avant à la Corbeille une fois que FL ne la
+    /// montre plus ; encore montrée au bout d'une minute : elle reste (la question reviendra).
+    [Fact]
+    public void UndoTrashesTheCopyOnceFlLeftIt()
+    {
+        var original = FileWith("Nuit.flp", "avant");
+        var copy = FileWith("Nuit_2.flp", "rangé");
+        var older = FileWith("Nuit_3.flp", "rangé avant");
+        var shown = copy;
+        var waits = 0;
+        var fl = new CopyApprovalFl
+        {
+            FlRunning = () => true, Shows = f => CopyApprovalRules.Same(f, shown), Open = _ => true, SaveShown = _ => true,
+            Launch = _ => false,
+            Sleep = _ => { if (++waits == 3) shown = original; },             // FL quitte la copie au bout d'un moment
+        };
+        Assert.True(fl.DiscardAfterUndo(Pending(original, copy, older), Files()));
+        Assert.False(File.Exists(copy));
+        Assert.False(File.Exists(older));
+        Assert.Equal("avant", Text(original));                                 // l'original ne bouge jamais
+
+        var copy2 = FileWith("Nuit_4.flp", "rangé 2");
+        var clock = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+        var stuck = new CopyApprovalFl
+        {
+            FlRunning = () => true, Shows = f => CopyApprovalRules.Same(f, copy2), Open = _ => true, SaveShown = _ => true,
+            Launch = _ => false, Sleep = s => clock = clock.AddSeconds(s), Now = () => clock,
+        };
+        Assert.False(stuck.DiscardAfterUndo(Pending(original, copy2), Files()));
+        Assert.Equal("rangé 2", Text(copy2));                                  // ouverte dans FL : jamais touchée
+        Assert.True(clock >= new DateTime(2026, 1, 1, 0, 1, 0, DateTimeKind.Utc));   // attendue une minute
+
+        var approval = new CopyApproval(() => null, _ => { }, Files());
+        approval.Record(original, copy2);
+        Assert.NotNull(approval.Find(copy2));
+        Assert.Null(approval.Find(original));
+    }
+
     /// « Retourner en arrière » FL fermé : il est lancé sur le projet d'avant, la version organisée à la Corbeille.
     [Fact]
     public void GoBackWithFlClosedLaunchesTheOriginal()

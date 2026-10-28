@@ -260,7 +260,7 @@ internal sealed class OrganizerWindow : Window
                 break;
             case OrganizerPhase.Undone u:
                 Ending(u.Error?.UserMessage ?? (_controller.LastApply?.Copy is not null
-                        ? Loc.T("Ton projet d'origine se rouvre dans FL, tel qu'il était. La copie rangée reste à côté, si tu la veux.")
+                        ? Loc.T("Ton projet d'origine se rouvre dans FL, tel qu'il était. La copie rangée part à la Corbeille dès que FL l'a quittée.")
                         : Loc.T("FL est revenu comme avant.")),
                     u.Error is null, u.Error?.Is(OrganizerError.Kinds.NoResponse) == true);
                 break;
@@ -698,7 +698,7 @@ internal sealed class OrganizerWindow : Window
                 : Loc.T("Supprimer les sons sans aucune note (on ne peut pas les remettre)"), options.DeleteUnused,
             on => _controller.SetOptions(_controller.Options with { DeleteUnused = on })));
         stack.Children.Add(Label(_controller.OrganizesCopy
-            ? Loc.T("Tout se range dans une nouvelle version de ton projet (« _2 », comme « Save new version » de FL), à côté de l'original : ton projet d'origine ne bouge pas, « Revenir comme avant » le rouvre. Aucune lecture de l'écran.")
+            ? Loc.T("Tout se range dans une nouvelle version de ton projet (« _2 », comme « Save new version » de FL), à côté de l'original : ton projet d'origine ne bouge pas, « Revenir comme avant » le rouvre et met la nouvelle version à la Corbeille. Aucune lecture de l'écran.")
             : Loc.T("Les pistes de la Playlist sont remontées par leur menu (« Move up ») : FL Shortcuts lit alors la fenêtre de FL (autorisation « Enregistrement de l'écran »). Les patterns restent à leur place."),
             10, secondary: true));
         return Card(stack, padding: 12);
