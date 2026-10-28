@@ -125,8 +125,16 @@
   Windows App SDK auto-contenu) : `SetDllDirectory("")`. Macros (cœur `windows/FLShortcut.Core/Macros/`) : modèle et JSON
   communs au Mac, registre des blocs, validation, pages/« Cliquer sur… », modèles, catalogue des 270 raccourcis de FL
   (`Catalog.cs`, généré depuis Catalog.swift), programme compilé et interpréteur (`MacroProgram.cs`,
-  `MacroInterpreter.cs` : miroir de MacroInterpreter.swift, mêmes essais avec de faux effets). Reste : effets réels des
-  macros (`IMacroEffects` dans l'appli : touches, clics, fenêtres, FL), créateur, enregistrement, compte, Communauté, Aide.
+  `MacroInterpreter.cs` : miroir de MacroInterpreter.swift, mêmes essais avec de faux effets), bibliothèque
+  (`%APPDATA%\FL Shortcuts\macros.json`, même format que le Mac, `MacroLibraryStore.cs` : copies de secours), raccourcis
+  de type macro (`macroRef` + lien caché comme le Mac), effets (`MacroEffectsWindows.cs` derrière `IFlDriver`, essayés
+  sur un faux FL ; pilote Win32 et lanceur `Services/MacroRunner.cs`, Échap compté par le hook) : touches, menus et
+  boîtes de FL (reconnus par classe/style, jamais le titre), actions de FL (lien) ou leur touche, pages, Organiser.
+  Blocs PAS ENCORE faits sur Windows (`MacroEffectsWindows.Unsupported` : la macro est bloquée, son raccourci reste à
+  FL) : clics, glisser, menu de la piste, preset (choisir/déposer), entrée, larsen, carte son, « Cliquer sur… », Menu
+  de FL, Nom et couleur — donc les 5 modèles du propriétaire ne tournent pas encore sous Windows. Journal :
+  `%LOCALAPPDATA%\FL Shortcuts\journal.txt` (`AppLogFile`, 512 Ko). Reste : ces blocs, créateur, page Macros,
+  enregistrement, compte, Communauté, Aide.
 - Interface : survol coloré du menu de l'icône (`menuHover` : contour de sa couleur, halo autour) voulu par le
   propriétaire partout ; depuis le 25/10 (sa capture) : couleurs de l'élément JAMAIS changées (ni fond ajouté, ni
   ombre sur le contenu : halo `HoverGlow` dehors seulement), rien de gris au-delà du contour (lignes des cartes : c'est

@@ -322,4 +322,18 @@ internal static class Win32
     [DllImport("user32.dll")] public static extern IntPtr GetWindow(IntPtr hWnd, uint uCmd);
     [DllImport("user32.dll")] public static extern short GetAsyncKeyState(int vKey);
     [DllImport("user32.dll")] public static extern uint GetDpiForWindow(IntPtr hwnd);
+
+    // ---------- Macros : menus et boîtes de dialogue de FL reconnus par leur classe et leur style (jamais le titre) ----------
+    public const int GWL_STYLE = -16, GWL_EXSTYLE = -20;
+    public const long WS_POPUP = 0x80000000L, WS_CAPTION = 0x00C00000L, WS_THICKFRAME = 0x00040000L, WS_CHILD = 0x40000000L;
+    public const long WS_EX_TOPMOST = 0x00000008L, WS_EX_TOOLWINDOW = 0x00000080L;
+    public const uint MB_ICONWARNING = 0x30;
+
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)]
+    public static extern int GetClassNameW(IntPtr hWnd, StringBuilder lpClassName, int nMaxCount);
+    [DllImport("user32.dll", EntryPoint = "GetWindowLongPtrW")]
+    public static extern IntPtr GetWindowLongPtrW(IntPtr hWnd, int nIndex);
+    [DllImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static extern bool MessageBeep(uint uType);
 }

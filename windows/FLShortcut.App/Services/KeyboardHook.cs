@@ -6,6 +6,7 @@
 using System.Runtime.InteropServices;
 using FLShortcut.App.Native;
 using FLShortcut.Core;
+using FLShortcut.Core.Macros;
 
 namespace FLShortcut.App.Services;
 
@@ -22,6 +23,8 @@ internal sealed class KeyboardHook : IDisposable
     private readonly Func<int, bool> _sendAction;
     private readonly Action _onToggle;
     private readonly Action<FlProcessInfo?> _onForegroundChanged;
+    private readonly Action<MacroProgram> _onMacro;
+    private int _escapes;
 
     private readonly KeyRouter _router = new();
     private readonly ModifierTracker _mods = new();
@@ -39,12 +42,18 @@ internal sealed class KeyboardHook : IDisposable
     public volatile LinkRoutingView Link = LinkRoutingView.Offline;
 
     /// <param name="sendAction">Envoie une action FL (trame signée) ; faux si impossible.</param>
-    public KeyboardHook(Func<int, bool> sendAction, Action onToggle, Action<FlProcessInfo?> onForegroundChanged)
+    /// <param name="onMacro">Lance une macro (appel rapide : la macro tourne sur son propre fil).</param>
+    public KeyboardHook(Func<int, bool> sendAction, Action onToggle, Action<FlProcessInfo?> onForegroundChanged,
+                        Action<MacroProgram> onMacro)
     {
         _sendAction = sendAction;
         _onToggle = onToggle;
         _onForegroundChanged = onForegroundChanged;
+        _onMacro = onMacro;
     }
+
+    /// Appuis sur Échap (de l'utilisateur) vus pendant que FL est devant : une macro en cours s'arrête.
+    public int EscapePresses => Volatile.Read(ref _escapes);
 
     public bool IsHookInstalled => _kbHook != IntPtr.Zero;
 
@@ -152,6 +161,7 @@ internal sealed class KeyboardHook : IDisposable
             // Frappes injectées par d'autres logiciels : jamais remappées, mais l'état des modificateurs suit.
             var isRepeat = own ? false : _mods.Observe(vk, isDown);
             if (own || injected) return Win32.CallNextHookEx(_kbHook, nCode, wParam, lParam);
+            if (isDown && !isRepeat && vk == Vk.Escape) Interlocked.Increment(ref _escapes);
 
             var input = new RouterInput(isDown ? RouterInput.Kinds.Down : RouterInput.Kinds.Up, _mods.Combo(vk),
                 IsRepeat: isRepeat, IsOwn: false, TargetIsFl: _flPid != 0 && FlPresence.ForegroundPid() == _flPid,
@@ -175,6 +185,9 @@ internal sealed class KeyboardHook : IDisposable
                         break;
                     case RouterEffect.ToggleEnabled:
                         try { _onToggle(); } catch { }
+                        break;
+                    case RouterEffect.RunMacro m:
+                        try { _onMacro(m.Program); } catch { }
                         break;
                 }
             }

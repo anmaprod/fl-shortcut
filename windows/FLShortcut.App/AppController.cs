@@ -46,6 +46,9 @@ internal sealed class AppController : INotifyPropertyChanged, IDisposable
     /// Bibliothèque des macros en blocs (macros.json), écrite peu après chaque changement et à la fermeture.
     private readonly MacroLibraryStore _macros = new(new MacroFileStorage());
     private DispatcherQueueTimer? _macroSave;
+    private readonly MacroRunner _runner;
+    /// Macros compilées avec les règles de Windows : un bloc pas encore fait ici bloque sa macro.
+    private static readonly ValidationContext MacroContext = new() { PlatformProblem = MacroEffectsWindows.Unsupported };
     private Dictionary<Guid, List<ShortcutIssue>> _issues = new();
     private FlProcessInfo? _foreground;
     private FlVersion? _flVersion;
@@ -68,7 +71,10 @@ internal sealed class AppController : INotifyPropertyChanged, IDisposable
             ScheduleMacroSave();
             RefreshAll();
         });
-        _hook = new KeyboardHook(_midi.SendAction, () => OnUi(Toggle), fl => OnUi(() => OnForeground(fl)));
+        _runner = new MacroRunner(_midi, _settings, () => Light, () => _hook!.EscapePresses, OnUi, () => OrganizerWindow.Show(this));
+        _runner.Finished += OnMacroFinished;
+        _hook = new KeyboardHook(_midi.SendAction, () => OnUi(Toggle), fl => OnUi(() => OnForeground(fl)),
+            program => OnUi(() => RunMacro(program)));
     }
 
     public void Start()
@@ -81,6 +87,9 @@ internal sealed class AppController : INotifyPropertyChanged, IDisposable
     // ---------- État affiché ----------
 
     public string? LoadWarning { get; }
+    /// Fin d'une macro (fil de l'interface) : réussie, et le texte du résultat.
+    public event Action<bool, string>? MacroFinished;
+
     /// Bibliothèque des macros illisible, inaccessible ou impossible à enregistrer (jamais de macro perdue en silence).
     public string? MacroProblem => _macros.Problem;
     internal MacroLibraryStore Macros => _macros;
@@ -230,7 +239,20 @@ internal sealed class AppController : INotifyPropertyChanged, IDisposable
     // ---------- Interne ----------
 
     private AnalysisContext NewAnalysisContext() =>
-        new(ProfilePresets.Toggle, ConflictTable.Default, Availability, _macros.Programs());
+        new(ProfilePresets.Toggle, ConflictTable.Default, Availability, _macros.Programs(MacroContext));
+
+    /// Raccourci d'une macro (le hook l'a avalé) : une macro à la fois ; FL plus devant ou macro invalide : rien.
+    private void RunMacro(MacroProgram program)
+    {
+        var result = _runner.Start(program);
+        if (result != MacroRunner.StartResult.Started) AppLog.Write("MACRO", "not started: " + result);
+    }
+
+    private void OnMacroFinished(bool ok, string text)
+    {
+        if (!ok) Native.Win32.MessageBeep(Native.Win32.MB_ICONWARNING);
+        MacroFinished?.Invoke(ok, text);
+    }
 
     private void ScheduleMacroSave()
     {
@@ -271,7 +293,7 @@ internal sealed class AppController : INotifyPropertyChanged, IDisposable
         _hook.Config = _hook.Config with
         {
             Enabled = _settings.Enabled,
-            Index = new ShortcutIndex(_shortcuts, blocked),
+            Index = new ShortcutIndex(_shortcuts, blocked, _macros.Programs(MacroContext)),
             Toggle = ProfilePresets.Toggle,
             ActionNatives = LightMode.ActionNatives(Light),
             AnyContext = Light,

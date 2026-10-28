@@ -91,6 +91,8 @@ public sealed partial class MainWindow : Window
         if (_app.Light) NavLink.Visibility = Visibility.Collapsed;   // mode léger : rien à relier
         if (!photos) _app.Start();
         ShowScreen();
+        // Macro arrêtée ou terminée avec un avertissement : dit dans la fenêtre (le son d'alerte a déjà retenti).
+        _app.MacroFinished += (ok, text) => { if (!ok) ShowToast(text, InfoBarSeverity.Warning); };
         if (_app.LoadWarning is { } warning) ShowToast(warning, InfoBarSeverity.Warning);
         else if (_app.MacroProblem is { } problem) ShowToast(problem, InfoBarSeverity.Warning);
         // Une version organisée attend (Organiser fermé) : la question à la réouverture de FL Shortcuts.

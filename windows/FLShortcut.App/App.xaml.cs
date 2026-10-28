@@ -42,6 +42,7 @@ public partial class App : Application
             Exit();
             return;
         }
+        Services.AppLogFile.Install();              // journal des macros et de l'Organiser (mots fixes et nombres)
         _window = new MainWindow();
         var startHidden = Environment.GetCommandLineArgs().Any(a => string.Equals(a, "--tray", StringComparison.OrdinalIgnoreCase));
         if (!startHidden) _window.Activate();

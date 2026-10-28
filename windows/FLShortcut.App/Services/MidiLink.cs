@@ -69,6 +69,19 @@ internal sealed class MidiLink : IDisposable, IMidiTransport
     /// Envoie une action signée. Faux si le lien, la clé ou le port manquent (la touche sera rendue à FL).
     public bool SendAction(int id) => Core.SendAction(id) == LinkCore.SendResult.Sent;
 
+    /// Macro (bloquant, jamais sur le fil de l'interface) : ports ouverts à la demande, script réveillé brièvement
+    /// (`brief` : mode léger, il se rendort ensuite), actions dans l'ordre. null si FL les a faites, sinon la raison.
+    public string? RunBriefly(IReadOnlyList<int> ids, bool brief)
+    {
+        if (!HasKey || !(PortsPresent || PortsExist())) return Loc.T("lien avec FL non installé");
+        Start();
+        lock (_gate)
+        {
+            if (_out == IntPtr.Zero || _in == IntPtr.Zero) OpenUnlocked();
+        }
+        return Core.RunBriefly(ids, brief);
+    }
+
     /// Opération de l'Organiser (PROTOCOL.md §8), bloquante : ports ouverts à la demande, script réveillé si besoin.
     public RequestReply RunRequest(byte[] bytes, bool brief)
     {

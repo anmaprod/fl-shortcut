@@ -33,3 +33,4 @@
 "bloc « %@ » pas encore pris en charge sur Windows." = "“%@” block not supported on Windows yet.";
 "pas encore sur Windows" = "not on Windows yet";
 "touche non prise en charge" = "key not supported";
+"erreur interne" = "internal error";

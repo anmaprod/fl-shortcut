@@ -125,6 +125,9 @@ internal sealed class AppSettings
     public bool? ShareCorrections { get; set; }
     /// Versions organisées en attente de validation (relues par CopyApprovalRules.Decode : seules les sûres restent).
     public string? PendingCopies { get; set; }
+    /// Macros : ce qui a été appris (Entrée après la dernière lettre d'un menu de FL). Clés de la liste blanche
+    /// seulement (MacroValidation.LearnedEnterKeys), jamais lues pour autre chose.
+    public Dictionary<string, bool>? MacroMemory { get; set; }
 
     private static string FilePath => Path.Combine(AppPaths.Local, "settings.json");
 
@@ -173,6 +176,32 @@ internal static class ProfileStore
 
     public static void Save(IEnumerable<Shortcut> shortcuts) =>
         SafeFile.WriteAtomic(FilePath, Encoding.UTF8.GetBytes(ProfileCodec.Encode(shortcuts)));
+}
+
+/// Journal de l'appli (AppLog : étapes des macros et de l'Organiser, des mots fixes et des nombres seulement) dans
+/// %LOCALAPPDATA%\FL Shortcuts\journal.txt ; au-delà de 512 Ko, l'ancien devient journal.1.txt (un seul gardé).
+internal static class AppLogFile
+{
+    private const long MaxBytes = 512 * 1024;
+    private static readonly object Gate = new();
+    private static string FilePath => Path.Combine(AppPaths.Local, "journal.txt");
+
+    public static void Install() => AppLog.Sink = Write;
+
+    private static void Write(string area, string line)
+    {
+        lock (Gate)
+        {
+            try
+            {
+                SafeFile.EnsureNoLinks(FilePath);
+                if (File.Exists(FilePath) && new FileInfo(FilePath).Length > MaxBytes)
+                    File.Move(FilePath, Path.Combine(AppPaths.Local, "journal.1.txt"), overwrite: true);
+                File.AppendAllText(FilePath, $"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} {area} {line}{Environment.NewLine}");
+            }
+            catch { /* journal au mieux : jamais bloquant */ }
+        }
+    }
 }
 
 /// Bibliothèque des macros : %APPDATA%\FL Shortcuts\macros.json (même format que le Mac). Fichier ou dossier lié,
