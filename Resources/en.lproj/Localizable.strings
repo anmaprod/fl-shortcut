@@ -341,11 +341,13 @@
 "Bloc" = "Block";
 "Bloc %@" = "Block %@";
 "Bloc actif" = "Block enabled";
+"Bloc actif : coupe-le pour le sauter sans le supprimer" = "Block on: switch it off to skip it without deleting it";
 "Bloc actif : décoche pour le sauter sans le supprimer" = "Block enabled: uncheck to skip it without deleting it";
 "Bloc d'une version plus récente : mets l'app à jour, ou supprime-le." = "Block from a newer version: update the app, or delete it.";
 "Bloc inconnu" = "Unknown block";
 "Bloc inconnu (version plus récente) : la macro restera bloquée" = "Unknown block (newer version): the macro will stay blocked";
 "Bloc sauté : coche pour le réactiver" = "Block skipped: check to turn it back on";
+"Bloc sauté : rallume-le pour le réactiver" = "Block skipped: switch it back on to use it again";
 "Blocs" = "Blocks";
 "Blocs trop imbriqués (%lld niveaux au plus)." = "Blocks nested too deep (%lld levels max).";
 "Blue" = "Blue";

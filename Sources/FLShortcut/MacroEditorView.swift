@@ -439,11 +439,6 @@ private struct MacroStepRowView: View, Equatable {
 
     private var blockRow: some View {
         HStack(spacing: 8) {
-            Toggle("", isOn: Binding(get: { row.ownEnabled }, set: onToggle))
-                .toggleStyle(.checkbox)
-                .labelsHidden()
-                .help(row.ownEnabled ? String(localized: "Bloc actif : décoche pour le sauter sans le supprimer")
-                                     : String(localized: "Bloc sauté : coche pour le réactiver"))
             Text(row.number)
                 .font(.system(size: 11).monospacedDigit())
                 .foregroundStyle(.secondary)
@@ -463,6 +458,13 @@ private struct MacroStepRowView: View, Equatable {
                 BadgeCapsule(badge: badge)
             }
             stateIcon
+            // Interrupteur à droite (maquette validée le 28/10), à la place de la case à cocher à gauche.
+            Toggle("", isOn: Binding(get: { row.ownEnabled }, set: onToggle))
+                .toggleStyle(.switch)
+                .controlSize(.small)
+                .labelsHidden()
+                .help(row.ownEnabled ? String(localized: "Bloc actif : coupe-le pour le sauter sans le supprimer")
+                                     : String(localized: "Bloc sauté : rallume-le pour le réactiver"))
         }
         .padding(.leading, indent)
         .padding(.vertical, 3)

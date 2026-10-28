@@ -151,12 +151,37 @@ struct PageContainer<Content: View>: View {
 }
 
 extension View {
-    /// Ligne de la barre latérale : au survol, elle s'allume de sa couleur comme une ligne du menu de la barre des
-    /// menus (contour un peu plus grand que l'icône et le titre, sur toute la largeur). La page choisie ne s'allume
-    /// pas : le fond gris de la sélection, plus grand, dépassait du contour.
-    func sidebarHover(_ tint: Color, selected: Bool = false) -> some View {
-        frame(maxWidth: .infinity, alignment: .leading)
-            .menuHover(tint: tint, cornerRadius: 8, outset: 4, enabled: !selected)
+    /// Ligne de la barre latérale (maquette validée le 28/10) : la page choisie dans une pastille bleue, titre blanc
+    /// en gras ; les autres s'allument de leur couleur au survol, comme une ligne du menu de la barre des menus. Un
+    /// clic la choisit : plus de sélection de la liste, que macOS dessinait en gris tant que la liste n'avait pas le
+    /// clavier (vidéo du 29/10).
+    func sidebarRow(_ tint: Color, selected: Bool, choose: @escaping () -> Void) -> some View {
+        modifier(SidebarRowModifier(tint: tint, selected: selected, choose: choose))
+    }
+}
+
+private struct SidebarRowModifier: ViewModifier {
+    let tint: Color
+    let selected: Bool
+    let choose: () -> Void
+
+    func body(content: Content) -> some View {
+        content
+            .foregroundStyle(selected ? Color.white : Color.primary)
+            .fontWeight(selected ? .semibold : nil)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 5)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background {
+                if selected {
+                    RoundedRectangle(cornerRadius: 9, style: .continuous).fill(Color.accentColor)
+                }
+            }
+            .contentShape(Rectangle())
+            .menuHover(tint: tint, cornerRadius: 9, enabled: !selected)
+            .onTapGesture(perform: choose)
+            .accessibilityAddTraits(selected ? [.isButton, .isSelected] : .isButton)
+            .accessibilityAction { choose() }
     }
 }
 
@@ -558,10 +583,14 @@ struct EditorView: View {
     /// Page choisie dans la barre latérale (aucune pendant une recherche).
     private func isShown(_ item: SidebarItem) -> Bool { trimmedQuery.isEmpty && selection == item }
 
+    /// Clic sur une ligne de la barre latérale : comme une sélection de la liste (quitte la recherche s'il y en a une).
+    private func choose(_ item: SidebarItem) {
+        sidebarSelection.wrappedValue = item
+    }
+
     private func sidebar(_ data: CatalogData) -> some View {
-        var modified: [FLSection: Int] = [:]
-        for row in data.rows where !row.isDefault { modified[row.entry.section, default: 0] += 1 }
-        return List(selection: sidebarSelection) {
+        // Plus de compteurs (maquette du 28/10 : « rien d'inutile ») ; la page choisie est dessinée par sidebarRow.
+        return List {
             Section {
                 // Sélection par étiquette (.tag) : un NavigationLink sans destination ne sélectionne rien sur
                 // macOS 26+ (clic capté, section inchangée).
@@ -572,8 +601,7 @@ struct EditorView: View {
                     } icon: {
                         SectionIcon(symbol: section.symbol, tint: section.tint)
                     }
-                    .sidebarHover(section.tint, selected: isShown(.section(section)))
-                    .badge(modified[section] ?? 0)
+                    .sidebarRow(section.tint, selected: isShown(.section(section))) { choose(.section(section)) }
                     .help(section.subtitle)
                     .tag(SidebarItem.section(section))
                 }
@@ -583,7 +611,7 @@ struct EditorView: View {
             // Chaque groupe a son titre gris, comme « FL Studio » : macros, tes raccourcis, la Communauté, puis
             // ton compte et l'aide ensemble.
             Section {
-                MacroSidebarRow(library: store.library, selected: isShown(.macros))
+                MacroSidebarRow(selected: isShown(.macros)) { choose(.macros) }
                     .tag(SidebarItem.macros)
             } header: {
                 Text("Automatiser")
@@ -594,8 +622,7 @@ struct EditorView: View {
                 } icon: {
                     SectionIcon(symbol: SidebarItem.custom.symbol, tint: SidebarItem.custom.tint)
                 }
-                .sidebarHover(SidebarItem.custom.tint, selected: isShown(.custom))
-                .badge(MyShortcuts.count(rows: data.rows, others: data.others, starters: store.freshRemaps()))
+                .sidebarRow(SidebarItem.custom.tint, selected: isShown(.custom)) { choose(.custom) }
                 .tag(SidebarItem.custom)
             } header: {
                 Text("Personnalisé")
@@ -606,7 +633,7 @@ struct EditorView: View {
                 } icon: {
                     SectionIcon(symbol: SidebarItem.community.symbol, tint: SidebarItem.community.tint)
                 }
-                .sidebarHover(SidebarItem.community.tint, selected: isShown(.community))
+                .sidebarRow(SidebarItem.community.tint, selected: isShown(.community)) { choose(.community) }
                 .help(CommunityText.subtitle)
                 .tag(SidebarItem.community)
             } header: {
@@ -618,7 +645,7 @@ struct EditorView: View {
                 } icon: {
                     SectionIcon(symbol: SidebarItem.account.symbol, tint: SidebarItem.account.tint)
                 }
-                .sidebarHover(SidebarItem.account.tint, selected: isShown(.account))
+                .sidebarRow(SidebarItem.account.tint, selected: isShown(.account)) { choose(.account) }
                 .badge(backup.conflict != nil ? Text("!") : nil)
                 .help(AccountText.subtitle)
                 .tag(SidebarItem.account)
@@ -627,7 +654,7 @@ struct EditorView: View {
                 } icon: {
                     SectionIcon(symbol: SidebarItem.help.symbol, tint: SidebarItem.help.tint)
                 }
-                .sidebarHover(SidebarItem.help.tint, selected: isShown(.help))
+                .sidebarRow(SidebarItem.help.tint, selected: isShown(.help)) { choose(.help) }
                 .help("Questions fréquentes, et écrire à l'équipe")
                 .tag(SidebarItem.help)
             } header: {

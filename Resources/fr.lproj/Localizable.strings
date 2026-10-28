@@ -341,11 +341,13 @@
 "Bloc" = "Bloc";
 "Bloc %@" = "Bloc %@";
 "Bloc actif" = "Bloc actif";
+"Bloc actif : coupe-le pour le sauter sans le supprimer" = "Bloc actif : coupe-le pour le sauter sans le supprimer";
 "Bloc actif : décoche pour le sauter sans le supprimer" = "Bloc actif : décoche pour le sauter sans le supprimer";
 "Bloc d'une version plus récente : mets l'app à jour, ou supprime-le." = "Bloc d'une version plus récente : mets l'app à jour, ou supprime-le.";
 "Bloc inconnu" = "Bloc inconnu";
 "Bloc inconnu (version plus récente) : la macro restera bloquée" = "Bloc inconnu (version plus récente) : la macro restera bloquée";
 "Bloc sauté : coche pour le réactiver" = "Bloc sauté : coche pour le réactiver";
+"Bloc sauté : rallume-le pour le réactiver" = "Bloc sauté : rallume-le pour le réactiver";
 "Blocs" = "Blocs";
 "Blocs trop imbriqués (%lld niveaux au plus)." = "Blocs trop imbriqués (%lld niveaux au plus).";
 "Blue" = "Blue";

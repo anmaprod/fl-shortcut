@@ -473,6 +473,10 @@ entrée 1 ≈ 0,5 s.
   l'enregistrement) et l'installation du lien de l'Organiser ; réglages d'un bloc sans « À savoir » ni « Bloc actif »
   (la case de la ligne et ses pastilles le disent). Restent différents : sélection de la barre latérale (gris du
   système, bleue quand la liste a le focus), case à cocher des blocs à gauche (interrupteur à droite sur la maquette).
+  « Oui change tout pour que ça soit comme ça » : barre latérale sans sélection de la liste (plus de gris du
+  système) ; la page choisie dans une pastille bleue, titre blanc en gras, un clic choisit (`sidebarRow`) ; plus de
+  compteurs (sauf le « ! » du compte) ; interrupteur à droite de chaque bloc à la place de la case à gauche. Les
+  flèches du clavier ne parcourent plus la barre latérale (plus de sélection de liste).
   Dans l'app, la page principale n'avait déjà ni bouton pause ni « Connecté à FL » (seulement dans la maquette).
 - Textes courts (28/10, suite) : « Pose le preset sur la dernière piste cliquée du Mixer » → « Ouvre le preset que tu
   veux dans ton Mixer », le bloc s'appelle « Ouvrir un preset » (ligne : « Ouvrir le preset [fichier] », plus de « sur

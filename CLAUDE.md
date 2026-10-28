@@ -161,7 +161,7 @@
   propriétaire partout ; depuis le 25/10 (sa capture) : couleurs de l'élément JAMAIS changées (ni fond ajouté, ni
   ombre sur le contenu : halo `HoverGlow` dehors seulement), rien de gris au-delà du contour (lignes des cartes : c'est
   leur fond `CardRowBackground` qui s'allume et s'élargit ; page ou bloc déjà choisi : pas de survol), et le contenu
-  ne grossit plus (« bizarre à l'œil nu » : texte agrandi flou) : seul le contour s'écarte (2 points) ; barre latérale (`sidebarHover`), lignes des pages, Macros, modèles, Communauté, Aide,
+  ne grossit plus (« bizarre à l'œil nu » : texte agrandi flou) : seul le contour s'écarte (2 points) ; barre latérale (`sidebarRow` : page choisie en pastille bleue, sans sélection grise du système ni compteurs), lignes des pages, Macros, modèles, Communauté, Aide,
   palette, blocs, bouton d'enregistrement, « Menu de FL » du créateur ;
   « Mes raccourcis » = raccourcis changés + créés, jamais de macro (macro d'exemple ⌃R retirée) ; plus aucune note
   sous les blocs des macros ; « Menu de FL » en tête des blocs FL Studio de la palette ; recherche qui lâche la main

@@ -551,8 +551,8 @@ struct LibraryMacroFields: View {
 /// « Macros » dans la barre latérale : le nombre de macros est tenu à jour par la bibliothèque seule (la fenêtre
 /// n'est pas redessinée en entier quand une macro change).
 struct MacroSidebarRow: View {
-    @ObservedObject var library: MacroLibraryStore
     var selected = false
+    let choose: () -> Void
 
     var body: some View {
         Label {
@@ -560,8 +560,7 @@ struct MacroSidebarRow: View {
         } icon: {
             SectionIcon(symbol: SidebarItem.macros.symbol, tint: SidebarItem.macros.tint)
         }
-        .sidebarHover(SidebarItem.macros.tint, selected: selected)
-        .badge(library.macros.count)
+        .sidebarRow(SidebarItem.macros.tint, selected: selected, choose: choose)
         .help(MacroPageText.subtitle)
     }
 }
