@@ -27,6 +27,14 @@ public partial class App : Application
 
     protected override void OnLaunched(LaunchActivatedEventArgs args)
     {
+        // Essai des macros de la CI : un faux FL dans l'appli et les vrais blocs joués dessus, puis l'appli se ferme.
+        if (MacroSelfTest.Folder is { } essai)
+        {
+            Microsoft.UI.Xaml.Application.Current.DispatcherShutdownMode = Microsoft.UI.Xaml.DispatcherShutdownMode.OnExplicitShutdown;
+            var queue = Microsoft.UI.Dispatching.DispatcherQueue.GetForCurrentThread();
+            MacroSelfTest.Run(essai, () => queue.TryEnqueue(Exit));
+            return;
+        }
         // Mode photos de la CI : les écrans de l'Organiser avec des sons d'exemple, en PNG, puis l'appli se ferme.
         // Rien n'est envoyé à FL ; ni hook clavier, ni port MIDI.
         if (Photos.Folder is { } folder)

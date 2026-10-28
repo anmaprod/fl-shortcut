@@ -126,6 +126,23 @@ jobs:
           # L'appli est tombée : ce que Windows a noté (exception .NET avec sa pile, module fautif).
           Get-WinEvent -FilterHashtable @{ LogName = 'Application'; ProviderName = '.NET Runtime', 'Application Error' } -MaxEvents 4 -ErrorAction SilentlyContinue |
             ForEach-Object { "---- $($_.ProviderName) $($_.TimeCreated)"; $_.Message }
+      - name: Essai des macros (faux FL dans l'appli : Menu de FL, grisé, clic appris, menu de la piste, preset déposé, boîte Open)
+        continue-on-error: true      # à relire (comme les essais du Mac) : n'empêche jamais la publication
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force dist/essai-macros | Out-Null
+          $app = Start-Process -FilePath dist/win-x64/FLShortcut.exe -ArgumentList '--selftest-macros', "$PWD\dist\essai-macros" -PassThru
+          if (-not $app.WaitForExit(180000)) { $app.Kill(); Write-Output "::warning::essai des macros arrêté au bout de 3 min" }
+          "code de sortie : $($app.ExitCode)"
+          $rapport = "dist/essai-macros/macros-essai.txt"
+          if (Test-Path $rapport) {
+            Get-Content $rapport
+            "## Essai des macros Windows" >> $env:GITHUB_STEP_SUMMARY
+            '```' >> $env:GITHUB_STEP_SUMMARY
+            Get-Content $rapport >> $env:GITHUB_STEP_SUMMARY
+            '```' >> $env:GITHUB_STEP_SUMMARY
+            if ((Get-Content $rapport -TotalCount 1) -ne 'PASS') { exit 1 }
+          } else { "rapport absent"; exit 1 }
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: FLShortcuts-windows-photos
