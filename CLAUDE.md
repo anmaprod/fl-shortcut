@@ -5,8 +5,9 @@
 - Branche la plus récente : **`claude/great-hopper-qihaiy`** (en avance de 138 commits sur `claude/relaxed-mayer-ndguzv`).
   Pas de nouvelle PR sans demande (anmaprod/fl-shortcut#1 existe). Un push lance la CI ; ne pas la relancer à la main
   sans demande. Derniers tests Mac verts : commit 1843b87 (502 tests, lancés par le propriétaire sur son Mac) ; CI
-  entièrement verte sur ec527b1 (« Pas content ? » et corrections de l'IA, tous les essais PASS). La lecture de GitHub (CI,
-  artefacts, images) marche : vérifier chaque push dessus.
+  entièrement verte sur 8861883 (plugins par « More plugins… », preset déposé sur Windows, tous les essais PASS ;
+  lancée à la main avec `mac_runner=macos-15-intel` à sa demande : le 28/10 GitHub n'a donné aucun Mac arm64 en 15 min,
+  deux fois). La lecture de GitHub (CI, artefacts, images) marche : vérifier chaque push dessus.
 - Tout texte affiché doit avoir son anglais (la CI échoue sinon) : `python3 scripts/localisation.py generer trad.json`.
 - Historique, décisions et échecs : `docs/contexte/HISTORIQUE.md` ; lien avec FL (script v16) : `PROTOCOL.md`.
 
@@ -190,6 +191,8 @@
   « n'utilise pas le réseau ») avec guide en images pour « Ouvrir quand même ».
 
 ## Pas encore vérifié sur le vrai FL
+- Plugins (28/10) : la catégorie « FL Shortcuts » des menus Add a-t-elle disparu après un redémarrage de FL ? « Ouvre
+  un VST » avec un plugin hors favoris (Add › Channel › More plugins..., nom lu puis double-clic) ; journal `PLUGIN`.
 - Menu de FL (macOS), retour du 28/10 : « Export Stems » (File › Export › All playlist tracks › Time selection…) dit
   « grisé » même après ⌘A → FL ne met à jour l'état grisé qu'à l'ouverture du menu : élément lu grisé = ses menus
   ouverts un à un puis relu (`MenuBarAX.reopened`, essai CI sur le faux FL `scenarioGreyedItem`). Menu rempli à son
