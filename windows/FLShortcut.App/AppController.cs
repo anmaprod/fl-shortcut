@@ -241,6 +241,40 @@ internal sealed class AppController : INotifyPropertyChanged, IDisposable
     private AnalysisContext NewAnalysisContext() =>
         new(ProfilePresets.Toggle, ConflictTable.Default, Availability, _macros.Programs(MacroContext));
 
+    // ---------- Page Macros ----------
+
+    /// Ce qui empêche la macro de tourner sous Windows (bloc pas encore fait ici…), sinon null.
+    public string? MacroIssue(Guid macro) =>
+        _macros.Programs(MacroContext).TryGetValue(macro, out var program) ? program.Problem : null;
+
+    /// Premier raccourci qui lance cette macro.
+    public Shortcut? MacroShortcut(Guid macro) => MacroDrafts.ShortcutsOf(macro, _shortcuts).FirstOrDefault();
+
+    /// Donne ce déclencheur à la macro (son raccourci est modifié, ou créé). Renvoie le problème qui l'en empêche
+    /// (doublon, touche réservée…), sinon null. Une macro pas encore prête garde son raccourci (bloqué jusque-là).
+    public string? SetMacroShortcut(Guid macro, KeyCombo trigger)
+    {
+        var draft = MacroShortcut(macro) is { } existing ? existing with { Trigger = trigger, Enabled = true }
+            : Shortcut.RunsMacro(trigger, macro);
+        var blocking = IssuesFor(draft).Where(i => i.IsBlocking && i is not ShortcutIssue.MacroInvalid).ToList();
+        if (blocking.Count > 0) return string.Join(" ", blocking.Select(i => i.Message));
+        Upsert(draft);
+        return null;
+    }
+
+    public void RemoveMacroShortcut(Guid macro)
+    {
+        foreach (var s in MacroDrafts.ShortcutsOf(macro, _shortcuts)) _shortcuts.Remove(s);
+        Persist();
+    }
+
+    /// Supprime la macro et ses raccourcis.
+    public void DeleteMacro(Guid macro)
+    {
+        _macros.Remove(macro);
+        RemoveMacroShortcut(macro);
+    }
+
     /// Raccourci d'une macro (le hook l'a avalé) : une macro à la fois ; FL plus devant ou macro invalide : rien.
     private void RunMacro(MacroProgram program)
     {

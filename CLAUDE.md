@@ -133,8 +133,11 @@
   Blocs PAS ENCORE faits sur Windows (`MacroEffectsWindows.Unsupported` : la macro est bloquée, son raccourci reste à
   FL) : clics, glisser, menu de la piste, preset (choisir/déposer), entrée, larsen, carte son, « Cliquer sur… », Menu
   de FL, Nom et couleur — donc les 5 modèles du propriétaire ne tournent pas encore sous Windows. Journal :
-  `%LOCALAPPDATA%\FL Shortcuts\journal.txt` (`AppLogFile`, 512 Ko). Reste : ces blocs, créateur, page Macros,
-  enregistrement, compte, Communauté, Aide.
+  `%LOCALAPPDATA%\FL Shortcuts\journal.txt` (`AppLogFile`, 512 Ko). Page Macros (`MacrosWindow.cs`, « Macros… » du
+  menu de gauche et de l'icône ; logique dans `MacroDrafts.cs`) : liste, nouvelle macro (vide ou modèle), créateur
+  simple (nom, raccourci, blocs activés/déplacés/retirés, réglages des blocs faits sur Windows ; les autres « à régler
+  sur le Mac »), photos `macros-liste.png`/`macros-createur.png` sur la CI ; fiche d'un raccourci : 3e type « Macro ».
+  Reste : ces blocs, blocs imbriqués (si/répéter) dans le créateur, enregistrement, compte, Communauté, Aide.
 - Interface : survol coloré du menu de l'icône (`menuHover` : contour de sa couleur, halo autour) voulu par le
   propriétaire partout ; depuis le 25/10 (sa capture) : couleurs de l'élément JAMAIS changées (ni fond ajouté, ni
   ombre sur le contenu : halo `HoverGlow` dehors seulement), rien de gris au-delà du contour (lignes des cartes : c'est

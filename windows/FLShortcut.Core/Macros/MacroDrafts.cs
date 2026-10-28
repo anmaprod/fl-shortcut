@@ -1,0 +1,52 @@
+// Page Macros de Windows : ce que l'interface fait d'une macro, sans fenêtre (essayé par MacroDraftsTests). Une macro
+// modifiée est toujours une COPIE remise au magasin (MacroLibraryStore.Update : révision + 1 seulement si elle change).
+namespace FLShortcut.Core.Macros;
+
+public static class MacroDrafts
+{
+    /// Copie modifiable (même id, même révision).
+    public static MacroDoc Copy(MacroDoc doc) => MacroDoc.FromJson(doc.ToJson());
+
+    /// Palette du créateur sur ce système : par catégorie, les blocs que `platform` ne refuse pas.
+    public static IReadOnlyList<(BlockCategory Category, IReadOnlyList<BlockSpec> Specs)> Palette(Func<BlockBody, string?>? platform) =>
+        BlockRegistry.Palette
+            .Select(p => (p.Category, (IReadOnlyList<BlockSpec>)p.Specs.Where(s => platform?.Invoke(s.Default()) is null).ToList()))
+            .Where(p => p.Item2.Count > 0)
+            .ToList();
+
+    /// Nouvelle macro vide, au nom unique (« Nouvelle macro 2 »…).
+    public static MacroDoc Empty(MacroLibraryStore store) => new() { Name = store.UniqueName(Loc.T("Nouvelle macro")) };
+
+    /// Copie d'un modèle de la galerie : ids neufs, nom unique.
+    public static MacroDoc FromTemplate(MacroTemplate template, MacroLibraryStore store)
+    {
+        var doc = template.Make();
+        doc.Name = store.UniqueName(doc.Name);
+        doc.Blocks = MacroTemplates.FreshIds(doc.Blocks);
+        return doc;
+    }
+
+    /// Le bloc `index` déplacé de `delta` places (bornes respectées) ; faux s'il ne bouge pas.
+    public static bool Move(List<Block> blocks, int index, int delta)
+    {
+        var to = index + delta;
+        if (index < 0 || index >= blocks.Count || to < 0 || to >= blocks.Count || delta == 0) return false;
+        var block = blocks[index];
+        blocks.RemoveAt(index);
+        blocks.Insert(to, block);
+        return true;
+    }
+
+    /// Nom tapé : espaces retirés, 60 caractères au plus ; null s'il est vide ou déjà pris par une autre macro.
+    public static string? CleanName(string typed, MacroDoc doc, MacroLibraryStore store)
+    {
+        var name = typed.Trim();
+        if (name.Length == 0) return null;
+        if (name.Length > MacroValidation.MaxNameLength) name = name[..MacroValidation.MaxNameLength].TrimEnd();
+        return store.Macros.Any(m => m.Id != doc.Id && m.Name == name) ? null : name;
+    }
+
+    /// Les raccourcis qui lancent cette macro.
+    public static IReadOnlyList<Shortcut> ShortcutsOf(Guid macro, IEnumerable<Shortcut> shortcuts) =>
+        shortcuts.Where(s => s.Kind == ShortcutKind.Macro && s.MacroRef == macro).ToList();
+}

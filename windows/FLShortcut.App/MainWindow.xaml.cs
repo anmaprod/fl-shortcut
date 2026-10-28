@@ -76,6 +76,7 @@ public sealed partial class MainWindow : Window
         _tray.QuitRequested += () => DispatcherQueue.TryEnqueue(Quit);
         _tray.HasPendingCopy = () => _app.Approval.Pending.Count > 0;
         _tray.OrganizeRequested += () => DispatcherQueue.TryEnqueue(() => OrganizerWindow.Show(_app));
+        _tray.MacrosRequested += () => DispatcherQueue.TryEnqueue(() => MacrosWindow.Show(_app));
         _tray.ApproveRequested += () => DispatcherQueue.TryEnqueue(() =>
         {
             ShowFromTray(ask: false);
@@ -315,6 +316,7 @@ public sealed partial class MainWindow : Window
     {
         if (args.InvokedItemContainer?.Tag is "#link") Repair();
         else if (args.InvokedItemContainer?.Tag is "#organize") OrganizerWindow.Show(_app);
+        else if (args.InvokedItemContainer?.Tag is "#macros") MacrosWindow.Show(_app);
     }
 
     // ---------- Liste ----------
@@ -604,9 +606,10 @@ public sealed partial class MainWindow : Window
         var body = new StackPanel { Spacing = 12, MinWidth = 480 };
         var triggerButton = CaptureButton();
         var warning = new InfoBar { IsClosable = false, IsOpen = false };
-        var kinds = new RadioButtons { MaxColumns = 2, Header = "Ce que fait le raccourci" };
+        var kinds = new RadioButtons { MaxColumns = 3, Header = "Ce que fait le raccourci" };
         kinds.Items.Add("Action dans FL");
         kinds.Items.Add("Touche de FL");
+        kinds.Items.Add("Macro");
         var actionPanel = new StackPanel { Spacing = 8 };
         var search = new AutoSuggestBox { PlaceholderText = "Rechercher une action", QueryIcon = new SymbolIcon(Symbol.Find) };
         // Rubriques : SelectorBar (Windows App SDK 1.5+), l'indicateur glisse d'une rubrique à l'autre.
@@ -636,12 +639,23 @@ public sealed partial class MainWindow : Window
         var targetButton = CaptureButton();
         keyPanel.Children.Add(targetButton);
 
+        // Macro de la bibliothèque (créée dans la page Macros).
+        var macroPanel = new StackPanel { Spacing = 6 };
+        var macroPicker = new ComboBox { MinWidth = 320, PlaceholderText = "Choisis une macro" };
+        foreach (var doc in _app.Macros.Macros)
+            macroPicker.Items.Add(new ComboBoxItem { Content = DisplayText.Safe(doc.Name, 60), Tag = doc.Id });
+        macroPanel.Children.Add(macroPicker);
+        var openMacros = new HyperlinkButton { Content = _app.Macros.Macros.Count == 0 ? "Aucune macro : crée-en une dans la page Macros" : "Ouvrir la page Macros", Padding = new Thickness(0) };
+        openMacros.Click += (_, _) => MacrosWindow.Show(_app);
+        macroPanel.Children.Add(openMacros);
+
         body.Children.Add(new TextBlock { Text = "Ton raccourci", Style = Res<Style>("BodyStrongTextBlockStyle") });
         body.Children.Add(triggerButton);
         body.Children.Add(warning);
         body.Children.Add(kinds);
         body.Children.Add(actionPanel);
         body.Children.Add(keyPanel);
+        body.Children.Add(macroPanel);
         dialog.Content = new ScrollViewer { Content = body, MaxHeight = 600 };
 
         void Refresh()
@@ -649,10 +663,11 @@ public sealed partial class MainWindow : Window
             SetCaptureContent(triggerButton, draft.Trigger, recordingFor == "trigger", "Clique ici, puis appuie sur tes touches");
             SetCaptureContent(targetButton, draft.Target, recordingFor == "target", "Clique ici, puis tape le raccourci de FL");
             var isAction = draft.Kind == ShortcutKind.FlAction;
-            // Raccourci de macro : ni action ni touche (la macro se choisit dans la page Macros), type gardé.
-            kinds.SelectedIndex = isAction ? 0 : draft.Kind == ShortcutKind.Keystroke ? 1 : -1;
+            kinds.SelectedIndex = draft.Kind switch { ShortcutKind.FlAction => 0, ShortcutKind.Keystroke => 1, _ => 2 };
             actionPanel.Visibility = isAction ? Visibility.Visible : Visibility.Collapsed;
             keyPanel.Visibility = draft.Kind == ShortcutKind.Keystroke ? Visibility.Visible : Visibility.Collapsed;
+            macroPanel.Visibility = draft.Kind == ShortcutKind.Macro ? Visibility.Visible : Visibility.Collapsed;
+            macroPicker.SelectedItem = macroPicker.Items.OfType<ComboBoxItem>().FirstOrDefault(x => x.Tag is Guid g && g == draft.MacroRef);
             wheres.SelectedIndex = (int)draft.Context;
             cats.SelectedItem = query.Length == 0 ? cats.Items.FirstOrDefault(x => x.Tag is ActionCategory c && c == category) : null;
 
@@ -684,8 +699,14 @@ public sealed partial class MainWindow : Window
             warning.Severity = blocking.Count > 0 ? InfoBarSeverity.Error : InfoBarSeverity.Warning;
             warning.Message = string.Join(" ", shown.Select(x => x.Message));
 
-            dialog.IsPrimaryButtonEnabled = recordingFor is null && issues.All(x => !x.IsBlocking)
-                && draft.Trigger is not null && (isAction ? draft.ActionId is not null : draft.Target is not null);
+            // Une macro pas encore prête garde son raccourci (bloqué jusque-là, comme depuis la page Macros).
+            dialog.IsPrimaryButtonEnabled = recordingFor is null && issues.All(x => !x.IsBlocking || x is ShortcutIssue.MacroInvalid)
+                && draft.Trigger is not null && draft.Kind switch
+                {
+                    ShortcutKind.FlAction => draft.ActionId is not null,
+                    ShortcutKind.Keystroke => draft.Target is not null,
+                    _ => draft.MacroRef is not null,
+                };
         }
 
         void StartRecording(string which)
@@ -724,8 +745,16 @@ public sealed partial class MainWindow : Window
         kinds.SelectionChanged += (_, _) =>
         {
             if (kinds.SelectedIndex < 0) return;
-            var kind = kinds.SelectedIndex == 1 ? ShortcutKind.Keystroke : ShortcutKind.FlAction;
+            var kind = kinds.SelectedIndex switch { 1 => ShortcutKind.Keystroke, 2 => ShortcutKind.Macro, _ => ShortcutKind.FlAction };
             if (kind != draft.Kind) { draft = draft with { Kind = kind, MacroRef = null }; Refresh(); }
+        };
+        macroPicker.SelectionChanged += (_, _) =>
+        {
+            if (macroPicker.SelectedItem is ComboBoxItem { Tag: Guid id } && draft.MacroRef != id)
+            {
+                draft = draft with { MacroRef = id, UnknownAction = null };
+                DispatcherQueue.TryEnqueue(() => Refresh());
+            }
         };
         cats.SelectionChanged += (bar, _) =>
         {

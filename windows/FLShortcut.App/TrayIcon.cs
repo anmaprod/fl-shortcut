@@ -6,7 +6,7 @@ namespace FLShortcut.App;
 internal sealed class TrayIcon : IDisposable
 {
     private const uint CallbackMessage = Win32.WM_APP + 10;
-    private const uint IdOpen = 1, IdPause = 2, IdQuit = 3, IdOrganize = 4, IdApprove = 5;
+    private const uint IdOpen = 1, IdPause = 2, IdQuit = 3, IdOrganize = 4, IdApprove = 5, IdMacros = 6;
 
     private readonly IntPtr _hwnd;
     private readonly Win32.SubclassProc _proc;
@@ -19,6 +19,7 @@ internal sealed class TrayIcon : IDisposable
     public Func<bool> HasPendingCopy { get; set; } = () => false;
     public event Action? OpenRequested;
     public event Action? OrganizeRequested;
+    public event Action? MacrosRequested;
     public event Action? ApproveRequested;
     public event Action? ToggleRequested;
     public event Action? QuitRequested;
@@ -85,6 +86,7 @@ internal sealed class TrayIcon : IDisposable
             Win32.AppendMenuW(menu, Win32.MF_STRING, new UIntPtr(IdOpen), Core.Loc.T("Modifier les raccourcis…"));
             if (HasPendingCopy())
                 Win32.AppendMenuW(menu, Win32.MF_STRING, new UIntPtr(IdApprove), Core.Loc.T("Valider la version organisée…"));
+            Win32.AppendMenuW(menu, Win32.MF_STRING, new UIntPtr(IdMacros), Core.Loc.T("Macros…"));
             Win32.AppendMenuW(menu, Win32.MF_STRING, new UIntPtr(IdOrganize), Core.Loc.T("Organiser…"));
             Win32.AppendMenuW(menu, Win32.MF_STRING | (IsEnabled() ? 0 : Win32.MF_CHECKED), new UIntPtr(IdPause),
                 "Mettre en pause\tCtrl+Alt+Maj+F");
@@ -97,6 +99,7 @@ internal sealed class TrayIcon : IDisposable
             switch (cmd)
             {
                 case IdOpen: OpenRequested?.Invoke(); break;
+                case IdMacros: MacrosRequested?.Invoke(); break;
                 case IdOrganize: OrganizeRequested?.Invoke(); break;
                 case IdApprove: ApproveRequested?.Invoke(); break;
                 case IdPause: ToggleRequested?.Invoke(); break;

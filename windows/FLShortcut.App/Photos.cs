@@ -1,7 +1,8 @@
-// Mode photos de la CI (`--photos <dossier>`) : la fenêtre principale, puis chaque écran de l'Organiser avec des sons
-// d'exemple (OrganizerController.ShowDemo), enregistrés en PNG, puis l'appli se ferme. Rien n'est envoyé à FL, aucun
-// hook ni port MIDI n'est ouvert ; seuls « principale.png » et des « organiser-<écran>.png » sont écrits, dans un
-// dossier qui existe déjà.
+// Mode photos de la CI (`--photos <dossier>`) : la fenêtre principale, chaque écran de l'Organiser avec des sons
+// d'exemple (OrganizerController.ShowDemo), puis la page Macros avec des macros d'exemple en mémoire (liste et créateur),
+// enregistrés en PNG, puis l'appli se ferme. Rien n'est envoyé à FL, aucun hook ni port MIDI n'est ouvert, aucune macro
+// n'est écrite ; seuls « principale.png », des « organiser-<écran>.png » et des « macros-<écran>.png » sont écrits, dans
+// un dossier qui existe déjà.
 using System.Runtime.InteropServices.WindowsRuntime;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Media.Imaging;
@@ -74,6 +75,19 @@ internal static class Photos
                 {
                     await Save(content, Path.Combine(folder, $"organiser-{screen}.png"));
                     Note($"{screen} : photo");
+                }
+                window.Close();
+            }
+            foreach (var screen in new[] { "liste", "createur" })
+            {
+                Note($"macros {screen} : création");
+                var window = MacrosWindow.Demo(controller, screen);
+                window.Activate();
+                await Task.Delay(1500);
+                if (window.Content is UIElement content)
+                {
+                    await Save(content, Path.Combine(folder, $"macros-{screen}.png"));
+                    Note($"macros {screen} : photo");
                 }
                 window.Close();
             }
