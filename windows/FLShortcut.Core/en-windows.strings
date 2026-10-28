@@ -56,3 +56,7 @@
 "Si besoin" = "If needed";
 "Apprise" = "Learned";
 "Ajouter un bloc" = "Add a block";
+"bouton retrouvé à son image : pas encore sur Windows (montre de nouveau le clic sur ce PC)." = "button found by its image: not on Windows yet (show the click again on this PC).";
+"titres du menu de FL illisibles en haut de sa fenêtre (FL est-il bien devant ?)" = "FL's menu titles can't be read at the top of its window (is FL in front?)";
+"élément introuvable dans le menu de FL (renommé, ou FL dans une autre langue ?)" = "item not found in FL's menu (renamed, or FL in another language?)";
+"le menu de FL est resté ouvert (élément grisé ?)" = "the FL menu stayed open (item grayed out?)";

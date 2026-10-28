@@ -1,12 +1,15 @@
-// Effets des macros sur Windows (miroir de Sources/FLShortcut/MacroEffectsMac.swift et MacroFLBlocks.swift, sans les
-// clics pour l'instant). La logique est ici, les appels à Windows dans le pilote (IFlDriver, dans l'appli) : les blocs
-// sont essayés sur un faux FL (MacroEffectsWindowsTests). Garde-fous, comme sur le Mac :
+// Effets des macros sur Windows (miroir de Sources/FLShortcut/MacroEffectsMac.swift et MacroFLBlocks.swift ; clics et
+// Menu de FL dans MacroEffectsWindowsClicks.cs). La logique est ici, les appels à Windows dans le pilote (IFlDriver, dans
+// l'appli) : les blocs sont essayés sur un faux FL (MacroEffectsWindowsTests). Garde-fous, comme sur le Mac :
 //  - FL au premier plan avant chaque touche ; Échap (même un appui bref) arrête la macro ;
 //  - touches à FL seul, revérifiées contre la liste noire (Alt+F4, Ctrl+Q…) avant l'envoi ;
 //  - lettres et flèches d'un menu seulement tant qu'un menu ouvert par la macro est là (sinon une lettre irait à FL :
 //    clavier-piano…) ;
 //  - boîte de dialogue et menus suivis par leurs fenêtres (absentes au départ), jamais par leur titre ;
-//  - journal : des noms de blocs et des durées, jamais une touche, un titre ou un chemin.
+//  - clics seulement dans une fenêtre de FL tout devant au point visé (rien d'autre ne la couvre) ; pointeur remis
+//    où il était à la fin ;
+//  - textes de FL lus seulement au moment du clic, dans la fenêtre visée, jamais gardés ;
+//  - journal : des noms de blocs, des nombres et des durées, jamais une touche, un titre, un texte lu ou un chemin.
 // Un bloc pas encore fait pour Windows bloque sa macro dès la validation (`Unsupported`) : son raccourci reste à FL.
 namespace FLShortcut.Core.Macros;
 
@@ -41,13 +44,34 @@ public interface IFlDriver
     void Learn(string key, bool? value);
     /// Ouvre la fenêtre de l'Organiser (elle a ses propres garde-fous).
     void OpenOrganizer();
+    /// Pointeur de la souris (pixels de l'écran).
+    (int X, int Y) Cursor();
+    /// Pointeur remis là (fin de macro : là où l'utilisateur l'avait laissé).
+    void MoveCursor(int x, int y);
+    /// Fenêtre de FL tout devant en ce point ; sinon null, et le nom du programme qui couvre FL là (null : rien).
+    (long? Window, string? Cover) At(int x, int y);
+    /// Clic en ce point (survol `hoverMs`, appui, relâché) ; faux si FL n'est plus devant.
+    bool Click(int x, int y, bool right, int hoverMs);
+    /// Appui en (ax, ay), glissé, relâché en (bx, by) (le bouton est toujours relâché) ; faux si FL n'est plus devant.
+    bool Drag(int ax, int ay, int bx, int by);
+    /// Titres de la barre des menus de FL (en haut de sa fenêtre principale), lus maintenant ; null : illisibles.
+    IReadOnlyList<TextItem>? MenuBar();
+    /// Éléments du menu de FL ouvert dans cette fenêtre, lus maintenant ; null : illisibles.
+    IReadOnlyList<TextItem>? MenuItems(long window);
+    /// Textes lus dans cette fenêtre de FL, maintenant ; null : illisible.
+    IReadOnlyList<TextItem>? ReadText(long window);
+    /// Menus de FL refermés sans touche (fin d'un Menu de FL raté : plus rien de surligné en haut de FL).
+    void CancelMenus();
+    /// Dernier clic de l'utilisateur dans une fenêtre normale de FL, s'il est récent (la piste visée).
+    AimedClick? LastAimedClick { get; }
 }
 
-public sealed class MacroEffectsWindows : IMacroEffects
+public sealed partial class MacroEffectsWindows : IMacroEffects
 {
     private readonly IFlDriver _fl;
     /// Fenêtres visibles au départ : ce qui n'y est pas a été ouvert par la macro.
     private HashSet<long> _start = new();
+    private List<FlWin> _startWindows = new();
     private int _escapesAtStart;
     /// Boîte de dialogue ouverte par la macro (« Attendre une fenêtre » → « Attendre sa fermeture »).
     private long? _dialog;
@@ -58,9 +82,12 @@ public sealed class MacroEffectsWindows : IMacroEffects
     /// Bloc pas encore fait pour Windows : la raison (la macro est bloquée à la validation), sinon null.
     public static string? Unsupported(BlockBody body) => body switch
     {
-        BlockBody.Click or BlockBody.Drag or BlockBody.TrackMenu or BlockBody.ChooseFile or BlockBody.DropFile
+        BlockBody.Click { Target: ClickTarget.Button } or BlockBody.Drag { From: ClickTarget.Button }
+            or BlockBody.Drag { To: ClickTarget.Button }
+            => Loc.T("bouton retrouvé à son image : pas encore sur Windows (montre de nouveau le clic sur ce PC)."),
+        BlockBody.TrackMenu or BlockBody.ChooseFile or BlockBody.DropFile
             or BlockBody.SelectInput or BlockBody.FeedbackCheck or BlockBody.SoundCard or BlockBody.PageOption
-            or BlockBody.MenuBar or BlockBody.MenuAX or BlockBody.NameColor
+            or BlockBody.MenuAX or BlockBody.NameColor
             => Loc.F("bloc « %@ » pas encore pris en charge sur Windows.",
                 body.Type is { } type ? BlockRegistry.Spec(type).Label : "?"),
         _ => null,
@@ -73,16 +100,18 @@ public sealed class MacroEffectsWindows : IMacroEffects
     public string? Begin(bool startFeedbackEarly)
     {
         var windows = _fl.Windows();
+        _startWindows = windows.ToList();
         _start = windows.Select(w => w.Id).ToHashSet();
         _dialogsAtStart = windows.Count(w => w.Role == FlWindowRole.Dialog);
         _escapesAtStart = _fl.EscapePresses;
         _dialog = null;
         _fl.Log("START", $"{windows.Count} window(s), {_dialogsAtStart} dialog(s)");
+        BeginClicks(windows);
         return null;
     }
 
-    /// Pas encore de piste visée sur Windows (les blocs qui en ont besoin sont bloqués à la validation).
-    public bool TargetTrackIsInFl() => false;
+    /// La piste visée (dernier clic dans FL, sinon le pointeur au départ) est dans une fenêtre de FL (relevé du départ).
+    public bool TargetTrackIsInFl() => _startWindows.Any(w => w.Role != FlWindowRole.Menu && Contains(w, _track));
 
     /// Aucune touche de modification enfoncée ; une autre touche tenue ne retarde pas plus de 0,3 s. Faux seulement
     /// si des touches de modification restent enfoncées.
@@ -127,7 +156,13 @@ public sealed class MacroEffectsWindows : IMacroEffects
         return new StepResult.Ok();
     }
 
-    public void Cleanup(RunState state) { }
+    /// Pointeur remis où l'utilisateur l'avait laissé, s'il a été déplacé par un clic.
+    public void Cleanup(RunState state)
+    {
+        if (_cursorBefore is not { } p) return;
+        _cursorBefore = null;
+        _fl.MoveCursor(p.X, p.Y);
+    }
 
     public StepResult Perform(BlockBody body, RunState state)
     {
@@ -136,6 +171,12 @@ public sealed class MacroEffectsWindows : IMacroEffects
         {
             case BlockBody.Delay d:
                 return Pause(d.Ms);
+            case BlockBody.Click c:
+                return Click(c.Target, c.Button == MouseButton.Right);
+            case BlockBody.Drag d:
+                return Drag(d.From, d.To);
+            case BlockBody.MenuBar m:
+                return MenuBar(m.Titles);
             case BlockBody.Key k:
                 return Key(k.Ref, k.Times);
             case BlockBody.MenuKeyPress m:
@@ -412,6 +453,7 @@ public sealed class MacroEffectsWindows : IMacroEffects
         var (result, menu) = NewWindow(_start, FlWindowRole.Menu, timeoutMs);
         if (result is StepResult.Cancel) return result;
         if (menu is null) return new StepResult.Fail(Loc.T("aucun menu de FL ne s'est ouvert"));
+        _lastMenu = menu;                                    // repère des clics « menu ouvert »
         _fl.Log("MENU", "menu open");
         return result;
     }

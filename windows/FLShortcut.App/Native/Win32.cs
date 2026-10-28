@@ -336,4 +336,73 @@ internal static class Win32
     [DllImport("user32.dll")]
     [return: MarshalAs(UnmanagedType.Bool)]
     public static extern bool MessageBeep(uint uType);
+
+    // ---------- Macros : souris (clics appris, Menu de FL) ----------
+    public const uint INPUT_MOUSE = 0;
+    public const uint MOUSEEVENTF_MOVE = 0x0001, MOUSEEVENTF_LEFTDOWN = 0x0002, MOUSEEVENTF_LEFTUP = 0x0004,
+        MOUSEEVENTF_RIGHTDOWN = 0x0008, MOUSEEVENTF_RIGHTUP = 0x0010;
+    public const uint GA_ROOT = 2;
+
+    [DllImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static extern bool SetCursorPos(int x, int y);
+    [DllImport("user32.dll")] public static extern IntPtr WindowFromPoint(POINT point);
+    [DllImport("user32.dll")] public static extern IntPtr GetAncestor(IntPtr hwnd, uint gaFlags);
+
+    // ---------- Macros : menus standard de Windows (lus sans l'écran : titres, place, grisé) ----------
+    public const uint MF_BYPOSITION = 0x0400, MF_DISABLED = 0x0002, MF_POPUP = 0x0010;
+    public const uint MN_GETHMENU = 0x01E1, WM_CANCELMODE = 0x001F;
+
+    [DllImport("user32.dll")] public static extern IntPtr GetMenu(IntPtr hWnd);
+    [DllImport("user32.dll")] public static extern int GetMenuItemCount(IntPtr hMenu);
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)]
+    public static extern int GetMenuStringW(IntPtr hMenu, uint uIDItem, StringBuilder lpString, int cchMax, uint flags);
+    [DllImport("user32.dll")] public static extern uint GetMenuState(IntPtr hMenu, uint uId, uint uFlags);
+    [DllImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static extern bool GetMenuItemRect(IntPtr hWnd, IntPtr hMenu, uint uItem, out RECT lprcItem);
+    [DllImport("user32.dll", EntryPoint = "SendMessageTimeoutW")]
+    public static extern IntPtr SendMessageTimeoutW(IntPtr hWnd, uint msg, UIntPtr wParam, IntPtr lParam, uint fuFlags,
+        uint uTimeout, out UIntPtr lpdwResult);
+    public const uint SMTO_ABORTIFHUNG = 0x0002;
+    [DllImport("user32.dll", EntryPoint = "PostMessageW")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static extern bool PostMessageW(IntPtr hWnd, uint msg, UIntPtr wParam, IntPtr lParam);
+
+    // ---------- Macros : image d'une zone de l'écran (texte d'un bouton ou d'un menu de FL, au moment du clic) ----------
+    public const uint SRCCOPY = 0x00CC0020, CAPTUREBLT = 0x40000000, DIB_RGB_COLORS = 0;
+
+    [StructLayout(LayoutKind.Sequential)]
+    public struct BITMAPINFOHEADER
+    {
+        public uint biSize;
+        public int biWidth;
+        public int biHeight;
+        public ushort biPlanes;
+        public ushort biBitCount;
+        public uint biCompression;
+        public uint biSizeImage;
+        public int biXPelsPerMeter;
+        public int biYPelsPerMeter;
+        public uint biClrUsed;
+        public uint biClrImportant;
+    }
+
+    [DllImport("user32.dll")] public static extern IntPtr GetDC(IntPtr hWnd);
+    [DllImport("user32.dll")] public static extern int ReleaseDC(IntPtr hWnd, IntPtr hDC);
+    [DllImport("gdi32.dll")] public static extern IntPtr CreateCompatibleDC(IntPtr hdc);
+    [DllImport("gdi32.dll")] public static extern IntPtr CreateCompatibleBitmap(IntPtr hdc, int cx, int cy);
+    [DllImport("gdi32.dll")] public static extern IntPtr SelectObject(IntPtr hdc, IntPtr h);
+    [DllImport("gdi32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static extern bool BitBlt(IntPtr hdc, int x, int y, int cx, int cy, IntPtr hdcSrc, int x1, int y1, uint rop);
+    [DllImport("gdi32.dll")]
+    public static extern int GetDIBits(IntPtr hdc, IntPtr hbm, uint start, uint cLines, [Out] byte[] lpvBits,
+        ref BITMAPINFOHEADER lpbmi, uint usage);
+    [DllImport("gdi32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static extern bool DeleteObject(IntPtr ho);
+    [DllImport("gdi32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static extern bool DeleteDC(IntPtr hdc);
 }

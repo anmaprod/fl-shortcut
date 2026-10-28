@@ -16,8 +16,9 @@ public class MacroDraftsTests
         Assert.Contains(BlockType.Key, windows);
         Assert.Contains(BlockType.Delay, windows);
         Assert.Contains(BlockType.WaitWindow, windows);
-        Assert.DoesNotContain(BlockType.Click, windows);
-        Assert.DoesNotContain(BlockType.MenuBar, windows);
+        Assert.Contains(BlockType.Click, windows);
+        Assert.Contains(BlockType.MenuBar, windows);
+        Assert.DoesNotContain(BlockType.SoundCard, windows);
         Assert.True(windows.IsSubsetOf(all));
         Assert.All(MacroDrafts.Palette(MacroEffectsWindows.Unsupported), p => Assert.NotEmpty(p.Specs));
     }

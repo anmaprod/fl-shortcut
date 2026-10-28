@@ -1,6 +1,7 @@
-// Effets des macros sur Windows, essayés sur un faux FL (fenêtres, touches, horloge simulée) : touches à FL seul et
-// liste noire, arrêt (FL plus devant, Échap), menus ouverts par la macro, boîtes de dialogue, actions de FL et leurs
-// replis, pages, blocs pas encore faits pour Windows (bloqués à la validation).
+// Effets des macros sur Windows, essayés sur un faux FL (fenêtres, touches, souris, textes lus, horloge simulée) :
+// touches à FL seul et liste noire, arrêt (FL plus devant, Échap), menus ouverts par la macro, boîtes de dialogue,
+// actions de FL et leurs replis, pages, clics appris, Menu de FL, blocs pas encore faits pour Windows (bloqués à la
+// validation).
 using FLShortcut.Core;
 using FLShortcut.Core.Macros;
 using Xunit;
@@ -28,9 +29,58 @@ internal sealed class FakeFl : IFlDriver
     public Action<KeyCombo>? OnKey { get; set; }
     private readonly List<(DateTime At, Action Do)> _timeline = new();
 
+    public (int X, int Y) Pointer { get; set; } = (600, 400);
+    public List<(int X, int Y, bool Right)> Clicks { get; } = new();
+    public List<(int AX, int AY, int BX, int BY)> Drags { get; } = new();
+    /// Réaction de FL à un clic reçu.
+    public Action<int, int, bool>? OnClick { get; set; }
+    /// Programme qui couvre tout FL (null : rien).
+    public string? Cover { get; set; }
+    public List<TextItem>? Bar { get; set; }
+    public Dictionary<long, List<TextItem>> MenuTexts { get; } = new();
+    public Dictionary<long, List<TextItem>> Texts { get; } = new();
+    public int MenusCancelled { get; private set; }
+    public AimedClick? LastAimedClick { get; set; }
+
     public void After(int ms, Action a) => _timeline.Add((Now.AddMilliseconds(ms), a));
     public void Show(long id, FlWindowRole role) => Open.Insert(0, new FlWin(id, role, 100, 100, 300, 200));
+    public void Show(long id, FlWindowRole role, int x, int y, int width, int height) =>
+        Open.Insert(0, new FlWin(id, role, x, y, width, height));
     public void Hide(long id) => Open.RemoveAll(w => w.Id == id);
+
+    public (int X, int Y) Cursor() => Pointer;
+    public void MoveCursor(int x, int y) => Pointer = (x, y);
+
+    public (long? Window, string? Cover) At(int x, int y)
+    {
+        if (Cover is not null) return (null, Cover);
+        foreach (var w in Open)
+            if (x >= w.X && x < w.X + w.Width && y >= w.Y && y < w.Y + w.Height) return (w.Id, null);
+        return (null, null);
+    }
+
+    public bool Click(int x, int y, bool right, int hoverMs)
+    {
+        if (!Front) return false;
+        Pointer = (x, y);
+        Sleep(hoverMs);
+        Clicks.Add((x, y, right));
+        OnClick?.Invoke(x, y, right);
+        return true;
+    }
+
+    public bool Drag(int ax, int ay, int bx, int by)
+    {
+        if (!Front) return false;
+        Drags.Add((ax, ay, bx, by));
+        Pointer = (bx, by);
+        return true;
+    }
+
+    public IReadOnlyList<TextItem>? MenuBar() => Bar;
+    public IReadOnlyList<TextItem>? MenuItems(long window) => MenuTexts.TryGetValue(window, out var items) ? items : null;
+    public IReadOnlyList<TextItem>? ReadText(long window) => Texts.TryGetValue(window, out var items) ? items : null;
+    public void CancelMenus() => MenusCancelled++;
 
     public void Log(string tag, string text) => Lines.Add($"{tag} {text}");
     public bool InFront() => Front;
@@ -81,6 +131,11 @@ public class MacroEffectsWindowsTests
     {
         var fl = new FakeFl();
         setup?.Invoke(fl);
+        return Start(fl);
+    }
+
+    private static (FakeFl Fl, MacroEffectsWindows Fx, RunState State) Start(FakeFl fl)
+    {
         var fx = new MacroEffectsWindows(fl);
         Assert.Null(fx.Begin(false));
         return (fl, fx, new RunState(fl.Now));
@@ -281,15 +336,216 @@ public class MacroEffectsWindowsTests
             Name = "Export",
             Blocks = new List<Block>
             {
-                new(new BlockBody.Key(CtrlS)),
                 new(new BlockBody.MenuBar(new[] { "File", "Export" })),
+                new(new BlockBody.SoundCard()),
             },
         };
-        Assert.Equal("Étape 2 : bloc « Menu de FL » pas encore pris en charge sur Windows.", MacroProgram.Compile(doc, ctx).Problem);
+        Assert.Equal("Étape 2 : bloc « Carte son branchée » pas encore pris en charge sur Windows.", MacroProgram.Compile(doc, ctx).Problem);
         Assert.Null(MacroProgram.Compile(doc).Problem);                          // sans règle du système : rien
 
         doc.Blocks[1].Enabled = false;
         Assert.True(MacroProgram.Compile(doc, ctx).IsRunnable);
+        Assert.NotNull(MacroEffectsWindows.Unsupported(new BlockBody.Click(
+            new ClickTarget.Button(new VisualSpot(Corner.TopLeft, 1, 1, new Size2(100, 100), null, 12, new byte[144])))));
+    }
+
+    // ---------- Clics appris ----------
+
+    /// Clic appris dans la fenêtre des réglages que la touche précédente ouvre un peu plus tard : attendue, puis cliquée
+    /// à sa place ; le clic suivant part de lui ; le pointeur revient où il était.
+    [Fact]
+    public void LearnedClickWaitsForItsWindow()
+    {
+        var (fl, fx, state) = Start();
+        fl.OnKey = _ => fl.After(400, () => fl.Show(40, FlWindowRole.Dialog, 300, 200, 500, 400));
+        fx.Perform(new BlockBody.Key(CtrlS), state);
+        var click = new BlockBody.Click(new ClickTarget.FlWindowPoint(Corner.TopLeft, 120, 80, new Size2(500, 400)));
+        Assert.IsType<StepResult.Ok>(fx.Perform(click, state));
+        Assert.Equal((420, 280, false), Assert.Single(fl.Clicks));
+        Assert.IsType<StepResult.Ok>(fx.Perform(new BlockBody.Click(new ClickTarget.LastClick(10, 0), MouseButton.Right), state));
+        Assert.Equal((430, 280, true), fl.Clicks[^1]);
+        fx.Cleanup(state);
+        Assert.Equal((600, 400), fl.Pointer);
+    }
+
+    [Fact]
+    public void LearnedClickRefusesAMissingWindowAnotherAppOrOutsideFl()
+    {
+        var (fl, fx, state) = Start();
+        var click = new BlockBody.Click(new ClickTarget.FlWindowPoint(Corner.TopLeft, 10, 10, new Size2(500, 400)));
+        Assert.Equal("fenêtre de FL de 500 × 400 introuvable (pas ouverte, ou changée de taille : montre de nouveau le clic)",
+            Assert.IsType<StepResult.Fail>(fx.Perform(click, state)).Why);
+
+        Assert.Equal("le point visé est hors de FL",
+            Assert.IsType<StepResult.Fail>(fx.Perform(new BlockBody.Click(new ClickTarget.StartCursor(4000, 0)), state)).Why);
+        fl.Cover = "Discord";
+        Assert.Equal("« Discord » couvre FL à cet endroit",
+            Assert.IsType<StepResult.Fail>(fx.Perform(new BlockBody.Click(new ClickTarget.StartCursor(0, 0)), state)).Why);
+        Assert.Empty(fl.Clicks);
+    }
+
+    /// Bouton retrouvé à son nom : là où il est maintenant (déplacé de 20 pixels), sinon sa place apprise.
+    [Fact]
+    public void NamedButtonIsFoundWhereItIsNow()
+    {
+        var (fl, fx, state) = Start(f => f.Show(40, FlWindowRole.Other, 300, 200, 500, 400));
+        var spot = new NamedSpot("Insert 1", 0, 0, Corner.TopLeft, 60, 30, new Size2(500, 400));
+        fl.Texts[40] = new() { new TextItem("Master", 320, 222, 40, 16), new TextItem("Insert 1", 360, 222, 40, 16) };
+        Assert.IsType<StepResult.Ok>(fx.Perform(new BlockBody.Click(new ClickTarget.Named(spot)), state));
+        Assert.Equal((380, 230, false), fl.Clicks[^1]);
+        Assert.All(fl.Lines, l => Assert.DoesNotContain("Insert", l));               // jamais le nom au journal
+
+        fl.Texts.Clear();                                                            // illisible : sa place
+        Assert.IsType<StepResult.Ok>(fx.Perform(new BlockBody.Click(new ClickTarget.Named(spot)), state));
+        Assert.Equal((360, 230, false), fl.Clicks[^1]);
+    }
+
+    /// Piste visée : le dernier clic de l'utilisateur dans FL si sa fenêtre n'a pas changé, sinon le pointeur.
+    [Fact]
+    public void AimedTrackIsTheLastClickInAnUnchangedWindow()
+    {
+        var (fl, fx, state) = Start(f => f.LastAimedClick = new AimedClick(700, 500, FakeFl.Main, 1200, 800, f.Now));
+        Assert.True(fx.TargetTrackIsInFl());
+        Assert.IsType<StepResult.Ok>(fx.Perform(new BlockBody.Click(new ClickTarget.Track(0, 4)), state));
+        Assert.Equal((700, 504, false), fl.Clicks[^1]);
+
+        (fl, fx, state) = Start(f => f.LastAimedClick = new AimedClick(700, 500, FakeFl.Main, 1000, 800, f.Now));
+        Assert.IsType<StepResult.Ok>(fx.Perform(new BlockBody.Click(new ClickTarget.Track(0, 0)), state));
+        Assert.Equal((600, 400, false), fl.Clicks[^1]);                              // fenêtre changée : le pointeur
+    }
+
+    [Fact]
+    public void DragGoesFromOneSpotToTheOther()
+    {
+        var (fl, fx, state) = Start();
+        Assert.IsType<StepResult.Ok>(fx.Perform(new BlockBody.Drag(new ClickTarget.StartCursor(0, 0), new ClickTarget.StartCursor(100, 20)), state));
+        Assert.Equal((600, 400, 700, 420), Assert.Single(fl.Drags));
+        Assert.Equal("le glisser sort de FL",
+            Assert.IsType<StepResult.Fail>(fx.Perform(new BlockBody.Drag(new ClickTarget.StartCursor(0, 0), new ClickTarget.StartCursor(5000, 0)), state)).Why);
+    }
+
+    // ---------- Menu de FL ----------
+
+    private static TextItem Entry(string text, int x, int y, bool? greyed = null) => new(text, x, y, 150, 16, greyed);
+
+    private static bool Hit(TextItem i, int x, int y) => x >= i.X && x < i.X + i.Width && y >= i.Y && y < i.Y + i.Height;
+
+    /// FL simulé : FILE › Export › All playlist tracks › Time selection… ; chaque clic ouvre le menu suivant un peu plus
+    /// tard, Échap referme le menu tout devant. `flRefuses` : le dernier élément ne fait rien (grisé dans FL).
+    private static FakeFl MenuFl(List<string> done, bool flRefuses = false, bool? greyedFlag = null, int fillAfterMs = 0)
+    {
+        var fl = new FakeFl();
+        fl.Bar = new() { new("FILE", 10, 4, 30, 12), new("EDIT", 50, 4, 30, 12), new("OPTIONS", 100, 4, 60, 12) };
+        var file = new List<TextItem> { Entry("&New\tCtrl+N", 12, 24), Entry("Export", 12, 44) };
+        var export = new List<TextItem> { Entry("Wave file...", 212, 46), Entry("All playlist tracks", 212, 66) };
+        var all = new List<TextItem> { Entry("Time selection...", 432, 68, greyedFlag), Entry("Whole song", 432, 88) };
+        bool IsOpen(long id) => fl.Open.Any(w => w.Id == id);
+        fl.OnClick = (x, y, _) =>
+        {
+            if (Hit(fl.Bar[0], x, y))
+                fl.After(60, () => { fl.Show(20, FlWindowRole.Menu, 10, 20, 200, 120); fl.MenuTexts[20] = file; });
+            else if (IsOpen(20) && Hit(file[1], x, y))
+                fl.After(60, () => { fl.Show(21, FlWindowRole.Menu, 210, 42, 220, 100); fl.MenuTexts[21] = export; });
+            else if (IsOpen(21) && Hit(export[1], x, y))
+                fl.After(60, () =>
+                {
+                    fl.Show(22, FlWindowRole.Menu, 430, 64, 200, 80);
+                    fl.MenuTexts[22] = new();
+                    fl.After(fillAfterMs, () => fl.MenuTexts[22] = all);                 // menu rempli à son ouverture
+                });
+            else if (IsOpen(22) && Hit(all[0], x, y) && !flRefuses)
+            {
+                done.Add("export time selection");
+                fl.After(30, () => { fl.Hide(22); fl.Hide(21); fl.Hide(20); });
+            }
+        };
+        fl.OnKey = c =>
+        {
+            if (c.Vk != Vk.Escape) return;
+            var top = fl.Open.FirstOrDefault(w => w.Role == FlWindowRole.Menu);
+            if (top.Id != 0) fl.Hide(top.Id);
+        };
+        return fl;
+    }
+
+    private static readonly string[] ExportPath = { "File", "Export", "All playlist tracks", "Time selection..." };
+
+    /// Comme à la main : FILE en haut de FL, puis chaque élément dans le menu qui s'ouvre (un menu rempli à son
+    /// ouverture est attendu) ; rien d'ouvert à la fin, aucun titre au journal, le pointeur revient.
+    [Fact]
+    public void MenuBarOpensEachMenuLikeByHand()
+    {
+        var done = new List<string>();
+        var (fl, fx, state) = Start(MenuFl(done, fillAfterMs: 500));
+        Assert.IsType<StepResult.Ok>(fx.Perform(new BlockBody.MenuBar(ExportPath), state));
+        Assert.Equal(new[] { "export time selection" }, done);
+        Assert.Equal(4, fl.Clicks.Count);
+        Assert.DoesNotContain(fl.Open, w => w.Role == FlWindowRole.Menu);
+        Assert.All(fl.Lines, l =>
+        {
+            Assert.DoesNotContain("xport", l);
+            Assert.DoesNotContain("election", l);
+            Assert.DoesNotContain("FILE", l);
+        });
+        fx.Cleanup(state);
+        Assert.Equal((600, 400), fl.Pointer);
+    }
+
+    /// Élément grisé (lu par Windows) : jamais cliqué, menus refermés ; grisé inconnu (lu dans l'image) et FL qui ne fait
+    /// rien : dit, menus refermés.
+    [Fact]
+    public void MenuBarNeverClicksAGreyedItemAndClosesItsMenus()
+    {
+        var done = new List<string>();
+        var (fl, fx, state) = Start(MenuFl(done, flRefuses: true, greyedFlag: true));
+        Assert.Equal("élément grisé dans le menu de FL",
+            Assert.IsType<StepResult.Fail>(fx.Perform(new BlockBody.MenuBar(ExportPath), state)).Why);
+        Assert.Equal(3, fl.Clicks.Count);
+        Assert.DoesNotContain(fl.Open, w => w.Role == FlWindowRole.Menu);
+        Assert.Equal(1, fl.MenusCancelled);
+
+        (fl, fx, state) = Start(MenuFl(done, flRefuses: true));
+        Assert.Equal("le menu de FL est resté ouvert (élément grisé ?)",
+            Assert.IsType<StepResult.Fail>(fx.Perform(new BlockBody.MenuBar(ExportPath), state)).Why);
+        Assert.Equal(4, fl.Clicks.Count);
+        Assert.DoesNotContain(fl.Open, w => w.Role == FlWindowRole.Menu);
+        Assert.Empty(done);
+    }
+
+    [Fact]
+    public void MenuBarSaysWhatIsMissing()
+    {
+        var done = new List<string>();
+        var (fl, fx, state) = Start(MenuFl(done));
+        Assert.Equal("élément introuvable dans le menu de FL (renommé, ou FL dans une autre langue ?)",
+            Assert.IsType<StepResult.Fail>(fx.Perform(new BlockBody.MenuBar(new[] { "File", "Import" }), state)).Why);
+        Assert.DoesNotContain(fl.Open, w => w.Role == FlWindowRole.Menu);
+        Assert.Equal("élément introuvable dans le menu de FL (renommé, ou FL dans une autre langue ?)",
+            Assert.IsType<StepResult.Fail>(fx.Perform(new BlockBody.MenuBar(new[] { "Tools", "Macros" }), state)).Why);
+        Assert.Equal("chemin de menu incomplet",
+            Assert.IsType<StepResult.Fail>(fx.Perform(new BlockBody.MenuBar(new[] { "File" }), state)).Why);
+
+        fl.Bar = null;
+        Assert.Equal("titres du menu de FL illisibles en haut de sa fenêtre (FL est-il bien devant ?)",
+            Assert.IsType<StepResult.Fail>(fx.Perform(new BlockBody.MenuBar(ExportPath), state)).Why);
+        Assert.Empty(done);
+    }
+
+    /// Lecture tolérante : « & » et raccourci d'un menu standard, « … », casse, une lettre mal lue dans l'image.
+    [Fact]
+    public void MenuTextComparesLikeAPerson()
+    {
+        var items = new List<TextItem>
+        {
+            new("&Save\tCtrl+S", 0, 0, 100, 16), new("Save as...  Ctrl+Shift+S", 0, 20, 100, 16),
+            new("Project genera1 settings", 0, 40, 100, 16), new("Purge unused audio clips", 0, 60, 100, 16),
+        };
+        Assert.Equal(0, MenuText.Find("Save", items)!.Value.Y);
+        Assert.Equal(20, MenuText.Find("Save as…", items)!.Value.Y);
+        Assert.Equal(40, MenuText.Find("Project general settings", items)!.Value.Y);
+        Assert.Equal(60, MenuText.Find("PURGE UNUSED AUDIO CLIPS", items)!.Value.Y);
+        Assert.Null(MenuText.Find("Purge", items));
+        Assert.Null(MenuText.Find("Sove", items));                                    // mot court : jamais à une lettre près
     }
 
     /// De bout en bout : l'interpréteur et les effets Windows sur le faux FL.
@@ -324,7 +580,11 @@ public class MacroEffectsWindowsTests
                      "Échap", "touche interdite", "touche non prise en charge", "aucun menu de FL ouvert par la macro",
                      "le menu de FL n'a pas répondu", "boîte de dialogue introuvable", "la boîte de dialogue ne se ferme pas",
                      "ce bloc a besoin du lien avec FL (%@)", "armement non fait : %@", "page de FL à choisir dans la macro",
-                     "action de FL inconnue",
+                     "action de FL inconnue", "élément introuvable dans le menu de FL (renommé, ou FL dans une autre langue ?)",
+                     "titres du menu de FL illisibles en haut de sa fenêtre (FL est-il bien devant ?)",
+                     "le menu de FL est resté ouvert (élément grisé ?)", "élément grisé dans le menu de FL",
+                     "bouton retrouvé à son image : pas encore sur Windows (montre de nouveau le clic sur ce PC).",
+                     "« %@ » couvre FL à cet endroit", "« %@ » couvre le menu de FL", "le point visé est hors de FL",
                  })
             Assert.True(Loc.Has(key), $"« {key} » sans anglais");
     }

@@ -3,8 +3,13 @@
 //  - la macro ne démarre que si FL est au premier plan (et pas lancé en administrateur : Windows bloquerait les
 //    touches), et s'arrête dès qu'il ne l'est plus ou sur Échap ;
 //  - touches à FL seul (FlControl.Send : FL devant revérifié), liste noire revérifiée avant chaque envoi ;
-//  - fenêtres de FL reconnues par leur classe et leur style, JAMAIS par leur titre (nom du projet) ;
-//  - journal (AppLog « MACRO ») : des noms de blocs, des classes de fenêtre et des durées, jamais une touche ni un titre.
+//  - clics seulement si FL est devant et que la fenêtre tout devant au point visé est à FL (sinon le nom du programme
+//    qui la couvre est dit) ; pointeur remis où il était ;
+//  - fenêtres de FL reconnues par leur classe et leur style, JAMAIS par leur titre (nom du projet) ; textes lus
+//    seulement au moment du clic, dans la fenêtre de FL visée (FlScreen) ;
+//  - journal (AppLog « MACRO ») : des noms de blocs, des classes de fenêtre, des nombres et des durées, jamais une
+//    touche, un titre ni un texte lu.
+using System.Runtime.InteropServices;
 using System.Text;
 using FLShortcut.App.Native;
 using FLShortcut.Core;
@@ -146,6 +151,110 @@ internal sealed class WindowsFlDriver : IFlDriver
     });
 
     public void OpenOrganizer() => _onUi(_openOrganizer);
+
+    public (int X, int Y) Cursor() => Win32.GetCursorPos(out var p) ? (p.X, p.Y) : (0, 0);
+
+    public void MoveCursor(int x, int y) => Win32.SetCursorPos(x, y);
+
+    /// Fenêtre tout devant en ce point : à FL (sa fenêtre de premier niveau), sinon le nom du programme qui la couvre.
+    public (long? Window, string? Cover) At(int x, int y)
+    {
+        var hit = Win32.WindowFromPoint(new Win32.POINT { X = x, Y = y });
+        if (hit == IntPtr.Zero) return (null, null);
+        var root = Win32.GetAncestor(hit, Win32.GA_ROOT);
+        if (root == IntPtr.Zero) root = hit;
+        Win32.GetWindowThreadProcessId(root, out var owner);
+        if (owner == _pid) return (root.ToInt64(), null);
+        return (null, ProcessName(owner) ?? Loc.T("une autre app"));
+    }
+
+    private static string? ProcessName(uint pid)
+    {
+        var h = Win32.OpenProcess(Win32.PROCESS_QUERY_LIMITED_INFORMATION, false, pid);
+        if (h == IntPtr.Zero) return null;
+        try
+        {
+            var buffer = new StringBuilder(1024);
+            var size = (uint)buffer.Capacity;
+            return Win32.QueryFullProcessImageNameW(h, 0, buffer, ref size) ? Path.GetFileNameWithoutExtension(buffer.ToString()) : null;
+        }
+        finally { Win32.CloseHandle(h); }
+    }
+
+    private static void Mouse(uint flags)
+    {
+        var input = new[]
+        {
+            new Win32.INPUT
+            {
+                type = Win32.INPUT_MOUSE,
+                U = new Win32.InputUnion { mi = new Win32.MOUSEINPUT { dwFlags = flags, dwExtraInfo = KeyboardHook.Magic } },
+            },
+        };
+        Win32.SendInput(1, input, Marshal.SizeOf<Win32.INPUT>());
+    }
+
+    /// Pointeur posé, survol (les menus de FL suivent le pointeur), appui, relâché : FL revérifié devant avant l'appui.
+    public bool Click(int x, int y, bool right, int hoverMs)
+    {
+        if (!InFront()) return false;
+        Win32.SetCursorPos(x, y);
+        Mouse(Win32.MOUSEEVENTF_MOVE);
+        Thread.Sleep(Math.Max(hoverMs, 10));
+        if (!InFront()) return false;
+        Mouse(right ? Win32.MOUSEEVENTF_RIGHTDOWN : Win32.MOUSEEVENTF_LEFTDOWN);
+        Thread.Sleep(50);
+        Mouse(right ? Win32.MOUSEEVENTF_RIGHTUP : Win32.MOUSEEVENTF_LEFTUP);
+        return true;
+    }
+
+    /// Appui, une vingtaine de pas (16 ms chacun), un temps au-dessus de l'arrivée pour que FL la voie, relâché
+    /// (toujours, même si FL n'est plus devant).
+    public bool Drag(int ax, int ay, int bx, int by)
+    {
+        if (!InFront()) return false;
+        Win32.SetCursorPos(ax, ay);
+        Mouse(Win32.MOUSEEVENTF_MOVE);
+        Thread.Sleep(30);
+        Mouse(Win32.MOUSEEVENTF_LEFTDOWN);
+        try
+        {
+            const int steps = 20;
+            for (var i = 1; i <= steps; i++)
+            {
+                Win32.SetCursorPos(ax + (bx - ax) * i / steps, ay + (by - ay) * i / steps);
+                Mouse(Win32.MOUSEEVENTF_MOVE);
+                Thread.Sleep(16);
+            }
+            Thread.Sleep(60);
+        }
+        finally { Mouse(Win32.MOUSEEVENTF_LEFTUP); }
+        return true;
+    }
+
+    public IReadOnlyList<TextItem>? MenuBar() => FlScreen.MenuBar(FlControl.MainWindow(_pid));
+
+    public IReadOnlyList<TextItem>? MenuItems(long window) => Owned(window) ? FlScreen.MenuItems((IntPtr)window) : null;
+
+    public IReadOnlyList<TextItem>? ReadText(long window) => Owned(window) ? FlScreen.ReadWindow((IntPtr)window) : null;
+
+    /// Fenêtre de FL (jamais celle d'un autre programme), visible.
+    private bool Owned(long window)
+    {
+        var hwnd = (IntPtr)window;
+        Win32.GetWindowThreadProcessId(hwnd, out var owner);
+        return owner == _pid && Win32.IsWindowVisible(hwnd);
+    }
+
+    /// Plus aucun menu de FL actif (titre resté surligné en haut de FL après Échap).
+    public void CancelMenus()
+    {
+        var main = FlControl.MainWindow(_pid);
+        if (main != IntPtr.Zero) Win32.PostMessageW(main, Win32.WM_CANCELMODE, UIntPtr.Zero, IntPtr.Zero);
+    }
+
+    /// Pas encore suivi sur Windows : la piste visée est le pointeur au départ.
+    public AimedClick? LastAimedClick => null;
 
     /// Diagnostic du départ : classe, rôle et taille de chaque fenêtre de FL (jamais le titre).
     public void LogWindows()
