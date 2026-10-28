@@ -92,6 +92,7 @@ public sealed partial class MainWindow : Window
         if (!photos) _app.Start();
         ShowScreen();
         if (_app.LoadWarning is { } warning) ShowToast(warning, InfoBarSeverity.Warning);
+        else if (_app.MacroProblem is { } problem) ShowToast(problem, InfoBarSeverity.Warning);
         // Une version organisée attend (Organiser fermé) : la question à la réouverture de FL Shortcuts.
         if (!photos) Root.Loaded += (_, _) => CopyApprovalPrompt.Ask(Root.XamlRoot, _app, force: false);
     }

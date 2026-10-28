@@ -6,6 +6,7 @@ using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using FLShortcut.App.Services;
 using FLShortcut.Core;
+using FLShortcut.Core.Macros;
 using Microsoft.UI.Dispatching;
 
 namespace FLShortcut.App;
@@ -42,6 +43,9 @@ internal sealed class AppController : INotifyPropertyChanged, IDisposable
     private readonly MidiLink _midi = new();
     private readonly KeyboardHook _hook;
     private List<Shortcut> _shortcuts;
+    /// Bibliothèque des macros en blocs (macros.json), écrite peu après chaque changement et à la fermeture.
+    private readonly MacroLibraryStore _macros = new(new MacroFileStorage());
+    private DispatcherQueueTimer? _macroSave;
     private Dictionary<Guid, List<ShortcutIssue>> _issues = new();
     private FlProcessInfo? _foreground;
     private FlVersion? _flVersion;
@@ -59,6 +63,11 @@ internal sealed class AppController : INotifyPropertyChanged, IDisposable
         LoadWarning = warning;
         _midi.SetKey(SecretStore.Load());
         _midi.Changed += () => OnUi(RefreshAll);
+        _macros.Changed += () => OnUi(() =>
+        {
+            ScheduleMacroSave();
+            RefreshAll();
+        });
         _hook = new KeyboardHook(_midi.SendAction, () => OnUi(Toggle), fl => OnUi(() => OnForeground(fl)));
     }
 
@@ -72,6 +81,9 @@ internal sealed class AppController : INotifyPropertyChanged, IDisposable
     // ---------- État affiché ----------
 
     public string? LoadWarning { get; }
+    /// Bibliothèque des macros illisible, inaccessible ou impossible à enregistrer (jamais de macro perdue en silence).
+    public string? MacroProblem => _macros.Problem;
+    internal MacroLibraryStore Macros => _macros;
     /// Mode léger (défaut) : FL Shortcuts n'envoie que des touches d'origine de FL, sans script ni MIDI.
     public bool Light => !(_settings.MidiActions ?? _settings.ScriptPath is not null);
     /// En mode léger, rien à configurer : pas d'accueil (ni loopMIDI, ni MIDI Settings).
@@ -217,7 +229,25 @@ internal sealed class AppController : INotifyPropertyChanged, IDisposable
 
     // ---------- Interne ----------
 
-    private AnalysisContext NewAnalysisContext() => new(ProfilePresets.Toggle, ConflictTable.Default, Availability);
+    private AnalysisContext NewAnalysisContext() =>
+        new(ProfilePresets.Toggle, ConflictTable.Default, Availability, _macros.Programs());
+
+    private void ScheduleMacroSave()
+    {
+        if (_macroSave is null)
+        {
+            _macroSave = _ui.CreateTimer();
+            _macroSave.Interval = TimeSpan.FromMilliseconds(500);
+            _macroSave.IsRepeating = false;
+            _macroSave.Tick += (_, _) =>
+            {
+                _macros.SaveNow();
+                if (_macros.SaveError is not null) Raise(nameof(MacroProblem));
+            };
+        }
+        _macroSave.Stop();
+        _macroSave.Start();
+    }
 
     private void Persist()
     {
@@ -339,7 +369,8 @@ internal sealed class AppController : INotifyPropertyChanged, IDisposable
         {
             Shortcut = s,
             Caps = s.Trigger?.Caps ?? new[] { "?" },
-            Label = s.Label,
+            Label = s.Kind == ShortcutKind.Macro && s.MacroRef is { } r && _macros.Doc(r) is { } doc
+                ? DisplayText.Safe(doc.Name, MacroValidation.MaxNameLength) : s.Label,
             Description = desc,
             Category = CategoryOf(s),
             Where = s.Context == ShortcutContext.Everywhere ? "" : s.Context.Label(),
@@ -359,6 +390,8 @@ internal sealed class AppController : INotifyPropertyChanged, IDisposable
 
     public void Dispose()
     {
+        _macroSave?.Stop();
+        _macros.SaveNow();
         _hook.Dispose();
         _midi.Dispose();
     }

@@ -29,3 +29,4 @@
 "File › Export › All playlist tracks › Time selection, par le menu de FL en haut de sa fenêtre : une piste audio par piste de la Playlist." = "File › Export › All playlist tracks › Time selection, through FL's menu at the top of its window: one audio track per Playlist track.";
 "Tools › Macros › Purge unused audio clips, par le menu de FL en haut de sa fenêtre : FL retire du projet les clips audio qui ne sont pas dans la Playlist (rien n'est effacé de ton disque)." = "Tools › Macros › Purge unused audio clips, through FL's menu at the top of its window: FL removes the audio clips that aren't in the Playlist from the project (nothing is deleted from your disk).";
 "Le fichier des macros était illisible : une copie datée a été gardée dans le dossier FL Shortcuts (%@)." = "The macros file was unreadable: a dated copy was kept in the FL Shortcuts folder (%@).";
+"fichier de plus de 8 Mo" = "file larger than 8 MB";

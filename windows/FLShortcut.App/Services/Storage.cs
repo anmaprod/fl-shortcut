@@ -7,6 +7,7 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using FLShortcut.Core;
+using FLShortcut.Core.Macros;
 
 namespace FLShortcut.App.Services;
 
@@ -172,6 +173,34 @@ internal static class ProfileStore
 
     public static void Save(IEnumerable<Shortcut> shortcuts) =>
         SafeFile.WriteAtomic(FilePath, Encoding.UTF8.GetBytes(ProfileCodec.Encode(shortcuts)));
+}
+
+/// Bibliothèque des macros : %APPDATA%\FL Shortcuts\macros.json (même format que le Mac). Fichier ou dossier lié,
+/// ou trop gros : refusé (MacroLibraryStore le dit et n'écrit plus). Copies de secours à côté : « precedente »
+/// unique (remplacée à chaque lancement), les autres datées.
+internal sealed class MacroFileStorage : IMacroLibraryStorage
+{
+    private readonly string _path;
+
+    public MacroFileStorage(string? path = null) => _path = path ?? Path.Combine(AppPaths.Roaming, "macros.json");
+
+    public byte[]? Read()
+    {
+        if (!File.Exists(_path)) return null;
+        SafeFile.EnsureNoLinks(_path);
+        if (new FileInfo(_path).Length > MacroLibraryCodec.MaxBytes) throw new IOException(Loc.T("fichier de plus de 8 Mo"));
+        return File.ReadAllBytes(_path);
+    }
+
+    public void Write(byte[] data) => SafeFile.WriteAtomic(_path, data);
+
+    public string Backup(byte[] data, string label)
+    {
+        var name = label == MacroLibraryStore.PreviousLabel
+            ? $"macros.{label}.json" : $"macros.{label}-{DateTimeOffset.UtcNow.ToUnixTimeSeconds()}.json";
+        SafeFile.WriteAtomic(Path.Combine(Path.GetDirectoryName(_path)!, name), data);
+        return name;
+    }
 }
 
 /// Installe le script FL avec la clé de l'installation.
