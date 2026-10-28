@@ -409,7 +409,7 @@ enum ScreenLook {
             let done = DispatchSemaphore(value: 0)
             let pixels = CGSize(width: size.width * scale, height: size.height * scale)
             Task.detached {
-                box.image = await captureWindow(number: number, size: pixels)
+                box.image = await captureWindow(number: number, size: pixels, fit: scale > 1)
                 done.signal()
             }
             guard done.wait(timeout: .now() + 2) == .success else { return nil }
@@ -430,14 +430,18 @@ enum ScreenLook {
         var image: CGImage?
     }
 
+    /// `fit` : fenêtre agrandie à toute l'image. Sans cela, sur un écran non Retina (1 pixel par point), une image de
+    /// 2 pixels par point n'a la fenêtre que dans son quart haut-gauche : textes lus à mi-distance, clic à côté (essai
+    /// de la CI « More plugins… » : plugin 30 double-cliqué au lieu du 37).
     @available(macOS 14.0, *)
-    private static func captureWindow(number: Int, size: CGSize) async -> CGImage? {
+    private static func captureWindow(number: Int, size: CGSize, fit: Bool) async -> CGImage? {
         guard let content = try? await SCShareableContent.excludingDesktopWindows(false, onScreenWindowsOnly: true),
               let window = content.windows.first(where: { Int($0.windowID) == number }) else { return nil }
         let filter = SCContentFilter(desktopIndependentWindow: window)
         let config = SCStreamConfiguration()
         config.width = max(1, Int(size.width.rounded()))
         config.height = max(1, Int(size.height.rounded()))
+        config.scalesToFit = fit
         config.showsCursor = false
         return try? await SCScreenshotManager.captureImage(contentFilter: filter, configuration: config)
     }

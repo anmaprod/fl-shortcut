@@ -435,4 +435,7 @@ entrée 1 ≈ 0,5 s.
   que les favoris qu'on puisse choisir » → tous les plugins installés restent proposés ; hors favoris, la macro ouvre
   Add › Channel/Effect › More plugins..., lit la liste au moment du clic (autorisation « Enregistrement de
   l'écran »), la fait défiler, et double-clique le nom (jamais la case de favori). Mac et Windows ; essai CI sur le
-  faux FL (SKIP sans l'autorisation).
+  faux FL (SKIP sans l'autorisation). 1er passage sur la CI (Mac Intel, écran non Retina) : nom trouvé mais plugin 30
+  double-cliqué au lieu du 37 → la capture à 2 pixels par point n'avait la fenêtre que dans son quart haut-gauche
+  (positions lues divisées par deux, aussi pour le menu « Arrangement ») : image remplie (`scalesToFit`). Windows :
+  preset déposé depuis une petite fenêtre de l'app (bouton enfoncé hors de FL, sinon le glisser ne démarrait pas).
