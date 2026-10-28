@@ -179,6 +179,12 @@
   « n'utilise pas le réseau ») avec guide en images pour « Ouvrir quand même ».
 
 ## Pas encore vérifié sur le vrai FL
+- Menu de FL (macOS), retour du 28/10 : « Export Stems » (File › Export › All playlist tracks › Time selection…) dit
+  « grisé » même après ⌘A → FL ne met à jour l'état grisé qu'à l'ouverture du menu : élément lu grisé = ses menus
+  ouverts un à un puis relu (`MenuBarAX.reopened`, essai CI sur le faux FL `scenarioGreyedItem`). Menu rempli à son
+  ouverture (Add › Channel) : menus ouverts niveau par niveau avant « introuvable » ; plugin ajouté aux favoris par
+  l'app : message « quitte FL et rouvre-le ». À revérifier chez lui. « Ouvre un VST » ne marche pas et « Ajouter un
+  effet » gèle pendant l'ouverture : cause pas encore prouvée, journal (`~/Library/Logs/FL Shortcuts/macro.log`) demandé.
 - IA intégrée : voix de ses projets enfin rangées en Voix ? Sortes proposées justes sur ses packs ?
 - Organiser sur le fichier : 1er essai du propriétaire (24/10, ancienne version) : « FL n'a pas enregistré ton
   projet » sur chaque projet, pourtant enregistré. Corrigé sans preuve (titres de toutes les fenêtres de FL, Spotlight

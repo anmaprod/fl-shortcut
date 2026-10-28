@@ -111,6 +111,9 @@ final class FakeFLController {
     var device = "Built-in"
     var autoClose = false
     let nativeMenuTarget = FakeNativeMenuTarget()
+    /// Sélection dans la Playlist (⌘A) : File › Export › All playlist tracks › Time selection n'est dégrisé qu'à
+    /// l'ouverture de son menu, et seulement avec elle (comme FL).
+    var selection = false
 
     init(statePath: String, oHighlights: Bool) {
         self.statePath = statePath
@@ -144,6 +147,10 @@ final class FakeFLController {
         monitors.append(dnc.addObserver(forName: Notification.Name("app.flshortcut.fakefl.reset"), object: nil, queue: .main) { [weak self] _ in
             self?.reset()
         })
+        monitors.append(dnc.addObserver(forName: Notification.Name("app.flshortcut.fakefl.select"), object: nil, queue: .main) { [weak self] _ in
+            self?.selection = true                        // menus fermés : l'élément reste grisé jusqu'à leur ouverture
+            self?.writeState()
+        })
         monitors.append(dnc.addObserver(forName: Notification.Name("app.flshortcut.fakefl.mode"), object: nil, queue: .main) { [weak self] n in
             self?.oHighlights = (n.object as? String) == "highlight"
             self?.writeState()
@@ -158,6 +165,7 @@ final class FakeFLController {
         settingsView = nil
         device = "Built-in"
         autoClose = false
+        selection = false
         armed = []
         rec = false
         input = "(none)"
@@ -215,6 +223,7 @@ final class FakeFLController {
             "preset": preset ?? "", "presetTrack": presetTrack, "events": events, "menusOpen": levels.count,
             "oHighlights": oHighlights,
             "settingsOpen": settingsWindow != nil, "device": device, "autoClose": autoClose,
+            "selection": selection, "nativeMenusOpen": nativeMenuTarget.openMenus,
             "geometry": geometry,
         ]
         if let data = try? JSONSerialization.data(withJSONObject: dict, options: [.sortedKeys]) {
@@ -484,10 +493,37 @@ final class FakeFLController {
         let optionsItem = NSMenuItem(title: "Options", action: nil, keyEquivalent: "")
         optionsItem.submenu = options
         main.addItem(optionsItem)
+        // File › Export › All playlist tracks › Time selection... : grisé tant qu'il n'y a pas de sélection, mis à jour
+        // seulement à l'ouverture de son menu (menuNeedsUpdate), comme dans FL.
+        let timeSelection = NSMenuItem(title: "Time selection...", action: #selector(FakeNativeMenuTarget.run(_:)), keyEquivalent: "")
+        timeSelection.target = nativeMenuTarget
+        timeSelection.tag = 3
+        timeSelection.isEnabled = false
+        let allTracks = NSMenu(title: "All playlist tracks")
+        allTracks.autoenablesItems = false
+        allTracks.addItem(timeSelection)
+        let export = NSMenu(title: "Export")
+        let allTracksItem = NSMenuItem(title: "All playlist tracks", action: nil, keyEquivalent: "")
+        allTracksItem.submenu = allTracks
+        export.addItem(allTracksItem)
+        let file = NSMenu(title: "File")
+        let exportItem = NSMenuItem(title: "Export", action: nil, keyEquivalent: "")
+        exportItem.submenu = export
+        file.addItem(exportItem)
+        let fileItem = NSMenuItem(title: "File", action: nil, keyEquivalent: "")
+        fileItem.submenu = file
+        main.insertItem(fileItem, at: 1)
+        for menu in [options, file, export, allTracks] { menu.delegate = nativeMenuTarget }
+        nativeMenuTarget.update = { [weak self] menu in
+            guard menu === allTracks else { return }
+            timeSelection.isEnabled = self?.selection ?? false
+        }
+        nativeMenuTarget.changed = { [weak self] in self?.writeState() }
         nativeMenuTarget.actions = [
             0: { [weak self] in self?.note("WRONG: MIDI settings") },
             1: { [weak self] in self?.openSettings() },
             2: { [weak self] in self?.note("WRONG: General settings") },
+            3: { [weak self] in self?.note("export time selection") },
         ]
         NSApp.mainMenu = main
     }
@@ -558,9 +594,25 @@ final class FakeFLController {
     }
 }
 
-/// Cible des éléments du menu Options de la barre des menus.
-final class FakeNativeMenuTarget: NSObject {
+/// Cible des éléments des menus de la barre (Options, File › Export…) : leurs actions, la mise à jour d'un menu à son
+/// ouverture, et le nombre de menus ouverts (un menu laissé ouvert par la macro se voit dans l'état).
+final class FakeNativeMenuTarget: NSObject, NSMenuDelegate {
     var actions: [Int: () -> Void] = [:]
+    var update: ((NSMenu) -> Void)?
+    var changed: (() -> Void)?
+    private(set) var openMenus = 0
+
+    func menuNeedsUpdate(_ menu: NSMenu) { update?(menu) }
+
+    func menuWillOpen(_ menu: NSMenu) {
+        openMenus += 1
+        changed?()
+    }
+
+    func menuDidClose(_ menu: NSMenu) {
+        openMenus = max(0, openMenus - 1)
+        changed?()
+    }
 
     @objc func run(_ sender: NSMenuItem) {
         let action = actions[sender.tag]

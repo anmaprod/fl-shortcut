@@ -43,7 +43,7 @@ enum MacroSelfTest {
                 print(ok ? "PASS: macro construite en blocs sur le FL simulé (piste 5 armée par son menu, REC)" : "FAIL: voir ci-dessus")
             } else if name == "clics" {
                 ok = scenarioClics(statePath: statePath, pid: pid)
-                print(ok ? "PASS: suite de clics enregistrée puis rejouée (menus de FL et de la barre, fenêtre des réglages)" : "FAIL: voir ci-dessus")
+                print(ok ? "PASS: suite de clics enregistrée puis rejouée (menus de FL et de la barre, fenêtre des réglages), élément grisé revérifié" : "FAIL: voir ci-dessus")
             } else if name == "touches" {
                 ok = scenarioTouches(statePath: statePath, pid: pid)
                 print(ok ? "PASS: clics et touches enregistrés puis rejoués (↓ et Entrée dans les menus, ⌘S, R)" : "FAIL: voir ci-dessus")
@@ -72,6 +72,8 @@ enum MacroSelfTest {
         var settingsOpen: Bool { raw["settingsOpen"] as? Bool ?? false }
         var device: String { raw["device"] as? String ?? "?" }
         var autoClose: Bool { raw["autoClose"] as? Bool ?? false }
+        var selection: Bool { raw["selection"] as? Bool ?? false }
+        var nativeMenusOpen: Int { raw["nativeMenusOpen"] as? Int ?? 0 }
         func point(_ key: String) -> CGPoint? {
             guard let g = raw["geometry"] as? [String: [Double]], let v = g[key], v.count == 2 else { return nil }
             return CGPoint(x: v[0], y: v[1])
@@ -438,6 +440,49 @@ enum MacroSelfTest {
             print("OK rejeu des clics")
         } else {
             print("ÉCHEC rejeu des clics : " + problems.joined(separator: " ; "))
+        }
+        return problems.isEmpty && scenarioGreyedItem(statePath: statePath, pid: pid)
+    }
+
+    /// Élément que FL ne dégrise qu'à l'ouverture de son menu (signalé le 28/10 : File › Export › All playlist tracks ›
+    /// Time selection dit « grisé » alors que tout était sélectionné, ⌘A fait après la dernière ouverture du menu).
+    /// Sans sélection : refus « grisé », aucun menu laissé ouvert ; sélection faite menus fermés (état encore grisé à
+    /// la lecture) : la macro revérifie en ouvrant les menus, puis le choisit.
+    static func scenarioGreyedItem(statePath: String, pid: Int32) -> Bool {
+        guard resetFake(statePath, pid: pid) else { return false }
+        print("\n== Élément grisé revérifié à l'ouverture de son menu ==")
+        let export: [BlockBody] = [.menuBar(titles: ["File", "Export", "All playlist tracks", "Time selection..."])]
+        var problems: [String] = []
+
+        guard let first = replay(export, name: "Export sans sélection", pid: pid) else { return false }
+        let refused = first.0
+        Thread.sleep(forTimeInterval: 0.5)
+        let before = read(statePath) ?? FakeState(raw: [:])
+        print("sans sélection : \(refused?.text ?? "?") · menus ouverts : \(before.nativeMenusOpen) · actions : \(before.events)")
+        if case .failed(_, let reason)? = refused, reason.contains("grisé") {} else {
+            problems.append("sans sélection : « \(refused?.text ?? "aucun résultat") » au lieu du refus « grisé »")
+        }
+        if !before.events.isEmpty { problems.append("sans sélection : actions \(before.events)") }
+        if before.nativeMenusOpen != 0 { problems.append("sans sélection : \(before.nativeMenusOpen) menu(s) resté(s) ouvert(s)") }
+
+        DistributedNotificationCenter.default().postNotificationName(
+            Notification.Name("app.flshortcut.fakefl.select"), object: nil, userInfo: nil, deliverImmediately: true)
+        guard waitState(statePath, timeout: 3, { $0.selection }) != nil else {
+            print("FAIL: le FL simulé n'a pas pris la sélection")
+            return false
+        }
+        guard let second = replay(export, name: "Export avec sélection", pid: pid) else { return false }
+        let (accepted, ms) = second
+        let after = waitState(statePath, timeout: 3, { $0.events == ["export time selection"] }) ?? read(statePath) ?? FakeState(raw: [:])
+        print("avec sélection : \(accepted?.text ?? "?") en \(ms) ms · menus ouverts : \(after.nativeMenusOpen) · actions : \(after.events)")
+        if accepted != .done { problems.append("avec sélection : « \(accepted?.text ?? "aucun résultat") »") }
+        if after.events != ["export time selection"] { problems.append("avec sélection : actions \(after.events)") }
+        if after.nativeMenusOpen != 0 { problems.append("avec sélection : \(after.nativeMenusOpen) menu(s) resté(s) ouvert(s)") }
+
+        if problems.isEmpty {
+            print("OK élément grisé revérifié")
+        } else {
+            print("ÉCHEC élément grisé : " + problems.joined(separator: " ; "))
         }
         return problems.isEmpty
     }

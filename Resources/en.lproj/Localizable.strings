@@ -2120,6 +2120,7 @@
 "page à choisir" = "page to choose";
 "pause hors limites." = "pause out of range.";
 "piste visée" = "target track";
+"plugin ajouté à tes favoris de FL : quitte FL et rouvre-le une fois pour qu'il apparaisse dans son menu Add" = "plugin added to your FL favorites: quit FL and open it again once so it shows up in its Add menu";
 "plugin introuvable dans le menu Add de FL : choisis-le de nouveau dans « Cliquer sur… »" = "plugin not found in FL's Add menu: choose it again in “Click on…”";
 "point hors du menu : réapprends les clics" = "point outside the menu: learn the clicks again";
 "ports MIDI « FL Shortcuts Link » indisponibles" = "“FL Shortcuts Link” MIDI ports unavailable";

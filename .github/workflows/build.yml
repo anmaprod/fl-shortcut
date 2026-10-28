@@ -268,7 +268,7 @@ jobs:
           "$BIN" --selftest-macro "$OUT3" "$STATE" "$fake" --scenario clics &
           drv3=$!
           ( for i in $(seq -w 1 12); do screencapture -x "dist/mesure/selftest-clics-$i.png" 2>/dev/null; sleep 1; done ) &
-          ( sleep 90; kill "$drv3" 2>/dev/null ) &
+          ( sleep 120; kill "$drv3" 2>/dev/null ) &
           dog=$!
           status3=0; wait "$drv3" || status3=$?
           kill "$dog" 2>/dev/null || true

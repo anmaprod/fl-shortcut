@@ -72,23 +72,54 @@ enum MenuBarAX {
         guard titles.count >= 2 else { return .failed(String(localized: "chemin de menu incomplet")) }
         let t0 = DispatchTime.now().uptimeNanoseconds
         func ms() -> Int { Int((DispatchTime.now().uptimeNanoseconds &- t0) / 1_000_000) }
+        var path = titles
         var found = find(pid: pid, titles: titles, openIfNeeded: true, stop: stop)
+        // Menu que FL ne remplit qu'à son ouverture (Add › Channel : la liste des plugins) : ses menus sont ouverts un à
+        // un, comme à la main (ouvrir le seul sous-menu, menu du dessus fermé, ne le remplit pas toujours).
+        var opened = false
+        if found == nil, stop() == nil, let item = reopened(pid: pid, titles: titles, stop: stop) {
+            found = item
+            opened = true
+            MacroLog.shared.write("MENU", "menu bar item found once its menus were opened · \(ms()) ms")
+        }
         // FL met certains de ses sous-menus à plat dans la barre de macOS (vidéo de l'utilisateur : son « Tools ›
         // Macros › Purge unused audio clips » y est « Tools › Purge unused audio clips ») : l'élément sans le titre de
         // son sous-menu.
         if found == nil, stop() == nil, let flat = flattened(titles) {
+            closeMenus(pid: pid)
             found = find(pid: pid, titles: flat, openIfNeeded: true, stop: stop)
+            if found != nil { path = flat }
         }
         // Messages sans les titres : ils finissent dans le journal (un titre peut être un nom de projet récent).
-        guard let item = found else {
+        guard var item = found else {
+            closeMenus(pid: pid)
             if let why = stop() { return .cancelled(why) }
             MacroLog.shared.write("MENU", "menu bar item not found (\(titles.count) levels) · \(ms()) ms")
+            // Plugin ajouté par FL Shortcuts aux favoris de FL (FLPluginDatabase) : FL ne relit ses favoris qu'en démarrant.
+            if titles.count > 3, titles[0] == "Add", titles[2] == FLPluginDatabase.folderName {
+                return .failed(String(localized: "plugin ajouté à tes favoris de FL : quitte FL et rouvre-le une fois pour qu'il apparaisse dans son menu Add"))
+            }
             return .failed(String(localized: "élément introuvable dans les menus de FL (renommé, ou FL dans une autre langue ? enregistre de nouveau tes clics)"))
         }
-        if let why = stop() { return .cancelled(why) }
-        if bool(item, kAXEnabledAttribute as String) == false {
+        if let why = stop() {
             closeMenus(pid: pid)
-            return .failed(String(localized: "élément grisé dans le menu de FL"))
+            return .cancelled(why)
+        }
+        // Grisé à la lecture, menus fermés : peut-être un état d'avant (FL ne le met à jour qu'à l'ouverture du menu).
+        // Ses menus sont ouverts (s'ils ne le sont pas déjà), l'élément relu ; toujours grisé : refusé, menus refermés.
+        if bool(item, kAXEnabledAttribute as String) == false {
+            let fresh: AXUIElement? = opened ? item : reopened(pid: pid, titles: path, stop: stop)
+            if let why = stop() {
+                closeMenus(pid: pid)
+                return .cancelled(why)
+            }
+            let enabled = fresh.map { bool($0, kAXEnabledAttribute as String) != false } ?? false
+            MacroLog.shared.write("MENU", "menu bar item read greyed → menus opened: \(enabled ? "now enabled" : "still greyed") · \(ms()) ms")
+            guard enabled, let fresh else {
+                closeMenus(pid: pid)
+                return .failed(String(localized: "élément grisé dans le menu de FL"))
+            }
+            item = fresh
         }
         let err = AXUIElementPerformAction(item, kAXPressAction as CFString)
         MacroLog.shared.write("MENU", "menu bar item pressed (\(titles.count) levels): AX \(err.rawValue) · \(ms()) ms")
@@ -97,6 +128,34 @@ enum MenuBarAX {
             return .failed(String(localized: "FL n'a pas répondu à son menu (Accessibilité \(err.rawValue))"))
         }
         return .done
+    }
+
+    /// FL ne met à jour l'état grisé de ses éléments qu'à l'ouverture de leur menu : lu menus fermés, il peut dater de
+    /// la dernière ouverture (signalé : File › Export › All playlist tracks › Time selection « grisé » alors qu'une
+    /// sélection existait, ⌘A fait après la dernière ouverture du menu). Les menus du chemin sont ouverts un à un (FL
+    /// met à jour leurs éléments), puis l'élément est rendu, menus ouverts : l'appelant le choisit (les menus se
+    /// referment) ou les referme.
+    private static func reopened(pid: Int32, titles: [String], stop: () -> String?) -> AXUIElement? {
+        let app = AXUIElementCreateApplication(pid)
+        AXUIElementSetMessagingTimeout(app, 0.5)
+        guard let bar = element(app, kAXMenuBarAttribute as String) else { return nil }
+        var current = bar
+        for (level, wanted) in titles.enumerated() {
+            if stop() != nil { return nil }
+            var next = child(of: current, titled: wanted, inMenu: level > 0)
+            // Menu que FL remplit à son ouverture (la liste des plugins d'Add › Channel peut être longue) : 2 s au plus.
+            for _ in 0..<(Self.fillSteps * 2) where next == nil && level > 0 && stop() == nil {
+                Thread.sleep(forTimeInterval: 0.1)
+                next = child(of: current, titled: wanted, inMenu: true)
+            }
+            guard let found = next else { return nil }
+            if level < titles.count - 1 {
+                AXUIElementPerformAction(found, kAXPressAction as CFString)     // ouvre son menu : FL le met à jour
+                Thread.sleep(forTimeInterval: 0.15)
+            }
+            current = found
+        }
+        return current
     }
 
     /// Pur (testé) : le chemin sans le titre du sous-menu qui contient l'élément (« Tools › Macros › Purge… » →
