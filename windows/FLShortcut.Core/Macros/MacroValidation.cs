@@ -16,6 +16,8 @@ public sealed record ValidationContext
     public string Path { get; init; } = "1";
     /// Dossier personnel (tests : un autre).
     public string Home { get; init; } = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+    /// Bloc actif que ce système ne sait pas encore faire (Windows : MacroEffectsWindows.Unsupported) : la raison.
+    public Func<BlockBody, string?>? PlatformProblem { get; init; }
 
     /// Message d'erreur : « Étape 3 : touche interdite (…). »
     public string Fail(string text) => Loc.F("Étape %@ : %@", Path, text);
@@ -83,6 +85,7 @@ public static class MacroValidation
             if (b.Note is { } note && note.Length > MaxNoteLength) return c.Fail(Loc.T("note trop longue."));
             if (b.Body.Type is not { } type) return c.Fail(Loc.T("bloc inconnu."));
             if (BlockRegistry.Spec(type).Validate(b.Body, c) is { } why) return why;
+            if (b.Enabled && c.PlatformProblem?.Invoke(b.Body) is { } missing) return c.Fail(missing);
             foreach (var (start, child) in ChildLists(b.Body))
                 if (Check(child, c.Path, start, ctx) is { } inner) return inner;
         }
