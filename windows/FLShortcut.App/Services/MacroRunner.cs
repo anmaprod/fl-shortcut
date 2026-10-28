@@ -263,16 +263,18 @@ internal sealed class WindowsFlDriver : IFlDriver
             Log("WIN", $"{cls} {window.Role} {window.Width}x{window.Height}");
     }
 
+    private List<(FlWin Window, string Class)> Enumerate() => Enumerate(_pid);
+
     /// Fenêtres visibles de FL, de la plus en avant à la plus en arrière (ordre d'EnumWindows), 40 au plus.
-    private List<(FlWin Window, string Class)> Enumerate()
+    internal static List<(FlWin Window, string Class)> Enumerate(uint pid)
     {
-        var main = FlControl.MainWindow(_pid);
+        var main = FlControl.MainWindow(pid);
         var output = new List<(FlWin, string)>();
         var name = new StringBuilder(64);
         Win32.EnumWindows((hwnd, _) =>
         {
             Win32.GetWindowThreadProcessId(hwnd, out var owner);
-            if (owner != _pid || !Win32.IsWindowVisible(hwnd)) return true;
+            if (owner != pid || !Win32.IsWindowVisible(hwnd)) return true;
             name.Clear();
             Win32.GetClassNameW(hwnd, name, name.Capacity);
             var cls = name.ToString();

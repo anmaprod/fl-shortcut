@@ -46,6 +46,32 @@ public static class MacroDrafts
         return store.Macros.Any(m => m.Id != doc.Id && m.Name == name) ? null : name;
     }
 
+    /// Pur (testé) : cible d'un clic montré par l'utilisateur en (`x`, `y`), d'après les fenêtres de FL juste avant le
+    /// clic (de l'avant vers l'arrière ; miroir de MacroEditing.learnedTarget du Mac). Dans un menu de FL : relative à
+    /// ce menu. Dans une autre fenêtre de FL : relative à son coin le plus proche, taille retenue (c'est elle qu'on
+    /// retrouve au rejeu). Ailleurs : null.
+    public static ClickTarget? LearnedTarget(int x, int y, IReadOnlyList<FlWin> windows)
+    {
+        if (windows.Where(w => x >= w.X && x < w.X + w.Width && y >= w.Y && y < w.Y + w.Height).Cast<FlWin?>().FirstOrDefault()
+            is not { } w) return null;
+        var size = new Size2(w.Width, w.Height);
+        ClickTarget target;
+        if (w.Role == FlWindowRole.Menu)
+            target = new ClickTarget.OpenMenu(new PopupHop(x - w.X, y - w.Y, size));
+        else
+        {
+            var left = x - w.X <= w.X + w.Width - x;
+            var top = y - w.Y <= w.Y + w.Height - y;
+            var corner = top ? (left ? Corner.TopLeft : Corner.TopRight) : (left ? Corner.BottomLeft : Corner.BottomRight);
+            target = new ClickTarget.FlWindowPoint(corner, x - (left ? w.X : w.X + w.Width), y - (top ? w.Y : w.Y + w.Height), size);
+        }
+        return target.IsFinite ? target : null;
+    }
+
+    /// Chemin d'un « Menu de FL » tapé (« File › Export › … », « > » accepté) : les titres, sans les vides.
+    public static List<string> MenuPath(string typed) =>
+        typed.Split(new[] { '›', '>' }).Select(t => t.Trim()).Where(t => t.Length > 0).ToList();
+
     /// Les raccourcis qui lancent cette macro.
     public static IReadOnlyList<Shortcut> ShortcutsOf(Guid macro, IEnumerable<Shortcut> shortcuts) =>
         shortcuts.Where(s => s.Kind == ShortcutKind.Macro && s.MacroRef == macro).ToList();

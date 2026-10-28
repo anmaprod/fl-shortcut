@@ -33,6 +33,7 @@ internal sealed class MacrosWindow : Window
     {
         BlockType.Key, BlockType.Delay, BlockType.MenuLetters, BlockType.MenuKey, BlockType.WaitWindow,
         BlockType.WaitWindowClose, BlockType.FlAction, BlockType.OpenPage, BlockType.Organize, BlockType.Stop, BlockType.Comment,
+        BlockType.Click, BlockType.MenuBar,
     };
 
     public static void Show(AppController app, Guid? macro = null)
@@ -556,6 +557,22 @@ internal sealed class MacrosWindow : Window
                 yield return Param(Loc.T("Page"), Choice(pages.Select(x => x.Title()).ToList(), p.Page is { } page ? Array.IndexOf(pages, page) : -1,
                     i => set(new BlockBody.OpenPage(pages[i])), 200));
                 break;
+            case BlockBody.Click c:
+                yield return Param(Loc.T("Bouton"), Choice(new[] { Loc.T("Gauche"), Loc.T("Droit") }, c.Button == MouseButton.Right ? 1 : 0,
+                    i => set(c with { Button = i == 1 ? MouseButton.Right : MouseButton.Left }), 160));
+                yield return Param(Loc.T("Endroit"), Line(8,
+                    Label(c.Target is ClickTarget.ToLearn ? Loc.T("à montrer dans FL") : Loc.T("retenu dans FL"), 12, secondary: true),
+                    Btn(Loc.T("Montrer dans FL…"), () => LearnClick(target => set(c with { Target = target })))));
+                break;
+            case BlockBody.MenuBar mb:
+                yield return Param(Loc.T("Chemin"), Field(string.Join(" › ", mb.Titles), 200, typed =>
+                {
+                    var titles = MacroDrafts.MenuPath(typed);
+                    if (titles.Count > 0) set(new BlockBody.MenuBar(titles));
+                    else RenderSoon();
+                }, 360));
+                yield return Label(Loc.T("Comme dans FL, séparé par › : File › Export › All playlist tracks › Time selection..."), 12, secondary: true);
+                break;
             case BlockBody.Stop s:
                 yield return Param(Loc.T("Message"), Field(s.Message ?? "", 120, typed =>
                     set(new BlockBody.Stop(typed.Trim().Length == 0 ? null : typed.Trim())), 320));
@@ -564,6 +581,21 @@ internal sealed class MacrosWindow : Window
                 yield return Param(Loc.T("Texte"), Field(c.Text, 200, typed => set(new BlockBody.Comment(typed.Trim())), 320));
                 break;
         }
+    }
+
+    /// « Montrer dans FL… » : la page attend le clic (FL passe devant), puis revient devant avec la position retenue.
+    private void LearnClick(Action<ClickTarget> set)
+    {
+        if (_demo) return;
+        var problem = _app.LearnClick((target, why) =>
+        {
+            _notice = why ?? Loc.T("Endroit retenu.");
+            if (target is not null) set(target);
+            else RenderSoon();
+            Activate();
+        });
+        _notice = problem ?? Loc.T("Clique dans FL à l'endroit voulu (Échap pour annuler).");
+        RenderSoon();
     }
 
     private static ComboBox WindowChoice(WindowKind kind, Action<WindowKind> set) =>

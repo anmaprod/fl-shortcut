@@ -91,4 +91,29 @@ public class MacroDraftsTests
 
     [Fact]
     public void MessagesHaveTheirEnglish() => Assert.True(Loc.Has("Nouvelle macro"));
+
+    /// Clic montré : dans un menu, relatif à ce menu ; dans une fenêtre, relatif à son coin le plus proche ; ailleurs, rien.
+    [Fact]
+    public void ShownClickIsKeptRelativeToItsWindow()
+    {
+        var windows = new List<FlWin>
+        {
+            new(20, FlWindowRole.Menu, 400, 300, 200, 150),
+            new(40, FlWindowRole.Dialog, 300, 200, 500, 400),
+            new(1, FlWindowRole.Main, 0, 0, 1200, 800),
+        };
+        Assert.Equal(new ClickTarget.OpenMenu(new PopupHop(10, 20, new Size2(200, 150))), MacroDrafts.LearnedTarget(410, 320, windows));
+        Assert.Equal(new ClickTarget.FlWindowPoint(Corner.TopLeft, 20, 30, new Size2(500, 400)), MacroDrafts.LearnedTarget(320, 230, windows));
+        Assert.Equal(new ClickTarget.FlWindowPoint(Corner.BottomRight, -10, -5, new Size2(500, 400)), MacroDrafts.LearnedTarget(790, 595, windows));
+        Assert.Equal(new ClickTarget.FlWindowPoint(Corner.BottomLeft, 5, -10, new Size2(1200, 800)), MacroDrafts.LearnedTarget(5, 790, windows));
+        Assert.Null(MacroDrafts.LearnedTarget(1500, 100, windows));
+    }
+
+    [Fact]
+    public void TypedMenuPathKeepsItsTitles()
+    {
+        Assert.Equal(new[] { "File", "Export", "All playlist tracks", "Time selection..." },
+            MacroDrafts.MenuPath(" File › Export>All playlist tracks ›  Time selection... "));
+        Assert.Empty(MacroDrafts.MenuPath(" › "));
+    }
 }

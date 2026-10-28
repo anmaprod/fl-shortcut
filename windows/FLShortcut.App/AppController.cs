@@ -247,6 +247,14 @@ internal sealed class AppController : INotifyPropertyChanged, IDisposable
     public string? MacroIssue(Guid macro) =>
         _macros.Programs(MacroContext).TryGetValue(macro, out var program) ? program.Problem : null;
 
+    /// « Montrer dans FL… » : FL mis devant, puis le prochain clic de l'utilisateur dans FL, rendu à `done` (sur le fil
+    /// de l'interface). Renvoie ce qui l'empêche (FL fermé, apprentissage déjà en cours), sinon null.
+    public string? LearnClick(Action<ClickTarget?, string?> done)
+    {
+        if (FlControl.Process() is not { } fl) return Loc.T("Ouvre FL Studio, puis recommence.");
+        return ClickLearner.Start(fl.Pid, OnUi, done) ? null : Loc.T("Un clic est déjà en train d'être appris.");
+    }
+
     /// Premier raccourci qui lance cette macro.
     public Shortcut? MacroShortcut(Guid macro) => MacroDrafts.ShortcutsOf(macro, _shortcuts).FirstOrDefault();
 
