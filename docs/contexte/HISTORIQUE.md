@@ -578,3 +578,9 @@ entrée 1 ≈ 0,5 s.
   tuto en 4 images à la 1re ouverture), menu de l'icône noir (`TrayMenu.cs`), question de validation sombre. Vérifié
   sur les photos de la CI Windows (principale, Playlist, Mes raccourcis, recherche, macros, Organiser, tuto). Pas
   encore sur Windows (hors demande) : compte, Communauté, Aide, enregistrement des macros, icônes de FL de l'Organiser.
+- Désinstallation (29/10, « il faut aussi refaire la désinstallation dans le style du nouveau style, mais il faut pas
+  toucher à sa fonctionnalité juste a l'image ») : seule la vue change (`UninstallView`) : fond noir plein, icône et
+  titre en gras, risque dans une plaque bordée d'orange (lien vers Mon compte), « Supprimer aussi mes fichiers
+  exportés » en interrupteur dans une plaque, « Annuler » / « Désinstaller » en capsules (bleu), attente et bilan
+  centrés (icônes de couleur, coche verte). Mêmes étapes, mêmes textes, même `UninstallFlow` et même `Uninstaller` ;
+  photos CI `desinstaller-*.png`.

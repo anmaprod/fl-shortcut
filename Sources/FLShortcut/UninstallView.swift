@@ -5,7 +5,9 @@
 //    une seule fois, avant toute suppression. Refusé : rien n'est supprimé ;
 // 3. le bilan vérifié (Uninstaller.removeEverything) : coche verte qui apparaît en grandissant, « Quitter » en bas à
 //    droite ; s'il reste quelque chose, « Glisse FL Shortcuts dans la Corbeille » et « Afficher dans le Finder ».
-// Couleurs et mise en page des alertes de macOS ; textes courts (les gens lisent ce qui est court).
+// Aspect de l'app (29/10, « refaire la désinstallation dans le nouveau style, sans toucher à sa fonctionnalité ») :
+// fond noir plein, titre en gras, ce qu'il faut savoir dans des plaques claires (icône de couleur), boutons en capsule
+// (bleu pour l'action) ; textes courts (les gens lisent ce qui est court).
 import AppKit
 import SwiftUI
 
@@ -191,9 +193,9 @@ final class UninstallWindow: NSObject, NSWindowDelegate {
     }
 }
 
-/// Mise en page des alertes de macOS : icône, titre en gras, une phrase, boutons en bas ; couleurs du système
-/// (bouton principal à la couleur d'accent, triangle d'avertissement jaune, coche verte). Textes courts : une idée
-/// par ligne.
+/// Comme les autres fenêtres de l'app (maquettes du 28/10) : fond noir plein, l'icône, le titre en gras, une phrase ;
+/// ce qu'il faut savoir dans des plaques claires (icône de couleur), boutons en capsule en bas (bleu pour l'action).
+/// Textes courts : une idée par ligne.
 struct UninstallView: View {
     @ObservedObject var flow: UninstallFlow
     let close: () -> Void
@@ -203,18 +205,21 @@ struct UninstallView: View {
             switch flow.step {
             case .confirm: confirm
             case .authenticating:
-                waiting(symbol: "lock", title: String(localized: "Ton mot de passe du Mac, une seule fois (ancienne installation)"))
-            case .working: waiting(symbol: "trash", title: String(localized: "Suppression…"))
+                waiting(symbol: "lock", tint: .orange,
+                        title: String(localized: "Ton mot de passe du Mac, une seule fois (ancienne installation)"))
+            case .working: waiting(symbol: "trash", tint: .red, title: String(localized: "Suppression…"))
             case .done(let report): done(report)
             }
         }
         .softSwitch(stepKey)
-        .padding(.horizontal, 24)
-        .padding(.top, 30)
-        .padding(.bottom, 18)
+        .padding(.horizontal, 26)
+        .padding(.top, 34)
+        .padding(.bottom, 22)
         // Même taille à chaque étape : la fenêtre ne saute plus quand le contenu change (confirmation haute, attente
         // courte, bilan) ; chaque étape est centrée dedans.
-        .frame(width: 340, height: 350)
+        .frame(width: 380, height: 420)
+        // Fond noir plein, jusque sous la barre de titre (comme la fenêtre principale).
+        .background(Appearance.windowColor.ignoresSafeArea())
     }
 
     /// Étape affichée : chacune arrive en fondu flou, comme dans le guide.
@@ -227,38 +232,67 @@ struct UninstallView: View {
         }
     }
 
+    /// Deux boutons de même largeur, en capsule (le second en bleu).
+    private func buttons<A: View, B: View>(@ViewBuilder first: () -> A, @ViewBuilder second: () -> B) -> some View {
+        HStack(spacing: 10) {
+            first()
+            second()
+        }
+        .controlSize(.large)
+    }
+
     // MARK: 1. Confirmation
 
     private var confirm: some View {
-        VStack(spacing: 10) {
+        VStack(spacing: 0) {
+            Spacer(minLength: 0)
             Image(nsImage: NSApp.applicationIconImage)
                 .resizable()
-                .frame(width: 64, height: 64)
+                .frame(width: 72, height: 72)
                 .accessibilityHidden(true)
             Text("Désinstaller FL Shortcuts ?")
-                .font(.system(size: 13, weight: .bold))
+                .font(.system(size: 18, weight: .bold))
+                .padding(.top, 12)
             Text("L'app et tous ses réglages seront supprimés de ce Mac.")
-                .font(.system(size: 11))
+                .font(.system(size: 12))
+                .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
                 .fixedSize(horizontal: false, vertical: true)
-            risk
-            if flow.hasExports {
-                Toggle("Supprimer aussi mes fichiers exportés", isOn: $flow.removeExports)
-                    .toggleStyle(.checkbox)
-                    .font(.system(size: 11))
+                .padding(.top, 4)
+            VStack(spacing: 8) {
+                risk
+                if flow.hasExports {
+                    HStack(spacing: 10) {
+                        SectionIcon(symbol: "square.and.arrow.up", tint: .gray, size: 24)
+                        Text("Supprimer aussi mes fichiers exportés")
+                            .font(.system(size: 12))
+                            .fixedSize(horizontal: false, vertical: true)
+                        Spacer(minLength: 6)
+                        Toggle("", isOn: $flow.removeExports)
+                            .toggleStyle(.switch)
+                            .controlSize(.small)
+                            .labelsHidden()
+                    }
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 10)
+                    .background(GlassPlateBackground())
+                    .accessibilityElement(children: .combine)
+                }
+                if let cancelled = flow.cancelled {
+                    Text(cancelled).font(.system(size: 11)).foregroundStyle(.secondary)
+                }
             }
-            if let cancelled = flow.cancelled {
-                Text(cancelled).font(.system(size: 11)).foregroundStyle(.secondary)
-            }
-            HStack(spacing: 8) {
+            .padding(.top, 16)
+            Spacer(minLength: 12)
+            buttons {
                 Button(action: close) { Text("Annuler").frame(maxWidth: .infinity) }
+                    .secondaryButton()
                     .keyboardShortcut(.cancelAction)
+            } second: {
                 Button { flow.start() } label: { Text("Désinstaller").frame(maxWidth: .infinity) }
-                    .buttonStyle(.borderedProminent)
+                    .primaryButton()
                     .keyboardShortcut(.defaultAction)
             }
-            .controlSize(.large)
-            .padding(.top, 8)
         }
     }
 
@@ -268,10 +302,16 @@ struct UninstallView: View {
         case .nothing:
             EmptyView()
         case .saved:
-            Text("Tes raccourcis et tes macros restent dans ton compte.")
-                .font(.system(size: 11))
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
+            HStack(spacing: 10) {
+                SectionIcon(symbol: "checkmark", tint: .green, size: 24)
+                Text("Tes raccourcis et tes macros restent dans ton compte.")
+                    .font(.system(size: 12))
+                    .fixedSize(horizontal: false, vertical: true)
+                Spacer(minLength: 0)
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 10)
+            .background(GlassPlateBackground())
         case .notSignedIn:
             warning(String(localized: "Tes raccourcis et tes macros ne sont pas sauvegardés : ils seront perdus."),
                     link: String(localized: "Les sauvegarder d'abord"))
@@ -281,75 +321,91 @@ struct UninstallView: View {
         }
     }
 
+    /// Ce qui serait perdu : une plaque bordée d'orange, l'icône, la phrase, et le lien pour sauvegarder d'abord.
     private func warning(_ text: String, link: String) -> some View {
-        VStack(spacing: 4) {
-            Label {
-                Text(text).fixedSize(horizontal: false, vertical: true)
-            } icon: {
-                Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.yellow)
+        HStack(alignment: .top, spacing: 10) {
+            SectionIcon(symbol: "exclamationmark.triangle", tint: .orange, size: 24)
+            VStack(alignment: .leading, spacing: 4) {
+                Text(text)
+                    .font(.system(size: 12, weight: .medium))
+                    .fixedSize(horizontal: false, vertical: true)
+                Button(link) {
+                    close()
+                    AccountLink.shared.show()
+                }
+                .buttonStyle(.link)
+                .font(.system(size: 12))
             }
-            .font(.system(size: 11, weight: .medium))
-            .multilineTextAlignment(.leading)
-            Button(link) {
-                close()
-                AccountLink.shared.show()
-            }
-            .buttonStyle(.link)
-            .font(.system(size: 11))
+            Spacer(minLength: 0)
         }
-        .padding(.top, 2)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 10)
+        .background(
+            RoundedRectangle(cornerRadius: 14, style: .continuous).fill(Color.orange.opacity(0.10))
+                .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).strokeBorder(Color.orange.opacity(0.35), lineWidth: 1))
+        )
     }
 
     // MARK: 2. Mot de passe (ancienne installation), suppression
 
-    private func waiting(symbol: String, title: String) -> some View {
-        VStack(spacing: 12) {
-            Image(systemName: symbol)
-                .font(.system(size: 40, weight: .light))
-                .foregroundStyle(.secondary)
-            Text(title).font(.system(size: 13, weight: .bold)).multilineTextAlignment(.center)
+    private func waiting(symbol: String, tint: Color, title: String) -> some View {
+        VStack(spacing: 14) {
+            Spacer(minLength: 0)
+            SectionIcon(symbol: symbol, tint: tint, size: 56)
+            Text(title)
+                .font(.system(size: 15, weight: .bold))
+                .multilineTextAlignment(.center)
+                .fixedSize(horizontal: false, vertical: true)
             ProgressView().controlSize(.small)
+            Spacer(minLength: 0)
         }
         .frame(maxWidth: .infinity)
-        .padding(.vertical, 12)
     }
 
     // MARK: 3. Bilan
 
     private func done(_ report: Uninstaller.Report) -> some View {
-        VStack(spacing: 10) {
+        VStack(spacing: 0) {
+            Spacer(minLength: 0)
             if report.remaining.isEmpty {
                 SuccessMark()
                 Text("FL Shortcuts est désinstallé")
-                    .font(.system(size: 13, weight: .bold))
+                    .font(.system(size: 18, weight: .bold))
+                    .padding(.top, 14)
                 Text(flow.demo ? String(localized: "Plus rien ne reste sur ce Mac.")
                      : String(localized: "Plus rien ne reste sur ce Mac. L'app se ferme…"))
-                    .font(.system(size: 11))
+                    .font(.system(size: 12))
                     .foregroundStyle(.secondary)
+                    .padding(.top, 4)
             } else {
-                Image(systemName: "exclamationmark.triangle.fill")
-                    .font(.system(size: 52))
-                    .foregroundStyle(.yellow)
-                    .accessibilityHidden(true)
+                SectionIcon(symbol: "exclamationmark.triangle", tint: .orange, size: 68)
                 Text("Encore une étape")
-                    .font(.system(size: 13, weight: .bold))
+                    .font(.system(size: 18, weight: .bold))
+                    .padding(.top, 14)
                 Text("Glisse FL Shortcuts dans la Corbeille.")
-                    .font(.system(size: 11))
+                    .font(.system(size: 12))
+                    .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
+                    .padding(.top, 4)
             }
-            HStack(spacing: 8) {
-                Spacer(minLength: 0)
-                if !report.remaining.isEmpty {
-                    Button("Afficher dans le Finder") {
-                        NSWorkspace.shared.activateFileViewerSelecting(report.remaining.map(\.url))
-                    }
-                }
-                Button("Quitter", action: close)
-                    .buttonStyle(.borderedProminent)
+            Spacer(minLength: 12)
+            if report.remaining.isEmpty {
+                Button(action: close) { Text("Quitter").frame(maxWidth: .infinity) }
+                    .primaryButton()
+                    .controlSize(.large)
                     .keyboardShortcut(.defaultAction)
+            } else {
+                buttons {
+                    Button {
+                        NSWorkspace.shared.activateFileViewerSelecting(report.remaining.map(\.url))
+                    } label: { Text("Afficher dans le Finder").frame(maxWidth: .infinity) }
+                        .secondaryButton()
+                } second: {
+                    Button(action: close) { Text("Quitter").frame(maxWidth: .infinity) }
+                        .primaryButton()
+                        .keyboardShortcut(.defaultAction)
+                }
             }
-            .controlSize(.large)
-            .padding(.top, 10)
         }
         .frame(maxWidth: .infinity)
     }
