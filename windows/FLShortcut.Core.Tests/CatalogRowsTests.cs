@@ -106,6 +106,27 @@ public class CatalogRowsTests
             Assert.Contains(CatalogGroups.For(e.Section), g => g.Keys.Contains(CatalogGroups.Key(e)));
     }
 
+    /// Choisir une touche déjà prise : la touche de FL d'une autre entrée est dite, ton raccourci qui l'avait la perd.
+    [Fact]
+    public void Clashes_ThenRelease()
+    {
+        var mine = Shortcut.Sends(new KeyCombo(Vk.Letter('X')), new KeyCombo(Vk.Letter('P')), ShortcutContext.Playlist);
+        var created = Shortcut.Sends(new KeyCombo(Vk.Letter('X')), new KeyCombo(Vk.Letter('Q')));
+        var (rows, others) = CatalogRows.Build(Entries, new List<Shortcut> { mine, created });
+        var brush = Row(rows, "fl.playlist.b");
+        var clashes = CatalogRows.Clashes(rows, others, new KeyCombo(Vk.Letter('X')), brush, s => "créé");
+        Assert.Contains(clashes, c => c.Row?.Id == "fl.playlist.p" && c.Shortcut?.Id == mine.Id);
+        Assert.Contains(clashes, c => c.Row is null && c.Title == "créé");
+        Assert.DoesNotContain(clashes, c => c.Row?.Id == brush.Id);
+        Assert.Contains(CatalogRows.Clashes(rows, others, new KeyCombo(Vk.Letter('D')), brush, s => ""),
+                        c => c.IsFlKey && c.Row?.Id == "fl.playlist.d");
+        var (upserts, deletes) = CatalogRows.Release(clashes);
+        Assert.Equal(new[] { mine.Id }, deletes);
+        Assert.Single(upserts);
+        Assert.Null(upserts[0].Trigger);
+        Assert.Empty(CatalogRows.Clashes(rows, others, new KeyCombo(Vk.Letter('B')), brush, s => ""));
+    }
+
     [Fact]
     public void NewContexts_RoundTripInTheProfile()
     {

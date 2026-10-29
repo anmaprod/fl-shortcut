@@ -11,27 +11,6 @@ using Microsoft.UI.Dispatching;
 
 namespace FLShortcut.App;
 
-public sealed class ShortcutRow
-{
-    public required Shortcut Shortcut { get; init; }
-    public required IReadOnlyList<string> Caps { get; init; }
-    public required string Label { get; init; }
-    public required string Description { get; init; }
-    public required string Category { get; init; }
-    public required string Where { get; init; }
-    public required bool HasWarning { get; init; }
-    public required string WarningText { get; init; }
-    public double Opacity => Shortcut.Enabled ? 1.0 : 0.5;
-    public Microsoft.UI.Xaml.Visibility WhereVisibility => string.IsNullOrEmpty(Where) ? Microsoft.UI.Xaml.Visibility.Collapsed : Microsoft.UI.Xaml.Visibility.Visible;
-    public Microsoft.UI.Xaml.Visibility WarningVisibility => HasWarning ? Microsoft.UI.Xaml.Visibility.Visible : Microsoft.UI.Xaml.Visibility.Collapsed;
-}
-
-public sealed class ShortcutGroup
-{
-    public required string Title { get; init; }
-    public required List<ShortcutRow> Rows { get; init; }
-}
-
 internal enum StatusKind { Linked, Inactive, FlClosed, Paused, Elevated, Incompatible, NoKey, Tampered }
 
 internal sealed class AppController : INotifyPropertyChanged, IDisposable
@@ -78,6 +57,13 @@ internal sealed class AppController : INotifyPropertyChanged, IDisposable
             program => OnUi(() => RunMacro(program)));
     }
 
+    /// Mode photos de la CI : les pages de raccourcis seulement (ni hook clavier, ni port MIDI).
+    public void PreparePages()
+    {
+        _issues = ShortcutAnalyzer.Analyze(_shortcuts, NewAnalysisContext());
+        RebuildRows();
+    }
+
     public void Start()
     {
         if (!Light) _midi.Start();          // mode léger : aucun port MIDI ouvert, rien dans FL
@@ -101,8 +87,11 @@ internal sealed class AppController : INotifyPropertyChanged, IDisposable
     public bool Enabled => _settings.Enabled;
     public ProfilePreset CurrentPreset => Enum.TryParse<ProfilePreset>(_settings.Profile, out var p) ? p : ProfilePreset.Recommended;
     public IReadOnlyList<Shortcut> Shortcuts => _shortcuts;
-    public List<ShortcutGroup> Groups { get; private set; } = new();
-    public bool IsEmpty => Groups.Count == 0;
+    /// Les pages comme le Mac (29/10) : chaque raccourci de FL et action du script avec sa touche actuelle (`Rows`),
+    /// et tes autres raccourcis (`Others` : créés, macros). Recalculé quand le profil ou ses avertissements changent.
+    public (List<CatalogRow> Rows, List<Shortcut> Others) Catalog { get; private set; } = (new(), new());
+    /// Raccourcis de départ (profil Recommandé), jamais comptés comme « créés par toi ».
+    public IReadOnlyList<Shortcut> Starters { get; } = ProfilePreset.Recommended.Shortcuts();
     public StatusKind Status { get; private set; }
     public string StatusTitle { get; private set; } = "";
     public string StatusText { get; private set; } = "";
@@ -405,50 +394,94 @@ internal sealed class AppController : INotifyPropertyChanged, IDisposable
         Raise(nameof(StatusText));
     }
 
-    private void RebuildRows()
+    private List<CatalogEntry>? _entries;
+    private bool _entriesLight;
+    private string _catalogStamp = "";
+
+    /// Entrées des pages, selon le mode (léger : seules les actions qui ont une touche de FL).
+    private List<CatalogEntry> Entries()
     {
-        var q = _query.Trim();
-        var cats = new[] { "Composition", "Enregistrement", "Mix", "Navigation", "Touches de FL" };
-        var rows = _shortcuts.Select(ToRow)
-            .Where(r => q.Length == 0
-                        || r.Label.Contains(q, StringComparison.CurrentCultureIgnoreCase)
-                        || r.Description.Contains(q, StringComparison.CurrentCultureIgnoreCase)
-                        || string.Join(" ", r.Caps).Contains(q, StringComparison.CurrentCultureIgnoreCase))
-            .ToList();
-        Groups = cats
-            .Select(c => new ShortcutGroup { Title = c, Rows = rows.Where(r => CategoryOf(r.Shortcut) == c).ToList() })
-            .Where(g => g.Rows.Count > 0)
-            .ToList();
-        Raise(nameof(Groups));
-        Raise(nameof(IsEmpty));
+        if (_entries is null || _entriesLight != Light)
+        {
+            _entries = CatalogEntries.Build(Light);
+            _entriesLight = Light;
+        }
+        return _entries;
     }
 
-    private static string CategoryOf(Shortcut s) =>
-        s.Kind == ShortcutKind.Keystroke ? "Touches de FL"
-        : s.Kind == ShortcutKind.Macro ? "Macros"
-        : s.ActionId is { } id && FlActions.Info(id) is { } info ? info.CategoryLabel : "Navigation";
-
-    private ShortcutRow ToRow(Shortcut s)
+    /// Recalcule les pages ; prévient la fenêtre seulement si le profil ou ses avertissements ont changé (le premier
+    /// plan de FL change souvent, les 300 lignes ne sont pas redessinées pour rien).
+    private void RebuildRows()
     {
-        var issues = _issues.TryGetValue(s.Id, out var l) ? l : new List<ShortcutIssue>();
-        var desc = s.Kind == ShortcutKind.Macro ? "Macro de ta bibliothèque"
-            : s.Kind == ShortcutKind.Keystroke
-            ? (s.Target is { } t && ConflictTable.Default.FlConflict(t) is { } fl ? "Dans " + fl : "Raccourci de FL Studio")
-            : s.ActionId is { } id && Availability(id) is ActionAvailability.Unavailable u ? u.Reason
-            : s.ActionId is { } id2 && FlActions.Info(id2) is { } info ? info.Detail()
-            : s.UnknownAction is { } unknown ? $"Action inconnue ({DisplayText.Safe(unknown)}) : mets FL Shortcuts à jour" : "";
-        return new ShortcutRow
+        var stamp = string.Join(";", _shortcuts.Select(s => $"{s.Id}:{s.Enabled}:{s.Trigger}:{s.Target}:{s.Context}:{s.ActionId}:{s.MacroRef}"))
+                    + "|" + string.Join(";", _issues.Where(p => p.Value.Count > 0).Select(p => $"{p.Key}:{p.Value.Count}"))
+                    + "|" + Light + "|" + _macros.Macros.Count;
+        if (stamp == _catalogStamp) return;
+        _catalogStamp = stamp;
+        Catalog = CatalogRows.Build(Entries(), _shortcuts);
+        Raise(nameof(Catalog));
+    }
+
+    /// Avertissements d'un de tes raccourcis (touche prise, action indisponible…).
+    public IReadOnlyList<ShortcutIssue> IssuesOf(Guid id) =>
+        _issues.TryGetValue(id, out var list) ? list : (IReadOnlyList<ShortcutIssue>)Array.Empty<ShortcutIssue>();
+
+    /// Nom lisible d'un raccourci hors des pages (créé par toi, macro).
+    public string TitleOf(Shortcut s)
+    {
+        if (s.Kind == ShortcutKind.Keystroke) return Loc.T("Envoie ") + (s.Target?.ToString() ?? Loc.T("une touche"));
+        if (s.Kind == ShortcutKind.Macro)
+            return Loc.T("Macro : ") + (s.MacroRef is { } r && _macros.Doc(r) is { } doc
+                ? DisplayText.Safe(doc.Name, MacroValidation.MaxNameLength) : Loc.T("introuvable (supprimée ?)"));
+        return s.ActionId is { } id && FlActions.Info(id) is { } info ? Loc.T(info.Label) : Loc.T("Raccourci personnalisé");
+    }
+
+    /// Ligne grise sous ce nom : la fenêtre de FL où il agit, ou « désactivé ».
+    public string SubtitleOf(Shortcut s)
+    {
+        var parts = new List<string>();
+        if (s.Context != ShortcutContext.Everywhere) parts.Add(Loc.T(s.Context.Label()));
+        if (!s.Enabled) parts.Add(Loc.T("désactivé"));
+        return string.Join(", ", parts);
+    }
+
+    /// Ce qui utilise déjà `trigger` (affiché tout de suite, confirmé à la validation).
+    public List<KeyClash> Clashes(KeyCombo trigger, CatalogRow editing) =>
+        CatalogRows.Clashes(Catalog.Rows, Catalog.Others, trigger, editing, TitleOf);
+
+    /// Nouvelle touche d'une entrée (nil : aucune, actions seulement) ; `release` : les raccourcis qui la perdent.
+    public void SetKey(CatalogRow row, KeyCombo? trigger, IReadOnlyList<KeyClash> release)
+    {
+        var (upserts, deletes) = CatalogRows.Release(release);
+        foreach (var id in deletes) _shortcuts.RemoveAll(x => x.Id == id);
+        foreach (var s in upserts)
         {
-            Shortcut = s,
-            Caps = s.Trigger?.Caps ?? new[] { "?" },
-            Label = s.Kind == ShortcutKind.Macro && s.MacroRef is { } r && _macros.Doc(r) is { } doc
-                ? DisplayText.Safe(doc.Name, MacroValidation.MaxNameLength) : s.Label,
-            Description = desc,
-            Category = CategoryOf(s),
-            Where = s.Context == ShortcutContext.Everywhere ? "" : s.Context.Label(),
-            HasWarning = issues.Count > 0,
-            WarningText = string.Join(" ", issues.Select(i => i.Message)),
-        };
+            var i = _shortcuts.FindIndex(x => x.Id == s.Id);
+            if (i >= 0) _shortcuts[i] = s;
+        }
+        var (upsert, delete) = CatalogRows.Change(row, trigger);
+        if (delete is { } d) _shortcuts.RemoveAll(x => x.Id == d);
+        if (upsert is not null)
+        {
+            var i = _shortcuts.FindIndex(x => x.Id == upsert.Id);
+            if (i >= 0) _shortcuts[i] = upsert; else _shortcuts.Add(upsert);
+        }
+        Persist();
+    }
+
+    /// ↺ : la touche d'origine. Rend le profil d'avant (pour « Annuler »).
+    public List<Shortcut> ResetRow(CatalogRow row)
+    {
+        var before = _shortcuts.ToList();
+        SetKey(row, row.Entry.DefaultTrigger, Array.Empty<KeyClash>());
+        return before;
+    }
+
+    /// Remet un profil gardé (« Annuler » d'une remise à zéro).
+    public void Restore(List<Shortcut> shortcuts)
+    {
+        _shortcuts = shortcuts.ToList();
+        Persist();
     }
 
     private void OnUi(Action a)

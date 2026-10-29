@@ -164,6 +164,47 @@ public static class CatalogRows
 
     /// Revenir à la touche d'origine.
     public static (Shortcut? Upsert, Guid? Delete) Reset(CatalogRow row) => Change(row, row.Entry.DefaultTrigger);
+
+    /// Tout ce qui utilise déjà `trigger`, hors l'entrée qu'on modifie (une touche ne sert qu'une fois ; seule
+    /// exception : revenir à la touche de FL de l'entrée elle-même).
+    public static List<KeyClash> Clashes(IReadOnlyList<CatalogRow> rows, IReadOnlyList<Shortcut> others, KeyCombo trigger,
+                                         CatalogRow editing, Func<Shortcut, string> title)
+    {
+        var out_ = new List<KeyClash>();
+        if (editing.Entry.Kind is CatalogEntryKind.Native(var own) && own == trigger) return out_;
+        foreach (var other in rows)
+        {
+            if (other.Id == editing.Id) continue;
+            if (other.Shortcut is { Enabled: true } s && s.Trigger == trigger)
+                out_.Add(new KeyClash(other, s, other.Entry.Title, other.Entry.Section.Title()));
+            else if (other.Entry.Kind is CatalogEntryKind.Native(var k) && k == trigger)
+                out_.Add(new KeyClash(other, null, other.Entry.Title, other.Entry.Section.Title()));
+        }
+        foreach (var s in others)
+            if (s.Enabled && s.Trigger == trigger && s.Id != editing.Shortcut?.Id) out_.Add(new KeyClash(null, s, title(s), null));
+        return out_;
+    }
+
+    /// Libère la touche : tes raccourcis qui l'utilisaient la perdent (un raccourci de FL revient à sa seule touche
+    /// de FL, un raccourci créé n'a plus de touche). Une touche d'origine de FL : rien à retirer.
+    public static (List<Shortcut> Upserts, List<Guid> Deletes) Release(IEnumerable<KeyClash> clashes)
+    {
+        var upserts = new List<Shortcut>();
+        var deletes = new List<Guid>();
+        foreach (var c in clashes)
+        {
+            if (c.Shortcut is not { } s) continue;
+            if (c.Row is not null) deletes.Add(s.Id);
+            else upserts.Add(s with { Trigger = null });
+        }
+        return (upserts, deletes);
+    }
+}
+
+/// Ce qui utilise déjà une touche : un de tes raccourcis (`Shortcut`), ou une touche d'origine de FL.
+public sealed record KeyClash(CatalogRow? Row, Shortcut? Shortcut, string Title, string? Section)
+{
+    public bool IsFlKey => Shortcut is null;
 }
 
 /// « Mes raccourcis » : les raccourcis de FL que tu as changés, puis ceux que tu as créés. Jamais les macros (elles

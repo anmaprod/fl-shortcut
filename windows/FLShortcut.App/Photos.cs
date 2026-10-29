@@ -1,7 +1,7 @@
-// Mode photos de la CI (`--photos <dossier>`) : la fenêtre principale, chaque écran de l'Organiser avec des sons
+// Mode photos de la CI (`--photos <dossier>`) : la fenêtre principale (plusieurs pages), chaque écran de l'Organiser avec des sons
 // d'exemple (OrganizerController.ShowDemo), puis la page Macros avec des macros d'exemple en mémoire (liste et créateur),
 // enregistrés en PNG, puis l'appli se ferme. Rien n'est envoyé à FL, aucun hook ni port MIDI n'est ouvert, aucune macro
-// n'est écrite ; seuls « principale.png », des « organiser-<écran>.png » et des « macros-<écran>.png » sont écrits, dans
+// n'est écrite ; seuls des « principale*.png », des « organiser-<écran>.png » et des « macros-<écran>.png » sont écrits, dans
 // un dossier qui existe déjà.
 using System.Runtime.InteropServices.WindowsRuntime;
 using Microsoft.UI.Xaml;
@@ -58,10 +58,17 @@ internal static class Photos
             main.Activate();
             Note("principale : fenêtre ouverte");
             await Task.Delay(2000);
-            if (main.Content is UIElement mainContent)
+            // Les pages comme le Mac (29/10) : Général, Playlist, Mes raccourcis, une recherche.
+            foreach (var (page, name) in new[] { ("general", "principale"), ("playlist", "principale-playlist"),
+                                                 ("custom", "principale-mes-raccourcis"), ("recherche", "principale-recherche") })
             {
-                await Save(mainContent, Path.Combine(folder, "principale.png"));
-                Note("principale : photo");
+                main.ShowPage(page);
+                await Task.Delay(800);
+                if (main.Content is UIElement mainContent)
+                {
+                    await Save(mainContent, Path.Combine(folder, name + ".png"));
+                    Note($"{name} : photo");
+                }
             }
             main.Close();
             foreach (var screen in Screens)
