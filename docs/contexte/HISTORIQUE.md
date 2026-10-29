@@ -509,3 +509,12 @@ entrée 1 ≈ 0,5 s.
   sur le chiffre ; comme FL, elle disparaît et se gare à droite de la case pendant qu'on tire, puis revient où elle
   était (`HiddenDrag`). Vu sur la CI : l'aperçu de l'Organiser figeait l'app ~15 s (photos restées sur l'écoute) ;
   relevé de la pile ajouté à la mesure (`organiser-apercu-sample.txt`) avant toute correction.
+- Lien avec FL (29/10) : « un read me avec dans le tuto tu entoures ce qu'il y a à changer dans ce screen donc les
+  deux ports, controller type et enable, et que dans FL Shortcuts ça soit beaucoup plus simple et mieux expliqué pour
+  installer, fermer FL… ». Sa capture de MIDI Settings redessinée (docs/images/midi-settings.html, rendue en
+  Resources/MIDISettings.png) avec les 4 cases entourées et numérotées : Port de l'Output, Enable, Controller type,
+  Port de l'Input. README : section « Relier FL Studio (pas à pas) » (4 étapes, l'image, un tableau, 3 pièges) ;
+  l'intro ne dit plus « rien à installer dans FL ». App (`LinkGuide`) : partout les mêmes 4 étapes d'une ligne
+  (Installe le lien, Quitte FL (⌘Q) puis rouvre-le, Options › MIDI Settings, Règle les 4 cases entourées) et
+  l'image (un clic l'agrandit) : accueil, aide du lien de l'Organiser (les 4 longs paragraphes remplacés, 3 pièges
+  en une ligne), fenêtre « Lien installé » (l'image dessous).

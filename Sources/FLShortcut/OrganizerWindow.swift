@@ -1364,29 +1364,7 @@ struct OrganizerView: View {
             .organizerCard(ok ? .green : .orange)
             .morphIn(1)
             if linkHelp {
-                VStack(alignment: .leading, spacing: 8) {
-                    OrganizerStep(n: 1, text: String(localized: """
-                        Quitte et rouvre FL Studio : il trouve « FL Shortcuts Link » en démarrant \
-                        et le relie tout seul. Puis « Réessayer ».
-                        """))
-                    OrganizerStep(n: 2, text: String(localized: """
-                        Toujours rien : Options › MIDI Settings, entrée « FL Shortcuts Link », \
-                        Controller type « FL Shortcuts » (pas « generic controller »), Enable, et le même \
-                        numéro de Port à l'entrée et à la sortie. Dans Output, « FL Shortcuts Link » seul \
-                        sur ce numéro : « FL Shortcuts » doit s'afficher à côté de lui, pas de ta carte son.
-                        """))
-                    OrganizerStep(n: 3, text: String(localized: """
-                        « FL Shortcuts » absent des Controller types : FL ne lit pas le dossier du \
-                        script ci-dessous. Compare-le avec Options › File settings › User data folder dans \
-                        FL (pas sur iCloud) ; s'il diffère, « Autre dossier de FL… » et choisis celui-là.
-                        """))
-                    OrganizerStep(n: 4, text: String(localized: """
-                        Réglages Système › Confidentialité et sécurité › Fichiers et dossiers › \
-                        FL Studio : « Dossier Documents » doit être coché.
-                        """))
-                }
-                scriptCard
-                    .morphIn(6)
+                linkHelpSteps
             }
             buttons
                 .morphIn(linkHelp ? 7 : 2)
@@ -1596,30 +1574,31 @@ struct OrganizerView: View {
         .buttonStyle(.plain)
     }
 
+    /// Relier FL (29/10, « beaucoup plus simple et mieux expliqué ») : les quatre étapes de `LinkGuide` et la fenêtre
+    /// MIDI Settings entourée ; dessous, les trois pièges déjà vus, une ligne chacun, puis où est le script.
     private var linkHelpSteps: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            OrganizerStep(n: 1, text: String(localized: """
-                Dans FL : Options › MIDI Settings › Input, clique d'abord la ligne « FL Shortcuts \
-                Link » (le Controller type, en bas, change la ligne choisie), puis Controller type « FL \
-                Shortcuts », Enable, Port 7. Ta carte son ou ton clavier MIDI restent sur « (generic \
-                controller) ».
-                """))
-            OrganizerStep(n: 2, text: String(localized: """
-                Dans Output : « FL Shortcuts Link » sur ce même Port 7, et SEUL sur ce numéro. \
-                Clique ta carte son (SSL 2+…) et donne-lui un autre Port (8…) : FL répond à la première \
-                sortie du numéro. C'est bon quand « FL Shortcuts » s'affiche à côté de « FL Shortcuts \
-                Link » dans Output (pas à côté de ta carte son). Puis quitte et rouvre FL.
-                """))
-            OrganizerStep(n: 3, text: String(localized: """
-                « FL Shortcuts » absent des Controller types : FL ne lit pas le dossier du \
-                script ci-dessous. Compare-le avec Options › File settings › User data folder (pas sur \
-                iCloud) ; s'il diffère, « Autre dossier de FL… » et choisis celui-là.
-                """))
-            OrganizerStep(n: 4, text: String(localized: """
-                Réglages Système › Confidentialité et sécurité › Fichiers et dossiers › \
-                FL Studio : « Dossier Documents » doit être coché.
-                """))
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(alignment: .top, spacing: 14) {
+                VStack(alignment: .leading, spacing: 8) {
+                    ForEach(Array(LinkGuide.steps.enumerated()), id: \.offset) { index, text in
+                        OrganizerStep(n: index + 1, text: text)
+                    }
+                }
+                MIDISettingsImage(width: 170)
+                    .morphIn(2)
+            }
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Toujours rien ?").font(.system(size: 12, weight: .semibold))
+                Text("Ta carte son : un autre numéro de Port.")
+                Text("Pas de « FL Shortcuts » dans Controller type : vérifie le dossier ci-dessous.")
+                Text("Réglages Système › Fichiers et dossiers › FL Studio : coche « Dossier Documents ».")
+            }
+            .font(.system(size: 11))
+            .foregroundStyle(.secondary)
+            .fixedSize(horizontal: false, vertical: true)
+            .morphIn(6)
             scriptCard
+                .morphIn(6)
         }
     }
 

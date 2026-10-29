@@ -262,15 +262,14 @@ enum FLScriptInstaller {
             MIDILink.shared.reloadKey()
             AppStatus.shared.refreshScriptState()
             if quiet { return true }
-            alert(String(localized: "Script installé"), String(localized: """
-            Dernière étape : quitte et rouvre FL Studio. Il trouve « FL Shortcuts Link » en démarrant et le relie tout seul.
+            // Simple et en images (29/10) : quitter et rouvrir FL, puis les 4 cases entourées de MIDI Settings.
+            alert(String(localized: "Lien installé"), String(localized: """
+            1. Quitte FL (⌘Q), puis rouvre-le.
+            2. Dans FL : Options › MIDI Settings.
+            3. Règle les 4 cases entourées, avec le même numéro de Port en haut et en bas.
 
-            Seulement si ça ne marche pas : Options › MIDI Settings, entrée « FL Shortcuts Link », Controller type « FL Shortcuts » (pas « generic controller »), Enable, et le même numéro de Port pour l'entrée et la sortie « FL Shortcuts Link ».
-
-            « FL Shortcuts » absent des Controller types : FL lit un autre dossier. Le script est dans \(displayFolder(of: dest)) ; compare avec Options › File settings › User data folder dans FL.
-
-            Chaque réinstallation crée une nouvelle clé : redémarre FL après coup.
-            """))
+            Pas de « FL Shortcuts » dans Controller type : le lien est dans \(displayFolder(of: dest)) ; compare avec Options › File settings › User data folder dans FL.
+            """), image: LinkGuide.image)
             return true
         } catch {
             alert(String(localized: "Installation impossible"), error.localizedDescription, style: .critical)
@@ -316,11 +315,21 @@ enum FLScriptInstaller {
         return hardware
     }
 
-    private static func alert(_ title: String, _ text: String, style: NSAlert.Style = .informational) {
+    private static func alert(_ title: String, _ text: String, style: NSAlert.Style = .informational,
+                              image: NSImage? = nil) {
         let a = NSAlert()
         a.messageText = title
         a.informativeText = text
         a.alertStyle = style
+        if let image {
+            // La fenêtre MIDI Settings entourée, sous le texte.
+            let width: CGFloat = 380
+            let view = NSImageView(frame: NSRect(x: 0, y: 0, width: width,
+                                                 height: (width * image.size.height / max(image.size.width, 1)).rounded()))
+            view.image = image
+            view.imageScaling = .scaleProportionallyUpOrDown
+            a.accessoryView = view
+        }
         a.runModal()
     }
 }

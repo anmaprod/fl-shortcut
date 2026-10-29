@@ -2,7 +2,7 @@
 
 Tes propres raccourcis clavier pour **FL Studio**, sur **Mac** et **Windows**.
 
-FL Studio n'a pas d'éditeur de raccourcis. FL Shortcuts en ajoute un : quand FL Studio est au premier plan, il reconnaît tes raccourcis et envoie à FL **ses propres touches** (Mixer, Playlist, REC, métronome, pattern suivant…). **Rien à installer dans FL** : pas de script, pas de MIDI, pas de loopMIDI.
+FL Studio n'a pas d'éditeur de raccourcis. FL Shortcuts en ajoute un : quand FL Studio est au premier plan, il reconnaît tes raccourcis et envoie à FL **ses propres touches** (Mixer, Playlist, REC, métronome, pattern suivant…). Les raccourcis marchent **sans rien installer dans FL**. Pour l'**Organiser** et quelques actions (mute / solo de piste, nom et couleur…), un petit lien se règle une fois, en une minute : voir [Relier FL Studio](#relier-fl-studio-pas-à-pas).
 
 - **Macros** (Mac, version de test) : *Enregistrement rapide* charge un état de piste du Mixer, arme la piste, choisit l'entrée et lance le REC, d'un seul raccourci. Voir [MACROS.md](MACROS.md).
 - **Mode MIDI** (facultatif, pour les utilisateurs avancés) : 40 actions via un script authentifié (mute / solo de piste, volume…). Désactivé par défaut.
@@ -37,6 +37,33 @@ Pour désinstaller : menu de l'icône FL Shortcuts en haut de l'écran › *Dés
 2. FL Shortcuts se lance et se range dans la zone de notification. Il démarre avec Windows (décochable dans l'installeur).
 
 C'est tout. Si Windows affiche « Windows a protégé votre ordinateur » (installeur non signé) : **Informations complémentaires › Exécuter quand même**. Désinstallation : *Paramètres › Applications*. Une version portable (`.zip`) existe aussi. Ne lance pas FL Studio en administrateur.
+
+---
+
+## Relier FL Studio (pas à pas)
+
+À faire une seule fois, pour l'Organiser et les actions qui passent par le lien.
+
+1. **Installe le lien** : à la première ouverture de FL Shortcuts (écran « Relier FL Studio »), ou plus tard par le menu de l'icône en haut de l'écran › *Installer le lien avec FL Studio…*
+2. **Quitte FL complètement** (`⌘Q` sur Mac, la croix sur Windows), puis **rouvre-le** : c'est en démarrant qu'il trouve le lien.
+3. Dans FL : **Options › MIDI Settings**.
+4. Règle les **4 cases entourées en rouge** :
+
+![MIDI Settings de FL : les 4 cases à régler entourées](Resources/MIDISettings.png)
+
+| | Où | Quoi |
+|---|---|---|
+| **1** | *Output*, ligne « FL Shortcuts Link » (clique-la d'abord) | **Port** : un numéro, par exemple 7 |
+| **2** | *Input*, ligne « FL Shortcuts Link » (clique-la d'abord) | **Enable** allumé |
+| **3** | *Input*, même ligne | **Controller type** : « FL Shortcuts » |
+| **4** | *Input*, même ligne | **Port** : **le même numéro** qu'en 1 |
+
+C'est fait quand FL Shortcuts affiche **« FL Studio est relié »**.
+
+**Toujours rien ?**
+- Ta carte son (ou ton clavier MIDI) doit avoir **un autre numéro de Port** : FL répond à la première sortie de ce numéro.
+- **Pas de « FL Shortcuts » dans Controller type** : FL ne lit pas le dossier où est le lien. Compare le dossier indiqué par FL Shortcuts avec *Options › File settings › User data folder* dans FL (pas sur iCloud).
+- Mac : *Réglages Système › Confidentialité et sécurité › Fichiers et dossiers › FL Studio* : coche **Dossier Documents**.
 
 ---
 

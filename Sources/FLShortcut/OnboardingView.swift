@@ -1,8 +1,8 @@
 // Accueil sobre, enchaîné (maquette validée le 28/10) : 1. les autorisations (clavier, son de FL), chacune avec son
-// état (« À autoriser », « En attente… », « Autorisé ») ; 2. hors mode léger, relier FL Studio en trois étapes d'une
-// ligne avec un vrai statut (« En attente de FL Studio… » → « FL Studio est relié ») ; 3. le guide, dans la même
-// fenêtre ; à la fin, la fenêtre principale s'ouvre. Fond plein, cartes en verre devant ; fondus entre les écrans,
-// aucune animation continue, aucune phrase d'explication.
+// état (« À autoriser », « En attente… », « Autorisé ») ; 2. hors mode léger, relier FL Studio en quatre étapes d'une
+// ligne (`LinkGuide`) et la fenêtre MIDI Settings entourée, avec un vrai statut (« En attente de FL Studio… » →
+// « FL Studio est relié ») ; 3. le guide, dans la même fenêtre ; à la fin, la fenêtre principale s'ouvre. Fond plein,
+// cartes en verre devant ; fondus entre les écrans, aucune animation continue, aucune phrase d'explication.
 // Audit : REL-23 (accueil marqué « vu » seulement après un choix ; permission demandée depuis l'accueil),
 //         tests utilisateurs (montrer où cliquer dans MIDI Settings, confirmer que ça marche).
 import AppKit
@@ -273,10 +273,11 @@ struct OnboardingView: View {
 
     private var linked: Bool { link.status == .linked }
 
+    /// Les étapes de `LinkGuide` : la première cochée une fois le lien installé, les autres une fois FL relié.
     private var linkSteps: [LinkStep] {
-        [LinkStep(id: 1, text: String(localized: "Installe le lien"), done: installed),
-         LinkStep(id: 2, text: String(localized: "Quitte et rouvre FL"), done: linked),
-         LinkStep(id: 3, text: String(localized: "Choisis FL Shortcuts dans MIDI Settings"), done: linked)]
+        LinkGuide.steps.enumerated().map { index, text in
+            LinkStep(id: index + 1, text: text, done: index == 0 ? installed : linked)
+        }
     }
 
     private var linkStep: some View {
@@ -293,10 +294,9 @@ struct OnboardingView: View {
                         .frame(minHeight: 48)
                 }
                 .frame(maxWidth: .infinity)
-                MIDISettingsPreview()
-                    .frame(width: 210)
+                MIDISettingsImage(width: 220)
             }
-            .padding(.top, 28)
+            .padding(.top, 24)
             .morphIn(1)
 
             HStack(spacing: 8) {
@@ -422,42 +422,6 @@ private struct StepRow: View {
         .accessibilityElement(children: .combine)
         .accessibilityLabel("Étape \(number) : \(text)")
         .accessibilityValue(done ? String(localized: "fait") : String(localized: "à faire"))
-    }
-}
-
-/// Aperçu de la fenêtre MIDI Settings de FL : « FL Shortcuts Link » en entrée et en sortie (couleurs de FL).
-private struct MIDISettingsPreview: View {
-    var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text("Options › MIDI Settings")
-                .font(.system(size: 11, weight: .semibold))
-                .foregroundStyle(Color(white: 0.92))
-            Text("Input").foregroundStyle(Color(white: 0.6))
-            highlighted("FL Shortcuts Link")
-            Text("Output").foregroundStyle(Color(white: 0.6)).padding(.top, 2)
-            highlighted("FL Shortcuts Link")
-            Text("Controller type : FL Shortcuts")
-                .foregroundStyle(Color(white: 0.8))
-                .padding(.top, 4)
-        }
-        .font(.system(size: 11))
-        .padding(12)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color(red: 0.17, green: 0.2, blue: 0.22))
-        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous)
-            .strokeBorder(Color.white.opacity(0.08), lineWidth: 1))
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel("Aperçu : dans MIDI Settings, FL Shortcuts Link en entrée et en sortie, avec le même port.")
-    }
-
-    private func highlighted(_ text: String) -> some View {
-        Text(text)
-            .foregroundStyle(Color(red: 1, green: 0.81, blue: 0.54))
-            .padding(.horizontal, 8)
-            .padding(.vertical, 4)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(RoundedRectangle(cornerRadius: 4).fill(Color(red: 1, green: 0.81, blue: 0.54).opacity(0.14)))
     }
 }
 

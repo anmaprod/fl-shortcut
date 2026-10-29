@@ -115,6 +115,7 @@
 "1 touche" = "1 key";
 "1 à %lld" = "1 to %lld";
 "1 étape tape des touches, clique ou ouvre un fichier : relis-la dans le créateur." = "1 step presses keys, clicks or opens a file: check it in the creator.";
+"1. Quitte FL (⌘Q), puis rouvre-le.\n2. Dans FL : Options › MIDI Settings.\n3. Règle les 4 cases entourées, avec le même numéro de Port en haut et en bas.\n\nPas de « FL Shortcuts » dans Controller type : le lien est dans %@ ; compare avec Options › File settings › User data folder dans FL." = "1. Quit FL (⌘Q), then reopen it.\n2. In FL: Options › MIDI Settings.\n3. Set the 4 circled boxes, with the same Port number at the top and at the bottom.\n\nNo “FL Shortcuts” in Controller type: the link is in %@; compare with Options › File settings › User data folder in FL.";
 "123456" = "123456";
 "2 (pavé)" = "2 (keypad)";
 "3 (pavé)" = "3 (keypad)";
@@ -173,6 +174,7 @@
 "Afficher le bureau" = "Show Desktop";
 "Afficher les sélecteurs de piste Mixer" = "Show Mixer track selectors";
 "Afficher tous les partages, seulement les macros, ou seulement les jeux de raccourcis" = "Show all posts, only macros, or only shortcut sets";
+"Agrandir" = "Enlarge";
 "Agrandir / réduire la Playlist" = "Maximize / restore Playlist";
 "Aide" = "Help";
 "Aide, compte, profil, import et export" = "Help, account, profile, import and export";
@@ -623,6 +625,7 @@
 "D'origine" = "Default";
 "D'origine : " = "Default: ";
 "Dangereux : supprime, écrase ou envoie des choses sans prévenir" = "Dangerous: deletes, overwrites or sends things without warning";
+"Dans FL : Options › MIDI Settings" = "In FL: Options › MIDI Settings";
 "Dans FL : Options › MIDI Settings › Input, clique d'abord la ligne « FL Shortcuts Link » (le Controller type, en bas, change la ligne choisie), puis Controller type « FL Shortcuts », Enable, Port 7. Ta carte son ou ton clavier MIDI restent sur « (generic controller) »." = "In FL: Options › MIDI Settings › Input, first click the “FL Shortcuts Link” row (the Controller type, at the bottom, changes the selected row), then Controller type “FL Shortcuts”, Enable, Port 7. Your sound card or MIDI keyboard stays on “(generic controller)”.";
 "Dans FL : Options › MIDI Settings › Input, ta carte son (ou ton clavier) a le Controller type « FL Shortcuts ». Remets-la sur « (generic controller) », puis clique la ligne « FL Shortcuts Link » et choisis « FL Shortcuts »." = "In FL: Options › MIDI Settings › Input, your sound card (or keyboard) has the Controller type “FL Shortcuts”. Set it back to “(generic controller)”, then click the “FL Shortcuts Link” row and choose “FL Shortcuts”.";
 "Dans FL : clic droit sur une piste du Mixer." = "In FL: right-click a Mixer track.";
@@ -632,6 +635,7 @@
 "Dans FL : reste cliqué sur ce qu'il faut attraper, glisse et lâche à l'endroit voulu (Échap pour annuler)." = "In FL: hold the click on what to grab, then drag and release on the spot you want (Esc to cancel).";
 "Dans FL Studio : %@" = "In FL Studio: %@";
 "Dans FL, clique le bouton mute (le petit rond en haut) d'une piste, puis reclique-le pour remettre le son." = "In FL, click a track's mute button (the small circle at the top), then click it again to unmute.";
+"Dans MIDI Settings : Port de la sortie, Enable, Controller type FL Shortcuts et Port de l'entrée, le même numéro." = "In MIDI Settings: output Port, Enable, Controller type FL Shortcuts and input Port, the same number.";
 "Dans Output : « FL Shortcuts Link » sur ce même Port 7, et SEUL sur ce numéro. Clique ta carte son (SSL 2+…) et donne-lui un autre Port (8…) : FL répond à la première sortie du numéro. C'est bon quand « FL Shortcuts » s'affiche à côté de « FL Shortcuts Link » dans Output (pas à côté de ta carte son). Puis quitte et rouvre FL." = "In Output: “FL Shortcuts Link” on that same Port 7, and ALONE on that number. Click your sound card (SSL 2+…) and give it another Port (8…): FL replies to the first output with that number. It's right when “FL Shortcuts” shows next to “FL Shortcuts Link” in Output (not next to your sound card). Then quit and reopen FL.";
 "Dans la fenêtre Accessibilité qui vient de s'ouvrir :" = "In the Accessibility window that just opened:";
 "Dans la fenêtre de macOS, clique « Autoriser »." = "In the macOS window, click “Allow”.";
@@ -1081,6 +1085,7 @@
 "Le menu ⋯ charge un profil tout prêt, ou importe et exporte tes raccourcis." = "The ⋯ menu loads a ready-made profile, or imports and exports your shortcuts.";
 "Le modèle devient une macro en blocs que tu modifies étape par étape dans le créateur. " = "The template becomes a block macro you edit step by step in the creator. ";
 "Le même compte sert à la Communauté : ajoute des macros toutes faites, partage les tiennes." = "The same account works for the Community: add ready-made macros, share your own.";
+"Le même numéro de Port en haut et en bas." = "The same Port number at the top and at the bottom.";
 "Le partage disparaît pour tout le monde. Tes macros et raccourcis ne changent pas." = "The post disappears for everyone. Your macros and shortcuts don't change.";
 "Le problème signalé" = "Reported problem";
 "Le raccourci de FL Studio à déplacer sur ta touche." = "The FL Studio shortcut to move to your key.";
@@ -1132,6 +1137,7 @@
 "Lien avec FL Studio non installé" = "FL Studio link not installed";
 "Lien inactif" = "Link inactive";
 "Lien inactif : quitte et rouvre FL (il relie « FL Shortcuts Link » tout seul)" = "Link inactive: quit and reopen FL (it connects “FL Shortcuts Link” on its own)";
+"Lien installé" = "Link installed";
 "Lier les canaux à la piste" = "Link channels to track";
 "Lier les canaux à partir de cette piste" = "Link channels starting from this track";
 "Lire ce menu dans FL" = "Read this menu in FL";
@@ -1423,6 +1429,7 @@
 "Pas de mail ? Regarde dans les courriers indésirables, ou renvoie le code." = "No email? Check your spam folder, or resend the code.";
 "Pas de nom pour un dégradé" = "No name for a gradient";
 "Pas de réponse : %@." = "No response: %@.";
+"Pas de « FL Shortcuts » dans Controller type : vérifie le dossier ci-dessous." = "No “FL Shortcuts” in Controller type: check the folder below.";
 "Pas encore disponible" = "Not available yet";
 "Pas encore en ligne" = "Not online yet";
 "Pas encore montré : fais le glisser-déposer une fois dans FL (reste cliqué, glisse, lâche). " = "Not shown yet: do the drag and drop once in FL (hold the click, drag, release). ";
@@ -1537,6 +1544,7 @@
 "Quels sons étaient mal rangés ?" = "Which sounds were in the wrong place?";
 "Questions fréquentes" = "Frequently asked questions";
 "Questions fréquentes, et écrire à l'équipe" = "FAQ, and write to the team";
+"Quitte FL (⌘Q), puis rouvre-le" = "Quit FL (⌘Q), then reopen it";
 "Quitte et rouvre FL" = "Quit and reopen FL";
 "Quitte et rouvre FL Studio" = "Quit and reopen FL Studio";
 "Quitte et rouvre FL Studio : il trouve « FL Shortcuts Link » en démarrant et le relie tout seul. Puis « Réessayer »." = "Quit and reopen FL Studio: it finds “FL Shortcuts Link” when it starts and links it on its own. Then “Try again”.";
@@ -1649,6 +1657,7 @@
 "Riser" = "Riser";
 "Roue des couleurs de FL" = "FL color wheel";
 "Règle la mesure du projet en 3/4." = "Sets the project's time signature to 3/4.";
+"Règle les 4 cases entourées" = "Set the 4 circled boxes";
 "Réapprendre l'entrée" = "Relearn the input";
 "Réapprendre…" = "Learn again…";
 "Récentes" = "Recent";
@@ -1660,6 +1669,7 @@
 "Réglages MIDI" = "MIDI Settings";
 "Réglages Son…" = "Sound Settings…";
 "Réglages Système › Confidentialité et sécurité › Fichiers et dossiers › FL Studio : « Dossier Documents » doit être coché." = "System Settings › Privacy & Security › Files and Folders › FL Studio: “Documents Folder” must be checked.";
+"Réglages Système › Fichiers et dossiers › FL Studio : coche « Dossier Documents »." = "System Settings › Files and Folders › FL Studio: tick “Documents Folder”.";
 "Régler la variable" = "Set the variable";
 "Régler une variable" = "Set a variable";
 "Réinitialiser" = "Reset";
@@ -1804,6 +1814,7 @@
 "Sélectionner par couleur" = "Select by color";
 "Sélectionner toutes les pistes" = "Select all tracks";
 "Ta Playlist a plus de pistes à remplir que FL n'en a : rien n'a été touché." = "Your Playlist needs more tracks than FL has: nothing was changed.";
+"Ta carte son : un autre numéro de Port." = "Your audio interface: a different Port number.";
 "Ta question, le plus précisément possible." = "Your question, as precisely as possible.";
 "Ta sauvegarde vient d'une version plus récente de FL Shortcuts : mets l'app à jour." = "Your backup comes from a newer version of FL Shortcuts: update the app.";
 "Ta session a expiré : reconnecte-toi pour mettre en ligne tes derniers changements." = "Your session expired: sign in again to upload your latest changes.";
@@ -1880,6 +1891,7 @@
 "Toujours" = "Always";
 "Toujours le même preset" = "Always the same preset";
 "Toujours rien : Options › MIDI Settings, entrée « FL Shortcuts Link », Controller type « FL Shortcuts » (pas « generic controller »), Enable, et le même numéro de Port à l'entrée et à la sortie. Dans Output, « FL Shortcuts Link » seul sur ce numéro : « FL Shortcuts » doit s'afficher à côté de lui, pas de ta carte son." = "Still nothing: Options › MIDI Settings, input “FL Shortcuts Link”, Controller type “FL Shortcuts” (not “generic controller”), Enable, and the same Port number for input and output. In Output, “FL Shortcuts Link” alone on that number: “FL Shortcuts” must show next to it, not next to your sound card.";
+"Toujours rien ?" = "Still nothing?";
 "Tours au plus" = "Max loops";
 "Tous les partages de @%@" = "All posts by @%@";
 "Tous les plugins · %@" = "All plugins · %@";
