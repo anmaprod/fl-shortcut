@@ -134,8 +134,14 @@
   passe à côté de Windows), touches à FL devant seulement (`FlControl`), fichier du projet (`ProjectFileWindows` :
   Ctrl+S, titres des fenêtres de FL, dossiers surveillés), `OrganizerLive`, fenêtre en code (`OrganizerWindow`, mêmes
   textes que le Mac ; pas encore d'icônes de FL ni d'envoi à l'équipe), « Tu valides la version organisée ? »
-  (`CopyApprovalPrompt`, Corbeille par le shell). Vérifier sans Windows : projet temporaire `net8.0-windows` +
-  `EnableWindowsTargeting`, `EnableCoreMrtTooling=false`, tous les .cs de l'app sauf `*.xaml.cs` (compile sous Linux).
+  (`CopyApprovalPrompt`, Corbeille par le shell). **Même interface que le Mac** (29/10, « exactement la même interface
+  sur win ») : `MacLook.cs` (couleurs, plaques, icônes dessinées aux noms des symboles du Mac, survol plein), fenêtre
+  principale `MainShell*.cs` (barre de gauche, cartes `CatalogGroups`, Mes raccourcis, recherche, accueil), Macros
+  `MacrosPage.cs` (dans la fenêtre ; créateur 3 colonnes, palette `CreatorPalette`), Organiser `OrganizerWindow.cs`
+  (fond noir, 2 colonnes, Options, tuto aux images du Mac embarquées, réglage `OrganizerTutorialSeen`), menu de l'icône
+  `TrayMenu.cs` (noir, sans « Mettre en pause »), question de validation sombre ; noms des touches en anglais si
+  l'app l'est (`Vk.Name`). Photos CI : principale*, macros-*, organiser-* (dont tuto), menu-icone. La CI seule vérifie
+  l'app (le propriétaire : « on s'en fout de Linux ») ; le cœur se teste avec `dotnet test`.
   CI : `--photos <dossier>` photographie les 6 écrans de l'Organiser (sons d'exemple), sous le débogueur cdb (pile et
   erreur d'origine si WinUI tombe). JAMAIS `SetDefaultDllDirectories` (la 1re fenêtre tombait : E_INVALIDARG du
   Windows App SDK auto-contenu) : `SetDllDirectory("")`. Macros (cœur `windows/FLShortcut.Core/Macros/`) : modèle et JSON

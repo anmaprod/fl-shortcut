@@ -567,3 +567,14 @@ entrée 1 ≈ 0,5 s.
 - Macros (29/10, « dans macro tu peux enlever les blocs mute track et solo track pour mac et win ») : « Mute de la
   piste » et « Solo de la piste » retirés de la palette du Mac (toujours compris dans les anciennes macros). Windows
   n'avait pas ces deux blocs (seulement « Action de FL », où mute et solo restent des actions parmi les autres).
+- Windows comme le Mac (29/10, « j'ai aussi envie que tu fasses exactement la meme interface sur win normalement on a
+  enlevé tout le liquid glass donc ça ne devrait pas bloquer », puis « verifie ce qui a deja ete fait et ce qui a
+  besoin d'etre rajouter pour win avant de tout recreer ») : toute la logique Windows gardée, seul l'aspect refait.
+  Cœur : raccourcis de FL par page (`CatalogRows.cs` : touche changée, ↺, cartes, Mes raccourcis), palette du
+  créateur du Mac (`MacroDrafts.CreatorPalette`), noms et aides courtes des blocs du Mac, colonnes des familles
+  (`OrganizerController.FamilyColumns`), titre « Organiser », `PlaylistTooBig`, noms des touches dans la langue de
+  l'app. Appli : `MacLook.cs`, fenêtre principale (`MainShell*.cs`), page Macros et créateur dans la fenêtre
+  (`MacrosPage.cs`, remplace `MacrosWindow.cs` ; glisser depuis la palette et pour ranger), Organiser (`OrganizerWindow.cs`,
+  tuto en 4 images à la 1re ouverture), menu de l'icône noir (`TrayMenu.cs`), question de validation sombre. Vérifié
+  sur les photos de la CI Windows (principale, Playlist, Mes raccourcis, recherche, macros, Organiser, tuto). Pas
+  encore sur Windows (hors demande) : compte, Communauté, Aide, enregistrement des macros, icônes de FL de l'Organiser.
