@@ -154,10 +154,11 @@
   tourner. PAS ENCORE (`MacroEffectsWindows.Unsupported`, macro bloquée, raccourci laissé à FL) : bouton retrouvé à son
   image, entrée, larsen, carte son, menu Arrangement. Essai CI `--selftest-macros` : faux FL dans l'appli (vraie
   fenêtre Windows) et les vrais blocs joués dessus (`MacroSelfTest.cs`, rapport `macros-essai.txt`). Journal :
-  `%LOCALAPPDATA%\FL Shortcuts\journal.txt` (`AppLogFile`, 512 Ko). Page Macros (`MacrosWindow.cs`, « Macros… » du
-  menu de gauche et de l'icône ; logique dans `MacroDrafts.cs`) : liste, nouvelle macro (vide ou modèle), créateur
-  simple (nom, raccourci, blocs activés/déplacés/retirés, réglages des blocs faits sur Windows ; les autres « à régler
-  sur le Mac »), photos `macros-liste.png`/`macros-createur.png` sur la CI ; fiche d'un raccourci : 3e type « Macro ».
+  `%LOCALAPPDATA%\FL Shortcuts\journal.txt` (`AppLogFile`, 512 Ko). Page Macros comme le Mac (29/10, `MacrosPage.cs`
+  dans la fenêtre principale, « Macros » de la barre de gauche et de l'icône ; logique dans `MacroDrafts.cs`) : liste
+  (Macro vide, Modèles…, ⋯ Dupliquer/Supprimer annulable), créateur en 3 colonnes (palette du Mac `CreatorPalette`,
+  étapes glissées, interrupteur, réglages à droite, « Retirer ce bloc » ; blocs pas faits sur Windows « à régler sur le
+  Mac »), photos `macros-liste.png`/`macros-createur.png` sur la CI ; fiche d'un raccourci : 3e type « Macro ».
   Reste : ces blocs, blocs imbriqués (si/répéter) dans le créateur, enregistrement, compte, Communauté, Aide.
 - **Aspect validé le 28/10** (maquette, `HISTORIQUE`) : plus de Liquid Glass depuis le 29/10 (plaques dessinées), sans lavis ni lueur ; fond de
   fenêtre plein (« sans le Liquid Glass derrière »), verre devant : cartes, touches, cartes de l'Organiser

@@ -1,5 +1,5 @@
-// Mode photos de la CI (`--photos <dossier>`) : la fenêtre principale (plusieurs pages), chaque écran de l'Organiser avec des sons
-// d'exemple (OrganizerController.ShowDemo), puis la page Macros avec des macros d'exemple en mémoire (liste et créateur),
+// Mode photos de la CI (`--photos <dossier>`) : la fenêtre principale (plusieurs pages, dont Macros avec des macros d'exemple
+// en mémoire : liste et créateur), puis chaque écran de l'Organiser avec des sons d'exemple (OrganizerController.ShowDemo),
 // enregistrés en PNG, puis l'appli se ferme. Rien n'est envoyé à FL, aucun hook ni port MIDI n'est ouvert, aucune macro
 // n'est écrite ; seuls des « principale*.png », des « organiser-<écran>.png » et des « macros-<écran>.png » sont écrits, dans
 // un dossier qui existe déjà.
@@ -58,9 +58,10 @@ internal static class Photos
             main.Activate();
             Note("principale : fenêtre ouverte");
             await Task.Delay(2000);
-            // Les pages comme le Mac (29/10) : Général, Playlist, Mes raccourcis, une recherche.
+            // Les pages comme le Mac (29/10) : Général, Playlist, Mes raccourcis, une recherche, Macros et son créateur.
             foreach (var (page, name) in new[] { ("general", "principale"), ("playlist", "principale-playlist"),
-                                                 ("custom", "principale-mes-raccourcis"), ("recherche", "principale-recherche") })
+                                                 ("custom", "principale-mes-raccourcis"), ("recherche", "principale-recherche"),
+                                                 ("macros", "macros-liste"), ("macros-createur", "macros-createur") })
             {
                 main.ShowPage(page);
                 await Task.Delay(800);
@@ -82,19 +83,6 @@ internal static class Photos
                 {
                     await Save(content, Path.Combine(folder, $"organiser-{screen}.png"));
                     Note($"{screen} : photo");
-                }
-                window.Close();
-            }
-            foreach (var screen in new[] { "liste", "createur" })
-            {
-                Note($"macros {screen} : création");
-                var window = MacrosWindow.Demo(controller, screen);
-                window.Activate();
-                await Task.Delay(1500);
-                if (window.Content is UIElement content)
-                {
-                    await Save(content, Path.Combine(folder, $"macros-{screen}.png"));
-                    Note($"macros {screen} : photo");
                 }
                 window.Close();
             }

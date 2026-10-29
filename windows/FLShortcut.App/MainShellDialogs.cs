@@ -14,7 +14,7 @@ namespace FLShortcut.App;
 
 internal sealed partial class MainShell
 {
-    private static Style? DialogStyle()
+    internal static Style? DialogStyle()
     {
         try { return Application.Current.Resources["DefaultContentDialogStyle"] as Style; }
         catch (Exception) { return null; }

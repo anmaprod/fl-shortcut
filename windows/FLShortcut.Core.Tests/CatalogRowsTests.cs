@@ -136,4 +136,16 @@ public class CatalogRowsTests
         Assert.Equal(ShortcutContext.Browser, ShortcutContexts.FromWindow(FlWindow.Browser));
         Assert.Equal(ShortcutContext.ChannelRack, FlSection.ChannelRack.Context());
     }
+
+    [Fact]
+    public void KeyNames_InTheAppLanguage()
+    {
+        var zoom = new KeyCombo(Vk.Prior, Shift: true);
+        Assert.Equal(new[] { "Maj", "Pg préc." }, zoom.CapsIn(english: false));
+        Assert.Equal(new[] { "Shift", "Page Up" }, zoom.CapsIn(english: true));
+        Assert.Equal("Enter", Vk.Name(Vk.Return, english: true));
+        Assert.Equal("Entrée", Vk.Name(Vk.Return, english: false));
+        Assert.Equal("Key 255", Vk.Name(0xFF, english: true));
+        Assert.Equal("A", Vk.Name(Vk.A, english: true));
+    }
 }

@@ -27,7 +27,7 @@ internal sealed partial class MainShell
     /// Largeur de page à partir de laquelle les cartes passent sur deux colonnes (comme le Mac).
     private const double TwoColumnWidth = 660;
 
-    private enum PageKind { Section, Custom }
+    private enum PageKind { Section, Macros, Custom }
 
     private readonly Window _window;
     private readonly Grid _root;
@@ -57,6 +57,9 @@ internal sealed partial class MainShell
     private readonly Border _capsuleBorder;
     private readonly StackPanel _notices = new() { Spacing = 8, Margin = new Thickness(26, 0, 26, 0) };
     private readonly ScrollViewer _scroll = new() { HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled };
+    private readonly MacrosPage _macros;
+    /// Mode photos : la macro d'exemple ouverte dans le créateur.
+    private readonly Guid _demoMacro;
     private readonly Border _titleBar = new() { Height = TitleBarHeight, VerticalAlignment = VerticalAlignment.Top, Background = Brush(Colors.Transparent) };
 
     public MainShell(Window window, Grid root, bool photos)
@@ -108,7 +111,12 @@ internal sealed partial class MainShell
             _tray.QuitRequested += () => window.DispatcherQueue.TryEnqueue(Quit);
             _tray.HasPendingCopy = () => _app.Approval.Pending.Count > 0;
             _tray.OrganizeRequested += () => window.DispatcherQueue.TryEnqueue(() => OrganizerWindow.Show(_app));
-            _tray.MacrosRequested += () => window.DispatcherQueue.TryEnqueue(() => MacrosWindow.Show(_app));
+            _tray.MacrosRequested += () => window.DispatcherQueue.TryEnqueue(() =>
+            {
+                ShowFromTray(ask: false);
+                _macros.Back();
+                if (_app.Onboarded) Choose(PageKind.Macros, _section);
+            });
             _tray.ApproveRequested += () => window.DispatcherQueue.TryEnqueue(() =>
             {
                 ShowFromTray(ask: false);
@@ -137,7 +145,15 @@ internal sealed partial class MainShell
         BuildMain();
         BuildWelcome();
         BuildToast();
+        // Macros : la page de la fenêtre et le créateur, posé au-dessus quand une macro est ouverte (comme le Mac).
+        var (macroStore, demoMacro) = photos ? MacrosPage.DemoStore() : (_app.Macros, Guid.Empty);
+        _demoMacro = demoMacro;
+        _macros = new MacrosPage(_app, macroStore, photos, window,
+            listChanged: () => { if (_kind == PageKind.Macros && _query.Trim().Length == 0) RenderPage(); },
+            creatorShown: on => _main.Visibility = on || !_app.Onboarded ? Visibility.Collapsed : Visibility.Visible,
+            toast: ShowToast);
         root.Children.Add(_main);
+        root.Children.Add(_macros.Creator);
         root.Children.Add(_welcome);
         root.Children.Add(_toast);
         root.Children.Add(_titleBar);
@@ -183,7 +199,8 @@ internal sealed partial class MainShell
     private void ShowScreen()
     {
         var main = _app.Onboarded;
-        _main.Visibility = main ? Visibility.Visible : Visibility.Collapsed;
+        if (!main) _macros.Back();
+        _main.Visibility = main && !_macros.Editing ? Visibility.Visible : Visibility.Collapsed;
         _welcome.Visibility = main ? Visibility.Collapsed : Visibility.Visible;
         if (main)
         {
@@ -204,10 +221,16 @@ internal sealed partial class MainShell
         _query = "";
         _keySearch = null;
         _search.Text = "";
+        _macros.Back();
         switch (page)
         {
             case "custom": _kind = PageKind.Custom; break;
-            case "recherche": _query = "Outil"; _search.Text = _query; break;
+            case "recherche": _query = "Zoom"; _search.Text = _query; break;
+            case "macros": _kind = PageKind.Macros; break;
+            case "macros-createur":
+                _kind = PageKind.Macros;
+                _macros.OpenDemo(_demoMacro);
+                return;
             default:
                 _kind = PageKind.Section;
                 _section = Enum.GetValues<FlSection>().FirstOrDefault(s => s.Raw().Equals(page, StringComparison.OrdinalIgnoreCase));
@@ -327,7 +350,8 @@ internal sealed partial class MainShell
         }
         _sidebarGroups.Children.Add(fl);
         var automate = Group(Loc.T("Automatiser"));
-        automate.Children.Add(SidebarRow("macros", Purple, Loc.T("Macros"), false, () => MacrosWindow.Show(_app)));
+        automate.Children.Add(SidebarRow("macros", Purple, Loc.T("Macros"),
+            !searching && _kind == PageKind.Macros, () => Choose(PageKind.Macros, _section)));
         _sidebarGroups.Children.Add(automate);
         var custom = Group(Loc.T("Personnalisé"));
         custom.Children.Add(SidebarRow("custom", Pink, Loc.T("Mes raccourcis"),
@@ -531,6 +555,12 @@ internal sealed partial class MainShell
                 return;
             }
         }
+        else if (_kind == PageKind.Macros)
+        {
+            _title.Text = Loc.T("Macros");
+            _scroll.Content = _macros.ListContent();
+            return;
+        }
         else if (_kind == PageKind.Custom)
         {
             _title.Text = Loc.T("Mes raccourcis");
@@ -619,7 +649,7 @@ internal sealed partial class MainShell
     }
 
     /// Carte de raccourcis : son titre gris au-dessus, ses lignes dans une plaque claire, un trait fin entre deux.
-    private static StackPanel TitledCard(string title, List<FrameworkElement> rows)
+    internal static StackPanel TitledCard(string title, List<FrameworkElement> rows)
     {
         var card = new StackPanel { Spacing = 6 };
         var label = Label(title, 12, Secondary, semibold: true);

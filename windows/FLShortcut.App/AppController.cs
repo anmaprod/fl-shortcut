@@ -266,11 +266,27 @@ internal sealed class AppController : INotifyPropertyChanged, IDisposable
         Persist();
     }
 
-    /// Supprime la macro et ses raccourcis.
-    public void DeleteMacro(Guid macro)
+    /// Supprime la macro et ses raccourcis ; renvoie de quoi les remettre (« Annuler » de la notification).
+    public Action? DeleteMacro(Guid macro)
     {
-        _macros.Remove(macro);
+        var shortcuts = MacroDrafts.ShortcutsOf(macro, _shortcuts).ToList();
+        var removed = _macros.Remove(macro);
         RemoveMacroShortcut(macro);
+        if (removed is not { } r) return null;
+        return () =>
+        {
+            _macros.Add(r.Doc, r.Index);
+            foreach (var s in shortcuts.Where(s => _shortcuts.All(x => x.Id != s.Id))) _shortcuts.Add(s);
+            Persist();
+        };
+    }
+
+    /// « Enregistrer » du créateur : tout de suite, sans attendre l'enregistrement automatique (0,5 s).
+    public void SaveMacrosNow()
+    {
+        _macroSave?.Stop();
+        _macros.SaveNow();
+        if (_macros.SaveError is not null) Raise(nameof(MacroProblem));
     }
 
     /// Raccourci d'une macro (le hook l'a avalé) : une macro à la fois ; FL plus devant ou macro invalide : rien.

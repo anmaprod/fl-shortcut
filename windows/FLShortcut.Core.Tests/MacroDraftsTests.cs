@@ -24,6 +24,26 @@ public class MacroDraftsTests
     }
 
     [Fact]
+    public void CreatorPaletteIsTheMacOne()
+    {
+        var palette = MacroDrafts.CreatorPalette(MacroEffectsWindows.Unsupported, _ => true);
+        Assert.Equal(new[] { BlockCategory.Fl, BlockCategory.Keyboard, BlockCategory.Mouse, BlockCategory.Windows },
+            palette.Select(p => p.Category));
+        var fl = palette[0].Entries.Select(e => e.Type).ToList();
+        Assert.Equal(BlockType.MenuBar, fl[0]);
+        Assert.DoesNotContain(BlockType.SoundCard, fl);                      // carte son : pas encore sur Windows
+        var all = palette.SelectMany(p => p.Entries).ToList();
+        Assert.DoesNotContain(all, e => e.Category == BlockCategory.Control);
+        Assert.DoesNotContain(all, e => e.Type is BlockType.Delay or BlockType.WaitWindowClose or BlockType.TrackMenu);
+        var wait = Assert.Single(all, e => e.Type == BlockType.WaitWindow);
+        Assert.Equal(("Attendre", "clock"), (wait.Label, wait.Symbol));
+        Assert.Equal("Clic à un endroit appris", Assert.Single(all, e => e.Type == BlockType.Click).Label);
+        Assert.All(all, e => Assert.Equal(e.Type, e.Make().Type));
+        Assert.DoesNotContain(MacroDrafts.CreatorPalette(null, t => t != BlockType.Drag).SelectMany(p => p.Entries),
+            e => e.Type == BlockType.Drag);
+    }
+
+    [Fact]
     public void NewMacrosGetUniqueNamesAndFreshIds()
     {
         var store = new MacroLibraryStore(new MemoryMacroLibraryStorage());

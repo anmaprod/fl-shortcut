@@ -22,7 +22,25 @@ public static class Vk
 
     public static bool IsFunctionKey(ushort vk) => vk is >= F1 and <= F24;
 
-    public static string Name(ushort vk)
+    /// Nom de la touche affiché, dans la langue de l'app (les noms de Windows en anglais : Shift, Page Up, Enter…).
+    public static string Name(ushort vk) => Name(vk, Loc.English);
+
+    /// Pur (testé) : le nom en anglais ou en français.
+    public static string Name(ushort vk, bool english) => english ? EnglishName(vk) : FrenchName(vk);
+
+    private static string EnglishName(ushort vk)
+    {
+        if (vk is >= Numpad0 and <= Numpad0 + 9) return $"{vk - Numpad0} (keypad)";
+        return vk switch
+        {
+            Back => "Backspace", Return => "Enter", Escape => "Esc", Space => "Space", Prior => "Page Up", Next => "Page Down",
+            End => "End", Home => "Home", Insert => "Insert", Delete => "Delete",
+            Multiply => "× (keypad)", Add => "+ (keypad)", Subtract => "− (keypad)", Decimal => ". (keypad)", Divide => "÷ (keypad)",
+            _ => FrenchName(vk).StartsWith("Touche ", StringComparison.Ordinal) ? $"Key {vk}" : FrenchName(vk),
+        };
+    }
+
+    private static string FrenchName(ushort vk)
     {
         if (vk is >= A and <= A + 25) return ((char)('A' + vk - A)).ToString();
         if (vk is >= D0 and <= D0 + 9) return ((char)('0' + vk - D0)).ToString();
@@ -51,18 +69,18 @@ public readonly record struct KeyCombo(ushort Vk, bool Ctrl = false, bool Alt = 
     /// Touche utilisable comme déclencheur ou cible (ni modificateur seul, ni hors plage).
     public bool IsValidKey => Vk is > 0 and < 0xFF && !global::FLShortcut.Core.Vk.IsModifier(Vk);
 
-    public IReadOnlyList<string> Caps
+    public IReadOnlyList<string> Caps => CapsIn(Loc.English);
+
+    /// Pur (testé) : les touches en anglais (Shift, Page Up…) ou en français (Maj, Pg préc.…).
+    public IReadOnlyList<string> CapsIn(bool english)
     {
-        get
-        {
-            var list = new List<string>(5);
-            if (Ctrl) list.Add("Ctrl");
-            if (Alt) list.Add("Alt");
-            if (Shift) list.Add("Maj");
-            if (Win) list.Add("Win");
-            list.Add(global::FLShortcut.Core.Vk.Name(Vk));
-            return list;
-        }
+        var list = new List<string>(5);
+        if (Ctrl) list.Add("Ctrl");
+        if (Alt) list.Add("Alt");
+        if (Shift) list.Add(english ? "Shift" : "Maj");
+        if (Win) list.Add("Win");
+        list.Add(global::FLShortcut.Core.Vk.Name(Vk, english));
+        return list;
     }
 
     public override string ToString() => string.Join(" + ", Caps);

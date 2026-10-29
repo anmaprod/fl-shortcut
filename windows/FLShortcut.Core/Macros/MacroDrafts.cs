@@ -14,6 +14,34 @@ public static class MacroDrafts
             .Where(p => p.Item2.Count > 0)
             .ToList();
 
+    /// Palette du créateur comme celle du Mac (PaletteCatalog.items) : FL Studio d'abord (Menu de FL en tête), puis
+    /// Clavier, Souris, un seul « Attendre » ; ni Contrôle, ni blocs retirés avec le propriétaire (mute, solo, armer…).
+    /// Seulement les blocs que ce système sait jouer (`platform`) et régler (`editable`).
+    public static IReadOnlyList<(BlockCategory Category, IReadOnlyList<PaletteEntry> Entries)> CreatorPalette(
+        Func<BlockBody, string?>? platform, Func<BlockType, bool> editable)
+    {
+        PaletteEntry Item(BlockType type, string? label = null, string? help = null, string? symbol = null)
+        {
+            var spec = BlockRegistry.Spec(type);
+            return new PaletteEntry(type, label ?? spec.Label, help ?? spec.Help, symbol ?? spec.Symbol, spec.Category, spec.Default);
+        }
+        var entries = new[]
+        {
+            Item(BlockType.MenuBar), Item(BlockType.OpenPage), Item(BlockType.PageOption), Item(BlockType.DropFile),
+            Item(BlockType.FlAction), Item(BlockType.NameColor), Item(BlockType.SoundCard), Item(BlockType.Organize),
+            Item(BlockType.Key), Item(BlockType.MenuKey),
+            Item(BlockType.Click, Loc.T("Clic à un endroit appris"), Loc.T("Clic gauche ou droit à un endroit que tu montres une fois dans FL.")),
+            Item(BlockType.Drag),
+            Item(BlockType.WaitWindow, Loc.T("Attendre"), Loc.T("Attend une boîte ou un menu de FL, ou fait une pause."), "clock"),
+        };
+        var order = new[] { BlockCategory.Fl, BlockCategory.Keyboard, BlockCategory.Mouse, BlockCategory.Windows };
+        return order
+            .Select(c => (c, (IReadOnlyList<PaletteEntry>)entries
+                .Where(e => e.Category == c && editable(e.Type) && platform?.Invoke(e.Make()) is null).ToList()))
+            .Where(p => p.Item2.Count > 0)
+            .ToList();
+    }
+
     /// Nouvelle macro vide, au nom unique (« Nouvelle macro 2 »…).
     public static MacroDoc Empty(MacroLibraryStore store) => new() { Name = store.UniqueName(Loc.T("Nouvelle macro")) };
 
@@ -76,3 +104,6 @@ public static class MacroDrafts
     public static IReadOnlyList<Shortcut> ShortcutsOf(Guid macro, IEnumerable<Shortcut> shortcuts) =>
         shortcuts.Where(s => s.Kind == ShortcutKind.Macro && s.MacroRef == macro).ToList();
 }
+
+/// Un bloc de la palette du créateur : nom, aide (bulle), symbole du Mac, catégorie et bloc neuf.
+public sealed record PaletteEntry(BlockType Type, string Label, string Help, string Symbol, BlockCategory Category, Func<BlockBody> Make);
