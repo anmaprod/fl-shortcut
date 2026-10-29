@@ -112,8 +112,16 @@ jobs:
             $app = Start-Process -FilePath $cdb.FullName -PassThru -NoNewWindow -RedirectStandardOutput $journal -ArgumentList `
               '-lines', '-c', '"g; .echo ==== ARRET ====; !analyze -v; .ecxr; kc 40; ~*kc 12; q"', "$PWD\dist\win-x64\FLShortcut.exe", '--photos', "$PWD\dist\photos-windows"
             if (-not $app.WaitForExit(300000)) { $app.Kill(); Write-Output "::warning::mode photos arrêté au bout de 5 min" }
-            # Le débogueur parle beaucoup (modules chargés) : ce qui compte, les messages et l'analyse de l'arrêt.
-            Get-Content $journal | Where-Object { $_ -notmatch '^ModLoad:' } | Select-Object -Last 400
+            # Le débogueur parle beaucoup (modules chargés, piles de tous les fils) : ce qui compte, l'analyse de
+            # l'arrêt (exception, fil fautif), gardée en entier ; puis la fin, sans les modules chargés.
+            $lignes = @(Get-Content $journal | Where-Object { $_ -notmatch '^ModLoad:' })
+            $arret = $lignes | Select-String -SimpleMatch '==== ARRET ====' | Select-Object -First 1
+            if ($arret) {
+              $debut = $arret.LineNumber - 1
+              $lignes[$debut..([Math]::Min($debut + 260, $lignes.Count - 1))]
+              "…"
+            }
+            $lignes | Select-Object -Last 120
           } else {
             "débogueur absent : lancement simple"
             $app = Start-Process -FilePath dist/win-x64/FLShortcut.exe -ArgumentList '--photos', "$PWD\dist\photos-windows" -PassThru

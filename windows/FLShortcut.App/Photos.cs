@@ -73,8 +73,11 @@ internal static class Photos
             }
             main.Close();
             // Le menu de l'icône (noir, comme le Mac).
+            Note("menu-icone : création");
             var menu = TrayMenu.Demo();
+            Note("menu-icone : créé");
             menu.Activate();
+            Note("menu-icone : ouvert");
             await Task.Delay(800);
             if (menu.Content is UIElement menuContent)
             {

@@ -52,10 +52,17 @@ internal sealed class TrayMenu : Window
     {
         _hwnd = WinRT.Interop.WindowNative.GetWindowHandle(this);
         Title = "FL Shortcuts";
-        ExtendsContentIntoTitleBar = true;
-        AppWindow.SetPresenter(OverlappedPresenter.CreateForContextMenu());
+        // Sans bord ni barre de titre, sur la fenêtre de base (la présentation « menu contextuel » avec le contenu
+        // dans la barre de titre faisait tomber WinUI à la création : CI du 29/10).
         AppWindow.IsShownInSwitchers = false;
-        if (AppWindow.Presenter is OverlappedPresenter presenter) presenter.IsAlwaysOnTop = true;
+        if (AppWindow.Presenter is OverlappedPresenter presenter)
+        {
+            presenter.SetBorderAndTitleBar(false, false);
+            presenter.IsResizable = false;
+            presenter.IsMaximizable = false;
+            presenter.IsMinimizable = false;
+            presenter.IsAlwaysOnTop = true;
+        }
         var corner = Win32.DWMWCP_ROUND;
         Win32.DwmSetWindowAttribute(_hwnd, Win32.DWMWA_WINDOW_CORNER_PREFERENCE, ref corner, sizeof(int));
 
