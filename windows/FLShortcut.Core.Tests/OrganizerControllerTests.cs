@@ -76,7 +76,7 @@ public sealed class OrganizerControllerTests
         var controller = new OrganizerController(Env(link, disk, new Later(), made: made)) { OnClose = () => closings++ };
         controller.Start();
         Assert.IsType<OrganizerPhase.Preview>(controller.Phase);
-        Assert.Equal("Organiser le projet", controller.Title);
+        Assert.Equal("Organiser", controller.Title);
         // Pad sans note (supprimé), ZENOLOGY muet : « À vérifier ».
         Assert.Equal(new[] { SoundFamily.Bass, SoundFamily.Drums, SoundFamily.Unsure }, controller.PresentFamilies);
         Assert.Equal(new[] { "Kick", "Snare" }, controller.Members(SoundFamily.Drums).Select(m => m.NewName ?? m.Name));
@@ -339,5 +339,20 @@ public sealed class OrganizerControllerTests
             }
         }
         Assert.True(missing.Count == 0, "Textes sans anglais :\n" + string.Join("\n", missing));
+    }
+
+    /// Les familles de l'aperçu sur deux colonnes (comme le Mac) : dans l'ordre, coupées là où les colonnes ont la
+    /// hauteur la plus proche ; une seule colonne si la fenêtre est étroite ou s'il n'y a qu'une famille.
+    [Fact]
+    public void FamilyColumns_LikeTheMac()
+    {
+        var sizes = new Dictionary<string, int> { ["Drums"] = 3, ["Basse"] = 1, ["Mélodies"] = 2, ["Voix"] = 1, ["FX"] = 1 };
+        var order = new[] { "Basse", "Drums", "FX", "Mélodies", "Voix" };
+        var two = OrganizerController.FamilyColumns(order, 2, f => sizes[f]);
+        Assert.Equal(new[] { "Basse", "Drums" }, two[0]);
+        Assert.Equal(new[] { "FX", "Mélodies", "Voix" }, two[1]);
+        Assert.Equal(order, two.SelectMany(c => c));
+        Assert.Equal(order, Assert.Single(OrganizerController.FamilyColumns(order, 1, f => sizes[f])));
+        Assert.Equal(new[] { "Drums" }, Assert.Single(OrganizerController.FamilyColumns(new[] { "Drums" }, 2, f => sizes[f])));
     }
 }

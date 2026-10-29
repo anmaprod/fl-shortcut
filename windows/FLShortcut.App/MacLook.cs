@@ -67,7 +67,7 @@ internal static class MacLook
         _ => "general",
     };
 
-    private static Color Mix(Color a, Color b, double t) => Color.FromArgb(255,
+    internal static Color Mix(Color a, Color b, double t) => Color.FromArgb(255,
         (byte)Math.Round(a.R + (b.R - a.R) * t), (byte)Math.Round(a.G + (b.G - a.G) * t), (byte)Math.Round(a.B + (b.B - a.B) * t));
 
     public static LinearGradientBrush Gradient(Color top, Color bottom, double end = 1)
@@ -234,6 +234,19 @@ internal static class MacLook
         "square.grid.2x2" => Parts("general"),
         "wand.and.stars" => Parts("macros"),
         "ellipsis" => new[] { new Part(Circle(3.4, 8, 1.4)), new Part(Circle(8, 8, 1.4)), new Part(Circle(12.6, 8, 1.4)) },
+        // Organiser (symboles du Mac : pastilles, poignée, flèches).
+        "waveform" => new[] { new Part("M2,6.5 V9.5 M4.8,4 V12 M7.6,2 V14 M10.4,4.5 V11.5 M13.2,6 V10", false, 1.6) },
+        "exclamationmark" => new[] { new Part("M8,2.6 V9.6", false, 2.2), new Part(Circle(8, 13, 1.25)) },
+        "antenna.radiowaves.left.and.right" => new[] { new Part(Circle(8, 8, 1.6)),
+            new Part("M5.2,5.2 C3.7,6.7 3.7,9.3 5.2,10.8 M10.8,5.2 C12.3,6.7 12.3,9.3 10.8,10.8 " +
+                     "M3,3 C0.4,5.6 0.4,10.4 3,13 M13,3 C15.6,5.6 15.6,10.4 13,13", false, 1.4) },
+        "stop.fill" => new[] { new Part(Rect(3.5, 3.5, 9, 9, 1.6)) },
+        "doc.text.fill" => new[] { new Part("M3.5,1.5 H9 L12.5,5 V14.5 H3.5 Z"), new Part("M5.6,8 H10.4 M5.6,10.6 H10.4", false, 1.1, true) },
+        "line.3.horizontal" => new[] { new Part("M2.5,4.5 H13.5 M2.5,8 H13.5 M2.5,11.5 H13.5", false, 1.6) },
+        "arrow.right" => new[] { new Part("M2.5,8 H13 M9,4 L13,8 L9,12", false, 1.6) },
+        "chevron.down" => new[] { new Part("M3.5,6 L8,10.5 L12.5,6", false, 1.8) },
+        "chevron.right" => new[] { new Part("M6,3.5 L10.5,8 L6,12.5", false, 1.8) },
+        "music.note" => new[] { new Part("M6.5,12 V2.6 L13,1.6 V10.4", false, 1.4), new Part(Circle(4.6, 12.2, 2)), new Part(Circle(11.1, 10.6, 2)) },
         _ => Array.Empty<Part>(),
     };
 

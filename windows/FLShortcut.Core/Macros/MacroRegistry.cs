@@ -16,7 +16,7 @@ public static class BlockCategories
     {
         BlockCategory.Keyboard => Loc.T("Clavier"),
         BlockCategory.Mouse => Loc.T("Souris"),
-        BlockCategory.Windows => Loc.T("Fenêtres et attentes"),
+        BlockCategory.Windows => Loc.T("Attente"),       // un seul bloc « Attendre » (comme le Mac, 28/10)
         BlockCategory.Fl => Loc.T("FL Studio"),
         _ => Loc.T("Contrôle"),
     };
@@ -257,7 +257,7 @@ internal static class Specs
         BlockType.Key => new BlockSpec
         {
             Type = type, Label = Loc.T("Touche ou raccourci"), Category = BlockCategory.Keyboard, Symbol = "keyboard",
-            Help = Loc.T("Envoie une touche ou un raccourci clavier à FL (Ctrl+A, Ctrl+Maj+S, F9…), seulement quand FL est au premier plan. Clique le champ puis tape le raccourci. Les raccourcis dangereux (Alt+F4, Ctrl+Échap…) sont refusés."),
+            Help = Loc.T("Envoie une touche ou un raccourci à FL."),
             Params = new[] { new ParamSpec("key", Loc.T("Touche"), new ParamKind.Key()), new ParamSpec("times", Loc.T("Nombre de fois"), new ParamKind.Number(1, 20)) },
             Needs = _ => Base,
             Default = () => new BlockBody.Key(new KeyRef(new MacKey(49), " "), 1),
@@ -271,7 +271,7 @@ internal static class Specs
         BlockType.MenuLetters => new BlockSpec
         {
             Type = type, Label = Loc.T("Lettres d'un menu de FL"), Category = BlockCategory.Keyboard, Symbol = "character.cursor.ibeam",
-            Help = Loc.T("Tape les lettres soulignées d'un menu de FL déjà ouvert (F de File, O de Open…), seulement si un menu ouvert par la macro est encore là."),
+            Help = Loc.T("Tape les lettres soulignées d'un menu de FL ouvert."),
             Params = new[] { new ParamSpec("letters", Loc.T("Lettres"), new ParamKind.Letters(8)), new ParamSpec("finalEnter", Loc.T("Entrée à la fin"), new ParamKind.MenuKey()) },
             Needs = _ => Base,
             Default = () => new BlockBody.MenuLetters("f", EnterPolicy.Never),
@@ -286,7 +286,7 @@ internal static class Specs
         BlockType.MenuKey => new BlockSpec
         {
             Type = type, Label = Loc.T("Touche de menu"), Category = BlockCategory.Keyboard, Symbol = "arrow.up.arrow.down",
-            Help = Loc.T("Flèche, Entrée ou Échap dans un menu de FL ouvert par la macro (jamais ailleurs)."),
+            Help = Loc.T("Flèche, Entrée ou Échap dans un menu de FL."),
             Params = new[] { new ParamSpec("menuKey", Loc.T("Touche"), new ParamKind.MenuKey()), new ParamSpec("times", Loc.T("Nombre de fois"), new ParamKind.Number(1, 20)) },
             Needs = _ => Base,
             Default = () => new BlockBody.MenuKeyPress(MenuKey.Down, 1),
@@ -299,7 +299,7 @@ internal static class Specs
         BlockType.Click => new BlockSpec
         {
             Type = type, Label = Loc.T("Clic"), Category = BlockCategory.Mouse, Symbol = "cursorarrow.click",
-            Help = Loc.T("Clic gauche ou droit à un endroit retrouvé à chaque fois (coin d'une fenêtre de FL, piste visée, menu ouvert, fenêtre d'un plugin comme Serum…). Toujours dans une fenêtre de FL ou de ses plugins, jamais sous une autre app."),
+            Help = Loc.T("Clic gauche ou droit à un endroit de FL."),
             Params = new[] { new ParamSpec("target", Loc.T("Où"), new ParamKind.Target()), new ParamSpec("button", Loc.T("Bouton"), new ParamKind.Number(0, 1)) },
             Needs = b => Base | BlockNeeds.Clicks | (b is BlockBody.Click { Target: ClickTarget.Track } ? BlockNeeds.AimedTrack : BlockNeeds.None),
             Default = () => new BlockBody.Click(new ClickTarget.Track(0, 0), MouseButton.Left),
@@ -318,7 +318,7 @@ internal static class Specs
         BlockType.Drag => new BlockSpec
         {
             Type = type, Label = Loc.T("Glisser-déposer"), Category = BlockCategory.Mouse, Symbol = "hand.draw",
-            Help = Loc.T("Reste cliqué à un endroit de FL (un son du Browser, un clip, un plugin…), glisse jusqu'à un autre endroit de FL et lâche. Les deux endroits se montrent une fois en faisant le geste dans FL ; toujours dans les fenêtres de FL, jamais sous une autre app."),
+            Help = Loc.T("Glisse d'un endroit de FL à un autre."),
             Params = new[] { new ParamSpec("from", Loc.T("Glisser"), new ParamKind.Target()) },
             Needs = b => Base | BlockNeeds.Clicks | (b is BlockBody.Drag d && (d.From.IsTrack || d.To.IsTrack) ? BlockNeeds.AimedTrack : BlockNeeds.None),
             Default = () => new BlockBody.Drag(new ClickTarget.LastClick(0, 0), new ClickTarget.StartCursor(0, 0)),
@@ -339,7 +339,7 @@ internal static class Specs
         BlockType.Delay => new BlockSpec
         {
             Type = type, Label = Loc.T("Attendre un temps fixe"), Category = BlockCategory.Windows, Symbol = "hourglass",
-            Help = Loc.T("Attend un moment (5 s au plus). Échap l'interrompt. À éviter : mieux vaut attendre qu'une fenêtre s'ouvre ou se ferme."),
+            Help = Loc.T("Fait une pause (5 s au plus)."),
             Params = new[] { new ParamSpec("wait", Loc.T("Attendre"), new ParamKind.Window()), new ParamSpec("ms", Loc.T("Durée (ms)"), new ParamKind.Ms(0, MacroValidation.MaxDelayMs)) },
             Needs = _ => Base,
             Default = () => new BlockBody.Delay(200),
@@ -352,7 +352,7 @@ internal static class Specs
         BlockType.WaitWindow => new BlockSpec
         {
             Type = type, Label = Loc.T("Attendre une fenêtre"), Category = BlockCategory.Windows, Symbol = "macwindow.badge.plus",
-            Help = Loc.T("Attend qu'une boîte de dialogue ou un menu de FL s'ouvre (120 s au plus)."),
+            Help = Loc.T("Attend qu'une boîte ou un menu de FL s'ouvre."),
             Params = new[] { new ParamSpec("wait", Loc.T("Attendre"), new ParamKind.Window()), new ParamSpec("timeoutMs", Loc.T("Au plus (ms)"), new ParamKind.Ms(100, MacroValidation.MaxWaitMs)) },
             Needs = _ => Base,
             Default = () => new BlockBody.WaitWindow(WindowKind.Dialog, 4_000),
@@ -365,7 +365,7 @@ internal static class Specs
         BlockType.WaitWindowClose => new BlockSpec
         {
             Type = type, Label = Loc.T("Attendre la fermeture"), Category = BlockCategory.Windows, Symbol = "macwindow",
-            Help = Loc.T("Attend que la boîte ou le menu se ferme (par exemple pendant que tu choisis ton preset, 120 s au plus)."),
+            Help = Loc.T("Attend qu'une boîte ou un menu de FL se ferme."),
             Params = new[] { new ParamSpec("wait", Loc.T("Attendre"), new ParamKind.Window()), new ParamSpec("timeoutMs", Loc.T("Au plus (ms)"), new ParamKind.Ms(100, MacroValidation.MaxWaitMs)) },
             Needs = _ => Base,
             Default = () => new BlockBody.WaitWindowClose(WindowKind.Dialog, 8_000),
@@ -378,7 +378,7 @@ internal static class Specs
         BlockType.TrackMenu => new BlockSpec
         {
             Type = type, Label = Loc.T("Menu de la piste"), Category = BlockCategory.Fl, Symbol = "list.bullet.rectangle",
-            Help = Loc.T("Clic droit sur la dernière piste cliquée dans le Mixer, puis l'élément choisi dans la liste (ouvrir un état de piste, renommer…), au clavier : rien à apprendre."),
+            Help = Loc.T("Choisit un élément du menu d'une piste du Mixer."),
             Params = new[] { new ParamSpec("letters", Loc.T("Élément"), new ParamKind.Letters(3)), new ParamSpec("finalEnter", Loc.T("Entrée à la fin"), new ParamKind.MenuKey()) },
             Needs = b => Base | BlockNeeds.KeyboardIdleInside | BlockNeeds.Clicks
                          | (b is BlockBody.TrackMenu { Target: TrackTarget.LastClicked } ? BlockNeeds.AimedTrack | BlockNeeds.TrackRequired : BlockNeeds.None),
@@ -403,7 +403,7 @@ internal static class Specs
         BlockType.ChooseFile => new BlockSpec
         {
             Type = type, Label = Loc.T("Ouvrir un preset (boîte Open)"), Category = BlockCategory.Fl, Symbol = "doc.badge.arrow.up",
-            Help = Loc.T("Quand FL a ouvert sa boîte « Open » (preset d'un plugin, d'un canal…) : va au fichier .fst choisi et l'ouvre. À placer après les clics qui ouvrent la boîte et un « Attendre »."),
+            Help = Loc.T("Ouvre le preset choisi dans la boîte « Open » de FL."),
             Params = new[] { new ParamSpec("path", Loc.T("Fichier"), new ParamKind.File(new[] { "fst" })) },
             Needs = _ => Base,
             Default = () => new BlockBody.ChooseFile(DefaultPreset),
@@ -415,8 +415,8 @@ internal static class Specs
         },
         BlockType.DropFile => new BlockSpec
         {
-            Type = type, Label = Loc.T("Déposer un preset sur la piste"), Category = BlockCategory.Fl, Symbol = "square.and.arrow.down.on.square",
-            Help = Loc.T("Glisse le fichier sur la dernière piste cliquée dans le Mixer, comme depuis l'Explorateur : FL y charge l'état de piste, sans menu ni boîte « Open »."),
+            Type = type, Label = Loc.T("Ouvrir un preset"), Category = BlockCategory.Fl, Symbol = "square.and.arrow.down.on.square",
+            Help = Loc.T("Ouvre le preset que tu veux dans ton Mixer."),
             Params = new[] { new ParamSpec("path", Loc.T("Fichier"), new ParamKind.File(new[] { "fst" })) },
             Needs = _ => Base | BlockNeeds.Clicks | BlockNeeds.AimedTrack | BlockNeeds.TrackRequired,
             Default = () => new BlockBody.DropFile(DefaultPreset),
@@ -429,7 +429,7 @@ internal static class Specs
         BlockType.FlAction => new BlockSpec
         {
             Type = type, Label = Loc.T("Action de FL"), Category = BlockCategory.Fl, Symbol = "bolt.horizontal",
-            Help = Loc.T("Lance une action de FL par le lien avec FL (réveil bref, puis il se rendort). Sans lien : son équivalent au clavier, s'il existe."),
+            Help = Loc.T("Lance une action de FL (Mixer, Playlist, métronome…)."),
             Params = new[] { new ParamSpec("action", Loc.T("Action"), new ParamKind.FlAction()), new ParamSpec("fallback", Loc.T("Sans lien"), new ParamKind.Key()) },
             Needs = b =>
             {
@@ -464,7 +464,7 @@ internal static class Specs
         BlockType.FlActionValue => new BlockSpec
         {
             Type = type, Label = Loc.T("Action de FL avec valeur"), Category = BlockCategory.Fl, Symbol = "slider.horizontal.3",
-            Help = Loc.T("Action de FL avec un nombre (piste N, pattern N…). Demande l'extension du lien avec FL."),
+            Help = Loc.T("Action de FL avec un nombre (piste, pattern…)."),
             Params = new[] { new ParamSpec("action", Loc.T("Action"), new ParamKind.FlAction()), new ParamSpec("value", Loc.T("Valeur"), new ParamKind.Variable()) },
             InPalette = false,
             Needs = b => b is BlockBody.FlActionValue v ? Base | BlockNeeds.MidiLink | BlockNeeds.MidiExtensions | SourceNeeds(v.Value) : Base,
@@ -479,7 +479,7 @@ internal static class Specs
         BlockType.SelectInput => new BlockSpec
         {
             Type = type, Label = Loc.T("Choisir l'entrée 1"), Category = BlockCategory.Fl, Symbol = "mic",
-            Help = Loc.T("« (none) » → entrée 1 de la piste. Montré une seule fois (une bulle le demande), puis refait seul."),
+            Help = Loc.T("Choisit l'entrée 1 de la piste."),
             Params = Array.Empty<ParamSpec>(),
             Needs = _ => Base | BlockNeeds.Clicks | BlockNeeds.AimedTrack,
             Default = () => new BlockBody.SelectInput(new LearnedRef(InputPathKey)),
@@ -493,7 +493,7 @@ internal static class Specs
         BlockType.NameColor => new BlockSpec
         {
             Type = type, Label = Loc.T("Nom et couleur"), Category = BlockCategory.Fl, Symbol = "paintpalette",
-            Help = Loc.T("Donne un nom et/ou une couleur à la piste ou au canal sélectionné dans la page de FL qui est devant (Mixer, Channel rack ou Playlist), par le lien avec FL, et une icône de FL par sa fenêtre (F2). Un seul élément doit être sélectionné."),
+            Help = Loc.T("Donne un nom et une couleur à l'élément choisi dans FL."),
             Params = new[]
             {
                 new ParamSpec("name", Loc.T("Nom"), new ParamKind.Text(NameColorPayload.MaxNameScalars)),
@@ -538,7 +538,7 @@ internal static class Specs
         BlockType.Organize => new BlockSpec
         {
             Type = type, Label = Loc.T("Organiser"), Category = BlockCategory.Fl, Symbol = "square.stack.3d.up",
-            Help = Loc.T("Ouvre l'Organiser sur tout le projet : chaque son est reconnu d'après son nom (« BEAM KICK » : Kick), sinon écouté sans que tu l'entendes ; tu vérifies l'aperçu, puis « Organiser » supprime les sons sans aucune note, range le Channel rack (les Kick ensemble, puis les Snare…), met le Mixer et la Playlist dans le même ordre, colore et renomme simplement sons, patterns, pistes du Mixer et de la Playlist (le même nom partout pour un même son). « Revenir comme avant » défait tout, sauf les sons supprimés."),
+            Help = Loc.T("Range, colore et renomme tout le projet."),
             Params = Array.Empty<ParamSpec>(),
             Needs = _ => Base | BlockNeeds.MidiLink,
             Default = () => new BlockBody.Organize(),
@@ -551,7 +551,7 @@ internal static class Specs
         BlockType.FeedbackCheck => new BlockSpec
         {
             Type = type, Label = Loc.T("Vérifier le larsen"), Category = BlockCategory.Fl, Symbol = "speaker.wave.2",
-            Help = Loc.T("Micro et haut-parleurs de l'ordinateur sans casque : explique comment éviter le larsen. Vérifié dès le début de la macro, affiché à la fin."),
+            Help = Loc.T("Prévient si le micro risque de faire du larsen."),
             Params = Array.Empty<ParamSpec>(),
             Needs = _ => Base | BlockNeeds.FeedbackEarly,
             Default = () => new BlockBody.FeedbackCheck(),
@@ -564,7 +564,7 @@ internal static class Specs
         BlockType.OpenPage => new BlockSpec
         {
             Type = type, Label = Loc.T("Ouvrir une page de FL"), Category = BlockCategory.Fl, Symbol = "macwindow",
-            Help = Loc.T("Met devant une page de FL (Playlist, Channel Rack, Mixer…), seulement si elle n'y est pas déjà. Les options de « Cliquer sur… » juste en dessous sont celles de cette page."),
+            Help = Loc.T("Met devant une page de FL (Playlist, Mixer…)."),
             Params = new[] { new ParamSpec("page", Loc.T("Page"), new ParamKind.Window()) },
             Needs = _ => Base | BlockNeeds.MidiLink,
             Default = () => new BlockBody.OpenPage(FlPage.Mixer),
@@ -577,7 +577,7 @@ internal static class Specs
         BlockType.PageOption => new BlockSpec
         {
             Type = type, Label = Loc.T("Cliquer sur…"), Category = BlockCategory.Fl, Symbol = "cursorarrow.click.2",
-            Help = Loc.T("Une option de la page de FL ouverte juste au-dessus : ajouter un instrument ou un effet, armer la piste, mute ou solo d'un canal par son numéro, renommer la piste, le menu « Arrangement » de la Playlist, ou un raccourci de FL de cette page. Ajouté avec « Ouvrir une page de FL » au-dessus."),
+            Help = Loc.T("Une option de la page de FL ouverte au-dessus."),
             Params = new[] { new ParamSpec("option", Loc.T("Option"), new ParamKind.FlAction()), new ParamSpec("name", Loc.T("Valeur"), new ParamKind.Text(PageOptions.MaxName)) },
             Needs = b =>
             {
@@ -618,7 +618,7 @@ internal static class Specs
         BlockType.MenuBar => new BlockSpec
         {
             Type = type, Label = Loc.T("Menu de FL"), Category = BlockCategory.Fl, Symbol = "menubar.rectangle",
-            Help = Loc.T("Choisit un élément des menus de FL (File › Export › …) : tu parcours ses menus comme dans FL, puis la macro le choisit par son nom au moment voulu."),
+            Help = Loc.T("Choisit un élément des menus de FL (File › Export › …)."),
             Params = Array.Empty<ParamSpec>(),
             Needs = _ => Base,
             Default = () => new BlockBody.MenuBar(Array.Empty<string>()),
@@ -639,7 +639,7 @@ internal static class Specs
         BlockType.MenuAX => new BlockSpec
         {
             Type = type, Label = Loc.T("Menu (ancien format)"), Category = BlockCategory.Fl, Symbol = "filemenu.and.selection",
-            Help = Loc.T("Choisit un élément de menu par son titre (Accessibilité), sinon par des clics de secours appris. Repris des anciennes macros, absent de la palette."),
+            Help = Loc.T("Choisit un élément de menu par son titre."),
             Params = new[] { new ParamSpec("titles", Loc.T("Titres"), new ParamKind.Text(80)), new ParamSpec("fallback", Loc.T("Clics de secours"), new ParamKind.Target()) },
             InPalette = false,
             Needs = _ => Base | BlockNeeds.Clicks,

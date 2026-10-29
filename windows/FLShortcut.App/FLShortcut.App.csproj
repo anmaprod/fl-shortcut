@@ -54,6 +54,9 @@
   <!-- Le script FL (modèle avec le marqueur de clé), embarqué dans l'exécutable. -->
   <ItemGroup>
     <EmbeddedResource Include="..\..\Resources\device_FLShortcut.py" LogicalName="device_FLShortcut.py" />
+    <!-- Tuto de l'Organiser : les images du Mac (Resources/{fr,en}.lproj/OrganiserTuto1…4.png). -->
+    <EmbeddedResource Include="..\..\Resources\fr.lproj\OrganiserTuto*.png" LogicalName="%(Filename)-fr.png" />
+    <EmbeddedResource Include="..\..\Resources\en.lproj\OrganiserTuto*.png" LogicalName="%(Filename)-en.png" />
   </ItemGroup>
 
 </Project>

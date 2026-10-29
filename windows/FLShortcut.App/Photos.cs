@@ -13,7 +13,7 @@ namespace FLShortcut.App;
 
 internal static class Photos
 {
-    private static readonly string[] Screens = { "installer", "attente", "aide", "ecoute", "apercu", "fini" };
+    private static readonly string[] Screens = { "tuto", "installer", "attente", "aide", "ecoute", "apercu", "fini" };
 
     /// Le dossier des photos donné après `--photos` (qui existe déjà), ou null : pas en mode photos.
     public static string? Folder { get; } = FolderFromCommandLine();

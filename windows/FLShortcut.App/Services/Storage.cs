@@ -121,6 +121,8 @@ internal sealed class AppSettings
     public string? OrganizerStyles { get; set; }
     /// Organiser : l'ordre des familles glissées dans l'aperçu.
     public List<string>? OrganizerFamilyOrder { get; set; }
+    /// Organiser : le tuto en images a été vu (plus montré tout seul ; « Revoir le tuto » dans Options). Rien de sensible.
+    public bool OrganizerTutorialSeen { get; set; }
     /// Accord pour partager les corrections de l'IA (null : jamais demandé).
     public bool? ShareCorrections { get; set; }
     /// Versions organisées en attente de validation (relues par CopyApprovalRules.Decode : seules les sûres restent).

@@ -146,7 +146,35 @@ public sealed class OrganizerController
         Options = new OrganizerOptions { FamilyOrder = OrganizerOptions.CompleteOrder(env.LoadFamilyOrder()) };
     }
 
-    public string Title => Loc.T("Organiser le projet");
+    /// Le titre seul, comme le Mac (maquette du 28/10).
+    public string Title => Loc.T("Organiser");
+
+    /// Playlist trop grande pour être rangée dans la copie (comme le Mac) : l'aperçu propose de décocher « Playlist ».
+    public bool PlaylistTooBig => OrganizesCopy && Options.Playlist && Plan.Layout is null;
+
+    /// Pur (testé, comme OrganizerView.familyColumns du Mac) : les familles en `count` colonnes, dans l'ordre (la
+    /// première colonne de haut en bas, puis la suivante), coupées là où les colonnes ont la hauteur la plus proche
+    /// (`size` : nombre de sons d'une famille ; l'en-tête compte pour deux lignes).
+    public static List<List<T>> FamilyColumns<T>(IReadOnlyList<T> families, int count, Func<T, int> size)
+    {
+        if (count < 2 || families.Count < 2) return new List<List<T>> { families.ToList() };
+        var heights = families.Select(f => size(f) + 2).ToList();
+        var total = heights.Sum();
+        var best = 1;
+        var bestGap = int.MaxValue;
+        var running = 0;
+        for (var cut = 1; cut < families.Count; cut++)
+        {
+            running += heights[cut - 1];
+            var gap = Math.Abs(total - 2 * running);
+            if (gap < bestGap)
+            {
+                best = cut;
+                bestGap = gap;
+            }
+        }
+        return new List<List<T>> { families.Take(best).ToList(), families.Skip(best).ToList() };
+    }
 
     private void Raise() => Changed?.Invoke();
 
