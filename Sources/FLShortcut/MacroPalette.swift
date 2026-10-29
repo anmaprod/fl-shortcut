@@ -1,7 +1,7 @@
-// Créateur de macros : palette des blocs, à gauche (barre latérale en verre du système sur macOS 26).
-// Par catégorie. Un clic ajoute le bloc ; on peut aussi le prendre et le glisser à sa place dans la liste. Les blocs
-// pas encore réglables ici (conditions) sont grisés, « bientôt ». Survol : le bloc se soulève un peu ; pendant le
-// glisser, une pastille qui flotte suit la souris. Aucun verre par ligne.
+// Créateur de macros : palette des blocs, à gauche, dans la plaque claire de la maquette du 28/10 (comme la barre de
+// gauche des raccourcis). Par catégorie, sous son titre gris. Un clic ajoute le bloc ; on peut aussi le prendre et le
+// glisser à sa place dans la liste. Les blocs pas encore réglables ici (conditions) sont grisés, « bientôt ». Survol :
+// le bloc plein de la couleur de sa catégorie ; pendant le glisser, une pastille qui flotte suit la souris.
 import AppKit
 import SwiftUI
 
@@ -25,32 +25,37 @@ struct MacroPaletteView: View {
     let items: [PaletteItem]
     let insert: (PaletteItem) -> Void
 
-    /// Marge en haut de la palette : « Clavier » reste sous les boutons fermer / réduire / agrandir, à la distance
-    /// qu'avait la recherche de blocs (retirée), même quand la barre latérale en verre monte jusqu'en haut de la
-    /// fenêtre (macOS 26).
-    static let topClearance: CGFloat = 42
-
-    /// La liste est la vue de la colonne elle-même, comme la barre latérale des raccourcis : macOS lui donne la marge
-    /// du haut (sous les boutons fermer / réduire / agrandir). Dans une pile, elle montait jusque sous ces boutons.
+    /// La plaque (maquette) : les boutons fermer / réduire / agrandir en haut, puis les catégories, chacune sous son
+    /// titre gris ; elle défile si la fenêtre est basse.
     var body: some View {
-        List {
-            ForEach(BlockCategory.paletteOrder, id: \.self) { category in
-                section(category)
+        VStack(alignment: .leading, spacing: 12) {
+            // Place des boutons fermer / réduire / agrandir de la fenêtre.
+            Color.clear.frame(height: 12)
+            ScrollView(.vertical, showsIndicators: false) {
+                VStack(alignment: .leading, spacing: 12) {
+                    ForEach(BlockCategory.paletteOrder, id: \.self) { category in
+                        section(category)
+                    }
+                }
+                .padding(.bottom, 4)
             }
         }
-        .listStyle(.sidebar)
-        .safeAreaInset(edge: .top, spacing: 0) {
-            Color.clear.frame(height: Self.topClearance)
-        }
+        .padding(.horizontal, 10)
+        .padding(.top, 14)
+        .padding(.bottom, 16)
     }
 
     @ViewBuilder private func section(_ category: BlockCategory) -> some View {
         let group = items.filter { $0.category == category }
         if !group.isEmpty {
-            Section {
-                ForEach(group) { item in row(item) }
-            } header: {
+            VStack(alignment: .leading, spacing: 1) {
                 Text(category.label)
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(.secondary)
+                    .padding(.horizontal, 10)
+                    .padding(.bottom, 4)
+                    .accessibilityAddTraits(.isHeader)
+                ForEach(group) { item in row(item) }
             }
         }
     }
@@ -78,10 +83,11 @@ struct MacroPaletteView: View {
         }
     }
 
+    /// Ligne de 30 points (maquette) : icône de la catégorie (20 points), puis le nom.
     private func label(_ item: PaletteItem) -> some View {
-        HStack(spacing: 8) {
-            SectionIcon(symbol: item.symbol, tint: item.category.tint, size: 22)
-            Text(item.label).lineLimit(1)
+        HStack(spacing: 9) {
+            SectionIcon(symbol: item.symbol, tint: item.category.tint, size: 20)
+            Text(item.label).font(.system(size: 13)).lineLimit(1)
             Spacer(minLength: 4)
             if item.soon {
                 Text("bientôt")
@@ -89,8 +95,8 @@ struct MacroPaletteView: View {
                     .foregroundStyle(.secondary)
             }
         }
-        .padding(.horizontal, 4)                         // le contour du survol ne colle pas à l'icône
-        .padding(.vertical, 2)
+        .padding(.horizontal, 10)
+        .frame(minHeight: 30)
         .contentShape(Rectangle())
     }
 }

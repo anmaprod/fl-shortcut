@@ -1,14 +1,14 @@
 // Guide de FL Shortcuts (maquette validée le 28/10) : « Bienvenue », une ligne par partie, puis une page par partie
 // (raccourcis, macros, Communauté, au quotidien), chacune en trois étapes d'une ligne dans une seule carte en verre.
 // « Passer » sur chaque page sauf la dernière. Montré une fois, à la première ouverture de la fenêtre principale ;
-// ensuite depuis le menu ⋯ ou le menu de la barre des menus (« Guide de FL Shortcuts »). Fond plein, sans lueur de
+// ensuite depuis la page Aide ou le menu de la barre des menus (« Guide de FL Shortcuts »). Fond plein, sans lueur de
 // couleur ; aucune animation continue.
 // Changement de page : de « Bienvenue » à une partie, l'icône de la ligne choisie glisse et grandit jusqu'en haut de
 // la page ; la page qui part se brouille et s'efface pendant que la nouvelle passe du flou au net. En revenant en
 // arrière, pas de vol d'icône : les deux pages se fondent l'une dans l'autre.
 import SwiftUI
 
-/// Demande d'ouvrir le guide (menu ⋯, barre des menus) : la fenêtre principale l'affiche dès qu'elle est là.
+/// Demande d'ouvrir le guide (page Aide, barre des menus) : la fenêtre principale l'affiche dès qu'elle est là.
 final class GuideLink: ObservableObject {
     static let shared = GuideLink()
     @Published var pending = false
@@ -30,7 +30,7 @@ enum GuideContent {
         GuidePage(id: 1, symbol: "keyboard", tint: .blue, title: String(localized: "Tes raccourcis"),
                   steps: [String(localized: "Choisis une page à gauche."),
                           String(localized: "Clique une touche, puis tape la nouvelle."),
-                          String(localized: "« + » ajoute ton propre raccourci.")]),
+                          String(localized: "↺ remet la touche de FL.")]),
         GuidePage(id: 2, symbol: SidebarItem.macros.symbol, tint: SidebarItem.macros.tint, title: String(localized: "Les macros"),
                   steps: [String(localized: "« Enregistrer une macro », puis fais ta suite dans FL."),
                           String(localized: "Retouche les blocs dans le créateur."),
@@ -122,7 +122,7 @@ struct GuideView: View {
                         .font(.system(size: 13))
                         .foregroundStyle(.secondary)
                         .keyboardShortcut(.cancelAction)
-                        .help("Fermer le guide : tu le retrouves dans le menu ⋯ ou le menu de la barre des menus")
+                        .help("Fermer le guide : tu le retrouves dans la page Aide ou le menu de la barre des menus")
                 }
                 Spacer()
                 if page > 0 {
@@ -269,7 +269,7 @@ private struct GuideDots: View {
     }
 }
 
-/// Guide ouvert dans la fenêtre principale (menu ⋯, Aide, barre des menus) : sa page vit dans la feuille elle-même.
+/// Guide ouvert dans la fenêtre principale (page Aide, barre des menus) : sa page vit dans la feuille elle-même.
 /// Gardée par la fenêtre, chaque changement de page redessinait la feuille de l'extérieur, sans aucune animation.
 struct GuideSheet: View {
     /// Page demandée à l'ouverture (et par le mode capture, guide ouvert).

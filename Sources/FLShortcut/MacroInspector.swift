@@ -1,6 +1,7 @@
 // Créateur de macros : inspecteur du bloc choisi, à droite, construit à partir de ses réglages (ParamSpec du
 // registre) : capture de touche (le champ d'enregistrement des raccourcis), nombres bornés, choix du preset,
-// action de FL du catalogue, endroit d'un clic montré dans FL, « Si le bloc échoue », note.
+// action de FL du catalogue, endroit d'un clic montré dans FL ; « Retirer ce bloc » en bas (maquette du 28/10 ; plus
+// de « Si le bloc échoue » ni de note depuis le 29/10).
 // Construit seulement pour le bloc choisi ; chaque réglage passe par le brouillon (annulable, enregistré 0,5 s après).
 import AppKit
 import ApplicationServices
@@ -88,23 +89,17 @@ private struct BlockInspector: View {
                         .fixedSize(horizontal: false, vertical: true)
                 }
             }
-            // Plus de rubrique « À savoir » ni de « Bloc actif » (maquette du 28/10) : les pastilles de la ligne
-            // (survol) et sa case à cocher disent déjà la même chose.
+            // Plus de rubrique « À savoir », de « Bloc actif », de « Si le bloc échoue » ni de note (maquettes du 28/10,
+            // 29/10 : « le reste ça part ») : en bas, seulement « Retirer ce bloc ».
             Section {
-                Picker("Si le bloc échoue", selection: Binding(get: { block.onFailure }, set: { policy in
-                    model.updateBlock(block.id, key: "onFailure") { $0.onFailure = policy }
-                })) {
-                    Text("Arrêter la macro").tag(FailurePolicy.stop)
-                    Text("Continuer").tag(FailurePolicy.keepGoing)
+                Button(role: .destructive) {
+                    model.deleteSelection()
+                } label: {
+                    Text("Retirer ce bloc")
                 }
-                TextField("Note", text: Binding(get: { block.note ?? "" }, set: { text in
-                    let clean = String(text.prefix(MacroValidation.maxNoteLength))
-                    model.updateBlock(block.id, key: "note", actionName: String(localized: "Modifier la note")) {
-                        $0.note = clean.isEmpty ? nil : clean
-                    }
-                }), prompt: Text("Pour toi (facultatif)"))
-            } header: {
-                Text("Bloc")
+                .buttonStyle(.borderless)
+                .foregroundStyle(Color(red: 1.0, green: 0.41, blue: 0.38))
+                .help("Retirer ce bloc de la macro (⌫)")
             }
         }
         .formStyle(.grouped)
@@ -113,9 +108,9 @@ private struct BlockInspector: View {
 
     private var header: some View {
         HStack(alignment: .top, spacing: 10) {
-            SectionIcon(symbol: spec?.symbol ?? "questionmark.square.dashed", tint: spec?.category.tint ?? .gray, size: 30)
+            SectionIcon(symbol: spec?.symbol ?? "questionmark.square.dashed", tint: spec?.category.tint ?? .gray, size: 28)
             VStack(alignment: .leading, spacing: 3) {
-                Text(spec?.label ?? String(localized: "Bloc inconnu")).font(.headline)
+                Text(spec?.label ?? String(localized: "Bloc inconnu")).font(.system(size: 15, weight: .semibold))
                 if let aide = spec?.aide {
                     Text(aide)
                         .font(.system(size: 11))

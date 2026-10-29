@@ -523,3 +523,25 @@ entrée 1 ≈ 0,5 s.
   au-dessus d'une carte de verre, ancien nom → [nouveau nom ▾] [piste], « Annuler » / « Organiser » bleu). Les cases
   (pages de FL, Renommer, bus, sons sans note) et « Copier le diagnostic » passent dans « Options » : la maquette
   n'en avait pas, rien n'est perdu. Le bouton « Organiser » paraissait gris (panneau jamais actif) : style à lui.
+- « À l'identique » (29/10, « tu ne m'as pas tout ajouté sur la version que tu as faite, j'ai vraiment besoin que tu
+  fasses à l'identique ») puis, pour ce que la maquette n'avait pas : « recherche en tapant touche tu le laisses et
+  enregistrer clic et touche tu laisses aussi, sinon le reste ça part ». Plus aucun Liquid Glass : app toujours
+  sombre, boutons en capsules pleines (`CapsuleButtonStyle`), surfaces dessinées. Fenêtre principale refaite comme
+  `Main.dc.html` : fond #161618, barre de gauche dans une plaque claire de 252 points (boutons fermer / réduire /
+  agrandir dedans : barre de titre transparente et barre d'outils vide, `MainWindowChrome`), recherche dans une
+  capsule (une NSSearchField sans cadre, toujours gardée par `SearchFocusGuard`, ⌘F) avec le bouton clavier,
+  groupes FL Studio / Automatiser / Personnalisé / Partager / Compte et aide ; en-tête de la page : titre en gras et
+  capsule du compte (« + » seulement sur Macros et Communauté, → sur Macros) ; raccourcis en cartes titrées par
+  groupe (`CatalogGroups` : Playlist = Outils, Sélection, Édition, Zoom, Marqueurs, Affichage…, chaque raccourci de
+  FL dans un groupe, vérifié par les tests), sur deux colonnes dès 660 points, ↺ avant la touche changée, touches
+  bleues quand changées. Retirés : menu ⋯ (profils, import/export, annuler le remplacement, tout réinitialiser,
+  effet Liquid Glass, désinstaller — encore dans le menu de l'icône), « + » et « Nouveau raccourci… » des pages de
+  raccourcis. Créateur refait comme `Macros.dc.html` : palette dans la plaque de gauche, en-tête ← rond / nom en
+  grand / touches du raccourci / « Enregistrer » bleu, « Enregistrer clics et touches » gardé, étapes de 48 points
+  dans une carte, zone en pointillés « Glisse un bloc ici… », réglages du bloc dans une plaque à droite avec
+  « Retirer ce bloc » ; retirés : barre d'outils, Exporter (encore sur la page Macros), Dupliquer, « Si le bloc
+  échoue », Note (les macros gardent leurs valeurs). Menu de l'icône comme `Menu.dc.html` : pendant l'écoute de
+  l'Organiser, une carte « Organiser · 12 sons sur 40 » en haut, sa barre et « Arrêter » (`OrganizerProgress`).
+  Essai CI : vrai clic sur Mon compte en haut de la fenêtre (`entete-essai.txt`), photo du menu pendant l'écoute
+  (`menu-icone-organiser.png`), positions du glisser-déposer du créateur recalculées. Reste de la maquette : le nom
+  d'une famille modifiable dans l'aperçu de l'Organiser (il touche le nom des bus et des pistes : à part).

@@ -298,7 +298,7 @@ enum HelpContent {
                   keywords: "bug erreur contact equipe support aide ecrire"),
         HelpEntry(id: 10, question: String(localized: "Désinstaller FL Shortcuts"),
                   answer: String(localized: """
-                      Menu de l'icône en haut de l'écran (ou menu ⋯ de la fenêtre) › « Désinstaller FL Shortcuts… » : \
+                      Menu de l'icône en haut de l'écran › « Désinstaller FL Shortcuts… » : \
                       l'app, tes raccourcis, tes macros, ses réglages, ses autorisations et le lien avec FL sont retirés, \
                       et le bilan dit s'il reste quelque chose à glisser dans la Corbeille.
                       """),

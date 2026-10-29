@@ -1,14 +1,9 @@
 // Styles communs : polices et couleurs système, aucune animation infinie, aucun minuteur.
-// Liquid Glass (macOS 26, WWDC25 219/310/323/356) : le verre est réservé à la couche de navigation et de contrôle
-// qui flotte au-dessus du contenu (barre latérale et barre d'outils du système, pastille de statut, notification,
-// avertissements, boutons, bulle d'aide), jamais ligne par ligne (une couche de verre par ligne coûtait cher :
-// 8fb66a8) ni verre sur verre. La couleur va dans le contenu (icônes de rubrique) ; plus de lavis de couleur sous le
-// verre depuis le 28/10 (« garder que le Liquid Glass, pas de fond »). Le verre redevient opaque dès que la fenêtre n'est plus active
-// (FL au premier plan) : rien à recalculer pendant que tu travailles dans FL. Réduire la transparence et Contraste
-// élevé : le verre s'adapte tout seul, les cartes redeviennent grises. Fond de fenêtre plein depuis le 28/10 (« sans
-// le Liquid Glass derrière ») : le verre est devant, sur les cartes, les touches et les cartes de l'Organiser
-// (`GlassPlate`). Réglable dans le menu Profil (« Effet Liquid Glass ») : coupé, tout est opaque et les cartes
-// grises. Audit 05 : touches affichées avec leur nom en clair.
+// Plus aucun Liquid Glass (29/10, le propriétaire : « je veux que tout soit comme dans l'exemple… fond noir ») :
+// l'app est toujours sombre, fond de fenêtre noir (#161618), boutons en capsules pleines (bleu pour l'action, clair
+// sinon : `CapsuleButtonStyle`), cartes et touches en plaques claires dessinées (`GlassPlate`), comme la maquette du
+// 28/10. Le nom « Glass » des types est resté, rien n'y est plus du verre de macOS. Audit 05 : touches affichées
+// avec leur nom en clair.
 // Mouvement : courtes transitions, remplacées par un simple fondu quand « Réduire les animations » est activé.
 import AppKit
 import SwiftUI
@@ -246,7 +241,12 @@ private struct HoverTint: ViewModifier {
 // MARK: - Liquid Glass
 
 enum Appearance {
-    /// Préférence « Effet Liquid Glass » (vrai par défaut ; sans effet avant macOS 26).
+    /// Fond des fenêtres (maquette du 28/10 : #161618).
+    static let windowColor = Color(red: 0.086, green: 0.086, blue: 0.094)
+    /// Bleu clair des liens sur le noir (maquette : #4AA3FF).
+    static let link = Color(red: 0.29, green: 0.64, blue: 1.0)
+
+    /// Préférence « Effet Liquid Glass » (vrai par défaut) : ne règle plus que les plaques claires des cartes.
     static let glassKey = "liquidGlass"
 
     static var glassAvailable: Bool {
@@ -272,99 +272,67 @@ struct GlassSurface<S: InsettableShape>: ViewModifier {
     let shape: S
     var tint: Color? = nil
     var alwaysLive = false
-    @AppStorage(Appearance.glassKey) private var glassEnabled = true
-    @Environment(\.controlActiveState) private var activeState
-    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
 
-    private var active: Bool { activeState != .inactive }
-    private var live: Bool { glassEnabled && (alwaysLive || active) }
-
+    /// Surface pleine (notification, avertissement, bulles au-dessus de FL) : le noir des menus, sa couleur par-dessus,
+    /// un bord fin clair. Aucun verre (29/10).
     func body(content: Content) -> some View {
-        #if compiler(>=6.2)
-        if #available(macOS 26.0, *) {
-            // Réduire la transparence / Contraste élevé : le verre devient plus givré ou cerné tout seul.
-            content
-                .background(shape.fill(Color(nsColor: .windowBackgroundColor)).opacity(live ? 0 : 1))
-                .overlay(shape.strokeBorder(Color(nsColor: .separatorColor), lineWidth: 0.5).opacity(live ? 0 : 1))
-                .glassEffect(live ? glass : Glass.identity, in: shape)
-        } else {
-            fallback(content)
-        }
-        #else
-        fallback(content)
-        #endif
-    }
-
-    #if compiler(>=6.2)
-    @available(macOS 26.0, *)
-    private var glass: Glass {
-        guard let tint else { return Glass.regular }
-        return Glass.regular.tint(tint.opacity(0.35))
-    }
-    #endif
-
-    /// macOS 13-15 : matériau (flou) quand la fenêtre est active, fond opaque sinon (jamais de matériau dans une
-    /// bulle au-dessus de FL : rien derrière à flouter dans sa fenêtre transparente), teinte légère par-dessus.
-    private func fallback(_ content: Content) -> some View {
-        let translucent = glassEnabled && active && !reduceTransparency
-        let base = translucent ? AnyShapeStyle(Material.regular) : AnyShapeStyle(Color(nsColor: .windowBackgroundColor))
-        return content
-            .background(shape.fill((tint ?? Color.clear).opacity(0.14)))
-            .background(base, in: shape)
-            .overlay(shape.strokeBorder(Color(nsColor: .separatorColor), lineWidth: 0.5))
+        content
+            .background(shape.fill((tint ?? Color.clear).opacity(0.22)))
+            .background(shape.fill(MenuBackground.color))
+            .overlay(shape.strokeBorder(Color.white.opacity(0.12), lineWidth: 1))
     }
 }
 
 /// Bouton principal : verre teinté sur macOS 26 (préférence active), bouton accentué sinon.
 private struct PrimaryButtonStyleModifier: ViewModifier {
-    @AppStorage(Appearance.glassKey) private var glassEnabled = true
-
     func body(content: Content) -> some View {
-        #if compiler(>=6.2)
-        if #available(macOS 26.0, *), glassEnabled {
-            content.buttonStyle(.glassProminent)
-        } else {
-            content.buttonStyle(.borderedProminent)
-        }
-        #else
-        content.buttonStyle(.borderedProminent)
-        #endif
+        content.buttonStyle(CapsuleButtonStyle(prominent: true))
     }
 }
 
-/// Regroupe des surfaces de verre voisines : le système les dessine en une passe et les fait se fondre
-/// entre elles (GlassEffectContainer, macOS 26). Ailleurs : simple conteneur.
+/// Ancien groupe de surfaces de verre : simple conteneur depuis qu'il n'y a plus de verre (29/10).
 struct GlassGroup<Content: View>: View {
     var spacing: CGFloat = 8
     @ViewBuilder let content: () -> Content
 
-    var body: some View {
-        #if compiler(>=6.2)
-        if #available(macOS 26.0, *) {
-            GlassEffectContainer(spacing: spacing) { content() }
-        } else {
-            content()
-        }
-        #else
-        content()
-        #endif
-    }
+    var body: some View { content() }
 }
 
 /// Bouton secondaire : verre sur macOS 26 (préférence active), bordé sinon.
 private struct SecondaryButtonStyleModifier: ViewModifier {
-    @AppStorage(Appearance.glassKey) private var glassEnabled = true
-
     func body(content: Content) -> some View {
-        #if compiler(>=6.2)
-        if #available(macOS 26.0, *), glassEnabled {
-            content.buttonStyle(.glass)
-        } else {
-            content.buttonStyle(.bordered)
+        content.buttonStyle(CapsuleButtonStyle(prominent: false))
+    }
+}
+
+/// Bouton de la maquette du 28/10 : capsule pleine, bleue avec le texte blanc pour l'action (`prominent`), sinon
+/// claire avec un bord fin. Taille d'après `controlSize`. Aucun verre (29/10).
+struct CapsuleButtonStyle: ButtonStyle {
+    var prominent: Bool
+    @Environment(\.controlSize) private var size
+    @Environment(\.isEnabled) private var enabled
+
+    private var metrics: (height: CGFloat, font: CGFloat, padding: CGFloat) {
+        if #available(macOS 14.0, *), size == .extraLarge { return (40, 14, 22) }
+        switch size {
+        case .mini: return (20, 11, 8)
+        case .small: return (24, 12, 10)
+        case .large: return (36, 13.5, 18)
+        default: return (30, 13, 14)
         }
-        #else
-        content.buttonStyle(.bordered)
-        #endif
+    }
+
+    func makeBody(configuration: Configuration) -> some View {
+        let m = metrics
+        return configuration.label
+            .font(.system(size: m.font, weight: prominent ? .semibold : .medium))
+            .foregroundStyle(prominent ? Color.white : Color.primary)
+            .padding(.horizontal, m.padding)
+            .frame(minHeight: m.height)
+            .background(Capsule().fill(prominent ? Color.accentColor : Color.white.opacity(0.10)))
+            .overlay(Capsule().strokeBorder(prominent ? Color.clear : Color.white.opacity(0.14), lineWidth: 1))
+            .opacity(enabled ? (configuration.isPressed ? 0.75 : 1) : 0.4)
+            .contentShape(Capsule())
     }
 }
 
@@ -377,23 +345,6 @@ private struct GlassListBackground: ViewModifier {
 }
 
 extension View {
-    /// Pas de bande sous la barre d'outils (retour de l'utilisateur : un rectangle du titre jusqu'au « + » et au « ⋯ ») :
-    /// ni fond de barre d'outils, ni effet de bord en haut de la page (macOS 26) ; le titre et les boutons flottent
-    /// sur la page.
-    @ViewBuilder func noToolbarBand() -> some View {
-        #if compiler(>=6.2)
-        if #available(macOS 26.0, *) {
-            toolbarBackgroundVisibility(.hidden, for: .windowToolbar).scrollEdgeEffectHidden(true, for: .top)
-        } else if #available(macOS 15.0, *) {
-            toolbarBackgroundVisibility(.hidden, for: .windowToolbar)
-        } else {
-            self
-        }
-        #else
-        if #available(macOS 15.0, *) { toolbarBackgroundVisibility(.hidden, for: .windowToolbar) } else { self }
-        #endif
-    }
-
     /// Liste posée sur le fond translucide de la fenêtre.
     func glassListBackground() -> some View {
         modifier(GlassListBackground())
@@ -401,22 +352,12 @@ extension View {
 
     /// Bouton posé sur une surface de verre (notification, avertissement) : simple remplissage, jamais de verre sur
     /// du verre (WWDC25 219).
-    @ViewBuilder func onGlassButton() -> some View {
-        if #available(macOS 14.0, *) {
-            buttonStyle(.bordered).buttonBorderShape(.capsule)
-        } else {
-            buttonStyle(.bordered)
-        }
+    func onGlassButton() -> some View {
+        buttonStyle(CapsuleButtonStyle(prominent: false))
     }
 
     /// Identité de verre : deux surfaces du même GlassGroup se fondent l'une dans l'autre en apparaissant.
-    @ViewBuilder func glassID(_ id: String, in ns: Namespace.ID) -> some View {
-        #if compiler(>=6.2)
-        if #available(macOS 26.0, *) { glassEffectID(id, in: ns) } else { self }
-        #else
-        self
-        #endif
-    }
+    func glassID(_ id: String, in ns: Namespace.ID) -> some View { self }
 
     /// Barre flottante en haut ou en bas : safeAreaBar sur macOS 26 (effet de bord sous la barre), sinon
     /// safeAreaInset (le contenu laisse la place).
@@ -581,31 +522,34 @@ struct KeyLabel: View {
         GlassPlate.on(glass: glassEnabled, reduceTransparency: reduceTransparency, increasedContrast: contrast == .increased)
     }
 
-    /// Touche changée : teintée de bleu (maquette du 28/10) ; sinon un petit morceau de verre (gris sans l'effet).
+    /// Touche changée : teintée de bleu (maquette du 28/10 : #0A84FF à 24 %, bord #4AA3FF) ; sinon une petite plaque
+    /// claire (blanc à 12 %, bord à 20 %), grise sans l'effet.
     private var fill: Color {
-        if accent { return Color.accentColor.opacity(0.18) }
-        return plate ? GlassPlate.fill(scheme) : Color.primary.opacity(0.05)
+        if accent { return Color(red: 0.04, green: 0.52, blue: 1.0).opacity(0.24) }
+        if !plate { return Color.primary.opacity(0.05) }
+        return scheme == .dark ? Color.white.opacity(0.12) : GlassPlate.fill(scheme)
     }
 
     private var border: AnyShapeStyle {
-        if accent { return AnyShapeStyle(Color.accentColor.opacity(0.7)) }
-        return plate ? AnyShapeStyle(GlassPlate.rim(scheme)) : AnyShapeStyle(Color(nsColor: .separatorColor))
+        if accent { return AnyShapeStyle(Appearance.link.opacity(0.75)) }
+        if !plate { return AnyShapeStyle(Color(nsColor: .separatorColor)) }
+        return scheme == .dark ? AnyShapeStyle(Color.white.opacity(0.2)) : AnyShapeStyle(GlassPlate.rim(scheme))
     }
 
     var body: some View {
         Group {
             if let combo {
                 // Une case par touche, comme sur la maquette du 28/10 : ⌘ puis A, pas « ⌘A » dans un seul cadre.
-                HStack(spacing: 3) {
+                HStack(spacing: 4) {
                     ForEach(Array(Self.parts(of: combo).enumerated()), id: \.offset) { _, part in
-                        tile(Text(part).foregroundStyle(accent ? Color.accentColor : Color.primary))
+                        tile(Text(part).foregroundStyle(Color.primary))
                     }
                 }
             } else {
                 tile(Text(placeholder).foregroundStyle(.secondary))
             }
         }
-        .font(.system(size: 12, weight: .medium))
+        .font(.system(size: 12.5, weight: .semibold))
         .lineLimit(1)
         .contentShape(Rectangle())
         // Jamais écrasé ni coupé quand la fenêtre est étroite : c'est le titre de la ligne qui se raccourcit.
@@ -621,8 +565,8 @@ struct KeyLabel: View {
 
     private func tile(_ label: some View) -> some View {
         label
-            .padding(.horizontal, 6)
-            .frame(minWidth: 22, minHeight: 22)
+            .padding(.horizontal, 7)
+            .frame(minWidth: 24, minHeight: 24)
             .background(shape.fill(fill))
             .overlay(shape.strokeBorder(border, lineWidth: accent || plate ? 1 : 0.5))
     }

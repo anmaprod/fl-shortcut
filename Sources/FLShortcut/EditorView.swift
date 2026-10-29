@@ -1,10 +1,9 @@
-// Fenêtre « Raccourcis », sur le modèle de Réglages Système sur macOS 26 : barre latérale en verre (une rubrique
-// par fenêtre de FL, icônes colorées, puis « Mes raccourcis »), page à droite avec son en-tête et des sections en
-// cartes, une ligne par raccourci avec sa touche (cliquable) et « Réinitialiser ». Recherche, profil et pause dans
-// la barre d'outils en verre ; pastille de statut flottante en bas ; avertissements flottants en haut quand il
-// faut agir. Plus de lavis de couleur sous le verre (28/10) ; raccourcis sur deux colonnes quand la page est large.
-// Performance : verre seulement sur les quelques surfaces flottantes (jamais par ligne), aucun survol animé,
-// aucune animation infinie, aucun flou dans les listes.
+// Fenêtre « Raccourcis », à l'identique de la maquette du 28/10 (demande du 29/10) : fond noir, barre de gauche dans
+// une plaque claire (boutons de la fenêtre en haut, recherche, groupes de pages aux icônes colorées), en-tête de la
+// page (titre, capsule du compte), raccourcis en cartes titrées par groupe (Outils, Sélection, Zoom…) sur deux
+// colonnes, une ligne par raccourci avec ↺ puis sa touche (cliquable). Plus de barre d'outils, de menu ⋯ ni de « + »
+// sur les pages de raccourcis (29/10 : « le reste ça part ») ; la recherche par une touche reste. Statut et
+// avertissements flottants seulement quand il faut agir. Aucune animation infinie, aucun flou dans les listes.
 // Audit : REL-06 / PROTOCOL.md §5 (statut du lien), audit 04 §8.2 (actions grisées, « Disponible à partir de
 //         FL X »), audit 05 §4.2-4.4 (conflits, touche seule laissée à FL pendant une saisie, pause visible, noms de touches en clair,
 //         VoiceOver), REL-19 (un seul enregistreur, ⌫ efface, Échap annule, ⌃⌥⌘F refusé, délai 5 s, arrêt à la
@@ -169,9 +168,8 @@ private struct SidebarRowModifier: ViewModifier {
         content
             .hoverTint(selected ? Color.white : Color.primary)
             .fontWeight(selected ? .semibold : nil)
-            .padding(.horizontal, 8)
-            .padding(.vertical, 5)
-            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, 10)
+            .frame(maxWidth: .infinity, minHeight: 32, alignment: .leading)
             .background {
                 if selected {
                     RoundedRectangle(cornerRadius: 9, style: .continuous).fill(Color.accentColor)
@@ -201,49 +199,6 @@ private struct CardRows<Item: Identifiable, Row: View>: View {
     }
 }
 
-/// Les lignes d'une carte sur deux colonnes quand la page est assez large (maquette validée le 28/10 : plus de
-/// raccourcis d'un coup d'œil). Chaque ligne de la liste porte deux raccourcis : la colonne de gauche lit la première
-/// moitié, celle de droite la seconde. La liste reste paresseuse. Au survol, chaque raccourci s'allume seul (contour
-/// de la couleur de la page et halo dehors, comme une ligne).
-private struct CardColumns<Item: Identifiable, Cell: View>: View {
-    let items: [Item]
-    let tint: Color
-    let columns: Int
-    @ViewBuilder let cell: (Item) -> Cell
-
-    private struct Pair: Identifiable {
-        let left: Item
-        let right: Item?
-        var id: Item.ID { left.id }
-    }
-
-    var body: some View {
-        if columns < 2 || items.count < 2 {
-            CardRows(items: items, tint: tint) { cell($0) }
-        } else {
-            let half = (items.count + 1) / 2
-            let pairs = (0..<half).map { i in
-                Pair(left: items[i], right: i + half < items.count ? items[i + half] : nil)
-            }
-            ForEach(Array(pairs.enumerated()), id: \.element.id) { index, pair in
-                HStack(alignment: .center, spacing: 20) {
-                    cell(pair.left)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .menuHover(tint: tint, cornerRadius: 6, outset: 6)
-                    if let right = pair.right {
-                        cell(right)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .menuHover(tint: tint, cornerRadius: 6, outset: 6)
-                    } else {
-                        Color.clear.frame(maxWidth: .infinity, maxHeight: 1)
-                    }
-                }
-                .cardRow(.position(index: index, count: pairs.count))
-            }
-        }
-    }
-}
-
 /// Largeur de la page, lue sans rien redessiner tant qu'elle ne change pas.
 private struct WidthReader: View {
     let report: (CGFloat) -> Void
@@ -266,20 +221,19 @@ struct EditorView: View {
 
     @State private var selection: SidebarItem? = .section(.general)
     @State private var query = ""
-    /// La recherche a la main (SwiftUI, macOS 15 et plus) : remis à faux par la garde à chaque clic ailleurs.
-    @FocusState private var searchFocused: Bool
+    /// Augmenté par ⌘F : la recherche prend la main.
+    @State private var searchFocusSerial = 0
     @State private var editing: Remap? = nil
     @State private var editingIsNew = false
     @State private var toast: ToastMessage? = nil
     @State private var editingRow: CatalogRow? = nil
     /// Annonce affichée en tête de la fiche quand on doit choisir une nouvelle touche pour un autre raccourci.
     @State private var editNotice: String? = nil
-    @AppStorage(Appearance.glassKey) private var glassEnabled = true
     @Namespace private var glassNS
     /// Page assez large pour deux colonnes de raccourcis (changé seulement quand on passe le seuil).
     @State private var twoColumns = false
-    /// Largeur de page à partir de laquelle les raccourcis passent sur deux colonnes.
-    static let twoColumnWidth: CGFloat = 640
+    /// Largeur de page à partir de laquelle les cartes passent sur deux colonnes (cartes d'au moins 300 points).
+    static let twoColumnWidth: CGFloat = 660
 
     private var columnCount: Int { twoColumns ? 2 : 1 }
 
@@ -292,7 +246,7 @@ struct EditorView: View {
     /// Page Communauté : le « + » (partager) n'apparaît qu'une fois connecté.
     @ObservedObject private var community = CommunityStore.shared
     @ObservedObject private var backup = AccountBackup.shared
-    /// Guide : montré une fois à la première ouverture, puis à la demande (menu ⋯, barre des menus).
+    /// Guide : montré une fois à la première ouverture, puis à la demande (page Aide, barre des menus).
     @AppStorage("guideSeen") private var guideSeen = false
     @ObservedObject private var guideLink = GuideLink.shared
     @ObservedObject private var helpLink = HelpLink.shared
@@ -333,7 +287,10 @@ struct EditorView: View {
         // Fenêtre fermée pendant le créateur : brouillon enregistré, modèle lâché (rien ne reste en mémoire).
         .onDisappear { closeCreator() }
         // Reprise après « Quitter et rouvrir » : la fenêtre, sa page et la macro ouverte sont notées à la fermeture.
-        .background(WindowReader { AppResume.shared.editorWindow = $0 })
+        .background(WindowReader { window in
+            AppResume.shared.editorWindow = window
+            MainWindowChrome.apply(to: window)
+        })
         .onChange(of: selection) { AppResume.shared.page = $0 }
         .sheet(isPresented: $showGuide, onDismiss: { guideSeen = true }) {
             GuideSheet(initialPage: guidePage) { showGuide = false }
@@ -424,7 +381,7 @@ struct EditorView: View {
         go(to: .help)
     }
 
-    /// Guide demandé (menu ⋯, barre des menus), ou jamais vu : première ouverture (sauf en mode capture, où la
+    /// Guide demandé (page Aide, barre des menus), ou jamais vu : première ouverture (sauf en mode capture, où la
     /// mesure de la CI l'ouvre elle-même).
     private func showGuideIfNeeded() {
         let asked = guideLink.pending
@@ -493,34 +450,47 @@ struct EditorView: View {
         CreatorPresence.releaseMemory()
     }
 
-    /// Les raccourcis : barre latérale (FL Studio, Mes raccourcis, Macros) et la page choisie.
+    /// Largeur de la barre de gauche (maquette : 252 points).
+    static let sidebarWidth: CGFloat = 252
+
+    /// Les raccourcis (maquette du 28/10, « à l'identique » le 29/10) : la barre de gauche dans sa plaque claire, puis
+    /// la page choisie (en-tête : titre et capsule du compte ; dessous, ses cartes), sur le fond noir de la fenêtre.
     private var shortcuts: some View {
         let data = store.catalogRows()
-        return withToolbar(NavigationSplitView {
+        return HStack(spacing: 0) {
             sidebar(data)
-                .navigationSplitViewColumnWidth(min: 220, ideal: 245, max: 300)
-                // À côté de la recherche : chercher avec le raccourci qu'on connaît plutôt que son nom.
-                .toolbar { ToolbarItem { keySearchButton } }
-        } detail: {
-            detail(data)
-        })
+            VStack(alignment: .leading, spacing: 6) {
+                pageHeader
+                detail(data)
+            }
+            .padding(.top, 10)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
+        .padding(8)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(Appearance.windowColor)
+        // Sous la barre de titre transparente : la plaque de gauche monte jusqu'en haut, les boutons fermer /
+        // réduire / agrandir y sont posés (MainWindowChrome).
+        .ignoresSafeArea()
+        // ⌘F : la recherche prend la main (la garde la lui laisse jusqu'au premier clic ailleurs).
+        .background {
+            Button("Rechercher") { searchFocusSerial += 1 }
+                .keyboardShortcut("f", modifiers: .command)
+                .opacity(0)
+                .frame(width: 0, height: 0)
+                .allowsHitTesting(false)
+                .accessibilityHidden(true)
+        }
+        // Titre de la fenêtre (menu Fenêtre, VoiceOver) ; jamais affiché dans la barre de titre.
         .navigationTitle(title)
-        // Jamais de titre dans la barre d'outils (maquette validée le 28/10 : le titre de la page seul, pas deux
-        // fois) ; page Macros : les flèches ← → s'y posent à gauche, comme dans le créateur.
-        .toolbarTitleHidden()
-        .noToolbarBand()
-        // Recherche en haut de la barre latérale (comme Réglages Système) : à droite, la barre d'outils ne porte que
-        // les boutons de la page, et les flèches de la page Macros tombent au même endroit que dans le créateur.
-        .searchable(text: $query, placement: .sidebar, prompt: "Rechercher")
-        .modifier(SearchFocusBinding(focused: $searchFocused))
         // Active seulement après un clic dedans (ou ⌘F) : taper ailleurs n'y écrit plus rien ; un clic ailleurs, dans
-        // l'app ou dehors, la lui reprend (AppKit et SwiftUI).
-        .background(SearchFocusGuard(release: { if searchFocused { searchFocused = false } }))
+        // l'app ou dehors, la lui reprend.
+        .background(SearchFocusGuard())
         // Le texte de la recherche n'est plus le nom du raccourci appuyé : recherche ordinaire.
         .onChange(of: query) { newValue in
             if let combo = keySearch, newValue.trimmingCharacters(in: .whitespaces) != combo.display { keySearch = nil }
         }
-        // Un clic dans le vide de la barre latérale ne laisse jamais la fenêtre sans section.
+        // Une page est toujours choisie.
         .onChange(of: selection) { newValue in
             if newValue == nil { selection = .section(.general) }
         }
@@ -542,6 +512,31 @@ struct EditorView: View {
                 .environmentObject(status)
                 .environmentObject(link)
         }
+    }
+
+    /// En-tête de la page (maquette) : le titre en gras à gauche ; à droite, la capsule : → sur la page Macros (retour
+    /// dans la dernière macro quittée), « + » sur les pages Macros et Communauté, puis Mon compte.
+    private var pageHeader: some View {
+        HStack(spacing: 16) {
+            Text(title)
+                .font(.system(size: 22, weight: .bold))
+                .lineLimit(1)
+                .accessibilityAddTraits(.isHeader)
+            Spacer(minLength: 8)
+            HeaderCapsule {
+                if onMacrosPage, let last = creatorLink.lastClosedID {
+                    HeaderIconButton(symbol: "chevron.forward",
+                                     help: String(localized: "Revenir dans la dernière macro quittée (⌘])")) {
+                        openCreator(last)
+                    }
+                    .keyboardShortcut("]", modifiers: .command)
+                }
+                if showsNewButton { newButton }
+                HeaderIconButton(symbol: "person.crop.circle", help: String(localized: "Mon compte")) { choose(.account) }
+            }
+        }
+        .frame(minHeight: 52)
+        .padding(.horizontal, 26)
     }
 
     private var title: String {
@@ -588,79 +583,81 @@ struct EditorView: View {
         sidebarSelection.wrappedValue = item
     }
 
+    /// Barre de gauche (maquette) : plaque claire arrondie, les boutons de la fenêtre en haut, la recherche, puis les
+    /// groupes de pages, chacun sous son titre gris. Plus de compteurs (« rien d'inutile ») ; la page choisie est une
+    /// pastille bleue (sidebarRow).
     private func sidebar(_ data: CatalogData) -> some View {
-        // Plus de compteurs (maquette du 28/10 : « rien d'inutile ») ; la page choisie est dessinée par sidebarRow.
-        return List {
-            Section {
-                // Sélection par étiquette (.tag) : un NavigationLink sans destination ne sélectionne rien sur
-                // macOS 26+ (clic capté, section inchangée).
-                // Icônes colorées façon Réglages Système : dessin statique, aucun verre par ligne.
-                ForEach(FLSection.allCases) { section in
-                    Label {
-                        Text(section.title)
-                    } icon: {
-                        SectionIcon(symbol: section.symbol, tint: section.tint)
+        VStack(alignment: .leading, spacing: 14) {
+            // Place des boutons fermer / réduire / agrandir de la fenêtre.
+            Color.clear.frame(height: 12)
+            searchBar
+            ScrollView(.vertical, showsIndicators: false) {
+                VStack(alignment: .leading, spacing: 14) {
+                    SidebarGroup(Text("FL Studio")) {
+                        ForEach(FLSection.allCases) { section in
+                            SidebarLabel(title: Text(section.title), symbol: section.symbol, tint: section.tint)
+                                .sidebarRow(section.tint, selected: isShown(.section(section))) { choose(.section(section)) }
+                                .help(section.subtitle)
+                        }
                     }
-                    .sidebarRow(section.tint, selected: isShown(.section(section))) { choose(.section(section)) }
-                    .help(section.subtitle)
-                    .tag(SidebarItem.section(section))
+                    SidebarGroup(Text("Automatiser")) {
+                        MacroSidebarRow(selected: isShown(.macros)) { choose(.macros) }
+                    }
+                    SidebarGroup(Text("Personnalisé")) {
+                        sidebarItem(.custom, Text("Mes raccourcis"))
+                    }
+                    SidebarGroup(Text("Partager")) {
+                        sidebarItem(.community, Text("Communauté"))
+                            .help(CommunityText.subtitle)
+                    }
+                    SidebarGroup(Text("Compte et aide")) {
+                        sidebarItem(.account, Text("Mon compte"))
+                            .overlay(alignment: .trailing) {
+                                // Ce Mac et le compte ont chacun leurs changements : la page Mon compte montre le choix.
+                                if backup.conflict != nil {
+                                    Text(verbatim: "!")
+                                        .font(.system(size: 11, weight: .bold))
+                                        .foregroundStyle(Color.white)
+                                        .frame(width: 18, height: 18)
+                                        .background(Circle().fill(Color.orange))
+                                        .padding(.trailing, 8)
+                                        .allowsHitTesting(false)
+                                }
+                            }
+                            .help(AccountText.subtitle)
+                        sidebarItem(.help, Text("Aide"))
+                            .help("Questions fréquentes, et écrire à l'équipe")
+                    }
                 }
-            } header: {
-                Text("FL Studio")
-            }
-            // Chaque groupe a son titre gris, comme « FL Studio » : macros, tes raccourcis, la Communauté, puis
-            // ton compte et l'aide ensemble.
-            Section {
-                MacroSidebarRow(selected: isShown(.macros)) { choose(.macros) }
-                    .tag(SidebarItem.macros)
-            } header: {
-                Text("Automatiser")
-            }
-            Section {
-                Label {
-                    Text("Mes raccourcis")
-                } icon: {
-                    SectionIcon(symbol: SidebarItem.custom.symbol, tint: SidebarItem.custom.tint)
-                }
-                .sidebarRow(SidebarItem.custom.tint, selected: isShown(.custom)) { choose(.custom) }
-                .tag(SidebarItem.custom)
-            } header: {
-                Text("Personnalisé")
-            }
-            Section {
-                Label {
-                    Text("Communauté")
-                } icon: {
-                    SectionIcon(symbol: SidebarItem.community.symbol, tint: SidebarItem.community.tint)
-                }
-                .sidebarRow(SidebarItem.community.tint, selected: isShown(.community)) { choose(.community) }
-                .help(CommunityText.subtitle)
-                .tag(SidebarItem.community)
-            } header: {
-                Text("Partager")
-            }
-            Section {
-                Label {
-                    Text("Mon compte")
-                } icon: {
-                    SectionIcon(symbol: SidebarItem.account.symbol, tint: SidebarItem.account.tint)
-                }
-                .sidebarRow(SidebarItem.account.tint, selected: isShown(.account)) { choose(.account) }
-                .badge(backup.conflict != nil ? Text("!") : nil)
-                .help(AccountText.subtitle)
-                .tag(SidebarItem.account)
-                Label {
-                    Text("Aide")
-                } icon: {
-                    SectionIcon(symbol: SidebarItem.help.symbol, tint: SidebarItem.help.tint)
-                }
-                .sidebarRow(SidebarItem.help.tint, selected: isShown(.help)) { choose(.help) }
-                .help("Questions fréquentes, et écrire à l'équipe")
-                .tag(SidebarItem.help)
-            } header: {
-                Text("Compte et aide")
+                .padding(.bottom, 4)
             }
         }
+        .padding(.horizontal, 10)
+        .padding(.top, 14)
+        .padding(.bottom, 16)
+        .frame(width: Self.sidebarWidth)
+        .frame(maxHeight: .infinity, alignment: .top)
+        .background(MockPlate(cornerRadius: 19, top: 0.10, bottom: 0.04, border: 0.16))
+    }
+
+    private func sidebarItem(_ item: SidebarItem, _ title: Text) -> some View {
+        SidebarLabel(title: title, symbol: item.symbol, tint: item.tint)
+            .sidebarRow(item.tint, selected: isShown(item)) { choose(item) }
+    }
+
+    /// Recherche (maquette : capsule claire en haut de la barre de gauche) ; à droite, chercher avec le raccourci qu'on
+    /// connaît plutôt que son nom.
+    private var searchBar: some View {
+        HStack(spacing: 4) {
+            SidebarSearchField(text: $query, prompt: String(localized: "Rechercher"), focusSerial: searchFocusSerial)
+                .frame(maxWidth: .infinity)
+            keySearchButton
+        }
+        .padding(.leading, 8)
+        .padding(.trailing, 6)
+        .frame(height: 34)
+        .background(Capsule().fill(Color.white.opacity(0.07)))
+        .overlay(Capsule().strokeBorder(Color.white.opacity(0.08), lineWidth: 1))
     }
 
     // MARK: Détail
@@ -680,6 +677,8 @@ struct EditorView: View {
                 }
             }
         }
+        // Le titre de la page est dans l'en-tête de la fenêtre : les pages ne le répètent pas (PageHeader).
+        .environment(\.pageTitleShown, false)
         // Nouvelle liste (et retour en haut) à chaque section, affichée d'un coup (aucune animation).
         .pageSwitch(trimmedQuery.isEmpty ? selection : nil)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -733,41 +732,62 @@ struct EditorView: View {
         }
     }
 
-    /// Une section : raccourcis d'origine de FL, actions en plus, puis tes raccourcis ajoutés sur cette page.
-    private func sectionList(_ section: FLSection, rows: [CatalogRow], mine custom: [Remap]) -> some View {
-        let mine = rows.filter { $0.entry.section == section }
-        let natives = mine.filter { $0.entry.isNative }
-        let extras = mine.filter { !$0.entry.isNative }
-        return PageContainer {
-            Section {
-                PageHeader(symbol: section.symbol, tint: section.tint, title: section.title,
-                           subtitle: section.subtitle)
-                    .pageTitleRow()
-            }
-            if !natives.isEmpty {
-                Section {
-                    CardColumns(items: natives, tint: section.tint, columns: columnCount) { catalogRow($0) }
-                } header: {
-                    Text("Raccourcis de FL Studio")
-                }
-            }
-            if !extras.isEmpty {
-                Section {
-                    CardColumns(items: extras, tint: section.tint, columns: columnCount) { catalogRow($0) }
-                } header: {
-                    Text("Actions en plus")
-                }
-            }
-            if !custom.isEmpty {
-                Section {
-                    CardColumns(items: custom, tint: section.tint, columns: columnCount) { customRow($0) }
-                } header: {
-                    Text("Tes raccourcis sur cette page")
-                }
+    /// Une carte de page : un groupe de raccourcis de FL, les actions en plus, ou tes raccourcis.
+    private struct PageCard: Identifiable {
+        enum Lines {
+            case catalog([CatalogRow])
+            case custom([Remap])
+        }
+
+        let id: String
+        let title: String
+        let lines: Lines
+
+        var count: Int {
+            switch lines {
+            case .catalog(let rows): return rows.count
+            case .custom(let remaps): return remaps.count
             }
         }
-        .cardList()
-        .id(section)                                     // nouvelle section : la liste repart du haut
+    }
+
+    /// Une section (maquette) : une carte par groupe de raccourcis de FL (Outils, Sélection, Zoom…), les actions en
+    /// plus, puis tes raccourcis ajoutés sur cette page.
+    private func sectionList(_ section: FLSection, rows: [CatalogRow], mine custom: [Remap]) -> some View {
+        let mine = rows.filter { $0.entry.section == section }
+        var cards = CatalogGroups.cards(for: section, rows: mine.filter { $0.entry.isNative }, entry: \.entry)
+            .map { PageCard(id: "groupe-" + $0.title, title: $0.title, lines: .catalog($0.rows)) }
+        let extras = mine.filter { !$0.entry.isNative }
+        if !extras.isEmpty {
+            cards.append(PageCard(id: "actions", title: String(localized: "Actions en plus"), lines: .catalog(extras)))
+        }
+        if !custom.isEmpty {
+            cards.append(PageCard(id: "tes-raccourcis", title: String(localized: "Tes raccourcis sur cette page"),
+                                  lines: .custom(custom)))
+        }
+        return cardPage(cards, tint: section.tint)
+            .id(section)                                 // nouvelle section : la page repart du haut
+    }
+
+    /// Page en cartes titrées (maquette), sur deux colonnes quand elle est large ; elle défile sous l'en-tête.
+    private func cardPage(_ cards: [PageCard], tint: Color) -> some View {
+        ScrollView(.vertical) {
+            CardMasonry(cards: cards, columns: columnCount, size: \.count) { card in
+                pageCard(card, tint: tint)
+            }
+            .padding(.horizontal, 26)
+            .padding(.top, 10)
+            .padding(.bottom, 24)
+        }
+    }
+
+    @ViewBuilder private func pageCard(_ card: PageCard, tint: Color) -> some View {
+        switch card.lines {
+        case .catalog(let rows):
+            TitledCard(title: card.title, items: rows, tint: tint) { catalogRow($0) }
+        case .custom(let remaps):
+            TitledCard(title: card.title, items: remaps, tint: tint) { customRow($0) }
+        }
     }
 
     /// Recherche : toutes les sections, regroupées par section. Avec un raccourci appuyé (bouton clavier) : ce qui se
@@ -817,50 +837,24 @@ struct EditorView: View {
         }
     }
 
-    /// « Mes raccourcis » : les raccourcis de FL que tu as changés (rangés par page), puis ceux que tu as créés ou
+    /// « Mes raccourcis » : les raccourcis de FL que tu as changés (une carte par page), puis ceux que tu as créés ou
     /// importés. Jamais les macros (page Macros) ni les touches de départ.
     private func customList(_ data: CatalogData) -> some View {
         let changed = MyShortcuts.changed(data.rows)
         let created = MyShortcuts.created(data.others, starters: store.freshRemaps())
-        let sections = FLSection.allCases.filter { s in changed.contains { $0.entry.section == s } }
+        var cards = FLSection.allCases.compactMap { s -> PageCard? in
+            let mine = changed.filter { $0.entry.section == s }
+            return mine.isEmpty ? nil : PageCard(id: "page-" + s.rawValue, title: s.title, lines: .catalog(mine))
+        }
+        if !created.isEmpty {
+            cards.append(PageCard(id: "crees", title: String(localized: "Créés par toi"), lines: .custom(created)))
+        }
         return Group {
-            if changed.isEmpty && created.isEmpty {
+            if cards.isEmpty {
                 EmptyState(symbol: SidebarItem.custom.symbol, title: String(localized: "Aucun raccourci changé"),
-                           text: PageSummary.custom,
-                           actionTitle: String(localized: "Nouveau raccourci…"),
-                           action: { newCustom() })
+                           text: PageSummary.custom)
             } else {
-                PageContainer {
-                    Section {
-                        PageHeader(symbol: SidebarItem.custom.symbol, tint: SidebarItem.custom.tint,
-                                   title: String(localized: "Mes raccourcis"), subtitle: PageSummary.custom)
-                            .pageTitleRow()
-                    }
-                    ForEach(sections) { s in
-                        Section {
-                            CardColumns(items: changed.filter { $0.entry.section == s }, tint: s.tint,
-                                        columns: columnCount) { catalogRow($0) }
-                        } header: {
-                            SectionHeader(symbol: s.symbol, tint: s.tint, title: s.title)
-                        }
-                    }
-                    Section {
-                        CardRows(items: created, tint: SidebarItem.custom.tint, trailing: 1) { customRow($0) }
-                        HStack {
-                            Button {
-                                newCustom()
-                            } label: {
-                                Label("Nouveau raccourci…", systemImage: "plus")
-                            }
-                            .buttonStyle(.borderless)
-                            Spacer(minLength: 0)
-                        }
-                        .cardRow(created.isEmpty ? .single : .last)
-                    } header: {
-                        if !created.isEmpty { Text("Créés par toi") }
-                    }
-                }
-                .cardList()
+                cardPage(cards, tint: SidebarItem.custom.tint)
             }
         }
     }
@@ -924,63 +918,28 @@ struct EditorView: View {
         return out
     }
 
-    // MARK: Barre d'outils
+    // MARK: En-tête
 
-    /// Page affichée (pendant une recherche : « Mes raccourcis », le « + » y crée un raccourci personnel).
+    /// Page affichée (pendant une recherche : aucune des pages de la capsule).
     private var page: SidebarItem { trimmedQuery.isEmpty ? (selection ?? .section(.general)) : .custom }
     private var onMacrosPage: Bool { page == .macros }
 
-    /// Page Macros : ← → puis +, exactement comme ← → puis ⇪ ✓ dans le créateur : les flèches ne bougent pas
-    /// quand on entre dans une macro ou qu'on en sort. Pages de raccourcis : pas de flèches (elles ne servent
-    /// qu'aux macros). Pas de bouton pause ici : il est dans le menu de la barre des menus (et ⌃⌥⌘F).
-    @ToolbarContentBuilder private var toolbarContent: some ToolbarContent {
-        if onMacrosPage {
-            ToolbarItem(placement: .navigation) { arrows }
-        }
-        if showsNewButton {
-            ToolbarItem(placement: .primaryAction) { newButton }
-        }
-        if !onMacrosPage {
-            ToolbarItem(placement: .primaryAction) { profileMenu }
-        }
-    }
-
-    /// macOS 26 : boutons regroupés sur un même verre, le menu à part (ToolbarSpacer), comme les apps d'Apple.
-    @ViewBuilder private func withToolbar<V: View>(_ v: V) -> some View {
-        #if compiler(>=6.2)
-        if #available(macOS 26.0, *) {
-            v.toolbar {
-                if onMacrosPage {
-                    ToolbarItem(placement: .navigation) { arrows }
-                }
-                if showsNewButton {
-                    ToolbarItem(placement: .primaryAction) { newButton }
-                }
-                if !onMacrosPage {
-                    if showsNewButton {
-                        ToolbarSpacer(.fixed, placement: .primaryAction)
-                    }
-                    ToolbarItem(placement: .primaryAction) { profileMenu }
-                }
-            }
-        } else {
-            v.toolbar { toolbarContent }
-        }
-        #else
-        v.toolbar { toolbarContent }
-        #endif
-    }
-
-    /// Bouton clavier à côté de la recherche : appuie sur un raccourci, la recherche montre ce qu'il fait (pour qui
+    /// Bouton clavier dans la recherche : appuie sur un raccourci, la recherche montre ce qu'il fait (pour qui
     /// connaît ses touches mais pas le nom du raccourci). Échap annule.
     private var keySearchButton: some View {
         let listening = recorder.activeID == Self.keySearchID
         return Button {
             if listening { recorder.stop() } else { startKeySearch() }
         } label: {
-            Label("Rechercher avec un raccourci", systemImage: listening ? "keyboard.fill" : "keyboard")
+            Image(systemName: listening ? "keyboard.fill" : "keyboard")
+                .font(.system(size: 13))
+                .foregroundStyle(listening ? Color.accentColor : Color.secondary)
+                .frame(width: 24, height: 24)
+                .contentShape(Rectangle())
         }
+        .buttonStyle(.plain)
         .help("Rechercher avec un raccourci : appuie sur les touches que tu connais")
+        .accessibilityLabel("Rechercher avec un raccourci")
         .accessibilityValue(listening ? String(localized: "En attente des touches") : "")
     }
 
@@ -995,111 +954,31 @@ struct EditorView: View {
         }
     }
 
-    /// → : rentrer dans la dernière macro quittée (comme Avancer dans le Finder) ; ← grisée ici.
-    private var arrows: some View {
-        let last = creatorLink.lastClosedID
-        return FinderArrows(back: nil, forward: last.map { id in { openCreator(id) } })
-    }
-
-    /// « + » partout, sauf sur la page Communauté tant qu'on n'est pas connecté (rien à partager sans compte).
+    /// « + » sur la page Macros (nouvelle macro) et sur la page Communauté une fois connecté (partager) ; plus sur les
+    /// pages de raccourcis (29/10 : « le reste ça part »).
     private var showsNewButton: Bool {
-        page == .help || page == .account ? false : page != .community || community.session != nil
+        page == .macros || (page == .community && community.session != nil)
     }
 
-    /// « + » de la page : une macro sur la page Macros, un partage sur la page Communauté, un raccourci de cette
-    /// page ailleurs.
     private var newButton: some View {
         let current = page
-        let help: String
-        switch current {
-        case .macros: help = String(localized: "Nouvelle macro")
-        case .community: help = String(localized: "Partager une macro ou tes raccourcis")
-        case .help, .account: help = ""
-        case .custom: help = String(localized: "Nouveau raccourci personnalisé")
-        case .section(let s): help = String(localized: "Nouveau raccourci pour la page « \(s.title) »")
-        }
-        return Button {
+        let help = current == .macros ? String(localized: "Nouvelle macro")
+                                      : String(localized: "Partager une macro ou tes raccourcis")
+        return HeaderIconButton(symbol: "plus", help: help) {
             switch current {
             case .macros: MacroLibraryPage.newMacro(in: store.library)
             case .community: community.composing = true
-            case .help, .account: break                        // pas de « + » sur ces pages
-            case .custom: newCustom(page: nil)
-            case .section(let s): newCustom(page: s)
+            default: break
             }
-        } label: {
-            Label(help, systemImage: "plus")
-        }
-        .help(help)
-    }
-
-    /// Menu ⋯ au style du menu de l'icône (StyledMenu.swift).
-    private var profileMenu: some View {
-        StyledMenuButton(help: String(localized: "Aide, compte, profil, import et export"), width: 290) {
-            var entries: [StyledMenuEntry] = [
-                // Le guide est dans la page Aide (son seul endroit, avec les questions et le contact).
-                .item(String(localized: "Aide, guide et contact"), symbol: "questionmark", tint: .teal) { query = ""; selection = .help },
-                .item(String(localized: "Mon compte et sauvegarde"), symbol: "person.crop.circle", tint: .indigo) {
-                    query = ""; selection = .account
-                },
-                .separator,
-                .group(String(localized: "Charger un profil"), symbol: "rectangle.stack", tint: .purple, ProfilePreset.allCases.map { preset -> StyledMenuEntry in
-                    .item(preset.label, symbol: "keyboard", tint: .purple) { load(preset) }
-                }),
-                .item(String(localized: "Importer…"), symbol: "square.and.arrow.down", tint: .blue) { importProfile() },
-                .item(String(localized: "Exporter…"), symbol: "square.and.arrow.up", tint: .blue) { exportProfile() },
-                .separator,
-                .item(String(localized: "Nouveau raccourci personnalisé…"), symbol: "plus", tint: .green) { newCustom() },
-                .separator,
-            ]
-            if store.undoSnapshot != nil {
-                entries.append(.item(String(localized: "Annuler le dernier remplacement"), symbol: "arrow.uturn.backward", tint: .orange) {
-                    store.undoReplace()
-                })
-            }
-            entries.append(.item(String(localized: "Tout réinitialiser…"), symbol: "arrow.counterclockwise", tint: .orange) { resetAll() })
-            if Appearance.glassAvailable {
-                entries += [.separator, .toggle(String(localized: "Effet Liquid Glass"), symbol: "drop", tint: .cyan, isOn: $glassEnabled)]
-            }
-            entries += [.separator,
-                        .item(String(localized: "Désinstaller FL Shortcuts…"), symbol: "trash", tint: .red) { Uninstaller.confirmAndRun() }]
-            return entries
-        } label: {
-            Label("Profil", systemImage: "ellipsis")
         }
     }
 
     // MARK: Actions
 
-    /// Nouveau raccourci ; depuis une page de FL, il vise sa fenêtre et reste listé sur cette page.
-    private func newCustom(page: FLSection? = nil) {
-        editingIsNew = true
-        editing = Remap().with {
-            $0.actionID = nil
-            $0.page = page
-            if let page { $0.context = ShortcutContext(page: page) }
-        }
-    }
-
-    private func load(_ preset: ProfilePreset) {
-        guard Dialogs.confirm(String(localized: "Charger le profil « \(preset.label) » ?"),
-                              preset.summary + String(localized: "\n\nTes raccourcis actuels seront remplacés (annulable)."))
-        else { return }
-        store.apply(preset: preset)
-        show(ToastMessage(text: String(localized: "Profil « \(preset.label) » chargé"), undo: { store.undoReplace() }))
-    }
-
     private func reset(_ row: CatalogRow) {
         let before = store.remaps
         store.reset(row)
         show(ToastMessage(text: String(localized: "« \(row.entry.title) » réinitialisé"), undo: { store.remaps = before }))
-    }
-
-    private func resetAll() {
-        guard Dialogs.confirm(String(localized: "Tout réinitialiser ?"),
-                              String(localized: "Tous les raccourcis reviennent à leur touche d'origine (profil Recommandé). C'est annulable."))
-        else { return }
-        store.resetAll()
-        show(ToastMessage(text: String(localized: "Tous les raccourcis sont réinitialisés"), undo: { store.undoReplace() }))
     }
 
     private func delete(_ remap: Remap) {
@@ -1116,42 +995,6 @@ struct EditorView: View {
     }
 
     private func show(_ text: String) { show(ToastMessage(text: text, undo: nil)) }
-
-    private func importProfile() {
-        let panel = NSOpenPanel()
-        panel.allowedContentTypes = [.json]
-        panel.allowsMultipleSelection = false
-        panel.directoryURL = ExchangeFolder.shortcuts.prepared()       // Documents › FL Shortcuts › Raccourcis
-        guard panel.runModal() == .OK, let url = panel.url else { return }
-        do {
-            let size = (try? FileManager.default.attributesOfItem(atPath: url.path)[.size] as? Int) ?? 0
-            guard size <= ProfileImporter.maxBytes else { throw ProfileImporter.Failure.tooLarge }
-            let preview = try store.prepareImport(try Data(contentsOf: url))
-            var text = preview.summary.joined(separator: "\n")
-            if !preview.rejected.isEmpty { text += String(localized: "\n\nRefusé(s) par sécurité :\n• ") + preview.rejected.joined(separator: "\n• ") }
-            text += String(localized: "\n\nTes raccourcis actuels seront remplacés (annulable).")
-            guard Dialogs.confirm(String(localized: "Importer ce profil ?"), text) else { return }
-            store.applyImport(preview)
-            show(ToastMessage(text: String(localized: "Profil importé"), undo: { store.undoReplace() }))
-        } catch {
-            Dialogs.inform(String(localized: "Import impossible"), error.localizedDescription)
-        }
-    }
-
-    private func exportProfile() {
-        let panel = NSSavePanel()
-        panel.allowedContentTypes = [.json]
-        panel.directoryURL = ExchangeFolder.shortcuts.prepared()       // Documents › FL Shortcuts › Raccourcis
-        panel.canCreateDirectories = true
-        panel.nameFieldStringValue = "Mes raccourcis FL Shortcuts.json"
-        guard panel.runModal() == .OK, let url = panel.url else { return }
-        do {
-            try store.exportData().write(to: url, options: .atomic)
-            show(String(localized: "Profil exporté"))
-        } catch {
-            Dialogs.inform(String(localized: "Export impossible"), error.localizedDescription)
-        }
-    }
 }
 
 // MARK: - Avertissements en tête du détail
@@ -1316,7 +1159,8 @@ private struct ResetButton: View {
         Button(action: action) {
             Image(systemName: "arrow.counterclockwise")
                 .font(.system(size: 12, weight: .medium))
-                .frame(width: 22, height: 22)
+                .frame(width: 28, height: 28)
+                .contentShape(Circle())
         }
         .accessibilityLabel(String(localized: "Réinitialiser"))
         .buttonStyle(RowActionStyle())
@@ -1372,6 +1216,12 @@ private struct CatalogRowView: View {
             if !issues.isEmpty {
                 IssueIcon(issues: issues)
             }
+            // ↺ juste avant la touche changée (maquette du 28/10).
+            if !row.isDefault {
+                ResetButton(enabled: true,
+                            help: String(localized: "Revenir à : ") + (row.entry.defaultTrigger?.display ?? String(localized: "aucune touche")),
+                            action: onReset)
+            }
             Button(action: onEdit) {
                 KeyLabel(combo: row.current, accent: !row.isDefault)
             }
@@ -1379,14 +1229,7 @@ private struct CatalogRowView: View {
             .help("Changer la touche")
             .accessibilityLabel("Changer la touche de \(row.entry.title)")
             .accessibilityValue(row.current?.spoken ?? String(localized: "aucune"))
-
-            if !row.isDefault {
-                ResetButton(enabled: true,
-                            help: String(localized: "Revenir à : ") + (row.entry.defaultTrigger?.display ?? String(localized: "aucune touche")),
-                            action: onReset)
-            }
         }
-        .padding(.vertical, 2)
         .contextMenu {
             Button("Changer la touche…", action: onEdit)
             Button("Réinitialiser", action: onReset).disabled(row.isDefault)
@@ -1439,7 +1282,7 @@ private struct ShortcutRow: View {
             .buttonStyle(RowActionStyle())
             .fixedSize()
         }
-        .padding(.vertical, 2)
+        .padding(.vertical, 4)
         .opacity(remap.enabled ? 1 : 0.55)
         .contextMenu {
             Button("Modifier…", action: onOpen)
@@ -1494,16 +1337,20 @@ private struct EmptyState: View {
 /// En-tête de page (maquette validée le 28/10 : « trop de détails inutiles ») : le titre en gras, seul ; `detail`
 /// seulement quand il dit qui est connecté (Compte, Communauté). Le résumé de la page reste dans sa bulle d'aide.
 /// `symbol` et `tint` : gardés pour les appels, plus dessinés.
+/// Dans la fenêtre principale, le titre est déjà dans l'en-tête de la fenêtre (maquette) : seul `detail` reste.
 struct PageHeader: View {
     let symbol: String
     let tint: Color
     let title: String
     let subtitle: String
     var detail: String? = nil
+    @Environment(\.pageTitleShown) private var titleShown
 
     var body: some View {
         VStack(alignment: .leading, spacing: 2) {
-            Text(title).font(.system(size: 22, weight: .bold))
+            if titleShown {
+                Text(title).font(.system(size: 22, weight: .bold))
+            }
             if let detail {
                 Text(detail).font(.system(size: 12)).foregroundStyle(.secondary).lineLimit(1)
             }
@@ -1513,6 +1360,18 @@ struct PageHeader: View {
         .help(subtitle)
         .accessibilityElement(children: .combine)
         .accessibilityAddTraits(.isHeader)
+    }
+}
+
+private struct PageTitleShownKey: EnvironmentKey {
+    static let defaultValue = true
+}
+
+extension EnvironmentValues {
+    /// Faux dans la fenêtre principale : l'en-tête de la fenêtre porte le titre de la page.
+    var pageTitleShown: Bool {
+        get { self[PageTitleShownKey.self] }
+        set { self[PageTitleShownKey.self] = newValue }
     }
 }
 
@@ -1886,6 +1745,8 @@ struct CaptureField: View {
     let id: String
     let role: Role
     @Binding var combo: KeyCombo?
+    /// En-tête du créateur (maquette) : les touches seules, sans cadre ; un clic, puis taper le nouveau raccourci.
+    var compact = false
     @ObservedObject private var recorder = Recorder.shared
 
     private var recording: Bool { recorder.activeID == id }
@@ -1899,36 +1760,11 @@ struct CaptureField: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
-            Button {
-                recording ? recorder.stop() : recorder.start(id, handler: accept)
-            } label: {
-                Group {
-                    if recording {
-                        Text("Appuie sur les touches…").foregroundStyle(Color.accentColor)
-                    } else if let combo {
-                        KeyCaps(combo: combo, large: true)
-                    } else {
-                        Text(role == .trigger ? String(localized: "Cliquer pour enregistrer")
-                                              : String(localized: "Cliquer, puis taper la touche de FL"))
-                            .foregroundStyle(.secondary)
-                    }
-                }
-                .font(.system(size: 13))
-                .multilineTextAlignment(.center)                // champ étroit : texte sur deux lignes, centré
-                .padding(.horizontal, 8)
-                .frame(maxWidth: .infinity, minHeight: 52)
-                .contentShape(Rectangle())
+            if compact {
+                compactButton
+            } else {
+                fullButton
             }
-            .buttonStyle(.plain)
-            .background(shape.fill(Color.accentColor.opacity(recording ? 0.08 : 0)))
-            .background(shape.fill(Color(nsColor: .textBackgroundColor)))
-            .overlay(shape.strokeBorder(recording ? Color.accentColor : Color(nsColor: .separatorColor),
-                                        lineWidth: recording ? 2 : 1))
-            .accessibilityLabel(role == .trigger ? String(localized: "Raccourci déclencheur")
-                                                 : String(localized: "Touche envoyée à FL"))
-            .accessibilityValue(recording ? String(localized: "Enregistrement en cours")
-                                          : (combo?.spoken ?? String(localized: "aucun")))
-
             if let footnote {
                 Text(footnote.text)
                     .font(.system(size: 11))
@@ -1936,6 +1772,61 @@ struct CaptureField: View {
             }
         }
         .onDisappear { if recording { recorder.stop() } }
+    }
+
+    private var compactButton: some View {
+        Button {
+            recording ? recorder.stop() : recorder.start(id, handler: accept)
+        } label: {
+            Group {
+                if recording {
+                    Text("Appuie sur les touches…").foregroundStyle(Color.accentColor)
+                } else {
+                    KeyLabel(combo: combo, placeholder: String(localized: "Raccourci"))
+                }
+            }
+            .font(.system(size: 13))
+            .padding(.horizontal, 4)
+            .frame(minHeight: 36)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .help("Changer le raccourci de la macro")
+        .accessibilityLabel(String(localized: "Raccourci déclencheur"))
+        .accessibilityValue(recording ? String(localized: "Enregistrement en cours")
+                                      : (combo?.spoken ?? String(localized: "aucun")))
+    }
+
+    private var fullButton: some View {
+        Button {
+            recording ? recorder.stop() : recorder.start(id, handler: accept)
+        } label: {
+            Group {
+                if recording {
+                    Text("Appuie sur les touches…").foregroundStyle(Color.accentColor)
+                } else if let combo {
+                    KeyCaps(combo: combo, large: true)
+                } else {
+                    Text(role == .trigger ? String(localized: "Cliquer pour enregistrer")
+                                          : String(localized: "Cliquer, puis taper la touche de FL"))
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .font(.system(size: 13))
+            .multilineTextAlignment(.center)                // champ étroit : texte sur deux lignes, centré
+            .padding(.horizontal, 8)
+            .frame(maxWidth: .infinity, minHeight: 52)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .background(shape.fill(Color.accentColor.opacity(recording ? 0.08 : 0)))
+        .background(shape.fill(Color(nsColor: .textBackgroundColor)))
+        .overlay(shape.strokeBorder(recording ? Color.accentColor : Color(nsColor: .separatorColor),
+                                    lineWidth: recording ? 2 : 1))
+        .accessibilityLabel(role == .trigger ? String(localized: "Raccourci déclencheur")
+                                             : String(localized: "Touche envoyée à FL"))
+        .accessibilityValue(recording ? String(localized: "Enregistrement en cours")
+                                      : (combo?.spoken ?? String(localized: "aucun")))
     }
 
     private func accept(_ event: NSEvent) {

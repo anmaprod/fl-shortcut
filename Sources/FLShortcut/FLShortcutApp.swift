@@ -56,6 +56,8 @@ struct FLShortcutApp: App {
                 .frame(minWidth: 820, minHeight: 480)
         }
         .windowResizability(.contentMinSize)
+        // Première ouverture à la taille de la maquette : les cartes y tiennent sur deux colonnes.
+        .defaultSize(width: 1180, height: 760)
 
         // Pas de scène pour le créateur de macros : il s'affiche dans cette fenêtre (EditorView, comme un dossier dans
         // le Finder), son modèle n'existe que pendant qu'il est affiché.
@@ -245,6 +247,11 @@ enum SingleInstance {
 }
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
+    /// Toujours sombre, comme la maquette (29/10 : « fond noir ») : avant la première fenêtre, rien ne s'affiche clair.
+    func applicationWillFinishLaunching(_ notification: Notification) {
+        NSApp.appearance = NSAppearance(named: .darkAqua)
+    }
+
     func applicationDidFinishLaunching(_ notification: Notification) {
         // La note de l'ancienne copie ne sert plus (elle est partie) : jamais prise pour celle d'une autre plus tard.
         try? FileManager.default.removeItem(at: SingleInstance.quittingFile)
@@ -646,6 +653,39 @@ enum MainWindow {
 
 /// Panneau de la barre des menus (maquette du 28/10) : fond noir plein, sans verre ; ce qui cloche en haut, puis les
 /// options, chacune avec son icône de couleur, pleine de sa couleur au survol.
+/// Carte de l'Organiser en haut du menu (maquette) : « Organiser · 12 sons sur 40 », la barre, « Arrêter ».
+private struct OrganizerMenuCard: View {
+    let done: Int
+    let total: Int
+    let stop: () -> Void
+
+    private var fraction: CGFloat { CGFloat(min(done, total)) / CGFloat(max(total, 1)) }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 9) {
+            Text("Organiser · \(done) sons sur \(total)")
+                .font(.system(size: 13, weight: .semibold))
+            GeometryReader { proxy in
+                ZStack(alignment: .leading) {
+                    Capsule().fill(Color.white.opacity(0.12))
+                    Capsule().fill(Color.accentColor).frame(width: proxy.size.width * fraction)
+                }
+            }
+            .frame(height: 4)
+            .accessibilityHidden(true)
+            HStack {
+                Spacer(minLength: 0)
+                Button("Arrêter", action: stop)
+                    .secondaryButton()
+                    .help("Arrêter l'Organiser : FL revient comme avant")
+            }
+        }
+        .padding(12)
+        .background(MockPlate(cornerRadius: 14))
+        .accessibilityElement(children: .contain)
+    }
+}
+
 struct MenuContent: View {
     @EnvironmentObject var store: Store
     @ObservedObject private var library = MacroLibraryStore.shared
@@ -655,9 +695,17 @@ struct MenuContent: View {
     @Environment(\.openWindow) private var openWindow
     @ObservedObject private var panel = MenuPanel.shared
     @ObservedObject private var approval = CopyApproval.shared
+    @ObservedObject private var organizer = OrganizerProgress.shared
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
+            // L'Organiser écoute les sons (maquette du 28/10) : où il en est, et « Arrêter ».
+            if let progress = organizer.listening {
+                OrganizerMenuCard(done: progress.done, total: progress.total) { OrganizerWindow.close() }
+                    .padding(.horizontal, 6)
+                    .padding(.bottom, 10)
+                MenuSeparator()
+            }
             // Plus de logo ni de titre en haut (28/10, « enlève prêt, FL Shortcuts, le logo ») : seulement ce qui
             // cloche (en pause, clavier non autorisé, FL fermé…), rien quand tout va bien.
             if let line = statusLine {
@@ -747,7 +795,7 @@ struct MenuContent: View {
 
             // Pied du panneau (maquette validée le 28/10) : ouvrir la fenêtre à gauche, quitter à droite.
             HStack(spacing: 8) {
-                PanelFooterButton(title: String(localized: "Ouvrir FL Shortcuts"), tint: .blue, prominent: true) {
+                PanelFooterButton(title: String(localized: "Ouvrir FL Shortcuts"), tint: Appearance.link, prominent: true) {
                     openWindow(id: "editor")
                     MainWindow.bringForward()
                 }

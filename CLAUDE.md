@@ -154,10 +154,10 @@
   simple (nom, raccourci, blocs activés/déplacés/retirés, réglages des blocs faits sur Windows ; les autres « à régler
   sur le Mac »), photos `macros-liste.png`/`macros-createur.png` sur la CI ; fiche d'un raccourci : 3e type « Macro ».
   Reste : ces blocs, blocs imbriqués (si/répéter) dans le créateur, enregistrement, compte, Communauté, Aide.
-- **Aspect validé le 28/10** (maquette, `HISTORIQUE`) : Liquid Glass seul, sans lavis ni lueur de couleur ; fond de
+- **Aspect validé le 28/10** (maquette, `HISTORIQUE`) : plus de Liquid Glass depuis le 29/10 (plaques dessinées), sans lavis ni lueur ; fond de
   fenêtre plein (« sans le Liquid Glass derrière »), verre devant : cartes, touches, cartes de l'Organiser
   (`GlassPlate`, dessiné : pas de `glassEffect` par ligne) ; titre de
-  page seul ; raccourcis sur deux colonnes (`CardColumns`) ; touche changée en bleu + ↺ ; rien d'inutile (pas de
+  page seul ; raccourcis en cartes sur deux colonnes (`CardMasonry`) ; touche changée en bleu + ↺ ; rien d'inutile (pas de
   phrases d'explication, de compteurs, de pause dans les menus) ; bleu pour l'action ; aucune animation en plus ;
   logo : c'est lui qui le fera. Textes « clairs sans détail » : une phrase courte par bloc, aucune explication de
   la façon de faire ; bloc « Ouvrir un preset » (ex-« Déposer un preset sur la piste »). Début (maquettes du 28/10,
@@ -165,6 +165,11 @@
   (À autoriser, En attente…, Autorisé) ; « Relier FL Studio » en 3 étapes d'une ligne + aperçu de MIDI Settings ;
   guide « Bienvenue » (une ligne par partie) puis pages en 3 étapes d'une ligne (plus d'astuce ni de résumé) ;
   panneau « Active FL Shortcuts » ; cartes `PlateRows`/`GlassPlateBackground`, plus aucune lueur (`BrandGlow` retiré).
+- **À l'identique des maquettes** (29/10, `HISTORIQUE`) : fenêtre principale = `Main.dc.html` (plaque de gauche
+  avec les boutons de la fenêtre, `MainWindowChrome` ; en-tête titre + capsule du compte ; cartes par groupe,
+  `CatalogGroups`) ; créateur = `Macros.dc.html` (← rond, nom, touches, « Enregistrer » bleu ; « Retirer ce bloc »).
+  Gardés hors maquette (sa demande) : recherche par une touche, « Enregistrer clics et touches ». Retirés : menu ⋯,
+  « + » des pages de raccourcis, Dupliquer, « Si le bloc échoue », Note, barre d'outils, Exporter du créateur.
 - Interface, survol (choix du propriétaire le 29/10, exemple « B — intérieur plein » de la maquette) : une option
   survolée est PLEINE de sa couleur, texte en blanc, icône de couleur en blanc translucide (`menuHover` →
   `hoverFilled`, détails colorés par `hoverTint`) ; plus de contour ni de halo ; le contenu ne grossit jamais ; les

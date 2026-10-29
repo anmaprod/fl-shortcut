@@ -555,12 +555,8 @@ struct MacroSidebarRow: View {
     let choose: () -> Void
 
     var body: some View {
-        Label {
-            Text("Macros")
-        } icon: {
-            SectionIcon(symbol: SidebarItem.macros.symbol, tint: SidebarItem.macros.tint)
-        }
-        .sidebarRow(SidebarItem.macros.tint, selected: selected, choose: choose)
-        .help(MacroPageText.subtitle)
+        SidebarLabel(title: Text("Macros"), symbol: SidebarItem.macros.symbol, tint: SidebarItem.macros.tint)
+            .sidebarRow(SidebarItem.macros.tint, selected: selected, choose: choose)
+            .help(MacroPageText.subtitle)
     }
 }

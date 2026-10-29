@@ -1,6 +1,6 @@
-// Page Aide de la fenêtre principale (barre latérale, sous Communauté ; aussi le menu ⋯ et le menu de la barre des
-// menus) : recherche dans les questions fréquentes, puis « Écrire à l'équipe » (problème, question ou idée), avec
-// l'état de l'app joint si on le laisse coché, affiché tel quel. Envoi par le serveur s'il est branché ; sinon, ou
+// Page Aide de la fenêtre principale (barre de gauche, sous Communauté ; aussi le menu de la barre des menus) :
+// recherche dans les questions fréquentes, puis « Écrire à l'équipe » (problème, question ou idée), avec l'état de
+// l'app joint si on le laisse coché, affiché tel quel. Envoi par le serveur s'il est branché ; sinon, ou
 // s'il échoue, par mail, en copie ou en ticket GitHub (Support.swift).
 import AppKit
 import SwiftUI

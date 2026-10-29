@@ -369,6 +369,31 @@ struct OrganizerEnvironment {
     }
 }
 
+/// Écoute de l'Organiser en cours, pour la carte du menu de l'icône (maquette du 28/10 : « Organiser · 12 sons sur
+/// 40 », une barre, « Arrêter ») ; nil hors écoute. Des nombres seulement.
+final class OrganizerProgress: ObservableObject {
+    static let shared = OrganizerProgress()
+
+    struct Listening: Equatable {
+        let done: Int
+        let total: Int
+    }
+
+    @Published private(set) var listening: Listening?
+
+    private init() {}
+
+    func follow(_ phase: OrganizerController.Phase) {
+        var next: Listening?
+        if case .listening(let done, let total) = phase, total > 0 { next = Listening(done: done, total: total) }
+        if next != listening { listening = next }
+    }
+
+    func clear() {
+        if listening != nil { listening = nil }
+    }
+}
+
 final class OrganizerController: ObservableObject {
     /// Ce qu'Organiser attend de FL : il réessaie tout seul (`waitInterval`) et continue dès que c'est bon.
     enum Wait: Equatable {
@@ -399,7 +424,9 @@ final class OrganizerController: ObservableObject {
         case failed(String)
     }
 
-    @Published private(set) var phase: Phase = .starting
+    @Published private(set) var phase: Phase = .starting {
+        didSet { OrganizerProgress.shared.follow(phase) }
+    }
     /// Famille de chaque son du Channel rack (index du canal), modifiable dans l'aperçu.
     @Published var families: [Int: SoundFamily] = [:]
     /// Ce qu'est chaque son (Kick, 808, Open Hat…), modifiable dans l'aperçu ; oublié s'il ne va plus avec sa
@@ -1037,6 +1064,7 @@ final class OrganizerController: ObservableObject {
     func close() {
         guard !closed else { return }
         closed = true
+        OrganizerProgress.shared.clear()
         session?.cancel()
         session = nil
         let done = onClose

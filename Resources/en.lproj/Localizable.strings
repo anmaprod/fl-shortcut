@@ -159,6 +159,7 @@
 "Actualiser : voir les derniers partages" = "Refresh: see the latest posts";
 "Adlib" = "Adlib";
 "Adresse mail invalide." = "Invalid email address.";
+"Affichage" = "View";
 "Affiche la Playlist" = "Shows the Playlist";
 "Affiche le Browser" = "Shows the Browser";
 "Affiche le Channel Rack" = "Shows the Channel Rack";
@@ -246,6 +247,7 @@
 "Arrête la lecture dans FL" = "Stop playback in FL";
 "Arrête la macro ici, avec un message facultatif." = "Stops the macro here, with an optional message.";
 "Arrêter" = "Stop";
+"Arrêter l'Organiser : FL revient comme avant" = "Stop organizing: FL goes back to how it was";
 "Arrêter la macro" = "Stop the macro";
 "Arrêté" = "Stopped";
 "Arrêtée : %@" = "Stopped: %@";
@@ -327,6 +329,7 @@
 "Autre" = "Other";
 "Autre (lettres soulignées)…" = "Other (underlined letters)…";
 "Autre dossier de FL…" = "Other FL folder…";
+"Autres" = "Other";
 "Avance rapide" = "Fast forward";
 "Avancer" = "Forward";
 "Avec le lien avec FL : la piste choisie passe en solo (ou le perd) tout de suite, sans aucun clic." = "With the FL link: the chosen track is soloed (or unsoloed) right away, with no clicks.";
@@ -383,6 +386,7 @@
 "Canal" = "Channel";
 "Canal au-dessus" = "Channel above";
 "Canal en dessous" = "Channel below";
+"Canaux" = "Channels";
 "Canaux, mute, solo, pas" = "Channels, mute, solo, steps";
 "Capture d'une zone" = "Screenshot of selected area";
 "Capture d'une zone dans le presse-papiers" = "Copy selected area to clipboard";
@@ -433,6 +437,7 @@
 "Changer la touche…" = "Change key…";
 "Changer le mode de stretch" = "Change stretch mode";
 "Changer le mot de passe" = "Change password";
+"Changer le raccourci de la macro" = "Change the macro's shortcut";
 "Changer…" = "Change…";
 "Channel Rack" = "Channel Rack";
 "Channel rack" = "Channel rack";
@@ -447,6 +452,7 @@
 "Charger un profil" = "Load a profile";
 "Cherche dans l'aide : raccourcis, macro, pause…" = "Search help: shortcuts, macro, pause…";
 "Cherché par son nom ou son image au moment du clic (autorisation « Enregistrement de l'écran »)." = "Looked up by its name or image at click time (“Screen Recording” permission).";
+"Choisir" = "Choose";
 "Choisir dans la grille des icônes de FL" = "Choose from FL's icon grid";
 "Choisir dans la liste de FL" = "Choose from FL's list";
 "Choisir dans la roue des couleurs de FL" = "Choose from FL's color wheel";
@@ -506,6 +512,7 @@
 "Clavier autorisé" = "Keyboard allowed";
 "Clavier d'ordinateur → clavier-piano" = "Typing keyboard → piano keyboard";
 "Clavier non autorisé" = "No keyboard access";
+"Clavier-piano" = "Piano keyboard";
 "Clavier-piano : octave 2" = "Piano keyboard: octave 2";
 "Clavier-piano : octave 3" = "Piano keyboard: octave 3";
 "Clavier-piano : octave 4" = "Piano keyboard: octave 4";
@@ -618,6 +625,7 @@
 "Crée un compte : mail, mot de passe et nom d'utilisateur. Seul ton nom est visible des autres." = "Create an account: email, password and username. Only your name is visible to others.";
 "Crée un pattern vide et ouvre le Piano Roll" = "Creates an empty pattern and opens the Piano Roll";
 "Crée une macro, ou ouvre-en une depuis la fenêtre Raccourcis › Macros." = "Create a macro, or open one from the Shortcuts › Macros window.";
+"Créer et renommer" = "Create and rename";
 "Créer mon compte" = "Create my account";
 "Créer sa piste audio (Playlist)" = "Create your audio track (Playlist)";
 "Créer un compte" = "Create an account";
@@ -790,6 +798,7 @@
 "Exemple : FL Shortcuts, interrupteur activé" = "Example: FL Shortcuts, switch on";
 "Explication" = "Description";
 "Explication : %lld caractères au plus." = "Description: %lld characters max.";
+"Export" = "Export";
 "Export Stems" = "Export Stems";
 "Export impossible" = "Export failed";
 "Export impossible." = "Export failed.";
@@ -917,10 +926,12 @@
 "Fenêtre Spotlight" = "Spotlight window";
 "Fenêtre de FL" = "FL window";
 "Fenêtre de FL autorisée : tout est prêt." = "FL window allowed: you're all set.";
+"Fenêtres" = "Windows";
 "Fenêtres de l'application" = "Application windows";
 "Fenêtres et attentes" = "Windows and waits";
 "Fermer" = "Close";
 "Fermer la fenêtre" = "Close window";
+"Fermer le guide : tu le retrouves dans la page Aide ou le menu de la barre des menus" = "Close the guide: you'll find it again on the Help page or in the menu bar menu";
 "Fermer le guide : tu le retrouves dans le menu ⋯ ou le menu de la barre des menus" = "Close the guide: you'll find it again in the ⋯ menu or the menu bar menu";
 "Fermer toutes les fenêtres" = "Close all windows";
 "Fichier" = "File";
@@ -955,6 +966,7 @@
 "Glisse la famille au-dessus ou en dessous d'une autre : le Channel rack, le Mixer et la Playlist suivent cet ordre" = "Drag the family above or below another one: the Channel rack, Mixer and Playlist follow this order";
 "Glisse le fichier sur la dernière piste cliquée dans le Mixer, comme depuis le Finder : FL y charge l'état de piste, sans menu ni boîte « Open »." = "Drags the file onto the last clicked track in the Mixer, as from the Finder: FL loads the track state there, with no menu or “Open” dialog.";
 "Glisse les lignes pour les ranger" = "Drag rows to reorder them";
+"Glisse un bloc ici, ou clique-le dans la liste à gauche" = "Drag a block here, or click it in the list on the left";
 "Glisser" = "Drag";
 "Glisser à montrer dans FL : choisis le bloc puis « Montrer dans FL… »." = "Drag to show in FL: choose the block, then “Show in FL…”.";
 "Glisser à montrer dans FL." = "Drag to show in FL.";
@@ -1007,6 +1019,7 @@
 "Instrument suivant" = "Next instrument";
 "Instrument suivant avec des notes" = "Next instrument with notes";
 "Instrument suivant, sans quitter le Piano Roll" = "Next instrument, without leaving the Piano Roll";
+"Instruments" = "Instruments";
 "Insérer la valeur du contrôleur" = "Insert controller value";
 "Introuvable : %@" = "Not found: %@";
 "Inverser (clips audio)" = "Reverse (audio clips)";
@@ -1100,6 +1113,7 @@
 "Le « + » en haut à droite partage une de tes macros, ou tous tes raccourcis, avec ton explication." = "The “+” at the top right shares one of your macros, or all your shortcuts, with your description.";
 "Le « + » partage une de tes macros, ou tous tes raccourcis, avec ton explication." = "The “+” shares one of your macros, or all your shortcuts, with your own explanation.";
 "Lead" = "Lead";
+"Lecture" = "Playback";
 "Lecture / Pause" = "Play / Pause";
 "Lecture / Stop" = "Play / Stop";
 "Lecture de l'écran impossible : endroit retenu sans image." = "Can't read the screen: spot saved without an image.";
@@ -1139,6 +1153,7 @@
 "Lien inactif" = "Link inactive";
 "Lien inactif : quitte et rouvre FL (il relie « FL Shortcuts Link » tout seul)" = "Link inactive: quit and reopen FL (it connects “FL Shortcuts Link” on its own)";
 "Lien installé" = "Link installed";
+"Liens" = "Links";
 "Lier les canaux à la piste" = "Link channels to track";
 "Lier les canaux à partir de cette piste" = "Link channels starting from this track";
 "Lire ce menu dans FL" = "Read this menu in FL";
@@ -1184,6 +1199,7 @@
 "Majuscule" = "Shift";
 "Marqueur précédent" = "Previous marker";
 "Marqueur suivant" = "Next marker";
+"Marqueurs" = "Markers";
 "Masquer" = "Hide";
 "Master en mono" = "Master in mono";
 "Membres" = "Members";
@@ -1191,6 +1207,7 @@
 "Menu (ancien format)" = "Menu (old format)";
 "Menu de FL" = "FL menu";
 "Menu de l'icône en haut de l'écran (ou menu ⋯ de la fenêtre) › « Désinstaller FL Shortcuts… » : l'app, tes raccourcis, tes macros, ses réglages, ses autorisations et le lien avec FL sont retirés, et le bilan dit s'il reste quelque chose à glisser dans la Corbeille." = "Menu bar icon menu (or the window's ⋯ menu) › “Uninstall FL Shortcuts…”: the app, your shortcuts, your macros, its settings, its permissions and the link with FL are removed, and the summary tells you if anything is left to drag to the Trash.";
+"Menu de l'icône en haut de l'écran › « Désinstaller FL Shortcuts… » : l'app, tes raccourcis, tes macros, ses réglages, ses autorisations et le lien avec FL sont retirés, et le bilan dit s'il reste quelque chose à glisser dans la Corbeille." = "Menu bar icon menu › “Uninstall FL Shortcuts…”: the app, your shortcuts, your macros, its settings, its permissions and the link with FL are removed, and the summary tells you if anything is left to drag to the Trash.";
 "Menu de la piste" = "Track menu";
 "Menu de la piste sous le curseur" = "Track menu under the cursor";
 "Menu de la piste › Arm selected track(s)" = "Track menu › Arm selected track(s)";
@@ -1257,6 +1274,7 @@
 "Mot de passe oublié ?" = "Forgot password?";
 "Mot de passe trop faible : %@." = "Password too weak: %@.";
 "Muet dans ses patterns : classé avec deux notes d'essai. Vérifie sa famille." = "Silent in its patterns: sorted using two test notes. Check its family.";
+"Mute" = "Mute";
 "Mute d'un canal (son numéro)" = "Mute a channel (by number)";
 "Mute de la piste" = "Track mute";
 "Mute de la piste (coupe ou remet le son)" = "Mute the track (mute or unmute)";
@@ -1324,6 +1342,7 @@
 "Organiser continue tout seul dès que FL est prêt." = "Organizer continues on its own as soon as FL is ready.";
 "Organiser le projet" = "Organize the project";
 "Organiser parle à FL par un script que FL Shortcuts installe dans FL Studio. Ensuite, tout se fait seul." = "Organizer talks to FL through a script that FL Shortcuts installs in FL Studio. After that, everything happens on its own.";
+"Organiser · %lld sons sur %lld" = "Organize · %lld of %lld sounds";
 "Organiser écoute chaque son seul : FL doit être à l'arrêt." = "Organizer listens to each sound alone: FL must be stopped.";
 "Organiser écoute seulement le son de FL, sans l'enregistrer. Réglages Système › Confidentialité et sécurité › Enregistrement de l'écran et de l'audio du système : active FL Shortcuts dans « Audio du système uniquement »." = "Organizer only listens to FL's sound, without recording it. System Settings › Privacy & Security › Screen & System Audio Recording: turn on FL Shortcuts under “System Audio Recording Only”.";
 "Organiser…" = "Organize…";
@@ -1346,6 +1365,8 @@
 "Outil suppression" = "Delete tool";
 "Outil sélection" = "Select tool";
 "Outil zoom" = "Zoom tool";
+"Outils" = "Tools";
+"Outils de notes" = "Note tools";
 "Outils, notes, quantize, instruments" = "Tools, notes, quantize, instruments";
 "Outils, sélection, zoom, marqueurs" = "Tools, selection, zoom, markers";
 "Output" = "Output";
@@ -1422,6 +1443,7 @@
 "Partagé : tes raccourcis, le titre, ton explication, ton nom d'utilisateur." = "Shared: your shortcuts, the title, your description, your username.";
 "Partir d'un modèle…" = "Start from a template…";
 "Partout" = "Everywhere";
+"Pas" = "Steps";
 "Pas content ?" = "Not happy?";
 "Pas d'icône avec un dégradé (FL la pose sur un seul élément)." = "No icon with a gradient (FL sets it on one item only).";
 "Pas d'icône avec un dégradé." = "No icon with a gradient.";
@@ -1479,6 +1501,7 @@
 "Piste du Mixer de ce son : tire vers le haut ou le bas comme dans FL, ou clique pour l'écrire" = "Mixer track of this sound: drag up or down like in FL, or click to type it";
 "Piste précédente" = "Previous track";
 "Piste suivante" = "Next track";
+"Pistes" = "Tracks";
 "Pistes, solo, liens, rendu" = "Tracks, solo, links, render";
 "Playlist" = "Playlist";
 "Playlist : %lld clips déplacés sur la piste de leur son (un son par piste)." = "Playlist: %lld clips moved to their sound's track (one sound per track).";
@@ -1523,6 +1546,8 @@
 "Profil importé" = "Profile imported";
 "Profil inaccessible (%@). Profil recommandé chargé." = "Can't access profile (%@). Recommended profile loaded.";
 "Profil « %@ » chargé" = "Profile “%@” loaded";
+"Projet" = "Project";
+"Projets récents" = "Recent projects";
 "Propriété suivante dans la zone d'événements" = "Next property in the event area";
 "Propriétés de la piste" = "Track properties";
 "Près du clic précédent" = "Near the previous click";
@@ -1626,6 +1651,8 @@
 "Retenu par rapport à la fenêtre de FL." = "Remembered relative to the FL window.";
 "Retire du projet les clips audio inutilisés." = "Removes unused audio clips from the project.";
 "Retirer" = "Remove";
+"Retirer ce bloc" = "Remove this block";
+"Retirer ce bloc de la macro (⌫)" = "Remove this block from the macro (⌫)";
 "Retirer tous les solos" = "Clear all solos";
 "Retouche les blocs dans le créateur." = "Fine-tune the blocks in the creator.";
 "Retouche-la dans le créateur : ajoute des blocs de la palette d'un clic ou en les glissant, range les lignes en les glissant." = "Fine-tune it in the creator: add blocks from the palette with a click or by dragging, and drag rows to reorder them.";
@@ -1746,6 +1773,7 @@
 "Snap" = "Snap";
 "Snare" = "Snare";
 "Sois le premier : partage une macro qui te fait gagner du temps, avec une petite explication pour les autres." = "Be the first: share a macro that saves you time, with a short description for others.";
+"Solo" = "Solo";
 "Solo avec les pistes reliées" = "Solo with linked tracks";
 "Solo d'un canal (son numéro)" = "Solo a channel (by number)";
 "Solo de la piste" = "Solo track";
@@ -1800,6 +1828,7 @@
 "Sur la piste visée" = "On the target track";
 "Sweep" = "Sweep";
 "Synth" = "Synth";
+"Sélection" = "Selection";
 "Sélection au hasard" = "Random selection";
 "Sélectionne au moins 2 pistes pour un dégradé." = "Select at least 2 tracks for a gradient.";
 "Sélectionne au moins un élément dans FL." = "Select at least one item in FL.";
@@ -1995,6 +2024,7 @@
 "Vérifier le larsen" = "Check for feedback";
 "X Mixer, P Piano Roll, F Browser, Y instruments et effets, T outils, Q quantize, ⌘T découpe, ⌘R répète, " = "X Mixer, P Piano Roll, F Browser, Y instruments and effects, T tools, Q quantize, ⌘T splits, ⌘R repeats, ";
 "Zipper les canaux" = "Zip channels";
+"Zoom" = "Zoom";
 "Zoom arrière" = "Zoom out";
 "Zoom avant" = "Zoom in";
 "Zoom horizontal niveau 1" = "Horizontal zoom level 1";
@@ -2367,6 +2397,7 @@
 "Écris un titre (%lld caractères au moins)" = "Write a title (at least %lld characters)";
 "Écrit comme dans FL." = "Written as in FL.";
 "Écrit exactement comme dans le menu Add › %@ de FL." = "Written exactly as in FL's Add › %@ menu.";
+"Édition" = "Editing";
 "Élément" = "Item";
 "Élément précédent, avec préécoute" = "Previous item, with preview";
 "Élément suivant, avec préécoute" = "Next item, with preview";
@@ -2405,6 +2436,7 @@
 "étape %@ non faite (%@)" = "step %@ skipped (%@)";
 "état de FL inconnu." = "unknown FL state.";
 "÷ (pavé)" = "÷ (keypad)";
+"↺ remet la touche de FL." = "↺ puts FL's key back.";
 "⇧⌘R" = "⇧⌘R";
 "− (pavé)" = "− (keypad)";
 "⌃1…⌃5 pour les fenêtres, ⌃D/⌃F patterns, ⌃T/⌃S mute/solo, ⌃M métronome, ⌘⇧Z rétablir. Rien n'écrase FL." = "⌃1…⌃5 for windows, ⌃D/⌃F patterns, ⌃T/⌃S mute/solo, ⌃M metronome, ⌘⇧Z redo. Nothing overrides FL.";
