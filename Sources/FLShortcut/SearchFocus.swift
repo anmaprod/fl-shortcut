@@ -144,8 +144,16 @@ struct SearchFocusGuard: NSViewRepresentable {
             return name.prefix { $0 != "<" }.contains("SearchField")
         }
 
+        /// Recherches posées par l'app (SidebarSearchField) : hébergées par SwiftUI, AppKit ne les trouvait pas sous la
+        /// souris, et la garde lui reprenait aussitôt la main (vrai clic de la CI du 29/10). Un clic dans leur capsule
+        /// (un peu plus grande que le champ) compte comme un clic dedans.
+        static let fields = NSHashTable<NSView>.weakObjects()
+
         /// Un clic tombe dans une recherche (ou dans son texte en cours d'édition).
         static func searchField(at point: NSPoint, in window: NSWindow) -> Bool {
+            for field in fields.allObjects where field.window === window && !field.isHiddenOrHasHiddenAncestor {
+                if field.convert(field.bounds, to: nil).insetBy(dx: -8, dy: -10).contains(point) { return true }
+            }
             guard let frame = window.contentView?.superview, var view = frame.hitTest(point) else { return false }
             while true {
                 if isSearchEditor(view) { return true }

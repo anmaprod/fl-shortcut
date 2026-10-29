@@ -8,21 +8,72 @@ import SwiftUI
 
 /// Réglage AppKit de la fenêtre principale : titre caché, barre de titre transparente au-dessus du contenu, barre
 /// d'outils vide (les boutons fermer / réduire / agrandir descendent à 19 points du coin, dans la plaque de gauche).
+/// Cette bande de 52 points ne laisse pas passer les clics (vrai clic de la CI du 29/10) : les boutons de la page sont
+/// posés dessous (`contentTop`).
 enum MainWindowChrome {
+    /// Hauteur de la barre de titre (barre d'outils unifiée) : rien de cliquable au-dessus.
+    static let titleBarHeight: CGFloat = 52
+    /// Haut de l'en-tête des pages, sous la barre de titre (la fenêtre a 8 points de marge).
+    static let contentTop: CGFloat = titleBarHeight - 8
+
+    private static var watched = Set<ObjectIdentifier>()
+
+    /// Réglé tout de suite, encore juste après (SwiftUI règle la fenêtre après l'avoir posée : il remettait le titre
+    /// et une bande opaque) et chaque fois qu'elle reprend la main.
+    static func keep(_ window: NSWindow) {
+        apply(to: window)
+        for delay in [0.05, 0.3, 1.0] {
+            DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak window] in
+                if let window { apply(to: window) }
+            }
+        }
+        let id = ObjectIdentifier(window)
+        guard !watched.contains(id) else { return }
+        watched.insert(id)
+        _ = NotificationCenter.default.addObserver(forName: NSWindow.didBecomeKeyNotification, object: window,
+                                                   queue: .main) { note in
+            if let window = note.object as? NSWindow { apply(to: window) }
+        }
+    }
+
     static func apply(to window: NSWindow) {
-        window.titleVisibility = .hidden
-        window.titlebarAppearsTransparent = true
+        if window.titleVisibility != .hidden { window.titleVisibility = .hidden }
+        if !window.titlebarAppearsTransparent { window.titlebarAppearsTransparent = true }
         if !window.styleMask.contains(.fullSizeContentView) { window.styleMask.insert(.fullSizeContentView) }
         window.backgroundColor = NSColor(red: 0.086, green: 0.086, blue: 0.094, alpha: 1)
-        window.titlebarSeparatorStyle = .none
+        if window.titlebarSeparatorStyle != .none { window.titlebarSeparatorStyle = .none }
         if window.toolbar == nil {
             let toolbar = NSToolbar(identifier: "fl.fenetre-principale")
             toolbar.allowsUserCustomization = false
             toolbar.displayMode = .iconOnly
             window.toolbar = toolbar
         }
-        window.toolbar?.isVisible = true
-        window.toolbarStyle = .unified
+        if window.toolbar?.isVisible == false { window.toolbar?.isVisible = true }
+        if window.toolbarStyle != .unified { window.toolbarStyle = .unified }
+    }
+}
+
+extension View {
+    /// Titre et fond de la barre de titre cachés aussi côté SwiftUI (qui les remettait), sans bande ni effet de bord
+    /// en haut (macOS 26).
+    @ViewBuilder func hiddenWindowChrome() -> some View {
+        #if compiler(>=6.2)
+        if #available(macOS 26.0, *) {
+            toolbar(removing: .title)
+                .toolbarBackgroundVisibility(.hidden, for: .windowToolbar)
+                .scrollEdgeEffectHidden(true, for: .top)
+        } else if #available(macOS 15.0, *) {
+            toolbar(removing: .title).toolbarBackgroundVisibility(.hidden, for: .windowToolbar)
+        } else {
+            self
+        }
+        #else
+        if #available(macOS 15.0, *) {
+            toolbar(removing: .title).toolbarBackgroundVisibility(.hidden, for: .windowToolbar)
+        } else {
+            self
+        }
+        #endif
     }
 }
 
@@ -144,6 +195,7 @@ struct SidebarSearchField: NSViewRepresentable {
         field.delegate = context.coordinator
         field.setAccessibilityLabel(prompt)
         field.stringValue = text
+        SearchFocusGuard.GuardView.fields.add(field)          // un clic dans sa capsule la choisit
         context.coordinator.serial = focusSerial
         return field
     }

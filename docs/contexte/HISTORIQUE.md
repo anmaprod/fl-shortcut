@@ -545,3 +545,12 @@ entrée 1 ≈ 0,5 s.
   Essai CI : vrai clic sur Mon compte en haut de la fenêtre (`entete-essai.txt`), photo du menu pendant l'écoute
   (`menu-icone-organiser.png`), positions du glisser-déposer du créateur recalculées. Reste de la maquette : le nom
   d'une famille modifiable dans l'aperçu de l'Organiser (il touche le nom des bus et des pistes : à part).
+- Vu sur la CI de 891e083 (verte) : SwiftUI remettait le titre de la fenêtre et une bande opaque en haut (titre de la
+  page et bouton Mon compte cachés dessous) ; la bande de 52 points ne laisse passer aucun clic (vrai clic à y 30 :
+  rien ; à y 60 : Mon compte) ; un clic dans la recherche ne lui donnait pas la main (la garde ne la trouvait pas
+  sous la souris, vue hébergée par SwiftUI) ; créateur : pastille « Pause fixe » repliée lettre par lettre, phrases
+  coupées. Corrigé : `.windowStyle(.hiddenTitleBar)` + `hiddenWindowChrome()` + réglage AppKit gardé
+  (`MainWindowChrome.keep`), en-têtes posés sous la barre de titre (`contentTop`), recherche reconnue à sa place
+  (`SearchFocusGuard.GuardView.fields`) et capsule cliquable, réglages du bloc en largeur fixe (270), pastilles
+  jamais repliées. Graphify branché (graphe du code sur cette branche : `graphify update .`, dossier `graphify-out/`
+  hors du dépôt).

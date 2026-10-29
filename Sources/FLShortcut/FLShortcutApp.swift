@@ -56,6 +56,9 @@ struct FLShortcutApp: App {
                 .frame(minWidth: 820, minHeight: 480)
         }
         .windowResizability(.contentMinSize)
+        // Barre de titre transparente, sans titre (maquette) : SwiftUI la remettait opaque, avec le titre, par-dessus
+        // le réglage AppKit (photo de la CI du 29/10).
+        .windowStyle(.hiddenTitleBar)
         // Première ouverture à la taille de la maquette : les cartes y tiennent sur deux colonnes.
         .defaultSize(width: 1180, height: 760)
 

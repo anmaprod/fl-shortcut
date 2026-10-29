@@ -93,8 +93,10 @@ struct MacroCreatorView: View {
                 MacroStepsPane(model: model, monitor: model.monitor, paletteItems: model.paletteItems, onBack: onBack)
             }
             .frame(minWidth: 280, maxWidth: .infinity, maxHeight: .infinity)
+            // Réglages du bloc : largeur fixe, les étapes gardent la place (photo de la CI : lignes coupées).
             MacroInspectorView(model: model)
-                .frame(minWidth: 240, idealWidth: 290, maxWidth: 320)
+                .padding(.top, MainWindowChrome.contentTop - 8)
+                .frame(width: 270)
                 .frame(maxHeight: .infinity)
                 .background(MockPlate(cornerRadius: 19, top: 0.10, bottom: 0.04, border: 0.16))
         }
@@ -105,10 +107,12 @@ struct MacroCreatorView: View {
         .ignoresSafeArea()
         // Titre de la fenêtre (menu Fenêtre, VoiceOver) ; jamais affiché.
         .navigationTitle(model.draft?.name ?? String(localized: "Créateur de macros"))
+        .hiddenWindowChrome()
         // Fenêtre qui l'affiche : retour du focus après « Montrer dans FL… », et devant FL tant qu'il est affiché.
         .background(WindowReader { [model] window in
             model.window = window
             CreatorPresence.attach(window)
+            MainWindowChrome.keep(window)
         })
         .onAppear {
             model.undoManager = undoManager
@@ -135,7 +139,8 @@ private struct MacroStepsPane: View {
                         .padding(.horizontal, 22)
                     list
                 }
-                .padding(.top, 10)
+                // Sous la barre de titre : elle ne laisse passer aucun clic.
+                .padding(.top, MainWindowChrome.contentTop)
             } else {
                 VStack(spacing: 10) {
                     SectionIcon(symbol: "wand.and.stars", tint: .purple, size: 44)
@@ -151,7 +156,7 @@ private struct MacroStepsPane: View {
                 .overlay(alignment: .topLeading) {
                     CreatorBackButton(action: onBack)
                         .padding(.leading, 22)
-                        .padding(.top, 10)
+                        .padding(.top, MainWindowChrome.contentTop)
                 }
             }
         }
@@ -408,7 +413,7 @@ private struct MacroStepRowView: View, Equatable {
             Text(row.verb).italic().foregroundStyle(.secondary).lineLimit(2)
         } else {
             HStack(spacing: 6) {
-                Text(row.verb).font(.system(size: 14)).lineLimit(1)
+                Text(row.verb).font(.system(size: 14)).lineLimit(1).layoutPriority(1)
                 if let value = row.value {
                     Text(value)
                         .font(.system(size: 13, weight: .semibold))
@@ -494,6 +499,8 @@ private struct BadgeCapsule: View {
             .padding(.horizontal, 6)
             .padding(.vertical, 1)
             .background(Capsule().fill(badge.tint.opacity(0.13)))
+            .lineLimit(1)
+            .fixedSize()                                 // jamais replié lettre par lettre
             .help(badge.help)
     }
 }

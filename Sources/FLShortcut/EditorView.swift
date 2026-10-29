@@ -289,7 +289,7 @@ struct EditorView: View {
         // Reprise après « Quitter et rouvrir » : la fenêtre, sa page et la macro ouverte sont notées à la fermeture.
         .background(WindowReader { window in
             AppResume.shared.editorWindow = window
-            MainWindowChrome.apply(to: window)
+            MainWindowChrome.keep(window)
         })
         .onChange(of: selection) { AppResume.shared.page = $0 }
         .sheet(isPresented: $showGuide, onDismiss: { guideSeen = true }) {
@@ -463,7 +463,8 @@ struct EditorView: View {
                 pageHeader
                 detail(data)
             }
-            .padding(.top, 10)
+            // Sous la barre de titre : elle ne laisse passer aucun clic.
+            .padding(.top, MainWindowChrome.contentTop)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
         .padding(8)
@@ -483,6 +484,7 @@ struct EditorView: View {
         }
         // Titre de la fenêtre (menu Fenêtre, VoiceOver) ; jamais affiché dans la barre de titre.
         .navigationTitle(title)
+        .hiddenWindowChrome()
         // Active seulement après un clic dedans (ou ⌘F) : taper ailleurs n'y écrit plus rien ; un clic ailleurs, dans
         // l'app ou dehors, la lui reprend.
         .background(SearchFocusGuard())
@@ -658,6 +660,9 @@ struct EditorView: View {
         .frame(height: 34)
         .background(Capsule().fill(Color.white.opacity(0.07)))
         .overlay(Capsule().strokeBorder(Color.white.opacity(0.08), lineWidth: 1))
+        // Un clic dans la capsule, à côté du texte, donne aussi la main à la recherche.
+        .contentShape(Capsule())
+        .onTapGesture { searchFocusSerial += 1 }
     }
 
     // MARK: Détail

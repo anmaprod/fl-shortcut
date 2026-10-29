@@ -203,14 +203,14 @@ search_test() {   # $1 : rapport gardé (position de la fenêtre)
   "$MOVE" 20 400
 }
 
-# En-tête de la page (maquette du 28/10) : le bouton Mon compte (capsule en haut à droite) répond à un vrai clic, même
-# dans la bande de la barre de titre transparente (y 30), et plus bas (y 60). Fenêtre de 960 points : centre du bouton
-# à 960 − 8 − 26 − 3 − 22 = 901. Résultat : $OUT/entete-essai.txt (titre de la fenêtre après chaque clic) + photos.
+# En-tête de la page (maquette du 28/10) : le bouton Mon compte (capsule en haut à droite, sous la barre de titre de
+# 52 points qui ne laisse passer aucun clic) répond à un vrai clic en haut (y 62) et au milieu (y 78). Fenêtre de 960
+# points : centre du bouton à 960 − 8 − 26 − 3 − 22 = 901. Résultat : $OUT/entete-essai.txt (titre de la fenêtre après chaque clic) + photos.
 header_test() {   # $1 : rapport gardé (position de la fenêtre)
   local ox oy y f="$OUT/entete-essai.txt"
   : > "$f"
   read -r ox oy < <(origin "$1") || { echo "en-tête : position de la fenêtre inconnue" >> "$f"; return; }
-  for y in 30 60; do
+  for y in 62 78; do
     "$POST" app.flshortcut.debug.select general; sleep 1.5
     "$CLICK" $(( ox + 901 )) $(( oy + y )) >/dev/null 2>&1; sleep 1.5
     report "entete-$y" >/dev/null
@@ -393,13 +393,13 @@ run() {   # $1 : libellé, $2 : YES/NO effet verre
   fit+=" / $(fits "$label-createur-ouvert")"
   # Vrai glisser-déposer à la souris : « Touche ou raccourci » de la palette (1er bloc de Clavier, sous les 10 blocs
   # de FL Studio), lâché entre les blocs 4 et 5 de l'exemple ; la liste des blocs doit gagner une ligne.
-  drag "$label-createur-ouvert" 113 420 465 342; sleep 2
+  drag "$label-createur-ouvert" 113 420 465 376; sleep 2
   report "$label-createur-glisse" >/dev/null
   screencapture -x "$OUT/$label-createur-glisse.png" 2>/dev/null || true
   drop="$(rows "$label-createur-ouvert") → $(rows "$label-createur-glisse")"
   # Puis un bloc de la liste déplacé à la souris : « Clic droit » (2e ligne, sur son nom, sous le bandeau
   # « Enregistrer clics et touches ») lâché entre les lignes 6 et 7 ; l'ordre des blocs doit changer.
-  drag "$label-createur-ouvert" 400 222 400 438; sleep 2
+  drag "$label-createur-ouvert" 400 256 400 472; sleep 2
   report "$label-createur-deplace" >/dev/null
   screencapture -x "$OUT/$label-createur-deplace.png" 2>/dev/null || true
   if [[ -z "$(order "$label-createur-glisse")" ]]; then moved="?"
@@ -407,10 +407,10 @@ run() {   # $1 : libellé, $2 : YES/NO effet verre
   else moved="NON"; fi
   # Les mêmes gestes faits vite, comme une vraie main (appui puis départ aussitôt) : la liste doit encore gagner une
   # ligne, puis l'ordre changer. Résultat dans glisser-essai.txt.
-  drag "$label-createur-ouvert" 113 420 465 390 vite; sleep 2
+  drag "$label-createur-ouvert" 113 420 465 424 vite; sleep 2
   report "$label-createur-glisse-vite" >/dev/null
   screencapture -x "$OUT/$label-createur-glisse-vite.png" 2>/dev/null || true
-  drag "$label-createur-ouvert" 400 222 400 438 vite; sleep 2
+  drag "$label-createur-ouvert" 400 256 400 472 vite; sleep 2
   report "$label-createur-deplace-vite" >/dev/null
   { echo "$label : palette → liste lent $(rows "$label-createur-ouvert") → $(rows "$label-createur-glisse"), vite → $(rows "$label-createur-glisse-vite")"
     if [[ "$(order "$label-createur-glisse-vite")" != "$(order "$label-createur-deplace-vite")" ]]; then
