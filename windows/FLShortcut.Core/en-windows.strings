@@ -83,3 +83,15 @@
 "la boîte « Open » n'a pas pris le fichier" = "the “Open” box didn't take the file";
 "Pas dans mes favoris (pris dans « More plugins… » de FL)" = "Not in my favorites (taken from FL's “More plugins…”)";
 "Réparer" = "Repair";
+"Ports MIDI « FL Shortcuts »" = "“FL Shortcuts” MIDI ports";
+"Prêts : « FL Shortcuts » et « FL Shortcuts Retour »." = "Ready: “FL Shortcuts” and “FL Shortcuts Retour”.";
+"Ouvre loopMIDI et crée deux ports nommés exactement « FL Shortcuts » et « FL Shortcuts Retour »." = "Open loopMIDI and create two ports named exactly “FL Shortcuts” and “FL Shortcuts Retour”.";
+"Prêts" = "Ready";
+"FL Shortcuts ne regarde tes touches que quand FL Studio est au premier plan. Rien n'est enregistré ni envoyé." = "FL Shortcuts only watches your keys when FL Studio is in front. Nothing is recorded or sent.";
+"Dans FL : Options › MIDI Settings, entrée « FL Shortcuts » : Enable, Controller type « FL Shortcuts »" = "In FL: Options › MIDI Settings, input “FL Shortcuts”: Enable, Controller type “FL Shortcuts”";
+"Sortie « FL Shortcuts Retour » : le même numéro de Port que l'entrée" = "Output “FL Shortcuts Retour”: the same Port number as the input";
+"Le Mixer vient de s'ouvrir dans FL Studio." = "The Mixer just opened in FL Studio.";
+"FL Studio n'a pas répondu. Vérifie MIDI Settings." = "FL Studio didn't answer. Check MIDI Settings.";
+"Choisir le dossier de FL…" = "Choose FL's folder…";
+"Retour aux raccourcis" = "Back to shortcuts";
+"Où ?" = "Where?";
