@@ -105,23 +105,9 @@ internal sealed partial class MainShell
 
         if (!photos)
         {
-            _tray = new TrayIcon(_hwnd, "FL Shortcuts") { IsEnabled = () => _app.Enabled };
+            _tray = new TrayIcon(_hwnd, "FL Shortcuts");
             _tray.OpenRequested += () => window.DispatcherQueue.TryEnqueue(() => ShowFromTray(ask: true));
-            _tray.ToggleRequested += () => window.DispatcherQueue.TryEnqueue(_app.Toggle);
-            _tray.QuitRequested += () => window.DispatcherQueue.TryEnqueue(Quit);
-            _tray.HasPendingCopy = () => _app.Approval.Pending.Count > 0;
-            _tray.OrganizeRequested += () => window.DispatcherQueue.TryEnqueue(() => OrganizerWindow.Show(_app));
-            _tray.MacrosRequested += () => window.DispatcherQueue.TryEnqueue(() =>
-            {
-                ShowFromTray(ask: false);
-                _macros.Back();
-                if (_app.Onboarded) Choose(PageKind.Macros, _section);
-            });
-            _tray.ApproveRequested += () => window.DispatcherQueue.TryEnqueue(() =>
-            {
-                ShowFromTray(ask: false);
-                CopyApprovalPrompt.Ask(_root.XamlRoot, _app, force: true);
-            });
+            _tray.MenuRequested += () => window.DispatcherQueue.TryEnqueue(ShowTrayMenu);
         }
 
         _poll = window.DispatcherQueue.CreateTimer();
@@ -180,6 +166,30 @@ internal sealed partial class MainShell
         _window.AppWindow.Show();
         _window.Activate();
         if (ask) CopyApprovalPrompt.Ask(_root.XamlRoot, _app, force: false);
+    }
+
+    /// Le menu de l'icône, noir comme celui du Mac : l'état, les fenêtres de l'appli, « Ouvrir FL Shortcuts », « Quitter ».
+    private void ShowTrayMenu()
+    {
+        var entries = new List<TrayMenu.Entry>
+        {
+            new("keyboard", Accent, Loc.T("Modifier les raccourcis…"), () => ShowFromTray(ask: false)),
+        };
+        if (_app.Approval.Pending.Count > 0)
+            entries.Add(new("check", Green, Loc.T("Valider la version organisée…"), () =>
+            {
+                ShowFromTray(ask: false);
+                CopyApprovalPrompt.Ask(_root.XamlRoot, _app, force: true);
+            }));
+        entries.Add(new("macros", Purple, Loc.T("Macros…"), () =>
+        {
+            ShowFromTray(ask: false);
+            _macros.Back();
+            if (_app.Onboarded) Choose(PageKind.Macros, _section);
+        }));
+        entries.Add(new("organize", Indigo, Loc.T("Organiser…"), () => OrganizerWindow.Show(_app)));
+        var status = _app.Enabled ? Loc.T(_app.StatusTitle) : Loc.T("En pause");
+        TrayMenu.Show(status, _app.Enabled && _app.Status is StatusKind.Linked or StatusKind.FlClosed, entries, () => ShowFromTray(ask: true), Quit);
     }
 
     private void Quit()

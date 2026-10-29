@@ -293,6 +293,11 @@ internal static class Win32
     [return: MarshalAs(UnmanagedType.Bool)]
     public static extern bool GetCursorPos(out POINT lpPoint);
 
+    // ---------- Coins arrondis d'une fenêtre (Windows 11 ; sans effet ailleurs) : le menu de l'icône ----------
+    public const int DWMWA_WINDOW_CORNER_PREFERENCE = 33, DWMWCP_ROUND = 2;
+    [DllImport("dwmapi.dll")]
+    public static extern int DwmSetWindowAttribute(IntPtr hwnd, int attribute, ref int value, int size);
+
     // ---------- Fenêtres de FL (titres, premier plan) : l'Organiser ----------
     public delegate bool EnumWindowsProc(IntPtr hWnd, IntPtr lParam);
     public const int SW_RESTORE = 9;

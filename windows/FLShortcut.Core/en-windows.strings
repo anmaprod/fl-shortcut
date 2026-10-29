@@ -95,3 +95,19 @@
 "Choisir le dossier de FL…" = "Choose FL's folder…";
 "Retour aux raccourcis" = "Back to shortcuts";
 "Où ?" = "Where?";
+/* État de FL Shortcuts (fenêtre principale, menu de l'icône). */
+"Actif dans FL Studio" = "Active in FL Studio";
+"Actif quand FL Studio est au premier plan." = "Active when FL Studio is in front.";
+"Dans FL Studio : Options › MIDI Settings, active « FL Shortcuts »." = "In FL Studio: Options › MIDI Settings, enable “FL Shortcuts”.";
+"FL Studio est lancé en administrateur" = "FL Studio is running as administrator";
+"FL Studio utilise ses raccourcis d'origine." = "FL Studio uses its original shortcuts.";
+"Installe le lien avec FL Studio pour utiliser les actions." = "Install the link with FL Studio to use the actions.";
+"Le script FL a été modifié" = "The FL script was modified";
+"Les ports MIDI « FL Shortcuts » sont introuvables." = "The “FL Shortcuts” MIDI ports can't be found.";
+"Lien non installé" = "Link not installed";
+"Relance FL Studio normalement : Windows empêche FL Shortcuts d'agir sur une appli administrateur." = "Restart FL Studio normally: Windows stops FL Shortcuts from acting on an administrator app.";
+"Relié à FL Studio" = "Linked to FL Studio";
+"Réinstalle le lien pour mettre le script à jour." = "Reinstall the link to update the script.";
+"Réinstalle le lien pour retrouver un script sûr." = "Reinstall the link to get a safe script back.";
+"Tes raccourcis marchent quand FL Studio est au premier plan." = "Your shortcuts work when FL Studio is in front.";
+"Tes raccourcis marcheront dès que tu l'ouvres." = "Your shortcuts will work as soon as you open it.";
