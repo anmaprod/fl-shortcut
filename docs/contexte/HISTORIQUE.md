@@ -578,6 +578,11 @@ entrée 1 ≈ 0,5 s.
   tuto en 4 images à la 1re ouverture), menu de l'icône noir (`TrayMenu.cs`), question de validation sombre. Vérifié
   sur les photos de la CI Windows (principale, Playlist, Mes raccourcis, recherche, macros, Organiser, tuto). Pas
   encore sur Windows (hors demande) : compte, Communauté, Aide, enregistrement des macros, icônes de FL de l'Organiser.
+  Menu de l'icône : l'appli tombait à sa création (photos CI) ; sous page heap, la cause : retirer la barre de titre
+  d'une fenêtre WinUI déjà créée (`SetBorderAndTitleBar` ou présentation « menu ») fait libérer deux fois par le
+  Windows App SDK 1.6 l'objet d'accessibilité de ses boutons (`CTitleBarCaptionButtonsFragmentProvider`). Le menu
+  est une `AppWindow` créée d'emblée en présentation « menu », panneau posé par `DesktopWindowXamlSource`, fermé au
+  premier clic ailleurs (`WM_ACTIVATE`) ; photo `menu-icone.png`, toutes les photos passent sous page heap.
 - Désinstallation (29/10, « il faut aussi refaire la désinstallation dans le style du nouveau style, mais il faut pas
   toucher à sa fonctionnalité juste a l'image ») : seule la vue change (`UninstallView`) : fond noir plein, icône et
   titre en gras, risque dans une plaque bordée d'orange (lien vers Mon compte), « Supprimer aussi mes fichiers

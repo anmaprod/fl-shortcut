@@ -144,7 +144,11 @@
   l'app (le propriétaire : « on s'en fout de Linux ») ; le cœur se teste avec `dotnet test`.
   CI : `--photos <dossier>` photographie les 6 écrans de l'Organiser (sons d'exemple), sous le débogueur cdb (pile et
   erreur d'origine si WinUI tombe). JAMAIS `SetDefaultDllDirectories` (la 1re fenêtre tombait : E_INVALIDARG du
-  Windows App SDK auto-contenu) : `SetDllDirectory("")`. Macros (cœur `windows/FLShortcut.Core/Macros/`) : modèle et JSON
+  Windows App SDK auto-contenu) : `SetDllDirectory("")`. JAMAIS retirer la barre de titre d'une fenêtre WinUI déjà
+  créée (`SetBorderAndTitleBar`, présentation « menu ») : le Windows App SDK libère deux fois un objet de ses boutons,
+  mémoire abîmée puis chute (CI du 29/10) ; menu de l'icône = `AppWindow.Create` en présentation « menu » +
+  `DesktopWindowXamlSource` (`TrayMenu.cs`) ; photos de la CI sous page heap (une telle écriture s'y arrête net).
+  Macros (cœur `windows/FLShortcut.Core/Macros/`) : modèle et JSON
   communs au Mac, registre des blocs, validation, pages/« Cliquer sur… », modèles, catalogue des 270 raccourcis de FL
   (`Catalog.cs`, généré depuis Catalog.swift), programme compilé et interpréteur (`MacroProgram.cs`,
   `MacroInterpreter.cs` : miroir de MacroInterpreter.swift, mêmes essais avec de faux effets), bibliothèque
