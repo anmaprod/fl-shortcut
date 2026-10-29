@@ -1,0 +1,530 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Tuto FL Shortcuts</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<meta name="description" content="Bien démarrer avec FL Shortcuts : installer, autoriser, relier FL Studio, tes raccourcis, tes macros et l'Organiser.">
+<link rel="icon" href="icon.png">
+<style>
+/* Même direction artistique que l'app (maquettes du 28/10) : fond noir, fenêtres #161618, plaques claires en dégradé,
+   bleu pour l'action, icônes carrées de couleur. Page sombre seulement, comme l'app.
+   Mise en page : une colonne d'étapes ; dans chaque étape, le texte à gauche et l'écran de l'app à droite. */
+:root {
+  --ground: #0B0B0D;
+  --window: #161618;
+  --menu: #1C1C1F;
+  --text: #F5F5F7;
+  --muted: rgba(235, 235, 245, 0.62);
+  --faint: rgba(235, 235, 245, 0.38);
+  --line: rgba(255, 255, 255, 0.08);
+  --accent: #0071E3;
+  --link: #4AA3FF;
+  --green: #30D158;
+  --orange: #FF9F0A;
+  --red: #FF453A;
+  --indigo: #5E5CE6;
+  --plate: linear-gradient(180deg, rgba(255,255,255,0.10) 0%, rgba(255,255,255,0.045) 100%);
+  --plate-edge: rgba(255, 255, 255, 0.15);
+  --font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", "Segoe UI", system-ui, sans-serif;
+  --font-display: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Helvetica Neue", "Segoe UI", system-ui, sans-serif;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: var(--ground);
+  color: var(--text);
+  font: 15px/1.5 var(--font);
+  -webkit-font-smoothing: antialiased;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+a { color: var(--link); }
+a:hover { color: #7DBBFF; }
+a:focus-visible { outline: 2px solid var(--link); outline-offset: 3px; border-radius: 6px; }
+main { max-width: 1040px; margin: 0 auto; padding-block: 56px 72px; display: flex; flex-direction: column; gap: 28px; }
+
+/* En-tête de la page */
+.hero { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 20px 24px; align-items: center; padding-bottom: 12px; }
+.hero img { width: 84px; height: 84px; border-radius: 20px; box-shadow: 0 18px 40px rgba(0,0,0,0.55); }
+.hero h1 { margin: 0; font: 700 40px/1.05 var(--font-display); letter-spacing: -0.02em; text-wrap: balance; }
+.hero p { margin: 8px 0 0; color: var(--muted); font-size: 17px; max-width: 52ch; text-wrap: balance; }
+.steps-nav { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0 0; padding: 0; list-style: none; }
+.steps-nav a {
+  display: inline-flex; align-items: center; gap: 8px; height: 34px; padding: 0 14px 0 6px; border-radius: 17px;
+  background: rgba(255,255,255,0.07); border: 1px solid var(--line); color: var(--text); text-decoration: none; font-size: 13px;
+}
+.steps-nav a:hover { background: var(--accent); border-color: var(--accent); color: #fff; }
+.steps-nav b { width: 22px; height: 22px; border-radius: 11px; display: grid; place-items: center; background: var(--accent);
+  color: #fff; font-size: 11px; font-variant-numeric: tabular-nums; }
+.steps-nav a:hover b { background: rgba(255,255,255,0.24); }
+
+/* Une étape : le texte, puis l'écran de l'app */
+.step {
+  display: grid; grid-template-columns: minmax(0, 330px) minmax(0, 1fr); gap: 32px; align-items: center;
+  padding: 32px; border-radius: 26px; background: var(--window); border: 1px solid var(--line);
+  box-shadow: 0 30px 80px rgba(0,0,0,0.5); scroll-margin-top: 24px;
+}
+.step .text { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+.num { display: inline-flex; align-items: center; gap: 10px; color: var(--muted); font-size: 12px; font-weight: 600;
+  letter-spacing: 0.06em; text-transform: uppercase; }
+.num b { width: 28px; height: 28px; border-radius: 14px; display: grid; place-items: center; background: var(--accent);
+  color: #fff; font-size: 13px; letter-spacing: 0; font-variant-numeric: tabular-nums; }
+.step h2 { margin: 0; font: 700 26px/1.15 var(--font-display); letter-spacing: -0.01em; text-wrap: balance; }
+.lines { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 10px; }
+.lines li { display: grid; grid-template-columns: 22px minmax(0, 1fr); gap: 10px; align-items: start; font-size: 15px; }
+.lines li::before { content: ""; width: 8px; height: 8px; margin: 7px 0 0 6px; border-radius: 4px; background: var(--accent); }
+.lines li.sub { color: var(--muted); font-size: 13.5px; }
+.lines li.sub::before { background: rgba(255,255,255,0.25); }
+kbd { font: 600 12.5px/1 var(--font); display: inline-grid; place-items: center; min-width: 22px; height: 22px; padding: 0 6px;
+  border-radius: 6px; background: rgba(255,255,255,0.12); border: 1px solid rgba(255,255,255,0.2);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.25); vertical-align: 1px; }
+.path { white-space: nowrap; font-weight: 600; }
+.stage { min-width: 0; display: flex; justify-content: center; }
+
+/* Écrans de l'app, dessinés comme les maquettes */
+.win { position: relative; width: 100%; max-width: 600px; border-radius: 18px; background: #141416;
+  border: 1px solid rgba(255,255,255,0.10); box-shadow: 0 24px 60px rgba(0,0,0,0.55); padding: 8px; overflow: hidden; }
+.lights { display: flex; gap: 7px; padding: 4px 4px 0; }
+.lights span { width: 11px; height: 11px; border-radius: 6px; background: #FF5F57; }
+.lights span:nth-child(2) { background: #FEBC2E; }
+.lights span:nth-child(3) { background: #28C840; }
+.plate { border-radius: 14px; background: var(--plate); border: 1px solid var(--plate-edge);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.22), inset 0 -1px 0 rgba(0,0,0,0.12), 0 8px 24px rgba(0,0,0,0.2); }
+.sq { flex: none; width: 20px; height: 20px; border-radius: 5px; display: grid; place-items: center;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.3); }
+.sq svg { width: 11px; height: 11px; }
+.row { display: flex; align-items: center; gap: 10px; min-height: 34px; padding: 0 10px; font-size: 13px; }
+.row + .row { border-top: 1px solid rgba(255,255,255,0.06); }
+.row .grow { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.k { display: inline-grid; place-items: center; min-width: 22px; height: 22px; padding: 0 6px; border-radius: 6px;
+  font-size: 12px; font-weight: 600; background: rgba(255,255,255,0.12); border: 1px solid rgba(255,255,255,0.2);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.25); }
+.k.changed { background: rgba(10,132,255,0.24); border-color: rgba(74,163,255,0.75); box-shadow: none; }
+.keys { display: flex; gap: 4px; align-items: center; flex: none; }
+.reset { color: var(--muted); font-size: 13px; width: 18px; text-align: center; flex: none; }
+.blue { display: inline-flex; align-items: center; justify-content: center; height: 30px; padding: 0 16px; border-radius: 15px;
+  background: var(--accent); color: #fff; font-size: 13px; font-weight: 600; white-space: nowrap; flex: none; }
+.grey { display: inline-flex; align-items: center; justify-content: center; height: 28px; padding: 0 13px; border-radius: 14px;
+  background: rgba(255,255,255,0.10); border: 1px solid rgba(255,255,255,0.14); font-size: 12.5px; white-space: nowrap; flex: none; }
+.label { font-size: 11px; font-weight: 600; color: var(--muted); padding: 0 8px 4px; }
+.pulse { box-shadow: 0 0 0 3px rgba(0,113,227,0.35), 0 0 0 7px rgba(0,113,227,0.14); }
+.tap { position: relative; }
+.tap::after { content: ""; position: absolute; right: -10px; bottom: -14px; width: 22px; height: 22px;
+  background: no-repeat center/contain url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M5 3l14 9-6.5 1.4L16 21l-3 1.4-3.5-7.7L5 19z' fill='white' stroke='black' stroke-width='1.2' stroke-linejoin='round'/%3E%3C/svg%3E"); }
+
+/* 1. Installer */
+.dmg { display: flex; align-items: center; justify-content: center; gap: 28px; padding: 34px 20px 26px; }
+.dmg .app { display: flex; flex-direction: column; align-items: center; gap: 8px; font-size: 12px; }
+.dmg .app img { width: 72px; height: 72px; border-radius: 17px; }
+.dmg .folder { width: 72px; height: 60px; border-radius: 10px; background: linear-gradient(180deg, #5AC8FA, #0A84FF);
+  position: relative; margin-top: 8px; box-shadow: 0 10px 24px rgba(10,132,255,0.25); }
+.dmg .folder::before { content: ""; position: absolute; top: -8px; left: 6px; width: 28px; height: 12px; border-radius: 4px 4px 0 0; background: #4AB3F8; }
+.dmg .folder svg { position: absolute; inset: 0; margin: auto; width: 26px; height: 26px; }
+.arrow { color: var(--muted); font-size: 28px; }
+.settings { margin: 0 8px 8px; padding: 12px 14px; display: flex; align-items: center; gap: 12px; font-size: 12.5px; }
+.settings .grow { flex: 1; min-width: 0; color: var(--muted); }
+
+/* 2. Autoriser */
+.onb { padding: 26px 20px 22px; display: flex; flex-direction: column; align-items: center; gap: 18px; }
+.onb h3 { margin: 0; font: 700 26px/1 var(--font-display); letter-spacing: -0.01em; }
+.onb .plate { width: 100%; max-width: 380px; padding: 2px 4px; }
+.onb .row { min-height: 50px; }
+.state { font-size: 12px; font-weight: 600; padding: 4px 10px; border-radius: 11px; white-space: nowrap; flex: none; }
+.state.ok { color: var(--green); background: rgba(48,209,88,0.14); }
+.state.todo { color: var(--link); background: rgba(10,132,255,0.16); }
+.onb .detail { color: var(--muted); font-size: 12px; }
+
+/* 3. Relier FL */
+.midi { width: 100%; max-width: 420px; margin: 0; border-radius: 14px; border: 1px solid rgba(255,255,255,0.10);
+  box-shadow: 0 24px 60px rgba(0,0,0,0.55); background: #1d2023; }
+.midi img { display: block; width: 100%; height: auto; border-radius: 14px 14px 0 0; }
+.midi figcaption { padding: 10px 14px 12px; font-size: 13px; color: var(--muted); text-align: center; }
+
+/* 4. Raccourcis */
+.mainwin { display: grid; grid-template-columns: 150px minmax(0, 1fr); }
+.side { padding: 10px 6px 12px; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.search { display: flex; align-items: center; gap: 6px; height: 26px; margin: 2px 2px 0; padding: 0 8px; border-radius: 13px;
+  background: rgba(255,255,255,0.07); border: 1px solid var(--line); color: var(--faint); font-size: 11.5px; }
+.search span { flex: 1; }
+.side .item { display: flex; align-items: center; gap: 8px; height: 26px; padding: 0 7px; border-radius: 7px; font-size: 12px; white-space: nowrap; }
+.side .item .sq { width: 17px; height: 17px; border-radius: 4.5px; }
+.side .item .sq svg { width: 9px; height: 9px; }
+.side .item.on { background: var(--accent); font-weight: 600; }
+.page { padding: 8px 14px 12px; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.pagehead { display: flex; align-items: center; justify-content: space-between; gap: 10px; min-height: 40px; }
+.pagehead b { font: 700 19px/1 var(--font-display); }
+.capsule { display: flex; padding: 2px; border-radius: 19px; background: rgba(255,255,255,0.10); border: 1px solid rgba(255,255,255,0.18); }
+.capsule span { width: 32px; height: 32px; border-radius: 16px; display: grid; place-items: center; }
+.capsule svg { width: 15px; height: 15px; }
+.cards { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; align-items: start; }
+.card { min-width: 0; }
+.card-title { font-size: 11px; font-weight: 600; color: var(--muted); margin: 0 0 5px 10px; }
+.card .plate { padding: 2px; }
+.card .row { min-height: 31px; font-size: 12px; padding: 0 8px; gap: 6px; }
+.card .k { min-width: 20px; height: 20px; font-size: 11px; padding: 0 5px; }
+.row.hover { background: var(--green); border-radius: 9px; color: #fff; }
+.row.hover + .row { border-top-color: transparent; }
+
+/* 5. Macros */
+.creator { display: grid; grid-template-columns: 140px minmax(0, 1fr); }
+.palette { padding: 10px 6px; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.palette .item { display: flex; align-items: center; gap: 7px; height: 24px; padding: 0 6px; border-radius: 6px; font-size: 11.5px; white-space: nowrap; }
+.palette .item .sq { width: 16px; height: 16px; border-radius: 4px; }
+.palette .item .sq svg { width: 9px; height: 9px; }
+.palette .item.hover { background: var(--green); color: #fff; }
+.chead { display: flex; align-items: center; gap: 8px; min-height: 40px; }
+.back { width: 32px; height: 32px; border-radius: 16px; display: grid; place-items: center; background: rgba(255,255,255,0.10);
+  border: 1px solid rgba(255,255,255,0.18); flex: none; }
+.back svg { width: 11px; height: 11px; }
+.cname { flex: 1; min-width: 0; font: 700 17px/1.2 var(--font-display); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rec { display: flex; align-items: center; gap: 9px; padding: 8px 10px; border-radius: 10px; background: rgba(255,69,58,0.10);
+  border: 1px solid rgba(255,69,58,0.32); font-size: 12px; font-weight: 600; }
+.rec i { width: 16px; height: 16px; border-radius: 8px; border: 2px solid var(--red); display: grid; place-items: center; flex: none; }
+.rec i::after { content: ""; width: 7px; height: 7px; border-radius: 4px; background: var(--red); }
+.rec small { margin-left: auto; color: var(--faint); font-weight: 500; }
+.stepsc .row { min-height: 38px; font-size: 12.5px; gap: 9px; }
+.stepsc .n { width: 12px; color: var(--muted); font-size: 11px; text-align: right; flex: none; }
+.pill { padding: 2px 7px; border-radius: 6px; background: rgba(255,255,255,0.12); border: 1px solid rgba(255,255,255,0.2); font-weight: 600; font-size: 12px; }
+.switch { flex: none; width: 28px; height: 17px; border-radius: 9px; background: var(--accent); padding: 2px; display: flex; justify-content: flex-end; }
+.switch::after { content: ""; width: 13px; height: 13px; border-radius: 7px; background: #fff; }
+.drop { height: 38px; padding: 0 10px; border-radius: 12px; border: 1px dashed rgba(235,235,245,0.25); display: grid; place-items: center;
+  color: var(--muted); font-size: 11.5px; text-align: center; }
+
+/* 6. Organiser */
+.org { padding: 12px 14px 14px; display: flex; flex-direction: column; gap: 12px; }
+.orghead { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.orghead b { flex: 1; font: 700 19px/1 var(--font-display); }
+.fams { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; align-items: start; }
+.fam { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.famhead { display: flex; align-items: center; gap: 7px; font-size: 12.5px; font-weight: 600; padding: 0 4px; }
+.dot { width: 12px; height: 12px; border-radius: 4px; flex: none; }
+.slot { margin-left: auto; font-size: 11px; color: var(--muted); font-weight: 500; }
+.fam .row { min-height: 29px; font-size: 11.5px; padding: 0 8px; gap: 6px; }
+.fam .old { color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; flex: 1; }
+.fam .to { color: var(--faint); flex: none; }
+.fam .new { font-weight: 600; white-space: nowrap; flex: none; }
+.track { flex: none; min-width: 22px; height: 18px; border-radius: 5px; display: grid; place-items: center; font-size: 10.5px;
+  font-weight: 700; color: #fff; padding: 0 4px; }
+.orgfoot { display: flex; justify-content: flex-end; gap: 8px; padding-top: 10px; border-top: 1px solid var(--line); }
+
+/* 7. Au quotidien */
+.desk { width: 100%; max-width: 520px; border-radius: 18px; overflow: hidden; border: 1px solid rgba(255,255,255,0.10);
+  background: radial-gradient(120% 90% at 70% 0%, #2b3242 0%, #15171c 60%); box-shadow: 0 24px 60px rgba(0,0,0,0.55); padding-bottom: 18px; }
+.menubar { display: flex; justify-content: flex-end; align-items: center; gap: 14px; height: 30px; padding: 0 14px;
+  background: rgba(0,0,0,0.35); font-size: 12px; }
+.mbicon { width: 26px; height: 20px; border-radius: 5px; display: grid; place-items: center; background: rgba(255,255,255,0.22); }
+.menu { width: 300px; max-width: calc(100% - 24px); margin: 6px 40px 0 auto; border-radius: 18px; background: var(--menu);
+  border: 1px solid rgba(255,255,255,0.10); box-shadow: 0 24px 60px rgba(0,0,0,0.6); padding: 10px 6px 6px;
+  display: flex; flex-direction: column; gap: 2px; }
+.menu .item { display: flex; align-items: center; gap: 10px; height: 34px; padding: 0 8px; border-radius: 9px; font-size: 13px; }
+.menu .item .sq { width: 22px; height: 22px; border-radius: 6px; }
+.menu .item.hover { background: var(--indigo); color: #fff; }
+.menu .item.hover .sq { background: rgba(255,255,255,0.24) !important; box-shadow: none; }
+.menu hr { border: 0; height: 1px; background: var(--line); margin: 5px 8px; }
+.menu .plain { color: var(--muted); font-size: 12.5px; padding: 4px 10px; }
+.menu .foot { display: flex; justify-content: space-between; align-items: center; padding: 8px 10px 4px; font-size: 12.5px; }
+.menu .foot b { color: var(--link); }
+.menu .foot span { color: var(--muted); }
+
+footer { color: var(--faint); font-size: 12.5px; text-align: center; padding-top: 8px; }
+
+@media (max-width: 860px) {
+  .step { grid-template-columns: minmax(0, 1fr); padding: 22px; gap: 22px; }
+  .hero h1 { font-size: 32px; }
+}
+@media (max-width: 560px) {
+  .hero { grid-template-columns: minmax(0, 1fr); }
+  .hero img { width: 64px; height: 64px; border-radius: 15px; }
+  .mainwin, .creator { grid-template-columns: minmax(0, 1fr); }
+  .side, .palette { display: none; }
+  .cards, .fams { grid-template-columns: minmax(0, 1fr); }
+  .menu { margin: 6px 12px 0 auto; }
+  .dmg { gap: 16px; }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .steps-nav a { transition: background-color .15s, border-color .15s; }
+}
+</style>
+</head>
+<body>
+<main>
+
+<header class="hero">
+  <img src="icon.png" alt="">
+  <div>
+    <h1>Bien démarrer avec FL Shortcuts</h1>
+    <p>Tes raccourcis, tes macros et ton projet rangé dans FL Studio. Sept étapes, à faire une seule fois.</p>
+  </div>
+  <ol class="steps-nav" aria-label="Étapes">
+    <li><a href="#installer"><b>1</b>Installer</a></li>
+    <li><a href="#autoriser"><b>2</b>Autoriser</a></li>
+    <li><a href="#relier"><b>3</b>Relier FL Studio</a></li>
+    <li><a href="#raccourcis"><b>4</b>Tes raccourcis</a></li>
+    <li><a href="#macros"><b>5</b>Les macros</a></li>
+    <li><a href="#organiser"><b>6</b>Organiser</a></li>
+    <li><a href="#quotidien"><b>7</b>Au quotidien</a></li>
+  </ol>
+</header>
+
+<section class="step" id="installer" data-capture="tuto-1-installer">
+  <div class="text">
+    <span class="num"><b>1</b>Étape</span>
+    <h2>Installer</h2>
+    <ul class="lines">
+      <li>Ouvre <span class="path">FLShortcuts.dmg</span> et glisse l'app dans Applications.</li>
+      <li>Lance-la : son icône arrive en haut de l'écran.</li>
+      <li class="sub">macOS la bloque ? Réglages Système › Confidentialité et sécurité › <b>Ouvrir quand même</b>.</li>
+    </ul>
+  </div>
+  <div class="stage">
+    <div class="win">
+      <div class="lights"><span></span><span></span><span></span></div>
+      <div class="dmg">
+        <div class="app"><img src="icon.png" alt="">FL Shortcuts</div>
+        <span class="arrow" aria-hidden="true">→</span>
+        <div class="app"><div class="folder"><svg viewBox="0 0 16 16" fill="none" stroke="#fff" stroke-width="1.6" stroke-linecap="round"><path d="M3 4h10M3 8h10M3 12h6"/></svg></div>Applications</div>
+      </div>
+      <div class="plate settings">
+        <span class="sq" style="background:#8E8E93"><svg viewBox="0 0 16 16" fill="none" stroke="#fff" stroke-width="1.7" stroke-linejoin="round"><path d="M8 2l5 2v4c0 3-2.2 5-5 6-2.8-1-5-3-5-6V4z"/></svg></span>
+        <span class="grow">« FL Shortcuts » a été bloquée.</span>
+        <span class="grey pulse tap">Ouvrir quand même</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="step" id="autoriser" data-capture="tuto-2-autoriser">
+  <div class="text">
+    <span class="num"><b>2</b>Étape</span>
+    <h2>Autoriser</h2>
+    <ul class="lines">
+      <li>Clique <b>Tout autoriser</b>, puis active FL Shortcuts dans Accessibilité.</li>
+      <li>Le son de FL sert à l'Organiser, pour écouter tes sons.</li>
+      <li class="sub">Rien n'est enregistré : le clavier n'est lu que quand FL est devant.</li>
+    </ul>
+  </div>
+  <div class="stage">
+    <div class="win">
+      <div class="lights"><span></span><span></span><span></span></div>
+      <div class="onb">
+        <h3>FL Shortcuts</h3>
+        <div class="plate">
+          <div class="row">
+            <span class="sq" style="background:#0A84FF"><svg viewBox="0 0 16 16" fill="none" stroke="#fff" stroke-width="1.6" stroke-linecap="round"><path d="M1.5 4h13v8h-13zM4 6.5h1M7.5 6.5h1M11 6.5h1M4.5 9.5h7"/></svg></span>
+            <span class="grow"><b>Clavier</b> <span class="detail">tes raccourcis</span></span>
+            <span class="state ok">Autorisé</span>
+          </div>
+          <div class="row">
+            <span class="sq" style="background:#FF9F0A"><svg viewBox="0 0 16 16" fill="none" stroke="#fff" stroke-width="1.6" stroke-linecap="round"><path d="M3 6v4M6 4v8M9 2v12M12 5v6"/></svg></span>
+            <span class="grow"><b>Son de FL</b> <span class="detail">l'Organiser</span></span>
+            <span class="state todo">À autoriser</span>
+          </div>
+        </div>
+        <span class="blue pulse tap" style="min-width:220px;height:36px">Tout autoriser…</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="step" id="relier" data-capture="tuto-3-relier">
+  <div class="text">
+    <span class="num"><b>3</b>Étape</span>
+    <h2>Relier FL Studio</h2>
+    <ul class="lines">
+      <li>Installe le lien : l'app te le propose.</li>
+      <li>Quitte FL avec <kbd>⌘</kbd> <kbd>Q</kbd>, puis rouvre-le.</li>
+      <li>Dans FL : <span class="path">Options › MIDI Settings</span>.</li>
+      <li>Règle les 4 cases entourées.</li>
+      <li class="sub">Le même numéro de Port en haut et en bas. C'est bon quand l'app dit « FL Studio est relié ».</li>
+    </ul>
+  </div>
+  <div class="stage">
+    <figure class="midi">
+      <img src="images/midi-settings.png" alt="MIDI Settings de FL : Port de la sortie, Enable, Controller type FL Shortcuts et Port de l'entrée, entourés et numérotés.">
+      <figcaption>1 Port en sortie · 2 Enable · 3 Controller type · 4 le même Port en entrée</figcaption>
+    </figure>
+  </div>
+</section>
+
+<section class="step" id="raccourcis" data-capture="tuto-4-raccourcis">
+  <div class="text">
+    <span class="num"><b>4</b>Étape</span>
+    <h2>Tes raccourcis</h2>
+    <ul class="lines">
+      <li>Choisis une page de FL à gauche.</li>
+      <li>Clique une touche, puis tape la nouvelle : elle passe en bleu.</li>
+      <li><b>↺</b> remet la touche de FL.</li>
+      <li class="sub">Tu connais la touche mais pas son nom ? Le clavier dans la recherche la retrouve.</li>
+    </ul>
+  </div>
+  <div class="stage">
+    <div class="win mainwin">
+      <div class="plate side">
+        <div class="lights"><span></span><span></span><span></span></div>
+        <div class="search"><span>Rechercher</span><svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M1.5 4h13v8h-13zM4.5 9.5h7"/></svg></div>
+        <div>
+          <div class="label">FL Studio</div>
+          <div class="item"><span class="sq" style="background:#8E8E93"><svg viewBox="0 0 16 16" fill="none" stroke="#fff" stroke-width="1.8"><circle cx="8" cy="8" r="2.6"/></svg></span>Général</div>
+          <div class="item"><span class="sq" style="background:#FF453A"><svg viewBox="0 0 16 16" fill="#fff"><path d="M5 3.5l7.5 4.5L5 12.5z"/></svg></span>Lecture</div>
+          <div class="item on"><span class="sq" style="background:#30D158"><svg viewBox="0 0 16 16" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round"><path d="M2 4h7M2 8h12M2 12h9"/></svg></span>Playlist</div>
+          <div class="item"><span class="sq" style="background:#BF5AF2"><svg viewBox="0 0 16 16" fill="none" stroke="#fff" stroke-width="1.6"><path d="M2 3h12v10H2zM8 3v10"/></svg></span>Piano Roll</div>
+          <div class="item"><span class="sq" style="background:#0A84FF"><svg viewBox="0 0 16 16" fill="none" stroke="#fff" stroke-width="1.7" stroke-linecap="round"><path d="M4 2v12M8 2v12M12 2v12"/></svg></span>Mixer</div>
+        </div>
+        <div>
+          <div class="label">Automatiser</div>
+          <div class="item"><span class="sq" style="background:#BF5AF2"><svg viewBox="0 0 16 16" fill="#fff"><path d="M8 2l1.5 4.5L14 8l-4.5 1.5L8 14l-1.5-4.5L2 8l4.5-1.5z"/></svg></span>Macros</div>
+        </div>
+      </div>
+      <div class="page">
+        <div class="pagehead"><b>Playlist</b><span class="capsule"><span><svg viewBox="0 0 16 16" fill="none" stroke="#F5F5F7" stroke-width="1.5" stroke-linecap="round"><circle cx="8" cy="5.8" r="2.6"/><path d="M3 14c0-2.8 2.2-4.6 5-4.6s5 1.8 5 4.6"/></svg></span></span></div>
+        <div class="cards">
+          <div class="card">
+            <div class="card-title">Outils</div>
+            <div class="plate">
+              <div class="row"><span class="grow">Outil crayon</span><span class="keys"><span class="k">P</span></span></div>
+              <div class="row hover"><span class="grow">Outil pinceau</span><span class="keys"><span class="k">B</span></span></div>
+              <div class="row"><span class="grow">Outil découpe</span><span class="reset">↺</span><span class="keys"><span class="k changed">X</span></span></div>
+              <div class="row"><span class="grow">Outil zoom</span><span class="keys"><span class="k">Z</span></span></div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-title">Sélection</div>
+            <div class="plate">
+              <div class="row"><span class="grow">Tout sélectionner</span><span class="keys"><span class="k">⌘</span><span class="k">A</span></span></div>
+              <div class="row"><span class="grow">Grouper les clips</span><span class="reset">↺</span><span class="keys"><span class="k changed">⌘</span><span class="k changed">G</span></span></div>
+              <div class="row"><span class="grow">Désélectionner</span><span class="keys"><span class="k">⌘</span><span class="k">D</span></span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="step" id="macros" data-capture="tuto-5-macros">
+  <div class="text">
+    <span class="num"><b>5</b>Étape</span>
+    <h2>Les macros</h2>
+    <ul class="lines">
+      <li>Page Macros › <b>Enregistrer une macro</b>.</li>
+      <li>Fais ta suite dans FL : chaque clic et chaque touche devient un bloc.</li>
+      <li>Donne-lui un raccourci, puis <b>Enregistrer</b>.</li>
+      <li class="sub">Tu peux aussi glisser des blocs de la liste de gauche.</li>
+    </ul>
+  </div>
+  <div class="stage">
+    <div class="win creator">
+      <div class="plate palette">
+        <div class="lights"><span></span><span></span><span></span></div>
+        <div>
+          <div class="label">FL Studio</div>
+          <div class="item"><span class="sq" style="background:#BF5AF2"><svg viewBox="0 0 16 16" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round"><path d="M2 4h12M2 8h12M2 12h7"/></svg></span>Menu de FL</div>
+          <div class="item"><span class="sq" style="background:#BF5AF2"><svg viewBox="0 0 16 16" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2v8M4.5 6.5L8 10l3.5-3.5M2.5 13.5h11"/></svg></span>Ouvrir un preset</div>
+        </div>
+        <div>
+          <div class="label">Clavier</div>
+          <div class="item"><span class="sq" style="background:#0A84FF"><svg viewBox="0 0 16 16" fill="none" stroke="#fff" stroke-width="1.6" stroke-linecap="round"><path d="M1.5 4h13v8h-13zM4.5 9.5h7"/></svg></span>Touche ou raccourci</div>
+        </div>
+        <div>
+          <div class="label">Souris</div>
+          <div class="item"><span class="sq" style="background:#FF9F0A"><svg viewBox="0 0 16 16" fill="#fff"><path d="M4 2l8 6-3.5.8L10.5 14 8.5 15 6.5 9.8 4 12z"/></svg></span>Clic</div>
+        </div>
+        <div>
+          <div class="label">Attente</div>
+          <div class="item hover"><span class="sq" style="background:rgba(255,255,255,0.24)"><svg viewBox="0 0 16 16" fill="none" stroke="#fff" stroke-width="1.7" stroke-linecap="round"><path d="M8 14.5a6.5 6.5 0 1 0 0-13a6.5 6.5 0 1 0 0 13M8 4.5V8l2.5 1.6"/></svg></span>Attendre</div>
+        </div>
+      </div>
+      <div class="page">
+        <div class="chead">
+          <span class="back"><svg viewBox="0 0 16 16" fill="none" stroke="#F5F5F7" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 3L5 8l5 5"/></svg></span>
+          <span class="cname">Enregistrer une voix</span>
+          <span class="keys"><span class="k">⌥</span><span class="k">R</span></span>
+          <span class="blue">Enregistrer</span>
+        </div>
+        <div class="rec pulse"><i></i>Enregistrer clics et touches<small>⇧⌘R</small></div>
+        <div class="plate stepsc">
+          <div class="row"><span class="n">1</span><span class="sq" style="background:#BF5AF2"><svg viewBox="0 0 16 16" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round"><path d="M2 4h12M2 8h12M2 12h7"/></svg></span><span class="grow">Ouvrir <span class="pill">Mixer</span></span><span class="switch"></span></div>
+          <div class="row"><span class="n">2</span><span class="sq" style="background:#BF5AF2"><svg viewBox="0 0 16 16" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2v8M4.5 6.5L8 10l3.5-3.5M2.5 13.5h11"/></svg></span><span class="grow">Ouvrir le preset <span class="pill">Voix lead.fst</span></span><span class="switch"></span></div>
+          <div class="row"><span class="n">3</span><span class="sq" style="background:#30D158"><svg viewBox="0 0 16 16" fill="none" stroke="#fff" stroke-width="1.7" stroke-linecap="round"><path d="M8 14.5a6.5 6.5 0 1 0 0-13a6.5 6.5 0 1 0 0 13M8 4.5V8l2.5 1.6"/></svg></span><span class="grow">Attendre <span class="pill">0,2 s</span></span><span class="switch"></span></div>
+          <div class="row"><span class="n">4</span><span class="sq" style="background:#0A84FF"><svg viewBox="0 0 16 16" fill="none" stroke="#fff" stroke-width="1.6" stroke-linecap="round"><path d="M1.5 4h13v8h-13zM4.5 9.5h7"/></svg></span><span class="grow">Appuyer sur <span class="pill">R</span></span><span class="switch"></span></div>
+        </div>
+        <div class="drop">Glisse un bloc ici, ou clique-le dans la liste à gauche</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="step" id="organiser" data-capture="tuto-6-organiser">
+  <div class="text">
+    <span class="num"><b>6</b>Étape</span>
+    <h2>Organiser</h2>
+    <ul class="lines">
+      <li>Ouvre ton projet dans FL, puis menu de l'icône › <b>Organiser…</b></li>
+      <li>Il écoute chaque son et te montre le rangement.</li>
+      <li>Change une famille, un nom ou une piste si tu veux, puis <b>Organiser</b>.</li>
+      <li class="sub">Ton projet ne bouge pas : tout est rangé dans une copie « _2 ». Tu la valides, ou tu reviens en arrière.</li>
+    </ul>
+  </div>
+  <div class="stage">
+    <div class="win org">
+      <div class="lights"><span></span><span></span><span></span></div>
+      <div class="orghead"><b>Organiser</b><span class="grey">Rangement automatique</span><span class="grey">Options</span></div>
+      <div class="fams">
+        <div class="fam">
+          <div class="famhead"><span class="dot" style="background:#FF453A"></span>Drums<span class="slot">Mixer 2</span></div>
+          <div class="plate">
+            <div class="row"><span class="old">kick_hard_03</span><span class="to">→</span><span class="new">Kick</span><span class="track" style="background:#FF453A">2</span></div>
+            <div class="row"><span class="old">SNR 12 room</span><span class="to">→</span><span class="new">Snare</span><span class="track" style="background:#FF453A">3</span></div>
+            <div class="row"><span class="old">hh loop 140</span><span class="to">→</span><span class="new">Hi-hat</span><span class="track" style="background:#FF453A">4</span></div>
+          </div>
+        </div>
+        <div class="fam">
+          <div class="famhead"><span class="dot" style="background:#FF9F0A"></span>808<span class="slot">Mixer 6</span></div>
+          <div class="plate">
+            <div class="row"><span class="old">Sub 808 long</span><span class="to">→</span><span class="new">808</span><span class="track" style="background:#FF9F0A">6</span></div>
+          </div>
+          <div class="famhead" style="margin-top:6px"><span class="dot" style="background:#BF5AF2"></span>Mélodies<span class="slot">Mixer 8</span></div>
+          <div class="plate">
+            <div class="row"><span class="old">ZENOLOGY #2</span><span class="to">→</span><span class="new">Pad</span><span class="track" style="background:#BF5AF2">8</span></div>
+            <div class="row"><span class="old">Serum 4</span><span class="to">→</span><span class="new">Lead</span><span class="track" style="background:#BF5AF2">9</span></div>
+          </div>
+        </div>
+      </div>
+      <div class="orgfoot"><span class="grey">Annuler</span><span class="blue pulse tap">Organiser</span></div>
+    </div>
+  </div>
+</section>
+
+<section class="step" id="quotidien" data-capture="tuto-7-quotidien">
+  <div class="text">
+    <span class="num"><b>7</b>Étape</span>
+    <h2>Au quotidien</h2>
+    <ul class="lines">
+      <li>L'icône en haut de l'écran ouvre le menu.</li>
+      <li><kbd>⌃</kbd> <kbd>⌥</kbd> <kbd>⌘</kbd> <kbd>F</kbd> met en pause ou reprend.</li>
+      <li>Un « ! » sur l'icône : il manque une autorisation.</li>
+      <li class="sub">Une question ? Page Aide, puis « Écrire à l'équipe ».</li>
+    </ul>
+  </div>
+  <div class="stage">
+    <div class="desk">
+      <div class="menubar"><span class="mbicon"><svg width="15" height="11" viewBox="0 0 16 12" fill="none" stroke="#F5F5F7" stroke-width="1.4" stroke-linecap="round"><rect x="1" y="1" width="14" height="10" rx="2"/><path d="M4 4.5h1M7.5 4.5h1M11 4.5h1M4.5 8h7"/></svg></span><span>mer. 29 oct.  10:42</span></div>
+      <div class="menu">
+        <div class="item"><span class="sq" style="background:#0A84FF"><svg viewBox="0 0 16 16" fill="none" stroke="#fff" stroke-width="1.6" stroke-linecap="round"><path d="M1.5 4h13v8h-13zM4.5 9.5h7"/></svg></span>Modifier les raccourcis…</div>
+        <div class="item"><span class="sq" style="background:#BF5AF2"><svg viewBox="0 0 16 16" fill="#fff"><path d="M8 2l1.5 4.5L14 8l-4.5 1.5L8 14l-1.5-4.5L2 8l4.5-1.5z"/></svg></span>Macros…</div>
+        <div class="item hover"><span class="sq" style="background:#5E5CE6"><svg viewBox="0 0 16 16" fill="none" stroke="#fff" stroke-width="1.6" stroke-linejoin="round"><path d="M8 2l6 3-6 3-6-3zM2 8l6 3 6-3M2 11l6 3 6-3"/></svg></span>Organiser…</div>
+        <hr>
+        <div class="plain">Désinstaller FL Shortcuts…</div>
+        <div class="foot"><b>Ouvrir FL Shortcuts</b><span>Quitter ⌘Q</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer>FL Shortcuts est un outil indépendant, non affilié à Image-Line. « FL Studio » est une marque d'Image-Line.</footer>
+</main>
+</body>
+</html>
