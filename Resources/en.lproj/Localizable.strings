@@ -412,6 +412,7 @@
 "Ce partage ne peut pas être ajouté : %@" = "This post can't be added: %@";
 "Ce qu'est vraiment ce son" = "What this sound really is";
 "Ce que fait la macro, étape par étape" = "What the macro does, step by step";
+"Ce que l'Organiser range, et le diagnostic à copier pour l'équipe" = "What Organize tidies, and the diagnostic to copy for the team";
 "Ce que tu faisais, ce qui devait se passer, ce qui s'est passé. Ex. : « ma macro s'arrête au 3e bloc dans le Mixer »." = "What you were doing, what should have happened, what happened. E.g.: “my macro stops at the 3rd block in the Mixer”.";
 "Ce qui te ferait gagner du temps dans FL Studio." = "What would save you time in FL Studio.";
 "Ce raccourci lancera ta version ; le modèle d'origine reste dans Macros › Modèles." = "This shortcut will run your version; the original template stays in Macros › Templates.";
@@ -1311,6 +1312,7 @@
 "On te répond à %@ dès que possible." = "We'll reply to %@ as soon as we can.";
 "Open Hat" = "Open Hat";
 "Option" = "Option";
+"Options" = "Options";
 "Options de la macro" = "Macro options";
 "Options › MIDI Settings" = "Options › MIDI Settings";
 "Options › Project general settings, puis deux clics que tu montres une fois dans FL (par exemple la mesure en 3/4)." = "Options › Project general settings, then two clicks you show once in FL (for example the 3/4 time signature).";

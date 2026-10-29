@@ -451,7 +451,8 @@ final class OrganizerController: ObservableObject {
         options.familyOrder = OrganizerOptions.completeOrder(env.loadFamilyOrder())
     }
 
-    var title: String { String(localized: "Organiser le projet") }
+    /// Le nom du bouton, comme la maquette du 28/10.
+    var title: String { String(localized: "Organiser") }
 
     /// Écoute de chaque son, hors du fil principal.
     func start() {
@@ -1067,6 +1068,8 @@ enum OrganizerWindow {
     static let minHeight: CGFloat = 160
     static let previewMinHeight: CGFloat = 420
     static let maxWidth: CGFloat = 760
+    /// Largeur donnée à l'aperçu à son arrivée : les familles sur deux colonnes (maquette du 28/10).
+    static let previewWidth: CGFloat = 720
 
     private final class Delegate: NSObject, NSWindowDelegate {
         func windowWillClose(_ notification: Notification) { OrganizerWindow.close() }
@@ -1147,16 +1150,20 @@ enum OrganizerWindow {
         }
         var target = preview ? max(previewHeight, previewMinHeight) : height
         target = max(min(target, tallest), minHeight)
+        // L'aperçu arrive assez large pour deux colonnes de familles (sans dépasser l'écran) ; la largeur choisie
+        // ensuite par l'utilisateur est gardée.
+        let widest = screen.map { $0.width - 40 } ?? maxWidth
+        let width = entering ? min(max(content.width, previewWidth), widest) : content.width
         if !preview {
             // Les autres étapes : la hauteur de leur contenu, fixe ; seule la largeur se tire.
             panel.contentMinSize = NSSize(width: OrganizerView.width, height: min(target, content.height))
             panel.contentMaxSize = NSSize(width: maxWidth, height: max(target, content.height))
         }
-        guard abs(target - content.height) > 0.5 else {
+        guard abs(target - content.height) > 0.5 || abs(width - content.width) > 0.5 else {
             if !preview { pin(panel, height: target) }
             return
         }
-        var frame = panel.frameRect(forContentRect: NSRect(x: 0, y: 0, width: content.width, height: target))
+        var frame = panel.frameRect(forContentRect: NSRect(x: 0, y: 0, width: width, height: target))
         frame.origin = NSPoint(x: panel.frame.minX, y: panel.frame.maxY - frame.height)
         if let screen {                                              // jamais sous le bas de l'écran
             frame.origin.y = max(frame.origin.y, screen.minY)
@@ -1270,9 +1277,20 @@ struct OrganizerView: View {
 
     /// Le titre seul (maquette validée le 28/10 : ni grande icône, ni phrase dessous).
     private var header: some View {
-        HStack(spacing: 14) {
+        HStack(spacing: 10) {
             Text(controller.title).font(.system(size: 20, weight: .bold))
             Spacer()
+            if isPreview {
+                // Maquette du 28/10 : « Rangement automatique » à droite du titre ; les choix et le diagnostic sont
+                // rangés dans « Options ».
+                if controller.options.mixer {
+                    Button("Rangement automatique") { withAnimation(Motion.quickMorph) { controller.autoArrange() } }
+                        .secondaryButton()
+                        .disabled(!controller.placesChosen)
+                        .help("Oublie les places choisies : chaque famille à la suite, dans l'ordre du Channel rack")
+                }
+                OrganizerOptionsMenu(controller: controller)
+            }
         }
         .morphIn(0)
     }
@@ -1604,47 +1622,118 @@ struct OrganizerView: View {
 
     private var preview: some View {
         VStack(alignment: .leading, spacing: 12) {
-            // Plus de phrases d'explication (28/10, « ça aussi tu enlèves ») : ce qui se change se voit (poignée,
-            // couleur, nom, case du Mixer), et chaque élément garde sa bulle d'aide.
-            if controller.options.mixer {
-                // Places dans le Mixer choisies à la main (case de chaque son, départ de chaque famille), ou rangées
-                // toutes seules (demande du propriétaire du 25/10).
-                HStack(spacing: 8) {
-                    Spacer(minLength: 0)
-                    Button("Rangement automatique") { withAnimation(Motion.quickMorph) { controller.autoArrange() } }
-                        .controlSize(.small)
-                        .disabled(!controller.placesChosen)
-                        .help("Oublie les places choisies : chaque famille à la suite, dans l'ordre du Channel rack")
-                }
-                .morphIn(1)
-            }
-            // Les familles (couleur ou dégradé de chacune), puis le résumé et les choix, dans la même zone qui défile :
-            // le résumé, devenu long, écrasait les familles à une hauteur nulle (retour du propriétaire : les
-            // couleurs n'étaient plus proposées). Seuls les boutons restent en bas.
-            ScrollView {
-                VStack(alignment: .leading, spacing: 10) {
+            // Maquette du 28/10 : les familles sur deux colonnes dès que la fenêtre est assez large ; chacune, son
+            // en-tête (poignée, couleur, nom, départ dans le Mixer), puis ses sons dans une carte de verre.
+            GeometryReader { geo in
+                ScrollView {
                     let colors = controller.plannedColors
-                    ForEach(Array(controller.presentFamilies.enumerated()), id: \.element) { index, family in
-                        FamilySection(controller: controller, family: family, colors: colors)
-                            .morphIn(index + 2)
+                    let families = controller.presentFamilies
+                    let columns = OrganizerView.familyColumns(families, count: geo.size.width >= 600 ? 2 : 1) {
+                        controller.members(of: $0).count
                     }
-                    ProjectSummary(controller: controller)
+                    HStack(alignment: .top, spacing: 18) {
+                        ForEach(Array(columns.enumerated()), id: \.offset) { _, column in
+                            VStack(alignment: .leading, spacing: 14) {
+                                ForEach(column, id: \.self) { family in
+                                    FamilySection(controller: controller, family: family, colors: colors)
+                                        .morphIn((families.firstIndex(of: family) ?? 0) + 1)
+                                }
+                            }
+                            .frame(maxWidth: .infinity, alignment: .topLeading)
+                        }
+                    }
+                    .padding(.vertical, 4)
                 }
-                // Place pour le contour survolé et son halo.
-                .padding(.horizontal, 4)
-                .padding(.vertical, 6)
             }
             .frame(minHeight: 120)                       // fenêtre rétrécie : la liste défile, jamais écrasée
-            .padding(.horizontal, -4)
-            HStack {
-                Button("Annuler") { controller.close() }.keyboardShortcut(.cancelAction)
-                diagnosticButton
+            if controller.playlistTooBig {
+                Label(String(localized: "Playlist trop grande pour FL : décoche « Playlist »."),
+                      systemImage: "exclamationmark.triangle.fill")
+                    .font(.system(size: 11))
+                    .foregroundStyle(.orange)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            HStack(spacing: 12) {
                 Spacer()
+                Button("Annuler") { controller.close() }
+                    .secondaryButton()
+                    .keyboardShortcut(.cancelAction)
                 Button("Organiser") { controller.apply() }
-                    .primaryButton()
+                    .buttonStyle(AlwaysBlueButtonStyle())
                     .keyboardShortcut(.defaultAction)
             }
+            .controlSize(.large)
+            .padding(.top, 12)
+            .overlay(alignment: .top) { Rectangle().fill(Color.primary.opacity(0.08)).frame(height: 1) }
         }
+    }
+
+    /// Pur (testé) : les familles en `count` colonnes, dans l'ordre (la première colonne de haut en bas, puis la
+    /// suivante), coupées là où les colonnes ont la hauteur la plus proche (`size` : nombre de sons d'une famille).
+    static func familyColumns<F>(_ families: [F], count: Int, size: (F) -> Int) -> [[F]] {
+        guard count >= 2, families.count >= 2 else { return [families] }
+        let heights = families.map { size($0) + 2 }                  // l'en-tête compte pour deux lignes
+        let total = heights.reduce(0, +)
+        var best = 1
+        var bestGap = Int.max
+        var running = 0
+        for cut in 1..<families.count {
+            running += heights[cut - 1]
+            let gap = abs(total - 2 * running)
+            if gap < bestGap { best = cut; bestGap = gap }
+        }
+        return [Array(families[..<best]), Array(families[best...])]
+    }
+}
+
+/// Bouton principal de l'Organiser, toujours bleu : le panneau ne devient jamais la fenêtre active (FL reste devant),
+/// et le bouton du système y paraissait gris, comme désactivé (vidéo du 29/10).
+private struct AlwaysBlueButtonStyle: ButtonStyle {
+    @Environment(\.isEnabled) private var enabled
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(.system(size: 13.5, weight: .semibold))
+            .foregroundStyle(Color.white)
+            .padding(.horizontal, 20)
+            .frame(height: 34)
+            .background(Capsule().fill(Color.accentColor))
+            .opacity(enabled ? (configuration.isPressed ? 0.8 : 1) : 0.45)
+            .contentShape(Capsule())
+    }
+}
+
+/// « Options » de l'aperçu (maquette du 28/10 : rien autour des familles) : les pages de FL à ranger, les noms, les
+/// bus, les sons sans note, et le diagnostic à copier.
+private struct OrganizerOptionsMenu: View {
+    @ObservedObject var controller: OrganizerController
+
+    var body: some View {
+        Menu {
+            Toggle("Channel rack", isOn: $controller.options.rack)
+            Toggle("Patterns", isOn: $controller.options.patterns)
+            Toggle("Mixer", isOn: $controller.options.mixer)
+            Toggle("Playlist", isOn: $controller.options.playlist)
+            Divider()
+            Toggle("Renommer", isOn: $controller.options.rename)
+            Toggle("Un bus par famille", isOn: $controller.options.buses)
+                .disabled(!controller.options.mixer)
+            Toggle(isOn: $controller.options.deleteUnused) {
+                Text(controller.organizesCopy
+                    ? String(localized: "Supprimer les sons sans note")
+                    : String(localized: "Supprimer les sons sans note (définitif)"))
+            }
+            Divider()
+            Button(controller.copied ? String(localized: "Copié") : String(localized: "Copier le diagnostic")) {
+                controller.copyDiagnostic()
+            }
+        } label: {
+            Text("Options")
+        }
+        .menuStyle(.button)
+        .secondaryButton()
+        .fixedSize()
+        .help("Ce que l'Organiser range, et le diagnostic à copier pour l'équipe")
     }
 }
 
@@ -1755,47 +1844,6 @@ private struct OrganizerStep: View {
     }
 }
 
-/// Les choix de « Organiser » : une case par page de FL, les noms, les bus, les sons sans note.
-private struct ProjectSummary: View {
-    @ObservedObject var controller: OrganizerController
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 7) {
-            if controller.playlistTooBig {
-                Label(String(localized: "Playlist trop grande pour FL : décoche « Playlist »."),
-                      systemImage: "exclamationmark.triangle.fill")
-                    .font(.system(size: 11))
-                    .foregroundStyle(.orange)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-            HStack(spacing: 12) {
-                Toggle("Channel rack", isOn: $controller.options.rack)
-                Toggle("Patterns", isOn: $controller.options.patterns)
-                Toggle("Mixer", isOn: $controller.options.mixer)
-                Toggle("Playlist", isOn: $controller.options.playlist)
-            }
-            .toggleStyle(.checkbox)
-            .font(.system(size: 11))
-            Toggle("Renommer", isOn: $controller.options.rename)
-                .toggleStyle(.checkbox)
-                .font(.system(size: 11))
-            Toggle("Un bus par famille", isOn: $controller.options.buses)
-                .toggleStyle(.checkbox)
-                .font(.system(size: 11))
-                .disabled(!controller.options.mixer)
-            Toggle(isOn: $controller.options.deleteUnused) {
-                Text(controller.organizesCopy
-                    ? String(localized: "Supprimer les sons sans note")
-                    : String(localized: "Supprimer les sons sans note (définitif)"))
-            }
-                .toggleStyle(.checkbox)
-                .font(.system(size: 11))
-        }
-        .padding(12)
-        .organizerCard()
-    }
-}
-
 /// Une famille de l'aperçu : son réglage (une couleur ou un dégradé, son départ dans le Mixer) et ses sons. Elle se
 /// glisse au-dessus ou en dessous d'une autre par sa poignée, comme un dossier (demande du propriétaire du 25/10).
 private struct FamilySection: View {
@@ -1822,6 +1870,7 @@ private struct FamilySection: View {
         let style = controller.style(of: family)
         let members = controller.members(of: family)
         VStack(alignment: .leading, spacing: 6) {
+            // En-tête au-dessus de la carte (maquette du 28/10) : poignée, couleur, nom, départ dans le Mixer, icône.
             HStack(spacing: 8) {
                 Image(systemName: "line.3.horizontal")
                     .font(.system(size: 11, weight: .semibold))
@@ -1841,20 +1890,18 @@ private struct FamilySection: View {
                     }
                 }
                 // Jamais coupé en deux lignes (capture du 25/10 : « Melodie / s »).
-                Text(family.label).font(.system(size: 13, weight: .semibold))
+                Text(family.label).font(.system(size: 14, weight: .semibold))
                     .lineLimit(1)
                     .fixedSize(horizontal: true, vertical: false)
                     .layoutPriority(1)
                 Spacer(minLength: 8)
                 if controller.options.mixer, let range = controller.mixerRange(of: family) {
-                    Text("Mixer").font(.system(size: 11)).foregroundStyle(.secondary)
+                    Text("Mixer").font(.system(size: 12)).foregroundStyle(.secondary)
                     MixerSlotBox(value: style.mixerStart ?? range.lowerBound, chosen: style.mixerStart != nil,
-                                 last: controller.mixerLast) { controller.setMixerStart(family, $0) }
-                        .help("Première piste du Mixer de la famille (son bus compris ; la 808 avec les drums) : tire vers le haut ou le bas comme dans FL, ou clique pour l'écrire")
-                    Image(systemName: "arrow.right").font(.system(size: 9)).foregroundStyle(.secondary)
-                    Text("\(range.upperBound)")
-                        .font(.system(size: 11).monospacedDigit())
-                        .foregroundStyle(.secondary)
+                                 last: controller.mixerLast, tint: swiftColor(style.color)) {
+                        controller.setMixerStart(family, $0)
+                    }
+                    .help("Première piste du Mixer de la famille (son bus compris ; la 808 avec les drums) : tire vers le haut ou le bas comme dans FL, ou clique pour l'écrire")
                 }
                 Button { pickingIcon = true } label: { FLIconBadge(icon: style.icon, size: 18) }
                     .buttonStyle(.plain)
@@ -1866,13 +1913,20 @@ private struct FamilySection: View {
                         }
                     }
             }
-            ForEach(members) { member in
-                FamilyMemberRow(controller: controller, family: family, member: member,
-                                color: colors[member.id] ?? style.color)
+            .padding(.horizontal, 4)
+            .frame(minHeight: 32)
+            // Ses sons, dans une carte de verre, séparés par un trait fin.
+            VStack(spacing: 0) {
+                ForEach(Array(members.enumerated()), id: \.element.id) { index, member in
+                    if index > 0 { Divider() }
+                    FamilyMemberRow(controller: controller, family: family, member: member,
+                                    color: colors[member.id] ?? style.color)
+                }
             }
+            .padding(.horizontal, 10)
+            .padding(.vertical, 2)
+            .organizerCard(swiftColor(style.color))
         }
-        .padding(12)
-        .organizerCard(swiftColor(style.color))
         .overlay(alignment: .top) {
             if dropTarget {
                 Capsule().fill(OrganizerView.tint).frame(height: 3).padding(.horizontal, 10).offset(y: -6)
@@ -1940,23 +1994,18 @@ private struct FamilyMemberRow: View {
 
     var body: some View {
         HStack(spacing: 8) {
-            Circle()
-                .fill(swiftColor(color))
-                .frame(width: 10, height: 10)
-            // Son nom d'origine → le nom qu'il prendra, comme avant (28/10 : « le nom qui passe d'un nom à un autre »).
-            Text(member.name.isEmpty ? String(localized: "(sans nom)") : member.name).lineLimit(1)
-            if let newName = member.newName {
-                Image(systemName: "arrow.right").font(.system(size: 9)).foregroundStyle(.secondary)
-                Text(newName).lineLimit(1).foregroundStyle(member.written ? Color.primary : Color.secondary)
-            }
+            // Son nom d'origine → le nom qu'il prendra (28/10 : « le nom qui passe d'un nom à un autre ») ; le nouveau
+            // nom dans sa case, qui s'ouvre sur ce qu'est le son et « Écrire… » (maquette du 28/10).
+            Text(member.name.isEmpty ? String(localized: "(sans nom)") : member.name)
+                .lineLimit(1)
+                .truncationMode(.middle)
+                .frame(maxWidth: 150, alignment: .leading)
             if member.testNotes {
                 Image(systemName: "music.note")
                     .foregroundStyle(.secondary)
                     .help("Muet dans ses patterns : classé avec deux notes d'essai. Vérifie sa famille.")
             }
-            Spacer()
-            // Ce qu'est le son (« BEAM KICK » : Kick), sinon sa famille ; chaque famille propose ses sortes ; en bas,
-            // « Écrire… » pour lui donner son propre nom.
+            Image(systemName: "arrow.right").font(.system(size: 10, weight: .semibold)).foregroundStyle(.secondary)
             Menu {
                 ForEach(SoundFamily.order.filter { !$0.kinds.isEmpty }, id: \.self) { choice in
                     Menu(choice.label) {
@@ -1974,11 +2023,23 @@ private struct FamilyMemberRow: View {
                     Button("Nom automatique") { controller.setName(member.id, nil) }
                 }
             } label: {
-                Text(member.kind?.name ?? family.label).font(.system(size: 11))
+                HStack(spacing: 4) {
+                    Text(member.newName ?? member.kind?.name ?? family.label)
+                        .lineLimit(1)
+                        .foregroundStyle(Color.primary)
+                    Spacer(minLength: 2)
+                    Image(systemName: "chevron.down")
+                        .font(.system(size: 9, weight: .semibold))
+                        .foregroundStyle(.secondary)
+                }
+                .padding(.horizontal, 8)
+                .frame(maxWidth: .infinity, minHeight: 26)
+                .background(RoundedRectangle(cornerRadius: 7, style: .continuous).fill(Color.primary.opacity(0.06)))
+                .contentShape(Rectangle())
             }
             .menuStyle(.button)
-            .buttonStyle(.borderless)
-            .fixedSize()
+            .buttonStyle(.plain)
+            .menuIndicator(.hidden)
             .help("Changer ce qu'est ce son (Kick, 808, Lead…), ou écrire son nom")
             .popover(isPresented: $writing, arrowEdge: .bottom) {
                 VStack(alignment: .leading, spacing: 10) {
@@ -1997,13 +2058,15 @@ private struct FamilyMemberRow: View {
             }
             // La case du Mixer tout à droite, alignée d'un son à l'autre.
             if controller.options.mixer, member.slot != nil || member.pinned {
-                MixerSlotBox(value: member.slot, chosen: member.pinned, last: controller.mixerLast) {
+                MixerSlotBox(value: member.slot, chosen: member.pinned, last: controller.mixerLast,
+                             tint: swiftColor(color)) {
                     controller.setSlot(member.id, $0)
                 }
                 .help("Piste du Mixer de ce son : tire vers le haut ou le bas comme dans FL, ou clique pour l'écrire")
             }
         }
-        .font(.system(size: 12))
+        .font(.system(size: 13))
+        .frame(minHeight: 38)
     }
 
     private func save() {
@@ -2020,6 +2083,8 @@ struct MixerSlotBox: View {
     /// Choisi à la main (sinon : la place automatique).
     let chosen: Bool
     let last: Int
+    /// Couleur du bord d'un numéro choisi (celle de la famille).
+    var tint: Color = OrganizerView.tint
     /// nil : automatique.
     let set: (Int?) -> Void
     @State private var dragStart: Int?
@@ -2042,7 +2107,7 @@ struct MixerSlotBox: View {
             .frame(width: Self.width, height: 22)
             .background(RoundedRectangle(cornerRadius: 6, style: .continuous).fill(Color.black.opacity(0.28)))
             .overlay(RoundedRectangle(cornerRadius: 6, style: .continuous)
-                .strokeBorder(chosen ? OrganizerView.tint : Color.primary.opacity(hovered ? 0.35 : 0.12), lineWidth: 1))
+                .strokeBorder(chosen ? tint : Color.primary.opacity(hovered ? 0.35 : 0.12), lineWidth: 1))
             .contentShape(Rectangle())
             .onHover { inside in
                 hovered = inside

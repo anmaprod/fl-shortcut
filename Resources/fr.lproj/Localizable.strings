@@ -412,6 +412,7 @@
 "Ce partage ne peut pas être ajouté : %@" = "Ce partage ne peut pas être ajouté : %@";
 "Ce qu'est vraiment ce son" = "Ce qu'est vraiment ce son";
 "Ce que fait la macro, étape par étape" = "Ce que fait la macro, étape par étape";
+"Ce que l'Organiser range, et le diagnostic à copier pour l'équipe" = "Ce que l'Organiser range, et le diagnostic à copier pour l'équipe";
 "Ce que tu faisais, ce qui devait se passer, ce qui s'est passé. Ex. : « ma macro s'arrête au 3e bloc dans le Mixer »." = "Ce que tu faisais, ce qui devait se passer, ce qui s'est passé. Ex. : « ma macro s'arrête au 3e bloc dans le Mixer ».";
 "Ce qui te ferait gagner du temps dans FL Studio." = "Ce qui te ferait gagner du temps dans FL Studio.";
 "Ce raccourci lancera ta version ; le modèle d'origine reste dans Macros › Modèles." = "Ce raccourci lancera ta version ; le modèle d'origine reste dans Macros › Modèles.";
@@ -1311,6 +1312,7 @@
 "On te répond à %@ dès que possible." = "On te répond à %@ dès que possible.";
 "Open Hat" = "Open Hat";
 "Option" = "Option";
+"Options" = "Options";
 "Options de la macro" = "Options de la macro";
 "Options › MIDI Settings" = "Options › MIDI Settings";
 "Options › Project general settings, puis deux clics que tu montres une fois dans FL (par exemple la mesure en 3/4)." = "Options › Project general settings, puis deux clics que tu montres une fois dans FL (par exemple la mesure en 3/4).";

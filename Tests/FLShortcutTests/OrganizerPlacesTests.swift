@@ -127,6 +127,18 @@ final class OrganizerPlacesTests: XCTestCase {
         XCTAssertEqual(OrganizerController.moving(.drums, onto: .drums, in: order), order)
     }
 
+    /// Les familles de l'aperçu sur deux colonnes (maquette du 28/10) : dans l'ordre, coupées là où les colonnes ont
+    /// la hauteur la plus proche ; une seule colonne si la fenêtre est étroite ou s'il n'y a qu'une famille.
+    func testFamilyColumns() {
+        let sizes = ["Drums": 3, "Basse": 1, "Mélodies": 2, "Voix": 1, "FX": 1]
+        let order = ["Basse", "Drums", "FX", "Mélodies", "Voix"]
+        let two = OrganizerView.familyColumns(order, count: 2) { sizes[$0] ?? 0 }
+        XCTAssertEqual(two, [["Basse", "Drums"], ["FX", "Mélodies", "Voix"]])
+        XCTAssertEqual(two.flatMap { $0 }, order, "l'ordre des familles ne change pas")
+        XCTAssertEqual(OrganizerView.familyColumns(order, count: 1) { sizes[$0] ?? 0 }, [order])
+        XCTAssertEqual(OrganizerView.familyColumns(["Drums"], count: 2) { sizes[$0] ?? 0 }, [["Drums"]])
+    }
+
     /// La case du numéro, comme dans FL : tirée vers le haut, plus grand ; jamais sous 1 ni au-delà du Mixer.
     func testSlotBoxDrag() {
         XCTAssertEqual(MixerSlotBox.dragged(from: 10, dy: -30, last: 125), 15)

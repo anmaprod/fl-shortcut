@@ -518,3 +518,8 @@ entrée 1 ≈ 0,5 s.
   (Installe le lien, Quitte FL (⌘Q) puis rouvre-le, Options › MIDI Settings, Règle les 4 cases entourées) et
   l'image (un clic l'agrandit) : accueil, aide du lien de l'Organiser (les 4 longs paragraphes remplacés, 3 pièges
   en une ligne), fenêtre « Lien installé » (l'image dessous).
+- Organiser (29/10, « tu n'as pas changé les pages Organiser ») : aperçu refait comme la maquette du 28/10 (titre
+  « Organiser », « Rangement automatique » et « Options » en haut, familles sur deux colonnes avec leur en-tête
+  au-dessus d'une carte de verre, ancien nom → [nouveau nom ▾] [piste], « Annuler » / « Organiser » bleu). Les cases
+  (pages de FL, Renommer, bus, sons sans note) et « Copier le diagnostic » passent dans « Options » : la maquette
+  n'en avait pas, rien n'est perdu. Le bouton « Organiser » paraissait gris (panneau jamais actif) : style à lui.

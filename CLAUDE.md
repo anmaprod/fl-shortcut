@@ -63,7 +63,11 @@
     renommée au nom de l'original (FL enregistre puis rouvre) ; « Retourner en arrière » → copie à la Corbeille et FL
     rouvre le projet d'avant (lancé dessus s'il était fermé). Plus aucune lecture de l'écran pour la Playlist ; l'ancien
     code (réunion des clips lus dans la fenêtre, patterns descendus, « Move up ») ne sert plus que sans fichier (tests).
-  - aperçu : couleur ou dégradé de chaque famille en haut, résumé et choix dessous, dans la même zone qui défile.
+  - aperçu (maquette du 28/10, refait le 29/10) : titre « Organiser », « Rangement automatique » et « Options »
+    (pages de FL, Renommer, bus, sons sans note, Copier le diagnostic) en haut ; familles sur 2 colonnes dès 600
+    points (`familyColumns`, fenêtre ouverte à 720), en-tête (poignée, couleur, nom, Mixer [départ], icône) au-dessus
+    d'une carte de verre de ses sons : ancien nom → [nouveau nom ▾] [piste] ; « Organiser » toujours bleu
+    (`AlwaysBlueButtonStyle` : le panneau n'est jamais actif) ; case du Mixer tirée comme FL (`HiddenDrag`).
   - « All » automatique (script v16, API 33) ; copie toujours faite sur le fichier (Channel rack sur « All ») ;
     arrangement ouvert rangé (événement 100) ; marque sur un canal si aucun pattern n'est nommé ; page de FL remise
     devant (4 fois) au lieu de s'arrêter ; Mixer : piste qui envoie déjà ailleurs que le Master = famille sans bus ;

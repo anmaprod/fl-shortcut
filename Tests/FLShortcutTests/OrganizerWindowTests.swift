@@ -64,7 +64,7 @@ final class OrganizerWindowTests: XCTestCase {
             controller.onClose = { closings += 1 }
             controller.start()
             waitFor(controller) { $0 == .preview }
-            XCTAssertEqual(controller.title, "Organiser le projet")
+            XCTAssertEqual(controller.title, "Organiser")
             XCTAssertEqual(controller.presentFamilies, [.drums])
             XCTAssertEqual(controller.members(of: .drums).map(\.name), ["Son 0", "Son 1"])
 
