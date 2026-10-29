@@ -109,9 +109,20 @@ jobs:
             "débogueur : $($cdb.FullName)"
             $env:_NT_SYMBOL_PATH = "srv*$env:RUNNER_TEMP\symboles*https://msdl.microsoft.com/download/symbols"
             $journal = "$env:RUNNER_TEMP\cdb.txt"
-            $app = Start-Process -FilePath $cdb.FullName -PassThru -NoNewWindow -RedirectStandardOutput $journal -ArgumentList `
-              '-lines', '-c', '"g; .echo ==== ARRET ====; !analyze -v; .ecxr; kc 40; ~*kc 12; q"', "$PWD\dist\win-x64\FLShortcut.exe", '--photos', "$PWD\dist\photos-windows"
-            if (-not $app.WaitForExit(300000)) { $app.Kill(); Write-Output "::warning::mode photos arrêté au bout de 5 min" }
+            # Tas « page entière » (page heap de Windows), le temps des photos seulement : une écriture dans une
+            # mémoire déjà libérée arrête l'appli sur place, avec la pile de celui qui écrit (29/10 : le tas abîmé
+            # n'était remarqué qu'à la création du menu de l'icône, sans dire par qui).
+            $ifeo = 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options\FLShortcut.exe'
+            New-Item -Path $ifeo -Force | Out-Null
+            New-ItemProperty -Path $ifeo -Name GlobalFlag -PropertyType DWord -Value 0x02000000 -Force | Out-Null
+            New-ItemProperty -Path $ifeo -Name PageHeapFlags -PropertyType DWord -Value 3 -Force | Out-Null
+            try {
+              $app = Start-Process -FilePath $cdb.FullName -PassThru -NoNewWindow -RedirectStandardOutput $journal -ArgumentList `
+                '-lines', '-c', '"g; .echo ==== ARRET ====; !analyze -v; .ecxr; kc 60; ~*kc 12; q"', "$PWD\dist\win-x64\FLShortcut.exe", '--photos', "$PWD\dist\photos-windows"
+              if (-not $app.WaitForExit(300000)) { $app.Kill(); Write-Output "::warning::mode photos arrêté au bout de 5 min" }
+            } finally {
+              Remove-Item -Path $ifeo -Recurse -Force -ErrorAction SilentlyContinue
+            }
             # Le débogueur parle beaucoup (modules chargés, piles de tous les fils) : ce qui compte, l'analyse de
             # l'arrêt (exception, fil fautif), gardée en entier ; puis la fin, sans les modules chargés.
             $lignes = @(Get-Content $journal | Where-Object { $_ -notmatch '^ModLoad:' })
