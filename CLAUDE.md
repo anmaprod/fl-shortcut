@@ -10,6 +10,11 @@
   deux fois). La lecture de GitHub (CI, artefacts, images) marche : vérifier chaque push dessus.
 - Tout texte affiché doit avoir son anglais (la CI échoue sinon) : `python3 scripts/localisation.py generer trad.json`.
 - Historique, décisions et échecs : `docs/contexte/HISTORIQUE.md` ; lien avec FL (script v16) : `PROTOCOL.md`.
+- **Graphify, toujours** (demande du 29/10, pour moins de jetons) : chercher dans le graphe du code AVANT de lire des
+  fichiers (`graphify query "…"`, `graphify explain "Nom"`, `graphify path "A" "B"`), puis lire seulement les lignes
+  utiles. Session neuve : `uv tool install graphifyy && graphify update .` (30 s, sans IA ; dossier `graphify-out/`
+  exclu du dépôt par `.git/info/exclude`) ; `graphify update .` après chaque changement de code. Le Graphify en ligne
+  (outils MCP) lit une ancienne branche : se fier au graphe local.
 
 ## Règles du propriétaire
 - Pas de lecture de l'écran, sauf pour retrouver un bouton à son nom ou son image, dans la seule fenêtre de FL, au

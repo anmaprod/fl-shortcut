@@ -1,55 +1,25 @@
 # FL Shortcuts
 
-Tes propres raccourcis clavier pour **FL Studio**, sur **Mac** et **Windows**.
+[![Bien démarrer avec FL Shortcuts : tes raccourcis, tes macros et ton projet rangé dans FL Studio](docs/images/tuto-0-titre.png)](site/tuto.html)
 
-FL Studio n'a pas d'éditeur de raccourcis. FL Shortcuts en ajoute un : quand FL Studio est au premier plan, il reconnaît tes raccourcis et envoie à FL **ses propres touches** (Mixer, Playlist, REC, métronome, pattern suivant…). Les raccourcis marchent **sans rien installer dans FL**. Pour l'**Organiser** et quelques actions (mute / solo de piste, nom et couleur…), un petit lien se règle une fois, en une minute : voir [Relier FL Studio](#relier-fl-studio-pas-à-pas).
+Tes propres raccourcis clavier pour **FL Studio**, tes **macros** (une suite de clics et de touches sur un seul raccourci) et l'**Organiser** (ton projet rangé : familles de sons, Mixer, Playlist). Sur **Mac** ; Windows en préparation.
 
-- **Macros** (Mac, version de test) : *Enregistrement rapide* charge un état de piste du Mixer, arme la piste, choisit l'entrée et lance le REC, d'un seul raccourci. Voir [MACROS.md](MACROS.md).
-- **Mode MIDI** (facultatif, pour les utilisateurs avancés) : 40 actions via un script authentifié (mute / solo de piste, volume…). Désactivé par défaut.
+Le même tuto en page web, à ouvrir dans un navigateur : [site/tuto.html](site/tuto.html).
 
 > Outil indépendant, non affilié à Image-Line. « FL Studio » est une marque d'Image-Line.
 
-| | Mac | Windows |
-|---|---|---|
-| Système | macOS 13 ou plus récent (Liquid Glass sur macOS 26) | Windows 10 (1809+) ou 11, x64 ou ARM64 |
-| FL Studio | 20.7 → 2025 et suivants (actions grisées si ta version est trop ancienne) | idem |
-| Où vit l'appli | barre des menus | zone de notification |
-| Pause | `⌃⌥⌘F` | `Ctrl+Alt+Maj+F` |
+## Tuto en 7 étapes
 
----
+### 1. Installer
+[![Ouvre FLShortcuts.dmg et glisse l'app dans Applications. Lance-la : son icône arrive en haut de l'écran. Si macOS la bloque : Réglages Système › Confidentialité et sécurité › Ouvrir quand même.](docs/images/tuto-1-installer.png)](site/tuto.html#installer)
 
-## Installation
+Télécharge `FLShortcuts.dmg` sur la [page des versions](../../releases/latest). « Ouvrir quand même » seulement pour un fichier venu de cette page, dont l'empreinte SHA-256 correspond.
 
-**Télécharge la dernière version** sur la [page des versions](../../releases/latest) (ou la page de téléchargement du projet, qui choisit le bon fichier toute seule).
+### 2. Autoriser
+[![Clique Tout autoriser, puis active FL Shortcuts dans Accessibilité. Le son de FL sert à l'Organiser. Rien n'est enregistré : le clavier n'est lu que quand FL est devant.](docs/images/tuto-2-autoriser.png)](site/tuto.html#autoriser)
 
-### Mac : `FLShortcuts.dmg`
-
-1. Ouvre `FLShortcuts.dmg` et glisse **FL Shortcuts** dans **Applications**, puis lance-le. Il s'installe dans la barre des menus.
-2. **Autoriser le clavier** : clique sur *Autoriser…* ; l'appli ouvre *Réglages Système › Confidentialité et sécurité › Accessibilité*. Active FL Shortcuts.
-
-C'est tout. Si macOS dit qu'il ne peut pas vérifier l'appli (version non notarisée) : *Réglages Système › Confidentialité et sécurité*, tout en bas, **Ouvrir quand même**. Fais-le seulement pour un fichier venu de la page officielle des versions, dont l'empreinte SHA-256 correspond.
-
-Pour désinstaller : menu de l'icône FL Shortcuts en haut de l'écran › *Désinstaller FL Shortcuts…* (aussi dans le menu ⋯ de la fenêtre). Tout est retiré, et le bilan dit s'il reste quelque chose à glisser dans la Corbeille.
-
-### Windows : `FLShortcuts-Windows-Setup.exe`
-
-1. Double-clique sur l'installeur, puis **Installer**. Aucun droit administrateur demandé, x64 et ARM dans le même fichier.
-2. FL Shortcuts se lance et se range dans la zone de notification. Il démarre avec Windows (décochable dans l'installeur).
-
-C'est tout. Si Windows affiche « Windows a protégé votre ordinateur » (installeur non signé) : **Informations complémentaires › Exécuter quand même**. Désinstallation : *Paramètres › Applications*. Une version portable (`.zip`) existe aussi. Ne lance pas FL Studio en administrateur.
-
----
-
-## Relier FL Studio (pas à pas)
-
-À faire une seule fois, pour l'Organiser et les actions qui passent par le lien.
-
-1. **Installe le lien** : à la première ouverture de FL Shortcuts (écran « Relier FL Studio »), ou plus tard par le menu de l'icône en haut de l'écran › *Installer le lien avec FL Studio…*
-2. **Quitte FL complètement** (`⌘Q` sur Mac, la croix sur Windows), puis **rouvre-le** : c'est en démarrant qu'il trouve le lien.
-3. Dans FL : **Options › MIDI Settings**.
-4. Règle les **4 cases entourées en rouge** :
-
-![MIDI Settings de FL : les 4 cases à régler entourées](Resources/MIDISettings.png)
+### 3. Relier FL Studio
+[![Installe le lien, quitte FL avec ⌘Q puis rouvre-le, Options › MIDI Settings, règle les 4 cases entourées : le même numéro de Port en haut et en bas.](docs/images/tuto-3-relier.png)](site/tuto.html#relier)
 
 | | Où | Quoi |
 |---|---|---|
@@ -58,12 +28,49 @@ C'est tout. Si Windows affiche « Windows a protégé votre ordinateur » (insta
 | **3** | *Input*, même ligne | **Controller type** : « FL Shortcuts » |
 | **4** | *Input*, même ligne | **Port** : **le même numéro** qu'en 1 |
 
-C'est fait quand FL Shortcuts affiche **« FL Studio est relié »**.
+C'est fait quand FL Shortcuts affiche **« FL Studio est relié »**. Le lien sert à l'Organiser et à quelques actions (mute / solo de piste, nom et couleur…) ; tes raccourcis marchent sans lui.
 
-**Toujours rien ?**
+<details>
+<summary><b>Toujours rien ?</b></summary>
+
 - Ta carte son (ou ton clavier MIDI) doit avoir **un autre numéro de Port** : FL répond à la première sortie de ce numéro.
 - **Pas de « FL Shortcuts » dans Controller type** : FL ne lit pas le dossier où est le lien. Compare le dossier indiqué par FL Shortcuts avec *Options › File settings › User data folder* dans FL (pas sur iCloud).
-- Mac : *Réglages Système › Confidentialité et sécurité › Fichiers et dossiers › FL Studio* : coche **Dossier Documents**.
+- *Réglages Système › Confidentialité et sécurité › Fichiers et dossiers › FL Studio* : coche **Dossier Documents**.
+</details>
+
+### 4. Tes raccourcis
+[![Choisis une page de FL à gauche. Clique une touche, puis tape la nouvelle : elle passe en bleu. ↺ remet la touche de FL. Le clavier dans la recherche retrouve une touche que tu connais.](docs/images/tuto-4-raccourcis.png)](site/tuto.html#raccourcis)
+
+### 5. Les macros
+[![Page Macros › Enregistrer une macro. Fais ta suite dans FL : chaque clic et chaque touche devient un bloc. Donne-lui un raccourci, puis Enregistrer.](docs/images/tuto-5-macros.png)](site/tuto.html#macros)
+
+Détails et limites : [MACROS.md](MACROS.md).
+
+### 6. Organiser
+[![Ouvre ton projet dans FL, puis menu de l'icône › Organiser. Il écoute chaque son et te montre le rangement. Ton projet ne bouge pas : tout est rangé dans une copie « _2 », que tu valides ou non.](docs/images/tuto-6-organiser.png)](site/tuto.html#organiser)
+
+### 7. Au quotidien
+[![L'icône en haut de l'écran ouvre le menu. ⌃⌥⌘F met en pause ou reprend. Un « ! » sur l'icône : il manque une autorisation.](docs/images/tuto-7-quotidien.png)](site/tuto.html#quotidien)
+
+Pour désinstaller : menu de l'icône › *Désinstaller FL Shortcuts…* Tout est retiré, et le bilan dit s'il reste quelque chose à glisser dans la Corbeille.
+
+---
+
+## Configuration
+
+| | Mac | Windows (en préparation) |
+|---|---|---|
+| Système | macOS 13 ou plus récent | Windows 10 (1809+) ou 11, x64 ou ARM64 |
+| FL Studio | 20.7 → 2025 et suivants (actions grisées si ta version est trop ancienne) | idem |
+| Où vit l'appli | barre des menus | zone de notification |
+| Pause | `⌃⌥⌘F` | `Ctrl+Alt+Maj+F` |
+
+### Windows : `FLShortcuts-Windows-Setup.exe`
+
+1. Double-clique sur l'installeur, puis **Installer**. Aucun droit administrateur demandé, x64 et ARM dans le même fichier.
+2. FL Shortcuts se lance et se range dans la zone de notification. Il démarre avec Windows (décochable dans l'installeur).
+
+Si Windows affiche « Windows a protégé votre ordinateur » (installeur non signé) : **Informations complémentaires › Exécuter quand même**. Désinstallation : *Paramètres › Applications*. Une version portable (`.zip`) existe aussi. Ne lance pas FL Studio en administrateur.
 
 ---
 
@@ -131,7 +138,7 @@ Détails, limites et mode d'emploi du diagnostic (`FLShortcut --diag-macro`) : [
 |---|---|---|
 | Script FL (tests) | `python3 -m unittest discover -s Tests/python` | partout (Python 3.6+) |
 | Cœur Windows (tests) | `dotnet test windows/FLShortcut.Core.Tests` | partout (.NET 8) |
-| App Mac | `./build.sh` | Mac avec Xcode 16+ (Xcode 26 pour le Liquid Glass natif) |
+| App Mac | `./build.sh` | Mac avec Xcode 16+ |
 | App Windows | `dotnet publish windows/FLShortcut.App -c Release -r win-x64 -p:Platform=x64` | Windows avec .NET 8 |
 | Installeur Windows | `iscc /DAppVersion=1.0.0 /DDistDir=…\dist windows\installer\FLShortcut.iss` | Windows avec Inno Setup 6 |
 
@@ -154,7 +161,7 @@ Détails, limites et mode d'emploi du diagnostic (`FLShortcut --diag-macro`) : [
 Resources/device_FLShortcut.py   script MIDI côté FL Studio (Python 3.6+, FL 20.7 → 2025+)
 PROTOCOL.md                      contrat commun : trames, HMAC, table des 40 actions
 Sources/FLShortcut/              app Mac (SwiftUI) : interception (EventTap), routeur, MIDI (CoreMIDI),
-                                 Trousseau, interface Liquid Glass (GlassStyle, EditorView, OnboardingView)
+                                 Trousseau, interface (MainChrome, EditorView, MacroEditorView, OnboardingView)
 Tests/FLShortcutTests/           tests XCTest
 windows/FLShortcut.Core/         cœur Windows portable (protocole, modèle, profils, routeur)
 windows/FLShortcut.Core.Tests/   tests xUnit

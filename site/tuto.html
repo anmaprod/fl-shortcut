@@ -74,8 +74,8 @@ main { max-width: 1040px; margin: 0 auto; padding-block: 56px 72px; display: fle
   color: #fff; font-size: 13px; letter-spacing: 0; font-variant-numeric: tabular-nums; }
 .step h2 { margin: 0; font: 700 26px/1.15 var(--font-display); letter-spacing: -0.01em; text-wrap: balance; }
 .lines { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 10px; }
-.lines li { display: grid; grid-template-columns: 22px minmax(0, 1fr); gap: 10px; align-items: start; font-size: 15px; }
-.lines li::before { content: ""; width: 8px; height: 8px; margin: 7px 0 0 6px; border-radius: 4px; background: var(--accent); }
+.lines li { position: relative; padding-left: 26px; font-size: 15px; }
+.lines li::before { content: ""; position: absolute; left: 6px; top: 8px; width: 8px; height: 8px; border-radius: 4px; background: var(--accent); }
 .lines li.sub { color: var(--muted); font-size: 13.5px; }
 .lines li.sub::before { background: rgba(255,255,255,0.25); }
 kbd { font: 600 12.5px/1 var(--font); display: inline-grid; place-items: center; min-width: 22px; height: 22px; padding: 0 6px;
@@ -275,8 +275,8 @@ footer { color: var(--faint); font-size: 12.5px; text-align: center; padding-top
     <h2>Installer</h2>
     <ul class="lines">
       <li>Ouvre <span class="path">FLShortcuts.dmg</span> et glisse l'app dans Applications.</li>
-      <li>Lance-la : son icône arrive en haut de l'écran.</li>
-      <li class="sub">macOS la bloque ? Réglages Système › Confidentialité et sécurité › <b>Ouvrir quand même</b>.</li>
+      <li>Lance-la : son icône arrive en haut de l'écran.</li>
+      <li class="sub">macOS la bloque ? Réglages Système › Confidentialité et sécurité › <b>Ouvrir quand même</b>.</li>
     </ul>
   </div>
   <div class="stage">
@@ -289,7 +289,7 @@ footer { color: var(--faint); font-size: 12.5px; text-align: center; padding-top
       </div>
       <div class="plate settings">
         <span class="sq" style="background:#8E8E93"><svg viewBox="0 0 16 16" fill="none" stroke="#fff" stroke-width="1.7" stroke-linejoin="round"><path d="M8 2l5 2v4c0 3-2.2 5-5 6-2.8-1-5-3-5-6V4z"/></svg></span>
-        <span class="grow">« FL Shortcuts » a été bloquée.</span>
+        <span class="grow">« FL Shortcuts » a été bloquée.</span>
         <span class="grey pulse tap">Ouvrir quand même</span>
       </div>
     </div>
@@ -303,7 +303,7 @@ footer { color: var(--faint); font-size: 12.5px; text-align: center; padding-top
     <ul class="lines">
       <li>Clique <b>Tout autoriser</b>, puis active FL Shortcuts dans Accessibilité.</li>
       <li>Le son de FL sert à l'Organiser, pour écouter tes sons.</li>
-      <li class="sub">Rien n'est enregistré : le clavier n'est lu que quand FL est devant.</li>
+      <li class="sub">Rien n'est enregistré : le clavier n'est lu que quand FL est devant.</li>
     </ul>
   </div>
   <div class="stage">
@@ -334,11 +334,11 @@ footer { color: var(--faint); font-size: 12.5px; text-align: center; padding-top
     <span class="num"><b>3</b>Étape</span>
     <h2>Relier FL Studio</h2>
     <ul class="lines">
-      <li>Installe le lien : l'app te le propose.</li>
+      <li>Installe le lien : l'app te le propose.</li>
       <li>Quitte FL avec <kbd>⌘</kbd> <kbd>Q</kbd>, puis rouvre-le.</li>
-      <li>Dans FL : <span class="path">Options › MIDI Settings</span>.</li>
+      <li>Dans FL : <span class="path">Options › MIDI Settings</span>.</li>
       <li>Règle les 4 cases entourées.</li>
-      <li class="sub">Le même numéro de Port en haut et en bas. C'est bon quand l'app dit « FL Studio est relié ».</li>
+      <li class="sub">Le même numéro de Port en haut et en bas. C'est bon quand l'app dit « FL Studio est relié ».</li>
     </ul>
   </div>
   <div class="stage">
@@ -355,9 +355,9 @@ footer { color: var(--faint); font-size: 12.5px; text-align: center; padding-top
     <h2>Tes raccourcis</h2>
     <ul class="lines">
       <li>Choisis une page de FL à gauche.</li>
-      <li>Clique une touche, puis tape la nouvelle : elle passe en bleu.</li>
+      <li>Clique une touche, puis tape la nouvelle : elle passe en bleu.</li>
       <li><b>↺</b> remet la touche de FL.</li>
-      <li class="sub">Tu connais la touche mais pas son nom ? Le clavier dans la recherche la retrouve.</li>
+      <li class="sub">Tu connais la touche mais pas son nom ? Le clavier dans la recherche la retrouve.</li>
     </ul>
   </div>
   <div class="stage">
@@ -410,7 +410,7 @@ footer { color: var(--faint); font-size: 12.5px; text-align: center; padding-top
     <h2>Les macros</h2>
     <ul class="lines">
       <li>Page Macros › <b>Enregistrer une macro</b>.</li>
-      <li>Fais ta suite dans FL : chaque clic et chaque touche devient un bloc.</li>
+      <li>Fais ta suite dans FL : chaque clic et chaque touche devient un bloc.</li>
       <li>Donne-lui un raccourci, puis <b>Enregistrer</b>.</li>
       <li class="sub">Tu peux aussi glisser des blocs de la liste de gauche.</li>
     </ul>
@@ -465,7 +465,7 @@ footer { color: var(--faint); font-size: 12.5px; text-align: center; padding-top
       <li>Ouvre ton projet dans FL, puis menu de l'icône › <b>Organiser…</b></li>
       <li>Il écoute chaque son et te montre le rangement.</li>
       <li>Change une famille, un nom ou une piste si tu veux, puis <b>Organiser</b>.</li>
-      <li class="sub">Ton projet ne bouge pas : tout est rangé dans une copie « _2 ». Tu la valides, ou tu reviens en arrière.</li>
+      <li class="sub">Ton projet ne bouge pas : tout est rangé dans une copie « _2 ». Tu la valides, ou tu reviens en arrière.</li>
     </ul>
   </div>
   <div class="stage">
@@ -505,8 +505,8 @@ footer { color: var(--faint); font-size: 12.5px; text-align: center; padding-top
     <ul class="lines">
       <li>L'icône en haut de l'écran ouvre le menu.</li>
       <li><kbd>⌃</kbd> <kbd>⌥</kbd> <kbd>⌘</kbd> <kbd>F</kbd> met en pause ou reprend.</li>
-      <li>Un « ! » sur l'icône : il manque une autorisation.</li>
-      <li class="sub">Une question ? Page Aide, puis « Écrire à l'équipe ».</li>
+      <li>Un « ! » sur l'icône : il manque une autorisation.</li>
+      <li class="sub">Une question ? Page Aide, puis « Écrire à l'équipe ».</li>
     </ul>
   </div>
   <div class="stage">
@@ -524,7 +524,7 @@ footer { color: var(--faint); font-size: 12.5px; text-align: center; padding-top
   </div>
 </section>
 
-<footer>FL Shortcuts est un outil indépendant, non affilié à Image-Line. « FL Studio » est une marque d'Image-Line.</footer>
+<footer>FL Shortcuts est un outil indépendant, non affilié à Image-Line. « FL Studio » est une marque d'Image-Line.</footer>
 </main>
 </body>
 </html>
