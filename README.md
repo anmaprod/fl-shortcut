@@ -19,7 +19,7 @@ Télécharge `FLShortcuts.dmg` sur la [page des versions](../../releases/latest)
 [![Clique Tout autoriser, puis active FL Shortcuts dans Accessibilité. Le son de FL sert à l'Organiser. Rien n'est enregistré : le clavier n'est lu que quand FL est devant.](docs/images/tuto-2-autoriser.png)](site/tuto.html#autoriser)
 
 ### 3. Relier FL Studio
-[![Installe le lien, quitte FL avec ⌘Q puis rouvre-le, Options › MIDI Settings, règle les 4 cases entourées : le même numéro de Port en haut et en bas.](docs/images/tuto-3-relier.png)](site/tuto.html#relier)
+[![Menu de l'icône › Organiser…, clique Installer le lien, quitte FL avec ⌘Q puis rouvre-le, Options › MIDI Settings, règle les 4 cases entourées : le même numéro de Port en haut et en bas.](docs/images/tuto-3-relier.png)](site/tuto.html#relier)
 
 | | Où | Quoi |
 |---|---|---|
