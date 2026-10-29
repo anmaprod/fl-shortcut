@@ -303,7 +303,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if resume.editor && !onboarding && resume.onboarding == nil {
             NotificationCenter.default.post(name: AccountLink.openEditor, object: nil)
         }
-        if resume.organizer { OrganizerWindow.open() }
+        if resume.organizer { OrganizerWindow.open(tutorial: false) }
     }
 
     /// FL Shortcuts rouvert (double-clic dans le Finder, le Dock, Spotlight) : une version organisée attend peut-être.

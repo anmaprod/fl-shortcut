@@ -428,6 +428,7 @@
 "Cette touche" = "Cette touche";
 "Change le magnétisme : 1/4, 1/8, triolets…" = "Change le magnétisme : 1/4, 1/8, triolets…";
 "Change les raccourcis de FL Studio, ou ajoute les tiens." = "Change les raccourcis de FL Studio, ou ajoute les tiens.";
+"Change une famille, un nom ou une piste si tu veux." = "Change une famille, un nom ou une piste si tu veux.";
 "Changements à envoyer" = "Changements à envoyer";
 "Changer ce qu'est ce son (Kick, 808, Lead…) ou sa famille" = "Changer ce qu'est ce son (Kick, 808, Lead…) ou sa famille";
 "Changer ce qu'est ce son (Kick, 808, Lead…), ou écrire son nom" = "Changer ce qu'est ce son (Kick, 808, Lead…), ou écrire son nom";
@@ -990,6 +991,7 @@
 "Il faut encore : %@." = "Il faut encore : %@.";
 "Il n'est pas dans la liste, ou il est déjà activé mais rien ne marche ? Retire-le avec « – », puis ajoute-le avec « + » (dossier Applications)." = "Il n'est pas dans la liste, ou il est déjà activé mais rien ne marche ? Retire-le avec « – », puis ajoute-le avec « + » (dossier Applications).";
 "Il n'est pas dans la liste, ou il est déjà activé mais rien ne marche ? Retire-le avec « – », puis glisse FL Shortcuts depuis la fenêtre du Finder dans la liste." = "Il n'est pas dans la liste, ou il est déjà activé mais rien ne marche ? Retire-le avec « – », puis glisse FL Shortcuts depuis la fenêtre du Finder dans la liste.";
+"Il écoute chaque son" = "Il écoute chaque son";
 "Ils partent dans quelques secondes." = "Ils partent dans quelques secondes.";
 "Impact" = "Impact";
 "Import impossible" = "Import impossible";
@@ -1298,6 +1300,7 @@
 "Ne fait pas ce que dit son explication" = "Ne fait pas ce que dit son explication";
 "Ne pas toucher à l'icône dans FL" = "Ne pas toucher à l'icône dans FL";
 "Ne quitte pas l'app tout de suite." = "Ne quitte pas l'app tout de suite.";
+"Ne touche pas à FL pendant l'écoute." = "Ne touche pas à FL pendant l'écoute.";
 "Ne touche pas à FL." = "Ne touche pas à FL.";
 "Nom" = "Nom";
 "Nom automatique" = "Nom automatique";
@@ -1387,6 +1390,7 @@
 "Ouvre le preset que tu veux dans ton Mixer." = "Ouvre le preset que tu veux dans ton Mixer.";
 "Ouvre ton app de mail avec le message tout prêt, pour %@" = "Ouvre ton app de mail avec le message tout prêt, pour %@";
 "Ouvre ton preset dans le Mixer." = "Ouvre ton preset dans le Mixer.";
+"Ouvre ton projet dans FL" = "Ouvre ton projet dans FL";
 "Ouvre un VST" = "Ouvre un VST";
 "Ouvre un partage pour lire son explication et chaque étape, puis « Ajouter à mes macros »." = "Ouvre un partage pour lire son explication et chaque étape, puis « Ajouter à mes macros ».";
 "Ouvrir FL Shortcuts" = "Ouvrir FL Shortcuts";
@@ -1563,6 +1567,7 @@
 "Publicité ou spam" = "Publicité ou spam";
 "Publier" = "Publier";
 "Publier pour tous les membres de la Communauté" = "Publier pour tous les membres de la Communauté";
+"Puis menu de l'icône › Organiser…" = "Puis menu de l'icône › Organiser…";
 "Qu'est-ce qui n'allait pas ?" = "Qu'est-ce qui n'allait pas ?";
 "Quand FL a ouvert sa boîte « Open » (preset d'un plugin, d'un canal…) : va au fichier .fst choisi et l'ouvre. À placer après les clics qui ouvrent la boîte et un « Attendre »." = "Quand FL a ouvert sa boîte « Open » (preset d'un plugin, d'un canal…) : va au fichier .fst choisi et l'ouvre. À placer après les clics qui ouvrent la boîte et un « Attendre ».";
 "Quantize" = "Quantize";
@@ -1672,6 +1677,7 @@
 "Revenir à la couleur de départ" = "Revenir à la couleur de départ";
 "Revient au pattern précédent" = "Revient au pattern précédent";
 "Revoir le guide de FL Shortcuts" = "Revoir le guide de FL Shortcuts";
+"Revoir le tuto" = "Revoir le tuto";
 "Reçois par mail un code pour choisir un nouveau mot de passe" = "Reçois par mail un code pour choisir un nouveau mot de passe";
 "Reçu un lien au lieu d'un code ?" = "Reçu un lien au lieu d'un code ?";
 "Ride" = "Ride";
@@ -1905,6 +1911,7 @@
 "Ton projet d'origine n'a pas pu aller à la Corbeille : rien n'a été touché." = "Ton projet d'origine n'a pas pu aller à la Corbeille : rien n'a été touché.";
 "Ton projet d'origine se rouvre dans FL, tel qu'il était. La copie rangée part à la Corbeille dès que FL l'a quittée." = "Ton projet d'origine se rouvre dans FL, tel qu'il était. La copie rangée part à la Corbeille dès que FL l'a quittée.";
 "Ton projet d'origine se rouvre dans FL, tel qu'il était. La copie rangée reste à côté, si tu la veux." = "Ton projet d'origine se rouvre dans FL, tel qu'il était. La copie rangée reste à côté, si tu la veux.";
+"Ton projet ne bouge pas : tu valides la copie, ou tu reviens en arrière." = "Ton projet ne bouge pas : tu valides la copie, ou tu reviens en arrière.";
 "Tools › Purge unused audio clips, par le menu de FL en haut de l'écran : FL retire du projet les clips audio qui ne sont pas dans la Playlist (rien n'est effacé de ton disque)." = "Tools › Purge unused audio clips, par le menu de FL en haut de l'écran : FL retire du projet les clips audio qui ne sont pas dans la Playlist (rien n'est effacé de ton disque).";
 "Touche" = "Touche";
 "Touche %u" = "Touche %u";
@@ -1976,6 +1983,7 @@
 "Un « ! » sur l'icône : le clavier n'est pas autorisé. Ouvre son menu pour savoir quoi faire." = "Un « ! » sur l'icône : le clavier n'est pas autorisé. Ouvre son menu pour savoir quoi faire.";
 "Un état de piste du Mixer (.fst) dans ton dossier personnel. La boîte « Open » de FL doit être ouverte juste avant (bloc « Attendre une fenêtre »)." = "Un état de piste du Mixer (.fst) dans ton dossier personnel. La boîte « Open » de FL doit être ouverte juste avant (bloc « Attendre une fenêtre »).";
 "Une action de FL Shortcuts (Mixer, Playlist, métronome…) : par le lien avec FL s'il est installé, sinon la touche équivalente de FL." = "Une action de FL Shortcuts (Mixer, Playlist, métronome…) : par le lien avec FL s'il est installé, sinon la touche équivalente de FL.";
+"Une copie rangée" = "Une copie rangée";
 "Une couleur" = "Une couleur";
 "Une fois l'Organiser fermé, FL Shortcuts te demandera si tu valides cette version : « Valider » met ton projet d'origine à la Corbeille et lui donne son nom, « Retourner en arrière » la supprime et rouvre ton projet d'avant." = "Une fois l'Organiser fermé, FL Shortcuts te demandera si tu valides cette version : « Valider » met ton projet d'origine à la Corbeille et lui donne son nom, « Retourner en arrière » la supprime et rouvre ton projet d'avant.";
 "Une idée" = "Une idée";
@@ -2018,6 +2026,7 @@
 "Vue « Wave » des vumètres" = "Vue « Wave » des vumètres";
 "Vérification de ta sauvegarde…" = "Vérification de ta sauvegarde…";
 "Vérification…" = "Vérification…";
+"Vérifie le rangement" = "Vérifie le rangement";
 "Vérifie que le mix tient en mono" = "Vérifie que le mix tient en mono";
 "Vérifie trois choses. 1. FL Studio est la fenêtre au premier plan : tes raccourcis ne marchent que là. 2. FL Shortcuts n'est pas en pause (⌃⌥⌘F, ou le menu de l'icône en haut de l'écran). 3. Le clavier est autorisé : Réglages Système › Confidentialité et sécurité › Accessibilité, FL Shortcuts coché. Quand une autre app attend un mot de passe (saisie sécurisée), les raccourcis se taisent le temps qu'elle le fasse." = "Vérifie trois choses. 1. FL Studio est la fenêtre au premier plan : tes raccourcis ne marchent que là. 2. FL Shortcuts n'est pas en pause (⌃⌥⌘F, ou le menu de l'icône en haut de l'écran). 3. Le clavier est autorisé : Réglages Système › Confidentialité et sécurité › Accessibilité, FL Shortcuts coché. Quand une autre app attend un mot de passe (saisie sécurisée), les raccourcis se taisent le temps qu'elle le fasse.";
 "Vérifier" = "Vérifier";

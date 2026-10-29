@@ -278,13 +278,54 @@ final class OrganizerWindowTests: XCTestCase {
         controller.close()
     }
 
+    /// Tuto en images (29/10) : à la première ouverture, l'écoute attend qu'il soit fini (rien n'est envoyé à FL
+    /// avant) ; vu une fois, il n'est plus montré tout seul ; revu depuis Options, il ne relance rien.
+    func testTutorialFirstThenListening() throws {
+        let suite = "fl.essai.tuto.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
+        XCTAssertTrue(OrganizerTutorial.shouldShow(defaults: defaults))
+        let link = FakeOrganizerLink()
+        link.v14 = false
+        let controller = OrganizerController(env: env(link, FakeAudio(link: link), saved: { _ in }))
+        controller.showTutorial(thenStart: true)
+        XCTAssertTrue(controller.tutorial)
+        XCTAssertEqual(controller.phase, .starting)
+        controller.finishTutorial(defaults: defaults)
+        XCTAssertFalse(controller.tutorial)
+        XCTAssertFalse(OrganizerTutorial.shouldShow(defaults: defaults))
+        waitFor(controller) { $0 == .waiting(.restartFL) }
+        controller.showTutorial()
+        controller.finishTutorial(defaults: defaults)
+        XCTAssertFalse(controller.tutorial)
+        XCTAssertEqual(controller.phase, .waiting(.restartFL), "revu : rien n'est relancé")
+        controller.close()
+    }
+
+    /// Les quatre pages du tuto ont leur image, en français et en anglais (Resources/*.lproj, copiés par build.sh).
+    func testTutorialPagesHaveTheirImages() {
+        let pages = OrganizerTutorial.pages
+        XCTAssertEqual(pages.map(\.id), [1, 2, 3, 4])
+        let root = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent()
+            .deletingLastPathComponent()
+        for language in ["fr", "en"] {
+            for page in pages {
+                let url = root.appendingPathComponent("Resources/\(language).lproj/\(page.imageName).png")
+                let image = NSImage(contentsOf: url)
+                XCTAssertNotNil(image, "\(language) \(page.imageName)")
+                XCTAssertEqual(image.map { $0.size.width / $0.size.height } ?? 0, 16 / 9, accuracy: 0.01)
+            }
+        }
+    }
+
     /// Écrans de démonstration (captures de la CI), avec les sons d'exemple : chacun se construit et se dessine.
     /// Sur la CI, « apercu » et « fini » restaient sur l'écran de l'écoute ; ce test dit si leur vue plante.
     func testDemoScreensRender() {
         let link = FakeOrganizerLink()
         let controller = OrganizerController(env: env(link, FakeAudio(link: link), saved: { _ in }))
-        for screen in ["installer", "attente", "aide", "ecoute", "apercu", "fini"] {
+        for screen in ["tuto", "installer", "attente", "aide", "ecoute", "apercu", "fini"] {
             controller.showDemo(screen)
+            XCTAssertEqual(controller.tutorial, screen == "tuto", screen)
             if screen == "apercu" {
                 XCTAssertEqual(controller.phase, .preview)
                 XCTAssertFalse(controller.presentFamilies.isEmpty, "familles des sons d'exemple")

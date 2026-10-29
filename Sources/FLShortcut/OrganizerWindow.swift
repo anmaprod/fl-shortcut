@@ -471,6 +471,10 @@ final class OrganizerController: ObservableObject {
     /// « Pas content ? » ouvert, puis envoyé.
     @Published var feedbackShown = false
     @Published private(set) var feedbackSent = false
+    /// Tuto en images affiché à la place de l'étape (OrganizerTutorial.swift) : à la première ouverture, l'écoute
+    /// n'est lancée qu'une fois fini ; « Revoir le tuto » le remontre sans rien relancer.
+    @Published private(set) var tutorial = false
+    private var startAfterTutorial = false
 
     init(env: OrganizerEnvironment) {
         self.env = env
@@ -485,6 +489,23 @@ final class OrganizerController: ObservableObject {
     func start() {
         guard phase == .starting else { return }
         begin(quiet: false)
+    }
+
+    /// Montre le tuto ; `thenStart` : l'écoute commence quand il est fini (première ouverture).
+    func showTutorial(thenStart: Bool = false) {
+        startAfterTutorial = thenStart
+        tutorial = true
+    }
+
+    /// Tuto fini ou passé : noté comme vu, puis l'écoute si elle l'attendait.
+    func finishTutorial(defaults: UserDefaults = .standard) {
+        guard tutorial else { return }
+        tutorial = false
+        OrganizerTutorial.markSeen(defaults: defaults)
+        if startAfterTutorial {
+            startAfterTutorial = false
+            start()
+        }
     }
 
     /// `quiet` : nouvel essai pendant une attente ; l'écran d'attente reste jusqu'au premier son écouté (pas
@@ -1023,6 +1044,7 @@ final class OrganizerController: ObservableObject {
     func showDemo(_ screen: String) {
         waitSerial += 1
         showLinkHelp = screen == "aide"
+        tutorial = screen == "tuto"
         switch screen {
         case "installer": phase = .setup
         case "attente": phase = .waiting(.restartFL)
@@ -1113,8 +1135,9 @@ enum OrganizerWindow {
         controller?.showDemo(screen)
     }
 
-    /// Ouvre l'Organiser (ou le ramène devant). Fil principal.
-    static func open(env: OrganizerEnvironment = .live(), start: Bool = true) {
+    /// Ouvre l'Organiser (ou le ramène devant). Fil principal. `tutorial` : le tuto d'abord s'il n'a jamais été vu
+    /// (pas à la reprise après « Quitter et rouvrir »).
+    static func open(env: OrganizerEnvironment = .live(), start: Bool = true, tutorial: Bool = true) {
         if let panel {
             panel.orderFrontRegardless()
             return
@@ -1152,7 +1175,11 @@ enum OrganizerWindow {
         }
         p.center()
         p.orderFrontRegardless()
-        if start { controller.start() }
+        if start && tutorial && OrganizerTutorial.shouldShow() {
+            controller.showTutorial(thenStart: true)
+        } else if start {
+            controller.start()
+        }
     }
 
     /// Hauteur demandée par le contenu (`OrganizerView`, à chaque changement : nouvelle étape, fondu fini, aide
@@ -1243,7 +1270,8 @@ struct OrganizerView: View {
 
     @ObservedObject var controller: OrganizerController
 
-    private var isPreview: Bool { controller.phase == .preview }
+    /// L'aperçu est à l'écran (pas le tuto, revu par-dessus : il prend la hauteur de son contenu).
+    private var isPreview: Bool { controller.phase == .preview && !controller.tutorial }
 
     /// Pendant l'application : l'étape en cours (« FL ouvre la copie rangée… 12 s »), sinon le texte général.
     private var applyingText: String {
@@ -1257,6 +1285,7 @@ struct OrganizerView: View {
 
     /// Étape affichée : une nouvelle étape remplace l'ancienne en fondu (la progression de l'écoute, non).
     private var stepKey: String {
+        if controller.tutorial { return "tutorial" }
         switch controller.phase {
         case .starting: return "starting"
         case .setup: return "setup"
@@ -1275,9 +1304,15 @@ struct OrganizerView: View {
         VStack(alignment: .leading, spacing: 16) {
             header
             ZStack(alignment: .topLeading) {
-                content
-                    .id(stepKey)
-                    .transition(Motion.pageMorph)
+                Group {
+                    if controller.tutorial {
+                        OrganizerTutorialView { controller.finishTutorial() }
+                    } else {
+                        content
+                    }
+                }
+                .id(stepKey)
+                .transition(Motion.pageMorph)
             }
             .frame(maxWidth: .infinity, alignment: .topLeading)
         }
@@ -1716,7 +1751,7 @@ struct OrganizerView: View {
 
 /// Bouton principal de l'Organiser, toujours bleu : le panneau ne devient jamais la fenêtre active (FL reste devant),
 /// et le bouton du système y paraissait gris, comme désactivé (vidéo du 29/10).
-private struct AlwaysBlueButtonStyle: ButtonStyle {
+struct AlwaysBlueButtonStyle: ButtonStyle {
     @Environment(\.isEnabled) private var enabled
 
     func makeBody(configuration: Configuration) -> some View {
@@ -1755,6 +1790,7 @@ private struct OrganizerOptionsMenu: View {
             Button(controller.copied ? String(localized: "Copié") : String(localized: "Copier le diagnostic")) {
                 controller.copyDiagnostic()
             }
+            Button("Revoir le tuto") { controller.showTutorial() }
         } label: {
             Text("Options")
         }

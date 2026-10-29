@@ -1,0 +1,190 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Tuto de l'Organiser</title>
+<style>
+/* Images du tuto de l'Organiser (Resources/*.lproj/OrganiserTuto1-4.png), rendues par rendre-organiser-tuto.js :
+   organiser-tuto.html#fr-1 … #en-4. Même style que l'app : fond noir, plaques claires, bleu pour l'action, indigo
+   pour l'Organiser. 400 × 225 points, rendues à 2×. */
+:root {
+  --text: #F5F5F7; --muted: rgba(235,235,245,0.62); --faint: rgba(235,235,245,0.38);
+  --accent: #0071E3; --indigo: #5E5CE6; --green: #30D158; --orange: #FF9F0A; --red: #FF453A; --purple: #BF5AF2;
+  --plate: linear-gradient(180deg, rgba(255,255,255,0.10) 0%, rgba(255,255,255,0.045) 100%);
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; background: transparent; }
+body { font: 12px/1.35 -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", system-ui, sans-serif;
+  color: var(--text); -webkit-font-smoothing: antialiased; }
+.scene { width: 400px; height: 225px; border-radius: 14px; overflow: hidden; position: relative;
+  background: radial-gradient(120% 120% at 80% 0%, #232634 0%, #141416 65%); border: 1px solid rgba(255,255,255,0.10); }
+.plate { border-radius: 12px; background: var(--plate); border: 1px solid rgba(255,255,255,0.15);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.22), 0 8px 24px rgba(0,0,0,0.35); }
+.sq { width: 18px; height: 18px; border-radius: 5px; display: grid; place-items: center; flex: none;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.3); }
+.sq svg { width: 10px; height: 10px; }
+.row { display: flex; align-items: center; gap: 7px; height: 26px; padding: 0 8px; font-size: 11px; }
+.row + .row { border-top: 1px solid rgba(255,255,255,0.06); }
+.blue { display: inline-flex; align-items: center; height: 24px; padding: 0 12px; border-radius: 12px; background: var(--accent);
+  color: #fff; font-weight: 600; font-size: 11px; white-space: nowrap; }
+.grey { display: inline-flex; align-items: center; height: 24px; padding: 0 11px; border-radius: 12px; background: rgba(255,255,255,0.10);
+  border: 1px solid rgba(255,255,255,0.14); font-size: 11px; white-space: nowrap; }
+.pulse { box-shadow: 0 0 0 3px rgba(0,113,227,0.35), 0 0 0 6px rgba(0,113,227,0.14); }
+.cursor { position: absolute; width: 18px; height: 18px; }
+[data-step] { display: none; }
+
+/* 1 : le projet ouvert dans FL, puis Organiser… dans le menu de l'icône */
+.fl { position: absolute; left: 14px; top: 34px; width: 250px; height: 172px; border-radius: 9px; background: #2B3034;
+  border: 1px solid rgba(255,255,255,0.10); overflow: hidden; box-shadow: 0 12px 30px rgba(0,0,0,0.5); }
+.fl .bar { height: 20px; background: #1F2326; display: flex; align-items: center; gap: 5px; padding: 0 8px; font-size: 9.5px; color: var(--muted); }
+.fl .bar i { width: 7px; height: 7px; border-radius: 4px; background: #FF5F57; }
+.fl .bar i:nth-child(2) { background: #FEBC2E; } .fl .bar i:nth-child(3) { background: #28C840; }
+.fl .bar b { margin-left: 6px; color: var(--text); font-weight: 600; }
+.lane { display: flex; align-items: center; height: 24px; border-bottom: 1px solid rgba(0,0,0,0.25); padding-left: 52px; position: relative; }
+.lane span { position: absolute; left: 6px; font-size: 8.5px; color: rgba(255,255,255,0.55); }
+.clip { height: 17px; border-radius: 3px; margin-right: 4px; opacity: .92; flex: none; }
+.menubar { position: absolute; top: 0; left: 0; right: 0; height: 22px; background: rgba(0,0,0,0.45); display: flex;
+  justify-content: flex-end; align-items: center; gap: 10px; padding: 0 12px; font-size: 10px; color: var(--muted); }
+.mbicon { width: 22px; height: 16px; border-radius: 4px; display: grid; place-items: center; background: rgba(255,255,255,0.25); }
+.menu { position: absolute; right: 12px; top: 26px; width: 168px; border-radius: 12px; background: #1C1C1F;
+  border: 1px solid rgba(255,255,255,0.10); box-shadow: 0 16px 40px rgba(0,0,0,0.6); padding: 6px 4px 4px; }
+.menu .it { display: flex; align-items: center; gap: 7px; height: 26px; padding: 0 6px; border-radius: 7px; font-size: 11px; white-space: nowrap; }
+.menu .it.on { background: var(--indigo); }
+.menu .it.on .sq { background: rgba(255,255,255,0.24) !important; box-shadow: none; }
+
+/* 2 : l'écoute */
+.listen { position: absolute; left: 24px; right: 24px; top: 30px; padding: 14px; }
+.lhead { display: flex; align-items: center; gap: 10px; }
+.wave { width: 34px; height: 34px; border-radius: 17px; background: rgba(94,92,230,0.28); display: grid; place-items: center; flex: none; }
+.ltext { flex: 1; }
+.ltext b { display: block; font-size: 12px; margin-bottom: 6px; }
+.track { height: 5px; border-radius: 3px; background: rgba(255,255,255,0.12); overflow: hidden; }
+.track i { display: block; height: 100%; width: 50%; background: var(--accent); border-radius: 3px; }
+.pct { font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.sounds { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 14px; }
+.chip { display: inline-flex; align-items: center; gap: 5px; height: 22px; padding: 0 9px; border-radius: 11px; font-size: 10.5px;
+  background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.12); }
+.chip.done::before { content: "✓"; color: var(--green); font-weight: 700; }
+.chip.now { background: rgba(94,92,230,0.28); border-color: rgba(94,92,230,0.7); font-weight: 600; }
+.chip.wait { color: var(--faint); }
+.hands { position: absolute; left: 24px; bottom: 16px; font-size: 11px; color: var(--muted); }
+
+/* 3 : l'aperçu */
+.fams { position: absolute; left: 16px; right: 16px; top: 16px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.fams > div { min-width: 0; }
+.fhead { display: flex; align-items: center; gap: 6px; font-weight: 600; font-size: 11.5px; margin: 0 0 4px 4px; }
+.dot { width: 10px; height: 10px; border-radius: 3px; flex: none; }
+.fhead small { margin-left: auto; margin-right: 4px; color: var(--muted); font-weight: 500; font-size: 10px; }
+.old { color: var(--muted); flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.to { color: var(--faint); }
+.new { font-weight: 600; }
+.slot { min-width: 20px; height: 16px; border-radius: 4px; display: grid; place-items: center; font-size: 9.5px; font-weight: 700; color: #fff; padding: 0 3px; flex: none; }
+.foot { position: absolute; right: 16px; bottom: 14px; display: flex; gap: 8px; }
+
+/* 4 : la copie rangée */
+.files { position: absolute; left: 20px; right: 20px; top: 20px; display: flex; align-items: center; justify-content: space-between; }
+.file { width: 150px; padding: 12px 10px; display: flex; flex-direction: column; align-items: center; gap: 6px; text-align: center; }
+.doc { width: 34px; height: 42px; border-radius: 5px; background: linear-gradient(180deg, #FF9F0A, #FF6B00); position: relative;
+  box-shadow: 0 6px 16px rgba(255,140,0,0.25); }
+.doc::after { content: "FLP"; position: absolute; left: 0; right: 0; bottom: 6px; text-align: center; font-size: 8px; font-weight: 800; color: rgba(0,0,0,0.55); }
+.doc.copy { background: linear-gradient(180deg, #7D7AFF, #5E5CE6); box-shadow: 0 6px 16px rgba(94,92,230,0.35); }
+.file b { font-size: 11px; }
+.file small { color: var(--muted); font-size: 10px; }
+.arrow2 { color: var(--muted); font-size: 22px; }
+.ask { position: absolute; left: 20px; right: 20px; bottom: 14px; display: flex; align-items: center; gap: 8px; padding: 9px 10px; }
+.ask span:first-child { flex: 1; min-width: 0; font-weight: 600; font-size: 11px; }
+</style>
+</head>
+<body>
+<div class="scene">
+
+  <div data-step="1">
+    <div class="menubar"><span class="mbicon"><svg width="12" height="9" viewBox="0 0 16 12" fill="none" stroke="#F5F5F7" stroke-width="1.5" stroke-linecap="round"><rect x="1" y="1" width="14" height="10" rx="2"/><path d="M4 4.5h1M7.5 4.5h1M11 4.5h1M4.5 8h7"/></svg></span><span data-t="date"></span></div>
+    <div class="fl">
+      <div class="bar"><i></i><i></i><i></i><b data-t="projet"></b></div>
+      <div class="lane"><span>Kick</span><div class="clip" style="width:46px;background:#E2574C"></div><div class="clip" style="width:46px;background:#E2574C"></div><div class="clip" style="width:46px;background:#E2574C"></div></div>
+      <div class="lane"><span>Snare</span><div class="clip" style="width:46px;background:#E8913A;margin-left:24px"></div><div class="clip" style="width:70px;background:#E8913A"></div></div>
+      <div class="lane"><span>808</span><div class="clip" style="width:96px;background:#D9B23D"></div><div class="clip" style="width:46px;background:#D9B23D"></div></div>
+      <div class="lane"><span>Pad</span><div class="clip" style="width:150px;background:#9A6AE0"></div></div>
+      <div class="lane"><span>Vocal</span><div class="clip" style="width:60px;background:#4FA3E0;margin-left:48px"></div></div>
+      <div class="lane"><span>FX</span><div class="clip" style="width:22px;background:#43B581;margin-left:100px"></div></div>
+    </div>
+    <div class="menu">
+      <div class="it"><span class="sq" style="background:#0A84FF"><svg viewBox="0 0 16 16" fill="none" stroke="#fff" stroke-width="1.6" stroke-linecap="round"><path d="M1.5 4h13v8h-13zM4.5 9.5h7"/></svg></span><span data-t="raccourcis"></span></div>
+      <div class="it"><span class="sq" style="background:#BF5AF2"><svg viewBox="0 0 16 16" fill="#fff"><path d="M8 2l1.5 4.5L14 8l-4.5 1.5L8 14l-1.5-4.5L2 8l4.5-1.5z"/></svg></span><span data-t="macros"></span></div>
+      <div class="it on pulse"><span class="sq" style="background:#5E5CE6"><svg viewBox="0 0 16 16" fill="none" stroke="#fff" stroke-width="1.6" stroke-linejoin="round"><path d="M8 2l6 3-6 3-6-3zM2 8l6 3 6-3M2 11l6 3 6-3"/></svg></span><b data-t="organiser"></b></div>
+    </div>
+    <svg class="cursor" style="right:40px;top:96px" viewBox="0 0 24 24"><path d="M5 3l14 9-6.5 1.4L16 21l-3 1.4-3.5-7.7L5 19z" fill="#fff" stroke="#000" stroke-width="1.2" stroke-linejoin="round"/></svg>
+  </div>
+
+  <div data-step="2">
+    <div class="plate listen">
+      <div class="lhead">
+        <div class="wave"><svg width="18" height="18" viewBox="0 0 16 16" fill="none" stroke="#C9C8FF" stroke-width="1.6" stroke-linecap="round"><path d="M2 8h1M4.5 5v6M7 3v10M9.5 6v4M12 4.5v7"/></svg></div>
+        <div class="ltext"><b data-t="ecoute"></b><div class="track"><i></i></div></div>
+        <span class="pct">50 %</span>
+      </div>
+      <div class="sounds">
+        <span class="chip done">Kick</span><span class="chip done">Snare</span><span class="chip done">Hi-hat</span>
+        <span class="chip now">♪ 808</span><span class="chip wait">Pad</span><span class="chip wait">Lead</span><span class="chip wait">Vocal</span><span class="chip wait">FX</span>
+      </div>
+    </div>
+    <div class="hands" data-t="mains"></div>
+  </div>
+
+  <div data-step="3">
+    <div class="fams">
+      <div>
+        <div class="fhead"><span class="dot" style="background:#FF453A"></span>Drums<small>Mixer 2</small></div>
+        <div class="plate">
+          <div class="row"><span class="old">kick_hard_03</span><span class="to">→</span><span class="new">Kick</span><span class="slot" style="background:#FF453A">2</span></div>
+          <div class="row"><span class="old">SNR 12 room</span><span class="to">→</span><span class="new">Snare</span><span class="slot" style="background:#FF453A">3</span></div>
+          <div class="row"><span class="old">hh loop 140</span><span class="to">→</span><span class="new">Hi-hat</span><span class="slot" style="background:#FF453A">4</span></div>
+        </div>
+      </div>
+      <div>
+        <div class="fhead"><span class="dot" style="background:#FF9F0A"></span>808<small>Mixer 6</small></div>
+        <div class="plate">
+          <div class="row"><span class="old">Sub long</span><span class="to">→</span><span class="new">808</span><span class="slot" style="background:#FF9F0A">6</span></div>
+        </div>
+        <div class="fhead" style="margin-top:7px"><span class="dot" style="background:#BF5AF2"></span><span data-t="melodies"></span><small>Mixer 8</small></div>
+        <div class="plate">
+          <div class="row"><span class="old">Serum 4</span><span class="to">→</span><span class="new">Lead</span><span class="slot pulse" style="background:#BF5AF2">8</span></div>
+        </div>
+      </div>
+    </div>
+    <div class="foot"><span class="grey" data-t="annuler"></span><span class="blue" data-t="organiserBouton"></span></div>
+    <svg class="cursor" style="right:14px;top:94px" viewBox="0 0 24 24"><path d="M5 3l14 9-6.5 1.4L16 21l-3 1.4-3.5-7.7L5 19z" fill="#fff" stroke="#000" stroke-width="1.2" stroke-linejoin="round"/></svg>
+  </div>
+
+  <div data-step="4">
+    <div class="files">
+      <div class="plate file"><div class="doc"></div><b data-t="original"></b><small data-t="bougePas"></small></div>
+      <span class="arrow2">→</span>
+      <div class="plate file"><div class="doc copy"></div><b data-t="copie"></b><small data-t="rangee"></small></div>
+    </div>
+    <div class="plate ask"><span data-t="question"></span><span class="grey" data-t="arriere"></span><span class="blue pulse" data-t="valider"></span></div>
+  </div>
+
+</div>
+<script>
+const T = {
+  fr: { date: 'mer. 29 oct.  10:42', projet: 'Mon son.flp', raccourcis: 'Modifier les raccourcis…', macros: 'Macros…',
+        organiser: 'Organiser…', ecoute: 'Analyse du projet : 4 sur 8', mains: 'Ne touche pas à FL.',
+        melodies: 'Mélodies', annuler: 'Annuler', organiserBouton: 'Organiser', original: 'Mon son.flp',
+        bougePas: 'ton projet, il ne bouge pas', copie: 'Mon son_2.flp', rangee: 'la copie rangée',
+        question: 'Tu valides la version organisée ?', arriere: 'Retourner en arrière', valider: 'Oui, valider' },
+  en: { date: 'Wed Oct 29  10:42', projet: 'My song.flp', raccourcis: 'Edit shortcuts…', macros: 'Macros…',
+        organiser: 'Organize…', ecoute: 'Analyzing the project: 4 of 8', mains: "Don't touch FL.",
+        melodies: 'Melodies', annuler: 'Cancel', organiserBouton: 'Organize', original: 'My song.flp',
+        bougePas: 'your project, untouched', copie: 'My song_2.flp', rangee: 'the organized copy',
+        question: 'Keep the organized version?', arriere: 'Go back', valider: 'Yes, keep it' },
+};
+const [lang, step] = (location.hash.slice(1) || 'fr-1').split('-');
+document.documentElement.lang = lang;
+document.querySelectorAll('[data-t]').forEach(e => { e.textContent = T[lang][e.dataset.t]; });
+document.querySelector(`[data-step="${step}"]`).style.display = 'block';
+</script>
+</body>
+</html>

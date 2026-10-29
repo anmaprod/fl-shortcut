@@ -554,3 +554,13 @@ entrée 1 ≈ 0,5 s.
   (`SearchFocusGuard.GuardView.fields`) et capsule cliquable, réglages du bloc en largeur fixe (270), pastilles
   jamais repliées. Graphify branché (graphe du code sur cette branche : `graphify update .`, dossier `graphify-out/`
   hors du dépôt).
+- Tuto (29/10, « fait moi un tuto beau visuellement dans la même DA que le logiciel et pareil pour le read me / peut
+  être même mettre dans le logiciel la première fois qu'on ouvre organiser on a un tuto en gros avec aide image ») :
+  page `site/tuto.html` en 7 étapes dessinées comme l'app (aussi en artefact privé), README illustré par ses images
+  (`docs/images/tuto-*.png`, `docs/images/rendre-tuto.js`). Ses retours sur la page : « (Raccourcis) » /
+  « (Organiser) », légende de MIDI Settings retirée, « Menu de l'icône › Organiser… » avant « Installer le lien »,
+  fenêtre des raccourcis comme la vraie (pages, icônes, couleurs, cartes de la Playlist), plus rien qui déborde
+  (texte au-dessus de l'image sous 1080 de large). Dans l'app : tuto en 4 images à la première ouverture de
+  l'Organiser, avant l'écoute (rien n'est envoyé à FL tant qu'il est là ; `OrganizerTutorial.swift`, clé
+  `organizerTutorialSeen`), « Revoir le tuto » dans Options ; images `Resources/{fr,en}.lproj/OrganiserTuto1…4.png`
+  (`docs/images/organiser-tuto.html`, `rendre-organiser-tuto.js`) ; photo CI `organiser-tuto.png`.
