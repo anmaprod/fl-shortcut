@@ -2,20 +2,26 @@
 // noir plein aux coins arrondis, l'état en haut (point de couleur), une ligne par action (carré de couleur, nom ; au
 // survol, pleine de sa couleur, texte en blanc), puis « Ouvrir FL Shortcuts » en bleu et « Quitter » en bas. Se ferme
 // dès qu'on clique ailleurs ; une fenêtre à la fois. Construit en code, toujours sombre.
+// Une fenêtre faite d'emblée sans barre de titre (AppWindow à la présentation « menu »), le panneau posé dedans
+// (DesktopWindowXamlSource) : retirer la barre d'une fenêtre WinUI déjà créée (SetBorderAndTitleBar ou présentation
+// « menu ») fait libérer deux fois par le Windows App SDK l'objet d'accessibilité de ses boutons
+// (CTitleBarCaptionButtonsFragmentProvider, CI du 29/10 sous page heap) : mémoire abîmée, puis l'appli tombe.
 using FLShortcut.App.Native;
 using FLShortcut.Core;
 using Microsoft.UI;
+using Microsoft.UI.Dispatching;
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Hosting;
 using Microsoft.UI.Xaml.Shapes;
 using Windows.UI;
 using static FLShortcut.App.MacLook;
 
 namespace FLShortcut.App;
 
-internal sealed class TrayMenu : Window
+internal sealed class TrayMenu
 {
     /// Une ligne du menu : son carré de couleur, son nom, ce qu'elle fait.
     public sealed record Entry(string Icon, Color Tint, string Title, Action Run);
@@ -23,11 +29,20 @@ internal sealed class TrayMenu : Window
     /// Le noir du menu du Mac (MenuBackground).
     private static readonly Color MenuColor = Rgb(0x1C, 0x1C, 0x1F);
     private const double MenuWidth = 280;
+    private const uint WM_ACTIVATE = 0x0006;
+    private static readonly UIntPtr SubclassId = new(0x464D);
 
     private static TrayMenu? _open;
+    private readonly AppWindow _window;
     private readonly IntPtr _hwnd;
+    private readonly DesktopWindowXamlSource _source;
+    private readonly DispatcherQueue _queue;
     private readonly Border _panel;
+    private readonly Win32.SubclassProc? _proc;
     private bool _closed;
+
+    /// Le panneau dessiné (photos de la CI).
+    public UIElement Content => _panel;
 
     /// Le menu près du pointeur (au-dessus et à gauche, comme ceux de Windows), devant tout.
     public static void Show(string status, bool ok, IReadOnlyList<Entry> entries, Action open, Action quit)
@@ -48,21 +63,17 @@ internal sealed class TrayMenu : Window
         new Entry("organize", Indigo, Loc.T("Organiser…"), () => { }),
     }, () => { }, () => { }, photo: true);
 
+    public void Activate() => _window.Show(true);
+
+    public void Close() => CloseMenu();
+
     private TrayMenu(string status, bool ok, IReadOnlyList<Entry> entries, Action open, Action quit, bool photo)
     {
-        _hwnd = WinRT.Interop.WindowNative.GetWindowHandle(this);
-        Title = "FL Shortcuts";
-        // Sans bord ni barre de titre, sur la fenêtre de base (la présentation « menu contextuel » avec le contenu
-        // dans la barre de titre faisait tomber WinUI à la création : CI du 29/10).
-        AppWindow.IsShownInSwitchers = false;
-        if (AppWindow.Presenter is OverlappedPresenter presenter)
-        {
-            presenter.SetBorderAndTitleBar(false, false);
-            presenter.IsResizable = false;
-            presenter.IsMaximizable = false;
-            presenter.IsMinimizable = false;
-            presenter.IsAlwaysOnTop = true;
-        }
+        _queue = DispatcherQueue.GetForCurrentThread();
+        _window = AppWindow.Create(OverlappedPresenter.CreateForContextMenu());
+        _window.Title = "FL Shortcuts";
+        _window.IsShownInSwitchers = false;
+        _hwnd = Win32Interop.GetWindowFromWindowId(_window.Id);
         var corner = Win32.DWMWCP_ROUND;
         Win32.DwmSetWindowAttribute(_hwnd, Win32.DWMWA_WINDOW_CORNER_PREFERENCE, ref corner, sizeof(int));
 
@@ -95,32 +106,42 @@ internal sealed class TrayMenu : Window
             RequestedTheme = ElementTheme.Dark,
             Width = MenuWidth,
         };
-        Content = _panel;
+        _source = new DesktopWindowXamlSource();
+        _source.Initialize(_window.Id);
+        _source.SiteBridge.ResizePolicy = Microsoft.UI.Content.ContentSizePolicy.ResizeContentToParentWindow;
+        _source.Content = _panel;
         if (!photo)
         {
-            // Un clic ailleurs : le menu se ferme (comme un menu de Windows).
-            Activated += (_, e) =>
-            {
-                if (e.WindowActivationState == WindowActivationState.Deactivated) CloseMenu();
-            };
+            // Un clic ailleurs : la fenêtre n'est plus active, le menu se ferme (comme un menu de Windows).
+            _proc = WndProc;
+            Win32.SetWindowSubclass(_hwnd, _proc, SubclassId, UIntPtr.Zero);
             _panel.KeyDown += (_, e) =>
             {
                 if (e.Key == Windows.System.VirtualKey.Escape) CloseMenu();
             };
         }
-        Closed += (_, _) =>
-        {
-            _closed = true;
-            if (_open == this) _open = null;
-        };
         FitSize();
     }
 
+    private IntPtr WndProc(IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam, UIntPtr id, UIntPtr refData)
+    {
+        if (msg == WM_ACTIVATE && (wParam.ToInt64() & 0xFFFF) == 0) _queue.TryEnqueue(CloseMenu);
+        return Win32.DefSubclassProc(hWnd, msg, wParam, lParam);
+    }
+
+    /// Caché tout de suite ; défait au tour suivant (jamais pendant le clic de l'une de ses lignes).
     private void CloseMenu()
     {
         if (_closed) return;
         _closed = true;
-        Close();
+        if (_open == this) _open = null;
+        _window.Hide();
+        _queue.TryEnqueue(() =>
+        {
+            if (_proc is not null) Win32.RemoveWindowSubclass(_hwnd, _proc, SubclassId);
+            _source.Dispose();
+            _window.Destroy();
+        });
     }
 
     /// Une ligne : son action après la fermeture du menu (une fenêtre qui s'ouvre passe devant).
@@ -172,7 +193,7 @@ internal sealed class TrayMenu : Window
         var scale = Win32.GetDpiForWindow(_hwnd) / 96.0;
         _panel.Measure(new Windows.Foundation.Size(MenuWidth, double.PositiveInfinity));
         var height = Math.Ceiling(_panel.DesiredSize.Height);
-        AppWindow.ResizeClient(new Windows.Graphics.SizeInt32((int)Math.Ceiling(MenuWidth * scale), (int)Math.Ceiling(height * scale)));
+        _window.ResizeClient(new Windows.Graphics.SizeInt32((int)Math.Ceiling(MenuWidth * scale), (int)Math.Ceiling(height * scale)));
     }
 
     /// Au-dessus et à gauche du pointeur, toujours dans la zone de travail de l'écran (barre des tâches en bas, en
@@ -180,10 +201,10 @@ internal sealed class TrayMenu : Window
     private void Place()
     {
         Win32.GetCursorPos(out var pt);
-        var size = AppWindow.Size;
+        var size = _window.Size;
         var area = DisplayArea.GetFromPoint(new Windows.Graphics.PointInt32(pt.X, pt.Y), DisplayAreaFallback.Nearest).WorkArea;
         var x = Math.Clamp(pt.X - size.Width, area.X, Math.Max(area.X, area.X + area.Width - size.Width));
         var y = Math.Clamp(pt.Y - size.Height, area.Y, Math.Max(area.Y, area.Y + area.Height - size.Height));
-        AppWindow.Move(new Windows.Graphics.PointInt32(x, y));
+        _window.Move(new Windows.Graphics.PointInt32(x, y));
     }
 }
