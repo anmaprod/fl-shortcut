@@ -8,7 +8,8 @@ using FLShortcut.Core.Macros;
 
 namespace FLShortcut.Core;
 
-public enum ShortcutContext { Everywhere, PianoRoll, Playlist, Mixer }
+/// Channel Rack et Browser comme le Mac (29/10) : les raccourcis d'origine de ces pages de FL n'agissent que là.
+public enum ShortcutContext { Everywhere, PianoRoll, Playlist, Mixer, ChannelRack, Browser }
 
 public static class ShortcutContexts
 {
@@ -17,6 +18,8 @@ public static class ShortcutContexts
         ShortcutContext.PianoRoll => "Piano Roll",
         ShortcutContext.Playlist => "Playlist",
         ShortcutContext.Mixer => "Mixer",
+        ShortcutContext.ChannelRack => "Channel Rack",
+        ShortcutContext.Browser => "Browser",
         _ => "Partout",
     };
 
@@ -25,6 +28,8 @@ public static class ShortcutContexts
         ShortcutContext.PianoRoll => "pianoRoll",
         ShortcutContext.Playlist => "playlist",
         ShortcutContext.Mixer => "mixer",
+        ShortcutContext.ChannelRack => "channelRack",
+        ShortcutContext.Browser => "browser",
         _ => "everywhere",
     };
 
@@ -34,6 +39,8 @@ public static class ShortcutContexts
         "pianoRoll" => ShortcutContext.PianoRoll,
         "playlist" => ShortcutContext.Playlist,
         "mixer" => ShortcutContext.Mixer,
+        "channelRack" => ShortcutContext.ChannelRack,
+        "browser" => ShortcutContext.Browser,
         _ => null,
     };
 
@@ -42,7 +49,20 @@ public static class ShortcutContexts
         FlWindow.PianoRoll => ShortcutContext.PianoRoll,
         FlWindow.Playlist => ShortcutContext.Playlist,
         FlWindow.Mixer => ShortcutContext.Mixer,
+        FlWindow.ChannelRack => ShortcutContext.ChannelRack,
+        FlWindow.Browser => ShortcutContext.Browser,
         _ => null,
+    };
+
+    /// Fenêtre de FL où un raccourci de la page agit (Général, Lecture, Patterns : partout).
+    public static ShortcutContext Context(this FlSection s) => s switch
+    {
+        FlSection.Playlist => ShortcutContext.Playlist,
+        FlSection.PianoRoll => ShortcutContext.PianoRoll,
+        FlSection.Mixer => ShortcutContext.Mixer,
+        FlSection.ChannelRack => ShortcutContext.ChannelRack,
+        FlSection.Browser => ShortcutContext.Browser,
+        _ => ShortcutContext.Everywhere,
     };
 }
 
