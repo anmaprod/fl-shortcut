@@ -130,111 +130,83 @@ final class AccessibilityGuide: ObservableObject {
     }
 }
 
-/// Contenu du panneau : titre gras aligné à gauche avec l'icône de l'app (typographie de macOS 26), étapes
-/// numérotées en pastilles, et un aperçu de la ligne à activer. Panneau standard du système (aucun verre ajouté).
+/// Contenu du panneau (maquette validée le 28/10) : un titre court, puis une carte en verre avec le clavier et le son
+/// de FL, chacun coché une fois autorisé ; tant que le clavier attend, l'interrupteur à activer en exemple.
 private struct AccessibilityGuideView: View {
     @ObservedObject var guide: AccessibilityGuide
 
+    private var title: String {
+        switch guide.stage {
+        case .keyboard:
+            return guide.granted ? String(localized: "Clavier autorisé") : String(localized: "Active FL Shortcuts")
+        case .audio:
+            return guide.audioGranted ? String(localized: "Tout est prêt") : String(localized: "Autorise le son de FL")
+        }
+    }
+
+    private var marks: [Mark] {
+        var list = [Mark(id: "clavier", title: String(localized: "Clavier"), done: guide.granted,
+                         current: guide.stage == .keyboard)]
+        if #available(macOS 14.2, *) {
+            list.append(Mark(id: "son", title: String(localized: "Son de FL"), done: guide.audioGranted,
+                             current: guide.stage == .audio))
+        }
+        return list
+    }
+
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            progress
-            if guide.stage == .audio {
-                audioSteps
-            } else if guide.granted {
-                HStack(spacing: 12) {
-                    Image(systemName: "checkmark.circle.fill")
-                        .font(.system(size: 30))
-                        .foregroundStyle(Color.green)
-                        .accessibilityHidden(true)
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("Clavier autorisé").font(.headline)
-                        Text("Tes raccourcis marchent dès que FL Studio est au premier plan.")
-                            .foregroundStyle(.secondary)
-                            .fixedSize(horizontal: false, vertical: true)
+        VStack(alignment: .leading, spacing: 14) {
+            Text(title)
+                .font(.system(size: 16, weight: .bold))
+                .contentTransition(.opacity)
+            PlateRows(data: marks) { mark in
+                HStack(spacing: 10) {
+                    Group {
+                        if mark.done {
+                            Image(systemName: "checkmark.circle.fill").foregroundStyle(Color.green)
+                        } else if mark.current {
+                            WaitingRing(size: 16)
+                        } else {
+                            Image(systemName: "circle").foregroundStyle(.tertiary)
+                        }
+                    }
+                    .font(.system(size: 16))
+                    .frame(width: 18)
+                    Text(mark.title)
+                        .foregroundStyle(mark.done || mark.current ? Color.primary : Color.secondary)
+                    Spacer(minLength: 8)
+                    if mark.current && !mark.done {
+                        Text("En attente…").font(.system(size: 12)).foregroundStyle(.secondary)
                     }
                 }
+                .font(.system(size: 13))
+                .padding(.horizontal, 10)
+                .frame(height: 40)
                 .accessibilityElement(children: .combine)
-            } else {
-                HStack(spacing: 10) {
-                    AppIcon().frame(width: 36, height: 36)
-                    Text("Dans la fenêtre Accessibilité qui vient de s'ouvrir :")
-                        .font(.headline)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-                step(1, String(localized: "Active l'interrupteur à côté de FL Shortcuts."))
+            }
+            if guide.stage == .keyboard && !guide.granted {
                 SwitchPreview()
-                    .padding(.leading, 28)
-                step(2, String(localized: """
-                    Il n'est pas dans la liste, ou il est déjà activé mais rien ne marche ? \
-                    Retire-le avec « – », puis ajoute-le avec « + » (dossier Applications).
-                    """))
-                HStack(spacing: 6) {
-                    Image(systemName: "hourglass").foregroundStyle(.secondary)   // fixe : aucune animation
-                    Text("En attente… FL Shortcuts le détecte tout seul.")
-                        .font(.callout).foregroundStyle(.secondary)
+            }
+            if guide.stage == .audio && !guide.audioGranted {
+                HStack {
+                    Spacer()
+                    Button("Plus tard") { guide.close() }
+                        .secondaryButton()
+                    Button("Ouvrir les réglages") { ScreenLook.openSettings() }
+                        .primaryButton()
                 }
-                .padding(.top, 2)
             }
         }
         .padding(18)
-        .frame(width: 360, alignment: .leading)
+        .frame(width: 300, alignment: .leading)
         .animation(Motion.quickMorph, value: guide.stage)
     }
 
-    /// Les deux autorisations demandées ensemble, cochées une à une.
-    private var progress: some View {
-        HStack(spacing: 14) {
-            mark(String(localized: "Clavier"), done: guide.granted, current: guide.stage == .keyboard)
-            if #available(macOS 14.2, *) {
-                mark(String(localized: "Son de FL"), done: guide.audioGranted, current: guide.stage == .audio)
-            }
-        }
-        .font(.system(size: 11, weight: .medium))
-    }
-
-    private func mark(_ title: String, done: Bool, current: Bool) -> some View {
-        Label(title, systemImage: done ? "checkmark.circle.fill" : current ? "circle.dotted" : "circle")
-            .foregroundStyle(done ? Color.green : current ? Color.primary : Color.secondary)
-    }
-
-    @ViewBuilder private var audioSteps: some View {
-        if guide.audioGranted {
-            Label("Son de FL autorisé : tout est prêt.", systemImage: "checkmark.circle.fill")
-                .font(.headline)
-                .foregroundStyle(Color.green)
-        } else {
-            HStack(spacing: 10) {
-                AppIcon().frame(width: 36, height: 36)
-                Text("Autorise le son de FL :")
-                    .font(.headline)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-            step(1, String(localized: "Dans la fenêtre de macOS, clique « Autoriser »."))
-            step(2, String(localized: """
-                Pas de fenêtre ? Dans les réglages qui s'ouvrent, active l'interrupteur à côté de FL Shortcuts, dans \
-                la partie audio.
-                """))
-            Text(String(localized: """
-                Sert à l'Organiser : il écoute chaque son de FL pour le ranger. Rien n'est enregistré ni envoyé.
-                """))
-                .font(.callout)
-                .foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
-            HStack {
-                Spacer()
-                Button("Plus tard") { guide.close() }
-                Button("Ouvrir les réglages") { ScreenLook.openSettings() }
-            }
-        }
-    }
-
-    private func step(_ n: Int, _ text: String) -> some View {
-        HStack(alignment: .firstTextBaseline, spacing: 8) {
-            StepBadge(number: n)
-            Text(text).fixedSize(horizontal: false, vertical: true)
-        }
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel("Étape \(n) : \(text)")
+    private struct Mark: Identifiable {
+        let id: String
+        let title: String
+        let done: Bool
+        let current: Bool
     }
 }
 

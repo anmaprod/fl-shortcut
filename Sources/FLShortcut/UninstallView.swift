@@ -215,7 +215,6 @@ struct UninstallView: View {
         // Même taille à chaque étape : la fenêtre ne saute plus quand le contenu change (confirmation haute, attente
         // courte, bilan) ; chaque étape est centrée dedans.
         .frame(width: 340, height: 350)
-        .background { BrandGlow() }                  // les couleurs de l'app, comme le guide
     }
 
     /// Étape affichée : chacune arrive en fondu flou, comme dans le guide.

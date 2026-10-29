@@ -2,8 +2,8 @@
 // macro, « + Ajouter » du créateur. Chaque option a son icône de couleur à gauche ; au survol, la carte du guide (voile
 // clair, liseré de sa couleur, ombre douce) ; à l'ouverture, les options arrivent l'une après l'autre (flou → net, de
 // haut en bas, ressort) et leur icône éclot. Une liste à déplier (« Charger un profil ») s'ouvre sur place en poussant
-// les options du dessous, au lieu d'un sous-menu. Une bulle de macOS (popover) les porte, sur la lueur des couleurs
-// de l'app. Rien ne tourne au repos.
+// les options du dessous, au lieu d'un sous-menu. Une bulle de macOS (popover) les porte, sans lueur de couleur
+// (28/10). Rien ne tourne au repos.
 import SwiftUI
 
 /// Une ligne d'un menu.
@@ -84,7 +84,6 @@ struct StyledMenuList: View {
         }
         .padding(8)
         .frame(width: width)
-        .background { BrandGlow().opacity(0.55) }
         .onAppear {
             // Un tour plus tard : l'état replié est d'abord affiché, puis les lignes arrivent.
             DispatchQueue.main.async { revealed = true }

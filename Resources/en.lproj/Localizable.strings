@@ -146,6 +146,7 @@
 "Action inconnue (« %@ ») : mets à jour FL Shortcuts." = "Unknown action (“%@”): update FL Shortcuts.";
 "Action à choisir" = "Choose an action";
 "Actions en plus" = "Extra actions";
+"Active FL Shortcuts" = "Turn on FL Shortcuts";
 "Active FL Shortcuts dans la page qui vient de s'ouvrir, puis autorise le son. C'est détecté tout seul." = "Turn on FL Shortcuts in the page that just opened, then allow the sound. It's detected automatically.";
 "Active l'interrupteur à côté de FL Shortcuts." = "Turn on the switch next to FL Shortcuts.";
 "Active ou coupe le métronome" = "Turns the metronome on or off";
@@ -180,6 +181,7 @@
 "Aides de notes" = "Note helpers";
 "Ajoute ce bloc sous la ligne choisie" = "Adds this block below the selected row";
 "Ajoute des macros toutes faites, après avoir lu ce qu'elles font." = "Add ready-made macros, after reading what they do.";
+"Ajoute les macros des autres." = "Add other people's macros.";
 "Ajoute un instrument dans le Channel rack." = "Adds an instrument to the Channel rack.";
 "Ajouter" = "Add";
 "Ajouter des macros reçues (.flsmacro) ; la boîte s'ouvre dans Documents › FL Shortcuts › Macros" = "Add macros you received (.flsmacro); the dialog opens in Documents › FL Shortcuts › Macros";
@@ -313,11 +315,13 @@
 "Autorise FL Shortcuts dans Réglages Système › Confidentialité et sécurité › Enregistrement de " = "Allow FL Shortcuts in System Settings › Privacy & Security › ";
 "Autorise l'Accessibilité à FL Shortcuts pour parcourir les menus de FL." = "Allow Accessibility for FL Shortcuts to browse FL's menus.";
 "Autorise l'Accessibilité à FL Shortcuts pour voir la liste de tes plugins, " = "Allow Accessibility for FL Shortcuts to see your plugin list, ";
+"Autorise le son de FL" = "Allow FL's sound";
 "Autorise le son de FL :" = "Allow FL's sound:";
 "Autorise « Audio du système »" = "Allow “System Audio”";
 "Autorise « Enregistrement de l'écran » :" = "Allow “Screen Recording”:";
 "Autoriser FL Shortcuts" = "Allow FL Shortcuts";
 "Autoriser…" = "Allow…";
+"Autorisé" = "Allowed";
 "Autre" = "Other";
 "Autre (lettres soulignées)…" = "Other (underlined letters)…";
 "Autre dossier de FL…" = "Other FL folder…";
@@ -337,6 +341,7 @@
 "Bibliothèque de macros inaccessible (%@) : elle n'est pas modifiée." = "Macro library unavailable (%@): it's left unchanged.";
 "Bientôt : %@" = "Coming soon: %@";
 "Bientôt, tu y trouveras des macros et des raccourcis partagés par d'autres utilisateurs, et tu pourras partager les tiens. En attendant, rien ne change pour tes raccourcis et tes macros." = "Soon you'll find macros and shortcuts shared by other users here, and you'll be able to share yours. Until then, nothing changes for your shortcuts and macros.";
+"Bienvenue" = "Welcome";
 "Bienvenue dans FL Shortcuts" = "Welcome to FL Shortcuts";
 "Bloc" = "Block";
 "Bloc %@" = "Block %@";
@@ -461,6 +466,7 @@
 "Choisir à chaque fois (liste de FL)" = "Choose each time (FL's list)";
 "Choisir, créer et renommer les patterns" = "Select, create and rename patterns";
 "Choisir…" = "Choose…";
+"Choisis FL Shortcuts dans MIDI Settings" = "Choose FL Shortcuts in MIDI Settings";
 "Choisis cette ligne pour ajouter des blocs à la fin de la liste, ou glisses-en une ici" = "Select this row to add blocks at the end of the list, or drag one here";
 "Choisis d'abord la macro à partager" = "First choose the macro to share";
 "Choisis d'abord la page au-dessus." = "Choose the page above first.";
@@ -479,6 +485,7 @@
 "Choisis une ligne pour la régler." = "Pick a row to set it up.";
 "Choisis une ligne pour la régler. Ajoute des blocs depuis la palette, glisse les lignes pour les ranger ; ⌘D duplique, ⌫ supprime, ⌘Z annule." = "Select a row to set it up. Add blocks from the palette, drag rows to reorder them; ⌘D duplicates, ⌫ deletes, ⌘Z undoes.";
 "Choisis une nouvelle touche pour « %@ »." = "Choose a new key for “%@”.";
+"Choisis une page à gauche." = "Choose a page on the left.";
 "Choisis-lui un raccourci, puis « Tester ». La flèche ← ramène à tes macros." = "Give it a shortcut, then “Test”. The ← arrow takes you back to your macros.";
 "Choisit l'entrée 1 de la piste." = "Picks input 1 for the track.";
 "Choisit un élément de menu par son titre (Accessibilité), sinon par des clics de secours appris. Repris des anciennes macros, absent de la palette." = "Picks a menu item by its title (Accessibility), otherwise with learned backup clicks. Kept from old macros, not in the palette.";
@@ -531,6 +538,7 @@
 "Clique sur « Open mixer track state… » (Échap pour fermer la boîte)." = "Click “Open mixer track state…” (Esc to close the dialog).";
 "Clique sur ⟳ pour lire la liste dans FL (le menu Add s'ouvre un instant), ou écris le nom." = "Click ⟳ to read the list in FL (the Add menu opens for a moment), or type the name.";
 "Clique une fois à l'endroit voulu dans FL. Échap annule." = "Click once on the spot you want in FL. Esc cancels.";
+"Clique une touche, puis tape la nouvelle." = "Click a key, then type the new one.";
 "Clique à l'endroit voulu dans FL (une fois). Échap : annuler." = "Click the spot you want in FL (once). Esc: cancel.";
 "Clique, utilise les flèches, tes raccourcis… : chaque geste devient un bloc, que tu peux " = "Click, use the arrows, your shortcuts…: each action becomes a block you can ";
 "Cliquer pour enregistrer" = "Click to record";
@@ -581,6 +589,7 @@
 "Contenu offensant" = "Offensive content";
 "Continue si échec" = "Continue on failure";
 "Continuer" = "Continue";
+"Controller type : FL Shortcuts" = "Controller type: FL Shortcuts";
 "Controller type : FL Shortcuts, même Port" = "Controller type: FL Shortcuts, same Port";
 "Contrôle" = "Control";
 "Copie de l'ancien profil : %@." = "Copy of the old profile: %@.";
@@ -602,6 +611,7 @@
 "Couper tous les sons (panique)" = "Stop all sounds (panic)";
 "Crash" = "Crash";
 "Créateur de macros" = "Macro creator";
+"Crée ton compte." = "Create your account.";
 "Crée un compte : mail, mot de passe et nom d'utilisateur. Seul ton nom est visible des autres." = "Create an account: email, password and username. Only your name is visible to others.";
 "Crée un pattern vide et ouvre le Piano Roll" = "Creates an empty pattern and opens the Piano Roll";
 "Crée une macro, ou ouvre-en une depuis la fenêtre Raccourcis › Macros." = "Create a macro, or open one from the Shortcuts › Macros window.";
@@ -644,6 +654,7 @@
 "Donne un nom et une couleur à l'élément choisi dans FL." = "Gives a name and a color to the item selected in FL.";
 "Donne un nom et/ou une couleur à la piste ou au canal sélectionné dans la page de FL qui est devant (Mixer, Channel rack ou Playlist), par le lien avec FL, et une icône de FL par sa fenêtre (F2). Un seul élément doit être sélectionné." = "Gives a name and/or color to the track or channel selected in the FL page in front (Mixer, Channel rack or Playlist) through the FL link, and an FL icon through its window (F2). Only one item must be selected.";
 "Donne une valeur (nombre entier) à une variable de la macro." = "Sets a macro variable to a value (whole number).";
+"Donne-lui un raccourci." = "Give it a shortcut.";
 "Dossier incorrect" = "Wrong folder";
 "Downlifter" = "Downlifter";
 "Droit" = "Right";
@@ -705,8 +716,10 @@
 "Elle arrive sans raccourci : rien ne se lance tant que tu ne lui en as pas choisi un." = "It comes without a shortcut: nothing runs until you pick one for it.";
 "Elle continue de marcher dans FL : ta touche s'ajoute." = "It still works in FL: your key is added on top.";
 "En attente de FL Studio" = "Waiting for FL Studio";
+"En attente de FL Studio…" = "Waiting for FL Studio…";
 "En attente de FL Studio… fais les étapes 2 et 3" = "Waiting for FL Studio… do steps 2 and 3";
 "En attente des touches" = "Waiting for keys";
+"En attente…" = "Waiting…";
 "En attente… FL Shortcuts le détecte tout seul." = "Waiting… FL Shortcuts will notice on its own.";
 "En bas de cette page, « Écrire à l'équipe ». Quand une macro échoue, le bouton « Signaler » de son bandeau (ou « Signaler ce problème… » dans le menu de l'icône en haut de l'écran) prépare le message avec l'erreur et le journal de la macro : tu vois tout ce qui est joint avant l'envoi." = "At the bottom of this page, “Write to the team”. When a macro fails, the “Report” button on its banner (or “Report this problem…” in the menu bar icon's menu) prepares the message with the error and the macro's log: you see everything attached before it's sent.";
 "En cours" = "Running";
@@ -974,6 +987,7 @@
 "Infos du morceau" = "Song info";
 "Input" = "Input";
 "Installation impossible" = "Couldn't install";
+"Installe le lien" = "Install the link";
 "Installer le lien" = "Install the link";
 "Installer le lien avec FL Studio…" = "Install the FL Studio link…";
 "Installer le lien avec FL…" = "Install the FL link…";
@@ -1017,6 +1031,7 @@
 "L'entrée « 1 » est montrée une seule fois, pendant la macro : une bulle te le demande." = "Input “1” is shown only once, during the macro: a bubble asks you to.";
 "L'entrée « 1 » est retenue sur ce Mac (montrée une fois)." = "Input “1” is saved on this Mac (shown once).";
 "L'explication de @%@" = "@%@'s description";
+"L'icône en haut de l'écran ouvre le menu." = "The icon at the top of the screen opens the menu.";
 "L'icône en haut de l'écran ouvre son menu : modifier les raccourcis, organiser, mettre en pause." = "The icon at the top of the screen opens its menu: edit shortcuts, organize, pause.";
 "La Communauté" = "The Community";
 "La Communauté n'est pas encore ouverte" = "The Community isn't open yet";
@@ -1417,6 +1432,7 @@
 "Pas encore montrée : une bulle te la demandera." = "Not shown yet: a bubble will ask you for it.";
 "Passe au pattern suivant" = "Goes to the next pattern";
 "Passe le son du Mac sur la carte son branchée." = "Switches the Mac's sound to the plugged-in audio interface.";
+"Passer" = "Skip";
 "Passer au bureau 1" = "Switch to Desktop 1";
 "Passer au bureau 2" = "Switch to Desktop 2";
 "Passer au bureau 3" = "Switch to Desktop 3";
@@ -1521,6 +1537,7 @@
 "Quels sons étaient mal rangés ?" = "Which sounds were in the wrong place?";
 "Questions fréquentes" = "Frequently asked questions";
 "Questions fréquentes, et écrire à l'équipe" = "FAQ, and write to the team";
+"Quitte et rouvre FL" = "Quit and reopen FL";
 "Quitte et rouvre FL Studio" = "Quit and reopen FL Studio";
 "Quitte et rouvre FL Studio : il trouve « FL Shortcuts Link » en démarrant et le relie tout seul. Puis « Réessayer »." = "Quit and reopen FL Studio: it finds “FL Shortcuts Link” when it starts and links it on its own. Then “Try again”.";
 "Quitter" = "Quit";
@@ -1600,6 +1617,7 @@
 "Retire du projet les clips audio inutilisés." = "Removes unused audio clips from the project.";
 "Retirer" = "Remove";
 "Retirer tous les solos" = "Clear all solos";
+"Retouche les blocs dans le créateur." = "Fine-tune the blocks in the creator.";
 "Retouche-la dans le créateur : ajoute des blocs de la palette d'un clic ou en les glissant, range les lignes en les glissant." = "Fine-tune it in the creator: add blocks from the palette with a click or by dragging, and drag rows to reorder them.";
 "Retour" = "Back";
 "Retour comme avant…" = "Undoing changes…";
@@ -1874,6 +1892,7 @@
 "Tout ce que tu peux faire, en une minute." = "Everything you can do, in one minute.";
 "Tout est en ligne." = "Everything is online.";
 "Tout est enregistré" = "All saved";
+"Tout est prêt" = "All set";
 "Tout est prêt, mais attention au larsen" = "All set, but watch out for feedback";
 "Tout réinitialiser ?" = "Reset everything?";
 "Tout réinitialiser…" = "Reset all…";
@@ -1910,6 +1929,7 @@
 "Un son a le mauvais nom (Kick, Snare, Pad…)" = "A sound has the wrong name (Kick, Snare, Pad…)";
 "Un son est dans la mauvaise famille" = "A sound is in the wrong family";
 "Un « ! » apparaît sur l'icône en haut de l'écran" = "A “!” appears on the menu bar icon";
+"Un « ! » sur l'icône : autorise le clavier." = "A “!” on the icon: allow the keyboard.";
 "Un « ! » sur l'icône : le clavier n'est pas autorisé. Ouvre son menu pour savoir quoi faire." = "A “!” on the icon: keyboard access isn't allowed. Open its menu to see what to do.";
 "Un état de piste du Mixer (.fst) dans ton dossier personnel. La boîte « Open » de FL doit être ouverte juste avant (bloc « Attendre une fenêtre »)." = "A Mixer track state (.fst) in your home folder. FL's “Open” dialog must be open just before (“Wait for a window” block).";
 "Une action de FL Shortcuts (Mixer, Playlist, métronome…) : par le lien avec FL s'il est installé, sinon la touche équivalente de FL." = "An FL Shortcuts action (Mixer, Playlist, metronome…): through the FL link if it's installed, otherwise FL's matching key.";
@@ -2211,6 +2231,7 @@
 "positions apprises inconnues" = "unknown learned positions";
 "positions apprises inconnues." = "unknown learned positions.";
 "positions de secours invalides." = "invalid backup positions.";
+"pour l'Organiser" = "for Organize";
 "pour retrouver le bouton « Arrangement », FL Shortcuts doit voir la fenêtre de FL (Réglages Système › Confidentialité et sécurité › Enregistrement de l'écran)" = "to find the “Arrangement” button, FL Shortcuts must see FL's window (System Settings › Privacy & Security › Screen Recording)";
 "première entrée" = "first input";
 "preset .fst attendu dans ton dossier personnel." = ".fst preset expected in your home folder.";
@@ -2289,9 +2310,12 @@
 "« %@ »%@, touche d'origine de FL" = "“%@”%@, FL default key";
 "« (none) » → entrée 1" = "“(none)” → input 1";
 "« (none) » → entrée 1 de la piste. Montré une seule fois (une bulle le demande), puis refait seul." = "“(none)” → the track's input 1. Shown only once (a bubble asks for it), then done automatically.";
+"« + » ajoute ton propre raccourci." = "“+” adds your own shortcut.";
+"« + » partage les tiennes." = "“+” shares yours.";
 "« Ajouter à mes macros » la range avec les tiennes, sans raccourci : rien ne se lance tant que tu ne lui en as pas choisi un." = "“Add to my macros” puts it with yours, without a shortcut: nothing runs until you pick one for it.";
 "« Arm selected track(s) » n'a pas répondu" = "“Arm selected track(s)” didn't respond";
 "« Enregistrer clics et touches » n'a rien enregistré" = "“Record clicks and keys” didn't record anything";
+"« Enregistrer une macro », puis fais ta suite dans FL." = "“Record a macro”, then do your steps in FL.";
 "« FL Shortcuts » absent des Controller types : FL ne lit pas le dossier du script ci-dessous. Compare-le avec Options › File settings › User data folder (pas sur iCloud) ; s'il diffère, « Autre dossier de FL… » et choisis celui-là." = "“FL Shortcuts” missing from the Controller types: FL isn't reading the script folder below. Compare it with Options › File settings › User data folder (not on iCloud); if it's different, click “Other FL folder…” and choose that one.";
 "« FL Shortcuts » absent des Controller types : FL ne lit pas le dossier du script ci-dessous. Compare-le avec Options › File settings › User data folder dans FL (pas sur iCloud) ; s'il diffère, « Autre dossier de FL… » et choisis celui-là." = "“FL Shortcuts” missing from the Controller types: FL isn't reading the script folder below. Compare it with Options › File settings › User data folder in FL (not on iCloud); if it's different, click “Other FL folder…” and choose that one.";
 "« File › Open mixer track state » s'ouvre tout seul, au clavier (lettres soulignées du menu de FL). La première fois, une bulle te demande seulement de cliquer sur « (none) » puis sur l'entrée « 1 »." = "“File › Open mixer track state” opens on its own, from the keyboard (underlined letters in FL's menu). The first time, a bubble just asks you to click “(none)” then input “1”.";
@@ -2299,6 +2323,7 @@
 "« Partir d'un modèle… » propose des macros toutes faites, à adapter." = "“Start from a template…” offers ready-made macros you can adapt.";
 "« Renommer » de FL (F2), le nom tapé, puis Entrée." = "“Rename” window (F2), the typed name, then Return.";
 "À apprendre" = "To learn";
+"À autoriser" = "To allow";
 "À choisir" = "Choose…";
 "À corriger" = "To fix";
 "À faire une seule fois." = "You only do this once.";
@@ -2371,6 +2396,7 @@
 "⌃1…⌃5 pour les fenêtres, ⌃D/⌃F patterns, ⌃T/⌃S mute/solo, ⌃M métronome, ⌘⇧Z rétablir. Rien n'écrase FL." = "⌃1…⌃5 for windows, ⌃D/⌃F patterns, ⌃T/⌃S mute/solo, ⌃M metronome, ⌘⇧Z redo. Nothing overrides FL.";
 "⌃⌥⌘F" = "⌃⌥⌘F";
 "⌃⌥⌘F met en pause ou reprend, n'importe où. Une pastille le rappelle tant que c'est en pause." = "⌃⌥⌘F pauses or resumes, from anywhere. A badge reminds you while it's paused.";
+"⌃⌥⌘F met en pause ou reprend." = "⌃⌥⌘F pauses or resumes.";
 "⌃⌥⌘F sert à mettre FL Shortcuts en pause." = "⌃⌥⌘F is used to pause FL Shortcuts.";
 "⌃⌥⌘F, n'importe où, ou « Mettre en pause » dans le menu de l'icône en haut de l'écran. Une pastille rappelle que c'est en pause." = "⌃⌥⌘F, from anywhere, or “Pause” in the menu bar icon's menu. A badge reminds you that it's paused.";
 "⌃⌥⌘F, n'importe où. Une pastille rappelle que c'est en pause, et « Reprendre » apparaît alors dans le menu de l'icône en haut de l'écran." = "⌃⌥⌘F, from anywhere. A badge reminds you that it's paused, and “Resume” then appears in the menu bar icon's menu.";

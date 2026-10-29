@@ -488,3 +488,15 @@ entrée 1 ≈ 0,5 s.
   paragraphe dans l'aperçu (« 3 sons sans note seront retirés. L'original ne bouge pas. » : « j'aime pas ») ; cases en
   mots courts (Renommer, Un bus par famille, Supprimer les sons sans note) ; seul avertissement gardé : Playlist trop
   grande pour FL (`playlistTooBig`). Windows non touché (en pause).
+- Début de l'app (29/10) : « il faut aussi rebosser l'ouverture au tout début lors des activations et du guide ».
+  Maquettes faites (autorisations, activation dans Réglages, relier FL, guide « Bienvenue », une page du guide) ;
+  le nom « FL Shortcuts » écrit en animation a été essayé (écriture, machine à écrire, lettres en fondu) puis
+  abandonné : « on enlève cette idée d'animation et tu peux lancer tout ça ». Fait comme les maquettes : plus d'icône,
+  de sous-titre, de phrase d'aide ni de mention de vie privée sur l'écran des autorisations ; une carte en verre
+  Clavier / Son de FL (pour l'Organiser) avec l'état de chacun ; « Relier FL Studio » en trois étapes d'une ligne
+  (Installe le lien, Quitte et rouvre FL, Choisis FL Shortcuts dans MIDI Settings), aperçu de MIDI Settings, statut
+  « En attente de FL Studio… » / « FL Studio est relié » (plus de « Tester » ni de « À faire une seule fois ») ; guide :
+  « Bienvenue », une ligne par partie, puis chaque partie en trois étapes d'une ligne (résumés et astuces retirés),
+  « Passer », points et boutons en bleu ; panneau d'autorisation : « Active FL Shortcuts » / « Autorise le son de
+  FL » / « Tout est prêt » et une carte Clavier / Son de FL. Plus aucune lueur de couleur (accueil, guide, menus
+  stylés, validation de l'Organiser, désinstallation). Depuis l'accueil, toujours sans panneau (règle du 24/10).

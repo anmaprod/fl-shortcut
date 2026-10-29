@@ -1,12 +1,10 @@
-// Accueil sobre, enchaîné : 1. autoriser le clavier (guide Accessibilité, détection automatique) ; 2. hors mode
-// léger, relier FL Studio avec un vrai statut (« En attente de FL Studio… » → « FL Studio est relié ») et « Tester » ;
-// 3. le guide, dans la même fenêtre ; à la fin, la fenêtre principale s'ouvre. Fondus entre les écrans, aucune
-// animation continue.
-// macOS 26 : lueurs aux couleurs de l'icône en haut de la fenêtre (dégradés statiques), que réfractent les touches
-// en verre et le grand bouton en verre teinté ; verre coupé (préférence, Réduire la transparence) : fond uni.
+// Accueil sobre, enchaîné (maquette validée le 28/10) : 1. les autorisations (clavier, son de FL), chacune avec son
+// état (« À autoriser », « En attente… », « Autorisé ») ; 2. hors mode léger, relier FL Studio en trois étapes d'une
+// ligne avec un vrai statut (« En attente de FL Studio… » → « FL Studio est relié ») ; 3. le guide, dans la même
+// fenêtre ; à la fin, la fenêtre principale s'ouvre. Fond plein, cartes en verre devant ; fondus entre les écrans,
+// aucune animation continue, aucune phrase d'explication.
 // Audit : REL-23 (accueil marqué « vu » seulement après un choix ; permission demandée depuis l'accueil),
-//         tests utilisateurs (rassurer sur la vie privée, montrer où cliquer dans MIDI Settings, confirmer que
-//         ça marche).
+//         tests utilisateurs (montrer où cliquer dans MIDI Settings, confirmer que ça marche).
 import AppKit
 import SwiftUI
 
@@ -107,8 +105,7 @@ final class OnboardingWindow {
 }
 
 /// Accueil, en un seul enchaînement dans la même fenêtre : autoriser le clavier, relier FL (hors mode léger), puis le
-/// guide ; à la fin, la fenêtre principale s'ouvre. Chaque écran se fond dans le suivant (l'icône de l'app glisse de
-/// l'écran du clavier jusqu'en haut du guide) ; le fond suit la couleur de la page.
+/// guide ; à la fin, la fenêtre principale s'ouvre. Chaque écran se fond dans le suivant ; fond plein de la fenêtre.
 struct OnboardingView: View {
     @EnvironmentObject var status: AppStatus
     @EnvironmentObject var link: MIDILink
@@ -123,8 +120,6 @@ struct OnboardingView: View {
     @State private var installed = false
     /// Mode capture : clavier montré comme autorisé.
     @State private var demoAccess = false
-    /// L'icône de l'app, de l'écran du clavier jusqu'en haut du guide.
-    @Namespace private var morph
 
     private var accessOK: Bool { demoAccess || status.accessibilityOK }
     /// Autorisations demandées ensemble (clavier, puis son de FL).
@@ -135,23 +130,22 @@ struct OnboardingView: View {
             switch stage {
             case .keyboard:
                 permissionStep
-                    .padding(.horizontal, 56)
-                    .padding(.top, 44)                  // la barre de titre est transparente
-                    .padding(.bottom, 28)
+                    .padding(.horizontal, 40)
+                    .padding(.top, 40)                  // la barre de titre est transparente
+                    .padding(.bottom, 34)
                     .transition(Motion.pageMorph)
             case .link:
                 linkStep
-                    .padding(.horizontal, 44)
-                    .padding(.top, 44)
-                    .padding(.bottom, 28)
+                    .padding(.horizontal, 40)
+                    .padding(.top, 52)
+                    .padding(.bottom, 34)
                     .transition(Motion.pageMorph)
             case .guide:
-                GuideView(page: $guidePage, close: onFinish, drawsBackdrop: false, appIconMorph: morph)
+                GuideView(page: $guidePage, close: onFinish)
                     .transition(Motion.pageMorph)
             }
         }
         .frame(width: onboardingSize.width, height: onboardingSize.height)
-        .background { GuideBackdrop(page: stage == .guide ? guidePage : 0) }
         .motion(Motion.morph, value: stage)
         .onAppear {
             installed = link.snapshot.hasKey
@@ -199,42 +193,51 @@ struct OnboardingView: View {
 
     // MARK: Étape 1 — autorisations (clavier, son de FL), demandées ensemble
 
+    /// Ce qui est demandé, d'un coup d'œil : le clavier, puis le son de FL (pour l'Organiser), chacun avec son état.
+    private var permissionItems: [PermissionItem] {
+        var items = [PermissionItem(id: "clavier", symbol: "keyboard", tint: .blue, title: String(localized: "Clavier"),
+                                    detail: nil,
+                                    state: accessOK ? .allowed : askedPermission ? .waiting : .toAllow)]
+        if #available(macOS 14.2, *) {
+            items.append(PermissionItem(id: "son", symbol: "waveform", tint: .pink, title: String(localized: "Son de FL"),
+                                        detail: String(localized: "pour l'Organiser"),
+                                        state: permissions.audioGranted ? .allowed
+                                            : askedPermission && permissions.stage == .audio ? .waiting : .toAllow))
+        }
+        return items
+    }
+
     private var permissionStep: some View {
         VStack(spacing: 0) {
             Spacer(minLength: 0)
-            AppIcon()
-                .matchedGeometryEffect(id: "appIcon", in: morph)
-                .frame(width: 84, height: 84)                // place pour la liste des autorisations
-                .shadow(color: Appearance.brand[1].opacity(0.4), radius: 22, y: 10)
-                .morphIn(0)
             Text("FL Shortcuts")
                 .font(.system(size: 34, weight: .bold))
-                .padding(.top, 12)
-                .morphIn(1)
-            Text(accessOK ? String(localized: "Le clavier est autorisé : tout est prêt.")
-                          : String(localized: "Une seule fois, tout ce dont FL Shortcuts a besoin, demandé ensemble."))
-                .font(.system(size: 15))
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
-                .fixedSize(horizontal: false, vertical: true)
-                .frame(maxWidth: 420)
-                .padding(.top, 8)
-                .id(accessOK)                           // le texte change en fondu
-                .transition(.opacity)
-                .morphIn(2)
+                .morphIn(0)
 
-            permissionList
-                .padding(.top, 14)
-                .morphIn(3)
+            PlateRows(data: permissionItems) { item in
+                HStack(spacing: 12) {
+                    SectionIcon(symbol: item.symbol, tint: item.tint, size: 28)
+                    HStack(alignment: .firstTextBaseline, spacing: 8) {
+                        Text(item.title).font(.system(size: 14, weight: .semibold))
+                        if let detail = item.detail {
+                            Text(detail).font(.system(size: 12)).foregroundStyle(.secondary)
+                        }
+                    }
+                    Spacer(minLength: 8)
+                    PermissionPill(state: item.state)
+                }
+                .padding(.horizontal, 12)
+                .frame(height: 52)
+                .accessibilityElement(children: .combine)
+            }
+            .frame(width: 400)
+            .padding(.top, 28)
+            .morphIn(1)
 
-            Spacer(minLength: 14)
+            Spacer(minLength: 0)
 
             VStack(spacing: 10) {
                 if accessOK {
-                    Label("Clavier autorisé", systemImage: "checkmark.circle.fill")
-                        .font(.system(size: 13, weight: .medium))
-                        .foregroundStyle(.green)
-                        .transition(Motion.pageMorph)
                     Button { advance() } label: {
                         Text("Continuer").frame(minWidth: 220)
                     }
@@ -253,127 +256,69 @@ struct OnboardingView: View {
                     .heroControlSize()
                     .keyboardShortcut(.defaultAction)
                     .transition(Motion.pageMorph)
-                    if askedPermission {
-                        Text("Active FL Shortcuts dans la page qui vient de s'ouvrir, puis autorise le son. C'est détecté tout seul.")
-                            .font(.system(size: 11))
-                            .foregroundStyle(.secondary)
-                            .multilineTextAlignment(.center)
-                            .transition(.opacity)
-                    }
                     Button("Plus tard") { advance() }
-                        .buttonStyle(.link)
-                        .font(.system(size: 12))
+                        .buttonStyle(.plain)
+                        .font(.system(size: 13))
+                        .foregroundStyle(.secondary)
                 }
             }
-            .frame(maxWidth: 380)
-            .morphIn(4)
-
-            Spacer(minLength: 14)
-
-            Label("Tes touches ne sont lues que quand FL Studio est au premier plan. Rien n'est enregistré ni envoyé, sauf ce que tu publies toi-même dans la Communauté.",
-                  systemImage: "lock")
-                .font(.system(size: 11))
-                .foregroundStyle(.secondary)
-                .frame(maxWidth: 440)
-                .morphIn(5)
+            .morphIn(2)
         }
-        // Clavier autorisé : le texte et les boutons changent en fondu.
+        // Clavier autorisé : les états et les boutons changent en fondu.
         .motion(Motion.morph, value: accessOK)
         .motion(Motion.morph, value: askedPermission)
-    }
-
-    /// Ce qui est demandé, d'un coup d'œil : le clavier (indispensable), puis le son de FL (pour l'Organiser).
-    private var permissionList: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            permissionRow("keyboard", .blue, String(localized: "Clavier"),
-                          String(localized: "Tes raccourcis dans FL Studio (indispensable)"), done: accessOK)
-            if #available(macOS 14.2, *) {
-                permissionRow("waveform", .pink, String(localized: "Son de FL"),
-                              String(localized: "Pour l'Organiser : il écoute chaque son pour le ranger"),
-                              done: permissions.audioGranted)
-            }
-        }
-        .frame(maxWidth: 400)
-    }
-
-    private func permissionRow(_ symbol: String, _ tint: Color, _ title: String, _ detail: String,
-                               done: Bool?) -> some View {
-        HStack(spacing: 10) {
-            SectionIcon(symbol: symbol, tint: tint, size: 24)
-            VStack(alignment: .leading, spacing: 1) {
-                Text(title).font(.system(size: 13, weight: .semibold))
-                Text(detail).font(.system(size: 11)).foregroundStyle(.secondary)
-            }
-            Spacer(minLength: 8)
-            if let done {
-                Image(systemName: done ? "checkmark.circle.fill" : "circle")
-                    .foregroundStyle(done ? Color.green : Color.secondary)
-                    .contentTransition(.opacity)
-            }
-        }
-        .accessibilityElement(children: .combine)
     }
 
     // MARK: Étape 2 — relier FL Studio (hors mode léger)
 
     private var linked: Bool { link.status == .linked }
 
-    private var linkStatusText: String {
-        if linked { return String(localized: "FL Studio est relié") }
-        return installed ? String(localized: "En attente de FL Studio… fais les étapes 2 et 3")
-            : String(localized: "FL Studio pas encore relié")
+    private var linkSteps: [LinkStep] {
+        [LinkStep(id: 1, text: String(localized: "Installe le lien"), done: installed),
+         LinkStep(id: 2, text: String(localized: "Quitte et rouvre FL"), done: linked),
+         LinkStep(id: 3, text: String(localized: "Choisis FL Shortcuts dans MIDI Settings"), done: linked)]
     }
 
     private var linkStep: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            VStack(alignment: .leading, spacing: 4) {
-                Text("Relier FL Studio").font(.title2.weight(.semibold))
-                Text("À faire une seule fois.").font(.system(size: 13)).foregroundStyle(.secondary)
-            }
+        VStack(spacing: 0) {
+            Text("Relier FL Studio")
+                .font(.system(size: 28, weight: .bold))
+                .morphIn(0)
 
-            HStack(alignment: .top, spacing: 20) {
-                VStack(alignment: .leading, spacing: 12) {
-                    StepRow(number: 1, done: installed,
-                            text: String(localized: "Installer le lien dans FL Studio (bouton ci-dessous), puis redémarrer FL."))
-                    StepRow(number: 2, done: linked, text: String(localized: """
-                        FL trouve « FL Shortcuts Link » en démarrant et le relie tout seul. C'est détecté ici dès que c'est fait.
-                        """))
-                    StepRow(number: 3, done: linked, text: String(localized: """
-                        Seulement si rien ne se passe : Options › MIDI Settings, entrée « FL Shortcuts Link », Controller \
-                        type « FL Shortcuts », même numéro de Port en entrée et en sortie.
-                        """))
+            HStack(alignment: .top, spacing: 18) {
+                PlateRows(data: linkSteps) { step in
+                    StepRow(number: step.id, done: step.done, text: step.text)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 6)
+                        .frame(minHeight: 48)
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
-
+                .frame(maxWidth: .infinity)
                 MIDISettingsPreview()
-                    .frame(width: 200)
+                    .frame(width: 210)
             }
+            .padding(.top, 28)
+            .morphIn(1)
 
-            HStack(spacing: 6) {
+            HStack(spacing: 8) {
                 if linked {
                     Image(systemName: "checkmark.circle.fill").foregroundStyle(.green)
+                    Text("FL Studio est relié")
                 } else {
-                    Circle().fill(installed ? Color.orange : Color.gray).frame(width: 7, height: 7)
+                    WaitingRing()
+                    Text("En attente de FL Studio…").foregroundStyle(.secondary)
                 }
-                Text(linkStatusText)
             }
-            .font(.system(size: 12))
+            .font(.system(size: 13))
+            .padding(.top, 22)
             .accessibilityElement(children: .combine)
+            .morphIn(2)
 
             Spacer(minLength: 0)
 
-            HStack(spacing: 8) {
-                if installed && !linked {
-                    Text("Le statut reste visible dans la fenêtre Raccourcis.")
-                        .font(.system(size: 11))
-                        .foregroundStyle(.secondary)
-                }
-                Spacer()
-                if linked {
-                    Button("Tester") { link.test(action: 33) }
+            HStack(spacing: 10) {
+                if !installed {
+                    Button("Plus tard") { advance() }
                         .secondaryButton()
-                        .controlSize(.large)
-                        .help("Ouvre le Mixer dans FL Studio")
                 }
                 Button {
                     if installed {
@@ -383,95 +328,136 @@ struct OnboardingView: View {
                         installed = link.snapshot.hasKey
                     }
                 } label: {
-                    Text(installed ? String(localized: "Continuer") : String(localized: "Installer le lien")).frame(minWidth: 140)
+                    Text(installed ? String(localized: "Continuer") : String(localized: "Installer le lien"))
+                        .frame(minWidth: 160)
                 }
                 .primaryButton()
-                .controlSize(.large)
                 .keyboardShortcut(.defaultAction)
             }
+            .controlSize(.large)
+            .morphIn(3)
         }
+        .motion(Motion.morph, value: linked)
     }
 }
 
+/// Une autorisation de l'accueil : icône, nom, à quoi elle sert (si besoin), et son état.
+private struct PermissionItem: Identifiable {
+    let id: String
+    let symbol: String
+    let tint: Color
+    let title: String
+    let detail: String?
+    let state: PermissionState
+}
+
+private enum PermissionState {
+    case toAllow, waiting, allowed
+}
+
+/// État d'une autorisation en pastille : grise à autoriser, bleue en attente, verte une fois autorisée.
+private struct PermissionPill: View {
+    let state: PermissionState
+
+    private var label: String {
+        switch state {
+        case .toAllow: return String(localized: "À autoriser")
+        case .waiting: return String(localized: "En attente…")
+        case .allowed: return String(localized: "Autorisé")
+        }
+    }
+
+    private var color: Color {
+        switch state {
+        case .toAllow: return .secondary
+        case .waiting: return .accentColor
+        case .allowed: return .green
+        }
+    }
+
+    var body: some View {
+        Text(label)
+            .font(.system(size: 12, weight: .semibold))
+            .foregroundStyle(color)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 3)
+            .background(Capsule().fill(color.opacity(0.14)))
+            .overlay(Capsule().strokeBorder(color.opacity(0.28), lineWidth: 1))
+    }
+}
+
+/// Une étape pour relier FL Studio.
+private struct LinkStep: Identifiable {
+    let id: Int
+    let text: String
+    let done: Bool
+}
+
+/// Étape numérotée sur une ligne ; coche verte une fois faite.
 private struct StepRow: View {
     let number: Int
     let done: Bool
     let text: String
 
     var body: some View {
-        HStack(alignment: .firstTextBaseline, spacing: 8) {
-            StepBadge(number: number, done: done)
-            Text(text).fixedSize(horizontal: false, vertical: true)
+        HStack(spacing: 12) {
+            Group {
+                if done {
+                    Image(systemName: "checkmark.circle.fill")
+                        .font(.system(size: 20))
+                        .foregroundStyle(Color.green)
+                } else {
+                    Text("\(number)")
+                        .font(.system(size: 12, weight: .bold).monospacedDigit())
+                        .foregroundStyle(Color.white)
+                        .frame(width: 22, height: 22)
+                        .background(Circle().fill(Color.accentColor))
+                }
+            }
+            .frame(width: 22)
+            .accessibilityHidden(true)
+            Text(text).font(.system(size: 13.5)).fixedSize(horizontal: false, vertical: true)
+            Spacer(minLength: 0)
         }
-        .font(.system(size: 13))
         .accessibilityElement(children: .combine)
         .accessibilityLabel("Étape \(number) : \(text)")
         .accessibilityValue(done ? String(localized: "fait") : String(localized: "à faire"))
     }
 }
 
-/// Lueurs aux couleurs de l'icône en haut de l'accueil et du guide : dégradés radiaux statiques (aucun flou,
-/// aucune animation). Couche de contenu, que le verre des touches et du bouton réfracte.
-struct BrandGlow: View {
-    @Environment(\.colorScheme) private var scheme
-
-    private var k: Double { scheme == .dark ? 0.42 : 0.30 }
-
-    var body: some View {
-        ZStack {
-            RadialGradient(colors: [Appearance.brand[0].opacity(k), .clear], center: .topLeading,
-                           startRadius: 0, endRadius: 380)
-            RadialGradient(colors: [Appearance.brand[1].opacity(k * 0.8), .clear], center: .top,
-                           startRadius: 0, endRadius: 320)
-            RadialGradient(colors: [Appearance.brand[2].opacity(k), .clear], center: .topTrailing,
-                           startRadius: 0, endRadius: 380)
-        }
-        .ignoresSafeArea()                    // sous la barre de titre transparente
-        .allowsHitTesting(false)
-        .accessibilityHidden(true)
-    }
-}
-
-/// Aperçu de la fenêtre MIDI Settings de FL, avec les deux endroits où cliquer (couleurs de FL).
+/// Aperçu de la fenêtre MIDI Settings de FL : « FL Shortcuts Link » en entrée et en sortie (couleurs de FL).
 private struct MIDISettingsPreview: View {
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
+        VStack(alignment: .leading, spacing: 6) {
             Text("Options › MIDI Settings")
                 .font(.system(size: 11, weight: .semibold))
                 .foregroundStyle(Color(white: 0.92))
-                .padding(.horizontal, 10)
-                .padding(.vertical, 7)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .background(Color(red: 0.23, green: 0.25, blue: 0.27))
-            VStack(alignment: .leading, spacing: 5) {
-                Text("Input").font(.system(size: 10)).foregroundStyle(Color(white: 0.6))
-                highlighted("FL Shortcuts Link", badge: "①")
-                Text("Output").font(.system(size: 10)).foregroundStyle(Color(white: 0.6)).padding(.top, 4)
-                highlighted("FL Shortcuts Link", badge: "②")
-                Text("Controller type : FL Shortcuts, même Port")
-                    .font(.system(size: 10)).foregroundStyle(Color(white: 0.8)).padding(.top, 4)
-            }
-            .padding(10)
+            Text("Input").foregroundStyle(Color(white: 0.6))
+            highlighted("FL Shortcuts Link")
+            Text("Output").foregroundStyle(Color(white: 0.6)).padding(.top, 2)
+            highlighted("FL Shortcuts Link")
+            Text("Controller type : FL Shortcuts")
+                .foregroundStyle(Color(white: 0.8))
+                .padding(.top, 4)
         }
-        .background(Color(red: 0.17, green: 0.18, blue: 0.2))
-        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 8, style: .continuous)
-            .strokeBorder(Color(nsColor: .separatorColor), lineWidth: 0.5))
+        .font(.system(size: 11))
+        .padding(12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color(red: 0.17, green: 0.2, blue: 0.22))
+        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous)
+            .strokeBorder(Color.white.opacity(0.08), lineWidth: 1))
+        .accessibilityElement(children: .ignore)
         .accessibilityLabel("Aperçu : dans MIDI Settings, FL Shortcuts Link en entrée et en sortie, avec le même port.")
     }
 
-    private func highlighted(_ text: String, badge: String) -> some View {
-        HStack {
-            Text(text)
-            Spacer()
-            Text(badge).bold()
-        }
-        .font(.system(size: 11))
-        .foregroundStyle(Color(red: 1, green: 0.81, blue: 0.54))
-        .padding(.horizontal, 6)
-        .padding(.vertical, 4)
-        .background(RoundedRectangle(cornerRadius: 4).fill(Color.orange.opacity(0.18)))
-        .overlay(RoundedRectangle(cornerRadius: 4).strokeBorder(Color.orange, lineWidth: 2))
+    private func highlighted(_ text: String) -> some View {
+        Text(text)
+            .foregroundStyle(Color(red: 1, green: 0.81, blue: 0.54))
+            .padding(.horizontal, 8)
+            .padding(.vertical, 4)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(RoundedRectangle(cornerRadius: 4).fill(Color(red: 1, green: 0.81, blue: 0.54).opacity(0.14)))
     }
 }
 

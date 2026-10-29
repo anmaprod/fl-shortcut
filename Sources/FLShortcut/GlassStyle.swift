@@ -171,11 +171,6 @@ private struct MorphIn: ViewModifier {
 }
 
 extension View {
-    /// Même place d'une vue à l'autre (`matchedGeometryEffect`) quand un espace de noms est donné ; sinon rien.
-    @ViewBuilder func morphing(_ id: String, in ns: Namespace.ID?) -> some View {
-        if let ns { matchedGeometryEffect(id: id, in: ns) } else { self }
-    }
-
     /// Élément d'une page qui arrive : il passe du flou au net en montant à sa place, juste après le précédent
     /// (`index`), une seule fois, à l'apparition de la page. Pas dans une liste (les lignes y apparaissent aussi en
     /// défilant).
@@ -366,37 +361,11 @@ private struct SecondaryButtonStyleModifier: ViewModifier {
     }
 }
 
-/// Fond de liste transparent quand la fenêtre est translucide : les sections (cartes) se posent dessus.
-/// Fond de la liste toujours transparent : la lueur de couleur de la page (comme dans le guide) passe dessous ; les
-/// cartes gardent leur propre fond, lisible.
+/// Fond de la liste toujours transparent : le fond plein de la fenêtre passe dessous ; les cartes gardent leur propre
+/// fond, lisible.
 private struct GlassListBackground: ViewModifier {
     func body(content: Content) -> some View {
         content.scrollContentBackground(.hidden)
-    }
-}
-
-/// Fond de la page aux couleurs de sa section, comme le guide : lueur de sa couleur (halo en haut à gauche, reflet en
-/// haut à droite, une touche en bas, `TintGlow`) sur toute la page, sous la barre d'outils et la barre latérale.
-/// D'une page à l'autre, les couleurs se fondent l'une dans l'autre (0,9 s), jamais de changement sec. Dégradés
-/// statiques : rien ne tourne au repos. Contraste élevé : rien.
-private struct TintedBackdrop: ViewModifier {
-    let tint: Color?
-    @Environment(\.colorSchemeContrast) private var contrast
-
-    func body(content: Content) -> some View {
-        content.background {
-            ZStack {
-                if contrast != .increased, let tint {
-                    TintGlow(tint: tint)
-                        .id(tint)
-                        .transition(.opacity)
-                }
-            }
-            .animation(.easeInOut(duration: 0.9 * DebugSnapshot.slowMotion), value: tint)
-            .ignoresSafeArea()
-            .allowsHitTesting(false)
-            .accessibilityHidden(true)
-        }
     }
 }
 
@@ -421,11 +390,6 @@ extension View {
     /// Liste posée sur le fond translucide de la fenêtre.
     func glassListBackground() -> some View {
         modifier(GlassListBackground())
-    }
-
-    /// Lavis de la couleur de la page sous le verre (nil : aucun).
-    func tintedBackdrop(_ tint: Color?) -> some View {
-        modifier(TintedBackdrop(tint: tint))
     }
 
     /// Bouton posé sur une surface de verre (notification, avertissement) : simple remplissage, jamais de verre sur
@@ -911,6 +875,60 @@ enum GlassPlate {
     static func rim(_ scheme: ColorScheme) -> LinearGradient {
         LinearGradient(colors: [scheme == .dark ? Color.white.opacity(0.34) : Color.white, edge(scheme)],
                        startPoint: .top, endPoint: .bottom)
+    }
+}
+
+/// Carte d'un seul tenant en plaque de verre (accueil, guide, panneau des autorisations) ; sans l'effet, voile clair
+/// et bord fin.
+struct GlassPlateBackground: View {
+    var cornerRadius: CGFloat = 14
+    @Environment(\.colorScheme) private var scheme
+    @AppStorage(Appearance.glassKey) private var glassEnabled = true
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+    @Environment(\.colorSchemeContrast) private var contrast
+
+    var body: some View {
+        let shape = RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+        if GlassPlate.on(glass: glassEnabled, reduceTransparency: reduceTransparency,
+                         increasedContrast: contrast == .increased) {
+            shape.fill(GlassPlate.fill(scheme))
+                .overlay(shape.strokeBorder(GlassPlate.rim(scheme), lineWidth: 1))
+        } else {
+            shape.fill(Color.primary.opacity(0.045))
+                .overlay(shape.strokeBorder(Color(nsColor: .separatorColor), lineWidth: 1))
+        }
+    }
+}
+
+/// Lignes posées dans une seule plaque de verre, séparées par un trait fin.
+struct PlateRows<Data: RandomAccessCollection, Row: View>: View where Data.Element: Identifiable {
+    let data: Data
+    @ViewBuilder let row: (Data.Element) -> Row
+
+    var body: some View {
+        VStack(spacing: 0) {
+            ForEach(data) { item in
+                if item.id != data.first?.id { Divider().padding(.horizontal, 12) }
+                row(item)
+            }
+        }
+        .padding(.horizontal, 4)
+        .padding(.vertical, 2)
+        .background(GlassPlateBackground())
+    }
+}
+
+/// Anneau fixe de la couleur d'accent : ce qui est attendu (aucune animation continue).
+struct WaitingRing: View {
+    var size: CGFloat = 14
+
+    var body: some View {
+        Circle()
+            .stroke(Color.secondary.opacity(0.3), lineWidth: 2)
+            .overlay(Circle().trim(from: 0, to: 0.25).stroke(Color.accentColor, lineWidth: 2)
+                .rotationEffect(.degrees(-45)))
+            .frame(width: size, height: size)
+            .accessibilityHidden(true)
     }
 }
 

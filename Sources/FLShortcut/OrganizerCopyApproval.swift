@@ -463,7 +463,6 @@ struct CopyApprovalView: View {
         .padding(.top, 30)
         .padding(.bottom, 18)
         .frame(width: 380)
-        .background { BrandGlow() }
     }
 
     private func name(_ url: URL?) -> String { url?.lastPathComponent ?? "" }
