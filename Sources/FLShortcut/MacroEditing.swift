@@ -571,16 +571,8 @@ enum PaletteCatalog {
             },
             // Armer la piste, allumer le REC, choisir l'entrée 1 et vérifier le larsen : retirés avec l'utilisateur
             // (l'enregistrement rapide sera refait) ; toujours compris dans les anciennes macros.
-            item("mute", .flAction, label: String(localized: "Mute de la piste"),
-                 aide: String(localized: "Coupe ou remet le son de la piste choisie dans le Mixer."),
-                 symbol: "speaker.slash.fill") {
-                .flAction(key: "mute", fallback: .none)
-            },
-            item("solo", .flAction, label: String(localized: "Solo de la piste"),
-                 aide: String(localized: "Met ou retire le solo de la piste choisie dans le Mixer."),
-                 symbol: "headphones") {
-                .flAction(key: "solo", fallback: .none)
-            },
+            // « Mute de la piste » et « Solo de la piste » retirés le 29/10 (demande du propriétaire) : toujours compris
+            // dans les anciennes macros.
             item("nameColor", .nameColor) { .nameColor(name: nil, color: NameColorPayload.defaultColor) },
             item("soundCard", .soundCard) { .soundCard },
             item("organize", .organize) { .organize },

@@ -205,8 +205,8 @@ final class MuteSwitchTests: XCTestCase {
             XCTAssertTrue(MuteSolo.handlesWithoutLink(key))
         }
         XCTAssertFalse(MuteSolo.handlesWithoutLink("bypass"))
+        // Plus dans la palette (29/10, demande du propriétaire) : toujours compris dans les anciennes macros.
         let items = PaletteCatalog.items(layout: FakeLayout.qwerty)
-        XCTAssertTrue(items.contains { $0.id == "mute" && $0.make() == .flAction(key: "mute", fallback: .none) })
-        XCTAssertTrue(items.contains { $0.id == "solo" && $0.make() == .flAction(key: "solo", fallback: .none) })
+        XCTAssertFalse(items.contains { $0.id == "mute" || $0.id == "solo" })
     }
 }

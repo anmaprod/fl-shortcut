@@ -564,3 +564,6 @@ entrée 1 ≈ 0,5 s.
   l'Organiser, avant l'écoute (rien n'est envoyé à FL tant qu'il est là ; `OrganizerTutorial.swift`, clé
   `organizerTutorialSeen`), « Revoir le tuto » dans Options ; images `Resources/{fr,en}.lproj/OrganiserTuto1…4.png`
   (`docs/images/organiser-tuto.html`, `rendre-organiser-tuto.js`) ; photo CI `organiser-tuto.png`.
+- Macros (29/10, « dans macro tu peux enlever les blocs mute track et solo track pour mac et win ») : « Mute de la
+  piste » et « Solo de la piste » retirés de la palette du Mac (toujours compris dans les anciennes macros). Windows
+  n'avait pas ces deux blocs (seulement « Action de FL », où mute et solo restent des actions parmi les autres).

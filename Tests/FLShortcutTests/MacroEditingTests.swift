@@ -178,6 +178,8 @@ final class MacroEditingTests: XCTestCase {
             return nil
         }
         XCTAssertFalse(keys.contains("armon") || keys.contains("recon"), "\(keys)")
+        // Mute et solo de la piste retirés le 29/10 (demande du propriétaire).
+        XCTAssertFalse(keys.contains("mute") || keys.contains("solo"), "\(keys)")
         XCTAssertFalse(items.contains { $0.type == .menuAX || $0.type == .setVariable || $0.type == .flActionValue })
         // Chaque entrée prête produit un bloc valide, sauf ce qui reste à choisir ou à montrer dans FL.
         let toChoose: Set<String> = ["chooseFile", "dropFile", "clickLearned", "drag", "openPage", "pageOption",
@@ -192,7 +194,7 @@ final class MacroEditingTests: XCTestCase {
         let items = PaletteCatalog.items(layout: FakeLayout.qwerty)
         XCTAssertEqual(PaletteCatalog.search(items, "PAUSE").first?.id, "wait")
         XCTAssertTrue(PaletteCatalog.search(items, "boite").contains { $0.id == "wait" })
-        XCTAssertEqual(PaletteCatalog.search(items, "SOLO").first?.id, "solo")
+        XCTAssertEqual(PaletteCatalog.search(items, "MENU DE").first?.id, "menuBar")
         XCTAssertTrue(PaletteCatalog.search(items, "zzz introuvable").isEmpty)
         XCTAssertEqual(PaletteCatalog.search(items, "  ").count, items.count)
     }
