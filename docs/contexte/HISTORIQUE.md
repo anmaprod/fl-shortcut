@@ -500,3 +500,12 @@ entrée 1 ≈ 0,5 s.
   « Passer », points et boutons en bleu ; panneau d'autorisation : « Active FL Shortcuts » / « Autorise le son de
   FL » / « Tout est prêt » et une carte Clavier / Son de FL. Plus aucune lueur de couleur (accueil, guide, menus
   stylés, validation de l'Organiser, désinstallation). Depuis l'accueil, toujours sans panneau (règle du 24/10).
+- Retours du 29/10 au matin : ne pas montrer le petit panneau d'autorisation depuis l'accueil (« on est bien comme
+  ça », dessin de l'interrupteur gardé) ; survol des options : exemple en 3 versions dans la maquette (contour,
+  intérieur teinté, intérieur plein) → « je veux intérieur plein » : option survolée pleine de sa couleur, texte en
+  blanc, icône en blanc translucide, partout ; plus de contour ni de halo ; cartes de l'Organiser sans survol. Menu
+  de l'icône : « plus de Liquid Glass… fond noir » comme la maquette (fond noir plein, fond du système caché,
+  « Désinstaller » en texte gris). Vidéo de l'Organiser : en tirant le numéro de piste du Mixer, la flèche restait
+  sur le chiffre ; comme FL, elle disparaît et se gare à droite de la case pendant qu'on tire, puis revient où elle
+  était (`HiddenDrag`). Vu sur la CI : l'aperçu de l'Organiser figeait l'app ~15 s (photos restées sur l'écoute) ;
+  relevé de la pile ajouté à la mesure (`organiser-apercu-sample.txt`) avant toute correction.

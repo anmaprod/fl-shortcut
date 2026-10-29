@@ -161,12 +161,14 @@
   (À autoriser, En attente…, Autorisé) ; « Relier FL Studio » en 3 étapes d'une ligne + aperçu de MIDI Settings ;
   guide « Bienvenue » (une ligne par partie) puis pages en 3 étapes d'une ligne (plus d'astuce ni de résumé) ;
   panneau « Active FL Shortcuts » ; cartes `PlateRows`/`GlassPlateBackground`, plus aucune lueur (`BrandGlow` retiré).
-- Interface : survol coloré du menu de l'icône (`menuHover` : contour de sa couleur, halo autour) voulu par le
-  propriétaire partout ; depuis le 25/10 (sa capture) : couleurs de l'élément JAMAIS changées (ni fond ajouté, ni
-  ombre sur le contenu : halo `HoverGlow` dehors seulement), rien de gris au-delà du contour (lignes des cartes : c'est
-  leur fond `CardRowBackground` qui s'allume et s'élargit ; page ou bloc déjà choisi : pas de survol), et le contenu
-  ne grossit plus (« bizarre à l'œil nu » : texte agrandi flou) : seul le contour s'écarte (2 points) ; barre latérale (`sidebarRow` : page choisie en pastille bleue, sans sélection grise du système ni compteurs), lignes des pages, Macros, modèles, Communauté, Aide,
-  palette, blocs, bouton d'enregistrement, « Menu de FL » du créateur ;
+- Interface, survol (choix du propriétaire le 29/10, exemple « B — intérieur plein » de la maquette) : une option
+  survolée est PLEINE de sa couleur, texte en blanc, icône de couleur en blanc translucide (`menuHover` →
+  `hoverFilled`, détails colorés par `hoverTint`) ; plus de contour ni de halo ; le contenu ne grossit jamais ; les
+  cartes de l'Organiser (conteneurs) n'ont plus de survol. Partout : barre latérale (`sidebarRow` : page choisie en
+  pastille bleue, sans sélection grise du système ni compteurs), lignes des cartes (`cardRow`), menu de l'icône,
+  Macros, modèles, Communauté, Aide, palette, blocs, bouton d'enregistrement, « Menu de FL » du créateur, guide.
+  Menu de l'icône (29/10, « plus de Liquid Glass… fond noir ») : fond noir plein `MenuBackground`, toujours sombre,
+  fond du système caché (`MenuPanel.clearSystemBackground`) ; « Désinstaller » en texte gris ; photo `menu-icone.png`.
   « Mes raccourcis » = raccourcis changés + créés, jamais de macro (macro d'exemple ⌃R retirée) ; plus aucune note
   sous les blocs des macros ; « Menu de FL » en tête des blocs FL Studio de la palette ; recherche qui lâche la main
   au premier clic ailleurs ; « Cliquer sur… » › Playlist : tout le menu « Arrangement » (bouton retrouvé à son nom).

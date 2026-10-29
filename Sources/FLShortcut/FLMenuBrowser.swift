@@ -213,7 +213,7 @@ private struct MenuEntryRow: View {
                     .opacity(selected ? 1 : 0)
                 Text(entry.title.displaySafe(max: 60))
                     .lineLimit(1)
-                    .foregroundStyle(entry.enabled && step != .none ? Color.primary : Color.secondary)
+                    .hoverTint(entry.enabled && step != .none ? Color.primary : Color.secondary)
                 Spacer(minLength: 4)
                 if entry.submenu {
                     Image(systemName: "chevron.right")

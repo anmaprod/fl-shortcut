@@ -268,6 +268,10 @@ run() {   # $1 : libellé, $2 : YES/NO effet verre
     sleep 4
     report guide-morph >/dev/null
     "$POST" app.flshortcut.debug.guide fin; sleep 2
+    # Menu de l'icône (fond noir plein, 29/10) : ouvert par l'app comme un clic sur son icône, photographié, refermé.
+    "$POST" app.flshortcut.debug.menu ouvrir; sleep 2
+    screencapture -x "$OUT/menu-icone.png" 2>/dev/null || true
+    "$POST" app.flshortcut.debug.menu fermer; sleep 1
     # Accueil au ralenti : ouverture (écran du clavier), clavier autorisé, puis passage au guide dans la même fenêtre.
     "$POST" app.flshortcut.debug.onboarding "clavier lent"
     for i in 1 2 3 4; do
@@ -308,8 +312,17 @@ run() {   # $1 : libellé, $2 : YES/NO effet verre
     "$POST" app.flshortcut.debug.uninstall fermer; sleep 1
     # Organiser, avec des sons d'exemple (sans FL) : chaque écran, puis le passage de l'un à l'autre.
     for screen in installer attente aide ecoute apercu fini; do
-      "$POST" app.flshortcut.debug.organizer "$screen"; sleep 3
+      "$POST" app.flshortcut.debug.organizer "$screen"
+      # L'aperçu figeait l'app une quinzaine de secondes (photos restées sur l'écoute) : où l'app passe son temps.
+      if [[ "$screen" == apercu ]]; then
+        (sample FLShortcut 4 -file "$OUT/organiser-apercu-sample.txt" >/dev/null 2>&1 &)
+      fi
+      sleep 3
       screencapture -x "$OUT/organiser-$screen.png" 2>/dev/null || true
+      if [[ "$screen" == apercu ]]; then
+        sleep 12
+        screencapture -x "$OUT/organiser-apercu-tard.png" 2>/dev/null || true
+      fi
       # L'app a-t-elle redémarré (plantage relancé) pendant cet écran ? (« apercu » et « fini » restaient sur l'écoute)
       echo "organiser $screen : pid $(pgrep -x FLShortcut | tr '\n' ' ')" >> "$OUT/organiser-pid.txt"
     done

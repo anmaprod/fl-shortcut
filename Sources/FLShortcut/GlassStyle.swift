@@ -47,13 +47,10 @@ extension View {
         modifier(MotionModifier(animation: animation, value: value))
     }
 
-    /// Survol du menu de la barre des menus : contour arrondi qui s'allume de la couleur de l'élément et s'écarte un peu
-    /// de lui, avec un halo de sa couleur autour (ressort). Seul l'élément survolé est redessiné. Ses couleurs ne
-    /// changent jamais (demande du propriétaire, 25/10) : ni fond ajouté, ni ombre sur son contenu (elle ternissait
-    /// les gris et les boutons) ; le halo n'est que dehors. Le contenu ne grossit plus (25/10 : « ça fait bizarre à
-    /// l'œil nu » : un texte agrandi est redessiné flou) : c'est le contour qui s'écarte, le texte reste net. `outset` : contour un peu plus grand que l'élément (ligne de
-    /// la barre latérale) ; `enabled` : faux pour un élément qu'on ne peut pas choisir, ou déjà choisi (le fond de la
-    /// sélection, plus grand, dépasserait du contour).
+    /// Survol d'une option (29/10, choix du propriétaire : « intérieur plein ») : tout l'intérieur prend la couleur de
+    /// l'élément, son texte passe en blanc et son icône de couleur devient un carré blanc translucide
+    /// (`hoverFilled`). Le contenu ne grossit pas (25/10 : un texte agrandi est redessiné flou). `outset` : fond un
+    /// peu plus grand que l'élément ; `enabled` : faux pour un élément qu'on ne peut pas choisir, ou déjà choisi.
     func menuHover(tint: Color, cornerRadius: CGFloat = 10, outset: CGFloat = 0, enabled: Bool = true) -> some View {
         modifier(MenuHover(tint: tint, cornerRadius: cornerRadius, outset: outset, enabled: enabled))
     }
@@ -192,25 +189,16 @@ struct MenuHover: ViewModifier {
     @State private var hovering = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
-    /// Le contour s'écarte de 2 points au survol : l'élément semble se soulever, sans que son texte grossisse.
-    static let lift: CGFloat = 2
-
     func body(content: Content) -> some View {
         let shape = RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
         let hovered = hovering && enabled
-        let spread = outset + (hovered && !reduceMotion ? Self.lift : 0)
         content
-            // Aux bords de l'élément (ou `outset` au-delà), sans changer sa place : le halo derrière, le contour
-            // par-dessus (rien de l'élément ne dépasse de sa couleur).
+            .hoverFilled(hovered)
+            // Aux bords de l'élément (ou `outset` au-delà), sans changer sa place.
             .background {
-                HoverGlow(shape: shape, tint: tint)
+                shape.fill(tint)
                     .opacity(hovered ? 1 : 0)
-                    .padding(-spread)
-            }
-            .overlay {
-                shape.strokeBorder(tint, lineWidth: 1.5)
-                    .opacity(hovered ? 1 : 0)
-                    .padding(-spread)
+                    .padding(-outset)
                     .allowsHitTesting(false)
             }
             .onHover { inside in
@@ -219,20 +207,39 @@ struct MenuHover: ViewModifier {
     }
 }
 
-/// Halo du survol, de la couleur de l'élément, seulement autour de lui : l'intérieur est découpé, ses couleurs ne
-/// bougent pas (une ombre posée sur le contenu teintait ses textes et ses boutons).
-struct HoverGlow<S: Shape>: View {
-    let shape: S
-    let tint: Color
+private struct HoverFilledKey: EnvironmentKey {
+    static let defaultValue = false
+}
 
-    var body: some View {
-        ZStack {
-            shape.fill(tint.opacity(0.32)).blur(radius: 9).offset(y: 3)
-            shape.fill(Color.black).blendMode(.destinationOut)
-        }
-        .compositingGroup()
-        .allowsHitTesting(false)
-        .accessibilityHidden(true)
+extension EnvironmentValues {
+    /// Vrai dans une option survolée (fond de sa couleur) : les icônes de couleur s'y effacent en blanc translucide.
+    var hoverFilled: Bool {
+        get { self[HoverFilledKey.self] }
+        set { self[HoverFilledKey.self] = newValue }
+    }
+}
+
+extension View {
+    /// Contenu d'une option survolée : texte en blanc (`nil` : la couleur de toujours, celle du conteneur) et icônes
+    /// en blanc translucide. Même vue dans les deux cas : rien n'est recréé au survol.
+    func hoverFilled(_ on: Bool) -> some View {
+        foregroundColor(on ? Color.white : nil)
+            .environment(\.hoverFilled, on)
+    }
+
+    /// Détail qui a sa propre couleur (rouge, bleu…) dans une option : blanc quand l'option survolée est pleine de sa
+    /// couleur (il y disparaîtrait), sa couleur sinon.
+    func hoverTint(_ color: Color) -> some View {
+        modifier(HoverTint(color: color))
+    }
+}
+
+private struct HoverTint: ViewModifier {
+    let color: Color
+    @Environment(\.hoverFilled) private var filled
+
+    func body(content: Content) -> some View {
+        content.foregroundStyle(filled ? Color.white : color)
     }
 }
 
@@ -629,11 +636,13 @@ struct SectionIcon: View {
     let symbol: String
     let tint: Color
     var size: CGFloat = 20
+    /// Dans une option survolée (fond de sa couleur) : blanc translucide, sinon l'icône disparaîtrait dans le fond.
+    @Environment(\.hoverFilled) private var hoverFilled
 
     private var shape: RoundedRectangle { RoundedRectangle(cornerRadius: size * 0.27, style: .continuous) }
 
     var body: some View {
-        shape.fill(tint.gradient)
+        shape.fill(hoverFilled ? AnyShapeStyle(Color.white.opacity(0.24)) : AnyShapeStyle(tint.gradient))
             .overlay(shape.strokeBorder(LinearGradient(colors: [Color.white.opacity(0.5), Color.white.opacity(0.06)],
                                                        startPoint: .top, endPoint: .bottom),
                                         lineWidth: max(0.5, size / 40)))
@@ -737,8 +746,8 @@ enum CardRowPosition: Equatable {
 
 extension View {
     /// Ligne d'une page en cartes : fond arrondi selon sa place dans la section, sans séparateur de la liste.
-    /// `hover` : au survol, la ligne entière s'allume comme une ligne du menu de la barre des menus (contour de
-    /// cette couleur, d'un filet à l'autre et toute la largeur de la carte).
+    /// `hover` : au survol, la ligne entière prend cette couleur, comme une option du menu de l'icône (d'un filet à
+    /// l'autre et toute la largeur de la carte), texte en blanc.
     func cardRow(_ position: CardRowPosition, hover: Color? = nil) -> some View {
         modifier(CardRowModifier(position: position, hover: hover))
     }
@@ -755,9 +764,8 @@ extension View {
 }
 
 /// La marge intérieure d'une ligne est dans la ligne elle-même (pas dans la liste) : le survol couvre toute la ligne,
-/// jusqu'aux filets qui la séparent de ses voisines. Survol (25/10, capture du propriétaire : la carte grise
-/// dépassait du contour coloré, la liste mettant sa propre marge autour du contenu) : c'est le fond de la ligne,
-/// toute la largeur de la carte, qui s'allume et s'élargit ; le contenu ne bouge pas (texte net, couleurs inchangées).
+/// jusqu'aux filets qui la séparent de ses voisines. Survol : c'est le fond de la ligne, toute la largeur de la carte,
+/// qui prend la couleur et s'élargit ; le contenu ne bouge pas, son texte passe en blanc (29/10, « intérieur plein »).
 private struct CardRowModifier: ViewModifier {
     let position: CardRowPosition
     let hover: Color?
@@ -771,6 +779,7 @@ private struct CardRowModifier: ViewModifier {
             .padding(.vertical, 8)
             .padding(.horizontal, 12)
             .frame(maxWidth: .infinity, alignment: .leading)
+            .hoverFilled(lifted)
         return Group {
             if hover != nil {
                 row
@@ -791,9 +800,8 @@ private struct CardRowModifier: ViewModifier {
 }
 
 /// Fond d'une ligne de carte : rectangle arrondi seulement aux bouts de la carte, filet sous les lignes intérieures.
-/// Carte grise sur le fond de la page, comme le Form groupé (verre ou non). Survolée (`hover`) : la même couleur,
-/// arrondie, un peu plus large que la carte (`grow`), cernée de la couleur de la page avec son halo autour ; rien de
-/// gris ne dépasse du contour.
+/// Carte grise sur le fond de la page, comme le Form groupé (verre ou non). Survolée (`hover`) : pleine de la couleur
+/// de la page, arrondie, un peu plus large que la carte (`grow`).
 struct CardRowBackground: View {
     static let inset: CGFloat = 10                       // marge de la carte dans la liste
     static let gap: CGFloat = 4                          // espace au-dessus et au-dessous d'une carte
@@ -820,10 +828,9 @@ struct CardRowBackground: View {
     var body: some View {
         Group {
             if let hover {
-                let shape = RoundedRectangle(cornerRadius: Self.liftOutset, style: .continuous)
-                shape.fill(fill)
-                    .background(HoverGlow(shape: shape, tint: hover))
-                    .overlay(shape.strokeBorder(hover, lineWidth: 1.5))
+                // Survolée : tout l'intérieur de la couleur de la page (29/10, « intérieur plein »).
+                RoundedRectangle(cornerRadius: Self.liftOutset, style: .continuous)
+                    .fill(hover)
                     .padding(.horizontal, grow ? -Self.liftOutset : 0)
             } else {
                 CardRowShape(roundsTop: position.roundsTop, roundsBottom: position.roundsBottom)

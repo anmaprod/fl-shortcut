@@ -644,9 +644,8 @@ enum MainWindow {
     }
 }
 
-/// Panneau de la barre des menus : en-tête avec l'icône de l'app et le statut, puis les options, chacune avec son
-/// icône de couleur et, au survol, la carte du guide (elle grossit avec son liseré de couleur). Sur le verre des
-/// menus, la lueur des couleurs de l'app (jamais de verre sur du verre).
+/// Panneau de la barre des menus (maquette du 28/10) : fond noir plein, sans verre ; ce qui cloche en haut, puis les
+/// options, chacune avec son icône de couleur, pleine de sa couleur au survol.
 struct MenuContent: View {
     @EnvironmentObject var store: Store
     @ObservedObject private var library = MacroLibraryStore.shared
@@ -739,7 +738,8 @@ struct MenuContent: View {
 
             MenuSeparator()
 
-            PanelItem(symbol: "trash", title: String(localized: "Désinstaller FL Shortcuts…"), tint: .red, order: 8) {
+            // Simple texte gris, sans icône (maquette du 28/10).
+            PanelPlainRow(title: String(localized: "Désinstaller FL Shortcuts…"), order: 8) {
                 Uninstaller.confirmAndRun()
             }
 
@@ -757,12 +757,18 @@ struct MenuContent: View {
                 }
             }
         }
-        .padding(8)
-        .frame(width: 300)
-        // Rien que le verre du menu derrière (28/10 : « pas de fond ») : plus de fondu de couleur.
+        .padding(.horizontal, 8)
+        .padding(.top, 10)
+        .padding(.bottom, 8)
+        .frame(width: 340)
+        // Fond noir plein, sans Liquid Glass (29/10 : « je veux que tout soit comme dans l'exemple… fond noir ») :
+        // le fond que macOS met derrière le menu est retiré (`MenuPanel.attach`) ou recouvert.
+        .background(MenuBackground())
         // Sort de l'icône à chaque ouverture ; se ferme au choix d'une ligne ou d'un clic ailleurs (MenuPanel).
         .menuReveal(panel.revealed)
         .background(WindowReader { MenuPanel.shared.attach($0) })
+        .modifier(MenuWindowBackground())
+        .environment(\.colorScheme, .dark)                // toujours sombre, comme la maquette
         .onAppear { MenuPanel.shared.appeared() }
     }
 
@@ -815,12 +821,65 @@ struct MenuContent: View {
 /// Filet entre deux groupes de lignes, comme dans un menu.
 private struct MenuSeparator: View {
     var body: some View {
-        Divider().padding(.horizontal, 8).padding(.vertical, 4)
+        Rectangle()
+            .fill(Color.white.opacity(0.08))
+            .frame(height: 1)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 5)
     }
 }
 
-/// Lien du pied du panneau : « Ouvrir FL Shortcuts » en bleu, « Quitter ⌘Q » en gris. Même survol que les lignes
-/// (contour de sa couleur et halo dehors, le texte ne bouge pas).
+/// Fond du menu de l'icône (maquette du 28/10) : noir plein aux coins arrondis, bord fin clair ; aucun verre.
+struct MenuBackground: View {
+    static let color = Color(red: 0.11, green: 0.11, blue: 0.122)
+    static let cornerRadius: CGFloat = 18
+
+    var body: some View {
+        let shape = RoundedRectangle(cornerRadius: Self.cornerRadius, style: .continuous)
+        shape.fill(Self.color)
+            .overlay(shape.strokeBorder(Color.white.opacity(0.10), lineWidth: 1))
+            .ignoresSafeArea()
+            .accessibilityHidden(true)
+    }
+}
+
+/// Fond de la fenêtre du menu remplacé par le noir du menu, là où macOS le permet (macOS 15 et plus).
+private struct MenuWindowBackground: ViewModifier {
+    func body(content: Content) -> some View {
+        if #available(macOS 15.0, *) {
+            content.containerBackground(MenuBackground.color, for: .window)
+        } else {
+            content
+        }
+    }
+}
+
+/// Ligne du menu en simple texte gris, sans icône (« Désinstaller FL Shortcuts… »).
+private struct PanelPlainRow: View {
+    let title: String
+    var order = 0
+    let action: () -> Void
+    @ObservedObject private var panel = MenuPanel.shared
+
+    var body: some View {
+        Button {
+            action()
+            MenuPanel.shared.close()
+        } label: {
+            Text(title)
+                .font(.system(size: 12.5))
+                .hoverTint(Color.white.opacity(0.62))
+                .padding(.horizontal, 12)
+                .frame(maxWidth: .infinity, minHeight: 34, alignment: .leading)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .menuHover(tint: .gray, cornerRadius: 10)
+        .menuRevealRow(panel.revealed, index: order)
+    }
+}
+
+/// Lien du pied du panneau : « Ouvrir FL Shortcuts » en bleu, « Quitter ⌘Q » en gris. Même survol que les lignes.
 private struct PanelFooterButton: View {
     let title: String
     var detail: String? = nil
@@ -838,7 +897,7 @@ private struct PanelFooterButton: View {
             HStack(spacing: 6) {
                 Text(title)
                     .fontWeight(prominent ? .medium : .regular)
-                    .foregroundStyle(prominent ? tint : Color.primary.opacity(0.75))
+                    .hoverTint(prominent ? tint : Color.primary.opacity(0.75))
                 if let detail {
                     Text(verbatim: detail).foregroundStyle(.secondary)
                 }
@@ -854,9 +913,9 @@ private struct PanelFooterButton: View {
     }
 }
 
-/// Option du panneau : icône de couleur à gauche (une colonne facile à parcourir) ; au survol, la carte du guide :
-/// voile clair et liseré de sa couleur, qui grossissent ensemble avec une ombre douce de sa couleur. Choisie, elle
-/// ferme le menu ; à l'ouverture, elle arrive à son tour (`order`), son icône éclot juste après.
+/// Option du panneau : icône de couleur à gauche (une colonne facile à parcourir) ; survolée, pleine de sa couleur,
+/// texte en blanc. Choisie, elle ferme le menu ; à l'ouverture, elle arrive à son tour (`order`), son icône éclot
+/// juste après.
 private struct PanelItem: View {
     let symbol: String
     let title: String
@@ -866,11 +925,8 @@ private struct PanelItem: View {
     var tint: Color = .gray
     var order = 0
     let action: () -> Void
-    @State private var hovering = false
     @ObservedObject private var panel = MenuPanel.shared
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-
-    private var shape: RoundedRectangle { RoundedRectangle(cornerRadius: 10, style: .continuous) }
 
     var body: some View {
         Button {
@@ -879,8 +935,8 @@ private struct PanelItem: View {
             action()
             MenuPanel.shared.close()
         } label: {
-            HStack(spacing: 10) {
-                SectionIcon(symbol: symbol, tint: tint, size: 22)
+            HStack(spacing: 12) {
+                SectionIcon(symbol: symbol, tint: tint, size: 24)
                     .scaleEffect(panel.revealed || reduceMotion ? 1 : 0.35)
                     .rotationEffect(.degrees(panel.revealed || reduceMotion ? 0 : -25))
                     .animation(panel.revealed
@@ -892,22 +948,15 @@ private struct PanelItem: View {
                     Text(shortcut).foregroundStyle(.secondary)
                 }
             }
-            .font(.system(size: 13))
-            .padding(.horizontal, 8)
-            .frame(height: 34)
-            .contentShape(shape)
-            .background {
-                shape.fill(Color.primary.opacity(hovering ? 0.085 : 0))
-                    .overlay(shape.strokeBorder(tint.opacity(hovering ? 0.6 : 0), lineWidth: hovering ? 1.5 : 1))
-            }
+            .font(.system(size: 13.5))
+            .padding(.horizontal, 10)
+            .frame(height: 40)
+            .contentShape(RoundedRectangle(cornerRadius: 11, style: .continuous))
         }
         .buttonStyle(.plain)
-        .scaleEffect(hovering && !reduceMotion ? 1.03 : 1)
-        .shadow(color: tint.opacity(hovering ? 0.3 : 0), radius: hovering ? 10 : 0, y: hovering ? 4 : 0)
+        // Survolée : pleine de sa couleur, texte en blanc (29/10, « intérieur plein »).
+        .menuHover(tint: tint, cornerRadius: 11)
         .keyboardShortcut(key.map { KeyboardShortcut($0, modifiers: .command) })
-        .onHover { inside in
-            withAnimation(reduceMotion ? Motion.reduced : Motion.lift) { hovering = inside }
-        }
         .menuRevealRow(panel.revealed, index: order)
     }
 }

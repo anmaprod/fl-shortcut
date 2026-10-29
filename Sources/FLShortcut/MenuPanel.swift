@@ -39,6 +39,7 @@ final class MenuPanel: ObservableObject {
     func attach(_ window: NSWindow) {
         guard panel !== window else { return }
         panel = window
+        Self.clearSystemBackground(of: window)
         let center = NotificationCenter.default
         observers.append(center.addObserver(forName: NSWindow.didBecomeKeyNotification, object: window,
                                             queue: .main) { [weak self] _ in self?.opened() })
@@ -47,6 +48,29 @@ final class MenuPanel: ObservableObject {
         observers.append(center.addObserver(forName: NSWindow.didChangeOcclusionStateNotification, object: window,
                                             queue: .main) { [weak self] _ in self?.visibilityChanged() })
         if window.isKeyWindow || window.occlusionState.contains(.visible) { opened() }
+    }
+
+    /// Plus de verre ni de matériau de macOS derrière le menu (29/10, « fond noir ») : le contenu peint son propre fond
+    /// (`MenuBackground`). Les fonds du système à côté du contenu sont cachés ; celui qui le contient (s'il y en a un)
+    /// reste, recouvert par le fond noir.
+    private static func clearSystemBackground(of window: NSWindow) {
+        window.isOpaque = false
+        window.backgroundColor = .clear
+        guard let content = window.contentView else { return }
+        var root: NSView = content
+        while let parent = root.superview { root = parent }
+        hideBackdrops(in: root, keeping: content)
+        window.invalidateShadow()
+    }
+
+    private static func hideBackdrops(in view: NSView, keeping content: NSView) {
+        for sub in view.subviews {
+            if content.isDescendant(of: sub) || sub.isDescendant(of: content) {
+                if sub !== content { hideBackdrops(in: sub, keeping: content) }
+            } else if sub is NSVisualEffectView || NSStringFromClass(type(of: sub)).contains("Glass") {
+                sub.isHidden = true
+            }
+        }
     }
 
     /// Contenu affiché : si la fenêtre n'a rien signalé (cas imprévu), le contenu se montre quand même.
@@ -157,6 +181,16 @@ final class MenuPanel: ObservableObject {
     /// Fenêtres de l'app qu'on peut avoir devant soi (principale, guide…), de la plus en avant à la plus en arrière.
     private var appWindows: [NSWindow] {
         NSApp.orderedWindows.filter { $0 !== panel && $0.isVisible && !$0.isMiniaturized && $0.canBecomeMain }
+    }
+
+    /// Mode capture (mesure de la CI) : « ouvrir » ouvre le menu comme un clic sur l'icône, « fermer » le referme.
+    /// Rien d'autre : aucune ligne n'est choisie.
+    func capture(_ command: String) {
+        switch command {
+        case "ouvrir": if panel?.isVisible != true { statusButton?.performClick(nil) }
+        case "fermer": if panel?.isVisible == true { close() }
+        default: break
+        }
     }
 
     /// Bouton de l'icône dans la barre des menus (créé par SwiftUI pour MenuBarExtra).

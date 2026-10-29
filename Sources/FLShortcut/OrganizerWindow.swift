@@ -1669,11 +1669,11 @@ struct OrganizerView: View {
     }
 }
 
-/// Carte de l'Organiser : plaque de verre (28/10, « le verre seulement devant ») qui prend sa couleur au survol ; sans
-/// l'effet, le voile clair et le liseré de sa couleur de toujours.
+/// Carte de l'Organiser : plaque de verre (28/10, « le verre seulement devant ») ; sans l'effet, le voile clair et le
+/// liseré de sa couleur. Pas de survol : une carte n'est pas une option (29/10, le survol remplit l'option de sa
+/// couleur).
 private struct OrganizerCard: View {
     var tint: Color = OrganizerView.tint
-    var hovered = false
     @Environment(\.colorScheme) private var scheme
     @AppStorage(Appearance.glassKey) private var glassEnabled = true
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
@@ -1685,37 +1685,15 @@ private struct OrganizerCard: View {
                          increasedContrast: contrast == .increased) {
             shape.fill(GlassPlate.fill(scheme))
                 .overlay(shape.strokeBorder(GlassPlate.rim(scheme), lineWidth: 1))
-                .overlay(shape.strokeBorder(tint, lineWidth: 1.5).opacity(hovered ? 1 : 0))
         } else {
             shape.fill(Color.primary.opacity(0.045))
-                .overlay(shape.strokeBorder(tint.opacity(hovered ? 1 : 0.24), lineWidth: hovered ? 1.5 : 1))
+                .overlay(shape.strokeBorder(tint.opacity(0.24), lineWidth: 1))
         }
     }
 }
 
-/// Carte qui s'allume au survol : liseré de sa couleur, halo autour (comme le survol du reste de l'app). Elle ne
-/// grossit plus et ses couleurs ne changent pas (25/10 : le zoom faisait « bizarre », texte agrandi flou ; une ombre
-/// posée sur le contenu ternissait ses textes).
-private struct OrganizerHoverCard: ViewModifier {
-    let tint: Color
-    @State private var hovered = false
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-
-    func body(content: Content) -> some View {
-        content
-            .background(OrganizerCard(tint: tint, hovered: hovered))
-            .background {
-                HoverGlow(shape: RoundedRectangle(cornerRadius: 14, style: .continuous), tint: tint)
-                    .opacity(hovered ? 1 : 0)
-            }
-            .onHover { inside in
-                withAnimation(reduceMotion ? Motion.reduced : Motion.lift) { hovered = inside }
-            }
-    }
-}
-
 private extension View {
-    func organizerCard(_ tint: Color = OrganizerView.tint) -> some View { modifier(OrganizerHoverCard(tint: tint)) }
+    func organizerCard(_ tint: Color = OrganizerView.tint) -> some View { background(OrganizerCard(tint: tint)) }
 }
 
 /// Attente de FL : la pastille de couleur et deux ondes qui s'en éloignent sans fin, comme un appel (rien ne tourne
@@ -2069,16 +2047,20 @@ struct MixerSlotBox: View {
     @State private var typing = false
     @State private var draft = ""
     @State private var hovered = false
+    /// Pendant qu'on tire, comme la case de FL (vidéo du 29/10 : la flèche restait sur le chiffre) : la flèche est
+    /// cachée et garée à droite de la case, le chiffre reste visible ; au lâcher, elle revient où elle était.
+    @State private var hiddenDrag: HiddenDrag?
 
     /// Points de souris par numéro, comme la case de FL (tirer vers le haut : plus grand).
     static let step: CGFloat = 6
+    static let width: CGFloat = 40
 
     var body: some View {
         // Un peu plus grande qu'avant (28/10) : c'est ce qu'on change le plus dans l'aperçu.
         Text(verbatim: value.map { String($0) } ?? "---")
             .font(.system(size: 12, weight: chosen ? .semibold : .regular).monospacedDigit())
             .foregroundStyle(chosen ? Color.primary : Color.secondary)
-            .frame(width: 40, height: 22)
+            .frame(width: Self.width, height: 22)
             .background(RoundedRectangle(cornerRadius: 6, style: .continuous).fill(Color.black.opacity(0.28)))
             .overlay(RoundedRectangle(cornerRadius: 6, style: .continuous)
                 .strokeBorder(chosen ? OrganizerView.tint : Color.primary.opacity(hovered ? 0.35 : 0.12), lineWidth: 1))
@@ -2089,11 +2071,24 @@ struct MixerSlotBox: View {
             }
             .gesture(DragGesture(minimumDistance: 2)
                 .onChanged { drag in
-                    let from = dragStart ?? value ?? 1
-                    if dragStart == nil { dragStart = from }
+                    guard dragStart == nil else { return }       // la suite arrive par `HiddenDrag` (souris garée)
+                    let from = value ?? 1
+                    dragStart = from
                     set(Self.dragged(from: from, dy: drag.translation.height, last: last))
+                    hiddenDrag = HiddenDrag(localX: drag.startLocation.x, width: Self.width,
+                                            already: drag.translation.height) { dy in
+                        set(Self.dragged(from: from, dy: dy, last: last))
+                    }
                 }
-                .onEnded { _ in dragStart = nil })
+                .onEnded { _ in
+                    hiddenDrag?.finish()
+                    hiddenDrag = nil
+                    dragStart = nil
+                })
+            .onDisappear {
+                hiddenDrag?.finish()
+                hiddenDrag = nil
+            }
             .onTapGesture {
                 if NSEvent.modifierFlags.contains(.option) {
                     set(nil)
@@ -2130,5 +2125,59 @@ struct MixerSlotBox: View {
     /// Pur (testé) : le numéro après avoir tiré la case de `dy` points (vers le haut : négatif, plus grand).
     static func dragged(from: Int, dy: CGFloat, last: Int) -> Int {
         min(max(from + Int((-dy / step).rounded(.towardZero)), 1), max(last, 1))
+    }
+}
+
+/// Glisser d'une case comme dans FL : la flèche disparaît, garée à droite de la case (elle ne couvre plus le chiffre
+/// même si macOS la laisse visible, FL étant devant) ; la souris continue de compter (mouvements reçus tels quels) ;
+/// au lâcher, la flèche revient exactement où elle était. Aucune autorisation : la flèche de la souris seulement.
+final class HiddenDrag {
+    private let origin: CGPoint
+    private var monitor: Any?
+    private var dy: CGFloat
+    private let change: (CGFloat) -> Void
+    private var finished = false
+
+    /// `localX` : où la case a été prise (depuis son bord gauche) ; `already` : ce qui a déjà été tiré.
+    init(localX: CGFloat, width: CGFloat, already: CGFloat, change: @escaping (CGFloat) -> Void) {
+        let mouse = NSEvent.mouseLocation
+        origin = mouse
+        dy = already
+        self.change = change
+        let primary = NSScreen.screens.first?.frame.height ?? 0
+        NSCursor.hide()
+        CGWarpMouseCursorPosition(Self.displayPoint(Self.parked(mouse: mouse, localX: localX, width: width),
+                                                    primaryHeight: primary))
+        CGAssociateMouseAndMouseCursorPosition(0)                   // la flèche reste garée, les mouvements comptent
+        monitor = NSEvent.addLocalMonitorForEvents(matching: .leftMouseDragged) { [weak self] event in
+            guard let self else { return event }
+            self.dy += event.deltaY                                 // vers le bas : positif, comme `translation`
+            self.change(self.dy)
+            return event
+        }
+    }
+
+    func finish() {
+        guard !finished else { return }
+        finished = true
+        if let monitor { NSEvent.removeMonitor(monitor) }
+        monitor = nil
+        let primary = NSScreen.screens.first?.frame.height ?? 0
+        CGWarpMouseCursorPosition(Self.displayPoint(origin, primaryHeight: primary))
+        CGAssociateMouseAndMouseCursorPosition(1)
+        NSCursor.unhide()
+    }
+
+    deinit { finish() }
+
+    /// Pur (testé) : la flèche garée 12 points à droite de la case, à la même hauteur (coordonnées d'AppKit).
+    static func parked(mouse: CGPoint, localX: CGFloat, width: CGFloat) -> CGPoint {
+        CGPoint(x: mouse.x + max(0, width - localX) + 12, y: mouse.y)
+    }
+
+    /// Pur (testé) : un point d'AppKit (origine en bas à gauche de l'écran principal) en point de l'écran pour
+    /// CoreGraphics (origine en haut à gauche).
+    static func displayPoint(_ p: CGPoint, primaryHeight: CGFloat) -> CGPoint {
+        CGPoint(x: p.x, y: primaryHeight - p.y)
     }
 }

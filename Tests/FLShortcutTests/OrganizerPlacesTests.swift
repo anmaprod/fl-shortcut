@@ -134,5 +134,9 @@ final class OrganizerPlacesTests: XCTestCase {
         XCTAssertEqual(MixerSlotBox.dragged(from: 10, dy: 2, last: 125), 10)
         XCTAssertEqual(MixerSlotBox.dragged(from: 3, dy: 600, last: 125), 1)
         XCTAssertEqual(MixerSlotBox.dragged(from: 120, dy: -600, last: 125), 125)
+        // Comme FL : la flèche garée à droite de la case pendant qu'on tire, puis remise où elle était.
+        XCTAssertEqual(HiddenDrag.parked(mouse: CGPoint(x: 100, y: 500), localX: 10, width: 40), CGPoint(x: 142, y: 500))
+        XCTAssertEqual(HiddenDrag.parked(mouse: CGPoint(x: 100, y: 500), localX: 55, width: 40), CGPoint(x: 112, y: 500))
+        XCTAssertEqual(HiddenDrag.displayPoint(CGPoint(x: 100, y: 700), primaryHeight: 900), CGPoint(x: 100, y: 200))
     }
 }

@@ -336,7 +336,7 @@ private struct RecordHero: View {
             HStack(spacing: 10) {
                 Image(systemName: recorder.active ? "record.circle.fill" : "record.circle")
                     .font(.system(size: 22))
-                    .foregroundStyle(.red)
+                    .hoverTint(.red)
                 VStack(alignment: .leading, spacing: 1) {
                     Text(recorder.active ? String(localized: "Enregistrement en cours…")
                                          : String(localized: "Enregistrer clics et touches"))
@@ -450,7 +450,7 @@ private struct MacroStepRowView: View, Equatable {
                     Text(note).font(.system(size: 11)).foregroundStyle(.secondary).lineLimit(1)
                 }
                 if let reason = failure {
-                    Text(reason).font(.system(size: 11)).foregroundStyle(.red).lineLimit(2)
+                    Text(reason).font(.system(size: 11)).hoverTint(.red).lineLimit(2)
                 }
             }
             Spacer(minLength: 6)

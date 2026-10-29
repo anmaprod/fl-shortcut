@@ -52,6 +52,9 @@ enum DebugSnapshot {
     /// « travail », « erreur » ; « fermer » la ferme.
     static let approval = Notification.Name("app.flshortcut.debug.approval")
     private static var approvalObserver: NSObjectProtocol?
+    /// Menu de l'icône : « ouvrir » (comme un clic sur l'icône), « fermer ».
+    static let menu = Notification.Name("app.flshortcut.debug.menu")
+    private static var menuObserver: NSObjectProtocol?
 
     static func publisher(_ name: Notification.Name) -> AnyPublisher<Notification, Never> {
         guard enabled else { return Empty().eraseToAnyPublisher() }
@@ -76,6 +79,10 @@ enum DebugSnapshot {
         approvalObserver = DistributedNotificationCenter.default().addObserver(forName: approval, object: nil, queue: .main) { note in
             let screen = note.object as? String ?? "question"
             MainActor.assumeIsolated { CopyApprovalWindow.shared.showDemo(screen) }
+        }
+        menuObserver = DistributedNotificationCenter.default().addObserver(forName: menu, object: nil, queue: .main) { note in
+            let command = note.object as? String ?? ""
+            MainActor.assumeIsolated { MenuPanel.shared.capture(command) }
         }
         observer = DistributedNotificationCenter.default().addObserver(forName: snapshot, object: nil, queue: .main) { note in
             capture(tag: note.object as? String ?? "capture")

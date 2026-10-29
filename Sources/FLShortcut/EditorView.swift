@@ -167,7 +167,7 @@ private struct SidebarRowModifier: ViewModifier {
 
     func body(content: Content) -> some View {
         content
-            .foregroundStyle(selected ? Color.white : Color.primary)
+            .hoverTint(selected ? Color.white : Color.primary)
             .fontWeight(selected ? .semibold : nil)
             .padding(.horizontal, 8)
             .padding(.vertical, 5)
