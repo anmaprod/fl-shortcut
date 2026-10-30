@@ -1,9 +1,10 @@
 // La page Macros sur Windows, comme celle du Mac (maquette Macros.dc.html, 29/10 : « exactement la même interface sur
-// win ») : dans la fenêtre principale, la liste des macros (Macro vide, Modèles…, puis chaque macro : icône, nom, nombre
-// de blocs, badge, raccourci, Modifier…, options) ; une macro s'ouvre dans le créateur, qui prend toute la fenêtre :
-// palette des blocs à gauche (par catégorie ; un clic ajoute le bloc sous la ligne choisie, on peut aussi le glisser
-// à sa place), étapes au milieu (← rond, nom, raccourci, « Enregistrer » ; numéro, icône, phrase, interrupteur ; glisser
-// une ligne pour la ranger), réglages du bloc choisi à droite (« Retirer ce bloc » en bas).
+// win ») : dans la fenêtre principale, la liste des macros (maquette du 30/10 : grandes cartes Macro vide et Modèles,
+// puis chaque macro en carte : icône, nom, nombre de blocs, interrupteur, touches ; clic droit pour le reste) ; une
+// macro s'ouvre dans le créateur, qui prend toute la fenêtre : palette des blocs à gauche (par catégorie ; un clic
+// ajoute le bloc sous la ligne choisie, on peut aussi le glisser à sa place), étapes au milieu (← rond, nom,
+// raccourci, « Enregistrer » ; numéro, icône, phrase, interrupteur ; glisser une ligne pour la ranger), réglages du
+// bloc choisi à droite (« Retirer ce bloc » en bas).
 // La palette ne propose que les blocs faits pour Windows ; un bloc qui ne l'est pas encore (macro venue du Mac) le dit
 // dans ses réglages et bloque la macro (son raccourci reste à FL). Toute modification est une copie remise au magasin
 // (MacroLibraryStore.Update), enregistrée peu après par l'appli. Les champs de texte s'appliquent à la sortie du champ
@@ -188,18 +189,25 @@ internal sealed class MacrosPage
 
     // ---------- Liste des macros (page de la fenêtre principale) ----------
 
-    /// Le contenu de la page Macros : vide (« Aucune macro ») ou les actions et la carte « Mes macros ».
-    public FrameworkElement ListContent()
+    /// Le contenu de la page Macros (maquette du 30/10, comme le Mac) : de grandes cartes pour commencer une macro,
+    /// puis « Mes macros » en cartes sur `columns` colonnes ; vide : « Aucune macro ».
+    public FrameworkElement ListContent(int columns)
     {
         if (_store.Macros.Count == 0) return EmptyList();
-        var page = new StackPanel { Spacing = 20, Padding = new Thickness(26, 10, 26, 24) };
-        var actions = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 4 };
-        actions.Children.Add(ActionButton("plus", Loc.T("Macro vide"), NewMacro));
-        actions.Children.Add(ActionButton("square.grid.2x2", Loc.T("Modèles…"), ShowTemplates));
-        var actionsPlate = Plate(actions, 14);
-        actionsPlate.Padding = new Thickness(4);
-        page.Children.Add(actionsPlate);
-        page.Children.Add(MainShell.TitledCard(Loc.T("Mes macros"), _store.Macros.Select(MacroRow).ToList()));
+        var page = new StackPanel { Spacing = 18, Padding = new Thickness(26, 10, 26, 24) };
+        // Pas d'« Enregistrer une macro » ici : l'enregistrement n'est pas encore fait sur Windows.
+        page.Children.Add(CardGrid(new List<FrameworkElement>
+        {
+            ActionCard("plus", Loc.T("Macro vide"), Accent, NewMacro),
+            ActionCard("square.grid.2x2", Loc.T("Modèles"), Purple, ShowTemplates),
+        }, 2));
+        var heading = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Margin = new Thickness(0, 4, 0, 0) };
+        var title = Label(Loc.T("Mes macros"), 15, Text, bold: true);
+        AutomationProperties.SetHeadingLevel(title, Microsoft.UI.Xaml.Automation.Peers.AutomationHeadingLevel.Level2);
+        heading.Children.Add(title);
+        heading.Children.Add(Label(_store.Macros.Count.ToString(System.Globalization.CultureInfo.CurrentCulture), 12, Secondary));
+        page.Children.Add(heading);
+        page.Children.Add(CardGrid(_store.Macros.Select(MacroCard).ToList(), columns));
         return page;
     }
 
@@ -219,84 +227,111 @@ internal sealed class MacrosPage
         return stack;
     }
 
-    /// Bouton de la plaque d'actions : icône et texte ; au survol, plein de violet.
-    private static Button ActionButton(string icon, string text, Action click)
+    /// Cartes rangées ligne par ligne sur `columns` colonnes égales (comme la grille du Mac).
+    private static Grid CardGrid(List<FrameworkElement> cards, int columns)
     {
-        var row = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 7 };
-        var glyph = Icon(icon, 13, Text);
-        glyph.VerticalAlignment = VerticalAlignment.Center;
-        row.Children.Add(glyph);
-        row.Children.Add(Label(text, 13));
-        var button = Option(row, Purple, 10, click, minHeight: 32, padding: new Thickness(12, 0, 14, 0));
-        button.HorizontalAlignment = HorizontalAlignment.Left;
+        var grid = new Grid { ColumnSpacing = 12, RowSpacing = 12 };
+        for (var i = 0; i < columns; i++)
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        for (var i = 0; i < cards.Count; i++)
+        {
+            if (i % columns == 0) grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            Grid.SetRow(cards[i], i / columns);
+            Grid.SetColumn(cards[i], i % columns);
+            grid.Children.Add(cards[i]);
+        }
+        return grid;
+    }
+
+    /// Une carte posée sur sa plaque claire ; au survol, le bouton par-dessus la remplit de sa couleur.
+    private static Grid OnPlate(Button button)
+    {
+        button.HorizontalAlignment = HorizontalAlignment.Stretch;
+        var card = new Grid();
+        card.Children.Add(Plate(null, 14));
+        card.Children.Add(button);
+        return card;
+    }
+
+    /// Grande carte d'action : icône de couleur, nom en gras ; au survol, pleine de sa couleur.
+    private static FrameworkElement ActionCard(string icon, string text, Color tint, Action click)
+    {
+        var row = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 14 };
+        var tile = Tile(icon, tint, 40);
+        row.Children.Add(tile);
+        row.Children.Add(Label(text, 15, bold: true));
+        var button = Option(row, tint, 14, click, minHeight: 76, padding: new Thickness(16, 0, 16, 0),
+                            hover: on => SetTileHover(tile, icon, tint, on));
+        button.HorizontalContentAlignment = HorizontalAlignment.Left;
         AutomationProperties.SetName(button, text);
-        return button;
+        return OnPlate(button);
     }
 
     private void NewMacro() => Open(_store.Add(MacroDrafts.Empty(_store)).Id);
 
-    /// Une macro : icône, nom et résumé (« 3 blocs · Touche, Attendre… »), badges, raccourci, « Modifier… », options.
-    /// Un clic sur la ligne l'ouvre ; au survol, toute la ligne est violette (comme le Mac).
-    private FrameworkElement MacroRow(MacroDoc doc)
+    /// Une macro en carte (maquette du 30/10, comme le Mac) : icône, nom, nombre de blocs, interrupteur du raccourci,
+    /// puis ses touches. Un clic l'ouvre dans le créateur ; clic droit : Modifier, Dupliquer, le raccourci, Supprimer.
+    /// Au survol, toute la carte est violette et ses textes passent en blanc.
+    private FrameworkElement MacroCard(MacroDoc doc)
     {
         var shortcut = _demo ? null : _app.MacroShortcut(doc.Id);
-        var grid = new Grid { ColumnSpacing = 10 };
-        foreach (var width in new[] { GridLength.Auto, new GridLength(1, GridUnitType.Star), GridLength.Auto, GridLength.Auto, GridLength.Auto, GridLength.Auto })
-            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = width });
-        var tile = Tile("macros", Purple, 26);
-        grid.Children.Add(tile);
+        var stack = new StackPanel { Spacing = 12 };
+        var top = new Grid { ColumnSpacing = 12 };
+        foreach (var width in new[] { GridLength.Auto, new GridLength(1, GridUnitType.Star), GridLength.Auto })
+            top.ColumnDefinitions.Add(new ColumnDefinition { Width = width });
+        var tile = Tile("macros", Purple, 34);
+        top.Children.Add(tile);
 
-        var text = new StackPanel { Spacing = 1, VerticalAlignment = VerticalAlignment.Center };
-        var name = Label(DisplayText.Safe(doc.Name, MacroValidation.MaxNameLength), 13);
+        var text = new StackPanel { Spacing = 2, VerticalAlignment = VerticalAlignment.Center };
+        var name = Label(DisplayText.Safe(doc.Name, MacroValidation.MaxNameLength), 14, bold: true);
         name.TextWrapping = TextWrapping.NoWrap;
-        name.TextTrimming = TextTrimming.CharacterEllipsis;
         text.Children.Add(name);
-        var caption = Label(Caption(doc), 11, Secondary);
-        caption.TextWrapping = TextWrapping.NoWrap;
-        caption.TextTrimming = TextTrimming.CharacterEllipsis;
-        text.Children.Add(caption);
-        Grid.SetColumn(text, 1);
-        grid.Children.Add(text);
-
-        var badges = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 4, VerticalAlignment = VerticalAlignment.Center };
-        if (Issue(doc) is { } problem) badges.Children.Add(Badge(Loc.T("À corriger"), Red, problem));
-        if (shortcut is { Enabled: false }) badges.Children.Add(Badge(Loc.T("Désactivée"), Secondary, Loc.T("Le raccourci de cette macro est désactivé.")));
-        Grid.SetColumn(badges, 2);
-        grid.Children.Add(badges);
-
-        FrameworkElement keys = shortcut?.Trigger is { } trigger ? (FrameworkElement)Keys(trigger) : Label(Loc.T("Sans raccourci"), 12, Secondary);
-        keys.VerticalAlignment = VerticalAlignment.Center;
-        Grid.SetColumn(keys, 3);
-        grid.Children.Add(keys);
-
-        var edit = new Button { Style = PlainButton, Content = Label(Loc.T("Modifier…"), 12, Link), Padding = new Thickness(4, 2, 4, 2) };
-        edit.Click += (_, _) => Open(doc.Id);
-        Grid.SetColumn(edit, 4);
-        grid.Children.Add(edit);
-
-        var more = new Button
-        {
-            Style = PlainButton, Width = 26, Height = 26, CornerRadius = new CornerRadius(13),
-            HorizontalContentAlignment = HorizontalAlignment.Center, Content = Icon("ellipsis", 14, Secondary),
-            Flyout = MacroOptions(doc, shortcut),
-        };
-        ToolTipService.SetToolTip(more, Loc.T("Options de la macro"));
-        AutomationProperties.SetName(more, Loc.T("Options de la macro"));
-        Grid.SetColumn(more, 5);
-        grid.Children.Add(more);
-
-        var row = Option(grid, Purple, 10, () => Open(doc.Id), minHeight: 46, padding: new Thickness(10, 4, 8, 4),
-                         hover: on => SetTileHover(tile, "macros", Purple, on));
-        AutomationProperties.SetName(row, DisplayText.Safe(doc.Name, MacroValidation.MaxNameLength));
-        return row;
-    }
-
-    private static string Caption(MacroDoc doc)
-    {
         var count = MacroValidation.Count(doc.Blocks);
-        var blocks = count == 1 ? Loc.T("1 bloc") : Loc.F("%lld blocs", count);
-        var first = doc.Blocks.Where(b => b.Enabled && b.Body is not BlockBody.Comment).Take(3).Select(b => BlockRegistry.Label(b.Body)).ToList();
-        return first.Count == 0 ? blocks : blocks + " · " + string.Join(", ", first);
+        var blocks = Label(count == 1 ? Loc.T("1 bloc") : Loc.F("%lld blocs", count), 11.5, Secondary);
+        text.Children.Add(blocks);
+        Grid.SetColumn(text, 1);
+        top.Children.Add(text);
+
+        if (shortcut is { } s)
+        {
+            var toggle = Switch(s.Enabled, on => _app.Upsert(s with { Enabled = on }),
+                                s.Enabled ? Loc.T("Désactiver le raccourci") : Loc.T("Activer le raccourci"));
+            Grid.SetColumn(toggle, 2);
+            top.Children.Add(toggle);
+        }
+        stack.Children.Add(top);
+
+        // « Désactivée » se voit à l'interrupteur : seul ce qui demande d'agir reste en badge.
+        if (Issue(doc) is { } problem)
+        {
+            var badge = Badge(Loc.T("À corriger"), Red, problem);
+            badge.HorizontalAlignment = HorizontalAlignment.Left;
+            stack.Children.Add(badge);
+        }
+
+        TextBlock? choose = null;
+        if (shortcut?.Trigger is { } trigger)
+        {
+            stack.Children.Add(Keys(trigger));
+        }
+        else
+        {
+            choose = Label(Loc.T("Choisir un raccourci…"), 12, Link, semibold: true);
+            choose.HorizontalAlignment = HorizontalAlignment.Left;
+            stack.Children.Add(choose);
+        }
+
+        var button = Option(stack, Purple, 14, () => Open(doc.Id), minHeight: 0, padding: new Thickness(16, 14, 16, 14),
+                            hover: on =>
+                            {
+                                SetTileHover(tile, "macros", Purple, on);
+                                blocks.Foreground = Brush(on ? White(0.8) : Secondary);
+                                if (choose is not null) choose.Foreground = Brush(on ? Colors.White : Link);
+                            });
+        button.HorizontalContentAlignment = HorizontalAlignment.Stretch;
+        button.ContextFlyout = MacroOptions(doc, shortcut);
+        AutomationProperties.SetName(button, DisplayText.Safe(doc.Name, MacroValidation.MaxNameLength));
+        return OnPlate(button);
     }
 
     private static Border Badge(string text, Color tint, string help)
@@ -905,8 +940,8 @@ internal sealed class MacrosPage
         };
     }
 
-    /// Interrupteur (comme celui du Mac) : bleu allumé, gris éteint.
-    private static Button Switch(bool on, Action<bool> set)
+    /// Interrupteur (comme celui du Mac) : bleu allumé, gris éteint ; `help` : son aide (sinon celle d'un bloc).
+    private static Button Switch(bool on, Action<bool> set, string? help = null)
     {
         var knob = new Ellipse { Width = 14, Height = 14, Fill = Brush(Colors.White), HorizontalAlignment = on ? HorizontalAlignment.Right : HorizontalAlignment.Left,
                                  Margin = new Thickness(2, 0, 2, 0) };
@@ -915,11 +950,11 @@ internal sealed class MacrosPage
                                         BorderBrush = Brush(White(on ? 0.3 : 0.12)), BorderThickness = new Thickness(1) });
         track.Children.Add(knob);
         var button = new Button { Style = PlainButton, Content = track, CornerRadius = new CornerRadius(9), VerticalAlignment = VerticalAlignment.Center };
-        var help = on ? Loc.T("Bloc actif : coupe-le pour le sauter sans le supprimer") : Loc.T("Bloc sauté : rallume-le pour le réactiver");
+        help ??= on ? Loc.T("Bloc actif : coupe-le pour le sauter sans le supprimer") : Loc.T("Bloc sauté : rallume-le pour le réactiver");
         ToolTipService.SetToolTip(button, help);
         AutomationProperties.SetName(button, help);
         button.Click += (_, _) => set(!on);
-        button.Tapped += (_, e) => e.Handled = true;          // la ligne n'est pas choisie pour autant
+        button.Tapped += (_, e) => e.Handled = true;          // la ligne (ou la carte) n'est pas choisie pour autant
         return button;
     }
 

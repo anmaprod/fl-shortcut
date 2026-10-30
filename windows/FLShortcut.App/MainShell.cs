@@ -574,7 +574,7 @@ internal sealed partial class MainShell
         else if (_kind == PageKind.Macros)
         {
             _title.Text = Loc.T("Macros");
-            _scroll.Content = _macros.ListContent();
+            _scroll.Content = _macros.ListContent(_columns);
             return;
         }
         else if (_kind == PageKind.Custom)

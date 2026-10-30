@@ -188,8 +188,13 @@
   « Revoir le tuto » dans Options ; images `Resources/*.lproj/OrganiserTuto*.png` de `docs/images/organiser-tuto.html`).
 - Créateur de macros (30/10, « le bouton enregistrer ne fonctionne plus ») : « Enregistrer » toujours actif (chaque
   changement s'enregistre seul 0,5 s après) ; il enregistre et revient aux macros (Mac et Windows).
-- Pages Macros, Communauté, Mon compte, Aide « pas belles / plus ergonomiques » (30/10) : maquette proposée
-  (artefact privé `L3Vuc2e9Tj8mrJAmRPqiQy`), à faire dans l'app SEULEMENT après sa validation.
+- Pages Macros, Communauté, Mon compte, Aide « pas belles / plus ergonomiques » (30/10) : maquette (artefact privé
+  `L3Vuc2e9Tj8mrJAmRPqiQy`) validée (« go change ça ») et faite sur Mac : Macros = 3 grandes cartes (Enregistrer une
+  macro, Macro vide, Modèles) + macros en cartes (interrupteur, touches ; sans pastilles de blocs ni ⋯ : clic droit) ;
+  Communauté = « Partager » bleu en haut, recherche + Tout/Macros/Raccourcis/Les miens, partages en cartes ; Mon
+  compte = cartes profil, sauvegarde, choix des versions ; Aide = grande recherche, questions en carte (étapes
+  numérotées, `HelpEntry.steps`), Écrire à l'équipe / Revoir le guide à droite (sans tuiles de thèmes : retirées à sa
+  demande). Windows : seule la page Macros existe (pas encore à ce nouvel aspect).
 - **À l'identique des maquettes** (29/10, `HISTORIQUE`) : fenêtre principale = `Main.dc.html` (plaque de gauche
   avec les boutons de la fenêtre, `MainWindowChrome` ; en-tête titre + capsule du compte ; cartes par groupe,
   `CatalogGroups`) ; créateur = `Macros.dc.html` (← rond, nom, touches, « Enregistrer » bleu ; « Retirer ce bloc »).

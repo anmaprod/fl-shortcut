@@ -601,4 +601,8 @@ entrée 1 ≈ 0,5 s.
   réglage « SetsCursorInBackground » de la connexion au serveur de fenêtres, `BackgroundCursor`) ; page choisie de la
   barre de gauche dans sa couleur (Mac et Windows) ; menu de l'icône plus petit. CI verte sur cfd68b8 (photos du
   menu et de la barre vérifiées). Pages Macros, Communauté, Mon compte, Aide : maquette en 4 écrans proposée avant de
-  coder (artefact privé), en attente de sa réponse.
+  coder (artefact privé). Ses commentaires sur la maquette : tuiles de thèmes de l'Aide « tu peux enlever »,
+  pastilles des blocs des macros « enlever les détails comme ça pour tous », ⇧⌘R « retire ce raccourci » ; puis « go
+  change ça » : les 4 pages faites dans l'app Mac (ffdfa86) comme la maquette, ses retraits compris. Retirés au passage :
+  « Comment ça marche » de la Communauté, menu ⋯ des macros (tout passe par le clic droit), « + » en haut de Macros
+  (« Partager » bleu en haut de la Communauté à la place, connecté seulement).
