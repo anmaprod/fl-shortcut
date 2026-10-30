@@ -72,7 +72,9 @@
     (pages de FL, Renommer, bus, sons sans note, Copier le diagnostic) en haut ; familles sur 2 colonnes dès 600
     points (`familyColumns`, fenêtre ouverte à 720), en-tête (poignée, couleur, nom, Mixer [départ], icône) au-dessus
     d'une carte de verre de ses sons : ancien nom → [nouveau nom ▾] [piste] ; « Organiser » toujours bleu
-    (`AlwaysBlueButtonStyle` : le panneau n'est jamais actif) ; case du Mixer tirée comme FL (`HiddenDrag`).
+    (`AlwaysBlueButtonStyle` : le panneau n'est jamais actif) ; case du Mixer tirée comme FL (`HiddenDrag` ; flèche cachée même FL devant, `BackgroundCursor`, 30/10).
+    Familles prises en entier (30/10) : copie nette qui suit la souris, place en transparence, trait de couleur où
+    elle tombe (`FamilyDrag`, `OrganizerView.dropTarget`) ; plus de glisser du système (image floue + « + »).
   - « All » automatique (script v16, API 33) ; copie toujours faite sur le fichier (Channel rack sur « All ») ;
     arrangement ouvert rangé (événement 100) ; marque sur un canal si aucun pattern n'est nommé ; page de FL remise
     devant (4 fois) au lieu de s'arrêter ; Mixer : piste qui envoie déjà ailleurs que le Master = famille sans bus ;
@@ -184,6 +186,10 @@
 - **Tuto** (29/10) : page `site/tuto.html` (7 étapes dessinées comme l'app ; images du README `docs/images/tuto-*.png`
   par `rendre-tuto.js`) ; Organiser : tuto en 4 images à la 1re ouverture, avant l'écoute (`OrganizerTutorial.swift`,
   « Revoir le tuto » dans Options ; images `Resources/*.lproj/OrganiserTuto*.png` de `docs/images/organiser-tuto.html`).
+- Créateur de macros (30/10, « le bouton enregistrer ne fonctionne plus ») : « Enregistrer » toujours actif (chaque
+  changement s'enregistre seul 0,5 s après) ; il enregistre et revient aux macros (Mac et Windows).
+- Pages Macros, Communauté, Mon compte, Aide « pas belles / plus ergonomiques » (30/10) : maquette proposée
+  (artefact privé `L3Vuc2e9Tj8mrJAmRPqiQy`), à faire dans l'app SEULEMENT après sa validation.
 - **À l'identique des maquettes** (29/10, `HISTORIQUE`) : fenêtre principale = `Main.dc.html` (plaque de gauche
   avec les boutons de la fenêtre, `MainWindowChrome` ; en-tête titre + capsule du compte ; cartes par groupe,
   `CatalogGroups`) ; créateur = `Macros.dc.html` (← rond, nom, touches, « Enregistrer » bleu ; « Retirer ce bloc »).
@@ -193,9 +199,10 @@
   survolée est PLEINE de sa couleur, texte en blanc, icône de couleur en blanc translucide (`menuHover` →
   `hoverFilled`, détails colorés par `hoverTint`) ; plus de contour ni de halo ; le contenu ne grossit jamais ; les
   cartes de l'Organiser (conteneurs) n'ont plus de survol. Partout : barre latérale (`sidebarRow` : page choisie en
-  pastille bleue, sans sélection grise du système ni compteurs), lignes des cartes (`cardRow`), menu de l'icône,
+  pastille de SA couleur (30/10, plus le bleu), sans sélection grise du système ni compteurs), lignes des cartes (`cardRow`), menu de l'icône,
   Macros, modèles, Communauté, Aide, palette, blocs, bouton d'enregistrement, « Menu de FL » du créateur, guide.
-  Menu de l'icône (29/10, « plus de Liquid Glass… fond noir ») : fond noir plein `MenuBackground`, toujours sombre,
+  Menu de l'icône (29/10, « plus de Liquid Glass… fond noir ») ; plus petit le 30/10 (280 de large, lignes de 34 ;
+  Windows 250) : fond noir plein `MenuBackground`, toujours sombre,
   fond du système caché (`MenuPanel.clearSystemBackground`) ; « Désinstaller » en texte gris ; photo `menu-icone.png`.
   Désinstallation (29/10, « dans le nouveau style… pas toucher à sa fonctionnalité juste à l'image ») : fond noir,
   plaques claires, capsules (`UninstallView` seule ; `UninstallFlow`/`Uninstaller` inchangés).

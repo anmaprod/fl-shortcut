@@ -591,3 +591,14 @@ entrée 1 ≈ 0,5 s.
   exportés » en interrupteur dans une plaque, « Annuler » / « Désinstaller » en capsules (bleu), attente et bilan
   centrés (icônes de couleur, coche verte). Mêmes étapes, mêmes textes, même `UninstallFlow` et même `Uninstaller` ;
   photos CI `desinstaller-*.png`.
+- Retours du 30/10 (3 vidéos et une capture : « le bouton enregistrer ne fonctionne plus mdr », familles de
+  l'Organiser « + beau que tu vois ce que tu bouges… prendre le bloc de famille », « quand on change de place de mixer
+  la souris reste apparente », « que ça prenne sa couleur et ça ne reste pas en bleu », pages Macros, Communauté, Mon
+  compte, Aide « pas beau… plus ergonomique », « le menu icone a réduire un peu ») : « Enregistrer » du créateur
+  toujours actif (il restait grisé sur « Enregistrée » : sauvegarde automatique à 0,5 s), il enregistre et revient
+  aux macros ; famille prise en entier, sa copie nette suit la souris (`FamilyDrag`, `dropTarget` testé) ; flèche
+  cachée pendant qu'on tire la case du Mixer même FL devant (`NSCursor.hide` n'agit que pour l'app active :
+  réglage « SetsCursorInBackground » de la connexion au serveur de fenêtres, `BackgroundCursor`) ; page choisie de la
+  barre de gauche dans sa couleur (Mac et Windows) ; menu de l'icône plus petit. CI verte sur cfd68b8 (photos du
+  menu et de la barre vérifiées). Pages Macros, Communauté, Mon compte, Aide : maquette en 4 écrans proposée avant de
+  coder (artefact privé), en attente de sa réponse.
