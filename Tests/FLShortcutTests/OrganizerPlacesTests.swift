@@ -139,6 +139,21 @@ final class OrganizerPlacesTests: XCTestCase {
         XCTAssertEqual(OrganizerView.familyColumns(["Drums"], count: 2) { sizes[$0] ?? 0 }, [["Drums"]])
     }
 
+    /// Une famille prise (30/10) tombe sur la famille sous la souris ; entre deux familles, la plus proche ; jamais
+    /// sur elle-même ni hors des colonnes.
+    func testFamilyDropTarget() {
+        let frames: [String: CGRect] = ["A": CGRect(x: 0, y: 0, width: 100, height: 50),
+                                        "B": CGRect(x: 0, y: 64, width: 100, height: 50),
+                                        "C": CGRect(x: 118, y: 0, width: 100, height: 80)]
+        XCTAssertEqual(OrganizerView.dropTarget(CGPoint(x: 50, y: 80), dragged: "A", frames: frames), "B")
+        XCTAssertNil(OrganizerView.dropTarget(CGPoint(x: 50, y: 20), dragged: "A", frames: frames), "sur sa propre place")
+        XCTAssertEqual(OrganizerView.dropTarget(CGPoint(x: 50, y: 56), dragged: "C", frames: frames), "A")
+        XCTAssertEqual(OrganizerView.dropTarget(CGPoint(x: 50, y: 58), dragged: "C", frames: frames), "B")
+        XCTAssertEqual(OrganizerView.dropTarget(CGPoint(x: 150, y: 300), dragged: "A", frames: frames), "C",
+                       "sous la dernière famille d'une colonne")
+        XCTAssertNil(OrganizerView.dropTarget(CGPoint(x: 110, y: 20), dragged: "A", frames: frames), "hors des colonnes")
+    }
+
     /// La case du numéro, comme dans FL : tirée vers le haut, plus grand ; jamais sous 1 ni au-delà du Mixer.
     func testSlotBoxDrag() {
         XCTAssertEqual(MixerSlotBox.dragged(from: 10, dy: -30, last: 125), 15)

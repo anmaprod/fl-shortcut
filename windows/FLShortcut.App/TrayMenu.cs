@@ -28,7 +28,7 @@ internal sealed class TrayMenu
 
     /// Le noir du menu du Mac (MenuBackground).
     private static readonly Color MenuColor = Rgb(0x1C, 0x1C, 0x1F);
-    private const double MenuWidth = 280;
+    private const double MenuWidth = 250;              // plus petit (30/10, « un peu trop gros »)
     private const uint WM_ACTIVATE = 0x0006;
     private static readonly UIntPtr SubclassId = new(0x464D);
 
@@ -147,13 +147,13 @@ internal sealed class TrayMenu
     /// Une ligne : son action après la fermeture du menu (une fenêtre qui s'ouvre passe devant).
     private Button Row(Entry entry)
     {
-        var tile = Tile(entry.Icon, entry.Tint, 24);
-        var content = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 11 };
+        var tile = Tile(entry.Icon, entry.Tint, 20);
+        var content = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10 };
         content.Children.Add(tile);
-        var title = Label(entry.Title, 13.5);
+        var title = Label(entry.Title, 13);
         title.VerticalAlignment = VerticalAlignment.Center;
         content.Children.Add(title);
-        var row = Option(content, entry.Tint, 9, () => Run(entry.Run), minHeight: 40, padding: new Thickness(10, 0, 10, 0),
+        var row = Option(content, entry.Tint, 9, () => Run(entry.Run), minHeight: 34, padding: new Thickness(8, 0, 8, 0),
                          hover: on => SetTileHover(tile, entry.Icon, entry.Tint, on));
         AutomationProperties.SetName(row, entry.Title);
         return row;
@@ -165,9 +165,9 @@ internal sealed class TrayMenu
         {
             Style = PlainButton,
             HorizontalAlignment = HorizontalAlignment.Left,
-            Content = Label(text, 13, color, semibold: color == Link),
+            Content = Label(text, 12.5, color, semibold: color == Link),
             CornerRadius = new CornerRadius(8),
-            Padding = new Thickness(10, 7, 10, 7),
+            Padding = new Thickness(8, 5, 8, 5),
         };
         button.PointerEntered += (_, _) => button.Background = Brush(White(0.08));
         button.PointerExited += (_, _) => button.Background = Brush(Colors.Transparent);

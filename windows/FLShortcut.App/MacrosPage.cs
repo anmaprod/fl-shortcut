@@ -647,35 +647,18 @@ internal sealed class MacrosPage
         return box;
     }
 
-    /// « Enregistrer » en bleu tant qu'un changement attend (sinon fait tout seul dans un instant), puis « Enregistrée ».
+    /// Toujours « Enregistrer » (30/10, « le bouton enregistrer ne fonctionne plus » : chaque changement s'enregistre
+    /// seul juste après, le bouton restait sur « Enregistrée » sans rien faire) : enregistre et revient aux macros.
     private Button SaveButton()
     {
-        if (_dirty)
+        var save = Primary(Loc.T("Enregistrer"), () =>
         {
-            var save = Primary(Loc.T("Enregistrer"), () =>
-            {
-                if (!_demo) _app.SaveMacrosNow();
-                _dirty = false;
-                RenderSoon();
-            });
-            save.VerticalAlignment = VerticalAlignment.Center;
-            return save;
-        }
-        var saved = new Button
-        {
-            Style = PlainButton,
-            IsHitTestVisible = false,
-            IsTabStop = false,
-            VerticalAlignment = VerticalAlignment.Center,
-            HorizontalContentAlignment = HorizontalAlignment.Center,
-            Content = Label(Loc.T("Enregistrée"), 13.5, Secondary, semibold: true),
-            CornerRadius = new CornerRadius(17),
-            MinHeight = 34,
-            Padding = new Thickness(20, 0, 20, 0),
-            Background = Brush(White(0.08)),
-        };
-        AutomationProperties.SetName(saved, Loc.T("Enregistrée"));
-        return saved;
+            if (!_demo) _app.SaveMacrosNow();
+            _dirty = false;
+            Back();
+        });
+        save.VerticalAlignment = VerticalAlignment.Center;
+        return save;
     }
 
     private FrameworkElement ShortcutEditor(MacroDoc doc)

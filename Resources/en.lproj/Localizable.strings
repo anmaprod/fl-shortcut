@@ -763,6 +763,7 @@
 "Enregistrement rapide (personnalisé)" = "Quick Record (custom)";
 "Enregistrer" = "Save";
 "Enregistrer clics et touches" = "Record clicks and keys";
+"Enregistrer et revenir aux macros (⌘S)" = "Save and go back to macros (⌘S)";
 "Enregistrer l'état de la piste" = "Save track state";
 "Enregistrer le projet" = "Save project";
 "Enregistrer les modifications de « %@ » ?" = "Save changes to “%@”?";
@@ -1539,6 +1540,7 @@
 "Pour toi (facultatif)" = "Just for you (optional)";
 "Pour un bouton qui change de place (une piste du Mixer, le « + » du Channel rack…) : il est " = "For a button that moves (a Mixer track, the Channel rack's “+”…): it's ";
 "Première piste du Mixer de la famille (son bus compris ; la 808 avec les drums) : tire vers le haut ou le bas comme dans FL, ou clique pour l'écrire" = "First Mixer track of the family (its bus included; the 808 with the drums): drag up or down like in FL, or click to type it";
+"Prends la famille et glisse-la au-dessus ou en dessous d'une autre : le Channel rack, le Mixer et la Playlist suivent cet ordre" = "Grab the family and drag it above or below another one: the Channel rack, the Mixer and the Playlist follow this order";
 "Preset" = "Preset";
 "Preset précédent" = "Previous preset";
 "Preset précédent du plugin ouvert" = "Previous preset of the open plugin";

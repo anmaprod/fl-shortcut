@@ -808,10 +808,11 @@ struct MenuContent: View {
                 }
             }
         }
-        .padding(.horizontal, 8)
-        .padding(.top, 10)
-        .padding(.bottom, 8)
-        .frame(width: 340)
+        .padding(.horizontal, 6)
+        .padding(.top, 8)
+        .padding(.bottom, 6)
+        // Plus petit (30/10, « un peu trop gros ») : 280 de large, lignes de 34.
+        .frame(width: 280)
         // Fond noir plein, sans Liquid Glass (29/10 : « je veux que tout soit comme dans l'exemple… fond noir ») :
         // le fond que macOS met derrière le menu est retiré (`MenuPanel.attach`) ou recouvert.
         .background(MenuBackground())
@@ -883,7 +884,7 @@ private struct MenuSeparator: View {
 /// Fond du menu de l'icône (maquette du 28/10) : noir plein aux coins arrondis, bord fin clair ; aucun verre.
 struct MenuBackground: View {
     static let color = Color(red: 0.11, green: 0.11, blue: 0.122)
-    static let cornerRadius: CGFloat = 18
+    static let cornerRadius: CGFloat = 15
 
     var body: some View {
         let shape = RoundedRectangle(cornerRadius: Self.cornerRadius, style: .continuous)
@@ -918,14 +919,14 @@ private struct PanelPlainRow: View {
             MenuPanel.shared.close()
         } label: {
             Text(title)
-                .font(.system(size: 12.5))
+                .font(.system(size: 12))
                 .hoverTint(Color.white.opacity(0.62))
-                .padding(.horizontal, 12)
-                .frame(maxWidth: .infinity, minHeight: 34, alignment: .leading)
+                .padding(.horizontal, 10)
+                .frame(maxWidth: .infinity, minHeight: 30, alignment: .leading)
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .menuHover(tint: .gray, cornerRadius: 10)
+        .menuHover(tint: .gray, cornerRadius: 8)
         .menuRevealRow(panel.revealed, index: order)
     }
 }
@@ -953,13 +954,13 @@ private struct PanelFooterButton: View {
                     Text(verbatim: detail).foregroundStyle(.secondary)
                 }
             }
-            .font(.system(size: 13))
+            .font(.system(size: 12.5))
             .padding(.horizontal, 8)
-            .frame(height: 30)
+            .frame(height: 28)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .menuHover(tint: tint, cornerRadius: 8)
+        .menuHover(tint: tint, cornerRadius: 7)
         .keyboardShortcut(key.map { KeyboardShortcut($0, modifiers: .command) })
     }
 }
@@ -986,8 +987,8 @@ private struct PanelItem: View {
             action()
             MenuPanel.shared.close()
         } label: {
-            HStack(spacing: 12) {
-                SectionIcon(symbol: symbol, tint: tint, size: 24)
+            HStack(spacing: 10) {
+                SectionIcon(symbol: symbol, tint: tint, size: 20)
                     .scaleEffect(panel.revealed || reduceMotion ? 1 : 0.35)
                     .rotationEffect(.degrees(panel.revealed || reduceMotion ? 0 : -25))
                     .animation(panel.revealed
@@ -999,14 +1000,14 @@ private struct PanelItem: View {
                     Text(shortcut).foregroundStyle(.secondary)
                 }
             }
-            .font(.system(size: 13.5))
-            .padding(.horizontal, 10)
-            .frame(height: 40)
-            .contentShape(RoundedRectangle(cornerRadius: 11, style: .continuous))
+            .font(.system(size: 13))
+            .padding(.horizontal, 8)
+            .frame(height: 34)
+            .contentShape(RoundedRectangle(cornerRadius: 9, style: .continuous))
         }
         .buttonStyle(.plain)
         // Survolée : pleine de sa couleur, texte en blanc (29/10, « intérieur plein »).
-        .menuHover(tint: tint, cornerRadius: 11)
+        .menuHover(tint: tint, cornerRadius: 9)
         .keyboardShortcut(key.map { KeyboardShortcut($0, modifiers: .command) })
         .menuRevealRow(panel.revealed, index: order)
     }

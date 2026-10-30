@@ -380,7 +380,8 @@ internal sealed partial class MainShell
         return group;
     }
 
-    /// Une ligne de la barre de gauche : carré de couleur (22 points), puis le nom ; choisie : pastille bleue.
+    /// Une ligne de la barre de gauche : carré de couleur (22 points), puis le nom ; choisie : pastille de sa couleur
+    /// (30/10, « ça prenne sa couleur et ça ne reste pas en bleu »), carré en blanc translucide comme au survol.
     private static Button SidebarRow(string icon, Color tint, string title, bool selected, Action choose)
     {
         var tile = Tile(icon, tint, 22);
@@ -388,6 +389,11 @@ internal sealed partial class MainShell
         row.Children.Add(tile);
         row.Children.Add(Label(title, 13));
         var button = Option(row, tint, 9, choose, selected, on => SetTileHover(tile, icon, tint, on));
+        if (selected)
+        {
+            button.Background = Brush(tint);
+            SetTileHover(tile, icon, tint, true);
+        }
         AutomationProperties.SetName(button, title);
         return button;
     }

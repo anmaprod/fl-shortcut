@@ -150,8 +150,9 @@ struct PageContainer<Content: View>: View {
 }
 
 extension View {
-    /// Ligne de la barre latérale (maquette validée le 28/10) : la page choisie dans une pastille bleue, titre blanc
-    /// en gras ; les autres s'allument de leur couleur au survol, comme une ligne du menu de la barre des menus. Un
+    /// Ligne de la barre latérale (maquette validée le 28/10) : la page choisie dans une pastille de sa couleur (30/10,
+    /// « ça prenne sa couleur et ça ne reste pas en bleu »), titre blanc en gras ; les autres s'allument de leur
+    /// couleur au survol, comme une ligne du menu de la barre des menus. Un
     /// clic la choisit : plus de sélection de la liste, que macOS dessinait en gris tant que la liste n'avait pas le
     /// clavier (vidéo du 29/10).
     func sidebarRow(_ tint: Color, selected: Bool, choose: @escaping () -> Void) -> some View {
@@ -166,13 +167,17 @@ private struct SidebarRowModifier: ViewModifier {
 
     func body(content: Content) -> some View {
         content
-            .hoverTint(selected ? Color.white : Color.primary)
+            .hoverTint(Color.primary)
+            // Choisie : pleine de sa couleur comme au survol (texte blanc, icône en blanc translucide).
+            .transformEnvironment(\.hoverFilled) { filled in
+                if selected { filled = true }
+            }
             .fontWeight(selected ? .semibold : nil)
             .padding(.horizontal, 10)
             .frame(maxWidth: .infinity, minHeight: 32, alignment: .leading)
             .background {
                 if selected {
-                    RoundedRectangle(cornerRadius: 9, style: .continuous).fill(Color.accentColor)
+                    RoundedRectangle(cornerRadius: 9, style: .continuous).fill(tint)
                 }
             }
             .contentShape(Rectangle())
@@ -587,7 +592,7 @@ struct EditorView: View {
 
     /// Barre de gauche (maquette) : plaque claire arrondie, les boutons de la fenêtre en haut, la recherche, puis les
     /// groupes de pages, chacun sous son titre gris. Plus de compteurs (« rien d'inutile ») ; la page choisie est une
-    /// pastille bleue (sidebarRow).
+    /// pastille de sa couleur (sidebarRow).
     private func sidebar(_ data: CatalogData) -> some View {
         VStack(alignment: .leading, spacing: 14) {
             // Place des boutons fermer / réduire / agrandir de la fenêtre.

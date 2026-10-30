@@ -555,18 +555,20 @@ private struct MacroHeader: View {
         }
     }
 
+    /// Toujours actif (30/10, « le bouton enregistrer ne fonctionne plus ») : chaque changement s'enregistre seul
+    /// une demi-seconde après, le bouton restait donc grisé sur « Enregistrée ». Il enregistre ce qui reste et
+    /// revient à la liste des macros.
     private var saveButton: some View {
         Button {
             model.saveNow()
+            onBack()
         } label: {
-            Text(model.dirty ? String(localized: "Enregistrer") : String(localized: "Enregistrée"))
+            Text("Enregistrer")
         }
         .primaryButton()
         .controlSize(.large)
         .keyboardShortcut("s", modifiers: .command)
-        .disabled(!model.dirty)
-        .help(model.dirty ? String(localized: "Enregistrer maintenant (⌘S) : sinon c'est fait tout seul dans un instant")
-                          : String(localized: "Tout est enregistré"))
+        .help("Enregistrer et revenir aux macros (⌘S)")
     }
 }
 

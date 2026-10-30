@@ -1269,6 +1269,12 @@ struct OrganizerView: View {
     static let tint = Color.indigo
 
     @ObservedObject var controller: OrganizerController
+    /// La famille prise dans l'aperçu (30/10) et la place de chaque famille (espace `familySpace`).
+    @State private var familyDrag: FamilyDrag?
+    @State private var familyFrames: [SoundFamily: CGRect] = [:]
+
+    /// Espace des places des familles : celui de leurs colonnes dans la liste qui défile.
+    static let familySpace = "organiser-familles"
 
     /// L'aperçu est à l'écran (pas le tuto, revu par-dessus : il prend la hauteur de son contenu).
     private var isPreview: Bool { controller.phase == .preview && !controller.tutorial }
@@ -1698,13 +1704,33 @@ struct OrganizerView: View {
                         ForEach(Array(columns.enumerated()), id: \.offset) { _, column in
                             VStack(alignment: .leading, spacing: 14) {
                                 ForEach(column, id: \.self) { family in
-                                    FamilySection(controller: controller, family: family, colors: colors)
+                                    FamilySection(controller: controller, family: family, colors: colors,
+                                                  dragged: familyDrag?.family == family,
+                                                  drop: dropMark(for: family, families: families),
+                                                  onMove: { dragFamily(family, $0) }, onRelease: dropFamily)
                                         .morphIn((families.firstIndex(of: family) ?? 0) + 1)
                                 }
                             }
                             .frame(maxWidth: .infinity, alignment: .topLeading)
                         }
                     }
+                    // Une famille prise (30/10, « qu'on puisse prendre le bloc de famille », « que tu vois ce que tu
+                    // bouges ») : sa copie nette suit la souris, soulevée sur un fond à son bord de couleur ; sa place
+                    // reste en transparence.
+                    .overlay(alignment: .topLeading) {
+                        if let drag = familyDrag {
+                            FamilySection(controller: controller, family: drag.family, colors: colors, ghost: true)
+                                .frame(width: drag.size.width)
+                                .padding(FamilyDrag.lift)
+                                .background(FamilyDrag.plate(swiftColor(controller.style(of: drag.family).color)))
+                                .scaleEffect(1.02)
+                                .offset(x: drag.location.x - drag.grab.width - FamilyDrag.lift,
+                                        y: drag.location.y - drag.grab.height - FamilyDrag.lift)
+                                .allowsHitTesting(false)
+                        }
+                    }
+                    .coordinateSpace(name: Self.familySpace)
+                    .onPreferenceChange(FamilyFramesKey.self) { familyFrames = $0 }
                     .padding(.vertical, 4)
                 }
             }
@@ -1729,6 +1755,46 @@ struct OrganizerView: View {
             .padding(.top, 12)
             .overlay(alignment: .top) { Rectangle().fill(Color.primary.opacity(0.08)).frame(height: 1) }
         }
+    }
+
+    /// La famille prise suit la souris ; au premier mouvement, l'endroit où elle a été prise dans son bloc.
+    private func dragFamily(_ family: SoundFamily, _ value: DragGesture.Value) {
+        if familyDrag?.family == family {
+            familyDrag?.location = value.location
+            return
+        }
+        guard let frame = familyFrames[family] else { return }
+        familyDrag = FamilyDrag(family: family, location: value.location,
+                                grab: CGSize(width: value.startLocation.x - frame.minX,
+                                             height: value.startLocation.y - frame.minY),
+                                size: frame.size)
+    }
+
+    /// Lâchée : elle prend la place de la famille sous la souris (Channel rack, Mixer et Playlist suivent).
+    private func dropFamily() {
+        guard let drag = familyDrag else { return }
+        familyDrag = nil
+        guard let target = Self.dropTarget(drag.location, dragged: drag.family, frames: familyFrames) else { return }
+        withAnimation(Motion.quickMorph) { controller.moveFamily(drag.family, onto: target) }
+    }
+
+    /// Où tombera la famille prise : un trait de sa couleur au-dessus de la cible (glissée vers le haut) ou en dessous
+    /// (vers le bas), comme `moving`.
+    private func dropMark(for family: SoundFamily, families: [SoundFamily]) -> FamilyDrop? {
+        guard let drag = familyDrag,
+              Self.dropTarget(drag.location, dragged: drag.family, frames: familyFrames) == family,
+              let from = families.firstIndex(of: drag.family), let to = families.firstIndex(of: family) else { return nil }
+        return FamilyDrop(below: from < to, tint: swiftColor(controller.style(of: drag.family).color))
+    }
+
+    /// Pur (testé) : la famille sous `point` (jamais celle qu'on glisse ; sur sa propre place : aucune) ; entre deux
+    /// familles d'une colonne, la plus proche ; hors des colonnes : aucune.
+    static func dropTarget<F: Hashable>(_ point: CGPoint, dragged: F, frames: [F: CGRect]) -> F? {
+        if frames[dragged]?.contains(point) == true { return nil }
+        let others = frames.filter { $0.key != dragged }
+        if let hit = others.first(where: { $0.value.insetBy(dx: 0, dy: -7).contains(point) }) { return hit.key }
+        let column = others.filter { point.x >= $0.value.minX && point.x <= $0.value.maxX }
+        return column.min { abs($0.value.midY - point.y) < abs($1.value.midY - point.y) }?.key
     }
 
     /// Pur (testé) : les familles en `count` colonnes, dans l'ordre (la première colonne de haut en bas, puis la
@@ -1909,18 +1975,23 @@ private struct OrganizerStep: View {
 }
 
 /// Une famille de l'aperçu : son réglage (une couleur ou un dégradé, son départ dans le Mixer) et ses sons. Elle se
-/// glisse au-dessus ou en dessous d'une autre par sa poignée, comme un dossier (demande du propriétaire du 25/10).
+/// prend en entier et se glisse au-dessus ou en dessous d'une autre, comme un dossier (demandes du 25/10 et du 30/10 :
+/// plus d'image floue avec un « + » du système, le bloc lui-même suit la souris).
 private struct FamilySection: View {
     @ObservedObject var controller: OrganizerController
     let family: SoundFamily
     let colors: [Int: RGBColor]
+    /// Prise et glissée ailleurs : sa place reste en transparence.
+    var dragged = false
+    /// Une famille prise tombera ici : un trait de sa couleur au-dessus ou en dessous.
+    var drop: FamilyDrop? = nil
+    /// La copie qui suit la souris : ni prise, ni place comptée.
+    var ghost = false
+    var onMove: (DragGesture.Value) -> Void = { _ in }
+    var onRelease: () -> Void = {}
     @State private var pickingFirst = false
     @State private var pickingLast = false
     @State private var pickingIcon = false
-    @State private var dropTarget = false
-
-    /// Ce qui est glissé : une famille de l'aperçu (jamais pris pour autre chose).
-    static let dragPrefix = "organiser-famille:"
 
     private var fadeOn: Binding<Bool> {
         Binding(get: { controller.style(of: family).fade != nil }, set: { on in
@@ -1940,9 +2011,7 @@ private struct FamilySection: View {
                     .font(.system(size: 11, weight: .semibold))
                     .foregroundStyle(.secondary)
                     .frame(width: 14, height: 24)
-                    .contentShape(Rectangle())
-                    .onDrag { NSItemProvider(object: (Self.dragPrefix + family.rawValue) as NSString) }
-                    .help("Glisse la famille au-dessus ou en dessous d'une autre : le Channel rack, le Mixer et la Playlist suivent cet ordre")
+                    .help("Prends la famille et glisse-la au-dessus ou en dessous d'une autre : le Channel rack, le Mixer et la Playlist suivent cet ordre")
                 // Sa couleur (et la fin de son dégradé) : un rond qu'on clique ; « Une couleur / Dégradé » est dans
                 // la fenêtre du premier rond (maquette du 28/10 : tout ce qui se change, sans rien autour).
                 swatch(style.color, picking: $pickingFirst, withFade: true) { picked in
@@ -1991,22 +2060,23 @@ private struct FamilySection: View {
             .padding(.vertical, 2)
             .organizerCard(swiftColor(style.color))
         }
-        .overlay(alignment: .top) {
-            if dropTarget {
-                Capsule().fill(OrganizerView.tint).frame(height: 3).padding(.horizontal, 10).offset(y: -6)
+        .opacity(dragged ? 0.25 : 1)
+        // Au milieu de l'espace entre deux familles (14 points).
+        .overlay(alignment: drop?.below == true ? .bottom : .top) {
+            if let drop {
+                Capsule().fill(drop.tint).frame(height: 4).padding(.horizontal, 6).offset(y: drop.below ? 9 : -9)
             }
         }
-        .onDrop(of: [.plainText], isTargeted: $dropTarget) { providers in
-            guard let provider = providers.first else { return false }
-            _ = provider.loadObject(ofClass: NSString.self) { object, _ in
-                guard let text = (object as? NSString).map({ $0 as String }), text.hasPrefix(Self.dragPrefix),
-                      let dragged = SoundFamily(rawValue: String(text.dropFirst(Self.dragPrefix.count))) else { return }
-                DispatchQueue.main.async {
-                    withAnimation(Motion.quickMorph) { controller.moveFamily(dragged, onto: family) }
-                }
-            }
-            return true
-        }
+        .background(GeometryReader { geo in
+            Color.clear.preference(key: FamilyFramesKey.self,
+                                   value: ghost ? [:] : [family: geo.frame(in: .named(OrganizerView.familySpace))])
+        })
+        // Tout le bloc se prend (sauf ce qui se tire déjà : la case du Mixer, les menus des sons).
+        .contentShape(Rectangle())
+        .gesture(DragGesture(minimumDistance: 4, coordinateSpace: .named(OrganizerView.familySpace))
+                    .onChanged { onMove($0) }
+                    .onEnded { _ in onRelease() },
+                 including: ghost ? .none : .all)
         .contextMenu {
             Button("Monter la famille") { withAnimation(Motion.quickMorph) { controller.shiftFamily(family, by: -1) } }
             Button("Descendre la famille") { withAnimation(Motion.quickMorph) { controller.shiftFamily(family, by: 1) } }
@@ -2139,6 +2209,40 @@ private struct FamilyMemberRow: View {
     }
 }
 
+/// Une famille prise dans l'aperçu : où est la souris, où elle a été prise dans son bloc, la taille du bloc.
+struct FamilyDrag {
+    let family: SoundFamily
+    var location: CGPoint
+    let grab: CGSize
+    let size: CGSize
+
+    /// Marge du fond soulevé autour de la copie qui suit la souris.
+    static let lift: CGFloat = 8
+
+    /// Fond de la copie qui suit la souris : le noir de la fenêtre, un bord de la couleur de la famille, une ombre.
+    static func plate(_ tint: Color) -> some View {
+        let shape = RoundedRectangle(cornerRadius: 14, style: .continuous)
+        return shape.fill(Appearance.windowColor)
+            .overlay(shape.strokeBorder(tint.opacity(0.75), lineWidth: 1.5))
+            .shadow(color: Color.black.opacity(0.55), radius: 18, y: 10)
+    }
+}
+
+/// Trait qui montre où tombera la famille prise : sous la cible (glissée vers le bas) ou au-dessus.
+struct FamilyDrop {
+    let below: Bool
+    let tint: Color
+}
+
+/// Place de chaque famille dans l'aperçu (espace `OrganizerView.familySpace`) : où tombe une famille prise.
+private struct FamilyFramesKey: PreferenceKey {
+    static let defaultValue: [SoundFamily: CGRect] = [:]
+
+    static func reduce(value: inout [SoundFamily: CGRect], nextValue: () -> [SoundFamily: CGRect]) {
+        value.merge(nextValue()) { $1 }
+    }
+}
+
 /// La case du numéro de piste du Mixer, comme celle du Channel rack de FL (vidéo du propriétaire) : on la tire vers le
 /// haut ou le bas pour changer le numéro, ou on clique pour l'écrire ; ⌥ + clic : automatique. Un numéro choisi est
 /// clair, un numéro automatique est gris ; « --- » : aucune piste.
@@ -2236,9 +2340,9 @@ struct MixerSlotBox: View {
     }
 }
 
-/// Glisser d'une case comme dans FL : la flèche disparaît, garée à droite de la case (elle ne couvre plus le chiffre
-/// même si macOS la laisse visible, FL étant devant) ; la souris continue de compter (mouvements reçus tels quels) ;
-/// au lâcher, la flèche revient exactement où elle était. Aucune autorisation : la flèche de la souris seulement.
+/// Glisser d'une case comme dans FL : la flèche disparaît (même FL devant : `BackgroundCursor`), garée à droite de la
+/// case (si macOS la laissait visible, elle ne couvre pas le chiffre) ; la souris continue de compter (mouvements reçus
+/// tels quels) ; au lâcher, la flèche revient exactement où elle était. Aucune autorisation : la flèche seulement.
 final class HiddenDrag {
     private let origin: CGPoint
     private var monitor: Any?
@@ -2253,7 +2357,7 @@ final class HiddenDrag {
         dy = already
         self.change = change
         let primary = NSScreen.screens.first?.frame.height ?? 0
-        NSCursor.hide()
+        BackgroundCursor.hide()
         CGWarpMouseCursorPosition(Self.displayPoint(Self.parked(mouse: mouse, localX: localX, width: width),
                                                     primaryHeight: primary))
         CGAssociateMouseAndMouseCursorPosition(0)                   // la flèche reste garée, les mouvements comptent
@@ -2273,7 +2377,7 @@ final class HiddenDrag {
         let primary = NSScreen.screens.first?.frame.height ?? 0
         CGWarpMouseCursorPosition(Self.displayPoint(origin, primaryHeight: primary))
         CGAssociateMouseAndMouseCursorPosition(1)
-        NSCursor.unhide()
+        BackgroundCursor.show()
     }
 
     deinit { finish() }
@@ -2287,5 +2391,33 @@ final class HiddenDrag {
     /// CoreGraphics (origine en haut à gauche).
     static func displayPoint(_ p: CGPoint, primaryHeight: CGFloat) -> CGPoint {
         CGPoint(x: p.x, y: primaryHeight - p.y)
+    }
+}
+
+/// Cacher la flèche alors que l'app n'est pas devant (le panneau de l'Organiser ne l'est jamais : FL reste devant) :
+/// `NSCursor.hide()` n'agit que pour l'app active (vidéo du 30/10 : la flèche restait visible pendant qu'on tirait la
+/// case du Mixer). macOS le permet à une app en arrière-plan qui le demande (réglage « SetsCursorInBackground » de sa
+/// connexion au serveur de fenêtres, non documenté, demandé une fois) ; s'il manque, la flèche reste visible, garée à
+/// côté de la case, comme avant.
+enum BackgroundCursor {
+    private typealias DefaultConnection = @convention(c) () -> Int32
+    private typealias SetProperty = @convention(c) (Int32, Int32, CFString, CFTypeRef) -> Int32
+
+    private static let allowed: Bool = {
+        guard let handle = dlopen(nil, RTLD_LAZY),
+              let main = dlsym(handle, "_CGSDefaultConnection"),
+              let set = dlsym(handle, "CGSSetConnectionProperty") else { return false }
+        let connection = unsafeBitCast(main, to: DefaultConnection.self)()
+        return unsafeBitCast(set, to: SetProperty.self)(connection, connection, "SetsCursorInBackground" as CFString,
+                                                        kCFBooleanTrue) == 0
+    }()
+
+    static func hide() {
+        _ = allowed
+        CGDisplayHideCursor(CGMainDisplayID())
+    }
+
+    static func show() {
+        CGDisplayShowCursor(CGMainDisplayID())
     }
 }
