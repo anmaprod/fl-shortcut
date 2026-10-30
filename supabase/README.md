@@ -60,6 +60,13 @@ et l'étape 7 (modèles des mails avec le code).
    étape, le partage échoue sans bruit : les corrections restent apprises sur le Mac de chacun. Il peut être recollé
    sans risque (« relation "corrections_ia" already exists » venait de l'ancienne version, collée une deuxième fois :
    la table était déjà là) ; « Success. No rows returned » : tout est en place.
+10. **Pseudo et photo de profil** (page Mon compte › Modifier le profil) : **SQL Editor › New query**, colle tout
+   `supabase/profil.sql`, puis **Run** (après `schema.sql` et `inscription.sql`). Cela permet de changer de pseudo
+   (les partages déjà publiés prennent le nouveau ; une fois par minute au plus), de mettre une photo (l'app la réduit
+   à 256 × 256 avant l'envoi : 20 à 40 Ko par compte, 96 Ko au plus), de signaler la photo d'un membre, et à un
+   administrateur de la retirer. Les photos ne sont lisibles qu'avec un compte. Peut être recollé sans risque. Sans
+   cette étape, l'app garde l'initiale de couleur et dit que les photos et le changement de pseudo ne sont pas encore
+   ouverts.
 
 ## 2. Compiler l'app reliée au serveur
 
@@ -96,6 +103,9 @@ defaults write app.flshortcut.FLShortcut communityAnonKey "eyJ…"
   User UID).
 - Signalements : **Table Editor › reports** (ou SQL : `select * from reports order by created_at desc`).
 - Supprimer un partage : **Table Editor › shares**, ou depuis l'app (menu « … » de la ligne, en administrateur).
+- Photos signalées : **Table Editor › avatar_reports** (`user_id` : le membre dont la photo est signalée). La
+  retirer : depuis l'app (page de ce membre dans la Communauté › « Retirer la photo », en administrateur), ou
+  **Table Editor › avatars**, supprime la ligne de ce membre.
 
 ## Aide : les messages des utilisateurs
 
@@ -124,6 +134,8 @@ peut les relire depuis l'app ; 5 messages par heure et par mail au plus.
   l'image restent dans la macro (donc dans la sauvegarde en ligne, lisible par le seul propriétaire du compte) et
   sont retirés à l'export et des partages. Sans l'autorisation, les clics gardent leur place.
 
+- Photo de profil (si tu en mets une) : réduite à 256 × 256 sur le Mac avant l'envoi ; visible par les comptes
+  connectés seulement ; retirée par « Retirer », et effacée avec le compte.
 - Envoyé : mail, mot de passe (seulement à la connexion ou à l'inscription), nom d'utilisateur, et ce que tu
   publies (titre, notes, fichier exporté **sans** positions apprises ni chemins de tes fichiers).
 - Organiser, « Pas content ? » : avec la case « Aider l'IA de tout le monde » cochée (une fois pour toutes), les
