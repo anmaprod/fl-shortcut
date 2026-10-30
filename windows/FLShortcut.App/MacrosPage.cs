@@ -301,25 +301,30 @@ internal sealed class MacrosPage
         }
         stack.Children.Add(top);
 
-        // « Désactivée » se voit à l'interrupteur : seul ce qui demande d'agir reste en badge.
-        if (Issue(doc) is { } problem)
-        {
-            var badge = Badge(Loc.T("À corriger"), Red, problem);
-            badge.HorizontalAlignment = HorizontalAlignment.Left;
-            stack.Children.Add(badge);
-        }
-
+        // Touches à gauche, badge à droite sur la même ligne : toutes les cartes ont la même hauteur. « Désactivée » se
+        // voit à l'interrupteur : seul ce qui demande d'agir reste en badge.
+        var bottom = new Grid { ColumnSpacing = 8, MinHeight = 24 };
+        bottom.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        bottom.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         TextBlock? choose = null;
         if (shortcut?.Trigger is { } trigger)
         {
-            stack.Children.Add(Keys(trigger));
+            var keys = Keys(trigger);
+            keys.VerticalAlignment = VerticalAlignment.Center;
+            bottom.Children.Add(keys);
         }
         else
         {
             choose = Label(Loc.T("Choisir un raccourci…"), 12, Link, semibold: true);
-            choose.HorizontalAlignment = HorizontalAlignment.Left;
-            stack.Children.Add(choose);
+            bottom.Children.Add(choose);
         }
+        if (Issue(doc) is { } problem)
+        {
+            var badge = Badge(Loc.T("À corriger"), Red, problem);
+            Grid.SetColumn(badge, 1);
+            bottom.Children.Add(badge);
+        }
+        stack.Children.Add(bottom);
 
         var button = Option(stack, Purple, 14, () => Open(doc.Id), minHeight: 0, padding: new Thickness(16, 14, 16, 14),
                             hover: on =>

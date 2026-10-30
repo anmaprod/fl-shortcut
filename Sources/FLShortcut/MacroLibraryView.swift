@@ -277,7 +277,7 @@ private struct MacroActionCard: View {
         Button(action: action) {
             HStack(spacing: 14) {
                 SectionIcon(symbol: symbol, tint: tint, size: 40)
-                Text(title).font(.system(size: 15, weight: .bold)).lineLimit(1)
+                Text(title).font(.system(size: 15, weight: .bold)).lineLimit(2)   // carte étroite : sur deux lignes
                 Spacer(minLength: 0)
             }
             .padding(.horizontal, 16)
@@ -342,27 +342,29 @@ private struct MacroLibraryCard: View {
                         .help(disabled ? String(localized: "Activer le raccourci") : String(localized: "Désactiver le raccourci"))
                 }
             }
-            if !alerts.isEmpty {
-                HStack(spacing: 6) {
-                    ForEach(alerts.indices, id: \.self) { i in
-                        Label(alerts[i].0, systemImage: alerts[i].1)
-                            .font(.system(size: 10.5, weight: .semibold))
-                            .hoverTint(alerts[i].2)
-                            .padding(.horizontal, 7)
-                            .padding(.vertical, 2)
-                            .background(Capsule().fill(alerts[i].2.opacity(0.15)))
-                            .fixedSize()
-                            .help(alerts[i].3)
-                    }
+            // Touches à gauche, badges à droite sur la même ligne : toutes les cartes ont la même hauteur.
+            HStack(spacing: 6) {
+                if let trigger {
+                    KeyLabel(combo: trigger, placeholder: String(localized: "Sans raccourci"))
+                } else {
+                    Text("Choisir un raccourci…")
+                        .font(.system(size: 12, weight: .medium))
+                        .hoverTint(Appearance.link)
+                        .lineLimit(1)
+                }
+                Spacer(minLength: 8)
+                ForEach(alerts.indices, id: \.self) { i in
+                    Label(alerts[i].0, systemImage: alerts[i].1)
+                        .font(.system(size: 10.5, weight: .semibold))
+                        .hoverTint(alerts[i].2)
+                        .padding(.horizontal, 7)
+                        .padding(.vertical, 2)
+                        .background(Capsule().fill(alerts[i].2.opacity(0.15)))
+                        .fixedSize()
+                        .help(alerts[i].3)
                 }
             }
-            if let trigger {
-                KeyLabel(combo: trigger, placeholder: String(localized: "Sans raccourci"))
-            } else {
-                Text("Choisir un raccourci…")
-                    .font(.system(size: 12, weight: .medium))
-                    .hoverTint(Appearance.link)
-            }
+            .frame(minHeight: 24)
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 14)
