@@ -567,6 +567,8 @@ entrée 1 ≈ 0,5 s.
 - Macros (29/10, « dans macro tu peux enlever les blocs mute track et solo track pour mac et win ») : « Mute de la
   piste » et « Solo de la piste » retirés de la palette du Mac (toujours compris dans les anciennes macros). Windows
   n'avait pas ces deux blocs (seulement « Action de FL », où mute et solo restent des actions parmi les autres).
+  Confirmé le 30/10 (« retire les blocs oui mais pas la possibilité d'y acceder dans le bloc "action de FL" ») :
+  mute et solo restent dans « Action de FL » (et dans « Cliquer sur… » › Mixer), sur Mac et Windows.
 - Windows comme le Mac (29/10, « j'ai aussi envie que tu fasses exactement la meme interface sur win normalement on a
   enlevé tout le liquid glass donc ça ne devrait pas bloquer », puis « verifie ce qui a deja ete fait et ce qui a
   besoin d'etre rajouter pour win avant de tout recreer ») : toute la logique Windows gardée, seul l'aspect refait.
