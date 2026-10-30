@@ -605,4 +605,8 @@ entrée 1 ≈ 0,5 s.
   pastilles des blocs des macros « enlever les détails comme ça pour tous », ⇧⌘R « retire ce raccourci » ; puis « go
   change ça » : les 4 pages faites dans l'app Mac (ffdfa86) comme la maquette, ses retraits compris. Retirés au passage :
   « Comment ça marche » de la Communauté, menu ⋯ des macros (tout passe par le clic droit), « + » en haut de Macros
-  (« Partager » bleu en haut de la Communauté à la place, connecté seulement).
+  (« Partager » bleu en haut de la Communauté à la place, connecté seulement). Windows : liste des macros en cartes
+  aussi (sans « Enregistrer une macro » : pas encore fait sur Windows). CI verte sur e23717a ; vu sur les photos et
+  corrigé : « Écrire… » de l'Aide sortait « Type a name… » en anglais (texte déjà pris par l'Organiser : « Écrire un
+  message… »), nom d'auteur sur deux lignes et pastille « Raccourcis » coupée dans les cartes de la Communauté. La
+  mesure photographie maintenant la page Macros remplie (`macros-exemples.png`, macros d'exemple en mémoire).

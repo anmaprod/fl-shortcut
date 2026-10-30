@@ -159,7 +159,7 @@ struct HelpPage: View {
             VStack(alignment: .leading, spacing: 12) {
                 SectionIcon(symbol: "bubble.left", tint: SidebarItem.help.tint, size: 40)
                 Text("Écrire à l'équipe").font(.system(size: 15, weight: .bold))
-                Button("Écrire…") {
+                Button("Écrire un message…") {
                     writing = true
                     sent = false
                     scrollToForm += 1

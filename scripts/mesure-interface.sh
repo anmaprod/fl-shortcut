@@ -264,6 +264,12 @@ run() {   # $1 : libellé, $2 : YES/NO effet verre
   rm -f "$HOME/Library/Caches/$DOMAIN/$label-macros-"*
   "$POST" app.flshortcut.debug.snapshot "$label-macros"; sleep 2
   cp "$HOME/Library/Caches/$DOMAIN/$label-macros-"*.png "$OUT/" 2>/dev/null || true
+  # Page Macros remplie (maquette du 30/10) : macros d'exemple en mémoire, jamais enregistrées ; puis la vraie remise.
+  if [[ "$label" == verre ]]; then
+    "$POST" app.flshortcut.debug.macros exemples; sleep 2
+    screencapture -x "$OUT/macros-exemples.png" 2>/dev/null || true
+    "$POST" app.flshortcut.debug.macros vide; sleep 2
+  fi
   mb=$(mem_mb "$p")
   # Page Communauté, avec des exemples et sans réseau : chaque écran photographié (une seule fois, avec le verre).
   if [[ "$label" == verre ]]; then

@@ -491,6 +491,7 @@ private struct CommunityShareCard: View {
                 } label: {
                     Text(verbatim: "@" + share.authorName.displaySafe(max: 24))
                         .font(.system(size: 12.5, weight: .semibold))
+                        .lineLimit(1)                     // carte étroite : le nom se raccourcit, rien ne passe à la ligne
                 }
                 .buttonStyle(.plain)
                 .disabled(showAuthor == nil)
@@ -498,10 +499,12 @@ private struct CommunityShareCard: View {
                 Text(verbatim: "· " + CommunityText.day(share.createdAt))
                     .font(.system(size: 12))
                     .foregroundStyle(.secondary)
+                    .fixedSize()
                 Spacer(minLength: 8)
                 Text(share.kind.label)
                     .font(.system(size: 11, weight: .semibold))
                     .foregroundStyle(share.kind.tint)
+                    .fixedSize()
                     .padding(.horizontal, 9)
                     .frame(height: 22)
                     .background(Capsule().fill(share.kind.tint.opacity(0.18)))

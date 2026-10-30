@@ -27,8 +27,46 @@ struct MacroLibraryProblemLabel: View {
 }
 
 struct MacroLibraryPage: View {
+    @ObservedObject var library: MacroLibraryStore
+    let open: (UUID) -> Void
+    let toast: (ToastMessage) -> Void
+    /// Mode capture : des macros d'exemple en mémoire (jamais enregistrées), pour photographier la page remplie.
+    @State private var sample: MacroLibrarySample?
+
+    var body: some View {
+        MacroLibraryList(library: sample?.library ?? library, sampleRemaps: sample?.remaps ?? [:],
+                         open: open, toast: toast)
+            .onReceive(DebugSnapshot.publisher(DebugSnapshot.macros)) { note in
+                sample = (note.object as? String) == "exemples" ? MacroLibrarySample() : nil
+            }
+    }
+}
+
+/// Mode capture : quatre macros des modèles dans une bibliothèque en mémoire, deux avec un raccourci (dont un
+/// désactivé). Rien n'est enregistré ni relié au clavier.
+private struct MacroLibrarySample {
+    let library = MacroLibraryStore(storage: MemoryMacroLibraryStorage())
+    var remaps: [UUID: Remap] = [:]
+
+    init() {
+        let layout = SystemKeyboardLayout()
+        let docs = MacroTemplates.gallery(layout: layout).prefix(4).map { library.add($0.make(layout)) }
+        for (i, doc) in docs.prefix(2).enumerated() {
+            var remap = Remap()
+            remap.kind = .macro
+            remap.macroRef = doc.id
+            remap.enabled = i == 0
+            remap.trigger = KeyCombo(keyCode: i == 0 ? 14 : 1, command: true, option: false, control: false, shift: true)
+            remaps[doc.id] = remap
+        }
+    }
+}
+
+/// La page Macros elle-même (bibliothèque de l'app, ou celle des exemples en mode capture).
+private struct MacroLibraryList: View {
     @EnvironmentObject var store: Store
     @ObservedObject var library: MacroLibraryStore
+    let sampleRemaps: [UUID: Remap]
     let open: (UUID) -> Void
     let toast: (ToastMessage) -> Void
     @State private var showTemplates = false
@@ -134,7 +172,8 @@ struct MacroLibraryPage: View {
     }
 
     private func row(_ doc: MacroDoc) -> some View {
-        let remap = store.remaps(forMacro: doc.id).first
+        let sample = sampleRemaps[doc.id]
+        let remap = sample ?? store.remaps(forMacro: doc.id).first
         let program = store.programs[doc.id]
         let flags = MacroOutline.flags(doc.blocks, learnedInput: MacroSpots.loadPath(.input) != nil)
         var badges: [(String, String, Color, String)] = []
@@ -152,7 +191,7 @@ struct MacroLibraryPage: View {
                                onOpen: { open(doc.id) },
                                onDuplicate: { duplicate(doc) },
                                onExport: { export(doc) },
-                               onToggle: remap.map { r -> () -> Void in { toggle(r) } },
+                               onToggle: remap.map { r -> () -> Void in { if sample == nil { toggle(r) } } },
                                onDelete: { delete(doc) })
     }
 
@@ -160,7 +199,7 @@ struct MacroLibraryPage: View {
 
     private func newMacro() { Self.newMacro(in: library) }
 
-    /// Nouvelle macro vide, ouverte dans le créateur (aussi le « + » de la barre d'outils sur la page Macros).
+    /// Nouvelle macro vide, ouverte dans le créateur (carte « Macro vide », ou bouton de la page vide).
     static func newMacro(in library: MacroLibraryStore) {
         let doc = library.add(MacroDoc(name: library.uniqueName(String(localized: "Nouvelle macro")), blocks: []))
         MacroCreatorLink.shared.open(doc.id, isNew: true)       // au retour : l'enregistrer ou la supprimer

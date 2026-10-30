@@ -21,6 +21,9 @@ enum DebugSnapshot {
     static let resize = Notification.Name("app.flshortcut.debug.resize")
     /// Créateur de macros : « open » l'ouvre sur une macro d'exemple jamais enregistrée, « close » le ferme.
     static let macro = Notification.Name("app.flshortcut.debug.macro")
+    /// Page Macros : « exemples » la montre remplie de macros d'exemple en mémoire (jamais enregistrées), autre chose
+    /// remet la vraie bibliothèque.
+    static let macros = Notification.Name("app.flshortcut.debug.macros")
     /// Écrit « editorModels=<n> windows=<n> visible=<n> hidden=<classes> » dans report.txt : modèles du créateur
     /// encore vivants, fenêtres de l'app (même masquées), fenêtres visibles, classes des fenêtres masquées.
     static let report = Notification.Name("app.flshortcut.debug.report")
