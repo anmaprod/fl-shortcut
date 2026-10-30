@@ -55,6 +55,11 @@ final class OnboardingWindow {
         NSApp.activate(ignoringOtherApps: true)
     }
 
+    var isOpen: Bool { window != nil }
+
+    /// Pendant la question du son de macOS : l'accueil se retire (il revient avec `bringToFront`).
+    func stepAside() { window?.orderOut(nil) }
+
     /// Clavier autorisé dans Réglages Système : l'accueil revient devant, prêt pour la suite.
     func bringToFront() {
         guard let window else { return }
@@ -197,12 +202,12 @@ struct OnboardingView: View {
     private var permissionItems: [PermissionItem] {
         var items = [PermissionItem(id: "clavier", symbol: "keyboard", tint: .blue, title: String(localized: "Clavier"),
                                     detail: nil,
-                                    state: accessOK ? .allowed : askedPermission ? .waiting : .toAllow)]
+                                    state: accessOK ? .allowed : askedPermission || permissions.asking ? .waiting : .toAllow)]
         if #available(macOS 14.2, *) {
             items.append(PermissionItem(id: "son", symbol: "waveform", tint: .pink, title: String(localized: "Son de FL"),
                                         detail: String(localized: "pour l'Organiser"),
                                         state: permissions.audioGranted ? .allowed
-                                            : askedPermission && permissions.stage == .audio ? .waiting : .toAllow))
+                                            : permissions.asking && permissions.stage == .audio ? .waiting : .toAllow))
         }
         return items
     }

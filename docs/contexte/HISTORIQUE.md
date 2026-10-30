@@ -623,3 +623,7 @@ entrée 1 ≈ 0,5 s.
   sur le bouton de l'icône » attendait un clic impossible (panneau retiré de l'écran pendant la pose) ; onglets Se
   connecter / Créer un compte plus fluides ; règles du mot de passe coupées au milieu des mots (pastilles sur deux
   lignes).
+- 30/10 (vidéo des autorisations) : Réglages Système refermés tout seuls une fois le clavier autorisé (seulement après
+  le code ou Touch ID : avant, macOS ne l'accorde pas) ; pendant la question « FL Shortcuts souhaite pouvoir
+  enregistrer l'audio », la fenêtre d'accueil reste cachée jusqu'à la réponse (2 min au plus) ; « Son de FL » montre
+  « En attente… » pendant la demande (`AccessibilityGuide.asking`).

@@ -16,7 +16,13 @@ final class AccessibilityGuide: ObservableObject {
     @Published private(set) var granted = AXIsProcessTrusted()
     @Published private(set) var audioGranted = AccessibilityGuide.audioAllowed
     @Published private(set) var stage = Stage.keyboard
+    /// Une demande est en cours (de « Tout autoriser… » jusqu'à la fin) : l'accueil montre « En attente… ».
+    @Published private(set) var asking = false
     private var panel: NSPanel?
+    /// Réglages Système ouverts par nous pour le clavier : refermés une fois le clavier autorisé.
+    private var openedSettings = false
+    /// La fenêtre d'accueil est cachée pendant la question du son de macOS.
+    private var accueilCache = false
     private var timer: Timer?
     /// Montrer le petit panneau (faux depuis l'accueil, qui explique déjà quoi faire).
     private var showsPanel = true
@@ -36,13 +42,14 @@ final class AccessibilityGuide: ObservableObject {
             _ = AXIsProcessTrustedWithOptions(options)
             SingleInstance.watchForRelaunch()           // « Quitter et rouvrir » : l'app revient
             if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") {
-                NSWorkspace.shared.open(url)
+                openedSettings = NSWorkspace.shared.open(url)
             }
         } else if Self.audioMissing {
             askAudio()
         } else {
             return
         }
+        asking = true
         if panel { showPanel() }
         timer?.invalidate()
         let t = Timer(timeInterval: 1, repeats: true) { [weak self] _ in self?.check() }
@@ -66,8 +73,16 @@ final class AccessibilityGuide: ObservableObject {
         guard #available(macOS 14.2, *) else { return }
         switch AudioCapturePermission.status {
         case .unknown:
+            // Vidéo du 30/10 : la fenêtre d'accueil se retire pendant la question de macOS et ne revient qu'une fois
+            // la réponse donnée (au plus tard au bout de 2 minutes, si la question disparaît sans réponse).
+            hideWelcome()
             NSApp.activate(ignoringOtherApps: true)         // la fenêtre de macOS devant, pas derrière les réglages
-            if !AudioCapturePermission.request({ [weak self] ok in if ok { self?.audioGranted = true } }) {
+            let asked = AudioCapturePermission.request { [weak self] ok in
+                if ok { self?.audioGranted = true }
+                self?.showWelcome()
+            }
+            if !asked {
+                showWelcome()
                 ScreenLook.openSettings()
             }
         case .denied:
@@ -77,11 +92,35 @@ final class AccessibilityGuide: ObservableObject {
         }
     }
 
+    private func hideWelcome() {
+        guard OnboardingWindow.shared.isOpen else { return }
+        accueilCache = true
+        OnboardingWindow.shared.stepAside()
+        DispatchQueue.main.asyncAfter(deadline: .now() + 120) { [weak self] in self?.showWelcome() }
+    }
+
+    private func showWelcome() {
+        guard accueilCache else { return }
+        accueilCache = false
+        OnboardingWindow.shared.bringToFront()
+    }
+
+    /// Réglages Système ouverts par « Tout autoriser… » : refermés une fois le clavier autorisé (vidéo du 30/10).
+    /// macOS ne donne l'autorisation qu'après le code ou Touch ID : cocher la case seule ne suffit pas.
+    private func closeSettings() {
+        guard openedSettings else { return }
+        openedSettings = false
+        for app in NSRunningApplication.runningApplications(withBundleIdentifier: "com.apple.systempreferences") {
+            app.terminate()
+        }
+    }
+
     private func check() {
         switch stage {
         case .keyboard:
             guard AXIsProcessTrusted() else { return }
             granted = true
+            closeSettings()
             AppStatus.shared.recheck()
             // Laisse voir la coche, puis le son (même panneau), ou tout est rangé.
             DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) { [weak self] in
@@ -95,6 +134,7 @@ final class AccessibilityGuide: ObservableObject {
             }
             guard Self.audioAllowed else { return }
             audioGranted = true
+            showWelcome()
             DispatchQueue.main.asyncAfter(deadline: .now() + 1.4) { [weak self] in self?.close() }
         }
     }
@@ -103,6 +143,7 @@ final class AccessibilityGuide: ObservableObject {
     var isShowing: Bool { panel != nil }
 
     func close() {
+        asking = false
         timer?.invalidate()
         timer = nil
         panel?.orderOut(nil)
