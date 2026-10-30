@@ -472,6 +472,7 @@
 "Choisir le pattern 9" = "Select pattern 9";
 "Choisir le preset" = "Choose the preset";
 "Choisir un outil de la fenêtre active" = "Pick a tool in the active window";
+"Choisir un raccourci…" = "Choose a shortcut…";
 "Choisir une signature rythmique" = "Pick a time signature";
 "Choisir à chaque fois (liste de FL)" = "Choose each time (FL's list)";
 "Choisir, créer et renommer les patterns" = "Select, create and rename patterns";
@@ -661,6 +662,7 @@
 "Des macros et des raccourcis prêts à l'emploi, partagés par d'autres utilisateurs de FL Shortcuts, avec leur explication." = "Ready-to-use macros and shortcuts, shared by other FL Shortcuts users, with their description.";
 "Descendre la famille" = "Move family down";
 "Descendre les canaux" = "Move channels down";
+"Deux versions différentes" = "Two different versions";
 "Dis ce qui n'allait pas : l'IA apprend de ses erreurs" = "Say what went wrong: the AI learns from its mistakes";
 "Dis en quelques mots ce que tu faisais juste avant : ça nous aide beaucoup." = "Tell us in a few words what you were doing just before: it helps us a lot.";
 "Dis-nous ce qui ne va pas" = "Tell us what's wrong";
@@ -805,6 +807,7 @@
 "Export impossible" = "Export failed";
 "Export impossible." = "Export failed.";
 "Exporte une piste audio par piste de la Playlist." = "Exports one audio track per Playlist track.";
+"Exporter" = "Export";
 "Exporter en MIDI" = "Export as MIDI";
 "Exporter en MP3" = "Export as MP3";
 "Exporter en WAV" = "Export as WAV";
@@ -1077,6 +1080,7 @@
 "Lance une action de FL (Mixer, Playlist, métronome…)." = "Runs an FL action (Mixer, Playlist, metronome…).";
 "Lance une action de FL par le lien avec FL (réveil bref, puis il se rendort). Sans lien : son équivalent au clavier, s'il existe." = "Runs an FL action through the FL link (it wakes briefly, then goes back to sleep). Without link: its keyboard equivalent, if there is one.";
 "Lancer le REC" = "Start REC";
+"Laquelle garder ?" = "Which one to keep?";
 "Last devient aussi First" = "Last also becomes First";
 "Le %@ du canal est basculé par le lien avec FL : ni souris, ni touche. Sans " = "The channel's %@ is toggled through the FL link: no mouse, no keys. Without ";
 "Le Channel rack a changé depuis l'analyse : relance Organiser." = "The Channel rack changed since the analysis: run Organize again.";
@@ -1137,6 +1141,7 @@
 "Les endroits appris (clics montrés dans FL) ne sont pas exportés : ils se montrent sur chaque Mac." = "Learned spots (clicks shown in FL) aren't exported: they're shown on each Mac.";
 "Les macros" = "Macros";
 "Les macros et les raccourcis des autres, et les tiens." = "Other people's macros and shortcuts, and yours.";
+"Les miens" = "Mine";
 "Les pistes de la Playlist sont remontées par leur menu (« Move up ») : FL Shortcuts lit alors la fenêtre de FL (autorisation « Enregistrement de l'écran »). Les patterns restent à leur place." = "Playlist tracks are moved up through their menu (“Move up”): FL Shortcuts then reads FL's window (“Screen Recording” permission). Patterns stay where they are.";
 "Les raccourcis d'Ableton Live font la même chose dans FL : F9 enregistre, ⌘D duplique, ⌘E découpe, " = "Ableton Live shortcuts do the same thing in FL: F9 records, ⌘D duplicates, ⌘E splits, ";
 "Les raccourcis de Logic Pro font la même chose dans FL : Retour revient au début, K métronome, " = "Logic Pro shortcuts do the same thing in FL: Return goes to the start, K metronome, ";
@@ -1161,6 +1166,7 @@
 "Lier les canaux à partir de cette piste" = "Link channels starting from this track";
 "Lire ce menu dans FL" = "Read this menu in FL";
 "Lire l'explication et voir ce que fait ce partage, avant de l'ajouter" = "Read the description and see what this post does, before adding it";
+"Lire la fiche, puis l'ajouter" = "Read its page, then add it";
 "Liste introuvable dans FL : écris le nom." = "List not found in FL: type the name.";
 "Logic Pro dans FL" = "Logic Pro in FL";
 "Luminance" = "Luminance";
@@ -1254,6 +1260,7 @@
 "Modifier les raccourcis…" = "Edit shortcuts…";
 "Modifier…" = "Edit…";
 "Modèle développé en blocs." = "Template expanded into blocks.";
+"Modèles" = "Templates";
 "Modèles de macros" = "Macro templates";
 "Modèles…" = "Templates…";
 "Mon compte" = "My account";
@@ -1446,6 +1453,7 @@
 "Partages de %@" = "Posts by %@";
 "Partagé : la macro, le titre, ton explication, ton nom d'utilisateur." = "Shared: the macro, the title, your description, your username.";
 "Partagé : tes raccourcis, le titre, ton explication, ton nom d'utilisateur." = "Shared: your shortcuts, the title, your description, your username.";
+"Partagé par toi" = "Shared by you";
 "Partir d'un modèle…" = "Start from a template…";
 "Partout" = "Everywhere";
 "Pas" = "Steps";
@@ -1678,6 +1686,7 @@
 "Revenir à : " = "Revert to: ";
 "Revenir à la couleur de départ" = "Back to the original color";
 "Revient au pattern précédent" = "Goes back to the previous pattern";
+"Revoir le guide" = "See the guide again";
 "Revoir le guide de FL Shortcuts" = "View the FL Shortcuts guide again";
 "Revoir le tuto" = "Show the tutorial again";
 "Reçois par mail un code pour choisir un nouveau mot de passe" = "Get a code by email to choose a new password";
@@ -1976,6 +1985,7 @@
 "Un compte existe déjà avec ce mail." = "An account already exists with this email.";
 "Un de ses blocs clique à un endroit qu'il faut montrer une fois sur ton Mac (les positions ne sont jamais partagées). Ouvre la macro, choisis le bloc marqué, puis « Montrer dans FL… » et clique à l'endroit voulu." = "One of its blocks clicks a spot you need to show once on your Mac (positions are never shared). Open the macro, pick the marked block, then “Show in FL…” and click the right spot.";
 "Un endroit ou l'entrée 1 est à montrer dans FL." = "A spot or input 1 needs to be shown in FL.";
+"Un partage ou un membre (@nom)" = "A post or a member (@name)";
 "Un petit lien avec FL, une seule fois" = "A small link with FL, just once";
 "Un problème" = "A problem";
 "Un son a le mauvais nom (Kick, Snare, Pad…)" = "A sound has the wrong name (Kick, Snare, Pad…)";

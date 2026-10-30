@@ -43,59 +43,52 @@ struct HelpPage: View {
     /// Ce qui est joint (état, derniers problèmes, journal de la dernière macro), relu à l'ouverture et à l'envoi.
     @State private var attached = ""
     @State private var scrollToForm = 0
+    /// « Écrire… » choisi (ou un problème signalé) : le formulaire s'ouvre sous les questions.
+    @State private var writing = false
+    /// Assez large pour les questions et, à droite, « Écrire à l'équipe » et le guide.
+    @State private var wide = true
 
     private var entries: [HelpEntry] { HelpContent.faq.filter { $0.matches(query) } }
 
+    /// Maquette validée le 30/10 : la recherche en grand, les questions dans une carte (réponse en étapes numérotées
+    /// quand elle en a), à droite « Écrire à l'équipe » et « Revoir le guide » ; le formulaire s'ouvre dessous.
     var body: some View {
         ScrollViewReader { reader in
-            PageContainer {
-                Section {
-                    PageHeader(symbol: "questionmark.circle", tint: .teal, title: String(localized: "Aide"),
-                               subtitle: String(localized: "Les réponses aux questions fréquentes, et l'équipe si ça ne suffit pas."))
-                        .pageTitleRow()
-                }
-                Section {
-                    searchField.cardRow(.single)
-                }
-                Section {
-                    if entries.isEmpty {
-                        Text("Aucune réponse pour « \(query.displaySafe(max: 30)) » : écris-nous juste en dessous, on te répond.")
-                            .font(.system(size: 12))
-                            .foregroundStyle(.secondary)
-                            .cardRow(.single)
+            ScrollView(.vertical) {
+                VStack(alignment: .leading, spacing: 16) {
+                    searchField
+                    if wide {
+                        HStack(alignment: .top, spacing: 12) {
+                            faqCard
+                            sideCards.frame(width: 250)
+                        }
                     } else {
-                        ForEach(Array(entries.enumerated()), id: \.element.id) { index, entry in
-                            HelpEntryRow(entry: entry, open: opened.contains(entry.id)) {
-                                withAnimation(Motion.smooth) {
-                                    if opened.contains(entry.id) { opened.remove(entry.id) } else { opened.insert(entry.id) }
-                                }
-                            }
-                            .cardRow(.position(index: index, count: entries.count), hover: SidebarItem.help.tint)
+                        VStack(alignment: .leading, spacing: 12) {
+                            faqCard
+                            sideCards
                         }
                     }
-                } header: {
-                    Text("Questions fréquentes")
-                }
-                Section {
-                    Group {
-                        if sent { sentCard } else { form }
+                    if writing || sent {
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("Écrire à l'équipe").font(.system(size: 15, weight: .bold))
+                            Group {
+                                if sent { sentCard } else { form }
+                            }
+                            .padding(16)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .background(MockPlate(cornerRadius: 14))
+                        }
+                        .id("form")
                     }
-                    .cardRow(.single)
-                    .id("form")
-                } header: {
-                    Text("Écrire à l'équipe")
                 }
-                Section {
-                    Button {
-                        showGuide()
-                    } label: {
-                        Label("Revoir le guide de FL Shortcuts", systemImage: "book")
-                    }
-                    .buttonStyle(.borderless)
-                    .cardRow(.single)
-                }
+                .padding(.horizontal, 26)
+                .padding(.top, 10)
+                .padding(.bottom, 24)
+                .background(WidthReader { width in
+                    let fits = width >= 640
+                    if fits != wide { wide = fits }
+                })
             }
-            .glassListBackground()
             .onAppear {
                 if message.email.isEmpty { message.email = community.session?.email ?? "" }
                 refreshAttached()
@@ -112,10 +105,11 @@ struct HelpPage: View {
     }
 
     private var searchField: some View {
-        HStack(spacing: 8) {
-            Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
+        HStack(spacing: 10) {
+            Image(systemName: "magnifyingglass").font(.system(size: 15)).foregroundStyle(.secondary)
             TextField("Rechercher", text: $query, prompt: Text("Cherche dans l'aide : raccourcis, macro, pause…"))
                 .textFieldStyle(.plain)
+                .font(.system(size: 14))
             if !query.isEmpty {
                 Button {
                     query = ""
@@ -126,7 +120,72 @@ struct HelpPage: View {
                 .accessibilityLabel("Effacer la recherche")
             }
         }
-        .padding(.vertical, 2)
+        .padding(.horizontal, 16)
+        .frame(height: 42)
+        .background(Capsule().fill(Color.white.opacity(0.08)))
+        .overlay(Capsule().strokeBorder(Color.white.opacity(0.10), lineWidth: 1))
+    }
+
+    /// Les questions, dans une carte ; un trait fin entre deux.
+    private var faqCard: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            if entries.isEmpty {
+                Text("Aucune réponse pour « \(query.displaySafe(max: 30)) » : écris-nous juste en dessous, on te répond.")
+                    .font(.system(size: 12))
+                    .foregroundStyle(.secondary)
+                    .padding(16)
+            } else {
+                ForEach(Array(entries.enumerated()), id: \.element.id) { index, entry in
+                    HelpEntryRow(entry: entry, open: opened.contains(entry.id)) {
+                        withAnimation(Motion.smooth) {
+                            if opened.contains(entry.id) { opened.remove(entry.id) } else { opened.insert(entry.id) }
+                        }
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 12)
+                    .overlay(alignment: .top) {
+                        if index > 0 { Rectangle().fill(Color.white.opacity(0.07)).frame(height: 1) }
+                    }
+                }
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(MockPlate(cornerRadius: 14))
+    }
+
+    /// À droite des questions : écrire à l'équipe, revoir le guide.
+    private var sideCards: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            VStack(alignment: .leading, spacing: 12) {
+                SectionIcon(symbol: "bubble.left", tint: SidebarItem.help.tint, size: 40)
+                Text("Écrire à l'équipe").font(.system(size: 15, weight: .bold))
+                Button("Écrire…") {
+                    writing = true
+                    sent = false
+                    scrollToForm += 1
+                }
+                .primaryButton()
+            }
+            .padding(16)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(MockPlate(cornerRadius: 14))
+            Button {
+                showGuide()
+            } label: {
+                HStack(spacing: 12) {
+                    SectionIcon(symbol: "play", tint: .green, size: 32)
+                    Text("Revoir le guide").font(.system(size: 13, weight: .semibold))
+                    Spacer(minLength: 0)
+                }
+                .padding(14)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(MockPlate(cornerRadius: 14))
+                .contentShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+            }
+            .buttonStyle(.plain)
+            .menuHover(tint: .green, cornerRadius: 14)
+            .help("Revoir le guide de FL Shortcuts")
+        }
     }
 
     // MARK: Écrire à l'équipe
@@ -246,6 +305,7 @@ struct HelpPage: View {
         helpLink.reportedError = nil
         message.kind = .probleme
         message.error = error
+        writing = true
         sent = false
         failure = nil
         mailOpened = false
@@ -312,6 +372,7 @@ struct HelpPage: View {
                 message.error = nil
                 message.reference = SupportMessage.newReference()
                 sent = false
+                writing = true
             }
             .buttonStyle(.link)
             .font(.system(size: 12))
@@ -359,6 +420,7 @@ struct HelpPage: View {
         query = screen == "recherche" ? "macro" : ""
         opened = screen == "aide" ? [1] : []
         sent = screen == "envoye"
+        writing = screen == "ecrire" || screen == "envoye"
         failure = nil
         if screen == "ecrire" || screen == "envoye" {
             message = SupportMessage(kind: .probleme, text: "Je lançais ma macro « Armer la piste » depuis le Mixer.",
@@ -371,17 +433,19 @@ struct HelpPage: View {
     }
 }
 
-/// Une question : clic pour la réponse.
+/// Une question : clic pour la réponse (en étapes numérotées quand elle en a : « 1. … 2. … »).
 private struct HelpEntryRow: View {
     let entry: HelpEntry
     let open: Bool
     let toggle: () -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: 10) {
             Button(action: toggle) {
                 HStack {
-                    Text(entry.question).fontWeight(.medium).multilineTextAlignment(.leading)
+                    Text(entry.question)
+                        .font(.system(size: 13, weight: open ? .bold : .medium))
+                        .multilineTextAlignment(.leading)
                     Spacer(minLength: 8)
                     Image(systemName: "chevron.right")
                         .font(.system(size: 11, weight: .semibold))
@@ -393,13 +457,55 @@ private struct HelpEntryRow: View {
             .buttonStyle(.plain)
             .accessibilityValue(open ? String(localized: "ouverte") : String(localized: "fermée"))
             if open {
-                Text(entry.answer)
-                    .font(.system(size: 12))
-                    .foregroundStyle(.secondary)
-                    .textSelection(.enabled)
-                    .fixedSize(horizontal: false, vertical: true)
+                if let parsed = HelpEntry.steps(entry.answer) {
+                    VStack(alignment: .leading, spacing: 8) {
+                        if !parsed.intro.isEmpty { answerText(parsed.intro) }
+                        ForEach(Array(parsed.steps.enumerated()), id: \.offset) { index, step in
+                            HStack(alignment: .top, spacing: 10) {
+                                Text(verbatim: "\(index + 1)")
+                                    .font(.system(size: 11, weight: .bold).monospacedDigit())
+                                    .foregroundStyle(Color.white)
+                                    .frame(width: 22, height: 22)
+                                    .background(Circle().fill(SidebarItem.help.tint))
+                                answerText(step).padding(.top, 3)
+                            }
+                        }
+                    }
+                } else {
+                    answerText(entry.answer)
+                }
             }
         }
-        .padding(.vertical, 2)
+    }
+
+    private func answerText(_ text: String) -> some View {
+        Text(text)
+            .font(.system(size: 12.5))
+            .foregroundStyle(.secondary)
+            .textSelection(.enabled)
+            .fixedSize(horizontal: false, vertical: true)
+    }
+}
+
+extension HelpEntry {
+    /// Pur (testé) : une réponse « Vérifie trois choses. 1. … 2. … 3. … » coupée en son début et ses étapes
+    /// (numérotées 1, 2, 3… à la suite) ; nil si elle n'en a pas au moins deux.
+    static func steps(_ answer: String) -> (intro: String, steps: [String])? {
+        guard let regex = try? NSRegularExpression(pattern: "(?:^|\\s)(\\d)\\.\\s") else { return nil }
+        let text = answer as NSString
+        var cuts: [NSRange] = []
+        for match in regex.matches(in: answer, range: NSRange(location: 0, length: text.length)) {
+            guard Int(text.substring(with: match.range(at: 1))) == cuts.count + 1 else { continue }
+            cuts.append(match.range)
+        }
+        guard cuts.count >= 2 else { return nil }
+        let intro = text.substring(to: cuts[0].location).trimmingCharacters(in: .whitespacesAndNewlines)
+        let steps = cuts.indices.map { i -> String in
+            let start = cuts[i].location + cuts[i].length
+            let end = i + 1 < cuts.count ? cuts[i + 1].location : text.length
+            return text.substring(with: NSRange(location: start, length: end - start))
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+        }
+        return (intro, steps)
     }
 }

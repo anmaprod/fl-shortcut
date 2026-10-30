@@ -99,108 +99,129 @@ struct AccountPage: View {
         }
     }
 
+    /// Maquette validée le 30/10 : une carte du profil (« Se déconnecter »), la sauvegarde en carte (son état, ce Mac)
+    /// et, quand ce Mac et le compte ont chacun leurs changements, la carte orange du choix ; « Supprimer mon compte »
+    /// discret, en bas.
     private func signedIn(_ session: CommunitySession) -> some View {
-        Form {
-            Section {
-                PageHeader(symbol: SidebarItem.account.symbol, tint: SidebarItem.account.tint,
-                           title: String(localized: "Mon compte"),
-                           subtitle: AccountText.subtitle,
-                           detail: "@\(session.username.displaySafe(max: 24)) · \(session.email.displaySafe(max: 60))")
-            }
-            if let conflict = backup.conflict {
-                Section {
-                    AccountConflictCard(conflict: conflict) { keepAccount in
-                        Task { await backup.resolve(keepAccount: keepAccount) }
-                    }
-                }
-            }
-            Section {
-                AccountBackupStatus(status: backup.status) { Task { await backup.saveNow() } }
-                LabeledContent("Sur ce Mac", value: backup.hereSummary)
-                if let notice = backup.notice {
-                    Label(notice, systemImage: "info.circle.fill")
-                        .font(.system(size: 12))
-                        .foregroundStyle(.secondary)
-                }
-            } header: {
-                Text("Sauvegarde en ligne")
-            } footer: {
-                Text(String(localized: """
-                    Tes raccourcis et tes macros partent en ligne quelques secondes après chaque changement. Personne \
-                    d'autre ne peut les lire. Les réglages de ce Mac (pause, autorisations, endroits appris dans FL) \
-                    restent ici.
-                    """))
-                    .font(.system(size: 11))
-                    .foregroundStyle(.secondary)
-            }
-            Section {
-                HStack {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("Se déconnecter")
-                        Text("Tes raccourcis et tes macros quittent ce Mac et restent dans ton compte.")
-                            .font(.system(size: 11))
+        ScrollView(.vertical) {
+            VStack(alignment: .leading, spacing: 14) {
+                HStack(spacing: 16) {
+                    Text(verbatim: String(session.username.prefix(1)).uppercased())
+                        .font(.system(size: 24, weight: .bold))
+                        .foregroundStyle(Color.white)
+                        .frame(width: 56, height: 56)
+                        .background(Circle().fill(SidebarItem.account.tint.gradient))
+                        .accessibilityHidden(true)
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text(verbatim: "@" + session.username.displaySafe(max: 24))
+                            .font(.system(size: 18, weight: .bold))
+                            .lineLimit(1)
+                        Text(session.email.displaySafe(max: 60))
+                            .font(.system(size: 13))
                             .foregroundStyle(.secondary)
+                            .lineLimit(1)
                     }
                     Spacer(minLength: 12)
-                    Button("Se déconnecter…") { Task { await AccountActions.signOut(backup) } }
-                }
-                HStack {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("Supprimer mon compte")
-                        Text(String(localized: """
-                            Efface ton compte, ta sauvegarde en ligne et tes partages. Tes raccourcis et tes macros \
-                            restent sur ce Mac.
-                            """))
-                            .font(.system(size: 11))
-                            .foregroundStyle(.secondary)
+                    Button {
+                        Task { await AccountActions.signOut(backup) }
+                    } label: {
+                        Label("Se déconnecter", systemImage: "rectangle.portrait.and.arrow.right")
                     }
-                    Spacer(minLength: 12)
-                    Button("Supprimer…", role: .destructive) {
-                        Task { deleteError = await AccountActions.deleteAccount(backup) }
+                    .secondaryButton()
+                    .help("Tes raccourcis et tes macros quittent ce Mac et restent dans ton compte.")
+                }
+                .padding(.horizontal, 20)
+                .padding(.vertical, 18)
+                .background(MockPlate(cornerRadius: 14))
+
+                LazyVGrid(columns: [GridItem(.adaptive(minimum: 320), spacing: 12, alignment: .top)], spacing: 12) {
+                    AccountBackupStatus(status: backup.status, here: backup.hereSummary,
+                                        notice: backup.notice) { Task { await backup.saveNow() } }
+                    if let conflict = backup.conflict {
+                        AccountConflictCard(conflict: conflict) { keepAccount in
+                            Task { await backup.resolve(keepAccount: keepAccount) }
+                        }
                     }
                 }
-                if let deleteError {
-                    Label(deleteError, systemImage: "exclamationmark.triangle.fill")
-                        .font(.system(size: 12))
-                        .foregroundStyle(.orange)
+
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack(spacing: 12) {
+                        Image(systemName: "trash").foregroundStyle(Color.red)
+                        Text("Supprimer mon compte").font(.system(size: 13))
+                        Spacer(minLength: 12)
+                        Button("Supprimer…", role: .destructive) {
+                            Task { deleteError = await AccountActions.deleteAccount(backup) }
+                        }
+                        .secondaryButton()
+                        .help("Efface ton compte, ta sauvegarde en ligne et tes partages. Tes raccourcis et tes macros restent sur ce Mac.")
+                    }
+                    if let deleteError {
+                        Label(deleteError, systemImage: "exclamationmark.triangle.fill")
+                            .font(.system(size: 12))
+                            .foregroundStyle(.orange)
+                    }
                 }
-            } header: {
-                Text("Compte")
+                .padding(.horizontal, 20)
+                .padding(.vertical, 14)
+                .background(MockPlate(cornerRadius: 14))
+                .padding(.top, 10)
             }
+            .padding(.horizontal, 26)
+            .padding(.top, 10)
+            .padding(.bottom, 24)
         }
-        .formStyle(.grouped)
-        .glassListBackground()
     }
 }
 
-/// Où en est la sauvegarde, en une ligne, avec « Sauvegarder maintenant ».
+/// La sauvegarde en carte : son état (icône de couleur, titre, détail), « Sauvegarder », puis ce qu'il y a sur ce Mac.
 private struct AccountBackupStatus: View {
     let status: AccountBackup.Status
+    let here: String
+    let notice: String?
     let saveNow: () -> Void
 
     var body: some View {
-        HStack(spacing: 10) {
-            Image(systemName: look.symbol)
-                .font(.system(size: 18))
-                .foregroundStyle(look.color)
-                .frame(width: 24)
-            VStack(alignment: .leading, spacing: 2) {
-                Text(look.title).font(.system(size: 13, weight: .semibold))
-                Text(look.detail)
-                    .font(.system(size: 11))
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
+        VStack(alignment: .leading, spacing: 14) {
+            HStack(spacing: 12) {
+                SectionIcon(symbol: look.symbol, tint: look.color == .secondary ? .gray : look.color, size: 40)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(look.title).font(.system(size: 15, weight: .bold))
+                    Text(look.detail)
+                        .font(.system(size: 12))
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                Spacer(minLength: 12)
+                if look.busy {
+                    ProgressView().controlSize(.small)
+                } else {
+                    Button("Sauvegarder", action: saveNow)
+                        .secondaryButton()
+                        .disabled(status == .choice)
+                        .help("Sauvegarder maintenant")
+                }
             }
-            Spacer(minLength: 12)
-            if look.busy {
-                ProgressView().controlSize(.small)
-            } else {
-                Button("Sauvegarder maintenant", action: saveNow)
-                    .disabled(status == .choice)
+            VStack(alignment: .leading, spacing: 4) {
+                Label("Sur ce Mac", systemImage: "laptopcomputer")
+                    .font(.system(size: 11.5, weight: .semibold))
+                    .foregroundStyle(.secondary)
+                Text(here).font(.system(size: 14, weight: .semibold))
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 12)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(RoundedRectangle(cornerRadius: 11, style: .continuous).fill(Color.black.opacity(0.22)))
+            if let notice {
+                Label(notice, systemImage: "info.circle.fill")
+                    .font(.system(size: 12))
+                    .foregroundStyle(.secondary)
             }
         }
-        .padding(.vertical, 2)
-        .accessibilityElement(children: .combine)
+        .padding(.horizontal, 20)
+        .padding(.vertical, 18)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(MockPlate(cornerRadius: 14))
+        .accessibilityElement(children: .contain)
     }
 
     private var look: (symbol: String, color: Color, title: String, detail: String, busy: Bool) {
@@ -230,50 +251,58 @@ private struct AccountBackupStatus: View {
     }
 }
 
-/// Ce Mac et le compte ont chacun leurs changements : les deux versions, résumées, et le choix.
+/// Ce Mac et le compte ont chacun leurs changements : carte orange, les deux versions côte à côte et le choix.
 private struct AccountConflictCard: View {
     let conflict: AccountBackup.Conflict
     let choose: (_ keepAccount: Bool) -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Label("Ce Mac et ton compte ont chacun des changements", systemImage: "exclamationmark.arrow.triangle.2.circlepath")
-                .font(.system(size: 13, weight: .semibold))
-                .foregroundStyle(.orange)
-            Text("Choisis la version à garder. Rien n'est envoyé ni remplacé avant ton choix.")
-                .font(.system(size: 12))
-                .foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
-            HStack(alignment: .top, spacing: 12) {
-                side(title: String(localized: "Ce Mac"), symbol: "laptopcomputer", summary: conflict.here,
+            HStack(spacing: 12) {
+                SectionIcon(symbol: "arrow.triangle.2.circlepath", tint: .orange, size: 40)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Deux versions différentes").font(.system(size: 15, weight: .bold))
+                    Text("Laquelle garder ?").font(.system(size: 12)).foregroundStyle(.secondary)
+                }
+            }
+            HStack(alignment: .top, spacing: 10) {
+                side(title: String(localized: "Ce Mac"), summary: conflict.here,
                      effect: String(localized: "La sauvegarde de ton compte est remplacée par ce qu'il y a ici."),
-                     button: String(localized: "Garder ce Mac")) { choose(false) }
-                side(title: String(localized: "Ton compte"), symbol: "icloud", summary: conflict.account
+                     button: String(localized: "Garder ce Mac"), prominent: true) { choose(false) }
+                side(title: String(localized: "Mon compte"), summary: conflict.account
                         + (conflict.remote.updatedAt.map { " · \(AccountText.when($0))" } ?? ""),
                      effect: String(localized: """
                          Ce Mac reprend ta sauvegarde. Ce qu'il y avait ici est copié dans Application Support › \
                          FL Shortcuts.
                          """),
-                     button: String(localized: "Garder mon compte")) { choose(true) }
+                     button: String(localized: "Garder mon compte"), prominent: false) { choose(true) }
             }
         }
-        .padding(.vertical, 4)
+        .padding(.horizontal, 20)
+        .padding(.vertical, 18)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background {
+            let shape = RoundedRectangle(cornerRadius: 14, style: .continuous)
+            shape.fill(LinearGradient(colors: [Color.orange.opacity(0.16), Color.orange.opacity(0.06)],
+                                      startPoint: .top, endPoint: .bottom))
+                .overlay(shape.strokeBorder(Color.orange.opacity(0.45), lineWidth: 1))
+        }
     }
 
-    private func side(title: String, symbol: String, summary: String, effect: String, button: String,
+    private func side(title: String, summary: String, effect: String, button: String, prominent: Bool,
                       action: @escaping () -> Void) -> some View {
         VStack(alignment: .leading, spacing: 6) {
-            Label(title, systemImage: symbol).font(.system(size: 12, weight: .semibold))
-            Text(summary).font(.system(size: 12))
-            Text(effect)
-                .font(.system(size: 11))
-                .foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
-            Spacer(minLength: 0)
-            Button(button, action: action)
+            Text(title).font(.system(size: 11.5, weight: .semibold)).foregroundStyle(.secondary)
+            Text(summary).font(.system(size: 13.5, weight: .semibold)).fixedSize(horizontal: false, vertical: true)
+            Spacer(minLength: 4)
+            if prominent {
+                Button(button, action: action).primaryButton().help(effect)
+            } else {
+                Button(button, action: action).secondaryButton().help(effect)
+            }
         }
-        .padding(10)
+        .padding(12)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(Color.primary.opacity(0.05)))
+        .background(RoundedRectangle(cornerRadius: 11, style: .continuous).fill(Color.black.opacity(0.25)))
     }
 }

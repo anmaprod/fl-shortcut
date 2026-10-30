@@ -192,91 +192,63 @@ private struct CommunityBrowse: View {
     let open: (Share) -> Void
     let report: (Share) -> Void
     let delete: (Share) -> Void
-    /// « Comment ça marche » rangé une fois compris.
-    @AppStorage("communityHowToSeen") private var howToSeen = false
 
+    /// Maquette validée le 30/10 : la recherche et les filtres sur une ligne, puis les partages en cartes sur deux
+    /// colonnes. Plus de « Comment ça marche » ni de « Connecté en tant que » (le compte est dans l'en-tête).
     var body: some View {
-        PageContainer {
-            Section {
-                PageHeader(symbol: SidebarItem.community.symbol, tint: SidebarItem.community.tint,
-                           title: String(localized: "Communauté"),
-                           subtitle: CommunityText.subtitle,
-                           detail: community.session.map {
-                               String(localized: "Connecté en tant que @\($0.username.isEmpty ? $0.email : $0.username)")
-                           })
-                    .pageTitleRow()
-            }
-            if !howToSeen {
-                Section {
-                    CommunityHowTo { withAnimation(Motion.smooth) { howToSeen = true } }
-                        .cardRow(.single)
-                }
-            }
-            Section {
+        ScrollView(.vertical) {
+            VStack(alignment: .leading, spacing: 16) {
                 CommunityFilters(community: community)
-                    .cardRow(community.error == nil && community.notice == nil ? .single : .first)
-                if community.error != nil || community.notice != nil {
-                    CommunityStatus(community: community).cardRow(.last)
-                }
-            }
-            if let author = community.author {
-                Section {
+                CommunityStatus(community: community)
+                if let author = community.author, author.id != community.session?.userID {
                     CommunityAuthorHeader(author: author, count: community.shares.count, busy: community.busy) {
                         Task { await community.showEveryone() }
                     }
-                    .cardRow(.single)
-                }
-            } else if !community.members.isEmpty {
-                Section {
-                    ForEach(Array(community.members.enumerated()), id: \.element.id) { index, member in
-                        CommunityMemberRow(member: member) { Task { await community.showAuthor(member) } }
-                            .cardRow(.position(index: index, count: community.members.count), hover: SidebarItem.community.tint)
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 10)
+                    .background(MockPlate(cornerRadius: 14))
+                } else if !community.members.isEmpty {
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text("Membres")
+                            .font(.system(size: 12, weight: .semibold))
+                            .foregroundStyle(.secondary)
+                            .padding(.leading, 12)
+                        VStack(spacing: 0) {
+                            ForEach(community.members) { member in
+                                CommunityMemberRow(member: member) { Task { await community.showAuthor(member) } }
+                                    .padding(.horizontal, 12)
+                                    .padding(.vertical, 6)
+                                    .menuHover(tint: SidebarItem.community.tint, cornerRadius: 10)
+                            }
+                        }
+                        .padding(2)
+                        .background(MockPlate(cornerRadius: 14))
                     }
-                } header: {
-                    Text("Membres")
                 }
-            }
-            Section {
                 if community.shares.isEmpty {
-                    empty.cardRow(.single)
+                    empty
+                        .frame(maxWidth: .infinity)
+                        .background(MockPlate(cornerRadius: 14))
                 } else {
-                    ForEach(Array(community.shares.enumerated()), id: \.element.id) { index, share in
-                        CommunityShareRow(share: share, mine: community.isMine(share),
-                                          canDelete: community.canDelete(share),
-                                          showAuthor: community.author?.id == share.authorID ? nil : {
-                                              Task { await community.showAuthor(of: share) }
-                                          },
-                                          open: { open(share) }, report: { report(share) }, delete: { delete(share) })
-                            .cardRow(.position(index: index, count: community.shares.count), hover: SidebarItem.community.tint)
+                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 300), spacing: 12)], spacing: 12) {
+                        ForEach(community.shares) { share in
+                            CommunityShareCard(share: share, mine: community.isMine(share),
+                                               canDelete: community.canDelete(share),
+                                               showAuthor: community.author?.id == share.authorID ? nil : {
+                                                   Task { await community.showAuthor(of: share) }
+                                               },
+                                               open: { open(share) }, report: { report(share) }, delete: { delete(share) })
+                        }
                     }
                 }
-            } header: {
-                Text(listTitle)
             }
+            .padding(.horizontal, 26)
+            .padding(.top, 10)
+            .padding(.bottom, 24)
         }
-        .glassListBackground()
     }
 
     private var trimmedSearch: String { community.search.trimmingCharacters(in: .whitespaces) }
-
-    private var listTitle: String {
-        let n = community.shares.count
-        if let author = community.author {
-            let name = "@\(author.username.displaySafe(max: 24))"
-            if !trimmedSearch.isEmpty {
-                return n == 1 ? String(localized: "1 résultat chez \(name)") : String(localized: "\(n) résultats chez \(name)")
-            }
-            return String(localized: "Partages de \(name)")
-        }
-        if !trimmedSearch.isEmpty {
-            return n == 1 ? String(localized: "1 partage trouvé") : String(localized: "\(n) partages trouvés")
-        }
-        switch community.kind {
-        case .macro?: return String(localized: "Macros partagées")
-        case .profile?: return String(localized: "Raccourcis partagés")
-        case nil: return String(localized: "Derniers partages")
-        }
-    }
 
     @ViewBuilder private var empty: some View {
         if community.busy {
@@ -326,39 +298,6 @@ private struct CommunityBrowse: View {
                                  explication pour les autres.
                                  """),
                              button: String(localized: "Partager une macro…")) { community.composing = true }
-        }
-    }
-}
-
-/// Trois étapes, en contexte, rangées par « J'ai compris ».
-private struct CommunityHowTo: View {
-    let dismiss: () -> Void
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack {
-                Text("Comment ça marche").font(.headline)
-                Spacer()
-                Button("J'ai compris", action: dismiss).buttonStyle(.borderless)
-            }
-            step(1, String(localized: """
-                Clique sur un partage : tu lis l'explication de son auteur et ce qu'il fait, étape par étape.
-                """))
-            step(2, String(localized: """
-                « Ajouter à mes macros » la range avec les tiennes, sans raccourci : rien ne se lance tant que \
-                tu ne lui en as pas choisi un.
-                """))
-            step(3, String(localized: """
-                Le « + » en haut à droite partage une de tes macros, ou tous tes raccourcis, avec ton explication.
-                """))
-        }
-        .padding(.vertical, 4)
-    }
-
-    private func step(_ number: Int, _ text: String) -> some View {
-        HStack(alignment: .top, spacing: 10) {
-            StepBadge(number: number)
-            Text(text).font(.system(size: 12)).fixedSize(horizontal: false, vertical: true)
         }
     }
 }
@@ -415,62 +354,118 @@ private struct CommunityAuthorHeader: View {
     }
 }
 
-/// Genre, recherche (au fil de la frappe), actualiser, compte.
+/// Recherche (au fil de la frappe) dans une capsule, puis Tout / Macros / Raccourcis / Les miens, et actualiser.
 private struct CommunityFilters: View {
     @ObservedObject var community: CommunityStore
     @State private var searchTask: Task<Void, Never>?
 
+    private enum Filter: CaseIterable {
+        case all, macros, shortcuts, mine
+    }
+
+    private var current: Filter {
+        if let me = community.session?.userID, community.author?.id == me { return .mine }
+        switch community.kind {
+        case .macro?: return .macros
+        case .profile?: return .shortcuts
+        case nil: return .all
+        }
+    }
+
     var body: some View {
-        HStack(spacing: 10) {
-            Picker("Afficher", selection: $community.kind) {
-                Text("Tout").tag(ShareKind?.none)
-                Text("Macros").tag(ShareKind?.some(.macro))
-                Text("Raccourcis").tag(ShareKind?.some(.profile))
-            }
-            .pickerStyle(.segmented)
-            .labelsHidden()
-            .fixedSize()
-            .help("Afficher tous les partages, seulement les macros, ou seulement les jeux de raccourcis")
-            .onChange(of: community.kind) { _ in Task { await community.reload() } }
-            TextField("Rechercher", text: $community.search, prompt: Text("Rechercher un partage ou un membre"))
-                .textFieldStyle(.roundedBorder)
-                .onSubmit { Task { await community.reload() } }
-                .onChange(of: community.search) { _ in
-                    searchTask?.cancel()
-                    searchTask = Task {
-                        try? await Task.sleep(nanoseconds: 450_000_000)
-                        guard !Task.isCancelled else { return }
-                        await community.reload()
+        HStack(spacing: 12) {
+            HStack(spacing: 8) {
+                Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
+                TextField("Rechercher", text: $community.search, prompt: Text("Un partage ou un membre (@nom)"))
+                    .textFieldStyle(.plain)
+                    .onSubmit { Task { await community.reload() } }
+                    .onChange(of: community.search) { _ in
+                        searchTask?.cancel()
+                        searchTask = Task {
+                            try? await Task.sleep(nanoseconds: 450_000_000)
+                            guard !Task.isCancelled else { return }
+                            await community.reload()
+                        }
                     }
+            }
+            .font(.system(size: 13))
+            .padding(.horizontal, 14)
+            .frame(height: 34)
+            .background(Capsule().fill(Color.white.opacity(0.08)))
+            .overlay(Capsule().strokeBorder(Color.white.opacity(0.10), lineWidth: 1))
+            HStack(spacing: 2) {
+                ForEach(Filter.allCases, id: \.self) { filter in
+                    pill(filter)
                 }
+            }
+            .padding(3)
+            .background(Capsule().fill(Color.white.opacity(0.06)))
+            .overlay(Capsule().strokeBorder(Color.white.opacity(0.10), lineWidth: 1))
+            .fixedSize()
             Button {
                 Task { await community.reload() }
             } label: {
-                Image(systemName: "arrow.clockwise")
+                Image(systemName: "arrow.clockwise").frame(width: 30, height: 30).contentShape(Circle())
             }
-            .buttonStyle(.borderless)
+            .buttonStyle(.plain)
+            .menuHover(tint: Color.accentColor, cornerRadius: 15)
             .help("Actualiser : voir les derniers partages")
             .accessibilityLabel("Actualiser")
-            Menu {
-                if let session = community.session {
-                    Text("Connecté en tant que @\(session.username)")
-                }
-                Divider()
-                Button("Se déconnecter…") { Task { await AccountActions.signOut() } }
-            } label: {
-                Image(systemName: "person.crop.circle")
-            }
-            .menuStyle(.borderlessButton)
-            .fixedSize()
-            .help("Ton compte")
-            .accessibilityLabel("Ton compte")
         }
         .disabled(community.busy)
     }
+
+    private func title(_ filter: Filter) -> String {
+        switch filter {
+        case .all: return String(localized: "Tout")
+        case .macros: return String(localized: "Macros")
+        case .shortcuts: return String(localized: "Raccourcis")
+        case .mine: return String(localized: "Les miens")
+        }
+    }
+
+    private func pill(_ filter: Filter) -> some View {
+        let on = current == filter
+        return Button {
+            choose(filter)
+        } label: {
+            Text(title(filter))
+                .font(.system(size: 12.5, weight: on ? .semibold : .medium))
+                .padding(.horizontal, 14)
+                .frame(height: 28)
+                .background(Capsule().fill(on ? Color.white.opacity(0.16) : Color.clear))
+                .contentShape(Capsule())
+        }
+        .buttonStyle(.plain)
+        .accessibilityAddTraits(on ? [.isButton, .isSelected] : .isButton)
+    }
+
+    private func choose(_ filter: Filter) {
+        switch filter {
+        case .mine:
+            guard let session = community.session else { return }
+            community.kind = nil
+            let me = CommunityMember(id: session.userID, username: session.username, shareCount: 0)
+            Task { await community.showAuthor(me) }
+        case .all, .macros, .shortcuts:
+            let kind: ShareKind?
+            switch filter {
+            case .macros: kind = .macro
+            case .shortcuts: kind = .profile
+            default: kind = nil
+            }
+            community.kind = kind
+            Task {
+                if community.author != nil { await community.showEveryone() } else { await community.reload() }
+            }
+        }
+    }
 }
 
-/// Un partage : genre, titre, auteur et date, début de l'explication. Toute la ligne ouvre la fiche.
-private struct CommunityShareRow: View {
+/// Un partage en carte (maquette du 30/10) : l'auteur et la date, le genre, le titre, deux lignes de l'explication,
+/// « Voir » et le bouton bleu (tous deux ouvrent la fiche : rien ne s'ajoute sans l'avoir lue). Clic droit : les
+/// partages de l'auteur, signaler, supprimer.
+private struct CommunityShareCard: View {
     let share: Share
     let mine: Bool
     let canDelete: Bool
@@ -480,55 +475,77 @@ private struct CommunityShareRow: View {
     let report: () -> Void
     let delete: () -> Void
 
+    private var initial: String { String(share.authorName.prefix(1)).uppercased() }
+
     var body: some View {
-        HStack(alignment: .top, spacing: 12) {
-            // Clic sur le partage (icône, titre, explication) : sa fiche. Les boutons à droite gardent leurs clics.
-            HStack(alignment: .top, spacing: 12) {
-                SectionIcon(symbol: share.kind.symbol, tint: share.kind.tint, size: 32)
-                VStack(alignment: .leading, spacing: 3) {
-                    HStack(spacing: 6) {
-                        Text(share.title.displaySafe(max: 80)).fontWeight(.semibold).lineLimit(1)
-                        if mine {
-                            Text("Ton partage")
-                                .font(.system(size: 10, weight: .semibold))
-                                .padding(.horizontal, 6)
-                                .padding(.vertical, 1)
-                                .background(Capsule().fill(Color.accentColor.opacity(0.15)))
-                        }
-                    }
-                    Text(CommunityText.byline(share)).font(.system(size: 11)).foregroundStyle(.secondary)
-                    if !share.notes.isEmpty {
-                        Text(share.notes).font(.system(size: 12)).foregroundStyle(.secondary).lineLimit(2)
-                    }
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 10) {
+                Text(verbatim: initial)
+                    .font(.system(size: 13, weight: .bold))
+                    .foregroundStyle(Color.white)
+                    .frame(width: 28, height: 28)
+                    .background(Circle().fill(share.kind.tint.gradient))
+                    .accessibilityHidden(true)
+                Button {
+                    showAuthor?()
+                } label: {
+                    Text(verbatim: "@" + share.authorName.displaySafe(max: 24))
+                        .font(.system(size: 12.5, weight: .semibold))
                 }
+                .buttonStyle(.plain)
+                .disabled(showAuthor == nil)
+                .help("Voir tout ce que @\(share.authorName.displaySafe(max: 24)) a publié")
+                Text(verbatim: "· " + CommunityText.day(share.createdAt))
+                    .font(.system(size: 12))
+                    .foregroundStyle(.secondary)
                 Spacer(minLength: 8)
+                Text(share.kind.label)
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(share.kind.tint)
+                    .padding(.horizontal, 9)
+                    .frame(height: 22)
+                    .background(Capsule().fill(share.kind.tint.opacity(0.18)))
+                    .overlay(Capsule().strokeBorder(share.kind.tint.opacity(0.35), lineWidth: 1))
             }
-            .contentShape(Rectangle())
-            .onTapGesture(perform: open)
-            .accessibilityElement(children: .combine)
-            .accessibilityAddTraits(.isButton)
-            .accessibilityAction { open() }
-            Button("Voir", action: open)
-                .help("Lire l'explication et voir ce que fait ce partage, avant de l'ajouter")
-            Menu {
-                if let showAuthor {
-                    Button("Tous les partages de @\(share.authorName.displaySafe(max: 24))", action: showAuthor)
+            Text(share.title.displaySafe(max: 80))
+                .font(.system(size: 15, weight: .bold))
+                .lineLimit(2)
+            Text(share.notes.isEmpty ? " " : share.notes)
+                .font(.system(size: 12.5))
+                .foregroundStyle(.secondary)
+                .lineLimit(2, reservesSpace: true)
+            HStack(spacing: 8) {
+                Button("Voir", action: open)
+                    .secondaryButton()
+                    .help("Lire l'explication et voir ce que fait ce partage, avant de l'ajouter")
+                Spacer(minLength: 8)
+                if mine {
+                    Text("Partagé par toi").font(.system(size: 12)).foregroundStyle(.secondary)
+                } else {
+                    Button(share.kind.addLabel, action: open)
+                        .primaryButton()
+                        .help("Lire la fiche, puis l'ajouter")
                 }
-                if !mine {
-                    Button("Signaler…", action: report)
-                }
-                if canDelete {
-                    Button(mine ? String(localized: "Supprimer mon partage…") : String(localized: "Supprimer (administrateur)…"),
-                           role: .destructive, action: delete)
-                }
-            } label: {
-                Image(systemName: "ellipsis.circle")
             }
-            .menuStyle(.borderlessButton)
-            .fixedSize()
-            .accessibilityLabel("Plus d'actions")
         }
-        .padding(.vertical, 2)
+        .padding(16)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(MockPlate(cornerRadius: 14))
+        .contentShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .onTapGesture(perform: open)
+        .contextMenu {
+            if let showAuthor {
+                Button("Tous les partages de @\(share.authorName.displaySafe(max: 24))", action: showAuthor)
+            }
+            if !mine {
+                Button("Signaler…", action: report)
+            }
+            if canDelete {
+                Button(mine ? String(localized: "Supprimer mon partage…") : String(localized: "Supprimer (administrateur)…"),
+                       role: .destructive, action: delete)
+            }
+        }
+        .accessibilityElement(children: .contain)
     }
 }
 

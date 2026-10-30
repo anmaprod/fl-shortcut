@@ -1,6 +1,6 @@
-// Fenêtre « Raccourcis » › Macros : la bibliothèque des macros en blocs (nom, raccourci, badges « À apprendre »,
-// « Désactivée », « À corriger », « Nouvelle macro », « Modèles… », « Importer… » ; chaque macro
-// s'ouvre dans le créateur (un clic, ou « Modifier… »). Page en cartes comme les autres, aucun verre par ligne.
+// Fenêtre « Raccourcis » › Macros (maquette du 30/10) : trois grandes cartes pour commencer une macro (Enregistrer,
+// Macro vide, Modèles), puis la bibliothèque en cartes (nom, interrupteur du raccourci, touches, badges « À apprendre »
+// et « À corriger ») ; chaque macro s'ouvre dans le créateur d'un clic, clic droit pour le reste. Importer / Exporter.
 // Aussi : export / import .flsmacro (fichier relu avant d'être accepté) et le champ « Macro » d'un raccourci relié
 // à la bibliothèque.
 import AppKit
@@ -38,30 +38,32 @@ struct MacroLibraryPage: View {
             if library.macros.isEmpty {
                 empty
             } else {
-                // Même page en cartes que les raccourcis : chaque macro s'éclaire au survol, d'un filet à l'autre.
-                PageContainer {
-                    Section {
-                        PageHeader(symbol: SidebarItem.macros.symbol, tint: SidebarItem.macros.tint, title: String(localized: "Macros"),
-                                   subtitle: MacroPageText.subtitle)
-                            .pageTitleRow()
-                    }
-                    Section {
-                        actions.cardRow(.single)
-                    }
-                    if library.problem != nil {
-                        Section {
-                            MacroLibraryProblemLabel(library: library).cardRow(.single)
+                // Maquette validée le 30/10 (« pas du tout agréable à regarder ») : trois grandes cartes pour
+                // commencer une macro, puis tes macros en cartes sur deux colonnes (nom, interrupteur, touches).
+                ScrollView(.vertical) {
+                    VStack(alignment: .leading, spacing: 18) {
+                        actionCards
+                        MacroLibraryProblemLabel(library: library)
+                        HStack(spacing: 8) {
+                            Text("Mes macros").font(.system(size: 15, weight: .bold))
+                            Text(verbatim: "\(library.macros.count)").font(.system(size: 12)).foregroundStyle(.secondary)
+                            Spacer(minLength: 8)
+                            smallButton(String(localized: "Importer"), symbol: "square.and.arrow.down") { importFile() }
+                                .help("Ajouter des macros reçues (.flsmacro) ; la boîte s'ouvre dans Documents › FL Shortcuts › Macros")
+                            smallButton(String(localized: "Exporter"), symbol: "square.and.arrow.up") { exportAll() }
+                                .help("Toutes les macros, un fichier chacune, pour les partager (par défaut dans Documents › FL Shortcuts › Macros)")
+                        }
+                        .padding(.top, 4)
+                        LazyVGrid(columns: [GridItem(.adaptive(minimum: 300), spacing: 12)], spacing: 12) {
+                            ForEach(library.macros, id: \.id) { doc in
+                                row(doc)
+                            }
                         }
                     }
-                    Section {
-                        ForEach(Array(library.macros.enumerated()), id: \.element.id) { index, doc in
-                            row(doc).cardRow(.position(index: index, count: library.macros.count), hover: .purple)
-                        }
-                    } header: {
-                        Text("Mes macros")
-                    }
+                    .padding(.horizontal, 26)
+                    .padding(.top, 10)
+                    .padding(.bottom, 24)
                 }
-                .glassListBackground()
             }
         }
         .sheet(isPresented: $showTemplates) {
@@ -103,41 +105,32 @@ struct MacroLibraryPage: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
-    private var actions: some View {
-        HStack(spacing: 8) {
-            Button {
-                Self.recordNewMacro(in: library)
-            } label: {
-                Label("Enregistrer une macro", systemImage: "record.circle")
-            }
-            .tint(.red)
-            .help("Une nouvelle macro s'ouvre et FL passe devant : clique et tape ta suite, puis « Terminer »")
-            Button {
-                newMacro()
-            } label: {
-                Label("Macro vide", systemImage: "plus")
-            }
-            Button {
+    /// Les trois façons de commencer une macro, en grandes cartes (la première en rouge : la plus simple).
+    private var actionCards: some View {
+        HStack(spacing: 12) {
+            MacroActionCard(title: String(localized: "Enregistrer une macro"), symbol: "record.circle", tint: .red,
+                            prominent: true) { Self.recordNewMacro(in: library) }
+                .help("Une nouvelle macro s'ouvre et FL passe devant : clique et tape ta suite, puis « Terminer »")
+            MacroActionCard(title: String(localized: "Macro vide"), symbol: "plus", tint: .blue) { newMacro() }
+            MacroActionCard(title: String(localized: "Modèles"), symbol: "square.grid.2x2", tint: .purple) {
                 showTemplates = true
-            } label: {
-                Label("Modèles…", systemImage: "square.grid.2x2")
             }
-            Button {
-                importFile()
-            } label: {
-                Label("Importer…", systemImage: "square.and.arrow.down")
-            }
-            .help("Ajouter des macros reçues (.flsmacro) ; la boîte s'ouvre dans Documents › FL Shortcuts › Macros")
-            Button {
-                exportAll()
-            } label: {
-                Label("Exporter…", systemImage: "square.and.arrow.up")
-            }
-            .disabled(library.macros.isEmpty)
-            .help("Toutes les macros, un fichier chacune, pour les partager (par défaut dans Documents › FL Shortcuts › Macros)")
-            Spacer(minLength: 0)
         }
-        .buttonStyle(.borderless)
+    }
+
+    /// Petit bouton en capsule (« Importer », « Exporter »).
+    private func smallButton(_ title: String, symbol: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Label(title, systemImage: symbol)
+                .font(.system(size: 12, weight: .medium))
+                .padding(.horizontal, 12)
+                .frame(height: 28)
+                .background(Capsule().fill(Color.white.opacity(0.08)))
+                .overlay(Capsule().strokeBorder(Color.white.opacity(0.12), lineWidth: 1))
+                .contentShape(Capsule())
+        }
+        .buttonStyle(.plain)
+        .menuHover(tint: .gray, cornerRadius: 14)
     }
 
     private func row(_ doc: MacroDoc) -> some View {
@@ -155,7 +148,7 @@ struct MacroLibraryPage: View {
             badges.append((String(localized: "Désactivée"), "pause.circle", .secondary,
                             String(localized: "Le raccourci de cette macro est désactivé.")))
         }
-        return MacroLibraryRow(doc: doc, trigger: remap?.trigger, badges: badges,
+        return MacroLibraryCard(doc: doc, trigger: remap?.trigger, badges: badges,
                                onOpen: { open(doc.id) },
                                onDuplicate: { duplicate(doc) },
                                onExport: { export(doc) },
@@ -233,8 +226,44 @@ struct MacroLibraryPage: View {
     }
 }
 
-/// Une macro de la bibliothèque : icône, nom, résumé, badges, raccourci, « Modifier… ».
-private struct MacroLibraryRow: View {
+/// Grande carte d'action de la page Macros : icône de couleur, nom en gras ; au survol, pleine de sa couleur.
+private struct MacroActionCard: View {
+    let title: String
+    let symbol: String
+    let tint: Color
+    var prominent = false
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 14) {
+                SectionIcon(symbol: symbol, tint: tint, size: 40)
+                Text(title).font(.system(size: 15, weight: .bold)).lineLimit(1)
+                Spacer(minLength: 0)
+            }
+            .padding(.horizontal, 16)
+            .frame(maxWidth: .infinity, minHeight: 76)
+            .background {
+                if prominent {
+                    let shape = RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    shape.fill(LinearGradient(colors: [tint.opacity(0.22), tint.opacity(0.10)],
+                                              startPoint: .top, endPoint: .bottom))
+                        .overlay(shape.strokeBorder(tint.opacity(0.45), lineWidth: 1))
+                } else {
+                    MockPlate(cornerRadius: 14)
+                }
+            }
+            .contentShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+        }
+        .buttonStyle(.plain)
+        .menuHover(tint: tint, cornerRadius: 14)
+        .accessibilityLabel(title)
+    }
+}
+
+/// Une macro de la bibliothèque, en carte (maquette du 30/10) : icône, nom, nombre de blocs, interrupteur du
+/// raccourci, puis ses touches. Un clic l'ouvre dans le créateur ; clic droit : Dupliquer, Exporter, Supprimer.
+private struct MacroLibraryCard: View {
     let doc: MacroDoc
     let trigger: KeyCombo?
     let badges: [(String, String, Color, String)]
@@ -244,65 +273,64 @@ private struct MacroLibraryRow: View {
     let onToggle: (() -> Void)?
     let onDelete: () -> Void
 
-    private var caption: String {
+    private var count: String {
         let count = MacroValidation.count(doc.blocks)
-        let blocks = count == 1 ? String(localized: "1 bloc") : String(localized: "\(count) blocs")
-        let first = doc.blocks.lazy.filter { $0.enabled && $0.body.type != .comment }.prefix(3)
-            .map { BlockRegistry.label(of: $0.body) }
-        return first.isEmpty ? blocks : blocks + " · " + first.joined(separator: ", ")
+        return count == 1 ? String(localized: "1 bloc") : String(localized: "\(count) blocs")
     }
 
     private var disabled: Bool { badges.contains { $0.0 == String(localized: "Désactivée") } }
 
-    private var options: [StyledMenuEntry] {
-        var entries: [StyledMenuEntry] = [
-            .item(String(localized: "Modifier…"), symbol: "pencil", tint: .blue, action: onOpen),
-            .item(String(localized: "Dupliquer"), symbol: "plus.square.on.square", tint: .purple, action: onDuplicate),
-            .item(String(localized: "Exporter…"), symbol: "square.and.arrow.up", tint: .teal, action: onExport),
-        ]
-        if let onToggle {
-            entries += [.separator,
-                        .item(disabled ? String(localized: "Activer le raccourci") : String(localized: "Désactiver le raccourci"),
-                              symbol: disabled ? "play" : "pause", tint: disabled ? .green : .yellow, action: onToggle)]
-        }
-        entries += [.separator, .item(String(localized: "Supprimer"), symbol: "trash", tint: .red, action: onDelete)]
-        return entries
-    }
+    /// Les badges qui demandent d'agir (« Désactivée » se voit à l'interrupteur).
+    private var alerts: [(String, String, Color, String)] { badges.filter { $0.0 != String(localized: "Désactivée") } }
 
     var body: some View {
-        HStack(spacing: 10) {
-            SectionIcon(symbol: "wand.and.stars", tint: .purple, size: 26)
-            VStack(alignment: .leading, spacing: 1) {
-                Text(doc.name.displaySafe(max: 60)).lineLimit(1)
-                Text(caption).font(.system(size: 11)).foregroundStyle(.secondary).lineLimit(1)
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 12) {
+                SectionIcon(symbol: SidebarItem.macros.symbol, tint: SidebarItem.macros.tint, size: 34)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(doc.name.displaySafe(max: 60))
+                        .font(.system(size: 14, weight: .bold))
+                        .lineLimit(1)
+                    Text(count).font(.system(size: 11.5)).foregroundStyle(.secondary)
+                }
+                .layoutPriority(-1)                      // carte étroite : le nom se raccourcit, pas l'interrupteur
+                Spacer(minLength: 8)
+                if let onToggle {
+                    Toggle("", isOn: Binding(get: { !disabled }, set: { _ in onToggle() }))
+                        .toggleStyle(.switch)
+                        .labelsHidden()
+                        .controlSize(.small)
+                        .help(disabled ? String(localized: "Activer le raccourci") : String(localized: "Désactiver le raccourci"))
+                }
             }
-            .layoutPriority(-1)                          // fenêtre étroite : le nom se raccourcit, pas le raccourci
-            Spacer(minLength: 8)
-            ForEach(badges.indices, id: \.self) { i in
-                Label(badges[i].0, systemImage: badges[i].1)
-                    .font(.system(size: 10, weight: .medium))
-                    .foregroundStyle(badges[i].2)
-                    .padding(.horizontal, 6)
-                    .padding(.vertical, 1)
-                    .background(Capsule().fill(badges[i].2.opacity(0.13)))
-                    .fixedSize()
-                    .help(badges[i].3)
+            if !alerts.isEmpty {
+                HStack(spacing: 6) {
+                    ForEach(alerts.indices, id: \.self) { i in
+                        Label(alerts[i].0, systemImage: alerts[i].1)
+                            .font(.system(size: 10.5, weight: .semibold))
+                            .hoverTint(alerts[i].2)
+                            .padding(.horizontal, 7)
+                            .padding(.vertical, 2)
+                            .background(Capsule().fill(alerts[i].2.opacity(0.15)))
+                            .fixedSize()
+                            .help(alerts[i].3)
+                    }
+                }
             }
-            KeyLabel(combo: trigger, placeholder: String(localized: "Sans raccourci"))
-            Button("Modifier…", action: onOpen)
-                .buttonStyle(.borderless)
-                .font(.system(size: 12))
-                .fixedSize()
-            // Options de la macro, au style du menu de l'icône (le clic droit garde le menu de macOS).
-            StyledMenuButton(help: String(localized: "Options de la macro"), entries: { options }) {
-                Image(systemName: "ellipsis.circle")
-                    .font(.system(size: 14))
-                    .foregroundStyle(.secondary)
+            if let trigger {
+                KeyLabel(combo: trigger, placeholder: String(localized: "Sans raccourci"))
+            } else {
+                Text("Choisir un raccourci…")
+                    .font(.system(size: 12, weight: .medium))
+                    .hoverTint(Appearance.link)
             }
-            .buttonStyle(.borderless)
         }
-        .padding(.vertical, 2)
-        .contentShape(Rectangle())
+        .padding(.horizontal, 16)
+        .padding(.vertical, 14)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(MockPlate(cornerRadius: 14))
+        .contentShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .menuHover(tint: SidebarItem.macros.tint, cornerRadius: 14)
         .onTapGesture(perform: onOpen)                  // un seul clic pour rentrer dans la macro
         .contextMenu {
             Button("Modifier…", action: onOpen)
@@ -316,6 +344,7 @@ private struct MacroLibraryRow: View {
             Button("Supprimer", role: .destructive, action: onDelete)
         }
         .accessibilityElement(children: .combine)
+        .accessibilityAddTraits(.isButton)
         .accessibilityAction(named: "Modifier", onOpen)
     }
 }

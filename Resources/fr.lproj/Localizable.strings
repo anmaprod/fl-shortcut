@@ -472,6 +472,7 @@
 "Choisir le pattern 9" = "Choisir le pattern 9";
 "Choisir le preset" = "Choisir le preset";
 "Choisir un outil de la fenêtre active" = "Choisir un outil de la fenêtre active";
+"Choisir un raccourci…" = "Choisir un raccourci…";
 "Choisir une signature rythmique" = "Choisir une signature rythmique";
 "Choisir à chaque fois (liste de FL)" = "Choisir à chaque fois (liste de FL)";
 "Choisir, créer et renommer les patterns" = "Choisir, créer et renommer les patterns";
@@ -661,6 +662,7 @@
 "Des macros et des raccourcis prêts à l'emploi, partagés par d'autres utilisateurs de FL Shortcuts, avec leur explication." = "Des macros et des raccourcis prêts à l'emploi, partagés par d'autres utilisateurs de FL Shortcuts, avec leur explication.";
 "Descendre la famille" = "Descendre la famille";
 "Descendre les canaux" = "Descendre les canaux";
+"Deux versions différentes" = "Deux versions différentes";
 "Dis ce qui n'allait pas : l'IA apprend de ses erreurs" = "Dis ce qui n'allait pas : l'IA apprend de ses erreurs";
 "Dis en quelques mots ce que tu faisais juste avant : ça nous aide beaucoup." = "Dis en quelques mots ce que tu faisais juste avant : ça nous aide beaucoup.";
 "Dis-nous ce qui ne va pas" = "Dis-nous ce qui ne va pas";
@@ -805,6 +807,7 @@
 "Export impossible" = "Export impossible";
 "Export impossible." = "Export impossible.";
 "Exporte une piste audio par piste de la Playlist." = "Exporte une piste audio par piste de la Playlist.";
+"Exporter" = "Exporter";
 "Exporter en MIDI" = "Exporter en MIDI";
 "Exporter en MP3" = "Exporter en MP3";
 "Exporter en WAV" = "Exporter en WAV";
@@ -1077,6 +1080,7 @@
 "Lance une action de FL (Mixer, Playlist, métronome…)." = "Lance une action de FL (Mixer, Playlist, métronome…).";
 "Lance une action de FL par le lien avec FL (réveil bref, puis il se rendort). Sans lien : son équivalent au clavier, s'il existe." = "Lance une action de FL par le lien avec FL (réveil bref, puis il se rendort). Sans lien : son équivalent au clavier, s'il existe.";
 "Lancer le REC" = "Lancer le REC";
+"Laquelle garder ?" = "Laquelle garder ?";
 "Last devient aussi First" = "Last devient aussi First";
 "Le %@ du canal est basculé par le lien avec FL : ni souris, ni touche. Sans " = "Le %@ du canal est basculé par le lien avec FL : ni souris, ni touche. Sans ";
 "Le Channel rack a changé depuis l'analyse : relance Organiser." = "Le Channel rack a changé depuis l'analyse : relance Organiser.";
@@ -1137,6 +1141,7 @@
 "Les endroits appris (clics montrés dans FL) ne sont pas exportés : ils se montrent sur chaque Mac." = "Les endroits appris (clics montrés dans FL) ne sont pas exportés : ils se montrent sur chaque Mac.";
 "Les macros" = "Les macros";
 "Les macros et les raccourcis des autres, et les tiens." = "Les macros et les raccourcis des autres, et les tiens.";
+"Les miens" = "Les miens";
 "Les pistes de la Playlist sont remontées par leur menu (« Move up ») : FL Shortcuts lit alors la fenêtre de FL (autorisation « Enregistrement de l'écran »). Les patterns restent à leur place." = "Les pistes de la Playlist sont remontées par leur menu (« Move up ») : FL Shortcuts lit alors la fenêtre de FL (autorisation « Enregistrement de l'écran »). Les patterns restent à leur place.";
 "Les raccourcis d'Ableton Live font la même chose dans FL : F9 enregistre, ⌘D duplique, ⌘E découpe, " = "Les raccourcis d'Ableton Live font la même chose dans FL : F9 enregistre, ⌘D duplique, ⌘E découpe, ";
 "Les raccourcis de Logic Pro font la même chose dans FL : Retour revient au début, K métronome, " = "Les raccourcis de Logic Pro font la même chose dans FL : Retour revient au début, K métronome, ";
@@ -1161,6 +1166,7 @@
 "Lier les canaux à partir de cette piste" = "Lier les canaux à partir de cette piste";
 "Lire ce menu dans FL" = "Lire ce menu dans FL";
 "Lire l'explication et voir ce que fait ce partage, avant de l'ajouter" = "Lire l'explication et voir ce que fait ce partage, avant de l'ajouter";
+"Lire la fiche, puis l'ajouter" = "Lire la fiche, puis l'ajouter";
 "Liste introuvable dans FL : écris le nom." = "Liste introuvable dans FL : écris le nom.";
 "Logic Pro dans FL" = "Logic Pro dans FL";
 "Luminance" = "Luminance";
@@ -1254,6 +1260,7 @@
 "Modifier les raccourcis…" = "Modifier les raccourcis…";
 "Modifier…" = "Modifier…";
 "Modèle développé en blocs." = "Modèle développé en blocs.";
+"Modèles" = "Modèles";
 "Modèles de macros" = "Modèles de macros";
 "Modèles…" = "Modèles…";
 "Mon compte" = "Mon compte";
@@ -1446,6 +1453,7 @@
 "Partages de %@" = "Partages de %@";
 "Partagé : la macro, le titre, ton explication, ton nom d'utilisateur." = "Partagé : la macro, le titre, ton explication, ton nom d'utilisateur.";
 "Partagé : tes raccourcis, le titre, ton explication, ton nom d'utilisateur." = "Partagé : tes raccourcis, le titre, ton explication, ton nom d'utilisateur.";
+"Partagé par toi" = "Partagé par toi";
 "Partir d'un modèle…" = "Partir d'un modèle…";
 "Partout" = "Partout";
 "Pas" = "Pas";
@@ -1678,6 +1686,7 @@
 "Revenir à : " = "Revenir à : ";
 "Revenir à la couleur de départ" = "Revenir à la couleur de départ";
 "Revient au pattern précédent" = "Revient au pattern précédent";
+"Revoir le guide" = "Revoir le guide";
 "Revoir le guide de FL Shortcuts" = "Revoir le guide de FL Shortcuts";
 "Revoir le tuto" = "Revoir le tuto";
 "Reçois par mail un code pour choisir un nouveau mot de passe" = "Reçois par mail un code pour choisir un nouveau mot de passe";
@@ -1976,6 +1985,7 @@
 "Un compte existe déjà avec ce mail." = "Un compte existe déjà avec ce mail.";
 "Un de ses blocs clique à un endroit qu'il faut montrer une fois sur ton Mac (les positions ne sont jamais partagées). Ouvre la macro, choisis le bloc marqué, puis « Montrer dans FL… » et clique à l'endroit voulu." = "Un de ses blocs clique à un endroit qu'il faut montrer une fois sur ton Mac (les positions ne sont jamais partagées). Ouvre la macro, choisis le bloc marqué, puis « Montrer dans FL… » et clique à l'endroit voulu.";
 "Un endroit ou l'entrée 1 est à montrer dans FL." = "Un endroit ou l'entrée 1 est à montrer dans FL.";
+"Un partage ou un membre (@nom)" = "Un partage ou un membre (@nom)";
 "Un petit lien avec FL, une seule fois" = "Un petit lien avec FL, une seule fois";
 "Un problème" = "Un problème";
 "Un son a le mauvais nom (Kick, Snare, Pad…)" = "Un son a le mauvais nom (Kick, Snare, Pad…)";

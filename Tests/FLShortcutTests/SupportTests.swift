@@ -169,4 +169,17 @@ final class SupportTests: XCTestCase {
         } catch {}
         XCTAssertEqual(server.requests.count, 2, "rien envoyé quand le message est refusé")
     }
+
+    /// Réponse de l'aide en étapes numérotées (maquette du 30/10) : seulement « 1. … 2. … » à la suite.
+    func testHelpAnswerSteps() {
+        let parsed = HelpEntry.steps("Vérifie trois choses. 1. FL est devant. 2. Pas en pause. 3. Le clavier est autorisé.")
+        XCTAssertEqual(parsed?.intro, "Vérifie trois choses.")
+        XCTAssertEqual(parsed?.steps, ["FL est devant.", "Pas en pause.", "Le clavier est autorisé."])
+        XCTAssertNil(HelpEntry.steps("Attends 1,5 s puis réessaie avec macOS 26. Rien d'autre."))
+        XCTAssertNil(HelpEntry.steps("Une seule étape : 1. ouvre FL."))
+        XCTAssertNil(HelpEntry.steps("2. avant 1. : pas une suite."))
+        // La vraie première réponse de l'aide se découpe en ses trois étapes.
+        let first = HelpContent.faq.first { $0.id == 1 }?.answer ?? ""
+        XCTAssertEqual(HelpEntry.steps(first)?.steps.count, 3)
+    }
 }

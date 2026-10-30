@@ -205,7 +205,7 @@ private struct CardRows<Item: Identifiable, Row: View>: View {
 }
 
 /// Largeur de la page, lue sans rien redessiner tant qu'elle ne change pas.
-private struct WidthReader: View {
+struct WidthReader: View {
     let report: (CGFloat) -> Void
 
     var body: some View {
@@ -521,8 +521,9 @@ struct EditorView: View {
         }
     }
 
-    /// En-tête de la page (maquette) : le titre en gras à gauche ; à droite, la capsule : → sur la page Macros (retour
-    /// dans la dernière macro quittée), « + » sur les pages Macros et Communauté, puis Mon compte.
+    /// En-tête de la page (maquette) : le titre en gras à gauche ; à droite, « Partager » en bleu sur la page
+    /// Communauté une fois connecté (maquette du 30/10), puis la capsule : → sur la page Macros (retour dans la
+    /// dernière macro quittée), puis Mon compte. Plus de « + » sur Macros : ses grandes cartes le remplacent.
     private var pageHeader: some View {
         HStack(spacing: 16) {
             Text(title)
@@ -530,6 +531,16 @@ struct EditorView: View {
                 .lineLimit(1)
                 .accessibilityAddTraits(.isHeader)
             Spacer(minLength: 8)
+            if showsShareButton {
+                Button {
+                    community.composing = true
+                } label: {
+                    Label("Partager", systemImage: "plus")
+                }
+                .primaryButton()
+                .controlSize(.large)
+                .help("Partager une macro ou tes raccourcis")
+            }
             HeaderCapsule {
                 if onMacrosPage, let last = creatorLink.lastClosedID {
                     HeaderIconButton(symbol: "chevron.forward",
@@ -538,7 +549,6 @@ struct EditorView: View {
                     }
                     .keyboardShortcut("]", modifiers: .command)
                 }
-                if showsNewButton { newButton }
                 HeaderIconButton(symbol: "person.crop.circle", help: String(localized: "Mon compte")) { choose(.account) }
             }
         }
@@ -964,23 +974,9 @@ struct EditorView: View {
         }
     }
 
-    /// « + » sur la page Macros (nouvelle macro) et sur la page Communauté une fois connecté (partager) ; plus sur les
-    /// pages de raccourcis (29/10 : « le reste ça part »).
-    private var showsNewButton: Bool {
-        page == .macros || (page == .community && community.session != nil)
-    }
-
-    private var newButton: some View {
-        let current = page
-        let help = current == .macros ? String(localized: "Nouvelle macro")
-                                      : String(localized: "Partager une macro ou tes raccourcis")
-        return HeaderIconButton(symbol: "plus", help: help) {
-            switch current {
-            case .macros: MacroLibraryPage.newMacro(in: store.library)
-            case .community: community.composing = true
-            default: break
-            }
-        }
+    /// « Partager » sur la page Communauté une fois connecté (le « + » d'avant, 30/10).
+    private var showsShareButton: Bool {
+        page == .community && community.session != nil
     }
 
     // MARK: Actions
