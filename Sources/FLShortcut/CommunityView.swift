@@ -832,8 +832,6 @@ struct CommunitySignIn: View {
             .padding(.bottom, 32)
         }
         .glassListBackground()
-        // Création du compte : les champs en plus arrivent en douceur.
-        .motion(Motion.smooth, value: creating)
         .onChange(of: community.pendingCode) { _ in
             code = ""
             newPassword = ""
@@ -843,33 +841,33 @@ struct CommunitySignIn: View {
     // MARK: Se connecter / Créer un compte
 
     private var signInCard: some View {
-        AuthCard(spacing: creating ? 16 : 18) {
-            VStack(spacing: creating ? 10 : 12) {
-                AuthBadge(symbol: "person", colors: AuthLook.teal, size: creating ? 56 : 64)
+        AuthCard {
+            VStack(spacing: 12) {
+                AuthBadge(symbol: "person", colors: AuthLook.teal)
                 Text("Ton compte FL Shortcuts").font(.system(size: 20, weight: .bold)).multilineTextAlignment(.center)
-                if !creating {
-                    HStack(spacing: 6) {
-                        AuthPill(symbol: "cloud", text: String(localized: "Sauvegarde"), tint: .green)
-                        AuthPill(symbol: "laptopcomputer", text: String(localized: "Tous tes Mac"), tint: .blue)
-                        AuthPill(symbol: "person.2", text: String(localized: "Communauté"), tint: SidebarItem.community.tint)
-                    }
+                // Les mêmes dans les deux onglets : le haut de la carte ne bouge pas quand on change (vidéo du 30/10).
+                HStack(spacing: 6) {
+                    AuthPill(symbol: "cloud", text: String(localized: "Sauvegarde"), tint: .green)
+                    AuthPill(symbol: "laptopcomputer", text: String(localized: "Tous tes Mac"), tint: .blue)
+                    AuthPill(symbol: "person.2", text: String(localized: "Communauté"), tint: SidebarItem.community.tint)
                 }
             }
             AuthTabs(creating: $community.creatingAccount)
-            VStack(alignment: .leading, spacing: creating ? 16 : 18) {
+            VStack(alignment: .leading, spacing: 18) {
                 if creating {
                     AuthField(title: String(localized: "Pseudo"), text: $username, prompt: String(localized: "ton.pseudo"),
                               prefix: "@") {
                         UsernameStatus(check: nameCheck)
                     }
                     .modifier(UsernameChecker(community: community, name: username, check: $nameCheck))
+                    .transition(.opacity)
                     if case .invalid(let why) = nameCheck { hint(why) }
                 }
                 AuthField(title: String(localized: "E-mail"), text: $email, prompt: String(localized: "toi@exemple.com"))
                 AuthField(title: String(localized: "Mot de passe"), text: $password,
                           prompt: creating ? String(localized: "8 caractères au moins") : String(localized: "Ton mot de passe"),
                           secure: true, link: creating ? nil : forgotLink)
-                if creating { PasswordRules(password: password) }
+                if creating { PasswordRules(password: password).transition(.opacity) }
             }
             Button(creating ? String(localized: "Créer mon compte") : String(localized: "Se connecter")) { submit() }
                 .buttonStyle(AuthPrimaryButtonStyle())
@@ -883,6 +881,7 @@ struct CommunitySignIn: View {
                 Label("Les autres voient ton pseudo et ta photo, jamais ton e-mail.", systemImage: "lock")
                     .font(.system(size: 11.5))
                     .foregroundStyle(.secondary)
+                    .transition(.opacity)
             }
         }
     }

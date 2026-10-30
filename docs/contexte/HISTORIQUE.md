@@ -616,3 +616,10 @@ entrée 1 ≈ 0,5 s.
   fonctionne parfaitement ») : chargement plus beau, familles posées où on veut (« je ne peux pas mettre en dessous à
   gauche » : la coupe automatique des deux colonnes renvoyait la famille ailleurs), « Pas content ? » avec tous les
   sons (seul Serum 2, écouté, y était), message de fin court.
+- 30/10 (13 h, deux vidéos et une capture) : « Enregistrer » de « Modifier le profil » restait grisé après le choix
+  d'une photo (pseudo posé après l'ouverture, encore « à vérifier » : posé dès l'ouverture, pseudo inchangé = toujours
+  enregistrable) ; chargement de l'Organiser remis comme avant (« j'aime pas ce que tu as fait ») ; icône d'une
+  famille jamais posée : la fenêtre du nom de FL (F2) s'ouvrait SOUS l'Organiser, la bulle « Une seule fois : clique
+  sur le bouton de l'icône » attendait un clic impossible (panneau retiré de l'écran pendant la pose) ; onglets Se
+  connecter / Créer un compte plus fluides ; règles du mot de passe coupées au milieu des mots (pastilles sur deux
+  lignes).

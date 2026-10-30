@@ -333,6 +333,9 @@ struct OrganizerEnvironment {
             _ = NSRunningApplication(processIdentifier: pid)?.activate(options: [])
             Thread.sleep(forTimeInterval: 0.3)
         }
+        // L'Organiser ne couvre jamais la fenêtre du nom de FL ni sa grille des icônes.
+        OrganizerWindow.stepAside(true)
+        defer { OrganizerWindow.stepAside(false) }
         switch MacroEffectsMac(pid: pid).placeIcon(icon, alsoColored: false) {
         case .ok, .warn: return nil
         case .fail(let why), .cancel(let why):
@@ -1275,6 +1278,17 @@ enum OrganizerWindow {
         DispatchQueue.main.async { adapt(height: height, preview: preview) }
     }
 
+    /// Pendant la pose d'une icône (fenêtre du nom de FL ouverte par F2, puis sa grille) : le panneau se retire de
+    /// l'écran puis revient. Vidéo du 30/10 : la fenêtre du nom s'ouvrait sous l'Organiser, son bouton de l'icône était
+    /// caché et la bulle « Une seule fois : clique… » attendait un clic impossible.
+    static func stepAside(_ away: Bool) {
+        let set: () -> Void = {
+            guard let panel else { return }
+            if away { panel.orderOut(nil) } else { panel.orderFrontRegardless() }
+        }
+        if Thread.isMainThread { set() } else { DispatchQueue.main.sync(execute: set) }
+    }
+
     /// Pendant que l'Organiser clique dans FL (Playlist) : les clics traversent le panneau, qui flotte au-dessus de FL.
     static func clickThrough(_ on: Bool) {
         let set: () -> Void = { panel?.ignoresMouseEvents = on }
@@ -1319,6 +1333,16 @@ struct OrganizerView: View {
 
     /// L'aperçu est à l'écran (pas le tuto, revu par-dessus : il prend la hauteur de son contenu).
     private var isPreview: Bool { controller.phase == .preview && !controller.tutorial }
+
+    /// Pendant l'application : l'étape en cours (« FL ouvre la copie rangée… 12 s »), sinon le texte général.
+    private var applyingText: String {
+        let hands = String(localized: "Ne touche pas à FL.")
+        if let step = controller.applyStep { return step + " " + hands }
+        if controller.organizesCopy {
+            return String(localized: "FL ouvre la copie rangée de ton projet, puis tout s'y range… Ne touche pas à FL.")
+        }
+        return String(localized: "Application dans FL… Ne touche pas à FL.")
+    }
 
     /// Étape affichée : une nouvelle étape remplace l'ancienne en fondu (la progression de l'écoute, non).
     private var stepKey: String {
@@ -1397,25 +1421,57 @@ struct OrganizerView: View {
         .morphIn(0)
     }
 
+    private static func listeningText(_ done: Int, _ total: Int) -> String {
+        total == 0 ? String(localized: "Préparation de l'analyse…") : String(localized: "Analyse du projet : \(min(done + 1, total)) sur \(total)")
+    }
+
     @ViewBuilder private var content: some View {
         switch controller.phase {
         case .starting:
-            loading(String(localized: "Préparation…"), detail: nil, progress: nil)
+            working(String(localized: "Préparation…"))
         case .setup:
             setup
         case .waiting(let reason):
             waiting(reason)
         case .listening(let done, let total):
-            loading(String(localized: "Analyse du projet"),
-                    detail: total == 0 ? String(localized: "Préparation de l'analyse…")
-                        : String(localized: "Son \(min(done + 1, total)) sur \(total)"),
-                    progress: total == 0 ? nil : Double(done) / Double(total), stop: true)
+            VStack(alignment: .leading, spacing: 12) {
+                HStack(spacing: 12) {
+                    OrganizerBadge(symbol: "waveform", tint: Self.tint, live: true)
+                    VStack(alignment: .leading, spacing: 8) {
+                        HStack {
+                            Text(Self.listeningText(done, total)).font(.system(size: 13, weight: .semibold))
+                            Spacer()
+                            if total > 0 {
+                                Text("\(Int((Double(done) / Double(max(total, 1)) * 100).rounded())) %")
+                                    .font(.system(size: 12).monospacedDigit())
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                        ProgressView(value: Double(done), total: Double(max(total, 1)))
+                            .tint(Self.tint)
+                            .motion(Motion.smooth, value: done)
+                    }
+                }
+                .padding(14)
+                .organizerCard()
+                .morphIn(1)
+                // Plus d'explication (28/10, « ça j'aime pas ») : la consigne seule.
+                Text(String(localized: "Ne touche pas à FL."))
+                    .font(.system(size: 11))
+                    .foregroundStyle(.secondary)
+                    .morphIn(2)
+                HStack {
+                    Spacer()
+                    Button("Arrêter") { controller.close() }.keyboardShortcut(.cancelAction)
+                }
+                .morphIn(3)
+            }
         case .preview:
             preview
         case .applying:
-            loading(String(localized: "Rangement de ton projet"), detail: applyingDetail, progress: nil)
+            working(applyingText)
         case .undoing:
-            loading(String(localized: "Retour comme avant…"), detail: nil, progress: nil)
+            working(String(localized: "Retour comme avant…"))
         case .applied(let error):
             if error == nil {
                 finished
@@ -1432,32 +1488,15 @@ struct OrganizerView: View {
         }
     }
 
-    /// Pendant l'application : l'étape en cours (« FL ouvre la copie rangée… »), sinon ce qui se passe.
-    private var applyingDetail: String {
-        if let step = controller.applyStep { return step }
-        return controller.organizesCopy
-            ? String(localized: "FL ouvre la copie rangée de ton projet, puis tout s'y range…")
-            : String(localized: "Application dans FL…")
-    }
-
-    /// Chargement (vidéo du 30/10 : « le chargement d'Organiser un peu plus beau ») : des barres d'égaliseur aux
-    /// couleurs des familles, l'étape et son détail, une barre qui avance (ou qui passe, sans total), puis la consigne.
-    private func loading(_ title: String, detail: String?, progress: Double?, stop: Bool = false) -> some View {
-        let colors = [SoundFamily.vocals, .melody, .bass, .drums, .fx].map { swiftColor(controller.style(of: $0).color) }
-        return VStack(alignment: .leading, spacing: 12) {
-            OrganizerLoading(title: title, detail: detail, progress: progress, colors: colors)
-                .morphIn(1)
-            HStack(spacing: 8) {
-                Image(systemName: "hand.raised.fill").foregroundStyle(.orange)
-                Text("Ne touche pas à FL pendant ce temps.").foregroundStyle(.secondary)
-                Spacer(minLength: 0)
-                if stop {
-                    Button("Arrêter") { controller.close() }.keyboardShortcut(.cancelAction)
-                }
-            }
-            .font(.system(size: 12))
-            .morphIn(2)
+    private func working(_ text: String) -> some View {
+        HStack(spacing: 12) {
+            ProgressView().controlSize(.small)
+            Text(text).font(.system(size: 13))
+            Spacer(minLength: 0)
         }
+        .padding(14)
+        .organizerCard()
+        .morphIn(1)
     }
 
     /// Fin réussie, en court : le titre et une ligne dans la carte verte, les remarques dessous (trois au plus, le
@@ -1922,102 +1961,6 @@ struct OrganizerView: View {
             if gap < bestGap { best = cut; bestGap = gap }
         }
         return [Array(families[..<best]), Array(families[best...])]
-    }
-}
-
-/// Carte du chargement : barres d'égaliseur qui dansent aux couleurs des familles, l'étape, son détail, le pourcentage,
-/// et la barre d'avancement à leurs couleurs.
-private struct OrganizerLoading: View {
-    let title: String
-    let detail: String?
-    /// 0…1 ; nil : sans total (la barre passe en boucle).
-    let progress: Double?
-    let colors: [Color]
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            HStack(spacing: 16) {
-                EqualizerBars(colors: colors)
-                    .frame(width: 52, height: 38)
-                VStack(alignment: .leading, spacing: 3) {
-                    Text(title).font(.system(size: 15, weight: .semibold))
-                    if let detail {
-                        Text(detail)
-                            .font(.system(size: 12))
-                            .foregroundStyle(.secondary)
-                            .lineLimit(2)
-                            .fixedSize(horizontal: false, vertical: true)
-                    }
-                }
-                Spacer(minLength: 0)
-                if let progress {
-                    Text("\(Int((min(max(progress, 0), 1) * 100).rounded())) %")
-                        .font(.system(size: 13, weight: .semibold).monospacedDigit())
-                        .foregroundStyle(.secondary)
-                }
-            }
-            LoadingBar(progress: progress, colors: colors)
-                .frame(height: 6)
-        }
-        .padding(18)
-        .organizerCard()
-        .accessibilityElement(children: .combine)
-    }
-}
-
-/// Barres d'égaliseur qui montent et descendent chacune à son rythme (immobiles si « Réduire les animations »).
-private struct EqualizerBars: View {
-    let colors: [Color]
-
-    var body: some View {
-        TimelineView(.animation(minimumInterval: 1.0 / 30, paused: Motion.reduce)) { context in
-            let t = context.date.timeIntervalSinceReferenceDate
-            GeometryReader { geo in
-                HStack(alignment: .bottom, spacing: 4) {
-                    ForEach(Array(colors.enumerated()), id: \.offset) { i, color in
-                        let level = Motion.reduce ? 0.55 + 0.08 * Double(i % 3)
-                            : 0.25 + 0.75 * abs(sin(t * (2.1 + Double(i) * 0.47) + Double(i) * 1.3))
-                        Capsule()
-                            .fill(color.gradient)
-                            .frame(height: max(5, geo.size.height * level))
-                    }
-                }
-                .frame(width: geo.size.width, height: geo.size.height, alignment: .bottom)
-            }
-        }
-        .accessibilityHidden(true)
-    }
-}
-
-/// Barre d'avancement aux couleurs des familles ; sans total, un morceau de barre passe de gauche à droite.
-private struct LoadingBar: View {
-    let progress: Double?
-    let colors: [Color]
-
-    var body: some View {
-        GeometryReader { geo in
-            let fill = LinearGradient(colors: colors, startPoint: .leading, endPoint: .trailing)
-            ZStack(alignment: .leading) {
-                Capsule().fill(Color.primary.opacity(0.08))
-                if let progress {
-                    Capsule()
-                        .fill(fill)
-                        .frame(width: max(6, geo.size.width * min(max(progress, 0), 1)))
-                        .animation(Motion.smooth, value: progress)
-                } else {
-                    TimelineView(.animation(minimumInterval: 1.0 / 30, paused: Motion.reduce)) { context in
-                        let phase = (context.date.timeIntervalSinceReferenceDate / 1.6).truncatingRemainder(dividingBy: 1)
-                        let width = geo.size.width * 0.35
-                        Capsule()
-                            .fill(fill)
-                            .frame(width: width)
-                            .offset(x: Motion.reduce ? 0 : -width + (geo.size.width + width) * phase)
-                    }
-                    .clipShape(Capsule())
-                }
-            }
-        }
-        .accessibilityHidden(true)
     }
 }
 

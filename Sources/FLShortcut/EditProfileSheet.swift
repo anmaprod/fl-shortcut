@@ -24,6 +24,15 @@ struct EditProfileSheet: View {
 
     private static let circle: CGFloat = 128
 
+    /// Le pseudo actuel dès l'ouverture (retour du 30/10 : « on ne peut pas enregistrer directement » après avoir
+    /// changé la photo : le pseudo, posé après coup, restait « à vérifier » et « Enregistrer » restait grisé).
+    init(community: CommunityStore) {
+        self.community = community
+        let current = community.session?.username ?? ""
+        _name = State(initialValue: current)
+        _check = State(initialValue: current.isEmpty ? .empty : .mine)
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
             Text("Modifier le profil").font(.system(size: 17, weight: .bold))
@@ -89,10 +98,7 @@ struct EditProfileSheet: View {
         .padding(.top, 24)
         .padding(.bottom, 22)
         .frame(width: 440)
-        .onAppear {
-            name = community.session?.username ?? ""
-            community.error = nil
-        }
+        .onAppear { community.error = nil }
     }
 
     // MARK: Photo
@@ -184,6 +190,9 @@ struct EditProfileSheet: View {
     // MARK: Enregistrer
 
     private var canSave: Bool {
+        // Pseudo inchangé : rien à vérifier, la photo s'enregistre tout de suite.
+        if let current = community.session?.username,
+           name.trimmingCharacters(in: .whitespaces).lowercased() == current.lowercased() { return true }
         switch check {
         case .invalid, .taken, .checking, .empty: return false
         case .free, .mine, .unknown: return true

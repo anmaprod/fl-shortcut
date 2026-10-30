@@ -209,7 +209,6 @@
 "Allumer le REC à la fin (s'il est éteint)" = "Turn on REC at the end (if it's off)";
 "Alors" = "Then";
 "Ambiance" = "Ambience";
-"Analyse du projet" = "Analyzing the project";
 "Analyse du projet : %lld sur %lld" = "Analyzing the project: %lld of %lld";
 "Ancienne position apprise (colonne du curseur)." = "Old learned position (cursor column).";
 "Ancienne position apprise." = "Old learned position.";
@@ -222,7 +221,6 @@
 "Annulé." = "Canceled.";
 "Aperçu : dans MIDI Settings, FL Shortcuts Link en entrée et en sortie, avec le même port." = "Preview: in MIDI Settings, FL Shortcuts Link as input and output, with the same port.";
 "Aperçu du dégradé" = "Gradient preview";
-"Application dans FL…" = "Applying in FL…";
 "Application dans FL… Ne touche pas à FL." = "Applying in FL… Don't touch FL.";
 "Apprendre" = "Learn";
 "Apprise au premier passage" = "Learned on the first run";
@@ -927,7 +925,6 @@
 "FL ne répond pas : quitte et rouvre FL Studio, il relie « %@ » tout seul en démarrant. Toujours rien : dans Options › MIDI Settings, entrée « %@ », choisis le Controller type « FL Shortcuts » (pas « generic controller »), et donne le même numéro de Port à l'entrée et à la sortie" = "FL isn't responding: quit and reopen FL Studio, it links “%@” by itself on startup. Still nothing: in Options › MIDI Settings, Input “%@”, choose the Controller type “FL Shortcuts” (not “generic controller”), and give the Input and Output the same Port number";
 "FL ne répond pas encore. Dans FL › MIDI Settings › Output, « FL Shortcuts » doit s'afficher à côté de « FL Shortcuts Link », seul sur son Port. Sinon : « Ça ne marche toujours pas ? » ci-dessous." = "FL isn't responding yet. In FL › MIDI Settings › Output, “FL Shortcuts” must show next to “FL Shortcuts Link”, alone on its Port. If not: “Still not working?” below.";
 "FL ne répond plus assez vite depuis l'ouverture de la copie rangée. Elle est ouverte dans FL avec sa Playlist rangée : relance l'Organiser dessus pour finir le reste. Ton projet d'origine n'a pas bougé." = "FL hasn't been answering fast enough since the organized copy opened. It's open in FL with its Playlist organized: run Organize again on it to finish the rest. Your original project wasn't changed.";
-"FL ouvre la copie rangée de ton projet, puis tout s'y range…" = "FL opens the organized copy of your project, then everything gets organized in it…";
 "FL ouvre la copie rangée de ton projet, puis tout s'y range… Ne touche pas à FL." = "FL opens the organized copy of your project, then everything gets organized in it… Don't touch FL.";
 "FL ouvre la copie rangée…" = "FL is opening the organized copy…";
 "FL ouvre la copie rangée… %lld s" = "FL is opening the organized copy… %lld s";
@@ -1342,7 +1339,6 @@
 "Ne fait pas ce que dit son explication" = "Doesn't do what its description says";
 "Ne pas toucher à l'icône dans FL" = "Leave the icon in FL as is";
 "Ne quitte pas l'app tout de suite." = "Don't quit the app just yet.";
-"Ne touche pas à FL pendant ce temps." = "Don't touch FL in the meantime.";
 "Ne touche pas à FL pendant l'écoute." = "Don't touch FL while it listens.";
 "Ne touche pas à FL." = "Don't touch FL.";
 "Nom" = "Name";
@@ -1654,7 +1650,6 @@
 "Range, colore et renomme tout le projet." = "Sorts, colors and renames the whole project.";
 "Rangement automatique" = "Automatic layout";
 "Rangement dans la copie…" = "Organizing the copy…";
-"Rangement de ton projet" = "Organizing your project";
 "Re-stretch de tous les clips audio" = "Re-stretch all audio clips";
 "Recherche" = "Search";
 "Rechercher" = "Search";
@@ -1854,7 +1849,6 @@
 "Solo du canal 8" = "Solo channel 8";
 "Solo du canal 9" = "Solo channel 9";
 "Solo piste Mixer sélectionnée" = "Solo selected Mixer track";
-"Son %lld sur %lld" = "Sound %lld of %lld";
 "Son de FL" = "FL sound";
 "Son de FL autorisé : tout est prêt." = "FL sound allowed: everything is ready.";
 "Son nom, tel qu'il est écrit dans le menu « Arrangement » de FL." = "Its name, as written in FL's “Arrangement” menu.";

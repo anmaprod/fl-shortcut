@@ -64,15 +64,20 @@ struct AuthPill: View {
     }
 }
 
-/// Onglets « Se connecter » / « Créer un compte ».
+/// Onglets « Se connecter » / « Créer un compte » : le fond de l'onglet choisi glisse de l'un à l'autre, et la carte
+/// change de forme dans le même mouvement (vidéo du 30/10 : « plus fluide »).
 struct AuthTabs: View {
     @Binding var creating: Bool
     @Environment(\.colorScheme) private var scheme
+    @Namespace private var tabs
+
+    /// Le mouvement de la carte quand on change d'onglet.
+    static let change = Animation.spring(response: 0.42, dampingFraction: 0.9)
 
     var body: some View {
         HStack(spacing: 0) {
-            tab(String(localized: "Se connecter"), selected: !creating) { creating = false }
-            tab(String(localized: "Créer un compte"), selected: creating) { creating = true }
+            tab(String(localized: "Se connecter"), selected: !creating) { choose(false) }
+            tab(String(localized: "Créer un compte"), selected: creating) { choose(true) }
         }
         .padding(3)
         .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(AuthLook.well(scheme)))
@@ -86,12 +91,61 @@ struct AuthTabs: View {
                 .foregroundStyle(selected ? Color.primary : Color.secondary)
                 .frame(maxWidth: .infinity)
                 .frame(height: 32)
-                .background(RoundedRectangle(cornerRadius: 9, style: .continuous)
-                    .fill(selected ? Color.primary.opacity(0.14) : Color.clear))
+                .background {
+                    if selected {
+                        RoundedRectangle(cornerRadius: 9, style: .continuous)
+                            .fill(Color.primary.opacity(0.14))
+                            .matchedGeometryEffect(id: "onglet", in: tabs)
+                    }
+                }
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .accessibilityAddTraits(selected ? [.isButton, .isSelected] : .isButton)
+    }
+
+    private func choose(_ value: Bool) {
+        guard value != creating else { return }
+        if Motion.reduce { creating = value } else { withAnimation(Self.change) { creating = value } }
+    }
+}
+
+/// Pastilles posées à la suite, sur plusieurs lignes s'il le faut, jamais coupées au milieu d'un mot (capture du
+/// 30/10 : « 8 caractèr / es », « Minuscul / e »).
+struct FlowRow: Layout {
+    var spacing: CGFloat = 12
+    var lineSpacing: CGFloat = 6
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        let width = proposal.width ?? .infinity
+        var x: CGFloat = 0, y: CGFloat = 0, line: CGFloat = 0, widest: CGFloat = 0
+        for view in subviews {
+            let size = view.sizeThatFits(.unspecified)
+            if x > 0 && x + size.width > width {
+                y += line + lineSpacing
+                x = 0
+                line = 0
+            }
+            widest = max(widest, x + size.width)
+            x += size.width + spacing
+            line = max(line, size.height)
+        }
+        return CGSize(width: proposal.width ?? widest, height: y + line)
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        var x = bounds.minX, y = bounds.minY, line: CGFloat = 0
+        for view in subviews {
+            let size = view.sizeThatFits(.unspecified)
+            if x > bounds.minX && x + size.width > bounds.maxX {
+                y += line + lineSpacing
+                x = bounds.minX
+                line = 0
+            }
+            view.place(at: CGPoint(x: x, y: y), proposal: ProposedViewSize(size))
+            x += size.width + spacing
+            line = max(line, size.height)
+        }
     }
 }
 
@@ -228,7 +282,7 @@ struct PasswordRules: View {
 
     var body: some View {
         let missing = Set(CommunityRules.passwordMissing(password).map(Self.key))
-        HStack(spacing: 12) {
+        FlowRow(spacing: 12, lineSpacing: 6) {
             ForEach(Self.rules, id: \.key) { rule in
                 let ok = !password.isEmpty && !missing.contains(rule.key)
                 HStack(spacing: 4) {
@@ -238,9 +292,10 @@ struct PasswordRules: View {
                 }
                 .font(.system(size: 11.5, weight: .semibold))
                 .foregroundStyle(ok ? Color.green : Color.secondary)
+                .fixedSize()
             }
-            Spacer(minLength: 0)
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
         .accessibilityElement(children: .combine)
     }
 

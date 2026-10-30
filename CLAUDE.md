@@ -198,12 +198,15 @@
 - **Compte : connexion et profil** (maquette PDF/HTML « Mon compte — connexion et profil » du 30/10, faite par une
   autre session que celle des pages : les deux ont travaillé en même temps sur la branche, toujours `git fetch` avant
   d'envoyer) : cartes Se connecter / Créer un compte / Code en 6 cases (`AccountAuthViews.swift`, `CommunitySignIn`),
-  pseudo vérifié en direct ; photo de profil 256 × 256 JPEG préparée sur le Mac (`ProfilePhoto.swift`), « Modifier le
+  pseudo vérifié en direct (onglets : fond qui glisse, carte qui change en un seul mouvement ; règles du mot de passe
+  en `FlowRow`) ; photo de profil 256 × 256 JPEG préparée sur le Mac (`ProfilePhoto.swift`), « Modifier le
   profil » (`EditProfileSheet.swift` : zoom, glisser, Retirer, pseudo) ; photo ou initiale de couleur dans l'en-tête,
   Mon compte, cartes et page d'un auteur ; « Signaler la photo… », « Retirer la photo » (administrateur). Serveur :
   `supabase/profil.sql` (collé dans Supabase par le propriétaire le 30/10, étape 10 du README ; sans lui,
   initiales et « pas encore ouverts »), essais `supabase/tests/profil.sql`.
-- Organiser, vidéo du 30/10 : chargement en carte (barres d'égaliseur aux couleurs des familles, barre d'avancement) ;
+- Organiser, vidéo du 30/10 : chargement en carte à barres d'égaliseur essayé puis RETIRÉ à sa demande (« remet comme
+  avant, j'aime pas ») : le chargement d'avant (badge, barre, « Ne touche pas à FL. », Arrêter) ; panneau retiré de
+  l'écran pendant la pose d'une icône (`OrganizerWindow.stepAside` : la fenêtre du nom de FL, F2, s'ouvrait dessous) ;
   familles posées où on les lâche, à gauche ou à droite, dessus ou dessous (`dropSlot`, `placing`, colonnes gardées
   `leftCount`, ordre = gauche puis droite) ; « Pas content ? » liste TOUS les sons (un son rangé par son nom est
   retenu par son nom codé SHA-256, `corrections-noms.json`, règle `corrige-nom`, jamais envoyé) ; fin en court
