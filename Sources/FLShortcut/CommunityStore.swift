@@ -1,6 +1,7 @@
 // Compte et Communauté : session, liste, recherche et actions, sur le thread principal. Une session est gardée au
 // Trousseau ; reprise au lancement seulement s'il y en a une (sauvegarde en ligne : AccountBackup), sinon rien n'est
 // demandé au serveur.
+import AppKit
 import Foundation
 import Security
 
@@ -57,6 +58,31 @@ final class CommunityStore: ObservableObject {
     }
     /// Mode capture seulement (mesure de la CI) : exemples affichés tels quels, sans serveur ni Trousseau.
     @Published private(set) var demo = false
+    /// Photos des membres déjà chargées (Mon compte, Communauté) ; membre absent : pas de photo, son initiale.
+    @Published private(set) var photos: [UUID: NSImage] = [:]
+    private var photoVersions: [UUID: String] = [:]
+    /// Feuille « Modifier le profil » ouverte (page Mon compte, photo de la barre d'outils).
+    @Published var editingProfile = false
+
+    /// Un pseudo vérifié au fil de la frappe (inscription, « Modifier le profil »).
+    enum NameCheck: Equatable {
+        case empty
+        case invalid(String)
+        case checking
+        case free
+        case taken
+        /// Le pseudo actuel du compte (majuscules près) : rien à vérifier.
+        case mine
+        /// Pas de réponse du serveur : il vérifiera à l'envoi.
+        case unknown
+    }
+
+    /// Ce que « Enregistrer » fait de la photo.
+    enum PhotoChange: Equatable {
+        case keep
+        case set(Data)
+        case remove
+    }
 
     let client: CommunityClient?
     private let keychain: CommunitySessionKeychain
@@ -238,6 +264,8 @@ final class CommunityStore: ObservableObject {
         shares = []
         members = []
         author = nil
+        photos = [:]
+        photoVersions = [:]
     }
 
     func reload() async {
@@ -252,6 +280,9 @@ final class CommunityStore: ObservableObject {
                 self.members = []
             }
         }
+        // Photos des auteurs affichés (sans attendre : la liste est déjà là).
+        let ids = shares.map(\.authorID) + members.map(\.id) + (author.map { [$0.id] } ?? [])
+        if !ids.isEmpty { Task { await loadPhotos(for: ids) } }
     }
 
     /// Tous les partages d'un membre (la recherche est effacée : elle a servi à le trouver).
@@ -343,6 +374,99 @@ final class CommunityStore: ObservableObject {
 
     func isMine(_ share: Share) -> Bool { share.authorID == session?.userID }
 
+    // MARK: Profil (pseudo et photo)
+
+    /// Photo du compte connecté (nil : son initiale).
+    var myPhoto: NSImage? { session.flatMap { photos[$0.userID] } }
+
+    /// Photos de ces membres : leurs dates d'abord, puis seulement les photos nouvelles ou changées. Hors ligne, ou
+    /// serveur sans photos : rien ne change (l'initiale reste).
+    func loadPhotos(for ids: [UUID]) async {
+        guard !demo, let client, session != nil, let session = try? await validSession() else { return }
+        var seen = Set<UUID>()
+        let wanted = ids.filter { seen.insert($0).inserted }
+        guard !wanted.isEmpty, let versions = try? await client.avatarVersions(of: wanted, session: session) else { return }
+        for id in wanted where versions[id] == nil {
+            photos[id] = nil
+            photoVersions[id] = nil
+        }
+        let changed = versions.filter { photoVersions[$0.key] != $0.value }.map(\.key)
+        guard !changed.isEmpty, let fresh = try? await client.avatars(of: changed, session: session) else { return }
+        for (id, avatar) in fresh {
+            photos[id] = NSImage(data: avatar.jpeg)
+            photoVersions[id] = avatar.version
+        }
+    }
+
+    /// Pseudo vérifié au fil de la frappe : format, puis libre ou pris (le sien compte comme libre).
+    func checkUsername(_ name: String) async -> NameCheck {
+        let n = name.trimmingCharacters(in: .whitespaces)
+        if n.isEmpty { return .empty }
+        if let why = CommunityRules.usernameProblem(n) { return .invalid(why) }
+        if let current = session?.username, current.lowercased() == n.lowercased() { return .mine }
+        if demo { return n.lowercased() == "leo.beats" ? .taken : .free }
+        guard let client, let free = try? await client.usernameAvailable(n) else { return .unknown }
+        return free ? .free : .taken
+    }
+
+    /// « Enregistrer » de « Modifier le profil » : le pseudo (s'il change), puis la photo. Vrai si tout est enregistré ;
+    /// sinon l'erreur est affichée et la feuille reste ouverte.
+    func saveProfile(username: String, photo: PhotoChange) async -> Bool {
+        let name = username.trimmingCharacters(in: .whitespaces)
+        if demo {
+            if var s = session { s.username = name; session = s }
+            return true
+        }
+        var ok = false
+        await authed { client, session in
+            var current = session
+            if name != session.username {
+                current.username = try await client.setUsername(name, session: session)
+                self.set(current)
+            }
+            switch photo {
+            case .keep:
+                break
+            case .set(let jpeg):
+                let version = try await client.setAvatar(jpeg, session: current)
+                self.photos[current.userID] = NSImage(data: jpeg)
+                self.photoVersions[current.userID] = version
+            case .remove:
+                try await client.removeAvatar(session: current)
+                self.photos[current.userID] = nil
+                self.photoVersions[current.userID] = nil
+            }
+            ok = true
+        }
+        // Partages affichés : ils prennent le nouveau pseudo.
+        if ok, !shares.isEmpty { await reload() }
+        return ok
+    }
+
+    /// « Signaler la photo… » d'un membre.
+    func reportPhoto(of member: CommunityMember) async {
+        if demo {
+            notice = Self.photoReportedNotice
+            return
+        }
+        await authed { client, session in
+            try await client.reportAvatar(of: member.id, session: session)
+            self.notice = Self.photoReportedNotice
+        }
+    }
+
+    static let photoReportedNotice = String(localized: "Merci, la photo est signalée : l'équipe va la regarder.")
+
+    /// Administrateur : retire la photo d'un membre.
+    func removePhoto(of member: CommunityMember) async {
+        await authed { client, session in
+            try await client.adminRemoveAvatar(of: member.id, session: session)
+            self.photos[member.id] = nil
+            self.photoVersions[member.id] = nil
+            self.notice = String(localized: "Photo retirée : son initiale la remplace pour tout le monde.")
+        }
+    }
+
     /// Peut supprimer ce partage : le sien, ou n'importe lequel pour un administrateur.
     func canDelete(_ share: Share) -> Bool { isMine(share) || isAdmin }
 
@@ -354,7 +478,11 @@ final class CommunityStore: ObservableObject {
         if let new { keychain.save(new) } else { keychain.delete() }
         guard changedUser else { return }
         isAdmin = false
-        if let new, let client { Task { self.isAdmin = await client.isAdmin(session: new) } }
+        editingProfile = false
+        if let new, let client {
+            Task { self.isAdmin = await client.isAdmin(session: new) }
+            Task { await self.loadPhotos(for: [new.userID]) }
+        }
     }
 
     /// Une action, avec l'indicateur d'activité et l'erreur affichée.
@@ -396,7 +524,13 @@ final class CommunityStore: ObservableObject {
         members = []
         author = nil
         search = ""
+        editingProfile = false
+        // Photos d'exemple : Malo et prod.nina en ont une, les autres gardent leur initiale.
+        photos = signedIn ? [Self.demoUser: ProfilePhoto.sample((.systemOrange, .systemPink)),
+                             Self.demoID(204): ProfilePhoto.sample((.systemTeal, .systemBlue))] : [:]
     }
+
+    private static func demoID(_ n: Int) -> UUID { UUID(uuidString: "00000000-0000-0000-0000-000000000\(n)")! }
 
     /// Exemple d'une recherche qui trouve des membres (« le ») : leurs noms, puis les partages qui en parlent.
     func showDemoMemberSearch(_ text: String) {

@@ -154,6 +154,9 @@ final class AccountBackup: ObservableObject {
     @Published var conflict: Conflict?
     /// Information d'une action (sauvegarde reprise…), affichée par la page Mon compte.
     @Published var notice: String?
+    /// « 12 raccourcis · 3 macros » : ce qu'il y a dans le compte, d'après la dernière sauvegarde lue ou écrite
+    /// (nil : pas encore lue depuis le lancement).
+    @Published private(set) var onlineSummary: String?
 
     let community: CommunityStore
     private let store: Store
@@ -237,6 +240,7 @@ final class AccountBackup: ObservableObject {
     }
 
     private func forgetSync() {
+        onlineSummary = nil
         defaults.removeObject(forKey: Keys.account)
         defaults.removeObject(forKey: Keys.revision)
         defaults.removeObject(forKey: Keys.dirty)
@@ -318,6 +322,7 @@ final class AccountBackup: ObservableObject {
             if let synced, let quick = try await client.backupRevision(session: session), quick.revision == synced {
                 if dirty { return await save(base: synced, force: false) }
                 status = .upToDate(quick.updatedAt)
+                if onlineSummary == nil { onlineSummary = hereSummary }    // même révision : le même contenu
                 return .saved
             }
             let remote = try await client.backup(session: session)
@@ -330,11 +335,15 @@ final class AccountBackup: ObservableObject {
             case .upload:
                 return await save(base: remote?.revision ?? 0, force: false)
             case .inSync:
-                if let remote { markSynced(account, remote.revision, at: remote.updatedAt, changesBefore: before) }
+                if let remote {
+                    onlineSummary = remote.content.summary
+                    markSynced(account, remote.revision, at: remote.updatedAt, changesBefore: before)
+                }
             case .restore:
                 if let remote { try restore(remote, account: account, keepCopy: !store.isUntouched) }
             case .ask:
                 if let remote {
+                    onlineSummary = remote.content.summary
                     conflict = Conflict(remote: remote, here: hereSummary, account: remote.content.summary)
                     status = .choice
                 }
@@ -356,6 +365,7 @@ final class AccountBackup: ObservableObject {
             let content = try currentContent()
             let revision = try await client.saveBackup(content, base: base, force: force,
                                                        appVersion: MacroFileActions.appVersion, session: session)
+            onlineSummary = content.summary
             markSynced(session.userID, revision, at: Date(), changesBefore: before)
             return .saved
         } catch CommunityError.backupConflict {
@@ -394,6 +404,7 @@ final class AccountBackup: ObservableObject {
         applying = true
         store.replaceAll(decoded.remaps, macros: decoded.macros)
         applying = false
+        onlineSummary = remote.content.summary
         markSynced(account, remote.revision, at: remote.updatedAt, changesBefore: changes)
         notice = String(localized: "Tes raccourcis et tes macros sont revenus de ton compte (\(remote.content.summary)).")
     }
@@ -532,9 +543,15 @@ final class AccountBackup: ObservableObject {
         case "attente":
             community.showDemo(signedIn: true)
             status = .waiting(String(localized: "Pas de connexion : la sauvegarde partira dès que possible."))
+        case "profil":
+            community.showDemo(signedIn: true)
+            status = .upToDate(Date(timeIntervalSinceNow: -120))
+            onlineSummary = hereSummary
+            community.editingProfile = true
         default:
             community.showDemo(signedIn: true)
             status = .upToDate(Date(timeIntervalSinceNow: -120))
+            onlineSummary = hereSummary
         }
     }
 }

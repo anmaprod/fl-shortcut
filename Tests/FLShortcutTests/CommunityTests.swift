@@ -365,4 +365,115 @@ final class CommunityTests: XCTestCase {
                           appVersion: "0.1.0", createdAt: "2026-10-15T18:02:11Z", author: Share.Author(username: "leo"))
         XCTAssertEqual(CommunityText.byline(share), "Macro · par @leo · 15/10/2026")
     }
+
+    // MARK: Profil (pseudo et photo)
+
+    /// Pseudo et photo passent par les fonctions du serveur (supabase/profil.sql), avec le jeton du compte.
+    func testProfileCallsUseTheServerFunctions() async throws {
+        let jpeg = Data([0xFF, 0xD8, 0xFF, 0xE0, 1, 2, 3])
+        let server = FakeServer([(200, #""malo.beats""#), (200, #""2026-10-30T10:00:00+00:00""#), (204, ""), (204, ""), (201, "")])
+        let c = client(server)
+        let name = try await c.setUsername("malo.beats", session: session)
+        XCTAssertEqual(name, "malo.beats")
+        XCTAssertEqual(server.requests[0].url?.path, "/rest/v1/rpc/set_username")
+        XCTAssertEqual(server.body(0)["p_name"] as? String, "malo.beats")
+        XCTAssertEqual(server.requests[0].value(forHTTPHeaderField: "Authorization"), "Bearer jeton")
+        let version = try await c.setAvatar(jpeg, session: session)
+        XCTAssertEqual(version, "2026-10-30T10:00:00+00:00")
+        XCTAssertEqual(server.requests[1].url?.path, "/rest/v1/rpc/set_avatar")
+        XCTAssertEqual(server.body(1)["p_image"] as? String, jpeg.base64EncodedString())
+        try await c.removeAvatar(session: session)
+        XCTAssertEqual(server.requests[2].url?.path, "/rest/v1/rpc/remove_avatar")
+        let other = UUID()
+        try await c.adminRemoveAvatar(of: other, session: session)
+        XCTAssertEqual(server.body(3)["p_user"] as? String, other.uuidString.lowercased())
+        try await c.reportAvatar(of: other, session: session)
+        XCTAssertEqual(server.requests[4].url?.path, "/rest/v1/avatar_reports")
+        XCTAssertEqual(server.body(4)["user_id"] as? String, other.uuidString.lowercased())
+    }
+
+    /// Rien d'envoyé pour un pseudo invalide ou une image qui n'est pas un petit JPEG.
+    func testProfileRefusalsBeforeSending() async {
+        let none = FakeServer([])
+        for bad in ["a b", "ab", "é!"] {
+            do {
+                _ = try await client(none).setUsername(bad, session: session)
+                XCTFail("pseudo accepté : \(bad)")
+            } catch CommunityError.invalid {} catch { XCTFail("\(error)") }
+        }
+        for bad in [Data("<svg/>".utf8), Data([0xFF, 0xD8, 0xFF]) + Data(count: ProfilePhoto.maxBytes)] {
+            do {
+                _ = try await client(none).setAvatar(bad, session: session)
+                XCTFail("image refusée attendue")
+            } catch CommunityError.invalid {} catch { XCTFail("\(error)") }
+        }
+        XCTAssertTrue(none.requests.isEmpty)
+    }
+
+    /// Serveur sans profil.sql (404) : « pas encore ouvert » pour une modification, aucune photo pour une liste.
+    func testServerWithoutProfileFile() async throws {
+        let missing = #"{"code":"PGRST202","message":"Could not find the function public.set_username(p_name) in the schema cache"}"#
+        let server = FakeServer([(404, missing), (404, #"{"code":"PGRST205"}"#)])
+        do {
+            _ = try await client(server).setUsername("malo.beats", session: session)
+            XCTFail("pseudo changé sans serveur")
+        } catch CommunityError.profileNotReady {}
+        let none = try await client(server).avatarVersions(of: [userID], session: session)
+        XCTAssertTrue(none.isEmpty)
+    }
+
+    /// Photos des membres : dates d'abord (sans images), puis les images ; une image illisible est ignorée.
+    func testAvatarsAreFetchedByMember() async throws {
+        let a = UUID(), b = UUID()
+        let jpeg = Data([0xFF, 0xD8, 0xFF, 0xDB, 9, 9])
+        let versions = #"[{"user_id":"\#(a.uuidString)","updated_at":"v1"}]"#
+        let images = #"[{"user_id":"\#(a.uuidString)","image":"\#(jpeg.base64EncodedString())","updated_at":"v1"},"#
+            + #"{"user_id":"\#(b.uuidString)","image":"PHN2Zy8+","updated_at":"v2"}]"#
+        let server = FakeServer([(200, versions), (200, images)])
+        let c = client(server)
+        let found = try await c.avatarVersions(of: [a, b, a], session: session)
+        XCTAssertEqual(found, [a: "v1"])
+        XCTAssertEqual(server.query(0)["select"], "user_id,updated_at")
+        XCTAssertEqual(server.query(0)["user_id"], "in.(\(a.uuidString.lowercased()),\(b.uuidString.lowercased()))")
+        let photos = try await c.avatars(of: [a, b], session: session)
+        XCTAssertEqual(photos[a], CommunityClient.Avatar(version: "v1", jpeg: jpeg))
+        XCTAssertNil(photos[b], "une image qui n'est pas un JPEG est ignorée")
+    }
+
+    func testProfileServerMessages() {
+        func msg(_ json: String, _ status: Int) -> String { CommunityClient.message(Data(json.utf8), status: status) }
+        XCTAssertEqual(msg(#"{"code":"23505","message":"Pseudo déjà pris."}"#, 409), "Ce pseudo est déjà pris.")
+        XCTAssertEqual(msg(#"{"code":"23505","message":"duplicate key value violates unique constraint \"profiles_username\""}"#, 409),
+                       "Ce pseudo est déjà pris.")
+        XCTAssertEqual(msg(#"{"message":"Attends une minute avant de changer encore de pseudo."}"#, 400),
+                       "Attends une minute avant de changer encore de pseudo.")
+        XCTAssertEqual(msg(#"{"message":"new row for relation \"avatars\" violates check constraint \"avatars_image_check\""}"#, 400),
+                       "Photo trop grande ou illisible : choisis-en une autre.")
+        XCTAssertEqual(msg(#"{"message":"duplicate key value violates unique constraint \"avatar_reports_user_id_reporter_id_key\""}"#, 409),
+                       "Tu as déjà signalé cette photo.")
+    }
+
+    /// Mode capture : « Enregistrer » change le pseudo affiché sans rien envoyer ; un pseudo pris se voit.
+    @MainActor
+    func testDemoProfileNeverUsesServer() async {
+        let server = FakeServer([])
+        let keychain = CommunitySessionKeychain(service: "app.flshortcut.tests.\(UUID().uuidString)")
+        defer { keychain.delete() }
+        let store = CommunityStore(config: config, keychain: keychain, transport: server)
+        store.showDemo(signedIn: true)
+        XCTAssertNotNil(store.myPhoto)
+        let free = await store.checkUsername("nouveau.nom")
+        let taken = await store.checkUsername("leo.beats")
+        let mine = await store.checkUsername("MALO")
+        let invalid = await store.checkUsername("a b")
+        XCTAssertEqual(free, .free)
+        XCTAssertEqual(taken, .taken)
+        XCTAssertEqual(mine, .mine)
+        if case .invalid = invalid {} else { XCTFail("pseudo invalide accepté") }
+        let saved = await store.saveProfile(username: "malo.beats", photo: .keep)
+        XCTAssertTrue(saved)
+        XCTAssertEqual(store.session?.username, "malo.beats")
+        XCTAssertTrue(server.requests.isEmpty)
+        XCTAssertNil(keychain.load())
+    }
 }

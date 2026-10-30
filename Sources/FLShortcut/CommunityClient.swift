@@ -89,6 +89,8 @@ enum CommunityError: Error, LocalizedError, Equatable {
     case badResponse
     /// La sauvegarde du compte a été changée ailleurs depuis la dernière lue par ce Mac (supabase/sauvegarde.sql).
     case backupConflict
+    /// Le serveur n'a pas encore supabase/profil.sql : ni photo, ni changement de pseudo.
+    case profileNotReady
 
     var errorDescription: String? {
         switch self {
@@ -99,6 +101,8 @@ enum CommunityError: Error, LocalizedError, Equatable {
         case .network(let why): return String(localized: "Connexion impossible : \(why)")
         case .badResponse: return String(localized: "Réponse inattendue du serveur.")
         case .backupConflict: return String(localized: "La sauvegarde de ton compte a changé depuis un autre Mac.")
+        case .profileNotReady:
+            return String(localized: "Les photos et le changement de pseudo ne sont pas encore ouverts : réessaie plus tard.")
         }
     }
 }
@@ -114,7 +118,7 @@ enum CommunityRules {
         let allowed = CharacterSet(charactersIn: "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_.-")
         guard (3...24).contains(s.count), s.unicodeScalars.allSatisfy(allowed.contains) else {
             return String(localized: """
-                Nom d'utilisateur : 3 à 24 caractères, lettres sans accent, chiffres, « _ », « . » ou « - ».
+                Pseudo : 3 à 24 caractères, lettres sans accent, chiffres, « _ », « . » ou « - ».
                 """)
         }
         return nil
@@ -212,7 +216,7 @@ struct CommunityClient {
             throw CommunityError.invalid(why)
         }
         guard try await usernameAvailable(username) else {
-            throw CommunityError.invalid(String(localized: "Ce nom d'utilisateur est déjà pris."))
+            throw CommunityError.invalid(String(localized: "Ce pseudo est déjà pris."))
         }
         let data = try await call("POST", "auth/v1/signup",
                                   body: ["email": email, "password": password, "data": ["username": username]])
@@ -281,6 +285,100 @@ struct CommunityClient {
     func updatePassword(_ password: String, session: CommunitySession) async throws {
         if let why = CommunityRules.passwordProblem(password) { throw CommunityError.invalid(why) }
         _ = try await call("PUT", "auth/v1/user", token: session.accessToken, body: ["password": password])
+    }
+
+    // MARK: Profil (pseudo et photo : supabase/profil.sql)
+
+    /// Une photo de profil : le JPEG (256 × 256) et sa date, qui sert de version (rechargée seulement si elle change).
+    struct Avatar: Equatable {
+        let version: String
+        let jpeg: Data
+    }
+
+    /// Nouveau pseudo du compte connecté : les partages déjà publiés prennent le nouveau. Renvoie le pseudo enregistré.
+    func setUsername(_ name: String, session: CommunitySession) async throws -> String {
+        if let why = CommunityRules.usernameProblem(name) { throw CommunityError.invalid(why) }
+        let data = try await profileCall("POST", "rest/v1/rpc/set_username", token: session.accessToken, body: ["p_name": name])
+        return (try? JSONDecoder().decode(String.self, from: data)) ?? name
+    }
+
+    /// Pose ou remplace la photo du compte (JPEG préparé par ProfilePhoto). Renvoie sa version.
+    func setAvatar(_ jpeg: Data, session: CommunitySession) async throws -> String {
+        guard ProfilePhoto.isAcceptable(jpeg) else {
+            throw CommunityError.invalid(String(localized: "Photo trop grande ou illisible : choisis-en une autre."))
+        }
+        let data = try await profileCall("POST", "rest/v1/rpc/set_avatar", token: session.accessToken,
+                                         body: ["p_image": jpeg.base64EncodedString()])
+        return (try? JSONDecoder().decode(String.self, from: data)) ?? ""
+    }
+
+    /// Retire la photo du compte (l'initiale de couleur revient).
+    func removeAvatar(session: CommunitySession) async throws {
+        _ = try await profileCall("POST", "rest/v1/rpc/remove_avatar", token: session.accessToken, body: [:])
+    }
+
+    /// Administrateur : retire la photo d'un membre (après un signalement).
+    func adminRemoveAvatar(of userID: UUID, session: CommunitySession) async throws {
+        _ = try await profileCall("POST", "rest/v1/rpc/admin_remove_avatar", token: session.accessToken,
+                                  body: ["p_user": userID.uuidString.lowercased()])
+    }
+
+    /// « Signaler la photo… » : un signalement par photo et par compte, lu par les administrateurs.
+    func reportAvatar(of userID: UUID, session: CommunitySession) async throws {
+        _ = try await profileCall("POST", "rest/v1/avatar_reports", token: session.accessToken,
+                                  body: ["user_id": userID.uuidString.lowercased()])
+    }
+
+    /// Dates des photos de ces membres (sans les images) : seules celles qui ont changé sont rechargées. Membre absent :
+    /// pas de photo. Serveur sans photos (profil.sql pas encore collé) : aucune.
+    func avatarVersions(of ids: [UUID], session: CommunitySession) async throws -> [UUID: String] {
+        guard !ids.isEmpty else { return [:] }
+        struct Row: Decodable { let user_id: UUID; let updated_at: String }
+        let rows: [Row] = try await avatarRows("user_id,updated_at", ids, session)
+        return Dictionary(rows.map { ($0.user_id, $0.updated_at) }, uniquingKeysWith: { a, _ in a })
+    }
+
+    /// Les photos de ces membres (une requête pour toutes) ; une image illisible est ignorée.
+    func avatars(of ids: [UUID], session: CommunitySession) async throws -> [UUID: Avatar] {
+        guard !ids.isEmpty else { return [:] }
+        struct Row: Decodable { let user_id: UUID; let image: String; let updated_at: String }
+        let rows: [Row] = try await avatarRows("user_id,image,updated_at", ids, session)
+        var out: [UUID: Avatar] = [:]
+        for row in rows {
+            guard let jpeg = Data(base64Encoded: row.image), ProfilePhoto.isAcceptable(jpeg) else { continue }
+            out[row.user_id] = Avatar(version: row.updated_at, jpeg: jpeg)
+        }
+        return out
+    }
+
+    /// Pure (testée) : membres demandés, sans doublon, 60 au plus (une adresse courte).
+    static func avatarFilter(_ ids: [UUID]) -> String {
+        var seen = Set<UUID>()
+        let unique = ids.filter { seen.insert($0).inserted }.prefix(60)
+        return "in.(" + unique.map { $0.uuidString.lowercased() }.joined(separator: ",") + ")"
+    }
+
+    private func avatarRows<Row: Decodable>(_ columns: String, _ ids: [UUID], _ session: CommunitySession) async throws -> [Row] {
+        let data: Data
+        do {
+            data = try await call("GET", "rest/v1/avatars",
+                                  query: [URLQueryItem(name: "select", value: columns),
+                                          URLQueryItem(name: "user_id", value: Self.avatarFilter(ids))],
+                                  token: session.accessToken)
+        } catch CommunityError.server(404, _) {
+            return []                                     // serveur sans photos : l'initiale reste
+        }
+        guard let rows = try? JSONDecoder().decode([Row].self, from: data) else { throw CommunityError.badResponse }
+        return rows
+    }
+
+    /// Requête du profil : fonction ou table absente du serveur (404 : profil.sql pas encore collé) → pas encore ouvert.
+    private func profileCall(_ method: String, _ path: String, token: String, body: [String: Any]) async throws -> Data {
+        do {
+            return try await call(method, path, token: token, body: body)
+        } catch CommunityError.server(404, _) {
+            throw CommunityError.profileNotReady
+        }
     }
 
     // MARK: Partages
@@ -525,8 +623,21 @@ struct CommunityClient {
                 Le mail de confirmation n'a pas pu partir. Réessaie plus tard, ou écris à l'équipe depuis la page Aide.
                 """)
         }
-        if lower.contains("trop de partages") || lower.contains("trop de messages") || lower.hasPrefix("sauvegarde plus récente") {
+        if lower.contains("trop de partages") || lower.contains("trop de messages") || lower.hasPrefix("sauvegarde plus récente")
+            || lower.hasPrefix("attends ") || lower.hasPrefix("réservé aux administrateurs") {
             return raw
+        }
+        if lower.contains("pseudo déjà pris") || lower.contains("profiles_username") {
+            return String(localized: "Ce pseudo est déjà pris.")
+        }
+        if lower.contains("pseudo invalide") {
+            return CommunityRules.usernameProblem("") ?? raw
+        }
+        if lower.contains("avatars_image_check") {
+            return String(localized: "Photo trop grande ou illisible : choisis-en une autre.")
+        }
+        if lower.contains("avatar_reports_user_id_reporter_id_key") {
+            return String(localized: "Tu as déjà signalé cette photo.")
         }
         if lower.contains("backups_profile_check") || lower.contains("backups_macros_check") {
             return String(localized: """
