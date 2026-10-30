@@ -201,8 +201,8 @@
   pseudo vérifié en direct ; photo de profil 256 × 256 JPEG préparée sur le Mac (`ProfilePhoto.swift`), « Modifier le
   profil » (`EditProfileSheet.swift` : zoom, glisser, Retirer, pseudo) ; photo ou initiale de couleur dans l'en-tête,
   Mon compte, cartes et page d'un auteur ; « Signaler la photo… », « Retirer la photo » (administrateur). Serveur :
-  `supabase/profil.sql` (À COLLER PAR LE PROPRIÉTAIRE, étape 10 du README ; sans lui, initiales et « pas encore
-  ouverts »), essais `supabase/tests/profil.sql`.
+  `supabase/profil.sql` (collé dans Supabase par le propriétaire le 30/10, étape 10 du README ; sans lui,
+  initiales et « pas encore ouverts »), essais `supabase/tests/profil.sql`.
 - Organiser, vidéo du 30/10 : chargement en carte (barres d'égaliseur aux couleurs des familles, barre d'avancement) ;
   familles posées où on les lâche, à gauche ou à droite, dessus ou dessous (`dropSlot`, `placing`, colonnes gardées
   `leftCount`, ordre = gauche puis droite) ; « Pas content ? » liste TOUS les sons (un son rangé par son nom est
