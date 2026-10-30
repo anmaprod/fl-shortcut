@@ -140,28 +140,25 @@ struct OrganizerFeedbackView: View {
                 })
     }
 
-    /// Les sons écoutés : pour chacun mal rangé, sa bonne famille ou sorte (mêmes choix que l'aperçu).
+    /// Tous les sons : pour chacun mal rangé, sa bonne famille ou sorte (mêmes choix que l'aperçu).
     private var sounds: some View {
         VStack(alignment: .leading, spacing: 6) {
             Text("Quels sons étaient mal rangés ?").font(.system(size: 13, weight: .semibold)).padding(.top, 6)
-            if controller.correctable.isEmpty {
-                Text(String(localized: """
-                    Aucun son n'a été écouté : tous ont été rangés d'après leur nom. Change leur nom dans FL.
-                    """))
-                    .font(.system(size: 12))
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
+            VStack(spacing: 0) {
+                ForEach(Array(controller.correctable.enumerated()), id: \.element.index) { number, item in
+                    if number > 0 { Divider() }
+                    row(item).padding(.vertical, 5)
+                }
             }
-            ForEach(controller.correctable, id: \.index) { item in
-                row(item)
-            }
-            if !controller.correctable.isEmpty {
-                Text("Les sons rangés d'après leur nom n'y sont pas : l'IA ne les a pas écoutés.")
-                    .font(.system(size: 11))
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-            if !feedback.fixes.isEmpty {
+            .padding(.horizontal, 10)
+            .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(Color.primary.opacity(0.05)))
+            Text("Un son rangé d'après son nom : ta réponse est retenue pour ce nom, sur ce Mac.")
+                .font(.system(size: 11))
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+            if feedback.fixes.keys.contains(where: { index in
+                controller.correctable.contains { $0.index == index && $0.soundPrint != nil }
+            }) {
                 Toggle(isOn: $feedback.share) {
                     Text(String(localized: """
                         Aider l'IA de tout le monde : envoyer des nombres qui décrivent ces sons (jamais le son, son \
@@ -185,7 +182,8 @@ struct OrganizerFeedbackView: View {
         let label = chosen.map { $0.kind?.name ?? $0.family.label }
             ?? controller.kind(of: item.index)?.name ?? family.label
         return HStack(spacing: 8) {
-            Text(item.name.isEmpty ? String(localized: "(sans nom)") : item.name).lineLimit(1)
+            Circle().fill(swiftColor(controller.style(of: family).color)).frame(width: 8, height: 8)
+            Text(item.name.isEmpty ? String(localized: "(sans nom)") : item.name).lineLimit(1).truncationMode(.middle)
             Spacer()
             Menu {
                 ForEach(SoundFamily.order, id: \.self) { choice in

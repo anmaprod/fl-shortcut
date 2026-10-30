@@ -139,19 +139,41 @@ final class OrganizerPlacesTests: XCTestCase {
         XCTAssertEqual(OrganizerView.familyColumns(["Drums"], count: 2) { sizes[$0] ?? 0 }, [["Drums"]])
     }
 
-    /// Une famille prise (30/10) tombe sur la famille sous la souris ; entre deux familles, la plus proche ; jamais
-    /// sur elle-même ni hors des colonnes.
-    func testFamilyDropTarget() {
-        let frames: [String: CGRect] = ["A": CGRect(x: 0, y: 0, width: 100, height: 50),
-                                        "B": CGRect(x: 0, y: 64, width: 100, height: 50),
-                                        "C": CGRect(x: 118, y: 0, width: 100, height: 80)]
-        XCTAssertEqual(OrganizerView.dropTarget(CGPoint(x: 50, y: 80), dragged: "A", frames: frames), "B")
-        XCTAssertNil(OrganizerView.dropTarget(CGPoint(x: 50, y: 20), dragged: "A", frames: frames), "sur sa propre place")
-        XCTAssertEqual(OrganizerView.dropTarget(CGPoint(x: 50, y: 56), dragged: "C", frames: frames), "A")
-        XCTAssertEqual(OrganizerView.dropTarget(CGPoint(x: 50, y: 58), dragged: "C", frames: frames), "B")
-        XCTAssertEqual(OrganizerView.dropTarget(CGPoint(x: 150, y: 300), dragged: "A", frames: frames), "C",
-                       "sous la dernière famille d'une colonne")
-        XCTAssertNil(OrganizerView.dropTarget(CGPoint(x: 110, y: 20), dragged: "A", frames: frames), "hors des colonnes")
+    /// Une famille prise tombe là où est la souris (vidéo du 30/10 : « je ne peux pas mettre en dessous à gauche ») :
+    /// la colonne sous la souris, avant la première famille dont le milieu est plus bas ; sous la dernière d'une
+    /// colonne, ou dans une colonne vide.
+    func testFamilyDropSlot() {
+        let frames: [String: CGRect] = ["A": CGRect(x: 0, y: 0, width: 190, height: 50),
+                                        "B": CGRect(x: 0, y: 64, width: 190, height: 50),
+                                        "C": CGRect(x: 210, y: 0, width: 190, height: 80)]
+        let columns = [["A", "B"], ["C"]]
+        XCTAssertTrue(OrganizerView.dropSlot(CGPoint(x: 50, y: 300), dragged: "C", columns: columns, frames: frames,
+                                             width: 400) == (0, 2), "sous la dernière famille de gauche")
+        XCTAssertTrue(OrganizerView.dropSlot(CGPoint(x: 50, y: 70), dragged: "C", columns: columns, frames: frames,
+                                             width: 400) == (0, 1), "entre A et B")
+        XCTAssertTrue(OrganizerView.dropSlot(CGPoint(x: 50, y: 5), dragged: "C", columns: columns, frames: frames,
+                                             width: 400) == (0, 0), "tout en haut")
+        XCTAssertTrue(OrganizerView.dropSlot(CGPoint(x: 300, y: 300), dragged: "A", columns: columns, frames: frames,
+                                             width: 400) == (1, 1), "sous C, à droite")
+        XCTAssertTrue(OrganizerView.dropSlot(CGPoint(x: 300, y: 10), dragged: "A", columns: [["A"]], frames: frames,
+                                             width: 400) == (0, 0), "une seule colonne : toujours la même")
+
+        XCTAssertEqual(OrganizerView.placing("C", at: (0, 2), in: columns), [["A", "B", "C"], []])
+        XCTAssertEqual(OrganizerView.placing("A", at: (0, 1), in: columns), [["B", "A"], ["C"]], "sous B, même colonne")
+        XCTAssertEqual(OrganizerView.placing("A", at: (1, 0), in: columns), [["B"], ["A", "C"]])
+        XCTAssertEqual(OrganizerView.placing("B", at: (0, 1), in: columns), columns, "à sa place : rien ne change")
+    }
+
+    /// Les colonnes faites à la main restent : `left` familles à gauche, une colonne peut rester vide ; l'ordre de tout
+    /// le projet suit (gauche de haut en bas, puis droite) ; les familles absentes gardent leur place.
+    func testFamilyColumnsChosenByHand() {
+        let order = ["Basse", "Drums", "FX"]
+        XCTAssertEqual(OrganizerView.familyColumns(order, count: 2, left: 3) { _ in 1 }, [order, []])
+        XCTAssertEqual(OrganizerView.familyColumns(order, count: 2, left: 1) { _ in 1 }, [["Basse"], ["Drums", "FX"]])
+        XCTAssertEqual(OrganizerView.familyColumns(order, count: 2, left: 9) { _ in 1 }, [order, []])
+        XCTAssertEqual(OrganizerView.familyColumns(order, count: 1, left: 1) { _ in 1 }, [order], "fenêtre étroite")
+        XCTAssertEqual(OrganizerController.arranging([.fx, .bass, .drums], in: SoundFamily.order),
+                       [.vocals, .melody, .fx, .bass, .drums, .unsure])
     }
 
     /// La case du numéro, comme dans FL : tirée vers le haut, plus grand ; jamais sous 1 ni au-delà du Mixer.

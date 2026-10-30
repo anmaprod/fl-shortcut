@@ -231,6 +231,29 @@ final class ClasseurSonsTests: XCTestCase {
         XCTAssertEqual(store.nombre, CorrectionsIA.maximum)
     }
 
+    /// Un son rangé d'après son nom puis corrigé (« Pas content ? », vidéo du 30/10) : retenu par son nom codé (jamais
+    /// en clair dans le fichier), majuscules et espaces en trop ignorés ; jamais un nom donné par l'Organiser, un nom
+    /// vide ni « À vérifier » ; le même nom prend la dernière réponse.
+    func testCorrectionsParNom() throws {
+        let (store, fichier, fin) = try magasin()
+        defer { fin() }
+        XCTAssertTrue(store.ajoute(nom: "art kick - a31", famille: .drums, sorte: .kick))
+        XCTAssertEqual(store.cherche(nom: "Art  Kick - A31 ")?.sorte, .kick)
+        XCTAssertNil(store.cherche(nom: "art kick - a32"))
+        XCTAssertFalse(store.ajoute(nom: SoundKind.snare.name + " 3", famille: .drums, sorte: .snare),
+                       "nom donné par l'Organiser")
+        XCTAssertFalse(store.ajoute(nom: "  ", famille: .melody, sorte: nil))
+        XCTAssertFalse(store.ajoute(nom: "Mystere", famille: .unsure, sorte: nil))
+        store.ajoute(nom: "art kick - a31", famille: .fx, sorte: nil)
+        XCTAssertEqual(CorrectionsIA(url: fichier).cherche(nom: "art kick - a31")?.famille, .fx,
+                       "gardée dans le fichier, la dernière réponse")
+        let texte = try String(contentsOf: fichier.deletingLastPathComponent()
+            .appendingPathComponent("corrections-noms.json"), encoding: .utf8)
+        XCTAssertFalse(texte.lowercased().contains("kick"), "jamais le nom en clair")
+        XCTAssertEqual(CorrectionsIA.cle("A  b"), CorrectionsIA.cle("a b"))
+        XCTAssertNotEqual(CorrectionsIA.cle("a b"), CorrectionsIA.cle("a c"))
+    }
+
     /// Ce qui part au serveur (accord donné) : des nombres en 16 bits et des noms de familles et de sortes de l'IA,
     /// jamais un nom de son ; rien pour « À vérifier » ; une sorte que l'IA n'apprend pas (Back) n'est pas envoyée.
     func testEnvoiDesCorrections() throws {

@@ -610,3 +610,9 @@ entrée 1 ≈ 0,5 s.
   corrigé : « Écrire… » de l'Aide sortait « Type a name… » en anglais (texte déjà pris par l'Organiser : « Écrire un
   message… »), nom d'auteur sur deux lignes et pastille « Raccourcis » coupée dans les cartes de la Communauté. La
   mesure photographie maintenant la page Macros remplie (`macros-exemples.png`, macros d'exemple en mémoire).
+- 30/10 (après-midi) : maquette « Mon compte — connexion et profil » (PDF puis HTML du propriétaire) faite par-dessus
+  le nouvel aspect des pages (autre session, 62 envois depuis le 28/10 sur la même branche : mes doublons Windows de
+  l'interpréteur et de la bibliothèque des macros abandonnés, les siens gardés). Vidéo de l'Organiser du 30/10 (« tout
+  fonctionne parfaitement ») : chargement plus beau, familles posées où on veut (« je ne peux pas mettre en dessous à
+  gauche » : la coupe automatique des deux colonnes renvoyait la famille ailleurs), « Pas content ? » avec tous les
+  sons (seul Serum 2, écouté, y était), message de fin court.

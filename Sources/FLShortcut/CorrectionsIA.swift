@@ -3,8 +3,11 @@
 // « Pas content ? ») est gardé sur le Mac par son empreinte (des nombres, jamais le son ni son nom) avec la bonne
 // réponse : un son presque identique est ensuite rangé pareil (règle « corrige », avant les autres). Avec l'accord
 // de la personne, ses mesures partent aussi au serveur (table corrections_ia, supabase/corrections-ia.sql) pour le
-// prochain apprentissage de l'IA de tout le monde (ia/corrections.py).
+// prochain apprentissage de l'IA de tout le monde (ia/corrections.py). Un son rangé d'après son nom (jamais écouté :
+// pas d'empreinte) puis corrigé avec « Pas content ? » est gardé sur le Mac par son nom codé (jamais en clair, jamais
+// envoyé) : un son de ce nom est ensuite rangé pareil (règle « corrige-nom »).
 import Accelerate
+import CryptoKit
 import Foundation
 
 /// Ce que l'IA intégrée a retenu d'un son écouté : ses mesures (1216 nombres par tranche, jamais le son), son
@@ -24,6 +27,14 @@ struct CorrectionIA: Codable, Equatable {
     var date: Date
 }
 
+/// Un son rangé d'après son nom puis corrigé : son nom codé (empreinte SHA-256, jamais le nom) et la bonne réponse.
+struct CorrectionNom: Codable, Equatable {
+    var cle: String
+    var famille: SoundFamily
+    var sorte: SoundKind?
+    var date: Date
+}
+
 final class CorrectionsIA {
     static let shared = CorrectionsIA()
     /// Ressemblance (cosinus des empreintes) à partir de laquelle c'est le même son (ou presque : le même sample
@@ -37,13 +48,17 @@ final class CorrectionsIA {
     static let clePartage = "FLShortcuts.partageCorrectionsIA"
 
     private let url: URL
+    private let urlNoms: URL
     private let defaults: UserDefaults
     private let verrou = NSLock()
     private var cache: [CorrectionIA]?
+    private var cacheNoms: [CorrectionNom]?
 
-    init(url: URL = AppPaths.supportDirectory.appendingPathComponent("corrections-ia.json"),
+    /// `noms` : le fichier des corrections par nom (par défaut à côté de `url`).
+    init(url: URL = AppPaths.supportDirectory.appendingPathComponent("corrections-ia.json"), noms: URL? = nil,
          defaults: UserDefaults = .standard) {
         self.url = url
+        self.urlNoms = noms ?? url.deletingLastPathComponent().appendingPathComponent("corrections-noms.json")
         self.defaults = defaults
     }
 
@@ -79,6 +94,48 @@ final class CorrectionsIA {
             try? SecureFile.ensureDirectory(url.deletingLastPathComponent())
             try? SecureFile.writeAtomically(data, to: url, mode: 0o600)
         }
+    }
+
+    /// La correction d'un son rangé d'après ce nom, s'il y en a une.
+    func cherche(nom: String) -> CorrectionNom? {
+        guard let cle = Self.cle(nom) else { return nil }
+        verrou.lock()
+        defer { verrou.unlock() }
+        return listeNoms().last { $0.cle == cle }
+    }
+
+    /// Un son rangé d'après son nom, corrigé : gardé sur le Mac (son nom codé) ; le même nom prend la nouvelle
+    /// réponse. Faux si le nom ne peut pas servir (vide, ou un nom que l'Organiser a donné : « Mélodie 3 »).
+    @discardableResult
+    func ajoute(nom: String, famille: SoundFamily, sorte: SoundKind?) -> Bool {
+        guard let cle = Self.cle(nom), famille != .unsure else { return false }
+        verrou.lock()
+        defer { verrou.unlock() }
+        var toutes = listeNoms().filter { $0.cle != cle }
+        toutes.append(CorrectionNom(cle: cle, famille: famille, sorte: sorte, date: Date()))
+        if toutes.count > Self.maximum { toutes.removeFirst(toutes.count - Self.maximum) }
+        cacheNoms = toutes
+        if let data = try? JSONEncoder().encode(toutes) {
+            try? SecureFile.ensureDirectory(urlNoms.deletingLastPathComponent())
+            try? SecureFile.writeAtomically(data, to: urlNoms, mode: 0o600)
+        }
+        return true
+    }
+
+    /// Pur (testé) : le nom codé (majuscules et espaces en trop ignorés) ; nil pour un nom vide ou donné par
+    /// l'Organiser.
+    static func cle(_ nom: String) -> String? {
+        let propre = nom.lowercased().split(whereSeparator: \.isWhitespace).joined(separator: " ")
+        guard !propre.isEmpty, !SoundNames.isGenerated(nom) else { return nil }
+        return SHA256.hash(data: Data(("fls-nom:" + propre).utf8)).map { String(format: "%02x", $0) }.joined()
+    }
+
+    private func listeNoms() -> [CorrectionNom] {
+        if let cacheNoms { return cacheNoms }
+        let lues = (try? SecureFile.read(urlNoms, maxBytes: 4 << 20)).flatMap { $0 }
+            .flatMap { try? JSONDecoder().decode([CorrectionNom].self, from: $0) } ?? []
+        cacheNoms = lues
+        return lues
     }
 
     private func liste() -> [CorrectionIA] {

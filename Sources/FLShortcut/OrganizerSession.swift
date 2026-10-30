@@ -166,6 +166,8 @@ final class OrganizerSession {
     typealias NameKind = ([Float], Double, SoundFamily) -> SoundKind?
     /// Ce que l'IA intégrée retient d'un son écouté (des nombres), pour apprendre s'il est corrigé ; nil sans elle.
     typealias Fingerprint = ([Float], Double) -> SoundPrint?
+    /// La correction retenue pour un son de ce nom (nil : aucune).
+    typealias NamedFix = (String) -> (family: SoundFamily, kind: SoundKind?)?
     /// Le fichier de son d'un clip audio, lu directement (chemin écrit par FL, fichier du projet) : son passage le plus
     /// fort ; nil s'il n'est pas retrouvé (le clip est alors joué dans FL).
     typealias SoundFile = (_ path: String, _ project: URL) -> SampleSound?
@@ -194,6 +196,8 @@ final class OrganizerSession {
     private let nameMelody: NameMelody?
     private let nameKind: NameKind?
     private let fingerprint: Fingerprint?
+    /// Un son rangé d'après son nom puis corrigé (« Pas content ? ») : sa bonne famille et sorte, d'après son nom.
+    private let namedFix: NamedFix?
     private let soundFile: SoundFile?
     /// Analyse sur le fichier : le chemin du fichier de chaque clip audio, et le projet (pour le retrouver).
     private var clipPaths: [Int: String] = [:]
@@ -232,6 +236,7 @@ final class OrganizerSession {
     /// la sélection a été faite.
     init(link: OrganizerLink, audio: AudioSource, classify: @escaping Classify, nameDrum: NameDrum? = nil,
          nameMelody: NameMelody? = nil, nameKind: NameKind? = nil, fingerprint: Fingerprint? = nil,
+         namedFix: NamedFix? = nil,
          timing: Timing = Timing(),
          sleep: @escaping (TimeInterval) -> Void = { Thread.sleep(forTimeInterval: $0) },
          escape: @escaping () -> Bool = { false },
@@ -246,6 +251,7 @@ final class OrganizerSession {
         self.nameMelody = nameMelody
         self.nameKind = nameKind
         self.fingerprint = fingerprint
+        self.namedFix = namedFix
         self.timing = timing
         self.sleep = sleep
         self.escape = escape
@@ -488,6 +494,15 @@ final class OrganizerSession {
         var byIndex: [Int: OrganizerItem] = [:]
         var toListen: [ChannelInfo] = []
         for channel in targets {
+            // Un son de ce nom déjà corrigé (« Pas content ? ») : rangé comme la personne l'a dit, avant tout le reste.
+            if let fix = namedFix?(channel.name) {
+                byIndex[channel.index] = OrganizerItem(index: channel.index, name: channel.name, family: fix.family,
+                                                       confidence: Self.nameConfidence, testNotes: false,
+                                                       mixerTrack: channel.mixerTrack, color: channel.color,
+                                                       kind: fix.kind, byName: true)
+                note { $0.rules.append("c\(channel.index):corrige-nom") }
+                continue
+            }
             // Le nom du canal, sinon celui de son fichier de son (clip audio : vidéo du propriétaire, un kick nommé
             // « Keys », un hi-hat « Snare » à l'écoute).
             let named = SoundNames.isGenerated(channel.name) ? nil : SoundNames.kind(of: channel.name)

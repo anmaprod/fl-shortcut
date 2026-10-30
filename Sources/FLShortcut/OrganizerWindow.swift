@@ -552,9 +552,12 @@ final class OrganizerController: ObservableObject {
         runToken += 1
         let token = runToken
         let link = env.link()
+        let namedFix: OrganizerSession.NamedFix? = env.corrections().map { store in
+            { name in store.cherche(nom: name).map { (family: $0.famille, kind: $0.sorte) } }
+        }
         let session = OrganizerSession(
             link: link, audio: audio, classify: env.classify(), nameDrum: env.nameDrum(), nameMelody: env.nameMelody(),
-            nameKind: env.nameKind(), fingerprint: env.fingerprint(), timing: env.timing,
+            nameKind: env.nameKind(), fingerprint: env.fingerprint(), namedFix: namedFix, timing: env.timing,
             sleep: env.sleep, escape: env.escapePressed, prepare: env.prepareProject, files: env.projectFiles(),
             soundFile: env.soundFile(),
             progress: { [weak self] done, total in
@@ -736,6 +739,20 @@ final class OrganizerController: ObservableObject {
         options.familyOrder = Self.moving(family, onto: target, in: options.familyOrder)
     }
 
+    /// Familles présentes posées dans cet ordre (glissées dans l'aperçu) ; les familles absentes de ce projet gardent
+    /// leur place dans l'ordre retenu.
+    func arrangeFamilies(_ present: [SoundFamily]) {
+        options.familyOrder = Self.arranging(present, in: options.familyOrder)
+    }
+
+    /// Pur (testé) : `order` où les familles de `present` prennent, l'une après l'autre, les places des familles
+    /// présentes ; les autres ne bougent pas.
+    static func arranging(_ present: [SoundFamily], in order: [SoundFamily]) -> [SoundFamily] {
+        let wanted = Set(present)
+        var next = present.makeIterator()
+        return order.map { wanted.contains($0) ? (next.next() ?? $0) : $0 }
+    }
+
     /// « Monter / Descendre la famille » : d'une famille présente vers le haut (-1) ou le bas (+1).
     func shiftFamily(_ family: SoundFamily, by step: Int) {
         let present = presentFamilies
@@ -884,15 +901,27 @@ final class OrganizerController: ObservableObject {
         styles[family] = updated
     }
 
-    var doneText: String {
-        var lines = [String(localized: "C'est fait : le projet est rangé, coloré et renommé. « Revenir comme avant » défait tout, sauf les sons supprimés.")]
+    var doneText: String { doneLines(short: false).joined(separator: "\n") }
+
+    /// La fin en court (vidéo du 30/10 : « le message de fin allonge trop le logiciel ») : un titre, une ligne dessous,
+    /// puis les remarques, chacune en une phrase ; tout le texte (`doneText`) reste dans « Détails ».
+    var doneSummary: (title: String, detail: String, notes: [String]) {
+        let lines = doneLines(short: true)
+        return (String(localized: "C'est fait : ton projet est rangé"), lines.first ?? "", Array(lines.dropFirst()))
+    }
+
+    private func doneLines(short: Bool) -> [String] {
+        var lines = [short ? String(localized: "Coloré et renommé dans FL. « Revenir comme avant » défait tout, sauf les sons supprimés.")
+                     : String(localized: "C'est fait : le projet est rangé, coloré et renommé. « Revenir comme avant » défait tout, sauf les sons supprimés.")]
         if let copy = lastApply?.copy {
             // Rangé dans une copie : son nom à l'écran (jamais dans le journal).
-            lines = [String(localized: "C'est fait : ton projet est rangé, coloré et renommé dans une copie, « \(copy.lastPathComponent) », à côté de l'original. L'original n'a pas bougé : « Revenir comme avant » le rouvre et met la copie à la Corbeille.")]
+            lines = [short ? String(localized: "Dans une copie, « \(copy.lastPathComponent) », à côté de l'original : l'original n'a pas bougé.")
+                     : String(localized: "C'est fait : ton projet est rangé, coloré et renommé dans une copie, « \(copy.lastPathComponent) », à côté de l'original. L'original n'a pas bougé : « Revenir comme avant » le rouvre et met la copie à la Corbeille.")]
             if lastApply?.copyNotSaved == true {
                 lines.append(String(localized: "FL n'a pas enregistré la copie rangée : enregistre-la dans FL (⌘S)."))
             }
-            lines.append(String(localized: "Une fois l'Organiser fermé, FL Shortcuts te demandera si tu valides cette version : « Valider » met ton projet d'origine à la Corbeille et lui donne son nom, « Retourner en arrière » la supprime et rouvre ton projet d'avant."))
+            lines.append(short ? String(localized: "En fermant, tu choisiras de garder cette version ou de revenir à l'original.")
+                         : String(localized: "Une fois l'Organiser fermé, FL Shortcuts te demandera si tu valides cette version : « Valider » met ton projet d'origine à la Corbeille et lui donne son nom, « Retourner en arrière » la supprime et rouvre ton projet d'avant."))
         }
         if let outcome = lastApply {
             if outcome.deleted > 0 {
@@ -929,7 +958,7 @@ final class OrganizerController: ObservableObject {
                 Merci ! Pour ranger ce projet avec tes corrections : « Revenir comme avant », puis relance Organiser.
                 """))
         }
-        return lines.joined(separator: "\n")
+        return lines
     }
 
     func apply() {
@@ -972,7 +1001,9 @@ final class OrganizerController: ObservableObject {
     // MARK: L'IA apprend de ses erreurs
 
     /// Sons écoutés que l'on peut corriger (ceux classés d'après leur nom n'ont pas été écoutés).
-    var correctable: [OrganizerItem] { (result?.items ?? []).filter { $0.soundPrint != nil } }
+    /// Tous les sons (vidéo du 30/10 : « il devrait y avoir la liste de tous les sons ») : un son écouté est retenu par
+    /// son empreinte, un son rangé d'après son nom par son nom (codé, jamais envoyé).
+    var correctable: [OrganizerItem] { result?.items ?? [] }
 
     /// « Pas content ? » : après l'application, une fois.
     var canGiveFeedback: Bool {
@@ -988,7 +1019,12 @@ final class OrganizerController: ObservableObject {
         guard !fixes.isEmpty, let store = env.corrections(), let result else { return 0 }
         var count = 0
         for item in result.items {
-            guard let fix = fixes[item.index], fix.family != .unsure, let heard = item.soundPrint else { continue }
+            guard let fix = fixes[item.index], fix.family != .unsure else { continue }
+            guard let heard = item.soundPrint else {
+                // Pas écouté (rangé d'après son nom, ou muet) : retenu d'après son nom, sur ce Mac seulement.
+                if store.ajoute(nom: item.name, famille: fix.family, sorte: fix.kind) { count += 1 }
+                continue
+            }
             store.ajoute(CorrectionIA(empreinte: heard.empreinte, famille: fix.family, sorte: fix.kind, date: Date()))
             count += 1
             if store.partage == true,
@@ -1272,22 +1308,17 @@ struct OrganizerView: View {
     /// La famille prise dans l'aperçu (30/10) et la place de chaque famille (espace `familySpace`).
     @State private var familyDrag: FamilyDrag?
     @State private var familyFrames: [SoundFamily: CGRect] = [:]
+    /// Combien de familles dans la colonne de gauche, choisi en y posant une famille (vidéo du 30/10 : « je ne peux
+    /// pas mettre en dessous à gauche ») ; nil : coupées là où les colonnes ont la même hauteur.
+    @State private var leftCount: Int?
+    /// « Détails » de la fin : tout le texte, dans une bulle.
+    @State private var showDetails = false
 
     /// Espace des places des familles : celui de leurs colonnes dans la liste qui défile.
     static let familySpace = "organiser-familles"
 
     /// L'aperçu est à l'écran (pas le tuto, revu par-dessus : il prend la hauteur de son contenu).
     private var isPreview: Bool { controller.phase == .preview && !controller.tutorial }
-
-    /// Pendant l'application : l'étape en cours (« FL ouvre la copie rangée… 12 s »), sinon le texte général.
-    private var applyingText: String {
-        let hands = String(localized: "Ne touche pas à FL.")
-        if let step = controller.applyStep { return step + " " + hands }
-        if controller.organizesCopy {
-            return String(localized: "FL ouvre la copie rangée de ton projet, puis tout s'y range… Ne touche pas à FL.")
-        }
-        return String(localized: "Application dans FL… Ne touche pas à FL.")
-    }
 
     /// Étape affichée : une nouvelle étape remplace l'ancienne en fondu (la progression de l'écoute, non).
     private var stepKey: String {
@@ -1341,6 +1372,8 @@ struct OrganizerView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         // Plus de lueur de couleur dans le fond (28/10, « pas de fond »).
         .motion(Motion.morph, value: stepKey)
+        // Nouvelle analyse : les colonnes des familles reviennent à leur coupe automatique.
+        .onChange(of: stepKey) { key in if key == "starting" || key == "listening" { leftCount = nil } }
         .sheet(isPresented: $controller.feedbackShown) { OrganizerFeedbackView(controller: controller) }
     }
 
@@ -1364,59 +1397,31 @@ struct OrganizerView: View {
         .morphIn(0)
     }
 
-    private static func listeningText(_ done: Int, _ total: Int) -> String {
-        total == 0 ? String(localized: "Préparation de l'analyse…") : String(localized: "Analyse du projet : \(min(done + 1, total)) sur \(total)")
-    }
-
     @ViewBuilder private var content: some View {
         switch controller.phase {
         case .starting:
-            working(String(localized: "Préparation…"))
+            loading(String(localized: "Préparation…"), detail: nil, progress: nil)
         case .setup:
             setup
         case .waiting(let reason):
             waiting(reason)
         case .listening(let done, let total):
-            VStack(alignment: .leading, spacing: 12) {
-                HStack(spacing: 12) {
-                    OrganizerBadge(symbol: "waveform", tint: Self.tint, live: true)
-                    VStack(alignment: .leading, spacing: 8) {
-                        HStack {
-                            Text(Self.listeningText(done, total)).font(.system(size: 13, weight: .semibold))
-                            Spacer()
-                            if total > 0 {
-                                Text("\(Int((Double(done) / Double(max(total, 1)) * 100).rounded())) %")
-                                    .font(.system(size: 12).monospacedDigit())
-                                    .foregroundStyle(.secondary)
-                            }
-                        }
-                        ProgressView(value: Double(done), total: Double(max(total, 1)))
-                            .tint(Self.tint)
-                            .motion(Motion.smooth, value: done)
-                    }
-                }
-                .padding(14)
-                .organizerCard()
-                .morphIn(1)
-                // Plus d'explication (28/10, « ça j'aime pas ») : la consigne seule.
-                Text(String(localized: "Ne touche pas à FL."))
-                    .font(.system(size: 11))
-                    .foregroundStyle(.secondary)
-                    .morphIn(2)
-                HStack {
-                    Spacer()
-                    Button("Arrêter") { controller.close() }.keyboardShortcut(.cancelAction)
-                }
-                .morphIn(3)
-            }
+            loading(String(localized: "Analyse du projet"),
+                    detail: total == 0 ? String(localized: "Préparation de l'analyse…")
+                        : String(localized: "Son \(min(done + 1, total)) sur \(total)"),
+                    progress: total == 0 ? nil : Double(done) / Double(total), stop: true)
         case .preview:
             preview
         case .applying:
-            working(applyingText)
+            loading(String(localized: "Rangement de ton projet"), detail: applyingDetail, progress: nil)
         case .undoing:
-            working(String(localized: "Retour comme avant…"))
+            loading(String(localized: "Retour comme avant…"), detail: nil, progress: nil)
         case .applied(let error):
-            ending(error?.message ?? controller.doneText, ok: error == nil, linkHelp: error == .noResponse)
+            if error == nil {
+                finished
+            } else {
+                ending(error?.message ?? controller.doneText, ok: false, linkHelp: error == .noResponse)
+            }
         case .undone(let error):
             ending(error?.message ?? (controller.lastApply?.copy != nil
                     ? String(localized: "Ton projet d'origine se rouvre dans FL, tel qu'il était. La copie rangée part à la Corbeille dès que FL l'a quittée.")
@@ -1427,15 +1432,84 @@ struct OrganizerView: View {
         }
     }
 
-    private func working(_ text: String) -> some View {
-        HStack(spacing: 12) {
-            ProgressView().controlSize(.small)
-            Text(text).font(.system(size: 13))
-            Spacer(minLength: 0)
+    /// Pendant l'application : l'étape en cours (« FL ouvre la copie rangée… »), sinon ce qui se passe.
+    private var applyingDetail: String {
+        if let step = controller.applyStep { return step }
+        return controller.organizesCopy
+            ? String(localized: "FL ouvre la copie rangée de ton projet, puis tout s'y range…")
+            : String(localized: "Application dans FL…")
+    }
+
+    /// Chargement (vidéo du 30/10 : « le chargement d'Organiser un peu plus beau ») : des barres d'égaliseur aux
+    /// couleurs des familles, l'étape et son détail, une barre qui avance (ou qui passe, sans total), puis la consigne.
+    private func loading(_ title: String, detail: String?, progress: Double?, stop: Bool = false) -> some View {
+        let colors = [SoundFamily.vocals, .melody, .bass, .drums, .fx].map { swiftColor(controller.style(of: $0).color) }
+        return VStack(alignment: .leading, spacing: 12) {
+            OrganizerLoading(title: title, detail: detail, progress: progress, colors: colors)
+                .morphIn(1)
+            HStack(spacing: 8) {
+                Image(systemName: "hand.raised.fill").foregroundStyle(.orange)
+                Text("Ne touche pas à FL pendant ce temps.").foregroundStyle(.secondary)
+                Spacer(minLength: 0)
+                if stop {
+                    Button("Arrêter") { controller.close() }.keyboardShortcut(.cancelAction)
+                }
+            }
+            .font(.system(size: 12))
+            .morphIn(2)
         }
-        .padding(14)
-        .organizerCard()
-        .morphIn(1)
+    }
+
+    /// Fin réussie, en court : le titre et une ligne dans la carte verte, les remarques dessous (trois au plus, le
+    /// reste dans « Détails »), puis les boutons. La fenêtre ne grandit plus avec le texte.
+    private var finished: some View {
+        let summary = controller.doneSummary
+        return VStack(alignment: .leading, spacing: 12) {
+            HStack(alignment: .center, spacing: 12) {
+                OrganizerBadge(symbol: "checkmark", tint: .green)
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(summary.title).font(.system(size: 14, weight: .semibold))
+                    Text(summary.detail)
+                        .font(.system(size: 12))
+                        .foregroundStyle(.secondary)
+                        .lineLimit(2)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                Spacer(minLength: 0)
+            }
+            .padding(14)
+            .organizerCard(.green)
+            .morphIn(1)
+            if !summary.notes.isEmpty {
+                VStack(alignment: .leading, spacing: 5) {
+                    ForEach(Array(summary.notes.prefix(3).enumerated()), id: \.offset) { _, note in
+                        HStack(alignment: .firstTextBaseline, spacing: 6) {
+                            Image(systemName: "info.circle")
+                            Text(note).lineLimit(2).fixedSize(horizontal: false, vertical: true)
+                        }
+                    }
+                    if summary.notes.count > 3 {
+                        Button("Détails") { showDetails = true }
+                            .buttonStyle(.link)
+                            .popover(isPresented: $showDetails, arrowEdge: .bottom) {
+                                ScrollView {
+                                    Text(controller.doneText)
+                                        .font(.system(size: 12))
+                                        .textSelection(.enabled)
+                                        .fixedSize(horizontal: false, vertical: true)
+                                        .padding(14)
+                                }
+                                .frame(width: 380, height: 240)
+                            }
+                    }
+                }
+                .font(.system(size: 11.5))
+                .foregroundStyle(.secondary)
+                .morphIn(2)
+            }
+            buttons
+                .morphIn(3)
+        }
     }
 
     /// Fin d'une étape : le message dans une carte (coche verte ou triangle orange) ; FL muet : les réglages de FL
@@ -1697,18 +1771,30 @@ struct OrganizerView: View {
                 ScrollView {
                     let colors = controller.plannedColors
                     let families = controller.presentFamilies
-                    let columns = OrganizerView.familyColumns(families, count: geo.size.width >= 600 ? 2 : 1) {
+                    let width = geo.size.width
+                    let columns = OrganizerView.familyColumns(families, count: width >= 600 ? 2 : 1, left: leftCount) {
                         controller.members(of: $0).count
                     }
+                    let slot = familyDrag.map { Self.dropSlot($0.location, dragged: $0.family, columns: columns,
+                                                              frames: familyFrames, width: width) }
                     HStack(alignment: .top, spacing: 18) {
-                        ForEach(Array(columns.enumerated()), id: \.offset) { _, column in
+                        ForEach(Array(columns.enumerated()), id: \.offset) { number, column in
                             VStack(alignment: .leading, spacing: 14) {
                                 ForEach(column, id: \.self) { family in
                                     FamilySection(controller: controller, family: family, colors: colors,
                                                   dragged: familyDrag?.family == family,
-                                                  drop: dropMark(for: family, families: families),
-                                                  onMove: { dragFamily(family, $0) }, onRelease: dropFamily)
+                                                  drop: dropMark(for: family, column: number, columns: columns, slot: slot),
+                                                  onMove: { dragFamily(family, $0) },
+                                                  onRelease: { dropFamily(columns: columns, width: width) })
                                         .morphIn((families.firstIndex(of: family) ?? 0) + 1)
+                                }
+                                // Colonne vidée pendant qu'on glisse : la place où la famille tombera.
+                                if let drag = familyDrag, slot?.column == number,
+                                   column.allSatisfy({ $0 == drag.family }) {
+                                    RoundedRectangle(cornerRadius: 14, style: .continuous)
+                                        .strokeBorder(swiftColor(controller.style(of: drag.family).color),
+                                                      style: StrokeStyle(lineWidth: 2, dash: [6, 5]))
+                                        .frame(height: 64)
                                 }
                             }
                             .frame(maxWidth: .infinity, alignment: .topLeading)
@@ -1770,36 +1856,60 @@ struct OrganizerView: View {
                                 size: frame.size)
     }
 
-    /// Lâchée : elle prend la place de la famille sous la souris (Channel rack, Mixer et Playlist suivent).
-    private func dropFamily() {
+    /// Lâchée : elle tombe là où est la souris, dans la colonne de gauche ou de droite, au-dessus ou en dessous des
+    /// autres ; les colonnes restent comme on les a faites (Channel rack, Mixer et Playlist suivent : la colonne de
+    /// gauche de haut en bas, puis celle de droite).
+    private func dropFamily(columns: [[SoundFamily]], width: CGFloat) {
         guard let drag = familyDrag else { return }
         familyDrag = nil
-        guard let target = Self.dropTarget(drag.location, dragged: drag.family, frames: familyFrames) else { return }
-        withAnimation(Motion.quickMorph) { controller.moveFamily(drag.family, onto: target) }
+        let slot = Self.dropSlot(drag.location, dragged: drag.family, columns: columns, frames: familyFrames, width: width)
+        let placed = Self.placing(drag.family, at: slot, in: columns)
+        guard placed != columns else { return }
+        withAnimation(Motion.quickMorph) {
+            if placed.count >= 2 { leftCount = placed[0].count }
+            controller.arrangeFamilies(placed.flatMap { $0 })
+        }
     }
 
-    /// Où tombera la famille prise : un trait de sa couleur au-dessus de la cible (glissée vers le haut) ou en dessous
-    /// (vers le bas), comme `moving`.
-    private func dropMark(for family: SoundFamily, families: [SoundFamily]) -> FamilyDrop? {
-        guard let drag = familyDrag,
-              Self.dropTarget(drag.location, dragged: drag.family, frames: familyFrames) == family,
-              let from = families.firstIndex(of: drag.family), let to = families.firstIndex(of: family) else { return nil }
-        return FamilyDrop(below: from < to, tint: swiftColor(controller.style(of: drag.family).color))
+    /// Où tombera la famille prise : un trait de sa couleur au-dessus de la famille qui la suivra, ou sous la dernière
+    /// de la colonne ; rien si elle retombe à sa place.
+    private func dropMark(for family: SoundFamily, column: Int, columns: [[SoundFamily]],
+                          slot: (column: Int, index: Int)?) -> FamilyDrop? {
+        guard let drag = familyDrag, let slot, slot.column == column, family != drag.family,
+              Self.placing(drag.family, at: slot, in: columns) != columns else { return nil }
+        let others = columns[column].filter { $0 != drag.family }
+        let tint = swiftColor(controller.style(of: drag.family).color)
+        if slot.index < others.count { return others[slot.index] == family ? FamilyDrop(below: false, tint: tint) : nil }
+        return others.last == family ? FamilyDrop(below: true, tint: tint) : nil
     }
 
-    /// Pur (testé) : la famille sous `point` (jamais celle qu'on glisse ; sur sa propre place : aucune) ; entre deux
-    /// familles d'une colonne, la plus proche ; hors des colonnes : aucune.
-    static func dropTarget<F: Hashable>(_ point: CGPoint, dragged: F, frames: [F: CGRect]) -> F? {
-        if frames[dragged]?.contains(point) == true { return nil }
-        let others = frames.filter { $0.key != dragged }
-        if let hit = others.first(where: { $0.value.insetBy(dx: 0, dy: -7).contains(point) }) { return hit.key }
-        let column = others.filter { point.x >= $0.value.minX && point.x <= $0.value.maxX }
-        return column.min { abs($0.value.midY - point.y) < abs($1.value.midY - point.y) }?.key
+    /// Pur (testé) : où tombe une famille prise : la colonne sous la souris (deux colonnes de `width` points), et sa
+    /// place dans cette colonne : avant la première famille dont le milieu est plus bas que la souris.
+    static func dropSlot<F: Hashable>(_ point: CGPoint, dragged: F, columns: [[F]], frames: [F: CGRect],
+                                      width: CGFloat) -> (column: Int, index: Int) {
+        let column = columns.count >= 2 && point.x >= width / 2 ? 1 : 0
+        guard columns.indices.contains(column) else { return (0, 0) }
+        let others = columns[column].filter { $0 != dragged }
+        return (column, others.filter { (frames[$0]?.midY ?? .infinity) < point.y }.count)
+    }
+
+    /// Pur (testé) : les colonnes après avoir posé `dragged` à `slot` (retirée de sa colonne, posée dans l'autre ou
+    /// ailleurs dans la même).
+    static func placing<F: Equatable>(_ dragged: F, at slot: (column: Int, index: Int), in columns: [[F]]) -> [[F]] {
+        guard columns.indices.contains(slot.column) else { return columns }
+        var out = columns.map { $0.filter { $0 != dragged } }
+        out[slot.column].insert(dragged, at: min(max(slot.index, 0), out[slot.column].count))
+        return out
     }
 
     /// Pur (testé) : les familles en `count` colonnes, dans l'ordre (la première colonne de haut en bas, puis la
-    /// suivante), coupées là où les colonnes ont la hauteur la plus proche (`size` : nombre de sons d'une famille).
-    static func familyColumns<F>(_ families: [F], count: Int, size: (F) -> Int) -> [[F]] {
+    /// suivante) : `left` familles à gauche si on les y a posées (une colonne peut rester vide), sinon coupées là où les
+    /// colonnes ont la hauteur la plus proche (`size` : nombre de sons d'une famille).
+    static func familyColumns<F>(_ families: [F], count: Int, left: Int? = nil, size: (F) -> Int) -> [[F]] {
+        if count >= 2, let left, !families.isEmpty {
+            let cut = min(max(left, 0), families.count)
+            return [Array(families[..<cut]), Array(families[cut...])]
+        }
         guard count >= 2, families.count >= 2 else { return [families] }
         let heights = families.map { size($0) + 2 }                  // l'en-tête compte pour deux lignes
         let total = heights.reduce(0, +)
@@ -1812,6 +1922,102 @@ struct OrganizerView: View {
             if gap < bestGap { best = cut; bestGap = gap }
         }
         return [Array(families[..<best]), Array(families[best...])]
+    }
+}
+
+/// Carte du chargement : barres d'égaliseur qui dansent aux couleurs des familles, l'étape, son détail, le pourcentage,
+/// et la barre d'avancement à leurs couleurs.
+private struct OrganizerLoading: View {
+    let title: String
+    let detail: String?
+    /// 0…1 ; nil : sans total (la barre passe en boucle).
+    let progress: Double?
+    let colors: [Color]
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack(spacing: 16) {
+                EqualizerBars(colors: colors)
+                    .frame(width: 52, height: 38)
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(title).font(.system(size: 15, weight: .semibold))
+                    if let detail {
+                        Text(detail)
+                            .font(.system(size: 12))
+                            .foregroundStyle(.secondary)
+                            .lineLimit(2)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+                Spacer(minLength: 0)
+                if let progress {
+                    Text("\(Int((min(max(progress, 0), 1) * 100).rounded())) %")
+                        .font(.system(size: 13, weight: .semibold).monospacedDigit())
+                        .foregroundStyle(.secondary)
+                }
+            }
+            LoadingBar(progress: progress, colors: colors)
+                .frame(height: 6)
+        }
+        .padding(18)
+        .organizerCard()
+        .accessibilityElement(children: .combine)
+    }
+}
+
+/// Barres d'égaliseur qui montent et descendent chacune à son rythme (immobiles si « Réduire les animations »).
+private struct EqualizerBars: View {
+    let colors: [Color]
+
+    var body: some View {
+        TimelineView(.animation(minimumInterval: 1.0 / 30, paused: Motion.reduce)) { context in
+            let t = context.date.timeIntervalSinceReferenceDate
+            GeometryReader { geo in
+                HStack(alignment: .bottom, spacing: 4) {
+                    ForEach(Array(colors.enumerated()), id: \.offset) { i, color in
+                        let level = Motion.reduce ? 0.55 + 0.08 * Double(i % 3)
+                            : 0.25 + 0.75 * abs(sin(t * (2.1 + Double(i) * 0.47) + Double(i) * 1.3))
+                        Capsule()
+                            .fill(color.gradient)
+                            .frame(height: max(5, geo.size.height * level))
+                    }
+                }
+                .frame(width: geo.size.width, height: geo.size.height, alignment: .bottom)
+            }
+        }
+        .accessibilityHidden(true)
+    }
+}
+
+/// Barre d'avancement aux couleurs des familles ; sans total, un morceau de barre passe de gauche à droite.
+private struct LoadingBar: View {
+    let progress: Double?
+    let colors: [Color]
+
+    var body: some View {
+        GeometryReader { geo in
+            let fill = LinearGradient(colors: colors, startPoint: .leading, endPoint: .trailing)
+            ZStack(alignment: .leading) {
+                Capsule().fill(Color.primary.opacity(0.08))
+                if let progress {
+                    Capsule()
+                        .fill(fill)
+                        .frame(width: max(6, geo.size.width * min(max(progress, 0), 1)))
+                        .animation(Motion.smooth, value: progress)
+                } else {
+                    TimelineView(.animation(minimumInterval: 1.0 / 30, paused: Motion.reduce)) { context in
+                        let phase = (context.date.timeIntervalSinceReferenceDate / 1.6).truncatingRemainder(dividingBy: 1)
+                        let width = geo.size.width * 0.35
+                        Capsule()
+                            .fill(fill)
+                            .frame(width: width)
+                            .offset(x: Motion.reduce ? 0 : -width + (geo.size.width + width) * phase)
+                    }
+                    .clipShape(Capsule())
+                }
+            }
+        }
+        .accessibilityHidden(true)
     }
 }
 

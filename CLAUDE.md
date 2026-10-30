@@ -195,6 +195,19 @@
   compte = cartes profil, sauvegarde, choix des versions ; Aide = grande recherche, questions en carte (étapes
   numérotées, `HelpEntry.steps`), Écrire à l'équipe / Revoir le guide à droite (sans tuiles de thèmes : retirées à sa
   demande). Windows : seule la page Macros existe (pas encore à ce nouvel aspect).
+- **Compte : connexion et profil** (maquette PDF/HTML « Mon compte — connexion et profil » du 30/10, faite par une
+  autre session que celle des pages : les deux ont travaillé en même temps sur la branche, toujours `git fetch` avant
+  d'envoyer) : cartes Se connecter / Créer un compte / Code en 6 cases (`AccountAuthViews.swift`, `CommunitySignIn`),
+  pseudo vérifié en direct ; photo de profil 256 × 256 JPEG préparée sur le Mac (`ProfilePhoto.swift`), « Modifier le
+  profil » (`EditProfileSheet.swift` : zoom, glisser, Retirer, pseudo) ; photo ou initiale de couleur dans l'en-tête,
+  Mon compte, cartes et page d'un auteur ; « Signaler la photo… », « Retirer la photo » (administrateur). Serveur :
+  `supabase/profil.sql` (À COLLER PAR LE PROPRIÉTAIRE, étape 10 du README ; sans lui, initiales et « pas encore
+  ouverts »), essais `supabase/tests/profil.sql`.
+- Organiser, vidéo du 30/10 : chargement en carte (barres d'égaliseur aux couleurs des familles, barre d'avancement) ;
+  familles posées où on les lâche, à gauche ou à droite, dessus ou dessous (`dropSlot`, `placing`, colonnes gardées
+  `leftCount`, ordre = gauche puis droite) ; « Pas content ? » liste TOUS les sons (un son rangé par son nom est
+  retenu par son nom codé SHA-256, `corrections-noms.json`, règle `corrige-nom`, jamais envoyé) ; fin en court
+  (`doneSummary`, « Détails » pour tout le texte) : la fenêtre ne grandit plus.
 - **À l'identique des maquettes** (29/10, `HISTORIQUE`) : fenêtre principale = `Main.dc.html` (plaque de gauche
   avec les boutons de la fenêtre, `MainWindowChrome` ; en-tête titre + capsule du compte ; cartes par groupe,
   `CatalogGroups`) ; créateur = `Macros.dc.html` (← rond, nom, touches, « Enregistrer » bleu ; « Retirer ce bloc »).

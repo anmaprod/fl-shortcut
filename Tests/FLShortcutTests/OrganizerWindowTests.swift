@@ -515,6 +515,55 @@ final class OrganizerWindowTests: XCTestCase {
         controller.close()
     }
 
+    /// « Pas content ? » montre tous les sons (vidéo du 30/10), même ceux rangés d'après leur nom ; corrigé, un tel son
+    /// est retenu d'après son nom et rangé pareil la fois suivante (règle « corrige-nom », un numéro dans le diagnostic).
+    func testNamedSoundCorrectedByName() throws {
+        let link = FakeOrganizerLink()
+        link.channels = [ChannelInfo(index: 0, type: 2, mixerTrack: 0, color: RGBColor(r: 1, g: 2, b: 3), name: "Kick Boom"),
+                         ChannelInfo(index: 1, type: 2, mixerTrack: 0, color: RGBColor(r: 4, g: 5, b: 6), name: "Son 1")]
+        let audio = FakeAudio(link: link)
+        audio.parts = [0: [Float](repeating: 0.3, count: 64), 1: [Float](repeating: 0.25, count: 64)]
+        let dossier = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        let suite = "essai.corrections." + UUID().uuidString
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
+        defer {
+            try? FileManager.default.removeItem(at: dossier)
+            defaults.removePersistentDomain(forName: suite)
+        }
+        let store = CorrectionsIA(url: dossier.appendingPathComponent("corrections-ia.json"), defaults: defaults)
+        var e = env(link, audio, saved: { _ in })
+        e.corrections = { store }
+        let controller = OrganizerController(env: e)
+        controller.start()
+        waitFor(controller) { $0 == .preview }
+        XCTAssertEqual(controller.correctable.map(\.index), [0, 1], "tous les sons")
+        XCTAssertEqual(controller.result?.items.first { $0.index == 0 }?.byName, true)
+        controller.apply()
+        waitFor(controller, OrganizerWindowTests.isApplied)
+        var feedback = OrganizerFeedback()
+        feedback.reasons = [.family]
+        feedback.fixes = [0: .init(family: .fx, kind: nil)]
+        controller.submitFeedback(feedback)
+        XCTAssertEqual(store.cherche(nom: "Kick Boom")?.famille, .fx)
+        controller.close()
+
+        // Le même projet, rouvert tel quel (l'Organiser a renommé les sons de la copie, pas ceux de l'original).
+        let link2 = FakeOrganizerLink()
+        link2.channels = link.channels.map { ChannelInfo(index: $0.index, type: $0.type, mixerTrack: 0, color: $0.color,
+                                                         name: $0.index == 0 ? "Kick Boom" : "Son 1") }
+        let audio2 = FakeAudio(link: link2)
+        audio2.parts = audio.parts
+        var e2 = env(link2, audio2, saved: { _ in })
+        e2.corrections = { store }
+        let again = OrganizerController(env: e2)
+        again.start()
+        waitFor(again) { $0 == .preview }
+        XCTAssertEqual(again.result?.items.first { $0.index == 0 }?.family, .fx, "rangé comme corrigé")
+        XCTAssertTrue(again.diagnosticText.contains("c0:corrige-nom"), again.diagnosticText)
+        XCTAssertFalse(again.diagnosticText.contains("Kick Boom"), "jamais un nom de son")
+        again.close()
+    }
+
     func testDiagnosticIsCopiedWithoutNames() {
         let link = FakeOrganizerLink()
         link.channels = [ChannelInfo(index: 0, type: 2, mixerTrack: 0, color: RGBColor(r: 1, g: 2, b: 3),

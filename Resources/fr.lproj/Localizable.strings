@@ -209,6 +209,7 @@
 "Allumer le REC à la fin (s'il est éteint)" = "Allumer le REC à la fin (s'il est éteint)";
 "Alors" = "Alors";
 "Ambiance" = "Ambiance";
+"Analyse du projet" = "Analyse du projet";
 "Analyse du projet : %lld sur %lld" = "Analyse du projet : %lld sur %lld";
 "Ancienne position apprise (colonne du curseur)." = "Ancienne position apprise (colonne du curseur).";
 "Ancienne position apprise." = "Ancienne position apprise.";
@@ -221,6 +222,7 @@
 "Annulé." = "Annulé.";
 "Aperçu : dans MIDI Settings, FL Shortcuts Link en entrée et en sortie, avec le même port." = "Aperçu : dans MIDI Settings, FL Shortcuts Link en entrée et en sortie, avec le même port.";
 "Aperçu du dégradé" = "Aperçu du dégradé";
+"Application dans FL…" = "Application dans FL…";
 "Application dans FL… Ne touche pas à FL." = "Application dans FL… Ne touche pas à FL.";
 "Apprendre" = "Apprendre";
 "Apprise au premier passage" = "Apprise au premier passage";
@@ -383,6 +385,7 @@
 "Bureau de gauche" = "Bureau de gauche";
 "Bypass des effets de la piste" = "Bypass des effets de la piste";
 "C'est fait : le projet est rangé, coloré et renommé. « Revenir comme avant » défait tout, sauf les sons supprimés." = "C'est fait : le projet est rangé, coloré et renommé. « Revenir comme avant » défait tout, sauf les sons supprimés.";
+"C'est fait : ton projet est rangé" = "C'est fait : ton projet est rangé";
 "C'est fait : ton projet est rangé, coloré et renommé dans une copie, « %@ », à côté de l'original. L'original n'a pas bougé : « Revenir comme avant » le rouvre et met la copie à la Corbeille." = "C'est fait : ton projet est rangé, coloré et renommé dans une copie, « %@ », à côté de l'original. L'original n'a pas bougé : « Revenir comme avant » le rouvre et met la copie à la Corbeille.";
 "C'est fait : ton projet est rangé, coloré et renommé dans une copie, « %@ », à côté de l'original. L'original n'a pas bougé : « Revenir comme avant » le rouvre." = "C'est fait : ton projet est rangé, coloré et renommé dans une copie, « %@ », à côté de l'original. L'original n'a pas bougé : « Revenir comme avant » le rouvre.";
 "C'est parti" = "C'est parti";
@@ -586,6 +589,7 @@
 "Coller depuis le presse-papiers MIDI" = "Coller depuis le presse-papiers MIDI";
 "Coller les notes entre elles (glue)" = "Coller les notes entre elles (glue)";
 "Coller les pas / la partition" = "Coller les pas / la partition";
+"Coloré et renommé dans FL. « Revenir comme avant » défait tout, sauf les sons supprimés." = "Coloré et renommé dans FL. « Revenir comme avant » défait tout, sauf les sons supprimés.";
 "Commande" = "Commande";
 "Comme « Gradient color… » de FL : de la première couleur (First) à la dernière (Last), sur les pistes ou les canaux sélectionnés (au moins 2). Le nom ne change pas." = "Comme « Gradient color… » de FL : de la première couleur (First) à la dernière (Last), sur les pistes ou les canaux sélectionnés (au moins 2). Le nom ne change pas.";
 "Commence par un clic droit." = "Commence par un clic droit.";
@@ -667,6 +671,7 @@
 "Dans la fenêtre de macOS, clique « Autoriser »." = "Dans la fenêtre de macOS, clique « Autoriser ».";
 "Dans la fenêtre de macOS, clique « Ouvrir Réglages Système… » (pas de fenêtre ? « Ouvrir les réglages » ci-dessous)." = "Dans la fenêtre de macOS, clique « Ouvrir Réglages Système… » (pas de fenêtre ? « Ouvrir les réglages » ci-dessous).";
 "Dans le menu" = "Dans le menu";
+"Dans une copie, « %@ », à côté de l'original : l'original n'a pas bougé." = "Dans une copie, « %@ », à côté de l'original : l'original n'a pas bougé.";
 "Demande le lien avec FL." = "Demande le lien avec FL.";
 "Demande le script MIDI dans FL (désactivé en mode léger)" = "Demande le script MIDI dans FL (désactivé en mode léger)";
 "Dernier essai" = "Dernier essai";
@@ -757,6 +762,7 @@
 "En attente… FL Shortcuts le détecte tout seul." = "En attente… FL Shortcuts le détecte tout seul.";
 "En bas de cette page, « Écrire à l'équipe ». Quand une macro échoue, le bouton « Signaler » de son bandeau (ou « Signaler ce problème… » dans le menu de l'icône en haut de l'écran) prépare le message avec l'erreur et le journal de la macro : tu vois tout ce qui est joint avant l'envoi." = "En bas de cette page, « Écrire à l'équipe ». Quand une macro échoue, le bouton « Signaler » de son bandeau (ou « Signaler ce problème… » dans le menu de l'icône en haut de l'écran) prépare le message avec l'erreur et le journal de la macro : tu vois tout ce qui est joint avant l'envoi.";
 "En cours" = "En cours";
+"En fermant, tu choisiras de garder cette version ou de revenir à l'original." = "En fermant, tu choisiras de garder cette version ou de revenir à l'original.";
 "En ligne" = "En ligne";
 "En pause" = "En pause";
 "En pause : FL Studio utilise ses raccourcis d'origine" = "En pause : FL Studio utilise ses raccourcis d'origine";
@@ -921,6 +927,7 @@
 "FL ne répond pas : quitte et rouvre FL Studio, il relie « %@ » tout seul en démarrant. Toujours rien : dans Options › MIDI Settings, entrée « %@ », choisis le Controller type « FL Shortcuts » (pas « generic controller »), et donne le même numéro de Port à l'entrée et à la sortie" = "FL ne répond pas : quitte et rouvre FL Studio, il relie « %@ » tout seul en démarrant. Toujours rien : dans Options › MIDI Settings, entrée « %@ », choisis le Controller type « FL Shortcuts » (pas « generic controller »), et donne le même numéro de Port à l'entrée et à la sortie";
 "FL ne répond pas encore. Dans FL › MIDI Settings › Output, « FL Shortcuts » doit s'afficher à côté de « FL Shortcuts Link », seul sur son Port. Sinon : « Ça ne marche toujours pas ? » ci-dessous." = "FL ne répond pas encore. Dans FL › MIDI Settings › Output, « FL Shortcuts » doit s'afficher à côté de « FL Shortcuts Link », seul sur son Port. Sinon : « Ça ne marche toujours pas ? » ci-dessous.";
 "FL ne répond plus assez vite depuis l'ouverture de la copie rangée. Elle est ouverte dans FL avec sa Playlist rangée : relance l'Organiser dessus pour finir le reste. Ton projet d'origine n'a pas bougé." = "FL ne répond plus assez vite depuis l'ouverture de la copie rangée. Elle est ouverte dans FL avec sa Playlist rangée : relance l'Organiser dessus pour finir le reste. Ton projet d'origine n'a pas bougé.";
+"FL ouvre la copie rangée de ton projet, puis tout s'y range…" = "FL ouvre la copie rangée de ton projet, puis tout s'y range…";
 "FL ouvre la copie rangée de ton projet, puis tout s'y range… Ne touche pas à FL." = "FL ouvre la copie rangée de ton projet, puis tout s'y range… Ne touche pas à FL.";
 "FL ouvre la copie rangée…" = "FL ouvre la copie rangée…";
 "FL ouvre la copie rangée… %lld s" = "FL ouvre la copie rangée… %lld s";
@@ -1335,6 +1342,7 @@
 "Ne fait pas ce que dit son explication" = "Ne fait pas ce que dit son explication";
 "Ne pas toucher à l'icône dans FL" = "Ne pas toucher à l'icône dans FL";
 "Ne quitte pas l'app tout de suite." = "Ne quitte pas l'app tout de suite.";
+"Ne touche pas à FL pendant ce temps." = "Ne touche pas à FL pendant ce temps.";
 "Ne touche pas à FL pendant l'écoute." = "Ne touche pas à FL pendant l'écoute.";
 "Ne touche pas à FL." = "Ne touche pas à FL.";
 "Nom" = "Nom";
@@ -1646,6 +1654,7 @@
 "Range, colore et renomme tout le projet." = "Range, colore et renomme tout le projet.";
 "Rangement automatique" = "Rangement automatique";
 "Rangement dans la copie…" = "Rangement dans la copie…";
+"Rangement de ton projet" = "Rangement de ton projet";
 "Re-stretch de tous les clips audio" = "Re-stretch de tous les clips audio";
 "Recherche" = "Recherche";
 "Rechercher" = "Rechercher";
@@ -1845,6 +1854,7 @@
 "Solo du canal 8" = "Solo du canal 8";
 "Solo du canal 9" = "Solo du canal 9";
 "Solo piste Mixer sélectionnée" = "Solo piste Mixer sélectionnée";
+"Son %lld sur %lld" = "Son %lld sur %lld";
 "Son de FL" = "Son de FL";
 "Son de FL autorisé : tout est prêt." = "Son de FL autorisé : tout est prêt.";
 "Son nom, tel qu'il est écrit dans le menu « Arrangement » de FL." = "Son nom, tel qu'il est écrit dans le menu « Arrangement » de FL.";
@@ -2037,6 +2047,7 @@
 "Un problème" = "Un problème";
 "Un son a le mauvais nom (Kick, Snare, Pad…)" = "Un son a le mauvais nom (Kick, Snare, Pad…)";
 "Un son est dans la mauvaise famille" = "Un son est dans la mauvaise famille";
+"Un son rangé d'après son nom : ta réponse est retenue pour ce nom, sur ce Mac." = "Un son rangé d'après son nom : ta réponse est retenue pour ce nom, sur ce Mac.";
 "Un « ! » apparaît sur l'icône en haut de l'écran" = "Un « ! » apparaît sur l'icône en haut de l'écran";
 "Un « ! » sur l'icône : autorise le clavier." = "Un « ! » sur l'icône : autorise le clavier.";
 "Un « ! » sur l'icône : le clavier n'est pas autorisé. Ouvre son menu pour savoir quoi faire." = "Un « ! » sur l'icône : le clavier n'est pas autorisé. Ouvre son menu pour savoir quoi faire.";
