@@ -525,8 +525,9 @@ final class AccountBackup: ObservableObject {
         conflict = nil
         notice = nil
         switch screen {
-        case "connexion":
+        case "connexion", "inscription":
             community.showDemo(signedIn: false)
+            community.creatingAccount = screen == "inscription"
             status = .off
         case "code", "oubli":
             community.showDemo(signedIn: false)

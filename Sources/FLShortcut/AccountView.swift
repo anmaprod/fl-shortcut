@@ -8,19 +8,6 @@ enum AccountText {
     static let subtitle = String(localized: """
         Sauvegarde tes raccourcis et tes macros en ligne, et retrouve-les sur n'importe quel Mac.
         """)
-    static let benefits: [(symbol: String, text: String)] = [
-        ("icloud.and.arrow.up", String(localized: """
-            Tes raccourcis et tes macros sont sauvegardés en ligne, tout seuls, à chaque changement.
-            """)),
-        ("laptopcomputer.and.arrow.down", String(localized: """
-            Connecte-toi sur un autre Mac : tout revient. À la déconnexion, ils quittent ce Mac et restent dans ton compte.
-            """)),
-        ("person.2", String(localized: """
-            Le même compte sert à la Communauté : ajoute des macros toutes faites, partage les tiennes.
-            """)),
-        ("lock.shield", String(localized: "Personne d'autre ne peut lire ta sauvegarde. Ton mail reste privé.")),
-    ]
-
     /// « aujourd'hui à 21:07 », « hier à 9:12 », « 14 oct. 2026 à 18:00 » ; dans la langue de l'app (« today at
     /// 9:07 PM » sur un Mac en anglais).
     static func when(_ date: Date) -> String {
@@ -87,8 +74,7 @@ struct AccountPage: View {
             } else if let session = community.session {
                 signedIn(session)
             } else {
-                CommunitySignIn(community: community, page: .account, title: String(localized: "Mon compte"),
-                                subtitle: AccountText.subtitle, benefits: AccountText.benefits)
+                CommunitySignIn(community: community, page: .account)
             }
         }
         // Connexion, déconnexion : la page passe de l'une à l'autre en fondu.
@@ -99,43 +85,18 @@ struct AccountPage: View {
         }
     }
 
-    /// Maquette validée le 30/10 : une carte du profil (« Se déconnecter »), la sauvegarde en carte (son état, ce Mac)
-    /// et, quand ce Mac et le compte ont chacun leurs changements, la carte orange du choix ; « Supprimer mon compte »
-    /// discret, en bas.
+    /// Maquettes validées le 30/10 : une carte du profil (photo, pseudo, mail, « Modifier le profil », « Se
+    /// déconnecter »), la sauvegarde en carte (son état, ce Mac, en ligne) et, quand ce Mac et le compte ont chacun
+    /// leurs changements, la carte orange du choix ; « Supprimer mon compte » discret, en bas.
     private func signedIn(_ session: CommunitySession) -> some View {
         ScrollView(.vertical) {
             VStack(alignment: .leading, spacing: 14) {
-                HStack(spacing: 16) {
-                    Text(verbatim: String(session.username.prefix(1)).uppercased())
-                        .font(.system(size: 24, weight: .bold))
-                        .foregroundStyle(Color.white)
-                        .frame(width: 56, height: 56)
-                        .background(Circle().fill(SidebarItem.account.tint.gradient))
-                        .accessibilityHidden(true)
-                    VStack(alignment: .leading, spacing: 3) {
-                        Text(verbatim: "@" + session.username.displaySafe(max: 24))
-                            .font(.system(size: 18, weight: .bold))
-                            .lineLimit(1)
-                        Text(session.email.displaySafe(max: 60))
-                            .font(.system(size: 13))
-                            .foregroundStyle(.secondary)
-                            .lineLimit(1)
-                    }
-                    Spacer(minLength: 12)
-                    Button {
-                        Task { await AccountActions.signOut(backup) }
-                    } label: {
-                        Label("Se déconnecter", systemImage: "rectangle.portrait.and.arrow.right")
-                    }
-                    .secondaryButton()
-                    .help("Tes raccourcis et tes macros quittent ce Mac et restent dans ton compte.")
+                AccountProfileCard(community: community, session: session) {
+                    Task { await AccountActions.signOut(backup) }
                 }
-                .padding(.horizontal, 20)
-                .padding(.vertical, 18)
-                .background(MockPlate(cornerRadius: 14))
 
                 LazyVGrid(columns: [GridItem(.adaptive(minimum: 320), spacing: 12, alignment: .top)], spacing: 12) {
-                    AccountBackupStatus(status: backup.status, here: backup.hereSummary,
+                    AccountBackupStatus(status: backup.status, here: backup.hereSummary, online: backup.onlineSummary,
                                         notice: backup.notice) { Task { await backup.saveNow() } }
                     if let conflict = backup.conflict {
                         AccountConflictCard(conflict: conflict) { keepAccount in
@@ -170,13 +131,76 @@ struct AccountPage: View {
             .padding(.top, 10)
             .padding(.bottom, 24)
         }
+        .sheet(isPresented: $community.editingProfile) {
+            EditProfileSheet(community: community)
+        }
     }
 }
 
-/// La sauvegarde en carte : son état (icône de couleur, titre, détail), « Sauvegarder », puis ce qu'il y a sur ce Mac.
+/// Carte du profil (maquette du 30/10) : la photo (clic : la changer), le pseudo, le mail, « Modifier le profil » et
+/// « Se déconnecter ».
+private struct AccountProfileCard: View {
+    @ObservedObject var community: CommunityStore
+    let session: CommunitySession
+    let signOut: () -> Void
+
+    var body: some View {
+        HStack(spacing: 18) {
+            Button { community.editingProfile = true } label: {
+                AvatarView(photo: community.myPhoto, username: session.username, size: 76)
+                    .overlay(alignment: .bottomTrailing) {
+                        Image(systemName: "camera")
+                            .font(.system(size: 11, weight: .semibold))
+                            .foregroundStyle(Color(white: 0.96))
+                            .frame(width: 26, height: 26)
+                            .background(Circle().fill(Color(white: 0.17)))                // #2c2c2e
+                            .overlay(Circle().strokeBorder(Color(white: 0.14), lineWidth: 2))
+                            .offset(x: 2, y: 2)
+                    }
+            }
+            .buttonStyle(.plain)
+            .help("Changer ta photo")
+            .accessibilityLabel("Changer ta photo")
+            VStack(alignment: .leading, spacing: 3) {
+                Text(verbatim: "@" + session.username.displaySafe(max: 24))
+                    .font(.system(size: 20, weight: .bold))
+                    .lineLimit(1)
+                Text(verbatim: session.email.displaySafe(max: 60))
+                    .font(.system(size: 13))
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+            }
+            Spacer(minLength: 12)
+            ViewThatFits(in: .horizontal) {
+                HStack(spacing: 8) { buttons }
+                VStack(alignment: .trailing, spacing: 8) { buttons }
+            }
+        }
+        .padding(.horizontal, 22)
+        .padding(.vertical, 20)
+        .background(MockPlate(cornerRadius: 14))
+    }
+
+    @ViewBuilder private var buttons: some View {
+        Button { community.editingProfile = true } label: {
+            Label("Modifier le profil", systemImage: "pencil")
+        }
+        .secondaryButton()
+        Button(action: signOut) {
+            Label("Se déconnecter", systemImage: "rectangle.portrait.and.arrow.right")
+        }
+        .secondaryButton()
+        .help("Tes raccourcis et tes macros quittent ce Mac et restent dans ton compte.")
+    }
+}
+
+/// La sauvegarde en carte : son état (icône de couleur, titre, détail), « Sauvegarder », puis ce qu'il y a sur ce Mac
+/// et en ligne.
 private struct AccountBackupStatus: View {
     let status: AccountBackup.Status
     let here: String
+    let online: String?
     let notice: String?
     let saveNow: () -> Void
 
@@ -201,16 +225,10 @@ private struct AccountBackupStatus: View {
                         .help("Sauvegarder maintenant")
                 }
             }
-            VStack(alignment: .leading, spacing: 4) {
-                Label("Sur ce Mac", systemImage: "laptopcomputer")
-                    .font(.system(size: 11.5, weight: .semibold))
-                    .foregroundStyle(.secondary)
-                Text(here).font(.system(size: 14, weight: .semibold))
+            HStack(spacing: 10) {
+                tile(String(localized: "Sur ce Mac"), symbol: "laptopcomputer", here)
+                tile(String(localized: "En ligne"), symbol: "icloud", online ?? "—")
             }
-            .padding(.horizontal, 14)
-            .padding(.vertical, 12)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(RoundedRectangle(cornerRadius: 11, style: .continuous).fill(Color.black.opacity(0.22)))
             if let notice {
                 Label(notice, systemImage: "info.circle.fill")
                     .font(.system(size: 12))
@@ -224,15 +242,29 @@ private struct AccountBackupStatus: View {
         .accessibilityElement(children: .contain)
     }
 
+    private func tile(_ title: String, symbol: String, _ value: String) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Label(title, systemImage: symbol)
+                .font(.system(size: 11.5, weight: .semibold))
+                .foregroundStyle(.secondary)
+            Text(value).font(.system(size: 14, weight: .semibold)).lineLimit(1).minimumScaleFactor(0.8)
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(RoundedRectangle(cornerRadius: 11, style: .continuous).fill(Color.black.opacity(0.22)))
+        .overlay(RoundedRectangle(cornerRadius: 11, style: .continuous).strokeBorder(Color.white.opacity(0.06)))
+        .accessibilityElement(children: .combine)
+    }
+
     private var look: (symbol: String, color: Color, title: String, detail: String, busy: Bool) {
         switch status {
         case .off, .checking:
             return ("arrow.triangle.2.circlepath.icloud", .secondary, String(localized: "Vérification de ta sauvegarde…"),
                     String(localized: "Ce Mac et ton compte se comparent."), true)
         case .upToDate(let date):
-            return ("checkmark.icloud.fill", .green, String(localized: "À jour"),
-                    date.map { String(localized: "Dernière sauvegarde : \(AccountText.when($0)).") }
-                        ?? String(localized: "Tout est en ligne."), false)
+            return ("checkmark.icloud.fill", .green, String(localized: "Sauvegarde à jour"),
+                    date.map { AccountText.when($0).capitalizedFirst } ?? String(localized: "Tout est en ligne."), false)
         case .pending:
             return ("icloud.and.arrow.up", .blue, String(localized: "Changements à envoyer"),
                     String(localized: "Ils partent dans quelques secondes."), false)
@@ -305,4 +337,9 @@ private struct AccountConflictCard: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(RoundedRectangle(cornerRadius: 11, style: .continuous).fill(Color.black.opacity(0.25)))
     }
+}
+
+private extension String {
+    /// « aujourd'hui à 18:54 » → « Aujourd'hui à 18:54 ».
+    var capitalizedFirst: String { prefix(1).uppercased() + dropFirst() }
 }

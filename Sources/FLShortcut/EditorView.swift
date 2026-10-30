@@ -549,11 +549,33 @@ struct EditorView: View {
                     }
                     .keyboardShortcut("]", modifiers: .command)
                 }
-                HeaderIconButton(symbol: "person.crop.circle", help: String(localized: "Mon compte")) { choose(.account) }
+                if let session = community.session {
+                    accountPhotoButton(session)
+                } else {
+                    HeaderIconButton(symbol: "person.crop.circle", help: String(localized: "Mon compte")) { choose(.account) }
+                }
             }
         }
         .frame(minHeight: 52)
         .padding(.horizontal, 26)
+    }
+
+    /// Connecté : sa photo (ou son initiale de couleur) à la place de l'icône du compte (maquette du 30/10) ; sur la
+    /// page Mon compte, elle ouvre « Modifier le profil ».
+    private func accountPhotoButton(_ session: CommunitySession) -> some View {
+        let onAccount = isShown(.account)
+        return Button {
+            if onAccount { community.editingProfile = true } else { choose(.account) }
+        } label: {
+            AvatarView(photo: community.myPhoto, username: session.username, size: 40)
+                .overlay(Circle().strokeBorder(Color.white.opacity(0.18), lineWidth: 2))
+                .frame(width: 44, height: 44)
+                .contentShape(Circle())
+        }
+        .buttonStyle(.plain)
+        .menuHover(tint: Color.accentColor, cornerRadius: 22)
+        .help(onAccount ? String(localized: "Modifier le profil") : String(localized: "Mon compte"))
+        .accessibilityLabel(String(localized: "Mon compte"))
     }
 
     private var title: String {

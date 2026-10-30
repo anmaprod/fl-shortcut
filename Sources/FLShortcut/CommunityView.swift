@@ -133,7 +133,10 @@ struct CommunityPage: View {
             community.showDemoMemberSearch("le")
         case "auteur":
             community.showDemo(signedIn: true)
-            if let first = community.shares.first { Task { await community.showAuthor(of: first) } }
+            // prod.nina : un membre avec une photo (« Signaler la photo… » visible).
+            if let share = community.shares.first(where: { $0.authorName == "prod.nina" }) ?? community.shares.first {
+                Task { await community.showAuthor(of: share) }
+            }
         default:
             community.showDemo(signedIn: true)
         }
@@ -201,12 +204,19 @@ private struct CommunityBrowse: View {
                 CommunityFilters(community: community)
                 CommunityStatus(community: community)
                 if let author = community.author, author.id != community.session?.userID {
-                    CommunityAuthorHeader(author: author, count: community.shares.count, busy: community.busy) {
+                    Button {
                         Task { await community.showEveryone() }
+                    } label: {
+                        Label("Tous les partages", systemImage: "chevron.left")
+                            .font(.system(size: 13, weight: .medium))
+                            .foregroundStyle(Color(red: 0.29, green: 0.64, blue: 1))          // #4AA3FF
                     }
-                    .padding(.horizontal, 14)
-                    .padding(.vertical, 10)
-                    .background(MockPlate(cornerRadius: 14))
+                    .buttonStyle(.plain)
+                    .help("Revenir aux partages de tous les membres")
+                    CommunityAuthorHeader(community: community, author: author)
+                        .padding(.horizontal, 20)
+                        .padding(.vertical, 18)
+                        .background(MockPlate(cornerRadius: 14))
                 } else if !community.members.isEmpty {
                     VStack(alignment: .leading, spacing: 6) {
                         Text("Membres")
@@ -215,7 +225,9 @@ private struct CommunityBrowse: View {
                             .padding(.leading, 12)
                         VStack(spacing: 0) {
                             ForEach(community.members) { member in
-                                CommunityMemberRow(member: member) { Task { await community.showAuthor(member) } }
+                                CommunityMemberRow(member: member, photo: community.photos[member.id]) {
+                                    Task { await community.showAuthor(member) }
+                                }
                                     .padding(.horizontal, 12)
                                     .padding(.vertical, 6)
                                     .menuHover(tint: SidebarItem.community.tint, cornerRadius: 10)
@@ -232,7 +244,8 @@ private struct CommunityBrowse: View {
                 } else {
                     LazyVGrid(columns: [GridItem(.adaptive(minimum: 300), spacing: 12)], spacing: 12) {
                         ForEach(community.shares) { share in
-                            CommunityShareCard(share: share, mine: community.isMine(share),
+                            CommunityShareCard(share: share, photo: community.photos[share.authorID],
+                                               mine: community.isMine(share),
                                                canDelete: community.canDelete(share),
                                                showAuthor: community.author?.id == share.authorID ? nil : {
                                                    Task { await community.showAuthor(of: share) }
@@ -305,11 +318,12 @@ private struct CommunityBrowse: View {
 /// Un membre trouvé par son nom : toute la ligne ouvre ses partages.
 private struct CommunityMemberRow: View {
     let member: CommunityMember
+    let photo: NSImage?
     let open: () -> Void
 
     var body: some View {
         HStack(spacing: 12) {
-            SectionIcon(symbol: "person.fill", tint: SidebarItem.community.tint, size: 32)
+            AvatarView(photo: photo, username: member.username, size: 32)
             VStack(alignment: .leading, spacing: 2) {
                 Text("@\(member.username.displaySafe(max: 24))").fontWeight(.semibold).lineLimit(1)
                 Text(member.shareCount == 1 ? String(localized: "1 partage")
@@ -329,28 +343,62 @@ private struct CommunityMemberRow: View {
     }
 }
 
-/// Partages d'un seul membre : son nom, combien, et le retour à tout le monde.
+/// Partages d'un seul membre (maquette du 30/10) : sa photo en grand, son nom, combien ; sa photo peut être signalée
+/// (pas la sienne) et retirée par un administrateur.
 private struct CommunityAuthorHeader: View {
+    @ObservedObject var community: CommunityStore
     let author: CommunityMember
-    let count: Int
-    let busy: Bool
-    let everyone: () -> Void
+
+    private var count: Int { community.shares.count }
+    private var photo: NSImage? { community.photos[author.id] }
 
     var body: some View {
-        HStack(spacing: 12) {
-            SectionIcon(symbol: "person.fill", tint: SidebarItem.community.tint, size: 32)
-            VStack(alignment: .leading, spacing: 2) {
-                Text("@\(author.username.displaySafe(max: 24))").font(.headline).lineLimit(1)
-                Text(busy ? String(localized: "Chargement…") : count == 1 ? String(localized: "1 partage")
+        HStack(spacing: 16) {
+            AvatarView(photo: photo, username: author.username, size: 64)
+            VStack(alignment: .leading, spacing: 3) {
+                Text("@\(author.username.displaySafe(max: 24))").font(.system(size: 19, weight: .bold)).lineLimit(1)
+                Text(community.busy ? String(localized: "Chargement…") : count == 1 ? String(localized: "1 partage")
                      : count >= 50 ? String(localized: "50 partages les plus récents")
                      : String(localized: "\(count) partages"))
-                    .font(.system(size: 11)).foregroundStyle(.secondary)
+                    .font(.system(size: 12.5)).foregroundStyle(.secondary)
             }
             Spacer(minLength: 8)
-            Button("Voir tout le monde", action: everyone)
-                .help("Revenir aux partages de tous les membres")
+            if photo != nil {
+                ViewThatFits(in: .horizontal) {
+                    HStack(spacing: 8) { buttons }
+                    VStack(alignment: .trailing, spacing: 6) { buttons }
+                }
+            }
         }
-        .padding(.vertical, 2)
+    }
+
+    @ViewBuilder private var buttons: some View {
+        Button { report() } label: {
+            Label("Signaler la photo…", systemImage: "flag")
+        }
+        .secondaryButton()
+        .help("Cette photo est choquante ou n'a rien à faire ici : l'équipe la regarde")
+        if community.isAdmin {
+            Button { remove() } label: {
+                Text("Retirer la photo").foregroundStyle(Color.red)
+            }
+            .secondaryButton()
+            .help("Administrateur : retirer cette photo pour tout le monde")
+        }
+    }
+
+    private func report() {
+        guard Dialogs.confirm(String(localized: "Signaler la photo de @\(author.username.displaySafe(max: 24)) ?"),
+                              String(localized: "L'équipe la regarde et la retire si elle n'a rien à faire ici. Le membre ne sait pas qui l'a signalée."))
+        else { return }
+        Task { await community.reportPhoto(of: author) }
+    }
+
+    private func remove() {
+        guard Dialogs.confirm(String(localized: "Retirer la photo de @\(author.username.displaySafe(max: 24)) ?"),
+                              String(localized: "Elle disparaît pour tout le monde ; son initiale la remplace. Ses signalements sont traités."))
+        else { return }
+        Task { await community.removePhoto(of: author) }
     }
 }
 
@@ -467,6 +515,8 @@ private struct CommunityFilters: View {
 /// partages de l'auteur, signaler, supprimer.
 private struct CommunityShareCard: View {
     let share: Share
+    /// Photo de l'auteur (nil : son initiale de couleur).
+    let photo: NSImage?
     let mine: Bool
     let canDelete: Bool
     /// Voir tous les partages de l'auteur (nil : on les regarde déjà).
@@ -475,17 +525,10 @@ private struct CommunityShareCard: View {
     let report: () -> Void
     let delete: () -> Void
 
-    private var initial: String { String(share.authorName.prefix(1)).uppercased() }
-
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack(spacing: 10) {
-                Text(verbatim: initial)
-                    .font(.system(size: 13, weight: .bold))
-                    .foregroundStyle(Color.white)
-                    .frame(width: 28, height: 28)
-                    .background(Circle().fill(share.kind.tint.gradient))
-                    .accessibilityHidden(true)
+                AvatarView(photo: photo, username: share.authorName, size: 28)
                 Button {
                     showAuthor?()
                 } label: {
@@ -758,103 +801,150 @@ private struct CommunityShareDetail: View {
 
 // MARK: - Connexion et création de compte
 
-/// Connexion ou création du compte : un seul compte pour la Communauté et la sauvegarde en ligne (page Mon compte).
+/// Connexion, création du compte ou code reçu par mail : une carte au centre (maquette du 30/10). Un seul compte pour
+/// la Communauté et la sauvegarde en ligne (page Mon compte).
 struct CommunitySignIn: View {
     @ObservedObject var community: CommunityStore
+    /// Page qui montre la carte (Mon compte ou Communauté).
     var page: SidebarItem = .community
-    var title = String(localized: "Communauté")
-    var subtitle = CommunityText.subtitle
-    var benefits: [(symbol: String, text: String)] = [
-        ("square.and.arrow.down", String(localized: "Ajoute des macros toutes faites, après avoir lu ce qu'elles font.")),
-        ("square.and.arrow.up", String(localized: "Partage les tiennes, avec une explication pour les autres.")),
-        ("lock.shield", String(localized: "Ton mail reste privé : les autres ne voient que ton nom d'utilisateur.")),
-    ]
     @State private var email = ""
     @State private var password = ""
     @State private var username = ""
     @State private var code = ""
     @State private var newPassword = ""
+    @State private var nameCheck: CommunityStore.NameCheck = .empty
 
     private var creating: Bool { community.creatingAccount }
 
     var body: some View {
-        Form {
-            Section {
-                PageHeader(symbol: page.symbol, tint: page.tint, title: title, subtitle: subtitle)
-                VStack(alignment: .leading, spacing: 8) {
-                    ForEach(benefits.indices, id: \.self) { i in benefit(benefits[i].symbol, benefits[i].text) }
+        ScrollView {
+            Group {
+                if let pending = community.pendingCode {
+                    codeCard(pending)
+                } else {
+                    signInCard
                 }
-                .padding(.vertical, 2)
             }
-            if let pending = community.pendingCode {
-                codeSection(pending)
-            } else {
-                signInSection
-            }
+            .softSwitch(community.pendingCode == nil ? 0 : 1, quick: true)
+            .frame(maxWidth: .infinity)
+            .padding(.horizontal, 24)
+            .padding(.top, 24)
+            .padding(.bottom, 32)
         }
-        .formStyle(.grouped)
         .glassListBackground()
-        // Code reçu, création du compte : les champs changent en douceur.
-        .motion(Motion.morph, value: community.pendingCode)
-        .motion(Motion.morph, value: creating)
+        // Création du compte : les champs en plus arrivent en douceur.
+        .motion(Motion.smooth, value: creating)
         .onChange(of: community.pendingCode) { _ in
             code = ""
             newPassword = ""
         }
     }
 
-    /// Code reçu par mail : confirmer l'inscription, ou choisir un nouveau mot de passe.
-    private func codeSection(_ pending: CommunityStore.PendingCode) -> some View {
-        let recovery = pending.kind == .recovery
-        return Section {
-            Text("Code envoyé à \(pending.email.displaySafe(max: 60))")
-                .font(.system(size: 12))
-                .foregroundStyle(.secondary)
-            TextField("Code", text: $code, prompt: Text("123456"))
-                .font(.system(size: 15, weight: .medium, design: .monospaced))
-                .textContentType(.oneTimeCode)
-            if recovery {
-                SecureField("Nouveau mot de passe", text: $newPassword, prompt: Text("8 caractères, majuscule, chiffre, symbole"))
-                    .textContentType(.password)
-                let missing = CommunityRules.passwordMissing(newPassword)
-                if !newPassword.isEmpty, !missing.isEmpty {
-                    hint(String(localized: "Il faut encore : \(missing.joined(separator: ", "))."))
-                }
-            }
-            HStack {
-                Button(recovery ? String(localized: "Changer le mot de passe") : String(localized: "Confirmer")) {
-                    let typed = code, chosen = newPassword
-                    Task {
-                        if recovery {
-                            await community.finishReset(code: typed, newPassword: chosen)
-                        } else {
-                            await community.confirmSignup(code: typed)
-                        }
+    // MARK: Se connecter / Créer un compte
+
+    private var signInCard: some View {
+        AuthCard(spacing: creating ? 16 : 18) {
+            VStack(spacing: creating ? 10 : 12) {
+                AuthBadge(symbol: "person", colors: AuthLook.teal, size: creating ? 56 : 64)
+                Text("Ton compte FL Shortcuts").font(.system(size: 20, weight: .bold)).multilineTextAlignment(.center)
+                if !creating {
+                    HStack(spacing: 6) {
+                        AuthPill(symbol: "cloud", text: String(localized: "Sauvegarde"), tint: .green)
+                        AuthPill(symbol: "laptopcomputer", text: String(localized: "Tous tes Mac"), tint: .blue)
+                        AuthPill(symbol: "person.2", text: String(localized: "Communauté"), tint: SidebarItem.community.tint)
                     }
                 }
-                .primaryButton()
-                .keyboardShortcut(.defaultAction)
-                .disabled(CommunityRules.code(code) == nil || (recovery && CommunityRules.passwordProblem(newPassword) != nil))
-                Button("Renvoyer le code") { Task { await community.resendCode() } }
-                    .buttonStyle(.link)
-                    .font(.system(size: 12))
-                Spacer(minLength: 0)
-                if community.busy { ProgressView().controlSize(.small) }
-                Button("Retour") { community.cancelCode() }
-                    .buttonStyle(.link)
-                    .font(.system(size: 12))
             }
-            .disabled(community.busy)
+            AuthTabs(creating: $community.creatingAccount)
+            VStack(alignment: .leading, spacing: creating ? 16 : 18) {
+                if creating {
+                    AuthField(title: String(localized: "Pseudo"), text: $username, prompt: String(localized: "ton.pseudo"),
+                              prefix: "@") {
+                        UsernameStatus(check: nameCheck)
+                    }
+                    .modifier(UsernameChecker(community: community, name: username, check: $nameCheck))
+                    if case .invalid(let why) = nameCheck { hint(why) }
+                }
+                AuthField(title: String(localized: "E-mail"), text: $email, prompt: String(localized: "toi@exemple.com"))
+                AuthField(title: String(localized: "Mot de passe"), text: $password,
+                          prompt: creating ? String(localized: "8 caractères au moins") : String(localized: "Ton mot de passe"),
+                          secure: true, link: creating ? nil : forgotLink)
+                if creating { PasswordRules(password: password) }
+            }
+            Button(creating ? String(localized: "Créer mon compte") : String(localized: "Se connecter")) { submit() }
+                .buttonStyle(AuthPrimaryButtonStyle())
+                .keyboardShortcut(.defaultAction)
+                .disabled(!canSubmit || community.busy)
+                .overlay(alignment: .trailing) {
+                    if community.busy { ProgressView().controlSize(.small).padding(.trailing, 18) }
+                }
             CommunityStatus(community: community)
-        } header: {
-            Text(recovery ? String(localized: "Mot de passe oublié") : String(localized: "Confirme ton adresse"))
-        } footer: {
-            VStack(alignment: .leading, spacing: 4) {
-                Text("Pas de mail ? Regarde dans les courriers indésirables, ou renvoie le code.")
+            if creating {
+                Label("Les autres voient ton pseudo et ta photo, jamais ton e-mail.", systemImage: "lock")
+                    .font(.system(size: 11.5))
+                    .foregroundStyle(.secondary)
+            }
+        }
+    }
+
+    private var forgotLink: (title: String, action: () -> Void) {
+        (String(localized: "Mot de passe oublié ?"), { Task { await community.resetPassword(email: email) } })
+    }
+
+    // MARK: Code reçu par mail
+
+    /// Code reçu par mail : confirmer l'inscription, ou choisir un nouveau mot de passe.
+    private func codeCard(_ pending: CommunityStore.PendingCode) -> some View {
+        let recovery = pending.kind == .recovery
+        return AuthCard {
+            AuthBadge(symbol: "envelope", colors: AuthLook.sky)
+            VStack(spacing: 6) {
+                Text(recovery ? String(localized: "Nouveau mot de passe") : String(localized: "Vérifie tes mails"))
+                    .font(.system(size: 20, weight: .bold))
+                Text("Code envoyé à \(Text(pending.email.displaySafe(max: 60)).fontWeight(.semibold))")
+                    .font(.system(size: 13))
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+            }
+            CodeBoxes(code: $code)
+            if recovery {
+                VStack(alignment: .leading, spacing: 10) {
+                    AuthField(title: String(localized: "Nouveau mot de passe"), text: $newPassword, secure: true)
+                    PasswordRules(password: newPassword)
+                }
+            }
+            Button(recovery ? String(localized: "Changer le mot de passe") : String(localized: "Valider")) {
+                let typed = code, chosen = newPassword
+                Task {
+                    if recovery {
+                        await community.finishReset(code: typed, newPassword: chosen)
+                    } else {
+                        await community.confirmSignup(code: typed)
+                    }
+                }
+            }
+            .buttonStyle(AuthPrimaryButtonStyle())
+            .keyboardShortcut(.defaultAction)
+            .disabled(CommunityRules.code(code) == nil || (recovery && CommunityRules.passwordProblem(newPassword) != nil)
+                      || community.busy)
+            .overlay(alignment: .trailing) {
+                if community.busy { ProgressView().controlSize(.small).padding(.trailing, 18) }
+            }
+            HStack(spacing: 18) {
+                AuthLinkButton(title: String(localized: "Renvoyer le code")) { Task { await community.resendCode() } }
+                AuthLinkButton(title: String(localized: "Changer d'adresse")) {
+                    email = pending.email
+                    community.cancelCode()
+                }
+            }
+            CommunityStatus(community: community)
+            VStack(spacing: 6) {
+                Text("Rien reçu ? Regarde dans les spams.")
+                    .font(.system(size: 11.5))
                     .foregroundStyle(.secondary)
                 if !recovery {
-                    // Mail avec un lien au lieu d'un code : le lien confirme l'adresse (la page affichée après peut
-                    // ne pas s'ouvrir), il ne reste qu'à se connecter.
+                    // Mail avec un lien au lieu d'un code : le lien confirme l'adresse (la page affichée après peut ne
+                    // pas s'ouvrir), il ne reste qu'à se connecter.
                     HStack(spacing: 4) {
                         Text("Reçu un lien au lieu d'un code ?").foregroundStyle(.secondary)
                         Button("J'ai cliqué sur le lien") {
@@ -863,69 +953,9 @@ struct CommunitySignIn: View {
                         }
                         .buttonStyle(.link)
                     }
+                    .font(.system(size: 11))
                 }
             }
-            .font(.system(size: 11))
-        }
-    }
-
-    private var signInSection: some View {
-            Section {
-                Picker("", selection: $community.creatingAccount) {
-                    Text("J'ai déjà un compte").tag(false)
-                    Text("Créer un compte").tag(true)
-                }
-                .pickerStyle(.segmented)
-                .labelsHidden()
-                if creating {
-                    TextField("Nom d'utilisateur", text: $username, prompt: Text("ex. malo.beats"))
-                        .textContentType(.username)
-                    if let problem = usernameHint { hint(problem) }
-                }
-                TextField("Mail", text: $email, prompt: Text("toi@exemple.fr"))
-                if creating {
-                    SecureField("Mot de passe", text: $password, prompt: Text("8 caractères, majuscule, chiffre, symbole"))
-                        .textContentType(.password)
-                    let missing = CommunityRules.passwordMissing(password)
-                    if !password.isEmpty, !missing.isEmpty {
-                        hint(String(localized: "Il faut encore : \(missing.joined(separator: ", "))."))
-                    }
-                } else {
-                    SecureField("Mot de passe", text: $password)
-                        .textContentType(.password)
-                }
-                HStack {
-                    Button(creating ? String(localized: "Créer mon compte") : String(localized: "Se connecter")) { submit() }
-                        .primaryButton()
-                        .keyboardShortcut(.defaultAction)
-                        .disabled(!canSubmit)
-                    if !creating {
-                        Button("Mot de passe oublié ?") { Task { await community.resetPassword(email: email) } }
-                            .buttonStyle(.link)
-                            .font(.system(size: 12))
-                            .help("Reçois par mail un code pour choisir un nouveau mot de passe")
-                    }
-                    Spacer(minLength: 0)
-                    if community.busy { ProgressView().controlSize(.small) }
-                }
-                .disabled(community.busy)
-                CommunityStatus(community: community)
-            } header: {
-                Text(creating ? String(localized: "Nouveau compte") : String(localized: "Connexion"))
-            } footer: {
-                if creating {
-                    Text("Visible par les autres : ton nom d'utilisateur et ce que tu partages. Jamais : ton mail.")
-                        .font(.system(size: 11))
-                        .foregroundStyle(.secondary)
-                }
-            }
-    }
-
-    private func benefit(_ symbol: String, _ text: String) -> some View {
-        Label {
-            Text(text).font(.system(size: 12)).fixedSize(horizontal: false, vertical: true)
-        } icon: {
-            Image(systemName: symbol).foregroundStyle(page.tint)
         }
     }
 
@@ -933,15 +963,10 @@ struct CommunitySignIn: View {
         Text(text).font(.system(size: 11)).foregroundStyle(.orange).fixedSize(horizontal: false, vertical: true)
     }
 
-    private var usernameHint: String? {
-        let name = username.trimmingCharacters(in: .whitespaces)
-        return name.isEmpty ? nil : CommunityRules.usernameProblem(name)
-    }
-
     private var canSubmit: Bool {
         let mail = email.trimmingCharacters(in: .whitespaces)
         guard creating else { return !mail.isEmpty && !password.isEmpty }
-        return CommunityRules.usernameProblem(username.trimmingCharacters(in: .whitespaces)) == nil
+        return CommunityRules.usernameProblem(username.trimmingCharacters(in: .whitespaces)) == nil && nameCheck != .taken
             && CommunityRules.emailProblem(mail) == nil && CommunityRules.passwordProblem(password) == nil
     }
 

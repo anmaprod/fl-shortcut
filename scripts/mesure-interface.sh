@@ -325,7 +325,7 @@ run() {   # $1 : libellé, $2 : YES/NO effet verre
     done
     # Page Mon compte (sauvegarde en ligne), avec des exemples et sans réseau.
     "$POST" app.flshortcut.debug.select compte; sleep 2
-    for screen in connexion code oubli connecte attente choix; do
+    for screen in connexion inscription code oubli connecte profil attente choix; do
       "$POST" app.flshortcut.debug.account "$screen"; sleep 3
       screencapture -x "$OUT/compte-$screen.png" 2>/dev/null || true
     done
