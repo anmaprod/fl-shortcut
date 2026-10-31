@@ -641,3 +641,11 @@ entrée 1 ≈ 0,5 s.
   diagnostic » sur chaque fin. « Reset » de la grille de FL n'est pas une icône : retiré du sélecteur (« Aucune »).
   « Installer le lien » depuis l'Organiser : « ça se ferme » (FL Shortcuts passait devant, ⌘Q le quittait) ; la
   fenêtre reste, demande de rouvrir FL, puis montre l'image des 4 cases de MIDI Settings.
+- 31/10 (vidéo des autorisations, 13 h 42) : à la question « FL Shortcuts souhaite pouvoir enregistrer l'audio », la
+  fenêtre d'accueil revenait au clic sur « Autoriser », pendant le fondu de la question (« n'attend pas ») : elle
+  revient 0,8 s après la réponse. « Son de FL » restait « À autoriser » une fois autorisé : la vérification toutes les
+  secondes pouvait s'arrêter pendant la question (TCC lu « refusé » avant la réponse) ; plus rien n'est conclu pendant
+  la question, la réponse de macOS compte, TCC est relu après (0,5 à 6 s) et quand l'app revient devant ; ligne `AUDIO`
+  du journal pour le vérifier. Icônes : « Autoriser » n'ouvrait aucune page (la demande de macOS ne montre rien sur
+  les derniers macOS) : la page « Enregistrement de l'écran » des Réglages s'ouvre. Rappel : l'accueil ne demande que
+  l'audio du système ; l'écran (pour lire la fenêtre de FL) est un autre interrupteur de la même page.

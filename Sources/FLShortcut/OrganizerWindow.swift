@@ -56,7 +56,7 @@ struct OrganizerEnvironment {
     var openFL: () -> Void = {}
     /// Lecture de la fenêtre de FL permise (« Enregistrement de l'écran ») : les icônes en ont besoin.
     var screenAllowed: () -> Bool = { true }
-    /// « Autoriser » : la fenêtre de macOS la première fois, sinon les Réglages.
+    /// « Autoriser » : la page « Enregistrement de l'écran » des Réglages Système.
     var askScreen: () -> Void = {}
     /// En attente de FL (à redémarrer, à ouvrir, page à ouvrir, lecture à arrêter) : nouvel essai, tout seul, à
     /// cet intervalle.
@@ -142,7 +142,12 @@ struct OrganizerEnvironment {
                 NSWorkspace.shared.openApplication(at: url, configuration: NSWorkspace.OpenConfiguration())
             },
             screenAllowed: { ScreenLook.allowed },
-            askScreen: { if !ScreenLook.requestOnce() { ScreenLook.openSettings() } },
+            // Retour du 31/10 (« aucune page ne s'ouvre ») : la page des Réglages toujours ouverte, l'app inscrite
+            // dans sa liste par la demande.
+            askScreen: {
+                ScreenLook.requestAccess()
+                ScreenLook.openSettings()
+            },
             scriptPlace: { FLScriptInstaller.installedScript() },
             reveal: { NSWorkspace.shared.activateFileViewerSelecting([$0]) },
             wrongInput: { MIDILink.shared.core.snapshot.wrongInput },

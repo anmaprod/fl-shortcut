@@ -23,6 +23,8 @@ final class AccessibilityGuide: ObservableObject {
     private var openedSettings = false
     /// La fenêtre d'accueil est cachée pendant la question du son de macOS.
     private var accueilCache = false
+    /// La question du son de macOS est affichée (jusqu'à la réponse) : rien n'est conclu de TCC pendant ce temps.
+    private var audioQuestionOpen = false
     private var timer: Timer?
     /// Montrer le petit panneau (faux depuis l'accueil, qui explique déjà quoi faire).
     private var showsPanel = true
@@ -77,11 +79,20 @@ final class AccessibilityGuide: ObservableObject {
             // la réponse donnée (au plus tard au bout de 2 minutes, si la question disparaît sans réponse).
             hideWelcome()
             NSApp.activate(ignoringOtherApps: true)         // la fenêtre de macOS devant, pas derrière les réglages
+            audioQuestionOpen = true
             let asked = AudioCapturePermission.request { [weak self] ok in
-                if ok { self?.audioGranted = true }
-                self?.showWelcome()
+                guard let self else { return }
+                self.audioQuestionOpen = false
+                MacroLog.shared.write("AUDIO", "question answered: \(ok ? "allowed" : "not allowed"), "
+                                      + "TCC \(AudioCapturePermission.status)")
+                if ok || Self.audioAllowed { self.audioGranted = true }
+                // Vidéo du 31/10 : l'accueil revenait pendant que la question de macOS se refermait (fondu) ; il
+                // attend qu'elle ait disparu.
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) { self.showWelcome() }
+                self.recheckAudioSoon()
             }
             if !asked {
+                audioQuestionOpen = false
                 showWelcome()
                 ScreenLook.openSettings()
             }
@@ -90,6 +101,21 @@ final class AccessibilityGuide: ObservableObject {
         case .granted:
             audioGranted = true
         }
+    }
+
+    /// Vidéo du 31/10 (« Autorisé » jamais affiché) : TCC peut ne noter la réponse qu'un instant après la question ;
+    /// relu encore quelques fois.
+    private func recheckAudioSoon() {
+        for delay in [0.5, 1.5, 3, 6] {
+            DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in self?.refresh() }
+        }
+    }
+
+    /// Relit les deux autorisations (accueil qui revient devant, app réactivée).
+    func refresh() {
+        let trusted = AXIsProcessTrusted()
+        if trusted != granted { granted = trusted }
+        if !audioGranted, Self.audioAllowed { audioGranted = true }
     }
 
     private func hideWelcome() {
@@ -128,11 +154,14 @@ final class AccessibilityGuide: ObservableObject {
                 if Self.audioMissing { withAnimation(Motion.quickMorph) { self.askAudio() } } else { self.close() }
             }
         case .audio:
-            if #available(macOS 14.2, *), !showsPanel, AudioCapturePermission.status == .denied {
+            // Pendant la question de macOS, TCC ne dit encore rien de sûr : on attend la réponse (vidéo du 31/10 : la
+            // vérification s'arrêtait là, et « Son de FL » restait « À autoriser » une fois autorisé).
+            guard !audioQuestionOpen else { return }
+            if #available(macOS 14.2, *), !showsPanel, AudioCapturePermission.status == .denied, !audioGranted {
                 close()                                     // refusé depuis l'accueil : redemandé à l'Organiser
                 return
             }
-            guard Self.audioAllowed else { return }
+            guard audioGranted || Self.audioAllowed else { return }
             audioGranted = true
             showWelcome()
             DispatchQueue.main.asyncAfter(deadline: .now() + 1.4) { [weak self] in self?.close() }

@@ -171,6 +171,9 @@ struct OnboardingView: View {
         .onChange(of: status.accessibilityOK) { ok in
             if ok, stage == .keyboard { OnboardingWindow.shared.bringToFront() }
         }
+        .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
+            permissions.refresh()                          // une autorisation donnée dans les Réglages pendant ce temps
+        }
         .onReceive(DebugSnapshot.publisher(DebugSnapshot.onboarding)) { note in
             // Mode capture : « autorise » (clavier montré comme autorisé), « guide lent » (passage au guide au ralenti).
             let words = (note.object as? String ?? "").split(separator: " ")
