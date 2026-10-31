@@ -477,7 +477,8 @@ final class OrganizerApplier {
         }
         if restored > 0 { outcome.trace.append("page remise \(restored)") }
         if let iconMiss {
-            outcome.iconsMissed = iconMiss.message
+            // Dite après « Icônes non posées : » : la raison telle quelle, sans majuscule.
+            if case .failed(let why) = iconMiss { outcome.iconsMissed = why } else { outcome.iconsMissed = iconMiss.message }
             outcome.trace.append("icônes non posées")
         }
         return outcome
