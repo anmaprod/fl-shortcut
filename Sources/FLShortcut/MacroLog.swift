@@ -168,10 +168,10 @@ final class MacroLog: @unchecked Sendable {
         for kind in MacroSpots.PathKind.allCases {
             out.append("learned \(kind.rawValue): " + (MacroSpots.loadPath(kind).map(MacroSpots.describe) ?? "none"))
         }
-        let icon = IconPlacement.loadSpot().map {
-            "(\(Int($0.fromTopRight.dx)),\(Int($0.fromTopRight.dy))) from top-right of \(Int($0.windowSize.width))x\(Int($0.windowSize.height))"
+        let icons = IconPlacement.loadSpots().map {
+            "(\(Int($0.fromTopLeft.dx)),\(Int($0.fromTopLeft.dy))) in a \(Int($0.menuSize.width))x\(Int($0.menuSize.height)) menu"
         }
-        out.append("learned \(IconPlacement.spotKey): " + (icon ?? "none"))
+        out.append("learned \(IconPlacement.spotKey): " + (icons.isEmpty ? "none" : icons.joined(separator: ", ")))
         return out
     }
 }

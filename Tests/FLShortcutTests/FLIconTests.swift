@@ -2,50 +2,51 @@ import AppKit
 import XCTest
 @testable import FLShortcut
 
-/// Faux FL pour la pose de l'icône : F2 ouvre la fenêtre du nom, son bouton de l'icône ouvre la grille, un clic dans
-/// une case la referme, Entrée referme la fenêtre du nom, Échap ferme la fenêtre de devant.
+/// Faux FL pour la pose de l'icône : un clic droit ouvre le menu de l'élément, « Change icon… » le referme et ouvre
+/// la grille, un clic dans une case la referme, Échap ferme la fenêtre de devant (jamais la grille, comme sur FL).
 private final class FakeIconFL: IconPlacementDriver {
     static let main = WinInfo(number: 1, layer: 0, bounds: CGRect(x: 0, y: 0, width: 1400, height: 900), pid: 7, alpha: 1)
-    static let name = WinInfo(number: 2, layer: 0, bounds: CGRect(x: 400, y: 300, width: 360, height: 120), pid: 7, alpha: 1)
-    static let grid = WinInfo(number: 3, layer: 0, bounds: CGRect(x: 420, y: 100, width: 617, height: 677), pid: 7, alpha: 1)
-    /// Bouton de l'icône : 30 points à gauche du bord droit, 30 sous le haut de la fenêtre du nom.
-    static let button = CGPoint(x: 730, y: 330)
+    static let menu = WinInfo(number: 2, layer: 101, bounds: CGRect(x: 400, y: 300, width: 220, height: 400), pid: 7, alpha: 1)
+    static let grid = WinInfo(number: 3, layer: 101, bounds: CGRect(x: 420, y: 100, width: 617, height: 677), pid: 7, alpha: 1)
+    /// « Change icon… » : 30 points du bord gauche, 80 sous le haut du menu.
+    static let changeIcon = CGPoint(x: 430, y: 380)
+    static let target = CGPoint(x: 350, y: 140)
 
     var open: [WinInfo] = [main]
     var events: [String] = []
-    var f2Opens = true
+    var menuOpens = true
     var gridOpens = true
-    /// FL referme lui-même la fenêtre du nom quand on choisit une case.
-    var nameClosesWithGrid = false
-    /// Comme sur le vrai FL : Échap ne ferme pas toujours la fenêtre du nom, et jamais la grille.
-    var nameIgnoresEscape = false
-    var gridIgnoresEscape = false
+    /// Lecture du menu (autorisation « Enregistrement de l'écran ») : trouvé, absent, ou rien de lu.
+    var reading = IconPlacement.MenuRead.found(changeIcon)
+    var gridIgnoresEscape = true
     /// Comme sur le vrai FL : après le choix d'une case, la grille garde son numéro, réduite à 44 × 44, le temps de
     /// son animation de fermeture (ici, jusqu'à la fin de l'essai).
     var gridShrinksOnClose = false
-    static let closingGrid = WinInfo(number: 3, layer: 0, bounds: CGRect(x: 465, y: 117, width: 44, height: 44), pid: 7, alpha: 1)
+    static let closingGrid = WinInfo(number: 3, layer: 101, bounds: CGRect(x: 465, y: 117, width: 44, height: 44), pid: 7, alpha: 1)
     /// Clic montré par l'utilisateur ; nil : il appuie sur Échap.
-    var shown: CGPoint? = button
+    var shown: CGPoint? = changeIcon
     private var stopped = false
 
     func windows() -> [WinInfo] { open }
 
     func press(_ key: KeyCombo) {
-        switch key.keyCode {
-        case 120:
-            events.append("F2")
-            if f2Opens { open.insert(Self.name, at: 0) }
-        case 36:
-            events.append("Entrée")
-            // Entrée va à la fenêtre de devant : la grille si elle est restée ouverte.
-            if open.first == Self.grid { events.append("case choisie par Entrée") } else { open.removeAll { $0.number == Self.name.number } }
-        case 53:
-            events.append("Échap")
-            if let front = open.first, front != Self.main,
-               !(front == Self.name && nameIgnoresEscape), !(front == Self.grid && gridIgnoresEscape) { open.removeFirst() }
-        default:
+        guard key.keyCode == 53 else {
             events.append("touche \(key.keyCode)")
+            return
         }
+        events.append("Échap")
+        if let front = open.first, front != Self.main, !(front == Self.grid && gridIgnoresEscape) { open.removeFirst() }
+    }
+
+    func rightClick(_ p: CGPoint) -> Bool {
+        events.append("clic droit")
+        if menuOpens { open.insert(Self.menu, at: 0) }
+        return true
+    }
+
+    func readItem(_ label: String, in menu: WinInfo) -> IconPlacement.MenuRead {
+        XCTAssertEqual(label, "Change icon")
+        return reading
     }
 
     func click(_ p: CGPoint) -> Bool {
@@ -56,14 +57,19 @@ private final class FakeIconFL: IconPlacementDriver {
             events.append("case \(column)-\(row)")
             open.removeFirst()
             if gridShrinksOnClose { open.insert(Self.closingGrid, at: 0) }
-            if nameClosesWithGrid { open.removeAll { $0.number == Self.name.number } }
-        } else if open.first == Self.name, hypot(p.x - Self.button.x, p.y - Self.button.y) <= 4 {
-            events.append("bouton de l'icône")
-            if gridOpens { open.insert(Self.grid, at: 0) }
+        } else if open.first == Self.menu, hypot(p.x - Self.changeIcon.x, p.y - Self.changeIcon.y) <= 4 {
+            chooseChangeIcon()
         } else {
             events.append("clic ailleurs")
         }
         return true
+    }
+
+    /// FL referme le menu, puis ouvre la grille.
+    private func chooseChangeIcon() {
+        events.append("Change icon")
+        open.removeAll { $0 == Self.menu }
+        if gridOpens { open.insert(Self.grid, at: 0) }
     }
 
     func wait(_ seconds: TimeInterval) -> Bool { !stopped }
@@ -74,6 +80,7 @@ private final class FakeIconFL: IconPlacementDriver {
             stopped = true
             return nil
         }
+        open.removeAll { $0 == Self.menu }
         if gridOpens { open.insert(Self.grid, at: 0) }
         return p
     }
@@ -149,102 +156,133 @@ final class FLIconTests: XCTestCase {
         XCTAssertEqual(NameColorPayload.summary(name: nil, color: nil, icon: unknown), "icône 3-14")
     }
 
-    /// Première fois : l'utilisateur montre le bouton de l'icône (retenu par rapport au coin haut-droit de la
-    /// fenêtre du nom), puis la case et Entrée ; ensuite le bouton est cliqué seul.
-    func testIconStepOrder() throws {
+    /// Clic droit sur l'élément, « Change icon… » lu dans le menu (sa place retenue pour ce menu), puis la case.
+    func testIconByChangeIconInTheMenu() throws {
+        let microphone = try XCTUnwrap(FLIcon(code: "7-4"))
+        let fl = FakeIconFL()
+        XCTAssertNil(IconPlacement.place(microphone, at: FakeIconFL.target, driver: fl, defaults: defaults))
+        XCTAssertEqual(fl.events, ["clic droit", "Change icon", "case 7-4"])
+        XCTAssertEqual(fl.open, [FakeIconFL.main])
+        let spot = try XCTUnwrap(IconPlacement.loadSpot(forMenu: FakeIconFL.menu.bounds.size, defaults: defaults))
+        XCTAssertEqual(spot.fromTopLeft, CGVector(dx: 30, dy: 80))
+    }
+
+    /// Sans « Enregistrement de l'écran » : la première fois, l'utilisateur montre « Change icon… » (retenu pour un
+    /// menu de cette taille) ; ensuite il est cliqué seul.
+    func testIconWithoutScreenReading() throws {
         let microphone = try XCTUnwrap(FLIcon(code: "7-4"))
         let first = FakeIconFL()
-        XCTAssertNil(IconPlacement.place(microphone, driver: first, defaults: defaults))
-        XCTAssertEqual(first.events, ["F2", "montré", "case 7-4", "Entrée"])
+        first.reading = .unreadable
+        XCTAssertNil(IconPlacement.place(microphone, at: FakeIconFL.target, driver: first, defaults: defaults))
+        XCTAssertEqual(first.events, ["clic droit", "montré", "case 7-4"])
         XCTAssertEqual(first.open, [FakeIconFL.main])
-        let spot = try XCTUnwrap(IconPlacement.loadSpot(defaults: defaults))
-        XCTAssertEqual(spot.fromTopRight, CGVector(dx: -30, dy: 30))
-        XCTAssertEqual(spot.windowSize, FakeIconFL.name.bounds.size)
 
         let again = FakeIconFL()
-        XCTAssertNil(IconPlacement.place(microphone, driver: again, defaults: defaults))
-        XCTAssertEqual(again.events, ["F2", "bouton de l'icône", "case 7-4", "Entrée"])
+        again.reading = .unreadable
+        XCTAssertNil(IconPlacement.place(microphone, at: FakeIconFL.target, driver: again, defaults: defaults))
+        XCTAssertEqual(again.events, ["clic droit", "Change icon", "case 7-4"])
         XCTAssertEqual(again.open, [FakeIconFL.main])
     }
 
-    /// FL referme la fenêtre du nom avec la grille : aucune Entrée envoyée sans elle (elle irait à la page devant).
-    func testNoEnterWhenFLClosesTheNameWindow() throws {
-        IconPlacement.saveSpot(IconPlacement.Spot(fromTopRight: CGVector(dx: -30, dy: 30),
-                                                  windowSize: FakeIconFL.name.bounds.size), defaults: defaults)
+    /// Menu lu sans « Change icon… » (clic droit ailleurs que sur un nom) : refermé, rien cliqué à l'aveugle, même
+    /// avec une place retenue pour un menu de cette taille.
+    func testMenuWithoutChangeIconIsClosed() throws {
+        IconPlacement.saveSpot(IconPlacement.Spot(fromTopLeft: CGVector(dx: 30, dy: 80),
+                                                  menuSize: FakeIconFL.menu.bounds.size), defaults: defaults)
         let fl = FakeIconFL()
-        fl.nameClosesWithGrid = true
-        XCTAssertNil(IconPlacement.place(try XCTUnwrap(FLIcon(code: "7-4")), driver: fl, defaults: defaults))
-        XCTAssertEqual(fl.events, ["F2", "bouton de l'icône", "case 7-4"])
+        fl.reading = .absent
+        XCTAssertEqual(IconPlacement.place(try XCTUnwrap(FLIcon(code: "7-4")), at: FakeIconFL.target, driver: fl,
+                                           defaults: defaults), .notInMenu)
+        XCTAssertEqual(fl.events, ["clic droit", "Échap"])
         XCTAssertEqual(fl.open, [FakeIconFL.main])
     }
 
-    /// Échap ne ferme pas la fenêtre du nom : Entrée (le nom ne change pas, rien n'a été tapé).
-    func testEnterClosesTheNameWindowWhenEscapeDoesNot() throws {
-        IconPlacement.saveSpot(IconPlacement.Spot(fromTopRight: CGVector(dx: -30, dy: 30),
-                                                  windowSize: FakeIconFL.name.bounds.size), defaults: defaults)
+    /// Aucun menu après le clic droit : rien d'autre n'est envoyé (jamais d'Échap à l'aveugle).
+    func testNoMenu() throws {
         let fl = FakeIconFL()
-        fl.gridOpens = false
-        fl.nameIgnoresEscape = true
-        XCTAssertEqual(IconPlacement.place(try XCTUnwrap(FLIcon(code: "7-4")), driver: fl, defaults: defaults), .noGrid)
-        XCTAssertEqual(fl.events, ["F2", "bouton de l'icône", "Échap", "Entrée"])
-        XCTAssertEqual(fl.open, [FakeIconFL.main])
+        fl.menuOpens = false
+        XCTAssertEqual(IconPlacement.place(try XCTUnwrap(FLIcon(code: "7-4")), at: FakeIconFL.target, driver: fl,
+                                           defaults: defaults), .noMenu)
+        XCTAssertEqual(fl.events, ["clic droit"])
     }
 
     /// La grille se referme en gardant son numéro (44 × 44, animation) : la pose réussit, sans Échap ni « grille
     /// restée ouverte ».
     func testClosingGridAnimationCountsAsClosed() throws {
-        IconPlacement.saveSpot(IconPlacement.Spot(fromTopRight: CGVector(dx: -30, dy: 30),
-                                                  windowSize: FakeIconFL.name.bounds.size), defaults: defaults)
         let fl = FakeIconFL()
         fl.gridShrinksOnClose = true
-        XCTAssertNil(IconPlacement.place(try XCTUnwrap(FLIcon(code: "7-4")), driver: fl, defaults: defaults))
-        XCTAssertEqual(fl.events, ["F2", "bouton de l'icône", "case 7-4", "Entrée"])
+        XCTAssertNil(IconPlacement.place(try XCTUnwrap(FLIcon(code: "7-4")), at: FakeIconFL.target, driver: fl,
+                                         defaults: defaults))
+        XCTAssertEqual(fl.events, ["clic droit", "Change icon", "case 7-4"])
         XCTAssertEqual(fl.open, [FakeIconFL.closingGrid, FakeIconFL.main])
     }
 
-    /// Grille restée ouverte devant (elle ignore Échap) : jamais d'Entrée, qui irait à la grille.
-    func testNoEnterWhileTheGridStaysOpen() throws {
+    /// Grille restée ouverte devant (elle ignore Échap) : rien n'est choisi ni fermé à l'aveugle.
+    func testGridThatStaysOpenIsLeftAlone() throws {
         let fl = FakeIconFL()
-        fl.open = [FakeIconFL.grid, FakeIconFL.name, FakeIconFL.main]
-        fl.gridIgnoresEscape = true
-        fl.nameIgnoresEscape = true
-        XCTAssertEqual(IconPlacement.close([FakeIconFL.grid, FakeIconFL.name], driver: fl, .gridStayed), .gridStayed)
-        XCTAssertEqual(fl.events, ["Échap", "Échap"])
-        XCTAssertEqual(fl.open, [FakeIconFL.grid, FakeIconFL.name, FakeIconFL.main], "rien n'est choisi ni fermé à l'aveugle")
+        fl.open = [FakeIconFL.grid, FakeIconFL.main]
+        XCTAssertEqual(IconPlacement.close([FakeIconFL.grid], driver: fl, .gridStayed), .gridStayed)
+        XCTAssertEqual(fl.events, ["Échap"])
+        XCTAssertEqual(fl.open, [FakeIconFL.grid, FakeIconFL.main])
     }
 
-    /// Le bouton relevé sur le FL de l'utilisateur : à 9 points du bord gauche d'une fenêtre du nom de 260 × 52.
-    func testRealNameWindowSpot() {
-        let spot = IconPlacement.Spot(fromTopRight: CGVector(dx: -250, dy: 17), windowSize: CGSize(width: 260, height: 52))
-        XCTAssertTrue(spot.isValid)
-        XCTAssertEqual(spot.point(in: CGRect(x: 243, y: 421, width: 260, height: 52)), CGPoint(x: 253, y: 438))
-    }
-
-    /// La grille ne s'ouvre pas avec le clic retenu : la fenêtre du nom est refermée (Échap) et le clic est à
-    /// montrer de nouveau.
+    /// La grille ne s'ouvre pas avec la place retenue : elle est à montrer de nouveau pour ce menu seulement.
     func testGridMissingForgetsSpot() throws {
-        IconPlacement.saveSpot(IconPlacement.Spot(fromTopRight: CGVector(dx: -30, dy: 30),
-                                                  windowSize: FakeIconFL.name.bounds.size), defaults: defaults)
+        let other = CGSize(width: 300, height: 500)
+        IconPlacement.saveSpot(IconPlacement.Spot(fromTopLeft: CGVector(dx: 30, dy: 80),
+                                                  menuSize: FakeIconFL.menu.bounds.size), defaults: defaults)
+        IconPlacement.saveSpot(IconPlacement.Spot(fromTopLeft: CGVector(dx: 40, dy: 90), menuSize: other),
+                               defaults: defaults)
         let fl = FakeIconFL()
+        fl.reading = .unreadable
         fl.gridOpens = false
-        XCTAssertEqual(IconPlacement.place(try XCTUnwrap(FLIcon(code: "7-4")), driver: fl, defaults: defaults), .noGrid)
-        XCTAssertEqual(fl.events, ["F2", "bouton de l'icône", "Échap"])
-        XCTAssertEqual(fl.open, [FakeIconFL.main])
-        XCTAssertNil(IconPlacement.loadSpot(defaults: defaults))
+        XCTAssertEqual(IconPlacement.place(try XCTUnwrap(FLIcon(code: "7-4")), at: FakeIconFL.target, driver: fl,
+                                           defaults: defaults), .noGrid)
+        XCTAssertEqual(fl.events, ["clic droit", "Change icon"], "menu déjà refermé par FL : pas d'Échap")
+        XCTAssertNil(IconPlacement.loadSpot(forMenu: FakeIconFL.menu.bounds.size, defaults: defaults))
+        XCTAssertNotNil(IconPlacement.loadSpot(forMenu: other, defaults: defaults))
     }
 
-    func testNoNameWindowAndStop() throws {
-        let icon = try XCTUnwrap(FLIcon(code: "7-4"))
-        let silent = FakeIconFL()
-        silent.f2Opens = false
-        XCTAssertEqual(IconPlacement.place(icon, driver: silent, defaults: defaults), .noNameWindow)
-        XCTAssertEqual(silent.events, ["F2"], "jamais d'Échap à l'aveugle")
+    /// Échap au lieu de montrer « Change icon… » : le menu est refermé, rien n'est retenu.
+    func testStopWhileShowing() throws {
+        let fl = FakeIconFL()
+        fl.reading = .unreadable
+        fl.shown = nil
+        XCTAssertEqual(IconPlacement.place(try XCTUnwrap(FLIcon(code: "7-4")), at: FakeIconFL.target, driver: fl,
+                                           defaults: defaults), .stopped)
+        XCTAssertEqual(fl.events, ["clic droit", "montré", "Échap"])
+        XCTAssertEqual(fl.open, [FakeIconFL.main])
+        XCTAssertTrue(IconPlacement.loadSpots(defaults: defaults).isEmpty)
+    }
 
-        let escaped = FakeIconFL()
-        escaped.shown = nil
-        XCTAssertEqual(IconPlacement.place(icon, driver: escaped, defaults: defaults), .stopped)
-        XCTAssertEqual(escaped.events, ["F2", "montré", "Échap"])
-        XCTAssertEqual(escaped.open, [FakeIconFL.main])
-        XCTAssertNil(IconPlacement.loadSpot(defaults: defaults))
+    /// « Change icon… » parmi les lignes lues du menu de FL (vidéo du 31/10) : pas « Change color… », ni les mots
+    /// seuls d'une ligne.
+    func testChangeIconReadInMenu() throws {
+        func item(_ text: String, y: CGFloat) -> TextLook.Item {
+            TextLook.Item(text: text, box: CGRect(x: 8, y: y, width: 90, height: 12))
+        }
+        let items = [item("Rename, color and icon...", y: 10), item("Change color...", y: 26), item("Random color", y: 42),
+                     item("Change", y: 58), item("icon...", y: 58), item("Change icon...", y: 58),
+                     item("Cut itself", y: 74)]
+        XCTAssertEqual(IconPlacement.menuItem("Change icon", in: items)?.box.minY, 58)
+        XCTAssertEqual(IconPlacement.menuItem("Change icon", in: [item("Change icon…", y: 30)])?.box.minY, 30)
+        XCTAssertNil(IconPlacement.menuItem("Change icon", in: [item("Change color...", y: 26), item("Change", y: 58)]))
+    }
+
+    /// Une place par taille de menu (Channel rack, Mixer, Playlist) ; tout s'oublie avec les autres places apprises.
+    func testSpotsPerMenuSize() throws {
+        let rack = IconPlacement.Spot(fromTopLeft: CGVector(dx: 30, dy: 80), menuSize: CGSize(width: 290, height: 250))
+        let mixer = IconPlacement.Spot(fromTopLeft: CGVector(dx: 25, dy: 60), menuSize: CGSize(width: 200, height: 620))
+        XCTAssertTrue(rack.isValid)
+        XCTAssertFalse(IconPlacement.Spot(fromTopLeft: CGVector(dx: 300, dy: 80), menuSize: rack.menuSize).isValid)
+        XCTAssertEqual(rack.point(in: CGRect(x: 100, y: 200, width: 290, height: 250)), CGPoint(x: 130, y: 280))
+        IconPlacement.saveSpot(rack, defaults: defaults)
+        IconPlacement.saveSpot(mixer, defaults: defaults)
+        XCTAssertEqual(IconPlacement.loadSpot(forMenu: CGSize(width: 290, height: 250), defaults: defaults), rack)
+        XCTAssertEqual(IconPlacement.loadSpot(forMenu: CGSize(width: 200, height: 620), defaults: defaults), mixer)
+        defaults.set(Data([1]), forKey: IconPlacement.oldSpotKey)
+        IconPlacement.forgetSpot(defaults: defaults)
+        XCTAssertTrue(IconPlacement.loadSpots(defaults: defaults).isEmpty)
+        XCTAssertNil(defaults.object(forKey: IconPlacement.oldSpotKey))
     }
 }

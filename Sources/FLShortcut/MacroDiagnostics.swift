@@ -41,11 +41,11 @@ enum MacroDiagnostics {
         exit(0)
     }
 
-    /// `FLShortcut --diag-icon 7-4 [--relearn]` : pose l'icône (colonne-rangée de la grille de FL) sur l'élément
-    /// sélectionné du vrai FL, par le même chemin que le bloc « Nom et couleur » (F2, bouton de l'icône, case,
-    /// Entrée), et affiche chaque étape (fenêtres vues, points cliqués). FL est mis au premier plan d'abord ;
-    /// sélectionne une seule piste ou un seul canal dans FL avant de lancer la commande. `--relearn` : le bouton de
-    /// l'icône est à montrer de nouveau (bulle).
+    /// `FLShortcut --diag-icon 7-4 [--relearn]` : pose l'icône (colonne-rangée de la grille de FL) sur l'élément du
+    /// vrai FL sous la souris, par le même chemin que le bloc « Nom et couleur » (clic droit, « Change icon… », case),
+    /// et affiche chaque étape (fenêtres vues, points cliqués). FL est mis au premier plan d'abord ; mets la souris sur
+    /// le nom d'un son ou d'une piste dans FL avant de lancer la commande. `--relearn` : les places retenues de
+    /// « Change icon… » sont oubliées.
     static func runIconIfRequested() {
         let args = CommandLine.arguments
         guard let i = args.firstIndex(of: "--diag-icon") else { return }
@@ -65,10 +65,12 @@ enum MacroDiagnostics {
         let pid = fl.processIdentifier
         if args.contains("--relearn") { IconPlacement.forgetSpot() }
         print("Icône \(icon.code) : \(FLIconGrid.cell(icon)?.name ?? "case vide ou colonne Channel")")
-        print("Bouton de l'icône : " + (IconPlacement.loadSpot().map {
-            "appris (\(Int($0.fromTopRight.dx)), \(Int($0.fromTopRight.dy))) depuis le coin haut-droit d'une fenêtre de "
-                + "\(Int($0.windowSize.width)) × \(Int($0.windowSize.height))"
-        } ?? "à montrer : une bulle le demandera"))
+        let spots = IconPlacement.loadSpots()
+        print("« Change icon… » : lu dans le menu" + (ScreenLook.allowed ? "" : " (impossible : pas d'Enregistrement de l'écran)")
+              + (spots.isEmpty ? "" : " ; places retenues : " + spots.map {
+                  "(\(Int($0.fromTopLeft.dx)), \(Int($0.fromTopLeft.dy))) dans un menu de \(Int($0.menuSize.width)) × \(Int($0.menuSize.height))"
+              }.joined(separator: ", ")))
+        print("Clic droit sous la souris : mets-la sur le nom d'un son (Channel rack) ou d'une piste (Mixer, Playlist) dans FL.")
         let app = NSApplication.shared
         app.setActivationPolicy(.accessory)
         MacroRunner.testFLPID = pid
@@ -100,9 +102,10 @@ enum MacroDiagnostics {
                 exit(1)
             }
             Thread.sleep(forTimeInterval: 0.4)
+            let target = FLWindows.cursor()
             MacroLog.shared.beginRun("diag-icon \(icon.code)", flPID: pid)
             MacroLog.shared.windows("before", WinSnapshot.take(pid: pid))
-            let result = MacroEffectsMac(pid: pid).placeIcon(icon, alsoColored: false)
+            let result = MacroEffectsMac(pid: pid).placeIcon(icon, at: target, alsoColored: false)
             MacroLog.shared.windows("after", WinSnapshot.take(pid: pid))
             MacroLog.shared.endRun("\(result)")
             MacroLog.shared.flush()

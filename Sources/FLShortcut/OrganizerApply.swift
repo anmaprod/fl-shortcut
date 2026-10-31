@@ -251,7 +251,7 @@ final class OrganizerApplier {
     private let link: OrganizerLink
     private let moveUp: (Int) -> Int
     private let moveLeft: (Int) -> Int
-    private let placeIcon: (FLIcon) -> OrganizerError?
+    private let placeIcon: (FLIcon, IconTarget) -> OrganizerError?
     private let deleteSelected: () -> Bool
     private let moveTrack: (Int, Int) -> Int
     private let moveClips: (Int?, Int) -> Int
@@ -273,14 +273,14 @@ final class OrganizerApplier {
 
     /// `moveUp(n)` envoie ⌥↑ n fois à FL seul (Channel rack devant), `moveLeft(n)` ⌥← (Mixer devant) ; chacun
     /// renvoie le nombre de pas faits. `placeIcon` pose une icône sur l'élément sélectionné par la fenêtre de FL
-    /// (F2) ; nil si c'est fait. `deleteSelected` supprime les canaux sélectionnés (⌥ + Suppr, Channel rack devant) ;
+    /// (clic droit sur son nom › « Change icon… ») ; nil si c'est fait. `deleteSelected` supprime les canaux sélectionnés (⌥ + Suppr, Channel rack devant) ;
     /// faux si rien n'a pu être envoyé. `moveTrack(place, n)` remonte la piste de la Playlist à cette place (0 = la
     /// piste 1) de n places par son menu ; le nombre de places faites. `moveClips(pattern, n)` décale de n pistes (vers
     /// le bas ; négatif : vers le haut) tous les clips de ce pattern (1 = le premier ; nil : la sélection en cours) ;
     /// le nombre de pas faits. `readClips` lit la Playlist dans la fenêtre de FL (nil : impossible) ; `moveClip`
     /// déplace un seul clip et le vérifie (ClipMover).
     init(link: OrganizerLink, moveUp: @escaping (Int) -> Int, moveLeft: @escaping (Int) -> Int = { _ in 0 },
-         placeIcon: @escaping (FLIcon) -> OrganizerError? = { _ in nil },
+         placeIcon: @escaping (FLIcon, IconTarget) -> OrganizerError? = { _, _ in nil },
          deleteSelected: @escaping () -> Bool = { false },
          moveTrack: @escaping (Int, Int) -> Int = { _, _ in 0 },
          moveClips: @escaping (Int?, Int) -> Int = { _, _ in 0 },
@@ -1043,14 +1043,18 @@ final class OrganizerApplier {
     }
 
     /// Icônes en dernier (FL ne dit pas lesquelles étaient là : « Revenir comme avant » ne les retire pas). Chaque
-    /// élément est sélectionné seul, puis la pose passe par la fenêtre de FL ; la page doit rester devant.
+    /// élément est sélectionné seul, puis la pose passe par la fenêtre de FL (son nom y est retrouvé d'après les
+    /// noms relus dans l'ordre de FL) ; la page doit rester devant.
     private func placeIcons(_ icons: [Int: FLIcon], kind: ItemKind, place: (Int) -> Int?) throws {
+        guard !icons.isEmpty else { return }
         let page: FLWindow = kind == .channels ? .channelRack : .mixer
+        let names = kind == .channels ? IconTarget.channelNames(try link.listChannels())
+                                      : IconTarget.mixerNames(try link.listMixer())
         for index in icons.keys.sorted() {
             guard let icon = icons[index], let at = place(index) else { continue }
             guard link.window == page else { throw OrganizerError.interrupted }
             try link.selectOne(kind, at)
-            if let error = placeIcon(icon) { throw error }
+            if let error = placeIcon(icon, IconTarget(kind: kind, place: at, names: names)) { throw error }
         }
     }
 

@@ -256,7 +256,8 @@ private struct BlockInspector: View {
                 }
             }
         case (.nameColor(_, _, let fade, let icon), "icon"):
-            // Posée par la fenêtre de FL (F2) : un seul élément à la fois, donc pas avec un dégradé.
+            // Posée par la fenêtre de FL (clic droit › « Change icon… ») : un seul élément à la fois, donc pas avec un
+            // dégradé.
             VStack(alignment: .leading, spacing: 6) {
                 FLIconField(icon: icon) { picked in
                     setBody(key: "icon") { body in

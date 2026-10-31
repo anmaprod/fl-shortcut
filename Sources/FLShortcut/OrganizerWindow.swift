@@ -40,8 +40,9 @@ struct OrganizerEnvironment {
     /// Ordre des familles glissées dans l'aperçu, gardé d'un projet à l'autre.
     var loadFamilyOrder: () -> [SoundFamily] = { FamilyStyles.loadOrder() }
     var saveFamilyOrder: ([SoundFamily]) -> Void = { FamilyStyles.saveOrder($0) }
-    /// Icône posée sur l'élément sélectionné par la fenêtre de FL (F2) ; nil si c'est fait.
-    var placeIcon: (FLIcon) -> OrganizerError? = { _ in nil }
+    /// Icône posée sur l'élément sélectionné par la fenêtre de FL (clic droit sur son nom › « Change icon… ») ; nil si
+    /// c'est fait.
+    var placeIcon: (FLIcon, IconTarget) -> OrganizerError? = { _, _ in nil }
     /// Fil principal, avant chaque écoute : lien installé ? Ports MIDI créés à la demande.
     var prepareLink: () -> OrganizerLinkState = { .ready(warmUp: 0) }
     /// « Installer le lien » (fil principal) : vrai s'il est installé (faux : annulé, ou impossible, déjà dit).
@@ -119,7 +120,7 @@ struct OrganizerEnvironment {
             moveUp: { link in { count in OrganizerEnvironment.liveMove(count, key: 126, page: .channelRack, link: link) } },
             moveLeft: { link in { count in OrganizerEnvironment.liveMove(count, key: 123, page: .mixer, link: link) } },
             escapePressed: { CGEventSource.keyState(.combinedSessionState, key: 53) },
-            placeIcon: { OrganizerEnvironment.livePlaceIcon($0) },
+            placeIcon: { OrganizerEnvironment.livePlaceIcon($0, $1) },
             prepareLink: { OrganizerEnvironment.livePrepareLink() },
             installLink: { FLScriptInstaller.installWithAlert(quiet: true) },
             installLinkElsewhere: { FLScriptInstaller.installWithAlert(chooseFolder: true, quiet: true) },
@@ -326,19 +327,31 @@ struct OrganizerEnvironment {
         return restored ? .restored : .ready(warmUp: fresh && midi.onDemand ? 2 : 0)
     }
 
-    /// Mêmes étapes et garde-fous que le bloc « Nom et couleur » (FL au premier plan, Échap).
-    static func livePlaceIcon(_ icon: FLIcon) -> OrganizerError? {
+    /// Mêmes étapes et garde-fous que le bloc « Nom et couleur » (FL au premier plan, Échap) ; le clic droit sur le
+    /// nom de l'élément, retrouvé dans la fenêtre de FL.
+    static func livePlaceIcon(_ icon: FLIcon, _ target: IconTarget) -> OrganizerError? {
         guard let pid = flPID() else { return .failed(String(localized: "FL Studio n'est pas ouvert.")) }
         if EventTap.shared.currentConfig.frontmostPID != pid {
             _ = NSRunningApplication(processIdentifier: pid)?.activate(options: [])
             Thread.sleep(forTimeInterval: 0.3)
         }
-        // L'Organiser ne couvre jamais la fenêtre du nom de FL ni sa grille des icônes.
+        // L'Organiser ne couvre jamais le menu de FL ni sa grille des icônes.
         OrganizerWindow.stepAside(true)
         defer { OrganizerWindow.stepAside(false) }
-        switch MacroEffectsMac(pid: pid).placeIcon(icon, alsoColored: false) {
+        let point: CGPoint
+        switch IconTargets.locate(target, pid: pid) {
+        case .point(let p): point = p
+        case .notAllowed:
+            return .failed(String(localized: "Pour poser les icônes, FL Shortcuts doit voir la fenêtre de FL : Réglages Système › Confidentialité et sécurité › Enregistrement de l'écran. Les couleurs sont posées."))
+        case .notFound:
+            return .failed(target.kind == .mixer
+                ? String(localized: "Nom de la piste introuvable dans le Mixer de FL : icônes non posées. Les couleurs sont posées.")
+                : String(localized: "Nom du son introuvable dans le Channel rack de FL : icônes non posées. Les couleurs sont posées."))
+        }
+        switch MacroEffectsMac(pid: pid).placeIcon(icon, at: point, alsoColored: false) {
         case .ok, .warn: return nil
         case .fail(let why), .cancel(let why):
+            IconTargets.forget()
             return .failed(why.prefix(1).uppercased() + String(why.dropFirst()) + String(localized: ". Les couleurs sont posées."))
         }
     }
@@ -971,7 +984,7 @@ final class OrganizerController: ObservableObject {
         // Les sons changés dans l'aperçu : l'IA s'en souvient (demande du propriétaire), sans rien demander.
         learned = learn(OrganizerFeedback.previewFixes(result.items, families: families, kinds: kinds),
                         reasons: ["apercu"])
-        env.focusFL()                                         // ⌥↑, ⌥← et F2 vont à FL
+        env.focusFL()                                         // ⌥↑, ⌥← et les clics des icônes vont à FL
         phase = .applying
         applyStep = nil
         let applier = OrganizerApplier(link: link, moveUp: env.moveUp(link), moveLeft: env.moveLeft(link),
@@ -1278,9 +1291,9 @@ enum OrganizerWindow {
         DispatchQueue.main.async { adapt(height: height, preview: preview) }
     }
 
-    /// Pendant la pose d'une icône (fenêtre du nom de FL ouverte par F2, puis sa grille) : le panneau se retire de
-    /// l'écran puis revient. Vidéo du 30/10 : la fenêtre du nom s'ouvrait sous l'Organiser, son bouton de l'icône était
-    /// caché et la bulle « Une seule fois : clique… » attendait un clic impossible.
+    /// Pendant la pose d'une icône (menu du clic droit de FL, puis sa grille) : le panneau se retire de l'écran puis
+    /// revient. Vidéo du 30/10 : une fenêtre de FL s'ouvrait sous l'Organiser et la bulle « Une seule fois : clique… »
+    /// attendait un clic impossible.
     static func stepAside(_ away: Bool) {
         let set: () -> Void = {
             guard let panel else { return }

@@ -116,6 +116,8 @@ final class FakeFLController {
     var selection = false
     /// Add › Channel › More plugins... : la liste de tous les plugins (fenêtre « Select plugin »).
     var pluginListWindow: NSWindow?
+    /// « Change icon… » du menu de la piste : la grille des icônes.
+    var iconGrid: NSPanel?
 
     init(statePath: String, oHighlights: Bool) {
         self.statePath = statePath
@@ -166,6 +168,8 @@ final class FakeFLController {
         settingsWindow = nil
         pluginListWindow?.orderOut(nil)
         pluginListWindow = nil
+        iconGrid?.orderOut(nil)
+        iconGrid = nil
         settingsView = nil
         device = "Built-in"
         autoClose = false
@@ -227,7 +231,7 @@ final class FakeFLController {
             "preset": preset ?? "", "presetTrack": presetTrack, "events": events, "menusOpen": levels.count,
             "oHighlights": oHighlights,
             "settingsOpen": settingsWindow != nil, "device": device, "autoClose": autoClose,
-            "selection": selection, "nativeMenusOpen": nativeMenuTarget.openMenus,
+            "selection": selection, "nativeMenusOpen": nativeMenuTarget.openMenus, "iconGridOpen": iconGrid != nil,
             "geometry": geometry,
         ]
         if let data = try? JSONSerialization.data(withJSONObject: dict, options: [.sortedKeys]) {
@@ -391,7 +395,7 @@ final class FakeFLController {
             FakeMenuItem("Change color…"),
             FakeMenuItem("Random color"),
             FakeMenuItem("Gradient color…", enabled: false),
-            FakeMenuItem("Change icon…"),
+            FakeMenuItem("Change icon…") { [weak self] in self?.openIconGrid(track: track) },
             FakeMenuItem("Assign to new Audio track(s)", "a"),
             FakeMenuItem("Unassign from Audio track(s)", "u", enabled: false),
             .separator,
@@ -589,6 +593,31 @@ final class FakeFLController {
         note(event)
     }
 
+    /// Grille des icônes de FL (617 × 677 au niveau des menus, relevé du 16/10) : un clic dans une case la choisit et
+    /// referme la grille ; Échap ne la ferme pas (comme FL).
+    func openIconGrid(track: Int) {
+        let size = NSSize(width: 617, height: 677)
+        let visible = (NSScreen.screens.first ?? NSScreen.main)?.visibleFrame ?? NSRect(x: 0, y: 0, width: 1440, height: 900)
+        let origin = NSPoint(x: visible.minX + 360, y: max(visible.minY, visible.maxY - 40 - size.height))
+        let panel = NSPanel(contentRect: NSRect(origin: origin, size: size), styleMask: [.borderless, .nonactivatingPanel],
+                            backing: .buffered, defer: false)
+        panel.level = .popUpMenu
+        panel.isReleasedWhenClosed = false
+        let view = FakeIconGridView(frame: NSRect(origin: .zero, size: size))
+        view.controller = self
+        view.track = track
+        panel.contentView = view
+        iconGrid = panel
+        panel.orderFrontRegardless()
+        writeState()
+    }
+
+    func chooseIcon(track: Int, column: Int, row: Int) {
+        iconGrid?.orderOut(nil)
+        iconGrid = nil
+        note("icon \(track) \(column)-\(row)")
+    }
+
     func openSettings() {
         if let w = settingsWindow {
             w.makeKeyAndOrderFront(nil)
@@ -710,6 +739,40 @@ final class FakePluginListView: NSView {
 
     override func keyDown(with event: NSEvent) {
         if event.keyCode == 53 { controller?.closePluginList("plugin list closed") } else { super.keyDown(with: event) }
+    }
+}
+
+/// Grille des icônes simulée : 14 colonnes de cases carrées, 15 rangées, sous une barre de titres (géométrie de FL).
+final class FakeIconGridView: NSView {
+    weak var controller: FakeFLController?
+    var track = 0
+
+    override var isFlipped: Bool { true }
+    override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
+
+    private var side: CGFloat { bounds.width / CGFloat(FLIconGrid.columns) }
+    private var header: CGFloat { bounds.height - CGFloat(FLIconGrid.rows) * side }
+
+    override func draw(_ dirtyRect: NSRect) {
+        NSColor(white: 0.2, alpha: 1).setFill()
+        bounds.fill()
+        NSColor(white: 0.35, alpha: 1).setStroke()
+        for column in 0..<FLIconGrid.columns {
+            for row in 0..<FLIconGrid.rows {
+                NSBezierPath(rect: NSRect(x: CGFloat(column) * side, y: header + CGFloat(row) * side,
+                                          width: side, height: side).insetBy(dx: 0.5, dy: 0.5)).stroke()
+            }
+        }
+    }
+
+    override func mouseDown(with event: NSEvent) {}
+
+    override func mouseUp(with event: NSEvent) {
+        let p = convert(event.locationInWindow, from: nil)
+        guard p.y >= header else { return }
+        let column = Int(p.x / side), row = Int((p.y - header) / side)
+        guard (0..<FLIconGrid.columns).contains(column), (0..<FLIconGrid.rows).contains(row) else { return }
+        controller?.chooseIcon(track: track, column: column, row: row)
     }
 }
 

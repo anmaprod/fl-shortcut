@@ -206,11 +206,20 @@
   initiales et « pas encore ouverts »), essais `supabase/tests/profil.sql`.
 - Organiser, vidéo du 30/10 : chargement en carte à barres d'égaliseur essayé puis RETIRÉ à sa demande (« remet comme
   avant, j'aime pas ») : le chargement d'avant (badge, barre, « Ne touche pas à FL. », Arrêter) ; panneau retiré de
-  l'écran pendant la pose d'une icône (`OrganizerWindow.stepAside` : la fenêtre du nom de FL, F2, s'ouvrait dessous) ;
+  l'écran pendant la pose d'une icône (`OrganizerWindow.stepAside` : une fenêtre de FL s'ouvrait dessous) ;
   familles posées où on les lâche, à gauche ou à droite, dessus ou dessous (`dropSlot`, `placing`, colonnes gardées
   `leftCount`, ordre = gauche puis droite) ; « Pas content ? » liste TOUS les sons (un son rangé par son nom est
   retenu par son nom codé SHA-256, `corrections-noms.json`, règle `corrige-nom`, jamais envoyé) ; fin en court
   (`doneSummary`, « Détails » pour tout le texte) : la fenêtre ne grandit plus.
+- **Icônes de FL** (vidéo du 31/10 : « il faut qu'il clique sur changer l'icon et pas rename, color and icon » ; le
+  bouton de gauche de la fenêtre F2 propose des NOMS, pas la grille) : clic droit sur le NOM de l'élément › « Change
+  icon… » › case de la grille (`MacroIconPlacement.swift`). « Change icon… » lu dans le menu (Enregistrement de
+  l'écran ; menu lu sans lui : Échap, rien cliqué) ; sans l'autorisation, place retenue par taille de menu
+  (`macroSpots.v3.changeIcon`), sinon montrée une fois. Bloc « Nom et couleur » : clic droit au dernier clic dans FL
+  (icône seule : sans le lien). Organiser : nom retrouvé dans la fenêtre de FL (`OrganizerIconTargets.swift` : colonne
+  du Channel rack près du titre « Channel rack », noms VERTICAUX du Mixer lus dans l'image tournée ; seulement les noms
+  lus et les places entre deux, jamais au-delà : un clic droit ailleurs peut changer le projet) ; sans « Enregistrement
+  de l'écran », message (pas de demande au milieu). Essai CI : `scenarioIcon` (grille du faux FL).
 - **À l'identique des maquettes** (29/10, `HISTORIQUE`) : fenêtre principale = `Main.dc.html` (plaque de gauche
   avec les boutons de la fenêtre, `MainWindowChrome` ; en-tête titre + capsule du compte ; cartes par groupe,
   `CatalogGroups`) ; créateur = `Macros.dc.html` (← rond, nom, touches, « Enregistrer » bleu ; « Retirer ce bloc »).
@@ -262,6 +271,8 @@
   « n'utilise pas le réseau ») avec guide en images pour « Ouvrir quand même ».
 
 ## Pas encore vérifié sur le vrai FL
+- Icônes (31/10) : clic droit › « Change icon… » sur le vrai FL (macro « Nom et couleur » après un clic sur le nom ;
+  Organiser : noms du Channel rack et noms verticaux du Mixer retrouvés ?) ; journal `ICON` (`--diag-icon 7-4`).
 - Plugins (28/10) : la catégorie « FL Shortcuts » des menus Add a-t-elle disparu après un redémarrage de FL ? « Ouvre
   un VST » avec un plugin hors favoris (Add › Channel › More plugins..., nom lu puis double-clic) ; journal `PLUGIN`.
 - Menu de FL (macOS), retour du 28/10 : « Export Stems » (File › Export › All playlist tracks › Time selection…) dit

@@ -63,7 +63,7 @@ enum MacroSpots {
     }
 
     static var anyLearned: Bool {
-        PathKind.allCases.contains { loadPath($0) != nil } || IconPlacement.loadSpot() != nil
+        PathKind.allCases.contains { loadPath($0) != nil } || !IconPlacement.loadSpots().isEmpty
     }
 }
 

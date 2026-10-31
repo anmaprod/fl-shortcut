@@ -627,3 +627,10 @@ entrée 1 ≈ 0,5 s.
   le code ou Touch ID : avant, macOS ne l'accorde pas) ; pendant la question « FL Shortcuts souhaite pouvoir
   enregistrer l'audio », la fenêtre d'accueil reste cachée jusqu'à la réponse (2 min au plus) ; « Son de FL » montre
   « En attente… » pendant la demande (`AccessibilityGuide.asking`).
+- 31/10 (vidéos de 14 h et de 2 h 28) : « le changement d'icône pour une famille ne fonctionne pas » : le bouton à
+  gauche du nom dans « Rename, color and icon » (F2) propose des noms tout faits (Drums, Kick…), pas la grille des
+  icônes. Sa vidéo montre « Change icon… » dans le menu du clic droit du Channel rack, du Mixer et de la Playlist, qui
+  ouvre la grille. Pose refaite : clic droit sur le nom de l'élément, « Change icon… » lu dans le menu (ou place
+  retenue, ou montrée une fois sans « Enregistrement de l'écran »), case de la grille. Organiser : le nom de chaque son
+  et de chaque piste est retrouvé dans la fenêtre de FL au moment du clic (noms du Mixer écrits à la verticale : image
+  tournée d'un quart de tour). Essai de bout en bout sur la CI avec une grille dans le faux FL.

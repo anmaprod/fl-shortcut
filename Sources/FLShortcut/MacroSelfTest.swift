@@ -43,7 +43,7 @@ enum MacroSelfTest {
                 print(ok ? "PASS: macro construite en blocs sur le FL simulé (piste 5 armée par son menu, REC)" : "FAIL: voir ci-dessus")
             } else if name == "clics" {
                 ok = scenarioClics(statePath: statePath, pid: pid)
-                print(ok ? "PASS: suite de clics enregistrée puis rejouée (menus de FL et de la barre, fenêtre des réglages), élément grisé revérifié" : "FAIL: voir ci-dessus")
+                print(ok ? "PASS: suite de clics enregistrée puis rejouée (menus de FL et de la barre, fenêtre des réglages), élément grisé revérifié, icône posée" : "FAIL: voir ci-dessus")
             } else if name == "touches" {
                 ok = scenarioTouches(statePath: statePath, pid: pid)
                 print(ok ? "PASS: clics et touches enregistrés puis rejoués (↓ et Entrée dans les menus, ⌘S, R)" : "FAIL: voir ci-dessus")
@@ -442,7 +442,7 @@ enum MacroSelfTest {
             print("ÉCHEC rejeu des clics : " + problems.joined(separator: " ; "))
         }
         return problems.isEmpty && scenarioGreyedItem(statePath: statePath, pid: pid)
-            && scenarioPluginList(statePath: statePath, pid: pid)
+            && scenarioPluginList(statePath: statePath, pid: pid) && scenarioIcon(statePath: statePath, pid: pid)
     }
 
     /// Élément que FL ne dégrise qu'à l'ouverture de son menu (signalé le 28/10 : File › Export › All playlist tracks ›
@@ -512,6 +512,39 @@ enum MacroSelfTest {
         if state.events.contains(where: { $0.hasPrefix("WRONG") }) { problems.append("favori coché") }
         if state.nativeMenusOpen != 0 { problems.append("\(state.nativeMenusOpen) menu(s) resté(s) ouvert(s)") }
         print(problems.isEmpty ? "OK plugin hors des favoris" : "ÉCHEC plugin hors des favoris : " + problems.joined(separator: " ; "))
+        return problems.isEmpty
+    }
+
+    /// Icône du bloc « Nom et couleur » (vidéo du 31/10 : « Change icon… » du menu du clic droit, pas « Rename, color
+    /// and icon ») : clic droit sur le nom de la piste 4 (dernier clic dans FL), « Change icon… » lu dans le menu, case
+    /// 7-4 choisie dans la grille ; rien d'autre, rien laissé ouvert. Sans l'autorisation « Enregistrement de
+    /// l'écran » : SKIP (« Change icon… » serait à montrer une fois).
+    static func scenarioIcon(statePath: String, pid: Int32) -> Bool {
+        guard resetFake(statePath, pid: pid) else { return false }
+        print("\n== Icône : clic droit sur la piste › « Change icon… », case de la grille ==")
+        guard ScreenLook.available, ScreenLook.allowed else {
+            print("SKIP icône : lecture de l'écran pas autorisée sur cette machine")
+            return true
+        }
+        guard let track4 = read(statePath)?.point("track4"), let icon = FLIcon(code: "7-4") else {
+            print("FAIL: position de la piste 4 inconnue du FL simulé")
+            return false
+        }
+        MacroRunner.testTrackPoint = track4
+        defer { MacroRunner.testTrackPoint = nil }
+        guard let replayed = replay([.nameColor(name: nil, color: nil, icon: icon)], name: "Icône", pid: pid) else {
+            return false
+        }
+        let (outcome, ms) = replayed
+        let state = waitState(statePath, timeout: 3, { $0.events.contains("icon 4 7-4") })
+            ?? read(statePath) ?? FakeState(raw: [:])
+        print("résultat : \(outcome?.text ?? "?") en \(ms) ms · actions : \(state.events)")
+        var problems: [String] = []
+        if outcome != .done { problems.append("« \(outcome?.text ?? "aucun résultat") »") }
+        if state.events != ["icon 4 7-4"] { problems.append("actions \(state.events)") }
+        if state.menusOpen != 0 { problems.append("\(state.menusOpen) menu(s) resté(s) ouvert(s)") }
+        if state.raw["iconGridOpen"] as? Bool == true { problems.append("grille restée ouverte") }
+        print(problems.isEmpty ? "OK icône posée" : "ÉCHEC icône : " + problems.joined(separator: " ; "))
         return problems.isEmpty
     }
 

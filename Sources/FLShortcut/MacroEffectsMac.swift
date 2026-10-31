@@ -499,7 +499,8 @@ final class MacroEffectsMac: MacroEffects {
                 case .failed(let why): return .fail(why)
                 }
             }
-            // Nom et couleur d'abord (lien avec FL), puis l'icône par la fenêtre de FL (F2).
+            // Nom et couleur d'abord (lien avec FL), puis l'icône par la fenêtre de FL (clic droit sur l'élément
+            // cliqué en dernier dans FL › « Change icon… »).
             let payload = NameColorPayload(name: name, color: color)
             let named = payload.name != nil || payload.color != nil
             if named {
@@ -512,7 +513,11 @@ final class MacroEffectsMac: MacroEffects {
                 }
             }
             guard let icon else { return .ok }
-            return placeIcon(icon, alsoColored: named)
+            guard targetTrackIsInFL() else {
+                let why = String(localized: "icône non posée : clique d'abord sur le nom du son ou de la piste dans FL")
+                return named ? .warn(why) : .fail(why)
+            }
+            return placeIcon(icon, at: ctx.track, alsoColored: named)
 
         case .ifElse, .repeatCount, .repeatWhile, .waitUntil, .setVariable, .stop, .comment, .unknown:
             return .fail(String(localized: "bloc de contrôle hors de l'interpréteur"))

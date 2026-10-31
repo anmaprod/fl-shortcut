@@ -1346,9 +1346,11 @@
 "Nom d'utilisateur" = "Nom d'utilisateur";
 "Nom d'utilisateur : 3 à 24 caractères, lettres sans accent, chiffres, « _ », « . » ou « - »." = "Nom d'utilisateur : 3 à 24 caractères, lettres sans accent, chiffres, « _ », « . » ou « - ».";
 "Nom de la macro" = "Nom de la macro";
+"Nom de la piste introuvable dans le Mixer de FL : icônes non posées. Les couleurs sont posées." = "Nom de la piste introuvable dans le Mixer de FL : icônes non posées. Les couleurs sont posées.";
 "Nom de macro invalide." = "Nom de macro invalide.";
 "Nom de variable invalide." = "Nom de variable invalide.";
 "Nom du son" = "Nom du son";
+"Nom du son introuvable dans le Channel rack de FL : icônes non posées. Les couleurs sont posées." = "Nom du son introuvable dans le Channel rack de FL : icônes non posées. Les couleurs sont posées.";
 "Nom et couleur" = "Nom et couleur";
 "Nombre de fois" = "Nombre de fois";
 "Note" = "Note";
@@ -1578,6 +1580,7 @@
 "Positions" = "Positions";
 "Posée par la fenêtre de FL (F2). La première fois, montre une fois le bouton de l'icône." = "Posée par la fenêtre de FL (F2). La première fois, montre une fois le bouton de l'icône.";
 "Pour l'Organiser : il écoute chaque son pour le ranger" = "Pour l'Organiser : il écoute chaque son pour le ranger";
+"Pour poser les icônes, FL Shortcuts doit voir la fenêtre de FL : Réglages Système › Confidentialité et sécurité › Enregistrement de l'écran. Les couleurs sont posées." = "Pour poser les icônes, FL Shortcuts doit voir la fenêtre de FL : Réglages Système › Confidentialité et sécurité › Enregistrement de l'écran. Les couleurs sont posées.";
 "Pour toi (facultatif)" = "Pour toi (facultatif)";
 "Pour un bouton qui change de place (une piste du Mixer, le « + » du Channel rack…) : il est " = "Pour un bouton qui change de place (une piste du Mixer, le « + » du Channel rack…) : il est ";
 "Première piste du Mixer de la famille (son bus compris ; la 808 avec les drums) : tire vers le haut ou le bas comme dans FL, ou clique pour l'écrire" = "Première piste du Mixer de la famille (son bus compris ; la 808 avec les drums) : tire vers le haut ou le bas comme dans FL, ou clique pour l'écrire";
@@ -2063,8 +2066,8 @@
 "Une pause fixe est trop courte sur un projet lourd : préfère « Attendre une fenêtre » quand FL ouvre quelque chose." = "Une pause fixe est trop courte sur un projet lourd : préfère « Attendre une fenêtre » quand FL ouvre quelque chose.";
 "Une piste de ta Playlist est coupée (mute) : réactive-la dans FL (ou retire ses clips), puis clique sur « Réessayer ». Rien n'a été touché." = "Une piste de ta Playlist est coupée (mute) : réactive-la dans FL (ou retire ses clips), puis clique sur « Réessayer ». Rien n'a été touché.";
 "Une question" = "Une question";
-"Une seule fois : clique sur le bouton de l'icône, à gauche du nom." = "Une seule fois : clique sur le bouton de l'icône, à gauche du nom.";
 "Une seule fois : clique sur « (none) » de la piste, puis sur l'entrée « 1 »." = "Une seule fois : clique sur « (none) » de la piste, puis sur l'entrée « 1 ».";
+"Une seule fois : clique sur « Change icon… » dans ce menu." = "Une seule fois : clique sur « Change icon… » dans ce menu.";
 "Une seule fois, tout ce dont FL Shortcuts a besoin, demandé ensemble." = "Une seule fois, tout ce dont FL Shortcuts a besoin, demandé ensemble.";
 "Une voix n'est pas rangée dans Voix" = "Une voix n'est pas rangée dans Voix";
 "Utiliser" = "Utiliser";
@@ -2166,7 +2169,6 @@
 "clic dans FL" = "clic dans FL";
 "clic droit impossible dans un menu ouvert." = "clic droit impossible dans un menu ouvert.";
 "clic refusé (FL fermé ou couvert)" = "clic refusé (FL fermé ou couvert)";
-"clic sur l'icône de la fenêtre du nom non montré" = "clic sur l'icône de la fenêtre du nom non montré";
 "clic. Demande l'autorisation « Enregistrement de l'écran »." = "clic. Demande l'autorisation « Enregistrement de l'écran ».";
 "clics non montrés (60 s)" = "clics non montrés (60 s)";
 "clics non reconnus : refais le raccourci pour recommencer" = "clics non reconnus : refais le raccourci pour recommencer";
@@ -2219,6 +2221,7 @@
 "haut-parleurs" = "haut-parleurs";
 "icône %@" = "icône %@";
 "icône non posée : " = "icône non posée : ";
+"icône non posée : clique d'abord sur le nom du son ou de la piste dans FL" = "icône non posée : clique d'abord sur le nom du son ou de la piste dans FL";
 "icônes de chaque famille se règlent dans sa fenêtre et y restent gardés. macOS demande une fois " = "icônes de chaque famille se règlent dans sa fenêtre et y restent gardés. macOS demande une fois ";
 "illisible" = "illisible";
 "inconnue" = "inconnue";
@@ -2232,12 +2235,10 @@
 "la boîte « Open » ne répond pas au clavier (⌘⇧G)" = "la boîte « Open » ne répond pas au clavier (⌘⇧G)";
 "la boîte « Open » ne s'est pas fermée sur le preset" = "la boîte « Open » ne s'est pas fermée sur le preset";
 "la boîte « Open » s'est fermée" = "la boîte « Open » s'est fermée";
-"la fenêtre du nom de FL (F2) ne s'est pas ouverte : clique sur le nom d'une seule piste ou d'un seul canal, puis relance" = "la fenêtre du nom de FL (F2) ne s'est pas ouverte : clique sur le nom d'une seule piste ou d'un seul canal, puis relance";
-"la fenêtre du nom de FL est restée ouverte" = "la fenêtre du nom de FL est restée ouverte";
 "la fenêtre « Renommer » de FL est restée ouverte" = "la fenêtre « Renommer » de FL est restée ouverte";
 "la fenêtre « Renommer » de FL ne s'est pas ouverte (sélectionne ta piste dans le Mixer)" = "la fenêtre « Renommer » de FL ne s'est pas ouverte (sélectionne ta piste dans le Mixer)";
 "la grille des icônes de FL est restée ouverte : choisis une case ou clique à côté" = "la grille des icônes de FL est restée ouverte : choisis une case ou clique à côté";
-"la grille des icônes ne s'est pas ouverte : relance pour montrer de nouveau le bouton de l'icône" = "la grille des icônes ne s'est pas ouverte : relance pour montrer de nouveau le bouton de l'icône";
+"la grille des icônes ne s'est pas ouverte : relance pour montrer de nouveau « Change icon… »" = "la grille des icônes ne s'est pas ouverte : relance pour montrer de nouveau « Change icon… »";
 "la liste « More plugins… » de FL ne s'est pas ouverte" = "la liste « More plugins… » de FL ne s'est pas ouverte";
 "la piste visée est hors de FL : clique d'abord sur ta piste dans le Mixer" = "la piste visée est hors de FL : clique d'abord sur ta piste dans le Mixer";
 "le bloc précédent a échoué" = "le bloc précédent a échoué";
@@ -2258,6 +2259,7 @@
 "le menu de la piste ne s'est pas ouvert" = "le menu de la piste ne s'est pas ouvert";
 "le menu de la piste ne s'est pas ouvert (clique sur le nom de ta piste dans le Mixer)" = "le menu de la piste ne s'est pas ouvert (clique sur le nom de ta piste dans le Mixer)";
 "le menu de la piste ne sait qu'armer la piste." = "le menu de la piste ne sait qu'armer la piste.";
+"le menu du clic droit de FL ne s'est pas ouvert : clique d'abord sur le nom d'un son, d'une piste du Mixer ou de la Playlist, puis relance" = "le menu du clic droit de FL ne s'est pas ouvert : clique d'abord sur le nom d'un son, d'une piste du Mixer ou de la Playlist, puis relance";
 "le menu « Arrangement » de FL ne s'est pas ouvert" = "le menu « Arrangement » de FL ne s'est pas ouvert";
 "le nom contient un caractère invisible." = "le nom contient un caractère invisible.";
 "le point visé est hors de FL" = "le point visé est hors de FL";
@@ -2436,6 +2438,8 @@
 "« + » partage les tiennes." = "« + » partage les tiennes.";
 "« Ajouter à mes macros » la range avec les tiennes, sans raccourci : rien ne se lance tant que tu ne lui en as pas choisi un." = "« Ajouter à mes macros » la range avec les tiennes, sans raccourci : rien ne se lance tant que tu ne lui en as pas choisi un.";
 "« Arm selected track(s) » n'a pas répondu" = "« Arm selected track(s) » n'a pas répondu";
+"« Change icon… » n'est pas dans ce menu de FL : clique d'abord sur le nom d'un son, d'une piste du Mixer ou de la Playlist, puis relance" = "« Change icon… » n'est pas dans ce menu de FL : clique d'abord sur le nom d'un son, d'une piste du Mixer ou de la Playlist, puis relance";
+"« Change icon… » non montré" = "« Change icon… » non montré";
 "« Enregistrer clics et touches » n'a rien enregistré" = "« Enregistrer clics et touches » n'a rien enregistré";
 "« Enregistrer une macro », puis fais ta suite dans FL." = "« Enregistrer une macro », puis fais ta suite dans FL.";
 "« FL Shortcuts » absent des Controller types : FL ne lit pas le dossier du script ci-dessous. Compare-le avec Options › File settings › User data folder (pas sur iCloud) ; s'il diffère, « Autre dossier de FL… » et choisis celui-là." = "« FL Shortcuts » absent des Controller types : FL ne lit pas le dossier du script ci-dessous. Compare-le avec Options › File settings › User data folder (pas sur iCloud) ; s'il diffère, « Autre dossier de FL… » et choisis celui-là.";

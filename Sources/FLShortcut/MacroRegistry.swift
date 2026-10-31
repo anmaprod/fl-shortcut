@@ -666,7 +666,13 @@ private enum Specs {
                  ParamSpec("color", String(localized: "Couleur"), .couleur),
                  ParamSpec("icon", String(localized: "Icône"), .icone)],
         conteneur: .aucun, dansLaPalette: true,
-        needs: { _ in base.union(.lienMIDI) },
+        needs: { body in
+            // Une icône seule passe par la fenêtre de FL (clic droit › « Change icon… ») : pas de lien.
+            if case .nameColor(let name, nil, nil, .some) = body, NameColorPayload(name: name, color: nil).name == nil {
+                return base
+            }
+            return base.union(.lienMIDI)
+        },
         parDefaut: { .nameColor(name: nil, color: NameColorPayload.defaultColor) },
         resume: { body, _ in
             guard case .nameColor(let name, let color, let fade, let icon) = body else { return "" }
@@ -674,7 +680,7 @@ private enum Specs {
         },
         journal: { _ in "nameColor" },
         estimationMs: { body in
-            // L'icône passe par deux fenêtres de FL (nom, grille).
+            // L'icône passe par deux fenêtres de FL (menu du clic droit, grille).
             if case .nameColor(_, _, _, .some) = body { return 1_800 }
             return 300
         },

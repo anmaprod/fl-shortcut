@@ -1,11 +1,13 @@
-// Pose d'une icône de FL sur l'élément sélectionné, par la fenêtre de FL (l'API de FL ne lit ni ne pose les
-// icônes) : F2 → fenêtre « Rename, color and icon » → clic sur son bouton de l'icône (montré une fois par
-// l'utilisateur, gardé par rapport au coin haut-droit de cette fenêtre : préférence macroSpots.v2.iconButton) →
-// grille des icônes → clic au centre de la case → Entrée referme la fenêtre du nom sans le changer.
-// Aucune lecture de l'écran : seulement la liste des fenêtres de FL (numéro, niveau, cadre). Échap seulement tant
-// qu'une fenêtre ouverte par la pose est encore là. Relevé sur le FL de l'utilisateur (16/10) : la grille ouverte par
-// « Change icon… » du Mixer (619 × 679, niveau 101) ne se ferme PAS avec Échap ; seul le choix d'une case la ferme
-// à coup sûr. Une grille restée ouverte est donc signalée, jamais refermée en cliquant à l'aveugle.
+// Pose d'une icône de FL sur un élément (son du Channel rack, piste du Mixer, piste de la Playlist), par la fenêtre de
+// FL (l'API de FL ne lit ni ne pose les icônes) : clic droit sur l'élément → « Change icon… » dans son menu → grille
+// des icônes → clic au centre de la case. Relevé sur le FL du propriétaire (vidéos du 30/10 14 h et du 31/10 2 h) :
+// le bouton à gauche du nom dans « Rename, color and icon » (F2) propose des NOMS tout faits (Drums, Kick…), pas la
+// grille ; « Change icon… » est dans le menu du clic droit du Channel rack, du Mixer et de la Playlist, et ouvre la
+// grille. « Change icon… » est retrouvé à son nom dans le menu (lecture de la seule fenêtre du menu de FL, avec
+// l'autorisation « Enregistrement de l'écran ») ; un menu lu sans lui est refermé (le clic droit n'était pas sur un
+// son ni une piste). Sans l'autorisation : place retenue pour un menu de cette taille, sinon montrée une fois par
+// l'utilisateur. Relevé du 16/10 : la grille ne se ferme PAS avec Échap ; seul le choix d'une case la ferme à coup
+// sûr. Une grille restée ouverte est donc signalée, jamais refermée en cliquant à l'aveugle.
 import AppKit
 import CoreGraphics
 import Foundation
@@ -17,8 +19,12 @@ protocol IconPlacementDriver {
     func press(_ key: KeyCombo)
     /// Clic gauche ; false s'il est refusé (hors de FL, FL couvert, Échap).
     func click(_ point: CGPoint) -> Bool
+    /// Clic droit ; false s'il est refusé.
+    func rightClick(_ point: CGPoint) -> Bool
     /// Pause ; false après Échap ou quand FL n'est plus au premier plan.
     func wait(_ seconds: TimeInterval) -> Bool
+    /// L'élément de menu `label` lu dans la fenêtre `menu`.
+    func readItem(_ label: String, in menu: WinInfo) -> IconPlacement.MenuRead
     /// Clic de l'utilisateur dans `window`, guidé par une bulle ; nil s'il ne vient pas.
     func learnClick(in window: WinInfo, hint: String) -> CGPoint?
     /// Journal de diagnostic (fenêtres vues, points cliqués) ; jamais un nom de piste.
@@ -27,68 +33,102 @@ protocol IconPlacementDriver {
 
 extension IconPlacementDriver {
     func note(_ text: String) {}
+    func readItem(_ label: String, in menu: WinInfo) -> IconPlacement.MenuRead { .unreadable }
 }
 
 enum IconPlacement {
     enum Failure: Error, Equatable {
-        case stopped, noNameWindow, notShown, clickRefused, noGrid, gridStayed, nameStayed
+        case stopped, noMenu, notInMenu, notShown, clickRefused, noGrid, gridStayed
 
         var message: String {
             switch self {
             case .stopped: return String(localized: "arrêtée (Échap, ou FL n'est plus devant)")
-            case .noNameWindow:
-                return String(localized: "la fenêtre du nom de FL (F2) ne s'est pas ouverte : clique sur le nom d'une seule piste ou d'un seul canal, puis relance")
-            case .notShown: return String(localized: "clic sur l'icône de la fenêtre du nom non montré")
+            case .noMenu:
+                return String(localized: "le menu du clic droit de FL ne s'est pas ouvert : clique d'abord sur le nom d'un son, d'une piste du Mixer ou de la Playlist, puis relance")
+            case .notInMenu:
+                return String(localized: "« Change icon… » n'est pas dans ce menu de FL : clique d'abord sur le nom d'un son, d'une piste du Mixer ou de la Playlist, puis relance")
+            case .notShown: return String(localized: "« Change icon… » non montré")
             case .clickRefused: return String(localized: "clic refusé (FL fermé ou couvert)")
             case .noGrid:
-                return String(localized: "la grille des icônes ne s'est pas ouverte : relance pour montrer de nouveau le bouton de l'icône")
+                return String(localized: "la grille des icônes ne s'est pas ouverte : relance pour montrer de nouveau « Change icon… »")
             case .gridStayed:
                 return String(localized: "la grille des icônes de FL est restée ouverte : choisis une case ou clique à côté")
-            case .nameStayed: return String(localized: "la fenêtre du nom de FL est restée ouverte")
             }
         }
     }
 
-    /// Bouton de l'icône dans la fenêtre du nom, relatif au coin haut-droit de cette fenêtre (taille retenue).
-    struct Spot: Codable, Equatable {
-        var fromTopRight: CGVector
-        var windowSize: CGSize
-
-        var isValid: Bool {
-            func ok(_ v: CGFloat) -> Bool { v.isFinite && abs(v) <= 2000 }
-            return ok(fromTopRight.dx) && ok(fromTopRight.dy) && fromTopRight.dx <= 0 && fromTopRight.dy >= 0
-                && windowSize.width > 0 && windowSize.height > 0
-                && -fromTopRight.dx <= windowSize.width && fromTopRight.dy <= windowSize.height
-        }
-
-        func point(in w: CGRect) -> CGPoint { CGPoint(x: w.maxX + fromTopRight.dx, y: w.minY + fromTopRight.dy) }
+    /// Lecture d'un menu de FL : l'élément cherché, son absence (menu lu sans lui), ou rien de lu (autorisation
+    /// « Enregistrement de l'écran » absente, fenêtre non capturée).
+    enum MenuRead: Equatable {
+        case found(CGPoint)
+        case absent
+        case unreadable
     }
 
-    static let spotKey = "macroSpots.v2.iconButton"
+    /// « Change icon… » dans un menu de FL, par rapport au coin haut-gauche du menu (taille du menu retenue : le
+    /// menu du Channel rack, du Mixer et de la Playlist n'ont pas la même).
+    struct Spot: Codable, Equatable {
+        var fromTopLeft: CGVector
+        var menuSize: CGSize
 
-    static func loadSpot(defaults: UserDefaults = .standard) -> Spot? {
+        var isValid: Bool {
+            func ok(_ v: CGFloat) -> Bool { v.isFinite && v >= 0 && v <= 4000 }
+            return ok(fromTopLeft.dx) && ok(fromTopLeft.dy) && menuSize.width > 0 && menuSize.height > 0
+                && fromTopLeft.dx <= menuSize.width && fromTopLeft.dy <= menuSize.height
+        }
+
+        func point(in w: CGRect) -> CGPoint { CGPoint(x: w.minX + fromTopLeft.dx, y: w.minY + fromTopLeft.dy) }
+    }
+
+    static let spotKey = "macroSpots.v3.changeIcon"
+    /// Ancienne place (bouton de la fenêtre F2) : ne sert plus, effacée avec les autres places apprises.
+    static let oldSpotKey = "macroSpots.v2.iconButton"
+    /// Texte de l'élément dans le menu de FL (sans les points de suspension).
+    static let itemLabel = "Change icon"
+
+    /// Pur (testé) : l'élément `label` parmi les textes lus dans un menu : une ligne qui commence par lui (« Change
+    /// icon… », « Change icon... »), pas plus longue que lui et ses points de suspension.
+    static func menuItem(_ label: String, in items: [TextLook.Item]) -> TextLook.Item? {
+        let wanted = TextLook.normalized(label)
+        return items.filter {
+            let text = TextLook.normalized($0.text).trimmingCharacters(in: CharacterSet(charactersIn: ".…: "))
+            return text == wanted
+        }.min { $0.box.minY < $1.box.minY }
+    }
+
+    /// Places retenues, une par taille de menu.
+    static func loadSpots(defaults: UserDefaults = .standard) -> [Spot] {
         guard let data = defaults.data(forKey: spotKey),
-              let spot = try? JSONDecoder().decode(Spot.self, from: data), spot.isValid else { return nil }
-        return spot
+              let spots = try? JSONDecoder().decode([Spot].self, from: data) else { return [] }
+        return spots.filter(\.isValid)
+    }
+
+    static func loadSpot(forMenu size: CGSize, defaults: UserDefaults = .standard) -> Spot? {
+        loadSpots(defaults: defaults).first { MacroSpots.sameSize($0.menuSize, size) }
     }
 
     static func saveSpot(_ spot: Spot, defaults: UserDefaults = .standard) {
-        if let data = try? JSONEncoder().encode(spot) { defaults.set(data, forKey: spotKey) }
+        guard spot.isValid else { return }
+        var spots = loadSpots(defaults: defaults).filter { !MacroSpots.sameSize($0.menuSize, spot.menuSize) }
+        spots.append(spot)
+        if let data = try? JSONEncoder().encode(Array(spots.suffix(8))) { defaults.set(data, forKey: spotKey) }
     }
 
-    static func forgetSpot(defaults: UserDefaults = .standard) { defaults.removeObject(forKey: spotKey) }
+    static func forgetSpot(forMenu size: CGSize, defaults: UserDefaults = .standard) {
+        let spots = loadSpots(defaults: defaults).filter { !MacroSpots.sameSize($0.menuSize, size) }
+        if let data = try? JSONEncoder().encode(spots) { defaults.set(data, forKey: spotKey) }
+    }
 
-    static let f2 = KeyCombo(keyCode: 120)
-    static let enter = KeyCombo(keyCode: 36)
+    static func forgetSpot(defaults: UserDefaults = .standard) {
+        defaults.removeObject(forKey: spotKey)
+        defaults.removeObject(forKey: oldSpotKey)
+    }
+
     static let escape = KeyCombo(keyCode: 53)
-    /// Relevé sur le FL de l'utilisateur (16/10) : le bouton de l'icône est à gauche du nom, dans une fenêtre du nom de
-    /// 260 × 52 points.
-    static let hint = String(localized: "Une seule fois : clique sur le bouton de l'icône, à gauche du nom.")
+    static let hint = String(localized: "Une seule fois : clique sur « Change icon… » dans ce menu.")
 
-    /// Fenêtre du nom plausible : petite fenêtre de FL, plus haute qu'une ligne de menu.
-    static func isNameWindow(_ w: WinInfo) -> Bool {
-        w.bounds.width >= 120 && w.bounds.height >= 40 && w.bounds.width <= 1400 && w.bounds.height <= 1000
-    }
+    /// Menu de FL plausible : une fenêtre devant (niveau des menus), de la taille d'un menu, pas la grille.
+    static func isMenu(_ w: WinInfo) -> Bool { w.layer > 8 && w.isMenuLike && !isGrid(w) }
 
     /// Grille plausible : 15 rangées de cases carrées de L / 14 sous une barre de titres de 0 à 80 points.
     static func isGrid(_ w: WinInfo) -> Bool {
@@ -97,60 +137,62 @@ enum IconPlacement {
         return side >= 10 && header >= 0 && header <= 80
     }
 
-    /// Pose `icon` sur l'élément sélectionné dans la page de FL devant ; nil si c'est fait.
-    static func place(_ icon: FLIcon, driver: IconPlacementDriver, defaults: UserDefaults = .standard) -> Failure? {
+    /// Pose `icon` sur l'élément sous `target` (son nom dans FL) ; nil si c'est fait.
+    static func place(_ icon: FLIcon, at target: CGPoint, driver: IconPlacementDriver,
+                      defaults: UserDefaults = .standard) -> Failure? {
         let base = Set(driver.windows().map(\.number))
-        driver.press(f2)
-        let name: WinInfo
-        switch awaitWindow(excluding: base, missing: .noNameWindow, driver: driver, accept: isNameWindow) {
-        case .success(let w): name = w
+        guard driver.rightClick(target) else { return .clickRefused }
+        let menu: WinInfo
+        switch awaitWindow(excluding: base, missing: .noMenu, driver: driver, accept: isMenu) {
+        case .success(let w): menu = w
         case .failure(let failure):
-            driver.note("no name window after F2; new windows: \(fresh(base, driver))")
+            driver.note("no menu after the right-click at \(target.logText); new windows: \(fresh(base, driver))")
             return failure
         }
-        driver.note("name window \(name)")
-        if let spot = loadSpot(defaults: defaults), MacroSpots.sameSize(name.bounds.size, spot.windowSize) {
-            let p = spot.point(in: name.bounds)
-            driver.note("icon button (learned) at \(p.logText)")
-            guard driver.click(p) else { return close([name], driver: driver, .clickRefused) }
-        } else {
-            // Le clic de l'utilisateur ouvre lui-même la grille : rien à recliquer.
-            guard let p = driver.learnClick(in: name, hint: hint) else {
-                return close([name], driver: driver, driver.wait(0.01) ? .notShown : .stopped)
+        driver.note("menu \(menu)")
+        func spot(_ p: CGPoint) -> Spot {
+            Spot(fromTopLeft: CGVector(dx: p.x - menu.bounds.minX, dy: p.y - menu.bounds.minY), menuSize: menu.bounds.size)
+        }
+        switch driver.readItem(itemLabel, in: menu) {
+        case .found(let p):
+            driver.note("Change icon (read) at \(p.logText)")
+            guard driver.click(p) else { return close([menu], driver: driver, .clickRefused) }
+            saveSpot(spot(p), defaults: defaults)
+        case .absent:
+            driver.note("no Change icon in this menu")
+            return close([menu], driver: driver, .notInMenu)
+        case .unreadable:
+            if let learned = loadSpot(forMenu: menu.bounds.size, defaults: defaults) {
+                let p = learned.point(in: menu.bounds)
+                driver.note("Change icon (learned) at \(p.logText)")
+                guard driver.click(p) else { return close([menu], driver: driver, .clickRefused) }
+            } else {
+                // Le clic de l'utilisateur ouvre lui-même la grille : rien à recliquer.
+                guard let p = driver.learnClick(in: menu, hint: hint) else {
+                    return close([menu], driver: driver, driver.wait(0.01) ? .notShown : .stopped)
+                }
+                driver.note("Change icon shown at \(p.logText)\(spot(p).isValid ? "" : " — not kept")")
+                saveSpot(spot(p), defaults: defaults)
             }
-            let spot = Spot(fromTopRight: CGVector(dx: p.x - name.bounds.maxX, dy: p.y - name.bounds.minY),
-                            windowSize: name.bounds.size)
-            driver.note("icon button shown at \(p.logText), from top-right (\(Int(spot.fromTopRight.dx)),"
-                        + "\(Int(spot.fromTopRight.dy)))\(spot.isValid ? "" : " — not kept")")
-            if spot.isValid { saveSpot(spot, defaults: defaults) }
         }
         let grid: WinInfo
-        switch awaitWindow(excluding: base.union([name.number]), missing: .noGrid, driver: driver, accept: isGrid) {
+        switch awaitWindow(excluding: base.union([menu.number]), missing: .noGrid, driver: driver, accept: isGrid) {
         case .success(let w): grid = w
         case .failure(let failure):
             driver.note("no icon grid; new windows: \(fresh(base, driver))")
-            if failure == .noGrid { forgetSpot(defaults: defaults) }        // à montrer de nouveau
-            return close([name], driver: driver, failure)
+            if failure == .noGrid { forgetSpot(forMenu: menu.bounds.size, defaults: defaults) }   // à montrer de nouveau
+            return close([menu], driver: driver, failure)
         }
         let cell = FLIconGrid.center(of: icon, in: grid.bounds)
         driver.note("icon grid \(grid) → cell \(icon.code) at \(cell.logText)")
-        guard driver.click(cell) else { return close([grid, name], driver: driver, .clickRefused) }
+        guard driver.click(cell) else { return close([grid, menu], driver: driver, .clickRefused) }
         // Relevé sur le FL de l'utilisateur (16/10) : la grille garde son numéro le temps de son animation de
         // fermeture (44 × 44 points juste après le choix) ; elle compte comme fermée dès qu'elle n'en a plus la forme.
         guard awaitGone(grid.number, driver: driver, still: isGrid) else {
-            return close([grid, name], driver: driver, .stopped)
+            return close([grid, menu], driver: driver, .stopped)
         }
-        if isOpen(grid.number, driver, still: isGrid) { return close([grid, name], driver: driver, .gridStayed) }
-        // Entrée seulement si la fenêtre du nom est encore là : FL peut la refermer lui-même avec la grille, et une
-        // touche envoyée sans elle irait à la page de FL devant.
-        guard isOpen(name.number, driver) else {
-            driver.note("icon \(icon.code) placed, name window already closed by FL")
-            return nil
-        }
-        driver.press(enter)
-        guard awaitGone(name.number, driver: driver) else { return close([name], driver: driver, .stopped) }
-        if isOpen(name.number, driver) { return close([name], driver: driver, .nameStayed) }
-        driver.note("icon \(icon.code) placed, name window closed")
+        if isOpen(grid.number, driver, still: isGrid) { return close([grid], driver: driver, .gridStayed) }
+        driver.note("icon \(icon.code) placed")
         return nil
     }
 
@@ -166,28 +208,16 @@ enum IconPlacement {
         return windows.isEmpty ? "none" : windows.map(\.description).joined(separator: ", ")
     }
 
-    /// Ferme, de l'avant vers l'arrière, les fenêtres ouvertes par la pose qui sont encore là (Échap, jamais de clic),
-    /// puis renvoie `failure`. Relevé sur le FL de l'utilisateur (16/10) : la grille ignore Échap (elle peut rester
-    /// ouverte, c'est signalé) ; la fenêtre du nom ne s'y ferme qu'une fois sur deux, alors qu'Entrée la ferme sans
-    /// changer le nom (la pose ne tape jamais rien dans son champ) : Entrée en second, pour elle seulement, et jamais
-    /// quand la grille est restée ouverte devant (Entrée irait à la grille et pourrait y choisir une case).
+    /// Ferme, de l'avant vers l'arrière, les fenêtres ouvertes par la pose qui sont encore là (Échap seulement, jamais
+    /// de clic ni d'Entrée : une Entrée irait à la grille et pourrait y choisir une case), puis renvoie `failure`.
     static func close(_ opened: [WinInfo], driver: IconPlacementDriver, _ failure: Failure) -> Failure {
-        var gridLeftOpen = false
         for w in opened {
             // Une grille qui se referme (même numéro, plus sa forme) est déjà fermée.
             let still: (WinInfo) -> Bool = isGrid(w) ? isGrid : { _ in true }
             guard isOpen(w.number, driver, still: still) else { continue }
             driver.press(escape)
             _ = awaitGone(w.number, driver: driver, timeout: 0.5, still: still)
-            if isOpen(w.number, driver), !isGrid(w), isNameWindow(w), !gridLeftOpen {
-                driver.note("still open after Escape: \(w) → Enter")
-                driver.press(enter)
-                _ = awaitGone(w.number, driver: driver, timeout: 0.5)
-            }
-            if isOpen(w.number, driver, still: still) {
-                driver.note("still open: \(w)")
-                if isGrid(w) { gridLeftOpen = true }
-            }
+            if isOpen(w.number, driver, still: still) { driver.note("still open: \(w)") }
         }
         return failure
     }
@@ -231,8 +261,26 @@ final class FLIconDriver: IconPlacementDriver {
     func windows() -> [WinInfo] { WinSnapshot.take(pid: fx.pid).fl }
     func press(_ key: KeyCombo) { fx.postKey(key, pid: fx.pid) }
     func click(_ point: CGPoint) -> Bool { fx.click(at: point, right: false, ctx: fx.ctx) == .ok }
+    func rightClick(_ point: CGPoint) -> Bool { fx.click(at: point, right: true, ctx: fx.ctx) == .ok }
     func wait(_ seconds: TimeInterval) -> Bool { fx.pause(Int(seconds * 1000), pid: fx.pid) == .ok }
     func note(_ text: String) { MacroLog.shared.write("ICON", text) }
+
+    /// Lecture de la seule fenêtre du menu, une fois FL fini de le dessiner (deux essais).
+    func readItem(_ label: String, in menu: WinInfo) -> IconPlacement.MenuRead {
+        guard ScreenLook.allowed else { return .unreadable }
+        var read = false
+        for attempt in 0..<2 {
+            if attempt > 0 { guard wait(0.12) else { return .unreadable } }
+            guard let image = ScreenLook.captureImage(windowNumber: menu.number, size: menu.bounds.size, scale: 2)
+            else { continue }
+            let items = TextLook.read(image, size: menu.bounds.size)
+            read = read || !items.isEmpty
+            if let item = IconPlacement.menuItem(label, in: items) {
+                return .found(CGPoint(x: menu.bounds.minX + item.center.x, y: menu.bounds.minY + item.center.y))
+            }
+        }
+        return read ? .absent : .unreadable
+    }
 
     /// Hors du fil principal seulement (comme l'apprentissage des menus).
     func learnClick(in window: WinInfo, hint: String) -> CGPoint? {
@@ -254,13 +302,14 @@ final class FLIconDriver: IconPlacementDriver {
 }
 
 extension MacroEffectsMac {
-    /// Icône de FL sur l'élément sélectionné (bloc « Nom et couleur », Organiser). `alsoColored` : le nom ou la
-    /// couleur est déjà posé, une icône manquée n'est alors qu'un avertissement.
-    func placeIcon(_ icon: FLIcon, alsoColored: Bool) -> StepResult {
+    /// Icône de FL sur l'élément sous `target` (son nom dans FL) : dernier clic dans FL (bloc « Nom et couleur »), nom
+    /// retrouvé dans la fenêtre de FL (Organiser). `alsoColored` : le nom ou la couleur est déjà posé, une icône
+    /// manquée n'est alors qu'un avertissement.
+    func placeIcon(_ icon: FLIcon, at target: CGPoint, alsoColored: Bool) -> StepResult {
         guard waitForKeyboardIdle(timeout: 1.5) else { return .cancel(String(localized: "relâche les touches du raccourci")) }
-        MacroLog.shared.write("FL", "icon \(icon.code)")
+        MacroLog.shared.write("FL", "icon \(icon.code) at \(target.logText)")
         defer { restoreCursor() }
-        guard let failure = IconPlacement.place(icon, driver: FLIconDriver(fx: self)) else { return .ok }
+        guard let failure = IconPlacement.place(icon, at: target, driver: FLIconDriver(fx: self)) else { return .ok }
         MacroLog.shared.write("FL", "icon not placed: \(failure)")
         if failure == .stopped { return .cancel(failure.message) }
         return alsoColored ? .warn(String(localized: "icône non posée : ") + failure.message)

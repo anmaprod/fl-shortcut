@@ -36,7 +36,8 @@ final class OrganizerApplyTests: XCTestCase {
                            kinds: OrganizerApplier.kinds(of: result), styles: styles, options: options)
     }
 
-    private func applier(_ link: FakeOrganizerLink, placeIcon: @escaping (FLIcon) -> OrganizerError? = { _ in nil })
+    private func applier(_ link: FakeOrganizerLink,
+                         placeIcon: @escaping (FLIcon, IconTarget) -> OrganizerError? = { _, _ in nil })
         -> OrganizerApplier {
         OrganizerApplier(link: link, moveUp: link.moveSelectedUp, moveLeft: link.moveSelectedLeft, placeIcon: placeIcon,
                          deleteSelected: link.deleteSelected, moveTrack: link.moveTrackUp)
@@ -193,17 +194,22 @@ final class OrganizerApplyTests: XCTestCase {
         styles[.drums]?.icon = try XCTUnwrap(FLIcon(code: "7-4"))
         styles[.melody]?.icon = try XCTUnwrap(FLIcon(code: "6-0"))
         var placed: [String] = []
-        let outcome = applier(link, placeIcon: { icon in
+        var targets: [IconTarget] = []
+        let outcome = applier(link, placeIcon: { icon, target in
             placed.append("\(link.selected ?? -1):\(icon.code)")
+            targets.append(target)
             return nil
         }).apply(plan(result, styles: styles, options: rackOnly), result: result, styles: styles)
         XCTAssertNil(outcome.error)
         XCTAssertEqual(link.channels.map(\.name), ["Son 0", "Son 2", "Son 1"])
         XCTAssertEqual(placed, ["0:6-0", "2:7-4"], "Son 0 (Mélodies) à la place 0, Son 1 (Drums) à la place 2")
+        // Le clic droit vise le nom de l'élément sélectionné, retrouvé parmi les noms relus dans l'ordre de FL.
+        XCTAssertEqual(targets, [IconTarget(kind: .channels, place: 0, names: ["Son 0", "Son 2", "Son 1"]),
+                                 IconTarget(kind: .channels, place: 2, names: ["Son 0", "Son 2", "Son 1"])])
 
         // Une icône manquée arrête la suite ; les couleurs et le regroupement restent défaisables.
         let (other, otherResult) = rack([.melody, .drums, .bass])
-        let missed = applier(other, placeIcon: { _ in .failed("Icône non posée.") })
+        let missed = applier(other, placeIcon: { _, _ in .failed("Icône non posée.") })
             .apply(plan(otherResult, styles: styles, options: rackOnly), result: otherResult, styles: styles)
         XCTAssertEqual(missed.error, .failed("Icône non posée."))
         XCTAssertEqual(missed.snapshot.rack?.arrangement, [0, 2, 1])
