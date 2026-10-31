@@ -44,7 +44,8 @@ struct FamilyStyle: Codable, Equatable {
         }
         self.color = color
         fade = try c.decodeIfPresent(String.self, forKey: .fade).flatMap { RGBColor(hex: $0) }
-        icon = try c.decodeIfPresent(String.self, forKey: .icon).flatMap { FLIcon(code: $0) }
+        // « Reset » n'est pas une icône (retour du 31/10 : il retire l'icône dans FL) : une famille sans icône.
+        icon = try c.decodeIfPresent(String.self, forKey: .icon).flatMap { FLIcon(code: $0) }.flatMap { $0.isReset ? nil : $0 }
         let start: Int? = try? c.decodeIfPresent(Int.self, forKey: .mixer)
         mixerStart = start.flatMap { (1...Self.maxMixerTrack).contains($0) ? $0 : nil }
     }
@@ -205,6 +206,8 @@ struct ApplyOutcome: Equatable {
     /// Clips de la Playlist réunis sur la piste de leur son (lus dans la fenêtre de FL) ; ceux qui n'ont pas pu y aller.
     var reunited = 0
     var clipsLeft = 0
+    /// Icônes pas posées (la raison, sans aucun nom) : tout le reste est fait.
+    var iconsMissed: String?
     /// La copie rangée ouverte dans FL ; FL ne l'a pas enregistrée à la fin (à faire soi-même : ⌘S).
     var copy: URL?
     var copyNotSaved = false
@@ -268,6 +271,8 @@ final class OrganizerApplier {
     private let report: (String) -> Void
     /// Fois où une page de FL a été remise devant pendant les déplacements (diagnostic).
     private var restored = 0
+    /// Première icône manquée : les suivantes ne sont plus essayées, le reste du rangement continue.
+    private var iconMiss: OrganizerError?
     /// Boîtes de FL répondues pendant l'ouverture de la copie (4 au plus : jamais Entrée sans fin).
     private var dialogAnswers = 0
 
@@ -342,7 +347,7 @@ final class OrganizerApplier {
     static func plannedIcons(families: [Int: SoundFamily], styles: [SoundFamily: FamilyStyle]) -> [Int: FLIcon] {
         var out: [Int: FLIcon] = [:]
         for (index, family) in families {
-            if let icon = (styles[family] ?? FamilyStyles.initial[family])?.icon { out[index] = icon }
+            if let icon = (styles[family] ?? FamilyStyles.initial[family])?.icon, !icon.isReset { out[index] = icon }
         }
         return out
     }
@@ -383,6 +388,7 @@ final class OrganizerApplier {
         var plan = plan
         var result = result
         restored = 0
+        iconMiss = nil
         do {
             if let project = result.project {
                 // Toujours dans une copie (son Channel rack sur « All ») ; la Playlist n'y est rangée que si on l'a
@@ -470,6 +476,10 @@ final class OrganizerApplier {
             if case .refused? = outcome.error, let refusal = link.lastRefusal { outcome.trace.append("refus \(refusal)") }
         }
         if restored > 0 { outcome.trace.append("page remise \(restored)") }
+        if let iconMiss {
+            outcome.iconsMissed = iconMiss.message
+            outcome.trace.append("icônes non posées")
+        }
         return outcome
     }
 
@@ -1044,9 +1054,10 @@ final class OrganizerApplier {
 
     /// Icônes en dernier (FL ne dit pas lesquelles étaient là : « Revenir comme avant » ne les retire pas). Chaque
     /// élément est sélectionné seul, puis la pose passe par la fenêtre de FL (son nom y est retrouvé d'après les
-    /// noms relus dans l'ordre de FL) ; la page doit rester devant.
+    /// noms relus dans l'ordre de FL) ; la page doit rester devant. Une icône manquée n'arrête que les icônes
+    /// (capture du 31/10 : le Mixer n'était plus rangé) ; Échap arrête tout.
     private func placeIcons(_ icons: [Int: FLIcon], kind: ItemKind, place: (Int) -> Int?) throws {
-        guard !icons.isEmpty else { return }
+        guard !icons.isEmpty, iconMiss == nil else { return }
         let page: FLWindow = kind == .channels ? .channelRack : .mixer
         let names = kind == .channels ? IconTarget.channelNames(try link.listChannels())
                                       : IconTarget.mixerNames(try link.listMixer())
@@ -1054,7 +1065,11 @@ final class OrganizerApplier {
             guard let icon = icons[index], let at = place(index) else { continue }
             guard link.window == page else { throw OrganizerError.interrupted }
             try link.selectOne(kind, at)
-            if let error = placeIcon(icon, IconTarget(kind: kind, place: at, names: names)) { throw error }
+            if let error = placeIcon(icon, IconTarget(kind: kind, place: at, names: names)) {
+                if error == .interrupted { throw error }
+                iconMiss = error
+                return
+            }
         }
     }
 

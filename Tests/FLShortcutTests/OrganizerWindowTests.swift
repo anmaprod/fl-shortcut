@@ -121,6 +121,88 @@ final class OrganizerWindowTests: XCTestCase {
         controller.close()
     }
 
+    /// Retour du 31/10 (la fenêtre se fermait) : après « Installer le lien », Organiser reste ouvert, FL devant (⌘Q le
+    /// quitte lui), attend qu'il soit quitté puis rouvert sans rien lui envoyer, montre MIDI Settings tant qu'il ne
+    /// répond pas, puis continue tout seul.
+    func testInstallWaitsForFLRestartThenShowsMIDISettings() {
+        let link = FakeOrganizerLink()
+        link.channels = [ChannelInfo(index: 0, type: 2, mixerTrack: 0, color: RGBColor(r: 1, g: 2, b: 3), name: "Son 0")]
+        let audio = FakeAudio(link: link)
+        audio.parts = [0: [Float](repeating: 0.3, count: 64)]
+        var installed = false
+        var fl: Int32? = 100
+        var answering = false
+        var focused = 0
+        var opened = 0
+        var listenTries = 0
+        var e = env(link, audio, saved: { _ in })
+        e.prepareLink = { installed ? .ready(warmUp: 0) : .notInstalled }
+        e.installLink = { installed = true; return true }
+        e.runningFL = { fl }
+        e.openFL = { opened += 1 }
+        e.focusFL = { focused += 1 }
+        e.audio = {
+            listenTries += 1
+            return answering ? .success(audio) : .failure(.noResponse)
+        }
+        let controller = OrganizerController(env: e)
+        controller.start()
+        XCTAssertEqual(controller.phase, .setup)
+        controller.installLink()
+        XCTAssertEqual(controller.phase, .waiting(.restartFL))
+        XCTAssertTrue(controller.guidingLink)
+        XCTAssertEqual(focused, 1, "FL devant : ⌘Q quitte FL, jamais FL Shortcuts")
+        // FL tourne encore : il attend, sans rien essayer.
+        RunLoop.main.run(until: Date().addingTimeInterval(0.3))
+        XCTAssertEqual(controller.phase, .waiting(.restartFL))
+        XCTAssertFalse(controller.flClosedForRestart)
+        XCTAssertEqual(listenTries, 0)
+        // Quitté : « Ouvrir FL Studio ».
+        fl = nil
+        wait(for: [expectation(for: NSPredicate { _, _ in controller.flClosedForRestart }, evaluatedWith: nil)],
+             timeout: 5)
+        controller.openFL()
+        XCTAssertEqual(opened, 1)
+        XCTAssertEqual(listenTries, 0)
+        // Un nouveau FL : MIDI Settings, gardé tant que FL ne répond pas.
+        fl = 200
+        waitFor(controller) { $0 == .waiting(.midiSettings) }
+        XCTAssertFalse(controller.flClosedForRestart)
+        RunLoop.main.run(until: Date().addingTimeInterval(0.3))
+        XCTAssertEqual(controller.phase, .waiting(.midiSettings))
+        XCTAssertGreaterThan(listenTries, 0)
+        // Les 4 cases réglées : Organiser continue tout seul.
+        answering = true
+        waitFor(controller) { $0 == .preview }
+        XCTAssertFalse(controller.guidingLink)
+        XCTAssertEqual(OrganizerController.phaseCode(.waiting(.midiSettings)), "attente-midiSettings")
+        controller.close()
+    }
+
+    /// Capture du 31/10 : des icônes choisies sans « Enregistrement de l'écran » : c'est dit dans l'aperçu, avant
+    /// « Organiser » (« Autoriser »), plus seulement au moment de les poser ; « Reset » ne compte pas comme une icône.
+    func testIconsAskForScreenRecordingBeforeOrganising() throws {
+        let link = FakeOrganizerLink()
+        var e = env(link, FakeAudio(link: link), saved: { _ in })
+        var allowed = false
+        var asked = 0
+        e.screenAllowed = { allowed }
+        e.askScreen = { asked += 1 }
+        let controller = OrganizerController(env: e)
+        controller.showDemo("apercu")
+        XCTAssertFalse(controller.iconsNeedScreen, "aucune icône choisie")
+        let family = try XCTUnwrap(controller.presentFamilies.first)
+        controller.updateStyle(family) { $0.icon = FLIcon(code: "0-0") }
+        XCTAssertFalse(controller.iconsNeedScreen, "Reset n'est pas une icône")
+        controller.updateStyle(family) { $0.icon = FLIcon(code: "7-4") }
+        XCTAssertTrue(controller.iconsNeedScreen)
+        controller.askScreen()
+        XCTAssertEqual(asked, 1)
+        allowed = true
+        XCTAssertFalse(controller.iconsNeedScreen)
+        controller.close()
+    }
+
     /// Script disparu de FL : remis, puis FL à redémarrer (rien n'est envoyé) ; Organiser continue tout seul quand
     /// FL répond. Emplacement montré, autre dossier ; attentes et vrais échecs bien triés.
     func testRestoredScriptAsksToRestartFL() {

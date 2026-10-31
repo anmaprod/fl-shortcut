@@ -49,6 +49,15 @@ struct OrganizerEnvironment {
     var installLink: () -> Bool = { true }
     /// « Autre dossier de FL… » : le lien réinstallé dans le dossier de données de FL choisi (fil principal).
     var installLinkElsewhere: () -> Bool = { true }
+    /// Le processus de FL qui tourne (nil : fermé) : après l'installation du lien, Organiser attend qu'un nouveau FL
+    /// démarre avant de montrer MIDI Settings.
+    var runningFL: () -> Int32? = { nil }
+    /// « Ouvrir FL Studio » pendant cette attente, FL fermé.
+    var openFL: () -> Void = {}
+    /// Lecture de la fenêtre de FL permise (« Enregistrement de l'écran ») : les icônes en ont besoin.
+    var screenAllowed: () -> Bool = { true }
+    /// « Autoriser » : la fenêtre de macOS la première fois, sinon les Réglages.
+    var askScreen: () -> Void = {}
     /// En attente de FL (à redémarrer, à ouvrir, page à ouvrir, lecture à arrêter) : nouvel essai, tout seul, à
     /// cet intervalle.
     var waitInterval: TimeInterval = 2
@@ -124,6 +133,16 @@ struct OrganizerEnvironment {
             prepareLink: { OrganizerEnvironment.livePrepareLink() },
             installLink: { FLScriptInstaller.installWithAlert(quiet: true) },
             installLinkElsewhere: { FLScriptInstaller.installWithAlert(chooseFolder: true, quiet: true) },
+            runningFL: {
+                NSRunningApplication.runningApplications(withBundleIdentifier: "com.image-line.flstudio")
+                    .first { !$0.isTerminated }?.processIdentifier
+            },
+            openFL: {
+                guard let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: "com.image-line.flstudio") else { return }
+                NSWorkspace.shared.openApplication(at: url, configuration: NSWorkspace.OpenConfiguration())
+            },
+            screenAllowed: { ScreenLook.allowed },
+            askScreen: { if !ScreenLook.requestOnce() { ScreenLook.openSettings() } },
             scriptPlace: { FLScriptInstaller.installedScript() },
             reveal: { NSWorkspace.shared.activateFileViewerSelecting([$0]) },
             wrongInput: { MIDILink.shared.core.snapshot.wrongInput },
@@ -342,18 +361,25 @@ struct OrganizerEnvironment {
         switch IconTargets.locate(target, pid: pid) {
         case .point(let p): point = p
         case .notAllowed:
-            return .failed(String(localized: "Pour poser les icônes, FL Shortcuts doit voir la fenêtre de FL : Réglages Système › Confidentialité et sécurité › Enregistrement de l'écran. Les couleurs sont posées."))
+            return .failed(screenNeeded)
         case .notFound:
             return .failed(target.kind == .mixer
-                ? String(localized: "Nom de la piste introuvable dans le Mixer de FL : icônes non posées. Les couleurs sont posées.")
-                : String(localized: "Nom du son introuvable dans le Channel rack de FL : icônes non posées. Les couleurs sont posées."))
+                ? String(localized: "nom de la piste introuvable dans le Mixer de FL")
+                : String(localized: "nom du son introuvable dans le Channel rack de FL"))
         }
         switch MacroEffectsMac(pid: pid).placeIcon(icon, at: point, alsoColored: false) {
         case .ok, .warn: return nil
-        case .fail(let why), .cancel(let why):
+        case .cancel: return .interrupted                     // Échap, ou FL plus devant : tout s'arrête
+        case .fail(let why):
             IconTargets.forget()
-            return .failed(why.prefix(1).uppercased() + String(why.dropFirst()) + String(localized: ". Les couleurs sont posées."))
+            return .failed(why.replacingOccurrences(of: String(localized: "icône non posée : "), with: ""))
         }
+    }
+
+    /// Les icônes se posent en lisant la fenêtre de FL. Une version de FL Shortcuts recompilée n'a plus
+    /// l'autorisation donnée à l'ancienne, même cochée dans les Réglages : décocher puis recocher.
+    static var screenNeeded: String {
+        String(localized: "autorise « Enregistrement de l'écran » pour FL Shortcuts (Réglages Système › Confidentialité et sécurité ; déjà coché : décoche puis recoche)")
     }
 
     /// FL au premier plan d'abord, sinon le premier FL ouvert.
@@ -417,6 +443,8 @@ final class OrganizerController: ObservableObject {
         case restartFL
         /// FL ne répond pas (lien pas encore chargé dans FL).
         case noResponse
+        /// Lien tout juste installé et FL rouvert : les 4 cases de MIDI Settings à régler (image du README).
+        case midiSettings
         /// Le script est chargé, mais sur une autre entrée MIDI (carte son, clavier) : il ne reçoit rien.
         case wrongInput
         case openFL
@@ -482,6 +510,13 @@ final class OrganizerController: ObservableObject {
     @Published private(set) var copied = false
     /// Le fichier du projet reste introuvable : « Choisir le fichier… » le fait montrer.
     @Published private(set) var projectMissing = false
+    /// Lien installé ici (retour du 31/10 : la fenêtre doit rester, demander de rouvrir FL, puis montrer MIDI
+    /// Settings) : tant que FL ne répond pas, l'image des 4 cases est montrée.
+    @Published private(set) var guidingLink = false
+    /// FL quitté pendant l'attente de son redémarrage : « Ouvrir FL Studio ».
+    @Published private(set) var flClosedForRestart = false
+    /// FL qui tournait à l'installation du lien : un nouveau FL doit démarrer (il lit le lien en démarrant).
+    private var restartWatch: Int32?
     /// Sons corrigés que l'IA a retenus (aperçu et « Pas content ? »), dit à la fin.
     @Published private(set) var learned = 0
     /// « Pas content ? » ouvert, puis envoyé.
@@ -560,7 +595,7 @@ final class OrganizerController: ObservableObject {
         case .success(let source):
             audio = source
         case .failure(let error):
-            if let reason = Self.waitReason(for: error, wrongInput: env.wrongInput()) { wait(reason) } else { phase = .failed(error.message) }
+            if let reason = waitingReason(for: error) { wait(reason) } else { phase = .failed(error.message) }
             return
         }
         if !quiet { env.focusFL() }
@@ -620,9 +655,42 @@ final class OrganizerController: ObservableObject {
         let serial = waitSerial
         DispatchQueue.main.asyncAfter(deadline: .now() + env.waitInterval) { [weak self] in
             guard let self, !self.closed, self.waitSerial == serial, case .waiting = self.phase else { return }
-            self.begin(quiet: true)
+            if reason == .restartFL, self.restartWatch != nil { self.checkRestart() } else { self.begin(quiet: true) }
         }
     }
+
+    /// FL qui tournait à l'installation du lien : quitté, puis un nouveau FL ; alors MIDI Settings. Rien n'est
+    /// envoyé à FL entre-temps.
+    private func checkRestart() {
+        guard let old = restartWatch else { return begin(quiet: true) }
+        switch env.runningFL() {
+        case old?:
+            wait(.restartFL)
+        case nil:
+            flClosedForRestart = true
+            wait(.restartFL)
+        default:
+            restartWatch = nil
+            flClosedForRestart = false
+            wait(.midiSettings)
+        }
+    }
+
+    /// Attente d'après l'erreur ; lien tout juste installé : MIDI Settings tant que FL ne répond pas.
+    private func waitingReason(for error: OrganizerError) -> Wait? {
+        guard let reason = Self.waitReason(for: error, wrongInput: env.wrongInput()) else { return nil }
+        return guidingLink && reason == .noResponse ? .midiSettings : reason
+    }
+
+    func openFL() { env.openFL() }
+
+    /// Des icônes choisies, mais FL Shortcuts ne peut pas lire la fenêtre de FL : dit avant « Organiser » (capture du
+    /// 31/10 : l'échec ne venait qu'au moment de les poser).
+    var iconsNeedScreen: Bool {
+        presentFamilies.contains { style(of: $0).icon.map { !$0.isReset } ?? false } && !env.screenAllowed()
+    }
+
+    func askScreen() { env.askScreen() }
 
     /// Réponse à la fenêtre de macOS : l'écoute part (ou attend l'autorisation, refusée).
     private func afterAudioPermission() {
@@ -694,7 +762,18 @@ final class OrganizerController: ObservableObject {
 
     /// Lien installé en un clic : FL doit redémarrer pour le lire, Organiser attend et continue tout seul.
     func installLink() {
+        let running = env.runningFL()
         guard env.installLink(), !closed else { return }
+        afterInstall(running)
+    }
+
+    /// La fenêtre reste ouverte : FL à quitter et rouvrir (FL devant, pour que ⌘Q le quitte lui, jamais FL
+    /// Shortcuts), puis MIDI Settings.
+    private func afterInstall(_ running: Int32?) {
+        guidingLink = true
+        restartWatch = running
+        flClosedForRestart = running == nil
+        env.focusFL()
         wait(.restartFL)
     }
 
@@ -705,11 +784,13 @@ final class OrganizerController: ObservableObject {
     }
 
     func installLinkElsewhere() {
+        let running = env.runningFL()
         guard env.installLinkElsewhere(), !closed else { return }
-        wait(.restartFL)
+        afterInstall(running)
     }
 
     private func listening(_ done: Int, _ total: Int) {
+        if guidingLink { guidingLink = false }
         switch phase {
         case .listening, .waiting: phase = .listening(done: done, total: total)   // l'attente finit au premier son
         default: return
@@ -731,7 +812,7 @@ final class OrganizerController: ObservableObject {
             }
         case .failure(let error):
             projectMissing = error == .projectNotFound
-            if let reason = Self.waitReason(for: error, wrongInput: env.wrongInput()) { wait(reason) } else { phase = .failed(error.message) }
+            if let reason = waitingReason(for: error) { wait(reason) } else { phase = .failed(error.message) }
         }
     }
 
@@ -964,6 +1045,10 @@ final class OrganizerController: ObservableObject {
                     : String(localized: "Playlist pas rangée : pour remonter ses pistes, FL Shortcuts doit voir la fenêtre de FL (Réglages Système › Confidentialité et sécurité › Enregistrement de l'écran). Noms et couleurs sont posés."))
             }
         }
+        if let missed = lastApply?.iconsMissed {
+            // Juste sous la première ligne : visible même en court.
+            lines.insert(String(localized: "Icônes non posées : \(missed)."), at: min(1, lines.count))
+        }
         if learned > 0 {
             lines.append(String(localized: """
                 L'IA retient \(learned) sons corrigés sur ce Mac : la prochaine fois, ils seront rangés comme tu l'as dit.
@@ -1101,6 +1186,7 @@ final class OrganizerController: ObservableObject {
         case "installer": phase = .setup
         case "attente": phase = .waiting(.restartFL)
         case "aide": phase = .waiting(.noResponse)
+        case "midi": phase = .waiting(.midiSettings)
         case "ecoute": phase = .listening(done: 3, total: 8)
         case "apercu", "fini":
             let result = Self.demoResult
@@ -1559,6 +1645,8 @@ struct OrganizerView: View {
                 .foregroundStyle(.secondary)
                 .morphIn(2)
             }
+            diagnosticLink
+                .morphIn(2)
             buttons
                 .morphIn(3)
         }
@@ -1579,9 +1667,24 @@ struct OrganizerView: View {
             if linkHelp {
                 linkHelpSteps
             }
+            diagnosticLink
+                .morphIn(linkHelp ? 7 : 2)
             buttons
                 .morphIn(linkHelp ? 7 : 2)
         }
+    }
+
+    /// « Copier le diagnostic », à portée à chaque fin (capture du 31/10 : « je n'ai pas accès au diagnostic »).
+    private var diagnosticLink: some View {
+        Button(controller.copied ? String(localized: "Copié") : String(localized: "Copier le diagnostic")) {
+            controller.copyDiagnostic()
+        }
+        .buttonStyle(.link)
+        .font(.system(size: 11.5))
+        .help(String(localized: """
+            Copie un court texte technique (versions, autorisations, ce que l'écoute a reçu), sans aucun nom de \
+            son ni de piste : colle-le dans ton message pour qu'on trouve ce qui bloque.
+            """))
     }
 
     /// Où est le script du lien, avec « Afficher dans le Finder » et « Autre dossier de FL… ».
@@ -1633,10 +1736,6 @@ struct OrganizerView: View {
         HStack {
             if controller.canUndo {
                 Button("Revenir comme avant") { controller.undo() }
-            } else if case .failed = controller.phase {
-                diagnosticButton
-            } else if case .applied(let error) = controller.phase, error != nil {
-                diagnosticButton
             }
             if controller.canGiveFeedback {
                 Button("Pas content ?") { controller.feedbackShown = true }
@@ -1718,11 +1817,25 @@ struct OrganizerView: View {
                     .controlSize(.large)
                     .morphIn(3)
             }
-            if reason == .noResponse || reason == .restartFL || reason == .wrongInput {
+            if reason == .openFL || (reason == .restartFL && controller.flClosedForRestart) {
+                Button("Ouvrir FL Studio") { controller.openFL() }
+                    .primaryButton()
+                    .controlSize(.large)
+                    .morphIn(3)
+            }
+            if reason == .midiSettings {
+                // L'image du README (retour du 31/10) : la fenêtre MIDI Settings, les 4 cases entourées et numérotées.
+                MIDISettingsImage(width: 330)
+                    .frame(maxWidth: .infinity)
+                    .morphIn(3)
+            }
+            if reason == .noResponse || reason == .restartFL || reason == .wrongInput || reason == .midiSettings {
                 linkHelpToggle.morphIn(3)
                 if controller.showLinkHelp {
-                    linkHelpSteps
-                        .transition(Motion.quickSwap)
+                    Group {
+                        if reason == .midiSettings { linkTroubles } else { linkHelpSteps }
+                    }
+                    .transition(Motion.quickSwap)
                 }
             }
             HStack {
@@ -1740,7 +1853,10 @@ struct OrganizerView: View {
         switch reason {
         case .restartFL:
             return ("arrow.clockwise", String(localized: "Quitte et rouvre FL Studio"),
-                    String(localized: "Le lien est prêt : FL le lit en démarrant et relie « FL Shortcuts Link » tout seul."))
+                    String(localized: "Le lien est prêt. Dans FL : ⌘Q, puis rouvre-le. Cette fenêtre reste ouverte."))
+        case .midiSettings:
+            return ("slider.horizontal.3", String(localized: "Dans FL : Options › MIDI Settings"),
+                    String(localized: "Suis les étapes : règle les 4 cases entourées, dans l'ordre."))
         case .noResponse:
             return ("antenna.radiowaves.left.and.right", String(localized: "En attente de FL Studio"),
                     String(localized: """
@@ -1800,6 +1916,13 @@ struct OrganizerView: View {
                 MIDISettingsImage(width: 170)
                     .morphIn(2)
             }
+            linkTroubles
+        }
+    }
+
+    /// Les trois pièges déjà vus, une ligne chacun, puis où est le script.
+    private var linkTroubles: some View {
+        VStack(alignment: .leading, spacing: 10) {
             VStack(alignment: .leading, spacing: 4) {
                 Text("Toujours rien ?").font(.system(size: 12, weight: .semibold))
                 Text("Ta carte son : un autre numéro de Port.")
@@ -1879,6 +2002,19 @@ struct OrganizerView: View {
                     .font(.system(size: 11))
                     .foregroundStyle(.orange)
                     .fixedSize(horizontal: false, vertical: true)
+            }
+            if controller.iconsNeedScreen {
+                HStack(spacing: 8) {
+                    Label(String(localized: "Icônes : autorise « Enregistrement de l'écran »."),
+                          systemImage: "exclamationmark.triangle.fill")
+                        .font(.system(size: 11))
+                        .foregroundStyle(.orange)
+                        .fixedSize(horizontal: false, vertical: true)
+                    Spacer(minLength: 0)
+                    Button("Autoriser") { controller.askScreen() }
+                        .controlSize(.small)
+                        .help(String(localized: "Déjà coché dans les Réglages ? Décoche puis recoche FL Shortcuts : chaque nouvelle version le redemande."))
+                }
             }
             HStack(spacing: 12) {
                 Spacer()

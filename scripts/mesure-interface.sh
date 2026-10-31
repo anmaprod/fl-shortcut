@@ -336,7 +336,7 @@ run() {   # $1 : libellé, $2 : YES/NO effet verre
     done
     "$POST" app.flshortcut.debug.uninstall fermer; sleep 1
     # Organiser, avec des sons d'exemple (sans FL) : chaque écran, puis le passage de l'un à l'autre.
-    for screen in tuto installer attente aide ecoute apercu fini; do
+    for screen in tuto installer attente midi aide ecoute apercu fini; do
       "$POST" app.flshortcut.debug.organizer "$screen"
       # L'aperçu figeait l'app une quinzaine de secondes (photos restées sur l'écoute) : où l'app passe son temps.
       if [[ "$screen" == apercu ]]; then

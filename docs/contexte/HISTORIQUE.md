@@ -634,3 +634,10 @@ entrée 1 ≈ 0,5 s.
   retenue, ou montrée une fois sans « Enregistrement de l'écran »), case de la grille. Organiser : le nom de chaque son
   et de chaque piste est retrouvé dans la fenêtre de FL au moment du clic (noms du Mixer écrits à la verticale : image
   tournée d'un quart de tour). Essai de bout en bout sur la CI avec une grille dans le faux FL.
+- 31/10 (capture de la fin de l'Organiser) : « Pour poser les icônes, FL Shortcuts doit voir la fenêtre de FL… » et
+  pas de diagnostic. Une icône manquée arrêtait tout ce qui suivait (Mixer pas rangé) : elle n'arrête plus que les
+  icônes, la raison est dite à la fin ; l'autorisation manquante est dite dans l'aperçu, avant « Organiser », avec
+  « Autoriser » (une app recompilée perd l'autorisation, même cochée : décocher puis recocher) ; « Copier le
+  diagnostic » sur chaque fin. « Reset » de la grille de FL n'est pas une icône : retiré du sélecteur (« Aucune »).
+  « Installer le lien » depuis l'Organiser : « ça se ferme » (FL Shortcuts passait devant, ⌘Q le quittait) ; la
+  fenêtre reste, demande de rouvrir FL, puis montre l'image des 4 cases de MIDI Settings.

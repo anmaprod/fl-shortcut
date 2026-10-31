@@ -98,14 +98,15 @@ enum FLIconGrid {
     }
 
     /// Case proposée dans FL Shortcuts : une case relevée, hors de la colonne Channel.
-    static func isPickable(_ icon: FLIcon) -> Bool { cell(icon) != nil }
+    /// « Reset » n'en est pas une (retour du 31/10 : dans FL, il retire l'icône) : « Aucune » dans FL Shortcuts.
+    static func isPickable(_ icon: FLIcon) -> Bool { !icon.isReset && cell(icon) != nil }
 
     /// Toutes les cases proposées dans FL Shortcuts, colonne par colonne.
     static var pickable: [FLIcon] {
         var out: [FLIcon] = []
         for column in table.indices where column != channelColumn {
             for row in table[column].indices {
-                if let icon = FLIcon(column: column, row: row) { out.append(icon) }
+                if let icon = FLIcon(column: column, row: row), !icon.isReset { out.append(icon) }
             }
         }
         return out

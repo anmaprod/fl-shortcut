@@ -219,7 +219,14 @@
   (icône seule : sans le lien). Organiser : nom retrouvé dans la fenêtre de FL (`OrganizerIconTargets.swift` : colonne
   du Channel rack près du titre « Channel rack », noms VERTICAUX du Mixer lus dans l'image tournée ; seulement les noms
   lus et les places entre deux, jamais au-delà : un clic droit ailleurs peut changer le projet) ; sans « Enregistrement
-  de l'écran », message (pas de demande au milieu). Essai CI : `scenarioIcon` (grille du faux FL).
+  de l'écran », dit dans l'aperçu avant « Organiser » (« Autoriser » ; une version recompilée la perd : décocher puis
+  recocher) ; une icône manquée n'arrête plus que les icônes (le Mixer n'était plus rangé), raison dans la fin,
+  Échap arrête tout. « Reset » n'est PAS une icône (31/10 : il retire l'icône dans FL) : hors du sélecteur, « Aucune ».
+  Essai CI : `scenarioIcon` (grille du faux FL).
+- Organiser, « Installer le lien » (31/10, « ça se ferme ») : FL remis devant (⌘Q quittait FL Shortcuts, activé par
+  l'installation), la fenêtre attend que FL soit quitté puis rouvert (« Ouvrir FL Studio » s'il est fermé), puis
+  l'image MIDI Settings des 4 cases (`.midiSettings`, image du README) tant que FL ne répond pas ; « Copier le
+  diagnostic » sur chaque écran de fin.
 - **À l'identique des maquettes** (29/10, `HISTORIQUE`) : fenêtre principale = `Main.dc.html` (plaque de gauche
   avec les boutons de la fenêtre, `MainWindowChrome` ; en-tête titre + capsule du compte ; cartes par groupe,
   `CatalogGroups`) ; créateur = `Macros.dc.html` (← rond, nom, touches, « Enregistrer » bleu ; « Retirer ce bloc »).

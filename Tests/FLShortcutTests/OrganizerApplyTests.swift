@@ -207,12 +207,33 @@ final class OrganizerApplyTests: XCTestCase {
         XCTAssertEqual(targets, [IconTarget(kind: .channels, place: 0, names: ["Son 0", "Son 2", "Son 1"]),
                                  IconTarget(kind: .channels, place: 2, names: ["Son 0", "Son 2", "Son 1"])])
 
-        // Une icône manquée arrête la suite ; les couleurs et le regroupement restent défaisables.
+        // Capture du 31/10 : une icône manquée n'arrête que les icônes (les suivantes ne sont plus essayées), le
+        // rangement va au bout et la raison est dite à la fin.
         let (other, otherResult) = rack([.melody, .drums, .bass])
-        let missed = applier(other, placeIcon: { _, _ in .failed("Icône non posée.") })
-            .apply(plan(otherResult, styles: styles, options: rackOnly), result: otherResult, styles: styles)
-        XCTAssertEqual(missed.error, .failed("Icône non posée."))
+        var tries = 0
+        let missed = applier(other, placeIcon: { _, _ in
+            tries += 1
+            return .failed("autorisation absente")
+        }).apply(plan(otherResult, styles: styles, options: rackOnly), result: otherResult, styles: styles)
+        XCTAssertNil(missed.error)
+        XCTAssertEqual(missed.iconsMissed, "autorisation absente")
+        XCTAssertEqual(tries, 1)
         XCTAssertEqual(missed.snapshot.rack?.arrangement, [0, 2, 1])
+        XCTAssertTrue(missed.trace.contains("icônes non posées"))
+
+        // Échap pendant une icône : tout s'arrête, comme avant.
+        let (third, thirdResult) = rack([.melody, .drums, .bass])
+        let stopped = applier(third, placeIcon: { _, _ in .interrupted })
+            .apply(plan(thirdResult, styles: styles, options: rackOnly), result: thirdResult, styles: styles)
+        XCTAssertEqual(stopped.error, .interrupted)
+        XCTAssertNil(stopped.iconsMissed)
+
+        // « Reset » n'est pas une icône : rien n'est posé pour cette famille.
+        var resets = styles
+        resets[.drums]?.icon = try XCTUnwrap(FLIcon(code: "0-0"))
+        XCTAssertEqual(OrganizerApplier.plannedIcons(families: [0: .melody, 1: .drums], styles: resets).keys.sorted(), [0])
+        let decoded = try JSONDecoder().decode(FamilyStyle.self, from: Data(#"{"color":"#112233","icon":"0-0"}"#.utf8))
+        XCTAssertNil(decoded.icon)
     }
 
     /// Capture du propriétaire (Channel rack à moitié rangé, « La page de FL a changé ») : la page qui n'est plus

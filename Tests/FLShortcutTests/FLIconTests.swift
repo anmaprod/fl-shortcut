@@ -121,13 +121,16 @@ final class FLIconTests: XCTestCase {
     func testPickerSkipsChannelColumn() throws {
         XCTAssertFalse(FLIconGrid.isPickable(try XCTUnwrap(FLIcon(column: 13, row: 2))))
         XCTAssertTrue(FLIconGrid.isPickable(try XCTUnwrap(FLIcon(column: 12, row: 2))))
-        XCTAssertTrue(FLIconGrid.isPickable(try XCTUnwrap(FLIcon(code: "0-0"))))
-        XCTAssertFalse(FLIconGrid.pickable.contains { $0.column == FLIconGrid.channelColumn })
-        XCTAssertEqual(FLIconGrid.pickable.count, FLIconGrid.table.map(\.count).reduce(0, +))
+        // « Reset » n'est pas une icône (retour du 31/10 : il retire l'icône dans FL) : « Aucune ».
+        XCTAssertFalse(FLIconGrid.isPickable(try XCTUnwrap(FLIcon(code: "0-0"))))
+        XCTAssertTrue(FLIconGrid.isPickable(try XCTUnwrap(FLIcon(code: "1-0"))))
+        XCTAssertFalse(FLIconGrid.pickable.contains { $0.column == FLIconGrid.channelColumn || $0.isReset })
+        XCTAssertEqual(FLIconGrid.pickable.count, FLIconGrid.table.map(\.count).reduce(0, +) - 1)
         XCTAssertTrue(FLIconGrid.table.allSatisfy { $0.count <= FLIconGrid.rows })
         XCTAssertEqual(FLIconGrid.table.count, FLIconGrid.channelColumn)
-        // Les titres couvrent les 13 colonnes proposées, chacun au moins une.
-        XCTAssertEqual(FLIconPicker.headers.map(\.span).reduce(0, +), FLIconGrid.channelColumn)
+        // Les titres couvrent les 12 colonnes proposées (ni Reset ni Channel), chacun au moins une.
+        XCTAssertEqual(FLIconPicker.headers.map(\.span).reduce(0, +), FLIconGrid.channelColumn - 1)
+        XCTAssertFalse(FLIconPicker.headers.contains { $0.title == "Reset" })
         XCTAssertTrue(FLIconPicker.headers.allSatisfy { $0.span >= 1 })
     }
 

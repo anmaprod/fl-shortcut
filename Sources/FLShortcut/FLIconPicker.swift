@@ -76,9 +76,10 @@ struct FLIconPicker: View {
 
     private static let side: CGFloat = 26
     private static let gap: CGFloat = 2
-    private static let shownColumns = Array(0..<FLIconGrid.channelColumn)
+    /// Ni « Reset » (pas une icône : « Aucune ») ni « Channel ».
+    private static let shownColumns = Array(1..<FLIconGrid.channelColumn)
 
-    /// Un titre de la barre du haut et le nombre de colonnes qu'il couvre (Channel n'est pas proposée).
+    /// Un titre de la barre du haut et le nombre de colonnes qu'il couvre (ni Reset ni Channel).
     struct Header: Identifiable, Equatable {
         let column: Int
         let title: String
@@ -87,7 +88,7 @@ struct FLIconPicker: View {
     }
 
     static var headers: [Header] {
-        let shown = FLIconGrid.titles.filter { $0.column < FLIconGrid.channelColumn }
+        let shown = FLIconGrid.titles.filter { $0.column > 0 && $0.column < FLIconGrid.channelColumn }
         var out: [Header] = []
         for (i, t) in shown.enumerated() {
             let next = i + 1 < shown.count ? shown[i + 1].column : FLIconGrid.channelColumn
@@ -103,7 +104,7 @@ struct FLIconPicker: View {
                 Spacer()
                 Button("Aucune") { pick(nil) }
                     .controlSize(.small)
-                    .help("Ne pas toucher à l'icône dans FL")
+                    .help("Pas d'icône")
             }
             HStack(spacing: Self.gap) {
                 ForEach(Self.headers) { header in
@@ -124,7 +125,7 @@ struct FLIconPicker: View {
                     }
                 }
             }
-            Text("Même place que dans la grille « Change icon… » de FL. Reset retire l'icône dans FL.")
+            Text("Même place que dans la grille « Change icon… » de FL.")
                 .font(.system(size: 11))
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)

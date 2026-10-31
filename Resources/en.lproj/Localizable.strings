@@ -326,6 +326,7 @@
 "Autorise le son de FL :" = "Allow FL's sound:";
 "Autorise « Audio du système »" = "Allow “System Audio”";
 "Autorise « Enregistrement de l'écran » :" = "Allow “Screen Recording”:";
+"Autoriser" = "Allow";
 "Autoriser FL Shortcuts" = "Allow FL Shortcuts";
 "Autoriser…" = "Allow…";
 "Autorisé" = "Allowed";
@@ -714,6 +715,7 @@
 "Dégradé sur les pistes sélectionnées" = "Gradient on selected tracks";
 "Dégrouper la sélection" = "Ungroup selection";
 "Dégrouper les notes" = "Ungroup notes";
+"Déjà coché dans les Réglages ? Décoche puis recoche FL Shortcuts : chaque nouvelle version le redemande." = "Already on in Settings? Turn FL Shortcuts off, then on again: each new version asks again.";
 "Déjà pris" = "Taken";
 "Déjà utilisé dans ce contexte : seul le premier compte." = "Already used in this context: only the first one counts.";
 "Déjà utilisée par :" = "Already used by:";
@@ -1016,6 +1018,8 @@
 "Icône" = "Icon";
 "Icône de FL" = "FL icon";
 "Icône de FL de la famille, sur ses sons et ses pistes du Mixer (posée par la fenêtre de FL, F2 ; « Revenir comme avant » ne la retire pas)" = "The family's FL icon, on its sounds and Mixer tracks (set through FL's window, F2; “Undo changes” doesn't remove it)";
+"Icônes : autorise « Enregistrement de l'écran »." = "Icons: allow “Screen Recording”.";
+"Icônes non posées : %@." = "Icons not set: %@.";
 "Il faut encore : %@." = "Still needed: %@.";
 "Il n'est pas dans la liste, ou il est déjà activé mais rien ne marche ? Retire-le avec « – », puis ajoute-le avec « + » (dossier Applications)." = "Not in the list, or already on but nothing works? Remove it with “–”, then add it again with “+” (Applications folder).";
 "Il n'est pas dans la liste, ou il est déjà activé mais rien ne marche ? Retire-le avec « – », puis glisse FL Shortcuts depuis la fenêtre du Finder dans la liste." = "Not in the list, or already on but nothing works? Remove it with “–”, then drag FL Shortcuts from the Finder window into the list.";
@@ -1124,7 +1128,7 @@
 "Le fichier enregistré ne correspond pas au projet ouvert dans FL : rien n'a été touché. Si le Channel rack ne montre qu'un groupe de sons, choisis « All » en haut du Channel rack. Puis clique sur « Réessayer »." = "The saved file doesn't match the project open in FL: nothing was changed. If the Channel rack shows only one group of sounds, choose “All” at the top of the Channel rack. Then click “Try again”.";
 "Le glisser doit commencer et finir dans une fenêtre de FL (pas dans un menu) : recommence." = "The drag must start and end in an FL window (not in a menu): try again.";
 "Le lien avec FL vient d'être mis à jour : quitte et rouvre FL Studio pour qu'il le charge." = "The FL link was just updated: quit and reopen FL Studio so it loads it.";
-"Le lien est prêt : FL le lit en démarrant et relie « FL Shortcuts Link » tout seul." = "The link is ready: FL reads it when it starts and links “FL Shortcuts Link” on its own.";
+"Le lien est prêt. Dans FL : ⌘Q, puis rouvre-le. Cette fenêtre reste ouverte." = "The link is ready. In FL: ⌘Q, then open it again. This window stays open.";
 "Le lien est sur la mauvaise entrée" = "The link is on the wrong input";
 "Le mail de confirmation n'a pas pu partir. Réessaie plus tard, ou écris à l'équipe depuis la page Aide." = "The confirmation email couldn't be sent. Try again later, or write to the team from the Help page.";
 "Le menu s'ouvre un instant dans FL, le temps de le lire, puis se referme" = "The menu opens briefly in FL to be read, then closes";
@@ -1334,10 +1338,9 @@
 "Mélodie" = "Melody";
 "Mélodies" = "Melodies";
 "Métronome" = "Metronome";
-"Même place que dans la grille « Change icon… » de FL. Reset retire l'icône dans FL." = "Same spot as in FL's “Change icon…” grid. Reset removes the icon in FL.";
+"Même place que dans la grille « Change icon… » de FL." = "Same place as in FL's “Change icon…” grid.";
 "Navigation" = "Navigation";
 "Ne fait pas ce que dit son explication" = "Doesn't do what its description says";
-"Ne pas toucher à l'icône dans FL" = "Leave the icon in FL as is";
 "Ne quitte pas l'app tout de suite." = "Don't quit the app just yet.";
 "Ne touche pas à FL pendant l'écoute." = "Don't touch FL while it listens.";
 "Ne touche pas à FL." = "Don't touch FL.";
@@ -1346,11 +1349,9 @@
 "Nom d'utilisateur" = "Username";
 "Nom d'utilisateur : 3 à 24 caractères, lettres sans accent, chiffres, « _ », « . » ou « - »." = "Username: 3 to 24 characters, letters without accents, numbers, “_”, “.” or “-”.";
 "Nom de la macro" = "Macro name";
-"Nom de la piste introuvable dans le Mixer de FL : icônes non posées. Les couleurs sont posées." = "Track name not found in FL's Mixer: icons not set. The colors are set.";
 "Nom de macro invalide." = "Invalid macro name.";
 "Nom de variable invalide." = "Invalid variable name.";
 "Nom du son" = "Sound name";
-"Nom du son introuvable dans le Channel rack de FL : icônes non posées. Les couleurs sont posées." = "Sound name not found in FL's Channel rack: icons not set. The colors are set.";
 "Nom et couleur" = "Name and color";
 "Nombre de fois" = "Number of times";
 "Note" = "Note";
@@ -1435,6 +1436,7 @@
 "Ouvre un VST" = "Open a VST";
 "Ouvre un partage pour lire son explication et chaque étape, puis « Ajouter à mes macros »." = "Open a post to read its explanation and each step, then “Add to my macros”.";
 "Ouvrir FL Shortcuts" = "Open FL Shortcuts";
+"Ouvrir FL Studio" = "Open FL Studio";
 "Ouvrir Mon compte" = "Open My account";
 "Ouvrir dans le créateur…" = "Open in the creator…";
 "Ouvrir la Playlist" = "Open Playlist";
@@ -1491,6 +1493,7 @@
 "Partout" = "Everywhere";
 "Pas" = "Steps";
 "Pas content ?" = "Not happy?";
+"Pas d'icône" = "No icon";
 "Pas d'icône avec un dégradé (FL la pose sur un seul élément)." = "No icon with a gradient (FL sets it on one item only).";
 "Pas d'icône avec un dégradé." = "No icon with a gradient.";
 "Pas dans tes favoris : la macro le prend dans « More plugins… » de FL, retrouvé à son nom (autorisation « Enregistrement de l'écran »). Rien n'est ajouté à tes listes." = "Not in your favorites: the macro takes it from FL's “More plugins…”, found by its name (“Screen Recording” permission). Nothing is added to your lists.";
@@ -1580,7 +1583,6 @@
 "Positions" = "Positions";
 "Posée par la fenêtre de FL (F2). La première fois, montre une fois le bouton de l'icône." = "Set through FL's window (F2). The first time, show the icon button once.";
 "Pour l'Organiser : il écoute chaque son pour le ranger" = "For Organize: it listens to each sound to sort it";
-"Pour poser les icônes, FL Shortcuts doit voir la fenêtre de FL : Réglages Système › Confidentialité et sécurité › Enregistrement de l'écran. Les couleurs sont posées." = "To set the icons, FL Shortcuts needs to see FL's window: System Settings › Privacy & Security › Screen Recording. The colors are set.";
 "Pour toi (facultatif)" = "Just for you (optional)";
 "Pour un bouton qui change de place (une piste du Mixer, le « + » du Channel rack…) : il est " = "For a button that moves (a Mixer track, the Channel rack's “+”…): it's ";
 "Première piste du Mixer de la famille (son bus compris ; la 808 avec les drums) : tire vers le haut ou le bas comme dans FL, ou clique pour l'écrire" = "First Mixer track of the family (its bus included; the 808 with the drums): drag up or down like in FL, or click to type it";
@@ -1866,6 +1868,7 @@
 "Strings" = "Strings";
 "Sub" = "Sub";
 "Suis le petit panneau en bas à droite : clavier, puis fenêtre de FL. C'est détecté tout seul." = "Follow the small panel at the bottom right: keyboard, then FL window. It's detected automatically.";
+"Suis les étapes : règle les 4 cases entourées, dans l'ordre." = "Follow the steps: set the 4 circled boxes, in order.";
 "Suivant" = "Next";
 "Suppression…" = "Removing…";
 "Supprimer" = "Delete";
@@ -2132,6 +2135,7 @@
 "aucune carte son branchée (USB, Thunderbolt…) : branche-la, puis relance la macro" = "no sound card connected (USB, Thunderbolt…): connect it, then run the macro again";
 "aucune touche" = "no key";
 "autorise FL Shortcuts dans Réglages Système › Confidentialité et sécurité › Accessibilité" = "allow FL Shortcuts in System Settings › Privacy & Security › Accessibility";
+"autorise « Enregistrement de l'écran » pour FL Shortcuts (Réglages Système › Confidentialité et sécurité ; déjà coché : décoche puis recoche)" = "allow “Screen Recording” for FL Shortcuts (System Settings › Privacy & Security; already on: turn it off, then on again)";
 "bientôt" = "soon";
 "bloc caché (ancien format)" = "hidden block (old format)";
 "bloc d'une version plus récente de FL Shortcuts : la macro est bloquée." = "block from a newer version of FL Shortcuts: the macro is blocked.";
@@ -2318,6 +2322,8 @@
 "mémoire de l'Entrée inconnue." = "unknown learned Return setting.";
 "même s'il bouge." = "even if it moves.";
 "nom de l'arrangement à écrire dans « Cliquer sur… »" = "arrangement name to write in “Click on…”";
+"nom de la piste introuvable dans le Mixer de FL" = "track name not found in FL's Mixer";
+"nom du son introuvable dans le Channel rack de FL" = "sound name not found in FL's Channel rack";
 "nom et couleur à choisir" = "name and color to choose";
 "nom trop long (64 caractères au plus)." = "name too long (64 characters max).";
 "nombre de fois hors limites." = "number of times out of range.";
