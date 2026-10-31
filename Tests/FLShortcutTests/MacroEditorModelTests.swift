@@ -40,11 +40,11 @@ final class MacroEditorModelTests: XCTestCase {
         model.insertRecorded(ClickSequenceCompiler.Result(blocks: [menu, click], ignored: 1))
         undo.endUndoGrouping()
         XCTAssertEqual(model.draft?.blocks.map(\.body), [.delay(ms: 100), menu, click, .delay(ms: 200)])
-        XCTAssertEqual(model.notice, "2 blocs ajoutés d'après tes clics. 1 clic hors de FL (ou dans un menu refermé) ignoré.")
+        XCTAssertEqual(model.notice, "2 blocs ajoutés d'après tes clics et tes touches. 1 geste hors de FL (ou dans un menu refermé) ignoré.")
         undo.undo()
         XCTAssertEqual(model.draft?.blocks.map(\.body), [.delay(ms: 100), .delay(ms: 200)])
         model.insertRecorded(ClickSequenceCompiler.Result(blocks: [], ignored: 2))
-        XCTAssertEqual(model.notice, "Aucun clic dans FL enregistré. 2 clics hors de FL (ou dans un menu refermé) ignorés.")
+        XCTAssertEqual(model.notice, "Aucun clic ni aucune touche dans FL enregistrés. 2 gestes hors de FL (ou dans un menu refermé) ignorés.")
         model.close()
     }
 

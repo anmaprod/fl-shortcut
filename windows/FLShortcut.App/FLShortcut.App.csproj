@@ -22,8 +22,8 @@
     <LangVersion>12</LangVersion>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <Version>0.2.0</Version>
-    <Product>FL Shortcut</Product>
-    <Company>FL Shortcut</Company>
+    <Product>FL Shortcuts</Product>
+    <Company>FL Shortcuts</Company>
     <Description>Raccourcis personnalisés pour FL Studio — outil indépendant, non affilié à Image-Line.</Description>
     <ApplicationIcon Condition="Exists('Assets\FLShortcut.ico')">Assets\FLShortcut.ico</ApplicationIcon>
   </PropertyGroup>
@@ -46,9 +46,17 @@
     <ProjectReference Include="..\FLShortcut.Core\FLShortcut.Core.csproj" />
   </ItemGroup>
 
+  <!-- L'IA intégrée de l'Organiser (YAMNet + têtes apprises), à côté de l'exécutable (ClasseurSons.Partage). -->
+  <ItemGroup>
+    <None Include="..\..\ia\modele\classeur_sons.onnx" Link="classeur_sons.onnx" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
+
   <!-- Le script FL (modèle avec le marqueur de clé), embarqué dans l'exécutable. -->
   <ItemGroup>
     <EmbeddedResource Include="..\..\Resources\device_FLShortcut.py" LogicalName="device_FLShortcut.py" />
+    <!-- Tuto de l'Organiser : les images du Mac (Resources/{fr,en}.lproj/OrganiserTuto1…4.png). -->
+    <EmbeddedResource Include="..\..\Resources\fr.lproj\OrganiserTuto*.png" LogicalName="%(Filename)-fr.png" />
+    <EmbeddedResource Include="..\..\Resources\en.lproj\OrganiserTuto*.png" LogicalName="%(Filename)-en.png" />
   </ItemGroup>
 
 </Project>

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Icône FL Shortcut façon macOS 26 (Liquid Glass) : fond en dégradé doux, deux touches de clavier en verre
+# Icône FL Shortcuts façon macOS 26 (Liquid Glass) : fond en dégradé doux, deux touches de clavier en verre
 # superposées (⌃ derrière, ♫ devant), reflets spéculaires. Rendu 2x puis réduit (anticrénelage).
 # Usage : python3 scripts/icone.py Resources   (Pillow et numpy ; écrit AppIcon-1024.png et AppIcon.icns,
 # morceaux PNG icp4/icp5/ic07…ic14 comme iconutil, absent sous Linux)

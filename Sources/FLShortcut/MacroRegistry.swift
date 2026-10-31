@@ -5,13 +5,20 @@ import Foundation
 
 enum BlockType: String, CaseIterable, Codable {
     case key, menuLetters, menuKey, click, delay, waitWindow, waitWindowClose
+    /// Glisser-déposer : appui à un endroit de FL, glissé jusqu'à un autre, relâché.
+    case drag
     case trackMenu, chooseFile, dropFile, flAction, flActionValue, selectInput, feedbackCheck
     /// Nom et couleur de la piste ou du canal sélectionné (lien avec FL, PROTOCOL.md §7).
     case nameColor
     /// La carte son branchée devient la sortie et l'entrée du Mac.
     case soundCard
-    /// Ouvre l'Organiser sur la page de FL devant (Channel rack ou Mixer) ; la suite se passe dans sa fenêtre.
+    /// Ouvre l'Organiser sur la page de FL devant (Channel rack, Mixer ou Playlist) ; la suite se passe dans sa
+    /// fenêtre.
     case organize
+    /// Met devant une page de FL, seulement si elle n'y est pas déjà (MacroPages.swift).
+    case openPage
+    /// « Cliquer sur… » : une option de la page ouverte au-dessus.
+    case pageOption
     /// Élément d'un menu de FL dans la barre des menus de macOS, par ses titres (créé par « Enregistrer des clics »).
     case menuBar
     /// Ancienne étape `menu` : seulement pour reprendre les anciennes macros (absente de la palette).
@@ -25,6 +32,20 @@ enum BlockCategory: String, CaseIterable {
     case fenetres = "Fenêtres et attentes"
     case fl = "FL Studio"
     case controle = "Contrôle"
+
+    /// Ordre de la palette et du menu « Ajouter » (maquette du 28/10) : FL Studio d'abord.
+    static let paletteOrder: [BlockCategory] = [.fl, .clavier, .souris, .fenetres, .controle]
+
+    /// Nom affiché de la catégorie (palette, recherche) ; le rawValue reste tel quel.
+    var label: String {
+        switch self {
+        case .clavier: return String(localized: "Clavier")
+        case .souris: return String(localized: "Souris")
+        case .fenetres: return String(localized: "Attente")       // un seul bloc « Attendre » (28/10)
+        case .fl: return String(localized: "FL Studio")
+        case .controle: return String(localized: "Contrôle")
+        }
+    }
 }
 
 /// Ce dont un bloc a besoin, agrégé par MacroProgram (et, à l'incrément 2, par Store.recompute pour la mémoire de
@@ -68,7 +89,7 @@ struct ParamSpec {
 enum ParamKind {
     case touche, ms(ClosedRange<Int>), nombre(ClosedRange<Int>), lettres(max: Int), toucheMenu
     case cible, fenetre, fichier(extensions: [String]), actionFL, condition, variable, texte(max: Int), blocs
-    case couleur
+    case couleur, icone
 }
 
 enum Conteneur { case aucun, corps, siSinon }
@@ -104,7 +125,7 @@ struct ValidationContext {
     }
 
     /// Message d'erreur au format historique : « Étape 3 : touche interdite (…). »
-    func fail(_ text: String) -> String { "Étape \(path) : \(text)" }
+    func fail(_ text: String) -> String { String(localized: "Étape \(path) : \(text)") }
 }
 
 struct BlockSpec {
@@ -134,6 +155,7 @@ enum BlockRegistry {
         case .menuLetters: return Specs.menuLetters
         case .menuKey: return Specs.menuKey
         case .click: return Specs.click
+        case .drag: return Specs.drag
         case .delay: return Specs.delay
         case .waitWindow: return Specs.waitWindow
         case .waitWindowClose: return Specs.waitWindowClose
@@ -147,6 +169,8 @@ enum BlockRegistry {
         case .nameColor: return Specs.nameColor
         case .soundCard: return Specs.soundCard
         case .organize: return Specs.organize
+        case .openPage: return Specs.openPage
+        case .pageOption: return Specs.pageOption
         case .menuBar: return Specs.menuBar
         case .menuAX: return Specs.menuAX
         case .ifElse: return Specs.ifElse
@@ -172,7 +196,7 @@ enum BlockRegistry {
     /// pour que le journal reste comparable d'une version à l'autre.
     static func journal(of body: BlockBody) -> String { body.type.map { spec($0).journal(body) } ?? "unknown" }
 
-    static func label(of body: BlockBody) -> String { body.type.map { spec($0).label } ?? "Bloc inconnu" }
+    static func label(of body: BlockBody) -> String { body.type.map { spec($0).label } ?? String(localized: "Bloc inconnu") }
 
     static func estimateMs(_ body: BlockBody) -> Int { body.type.map { spec($0).estimationMs(body) } ?? 0 }
 }
@@ -183,22 +207,23 @@ private enum Specs {
     static let base: BlockNeeds = [.flAuPremierPlan, .clavierAuRepos]
 
     static func seconds(_ ms: Int) -> String {
-        ms % 1000 == 0 ? "\(ms / 1000) s" : String(format: "%.1f s", Double(ms) / 1000).replacingOccurrences(of: ".", with: ",")
+        ms % 1000 == 0 ? String(localized: "\(ms / 1000) s") : String(format: "%.1f s", Double(ms) / 1000).replacingOccurrences(of: ".", with: ",")
     }
 
     static func times(_ n: Int) -> String { n > 1 ? " × \(n)" : "" }
 
-    static func windowName(_ k: WindowKind) -> String { k == .dialog ? "Boîte de dialogue" : "Menu" }
+    static func windowName(_ k: WindowKind) -> String { k == .dialog ? String(localized: "Boîte de dialogue") : String(localized: "Menu") }
 
     static func describe(_ c: Condition) -> String {
         switch c {
-        case .windowOpen(let k): return k == .dialog ? "une boîte de dialogue est ouverte" : "un menu de FL est ouvert"
-        case .flState(let q, let op, let v): return "FL : \(q) \(op.symbol) \(v)"
+        case .windowOpen(let k):
+            return k == .dialog ? String(localized: "une boîte de dialogue est ouverte") : String(localized: "un menu de FL est ouvert")
+        case .flState(let q, let op, let v): return String(localized: "FL : \(q) \(op.symbol) \(v)")
         case .variable(let name, let op, let v): return "\(name.displaySafe(max: 16)) \(op.symbol) \(v)"
-        case .lastBlockFailed: return "le bloc précédent a échoué"
-        case .not(let inner): return "non (\(describe(inner)))"
-        case .all(let list): return list.map { describe($0) }.joined(separator: " et ")
-        case .any(let list): return list.map { describe($0) }.joined(separator: " ou ")
+        case .lastBlockFailed: return String(localized: "le bloc précédent a échoué")
+        case .not(let inner): return String(localized: "non (\(describe(inner)))")
+        case .all(let list): return list.map { describe($0) }.joined(separator: String(localized: " et "))
+        case .any(let list): return list.map { describe($0) }.joined(separator: String(localized: " ou "))
         }
     }
 
@@ -206,19 +231,21 @@ private enum Specs {
         switch v {
         case .constant(let n): return "\(n)"
         case .variable(let name): return name.displaySafe(max: 16)
-        case .flState(let q): return "FL : \(q)"
+        case .flState(let q): return String(localized: "FL : \(q)")
         }
     }
 
     static func describe(_ t: ClickTarget) -> String {
         switch t {
-        case .flWindow: return "fenêtre de FL"
-        case .openMenu: return "menu ouvert"
-        case .track: return "piste visée"
-        case .lastClick: return "après le clic précédent"
-        case .startCursor: return "curseur au départ"
-        case .cursorXWindowY: return "colonne du curseur"
-        case .toLearn: return "à montrer dans FL"
+        case .flWindow: return String(localized: "fenêtre de FL")
+        case .openMenu: return String(localized: "menu ouvert")
+        case .button: return String(localized: "bouton retrouvé à son image")
+        case .named: return String(localized: "bouton retrouvé à son nom")
+        case .track: return String(localized: "piste visée")
+        case .lastClick: return String(localized: "après le clic précédent")
+        case .startCursor: return String(localized: "curseur au départ")
+        case .cursorXWindowY: return String(localized: "colonne du curseur")
+        case .toLearn: return String(localized: "à montrer dans FL")
         }
     }
 
@@ -227,15 +254,15 @@ private enum Specs {
         letters.allSatisfy { ("a"..."z").contains($0) }
     }
 
-    static func keyProblem(_ combo: KeyCombo, _ ctx: ValidationContext, what: String = "touche") -> String? {
-        guard combo.isValidKey else { return ctx.fail("\(what) non prise en charge.") }
-        if let why = ctx.forbidden.reason(for: combo) { return ctx.fail("\(what) interdite (\(why)).") }
+    static func keyProblem(_ combo: KeyCombo, _ ctx: ValidationContext, what: String = String(localized: "touche")) -> String? {
+        guard combo.isValidKey else { return ctx.fail(String(localized: "\(what) non prise en charge.")) }
+        if let why = ctx.forbidden.reason(for: combo) { return ctx.fail(String(localized: "\(what) interdite (\(why)).")) }
         return nil
     }
 
     static func enterProblem(_ e: EnterPolicy, _ ctx: ValidationContext) -> String? {
         if case .learned(let key) = e, !MacroValidation.learnedEnterKeys.contains(key) {
-            return ctx.fail("mémoire de l'Entrée inconnue.")
+            return ctx.fail(String(localized: "mémoire de l'Entrée inconnue."))
         }
         return nil
     }
@@ -257,9 +284,9 @@ private enum Specs {
     // MARK: Clavier
 
     static let key = BlockSpec(
-        type: .key, label: "Touche ou raccourci", category: .clavier, symbol: "keyboard",
-        aide: "Envoie une touche ou un raccourci clavier à FL (⌘A, ⇧⌘S, F9…), seulement quand FL est au premier plan. Clique le champ puis tape le raccourci, ou coche ⌘ ⌥ ⌃ ⇧. Les raccourcis dangereux (⌘Q, ⌘W…) sont refusés.",
-        params: [ParamSpec("key", "Touche", .touche), ParamSpec("times", "Nombre de fois", .nombre(1...20))],
+        type: .key, label: String(localized: "Touche ou raccourci"), category: .clavier, symbol: "keyboard",
+        aide: String(localized: "Envoie une touche ou un raccourci à FL."),
+        params: [ParamSpec("key", String(localized: "Touche"), .touche), ParamSpec("times", String(localized: "Nombre de fois"), .nombre(1...20))],
         conteneur: .aucun, dansLaPalette: true,
         needs: { _ in base },
         parDefaut: { .key(KeyRef(KeyCombo(keyCode: 49), char: " "), times: 1) },
@@ -274,15 +301,15 @@ private enum Specs {
         },
         valider: { body, ctx in
             guard case .key(let k, let n) = body else { return nil }
-            guard (1...20).contains(n) else { return ctx.fail("nombre de fois hors limites.") }
+            guard (1...20).contains(n) else { return ctx.fail(String(localized: "nombre de fois hors limites.")) }
             return keyProblem(k.combo, ctx)
         },
         import_: .aRelire("touche envoyée à FL"), plateformes: .mac)
 
     static let menuLetters = BlockSpec(
-        type: .menuLetters, label: "Lettres d'un menu de FL", category: .clavier, symbol: "character.cursor.ibeam",
-        aide: "Tape les lettres soulignées d'un menu de FL déjà ouvert (F de File, O de Open…), seulement si un menu ouvert par la macro est encore là.",
-        params: [ParamSpec("letters", "Lettres", .lettres(max: 8)), ParamSpec("finalEnter", "Entrée à la fin", .toucheMenu)],
+        type: .menuLetters, label: String(localized: "Lettres d'un menu de FL"), category: .clavier, symbol: "character.cursor.ibeam",
+        aide: String(localized: "Tape les lettres soulignées d'un menu de FL ouvert."),
+        params: [ParamSpec("letters", String(localized: "Lettres"), .lettres(max: 8)), ParamSpec("finalEnter", String(localized: "Entrée à la fin"), .toucheMenu)],
         conteneur: .aucun, dansLaPalette: true,
         needs: { _ in base },
         parDefaut: { .menuLetters(["f"], finalEnter: .never) },
@@ -297,15 +324,15 @@ private enum Specs {
         },
         valider: { body, ctx in
             guard case .menuLetters(let l, let e) = body else { return nil }
-            guard (1...8).contains(l.count), lettersOK(l) else { return ctx.fail("lettres de menu invalides (a à z).") }
+            guard (1...8).contains(l.count), lettersOK(l) else { return ctx.fail(String(localized: "lettres de menu invalides (a à z).")) }
             return enterProblem(e, ctx)
         },
         import_: .ok, plateformes: .mac)
 
     static let menuKey = BlockSpec(
-        type: .menuKey, label: "Touche de menu", category: .clavier, symbol: "arrow.up.arrow.down",
-        aide: "Flèche, Entrée ou Échap dans un menu de FL ouvert par la macro (jamais ailleurs).",
-        params: [ParamSpec("menuKey", "Touche", .toucheMenu), ParamSpec("times", "Nombre de fois", .nombre(1...20))],
+        type: .menuKey, label: String(localized: "Touche de menu"), category: .clavier, symbol: "arrow.up.arrow.down",
+        aide: String(localized: "Flèche, Entrée ou Échap dans un menu de FL."),
+        params: [ParamSpec("menuKey", String(localized: "Touche"), .toucheMenu), ParamSpec("times", String(localized: "Nombre de fois"), .nombre(1...20))],
         conteneur: .aucun, dansLaPalette: true,
         needs: { _ in base },
         parDefaut: { .menuKey(.down, times: 1) },
@@ -320,16 +347,16 @@ private enum Specs {
         },
         valider: { body, ctx in
             guard case .menuKey(_, let n) = body else { return nil }
-            return (1...20).contains(n) ? nil : ctx.fail("nombre de fois hors limites.")
+            return (1...20).contains(n) ? nil : ctx.fail(String(localized: "nombre de fois hors limites."))
         },
         import_: .ok, plateformes: .mac)
 
     // MARK: Souris
 
     static let click = BlockSpec(
-        type: .click, label: "Clic", category: .souris, symbol: "cursorarrow.click",
-        aide: "Clic gauche ou droit à un endroit retrouvé à chaque fois (coin d'une fenêtre de FL, piste visée, menu ouvert…). Toujours dans une fenêtre de FL, jamais sous une autre app.",
-        params: [ParamSpec("target", "Où", .cible), ParamSpec("button", "Bouton", .nombre(0...1))],
+        type: .click, label: String(localized: "Clic"), category: .souris, symbol: "cursorarrow.click",
+        aide: String(localized: "Clic gauche ou droit à un endroit de FL."),
+        params: [ParamSpec("target", String(localized: "Où"), .cible), ParamSpec("button", String(localized: "Bouton"), .nombre(0...1))],
         conteneur: .aucun, dansLaPalette: true,
         needs: { body in
             var n: BlockNeeds = base.union(.cliqueHID)
@@ -339,15 +366,44 @@ private enum Specs {
         parDefaut: { .click(.track(dx: 0, dy: 0), button: .left) },
         resume: { body, _ in
             guard case .click(let t, let b) = body else { return "" }
-            return (b == .right ? "Clic droit · " : "Clic · ") + describe(t)
+            return (b == .right ? String(localized: "Clic droit · ") : String(localized: "Clic · ")) + describe(t)
         },
         journal: { _ in "click" },
         estimationMs: { _ in 300 },
         valider: { body, ctx in
             guard case .click(let t, let b) = body else { return nil }
-            if case .toLearn = t { return ctx.fail("position à montrer dans FL (« Montrer dans FL… » dans le créateur).") }
-            guard t.isFinite else { return ctx.fail("position invalide.") }
-            if case .openMenu = t, b == .right { return ctx.fail("clic droit impossible dans un menu ouvert.") }
+            if case .toLearn = t { return ctx.fail(String(localized: "position à montrer dans FL (« Montrer dans FL… » dans le créateur).")) }
+            guard t.isFinite else { return ctx.fail(String(localized: "position invalide.")) }
+            if case .openMenu = t, b == .right { return ctx.fail(String(localized: "clic droit impossible dans un menu ouvert.")) }
+            return nil
+        },
+        import_: .retirerPositions, plateformes: .mac)
+
+    static let drag = BlockSpec(
+        type: .drag, label: String(localized: "Glisser-déposer"), category: .souris, symbol: "hand.draw",
+        aide: String(localized: "Glisse d'un endroit de FL à un autre."),
+        params: [ParamSpec("from", String(localized: "Glisser"), .cible)],
+        conteneur: .aucun, dansLaPalette: true,
+        needs: { body in
+            var n: BlockNeeds = base.union(.cliqueHID)
+            if case .drag(let a, let b) = body, a.isTrack || b.isTrack { n.insert(.pisteVisee) }
+            return n
+        },
+        parDefaut: { .drag(from: .lastClick(dx: 0, dy: 0), to: .startCursor(dx: 0, dy: 0)) },
+        resume: { body, _ in
+            guard case .drag(let a, let b) = body else { return "" }
+            return describe(a) + " → " + describe(b)
+        },
+        journal: { _ in "drag" },
+        estimationMs: { _ in 700 },
+        valider: { body, ctx in
+            guard case .drag(let a, let b) = body else { return nil }
+            if a == .toLearn || b == .toLearn {
+                return ctx.fail(String(localized: "glisser à montrer dans FL (« Montrer dans FL… » dans le créateur)."))
+            }
+            guard a.isFinite, b.isFinite else { return ctx.fail(String(localized: "position invalide.")) }
+            if case .openMenu = a { return ctx.fail(String(localized: "glisser impossible depuis un menu ouvert.")) }
+            if case .openMenu = b { return ctx.fail(String(localized: "glisser impossible vers un menu ouvert.")) }
             return nil
         },
         import_: .retirerPositions, plateformes: .mac)
@@ -355,15 +411,15 @@ private enum Specs {
     // MARK: Fenêtres et attentes
 
     static let delay = BlockSpec(
-        type: .delay, label: "Attendre un temps fixe", category: .fenetres, symbol: "hourglass",
-        aide: "Attend un moment (5 s au plus). Échap l'interrompt. À éviter : mieux vaut attendre qu'une fenêtre s'ouvre ou se ferme.",
-        params: [ParamSpec("wait", "Attendre", .fenetre), ParamSpec("ms", "Durée (ms)", .ms(0...MacroValidation.maxDelayMs))],
+        type: .delay, label: String(localized: "Attendre un temps fixe"), category: .fenetres, symbol: "clock",
+        aide: String(localized: "Fait une pause (5 s au plus)."),
+        params: [ParamSpec("wait", String(localized: "Attendre"), .fenetre), ParamSpec("ms", String(localized: "Durée (ms)"), .ms(0...MacroValidation.maxDelayMs))],
         conteneur: .aucun, dansLaPalette: true,
         needs: { _ in base },
         parDefaut: { .delay(ms: 200) },
         resume: { body, _ in
             guard case .delay(let ms) = body else { return "" }
-            return ms < 1000 ? "\(ms) ms" : seconds(ms)
+            return ms < 1000 ? String(localized: "\(ms) ms") : seconds(ms)
         },
         journal: { _ in "delay" },
         estimationMs: { body in
@@ -372,29 +428,29 @@ private enum Specs {
         },
         valider: { body, ctx in
             guard case .delay(let ms) = body else { return nil }
-            return (0...MacroValidation.maxDelayMs).contains(ms) ? nil : ctx.fail("pause hors limites.")
+            return (0...MacroValidation.maxDelayMs).contains(ms) ? nil : ctx.fail(String(localized: "pause hors limites."))
         },
         import_: .ok, plateformes: .mac)
 
     static func waitValidator(_ body: BlockBody, _ ctx: ValidationContext) -> String? {
         switch body {
         case .waitWindow(_, let ms), .waitWindowClose(_, let ms):
-            return (100...MacroValidation.maxWaitMs).contains(ms) ? nil : ctx.fail("attente hors limites.")
+            return (100...MacroValidation.maxWaitMs).contains(ms) ? nil : ctx.fail(String(localized: "attente hors limites."))
         default:
             return nil
         }
     }
 
     static let waitWindow = BlockSpec(
-        type: .waitWindow, label: "Attendre une fenêtre", category: .fenetres, symbol: "macwindow.badge.plus",
-        aide: "Attend qu'une boîte de dialogue ou un menu de FL s'ouvre (120 s au plus).",
-        params: [ParamSpec("wait", "Attendre", .fenetre), ParamSpec("timeoutMs", "Au plus (ms)", .ms(100...MacroValidation.maxWaitMs))],
+        type: .waitWindow, label: String(localized: "Attendre une fenêtre"), category: .fenetres, symbol: "clock",
+        aide: String(localized: "Attend qu'une boîte ou un menu de FL s'ouvre."),
+        params: [ParamSpec("wait", String(localized: "Attendre"), .fenetre), ParamSpec("timeoutMs", String(localized: "Au plus (ms)"), .ms(100...MacroValidation.maxWaitMs))],
         conteneur: .aucun, dansLaPalette: true,
         needs: { _ in base },
         parDefaut: { .waitWindow(.dialog, timeoutMs: 4_000) },
         resume: { body, _ in
             guard case .waitWindow(let k, let ms) = body else { return "" }
-            return "\(windowName(k)) · \(seconds(ms)) au plus"
+            return String(localized: "\(windowName(k)) · \(seconds(ms)) au plus")
         },
         journal: { body in
             guard case .waitWindow(let k, _) = body else { return "waitWindow" }
@@ -408,15 +464,15 @@ private enum Specs {
         import_: .ok, plateformes: .mac)
 
     static let waitWindowClose = BlockSpec(
-        type: .waitWindowClose, label: "Attendre la fermeture", category: .fenetres, symbol: "macwindow",
-        aide: "Attend que la boîte ou le menu se ferme (par exemple pendant que tu choisis ton preset, 120 s au plus).",
-        params: [ParamSpec("wait", "Attendre", .fenetre), ParamSpec("timeoutMs", "Au plus (ms)", .ms(100...MacroValidation.maxWaitMs))],
+        type: .waitWindowClose, label: String(localized: "Attendre la fermeture"), category: .fenetres, symbol: "clock",
+        aide: String(localized: "Attend qu'une boîte ou un menu de FL se ferme."),
+        params: [ParamSpec("wait", String(localized: "Attendre"), .fenetre), ParamSpec("timeoutMs", String(localized: "Au plus (ms)"), .ms(100...MacroValidation.maxWaitMs))],
         conteneur: .aucun, dansLaPalette: true,
         needs: { _ in base },
         parDefaut: { .waitWindowClose(.dialog, timeoutMs: 8_000) },
         resume: { body, _ in
             guard case .waitWindowClose(let k, let ms) = body else { return "" }
-            return "\(windowName(k)) fermée · \(seconds(ms)) au plus"
+            return String(localized: "\(windowName(k)) fermée · \(seconds(ms)) au plus")
         },
         journal: { body in
             guard case .waitWindowClose(let k, _) = body else { return "waitWindowClose" }
@@ -432,9 +488,9 @@ private enum Specs {
     // MARK: FL Studio
 
     static let trackMenu = BlockSpec(
-        type: .trackMenu, label: "Menu de la piste", category: .fl, symbol: "list.bullet.rectangle",
-        aide: "Clic droit sur la dernière piste cliquée dans le Mixer, puis l'élément choisi dans la liste (ouvrir un état de piste, renommer…), au clavier : rien à apprendre.",
-        params: [ParamSpec("letters", "Élément", .lettres(max: 3)), ParamSpec("finalEnter", "Entrée à la fin", .toucheMenu)],
+        type: .trackMenu, label: String(localized: "Menu de la piste"), category: .fl, symbol: "list.bullet.rectangle",
+        aide: String(localized: "Choisit un élément du menu d'une piste du Mixer."),
+        params: [ParamSpec("letters", String(localized: "Élément"), .lettres(max: 3)), ParamSpec("finalEnter", String(localized: "Entrée à la fin"), .toucheMenu)],
         conteneur: .aucun, dansLaPalette: true,
         needs: { body in
             var n: BlockNeeds = base.union([.attenteClavierInterne, .cliqueHID])
@@ -454,19 +510,19 @@ private enum Specs {
             // Lettres des sous-menus puis celle de l'élément (1 à 3, a à z) : « R » pour un élément du menu lui-même,
             // « F O » pour File › Open mixer track state.
             guard labels.count <= 3,
-                  labels.allSatisfy({ !$0.isEmpty && $0.count <= 160 }) else { return ctx.fail("titres de menu invalides.") }
+                  labels.allSatisfy({ !$0.isEmpty && $0.count <= 160 }) else { return ctx.fail(String(localized: "titres de menu invalides.")) }
             guard (1...3).contains(l.count), lettersOK(l) else {
-                return ctx.fail("choisis l'élément du menu de la piste (ou 1 à 3 lettres soulignées, a à z).")
+                return ctx.fail(String(localized: "choisis l'élément du menu de la piste (ou 1 à 3 lettres soulignées, a à z)."))
             }
-            if e == .never { return ctx.fail("le menu de la piste doit se fermer sur son dernier élément.") }
+            if e == .never { return ctx.fail(String(localized: "le menu de la piste doit se fermer sur son dernier élément.")) }
             return enterProblem(e, ctx)
         },
         import_: .ok, plateformes: .mac)
 
     static let chooseFile = BlockSpec(
-        type: .chooseFile, label: "Ouvrir un preset (boîte Open)", category: .fl, symbol: "doc.badge.arrow.up",
-        aide: "Quand FL a ouvert sa boîte « Open » (preset d'un plugin, d'un canal…) : va au fichier .fst choisi et l'ouvre. À placer après les clics qui ouvrent la boîte et un « Attendre ».",
-        params: [ParamSpec("path", "Fichier", .fichier(extensions: ["fst"]))],
+        type: .chooseFile, label: String(localized: "Ouvrir un preset (boîte Open)"), category: .fl, symbol: "doc.badge.arrow.up",
+        aide: String(localized: "Ouvre le preset choisi dans la boîte « Open » de FL."),
+        params: [ParamSpec("path", String(localized: "Fichier"), .fichier(extensions: ["fst"]))],
         conteneur: .aucun, dansLaPalette: true,
         needs: { _ in base },
         parDefaut: { .chooseFile(path: NSHomeDirectory() + "/Documents/Image-Line/FL Studio/Presets/Mixer presets/Preset.fst") },
@@ -483,9 +539,9 @@ private enum Specs {
         import_: .aRelire("fichier à rechoisir sur cette machine"), plateformes: .mac)
 
     static let dropFile = BlockSpec(
-        type: .dropFile, label: "Déposer un preset sur la piste", category: .fl, symbol: "square.and.arrow.down.on.square",
-        aide: "Glisse le fichier sur la dernière piste cliquée dans le Mixer, comme depuis le Finder : FL y charge l'état de piste, sans menu ni boîte « Open ».",
-        params: [ParamSpec("path", "Fichier", .fichier(extensions: ["fst"]))],
+        type: .dropFile, label: String(localized: "Ouvrir un preset"), category: .fl, symbol: "square.and.arrow.down.on.square",
+        aide: String(localized: "Ouvre le preset que tu veux dans ton Mixer."),
+        params: [ParamSpec("path", String(localized: "Fichier"), .fichier(extensions: ["fst"]))],
         conteneur: .aucun, dansLaPalette: true,
         needs: { _ in base.union([.cliqueHID, .pisteVisee, .pisteRequise]) },
         parDefaut: { .dropFile(path: NSHomeDirectory() + "/Documents/Image-Line/FL Studio/Presets/Mixer presets/Preset.fst") },
@@ -503,29 +559,34 @@ private enum Specs {
 
     /// Chemin d'un preset (choisi dans la boîte « Open » ou déposé sur la piste) : mêmes règles pour les deux blocs.
     private static func presetFileProblem(_ p: String, _ ctx: ValidationContext) -> String? {
-        guard !p.isEmpty, p.count <= 1024,
+        // Modèle tout neuf, ou macro reçue d'un autre Mac : le preset est à choisir sur celui-ci.
+        guard !p.isEmpty else { return ctx.fail(String(localized: "preset à choisir dans le créateur.")) }
+        guard p.count <= 1024,
               !p.unicodeScalars.contains(where: { CharacterSet.controlCharacters.contains($0) }) else {
-            return ctx.fail("chemin de fichier invalide.")
+            return ctx.fail(String(localized: "chemin de fichier invalide."))
         }
         if ctx.strictFiles {
             let home = NSHomeDirectory() + "/"
             let parts = p.split(separator: "/")
             let placeOK = ctx.presetAnywhere ? p.hasPrefix("/") : p.hasPrefix(home)
             guard placeOK, !parts.contains(".."), URL(fileURLWithPath: p).pathExtension.lowercased() == "fst" else {
-                return ctx.fail(ctx.presetAnywhere ? "preset .fst attendu." : "preset .fst attendu dans ton dossier personnel.")
+                return ctx.fail(ctx.presetAnywhere ? String(localized: "preset .fst attendu.")
+                                                   : String(localized: "preset .fst attendu dans ton dossier personnel."))
             }
         }
         return nil
     }
 
     static let flAction = BlockSpec(
-        type: .flAction, label: "Action de FL", category: .fl, symbol: "bolt.horizontal",
-        aide: "Lance une action de FL par le lien avec FL (réveil bref, puis il se rendort). Sans lien : son équivalent au clavier, s'il existe.",
-        params: [ParamSpec("action", "Action", .actionFL), ParamSpec("fallback", "Sans lien", .touche)],
+        type: .flAction, label: String(localized: "Action de FL"), category: .fl, symbol: "bolt.horizontal",
+        aide: String(localized: "Lance une action de FL (Mixer, Playlist, métronome…)."),
+        params: [ParamSpec("action", String(localized: "Action"), .actionFL), ParamSpec("fallback", String(localized: "Sans lien"), .touche)],
         conteneur: .aucun, dansLaPalette: true,
         needs: { body in
             var n: BlockNeeds = base.union(.lienMIDI)
             if case .flAction(_, .trackMenuArm) = body { n.formUnion([.cliqueHID, .pisteVisee]) }
+            // Mute / solo sans le script : bouton mute de la piste cliquée juste avant (MacroMuteSolo.swift).
+            if case .flAction(let key, .none) = body, MuteSolo.handlesWithoutLink(key) { n.formUnion([.cliqueHID, .pisteVisee]) }
             return n
         },
         parDefaut: { .flAction(key: "armon", fallback: .trackMenuArm) },
@@ -544,21 +605,21 @@ private enum Specs {
         estimationMs: { _ in 3_000 },
         valider: { body, ctx in
             guard case .flAction(let key, let fallback) = body else { return nil }
-            guard FLActions.id(forKey: key) != nil else { return ctx.fail("action de FL inconnue.") }
+            guard FLActions.id(forKey: key) != nil else { return ctx.fail(String(localized: "action de FL inconnue.")) }
             switch fallback {
             case .none: return nil
             case .trackMenuArm:
-                return key == "armon" ? nil : ctx.fail("le menu de la piste ne sait qu'armer la piste.")
+                return key == "armon" ? nil : ctx.fail(String(localized: "le menu de la piste ne sait qu'armer la piste."))
             case .key(let k):
-                return keyProblem(k.combo, ctx, what: key == "recon" ? "touche REC" : "touche de secours")
+                return keyProblem(k.combo, ctx, what: key == "recon" ? String(localized: "touche REC") : String(localized: "touche de secours"))
             }
         },
         import_: .aRelire("passe par le lien avec FL"), plateformes: .mac)
 
     static let flActionValue = BlockSpec(
-        type: .flActionValue, label: "Action de FL avec valeur", category: .fl, symbol: "slider.horizontal.3",
-        aide: "Action de FL avec un nombre (piste N, pattern N…). Demande l'extension du lien avec FL.",
-        params: [ParamSpec("action", "Action", .actionFL), ParamSpec("value", "Valeur", .variable)],
+        type: .flActionValue, label: String(localized: "Action de FL avec valeur"), category: .fl, symbol: "slider.horizontal.3",
+        aide: String(localized: "Action de FL avec un nombre (piste, pattern…)."),
+        params: [ParamSpec("action", String(localized: "Action"), .actionFL), ParamSpec("value", String(localized: "Valeur"), .variable)],
         conteneur: .aucun, dansLaPalette: false,
         needs: { body in
             guard case .flActionValue(_, let v) = body else { return base }
@@ -577,51 +638,63 @@ private enum Specs {
         estimationMs: { _ in 3_000 },
         valider: { body, ctx in
             guard case .flActionValue(let key, let v) = body else { return nil }
-            guard FLActions.id(forKey: key) != nil else { return ctx.fail("action de FL inconnue.") }
+            guard FLActions.id(forKey: key) != nil else { return ctx.fail(String(localized: "action de FL inconnue.")) }
             return MacroValidation.sourceProblem(v, ctx)
         },
         import_: .aRelire("passe par le lien avec FL"), plateformes: .mac)
 
     static let selectInput = BlockSpec(
-        type: .selectInput, label: "Choisir l'entrée 1", category: .fl, symbol: "mic",
-        aide: "« (none) » → entrée 1 de la piste. Montré une seule fois (une bulle le demande), puis refait seul.",
+        type: .selectInput, label: String(localized: "Choisir l'entrée 1"), category: .fl, symbol: "mic",
+        aide: String(localized: "Choisit l'entrée 1 de la piste."),
         params: [],
         conteneur: .aucun, dansLaPalette: true,
         needs: { _ in base.union([.cliqueHID, .pisteVisee]) },
         parDefaut: { MacroTemplates.inputOne },
-        resume: { _, _ in "« (none) » → entrée 1" },
+        resume: { _, _ in String(localized: "« (none) » → entrée 1") },
         journal: { _ in "selectInput" },
         estimationMs: { _ in 3_000 },
         valider: { body, ctx in
             guard case .selectInput(.legacy(let key)) = body else { return nil }
-            return MacroValidation.learnedPathKeys.contains(key) ? nil : ctx.fail("positions apprises inconnues.")
+            return MacroValidation.learnedPathKeys.contains(key) ? nil : ctx.fail(String(localized: "positions apprises inconnues."))
         },
         import_: .retirerPositions, plateformes: .mac)
 
     static let nameColor = BlockSpec(
-        type: .nameColor, label: "Nom et couleur", category: .fl, symbol: "paintpalette",
-        aide: "Donne un nom et/ou une couleur à la piste ou au canal sélectionné dans la page de FL qui est devant (Mixer, Channel rack ou Playlist), par le lien avec FL. Un seul élément doit être sélectionné.",
-        params: [ParamSpec("name", "Nom", .texte(max: NameColorPayload.maxNameScalars)),
-                 ParamSpec("color", "Couleur", .couleur)],
+        type: .nameColor, label: String(localized: "Nom et couleur"), category: .fl, symbol: "paintpalette",
+        aide: String(localized: "Donne un nom et une couleur à l'élément choisi dans FL."),
+        params: [ParamSpec("name", String(localized: "Nom"), .texte(max: NameColorPayload.maxNameScalars)),
+                 ParamSpec("color", String(localized: "Couleur"), .couleur),
+                 ParamSpec("icon", String(localized: "Icône"), .icone)],
         conteneur: .aucun, dansLaPalette: true,
-        needs: { _ in base.union(.lienMIDI) },
+        needs: { body in
+            // Une icône seule passe par la fenêtre de FL (clic droit › « Change icon… ») : pas de lien.
+            if case .nameColor(let name, nil, nil, .some) = body, NameColorPayload(name: name, color: nil).name == nil {
+                return base
+            }
+            return base.union(.lienMIDI)
+        },
         parDefaut: { .nameColor(name: nil, color: NameColorPayload.defaultColor) },
         resume: { body, _ in
-            guard case .nameColor(let name, let color, let fade, _) = body else { return "" }
-            return NameColorPayload.summary(name: name, color: color, fade: fade)
+            guard case .nameColor(let name, let color, let fade, let icon) = body else { return "" }
+            return NameColorPayload.summary(name: name, color: color, fade: fade, icon: icon)
         },
         journal: { _ in "nameColor" },
-        estimationMs: { _ in 300 },
+        estimationMs: { body in
+            // L'icône passe par deux fenêtres de FL (menu du clic droit, grille).
+            if case .nameColor(_, _, _, .some) = body { return 1_800 }
+            return 300
+        },
         valider: { body, ctx in
             guard case .nameColor(let name, let color, let fade, let icon) = body else { return nil }
             let payload = NameColorPayload(name: name, color: color)
             if fade != nil {
                 // Comme « Gradient color… » de FL : une couleur de départ, et jamais de nom (plusieurs pistes).
-                guard payload.color != nil else { return ctx.fail("un dégradé demande ses deux couleurs.") }
-                guard payload.name == nil else { return ctx.fail("un dégradé ne change pas le nom : retire le nom.") }
+                guard payload.color != nil else { return ctx.fail(String(localized: "un dégradé demande ses deux couleurs.")) }
+                guard payload.name == nil else { return ctx.fail(String(localized: "un dégradé ne change pas le nom : retire le nom.")) }
+                guard icon == nil else { return ctx.fail(String(localized: "un dégradé ne pose pas d'icône : retire l'icône.")) }
             }
             guard payload.name != nil || payload.color != nil || icon != nil else {
-                return ctx.fail("donne un nom ou une couleur.")
+                return ctx.fail(String(localized: "donne un nom ou une couleur."))
             }
             if let n = payload.name, let why = NameColorPayload.nameProblem(n) { return ctx.fail(why) }
             return nil
@@ -629,71 +702,138 @@ private enum Specs {
         import_: .aRelire("renomme et colore dans FL"), plateformes: .mac)
 
     static let soundCard = BlockSpec(
-        type: .soundCard, label: "Carte son branchée", category: .fl, symbol: "hifispeaker.and.homepod",
-        aide: "La carte son branchée (USB, Thunderbolt…) devient la sortie et l'entrée du Mac ; FL la suit tout seul s'il est réglé une fois sur « Default audio device » (Output) et « Default input device » (Input) dans Options › Audio settings.",
+        type: .soundCard, label: String(localized: "Carte son branchée"), category: .fl, symbol: "hifispeaker.and.homepod",
+        aide: String(localized: "Passe le son du Mac sur la carte son branchée."),
         params: [],
         conteneur: .aucun, dansLaPalette: true,
         needs: { _ in [] },
         parDefaut: { .soundCard },
-        resume: { _, _ in "sortie et entrée du Mac" },
+        resume: { _, _ in String(localized: "sortie et entrée du Mac") },
         journal: { _ in "soundCard" },
         estimationMs: { _ in 200 },
         valider: { _, _ in nil },
         import_: .ok, plateformes: .mac)
 
     static let organize = BlockSpec(
-        type: .organize, label: "Organiser la page ouverte", category: .fl, symbol: "square.stack.3d.up",
-        aide: "Ouvre l'Organiser sur la page de FL qui est devant : il écoute chaque son du Channel rack (sans que tu l'entendes), le classe en Drums, Basse, Mélodies, Voix, FX ; tu vérifies l'aperçu, puis il colore (une couleur ou un dégradé par famille) et regroupe les sons. Sur le Mixer, il colore les pistes. « Revenir comme avant » défait tout.",
+        type: .organize, label: String(localized: "Organiser"), category: .fl, symbol: "square.stack.3d.up",
+        aide: String(localized: "Range, colore et renomme tout le projet."),
         params: [],
         conteneur: .aucun, dansLaPalette: true,
         needs: { _ in base.union(.lienMIDI) },
         parDefaut: { .organize },
-        resume: { _, _ in "écoute, classe, colore" },
+        resume: { _, _ in String(localized: "range, colore, renomme le projet") },
         journal: { _ in "organize" },
         estimationMs: { _ in 200 },
         valider: { _, _ in nil },
         import_: .ok, plateformes: .mac)
 
     static let feedbackCheck = BlockSpec(
-        type: .feedbackCheck, label: "Vérifier le larsen", category: .fl, symbol: "speaker.wave.2",
-        aide: "Micro et haut-parleurs de l'ordinateur sans casque : explique comment éviter le larsen. Vérifié dès le début de la macro, affiché à la fin.",
+        type: .feedbackCheck, label: String(localized: "Vérifier le larsen"), category: .fl, symbol: "speaker.wave.2",
+        aide: String(localized: "Prévient si le micro risque de faire du larsen."),
         params: [],
         conteneur: .aucun, dansLaPalette: true,
         needs: { _ in base.union(.larsenEnAvance) },
         parDefaut: { .feedbackCheck },
-        resume: { _, _ in "Micro et sortie de l'ordinateur" },
+        resume: { _, _ in String(localized: "Micro et sortie de l'ordinateur") },
         journal: { _ in "feedbackCheck" },
         estimationMs: { _ in 3_000 },
         valider: { _, _ in nil },
         import_: .ok, plateformes: .mac)
 
+    static let openPage = BlockSpec(
+        type: .openPage, label: String(localized: "Ouvrir une page de FL"), category: .fl, symbol: "macwindow",
+        aide: String(localized: "Met devant une page de FL (Playlist, Mixer…)."),
+        params: [ParamSpec("page", String(localized: "Page"), .fenetre)],
+        conteneur: .aucun, dansLaPalette: true,
+        needs: { _ in base.union(.lienMIDI) },
+        parDefaut: { .openPage(.mixer) },
+        resume: { body, _ in
+            guard case .openPage(let page) = body else { return "" }
+            return page?.title ?? String(localized: "page à choisir")
+        },
+        journal: { body in
+            guard case .openPage(let page) = body else { return "openPage" }
+            return "openPage \(page?.rawValue ?? "?")"
+        },
+        estimationMs: { _ in 600 },
+        valider: { body, ctx in
+            guard case .openPage(let page) = body else { return nil }
+            return page == nil ? ctx.fail(String(localized: "choisis la page de FL à ouvrir.")) : nil
+        },
+        import_: .ok, plateformes: .mac)
+
+    static let pageOption = BlockSpec(
+        type: .pageOption, label: String(localized: "Cliquer sur…"), category: .fl, symbol: "cursorarrow.click.2",
+        aide: String(localized: "Une option de la page de FL ouverte au-dessus."),
+        params: [ParamSpec("option", String(localized: "Option"), .actionFL), ParamSpec("name", String(localized: "Valeur"), .texte(max: PageOptions.maxName))],
+        conteneur: .aucun, dansLaPalette: true,
+        needs: { body in
+            if case .pageOption(let id?, _) = body, PageOptions.clicks(id) { return base.union(.cliqueHID) }
+            guard case .pageOption(let id?, _) = body, PageOptions.usesLink(id) else { return base }
+            // Armer, mute ou solo sans le lien : par la piste visée (comme « Action de FL »).
+            let byTrack: Set<String> = ["mixer.armon", "mixer.mute", "mixer.solo"]
+            return byTrack.contains(id) ? base.union([.lienMIDI, .cliqueHID, .pisteVisee]) : base.union(.lienMIDI)
+        },
+        // Valide sous la page par défaut d'« Ouvrir une page de FL » (Mixer) ; la palette les donne à choisir.
+        parDefaut: { .pageOption(id: "mixer.armon", name: "") },
+        resume: { body, layout in
+            guard case .pageOption(let id, let name) = body else { return "" }
+            guard let id, let option = PageOptions.option(id, layout: layout) else { return String(localized: "option à choisir") }
+            let value = name.trimmingCharacters(in: .whitespaces)
+            switch option.field {
+            case .channel?:
+                guard let n = PageOptions.channel(value), case .channelToggle(let solo) = option.kind else { return option.label }
+                return String(localized: "\(solo ? "Solo" : "Mute") du canal \(n)")
+            case .plugin?, .name?, .arrangement?:
+                return value.isEmpty ? option.label : String(localized: "\(option.label) : \(value.displaySafe(max: 30))")
+            case nil:
+                return option.label
+            }
+        },
+        journal: { body in
+            guard case .pageOption(let id, _) = body else { return "pageOption" }
+            return "pageOption \(id.flatMap { PageOptions.page(of: $0)?.rawValue } ?? "?")"
+        },
+        estimationMs: { _ in 800 },
+        valider: { body, ctx in
+            guard case .pageOption(let id, let name) = body else { return nil }
+            guard let id else { return ctx.fail(String(localized: "choisis l'option à cliquer.")) }
+            guard PageOptions.isKnown(id) else { return ctx.fail(String(localized: "option de FL inconnue.")) }
+            if let field = PageOptions.field(of: id), let problem = PageOptions.valueProblem(field, name) {
+                return ctx.fail(problem)
+            }
+            return nil
+        },
+        import_: .ok, plateformes: .mac)
+
     static let menuBar = BlockSpec(
-        type: .menuBar, label: "Menu de FL (barre des menus)", category: .fl, symbol: "menubar.rectangle",
-        aide: "Choisit un élément des menus de FL dans la barre des menus de macOS (Options › Audio settings…) par son nom, grâce à l'Accessibilité : rien n'est cliqué à l'écran. Créé par « Enregistrer des clics ».",
+        type: .menuBar, label: String(localized: "Menu de FL"), category: .fl, symbol: "menubar.rectangle",
+        aide: String(localized: "Choisit un élément des menus de FL (File › Export › …)."),
         params: [],
-        conteneur: .aucun, dansLaPalette: false,
+        conteneur: .aucun, dansLaPalette: true,
         needs: { _ in base },
-        parDefaut: { .menuBar(titles: ["Options", "Audio settings"]) },
+        parDefaut: { .menuBar(titles: []) },
         resume: { body, _ in
             guard case .menuBar(let titles) = body else { return "" }
-            return titles.map { $0.displaySafe(max: 30) }.joined(separator: " › ")
+            return titles.isEmpty ? String(localized: "à choisir") : titles.map { $0.displaySafe(max: 30) }.joined(separator: " › ")
         },
         journal: { _ in "menuBar" },
         estimationMs: { _ in 400 },
         valider: { body, ctx in
             guard case .menuBar(let titles) = body else { return nil }
+            guard !titles.isEmpty else { return ctx.fail(String(localized: "choisis l'élément dans les menus de FL.")) }
             guard (2...MenuBarAX.maxDepth).contains(titles.count),
                   titles.allSatisfy({ !$0.trimmingCharacters(in: .whitespaces).isEmpty && $0.count <= 80 }) else {
-                return ctx.fail("chemin de menu invalide.")
+                return ctx.fail(String(localized: "chemin de menu invalide."))
             }
             return nil
         },
         import_: .ok, plateformes: .mac)
 
     static let menuAX = BlockSpec(
-        type: .menuAX, label: "Menu (ancien format)", category: .fl, symbol: "filemenu.and.selection",
-        aide: "Choisit un élément de menu par son titre (Accessibilité), sinon par des clics de secours appris. Repris des anciennes macros, absent de la palette.",
-        params: [ParamSpec("titles", "Titres", .texte(max: 80)), ParamSpec("fallback", "Clics de secours", .cible)],
+        type: .menuAX, label: String(localized: "Menu (ancien format)"), category: .fl, symbol: "filemenu.and.selection",
+        aide: String(localized: "Choisit un élément de menu par son titre."),
+        params: [ParamSpec("titles", String(localized: "Titres"), .texte(max: 80)), ParamSpec("fallback", String(localized: "Clics de secours"), .cible)],
         conteneur: .aucun, dansLaPalette: false,
         needs: { _ in base.union(.cliqueHID) },
         parDefaut: { .menuAX(titles: ["File"], fallback: []) },
@@ -706,9 +846,9 @@ private enum Specs {
         valider: { body, ctx in
             guard case .menuAX(let titles, let fallback) = body else { return nil }
             guard (1...3).contains(titles.count), titles.allSatisfy({ !$0.isEmpty && $0.count <= 80 }) else {
-                return ctx.fail("titres de menu invalides.")
+                return ctx.fail(String(localized: "titres de menu invalides."))
             }
-            guard fallback.count <= 3, fallback.allSatisfy(\.isFinite) else { return ctx.fail("positions de secours invalides.") }
+            guard fallback.count <= 3, fallback.allSatisfy(\.isFinite) else { return ctx.fail(String(localized: "positions de secours invalides.")) }
             return nil
         },
         import_: .retirerPositions, plateformes: .mac)
@@ -716,13 +856,13 @@ private enum Specs {
     // MARK: Contrôle
 
     static let ifElse = BlockSpec(
-        type: .ifElse, label: "Si… sinon", category: .controle, symbol: "arrow.triangle.branch",
-        aide: "Fait les blocs « alors » si la condition est vraie, sinon les blocs « sinon ».",
-        params: [ParamSpec("condition", "Condition", .condition), ParamSpec("then", "Alors", .blocs), ParamSpec("else", "Sinon", .blocs)],
+        type: .ifElse, label: String(localized: "Si… sinon"), category: .controle, symbol: "arrow.triangle.branch",
+        aide: String(localized: "Fait les blocs « alors » si la condition est vraie, sinon les blocs « sinon »."),
+        params: [ParamSpec("condition", String(localized: "Condition"), .condition), ParamSpec("then", String(localized: "Alors"), .blocs), ParamSpec("else", String(localized: "Sinon"), .blocs)],
         conteneur: .siSinon, dansLaPalette: true,
         needs: { body in body.condition.map { base.union(conditionNeeds($0)) } ?? base },
         parDefaut: { .ifElse(.windowOpen(.dialog), then: [], otherwise: []) },
-        resume: { body, _ in body.condition.map { "Si " + describe($0) } ?? "Si" },
+        resume: { body, _ in body.condition.map { String(localized: "Si ") + describe($0) } ?? String(localized: "Si") },
         journal: { _ in "if" },
         estimationMs: { body in
             guard case .ifElse(_, let then, let otherwise) = body else { return 0 }
@@ -732,15 +872,15 @@ private enum Specs {
         import_: .ok, plateformes: .mac)
 
     static let repeatCount = BlockSpec(
-        type: .repeatCount, label: "Répéter", category: .controle, symbol: "repeat",
-        aide: "Répète les blocs N fois (\(MacroValidation.maxRepeat) au plus).",
-        params: [ParamSpec("count", "Nombre de fois", .nombre(1...MacroValidation.maxRepeat)), ParamSpec("blocks", "Blocs", .blocs)],
+        type: .repeatCount, label: String(localized: "Répéter"), category: .controle, symbol: "repeat",
+        aide: String(localized: "Répète les blocs N fois (\(MacroValidation.maxRepeat) au plus)."),
+        params: [ParamSpec("count", String(localized: "Nombre de fois"), .nombre(1...MacroValidation.maxRepeat)), ParamSpec("blocks", String(localized: "Blocs"), .blocs)],
         conteneur: .corps, dansLaPalette: true,
         needs: { _ in base },
         parDefaut: { .repeatCount(2, []) },
         resume: { body, _ in
             guard case .repeatCount(let n, _) = body else { return "" }
-            return "\(n) fois"
+            return String(localized: "\(n) fois")
         },
         journal: { _ in "repeat" },
         estimationMs: { body in
@@ -749,19 +889,19 @@ private enum Specs {
         },
         valider: { body, ctx in
             guard case .repeatCount(let n, _) = body else { return nil }
-            return (1...MacroValidation.maxRepeat).contains(n) ? nil : ctx.fail("nombre de répétitions hors limites.")
+            return (1...MacroValidation.maxRepeat).contains(n) ? nil : ctx.fail(String(localized: "nombre de répétitions hors limites."))
         },
         import_: .ok, plateformes: .mac)
 
     static let repeatWhile = BlockSpec(
-        type: .repeatWhile, label: "Tant que", category: .controle, symbol: "arrow.clockwise",
-        aide: "Répète les blocs tant que la condition est vraie (\(MacroValidation.maxWhile) tours au plus).",
-        params: [ParamSpec("condition", "Condition", .condition),
-                 ParamSpec("maxIterations", "Tours au plus", .nombre(1...MacroValidation.maxWhile)), ParamSpec("blocks", "Blocs", .blocs)],
+        type: .repeatWhile, label: String(localized: "Tant que"), category: .controle, symbol: "arrow.clockwise",
+        aide: String(localized: "Répète les blocs tant que la condition est vraie (\(MacroValidation.maxWhile) tours au plus)."),
+        params: [ParamSpec("condition", String(localized: "Condition"), .condition),
+                 ParamSpec("maxIterations", String(localized: "Tours au plus"), .nombre(1...MacroValidation.maxWhile)), ParamSpec("blocks", String(localized: "Blocs"), .blocs)],
         conteneur: .corps, dansLaPalette: true,
         needs: { body in body.condition.map { base.union(conditionNeeds($0)) } ?? base },
         parDefaut: { .repeatWhile(.windowOpen(.menu), maxIterations: 10, []) },
-        resume: { body, _ in body.condition.map { "Tant que " + describe($0) } ?? "Tant que" },
+        resume: { body, _ in body.condition.map { String(localized: "Tant que ") + describe($0) } ?? String(localized: "Tant que") },
         journal: { _ in "while" },
         estimationMs: { body in
             guard case .repeatWhile(_, let max, let blocks) = body else { return 0 }
@@ -769,21 +909,21 @@ private enum Specs {
         },
         valider: { body, ctx in
             guard case .repeatWhile(let c, let max, _) = body else { return nil }
-            guard (1...MacroValidation.maxWhile).contains(max) else { return ctx.fail("nombre de tours hors limites.") }
+            guard (1...MacroValidation.maxWhile).contains(max) else { return ctx.fail(String(localized: "nombre de tours hors limites.")) }
             return MacroValidation.conditionProblem(c, ctx)
         },
         import_: .ok, plateformes: .mac)
 
     static let waitUntil = BlockSpec(
-        type: .waitUntil, label: "Attendre que", category: .controle, symbol: "clock.badge.checkmark",
-        aide: "Attend que la condition devienne vraie (vérifiée 4 fois par seconde, 120 s au plus).",
-        params: [ParamSpec("condition", "Condition", .condition), ParamSpec("timeoutMs", "Au plus (ms)", .ms(100...MacroValidation.maxWaitMs))],
+        type: .waitUntil, label: String(localized: "Attendre que"), category: .controle, symbol: "clock.badge.checkmark",
+        aide: String(localized: "Attend que la condition soit vraie (120 s au plus)."),
+        params: [ParamSpec("condition", String(localized: "Condition"), .condition), ParamSpec("timeoutMs", String(localized: "Au plus (ms)"), .ms(100...MacroValidation.maxWaitMs))],
         conteneur: .aucun, dansLaPalette: true,
         needs: { body in body.condition.map { base.union(conditionNeeds($0)) } ?? base },
         parDefaut: { .waitUntil(.windowOpen(.dialog), timeoutMs: 4_000) },
         resume: { body, _ in
             guard case .waitUntil(let c, let ms) = body else { return "" }
-            return "Jusqu'à ce que \(describe(c)) · \(seconds(ms)) au plus"
+            return String(localized: "Jusqu'à ce que \(describe(c)) · \(seconds(ms)) au plus")
         },
         journal: { _ in "waitUntil" },
         estimationMs: { body in
@@ -792,15 +932,15 @@ private enum Specs {
         },
         valider: { body, ctx in
             guard case .waitUntil(let c, let ms) = body else { return nil }
-            guard (100...MacroValidation.maxWaitMs).contains(ms) else { return ctx.fail("attente hors limites.") }
+            guard (100...MacroValidation.maxWaitMs).contains(ms) else { return ctx.fail(String(localized: "attente hors limites.")) }
             return MacroValidation.conditionProblem(c, ctx)
         },
         import_: .ok, plateformes: .mac)
 
     static let setVariable = BlockSpec(
-        type: .setVariable, label: "Régler une variable", category: .controle, symbol: "number",
-        aide: "Donne une valeur (nombre entier) à une variable de la macro.",
-        params: [ParamSpec("variable", "Variable", .variable), ParamSpec("value", "Valeur", .variable)],
+        type: .setVariable, label: String(localized: "Régler une variable"), category: .controle, symbol: "number",
+        aide: String(localized: "Donne une valeur (nombre entier) à une variable de la macro."),
+        params: [ParamSpec("variable", String(localized: "Variable"), .variable), ParamSpec("value", String(localized: "Valeur"), .variable)],
         conteneur: .aucun, dansLaPalette: false,
         needs: { body in
             guard case .setVariable(_, let v) = body else { return base }
@@ -819,34 +959,34 @@ private enum Specs {
         },
         valider: { body, ctx in
             guard case .setVariable(let name, let v) = body else { return nil }
-            guard ctx.variables.contains(name) else { return ctx.fail("variable inconnue.") }
+            guard ctx.variables.contains(name) else { return ctx.fail(String(localized: "variable inconnue.")) }
             return MacroValidation.sourceProblem(v, ctx)
         },
         import_: .ok, plateformes: .mac)
 
     static let stop = BlockSpec(
-        type: .stop, label: "Arrêter la macro", category: .controle, symbol: "stop.circle",
-        aide: "Arrête la macro ici, avec un message facultatif.",
-        params: [ParamSpec("message", "Message", .texte(max: 120))],
+        type: .stop, label: String(localized: "Arrêter la macro"), category: .controle, symbol: "stop.circle",
+        aide: String(localized: "Arrête la macro ici, avec un message facultatif."),
+        params: [ParamSpec("message", String(localized: "Message"), .texte(max: 120))],
         conteneur: .aucun, dansLaPalette: true,
         needs: { _ in base },
         parDefaut: { .stop(message: nil) },
         resume: { body, _ in
-            guard case .stop(let m) = body, let m else { return "Fin de la macro" }
+            guard case .stop(let m) = body, let m else { return String(localized: "Fin de la macro") }
             return m.displaySafe(max: 60)
         },
         journal: { _ in "stop" },
         estimationMs: { _ in 0 },
         valider: { body, ctx in
             guard case .stop(let m) = body, let m else { return nil }
-            return m.count <= MacroValidation.maxNoteLength ? nil : ctx.fail("message trop long.")
+            return m.count <= MacroValidation.maxNoteLength ? nil : ctx.fail(String(localized: "message trop long."))
         },
         import_: .ok, plateformes: .mac)
 
     static let comment = BlockSpec(
-        type: .comment, label: "Commentaire", category: .controle, symbol: "text.bubble",
-        aide: "Note pour toi, ignorée à l'exécution.",
-        params: [ParamSpec("text", "Texte", .texte(max: 200))],
+        type: .comment, label: String(localized: "Commentaire"), category: .controle, symbol: "text.bubble",
+        aide: String(localized: "Note pour toi, ignorée à l'exécution."),
+        params: [ParamSpec("text", String(localized: "Texte"), .texte(max: 200))],
         conteneur: .aucun, dansLaPalette: true,
         needs: { _ in [] },
         parDefaut: { .comment("Note") },
@@ -858,7 +998,7 @@ private enum Specs {
         estimationMs: { _ in 0 },
         valider: { body, ctx in
             guard case .comment(let t) = body else { return nil }
-            return t.count <= 200 ? nil : ctx.fail("commentaire trop long.")
+            return t.count <= 200 ? nil : ctx.fail(String(localized: "commentaire trop long."))
         },
         import_: .ok, plateformes: .mac)
 }

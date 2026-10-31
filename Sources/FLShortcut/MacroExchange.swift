@@ -1,5 +1,5 @@
 // Échange d'une macro seule : fichier `.flsmacro` (JSON lisible), exactement une entrée de la bibliothèque.
-//   { "format": "flsmacro", "version": 1, "exportedBy": "FL Shortcut 1.2 (macOS)",
+//   { "format": "flsmacro", "version": 1, "exportedBy": "FL Shortcuts 1.2 (macOS)",
 //     "macro": { "name": "…", "blocks": [ … ] } }
 // Export : les positions apprises (clics montrés dans FL) sont retirées, à montrer de nouveau sur l'autre machine ;
 // le chemin d'un preset est écrit relatif au dossier personnel (« ~/… »), jamais le nom du compte.
@@ -22,9 +22,10 @@ enum MacroExchange {
 
         var errorDescription: String? {
             switch self {
-            case .tooLarge: return "Fichier trop volumineux pour une macro (256 Ko au plus)."
-            case .notAMacro: return "Ce fichier n'est pas une macro de FL Shortcut (.flsmacro)."
-            case .newerVersion: return "Macro d'une version plus récente de FL Shortcut : mets l'app à jour pour l'importer."
+            case .tooLarge: return String(localized: "Fichier trop volumineux pour une macro (256 Ko au plus).")
+            case .notAMacro: return String(localized: "Ce fichier n'est pas une macro de FL Shortcuts (.flsmacro).")
+            case .newerVersion:
+                return String(localized: "Macro d'une version plus récente de FL Shortcuts : mets l'app à jour pour l'importer.")
             case .invalid(let why): return why
             }
         }
@@ -39,6 +40,8 @@ enum MacroExchange {
             switch b.body {
             case .click(let target, let button) where target.isLearnedPosition:
                 copy.body = .click(.toLearn, button: button)
+            case .drag(let from, let to) where from.isLearnedPosition || to.isLearnedPosition:
+                copy.body = .drag(from: .toLearn, to: .toLearn)
             case .menuAX(let titles, _):
                 copy.body = .menuAX(titles: titles, fallback: [])
             case .chooseFile(let path):
@@ -65,7 +68,7 @@ enum MacroExchange {
         let file: JSONValue = .object([
             "format": .string(format),
             "version": .num(version),
-            "exportedBy": .string("FL Shortcut \(appVersion) (macOS)"),
+            "exportedBy": .string("FL Shortcuts \(appVersion) (macOS)"),
             "macro": .object(macro),
         ])
         let encoder = JSONEncoder()
@@ -114,10 +117,10 @@ enum MacroExchange {
         guard let list = macro["blocks"]?.array else { throw Failure.notAMacro }
         let parsed = list.map { Block(json: $0) }
         guard MacroValidation.count(parsed) <= MacroValidation.maxBlocks else {
-            throw Failure.invalid("Macro trop longue (\(MacroValidation.maxBlocks) blocs au plus).")
+            throw Failure.invalid(String(localized: "Macro trop longue (\(MacroValidation.maxBlocks) blocs au plus)."))
         }
         guard MacroValidation.depth(parsed) <= MacroValidation.maxDepth else {
-            throw Failure.invalid("Blocs trop imbriqués (\(MacroValidation.maxDepth) niveaux au plus).")
+            throw Failure.invalid(String(localized: "Blocs trop imbriqués (\(MacroValidation.maxDepth) niveaux au plus)."))
         }
         var variables: [VariableDecl] = []
         for v in macro["variables"]?.array ?? [] {
@@ -127,7 +130,7 @@ enum MacroExchange {
         // Nom nettoyé (relecture 11 : ni contrôle ni bidi), coupé sans points de suspension.
         let cleaned = (macro["name"]?.string ?? "").displaySafe(max: 4_096)
         let trimmed = String(cleaned.prefix(MacroValidation.maxNameLength)).trimmingCharacters(in: .whitespaces)
-        let name = trimmed.isEmpty ? "Macro importée" : trimmed
+        let name = trimmed.isEmpty ? String(localized: "Macro importée") : trimmed
         // Positions jamais reprises d'un fichier, même fabriqué à la main : chaque clic est à montrer sur ce Mac.
         let blocks = localized(sharable(MacroTemplates.freshIDs(parsed), home: home), home: home)
         let doc = MacroDoc(name: name, blocks: blocks, variables: Array(variables.prefix(MacroValidation.maxVariables)),
@@ -152,6 +155,8 @@ enum MacroExchange {
                 copy.body = .dropFile(path: absolute(path, home: home))
             case .click(_, let button):
                 copy.body = .click(.toLearn, button: button)
+            case .drag:
+                copy.body = .drag(from: .toLearn, to: .toLearn)
             default:
                 copy.body = b.body.replacingChildren(b.body.children.map { localized($0, home: home) })
             }
@@ -168,32 +173,38 @@ enum MacroExchange {
             if let type = b.body.type {
                 let spec = BlockRegistry.spec(type)
                 let value = spec.resume(b.body, layout)
-                text = value.isEmpty ? spec.label : "\(spec.label) : \(value)"
+                text = value.isEmpty ? spec.label : String(localized: "\(spec.label) : \(value)")
                 var marks: [String] = []
-                if case .key(let k, _) = b.body, k.combo.command { marks.append("touche avec ⌘") }
+                if case .key(let k, _) = b.body, k.combo.command { marks.append(String(localized: "touche avec ⌘")) }
                 if case .click(.toLearn, _) = b.body {
-                    marks.append("clic : position à montrer dans FL")
-                    warnings.append("Montre de nouveau chaque clic dans FL (positions propres à chaque Mac).")
+                    marks.append(String(localized: "clic : position à montrer dans FL"))
+                    warnings.append(String(localized: "Montre de nouveau chaque clic dans FL (positions propres à chaque Mac)."))
                 } else if case .click = b.body {
-                    marks.append("clic dans FL")
+                    marks.append(String(localized: "clic dans FL"))
+                }
+                if case .drag(.toLearn, _) = b.body {
+                    marks.append(String(localized: "glisser : endroits à montrer dans FL"))
+                    warnings.append(String(localized: "Montre de nouveau chaque glisser-déposer dans FL (positions propres à chaque Mac)."))
+                } else if case .drag = b.body {
+                    marks.append(String(localized: "glisser dans FL"))
                 }
                 if b.body.type == .chooseFile || b.body.type == .dropFile {
-                    marks.append("fichier")
-                    warnings.append("Rechoisis le preset : le fichier doit exister sur ce Mac.")
+                    marks.append(String(localized: "fichier"))
+                    warnings.append(String(localized: "Rechoisis le preset : le fichier doit exister sur ce Mac."))
                 }
-                if BlockRegistry.needs(of: b.body).contains(.lienMIDI) { marks.append("lien avec FL") }
+                if BlockRegistry.needs(of: b.body).contains(.lienMIDI) { marks.append(String(localized: "lien avec FL")) }
                 if !spec.dansLaPalette, b.body.type != .menuBar {     // « Menu de FL » : créé par l'enregistreur
-                    marks.append("bloc caché (ancien format)")
-                    warnings.append("Un bloc caché de l'ancien format est inclus : relis-le dans le créateur avant de t'en servir.")
+                    marks.append(String(localized: "bloc caché (ancien format)"))
+                    warnings.append(String(localized: "Un bloc caché de l'ancien format est inclus : relis-le dans le créateur avant de t'en servir."))
                 }
                 if spec.import_ != .ok || !spec.dansLaPalette { sensitive += 1 }
                 if !marks.isEmpty { text += " — " + marks.joined(separator: ", ") }
             } else {
                 sensitive += 1
-                text = "Bloc inconnu (version plus récente) : la macro restera bloquée"
-                warnings.append("Un bloc vient d'une version plus récente de FL Shortcut : la macro ne tournera pas.")
+                text = String(localized: "Bloc inconnu (version plus récente) : la macro restera bloquée")
+                warnings.append(String(localized: "Un bloc vient d'une version plus récente de FL Shortcuts : la macro ne tournera pas."))
             }
-            if !b.enabled { text += " (désactivé)" }
+            if !b.enabled { text += String(localized: " (désactivé)") }
             lines.append("\(indent)\(path). \(text)")
             for (start, child) in MacroValidation.childLists(b.body) {
                 describe(child, prefix: path, offset: start, depth: depth + 1, layout: layout, lines: &lines,

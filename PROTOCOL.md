@@ -1,4 +1,4 @@
-# Protocole FL Shortcut ↔ script FL Studio (v2)
+# Protocole FL Shortcuts ↔ script FL Studio (v2)
 
 Contrat unique entre l'appli (Mac `Sources/FLShortcut`, Windows à venir) et le script `Resources/device_FLShortcut.py`.
 Toute modification de ce fichier doit être répercutée des deux côtés. Origine des exigences : `audit/01` (SEC-01/02/05/10), `audit/02` (REL-xx), `audit/04` (compatibilité).
@@ -6,8 +6,10 @@ Toute modification de ce fichier doit être répercutée des deux côtés. Origi
 ## 1. Transport
 
 - Messages **Control Change uniquement** (pas de SysEx : bugs FL 26.1.x, audit 04).
-- **Appli → FL** : canal MIDI 16 (statut `0xBF`), sur la source virtuelle « FL Shortcut » créée par l'appli.
-- **FL → Appli** : `device.midiOutMsg` sur le canal 16, vers la destination virtuelle « FL Shortcut » créée par l'appli. Dans *MIDI Settings*, l'entrée et la sortie « FL Shortcut » doivent porter le **même numéro de port** (l'appli guide l'utilisateur).
+- **Appli → FL** : canal MIDI 16 (statut `0xBF`), sur la source virtuelle « FL Shortcuts Link » créée par l'appli
+  (« FL Shortcuts » avant : le nouveau nom fait voir à FL un appareil neuf, sans ancien réglage gardé).
+- **FL → Appli** : `device.midiOutMsg` sur le canal 16, vers la destination virtuelle « FL Shortcuts Link » créée par l'appli. L'entrée et la sortie doivent porter le **même numéro de port** et le Controller type « FL Shortcuts ».
+- **Liaison automatique** : l'en-tête du script (`# supportedDevices=FL Shortcuts Link,FL Shortcuts`) fait relier le script par FL à l'appareil qu'il trouve en démarrant. L'appli garde donc ses ports dès que le lien est installé (sans aucun trafic), pour que FL les trouve à son lancement ; elle n'explique le réglage à la main que si FL ne répond pas.
 - uniqueID CoreMIDI : **aléatoire par installation** (stocké dans les préférences), jamais une constante (SEC-02).
 
 ## 2. Secret partagé
@@ -16,6 +18,9 @@ Toute modification de ce fichier doit être répercutée des deux côtés. Origi
 - La clé est aussi stockée côté appli (Mac : Trousseau de préférence, sinon fichier 0600 dans Application Support).
 - Le script ne lit **aucun fichier** : la clé est une constante du script.
 - Réinstaller le script = nouvelle clé.
+- Clé présente mais script disparu de FL (`Settings/Hardware/FL Shortcuts/device_FLShortcut.py` absent : FL ne propose
+  pas le Controller type « FL Shortcuts ») : l'appli le réécrit **avec la même clé**, au lancement et à l'ouverture de
+  l'Organiser, dans le dossier enregistré ou celui de FL par défaut ; jamais par-dessus un script modifié.
 
 ## 3. Annonce du script (FL → appli)
 
@@ -33,6 +38,11 @@ Envoyée en réponse à un PING (le script démarre **endormi** et n'envoie rien
 Autres messages FL → appli :
 - **CC 117** = fenêtre FL active (0 Mixer, 1 Channel Rack, 2 Playlist, 3 Piano Roll, 4 Browser, 5 plugin, 127 inconnue), envoyé à chaque changement (depuis `OnRefresh`/`OnIdle`, au plus toutes les 100 ms).
 - **CC 118** = battement de cœur (valeur 0/1 alternée) toutes les ~2 s.
+- **CC 120 = 64** (script v8), une seule fois au démarrage, non authentifié : FL a posé le script sur une autre entrée
+  que « FL Shortcuts Link » (`device.getName()`, API 7 : Controller type choisi sur la ligne d'une carte son ou d'un
+  clavier). Les messages de l'appli n'arrivent alors jamais au script ; il le dit aussi dans la barre d'aide de FL.
+  L'appli ne le reçoit que si sa sortie partage le Port de cette entrée ; elle l'affiche dans l'Organiser (attente
+  de FL) jusqu'au prochain HELLO. Simple indication à l'écran : rien d'autre n'en dépend.
 - **CC 119** = accusé d'exécution : valeur = id de l'action exécutée avec succès, ou 0 si la trame a été rejetée (MAC faux, rejeu, trame mélangée, débit dépassé, id inconnu, action indisponible) ou si l'action n'a pas pu s'exécuter (aucune piste ou aucun canal sélectionné, erreur FL).
 - Les PING trop fréquents (plus de 4 par seconde) sont ignorés.
 
@@ -59,7 +69,7 @@ L'appli envoie une trame de 8 CC, dans cet ordre :
 - `1` : réveil durable (mode MIDI complet) : battements et fenêtre active comme avant.
 - `2` : réveil bref (macros) : le script se rendort `AWAKE_FOR` = 8 s après le dernier message reçu.
 
-**Sommeil** : au chargement et après un réveil bref, `OnIdle` et `OnRefresh` s'arrêtent à leur première ligne, rien n'est envoyé, et seules les PING sont écoutées (les trames sont ignorées). FL ne fait donc aucun travail pour FL Shortcut entre deux macros. L'appli fait un PING au lancement et quand elle n'a plus de battement depuis 6 s. Puis elle numérote ses trames à partir de 1.
+**Sommeil** : au chargement et après un réveil bref, `OnIdle` et `OnRefresh` s'arrêtent à leur première ligne, rien n'est envoyé, et seules les PING sont écoutées (les trames sont ignorées). FL ne fait donc aucun travail pour FL Shortcuts entre deux macros. L'appli fait un PING au lancement et quand elle n'a plus de battement depuis 6 s. Puis elle numérote ses trames à partir de 1.
 
 **Vecteur de test** (à reproduire des deux côtés dans les tests) :
 
@@ -164,30 +174,64 @@ unités  = [4, 1, 3, 96, 69, 58, 4, 75, 0, 105, 99, 107]
 MAC     = [116, 112, 71, 62]
 ```
 
-## 8. Organiser et dégradé (script v5)
+## 8. Organiser et dégradé (script v5, Playlist : script v6, tout le projet : script v12, bus et relevé continu : v13, suppression et chanson entière : v14, un son par piste : v15, tous les canaux (« All ») : v16)
 
-Opérations 2 à 8 de la commande avec données (§7), annoncées par le bit **42** du masque de capacités (le bit 41
+Opérations 2 à 12 de la commande avec données (§7), annoncées par le bit **42** du masque de capacités (le bit 41
 seul = opération 1 seulement). Un script qui annonce 42 a aussi `utils.ColorToRGB` et `utils.RGBToColor` de FL.
+Les opérations 9 à 12 (script v6) n'ont pas de bit à elles : un script v5 les refuse avec la raison 5 sans rien
+toucher, et l'appli demande alors de redémarrer FL (le script mis à jour n'est lu qu'au lancement de FL). Il en va
+de même des opérations 13 à 25 et du genre 4 (patterns) : l'Organiser commence par l'opération 14 en mode 1 sur
+les pistes de la Playlist (script v14) ; un script d'avant la v14 refuse (raison 5) et l'appli attend que FL soit
+redémarré, sans rien avoir touché.
 
 - **Réponse FL → appli** (opération 2) : CC **112** = début (valeur = opération), un CC **113** par unité de 7 bits
   (empaquetage du §7, **600 unités** au plus), CC **114** = fin, puis 4 CC **115** =
   `mac28(HMAC-SHA256(clé, nonce[4] ‖ seq_hi ‖ seq_mid ‖ seq_lo de la commande ‖ opération ‖ unités))`. Envoyée juste
   avant l'accusé 41 : liée à sa commande, elle ne peut pas être rejouée pour une autre. L'appli ignore une réponse au
   MAC faux, incomplète, ou qui ne suit pas sa commande.
-- Index sur 2 octets, poids fort d'abord. Genre : 1 = canaux du Channel rack, 2 = pistes du Mixer.
+- Index sur 2 octets, poids fort d'abord. Genre : 1 = canaux du Channel rack, 2 = pistes du Mixer, 3 = pistes de
+  la Playlist (index 0 = piste 1 de FL ; l'API de la Playlist compte depuis 1), 4 = patterns (script v12 ; index 0 =
+  pattern 1 de FL).
+- Les canaux sont comptés dans le groupe que le Channel rack affiche (« Unsorted »…). Script v16, API 33 : le genre
+  5 de l'opération 2 et le drapeau 1 des opérations 3 et 6 les comptent dans « All » (index globaux, groupes
+  masqués compris). L'analyse sur le fichier s'en sert : l'utilisateur n'a pas à choisir « All ». Un script plus
+  ancien refuse le genre 5 (raison 5), un FL d'avant l'API 33 aussi (raison 6) : l'appli liste alors le groupe
+  affiché, comme avant. La copie rangée s'ouvre sur « All » (§9, événement 146).
 
 | Opération | Données | Effet |
 |---|---|---|
-| op 2 : liste | genre, début (2) | réponse `[genre, total (2), début (2), n, filtré]` puis n entrées (16 au plus). Canal : `[type, piste du Mixer (2), R, G, B, longueur, nom]` (type 0 avant l'API 19) ; piste du Mixer : `[R, G, B, longueur, nom]`. Noms UTF-8 coupés à 24 octets sans couper un caractère, pour l'aperçu seulement. filtré = 1 si le Channel rack montre un groupe |
-| op 3 : note d'essai | canal (2), note, vélocité | `channels.midiNoteOn` ; vélocité 0 = arrêt |
-| op 4 : couleurs | genre, n, (index (2), R, G, B) × n | n ≤ 64 ; tout est vérifié avant de poser la première couleur |
-| op 5 : sélection | genre, index (2) | cet élément seul sélectionné (`selectOneChannel` API 8 ; Mixer `setActiveTrack` API 27, sinon `deselectAll` + `selectTrack`) |
-| op 6 : écoute d'un canal | canal (2) | FL qui joue sans écoute en cours → raison 4, rien n'est touché. 1er appel : mémo des sourdines de tous les canaux, du mode (pattern / song) et de la position. Puis ce canal seul audible (on ne bascule que les sourdines qui doivent changer), mode pattern, position 0, lecture |
+| op 2 : liste | genre, début (2) | réponse `[genre, total (2), début (2), n, filtré]` puis n entrées (8 au plus ; 16 avant la v12). Canal : `[type, piste du Mixer (2), R, G, B, longueur, nom]` (type 0 avant l'API 19) ; piste du Mixer : `[R, G, B, longueur, nom]` ; piste de la Playlist : `[sélectionnée, R, G, B, longueur, nom]` (sélectionnée = 0 avant l'API 12) ; pattern : `[R, G, B, longueur, nom]`. Noms UTF-8 coupés à 48 octets (24 avant la v12) sans couper un caractère : aperçu, et noms remis par « Revenir comme avant ». filtré = 1 si le Channel rack montre un groupe (les index des opérations 2 à 6 sont alors ceux du groupe affiché ; l'appli organise ce groupe) |
+| op 3 : note d'essai | canal (2), note, vélocité, drapeaux (facultatif, script v16) | `channels.midiNoteOn` ; vélocité 0 = arrêt ; drapeau 1 : canal compté dans « All » (API 33, sinon raison 6) |
+| op 4 : couleurs | genre, n, (index (2), R, G, B) × n | n ≤ 64 ; tout est vérifié avant de poser la première couleur ; patterns : `patterns.setPatternColor` (script v12) |
+| op 5 : sélection | genre, index (2) | cet élément seul sélectionné (`selectOneChannel` API 8 ; Mixer `setActiveTrack` API 27, sinon `deselectAll` + `selectTrack` ; piste de la Playlist, script v14 : `deselectAll` + `selectTrack`, API 12 — son menu « Move up » remonte la piste sélectionnée) |
+| op 6 : écoute d'un canal | canal (2), pattern (2) facultatif (script v11), drapeaux (facultatif, script v16 : 1 = canal compté dans « All », API 33, sinon raison 6 ; pattern 0 = celui qui est ouvert) | FL qui joue sans écoute en cours → raison 4, rien n'est touché. 1er appel : mémo des sourdines de tous les canaux (API 33 : de tout le projet, groupes du Channel rack masqués compris ; avant : les canaux affichés), du mode (pattern / song), de la position et du métronome (allumé : éteint pendant l'écoute, rallumé à la remise, op 7). Puis ce canal seul audible (canal 0xFFFF : tous audibles, pour repérer les sons d'un pattern ; script v12 : les canaux coupés par l'utilisateur aussi, leurs sons comptent), dans le pattern donné (1 = le premier ; le pattern ouvert est remis par l'op 7) (on ne bascule que les sourdines qui doivent changer), mode pattern, position 0, lecture |
 | op 7 : fin de l'écoute | — | arrêt, sourdines, mode et position remis comme au mémo, mémo vidé ; **sans effet** sans mémo (la lecture de l'utilisateur n'est jamais coupée). Aussi fait par le script quand il se rendort ou est déchargé |
 | op 8 : dégradé | First R, G, B, Last R, G, B | page devant (comme l'op 1) ; tous les éléments sélectionnés, du premier au dernier ; composante k = `int(a + (b − a) × k / (n − 1) + 0,5)`, comme « Gradient color… » de FL. 0 sélectionné → raison 2, 1 seul → raison 7 |
+| op 9 : page devant | — | réponse `[code]` : le code de la page devant (§3, CC 117 : 0 Mixer, 1 Channel rack, 2 Playlist, 3 Piano roll, 4 Browser, 5 plugin, 127 aucune). L'appli le demande avant d'organiser : en mode léger, rien n'est su de FL avant le réveil |
+| op 10 : noms | genre (1 à 4 ; 3 seulement avant la v12), n, (index (2), longueur, nom UTF-8) × n | 1 ≤ n ≤ 16, nom de 1 à 64 octets (32 avant la v12 ; 0 octet pour une piste du Mixer ou de la Playlist, script v14 : le nom de FL remis, « Insert 3 »), aucun caractère de contrôle ; tout est vérifié (index, longueurs, UTF-8, aucun octet en trop) avant de poser le premier nom (`setChannelName`, `mixer.setTrackName`, `playlist.setTrackName`, `setPatternName`) ; canaux : index du groupe affiché, comme les opérations 2 à 5 |
+| op 11 : écoute d'une piste de la Playlist | piste (2) | comme l'op 6 pour la Playlist : FL qui joue sans écoute en cours → raison 4. 1er appel : mémo des sourdines de toutes les pistes, du mode, de la position et du métronome (comme l'op 6) (une écoute du Channel rack en cours est d'abord remise comme avant, et inversement). Puis cette piste seule audible (script v12 : avec tous les canaux du Channel rack, coupés compris ; remis par l'op 7), mode song, position 0, lecture. Réponse `[mesures (2)]` : longueur de la chanson (`transport.getSongLength`, API 3 ; 0 si inconnue) |
+| op 12 : position | pour mille (2) | position de la chanson (`setSongPos`, 0 à 1000 ‰), seulement pendant une écoute de la Playlist (sinon raison 5). L'appli parcourt la chanson jusqu'à ce que la piste sonne |
+| op 13 : mute / solo d'un canal | 0 mute ou 1 solo, index (2) | bascule le mute (`muteChannel`) ou le solo (`soloChannel`) de ce canal du Channel rack, comme son bouton ; index hors du Channel rack : raison 5. Bloc « Cliquer sur… » › Mute ou Solo d'un canal (son numéro) : ni clic ni touche ; sans le lien, les touches 1 à 0 de FL jusqu'au canal 10 seulement ; script v7 |
+| op 14 : ce qui joue (script v11) | genre (1 canaux, 3 pistes de la Playlist), mode (facultatif, script v13) | réponse `[genre, n (2), bits]` : un bit par élément (bit i % 8 de l'octet i // 8), 512 au plus ; canaux affichés dont une note joue (`channels.getActivityLevel` > 0,01, API 9 ; sinon raison 6), pistes dont un clip passe sous la tête de lecture (`playlist.getTrackActivityLevel`, index 0 = piste 1). Rien n'est écouté : FL le dit lui-même. Mode 1 : aussi ceux qui ont joué depuis la lecture précédente pendant l'écoute, relevés par le script à chaque passage de sa boucle (~20 ms) ; le relevé repart de zéro à chaque lecture (une note brève ou un clip court entre deux lectures comptent). Canaux : script v13 ; pistes de la Playlist : script v14, relevées seulement quand la chanson joue (opérations 11 et 16) |
+| op 15 : patterns (script v11) | — | réponse `[nombre de patterns (2), pattern ouvert (2)]` |
+| op 16 : toute la chanson (script v11) | pour mille (2) | toute la chanson à cette position, rien de coupé (script v12 : canaux et pistes coupés par l'utilisateur rendus audibles au 1er appel) ; 1er appel : mémo des sourdines, du mode, de la position, du pattern et du métronome (op 7 remet) ; FL qui joue sans écoute en cours → raison 4. Réponse `[mesures (2)]` |
+| op 17 : envois du Mixer (script v12) | piste (2) | réponse `[piste (2), n, destination (2) × n]` : pistes vers lesquelles cette piste envoie (`mixer.getRouteSendActive`), le Master compris (0, script v13), sans la dernière piste (« Current ») ; 64 au plus. Piste 0, la dernière ou hors du Mixer : raison 5. L'Organiser garde côte à côte les pistes reliées par un envoi |
+| op 18 : page devant (script v12) | code (0 Mixer, 1 Channel rack, 2 Playlist) | ouvre cette page de FL et la met devant (`ui.showWindow`, comme F9, F6 et F5) ; autre code : raison 5. L'Organiser l'ouvre avant d'y déplacer des éléments au clavier |
+| op 19 : longueur des patterns (script v13) | début (2) | réponse `[tempo × 100 (2), total (2), début (2), n, temps (2) × n]` : longueur de chaque pattern en temps (`patterns.getPatternLength` ; 0 si inconnue), 64 au plus, et le tempo (`mixer.getCurrentTempo` ; 0 si inconnu). L'Organiser écoute chaque pattern en entier ; première opération qu'il envoie |
+| op 20 : envois posés (script v13) | piste (2), n, destination (2) × n | la piste n'envoie plus qu'à ces pistes (0 = le Master ; `mixer.setRouteTo`, puis `afterRoutingChanged`) ; ni le Master ni « Current » ne sont changés, une destination hors du Mixer ou la piste elle-même : raison 5, rien n'est changé. Un bus par famille : chaque son envoyé seulement à son bus |
+| op 21 : canaux sélectionnés (script v13) | — | réponse `[n (2), bits]` : canaux affichés sélectionnés (`channels.isChannelSelected`), 512 au plus. Après « Tools › Select unused channels » de FL : les sons sans aucune note, laissés de côté par l'Organiser |
+| op 23 : sélection exacte (script v14) | n (2), bits | ces canaux affichés seuls sélectionnés (bit i % 8 de l'octet i // 8 ; `channels.deselectAll`, puis `selectChannel(i, 1)`), relus avant de répondre ; n différent du nombre de canaux affichés (le Channel rack a changé) : raison 5. L'Organiser supprime ensuite cette sélection (sons sans aucune note) avec « Delete selected » de FL (⌥ + Suppr), seulement si l'opération 21 la relit exactement |
+| op 24 : canal relié au Mixer (script v14) | canal (2), piste (2) | ce canal affiché envoie à cette piste du Mixer (`channels.setTargetFxTrack`, API 28 ; sinon `mixer.linkChannelToTrack`, API 23), relu avant de répondre ; la dernière piste (« Current ») ou hors du Mixer : raison 5. Un son classé envoyé au Master prend une piste libre |
+| op 25 : position de la chanson (script v14) | — | réponse `[pour mille (2)]` (`transport.getSongPos`, 0 à 1). L'Organiser joue toute la chanson en accéléré et situe chaque tranche relevée |
+| op 26 : pattern ouvert (script v15) | pattern (2) | réponse `[nombre de patterns (2), pattern ouvert (2)]` : ce pattern ouvert (1 = le premier, `patterns.jumpToPattern`), relu avant de répondre ; hors des patterns : raison 5. L'Organiser sélectionne ensuite tous ses clips dans la Playlist (« Select by selected source », ⇧C de FL) et les descend sur une piste vide (⇧↓) : un son par piste, vérifié à l'écoute de chaque piste seule (opérations 11, 12 et 14) ; au moindre doute, les clips remontent (⇧↑). Un script d'avant la v15 refuse (raison 5) : la Playlist est rangée sans séparer ses pistes |
+| op 22 : tempo du relevé (script v13) | facteur (1 à 8) | pendant une écoute (sinon raison 5) : le tempo d'avant × facteur, 520 BPM au plus (REC_Tempo) ; 1 : le tempo d'avant. Réponse `[tempo d'avant × 100 (2), tempo maintenant × 100 (2)]`. Le mémo le garde : l'opération 7 (et le sommeil du script) le remet ; FL sans REC_Tempo : raison 6 |
 
 - **Raisons** en plus (CC 116) : 4 FL joue déjà, 7 au moins 2 éléments sélectionnés pour un dégradé. Une fonction
   de FL absente pour une opération → raison 6.
+- L'API de FL ne permet ni de déplacer une piste de la Playlist, ni de lire ou poser son icône, ni de lister ses
+  clips : la Playlist est colorée et renommée, jamais réordonnée. Les patterns non plus ne se déplacent pas. Le
+  Channel rack et le Mixer sont réordonnés au clavier, élément sélectionné (op 5) puis ⌥↑ (Channel rack) ou ⌥←
+  (Mixer ; les canaux reliés suivent leur piste), page devant (op 18).
 - Les noms des sons et des pistes n'apparaissent jamais dans les messages de FL : une erreur ne donne que son type.
 
 **Vecteur de test de la réponse** (mêmes valeurs des deux côtés) :
@@ -201,3 +245,53 @@ données = [1, 0, 2, 0, 0, 0, 0]                 (liste des canaux : total 2, d�
 unités  = [0, 1, 0, 2, 0, 0, 0, 0]
 MAC     = [89, 95, 58, 61]
 ```
+
+## 9. Fichier de projet de FL (.flp), lu et rangé par l'Organiser
+
+L'Organiser ne devine plus ce que joue chaque pattern ni où sont les clips : FL enregistre le projet ouvert (⌘S), son
+fichier est lu (`FLPFile`, `FLPProject`), et la Playlist est rangée dans une **copie** « <nom>_2.flp » (comme « Save new version » de FL) écrite à
+côté de l'original, que FL ouvre ensuite. L'Organiser n'écrit jamais l'original (seul FL l'enregistre, comme avec ⌘S,
+avant de commencer : c'est le point de retour). Vérifié sur le projet de test du propriétaire
+(FL 26.1, octobre 2026) : relu puis réécrit octet pour octet à l'identique.
+
+- **En-tête** : « FLhd », longueur (4 octets, 6), format (2), nombre de canaux (2), pas par noire (2, `ppq`) ; puis
+  « FLdt », longueur (4) et les événements. Nombres petit-boutistes.
+- **Événement** : un octet de numéro, puis 1 octet (numéros 0 à 63), 2 (64 à 127), 4 (128 à 191), ou une longueur
+  (7 bits par octet, le bit du haut dit qu'un octet suit) et autant d'octets (192 et plus). Textes : UTF-16 terminé
+  par un zéro. **Exception (FL 2025)** : l'événement 172 a un octet de forme, puis 4 octets (forme 0) ou 2 (forme 1) ;
+  lu comme les autres, il décalait la lecture, qui se recalait plus loin par hasard (les notes du pattern 1 du projet
+  de test disparaissaient). Une autre forme arrête tout. Contrôle : avant les canaux, toute suite « 65, numéro,
+  224, longueur multiple de 24 » (les notes d'un pattern) doit commencer là où la lecture a vu un événement ; sinon,
+  arrêt. Le nombre de canaux lus doit être celui de l'en-tête.
+- **Canal** : 64 (rang dans le Channel rack, 0, 1, 2… sans trou) **suivi aussitôt de 21** (type : 0 échantillon,
+  2 plugin, 3 layer, 4 clip audio) ; 203 son nom ; 196 le chemin de son fichier de son (clip audio, sampler : son nom,
+  sinon celui de son dossier, dit souvent ce qu'est le son quand celui du canal ne le dit pas ; « %FLStudioUserData% »,
+  « %FLStudioFactoryData% » à la place des dossiers de FL). Le fichier d'un clip audio est lu directement par l'app
+  (son passage le plus fort, 3 s), au lieu de le faire jouer par FL ; retrouvé à ce chemin, à côté du projet, sinon
+  par Spotlight à son nom ; introuvable : joué dans FL comme avant. 94 un canal joué par un layer. Un 64 sans 21 derrière sert à autre chose
+  (réglages MIDI du projet) : ignoré.
+- **Pattern** : 65 (1 = pattern 1) ; suivi de 224 (ses notes, 24 octets chacune, le canal sur 2 octets à la place 6)
+  dans la partie des notes, ou de 193 (nom), 150 (couleur)… dans sa description (écrite au milieu du premier canal).
+- **Playlist** : 99 (arrangement), puis 233 : ses clips, 88 octets chacun (60 dans FL 21, 32 avant ; la taille est
+  celle où chaque clip porte 0x5000 à la place 4). Dans un clip : début (4 octets, en pas), 0x5000 (2), numéro (2 :
+  au-delà de 0x5000, un pattern ; sinon un canal : clip audio, automation), longueur (4), piste à l'envers (2 :
+  499 = piste 1 quand il y a 500 pistes). Puis chaque piste : 238 (numéro à partir de 1, couleur à la place 4, 1 à la
+  place 12 si elle joue, 0 si elle est coupée…), 239 son nom s'il en a un. Plusieurs arrangements : 100, écrit après
+  eux, dit celui qui est ouvert (son 99) ; c'est lui qui est rangé, les autres ne bougent pas.
+- **Channel rack** : 146, écrit avant les canaux, est le groupe qu'il affiche (-1, soit FF FF FF FF : « All »).
+- **Séparation son par son** (« Split by channel » de FL, dans la copie) : un pattern dont les notes jouent plusieurs
+  canaux garde celles de son premier canal (224 réécrit) ; chaque autre canal a un nouveau pattern (numéro après le
+  dernier 65 du fichier, 999 au plus) : « 65 numéro » et ses notes (224), écrits juste avant le premier canal ; chaque
+  clip de ce pattern, dans chaque arrangement, a son double (même place, même piste, même longueur) ; les clips sont
+  ensuite écrits dans l'ordre de leur début. Le morceau sonne pareil ; l'analyse se fait sur ce projet séparé.
+- **La copie** ne change que la piste de chaque clip (place 12), et, pour les pistes où il y avait ou où il y a des
+  clips, leur nom (239 retiré), leur couleur (celle des pistes jamais touchées) et leur mute (elles jouent) ; son
+  Channel rack montre « All » (146). Elle est faite même sans ranger la Playlist (seul « All » change alors). Le
+  premier pattern nommé prend un nom « FL Shortcuts nnnn » (FL a ouvert la copie quand le script le lit, ou quand la
+  fenêtre de FL porte son nom), remis aussitôt par le script ; sans pattern nommé, le premier pattern décrit sans
+  nom ; sinon (un seul pattern jamais nommé) le premier canal nommé (203), qui reprend ensuite son nom.
+- **Arrêt sans rien toucher** : fichier abîmé, forme inattendue (taille de clip ambiguë, pistes avec un trou, note d'un
+  canal inconnu, plusieurs arrangements avec des clips sans savoir lequel est ouvert), un clip sur une piste coupée,
+  fichier qui n'est pas le projet ouvert (autres canaux ou patterns ; avant la v16 du script ou l'API 33, le Channel
+  rack qui ne montre qu'un groupe), dossier refusé par macOS
+  (Fichiers et dossiers : textes dans Info.plist), ou projet changé entre l'analyse et « Organiser ».

@@ -17,6 +17,7 @@ enum FakeFL {
     static func runIfRequested() {
         guard let i = CommandLine.arguments.firstIndex(of: "--fake-fl") else { return }
         let path = CommandLine.arguments.dropFirst(i + 1).first ?? (NSTemporaryDirectory() + "fakefl.json")
+        guard path.hasSuffix(".json") else { exit(2) }            // son état seulement, jamais un autre fichier écrasé
         let app = NSApplication.shared
         app.setActivationPolicy(.regular)
         let c = FakeFLController(statePath: path, oHighlights: CommandLine.arguments.contains("--o-highlights"))
@@ -110,6 +111,13 @@ final class FakeFLController {
     var device = "Built-in"
     var autoClose = false
     let nativeMenuTarget = FakeNativeMenuTarget()
+    /// Sélection dans la Playlist (⌘A) : File › Export › All playlist tracks › Time selection n'est dégrisé qu'à
+    /// l'ouverture de son menu, et seulement avec elle (comme FL).
+    var selection = false
+    /// Add › Channel › More plugins... : la liste de tous les plugins (fenêtre « Select plugin »).
+    var pluginListWindow: NSWindow?
+    /// « Change icon… » du menu de la piste : la grille des icônes.
+    var iconGrid: NSPanel?
 
     init(statePath: String, oHighlights: Bool) {
         self.statePath = statePath
@@ -143,6 +151,10 @@ final class FakeFLController {
         monitors.append(dnc.addObserver(forName: Notification.Name("app.flshortcut.fakefl.reset"), object: nil, queue: .main) { [weak self] _ in
             self?.reset()
         })
+        monitors.append(dnc.addObserver(forName: Notification.Name("app.flshortcut.fakefl.select"), object: nil, queue: .main) { [weak self] _ in
+            self?.selection = true                        // menus fermés : l'élément reste grisé jusqu'à leur ouverture
+            self?.writeState()
+        })
         monitors.append(dnc.addObserver(forName: Notification.Name("app.flshortcut.fakefl.mode"), object: nil, queue: .main) { [weak self] n in
             self?.oHighlights = (n.object as? String) == "highlight"
             self?.writeState()
@@ -154,9 +166,14 @@ final class FakeFLController {
         closeAll()
         settingsWindow?.orderOut(nil)
         settingsWindow = nil
+        pluginListWindow?.orderOut(nil)
+        pluginListWindow = nil
+        iconGrid?.orderOut(nil)
+        iconGrid = nil
         settingsView = nil
         device = "Built-in"
         autoClose = false
+        selection = false
         armed = []
         rec = false
         input = "(none)"
@@ -214,6 +231,7 @@ final class FakeFLController {
             "preset": preset ?? "", "presetTrack": presetTrack, "events": events, "menusOpen": levels.count,
             "oHighlights": oHighlights,
             "settingsOpen": settingsWindow != nil, "device": device, "autoClose": autoClose,
+            "selection": selection, "nativeMenusOpen": nativeMenuTarget.openMenus, "iconGridOpen": iconGrid != nil,
             "geometry": geometry,
         ]
         if let data = try? JSONSerialization.data(withJSONObject: dict, options: [.sortedKeys]) {
@@ -255,8 +273,15 @@ final class FakeFLController {
                 return true
             }
         }
-        // R : seulement dans la fenêtre du Mixer, jamais pendant la boîte « Open » (on y tape un chemin).
-        if NSApp.modalWindow == nil, e.window === window,
+        // ⌘S : « enregistrer le projet », un raccourci de FL avec une touche modificatrice.
+        if NSApp.modalWindow == nil, e.keyCode == 1,
+           e.modifierFlags.intersection([.command, .control, .option, .shift]) == .command {
+            note("save project")
+            return true
+        }
+        // R : dans la fenêtre du Mixer (ou sans fenêtre clé, juste après la fermeture des réglages), jamais pendant la
+        // boîte « Open » (on y tape un chemin) ni dans les réglages.
+        if NSApp.modalWindow == nil, e.window === window || e.window == nil,
            e.modifierFlags.intersection([.command, .control, .option]).isEmpty,
            e.keyCode == 15 || e.charactersIgnoringModifiers?.lowercased() == "r" {
             rec.toggle()
@@ -370,7 +395,7 @@ final class FakeFLController {
             FakeMenuItem("Change color…"),
             FakeMenuItem("Random color"),
             FakeMenuItem("Gradient color…", enabled: false),
-            FakeMenuItem("Change icon…"),
+            FakeMenuItem("Change icon…") { [weak self] in self?.openIconGrid(track: track) },
             FakeMenuItem("Assign to new Audio track(s)", "a"),
             FakeMenuItem("Unassign from Audio track(s)", "u", enabled: false),
             .separator,
@@ -476,10 +501,55 @@ final class FakeFLController {
         let optionsItem = NSMenuItem(title: "Options", action: nil, keyEquivalent: "")
         optionsItem.submenu = options
         main.addItem(optionsItem)
+        // File › Export › All playlist tracks › Time selection... : grisé tant qu'il n'y a pas de sélection, mis à jour
+        // seulement à l'ouverture de son menu (menuNeedsUpdate), comme dans FL.
+        let timeSelection = NSMenuItem(title: "Time selection...", action: #selector(FakeNativeMenuTarget.run(_:)), keyEquivalent: "")
+        timeSelection.target = nativeMenuTarget
+        timeSelection.tag = 3
+        timeSelection.isEnabled = false
+        let allTracks = NSMenu(title: "All playlist tracks")
+        allTracks.autoenablesItems = false
+        allTracks.addItem(timeSelection)
+        let export = NSMenu(title: "Export")
+        let allTracksItem = NSMenuItem(title: "All playlist tracks", action: nil, keyEquivalent: "")
+        allTracksItem.submenu = allTracks
+        export.addItem(allTracksItem)
+        let file = NSMenu(title: "File")
+        let exportItem = NSMenuItem(title: "Export", action: nil, keyEquivalent: "")
+        exportItem.submenu = export
+        file.addItem(exportItem)
+        let fileItem = NSMenuItem(title: "File", action: nil, keyEquivalent: "")
+        fileItem.submenu = file
+        main.insertItem(fileItem, at: 1)
+        // Add › Channel : un favori, et « More plugins... » (la liste de tous les plugins, sans rien cocher).
+        let channel = NSMenu(title: "Channel")
+        for (title, tag) in [("Serum 2", 5), ("More plugins...", 6)] {
+            let item = NSMenuItem(title: title, action: #selector(FakeNativeMenuTarget.run(_:)), keyEquivalent: "")
+            item.target = nativeMenuTarget
+            item.tag = tag
+            channel.addItem(item)
+        }
+        let add = NSMenu(title: "Add")
+        let channelItem = NSMenuItem(title: "Channel", action: nil, keyEquivalent: "")
+        channelItem.submenu = channel
+        add.addItem(channelItem)
+        let addItem = NSMenuItem(title: "Add", action: nil, keyEquivalent: "")
+        addItem.submenu = add
+        main.insertItem(addItem, at: 2)
+        for menu in [add, channel] { menu.delegate = nativeMenuTarget }
+        for menu in [options, file, export, allTracks] { menu.delegate = nativeMenuTarget }
+        nativeMenuTarget.update = { [weak self] menu in
+            guard menu === allTracks else { return }
+            timeSelection.isEnabled = self?.selection ?? false
+        }
+        nativeMenuTarget.changed = { [weak self] in self?.writeState() }
         nativeMenuTarget.actions = [
             0: { [weak self] in self?.note("WRONG: MIDI settings") },
             1: { [weak self] in self?.openSettings() },
             2: { [weak self] in self?.note("WRONG: General settings") },
+            3: { [weak self] in self?.note("export time selection") },
+            5: { [weak self] in self?.note("favorite added") },
+            6: { [weak self] in self?.openPluginList() },
         ]
         NSApp.mainMenu = main
     }
@@ -497,6 +567,55 @@ final class FakeFLController {
         let r = mixer.optionsRect
         let below = window.convertPoint(toScreen: mixer.convert(NSPoint(x: r.minX, y: r.maxY), to: nil))
         _ = openMenu(items, topLeft: below, width: 220)
+    }
+
+    /// Liste de tous les plugins (« Select plugin » de FL) : une case de favori devant chaque nom (la cocher serait une
+    /// faute de la macro), double-clic sur le nom : le plugin s'ouvre et la liste se ferme.
+    func openPluginList() {
+        let w = NSWindow(contentRect: NSRect(x: 360, y: 140, width: 360, height: 420),
+                         styleMask: [.titled, .closable], backing: .buffered, defer: false)
+        w.title = "Select plugin"
+        w.level = .modalPanel
+        w.isReleasedWhenClosed = false
+        let v = FakePluginListView(frame: NSRect(x: 0, y: 0, width: 360, height: 420))
+        v.controller = self
+        w.contentView = v
+        pluginListWindow = w
+        w.makeKeyAndOrderFront(nil)
+        w.makeFirstResponder(v)
+        note("plugin list open")
+    }
+
+    func closePluginList(_ event: String) {
+        pluginListWindow?.orderOut(nil)
+        pluginListWindow = nil
+        window.makeKeyAndOrderFront(nil)
+        note(event)
+    }
+
+    /// Grille des icônes de FL (617 × 677 au niveau des menus, relevé du 16/10) : un clic dans une case la choisit et
+    /// referme la grille ; Échap ne la ferme pas (comme FL).
+    func openIconGrid(track: Int) {
+        let size = NSSize(width: 617, height: 677)
+        let visible = (NSScreen.screens.first ?? NSScreen.main)?.visibleFrame ?? NSRect(x: 0, y: 0, width: 1440, height: 900)
+        let origin = NSPoint(x: visible.minX + 360, y: max(visible.minY, visible.maxY - 40 - size.height))
+        let panel = NSPanel(contentRect: NSRect(origin: origin, size: size), styleMask: [.borderless, .nonactivatingPanel],
+                            backing: .buffered, defer: false)
+        panel.level = .popUpMenu
+        panel.isReleasedWhenClosed = false
+        let view = FakeIconGridView(frame: NSRect(origin: .zero, size: size))
+        view.controller = self
+        view.track = track
+        panel.contentView = view
+        iconGrid = panel
+        panel.orderFrontRegardless()
+        writeState()
+    }
+
+    func chooseIcon(track: Int, column: Int, row: Int) {
+        iconGrid?.orderOut(nil)
+        iconGrid = nil
+        note("icon \(track) \(column)-\(row)")
     }
 
     func openSettings() {
@@ -523,6 +642,7 @@ final class FakeFLController {
         settingsWindow?.orderOut(nil)
         settingsWindow = nil
         settingsView = nil
+        window.makeKeyAndOrderFront(nil)          // comme FL : la fenêtre principale reprend le clavier
         note("settings close")
     }
 
@@ -549,13 +669,110 @@ final class FakeFLController {
     }
 }
 
-/// Cible des éléments du menu Options de la barre des menus.
-final class FakeNativeMenuTarget: NSObject {
+/// Cible des éléments des menus de la barre (Options, File › Export…) : leurs actions, la mise à jour d'un menu à son
+/// ouverture, et le nombre de menus ouverts (un menu laissé ouvert par la macro se voit dans l'état).
+final class FakeNativeMenuTarget: NSObject, NSMenuDelegate {
     var actions: [Int: () -> Void] = [:]
+    var update: ((NSMenu) -> Void)?
+    var changed: (() -> Void)?
+    private(set) var openMenus = 0
+
+    func menuNeedsUpdate(_ menu: NSMenu) { update?(menu) }
+
+    func menuWillOpen(_ menu: NSMenu) {
+        openMenus += 1
+        changed?()
+    }
+
+    func menuDidClose(_ menu: NSMenu) {
+        openMenus = max(0, openMenus - 1)
+        changed?()
+    }
 
     @objc func run(_ sender: NSMenuItem) {
         let action = actions[sender.tag]
         DispatchQueue.main.async { action?() }        // après la fermeture du menu, comme une vraie appli
+    }
+}
+
+/// Liste « Select plugin » simulée : 60 plugins, 20 points par ligne, molette, case de favori à gauche de chaque nom.
+final class FakePluginListView: NSView {
+    weak var controller: FakeFLController?
+    static let names = (1...60).map { "Fake Synth \($0)" }
+    private var offset: CGFloat = 0
+
+    override var isFlipped: Bool { true }
+    override var acceptsFirstResponder: Bool { true }
+    override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
+
+    private var maxOffset: CGFloat { max(0, CGFloat(Self.names.count) * 20 + 20 - bounds.height) }
+
+    override func draw(_ dirtyRect: NSRect) {
+        NSColor(white: 0.17, alpha: 1).setFill()
+        bounds.fill()
+        let text: [NSAttributedString.Key: Any] = [.foregroundColor: NSColor.white, .font: NSFont.systemFont(ofSize: 13)]
+        for (i, name) in Self.names.enumerated() {
+            let y = 10 + CGFloat(i) * 20 - offset
+            guard y > -20, y < bounds.height else { continue }
+            NSColor(white: 0.45, alpha: 1).setFill()
+            NSRect(x: 10, y: y + 3, width: 13, height: 13).fill()
+            (name as NSString).draw(at: NSPoint(x: 34, y: y), withAttributes: text)
+        }
+    }
+
+    override func scrollWheel(with event: NSEvent) {
+        let lines = event.hasPreciseScrollingDeltas ? event.scrollingDeltaY / 20 : event.scrollingDeltaY
+        offset = min(maxOffset, max(0, offset - lines * 20))
+        needsDisplay = true
+    }
+
+    override func mouseDown(with event: NSEvent) {
+        let p = convert(event.locationInWindow, from: nil)
+        let row = Int((p.y + offset - 10) / 20)
+        guard Self.names.indices.contains(row) else { return }
+        if p.x < 28 {
+            controller?.note("WRONG: favorite checked")
+        } else if event.clickCount >= 2 {
+            controller?.closePluginList("plugin added \(Self.names[row])")
+        }
+    }
+
+    override func keyDown(with event: NSEvent) {
+        if event.keyCode == 53 { controller?.closePluginList("plugin list closed") } else { super.keyDown(with: event) }
+    }
+}
+
+/// Grille des icônes simulée : 14 colonnes de cases carrées, 15 rangées, sous une barre de titres (géométrie de FL).
+final class FakeIconGridView: NSView {
+    weak var controller: FakeFLController?
+    var track = 0
+
+    override var isFlipped: Bool { true }
+    override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
+
+    private var side: CGFloat { bounds.width / CGFloat(FLIconGrid.columns) }
+    private var header: CGFloat { bounds.height - CGFloat(FLIconGrid.rows) * side }
+
+    override func draw(_ dirtyRect: NSRect) {
+        NSColor(white: 0.2, alpha: 1).setFill()
+        bounds.fill()
+        NSColor(white: 0.35, alpha: 1).setStroke()
+        for column in 0..<FLIconGrid.columns {
+            for row in 0..<FLIconGrid.rows {
+                NSBezierPath(rect: NSRect(x: CGFloat(column) * side, y: header + CGFloat(row) * side,
+                                          width: side, height: side).insetBy(dx: 0.5, dy: 0.5)).stroke()
+            }
+        }
+    }
+
+    override func mouseDown(with event: NSEvent) {}
+
+    override func mouseUp(with event: NSEvent) {
+        let p = convert(event.locationInWindow, from: nil)
+        guard p.y >= header else { return }
+        let column = Int(p.x / side), row = Int((p.y - header) / side)
+        guard (0..<FLIconGrid.columns).contains(column), (0..<FLIconGrid.rows).contains(row) else { return }
+        controller?.chooseIcon(track: track, column: column, row: row)
     }
 }
 

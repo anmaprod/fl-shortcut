@@ -4,10 +4,12 @@
 // Miroir de Sources/FLShortcut/Model.swift, adapté aux codes de touche virtuelle Windows.
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using FLShortcut.Core.Macros;
 
 namespace FLShortcut.Core;
 
-public enum ShortcutContext { Everywhere, PianoRoll, Playlist, Mixer }
+/// Channel Rack et Browser comme le Mac (29/10) : les raccourcis d'origine de ces pages de FL n'agissent que là.
+public enum ShortcutContext { Everywhere, PianoRoll, Playlist, Mixer, ChannelRack, Browser }
 
 public static class ShortcutContexts
 {
@@ -16,6 +18,8 @@ public static class ShortcutContexts
         ShortcutContext.PianoRoll => "Piano Roll",
         ShortcutContext.Playlist => "Playlist",
         ShortcutContext.Mixer => "Mixer",
+        ShortcutContext.ChannelRack => "Channel Rack",
+        ShortcutContext.Browser => "Browser",
         _ => "Partout",
     };
 
@@ -24,6 +28,8 @@ public static class ShortcutContexts
         ShortcutContext.PianoRoll => "pianoRoll",
         ShortcutContext.Playlist => "playlist",
         ShortcutContext.Mixer => "mixer",
+        ShortcutContext.ChannelRack => "channelRack",
+        ShortcutContext.Browser => "browser",
         _ => "everywhere",
     };
 
@@ -33,6 +39,8 @@ public static class ShortcutContexts
         "pianoRoll" => ShortcutContext.PianoRoll,
         "playlist" => ShortcutContext.Playlist,
         "mixer" => ShortcutContext.Mixer,
+        "channelRack" => ShortcutContext.ChannelRack,
+        "browser" => ShortcutContext.Browser,
         _ => null,
     };
 
@@ -41,11 +49,25 @@ public static class ShortcutContexts
         FlWindow.PianoRoll => ShortcutContext.PianoRoll,
         FlWindow.Playlist => ShortcutContext.Playlist,
         FlWindow.Mixer => ShortcutContext.Mixer,
+        FlWindow.ChannelRack => ShortcutContext.ChannelRack,
+        FlWindow.Browser => ShortcutContext.Browser,
         _ => null,
+    };
+
+    /// Fenêtre de FL où un raccourci de la page agit (Général, Lecture, Patterns : partout).
+    public static ShortcutContext Context(this FlSection s) => s switch
+    {
+        FlSection.Playlist => ShortcutContext.Playlist,
+        FlSection.PianoRoll => ShortcutContext.PianoRoll,
+        FlSection.Mixer => ShortcutContext.Mixer,
+        FlSection.ChannelRack => ShortcutContext.ChannelRack,
+        FlSection.Browser => ShortcutContext.Browser,
+        _ => ShortcutContext.Everywhere,
     };
 }
 
-public enum ShortcutKind { FlAction, Keystroke }
+/// « Macro » : macro en blocs de la bibliothèque (macros.json), lancée par le raccourci, sans MIDI obligatoire.
+public enum ShortcutKind { FlAction, Keystroke, Macro }
 
 public sealed record Shortcut
 {
@@ -59,6 +81,12 @@ public sealed record Shortcut
     /// Action illisible conservée telle quelle (profil plus récent relu par une version plus ancienne).
     public string? UnknownAction { get; init; }
     public KeyCombo? Target { get; init; }
+    /// Macro de la bibliothèque lancée par ce raccourci. Doublée à l'écriture d'un lien caché
+    /// `unknownAction = "macroRef:<uuid>"` (comme le Mac) : retrouvée si la clé `macroRef` a disparu.
+    public Guid? MacroRef { get; init; }
+
+    /// Préfixe du lien caché vers la bibliothèque.
+    public const string MacroRefPrefix = "macroRef:";
 
     public static Shortcut Action(KeyCombo trigger, int action, ShortcutContext ctx = ShortcutContext.Everywhere) =>
         new() { Trigger = trigger, ActionId = action, Context = ctx };
@@ -66,22 +94,36 @@ public sealed record Shortcut
     public static Shortcut Sends(KeyCombo trigger, KeyCombo target, ShortcutContext ctx = ShortcutContext.Everywhere) =>
         new() { Trigger = trigger, Kind = ShortcutKind.Keystroke, Target = target, Context = ctx };
 
-    public RoutedAction? Routed => Kind switch
+    /// Raccourci d'une macro de la bibliothèque.
+    public static Shortcut RunsMacro(KeyCombo? trigger, Guid macro, ShortcutContext ctx = ShortcutContext.Everywhere) =>
+        new() { Trigger = trigger, Kind = ShortcutKind.Macro, MacroRef = macro, Context = ctx };
+
+    public RoutedAction? Routed => IndexedAction(null);
+
+    /// `programs` : macros de la bibliothèque déjà compilées (MacroLibraryStore.Programs). Jamais d'action pour une
+    /// macro absente ou qui ne peut pas tourner.
+    public RoutedAction? IndexedAction(IReadOnlyDictionary<Guid, MacroProgram>? programs) => Kind switch
     {
         ShortcutKind.FlAction when ActionId is { } id => new RoutedAction.FlAction(id),
         ShortcutKind.Keystroke when Target is { } t => new RoutedAction.Keystroke(t),
+        ShortcutKind.Macro when MacroRef is { } r && programs is not null && programs.TryGetValue(r, out var p)
+                                && p.IsRunnable => new RoutedAction.Macro(p),
         _ => null,
     };
 
-    public string Label => Kind == ShortcutKind.Keystroke
-        ? (Target is { } t ? $"Envoie {t}" : "Touche de FL à choisir")
-        : (ActionId is { } id && FlActions.Info(id) is { } info ? info.Label : "Action inconnue");
+    public string Label => Kind switch
+    {
+        ShortcutKind.Keystroke => Target is { } t ? $"Envoie {t}" : "Touche de FL à choisir",
+        ShortcutKind.Macro => "Macro",
+        _ => ActionId is { } id && FlActions.Info(id) is { } info ? info.Label : "Action inconnue",
+    };
 }
 
 public abstract record RoutedAction
 {
     public sealed record FlAction(int Id) : RoutedAction;
     public sealed record Keystroke(KeyCombo Target) : RoutedAction;
+    public sealed record Macro(MacroProgram Program) : RoutedAction;
 }
 
 /// Lecture / écriture du profil JSON, tolérante champ par champ (REL-01).
@@ -128,6 +170,7 @@ public static class ProfileCodec
         var trigger = TryCombo(o["trigger"]);
         var target = TryCombo(o["target"]);
         var unknown = TryString(o["unknownAction"]);
+        var macroRef = TryGuid(o["macroRef"]);
 
         var context = ShortcutContext.Everywhere;
         if (TryString(o["context"]) is { } rawCtx)
@@ -140,6 +183,7 @@ public static class ProfileCodec
         ShortcutKind kind;
         if (rawKind is null or "flAction") kind = ShortcutKind.FlAction;
         else if (rawKind == "keystroke") kind = ShortcutKind.Keystroke;
+        else if (rawKind == "macro") kind = ShortcutKind.Macro;
         else
         {
             return new Shortcut
@@ -162,11 +206,21 @@ public static class ProfileCodec
                 enabled = false;                    // jamais exécuter une action « devinée »
             }
         }
+        if (kind == ShortcutKind.Macro)
+        {
+            // Profil réécrit sans la clé `macroRef` : le lien caché retrouve la macro.
+            if (macroRef is null && unknown is { } link && link.StartsWith(Shortcut.MacroRefPrefix, StringComparison.Ordinal)
+                && Guid.TryParse(link[Shortcut.MacroRefPrefix.Length..], out var linked))
+                macroRef = linked;
+            if (macroRef is not null && unknown?.StartsWith(Shortcut.MacroRefPrefix, StringComparison.Ordinal) == true)
+                unknown = null;
+        }
 
         return new Shortcut
         {
             Id = id, Enabled = enabled, Trigger = trigger, Context = context, Kind = kind,
             ActionId = actionId, UnknownAction = unknown, Target = kind == ShortcutKind.Keystroke ? target : null,
+            MacroRef = kind == ShortcutKind.Macro ? macroRef : null,
         };
     }
 
@@ -180,7 +234,12 @@ public static class ProfileCodec
                 ["id"] = s.Id.ToString(),
                 ["enabled"] = s.Enabled,
                 ["context"] = s.Context.Raw(),
-                ["kind"] = s.Kind == ShortcutKind.Keystroke ? "keystroke" : "flAction",
+                ["kind"] = s.Kind switch
+                {
+                    ShortcutKind.Keystroke => "keystroke",
+                    ShortcutKind.Macro => "macro",
+                    _ => "flAction",
+                },
             };
             if (s.Trigger is { } t) o["trigger"] = ComboNode(t);
             if (s.Kind == ShortcutKind.FlAction && s.ActionId is { } id && FlActions.Info(id) is { } info)
@@ -188,7 +247,13 @@ public static class ProfileCodec
                 o["action"] = info.Key;
                 o["actionID"] = id;
             }
-            if (s.UnknownAction is not null) o["unknownAction"] = s.UnknownAction;
+            if (s.Kind == ShortcutKind.Macro && s.MacroRef is { } r)
+            {
+                o["macroRef"] = r.ToString().ToUpperInvariant();
+                o["unknownAction"] = Shortcut.MacroRefPrefix + r.ToString().ToUpperInvariant();
+            }
+            else if (s.UnknownAction is not null && !s.UnknownAction.StartsWith(Shortcut.MacroRefPrefix, StringComparison.Ordinal))
+                o["unknownAction"] = s.UnknownAction;
             if (s.Target is { } tg) o["target"] = ComboNode(tg);
             arr.Add(o);
         }
@@ -265,30 +330,35 @@ public abstract record ShortcutIssue
     public sealed record FlConflict(string What) : ShortcutIssue;
     public sealed record Loop : ShortcutIssue;
     public sealed record Unavailable(string Why) : ShortcutIssue;
+    /// Macro introuvable, absente ou qui ne peut pas tourner (texte déjà traduit).
+    public sealed record MacroInvalid(string Why) : ShortcutIssue;
 
     public bool IsBlocking => this is NoTrigger or NoTarget or InvalidKey or UnknownAction or ForbiddenTarget
-        or ForbiddenTrigger or ReservedToggle or Duplicate;
+        or ForbiddenTrigger or ReservedToggle or Duplicate or MacroInvalid;
 
     public string Message => this switch
     {
         NoTrigger => "Aucun raccourci défini.",
         NoTarget => "Aucune touche de FL choisie.",
         InvalidKey => "Touche non prise en charge.",
-        UnknownAction u => $"Action inconnue (« {DisplayText.Safe(u.Raw)} ») : mets à jour FL Shortcut.",
+        UnknownAction u => $"Action inconnue (« {DisplayText.Safe(u.Raw)} ») : mets à jour FL Shortcuts.",
         ForbiddenTarget f => $"Cible interdite : {f.Why}.",
         ForbiddenTrigger f => $"Raccourci impossible : {f.Why}.",
-        ReservedToggle => "Réservé à Ctrl+Alt+Maj+F (mettre FL Shortcut en pause).",
+        ReservedToggle => "Réservé à Ctrl+Alt+Maj+F (mettre FL Shortcuts en pause).",
         Duplicate => "Déjà utilisé dans ce contexte : seul le premier compte.",
         BareKey => "Touche seule : elle ne pourra plus servir à taper du texte dans FL ni à jouer des notes.",
         WindowsConflict w => $"Conflit : {w.What}.",
         FlConflict f => $"Remplace un raccourci natif — {f.What}.",
         Loop => "La touche envoyée est aussi un déclencheur : elle sera envoyée telle quelle, sans enchaînement.",
         Unavailable u => u.Why,
+        MacroInvalid m => m.Why,
         _ => "",
     };
 }
 
-public sealed record AnalysisContext(KeyCombo Toggle, ConflictTable Conflicts, Func<int, ActionAvailability> Availability);
+/// `Programs` : macros de la bibliothèque déjà compilées, par id (null : aucune bibliothèque chargée).
+public sealed record AnalysisContext(KeyCombo Toggle, ConflictTable Conflicts, Func<int, ActionAvailability> Availability,
+    IReadOnlyDictionary<Guid, MacroProgram>? Programs = null);
 
 public static class ShortcutAnalyzer
 {
@@ -308,6 +378,13 @@ public static class ShortcutAnalyzer
                     if (ctx.Availability(id) is ActionAvailability.Unavailable u) list.Add(new ShortcutIssue.Unavailable(u.Reason));
                 }
                 else list.Add(new ShortcutIssue.UnknownAction(s.UnknownAction ?? "?"));
+            }
+            else if (s.Kind == ShortcutKind.Macro)
+            {
+                if (s.MacroRef is not { } r) list.Add(new ShortcutIssue.MacroInvalid(Loc.T("Aucune macro configurée.")));
+                else if (ctx.Programs is null || !ctx.Programs.TryGetValue(r, out var program))
+                    list.Add(new ShortcutIssue.MacroInvalid(Loc.T("Macro introuvable dans la bibliothèque (supprimée ?).")));
+                else if (program.Problem is { } why) list.Add(new ShortcutIssue.MacroInvalid(why));
             }
             else
             {

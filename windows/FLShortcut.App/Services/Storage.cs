@@ -7,21 +7,34 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using FLShortcut.Core;
+using FLShortcut.Core.Macros;
 
 namespace FLShortcut.App.Services;
 
 internal static class AppPaths
 {
-    /// %LOCALAPPDATA%\FL Shortcut (clé, réglages) — jamais itinérant.
+    /// %LOCALAPPDATA%\FL Shortcuts (clé, réglages) — jamais itinérant.
     public static string Local { get; } = Ensure(Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "FL Shortcut"));
+        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "FL Shortcuts"));
 
-    /// %APPDATA%\FL Shortcut (profil de raccourcis).
+    /// %APPDATA%\FL Shortcuts (profil de raccourcis).
     public static string Roaming { get; } = Ensure(Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "FL Shortcut"));
+        Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "FL Shortcuts"));
 
+    /// Nom de l'app avant « FL Shortcuts ».
+    public const string OldName = "FL Shortcut";
+
+    /// Un dossier à l'ancien nom (un vrai dossier, pas un lien) prend le nouveau nom avec son contenu, si le nouveau
+    /// n'existe pas encore ; en cas d'échec, l'ancien reste utilisé (rien n'est perdu).
     private static string Ensure(string dir)
     {
+        var old = Path.Combine(Path.GetDirectoryName(dir)!, OldName);
+        if (!Directory.Exists(dir) && Directory.Exists(old) && new DirectoryInfo(old).LinkTarget is null)
+        {
+            try { Directory.Move(old, dir); }
+            catch (IOException) { return old; }
+            catch (UnauthorizedAccessException) { return old; }
+        }
         Directory.CreateDirectory(dir);
         return dir;
     }
@@ -70,6 +83,7 @@ internal static class SafeFile
 internal static class SecretStore
 {
     private static string KeyPath => Path.Combine(AppPaths.Local, "link.key");
+    // Ancien nom de l'app gardé exprès : changer ce texte rendrait illisibles les clés déjà enregistrées.
     private static readonly byte[] Entropy = Encoding.UTF8.GetBytes("FL Shortcut link key v2");
 
     public static byte[]? Load()
@@ -103,6 +117,19 @@ internal sealed class AppSettings
     /// Absent (null) : mode léger pour une nouvelle installation, mode MIDI pour qui avait déjà installé le
     /// script (mise à jour sans rien casser).
     public bool? MidiActions { get; set; }
+    /// Organiser : couleur, dégradé, icône et départ dans le Mixer de chaque famille (JSON comme sur le Mac).
+    public string? OrganizerStyles { get; set; }
+    /// Organiser : l'ordre des familles glissées dans l'aperçu.
+    public List<string>? OrganizerFamilyOrder { get; set; }
+    /// Organiser : le tuto en images a été vu (plus montré tout seul ; « Revoir le tuto » dans Options). Rien de sensible.
+    public bool OrganizerTutorialSeen { get; set; }
+    /// Accord pour partager les corrections de l'IA (null : jamais demandé).
+    public bool? ShareCorrections { get; set; }
+    /// Versions organisées en attente de validation (relues par CopyApprovalRules.Decode : seules les sûres restent).
+    public string? PendingCopies { get; set; }
+    /// Macros : ce qui a été appris (Entrée après la dernière lettre d'un menu de FL). Clés de la liste blanche
+    /// seulement (MacroValidation.LearnedEnterKeys), jamais lues pour autre chose.
+    public Dictionary<string, bool>? MacroMemory { get; set; }
 
     private static string FilePath => Path.Combine(AppPaths.Local, "settings.json");
 
@@ -153,6 +180,60 @@ internal static class ProfileStore
         SafeFile.WriteAtomic(FilePath, Encoding.UTF8.GetBytes(ProfileCodec.Encode(shortcuts)));
 }
 
+/// Journal de l'appli (AppLog : étapes des macros et de l'Organiser, des mots fixes et des nombres seulement) dans
+/// %LOCALAPPDATA%\FL Shortcuts\journal.txt ; au-delà de 512 Ko, l'ancien devient journal.1.txt (un seul gardé).
+internal static class AppLogFile
+{
+    private const long MaxBytes = 512 * 1024;
+    private static readonly object Gate = new();
+    private static string FilePath => Path.Combine(AppPaths.Local, "journal.txt");
+
+    public static void Install() => AppLog.Sink = Write;
+
+    private static void Write(string area, string line)
+    {
+        lock (Gate)
+        {
+            try
+            {
+                SafeFile.EnsureNoLinks(FilePath);
+                if (File.Exists(FilePath) && new FileInfo(FilePath).Length > MaxBytes)
+                    File.Move(FilePath, Path.Combine(AppPaths.Local, "journal.1.txt"), overwrite: true);
+                File.AppendAllText(FilePath, $"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} {area} {line}{Environment.NewLine}");
+            }
+            catch { /* journal au mieux : jamais bloquant */ }
+        }
+    }
+}
+
+/// Bibliothèque des macros : %APPDATA%\FL Shortcuts\macros.json (même format que le Mac). Fichier ou dossier lié,
+/// ou trop gros : refusé (MacroLibraryStore le dit et n'écrit plus). Copies de secours à côté : « precedente »
+/// unique (remplacée à chaque lancement), les autres datées.
+internal sealed class MacroFileStorage : IMacroLibraryStorage
+{
+    private readonly string _path;
+
+    public MacroFileStorage(string? path = null) => _path = path ?? Path.Combine(AppPaths.Roaming, "macros.json");
+
+    public byte[]? Read()
+    {
+        if (!File.Exists(_path)) return null;
+        SafeFile.EnsureNoLinks(_path);
+        if (new FileInfo(_path).Length > MacroLibraryCodec.MaxBytes) throw new IOException(Loc.T("fichier de plus de 8 Mo"));
+        return File.ReadAllBytes(_path);
+    }
+
+    public void Write(byte[] data) => SafeFile.WriteAtomic(_path, data);
+
+    public string Backup(byte[] data, string label)
+    {
+        var name = label == MacroLibraryStore.PreviousLabel
+            ? $"macros.{label}.json" : $"macros.{label}-{DateTimeOffset.UtcNow.ToUnixTimeSeconds()}.json";
+        SafeFile.WriteAtomic(Path.Combine(Path.GetDirectoryName(_path)!, name), data);
+        return name;
+    }
+}
+
 /// Installe le script FL avec la clé de l'installation.
 internal static class ScriptInstaller
 {
@@ -169,17 +250,28 @@ internal static class ScriptInstaller
         return r.ReadToEnd();
     }
 
-    /// Écrit « Hardware\FL Shortcut\device_FLShortcut.py ». Renvoie le chemin et l'empreinte SHA-256.
+    /// Écrit « Hardware\FL Shortcuts\device_FLShortcut.py ». Renvoie le chemin et l'empreinte SHA-256.
     public static (string Path, string Sha256) Install(string hardwareFolder, byte[] key)
     {
         if (!string.Equals(Path.GetFileName(Path.TrimEndingDirectorySeparator(hardwareFolder)), "Hardware", StringComparison.OrdinalIgnoreCase))
             throw new IOException("Choisis le dossier « Settings\\Hardware » de FL Studio.");
-        var dir = Path.Combine(hardwareFolder, "FL Shortcut");
+        var dir = Path.Combine(hardwareFolder, "FL Shortcuts");
         Directory.CreateDirectory(dir);
         SafeFile.EnsureNoLinks(dir);
         var content = Encoding.UTF8.GetBytes(ScriptTemplate.Inject(key, Template()));
         var path = Path.Combine(dir, FileName);
         SafeFile.WriteAtomic(path, content);
+        // Ancien nom de l'app : son dossier de script est retiré (FL proposerait deux fois le Controller type),
+        // seulement s'il ne contient que notre script.
+        var old = Path.Combine(hardwareFolder, AppPaths.OldName);
+        try
+        {
+            if (Directory.Exists(old) && new DirectoryInfo(old).LinkTarget is null
+                && File.Exists(Path.Combine(old, FileName)) && OnlyOurScript(old))
+                Directory.Delete(old, true);
+        }
+        catch (IOException) { }
+        catch (UnauthorizedAccessException) { }
         return (path, Convert.ToHexString(SHA256.HashData(content)));
     }
 
@@ -193,13 +285,15 @@ internal static class ScriptInstaller
                 return false;
             // Audit 03 (WIN-10/11) : un autre fichier Python (ex. « transport.py ») ou un dossier à côté du script
             // pourrait masquer un module de FL et exécuter du code dans FL. Seul notre script est accepté.
-            var dir = Path.GetDirectoryName(path)!;
-            return Directory.EnumerateFileSystemEntries(dir)
-                .Select(Path.GetFileName)
-                .All(n => string.Equals(n, FileName, StringComparison.OrdinalIgnoreCase)
-                          || string.Equals(n, "__pycache__", StringComparison.OrdinalIgnoreCase)
-                          || string.Equals(n, "desktop.ini", StringComparison.OrdinalIgnoreCase));
+            return OnlyOurScript(Path.GetDirectoryName(path)!);
         }
         catch { return false; }
     }
+
+    private static bool OnlyOurScript(string dir) =>
+        Directory.EnumerateFileSystemEntries(dir)
+            .Select(Path.GetFileName)
+            .All(n => string.Equals(n, FileName, StringComparison.OrdinalIgnoreCase)
+                      || string.Equals(n, "__pycache__", StringComparison.OrdinalIgnoreCase)
+                      || string.Equals(n, "desktop.ini", StringComparison.OrdinalIgnoreCase));
 }

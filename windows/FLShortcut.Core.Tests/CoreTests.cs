@@ -141,7 +141,7 @@ public class ModelTests
         { "shortcuts": [
           { "trigger": { "vk": 84, "ctrl": true, "shift": true }, "action": "mute" },
           { "trigger": { "vk": 85, "ctrl": true }, "action": "futureAction" },
-          { "trigger": { "vk": 86, "ctrl": true }, "kind": "macro" },
+          { "trigger": { "vk": 86, "ctrl": true }, "kind": "teleport" },
           { "trigger": { "vk": 87, "ctrl": true }, "context": "arrangement", "actionID": 1 },
           42,
           { "trigger": { "vk": 999 }, "actionID": 1 }
@@ -155,6 +155,7 @@ public class ModelTests
         Assert.False(d.Shortcuts[1].Enabled);
         Assert.Equal("futureAction", d.Shortcuts[1].UnknownAction);
         Assert.False(d.Shortcuts[2].Enabled);
+        Assert.Equal("type:teleport", d.Shortcuts[2].UnknownAction);
         Assert.False(d.Shortcuts[3].Enabled);
         Assert.Null(d.Shortcuts[4].Trigger);
     }

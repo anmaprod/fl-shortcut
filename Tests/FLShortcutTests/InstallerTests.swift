@@ -79,10 +79,96 @@ final class InstallerTests: XCTestCase {
         try FileManager.default.createDirectory(at: hardware, withIntermediateDirectories: true)
         let elsewhere = dir.appendingPathComponent("elsewhere", isDirectory: true)
         try FileManager.default.createDirectory(at: elsewhere, withIntermediateDirectories: true)
-        try FileManager.default.createSymbolicLink(at: hardware.appendingPathComponent("FL Shortcut"),
+        try FileManager.default.createSymbolicLink(at: hardware.appendingPathComponent("FL Shortcuts"),
                                                    withDestinationURL: elsewhere)
         XCTAssertThrowsError(try FLScriptInstaller.write(script: Data("x".utf8), hardware: hardware))
         XCTAssertTrue(try FileManager.default.contentsOfDirectory(atPath: elsewhere.path).isEmpty)
+    }
+
+    /// Nouveau nom de l'app : l'ancien dossier prend le nouveau nom avec son contenu, une seule fois, jamais un lien.
+    func testOldNameFolderIsTakenOver() throws {
+        let fm = FileManager.default
+        let old = dir.appendingPathComponent("FL Shortcut", isDirectory: true)
+        let new = dir.appendingPathComponent("FL Shortcuts", isDirectory: true)
+        XCTAssertEqual(AppPaths.renamed(old, to: new), new, "rien à reprendre")
+        XCTAssertFalse(fm.fileExists(atPath: new.path))
+
+        try fm.createDirectory(at: old, withIntermediateDirectories: true)
+        try Data("{}".utf8).write(to: old.appendingPathComponent("macros.json"))
+        XCTAssertEqual(AppPaths.renamed(old, to: new), new)
+        XCTAssertEqual(try Data(contentsOf: new.appendingPathComponent("macros.json")), Data("{}".utf8))
+        XCTAssertFalse(fm.fileExists(atPath: old.path))
+
+        try fm.createDirectory(at: old, withIntermediateDirectories: true)
+        XCTAssertEqual(AppPaths.renamed(old, to: new), new, "le nouveau existe déjà : l'ancien n'est pas touché")
+        XCTAssertTrue(fm.fileExists(atPath: old.path))
+        XCTAssertTrue(fm.fileExists(atPath: new.appendingPathComponent("macros.json").path))
+
+        let linkOld = dir.appendingPathComponent("lien", isDirectory: true)
+        let linkNew = dir.appendingPathComponent("lien-nouveau", isDirectory: true)
+        try fm.createSymbolicLink(at: linkOld, withDestinationURL: old)
+        XCTAssertEqual(AppPaths.renamed(linkOld, to: linkNew), linkNew)
+        XCTAssertEqual(SecureFile.kind(at: linkOld.path), .symlink, "un lien n'est jamais repris")
+    }
+
+    /// Dossier du script retiré (ancien nom) ou désinstallé : seulement s'il ne contient que notre script.
+    func testOurScriptFolderUnderBothNames() throws {
+        let hardware = dir.appendingPathComponent("Settings/Hardware", isDirectory: true)
+        for name in [FLScriptInstaller.folderName, FLScriptInstaller.oldFolderName, "Autre"] {
+            let folder = hardware.appendingPathComponent(name, isDirectory: true)
+            try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+            try Data("print(1)".utf8).write(to: folder.appendingPathComponent(FLScriptInstaller.fileName))
+            try Data().write(to: folder.appendingPathComponent(".DS_Store"))
+            XCTAssertEqual(FLScriptInstaller.isOurScriptFolder(folder), name != "Autre", name)
+            try Data("x".utf8).write(to: folder.appendingPathComponent("transport.py"))
+            XCTAssertFalse(FLScriptInstaller.isOurScriptFolder(folder), "un autre fichier à côté : jamais supprimé")
+        }
+        XCTAssertEqual(FLScriptInstaller.oldFolderName, "FL Shortcut")
+        XCTAssertEqual(Uninstaller.appNames.sorted(), ["Désinstaller FL Shortcut.app", "Désinstaller FL Shortcuts.app",
+                                                       "FL Shortcut.app", "FL Shortcuts.app"])
+    }
+
+    /// Désinstallation : chaque trace connue, sous le nom actuel et l'ancien nom, dans les deux dossiers Applications.
+    func testUninstallerKnowsEveryTrace() {
+        let home = URL(fileURLWithPath: "/Users/nina")
+        let apps = Uninstaller.appLocations(home: home).map(\.path)
+        XCTAssertEqual(apps.count, 8)
+        XCTAssertTrue(apps.contains("/Applications/FL Shortcuts.app"))
+        XCTAssertTrue(apps.contains("/Users/nina/Applications/Désinstaller FL Shortcut.app"))
+        let data = Uninstaller.dataTraces(home: home).map(\.url.path)
+        for path in ["/Users/nina/Library/Application Support/FL Shortcuts",
+                     "/Users/nina/Library/Application Support/FL Shortcut",
+                     "/Users/nina/Library/Logs/FL Shortcuts", "/Users/nina/Library/Logs/FL Shortcut",
+                     "/Users/nina/Library/Preferences/app.flshortcut.FLShortcut.plist",
+                     "/Users/nina/Library/Preferences/app.flshortcut.Uninstaller.plist",
+                     "/Users/nina/Library/Saved Application State/app.flshortcut.FLShortcut.savedState",
+                     "/Users/nina/Library/Caches/app.flshortcut.FLShortcut",
+                     "/Users/nina/Library/Keychains/flshortcut-dev.keychain-db"] {
+            XCTAssertTrue(data.contains(path), path)
+        }
+        XCTAssertEqual(Uninstaller.exportFolders(home: home).map(\.lastPathComponent), ["FL Shortcuts", "FL Shortcut"])
+        let recorded = "/Users/nina/Documents/Image-Line/FL Studio/Settings/Hardware/FL Shortcuts/device_FLShortcut.py"
+        XCTAssertEqual(Uninstaller.scriptFolders(home: home, recorded: recorded).map(\.lastPathComponent),
+                       ["FL Shortcuts", "FL Shortcut"], "chemin enregistré et emplacements par défaut, sans doublon")
+    }
+
+    /// Ce qui demande le mot de passe (ancienne installation seulement) : une seule commande, chemins entre
+    /// apostrophes (même avec une apostrophe dedans), reçu du .pkg oublié.
+    func testPrivilegedScript() {
+        XCTAssertEqual(Uninstaller.privilegedScript(Uninstaller.PrivilegedWork()), "")
+        XCTAssertTrue(Uninstaller.PrivilegedWork().isEmpty)
+        let work = Uninstaller.PrivilegedWork(apps: [URL(fileURLWithPath: "/Applications/FL Shortcuts.app"),
+                                                     URL(fileURLWithPath: "/Applications/L'autre.app")], receipt: true)
+        XCTAssertEqual(Uninstaller.privilegedScript(work),
+                       "/bin/rm -rf '/Applications/FL Shortcuts.app' '/Applications/L'\\''autre.app'; "
+                       + "/usr/sbin/pkgutil --forget app.flshortcut.pkg >/dev/null")
+        // Plus rien au système (app à l'utilisateur, reçu oublié par le .pkg) : aucune demande, même s'il reste un
+        // vieux reçu ; les autorisations sont celles de l'utilisateur, retirées sans mot de passe.
+        let home = URL(fileURLWithPath: "/nulle/part")
+        XCTAssertTrue(Uninstaller.privilegedWork(home: home, receiptExists: true).apps.allSatisfy { $0.path.hasPrefix("/Applications/") })
+        if Uninstaller.privilegedWork(home: home, receiptExists: false).apps.isEmpty {
+            XCTAssertTrue(Uninstaller.privilegedWork(home: home, receiptExists: true).isEmpty, "reçu seul : pas de mot de passe")
+        }
     }
 
     func testInstallerWritesIntoDedicatedFolder() throws {
@@ -90,7 +176,7 @@ final class InstallerTests: XCTestCase {
         try FileManager.default.createDirectory(at: hardware, withIntermediateDirectories: true)
         let dest = try FLScriptInstaller.write(script: Data("print(1)".utf8), hardware: hardware)
         XCTAssertEqual(dest.lastPathComponent, "device_FLShortcut.py")
-        XCTAssertEqual(dest.deletingLastPathComponent().lastPathComponent, "FL Shortcut")
+        XCTAssertEqual(dest.deletingLastPathComponent().lastPathComponent, "FL Shortcuts")
         XCTAssertEqual(SecureFile.permissions(at: dest.path)?.mode, 0o600)
 
         let defaults = try XCTUnwrap(UserDefaults(suiteName: "FLShortcutTests-\(UUID())"))
@@ -98,6 +184,61 @@ final class InstallerTests: XCTestCase {
         XCTAssertEqual(ScriptIntegrity.check(defaults: defaults), .ok)
         try Data("print(2)".utf8).write(to: dest)
         XCTAssertEqual(ScriptIntegrity.check(defaults: defaults), .modified)
+    }
+
+    /// Clé là mais script disparu de FL : remis avec la même clé (dossier enregistré, sinon celui de FL par défaut) ;
+    /// jamais sans clé, jamais par-dessus un script modifié.
+    func testRepairPutsMissingScriptBackWithSameKey() throws {
+        let hardware = dir.appendingPathComponent("Settings/Hardware", isDirectory: true)
+        try FileManager.default.createDirectory(at: hardware, withIntermediateDirectories: true)
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: "FLShortcutTests-\(UUID())"))
+        let secrets = MemorySecrets()
+        let template = "# name=FL Shortcuts\nKEY_HEX = \"__FLSHORTCUT_KEY__\"\n"
+        let absent = dir.appendingPathComponent("absent", isDirectory: true)
+        // Le dossier temporaire passe par /var, un lien sur macOS : refusé par l'app, d'où ce contrôle sans les liens.
+        let usable: (URL) -> Bool = { SecureFile.kind(at: $0.path) == .directory }
+        func repair(_ fallback: URL) -> URL? {
+            FLScriptInstaller.repairIfNeeded(secrets: secrets, defaults: defaults, template: template,
+                                             defaultHardware: fallback, usable: usable)
+        }
+
+        XCTAssertNil(repair(hardware), "sans clé : écran d'installation, rien d'écrit")
+        secrets.key = key
+        let dest = try XCTUnwrap(repair(hardware))
+        XCTAssertEqual(dest.path, hardware.appendingPathComponent("FL Shortcuts/device_FLShortcut.py").path)
+        XCTAssertEqual(try String(contentsOf: dest, encoding: .utf8),
+                       "# name=FL Shortcuts\nKEY_HEX = \"000102030405060708090a0b0c0d0e0f\"\n")
+        XCTAssertEqual(ScriptIntegrity.check(defaults: defaults), .ok)
+        XCTAssertNil(repair(hardware), "script en place : rien à faire")
+
+        try FileManager.default.removeItem(at: dest.deletingLastPathComponent())
+        XCTAssertEqual(ScriptIntegrity.check(defaults: defaults), .missing)
+        XCTAssertEqual(repair(absent)?.path, dest.path, "remis au même endroit")
+        XCTAssertEqual(FLScriptInstaller.installedScript(defaults: defaults)?.present, true)
+
+        try Data("print(2)".utf8).write(to: dest)
+        XCTAssertNil(repair(hardware), "modifié par quelqu'un : jamais réécrit")
+        XCTAssertEqual(try String(contentsOf: dest, encoding: .utf8), "print(2)")
+
+        let other = try XCTUnwrap(UserDefaults(suiteName: "FLShortcutTests-\(UUID())"))
+        XCTAssertNil(FLScriptInstaller.repairIfNeeded(secrets: secrets, defaults: other, template: template,
+                                                      defaultHardware: absent, usable: usable), "aucun dossier de FL : rien")
+        if SecureFile.pathContainsSymlink(hardware) {
+            XCTAssertNil(FLScriptInstaller.repairIfNeeded(secrets: secrets, defaults: other, template: template,
+                                                          defaultHardware: hardware), "dossier par un lien : refusé")
+        }
+        XCTAssertNil(FLScriptInstaller.installedScript(defaults: other))
+    }
+
+    func testScriptFolderShownFromHome() {
+        let home = URL(fileURLWithPath: "/Users/nina")
+        XCTAssertEqual(FLScriptInstaller.displayFolder(
+            of: URL(fileURLWithPath: "/Users/nina/Documents/Image-Line/FL Studio/Settings/Hardware/FL Shortcuts/"
+                    + "device_FLShortcut.py"), home: home),
+                       "Documents › Image-Line › FL Studio › Settings › Hardware › FL Shortcuts")
+        XCTAssertEqual(FLScriptInstaller.displayFolder(
+            of: URL(fileURLWithPath: "/Volumes/Son/FL/Settings/Hardware/FL Shortcuts/device_FLShortcut.py"), home: home),
+                       "Volumes › Son › FL › Settings › Hardware › FL Shortcuts")
     }
 
     func testHardwareFolderResolution() {
@@ -120,4 +261,11 @@ final class InstallerTests: XCTestCase {
         XCTAssertNil(FileSecretStore.parseHex(String(repeating: "g", count: 32)))
         XCTAssertEqual(FLProtocol.hex(key), "000102030405060708090a0b0c0d0e0f")
     }
+}
+
+private final class MemorySecrets: SecretStore {
+    var key: [UInt8]?
+    func load() -> [UInt8]? { key }
+    func save(_ key: [UInt8]) throws { self.key = key }
+    func delete() { key = nil }
 }

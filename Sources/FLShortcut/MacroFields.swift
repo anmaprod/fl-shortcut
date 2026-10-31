@@ -39,8 +39,8 @@ struct MacroFields: View {
 
     /// Titre du bouton « Tester » (compte à rebours pendant l'attente).
     private var testTitle: String {
-        guard let left = countdown else { return "Tester dans FL" }
-        return "Départ dans \(left) s…"
+        guard let left = countdown else { return String(localized: "Tester dans FL") }
+        return String(localized: "Départ dans \(left) s…")
     }
 
     var body: some View {
@@ -48,8 +48,8 @@ struct MacroFields: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text("Enregistrement rapide").fontWeight(.medium)
                 Text(automatic
-                     ? "Clique au milieu de la tranche d'une piste du Mixer, puis tape le raccourci : ton preset fixe est déposé sur la piste (sinon File › Open mixer track state pour le choisir), armement, REC, entrée 1, et le larsen vérifié en dernier. Ce qui est déjà allumé n'est pas touché."
-                     : "Clic droit sur la piste → File → Open mixer track state, preset, armement, entrée 1, REC.")
+                     ? String(localized: "Clique au milieu de la tranche d'une piste du Mixer, puis tape le raccourci : ton preset fixe est déposé sur la piste (sinon File › Open mixer track state pour le choisir), armement, REC, entrée 1, et le larsen vérifié en dernier. Ce qui est déjà allumé n'est pas touché.")
+                     : String(localized: "Clic droit sur la piste → File → Open mixer track state, preset, armement, entrée 1, REC."))
                     .font(.caption).foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
                 if automatic, let customize {
@@ -83,8 +83,10 @@ struct MacroFields: View {
             }
         }
 
-        Toggle(automatic ? "Armer la piste (si elle ne l'est pas) et choisir l'entrée 1" : "Choisir l'entrée 1 et armer la piste", isOn: $macro.armAndInput)
-        Toggle(automatic ? "Allumer le REC à la fin (s'il est éteint)" : "Allumer REC à la fin", isOn: Binding(get: { macro.startRecording }, set: { on in
+        Toggle(automatic ? String(localized: "Armer la piste (si elle ne l'est pas) et choisir l'entrée 1")
+                         : String(localized: "Choisir l'entrée 1 et armer la piste"), isOn: $macro.armAndInput)
+        Toggle(automatic ? String(localized: "Allumer le REC à la fin (s'il est éteint)")
+                         : String(localized: "Allumer REC à la fin"), isOn: Binding(get: { macro.startRecording }, set: { on in
             macro.startRecording = on
             if on { macro.recKey = AppMode.nativeEquivalent(of: 3, layout: SystemKeyboardLayout()) }
         }))
@@ -96,13 +98,13 @@ struct MacroFields: View {
                     VStack(alignment: .leading, spacing: 4) {
                         HStack(spacing: 8) {
                             if link.snapshot.hasKey {
-                                Button(checking ? "Vérification…" : "Vérifier") { checkLink() }.secondaryButton().disabled(checking)
+                                Button(checking ? String(localized: "Vérification…") : String(localized: "Vérifier")) { checkLink() }.secondaryButton().disabled(checking)
                                 Button("Réinstaller…") { FLScriptInstaller.installWithAlert() }.secondaryButton()
                             } else {
                                 Button("Installer le lien avec FL…") { FLScriptInstaller.installWithAlert() }.primaryButton()
                             }
                         }
-                        Text(linkNote ?? "Sert seulement pendant la macro, à vérifier si la piste et le REC sont déjà armés. Le reste du temps, rien ne circule : FL ne ralentit pas. Une fois dans FL : Options › MIDI Settings, Input « FL Shortcut » : Enable et Controller type « FL Shortcut » ; Output « FL Shortcut » : même numéro de port.")
+                        Text(linkNote ?? String(localized: "Sert seulement pendant la macro, à vérifier si la piste et le REC sont déjà armés. Le reste du temps, rien ne circule : FL ne ralentit pas. Une fois dans FL : Options › MIDI Settings, Input « FL Shortcuts » : Enable et Controller type « FL Shortcuts » ; Output « FL Shortcuts » : même numéro de port."))
                             .font(.caption).foregroundStyle(.secondary)
                             .fixedSize(horizontal: false, vertical: true)
                     }
@@ -114,8 +116,8 @@ struct MacroFields: View {
                         Button("Réapprendre…") { MacroSpots.forgetAll(); spotsLearned = false }.secondaryButton()
                     }
                     Text(spotsLearned
-                         ? "L'entrée 1 est retenue. Réapprends-la si tu changes la disposition de FL."
-                         : "« File › Open mixer track state » s'ouvre tout seul, au clavier (lettres soulignées du menu de FL). La première fois, une bulle te demande seulement de cliquer sur « (none) » puis sur l'entrée « 1 ».")
+                         ? String(localized: "L'entrée 1 est retenue. Réapprends-la si tu changes la disposition de FL.")
+                         : String(localized: "« File › Open mixer track state » s'ouvre tout seul, au clavier (lettres soulignées du menu de FL). La première fois, une bulle te demande seulement de cliquer sur « (none) » puis sur l'entrée « 1 »."))
                         .font(.caption).foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
                 }
@@ -123,9 +125,9 @@ struct MacroFields: View {
         } else {
             LabeledContent("Positions") {
                 VStack(alignment: .leading, spacing: 6) {
-                    learnRow(title: "Menu de la piste", done: menuLearned, optional: true, phase: .menu)
+                    learnRow(title: String(localized: "Menu de la piste"), done: menuLearned, optional: true, phase: .menu)
                     if macro.armAndInput {
-                        learnRow(title: "Armement et entrée", done: armLearned, optional: false, phase: .armInput)
+                        learnRow(title: String(localized: "Armement et entrée"), done: armLearned, optional: false, phase: .armInput)
                     }
                     if let step = learner.instruction {
                         Text(step).font(.callout).foregroundStyle(.tint)
@@ -157,8 +159,8 @@ struct MacroFields: View {
                     .disabled(countdown != nil || learner.isActive)
                 }
                 Text(testNote ?? (automatic
-                    ? "FL passe devant et la macro vise la dernière piste sur laquelle tu as cliqué. Échap l'arrête."
-                    : "FL passe devant : place la souris sur une piste du Mixer avant la fin du compte à rebours. Échap arrête la macro."))
+                    ? String(localized: "FL passe devant et la macro vise la dernière piste sur laquelle tu as cliqué. Échap l'arrête.")
+                    : String(localized: "FL passe devant : place la souris sur une piste du Mixer avant la fin du compte à rebours. Échap arrête la macro.")))
                     .font(.caption).foregroundStyle(testNote == nil ? Color.secondary : Color.orange)
                     .fixedSize(horizontal: false, vertical: true)
             }
@@ -201,7 +203,7 @@ struct MacroFields: View {
             if learner.isActive {
                 Button("Annuler") { learner.cancel() }.secondaryButton()
             } else {
-                Button(done ? "Refaire" : "Apprendre") {
+                Button(done ? String(localized: "Refaire") : String(localized: "Apprendre")) {
                     learner.begin(phase) { spots in
                         for (name, spot) in spots { macro.spots[name] = spot }
                     }
@@ -220,7 +222,7 @@ struct MacroFields: View {
         }
         guard let pid = EventTap.shared.currentConfig.flPIDs.first,
               let fl = NSRunningApplication(processIdentifier: pid) else {
-            testNote = "Ouvre FL Studio, puis recommence."
+            testNote = String(localized: "Ouvre FL Studio, puis recommence.")
             return
         }
         let draft = macro
@@ -233,8 +235,8 @@ struct MacroFields: View {
                 countdown = nil
                 switch MacroRunner.shared.start(draft, flPID: pid) {
                 case .started: break
-                case .busy: testNote = "Une macro tourne déjà."
-                case .refused: testNote = "FL Studio n'était pas au premier plan : recommence sans changer de fenêtre."
+                case .busy: testNote = String(localized: "Une macro tourne déjà.")
+                case .refused: testNote = String(localized: "FL Studio n'était pas au premier plan : recommence sans changer de fenêtre.")
                 }
             }
         }
@@ -249,23 +251,38 @@ struct MacroFields: View {
             let why = MIDILink.shared.runBriefly([])
             DispatchQueue.main.async {
                 checking = false
-                linkNote = why.map { "Pas de réponse : \($0)." } ?? "FL répond : le lien est prêt."
+                linkNote = why.map { String(localized: "Pas de réponse : \($0).") } ?? String(localized: "FL répond : le lien est prêt.")
             }
         }
     }
 
     private func choosePreset() {
+        if let path = PresetPanel.choose() { macro.presetPath = path }
+    }
+}
+
+/// Boîte « Ouvrir » d'un état de piste du Mixer (.fst), ouverte dans le dossier d'Image-Line s'il existe.
+enum PresetPanel {
+    /// Chemin choisi, nil si la boîte est annulée.
+    static func choose() -> String? {
         let panel = NSOpenPanel()
-        panel.title = "Choisis un état de piste du Mixer (.fst)"
+        panel.title = String(localized: "Choisis un état de piste du Mixer (.fst)")
         panel.canChooseFiles = true
         panel.canChooseDirectories = false
         panel.allowsMultipleSelection = false
         if let type = UTType(filenameExtension: "fst") { panel.allowedContentTypes = [type] }
-        let home = FileManager.default.homeDirectoryForCurrentUser
-        let candidates = ["Documents/Image-Line", "Music/Image-Line", "Documents"]
-        panel.directoryURL = candidates.map { home.appendingPathComponent($0) }
-            .first { FileManager.default.fileExists(atPath: $0.path) }
-        guard panel.runModal() == .OK, let url = panel.url else { return }
-        macro.presetPath = url.path
+        panel.directoryURL = startFolder(home: FileManager.default.homeDirectoryForCurrentUser) {
+            FileManager.default.fileExists(atPath: $0.path)
+        }
+        guard panel.runModal() == .OK, let url = panel.url else { return nil }
+        return url.path
+    }
+
+    /// Dossier où la boîte s'ouvre : directement Image-Line › FL Studio › Presets › Mixer presets (demande du
+    /// propriétaire, 25/10), sinon le plus proche qui existe.
+    static func startFolder(home: URL, exists: (URL) -> Bool) -> URL? {
+        let candidates = ["Documents/Image-Line/FL Studio/Presets/Mixer presets", "Documents/Image-Line/FL Studio/Presets",
+                          "Documents/Image-Line/FL Studio", "Documents/Image-Line", "Music/Image-Line", "Documents"]
+        return candidates.map { home.appendingPathComponent($0, isDirectory: true) }.first(where: exists)
     }
 }

@@ -1,6 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
-  <!-- Cœur portable de FL Shortcut pour Windows : aucune dépendance Windows, testable sous Linux/macOS. -->
+  <!-- Cœur portable de FL Shortcuts pour Windows : aucune dépendance Windows, testable sous Linux/macOS. -->
   <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>
     <Nullable>enable</Nullable>
@@ -13,6 +13,17 @@
 
   <ItemGroup>
     <InternalsVisibleTo Include="FLShortcut.Core.Tests" />
+  </ItemGroup>
+
+  <!-- IA intégrée de l'Organiser (ia/modele/classeur_sons.onnx), hors ligne, sur le processeur. -->
+  <ItemGroup>
+    <PackageReference Include="Microsoft.ML.OnnxRuntime" Version="1.20.1" />
+  </ItemGroup>
+
+  <!-- Textes en anglais : ceux du Mac (mêmes clés françaises), puis ceux propres à Windows. -->
+  <ItemGroup>
+    <EmbeddedResource Include="..\..\Resources\en.lproj\Localizable.strings" LogicalName="en.lproj.Localizable.strings" />
+    <EmbeddedResource Include="en-windows.strings" LogicalName="en-windows.strings" />
   </ItemGroup>
 
 </Project>

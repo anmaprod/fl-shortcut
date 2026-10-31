@@ -1,9 +1,9 @@
-# Compilation, tests et publication de FL Shortcut.
+# Compilation, tests et publication de FL Shortcuts.
 # Audit : SEC-09 / SUP-xx — actions épinglées par SHA de commit (le tag n'est qu'un commentaire),
 # jeton en lecture seule par défaut, écriture limitée au job de publication, identifiants git non conservés,
 # empreinte SHA-256 et attestation de provenance publiées avec le .dmg.
 # Les SHA ci-dessous ont été relevés le 8 octobre 2026 ; Dependabot (dependabot.yml) les tient à jour.
-name: FL Shortcut
+name: FL Shortcuts
 
 on:
   push:
@@ -11,6 +11,12 @@ on:
     tags: ["v*"]
   pull_request:
   workflow_dispatch:
+    inputs:
+      mac_runner:
+        description: "Mac de compilation (macos-26 par défaut ; un autre quand GitHub manque de Mac arm64)"
+        type: choice
+        default: macos-26
+        options: [macos-26, macos-15-intel, macos-15]
 
 permissions:
   contents: read
@@ -30,8 +36,22 @@ jobs:
       - name: Tests du script FL
         run: python3 -m unittest discover -s Tests/python -v
 
+  communaute-sql:
+    name: Serveur de la Communauté (règles d'accès)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: supabase/schema.sql et ses règles sur un vrai PostgreSQL
+        run: |
+          sudo systemctl start postgresql.service
+          sudo -u postgres createuser -s "$USER"
+          supabase/tests/run.sh -h /var/run/postgresql
+
   windows-core:
     name: Cœur Windows (tests .NET)
+    # Version Windows reprise le 25/10 (demande du propriétaire) : compilée et essayée à chaque envoi.
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -56,8 +76,8 @@ jobs:
             dotnet publish windows/FLShortcut.App -c Release -r "win-$arch" "-p:Platform=$($targets[$arch])" -o "dist/win-$arch"
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           }
-          Compress-Archive -Path dist/win-x64/* -DestinationPath dist/FLShortcut-win-x64.zip
-          Compress-Archive -Path dist/win-arm64/* -DestinationPath dist/FLShortcut-win-arm64.zip
+          Compress-Archive -Path dist/win-x64/* -DestinationPath dist/FLShortcuts-win-x64.zip
+          Compress-Archive -Path dist/win-arm64/* -DestinationPath dist/FLShortcuts-win-arm64.zip
       - name: Installeur (un seul fichier, x64 + ARM64, sans droits administrateur)
         shell: pwsh
         env:
@@ -76,21 +96,92 @@ jobs:
           } else { $iscc = $iscc.Source }
           & $iscc "/DAppVersion=$version" "/DDistDir=$PWD\dist" windows/installer/FLShortcut.iss
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          Get-FileHash dist/FLShortcut-Windows-Setup.exe, dist/*.zip -Algorithm SHA256 | ForEach-Object { "$($_.Hash.ToLower())  $(Split-Path $_.Path -Leaf)" } | Out-File -Encoding ascii dist/FLShortcut-win.sha256
+          Get-FileHash dist/FLShortcuts-Windows-Setup.exe, dist/*.zip -Algorithm SHA256 | ForEach-Object { "$($_.Hash.ToLower())  $(Split-Path $_.Path -Leaf)" } | Out-File -Encoding ascii dist/FLShortcuts-win.sha256
+      - name: Photos de l'Organiser (mode photos, sons d'exemple, rien n'est envoyé à FL)
+        continue-on-error: true      # photos à relire : n'empêchent jamais la publication
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force dist/photos-windows | Out-Null
+          # Sous le débogueur de Windows (cdb, livré avec le kit de Windows) s'il est là : si WinUI tombe, il dit
+          # l'erreur d'origine (HRESULT, message envoyé au débogueur) et la pile, au lieu du seul 0xC000027B.
+          $cdb = Get-ChildItem "${env:ProgramFiles(x86)}\Windows Kits\10\Debuggers\x64\cdb.exe", "$env:ProgramFiles\Windows Kits\10\Debuggers\x64\cdb.exe" -ErrorAction SilentlyContinue | Select-Object -First 1
+          if ($cdb) {
+            "débogueur : $($cdb.FullName)"
+            $env:_NT_SYMBOL_PATH = "srv*$env:RUNNER_TEMP\symboles*https://msdl.microsoft.com/download/symbols"
+            $journal = "$env:RUNNER_TEMP\cdb.txt"
+            # Tas « page entière » (page heap de Windows), le temps des photos seulement : une écriture dans une
+            # mémoire déjà libérée arrête l'appli sur place, avec la pile de celui qui écrit (29/10 : le tas abîmé
+            # n'était remarqué qu'à la création du menu de l'icône, sans dire par qui).
+            $ifeo = 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options\FLShortcut.exe'
+            New-Item -Path $ifeo -Force | Out-Null
+            New-ItemProperty -Path $ifeo -Name GlobalFlag -PropertyType DWord -Value 0x02000000 -Force | Out-Null
+            New-ItemProperty -Path $ifeo -Name PageHeapFlags -PropertyType DWord -Value 3 -Force | Out-Null
+            try {
+              $app = Start-Process -FilePath $cdb.FullName -PassThru -NoNewWindow -RedirectStandardOutput $journal -ArgumentList `
+                '-lines', '-c', '"g; .echo ==== ARRET ====; !analyze -v; .ecxr; kc 60; ~*kc 12; q"', "$PWD\dist\win-x64\FLShortcut.exe", '--photos', "$PWD\dist\photos-windows"
+              if (-not $app.WaitForExit(300000)) { $app.Kill(); Write-Output "::warning::mode photos arrêté au bout de 5 min" }
+            } finally {
+              Remove-Item -Path $ifeo -Recurse -Force -ErrorAction SilentlyContinue
+            }
+            # Le débogueur parle beaucoup (modules chargés, piles de tous les fils) : ce qui compte, l'analyse de
+            # l'arrêt (exception, fil fautif), gardée en entier ; puis la fin, sans les modules chargés.
+            $lignes = @(Get-Content $journal | Where-Object { $_ -notmatch '^ModLoad:' })
+            $arret = $lignes | Select-String -SimpleMatch '==== ARRET ====' | Select-Object -First 1
+            if ($arret) {
+              $debut = $arret.LineNumber - 1
+              $lignes[$debut..([Math]::Min($debut + 260, $lignes.Count - 1))]
+              "…"
+            }
+            $lignes | Select-Object -Last 120
+          } else {
+            "débogueur absent : lancement simple"
+            $app = Start-Process -FilePath dist/win-x64/FLShortcut.exe -ArgumentList '--photos', "$PWD\dist\photos-windows" -PassThru
+            if (-not $app.WaitForExit(120000)) { $app.Kill(); Write-Output "::warning::mode photos arrêté au bout de 2 min" }
+            "code de sortie : $($app.ExitCode)"
+          }
+          Get-ChildItem dist/photos-windows | ForEach-Object { "$($_.Name)  $($_.Length) octets" }
+          Get-Content dist/photos-windows/photos-journal.txt -ErrorAction SilentlyContinue
+          "fichiers .pri : $((Get-ChildItem dist/win-x64 -Filter *.pri | ForEach-Object Name) -join ', ')"
+          # L'appli est tombée : ce que Windows a noté (exception .NET avec sa pile, module fautif).
+          Get-WinEvent -FilterHashtable @{ LogName = 'Application'; ProviderName = '.NET Runtime', 'Application Error' } -MaxEvents 4 -ErrorAction SilentlyContinue |
+            ForEach-Object { "---- $($_.ProviderName) $($_.TimeCreated)"; $_.Message }
+      - name: Essai des macros (faux FL dans l'appli, Menu de FL, grisé, clic appris, menu de la piste, preset déposé, boîte Open)
+        continue-on-error: true      # à relire (comme les essais du Mac) : n'empêche jamais la publication
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force dist/essai-macros | Out-Null
+          $app = Start-Process -FilePath dist/win-x64/FLShortcut.exe -ArgumentList '--selftest-macros', "$PWD\dist\essai-macros" -PassThru
+          if (-not $app.WaitForExit(180000)) { $app.Kill(); Write-Output "::warning::essai des macros arrêté au bout de 3 min" }
+          "code de sortie : $($app.ExitCode)"
+          $rapport = "dist/essai-macros/macros-essai.txt"
+          if (Test-Path $rapport) {
+            Get-Content $rapport
+            "## Essai des macros Windows" >> $env:GITHUB_STEP_SUMMARY
+            '```' >> $env:GITHUB_STEP_SUMMARY
+            Get-Content $rapport >> $env:GITHUB_STEP_SUMMARY
+            '```' >> $env:GITHUB_STEP_SUMMARY
+            if ((Get-Content $rapport -TotalCount 1) -ne 'PASS') { exit 1 }
+          } else { "rapport absent"; exit 1 }
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: FLShortcut-windows
+          name: FLShortcuts-windows-photos
+          path: dist/photos-windows
+          if-no-files-found: ignore
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: FLShortcuts-windows
           path: |
-            dist/FLShortcut-Windows-Setup.exe
-            dist/FLShortcut-win-*.zip
-            dist/FLShortcut-win.sha256
+            dist/FLShortcuts-Windows-Setup.exe
+            dist/FLShortcuts-win-*.zip
+            dist/FLShortcuts-win.sha256
           if-no-files-found: error
 
   mac:
     name: App Mac (compilation + tests)
     # SDK macOS 26 (Xcode 26+) : sans lui, l'app garde l'ancien aspect, sans aucun Liquid Glass système
     # (barre latérale, barre d'outils, feuilles, boutons, panneau de la barre des menus).
-    runs-on: macos-26
+    # Lancement à la main : un autre Mac possible (GitHub manque parfois de Mac arm64 : « not acquired by Runner »).
+    runs-on: ${{ inputs.mac_runner || 'macos-26' }}
     needs: script-fl
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -112,6 +203,11 @@ jobs:
           NOTARY_KEY_P8: ${{ secrets.NOTARY_KEY_P8 }}
           NOTARY_KEY_ID: ${{ secrets.NOTARY_KEY_ID }}
           NOTARY_ISSUER: ${{ secrets.NOTARY_ISSUER }}
+          # Facultatif : serveur de la Communauté (supabase/README.md) ; sans eux, la page dit « pas encore ouverte ».
+          FLS_SUPABASE_URL: ${{ secrets.FLS_SUPABASE_URL }}
+          FLS_SUPABASE_ANON_KEY: ${{ secrets.FLS_SUPABASE_ANON_KEY }}
+          # Facultatif : adresse de l'équipe pour la page Aide (variable du dépôt, publique : elle est dans l'app).
+          FLS_SUPPORT_EMAIL: ${{ vars.FLS_SUPPORT_EMAIL }}
         run: |
           set -euo pipefail
           if [[ -n "${MAC_CERT_P12:-}" ]]; then
@@ -137,13 +233,24 @@ jobs:
           fi
           chmod +x build.sh
           ./build.sh
+      - name: Textes en anglais (textes de l'app comparés à en.lproj)
+        id: anglais
+        # Un texte sans anglais rend la CI rouge à la fin du job (un Mac réglé dans une autre langue que le français
+        # le verrait en français) ; les essais et le .dmg passent quand même.
+        continue-on-error: true
+        run: |
+          set -o pipefail
+          scripts/cles-traduction.sh dist/mesure --strict | tee -a "$GITHUB_STEP_SUMMARY"
       - name: Mesure de l'interface (mémoire et processeur, avec et sans verre)
         continue-on-error: true      # mesure indicative : n'empêche jamais la publication
         run: |
           {
             echo "## Mesure de l'interface (macOS 26)"
-            scripts/mesure-interface.sh "dist/FL Shortcut.app" dist/mesure
+            scripts/mesure-interface.sh "dist/FL Shortcuts.app" dist/mesure
           } | tee -a "$GITHUB_STEP_SUMMARY"
+      - name: Captures en anglais (app réglée sur l'anglais)
+        continue-on-error: true      # captures à relire : n'empêchent jamais la publication
+        run: scripts/captures-anglais.sh "dist/FL Shortcuts.app" dist/mesure/anglais
       - name: Essai du choix automatique du preset (vraie boîte « Open » de macOS)
         continue-on-error: true      # dépend de l'autorisation d'envoi d'événements du runner
         run: |
@@ -152,7 +259,7 @@ jobs:
           pkill -x FLShortcut 2>/dev/null || true
           # Lancé depuis le shell (qui a l'autorisation d'envoyer des événements sur le runner) ; l'essai passe
           # lui-même au premier plan.
-          "dist/FL Shortcut.app/Contents/MacOS/FLShortcut" --selftest-preset "$OUT" &
+          "dist/FL Shortcuts.app/Contents/MacOS/FLShortcut" --selftest-preset "$OUT" &
           pid=$!
           ( for i in $(seq -w 1 16); do screencapture -x "dist/mesure/selftest-preset-$i.png" 2>/dev/null; sleep 0.4; done ) &
           # Chien de garde arrêté dès la fin de l'essai : sinon il survit à l'étape et tue l'essai suivant.
@@ -167,11 +274,12 @@ jobs:
         continue-on-error: true      # indicatif tant que le FL simulé est jeune ; le résultat est dans le résumé
         run: |
           mkdir -p dist/mesure
-          BIN="dist/FL Shortcut.app/Contents/MacOS/FLShortcut"
+          BIN="dist/FL Shortcuts.app/Contents/MacOS/FLShortcut"
           STATE="$RUNNER_TEMP/fakefl.json"
           OUT="$PWD/dist/mesure/selftest-macro.txt"
           OUT2="$PWD/dist/mesure/selftest-macro-blocs.txt"
           OUT3="$PWD/dist/mesure/selftest-macro-clics.txt"
+          OUT4="$PWD/dist/mesure/selftest-macro-touches.txt"
           pkill -x FLShortcut 2>/dev/null || true
           "$BIN" --fake-fl "$STATE" &
           fake=$!
@@ -196,33 +304,61 @@ jobs:
           "$BIN" --selftest-macro "$OUT3" "$STATE" "$fake" --scenario clics &
           drv3=$!
           ( for i in $(seq -w 1 12); do screencapture -x "dist/mesure/selftest-clics-$i.png" 2>/dev/null; sleep 1; done ) &
-          ( sleep 90; kill "$drv3" 2>/dev/null ) &
+          ( sleep 120; kill "$drv3" 2>/dev/null ) &
           dog=$!
           status3=0; wait "$drv3" || status3=$?
+          kill "$dog" 2>/dev/null || true
+          # 4. « Enregistrer clics et touches » au clavier : ↓ et Entrée dans les menus de FL, ⌘S, R, puis rejeu.
+          "$BIN" --selftest-macro "$OUT4" "$STATE" "$fake" --scenario touches &
+          drv4=$!
+          ( for i in $(seq -w 1 12); do screencapture -x "dist/mesure/selftest-touches-$i.png" 2>/dev/null; sleep 1; done ) &
+          ( sleep 90; kill "$drv4" 2>/dev/null ) &
+          dog=$!
+          status4=0; wait "$drv4" || status4=$?
           kill "$dog" 2>/dev/null || true
           kill "$fake" 2>/dev/null || true
           { echo "## Essai de la macro sur le FL simulé"; echo '```'; cat "$OUT"; echo '```'
             echo "## Essai d'une macro construite en blocs (chemin du bouton « Tester »)"; echo '```'; cat "$OUT2"; echo '```'
-            echo "## Essai « Enregistrer des clics » (enregistrement puis rejeu)"; echo '```'; cat "$OUT3"; echo '```'; } | tee -a "$GITHUB_STEP_SUMMARY"
-          grep -Eq '^(PASS|SKIP)' "$OUT" && grep -Eq '^(PASS|SKIP)' "$OUT2" && grep -Eq '^(PASS|SKIP)' "$OUT3" && exit 0
+            echo "## Essai « Enregistrer des clics » (enregistrement puis rejeu)"; echo '```'; cat "$OUT3"; echo '```'
+            echo "## Essai « Enregistrer clics et touches » au clavier (enregistrement puis rejeu)"; echo '```'; cat "$OUT4"; echo '```'; } | tee -a "$GITHUB_STEP_SUMMARY"
+          grep -Eq '^(PASS|SKIP)' "$OUT" && grep -Eq '^(PASS|SKIP)' "$OUT2" && grep -Eq '^(PASS|SKIP)' "$OUT3" \
+            && grep -Eq '^(PASS|SKIP)' "$OUT4" && exit 0
           [[ "$status" != 0 ]] && exit "$status"
           [[ "$status2" != 0 ]] && exit "$status2"
-          exit "${status3:-1}"
+          [[ "$status3" != 0 ]] && exit "$status3"
+          exit "${status4:-1}"
+      - name: Essai de la désinstallation (.pkg installé, ancien nom, traces semées, plus rien ne doit rester ; sans puis avec la fenêtre)
+        timeout-minutes: 14
+        run: |
+          status=0
+          scripts/essai-desinstallation.sh dist dist/mesure/desinstallation.txt || status=$?
+          status2=0
+          scripts/essai-desinstallation.sh dist dist/mesure/desinstallation-fenetre.txt fenetre || status2=$?
+          { echo "## Essai de la désinstallation"; echo '```'; cat dist/mesure/desinstallation.txt; echo '```'
+            echo "## Essai de la vraie fenêtre de désinstallation"; echo '```'; cat dist/mesure/desinstallation-fenetre.txt; echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          [[ "$status" != 0 ]] && exit "$status"
+          exit "$status2"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: FLShortcut-mac
+          name: FLShortcuts-mac
           path: |
-            dist/FLShortcut.dmg
-            dist/FLShortcut.dmg.sha256
-            dist/FLShortcut.pkg
-            dist/FLShortcut.pkg.sha256
+            dist/FLShortcuts.dmg
+            dist/FLShortcuts.dmg.sha256
+            dist/FLShortcuts.pkg
+            dist/FLShortcuts.pkg.sha256
           if-no-files-found: error
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always()
         with:
-          name: FLShortcut-mac-mesure
+          name: FLShortcuts-mac-mesure
           path: dist/mesure
           if-no-files-found: ignore
+      - name: Textes sans anglais (voir « Textes en anglais » dans le résumé)
+        if: steps.anglais.outcome == 'failure'
+        run: |
+          echo "::error::Des textes de l'app n'ont pas de traduction anglaise : scripts/localisation.py generer"
+          exit 1
 
   release:
     name: Publication (tag v*)
@@ -242,17 +378,17 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh run download "$GITHUB_RUN_ID" --repo "$GITHUB_REPOSITORY" --name FLShortcut-mac --dir dist
-          gh run download "$GITHUB_RUN_ID" --repo "$GITHUB_REPOSITORY" --name FLShortcut-windows --dir dist
+          gh run download "$GITHUB_RUN_ID" --repo "$GITHUB_REPOSITORY" --name FLShortcuts-mac --dir dist
+          gh run download "$GITHUB_RUN_ID" --repo "$GITHUB_REPOSITORY" --name FLShortcuts-windows --dir dist
       - name: Vérifier les empreintes
-        run: cd dist && sha256sum -c FLShortcut.dmg.sha256 FLShortcut.pkg.sha256 FLShortcut-win.sha256
+        run: cd dist && sha256sum -c FLShortcuts.dmg.sha256 FLShortcuts.pkg.sha256 FLShortcuts-win.sha256
       - uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
         with:
           subject-path: |
-            dist/FLShortcut.dmg
-            dist/FLShortcut.pkg
-            dist/FLShortcut-Windows-Setup.exe
-            dist/FLShortcut-win-*.zip
+            dist/FLShortcuts.dmg
+            dist/FLShortcuts.pkg
+            dist/FLShortcuts-Windows-Setup.exe
+            dist/FLShortcuts-win-*.zip
       - name: Créer la release (outil officiel gh, sans action tierce)
         env:
           GH_TOKEN: ${{ github.token }}
@@ -260,8 +396,8 @@ jobs:
         run: |
           # Noms de fichiers fixes : les liens « releases/latest/download/… » de la page de téléchargement
           # et du README pointent toujours vers la dernière version.
-          gh release create "$TAG" dist/FLShortcut.dmg dist/FLShortcut.dmg.sha256 dist/FLShortcut.pkg dist/FLShortcut.pkg.sha256 \
-            dist/FLShortcut-Windows-Setup.exe dist/FLShortcut-win-x64.zip dist/FLShortcut-win-arm64.zip \
-            dist/FLShortcut-win.sha256 \
-            --repo "$GITHUB_REPOSITORY" --title "FL Shortcut $TAG" \
+          gh release create "$TAG" dist/FLShortcuts.dmg dist/FLShortcuts.dmg.sha256 dist/FLShortcuts.pkg dist/FLShortcuts.pkg.sha256 \
+            dist/FLShortcuts-Windows-Setup.exe dist/FLShortcuts-win-x64.zip dist/FLShortcuts-win-arm64.zip \
+            dist/FLShortcuts-win.sha256 \
+            --repo "$GITHUB_REPOSITORY" --title "FL Shortcuts $TAG" \
             --notes-file .github/release-notes.md --generate-notes --verify-tag

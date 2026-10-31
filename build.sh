@@ -1,5 +1,5 @@
 #!/bin/bash
-# Construit « FL Shortcut.app » et FLShortcut.dmg (app universelle Apple Silicon + Intel).
+# Construit « FL Shortcuts.app » et FLShortcuts.dmg (app universelle Apple Silicon + Intel).
 # Audit : SEC-08 (Hardened Runtime, Developer ID, notarisation, pas de --deep), SEC-09 / SUP (empreinte SHA-256).
 #
 # Usage :
@@ -16,10 +16,11 @@ cd "$(dirname "$0")"
 if [[ -f .diag2 ]]; then rm -f .diag2; bash ./diag2.sh; exit 0; fi
 if [[ -f .diag ]]; then rm -f .diag; bash ./diag.sh; exit 0; fi
 
-APP_NAME="FL Shortcut"
+APP_NAME="FL Shortcuts"
+OLD_APP_NAME="FL Shortcut"       # nom d'avant : ses copies sont retirées à l'installation
 EXE="FLShortcut"
 APP="dist/${APP_NAME}.app"
-DMG="dist/FLShortcut.dmg"
+DMG="dist/FLShortcuts.dmg"
 ARCHS=(--arch arm64 --arch x86_64)
 # FLS_NATIVE=1 : architecture de cette machine seulement (suffit pour tester ; marche aussi sans Xcode complet).
 if [[ "${FLS_NATIVE:-0}" == "1" ]]; then ARCHS=(); fi
@@ -29,25 +30,101 @@ if [[ "${FLS_SKIP_TESTS:-0}" != "1" ]]; then
   swift test
 fi
 
+# Kit de compilation : celui de macOS 26, comme GitHub (Xcode 26.6) pour toutes les versions d'avant. Avec le kit 27
+# (Xcode 27 sur le Mac du propriétaire), macOS 27 dessine l'app autrement (boutons en rectangle arrondi, barres…) :
+# s'il est le kit par défaut et qu'un kit 26 est installé (outils en ligne de commande, Xcode), on prend le 26.
+# SDKROOT=… : ce kit-là ; FLS_SDK=defaut : garder le kit par défaut.
+KIT="${SDKROOT:-}"
+if [[ -z "$KIT" && "${FLS_SDK:-}" != "defaut" ]]; then
+  DEFAULT_SDK=$(xcrun --sdk macosx --show-sdk-version 2>/dev/null || echo 0)
+  if (( ${DEFAULT_SDK%%.*} > 26 )); then
+    KIT=$(ls -d /Library/Developer/CommandLineTools/SDKs/MacOSX26.*.sdk \
+                "$(xcode-select -p 2>/dev/null)"/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.*.sdk 2>/dev/null \
+          | sort -V | tail -1 || true)
+    [[ -n "$KIT" ]] || echo "  (aucun kit de macOS 26 installé : kit $DEFAULT_SDK, l'app aura un autre aspect)"
+  fi
+fi
+
 echo "▸ Compilation release"
-swift build -c release ${ARCHS[@]+"${ARCHS[@]}"}
-BIN_DIR=$(swift build -c release ${ARCHS[@]+"${ARCHS[@]}"} --show-bin-path)
+if [[ -n "$KIT" ]]; then
+  # Une architecture à la fois, avec le système de compilation propre à SwiftPM (« native ») : il prend ce kit et
+  # inscrit sa version dans l'app. Celui d'Xcode compilait avec ce kit mais inscrivait « sdk 13.0 », et celui de
+  # Swift 6.4 (Xcode 27, par défaut) rangeait les deux architectures au même endroit.
+  echo "  kit : $KIT"
+  PARTS=()
+  for A in arm64 x86_64; do
+    if [[ "${FLS_NATIVE:-0}" == "1" && "$A" != "$(uname -m)" ]]; then continue; fi
+    SDKROOT="$KIT" swift build -c release --build-system native --arch "$A"
+    P="$(SDKROOT="$KIT" swift build -c release --build-system native --arch "$A" --show-bin-path)/$EXE"
+    [[ "$(lipo -archs "$P")" == "$A" ]] || { echo "✗ $P n'est pas pour $A ($(lipo -archs "$P"))" >&2; exit 1; }
+    PARTS+=("$P")
+  done
+  BIN_DIR=".build/universel"
+  mkdir -p "$BIN_DIR"
+  lipo -create -output "$BIN_DIR/$EXE" "${PARTS[@]}"
+else
+  swift build -c release ${ARCHS[@]+"${ARCHS[@]}"}
+  BIN_DIR=$(swift build -c release ${ARCHS[@]+"${ARCHS[@]}"} --show-bin-path)
+fi
 
 echo "▸ Assemblage de l'app"
 rm -rf dist
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp "$BIN_DIR/$EXE" "$APP/Contents/MacOS/$EXE"
+# Kit inscrit dans l'app, celui qui décide de son aspect sur macOS 26 et plus (chaque architecture). Un kit choisi
+# qui n'est pas celui inscrit arrête tout : l'app n'aurait pas l'aspect voulu.
+if command -v vtool >/dev/null 2>&1; then
+  INSCRIT=$(vtool -show-build "$APP/Contents/MacOS/$EXE" 2>/dev/null | awk '$1 == "sdk" { print $2 }' | sort -u | tr '\n' ' ')
+  echo "  kit inscrit dans l'app : macOS ${INSCRIT:-?}"
+  if [[ -n "$KIT" ]]; then
+    VOULU=$(basename "$KIT" .sdk)
+    VOULU=${VOULU#MacOSX}
+    for V in $INSCRIT; do
+      [[ "${V%%.*}" == "${VOULU%%.*}" ]] || { echo "✗ kit inscrit ($V) différent du kit choisi ($VOULU)" >&2; exit 1; }
+    done
+  fi
+fi
 cp Resources/Info.plist "$APP/Contents/Info.plist"
 # Version de la release (tag vX.Y.Z en CI) : affichée par le Finder et « À propos ».
 if [[ -n "${FLS_VERSION:-}" ]]; then
   plutil -replace CFBundleShortVersionString -string "$FLS_VERSION" "$APP/Contents/Info.plist"
 fi
+# Communauté (supabase/README.md) : adresse du projet Supabase et sa clé publique « anon ». Sans elles, la page
+# Communauté affiche « bientôt disponible » et l'app ne se connecte jamais à internet.
+if [[ -n "${FLS_SUPABASE_URL:-}" && -n "${FLS_SUPABASE_ANON_KEY:-}" ]]; then
+  plutil -replace FLSCommunityURL -string "$FLS_SUPABASE_URL" "$APP/Contents/Info.plist"
+  plutil -replace FLSCommunityAnonKey -string "$FLS_SUPABASE_ANON_KEY" "$APP/Contents/Info.plist"
+fi
+# Aide : adresse de l'équipe pour « Envoyer par mail » quand le serveur n'est pas branché (ou en cas d'échec).
+if [[ -n "${FLS_SUPPORT_EMAIL:-}" ]]; then
+  plutil -replace FLSSupportEmail -string "$FLS_SUPPORT_EMAIL" "$APP/Contents/Info.plist"
+fi
 cp Resources/device_FLShortcut.py "$APP/Contents/Resources/"
+# Textes de l'app dans la langue du Mac (anglais pour toute langue autre que le français).
+cp -R Resources/en.lproj Resources/fr.lproj "$APP/Contents/Resources/"
+# Un fichier illisible par macOS ferait tout retomber en français : la compilation s'arrête.
+plutil -lint -s "$APP"/Contents/Resources/*.lproj/*.strings
 cp Resources/AppIcon.icns "$APP/Contents/Resources/AppIcon.icns"
+# Les icônes de FL (grille « Change icon… »), pour le choix d'icône de l'Organiser et du bloc « Nom et couleur ».
+cp Resources/FLIcons.png "$APP/Contents/Resources/FLIcons.png"
+cp Resources/MIDISettings.png "$APP/Contents/Resources/MIDISettings.png"   # fenêtre MIDI Settings entourée (lien avec FL)
+# IA intégrée de l'Organiser (famille et sorte des sons) : le modèle Core ML compilé ici ; sans compilateur (outils
+# sans Xcode), le paquet est copié tel quel et l'app le compile à sa première écoute.
+if [[ -d Resources/ClasseurSons.mlpackage ]]; then
+  if xcrun coremlcompiler compile Resources/ClasseurSons.mlpackage "$APP/Contents/Resources/" >/dev/null 2>&1; then
+    echo "▸ IA intégrée : modèle compilé"
+  else
+    cp -R Resources/ClasseurSons.mlpackage "$APP/Contents/Resources/"
+    echo "▸ IA intégrée : modèle copié (compilé par l'app à la première écoute)"
+  fi
+  cp ia/modele/CREDITS.md "$APP/Contents/Resources/ClasseurSons-CREDITS.md"
+  cp ia/modele/LICENCE-YAMNET.txt "$APP/Contents/Resources/ClasseurSons-LICENCE-YAMNET.txt"
+fi
 chmod -R go-w "$APP"
 
 # Identité de signature locale, créée une seule fois dans un trousseau dédié (jamais le trousseau de session) :
 # certificat auto-signé « FL Shortcut Dev », usage « signature de code » uniquement, valable sur ce Mac.
+# Ancien nom de l'app gardé exprès : une autre identité ferait redemander l'autorisation Accessibilité.
 DEV_KC="$HOME/Library/Keychains/flshortcut-dev.keychain-db"
 DEV_KC_PASS="flshortcut-dev"     # trousseau local de développement, ne protège que cette identité
 dev_identity() {
@@ -103,32 +180,10 @@ else
   codesign --force --sign - "$APP"
 fi
 
-# Désinstalleur fourni dans le .dmg : même exécutable, identifiant à part, clé FLSUninstaller (Uninstaller.swift).
-UNINSTALLER="dist/Désinstaller ${APP_NAME}.app"
-echo "▸ Désinstalleur"
-mkdir -p "$UNINSTALLER/Contents/MacOS" "$UNINSTALLER/Contents/Resources"
-cp "$BIN_DIR/$EXE" "$UNINSTALLER/Contents/MacOS/$EXE"
-cp Resources/AppIcon.icns "$UNINSTALLER/Contents/Resources/AppIcon.icns"
-cp Resources/Info.plist "$UNINSTALLER/Contents/Info.plist"
-plutil -replace CFBundleIdentifier -string "app.flshortcut.Uninstaller" "$UNINSTALLER/Contents/Info.plist"
-plutil -replace CFBundleName -string "Désinstaller ${APP_NAME}" "$UNINSTALLER/Contents/Info.plist"
-plutil -replace CFBundleDisplayName -string "Désinstaller ${APP_NAME}" "$UNINSTALLER/Contents/Info.plist"
-plutil -replace LSUIElement -bool NO "$UNINSTALLER/Contents/Info.plist"
-plutil -insert FLSUninstaller -bool YES "$UNINSTALLER/Contents/Info.plist"
-chmod -R go-w "$UNINSTALLER"
-if [[ -n "${SIGN_IDENTITY:-}" ]]; then
-  codesign --force --timestamp --options runtime --sign "$SIGN_IDENTITY" "$UNINSTALLER"
-elif [[ -n "${DEV_ID:-}" ]]; then
-  codesign --force --keychain "$DEV_KC" --sign "$DEV_ID" "$UNINSTALLER" || codesign --force --sign - "$UNINSTALLER"
-else
-  codesign --force --sign - "$UNINSTALLER"
-fi
-
 echo "▸ Image disque"
 STAGE=$(mktemp -d)
 trap 'rm -rf "$STAGE"' EXIT
 cp -R "$APP" "$STAGE/"
-cp -R "$UNINSTALLER" "$STAGE/"
 ln -s /Applications "$STAGE/Applications"
 hdiutil create -volname "$APP_NAME" -srcfolder "$STAGE" -ov -format UDZO "$DMG"
 
@@ -153,28 +208,55 @@ if [[ -n "${SIGN_IDENTITY:-}" ]]; then
   fi
 fi
 
-echo "▸ Paquet d'installation (.pkg) : FL Shortcut et son désinstalleur dans /Applications, en un double-clic"
-PKG="dist/FLShortcut.pkg"
+echo "▸ Paquet d'installation (.pkg) : FL Shortcuts dans /Applications, en un double-clic"
+PKG="dist/FLShortcuts.pkg"
 PKG_ROOT=$(mktemp -d)
 PKG_PLIST=$(mktemp -d)/component.plist
-cp -R "$APP" "$UNINSTALLER" "$PKG_ROOT/"
+cp -R "$APP" "$PKG_ROOT/"
 pkgbuild --analyze --root "$PKG_ROOT" "$PKG_PLIST" >/dev/null
 # Toujours dans /Applications : sans cela, Installer « met à jour » une autre copie du même identifiant
 # (par exemple un build de développement dans ~/Applications) au lieu d'installer celle-ci.
 n=0
-while plutil -extract "$n" xml1 -o /dev/null "$PKG_PLIST" 2>/dev/null; do
+# (Sortie lue sur la sortie standard puis jetée : avec « -o /dev/null », le plutil de macOS 27 écrivait
+# « write: Permission denied » à chaque entrée.)
+while plutil -extract "$n" xml1 -o - "$PKG_PLIST" >/dev/null 2>&1; do
   plutil -replace "$n.BundleIsRelocatable" -bool NO "$PKG_PLIST"
   n=$((n + 1))
 done
+# Après l'installation : retire les copies à l'ancien nom (« FL Shortcut ») et les anciens désinstalleurs à part
+# (on désinstalle maintenant depuis le menu de l'app), seulement si ce sont bien les nôtres (identifiant vérifié).
+PKG_SCRIPTS=$(mktemp -d)
+cat > "$PKG_SCRIPTS/postinstall" <<SCRIPT
+#!/bin/bash
+for pair in "${OLD_APP_NAME}.app:app.flshortcut.FLShortcut" "Désinstaller ${OLD_APP_NAME}.app:app.flshortcut.Uninstaller" \
+            "Désinstaller ${APP_NAME}.app:app.flshortcut.Uninstaller"; do
+  app="\${3%/}/Applications/\${pair%%:*}"
+  [[ -d "\$app" && ! -L "\$app" ]] || continue
+  id=\$(/usr/libexec/PlistBuddy -c "Print :CFBundleIdentifier" "\$app/Contents/Info.plist" 2>/dev/null)
+  [[ "\$id" == "\${pair##*:}" ]] && rm -rf "\$app"
+done
+# L'app appartient à la personne connectée, comme une app glissée depuis un .dmg : elle la désinstalle sans mot de
+# passe. Le reçu du .pkg (écrit par Installer après ce script) est oublié juste après : rien ne reste au système.
+user=\$(/usr/bin/stat -f%Su /dev/console 2>/dev/null)
+app="\${3%/}/Applications/${APP_NAME}.app"
+if [[ -n "\$user" && "\$user" != root && -d "\$app" && ! -L "\$app" ]]; then
+  /usr/sbin/chown -R "\$user":staff "\$app"
+fi
+( sleep 8; /usr/sbin/pkgutil --forget app.flshortcut.pkg ) </dev/null >/dev/null 2>&1 &
+disown 2>/dev/null || true
+exit 0
+SCRIPT
+chmod 755 "$PKG_SCRIPTS/postinstall"
 PKG_VERSION=$(/usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" "$APP/Contents/Info.plist")
 pkgbuild --root "$PKG_ROOT" --component-plist "$PKG_PLIST" --install-location /Applications \
-  --identifier app.flshortcut.pkg --version "$PKG_VERSION" "dist/FLShortcut-component.pkg" >/dev/null
+  --scripts "$PKG_SCRIPTS" \
+  --identifier app.flshortcut.pkg --version "$PKG_VERSION" "dist/FLShortcuts-component.pkg" >/dev/null
 if [[ -n "${INSTALLER_SIGN_IDENTITY:-}" ]]; then
-  productbuild --package "dist/FLShortcut-component.pkg" --sign "$INSTALLER_SIGN_IDENTITY" "$PKG"
+  productbuild --package "dist/FLShortcuts-component.pkg" --sign "$INSTALLER_SIGN_IDENTITY" "$PKG"
 else
-  productbuild --package "dist/FLShortcut-component.pkg" "$PKG"
+  productbuild --package "dist/FLShortcuts-component.pkg" "$PKG"
 fi
-rm -rf "$PKG_ROOT" "dist/FLShortcut-component.pkg"
+rm -rf "$PKG_ROOT" "$PKG_SCRIPTS" "dist/FLShortcuts-component.pkg"
 
 echo "▸ Empreintes"
 (cd dist && shasum -a 256 "$(basename "$DMG")" > "$(basename "$DMG").sha256" \
@@ -186,7 +268,7 @@ echo "✅ Terminé : $APP, $DMG et $PKG"
 # Build local (FLS_NATIVE=1) : copie aussi l'app dans ~/Applications pour la lancer comme une vraie app.
 if [[ "${FLS_NATIVE:-0}" == "1" ]]; then
   mkdir -p "$HOME/Applications"
-  rm -rf "$HOME/Applications/${APP_NAME}.app"
+  rm -rf "$HOME/Applications/${APP_NAME}.app" "$HOME/Applications/${OLD_APP_NAME}.app"
   cp -R "$APP" "$HOME/Applications/"
   echo "▸ Installé dans ~/Applications"
 fi

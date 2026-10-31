@@ -46,7 +46,7 @@ enum PresetDrop {
         guard started.wait(timeout: .now() + 0.8) == .success else {
             post(.leftMouseUp, p)
             log("drag not started · \(ms()) ms")
-            return .failed("le glisser du preset n'a pas démarré (une fenêtre couvre la piste ?)")
+            return .failed(String(localized: "le glisser du preset n'a pas démarré (une fenêtre couvre la piste ?)"))
         }
         // Quelques pixels à droite puis retour : FL voit le fichier entrer sur la piste, puis le reçoit au point visé.
         for dx in [4.0, 8, 12, 8, 4, 0] {
@@ -57,11 +57,12 @@ enum PresetDrop {
         post(.leftMouseUp, p)
         guard ended.wait(timeout: .now() + 2) == .success else {
             log("drag not ended · \(ms()) ms")
-            return .failed("FL n'a pas répondu au dépôt du preset")
+            return .failed(String(localized: "FL n'a pas répondu au dépôt du preset"))
         }
         let op = operation.value ?? []
         log("drag ended · operation 0x\(String(op.rawValue, radix: 16)) · \(ms()) ms")
-        return op.isEmpty ? .failed("FL n'a pas pris le preset : clique d'abord au milieu de la tranche de ta piste") : .done
+        return op.isEmpty ? .failed(String(localized: "FL n'a pas pris le preset : clique d'abord au milieu de la tranche de ta piste"))
+                           : .done
     }
 }
 

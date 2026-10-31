@@ -1,0 +1,22 @@
+# IA intégrée de FL Shortcuts : crédits
+
+Le modèle `classeur_sons.onnx` (et sa version Core ML `ClasseurSons.mlpackage` dans l'app Mac) réunit :
+
+- **YAMNet**, Google, extrait de [tensorflow/models](https://github.com/tensorflow/models/tree/master/research/audioset/yamnet),
+  sous licence Apache 2.0 (texte complet : `LICENCE-YAMNET.txt`). Utilisé tel quel (poids ramenés à 8 bits) ; le
+  calcul du spectre est réécrit en multiplications de matrices, aux mêmes réglages.
+- **Cinq petites têtes** (famille et sorte) apprises par FL Shortcuts sur des sons libres d'usage commercial :
+  - VocalSet, Wilkins, Seiple, Pardo et Ganguly, 2018 — CC BY 4.0 ;
+  - LibriSpeech (dev-clean, test-clean), Panayotov, Chen, Povey et Khudanpur, 2015 — CC BY 4.0 ;
+  - NSynth (train, valid, test), Engel et al., 2017 — CC BY 4.0 ;
+  - Medley-solos-DB, Lostanlen, Cella, Bittner et Essid, 2019 — CC BY 4.0 ;
+  - Freesound One-Shot Percussive Sounds, Ramires et al., 2020 — seuls les sons CC0 et CC BY, auteurs listés dans
+    le fichier de licences du jeu de données ;
+  - Groove MIDI Dataset (sons de batterie enregistrés : boucles et fills), Gillick, Roberts, Engel, Eck et Bamman,
+    2019 — CC BY 4.0 ;
+  - des packs de batterie du propriétaire de FL Shortcuts (fills, drum loops, sons seuls), à sa demande ; ils ne
+    sont pas dans le dépôt ;
+  - sons fabriqués par `ia/preparer.py` (domaine public).
+
+Aucun son d'utilisateur n'a servi à l'apprentissage. Les prochaines versions pourront aussi apprendre des
+corrections partagées par les utilisateurs qui l'ont accepté (des nombres, jamais leurs sons : `ia/corrections.py`).
