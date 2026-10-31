@@ -232,7 +232,7 @@ final class OrganizerApplyTests: XCTestCase {
         var resets = styles
         resets[.drums]?.icon = try XCTUnwrap(FLIcon(code: "0-0"))
         XCTAssertEqual(OrganizerApplier.plannedIcons(families: [0: .melody, 1: .drums], styles: resets).keys.sorted(), [0])
-        let decoded = try JSONDecoder().decode(FamilyStyle.self, from: Data(#"{"color":"#112233","icon":"0-0"}"#.utf8))
+        let decoded = try JSONDecoder().decode(FamilyStyle.self, from: Data(##"{"color":"#112233","icon":"0-0"}"##.utf8))
         XCTAssertNil(decoded.icon)
     }
 
