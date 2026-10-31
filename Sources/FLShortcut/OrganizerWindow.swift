@@ -1825,7 +1825,7 @@ struct OrganizerView: View {
             }
             if reason == .midiSettings {
                 // L'image du README (retour du 31/10) : la fenêtre MIDI Settings, les 4 cases entourées et numérotées.
-                MIDISettingsImage(width: 330)
+                MIDISettingsImage(width: 260)
                     .frame(maxWidth: .infinity)
                     .morphIn(3)
             }
