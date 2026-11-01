@@ -234,7 +234,8 @@ struct UninstallView: View {
 
     /// Deux boutons de même largeur, en capsule (le second en bleu).
     private func buttons<A: View, B: View>(@ViewBuilder first: () -> A, @ViewBuilder second: () -> B) -> some View {
-        HStack(spacing: 10) {
+        // Style suisse : les deux boutons collés, chacun la moitié de la largeur.
+        HStack(spacing: 0) {
             first()
             second()
         }
@@ -243,41 +244,44 @@ struct UninstallView: View {
 
     // MARK: 1. Confirmation
 
+    /// Style suisse (maquette validée le 01/11) : titre gras souligné de blanc, phrase grise, case carrée, ce qui serait
+    /// perdu derrière un trait rouge, ANNULER / DÉSINSTALLER (rouge plein).
     private var confirm: some View {
-        VStack(spacing: 0) {
-            Spacer(minLength: 0)
-            Image(nsImage: NSApp.applicationIconImage)
-                .resizable()
-                .frame(width: 72, height: 72)
-                .accessibilityHidden(true)
+        VStack(alignment: .leading, spacing: 0) {
             Text("Désinstaller FL Shortcuts ?")
-                .font(Swiss.title(18)).tracking(Swiss.titleTracking(18))
-                .padding(.top, 12)
-            Text("L'app et tous ses réglages seront supprimés de ce Mac.")
-                .font(.system(size: 12))
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
+                .swissTitle(32)
+                .lineLimit(2)
                 .fixedSize(horizontal: false, vertical: true)
-                .padding(.top, 4)
-            VStack(spacing: 8) {
-                risk
+                .padding(.top, 8)
+                .padding(.bottom, 12)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .swissRule()
+            Text("L'app et tous ses réglages seront supprimés de ce Mac.")
+                .font(.system(size: 13.5))
+                .foregroundStyle(Swiss.soft)
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.top, 12)
+            VStack(alignment: .leading, spacing: 12) {
                 if flow.hasExports {
-                    HStack(spacing: 10) {
-                        SectionIcon(symbol: "square.and.arrow.up", tint: .gray, size: 24)
-                        Text("Supprimer aussi mes fichiers exportés")
-                            .font(.system(size: 12))
-                            .fixedSize(horizontal: false, vertical: true)
-                        Spacer(minLength: 6)
-                        Toggle("", isOn: $flow.removeExports)
-                            .toggleStyle(.switch)
-                            .controlSize(.small)
-                            .labelsHidden()
+                    Button { flow.removeExports.toggle() } label: {
+                        HStack(spacing: 10) {
+                            Rectangle().strokeBorder(Swiss.text, lineWidth: 1)
+                                .background(Rectangle().fill(flow.removeExports ? Swiss.text : Color.clear).padding(3))
+                                .frame(width: 14, height: 14)
+                            Text("Supprimer aussi mes fichiers exportés")
+                                .font(.system(size: 13.5))
+                                .fixedSize(horizontal: false, vertical: true)
+                            Spacer(minLength: 0)
+                        }
+                        .padding(.vertical, 10)
+                        .swissRule(Swiss.line, edge: .top)
+                        .swissRule(Swiss.line)
+                        .contentShape(Rectangle())
                     }
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 10)
-                    .background(GlassPlateBackground())
-                    .accessibilityElement(children: .combine)
+                    .buttonStyle(.plain)
+                    .accessibilityAddTraits(flow.removeExports ? [.isButton, .isSelected] : .isButton)
                 }
+                risk
                 if let cancelled = flow.cancelled {
                     Text(cancelled).font(.system(size: 11)).foregroundStyle(.secondary)
                 }
@@ -290,7 +294,7 @@ struct UninstallView: View {
                     .keyboardShortcut(.cancelAction)
             } second: {
                 Button { flow.start() } label: { Text("Désinstaller").frame(maxWidth: .infinity) }
-                    .primaryButton()
+                    .buttonStyle(SwissDangerButtonStyle())
                     .keyboardShortcut(.defaultAction)
             }
         }
@@ -302,16 +306,14 @@ struct UninstallView: View {
         case .nothing:
             EmptyView()
         case .saved:
-            HStack(spacing: 10) {
-                SectionIcon(symbol: "checkmark", tint: .green, size: 24)
+            HStack(spacing: 12) {
+                Rectangle().fill(Swiss.text).frame(width: 4)
                 Text("Tes raccourcis et tes macros restent dans ton compte.")
-                    .font(.system(size: 12))
+                    .font(.system(size: 13.5, weight: .bold))
                     .fixedSize(horizontal: false, vertical: true)
                 Spacer(minLength: 0)
             }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 10)
-            .background(GlassPlateBackground())
+            .fixedSize(horizontal: false, vertical: true)
         case .notSignedIn:
             warning(String(localized: "Tes raccourcis et tes macros ne sont pas sauvegardés : ils seront perdus."),
                     link: String(localized: "Les sauvegarder d'abord"))
@@ -321,29 +323,25 @@ struct UninstallView: View {
         }
     }
 
-    /// Ce qui serait perdu : une plaque bordée d'orange, l'icône, la phrase, et le lien pour sauvegarder d'abord.
+    /// Ce qui serait perdu (style suisse) : un trait rouge à gauche, la phrase en gras, le lien pour sauvegarder d'abord.
     private func warning(_ text: String, link: String) -> some View {
-        HStack(alignment: .top, spacing: 10) {
-            SectionIcon(symbol: "exclamationmark.triangle", tint: .orange, size: 24)
-            VStack(alignment: .leading, spacing: 4) {
+        HStack(alignment: .top, spacing: 12) {
+            Rectangle().fill(Swiss.red).frame(width: 4)
+            VStack(alignment: .leading, spacing: 6) {
                 Text(text)
-                    .font(.system(size: 12, weight: .medium))
+                    .font(.system(size: 13.5, weight: .bold))
                     .fixedSize(horizontal: false, vertical: true)
                 Button(link) {
                     close()
                     AccountLink.shared.show()
                 }
-                .buttonStyle(.link)
-                .font(.system(size: 12))
+                .buttonStyle(.plain)
+                .font(.system(size: 12.5, weight: .bold))
+                .underline()
             }
             Spacer(minLength: 0)
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 10)
-        .background(
-            Rectangle().fill(Color.orange.opacity(0.10))
-                .overlay(Rectangle().strokeBorder(Color.orange.opacity(0.35), lineWidth: 1))
-        )
+        .fixedSize(horizontal: false, vertical: true)
     }
 
     // MARK: 2. Mot de passe (ancienne installation), suppression
@@ -452,5 +450,23 @@ struct CheckShape: Shape {
         p.addLine(to: CGPoint(x: rect.minX + rect.width * 0.38, y: rect.minY + rect.height * 0.84))
         p.addLine(to: CGPoint(x: rect.minX + rect.width * 0.94, y: rect.minY + rect.height * 0.18))
         return p
+    }
+}
+
+/// Bouton qui supprime (style suisse) : rouge plein, texte noir en capitales.
+struct SwissDangerButtonStyle: ButtonStyle {
+    @Environment(\.isEnabled) private var enabled
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(Swiss.font(12))
+            .tracking(1.2)
+            .textCase(.uppercase)
+            .foregroundStyle(Swiss.background)
+            .padding(.horizontal, 18)
+            .frame(minHeight: 38)
+            .background(Rectangle().fill(Swiss.red))
+            .opacity(enabled ? (configuration.isPressed ? 0.75 : 1) : 0.4)
+            .contentShape(Rectangle())
     }
 }

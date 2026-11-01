@@ -223,36 +223,42 @@ struct OnboardingView: View {
         return items
     }
 
+    /// Style suisse (maquette validée le 01/11) : « FL Shortcuts » en très grand souligné de blanc, puis une ligne par
+    /// autorisation (numéro, nom en gras, détail gris, état en petites capitales : blanc si autorisé, rouge sinon), le
+    /// bouton blanc en bas à droite.
     private var permissionStep: some View {
-        VStack(spacing: 0) {
-            Spacer(minLength: 0)
+        VStack(alignment: .leading, spacing: 0) {
             Text("FL Shortcuts")
-                .font(Swiss.title(42)).tracking(Swiss.titleTracking(42))
+                .swissTitle(52)
+                .padding(.top, 12)
+                .padding(.bottom, 14)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .swissRule()
                 .morphIn(0)
 
-            PlateRows(data: permissionItems) { item in
-                HStack(spacing: 12) {
-                    SectionIcon(symbol: item.symbol, tint: item.tint, size: 28)
-                    HStack(alignment: .firstTextBaseline, spacing: 8) {
-                        Text(item.title).font(.system(size: 14, weight: .semibold))
-                        if let detail = item.detail {
-                            Text(detail).font(.system(size: 12)).foregroundStyle(.secondary)
+            VStack(spacing: 0) {
+                ForEach(Array(permissionItems.enumerated()), id: \.element.id) { index, item in
+                    HStack(spacing: 0) {
+                        Text(verbatim: String(format: "%02d", index + 1)).swissLabel().frame(width: 34, alignment: .leading)
+                        HStack(alignment: .firstTextBaseline, spacing: 10) {
+                            Text(item.title).font(Swiss.font(20)).tracking(-0.4)
+                            if let detail = item.detail {
+                                Text(detail).font(.system(size: 12.5)).foregroundStyle(Swiss.gray)
+                            }
                         }
+                        Spacer(minLength: 8)
+                        PermissionPill(state: item.state)
                     }
-                    Spacer(minLength: 8)
-                    PermissionPill(state: item.state)
+                    .frame(height: 58)
+                    .swissRule(Swiss.line)
+                    .accessibilityElement(children: .combine)
                 }
-                .padding(.horizontal, 12)
-                .frame(height: 52)
-                .accessibilityElement(children: .combine)
             }
-            .frame(width: 400)
-            .padding(.top, 28)
             .morphIn(1)
 
             Spacer(minLength: 0)
 
-            VStack(spacing: 10) {
+            VStack(alignment: .trailing, spacing: 10) {
                 if accessOK {
                     Button { advance() } label: {
                         Text("Continuer").frame(minWidth: 220)
@@ -274,10 +280,10 @@ struct OnboardingView: View {
                     .transition(Motion.pageMorph)
                     Button("Plus tard") { advance() }
                         .buttonStyle(.plain)
-                        .font(.system(size: 13))
-                        .foregroundStyle(.secondary)
+                        .swissLabel()
                 }
             }
+            .frame(maxWidth: .infinity, alignment: .trailing)
             .morphIn(2)
         }
         // Clavier autorisé : les états et les boutons changent en fondu.
@@ -383,22 +389,17 @@ private struct PermissionPill: View {
         }
     }
 
+    /// Style suisse : autorisé en blanc, à autoriser en rouge (ce qui reste à faire), en attente en gris.
     private var color: Color {
         switch state {
-        case .toAllow: return .secondary
-        case .waiting: return .accentColor
-        case .allowed: return .green
+        case .toAllow: return Swiss.red
+        case .waiting: return Swiss.gray
+        case .allowed: return Swiss.text
         }
     }
 
     var body: some View {
-        Text(label)
-            .font(.system(size: 12, weight: .semibold))
-            .foregroundStyle(color)
-            .padding(.horizontal, 10)
-            .padding(.vertical, 3)
-            .background(Rectangle().fill(color.opacity(0.14)))
-            .overlay(Rectangle().strokeBorder(color.opacity(0.28), lineWidth: 1))
+        Text(label).swissLabel(color)
     }
 }
 
@@ -419,15 +420,17 @@ private struct StepRow: View {
         HStack(spacing: 12) {
             Group {
                 if done {
-                    Image(systemName: "checkmark.circle.fill")
-                        .font(.system(size: 20))
-                        .foregroundStyle(Color.green)
+                    Image(systemName: "checkmark")
+                        .font(.system(size: 11, weight: .heavy))
+                        .foregroundStyle(Swiss.background)
+                        .frame(width: 20, height: 20)
+                        .background(Rectangle().fill(Swiss.text))
                 } else {
                     Text("\(number)")
-                        .font(.system(size: 12, weight: .bold).monospacedDigit())
-                        .foregroundStyle(Color.white)
-                        .frame(width: 22, height: 22)
-                        .background(Circle().fill(Swiss.red))
+                        .font(Swiss.font(12).monospacedDigit())
+                        .foregroundStyle(Swiss.background)
+                        .frame(width: 20, height: 20)
+                        .background(Rectangle().fill(Swiss.red))
                 }
             }
             .frame(width: 22)

@@ -888,22 +888,21 @@ struct MenuContent: View {
 private struct MenuSeparator: View {
     var body: some View {
         Rectangle()
-            .fill(Color.white.opacity(0.08))
+            .fill(Swiss.line)
             .frame(height: 1)
-            .padding(.horizontal, 10)
             .padding(.vertical, 5)
     }
 }
 
-/// Fond du menu de l'icône (maquette du 28/10) : noir plein aux coins arrondis, bord fin clair ; aucun verre.
+/// Fond du menu de l'icône (style suisse, 01/11) : noir plein, coins carrés, bord fin gris ; aucun verre.
 struct MenuBackground: View {
-    static let color = Color(red: 0.11, green: 0.11, blue: 0.122)
+    static let color = Swiss.background
     static let cornerRadius: CGFloat = 15
 
     var body: some View {
         let shape = Rectangle()
         shape.fill(Self.color)
-            .overlay(shape.strokeBorder(Color.white.opacity(0.10), lineWidth: 1))
+            .overlay(shape.strokeBorder(Swiss.line, lineWidth: 1))
             .ignoresSafeArea()
             .accessibilityHidden(true)
     }
@@ -1001,27 +1000,24 @@ private struct PanelItem: View {
             action()
             MenuPanel.shared.close()
         } label: {
-            HStack(spacing: 10) {
-                SectionIcon(symbol: symbol, tint: tint, size: 20)
-                    .scaleEffect(panel.revealed || reduceMotion ? 1 : 0.35)
-                    .rotationEffect(.degrees(panel.revealed || reduceMotion ? 0 : -25))
-                    .animation(panel.revealed
-                               ? .spring(response: 0.5, dampingFraction: 0.58).delay(0.12 + Double(order) * 0.04)
-                               : .easeIn(duration: 0.12), value: panel.revealed)
+            // Style suisse (01/11) : un petit carré de sa couleur, le titre en gras, un trait fin dessous ; survolée,
+            // blanc plein et texte noir.
+            HStack(spacing: 12) {
+                Rectangle().fill(tint).frame(width: 8, height: 8).accessibilityHidden(true)
                 Text(title)
                 Spacer(minLength: 12)
                 if let shortcut {
-                    Text(shortcut).foregroundStyle(.secondary)
+                    Text(shortcut).font(.system(size: 11)).foregroundStyle(Swiss.gray).hoverTint(Swiss.gray)
                 }
             }
-            .font(.system(size: 13))
-            .padding(.horizontal, 8)
+            .font(.system(size: 13.5, weight: .bold))
+            .padding(.horizontal, 14)
             .frame(height: 34)
+            .swissRule(Color(white: 0.12))
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        // Survolée : pleine de sa couleur, texte en blanc (29/10, « intérieur plein »).
-        .menuHover(tint: tint, cornerRadius: 9)
+        .menuHover(tint: Swiss.text, cornerRadius: 0)
         .keyboardShortcut(key.map { KeyboardShortcut($0, modifiers: .command) })
         .menuRevealRow(panel.revealed, index: order)
     }

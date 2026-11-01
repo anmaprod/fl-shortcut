@@ -755,6 +755,7 @@
 "Elle arrive sans raccourci : rien ne se lance tant que tu ne lui en as pas choisi un." = "It comes without a shortcut: nothing runs until you pick one for it.";
 "Elle continue de marcher dans FL : ta touche s'ajoute." = "It still works in FL: your key is added on top.";
 "Elle disparaît pour tout le monde ; son initiale la remplace. Ses signalements sont traités." = "It disappears for everyone; their initial replaces it. Its reports are closed.";
+"En arrière" = "Go back";
 "En attente de FL Studio" = "Waiting for FL Studio";
 "En attente de FL Studio…" = "Waiting for FL Studio…";
 "En attente de FL Studio… fais les étapes 2 et 3" = "Waiting for FL Studio… do steps 2 and 3";

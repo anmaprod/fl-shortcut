@@ -467,44 +467,59 @@ struct CopyApprovalView: View {
 
     private func name(_ url: URL?) -> String { url?.lastPathComponent ?? "" }
 
+    /// Style suisse (maquette validée le 01/11) : la question en gros souligné de blanc, les deux choix expliqués sur
+    /// une ligne chacun (petites capitales à gauche), RETOURNER EN ARRIÈRE / VALIDER collés en bas.
     private var question: some View {
-        VStack(spacing: 10) {
-            Image(systemName: "square.stack.3d.up.fill")
-                .font(.system(size: 40))
-                .foregroundStyle(OrganizerView.tint)
-                .accessibilityHidden(true)
+        VStack(alignment: .leading, spacing: 0) {
             Text("Tu valides la version organisée ?")
-                .font(.system(size: 13, weight: .bold))
-            Text("« \(name(flow.current?.copy)) » est ton projet « \(name(flow.current?.original)) » rangé par l'Organiser.")
-                .font(.system(size: 11))
-                .multilineTextAlignment(.center)
+                .swissTitle(30)
+                .lineLimit(2)
                 .fixedSize(horizontal: false, vertical: true)
-            VStack(spacing: 4) {
-                Text("Valider : ton projet d'origine part à la Corbeille et la version organisée prend son nom.")
-                Text("Retourner en arrière : la version organisée part à la Corbeille et FL rouvre ton projet d'avant.")
-            }
-            .font(.system(size: 11))
-            .foregroundStyle(.secondary)
-            .multilineTextAlignment(.center)
-            .fixedSize(horizontal: false, vertical: true)
+                .padding(.bottom, 12)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .swissRule()
+            Text("« \(name(flow.current?.copy)) » est ton projet « \(name(flow.current?.original)) » rangé par l'Organiser.")
+                .font(.system(size: 12))
+                .foregroundStyle(Swiss.soft)
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.vertical, 10)
+            choice(String(localized: "Valider"), Swiss.text,
+                   String(localized: "Valider : ton projet d'origine part à la Corbeille et la version organisée prend son nom."))
+            choice(String(localized: "En arrière"), Swiss.gray,
+                   String(localized: "Retourner en arrière : la version organisée part à la Corbeille et FL rouvre ton projet d'avant."))
             if flow.remaining > 0 {
                 Text("Encore \(flow.remaining) autre(s) projet(s) ensuite.")
-                    .font(.system(size: 11))
-                    .foregroundStyle(.secondary)
+                    .swissLabel(size: 10.5)
+                    .padding(.top, 10)
             }
-            HStack(spacing: 8) {
+            HStack(spacing: 0) {
                 Button { flow.goBack() } label: { Text("Retourner en arrière").frame(maxWidth: .infinity) }
+                    .secondaryButton()
                 Button { flow.validate() } label: { Text("Oui, valider").frame(maxWidth: .infinity) }
-                    .buttonStyle(.borderedProminent)
+                    .primaryButton()
                     .keyboardShortcut(.defaultAction)
             }
             .controlSize(.large)
-            .padding(.top, 8)
+            .padding(.top, 18)
             Button("Plus tard") { flow.later() }
-                .buttonStyle(.link)
-                .font(.system(size: 11))
+                .buttonStyle(.plain)
+                .swissLabel(size: 10.5)
+                .frame(maxWidth: .infinity)
+                .padding(.top, 10)
                 .keyboardShortcut(.cancelAction)
         }
+    }
+
+    /// Un des deux choix : son nom en petites capitales, puis ce qu'il fait (la phrase sans son début « Valider : »).
+    private func choice(_ tag: String, _ color: Color, _ text: String) -> some View {
+        let detail = text.split(separator: ":", maxSplits: 1).last.map { $0.trimmingCharacters(in: .whitespaces) } ?? text
+        return HStack(alignment: .firstTextBaseline, spacing: 12) {
+            Text(tag).swissLabel(color, size: 10.5).frame(width: 96, alignment: .leading)
+            Text(detail).font(.system(size: 13)).foregroundStyle(Color(white: 0.78))
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(.vertical, 10)
+        .swissRule(Swiss.line)
     }
 
     private func working(_ text: String) -> some View {

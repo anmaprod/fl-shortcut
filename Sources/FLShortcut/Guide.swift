@@ -93,13 +93,19 @@ struct GuideView: View {
 
     private var welcome: some View {
         VStack(spacing: 0) {
+            // Style suisse (01/11) : grand titre souligné de blanc, une ligne par partie (numéro, carré de couleur,
+            // titre, première étape en gris, flèche).
             Text("Bienvenue")
-                .font(Swiss.title(38)).tracking(Swiss.titleTracking(38))
+                .swissTitle(46)
+                .padding(.bottom, 12)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .swissRule()
                 .morphIn(0)
-            PlateRows(data: GuideContent.pages) { p in
-                GuideWelcomeRow(page: p, morph: morph, flies: forward) { go(to: p.id) }
+            VStack(spacing: 0) {
+                ForEach(GuideContent.pages) { p in
+                    GuideWelcomeRow(page: p, morph: morph, flies: forward) { go(to: p.id) }
+                }
             }
-            .padding(.top, 26)
             .morphIn(1)
         }
     }
@@ -119,8 +125,7 @@ struct GuideView: View {
                 if !last {
                     Button("Passer", action: close)
                         .buttonStyle(.plain)
-                        .font(.system(size: 13))
-                        .foregroundStyle(.secondary)
+                        .swissLabel()
                         .keyboardShortcut(.cancelAction)
                         .help("Fermer le guide : tu le retrouves dans la page Aide ou le menu de la barre des menus")
                 }
@@ -156,24 +161,29 @@ private struct GuidePageView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            HStack(spacing: 14) {
-                MorphIcon(page: page, size: 44, morph: morph, id: MorphIcon.id(page))
+            HStack(alignment: .lastTextBaseline, spacing: 14) {
+                MorphIcon(page: page, size: 14, morph: morph, id: MorphIcon.id(page))
+                    .alignmentGuide(.lastTextBaseline) { d in d[.bottom] - 4 }
                 Text(page.title)
-                    .font(Swiss.title(35)).tracking(Swiss.titleTracking(35))
+                    .swissTitle(40)
                     .morphIn(0)
+                Spacer(minLength: 0)
             }
-            PlateRows(data: steps) { step in
-                HStack(spacing: 12) {
-                    GuideNumber(number: step.id, tint: page.tint)
-                    Text(step.text).font(.system(size: 14)).fixedSize(horizontal: false, vertical: true)
-                    Spacer(minLength: 0)
+            .padding(.bottom, 12)
+            .swissRule()
+            VStack(spacing: 0) {
+                ForEach(steps) { step in
+                    HStack(spacing: 12) {
+                        GuideNumber(number: step.id, tint: page.tint)
+                        Text(step.text).font(.system(size: 14, weight: .bold)).fixedSize(horizontal: false, vertical: true)
+                        Spacer(minLength: 0)
+                    }
+                    .padding(.vertical, 6)
+                    .frame(minHeight: 50)
+                    .swissRule(Swiss.line)
+                    .accessibilityElement(children: .combine)
                 }
-                .padding(.horizontal, 12)
-                .padding(.vertical, 6)
-                .frame(minHeight: 52)
-                .accessibilityElement(children: .combine)
             }
-            .padding(.top, 26)
             .morphIn(1)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -190,20 +200,25 @@ private struct GuideWelcomeRow: View {
 
     var body: some View {
         Button(action: action) {
-            HStack(spacing: 12) {
-                MorphIcon(page: page, size: 28, morph: morph, id: flies ? MorphIcon.id(page) : "ligne\(page.id)")
-                Text(page.title).font(.system(size: 14, weight: .semibold))
+            HStack(spacing: 10) {
+                Text(verbatim: String(format: "%02d", page.id)).swissLabel().frame(width: 30, alignment: .leading)
+                MorphIcon(page: page, size: 8, morph: morph, id: flies ? MorphIcon.id(page) : "ligne\(page.id)")
+                Text(page.title).font(Swiss.font(18)).tracking(-0.3).lineLimit(1).fixedSize()
+                Text(page.steps.first ?? "")
+                    .font(.system(size: 12.5))
+                    .foregroundStyle(Swiss.gray)
+                    .hoverTint(Swiss.gray)
+                    .lineLimit(1)
                 Spacer(minLength: 0)
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 11, weight: .semibold))
-                    .foregroundStyle(.tertiary)
+                Text(verbatim: "→").font(.system(size: 15)).foregroundStyle(Swiss.gray).hoverTint(Swiss.gray)
             }
-            .padding(.horizontal, 12)
+            .padding(.horizontal, 4)
             .frame(height: 52)
+            .swissRule(Swiss.line)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .menuHover(tint: page.tint)
+        .menuHover(tint: Swiss.text, cornerRadius: 0)
         .help("Voir « \(page.title) »")
     }
 }
@@ -214,11 +229,10 @@ private struct GuideNumber: View {
     let tint: Color
 
     var body: some View {
-        Text("\(number)")
-            .font(.system(size: 12, weight: .bold).monospacedDigit())
-            .foregroundStyle(Color.white)
-            .frame(width: 24, height: 24)
-            .background(Circle().fill(tint.gradient))
+        Text(verbatim: String(format: "%02d", number))
+            .font(Swiss.font(11).monospacedDigit())
+            .foregroundStyle(Swiss.red)
+            .frame(width: 30, alignment: .leading)
             .accessibilityHidden(true)
     }
 }
@@ -237,7 +251,12 @@ private struct MorphIcon: View {
 
     var body: some View {
         GeometryReader { g in
-            SectionIcon(symbol: page.symbol, tint: page.tint, size: max(1, min(g.size.width, g.size.height)))
+            // Style suisse : petit, un carré de sa couleur (sans symbole, illisible à cette taille).
+            if min(g.size.width, g.size.height) < 18 {
+                Rectangle().fill(page.tint)
+            } else {
+                SectionIcon(symbol: page.symbol, tint: page.tint, size: max(1, min(g.size.width, g.size.height)))
+            }
         }
         .matchedGeometryEffect(id: id, in: morph)
         .frame(width: size, height: size)
@@ -257,8 +276,8 @@ private struct GuideDots: View {
                     select(i)
                 } label: {
                     Rectangle()
-                        .fill(i == page ? Swiss.red : Color.secondary.opacity(0.35))
-                        .frame(width: i == page ? 18 : 6, height: 6)
+                        .fill(i == page ? Swiss.text : Color(white: 0.27))
+                        .frame(width: i == page ? 22 : 8, height: 4)
                         .padding(3)
                         .contentShape(Rectangle())
                 }
