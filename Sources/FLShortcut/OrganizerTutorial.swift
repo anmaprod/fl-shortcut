@@ -54,11 +54,13 @@ struct OrganizerTutorialView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             picture
-            VStack(alignment: .leading, spacing: 4) {
-                Text(page.title).font(.system(size: 17, weight: .bold))
+            // Style suisse (01/11) : le numéro de l'étape en petites capitales, un titre gras, le texte en gris.
+            VStack(alignment: .leading, spacing: 6) {
+                Text(verbatim: String(format: "%02d / %02d", index + 1, pages.count)).swissLabel(Swiss.red)
+                Text(page.title).font(Swiss.title(22)).tracking(Swiss.titleTracking(22))
                 Text(page.text)
                     .font(.system(size: 13))
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Swiss.gray)
                     .fixedSize(horizontal: false, vertical: true)
             }
             .accessibilityElement(children: .combine)
@@ -92,17 +94,16 @@ struct OrganizerTutorialView: View {
             }
         }
         .frame(maxWidth: .infinity)
-        .clipShape(shape)
-        .overlay(shape.strokeBorder(Color.white.opacity(0.10), lineWidth: 1))
+        .clipShape(shape)                                   // l'image a déjà son trait fin
         .accessibilityHidden(true)
     }
 
     private var dots: some View {
         HStack(spacing: 6) {
             ForEach(pages.indices, id: \.self) { i in
-                Circle()
-                    .fill(i == index ? Swiss.red : Color.white.opacity(0.25))
-                    .frame(width: 7, height: 7)
+                Rectangle()
+                    .fill(i == index ? Swiss.text : Swiss.line)
+                    .frame(width: i == index ? 18 : 8, height: 2)
             }
         }
         .accessibilityElement(children: .ignore)
