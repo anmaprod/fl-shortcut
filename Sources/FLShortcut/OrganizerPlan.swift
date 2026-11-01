@@ -9,6 +9,19 @@
 import Foundation
 
 /// Ce que l'utilisateur garde dans « Organiser ».
+/// Changements faits à la main dans le Mixer de l'Organiser (demande du 01/11 : « link un son à un autre, comme dans
+/// FL », renommer, changer la couleur, supprimer les pistes sans son). Numéros des pistes d'origine ; 0 = le Master.
+struct MixerEdits: Equatable {
+    /// Où va chaque piste (plusieurs sorties possibles, la 808 dans Kick et dans le Master…).
+    var routes: [Int: [Int]] = [:]
+    var names: [Int: String] = [:]
+    var colors: [Int: RGBColor] = [:]
+    /// Pistes sans son retirées : remises comme neuves (nom et couleur de FL), plus rien n'y va.
+    var removed: Set<Int> = []
+
+    var isEmpty: Bool { routes.isEmpty && names.isEmpty && colors.isEmpty && removed.isEmpty }
+}
+
 struct OrganizerOptions: Equatable {
     var rack = true
     var patterns = true
@@ -23,6 +36,9 @@ struct OrganizerOptions: Equatable {
     /// Master y vont, et seul le pré-master va au Master (demande du propriétaire, 01/11 : « tous les bus vont dans
     /// Premaster, et Premaster va dans Master »). Faux ici (essais d'avant) ; vrai dans l'app (`OrganizerController`).
     var premaster = false
+    /// Mixer : ce qui est changé à la main dans l'écran Mixer de l'Organiser (pistes d'origine), par-dessus le
+    /// rangement automatique.
+    var mixerEdits = MixerEdits()
     /// Sons sans aucune note supprimés du Channel rack, leurs pistes du Mixer remises comme neuves (retour de
     /// l'utilisateur : « je veux qu'elles disparaissent »).
     var deleteUnused = true
@@ -502,12 +518,34 @@ struct OrganizerPlan: Equatable {
                 layout = [pre] + layout.filter { $0 != pre }
             }
         }
+        // Changements faits à la main dans le Mixer : pistes retirées (sans son) hors du rangement, envois choisis.
+        let edits = options.mixerEdits
+        if !edits.isEmpty {
+            let removable = edits.removed.filter { (1...last).contains($0) && !keptTracks.contains($0) }
+            layout.removeAll { removable.contains($0) }
+            for track in removable {
+                out.routes[track] = nil
+                out.buses[track] = nil
+                out.verdicts[track] = nil
+                if out.premaster == track { out.premaster = nil }
+            }
+            for (track, dests) in edits.routes where (1...last).contains(track) && !removable.contains(track) {
+                let clean = Array(Set(dests.filter { $0 == 0 || ((1...last).contains($0) && $0 != track
+                                                               && !removable.contains($0)) })).sorted()
+                out.routes[track] = clean.isEmpty ? [0] : clean
+            }
+            out.resets.formUnion(removable)
+            for (track, dests) in out.routes where dests.contains(where: removable.contains) {
+                let kept = dests.filter { !removable.contains($0) }
+                out.routes[track] = kept.isEmpty ? [0] : kept
+            }
+        }
         // Pistes des sons supprimés pas reprises, et pistes nommées sans aucun son ni envoi reçu : comme neuves (nom
         // de FL, couleur des pistes jamais touchées).
         let idle = cleanup ? Set(result.mixer.filter { t in
             (1...last).contains(t.index) && !t.hasDefaultName && !everUsed.contains(t.index) && sources[t.index] == nil
         }.map(\.index)) : []
-        out.resets = freed.union(idle).subtracting(layout).subtracting(out.links.values)
+        out.resets = out.resets.union(freed).union(idle).subtracting(layout).subtracting(out.links.values)
         // Places choisies dans l'aperçu : d'abord celles des sons (la case de chaque son, comme dans le Channel rack de
         // FL), puis le départ de chaque famille, dans l'ordre des familles (ses pistes à la suite, son bus compris).
         var pins: [(track: Int, slot: Int)] = []
@@ -556,6 +594,14 @@ struct OrganizerPlan: Equatable {
             out.names = out.names.filter { byIndex[$0.key]?.name != $0.value }
         } else if let pre = out.premaster, byIndex[pre]?.hasDefaultName ?? true {
             out.names[pre] = String(localized: "Pré-master")
+        }
+        // Nom et couleur choisis à la main (double-clic sur la piste) : par-dessus tout le reste.
+        for (track, name) in edits.names where (1...last).contains(track) && !out.resets.contains(track) {
+            let clean = String(name.prefix(64))
+            if byIndex[track]?.name != clean { out.names[track] = clean } else { out.names[track] = nil }
+        }
+        for (track, color) in edits.colors where (1...last).contains(track) && !out.resets.contains(track) {
+            out.colors[track] = color
         }
         return out
     }

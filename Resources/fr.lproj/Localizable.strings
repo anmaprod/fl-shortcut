@@ -84,6 +84,7 @@
 "%lld sons sans aucune note supprimés du Channel rack de la copie rangée" = "%lld sons sans aucune note supprimés du Channel rack de la copie rangée";
 "%lld sons sans aucune note supprimés." = "%lld sons sans aucune note supprimés.";
 "%lld sons sortis des patterns qui en avaient plusieurs : chacun dans son pattern (comme « Split by channel » de FL)" = "%lld sons sortis des patterns qui en avaient plusieurs : chacun dans son pattern (comme « Split by channel » de FL)";
+"%lld sorties" = "%lld sorties";
 "%lld touches" = "%lld touches";
 "%lld étapes tapent des touches, cliquent ou ouvrent des fichiers : relis-les dans le créateur." = "%lld étapes tapent des touches, cliquent ou ouvrent des fichiers : relis-les dans le créateur.";
 "%lld/%lld" = "%lld/%lld";
@@ -112,6 +113,7 @@
 "1 partage trouvé" = "1 partage trouvé";
 "1 raccourci" = "1 raccourci";
 "1 résultat chez %@" = "1 résultat chez %@";
+"1 sortie" = "1 sortie";
 "1 touche" = "1 touche";
 "1 à %lld" = "1 à %lld";
 "1 étape tape des touches, clique ou ouvre un fichier : relis-la dans le créateur." = "1 étape tape des touches, clique ou ouvre un fichier : relis-la dans le créateur.";
@@ -538,6 +540,7 @@
 "Clavier-piano : octave 6" = "Clavier-piano : octave 6";
 "Claw Machine" = "Claw Machine";
 "Clic" = "Clic";
+"Clic : voir où va cette piste, puis choisir ses sorties avec les cases. Double-clic : nom et couleur." = "Clic : voir où va cette piste, puis choisir ses sorties avec les cases. Double-clic : nom et couleur.";
 "Clic droit" = "Clic droit";
 "Clic droit sur la dernière piste cliquée dans le Mixer, puis l'élément choisi dans la liste (ouvrir un état de piste, renommer…), au clavier : rien à apprendre." = "Clic droit sur la dernière piste cliquée dans le Mixer, puis l'élément choisi dans la liste (ouvrir un état de piste, renommer…), au clavier : rien à apprendre.";
 "Clic droit sur la piste → File → Open mixer track state, preset, armement, entrée 1, REC." = "Clic droit sur la piste → File → Open mixer track state, preset, armement, entrée 1, REC.";
@@ -566,6 +569,7 @@
 "Clique sur « Open mixer track state… » (Échap pour fermer la boîte)." = "Clique sur « Open mixer track state… » (Échap pour fermer la boîte).";
 "Clique sur ⟳ pour lire la liste dans FL (le menu Add s'ouvre un instant), ou écris le nom." = "Clique sur ⟳ pour lire la liste dans FL (le menu Add s'ouvre un instant), ou écris le nom.";
 "Clique une fois à l'endroit voulu dans FL. Échap annule." = "Clique une fois à l'endroit voulu dans FL. Échap annule.";
+"Clique une piste pour voir où elle va." = "Clique une piste pour voir où elle va.";
 "Clique une touche, puis tape la nouvelle." = "Clique une touche, puis tape la nouvelle.";
 "Clique à l'endroit voulu dans FL (une fois). Échap : annuler." = "Clique à l'endroit voulu dans FL (une fois). Échap : annuler.";
 "Clique, utilise les flèches, tes raccourcis… : chaque geste devient un bloc, que tu peux " = "Clique, utilise les flèches, tes raccourcis… : chaque geste devient un bloc, que tu peux ";
@@ -816,6 +820,7 @@
 "Envoie une touche ou un raccourci clavier à FL (⌘A, ⇧⌘S, F9…), seulement quand FL est au premier plan. Clique le champ puis tape le raccourci, ou coche ⌘ ⌥ ⌃ ⇧. Les raccourcis dangereux (⌘Q, ⌘W…) sont refusés." = "Envoie une touche ou un raccourci clavier à FL (⌘A, ⇧⌘S, F9…), seulement quand FL est au premier plan. Clique le champ puis tape le raccourci, ou coche ⌘ ⌥ ⌃ ⇧. Les raccourcis dangereux (⌘Q, ⌘W…) sont refusés.";
 "Envoie une touche ou un raccourci à FL." = "Envoie une touche ou un raccourci à FL.";
 "Envoyer" = "Envoyer";
+"Envoyer aussi dans cette piste" = "Envoyer aussi dans cette piste";
 "Envoyer par mail" = "Envoyer par mail";
 "Envoyer vers des pistes Mixer libres" = "Envoyer vers des pistes Mixer libres";
 "Erreur du serveur (%lld)." = "Erreur du serveur (%lld).";
@@ -1247,6 +1252,7 @@
 "Marqueur suivant" = "Marqueur suivant";
 "Marqueurs" = "Marqueurs";
 "Masquer" = "Masquer";
+"Master" = "Master";
 "Master en mono" = "Master en mono";
 "Membres" = "Membres";
 "Menu" = "Menu";
@@ -1288,6 +1294,7 @@
 "Mixer : %lld pistes dans l'ordre du Channel rack, %lld bus (un par famille), %lld renommées" = "Mixer : %lld pistes dans l'ordre du Channel rack, %lld bus (un par famille), %lld renommées";
 "Mixer : %lld pistes dans l'ordre du Channel rack, %lld renommées" = "Mixer : %lld pistes dans l'ordre du Channel rack, %lld renommées";
 "Mixer : tire le numéro d'un son ou d'une famille, comme dans FL." = "Mixer : tire le numéro d'un son ou d'une famille, comme dans FL.";
+"Mixer →" = "Mixer →";
 "Mode Performance" = "Mode Performance";
 "Mode Step Edit" = "Mode Step Edit";
 "Mode d'affichage du clavier" = "Mode d'affichage du clavier";
@@ -1346,6 +1353,7 @@
 "Même place que dans la grille « Change icon… » de FL." = "Même place que dans la grille « Change icon… » de FL.";
 "Navigation" = "Navigation";
 "Ne fait pas ce que dit son explication" = "Ne fait pas ce que dit son explication";
+"Ne plus envoyer dans cette piste" = "Ne plus envoyer dans cette piste";
 "Ne quitte pas l'app tout de suite." = "Ne quitte pas l'app tout de suite.";
 "Ne touche pas à FL jusqu'à la fin." = "Ne touche pas à FL jusqu'à la fin.";
 "Ne touche pas à FL pendant l'écoute." = "Ne touche pas à FL pendant l'écoute.";
@@ -1359,6 +1367,7 @@
 "Nom de variable invalide." = "Nom de variable invalide.";
 "Nom du son" = "Nom du son";
 "Nom et couleur" = "Nom et couleur";
+"Nom et couleur…" = "Nom et couleur…";
 "Nombre de fois" = "Nombre de fois";
 "Note" = "Note";
 "Note pour toi, ignorée à l'exécution." = "Note pour toi, ignorée à l'exécution.";
@@ -1554,6 +1563,7 @@
 "Photo trop grande ou illisible : choisis-en une autre." = "Photo trop grande ou illisible : choisis-en une autre.";
 "Piano" = "Piano";
 "Piano Roll" = "Piano Roll";
+"Piste %lld" = "Piste %lld";
 "Piste Mixer précédente" = "Piste Mixer précédente";
 "Piste Mixer suivante" = "Piste Mixer suivante";
 "Piste du Mixer" = "Piste du Mixer";
@@ -1705,6 +1715,7 @@
 "Reprendre" = "Reprendre";
 "Repère « bonne prise » à la position de lecture" = "Repère « bonne prise » à la position de lecture";
 "Reset" = "Reset";
+"Reste appuyé et glisse la famille sur une autre : elle prend sa place" = "Reste appuyé et glisse la famille sur une autre : elle prend sa place";
 "Reste cliqué à un endroit de FL (un son du Browser, un clip, un plugin…), glisse jusqu'à un autre endroit de FL et lâche. Les deux endroits se montrent une fois en faisant le geste dans FL ; toujours dans les fenêtres de FL, jamais sous une autre app." = "Reste cliqué à un endroit de FL (un son du Browser, un clip, un plugin…), glisse jusqu'à un autre endroit de FL et lâche. Les deux endroits se montrent une fois en faisant le geste dans FL ; toujours dans les fenêtres de FL, jamais sous une autre app.";
 "Rester" = "Rester";
 "Retenu dans la fenêtre de FL de %lld × %lld (fenêtre principale, réglages, " = "Retenu dans la fenêtre de FL de %lld × %lld (fenêtre principale, réglages, ";
@@ -1721,6 +1732,7 @@
 "Retirer ce bloc de la macro (⌫)" = "Retirer ce bloc de la macro (⌫)";
 "Retirer la photo" = "Retirer la photo";
 "Retirer la photo de @%@ ?" = "Retirer la photo de @%@ ?";
+"Retirer la piste (sans son)" = "Retirer la piste (sans son)";
 "Retirer ta photo : ton initiale de couleur la remplace" = "Retirer ta photo : ton initiale de couleur la remplace";
 "Retirer tous les solos" = "Retirer tous les solos";
 "Retouche les blocs dans le créateur." = "Retouche les blocs dans le créateur.";
@@ -1757,6 +1769,7 @@
 "Rim" = "Rim";
 "Riser" = "Riser";
 "Roue des couleurs de FL" = "Roue des couleurs de FL";
+"Routage" = "Routage";
 "Règle la mesure du projet en 3/4." = "Règle la mesure du projet en 3/4.";
 "Règle les 4 cases entourées" = "Règle les 4 cases entourées";
 "Réapprendre l'entrée" = "Réapprendre l'entrée";
@@ -2539,6 +2552,7 @@
 "étape %@ non faite (%@)" = "étape %@ non faite (%@)";
 "état de FL inconnu." = "état de FL inconnu.";
 "÷ (pavé)" = "÷ (pavé)";
+"← Familles" = "← Familles";
 "↺ remet la touche de FL." = "↺ remet la touche de FL.";
 "⇧⌘R" = "⇧⌘R";
 "− (pavé)" = "− (pavé)";

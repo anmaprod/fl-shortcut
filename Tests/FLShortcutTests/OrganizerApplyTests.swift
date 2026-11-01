@@ -503,6 +503,61 @@ final class OrganizerApplyTests: XCTestCase {
         XCTAssertEqual(link.routes.filter { !$0.value.isEmpty }, [1: [3], 2: [3], 3: [0], 4: [0], 5: [0], 6: [0], 7: [0], 8: [0]])
     }
 
+    /// 01/11 : un clic sur une piste montre toute sa chaîne (808 → Drums Bus → Pré-master → Master), saut par saut,
+    /// même avec plusieurs sorties ou une boucle.
+    func testMixerChainShowsEveryHop() {
+        let simple: [Int: [Int]] = [5: [10], 10: [11], 11: [0]]
+        let hops = OrganizerMixerView.chain(from: 5) { simple[$0] ?? [0] }
+        XCTAssertEqual(hops.map { [$0.from, $0.to] }, [[5, 10], [10, 11], [11, 0]])
+        XCTAssertEqual(hops.map(\.level), [0, 1, 2], "chaque saut un peu plus bas")
+        XCTAssertEqual(OrganizerMixerView.path(from: 5) { simple[$0] ?? [0] }, [5, 10, 11, 0])
+
+        let two: [Int: [Int]] = [5: [0, 6], 6: [10], 10: [0]]
+        XCTAssertEqual(OrganizerMixerView.chain(from: 5) { two[$0] ?? [0] }.map { [$0.from, $0.to] },
+                       [[5, 6], [5, 0], [6, 10], [10, 0]], "les deux sorties, puis la suite")
+        XCTAssertEqual(OrganizerMixerView.path(from: 5) { two[$0] ?? [0] }, [5, 6, 10, 0], "le Master en dernier")
+
+        let loop: [Int: [Int]] = [1: [2], 2: [1]]
+        XCTAssertEqual(OrganizerMixerView.chain(from: 1) { loop[$0] ?? [0] }.count, 2, "une boucle s'arrête")
+    }
+
+    func testMixerPortAddsOrRemovesAnOutput() {
+        XCTAssertEqual(OrganizerController.toggled([0], 5), [0, 5], "la 808 dans le Master et dans Kick")
+        XCTAssertEqual(OrganizerController.toggled([0, 5], 0), [5])
+        XCTAssertEqual(OrganizerController.toggled([5], 5), [0], "jamais nulle part : le Master")
+    }
+
+    /// Ce qui est changé à la main dans le Mixer passe par-dessus le rangement : sorties, nom, couleur, piste retirée.
+    func testMixerEditsOverrideThePlan() {
+        let link = FakeOrganizerLink()
+        let kinds: [SoundKind] = [.lead, .bass, .bass808, .kick]
+        let tracks = [1, 2, 3, 4]
+        link.channels = kinds.indices.map {
+            ChannelInfo(index: $0, type: 2, mixerTrack: tracks[$0], color: gray, name: "Son \($0)")
+        }
+        link.mixer = (0...9).map { MixerTrackInfo(index: $0, color: gray, name: $0 == 0 ? "Master" : "Insert \($0)") }
+        link.routes = [1: [0], 2: [0], 3: [0], 4: [0]]
+        let items = kinds.indices.map {
+            OrganizerItem(index: $0, name: "Son \($0)", family: kinds[$0].family, confidence: 0.9, testNotes: false,
+                          mixerTrack: tracks[$0], color: gray, kind: kinds[$0])
+        }
+        let result = OrganizerResult(channels: link.channels, items: items, mixer: link.mixer, routes: link.routes)
+        var options = OrganizerOptions()
+        let red = RGBColor(r: 200, g: 20, b: 20)
+        options.mixerEdits.routes[3] = [4, 0]                  // 808 dans Kick et dans le Master
+        options.mixerEdits.names[4] = "Kick principal"
+        options.mixerEdits.colors[4] = red
+        options.mixerEdits.removed = [8]
+        options.mixerEdits.routes[2] = [8]                     // vers une piste retirée : le Master
+        let mixer = plan(result, options: options).mixer
+        XCTAssertEqual(mixer.routes[3], [0, 4])
+        XCTAssertEqual(mixer.routes[2], [0])
+        XCTAssertEqual(mixer.names[4], "Kick principal")
+        XCTAssertEqual(mixer.colors[4], red)
+        XCTAssertTrue(mixer.resets.contains(8))
+        XCTAssertFalse(mixer.final.prefix(4).contains(8))
+    }
+
     func testPremasterIsRecognizedByItsName() {
         for name in ["Pré-master", "Premaster", "PRE MASTER", "pre-master", "Pré master"] {
             XCTAssertTrue(OrganizerPlan.isPremaster(name), name)

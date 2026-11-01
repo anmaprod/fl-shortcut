@@ -84,6 +84,7 @@
 "%lld sons sans aucune note supprimés du Channel rack de la copie rangée" = "%lld sounds without any notes deleted from the Channel rack of the organized copy";
 "%lld sons sans aucune note supprimés." = "%lld sounds without any notes deleted.";
 "%lld sons sortis des patterns qui en avaient plusieurs : chacun dans son pattern (comme « Split by channel » de FL)" = "%lld sounds taken out of patterns that had several: each in its own pattern (like FL's “Split by channel”)";
+"%lld sorties" = "%lld outputs";
 "%lld touches" = "%lld keys";
 "%lld étapes tapent des touches, cliquent ou ouvrent des fichiers : relis-les dans le créateur." = "%lld steps press keys, click or open files: check them in the creator.";
 "%lld/%lld" = "%lld/%lld";
@@ -112,6 +113,7 @@
 "1 partage trouvé" = "1 post found";
 "1 raccourci" = "1 shortcut";
 "1 résultat chez %@" = "1 result from %@";
+"1 sortie" = "1 output";
 "1 touche" = "1 key";
 "1 à %lld" = "1 to %lld";
 "1 étape tape des touches, clique ou ouvre un fichier : relis-la dans le créateur." = "1 step presses keys, clicks or opens a file: check it in the creator.";
@@ -538,6 +540,7 @@
 "Clavier-piano : octave 6" = "Piano keyboard: octave 6";
 "Claw Machine" = "Claw Machine";
 "Clic" = "Click";
+"Clic : voir où va cette piste, puis choisir ses sorties avec les cases. Double-clic : nom et couleur." = "Click: see where this track goes, then choose its outputs with the boxes. Double-click: name and color.";
 "Clic droit" = "Right-click";
 "Clic droit sur la dernière piste cliquée dans le Mixer, puis l'élément choisi dans la liste (ouvrir un état de piste, renommer…), au clavier : rien à apprendre." = "Right-clicks the last clicked track in the Mixer, then picks the chosen item in the list (open a track state, rename…) with the keyboard: nothing to learn.";
 "Clic droit sur la piste → File → Open mixer track state, preset, armement, entrée 1, REC." = "Right-click the track → File → Open mixer track state, preset, arm, input 1, REC.";
@@ -566,6 +569,7 @@
 "Clique sur « Open mixer track state… » (Échap pour fermer la boîte)." = "Click “Open mixer track state…” (Esc to close the dialog).";
 "Clique sur ⟳ pour lire la liste dans FL (le menu Add s'ouvre un instant), ou écris le nom." = "Click ⟳ to read the list in FL (the Add menu opens for a moment), or type the name.";
 "Clique une fois à l'endroit voulu dans FL. Échap annule." = "Click once on the spot you want in FL. Esc cancels.";
+"Clique une piste pour voir où elle va." = "Click a track to see where it goes.";
 "Clique une touche, puis tape la nouvelle." = "Click a key, then type the new one.";
 "Clique à l'endroit voulu dans FL (une fois). Échap : annuler." = "Click the spot you want in FL (once). Esc: cancel.";
 "Clique, utilise les flèches, tes raccourcis… : chaque geste devient un bloc, que tu peux " = "Click, use the arrows, your shortcuts…: each action becomes a block you can ";
@@ -816,6 +820,7 @@
 "Envoie une touche ou un raccourci clavier à FL (⌘A, ⇧⌘S, F9…), seulement quand FL est au premier plan. Clique le champ puis tape le raccourci, ou coche ⌘ ⌥ ⌃ ⇧. Les raccourcis dangereux (⌘Q, ⌘W…) sont refusés." = "Sends a key or keyboard shortcut to FL (⌘A, ⇧⌘S, F9…), only when FL is in front. Click the field, then type the shortcut, or check ⌘ ⌥ ⌃ ⇧. Dangerous shortcuts (⌘Q, ⌘W…) are refused.";
 "Envoie une touche ou un raccourci à FL." = "Sends a key or shortcut to FL.";
 "Envoyer" = "Send";
+"Envoyer aussi dans cette piste" = "Also send to this track";
 "Envoyer par mail" = "Send by email";
 "Envoyer vers des pistes Mixer libres" = "Send to free Mixer tracks";
 "Erreur du serveur (%lld)." = "Server error (%lld).";
@@ -1247,6 +1252,7 @@
 "Marqueur suivant" = "Next marker";
 "Marqueurs" = "Markers";
 "Masquer" = "Hide";
+"Master" = "Master";
 "Master en mono" = "Master in mono";
 "Membres" = "Members";
 "Menu" = "Menu";
@@ -1288,6 +1294,7 @@
 "Mixer : %lld pistes dans l'ordre du Channel rack, %lld bus (un par famille), %lld renommées" = "Mixer: %lld tracks in Channel rack order, %lld buses (one per family), %lld renamed";
 "Mixer : %lld pistes dans l'ordre du Channel rack, %lld renommées" = "Mixer: %lld tracks in Channel rack order, %lld renamed";
 "Mixer : tire le numéro d'un son ou d'une famille, comme dans FL." = "Mixer: drag the number of a sound or a family, like in FL.";
+"Mixer →" = "Mixer →";
 "Mode Performance" = "Performance mode";
 "Mode Step Edit" = "Step Edit mode";
 "Mode d'affichage du clavier" = "Keyboard view mode";
@@ -1346,6 +1353,7 @@
 "Même place que dans la grille « Change icon… » de FL." = "Same place as in FL's “Change icon…” grid.";
 "Navigation" = "Navigation";
 "Ne fait pas ce que dit son explication" = "Doesn't do what its description says";
+"Ne plus envoyer dans cette piste" = "Stop sending to this track";
 "Ne quitte pas l'app tout de suite." = "Don't quit the app just yet.";
 "Ne touche pas à FL jusqu'à la fin." = "Don't touch FL until it's done.";
 "Ne touche pas à FL pendant l'écoute." = "Don't touch FL while it listens.";
@@ -1359,6 +1367,7 @@
 "Nom de variable invalide." = "Invalid variable name.";
 "Nom du son" = "Sound name";
 "Nom et couleur" = "Name and color";
+"Nom et couleur…" = "Name and color…";
 "Nombre de fois" = "Number of times";
 "Note" = "Note";
 "Note pour toi, ignorée à l'exécution." = "A note for you, ignored when the macro runs.";
@@ -1554,6 +1563,7 @@
 "Photo trop grande ou illisible : choisis-en une autre." = "Photo too large or unreadable: choose another one.";
 "Piano" = "Piano";
 "Piano Roll" = "Piano Roll";
+"Piste %lld" = "Track %lld";
 "Piste Mixer précédente" = "Previous Mixer track";
 "Piste Mixer suivante" = "Next Mixer track";
 "Piste du Mixer" = "Mixer track";
@@ -1705,6 +1715,7 @@
 "Reprendre" = "Resume";
 "Repère « bonne prise » à la position de lecture" = "Adds a “good take” marker at the playhead";
 "Reset" = "Reset";
+"Reste appuyé et glisse la famille sur une autre : elle prend sa place" = "Hold and drag the family onto another: it takes its place";
 "Reste cliqué à un endroit de FL (un son du Browser, un clip, un plugin…), glisse jusqu'à un autre endroit de FL et lâche. Les deux endroits se montrent une fois en faisant le geste dans FL ; toujours dans les fenêtres de FL, jamais sous une autre app." = "Holds the click on a spot in FL (a sound in the Browser, a clip, a plugin…), drags to another spot in FL and releases. You show both spots once by doing the gesture in FL; always in FL's windows, never over another app.";
 "Rester" = "Stay";
 "Retenu dans la fenêtre de FL de %lld × %lld (fenêtre principale, réglages, " = "Remembered in the %lld × %lld FL window (main window, settings, ";
@@ -1721,6 +1732,7 @@
 "Retirer ce bloc de la macro (⌫)" = "Remove this block from the macro (⌫)";
 "Retirer la photo" = "Remove photo";
 "Retirer la photo de @%@ ?" = "Remove @%@'s photo?";
+"Retirer la piste (sans son)" = "Remove the track (no sound)";
 "Retirer ta photo : ton initiale de couleur la remplace" = "Remove your photo: your colored initial replaces it";
 "Retirer tous les solos" = "Clear all solos";
 "Retouche les blocs dans le créateur." = "Fine-tune the blocks in the creator.";
@@ -1757,6 +1769,7 @@
 "Rim" = "Rim";
 "Riser" = "Riser";
 "Roue des couleurs de FL" = "FL color wheel";
+"Routage" = "Routing";
 "Règle la mesure du projet en 3/4." = "Sets the project's time signature to 3/4.";
 "Règle les 4 cases entourées" = "Set the 4 circled boxes";
 "Réapprendre l'entrée" = "Relearn the input";
@@ -2539,6 +2552,7 @@
 "étape %@ non faite (%@)" = "step %@ skipped (%@)";
 "état de FL inconnu." = "unknown FL state.";
 "÷ (pavé)" = "÷ (keypad)";
+"← Familles" = "← Families";
 "↺ remet la touche de FL." = "↺ puts FL's key back.";
 "⇧⌘R" = "⇧⌘R";
 "− (pavé)" = "− (keypad)";

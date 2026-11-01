@@ -497,6 +497,9 @@ final class OrganizerController: ObservableObject {
     /// Ce que « Organiser » fait : les pages de FL touchées, les noms, l'ordre des familles.
     /// Le pré-master est là par défaut dans l'app (01/11).
     @Published var options = OrganizerOptions(premaster: true)
+    /// Écran Mixer de l'aperçu ouvert, et la piste choisie (piste d'origine) dont on voit toute la chaîne.
+    @Published var showingMixer = false
+    @Published var mixerSelection: Int?
     /// Noms écrits dans l'aperçu (« Écrire… », demande du propriétaire du 25/10), par index du canal.
     @Published var names: [Int: String] = [:]
     /// Piste du Mixer choisie pour un son dans l'aperçu (la case de FL), par index du canal ; absent : automatique.
@@ -767,6 +770,9 @@ final class OrganizerController: ObservableObject {
         kinds = [:]
         names = [:]
         slots = [:]
+        options.mixerEdits = MixerEdits()
+        mixerSelection = nil
+        showingMixer = false
         phase = .ready
         start()
     }
@@ -885,6 +891,58 @@ final class OrganizerController: ObservableObject {
         let place = out.firstIndex(of: target) ?? out.count
         out.insert(family, at: from < to ? place + 1 : place)
         return out
+    }
+
+    // MARK: Mixer à la main (demande du propriétaire du 01/11)
+
+    /// Où va une piste (piste d'origine ; 0 = le Master), d'après ce qu'Organiser fera.
+    func destinations(of track: Int, in plan: OrganizerPlan? = nil) -> [Int] {
+        (plan ?? self.plan).mixer.routes[track] ?? result?.routes[track] ?? [0]
+    }
+
+    /// Un clic sur la case d'une piste : la piste choisie y va aussi, ou n'y va plus (jamais nulle part : le Master).
+    func toggleRoute(from track: Int, to destination: Int) {
+        guard track != destination else { return }
+        options.mixerEdits.routes[track] = Self.toggled(destinations(of: track), destination)
+    }
+
+    /// Pur (testé) : les sorties d'une piste après un clic sur la case de `destination`.
+    static func toggled(_ current: [Int], _ destination: Int) -> [Int] {
+        var set = Set(current)
+        if set.contains(destination) { set.remove(destination) } else { set.insert(destination) }
+        return set.isEmpty ? [0] : set.sorted()
+    }
+
+    func renameTrack(_ track: Int, _ name: String) {
+        let clean = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        options.mixerEdits.names[track] = clean.isEmpty ? nil : clean
+    }
+
+    func recolorTrack(_ track: Int, _ color: RGBColor) {
+        options.mixerEdits.colors[track] = color
+    }
+
+    /// Pistes où va un son (entendu ou relié) : elles ne se retirent pas.
+    func soundTracks(in plan: OrganizerPlan? = nil) -> Set<Int> {
+        guard let result else { return [] }
+        let mixer = (plan ?? self.plan).mixer
+        let deleted = Set(result.unused)
+        var out = Set(result.channels.filter { !deleted.contains($0.index) }.map { mixer.links[$0.index] ?? $0.mixerTrack })
+        out.remove(0)
+        return out
+    }
+
+    /// Une piste se retire si aucun son n'y va et qu'aucune piste n'y envoie.
+    func canRemove(_ track: Int, in plan: OrganizerPlan) -> Bool {
+        guard track >= 1, !soundTracks(in: plan).contains(track) else { return false }
+        let all = Set(plan.mixer.routes.keys).union(result?.routes.keys.map { $0 } ?? [])
+        return !all.contains { $0 != track && destinations(of: $0, in: plan).contains(track) }
+    }
+
+    func removeTrack(_ track: Int) {
+        options.mixerEdits.removed.insert(track)
+        options.mixerEdits.routes[track] = nil
+        if mixerSelection == track { mixerSelection = nil }
     }
 
     // MARK: Places dans le Mixer (demande du propriétaire du 25/10)
@@ -1531,6 +1589,12 @@ struct OrganizerView: View {
                 // Maquette du 28/10 : « Rangement automatique » à droite du titre ; les choix et le diagnostic sont
                 // rangés dans « Options ».
                 if controller.options.mixer {
+                    // Écran Mixer (01/11) : les pistes comme dans FL, leurs liens, leurs noms et couleurs.
+                    Button(controller.showingMixer ? String(localized: "← Familles") : String(localized: "Mixer →")) {
+                        controller.mixerSelection = nil
+                        controller.showingMixer.toggle()
+                    }
+                    .secondaryButton()
                     Button("Rangement automatique") { withAnimation(Motion.quickMorph) { controller.autoArrange() } }
                         .secondaryButton()
                         .disabled(!controller.placesChosen)
@@ -1997,6 +2061,10 @@ struct OrganizerView: View {
         VStack(alignment: .leading, spacing: 12) {
             // Maquette du 28/10 : les familles sur deux colonnes dès que la fenêtre est assez large ; chacune, son
             // en-tête (poignée, couleur, nom, départ dans le Mixer), puis ses sons dans une carte de verre.
+            if controller.showingMixer && controller.options.mixer {
+                OrganizerMixerView(controller: controller)
+                    .frame(maxHeight: .infinity, alignment: .top)
+            } else {
             GeometryReader { geo in
                 ScrollView {
                     let colors = controller.plannedColors
@@ -2051,6 +2119,7 @@ struct OrganizerView: View {
                 }
             }
             .frame(minHeight: 120)                       // fenêtre rétrécie : la liste défile, jamais écrasée
+            }
             if controller.playlistTooBig {
                 Label(String(localized: "Playlist trop grande pour FL : décoche « Playlist »."),
                       systemImage: "exclamationmark.triangle.fill")
@@ -2071,7 +2140,7 @@ struct OrganizerView: View {
                         .help(String(localized: "Déjà coché dans les Réglages ? Décoche puis recoche FL Shortcuts : chaque nouvelle version le redemande."))
                 }
             }
-            HStack(spacing: 12) {
+            HStack(spacing: 0) {
                 Spacer()
                 Button("Annuler") { controller.close() }
                     .secondaryButton()
@@ -2082,7 +2151,7 @@ struct OrganizerView: View {
             }
             .controlSize(.large)
             .padding(.top, 12)
-            .overlay(alignment: .top) { Rectangle().fill(Color.primary.opacity(0.08)).frame(height: 1) }
+            .overlay(alignment: .top) { Rectangle().fill(Swiss.line).frame(height: 1) }
         }
     }
 
