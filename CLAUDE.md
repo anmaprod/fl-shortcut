@@ -186,11 +186,19 @@
   artefact privé `GHmTowhxy53F6VT3TEAjis` (Organiser, fenêtre, petites fenêtres, 4 idées de logo) : fond noir, texte
   blanc, traits fins (#333/#222), coins carrés, gros titres Helvetica gras, libellés en petites capitales espacées,
   boutons rectangulaires en capitales (principal blanc plein), rouge #FF3B1F seulement pour l'important (touche
-  changée, avertissement, Désinstaller). À faire dans l'app (remplace l'aspect du 28/10 ci-dessous). Mixer de
+  changée, avertissement, Désinstaller). Fait dans l'app le 01/11 (remplace l'aspect du 28/10 ci-dessous) : jetons
+  `Swiss` (GlassStyle.swift : `swissLabel`, `swissTitle`, `swissRule`, `SwissSwitch`, `SwissProgress`, `SixDots`), survol
+  = blanc plein texte noir, tous les coins carrés (sauf `FLColorSelector`), `Swiss.flat` éteint les plaques. Mixer de
   l'Organiser : pré-master à côté du Master ; par défaut 808 → bus Drums, chaque bus → Pré-master, SEUL le pré-master
   → Master (sauf changé à la main) ; liens par les ports sous les pistes (flèches, pas « OUT »), plusieurs sorties
   possibles ; familles en bandes à 6 points glissées ; double-clic sur une piste : nom + couleur. MIDI Settings : les
   4 cases découpées en grand + « Voir toute la fenêtre en grand » (l'image entière était illisible).
+  Fait le 01/11 : pré-master (`OrganizerOptions.premaster`, vrai dans l'app ; piste nommée « Pré-master » reconnue,
+  `isPremaster`), écran Mixer de l'aperçu (`OrganizerMixer.swift`, « Mixer → ») : clic sur une piste = toute sa
+  chaîne en rouge sous les pistes, chaque saut plus bas (« qu'on voie toute la ligne », plus de ligne « par défaut »),
+  cases sous les pistes = sorties (plusieurs), double-clic nom + couleur, clic droit retirer une piste sans son,
+  piste choisie blanche jusqu'au bord ; changements dans `MixerEdits` (passent par le plan). Couleur choisie dans la
+  roue : contour blanc égal (tracé en dernier). Logo : 8 idées (dont 4 « vraie touche »), pas encore choisi.
 - **Aspect validé le 28/10** (maquette, `HISTORIQUE`) : plus de Liquid Glass depuis le 29/10 (plaques dessinées), sans lavis ni lueur ; fond de
   fenêtre plein (« sans le Liquid Glass derrière »), verre devant : cartes, touches, cartes de l'Organiser
   (`GlassPlate`, dessiné : pas de `glassEffect` par ligne) ; titre de
