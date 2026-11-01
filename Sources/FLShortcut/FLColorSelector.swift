@@ -220,6 +220,9 @@ private struct FLColorWheelView: View {
 
     private func draw(in ctx: GraphicsContext, center: CGPoint, radius: CGFloat) {
         let step = 360.0 / Double(FLColorWheel.sectors)
+        // La case choisie est entourée de blanc en dernier : tracée avec les autres, ses voisines recouvraient une partie
+        // de son contour (01/11, « le blanc est gros d'un côté, petit de l'autre »).
+        var chosen: Path?
         for ring in stride(from: FLColorWheel.edges.count - 1, through: 1, by: -1) {
             let outer = CGFloat(FLColorWheel.edges[ring]) * radius
             let inner = CGFloat(FLColorWheel.edges[ring - 1]) * radius
@@ -234,9 +237,10 @@ private struct FLColorWheelView: View {
                 let c = FLColorWheel.color(ring: ring, sector: k)
                 ctx.fill(p, with: .color(swiftColor(c)))
                 ctx.stroke(p, with: .color(.black.opacity(0.35)), lineWidth: 1)
-                if c == selected { ctx.stroke(p, with: .color(.white), lineWidth: 2) }
+                if c == selected { chosen = p }
             }
         }
+        if let chosen { ctx.stroke(chosen, with: .color(.white), lineWidth: 2) }
         let r0 = CGFloat(FLColorWheel.edges[0]) * radius
         let disc = Path(ellipseIn: CGRect(x: center.x - r0, y: center.y - r0, width: 2 * r0, height: 2 * r0))
         ctx.fill(disc, with: .color(swiftColor(selected)))
