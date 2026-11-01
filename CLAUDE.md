@@ -24,6 +24,7 @@
   28/10) ; celle que créaient d'anciennes versions part à la Corbeille au lancement (`FLPluginDatabase`). Tous les
   plugins restent choisissables : hors favoris, Add › Channel/Effect › More plugins..., nom lu au clic, double-clic
   (jamais la case devant le nom : elle en ferait un favori) ; Mac et Windows.
+- Jamais son prénom dans les exemples (démo, champs, essais) : « flshortcuts », flshortcuts@exemple.fr (01/11).
 - Essais sur un projet de test seulement. Jamais de clé secrète Supabase ni de clé privée dans le dépôt. Pas
   d'identifiant de modèle dans les commits. Le bouton s'appelle « Organiser » (pas « Tout organiser »).
 
@@ -46,6 +47,9 @@
   icônes de l'Organiser : « Autoriser » ouvre sa page des Réglages). Vidéo du 31/10 : l'accueil revient 0,8 s après la
   réponse à la question du son (plus pendant son fondu) ; TCC relu après la réponse (0,5 à 6 s) et à chaque retour de
   l'app, rien conclu pendant la question (« Son de FL » restait « À autoriser ») ; journal `AUDIO` (réponse, état TCC).
+  01/11 (« ça écrit pas Autorisé ») : l'accueil relit les deux chaque seconde ; relancée (« Quitter et rouvrir ») avant
+  la fin de l'autorisation, l'app reste cachée jusqu'à ce qu'elle soit donnée (`PermissionRelaunchWait`,
+  `ResumeState.asking` ; Réglages fermés, 3 min ou Dock : elle revient) ; journal `ACCUEIL`.
 - Fenêtre principale sans bande sous la barre d'outils ; accueil remontré si l'autorisation clavier manque.
 - **Organiser v5** (`Sources/FLShortcut/Organizer*.swift`, `SoundFeatures.swift`, `SoundFamilies.swift`, script FL v16) :
   - analyse sur le fichier du projet (PROTOCOL.md §9, `FLP*.swift`, `OrganizerProject*.swift`) : FL enregistre (⌘S),
@@ -178,6 +182,15 @@
   étapes glissées, interrupteur, réglages à droite, « Retirer ce bloc » ; blocs pas faits sur Windows « à régler sur le
   Mac »), photos `macros-liste.png`/`macros-createur.png` sur la CI ; fiche d'un raccourci : 3e type « Macro ».
   Reste : ces blocs, blocs imbriqués (si/répéter) dans le créateur, enregistrement, compte, Communauté, Aide.
+- **Style suisse validé le 01/11** (« j'aime beaucoup… mettre tout ça en place ») : maquette de TOUTES les pages,
+  artefact privé `GHmTowhxy53F6VT3TEAjis` (Organiser, fenêtre, petites fenêtres, 4 idées de logo) : fond noir, texte
+  blanc, traits fins (#333/#222), coins carrés, gros titres Helvetica gras, libellés en petites capitales espacées,
+  boutons rectangulaires en capitales (principal blanc plein), rouge #FF3B1F seulement pour l'important (touche
+  changée, avertissement, Désinstaller). À faire dans l'app (remplace l'aspect du 28/10 ci-dessous). Mixer de
+  l'Organiser : pré-master à côté du Master ; par défaut 808 → bus Drums, chaque bus → Pré-master, SEUL le pré-master
+  → Master (sauf changé à la main) ; liens par les ports sous les pistes (flèches, pas « OUT »), plusieurs sorties
+  possibles ; familles en bandes à 6 points glissées ; double-clic sur une piste : nom + couleur. MIDI Settings : les
+  4 cases découpées en grand + « Voir toute la fenêtre en grand » (l'image entière était illisible).
 - **Aspect validé le 28/10** (maquette, `HISTORIQUE`) : plus de Liquid Glass depuis le 29/10 (plaques dessinées), sans lavis ni lueur ; fond de
   fenêtre plein (« sans le Liquid Glass derrière »), verre devant : cartes, touches, cartes de l'Organiser
   (`GlassPlate`, dessiné : pas de `glassEffect` par ligne) ; titre de
