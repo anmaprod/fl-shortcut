@@ -2,8 +2,8 @@
 // FL », liens faciles et rapides, plusieurs sorties pour un son, familles en bandes qu'on glisse, double-clic pour le
 // nom et la couleur, pistes sans son qu'on retire). Les pistes comme dans FL (le Master, puis le pré-master, puis les
 // autres dans l'ordre où Organiser les rangera), les bandes des familles au-dessus. Un clic sur une piste la choisit :
-// toute sa chaîne apparaît en rouge sous les pistes (808 → Drums Bus → Pré-master → Master), et la case sous chaque
-// autre piste dit si elle y va ; un clic sur une case ajoute ou retire cette sortie. Tout passe par le plan
+// un trait rouge sous les pistes montre où elle va (808 → Drums Bus), rien de plus, et la case sous chaque autre piste
+// dit si elle y va ; un clic sur une case ajoute ou retire cette sortie. Tout passe par le plan
 // (`MixerEdits`) : rien n'est envoyé à FL avant « Organiser ».
 import SwiftUI
 
@@ -49,8 +49,8 @@ struct OrganizerMixerView: View {
         let centers = Self.centers(strips)
         let width = (strips.map(\.width).reduce(0, +) + Self.gap * CGFloat(max(strips.count - 1, 0)))
         let selected = controller.mixerSelection.flatMap { id in strips.contains { $0.id == id } ? id : nil }
-        let hops = selected.map { Self.chain(from: $0) { controller.destinations(of: $0, in: plan) } } ?? []
         let direct = selected.map { controller.destinations(of: $0, in: plan) } ?? []
+        let hops = selected.map { Self.outputs(from: $0, to: direct) } ?? []
         let depth = (hops.map(\.level).max() ?? -1) + 1
         VStack(alignment: .leading, spacing: 0) {
             ScrollView(.horizontal, showsIndicators: true) {
@@ -65,7 +65,7 @@ struct OrganizerMixerView: View {
                     }
                     .frame(height: Self.stripHeight)
                     cables(hops, centers: centers)
-                        .frame(width: width, height: 24 + CGFloat(max(depth, 1)) * 16)
+                        .frame(width: width, height: 14 + CGFloat(max(depth, 1)) * 16)
                 }
                 .padding(.bottom, 6)
             }
@@ -125,42 +125,13 @@ struct OrganizerMixerView: View {
         return out
     }
 
-    /// Pur (testé) : toute la chaîne d'une piste jusqu'au Master, saut par saut (chaque sortie, puis les sorties de
-    /// celles-ci…), chaque saut un peu plus bas que le précédent ; jamais deux fois la même piste (boucles).
-    static func chain(from start: Int, destinations: (Int) -> [Int]) -> [Hop] {
-        var hops: [Hop] = []
-        var seen: Set<Int> = [start]
-        var level = [start]
-        var depth = 0
-        while !level.isEmpty && depth < 8 {
-            var next: [Int] = []
-            for track in level where track != 0 {
-                for dest in destinations(track).sorted(by: { ($0 == 0 ? 1 : 0, $0) < ($1 == 0 ? 1 : 0, $1) }) {
-                    hops.append(Hop(from: track, to: dest, level: hops.count))
-                    if !seen.contains(dest) {
-                        seen.insert(dest)
-                        next.append(dest)
-                    }
-                }
-            }
-            level = next
-            depth += 1
-        }
-        return hops
-    }
-
-    /// Pur (testé) : le chemin principal d'une piste jusqu'au Master (à chaque piste, sa première sortie, le Master
-    /// en dernier), pour la ligne « Routage ».
-    static func path(from start: Int, destinations: (Int) -> [Int]) -> [Int] {
-        var out = [start]
-        var track = start
-        while track != 0, out.count < 10 {
-            guard let next = destinations(track).sorted(by: { ($0 == 0 ? 1 : 0, $0) < ($1 == 0 ? 1 : 0, $1) }).first,
-                  !out.contains(next) else { break }
-            out.append(next)
-            track = next
-        }
-        return out
+    /// Pur (testé) : un trait par sortie de la piste choisie, le Master en dernier, chacun un peu plus bas (01/11 : on
+    /// voit seulement où va la piste choisie ; où vont ensuite ces pistes-là se voit en cliquant dessus).
+    static func outputs(from start: Int, to destinations: [Int]) -> [Hop] {
+        destinations.filter { $0 != start }
+            .sorted { ($0 == 0 ? 1 : 0, $0) < ($1 == 0 ? 1 : 0, $1) }
+            .enumerated()
+            .map { Hop(from: start, to: $0.element, level: $0.offset) }
     }
 
     private func stripView(_ strip: Strip, selected: Int?, direct: [Int], plan: OrganizerPlan) -> some View {
@@ -253,38 +224,25 @@ struct OrganizerMixerView: View {
 
     // MARK: Chaîne et routage
 
-    /// Un trait rouge par saut de la chaîne, chacun sur sa ligne, un peu plus bas que le précédent (01/11 : « qu'on voie
-    /// toute la ligne », puis « un départ, et ça repart d'une autre ligne ») : dans chaque piste, le trait part d'un petit
-    /// carré à droite et arrive par une flèche à gauche ; une piste qui reçoit et renvoie (un bus) a donc deux traits
-    /// bien séparés.
+    /// Un trait rouge par sortie de la piste choisie : il descend de la piste, va jusqu'à celle où elle va et y remonte,
+    /// chaque sortie un peu plus bas (comme au début : un trait, rien d'autre).
     private func cables(_ hops: [Hop], centers: [Int: CGFloat]) -> some View {
         Canvas { ctx, _ in
             for hop in hops {
-                guard let from = centers[hop.from], let to = centers[hop.to] else { continue }
-                let a = from + Self.anchor, b = to - Self.anchor
-                let y = 18 + CGFloat(hop.level) * 16
+                guard let a = centers[hop.from], let b = centers[hop.to] else { continue }
+                let y = 12 + CGFloat(hop.level) * 16
                 var path = Path()
-                path.move(to: CGPoint(x: a, y: 6))
+                path.move(to: CGPoint(x: a, y: 0))
                 path.addLine(to: CGPoint(x: a, y: y))
                 path.addLine(to: CGPoint(x: b, y: y))
-                path.addLine(to: CGPoint(x: b, y: 6))
+                path.addLine(to: CGPoint(x: b, y: 0))
                 ctx.stroke(path, with: .color(Swiss.red), lineWidth: 2)
-                ctx.fill(Path(CGRect(x: a - 3, y: 0, width: 6, height: 6)), with: .color(Swiss.red))
-                var head = Path()
-                head.move(to: CGPoint(x: b - 5, y: 8))
-                head.addLine(to: CGPoint(x: b, y: 1))
-                head.addLine(to: CGPoint(x: b + 5, y: 8))
-                head.closeSubpath()
-                ctx.fill(head, with: .color(Swiss.red))
             }
         }
         .accessibilityHidden(true)
     }
 
-    /// Écart du départ (à droite) et de l'arrivée (à gauche) par rapport au milieu de la piste.
-    static let anchor: CGFloat = 5
-
-    /// « ROUTAGE » : le chemin de la piste choisie jusqu'au Master (808 → Drums Bus → Pré-master → Master) et le nombre
+    /// « ROUTAGE » : où va la piste choisie (808 → Drums Bus ; plusieurs sorties : 808 → Drums Bus, Kick) et le nombre
     /// de ses sorties ; sans piste choisie, la consigne.
     private func routing(selected: Int?, direct: [Int], strips: [Strip], plan: OrganizerPlan) -> some View {
         let names = Dictionary(uniqueKeysWithValues: strips.map { ($0.id, $0) })
@@ -292,21 +250,19 @@ struct OrganizerMixerView: View {
             guard let s = names[id] else { return String(localized: "Piste \(id)") }
             return s.isMaster ? "Master" : s.name.isEmpty ? String(localized: "Piste \(s.place)") : s.name
         }
-        let path = selected.map { Self.path(from: $0) { controller.destinations(of: $0, in: plan) } } ?? []
+        let outputs = selected.map { Self.outputs(from: $0, to: direct).map(\.to) } ?? []
         return HStack(alignment: .firstTextBaseline, spacing: 12) {
             Text("Routage").swissLabel().frame(width: 76, alignment: .leading)
-            if path.isEmpty {
+            if let selected, !outputs.isEmpty {
+                (Text(verbatim: name(selected)) + Text(verbatim: "  →  ").foregroundColor(Swiss.red)
+                    + Text(verbatim: outputs.map(name).joined(separator: ", ")))
+                    .font(Swiss.font(20))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.6)
+            } else {
                 Text("Clique une piste pour voir où elle va.")
                     .font(.system(size: 13))
                     .foregroundStyle(Swiss.gray)
-            } else {
-                path.enumerated().reduce(Text(verbatim: "")) { text, item in
-                    text + (item.offset > 0 ? Text(verbatim: "  →  ").foregroundColor(Swiss.red) : Text(verbatim: ""))
-                        + Text(verbatim: name(item.element))
-                }
-                .font(Swiss.font(20))
-                .lineLimit(1)
-                .minimumScaleFactor(0.6)
             }
             Spacer(minLength: 8)
             if !direct.isEmpty {

@@ -194,8 +194,9 @@
   possibles ; familles en bandes à 6 points glissées ; double-clic sur une piste : nom + couleur. MIDI Settings : les
   4 cases découpées en grand + « Voir toute la fenêtre en grand » (l'image entière était illisible).
   Fait le 01/11 : pré-master (`OrganizerOptions.premaster`, vrai dans l'app ; piste nommée « Pré-master » reconnue,
-  `isPremaster`), écran Mixer de l'aperçu (`OrganizerMixer.swift`, « Mixer → ») : clic sur une piste = toute sa
-  chaîne en rouge sous les pistes, chaque saut plus bas (« qu'on voie toute la ligne », plus de ligne « par défaut »),
+  `isPremaster`), écran Mixer de l'aperçu (`OrganizerMixer.swift`, « Mixer → ») : clic sur une piste = un trait
+  rouge simple vers chacune de SES sorties seulement (01/11, après essais de la chaîne entière, de carrés de départ,
+  de câbles courbes : « on n'a pas besoin de savoir où va ensuite ce qu'on envoie » ; NE PAS remettre la chaîne),
   cases sous les pistes = sorties (plusieurs), double-clic nom + couleur, clic droit retirer une piste sans son,
   piste choisie blanche jusqu'au bord ; changements dans `MixerEdits` (passent par le plan). Couleur choisie dans la
   roue : contour blanc égal (tracé en dernier). Logo : 8 idées (dont 4 « vraie touche »), pas encore choisi.

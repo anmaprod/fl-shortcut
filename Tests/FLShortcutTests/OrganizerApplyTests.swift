@@ -503,22 +503,14 @@ final class OrganizerApplyTests: XCTestCase {
         XCTAssertEqual(link.routes.filter { !$0.value.isEmpty }, [1: [3], 2: [3], 3: [0], 4: [0], 5: [0], 6: [0], 7: [0], 8: [0]])
     }
 
-    /// 01/11 : un clic sur une piste montre toute sa chaîne (808 → Drums Bus → Pré-master → Master), saut par saut,
-    /// même avec plusieurs sorties ou une boucle.
-    func testMixerChainShowsEveryHop() {
-        let simple: [Int: [Int]] = [5: [10], 10: [11], 11: [0]]
-        let hops = OrganizerMixerView.chain(from: 5) { simple[$0] ?? [0] }
-        XCTAssertEqual(hops.map { [$0.from, $0.to] }, [[5, 10], [10, 11], [11, 0]])
-        XCTAssertEqual(hops.map(\.level), [0, 1, 2], "chaque saut un peu plus bas")
-        XCTAssertEqual(OrganizerMixerView.path(from: 5) { simple[$0] ?? [0] }, [5, 10, 11, 0])
-
-        let two: [Int: [Int]] = [5: [0, 6], 6: [10], 10: [0]]
-        XCTAssertEqual(OrganizerMixerView.chain(from: 5) { two[$0] ?? [0] }.map { [$0.from, $0.to] },
-                       [[5, 6], [5, 0], [6, 10], [10, 0]], "les deux sorties, puis la suite")
-        XCTAssertEqual(OrganizerMixerView.path(from: 5) { two[$0] ?? [0] }, [5, 6, 10, 0], "le Master en dernier")
-
-        let loop: [Int: [Int]] = [1: [2], 2: [1]]
-        XCTAssertEqual(OrganizerMixerView.chain(from: 1) { loop[$0] ?? [0] }.count, 2, "une boucle s'arrête")
+    /// 01/11 : un clic sur une piste montre seulement où elle va (un trait par sortie, le Master en dernier), pas où
+    /// vont ensuite ces pistes-là.
+    func testMixerShowsOnlyWhereTheTrackGoes() {
+        let hops = OrganizerMixerView.outputs(from: 5, to: [0, 6])
+        XCTAssertEqual(hops.map { [$0.from, $0.to] }, [[5, 6], [5, 0]], "la 808 dans Kick et dans le Master")
+        XCTAssertEqual(hops.map(\.level), [0, 1], "chaque sortie un peu plus bas")
+        XCTAssertEqual(OrganizerMixerView.outputs(from: 5, to: [10]).map(\.to), [10], "une seule sortie : un seul trait")
+        XCTAssertTrue(OrganizerMixerView.outputs(from: 5, to: [5]).isEmpty)
     }
 
     func testMixerPortAddsOrRemovesAnOutput() {
