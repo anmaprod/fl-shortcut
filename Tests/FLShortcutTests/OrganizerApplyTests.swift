@@ -463,6 +463,55 @@ final class OrganizerApplyTests: XCTestCase {
         XCTAssertEqual(link.channels.map(\.mixerTrack), tracks)
     }
 
+    /// 01/11 : un pré-master juste à côté du Master (une piste libre, nommée « Pré-master ») ; chaque bus y va, seul lui
+    /// va au Master ; les sons gardent leur bus, ceux qui envoient déjà ailleurs gardent leurs envois.
+    func testPremasterNextToTheMasterTakesEveryBus() {
+        let link = FakeOrganizerLink()
+        let kinds: [SoundKind?] = [.lead, .lead, .bass, .bass808, .kick, .clap, nil]
+        let tracks = [1, 2, 4, 5, 6, 7, 8]
+        link.channels = kinds.indices.map {
+            ChannelInfo(index: $0, type: 2, mixerTrack: tracks[$0], color: gray, name: "Son \($0)")
+        }
+        link.mixer = (0...12).map {
+            MixerTrackInfo(index: $0, color: gray, name: $0 == 0 ? "Master" : $0 == 3 ? "Melody Bus" : "Insert \($0)")
+        }
+        link.routes = [1: [3], 2: [3], 3: [0], 4: [0], 5: [0], 6: [0], 7: [0], 8: [0]]
+        let items = kinds.indices.compactMap { i -> OrganizerItem? in
+            guard let kind = kinds[i] else { return nil }
+            return OrganizerItem(index: i, name: "Son \(i)", family: kind.family, confidence: 0.9, testNotes: false,
+                                 mixerTrack: tracks[i], color: gray, kind: kind)
+        }
+        var result = OrganizerResult(channels: link.channels, items: items, mixer: link.mixer, routes: link.routes)
+        result.unused = [6]
+        let mixer = plan(result, options: OrganizerOptions(premaster: true)).mixer
+        XCTAssertEqual(mixer.premaster, 11, "la première piste libre après les bus")
+        XCTAssertEqual(mixer.final, [11, 1, 2, 3, 4, 9, 5, 6, 7, 10, 8], "le pré-master juste à côté du Master")
+        XCTAssertEqual(mixer.routes, [3: [11], 4: [9], 9: [11], 5: [10], 6: [10], 7: [10], 10: [11], 11: [0]],
+                       "808 → Drums Bus → Pré-master → Master")
+        XCTAssertEqual(mixer.names[11], "Pré-master")
+
+        let outcome = apply(link, result, options: OrganizerOptions(rack: false, patterns: false, playlist: false,
+                                                                    premaster: true, deleteUnused: false))
+        XCTAssertNil(outcome.error)
+        XCTAssertEqual(link.mixer[1].name, "Pré-master")
+        XCTAssertEqual(link.routes[1], [0], "seul le pré-master va au Master")
+        for bus in ["Melody Bus", "Basse Bus", "Drums Bus"] {
+            let index = link.mixer.firstIndex { $0.name == bus }
+            XCTAssertEqual(index.flatMap { link.routes[$0] }, [1], "\(bus) → Pré-master")
+        }
+        XCTAssertNil(applier(link).undo(outcome.snapshot).error)
+        XCTAssertEqual(link.routes.filter { !$0.value.isEmpty }, [1: [3], 2: [3], 3: [0], 4: [0], 5: [0], 6: [0], 7: [0], 8: [0]])
+    }
+
+    func testPremasterIsRecognizedByItsName() {
+        for name in ["Pré-master", "Premaster", "PRE MASTER", "pre-master", "Pré master"] {
+            XCTAssertTrue(OrganizerPlan.isPremaster(name), name)
+        }
+        for name in ["Master", "Pre", "Insert 1", "Drums Bus"] {
+            XCTAssertFalse(OrganizerPlan.isPremaster(name), name)
+        }
+    }
+
     /// Règle du propriétaire : un son déjà relié à une autre piste que le Master (ici un sidechain, en plus du Master)
     /// garde ses envois et va avec sa famille ; un son relié au seul Master va dans le bus de sa famille. Le sidechain
     /// n'est pas pris pour un bus.

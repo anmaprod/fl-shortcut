@@ -495,7 +495,8 @@ final class OrganizerController: ObservableObject {
     @Published var styles: [SoundFamily: FamilyStyle]
     @Published private(set) var result: OrganizerResult?
     /// Ce que « Organiser » fait : les pages de FL touchées, les noms, l'ordre des familles.
-    @Published var options = OrganizerOptions()
+    /// Le pré-master est là par défaut dans l'app (01/11).
+    @Published var options = OrganizerOptions(premaster: true)
     /// Noms écrits dans l'aperçu (« Écrire… », demande du propriétaire du 25/10), par index du canal.
     @Published var names: [Int: String] = [:]
     /// Piste du Mixer choisie pour un son dans l'aperçu (la case de FL), par index du canal ; absent : automatique.
@@ -2203,6 +2204,8 @@ private struct OrganizerOptionsMenu: View {
             Toggle("Renommer", isOn: $controller.options.rename)
             Toggle("Un bus par famille", isOn: $controller.options.buses)
                 .disabled(!controller.options.mixer)
+            Toggle("Pré-master", isOn: $controller.options.premaster)
+                .disabled(!controller.options.mixer || !controller.options.buses)
             Toggle(isOn: $controller.options.deleteUnused) {
                 Text(controller.organizesCopy
                     ? String(localized: "Supprimer les sons sans note")

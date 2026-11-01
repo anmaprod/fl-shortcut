@@ -19,6 +19,10 @@ struct OrganizerOptions: Equatable {
     /// Mixer : un bus par famille (les 808 avec les drums), chaque son envoyé seulement à son bus (retour de
     /// l'utilisateur) ; sinon les envois restent et les pistes reliées restent côte à côte.
     var buses = true
+    /// Mixer, avec les bus : un pré-master juste à côté du Master (piste 1) ; chaque bus et chaque piste qui allait au
+    /// Master y vont, et seul le pré-master va au Master (demande du propriétaire, 01/11 : « tous les bus vont dans
+    /// Premaster, et Premaster va dans Master »). Faux ici (essais d'avant) ; vrai dans l'app (`OrganizerController`).
+    var premaster = false
     /// Sons sans aucune note supprimés du Channel rack, leurs pistes du Mixer remises comme neuves (retour de
     /// l'utilisateur : « je veux qu'elles disparaissent »).
     var deleteUnused = true
@@ -92,6 +96,8 @@ struct OrganizerPlan: Equatable {
         /// n'était pas dans le Mixer) ; pistes des sons supprimés, remises comme neuves (nom de FL, couleur de FL).
         var links: [Int: Int] = [:]
         var resets: Set<Int> = []
+        /// Mixer : la piste d'origine qui devient le pré-master (à côté du Master, seule à y aller).
+        var premaster: Int?
 
         var isEmpty: Bool { colors.isEmpty && names.isEmpty && moves.isEmpty && routes.isEmpty && links.isEmpty }
     }
@@ -474,6 +480,28 @@ struct OrganizerPlan: Equatable {
                 layout = groupedLayout(linked: linked, sources: sources, key: &key, out: &out)
             }
         }
+        // Pré-master (01/11) : une piste déjà nommée ainsi, sinon une piste libre ; tout ce qui allait au seul Master y
+        // va (bus, pistes sans bus, à vérifier), lui seul va au Master ; il se met juste à côté du Master. Une piste
+        // qui envoie déjà ailleurs garde ses envois (règle du propriétaire).
+        if buses, options.premaster, !layout.isEmpty {
+            let existing = result.mixer.first { t in
+                (1...last).contains(t.index) && Self.isPremaster(t.name) && !keptTracks.contains(t.index)
+            }?.index
+            free.removeAll { $0 == existing }
+            if let pre = existing ?? (free.isEmpty ? nil : free.removeFirst()) {
+                let sendsOn = Set(sources.values.flatMap { $0 })
+                for track in layout where track != pre {
+                    if let planned = out.routes[track] {
+                        if planned == [0] { out.routes[track] = [pre] }
+                    } else if !sendsOn.contains(track), Set(result.routes[track] ?? [0]) == [0] {
+                        out.routes[track] = [pre]
+                    }
+                }
+                out.routes[pre] = [0]
+                out.premaster = pre
+                layout = [pre] + layout.filter { $0 != pre }
+            }
+        }
         // Pistes des sons supprimés pas reprises, et pistes nommées sans aucun son ni envoi reçu : comme neuves (nom
         // de FL, couleur des pistes jamais touchées).
         let idle = cleanup ? Set(result.mixer.filter { t in
@@ -483,6 +511,7 @@ struct OrganizerPlan: Equatable {
         // Places choisies dans l'aperçu : d'abord celles des sons (la case de chaque son, comme dans le Channel rack de
         // FL), puis le départ de chaque famille, dans l'ordre des familles (ses pistes à la suite, son bus compris).
         var pins: [(track: Int, slot: Int)] = []
+        if let pre = out.premaster { pins.append((pre, 1)) }       // toujours à côté du Master
         for channel in kept.sorted(by: { (rackPlace[$0.index] ?? .max) < (rackPlace[$1.index] ?? .max) }) {
             guard let slot = slots[channel.index], verdict(channel.index) != nil else { continue }
             let track = out.links[channel.index] ?? channel.mixerTrack
@@ -523,9 +552,18 @@ struct OrganizerPlan: Equatable {
                 }
             }
             out.names.merge(numbered(bases, taken: taken)) { a, _ in a }
+            if let pre = out.premaster { out.names[pre] = String(localized: "Pré-master") }
             out.names = out.names.filter { byIndex[$0.key]?.name != $0.value }
+        } else if let pre = out.premaster, byIndex[pre]?.hasDefaultName ?? true {
+            out.names[pre] = String(localized: "Pré-master")
         }
         return out
+    }
+
+    /// Pur (testé) : une piste du Mixer déjà nommée pré-master (« Pré-master », « Premaster », « PRE MASTER »…).
+    static func isPremaster(_ name: String) -> Bool {
+        let folded = name.folding(options: [.diacriticInsensitive, .caseInsensitive], locale: Locale(identifier: "fr_FR"))
+        return folded.filter { $0.isLetter } == "premaster"
     }
 
     /// Pur (testé) : la disposition du Mixer (place p → piste d'origine, place 0 = piste 1) avec les places choisies :
