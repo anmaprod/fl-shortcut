@@ -360,9 +360,9 @@ final class OrganizerWindowTests: XCTestCase {
         controller.close()
     }
 
-    /// Tuto en images (29/10) : à la première ouverture, l'écoute attend qu'il soit fini (rien n'est envoyé à FL
-    /// avant) ; vu une fois, il n'est plus montré tout seul ; revu depuis Options, il ne relance rien.
-    func testTutorialFirstThenListening() throws {
+    /// Tuto en images (29/10) : à la première ouverture, avant « Démarrer » (rien n'est envoyé à FL) ; vu une fois,
+    /// il n'est plus montré tout seul ; revu depuis Options, il ne relance rien.
+    func testTutorialFirstThenStart() throws {
         let suite = "fl.essai.tuto.\(UUID().uuidString)"
         let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
         defer { defaults.removePersistentDomain(forName: suite) }
@@ -370,18 +370,65 @@ final class OrganizerWindowTests: XCTestCase {
         let link = FakeOrganizerLink()
         link.v14 = false
         let controller = OrganizerController(env: env(link, FakeAudio(link: link), saved: { _ in }))
-        controller.showTutorial(thenStart: true)
+        controller.showTutorial()
         XCTAssertTrue(controller.tutorial)
-        XCTAssertEqual(controller.phase, .starting)
+        XCTAssertEqual(controller.phase, .ready)
         controller.finishTutorial(defaults: defaults)
         XCTAssertFalse(controller.tutorial)
         XCTAssertFalse(OrganizerTutorial.shouldShow(defaults: defaults))
+        XCTAssertEqual(controller.phase, .ready, "tuto fini : « Démarrer », rien de lancé")
+        controller.start()
         waitFor(controller) { $0 == .waiting(.restartFL) }
         controller.showTutorial()
         controller.finishTutorial(defaults: defaults)
         XCTAssertFalse(controller.tutorial)
         XCTAssertEqual(controller.phase, .waiting(.restartFL), "revu : rien n'est relancé")
         controller.close()
+    }
+
+    /// Retour du 01/11 (FL saccadait tant qu'il voyait « FL Shortcuts Link ») : le lien avec FL seulement entre
+    /// « Démarrer » et la fermeture de l'Organiser, rendu une fois FL remis comme avant.
+    func testLinkOnlyBetweenStartAndClose() {
+        let link = FakeOrganizerLink()
+        link.v14 = false
+        var e = env(link, FakeAudio(link: link), saved: { _ in })
+        var prepared = 0, released = 0
+        e.prepareLink = {
+            prepared += 1
+            return .ready(warmUp: 0)
+        }
+        e.releaseLink = { released += 1 }
+        let controller = OrganizerController(env: e)
+        XCTAssertEqual(controller.phase, .ready)
+        XCTAssertEqual(prepared, 0, "ouvert : rien demandé à FL avant « Démarrer »")
+        controller.start()
+        waitFor(controller) { $0 == .waiting(.restartFL) }
+        XCTAssertGreaterThan(prepared, 0)
+        XCTAssertEqual(released, 0)
+        controller.close()
+        let deadline = Date().addingTimeInterval(3)
+        while released == 0, Date() < deadline { RunLoop.main.run(until: Date().addingTimeInterval(0.01)) }
+        XCTAssertEqual(released, 1, "fermé : le lien est rendu")
+        controller.start()
+        XCTAssertEqual(controller.phase, .waiting(.restartFL), "fermé : « Démarrer » ne relance rien")
+    }
+
+    /// Fermé sans avoir démarré : rien n'a été demandé à FL, le lien est rendu quand même (aucun port).
+    func testCloseBeforeStartReleasesLink() {
+        let link = FakeOrganizerLink()
+        var e = env(link, FakeAudio(link: link), saved: { _ in })
+        var prepared = 0, released = 0
+        e.prepareLink = {
+            prepared += 1
+            return .ready(warmUp: 0)
+        }
+        e.releaseLink = { released += 1 }
+        let controller = OrganizerController(env: e)
+        controller.close()
+        let deadline = Date().addingTimeInterval(3)
+        while released == 0, Date() < deadline { RunLoop.main.run(until: Date().addingTimeInterval(0.01)) }
+        XCTAssertEqual(prepared, 0)
+        XCTAssertEqual(released, 1)
     }
 
     /// Les quatre pages du tuto ont leur image, en français et en anglais (Resources/*.lproj, copiés par build.sh).
@@ -405,9 +452,10 @@ final class OrganizerWindowTests: XCTestCase {
     func testDemoScreensRender() {
         let link = FakeOrganizerLink()
         let controller = OrganizerController(env: env(link, FakeAudio(link: link), saved: { _ in }))
-        for screen in ["tuto", "installer", "attente", "aide", "ecoute", "apercu", "fini"] {
+        for screen in ["demarrer", "tuto", "installer", "attente", "aide", "ecoute", "apercu", "fini"] {
             controller.showDemo(screen)
             XCTAssertEqual(controller.tutorial, screen == "tuto", screen)
+            if screen == "demarrer" { XCTAssertEqual(controller.phase, .ready) }
             if screen == "apercu" {
                 XCTAssertEqual(controller.phase, .preview)
                 XCTAssertFalse(controller.presentFamilies.isEmpty, "familles des sons d'exemple")

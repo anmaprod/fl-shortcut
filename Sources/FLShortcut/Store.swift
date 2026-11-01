@@ -256,9 +256,8 @@ final class Store: ObservableObject {
         if pushToTap {
             // « La piste sur laquelle j'ai cliqué » : suivie seulement si une macro vise la dernière piste cliquée.
             TrackMemory.shared.setActive(activeNeeds.contains(.pisteVisee))
-            // Ports MIDI présents (sans aucun trafic) dès que le lien avec FL est installé : FL les trouve en démarrant et
-            // y relie son script tout seul (Controller type, Port), sans réglage à faire.
-            MIDILink.shared.setOnDemand(true)
+            // Plus de ports MIDI au lancement (retour du 01/11 : FL saccadait tant qu'il voyait « FL Shortcuts Link ») :
+            // seulement entre « Démarrer » et la fermeture de l'Organiser, ou le temps d'un bloc de macro.
         }
     }
 

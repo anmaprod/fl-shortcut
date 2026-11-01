@@ -720,6 +720,7 @@
 "Déjà utilisé dans ce contexte : seul le premier compte." = "Already used in this context: only the first one counts.";
 "Déjà utilisée par :" = "Already used by:";
 "Démarre ou arrête l'enregistrement" = "Starts or stops recording";
+"Démarrer" = "Start";
 "Départ dans %lld s…" = "Starting in %lld s…";
 "Déplacement impossible : un bloc ne va pas dans lui-même, et %lld niveaux au plus." = "Can't move: a block can't go inside itself, and %lld levels max.";
 "Déplacer la piste à droite" = "Move track right";
@@ -1342,6 +1343,7 @@
 "Navigation" = "Navigation";
 "Ne fait pas ce que dit son explication" = "Doesn't do what its description says";
 "Ne quitte pas l'app tout de suite." = "Don't quit the app just yet.";
+"Ne touche pas à FL jusqu'à la fin." = "Don't touch FL until it's done.";
 "Ne touche pas à FL pendant l'écoute." = "Don't touch FL while it listens.";
 "Ne touche pas à FL." = "Don't touch FL.";
 "Nom" = "Name";
@@ -1387,6 +1389,7 @@
 "Organiser continue tout seul dès que FL est prêt." = "Organizer continues on its own as soon as FL is ready.";
 "Organiser le projet" = "Organize the project";
 "Organiser parle à FL par un script que FL Shortcuts installe dans FL Studio. Ensuite, tout se fait seul." = "Organizer talks to FL through a script that FL Shortcuts installs in FL Studio. After that, everything happens on its own.";
+"Organiser ton projet" = "Organize your project";
 "Organiser · %lld sons sur %lld" = "Organize · %lld of %lld sounds";
 "Organiser écoute chaque son seul : FL doit être à l'arrêt." = "Organizer listens to each sound alone: FL must be stopped.";
 "Organiser écoute seulement le son de FL, sans l'enregistrer. Réglages Système › Confidentialité et sécurité › Enregistrement de l'écran et de l'audio du système : active FL Shortcuts dans « Audio du système uniquement »." = "Organizer only listens to FL's sound, without recording it. System Settings › Privacy & Security › Screen & System Audio Recording: turn on FL Shortcuts under “System Audio Recording Only”.";
@@ -2274,6 +2277,7 @@
 "lettre de menu non prise en charge" = "menu letter not supported";
 "lettres de menu invalides (a à z)." = "invalid menu letters (a to z).";
 "lien avec FL" = "FL link";
+"lien avec FL fermé (ouvert seulement pendant l'Organiser)" = "link with FL closed (only open while Organize runs)";
 "lien avec FL non installé" = "FL link not installed";
 "lien avec FL non installé : fiche du raccourci › Installer le lien avec FL" = "FL link not installed: shortcut details › Install the FL link";
 "liste de la Playlist illisible" = "Playlist list unreadable";

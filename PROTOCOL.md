@@ -9,7 +9,7 @@ Toute modification de ce fichier doit être répercutée des deux côtés. Origi
 - **Appli → FL** : canal MIDI 16 (statut `0xBF`), sur la source virtuelle « FL Shortcuts Link » créée par l'appli
   (« FL Shortcuts » avant : le nouveau nom fait voir à FL un appareil neuf, sans ancien réglage gardé).
 - **FL → Appli** : `device.midiOutMsg` sur le canal 16, vers la destination virtuelle « FL Shortcuts Link » créée par l'appli. L'entrée et la sortie doivent porter le **même numéro de port** et le Controller type « FL Shortcuts ».
-- **Liaison automatique** : l'en-tête du script (`# supportedDevices=FL Shortcuts Link,FL Shortcuts`) fait relier le script par FL à l'appareil qu'il trouve en démarrant. L'appli garde donc ses ports dès que le lien est installé (sans aucun trafic), pour que FL les trouve à son lancement ; elle n'explique le réglage à la main que si FL ne répond pas.
+- **Liaison automatique** : l'en-tête du script (`# supportedDevices=FL Shortcuts Link,FL Shortcuts`) fait relier le script par FL à l'appareil qu'il trouve en démarrant. Mode léger (01/11, FL saccadait tant qu'il voyait l'appareil avec son script, même endormi) : les ports n'existent que de « Démarrer » à la fermeture de l'Organiser, ou le temps d'un bloc de macro sans touche de repli (nom et couleur, dégradé, son par son numéro : attente du HELLO jusqu'à 6 s, ports retirés 3 s après) ; FL voit l'appareil apparaître et y relie son script, puis le décharge quand il disparaît. Mode MIDI complet : ports dès le lancement. L'appli n'explique le réglage à la main que si FL ne répond pas.
 - uniqueID CoreMIDI : **aléatoire par installation** (stocké dans les préférences), jamais une constante (SEC-02).
 
 ## 2. Secret partagé

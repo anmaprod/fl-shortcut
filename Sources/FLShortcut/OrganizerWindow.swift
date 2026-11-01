@@ -43,8 +43,10 @@ struct OrganizerEnvironment {
     /// Icône posée sur l'élément sélectionné par la fenêtre de FL (clic droit sur son nom › « Change icon… ») ; nil si
     /// c'est fait.
     var placeIcon: (FLIcon, IconTarget) -> OrganizerError? = { _, _ in nil }
-    /// Fil principal, avant chaque écoute : lien installé ? Ports MIDI créés à la demande.
+    /// Fil principal, avant chaque écoute (après « Démarrer ») : lien installé ? Ports MIDI créés à la demande.
     var prepareLink: () -> OrganizerLinkState = { .ready(warmUp: 0) }
+    /// Organiser fermé (fil principal, une fois FL remis comme avant) : plus de lien avec FL (ports retirés).
+    var releaseLink: () -> Void = {}
     /// « Installer le lien » (fil principal) : vrai s'il est installé (faux : annulé, ou impossible, déjà dit).
     var installLink: () -> Bool = { true }
     /// « Autre dossier de FL… » : le lien réinstallé dans le dossier de données de FL choisi (fil principal).
@@ -131,6 +133,7 @@ struct OrganizerEnvironment {
             escapePressed: { CGEventSource.keyState(.combinedSessionState, key: 53) },
             placeIcon: { OrganizerEnvironment.livePlaceIcon($0, $1) },
             prepareLink: { OrganizerEnvironment.livePrepareLink() },
+            releaseLink: { MIDILink.shared.release(.organizer) },
             installLink: { FLScriptInstaller.installWithAlert(quiet: true) },
             installLinkElsewhere: { FLScriptInstaller.installWithAlert(chooseFolder: true, quiet: true) },
             runningFL: {
@@ -339,16 +342,18 @@ struct OrganizerEnvironment {
         return done
     }
 
-    /// Lien installé : script remis dans FL s'il en a disparu, ports « FL Shortcuts Link » créés s'ils ne sont pas là
-    /// (mode léger, sans trafic), comme pour une macro qui en a besoin.
+    /// Après « Démarrer » : l'Organiser a besoin du lien jusqu'à sa fermeture (retour du 01/11 : FL saccadait tant
+    /// qu'il voyait « FL Shortcuts Link »). Ports « FL Shortcuts Link » créés s'ils ne sont pas là (mode léger) ; pas
+    /// encore installé : ils le seront dès l'installation (`MIDILink.reloadKey`), avant que FL redémarre. Script remis
+    /// dans FL s'il en a disparu.
     static func livePrepareLink() -> OrganizerLinkState {
         let midi = MIDILink.shared
+        let fresh = midi.use(.organizer)
         guard midi.snapshot.hasKey else { return .notInstalled }
         // Remis maintenant, ou mis à jour au lancement de l'appli pendant que FL tournait : FL doit le relire.
         let restored = FLScriptInstaller.repairIfNeeded() != nil || AppStatus.shared.scriptNeedsFLRestart
-        let fresh = AppMode.light && !midi.onDemand
-        midi.setOnDemand(true)
-        return restored ? .restored : .ready(warmUp: fresh && midi.onDemand ? 2 : 0)
+        // Appareil tout juste apparu : FL le voit et charge son script ; sans réponse, l'Organiser réessaie seul.
+        return restored ? .restored : .ready(warmUp: fresh ? 2 : 0)
     }
 
     /// Mêmes étapes et garde-fous que le bloc « Nom et couleur » (FL au premier plan, Échap) ; le clic droit sur le
@@ -459,6 +464,8 @@ final class OrganizerController: ObservableObject {
     }
 
     enum Phase: Equatable {
+        /// Ouvert, rien d'envoyé à FL : « Démarrer » (retour du 01/11 : le lien avec FL seulement à partir de là).
+        case ready
         case starting
         /// Lien avec FL pas installé : écran d'installation.
         case setup
@@ -473,7 +480,7 @@ final class OrganizerController: ObservableObject {
         case failed(String)
     }
 
-    @Published private(set) var phase: Phase = .starting {
+    @Published private(set) var phase: Phase = .ready {
         didSet { OrganizerProgress.shared.follow(phase) }
     }
     /// Famille de chaque son du Channel rack (index du canal), modifiable dans l'aperçu.
@@ -527,10 +534,9 @@ final class OrganizerController: ObservableObject {
     /// « Pas content ? » ouvert, puis envoyé.
     @Published var feedbackShown = false
     @Published private(set) var feedbackSent = false
-    /// Tuto en images affiché à la place de l'étape (OrganizerTutorial.swift) : à la première ouverture, l'écoute
-    /// n'est lancée qu'une fois fini ; « Revoir le tuto » le remontre sans rien relancer.
+    /// Tuto en images affiché à la place de l'étape (OrganizerTutorial.swift) : à la première ouverture, avant
+    /// « Démarrer » ; « Revoir le tuto » le remontre sans rien relancer.
     @Published private(set) var tutorial = false
-    private var startAfterTutorial = false
 
     init(env: OrganizerEnvironment) {
         self.env = env
@@ -541,27 +547,23 @@ final class OrganizerController: ObservableObject {
     /// Le nom du bouton, comme la maquette du 28/10.
     var title: String { String(localized: "Organiser") }
 
-    /// Écoute de chaque son, hors du fil principal.
+    /// « Démarrer » : le lien avec FL, puis l'écoute de chaque son, hors du fil principal.
     func start() {
-        guard phase == .starting else { return }
+        guard phase == .ready, !closed else { return }
+        phase = .starting
         begin(quiet: false)
     }
 
-    /// Montre le tuto ; `thenStart` : l'écoute commence quand il est fini (première ouverture).
-    func showTutorial(thenStart: Bool = false) {
-        startAfterTutorial = thenStart
+    /// Montre le tuto (première ouverture, ou « Revoir le tuto ») ; rien n'est lancé à sa fin.
+    func showTutorial() {
         tutorial = true
     }
 
-    /// Tuto fini ou passé : noté comme vu, puis l'écoute si elle l'attendait.
+    /// Tuto fini ou passé : noté comme vu.
     func finishTutorial(defaults: UserDefaults = .standard) {
         guard tutorial else { return }
         tutorial = false
         OrganizerTutorial.markSeen(defaults: defaults)
-        if startAfterTutorial {
-            startAfterTutorial = false
-            start()
-        }
     }
 
     /// `quiet` : nouvel essai pendant une attente ; l'écran d'attente reste jusqu'au premier son écouté (pas
@@ -723,6 +725,7 @@ final class OrganizerController: ObservableObject {
     /// Étape en un mot (diagnostic) : jamais le texte d'un message qui pourrait citer un nom.
     static func phaseCode(_ phase: Phase) -> String {
         switch phase {
+        case .ready: return "prêt"
         case .starting: return "début"
         case .setup: return "installation"
         case .waiting(let wait): return "attente-\(wait)"
@@ -755,7 +758,7 @@ final class OrganizerController: ObservableObject {
         kinds = [:]
         names = [:]
         slots = [:]
-        phase = .starting
+        phase = .ready
         start()
     }
 
@@ -1188,6 +1191,7 @@ final class OrganizerController: ObservableObject {
         showLinkHelp = screen == "aide"
         tutorial = screen == "tuto"
         switch screen {
+        case "demarrer": phase = .ready
         case "installer": phase = .setup
         case "attente": phase = .waiting(.restartFL)
         case "aide": phase = .waiting(.noResponse)
@@ -1232,6 +1236,9 @@ final class OrganizerController: ObservableObject {
         OrganizerProgress.shared.clear()
         session?.cancel()
         session = nil
+        // Plus de lien avec FL, une fois l'écoute ou l'application en cours finie (FL remis comme avant par le lien).
+        let release = env.releaseLink
+        queue.async { DispatchQueue.main.async(execute: release) }
         let done = onClose
         onClose = nil
         done?()
@@ -1278,8 +1285,9 @@ enum OrganizerWindow {
         controller?.showDemo(screen)
     }
 
-    /// Ouvre l'Organiser (ou le ramène devant). Fil principal. `tutorial` : le tuto d'abord s'il n'a jamais été vu
-    /// (pas à la reprise après « Quitter et rouvrir »).
+    /// Ouvre l'Organiser sur « Démarrer » (ou le ramène devant) : rien n'est envoyé à FL avant ce clic. Fil principal.
+    /// `tutorial` (avec `start`) : le tuto d'abord s'il n'a jamais été vu (pas à la reprise après « Quitter et
+    /// rouvrir », ni en mode capture).
     static func open(env: OrganizerEnvironment = .live(), start: Bool = true, tutorial: Bool = true) {
         if let panel {
             panel.orderFrontRegardless()
@@ -1318,11 +1326,8 @@ enum OrganizerWindow {
         }
         p.center()
         p.orderFrontRegardless()
-        if start && tutorial && OrganizerTutorial.shouldShow() {
-            controller.showTutorial(thenStart: true)
-        } else if start {
-            controller.start()
-        }
+        // Rien n'est envoyé à FL avant « Démarrer » (retour du 01/11) ; le tuto d'abord à la première ouverture.
+        if start && tutorial && OrganizerTutorial.shouldShow() { controller.showTutorial() }
     }
 
     /// Hauteur demandée par le contenu (`OrganizerView`, à chaque changement : nouvelle étape, fondu fini, aide
@@ -1452,6 +1457,7 @@ struct OrganizerView: View {
     private var stepKey: String {
         if controller.tutorial { return "tutorial" }
         switch controller.phase {
+        case .ready: return "ready"
         case .starting: return "starting"
         case .setup: return "setup"
         case .waiting(let reason): return "waiting:\(reason)"
@@ -1531,6 +1537,8 @@ struct OrganizerView: View {
 
     @ViewBuilder private var content: some View {
         switch controller.phase {
+        case .ready:
+            ready
         case .starting:
             working(String(localized: "Préparation…"))
         case .setup:
@@ -1765,6 +1773,38 @@ struct OrganizerView: View {
             }
         }
         .padding(.top, 2)
+    }
+
+    /// Avant « Démarrer » (retour du 01/11) : rien n'est envoyé à FL ; le lien avec FL s'ouvre au clic et se coupe
+    /// à la fermeture de l'Organiser.
+    private var ready: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack(alignment: .center, spacing: 14) {
+                OrganizerBadge(symbol: "wand.and.stars", tint: Self.tint)
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(String(localized: "Organiser ton projet")).font(.system(size: 14, weight: .semibold))
+                    Text(String(localized: "Ne touche pas à FL jusqu'à la fin."))
+                        .font(.system(size: 12))
+                        .foregroundStyle(.secondary)
+                }
+                Spacer(minLength: 0)
+            }
+            .padding(14)
+            .organizerCard()
+            .morphIn(1)
+            HStack(spacing: 12) {
+                Spacer()
+                Button(String(localized: "Fermer")) { controller.close() }
+                    .secondaryButton()
+                    .keyboardShortcut(.cancelAction)
+                Button(String(localized: "Démarrer")) { controller.start() }
+                    .buttonStyle(AlwaysBlueButtonStyle())
+                    .keyboardShortcut(.defaultAction)
+            }
+            .controlSize(.large)
+            .padding(.top, 2)
+            .morphIn(2)
+        }
     }
 
     /// Lien avec FL pas encore installé : un seul bouton, la suite se fait toute seule.

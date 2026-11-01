@@ -720,6 +720,7 @@
 "Déjà utilisé dans ce contexte : seul le premier compte." = "Déjà utilisé dans ce contexte : seul le premier compte.";
 "Déjà utilisée par :" = "Déjà utilisée par :";
 "Démarre ou arrête l'enregistrement" = "Démarre ou arrête l'enregistrement";
+"Démarrer" = "Démarrer";
 "Départ dans %lld s…" = "Départ dans %lld s…";
 "Déplacement impossible : un bloc ne va pas dans lui-même, et %lld niveaux au plus." = "Déplacement impossible : un bloc ne va pas dans lui-même, et %lld niveaux au plus.";
 "Déplacer la piste à droite" = "Déplacer la piste à droite";
@@ -1342,6 +1343,7 @@
 "Navigation" = "Navigation";
 "Ne fait pas ce que dit son explication" = "Ne fait pas ce que dit son explication";
 "Ne quitte pas l'app tout de suite." = "Ne quitte pas l'app tout de suite.";
+"Ne touche pas à FL jusqu'à la fin." = "Ne touche pas à FL jusqu'à la fin.";
 "Ne touche pas à FL pendant l'écoute." = "Ne touche pas à FL pendant l'écoute.";
 "Ne touche pas à FL." = "Ne touche pas à FL.";
 "Nom" = "Nom";
@@ -1387,6 +1389,7 @@
 "Organiser continue tout seul dès que FL est prêt." = "Organiser continue tout seul dès que FL est prêt.";
 "Organiser le projet" = "Organiser le projet";
 "Organiser parle à FL par un script que FL Shortcuts installe dans FL Studio. Ensuite, tout se fait seul." = "Organiser parle à FL par un script que FL Shortcuts installe dans FL Studio. Ensuite, tout se fait seul.";
+"Organiser ton projet" = "Organiser ton projet";
 "Organiser · %lld sons sur %lld" = "Organiser · %lld sons sur %lld";
 "Organiser écoute chaque son seul : FL doit être à l'arrêt." = "Organiser écoute chaque son seul : FL doit être à l'arrêt.";
 "Organiser écoute seulement le son de FL, sans l'enregistrer. Réglages Système › Confidentialité et sécurité › Enregistrement de l'écran et de l'audio du système : active FL Shortcuts dans « Audio du système uniquement »." = "Organiser écoute seulement le son de FL, sans l'enregistrer. Réglages Système › Confidentialité et sécurité › Enregistrement de l'écran et de l'audio du système : active FL Shortcuts dans « Audio du système uniquement ».";
@@ -2274,6 +2277,7 @@
 "lettre de menu non prise en charge" = "lettre de menu non prise en charge";
 "lettres de menu invalides (a à z)." = "lettres de menu invalides (a à z).";
 "lien avec FL" = "lien avec FL";
+"lien avec FL fermé (ouvert seulement pendant l'Organiser)" = "lien avec FL fermé (ouvert seulement pendant l'Organiser)";
 "lien avec FL non installé" = "lien avec FL non installé";
 "lien avec FL non installé : fiche du raccourci › Installer le lien avec FL" = "lien avec FL non installé : fiche du raccourci › Installer le lien avec FL";
 "liste de la Playlist illisible" = "liste de la Playlist illisible";

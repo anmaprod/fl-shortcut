@@ -649,3 +649,17 @@ entrée 1 ≈ 0,5 s.
   du journal pour le vérifier. Icônes : « Autoriser » n'ouvrait aucune page (la demande de macOS ne montre rien sur
   les derniers macOS) : la page « Enregistrement de l'écran » des Réglages s'ouvre. Rappel : l'accueil ne demande que
   l'audio du système ; l'écran (pour lire la fenêtre de FL) est un autre interrupteur de la même page.
+- 31/10 → 01/11 : « fl shortcuts fait buger fl studio ça saccade » (image de FL : Playlist au zoom, tout le temps). FL
+  Shortcuts à 0 %, WindowServer 2,3 %, pause et fenêtres fermées sans effet. Échantillon de FL (Moniteur d'activité)
+  pendant les saccades : aucune trace du script (Python) ni de FL Shortcuts dans FL ; le fil principal de FL bloqué
+  ~0,2 s d'un coup, à attendre 5 fils qui testent des fichiers (stat/access + conversions de chemins), cause interne
+  à FL non identifiée. Essais du propriétaire : quitter FL Shortcuts PUIS relancer FL règle tout, relancer FL seul
+  non ; Enable / Send master sync éteints SANS relancer FL : rien ; entrée « FL Shortcuts Link » éteinte (Enable) PUIS
+  FL relancé : plus de saccades. Donc : FL saccade dès qu'il a chargé le script de « FL Shortcuts Link » (depuis
+  l'installation du lien le 31/10, ports présents dès le lancement de l'app), et ça dure jusqu'au redémarrage de FL.
+  Sa décision : « désactivé quand Organiser n'est pas ouvert… un bouton Démarrer… dès qu'elle clique sur fermer ça se
+  désactive ». Fait : l'Organiser s'ouvre sur « Démarrer » (rien envoyé à FL avant) ; ports créés au clic, retirés
+  à la fermeture (une fois FL remis comme avant) ; plus de ports au lancement de l'app (`MIDILink.use/release`) ;
+  blocs de macro sans touche de repli (nom et couleur, dégradé, son par numéro) : ports le temps du bloc ; les
+  autres blocs passent au clavier. À vérifier chez lui : après avoir fermé l'Organiser, FL redevient-il fluide sans
+  être relancé (appareil retiré, script déchargé) ?

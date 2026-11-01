@@ -248,7 +248,7 @@ struct MacroFields: View {
         checking = true
         linkNote = nil
         DispatchQueue.global(qos: .userInitiated).async {
-            let why = MIDILink.shared.runBriefly([])
+            let why = MIDILink.shared.checkLink()
             DispatchQueue.main.async {
                 checking = false
                 linkNote = why.map { String(localized: "Pas de réponse : \($0).") } ?? String(localized: "FL répond : le lien est prêt.")
