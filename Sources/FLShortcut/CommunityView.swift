@@ -209,7 +209,7 @@ private struct CommunityBrowse: View {
                     } label: {
                         Label("Tous les partages", systemImage: "chevron.left")
                             .font(.system(size: 13, weight: .medium))
-                            .foregroundStyle(Color(red: 0.29, green: 0.64, blue: 1))          // #4AA3FF
+                            .foregroundStyle(Swiss.text)
                     }
                     .buttonStyle(.plain)
                     .help("Revenir aux partages de tous les membres")
@@ -220,17 +220,19 @@ private struct CommunityBrowse: View {
                 } else if !community.members.isEmpty {
                     VStack(alignment: .leading, spacing: 6) {
                         Text("Membres")
-                            .font(.system(size: 12, weight: .semibold))
-                            .foregroundStyle(.secondary)
-                            .padding(.leading, 12)
+                            .swissLabel(Swiss.text)
+                            .padding(.bottom, 4)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .swissRule()
                         VStack(spacing: 0) {
                             ForEach(community.members) { member in
                                 CommunityMemberRow(member: member, photo: community.photos[member.id]) {
                                     Task { await community.showAuthor(member) }
                                 }
-                                    .padding(.horizontal, 12)
+                                    .padding(.horizontal, 4)
                                     .padding(.vertical, 6)
-                                    .menuHover(tint: SidebarItem.community.tint, cornerRadius: 10)
+                                    .swissRule(Swiss.faint)
+                                    .menuHover(tint: Swiss.text, cornerRadius: 0)
                             }
                         }
                         .padding(2)
@@ -242,7 +244,7 @@ private struct CommunityBrowse: View {
                         .frame(maxWidth: .infinity)
                         .background(MockPlate(cornerRadius: 14))
                 } else {
-                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 300), spacing: 12)], spacing: 12) {
+                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 300), spacing: 28)], spacing: 0) {
                         ForEach(community.shares) { share in
                             CommunityShareCard(share: share, photo: community.photos[share.authorID],
                                                mine: community.isMine(share),
@@ -436,27 +438,24 @@ private struct CommunityFilters: View {
                         }
                     }
             }
+            // Style suisse (01/11) : recherche soulignée d'un trait gris, filtres en petites capitales soulignés.
             .font(.system(size: 13))
-            .padding(.horizontal, 14)
-            .frame(height: 34)
-            .background(Rectangle().fill(Color.white.opacity(0.08)))
-            .overlay(Rectangle().strokeBorder(Color.white.opacity(0.10), lineWidth: 1))
-            HStack(spacing: 2) {
+            .padding(.horizontal, 2)
+            .frame(height: 30)
+            .swissRule(Swiss.keyLine)
+            HStack(spacing: 16) {
                 ForEach(Filter.allCases, id: \.self) { filter in
                     pill(filter)
                 }
             }
-            .padding(3)
-            .background(Rectangle().fill(Color.white.opacity(0.06)))
-            .overlay(Rectangle().strokeBorder(Color.white.opacity(0.10), lineWidth: 1))
             .fixedSize()
             Button {
                 Task { await community.reload() }
             } label: {
-                Image(systemName: "arrow.clockwise").frame(width: 30, height: 30).contentShape(Circle())
+                Image(systemName: "arrow.clockwise").frame(width: 30, height: 30).contentShape(Rectangle())
             }
             .buttonStyle(.plain)
-            .menuHover(tint: Swiss.red, cornerRadius: 15)
+            .menuHover(tint: Swiss.text, cornerRadius: 0)
             .help("Actualiser : voir les derniers partages")
             .accessibilityLabel("Actualiser")
         }
@@ -478,10 +477,12 @@ private struct CommunityFilters: View {
             choose(filter)
         } label: {
             Text(title(filter))
-                .font(.system(size: 12.5, weight: on ? .semibold : .medium))
-                .padding(.horizontal, 14)
-                .frame(height: 28)
-                .background(Rectangle().fill(on ? Color.white.opacity(0.16) : Color.clear))
+                .swissLabel(on ? Swiss.text : Swiss.gray)
+                .padding(.bottom, 6)
+                .overlay(alignment: .bottom) {
+                    Rectangle().fill(on ? Swiss.text : Color.clear).frame(height: 2)
+                }
+                .frame(height: 28, alignment: .bottom)
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
@@ -525,58 +526,58 @@ private struct CommunityShareCard: View {
     let report: () -> Void
     let delete: () -> Void
 
+    /// Style suisse (01/11) : pas de carte, l'auteur et la date en petites capitales grises, la sorte à droite dans
+    /// sa couleur, le titre en gras, deux lignes grises, « VOIR » et l'action côte à côte ; un trait fin dessous.
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack(spacing: 10) {
-                AvatarView(photo: photo, username: share.authorName, size: 28)
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 8) {
+                AvatarView(photo: photo, username: share.authorName, size: 18)
                 Button {
                     showAuthor?()
                 } label: {
                     Text(verbatim: "@" + share.authorName.displaySafe(max: 24))
-                        .font(.system(size: 12.5, weight: .semibold))
-                        .lineLimit(1)                     // carte étroite : le nom se raccourcit, rien ne passe à la ligne
+                        .swissLabel(size: 11)
+                        .textCase(nil)
+                        .lineLimit(1)                     // colonne étroite : le nom se raccourcit, rien ne passe à la ligne
                 }
                 .buttonStyle(.plain)
                 .disabled(showAuthor == nil)
                 .help("Voir tout ce que @\(share.authorName.displaySafe(max: 24)) a publié")
                 Text(verbatim: "· " + CommunityText.day(share.createdAt))
-                    .font(.system(size: 12))
-                    .foregroundStyle(.secondary)
+                    .swissLabel(size: 11)
                     .fixedSize()
                 Spacer(minLength: 8)
                 Text(share.kind.label)
-                    .font(.system(size: 11, weight: .semibold))
-                    .foregroundStyle(share.kind.tint)
+                    .swissLabel(share.kind.tint, size: 11)
                     .fixedSize()
-                    .padding(.horizontal, 9)
-                    .frame(height: 22)
-                    .background(Rectangle().fill(share.kind.tint.opacity(0.18)))
-                    .overlay(Rectangle().strokeBorder(share.kind.tint.opacity(0.35), lineWidth: 1))
             }
             Text(share.title.displaySafe(max: 80))
-                .font(.system(size: 15, weight: .bold))
+                .font(Swiss.font(18)).tracking(-0.3)
                 .lineLimit(2)
             Text(share.notes.isEmpty ? " " : share.notes)
                 .font(.system(size: 12.5))
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Swiss.soft)
                 .lineLimit(2, reservesSpace: true)
-            HStack(spacing: 8) {
+            HStack(spacing: 0) {
                 Button("Voir", action: open)
                     .secondaryButton()
+                    .controlSize(.small)
                     .help("Lire l'explication et voir ce que fait ce partage, avant de l'ajouter")
-                Spacer(minLength: 8)
                 if mine {
-                    Text("Partagé par toi").font(.system(size: 12)).foregroundStyle(.secondary)
+                    Text("Partagé par toi").swissLabel(size: 10.5).padding(.leading, 12)
                 } else {
                     Button(share.kind.addLabel, action: open)
                         .primaryButton()
+                        .controlSize(.small)
                         .help("Lire la fiche, puis l'ajouter")
                 }
+                Spacer(minLength: 0)
             }
+            .padding(.top, 4)
         }
-        .padding(16)
+        .padding(.vertical, 16)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(MockPlate(cornerRadius: 14))
+        .swissRule(Swiss.line)
         .contentShape(Rectangle())
         .onTapGesture(perform: open)
         .contextMenu {

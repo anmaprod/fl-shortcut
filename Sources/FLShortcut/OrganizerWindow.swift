@@ -2364,8 +2364,7 @@ private struct FamilySection: View {
             // En-tête au-dessus de la carte (maquette du 28/10) : poignée, couleur, nom, départ dans le Mixer, icône.
             HStack(spacing: 8) {
                 Image(systemName: "line.3.horizontal")
-                    .font(.system(size: 11, weight: .semibold))
-                    .foregroundStyle(.secondary)
+                    .swissLabel()
                     .frame(width: 14, height: 24)
                     .help("Prends la famille et glisse-la au-dessus ou en dessous d'une autre : le Channel rack, le Mixer et la Playlist suivent cet ordre")
                 // Sa couleur (et la fin de son dégradé) : un rond qu'on clique ; « Une couleur / Dégradé » est dans

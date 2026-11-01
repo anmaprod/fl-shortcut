@@ -50,8 +50,7 @@ struct MacroPaletteView: View {
         if !group.isEmpty {
             VStack(alignment: .leading, spacing: 1) {
                 Text(category.label)
-                    .font(.system(size: 11, weight: .semibold))
-                    .foregroundStyle(.secondary)
+                    .swissLabel()
                     .padding(.horizontal, 10)
                     .padding(.bottom, 4)
                     .accessibilityAddTraits(.isHeader)

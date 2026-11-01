@@ -217,8 +217,7 @@ private struct MenuEntryRow: View {
                 Spacer(minLength: 4)
                 if entry.submenu {
                     Image(systemName: "chevron.right")
-                        .font(.system(size: 10, weight: .semibold))
-                        .foregroundStyle(.secondary)
+                        .swissLabel()
                 }
             }
             .font(.system(size: 12))

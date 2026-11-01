@@ -448,8 +448,7 @@ private struct HelpEntryRow: View {
                         .multilineTextAlignment(.leading)
                     Spacer(minLength: 8)
                     Image(systemName: "chevron.right")
-                        .font(.system(size: 11, weight: .semibold))
-                        .foregroundStyle(.secondary)
+                        .swissLabel()
                         .rotationEffect(.degrees(open ? 90 : 0))
                 }
                 .contentShape(Rectangle())

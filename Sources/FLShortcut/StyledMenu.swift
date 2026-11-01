@@ -107,8 +107,7 @@ private struct StyledMenuRows: View {
                     .menuRevealRow(revealed, index: firstOrder + i)
             case .header:
                 Text(entry.title.uppercased())
-                    .font(.system(size: 10, weight: .semibold))
-                    .foregroundStyle(.secondary)
+                    .swissLabel()
                     .padding(.horizontal, 8)
                     .padding(.top, i == 0 ? 2 : 8)
                     .padding(.bottom, 2)
@@ -181,8 +180,7 @@ private struct StyledMenuRow: View {
                 }
                 if let chevron {
                     Image(systemName: "chevron.right")
-                        .font(.system(size: 10, weight: .semibold))
-                        .foregroundStyle(.secondary)
+                        .swissLabel()
                         .rotationEffect(.degrees(chevron == .open ? 90 : 0))
                 }
             }

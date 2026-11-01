@@ -245,8 +245,7 @@ private struct AccountBackupStatus: View {
     private func tile(_ title: String, symbol: String, _ value: String) -> some View {
         VStack(alignment: .leading, spacing: 4) {
             Label(title, systemImage: symbol)
-                .font(.system(size: 11.5, weight: .semibold))
-                .foregroundStyle(.secondary)
+                .swissLabel()
             Text(value).font(.system(size: 14, weight: .semibold)).lineLimit(1).minimumScaleFactor(0.8)
         }
         .padding(.horizontal, 14)
