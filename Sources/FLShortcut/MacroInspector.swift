@@ -98,7 +98,7 @@ private struct BlockInspector: View {
                     Text("Retirer ce bloc")
                 }
                 .buttonStyle(.borderless)
-                .foregroundStyle(Color(red: 1.0, green: 0.41, blue: 0.38))
+                .foregroundStyle(Swiss.red)
                 .help("Retirer ce bloc de la macro (⌫)")
             }
         }

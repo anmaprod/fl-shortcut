@@ -106,10 +106,10 @@ struct HelpPage: View {
 
     private var searchField: some View {
         HStack(spacing: 10) {
-            Image(systemName: "magnifyingglass").font(.system(size: 15)).foregroundStyle(.secondary)
+            Image(systemName: "magnifyingglass").font(.system(size: 18, weight: .semibold)).foregroundStyle(Swiss.gray)
             TextField("Rechercher", text: $query, prompt: Text("Cherche dans l'aide : raccourcis, macro, pause…"))
                 .textFieldStyle(.plain)
-                .font(.system(size: 14))
+                .font(Swiss.font(20))
             if !query.isEmpty {
                 Button {
                     query = ""
@@ -120,9 +120,10 @@ struct HelpPage: View {
                 .accessibilityLabel("Effacer la recherche")
             }
         }
-        .padding(.horizontal, 16)
-        .frame(height: 42)
-        .background(Rectangle().fill(Color.white.opacity(0.08)))
+        // Style suisse (maquette de l'Aide) : grande recherche soulignée, sans case grise.
+        .padding(.horizontal, 2)
+        .frame(height: 44)
+        .swissRule(Swiss.keyLine)
         .overlay(Rectangle().strokeBorder(Color.white.opacity(0.10), lineWidth: 1))
     }
 
