@@ -1013,7 +1013,7 @@ struct SwissSwitch: View {
         .buttonStyle(.plain)
         .accessibilityLabel(label)
         .accessibilityValue(isOn ? String(localized: "activé") : String(localized: "désactivé"))
-        .accessibilityAddTraits(.isToggle)
+        .accessibilityAddTraits(.isButton)
     }
 }
 
