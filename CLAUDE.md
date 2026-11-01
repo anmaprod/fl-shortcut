@@ -278,6 +278,10 @@
   image MIDI Settings, ou « relance FL », ports présents). Le réglage qui gardait l'appareil dès le lancement
   (`User.setup`, 0caaa38) faisait saccader FL avant « Démarrer » : RETIRÉ. Vérifié chez lui : après « Fermer », FL
   redevient fluide sans être relancé. Mode MIDI complet inchangé. NE PAS remettre les ports permanents.
+  01/11 au soir (« quand on valide Organiser ça rame toujours ») : lien rendu dès la fin du rangement (écran de fin,
+  `OrganizerController.dropLink`), sans attendre la fermeture ; « Revenir comme avant » le reprend le temps de remettre
+  FL comme avant (`useLinkAgain`) ; les demandes de l'Organiser ne recréent jamais l'appareil une fois le lien rendu
+  (`MIDILink.runOrganizerRequest`, pas d'emprunt comme un bloc de macro). Pas encore vu chez lui (journal `MIDI`).
 - Organiser, « Installer le lien » (31/10, « ça se ferme ») : FL remis devant (⌘Q quittait FL Shortcuts, activé par
   l'installation), la fenêtre attend que FL soit quitté puis rouvert (« Ouvrir FL Studio » s'il est fermé), puis
   l'image MIDI Settings des 4 cases (`.midiSettings`, image du README) tant que FL ne répond pas ; « Copier le

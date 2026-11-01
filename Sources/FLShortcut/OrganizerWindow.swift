@@ -48,8 +48,12 @@ struct OrganizerEnvironment {
     /// À l'ouverture : lien déjà installé ? Sinon « Installer le lien » d'abord, puis « Démarrer » (retour du 01/11).
     /// Ne crée aucun port.
     var linkInstalled: () -> Bool = { true }
-    /// Organiser fermé (fil principal, une fois FL remis comme avant) : plus de lien avec FL (ports retirés).
+    /// Organiser fermé (fil principal, une fois FL remis comme avant), ou projet organisé : plus de lien avec FL
+    /// (ports retirés).
     var releaseLink: () -> Void = {}
+    /// « Revenir comme avant » après l'organisation (lien rendu) : le lien de nouveau, le temps de remettre FL comme
+    /// avant. Vrai si les ports viennent d'être recréés (FL met un moment à voir l'appareil).
+    var useLinkAgain: () -> Bool = { false }
     /// « Installer le lien » (fil principal) : vrai s'il est installé (faux : annulé, ou impossible, déjà dit).
     var installLink: () -> Bool = { true }
     /// « Autre dossier de FL… » : le lien réinstallé dans le dossier de données de FL choisi (fil principal).
@@ -138,6 +142,7 @@ struct OrganizerEnvironment {
             prepareLink: { OrganizerEnvironment.livePrepareLink() },
             linkInstalled: { MIDILink.shared.snapshot.hasKey },
             releaseLink: { MIDILink.shared.release(.organizer) },
+            useLinkAgain: { MIDILink.shared.use(.organizer) },
             installLink: { FLScriptInstaller.installWithAlert(quiet: true) },
             installLinkElsewhere: { FLScriptInstaller.installWithAlert(chooseFolder: true, quiet: true) },
             runningFL: {
@@ -592,6 +597,7 @@ final class OrganizerController: ObservableObject {
             return
         case .ready(let delay):
             warmUp = delay
+            linkDropped = false
         }
         // « Audio du système » : sans elle, macOS donne du silence (chaque son finissait « À vérifier »). Pas encore
         // demandée : la fenêtre de macOS, une fois, avant l'écoute ; refusée : Organiser attend qu'elle soit donnée.
@@ -1204,8 +1210,20 @@ final class OrganizerController: ObservableObject {
                 self?.lastApply = outcome
                 self?.phase = .applied(outcome.error)
                 if let made = OrganizerController.madeCopy(outcome) { self?.env.copyMade(made.original, made.copy) }
+                self?.dropLink()
             }
         }
+    }
+
+    /// Le lien avec FL n'est plus tenu : tout est rangé (ou remis comme avant). Retour du 01/11 au soir (« quand on
+    /// valide Organiser ça rame toujours ») : FL saccade tant qu'il voit « FL Shortcuts Link » ; l'écran de fin n'en a
+    /// plus besoin, les ports sont retirés tout de suite, sans attendre qu'on ferme la fenêtre.
+    private var linkDropped = false
+
+    private func dropLink() {
+        guard !linkDropped, !closed else { return }
+        linkDropped = true
+        env.releaseLink()
     }
 
     /// La copie rangée faite et ouverte dans FL, avec son original (même si la suite s'est arrêtée en route : la
@@ -1277,11 +1295,16 @@ final class OrganizerController: ObservableObject {
         guard canUndo, let snapshot, let link else { return }
         env.focusFL()
         phase = .undoing
+        // Lien rendu à la fin de l'organisation : repris le temps de remettre FL comme avant, puis rendu de nouveau.
+        let fresh = linkDropped && env.useLinkAgain()
+        linkDropped = false
+        let sleep = env.sleep
         let applier = OrganizerApplier(link: link, moveUp: env.moveUp(link), moveLeft: env.moveLeft(link),
                                        moveTrack: env.moveTrack(link), moveClips: env.moveClips(link),
                                        readClips: env.readClips(link), moveClip: env.moveClip(link),
                                        wait: env.sleep, listen: env.timing.trackListen, files: env.projectFiles())
         queue.async { [weak self] in
+            if fresh { sleep(2) }                         // FL voit l'appareil revenir et recharge son script
             let outcome = applier.undo(snapshot)
             DispatchQueue.main.async {
                 self?.snapshot = outcome.snapshot
@@ -1289,6 +1312,7 @@ final class OrganizerController: ObservableObject {
                 if outcome.error == nil, snapshot.original != nil, let copy = self?.lastApply?.copy {
                     self?.env.copyUndone(copy)
                 }
+                self?.dropLink()
             }
         }
     }

@@ -542,7 +542,7 @@ final class RequestOrganizerLink: OrganizerLink {
 
     /// Par le lien de l'appli.
     static func live() -> RequestOrganizerLink {
-        RequestOrganizerLink(request: { MIDILink.shared.runRequest($0) },
+        RequestOrganizerLink(request: { MIDILink.shared.runOrganizerRequest($0) },
                              window: { MIDILink.shared.core.routingView().window })
     }
 

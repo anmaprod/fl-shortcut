@@ -2303,6 +2303,7 @@
 "lettre de menu non prise en charge" = "menu letter not supported";
 "lettres de menu invalides (a à z)." = "invalid menu letters (a to z).";
 "lien avec FL" = "FL link";
+"lien avec FL fermé (Organiser fini)" = "link with FL closed (Organize finished)";
 "lien avec FL fermé (ouvert seulement pendant l'Organiser)" = "link with FL closed (only open while Organize runs)";
 "lien avec FL non installé" = "FL link not installed";
 "lien avec FL non installé : fiche du raccourci › Installer le lien avec FL" = "FL link not installed: shortcut details › Install the FL link";

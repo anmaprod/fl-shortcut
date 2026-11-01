@@ -690,3 +690,8 @@ entrée 1 ≈ 0,5 s.
   les Réglages passe par une page à deux listes (écran / audio seul) puis « Quitter et rouvrir ». Corrigé : la réponse
   de macOS est effacée pour FL Shortcuts (audio seulement) et la vraie question « Autoriser » revient ; Réglages en
   dernier recours, attendus tant qu'ils sont ouverts ; autorisation notée dès la demande (copie relancée cachée).
+- 01/11 au soir : « quand on valide Organiser ça rame toujours, il faut que dès que la page Organiser se ferme le MIDI
+  se ferme ». Le lien restait tenu pendant tout l'écran de fin (jusqu'à la fermeture), et une demande de l'Organiser
+  arrivée après la fermeture pouvait recréer l'appareil (emprunt comme un bloc de macro). Fait : lien rendu dès que
+  tout est rangé ; « Revenir comme avant » le reprend puis le rend ; demandes de l'Organiser refusées une fois le lien
+  rendu (jamais d'appareil recréé). Fermeture : rendu comme avant (3 s au plus).

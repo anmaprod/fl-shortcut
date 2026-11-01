@@ -760,6 +760,17 @@ final class MIDILink: ObservableObject {
         }
     }
 
+    /// Organiser : opération du script, seulement tant que l'Organiser tient le lien (de « Démarrer » à la fin du
+    /// rangement ou à la fermeture). Retour du 01/11 au soir (« quand on valide Organiser ça rame toujours ») : une
+    /// demande arrivée après ne recrée jamais l'appareil dans FL (pas d'emprunt comme un bloc de macro), elle échoue.
+    func runOrganizerRequest(_ bytes: [UInt8]) -> RequestReply {
+        if AppMode.light, !users.value.contains(.organizer) {
+            return .failed(String(localized: "lien avec FL fermé (Organiser fini)"))
+        }
+        guard transport.isReady else { return .failed(unavailable) }
+        return core.runRequest(bytes, brief: AppMode.light, timeout: 1.5)
+    }
+
     /// « Vérifier » (créateur de macro) : FL répond-il ? Le lien le temps de la vérification.
     func checkLink() -> String? {
         borrow { () -> String? in

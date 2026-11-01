@@ -505,6 +505,38 @@ final class OrganizerWindowTests: XCTestCase {
         XCTAssertEqual(controller.phase, .waiting(.restartFL), "fermé : « Démarrer » ne relance rien")
     }
 
+    /// Retour du 01/11 au soir (« quand on valide Organiser ça rame toujours ») : le lien est rendu dès que tout est
+    /// rangé, sans attendre la fermeture de la fenêtre ; « Revenir comme avant » le reprend le temps de remettre FL
+    /// comme avant, puis le rend.
+    func testLinkReleasedAsSoonAsOrganized() {
+        let link = FakeOrganizerLink()
+        link.channels = [ChannelInfo(index: 0, type: 2, mixerTrack: 0, color: RGBColor(r: 1, g: 2, b: 3), name: "Son 0"),
+                         ChannelInfo(index: 1, type: 2, mixerTrack: 0, color: RGBColor(r: 4, g: 5, b: 6), name: "Son 1")]
+        let audio = FakeAudio(link: link)
+        audio.parts = [0: [Float](repeating: 0.3, count: 64), 1: [Float](repeating: 0.3, count: 64)]
+        var e = env(link, audio, saved: { _ in })
+        var released = 0, retaken = 0
+        e.releaseLink = { released += 1 }
+        e.useLinkAgain = {
+            retaken += 1
+            return true
+        }
+        let controller = OrganizerController(env: e)
+        controller.start()
+        waitFor(controller) { $0 == .preview }
+        XCTAssertEqual(released, 0, "pendant l'aperçu : le lien reste")
+        controller.apply()
+        waitFor(controller, OrganizerWindowTests.isApplied)
+        XCTAssertEqual(released, 1, "rangé : le lien est rendu tout de suite")
+        XCTAssertTrue(controller.canUndo)
+        controller.undo()
+        waitFor(controller, OrganizerWindowTests.isUndone)
+        XCTAssertEqual(controller.phase, .undone(nil))
+        XCTAssertEqual(retaken, 1, "revenir comme avant : le lien de nouveau")
+        XCTAssertEqual(released, 2, "puis rendu")
+        controller.close()
+    }
+
     /// Fermé sans avoir démarré : rien n'a été demandé à FL, le lien est rendu quand même (aucun port).
     func testCloseBeforeStartReleasesLink() {
         let link = FakeOrganizerLink()
