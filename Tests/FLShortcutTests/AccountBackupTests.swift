@@ -34,8 +34,8 @@ private final class FakeSupabase: CommunityTransport, @unchecked Sendable {
         switch (request.httpMethod ?? "GET", url.path) {
         case ("POST", "/auth/v1/token"):
             return (json(["access_token": "jeton", "refresh_token": "r", "expires_in": 3600,
-                          "user": ["id": user.uuidString, "email": "malo@exemple.fr",
-                                   "user_metadata": ["username": "malo"]]]), 200)
+                          "user": ["id": user.uuidString, "email": "flshortcuts@exemple.fr",
+                                   "user_metadata": ["username": "flshortcuts"]]]), 200)
         case ("POST", "/auth/v1/logout"):
             return (Data(), 204)
         case ("POST", "/rest/v1/rpc/is_admin"):
@@ -93,7 +93,7 @@ private final class Mac {
         backup.start()
     }
 
-    func signIn() async { await community.signIn(email: "malo@exemple.fr", password: "MotDePasse1!") }
+    func signIn() async { await community.signIn(email: "flshortcuts@exemple.fr", password: "MotDePasse1!") }
 
     @discardableResult
     func addMacro(_ name: String) -> MacroDoc { store.library.add(MacroDoc(name: name, blocks: [Block(.delay(ms: 100))])) }

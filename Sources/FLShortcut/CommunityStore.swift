@@ -511,7 +511,7 @@ final class CommunityStore: ObservableObject {
 
     // MARK: Mode capture
 
-    /// Exemples de la mesure de la CI : `signedIn` connecté en « malo » (avec un partage à lui), `empty` sans partage.
+    /// Exemples de la mesure de la CI : `signedIn` connecté en « flshortcuts » (avec un partage à lui), `empty` sans partage.
     /// Rien n'est envoyé ni gardé : ni serveur, ni Trousseau.
     func showDemo(signedIn: Bool, empty: Bool = false) {
         demo = true
@@ -519,13 +519,13 @@ final class CommunityStore: ObservableObject {
         notice = nil
         pendingCode = nil
         session = signedIn ? CommunitySession(accessToken: "", refreshToken: "", expiresAt: .distantFuture,
-                                              userID: Self.demoUser, email: "malo@exemple.fr", username: "malo") : nil
+                                              userID: Self.demoUser, email: "flshortcuts@exemple.fr", username: "flshortcuts") : nil
         shares = signedIn && !empty ? Self.demoShares : []
         members = []
         author = nil
         search = ""
         editingProfile = false
-        // Photos d'exemple : Malo et prod.nina en ont une, les autres gardent leur initiale.
+        // Photos d'exemple : FLShortcuts et prod.nina en ont une, les autres gardent leur initiale.
         photos = signedIn ? [Self.demoUser: ProfilePhoto.sample((.systemOrange, .systemPink)),
                              Self.demoID(204): ProfilePhoto.sample((.systemTeal, .systemBlue))] : [:]
     }
@@ -559,7 +559,7 @@ final class CommunityStore: ObservableObject {
         demoShare(2, "sarah.mix", .profile, "Raccourcis façon Ableton",
                   "Espace pour lecture, ⌘E pour couper, ⌘D pour dupliquer… Pour ceux qui viennent d'Ableton et "
                   + "ne veulent pas réapprendre.", "2026-10-14"),
-        demoShare(3, "malo", mine: true, .macro, "Nommer et colorer la piste en vert",
+        demoShare(3, "flshortcuts", mine: true, .macro, "Nommer et colorer la piste en vert",
                   "Renomme la piste choisie en « Lead » et la passe en vert.", "2026-10-13"),
         demoShare(4, "prod.nina", .macro, "Choisir l'interface USB dans les réglages audio",
                   "Ouvre Options › Audio settings et choisit ta carte son USB. À lancer quand FL a perdu ta carte.",

@@ -2211,7 +2211,7 @@
 "et %lld autre(s)" = "and %lld more";
 "et attend qu'elle s'ouvre. Si elle change de taille, montre-le de nouveau." = "and waits for it to open. If it changes size, show it again.";
 "ex. Armer la piste et lancer l'enregistrement" = "e.g. Arm the track and start recording";
-"ex. malo.beats" = "e.g. malo.beats";
+"ex. fl.shortcuts" = "e.g. fl.shortcuts";
 "fait" = "done";
 "fenêtre de FL" = "FL window";
 "fenêtre de FL de %lld × %lld introuvable (pas ouverte, ou changée de taille : montre de nouveau le clic)" = "%lld × %lld FL window not found (not open, or resized: show the click again)";

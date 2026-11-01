@@ -424,7 +424,7 @@ struct HelpPage: View {
         failure = nil
         if screen == "ecrire" || screen == "envoye" {
             message = SupportMessage(kind: .probleme, text: "Je lançais ma macro « Armer la piste » depuis le Mixer.",
-                                     email: "malo@exemple.fr",
+                                     email: "flshortcuts@exemple.fr",
                                      error: "Macro : échec au bloc 3 (Attendre un menu) : aucun menu de FL ne s'est ouvert en 1,5 s.")
             showDiagnostic = false
             refreshAttached()

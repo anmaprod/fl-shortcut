@@ -1,4 +1,4 @@
--- Essai des règles de sauvegarde.sql (lancé par supabase/tests/run.sh, après policies.sql : comptes de Malo et
+-- Essai des règles de sauvegarde.sql (lancé par supabase/tests/run.sh, après policies.sql : comptes de FLShortcuts et
 -- de Léo déjà créés). Chaque vérification qui échoue arrête tout (ON_ERROR_STOP) avec un message clair.
 \set ON_ERROR_STOP on
 
@@ -16,7 +16,7 @@ begin
 end $$;
 reset role;
 
--- Malo : première sauvegarde (révision 1), puis 2 ; un Mac resté à la révision 1 est refusé, sauf s'il force.
+-- FLShortcuts : première sauvegarde (révision 1), puis 2 ; un Mac resté à la révision 1 est refusé, sauf s'il force.
 set role authenticated;
 set request.jwt.claim.sub to '00000000-0000-0000-0000-00000000000a';
 do $$
@@ -45,12 +45,12 @@ begin
 end $$;
 reset role;
 
--- Léo : ne voit ni ne modifie la sauvegarde de Malo ; a la sienne.
+-- Léo : ne voit ni ne modifie la sauvegarde de FLShortcuts ; a la sienne.
 set role authenticated;
 set request.jwt.claim.sub to '00000000-0000-0000-0000-00000000000b';
 do $$
 begin
-  if (select count(*) from public.backups) <> 0 then raise exception 'Léo lit la sauvegarde de Malo'; end if;
+  if (select count(*) from public.backups) <> 0 then raise exception 'Léo lit la sauvegarde de FLShortcuts'; end if;
   update public.backups set profile = 'pirate' where user_id = '00000000-0000-0000-0000-00000000000a';
   delete from public.backups where user_id = '00000000-0000-0000-0000-00000000000a';
   begin
@@ -64,12 +64,12 @@ reset role;
 do $$
 begin
   if (select profile from public.backups where user_id = '00000000-0000-0000-0000-00000000000a') <> '{"profil":3}' then
-    raise exception 'la sauvegarde de Malo a été modifiée par Léo';
+    raise exception 'la sauvegarde de FLShortcuts a été modifiée par Léo';
   end if;
 end $$;
 
 -- Léo supprime son compte : compte, profil, partages, signalements et sauvegarde effacés ; ses messages à l'équipe
--- restent, sans lien avec le compte. Rien ne change pour Malo.
+-- restent, sans lien avec le compte. Rien ne change pour FLShortcuts.
 set role authenticated;
 set request.jwt.claim.sub to '00000000-0000-0000-0000-00000000000b';
 select public.delete_my_account();
@@ -93,7 +93,7 @@ begin
   end if;
   if not exists (select 1 from auth.users where id = '00000000-0000-0000-0000-00000000000a')
      or not exists (select 1 from public.backups where user_id = '00000000-0000-0000-0000-00000000000a') then
-    raise exception 'le compte de Malo a été touché';
+    raise exception 'le compte de FLShortcuts a été touché';
   end if;
 end $$;
 

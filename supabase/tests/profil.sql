@@ -1,4 +1,4 @@
--- Essai de profil.sql (lancé par supabase/tests/run.sh, après policies.sql : Malo, et Léo administrateur, déjà là ; Malo
+-- Essai de profil.sql (lancé par supabase/tests/run.sh, après policies.sql : FLShortcuts, et Léo administrateur, déjà là ; FLShortcuts
 -- a 20 partages). Photo et pseudo seulement par leurs fonctions ; photos lisibles par les comptes connectés ;
 -- signalements d'une photo ; retrait par un administrateur ; tout part avec le compte. Chaque vérification qui
 -- échoue arrête tout (ON_ERROR_STOP) avec un message clair.
@@ -27,7 +27,7 @@ begin
 end $$;
 reset role;
 
--- Malo pose sa photo ; seulement un JPEG en base64 de 96 Ko au plus ; jamais directement dans la table.
+-- FLShortcuts pose sa photo ; seulement un JPEG en base64 de 96 Ko au plus ; jamais directement dans la table.
 set role authenticated;
 set request.jwt.claim.sub to '00000000-0000-0000-0000-00000000000a';
 do $$
@@ -36,7 +36,7 @@ declare
 begin
   stamp := public.set_avatar((select image from essai_photo));
   if stamp is null or (select updated_at from public.avatars where user_id = '00000000-0000-0000-0000-00000000000a') <> stamp then
-    raise exception 'photo de Malo non posée';
+    raise exception 'photo de FLShortcuts non posée';
   end if;
   begin
     perform public.set_avatar((select image from essai_photo));
@@ -79,14 +79,14 @@ begin
 end $$;
 reset role;
 
--- Léo voit la photo de Malo ; la signale une fois, jamais deux, jamais au nom d'un autre ; Malo ne signale pas la
+-- Léo voit la photo de FLShortcuts ; la signale une fois, jamais deux, jamais au nom d'un autre ; FLShortcuts ne signale pas la
 -- sienne et ne lit pas les signalements.
 set role authenticated;
 set request.jwt.claim.sub to '00000000-0000-0000-0000-00000000000b';
 do $$
 begin
   if not exists (select 1 from public.avatars where user_id = '00000000-0000-0000-0000-00000000000a') then
-    raise exception 'Léo ne voit pas la photo de Malo';
+    raise exception 'Léo ne voit pas la photo de FLShortcuts';
   end if;
   insert into public.avatar_reports (user_id, reason) values ('00000000-0000-0000-0000-00000000000a', '');
   begin
@@ -102,7 +102,7 @@ do $$
 begin
   begin
     insert into public.avatar_reports (user_id) values ('00000000-0000-0000-0000-00000000000a');
-    raise exception 'Malo signale sa propre photo';
+    raise exception 'FLShortcuts signale sa propre photo';
   exception when insufficient_privilege then null;
   end;
   begin
@@ -111,18 +111,18 @@ begin
     raise exception 'signalement au nom d''un autre';
   exception when insufficient_privilege then null;
   end;
-  if (select count(*) from public.avatar_reports) <> 0 then raise exception 'signalements de photos lisibles par Malo'; end if;
-  -- Malo n'est pas administrateur : il ne retire pas la photo des autres.
+  if (select count(*) from public.avatar_reports) <> 0 then raise exception 'signalements de photos lisibles par FLShortcuts'; end if;
+  -- FLShortcuts n'est pas administrateur : il ne retire pas la photo des autres.
   begin
     perform public.admin_remove_avatar('00000000-0000-0000-0000-00000000000b');
-    raise exception 'Malo retire une photo sans être administrateur';
+    raise exception 'FLShortcuts retire une photo sans être administrateur';
   exception when raise_exception then
     if sqlerrm not like 'Réservé aux administrateurs%' then raise; end if;
   end;
 end $$;
 reset role;
 
--- Léo, administrateur : lit le signalement, retire la photo de Malo (le signalement est traité).
+-- Léo, administrateur : lit le signalement, retire la photo de FLShortcuts (le signalement est traité).
 set role authenticated;
 set request.jwt.claim.sub to '00000000-0000-0000-0000-00000000000b';
 do $$
@@ -142,18 +142,18 @@ begin
 end $$;
 reset role;
 
--- Pseudo : Malo en change ; ses partages déjà publiés et son compte prennent le nouveau ; pris, invalide ou trop tôt :
+-- Pseudo : FLShortcuts en change ; ses partages déjà publiés et son compte prennent le nouveau ; pris, invalide ou trop tôt :
 -- refusé.
 set role authenticated;
 set request.jwt.claim.sub to '00000000-0000-0000-0000-00000000000a';
 do $$
 begin
-  if public.set_username('Malo.Beats') <> 'Malo.Beats' then raise exception 'pseudo non renvoyé'; end if;
-  if (select p.username from public.shares s join public.profiles p on p.id = s.author_id limit 1) <> 'Malo.Beats' then
+  if public.set_username('FL.Shortcuts') <> 'FL.Shortcuts' then raise exception 'pseudo non renvoyé'; end if;
+  if (select p.username from public.shares s join public.profiles p on p.id = s.author_id limit 1) <> 'FL.Shortcuts' then
     raise exception 'partages publiés sans le nouveau pseudo';
   end if;
   begin
-    perform public.set_username('malo.beats2');
+    perform public.set_username('fl.shortcuts2');
     raise exception 'pseudo changé deux fois dans la minute';
   exception when raise_exception then
     if sqlerrm not like 'Attends une minute%' then raise; end if;
@@ -163,10 +163,10 @@ reset role;
 do $$
 begin
   if (select raw_user_meta_data ->> 'username' from auth.users where id = '00000000-0000-0000-0000-00000000000a')
-     is distinct from 'Malo.Beats' then
+     is distinct from 'FL.Shortcuts' then
     raise exception 'compte sans le nouveau pseudo';
   end if;
-  if public.username_available('malo') is not true or public.username_available('MALO.BEATS') then
+  if public.username_available('flshortcuts') is not true or public.username_available('FL.SHORTCUTS') then
     raise exception 'username_available ne suit pas le nouveau pseudo';
   end if;
 end $$;
@@ -175,7 +175,7 @@ set request.jwt.claim.sub to '00000000-0000-0000-0000-00000000000b';
 do $$
 begin
   begin
-    perform public.set_username('malo.beats');
+    perform public.set_username('fl.shortcuts');
     raise exception 'pseudo d''un autre accepté (majuscules près)';
   exception when unique_violation then null;
   end;

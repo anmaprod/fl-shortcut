@@ -532,7 +532,7 @@ final class AccountBackup: ObservableObject {
         case "code", "oubli":
             community.showDemo(signedIn: false)
             community.pendingCode = CommunityStore.PendingCode(kind: screen == "code" ? .signup : .recovery,
-                                                               email: "malo@exemple.fr")
+                                                               email: "flshortcuts@exemple.fr")
             status = .off
         case "choix":
             community.showDemo(signedIn: true)

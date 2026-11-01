@@ -80,7 +80,7 @@ enum ProfilePhoto {
         return sum % initialColors.count
     }
 
-    /// Pure (testée) : la lettre affichée (« malo.beats » → « M » ; vide → « ? »).
+    /// Pure (testée) : la lettre affichée (« fl.shortcuts » → « F » ; vide → « ? »).
     static func initial(_ username: String) -> String {
         username.first(where: { $0.isLetter || $0.isNumber }).map { String($0).uppercased() } ?? "?"
     }

@@ -1,4 +1,4 @@
-# Plan d'essais complet de FL Shortcuts sur le Mac de Malo
+# Plan d'essais complet de FL Shortcuts sur le Mac du propriétaire
 
 Pour la session Claude Code qui tourne sur le Mac (computer use activé). But : vérifier TOUT FL Shortcuts sur le
 vrai FL Studio, et, pour chaque problème, écrire un compte rendu assez précis pour que la session cloud corrige le
@@ -6,7 +6,7 @@ code sans revenir au Mac.
 
 ## Règles
 
-**Vitesse (demande de Malo, prioritaire)**
+**Vitesse (demande du propriétaire, prioritaire)**
 - Bash avant tout : `osascript`, commandes de l'app, journaux, `defaults`. Computer use seulement pour VOIR un
   résultat ou cliquer ce qu'aucune commande ne peut faire.
 - Une capture au plus par vérification, sans zoom sauf pour trancher un doute.
@@ -21,13 +21,13 @@ utiles : F2 120, F5 96, F6 97, F7 98, F9 101, Entrée 36, Échap 53, Tab 48, Esp
 d'abord le nom de la piste (F2 ne fait rien quand le Browser a le clavier).
 
 **Sûreté**
-- Projet de TEST uniquement (projet vide ou copie). Jamais un morceau de Malo. Si FL propose d'enregistrer des
-  changements : Annuler, et demander à Malo.
-- Les cas marqués **[accord de Malo]** changent quelque chose hors de FL Shortcuts (réglages audio du Mac, script
+- Projet de TEST uniquement (projet vide ou copie). Jamais un morceau du propriétaire. Si FL propose d'enregistrer des
+  changements : Annuler, et demander au propriétaire.
+- Les cas marqués **[accord du propriétaire]** changent quelque chose hors de FL Shortcuts (réglages audio du Mac, script
   installé dans FL, désinstallation). Les faire à la fin, seulement après son accord dans la session, et remettre
   en état ensuite.
 - Jamais de clic au hasard pour « réparer » : arrêt, capture, description.
-- Malo ne touche pas la souris pendant les essais (il l'a fait une fois : la barre d'aide de FL a changé).
+- Le propriétaire ne touche pas la souris pendant les essais (il l'a fait une fois : la barre d'aide de FL a changé).
 
 **Départ**
 ```
@@ -119,7 +119,7 @@ Vérifier chaque effet par une seule capture, ou par la barre d'aide / le titre 
   3 pistes sélectionnées (le réglage d'icône doit être grisé) ; refus clairs (aucune piste, deux pistes, page non
   prise en charge).
 
-## E. Lien MIDI avec FL **[accord de Malo]** (installe le script dans FL)
+## E. Lien MIDI avec FL **[accord du propriétaire]** (installe le script dans FL)
 
 - **E1** — Installation du script depuis FL Shortcuts, réglage dans FL (Options › MIDI settings), statut du lien
   « actif ». Noter chaque écran.
@@ -148,10 +148,10 @@ Vérifier chaque effet par une seule capture, ou par la barre d'aide / le titre 
   commande fautive (`bash -x ./build.sh 2>&1 | grep -B3 "Permission denied"`) et vérifier que le .pkg installe bien
   dans /Applications (sans l'installer : `pkgutil --expand` puis lire PackageInfo).
 - **G3** — Deux écrans : la bulle d'aide et les clics appris marchent quand FL est sur l'écran principal ET sur le
-  second écran (la session ne bouge pas les fenêtres sans l'accord de Malo).
-- **G4** **[accord de Malo]** — « Carte son branchée » : seulement si une carte son USB est branchée ; noter les
+  second écran (la session ne bouge pas les fenêtres sans l'accord du propriétaire).
+- **G4** **[accord du propriétaire]** — « Carte son branchée » : seulement si une carte son USB est branchée ; noter les
   sorties / entrées avant, après, et les remettre.
-- **G5** **[accord de Malo]** — Désinstallation complète puis réinstallation (`./build.sh`) : tout disparaît
+- **G5** **[accord du propriétaire]** — Désinstallation complète puis réinstallation (`./build.sh`) : tout disparaît
   (préférences, script FL, Trousseau, journaux, app), puis tout revient.
 
 ## Ordre

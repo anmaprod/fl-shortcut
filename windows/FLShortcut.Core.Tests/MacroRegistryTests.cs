@@ -9,7 +9,7 @@ namespace FLShortcut.Core.Tests;
 
 public class MacroRegistryTests
 {
-    private const string Home = @"C:\Users\malo";
+    private const string Home = @"C:\Users\flshortcuts";
     private static readonly KeyRef AltF4 = new(new MacKey(118, Option: true));
 
     private static Block B(BlockBody body) => new(body);
@@ -258,12 +258,12 @@ public class MacroRegistryTests
         Assert.Null(Problem(new[] { B(new BlockBody.ChooseFile(@"D:\Disque\Voix.fst")) }));
         Assert.NotNull(Problem(new[] { B(new BlockBody.ChooseFile(@"D:\Disque\Voix.fst")) }, strict: true));
         Assert.Null(Problem(new[] { B(new BlockBody.ChooseFile(Home + @"\Documents\Voix.fst")) }, strict: true));
-        Assert.Null(Problem(new[] { B(new BlockBody.ChooseFile(@"c:\users\MALO\Documents\Voix.FST")) }, strict: true));
+        Assert.Null(Problem(new[] { B(new BlockBody.ChooseFile(@"c:\users\FLSHORTCUTS\Documents\Voix.FST")) }, strict: true));
         Assert.NotNull(Problem(new[] { B(new BlockBody.ChooseFile(Home + @"\Documents\Voix.txt")) }, strict: true));
         Assert.NotNull(Problem(new[] { B(new BlockBody.ChooseFile(Home + @"\..\x\Voix.fst")) }, strict: true));
         Assert.NotNull(Problem(new[] { B(new BlockBody.ChooseFile(Home + @"2\Voix.fst")) }, strict: true));
         // Macro reçue d'un Mac : chemin du Mac, à rechoisir.
-        Assert.NotNull(Problem(new[] { B(new BlockBody.ChooseFile("/Users/malo/Voix.fst")) }, strict: true));
+        Assert.NotNull(Problem(new[] { B(new BlockBody.ChooseFile("~/Voix.fst")) }, strict: true));
         Assert.Equal("Étape 1 : preset à choisir dans le créateur.", Problem(new[] { B(new BlockBody.DropFile("")) }));
         // Copie du modèle « Enregistrement rapide » : n'importe quel disque, mais un .fst.
         var anywhere = new ValidationContext { StrictFiles = true, PresetAnywhere = true, Home = Home };

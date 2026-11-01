@@ -8,7 +8,7 @@ create table public.profiles (
   username text not null check (username ~ '^[A-Za-z0-9_.-]{3,24}$'),
   created_at timestamptz not null default now()
 );
--- Unique sans tenir compte des majuscules (« Malo » et « malo » sont le même nom).
+-- Unique sans tenir compte des majuscules (« FLShortcuts » et « flshortcuts » sont le même nom).
 create unique index profiles_username on public.profiles (lower(username));
 
 -- Administrateurs (ajoutés à la main dans Table Editor) : peuvent supprimer n'importe quel partage et lire les

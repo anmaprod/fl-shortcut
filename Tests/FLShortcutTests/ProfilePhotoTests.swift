@@ -63,12 +63,12 @@ final class ProfilePhotoTests: XCTestCase {
 
     /// Sans photo : la même couleur et la même lettre pour un pseudo, sur tous les Mac, majuscules comprises.
     func testInitialAndColorComeFromTheUsername() {
-        XCTAssertEqual(ProfilePhoto.initial("malo.beats"), "M")
+        XCTAssertEqual(ProfilePhoto.initial("fl.shortcuts"), "F")
         XCTAssertEqual(ProfilePhoto.initial("_2pac"), "2")
         XCTAssertEqual(ProfilePhoto.initial(""), "?")
-        XCTAssertEqual(ProfilePhoto.colorIndex("Malo"), ProfilePhoto.colorIndex("malo"))
+        XCTAssertEqual(ProfilePhoto.colorIndex("FLShortcuts"), ProfilePhoto.colorIndex("flshortcuts"))
         XCTAssertTrue((0..<ProfilePhoto.initialColors.count).contains(ProfilePhoto.colorIndex("prod.nina")))
-        let spread = Set(["malo", "leo.beats", "sarah.mix", "prod.nina", "nina", "zoe", "max", "lea"].map(ProfilePhoto.colorIndex))
+        let spread = Set(["flshortcuts", "leo.beats", "sarah.mix", "prod.nina", "nina", "zoe", "max", "lea"].map(ProfilePhoto.colorIndex))
         XCTAssertGreaterThan(spread.count, 3, "les couleurs varient d'un membre à l'autre")
     }
 }

@@ -1,4 +1,4 @@
-# Compte rendu des essais de FL Shortcut sur le Mac de Malo
+# Compte rendu des essais de FL Shortcut sur le Mac du propriétaire
 
 - Date : 16/10/2026, à partir de 13:50
 - Commit essayé : 0a04f2f (branche claude/great-hopper-qihaiy)
@@ -30,20 +30,20 @@ PASS  Tests Swift (14 s)
 ▸ Compilation et installation dans ~/Applications
 PASS  Compilation et installation dans ~/Applications (35 s)
 ▸ Choix automatique du preset (vraie boîte « Open »)
-FAIL  Choix automatique du preset (vraie boîte « Open ») (3 s, code 0) → /Users/malo/Documents/fl-shortcut/dist/essais/selftest-preset.txt
-scripts/essais-mac.sh: line 103: /Users/malo/Documents/fl-shortcut/dist/essais/fakefl.txt: No such file or directory
+FAIL  Choix automatique du preset (vraie boîte « Open ») (3 s, code 0) → ~/Documents/fl-shortcut/dist/essais/selftest-preset.txt
+scripts/essais-mac.sh: line 103: ~/Documents/fl-shortcut/dist/essais/fakefl.txt: No such file or directory
 ▸ Macro « Enregistrement rapide » sur le FL simulé (6 passages)
-FAIL  Macro « Enregistrement rapide » sur le FL simulé (6 passages) (16 s, code 1) → /Users/malo/Documents/fl-shortcut/dist/essais/selftest-macro.txt
+FAIL  Macro « Enregistrement rapide » sur le FL simulé (6 passages) (16 s, code 1) → ~/Documents/fl-shortcut/dist/essais/selftest-macro.txt
 ▸ Macro construite en blocs (chemin du bouton « Tester »)
-FAIL  Macro construite en blocs (chemin du bouton « Tester ») (15 s, code 1) → /Users/malo/Documents/fl-shortcut/dist/essais/selftest-blocs.txt
+FAIL  Macro construite en blocs (chemin du bouton « Tester ») (15 s, code 1) → ~/Documents/fl-shortcut/dist/essais/selftest-blocs.txt
 ▸ « Enregistrer des clics » puis rejeu
-FAIL  « Enregistrer des clics » puis rejeu (15 s, code 1) → /Users/malo/Documents/fl-shortcut/dist/essais/selftest-clics.txt
-Error: Could not read data from /Users/malo/Documents/fl-shortcut/dist/essais/preferences-avant.plist
-scripts/essais-mac.sh: line 74: /Users/malo/Documents/fl-shortcut/dist/essais/resume.txt: No such file or directory
+FAIL  « Enregistrer des clics » puis rejeu (15 s, code 1) → ~/Documents/fl-shortcut/dist/essais/selftest-clics.txt
+Error: Could not read data from ~/Documents/fl-shortcut/dist/essais/preferences-avant.plist
+scripts/essais-mac.sh: line 74: ~/Documents/fl-shortcut/dist/essais/resume.txt: No such file or directory
 
-Résumé : /Users/malo/Documents/fl-shortcut/dist/essais/resume.txt
-cat: /Users/malo/Documents/fl-shortcut/dist/essais/resume.txt: No such file or directory
-grep: /Users/malo/Documents/fl-shortcut/dist/essais/resume.txt: No such file or directory
+Résumé : ~/Documents/fl-shortcut/dist/essais/resume.txt
+cat: ~/Documents/fl-shortcut/dist/essais/resume.txt: No such file or directory
+grep: ~/Documents/fl-shortcut/dist/essais/resume.txt: No such file or directory
 ```
    Le script sort avec le code 0 malgré les FAIL : `grep -q '^FAIL' "$RESUME"` ne trouve pas le résumé.
 4. macro.log : non concerné, les essais n'ont pas démarré.
@@ -119,7 +119,7 @@ processing (coché).
 
 ## D. Icônes (essais du 16/10, avant ce plan)
 
-- Pose 7-4 sur Insert 2 (`--diag-icon 7-4 --relearn`, bouton montré par Malo) et 1-0 sur la piste 3 (`--diag-icon
+- Pose 7-4 sur Insert 2 (`--diag-icon 7-4 --relearn`, bouton montré par FLShortcuts) et 1-0 sur la piste 3 (`--diag-icon
   1-0`, bouton appris cliqué seul, 0,97 s) : PASS, icônes vues dans la fenêtre du nom (micro, note).
 - Juste après la 2e pose, la grille gardait son numéro (#9055) réduite à 44 × 44 (animation de fermeture). Corrigé
   dans be39e72 : une grille qui n'a plus sa forme compte comme fermée (sinon « grille restée ouverte » et deux Échap

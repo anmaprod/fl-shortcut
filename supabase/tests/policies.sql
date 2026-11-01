@@ -5,7 +5,7 @@
 -- Comptes confirmés : le déclencheur crée le profil avec le nom d'utilisateur envoyé par l'app (inscription en deux
 -- temps : supabase/tests/inscription.sql).
 insert into auth.users (id, email, raw_user_meta_data, email_confirmed_at) values
-  ('00000000-0000-0000-0000-00000000000a', 'malo@exemple.fr', '{"username":"malo"}', now()),
+  ('00000000-0000-0000-0000-00000000000a', 'flshortcuts@exemple.fr', '{"username":"flshortcuts"}', now()),
   ('00000000-0000-0000-0000-00000000000b', 'leo@exemple.fr', '{"username":"leo.beats"}', now());
 
 do $$
@@ -18,7 +18,7 @@ begin
   exception when check_violation then null;
   end;
   begin
-    insert into auth.users (email, raw_user_meta_data) values ('y@exemple.fr', '{"username":"MALO"}');
+    insert into auth.users (email, raw_user_meta_data) values ('y@exemple.fr', '{"username":"FLSHORTCUTS"}');
     raise exception 'nom déjà pris accepté';
   exception when unique_violation then null;
   end;
@@ -31,7 +31,7 @@ do $$
 begin
   if (select count(*) from public.profiles) <> 0 then raise exception 'anon lit les profils'; end if;
   if not public.username_available('nouveau') then raise exception 'username_available faux pour un nom libre'; end if;
-  if public.username_available('Malo') then raise exception 'username_available vrai pour un nom pris'; end if;
+  if public.username_available('FLShortcuts') then raise exception 'username_available vrai pour un nom pris'; end if;
   begin
     insert into public.shares (author_id, kind, title, payload)
       values ('00000000-0000-0000-0000-00000000000a', 'macro', 'Essai', '{}');
@@ -41,7 +41,7 @@ begin
 end $$;
 reset role;
 
--- Malo, connecté : publie en son nom, jamais au nom d'un autre ; lit tout.
+-- FLShortcuts, connecté : publie en son nom, jamais au nom d'un autre ; lit tout.
 set role authenticated;
 set request.jwt.claim.sub to '00000000-0000-0000-0000-00000000000a';
 insert into public.shares (kind, title, notes, payload) values ('macro', 'Armer la piste', 'Notes', '{"format":"x"}');
@@ -75,11 +75,11 @@ begin
   -- Personne ne réécrit un partage (aucune règle de mise à jour).
   update public.shares set title = 'Changé';
   if exists (select 1 from public.shares where title = 'Changé') then raise exception 'partage modifiable'; end if;
-  if public.is_admin() then raise exception 'Malo administrateur sans être dans admins'; end if;
+  if public.is_admin() then raise exception 'FLShortcuts administrateur sans être dans admins'; end if;
 end $$;
 reset role;
 
--- Léo, connecté : voit le partage de Malo, ne peut pas le supprimer ; le signale ; ne lit pas les signalements.
+-- Léo, connecté : voit le partage de FLShortcuts, ne peut pas le supprimer ; le signale ; ne lit pas les signalements.
 set role authenticated;
 set request.jwt.claim.sub to '00000000-0000-0000-0000-00000000000b';
 do $$
@@ -87,9 +87,9 @@ declare
   s uuid;
 begin
   select id into s from public.shares limit 1;
-  if s is null then raise exception 'Léo ne voit pas le partage de Malo'; end if;
+  if s is null then raise exception 'Léo ne voit pas le partage de FLShortcuts'; end if;
   delete from public.shares where id = s;
-  if not exists (select 1 from public.shares where id = s) then raise exception 'Léo supprime le partage de Malo'; end if;
+  if not exists (select 1 from public.shares where id = s) then raise exception 'Léo supprime le partage de FLShortcuts'; end if;
   insert into public.reports (share_id, reason) values (s, 'Ne fait pas ce que dit son explication');
   if (select count(*) from public.reports) <> 0 then raise exception 'signalements lisibles sans être administrateur'; end if;
   begin
@@ -141,7 +141,7 @@ begin
   if (select count(*) from public.support_requests) <> 0 then raise exception 'demandes d''aide lisibles par anon'; end if;
   begin
     insert into public.support_requests (user_id, kind, message)
-      values ('00000000-0000-0000-0000-00000000000a', 'question', 'Au nom de Malo, sans être Malo.');
+      values ('00000000-0000-0000-0000-00000000000a', 'question', 'Au nom de FLShortcuts, sans être FLShortcuts.');
     raise exception 'demande d''aide au nom d''un compte acceptée';
   exception when insufficient_privilege then null;
   end;

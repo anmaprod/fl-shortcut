@@ -37,8 +37,8 @@ final class CommunityTests: XCTestCase {
     private var tokenJSON: String {
         """
         {"access_token":"jeton","refresh_token":"rafraichir","expires_in":3600,
-         "user":{"id":"\(userID.uuidString)","email":"malo@example.com",
-                 "user_metadata":{"username":"malo","email_verified":true}}}
+         "user":{"id":"\(userID.uuidString)","email":"flshortcuts@example.com",
+                 "user_metadata":{"username":"flshortcuts","email_verified":true}}}
         """
     }
 
@@ -48,13 +48,13 @@ final class CommunityTests: XCTestCase {
 
     private var session: CommunitySession {
         CommunitySession(accessToken: "jeton", refreshToken: "r", expiresAt: .distantFuture, userID: userID,
-                         email: "malo@example.com", username: "malo")
+                         email: "flshortcuts@example.com", username: "flshortcuts")
     }
 
     func testSignInSendsCredentialsAndReadsSession() async throws {
         let server = FakeServer([(200, tokenJSON)])
-        let s = try await client(server).signIn(email: "malo@example.com", password: "motdepasse")
-        XCTAssertEqual(s.username, "malo", "métadonnées avec un booléen (email_verified) lues quand même")
+        let s = try await client(server).signIn(email: "flshortcuts@example.com", password: "motdepasse")
+        XCTAssertEqual(s.username, "flshortcuts", "métadonnées avec un booléen (email_verified) lues quand même")
         XCTAssertEqual(s.userID, userID)
         XCTAssertEqual(s.expiresAt, Date(timeIntervalSince1970: 4600))
         let r = server.requests[0]
@@ -80,16 +80,16 @@ final class CommunityTests: XCTestCase {
 
     func testSignUpChecksUsernameThenSendsIt() async throws {
         let server = FakeServer([(200, "true"), (200, tokenJSON)])
-        _ = try await client(server).signUp(email: "malo@example.com", password: "MotDePasse1!", username: "malo")
+        _ = try await client(server).signUp(email: "flshortcuts@example.com", password: "MotDePasse1!", username: "flshortcuts")
         XCTAssertEqual(server.requests[0].url?.path, "/rest/v1/rpc/username_available")
-        XCTAssertEqual(server.body(0)["name"] as? String, "malo")
-        XCTAssertEqual((server.body(1)["data"] as? [String: String])?["username"], "malo")
+        XCTAssertEqual(server.body(0)["name"] as? String, "flshortcuts")
+        XCTAssertEqual((server.body(1)["data"] as? [String: String])?["username"], "flshortcuts")
     }
 
     func testSignUpRefusals() async throws {
         let taken = FakeServer([(200, "false")])
         do {
-            _ = try await client(taken).signUp(email: "malo@example.com", password: "MotDePasse1!", username: "malo")
+            _ = try await client(taken).signUp(email: "flshortcuts@example.com", password: "MotDePasse1!", username: "flshortcuts")
             XCTFail("nom pris accepté")
         } catch CommunityError.invalid(let why) {
             XCTAssertTrue(why.contains("déjà pris"))
@@ -97,9 +97,9 @@ final class CommunityTests: XCTestCase {
         XCTAssertEqual(taken.requests.count, 1, "aucune inscription envoyée")
 
         let none = FakeServer([])
-        for (mail, pass, name) in [("pas-un-mail", "MotDePasse1!", "malo"), ("malo@example.com", "court", "malo"),
-                                   ("malo@example.com", "motdepasse", "malo"),
-                                   ("malo@example.com", "MotDePasse1!", "é!"), ("malo@example.com", "MotDePasse1!", "ab")] {
+        for (mail, pass, name) in [("pas-un-mail", "MotDePasse1!", "flshortcuts"), ("flshortcuts@example.com", "court", "flshortcuts"),
+                                   ("flshortcuts@example.com", "motdepasse", "flshortcuts"),
+                                   ("flshortcuts@example.com", "MotDePasse1!", "é!"), ("flshortcuts@example.com", "MotDePasse1!", "ab")] {
             do {
                 _ = try await client(none).signUp(email: mail, password: pass, username: name)
                 XCTFail("accepté : \(mail) \(name)")
@@ -110,9 +110,9 @@ final class CommunityTests: XCTestCase {
 
     /// Confirmation du mail activée : l'inscription ne renvoie pas de session.
     func testSignUpWithEmailToConfirm() async throws {
-        let server = FakeServer([(200, "true"), (200, #"{"id":"\#(userID.uuidString)","email":"malo@example.com"}"#)])
+        let server = FakeServer([(200, "true"), (200, #"{"id":"\#(userID.uuidString)","email":"flshortcuts@example.com"}"#)])
         do {
-            _ = try await client(server).signUp(email: "malo@example.com", password: "MotDePasse1!", username: "malo")
+            _ = try await client(server).signUp(email: "flshortcuts@example.com", password: "MotDePasse1!", username: "flshortcuts")
             XCTFail("session inventée")
         } catch CommunityError.emailToConfirm {}
     }
@@ -121,11 +121,11 @@ final class CommunityTests: XCTestCase {
         let row = """
         [{"id":"\(UUID().uuidString)","author_id":"\(userID.uuidString)","kind":"macro","title":"Armer vite",
           "notes":"Clique la piste puis ⌃R","app_version":"0.1.0","created_at":"2026-10-16T18:02:11+00:00",
-          "author":{"username":"malo"}}]
+          "author":{"username":"flshortcuts"}}]
         """
         let server = FakeServer([(200, row)])
         let list = try await client(server).shares(kind: .macro, search: "arm*,(x)", session: session)
-        XCTAssertEqual(list.first?.authorName, "malo")
+        XCTAssertEqual(list.first?.authorName, "flshortcuts")
         XCTAssertEqual(server.requests[0].value(forHTTPHeaderField: "Authorization"), "Bearer jeton")
         let q = server.query(0)
         XCTAssertEqual(q["kind"], "eq.macro")
@@ -285,12 +285,12 @@ final class CommunityTests: XCTestCase {
         XCTAssertTrue(community.isConfigured)
         XCTAssertNil(community.session)
         community.showDemo(signedIn: true)
-        XCTAssertEqual(community.session?.username, "malo")
+        XCTAssertEqual(community.session?.username, "flshortcuts")
         XCTAssertEqual(community.shares.count, 4)
         XCTAssertEqual(community.shares.filter(community.isMine).count, 1, "un partage à soi, avec son badge")
         await community.open()
         await community.reload()
-        await community.signIn(email: "malo@example.com", password: "motdepasse")
+        await community.signIn(email: "flshortcuts@example.com", password: "motdepasse")
         XCTAssertEqual(community.shares.count, 4)
         XCTAssertTrue(server.requests.isEmpty, "aucune requête en mode capture")
         XCTAssertNil(keychain.load())
@@ -310,26 +310,26 @@ final class CommunityTests: XCTestCase {
 
         let keychain = CommunitySessionKeychain(service: "app.flshortcut.tests.\(UUID().uuidString)")
         defer { keychain.delete() }
-        let signup = FakeServer([(200, "true"), (200, #"{"id":"\#(userID.uuidString)","email":"malo@example.com"}"#),
+        let signup = FakeServer([(200, "true"), (200, #"{"id":"\#(userID.uuidString)","email":"flshortcuts@example.com"}"#),
                                  (200, tokenJSON)])
         let community = CommunityStore(config: config, keychain: keychain, transport: signup)
-        await community.signUp(email: "malo@example.com", password: "MotDePasse1!", username: "malo")
-        XCTAssertEqual(community.pendingCode, CommunityStore.PendingCode(kind: .signup, email: "malo@example.com"))
+        await community.signUp(email: "flshortcuts@example.com", password: "MotDePasse1!", username: "flshortcuts")
+        XCTAssertEqual(community.pendingCode, CommunityStore.PendingCode(kind: .signup, email: "flshortcuts@example.com"))
         XCTAssertNil(community.session)
         await community.confirmSignup(code: "123 456")
         XCTAssertEqual(signup.requests[2].url?.path, "/auth/v1/verify")
         XCTAssertEqual(signup.body(2)["type"] as? String, "signup")
         XCTAssertEqual(signup.body(2)["token"] as? String, "123456")
-        XCTAssertEqual(community.session?.username, "malo")
+        XCTAssertEqual(community.session?.username, "flshortcuts")
         XCTAssertNil(community.pendingCode)
 
         let keychain2 = CommunitySessionKeychain(service: "app.flshortcut.tests.\(UUID().uuidString)")
         defer { keychain2.delete() }
         let reset = FakeServer([(200, "{}"), (200, tokenJSON), (200, "{}")])
         let forgot = CommunityStore(config: config, keychain: keychain2, transport: reset)
-        await forgot.resetPassword(email: " malo@example.com ")
+        await forgot.resetPassword(email: " flshortcuts@example.com ")
         XCTAssertEqual(reset.requests[0].url?.path, "/auth/v1/recover")
-        XCTAssertEqual(forgot.pendingCode, CommunityStore.PendingCode(kind: .recovery, email: "malo@example.com"))
+        XCTAssertEqual(forgot.pendingCode, CommunityStore.PendingCode(kind: .recovery, email: "flshortcuts@example.com"))
         await forgot.finishReset(code: "654321", newPassword: "faible")
         XCTAssertEqual(reset.requests.count, 1, "mot de passe refusé avant tout envoi")
         XCTAssertNotNil(forgot.error)
@@ -348,10 +348,10 @@ final class CommunityTests: XCTestCase {
         // Mail avec un lien au lieu d'un code : retour à la connexion, rien d'envoyé.
         let keychain3 = CommunitySessionKeychain(service: "app.flshortcut.tests.\(UUID().uuidString)")
         defer { keychain3.delete() }
-        let linked = FakeServer([(200, "true"), (200, #"{"id":"\#(userID.uuidString)","email":"malo@example.com"}"#)])
+        let linked = FakeServer([(200, "true"), (200, #"{"id":"\#(userID.uuidString)","email":"flshortcuts@example.com"}"#)])
         let byLink = CommunityStore(config: config, keychain: keychain3, transport: linked)
         byLink.creatingAccount = true
-        await byLink.signUp(email: "malo@example.com", password: "MotDePasse1!", username: "malo")
+        await byLink.signUp(email: "flshortcuts@example.com", password: "MotDePasse1!", username: "flshortcuts")
         XCTAssertNotNil(byLink.pendingCode)
         byLink.confirmedByLink()
         XCTAssertNil(byLink.pendingCode)
@@ -371,12 +371,12 @@ final class CommunityTests: XCTestCase {
     /// Pseudo et photo passent par les fonctions du serveur (supabase/profil.sql), avec le jeton du compte.
     func testProfileCallsUseTheServerFunctions() async throws {
         let jpeg = Data([0xFF, 0xD8, 0xFF, 0xE0, 1, 2, 3])
-        let server = FakeServer([(200, #""malo.beats""#), (200, #""2026-10-30T10:00:00+00:00""#), (204, ""), (204, ""), (201, "")])
+        let server = FakeServer([(200, #""fl.shortcuts""#), (200, #""2026-10-30T10:00:00+00:00""#), (204, ""), (204, ""), (201, "")])
         let c = client(server)
-        let name = try await c.setUsername("malo.beats", session: session)
-        XCTAssertEqual(name, "malo.beats")
+        let name = try await c.setUsername("fl.shortcuts", session: session)
+        XCTAssertEqual(name, "fl.shortcuts")
         XCTAssertEqual(server.requests[0].url?.path, "/rest/v1/rpc/set_username")
-        XCTAssertEqual(server.body(0)["p_name"] as? String, "malo.beats")
+        XCTAssertEqual(server.body(0)["p_name"] as? String, "fl.shortcuts")
         XCTAssertEqual(server.requests[0].value(forHTTPHeaderField: "Authorization"), "Bearer jeton")
         let version = try await c.setAvatar(jpeg, session: session)
         XCTAssertEqual(version, "2026-10-30T10:00:00+00:00")
@@ -415,7 +415,7 @@ final class CommunityTests: XCTestCase {
         let missing = #"{"code":"PGRST202","message":"Could not find the function public.set_username(p_name) in the schema cache"}"#
         let server = FakeServer([(404, missing), (404, #"{"code":"PGRST205"}"#)])
         do {
-            _ = try await client(server).setUsername("malo.beats", session: session)
+            _ = try await client(server).setUsername("fl.shortcuts", session: session)
             XCTFail("pseudo changé sans serveur")
         } catch CommunityError.profileNotReady {}
         let none = try await client(server).avatarVersions(of: [userID], session: session)
@@ -464,15 +464,15 @@ final class CommunityTests: XCTestCase {
         XCTAssertNotNil(store.myPhoto)
         let free = await store.checkUsername("nouveau.nom")
         let taken = await store.checkUsername("leo.beats")
-        let mine = await store.checkUsername("MALO")
+        let mine = await store.checkUsername("FLSHORTCUTS")
         let invalid = await store.checkUsername("a b")
         XCTAssertEqual(free, .free)
         XCTAssertEqual(taken, .taken)
         XCTAssertEqual(mine, .mine)
         if case .invalid = invalid {} else { XCTFail("pseudo invalide accepté") }
-        let saved = await store.saveProfile(username: "malo.beats", photo: .keep)
+        let saved = await store.saveProfile(username: "fl.shortcuts", photo: .keep)
         XCTAssertTrue(saved)
-        XCTAssertEqual(store.session?.username, "malo.beats")
+        XCTAssertEqual(store.session?.username, "fl.shortcuts")
         XCTAssertTrue(server.requests.isEmpty)
         XCTAssertNil(keychain.load())
     }

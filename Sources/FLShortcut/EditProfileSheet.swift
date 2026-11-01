@@ -63,7 +63,7 @@ struct EditProfileSheet: View {
                 }
             }
             .frame(maxWidth: .infinity)
-            AuthField(title: String(localized: "Pseudo"), text: $name, prompt: "malo.beats", prefix: "@") {
+            AuthField(title: String(localized: "Pseudo"), text: $name, prompt: "fl.shortcuts", prefix: "@") {
                 UsernameStatus(check: check)
             }
             .modifier(UsernameChecker(community: community, name: name, check: $check))
