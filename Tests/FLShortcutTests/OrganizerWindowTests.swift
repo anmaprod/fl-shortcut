@@ -104,17 +104,24 @@ final class OrganizerWindowTests: XCTestCase {
         let audio = FakeAudio(link: link)
         audio.parts = [0: [Float](repeating: 0.3, count: 64)]
         var installed = false
+        var fl: Int32? = 100
         var e = env(link, audio, saved: { _ in })
         e.prepareLink = { installed ? .ready(warmUp: 0.5) : .notInstalled }
         e.installLink = { installed = true; return true }
+        e.runningFL = { fl }
+        // Lien perdu après l'ouverture (« Démarrer » montré) : l'installation est demandée au clic.
         let controller = OrganizerController(env: e)
         controller.start()
         XCTAssertEqual(controller.phase, .setup)
         XCTAssertTrue(controller.canRetry)
         XCTAssertEqual(link.log, [], "rien n'est envoyé à FL")
-        // Un clic : installé, puis Organiser attend FL et continue tout seul (sans « Réessayer »).
+        // Un clic : installé, puis Organiser attend que FL redémarre, et « Démarrer » continue (sans « Réessayer »).
         controller.installLink()
         XCTAssertEqual(controller.phase, .waiting(.restartFL))
+        fl = 200
+        waitFor(controller) { $0 == .ready }
+        XCTAssertEqual(link.log, [], "rien n'est envoyé à FL avant « Démarrer »")
+        controller.start()
         waitFor(controller) { $0 == .preview }
         XCTAssertEqual(controller.members(of: .drums).map(\.name), ["Son 0"])
         XCTAssertFalse(controller.canRetry)
@@ -135,8 +142,13 @@ final class OrganizerWindowTests: XCTestCase {
         var focused = 0
         var opened = 0
         var listenTries = 0
+        var prepared = 0
         var e = env(link, audio, saved: { _ in })
-        e.prepareLink = { installed ? .ready(warmUp: 0) : .notInstalled }
+        e.linkInstalled = { installed }
+        e.prepareLink = {
+            prepared += 1
+            return installed ? .ready(warmUp: 0) : .notInstalled
+        }
         e.installLink = { installed = true; return true }
         e.runningFL = { fl }
         e.openFL = { opened += 1 }
@@ -145,9 +157,11 @@ final class OrganizerWindowTests: XCTestCase {
             listenTries += 1
             return answering ? .success(audio) : .failure(.noResponse)
         }
+        // 2e retour du 01/11 : lien absent → « Installer le lien » d'abord, avant « Démarrer ».
         let controller = OrganizerController(env: e)
-        controller.start()
         XCTAssertEqual(controller.phase, .setup)
+        controller.start()
+        XCTAssertEqual(controller.phase, .setup, "« Démarrer » n'existe pas avant l'installation")
         controller.installLink()
         XCTAssertEqual(controller.phase, .waiting(.restartFL))
         XCTAssertTrue(controller.guidingLink)
@@ -164,10 +178,18 @@ final class OrganizerWindowTests: XCTestCase {
         controller.openFL()
         XCTAssertEqual(opened, 1)
         XCTAssertEqual(listenTries, 0)
-        // Un nouveau FL : MIDI Settings, gardé tant que FL ne répond pas.
+        // Un nouveau FL : « Démarrer », toujours sans lien (aucun port avant ce clic).
         fl = 200
-        waitFor(controller) { $0 == .waiting(.midiSettings) }
+        waitFor(controller) { $0 == .ready }
         XCTAssertFalse(controller.flClosedForRestart)
+        RunLoop.main.run(until: Date().addingTimeInterval(0.3))
+        XCTAssertEqual(controller.phase, .ready)
+        XCTAssertEqual(prepared, 0, "rien demandé à FL avant « Démarrer »")
+        XCTAssertEqual(listenTries, 0)
+        // « Démarrer » : MIDI Settings, gardé tant que FL ne répond pas.
+        controller.start()
+        waitFor(controller) { $0 == .waiting(.midiSettings) }
+        XCTAssertGreaterThan(prepared, 0)
         RunLoop.main.run(until: Date().addingTimeInterval(0.3))
         XCTAssertEqual(controller.phase, .waiting(.midiSettings))
         XCTAssertGreaterThan(listenTries, 0)
@@ -176,6 +198,28 @@ final class OrganizerWindowTests: XCTestCase {
         waitFor(controller) { $0 == .preview }
         XCTAssertFalse(controller.guidingLink)
         XCTAssertEqual(OrganizerController.phaseCode(.waiting(.midiSettings)), "attente-midiSettings")
+        controller.close()
+    }
+
+    /// FL fermé pendant l'installation du lien : « Ouvrir FL Studio », puis « Démarrer » dès qu'il tourne.
+    func testInstallWithFLClosedThenStart() {
+        let link = FakeOrganizerLink()
+        var installed = false
+        var fl: Int32?
+        var e = env(link, FakeAudio(link: link), saved: { _ in })
+        e.linkInstalled = { installed }
+        e.prepareLink = { installed ? .ready(warmUp: 0) : .notInstalled }
+        e.installLink = { installed = true; return true }
+        e.runningFL = { fl }
+        let controller = OrganizerController(env: e)
+        controller.installLink()
+        XCTAssertEqual(controller.phase, .waiting(.restartFL))
+        XCTAssertTrue(controller.flClosedForRestart)
+        RunLoop.main.run(until: Date().addingTimeInterval(0.2))
+        XCTAssertEqual(controller.phase, .waiting(.restartFL))
+        fl = 300
+        waitFor(controller) { $0 == .ready }
+        XCTAssertFalse(controller.flClosedForRestart)
         controller.close()
     }
 
@@ -215,7 +259,9 @@ final class OrganizerWindowTests: XCTestCase {
         var restored = true
         var revealed: [URL] = []
         var elsewhere = 0
+        var fl: Int32? = 100
         var e = env(link, audio, saved: { _ in })
+        e.runningFL = { fl }
         e.prepareLink = {
             defer { restored = false }
             return restored ? .restored : .ready(warmUp: 0)
@@ -238,6 +284,10 @@ final class OrganizerWindowTests: XCTestCase {
         controller.installLinkElsewhere()
         XCTAssertEqual(elsewhere, 1)
         XCTAssertEqual(controller.phase, .waiting(.restartFL))
+        // FL relancé : « Démarrer », puis l'analyse.
+        fl = 200
+        waitFor(controller) { $0 == .ready }
+        controller.start()
         waitFor(controller) { $0 == .preview }
         controller.close()
     }

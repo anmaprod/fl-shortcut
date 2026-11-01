@@ -668,3 +668,8 @@ entrée 1 ≈ 0,5 s.
   redémarre FL il disparaît » : FL ne relie son script qu'à un appareil présent quand il démarre, et l'appareil
   n'existait plus qu'après « Démarrer ». Réglage du lien : depuis l'installation jusqu'à la première réponse de FL
   (HELLO), ports gardés même Organiser fermé (`User.setup`, `linkHeardByFL`) ; ensuite seulement à la demande.
+- 01/11, avec 0caaa38 : tout marche ; après « Fermer », FL ne saccade plus SANS être relancé. Mais FL saccadait dès
+  l'ouverture (réglage qui gardait l'appareil). Sa demande : « d'abord le bouton installer le lien, après un bouton
+  démarrer… là ça saccade mais on s'en fiche parce que ça travaille… après fermer ça ne saccade plus ». Fait :
+  Organiser ouvert sur « Installer le lien » si le lien manque, puis FL relancé (aucun port), puis « Démarrer » ;
+  réglage permanent retiré.

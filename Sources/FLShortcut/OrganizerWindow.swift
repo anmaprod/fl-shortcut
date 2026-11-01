@@ -45,6 +45,9 @@ struct OrganizerEnvironment {
     var placeIcon: (FLIcon, IconTarget) -> OrganizerError? = { _, _ in nil }
     /// Fil principal, avant chaque écoute (après « Démarrer ») : lien installé ? Ports MIDI créés à la demande.
     var prepareLink: () -> OrganizerLinkState = { .ready(warmUp: 0) }
+    /// À l'ouverture : lien déjà installé ? Sinon « Installer le lien » d'abord, puis « Démarrer » (retour du 01/11).
+    /// Ne crée aucun port.
+    var linkInstalled: () -> Bool = { true }
     /// Organiser fermé (fil principal, une fois FL remis comme avant) : plus de lien avec FL (ports retirés).
     var releaseLink: () -> Void = {}
     /// « Installer le lien » (fil principal) : vrai s'il est installé (faux : annulé, ou impossible, déjà dit).
@@ -134,6 +137,7 @@ struct OrganizerEnvironment {
             placeIcon: { OrganizerEnvironment.livePlaceIcon($0, $1) },
             prepareLink: { OrganizerEnvironment.livePrepareLink() },
             releaseLink: { MIDILink.shared.release(.organizer) },
+            linkInstalled: { MIDILink.shared.snapshot.hasKey },
             installLink: { FLScriptInstaller.installWithAlert(quiet: true) },
             installLinkElsewhere: { FLScriptInstaller.installWithAlert(chooseFolder: true, quiet: true) },
             runningFL: {
@@ -343,13 +347,13 @@ struct OrganizerEnvironment {
     }
 
     /// Après « Démarrer » : l'Organiser a besoin du lien jusqu'à sa fermeture (retour du 01/11 : FL saccadait tant
-    /// qu'il voyait « FL Shortcuts Link »). Ports « FL Shortcuts Link » créés s'ils ne sont pas là (mode léger) ; pas
-    /// encore installé : ils le seront dès l'installation (`MIDILink.reloadKey`), avant que FL redémarre. Script remis
-    /// dans FL s'il en a disparu.
+    /// qu'il voyait « FL Shortcuts Link »). Ports « FL Shortcuts Link » créés s'ils ne sont pas là (mode léger) ;
+    /// FL les voit apparaître (s'il ne répond pas, l'Organiser demande de le relancer : les ports restent présents).
+    /// Script remis dans FL s'il en a disparu.
     static func livePrepareLink() -> OrganizerLinkState {
         let midi = MIDILink.shared
-        let fresh = midi.use(.organizer)
         guard midi.snapshot.hasKey else { return .notInstalled }
+        let fresh = midi.use(.organizer)
         // Remis maintenant, ou mis à jour au lancement de l'appli pendant que FL tournait : FL doit le relire.
         let restored = FLScriptInstaller.repairIfNeeded() != nil || AppStatus.shared.scriptNeedsFLRestart
         // Appareil tout juste apparu : FL le voit et charge son script ; sans réponse, l'Organiser réessaie seul.
@@ -529,6 +533,8 @@ final class OrganizerController: ObservableObject {
     @Published private(set) var flClosedForRestart = false
     /// FL qui tournait à l'installation du lien : un nouveau FL doit démarrer (il lit le lien en démarrant).
     private var restartWatch: Int32?
+    /// Lien tout juste installé : FL doit redémarrer (ou démarrer) avant « Démarrer » ; rien n'est envoyé à FL.
+    private var awaitingRestart = false
     /// Sons corrigés que l'IA a retenus (aperçu et « Pas content ? »), dit à la fin.
     @Published private(set) var learned = 0
     /// « Pas content ? » ouvert, puis envoyé.
@@ -542,6 +548,8 @@ final class OrganizerController: ObservableObject {
         self.env = env
         styles = env.loadStyles()
         options.familyOrder = OrganizerOptions.completeOrder(env.loadFamilyOrder())
+        // Lien pas encore installé : « Installer le lien » d'abord, « Démarrer » ensuite (retour du 01/11).
+        if !env.linkInstalled() { phase = .setup }
     }
 
     /// Le nom du bouton, comme la maquette du 28/10.
@@ -662,25 +670,25 @@ final class OrganizerController: ObservableObject {
         let serial = waitSerial
         DispatchQueue.main.asyncAfter(deadline: .now() + env.waitInterval) { [weak self] in
             guard let self, !self.closed, self.waitSerial == serial, case .waiting = self.phase else { return }
-            if reason == .restartFL, self.restartWatch != nil { self.checkRestart() } else { self.begin(quiet: true) }
+            if reason == .restartFL, self.awaitingRestart { self.checkRestart() } else { self.begin(quiet: true) }
         }
     }
 
-    /// FL qui tournait à l'installation du lien : quitté, puis un nouveau FL ; alors MIDI Settings. Rien n'est
-    /// envoyé à FL entre-temps.
+    /// Lien tout juste installé : FL qui tournait quitté, puis un nouveau FL (ou FL lancé, s'il était fermé) ; alors
+    /// « Démarrer ». Rien n'est envoyé à FL entre-temps, aucun port (retour du 01/11). Après « Démarrer », tant que FL
+    /// ne répond pas : l'image de MIDI Settings (`guidingLink`).
     private func checkRestart() {
-        guard let old = restartWatch else { return begin(quiet: true) }
-        switch env.runningFL() {
-        case old?:
-            wait(.restartFL)
-        case nil:
+        let now = env.runningFL()
+        if now == nil {
             flClosedForRestart = true
-            wait(.restartFL)
-        default:
-            restartWatch = nil
-            flClosedForRestart = false
-            wait(.midiSettings)
+            return wait(.restartFL)
         }
+        if let old = restartWatch, now == old { return wait(.restartFL) }
+        awaitingRestart = false
+        restartWatch = nil
+        flClosedForRestart = false
+        waitSerial += 1
+        phase = .ready
     }
 
     /// Attente d'après l'erreur ; lien tout juste installé : MIDI Settings tant que FL ne répond pas.
@@ -779,6 +787,7 @@ final class OrganizerController: ObservableObject {
     /// Shortcuts), puis MIDI Settings.
     private func afterInstall(_ running: Int32?) {
         guidingLink = true
+        awaitingRestart = true
         restartWatch = running
         flClosedForRestart = running == nil
         env.focusFL()
