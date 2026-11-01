@@ -1305,11 +1305,19 @@ final class OrganizerController: ObservableObject {
         case "aide": phase = .waiting(.noResponse)
         case "midi": phase = .waiting(.midiSettings)
         case "ecoute": phase = .listening(done: 3, total: 8)
-        case "apercu", "fini":
+        case "apercu", "fini", "mixer", "mixer-glisse":
             let result = Self.demoResult
             self.result = result
             families = OrganizerApplier.families(of: result)
             kinds = OrganizerApplier.kinds(of: result)
+            names = [:]
+            slots = [:]
+            options.mixerEdits = MixerEdits()
+            // L'écran Mixer, la 808 choisie (son trait vers le bus des Drums) ; « mixer-glisse » : sa piste posée sur
+            // la Basse (le trait va au bus de la Basse).
+            showingMixer = screen.hasPrefix("mixer")
+            if screen == "mixer-glisse" { moveTrack(3, to: .bass) }
+            mixerSelection = showingMixer ? 3 : nil
             phase = screen == "fini" ? .applied(nil) : .preview
         default: break
         }
