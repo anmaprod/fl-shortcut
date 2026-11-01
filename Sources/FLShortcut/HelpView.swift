@@ -463,9 +463,9 @@ private struct HelpEntryRow: View {
                             HStack(alignment: .top, spacing: 10) {
                                 Text(verbatim: "\(index + 1)")
                                     .font(.system(size: 11, weight: .bold).monospacedDigit())
-                                    .foregroundStyle(Color.white)
-                                    .frame(width: 22, height: 22)
-                                    .background(Circle().fill(SidebarItem.help.tint))
+                                    .foregroundStyle(Swiss.background)
+                                    .frame(width: 20, height: 20)
+                                    .background(Rectangle().fill(Swiss.red))
                                 answerText(step).padding(.top, 3)
                             }
                         }

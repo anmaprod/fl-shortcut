@@ -31,6 +31,7 @@ final class OnboardingWindow {
                          styleMask: [.titled, .closable, .fullSizeContentView],
                          backing: .buffered, defer: false)
         w.titlebarAppearsTransparent = true
+        w.backgroundColor = .black                          // style suisse : noir plein, comme toute l'app
         w.titleVisibility = .hidden
         w.isMovableByWindowBackground = true
         w.isReleasedWhenClosed = false

@@ -528,8 +528,9 @@ private struct MacroHeader: View {
                 CreatorBackButton(action: onBack)
                 TextField("Nom de la macro", text: nameBinding)
                     .textFieldStyle(.plain)
-                    .font(Swiss.title(28)).tracking(Swiss.titleTracking(28))
+                    .font(Swiss.title(24)).tracking(Swiss.titleTracking(24))
                     .lineLimit(1)
+                    .layoutPriority(1)                         // le nom garde la place, le reste se serre
                     .accessibilityLabel("Nom de la macro")
                 CaptureField(id: "macro-trigger-\(model.draft?.id.uuidString ?? "")", role: .trigger, combo: triggerBinding,
                              compact: true)

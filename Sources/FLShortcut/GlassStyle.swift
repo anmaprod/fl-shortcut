@@ -318,10 +318,14 @@ struct GlassSurface<S: InsettableShape>: ViewModifier {
 
     /// Surface pleine (notification, avertissement, bulles au-dessus de FL) : le noir des menus, sa couleur par-dessus,
     /// un bord fin clair. Aucun verre (29/10).
+    /// Style suisse (01/11) : noir, bord fin gris, et la couleur qui porte le sens (avertissement…) en trait épais à
+    /// gauche, plus en fond plein.
     func body(content: Content) -> some View {
         content
-            .background(shape.fill((tint ?? Color.clear).opacity(0.22)))
             .background(shape.fill(MenuBackground.color))
+            .overlay(alignment: .leading) {
+                if let tint { Rectangle().fill(tint).frame(width: 3).allowsHitTesting(false) }
+            }
             .overlay(shape.strokeBorder(Swiss.line, lineWidth: 1))
     }
 }
