@@ -86,6 +86,7 @@ struct MacroCreatorView: View {
                 .frame(width: EditorView.sidebarWidth)
                 .frame(maxHeight: .infinity, alignment: .top)
                 .background(MockPlate(cornerRadius: 19, top: 0.10, bottom: 0.04, border: 0.16))
+                .overlay(alignment: .trailing) { Rectangle().fill(Swiss.line).frame(width: 1) }
             // Colonnes souples : quand la fenêtre se resserre, les étapes puis les réglages rétrécissent (jamais rien
             // de coupé ; la fenêtre ne descend pas sous 820 points, et 252 + 280 + 240 y tiennent).
             VStack(spacing: 0) {
@@ -99,6 +100,7 @@ struct MacroCreatorView: View {
                 .frame(width: 270)
                 .frame(maxHeight: .infinity)
                 .background(MockPlate(cornerRadius: 19, top: 0.10, bottom: 0.04, border: 0.16))
+                .overlay(alignment: .leading) { Rectangle().fill(Swiss.line).frame(width: 1) }
         }
         .padding(8)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -181,7 +183,8 @@ private struct MacroStepsPane: View {
                     .equatable()
                     // Survol : toute la ligne de la couleur de son bloc (pas la ligne choisie, ni une fin de boucle).
                     .cardRow(.position(index: index, count: rows.count),
-                             hover: row.kind == .block && model.selection != row.id ? (row.category?.tint ?? .gray) : nil)
+                             hover: row.kind == .block ? Swiss.text : nil,
+                             selected: model.selection == row.id)
                     .tag(row.id)
                     .moveDisabled(row.kind != .block)          // les lignes de fin suivent leur boucle
                     .contextMenu { contextMenu(row) }
@@ -372,12 +375,14 @@ private struct MacroStepRowView: View, Equatable {
     private var tint: Color { row.category?.tint ?? .gray }
 
     private var blockRow: some View {
-        HStack(spacing: 8) {
+        // Style suisse (maquette du 01/11) : numéro, petit carré de la couleur du bloc, verbe en gras et valeur en gris,
+        // interrupteur carré ; la ligne choisie est blanche (texte noir).
+        HStack(spacing: 10) {
             Text(row.number)
-                .font(.system(size: 11).monospacedDigit())
-                .foregroundStyle(.secondary)
+                .font(Swiss.font(12).monospacedDigit())
+                .hoverTint(Swiss.gray)
                 .frame(minWidth: 24, alignment: .trailing)
-            SectionIcon(symbol: row.symbol, tint: tint, size: 24)
+            Rectangle().fill(tint).frame(width: 8, height: 8).accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 2) {
                 sentence
                 if let note = row.note {
@@ -392,11 +397,9 @@ private struct MacroStepRowView: View, Equatable {
                 BadgeCapsule(badge: badge)
             }
             stateIcon
-            // Interrupteur à droite (maquette validée le 28/10), à la place de la case à cocher à gauche.
-            Toggle("", isOn: Binding(get: { row.ownEnabled }, set: onToggle))
-                .toggleStyle(.switch)
-                .controlSize(.small)
-                .labelsHidden()
+            // Interrupteur carré à droite (style suisse).
+            SwissSwitch(isOn: Binding(get: { row.ownEnabled }, set: onToggle), label: String(localized: "Bloc actif"))
+                .scaleEffect(0.8)
                 .help(row.ownEnabled ? String(localized: "Bloc actif : coupe-le pour le sauter sans le supprimer")
                                      : String(localized: "Bloc sauté : rallume-le pour le réactiver"))
         }
@@ -412,17 +415,13 @@ private struct MacroStepRowView: View, Equatable {
         if row.type == .comment {
             Text(row.verb).italic().foregroundStyle(.secondary).lineLimit(2)
         } else {
-            HStack(spacing: 6) {
-                Text(row.verb).font(.system(size: 14)).lineLimit(1).layoutPriority(1)
+            HStack(spacing: 7) {
+                Text(row.verb).font(.system(size: 13.5, weight: .bold)).lineLimit(1).layoutPriority(1)
                 if let value = row.value {
                     Text(value)
-                        .font(.system(size: 13, weight: .semibold))
+                        .font(.system(size: 13.5))
+                        .hoverTint(Swiss.gray)
                         .lineLimit(1)
-                        .padding(.horizontal, 9)
-                        .padding(.vertical, 3)
-                        .background(Rectangle().fill(Color.white.opacity(0.12)))
-                        .overlay(Rectangle()
-                            .strokeBorder(Color.white.opacity(0.2), lineWidth: 1))
                 }
             }
         }
@@ -436,7 +435,7 @@ private struct MacroStepRowView: View, Equatable {
 
     @ViewBuilder private var stateIcon: some View {
         if current {
-            Image(systemName: "play.circle.fill").foregroundStyle(.blue).help("En cours")
+            Image(systemName: "play.fill").foregroundStyle(Swiss.red).help("En cours")
         } else {
             switch status {
             case .done?:
@@ -448,7 +447,7 @@ private struct MacroStepRowView: View, Equatable {
             case .cancelled?:
                 Image(systemName: "stop.circle.fill").foregroundStyle(.orange).help("Arrêté")
             case .running?:
-                Image(systemName: "play.circle.fill").foregroundStyle(.blue).help("En cours")
+                Image(systemName: "play.fill").foregroundStyle(Swiss.red).help("En cours")
             case nil:
                 EmptyView()
             }
@@ -457,7 +456,7 @@ private struct MacroStepRowView: View, Equatable {
 
     @ViewBuilder private var stateBackground: some View {
         if current {
-            Rectangle().fill(Color.blue.opacity(0.13))
+            Rectangle().fill(Swiss.red.opacity(0.16))
         } else if case .failed? = status {
             Rectangle().fill(Color.red.opacity(0.10))
         }

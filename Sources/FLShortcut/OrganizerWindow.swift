@@ -2061,6 +2061,7 @@ struct OrganizerView: View {
         VStack(alignment: .leading, spacing: 12) {
             // Maquette du 28/10 : les familles sur deux colonnes dès que la fenêtre est assez large ; chacune, son
             // en-tête (poignée, couleur, nom, départ dans le Mixer), puis ses sons dans une carte de verre.
+            OrganizerFamilyBar(controller: controller)
             if controller.showingMixer && controller.options.mixer {
                 OrganizerMixerView(controller: controller)
                     .frame(maxHeight: .infinity, alignment: .top)

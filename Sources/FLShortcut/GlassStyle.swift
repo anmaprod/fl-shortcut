@@ -715,8 +715,8 @@ extension View {
     /// Ligne d'une page en cartes : fond arrondi selon sa place dans la section, sans séparateur de la liste.
     /// `hover` : au survol, la ligne entière prend cette couleur, comme une option du menu de l'icône (d'un filet à
     /// l'autre et toute la largeur de la carte), texte en blanc.
-    func cardRow(_ position: CardRowPosition, hover: Color? = nil) -> some View {
-        modifier(CardRowModifier(position: position, hover: hover))
+    func cardRow(_ position: CardRowPosition, hover: Color? = nil, selected: Bool = false) -> some View {
+        modifier(CardRowModifier(position: position, hover: hover, selected: selected))
     }
 
     /// En-tête de page (28/10) : le titre posé sur la page, sans carte grise autour.
@@ -736,12 +736,14 @@ extension View {
 private struct CardRowModifier: ViewModifier {
     let position: CardRowPosition
     let hover: Color?
+    /// Ligne choisie (style suisse) : blanche jusqu'aux bords, texte noir, comme au survol.
+    var selected = false
     @State private var hovering = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     func body(content: Content) -> some View {
         let gap = CardRowBackground.gap
-        let lifted = hovering && hover != nil
+        let lifted = selected || (hovering && hover != nil)
         let row = content
             .padding(.vertical, 8)
             .padding(.horizontal, 12)
@@ -761,7 +763,7 @@ private struct CardRowModifier: ViewModifier {
         .listRowInsets(EdgeInsets(top: position.roundsTop ? gap : 0, leading: CardRowBackground.inset,
                                   bottom: position.roundsBottom ? gap : 0, trailing: CardRowBackground.inset))
         .listRowSeparator(.hidden)
-        .listRowBackground(CardRowBackground(position: position, hover: lifted ? hover : nil,
+        .listRowBackground(CardRowBackground(position: position, hover: lifted ? (hover ?? Swiss.text) : nil,
                                              grow: lifted && !reduceMotion))
     }
 }
@@ -1007,6 +1009,8 @@ struct SwissSwitch: View {
             .padding(2)
             .frame(width: 40, height: 20)
             .background(Rectangle().fill(isOn ? Swiss.text : Swiss.background))
+            // Le carré glisse (0,18 s, ralenti à la fin), au lieu de sauter.
+            .animation(.easeOut(duration: 0.18), value: isOn)
             .overlay(Rectangle().strokeBorder(Swiss.text, lineWidth: 1))
             .contentShape(Rectangle())
         }

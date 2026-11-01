@@ -71,7 +71,7 @@ struct MacroPaletteView: View {
                 .accessibilityHint("Pas encore disponible")
         } else {
             label(item)
-                .menuHover(tint: item.category.tint, cornerRadius: 8)
+                .menuHover(tint: Swiss.text, cornerRadius: 0)
                 .onTapGesture { insert(item) }
                 .onDrag { PaletteDrag.provider(item) } preview: { PaletteDragPreview(item: item) }
                 .help(item.aide)
@@ -84,8 +84,9 @@ struct MacroPaletteView: View {
 
     /// Ligne de 30 points (maquette) : icône de la catégorie (20 points), puis le nom.
     private func label(_ item: PaletteItem) -> some View {
-        HStack(spacing: 9) {
-            SectionIcon(symbol: item.symbol, tint: item.category.tint, size: 20)
+        // Style suisse (01/11) : un petit carré de la couleur de la catégorie, puis le nom.
+        HStack(spacing: 10) {
+            Rectangle().fill(item.category.tint).frame(width: 8, height: 8).accessibilityHidden(true)
             Text(item.label).font(.system(size: 13)).lineLimit(1)
             Spacer(minLength: 4)
             if item.soon {
@@ -126,15 +127,14 @@ private struct PaletteDragPreview: View {
     let item: PaletteItem
 
     var body: some View {
-        HStack(spacing: 8) {
-            SectionIcon(symbol: item.symbol, tint: item.category.tint, size: 22)
-            Text(item.label).font(.system(size: 13, weight: .semibold)).lineLimit(1)
+        HStack(spacing: 10) {
+            Rectangle().fill(item.category.tint).frame(width: 8, height: 8)
+            Text(item.label).font(.system(size: 13, weight: .bold)).lineLimit(1)
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 9)
-        .background(Rectangle()
-            .fill(Color(nsColor: .windowBackgroundColor).opacity(0.97)))
-        .overlay(Rectangle().strokeBorder(Color.primary.opacity(0.12)))
+        .background(Rectangle().fill(Swiss.background))
+        .overlay(Rectangle().strokeBorder(Swiss.text, lineWidth: 1))
         .shadow(color: .black.opacity(0.28), radius: 16, y: 9)
         .scaleEffect(1.06)
         .rotationEffect(.degrees(Motion.reduce ? 0 : -2))

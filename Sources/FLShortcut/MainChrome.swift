@@ -86,8 +86,16 @@ struct MockPlate: View {
 
     var body: some View {
         if Swiss.flat {
-            // Style suisse (01/11) : plus de plaque, le noir de la fenêtre ; les traits sont posés par chaque page.
-            Color.clear.accessibilityHidden(true)
+            // Style suisse (01/11) : plus de plaque, le noir de la fenêtre. Une carte (Mon compte, Aide, Communauté…)
+            // devient un bloc posé entre deux traits fins ; les colonnes (barre de gauche, créateur) n'ont rien.
+            if cornerRadius >= 19 {
+                Color.clear.accessibilityHidden(true)
+            } else {
+                Rectangle().fill(Swiss.background)
+                    .overlay(alignment: .top) { Rectangle().fill(Swiss.line).frame(height: 1) }
+                    .overlay(alignment: .bottom) { Rectangle().fill(Swiss.line).frame(height: 1) }
+                    .accessibilityHidden(true)
+            }
         } else {
             plate
         }

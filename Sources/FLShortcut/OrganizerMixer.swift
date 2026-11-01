@@ -212,6 +212,9 @@ struct OrganizerMixerView: View {
                     }
                 }
                 .frame(width: 16, height: 16)
+                // S'allume avec un petit rebond (comme un « back.out » de GSAP).
+                .scaleEffect(on ? 1 : 0.82)
+                .animation(.spring(response: 0.28, dampingFraction: 0.55), value: on)
                 .frame(width: strip.width, height: 34)
                 .contentShape(Rectangle())
             }
@@ -225,20 +228,19 @@ struct OrganizerMixerView: View {
     // MARK: Chaîne et routage
 
     /// Un trait rouge par sortie de la piste choisie : il descend de la piste, va jusqu'à celle où elle va et y remonte,
-    /// chaque sortie un peu plus bas (comme au début : un trait, rien d'autre).
+    /// chaque sortie un peu plus bas (comme au début : un trait, rien d'autre). Il se dessine en 0,3 s quand on choisit
+    /// une piste, d'un geste continu (comme un tracé de GSAP), les sorties l'une juste après l'autre ; mouvement réduit :
+    /// tout de suite.
     private func cables(_ hops: [Hop], centers: [Int: CGFloat]) -> some View {
-        Canvas { ctx, _ in
-            for hop in hops {
-                guard let a = centers[hop.from], let b = centers[hop.to] else { continue }
-                let y = 12 + CGFloat(hop.level) * 16
-                var path = Path()
-                path.move(to: CGPoint(x: a, y: 0))
-                path.addLine(to: CGPoint(x: a, y: y))
-                path.addLine(to: CGPoint(x: b, y: y))
-                path.addLine(to: CGPoint(x: b, y: 0))
-                ctx.stroke(path, with: .color(Swiss.red), lineWidth: 2)
+        ZStack(alignment: .topLeading) {
+            ForEach(Array(hops.enumerated()), id: \.offset) { index, hop in
+                if let a = centers[hop.from], let b = centers[hop.to] {
+                    CableLine(from: a, to: b, depth: 12 + CGFloat(hop.level) * 16, delay: Double(index) * 0.08)
+                }
             }
         }
+        // Une autre piste choisie : les traits repartent de zéro.
+        .id(hops.map { "\($0.from)>\($0.to)" }.joined(separator: ","))
         .accessibilityHidden(true)
     }
 
@@ -394,5 +396,78 @@ struct OrganizerMixerView: View {
     private func commit(_ strip: Strip) {
         if draft != strip.name { controller.renameTrack(strip.id, draft) }
         editing = nil
+    }
+}
+
+/// Un trait du Mixer, dessiné de la piste choisie vers sa sortie (trim animé).
+private struct CableLine: View {
+    let from: CGFloat
+    let to: CGFloat
+    let depth: CGFloat
+    let delay: Double
+    @State private var drawn: CGFloat = 0
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    var body: some View {
+        CablePath(from: from, to: to, depth: depth)
+            .trim(from: 0, to: drawn)
+            .stroke(Swiss.red, style: StrokeStyle(lineWidth: 2, lineCap: .butt, lineJoin: .miter))
+            .onAppear {
+                guard !reduceMotion, !DebugSnapshot.enabled else { drawn = 1; return }
+                withAnimation(.easeOut(duration: 0.3).delay(delay)) { drawn = 1 }
+            }
+    }
+}
+
+private struct CablePath: Shape {
+    let from: CGFloat
+    let to: CGFloat
+    let depth: CGFloat
+
+    func path(in rect: CGRect) -> Path {
+        var path = Path()
+        path.move(to: CGPoint(x: from, y: 0))
+        path.addLine(to: CGPoint(x: from, y: depth))
+        path.addLine(to: CGPoint(x: to, y: depth))
+        path.addLine(to: CGPoint(x: to, y: 0))
+        return path
+    }
+}
+
+/// En haut de l'aperçu, d'un coup d'œil (barre empilée façon graphiques de BKLIT UI, en style suisse) : combien de sons
+/// l'Organiser a trouvés dans chaque famille, dans l'ordre choisi, chaque famille de sa couleur ; elle suit les
+/// changements (famille glissée, son changé de famille).
+struct OrganizerFamilyBar: View {
+    @ObservedObject var controller: OrganizerController
+
+    var body: some View {
+        let families = controller.presentFamilies
+        let counts = families.map { controller.members(of: $0).count }
+        let total = max(counts.reduce(0, +), 1)
+        VStack(alignment: .leading, spacing: 6) {
+            GeometryReader { geo in
+                let room = max(0, geo.size.width - CGFloat(max(families.count - 1, 0)) * 2)
+                HStack(spacing: 2) {
+                    ForEach(Array(families.enumerated()), id: \.element) { index, family in
+                        Rectangle()
+                            .fill(swiftColor(controller.style(of: family).color))
+                            .frame(width: max(2, room * CGFloat(counts[index]) / CGFloat(total)))
+                    }
+                }
+            }
+            .frame(height: 6)
+            .animation(.easeOut(duration: 0.35), value: counts)
+            HStack(spacing: 14) {
+                ForEach(Array(families.enumerated()), id: \.element) { index, family in
+                    HStack(spacing: 5) {
+                        Text(family.label).swissLabel(size: 10)
+                        Text(verbatim: "\(counts[index])").swissLabel(Swiss.text, size: 10)
+                    }
+                    .fixedSize()
+                }
+                Spacer(minLength: 0)
+            }
+        }
+        .accessibilityElement(children: .combine)
     }
 }
