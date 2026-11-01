@@ -316,7 +316,7 @@ struct OnboardingView: View {
                         .frame(minHeight: 48)
                 }
                 .frame(maxWidth: .infinity)
-                MIDISettingsImage(width: 220)
+                MIDISettingsCrops()
             }
             .padding(.top, 24)
             .morphIn(1)

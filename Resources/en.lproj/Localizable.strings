@@ -621,6 +621,7 @@
 "Continuer" = "Continue";
 "Controller type : FL Shortcuts" = "Controller type: FL Shortcuts";
 "Controller type : FL Shortcuts, même Port" = "Controller type: FL Shortcuts, same Port";
+"Controller type : FL Shortcuts." = "Controller type: FL Shortcuts.";
 "Contrôle" = "Control";
 "Copie de l'ancien profil : %@." = "Copy of the old profile: %@.";
 "Copie un court texte technique (versions, autorisations, ce que l'écoute a reçu), sans aucun nom de son ni de piste : colle-le dans ton message pour qu'on trouve ce qui bloque." = "Copies a short technical text (versions, permissions, what listening picked up), with no sound or track names: paste it into your message so we can find what's wrong.";
@@ -1039,6 +1040,7 @@
 "Impossible de l'ajouter aux favoris de FL (dossier Plugin database de FL protégé ?) : écris le nom " = "Couldn't add it to your FL favorites (FL's Plugin database folder protected?): type the name ";
 "Infos du morceau" = "Song info";
 "Input" = "Input";
+"Input : clique « FL Shortcuts Link », puis allume Enable." = "Input: click “FL Shortcuts Link”, then turn on Enable.";
 "Installation impossible" = "Couldn't install";
 "Installe le lien" = "Install the link";
 "Installer le lien" = "Install the link";
@@ -1206,6 +1208,7 @@
 "Luminance" = "Luminance";
 "Luminosité" = "Brightness";
 "Lâcher" = "Drop";
+"MIDI Settings de FL, les 4 cases à régler entourées" = "FL's MIDI Settings, the 4 boxes to set circled";
 "Macro" = "Macro";
 "Macro : " = "Macro: ";
 "Macro : %@" = "Macro: %@";
@@ -1419,6 +1422,7 @@
 "Outils, notes, quantize, instruments" = "Tools, notes, quantize, instruments";
 "Outils, sélection, zoom, marqueurs" = "Tools, selection, zoom, markers";
 "Output" = "Output";
+"Output : un numéro de Port (ex. 7)." = "Output: a Port number (e.g. 7).";
 "Output sur « Default audio device » et Input sur « Default input device » ; FL suit alors la carte " = "Output to “Default audio device” and Input to “Default input device”; FL then follows the card ";
 "Ouverte seulement si elle n'est pas déjà devant (le lien avec FL le sait). Sans le lien : sa touche " = "Only opened if it isn't already in front (the FL link knows). Without the link: its key ";
 "Ouvre FL Studio" = "Open FL Studio";
@@ -1580,6 +1584,7 @@
 "Plus rien ne reste sur ce Mac. L'app se ferme…" = "Nothing is left on this Mac. The app is closing…";
 "Plus tard" = "Later";
 "Plusieurs actions de FL enchaînées, sur un seul raccourci." = "Several FL actions in a row, on a single shortcut.";
+"Port : le même numéro qu'en 1." = "Port: the same number as in 1.";
 "Portamento" = "Portamento";
 "Poser un marqueur" = "Drop a marker";
 "Position à montrer dans FL : choisis le bloc puis « Montrer dans FL… »." = "Position to show in FL: choose the block, then “Show in FL…”.";
@@ -2093,6 +2098,7 @@
 "Voir le mot de passe" = "Show password";
 "Voir tout ce que @%@ a publié" = "See everything @%@ has posted";
 "Voir tout le monde" = "See everyone";
+"Voir toute la fenêtre en grand" = "See the whole window, large";
 "Voir « %@ »" = "See “%@”";
 "Voix" = "Vocals";
 "Voix lead" = "Lead vocal";

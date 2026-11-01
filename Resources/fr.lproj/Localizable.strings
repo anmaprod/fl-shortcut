@@ -621,6 +621,7 @@
 "Continuer" = "Continuer";
 "Controller type : FL Shortcuts" = "Controller type : FL Shortcuts";
 "Controller type : FL Shortcuts, même Port" = "Controller type : FL Shortcuts, même Port";
+"Controller type : FL Shortcuts." = "Controller type : FL Shortcuts.";
 "Contrôle" = "Contrôle";
 "Copie de l'ancien profil : %@." = "Copie de l'ancien profil : %@.";
 "Copie un court texte technique (versions, autorisations, ce que l'écoute a reçu), sans aucun nom de son ni de piste : colle-le dans ton message pour qu'on trouve ce qui bloque." = "Copie un court texte technique (versions, autorisations, ce que l'écoute a reçu), sans aucun nom de son ni de piste : colle-le dans ton message pour qu'on trouve ce qui bloque.";
@@ -1039,6 +1040,7 @@
 "Impossible de l'ajouter aux favoris de FL (dossier Plugin database de FL protégé ?) : écris le nom " = "Impossible de l'ajouter aux favoris de FL (dossier Plugin database de FL protégé ?) : écris le nom ";
 "Infos du morceau" = "Infos du morceau";
 "Input" = "Input";
+"Input : clique « FL Shortcuts Link », puis allume Enable." = "Input : clique « FL Shortcuts Link », puis allume Enable.";
 "Installation impossible" = "Installation impossible";
 "Installe le lien" = "Installe le lien";
 "Installer le lien" = "Installer le lien";
@@ -1206,6 +1208,7 @@
 "Luminance" = "Luminance";
 "Luminosité" = "Luminosité";
 "Lâcher" = "Lâcher";
+"MIDI Settings de FL, les 4 cases à régler entourées" = "MIDI Settings de FL, les 4 cases à régler entourées";
 "Macro" = "Macro";
 "Macro : " = "Macro : ";
 "Macro : %@" = "Macro : %@";
@@ -1419,6 +1422,7 @@
 "Outils, notes, quantize, instruments" = "Outils, notes, quantize, instruments";
 "Outils, sélection, zoom, marqueurs" = "Outils, sélection, zoom, marqueurs";
 "Output" = "Output";
+"Output : un numéro de Port (ex. 7)." = "Output : un numéro de Port (ex. 7).";
 "Output sur « Default audio device » et Input sur « Default input device » ; FL suit alors la carte " = "Output sur « Default audio device » et Input sur « Default input device » ; FL suit alors la carte ";
 "Ouverte seulement si elle n'est pas déjà devant (le lien avec FL le sait). Sans le lien : sa touche " = "Ouverte seulement si elle n'est pas déjà devant (le lien avec FL le sait). Sans le lien : sa touche ";
 "Ouvre FL Studio" = "Ouvre FL Studio";
@@ -1580,6 +1584,7 @@
 "Plus rien ne reste sur ce Mac. L'app se ferme…" = "Plus rien ne reste sur ce Mac. L'app se ferme…";
 "Plus tard" = "Plus tard";
 "Plusieurs actions de FL enchaînées, sur un seul raccourci." = "Plusieurs actions de FL enchaînées, sur un seul raccourci.";
+"Port : le même numéro qu'en 1." = "Port : le même numéro qu'en 1.";
 "Portamento" = "Portamento";
 "Poser un marqueur" = "Poser un marqueur";
 "Position à montrer dans FL : choisis le bloc puis « Montrer dans FL… »." = "Position à montrer dans FL : choisis le bloc puis « Montrer dans FL… ».";
@@ -2093,6 +2098,7 @@
 "Voir le mot de passe" = "Voir le mot de passe";
 "Voir tout ce que @%@ a publié" = "Voir tout ce que @%@ a publié";
 "Voir tout le monde" = "Voir tout le monde";
+"Voir toute la fenêtre en grand" = "Voir toute la fenêtre en grand";
 "Voir « %@ »" = "Voir « %@ »";
 "Voix" = "Voix";
 "Voix lead" = "Voix lead";

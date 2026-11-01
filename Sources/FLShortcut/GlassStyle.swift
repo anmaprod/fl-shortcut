@@ -1016,3 +1016,37 @@ struct SwissSwitch: View {
         .accessibilityAddTraits(.isToggle)
     }
 }
+
+/// Barre de progression du style suisse : un trait gris de 4 points, rempli de rouge jusqu'où on en est.
+struct SwissProgress: View {
+    var value: Double
+
+    var body: some View {
+        GeometryReader { g in
+            ZStack(alignment: .leading) {
+                Rectangle().fill(Swiss.line)
+                Rectangle().fill(Swiss.red).frame(width: g.size.width * max(0, min(1, value)))
+            }
+        }
+        .frame(height: 4)
+        .accessibilityElement()
+        .accessibilityValue("\(Int((max(0, min(1, value)) * 100).rounded())) %")
+    }
+}
+
+/// Poignée à six points (deux colonnes de trois) : ce qui se prend et se glisse (familles de l'Organiser).
+struct SixDots: View {
+    var color: Color = Swiss.gray
+
+    var body: some View {
+        VStack(spacing: 3) {
+            ForEach(0..<3, id: \.self) { _ in
+                HStack(spacing: 3) {
+                    Rectangle().fill(color).frame(width: 2.5, height: 2.5)
+                    Rectangle().fill(color).frame(width: 2.5, height: 2.5)
+                }
+            }
+        }
+        .accessibilityHidden(true)
+    }
+}

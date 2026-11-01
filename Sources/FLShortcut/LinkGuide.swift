@@ -65,3 +65,97 @@ struct MIDISettingsImage: View {
         }
     }
 }
+
+/// Les 4 cases de MIDI Settings, découpées dans l'image et montrées en grand (01/11, le propriétaire : « l'image,
+/// on la verra jamais, c'est trop petit ») : une ligne par case (numéro, ce qu'il faut faire, la case elle-même), puis
+/// « Voir toute la fenêtre en grand ».
+struct MIDISettingsCrops: View {
+    @State private var large = false
+
+    /// Une case : son numéro (le même que dans l'image), la consigne, et sa place dans l'image (pixels sur 1428 de large).
+    struct Crop: Identifiable {
+        let id: Int
+        let text: String
+        let rect: CGRect
+        /// Montrée sur toute la largeur (Controller type est long).
+        var wide = false
+    }
+
+    static var crops: [Crop] {
+        [Crop(id: 1, text: String(localized: "Output : un numéro de Port (ex. 7)."),
+              rect: CGRect(x: 1090, y: 478, width: 250, height: 112)),
+         Crop(id: 2, text: String(localized: "Input : clique « FL Shortcuts Link », puis allume Enable."),
+              rect: CGRect(x: 80, y: 958, width: 210, height: 105)),
+         Crop(id: 3, text: String(localized: "Controller type : FL Shortcuts."),
+              rect: CGRect(x: 284, y: 932, width: 815, height: 132), wide: true),
+         Crop(id: 4, text: String(localized: "Port : le même numéro qu'en 1."),
+              rect: CGRect(x: 1090, y: 955, width: 250, height: 112))]
+    }
+
+    /// Pure (testée) : la découpe en pixels de l'image réelle (l'image de référence fait 1428 pixels de large).
+    static func pixelRect(_ rect: CGRect, imageWidth: Int) -> CGRect {
+        let k = CGFloat(imageWidth) / 1428
+        return CGRect(x: rect.minX * k, y: rect.minY * k, width: rect.width * k, height: rect.height * k).integral
+    }
+
+    private static let cgImage: CGImage? = LinkGuide.image?.cgImage(forProposedRect: nil, context: nil, hints: nil)
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            ForEach(Self.crops) { crop in
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack(alignment: .center, spacing: 12) {
+                        Text(verbatim: "\(crop.id)")
+                            .font(Swiss.font(12))
+                            .foregroundStyle(Swiss.background)
+                            .frame(width: 20, height: 20)
+                            .background(Rectangle().fill(Swiss.red))
+                        Text(crop.text)
+                            .font(.system(size: 13, weight: .bold))
+                            .fixedSize(horizontal: false, vertical: true)
+                        Spacer(minLength: 8)
+                        if !crop.wide { piece(crop, scale: 0.5) }
+                    }
+                    if crop.wide { piece(crop, scale: 0.42).padding(.leading, 32) }
+                }
+                .padding(.vertical, 10)
+                .swissRule(Swiss.line, edge: .top)
+                .accessibilityElement(children: .combine)
+            }
+            Button {
+                large = true
+            } label: {
+                Label("Voir toute la fenêtre en grand", systemImage: "arrow.up.left.and.arrow.down.right")
+                    .swissLabel(Swiss.text, size: 10.5)
+                    .padding(.vertical, 8)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .swissRule(Swiss.line, edge: .top)
+            .popover(isPresented: $large, arrowEdge: .leading) {
+                if let image = LinkGuide.image {
+                    Image(nsImage: image)
+                        .resizable()
+                        .interpolation(.high)
+                        .aspectRatio(contentMode: .fit)
+                        .frame(width: 640)
+                        .padding(10)
+                        .background(Swiss.background)
+                        .onTapGesture { large = false }
+                        .accessibilityLabel(Text("MIDI Settings de FL, les 4 cases à régler entourées"))
+                }
+            }
+        }
+    }
+
+    @ViewBuilder private func piece(_ crop: Crop, scale: CGFloat) -> some View {
+        if let cg = Self.cgImage,
+           let cut = cg.cropping(to: Self.pixelRect(crop.rect, imageWidth: cg.width)) {
+            Image(decorative: cut, scale: 1)
+                .resizable()
+                .interpolation(.high)
+                .frame(width: crop.rect.width * scale, height: crop.rect.height * scale)
+                .overlay(Rectangle().strokeBorder(Swiss.line, lineWidth: 1))
+        }
+    }
+}

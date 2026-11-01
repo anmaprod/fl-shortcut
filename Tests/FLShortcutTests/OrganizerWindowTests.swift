@@ -779,4 +779,16 @@ final class OrganizerWindowTests: XCTestCase {
         XCTAssertEqual(spec.category, .fl)
         XCTAssertTrue(PaletteCatalog.items(layout: FakeLayout.qwerty).contains { $0.type == .organize && !$0.soon })
     }
+
+    /// 01/11 : les 4 cases de MIDI Settings découpées dans l'image, à la même place quelle que soit sa taille.
+    func testMIDISettingsCropsFollowTheImageSize() {
+        XCTAssertEqual(MIDISettingsCrops.crops.map(\.id), [1, 2, 3, 4])
+        let r = CGRect(x: 1090, y: 478, width: 250, height: 112)
+        XCTAssertEqual(MIDISettingsCrops.pixelRect(r, imageWidth: 1428), r)
+        XCTAssertEqual(MIDISettingsCrops.pixelRect(r, imageWidth: 714), CGRect(x: 545, y: 239, width: 125, height: 56))
+        for crop in MIDISettingsCrops.crops {
+            XCTAssertLessThanOrEqual(crop.rect.maxX, 1428, "case \(crop.id) dans l'image")
+            XCTAssertLessThanOrEqual(crop.rect.maxY, 1684, "case \(crop.id) dans l'image")
+        }
+    }
 }

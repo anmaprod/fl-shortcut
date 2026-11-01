@@ -1522,8 +1522,9 @@ struct OrganizerView: View {
 
     /// Le titre seul (maquette validée le 28/10 : ni grande icône, ni phrase dessous).
     private var header: some View {
-        HStack(spacing: 10) {
-            Text(controller.title).font(Swiss.title(25)).tracking(Swiss.titleTracking(25))
+        // Style suisse (01/11) : grand titre gras serré, souligné de blanc sur toute la largeur.
+        HStack(alignment: .bottom, spacing: 10) {
+            Text(controller.title).swissTitle(34)
             Spacer()
             if isPreview {
                 // Maquette du 28/10 : « Rangement automatique » à droite du titre ; les choix et le diagnostic sont
@@ -1537,6 +1538,8 @@ struct OrganizerView: View {
                 OrganizerOptionsMenu(controller: controller)
             }
         }
+        .padding(.bottom, 10)
+        .swissRule()
         .morphIn(0)
     }
 
@@ -1568,8 +1571,7 @@ struct OrganizerView: View {
                                     .foregroundStyle(.secondary)
                             }
                         }
-                        ProgressView(value: Double(done), total: Double(max(total, 1)))
-                            .tint(Self.tint)
+                        SwissProgress(value: Double(done) / Double(max(total, 1)))
                             .motion(Motion.smooth, value: done)
                     }
                 }
@@ -1578,8 +1580,7 @@ struct OrganizerView: View {
                 .morphIn(1)
                 // Plus d'explication (28/10, « ça j'aime pas ») : la consigne seule.
                 Text(String(localized: "Ne touche pas à FL."))
-                    .font(.system(size: 11))
-                    .foregroundStyle(.secondary)
+                    .swissLabel()
                     .morphIn(2)
                 HStack {
                     Spacer()
@@ -1879,8 +1880,7 @@ struct OrganizerView: View {
             }
             if reason == .midiSettings {
                 // L'image du README (retour du 31/10) : la fenêtre MIDI Settings, les 4 cases entourées et numérotées.
-                MIDISettingsImage(width: 260)
-                    .frame(maxWidth: .infinity)
+                MIDISettingsCrops()
                     .morphIn(3)
             }
             if reason == .noResponse || reason == .restartFL || reason == .wrongInput || reason == .midiSettings {
@@ -1961,13 +1961,13 @@ struct OrganizerView: View {
     /// MIDI Settings entourée ; dessous, les trois pièges déjà vus, une ligne chacun, puis où est le script.
     private var linkHelpSteps: some View {
         VStack(alignment: .leading, spacing: 10) {
-            HStack(alignment: .top, spacing: 14) {
-                VStack(alignment: .leading, spacing: 8) {
-                    ForEach(Array(LinkGuide.steps.enumerated()), id: \.offset) { index, text in
-                        OrganizerStep(n: index + 1, text: text)
-                    }
+            VStack(alignment: .leading, spacing: 0) {
+                ForEach(Array(LinkGuide.steps.enumerated()), id: \.offset) { index, text in
+                    OrganizerStep(n: index + 1, text: text)
                 }
-                MIDISettingsImage(width: 170)
+                // Les 4 cases de MIDI Settings en grand (l'image entière était illisible, 01/11).
+                MIDISettingsCrops()
+                    .padding(.top, 10)
                     .morphIn(2)
             }
             linkTroubles
@@ -2235,7 +2235,12 @@ private struct OrganizerCard: View {
 
     var body: some View {
         let shape = Rectangle()
-        if GlassPlate.on(glass: glassEnabled, reduceTransparency: reduceTransparency,
+        if Swiss.flat {
+            // Style suisse (01/11) : pas de voile, un trait fin dessus et dessous.
+            shape.fill(Swiss.background)
+                .overlay(alignment: .top) { Rectangle().fill(Swiss.line).frame(height: 1) }
+                .overlay(alignment: .bottom) { Rectangle().fill(Swiss.line).frame(height: 1) }
+        } else if GlassPlate.on(glass: glassEnabled, reduceTransparency: reduceTransparency,
                          increasedContrast: contrast == .increased) {
             shape.fill(GlassPlate.fill(scheme))
                 .overlay(shape.strokeBorder(GlassPlate.rim(scheme), lineWidth: 1))
@@ -2262,7 +2267,7 @@ private struct WaitingPulse: View {
         ZStack {
             if !reduceMotion {
                 ForEach(0..<2, id: \.self) { i in
-                    Circle()
+                    Rectangle()
                         .stroke(tint.opacity(0.45), lineWidth: 1.5)
                         .frame(width: 34, height: 34)
                         .scaleEffect(going ? 1.9 : 1)
@@ -2285,12 +2290,12 @@ private struct OrganizerBadge: View {
     var live = false
 
     var body: some View {
+        // Style suisse : un carré plat de sa couleur, symbole noir.
         icon
             .font(.system(size: 15, weight: .bold))
-            .foregroundStyle(Color.white)
+            .foregroundStyle(Swiss.background)
             .frame(width: 34, height: 34)
-            .background(Circle().fill(tint.gradient))
-            .shadow(color: tint.opacity(0.35), radius: 8, y: 3)
+            .background(Rectangle().fill(tint))
             .accessibilityHidden(true)
     }
 
@@ -2313,19 +2318,19 @@ private struct OrganizerStep: View {
     let text: String
 
     var body: some View {
-        HStack(alignment: .firstTextBaseline, spacing: 10) {
-            Text("\(n)")
-                .font(.system(size: 11, weight: .bold).monospacedDigit())
-                .foregroundStyle(Color.white)
-                .frame(width: 22, height: 22)
-                .background(Circle().fill(OrganizerView.tint.gradient))
+        // Style suisse : le numéro dans un carré rouge, la phrase en gras, un trait fin dessous.
+        HStack(alignment: .center, spacing: 12) {
+            Text(verbatim: "\(n)")
+                .font(Swiss.font(12).monospacedDigit())
+                .foregroundStyle(Swiss.background)
+                .frame(width: 20, height: 20)
+                .background(Rectangle().fill(Swiss.red))
                 .accessibilityHidden(true)
-            Text(text).font(.system(size: 12)).fixedSize(horizontal: false, vertical: true)
+            Text(text).font(.system(size: 13, weight: .bold)).fixedSize(horizontal: false, vertical: true)
             Spacer(minLength: 0)
         }
-        .padding(.horizontal, 12)
         .padding(.vertical, 10)
-        .organizerCard()
+        .swissRule(Swiss.line)
         .morphIn(n + 1)
     }
 }
@@ -2363,8 +2368,7 @@ private struct FamilySection: View {
         VStack(alignment: .leading, spacing: 6) {
             // En-tête au-dessus de la carte (maquette du 28/10) : poignée, couleur, nom, départ dans le Mixer, icône.
             HStack(spacing: 8) {
-                Image(systemName: "line.3.horizontal")
-                    .swissLabel()
+                SixDots()
                     .frame(width: 14, height: 24)
                     .help("Prends la famille et glisse-la au-dessus ou en dessous d'une autre : le Channel rack, le Mixer et la Playlist suivent cet ordre")
                 // Sa couleur (et la fin de son dégradé) : un rond qu'on clique ; « Une couleur / Dégradé » est dans
@@ -2378,13 +2382,13 @@ private struct FamilySection: View {
                     }
                 }
                 // Jamais coupé en deux lignes (capture du 25/10 : « Melodie / s »).
-                Text(family.label).font(.system(size: 14, weight: .semibold))
+                Text(family.label).swissLabel(Swiss.text, size: 12)
                     .lineLimit(1)
                     .fixedSize(horizontal: true, vertical: false)
                     .layoutPriority(1)
                 Spacer(minLength: 8)
                 if controller.options.mixer, let range = controller.mixerRange(of: family) {
-                    Text("Mixer").font(.system(size: 12)).foregroundStyle(.secondary)
+                    Text("Mixer").swissLabel(size: 10)
                     MixerSlotBox(value: style.mixerStart ?? range.lowerBound, chosen: style.mixerStart != nil,
                                  last: controller.mixerLast, tint: swiftColor(style.color)) {
                         controller.setMixerStart(family, $0)
@@ -2406,14 +2410,16 @@ private struct FamilySection: View {
             // Ses sons, dans une carte de verre, séparés par un trait fin.
             VStack(spacing: 0) {
                 ForEach(Array(members.enumerated()), id: \.element.id) { index, member in
-                    if index > 0 { Divider() }
+                    if index > 0 { Rectangle().fill(Swiss.faint).frame(height: 1) }
                     FamilyMemberRow(controller: controller, family: family, member: member,
                                     color: colors[member.id] ?? style.color)
                 }
             }
-            .padding(.horizontal, 10)
+            .padding(.horizontal, 4)
             .padding(.vertical, 2)
             .organizerCard(swiftColor(style.color))
+            // Style suisse : un trait de la couleur de la famille au-dessus de ses sons.
+            .overlay(alignment: .top) { Rectangle().fill(swiftColor(style.color)).frame(height: 3) }
         }
         .opacity(dragged ? 0.25 : 1)
         // Au milieu de l'espace entre deux familles (14 points).
@@ -2443,10 +2449,10 @@ private struct FamilySection: View {
     private func swatch(_ color: RGBColor, picking: Binding<Bool>, withFade: Bool = false,
                         set: @escaping (RGBColor) -> Void) -> some View {
         Button { picking.wrappedValue = true } label: {
-            Circle()
+            Rectangle()
                 .fill(swiftColor(color))
-                .frame(width: 20, height: 20)
-                .overlay(Circle().strokeBorder(Color.white.opacity(0.3), lineWidth: 1.5))
+                .frame(width: 16, height: 16)
+                .overlay(Rectangle().strokeBorder(Color.white.opacity(0.3), lineWidth: 1))
         }
         .buttonStyle(.plain)
         .help(String(localized: "#\(color.hex) : choisir dans la roue des couleurs de FL"))
