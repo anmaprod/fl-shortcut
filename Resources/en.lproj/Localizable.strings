@@ -541,6 +541,7 @@
 "Claw Machine" = "Claw Machine";
 "Clic" = "Click";
 "Clic : voir où va cette piste, puis choisir ses sorties avec les cases. Double-clic : nom et couleur." = "Click: see where this track goes, then choose its outputs with the boxes. Double-click: name and color.";
+"Clic : voir où va cette piste, puis choisir ses sorties avec les cases. Double-clic : nom et couleur. Glisse-la sur une autre famille : le son y passe, relié à son bus." = "Click: see where this track goes, then choose its outputs with the boxes. Double-click: name and color. Drag it onto another family: the sound moves there, linked to its bus.";
 "Clic droit" = "Right-click";
 "Clic droit sur la dernière piste cliquée dans le Mixer, puis l'élément choisi dans la liste (ouvrir un état de piste, renommer…), au clavier : rien à apprendre." = "Right-clicks the last clicked track in the Mixer, then picks the chosen item in the list (open a track state, rename…) with the keyboard: nothing to learn.";
 "Clic droit sur la piste → File → Open mixer track state, preset, armement, entrée 1, REC." = "Right-click the track → File → Open mixer track state, preset, arm, input 1, REC.";
@@ -1606,6 +1607,8 @@
 "Pour un bouton qui change de place (une piste du Mixer, le « + » du Channel rack…) : il est " = "For a button that moves (a Mixer track, the Channel rack's “+”…): it's ";
 "Première piste du Mixer de la famille (son bus compris ; la 808 avec les drums) : tire vers le haut ou le bas comme dans FL, ou clique pour l'écrire" = "First Mixer track of the family (its bus included; the 808 with the drums): drag up or down like in FL, or click to type it";
 "Prends la famille et glisse-la au-dessus ou en dessous d'une autre : le Channel rack, le Mixer et la Playlist suivent cet ordre" = "Grab the family and drag it above or below another one: the Channel rack, the Mixer and the Playlist follow this order";
+"Prends la famille par son nom et glisse-la au-dessus ou en dessous d'une autre : le Channel rack, le Mixer et la Playlist suivent cet ordre" = "Grab the family by its name and drag it above or below another one: the Channel rack, the Mixer and the Playlist follow this order";
+"Prends le son et pose-le dans une autre famille : il y passe, relié à son bus" = "Grab the sound and drop it into another family: it moves there, linked to its bus";
 "Preset" = "Preset";
 "Preset précédent" = "Previous preset";
 "Preset précédent du plugin ouvert" = "Previous preset of the open plugin";
@@ -2537,6 +2540,7 @@
 "Étendre la sélection vers le haut" = "Extend selection up";
 "× (pavé)" = "× (keypad)";
 "à choisir" = "to choose";
+"à cocher dans les Réglages" = "to turn on in System Settings";
 "à configurer" = "not set up";
 "à faire" = "to do";
 "à l'endroit appris (fenêtre de FL)" = "at the learned spot (FL window)";

@@ -76,6 +76,27 @@ final class AppResume {
         return (p.page.flatMap(SidebarItem.init(resumeKey:)), p.macro, p.macroIsNew)
     }
 
+    // Autorisation en cours, notée dès qu'elle est demandée (01/11, « n'attend toujours pas ») : macOS peut fermer
+    // l'app de force pendant qu'on coche dans les Réglages, sans `saveOnQuit` ; la copie relancée la retrouve ici.
+    static let askingKey = "askingPermission"
+    static let askingMaxAge: TimeInterval = 180
+
+    /// Note (ou efface, nil) l'autorisation en cours : « clavier » ou « son », et quand.
+    func noteAsking(_ key: String?, _ defaults: UserDefaults = .standard, now: Date = Date()) {
+        guard let key else { defaults.removeObject(forKey: Self.askingKey); return }
+        defaults.set(["key": key, "at": now.timeIntervalSince1970], forKey: Self.askingKey)
+    }
+
+    /// Au lancement : l'autorisation qui était demandée il y a moins de 3 minutes (lue une fois, puis effacée).
+    func takeAsking(_ defaults: UserDefaults = .standard, now: Date = Date()) -> String? {
+        let note = defaults.dictionary(forKey: Self.askingKey)
+        defaults.removeObject(forKey: Self.askingKey)
+        guard let key = note?["key"] as? String, ["clavier", "son"].contains(key),
+              let at = note?["at"] as? Double else { return nil }
+        let age = now.timeIntervalSince1970 - at
+        return age >= 0 && age <= Self.askingMaxAge ? key : nil
+    }
+
     /// À la fermeture de l'app : la macro en cours est enregistrée, puis ce qui est ouvert est noté.
     func saveOnQuit(_ defaults: UserDefaults = .standard, permissions: Bool, organizer: Bool, asking: String? = nil,
                     now: Date = Date()) {

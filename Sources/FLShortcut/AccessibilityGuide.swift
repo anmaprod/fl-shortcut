@@ -25,6 +25,10 @@ final class AccessibilityGuide: ObservableObject {
     private var accueilCache = false
     /// La question du son de macOS est affichée (jusqu'à la réponse) : rien n'est conclu de TCC pendant ce temps.
     private var audioQuestionOpen = false
+    /// Le son de FL se donne dans les Réglages (la question n'a pas pu revenir) : on attend qu'il soit coché, tant que
+    /// les Réglages sont ouverts, au lieu de conclure « refusé » à la première seconde.
+    @Published private(set) var audioInSettings = false
+    private var settingsGoneSince: Date?
     private var timer: Timer?
     /// Montrer le petit panneau (faux depuis l'accueil, qui explique déjà quoi faire).
     private var showsPanel = true
@@ -52,6 +56,7 @@ final class AccessibilityGuide: ObservableObject {
             return
         }
         asking = true
+        AppResume.shared.noteAsking(askingKey)              // retrouvée même si macOS ferme l'app de force
         if panel { showPanel() }
         timer?.invalidate()
         let t = Timer(timeInterval: 1, repeats: true) { [weak self] _ in self?.check() }
@@ -69,38 +74,81 @@ final class AccessibilityGuide: ObservableObject {
     /// Son de FL demandable sur ce Mac et pas encore autorisé.
     static var audioMissing: Bool { !audioAllowed }
 
-    /// La fenêtre de macOS pour le son, la première fois ; déjà refusé : la page de réglages où l'activer.
+    /// La fenêtre de macOS pour le son (« Autoriser ») ; déjà refusé : la réponse de macOS est effacée et la question
+    /// revient (retour du 01/11 : par les Réglages, l'app se rouvrait avant « Autoriser » et « Autorisé » ne venait
+    /// pas) ; les Réglages seulement si la question ne peut pas revenir.
     private func askAudio() {
         stage = .audio
+        AppResume.shared.noteAsking("son")
         guard #available(macOS 14.2, *) else { return }
         switch AudioCapturePermission.status {
         case .unknown:
-            // Vidéo du 30/10 : la fenêtre d'accueil se retire pendant la question de macOS et ne revient qu'une fois
-            // la réponse donnée (au plus tard au bout de 2 minutes, si la question disparaît sans réponse).
-            hideWelcome()
-            NSApp.activate(ignoringOtherApps: true)         // la fenêtre de macOS devant, pas derrière les réglages
-            audioQuestionOpen = true
-            let asked = AudioCapturePermission.request { [weak self] ok in
-                guard let self else { return }
-                self.audioQuestionOpen = false
-                MacroLog.shared.write("AUDIO", "question answered: \(ok ? "allowed" : "not allowed"), "
-                                      + "TCC \(AudioCapturePermission.status)")
-                if ok || Self.audioAllowed { self.audioGranted = true }
-                // Vidéo du 31/10 : l'accueil revenait pendant que la question de macOS se refermait (fondu) ; il
-                // attend qu'elle ait disparu.
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) { self.showWelcome() }
-                self.recheckAudioSoon()
-            }
-            if !asked {
-                audioQuestionOpen = false
-                showWelcome()
-                ScreenLook.openSettings()
-            }
+            askAudioQuestion()
         case .denied:
-            ScreenLook.openSettings()
+            audioQuestionOpen = true                        // rien n'est conclu pendant l'effacement
+            DispatchQueue.global(qos: .userInitiated).async {
+                let reset = AudioCapturePermission.resetDecision()
+                DispatchQueue.main.async { [weak self] in
+                    guard let self else { return }
+                    self.audioQuestionOpen = false
+                    let status = AudioCapturePermission.status
+                    MacroLog.shared.write("AUDIO", "refused before: answer reset \(reset ? "done" : "failed"), TCC \(status)")
+                    if status == .granted {
+                        self.audioGranted = true
+                    } else if reset && status == .unknown {
+                        self.askAudioQuestion()
+                    } else {
+                        self.openAudioSettings()
+                    }
+                }
+            }
         case .granted:
             audioGranted = true
         }
+    }
+
+    /// La question de macOS. Vidéo du 30/10 : la fenêtre d'accueil se retire pendant la question et ne revient
+    /// qu'une fois la réponse donnée (au plus tard au bout de 2 minutes, si la question disparaît sans réponse).
+    @available(macOS 14.2, *)
+    private func askAudioQuestion() {
+        hideWelcome()
+        NSApp.activate(ignoringOtherApps: true)             // la fenêtre de macOS devant, pas derrière les réglages
+        audioQuestionOpen = true
+        let asked = Date()
+        let shown = AudioCapturePermission.request { [weak self] ok in
+            guard let self else { return }
+            self.audioQuestionOpen = false
+            let ms = Int(Date().timeIntervalSince(asked) * 1000)
+            MacroLog.shared.write("AUDIO", "question answered after \(ms) ms: \(ok ? "allowed" : "not allowed"), "
+                                  + "TCC \(AudioCapturePermission.status)")
+            if ok || Self.audioAllowed {
+                self.audioGranted = true
+            } else if ms < 700 {
+                // Répondu sans attendre personne : macOS n'a pas montré la question (il envoie vers les Réglages).
+                self.openAudioSettings()
+                return
+            }
+            // Vidéo du 31/10 : l'accueil revenait pendant que la question de macOS se refermait (fondu) ; il attend
+            // qu'elle ait disparu.
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) { self.showWelcome() }
+            self.recheckAudioSoon()
+        }
+        if !shown {
+            audioQuestionOpen = false
+            openAudioSettings()
+        }
+    }
+
+    /// Dernier recours : la page « Enregistrement de l'écran et de l'audio du système » des Réglages, où FL Shortcuts
+    /// se coche sous « audio du système uniquement » ; l'accueil (dit sur sa ligne) attend qu'il le soit, tant que les
+    /// Réglages restent ouverts. Relancée par « Quitter et rouvrir » avant « Autoriser », l'app attend cachée
+    /// (`PermissionRelaunchWait`, autorisation notée).
+    private func openAudioSettings() {
+        audioInSettings = true
+        settingsGoneSince = nil
+        AppResume.shared.noteAsking("son")
+        MacroLog.shared.write("AUDIO", "settings opened")
+        ScreenLook.openSettings()
     }
 
     /// Vidéo du 31/10 (« Autorisé » jamais affiché) : TCC peut ne noter la réponse qu'un instant après la question ;
@@ -179,14 +227,30 @@ final class AccessibilityGuide: ObservableObject {
             // Pendant la question de macOS, TCC ne dit encore rien de sûr : on attend la réponse (vidéo du 31/10 : la
             // vérification s'arrêtait là, et « Son de FL » restait « À autoriser » une fois autorisé).
             guard !audioQuestionOpen else { return }
-            if #available(macOS 14.2, *), !showsPanel, AudioCapturePermission.status == .denied, !audioGranted {
-                close()                                     // refusé depuis l'accueil : redemandé à l'Organiser
+            if audioGranted || Self.audioAllowed {
+                audioGranted = true
+                MacroLog.shared.write("AUDIO", "given\(audioInSettings ? " in settings" : "")")
+                audioInSettings = false
+                timer?.invalidate()                         // la coche se voit, puis tout est rangé
+                timer = nil
+                showWelcome()
+                DispatchQueue.main.asyncAfter(deadline: .now() + 1.4) { [weak self] in self?.close() }
                 return
             }
-            guard audioGranted || Self.audioAllowed else { return }
-            audioGranted = true
-            showWelcome()
-            DispatchQueue.main.asyncAfter(deadline: .now() + 1.4) { [weak self] in self?.close() }
+            if audioInSettings {
+                // Dans les Réglages : on attend qu'il soit coché ; Réglages fermés depuis 3 s, on arrête d'attendre.
+                let open = !NSRunningApplication.runningApplications(
+                    withBundleIdentifier: "com.apple.systempreferences").isEmpty
+                if open { settingsGoneSince = nil } else if settingsGoneSince == nil { settingsGoneSince = Date() }
+                if let gone = settingsGoneSince, Date().timeIntervalSince(gone) >= 3 {
+                    MacroLog.shared.write("AUDIO", "settings closed, not given")
+                    close()
+                }
+                return
+            }
+            if #available(macOS 14.2, *), !showsPanel, AudioCapturePermission.status == .denied {
+                close()                                     // refusé depuis l'accueil : redemandé à l'Organiser
+            }
         }
     }
 
@@ -195,6 +259,9 @@ final class AccessibilityGuide: ObservableObject {
 
     func close() {
         asking = false
+        audioInSettings = false
+        AppResume.shared.noteAsking(nil)
+        showWelcome()                                       // cachée pendant une question : elle revient
         timer?.invalidate()
         timer = nil
         panel?.orderOut(nil)
@@ -336,6 +403,8 @@ final class PermissionRelaunchWait {
     private var then: (() -> Void)?
     private var started = Date()
     private var settingsGoneSince: Date?
+    /// L'autorisation attendue (notée à la fermeture : relancée encore une fois, la copie suivante attend aussi).
+    private(set) var waitingKey: String?
 
     /// Pur (testé) : l'autorisation demandée avant la relance manque encore.
     static func missing(_ asking: String, keyboardOK: Bool, audioOK: Bool) -> Bool {
@@ -359,6 +428,8 @@ final class PermissionRelaunchWait {
     func start(asking key: String, then show: @escaping () -> Void) {
         guard Self.missingNow(key) else { show(); return }
         MacroLog.shared.write("ACCUEIL", "relaunched before \(key) was given: welcome waits")
+        waitingKey = key
+        AppResume.shared.noteAsking(key)                    // fermée de force pendant l'attente : la suivante attend
         then = show
         started = Date()
         settingsGoneSince = nil
@@ -384,6 +455,8 @@ final class PermissionRelaunchWait {
     func finishNow() {
         timer?.invalidate()
         timer = nil
+        if waitingKey != nil { AppResume.shared.noteAsking(nil) }
+        waitingKey = nil
         let show = then
         then = nil
         show?()

@@ -15,6 +15,12 @@ struct OrganizerMixerView: View {
     /// Bande de famille prise et glissée (sa famille, son décalage).
     @State private var dragged: SoundFamily?
     @State private var dragOffset: CGFloat = 0
+    /// Piste d'un son prise et glissée sur une autre famille (01/11 : « chaque piste, on puisse la bouger comme on
+    /// veut… basse, on la met dans mélodie… relié à bus mélodie et pas à bus drums ») : la piste, son décalage, et la
+    /// famille sous la souris.
+    @State private var movingTrack: Int?
+    @State private var moveOffset: CGSize = .zero
+    @State private var moveTarget: SoundFamily?
 
     static let stripWidth: CGFloat = 27
     static let masterWidth: CGFloat = 46
@@ -61,6 +67,10 @@ struct OrganizerMixerView: View {
                     HStack(spacing: Self.gap) {
                         ForEach(strips) { strip in
                             stripView(strip, selected: selected, direct: direct, plan: plan)
+                                .offset(movingTrack == strip.id ? moveOffset : .zero)
+                                .shadow(color: Color.black.opacity(movingTrack == strip.id ? 0.6 : 0), radius: 10, y: 6)
+                                .zIndex(movingTrack == strip.id ? 2 : 0)
+                                .simultaneousGesture(soundDrag(strip, strips: strips, centers: centers))
                         }
                     }
                     .frame(height: Self.stripHeight)
@@ -190,6 +200,8 @@ struct OrganizerMixerView: View {
             }
         }
         .help(strip.isMaster ? String(localized: "Master")
+              : strip.hasSound && !strip.isBus && !strip.isPremaster
+              ? String(localized: "Clic : voir où va cette piste, puis choisir ses sorties avec les cases. Double-clic : nom et couleur. Glisse-la sur une autre famille : le son y passe, relié à son bus.")
               : String(localized: "Clic : voir où va cette piste, puis choisir ses sorties avec les cases. Double-clic : nom et couleur."))
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(strip.isMaster ? "Master" : strip.name.isEmpty ? "Piste \(strip.place)" : strip.name)
@@ -223,6 +235,48 @@ struct OrganizerMixerView: View {
         } else {
             Color.clear
         }
+    }
+
+    // MARK: Son glissé dans une autre famille
+
+    /// La piste d'un son se prend et se pose sur une autre famille (sa bande ou une de ses pistes) : le son y passe,
+    /// relié au bus de cette famille ; la piste reste choisie, son trait rouge montre où elle va maintenant. Les bus,
+    /// le pré-master et le Master ne se prennent pas.
+    private func soundDrag(_ strip: Strip, strips: [Strip], centers: [Int: CGFloat]) -> some Gesture {
+        DragGesture(minimumDistance: 6)
+            .onChanged { value in
+                guard strip.hasSound, !strip.isBus, !strip.isPremaster, !strip.isMaster else { return }
+                movingTrack = strip.id
+                moveOffset = value.translation
+                let target = Self.family(at: (centers[strip.id] ?? 0) + value.translation.width, strips: strips,
+                                         centers: centers)
+                moveTarget = target == strip.family ? nil : target
+            }
+            .onEnded { _ in
+                defer {
+                    movingTrack = nil
+                    moveTarget = nil
+                }
+                guard movingTrack == strip.id else { return }
+                if let target = moveTarget {
+                    withAnimation(Motion.quickMorph) {
+                        moveOffset = .zero
+                        controller.moveTrack(strip.id, to: target)
+                        controller.mixerSelection = strip.id
+                    }
+                } else {
+                    withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) { moveOffset = .zero }
+                }
+            }
+    }
+
+    /// Pur (testé) : la famille de la piste sous `x` (le milieu de la piste prise, là où on la lâche) ; nil hors des
+    /// pistes d'une famille (Master, pré-master, piste sans famille).
+    static func family(at x: CGFloat, strips: [Strip], centers: [Int: CGFloat]) -> SoundFamily? {
+        strips.first { strip in
+            guard let center = centers[strip.id] else { return false }
+            return abs(x - center) <= (strip.width + gap) / 2
+        }.flatMap { $0.isPremaster ? nil : $0.family }
     }
 
     // MARK: Chaîne et routage
@@ -299,6 +353,8 @@ struct OrganizerMixerView: View {
                 .frame(width: run.width, height: 22, alignment: .leading)
                 .background(Rectangle().fill(color))
                 .clipped()
+                // Un son glissé tombera dans cette famille : sa bande entourée de blanc.
+                .overlay(Rectangle().strokeBorder(Swiss.text, lineWidth: moveTarget == run.family ? 2 : 0))
                 .offset(x: run.x + (dragged == run.family ? dragOffset : 0))
                 .zIndex(dragged == run.family ? 1 : 0)
                 .opacity(dragged != nil && dragged != run.family ? 0.75 : 1)

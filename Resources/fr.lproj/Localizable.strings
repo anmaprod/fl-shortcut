@@ -541,6 +541,7 @@
 "Claw Machine" = "Claw Machine";
 "Clic" = "Clic";
 "Clic : voir où va cette piste, puis choisir ses sorties avec les cases. Double-clic : nom et couleur." = "Clic : voir où va cette piste, puis choisir ses sorties avec les cases. Double-clic : nom et couleur.";
+"Clic : voir où va cette piste, puis choisir ses sorties avec les cases. Double-clic : nom et couleur. Glisse-la sur une autre famille : le son y passe, relié à son bus." = "Clic : voir où va cette piste, puis choisir ses sorties avec les cases. Double-clic : nom et couleur. Glisse-la sur une autre famille : le son y passe, relié à son bus.";
 "Clic droit" = "Clic droit";
 "Clic droit sur la dernière piste cliquée dans le Mixer, puis l'élément choisi dans la liste (ouvrir un état de piste, renommer…), au clavier : rien à apprendre." = "Clic droit sur la dernière piste cliquée dans le Mixer, puis l'élément choisi dans la liste (ouvrir un état de piste, renommer…), au clavier : rien à apprendre.";
 "Clic droit sur la piste → File → Open mixer track state, preset, armement, entrée 1, REC." = "Clic droit sur la piste → File → Open mixer track state, preset, armement, entrée 1, REC.";
@@ -1606,6 +1607,8 @@
 "Pour un bouton qui change de place (une piste du Mixer, le « + » du Channel rack…) : il est " = "Pour un bouton qui change de place (une piste du Mixer, le « + » du Channel rack…) : il est ";
 "Première piste du Mixer de la famille (son bus compris ; la 808 avec les drums) : tire vers le haut ou le bas comme dans FL, ou clique pour l'écrire" = "Première piste du Mixer de la famille (son bus compris ; la 808 avec les drums) : tire vers le haut ou le bas comme dans FL, ou clique pour l'écrire";
 "Prends la famille et glisse-la au-dessus ou en dessous d'une autre : le Channel rack, le Mixer et la Playlist suivent cet ordre" = "Prends la famille et glisse-la au-dessus ou en dessous d'une autre : le Channel rack, le Mixer et la Playlist suivent cet ordre";
+"Prends la famille par son nom et glisse-la au-dessus ou en dessous d'une autre : le Channel rack, le Mixer et la Playlist suivent cet ordre" = "Prends la famille par son nom et glisse-la au-dessus ou en dessous d'une autre : le Channel rack, le Mixer et la Playlist suivent cet ordre";
+"Prends le son et pose-le dans une autre famille : il y passe, relié à son bus" = "Prends le son et pose-le dans une autre famille : il y passe, relié à son bus";
 "Preset" = "Preset";
 "Preset précédent" = "Preset précédent";
 "Preset précédent du plugin ouvert" = "Preset précédent du plugin ouvert";
@@ -2537,6 +2540,7 @@
 "Étendre la sélection vers le haut" = "Étendre la sélection vers le haut";
 "× (pavé)" = "× (pavé)";
 "à choisir" = "à choisir";
+"à cocher dans les Réglages" = "à cocher dans les Réglages";
 "à configurer" = "à configurer";
 "à faire" = "à faire";
 "à l'endroit appris (fenêtre de FL)" = "à l'endroit appris (fenêtre de FL)";

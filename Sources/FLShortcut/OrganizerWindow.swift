@@ -1047,6 +1047,46 @@ final class OrganizerController: ObservableObject {
         kinds[index] = kind
     }
 
+    /// Un son glissé dans une autre famille (demande du 01/11 : « basse, on la met dans mélodie… qu'il soit relié à
+    /// la famille qu'on vient de lui assigner ») : il en prend la couleur, la place et le bus. Ce qui le gardait
+    /// ailleurs est oublié : sa case du Mixer choisie à la main et les sorties changées à la main de sa piste.
+    func moveSound(_ index: Int, to family: SoundFamily) {
+        guard let now = families[index] else { return }
+        let kind = self.kind(of: index)
+        // La 808 (famille Basse, bus des Drums) posée sur Basse : son bus devient celui de la Basse.
+        guard now != family || (kind?.busFamily ?? now) != family else { return }
+        let track = soundTrack(of: index)
+        // Elle garde alors son nom (« 808 »), qui ne vient plus de ce qu'elle est.
+        if let kind, kind.family == family, names[index] == nil, let planned = plan.rack.names[index] {
+            names[index] = planned
+        }
+        setFamily(index, family)
+        slots[index] = nil
+        if let track { options.mixerEdits.routes[track] = nil }
+    }
+
+    /// Tous les sons d'une piste du Mixer glissée sur une autre famille (écran Mixer).
+    func moveTrack(_ track: Int, to family: SoundFamily) {
+        for index in sounds(on: track) { moveSound(index, to: family) }
+    }
+
+    /// Piste d'origine du Mixer où va un son (nil : le Master).
+    func soundTrack(of index: Int, in plan: OrganizerPlan? = nil) -> Int? {
+        guard let channel = result?.channels.first(where: { $0.index == index }) else { return nil }
+        let track = (plan ?? self.plan).mixer.links[index] ?? channel.mixerTrack
+        return track >= 1 ? track : nil
+    }
+
+    /// Les sons (gardés) qui vont dans cette piste d'origine du Mixer.
+    func sounds(on track: Int, in plan: OrganizerPlan? = nil) -> [Int] {
+        guard let result, track >= 1 else { return [] }
+        let plan = plan ?? self.plan
+        let deleted = Set(result.unused)
+        return result.channels.map(\.index).filter {
+            !deleted.contains($0) && families[$0] != nil && soundTrack(of: $0, in: plan) == track
+        }
+    }
+
     /// Couleur prévue de chaque son du Channel rack (dégradés répartis dans l'ordre final), même si le Channel rack
     /// n'est pas touché : la couleur de sa famille dans l'aperçu.
     var plannedColors: [Int: RGBColor] {
@@ -1509,6 +1549,10 @@ struct OrganizerView: View {
     /// Combien de familles dans la colonne de gauche, choisi en y posant une famille (vidéo du 30/10 : « je ne peux
     /// pas mettre en dessous à gauche ») ; nil : coupées là où les colonnes ont la même hauteur.
     @State private var leftCount: Int?
+    /// Le son pris dans l'aperçu (01/11 : « qu'on puisse changer chaque sonorité en juste en drag and drop ») et la
+    /// place de chaque son (espace `familySpace`).
+    @State private var soundDrag: SoundDrag?
+    @State private var soundFrames: [Int: CGRect] = [:]
     /// « Détails » de la fin : tout le texte, dans une bulle.
     @State private var showDetails = false
 
@@ -2078,20 +2122,30 @@ struct OrganizerView: View {
                     let colors = controller.plannedColors
                     let families = controller.presentFamilies
                     let width = geo.size.width
+                    // Nombre de sons de chaque famille, compté une fois (la hauteur de son bloc).
+                    let sizes = Dictionary(uniqueKeysWithValues: families.map { ($0, controller.members(of: $0).count) })
                     let columns = OrganizerView.familyColumns(families, count: width >= 600 ? 2 : 1, left: leftCount) {
-                        controller.members(of: $0).count
+                        sizes[$0] ?? 0
                     }
                     let slot = familyDrag.map { Self.dropSlot($0.location, dragged: $0.family, columns: columns,
                                                               frames: familyFrames, width: width) }
+                    let soundTarget = soundDrag.flatMap { drag in
+                        Self.familyUnder(drag.location, frames: familyFrames).flatMap { $0 == drag.from ? nil : $0 }
+                    }
                     HStack(alignment: .top, spacing: 18) {
                         ForEach(Array(columns.enumerated()), id: \.offset) { number, column in
                             VStack(alignment: .leading, spacing: 14) {
                                 ForEach(column, id: \.self) { family in
                                     FamilySection(controller: controller, family: family, colors: colors,
                                                   dragged: familyDrag?.family == family,
-                                                  drop: dropMark(for: family, column: number, columns: columns, slot: slot),
+                                                  drop: dropMark(for: family, column: number, columns: columns,
+                                                                 slot: slot, sizes: sizes),
+                                                  soundTarget: soundTarget == family,
+                                                  draggedSound: soundDrag?.id,
                                                   onMove: { dragFamily(family, $0) },
-                                                  onRelease: { dropFamily(columns: columns, width: width) })
+                                                  onRelease: { dropFamily(columns: columns, width: width, sizes: sizes) },
+                                                  onSoundMove: { dragSound($0, from: family, $1) },
+                                                  onSoundRelease: { dropSound() })
                                         .morphIn((families.firstIndex(of: family) ?? 0) + 1)
                                 }
                                 // Colonne vidée pendant qu'on glisse : la place où la famille tombera.
@@ -2121,8 +2175,20 @@ struct OrganizerView: View {
                                 .allowsHitTesting(false)
                         }
                     }
+                    // Un son pris : sa copie suit la souris et dit où il va (« → Mélodies ») ; la famille sous la
+                    // souris est entourée de sa couleur.
+                    .overlay(alignment: .topLeading) {
+                        if let drag = soundDrag {
+                            SoundGhost(name: drag.name, color: drag.color,
+                                       target: soundTarget.map { ($0.label, swiftColor(controller.style(of: $0).color)) })
+                                .frame(width: drag.size.width, height: drag.size.height)
+                                .offset(x: drag.location.x - drag.grab.width, y: drag.location.y - drag.grab.height)
+                                .allowsHitTesting(false)
+                        }
+                    }
                     .coordinateSpace(name: Self.familySpace)
                     .onPreferenceChange(FamilyFramesKey.self) { familyFrames = $0 }
+                    .onPreferenceChange(SoundFramesKey.self) { soundFrames = $0 }
                     .padding(.vertical, 4)
                 }
             }
@@ -2177,13 +2243,16 @@ struct OrganizerView: View {
     }
 
     /// Lâchée : elle tombe là où est la souris, dans la colonne de gauche ou de droite, au-dessus ou en dessous des
-    /// autres ; les colonnes restent comme on les a faites (Channel rack, Mixer et Playlist suivent : la colonne de
-    /// gauche de haut en bas, puis celle de droite).
-    private func dropFamily(columns: [[SoundFamily]], width: CGFloat) {
+    /// autres (Channel rack, Mixer et Playlist suivent : la colonne de gauche de haut en bas, puis celle de droite).
+    /// Les deux colonnes se rééquilibrent autour d'elle (01/11 : posée en bas à droite, trois familles à droite et une
+    /// à gauche, « ça se chevauchait » ; « la famille qui est en haut à droite redescend en bas à gauche »).
+    private func dropFamily(columns: [[SoundFamily]], width: CGFloat, sizes: [SoundFamily: Int]) {
         guard let drag = familyDrag else { return }
         familyDrag = nil
         let slot = Self.dropSlot(drag.location, dragged: drag.family, columns: columns, frames: familyFrames, width: width)
-        let placed = Self.placing(drag.family, at: slot, in: columns)
+        let placed = Self.balanced(Self.placing(drag.family, at: slot, in: columns), keeping: drag.family) {
+            sizes[$0] ?? 0
+        }
         guard placed != columns else { return }
         withAnimation(Motion.quickMorph) {
             if placed.count >= 2 { leftCount = placed[0].count }
@@ -2191,12 +2260,74 @@ struct OrganizerView: View {
         }
     }
 
+    /// Le son pris suit la souris ; au premier mouvement, l'endroit où il a été pris dans sa ligne.
+    private func dragSound(_ member: OrganizerController.Member, from family: SoundFamily, _ value: DragGesture.Value) {
+        if soundDrag?.id == member.id {
+            soundDrag?.location = value.location
+            return
+        }
+        let frame = soundFrames[member.id] ?? CGRect(origin: value.startLocation, size: CGSize(width: 260, height: 38))
+        soundDrag = SoundDrag(id: member.id, from: family,
+                              name: member.name.isEmpty ? String(localized: "(sans nom)") : member.name,
+                              color: swiftColor(controller.style(of: family).color), location: value.location,
+                              grab: CGSize(width: value.startLocation.x - frame.minX,
+                                           height: value.startLocation.y - frame.minY),
+                              size: frame.size)
+    }
+
+    /// Lâché sur une autre famille : il y passe (sa couleur, sa place, son bus) ; les colonnes se rééquilibrent.
+    private func dropSound() {
+        guard let drag = soundDrag else { return }
+        soundDrag = nil
+        guard let target = Self.familyUnder(drag.location, frames: familyFrames), target != drag.from else { return }
+        withAnimation(Motion.quickMorph) {
+            controller.moveSound(drag.id, to: target)
+            leftCount = nil
+        }
+    }
+
+    /// Pur (testé) : la famille sous la souris (son bloc, un peu élargi : l'espace entre deux familles compte pour la
+    /// plus proche).
+    static func familyUnder<F: Hashable>(_ point: CGPoint, frames: [F: CGRect]) -> F? {
+        frames.first { $0.value.insetBy(dx: -9, dy: -7).contains(point) }?.key
+    }
+
+    /// Pur (testé) : deux colonnes rééquilibrées sans changer l'ordre (la gauche de haut en bas, puis la droite) :
+    /// la coupure où les colonnes ont la hauteur la plus proche (`size` : nombre de sons d'une famille ; à hauteur
+    /// égale, la coupure d'avant). La famille qu'on vient de poser (`kept`) reste dans sa colonne si les hauteurs n'y
+    /// perdent presque rien (un en-tête) ; sinon elle passe juste à côté (le bas de la gauche et le haut de la droite
+    /// se suivent).
+    static func balanced<F: Equatable>(_ columns: [[F]], keeping kept: F? = nil, size: (F) -> Int) -> [[F]] {
+        guard columns.count == 2 else { return columns }
+        let flat = columns[0] + columns[1]
+        guard flat.count >= 2 else { return columns }
+        let heights = flat.map { size($0) + 2 }                      // l'en-tête compte pour deux lignes
+        let total = heights.reduce(0, +)
+        func gap(_ cut: Int) -> Int { abs(total - 2 * heights[..<cut].reduce(0, +)) }
+        let current = columns[0].count
+        func pick(_ cuts: [Int]) -> Int? {
+            cuts.min { a, b in gap(a) != gap(b) ? gap(a) < gap(b) : (a == current ? 0 : 1, a) < (b == current ? 0 : 1, b) }
+        }
+        let cuts = Array(0...flat.count)
+        var best = pick(cuts) ?? current
+        if let kept, let at = flat.firstIndex(of: kept) {
+            let left = columns[0].contains(kept)
+            if let keeping = pick(cuts.filter { left ? $0 > at : $0 <= at }), gap(keeping) <= gap(best) + 2 {
+                best = keeping
+            }
+        }
+        return [Array(flat[..<best]), Array(flat[best...])]
+    }
+
     /// Où tombera la famille prise : un trait de sa couleur au-dessus de la famille qui la suivra, ou sous la dernière
     /// de la colonne ; rien si elle retombe à sa place.
     private func dropMark(for family: SoundFamily, column: Int, columns: [[SoundFamily]],
-                          slot: (column: Int, index: Int)?) -> FamilyDrop? {
+                          slot: (column: Int, index: Int)?, sizes: [SoundFamily: Int]) -> FamilyDrop? {
         guard let drag = familyDrag, let slot, slot.column == column, family != drag.family,
-              Self.placing(drag.family, at: slot, in: columns) != columns else { return nil }
+              Self.balanced(Self.placing(drag.family, at: slot, in: columns), keeping: drag.family,
+                            size: { sizes[$0] ?? 0 }) != columns else {
+            return nil
+        }
         let others = columns[column].filter { $0 != drag.family }
         let tint = swiftColor(controller.style(of: drag.family).color)
         if slot.index < others.count { return others[slot.index] == family ? FamilyDrop(below: false, tint: tint) : nil }
@@ -2428,8 +2559,14 @@ private struct FamilySection: View {
     var drop: FamilyDrop? = nil
     /// La copie qui suit la souris : ni prise, ni place comptée.
     var ghost = false
+    /// Un son pris tombera dans cette famille : elle est entourée de sa couleur.
+    var soundTarget = false
+    /// Le son pris (sa ligne reste en transparence).
+    var draggedSound: Int? = nil
     var onMove: (DragGesture.Value) -> Void = { _ in }
     var onRelease: () -> Void = {}
+    var onSoundMove: (OrganizerController.Member, DragGesture.Value) -> Void = { _, _ in }
+    var onSoundRelease: () -> Void = {}
     @State private var pickingFirst = false
     @State private var pickingLast = false
     @State private var pickingIcon = false
@@ -2450,7 +2587,7 @@ private struct FamilySection: View {
             HStack(spacing: 8) {
                 SixDots()
                     .frame(width: 14, height: 24)
-                    .help("Prends la famille et glisse-la au-dessus ou en dessous d'une autre : le Channel rack, le Mixer et la Playlist suivent cet ordre")
+                    .help("Prends la famille par son nom et glisse-la au-dessus ou en dessous d'une autre : le Channel rack, le Mixer et la Playlist suivent cet ordre")
                 // Sa couleur (et la fin de son dégradé) : un rond qu'on clique ; « Une couleur / Dégradé » est dans
                 // la fenêtre du premier rond (maquette du 28/10 : tout ce qui se change, sans rien autour).
                 swatch(style.color, picking: $pickingFirst, withFade: true) { picked in
@@ -2492,7 +2629,9 @@ private struct FamilySection: View {
                 ForEach(Array(members.enumerated()), id: \.element.id) { index, member in
                     if index > 0 { Rectangle().fill(Swiss.faint).frame(height: 1) }
                     FamilyMemberRow(controller: controller, family: family, member: member,
-                                    color: colors[member.id] ?? style.color)
+                                    color: colors[member.id] ?? style.color, ghost: ghost,
+                                    onMove: { onSoundMove(member, $0) }, onRelease: onSoundRelease)
+                        .opacity(draggedSound == member.id ? 0.25 : 1)
                 }
             }
             .padding(.horizontal, 4)
@@ -2502,6 +2641,12 @@ private struct FamilySection: View {
             .overlay(alignment: .top) { Rectangle().fill(swiftColor(style.color)).frame(height: 3) }
         }
         .opacity(dragged ? 0.25 : 1)
+        // Un son pris va tomber ici : la famille entourée de sa couleur (comme un dossier qui s'ouvre).
+        .overlay {
+            if soundTarget {
+                Rectangle().strokeBorder(swiftColor(style.color), lineWidth: 2).padding(-5)
+            }
+        }
         // Au milieu de l'espace entre deux familles (14 points).
         .overlay(alignment: drop?.below == true ? .bottom : .top) {
             if let drop {
@@ -2564,11 +2709,20 @@ private struct FamilyMemberRow: View {
     let family: SoundFamily
     let member: OrganizerController.Member
     let color: RGBColor
+    /// Dans la copie d'une famille qui suit la souris : rien ne se prend.
+    var ghost = false
+    /// Le son pris par sa ligne et glissé dans une autre famille (01/11).
+    var onMove: (DragGesture.Value) -> Void = { _ in }
+    var onRelease: () -> Void = {}
     @State private var writing = false
     @State private var draft = ""
 
     var body: some View {
         HStack(spacing: 8) {
+            // La poignée du son : on le prend par sa ligne et on le pose dans une autre famille.
+            SixDots(color: Color(white: 0.35))
+                .frame(width: 9)
+                .help("Prends le son et pose-le dans une autre famille : il y passe, relié à son bus")
             // Son nom d'origine → le nom qu'il prendra (28/10 : « le nom qui passe d'un nom à un autre ») ; le nouveau
             // nom dans sa case, qui s'ouvre sur ce qu'est le son et « Écrire… » (maquette du 28/10).
             Text(member.name.isEmpty ? String(localized: "(sans nom)") : member.name)
@@ -2642,11 +2796,67 @@ private struct FamilyMemberRow: View {
         }
         .font(.system(size: 13))
         .frame(minHeight: 38)
+        .background(GeometryReader { geo in
+            Color.clear.preference(key: SoundFramesKey.self,
+                                   value: ghost ? [:] : [member.id: geo.frame(in: .named(OrganizerView.familySpace))])
+        })
+        // Toute la ligne se prend (sauf ce qui se tire ou s'ouvre déjà : la case du Mixer, le menu du son), avant
+        // la famille autour d'elle.
+        .contentShape(Rectangle())
+        .gesture(DragGesture(minimumDistance: 4, coordinateSpace: .named(OrganizerView.familySpace))
+                    .onChanged { onMove($0) }
+                    .onEnded { _ in onRelease() },
+                 including: ghost ? .none : .all)
     }
 
     private func save() {
         controller.setName(member.id, draft)
         writing = false
+    }
+}
+
+/// Un son pris dans l'aperçu : lequel, sa famille, sa couleur, où est la souris, où il a été pris dans sa ligne, la
+/// taille de la ligne.
+struct SoundDrag {
+    let id: Int
+    let from: SoundFamily
+    let name: String
+    let color: Color
+    var location: CGPoint
+    let grab: CGSize
+    let size: CGSize
+}
+
+/// La copie du son pris, qui suit la souris : sa couleur, son nom et la famille où il tombera (« → MÉLODIES »).
+struct SoundGhost: View {
+    let name: String
+    let color: Color
+    let target: (label: String, color: Color)?
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Rectangle().fill(target?.color ?? color).frame(width: 8, height: 8)
+            Text(verbatim: name)
+                .font(.system(size: 13, weight: .semibold))
+                .lineLimit(1)
+                .truncationMode(.middle)
+            Spacer(minLength: 6)
+            if let target {
+                Text(verbatim: "→ " + target.label).swissLabel(Swiss.text, size: 10).lineLimit(1).fixedSize()
+            }
+        }
+        .padding(.horizontal, 12)
+        .background(FamilyDrag.plate(target?.color ?? color))
+        .scaleEffect(1.02)
+    }
+}
+
+/// Place de chaque son dans l'aperçu (espace `OrganizerView.familySpace`) : où il a été pris.
+private struct SoundFramesKey: PreferenceKey {
+    static let defaultValue: [Int: CGRect] = [:]
+
+    static func reduce(value: inout [Int: CGRect], nextValue: () -> [Int: CGRect]) {
+        value.merge(nextValue()) { $1 }
     }
 }
 

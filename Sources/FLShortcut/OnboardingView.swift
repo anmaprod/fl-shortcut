@@ -217,7 +217,9 @@ struct OnboardingView: View {
                                     state: accessOK ? .allowed : askedPermission || permissions.asking ? .waiting : .toAllow)]
         if #available(macOS 14.2, *) {
             items.append(PermissionItem(id: "son", symbol: "waveform", tint: .pink, title: String(localized: "Son de FL"),
-                                        detail: String(localized: "pour l'Organiser"),
+                                        detail: permissions.audioInSettings && !permissions.audioGranted
+                                            ? String(localized: "à cocher dans les Réglages")
+                                            : String(localized: "pour l'Organiser"),
                                         state: permissions.audioGranted ? .allowed
                                             : permissions.asking && permissions.stage == .audio ? .waiting : .toAllow))
         }

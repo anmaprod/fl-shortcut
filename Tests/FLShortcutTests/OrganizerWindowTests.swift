@@ -410,6 +410,48 @@ final class OrganizerWindowTests: XCTestCase {
         controller.close()
     }
 
+    /// Demande du 01/11 : un son glissé dans une autre famille (aperçu ou Mixer) y passe et va dans le bus de cette
+    /// famille, plus dans l'ancien ; sa case et ses sorties choisies à la main sont oubliées. La 808 posée sur Basse
+    /// dans le Mixer va dans le bus de la Basse et garde son nom.
+    func testSoundMovedToAnotherFamilyGoesToItsBus() {
+        let link = FakeOrganizerLink()
+        let gray = RGBColor(r: 9, g: 9, b: 9)
+        link.channels = ["Serum Lead", "BEAM KICK", "ZEBRA 808", "BIG CLAP"].enumerated().map {
+            ChannelInfo(index: $0.offset, type: 2, mixerTrack: $0.offset + 1, color: gray, name: $0.element)
+        }
+        link.mixer = (0...40).map { MixerTrackInfo(index: $0, color: gray, name: $0 == 0 ? "Master" : "Insert \($0)") }
+        let controller = OrganizerController(env: env(link, FakeAudio(link: link), saved: { _ in }))
+        controller.start()
+        waitFor(controller) { $0 == .preview }
+        func bus(of index: Int) -> SoundFamily? {
+            let plan = controller.plan
+            guard let track = controller.soundTrack(of: index, in: plan) else { return nil }
+            return plan.mixer.routes[track]?.compactMap { plan.mixer.buses[$0] }.first
+        }
+        XCTAssertEqual(bus(of: 1), .drums)
+        XCTAssertEqual(bus(of: 2), .drums, "la 808 dans le bus des Drums")
+        XCTAssertEqual(controller.sounds(on: 2), [1])
+
+        controller.setSlot(1, 30)
+        controller.toggleRoute(from: 2, to: 0)
+        XCTAssertNotNil(controller.options.mixerEdits.routes[2])
+        controller.moveSound(1, to: .melody)
+        XCTAssertEqual(controller.families[1], .melody)
+        XCTAssertEqual(Set(controller.members(of: .melody).map(\.name)), ["Serum Lead", "BEAM KICK"])
+        XCTAssertNil(controller.slots[1], "sa case choisie chez les Drums est oubliée")
+        XCTAssertNil(controller.options.mixerEdits.routes[2], "ses sorties changées à la main aussi")
+        XCTAssertEqual(bus(of: 1), .melody, "relié au bus des Mélodies, plus à celui des Drums")
+
+        controller.moveTrack(3, to: .bass)
+        XCTAssertEqual(controller.families[2], .bass)
+        XCTAssertEqual(bus(of: 2), .bass, "la 808 dans le bus de la Basse")
+        XCTAssertEqual(controller.members(of: .bass).first?.newName, "808", "elle garde son nom")
+        let before = controller.families
+        controller.moveSound(3, to: .drums)
+        XCTAssertEqual(controller.families, before, "déjà dans sa famille : rien ne change")
+        controller.close()
+    }
+
     /// Tuto en images (29/10) : à la première ouverture, avant « Démarrer » (rien n'est envoyé à FL) ; vu une fois,
     /// il n'est plus montré tout seul ; revu depuis Options, il ne relance rien.
     func testTutorialFirstThenStart() throws {

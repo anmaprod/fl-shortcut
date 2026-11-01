@@ -39,6 +39,24 @@ enum AudioCapturePermission: Equatable {
         }
     }
 
+    /// Retour du 01/11 (« n'attend toujours pas… ça ne fait pas l'encoche Autorisé ») : déjà refusé (ou noté pour une
+    /// ancienne version de l'app), macOS ne repose plus la question et il fallait passer par les Réglages (la page
+    /// « Enregistrement de l'écran et de l'audio du système », deux listes, « Quitter et rouvrir »). La réponse de
+    /// macOS pour FL Shortcuts seulement, et seulement pour l'audio du système, est effacée (`tccutil reset`, comme le
+    /// ferait la commande à la main) : la question « Autoriser » revient. Vrai si c'est fait.
+    static func resetDecision() -> Bool {
+        guard Bundle.main.bundleURL.pathExtension == "app", let id = Bundle.main.bundleIdentifier,
+              id.hasPrefix("app.flshortcut") else { return false }
+        let task = Process()
+        task.executableURL = URL(fileURLWithPath: "/usr/bin/tccutil")
+        task.arguments = ["reset", "AudioCapture", id]
+        task.standardOutput = FileHandle.nullDevice
+        task.standardError = FileHandle.nullDevice
+        do { try task.run() } catch { return false }
+        task.waitUntilExit()
+        return task.terminationStatus == 0
+    }
+
     /// Fenêtre de macOS (une seule fois) ; `done(autorisé)` sur le fil principal. Faux : rien n'a pu être demandé.
     @discardableResult
     static func request(_ done: @escaping (Bool) -> Void) -> Bool {

@@ -282,9 +282,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // (retour de l'utilisateur : ni page d'accès ni guide après une mise à jour). Jamais en mode capture (CI).
         // Relancée par « Quitter et rouvrir » (ou juste après avoir quitté) : ce qui était ouvert revient (AppResume).
         let resume = DebugSnapshot.enabled ? nil : AppResume.shared.load()
+        // L'autorisation en cours : notée à la fermeture, ou dès la demande (macOS peut fermer l'app de force pendant
+        // qu'on coche dans les Réglages, retour du 01/11).
+        let noted = DebugSnapshot.enabled ? nil : AppResume.shared.takeAsking()
+        let asking = resume?.asking ?? noted
         let onboarding = !UserDefaults.standard.bool(forKey: "didOnboard") || (!AXIsProcessTrusted() && !DebugSnapshot.enabled)
         if onboarding || resume?.onboarding != nil {
-            DispatchQueue.main.async { AppDelegate.onboard(asking: resume?.asking) }
+            DispatchQueue.main.async { AppDelegate.onboard(asking: asking) }
         }
         if let resume {
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) { AppDelegate.reopen(resume, onboarding: onboarding) }
@@ -353,7 +357,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if !DebugSnapshot.enabled {
             AppResume.shared.saveOnQuit(permissions: AccessibilityGuide.shared.isShowing,
                                         organizer: OrganizerWindow.controller != nil,
-                                        asking: AccessibilityGuide.shared.askingKey)
+                                        asking: AccessibilityGuide.shared.askingKey
+                                            ?? PermissionRelaunchWait.shared.waitingKey)
         }
         step("reprise")
         Store.shared.saveNow()

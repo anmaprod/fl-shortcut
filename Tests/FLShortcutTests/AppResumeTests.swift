@@ -143,6 +143,24 @@ final class AppResumeTests: XCTestCase {
         XCTAssertEqual(decoded.onboarding, "keyboard")
     }
 
+    /// Retour du 01/11 au soir (« n'attend toujours pas ») : l'autorisation en cours est notée dès la demande, pas
+    /// seulement en quittant (macOS peut fermer l'app de force) ; lue une fois au lancement, moins de 3 minutes après.
+    func testPermissionBeingAskedIsNotedAsSoonAsAsked() {
+        let defaults = makeDefaults()
+        let resume = AppResume()
+        let now = Date()
+        resume.noteAsking("son", defaults, now: now)
+        XCTAssertEqual(resume.takeAsking(defaults, now: now.addingTimeInterval(20)), "son")
+        XCTAssertNil(resume.takeAsking(defaults, now: now.addingTimeInterval(21)), "lue une seule fois")
+        resume.noteAsking("son", defaults, now: now)
+        XCTAssertNil(resume.takeAsking(defaults, now: now.addingTimeInterval(181)), "trop vieille : plus d'attente")
+        resume.noteAsking("clavier", defaults, now: now)
+        resume.noteAsking(nil, defaults)
+        XCTAssertNil(resume.takeAsking(defaults, now: now), "donnée ou abandonnée : effacée")
+        defaults.set(["key": "autre chose", "at": now.timeIntervalSince1970], forKey: AppResume.askingKey)
+        XCTAssertNil(resume.takeAsking(defaults, now: now), "seulement « clavier » ou « son »")
+    }
+
     func testWelcomeWaitsUntilThePermissionIsGiven() {
         XCTAssertTrue(PermissionRelaunchWait.missing("clavier", keyboardOK: false, audioOK: true))
         XCTAssertFalse(PermissionRelaunchWait.missing("clavier", keyboardOK: true, audioOK: false))

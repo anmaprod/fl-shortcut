@@ -176,6 +176,41 @@ final class OrganizerPlacesTests: XCTestCase {
                        [.vocals, .melody, .fx, .bass, .drums, .unsure])
     }
 
+    /// Retour du 01/11 : une famille posée en bas à droite laissait trois familles à droite et une à gauche ; les
+    /// colonnes se rééquilibrent sans changer l'ordre (« la famille qui est en haut à droite redescend en bas à
+    /// gauche »). La famille posée garde sa colonne si ça ne coûte qu'un en-tête ; sinon elle passe juste à côté.
+    func testFamilyColumnsBalanceAfterADrop() {
+        let two: (String) -> Int = { _ in 2 }
+        let placed = OrganizerView.placing("B", at: (1, 2), in: [["A", "B"], ["C", "D"]])
+        XCTAssertEqual(placed, [["A"], ["C", "D", "B"]])
+        XCTAssertEqual(OrganizerView.balanced(placed, keeping: "B", size: two), [["A", "C"], ["D", "B"]],
+                       "C passe en bas à gauche, B reste en bas à droite")
+        XCTAssertEqual(OrganizerView.balanced([["A", "B"], ["C", "D"]], keeping: "A", size: two), [["A", "B"], ["C", "D"]],
+                       "déjà équilibré : rien ne bouge")
+        let sizes = ["A": 3, "B": 1, "C": 1, "D": 1]
+        XCTAssertEqual(OrganizerView.balanced([["A"], ["D", "B", "C"]], keeping: "D") { sizes[$0] ?? 0 },
+                       [["A"], ["D", "B", "C"]], "un en-tête de plus : D reste en haut à droite")
+        XCTAssertEqual(OrganizerView.balanced([["A"], ["D", "B", "C"]], keeping: "D") { _ in 1 },
+                       [["A", "D"], ["B", "C"]], "trop haut : D passe juste à côté, en bas à gauche")
+        XCTAssertEqual(OrganizerView.balanced([["A", "B", "C"], []], size: two), [["A"], ["B", "C"]],
+                       "à hauteur égale, la première coupure (comme au départ)")
+        XCTAssertEqual(OrganizerView.balanced([["A", "B", "C"]], size: two), [["A", "B", "C"]], "une seule colonne")
+        let result = OrganizerView.balanced([["A", "B", "C"], ["D"]], keeping: "C") { sizes[$0] ?? 0 }
+        XCTAssertEqual(result.flatMap { $0 }, ["A", "B", "C", "D"], "l'ordre des familles ne change jamais")
+    }
+
+    /// Un son pris tombe dans la famille sous la souris ; l'espace entre deux familles compte pour la plus proche.
+    func testFamilyUnderTheMouse() {
+        let frames: [String: CGRect] = ["A": CGRect(x: 0, y: 0, width: 190, height: 50),
+                                        "B": CGRect(x: 0, y: 64, width: 190, height: 50),
+                                        "C": CGRect(x: 210, y: 0, width: 190, height: 80)]
+        XCTAssertEqual(OrganizerView.familyUnder(CGPoint(x: 100, y: 20), frames: frames), "A")
+        XCTAssertEqual(OrganizerView.familyUnder(CGPoint(x: 100, y: 55), frames: frames), "A", "juste sous A")
+        XCTAssertEqual(OrganizerView.familyUnder(CGPoint(x: 100, y: 60), frames: frames), "B", "juste au-dessus de B")
+        XCTAssertEqual(OrganizerView.familyUnder(CGPoint(x: 300, y: 40), frames: frames), "C")
+        XCTAssertNil(OrganizerView.familyUnder(CGPoint(x: 300, y: 300), frames: frames), "sous tout : nulle part")
+    }
+
     /// La case du numéro, comme dans FL : tirée vers le haut, plus grand ; jamais sous 1 ni au-delà du Mixer.
     func testSlotBoxDrag() {
         XCTAssertEqual(MixerSlotBox.dragged(from: 10, dy: -30, last: 125), 15)

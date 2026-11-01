@@ -679,3 +679,14 @@ entrée 1 ≈ 0,5 s.
   2.2.1). Fait : pistes d'une famille groupées sous sa première, les autres dégroupées. Demandé aussi (pas encore
   fait, maquette d'abord) : pistes de mix créées dans l'Organiser (pré-master par défaut, supprimable), renommées,
   liens d'un son ou d'une famille vers une piste ; pistes sans son supprimables, celles des sons non.
+- 01/11 au soir : « dans le mixeur, on puisse bouger chacune des sonorités… basse, on la met dans mélodie… relié à bus
+  mélodie et pas à bus drums » ; pareil dans l'aperçu (« comme un channel rack… juste en drag and drop ») ; famille
+  posée en bas à droite : trois à droite, une à gauche, « ça se chevauchait… la famille en haut à droite redescend en
+  bas à gauche ». Fait : son glissé par sa ligne (aperçu) ou sa piste (Mixer) vers une autre famille, relié au bus de
+  celle-ci ; colonnes rééquilibrées dans l'ordre. Et : « pour la deuxième autorisation (Enregistrement de l'écran),
+  FL Shortcuts n'attend toujours pas que j'appuie sur Autoriser pour se rouvrir… et ça ne fait pas l'encoche
+  Autorisé ». Trouvé dans le code : son déjà refusé → page des Réglages ouverte, mais la vérification de chaque
+  seconde concluait « refusé » aussitôt et arrêtait l'attente (rien noté pour la copie relancée) ; et cocher dans
+  les Réglages passe par une page à deux listes (écran / audio seul) puis « Quitter et rouvrir ». Corrigé : la réponse
+  de macOS est effacée pour FL Shortcuts (audio seulement) et la vraie question « Autoriser » revient ; Réglages en
+  dernier recours, attendus tant qu'ils sont ouverts ; autorisation notée dès la demande (copie relancée cachée).

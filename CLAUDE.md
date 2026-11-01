@@ -50,6 +50,12 @@
   01/11 (« ça écrit pas Autorisé ») : l'accueil relit les deux chaque seconde ; relancée (« Quitter et rouvrir ») avant
   la fin de l'autorisation, l'app reste cachée jusqu'à ce qu'elle soit donnée (`PermissionRelaunchWait`,
   `ResumeState.asking` ; Réglages fermés, 3 min ou Dock : elle revient) ; journal `ACCUEIL`.
+  01/11 au soir (« n'attend toujours pas » pour la 2e, « Enregistrement de l'écran ») : son déjà refusé → réponse
+  de macOS effacée pour FL Shortcuts seul (`tccutil reset AudioCapture`, `AudioCapturePermission.resetDecision`) et
+  la question « Autoriser » revient (plus de Réglages ni de « Quitter et rouvrir ») ; Réglages en dernier recours
+  (`audioInSettings` : attente tant qu'ils sont ouverts, plus de « refusé » à la 1re seconde, qui effaçait l'attente) ;
+  autorisation notée dès la demande (`AppResume.noteAsking`, 3 min : fermée de force, la copie relancée attend
+  aussi). Journal `AUDIO` (réponse en ms, effacement, Réglages). Pas encore vu sur son Mac.
 - Fenêtre principale sans bande sous la barre d'outils ; accueil remontré si l'autorisation clavier manque.
 - **Organiser v5** (`Sources/FLShortcut/Organizer*.swift`, `SoundFeatures.swift`, `SoundFamilies.swift`, script FL v16) :
   - analyse sur le fichier du projet (PROTOCOL.md §9, `FLP*.swift`, `OrganizerProject*.swift`) : FL enregistre (⌘S),
@@ -206,7 +212,11 @@
   Se connecter / Créer un compte sans animation ni barre de défilement ; panneau de l'Organiser noir ; lien avec FL
   retiré au plus tard 3 s après « Arrêter » ou la fermeture (`OrganizerController.releaseDeadline`, `ReleaseOnce` :
   « Démarrer » puis « Arrêter » faisait encore saccader FL) ; LISEZMOI.txt dans les téléchargements Mac et Windows
-  (`docs/telechargement/`).
+  (`docs/telechargement/`). Puis : chaque son se glisse dans une autre famille, dans l'aperçu (sa ligne, poignée à
+  six points, copie « → FAMILLE », famille cible entourée) et dans l'écran Mixer (piste d'un son posée sur une autre
+  bande) : `moveSound`/`moveTrack` (bus de la nouvelle famille, case et sorties à la main oubliées ; 808 posée sur
+  Basse : bus de la Basse, nom gardé) ; colonnes rééquilibrées après une famille posée (`OrganizerView.balanced` :
+  ordre gardé, la famille du haut à droite passe en bas à gauche ; la famille posée garde sa colonne à un en-tête près).
 - **Aspect validé le 28/10** (maquette, `HISTORIQUE`) : plus de Liquid Glass depuis le 29/10 (plaques dessinées), sans lavis ni lueur ; fond de
   fenêtre plein (« sans le Liquid Glass derrière »), verre devant : cartes, touches, cartes de l'Organiser
   (`GlassPlate`, dessiné : pas de `glassEffect` par ligne) ; titre de
