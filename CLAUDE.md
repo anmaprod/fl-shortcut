@@ -60,6 +60,9 @@
     partout, le tout dans une copie « <nom>_2.flp » (voir Playlist) ;
   - IA de macOS sur une fenêtre de 1 s (son court complété) ; « Voix » seulement si l'IA entend une voix ; tempo du
     projet jamais changé ; règle de chaque son dans le diagnostic (`c4:melodie+ia`) ;
+  - Groupes de la Playlist (01/11, « pour chaque famille il y ait un groupe », la flèche de FL) : dans la copie, les
+    pistes d'une famille sont groupées sous sa première (octet 46 de l'événement 238, « Group with above track »,
+    `FLPProject.trackGrouped`, `PlaylistLayout.Result.grouped`) ; les groupes de l'ancien projet sont remis à zéro.
   - Playlist rangée dans une copie « <nom>_2.flp » (comme « Save new version » de FL ; puis _3…) à côté de l'original : chaque clip sur la piste de ses
     sons (les mêmes sons, la même piste ; un clip qui en chevaucherait un autre : une piste de plus dessous ; patterns
     vides en bas), pistes dans l'ordre des familles ; FL ouvre la copie (reconnue à un nom de pattern posé pour ça,

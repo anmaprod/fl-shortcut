@@ -673,3 +673,9 @@ entrée 1 ≈ 0,5 s.
   démarrer… là ça saccade mais on s'en fiche parce que ça travaille… après fermer ça ne saccade plus ». Fait :
   Organiser ouvert sur « Installer le lien » si le lien manque, puis FL relancé (aucun port), puis « Démarrer » ;
   réglage permanent retiré.
+- 01/11 : « dans la Playlist il y a des groupes, il y en a qui ont été faits, il y en a qui n'ont pas été faits ;
+  j'aimerais qu'il y ait un groupe pour chaque famille (la flèche, comme dans Pro Tools) ». Cause : la copie rangée
+  gardait la case « Group with above track » des anciennes pistes (octet 46 de l'événement 238, vérifié dans PyFLP
+  2.2.1). Fait : pistes d'une famille groupées sous sa première, les autres dégroupées. Demandé aussi (pas encore
+  fait, maquette d'abord) : pistes de mix créées dans l'Organiser (pré-master par défaut, supprimable), renommées,
+  liens d'un son ou d'une famille vers une piste ; pistes sans son supprimables, celles des sons non.

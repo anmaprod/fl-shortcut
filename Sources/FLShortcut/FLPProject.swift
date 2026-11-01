@@ -96,6 +96,9 @@ struct FLPProject: Equatable {
 
     /// Dans une piste (238) : 1 à cette place si elle joue, 0 si elle est coupée.
     static let trackEnabled = 12
+    /// Dans une piste (238) : 1 à cette place si elle est groupée avec la piste du dessus (« Group with above track »
+    /// de FL, la flèche qui replie le groupe ; `grouped` de PyFLP).
+    static let trackGrouped = 46
 
     init(_ file: FLPFile) throws {
         var channels: [Channel] = []
@@ -337,8 +340,11 @@ struct FLPProject: Equatable {
     /// La copie rangée : chaque clip sur sa nouvelle piste (`tracks` : rang du clip → piste, 0 = piste 1). Les pistes
     /// où il y a des clips, avant ou après, perdent leur nom, reprennent la couleur des pistes jamais touchées et
     /// jouent (leur nom disait ce qu'elles jouaient avant ; l'Organiser les nomme ensuite d'après ce qui y joue). Un
-    /// clip sur une piste coupée arrête tout (il se mettrait à jouer). Tout le reste est recopié octet pour octet.
-    func rearranged(_ file: FLPFile, tracks: [Int: Int]) throws -> FLPFile {
+    /// clip sur une piste coupée arrête tout (il se mettrait à jouer). Groupes de la Playlist (retour du 01/11 : ceux du
+    /// projet d'origine restaient sur d'autres pistes, « il y en a qui ont été faits, il y en a qui n'ont pas été
+    /// faits ») : seules les pistes de `grouped` sont groupées avec celle du dessus, toutes les autres plus. Tout le
+    /// reste est recopié octet pour octet.
+    func rearranged(_ file: FLPFile, tracks: [Int: Int], grouped: Set<Int> = []) throws -> FLPFile {
         var out = showingAll(file)
         guard let playlistEvent else { return out }
         guard clips.allSatisfy({ !mutedTracks.contains($0.track) }) else { throw FLPError.unsupported("piste coupée") }
@@ -367,6 +373,9 @@ struct FLPProject: Equatable {
                 next += 1
             }
         }
+        for (track, index) in trackEvents.enumerated() where out.events[index].bytes.count > Self.trackGrouped {
+            out.events[index].bytes[Self.trackGrouped] = grouped.contains(track) ? 1 : 0
+        }
         for index in removed.sorted(by: >) { out.events.remove(at: index) }
         return out
     }
@@ -391,12 +400,15 @@ enum PlaylistLayout {
         var sounds: [Int: Set<Int>] = [:]
         /// Pistes utilisées (les premières).
         var count = 0
+        /// Pistes groupées avec celle du dessus : chaque famille sous sa première piste (la flèche de FL la replie).
+        var grouped: Set<Int> = []
     }
 
     /// Pur (testé) : chaque groupe a sa piste, les groupes de sons dans l'ordre de `key` (familles, sortes, place dans
     /// le Channel rack) puis de leur premier clip ; ensuite les patterns muets, puis le reste (automations). Un clip qui
     /// en chevaucherait un autre du même groupe va sur une piste de plus, juste dessous : jamais l'un sur l'autre.
-    /// nil : plus de pistes qu'il n'y en a dans FL.
+    /// Les pistes d'une même famille (premier nombre de `key`, `Int.max` : à vérifier, jamais groupé) se suivent :
+    /// groupées sous la première. nil : plus de pistes qu'il n'y en a dans FL.
     static func make(_ clips: [FLPProject.Clip], group: (FLPProject.Clip) -> Group,
                      key: (Set<Int>) -> (Int, Int, Int), trackCount: Int) -> Result? {
         var members: [Group: [FLPProject.Clip]] = [:]
@@ -416,7 +428,10 @@ enum PlaylistLayout {
         }
         let order = members.keys.map { (group: $0, rank: rank($0)) }.sorted { $0.rank.lexicographicallyPrecedes($1.rank) }
         var out = Result()
+        var above: Int?                          // famille de la piste du dessus
         for (g, _) in order {
+            var family: Int?
+            if case .sounds(let s) = g, !s.isEmpty, key(s).0 != Int.max { family = key(s).0 }
             var lanes: [[FLPProject.Clip]] = []
             for clip in sorted(g) {
                 let free = lanes.firstIndex { lane in lane.allSatisfy { $0.end <= clip.position || clip.end <= $0.position } }
@@ -427,6 +442,8 @@ enum PlaylistLayout {
                 out.count += 1
                 for clip in lane { out.tracks[clip.item] = track }
                 if case .sounds(let s) = g, !s.isEmpty { out.sounds[track] = s }
+                if let family, family == above { out.grouped.insert(track) }
+                above = family
             }
         }
         return out.count <= trackCount ? out : nil

@@ -213,6 +213,22 @@ final class FLPProjectTests: XCTestCase {
         XCTAssertEqual(layout.tracks, [0: 0, 2: 0, 1: 2, 3: 2, 5: 1, 4: 3])
         XCTAssertEqual(layout.sounds, [0: [2], 1: [1], 2: [3, 4]])
         XCTAssertEqual(layout.count, 4)
+        XCTAssertEqual(layout.grouped, [2], "drums sous leur première piste ; la mélodie seule, le pattern vide à part")
+    }
+
+    /// Retour du 01/11 : un groupe (la flèche de FL) par famille, jamais les groupes de l'ancien projet ; une piste
+    /// « à vérifier » n'est jamais groupée.
+    func testEachFamilyIsGroupedUnderItsFirstTrack() throws {
+        var file = FLPSample.sample()
+        let tracks = file.events.indices.filter { file.events[$0].id == 238 }
+        for old in [1, 5, 9] { file.events[tracks[old]].bytes[FLPProject.trackGrouped] = 1 }   // groupes d'avant
+        let project = try FLPProject(file)
+        let copy = try project.rearranged(file, tracks: [0: 0, 2: 0, 1: 2, 3: 2, 5: 1, 4: 3], grouped: [2])
+        let flags = copy.events.filter { $0.id == 238 }.map { $0.bytes[FLPProject.trackGrouped] }
+        XCTAssertEqual(flags, [0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0])
+        let unsure = try XCTUnwrap(PlaylistLayout.make(project.clips, group: group(project),
+                                                       key: { _ in (Int.max, 0, 0) }, trackCount: project.trackCount))
+        XCTAssertEqual(unsure.grouped, [], "à vérifier : jamais groupé")
     }
 
     func testOverlappingClipsOfOneSoundGetAnotherTrack() throws {

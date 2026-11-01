@@ -136,8 +136,8 @@ struct OrganizerEnvironment {
             escapePressed: { CGEventSource.keyState(.combinedSessionState, key: 53) },
             placeIcon: { OrganizerEnvironment.livePlaceIcon($0, $1) },
             prepareLink: { OrganizerEnvironment.livePrepareLink() },
-            releaseLink: { MIDILink.shared.release(.organizer) },
             linkInstalled: { MIDILink.shared.snapshot.hasKey },
+            releaseLink: { MIDILink.shared.release(.organizer) },
             installLink: { FLScriptInstaller.installWithAlert(quiet: true) },
             installLinkElsewhere: { FLScriptInstaller.installWithAlert(chooseFolder: true, quiet: true) },
             runningFL: {
