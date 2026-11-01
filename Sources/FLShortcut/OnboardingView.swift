@@ -126,7 +126,11 @@ struct OnboardingView: View {
     /// Mode capture : clavier montré comme autorisé.
     @State private var demoAccess = false
 
-    private var accessOK: Bool { demoAccess || status.accessibilityOK }
+    /// Clavier autorisé : relu par `AppStatus` (toutes les 2 s) ou par l'accueil lui-même (chaque seconde).
+    private var accessOK: Bool { demoAccess || status.accessibilityOK || permissions.granted }
+    /// Relecture des autorisations, chaque seconde, tant qu'il en manque une sur cet écran (01/11 : « À autoriser »
+    /// restait affiché une fois autorisé, quand la demande venait d'une copie d'avant la relance).
+    private static let tick = Timer.publish(every: 1, tolerance: 0.3, on: .main, in: .common).autoconnect()
     /// Autorisations demandées ensemble (clavier, puis son de FL).
     @ObservedObject private var permissions = AccessibilityGuide.shared
 
@@ -173,6 +177,10 @@ struct OnboardingView: View {
         }
         .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
             permissions.refresh()                          // une autorisation donnée dans les Réglages pendant ce temps
+        }
+        .onReceive(Self.tick) { _ in
+            guard stage == .keyboard, !DebugSnapshot.enabled, !(accessOK && permissions.audioGranted) else { return }
+            permissions.refresh()
         }
         .onReceive(DebugSnapshot.publisher(DebugSnapshot.onboarding)) { note in
             // Mode capture : « autorise » (clavier montré comme autorisé), « guide lent » (passage au guide au ralenti).

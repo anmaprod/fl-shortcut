@@ -13,6 +13,9 @@ struct ResumeState: Codable, Equatable {
     var guidePage = 0
     /// Panneau « Autoriser FL Shortcuts » affiché.
     var permissions = false
+    /// Autorisation demandée à ce moment-là (« clavier », « son ») : relancée avant qu'elle soit donnée, l'app attend,
+    /// cachée, qu'elle le soit (`PermissionRelaunchWait`).
+    var asking: String?
     /// Fenêtre principale ouverte, sur cette page (SidebarItem.resumeKey).
     var editor = false
     var page: String?
@@ -74,12 +77,14 @@ final class AppResume {
     }
 
     /// À la fermeture de l'app : la macro en cours est enregistrée, puis ce qui est ouvert est noté.
-    func saveOnQuit(_ defaults: UserDefaults = .standard, permissions: Bool, organizer: Bool, now: Date = Date()) {
+    func saveOnQuit(_ defaults: UserDefaults = .standard, permissions: Bool, organizer: Bool, asking: String? = nil,
+                    now: Date = Date()) {
         creator?.saveNow()
         var state = ResumeState()
         state.onboarding = onboardingStage
         state.guidePage = guidePage
         state.permissions = permissions
+        state.asking = asking
         let editorOpen = editorWindow.map { $0.isVisible || $0.isMiniaturized } ?? false
         state.editor = editorOpen
         if editorOpen {

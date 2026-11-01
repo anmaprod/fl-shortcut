@@ -111,11 +111,33 @@ final class AccessibilityGuide: ObservableObject {
         }
     }
 
-    /// Relit les deux autorisations (accueil qui revient devant, app réactivée).
+    /// Relit les deux autorisations (accueil affiché : chaque seconde ; app réactivée). Le clavier autorisé est aussi
+    /// dit tout de suite à `AppStatus` (l'accueil, la barre des menus et l'interception suivent ensemble).
     func refresh() {
         let trusted = AXIsProcessTrusted()
-        if trusted != granted { granted = trusted }
+        if trusted != granted {
+            granted = trusted
+            AppStatus.shared.recheck()
+        }
         if !audioGranted, Self.audioAllowed { audioGranted = true }
+    }
+
+    /// Autorisation en cours (« clavier », « son »), notée à la fermeture : une copie relancée avant qu'elle soit
+    /// donnée attend qu'elle le soit (`PermissionRelaunchWait`).
+    var askingKey: String? {
+        guard asking else { return nil }
+        return stage == .keyboard ? "clavier" : "son"
+    }
+
+    /// Accueil revenu après la relance : le clavier donné entre-temps, la suite (le son de FL) reprend comme dans
+    /// l'ancienne copie ; sinon rien (« Tout autoriser… » reste là, l'état est relu chaque seconde).
+    func continueAfterRelaunch(asking key: String) {
+        refresh()
+        guard key == "clavier", granted, Self.audioMissing else { return }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) { [weak self] in
+            guard let self, !self.asking, Self.audioMissing else { return }
+            self.start(panel: false)
+        }
     }
 
     private func hideWelcome() {
@@ -300,5 +322,70 @@ private struct SwitchPreview: View {
             .strokeBorder(Color(nsColor: .separatorColor), lineWidth: 0.5))
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("Exemple : FL Shortcuts, interrupteur activé")
+    }
+}
+
+/// Relancée pendant une autorisation (retour du propriétaire, 01/11 : « qu'il attende de se rouvrir que
+/// l'autorisation soit faite ») : l'accueil reste caché tant que l'autorisation demandée n'est pas donnée, puis revient
+/// avec « Autorisé ». Il revient aussi si les Réglages Système sont fermés (2 s), au bout de 3 minutes, ou si l'app est
+/// rouverte à la main. Relu deux fois par seconde, seulement pendant cette attente.
+final class PermissionRelaunchWait {
+    static let shared = PermissionRelaunchWait()
+
+    private var timer: Timer?
+    private var then: (() -> Void)?
+    private var started = Date()
+    private var settingsGoneSince: Date?
+
+    /// Pur (testé) : l'autorisation demandée avant la relance manque encore.
+    static func missing(_ asking: String, keyboardOK: Bool, audioOK: Bool) -> Bool {
+        switch asking {
+        case "clavier": return !keyboardOK
+        case "son": return !audioOK
+        default: return false
+        }
+    }
+
+    /// Pur (testé) : l'attente s'arrête (autorisation donnée, Réglages fermés depuis 2 s, ou 3 minutes passées).
+    static func ends(missing: Bool, settingsGoneFor: TimeInterval?, elapsed: TimeInterval) -> Bool {
+        !missing || (settingsGoneFor ?? 0) >= 2 || elapsed >= 180
+    }
+
+    private static var missingNow: (String) -> Bool = { key in
+        missing(key, keyboardOK: AXIsProcessTrusted(), audioOK: AccessibilityGuide.audioAllowed)
+    }
+
+    /// `then` aussitôt si l'autorisation est déjà là ; sinon une fois l'attente finie.
+    func start(asking key: String, then show: @escaping () -> Void) {
+        guard Self.missingNow(key) else { show(); return }
+        MacroLog.shared.write("ACCUEIL", "relaunched before \(key) was given: welcome waits")
+        then = show
+        started = Date()
+        settingsGoneSince = nil
+        timer?.invalidate()
+        let t = Timer(timeInterval: 0.5, repeats: true) { [weak self] _ in self?.tick(key) }
+        RunLoop.main.add(t, forMode: .common)
+        timer = t
+    }
+
+    private func tick(_ key: String) {
+        let settingsOpen = !NSRunningApplication.runningApplications(
+            withBundleIdentifier: "com.apple.systempreferences").isEmpty
+        if settingsOpen { settingsGoneSince = nil } else if settingsGoneSince == nil { settingsGoneSince = Date() }
+        let missing = Self.missingNow(key)
+        guard Self.ends(missing: missing, settingsGoneFor: settingsGoneSince.map { Date().timeIntervalSince($0) },
+                        elapsed: Date().timeIntervalSince(started)) else { return }
+        MacroLog.shared.write("ACCUEIL", "welcome back after \(Int(Date().timeIntervalSince(started))) s, "
+                              + "\(key) \(missing ? "still missing" : "given")")
+        finishNow()
+    }
+
+    /// L'accueil revient maintenant (attente finie, ou app rouverte à la main) ; rien si l'app n'attendait pas.
+    func finishNow() {
+        timer?.invalidate()
+        timer = nil
+        let show = then
+        then = nil
+        show?()
     }
 }

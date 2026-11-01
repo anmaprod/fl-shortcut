@@ -284,7 +284,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let resume = DebugSnapshot.enabled ? nil : AppResume.shared.load()
         let onboarding = !UserDefaults.standard.bool(forKey: "didOnboard") || (!AXIsProcessTrusted() && !DebugSnapshot.enabled)
         if onboarding || resume?.onboarding != nil {
-            DispatchQueue.main.async { AppDelegate.onboard() }
+            DispatchQueue.main.async { AppDelegate.onboard(asking: resume?.asking) }
         }
         if let resume {
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) { AppDelegate.reopen(resume, onboarding: onboarding) }
@@ -310,6 +310,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     /// FL Shortcuts rouvert (double-clic dans le Finder, le Dock, Spotlight) : une version organisée attend peut-être.
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+        PermissionRelaunchWait.shared.finishNow()       // rouverte à la main : l'accueil n'attend plus
         CopyApproval.shared.askIfNeeded()
         return true
     }
@@ -351,7 +352,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // Ce qui est ouvert (et la macro en cours, enregistrée), pour reprendre là si l'app est rouverte aussitôt.
         if !DebugSnapshot.enabled {
             AppResume.shared.saveOnQuit(permissions: AccessibilityGuide.shared.isShowing,
-                                        organizer: OrganizerWindow.controller != nil)
+                                        organizer: OrganizerWindow.controller != nil,
+                                        asking: AccessibilityGuide.shared.askingKey)
         }
         step("reprise")
         Store.shared.saveNow()
@@ -366,8 +368,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         MacroLog.shared.flush()
     }
 
-    private static func onboard() {
-        OnboardingWindow.shared.show()          // accueil en 2 étapes (marqué « vu » après un choix, REL-23)
+    /// `asking` : autorisation en cours quand l'ancienne copie est partie (« Quitter et rouvrir »). Pas encore donnée :
+    /// l'accueil attend, caché, qu'elle le soit (retour du propriétaire, 01/11 : l'app revenait avant la fin, et
+    /// restait sur « À autoriser »), puis la suite (le son de FL après le clavier) reprend.
+    private static func onboard(asking: String? = nil) {
+        guard let asking else {
+            OnboardingWindow.shared.show()      // accueil en 2 étapes (marqué « vu » après un choix, REL-23)
+            return
+        }
+        PermissionRelaunchWait.shared.start(asking: asking) {
+            OnboardingWindow.shared.show()
+            AccessibilityGuide.shared.continueAfterRelaunch(asking: asking)
+        }
     }
 }
 

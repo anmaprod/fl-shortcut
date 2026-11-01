@@ -127,4 +127,32 @@ final class AppResumeTests: XCTestCase {
         XCTAssertNil(SingleInstance.quitSender(), "aucun événement « quit » en cours")
         XCTAssertNotNil(SingleInstance.processPath(getpid()))
     }
+
+    /// 01/11 : relancée en pleine autorisation, l'app note laquelle et l'attend (cachée) ; un état noté par une version
+    /// d'avant (sans « asking ») se lit toujours.
+    func testPermissionBeingAskedIsKeptForTheRelaunchedCopy() throws {
+        let defaults = makeDefaults()
+        let resume = AppResume()
+        resume.onboardingStage = "keyboard"
+        resume.saveOnQuit(defaults, permissions: false, organizer: false, asking: "clavier")
+        XCTAssertEqual(resume.load(defaults)?.asking, "clavier")
+        let old = #"{"onboarding":"keyboard","guidePage":0,"permissions":false,"editor":false,"macroIsNew":false,"#
+            + #""organizer":false,"savedAt":0}"#
+        let decoded = try JSONDecoder().decode(ResumeState.self, from: Data(old.utf8))
+        XCTAssertNil(decoded.asking)
+        XCTAssertEqual(decoded.onboarding, "keyboard")
+    }
+
+    func testWelcomeWaitsUntilThePermissionIsGiven() {
+        XCTAssertTrue(PermissionRelaunchWait.missing("clavier", keyboardOK: false, audioOK: true))
+        XCTAssertFalse(PermissionRelaunchWait.missing("clavier", keyboardOK: true, audioOK: false))
+        XCTAssertTrue(PermissionRelaunchWait.missing("son", keyboardOK: true, audioOK: false))
+        XCTAssertFalse(PermissionRelaunchWait.missing("autre", keyboardOK: false, audioOK: false))
+        XCTAssertFalse(PermissionRelaunchWait.ends(missing: true, settingsGoneFor: nil, elapsed: 30),
+                       "Réglages encore ouverts, pas encore autorisé : l'accueil attend")
+        XCTAssertTrue(PermissionRelaunchWait.ends(missing: false, settingsGoneFor: nil, elapsed: 1), "autorisé : il revient")
+        XCTAssertFalse(PermissionRelaunchWait.ends(missing: true, settingsGoneFor: 1, elapsed: 5))
+        XCTAssertTrue(PermissionRelaunchWait.ends(missing: true, settingsGoneFor: 2, elapsed: 5), "Réglages fermés")
+        XCTAssertTrue(PermissionRelaunchWait.ends(missing: true, settingsGoneFor: nil, elapsed: 180), "3 minutes au plus")
+    }
 }
