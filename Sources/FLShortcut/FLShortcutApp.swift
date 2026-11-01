@@ -259,7 +259,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // La note de l'ancienne copie ne sert plus (elle est partie) : jamais prise pour celle d'une autre plus tard.
         try? FileManager.default.removeItem(at: SingleInstance.quittingFile)
         UserDefaults.standard.removeObject(forKey: SingleInstance.quittingKey)
-        if !AppMode.light { MIDILink.shared.start() }  // mode léger : aucun port MIDI, rien dans FL
+        // Mode léger : aucun port MIDI (FL saccadait tant qu'il voyait « FL Shortcuts Link »), sauf pendant le réglage
+        // du lien (installé, FL n'a jamais répondu) ; ensuite seulement entre « Démarrer » et la fin de l'Organiser.
+        if AppMode.light { MIDILink.shared.updateSetup() } else { MIDILink.shared.start() }
         FLMonitor.shared.start()
         AppStatus.shared.start()
         PauseIndicator.shared.bind()

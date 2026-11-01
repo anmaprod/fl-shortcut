@@ -641,11 +641,30 @@ final class MIDILink: ObservableObject {
     /// Retour du propriétaire du 01/11 : tant que FL voyait « FL Shortcuts Link » avec son script, son image saccadait
     /// (Playlist au zoom), même script endormi ; entrée désactivée dans MIDI Settings et FL relancé : plus rien. Ses
     /// mots : « le mieux ça serait qu'il soit désactivé quand Organiser n'est pas ouvert ». Mode léger : les ports
-    /// n'existent que pendant que l'Organiser est ouvert, ou le temps d'un bloc de macro qui ne peut pas s'en passer
-    /// (nom et couleur, dégradé, son par son numéro) ; plus jamais au lancement de l'app.
+    /// n'existent qu'entre « Démarrer » et la fermeture de l'Organiser, ou le temps d'un bloc de macro qui ne peut pas
+    /// s'en passer (nom et couleur, dégradé, son par son numéro), ou pendant le réglage du lien (`setup`).
     enum User: Hashable {
         case organizer
         case macro
+        /// Réglage du lien (retour du 01/11 : « à chaque fois que je redémarre FL il disparaît ») : FL ne relie son
+        /// script qu'à un appareil présent quand il démarre. Lien installé mais jamais encore entendu par FL : ports
+        /// gardés, même Organiser fermé, jusqu'à sa première réponse (le temps de relancer FL et de choisir le
+        /// Controller type).
+        case setup
+    }
+
+    /// FL a déjà répondu sur le lien avec la clé actuelle (remis à zéro à chaque installation). Rien de sensible :
+    /// il ne décide que de la présence des ports.
+    static let heardKey = "linkHeardByFL"
+
+    /// Mode léger, au lancement et après une installation : ports gardés tant que FL n'a jamais répondu.
+    func updateSetup() {
+        guard AppMode.light else { return }
+        if core.snapshot.hasKey, !UserDefaults.standard.bool(forKey: Self.heardKey) {
+            use(.setup)
+        } else {
+            release(.setup)
+        }
     }
 
     private let users = Locked(Set<User>())
@@ -827,7 +846,9 @@ final class MIDILink: ObservableObject {
         core.setKey(secrets.load())
         guard !AppMode.light else {
             refresh()
-            // Installé depuis l'Organiser (qui s'en sert) : ports présents tout de suite, avant que FL redémarre.
+            // Nouvelle clé : FL doit relire le script en redémarrant, ports présents d'ici sa première réponse.
+            UserDefaults.standard.removeObject(forKey: Self.heardKey)
+            updateSetup()
             if !users.value.isEmpty { openPorts() }
             return
         }
@@ -881,8 +902,17 @@ final class MIDILink: ObservableObject {
     }
 
     private func handle(_ events: [IncomingEvent]) {
+        var heard = false
         for e in events {
             if case .ack(let id) = e { lastAck = (id: id, date: Date()) }
+            if case .hello = e { heard = true }
+        }
+        // Première réponse de FL : il relie le script à « FL Shortcuts Link » ; réglage fini, ports seulement quand on
+        // s'en sert.
+        if heard, AppMode.light, !UserDefaults.standard.bool(forKey: Self.heardKey) {
+            UserDefaults.standard.set(true, forKey: Self.heardKey)
+            MacroLog.shared.write("MIDI", "FL answered on the link: ports only when needed from now on")
+            release(.setup)
         }
         refresh()
     }

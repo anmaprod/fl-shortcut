@@ -663,3 +663,8 @@ entrée 1 ≈ 0,5 s.
   blocs de macro sans touche de repli (nom et couleur, dégradé, son par numéro) : ports le temps du bloc ; les
   autres blocs passent au clavier. À vérifier chez lui : après avoir fermé l'Organiser, FL redevient-il fluide sans
   être relancé (appareil retiré, script déchargé) ?
+- 01/11, première version « Démarrer » (af2ed46) : « lorsqu'on relance FL il n'est pas dans les MIDI, il y apparaît
+  quand j'installe le lien mais il faut que je redémarre pour changer le generic controller et à chaque fois que je
+  redémarre FL il disparaît » : FL ne relie son script qu'à un appareil présent quand il démarre, et l'appareil
+  n'existait plus qu'après « Démarrer ». Réglage du lien : depuis l'installation jusqu'à la première réponse de FL
+  (HELLO), ports gardés même Organiser fermé (`User.setup`, `linkHeardByFL`) ; ensuite seulement à la demande.

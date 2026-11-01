@@ -230,8 +230,11 @@
   script, même endormi : prouvé par le propriétaire, Enable éteint + FL relancé = fluide) : l'Organiser s'ouvre sur
   « Démarrer » (rien envoyé à FL avant) ; ports créés au clic, retirés à la fermeture (`MIDILink.use/release`,
   `releaseLink`) ; jamais au lancement de l'app ; bloc de macro sans touche de repli (nom et couleur, dégradé, son par
-  numéro) : ports le temps du bloc (HELLO attendu 6 s, retirés 3 s après) ; les autres blocs passent au clavier. Mode
-  MIDI complet inchangé. NE PAS remettre les ports permanents.
+  numéro) : ports le temps du bloc (HELLO attendu 6 s, retirés 3 s après) ; les autres blocs passent au clavier.
+  Réglage du lien (01/11, « à chaque fois que je redémarre FL il disparaît » : FL ne relie son script qu'à un appareil
+  présent à son démarrage) : lien installé et FL jamais entendu avec cette clé → ports gardés même Organiser fermé
+  (`User.setup`, réglage `linkHeardByFL` remis à zéro à chaque installation), jusqu'au premier HELLO. Mode MIDI
+  complet inchangé. NE PAS remettre les ports permanents.
 - Organiser, « Installer le lien » (31/10, « ça se ferme ») : FL remis devant (⌘Q quittait FL Shortcuts, activé par
   l'installation), la fenêtre attend que FL soit quitté puis rouvert (« Ouvrir FL Studio » s'il est fermé), puis
   l'image MIDI Settings des 4 cases (`.midiSettings`, image du README) tant que FL ne répond pas ; « Copier le
@@ -287,8 +290,8 @@
   « n'utilise pas le réseau ») avec guide en images pour « Ouvrir quand même ».
 
 ## Pas encore vérifié sur le vrai FL
-- Lien seulement pendant l'Organiser (01/11) : FL voit-il « FL Shortcuts Link » apparaître après « Démarrer » et y
-  relie-t-il son script sans être relancé ? Après la fermeture, FL redevient-il fluide sans être relancé ? Journal
+- Lien seulement pendant l'Organiser (01/11) : une fois réglé (FL a répondu une fois), FL voit-il « FL Shortcuts
+  Link » apparaître après « Démarrer » et y relie-t-il son script (Controller type gardé) sans être relancé ? Après la fermeture, FL redevient-il fluide sans être relancé ? Journal
   `MIDI` (« link ports created / removed »).
 - Icônes (31/10) : clic droit › « Change icon… » sur le vrai FL (macro « Nom et couleur » après un clic sur le nom ;
   Organiser : noms du Channel rack et noms verticaux du Mixer retrouvés ?) ; journal `ICON` (`--diag-icon 7-4`).
