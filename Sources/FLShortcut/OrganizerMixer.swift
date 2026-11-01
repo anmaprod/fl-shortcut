@@ -65,7 +65,7 @@ struct OrganizerMixerView: View {
                     }
                     .frame(height: Self.stripHeight)
                     cables(hops, centers: centers)
-                        .frame(width: width, height: 14 + CGFloat(max(depth, 1)) * 16)
+                        .frame(width: width, height: 24 + CGFloat(max(depth, 1)) * 16)
                 }
                 .padding(.bottom, 6)
             }
@@ -253,23 +253,36 @@ struct OrganizerMixerView: View {
 
     // MARK: Chaîne et routage
 
-    /// Un trait rouge par saut de la chaîne : il descend de la piste, va jusqu'à l'autre et y remonte, chaque saut un
-    /// peu plus bas (01/11 : « qu'on voie toute la ligne »).
+    /// Un trait rouge par saut de la chaîne, chacun sur sa ligne, un peu plus bas que le précédent (01/11 : « qu'on voie
+    /// toute la ligne », puis « un départ, et ça repart d'une autre ligne ») : dans chaque piste, le trait part d'un petit
+    /// carré à droite et arrive par une flèche à gauche ; une piste qui reçoit et renvoie (un bus) a donc deux traits
+    /// bien séparés.
     private func cables(_ hops: [Hop], centers: [Int: CGFloat]) -> some View {
         Canvas { ctx, _ in
             for hop in hops {
-                guard let a = centers[hop.from], let b = centers[hop.to] else { continue }
-                let y = 12 + CGFloat(hop.level) * 16
+                guard let from = centers[hop.from], let to = centers[hop.to] else { continue }
+                let a = from + Self.anchor, b = to - Self.anchor
+                let y = 18 + CGFloat(hop.level) * 16
                 var path = Path()
-                path.move(to: CGPoint(x: a, y: 0))
+                path.move(to: CGPoint(x: a, y: 6))
                 path.addLine(to: CGPoint(x: a, y: y))
                 path.addLine(to: CGPoint(x: b, y: y))
-                path.addLine(to: CGPoint(x: b, y: 0))
+                path.addLine(to: CGPoint(x: b, y: 6))
                 ctx.stroke(path, with: .color(Swiss.red), lineWidth: 2)
+                ctx.fill(Path(CGRect(x: a - 3, y: 0, width: 6, height: 6)), with: .color(Swiss.red))
+                var head = Path()
+                head.move(to: CGPoint(x: b - 5, y: 8))
+                head.addLine(to: CGPoint(x: b, y: 1))
+                head.addLine(to: CGPoint(x: b + 5, y: 8))
+                head.closeSubpath()
+                ctx.fill(head, with: .color(Swiss.red))
             }
         }
         .accessibilityHidden(true)
     }
+
+    /// Écart du départ (à droite) et de l'arrivée (à gauche) par rapport au milieu de la piste.
+    static let anchor: CGFloat = 5
 
     /// « ROUTAGE » : le chemin de la piste choisie jusqu'au Master (808 → Drums Bus → Pré-master → Master) et le nombre
     /// de ses sorties ; sans piste choisie, la consigne.
