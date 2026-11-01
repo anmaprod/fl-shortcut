@@ -172,16 +172,15 @@ private struct SidebarRowModifier: ViewModifier {
             .transformEnvironment(\.hoverFilled) { filled in
                 if selected { filled = true }
             }
-            .fontWeight(selected ? .semibold : nil)
+            .fontWeight(selected ? .bold : nil)
             .padding(.horizontal, 10)
-            .frame(maxWidth: .infinity, minHeight: 32, alignment: .leading)
+            .frame(maxWidth: .infinity, minHeight: 30, alignment: .leading)
             .background {
-                if selected {
-                    RoundedRectangle(cornerRadius: 9, style: .continuous).fill(tint)
-                }
+                // Style suisse (01/11) : la page choisie en blanc plein, texte noir, coins carrés.
+                if selected { Rectangle().fill(Swiss.text) }
             }
             .contentShape(Rectangle())
-            .menuHover(tint: tint, cornerRadius: 9, enabled: !selected)
+            .menuHover(tint: Swiss.text, cornerRadius: 0, enabled: !selected)
             .onTapGesture(perform: choose)
             .accessibilityAddTraits(selected ? [.isButton, .isSelected] : .isButton)
             .accessibilityAction { choose() }
@@ -525,10 +524,10 @@ struct EditorView: View {
     /// Communauté une fois connecté (maquette du 30/10), puis la capsule : → sur la page Macros (retour dans la
     /// dernière macro quittée), puis Mon compte. Plus de « + » sur Macros : ses grandes cartes le remplacent.
     private var pageHeader: some View {
-        HStack(spacing: 16) {
+        HStack(alignment: .bottom, spacing: 12) {
+            // Style suisse (01/11) : grand titre gras, serré, souligné de blanc sur toute la largeur.
             Text(title)
-                .font(.system(size: 22, weight: .bold))
-                .lineLimit(1)
+                .swissTitle(46)
                 .accessibilityAddTraits(.isHeader)
             Spacer(minLength: 8)
             if showsShareButton {
@@ -556,7 +555,9 @@ struct EditorView: View {
                 }
             }
         }
-        .frame(minHeight: 52)
+        .padding(.top, 14)
+        .padding(.bottom, 12)
+        .swissRule()
         .padding(.horizontal, 26)
     }
 
@@ -567,13 +568,13 @@ struct EditorView: View {
         return Button {
             if onAccount { community.editingProfile = true } else { choose(.account) }
         } label: {
-            AvatarView(photo: community.myPhoto, username: session.username, size: 40)
-                .overlay(Circle().strokeBorder(Color.white.opacity(0.18), lineWidth: 2))
-                .frame(width: 44, height: 44)
-                .contentShape(Circle())
+            AvatarView(photo: community.myPhoto, username: session.username, size: 34)
+                .overlay(Rectangle().strokeBorder(Swiss.text, lineWidth: 1))
+                .frame(width: 34, height: 34)
+                .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .menuHover(tint: Color.accentColor, cornerRadius: 22)
+        .menuHover(tint: Swiss.text, cornerRadius: 0)
         .help(onAccount ? String(localized: "Modifier le profil") : String(localized: "Mon compte"))
         .accessibilityLabel(String(localized: "Mon compte"))
     }
@@ -655,10 +656,10 @@ struct EditorView: View {
                                 // Ce Mac et le compte ont chacun leurs changements : la page Mon compte montre le choix.
                                 if backup.conflict != nil {
                                     Text(verbatim: "!")
-                                        .font(.system(size: 11, weight: .bold))
-                                        .foregroundStyle(Color.white)
+                                        .font(Swiss.font(11))
+                                        .foregroundStyle(Swiss.background)
                                         .frame(width: 18, height: 18)
-                                        .background(Circle().fill(Color.orange))
+                                        .background(Rectangle().fill(Swiss.red))
                                         .padding(.trailing, 8)
                                         .allowsHitTesting(false)
                                 }
@@ -676,7 +677,8 @@ struct EditorView: View {
         .padding(.bottom, 16)
         .frame(width: Self.sidebarWidth)
         .frame(maxHeight: .infinity, alignment: .top)
-        .background(MockPlate(cornerRadius: 19, top: 0.10, bottom: 0.04, border: 0.16))
+        // Style suisse : un trait fin à droite de la barre, rien d'autre.
+        .overlay(alignment: .trailing) { Rectangle().fill(Swiss.line).frame(width: 1) }
     }
 
     private func sidebarItem(_ item: SidebarItem, _ title: Text) -> some View {
@@ -695,8 +697,9 @@ struct EditorView: View {
         .padding(.leading, 8)
         .padding(.trailing, 6)
         .frame(height: 34)
-        .background(Capsule().fill(Color.white.opacity(0.07)))
-        .overlay(Capsule().strokeBorder(Color.white.opacity(0.08), lineWidth: 1))
+        // Style suisse : la recherche soulignée d'un trait blanc, sans capsule.
+        .background(Swiss.background)
+        .swissRule()
         // Un clic dans la capsule, à côté du texte, donne aussi la main à la recherche.
         .contentShape(Capsule())
         .onTapGesture { searchFocusSerial += 1 }
@@ -924,7 +927,7 @@ struct EditorView: View {
     private var notices: [NoticeItem] {
         var out: [NoticeItem] = []
         if recorder.activeID == Self.keySearchID {
-            out.append(NoticeItem(id: "keysearch", symbol: "keyboard", tint: .accentColor,
+            out.append(NoticeItem(id: "keysearch", symbol: "keyboard", tint: Swiss.red,
                                   text: String(localized: "Appuie sur le raccourci que tu connais : la recherche montre ce qu'il fait."),
                                   button: String(localized: "Annuler"), action: { Recorder.shared.stop() }))
         } else if recorder.hintID == Self.keySearchID, let hint = recorder.hint {
@@ -975,7 +978,7 @@ struct EditorView: View {
         } label: {
             Image(systemName: listening ? "keyboard.fill" : "keyboard")
                 .font(.system(size: 13))
-                .foregroundStyle(listening ? Color.accentColor : Color.secondary)
+                .foregroundStyle(listening ? Swiss.red : Color.secondary)
                 .frame(width: 24, height: 24)
                 .contentShape(Rectangle())
         }
@@ -1808,7 +1811,7 @@ struct CaptureField: View {
         } label: {
             Group {
                 if recording {
-                    Text("Appuie sur les touches…").foregroundStyle(Color.accentColor)
+                    Text("Appuie sur les touches…").foregroundStyle(Swiss.red)
                 } else {
                     KeyLabel(combo: combo, placeholder: String(localized: "Raccourci"))
                 }
@@ -1831,7 +1834,7 @@ struct CaptureField: View {
         } label: {
             Group {
                 if recording {
-                    Text("Appuie sur les touches…").foregroundStyle(Color.accentColor)
+                    Text("Appuie sur les touches…").foregroundStyle(Swiss.red)
                 } else if let combo {
                     KeyCaps(combo: combo, large: true)
                 } else {
@@ -1847,9 +1850,9 @@ struct CaptureField: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .background(shape.fill(Color.accentColor.opacity(recording ? 0.08 : 0)))
+        .background(shape.fill(Swiss.red.opacity(recording ? 0.08 : 0)))
         .background(shape.fill(Color(nsColor: .textBackgroundColor)))
-        .overlay(shape.strokeBorder(recording ? Color.accentColor : Color(nsColor: .separatorColor),
+        .overlay(shape.strokeBorder(recording ? Swiss.red : Color(nsColor: .separatorColor),
                                     lineWidth: recording ? 2 : 1))
         .accessibilityLabel(role == .trigger ? String(localized: "Raccourci déclencheur")
                                              : String(localized: "Touche envoyée à FL"))

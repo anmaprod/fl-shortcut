@@ -110,7 +110,7 @@ struct FLColorSelector: View {
             }
             .frame(height: 18)
             .overlay(RoundedRectangle(cornerRadius: 3, style: .continuous)
-                .strokeBorder(c == color ? Color.accentColor : Color.primary.opacity(0.15), lineWidth: c == color ? 2 : 1))
+                .strokeBorder(c == color ? Swiss.red : Color.primary.opacity(0.15), lineWidth: c == color ? 2 : 1))
         }
         .buttonStyle(.plain)
         .disabled(c == nil)

@@ -257,7 +257,7 @@ private struct GuideDots: View {
                     select(i)
                 } label: {
                     Capsule()
-                        .fill(i == page ? Color.accentColor : Color.secondary.opacity(0.35))
+                        .fill(i == page ? Swiss.red : Color.secondary.opacity(0.35))
                         .frame(width: i == page ? 18 : 6, height: 6)
                         .padding(3)
                         .contentShape(Rectangle())

@@ -618,7 +618,7 @@ private struct BlockInspector: View {
                 .help("Cherché par son nom ou son image au moment du clic (autorisation « Enregistrement de l'écran »).")
             }
             if let message = teacher.message, teacher.lastBlock == block.id {
-                Text(message).font(.system(size: 11)).foregroundStyle(learning ? Color.accentColor : Color.secondary)
+                Text(message).font(.system(size: 11)).foregroundStyle(learning ? Swiss.red : Color.secondary)
             }
         }
     }
@@ -692,7 +692,7 @@ private struct BlockInspector: View {
                 }
             }
             if let message = teacher.message, teacher.lastBlock == block.id {
-                Text(message).font(.system(size: 11)).foregroundStyle(learning ? Color.accentColor : Color.secondary)
+                Text(message).font(.system(size: 11)).foregroundStyle(learning ? Swiss.red : Color.secondary)
             }
         }
     }
@@ -1610,6 +1610,6 @@ struct NameColorField: View {
             .fill(Color(red: Double(c.r) / 255, green: Double(c.g) / 255, blue: Double(c.b) / 255))
             .frame(width: size, height: size)
             .overlay(RoundedRectangle(cornerRadius: 5, style: .continuous)
-                .strokeBorder(selected ? Color.accentColor : Color.primary.opacity(0.15), lineWidth: selected ? 2 : 1))
+                .strokeBorder(selected ? Swiss.red : Color.primary.opacity(0.15), lineWidth: selected ? 2 : 1))
     }
 }

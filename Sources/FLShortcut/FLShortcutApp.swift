@@ -685,7 +685,7 @@ private struct OrganizerMenuCard: View {
             GeometryReader { proxy in
                 ZStack(alignment: .leading) {
                     Capsule().fill(Color.white.opacity(0.12))
-                    Capsule().fill(Color.accentColor).frame(width: proxy.size.width * fraction)
+                    Capsule().fill(Swiss.red).frame(width: proxy.size.width * fraction)
                 }
             }
             .frame(height: 4)

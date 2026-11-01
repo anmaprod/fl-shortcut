@@ -140,8 +140,8 @@ struct FLIconPicker: View {
             Button { pick(icon) } label: {
                 FLIconGlyph(icon: icon, size: 18)
                     .frame(width: Self.side, height: Self.side)
-                    .background(shape.fill(isSelected ? Color.accentColor.opacity(0.25) : Color.primary.opacity(0.06)))
-                    .overlay(shape.strokeBorder(isSelected ? Color.accentColor : Color.clear, lineWidth: 1.5))
+                    .background(shape.fill(isSelected ? Swiss.red.opacity(0.25) : Color.primary.opacity(0.06)))
+                    .overlay(shape.strokeBorder(isSelected ? Swiss.red : Color.clear, lineWidth: 1.5))
                     .contentShape(shape)
             }
             .buttonStyle(.plain)

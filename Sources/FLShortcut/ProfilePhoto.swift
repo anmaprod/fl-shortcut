@@ -100,7 +100,7 @@ enum ProfilePhoto {
     }
 }
 
-/// Photo d'un membre dans un rond ; sans photo, l'initiale de son pseudo sur sa couleur.
+/// Photo d'un membre dans un carré (style suisse, 01/11) ; sans photo, l'initiale de son pseudo sur sa couleur.
 struct AvatarView: View {
     let photo: NSImage?
     let username: String
@@ -114,15 +114,14 @@ struct AvatarView: View {
                     .interpolation(.high)
                     .aspectRatio(contentMode: .fill)
             } else {
-                Circle().fill(ProfilePhoto.initialColors[ProfilePhoto.colorIndex(username)].gradient)
+                Rectangle().fill(ProfilePhoto.initialColors[ProfilePhoto.colorIndex(username)])
                 Text(ProfilePhoto.initial(username))
-                    .font(.system(size: size * 0.44, weight: .semibold, design: .rounded))
-                    .foregroundStyle(.white)
+                    .font(Swiss.font(size * 0.46))
+                    .foregroundStyle(Swiss.background)
             }
         }
         .frame(width: size, height: size)
-        .clipShape(Circle())
-        .overlay(Circle().strokeBorder(Color.primary.opacity(0.12), lineWidth: max(0.5, size / 64)))
+        .clipShape(Rectangle())
         .accessibilityHidden(true)
     }
 }

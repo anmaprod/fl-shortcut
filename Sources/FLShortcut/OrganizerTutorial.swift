@@ -101,7 +101,7 @@ struct OrganizerTutorialView: View {
         HStack(spacing: 6) {
             ForEach(pages.indices, id: \.self) { i in
                 Circle()
-                    .fill(i == index ? Color.accentColor : Color.white.opacity(0.25))
+                    .fill(i == index ? Swiss.red : Color.white.opacity(0.25))
                     .frame(width: 7, height: 7)
             }
         }

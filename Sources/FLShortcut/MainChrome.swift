@@ -40,7 +40,7 @@ enum MainWindowChrome {
         if window.titleVisibility != .hidden { window.titleVisibility = .hidden }
         if !window.titlebarAppearsTransparent { window.titlebarAppearsTransparent = true }
         if !window.styleMask.contains(.fullSizeContentView) { window.styleMask.insert(.fullSizeContentView) }
-        window.backgroundColor = NSColor(red: 0.086, green: 0.086, blue: 0.094, alpha: 1)
+        window.backgroundColor = .black                    // style suisse (01/11) : noir plein
         if window.titlebarSeparatorStyle != .none { window.titlebarSeparatorStyle = .none }
         if window.toolbar == nil {
             let toolbar = NSToolbar(identifier: "fl.fenetre-principale")
@@ -85,8 +85,17 @@ struct MockPlate: View {
     var border = 0.15
 
     var body: some View {
+        if Swiss.flat {
+            // Style suisse (01/11) : plus de plaque, le noir de la fenêtre ; les traits sont posés par chaque page.
+            Color.clear.accessibilityHidden(true)
+        } else {
+            plate
+        }
+    }
+
+    private var plate: some View {
         let shape = RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-        shape.fill(LinearGradient(colors: [Color.white.opacity(top), Color.white.opacity(bottom)],
+        return shape.fill(LinearGradient(colors: [Color.white.opacity(top), Color.white.opacity(bottom)],
                                   startPoint: .top, endPoint: .bottom))
             .overlay(shape.strokeBorder(Color.white.opacity(border), lineWidth: 1))
             .overlay(shape.inset(by: 1).strokeBorder(LinearGradient(colors: [Color.white.opacity(0.2), Color.clear],
@@ -106,10 +115,8 @@ struct HeaderCapsule<Content: View>: View {
     }
 
     var body: some View {
-        HStack(spacing: 2) { content }
-            .padding(3)
-            .background(Capsule().fill(Color.white.opacity(0.10)))
-            .overlay(Capsule().strokeBorder(Color.white.opacity(0.18), lineWidth: 1))
+        // Style suisse : les boutons côte à côte, sans capsule.
+        HStack(spacing: 8) { content }
     }
 }
 
@@ -121,15 +128,17 @@ struct HeaderIconButton: View {
     @Environment(\.isEnabled) private var enabled
 
     var body: some View {
+        // Style suisse : un carré de 34 points bordé de blanc ; au survol, blanc plein.
         Button(action: action) {
             Image(systemName: symbol)
-                .font(.system(size: 17))
-                .frame(width: 44, height: 44)
-                .contentShape(Circle())
+                .font(.system(size: 15, weight: .semibold))
+                .frame(width: 34, height: 34)
+                .overlay(Rectangle().strokeBorder(Swiss.text, lineWidth: 1))
+                .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .opacity(enabled ? 1 : 0.35)
-        .menuHover(tint: Color.accentColor, cornerRadius: 22, enabled: enabled)
+        .menuHover(tint: Swiss.text, cornerRadius: 0, enabled: enabled)
         .help(help)
         .accessibilityLabel(help)
     }
@@ -148,8 +157,7 @@ struct SidebarGroup<Content: View>: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 2) {
             title
-                .font(.system(size: 11, weight: .semibold))
-                .foregroundStyle(.secondary)
+                .swissLabel(size: 10)
                 .padding(.horizontal, 10)
                 .padding(.bottom, 4)
                 .accessibilityAddTraits(.isHeader)
@@ -158,7 +166,7 @@ struct SidebarGroup<Content: View>: View {
     }
 }
 
-/// Une ligne de la barre de gauche : icône de couleur (22 points), puis le nom.
+/// Une ligne de la barre de gauche (style suisse) : un petit carré de sa couleur, puis le nom.
 struct SidebarLabel: View {
     let title: Text
     let symbol: String
@@ -166,7 +174,7 @@ struct SidebarLabel: View {
 
     var body: some View {
         HStack(spacing: 10) {
-            SectionIcon(symbol: symbol, tint: tint, size: 22)
+            Rectangle().fill(tint).frame(width: 8, height: 8).accessibilityHidden(true)
             title.font(.system(size: 13)).lineLimit(1)
             Spacer(minLength: 0)
         }
@@ -230,25 +238,24 @@ struct TitledCard<Item: Identifiable, Row: View>: View {
     @ViewBuilder let row: (Item) -> Row
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
+        // Style suisse : le titre en petites capitales blanches souligné de blanc, puis les lignes séparées d'un trait
+        // fin ; au survol, la ligne entière en blanc.
+        VStack(alignment: .leading, spacing: 0) {
             Text(title)
-                .font(.system(size: 12, weight: .semibold))
-                .foregroundStyle(.secondary)
-                .padding(.leading, 12)
+                .swissLabel(Swiss.text)
+                .padding(.bottom, 6)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .swissRule()
                 .accessibilityAddTraits(.isHeader)
             VStack(spacing: 0) {
-                ForEach(Array(items.enumerated()), id: \.element.id) { index, item in
+                ForEach(Array(items.enumerated()), id: \.element.id) { _, item in
                     row(item)
-                        .padding(.horizontal, 10)
-                        .frame(maxWidth: .infinity, minHeight: 36, alignment: .leading)
-                        .overlay(alignment: .top) {
-                            if index > 0 { Rectangle().fill(Color.white.opacity(0.06)).frame(height: 1) }
-                        }
-                        .menuHover(tint: tint, cornerRadius: 10)
+                        .padding(.horizontal, 4)
+                        .frame(maxWidth: .infinity, minHeight: 32, alignment: .leading)
+                        .swissRule(Swiss.faint)
+                        .menuHover(tint: Swiss.text, cornerRadius: 0)
                 }
             }
-            .padding(2)
-            .background(MockPlate(cornerRadius: 14))
         }
     }
 }
@@ -263,9 +270,9 @@ struct CardMasonry<Card: Identifiable, CardView: View>: View {
 
     var body: some View {
         let split = OrganizerView.familyColumns(cards, count: columns, size: size)
-        HStack(alignment: .top, spacing: 24) {
+        HStack(alignment: .top, spacing: 28) {
             ForEach(Array(split.enumerated()), id: \.offset) { _, column in
-                VStack(alignment: .leading, spacing: 20) {
+                VStack(alignment: .leading, spacing: 22) {
                     ForEach(column) { card($0) }
                 }
                 .frame(maxWidth: .infinity, alignment: .top)

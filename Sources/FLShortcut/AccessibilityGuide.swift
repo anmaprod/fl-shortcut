@@ -310,7 +310,7 @@ private struct SwitchPreview: View {
             Text("FL Shortcuts").font(.system(size: 12))
             Spacer(minLength: 8)
             Capsule()
-                .fill(Color.accentColor)
+                .fill(Swiss.red)
                 .frame(width: 30, height: 17)
                 .overlay(Circle().fill(Color.white).padding(2).shadow(color: .black.opacity(0.15), radius: 0.5, y: 0.5),
                          alignment: .trailing)

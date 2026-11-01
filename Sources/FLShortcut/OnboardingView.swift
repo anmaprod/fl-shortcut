@@ -427,7 +427,7 @@ private struct StepRow: View {
                         .font(.system(size: 12, weight: .bold).monospacedDigit())
                         .foregroundStyle(Color.white)
                         .frame(width: 22, height: 22)
-                        .background(Circle().fill(Color.accentColor))
+                        .background(Circle().fill(Swiss.red))
                 }
             }
             .frame(width: 22)

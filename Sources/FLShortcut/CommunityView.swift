@@ -456,7 +456,7 @@ private struct CommunityFilters: View {
                 Image(systemName: "arrow.clockwise").frame(width: 30, height: 30).contentShape(Circle())
             }
             .buttonStyle(.plain)
-            .menuHover(tint: Color.accentColor, cornerRadius: 15)
+            .menuHover(tint: Swiss.red, cornerRadius: 15)
             .help("Actualiser : voir les derniers partages")
             .accessibilityLabel("Actualiser")
         }

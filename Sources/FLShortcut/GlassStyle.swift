@@ -185,13 +185,13 @@ struct MenuHover: ViewModifier {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     func body(content: Content) -> some View {
-        let shape = RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
         let hovered = hovering && enabled
         content
             .hoverFilled(hovered)
-            // Aux bords de l'élément (ou `outset` au-delà), sans changer sa place.
+            // Aux bords de l'élément (ou `outset` au-delà), sans changer sa place. Style suisse (01/11) : blanc plein,
+            // coins carrés, texte noir (comme la page choisie de la barre de gauche).
             .background {
-                shape.fill(tint)
+                Rectangle().fill(Swiss.text)
                     .opacity(hovered ? 1 : 0)
                     .padding(-outset)
                     .allowsHitTesting(false)
@@ -215,15 +215,15 @@ extension EnvironmentValues {
 }
 
 extension View {
-    /// Contenu d'une option survolée : texte en blanc (`nil` : la couleur de toujours, celle du conteneur) et icônes
-    /// en blanc translucide. Même vue dans les deux cas : rien n'est recréé au survol.
+    /// Contenu d'une option survolée (fond blanc, style suisse) : texte en noir (`nil` : la couleur de toujours, celle
+    /// du conteneur). Même vue dans les deux cas : rien n'est recréé au survol.
     func hoverFilled(_ on: Bool) -> some View {
-        foregroundColor(on ? Color.white : nil)
+        foregroundColor(on ? Swiss.background : nil)
             .environment(\.hoverFilled, on)
     }
 
-    /// Détail qui a sa propre couleur (rouge, bleu…) dans une option : blanc quand l'option survolée est pleine de sa
-    /// couleur (il y disparaîtrait), sa couleur sinon.
+    /// Détail qui a sa propre couleur (rouge, bleu…) dans une option : noir quand l'option survolée est blanche (il y
+    /// passerait mal), sa couleur sinon.
     func hoverTint(_ color: Color) -> some View {
         modifier(HoverTint(color: color))
     }
@@ -234,17 +234,60 @@ private struct HoverTint: ViewModifier {
     @Environment(\.hoverFilled) private var filled
 
     func body(content: Content) -> some View {
-        content.foregroundStyle(filled ? Color.white : color)
+        content.foregroundStyle(filled ? Swiss.background : color)
     }
 }
 
 // MARK: - Liquid Glass
 
+/// Style suisse (maquette validée le 01/11, artefact `GHmTowhxy53F6VT3TEAjis`) : noir, blanc, traits fins, coins
+/// carrés, gros titres gras, petites capitales espacées ; le rouge seulement pour ce qui compte.
+enum Swiss {
+    static let background = Color.black
+    static let text = Color.white
+    /// Texte secondaire (#8A8A8A).
+    static let gray = Color(white: 0.541)
+    /// Texte de lecture un peu effacé (#A8A8A8).
+    static let soft = Color(white: 0.66)
+    /// Traits : sous un titre (blanc), entre deux blocs (#333333), entre deux lignes (#222222), cadre d'une touche (#555555).
+    static let line = Color(white: 0.2)
+    static let faint = Color(white: 0.133)
+    static let keyLine = Color(white: 0.333)
+    /// Le rouge de ce qui compte : touche changée, avertissement, Désinstaller, progression (#FF3B1F).
+    static let red = Color(red: 1.0, green: 0.231, blue: 0.122)
+    static let fontName = "Helvetica Neue"
+
+    /// Gros titre (46 pour une page, 30 à 34 pour une petite fenêtre) : gras, serré.
+    static func title(_ size: CGFloat) -> Font { .custom(fontName, size: size).weight(.bold) }
+    /// Texte en Helvetica (gras par défaut).
+    static func font(_ size: CGFloat, _ weight: Font.Weight = .bold) -> Font { .custom(fontName, size: size).weight(weight) }
+    /// Resserrement des gros titres (−1,8 à 46 points).
+    static func titleTracking(_ size: CGFloat) -> CGFloat { -size * 0.039 }
+}
+
+extension View {
+    /// Libellé en petites capitales espacées (« MES MACROS », « SAUVEGARDE »), gris par défaut.
+    func swissLabel(_ color: Color = Swiss.gray, size: CGFloat = 11) -> some View {
+        font(Swiss.font(size)).tracking(size * 0.11).textCase(.uppercase).foregroundStyle(color)
+    }
+
+    /// Gros titre de page, souligné d'un trait blanc sur toute la largeur.
+    func swissTitle(_ size: CGFloat = 46) -> some View {
+        font(Swiss.title(size)).tracking(Swiss.titleTracking(size)).foregroundStyle(Swiss.text)
+            .lineLimit(1).minimumScaleFactor(0.6)
+    }
+
+    /// Trait sous un bloc : blanc sous un titre, #333 entre deux blocs, #222 entre deux lignes.
+    func swissRule(_ color: Color = Swiss.text, edge: Alignment = .bottom) -> some View {
+        overlay(alignment: edge) { Rectangle().fill(color).frame(height: 1).allowsHitTesting(false) }
+    }
+}
+
 enum Appearance {
-    /// Fond des fenêtres (maquette du 28/10 : #161618).
-    static let windowColor = Color(red: 0.086, green: 0.086, blue: 0.094)
-    /// Bleu clair des liens sur le noir (maquette : #4AA3FF).
-    static let link = Color(red: 0.29, green: 0.64, blue: 1.0)
+    /// Fond des fenêtres : noir plein (style suisse, 01/11).
+    static let windowColor = Swiss.background
+    /// Liens : blancs, soulignés là où ils sont posés (style suisse).
+    static let link = Swiss.text
 
     /// Préférence « Effet Liquid Glass » (vrai par défaut) : ne règle plus que les plaques claires des cartes.
     static let glassKey = "liquidGlass"
@@ -279,7 +322,7 @@ struct GlassSurface<S: InsettableShape>: ViewModifier {
         content
             .background(shape.fill((tint ?? Color.clear).opacity(0.22)))
             .background(shape.fill(MenuBackground.color))
-            .overlay(shape.strokeBorder(Color.white.opacity(0.12), lineWidth: 1))
+            .overlay(shape.strokeBorder(Swiss.line, lineWidth: 1))
     }
 }
 
@@ -305,34 +348,37 @@ private struct SecondaryButtonStyleModifier: ViewModifier {
     }
 }
 
-/// Bouton de la maquette du 28/10 : capsule pleine, bleue avec le texte blanc pour l'action (`prominent`), sinon
-/// claire avec un bord fin. Taille d'après `controlSize`. Aucun verre (29/10).
+/// Bouton du style suisse (01/11) : rectangle aux coins carrés, texte en capitales espacées ; blanc plein et texte
+/// noir pour l'action (`prominent`), sinon noir bordé de blanc. Taille d'après `controlSize`. (Nom gardé : il est
+/// utilisé partout.)
 struct CapsuleButtonStyle: ButtonStyle {
     var prominent: Bool
     @Environment(\.controlSize) private var size
     @Environment(\.isEnabled) private var enabled
 
     private var metrics: (height: CGFloat, font: CGFloat, padding: CGFloat) {
-        if #available(macOS 14.0, *), size == .extraLarge { return (40, 14, 22) }
+        if #available(macOS 14.0, *), size == .extraLarge { return (42, 12.5, 22) }
         switch size {
-        case .mini: return (20, 11, 8)
-        case .small: return (24, 12, 10)
-        case .large: return (36, 13.5, 18)
-        default: return (30, 13, 14)
+        case .mini: return (20, 9.5, 8)
+        case .small: return (24, 10.5, 10)
+        case .large: return (38, 12, 18)
+        default: return (32, 11, 14)
         }
     }
 
     func makeBody(configuration: Configuration) -> some View {
         let m = metrics
         return configuration.label
-            .font(.system(size: m.font, weight: prominent ? .semibold : .medium))
-            .foregroundStyle(prominent ? Color.white : Color.primary)
+            .font(Swiss.font(m.font))
+            .tracking(m.font * 0.1)
+            .textCase(.uppercase)
+            .foregroundStyle(prominent ? Swiss.background : Swiss.text)
             .padding(.horizontal, m.padding)
             .frame(minHeight: m.height)
-            .background(Capsule().fill(prominent ? Color.accentColor : Color.white.opacity(0.10)))
-            .overlay(Capsule().strokeBorder(prominent ? Color.clear : Color.white.opacity(0.14), lineWidth: 1))
-            .opacity(enabled ? (configuration.isPressed ? 0.75 : 1) : 0.4)
-            .contentShape(Capsule())
+            .background(Rectangle().fill(prominent ? Swiss.text : Swiss.background))
+            .overlay(Rectangle().strokeBorder(Swiss.text, lineWidth: 1))
+            .opacity(enabled ? (configuration.isPressed ? 0.7 : 1) : 0.35)
+            .contentShape(Rectangle())
     }
 }
 
@@ -413,27 +459,19 @@ struct KeyCap: View {
     var large = false
     var glass = false
 
-    private var shape: RoundedRectangle { RoundedRectangle(cornerRadius: large ? 8 : 5, style: .continuous) }
-
     var body: some View {
-        Group {
-            if glass {
-                face.glassSurface(shape)
-            } else {
-                face
-                    .background(shape.fill(Color(nsColor: .controlBackgroundColor))
-                        .shadow(color: Color.black.opacity(0.14), radius: 0, x: 0, y: 1))
-                    .overlay(shape.strokeBorder(Color(nsColor: .separatorColor), lineWidth: 1))
-            }
-        }
-        .accessibilityHidden(true)
+        // Style suisse : un carré bordé de gris, sans relief ni verre (`glass` gardé pour les appels d'avant).
+        face
+            .background(Rectangle().fill(Swiss.background))
+            .overlay(Rectangle().strokeBorder(Swiss.keyLine, lineWidth: 1))
+            .accessibilityHidden(true)
     }
 
     private var face: some View {
         VStack(spacing: 1) {
-            Text(symbol).font(.system(size: large ? 15 : 12, weight: .medium))
+            Text(symbol).font(Swiss.font(large ? 15 : 11.5)).foregroundStyle(Swiss.text)
             if large, let name {
-                Text(name).font(.system(size: 9)).foregroundStyle(.secondary)
+                Text(name).font(Swiss.font(9, .regular)).foregroundStyle(Swiss.gray)
             }
         }
         .frame(minWidth: large ? 34 : 20, minHeight: large ? 36 : 20)
@@ -516,40 +554,27 @@ struct KeyLabel: View {
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
     @Environment(\.colorSchemeContrast) private var contrast
 
-    private var shape: RoundedRectangle { RoundedRectangle(cornerRadius: 6, style: .continuous) }
+    private var shape: Rectangle { Rectangle() }
 
-    private var plate: Bool {
-        GlassPlate.on(glass: glassEnabled, reduceTransparency: reduceTransparency, increasedContrast: contrast == .increased)
-    }
+    /// Style suisse (01/11) : touche changée pleine de rouge ; sinon un carré noir bordé de gris.
+    private var fill: Color { accent ? Swiss.red : Swiss.background }
 
-    /// Touche changée : teintée de bleu (maquette du 28/10 : #0A84FF à 24 %, bord #4AA3FF) ; sinon une petite plaque
-    /// claire (blanc à 12 %, bord à 20 %), grise sans l'effet.
-    private var fill: Color {
-        if accent { return Color(red: 0.04, green: 0.52, blue: 1.0).opacity(0.24) }
-        if !plate { return Color.primary.opacity(0.05) }
-        return scheme == .dark ? Color.white.opacity(0.12) : GlassPlate.fill(scheme)
-    }
-
-    private var border: AnyShapeStyle {
-        if accent { return AnyShapeStyle(Appearance.link.opacity(0.75)) }
-        if !plate { return AnyShapeStyle(Color(nsColor: .separatorColor)) }
-        return scheme == .dark ? AnyShapeStyle(Color.white.opacity(0.2)) : AnyShapeStyle(GlassPlate.rim(scheme))
-    }
+    private var border: AnyShapeStyle { AnyShapeStyle(accent ? Swiss.red : Swiss.keyLine) }
 
     var body: some View {
         Group {
             if let combo {
                 // Une case par touche, comme sur la maquette du 28/10 : ⌘ puis A, pas « ⌘A » dans un seul cadre.
-                HStack(spacing: 4) {
+                HStack(spacing: 3) {
                     ForEach(Array(Self.parts(of: combo).enumerated()), id: \.offset) { _, part in
-                        tile(Text(part).foregroundStyle(Color.primary))
+                        tile(Text(part).foregroundStyle(Swiss.text))
                     }
                 }
             } else {
                 tile(Text(placeholder).foregroundStyle(.secondary))
             }
         }
-        .font(.system(size: 12.5, weight: .semibold))
+        .font(Swiss.font(11.5))
         .lineLimit(1)
         .contentShape(Rectangle())
         // Jamais écrasé ni coupé quand la fenêtre est étroite : c'est le titre de la ligne qui se raccourcit.
@@ -565,10 +590,10 @@ struct KeyLabel: View {
 
     private func tile(_ label: some View) -> some View {
         label
-            .padding(.horizontal, 7)
-            .frame(minWidth: 24, minHeight: 24)
+            .padding(.horizontal, 5)
+            .frame(minWidth: 20, minHeight: 20)
             .background(shape.fill(fill))
-            .overlay(shape.strokeBorder(border, lineWidth: accent || plate ? 1 : 0.5))
+            .overlay(shape.strokeBorder(border, lineWidth: 1))
     }
 }
 
@@ -583,17 +608,13 @@ struct SectionIcon: View {
     /// Dans une option survolée (fond de sa couleur) : blanc translucide, sinon l'icône disparaîtrait dans le fond.
     @Environment(\.hoverFilled) private var hoverFilled
 
-    private var shape: RoundedRectangle { RoundedRectangle(cornerRadius: size * 0.27, style: .continuous) }
-
     var body: some View {
-        shape.fill(hoverFilled ? AnyShapeStyle(Color.white.opacity(0.24)) : AnyShapeStyle(tint.gradient))
-            .overlay(shape.strokeBorder(LinearGradient(colors: [Color.white.opacity(0.5), Color.white.opacity(0.06)],
-                                                       startPoint: .top, endPoint: .bottom),
-                                        lineWidth: max(0.5, size / 40)))
+        // Style suisse (01/11) : un carré plat de sa couleur, coins droits, symbole noir.
+        Rectangle().fill(tint)
             .overlay(Image(systemName: symbol)
                 .symbolVariant(.fill)
-                .font(.system(size: size * 0.52, weight: .semibold))
-                .foregroundStyle(Color.white))
+                .font(.system(size: size * 0.5, weight: .bold))
+                .foregroundStyle(Swiss.background))
             .frame(width: size, height: size)
             .accessibilityHidden(true)
     }
@@ -607,15 +628,17 @@ struct StepBadge: View {
     var body: some View {
         Group {
             if done {
-                Image(systemName: "checkmark.circle.fill")
-                    .font(.system(size: 17))
-                    .foregroundStyle(Color.green)
+                Image(systemName: "checkmark")
+                    .font(.system(size: 10, weight: .heavy))
+                    .foregroundStyle(Swiss.background)
+                    .frame(width: 18, height: 18)
+                    .background(Rectangle().fill(Swiss.text))
             } else {
                 Text("\(number)")
-                    .font(.system(size: 11, weight: .bold).monospacedDigit())
-                    .foregroundStyle(Color.white)
+                    .font(Swiss.font(11).monospacedDigit())
+                    .foregroundStyle(Swiss.background)
                     .frame(width: 18, height: 18)
-                    .background(Circle().fill(Color.accentColor))
+                    .background(Rectangle().fill(Swiss.red))
             }
         }
         .frame(width: 20)
@@ -771,11 +794,16 @@ struct CardRowBackground: View {
 
     var body: some View {
         Group {
-            if let hover {
-                // Survolée : tout l'intérieur de la couleur de la page (29/10, « intérieur plein »).
-                RoundedRectangle(cornerRadius: Self.liftOutset, style: .continuous)
-                    .fill(hover)
-                    .padding(.horizontal, grow ? -Self.liftOutset : 0)
+            if hover != nil {
+                // Survolée : blanc plein, coins carrés (style suisse, 01/11).
+                Rectangle().fill(Swiss.text)
+            } else if Swiss.flat {
+                // Style suisse : pas de carte, un trait fin sous chaque ligne (blanc au-dessus de la première).
+                Rectangle().fill(Swiss.background)
+                    .overlay(alignment: .top) {
+                        if position.roundsTop { Rectangle().fill(Swiss.line).frame(height: 1) }
+                    }
+                    .overlay(alignment: .bottom) { Rectangle().fill(Swiss.faint).frame(height: 1) }
             } else {
                 CardRowShape(roundsTop: position.roundsTop, roundsBottom: position.roundsBottom)
                     .fill(fill)
@@ -800,6 +828,11 @@ struct CardRowBackground: View {
         .padding(.horizontal, Self.inset)
         .accessibilityHidden(true)
     }
+}
+
+extension Swiss {
+    /// Cartes à plat (vrai : le style suisse ; l'ancien dessin des plaques reste dans le code, éteint).
+    static let flat = true
 }
 
 /// Plaque de verre dessinée (maquette validée le 28/10 : « le verre seulement devant », fond de fenêtre plein) : un
@@ -839,8 +872,11 @@ struct GlassPlateBackground: View {
     @Environment(\.colorSchemeContrast) private var contrast
 
     var body: some View {
-        let shape = RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-        if GlassPlate.on(glass: glassEnabled, reduceTransparency: reduceTransparency,
+        let shape = RoundedRectangle(cornerRadius: Swiss.flat ? 0 : cornerRadius, style: .continuous)
+        if Swiss.flat {
+            // Style suisse : un cadre fin, sans voile.
+            shape.fill(Swiss.background).overlay(shape.strokeBorder(Swiss.line, lineWidth: 1))
+        } else if GlassPlate.on(glass: glassEnabled, reduceTransparency: reduceTransparency,
                          increasedContrast: contrast == .increased) {
             shape.fill(GlassPlate.fill(scheme))
                 .overlay(shape.strokeBorder(GlassPlate.rim(scheme), lineWidth: 1))
@@ -859,7 +895,7 @@ struct PlateRows<Data: RandomAccessCollection, Row: View>: View where Data.Eleme
     var body: some View {
         VStack(spacing: 0) {
             ForEach(data) { item in
-                if item.id != data.first?.id { Divider().padding(.horizontal, 12) }
+                if item.id != data.first?.id { Rectangle().fill(Swiss.faint).frame(height: 1).padding(.horizontal, 12) }
                 row(item)
             }
         }
@@ -875,8 +911,8 @@ struct WaitingRing: View {
 
     var body: some View {
         Circle()
-            .stroke(Color.secondary.opacity(0.3), lineWidth: 2)
-            .overlay(Circle().trim(from: 0, to: 0.25).stroke(Color.accentColor, lineWidth: 2)
+            .stroke(Swiss.line, lineWidth: 2)
+            .overlay(Circle().trim(from: 0, to: 0.25).stroke(Swiss.red, lineWidth: 2)
                 .rotationEffect(.degrees(-45)))
             .frame(width: size, height: size)
             .accessibilityHidden(true)

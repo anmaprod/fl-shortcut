@@ -586,7 +586,7 @@ private struct CreatorBackButton: View {
                 .contentShape(Circle())
         }
         .buttonStyle(.plain)
-        .menuHover(tint: Color.accentColor, cornerRadius: 22)
+        .menuHover(tint: Swiss.red, cornerRadius: 22)
         .keyboardShortcut("[", modifiers: .command)
         .help("Revenir aux raccourcis et aux macros (⌘[)")
         .accessibilityLabel("Retour")

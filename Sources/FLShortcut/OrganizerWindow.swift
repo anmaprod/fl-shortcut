@@ -2173,14 +2173,18 @@ struct AlwaysBlueButtonStyle: ButtonStyle {
     @Environment(\.isEnabled) private var enabled
 
     func makeBody(configuration: Configuration) -> some View {
+        // Style suisse (01/11) : le bouton principal, blanc plein, texte noir en capitales (nom gardé : « toujours »
+        // actif d'aspect, le panneau n'étant jamais la fenêtre active).
         configuration.label
-            .font(.system(size: 13.5, weight: .semibold))
-            .foregroundStyle(Color.white)
-            .padding(.horizontal, 20)
-            .frame(height: 34)
-            .background(Capsule().fill(Color.accentColor))
-            .opacity(enabled ? (configuration.isPressed ? 0.8 : 1) : 0.45)
-            .contentShape(Capsule())
+            .font(Swiss.font(12))
+            .tracking(1.2)
+            .textCase(.uppercase)
+            .foregroundStyle(Swiss.background)
+            .padding(.horizontal, 22)
+            .frame(height: 38)
+            .background(Rectangle().fill(Swiss.text))
+            .opacity(enabled ? (configuration.isPressed ? 0.75 : 1) : 0.4)
+            .contentShape(Rectangle())
     }
 }
 
