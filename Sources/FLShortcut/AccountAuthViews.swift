@@ -60,7 +60,7 @@ struct AuthPill: View {
         }
         .padding(.horizontal, 10)
         .frame(height: 26)
-        .background(Capsule().fill(Color.primary.opacity(0.07)))
+        .background(Rectangle().fill(Color.primary.opacity(0.07)))
     }
 }
 
@@ -80,8 +80,8 @@ struct AuthTabs: View {
             tab(String(localized: "Créer un compte"), selected: creating) { choose(true) }
         }
         .padding(3)
-        .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(AuthLook.well(scheme)))
-        .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(Color.primary.opacity(0.08)))
+        .background(Rectangle().fill(AuthLook.well(scheme)))
+        .overlay(Rectangle().strokeBorder(Color.primary.opacity(0.08)))
     }
 
     private func tab(_ title: String, selected: Bool, action: @escaping () -> Void) -> some View {
@@ -93,7 +93,7 @@ struct AuthTabs: View {
                 .frame(height: 32)
                 .background {
                     if selected {
-                        RoundedRectangle(cornerRadius: 9, style: .continuous)
+                        Rectangle()
                             .fill(Color.primary.opacity(0.14))
                             .matchedGeometryEffect(id: "onglet", in: tabs)
                     }
@@ -203,8 +203,8 @@ struct AuthField<Accessory: View>: View {
             }
             .padding(.horizontal, 12)
             .frame(height: 42)
-            .background(RoundedRectangle(cornerRadius: 11, style: .continuous).fill(AuthLook.well(scheme)))
-            .overlay(RoundedRectangle(cornerRadius: 11, style: .continuous).strokeBorder(AuthLook.wellStroke))
+            .background(Rectangle().fill(AuthLook.well(scheme)))
+            .overlay(Rectangle().strokeBorder(AuthLook.wellStroke))
         }
     }
 }
@@ -347,10 +347,10 @@ struct CodeBoxes: View {
                 ForEach(0..<count, id: \.self) { i in
                     let current = focused && i == min(digits.count, count - 1)
                     Text(i < digits.count ? String(digits[i]) : "")
-                        .font(.system(size: 24, weight: .bold))
+                        .font(Swiss.title(30)).tracking(Swiss.titleTracking(30))
                         .frame(width: count > 6 ? 36 : 46, height: 56)
-                        .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(AuthLook.well(scheme)))
-                        .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .background(Rectangle().fill(AuthLook.well(scheme)))
+                        .overlay(Rectangle()
                             .strokeBorder(current ? AuthLook.blue : Color.primary.opacity(0.14), lineWidth: current ? 2 : 1))
                 }
             }
@@ -374,9 +374,9 @@ struct AuthPrimaryButtonStyle: ButtonStyle {
             .foregroundStyle(.white)
             .frame(maxWidth: .infinity)
             .frame(height: 44)
-            .background(Capsule().fill(AuthLook.blue.opacity(configuration.isPressed ? 0.8 : 1)))
+            .background(Rectangle().fill(AuthLook.blue.opacity(configuration.isPressed ? 0.8 : 1)))
             .opacity(isEnabled ? 1 : 0.55)
-            .contentShape(Capsule())
+            .contentShape(Rectangle())
     }
 }
 

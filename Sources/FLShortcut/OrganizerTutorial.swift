@@ -78,7 +78,7 @@ struct OrganizerTutorialView: View {
     }
 
     @ViewBuilder private var picture: some View {
-        let shape = RoundedRectangle(cornerRadius: 14, style: .continuous)
+        let shape = Rectangle()
         Group {
             if let image = OrganizerTutorial.image(page) {
                 Image(nsImage: image)

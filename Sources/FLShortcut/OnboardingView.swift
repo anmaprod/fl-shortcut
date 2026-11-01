@@ -227,7 +227,7 @@ struct OnboardingView: View {
         VStack(spacing: 0) {
             Spacer(minLength: 0)
             Text("FL Shortcuts")
-                .font(.system(size: 34, weight: .bold))
+                .font(Swiss.title(42)).tracking(Swiss.titleTracking(42))
                 .morphIn(0)
 
             PlateRows(data: permissionItems) { item in
@@ -299,7 +299,7 @@ struct OnboardingView: View {
     private var linkStep: some View {
         VStack(spacing: 0) {
             Text("Relier FL Studio")
-                .font(.system(size: 28, weight: .bold))
+                .font(Swiss.title(35)).tracking(Swiss.titleTracking(35))
                 .morphIn(0)
 
             HStack(alignment: .top, spacing: 18) {
@@ -397,8 +397,8 @@ private struct PermissionPill: View {
             .foregroundStyle(color)
             .padding(.horizontal, 10)
             .padding(.vertical, 3)
-            .background(Capsule().fill(color.opacity(0.14)))
-            .overlay(Capsule().strokeBorder(color.opacity(0.28), lineWidth: 1))
+            .background(Rectangle().fill(color.opacity(0.14)))
+            .overlay(Rectangle().strokeBorder(color.opacity(0.28), lineWidth: 1))
     }
 }
 
@@ -470,17 +470,17 @@ struct AppIcon: View {
     private func drawing(scale s: CGFloat) -> some View {
         let brand = LinearGradient(colors: Appearance.brand, startPoint: .topLeading, endPoint: .bottomTrailing)
         return ZStack {
-            RoundedRectangle(cornerRadius: 18 * s, style: .continuous)
+            Rectangle()
                 .fill(brand)
                 .padding(9.5 * s)
-            RoundedRectangle(cornerRadius: 9 * s, style: .continuous)
+            Rectangle()
                 .fill(Color.white.opacity(0.35))
                 .frame(width: 30 * s, height: 30 * s)
                 .overlay(Image(systemName: "chevron.up")
                     .font(.system(size: 12 * s, weight: .bold))
                     .foregroundStyle(Color.white))
                 .offset(x: 12 * s, y: -12 * s)
-            RoundedRectangle(cornerRadius: 11 * s, style: .continuous)
+            Rectangle()
                 .fill(Color.white.opacity(0.94))
                 .frame(width: 36 * s, height: 36 * s)
                 .overlay(Image(systemName: "waveform")

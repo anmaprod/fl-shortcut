@@ -296,7 +296,7 @@ private struct HintView: View {
         .padding(.horizontal, 18)
         .padding(.vertical, 12)
         .frame(maxWidth: 380)
-        .glassSurface(RoundedRectangle(cornerRadius: 20, style: .continuous), alwaysLive: true)
+        .glassSurface(Rectangle(), alwaysLive: true)
         .padding(6)
     }
 }

@@ -94,7 +94,7 @@ struct MockPlate: View {
     }
 
     private var plate: some View {
-        let shape = RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+        let shape = Rectangle()
         return shape.fill(LinearGradient(colors: [Color.white.opacity(top), Color.white.opacity(bottom)],
                                   startPoint: .top, endPoint: .bottom))
             .overlay(shape.strokeBorder(Color.white.opacity(border), lineWidth: 1))

@@ -134,7 +134,7 @@ struct FLIconPicker: View {
     }
 
     @ViewBuilder private func cell(column: Int, row: Int) -> some View {
-        let shape = RoundedRectangle(cornerRadius: 5, style: .continuous)
+        let shape = Rectangle()
         if let icon = FLIcon(column: column, row: row), let found = FLIconGrid.cell(icon) {
             let isSelected = icon == selected
             Button { pick(icon) } label: {
@@ -185,7 +185,7 @@ struct FLIconBadge: View {
     let size: CGFloat
 
     var body: some View {
-        let shape = RoundedRectangle(cornerRadius: 5, style: .continuous)
+        let shape = Rectangle()
         Group {
             if let icon, FLIconGrid.cell(icon) != nil {
                 FLIconGlyph(icon: icon, size: size * 0.7)

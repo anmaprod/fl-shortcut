@@ -78,28 +78,32 @@ private struct MacroLibraryList: View {
             } else {
                 // Maquette validée le 30/10 (« pas du tout agréable à regarder ») : trois grandes cartes pour
                 // commencer une macro, puis tes macros en cartes sur deux colonnes (nom, interrupteur, touches).
+                // Style suisse (01/11) : les trois départs numérotés, puis « MES MACROS » en lignes séparées d'un trait.
                 ScrollView(.vertical) {
-                    VStack(alignment: .leading, spacing: 18) {
+                    VStack(alignment: .leading, spacing: 0) {
                         actionCards
                         MacroLibraryProblemLabel(library: library)
-                        HStack(spacing: 8) {
-                            Text("Mes macros").font(.system(size: 15, weight: .bold))
-                            Text(verbatim: "\(library.macros.count)").font(.system(size: 12)).foregroundStyle(.secondary)
+                            .padding(.top, 10)
+                        HStack(alignment: .firstTextBaseline, spacing: 10) {
+                            Text("Mes macros").swissLabel(Swiss.text)
+                            Text(verbatim: "\(library.macros.count)").swissLabel()
                             Spacer(minLength: 8)
                             smallButton(String(localized: "Importer"), symbol: "square.and.arrow.down") { importFile() }
                                 .help("Ajouter des macros reçues (.flsmacro) ; la boîte s'ouvre dans Documents › FL Shortcuts › Macros")
                             smallButton(String(localized: "Exporter"), symbol: "square.and.arrow.up") { exportAll() }
                                 .help("Toutes les macros, un fichier chacune, pour les partager (par défaut dans Documents › FL Shortcuts › Macros)")
                         }
-                        .padding(.top, 4)
-                        LazyVGrid(columns: [GridItem(.adaptive(minimum: 300), spacing: 12)], spacing: 12) {
+                        .padding(.top, 22)
+                        .padding(.bottom, 6)
+                        .swissRule()
+                        LazyVStack(spacing: 0) {
                             ForEach(library.macros, id: \.id) { doc in
                                 row(doc)
                             }
                         }
                     }
                     .padding(.horizontal, 26)
-                    .padding(.top, 10)
+                    .padding(.top, 0)
                     .padding(.bottom, 24)
                 }
             }
@@ -113,8 +117,7 @@ private struct MacroLibraryList: View {
 
     private var empty: some View {
         VStack(spacing: 12) {
-            SectionIcon(symbol: SidebarItem.macros.symbol, tint: SidebarItem.macros.tint, size: 52)
-            Text("Aucune macro").font(.title2.weight(.semibold))
+            Text("Aucune macro").swissTitle(34)
             // Plus de phrases d'explication (maquette du 28/10) : le résumé reste dans la bulle d'aide.
             // Le plus simple d'abord : enregistrer ce qu'on fait dans FL.
             Button {
@@ -123,7 +126,6 @@ private struct MacroLibraryList: View {
                 Label("Enregistrer une macro", systemImage: "record.circle").frame(minWidth: 240)
             }
             .primaryButton()
-            .tint(.red)
             .controlSize(.large)
             .help("Une nouvelle macro s'ouvre et FL passe devant : clique et tape ta suite (menus, flèches, raccourcis…), puis « Terminer ». Chaque geste devient un bloc.")
             HStack(spacing: 10) {
@@ -143,32 +145,35 @@ private struct MacroLibraryList: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
-    /// Les trois façons de commencer une macro, en grandes cartes (la première en rouge : la plus simple).
+    /// Les trois façons de commencer une macro (style suisse) : trois colonnes numérotées séparées d'un trait, la
+    /// première (la plus simple) au numéro rouge.
     private var actionCards: some View {
-        HStack(spacing: 12) {
-            MacroActionCard(title: String(localized: "Enregistrer une macro"), symbol: "record.circle", tint: .red,
-                            prominent: true) { Self.recordNewMacro(in: library) }
+        HStack(spacing: 0) {
+            MacroActionCard(number: "01", title: String(localized: "Enregistrer une macro"), symbol: "record.circle",
+                            tint: Swiss.red, prominent: true) { Self.recordNewMacro(in: library) }
                 .help("Une nouvelle macro s'ouvre et FL passe devant : clique et tape ta suite, puis « Terminer »")
-            MacroActionCard(title: String(localized: "Macro vide"), symbol: "plus", tint: .blue) { newMacro() }
-            MacroActionCard(title: String(localized: "Modèles"), symbol: "square.grid.2x2", tint: .purple) {
+            Rectangle().fill(Swiss.line).frame(width: 1)
+            MacroActionCard(number: "02", title: String(localized: "Macro vide"), symbol: "plus", tint: .blue) { newMacro() }
+            Rectangle().fill(Swiss.line).frame(width: 1)
+            MacroActionCard(number: "03", title: String(localized: "Modèles"), symbol: "square.grid.2x2", tint: .purple) {
                 showTemplates = true
             }
         }
+        .fixedSize(horizontal: false, vertical: true)
+        .swissRule()
     }
 
-    /// Petit bouton en capsule (« Importer », « Exporter »).
+    /// Petit bouton en texte (« IMPORTER », « EXPORTER ») : petites capitales grises, blanc plein au survol.
     private func smallButton(_ title: String, symbol: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {
-            Label(title, systemImage: symbol)
-                .font(.system(size: 12, weight: .medium))
-                .padding(.horizontal, 12)
-                .frame(height: 28)
-                .background(Capsule().fill(Color.white.opacity(0.08)))
-                .overlay(Capsule().strokeBorder(Color.white.opacity(0.12), lineWidth: 1))
-                .contentShape(Capsule())
+            Text(title)
+                .swissLabel(size: 10.5)
+                .padding(.horizontal, 6)
+                .frame(height: 22)
+                .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .menuHover(tint: .gray, cornerRadius: 14)
+        .menuHover(tint: Swiss.text, cornerRadius: 0)
     }
 
     private func row(_ doc: MacroDoc) -> some View {
@@ -265,8 +270,10 @@ private struct MacroLibraryList: View {
     }
 }
 
-/// Grande carte d'action de la page Macros : icône de couleur, nom en gras ; au survol, pleine de sa couleur.
+/// Départ d'une macro (style suisse) : son numéro en petites capitales (rouge pour le premier), puis son nom en
+/// gras ; au survol, blanc plein.
 private struct MacroActionCard: View {
+    let number: String
     let title: String
     let symbol: String
     let tint: Color
@@ -275,27 +282,20 @@ private struct MacroActionCard: View {
 
     var body: some View {
         Button(action: action) {
-            HStack(spacing: 14) {
-                SectionIcon(symbol: symbol, tint: tint, size: 40)
-                Text(title).font(.system(size: 15, weight: .bold)).lineLimit(2)   // carte étroite : sur deux lignes
+            VStack(alignment: .leading, spacing: 22) {
+                Text(verbatim: number).swissLabel(prominent ? Swiss.red : Swiss.gray).hoverTint(prominent ? Swiss.red : Swiss.gray)
+                Text(title).font(Swiss.font(20)).tracking(-0.4).lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
                 Spacer(minLength: 0)
             }
-            .padding(.horizontal, 16)
-            .frame(maxWidth: .infinity, minHeight: 76)
-            .background {
-                if prominent {
-                    let shape = RoundedRectangle(cornerRadius: 14, style: .continuous)
-                    shape.fill(LinearGradient(colors: [tint.opacity(0.22), tint.opacity(0.10)],
-                                              startPoint: .top, endPoint: .bottom))
-                        .overlay(shape.strokeBorder(tint.opacity(0.45), lineWidth: 1))
-                } else {
-                    MockPlate(cornerRadius: 14)
-                }
-            }
-            .contentShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+            .padding(.horizontal, 14)
+            .padding(.top, 16)
+            .padding(.bottom, 18)
+            .frame(maxWidth: .infinity, minHeight: 96, alignment: .topLeading)
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .menuHover(tint: tint, cornerRadius: 14)
+        .menuHover(tint: Swiss.text, cornerRadius: 0)
         .accessibilityLabel(title)
     }
 }
@@ -323,55 +323,41 @@ private struct MacroLibraryCard: View {
     private var alerts: [(String, String, Color, String)] { badges.filter { $0.0 != String(localized: "Désactivée") } }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack(spacing: 12) {
-                SectionIcon(symbol: SidebarItem.macros.symbol, tint: SidebarItem.macros.tint, size: 34)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(doc.name.displaySafe(max: 60))
-                        .font(.system(size: 14, weight: .bold))
-                        .lineLimit(1)
-                    Text(count).font(.system(size: 11.5)).foregroundStyle(.secondary)
-                }
-                .layoutPriority(-1)                      // carte étroite : le nom se raccourcit, pas l'interrupteur
-                Spacer(minLength: 8)
-                if let onToggle {
-                    Toggle("", isOn: Binding(get: { !disabled }, set: { _ in onToggle() }))
-                        .toggleStyle(.switch)
-                        .labelsHidden()
-                        .controlSize(.small)
-                        .help(disabled ? String(localized: "Activer le raccourci") : String(localized: "Désactiver le raccourci"))
-                }
+        // Style suisse (01/11) : une ligne par macro (nom en gras, alertes en petites capitales de leur couleur,
+        // touches, interrupteur carré), un trait fin dessous ; au survol, blanc plein.
+        HStack(spacing: 18) {
+            Text(doc.name.displaySafe(max: 60))
+                .font(.system(size: 15, weight: .bold))
+                .lineLimit(1)
+                .layoutPriority(-1)                      // fenêtre étroite : le nom se raccourcit, pas l'interrupteur
+                .help(count)
+            ForEach(alerts.indices, id: \.self) { i in
+                Text(alerts[i].0)
+                    .swissLabel(alerts[i].2, size: 10)
+                    .hoverTint(alerts[i].2)
+                    .fixedSize()
+                    .help(alerts[i].3)
             }
-            // Touches à gauche, badges à droite sur la même ligne : toutes les cartes ont la même hauteur.
-            HStack(spacing: 6) {
-                if let trigger {
-                    KeyLabel(combo: trigger, placeholder: String(localized: "Sans raccourci"))
-                } else {
-                    Text("Choisir un raccourci…")
-                        .font(.system(size: 12, weight: .medium))
-                        .hoverTint(Appearance.link)
-                        .lineLimit(1)
-                }
-                Spacer(minLength: 8)
-                ForEach(alerts.indices, id: \.self) { i in
-                    Label(alerts[i].0, systemImage: alerts[i].1)
-                        .font(.system(size: 10.5, weight: .semibold))
-                        .hoverTint(alerts[i].2)
-                        .padding(.horizontal, 7)
-                        .padding(.vertical, 2)
-                        .background(Capsule().fill(alerts[i].2.opacity(0.15)))
-                        .fixedSize()
-                        .help(alerts[i].3)
-                }
+            Spacer(minLength: 8)
+            if let trigger {
+                KeyLabel(combo: trigger, placeholder: String(localized: "Sans raccourci"))
+            } else {
+                Text("Choisir un raccourci…")
+                    .font(.system(size: 12, weight: .medium))
+                    .underline()
+                    .lineLimit(1)
             }
-            .frame(minHeight: 24)
+            if let onToggle {
+                SwissSwitch(isOn: Binding(get: { !disabled }, set: { _ in onToggle() }),
+                            label: String(localized: "Raccourci de la macro"))
+                    .help(disabled ? String(localized: "Activer le raccourci") : String(localized: "Désactiver le raccourci"))
+            }
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 14)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(MockPlate(cornerRadius: 14))
-        .contentShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-        .menuHover(tint: SidebarItem.macros.tint, cornerRadius: 14)
+        .padding(.horizontal, 4)
+        .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+        .swissRule(Swiss.faint)
+        .contentShape(Rectangle())
+        .menuHover(tint: Swiss.text, cornerRadius: 0)
         .onTapGesture(perform: onOpen)                  // un seul clic pour rentrer dans la macro
         .contextMenu {
             Button("Modifier…", action: onOpen)
@@ -407,15 +393,15 @@ struct MacroTemplatesSheet: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
-            HStack(spacing: 12) {
-                SectionIcon(symbol: "square.grid.2x2", tint: .purple, size: 34)
-                Text("Modèles de macros").font(.title3.weight(.semibold))
-            }
+            Text("Modèles de macros")
+                .swissTitle(30)
+                .padding(.bottom, 10)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .swissRule()
             ScrollView {
-                VStack(spacing: 8) {
+                VStack(spacing: 0) {
                     ForEach(templates) { t in
                         HStack(alignment: .top, spacing: 12) {
-                            SectionIcon(symbol: t.symbol, tint: .purple, size: 28)
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(t.title).fontWeight(.semibold)
                                 Text(t.summary)
@@ -430,9 +416,10 @@ struct MacroTemplatesSheet: View {
                             }
                             .secondaryButton()
                         }
-                        .padding(10)
-                        .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(Color.primary.opacity(0.04)))
-                        .menuHover(tint: .purple, cornerRadius: 12)
+                        .padding(.vertical, 12)
+                        .padding(.horizontal, 4)
+                        .swissRule(Swiss.faint)
+                        .menuHover(tint: Swiss.text, cornerRadius: 0)
                     }
                 }
                 .padding(6)                              // place pour le survol, qui grandit un peu

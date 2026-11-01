@@ -1641,6 +1641,7 @@
 "Raccourci ajouté" = "Shortcut added";
 "Raccourci d'origine de FL Studio" = "Original FL Studio shortcut";
 "Raccourci de FL Studio" = "FL Studio shortcut";
+"Raccourci de la macro" = "Macro shortcut";
 "Raccourci déclencheur" = "Trigger shortcut";
 "Raccourci gardé, mais pas encore actif" = "Shortcut saved, but not active yet";
 "Raccourci modifié" = "Shortcut changed";
@@ -2123,6 +2124,7 @@
 "action inconnue (désactivée)" = "unknown action (disabled)";
 "action indisponible dans ce FL (mets FL à jour)" = "action not available in this FL version (update FL)";
 "action « %@ » non faite (touche interdite)" = "action “%@” not done (forbidden key)";
+"activé" = "on";
 "apparaissent ici." = "appear here.";
 "appareil audio" = "audio device";
 "après le clic précédent" = "after the previous click";
@@ -2202,7 +2204,7 @@
 "donne un nom ou une couleur." = "give a name or a color.";
 "données trop longues" = "data too long";
 "dégradé #%@ → #%@" = "gradient #%@ → #%@";
-"désactivé" = "disabled";
+"désactivé" = "off";
 "en cours" = "running";
 "endroit où attraper introuvable (fenêtre de FL pas ouverte, ou changée de taille : montre de nouveau le glisser)" = "spot to grab not found (FL window not open, or resized: show the drag again)";
 "endroit où lâcher introuvable (fenêtre de FL pas ouverte, ou changée de taille : montre de nouveau le glisser)" = "spot to drop not found (FL window not open, or resized: show the drag again)";

@@ -1523,7 +1523,7 @@ struct OrganizerView: View {
     /// Le titre seul (maquette validée le 28/10 : ni grande icône, ni phrase dessous).
     private var header: some View {
         HStack(spacing: 10) {
-            Text(controller.title).font(.system(size: 20, weight: .bold))
+            Text(controller.title).font(Swiss.title(25)).tracking(Swiss.titleTracking(25))
             Spacer()
             if isPreview {
                 // Maquette du 28/10 : « Rangement automatique » à droite du titre ; les choix et le diagnostic sont
@@ -2020,7 +2020,7 @@ struct OrganizerView: View {
                                 // Colonne vidée pendant qu'on glisse : la place où la famille tombera.
                                 if let drag = familyDrag, slot?.column == number,
                                    column.allSatisfy({ $0 == drag.family }) {
-                                    RoundedRectangle(cornerRadius: 14, style: .continuous)
+                                    Rectangle()
                                         .strokeBorder(swiftColor(controller.style(of: drag.family).color),
                                                       style: StrokeStyle(lineWidth: 2, dash: [6, 5]))
                                         .frame(height: 64)
@@ -2234,7 +2234,7 @@ private struct OrganizerCard: View {
     @Environment(\.colorSchemeContrast) private var contrast
 
     var body: some View {
-        let shape = RoundedRectangle(cornerRadius: 14, style: .continuous)
+        let shape = Rectangle()
         if GlassPlate.on(glass: glassEnabled, reduceTransparency: reduceTransparency,
                          increasedContrast: contrast == .increased) {
             shape.fill(GlassPlate.fill(scheme))
@@ -2420,7 +2420,7 @@ private struct FamilySection: View {
         // Au milieu de l'espace entre deux familles (14 points).
         .overlay(alignment: drop?.below == true ? .bottom : .top) {
             if let drop {
-                Capsule().fill(drop.tint).frame(height: 4).padding(.horizontal, 6).offset(y: drop.below ? 9 : -9)
+                Rectangle().fill(drop.tint).frame(height: 4).padding(.horizontal, 6).offset(y: drop.below ? 9 : -9)
             }
         }
         .background(GeometryReader { geo in
@@ -2524,7 +2524,7 @@ private struct FamilyMemberRow: View {
                 }
                 .padding(.horizontal, 8)
                 .frame(maxWidth: .infinity, minHeight: 26)
-                .background(RoundedRectangle(cornerRadius: 7, style: .continuous).fill(Color.primary.opacity(0.06)))
+                .background(Rectangle().fill(Color.primary.opacity(0.06)))
                 .contentShape(Rectangle())
             }
             .menuStyle(.button)
@@ -2577,7 +2577,7 @@ struct FamilyDrag {
 
     /// Fond de la copie qui suit la souris : le noir de la fenêtre, un bord de la couleur de la famille, une ombre.
     static func plate(_ tint: Color) -> some View {
-        let shape = RoundedRectangle(cornerRadius: 14, style: .continuous)
+        let shape = Rectangle()
         return shape.fill(Appearance.windowColor)
             .overlay(shape.strokeBorder(tint.opacity(0.75), lineWidth: 1.5))
             .shadow(color: Color.black.opacity(0.55), radius: 18, y: 10)
@@ -2629,8 +2629,8 @@ struct MixerSlotBox: View {
             .font(.system(size: 12, weight: chosen ? .semibold : .regular).monospacedDigit())
             .foregroundStyle(chosen ? Color.primary : Color.secondary)
             .frame(width: Self.width, height: 22)
-            .background(RoundedRectangle(cornerRadius: 6, style: .continuous).fill(Color.black.opacity(0.28)))
-            .overlay(RoundedRectangle(cornerRadius: 6, style: .continuous)
+            .background(Rectangle().fill(Color.black.opacity(0.28)))
+            .overlay(Rectangle()
                 .strokeBorder(chosen ? tint : Color.primary.opacity(hovered ? 0.35 : 0.12), lineWidth: 1))
             .contentShape(Rectangle())
             .onHover { inside in

@@ -163,7 +163,7 @@ private struct AccountProfileCard: View {
             .accessibilityLabel("Changer ta photo")
             VStack(alignment: .leading, spacing: 3) {
                 Text(verbatim: "@" + session.username.displaySafe(max: 24))
-                    .font(.system(size: 20, weight: .bold))
+                    .font(Swiss.title(25)).tracking(Swiss.titleTracking(25))
                     .lineLimit(1)
                 Text(verbatim: session.email.displaySafe(max: 60))
                     .font(.system(size: 13))
@@ -252,8 +252,8 @@ private struct AccountBackupStatus: View {
         .padding(.horizontal, 14)
         .padding(.vertical, 12)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(RoundedRectangle(cornerRadius: 11, style: .continuous).fill(Color.black.opacity(0.22)))
-        .overlay(RoundedRectangle(cornerRadius: 11, style: .continuous).strokeBorder(Color.white.opacity(0.06)))
+        .background(Rectangle().fill(Color.black.opacity(0.22)))
+        .overlay(Rectangle().strokeBorder(Color.white.opacity(0.06)))
         .accessibilityElement(children: .combine)
     }
 
@@ -314,7 +314,7 @@ private struct AccountConflictCard: View {
         .padding(.vertical, 18)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background {
-            let shape = RoundedRectangle(cornerRadius: 14, style: .continuous)
+            let shape = Rectangle()
             shape.fill(LinearGradient(colors: [Color.orange.opacity(0.16), Color.orange.opacity(0.06)],
                                       startPoint: .top, endPoint: .bottom))
                 .overlay(shape.strokeBorder(Color.orange.opacity(0.45), lineWidth: 1))
@@ -335,7 +335,7 @@ private struct AccountConflictCard: View {
         }
         .padding(12)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(RoundedRectangle(cornerRadius: 11, style: .continuous).fill(Color.black.opacity(0.25)))
+        .background(Rectangle().fill(Color.black.opacity(0.25)))
     }
 }
 

@@ -193,7 +193,7 @@ struct MenuBarField: View {
                 }
             }
             .padding(4)
-            .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(Color.primary.opacity(0.04)))
+            .background(Rectangle().fill(Color.primary.opacity(0.04)))
         }
     }
 }

@@ -144,7 +144,7 @@ private struct MacroStepsPane: View {
             } else {
                 VStack(spacing: 10) {
                     SectionIcon(symbol: "wand.and.stars", tint: .purple, size: 44)
-                    Text("Aucune macro ouverte").font(.title3.weight(.semibold))
+                    Text("Aucune macro ouverte").font(Swiss.title(22)).tracking(Swiss.titleTracking(22))
                     Text("Crée une macro, ou ouvre-en une depuis la fenêtre Raccourcis › Macros.")
                         .font(.system(size: 12))
                         .foregroundStyle(.secondary)
@@ -213,7 +213,7 @@ private struct MacroStepsPane: View {
                         .font(.system(size: 40))
                         .foregroundStyle(.red)
                         .accessibilityHidden(true)
-                    Text("Enregistre ce que tu fais dans FL").font(.title3.weight(.semibold))
+                    Text("Enregistre ce que tu fais dans FL").font(Swiss.title(22)).tracking(Swiss.titleTracking(22))
                     Text(String(localized: "Clique, utilise les flèches, tes raccourcis… : chaque geste devient un bloc, que tu peux ")
                          + String(localized: "ensuite modifier, ranger ou supprimer."))
                         .font(.system(size: 12))
@@ -270,7 +270,7 @@ private struct MacroStepsPane: View {
             .foregroundStyle(.secondary)
             .multilineTextAlignment(.center)
             .frame(maxWidth: .infinity, minHeight: 52)
-            .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous)
+            .overlay(Rectangle()
                 .strokeBorder(Color.white.opacity(0.25), style: StrokeStyle(lineWidth: 1, dash: [5, 4])))
             .contentShape(Rectangle())
             .onDrop(of: [.plainText], isTargeted: nil) { providers in
@@ -312,8 +312,8 @@ private struct RecordHero: View {
             }
             .padding(.horizontal, 12)
             .padding(.vertical, 8)
-            .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(Color.red.opacity(0.09)))
-            .overlay(RoundedRectangle(cornerRadius: 10, style: .continuous).strokeBorder(Color.red.opacity(0.3)))
+            .background(Rectangle().fill(Color.red.opacity(0.09)))
+            .overlay(Rectangle().strokeBorder(Color.red.opacity(0.3)))
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
@@ -420,8 +420,8 @@ private struct MacroStepRowView: View, Equatable {
                         .lineLimit(1)
                         .padding(.horizontal, 9)
                         .padding(.vertical, 3)
-                        .background(RoundedRectangle(cornerRadius: 7, style: .continuous).fill(Color.white.opacity(0.12)))
-                        .overlay(RoundedRectangle(cornerRadius: 7, style: .continuous)
+                        .background(Rectangle().fill(Color.white.opacity(0.12)))
+                        .overlay(Rectangle()
                             .strokeBorder(Color.white.opacity(0.2), lineWidth: 1))
                 }
             }
@@ -457,9 +457,9 @@ private struct MacroStepRowView: View, Equatable {
 
     @ViewBuilder private var stateBackground: some View {
         if current {
-            RoundedRectangle(cornerRadius: 6, style: .continuous).fill(Color.blue.opacity(0.13))
+            Rectangle().fill(Color.blue.opacity(0.13))
         } else if case .failed? = status {
-            RoundedRectangle(cornerRadius: 6, style: .continuous).fill(Color.red.opacity(0.10))
+            Rectangle().fill(Color.red.opacity(0.10))
         }
     }
 
@@ -498,7 +498,7 @@ private struct BadgeCapsule: View {
             .foregroundStyle(badge.tint)
             .padding(.horizontal, 6)
             .padding(.vertical, 1)
-            .background(Capsule().fill(badge.tint.opacity(0.13)))
+            .background(Rectangle().fill(badge.tint.opacity(0.13)))
             .lineLimit(1)
             .fixedSize()                                 // jamais replié lettre par lettre
             .help(badge.help)
@@ -529,7 +529,7 @@ private struct MacroHeader: View {
                 CreatorBackButton(action: onBack)
                 TextField("Nom de la macro", text: nameBinding)
                     .textFieldStyle(.plain)
-                    .font(.system(size: 22, weight: .bold))
+                    .font(Swiss.title(28)).tracking(Swiss.titleTracking(28))
                     .lineLimit(1)
                     .accessibilityLabel("Nom de la macro")
                 CaptureField(id: "macro-trigger-\(model.draft?.id.uuidString ?? "")", role: .trigger, combo: triggerBinding,
@@ -668,7 +668,7 @@ private struct MacroResultBanner: View {
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 9)
-        .glassSurface(RoundedRectangle(cornerRadius: 16, style: .continuous), tint: tint)
+        .glassSurface(Rectangle(), tint: tint)
         .accessibilityElement(children: .contain)
     }
 }

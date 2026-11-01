@@ -872,7 +872,7 @@ struct GlassPlateBackground: View {
     @Environment(\.colorSchemeContrast) private var contrast
 
     var body: some View {
-        let shape = RoundedRectangle(cornerRadius: Swiss.flat ? 0 : cornerRadius, style: .continuous)
+        let shape = Rectangle()
         if Swiss.flat {
             // Style suisse : un cadre fin, sans voile.
             shape.fill(Swiss.background).overlay(shape.strokeBorder(Swiss.line, lineWidth: 1))
@@ -988,5 +988,31 @@ private struct CardRowShape: Shape {
         }
         p.closeSubpath()
         return p
+    }
+}
+
+/// Interrupteur du style suisse (01/11) : un rectangle bordé de blanc ; allumé, blanc plein et carré noir à droite ;
+/// éteint, noir et carré blanc à gauche.
+struct SwissSwitch: View {
+    @Binding var isOn: Bool
+    var label: String
+
+    var body: some View {
+        Button { isOn.toggle() } label: {
+            HStack(spacing: 0) {
+                if isOn { Spacer(minLength: 0) }
+                Rectangle().fill(isOn ? Swiss.background : Swiss.text).frame(width: 14, height: 14)
+                if !isOn { Spacer(minLength: 0) }
+            }
+            .padding(2)
+            .frame(width: 40, height: 20)
+            .background(Rectangle().fill(isOn ? Swiss.text : Swiss.background))
+            .overlay(Rectangle().strokeBorder(Swiss.text, lineWidth: 1))
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(label)
+        .accessibilityValue(isOn ? String(localized: "activé") : String(localized: "désactivé"))
+        .accessibilityAddTraits(.isToggle)
     }
 }

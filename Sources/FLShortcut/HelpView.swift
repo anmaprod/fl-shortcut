@@ -122,8 +122,8 @@ struct HelpPage: View {
         }
         .padding(.horizontal, 16)
         .frame(height: 42)
-        .background(Capsule().fill(Color.white.opacity(0.08)))
-        .overlay(Capsule().strokeBorder(Color.white.opacity(0.10), lineWidth: 1))
+        .background(Rectangle().fill(Color.white.opacity(0.08)))
+        .overlay(Rectangle().strokeBorder(Color.white.opacity(0.10), lineWidth: 1))
     }
 
     /// Les questions, dans une carte ; un trait fin entre deux.
@@ -180,7 +180,7 @@ struct HelpPage: View {
                 .padding(14)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .background(MockPlate(cornerRadius: 14))
-                .contentShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
             .menuHover(tint: .green, cornerRadius: 14)
@@ -212,7 +212,7 @@ struct HelpPage: View {
                         .foregroundStyle(.secondary)
                 }
                 .padding(8)
-                .background(RoundedRectangle(cornerRadius: 6, style: .continuous).fill(Color.orange.opacity(0.08)))
+                .background(Rectangle().fill(Color.orange.opacity(0.08)))
             }
             Picker("Genre", selection: $message.kind) {
                 ForEach(SupportKind.allCases) { kind in Text(kind.label).tag(kind) }
@@ -234,7 +234,7 @@ struct HelpPage: View {
                                 .allowsHitTesting(false)
                         }
                     }
-                    .overlay(RoundedRectangle(cornerRadius: 6).stroke(.quaternary))
+                    .overlay(Rectangle().stroke(.quaternary))
                 Text("\(message.text.count)/\(SupportRules.messageRange.upperBound)")
                     .font(.system(size: 10).monospacedDigit())
                     .foregroundStyle(.tertiary)
@@ -263,7 +263,7 @@ struct HelpPage: View {
                             .frame(maxWidth: .infinity, alignment: .leading)
                     }
                     .frame(maxHeight: 200)
-                    .background(RoundedRectangle(cornerRadius: 6).fill(Color.primary.opacity(0.05)))
+                    .background(Rectangle().fill(Color.primary.opacity(0.05)))
                 }
                 Label("Jamais envoyé : tes touches, tes noms de pistes, tes fichiers.", systemImage: "lock")
                     .font(.system(size: 11))

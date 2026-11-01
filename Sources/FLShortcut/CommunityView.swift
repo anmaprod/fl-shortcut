@@ -155,7 +155,7 @@ struct CommunityMessage: View {
     var body: some View {
         VStack(spacing: 10) {
             SectionIcon(symbol: symbol, tint: tint, size: 44)
-            Text(title).font(.title3.weight(.semibold)).multilineTextAlignment(.center)
+            Text(title).font(Swiss.title(22)).tracking(Swiss.titleTracking(22)).multilineTextAlignment(.center)
             Text(text)
                 .font(.system(size: 12))
                 .foregroundStyle(.secondary)
@@ -356,7 +356,7 @@ private struct CommunityAuthorHeader: View {
         HStack(spacing: 16) {
             AvatarView(photo: photo, username: author.username, size: 64)
             VStack(alignment: .leading, spacing: 3) {
-                Text("@\(author.username.displaySafe(max: 24))").font(.system(size: 19, weight: .bold)).lineLimit(1)
+                Text("@\(author.username.displaySafe(max: 24))").font(Swiss.title(19)).tracking(Swiss.titleTracking(19)).lineLimit(1)
                 Text(community.busy ? String(localized: "Chargement…") : count == 1 ? String(localized: "1 partage")
                      : count >= 50 ? String(localized: "50 partages les plus récents")
                      : String(localized: "\(count) partages"))
@@ -439,16 +439,16 @@ private struct CommunityFilters: View {
             .font(.system(size: 13))
             .padding(.horizontal, 14)
             .frame(height: 34)
-            .background(Capsule().fill(Color.white.opacity(0.08)))
-            .overlay(Capsule().strokeBorder(Color.white.opacity(0.10), lineWidth: 1))
+            .background(Rectangle().fill(Color.white.opacity(0.08)))
+            .overlay(Rectangle().strokeBorder(Color.white.opacity(0.10), lineWidth: 1))
             HStack(spacing: 2) {
                 ForEach(Filter.allCases, id: \.self) { filter in
                     pill(filter)
                 }
             }
             .padding(3)
-            .background(Capsule().fill(Color.white.opacity(0.06)))
-            .overlay(Capsule().strokeBorder(Color.white.opacity(0.10), lineWidth: 1))
+            .background(Rectangle().fill(Color.white.opacity(0.06)))
+            .overlay(Rectangle().strokeBorder(Color.white.opacity(0.10), lineWidth: 1))
             .fixedSize()
             Button {
                 Task { await community.reload() }
@@ -481,8 +481,8 @@ private struct CommunityFilters: View {
                 .font(.system(size: 12.5, weight: on ? .semibold : .medium))
                 .padding(.horizontal, 14)
                 .frame(height: 28)
-                .background(Capsule().fill(on ? Color.white.opacity(0.16) : Color.clear))
-                .contentShape(Capsule())
+                .background(Rectangle().fill(on ? Color.white.opacity(0.16) : Color.clear))
+                .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .accessibilityAddTraits(on ? [.isButton, .isSelected] : .isButton)
@@ -550,8 +550,8 @@ private struct CommunityShareCard: View {
                     .fixedSize()
                     .padding(.horizontal, 9)
                     .frame(height: 22)
-                    .background(Capsule().fill(share.kind.tint.opacity(0.18)))
-                    .overlay(Capsule().strokeBorder(share.kind.tint.opacity(0.35), lineWidth: 1))
+                    .background(Rectangle().fill(share.kind.tint.opacity(0.18)))
+                    .overlay(Rectangle().strokeBorder(share.kind.tint.opacity(0.35), lineWidth: 1))
             }
             Text(share.title.displaySafe(max: 80))
                 .font(.system(size: 15, weight: .bold))
@@ -577,7 +577,7 @@ private struct CommunityShareCard: View {
         .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(MockPlate(cornerRadius: 14))
-        .contentShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .contentShape(Rectangle())
         .onTapGesture(perform: open)
         .contextMenu {
             if let showAuthor {
@@ -628,7 +628,7 @@ private struct CommunityShareDetail: View {
             HStack(alignment: .top, spacing: 14) {
                 SectionIcon(symbol: share.kind.symbol, tint: share.kind.tint, size: 44)
                 VStack(alignment: .leading, spacing: 3) {
-                    Text(share.title.displaySafe(max: 80)).font(.title3.weight(.semibold))
+                    Text(share.title.displaySafe(max: 80)).font(Swiss.title(22)).tracking(Swiss.titleTracking(22))
                         .fixedSize(horizontal: false, vertical: true)
                     Text(CommunityText.byline(share)).font(.system(size: 12)).foregroundStyle(.secondary)
                     if community.author?.id != share.authorID {
@@ -726,7 +726,7 @@ private struct CommunityShareDetail: View {
         }
         .padding(12)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(Color.primary.opacity(0.05)))
+        .background(Rectangle().fill(Color.primary.opacity(0.05)))
     }
 
     /// Ce qu'il faut savoir avant de s'en servir.
@@ -844,7 +844,7 @@ struct CommunitySignIn: View {
         AuthCard {
             VStack(spacing: 12) {
                 AuthBadge(symbol: "person", colors: AuthLook.teal)
-                Text("Ton compte FL Shortcuts").font(.system(size: 20, weight: .bold)).multilineTextAlignment(.center)
+                Text("Ton compte FL Shortcuts").font(Swiss.title(25)).tracking(Swiss.titleTracking(25)).multilineTextAlignment(.center)
                 // Les mêmes dans les deux onglets : le haut de la carte ne bouge pas quand on change (vidéo du 30/10).
                 HStack(spacing: 6) {
                     AuthPill(symbol: "cloud", text: String(localized: "Sauvegarde"), tint: .green)
@@ -899,7 +899,7 @@ struct CommunitySignIn: View {
             AuthBadge(symbol: "envelope", colors: AuthLook.sky)
             VStack(spacing: 6) {
                 Text(recovery ? String(localized: "Nouveau mot de passe") : String(localized: "Vérifie tes mails"))
-                    .font(.system(size: 20, weight: .bold))
+                    .font(Swiss.title(25)).tracking(Swiss.titleTracking(25))
                 Text("Code envoyé à \(Text(pending.email.displaySafe(max: 60)).fontWeight(.semibold))")
                     .font(.system(size: 13))
                     .foregroundStyle(.secondary)
@@ -1000,7 +1000,7 @@ private struct CommunityPublishSheet: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             VStack(alignment: .leading, spacing: 3) {
-                Text("Partager avec la Communauté").font(.title3.weight(.semibold))
+                Text("Partager avec la Communauté").font(Swiss.title(22)).tracking(Swiss.titleTracking(22))
                 Text("Les autres pourront lire ton explication, voir chaque étape, puis l'ajouter chez eux.")
                     .font(.system(size: 12))
                     .foregroundStyle(.secondary)
@@ -1054,7 +1054,7 @@ private struct CommunityPublishSheet: View {
                                 .allowsHitTesting(false)
                         }
                     }
-                    .overlay(RoundedRectangle(cornerRadius: 6).stroke(.quaternary))
+                    .overlay(Rectangle().stroke(.quaternary))
             }
             VStack(alignment: .leading, spacing: 4) {
                 Label(kind == .macro
@@ -1180,7 +1180,7 @@ private struct CommunityReportSheet: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             VStack(alignment: .leading, spacing: 3) {
-                Text("Signaler « \(share.title.displaySafe(max: 40)) »").font(.title3.weight(.semibold))
+                Text("Signaler « \(share.title.displaySafe(max: 40)) »").font(Swiss.title(22)).tracking(Swiss.titleTracking(22))
                 Text("Les administrateurs le relisent et le retirent s'il le faut. L'auteur ne sait pas qui l'a signalé.")
                     .font(.system(size: 12))
                     .foregroundStyle(.secondary)

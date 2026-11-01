@@ -251,7 +251,7 @@ struct UninstallView: View {
                 .frame(width: 72, height: 72)
                 .accessibilityHidden(true)
             Text("Désinstaller FL Shortcuts ?")
-                .font(.system(size: 18, weight: .bold))
+                .font(Swiss.title(18)).tracking(Swiss.titleTracking(18))
                 .padding(.top, 12)
             Text("L'app et tous ses réglages seront supprimés de ce Mac.")
                 .font(.system(size: 12))
@@ -341,8 +341,8 @@ struct UninstallView: View {
         .padding(.horizontal, 12)
         .padding(.vertical, 10)
         .background(
-            RoundedRectangle(cornerRadius: 14, style: .continuous).fill(Color.orange.opacity(0.10))
-                .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).strokeBorder(Color.orange.opacity(0.35), lineWidth: 1))
+            Rectangle().fill(Color.orange.opacity(0.10))
+                .overlay(Rectangle().strokeBorder(Color.orange.opacity(0.35), lineWidth: 1))
         )
     }
 
@@ -370,7 +370,7 @@ struct UninstallView: View {
             if report.remaining.isEmpty {
                 SuccessMark()
                 Text("FL Shortcuts est désinstallé")
-                    .font(.system(size: 18, weight: .bold))
+                    .font(Swiss.title(18)).tracking(Swiss.titleTracking(18))
                     .padding(.top, 14)
                 Text(flow.demo ? String(localized: "Plus rien ne reste sur ce Mac.")
                      : String(localized: "Plus rien ne reste sur ce Mac. L'app se ferme…"))
@@ -380,7 +380,7 @@ struct UninstallView: View {
             } else {
                 SectionIcon(symbol: "exclamationmark.triangle", tint: .orange, size: 68)
                 Text("Encore une étape")
-                    .font(.system(size: 18, weight: .bold))
+                    .font(Swiss.title(18)).tracking(Swiss.titleTracking(18))
                     .padding(.top, 14)
                 Text("Glisse FL Shortcuts dans la Corbeille.")
                     .font(.system(size: 12))

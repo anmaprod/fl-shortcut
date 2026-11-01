@@ -309,7 +309,7 @@ private struct SwitchPreview: View {
             AppIcon().frame(width: 20, height: 20)
             Text("FL Shortcuts").font(.system(size: 12))
             Spacer(minLength: 8)
-            Capsule()
+            Rectangle()
                 .fill(Swiss.red)
                 .frame(width: 30, height: 17)
                 .overlay(Circle().fill(Color.white).padding(2).shadow(color: .black.opacity(0.15), radius: 0.5, y: 0.5),
@@ -317,8 +317,8 @@ private struct SwitchPreview: View {
         }
         .padding(.horizontal, 10)
         .padding(.vertical, 6)
-        .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(Color.primary.opacity(0.05)))
-        .overlay(RoundedRectangle(cornerRadius: 10, style: .continuous)
+        .background(Rectangle().fill(Color.primary.opacity(0.05)))
+        .overlay(Rectangle()
             .strokeBorder(Color(nsColor: .separatorColor), lineWidth: 0.5))
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("Exemple : FL Shortcuts, interrupteur activé")

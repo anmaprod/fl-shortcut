@@ -156,7 +156,7 @@ private struct StyledMenuRow: View {
     @State private var hovering = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
-    private var shape: RoundedRectangle { RoundedRectangle(cornerRadius: 10, style: .continuous) }
+    private var shape: Rectangle { Rectangle() }
 
     var body: some View {
         Button(action: action) {

@@ -1641,6 +1641,7 @@
 "Raccourci ajouté" = "Raccourci ajouté";
 "Raccourci d'origine de FL Studio" = "Raccourci d'origine de FL Studio";
 "Raccourci de FL Studio" = "Raccourci de FL Studio";
+"Raccourci de la macro" = "Raccourci de la macro";
 "Raccourci déclencheur" = "Raccourci déclencheur";
 "Raccourci gardé, mais pas encore actif" = "Raccourci gardé, mais pas encore actif";
 "Raccourci modifié" = "Raccourci modifié";
@@ -2123,6 +2124,7 @@
 "action inconnue (désactivée)" = "action inconnue (désactivée)";
 "action indisponible dans ce FL (mets FL à jour)" = "action indisponible dans ce FL (mets FL à jour)";
 "action « %@ » non faite (touche interdite)" = "action « %@ » non faite (touche interdite)";
+"activé" = "activé";
 "apparaissent ici." = "apparaissent ici.";
 "appareil audio" = "appareil audio";
 "après le clic précédent" = "après le clic précédent";

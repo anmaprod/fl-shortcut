@@ -1606,10 +1606,10 @@ struct NameColorField: View {
     }
 
     static func swatch(_ c: RGBColor, size: CGFloat, selected: Bool = false) -> some View {
-        RoundedRectangle(cornerRadius: 5, style: .continuous)
+        Rectangle()
             .fill(Color(red: Double(c.r) / 255, green: Double(c.g) / 255, blue: Double(c.b) / 255))
             .frame(width: size, height: size)
-            .overlay(RoundedRectangle(cornerRadius: 5, style: .continuous)
+            .overlay(Rectangle()
                 .strokeBorder(selected ? Swiss.red : Color.primary.opacity(0.15), lineWidth: selected ? 2 : 1))
     }
 }

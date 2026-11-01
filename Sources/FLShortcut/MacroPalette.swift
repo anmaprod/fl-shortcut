@@ -133,9 +133,9 @@ private struct PaletteDragPreview: View {
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 9)
-        .background(RoundedRectangle(cornerRadius: 14, style: .continuous)
+        .background(Rectangle()
             .fill(Color(nsColor: .windowBackgroundColor).opacity(0.97)))
-        .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).strokeBorder(Color.primary.opacity(0.12)))
+        .overlay(Rectangle().strokeBorder(Color.primary.opacity(0.12)))
         .shadow(color: .black.opacity(0.28), radius: 16, y: 9)
         .scaleEffect(1.06)
         .rotationEffect(.degrees(Motion.reduce ? 0 : -2))

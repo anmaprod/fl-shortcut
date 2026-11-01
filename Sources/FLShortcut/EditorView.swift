@@ -701,7 +701,7 @@ struct EditorView: View {
         .background(Swiss.background)
         .swissRule()
         // Un clic dans la capsule, à côté du texte, donne aussi la main à la recherche.
-        .contentShape(Capsule())
+        .contentShape(Rectangle())
         .onTapGesture { searchFocusSerial += 1 }
     }
 
@@ -1063,7 +1063,7 @@ private struct NoticeStack: View {
                         .font(.system(size: 12))
                         .padding(.horizontal, 14)
                         .padding(.vertical, 10)
-                        .glassSurface(RoundedRectangle(cornerRadius: 18, style: .continuous),
+                        .glassSurface(Rectangle(),
                                       tint: item.tint == Color.secondary ? nil : item.tint)
                     }
                 }
@@ -1109,7 +1109,7 @@ private struct StatusBar: View {
             .font(.system(size: 12))
             .padding(.horizontal, 14)
             .frame(height: 34)
-            .glassSurface(Capsule())
+            .glassSurface(Rectangle())
             .accessibilityElement(children: .contain)
             Spacer(minLength: 0)
         }
@@ -1351,7 +1351,7 @@ private struct EmptyState: View {
 
     private var legacy: some View {
         VStack(spacing: 6) {
-            Text(title).font(.title3).foregroundStyle(.secondary)
+            Text(title).font(Swiss.title(22)).tracking(Swiss.titleTracking(22)).foregroundStyle(.secondary)
             Text(text)
                 .font(.system(size: 12))
                 .foregroundStyle(.secondary)
@@ -1380,7 +1380,7 @@ struct PageHeader: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 2) {
             if titleShown {
-                Text(title).font(.system(size: 22, weight: .bold))
+                Text(title).font(Swiss.title(28)).tracking(Swiss.titleTracking(28))
             }
             if let detail {
                 Text(detail).font(.system(size: 12)).foregroundStyle(.secondary).lineLimit(1)
@@ -1684,7 +1684,7 @@ private struct SheetHeader: View {
         HStack(spacing: 12) {
             SectionIcon(symbol: symbol, tint: tint, size: 34)
             VStack(alignment: .leading, spacing: 1) {
-                Text(title).font(.title3.weight(.semibold))
+                Text(title).font(Swiss.title(22)).tracking(Swiss.titleTracking(22))
                 if let subtitle {
                     Text(subtitle).font(.system(size: 11)).foregroundStyle(.secondary)
                 }
@@ -1781,7 +1781,7 @@ struct CaptureField: View {
     @ObservedObject private var recorder = Recorder.shared
 
     private var recording: Bool { recorder.activeID == id }
-    private var shape: RoundedRectangle { RoundedRectangle(cornerRadius: 12, style: .continuous) }
+    private var shape: Rectangle { Rectangle() }
 
     private var footnote: (text: String, warning: Bool)? {
         if recording { return (String(localized: "Échap pour annuler, ⌫ pour effacer."), false) }
@@ -1902,7 +1902,7 @@ private struct ToastView: View {
     let message: ToastMessage
     let onClose: () -> Void
 
-    private var shape: Capsule { Capsule() }
+    private var shape: Rectangle { Rectangle() }
 
     var body: some View {
         HStack(spacing: 10) {

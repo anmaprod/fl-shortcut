@@ -151,7 +151,7 @@ struct OrganizerFeedbackView: View {
                 }
             }
             .padding(.horizontal, 10)
-            .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(Color.primary.opacity(0.05)))
+            .background(Rectangle().fill(Color.primary.opacity(0.05)))
             Text("Un son rangé d'après son nom : ta réponse est retenue pour ce nom, sur ce Mac.")
                 .font(.system(size: 11))
                 .foregroundStyle(.secondary)

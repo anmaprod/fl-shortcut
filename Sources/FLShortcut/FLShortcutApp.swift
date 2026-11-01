@@ -635,7 +635,7 @@ final class PauseIndicator {
 /// elle reste affichée au-dessus de FL qui se redessine sans cesse (curseur de lecture, vumètres) ; un verre
 /// recalculé à chaque image coûterait pendant tout le temps de la pause. Liseré clair statique en guise de reflet.
 struct PauseBadge: View {
-    private var shape: Capsule { Capsule() }
+    private var shape: Rectangle { Rectangle() }
 
     var body: some View {
         HStack(spacing: 7) {
@@ -684,8 +684,8 @@ private struct OrganizerMenuCard: View {
                 .font(.system(size: 13, weight: .semibold))
             GeometryReader { proxy in
                 ZStack(alignment: .leading) {
-                    Capsule().fill(Color.white.opacity(0.12))
-                    Capsule().fill(Swiss.red).frame(width: proxy.size.width * fraction)
+                    Rectangle().fill(Color.white.opacity(0.12))
+                    Rectangle().fill(Swiss.red).frame(width: proxy.size.width * fraction)
                 }
             }
             .frame(height: 4)
@@ -901,7 +901,7 @@ struct MenuBackground: View {
     static let cornerRadius: CGFloat = 15
 
     var body: some View {
-        let shape = RoundedRectangle(cornerRadius: Self.cornerRadius, style: .continuous)
+        let shape = Rectangle()
         shape.fill(Self.color)
             .overlay(shape.strokeBorder(Color.white.opacity(0.10), lineWidth: 1))
             .ignoresSafeArea()
@@ -1017,7 +1017,7 @@ private struct PanelItem: View {
             .font(.system(size: 13))
             .padding(.horizontal, 8)
             .frame(height: 34)
-            .contentShape(RoundedRectangle(cornerRadius: 9, style: .continuous))
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         // Survolée : pleine de sa couleur, texte en blanc (29/10, « intérieur plein »).

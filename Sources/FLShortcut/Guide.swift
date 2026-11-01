@@ -94,7 +94,7 @@ struct GuideView: View {
     private var welcome: some View {
         VStack(spacing: 0) {
             Text("Bienvenue")
-                .font(.system(size: 30, weight: .bold))
+                .font(Swiss.title(38)).tracking(Swiss.titleTracking(38))
                 .morphIn(0)
             PlateRows(data: GuideContent.pages) { p in
                 GuideWelcomeRow(page: p, morph: morph, flies: forward) { go(to: p.id) }
@@ -159,7 +159,7 @@ private struct GuidePageView: View {
             HStack(spacing: 14) {
                 MorphIcon(page: page, size: 44, morph: morph, id: MorphIcon.id(page))
                 Text(page.title)
-                    .font(.system(size: 28, weight: .bold))
+                    .font(Swiss.title(35)).tracking(Swiss.titleTracking(35))
                     .morphIn(0)
             }
             PlateRows(data: steps) { step in
@@ -256,7 +256,7 @@ private struct GuideDots: View {
                 Button {
                     select(i)
                 } label: {
-                    Capsule()
+                    Rectangle()
                         .fill(i == page ? Swiss.red : Color.secondary.opacity(0.35))
                         .frame(width: i == page ? 18 : 6, height: 6)
                         .padding(3)
