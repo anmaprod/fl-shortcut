@@ -1338,7 +1338,8 @@ final class OrganizerController: ObservableObject {
                                  testNotes: false, mixerTrack: entry.offset + 1, color: gray, kind: kind, byName: true)
         }
         let patterns = (0..<4).map { PatternInfo(index: $0, color: gray, name: "Pattern \($0 + 1)") }
-        let mixer = (0...10).map { MixerTrackInfo(index: $0, color: gray, name: $0 == 0 ? "Master" : "Insert \($0)") }
+        // Assez de pistes libres pour un bus par famille et le pré-master (comme un vrai projet).
+        let mixer = (0...24).map { MixerTrackInfo(index: $0, color: gray, name: $0 == 0 ? "Master" : "Insert \($0)") }
         let playlist = (0..<4).map { PlaylistTrackInfo(index: $0, selected: false, color: gray, name: "Track \($0 + 1)") }
         return OrganizerResult(channels: channels, items: items, patterns: patterns,
                                patternSounds: [0: [0, 3, 4], 1: [2], 2: [1, 7], 3: [5]], mixer: mixer, routes: [:],
