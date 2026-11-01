@@ -1,0 +1,31 @@
+FL Shortcuts pour Windows — mode d'emploi (version en cours de développement)
+=============================================================================
+
+INSTALLER
+1. Lance FLShortcuts-Windows-Setup.exe.
+   Si Windows affiche « Windows a protégé votre ordinateur » : « Informations complémentaires › Exécuter quand même ».
+   (Le fichier .zip contient la même app sans installation : décompresse-le et lance FL Shortcuts.exe.)
+2. FL Shortcuts démarre dans la zone de notification (en bas à droite, près de l'heure).
+
+UTILISER
+- Tes raccourcis marchent quand FL Studio est la fenêtre devant.
+- Clique l'icône de FL Shortcuts près de l'heure : raccourcis, macros, Organiser.
+
+ORGANISER (ranger un projet de FL)
+1. Icône › Organiser…
+2. La première fois : « Installer le lien », puis ferme FL et rouvre-le.
+3. Clique « Démarrer ». Ne touche pas à FL jusqu'à la fin.
+4. Si FL ne répond pas : dans FL, Options › MIDI Settings, règle les 4 cases montrées dans la fenêtre.
+L'original de ton projet ne bouge jamais : la version rangée est une copie (« ton projet_2.flp »).
+
+À SAVOIR
+La version Windows est encore en cours : certains blocs de macro ne marchent que sur Mac (l'app le dit).
+
+Le fichier .sha256 sert seulement à vérifier le téléchargement (facultatif).
+
+-----------------------------------------------------------------------------
+FL Shortcuts for Windows — quick guide (work in progress)
+
+Install: run FLShortcuts-Windows-Setup.exe (SmartScreen: More info › Run anyway), or unzip the .zip and run the app.
+Shortcuts work when FL Studio is in front. Everything else is in the tray icon near the clock.
+Organize: tray icon › Organize…, « Install the link », close and reopen FL, then « Start ».

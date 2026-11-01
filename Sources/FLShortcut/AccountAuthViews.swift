@@ -39,9 +39,9 @@ struct AuthBadge: View {
     var size: CGFloat = 64
 
     var body: some View {
-        Circle()
-            .fill(LinearGradient(colors: colors, startPoint: .top, endPoint: .bottom))
-            .overlay(Image(systemName: symbol).font(.system(size: size * 0.42, weight: .medium)).foregroundStyle(.white))
+        Rectangle()
+            .fill(colors.first ?? Swiss.red)
+            .overlay(Image(systemName: symbol).font(.system(size: size * 0.42, weight: .semibold)).foregroundStyle(Swiss.background))
             .frame(width: size, height: size)
             .accessibilityHidden(true)
     }
@@ -74,29 +74,23 @@ struct AuthTabs: View {
     /// Le mouvement de la carte quand on change d'onglet.
     static let change = Animation.spring(response: 0.42, dampingFraction: 0.9)
 
+    /// Style suisse : deux onglets en petites capitales, celui choisi souligné de blanc.
     var body: some View {
         HStack(spacing: 0) {
             tab(String(localized: "Se connecter"), selected: !creating) { choose(false) }
             tab(String(localized: "Créer un compte"), selected: creating) { choose(true) }
         }
-        .padding(3)
-        .background(Rectangle().fill(AuthLook.well(scheme)))
-        .overlay(Rectangle().strokeBorder(Color.primary.opacity(0.08)))
+        .swissRule(Swiss.line)
     }
 
     private func tab(_ title: String, selected: Bool, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Text(title)
-                .font(.system(size: 13, weight: .semibold))
-                .foregroundStyle(selected ? Color.primary : Color.secondary)
+                .swissLabel(selected ? Swiss.text : Swiss.gray)
                 .frame(maxWidth: .infinity)
                 .frame(height: 32)
-                .background {
-                    if selected {
-                        Rectangle()
-                            .fill(Color.primary.opacity(0.14))
-                            .matchedGeometryEffect(id: "onglet", in: tabs)
-                    }
+                .overlay(alignment: .bottom) {
+                    Rectangle().fill(selected ? Swiss.text : Color.clear).frame(height: 2)
                 }
                 .contentShape(Rectangle())
         }
@@ -106,7 +100,10 @@ struct AuthTabs: View {
 
     private func choose(_ value: Bool) {
         guard value != creating else { return }
-        if Motion.reduce { creating = value } else { withAnimation(Self.change) { creating = value } }
+        // D'un coup (01/11, « pas propre » : la carte glissait, se décalait et une barre de défilement apparaissait).
+        var t = Transaction()
+        t.disablesAnimations = true
+        withTransaction(t) { creating = value }
     }
 }
 

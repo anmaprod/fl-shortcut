@@ -184,7 +184,8 @@ private struct MacroStepsPane: View {
                     // Survol : toute la ligne de la couleur de son bloc (pas la ligne choisie, ni une fin de boucle).
                     .cardRow(.position(index: index, count: rows.count),
                              hover: row.kind == .block ? Swiss.text : nil,
-                             selected: model.selection == row.id)
+                             selected: model.selection == row.id,
+                             stamp: row.kind == .block ? (row.category?.tint ?? Swiss.red) : nil)
                     .tag(row.id)
                     .moveDisabled(row.kind != .block)          // les lignes de fin suivent leur boucle
                     .contextMenu { contextMenu(row) }
@@ -563,7 +564,8 @@ private struct MacroHeader: View {
             model.saveNow()
             onBack()
         } label: {
-            Text("Enregistrer")
+            // Une coche devant (01/11 : « un rectangle blanc, pas très compréhensible »).
+            Label("Enregistrer", systemImage: "checkmark")
         }
         .primaryButton()
         .controlSize(.large)
@@ -572,21 +574,22 @@ private struct MacroHeader: View {
     }
 }
 
-/// ← rond de la maquette : retour aux raccourcis et aux macros (⌘[).
+/// ← carré (style suisse) : retour aux raccourcis et aux macros (⌘[).
 private struct CreatorBackButton: View {
     let action: () -> Void
 
     var body: some View {
         Button(action: action) {
+            // Carré du début à la fin (01/11 : le passage du rond au carré au survol était bizarre) ; au survol, blanc
+            // plein et flèche noire, comme les autres boutons.
             Image(systemName: "chevron.backward")
-                .font(.system(size: 14, weight: .semibold))
-                .frame(width: 44, height: 44)
-                .background(Circle().fill(Color.white.opacity(0.10)))
-                .overlay(Circle().strokeBorder(Color.white.opacity(0.18), lineWidth: 1))
-                .contentShape(Circle())
+                .font(.system(size: 14, weight: .bold))
+                .frame(width: 34, height: 34)
+                .overlay(Rectangle().strokeBorder(Swiss.text, lineWidth: 1))
+                .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .menuHover(tint: Swiss.red, cornerRadius: 22)
+        .menuHover(tint: Swiss.text, cornerRadius: 0)
         .keyboardShortcut("[", modifiers: .command)
         .help("Revenir aux raccourcis et aux macros (⌘[)")
         .accessibilityLabel("Retour")

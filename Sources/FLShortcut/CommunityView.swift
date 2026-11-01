@@ -818,7 +818,8 @@ struct CommunitySignIn: View {
     private var creating: Bool { community.creatingAccount }
 
     var body: some View {
-        ScrollView {
+        // Sans barre de défilement visible (elle apparaissait en changeant d'onglet).
+        ScrollView(.vertical, showsIndicators: false) {
             Group {
                 if let pending = community.pendingCode {
                     codeCard(pending)
@@ -861,14 +862,13 @@ struct CommunitySignIn: View {
                         UsernameStatus(check: nameCheck)
                     }
                     .modifier(UsernameChecker(community: community, name: username, check: $nameCheck))
-                    .transition(.opacity)
                     if case .invalid(let why) = nameCheck { hint(why) }
                 }
                 AuthField(title: String(localized: "E-mail"), text: $email, prompt: String(localized: "toi@exemple.com"))
                 AuthField(title: String(localized: "Mot de passe"), text: $password,
                           prompt: creating ? String(localized: "8 caractères au moins") : String(localized: "Ton mot de passe"),
                           secure: true, link: creating ? nil : forgotLink)
-                if creating { PasswordRules(password: password).transition(.opacity) }
+                if creating { PasswordRules(password: password) }
             }
             Button(creating ? String(localized: "Créer mon compte") : String(localized: "Se connecter")) { submit() }
                 .buttonStyle(AuthPrimaryButtonStyle())
@@ -882,7 +882,6 @@ struct CommunitySignIn: View {
                 Label("Les autres voient ton pseudo et ta photo, jamais ton e-mail.", systemImage: "lock")
                     .font(.system(size: 11.5))
                     .foregroundStyle(.secondary)
-                    .transition(.opacity)
             }
         }
     }

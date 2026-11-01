@@ -719,8 +719,8 @@ extension View {
     /// Ligne d'une page en cartes : fond arrondi selon sa place dans la section, sans séparateur de la liste.
     /// `hover` : au survol, la ligne entière prend cette couleur, comme une option du menu de l'icône (d'un filet à
     /// l'autre et toute la largeur de la carte), texte en blanc.
-    func cardRow(_ position: CardRowPosition, hover: Color? = nil, selected: Bool = false) -> some View {
-        modifier(CardRowModifier(position: position, hover: hover, selected: selected))
+    func cardRow(_ position: CardRowPosition, hover: Color? = nil, selected: Bool = false, stamp: Color? = nil) -> some View {
+        modifier(CardRowModifier(position: position, hover: hover, selected: selected, stamp: stamp))
     }
 
     /// En-tête de page (28/10) : le titre posé sur la page, sans carte grise autour.
@@ -742,6 +742,9 @@ private struct CardRowModifier: ViewModifier {
     let hover: Color?
     /// Ligne choisie (style suisse) : blanche jusqu'aux bords, texte noir, comme au survol.
     var selected = false
+    /// Survolée ou choisie : elle se soulève et laisse voir dessous une encoche de cette couleur (comme les cartes de
+    /// Gumroad, demande du 01/11 : blocs des macros).
+    var stamp: Color? = nil
     @State private var hovering = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
@@ -753,6 +756,7 @@ private struct CardRowModifier: ViewModifier {
             .padding(.horizontal, 12)
             .frame(maxWidth: .infinity, alignment: .leading)
             .hoverFilled(lifted)
+            .offset(x: lifted && stamp != nil ? -2 : 0, y: lifted && stamp != nil ? -2 : 0)
         return Group {
             if hover != nil {
                 row
@@ -767,7 +771,7 @@ private struct CardRowModifier: ViewModifier {
         .listRowInsets(EdgeInsets(top: position.roundsTop ? gap : 0, leading: CardRowBackground.inset,
                                   bottom: position.roundsBottom ? gap : 0, trailing: CardRowBackground.inset))
         .listRowSeparator(.hidden)
-        .listRowBackground(CardRowBackground(position: position, hover: lifted ? (hover ?? Swiss.text) : nil,
+        .listRowBackground(CardRowBackground(position: position, hover: lifted ? (hover ?? Swiss.text) : nil, stamp: stamp,
                                              grow: lifted && !reduceMotion))
     }
 }
@@ -783,6 +787,8 @@ struct CardRowBackground: View {
     static let liftOutset: CGFloat = 6
     let position: CardRowPosition
     var hover: Color? = nil
+    /// Encoche de couleur sous la ligne soulevée (voir `cardRow(stamp:)`).
+    var stamp: Color? = nil
     var grow = false
     @Environment(\.colorScheme) private var scheme
     @AppStorage(Appearance.glassKey) private var glassEnabled = true
@@ -800,7 +806,14 @@ struct CardRowBackground: View {
 
     var body: some View {
         Group {
-            if hover != nil {
+            if hover != nil, let stamp {
+                // Soulevée : la ligne blanche monte de 2 points vers la gauche et le haut, l'encoche de couleur reste
+                // dessous, décalée de 4 points (comme Gumroad).
+                ZStack {
+                    Rectangle().fill(stamp).padding(.leading, 4).padding(.top, 4)
+                    Rectangle().fill(Swiss.text).padding(.trailing, 4).padding(.bottom, 4)
+                }
+            } else if hover != nil {
                 // Survolée : blanc plein, coins carrés (style suisse, 01/11).
                 Rectangle().fill(Swiss.text)
             } else if Swiss.flat {
@@ -1002,20 +1015,25 @@ private struct CardRowShape: Shape {
 struct SwissSwitch: View {
     @Binding var isOn: Bool
     var label: String
+    /// Sur une ligne blanche (survolée, choisie) : couleurs inversées, contour noir, le carré reste lisible (01/11 :
+    /// « il ne reste plus qu'un point noir »).
+    @Environment(\.hoverFilled) private var onWhite
 
     var body: some View {
-        Button { isOn.toggle() } label: {
+        let ink = onWhite ? Swiss.background : Swiss.text
+        let paper = onWhite ? Swiss.text : Swiss.background
+        return Button { isOn.toggle() } label: {
             HStack(spacing: 0) {
                 if isOn { Spacer(minLength: 0) }
-                Rectangle().fill(isOn ? Swiss.background : Swiss.text).frame(width: 14, height: 14)
+                Rectangle().fill(isOn ? paper : ink).frame(width: 14, height: 14)
                 if !isOn { Spacer(minLength: 0) }
             }
             .padding(2)
             .frame(width: 40, height: 20)
-            .background(Rectangle().fill(isOn ? Swiss.text : Swiss.background))
+            .background(Rectangle().fill(isOn ? ink : paper))
             // Le carré glisse (0,18 s, ralenti à la fin), au lieu de sauter.
             .animation(.easeOut(duration: 0.18), value: isOn)
-            .overlay(Rectangle().strokeBorder(Swiss.text, lineWidth: 1))
+            .overlay(Rectangle().strokeBorder(ink, lineWidth: 1))
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)

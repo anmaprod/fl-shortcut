@@ -1298,15 +1298,21 @@ final class OrganizerController: ObservableObject {
     }
 
     /// Arrête l'écoute (la session remet FL comme avant) et ferme la fenêtre.
+    /// Au plus tard, le lien avec FL est retiré ce temps après la fermeture (même si FL ne répond plus).
+    static let releaseDeadline: TimeInterval = 3
+
     func close() {
         guard !closed else { return }
         closed = true
         OrganizerProgress.shared.clear()
         session?.cancel()
         session = nil
-        // Plus de lien avec FL, une fois l'écoute ou l'application en cours finie (FL remis comme avant par le lien).
-        let release = env.releaseLink
-        queue.async { DispatchQueue.main.async(execute: release) }
+        // Plus de lien avec FL une fois l'écoute ou l'application en cours finie (FL remis comme avant par le lien), et
+        // au plus tard 3 s après (01/11 : « Démarrer » puis « Arrêter », FL saccadait encore : l'analyse attendait FL et
+        // le lien restait ouvert). Une seule fois.
+        let release = ReleaseOnce(env.releaseLink)
+        queue.async { DispatchQueue.main.async { release.run() } }
+        DispatchQueue.main.asyncAfter(deadline: .now() + Self.releaseDeadline) { release.run() }
         let done = onClose
         onClose = nil
         done?()
@@ -1373,6 +1379,7 @@ enum OrganizerWindow {
         p.title = String(localized: "Organiser")
         p.titleVisibility = .hidden
         p.titlebarAppearsTransparent = true
+        p.backgroundColor = .black                    // style suisse (01/11) : noir plein, comme la fenêtre principale
         p.isMovableByWindowBackground = true
         // Jamais la fenêtre active à la place de FL (audit : avec makeKey, FL perdait sa fenêtre active, ne disait plus
         // quelle page était devant, et ⌥↑ / F2 partaient dans le vide) ; un champ de texte la rend active au clic.
@@ -2853,5 +2860,18 @@ enum BackgroundCursor {
 
     static func show() {
         CGDisplayShowCursor(CGMainDisplayID())
+    }
+}
+
+/// Une action faite une seule fois, la première fois qu'on la demande (fil principal).
+final class ReleaseOnce {
+    private var action: (() -> Void)?
+
+    init(_ action: @escaping () -> Void) { self.action = action }
+
+    func run() {
+        let pending = action
+        action = nil
+        pending?()
     }
 }

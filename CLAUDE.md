@@ -200,6 +200,13 @@
   cases sous les pistes = sorties (plusieurs), double-clic nom + couleur, clic droit retirer une piste sans son,
   piste choisie blanche jusqu'au bord ; changements dans `MixerEdits` (passent par le plan). Couleur choisie dans la
   roue : contour blanc égal (tracé en dernier). Logo : 8 idées (dont 4 « vraie touche »), pas encore choisi.
+  Retours du 01/11 au soir : blocs des macros soulevés avec une encoche de la couleur du bloc dessous au survol et
+  choisis (comme les cartes de Gumroad, `cardRow(stamp:)`) ; interrupteur inversé sur une ligne blanche
+  (`SwissSwitch` lit `hoverFilled`) ; « Enregistrer » du créateur avec une coche ; retour du créateur carré ; onglets
+  Se connecter / Créer un compte sans animation ni barre de défilement ; panneau de l'Organiser noir ; lien avec FL
+  retiré au plus tard 3 s après « Arrêter » ou la fermeture (`OrganizerController.releaseDeadline`, `ReleaseOnce` :
+  « Démarrer » puis « Arrêter » faisait encore saccader FL) ; LISEZMOI.txt dans les téléchargements Mac et Windows
+  (`docs/telechargement/`).
 - **Aspect validé le 28/10** (maquette, `HISTORIQUE`) : plus de Liquid Glass depuis le 29/10 (plaques dessinées), sans lavis ni lueur ; fond de
   fenêtre plein (« sans le Liquid Glass derrière »), verre devant : cartes, touches, cartes de l'Organiser
   (`GlassPlate`, dessiné : pas de `glassEffect` par ligne) ; titre de
