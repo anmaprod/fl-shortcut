@@ -79,9 +79,9 @@
     <section class="card" id="card-mac">
       <h2>Mac</h2>
       <p class="sub">macOS 13 ou plus récent · Apple Silicon et Intel</p>
-      <a class="btn secondary" data-file="FLShortcuts.dmg" href="#">FLShortcuts.dmg</a>
+      <a class="btn secondary" data-file="LISEZMOI-Mac.html" href="#">Mode d'emploi</a>
       <ol style="margin-top:14px">
-        <li>Ouvre <b>FLShortcuts.dmg</b> et glisse <b>FL Shortcuts</b> dans <b>Applications</b>.</li>
+        <li>Ouvre <b>FLShortcuts.pkg</b>. Bloqué : Réglages Système › Confidentialité et sécurité › <b>Ouvrir quand même</b>.</li>
         <li>Lance FL Shortcuts : il s'installe dans la barre des menus.</li>
         <li>Clique sur <b>Autoriser…</b> : active FL Shortcuts dans <i>Réglages Système › Confidentialité et sécurité › Accessibilité</i>.</li>
       </ol>
@@ -139,8 +139,8 @@
     var main = document.getElementById("main-download"), meta = document.getElementById("main-meta");
     if (isMac) {
       main.textContent = "Télécharger pour Mac";
-      main.href = latest + "FLShortcuts.dmg";
-      meta.textContent = "FLShortcuts.dmg · macOS 13 ou plus récent";
+      main.href = latest + "FLShortcuts.pkg";
+      meta.textContent = "FLShortcuts.pkg · macOS 13 ou plus récent";
       document.getElementById("card-mac").classList.add("current");
     } else if (isWin) {
       main.textContent = "Télécharger pour Windows";

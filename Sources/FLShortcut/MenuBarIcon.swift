@@ -1,7 +1,8 @@
-// Logo de FL Shortcuts dans la barre des menus : les deux touches de l'icône de l'app (une derrière, une devant avec
-// une forme d'onde), dessinées en image modèle (template) : macOS la teinte comme les autres icônes de la barre, en
-// clair ou en sombre. L'état ne remplace plus le logo : une pastille en haut à droite prend la place de la touche de
-// derrière, « ! » quand les raccourcis sont inactifs (Accessibilité, saisie sécurisée), deux barres en pause.
+// Logo de FL Shortcuts dans la barre des menus : le petit clavier de l'icône de l'app (choisi par le propriétaire le
+// 02/11 : « le petit clavier, c'est très bien pour l'icône »), une tuile pleine où le clavier est évidé (cadre, quatre
+// touches, barre d'espace), en image modèle (template) : macOS la teinte comme les autres icônes de la barre, en clair
+// ou en sombre. L'état ne remplace pas le logo : une pastille en haut à droite, « ! » quand les raccourcis sont
+// inactifs (Accessibilité, saisie sécurisée), deux barres en pause.
 // Dessiné une fois par état, dans des images à part (1x et 2x) : aucun dessin à chaque rafraîchissement de la barre.
 import AppKit
 
@@ -61,25 +62,19 @@ enum MenuBarIcon {
 
     private static func draw(_ state: State, in context: NSGraphicsContext) {
         NSColor.black.set()
-        let front = NSRect(x: 1, y: 5.5, width: 11.5, height: 11.5)       // en bas à gauche
-        let back = NSRect(x: 6.5, y: 1, width: 10.5, height: 10.5)        // en haut à droite
-        if state == .normal {
-            let outline = NSBezierPath(roundedRect: back.insetBy(dx: 0.7, dy: 0.7), xRadius: 2.6, yRadius: 2.6)
-            outline.lineWidth = 1.4
-            outline.stroke()
-            // Écart entre les deux touches.
-            erase(NSBezierPath(roundedRect: front.insetBy(dx: -1.3, dy: -1.3), xRadius: 4.2, yRadius: 4.2), in: context)
+        // La tuile pleine, en paysage.
+        let tile = NSRect(x: 0.5, y: 3, width: 17, height: 12.5)
+        NSBezierPath(rect: tile).fill()
+        // Le clavier évidé, d'après le dessin de 15 × 11 unités (cadre de 1,2, touches de 1,6, espace de 7).
+        let k: CGFloat = 0.78
+        let ox = tile.midX - 7.5 * k, oy = tile.midY - 5.5 * k
+        func unit(_ x: CGFloat, _ y: CGFloat, _ w: CGFloat, _ h: CGFloat) -> NSRect {
+            NSRect(x: ox + x * k, y: oy + y * k, width: w * k, height: h * k)
         }
-        NSBezierPath(roundedRect: front, xRadius: 3, yRadius: 3).fill()
-        // Forme d'onde évidée dans la touche de devant.
-        let heights: [CGFloat] = [3, 6.5, 4.5, 7.5, 3.5]
-        let bar: CGFloat = 1.3, gap: CGFloat = 0.75
-        var x = front.midX - (CGFloat(heights.count) * bar + CGFloat(heights.count - 1) * gap) / 2
-        for h in heights {
-            erase(NSBezierPath(roundedRect: NSRect(x: x, y: front.midY - h / 2, width: bar, height: h),
-                               xRadius: bar / 2, yRadius: bar / 2), in: context)
-            x += bar + gap
-        }
+        erase(NSBezierPath(rect: unit(0, 0, 15, 11)), in: context)
+        NSBezierPath(rect: unit(1.2, 1.2, 12.6, 8.6)).fill()
+        for x: CGFloat in [2.5, 5.2, 7.9, 10.6] { erase(NSBezierPath(rect: unit(x, 2.6, 1.6, 1.6)), in: context) }
+        erase(NSBezierPath(rect: unit(4, 6.6, 7, 1.6)), in: context)
         guard state != .normal else { return }
         // Pastille d'état en haut à droite, détachée du reste par un anneau vide.
         let center = NSPoint(x: 13.8, y: 4.2)

@@ -1,0 +1,453 @@
+<title>Lisez-moi FL Shortcuts</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+/* Mode d'emploi du téléchargement Mac (LISEZMOI.html), au style suisse de l'app (validé le 01/11, retours du 02/11) :
+   une colonne d'étapes numérotées (c'est une suite), le texte à gauche, l'écran à droite ; une seule ambiance,
+   noire, comme l'app. Modèle : les marques ICON, MIDI1… entre doubles accolades deviennent les images (scripts/lisezmoi.py). */
+:root {
+  --ink: #000000;        /* fond, comme l'app */
+  --paper: #FFFFFF;      /* texte, boutons principaux */
+  --gray: #8A8A8A;       /* libellés */
+  --soft: #A8A8A8;       /* texte secondaire */
+  --line: #333333;       /* traits entre blocs */
+  --faint: #222222;      /* traits entre lignes */
+  --red: #FF3B1F;        /* seulement ce qu'on montre */
+  --display: "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --text: "Helvetica Neue", Helvetica, Arial, sans-serif;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html { background: var(--ink); }
+body {
+  margin: 0; background: var(--ink); color: var(--paper);
+  font: 15px/1.5 var(--text); -webkit-font-smoothing: antialiased;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+main { max-width: 1040px; margin: 0 auto; padding-block: 40px 64px; display: flex; flex-direction: column; }
+.label { font: 700 11px/1.2 var(--text); letter-spacing: 1.3px; text-transform: uppercase; color: var(--gray); }
+.label.red { color: var(--red); }
+.label.white { color: var(--paper); }
+h1, h2, h3 { font-family: var(--display); font-weight: 700; margin: 0; text-wrap: balance; }
+kbd { font: 700 12px/1 var(--text); display: inline-grid; place-items: center; min-width: 22px; height: 22px; padding: 0 6px;
+  border: 1px solid var(--paper); vertical-align: 1px; }
+a { color: var(--paper); }
+a:hover { color: var(--red); }
+:focus-visible { outline: 2px solid var(--red); outline-offset: 3px; }
+
+/* En-tête */
+.head { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: end; gap: 16px;
+  padding-bottom: 14px; border-bottom: 1px solid var(--paper); }
+.head h1 { font-size: clamp(44px, 9vw, 84px); line-height: 0.9; letter-spacing: -0.04em; }
+.head img { width: 64px; height: 64px; }
+.lede { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px 24px; padding: 14px 0 0; align-items: baseline; }
+.lede p { margin: 0; font-size: 18px; max-width: 46ch; }
+.lede .label { text-align: right; }
+.toc { list-style: none; margin: 28px 0 0; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr));
+  border-top: 1px solid var(--line); }
+.toc li { border-bottom: 1px solid var(--line); }
+.toc a { display: grid; grid-template-columns: 34px minmax(0, 1fr); align-items: center; height: 44px; padding: 0 12px;
+  margin-left: -12px; text-decoration: none; font-weight: 700; font-size: 14px; }
+.toc a span { color: var(--red); font-size: 11px; letter-spacing: 1px; }
+.toc a:hover { background: var(--paper); color: var(--ink); }
+.toc a:hover span { color: var(--ink); }
+
+/* Une étape */
+.step { display: grid; grid-template-columns: minmax(0, 340px) minmax(0, 1fr); gap: 40px; align-items: start;
+  padding-block: 40px; border-bottom: 1px solid var(--line); scroll-margin-top: 16px; }
+.step .text { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+.step h2 { font-size: 34px; line-height: 1; letter-spacing: -0.03em; padding-bottom: 12px; border-bottom: 1px solid var(--paper); }
+.lines { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.lines li { display: grid; grid-template-columns: 30px minmax(0, 1fr); align-items: baseline; padding: 9px 0;
+  border-top: 1px solid var(--faint); }
+.lines li:first-child { border-top: 0; }
+.lines li b.n { font-size: 11px; letter-spacing: 1px; color: var(--red); }
+.lines li.note { color: var(--soft); font-size: 13.5px; }
+.lines li.note b.n { color: var(--gray); }
+.stage { min-width: 0; display: flex; flex-direction: column; gap: 10px; }
+.cap { font-size: 12.5px; color: var(--gray); }
+
+/* Écrans dessinés comme l'app */
+.screen { width: 100%; max-width: 560px; background: var(--ink); border: 1px solid var(--line); position: relative; overflow: hidden; }
+.bar { display: flex; align-items: center; gap: 7px; height: 30px; padding: 0 12px; border-bottom: 1px solid var(--line);
+  font-size: 12px; color: var(--soft); }
+.bar i { width: 11px; height: 11px; border-radius: 50%; background: #FF5F57; flex: none; }
+.bar i:nth-child(2) { background: #FEBC2E; } .bar i:nth-child(3) { background: #28C840; }
+.bar span { margin-left: 8px; color: var(--paper); font-weight: 700; }
+.btn { display: inline-flex; align-items: center; justify-content: center; height: 34px; padding: 0 16px; font: 700 11px/1 var(--text);
+  letter-spacing: 1.1px; text-transform: uppercase; white-space: nowrap; border: 1px solid var(--paper); flex: none; }
+.btn.main { background: var(--paper); color: var(--ink); }
+.show { outline: 2px solid var(--red); outline-offset: 3px; }
+.pointer { position: absolute; width: 20px; height: 20px; pointer-events: none; }
+
+/* 1. Installer : l'alerte de macOS sur le paquet */
+.alert { padding: 22px 22px 20px; display: grid; grid-template-columns: 56px minmax(0, 1fr); gap: 14px 16px; align-items: start; }
+.alert img { width: 56px; height: 56px; }
+.alert h3 { font-size: 17px; letter-spacing: -0.01em; }
+.alert p { margin: 6px 0 0; font-size: 13px; color: var(--soft); }
+.alert .foot { grid-column: 1 / -1; display: flex; justify-content: flex-end; gap: 0; padding-top: 4px; }
+
+/* 2. Premier lancement : Réglages Système */
+.settings { padding: 20px 22px 22px; display: flex; flex-direction: column; gap: 14px; }
+.settings h3 { font-size: 22px; letter-spacing: -0.02em; padding-bottom: 10px; border-bottom: 1px solid var(--paper); }
+.settings .row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 16px; align-items: center; padding-top: 4px; }
+.settings p { margin: 0; font-size: 13.5px; }
+.ctx { display: flex; gap: 0; align-items: flex-start; padding: 18px 22px; }
+.ctx .app { display: flex; flex-direction: column; align-items: center; gap: 6px; width: 92px; font-size: 11.5px; font-weight: 700; flex: none; }
+.ctx .app img { width: 56px; height: 56px; }
+.ctx .menu { border: 1px solid var(--line); min-width: 170px; margin-left: 10px; }
+.ctx .menu div { height: 28px; display: flex; align-items: center; padding: 0 12px; font-size: 13px; border-top: 1px solid var(--faint); }
+.ctx .menu div:first-child { border-top: 0; }
+.ctx .menu .on { background: var(--paper); color: var(--ink); font-weight: 700; }
+
+/* 3. Autorisations : l'accueil */
+.welcome { padding: 22px 24px 20px; display: flex; flex-direction: column; }
+.welcome h3 { font-size: 40px; line-height: 0.95; letter-spacing: -0.04em; padding-bottom: 12px; border-bottom: 1px solid var(--paper); }
+.perm { display: grid; grid-template-columns: 30px minmax(0, 1fr) auto; align-items: center; height: 54px; border-bottom: 1px solid var(--line); }
+.perm b { font-size: 18px; letter-spacing: -0.02em; }
+.perm small { color: var(--gray); font-size: 12px; margin-left: 8px; font-weight: 400; }
+.pill { font: 700 10px/1 var(--text); letter-spacing: 1.2px; text-transform: uppercase; padding: 5px 8px; border: 1px solid; }
+.pill.ok { color: var(--ink); background: var(--paper); border-color: var(--paper); }
+.pill.todo { color: var(--red); border-color: var(--red); }
+.welcome .foot { display: flex; justify-content: flex-end; align-items: center; gap: 18px; padding-top: 22px; }
+
+/* 4. Tous les jours : barre des menus et menu de l'icône */
+.menubar { height: 28px; display: flex; justify-content: flex-end; align-items: center; gap: 14px; padding: 0 14px;
+  border-bottom: 1px solid var(--line); font-size: 12px; color: var(--soft); }
+.mbicon { width: 24px; height: 18px; background: var(--paper); display: grid; place-items: center; }
+.iconmenu { margin: 6px 14px 18px auto; width: min(290px, calc(100% - 28px)); border: 1px solid var(--line); background: var(--ink); }
+.iconmenu .it { display: grid; grid-template-columns: 18px minmax(0, 1fr) auto; gap: 10px; align-items: center; height: 36px;
+  padding: 0 12px; font-size: 13.5px; border-top: 1px solid var(--faint); }
+.iconmenu .it:first-child { border-top: 0; }
+.iconmenu .it i { width: 8px; height: 8px; display: block; }
+.iconmenu .it.on { background: var(--paper); color: var(--ink); font-weight: 700; }
+.iconmenu .it.on i { background: var(--ink) !important; }
+.iconmenu .it.quiet { color: var(--gray); font-size: 12.5px; }
+.iconmenu .it kbd { min-width: 0; height: 18px; font-size: 10.5px; border-color: currentColor; }
+.iconmenu .sep { border-top: 1px solid var(--line); }
+.iconmenu .end { display: flex; justify-content: space-between; align-items: center; height: 38px; padding: 0 12px;
+  border-top: 1px solid var(--line); font-size: 13.5px; font-weight: 700; }
+.iconmenu .end span:last-child { color: var(--gray); font-weight: 400; }
+.search { margin: 0 18px 18px; display: flex; align-items: center; gap: 10px; padding-bottom: 7px; border-bottom: 1px solid var(--paper);
+  color: var(--gray); font-size: 14px; }
+.search span { flex: 1; }
+.kbicon { padding: 2px; }
+
+/* 5. Organiser */
+.tuto { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+.tuto figure { margin: 0; display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.tuto img { width: 100%; height: auto; display: block; border: 0; }
+.tuto figcaption { font-size: 12.5px; color: var(--soft); display: grid; grid-template-columns: 26px minmax(0, 1fr); }
+.tuto figcaption b { color: var(--red); font-size: 11px; letter-spacing: 1px; }
+.link { padding: 20px 22px; display: flex; flex-direction: column; gap: 12px; }
+.link h3 { font-size: 30px; letter-spacing: -0.03em; padding-bottom: 10px; border-bottom: 1px solid var(--paper); }
+.link p { margin: 0; font-size: 13.5px; color: var(--soft); }
+.link .foot { display: flex; justify-content: flex-end; gap: 0; }
+
+/* Si FL ne répond pas : les 4 cases de MIDI Settings */
+.midi { padding-block: 28px 40px; border-bottom: 1px solid var(--line); display: grid;
+  grid-template-columns: minmax(0, 340px) minmax(0, 1fr); gap: 40px; align-items: start; }
+.midi h3 { font-size: 24px; letter-spacing: -0.02em; padding-bottom: 10px; border-bottom: 1px solid var(--paper); }
+.midi p { margin: 12px 0 0; color: var(--soft); font-size: 14px; }
+.boxes { display: flex; flex-direction: column; }
+.box { display: grid; grid-template-columns: 28px minmax(0, 1fr) minmax(0, 46%); gap: 14px; align-items: center; padding: 12px 0;
+  border-top: 1px solid var(--line); }
+.box:first-child { border-top: 0; padding-top: 0; }
+.box .num { width: 22px; height: 22px; display: grid; place-items: center; background: var(--red); color: var(--ink);
+  font-size: 12px; font-weight: 700; }
+.box b { font-size: 14px; }
+.box img { width: 100%; max-width: 250px; height: auto; display: block; justify-self: end; }
+.box.wide { grid-template-columns: 28px minmax(0, 1fr); }
+.box.wide img { grid-column: 2; max-width: 600px; justify-self: start; }
+.full { margin-top: 14px; }
+.full summary { cursor: pointer; list-style: none; display: inline-flex; }
+.full summary::-webkit-details-marker { display: none; }
+.full img { margin-top: 12px; width: 100%; max-width: 640px; height: auto; display: block; }
+
+/* 6. Communauté */
+.commu { padding: 18px 20px 6px; }
+.commu-head { display: flex; justify-content: space-between; align-items: end; padding-bottom: 10px; border-bottom: 1px solid var(--paper); }
+.commu-head h3 { font-size: 30px; letter-spacing: -0.03em; line-height: 1; }
+.tabs { display: flex; gap: 16px; padding: 10px 0 0; }
+.tabs span { font: 700 10px/1 var(--text); letter-spacing: 1.2px; text-transform: uppercase; color: var(--gray); padding-bottom: 6px; }
+.tabs span.on { color: var(--paper); border-bottom: 2px solid var(--paper); }
+.post { padding: 14px 0; border-top: 1px solid var(--faint); display: flex; flex-direction: column; gap: 8px; }
+.tabs + .post { border-top: 1px solid var(--line); margin-top: 0; }
+.who { display: flex; align-items: center; gap: 8px; font: 700 10px/1 var(--text); letter-spacing: 1px; text-transform: uppercase; color: var(--gray); }
+.who i { width: 16px; height: 16px; display: grid; place-items: center; font-style: normal; color: var(--ink); font-size: 9px; }
+.who b { margin-left: auto; letter-spacing: 1.2px; }
+.post h4 { margin: 0; font: 700 17px/1.2 var(--display); letter-spacing: -0.01em; }
+.acts { display: flex; gap: 0; }
+.acts .btn { height: 28px; font-size: 10px; padding: 0 10px; }
+
+/* Le reste */
+.more { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0; border-top: 1px solid var(--paper); }
+.more > div { padding: 16px 20px 18px 0; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.more > div + div { padding-left: 20px; border-left: 1px solid var(--line); }
+.more h3 { font-size: 20px; letter-spacing: -0.02em; }
+.more p { margin: 0; font-size: 14px; color: var(--soft); }
+.more p b { color: var(--paper); }
+.foot-note { padding-top: 20px; font-size: 12.5px; color: var(--gray); }
+.en { margin-top: 36px; padding-top: 14px; border-top: 1px solid var(--paper); display: grid;
+  grid-template-columns: minmax(0, 340px) minmax(0, 1fr); gap: 40px; }
+.en h2 { font-size: 26px; letter-spacing: -0.02em; }
+.en ul { margin: 0; padding: 0; list-style: none; }
+.en li { padding: 8px 0; border-top: 1px solid var(--faint); font-size: 14px; color: var(--soft); }
+.en li:first-child { border-top: 0; padding-top: 0; }
+.en li b { color: var(--paper); }
+
+@media (max-width: 760px) {
+  .step, .midi, .en { grid-template-columns: minmax(0, 1fr); gap: 22px; }
+  .toc { grid-template-columns: minmax(0, 1fr); }
+  .more { grid-template-columns: minmax(0, 1fr); }
+  .more > div + div { padding-left: 0; border-left: 0; border-top: 1px solid var(--line); }
+  .lede { grid-template-columns: minmax(0, 1fr); }
+  .lede .label { text-align: left; }
+  .tuto { grid-template-columns: minmax(0, 1fr); }
+  .box { grid-template-columns: 28px minmax(0, 1fr); }
+  .box img { grid-column: 2; justify-self: start; }
+}
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<main>
+  <header>
+    <div class="head">
+      <h1>FL Shortcuts</h1>
+      <img src="{{ICON}}" alt="">
+    </div>
+    <div class="lede">
+      <p>Tes raccourcis, tes macros, l'Organiser et la Communauté pour FL Studio. Six étapes, dans l'ordre.</p>
+      <span class="label">Mode d'emploi · Mac · macOS 13 ou plus récent</span>
+    </div>
+    <ol class="toc" aria-label="Étapes">
+      <li><a href="#installer"><span>01</span>Installer</a></li>
+      <li><a href="#ouvrir"><span>02</span>Premier lancement</a></li>
+      <li><a href="#autoriser"><span>03</span>Autorisations</a></li>
+      <li><a href="#utiliser"><span>04</span>Tous les jours</a></li>
+      <li><a href="#organiser"><span>05</span>Organiser</a></li>
+      <li><a href="#communaute"><span>06</span>Communauté</a></li>
+    </ol>
+  </header>
+
+  <section class="step" id="installer">
+    <div class="text">
+      <span class="label red">Étape 01</span>
+      <h2>Installer</h2>
+      <ol class="lines">
+        <li><b class="n">1</b><span>Ouvre <b>FLShortcuts.pkg</b>.</span></li>
+        <li><b class="n">2</b><span>macOS dit qu'il ne peut pas vérifier le paquet : c'est normal, il n'est pas encore signé par Apple. Clique <b>Terminé</b>.</span></li>
+        <li><b class="n">3</b><span>Réglages Système › <b>Confidentialité et sécurité</b> › <b>Ouvrir quand même</b>, puis suis l'installation jusqu'au bout.</span></li>
+      </ol>
+    </div>
+    <div class="stage">
+      <div class="screen" role="img" aria-label="macOS ne peut pas vérifier FLShortcuts.pkg">
+        <div class="alert">
+          <img src="{{PKG}}" alt="">
+          <div>
+            <h3>« FLShortcuts.pkg » n'a pas été ouvert</h3>
+            <p>Apple ne peut pas vérifier qu'il est exempt de logiciels malveillants.</p>
+          </div>
+          <div class="foot"><span class="btn">Placer dans la Corbeille</span><span class="btn main show">Terminé</span></div>
+        </div>
+      </div>
+      <div class="screen" role="img" aria-label="Réglages Système, Confidentialité et sécurité, Ouvrir quand même">
+        <div class="bar"><i></i><i></i><i></i><span>Confidentialité et sécurité</span></div>
+        <div class="settings">
+          <h3>Sécurité</h3>
+          <div class="row">
+            <p>« FLShortcuts.pkg » a été bloqué pour protéger ton Mac.</p>
+            <span class="btn show">Ouvrir quand même</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="step" id="ouvrir">
+    <div class="text">
+      <span class="label red">Étape 02</span>
+      <h2>Premier lancement</h2>
+      <ol class="lines">
+        <li><b class="n">1</b><span>Ouvre le dossier <b>Applications</b>.</span></li>
+        <li><b class="n">2</b><span>Clic droit sur <b>FL Shortcuts</b> › <b>Ouvrir</b>.</span></li>
+        <li><b class="n">3</b><span>Son icône, un petit clavier, arrive en haut de l'écran.</span></li>
+      </ol>
+    </div>
+    <div class="stage">
+      <div class="screen" role="img" aria-label="Dans Applications, clic droit sur FL Shortcuts, puis Ouvrir">
+        <div class="bar"><i></i><i></i><i></i><span>Applications</span></div>
+        <div class="ctx">
+          <div class="app"><img src="{{ICON}}" alt=""><span>FL Shortcuts</span></div>
+          <div class="menu"><div class="on show">Ouvrir</div><div>Afficher le contenu du paquet</div><div>Lire les informations</div></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="step" id="autoriser">
+    <div class="text">
+      <span class="label red">Étape 03</span>
+      <h2>Autorisations</h2>
+      <ol class="lines">
+        <li><b class="n">1</b><span><b>Clavier</b> : clique « Tout autoriser… », coche FL Shortcuts, puis ton mot de passe ou Touch ID.</span></li>
+        <li><b class="n">2</b><span><b>Son de FL</b> : à la question de macOS, réponds <b>Autoriser</b>.</span></li>
+      </ol>
+    </div>
+    <div class="stage">
+      <div class="screen" role="img" aria-label="L'accueil de FL Shortcuts : Clavier autorisé, Son de FL à autoriser">
+        <div class="welcome">
+          <h3>FL Shortcuts</h3>
+          <div class="perm"><span class="label">01</span><b>Clavier</b><span class="pill ok">Autorisé</span></div>
+          <div class="perm"><span class="label">02</span><b>Son de FL</b><span class="pill todo show">À autoriser</span></div>
+          <div class="foot"><span class="label">Plus tard</span><span class="btn main">Tout autoriser…</span></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="step" id="utiliser">
+    <div class="text">
+      <span class="label red">Étape 04</span>
+      <h2>Tous les jours</h2>
+      <ol class="lines">
+        <li><b class="n">1</b><span>Tes raccourcis fonctionnent quand <b>FL Studio</b> est ouvert.</span></li>
+        <li><b class="n">2</b><span>Tout le reste est dans l'<b>icône</b> en haut de l'écran : raccourcis, macros, Organiser.</span></li>
+        <li><b class="n">3</b><span>Pour chercher un raccourci : la barre en haut à gauche de la fenêtre. L'icône clavier cherche avec les touches que tu connais.</span></li>
+      </ol>
+    </div>
+    <div class="stage">
+      <div class="screen" role="img" aria-label="Le menu de l'icône de FL Shortcuts dans la barre des menus">
+        <div class="menubar">
+          <span class="mbicon show"><svg width="14" height="10" viewBox="0 0 15 11" aria-hidden="true"><rect x="0.6" y="0.6" width="13.8" height="9.8" fill="none" stroke="#000" stroke-width="1.2"></rect><rect x="2.5" y="2.6" width="1.6" height="1.6" fill="#000"></rect><rect x="5.2" y="2.6" width="1.6" height="1.6" fill="#000"></rect><rect x="7.9" y="2.6" width="1.6" height="1.6" fill="#000"></rect><rect x="10.6" y="2.6" width="1.6" height="1.6" fill="#000"></rect><rect x="4" y="6.6" width="7" height="1.6" fill="#000"></rect></svg></span>
+          <span>lun. 2 nov. 10:42</span>
+        </div>
+        <div class="iconmenu">
+          <div class="it"><i style="background:#0A84FF"></i><span>Modifier les raccourcis…</span></div>
+          <div class="it"><i style="background:#BF5AF2"></i><span>Macros…</span></div>
+          <div class="it on"><i></i><span>Organiser…</span></div>
+          <div class="it quiet sep"><i></i><span>Désinstaller FL Shortcuts…</span></div>
+          <div class="end"><span>Ouvrir FL Shortcuts</span><span>Quitter ⌘Q</span></div>
+        </div>
+      </div>
+      <div class="screen" role="img" aria-label="La barre de recherche et son icône clavier">
+        <div class="bar"><i></i><i></i><i></i><span>FL Shortcuts</span></div>
+        <div style="padding-top:18px">
+          <div class="search">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="square" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-4-4"></path></svg>
+            <span>Rechercher</span>
+            <span class="kbicon show" style="flex:none"><svg width="17" height="12" viewBox="0 0 15 11" aria-hidden="true"><rect x="0.6" y="0.6" width="13.8" height="9.8" fill="none" stroke="#FFFFFF" stroke-width="1.2"></rect><rect x="2.5" y="2.6" width="1.6" height="1.6" fill="#FFFFFF"></rect><rect x="5.2" y="2.6" width="1.6" height="1.6" fill="#FFFFFF"></rect><rect x="7.9" y="2.6" width="1.6" height="1.6" fill="#FFFFFF"></rect><rect x="10.6" y="2.6" width="1.6" height="1.6" fill="#FFFFFF"></rect><rect x="4" y="6.6" width="7" height="1.6" fill="#FFFFFF"></rect></svg></span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="step" id="organiser">
+    <div class="text">
+      <span class="label red">Étape 05</span>
+      <h2>Organiser</h2>
+      <ol class="lines">
+        <li><b class="n">1</b><span>Ouvre ton projet dans FL, puis icône › <b>Organiser…</b></span></li>
+        <li><b class="n">2</b><span>La première fois : <b>Installer le lien</b>, puis quitte FL <kbd>⌘</kbd> <kbd>Q</kbd> et rouvre-le.</span></li>
+        <li><b class="n">3</b><span>Vérifie d'abord les <b>4 cases de MIDI Settings</b>, juste en dessous.</span></li>
+        <li><b class="n">4</b><span><b>Démarrer</b>, puis vérifie l'aperçu (tu peux glisser les familles et les sons) et <b>Organiser</b>.</span></li>
+        <li><b class="n">5</b><span>À la fin, « Tu valides la version organisée ? ». <b>Oui</b> : l'ancienne version part à la Corbeille. <b>Retourner en arrière</b> : c'est la version organisée qui y part.</span></li>
+        <li class="note"><b class="n">—</b><span>Rien n'est supprimé pour de bon : tant que tu ne vides pas la Corbeille, tu peux y récupérer le projet.</span></li>
+      </ol>
+    </div>
+    <div class="stage">
+      <div class="screen" role="img" aria-label="L'Organiser la première fois : Installer le lien">
+        <div class="link">
+          <span class="label">Organiser</span>
+          <h3>Installer le lien</h3>
+          <p>Une fois, avant le premier rangement. FL doit ensuite être relancé.</p>
+          <div class="foot"><span class="btn">Annuler</span><span class="btn main show">Installer le lien</span></div>
+        </div>
+      </div>
+      <div class="tuto">
+        <figure><img src="{{TUTO2}}" alt="L'écoute du projet, son par son"><figcaption><b>4</b><span>L'écoute, son par son.</span></figcaption></figure>
+        <figure><img src="{{TUTO3}}" alt="L'aperçu des familles avant de ranger"><figcaption><b>4</b><span>L'aperçu, puis « Organiser ».</span></figcaption></figure>
+      </div>
+      <div class="tuto">
+        <figure><img src="{{TUTO4}}" alt="Tu valides la version organisée ?"><figcaption><b>5</b><span>Tu valides : l'ancienne version part à la Corbeille.</span></figcaption></figure>
+      </div>
+    </div>
+  </section>
+
+  <section class="midi" aria-labelledby="midi-titre">
+    <div>
+      <span class="label red">À faire pour Organiser</span>
+      <h3 id="midi-titre" style="margin-top:14px">Les 4 cases de MIDI Settings</h3>
+      <p>Dans FL : Options › MIDI Settings. Règle ces 4 cases, puis clique « Démarrer » dans Organiser.</p>
+    </div>
+    <div>
+      <div class="boxes">
+        <div class="box"><span class="num">1</span><b>Output : un numéro de Port (ex. 7).</b><img src="{{MIDI1}}" alt="Case Port de la sortie"></div>
+        <div class="box"><span class="num">2</span><b>Input : le même numéro de Port. N'importe lequel, du moment que les deux sont pareils.</b><img src="{{MIDI2}}" alt="Case Port de l'entrée"></div>
+        <div class="box"><span class="num">3</span><b>Input : clique « FL Shortcuts Link », puis allume Enable.</b><img src="{{MIDI3}}" alt="Case Enable de l'entrée"></div>
+        <div class="box wide"><span class="num">4</span><b>Controller type : FL Shortcuts.</b><img src="{{MIDI4}}" alt="Liste Controller type"></div>
+      </div>
+      <details class="full">
+        <summary class="btn">Voir toute la fenêtre</summary>
+        <img src="{{MIDIFULL}}" alt="La fenêtre MIDI Settings de FL, les 4 cases entourées">
+      </details>
+    </div>
+  </section>
+
+  <section class="step" id="communaute">
+    <div class="text">
+      <span class="label red">Étape 06</span>
+      <h2>Communauté</h2>
+      <ol class="lines">
+        <li><b class="n">1</b><span>Récupère les macros et les raccourcis des autres en un clic : <b>Ajouter à mes macros</b>, <b>Utiliser ces raccourcis</b>.</span></li>
+        <li><b class="n">2</b><span>Partage les tiens avec <b>Partager</b> : une macro qui te fait gagner du temps sert à tout le monde.</span></li>
+        <li class="note"><b class="n">—</b><span>Pour partager, il faut un compte (Mon compte). Pour regarder, non.</span></li>
+      </ol>
+    </div>
+    <div class="stage">
+      <div class="screen" role="img" aria-label="La page Communauté : des macros et des raccourcis partagés">
+        <div class="commu">
+          <div class="commu-head"><h3>Communauté</h3><span class="btn main">Partager</span></div>
+          <div class="tabs"><span class="on">Tout</span><span>Macros</span><span>Raccourcis</span><span>Les miens</span></div>
+          <div class="post">
+            <div class="who"><i style="background:#FF9F0A">L</i><span>@leo.beats · 15/10/2026</span><b style="color:#BF5AF2">Macro</b></div>
+            <h4>Armer la piste et lancer l'enregistrement</h4>
+            <div class="acts"><span class="btn">Voir</span><span class="btn show">Ajouter à mes macros</span></div>
+          </div>
+          <div class="post">
+            <div class="who"><i style="background:#0A84FF">S</i><span>@sarah.mix · 14/10/2026</span><b style="color:#0A84FF">Raccourcis</b></div>
+            <h4>Raccourcis façon Ableton</h4>
+            <div class="acts"><span class="btn">Voir</span><span class="btn">Utiliser ces raccourcis</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="step" id="reste" style="grid-template-columns: minmax(0, 1fr); border-bottom: 0">
+    <div class="text" style="gap:0">
+      <span class="label">En plus</span>
+      <h2 style="margin-top:14px; border-bottom: 0; padding-bottom: 14px">Mise à jour et aide</h2>
+      <div class="more">
+        <div><span class="label">Mettre à jour</span><h3>Le nouveau .pkg</h3><p>Ouvre le nouveau <b>FLShortcuts.pkg</b> : il remplace l'ancienne version. macOS peut redemander l'autorisation du clavier.</p></div>
+        <div><span class="label">Désinstaller</span><h3>Rien ne reste</h3><p>Icône › <b>Désinstaller FL Shortcuts…</b> Tout part, réglages compris.</p></div>
+        <div><span class="label">Un problème ?</span><h3>Écrire à l'équipe</h3><p>Dans l'app : <b>Aide › Écrire à l'équipe</b>. Le diagnostic part avec ton message, jamais le nom de tes sons.</p></div>
+      </div>
+      <p class="foot-note">Le fichier .sha256 sert seulement à vérifier le téléchargement. Tu peux l'ignorer.</p>
+    </div>
+  </section>
+
+  <section class="en" lang="en" aria-labelledby="en-titre">
+    <div><span class="label">In English</span><h2 id="en-titre" style="margin-top:12px">Quick guide</h2></div>
+    <ul>
+      <li><b>Install</b> — open FLShortcuts.pkg. If macOS can't verify it: System Settings › Privacy &amp; Security › Open Anyway, then finish the installer.</li>
+      <li><b>First launch</b> — Applications › right-click FL Shortcuts › Open.</li>
+      <li><b>Permissions</b> — allow the keyboard and FL's sound when the welcome window asks.</li>
+      <li><b>Every day</b> — shortcuts work when FL Studio is open; everything else is in the menu bar icon.</li>
+      <li><b>Organize</b> — icon › Organize…, Install the link, quit and reopen FL, set the 4 MIDI Settings boxes, then Start. Keep the organized version: the old one goes to the Trash (not deleted for good).</li>
+      <li><b>Community</b> — get other people's macros and shortcuts in one click, share yours (an account is needed to share).</li>
+      <li><b>Help</b> — Help › Write to the team, inside the app.</li>
+    </ul>
+  </section>
+</main>

@@ -1047,6 +1047,7 @@
 "Infos du morceau" = "Infos du morceau";
 "Input" = "Input";
 "Input : clique « FL Shortcuts Link », puis allume Enable." = "Input : clique « FL Shortcuts Link », puis allume Enable.";
+"Input : le même numéro de Port. N'importe lequel, du moment que les deux sont pareils." = "Input : le même numéro de Port. N'importe lequel, du moment que les deux sont pareils.";
 "Installation impossible" = "Installation impossible";
 "Installe le lien" = "Installe le lien";
 "Installer le lien" = "Installer le lien";
@@ -2057,7 +2058,9 @@
 "Trousseau indisponible (%d)." = "Trousseau indisponible (%d).";
 "Tu as déjà signalé cette photo." = "Tu as déjà signalé cette photo.";
 "Tu n'as pas encore de macro : crée-en une dans la page Macros." = "Tu n'as pas encore de macro : crée-en une dans la page Macros.";
+"Tu valides : l'ancienne version part à la Corbeille. Tu reviens en arrière : c'est la version organisée qui y part." = "Tu valides : l'ancienne version part à la Corbeille. Tu reviens en arrière : c'est la version organisée qui y part.";
 "Tu valides la version organisée ?" = "Tu valides la version organisée ?";
+"Tu valides, ou pas" = "Tu valides, ou pas";
 "Type" = "Type";
 "Tête de lecture au début" = "Tête de lecture au début";
 "Un bloc caché de l'ancien format est inclus : relis-le dans le créateur avant de t'en servir." = "Un bloc caché de l'ancien format est inclus : relis-le dans le créateur avant de t'en servir.";

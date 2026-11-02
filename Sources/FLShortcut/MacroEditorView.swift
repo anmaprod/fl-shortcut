@@ -564,11 +564,18 @@ private struct MacroHeader: View {
             model.saveNow()
             onBack()
         } label: {
-            // Une coche devant (01/11 : « un rectangle blanc, pas très compréhensible »).
+            // Une coche devant (01/11 : « un rectangle blanc, pas très compréhensible ») ; 02/11 : le nom de la macro
+            // prenait la place et le mot était écrasé (un carré blanc en hauteur, la coche seule) : le bouton garde sa
+            // largeur, en paysage, le mot écrit en entier.
             Label("Enregistrer", systemImage: "checkmark")
+                .labelStyle(.titleAndIcon)
+                .lineLimit(1)
+                .fixedSize()
         }
         .primaryButton()
         .controlSize(.large)
+        .fixedSize()
+        .layoutPriority(2)
         .keyboardShortcut("s", modifiers: .command)
         .help("Enregistrer et revenir aux macros (⌘S)")
     }

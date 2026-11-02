@@ -217,9 +217,9 @@ struct OnboardingView: View {
                                     state: accessOK ? .allowed : askedPermission || permissions.asking ? .waiting : .toAllow)]
         if #available(macOS 14.2, *) {
             items.append(PermissionItem(id: "son", symbol: "waveform", tint: .pink, title: String(localized: "Son de FL"),
+                                        // 02/11 : plus de « pour l'Organiser » (demande du propriétaire).
                                         detail: permissions.audioInSettings && !permissions.audioGranted
-                                            ? String(localized: "à cocher dans les Réglages")
-                                            : String(localized: "pour l'Organiser"),
+                                            ? String(localized: "à cocher dans les Réglages") : nil,
                                         state: permissions.audioGranted ? .allowed
                                             : permissions.asking && permissions.stage == .audio ? .waiting : .toAllow))
         }
@@ -250,7 +250,14 @@ struct OnboardingView: View {
                             }
                         }
                         Spacer(minLength: 8)
-                        PermissionPill(state: item.state)
+                        if item.state == .toAllow {
+                            // À autoriser : un bouton qui se soulève sur son encoche rouge (02/11, « réactifs, comme
+                            // dans Macro ») ; il demande cette autorisation-là.
+                            Button(String(localized: "À autoriser")) { ask(item.id) }
+                                .buttonStyle(StampButtonStyle())
+                        } else {
+                            PermissionPill(state: item.state)
+                        }
                     }
                     .frame(height: 58)
                     .swissRule(Swiss.line)
@@ -292,6 +299,16 @@ struct OnboardingView: View {
         // Clavier autorisé : les états et les boutons changent en fondu.
         .motion(Motion.morph, value: accessOK)
         .motion(Motion.morph, value: askedPermission)
+    }
+
+    /// « À autoriser » d'une ligne : le clavier (avec la suite, comme « Tout autoriser… »), ou le son de FL seul.
+    private func ask(_ id: String) {
+        if id == "son" {
+            AccessibilityGuide.shared.startAudio()
+        } else {
+            askedPermission = true
+            AccessibilityGuide.start(panel: false)
+        }
     }
 
     // MARK: Étape 2 — relier FL Studio (hors mode léger)

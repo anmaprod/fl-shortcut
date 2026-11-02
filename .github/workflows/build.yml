@@ -1,7 +1,7 @@
 # Compilation, tests et publication de FL Shortcuts.
 # Audit : SEC-09 / SUP-xx — actions épinglées par SHA de commit (le tag n'est qu'un commentaire),
 # jeton en lecture seule par défaut, écriture limitée au job de publication, identifiants git non conservés,
-# empreinte SHA-256 et attestation de provenance publiées avec le .dmg.
+# empreinte SHA-256 et attestation de provenance publiées avec le .pkg (le .dmg n'est plus publié, 02/11).
 # Les SHA ci-dessous ont été relevés le 8 octobre 2026 ; Dependabot (dependabot.yml) les tient à jour.
 name: FL Shortcuts
 
@@ -169,12 +169,12 @@ jobs:
           if-no-files-found: ignore
       - name: Mode d'emploi dans le téléchargement
         shell: pwsh
-        run: Copy-Item docs/telechargement/LISEZMOI-Windows.txt dist/LISEZMOI.txt
+        run: Copy-Item docs/telechargement/LISEZMOI-Windows.html dist/LISEZMOI.html
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: FLShortcuts-windows
           path: |
-            dist/LISEZMOI.txt
+            dist/LISEZMOI.html
             dist/FLShortcuts-Windows-Setup.exe
             dist/FLShortcuts-win-*.zip
             dist/FLShortcuts-win.sha256
@@ -344,14 +344,14 @@ jobs:
           [[ "$status" != 0 ]] && exit "$status"
           exit "$status2"
       - name: Mode d'emploi dans le téléchargement
-        run: cp docs/telechargement/LISEZMOI-Mac.txt dist/LISEZMOI.txt
+        run: cp docs/telechargement/LISEZMOI-Mac.html dist/LISEZMOI.html
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: FLShortcuts-mac
+          # Le .pkg seul (02/11 : « le .dmg n'est pas très utile, le .pkg c'est plus rapide ») ; le .dmg reste
+          # fabriqué pour les essais, jamais publié.
           path: |
-            dist/LISEZMOI.txt
-            dist/FLShortcuts.dmg
-            dist/FLShortcuts.dmg.sha256
+            dist/LISEZMOI.html
             dist/FLShortcuts.pkg
             dist/FLShortcuts.pkg.sha256
           if-no-files-found: error
@@ -381,18 +381,19 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - name: Récupérer le .dmg et l'installeur Windows (outil officiel gh)
+      - name: Récupérer le .pkg et l'installeur Windows (outil officiel gh)
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           gh run download "$GITHUB_RUN_ID" --repo "$GITHUB_REPOSITORY" --name FLShortcuts-mac --dir dist
+          mv dist/LISEZMOI.html dist/LISEZMOI-Mac.html
           gh run download "$GITHUB_RUN_ID" --repo "$GITHUB_REPOSITORY" --name FLShortcuts-windows --dir dist
+          mv dist/LISEZMOI.html dist/LISEZMOI-Windows.html
       - name: Vérifier les empreintes
-        run: cd dist && sha256sum -c FLShortcuts.dmg.sha256 FLShortcuts.pkg.sha256 FLShortcuts-win.sha256
+        run: cd dist && sha256sum -c FLShortcuts.pkg.sha256 FLShortcuts-win.sha256
       - uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
         with:
           subject-path: |
-            dist/FLShortcuts.dmg
             dist/FLShortcuts.pkg
             dist/FLShortcuts-Windows-Setup.exe
             dist/FLShortcuts-win-*.zip
@@ -403,7 +404,7 @@ jobs:
         run: |
           # Noms de fichiers fixes : les liens « releases/latest/download/… » de la page de téléchargement
           # et du README pointent toujours vers la dernière version.
-          gh release create "$TAG" dist/FLShortcuts.dmg dist/FLShortcuts.dmg.sha256 dist/FLShortcuts.pkg dist/FLShortcuts.pkg.sha256 \
+          gh release create "$TAG" dist/FLShortcuts.pkg dist/FLShortcuts.pkg.sha256 dist/LISEZMOI-Mac.html dist/LISEZMOI-Windows.html \
             dist/FLShortcuts-Windows-Setup.exe dist/FLShortcuts-win-x64.zip dist/FLShortcuts-win-arm64.zip \
             dist/FLShortcuts-win.sha256 \
             --repo "$GITHUB_REPOSITORY" --title "FL Shortcuts $TAG" \

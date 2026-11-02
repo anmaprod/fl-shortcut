@@ -81,15 +81,16 @@ struct MIDISettingsCrops: View {
         var wide = false
     }
 
+    /// Les deux ports d'abord, en 1 et 2 (02/11 : « pour que ça coïncide » ; les pastilles de l'image suivent).
     static var crops: [Crop] {
         [Crop(id: 1, text: String(localized: "Output : un numéro de Port (ex. 7)."),
               rect: CGRect(x: 1090, y: 478, width: 250, height: 112)),
-         Crop(id: 2, text: String(localized: "Input : clique « FL Shortcuts Link », puis allume Enable."),
+         Crop(id: 2, text: String(localized: "Input : le même numéro de Port. N'importe lequel, du moment que les deux sont pareils."),
+              rect: CGRect(x: 1090, y: 955, width: 250, height: 112)),
+         Crop(id: 3, text: String(localized: "Input : clique « FL Shortcuts Link », puis allume Enable."),
               rect: CGRect(x: 80, y: 958, width: 210, height: 105)),
-         Crop(id: 3, text: String(localized: "Controller type : FL Shortcuts."),
-              rect: CGRect(x: 284, y: 932, width: 815, height: 132), wide: true),
-         Crop(id: 4, text: String(localized: "Port : le même numéro qu'en 1."),
-              rect: CGRect(x: 1090, y: 955, width: 250, height: 112))]
+         Crop(id: 4, text: String(localized: "Controller type : FL Shortcuts."),
+              rect: CGRect(x: 284, y: 932, width: 815, height: 132), wide: true)]
     }
 
     /// Pure (testée) : la découpe en pixels de l'image réelle (l'image de référence fait 1428 pixels de large).

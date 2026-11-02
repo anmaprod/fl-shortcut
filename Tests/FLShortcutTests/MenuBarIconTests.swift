@@ -8,7 +8,7 @@ final class MenuBarIconTests: XCTestCase {
         try XCTUnwrap(image.representations.compactMap { $0 as? NSBitmapImageRep }.first { $0.pixelsWide == 18 * scale })
     }
 
-    /// Part des pixels non transparents dans la moitié droite du haut (là où est la pastille ou la touche de derrière).
+    /// Pixels non transparents dans une zone de l'icône.
     private func ink(_ rep: NSBitmapImageRep, in box: (x: Range<Int>, y: Range<Int>)) -> Int {
         var n = 0
         for x in box.x { for y in box.y where (rep.colorAt(x: x, y: y)?.alphaComponent ?? 0) > 0.5 { n += 1 } }
@@ -23,7 +23,7 @@ final class MenuBarIconTests: XCTestCase {
             XCTAssertEqual(image.size, NSSize(width: 18, height: 18))
             XCTAssertNotNil(image.accessibilityDescription)
             let rep = try pixels(image, scale: 2)
-            // Touche de devant (en bas à gauche) toujours dessinée.
+            // La tuile du clavier (en bas à gauche, autour des touches évidées) toujours dessinée.
             XCTAssertGreaterThan(ink(rep, in: (4..<20, 14..<32)), 100, "\(state)")
             drawings.append(try XCTUnwrap(rep.tiffRepresentation))
             // Même dessin en 1x, à la même place (le 2x n'est pas un dessin 1x posé dans un coin).

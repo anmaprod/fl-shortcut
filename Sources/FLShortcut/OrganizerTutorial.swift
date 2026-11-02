@@ -22,8 +22,9 @@ enum OrganizerTutorial {
               text: String(localized: "Ne touche pas à FL pendant l'écoute.")),
          Page(id: 3, title: String(localized: "Vérifie le rangement"),
               text: String(localized: "Change une famille, un nom ou une piste si tu veux.")),
-         Page(id: 4, title: String(localized: "Une copie rangée"),
-              text: String(localized: "Ton projet ne bouge pas : tu valides la copie, ou tu reviens en arrière."))]
+         // 02/11 : « ton projet ne bouge jamais, ça faut que tu enlèves » : on dit ce qui part à la Corbeille.
+         Page(id: 4, title: String(localized: "Tu valides, ou pas"),
+              text: String(localized: "Tu valides : l'ancienne version part à la Corbeille. Tu reviens en arrière : c'est la version organisée qui y part."))]
     }
 
     /// Vu une fois : plus montré tout seul. Rien de sensible (un autre programme peut l'écrire : le tuto revient, ou

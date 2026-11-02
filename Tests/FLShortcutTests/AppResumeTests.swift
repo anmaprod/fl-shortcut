@@ -161,6 +161,24 @@ final class AppResumeTests: XCTestCase {
         XCTAssertNil(resume.takeAsking(defaults, now: now), "seulement « clavier » ou « son »")
     }
 
+    /// Retour du 02/11 (« Son de FL reste À autoriser quand j'appuie sur Autoriser ») : la réponse de TCC lue telle
+    /// quelle (0 oui, 1 non, le reste : pas demandé) ; « Autorisé » aussi après « Autoriser » choisi à la question, ou
+    /// avec la case « écran et audio du système » ; un refus noté par TCC reste un refus sans cette case.
+    func testSoundAllowedEvenWhenTCCSaysNothing() {
+        XCTAssertEqual(AudioCapturePermission.from(0), .granted)
+        XCTAssertEqual(AudioCapturePermission.from(1), .denied)
+        XCTAssertEqual(AudioCapturePermission.from(2), .unknown)
+        XCTAssertEqual(AudioCapturePermission.from(nil), .unknown)
+        XCTAssertTrue(AccessibilityGuide.allowed(.granted, answeredAllow: false, screenAndAudio: false))
+        XCTAssertTrue(AccessibilityGuide.allowed(.unknown, answeredAllow: true, screenAndAudio: false),
+                      "« Autoriser » choisi, TCC encore muet")
+        XCTAssertTrue(AccessibilityGuide.allowed(.unknown, answeredAllow: false, screenAndAudio: true),
+                      "case du haut de la page cochée")
+        XCTAssertTrue(AccessibilityGuide.allowed(.denied, answeredAllow: false, screenAndAudio: true))
+        XCTAssertFalse(AccessibilityGuide.allowed(.denied, answeredAllow: true, screenAndAudio: false), "refusé")
+        XCTAssertFalse(AccessibilityGuide.allowed(.unknown, answeredAllow: false, screenAndAudio: false))
+    }
+
     func testWelcomeWaitsUntilThePermissionIsGiven() {
         XCTAssertTrue(PermissionRelaunchWait.missing("clavier", keyboardOK: false, audioOK: true))
         XCTAssertFalse(PermissionRelaunchWait.missing("clavier", keyboardOK: true, audioOK: false))

@@ -29,14 +29,33 @@ enum AudioCapturePermission: Equatable {
     private static let service = "kTCCServiceAudioCapture" as CFString
     private static let tcc = dlopen("/System/Library/PrivateFrameworks/TCC.framework/Versions/A/TCC", RTLD_NOW)
 
-    static var status: AudioCapturePermission {
-        typealias Preflight = @convention(c) (CFString, CFDictionary?) -> Int32     // 0 oui, 1 non, 2 pas demandé
-        guard let tcc, let symbol = dlsym(tcc, "TCCAccessPreflight") else { return .unknown }
-        switch unsafeBitCast(symbol, to: Preflight.self)(service, nil) {
+    static var status: AudioCapturePermission { from(raw(service)) }
+
+    /// Pur (testé) : la réponse de TCC (0 oui, 1 non, autre : pas demandé ou inconnu).
+    static func from(_ raw: Int32?) -> AudioCapturePermission {
+        switch raw {
         case 0: return .granted
         case 1: return .denied
         default: return .unknown
         }
+    }
+
+    /// Réponse brute de TCC pour un service (nil : fonction introuvable), pour le journal `AUDIO`.
+    static func raw(_ service: CFString) -> Int32? {
+        typealias Preflight = @convention(c) (CFString, CFDictionary?) -> Int32
+        guard let tcc, let symbol = dlsym(tcc, "TCCAccessPreflight") else { return nil }
+        return unsafeBitCast(symbol, to: Preflight.self)(service, nil)
+    }
+
+    /// « Enregistrement de l'écran et de l'audio du système » (la liste du haut de la même page des Réglages), lue en
+    /// direct (celle de CoreGraphics ne change qu'après une relance) : elle comprend l'audio du système.
+    static var screenAndAudio: Bool { raw("kTCCServiceScreenCapture" as CFString) == 0 }
+
+    /// Pour le journal : les deux réponses brutes (son seul, écran et son), des nombres seulement.
+    static var rawSummary: String {
+        let audio = raw(service).map { "\($0)" } ?? "-"
+        let screen = raw("kTCCServiceScreenCapture" as CFString).map { "\($0)" } ?? "-"
+        return "audio=\(audio) screen=\(screen)"
     }
 
     /// Retour du 01/11 (« n'attend toujours pas… ça ne fait pas l'encoche Autorisé ») : déjà refusé (ou noté pour une

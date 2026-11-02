@@ -695,3 +695,10 @@ entrée 1 ≈ 0,5 s.
   arrivée après la fermeture pouvait recréer l'appareil (emprunt comme un bloc de macro). Fait : lien rendu dès que
   tout est rangé ; « Revenir comme avant » le reprend puis le rend ; demandes de l'Organiser refusées une fois le lien
   rendu (jamais d'appareil recréé). Fermeture : rendu comme avant (3 s au plus).
+- 02/11 : retours sur l'app et le mode d'emploi. App : « Enregistrer » du créateur lisible (largeur fixe) ; « À
+  autoriser » en boutons à encoche (comme les blocs des macros) ; Son de FL qui ne passait pas à « Autorisé » (voir
+  CLAUDE.md, Autorisations) ; « pour l'Organiser » retiré ; icône de l'app et de la barre des menus = le petit clavier
+  (choisi par le propriétaire). Valider la version organisée met déjà l'original à la Corbeille (vérifié dans
+  `OrganizerCopyApproval.swift`) : dit dans le mode d'emploi et le tuto. Téléchargement : .pkg seul, LISEZMOI.html au
+  style suisse (Mac, Windows), ports de MIDI Settings en 1 et 2, Communauté en étape 6 (Mac). Anglais : après sa
+  validation.

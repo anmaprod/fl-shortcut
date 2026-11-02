@@ -56,6 +56,11 @@
   (`audioInSettings` : attente tant qu'ils sont ouverts, plus de « refusé » à la 1re seconde, qui effaçait l'attente) ;
   autorisation notée dès la demande (`AppResume.noteAsking`, 3 min : fermée de force, la copie relancée attend
   aussi). Journal `AUDIO` (réponse en ms, effacement, Réglages). Pas encore vu sur son Mac.
+  02/11 : « ça attend bien que j'autorise, mais Son de FL reste À autoriser » → « Autorisé » aussi si « Autoriser » a
+  été choisi à la question (retenu, `audioAnsweredAllow`) ou si la case « écran et audio du système » est cochée
+  (TCC lu en direct, `AudioCapturePermission.screenAndAudio`) ; refus de TCC = refus (`AccessibilityGuide.allowed`) ;
+  nombres bruts dans `AUDIO` (`audio=… screen=…`). « À autoriser » = bouton qui se soulève sur son encoche rouge
+  (`StampButtonStyle`, comme les blocs des macros), il demande cette autorisation-là ; « pour l'Organiser » retiré.
 - Fenêtre principale sans bande sous la barre d'outils ; accueil remontré si l'autorisation clavier manque.
 - **Organiser v5** (`Sources/FLShortcut/Organizer*.swift`, `SoundFeatures.swift`, `SoundFamilies.swift`, script FL v16) :
   - analyse sur le fichier du projet (PROTOCOL.md §9, `FLP*.swift`, `OrganizerProject*.swift`) : FL enregistre (⌘S),
@@ -205,7 +210,9 @@
   de câbles courbes : « on n'a pas besoin de savoir où va ensuite ce qu'on envoie » ; NE PAS remettre la chaîne),
   cases sous les pistes = sorties (plusieurs), double-clic nom + couleur, clic droit retirer une piste sans son,
   piste choisie blanche jusqu'au bord ; changements dans `MixerEdits` (passent par le plan). Couleur choisie dans la
-  roue : contour blanc égal (tracé en dernier). Logo : 8 idées (dont 4 « vraie touche »), pas encore choisi.
+  roue : contour blanc égal (tracé en dernier). Logo CHOISI le 02/11 : le petit clavier (« c'est très bien pour
+  l'icône ») : tuile blanche « squircle », clavier noir à traits pleins (`scripts/icone.py` → AppIcon-1024.png, .icns,
+  .ico Windows ; barre des menus : tuile pleine au clavier évidé, `MenuBarIcon`).
   Retours du 01/11 au soir : blocs des macros soulevés avec une encoche de la couleur du bloc dessous au survol et
   choisis (comme les cartes de Gumroad, `cardRow(stamp:)`) ; interrupteur inversé sur une ligne blanche
   (`SwissSwitch` lit `hoverFilled`) ; « Enregistrer » du créateur avec une coche ; retour du créateur carré ; onglets
@@ -217,6 +224,13 @@
   bande) : `moveSound`/`moveTrack` (bus de la nouvelle famille, case et sorties à la main oubliées ; 808 posée sur
   Basse : bus de la Basse, nom gardé) ; colonnes rééquilibrées après une famille posée (`OrganizerView.balanced` :
   ordre gardé, la famille du haut à droite passe en bas à gauche ; la famille posée garde sa colonne à un en-tête près).
+  02/11 : « Enregistrer » du créateur écrasé en carré blanc (le nom prenait la place) → largeur fixe, mot écrit.
+  Téléchargement Mac : le .pkg seul (le .dmg reste fabriqué pour les essais, jamais publié) + LISEZMOI.html au style
+  suisse avec images (Mac et Windows : modèles `docs/telechargement/modele-*.html`, `python3 scripts/lisezmoi.py` y
+  colle les images → LISEZMOI-Mac/Windows.html ; exemples validés au fil de ses retours : artefacts privés
+  `7gTnWMLVFWwXB6zkkK6Ywt` et `6zMYYWb6RTRDh7PZerTddd`) ; version anglaise à faire APRÈS sa validation.
+  MIDISettings.png renumérotée (les deux Port en 1 et 2, Enable 3, Controller type 4 ; `MIDISettingsCrops` suit) ;
+  tuto 4 de l'Organiser : « l'ancienne version part à la Corbeille » (plus « ton projet ne bouge pas »).
 - **Aspect validé le 28/10** (maquette, `HISTORIQUE`) : plus de Liquid Glass depuis le 29/10 (plaques dessinées), sans lavis ni lueur ; fond de
   fenêtre plein (« sans le Liquid Glass derrière »), verre devant : cartes, touches, cartes de l'Organiser
   (`GlassPlate`, dessiné : pas de `glassEffect` par ligne) ; titre de

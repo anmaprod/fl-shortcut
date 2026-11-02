@@ -66,9 +66,31 @@ final class AccessibilityGuide: ObservableObject {
     }
 
     /// Son de FL autorisé (Audio du système) ; vrai là où l'Organiser ne peut pas écouter (macOS avant 14.2).
+    /// Retour du 02/11 (« le bouton Son de FL ne se met pas en Autorisé quand j'appuie sur Autoriser ») : TCC répondait
+    /// encore « pas demandé » après « Autoriser », ou la case cochée était celle du haut de la page (« Enregistrement de
+    /// l'écran et de l'audio du système »). Compte aussi : « Autoriser » choisi à la question de macOS (retenu), et la
+    /// case du haut (l'écran et l'audio du système).
     static var audioAllowed: Bool {
         guard #available(macOS 14.2, *) else { return true }
-        return AudioCapturePermission.status == .granted
+        return allowed(AudioCapturePermission.status, answeredAllow: answeredAllow,
+                       screenAndAudio: AudioCapturePermission.screenAndAudio)
+    }
+
+    /// Pur (testé) : refusé reste refusé, sauf la case de l'écran et de l'audio du système cochée.
+    static func allowed(_ status: AudioCapturePermission, answeredAllow: Bool, screenAndAudio: Bool) -> Bool {
+        switch status {
+        case .granted: return true
+        case .denied: return screenAndAudio
+        case .unknown: return answeredAllow || screenAndAudio
+        }
+    }
+
+    /// « Autoriser » choisi à la question du son (retenu d'une ouverture à l'autre ; seulement pour afficher
+    /// « Autorisé », rien d'autre n'en dépend).
+    static let answeredAllowKey = "audioAnsweredAllow"
+    static var answeredAllow: Bool {
+        get { UserDefaults.standard.bool(forKey: answeredAllowKey) }
+        set { UserDefaults.standard.set(newValue, forKey: answeredAllowKey) }
     }
 
     /// Son de FL demandable sur ce Mac et pas encore autorisé.
@@ -92,7 +114,9 @@ final class AccessibilityGuide: ObservableObject {
                     guard let self else { return }
                     self.audioQuestionOpen = false
                     let status = AudioCapturePermission.status
-                    MacroLog.shared.write("AUDIO", "refused before: answer reset \(reset ? "done" : "failed"), TCC \(status)")
+                    if reset { Self.answeredAllow = false }
+                MacroLog.shared.write("AUDIO", "refused before: answer reset \(reset ? "done" : "failed"), TCC \(status), "
+                                      + AudioCapturePermission.rawSummary)
                     if status == .granted {
                         self.audioGranted = true
                     } else if reset && status == .unknown {
@@ -119,8 +143,11 @@ final class AccessibilityGuide: ObservableObject {
             guard let self else { return }
             self.audioQuestionOpen = false
             let ms = Int(Date().timeIntervalSince(asked) * 1000)
+            let status = AudioCapturePermission.status
             MacroLog.shared.write("AUDIO", "question answered after \(ms) ms: \(ok ? "allowed" : "not allowed"), "
-                                  + "TCC \(AudioCapturePermission.status)")
+                                  + "TCC \(status), " + AudioCapturePermission.rawSummary)
+            // « Autoriser » : dit par macOS, ou une vraie réponse (le temps de lire) sans refus noté par TCC.
+            if ok || (ms >= 700 && status != .denied) { Self.answeredAllow = true }
             if ok || Self.audioAllowed {
                 self.audioGranted = true
             } else if ms < 700 {
@@ -167,7 +194,25 @@ final class AccessibilityGuide: ObservableObject {
             granted = trusted
             AppStatus.shared.recheck()
         }
-        if !audioGranted, Self.audioAllowed { audioGranted = true }
+        if !audioGranted, Self.audioAllowed {
+            audioGranted = true
+            MacroLog.shared.write("AUDIO", "given (seen) " + AudioCapturePermission.rawSummary)
+        }
+    }
+
+    /// « À autoriser » du son de FL cliqué sur l'accueil : seulement le son (le clavier peut attendre).
+    func startAudio() {
+        showsPanel = false
+        audioGranted = Self.audioAllowed
+        guard !audioGranted else { return }
+        askAudio()
+        asking = true
+        AppResume.shared.noteAsking("son")
+        timer?.invalidate()
+        let t = Timer(timeInterval: 1, repeats: true) { [weak self] _ in self?.check() }
+        t.tolerance = 0.3
+        RunLoop.main.add(t, forMode: .common)
+        timer = t
     }
 
     /// Autorisation en cours (« clavier », « son »), notée à la fermeture : une copie relancée avant qu'elle soit

@@ -355,6 +355,52 @@ private struct SecondaryButtonStyleModifier: ViewModifier {
 /// Bouton du style suisse (01/11) : rectangle aux coins carrés, texte en capitales espacées ; blanc plein et texte
 /// noir pour l'action (`prominent`), sinon noir bordé de blanc. Taille d'après `controlSize`. (Nom gardé : il est
 /// utilisé partout.)
+/// Bouton qui se soulève au survol en laissant voir dessous une encoche de sa couleur, comme les blocs des macros
+/// (cartes de Gumroad, `cardRow(stamp:)`) ; enfoncé, il redescend dans l'encoche. Retour du 02/11 : « À autoriser »
+/// de l'accueil (« qu'ils soient réactifs, comme dans Macro »).
+struct StampButtonStyle: ButtonStyle {
+    var tint: Color = Swiss.red
+
+    func makeBody(configuration: Configuration) -> some View {
+        StampButtonBody(label: configuration.label, pressed: configuration.isPressed, tint: tint)
+    }
+}
+
+private struct StampButtonBody<Label: View>: View {
+    let label: Label
+    let pressed: Bool
+    let tint: Color
+    @State private var hovering = false
+    @Environment(\.isEnabled) private var enabled
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    /// Hauteur du soulèvement (l'encoche visible en bas à droite).
+    static var lift: CGFloat { 3 }
+
+    var body: some View {
+        let lifted = hovering && enabled && !pressed
+        let face = label
+            .font(Swiss.font(10.5))
+            .tracking(1.2)
+            .textCase(.uppercase)
+            .lineLimit(1)
+            .foregroundStyle(lifted ? Swiss.background : tint)
+            .padding(.horizontal, 10)
+            .frame(height: 26)
+            .background(Rectangle().fill(lifted ? Swiss.text : Swiss.background))
+            .overlay(Rectangle().strokeBorder(lifted ? Swiss.text : tint, lineWidth: 1))
+        return ZStack(alignment: .topLeading) {
+            Rectangle().fill(tint).opacity(lifted ? 1 : 0)          // l'encoche, à la place du bouton
+            face.offset(x: lifted ? -Self.lift : 0, y: lifted ? -Self.lift : 0)
+        }
+        .fixedSize()
+        .contentShape(Rectangle())
+        .opacity(enabled ? 1 : 0.35)
+        .animation(reduceMotion ? nil : Motion.lift, value: lifted)
+        .onHover { hovering = $0 }
+    }
+}
+
 struct CapsuleButtonStyle: ButtonStyle {
     var prominent: Bool
     @Environment(\.controlSize) private var size
