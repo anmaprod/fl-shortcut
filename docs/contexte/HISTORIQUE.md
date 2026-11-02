@@ -717,4 +717,5 @@ entrée 1 ≈ 0,5 s.
   Demande : « la famille Voix, et dans Voix il y a Adlib, Voix, Voix 2 ; dans Drums, Kick, Snare… il faut créer des
   tracks en plus ». Fait : une piste de tête vide par famille, à son nom et à sa couleur, ses pistes groupées dessous.
   Vu sur la même capture : des icônes d'anciennes pistes restées en place (clé de fa sur « Snare 3 ») → icônes
-  retirées des pistes remises à neuf.
+  retirées ; puis « si aucune icône n'est mise et qu'il y en a déjà dans la Playlist, il faut les enlever » → plus aucune
+  icône dans la Playlist de la copie, pistes vides comprises.

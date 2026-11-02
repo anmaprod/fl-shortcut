@@ -81,9 +81,10 @@
     02/11 (capture : « la famille s'appelle Adlib… je veux la famille Voix, et dans Voix : Adlib, Voix, Voix 2 ») :
     une piste de tête VIDE par famille, au nom de la famille (« Voix », « Drums », « Basse », « Mélodies », « FX ») et
     à sa couleur, toutes les pistes de ses sons groupées dessous (`PlaylistLayout.Result.headers`, jamais numérotée
-    avec les sons ; « À vérifier » : ni tête ni groupe). Pistes touchées et têtes remises à neuf dans la copie : nom,
-    couleur ET icône (`FLPProject.trackIcon` ; les icônes de l'ancien projet restaient sur leur piste : clé de fa sur
-    « Snare 3 »). Windows pas encore fait (en pause).
+    avec les sons ; « À vérifier » : ni tête ni groupe). Pistes touchées et têtes remises à neuf dans la copie (nom,
+    couleur) ; plus AUCUNE icône dans la Playlist de la copie, même sur les pistes vides (`FLPProject.trackIcon` ; les
+    icônes de l'ancien projet restaient sur leur piste : clé de fa sur « Snare 3 » ; demande : « si aucune icône n'est
+    mise et qu'il y en a déjà dans la Playlist, il faut les enlever »). Windows pas encore fait (en pause).
   - Playlist rangée dans une copie « <nom>_2.flp » (comme « Save new version » de FL ; puis _3…) à côté de l'original : chaque clip sur la piste de ses
     sons (les mêmes sons, la même piste ; un clip qui en chevaucherait un autre : une piste de plus dessous ; patterns
     vides en bas), pistes dans l'ordre des familles ; FL ouvre la copie (reconnue à un nom de pattern posé pour ça,

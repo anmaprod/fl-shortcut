@@ -369,11 +369,6 @@ struct FLPProject: Equatable {
         for track in touched.sorted() {
             let index = trackEvents[track]
             FLPBytes.put(plain, into: &out.events[index].bytes, at: 4, size: 4)
-            // Plus l'icône de l'ancienne piste (capture du 02/11 : un tambour sur « Snare » mais une clé de fa sur
-            // « Snare 3 », un clavier sur « Hi-hat » : les icônes restaient à leur place quand les clips bougeaient).
-            if out.events[index].bytes.count >= Self.trackIcon + 4 {
-                FLPBytes.put(UInt32(0), into: &out.events[index].bytes, at: Self.trackIcon, size: 4)
-            }
             out.events[index].bytes[Self.trackEnabled] = 1
             var next = index + 1
             while next < out.events.count, next <= index + 3, out.events[next].id != Event.track,
@@ -384,6 +379,10 @@ struct FLPProject: Equatable {
         }
         for (track, index) in trackEvents.enumerated() where out.events[index].bytes.count > Self.trackGrouped {
             out.events[index].bytes[Self.trackGrouped] = grouped.contains(track) ? 1 : 0
+            // Plus aucune icône dans la Playlist rangée (02/11 : une clé de fa restée sur « Snare 3 », un clavier sur
+            // « Hi-hat » ; « si aucune icône n'est mise et qu'il y en a déjà dans la Playlist, il faut les enlever ») :
+            // celles de l'ancien projet restaient sur leur piste, même vide, quand les clips bougeaient.
+            FLPBytes.put(UInt32(0), into: &out.events[index].bytes, at: Self.trackIcon, size: 4)
         }
         for index in removed.sorted(by: >) { out.events.remove(at: index) }
         return out

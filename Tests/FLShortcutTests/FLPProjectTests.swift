@@ -227,11 +227,16 @@ final class FLPProjectTests: XCTestCase {
         var old = FLPSample.track(7, color: 0x00FF00)
         FLPBytes.put(UInt32(12), into: &old.bytes, at: FLPProject.trackIcon, size: 4)
         file.events[tracks[6]] = old
+        var empty = FLPSample.track(11)                                        // une piste vide du bas, avec icône
+        FLPBytes.put(UInt32(5), into: &empty.bytes, at: FLPProject.trackIcon, size: 4)
+        file.events[tracks[10]] = empty
         let project = try FLPProject(file)
         let copy = try project.rearranged(file, tracks: [:], headers: [6])
         let header = copy.events.filter { $0.id == 238 }[6]
         XCTAssertEqual(FLPBytes.uint(header.bytes, at: 4, size: 4), 0x404040, "couleur ordinaire")
         XCTAssertEqual(FLPBytes.uint(header.bytes, at: FLPProject.trackIcon, size: 4), 0, "plus d'icône")
+        XCTAssertEqual(Set(copy.events.filter { $0.id == 238 }.map { FLPBytes.uint($0.bytes, at: FLPProject.trackIcon, size: 4) }),
+                       [0], "aucune icône nulle part dans la Playlist rangée, même sur une piste vide")
         XCTAssertFalse(copy.events.contains { $0.id == 239 && $0.text == "Vieux nom" }, "plus l'ancien nom")
         XCTAssertThrowsError(try project.rearranged(file, tracks: [:], headers: [12]))
     }
