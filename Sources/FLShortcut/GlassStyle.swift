@@ -1372,6 +1372,45 @@ struct SwissStepper: View {
     }
 }
 
+/// Ligne « libellé : réglage » du style suisse : le libellé en gris à gauche, le réglage à droite (panneau des
+/// réglages d'un bloc, sans les cartes grises arrondies d'un formulaire de macOS).
+struct SwissLabeledContentStyle: LabeledContentStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: 10) {
+            configuration.label
+                .font(.system(size: 12))
+                .foregroundStyle(Swiss.gray)
+                .fixedSize(horizontal: false, vertical: true)
+            Spacer(minLength: 8)
+            configuration.content
+        }
+    }
+}
+
+/// Champ de texte avec son libellé à gauche, au style suisse (le libellé d'un TextField ne s'affiche que dans un
+/// formulaire de macOS).
+struct SwissTextField: View {
+    let label: String
+    @Binding var text: String
+    var prompt: Text? = nil
+    var axis: Axis = .horizontal
+
+    init(_ label: String, text: Binding<String>, prompt: Text? = nil, axis: Axis = .horizontal) {
+        self.label = label
+        _text = text
+        self.prompt = prompt
+        self.axis = axis
+    }
+
+    var body: some View {
+        LabeledContent(label) {
+            TextField("", text: $text, prompt: prompt, axis: axis)
+                .swissField()
+                .accessibilityLabel(label)
+        }
+    }
+}
+
 /// Case à cocher du style suisse : un carré bordé de blanc ; cochée, blanche pleine avec une coche noire. Le texte
 /// à droite se clique aussi.
 struct SwissCheckboxStyle: ToggleStyle {

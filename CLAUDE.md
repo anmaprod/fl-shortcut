@@ -239,7 +239,9 @@
   (touche déjà utilisée, import, larsen, dossier incorrect : `SwissDialog`, image ou liste possibles) ; question de la
   version organisée sur fond noir (attente et « Pas fait » compris). Roue des couleurs (`FLColorSelector`) au style
   suisse, coins carrés : les 10 récentes en haut (comme FL : la dernière posée en case 0, une 11e chasse la plus
-  ancienne, une déjà là remonte en 0), un clic sur l'une la pose ; photo CI `organiser-couleurs.png`.
+  ancienne, une déjà là remonte en 0), un clic sur l'une la pose ; photo CI `organiser-couleurs.png`. Réglages d'un
+  bloc (créateur) : plus de formulaire groupé de macOS (cartes grises arrondies), rubriques à traits fins
+  (`SwissLabeledContentStyle`, `SwissTextField`, − + `SwissStepper`) ; compte sans bleu (bouton, liens, case du code).
   Téléchargement Mac : le .pkg seul (le .dmg reste fabriqué pour les essais, jamais publié) + LISEZMOI.html au style
   suisse avec images (Mac et Windows : modèles `docs/telechargement/modele-*.html`, `python3 scripts/lisezmoi.py` y
   colle les images → LISEZMOI-Mac/Windows.html ; exemples validés au fil de ses retours : artefacts privés

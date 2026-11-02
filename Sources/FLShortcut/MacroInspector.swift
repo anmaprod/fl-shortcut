@@ -65,33 +65,42 @@ private struct BlockInspector: View {
 
     private var spec: BlockSpec? { block.body.type.map(BlockRegistry.spec) }
 
+    /// Style suisse (02/11, « vérifie partout ») : plus les cartes grises arrondies d'un formulaire de macOS, des
+    /// rubriques séparées de traits fins, libellés en gris à gauche, réglages à droite.
     var body: some View {
-        Form {
-            Section {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 0) {
                 header
-            }
-            if let spec {
-                Section {
-                    if spec.params.filter({ $0.kind.editable }).isEmpty {
-                        noSettings
-                    } else {
-                        ForEach(spec.params.filter { $0.kind.editable }, id: \.id) { param in
-                            control(param)
+                    .padding(.bottom, 14)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .swissRule(Swiss.line)
+                if let spec {
+                    Text("Réglages")
+                        .swissLabel(size: 10)
+                        .padding(.top, 16)
+                        .padding(.bottom, 10)
+                    VStack(alignment: .leading, spacing: 14) {
+                        if spec.params.filter({ $0.kind.editable }).isEmpty {
+                            noSettings
+                        } else {
+                            ForEach(spec.params.filter { $0.kind.editable }, id: \.id) { param in
+                                control(param)
+                            }
                         }
                     }
-                } header: {
-                    Text("Réglages")
-                }
-            } else {
-                Section {
+                    .padding(.bottom, 16)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .swissRule(Swiss.line)
+                } else {
                     Text("Bloc d'une version plus récente : mets l'app à jour, ou supprime-le.")
                         .font(.system(size: 12))
                         .fixedSize(horizontal: false, vertical: true)
+                        .padding(.vertical, 14)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .swissRule(Swiss.line)
                 }
-            }
-            // Plus de rubrique « À savoir », de « Bloc actif », de « Si le bloc échoue » ni de note (maquettes du 28/10,
-            // 29/10 : « le reste ça part ») : en bas, seulement « Retirer ce bloc ».
-            Section {
+                // Plus de rubrique « À savoir », de « Bloc actif », de « Si le bloc échoue » ni de note (maquettes du
+                // 28/10, 29/10 : « le reste ça part ») : en bas, seulement « Retirer ce bloc ».
                 Button(role: .destructive) {
                     model.deleteSelection()
                 } label: {
@@ -100,10 +109,12 @@ private struct BlockInspector: View {
                 .buttonStyle(.borderless)
                 .foregroundStyle(Swiss.red)
                 .help("Retirer ce bloc de la macro (⌫)")
+                .padding(.top, 14)
             }
+            .padding(16)
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .formStyle(.grouped)
-        .glassListBackground()
+        .labeledContentStyle(SwissLabeledContentStyle())
     }
 
     private var header: some View {
@@ -204,17 +215,17 @@ private struct BlockInspector: View {
         case (.pageOption, "name"):
             EmptyView()
         case (.stop(let m), "message"):
-            TextField(p.label, text: textBinding(m ?? "", max: MacroValidation.maxNoteLength) { text in
+            SwissTextField(p.label, text: textBinding(m ?? "", max: MacroValidation.maxNoteLength) { text in
                 setBody(key: "message") { $0 = .stop(message: text.isEmpty ? nil : text) }
             }, prompt: Text("Facultatif"))
         case (.comment(let t), "text"):
-            TextField(p.label, text: textBinding(t, max: 200) { text in
+            SwissTextField(p.label, text: textBinding(t, max: 200) { text in
                 setBody(key: "text") { $0 = .comment(text) }
             }, axis: .vertical)
             .lineLimit(2...5)
         case (.nameColor(let name, _, let fade, _), "name"):
             // Coupé en points de code, comme le compte le script de FL (un « é » décomposé en vaut deux).
-            TextField(p.label, text: Binding(get: { name ?? "" }, set: { text in
+            SwissTextField(p.label, text: Binding(get: { name ?? "" }, set: { text in
                 let cut = String(String.UnicodeScalarView(text.unicodeScalars.prefix(NameColorPayload.maxNameScalars)))
                 setBody(key: "name") { body in
                     if case .nameColor(_, let c, let f, let i) = body {
@@ -503,7 +514,7 @@ private struct BlockInspector: View {
 
     private func lettersField(_ label: String, _ letters: [Character], max: Int, hint: String) -> some View {
         VStack(alignment: .leading, spacing: 4) {
-            TextField(label, text: Binding(get: { String(letters).uppercased() }, set: { text in
+            SwissTextField(label, text: Binding(get: { String(letters).uppercased() }, set: { text in
                 let clean = Array(text.lowercased().filter { ("a"..."z").contains($0) }.prefix(max))
                 setBody(key: "letters") { body in
                     switch body {
@@ -764,9 +775,11 @@ private struct BlockInspector: View {
         return LabeledContent("Décalage (points)") {
             HStack(spacing: 6) {
                 Text("x").foregroundStyle(.secondary)
-                TextField("", value: Binding(get: { dx }, set: { set($0, dy) }), format: .number).frame(width: 56)
+                TextField("", value: Binding(get: { dx }, set: { set($0, dy) }), format: .number)
+                    .swissField(minHeight: 24).frame(width: 56)
                 Text("y").foregroundStyle(.secondary)
-                TextField("", value: Binding(get: { dy }, set: { set(dx, $0) }), format: .number).frame(width: 56)
+                TextField("", value: Binding(get: { dy }, set: { set(dx, $0) }), format: .number)
+                    .swissField(minHeight: 24).frame(width: 56)
             }
         }
     }
@@ -968,15 +981,15 @@ private struct BlockInspector: View {
             case .plugin:
                 PluginField(item: id.hasSuffix(".addEffect") ? "Effect" : "Channel", value: value, set: set)
             case .channel:
-                TextField("Canal", text: Binding(get: { value }, set: { text in
+                SwissTextField(String(localized: "Canal"), text: Binding(get: { value }, set: { text in
                     set(String(text.filter { $0.isASCII && $0.isNumber }.prefix(3)))
                 }), prompt: Text("1 à \(PageOptions.maxChannel)"))
             case .name:
-                TextField("Nouveau nom", text: Binding(get: { value }, set: { text in
+                SwissTextField(String(localized: "Nouveau nom"), text: Binding(get: { value }, set: { text in
                     set(String(String.UnicodeScalarView(text.unicodeScalars.prefix(NameColorPayload.maxNameScalars))))
                 }), prompt: Text("Kick, Lead, Voix…"))
             case .arrangement:
-                TextField("Arrangement", text: Binding(get: { value }, set: { text in
+                SwissTextField(String(localized: "Arrangement"), text: Binding(get: { value }, set: { text in
                     set(String(text.prefix(PageOptions.maxName)))
                 }), prompt: Text("Arrangement 2"))
             }
@@ -1136,7 +1149,7 @@ private struct PluginField: View {
                     .font(.system(size: 11))
             } else {
                 HStack(spacing: 6) {
-                    TextField("Plugin", text: Binding(get: { value }, set: { set(String($0.prefix(PageOptions.maxName))) }),
+                    SwissTextField(String(localized: "Plugin"), text: Binding(get: { value }, set: { set(String($0.prefix(PageOptions.maxName))) }),
                               prompt: Text(item == "Effect" ? String(localized: "Fruity Limiter, Pro-Q 3…")
                                                             : String(localized: "Serum, FLEX, Sytrus…")))
                     if list.state == .loading {
@@ -1597,6 +1610,7 @@ struct NameColorField: View {
                     Text("#").foregroundStyle(.secondary)
                     TextField("E0453A", text: $text)
                         .font(.system(.body, design: .monospaced))
+                        .swissField(minHeight: 24)
                         .frame(width: 96)
                         .help("Code de la couleur, comme dans la fenêtre de couleur de FL (Entrée pour la garder dans les récentes)")
                         .onSubmit {
