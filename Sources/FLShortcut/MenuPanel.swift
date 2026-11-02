@@ -39,6 +39,7 @@ final class MenuPanel: ObservableObject {
     func attach(_ window: NSWindow) {
         guard panel !== window else { return }
         panel = window
+        window.animationBehavior = .none                   // ni fondu de macOS à l'ouverture (02/11)
         Self.clearSystemBackground(of: window)
         let center = NotificationCenter.default
         observers.append(center.addObserver(forName: NSWindow.didBecomeKeyNotification, object: window,
@@ -85,17 +86,13 @@ final class MenuPanel: ObservableObject {
     func close() {
         guard let panel, panel.isVisible, !closing else { return }
         closing = true
-        let reduce = NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
-        // Les options repartent d'abord (MenuReveal), puis le panneau rentre dans l'icône.
-        let duration = reduce ? 0.12 : 0.36
-        withAnimation(reduce ? .easeIn(duration: 0.12) : .easeIn(duration: 0.22).delay(0.14)) { revealed = false }
-        // La bulle (le fond du menu, dessiné par macOS) s'efface avec les options : elle restait seule au-dessus de
-        // la fenêtre qu'une option venait d'ouvrir.
-        NSAnimationContext.runAnimationGroup { context in
-            context.duration = duration
-            context.timingFunction = CAMediaTimingFunction(name: .easeIn)
-            panel.animator().alphaValue = 0
-        }
+        // Fermé d'un coup, sans animation (02/11) ; la bulle du menu (dessinée par macOS) part avec lui : elle restait
+        // seule au-dessus de la fenêtre qu'une option venait d'ouvrir.
+        let duration = 0.0
+        var quiet = Transaction()
+        quiet.disablesAnimations = true
+        withTransaction(quiet) { revealed = false }
+        panel.alphaValue = 0
         DispatchQueue.main.asyncAfter(deadline: .now() + duration) { [weak self] in
             guard let self, let panel = self.panel, panel.isVisible else { return }
             self.statusButton?.performClick(nil)
@@ -125,10 +122,9 @@ final class MenuPanel: ObservableObject {
 
     private func reveal() {
         panel?.alphaValue = 1                              // effacée à la dernière fermeture
-        let reduce = NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
-        withAnimation(reduce ? .easeOut(duration: 0.15) : .spring(response: 0.5, dampingFraction: 0.82)) {
-            revealed = true
-        }
+        var quiet = Transaction()
+        quiet.disablesAnimations = true                    // d'un coup (02/11 : « enlever l'animation »)
+        withTransaction(quiet) { revealed = true }
     }
 
     /// Une autre fenêtre a pris la main (ligne choisie, clic sur une fenêtre de l'app ou sur une autre app) : le menu
@@ -226,29 +222,8 @@ extension View {
 private struct MenuReveal: ViewModifier {
     let revealed: Bool
     let index: Int?
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
-    func body(content: Content) -> some View {
-        if reduceMotion {
-            content.opacity(revealed ? 1 : 0)
-        } else if let index {
-            // Une option : du flou au net en descendant à sa place, juste après la précédente ; à la fermeture,
-            // celles du bas repartent d'abord.
-            content
-                .opacity(revealed ? 1 : 0)
-                .blur(radius: revealed ? 0 : 6)
-                .scaleEffect(revealed ? 1 : 0.94, anchor: .top)
-                .offset(y: revealed ? 0 : -12)
-                .animation(revealed
-                           ? .spring(response: 0.46, dampingFraction: 0.8).delay(0.06 + Double(index) * 0.035)
-                           : .easeIn(duration: 0.16).delay(Double(max(0, 10 - index)) * 0.012), value: revealed)
-        } else {
-            // Le panneau : sort de l'icône, du flou au net, en grandissant depuis le haut.
-            content
-                .opacity(revealed ? 1 : 0)
-                .blur(radius: revealed ? 0 : 10)
-                .scaleEffect(revealed ? 1 : 0.86, anchor: .top)
-                .offset(y: revealed ? 0 : -8)
-        }
-    }
+    /// Plus aucune animation (02/11, vidéo « ouverture icône, enlever animation ») : le menu est là d'un coup, à
+    /// l'ouverture comme à la fermeture. L'ancienne sortie de l'icône (flou, agrandissement) est dans git.
+    func body(content: Content) -> some View { content }
 }

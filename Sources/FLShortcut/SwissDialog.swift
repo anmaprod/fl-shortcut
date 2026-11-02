@@ -11,13 +11,11 @@ enum SwissDialog {
     static func run(_ title: String, _ text: String, buttons: [String], destructive: Int? = nil,
                     image: NSImage? = nil, list: [String]? = nil) -> Int {
         let choice = Box(max(buttons.count - 1, 0))
-        let panel = NSPanel(contentRect: NSRect(x: 0, y: 0, width: SwissDialogView.width, height: 160),
-                            styleMask: [.titled, .fullSizeContentView], backing: .buffered, defer: false)
-        panel.titleVisibility = .hidden
-        panel.titlebarAppearsTransparent = true
-        for kind in [NSWindow.ButtonType.closeButton, .miniaturizeButton, .zoomButton] {
-            panel.standardWindowButton(kind)?.isHidden = true
-        }
+        // Sans barre de titre : coins carrés (02/11 : une fenêtre à barre de titre a les coins arrondis de macOS),
+        // un trait fin #333 tout autour (SwissDialogView).
+        let panel = KeyPanel(contentRect: NSRect(x: 0, y: 0, width: SwissDialogView.width, height: 160),
+                             styleMask: [.borderless], backing: .buffered, defer: false)
+        panel.hasShadow = true
         panel.backgroundColor = .black
         panel.isMovableByWindowBackground = true
         panel.level = .modalPanel
@@ -46,6 +44,12 @@ enum SwissDialog {
     private final class Box {
         var value: Int
         init(_ value: Int) { self.value = value }
+    }
+
+    /// Une fenêtre sans barre de titre ne prend pas le clavier d'elle-même : Entrée et Échap doivent y arriver.
+    private final class KeyPanel: NSPanel {
+        override var canBecomeKey: Bool { true }
+        override var canBecomeMain: Bool { true }
     }
 }
 
@@ -112,6 +116,7 @@ struct SwissDialogView: View {
         .padding(.bottom, 22)
         .frame(width: Self.width, alignment: .leading)
         .background(Swiss.background)
+        .overlay(Rectangle().strokeBorder(Swiss.line, lineWidth: 1))
     }
 
     @ViewBuilder private func button(_ index: Int) -> some View {

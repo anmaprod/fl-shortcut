@@ -863,20 +863,20 @@ struct EditorView: View {
                                text: String(localized: "Aucun raccourci ne correspond à « \(q) »."))
                 }
             } else {
+                // Titres des pages dans les lignes, pas en en-têtes de section : un en-tête de liste de macOS reste
+                // collé en haut sur une bande grise (capture du 02/11 : « Playlist » sur sa bande).
                 PageContainer {
                     ForEach(sections) { s in
                         Section {
+                            SectionHeader(symbol: s.symbol, tint: s.tint, title: s.title).headerRow()
                             CardRows(items: rows.filter { $0.entry.section == s }, tint: s.tint) { catalogRow($0) }
-                        } header: {
-                            SectionHeader(symbol: s.symbol, tint: s.tint, title: s.title)
                         }
                     }
                     if !others.isEmpty {
                         Section {
-                            CardRows(items: others, tint: SidebarItem.custom.tint) { customRow($0) }
-                        } header: {
                             SectionHeader(symbol: SidebarItem.custom.symbol, tint: SidebarItem.custom.tint,
-                                          title: String(localized: "Mes raccourcis"))
+                                          title: String(localized: "Mes raccourcis")).headerRow()
+                            CardRows(items: others, tint: SidebarItem.custom.tint) { customRow($0) }
                         }
                     }
                 }
@@ -1420,6 +1420,19 @@ private struct SectionHeader: View {
             SectionIcon(symbol: symbol, tint: tint, size: 16)
             Text(title)
         }
+    }
+}
+
+private extension View {
+    /// Titre d'une page dans les résultats de la recherche, posé comme une ligne : fond transparent, sans trait.
+    func headerRow() -> some View {
+        font(.system(size: 13, weight: .semibold))
+            .foregroundStyle(Swiss.gray)
+            .padding(.top, 14)
+            .padding(.bottom, 4)
+            .listRowInsets(EdgeInsets(top: 0, leading: CardRowBackground.inset + 6, bottom: 0, trailing: CardRowBackground.inset))
+            .listRowSeparator(.hidden)
+            .listRowBackground(Color.clear)
     }
 }
 

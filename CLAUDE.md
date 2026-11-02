@@ -124,7 +124,9 @@
   morph) ont été enlevées : le code est revenu à 7f68c9f. Ne pas les refaire sans qu'il le demande ; tout reste dans
   l'historique git (commits 541d81c → dcd01f0) si besoin d'y regarder.
   Le 24/10, il a aussi fait retirer l'animation d'avant du changement de page (barre de gauche) : la page s'affiche
-  d'un coup (`pageSwitch`). Gardées : guide, accueil, menu de l'icône, Organiser, créateur, survols.
+  d'un coup (`pageSwitch`). Gardées : guide, accueil, Organiser, créateur, survols. Menu de l'icône : animation
+  RETIRÉE le 02/11 (vidéo « ouverture icône, enlever animation ») : il apparaît et disparaît d'un coup (`MenuReveal`
+  sans effet, `animationBehavior = .none`, fermeture sans fondu).
 - **IA intégrée** (`ia/`, mode d'emploi `ia/README.md`, chiffres `ia/RESULTATS.md`) : YAMNet (Apache 2.0) + deux
   têtes apprises sur des sons libres d'usage commercial (VocalSet, LibriSpeech, NSynth, Freesound CC0/CC BY, Groove
   MIDI Dataset) et, à sa demande (24/10), les packs de batterie qu'il a donnés (`FLS_IA_KITS`, jamais dans le dépôt ;
@@ -249,6 +251,8 @@
   ancienne, une déjà là remonte en 0), un clic sur l'une la pose ; photo CI `organiser-couleurs.png`. Réglages d'un
   bloc (créateur) : plus de formulaire groupé de macOS (cartes grises arrondies), rubriques à traits fins
   (`SwissLabeledContentStyle`, `SwissTextField`, − + `SwissStepper`) ; compte sans bleu (bouton, liens, case du code).
+  Captures du 02/11 : questions (`SwissDialog`) sans barre de titre, coins carrés, trait #333 ; résultats de la
+  recherche : titres des pages en lignes (plus d'en-tête de liste collé en haut sur une bande grise).
   Téléchargement Mac : le .pkg seul (le .dmg reste fabriqué pour les essais, jamais publié) + LISEZMOI.html au style
   suisse avec images (Mac et Windows : modèles `docs/telechargement/modele-*.html`, `python3 scripts/lisezmoi.py` y
   colle les images → LISEZMOI-Mac/Windows.html ; exemples validés au fil de ses retours : artefacts privés

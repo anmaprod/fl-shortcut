@@ -719,3 +719,6 @@ entrée 1 ≈ 0,5 s.
   Vu sur la même capture : des icônes d'anciennes pistes restées en place (clé de fa sur « Snare 3 ») → icônes
   retirées ; puis « si aucune icône n'est mise et qu'il y en a déjà dans la Playlist, il faut les enlever » → plus aucune
   icône dans la Playlist de la copie, pistes vides comprises.
+- 02/11 (5) : vidéo « ouverture icône, enlever animation » → menu de l'icône sans animation (ni à l'ouverture ni à la
+  fermeture) ; deux captures sans nom (recherche « Outil crayon », question « Enregistrer « Nouvelle macro » ? ») :
+  bande grise de l'en-tête collé « Playlist » retirée, coins arrondis de la question remplacés par des coins carrés.
