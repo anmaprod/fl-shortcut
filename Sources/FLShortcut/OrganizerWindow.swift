@@ -503,8 +503,6 @@ final class OrganizerController: ObservableObject {
     /// Le pré-master est là par défaut dans l'app (01/11).
     @Published var options = OrganizerOptions(premaster: true)
     /// Écran Mixer de l'aperçu ouvert, et la piste choisie (piste d'origine) dont on voit toute la chaîne.
-    @Published var showingMixer = false
-    @Published var mixerSelection: Int?
     /// Noms écrits dans l'aperçu (« Écrire… », demande du propriétaire du 25/10), par index du canal.
     @Published var names: [Int: String] = [:]
     /// Piste du Mixer choisie pour un son dans l'aperçu (la case de FL), par index du canal ; absent : automatique.
@@ -777,8 +775,6 @@ final class OrganizerController: ObservableObject {
         names = [:]
         slots = [:]
         options.mixerEdits = MixerEdits()
-        mixerSelection = nil
-        showingMixer = false
         phase = .ready
         start()
     }
@@ -897,58 +893,6 @@ final class OrganizerController: ObservableObject {
         let place = out.firstIndex(of: target) ?? out.count
         out.insert(family, at: from < to ? place + 1 : place)
         return out
-    }
-
-    // MARK: Mixer à la main (demande du propriétaire du 01/11)
-
-    /// Où va une piste (piste d'origine ; 0 = le Master), d'après ce qu'Organiser fera.
-    func destinations(of track: Int, in plan: OrganizerPlan? = nil) -> [Int] {
-        (plan ?? self.plan).mixer.routes[track] ?? result?.routes[track] ?? [0]
-    }
-
-    /// Un clic sur la case d'une piste : la piste choisie y va aussi, ou n'y va plus (jamais nulle part : le Master).
-    func toggleRoute(from track: Int, to destination: Int) {
-        guard track != destination else { return }
-        options.mixerEdits.routes[track] = Self.toggled(destinations(of: track), destination)
-    }
-
-    /// Pur (testé) : les sorties d'une piste après un clic sur la case de `destination`.
-    static func toggled(_ current: [Int], _ destination: Int) -> [Int] {
-        var set = Set(current)
-        if set.contains(destination) { set.remove(destination) } else { set.insert(destination) }
-        return set.isEmpty ? [0] : set.sorted()
-    }
-
-    func renameTrack(_ track: Int, _ name: String) {
-        let clean = name.trimmingCharacters(in: .whitespacesAndNewlines)
-        options.mixerEdits.names[track] = clean.isEmpty ? nil : clean
-    }
-
-    func recolorTrack(_ track: Int, _ color: RGBColor) {
-        options.mixerEdits.colors[track] = color
-    }
-
-    /// Pistes où va un son (entendu ou relié) : elles ne se retirent pas.
-    func soundTracks(in plan: OrganizerPlan? = nil) -> Set<Int> {
-        guard let result else { return [] }
-        let mixer = (plan ?? self.plan).mixer
-        let deleted = Set(result.unused)
-        var out = Set(result.channels.filter { !deleted.contains($0.index) }.map { mixer.links[$0.index] ?? $0.mixerTrack })
-        out.remove(0)
-        return out
-    }
-
-    /// Une piste se retire si aucun son n'y va et qu'aucune piste n'y envoie.
-    func canRemove(_ track: Int, in plan: OrganizerPlan) -> Bool {
-        guard track >= 1, !soundTracks(in: plan).contains(track) else { return false }
-        let all = Set(plan.mixer.routes.keys).union(result?.routes.keys.map { $0 } ?? [])
-        return !all.contains { $0 != track && destinations(of: $0, in: plan).contains(track) }
-    }
-
-    func removeTrack(_ track: Int) {
-        options.mixerEdits.removed.insert(track)
-        options.mixerEdits.routes[track] = nil
-        if mixerSelection == track { mixerSelection = nil }
     }
 
     // MARK: Places dans le Mixer (demande du propriétaire du 25/10)
@@ -1071,26 +1015,11 @@ final class OrganizerController: ObservableObject {
         if let track { options.mixerEdits.routes[track] = nil }
     }
 
-    /// Tous les sons d'une piste du Mixer glissée sur une autre famille (écran Mixer).
-    func moveTrack(_ track: Int, to family: SoundFamily) {
-        for index in sounds(on: track) { moveSound(index, to: family) }
-    }
-
     /// Piste d'origine du Mixer où va un son (nil : le Master).
     func soundTrack(of index: Int, in plan: OrganizerPlan? = nil) -> Int? {
         guard let channel = result?.channels.first(where: { $0.index == index }) else { return nil }
         let track = (plan ?? self.plan).mixer.links[index] ?? channel.mixerTrack
         return track >= 1 ? track : nil
-    }
-
-    /// Les sons (gardés) qui vont dans cette piste d'origine du Mixer.
-    func sounds(on track: Int, in plan: OrganizerPlan? = nil) -> [Int] {
-        guard let result, track >= 1 else { return [] }
-        let plan = plan ?? self.plan
-        let deleted = Set(result.unused)
-        return result.channels.map(\.index).filter {
-            !deleted.contains($0) && families[$0] != nil && soundTrack(of: $0, in: plan) == track
-        }
     }
 
     /// Couleur prévue de chaque son du Channel rack (dégradés répartis dans l'ordre final), même si le Channel rack
@@ -1329,7 +1258,7 @@ final class OrganizerController: ObservableObject {
         case "aide": phase = .waiting(.noResponse)
         case "midi": phase = .waiting(.midiSettings)
         case "ecoute": phase = .listening(done: 3, total: 8)
-        case "apercu", "fini", "mixer", "mixer-glisse":
+        case "apercu", "fini":
             let result = Self.demoResult
             self.result = result
             families = OrganizerApplier.families(of: result)
@@ -1337,11 +1266,6 @@ final class OrganizerController: ObservableObject {
             names = [:]
             slots = [:]
             options.mixerEdits = MixerEdits()
-            // L'écran Mixer, la 808 choisie (son trait vers le bus des Drums) ; « mixer-glisse » : sa piste posée sur
-            // la Basse (le trait va au bus de la Basse).
-            showingMixer = screen.hasPrefix("mixer")
-            if screen == "mixer-glisse" { moveTrack(3, to: .bass) }
-            mixerSelection = showingMixer ? 3 : nil
             phase = screen == "fini" ? .applied(nil) : .preview
         default: break
         }
@@ -1672,13 +1596,9 @@ struct OrganizerView: View {
             if isPreview {
                 // Maquette du 28/10 : « Rangement automatique » à droite du titre ; les choix et le diagnostic sont
                 // rangés dans « Options ».
+                // L'écran Mixer de l'aperçu est retiré (02/11 : « on enlève le mixeur dans Organiser… tout ce qu'on
+                // fait, on peut le faire dans FL ») ; le Mixer de FL reste rangé tout seul (bus, pré-master).
                 if controller.options.mixer {
-                    // Écran Mixer (01/11) : les pistes comme dans FL, leurs liens, leurs noms et couleurs.
-                    Button(controller.showingMixer ? String(localized: "← Familles") : String(localized: "Mixer →")) {
-                        controller.mixerSelection = nil
-                        controller.showingMixer.toggle()
-                    }
-                    .secondaryButton()
                     Button("Rangement automatique") { withAnimation(Motion.quickMorph) { controller.autoArrange() } }
                         .secondaryButton()
                         .disabled(!controller.placesChosen)
@@ -2146,10 +2066,6 @@ struct OrganizerView: View {
             // Maquette du 28/10 : les familles sur deux colonnes dès que la fenêtre est assez large ; chacune, son
             // en-tête (poignée, couleur, nom, départ dans le Mixer), puis ses sons dans une carte de verre.
             OrganizerFamilyBar(controller: controller)
-            if controller.showingMixer && controller.options.mixer {
-                OrganizerMixerView(controller: controller)
-                    .frame(maxHeight: .infinity, alignment: .top)
-            } else {
             GeometryReader { geo in
                 ScrollView {
                     let colors = controller.plannedColors
@@ -2226,7 +2142,6 @@ struct OrganizerView: View {
                 }
             }
             .frame(minHeight: 120)                       // fenêtre rétrécie : la liste défile, jamais écrasée
-            }
             if controller.playlistTooBig {
                 Label(String(localized: "Playlist trop grande pour FL : décoche « Playlist »."),
                       systemImage: "exclamationmark.triangle.fill")

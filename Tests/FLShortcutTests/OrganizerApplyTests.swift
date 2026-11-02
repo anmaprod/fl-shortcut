@@ -1,5 +1,4 @@
 import XCTest
-import SwiftUI
 @testable import FLShortcut
 
 /// Organiser : plan de regroupement, couleurs ou dégradés par famille, application et « Revenir comme avant ».
@@ -506,42 +505,6 @@ final class OrganizerApplyTests: XCTestCase {
 
     /// 01/11 : un clic sur une piste montre seulement où elle va (un trait par sortie, le Master en dernier), pas où
     /// vont ensuite ces pistes-là.
-    func testMixerShowsOnlyWhereTheTrackGoes() {
-        let hops = OrganizerMixerView.outputs(from: 5, to: [0, 6])
-        XCTAssertEqual(hops.map { [$0.from, $0.to] }, [[5, 6], [5, 0]], "la 808 dans Kick et dans le Master")
-        XCTAssertEqual(hops.map(\.level), [0, 1], "chaque sortie un peu plus bas")
-        XCTAssertEqual(OrganizerMixerView.outputs(from: 5, to: [10]).map(\.to), [10], "une seule sortie : un seul trait")
-        XCTAssertTrue(OrganizerMixerView.outputs(from: 5, to: [5]).isEmpty)
-    }
-
-    /// Une piste de son lâchée sur une autre famille (01/11) : la famille de la piste sous le milieu de la piste
-    /// prise ; rien sur le Master, le pré-master ou une piste sans famille.
-    func testMixerTrackDroppedOnAFamily() {
-        typealias Strip = OrganizerMixerView.Strip
-        func strip(_ id: Int, _ family: SoundFamily?, width: CGFloat = OrganizerMixerView.stripWidth,
-                   pre: Bool = false) -> Strip {
-            Strip(id: id, place: id, name: "", color: .clear, family: family, isBus: false, isPremaster: pre,
-                  hasSound: family != nil, width: width)
-        }
-        let strips = [strip(0, nil, width: OrganizerMixerView.masterWidth),
-                      strip(9, .drums, width: OrganizerMixerView.premasterWidth, pre: true),
-                      strip(1, .drums), strip(2, .drums), strip(3, .melody), strip(4, nil)]
-        let centers = OrganizerMixerView.centers(strips)
-        let at = { (id: Int) in centers[id] ?? -100 }
-        XCTAssertEqual(OrganizerMixerView.family(at: at(3), strips: strips, centers: centers), .melody)
-        XCTAssertEqual(OrganizerMixerView.family(at: at(2) + 10, strips: strips, centers: centers), .drums)
-        XCTAssertNil(OrganizerMixerView.family(at: at(0), strips: strips, centers: centers), "le Master")
-        XCTAssertNil(OrganizerMixerView.family(at: at(9), strips: strips, centers: centers), "le pré-master")
-        XCTAssertNil(OrganizerMixerView.family(at: at(4), strips: strips, centers: centers), "piste sans famille")
-        XCTAssertNil(OrganizerMixerView.family(at: 5_000, strips: strips, centers: centers))
-    }
-
-    func testMixerPortAddsOrRemovesAnOutput() {
-        XCTAssertEqual(OrganizerController.toggled([0], 5), [0, 5], "la 808 dans le Master et dans Kick")
-        XCTAssertEqual(OrganizerController.toggled([0, 5], 0), [5])
-        XCTAssertEqual(OrganizerController.toggled([5], 5), [0], "jamais nulle part : le Master")
-    }
-
     /// Ce qui est changé à la main dans le Mixer passe par-dessus le rangement : sorties, nom, couleur, piste retirée.
     func testMixerEditsOverrideThePlan() {
         let link = FakeOrganizerLink()

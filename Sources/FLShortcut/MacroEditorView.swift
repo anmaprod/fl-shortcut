@@ -187,6 +187,8 @@ private struct MacroStepsPane: View {
                              selected: model.selection == row.id,
                              stamp: row.kind == .block ? (row.category?.tint ?? Swiss.red) : nil)
                     .tag(row.id)
+                    // Pas de sélection bleue de macOS : la ligne choisie est blanche, sur son encoche (02/11).
+                    .background(NoSystemSelection().frame(width: 0, height: 0))
                     .moveDisabled(row.kind != .block)          // les lignes de fin suivent leur boucle
                     .contextMenu { contextMenu(row) }
             }
@@ -567,8 +569,9 @@ private struct MacroHeader: View {
             // Une coche devant (01/11 : « un rectangle blanc, pas très compréhensible ») ; 02/11 : le nom de la macro
             // prenait la place et le mot était écrasé (un carré blanc en hauteur, la coche seule) : le bouton garde sa
             // largeur, en paysage, le mot écrit en entier.
-            Label("Enregistrer", systemImage: "checkmark")
-                .labelStyle(.titleAndIcon)
+            // 02/11, encore : « un truc horizontal où il y a juste écrit Enregistrer, comme tous les boutons » : le mot
+            // seul, en capitales, sans icône.
+            Text("Enregistrer")
                 .lineLimit(1)
                 .fixedSize()
         }

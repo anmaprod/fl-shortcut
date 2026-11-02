@@ -355,6 +355,30 @@ private struct SecondaryButtonStyleModifier: ViewModifier {
 /// Bouton du style suisse (01/11) : rectangle aux coins carrés, texte en capitales espacées ; blanc plein et texte
 /// noir pour l'action (`prominent`), sinon noir bordé de blanc. Taille d'après `controlSize`. (Nom gardé : il est
 /// utilisé partout.)
+/// Une liste de macOS avec sélection dessine sa propre ligne choisie (bleue) et un contour bleu quand elle a la main,
+/// en plus de notre ligne blanche à encoche (02/11 : « le contour bleu autour, c'est moche, enlève-le, pour tous ») :
+/// posé dans une ligne, il retrouve le tableau de la liste et éteint ce dessin ; la sélection elle-même ne change pas
+/// (⌫, flèches, panneau de droite).
+struct NoSystemSelection: NSViewRepresentable {
+    func makeNSView(context: Context) -> NSView { Finder() }
+    func updateNSView(_ nsView: NSView, context: Context) { (nsView as? Finder)?.quiet() }
+
+    final class Finder: NSView {
+        override func viewDidMoveToWindow() {
+            super.viewDidMoveToWindow()
+            DispatchQueue.main.async { [weak self] in self?.quiet() }
+        }
+
+        func quiet() {
+            var view = superview
+            while let v = view, !(v is NSTableView) { view = v.superview }
+            guard let table = view as? NSTableView else { return }
+            if table.selectionHighlightStyle != .none { table.selectionHighlightStyle = .none }
+            if table.focusRingType != .none { table.focusRingType = .none }
+        }
+    }
+}
+
 /// Bouton qui se soulève au survol en laissant voir dessous une encoche de sa couleur, comme les blocs des macros
 /// (cartes de Gumroad, `cardRow(stamp:)`) ; enfoncé, il redescend dans l'encoche. Retour du 02/11 : « À autoriser »
 /// de l'accueil (« qu'ils soient réactifs, comme dans Macro »).
@@ -403,8 +427,27 @@ private struct StampButtonBody<Label: View>: View {
 
 struct CapsuleButtonStyle: ButtonStyle {
     var prominent: Bool
+    /// Action qui efface ou supprime (question au style suisse) : bord et texte rouges.
+    var danger = false
+
+    func makeBody(configuration: Configuration) -> some View {
+        SwissButtonBody(label: configuration.label, pressed: configuration.isPressed, prominent: prominent,
+                        danger: danger)
+    }
+}
+
+/// Le corps d'un bouton suisse, réactif (02/11 : « les boutons ne sont pas réactifs, ils devraient passer au blanc ») :
+/// au survol, le bouton bordé devient blanc plein, texte noir ; le bouton principal (déjà blanc) passe au noir bordé
+/// de blanc. Aucun changement de taille.
+private struct SwissButtonBody<Label: View>: View {
+    let label: Label
+    let pressed: Bool
+    let prominent: Bool
+    let danger: Bool
     @Environment(\.controlSize) private var size
     @Environment(\.isEnabled) private var enabled
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var hovering = false
 
     private var metrics: (height: CGFloat, font: CGFloat, padding: CGFloat) {
         if #available(macOS 14.0, *), size == .extraLarge { return (42, 12.5, 22) }
@@ -416,19 +459,27 @@ struct CapsuleButtonStyle: ButtonStyle {
         }
     }
 
-    func makeBody(configuration: Configuration) -> some View {
+    var body: some View {
         let m = metrics
-        return configuration.label
+        let lit = hovering && enabled
+        // Plein : principal au repos, ou bordé survolé.
+        let filled = prominent != lit
+        let edge = danger && !lit ? Swiss.red : Swiss.text
+        let ink = filled ? (danger ? Swiss.red : Swiss.background) : (danger ? Swiss.red : Swiss.text)
+        return label
             .font(Swiss.font(m.font))
             .tracking(m.font * 0.1)
             .textCase(.uppercase)
-            .foregroundStyle(prominent ? Swiss.background : Swiss.text)
+            .lineLimit(1)
+            .foregroundStyle(danger && lit ? Swiss.background : ink)
             .padding(.horizontal, m.padding)
             .frame(minHeight: m.height)
-            .background(Rectangle().fill(prominent ? Swiss.text : Swiss.background))
-            .overlay(Rectangle().strokeBorder(Swiss.text, lineWidth: 1))
-            .opacity(enabled ? (configuration.isPressed ? 0.7 : 1) : 0.35)
+            .background(Rectangle().fill(danger && lit ? Swiss.red : (filled ? Swiss.text : Swiss.background)))
+            .overlay(Rectangle().strokeBorder(danger && lit ? Swiss.red : edge, lineWidth: 1))
+            .opacity(enabled ? (pressed ? 0.7 : 1) : 0.35)
             .contentShape(Rectangle())
+            .animation(reduceMotion ? nil : .easeOut(duration: 0.12), value: lit)
+            .onHover { hovering = $0 }
     }
 }
 

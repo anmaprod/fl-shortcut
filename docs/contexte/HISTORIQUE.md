@@ -702,3 +702,8 @@ entrée 1 ≈ 0,5 s.
   `OrganizerCopyApproval.swift`) : dit dans le mode d'emploi et le tuto. Téléchargement : .pkg seul, LISEZMOI.html au
   style suisse (Mac, Windows), ports de MIDI Settings en 1 et 2, Communauté en étape 6 (Mac). Anglais : après sa
   validation.
+- 02/11 (2) : « les trois boutons de la page Macros ne sont pas réactifs » (page vide : Enregistrer une macro, Macro
+  vide, Partir d'un modèle) → survol sur tous les boutons suisses ; « Partir d'un modèle » et « Fermer » au style
+  suisse ; « Enregistrer » = le mot seul ; contour bleu de sélection autour des blocs retiré (encoche gardée) ;
+  « Enregistrer la nouvelle macro ? » et toutes les questions de l'app au style suisse ; écran Mixer de l'Organiser
+  retiré (« il sert à rien, tout ce qu'on fait on peut le faire dans FL »). README en anglais : README-Mac/Windows.html.

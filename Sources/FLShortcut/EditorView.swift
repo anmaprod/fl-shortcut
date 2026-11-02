@@ -1920,34 +1920,19 @@ private struct ToastView: View {
     }
 }
 
+/// Les questions et messages de l'app, au style suisse (`SwissDialog`, 02/11) à la place des alertes de macOS.
 enum Dialogs {
     static func confirm(_ title: String, _ text: String) -> Bool {
-        let a = NSAlert()
-        a.messageText = title
-        a.informativeText = text
-        a.addButton(withTitle: String(localized: "Continuer"))
-        a.addButton(withTitle: String(localized: "Annuler"))
-        return a.runModal() == .alertFirstButtonReturn
+        SwissDialog.run(title, text, buttons: [String(localized: "Continuer"), String(localized: "Annuler")]) == 0
     }
 
     static func inform(_ title: String, _ text: String) {
-        let a = NSAlert()
-        a.messageText = title
-        a.informativeText = text
-        a.runModal()
+        _ = SwissDialog.run(title, text, buttons: [String(localized: "OK")])
     }
 
-    /// Alerte à plusieurs boutons (le premier par défaut, Échap sur le dernier) : rend l'indice du bouton choisi.
+    /// Plusieurs boutons (le premier par défaut, Échap sur le dernier) : rend l'indice du bouton choisi.
     static func choose(_ title: String, _ text: String, _ buttons: [String], destructive: Int? = nil) -> Int {
-        let a = NSAlert()
-        a.messageText = title
-        a.informativeText = text
-        for (i, label) in buttons.enumerated() {
-            let button = a.addButton(withTitle: label)
-            if i == destructive { button.hasDestructiveAction = true }
-            if i == buttons.count - 1, buttons.count > 1 { button.keyEquivalent = "\u{1b}" }
-        }
-        return a.runModal().rawValue - NSApplication.ModalResponse.alertFirstButtonReturn.rawValue
+        SwissDialog.run(title, text, buttons: buttons, destructive: destructive)
     }
 }
 

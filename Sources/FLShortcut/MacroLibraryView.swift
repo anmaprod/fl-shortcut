@@ -135,9 +135,10 @@ private struct MacroLibraryList: View {
                     .secondaryButton()
             }
             .padding(.top, 4)
-            Button("Importer un fichier .flsmacro…") { importFile() }
-                .buttonStyle(.link)
-                .font(.system(size: 12))
+            Button { importFile() } label: {
+                Text("Importer un fichier .flsmacro…").swissLabel(size: 10.5).underline()
+            }
+            .buttonStyle(.plain)
             MacroLibraryProblemLabel(library: library)
                 .frame(maxWidth: 420)
                 .padding(.top, 8)
@@ -400,13 +401,17 @@ struct MacroTemplatesSheet: View {
                 .swissRule()
             ScrollView {
                 VStack(spacing: 0) {
-                    ForEach(templates) { t in
-                        HStack(alignment: .top, spacing: 12) {
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(t.title).fontWeight(.semibold)
+                    // Style suisse (02/11 : « partir d'un modèle, ça ne fait plus le même style, le fond noir ») : une
+                    // ligne par modèle, son numéro, son nom en gras, son résumé en gris, « Utiliser » à droite.
+                    ForEach(Array(templates.enumerated()), id: \.element.id) { index, t in
+                        HStack(alignment: .firstTextBaseline, spacing: 12) {
+                            Text(verbatim: String(format: "%02d", index + 1)).swissLabel(Swiss.red)
+                                .frame(width: 22, alignment: .leading)
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text(t.title).font(Swiss.font(15)).foregroundStyle(Swiss.text)
                                 Text(t.summary)
-                                    .font(.system(size: 11))
-                                    .foregroundStyle(.secondary)
+                                    .font(.system(size: 12))
+                                    .foregroundStyle(Swiss.gray)
                                     .fixedSize(horizontal: false, vertical: true)
                             }
                             Spacer(minLength: 8)
@@ -415,23 +420,26 @@ struct MacroTemplatesSheet: View {
                                 dismiss()
                             }
                             .secondaryButton()
+                            .fixedSize()
                         }
                         .padding(.vertical, 12)
-                        .padding(.horizontal, 4)
                         .swissRule(Swiss.faint)
-                        .menuHover(tint: Swiss.text, cornerRadius: 0)
                     }
                 }
-                .padding(6)                              // place pour le survol, qui grandit un peu
             }
-            HStack {
+            HStack(spacing: 0) {
                 Spacer()
                 Button("Fermer") { dismiss() }
+                    .secondaryButton()
                     .keyboardShortcut(.cancelAction)
             }
+            .padding(.top, 10)
+            .overlay(alignment: .top) { Rectangle().fill(Swiss.line).frame(height: 1) }
         }
-        .padding(20)
-        .frame(width: 540, height: 470)
+        .padding(24)
+        .frame(width: 560, height: 480)
+        .background(Swiss.background)
+        .environment(\.colorScheme, .dark)
     }
 }
 

@@ -205,7 +205,9 @@
   possibles ; familles en bandes à 6 points glissées ; double-clic sur une piste : nom + couleur. MIDI Settings : les
   4 cases découpées en grand + « Voir toute la fenêtre en grand » (l'image entière était illisible).
   Fait le 01/11 : pré-master (`OrganizerOptions.premaster`, vrai dans l'app ; piste nommée « Pré-master » reconnue,
-  `isPremaster`), écran Mixer de l'aperçu (`OrganizerMixer.swift`, « Mixer → ») : clic sur une piste = un trait
+  `isPremaster`), écran Mixer de l'aperçu (RETIRÉ le 02/11 à sa demande : « on enlève le mixeur dans Organiser…
+  tout ce qu'on fait, on peut le faire dans FL » ; code dans git jusqu'à 99ed40d ; le Mixer de FL reste rangé tout
+  seul : bus, pré-master ; l'aperçu = la vue des familles) : clic sur une piste = un trait
   rouge simple vers chacune de SES sorties seulement (01/11, après essais de la chaîne entière, de carrés de départ,
   de câbles courbes : « on n'a pas besoin de savoir où va ensuite ce qu'on envoie » ; NE PAS remettre la chaîne),
   cases sous les pistes = sorties (plusieurs), double-clic nom + couleur, clic droit retirer une piste sans son,
@@ -224,7 +226,11 @@
   bande) : `moveSound`/`moveTrack` (bus de la nouvelle famille, case et sorties à la main oubliées ; 808 posée sur
   Basse : bus de la Basse, nom gardé) ; colonnes rééquilibrées après une famille posée (`OrganizerView.balanced` :
   ordre gardé, la famille du haut à droite passe en bas à gauche ; la famille posée garde sa colonne à un en-tête près).
-  02/11 : « Enregistrer » du créateur écrasé en carré blanc (le nom prenait la place) → largeur fixe, mot écrit.
+  02/11 : « Enregistrer » du créateur écrasé en carré blanc (le nom prenait la place) → largeur fixe, le mot seul
+  (« ENREGISTRER », sans icône). Tous les boutons suisses réactifs (`CapsuleButtonStyle` → `SwissButtonBody` : bordé →
+  blanc plein au survol, principal → noir bordé ; `danger` rouge). Questions de l'app au style suisse (`SwissDialog`,
+  `Dialogs.confirm/inform/choose` : plus de fenêtre de macOS). « Partir d'un modèle » au style suisse. Liste des blocs :
+  plus de sélection ni de contour bleus de macOS (`NoSystemSelection`), la ligne choisie reste blanche sur son encoche.
   Téléchargement Mac : le .pkg seul (le .dmg reste fabriqué pour les essais, jamais publié) + LISEZMOI.html au style
   suisse avec images (Mac et Windows : modèles `docs/telechargement/modele-*.html`, `python3 scripts/lisezmoi.py` y
   colle les images → LISEZMOI-Mac/Windows.html ; exemples validés au fil de ses retours : artefacts privés
