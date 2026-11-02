@@ -49,7 +49,7 @@ enum DebugSnapshot {
     static let uninstall = Notification.Name("app.flshortcut.debug.uninstall")
     private static var uninstallObserver: NSObjectProtocol?
     /// Organiser avec des sons d'exemple, sans lien ni écoute : « installer », « attente », « aide », « page »,
-    /// « ecoute », « apercu », « fini » ; « fermer » le ferme.
+    /// « ecoute », « apercu », « couleurs » (aperçu, roue des couleurs ouverte), « fini » ; « fermer » le ferme.
     static let organizer = Notification.Name("app.flshortcut.debug.organizer")
     private static var organizerObserver: NSObjectProtocol?
     /// Question « Tu valides la version organisée ? » avec un exemple, sans toucher à aucun fichier : « question »,

@@ -121,15 +121,12 @@ enum FeedbackRisk {
 /// Fenêtre d'explication (thread principal) : la macro ne lance pas l'enregistrement tant que le risque existe.
 enum FeedbackAlert {
     static func show(_ report: FeedbackRisk.Report) {
-        let alert = NSAlert()
-        alert.alertStyle = .warning
-        alert.messageText = String(localized: "Tout est prêt, mais attention au larsen")
-        alert.informativeText = report.message
-            + String(localized: "\n\nLa piste et le REC sont prêts : il ne reste qu'à changer d'entrée ou de sortie.")
-        alert.addButton(withTitle: String(localized: "OK"))
-        alert.addButton(withTitle: String(localized: "Réglages Son…"))
-        NSApp.activate(ignoringOtherApps: true)
-        if alert.runModal() == .alertSecondButtonReturn,
+        // Au style suisse (02/11).
+        let answer = SwissDialog.run(String(localized: "Tout est prêt, mais attention au larsen"),
+                                     report.message
+                                        + String(localized: "\n\nLa piste et le REC sont prêts : il ne reste qu'à changer d'entrée ou de sortie."),
+                                     buttons: [String(localized: "OK"), String(localized: "Réglages Son…")])
+        if answer == 1,
            let url = URL(string: "x-apple.systempreferences:com.apple.Sound-Settings.extension") {
             NSWorkspace.shared.open(url)
         }

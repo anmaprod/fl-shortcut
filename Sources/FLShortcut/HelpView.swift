@@ -201,7 +201,7 @@ struct HelpPage: View {
                             .foregroundStyle(.orange)
                         Spacer()
                         Button("Retirer") { message.error = nil }
-                            .buttonStyle(.link)
+                            .buttonStyle(SwissLinkButtonStyle())
                             .font(.system(size: 11))
                     }
                     Text(error)
@@ -215,12 +215,7 @@ struct HelpPage: View {
                 .padding(8)
                 .background(Rectangle().fill(Color.orange.opacity(0.08)))
             }
-            Picker("Genre", selection: $message.kind) {
-                ForEach(SupportKind.allCases) { kind in Text(kind.label).tag(kind) }
-            }
-            .pickerStyle(.segmented)
-            .labelsHidden()
-            .fixedSize()
+            SwissSegmented(selection: $message.kind, options: SupportKind.allCases.map { (value: $0, label: $0.label) })
             VStack(alignment: .trailing, spacing: 3) {
                 TextEditor(text: $message.text)
                     .font(.system(size: 12))
@@ -230,28 +225,28 @@ struct HelpPage: View {
                             Text(message.kind.placeholder)
                                 .font(.system(size: 12))
                                 .foregroundStyle(.tertiary)
-                                .padding(.horizontal, 5)
-                                .padding(.vertical, 1)
+                                .padding(.horizontal, 9)
+                                .padding(.vertical, 5)
                                 .allowsHitTesting(false)
                         }
                     }
-                    .overlay(Rectangle().stroke(.quaternary))
+                    .swissTextArea()
                 Text("\(message.text.count)/\(SupportRules.messageRange.upperBound)")
                     .font(.system(size: 10).monospacedDigit())
                     .foregroundStyle(.tertiary)
             }
             TextField("Ton mail", text: $message.email, prompt: Text("Ton mail, pour qu'on te réponde (facultatif)"))
-                .textFieldStyle(.roundedBorder)
+                .swissField()
             VStack(alignment: .leading, spacing: 6) {
                 HStack {
                     Toggle("Joindre l'état de l'appli (recommandé)", isOn: $includeDiagnostic)
-                        .toggleStyle(.checkbox)
+                        .toggleStyle(SwissCheckboxStyle())
                     Spacer()
                     Button(showDiagnostic ? String(localized: "Masquer") : String(localized: "Voir ce qui est joint")) {
                         refreshAttached()
                         withAnimation(Motion.smooth) { showDiagnostic.toggle() }
                     }
-                    .buttonStyle(.link)
+                    .buttonStyle(SwissLinkButtonStyle())
                     .font(.system(size: 12))
                 }
                 if showDiagnostic {
@@ -327,10 +322,12 @@ struct HelpPage: View {
             if sending { ProgressView().controlSize(.small) }
             if !community.isConfigured || failure != nil {
                 Button("Copier") { copy() }
+                    .secondaryButton()
                     .disabled(!ready)
                     .help("Copier le message, pour le coller où tu veux")
                 if mail == nil {
                     Button("Ouvrir un ticket sur GitHub") { openIssue() }
+                        .secondaryButton()
                         .disabled(!ready)
                         .help("Page publique : ton mail n'y est pas recopié")
                 }
@@ -375,7 +372,7 @@ struct HelpPage: View {
                 sent = false
                 writing = true
             }
-            .buttonStyle(.link)
+            .buttonStyle(SwissLinkButtonStyle())
             .font(.system(size: 12))
         }
         .padding(.vertical, 4)

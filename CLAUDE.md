@@ -199,7 +199,7 @@
   boutons rectangulaires en capitales (principal blanc plein), rouge #FF3B1F seulement pour l'important (touche
   changée, avertissement, Désinstaller). Fait dans l'app le 01/11 (remplace l'aspect du 28/10 ci-dessous) : jetons
   `Swiss` (GlassStyle.swift : `swissLabel`, `swissTitle`, `swissRule`, `SwissSwitch`, `SwissProgress`, `SixDots`), survol
-  = blanc plein texte noir, tous les coins carrés (sauf `FLColorSelector`), `Swiss.flat` éteint les plaques. Mixer de
+  = blanc plein texte noir, tous les coins carrés, `Swiss.flat` éteint les plaques. Mixer de
   l'Organiser : pré-master à côté du Master ; par défaut 808 → bus Drums, chaque bus → Pré-master, SEUL le pré-master
   → Master (sauf changé à la main) ; liens par les ports sous les pistes (flèches, pas « OUT »), plusieurs sorties
   possibles ; familles en bandes à 6 points glissées ; double-clic sur une piste : nom + couleur. MIDI Settings : les
@@ -231,6 +231,15 @@
   blanc plein au survol, principal → noir bordé ; `danger` rouge). Questions de l'app au style suisse (`SwissDialog`,
   `Dialogs.confirm/inform/choose` : plus de fenêtre de macOS). « Partir d'un modèle » au style suisse. Liste des blocs :
   plus de sélection ni de contour bleus de macOS (`NoSystemSelection`), la ligne choisie reste blanche sur son encoche.
+  02/11 (3) (« Fermer » de l'Organiser en verre, « vérifie partout ») : plus AUCUN contrôle de macOS visible (pièces
+  dans GlassStyle.swift) : boutons tous `secondaryButton`/`primaryButton`, liens blancs soulignés
+  (`SwissLinkButtonStyle`), choix à cases (`SwissSegmented`), listes déroulantes (`SwissPicker` : Menu + Picker en
+  ligne, choix coché), cases à cocher et choix en colonne (`SwissCheckboxStyle`, `SwissRadioGroup`), ⌘⌥⌃⇧
+  (`SwissKeyToggleStyle`), champs (`swissField`, `swissTextArea`), feuilles noires (`swissSheet`), plus de NSAlert
+  (touche déjà utilisée, import, larsen, dossier incorrect : `SwissDialog`, image ou liste possibles) ; question de la
+  version organisée sur fond noir (attente et « Pas fait » compris). Roue des couleurs (`FLColorSelector`) au style
+  suisse, coins carrés : les 10 récentes en haut (comme FL : la dernière posée en case 0, une 11e chasse la plus
+  ancienne, une déjà là remonte en 0), un clic sur l'une la pose ; photo CI `organiser-couleurs.png`.
   Téléchargement Mac : le .pkg seul (le .dmg reste fabriqué pour les essais, jamais publié) + LISEZMOI.html au style
   suisse avec images (Mac et Windows : modèles `docs/telechargement/modele-*.html`, `python3 scripts/lisezmoi.py` y
   colle les images → LISEZMOI-Mac/Windows.html ; exemples validés au fil de ses retours : artefacts privés

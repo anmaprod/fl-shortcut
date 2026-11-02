@@ -172,6 +172,7 @@ struct MenuBarField: View {
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
                 Button("Lire ce menu dans FL") { browser.show(browser.path, open: true) }
+                    .secondaryButton()
                     .help("Le menu s'ouvre un instant dans FL, le temps de le lire, puis se referme")
             }
         case .unavailable(let why):

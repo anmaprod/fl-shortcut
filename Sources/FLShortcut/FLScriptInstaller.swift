@@ -315,21 +315,9 @@ enum FLScriptInstaller {
         return hardware
     }
 
+    /// Au style suisse (02/11) ; `image` : la fenêtre MIDI Settings entourée, sous le texte.
     private static func alert(_ title: String, _ text: String, style: NSAlert.Style = .informational,
                               image: NSImage? = nil) {
-        let a = NSAlert()
-        a.messageText = title
-        a.informativeText = text
-        a.alertStyle = style
-        if let image {
-            // La fenêtre MIDI Settings entourée, sous le texte.
-            let width: CGFloat = 380
-            let view = NSImageView(frame: NSRect(x: 0, y: 0, width: width,
-                                                 height: (width * image.size.height / max(image.size.width, 1)).rounded()))
-            view.image = image
-            view.imageScaling = .scaleProportionallyUpOrDown
-            a.accessoryView = view
-        }
-        a.runModal()
+        _ = SwissDialog.run(title, text, buttons: [String(localized: "OK")], image: image)
     }
 }

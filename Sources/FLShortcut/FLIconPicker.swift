@@ -103,6 +103,7 @@ struct FLIconPicker: View {
                 Text("Icône de FL").font(.system(size: 13, weight: .semibold))
                 Spacer()
                 Button("Aucune") { pick(nil) }
+                    .secondaryButton()
                     .controlSize(.small)
                     .help("Pas d'icône")
             }
@@ -168,6 +169,7 @@ struct FLIconField: View {
                 .foregroundStyle(icon == nil ? Color.secondary : Color.primary)
             Spacer()
             Button("Choisir…") { picking = true }
+                .secondaryButton()
                 .controlSize(.small)
                 .popover(isPresented: $picking, arrowEdge: .leading) {
                     FLIconPicker(selected: icon) { picked in

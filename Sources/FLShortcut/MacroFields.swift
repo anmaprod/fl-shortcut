@@ -67,12 +67,10 @@ struct MacroFields: View {
 
         LabeledContent("Preset") {
             VStack(alignment: .leading, spacing: 6) {
-                Picker("", selection: presetMode) {
-                    Text("Choisir à chaque fois (liste de FL)").tag(false)
-                    Text("Toujours le même preset").tag(true)
-                }
-                .pickerStyle(.radioGroup)
-                .labelsHidden()
+                SwissRadioGroup(selection: presetMode, options: [
+                    (value: false, label: String(localized: "Choisir à chaque fois (liste de FL)")),
+                    (value: true, label: String(localized: "Toujours le même preset")),
+                ])
                 if let path = macro.presetPath {
                     HStack(spacing: 8) {
                         Text(URL(fileURLWithPath: path).deletingPathExtension().lastPathComponent)
@@ -85,11 +83,13 @@ struct MacroFields: View {
 
         Toggle(automatic ? String(localized: "Armer la piste (si elle ne l'est pas) et choisir l'entrée 1")
                          : String(localized: "Choisir l'entrée 1 et armer la piste"), isOn: $macro.armAndInput)
+            .toggleStyle(SwissCheckboxStyle())
         Toggle(automatic ? String(localized: "Allumer le REC à la fin (s'il est éteint)")
                          : String(localized: "Allumer REC à la fin"), isOn: Binding(get: { macro.startRecording }, set: { on in
             macro.startRecording = on
             if on { macro.recKey = AppMode.nativeEquivalent(of: 3, layout: SystemKeyboardLayout()) }
         }))
+        .toggleStyle(SwissCheckboxStyle())
 
         Group {
         if automatic {

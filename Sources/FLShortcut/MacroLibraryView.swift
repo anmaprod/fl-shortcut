@@ -112,6 +112,7 @@ private struct MacroLibraryList: View {
             MacroTemplatesSheet(templates: MacroTemplates.gallery(layout: store.layout)) { template in
                 use(template)
             }
+            .swissSheet()
         }
     }
 
@@ -535,25 +536,10 @@ enum MacroFileActions {
         var text = String(localized: "« \(preview.doc.name) » — \(count)\(review).")
         if !preview.warnings.isEmpty { text += String(localized: "\n\nÀ faire :\n• ") + preview.warnings.joined(separator: "\n• ") }
         text += String(localized: "\n\nElle arrive sans raccourci : relis-la dans le créateur, puis choisis-lui un raccourci.")
-        let alert = NSAlert()
-        alert.messageText = String(localized: "Importer cette macro ?")
-        alert.informativeText = text
-        alert.addButton(withTitle: String(localized: "Importer"))
-        alert.addButton(withTitle: String(localized: "Annuler"))
-        let scroll = NSScrollView(frame: NSRect(x: 0, y: 0, width: 460, height: 220))
-        scroll.hasVerticalScroller = true
-        scroll.borderType = .bezelBorder
-        let list = NSTextView(frame: NSRect(origin: .zero, size: scroll.contentSize))
-        list.isEditable = false
-        list.isVerticallyResizable = true
-        list.autoresizingMask = [.width]
-        list.maxSize = NSSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude)
-        list.textContainer?.widthTracksTextView = true
-        list.font = .systemFont(ofSize: 11)
-        list.string = preview.lines.joined(separator: "\n")
-        scroll.documentView = list
-        alert.accessoryView = scroll
-        return alert.runModal() == .alertFirstButtonReturn
+        // Au style suisse (02/11) : tous les blocs dans une liste qui défile, sous le texte.
+        return SwissDialog.run(String(localized: "Importer cette macro ?"), text,
+                               buttons: [String(localized: "Importer"), String(localized: "Annuler")],
+                               list: preview.lines) == 0
     }
 
     /// Importe un ou plusieurs .flsmacro (reçus d'un collègue), chacun relu avant d'être accepté : chaque macro

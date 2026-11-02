@@ -406,6 +406,7 @@ final class CopyApprovalWindow: NSObject, NSWindowDelegate {
         w.titlebarAppearsTransparent = true
         w.titleVisibility = .hidden
         w.isMovableByWindowBackground = true
+        w.backgroundColor = .black                                    // style suisse : fond noir plein
         w.title = String(localized: "Version organisée")
         w.level = .floating
         w.hidesOnDeactivate = false
@@ -463,6 +464,8 @@ struct CopyApprovalView: View {
         .padding(.top, 30)
         .padding(.bottom, 18)
         .frame(width: 380)
+        .background(Swiss.background)
+        .environment(\.colorScheme, .dark)
     }
 
     private func name(_ url: URL?) -> String { url?.lastPathComponent ?? "" }
@@ -522,38 +525,44 @@ struct CopyApprovalView: View {
         .swissRule(Swiss.line)
     }
 
+    /// Au style suisse (02/11) : le texte en gros, une barre rouge qui avance sous lui.
     private func working(_ text: String) -> some View {
-        VStack(spacing: 12) {
-            Image(systemName: "square.stack.3d.up")
-                .font(.system(size: 40, weight: .light))
-                .foregroundStyle(.secondary)
-            Text(text).font(.system(size: 13, weight: .bold)).multilineTextAlignment(.center)
-            ProgressView().controlSize(.small)
+        VStack(alignment: .leading, spacing: 14) {
+            Text(text)
+                .font(Swiss.title(22)).tracking(Swiss.titleTracking(22))
+                .foregroundStyle(Swiss.text)
+                .fixedSize(horizontal: false, vertical: true)
+            ProgressView()
+                .progressViewStyle(.linear)
+                .tint(Swiss.red)
         }
-        .frame(maxWidth: .infinity)
+        .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.vertical, 12)
     }
 
+    /// Au style suisse (02/11) : « Pas fait » en rouge souligné, la raison en gris, les boutons en bas.
     private func failed(_ text: String, retry: Bool) -> some View {
-        VStack(spacing: 10) {
-            Image(systemName: "exclamationmark.triangle.fill")
-                .font(.system(size: 36))
-                .foregroundStyle(.yellow)
-                .accessibilityHidden(true)
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Pas fait")
+                .swissTitle(30)
+                .padding(.bottom, 10)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .swissRule(Swiss.red)
             Text(text)
-                .font(.system(size: 11))
-                .multilineTextAlignment(.center)
+                .font(.system(size: 13))
+                .foregroundStyle(Swiss.soft)
                 .fixedSize(horizontal: false, vertical: true)
-            HStack(spacing: 8) {
+            HStack(spacing: 0) {
                 if retry {
                     Button { flow.later() } label: { Text("Plus tard").frame(maxWidth: .infinity) }
+                        .secondaryButton()
                         .keyboardShortcut(.cancelAction)
                     Button { flow.step = .question } label: { Text("Réessayer").frame(maxWidth: .infinity) }
-                        .buttonStyle(.borderedProminent)
+                        .primaryButton()
                         .keyboardShortcut(.defaultAction)
                 } else {
                     Button { flow.close() } label: { Text("OK").frame(maxWidth: .infinity) }
-                        .buttonStyle(.borderedProminent)
+                        .primaryButton()
                         .keyboardShortcut(.defaultAction)
                 }
             }

@@ -129,8 +129,11 @@ struct NameColorPayload: Equatable {
 enum RecentColors {
     static let key = "nameColor.recentColors"
     static let limit = 10
+    /// Photo de la CI seulement : des récentes d'exemple, jamais écrites dans les réglages.
+    static var demoList: [RGBColor]?
 
     static func list(defaults: UserDefaults = .standard) -> [RGBColor] {
+        if let demoList { return demoList }
         var seen = Set<RGBColor>()
         let all = (defaults.array(forKey: key) ?? []).compactMap { ($0 as? String).flatMap(RGBColor.init(hex:)) }
         return Array(all.filter { seen.insert($0).inserted }.prefix(limit))

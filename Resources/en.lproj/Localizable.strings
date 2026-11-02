@@ -29,6 +29,7 @@
 "#" = "#";
 "#%@" = "#%@";
 "#%@ : choisir dans la roue des couleurs de FL" = "#%@: choose from FL's color wheel";
+"#%@ : cliquer pour la poser" = "#%@: click to use it";
 "#RRGGBB" = "#RRGGBB";
 "%@ : " = "%@: ";
 "%@ : #%@ — cliquer pour choisir" = "%@: #%@ — click to choose";
@@ -1212,6 +1213,7 @@
 "Lire la fiche, puis l'ajouter" = "Read its page, then add it";
 "Liste introuvable dans FL : écris le nom." = "List not found in FL: type the name.";
 "Logic Pro dans FL" = "Logic Pro in FL";
+"Lum" = "Lum";
 "Luminance" = "Luminance";
 "Luminosité" = "Brightness";
 "Lâcher" = "Drop";
@@ -1529,6 +1531,7 @@
 "Pas encore montré." = "Not shown yet.";
 "Pas encore montrée : la première fois, une bulle te demande de cliquer sur « (none) » puis sur l'entrée « 1 »." = "Not shown yet: the first time, a bubble asks you to click “(none)” then input “1”.";
 "Pas encore montrée : une bulle te la demandera." = "Not shown yet: a bubble will ask you for it.";
+"Pas fait" = "Not done";
 "Passe au pattern suivant" = "Goes to the next pattern";
 "Passe le son du Mac sur la carte son branchée." = "Switches the Mac's sound to the plugged-in audio interface.";
 "Passer" = "Skip";
@@ -1812,6 +1815,7 @@
 "Sans lien avec FL, ce bloc échoue (aucun équivalent au clavier)." = "Without the FL link, this block fails (no keyboard equivalent).";
 "Sans lien, cette touche de FL :" = "Without link, this FL key:";
 "Sans raccourci" = "No shortcut";
+"Sat" = "Sat";
 "Saturation" = "Saturation";
 "Sauvegarde" = "Backup";
 "Sauvegarde arrêtée" = "Backup stopped";

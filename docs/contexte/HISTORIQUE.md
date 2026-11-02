@@ -707,3 +707,9 @@ entrée 1 ≈ 0,5 s.
   suisse ; « Enregistrer » = le mot seul ; contour bleu de sélection autour des blocs retiré (encoche gardée) ;
   « Enregistrer la nouvelle macro ? » et toutes les questions de l'app au style suisse ; écran Mixer de l'Organiser
   retiré (« il sert à rien, tout ce qu'on fait on peut le faire dans FL »). README en anglais : README-Mac/Windows.html.
+- 02/11 (3) : « la palette de couleurs de chaque famille : les 10 premières couleurs utilisées enregistrées comme dans
+  FL ; une 11e remplace la 10e mais va en première place ; ils n'ont qu'à cliquer sur la petite couleur » et « le
+  bouton Fermer de l'Organiser au début est en Liquid Glass ; vérifie partout si le style est respecté ». Les 10
+  récentes existaient déjà (retenues à « Accept », petites, en bas) : montées en haut de la roue, plus grandes, un
+  clic les pose. Audit : 55 boutons sans style (Fermer, Réessayer, Arrêter, OK…), contrôles segmentés, listes
+  déroulantes, cases à cocher, liens bleus, champs arrondis, feuilles grises, 4 NSAlert : tous au style suisse.

@@ -513,6 +513,8 @@ final class OrganizerController: ObservableObject {
     @Published private(set) var applyStep: String?
     /// En attente de FL : l'aide détaillée (réglages de FL, dossier du script) dépliée.
     @Published var showLinkHelp = false
+    /// Photo de la CI (« couleurs ») : la roue des couleurs de la première famille ouverte sur l'aperçu d'exemple.
+    @Published var demoColors = false
 
     /// Appelé une fois, à la fermeture (la fenêtre se ferme et lâche le contrôleur).
     var onClose: (() -> Void)?
@@ -1251,6 +1253,9 @@ final class OrganizerController: ObservableObject {
         waitSerial += 1
         showLinkHelp = screen == "aide"
         tutorial = screen == "tuto"
+        demoColors = screen == "couleurs"
+        // Des récentes d'exemple, jamais écrites dans les réglages (comme au premier lancement sinon : cases vides).
+        RecentColors.demoList = demoColors ? Self.demoRecentColors : nil
         switch screen {
         case "demarrer": phase = .ready
         case "installer": phase = .setup
@@ -1258,7 +1263,7 @@ final class OrganizerController: ObservableObject {
         case "aide": phase = .waiting(.noResponse)
         case "midi": phase = .waiting(.midiSettings)
         case "ecoute": phase = .listening(done: 3, total: 8)
-        case "apercu", "fini":
+        case "apercu", "fini", "couleurs":
             let result = Self.demoResult
             self.result = result
             families = OrganizerApplier.families(of: result)
@@ -1270,6 +1275,10 @@ final class OrganizerController: ObservableObject {
         default: break
         }
     }
+
+    /// 7 couleurs récentes (3 cases vides) pour la photo de la roue.
+    static let demoRecentColors = ["E0453A", "F2A33A", "F4E04D", "5BC46A", "3A9BE0", "7A5BE0", "D04FB0"]
+        .compactMap(RGBColor.init(hex:))
 
     /// Un petit projet d'exemple : des sons nommés comme dans les packs, leurs patterns, leurs pistes du Mixer et
     /// de la Playlist.
@@ -1584,7 +1593,7 @@ struct OrganizerView: View {
         .motion(Motion.morph, value: stepKey)
         // Nouvelle analyse : les colonnes des familles reviennent à leur coupe automatique.
         .onChange(of: stepKey) { key in if key == "starting" || key == "listening" { leftCount = nil } }
-        .sheet(isPresented: $controller.feedbackShown) { OrganizerFeedbackView(controller: controller) }
+        .sheet(isPresented: $controller.feedbackShown) { OrganizerFeedbackView(controller: controller).swissSheet() }
     }
 
     /// Le titre seul (maquette validée le 28/10 : ni grande icône, ni phrase dessous).
@@ -1653,7 +1662,9 @@ struct OrganizerView: View {
                     .morphIn(2)
                 HStack {
                     Spacer()
-                    Button("Arrêter") { controller.close() }.keyboardShortcut(.cancelAction)
+                    Button("Arrêter") { controller.close() }
+                        .secondaryButton()
+                        .keyboardShortcut(.cancelAction)
                 }
                 .morphIn(3)
             }
@@ -1720,7 +1731,7 @@ struct OrganizerView: View {
                     }
                     if summary.notes.count > 3 {
                         Button("Détails") { showDetails = true }
-                            .buttonStyle(.link)
+                            .buttonStyle(SwissLinkButtonStyle())
                             .popover(isPresented: $showDetails, arrowEdge: .bottom) {
                                 ScrollView {
                                     Text(controller.doneText)
@@ -1771,7 +1782,7 @@ struct OrganizerView: View {
         Button(controller.copied ? String(localized: "Copié") : String(localized: "Copier le diagnostic")) {
             controller.copyDiagnostic()
         }
-        .buttonStyle(.link)
+        .buttonStyle(SwissLinkButtonStyle())
         .font(.system(size: 11.5))
         .help(String(localized: """
             Copie un court texte technique (versions, autorisations, ce que l'écoute a reçu), sans aucun nom de \
@@ -1803,8 +1814,10 @@ struct OrganizerView: View {
             HStack {
                 if present {
                     Button("Afficher dans le Finder") { controller.revealScript() }
+                        .secondaryButton()
                 }
                 Button("Autre dossier de FL…") { controller.installLinkElsewhere() }
+                    .secondaryButton()
                 Spacer(minLength: 0)
             }
             .controlSize(.small)
@@ -1818,6 +1831,7 @@ struct OrganizerView: View {
         Button(controller.copied ? String(localized: "Copié") : String(localized: "Copier le diagnostic")) {
             controller.copyDiagnostic()
         }
+        .secondaryButton()
         .help(String(localized: """
             Copie un court texte technique (versions, autorisations, ce que l'écoute a reçu), sans aucun nom de \
             son ni de piste : colle-le dans ton message pour qu'on trouve ce qui bloque.
@@ -1828,20 +1842,27 @@ struct OrganizerView: View {
         HStack {
             if controller.canUndo {
                 Button("Revenir comme avant") { controller.undo() }
+                    .secondaryButton()
             }
             if controller.canGiveFeedback {
                 Button("Pas content ?") { controller.feedbackShown = true }
+                    .secondaryButton()
                     .help("Dis ce qui n'allait pas : l'IA apprend de ses erreurs")
             }
             Spacer()
             if controller.canRetry && controller.projectMissing {
-                Button("Fermer") { controller.close() }.keyboardShortcut(.cancelAction)
+                Button("Fermer") { controller.close() }
+                    .secondaryButton()
+                    .keyboardShortcut(.cancelAction)
                 Button("Réessayer") { controller.retry() }
+                    .secondaryButton()
                 Button("Choisir le fichier…") { controller.chooseProject() }
                     .primaryButton()
                     .keyboardShortcut(.defaultAction)
             } else if controller.canRetry {
-                Button("Fermer") { controller.close() }.keyboardShortcut(.cancelAction)
+                Button("Fermer") { controller.close() }
+                    .secondaryButton()
+                    .keyboardShortcut(.cancelAction)
                 Button("Réessayer") { controller.retry() }
                     .primaryButton()
                     .keyboardShortcut(.defaultAction)
@@ -1899,7 +1920,9 @@ struct OrganizerView: View {
             .morphIn(1)
             HStack {
                 Spacer()
-                Button("Fermer") { controller.close() }.keyboardShortcut(.cancelAction)
+                Button("Fermer") { controller.close() }
+                    .secondaryButton()
+                    .keyboardShortcut(.cancelAction)
                 Button("Installer le lien") { controller.installLink() }
                     .primaryButton()
                     .keyboardShortcut(.defaultAction)
@@ -1938,6 +1961,7 @@ struct OrganizerView: View {
             .morphIn(2)
             if reason == .audioPermission {
                 Button("Ouvrir les réglages") { controller.openAudioSettings() }
+                    .primaryButton()
                     .controlSize(.large)
                     .morphIn(3)
             }
@@ -1964,8 +1988,11 @@ struct OrganizerView: View {
             HStack {
                 diagnosticButton
                 Spacer()
-                Button("Fermer") { controller.close() }.keyboardShortcut(.cancelAction)
+                Button("Fermer") { controller.close() }
+                    .secondaryButton()
+                    .keyboardShortcut(.cancelAction)
                 Button("Réessayer maintenant") { controller.retry() }
+                    .secondaryButton()
             }
             .padding(.top, 2)
             .morphIn(4)
@@ -2018,9 +2045,10 @@ struct OrganizerView: View {
                 Image(systemName: "chevron.right")
                     .font(.system(size: 10, weight: .bold))
                     .rotationEffect(.degrees(controller.showLinkHelp ? 90 : 0))
-                Text("Ça ne marche toujours pas ?").font(.system(size: 12, weight: .medium))
+                Text("Ça ne marche toujours pas ?").font(.system(size: 12, weight: .medium)).underline()
             }
-            .foregroundStyle(Self.tint)
+            // Lien du style suisse : blanc souligné (02/11).
+            .foregroundStyle(Swiss.text)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
@@ -2158,6 +2186,7 @@ struct OrganizerView: View {
                         .fixedSize(horizontal: false, vertical: true)
                     Spacer(minLength: 0)
                     Button("Autoriser") { controller.askScreen() }
+                        .secondaryButton()
                         .controlSize(.small)
                         .help(String(localized: "Déjà coché dans les Réglages ? Décoche puis recoche FL Shortcuts : chaque nouvelle version le redemande."))
                 }
@@ -2615,6 +2644,11 @@ private struct FamilySection: View {
             Button("Monter la famille") { withAnimation(Motion.quickMorph) { controller.shiftFamily(family, by: -1) } }
             Button("Descendre la famille") { withAnimation(Motion.quickMorph) { controller.shiftFamily(family, by: 1) } }
         }
+        // Photo de la CI : la roue de la famille Drums ouverte (après l'arrivée de la fenêtre).
+        .onAppear {
+            guard controller.demoColors, family == .drums, !ghost else { return }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1) { pickingFirst = true }
+        }
     }
 
     /// Un rond de couleur : la roue des couleurs de FL s'ouvre au clic. `withFade` : au-dessus de la roue, le choix
@@ -2630,22 +2664,21 @@ private struct FamilySection: View {
         .buttonStyle(.plain)
         .help(String(localized: "#\(color.hex) : choisir dans la roue des couleurs de FL"))
         .popover(isPresented: picking, arrowEdge: .bottom) {
-            VStack(alignment: .leading, spacing: 10) {
+            VStack(alignment: .leading, spacing: 0) {
                 if withFade {
-                    Picker("", selection: fadeOn) {
-                        Text("Une couleur").tag(false)
-                        Text("Dégradé").tag(true)
-                    }
-                    .pickerStyle(.segmented)
-                    .labelsHidden()
-                    .fixedSize()
-                    .padding([.horizontal, .top], 12)
+                    SwissSegmented(selection: fadeOn, options: [
+                        (value: false, label: String(localized: "Une couleur")),
+                        (value: true, label: String(localized: "Dégradé")),
+                    ])
+                    .controlSize(.small)
+                    .padding([.horizontal, .top], 14)
                 }
                 FLColorSelector(initial: color) { picked in
                     set(picked)
                     picking.wrappedValue = false
                 }
             }
+            .background(Swiss.background)
         }
     }
 }
@@ -2722,13 +2755,17 @@ private struct FamilyMemberRow: View {
                 VStack(alignment: .leading, spacing: 10) {
                     Text("Nom du son").font(.system(size: 12, weight: .semibold))
                     TextField(String(localized: "Écris le nom que tu veux"), text: $draft)
-                        .textFieldStyle(.roundedBorder)
+                        .swissField()
                         .frame(width: 220)
                         .onSubmit(save)
                     HStack {
                         Spacer()
-                        Button("Annuler") { writing = false }.keyboardShortcut(.cancelAction)
-                        Button("OK", action: save).keyboardShortcut(.defaultAction)
+                        Button("Annuler") { writing = false }
+                            .secondaryButton()
+                            .keyboardShortcut(.cancelAction)
+                        Button("OK", action: save)
+                            .primaryButton()
+                            .keyboardShortcut(.defaultAction)
                     }
                 }
                 .padding(14)
@@ -2912,7 +2949,7 @@ struct MixerSlotBox: View {
                 VStack(alignment: .leading, spacing: 10) {
                     Text("Piste du Mixer").font(.system(size: 12, weight: .semibold))
                     TextField(String("1…\(last)"), text: $draft)
-                        .textFieldStyle(.roundedBorder)
+                        .swissField()
                         .frame(width: 120)
                         .onSubmit(save)
                     HStack {
@@ -2920,8 +2957,11 @@ struct MixerSlotBox: View {
                             set(nil)
                             typing = false
                         }
+                        .secondaryButton()
                         Spacer()
-                        Button("OK", action: save).keyboardShortcut(.defaultAction)
+                        Button("OK", action: save)
+                            .primaryButton()
+                            .keyboardShortcut(.defaultAction)
                     }
                 }
                 .padding(14)

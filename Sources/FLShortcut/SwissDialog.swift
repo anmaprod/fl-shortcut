@@ -7,7 +7,9 @@ import SwiftUI
 
 enum SwissDialog {
     /// Montre la question et attend la réponse (comme une alerte de macOS) : l'indice du bouton choisi.
-    static func run(_ title: String, _ text: String, buttons: [String], destructive: Int? = nil) -> Int {
+    /// `image` : une image sous le texte (fenêtre MIDI Settings) ; `list` : des lignes dans une liste qui défile.
+    static func run(_ title: String, _ text: String, buttons: [String], destructive: Int? = nil,
+                    image: NSImage? = nil, list: [String]? = nil) -> Int {
         let choice = Box(max(buttons.count - 1, 0))
         let panel = NSPanel(contentRect: NSRect(x: 0, y: 0, width: SwissDialogView.width, height: 160),
                             styleMask: [.titled, .fullSizeContentView], backing: .buffered, defer: false)
@@ -21,7 +23,8 @@ enum SwissDialog {
         panel.level = .modalPanel
         panel.isReleasedWhenClosed = false
         let host = NSHostingView(rootView: SwissDialogView(title: title, text: text, buttons: buttons,
-                                                           destructive: destructive) { index in
+                                                           destructive: destructive, image: image,
+                                                           list: list) { index in
             choice.value = index
             NSApp.stopModal()
         })
@@ -52,6 +55,8 @@ struct SwissDialogView: View {
     let text: String
     let buttons: [String]
     var destructive: Int? = nil
+    var image: NSImage? = nil
+    var list: [String]? = nil
     let answer: (Int) -> Void
 
     var body: some View {
@@ -68,6 +73,30 @@ struct SwissDialogView: View {
                     .font(.system(size: 13))
                     .foregroundStyle(Swiss.soft)
                     .fixedSize(horizontal: false, vertical: true)
+            }
+            if let image {
+                let width = Self.width - 48
+                Image(nsImage: image)
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .frame(width: width)
+                    .overlay(Rectangle().strokeBorder(Swiss.line, lineWidth: 1))
+            }
+            if let list, !list.isEmpty {
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 4) {
+                        ForEach(list.indices, id: \.self) { i in
+                            Text(list[i])
+                                .font(.system(size: 11))
+                                .foregroundStyle(Swiss.text)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .textSelection(.enabled)
+                        }
+                    }
+                    .padding(10)
+                }
+                .frame(height: 200)
+                .overlay(Rectangle().strokeBorder(Swiss.line, lineWidth: 1))
             }
             // Le principal à droite, puis les autres vers la gauche ; le dernier (annuler) tout à gauche.
             HStack(spacing: 0) {

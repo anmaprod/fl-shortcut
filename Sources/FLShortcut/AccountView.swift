@@ -133,6 +133,7 @@ struct AccountPage: View {
         }
         .sheet(isPresented: $community.editingProfile) {
             EditProfileSheet(community: community)
+                .swissSheet()
         }
     }
 }

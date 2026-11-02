@@ -29,6 +29,7 @@
 "#" = "#";
 "#%@" = "#%@";
 "#%@ : choisir dans la roue des couleurs de FL" = "#%@ : choisir dans la roue des couleurs de FL";
+"#%@ : cliquer pour la poser" = "#%@ : cliquer pour la poser";
 "#RRGGBB" = "#RRGGBB";
 "%@ : " = "%@ : ";
 "%@ : #%@ — cliquer pour choisir" = "%@ : #%@ — cliquer pour choisir";
@@ -1212,6 +1213,7 @@
 "Lire la fiche, puis l'ajouter" = "Lire la fiche, puis l'ajouter";
 "Liste introuvable dans FL : écris le nom." = "Liste introuvable dans FL : écris le nom.";
 "Logic Pro dans FL" = "Logic Pro dans FL";
+"Lum" = "Lum";
 "Luminance" = "Luminance";
 "Luminosité" = "Luminosité";
 "Lâcher" = "Lâcher";
@@ -1529,6 +1531,7 @@
 "Pas encore montré." = "Pas encore montré.";
 "Pas encore montrée : la première fois, une bulle te demande de cliquer sur « (none) » puis sur l'entrée « 1 »." = "Pas encore montrée : la première fois, une bulle te demande de cliquer sur « (none) » puis sur l'entrée « 1 ».";
 "Pas encore montrée : une bulle te la demandera." = "Pas encore montrée : une bulle te la demandera.";
+"Pas fait" = "Pas fait";
 "Passe au pattern suivant" = "Passe au pattern suivant";
 "Passe le son du Mac sur la carte son branchée." = "Passe le son du Mac sur la carte son branchée.";
 "Passer" = "Passer";
@@ -1812,6 +1815,7 @@
 "Sans lien avec FL, ce bloc échoue (aucun équivalent au clavier)." = "Sans lien avec FL, ce bloc échoue (aucun équivalent au clavier).";
 "Sans lien, cette touche de FL :" = "Sans lien, cette touche de FL :";
 "Sans raccourci" = "Sans raccourci";
+"Sat" = "Sat";
 "Saturation" = "Saturation";
 "Sauvegarde" = "Sauvegarde";
 "Sauvegarde arrêtée" = "Sauvegarde arrêtée";

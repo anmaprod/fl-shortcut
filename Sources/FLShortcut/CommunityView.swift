@@ -79,6 +79,7 @@ struct CommunityPage: View {
         .sheet(item: $opened) { share in
             CommunityShareDetail(community: community, store: store, share: share, added: toast,
                                  report: { reportLater(share) })
+                .swissSheet()
         }
         .background {
             // Feuilles posées sur des vues différentes : une seule par vue, comme le veut SwiftUI.
@@ -86,9 +87,11 @@ struct CommunityPage: View {
                 .sheet(isPresented: $community.composing) {
                     CommunityPublishSheet(community: community, library: store.library,
                                           profile: { try? store.exportData() })
+                        .swissSheet()
                 }
                 .sheet(item: $reporting) { share in
                     CommunityReportSheet(community: community, share: share)
+                        .swissSheet()
                 }
         }
         .onReceive(DebugSnapshot.publisher(DebugSnapshot.community)) { note in
@@ -637,7 +640,7 @@ private struct CommunityShareDetail: View {
                             dismiss()
                             Task { await community.showAuthor(of: share) }
                         }
-                        .buttonStyle(.link)
+                        .buttonStyle(SwissLinkButtonStyle())
                         .font(.system(size: 12))
                     }
                 }
@@ -676,10 +679,12 @@ private struct CommunityShareDetail: View {
             HStack {
                 if !mine {
                     Button("Signaler…", action: report)
+                        .secondaryButton()
                         .help("Prévenir les administrateurs : partage dangereux, trompeur ou offensant")
                 }
                 Spacer()
                 Button("Fermer") { dismiss() }
+                    .secondaryButton()
                     .keyboardShortcut(.cancelAction)
                 Button(share.kind.addLabel) { add() }
                     .primaryButton()
@@ -950,7 +955,7 @@ struct CommunitySignIn: View {
                             email = pending.email
                             community.confirmedByLink()
                         }
-                        .buttonStyle(.link)
+                        .buttonStyle(SwissLinkButtonStyle())
                     }
                     .font(.system(size: 11))
                 }
@@ -1006,12 +1011,10 @@ private struct CommunityPublishSheet: View {
                     .foregroundStyle(.secondary)
             }
             field(String(localized: "Quoi")) {
-                Picker("Quoi", selection: $kind) {
-                    Text("Une macro").tag(ShareKind.macro)
-                    Text("Tous mes raccourcis").tag(ShareKind.profile)
-                }
-                .pickerStyle(.segmented)
-                .labelsHidden()
+                SwissSegmented(selection: $kind, options: [
+                    (value: ShareKind.macro, label: String(localized: "Une macro")),
+                    (value: ShareKind.profile, label: String(localized: "Tous mes raccourcis")),
+                ])
                 Text(kind == .macro
                      ? String(localized: "La macro choisie, avec ses étapes.")
                      : String(localized: "Ton jeu de raccourcis complet : les autres pourront le mettre à la place du leur."))
@@ -1025,7 +1028,9 @@ private struct CommunityPublishSheet: View {
                             .font(.system(size: 12))
                             .foregroundStyle(.secondary)
                     } else {
-                        Picker("Macro", selection: $macroID) {
+                        SwissPicker(selection: $macroID,
+                                    current: library.macros.first { $0.id == macroID }?.name.displaySafe(max: 50)
+                                        ?? String(localized: "Choisir…")) {
                             Text("Choisir…").tag(UUID?.none)
                             ForEach(library.macros) { doc in Text(doc.name.displaySafe(max: 50)).tag(UUID?.some(doc.id)) }
                         }
@@ -1036,6 +1041,7 @@ private struct CommunityPublishSheet: View {
             field(String(localized: "Titre"), count: "\(trimmedTitle.count)/\(CommunityRules.titleRange.upperBound)") {
                 TextField("Titre", text: $title, prompt: Text("ex. Armer la piste et lancer l'enregistrement"))
                     .labelsHidden()
+                    .swissField()
             }
             field(String(localized: "Explication"), count: "\(notes.count)/\(CommunityRules.maxNotes)") {
                 TextEditor(text: $notes)
@@ -1049,12 +1055,12 @@ private struct CommunityPublishSheet: View {
                                 """))
                                 .font(.system(size: 12))
                                 .foregroundStyle(.tertiary)
-                                .padding(.horizontal, 5)
-                                .padding(.vertical, 1)
+                                .padding(.horizontal, 9)
+                                .padding(.vertical, 5)
                                 .allowsHitTesting(false)
                         }
                     }
-                    .overlay(Rectangle().stroke(.quaternary))
+                    .swissTextArea()
             }
             VStack(alignment: .leading, spacing: 4) {
                 Label(kind == .macro
@@ -1074,6 +1080,7 @@ private struct CommunityPublishSheet: View {
             HStack {
                 Spacer()
                 Button("Annuler") { dismiss() }
+                    .secondaryButton()
                     .keyboardShortcut(.cancelAction)
                 Button("Publier") { Task { await publish() } }
                     .primaryButton()
@@ -1186,15 +1193,13 @@ private struct CommunityReportSheet: View {
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
-            Picker("Raison", selection: $reason) {
-                ForEach(Reason.allCases) { r in Text(r.label).tag(r) }
-            }
-            .pickerStyle(.radioGroup)
-            .labelsHidden()
+            SwissRadioGroup(selection: $reason, options: Reason.allCases.map { (value: $0, label: $0.label) })
             TextField("Détails", text: $details, prompt: Text("Précisions (facultatif)"))
+                .swissField()
             HStack {
                 Spacer()
                 Button("Annuler") { dismiss() }
+                    .secondaryButton()
                     .keyboardShortcut(.cancelAction)
                 Button("Signaler") {
                     Task {

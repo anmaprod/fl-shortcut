@@ -243,6 +243,7 @@ private struct BlockInspector: View {
                                       : .nameColor(name: n, color: c, fade: nil, icon: i)
                         }
                     }))
+                    .toggleStyle(SwissCheckboxStyle())
                     .help("Comme « Gradient color… » de FL : de la première couleur (First) à la dernière (Last), sur les pistes ou les canaux sélectionnés (au moins 2). Le nom ne change pas.")
                     if let fade {
                         GradientField(first: color, last: fade) { first, last in
@@ -291,7 +292,7 @@ private struct BlockInspector: View {
                 if case .menuKey(_, let n) = body { body = .menuKey(key, times: n) }
             }
         })
-        return Picker(label, selection: binding) {
+        return SwissPicker(label, selection: binding, current: current.symbol) {
             ForEach(MenuKey.allCases, id: \.self) { key in
                 Text(key.symbol).tag(key)
             }
@@ -304,11 +305,10 @@ private struct BlockInspector: View {
                 if case .click(let t, _) = body { body = .click(t, button: button) }
             }
         })
-        return Picker(label, selection: binding) {
-            Text("Gauche").tag(MouseButton.left)
-            Text("Droit").tag(MouseButton.right)
-        }
-        .pickerStyle(.segmented)
+        return SwissSegmented(selection: binding, options: [
+            (value: MouseButton.left, label: String(localized: "Gauche")),
+            (value: MouseButton.right, label: String(localized: "Droit")),
+        ], title: label)
     }
 
     /// Ce qu'attend le bloc « Attendre » : un seul bloc pour toutes les attentes, le choix change son genre (boîte
@@ -339,7 +339,15 @@ private struct BlockInspector: View {
                 }
             }
         })
-        return Picker("Attendre", selection: binding) {
+        let currentText: String
+        switch current {
+        case .dialogOpen: currentText = String(localized: "qu'une boîte de FL s'ouvre")
+        case .dialogClose: currentText = String(localized: "que la boîte se ferme")
+        case .menuOpen: currentText = String(localized: "qu'un menu de FL s'ouvre")
+        case .menuClose: currentText = String(localized: "que le menu se ferme")
+        case .fixed: currentText = String(localized: "un temps fixe")
+        }
+        return SwissPicker(String(localized: "Attendre"), selection: binding, current: currentText) {
             Text("qu'une boîte de FL s'ouvre").tag(WaitChoice.dialogOpen)
             Text("que la boîte se ferme").tag(WaitChoice.dialogClose)
             Text("qu'un menu de FL s'ouvre").tag(WaitChoice.menuOpen)
@@ -384,7 +392,7 @@ private struct BlockInspector: View {
             }
             setKey(new)
         }))
-        .toggleStyle(.button)
+        .toggleStyle(SwissKeyToggleStyle())
         .font(.system(size: 13, weight: .medium))
         .help("\(name) avec la touche")
         .accessibilityLabel(name)
@@ -461,7 +469,7 @@ private struct BlockInspector: View {
         let other = "other"
         let current = MacroTemplates.trackMenuChoice(letters)?.id ?? other
         return VStack(alignment: .leading, spacing: 6) {
-            Picker(label, selection: Binding(get: { current }, set: { id in
+            SwissPicker(label, selection: Binding(get: { current }, set: { id in
                 let choice = MacroTemplates.trackMenuChoices.first { $0.id == id }
                 setBody(key: "letters") { body in
                     guard case .trackMenu(_, _, let target, let e) = body else { return }
@@ -471,7 +479,8 @@ private struct BlockInspector: View {
                         body = .trackMenu(letters: [], labels: [], target: target, finalEnter: e == .never ? .ifNeeded : e)
                     }
                 }
-            })) {
+            }), current: MacroTemplates.trackMenuChoice(letters)?.name
+                        ?? String(localized: "Autre (lettres soulignées)…")) {
                 ForEach(MacroTemplates.trackMenuChoices) { Text($0.name).tag($0.id) }
                 Divider()
                 Text("Autre (lettres soulignées)…").tag(other)
@@ -509,8 +518,17 @@ private struct BlockInspector: View {
         }
     }
 
+    private func enterText(_ policy: EnterPolicy) -> String {
+        switch enterTag(policy) {
+        case "never": return String(localized: "Jamais")
+        case "always": return String(localized: "Toujours")
+        case "learned": return String(localized: "Apprise au premier passage")
+        default: return String(localized: "Si le menu reste ouvert")
+        }
+    }
+
     private func enterPicker(_ label: String, _ current: EnterPolicy, allowNever: Bool) -> some View {
-        Picker(label, selection: Binding(get: { enterTag(current) }, set: { tag in
+        SwissPicker(label, selection: Binding(get: { enterTag(current) }, set: { tag in
             let policy: EnterPolicy
             switch tag {
             case "always": policy = .always
@@ -525,7 +543,7 @@ private struct BlockInspector: View {
                 default: break
                 }
             }
-        })) {
+        }), current: enterText(current)) {
             if allowNever { Text("Jamais").tag("never") }
             Text("Si le menu reste ouvert").tag("ifNeeded")
             Text("Toujours").tag("always")
@@ -544,8 +562,17 @@ private struct BlockInspector: View {
         }
     }
 
+    private func targetText(_ t: ClickTarget) -> String {
+        switch targetKind(t) {
+        case "track": return String(localized: "Sur la piste visée")
+        case "lastClick": return String(localized: "Près du clic précédent")
+        case "startCursor": return String(localized: "Près du curseur au départ")
+        default: return String(localized: "Endroit montré dans FL")
+        }
+    }
+
     @ViewBuilder private func clickTarget(_ t: ClickTarget) -> some View {
-        Picker("Où", selection: Binding(get: { targetKind(t) }, set: { kind in
+        SwissPicker(String(localized: "Où"), selection: Binding(get: { targetKind(t) }, set: { kind in
             guard kind != targetKind(t) else { return }
             let target: ClickTarget
             switch kind {
@@ -555,7 +582,7 @@ private struct BlockInspector: View {
             default: target = .toLearn
             }
             setBody(key: "target") { if case .click(_, let b) = $0 { $0 = .click(target, button: b) } }
-        })) {
+        }), current: targetText(t)) {
             Text("Endroit montré dans FL").tag("learned")
             Text("Sur la piste visée").tag("track")
             Text("Près du clic précédent").tag("lastClick")
@@ -614,6 +641,7 @@ private struct BlockInspector: View {
                     default: return false
                     }
                 }, set: { on in follow(on, t) }))
+                .toggleStyle(SwissCheckboxStyle())
                 .disabled(learning)
                 .help("Cherché par son nom ou son image au moment du clic (autorisation « Enregistrement de l'écran »).")
             }
@@ -763,7 +791,8 @@ private struct BlockInspector: View {
         let info = FLActions.id(forKey: key).flatMap(FLActions.info)
         let availability = info.map { AppStatus.shared.availability($0.id) }
         return VStack(alignment: .leading, spacing: 4) {
-            Picker("Action", selection: Binding(get: { key }, set: { setAction($0) })) {
+            SwissPicker(String(localized: "Action"), selection: Binding(get: { key }, set: { setAction($0) }),
+                        current: info?.label ?? key) {
                 ForEach(FLActionInfo.Category.allCases, id: \.self) { category in
                     Section(category.label) {
                         ForEach(FLActions.all.filter { $0.category == category }) { a in
@@ -836,9 +865,9 @@ private struct BlockInspector: View {
 
     private func pagePicker(_ page: FLPage?) -> some View {
         VStack(alignment: .leading, spacing: 4) {
-            Picker("Page", selection: Binding<FLPage?>(get: { page }, set: { new in
+            SwissPicker(String(localized: "Page"), selection: Binding<FLPage?>(get: { page }, set: { new in
                 setBody(key: "page") { $0 = .openPage(new) }
-            })) {
+            }), current: page?.title ?? String(localized: "À choisir")) {
                 if page == nil { Text("À choisir").tag(FLPage?.none) }
                 ForEach(FLPage.allCases) { p in
                     Text(p.title).tag(FLPage?.some(p))
@@ -868,7 +897,7 @@ private struct BlockInspector: View {
         let keys = options.filter { if case .key = $0.kind { return true }; return false }
         return VStack(alignment: .leading, spacing: 4) {
             if let page {
-                Picker("Option", selection: Binding<String?>(get: { current?.id }, set: { new in
+                SwissPicker(String(localized: "Option"), selection: Binding<String?>(get: { current?.id }, set: { new in
                     // Une autre sorte de valeur (plugin, numéro, nom) : la valeur repart de zéro.
                     let sameField = new.flatMap(PageOptions.field(of:)) == id.flatMap(PageOptions.field(of:))
                     withAnimation(Motion.quickMorph) {
@@ -877,7 +906,7 @@ private struct BlockInspector: View {
                             body = .pageOption(id: new, name: sameField ? name : "")
                         }
                     }
-                })) {
+                }), current: current?.label ?? String(localized: "À choisir")) {
                     if current == nil { Text("À choisir").tag(String?.none) }
                     if !inPage.isEmpty {
                         Section(page.title) {
@@ -965,9 +994,19 @@ private struct SoundCardField: View {
         SoundCard.choose(devices, preferredUID: UserDefaults.standard.string(forKey: SoundCard.preferredKey))
     }
 
+    private var chosenText: String {
+        if chosen.isEmpty {
+            return auto.map { String(localized: "Automatique (\($0.name.displaySafe(max: 30)))") }
+                ?? String(localized: "Automatique (aucune carte branchée)")
+        }
+        return devices.first { $0.uid == chosen }
+            .map { $0.name.displaySafe(max: 40) + ($0.isExternal ? "" : String(localized: " (du Mac)")) }
+            ?? String(localized: "Carte choisie, pas branchée")
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Picker("Carte son", selection: Binding(get: { chosen }, set: { uid in
+            SwissPicker(String(localized: "Carte son"), selection: Binding(get: { chosen }, set: { uid in
                 chosen = uid
                 if uid.isEmpty {
                     UserDefaults.standard.removeObject(forKey: SoundCard.chosenKey)
@@ -975,7 +1014,7 @@ private struct SoundCardField: View {
                     UserDefaults.standard.set(uid, forKey: SoundCard.chosenKey)
                 }
                 result = nil
-            })) {
+            }), current: chosenText) {
                 Text(auto.map { String(localized: "Automatique (\($0.name.displaySafe(max: 30)))") }
                      ?? String(localized: "Automatique (aucune carte branchée)")).tag("")
                 ForEach(SoundCard.selectable(devices)) { d in
@@ -1057,7 +1096,9 @@ private struct PluginField: View {
         VStack(alignment: .leading, spacing: 6) {
             if case .loaded(let names) = list.state, !typing {
                 HStack(spacing: 6) {
-                    Picker("Plugin", selection: Binding(get: { value }, set: { choose($0, names: names) })) {
+                    SwissPicker(String(localized: "Plugin"), selection: Binding(get: { value }, set: { choose($0, names: names) }),
+                                current: value.isEmpty ? String(localized: "À choisir")
+                                    : (PageOptions.pluginPath(value).last.map { String($0) } ?? value)) {
                         if value.isEmpty { Text("À choisir").tag("") }
                         if !value.isEmpty, !names.contains(value) {
                             Text(FLPluginDatabase.fromPluginList(PageOptions.pluginPath(value)) ?? value).tag(value)
@@ -1082,7 +1123,7 @@ private struct PluginField: View {
                     reloadButton
                 }
                 Button("Écrire le nom moi-même") { withAnimation(Motion.quickMorph) { typing = true } }
-                    .buttonStyle(.link)
+                    .buttonStyle(SwissLinkButtonStyle())
                     .font(.system(size: 11))
             } else {
                 HStack(spacing: 6) {
@@ -1098,7 +1139,7 @@ private struct PluginField: View {
                 Group {
                     if typing {
                         Button("Choisir dans la liste de FL") { withAnimation(Motion.quickMorph) { typing = false } }
-                            .buttonStyle(.link)
+                            .buttonStyle(SwissLinkButtonStyle())
                     } else if case .unavailable(let why) = list.state {
                         Text(why).foregroundStyle(.secondary)
                     } else {
@@ -1538,6 +1579,7 @@ struct NameColorField: View {
                 set(on ? start : nil)
                 if on { text = start.hex }
             }))
+            .toggleStyle(SwissCheckboxStyle())
             if let color {
                 HStack(spacing: 6) {
                     Button { picking = true } label: { Self.swatch(color, size: 20) }
@@ -1552,6 +1594,7 @@ struct NameColorField: View {
                             if let c = RGBColor(hex: text) { remember(c) }
                         }
                     Button("Choisir…") { picking = true }
+                        .secondaryButton()
                         .controlSize(.small)
                         .popover(isPresented: $picking, arrowEdge: .leading) {
                             FLColorSelector(initial: color) { picked in

@@ -1140,6 +1140,247 @@ struct SwissSwitch: View {
     }
 }
 
+extension View {
+    /// Champ de texte du style suisse (02/11) : sans le cadre arrondi de macOS, fond noir, trait fin #333, coins carrés.
+    func swissField(minHeight: CGFloat = 28) -> some View {
+        textFieldStyle(.plain)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 5)
+            .frame(minHeight: minHeight)
+            .background(Swiss.background)
+            .overlay(Rectangle().strokeBorder(Swiss.line, lineWidth: 1))
+    }
+
+    /// Zone de texte sur plusieurs lignes (TextEditor) du style suisse : fond noir, trait fin #333.
+    func swissTextArea() -> some View {
+        scrollContentBackground(.hidden)
+            .padding(4)
+            .background(Swiss.background)
+            .overlay(Rectangle().strokeBorder(Swiss.line, lineWidth: 1))
+    }
+
+    /// Petite fenêtre (feuille) du style suisse : fond noir plein, toujours sombre (au lieu du gris arrondi de macOS).
+    @ViewBuilder func swissSheet() -> some View {
+        let base = background(Swiss.background).environment(\.colorScheme, .dark)
+        if #available(macOS 13.3, *) {
+            base.presentationBackground(Swiss.background)
+        } else {
+            base
+        }
+    }
+}
+
+/// Lien du style suisse : texte blanc souligné, gris au survol (à la place du lien bleu de macOS, 02/11 : « vérifie
+/// si le style est respecté partout »).
+struct SwissLinkButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        SwissLinkBody(label: configuration.label, pressed: configuration.isPressed)
+    }
+}
+
+private struct SwissLinkBody<Label: View>: View {
+    let label: Label
+    let pressed: Bool
+    @Environment(\.isEnabled) private var enabled
+    @State private var hovering = false
+
+    var body: some View {
+        label
+            .underline()
+            .foregroundStyle(hovering && enabled ? Swiss.gray : Swiss.text)
+            .opacity(enabled ? (pressed ? 0.6 : 1) : 0.35)
+            .contentShape(Rectangle())
+            .onHover { hovering = $0 }
+    }
+}
+
+/// Choix entre quelques options, au style suisse (à la place du contrôle segmenté de macOS, en verre sur macOS 26) :
+/// cases rectangulaires côte à côte, en capitales ; la choisie blanche pleine, texte noir ; les autres noires bordées,
+/// blanches au survol. `title` : libellé à gauche dans un formulaire (comme celui du Picker).
+struct SwissSegmented<Value: Hashable>: View {
+    @Binding var selection: Value
+    let options: [(value: Value, label: String)]
+    var title: String? = nil
+
+    var body: some View {
+        if let title {
+            LabeledContent(title) { segments }
+        } else {
+            segments
+        }
+    }
+
+    private var segments: some View {
+        HStack(spacing: -1) {
+            ForEach(options.indices, id: \.self) { i in
+                let option = options[i]
+                Button(option.label) { selection = option.value }
+                    .buttonStyle(SwissChoiceStyle(chosen: selection == option.value))
+                    .accessibilityAddTraits(selection == option.value ? .isSelected : [])
+            }
+        }
+        .fixedSize()
+    }
+}
+
+/// Une case de `SwissSegmented`, ou une touche qui s'allume (⌘ ⌥ ⌃ ⇧ du bloc Touche) : blanche pleine quand elle est
+/// choisie ; sinon noire bordée, blanche au survol.
+struct SwissChoiceStyle: ButtonStyle {
+    var chosen: Bool
+    var uppercase = true
+
+    func makeBody(configuration: Configuration) -> some View {
+        SwissChoiceBody(label: configuration.label, pressed: configuration.isPressed, chosen: chosen,
+                        uppercase: uppercase)
+    }
+}
+
+private struct SwissChoiceBody<Label: View>: View {
+    let label: Label
+    let pressed: Bool
+    let chosen: Bool
+    let uppercase: Bool
+    @Environment(\.isEnabled) private var enabled
+    @Environment(\.controlSize) private var size
+    @State private var hovering = false
+
+    var body: some View {
+        let filled = chosen || (hovering && enabled)
+        let small = size == .small || size == .mini
+        return label
+            .font(Swiss.font(small ? 10 : 10.5))
+            .tracking(uppercase ? 1.1 : 0)
+            .textCase(uppercase ? .uppercase : nil)
+            .lineLimit(1)
+            .foregroundStyle(filled ? Swiss.background : Swiss.text)
+            .padding(.horizontal, small ? 8 : 11)
+            .frame(minHeight: small ? 22 : 26)
+            .background(Rectangle().fill(filled ? Swiss.text : Swiss.background))
+            .overlay(Rectangle().strokeBorder(chosen || hovering ? Swiss.text : Swiss.keyLine, lineWidth: 1))
+            .opacity(enabled ? (pressed ? 0.7 : 1) : 0.35)
+            .contentShape(Rectangle())
+            .onHover { hovering = $0 }
+    }
+}
+
+/// Liste déroulante du style suisse (02/11, à la place de celle de macOS, en verre sur macOS 26) : le choix en cours
+/// dans un rectangle bordé, ⌄ à droite, blanc plein au survol ; la liste s'ouvre au clic, le choix en cours coché.
+/// `current` : le texte du choix en cours ; `content` : les choix, comme dans un Picker (Text(…).tag(…), Section,
+/// Divider). `title` : libellé à gauche.
+struct SwissPicker<Value: Hashable, Content: View>: View {
+    let title: String?
+    @Binding var selection: Value
+    let current: String
+    let content: () -> Content
+
+    init(_ title: String? = nil, selection: Binding<Value>, current: String,
+         @ViewBuilder content: @escaping () -> Content) {
+        self.title = title
+        _selection = selection
+        self.current = current
+        self.content = content
+    }
+
+    var body: some View {
+        if let title {
+            LabeledContent(title) { menu }
+        } else {
+            menu
+        }
+    }
+
+    private var menu: some View {
+        Menu {
+            Picker(selection: $selection, content: content) { EmptyView() }
+                .pickerStyle(.inline)
+                .labelsHidden()
+        } label: {
+            SwissPickerLabel(text: current)
+        }
+        .menuStyle(.button)
+        .buttonStyle(.plain)
+        .menuIndicator(.hidden)
+        .fixedSize()
+        .accessibilityValue(current)
+    }
+}
+
+private struct SwissPickerLabel: View {
+    let text: String
+    @Environment(\.isEnabled) private var enabled
+    @State private var hovering = false
+
+    var body: some View {
+        let lit = hovering && enabled
+        return HStack(spacing: 8) {
+            Text(text).lineLimit(1).truncationMode(.middle)
+            Image(systemName: "chevron.down").font(.system(size: 9, weight: .bold))
+        }
+        .font(.system(size: 12, weight: .medium))
+        .foregroundStyle(lit ? Swiss.background : Swiss.text)
+        .padding(.horizontal, 10)
+        .frame(minHeight: 26)
+        .background(Rectangle().fill(lit ? Swiss.text : Swiss.background))
+        .overlay(Rectangle().strokeBorder(lit ? Swiss.text : Swiss.keyLine, lineWidth: 1))
+        .opacity(enabled ? 1 : 0.35)
+        .contentShape(Rectangle())
+        .onHover { hovering = $0 }
+    }
+}
+
+/// Choix d'une option parmi plusieurs, en colonne, au style suisse (à la place des boutons ronds de macOS) : un carré
+/// blanc plein devant le choix en cours.
+struct SwissRadioGroup<Value: Hashable>: View {
+    @Binding var selection: Value
+    let options: [(value: Value, label: String)]
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            ForEach(options.indices, id: \.self) { i in
+                let option = options[i]
+                Toggle(option.label, isOn: Binding(get: { selection == option.value },
+                                                   set: { if $0 { selection = option.value } }))
+                    .toggleStyle(SwissCheckboxStyle())
+            }
+        }
+    }
+}
+
+/// Case à cocher du style suisse : un carré bordé de blanc ; cochée, blanche pleine avec une coche noire. Le texte
+/// à droite se clique aussi.
+struct SwissCheckboxStyle: ToggleStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        Button { configuration.isOn.toggle() } label: {
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                ZStack {
+                    Rectangle().fill(configuration.isOn ? Swiss.text : Swiss.background)
+                    Rectangle().strokeBorder(Swiss.text, lineWidth: 1)
+                    if configuration.isOn {
+                        Image(systemName: "checkmark")
+                            .font(.system(size: 9, weight: .heavy))
+                            .foregroundStyle(Swiss.background)
+                    }
+                }
+                .frame(width: 14, height: 14)
+                .alignmentGuide(.firstTextBaseline) { $0[VerticalAlignment.center] + 4 }
+                configuration.label
+                    .multilineTextAlignment(.leading)
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityValue(configuration.isOn ? String(localized: "activé") : String(localized: "désactivé"))
+    }
+}
+
+/// Interrupteur-touche (⌘ ⌥ ⌃ ⇧) au style suisse : blanc plein quand il est allumé.
+struct SwissKeyToggleStyle: ToggleStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        Button { configuration.isOn.toggle() } label: { configuration.label }
+            .buttonStyle(SwissChoiceStyle(chosen: configuration.isOn, uppercase: false))
+    }
+}
+
 /// Barre de progression du style suisse : un trait gris de 4 points, rempli de rouge jusqu'où on en est.
 struct SwissProgress: View {
     var value: Double

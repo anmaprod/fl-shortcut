@@ -97,13 +97,13 @@ struct OrganizerFeedbackView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 8) {
                     ForEach(OrganizerFeedback.Reason.allCases) { reason in
-                        Toggle(reason.label, isOn: checked(reason)).toggleStyle(.checkbox)
+                        Toggle(reason.label, isOn: checked(reason)).toggleStyle(SwissCheckboxStyle())
                     }
-                    Toggle("Autre", isOn: $feedback.other).toggleStyle(.checkbox)
+                    Toggle("Autre", isOn: $feedback.other).toggleStyle(SwissCheckboxStyle())
                     if feedback.other {
                         TextField("Dis-nous ce qui ne va pas", text: $feedback.otherText, axis: .vertical)
                             .lineLimit(3...6)
-                            .textFieldStyle(.roundedBorder)
+                            .swissField()
                     }
                     if feedback.asksSounds { sounds }
                     if feedback.teamMessage() != nil {
@@ -121,7 +121,9 @@ struct OrganizerFeedbackView: View {
             }
             HStack {
                 Spacer()
-                Button("Annuler") { controller.feedbackShown = false }.keyboardShortcut(.cancelAction)
+                Button("Annuler") { controller.feedbackShown = false }
+                    .secondaryButton()
+                    .keyboardShortcut(.cancelAction)
                 Button("Envoyer") { controller.submitFeedback(feedback) }
                     .primaryButton()
                     .keyboardShortcut(.defaultAction)
@@ -166,7 +168,7 @@ struct OrganizerFeedbackView: View {
                         """))
                         .fixedSize(horizontal: false, vertical: true)
                 }
-                .toggleStyle(.checkbox)
+                .toggleStyle(SwissCheckboxStyle())
                 .padding(.top, 4)
             }
         }

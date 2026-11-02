@@ -298,6 +298,7 @@ struct EditorView: View {
         .onChange(of: selection) { AppResume.shared.page = $0 }
         .sheet(isPresented: $showGuide, onDismiss: { guideSeen = true }) {
             GuideSheet(initialPage: guidePage) { showGuide = false }
+                .swissSheet()
         }
         .onAppear {
             resumeIfAsked()
@@ -517,6 +518,7 @@ struct EditorView: View {
                 .environmentObject(store)
                 .environmentObject(status)
                 .environmentObject(link)
+                .swissSheet()
         }
     }
 
@@ -774,6 +776,7 @@ struct EditorView: View {
             }
             .environmentObject(store)
             .environmentObject(link)
+            .swissSheet()
         }
     }
 
@@ -1103,7 +1106,7 @@ private struct StatusBar: View {
                 Text(text).lineLimit(1)
                 if let action {
                     Button(action.label, action: action.run)
-                        .buttonStyle(.link)
+                        .buttonStyle(SwissLinkButtonStyle())
                 }
             }
             .font(.system(size: 12))
@@ -1357,7 +1360,7 @@ private struct EmptyState: View {
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
             if let actionTitle, let action {
-                Button(actionTitle, action: action).padding(.top, 6)
+                Button(actionTitle, action: action).secondaryButton().padding(.top, 6)
             }
         }
         .frame(maxWidth: 320)
@@ -1489,12 +1492,11 @@ struct EditSheet: View {
                         }
                     }
                 }
-                Picker("Type", selection: $draft.kind) {
-                    Text("Action dans FL").tag(Remap.Kind.flAction)
-                    Text("Touche de FL").tag(Remap.Kind.keystroke)
-                    Text("Macro").tag(Remap.Kind.macro)
-                }
-                .pickerStyle(.segmented)
+                SwissSegmented(selection: $draft.kind, options: [
+                    (value: Remap.Kind.flAction, label: String(localized: "Action dans FL")),
+                    (value: Remap.Kind.keystroke, label: String(localized: "Touche de FL")),
+                    (value: Remap.Kind.macro, label: String(localized: "Macro")),
+                ], title: String(localized: "Type"))
 
                 switch draft.kind {
                 case .flAction: actionFields
@@ -1520,6 +1522,7 @@ struct EditSheet: View {
                         onDone(ToastMessage(text: String(localized: "Raccourci supprimé"), undo: { store.upsert(removed) }))
                         dismiss()
                     }
+                    .buttonStyle(CapsuleButtonStyle(prominent: false, danger: true))
                 }
                 Spacer()
                 Button("Annuler") { recorder.stop(); dismiss() }
@@ -1603,22 +1606,18 @@ struct EditSheet: View {
             VStack(alignment: .leading, spacing: 8) {
                 HStack(spacing: 8) {
                     TextField("Rechercher une action", text: $query)
-                        .textFieldStyle(.roundedBorder)
+                        .swissField()
                     if !AppMode.light {
                         Button("Tester") {
                             if let id = draft.actionID { link.test(action: id) }
                         }
+                        .secondaryButton()
                         .disabled(draft.actionID == nil || link.status != .linked)
                         .help("Envoie l'action à FL Studio")
                     }
                 }
-                Picker("Catégorie", selection: categoryBinding) {
-                    ForEach(FLActionInfo.Category.allCases, id: \.self) { c in
-                        Text(c.label).tag(c)
-                    }
-                }
-                .pickerStyle(.segmented)
-                .labelsHidden()
+                SwissSegmented(selection: categoryBinding,
+                               options: FLActionInfo.Category.allCases.map { (value: $0, label: $0.label) })
 
                 List(actions, selection: actionSelection) { info in
                     actionRow(info)
@@ -1632,7 +1631,7 @@ struct EditSheet: View {
                 }
             }
         }
-        Picker("Où", selection: $draft.context) {
+        SwissPicker(String(localized: "Où"), selection: $draft.context, current: draft.context.label) {
             ForEach(ShortcutContext.allCases) { Text($0.label).tag($0) }
         }
     }
@@ -1994,7 +1993,6 @@ struct CatalogEditSheet: View {
     let onDone: (ToastMessage, String?) -> Void
     @State private var combo: KeyCombo?
     @State private var pendingClashes: [KeyClash] = []
-    @State private var showClashAlert = false
 
     init(row: CatalogRow, notice: String? = nil, onDone: @escaping (ToastMessage, String?) -> Void) {
         self.row = row
@@ -2085,13 +2083,16 @@ struct CatalogEditSheet: View {
                 } label: {
                     Label("Réinitialiser", systemImage: "arrow.counterclockwise")
                 }
+                .secondaryButton()
                 .disabled(combo == row.entry.defaultTrigger)
 
                 if let id = actionID {
                     Button("Aucune touche") { combo = nil }
+                        .secondaryButton()
                         .disabled(combo == nil)
                     if !AppMode.light {
                         Button("Tester") { link.test(action: id) }
+                            .secondaryButton()
                             .disabled(link.status != .linked)
                             .help("Envoie l'action à FL Studio")
                     }
@@ -2107,7 +2108,8 @@ struct CatalogEditSheet: View {
                         apply(releasing: [])
                     } else {
                         pendingClashes = found
-                        showClashAlert = true
+                        // La question au style suisse (02/11), après le clic (le bouton se relâche d'abord).
+                        DispatchQueue.main.async { askReplace(found) }
                     }
                 }
                 .keyboardShortcut(.defaultAction)
@@ -2118,15 +2120,17 @@ struct CatalogEditSheet: View {
         .padding(20)
         .frame(width: 480)
         .onDisappear { recorder.stop() }
-        // Une touche ne sert qu'une fois : on annonce ce qui l'utilise avant de la reprendre.
-        .alert("\(combo?.display ?? String(localized: "Cette touche")) est déjà utilisée", isPresented: $showClashAlert) {
-            Button("Remplacer", role: .destructive) { apply(releasing: pendingClashes) }
-            Button("Annuler", role: .cancel) { pendingClashes = [] }
-        } message: {
-            Text(pendingClashes.prefix(4).map(\.line).joined(separator: "\n")
-                 + String(localized: "\n\nUn raccourci ne peut servir qu'une fois. Si tu remplaces, tu pourras choisir tout de suite ")
-                 + String(localized: "une autre touche pour « \(pendingClashes.first?.title ?? String(localized: "l'autre raccourci")) »."))
-        }
+    }
+
+    /// Une touche ne sert qu'une fois : on annonce ce qui l'utilise avant de la reprendre.
+    private func askReplace(_ found: [KeyClash]) {
+        let title = String(localized: "\(combo?.display ?? String(localized: "Cette touche")) est déjà utilisée")
+        let text = found.prefix(4).map(\.line).joined(separator: "\n")
+            + String(localized: "\n\nUn raccourci ne peut servir qu'une fois. Si tu remplaces, tu pourras choisir tout de suite ")
+            + String(localized: "une autre touche pour « \(found.first?.title ?? String(localized: "l'autre raccourci")) ».")
+        let answer = SwissDialog.run(title, text, buttons: [String(localized: "Remplacer"), String(localized: "Annuler")],
+                                     destructive: 0)
+        if answer == 0 { apply(releasing: found) } else { pendingClashes = [] }
     }
 
     /// Liste courte sous le champ : qui utilise déjà cette touche.
