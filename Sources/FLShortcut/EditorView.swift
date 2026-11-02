@@ -1415,10 +1415,12 @@ private struct SectionHeader: View {
     let tint: Color
     let title: String
 
+    /// Le petit carré de sa couleur, comme dans la barre de gauche (02/11 : « les anciens logos… je veux les carrés
+    /// colorés comme tu as mis »), puis le nom en petites capitales.
     var body: some View {
-        HStack(spacing: 6) {
-            SectionIcon(symbol: symbol, tint: tint, size: 16)
-            Text(title)
+        HStack(spacing: 10) {
+            Rectangle().fill(tint).frame(width: 8, height: 8).accessibilityHidden(true)
+            Text(title).swissLabel(Swiss.text, size: 11)
         }
     }
 }

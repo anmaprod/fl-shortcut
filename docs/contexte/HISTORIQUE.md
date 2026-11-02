@@ -722,3 +722,6 @@ entrée 1 ≈ 0,5 s.
 - 02/11 (5) : vidéo « ouverture icône, enlever animation » → menu de l'icône sans animation (ni à l'ouverture ni à la
   fermeture) ; deux captures sans nom (recherche « Outil crayon », question « Enregistrer « Nouvelle macro » ? ») :
   bande grise de l'en-tête collé « Playlist » retirée, coins arrondis de la question remplacés par des coins carrés.
+  Précisions du propriétaire : la question « Enregistrer… » « ne fonctionnait pas » (boutons sans effet) et ses
+  boutons étaient collés → refaite en AppKit (boutons qui répondent, espacés de 10) ; dans la recherche, les anciens
+  logos → les petits carrés de couleur de la barre de gauche.

@@ -251,8 +251,11 @@
   ancienne, une déjà là remonte en 0), un clic sur l'une la pose ; photo CI `organiser-couleurs.png`. Réglages d'un
   bloc (créateur) : plus de formulaire groupé de macOS (cartes grises arrondies), rubriques à traits fins
   (`SwissLabeledContentStyle`, `SwissTextField`, − + `SwissStepper`) ; compte sans bleu (bouton, liens, case du code).
-  Captures du 02/11 : questions (`SwissDialog`) sans barre de titre, coins carrés, trait #333 ; résultats de la
-  recherche : titres des pages en lignes (plus d'en-tête de liste collé en haut sur une bande grise).
+  Captures du 02/11 : questions (`SwissDialog`) sans barre de titre, coins carrés, trait #333, boutons séparés ;
+  FAITES EN APPKIT (`SwissButton`, comme NSAlert) : en SwiftUI, ouvertes depuis l'action d'un bouton de SwiftUI
+  dans une boucle modale, leurs boutons ne répondaient pas (« ça ne fonctionnait pas ») ; NE PAS les remettre en
+  SwiftUI. Résultats de la recherche : titres des pages en lignes (plus d'en-tête collé en haut sur une bande grise),
+  avec le petit carré de couleur de la barre de gauche (plus les anciens logos).
   Téléchargement Mac : le .pkg seul (le .dmg reste fabriqué pour les essais, jamais publié) + LISEZMOI.html au style
   suisse avec images (Mac et Windows : modèles `docs/telechargement/modele-*.html`, `python3 scripts/lisezmoi.py` y
   colle les images → LISEZMOI-Mac/Windows.html ; exemples validés au fil de ses retours : artefacts privés
