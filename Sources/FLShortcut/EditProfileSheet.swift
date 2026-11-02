@@ -118,7 +118,7 @@ struct EditProfileSheet: View {
                            size: size)
             }
         }
-        .overlay(Circle().strokeBorder(AuthLook.blue, lineWidth: 3).padding(-3))
+        .overlay(Circle().strokeBorder(Swiss.text, lineWidth: 2).padding(-3))
         .padding(3)
         .contentShape(Circle())
         .gesture(DragGesture(minimumDistance: 1)
@@ -158,7 +158,7 @@ struct EditProfileSheet: View {
         HStack(spacing: 10) {
             Image(systemName: "minus").font(.system(size: 10, weight: .semibold)).foregroundStyle(.secondary)
             Slider(value: $zoom, in: 1...3)
-                .tint(AuthLook.blue)
+                .tint(Swiss.text)
                 .frame(width: 194)
                 .accessibilityLabel(String(localized: "Zoom de la photo"))
             Image(systemName: "plus").font(.system(size: 10, weight: .semibold)).foregroundStyle(.secondary)

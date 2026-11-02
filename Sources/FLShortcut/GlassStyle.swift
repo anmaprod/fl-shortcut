@@ -439,7 +439,7 @@ struct CapsuleButtonStyle: ButtonStyle {
 /// Le corps d'un bouton suisse, réactif (02/11 : « les boutons ne sont pas réactifs, ils devraient passer au blanc ») :
 /// au survol, le bouton bordé devient blanc plein, texte noir ; le bouton principal (déjà blanc) passe au noir bordé
 /// de blanc. Aucun changement de taille.
-private struct SwissButtonBody<Label: View>: View {
+struct SwissButtonBody<Label: View>: View {
     let label: Label
     let pressed: Bool
     let prominent: Bool

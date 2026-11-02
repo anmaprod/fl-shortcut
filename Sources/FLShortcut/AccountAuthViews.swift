@@ -168,9 +168,8 @@ struct AuthField<Accessory: View>: View {
                 Spacer(minLength: 8)
                 if let link {
                     Button(link.title, action: link.action)
-                        .buttonStyle(.plain)
+                        .buttonStyle(SwissLinkButtonStyle())                         // blanc souligné (02/11)
                         .font(.system(size: 12, weight: .medium))
-                        .foregroundStyle(Color(red: 0.29, green: 0.64, blue: 1))          // #4AA3FF
                 }
             }
             HStack(spacing: 8) {
@@ -348,7 +347,7 @@ struct CodeBoxes: View {
                         .frame(width: count > 6 ? 36 : 46, height: 56)
                         .background(Rectangle().fill(AuthLook.well(scheme)))
                         .overlay(Rectangle()
-                            .strokeBorder(current ? AuthLook.blue : Color.primary.opacity(0.14), lineWidth: current ? 2 : 1))
+                            .strokeBorder(current ? Swiss.text : Swiss.line, lineWidth: current ? 2 : 1))
                 }
             }
             .contentShape(Rectangle())
@@ -361,19 +360,13 @@ struct CodeBoxes: View {
 
 // MARK: - Boutons
 
-/// Grand bouton bleu de la carte (« Se connecter », « Créer mon compte », « Valider »).
+/// Grand bouton de la carte (« Se connecter », « Créer mon compte », « Valider ») : le bouton principal suisse (blanc
+/// plein, capitales ; noir bordé au survol) sur toute la largeur (02/11 : plus de bleu).
 struct AuthPrimaryButtonStyle: ButtonStyle {
-    @Environment(\.isEnabled) private var isEnabled
-
     func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .font(.system(size: 14, weight: .semibold))
-            .foregroundStyle(.white)
-            .frame(maxWidth: .infinity)
-            .frame(height: 44)
-            .background(Rectangle().fill(AuthLook.blue.opacity(configuration.isPressed ? 0.8 : 1)))
-            .opacity(isEnabled ? 1 : 0.55)
-            .contentShape(Rectangle())
+        SwissButtonBody(label: configuration.label.frame(maxWidth: .infinity), pressed: configuration.isPressed,
+                        prominent: true, danger: false)
+            .controlSize(.large)
     }
 }
 
@@ -383,9 +376,9 @@ struct AuthLinkButton: View {
     let action: () -> Void
 
     var body: some View {
+        // Lien du style suisse : blanc souligné (02/11 : plus de bleu).
         Button(title, action: action)
-            .buttonStyle(.plain)
+            .buttonStyle(SwissLinkButtonStyle())
             .font(.system(size: 12.5, weight: .medium))
-            .foregroundStyle(Color(red: 0.29, green: 0.64, blue: 1))                  // #4AA3FF
     }
 }
