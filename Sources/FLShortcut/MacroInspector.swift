@@ -411,7 +411,7 @@ private struct BlockInspector: View {
     // MARK: Nombres bornés
 
     private func countField(_ n: Int, range: ClosedRange<Int>, key: String) -> some View {
-        Stepper(value: Binding(get: { n }, set: { v in
+        let set: (Int) -> Void = { v in
             let value = min(max(v, range.lowerBound), range.upperBound)
             setBody(key: key) { body in
                 switch body {
@@ -421,8 +421,11 @@ private struct BlockInspector: View {
                 default: break
                 }
             }
-        }), in: range) {
+        }
+        return HStack(spacing: 8) {
             Text(n == 1 ? String(localized: "1 fois") : String(localized: "\(n) fois")).monospacedDigit()
+            SwissStepper(decrement: { set(n - 1) }, increment: { set(n + 1) },
+                         canDecrement: n > range.lowerBound, canIncrement: n < range.upperBound)
         }
     }
 
@@ -434,10 +437,12 @@ private struct BlockInspector: View {
         })
         return HStack(spacing: 6) {
             TextField("", value: binding, format: .number)
-                .frame(width: 70)
                 .multilineTextAlignment(.trailing)
+                .swissField(minHeight: 24)
+                .frame(width: 70)
             Text("ms").foregroundStyle(.secondary)
-            Stepper("", value: binding, in: range, step: 50).labelsHidden()
+            SwissStepper(decrement: { binding.wrappedValue = ms - 50 }, increment: { binding.wrappedValue = ms + 50 },
+                         canDecrement: ms > range.lowerBound, canIncrement: ms < range.upperBound)
         }
     }
 
@@ -453,12 +458,16 @@ private struct BlockInspector: View {
                 }
             }
         })
+        let seconds = Double(ms) / 1000
         return HStack(spacing: 6) {
             TextField("", value: binding, format: .number.precision(.fractionLength(0...1)))
-                .frame(width: 60)
                 .multilineTextAlignment(.trailing)
+                .swissField(minHeight: 24)
+                .frame(width: 60)
             Text("s").foregroundStyle(.secondary)
-            Stepper("", value: binding, in: 0.1...Double(MacroValidation.maxWaitMs / 1000), step: 0.5).labelsHidden()
+            SwissStepper(decrement: { binding.wrappedValue = max(seconds - 0.5, 0.1) },
+                         increment: { binding.wrappedValue = seconds + 0.5 },
+                         canDecrement: ms > 100, canIncrement: ms < MacroValidation.maxWaitMs)
         }
     }
 

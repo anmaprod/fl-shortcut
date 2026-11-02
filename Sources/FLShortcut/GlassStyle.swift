@@ -1346,6 +1346,32 @@ struct SwissRadioGroup<Value: Hashable>: View {
     }
 }
 
+/// − et + au style suisse (à la place des petites flèches de macOS) : deux cases carrées bordées, blanches au survol.
+struct SwissStepper: View {
+    let decrement: () -> Void
+    let increment: () -> Void
+    var canDecrement = true
+    var canIncrement = true
+
+    var body: some View {
+        HStack(spacing: -1) {
+            Button(action: decrement) {
+                Image(systemName: "minus").font(.system(size: 9, weight: .bold)).frame(width: 10)
+            }
+            .disabled(!canDecrement)
+            .accessibilityLabel(String(localized: "Moins"))
+            Button(action: increment) {
+                Image(systemName: "plus").font(.system(size: 9, weight: .bold)).frame(width: 10)
+            }
+            .disabled(!canIncrement)
+            .accessibilityLabel(String(localized: "Plus"))
+        }
+        .buttonStyle(SwissChoiceStyle(chosen: false, uppercase: false))
+        .controlSize(.small)
+        .fixedSize()
+    }
+}
+
 /// Case à cocher du style suisse : un carré bordé de blanc ; cochée, blanche pleine avec une coche noire. Le texte
 /// à droite se clique aussi.
 struct SwissCheckboxStyle: ToggleStyle {
