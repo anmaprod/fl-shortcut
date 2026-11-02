@@ -330,6 +330,7 @@ struct CodeBoxes: View {
         let count = max(6, digits.count)
         ZStack {
             TextField("", text: $code)
+                .textFieldStyle(.plain)                                    // pas d'anneau bleu entre les cases
                 .textContentType(.oneTimeCode)
                 .focused($focused)
                 .opacity(0.02)

@@ -2644,11 +2644,15 @@ private struct FamilySection: View {
             Button("Monter la famille") { withAnimation(Motion.quickMorph) { controller.shiftFamily(family, by: -1) } }
             Button("Descendre la famille") { withAnimation(Motion.quickMorph) { controller.shiftFamily(family, by: 1) } }
         }
-        // Photo de la CI : la roue de la famille Drums ouverte (après l'arrivée de la fenêtre).
-        .onAppear {
-            guard controller.demoColors, family == .drums, !ghost else { return }
-            DispatchQueue.main.asyncAfter(deadline: .now() + 1) { pickingFirst = true }
-        }
+        // Photo de la CI : la roue de la famille Drums ouverte (après l'arrivée de la fenêtre ; l'aperçu peut déjà être
+        // là, venu de l'écran d'avant).
+        .onAppear { openDemoColors() }
+        .onChange(of: controller.demoColors) { _ in openDemoColors() }
+    }
+
+    private func openDemoColors() {
+        guard controller.demoColors, family == .drums, !ghost else { return }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1) { pickingFirst = true }
     }
 
     /// Un rond de couleur : la roue des couleurs de FL s'ouvre au clic. `withFade` : au-dessus de la roue, le choix
