@@ -210,10 +210,30 @@ final class FLPProjectTests: XCTestCase {
         let layout = try XCTUnwrap(PlaylistLayout.make(project.clips, group: group(project),
                                                        key: { ($0.isSubset(of: melody) ? 0 : 1, 0, $0.min()!) },
                                                        trackCount: project.trackCount))
-        XCTAssertEqual(layout.tracks, [0: 0, 2: 0, 1: 2, 3: 2, 5: 1, 4: 3])
-        XCTAssertEqual(layout.sounds, [0: [2], 1: [1], 2: [3, 4]])
-        XCTAssertEqual(layout.count, 4)
-        XCTAssertEqual(layout.grouped, [2], "drums sous leur première piste ; la mélodie seule, le pattern vide à part")
+        // Retour du 02/11 : une piste de tête vide par famille (0 : mélodie, 2 : drums), ses pistes groupées dessous.
+        XCTAssertEqual(layout.headers, [0: 0, 2: 1])
+        XCTAssertEqual(layout.tracks, [0: 1, 2: 1, 1: 4, 3: 4, 5: 3, 4: 5])
+        XCTAssertEqual(layout.sounds, [1: [2], 3: [1], 4: [3, 4]])
+        XCTAssertEqual(layout.count, 6)
+        XCTAssertEqual(layout.grouped, [1, 3, 4], "chaque famille sous sa piste de tête ; le pattern vide à part")
+    }
+
+    /// Retour du 02/11 (capture : « la famille s'appelle Adlib… j'aimerais la famille Voix, et dans Voix il y a Adlib,
+    /// Voix, Voix 2 ») : la piste de tête est remise à neuf dans la copie comme les pistes des clips : plus l'ancien
+    /// nom, la couleur ni l'icône (une clé de fa restée sur « Snare 3 »).
+    func testHeaderTrackIsResetInTheCopy() throws {
+        var file = FLPSample.sample(trackNames: [6: "Vieux nom"])
+        let tracks = file.events.indices.filter { file.events[$0].id == 238 }
+        var old = FLPSample.track(7, color: 0x00FF00)
+        FLPBytes.put(UInt32(12), into: &old.bytes, at: FLPProject.trackIcon, size: 4)
+        file.events[tracks[6]] = old
+        let project = try FLPProject(file)
+        let copy = try project.rearranged(file, tracks: [:], headers: [6])
+        let header = copy.events.filter { $0.id == 238 }[6]
+        XCTAssertEqual(FLPBytes.uint(header.bytes, at: 4, size: 4), 0x404040, "couleur ordinaire")
+        XCTAssertEqual(FLPBytes.uint(header.bytes, at: FLPProject.trackIcon, size: 4), 0, "plus d'icône")
+        XCTAssertFalse(copy.events.contains { $0.id == 239 && $0.text == "Vieux nom" }, "plus l'ancien nom")
+        XCTAssertThrowsError(try project.rearranged(file, tracks: [:], headers: [12]))
     }
 
     /// Retour du 01/11 : un groupe (la flèche de FL) par famille, jamais les groupes de l'ancien projet ; une piste
@@ -229,6 +249,7 @@ final class FLPProjectTests: XCTestCase {
         let unsure = try XCTUnwrap(PlaylistLayout.make(project.clips, group: group(project),
                                                        key: { _ in (Int.max, 0, 0) }, trackCount: project.trackCount))
         XCTAssertEqual(unsure.grouped, [], "à vérifier : jamais groupé")
+        XCTAssertEqual(unsure.headers, [:], "ni piste de tête")
     }
 
     func testOverlappingClipsOfOneSoundGetAnotherTrack() throws {
@@ -237,8 +258,8 @@ final class FLPProjectTests: XCTestCase {
         let project = try FLPProject(FLPSample.sample(clips: clips))
         let layout = try XCTUnwrap(PlaylistLayout.make(project.clips, group: group(project), key: { (0, 0, $0.min()!) },
                                                        trackCount: project.trackCount))
-        XCTAssertEqual(layout.tracks, [3: 0, 0: 1, 2: 1, 1: 2], "le clip qui chevauche passe juste dessous")
-        XCTAssertEqual(layout.sounds, [0: [1], 1: [2], 2: [2]])
+        XCTAssertEqual(layout.tracks, [3: 1, 0: 2, 2: 2, 1: 3], "le clip qui chevauche passe juste dessous")
+        XCTAssertEqual(layout.sounds, [1: [1], 2: [2], 3: [2]])
         XCTAssertNil(PlaylistLayout.make(project.clips, group: group(project), key: { (0, 0, $0.min()!) },
                                          trackCount: 2), "plus de pistes que FL n'en a : rien")
     }

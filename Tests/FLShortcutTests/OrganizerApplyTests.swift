@@ -984,9 +984,16 @@ final class OrganizerApplyTests: XCTestCase {
         XCTAssertTrue(plan.playlist.moves.isEmpty, "les pistes sont déjà dans l'ordre des familles")
         // Le pattern 2 (Snare et 808) séparé son par son : la 808 a son pattern 5. Clips dans l'ordre de leur début :
         // 0 mélodie, 1 Snare, 2 808, 3 pattern vide, 4 mélodie, 5 Snare, 6 808, 7 clip du Kick.
-        XCTAssertEqual(layout.count, 5)
-        XCTAssertEqual(layout.tracks, [0: 0, 4: 0, 2: 1, 6: 1, 7: 2, 1: 3, 5: 3, 3: 4],
+        // Une piste de tête par famille (retour du 02/11), à son nom, ses pistes groupées dessous.
+        XCTAssertEqual(layout.count, 8)
+        XCTAssertEqual(layout.tracks, [0: 1, 4: 1, 2: 3, 6: 3, 7: 5, 1: 6, 5: 6, 3: 7],
                        "Mélodies, Basse, Kick, Snare, puis le pattern vide en bas")
+        XCTAssertEqual(Set(layout.headers.keys), [0, 2, 4])
+        XCTAssertEqual(layout.grouped, [1, 3, 5, 6])
+        XCTAssertEqual(plan.playlist.names[0], SoundFamily.melody.label)
+        XCTAssertEqual(plan.playlist.names[2], SoundFamily.bass.label)
+        XCTAssertEqual(plan.playlist.names[4], SoundFamily.drums.label)
+        XCTAssertEqual(plan.playlist.colors[4], plan.playlist.colors[5], "la tête à la couleur de sa famille")
 
         let outcome = applier.apply(plan, result: result, styles: FamilyStyles.initial)
         XCTAssertNil(outcome.error)
@@ -1058,9 +1065,9 @@ final class OrganizerApplyTests: XCTestCase {
                                      patternSounds: ProjectFile.sounds(project, notSounds: []).patterns, unused: [])
         result.project = ProjectFile.snapshot(project, url: URL(fileURLWithPath: "/projets/Voix.flp"), notSounds: [])
         let layout = try XCTUnwrap(plan(result, options: OrganizerOptions(rack: false, patterns: false, mixer: false)).layout)
-        XCTAssertEqual(layout.tracks, [3: 0, 0: 1, 1: 1, 2: 2, 4: 3, 5: 3], "le 2e clip du son 0 chevauche le 1er : dessous")
-        XCTAssertEqual(layout.count, 4)
-        XCTAssertEqual(layout.sounds, [0: [3], 1: [0, 1], 2: [0, 1], 3: [2, 4]])
+        XCTAssertEqual(layout.tracks, [3: 1, 0: 2, 1: 2, 2: 3, 4: 5, 5: 5], "le 2e clip du son 0 chevauche le 1er : dessous")
+        XCTAssertEqual(layout.count, 6, "une piste de tête pour les voix, une pour les guitares")
+        XCTAssertEqual(layout.sounds, [1: [3], 2: [0, 1], 3: [0, 1], 5: [2, 4]])
     }
 
     /// Le projet a changé depuis l'analyse, ou FL n'ouvre pas la copie : rien n'est touché dans FL, et dans le second

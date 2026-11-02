@@ -286,11 +286,22 @@ struct OrganizerPlan: Equatable {
             for item in result.trackItems where heard[item.index] == nil {
                 heard[item.index] = Verdict(family: item.family, kind: item.kind)
             }
+            // Pistes de tête des familles (retour du 02/11) : au nom et à la couleur de leur famille, jamais
+            // numérotées avec les pistes des sons.
+            var headers: [Int: SoundFamily] = [:]
+            for (track, rank) in plan.layout?.headers ?? [:] {
+                if let family = SoundFamily.allCases.first(where: { options.familyRank($0) == rank }) { headers[track] = family }
+            }
             var verdicts: [Int: Verdict] = [:]
             var renamable = Set<Int>()
             var current: [Int: String] = [:]
             var fixed: [Int: String] = [:]
             for track in result.playlist {
+                if let family = headers[track.index] {
+                    verdicts[track.index] = Verdict(family: family, kind: nil)
+                    current[track.index] = track.name
+                    continue
+                }
                 let v = named(track.name, heard: heard[track.index])
                 verdicts[track.index] = v
                 if v == heard[track.index], let name = sameName(result.trackSounds[track.index] ?? []) {
@@ -299,9 +310,17 @@ struct OrganizerPlan: Equatable {
                 if !SoundNames.isSection(track.name) { renamable.insert(track.index) }
                 current[track.index] = track.name
             }
-            let order = playlistOrder(result, verdicts: verdicts, rackPlace: rackPlace, options: options)
+            var order = playlistOrder(result, verdicts: verdicts, rackPlace: rackPlace, options: options)
+            // Chaque piste de tête juste avant les pistes de sa famille (couleurs : la première du dégradé).
+            if !headers.isEmpty {
+                order.removeAll { headers[$0] != nil }
+                for (track, family) in headers.sorted(by: { $0.key < $1.key }) {
+                    order.insert(track, at: order.firstIndex { verdicts[$0]?.family == family } ?? order.endIndex)
+                }
+            }
             plan.playlist = area(verdicts, order: order, current: current, styles: styles, rename: options.rename,
                                  renamable: renamable, fixed: fixed)
+            for (track, family) in headers where current[track] != family.label { plan.playlist.names[track] = family.label }
             let indices = result.playlist.map(\.index).sorted()
             if result.project == nil, order != indices, let span = indices.last {
                 plan.playlist.moves = RegroupPlan.moves(from: Array(0...span), to: order)

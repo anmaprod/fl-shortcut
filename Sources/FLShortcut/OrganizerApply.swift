@@ -515,7 +515,9 @@ final class OrganizerApplier {
         }
         let copy: FLPFile
         do {
-            copy = try layout.map { try split.project.rearranged(split.file, tracks: $0.tracks, grouped: $0.grouped) }
+            copy = try layout.map {
+                try split.project.rearranged(split.file, tracks: $0.tracks, grouped: $0.grouped, headers: Set($0.headers.keys))
+            }
                 ?? split.project.showingAll(split.file)
         } catch {
             let what = "clips"

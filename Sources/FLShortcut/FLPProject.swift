@@ -94,6 +94,8 @@ struct FLPProject: Equatable {
     /// Pistes coupées (mute) dans FL (0 = piste 1) : un clip qui en part ou y arrive changerait de son.
     let mutedTracks: Set<Int>
 
+    /// Dans une piste (238) : son icône (4 octets, 0 = aucune ; `icon` de PyFLP).
+    static let trackIcon = 8
     /// Dans une piste (238) : 1 à cette place si elle joue, 0 si elle est coupée.
     static let trackEnabled = 12
     /// Dans une piste (238) : 1 à cette place si elle est groupée avec la piste du dessus (« Group with above track »
@@ -344,7 +346,7 @@ struct FLPProject: Equatable {
     /// projet d'origine restaient sur d'autres pistes, « il y en a qui ont été faits, il y en a qui n'ont pas été
     /// faits ») : seules les pistes de `grouped` sont groupées avec celle du dessus, toutes les autres plus. Tout le
     /// reste est recopié octet pour octet.
-    func rearranged(_ file: FLPFile, tracks: [Int: Int], grouped: Set<Int> = []) throws -> FLPFile {
+    func rearranged(_ file: FLPFile, tracks: [Int: Int], grouped: Set<Int> = [], headers: Set<Int> = []) throws -> FLPFile {
         var out = showingAll(file)
         guard let playlistEvent else { return out }
         guard clips.allSatisfy({ !mutedTracks.contains($0.track) }) else { throw FLPError.unsupported("piste coupée") }
@@ -357,7 +359,9 @@ struct FLPProject: Equatable {
         }
         out.events[playlistEvent].bytes = bytes
 
-        let touched = Set(clips.map(\.track)).union(clips.map { tracks[$0.item] ?? $0.track })
+        // Pistes de tête des familles (retour du 02/11) : remises à neuf elles aussi.
+        guard headers.allSatisfy({ (0..<trackCount).contains($0) }) else { throw FLPError.unsupported("clips") }
+        let touched = Set(clips.map(\.track)).union(clips.map { tracks[$0.item] ?? $0.track }).union(headers)
         var counts: [UInt32: Int] = [:]
         for index in trackEvents { counts[FLPBytes.uint(file.events[index].bytes, at: 4, size: 4), default: 0] += 1 }
         let plain = counts.max { $0.value != $1.value ? $0.value < $1.value : $0.key > $1.key }?.key ?? 0
@@ -365,6 +369,11 @@ struct FLPProject: Equatable {
         for track in touched.sorted() {
             let index = trackEvents[track]
             FLPBytes.put(plain, into: &out.events[index].bytes, at: 4, size: 4)
+            // Plus l'icône de l'ancienne piste (capture du 02/11 : un tambour sur « Snare » mais une clé de fa sur
+            // « Snare 3 », un clavier sur « Hi-hat » : les icônes restaient à leur place quand les clips bougeaient).
+            if out.events[index].bytes.count >= Self.trackIcon + 4 {
+                FLPBytes.put(UInt32(0), into: &out.events[index].bytes, at: Self.trackIcon, size: 4)
+            }
             out.events[index].bytes[Self.trackEnabled] = 1
             var next = index + 1
             while next < out.events.count, next <= index + 3, out.events[next].id != Event.track,
@@ -400,15 +409,18 @@ enum PlaylistLayout {
         var sounds: [Int: Set<Int>] = [:]
         /// Pistes utilisées (les premières).
         var count = 0
-        /// Pistes groupées avec celle du dessus : chaque famille sous sa première piste (la flèche de FL la replie).
+        /// Pistes groupées avec celle du dessus : chaque famille sous sa piste de tête (la flèche de FL la replie).
         var grouped: Set<Int> = []
+        /// Pistes de tête (retour du 02/11 : « la famille Voix, et dans Voix il y a Adlib, Voix, Voix 2 ») : une piste
+        /// vide au début de chaque famille, au nom de la famille → la famille (premier nombre de `key`).
+        var headers: [Int: Int] = [:]
     }
 
     /// Pur (testé) : chaque groupe a sa piste, les groupes de sons dans l'ordre de `key` (familles, sortes, place dans
     /// le Channel rack) puis de leur premier clip ; ensuite les patterns muets, puis le reste (automations). Un clip qui
     /// en chevaucherait un autre du même groupe va sur une piste de plus, juste dessous : jamais l'un sur l'autre.
-    /// Les pistes d'une même famille (premier nombre de `key`, `Int.max` : à vérifier, jamais groupé) se suivent :
-    /// groupées sous la première. nil : plus de pistes qu'il n'y en a dans FL.
+    /// Les pistes d'une même famille (premier nombre de `key`, `Int.max` : à vérifier, jamais groupé) se suivent,
+    /// sous une piste de tête vide (à son nom) qui les groupe. nil : plus de pistes qu'il n'y en a dans FL.
     static func make(_ clips: [FLPProject.Clip], group: (FLPProject.Clip) -> Group,
                      key: (Set<Int>) -> (Int, Int, Int), trackCount: Int) -> Result? {
         var members: [Group: [FLPProject.Clip]] = [:]
@@ -438,6 +450,11 @@ enum PlaylistLayout {
                 if let free { lanes[free].append(clip) } else { lanes.append([clip]) }
             }
             for lane in lanes {
+                if let family, family != above {
+                    out.headers[out.count] = family
+                    out.count += 1
+                    above = family
+                }
                 let track = out.count
                 out.count += 1
                 for clip in lane { out.tracks[clip.item] = track }

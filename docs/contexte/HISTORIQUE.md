@@ -713,3 +713,8 @@ entrée 1 ≈ 0,5 s.
   récentes existaient déjà (retenues à « Accept », petites, en bas) : montées en haut de la roue, plus grandes, un
   clic les pose. Audit : 55 boutons sans style (Fermer, Réessayer, Arrêter, OK…), contrôles segmentés, listes
   déroulantes, cases à cocher, liens bleus, champs arrondis, feuilles grises, 4 NSAlert : tous au style suisse.
+- 02/11 (4), capture de la Playlist d'une copie rangée : le groupe des voix s'appelait « Adlib » (sa première piste).
+  Demande : « la famille Voix, et dans Voix il y a Adlib, Voix, Voix 2 ; dans Drums, Kick, Snare… il faut créer des
+  tracks en plus ». Fait : une piste de tête vide par famille, à son nom et à sa couleur, ses pistes groupées dessous.
+  Vu sur la même capture : des icônes d'anciennes pistes restées en place (clé de fa sur « Snare 3 ») → icônes
+  retirées des pistes remises à neuf.
