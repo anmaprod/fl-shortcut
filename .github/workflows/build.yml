@@ -76,8 +76,7 @@ jobs:
             dotnet publish windows/FLShortcut.App -c Release -r "win-$arch" "-p:Platform=$($targets[$arch])" -o "dist/win-$arch"
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           }
-          Compress-Archive -Path dist/win-x64/* -DestinationPath dist/FLShortcuts-win-x64.zip
-          Compress-Archive -Path dist/win-arm64/* -DestinationPath dist/FLShortcuts-win-arm64.zip
+          # Plus de .zip (02/11 : « je mettrai juste le .exe ») : l'installeur seul est téléchargé.
       - name: Installeur (un seul fichier, x64 + ARM64, sans droits administrateur)
         shell: pwsh
         env:
@@ -96,7 +95,7 @@ jobs:
           } else { $iscc = $iscc.Source }
           & $iscc "/DAppVersion=$version" "/DDistDir=$PWD\dist" windows/installer/FLShortcut.iss
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          Get-FileHash dist/FLShortcuts-Windows-Setup.exe, dist/*.zip -Algorithm SHA256 | ForEach-Object { "$($_.Hash.ToLower())  $(Split-Path $_.Path -Leaf)" } | Out-File -Encoding ascii dist/FLShortcuts-win.sha256
+          Get-FileHash dist/FLShortcuts-Windows-Setup.exe -Algorithm SHA256 | ForEach-Object { "$($_.Hash.ToLower())  $(Split-Path $_.Path -Leaf)" } | Out-File -Encoding ascii dist/FLShortcuts-win.sha256
       - name: Photos de l'Organiser (mode photos, sons d'exemple, rien n'est envoyé à FL)
         continue-on-error: true      # photos à relire : n'empêchent jamais la publication
         shell: pwsh
@@ -169,14 +168,16 @@ jobs:
           if-no-files-found: ignore
       - name: Mode d'emploi dans le téléchargement
         shell: pwsh
-        run: Copy-Item docs/telechargement/LISEZMOI-Windows.html dist/LISEZMOI.html
+        run: |
+          Copy-Item docs/telechargement/LISEZMOI-Windows.html dist/LISEZMOI.html
+          Copy-Item docs/telechargement/README-Windows.html dist/README.html
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: FLShortcuts-windows
           path: |
             dist/LISEZMOI.html
+            dist/README.html
             dist/FLShortcuts-Windows-Setup.exe
-            dist/FLShortcuts-win-*.zip
             dist/FLShortcuts-win.sha256
           if-no-files-found: error
 
@@ -344,7 +345,9 @@ jobs:
           [[ "$status" != 0 ]] && exit "$status"
           exit "$status2"
       - name: Mode d'emploi dans le téléchargement
-        run: cp docs/telechargement/LISEZMOI-Mac.html dist/LISEZMOI.html
+        run: |
+          cp docs/telechargement/LISEZMOI-Mac.html dist/LISEZMOI.html
+          cp docs/telechargement/README-Mac.html dist/README.html
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: FLShortcuts-mac
@@ -352,6 +355,7 @@ jobs:
           # fabriqué pour les essais, jamais publié.
           path: |
             dist/LISEZMOI.html
+            dist/README.html
             dist/FLShortcuts.pkg
             dist/FLShortcuts.pkg.sha256
           if-no-files-found: error
@@ -387,8 +391,10 @@ jobs:
         run: |
           gh run download "$GITHUB_RUN_ID" --repo "$GITHUB_REPOSITORY" --name FLShortcuts-mac --dir dist
           mv dist/LISEZMOI.html dist/LISEZMOI-Mac.html
+          mv dist/README.html dist/README-Mac.html
           gh run download "$GITHUB_RUN_ID" --repo "$GITHUB_REPOSITORY" --name FLShortcuts-windows --dir dist
           mv dist/LISEZMOI.html dist/LISEZMOI-Windows.html
+          mv dist/README.html dist/README-Windows.html
       - name: Vérifier les empreintes
         run: cd dist && sha256sum -c FLShortcuts.pkg.sha256 FLShortcuts-win.sha256
       - uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
@@ -396,7 +402,6 @@ jobs:
           subject-path: |
             dist/FLShortcuts.pkg
             dist/FLShortcuts-Windows-Setup.exe
-            dist/FLShortcuts-win-*.zip
       - name: Créer la release (outil officiel gh, sans action tierce)
         env:
           GH_TOKEN: ${{ github.token }}
@@ -404,8 +409,8 @@ jobs:
         run: |
           # Noms de fichiers fixes : les liens « releases/latest/download/… » de la page de téléchargement
           # et du README pointent toujours vers la dernière version.
-          gh release create "$TAG" dist/FLShortcuts.pkg dist/FLShortcuts.pkg.sha256 dist/LISEZMOI-Mac.html dist/LISEZMOI-Windows.html \
-            dist/FLShortcuts-Windows-Setup.exe dist/FLShortcuts-win-x64.zip dist/FLShortcuts-win-arm64.zip \
-            dist/FLShortcuts-win.sha256 \
+          gh release create "$TAG" dist/FLShortcuts.pkg dist/FLShortcuts.pkg.sha256 dist/FLShortcuts-Windows-Setup.exe \
+            dist/FLShortcuts-win.sha256 dist/LISEZMOI-Mac.html dist/README-Mac.html dist/LISEZMOI-Windows.html \
+            dist/README-Windows.html \
             --repo "$GITHUB_REPOSITORY" --title "FL Shortcuts $TAG" \
             --notes-file .github/release-notes.md --generate-notes --verify-tag

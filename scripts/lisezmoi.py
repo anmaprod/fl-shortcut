@@ -3,11 +3,13 @@
 # docs/telechargement/modele-*.html, avec leurs images collées dedans ({{ICON}}, {{MIDI1}}…) pour qu'un seul fichier
 # s'ouvre d'un double-clic, sans rien d'autre à côté.
 # Usage : python3 scripts/lisezmoi.py   (depuis la racine du dépôt ; Pillow)
-#   → docs/telechargement/LISEZMOI-Mac.html et LISEZMOI-Windows.html
+#   → docs/telechargement/LISEZMOI-Mac.html et LISEZMOI-Windows.html (français), README-Mac.html et
+#     README-Windows.html (la même page en anglais, scripts/lisezmoi_en.py)
 # À refaire quand l'icône, l'image de MIDI Settings, le tuto de l'Organiser ou un modèle change.
 import base64
 import io
 import os
+import sys
 from PIL import Image, ImageDraw, ImageFont
 
 RACINE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -37,7 +39,7 @@ def paquet():
     return im.resize((112, 112), Image.LANCZOS)
 
 
-def images():
+def images(langue="fr"):
     icone = Image.open(os.path.join(RES, "AppIcon-1024.png")).convert("RGBA").resize((168, 168), Image.LANCZOS)
     midi = Image.open(os.path.join(RES, "MIDISettings.png")).convert("RGB")
     # Les 4 cases, dans l'ordre et aux places de l'app (MIDISettingsCrops, pixels sur 1428 de large) : les deux
@@ -49,30 +51,36 @@ def images():
         vals[f"MIDI{i}"] = uri(midi.crop((round(x * k), round(y * k), round((x + w) * k), round((y + h) * k))))
     vals["MIDIFULL"] = uri(midi.resize((1000, round(midi.height * 1000 / midi.width)), Image.LANCZOS))
     for i in (1, 2, 3, 4):
-        vals[f"TUTO{i}"] = uri(Image.open(os.path.join(RES, "fr.lproj", f"OrganiserTuto{i}.png")).convert("RGBA"))
+        vals[f"TUTO{i}"] = uri(Image.open(os.path.join(RES, f"{langue}.lproj", f"OrganiserTuto{i}.png")).convert("RGBA"))
     return vals
 
 
 def main():
-    vals = images()
-    for nom in ("mac", "windows"):
-        modele = os.path.join(DOSSIER, f"modele-{nom}.html")
-        if not os.path.exists(modele):
-            continue
-        s = open(modele, encoding="utf-8").read()
-        for cle, valeur in vals.items():
-            s = s.replace("{{" + cle + "}}", valeur)
-        if "{{" in s:
-            raise SystemExit(f"{modele} : image inconnue")
-        # Un vrai fichier HTML qui s'ouvre seul dans le navigateur.
-        page = ('<!doctype html>\n<html lang="fr">\n<head>\n<meta charset="utf-8">\n'
-                '<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">\n'
-                + s.replace("</style>", "</style>\n</head>\n<body>", 1) + "\n</body>\n</html>\n")
-        sortie = os.path.join(DOSSIER, f"LISEZMOI-{nom.capitalize()}.html")
-        with open(sortie, "w", encoding="utf-8") as f:
-            f.write(page)
-        print(sortie, len(page) // 1024, "Ko")
+    import lisezmoi_en
+    for langue, prefixe in (("fr", "LISEZMOI"), ("en", "README")):
+        vals = images(langue)
+        for nom in ("mac", "windows"):
+            modele = os.path.join(DOSSIER, f"modele-{nom}.html")
+            s = open(modele, encoding="utf-8").read()
+            if langue == "en":
+                s = lisezmoi_en.traduire(s)
+                oubli = lisezmoi_en.reste_du_francais(s)
+                if oubli:
+                    raise SystemExit(f"{modele} : pas encore traduit en anglais : {oubli}")
+            for cle, valeur in vals.items():
+                s = s.replace("{{" + cle + "}}", valeur)
+            if "{{" in s:
+                raise SystemExit(f"{modele} : image inconnue")
+            # Un vrai fichier HTML qui s'ouvre seul dans le navigateur.
+            page = (f'<!doctype html>\n<html lang="{langue}">\n<head>\n<meta charset="utf-8">\n'
+                    '<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">\n'
+                    + s.replace("</style>", "</style>\n</head>\n<body>", 1) + "\n</body>\n</html>\n")
+            sortie = os.path.join(DOSSIER, f"{prefixe}-{nom.capitalize()}.html")
+            with open(sortie, "w", encoding="utf-8") as f:
+                f.write(page)
+            print(sortie, len(page) // 1024, "Ko")
 
 
 if __name__ == "__main__":
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
     main()
