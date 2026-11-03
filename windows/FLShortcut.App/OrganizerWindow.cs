@@ -278,7 +278,7 @@ internal sealed class OrganizerWindow : Window
         var preview = _controller.Phase is OrganizerPhase.Preview && !_tutorial;
         // Aperçu : un trait fin au-dessus des boutons (comme le Mac).
         _footer.BorderThickness = new Thickness(0, preview ? 1 : 0, 0, 0);
-        _footer.BorderBrush = Brush(Line);
+        _footer.BorderBrush = Brush(LineColor);
         if (_tutorial)
         {
             Tutorial();
@@ -560,7 +560,7 @@ internal sealed class OrganizerWindow : Window
         var picture = new Border
         {
             CornerRadius = new CornerRadius(0),
-            BorderBrush = Brush(Line),
+            BorderBrush = Brush(LineColor),
             BorderThickness = new Thickness(1),
             Background = Brush(Colors.Black),
         };
@@ -833,7 +833,7 @@ internal sealed class OrganizerWindow : Window
             Content = Label(text, 12, selected ? Colors.Black : Text, semibold: selected),
             Padding = new Thickness(12, 5, 12, 5),
             Background = Brush(selected ? Colors.White : Colors.Black),
-            BorderBrush = Brush(selected ? Colors.White : Line),
+            BorderBrush = Brush(selected ? Colors.White : LineColor),
             BorderThickness = new Thickness(1),
         };
         if (!selected) button.Click += (_, _) => click();
@@ -961,7 +961,7 @@ internal sealed class OrganizerWindow : Window
             Style = MainShell.DialogStyle(),
             RequestedTheme = ElementTheme.Dark,
             Background = Brush(Rgb(0x1E, 0x1E, 0x21)),
-            BorderBrush = Brush(Line),
+            BorderBrush = Brush(LineColor),
             Title = Loc.T("Qu'est-ce qui n'allait pas ?"),
             PrimaryButtonText = Loc.T("Envoyer"),
             CloseButtonText = Loc.T("Annuler"),
@@ -1105,7 +1105,7 @@ internal sealed class OrganizerWindow : Window
             if (!chosen)
             {
                 PointerEntered += (_, _) => BorderBrush = Brush(White(0.35));
-                PointerExited += (_, _) => BorderBrush = Brush(Line);
+                PointerExited += (_, _) => BorderBrush = Brush(LineColor);
             }
             double? start = null;
             var from = value ?? 1;

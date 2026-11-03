@@ -481,3 +481,80 @@ public class FlSignerTests
     [InlineData(null)]
     public void Rejects_OtherSigners(string? subject) => Assert.False(FlSigner.Matches(subject));
 }
+
+/// Aide (miroir de SupportTests du Mac) : règles du message, texte lu par l'équipe, ticket public sans le mail,
+/// recherche dans les questions, réponses en étapes, diagnostic sans rien de personnel.
+public class SupportTests
+{
+    private static SupportMessage Message() => new()
+    {
+        Kind = SupportKind.Probleme, Text = "Ma macro s'arrête au 3e bloc dans le Mixer.", Email = "nina@exemple.fr",
+        Error = "Macro : échec au bloc 3 (Clic)", Diagnostic = "FL Shortcuts 0.2.0 · Windows 11", Reference = "FLS-3F9A2C",
+    };
+
+    [Fact]
+    public void Rules()
+    {
+        Assert.Null(SupportRules.Problem(Message()));
+        var m = Message();
+        m.Text = "Bug";
+        Assert.NotNull(SupportRules.Problem(m));
+        m = Message();
+        m.Email = "";
+        Assert.Null(SupportRules.Problem(m));
+        m.Email = "pas-un-mail";
+        Assert.NotNull(SupportRules.Problem(m));
+    }
+
+    [Fact]
+    public void PlainText_Subject_Issue()
+    {
+        Assert.Equal("Référence : FLS-3F9A2C\nGenre : Un problème\nFL Shortcuts 0.2.0\nPour répondre : nina@exemple.fr\n\n" +
+                     "— Message —\nMa macro s'arrête au 3e bloc dans le Mixer.\n\n— Le problème signalé —\nMacro : échec au bloc 3 (Clic)" +
+                     "\n\n— État de l'app —\nFL Shortcuts 0.2.0 · Windows 11", SupportRules.PlainText(Message(), "0.2.0"));
+        Assert.Equal("[FL Shortcuts] Problème · FLS-3F9A2C · Ma macro s'arrête au 3e bloc dans le Mixer.", SupportRules.Subject(Message()));
+        var issue = SupportRules.IssueUri(Message(), "0.2.0");
+        Assert.Equal("github.com", issue.Host);
+        Assert.DoesNotContain("nina", issue.AbsoluteUri);
+        Assert.StartsWith("FLS-", SupportMessage.NewReference());
+        Assert.Equal(10, SupportMessage.NewReference().Length);
+    }
+
+    [Fact]
+    public void FaqSearch()
+    {
+        List<int> Ids(string q) => HelpContent.Faq.Where(e => e.Matches(q)).Select(e => e.Id).ToList();
+        Assert.Equal(HelpContent.Faq.Select(e => e.Id), Ids(""));
+        Assert.Contains(7, Ids("pause"));
+        Assert.Contains(8, Ids("RECU LE CODE"));
+        Assert.Contains(5, Ids("macro apprendre"));
+        Assert.Contains(13, Ids("loopmidi"));
+        Assert.Empty(Ids("zzzz"));
+        Assert.Equal(HelpContent.Faq.Count, HelpContent.Faq.Select(e => e.Id).Distinct().Count());
+    }
+
+    [Fact]
+    public void AnswerSteps()
+    {
+        var parsed = HelpEntry.Steps("Vérifie trois choses. 1. FL est devant. 2. Pas en pause. 3. Le clavier est autorisé.");
+        Assert.NotNull(parsed);
+        Assert.Equal("Vérifie trois choses.", parsed!.Value.Intro);
+        Assert.Equal(new[] { "FL est devant.", "Pas en pause.", "Le clavier est autorisé." }, parsed.Value.Steps);
+        Assert.Null(HelpEntry.Steps("Attends 1,5 s puis réessaie avec Windows 11. Rien d'autre."));
+        Assert.Null(HelpEntry.Steps("Une seule étape : 1. ouvre FL."));
+        Assert.Null(HelpEntry.Steps("2. avant 1. : pas une suite."));
+        Assert.Equal(3, HelpEntry.Steps(HelpContent.Faq.First(e => e.Id == 1).Answer)!.Value.Steps.Count);
+    }
+
+    [Fact]
+    public void Diagnostic_SaysTheStateOnly()
+    {
+        var facts = new SupportDiagnostic.Facts("0.2.0", "Windows 11 (26100)", FlRunning: true, FlVersion: "2025.1",
+            FlUnrecognized: false, FlElevated: true, Paused: false, Light: true, Link: "FL fermé", Shortcuts: 4, Macros: 3,
+            LastMacro: "échec — bloc 3", Screens: new[] { "1920×1080" });
+        Assert.Equal("FL Shortcuts 0.2.0 · Windows 11 (26100)\nFL Studio : ouvert (2025.1) · lancé en administrateur\n" +
+                     "En pause : non\nMode : léger (sans lien MIDI)\nRaccourcis modifiés ou ajoutés : 4 · Macros : 3\n" +
+                     "Dernière macro : échec — bloc 3\nÉcrans : 1920×1080", SupportDiagnostic.Text(facts));
+        Assert.True(SupportDiagnostic.Report(facts, new string('x', 50_000)).Length <= SupportRules.MaxDiagnostic);
+    }
+}

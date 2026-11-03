@@ -78,7 +78,7 @@ internal static class CopyApprovalPrompt
         Style = MainShell.DialogStyle(),
         RequestedTheme = ElementTheme.Dark,
         Background = Brush(Rgb(0x1E, 0x1E, 0x21)),
-        BorderBrush = Brush(Line),
+        BorderBrush = Brush(LineColor),
     };
 
     /// Le contenu centré : une icône de couleur, un texte en gras, puis ce qui suit (attente, boutons).

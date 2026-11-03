@@ -41,7 +41,7 @@ internal static class MacLook
     public static readonly Color Secondary = Rgb(0x8A, 0x8A, 0x8A);
     public static readonly Color Tertiary = Rgb(0x55, 0x55, 0x55);
     /// Traits : entre deux blocs (#333333), entre deux lignes (#222222).
-    public static readonly Color Line = Rgb(0x33, 0x33, 0x33);
+    public static readonly Color LineColor = Rgb(0x33, 0x33, 0x33);
     public static readonly Color Faint = Rgb(0x22, 0x22, 0x22);
 
     private static FontFamily? _font;
@@ -97,7 +97,7 @@ internal static class MacLook
     public static Border Plate(UIElement? child, double radius, double top = 0.10, double bottom = 0.045, double border = 0.15) => new()
     {
         Background = Brush(Colors.Black),
-        BorderBrush = Brush(Line),
+        BorderBrush = Brush(LineColor),
         BorderThickness = new Thickness(1),
         Child = child,
     };

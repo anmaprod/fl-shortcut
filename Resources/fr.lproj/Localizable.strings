@@ -659,6 +659,7 @@
 "Créer sa piste audio (Playlist)" = "Créer sa piste audio (Playlist)";
 "Créer un compte" = "Créer un compte";
 "Créés par toi" = "Créés par toi";
+"Ctrl+Alt+Maj+F, n'importe où. « Reprendre » apparaît alors dans le menu de l'icône près de l'horloge." = "Ctrl+Alt+Maj+F, n'importe où. « Reprendre » apparaît alors dans le menu de l'icône près de l'horloge.";
 "Cymbal" = "Cymbal";
 "D'origine" = "D'origine";
 "D'origine : " = "D'origine : ";
@@ -772,6 +773,7 @@
 "En attente…" = "En attente…";
 "En attente… FL Shortcuts le détecte tout seul." = "En attente… FL Shortcuts le détecte tout seul.";
 "En bas de cette page, « Écrire à l'équipe ». Quand une macro échoue, le bouton « Signaler » de son bandeau (ou « Signaler ce problème… » dans le menu de l'icône en haut de l'écran) prépare le message avec l'erreur et le journal de la macro : tu vois tout ce qui est joint avant l'envoi." = "En bas de cette page, « Écrire à l'équipe ». Quand une macro échoue, le bouton « Signaler » de son bandeau (ou « Signaler ce problème… » dans le menu de l'icône en haut de l'écran) prépare le message avec l'erreur et le journal de la macro : tu vois tout ce qui est joint avant l'envoi.";
+"En bas de cette page, « Écrire à l'équipe ». Quand une macro échoue, « Signaler ce problème… » dans le menu de l'icône près de l'horloge prépare le message avec l'erreur : tu vois tout ce qui est joint avant l'envoi." = "En bas de cette page, « Écrire à l'équipe ». Quand une macro échoue, « Signaler ce problème… » dans le menu de l'icône près de l'horloge prépare le message avec l'erreur : tu vois tout ce qui est joint avant l'envoi.";
 "En cours" = "En cours";
 "En fermant, tu choisiras de garder cette version ou de revenir à l'original." = "En fermant, tu choisiras de garder cette version ou de revenir à l'original.";
 "En ligne" = "En ligne";
@@ -885,6 +887,7 @@
 "FL Shortcuts est désinstallé" = "FL Shortcuts est désinstallé";
 "FL Shortcuts est prêt" = "FL Shortcuts est prêt";
 "FL Shortcuts n'a pas accès au clavier : tes raccourcis sont inactifs." = "FL Shortcuts n'a pas accès au clavier : tes raccourcis sont inactifs.";
+"FL Shortcuts n'agit que sur un FL Studio signé par Image-Line. Réinstalle FL Studio depuis le site d'Image-Line, puis relance-le." = "FL Shortcuts n'agit que sur un FL Studio signé par Image-Line. Réinstalle FL Studio depuis le site d'Image-Line, puis relance-le.";
 "FL Shortcuts travaille en arrière-plan, depuis la barre des menus." = "FL Shortcuts travaille en arrière-plan, depuis la barre des menus.";
 "FL Shortcuts – Raccourcis" = "FL Shortcuts – Raccourcis";
 "FL Shortcuts – clé du script FL Studio" = "FL Shortcuts – clé du script FL Studio";
@@ -1151,6 +1154,7 @@
 "Le mail de confirmation n'a pas pu partir. Réessaie plus tard, ou écris à l'équipe depuis la page Aide." = "Le mail de confirmation n'a pas pu partir. Réessaie plus tard, ou écris à l'équipe depuis la page Aide.";
 "Le menu s'ouvre un instant dans FL, le temps de le lire, puis se referme" = "Le menu s'ouvre un instant dans FL, le temps de le lire, puis se referme";
 "Le menu ⋯ charge un profil tout prêt, ou importe et exporte tes raccourcis." = "Le menu ⋯ charge un profil tout prêt, ou importe et exporte tes raccourcis.";
+"Le message de la macro dit à quel bloc elle s'est arrêtée. Si FL a changé de taille ou d'écran, remontre l'endroit de ce bloc. Si une fenêtre de FL met du temps à s'ouvrir, ajoute un bloc « Attendre » juste avant." = "Le message de la macro dit à quel bloc elle s'est arrêtée. Si FL a changé de taille ou d'écran, remontre l'endroit de ce bloc. Si une fenêtre de FL met du temps à s'ouvrir, ajoute un bloc « Attendre » juste avant.";
 "Le modèle devient une macro en blocs que tu modifies étape par étape dans le créateur. " = "Le modèle devient une macro en blocs que tu modifies étape par étape dans le créateur. ";
 "Le même compte sert à la Communauté : ajoute des macros toutes faites, partage les tiennes." = "Le même compte sert à la Communauté : ajoute des macros toutes faites, partage les tiennes.";
 "Le même numéro de Port en haut et en bas." = "Le même numéro de Port en haut et en bas.";
@@ -1271,6 +1275,7 @@
 "Menu de FL" = "Menu de FL";
 "Menu de l'icône en haut de l'écran (ou menu ⋯ de la fenêtre) › « Désinstaller FL Shortcuts… » : l'app, tes raccourcis, tes macros, ses réglages, ses autorisations et le lien avec FL sont retirés, et le bilan dit s'il reste quelque chose à glisser dans la Corbeille." = "Menu de l'icône en haut de l'écran (ou menu ⋯ de la fenêtre) › « Désinstaller FL Shortcuts… » : l'app, tes raccourcis, tes macros, ses réglages, ses autorisations et le lien avec FL sont retirés, et le bilan dit s'il reste quelque chose à glisser dans la Corbeille.";
 "Menu de l'icône en haut de l'écran › « Désinstaller FL Shortcuts… » : l'app, tes raccourcis, tes macros, ses réglages, ses autorisations et le lien avec FL sont retirés, et le bilan dit s'il reste quelque chose à glisser dans la Corbeille." = "Menu de l'icône en haut de l'écran › « Désinstaller FL Shortcuts… » : l'app, tes raccourcis, tes macros, ses réglages, ses autorisations et le lien avec FL sont retirés, et le bilan dit s'il reste quelque chose à glisser dans la Corbeille.";
+"Menu de l'icône près de l'horloge › « Désinstaller FL Shortcuts… », ou Paramètres de Windows › Applications › FL Shortcuts › Désinstaller." = "Menu de l'icône près de l'horloge › « Désinstaller FL Shortcuts… », ou Paramètres de Windows › Applications › FL Shortcuts › Désinstaller.";
 "Menu de la piste" = "Menu de la piste";
 "Menu de la piste sous le curseur" = "Menu de la piste sous le curseur";
 "Menu de la piste › Arm selected track(s)" = "Menu de la piste › Arm selected track(s)";
@@ -1501,6 +1506,7 @@
 "Page" = "Page";
 "Page %lld sur %lld" = "Page %lld sur %lld";
 "Page Macros › « Enregistrer une macro » : FL passe devant, fais ta suite (clics, flèches, raccourcis), puis « Terminer » en haut à droite. Chaque geste devient un bloc : retouche-les dans le créateur, choisis un raccourci, puis « Tester ». Tu peux aussi partir d'un modèle." = "Page Macros › « Enregistrer une macro » : FL passe devant, fais ta suite (clics, flèches, raccourcis), puis « Terminer » en haut à droite. Chaque geste devient un bloc : retouche-les dans le créateur, choisis un raccourci, puis « Tester ». Tu peux aussi partir d'un modèle.";
+"Page Macros › « Macro vide » ou « Modèles » : ajoute des blocs depuis la liste de gauche, range-les, choisis un raccourci, puis « Enregistrer »." = "Page Macros › « Macro vide » ou « Modèles » : ajoute des blocs depuis la liste de gauche, range-les, choisis un raccourci, puis « Enregistrer ».";
 "Page Macros, « Enregistrer une macro » : fais ta suite dans FL (clics, flèches, raccourcis), puis « Terminer ». Chaque geste devient un bloc." = "Page Macros, « Enregistrer une macro » : fais ta suite dans FL (clics, flèches, raccourcis), puis « Terminer ». Chaque geste devient un bloc.";
 "Page publique : ton mail n'y est pas recopié" = "Page publique : ton mail n'y est pas recopié";
 "Par le lien avec FL ; sans lien : menu de la piste › Arm selected track(s)." = "Par le lien avec FL ; sans lien : menu de la piste › Arm selected track(s).";
@@ -1991,6 +1997,7 @@
 "Tes raccourcis marchent dès que FL Studio est au premier plan." = "Tes raccourcis marchent dès que FL Studio est au premier plan.";
 "Tes raccourcis sur cette page" = "Tes raccourcis sur cette page";
 "Tes touches ne sont lues que quand FL Studio est au premier plan. Rien n'est enregistré ni envoyé, sauf ce que tu publies toi-même dans la Communauté." = "Tes touches ne sont lues que quand FL Studio est au premier plan. Rien n'est enregistré ni envoyé, sauf ce que tu publies toi-même dans la Communauté.";
+"Tes touches ne sont lues que quand FL Studio est devant, et elles ne sont jamais enregistrées ni envoyées. Seul part sur internet ce que tu écris à l'équipe depuis cette page. L'écran n'est lu qu'au moment d'un clic de macro, seulement dans la fenêtre de FL, pour retrouver un menu par son nom ; rien n'est enregistré ni envoyé." = "Tes touches ne sont lues que quand FL Studio est devant, et elles ne sont jamais enregistrées ni envoyées. Seul part sur internet ce que tu écris à l'équipe depuis cette page. L'écran n'est lu qu'au moment d'un clic de macro, seulement dans la fenêtre de FL, pour retrouver un menu par son nom ; rien n'est enregistré ni envoyé.";
 "Tes touches ne sont lues que quand FL Studio est devant, et elles ne sont jamais enregistrées ni envoyées. Seuls partent sur internet : tes raccourcis et tes macros si tu es connecté à ton compte (ta sauvegarde, lisible par toi seul), ce que tu publies dans la Communauté, et ce que tu écris à l'équipe depuis cette page. L'écran n'est lu qu'au moment d'un clic de macro, seulement dans la fenêtre de FL, pour retrouver le bouton par son nom ou son image (autorisation « Enregistrement de l'écran ») ; rien n'est enregistré ni envoyé. Le nom ou l'image du bouton restent dans ta macro (et dans ta sauvegarde si tu es connecté), jamais dans un partage." = "Tes touches ne sont lues que quand FL Studio est devant, et elles ne sont jamais enregistrées ni envoyées. Seuls partent sur internet : tes raccourcis et tes macros si tu es connecté à ton compte (ta sauvegarde, lisible par toi seul), ce que tu publies dans la Communauté, et ce que tu écris à l'équipe depuis cette page. L'écran n'est lu qu'au moment d'un clic de macro, seulement dans la fenêtre de FL, pour retrouver le bouton par son nom ou son image (autorisation « Enregistrement de l'écran ») ; rien n'est enregistré ni envoyé. Le nom ou l'image du bouton restent dans ta macro (et dans ta sauvegarde si tu es connecté), jamais dans un partage.";
 "Tes touches ne sont lues que quand FL Studio est devant. Rien n'est envoyé, sauf ce que tu publies dans la Communauté." = "Tes touches ne sont lues que quand FL Studio est devant. Rien n'est envoyé, sauf ce que tu publies dans la Communauté.";
 "Tester" = "Tester";
@@ -2087,6 +2094,7 @@
 "Un code vient de partir à %@ : entre-le ici pour confirmer ton compte." = "Un code vient de partir à %@ : entre-le ici pour confirmer ton compte.";
 "Un compte existe déjà avec ce mail." = "Un compte existe déjà avec ce mail.";
 "Un de ses blocs clique à un endroit qu'il faut montrer une fois sur ton Mac (les positions ne sont jamais partagées). Ouvre la macro, choisis le bloc marqué, puis « Montrer dans FL… » et clique à l'endroit voulu." = "Un de ses blocs clique à un endroit qu'il faut montrer une fois sur ton Mac (les positions ne sont jamais partagées). Ouvre la macro, choisis le bloc marqué, puis « Montrer dans FL… » et clique à l'endroit voulu.";
+"Un de ses blocs clique à un endroit qu'il faut montrer une fois sur ton PC (les positions ne sont jamais partagées). Ouvre la macro, choisis le bloc marqué, puis « Montrer dans FL… » et clique à l'endroit voulu." = "Un de ses blocs clique à un endroit qu'il faut montrer une fois sur ton PC (les positions ne sont jamais partagées). Ouvre la macro, choisis le bloc marqué, puis « Montrer dans FL… » et clique à l'endroit voulu.";
 "Un endroit ou l'entrée 1 est à montrer dans FL." = "Un endroit ou l'entrée 1 est à montrer dans FL.";
 "Un partage ou un membre (@nom)" = "Un partage ou un membre (@nom)";
 "Un petit lien avec FL, une seule fois" = "Un petit lien avec FL, une seule fois";
@@ -2147,6 +2155,7 @@
 "Vérifie le rangement" = "Vérifie le rangement";
 "Vérifie que le mix tient en mono" = "Vérifie que le mix tient en mono";
 "Vérifie tes mails" = "Vérifie tes mails";
+"Vérifie trois choses. 1. FL Studio est la fenêtre au premier plan : tes raccourcis ne marchent que là. 2. FL Shortcuts n'est pas en pause (Ctrl+Alt+Maj+F, ou le menu de l'icône près de l'horloge). 3. FL Studio n'est pas lancé en administrateur : Windows empêche alors FL Shortcuts d'agir dessus." = "Vérifie trois choses. 1. FL Studio est la fenêtre au premier plan : tes raccourcis ne marchent que là. 2. FL Shortcuts n'est pas en pause (Ctrl+Alt+Maj+F, ou le menu de l'icône près de l'horloge). 3. FL Studio n'est pas lancé en administrateur : Windows empêche alors FL Shortcuts d'agir dessus.";
 "Vérifie trois choses. 1. FL Studio est la fenêtre au premier plan : tes raccourcis ne marchent que là. 2. FL Shortcuts n'est pas en pause (⌃⌥⌘F, ou le menu de l'icône en haut de l'écran). 3. Le clavier est autorisé : Réglages Système › Confidentialité et sécurité › Accessibilité, FL Shortcuts coché. Quand une autre app attend un mot de passe (saisie sécurisée), les raccourcis se taisent le temps qu'elle le fasse." = "Vérifie trois choses. 1. FL Studio est la fenêtre au premier plan : tes raccourcis ne marchent que là. 2. FL Shortcuts n'est pas en pause (⌃⌥⌘F, ou le menu de l'icône en haut de l'écran). 3. Le clavier est autorisé : Réglages Système › Confidentialité et sécurité › Accessibilité, FL Shortcuts coché. Quand une autre app attend un mot de passe (saisie sécurisée), les raccourcis se taisent le temps qu'elle le fasse.";
 "Vérifier" = "Vérifier";
 "Vérifier le larsen" = "Vérifier le larsen";
@@ -2331,6 +2340,7 @@
 "liste des patterns illisible" = "liste des patterns illisible";
 "liste du Mixer illisible" = "liste du Mixer illisible";
 "liste « More plugins… » de FL illisible" = "liste « More plugins… » de FL illisible";
+"loopMIDI crée les deux câbles MIDI virtuels (« FL Shortcuts » et « FL Shortcuts Retour ») par lesquels FL Shortcuts parle à FL Studio. Il le faut pour l'Organiser et les actions de FL ; les raccourcis simples et la plupart des macros marchent sans lui. Sur Mac, il n'y a rien à installer." = "loopMIDI crée les deux câbles MIDI virtuels (« FL Shortcuts » et « FL Shortcuts Retour ») par lesquels FL Shortcuts parle à FL Studio. Il le faut pour l'Organiser et les actions de FL ; les raccourcis simples et la plupart des macros marchent sans lui. Sur Mac, il n'y a rien à installer.";
 "macOS : " = "macOS : ";
 "macOS : Mission Control" = "macOS : Mission Control";
 "macOS : Spotlight" = "macOS : Spotlight";
@@ -2500,6 +2510,7 @@
 "« Enregistrer une macro », puis fais ta suite dans FL." = "« Enregistrer une macro », puis fais ta suite dans FL.";
 "« FL Shortcuts » absent des Controller types : FL ne lit pas le dossier du script ci-dessous. Compare-le avec Options › File settings › User data folder (pas sur iCloud) ; s'il diffère, « Autre dossier de FL… » et choisis celui-là." = "« FL Shortcuts » absent des Controller types : FL ne lit pas le dossier du script ci-dessous. Compare-le avec Options › File settings › User data folder (pas sur iCloud) ; s'il diffère, « Autre dossier de FL… » et choisis celui-là.";
 "« FL Shortcuts » absent des Controller types : FL ne lit pas le dossier du script ci-dessous. Compare-le avec Options › File settings › User data folder dans FL (pas sur iCloud) ; s'il diffère, « Autre dossier de FL… » et choisis celui-là." = "« FL Shortcuts » absent des Controller types : FL ne lit pas le dossier du script ci-dessous. Compare-le avec Options › File settings › User data folder dans FL (pas sur iCloud) ; s'il diffère, « Autre dossier de FL… » et choisis celui-là.";
+"« FL Studio n'est pas reconnu »" = "« FL Studio n'est pas reconnu »";
 "« File › Open mixer track state » s'ouvre tout seul, au clavier (lettres soulignées du menu de FL). La première fois, une bulle te demande seulement de cliquer sur « (none) » puis sur l'entrée « 1 »." = "« File › Open mixer track state » s'ouvre tout seul, au clavier (lettres soulignées du menu de FL). La première fois, une bulle te demande seulement de cliquer sur « (none) » puis sur l'entrée « 1 ».";
 "« Ouvrir une page de FL » ajouté juste au-dessus : choisis d'abord la page, puis l'option à cliquer dans cette page." = "« Ouvrir une page de FL » ajouté juste au-dessus : choisis d'abord la page, puis l'option à cliquer dans cette page.";
 "« Partir d'un modèle… » propose des macros toutes faites, à adapter." = "« Partir d'un modèle… » propose des macros toutes faites, à adapter.";
@@ -2512,6 +2523,7 @@
 "À gauche, choisis une page : Général, Playlist, Mixer… Elle montre les raccourcis de FL qui s'y appliquent." = "À gauche, choisis une page : Général, Playlist, Mixer… Elle montre les raccourcis de FL qui s'y appliquent.";
 "À jour" = "À jour";
 "À quoi elle sert, où l'utiliser dans FL (Mixer, Playlist…), ce qu'il faut faire avant de la lancer." = "À quoi elle sert, où l'utiliser dans FL (Mixer, Playlist…), ce qu'il faut faire avant de la lancer.";
+"À quoi sert loopMIDI ?" = "À quoi sert loopMIDI ?";
 "À savoir" = "À savoir";
 "À toi de choisir" = "À toi de choisir";
 "À vérifier" = "À vérifier";

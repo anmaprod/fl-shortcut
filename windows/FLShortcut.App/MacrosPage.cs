@@ -253,7 +253,7 @@ internal sealed class MacrosPage
         return new Border
         {
             Child = button,
-            BorderBrush = Brush(Line),
+            BorderBrush = Brush(LineColor),
             BorderThickness = new Thickness(0, 0, last ? 0 : 1, 0),
         };
     }
@@ -375,7 +375,7 @@ internal sealed class MacrosPage
             Style = MainShell.DialogStyle(),
             RequestedTheme = ElementTheme.Dark,
             Background = Brush(Rgb(0x1E, 0x1E, 0x21)),
-            BorderBrush = Brush(Line),
+            BorderBrush = Brush(LineColor),
             CloseButtonText = Loc.T("Annuler"),
         };
         var title = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 12 };
@@ -605,7 +605,7 @@ internal sealed class MacrosPage
             VerticalAlignment = VerticalAlignment.Center,
             Content = Icon("back", 14, Text),
             Background = Brush(Colors.Black),
-            BorderBrush = Brush(Line),
+            BorderBrush = Brush(LineColor),
             BorderThickness = new Thickness(1),
         };
         button.PointerEntered += (_, _) => button.Background = Brush(Accent);

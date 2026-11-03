@@ -271,7 +271,7 @@ internal sealed partial class MainShell
             Child = outer,
             CornerRadius = new CornerRadius(0),
             Background = Brush(Rgb(0x2B, 0x2F, 0x33)),
-            BorderBrush = Brush(Line),
+            BorderBrush = Brush(LineColor),
             BorderThickness = new Thickness(1),
             MaxWidth = 360,
             HorizontalAlignment = HorizontalAlignment.Center,

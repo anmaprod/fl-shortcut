@@ -377,7 +377,7 @@ internal sealed partial class MainShell
         {
             Child = sidebarStack,
             Background = Brush(Colors.Black),
-            BorderBrush = Brush(Line),
+            BorderBrush = Brush(LineColor),
             BorderThickness = new Thickness(0, 0, 1, 0),
             Padding = new Thickness(10, 14, 10, 16),
         };
@@ -606,7 +606,7 @@ internal sealed partial class MainShell
                 BorderThickness = new Thickness(2, 0, 0, 0),
             },
             Background = Brush(Colors.Black),
-            BorderBrush = Brush(Line),
+            BorderBrush = Brush(LineColor),
             BorderThickness = new Thickness(1),
         };
     }
@@ -890,7 +890,7 @@ internal sealed partial class MainShell
             Padding = new Thickness(18, 10, 12, 10),
             CornerRadius = new CornerRadius(0),
             Background = Brush(Rgb(0x2C, 0x2C, 0x2E)),
-            BorderBrush = Brush(Line),
+            BorderBrush = Brush(LineColor),
             BorderThickness = new Thickness(1),
             HorizontalAlignment = HorizontalAlignment.Center,
             VerticalAlignment = VerticalAlignment.Bottom,
