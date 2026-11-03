@@ -201,8 +201,8 @@ internal sealed class OrganizerWindow : Window
     {
         Child = child,
         Padding = new Thickness(padding),
-        CornerRadius = new CornerRadius(14),
-        Background = Gradient(White(0.10), White(0.045)),
+        CornerRadius = new CornerRadius(0),
+        Background = Brush(Colors.Black),
         BorderBrush = Brush(WithOpacity(tint ?? Tint, 0.4)),
         BorderThickness = new Thickness(1),
     };
@@ -211,7 +211,7 @@ internal sealed class OrganizerWindow : Window
     private static Grid Badge(string icon, Color tint, double size = 34)
     {
         var grid = new Grid { Width = size, Height = size, VerticalAlignment = VerticalAlignment.Center };
-        grid.Children.Add(new Ellipse { Fill = Gradient(Mix(tint, Colors.White, 0.18), tint) });
+        grid.Children.Add(new Rectangle { Fill = Brush(tint) });
         var glyph = Icon(icon, size * 0.46, Colors.White, tint);
         glyph.HorizontalAlignment = HorizontalAlignment.Center;
         glyph.VerticalAlignment = VerticalAlignment.Center;
@@ -278,7 +278,7 @@ internal sealed class OrganizerWindow : Window
         var preview = _controller.Phase is OrganizerPhase.Preview && !_tutorial;
         // Aperçu : un trait fin au-dessus des boutons (comme le Mac).
         _footer.BorderThickness = new Thickness(0, preview ? 1 : 0, 0, 0);
-        _footer.BorderBrush = Brush(White(0.08));
+        _footer.BorderBrush = Brush(Line);
         if (_tutorial)
         {
             Tutorial();
@@ -455,7 +455,7 @@ internal sealed class OrganizerWindow : Window
     private static Border Step(int n, string text)
     {
         var number = new Grid { Width = 22, Height = 22, VerticalAlignment = VerticalAlignment.Top };
-        number.Children.Add(new Ellipse { Fill = Gradient(Mix(Tint, Colors.White, 0.18), Tint) });
+        number.Children.Add(new Rectangle { Fill = Brush(Tint) });
         number.Children.Add(new TextBlock
         {
             Text = n.ToString(System.Globalization.CultureInfo.InvariantCulture), FontSize = 11, FontWeight = FontWeights.Bold,
@@ -508,7 +508,7 @@ internal sealed class OrganizerWindow : Window
         var bar = new ProgressBar
         {
             Maximum = Math.Max(total, 1), Value = done, IsIndeterminate = total == 0,
-            Foreground = Brush(Tint), Background = Brush(White(0.12)), MinHeight = 6,
+            Foreground = Brush(Tint), Background = Brush(Colors.Black), MinHeight = 6,
         };
         _content.Children.Add(Card(Row(Badge("waveform", Tint), Stack(8, head, bar))));
         // Plus d'explication (comme le Mac, 28/10) : la consigne seule.
@@ -559,10 +559,10 @@ internal sealed class OrganizerWindow : Window
         var last = index == pages.Length - 1;
         var picture = new Border
         {
-            CornerRadius = new CornerRadius(14),
-            BorderBrush = Brush(White(0.10)),
+            CornerRadius = new CornerRadius(0),
+            BorderBrush = Brush(Line),
             BorderThickness = new Thickness(1),
-            Background = Brush(White(0.06)),
+            Background = Brush(Colors.Black),
         };
         if (TutorialImage(index + 1) is { } bitmap)
             picture.Child = new Image { Source = bitmap, Stretch = Stretch.Uniform };
@@ -792,7 +792,7 @@ internal sealed class OrganizerWindow : Window
     private Button Swatch(SoundFamily family, RgbColor color, bool withFade, Action<RgbColor> set)
     {
         var dot = new Ellipse { Width = 20, Height = 20, Fill = Fill(color), Stroke = Brush(White(0.3)), StrokeThickness = 1.5 };
-        var button = new Button { Style = PlainButton, Content = dot, CornerRadius = new CornerRadius(10), VerticalAlignment = VerticalAlignment.Center };
+        var button = new Button { Style = PlainButton, Content = dot, CornerRadius = new CornerRadius(0), VerticalAlignment = VerticalAlignment.Center };
         ToolTipService.SetToolTip(button, "#" + color.Hex);
         AutomationProperties.SetName(button, "#" + color.Hex);
         var picker = new ColorPicker
@@ -830,10 +830,11 @@ internal sealed class OrganizerWindow : Window
         var button = new Button
         {
             Style = PlainButton,
-            Content = Label(text, 12, selected ? Colors.White : Text, semibold: selected),
-            CornerRadius = new CornerRadius(8),
+            Content = Label(text, 12, selected ? Colors.Black : Text, semibold: selected),
             Padding = new Thickness(12, 5, 12, 5),
-            Background = Brush(selected ? Accent : White(0.10)),
+            Background = Brush(selected ? Colors.White : Colors.Black),
+            BorderBrush = Brush(selected ? Colors.White : Line),
+            BorderThickness = new Thickness(1),
         };
         if (!selected) button.Click += (_, _) => click();
         return button;
@@ -883,10 +884,10 @@ internal sealed class OrganizerWindow : Window
         var kind = new Button
         {
             Style = PlainButton, Content = inside, MinHeight = 26, Padding = new Thickness(8, 0, 8, 0),
-            CornerRadius = new CornerRadius(7), Background = Brush(White(0.06)), VerticalAlignment = VerticalAlignment.Center,
+            CornerRadius = new CornerRadius(0), Background = Brush(Colors.Black), VerticalAlignment = VerticalAlignment.Center,
         };
-        kind.PointerEntered += (_, _) => kind.Background = Brush(White(0.12));
-        kind.PointerExited += (_, _) => kind.Background = Brush(White(0.06));
+        kind.PointerEntered += (_, _) => kind.Background = Brush(Colors.Black);
+        kind.PointerExited += (_, _) => kind.Background = Brush(Colors.Black);
         ToolTipService.SetToolTip(kind, Loc.T("Changer ce qu'est ce son (Kick, 808, Lead…), ou écrire son nom"));
         var menu = new MenuFlyout();
         foreach (var choice in SoundFamilies.Order.Where(f => f.Kinds().Length > 0))
@@ -960,7 +961,7 @@ internal sealed class OrganizerWindow : Window
             Style = MainShell.DialogStyle(),
             RequestedTheme = ElementTheme.Dark,
             Background = Brush(Rgb(0x1E, 0x1E, 0x21)),
-            BorderBrush = Brush(White(0.16)),
+            BorderBrush = Brush(Line),
             Title = Loc.T("Qu'est-ce qui n'allait pas ?"),
             PrimaryButtonText = Loc.T("Envoyer"),
             CloseButtonText = Loc.T("Annuler"),
@@ -1088,7 +1089,7 @@ internal sealed class OrganizerWindow : Window
         {
             Width = 44;
             Height = 22;
-            CornerRadius = new CornerRadius(6);
+            CornerRadius = new CornerRadius(0);
             VerticalAlignment = VerticalAlignment.Center;
             Background = Brush(Color.FromArgb(0x47, 0, 0, 0));
             BorderBrush = Brush(chosen ? tint : White(0.12));
@@ -1104,7 +1105,7 @@ internal sealed class OrganizerWindow : Window
             if (!chosen)
             {
                 PointerEntered += (_, _) => BorderBrush = Brush(White(0.35));
-                PointerExited += (_, _) => BorderBrush = Brush(White(0.12));
+                PointerExited += (_, _) => BorderBrush = Brush(Line);
             }
             double? start = null;
             var from = value ?? 1;

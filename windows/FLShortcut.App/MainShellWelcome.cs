@@ -75,10 +75,10 @@ internal sealed partial class MainShell
     {
         Width = size,
         Height = size,
-        CornerRadius = new CornerRadius(size * 0.24),
+        CornerRadius = new CornerRadius(0),
         HorizontalAlignment = HorizontalAlignment.Center,
-        Background = Gradient(Rgb(0x5A, 0xC8, 0xFA), Rgb(0x0A, 0x61, 0xFF)),
-        Child = Icon("keyboard", size * 0.5, Colors.White),
+        Background = Brush(Colors.White),          // logo : tuile blanche, clavier noir (02/11)
+        Child = Icon("keyboard", size * 0.5, Colors.Black),
     };
 
     private static TextBlock Heading(string text)
@@ -93,7 +93,7 @@ internal sealed partial class MainShell
     private static Border State(string text, Color tint) => new()
     {
         Padding = new Thickness(10, 3, 10, 4),
-        CornerRadius = new CornerRadius(11),
+        CornerRadius = new CornerRadius(0),
         Background = Brush(WithOpacity(tint, 0.18)),
         VerticalAlignment = VerticalAlignment.Center,
         Child = Label(text, 12, tint, semibold: true),
@@ -104,7 +104,7 @@ internal sealed partial class MainShell
     {
         Width = 24,
         Height = 24,
-        CornerRadius = new CornerRadius(12),
+        CornerRadius = new CornerRadius(0),
         VerticalAlignment = VerticalAlignment.Top,
         Background = Brush(done ? Green : White(0.14)),
         Child = done ? Icon("check", 12, Colors.White) : new TextBlock
@@ -244,7 +244,7 @@ internal sealed partial class MainShell
         Border Line(string text) => new()
         {
             Padding = new Thickness(8, 4, 8, 4),
-            CornerRadius = new CornerRadius(4),
+            CornerRadius = new CornerRadius(0),
             BorderBrush = Brush(orange),
             BorderThickness = new Thickness(2),
             Background = Brush(WithOpacity(orange, 0.18)),
@@ -262,16 +262,16 @@ internal sealed partial class MainShell
         {
             Background = Brush(Rgb(0x3A, 0x40, 0x46)),
             Padding = new Thickness(12, 7, 12, 7),
-            CornerRadius = new CornerRadius(12, 12, 0, 0),
+            CornerRadius = new CornerRadius(0),
             Child = Label("Options › MIDI Settings", 11, Rgb(0xE6, 0xEB, 0xEE), semibold: true),
         });
         outer.Children.Add(stack);
         return new Border
         {
             Child = outer,
-            CornerRadius = new CornerRadius(12),
+            CornerRadius = new CornerRadius(0),
             Background = Brush(Rgb(0x2B, 0x2F, 0x33)),
-            BorderBrush = Brush(White(0.12)),
+            BorderBrush = Brush(Line),
             BorderThickness = new Thickness(1),
             MaxWidth = 360,
             HorizontalAlignment = HorizontalAlignment.Center,

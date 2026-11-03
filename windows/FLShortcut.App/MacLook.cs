@@ -1,8 +1,9 @@
-// Aspect du Mac sur Windows (29/10, le propriétaire : « exactement la même interface sur win, normalement on a enlevé
-// tout le liquid glass donc ça ne devrait pas bloquer ») : fond noir plein, plaques claires dessinées (dégradé blanc,
-// bord fin), icônes de couleur aux mêmes dessins que le Mac et le tuto, touches en petites plaques, survol plein de la
-// couleur de l'élément (texte en blanc). Mêmes valeurs que Sources/FLShortcut/MainChrome.swift et GlassStyle.swift
-// (thème sombre). Tout est construit en code : rien ne dépend du thème clair ou sombre de Windows.
+// Aspect du Mac sur Windows, au style suisse du Mac (validé le 01/11, porté le 03/11 : « le logiciel n'est pas le même
+// que la dernière version du mac ») : fond noir, texte blanc, Helvetica (Arial sous Windows), traits fins #333/#222,
+// coins carrés partout, petits carrés de couleur à la place des tuiles, libellés en petites capitales espacées,
+// boutons rectangulaires en capitales, survol = blanc plein et texte noir, rouge #FF3B1F seulement pour ce qui compte.
+// Mêmes valeurs que `Swiss` dans Sources/FLShortcut/GlassStyle.swift. Tout est construit en code : rien ne dépend du
+// thème clair ou sombre de Windows.
 using System.Globalization;
 using FLShortcut.Core;
 using Microsoft.UI;
@@ -21,20 +22,31 @@ internal static class MacLook
 {
     // ---------- Couleurs (macOS, thème sombre) ----------
 
-    public static readonly Color WindowColor = Rgb(0x16, 0x16, 0x18);
-    public static readonly Color Accent = Rgb(0x0A, 0x84, 0xFF);
-    public static readonly Color Link = Rgb(0x4A, 0xA3, 0xFF);
+    public static readonly Color WindowColor = Rgb(0x00, 0x00, 0x00);
+    /// Style suisse : plus de bleu ; ce qui était l'accent (choisi, interrupteur allumé, repère) est blanc.
+    public static readonly Color Accent = Rgb(0xFF, 0xFF, 0xFF);
+    /// Liens : blancs (soulignés là où ils sont posés).
+    public static readonly Color Link = Rgb(0xFF, 0xFF, 0xFF);
     public static readonly Color Orange = Rgb(0xFF, 0x9F, 0x0A);
-    public static readonly Color Red = Rgb(0xFF, 0x45, 0x3A);
+    /// Le rouge de ce qui compte : touche changée, avertissement, Désinstaller (#FF3B1F).
+    public static readonly Color Red = Rgb(0xFF, 0x3B, 0x1F);
     public static readonly Color Green = Rgb(0x30, 0xD1, 0x58);
     public static readonly Color Gray = Rgb(0x8E, 0x8E, 0x93);
     public static readonly Color Purple = Rgb(0xBF, 0x5A, 0xF2);
     public static readonly Color Pink = Rgb(0xFF, 0x37, 0x5F);
     public static readonly Color Teal = Rgb(0x40, 0xC8, 0xE0);
     public static readonly Color Indigo = Rgb(0x5E, 0x5C, 0xE6);
-    public static readonly Color Text = Rgb(0xF5, 0xF5, 0xF7);
-    public static readonly Color Secondary = Color.FromArgb(158, 235, 235, 245);
-    public static readonly Color Tertiary = Color.FromArgb(97, 235, 235, 245);
+    public static readonly Color Text = Rgb(0xFF, 0xFF, 0xFF);
+    /// Texte secondaire (#8A8A8A) et effacé (#555555).
+    public static readonly Color Secondary = Rgb(0x8A, 0x8A, 0x8A);
+    public static readonly Color Tertiary = Rgb(0x55, 0x55, 0x55);
+    /// Traits : entre deux blocs (#333333), entre deux lignes (#222222).
+    public static readonly Color Line = Rgb(0x33, 0x33, 0x33);
+    public static readonly Color Faint = Rgb(0x22, 0x22, 0x22);
+
+    private static FontFamily? _font;
+    /// Helvetica comme le Mac ; Arial (même dessin) sur un PC qui ne l'a pas.
+    public static FontFamily SwissFont => _font ??= new FontFamily("Helvetica Neue, Helvetica, Arial");
 
     public static Color Rgb(byte r, byte g, byte b) => Color.FromArgb(255, r, g, b);
     public static Color White(double opacity) => Color.FromArgb((byte)Math.Round(opacity * 255), 255, 255, 255);
@@ -81,14 +93,33 @@ internal static class MacLook
     // ---------- Plaques et textes ----------
 
     /// Plaque claire des maquettes : dégradé blanc (plus clair en haut), bord fin un peu plus clair en haut.
+    /// Bloc (style suisse) : noir, cadre fin #333, coins carrés (`radius` et les dégradés d'avant ne servent plus).
     public static Border Plate(UIElement? child, double radius, double top = 0.10, double bottom = 0.045, double border = 0.15) => new()
     {
-        Background = Gradient(White(top), White(bottom)),
-        BorderBrush = Gradient(White(border + 0.08), White(border)),
+        Background = Brush(Colors.Black),
+        BorderBrush = Brush(Line),
         BorderThickness = new Thickness(1),
-        CornerRadius = new CornerRadius(radius),
         Child = child,
     };
+
+    /// Libellé en petites capitales espacées (« MES MACROS », « PROJET »), gris par défaut (swissLabel du Mac).
+    public static TextBlock SwissLabel(string text, double size = 11, Color? color = null)
+    {
+        var label = Label(text.ToUpper(CultureInfo.CurrentCulture), size, color ?? Secondary, bold: true);
+        label.CharacterSpacing = 110;
+        return label;
+    }
+
+    /// Gros titre de page (46, gras, serré) comme swissTitle du Mac.
+    public static TextBlock SwissTitle(double size = 46)
+    {
+        var title = Label("", size, Text, bold: true);
+        title.CharacterSpacing = -39;
+        return title;
+    }
+
+    /// Trait d'un point : blanc sous un titre, #333 entre deux blocs, #222 entre deux lignes (swissRule du Mac).
+    public static Rectangle Rule(Color color) => new() { Height = 1, Fill = Brush(color), IsHitTestVisible = false };
 
     public static TextBlock Label(string text, double size = 13, Color? color = null, bool bold = false, bool semibold = false)
     {
@@ -97,6 +128,7 @@ internal static class MacLook
             Text = text,
             FontSize = size,
             FontWeight = bold ? FontWeights.Bold : semibold ? FontWeights.SemiBold : FontWeights.Normal,
+            FontFamily = SwissFont,
             TextTrimming = TextTrimming.CharacterEllipsis,
             VerticalAlignment = VerticalAlignment.Center,
         };
@@ -109,6 +141,7 @@ internal static class MacLook
     {
         Text = text,
         FontSize = size,
+        FontFamily = SwissFont,
         Foreground = Brush(color ?? Secondary),
         TextWrapping = TextWrapping.Wrap,
     };
@@ -276,47 +309,47 @@ internal static class MacLook
         return new Viewbox { Width = size, Height = size, Child = canvas, IsHitTestVisible = false };
     }
 
-    /// Carré de couleur d'une page ou d'une rubrique (dégradé, bord clair, dessin blanc), comme SectionIcon du Mac.
+    /// Repère d'une page ou d'une rubrique (style suisse) : un petit carré plein de sa couleur, centré dans la place
+    /// de l'ancienne tuile (`size`), comme la barre de gauche du Mac.
     public static Border Tile(string icon, Color tint, double size = 22)
     {
-        var tile = new Border
-        {
-            Width = size,
-            Height = size,
-            CornerRadius = new CornerRadius(size * 0.27),
-            BorderThickness = new Thickness(Math.Max(0.5, size / 40)),
-            IsHitTestVisible = false,
-        };
+        var tile = new Border { Width = size, Height = size, IsHitTestVisible = false };
         SetTileHover(tile, icon, tint, hovered: false);
         return tile;
     }
 
-    /// Survol : le carré devient blanc translucide (sinon il disparaîtrait dans le fond de sa couleur).
+    /// Le carré garde sa couleur au survol (la ligne devient blanche, le carré reste lisible dessus).
     public static void SetTileHover(Border tile, string icon, Color tint, bool hovered)
     {
-        tile.Background = hovered ? Brush(White(0.24)) : Gradient(Mix(tint, Colors.White, 0.22), tint);
-        tile.BorderBrush = hovered ? Brush(Colors.Transparent) : Gradient(White(0.5), White(0.06));
-        tile.Child = Icon(icon, tile.Width * 0.56, Colors.White, tint);
+        var side = Math.Max(8, Math.Round(tile.Width * 0.38));
+        tile.Child = new Rectangle
+        {
+            Width = side,
+            Height = side,
+            Fill = Brush(tint),
+            HorizontalAlignment = HorizontalAlignment.Center,
+            VerticalAlignment = VerticalAlignment.Center,
+        };
     }
 
     // ---------- Touches ----------
 
-    /// Une touche : petite plaque claire ; changée : teintée de bleu (maquette du 28/10).
+    /// Une touche (style suisse) : petit carré au cadre clair, lettre en gras ; changée : en rouge.
     public static Border Cap(string text, bool changed = false, bool muted = false) => new()
     {
-        MinWidth = 22,
-        Height = 22,
-        Padding = new Thickness(6, 0, 6, 0),
-        CornerRadius = new CornerRadius(6),
-        Background = Brush(changed ? WithOpacity(Accent, 0.24) : White(0.12)),
-        BorderBrush = Brush(changed ? WithOpacity(Link, 0.75) : White(0.2)),
+        MinWidth = 20,
+        Height = 20,
+        Padding = new Thickness(5, 0, 5, 0),
+        Background = Brush(Colors.Black),
+        BorderBrush = Brush(changed ? Red : muted ? Tertiary : Rgb(0xDD, 0xDD, 0xDD)),
         BorderThickness = new Thickness(1),
         Child = new TextBlock
         {
             Text = text,
-            FontSize = 12,
-            FontWeight = FontWeights.SemiBold,
-            Foreground = Brush(muted ? Secondary : Text),
+            FontSize = 11.5,
+            FontWeight = FontWeights.Bold,
+            FontFamily = SwissFont,
+            Foreground = Brush(changed ? Red : muted ? Secondary : Text),
             HorizontalAlignment = HorizontalAlignment.Center,
             VerticalAlignment = VerticalAlignment.Center,
         },
@@ -325,7 +358,7 @@ internal static class MacLook
     /// Les touches d'un raccourci, une plaque par touche (« Ctrl » « Maj » « 4 ») ; aucune : « Aucune ».
     public static StackPanel Keys(KeyCombo? combo, bool changed = false)
     {
-        var row = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 4, VerticalAlignment = VerticalAlignment.Center };
+        var row = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 3, VerticalAlignment = VerticalAlignment.Center };
         if (combo is not { } c)
         {
             row.Children.Add(Cap(Loc.T("Aucune"), muted: true));
@@ -364,8 +397,8 @@ internal static class MacLook
         return style;
     }
 
-    /// Une option cliquable : au survol, tout l'intérieur prend `tint` et le texte passe en blanc (choix du
-    /// propriétaire, 29/10) ; `selected` : pastille bleue, texte blanc. `hover` : ce qui change en plus (icône).
+    /// Une option cliquable (style suisse) : au survol comme choisie, blanc plein et texte noir, coins carrés (`tint` et
+    /// `radius` ne servent plus). `hover` : ce qui change en plus (texte de couleur fixe à noircir).
     public static Button Option(UIElement content, Color tint, double radius, Action? click, bool selected = false,
                                 Action<bool>? hover = null, double minHeight = 32, Thickness? padding = null)
     {
@@ -373,19 +406,18 @@ internal static class MacLook
         {
             Style = PlainButton,
             Content = content,
-            CornerRadius = new CornerRadius(radius),
             MinHeight = minHeight,
             Padding = padding ?? new Thickness(10, 0, 10, 0),
-            Background = Brush(selected ? Accent : Colors.Transparent),
-            Foreground = Brush(selected ? Colors.White : Text),
-            FontWeight = selected ? FontWeights.SemiBold : FontWeights.Normal,
+            Background = Brush(selected ? Colors.White : Colors.Transparent),
+            Foreground = Brush(selected ? Colors.Black : Text),
+            FontWeight = selected ? FontWeights.Bold : FontWeights.Normal,
         };
         if (!selected)
         {
             void Set(bool on)
             {
-                button.Background = Brush(on ? tint : Colors.Transparent);
-                button.Foreground = Brush(on ? Colors.White : Text);
+                button.Background = Brush(on ? Colors.White : Colors.Transparent);
+                button.Foreground = Brush(on ? Colors.Black : Text);
                 hover?.Invoke(on);
             }
             button.PointerEntered += (_, _) => Set(true);
@@ -397,49 +429,44 @@ internal static class MacLook
         return button;
     }
 
-    /// Bouton bleu (Valider, Organiser…) : toujours bleu plein, en capsule.
-    public static Button Primary(string text, Action click)
-    {
-        var button = new Button
-        {
-            Style = PlainButton,
-            HorizontalAlignment = HorizontalAlignment.Left,
-            HorizontalContentAlignment = HorizontalAlignment.Center,
-            Content = Label(text, 13.5, Colors.White, semibold: true),
-            CornerRadius = new CornerRadius(17),
-            MinHeight = 34,
-            Padding = new Thickness(20, 0, 20, 0),
-            Background = Brush(Accent),
-        };
-        button.PointerEntered += (_, _) => button.Background = Brush(Mix(Accent, Colors.White, 0.12));
-        button.PointerExited += (_, _) => button.Background = Brush(Accent);
-        button.Click += (_, _) => click();
-        return button;
-    }
+    /// Bouton principal (Valider, Organiser…) au style suisse : rectangle blanc plein, texte noir en capitales ; au
+    /// survol, noir bordé de blanc (SwissButtonBody du Mac).
+    public static Button Primary(string text, Action click) => SwissButton(text, click, primary: true);
 
-    /// Bouton secondaire (Annuler, Réparer…) : capsule claire.
-    public static Button Soft(string text, Action click)
+    /// Bouton secondaire (Annuler, Réparer…) : rectangle bordé de blanc, capitales ; au survol, blanc plein.
+    public static Button Soft(string text, Action click) => SwissButton(text, click, primary: false);
+
+    private static Button SwissButton(string text, Action click, bool primary)
     {
+        var label = Label(text.ToUpper(CultureInfo.CurrentCulture), 12, primary ? Colors.Black : Text, bold: true);
+        label.CharacterSpacing = 80;
         var button = new Button
         {
             Style = PlainButton,
             HorizontalAlignment = HorizontalAlignment.Left,
             HorizontalContentAlignment = HorizontalAlignment.Center,
-            Content = Label(text, 13, Text, semibold: true),
-            CornerRadius = new CornerRadius(15),
-            MinHeight = 30,
-            Padding = new Thickness(14, 0, 14, 0),
-            Background = Brush(White(0.12)),
-            BorderBrush = Brush(White(0.18)),
+            Content = label,
+            MinHeight = 32,
+            Padding = new Thickness(16, 0, 16, 0),
+            Background = Brush(primary ? Colors.White : Colors.Transparent),
+            BorderBrush = Brush(Colors.White),
             BorderThickness = new Thickness(1),
         };
-        button.PointerEntered += (_, _) => button.Background = Brush(White(0.2));
-        button.PointerExited += (_, _) => button.Background = Brush(White(0.12));
+        void Set(bool on)
+        {
+            var filled = primary != on;                     // principal : plein au repos ; secondaire : plein au survol
+            button.Background = Brush(filled ? Colors.White : Colors.Black);
+            label.Foreground = Brush(filled ? Colors.Black : Colors.White);
+        }
+        button.PointerEntered += (_, _) => Set(true);
+        button.PointerExited += (_, _) => Set(false);
+        button.PointerCanceled += (_, _) => Set(false);
+        button.PointerCaptureLost += (_, _) => Set(false);
         button.Click += (_, _) => click();
         return button;
     }
 
-    /// Bouton rond de l'en-tête (44 points), une icône seule ; au survol, plein de bleu.
+    /// Bouton carré de l'en-tête (44 points), une icône seule, bordé de blanc ; au survol, blanc plein.
     public static Button RoundIcon(string icon, string help, Action click, double size = 44)
     {
         var button = new Button
@@ -450,10 +477,19 @@ internal static class MacLook
             HorizontalAlignment = HorizontalAlignment.Center,
             HorizontalContentAlignment = HorizontalAlignment.Center,
             Content = Icon(icon, size * 0.4, Text),
-            CornerRadius = new CornerRadius(size / 2),
+            BorderBrush = Brush(Colors.White),
+            BorderThickness = new Thickness(1),
         };
-        button.PointerEntered += (_, _) => button.Background = Brush(Accent);
-        button.PointerExited += (_, _) => button.Background = Brush(Colors.Transparent);
+        button.PointerEntered += (_, _) =>
+        {
+            button.Background = Brush(Colors.White);
+            button.Content = Icon(icon, size * 0.4, Colors.Black);
+        };
+        button.PointerExited += (_, _) =>
+        {
+            button.Background = Brush(Colors.Transparent);
+            button.Content = Icon(icon, size * 0.4, Text);
+        };
         button.Click += (_, _) => click();
         ToolTipService.SetToolTip(button, help);
         AutomationProperties.SetName(button, help);

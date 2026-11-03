@@ -27,7 +27,7 @@ internal sealed class TrayMenu
     public sealed record Entry(string Icon, Color Tint, string Title, Action Run);
 
     /// Le noir du menu du Mac (MenuBackground).
-    private static readonly Color MenuColor = Rgb(0x1C, 0x1C, 0x1F);
+    private static readonly Color MenuColor = Rgb(0x00, 0x00, 0x00);     // noir plein comme le Mac
     private const double MenuWidth = 250;              // plus petit (30/10, « un peu trop gros »)
     private const uint WM_ACTIVATE = 0x0006;
     private static readonly UIntPtr SubclassId = new(0x464D);
@@ -74,7 +74,7 @@ internal sealed class TrayMenu
         _window.Title = "FL Shortcuts";
         _window.IsShownInSwitchers = false;
         _hwnd = Win32Interop.GetWindowFromWindowId(_window.Id);
-        var corner = Win32.DWMWCP_ROUND;
+        var corner = Win32.DWMWCP_DONOTROUND;          // style suisse : coins carrés
         Win32.DwmSetWindowAttribute(_hwnd, Win32.DWMWA_WINDOW_CORNER_PREFERENCE, ref corner, sizeof(int));
 
         var stack = new StackPanel { Spacing = 2 };
@@ -150,7 +150,7 @@ internal sealed class TrayMenu
         var tile = Tile(entry.Icon, entry.Tint, 20);
         var content = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10 };
         content.Children.Add(tile);
-        var title = Label(entry.Title, 13);
+        var title = Label(entry.Title, 13, bold: true);
         title.VerticalAlignment = VerticalAlignment.Center;
         content.Children.Add(title);
         var row = Option(content, entry.Tint, 9, () => Run(entry.Run), minHeight: 34, padding: new Thickness(8, 0, 8, 0),
@@ -166,11 +166,19 @@ internal sealed class TrayMenu
             Style = PlainButton,
             HorizontalAlignment = HorizontalAlignment.Left,
             Content = Label(text, 12.5, color, semibold: color == Link),
-            CornerRadius = new CornerRadius(8),
+            CornerRadius = new CornerRadius(0),
             Padding = new Thickness(8, 5, 8, 5),
         };
-        button.PointerEntered += (_, _) => button.Background = Brush(White(0.08));
-        button.PointerExited += (_, _) => button.Background = Brush(Colors.Transparent);
+        button.PointerEntered += (_, _) =>
+        {
+            button.Background = Brush(Colors.White);              // survol suisse : blanc plein, texte noir
+            if (button.Content is TextBlock t) t.Foreground = Brush(Colors.Black);
+        };
+        button.PointerExited += (_, _) =>
+        {
+            button.Background = Brush(Colors.Transparent);
+            if (button.Content is TextBlock t) t.Foreground = Brush(color);
+        };
         button.Click += (_, _) => Run(click);
         AutomationProperties.SetName(button, text);
         return button;

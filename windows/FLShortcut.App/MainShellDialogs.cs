@@ -26,7 +26,7 @@ internal sealed partial class MainShell
         Style = DialogStyle(),                // créé en code, le dialogue garderait sinon l'ancien style
         RequestedTheme = ElementTheme.Dark,
         Background = Brush(Rgb(0x1E, 0x1E, 0x21)),
-        BorderBrush = Brush(White(0.16)),
+        BorderBrush = Brush(Line),
     };
 
     /// Champ de touche : la touche (ou « Aucune ») ; un clic, puis les touches appuyées la remplacent (Échap annule).
@@ -37,9 +37,9 @@ internal sealed partial class MainShell
         HorizontalAlignment = HorizontalAlignment.Stretch,
         HorizontalContentAlignment = HorizontalAlignment.Left,
         Padding = new Thickness(10, 6, 10, 6),
-        CornerRadius = new CornerRadius(10),
-        Background = Brush(White(0.08)),
-        BorderBrush = Brush(White(0.16)),
+        CornerRadius = new CornerRadius(0),
+        Background = Brush(Colors.Black),
+        BorderBrush = Brush(Line),
         BorderThickness = new Thickness(1),
     };
 

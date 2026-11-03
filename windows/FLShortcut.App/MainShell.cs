@@ -52,7 +52,8 @@ internal sealed partial class MainShell
     private readonly StackPanel _sidebarGroups = new() { Spacing = 14 };
     private readonly TextBox _search = new();
     private readonly Button _keyButton;
-    private readonly TextBlock _title = Label("", 22, Text, bold: true);
+    /// Gros titre de page (style suisse : 46, gras, serré, souligné d'un trait blanc).
+    private readonly TextBlock _title = SwissTitle();
     private readonly StackPanel _capsule = new() { Orientation = Orientation.Horizontal, Spacing = 2 };
     private readonly Border _capsuleBorder;
     private readonly StackPanel _notices = new() { Spacing = 8, Margin = new Thickness(26, 0, 26, 0) };
@@ -123,9 +124,9 @@ internal sealed partial class MainShell
         {
             Child = _capsule,
             Padding = new Thickness(3),
-            CornerRadius = new CornerRadius(25),
-            Background = Brush(White(0.10)),
-            BorderBrush = Brush(White(0.18)),
+            CornerRadius = new CornerRadius(0),
+            Background = Brush(Colors.Black),
+            BorderBrush = Brush(Text),
             BorderThickness = new Thickness(1),
             HorizontalAlignment = HorizontalAlignment.Right,
             VerticalAlignment = VerticalAlignment.Center,
@@ -352,10 +353,10 @@ internal sealed partial class MainShell
             Child = searchRow,
             Height = 34,
             Padding = new Thickness(8, 0, 6, 0),
-            CornerRadius = new CornerRadius(17),
-            Background = Brush(White(0.10)),
-            BorderBrush = Brush(White(0.16)),
-            BorderThickness = new Thickness(1),
+            CornerRadius = new CornerRadius(0),
+            Background = Brush(Colors.Transparent),
+            BorderBrush = Brush(Text),
+            BorderThickness = new Thickness(0, 0, 0, 1),              // style suisse : un trait blanc dessous
         };
         searchCapsule.Tapped += (_, _) => _search.Focus(FocusState.Programmatic);
 
@@ -371,8 +372,15 @@ internal sealed partial class MainShell
         };
         Grid.SetRow(groupsScroll, 1);
         sidebarStack.Children.Add(groupsScroll);
-        var sidebar = Plate(sidebarStack, 19, 0.10, 0.04, 0.16);
-        sidebar.Padding = new Thickness(10, 14, 10, 16);
+        // Style suisse : plus de plaque, un trait fin à droite de la barre.
+        var sidebar = new Border
+        {
+            Child = sidebarStack,
+            Background = Brush(Colors.Black),
+            BorderBrush = Brush(Line),
+            BorderThickness = new Thickness(0, 0, 1, 0),
+            Padding = new Thickness(10, 14, 10, 16),
+        };
         _main.Children.Add(sidebar);
 
         // Page : en-tête (titre, capsule) sous la barre de titre, bandeaux, puis les cartes qui défilent.
@@ -380,9 +388,13 @@ internal sealed partial class MainShell
         page.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
         page.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
         page.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
-        var header = new Grid { Margin = new Thickness(26, TitleBarHeight - 8, 26, 4), MinHeight = 52 };
+        var header = new Grid { Margin = new Thickness(26, TitleBarHeight - 8, 26, 4), MinHeight = 72, Padding = new Thickness(0, 0, 0, 10) };
         header.Children.Add(_title);
         header.Children.Add(_capsuleBorder);
+        var titleRule = Rule(Text);
+        titleRule.VerticalAlignment = VerticalAlignment.Bottom;
+        titleRule.Margin = new Thickness(0, 0, 0, -10);
+        header.Children.Add(titleRule);
         page.Children.Add(header);
         Grid.SetRow(_notices, 1);
         page.Children.Add(_notices);
@@ -425,27 +437,22 @@ internal sealed partial class MainShell
     private static StackPanel Group(string title)
     {
         var group = new StackPanel { Spacing = 2 };
-        var label = Label(title, 11, Secondary, semibold: true);
+        var label = SwissLabel(title, 10.5);
         label.Margin = new Thickness(10, 0, 10, 4);
         AutomationProperties.SetHeadingLevel(label, Microsoft.UI.Xaml.Automation.Peers.AutomationHeadingLevel.Level2);
         group.Children.Add(label);
         return group;
     }
 
-    /// Une ligne de la barre de gauche : carré de couleur (22 points), puis le nom ; choisie : pastille de sa couleur
-    /// (30/10, « ça prenne sa couleur et ça ne reste pas en bleu »), carré en blanc translucide comme au survol.
+    /// Une ligne de la barre de gauche (style suisse) : petit carré de sa couleur, puis le nom ; choisie (et au
+    /// survol) : blanc plein, texte noir en gras, comme le Mac.
     private static Button SidebarRow(string icon, Color tint, string title, bool selected, Action choose)
     {
         var tile = Tile(icon, tint, 22);
-        var row = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10 };
+        var row = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
         row.Children.Add(tile);
         row.Children.Add(Label(title, 13));
-        var button = Option(row, tint, 9, choose, selected, on => SetTileHover(tile, icon, tint, on));
-        if (selected)
-        {
-            button.Background = Brush(tint);
-            SetTileHover(tile, icon, tint, true);
-        }
+        var button = Option(row, tint, 0, choose, selected, on => SetTileHover(tile, icon, tint, on));
         AutomationProperties.SetName(button, title);
         return button;
     }
@@ -473,7 +480,7 @@ internal sealed partial class MainShell
             Height = 26,
             HorizontalAlignment = HorizontalAlignment.Right,
             HorizontalContentAlignment = HorizontalAlignment.Center,
-            CornerRadius = new CornerRadius(6),
+            CornerRadius = new CornerRadius(0),
             Content = Icon("keyboard", 15, Secondary),
         };
         ToolTipService.SetToolTip(button, Loc.T("Rechercher avec un raccourci : appuie sur les touches que tu connais"));
@@ -588,13 +595,18 @@ internal sealed partial class MainShell
             Grid.SetColumn(b, 2);
             grid.Children.Add(b);
         }
+        // Style suisse : bandeau noir au cadre fin, un trait de sa couleur à gauche (comme le Mac).
         return new Border
         {
-            Child = grid,
-            Padding = new Thickness(14, 8, 8, 8),
-            CornerRadius = new CornerRadius(14),
-            Background = Brush(WithOpacity(tint, 0.16)),
-            BorderBrush = Brush(WithOpacity(tint, 0.35)),
+            Child = new Border
+            {
+                Child = grid,
+                Padding = new Thickness(14, 8, 8, 8),
+                BorderBrush = Brush(tint),
+                BorderThickness = new Thickness(2, 0, 0, 0),
+            },
+            Background = Brush(Colors.Black),
+            BorderBrush = Brush(Line),
             BorderThickness = new Thickness(1),
         };
     }
@@ -722,24 +734,23 @@ internal sealed partial class MainShell
     /// Carte de raccourcis : son titre gris au-dessus, ses lignes dans une plaque claire, un trait fin entre deux.
     internal static StackPanel TitledCard(string title, List<FrameworkElement> rows)
     {
-        var card = new StackPanel { Spacing = 6 };
-        var label = Label(title, 12, Secondary, semibold: true);
-        label.Margin = new Thickness(12, 0, 0, 0);
+        // Style suisse : le titre en petites capitales blanches souligné d'un trait blanc, les lignes séparées de
+        // traits fins #222, sans cadre (comme les rubriques du Mac).
+        var card = new StackPanel { Spacing = 0 };
+        var label = SwissLabel(title, 11, Text);
+        label.Margin = new Thickness(0, 0, 0, 6);
         AutomationProperties.SetHeadingLevel(label, Microsoft.UI.Xaml.Automation.Peers.AutomationHeadingLevel.Level3);
         card.Children.Add(label);
-        var list = new StackPanel();
-        for (var i = 0; i < rows.Count; i++)
+        card.Children.Add(Rule(Text));
+        foreach (var row in rows)
         {
             var cell = new Grid();
-            cell.Children.Add(rows[i]);
-            if (i > 0)
-                cell.Children.Add(new Rectangle { Height = 1, Fill = Brush(White(0.06)), VerticalAlignment = VerticalAlignment.Top,
-                                                  Margin = new Thickness(10, 0, 10, 0), IsHitTestVisible = false });
-            list.Children.Add(cell);
+            cell.Children.Add(row);
+            var line = Rule(Faint);
+            line.VerticalAlignment = VerticalAlignment.Bottom;
+            cell.Children.Add(line);
+            card.Children.Add(cell);
         }
-        var plate = Plate(list, 14);
-        plate.Padding = new Thickness(2);
-        card.Children.Add(plate);
         return card;
     }
 
@@ -863,7 +874,7 @@ internal sealed partial class MainShell
             Content = Label(Loc.T("Annuler"), 13, Link, semibold: true),
             HorizontalAlignment = HorizontalAlignment.Left,
             Padding = new Thickness(6, 2, 6, 2),
-            CornerRadius = new CornerRadius(6),
+            CornerRadius = new CornerRadius(0),
         };
         _toastUndo.Click += (_, _) =>
         {
@@ -877,9 +888,9 @@ internal sealed partial class MainShell
         {
             Child = row,
             Padding = new Thickness(18, 10, 12, 10),
-            CornerRadius = new CornerRadius(20),
+            CornerRadius = new CornerRadius(0),
             Background = Brush(Rgb(0x2C, 0x2C, 0x2E)),
-            BorderBrush = Brush(White(0.16)),
+            BorderBrush = Brush(Line),
             BorderThickness = new Thickness(1),
             HorizontalAlignment = HorizontalAlignment.Center,
             VerticalAlignment = VerticalAlignment.Bottom,
