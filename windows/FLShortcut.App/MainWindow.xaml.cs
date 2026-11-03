@@ -17,6 +17,11 @@ public sealed partial class MainWindow : Window
         _shell = new MainShell(this, Root, photos);
     }
 
+    /// La fenêtre s'ouvre au lancement (premier lancement, accueil pas fini), sinon l'icône seule (comme le Mac).
+    internal bool ShowAtLaunch => _shell.ShowAtLaunch;
+
+    internal void Launched(bool windowShown) => _shell.Launched(windowShown);
+
     /// Mode photos de la CI : une page donnée (« general », « playlist », « custom », « recherche »).
     internal void ShowPage(string page) => _shell.ShowPage(page);
 }

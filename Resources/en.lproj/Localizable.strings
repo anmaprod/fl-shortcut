@@ -881,7 +881,9 @@
 "FL Shortcuts : en pause" = "FL Shortcuts: paused";
 "FL Shortcuts : raccourcis inactifs" = "FL Shortcuts: shortcuts inactive";
 "FL Shortcuts en pause" = "FL Shortcuts paused";
+"FL Shortcuts est déjà ouvert" = "FL Shortcuts is already open";
 "FL Shortcuts est désinstallé" = "FL Shortcuts is uninstalled";
+"FL Shortcuts est prêt" = "FL Shortcuts is ready";
 "FL Shortcuts n'a pas accès au clavier : tes raccourcis sont inactifs." = "FL Shortcuts has no keyboard access: your shortcuts are off.";
 "FL Shortcuts travaille en arrière-plan, depuis la barre des menus." = "FL Shortcuts works in the background, from the menu bar.";
 "FL Shortcuts – Raccourcis" = "FL Shortcuts – Shortcuts";
@@ -896,6 +898,7 @@
 "FL Studio n'est pas ouvert" = "FL Studio isn't open";
 "FL Studio n'est pas ouvert." = "FL Studio isn't open.";
 "FL Studio n'est pas passé au premier plan : recommence." = "FL Studio didn't come to the front: try again.";
+"FL Studio n'est pas reconnu" = "FL Studio isn't recognized";
 "FL Studio n'était pas au premier plan : recommence sans changer de fenêtre." = "FL Studio wasn't in front: try again without switching windows.";
 "FL Studio n'était plus au premier plan : recommence sans changer de fenêtre." = "FL Studio was no longer in front: try again without switching windows.";
 "FL Studio pas encore relié" = "FL Studio not linked yet";
@@ -1813,6 +1816,7 @@
 "Rétablit l'action annulée" = "Redoes the undone action";
 "Réussi" = "Success";
 "Réécoute tout le morceau" = "Plays the whole song again";
+"Sa signature d'Image-Line est introuvable : réinstalle FL Studio depuis le site d'Image-Line." = "Its Image-Line signature can't be found: reinstall FL Studio from the Image-Line website.";
 "Saisie sécurisée active dans une autre app : macOS ne transmet plus les touches." = "Secure Input is on in another app: macOS no longer passes keys through.";
 "Saisie sécurisée active dans une autre app : raccourcis muets." = "Secure input is on in another app: shortcuts won't work.";
 "Sans le lien avec FL : bouton mute à montrer une fois." = "Without the FL link: mute button to show once.";
@@ -1895,6 +1899,7 @@
 "Solo piste Mixer sélectionnée" = "Solo selected Mixer track";
 "Son de FL" = "FL sound";
 "Son de FL autorisé : tout est prêt." = "FL sound allowed: everything is ready.";
+"Son icône est près de l'horloge (sous ^ si Windows la cache). Clic : la fenêtre ; clic droit : le menu." = "Its icon is next to the clock (under ^ if Windows hides it). Click: the window; right-click: the menu.";
 "Son nom, tel qu'il est écrit dans le menu « Arrangement » de FL." = "Its name, as written in FL's “Arrangement” menu.";
 "Sortie du Mac : " = "Mac output: ";
 "Sortie du Mac en ce moment : " = "Mac output right now: ";

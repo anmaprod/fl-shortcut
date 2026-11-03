@@ -11,7 +11,7 @@ using Microsoft.UI.Dispatching;
 
 namespace FLShortcut.App;
 
-internal enum StatusKind { Linked, Inactive, FlClosed, Paused, Elevated, Incompatible, NoKey, Tampered }
+internal enum StatusKind { Linked, Inactive, FlClosed, Paused, Elevated, Unrecognized, Incompatible, NoKey, Tampered }
 
 internal sealed class AppController : INotifyPropertyChanged, IDisposable
 {
@@ -369,6 +369,9 @@ internal sealed class AppController : INotifyPropertyChanged, IDisposable
         else if (_foreground is { Elevated: true })
             Set(StatusKind.Elevated, "FL Studio est lancé en administrateur",
                 "Relance FL Studio normalement : Windows empêche FL Shortcuts d'agir sur une appli administrateur.");
+        else if (!flRunning && FlPresence.NamedButUnrecognized())
+            Set(StatusKind.Unrecognized, "FL Studio n'est pas reconnu",
+                "Sa signature d'Image-Line est introuvable : réinstalle FL Studio depuis le site d'Image-Line.");
         else if (Light)
         {
             if (flRunning) Set(StatusKind.Linked, "Actif dans FL Studio", "Tes raccourcis marchent quand FL Studio est au premier plan.");
@@ -402,6 +405,8 @@ internal sealed class AppController : INotifyPropertyChanged, IDisposable
 
     private void Set(StatusKind kind, string title, string text)
     {
+        // Journal : le changement d'état seulement (mots fixes), pour comprendre un « rien ne marche » à distance.
+        if (kind != Status || StatusTitle.Length == 0) AppLog.Write("STATUS", kind.ToString());
         Status = kind;
         StatusTitle = title;
         StatusText = text;

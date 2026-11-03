@@ -110,6 +110,9 @@ internal sealed class AppSettings
 {
     public bool Enabled { get; set; } = true;
     public bool Onboarded { get; set; }
+    /// La fenêtre s'est ouverte au lancement une fois (premier lancement) : ensuite FL Shortcuts démarre en icône seule,
+    /// comme sur le Mac (retour du 03/11 : « je veux que ça soit une icône avec toutes les mêmes options »).
+    public bool WindowShownAtLaunch { get; set; }
     public string? ScriptPath { get; set; }
     public string? ScriptSha256 { get; set; }
     public string Profile { get; set; } = "Recommended";

@@ -16,7 +16,6 @@ internal sealed record FlProcessInfo(uint Pid, string Path, FlVersion? Version, 
 internal static class FlPresence
 {
     private static readonly string[] ExeNames = { "FL64.exe", "FL.exe", "FL64 (scaled).exe" };
-    private const string SignerMarker = "Image-Line";
 
     /// (pid, heure de création) → FL ou non. Un pid réutilisé par un autre processus change d'heure de création.
     private static readonly ConcurrentDictionary<(uint, long), FlProcessInfo?> ByProcess = new();
@@ -63,6 +62,28 @@ internal static class FlPresence
 
     /// FL Studio est-il lancé (n'importe quelle instance signée) ?
     public static bool IsRunning() => RunningInstance() is not null;
+
+    /// Un processus porte le nom de FL Studio mais n'est pas reconnu (signature d'Image-Line absente ou invalide) :
+    /// dit tel quel à l'utilisateur, au lieu de « FL Studio n'est pas ouvert » et de raccourcis qui ne font rien.
+    public static bool NamedButUnrecognized()
+    {
+        foreach (var name in ExeNames)
+        {
+            Process[] procs;
+            try { procs = Process.GetProcessesByName(System.IO.Path.GetFileNameWithoutExtension(name)); }
+            catch { continue; }
+            var unrecognized = false;
+            foreach (var p in procs)
+            {
+                using (p)
+                {
+                    if (Identify((uint)p.Id) is null) unrecognized = true;
+                }
+            }
+            if (unrecognized) return true;
+        }
+        return false;
+    }
 
     public static FlProcessInfo? RunningInstance()
     {
@@ -140,7 +161,7 @@ internal static class FlPresence
 #pragma warning disable SYSLIB0057 // CreateFromSignedFile : lecture du signataire après validation par WinVerifyTrust
             var cert = X509Certificate.CreateFromSignedFile(path);
 #pragma warning restore SYSLIB0057
-            return cert.Subject.Contains(SignerMarker, StringComparison.OrdinalIgnoreCase);
+            return FlSigner.Matches(cert.Subject);       // « Image Line » ou « Image-Line »
         }
         catch { return false; }
     }

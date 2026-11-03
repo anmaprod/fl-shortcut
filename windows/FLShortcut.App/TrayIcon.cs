@@ -39,6 +39,18 @@ internal sealed class TrayIcon : IDisposable
         _added = Win32.Shell_NotifyIconW(Win32.NIM_ADD, ref data);
     }
 
+    /// Bulle près de l'icône (Windows 11 : une notification), pour la retrouver : sous « ^ » quand Windows la cache.
+    public void Notify(string title, string text)
+    {
+        if (!_added) return;
+        var data = Data("FL Shortcuts");
+        data.uFlags |= Win32.NIF_INFO;
+        data.szInfoTitle = title.Length > 63 ? title[..63] : title;
+        data.szInfo = text.Length > 255 ? text[..255] : text;
+        data.dwInfoFlags = Win32.NIIF_INFO;
+        Win32.Shell_NotifyIconW(Win32.NIM_MODIFY, ref data);
+    }
+
     public void SetTooltip(string tooltip)
     {
         if (!_added) return;

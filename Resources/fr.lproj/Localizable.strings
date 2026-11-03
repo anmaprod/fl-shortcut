@@ -881,7 +881,9 @@
 "FL Shortcuts : en pause" = "FL Shortcuts : en pause";
 "FL Shortcuts : raccourcis inactifs" = "FL Shortcuts : raccourcis inactifs";
 "FL Shortcuts en pause" = "FL Shortcuts en pause";
+"FL Shortcuts est déjà ouvert" = "FL Shortcuts est déjà ouvert";
 "FL Shortcuts est désinstallé" = "FL Shortcuts est désinstallé";
+"FL Shortcuts est prêt" = "FL Shortcuts est prêt";
 "FL Shortcuts n'a pas accès au clavier : tes raccourcis sont inactifs." = "FL Shortcuts n'a pas accès au clavier : tes raccourcis sont inactifs.";
 "FL Shortcuts travaille en arrière-plan, depuis la barre des menus." = "FL Shortcuts travaille en arrière-plan, depuis la barre des menus.";
 "FL Shortcuts – Raccourcis" = "FL Shortcuts – Raccourcis";
@@ -896,6 +898,7 @@
 "FL Studio n'est pas ouvert" = "FL Studio n'est pas ouvert";
 "FL Studio n'est pas ouvert." = "FL Studio n'est pas ouvert.";
 "FL Studio n'est pas passé au premier plan : recommence." = "FL Studio n'est pas passé au premier plan : recommence.";
+"FL Studio n'est pas reconnu" = "FL Studio n'est pas reconnu";
 "FL Studio n'était pas au premier plan : recommence sans changer de fenêtre." = "FL Studio n'était pas au premier plan : recommence sans changer de fenêtre.";
 "FL Studio n'était plus au premier plan : recommence sans changer de fenêtre." = "FL Studio n'était plus au premier plan : recommence sans changer de fenêtre.";
 "FL Studio pas encore relié" = "FL Studio pas encore relié";
@@ -1813,6 +1816,7 @@
 "Rétablit l'action annulée" = "Rétablit l'action annulée";
 "Réussi" = "Réussi";
 "Réécoute tout le morceau" = "Réécoute tout le morceau";
+"Sa signature d'Image-Line est introuvable : réinstalle FL Studio depuis le site d'Image-Line." = "Sa signature d'Image-Line est introuvable : réinstalle FL Studio depuis le site d'Image-Line.";
 "Saisie sécurisée active dans une autre app : macOS ne transmet plus les touches." = "Saisie sécurisée active dans une autre app : macOS ne transmet plus les touches.";
 "Saisie sécurisée active dans une autre app : raccourcis muets." = "Saisie sécurisée active dans une autre app : raccourcis muets.";
 "Sans le lien avec FL : bouton mute à montrer une fois." = "Sans le lien avec FL : bouton mute à montrer une fois.";
@@ -1895,6 +1899,7 @@
 "Solo piste Mixer sélectionnée" = "Solo piste Mixer sélectionnée";
 "Son de FL" = "Son de FL";
 "Son de FL autorisé : tout est prêt." = "Son de FL autorisé : tout est prêt.";
+"Son icône est près de l'horloge (sous ^ si Windows la cache). Clic : la fenêtre ; clic droit : le menu." = "Son icône est près de l'horloge (sous ^ si Windows la cache). Clic : la fenêtre ; clic droit : le menu.";
 "Son nom, tel qu'il est écrit dans le menu « Arrangement » de FL." = "Son nom, tel qu'il est écrit dans le menu « Arrangement » de FL.";
 "Sortie du Mac : " = "Sortie du Mac : ";
 "Sortie du Mac en ce moment : " = "Sortie du Mac en ce moment : ";

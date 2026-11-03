@@ -226,7 +226,7 @@ internal static class Win32
 
     // ---------- Zone de notification ----------
     public const uint NIM_ADD = 0, NIM_MODIFY = 1, NIM_DELETE = 2;
-    public const uint NIF_MESSAGE = 0x01, NIF_ICON = 0x02, NIF_TIP = 0x04;
+    public const uint NIF_MESSAGE = 0x01, NIF_ICON = 0x02, NIF_TIP = 0x04, NIF_INFO = 0x10, NIIF_INFO = 0x01;
     public const uint WM_LBUTTONUP = 0x0202, WM_RBUTTONUP = 0x0205, WM_CONTEXTMENU = 0x007B;
 
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]

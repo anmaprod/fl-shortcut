@@ -108,6 +108,8 @@ internal sealed partial class MainShell
             _tray = new TrayIcon(_hwnd, "FL Shortcuts");
             _tray.OpenRequested += () => window.DispatcherQueue.TryEnqueue(() => ShowFromTray(ask: true));
             _tray.MenuRequested += () => window.DispatcherQueue.TryEnqueue(ShowTrayMenu);
+            // FL Shortcuts relancé alors qu'il tourne déjà (App.OnLaunched) : la bulle montre où est son icône.
+            ShowSignal.Listen(() => window.DispatcherQueue.TryEnqueue(() => TrayTip(alreadyRunning: true)));
         }
 
         _poll = window.DispatcherQueue.CreateTimer();
@@ -154,11 +156,40 @@ internal sealed partial class MainShell
 
     // ---------- Fenêtre et zone de notification ----------
 
+    /// Comme le Mac (03/11) : la fenêtre au premier lancement (ou tant que l'accueil n'est pas fini), ensuite l'icône
+    /// seule près de l'horloge ; la fenêtre s'ouvre d'un clic sur l'icône.
+    internal bool ShowAtLaunch => !_app.Settings.WindowShownAtLaunch || !_app.Onboarded;
+
+    /// Après le lancement : fenêtre montrée (retenu pour les prochaines fois), sinon la bulle qui montre l'icône.
+    internal void Launched(bool windowShown)
+    {
+        if (windowShown)
+        {
+            if (_app.Settings.WindowShownAtLaunch) return;
+            _app.Settings.WindowShownAtLaunch = true;
+            _app.Settings.Save();
+        }
+        else if (!Environment.GetCommandLineArgs().Any(a => string.Equals(a, "--tray", StringComparison.OrdinalIgnoreCase)))
+        {
+            _tipShown = true;
+            TrayTip(alreadyRunning: false);          // lancé à la main : dire où il est (pas au démarrage de Windows)
+        }
+    }
+
+    private bool _tipShown;
+
+    private void TrayTip(bool alreadyRunning) => _tray?.Notify(
+        alreadyRunning ? Loc.T("FL Shortcuts est déjà ouvert") : Loc.T("FL Shortcuts est prêt"),
+        Loc.T("Son icône est près de l'horloge (sous ^ si Windows la cache). Clic : la fenêtre ; clic droit : le menu."));
+
     private void OnClosing(AppWindow sender, AppWindowClosingEventArgs args)
     {
         if (_quitting || _photos) return;
         args.Cancel = true;          // la croix cache la fenêtre : FL Shortcuts continue dans la zone de notification
         sender.Hide();
+        if (_tipShown) return;
+        _tipShown = true;            // la première fois : la bulle montre où il est resté
+        TrayTip(alreadyRunning: false);
     }
 
     private void ShowFromTray(bool ask)
@@ -188,8 +219,29 @@ internal sealed partial class MainShell
             if (_app.Onboarded) Choose(PageKind.Macros, _section);
         }));
         entries.Add(new("organize", Indigo, Loc.T("Organiser…"), () => OrganizerWindow.Show(_app)));
+        // Comme le Mac : reprendre si l'app est en pause, installer le lien (hors mode léger), désinstaller.
+        if (!_app.Enabled) entries.Add(new("check", Green, Loc.T("Reprendre"), _app.Toggle));
+        if (!_app.Light)
+            entries.Add(new("link", Green, Loc.T("Installer le lien avec FL Studio…"), () =>
+            {
+                ShowFromTray(ask: false);
+                Repair();
+            }));
+        if (Uninstaller() is { } uninstall)
+            entries.Add(new("trash", Gray, Loc.T("Désinstaller FL Shortcuts…"), () =>
+            {
+                try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(uninstall) { UseShellExecute = true }); }
+                catch { /* annulé (contrôle de compte) : rien à faire */ }
+            }));
         var status = _app.Enabled ? Loc.T(_app.StatusTitle) : Loc.T("En pause");
         TrayMenu.Show(status, _app.Enabled && _app.Status is StatusKind.Linked or StatusKind.FlClosed, entries, () => ShowFromTray(ask: true), Quit);
+    }
+
+    /// Le désinstalleur posé par l'installeur à côté de l'appli (il demande lui-même confirmation), s'il existe.
+    private static string? Uninstaller()
+    {
+        var path = System.IO.Path.Combine(AppContext.BaseDirectory, "unins000.exe");
+        return System.IO.File.Exists(path) ? path : null;
     }
 
     private void Quit()
@@ -496,6 +548,9 @@ internal sealed partial class MainShell
                 break;
             case StatusKind.Elevated:
                 _notices.Children.Add(Notice("warning", Red, Loc.T(_app.StatusText), null, null));
+                break;
+            case StatusKind.Unrecognized:
+                _notices.Children.Add(Notice("warning", Red, Loc.T(_app.StatusTitle) + " : " + Loc.T(_app.StatusText), null, null));
                 break;
             case StatusKind.Inactive or StatusKind.NoKey or StatusKind.Tampered or StatusKind.Incompatible:
                 _notices.Children.Add(Notice("warning", _app.Status == StatusKind.Tampered ? Red : Orange,

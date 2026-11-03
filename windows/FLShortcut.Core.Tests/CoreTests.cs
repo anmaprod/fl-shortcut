@@ -464,3 +464,20 @@ public class LightModeTests
         return dir?.FullName ?? throw new DirectoryNotFoundException("racine du dépôt");
     }
 }
+
+/// FL reconnu à son signataire (WIN-04) : le certificat de FL64.exe dit « Image Line », sa version « Image-Line ».
+public class FlSignerTests
+{
+    [Theory]
+    [InlineData("CN=Image Line, O=Image Line, L=Gent, S=Oost-Vlaanderen, C=BE")]
+    [InlineData("CN=Image-Line Software NV, O=Image-Line Software NV, C=BE")]
+    [InlineData("cn=imageline")]
+    public void Matches_ImageLine_WithSpaceOrHyphen(string subject) => Assert.True(FlSigner.Matches(subject));
+
+    [Theory]
+    [InlineData("CN=Microsoft Corporation, O=Microsoft Corporation, C=US")]
+    [InlineData("CN=Image, O=Line")]
+    [InlineData("")]
+    [InlineData(null)]
+    public void Rejects_OtherSigners(string? subject) => Assert.False(FlSigner.Matches(subject));
+}

@@ -75,9 +75,10 @@ Name: "{autoprograms}\FL Shortcuts"; Filename: "{app}\FLShortcut.exe"
 Name: "{autodesktop}\FL Shortcuts"; Filename: "{app}\FLShortcut.exe"; Tasks: desktop
 
 [Registry]
+; Au démarrage de Windows : l'icône seule, sans fenêtre ni bulle (« --tray »), comme le Mac.
 ; Lancement au démarrage enregistré sous l'ancien nom : retiré (sinon l'appli démarrerait deux fois).
 Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: none; ValueName: "FL Shortcut"; Flags: deletevalue
-Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: string; ValueName: "FL Shortcuts"; ValueData: """{app}\FLShortcut.exe"""; Flags: uninsdeletevalue; Tasks: startup
+Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: string; ValueName: "FL Shortcuts"; ValueData: """{app}\FLShortcut.exe"" --tray"; Flags: uninsdeletevalue; Tasks: startup
 
 [Run]
 Filename: "{app}\FLShortcut.exe"; Description: "{cm:LaunchNow}"; Flags: nowait postinstall skipifsilent

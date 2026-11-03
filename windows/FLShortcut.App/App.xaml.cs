@@ -46,13 +46,40 @@ public partial class App : Application
         _single = new Mutex(initiallyOwned: true, @"Local\FLShortcut.SingleInstance", out var created);
         if (!created)
         {
-            // Une autre instance tourne déjà : on ne crée ni hook ni port en double.
+            // Une autre instance tourne déjà : on ne crée ni hook ni port en double ; elle montre où est son icône.
+            ShowSignal.Raise();
             Exit();
             return;
         }
         Services.AppLogFile.Install();              // journal des macros et de l'Organiser (mots fixes et nombres)
         _window = new MainWindow();
-        var startHidden = Environment.GetCommandLineArgs().Any(a => string.Equals(a, "--tray", StringComparison.OrdinalIgnoreCase));
+        // Comme le Mac (03/11) : FL Shortcuts vit dans la zone de notification ; la fenêtre au premier lancement
+        // seulement. « --tray » (démarrage de Windows) : jamais de fenêtre ni de bulle.
+        var startHidden = Environment.GetCommandLineArgs().Any(a => string.Equals(a, "--tray", StringComparison.OrdinalIgnoreCase))
+                          || !_window.ShowAtLaunch;
         if (!startHidden) _window.Activate();
+        _window.Launched(windowShown: !startHidden);
+    }
+}
+
+/// FL Shortcuts relancé alors qu'il tourne déjà : la 2e copie le dit à la première (bulle de son icône), puis se ferme.
+internal static class ShowSignal
+{
+    private const string Name = @"Local\FLShortcut.Show";
+
+    public static void Raise()
+    {
+        try
+        {
+            using var signal = EventWaitHandle.OpenExisting(Name);
+            signal.Set();
+        }
+        catch { /* première copie pas encore prête : rien de plus */ }
+    }
+
+    public static void Listen(Action onSignal)
+    {
+        var signal = new EventWaitHandle(false, EventResetMode.AutoReset, Name);
+        new Thread(() => { while (signal.WaitOne()) onSignal(); }) { IsBackground = true, Name = "FLShortcut.Show" }.Start();
     }
 }
