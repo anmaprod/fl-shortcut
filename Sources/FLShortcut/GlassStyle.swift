@@ -1300,7 +1300,9 @@ struct SwissPicker<Value: Hashable, Content: View>: View {
         .menuStyle(.button)
         .buttonStyle(.plain)
         .menuIndicator(.hidden)
-        .fixedSize()
+        // Jamais plus large que la place (03/11 : le panneau des réglages dépassait à droite avec « Ajouter un
+        // instrument (VST, plugin…) » et « Analog Lab V ») : le nom se coupe au milieu.
+        .fixedSize(horizontal: false, vertical: true)
         .accessibilityValue(current)
     }
 }
@@ -1314,7 +1316,7 @@ private struct SwissPickerLabel: View {
         let lit = hovering && enabled
         return HStack(spacing: 8) {
             Text(text).lineLimit(1).truncationMode(.middle)
-            Image(systemName: "chevron.down").font(.system(size: 9, weight: .bold))
+            Image(systemName: "chevron.down").font(.system(size: 9, weight: .bold)).layoutPriority(1)
         }
         .font(.system(size: 12, weight: .medium))
         .foregroundStyle(lit ? Swiss.background : Swiss.text)
@@ -1380,10 +1382,11 @@ struct SwissLabeledContentStyle: LabeledContentStyle {
             configuration.label
                 .font(.system(size: 12))
                 .foregroundStyle(Swiss.gray)
-                .fixedSize(horizontal: false, vertical: true)
+                .fixedSize()                                 // le libellé en entier, le réglage prend le reste
             Spacer(minLength: 8)
             configuration.content
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
 

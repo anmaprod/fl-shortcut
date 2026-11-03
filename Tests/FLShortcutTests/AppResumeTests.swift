@@ -169,14 +169,12 @@ final class AppResumeTests: XCTestCase {
         XCTAssertEqual(AudioCapturePermission.from(1), .denied)
         XCTAssertEqual(AudioCapturePermission.from(2), .unknown)
         XCTAssertEqual(AudioCapturePermission.from(nil), .unknown)
-        XCTAssertTrue(AccessibilityGuide.allowed(.granted, answeredAllow: false, screenAndAudio: false))
-        XCTAssertTrue(AccessibilityGuide.allowed(.unknown, answeredAllow: true, screenAndAudio: false),
-                      "« Autoriser » choisi, TCC encore muet")
-        XCTAssertTrue(AccessibilityGuide.allowed(.unknown, answeredAllow: false, screenAndAudio: true),
-                      "case du haut de la page cochée")
-        XCTAssertTrue(AccessibilityGuide.allowed(.denied, answeredAllow: false, screenAndAudio: true))
-        XCTAssertFalse(AccessibilityGuide.allowed(.denied, answeredAllow: true, screenAndAudio: false), "refusé")
-        XCTAssertFalse(AccessibilityGuide.allowed(.unknown, answeredAllow: false, screenAndAudio: false))
+        // 03/11 : le son de FL, c'est « Enregistrement de l'écran et audio du système » (liste du haut).
+        XCTAssertEqual(AudioCapturePermission.screenStatus(preflight: true, raw: nil), .granted)
+        XCTAssertEqual(AudioCapturePermission.screenStatus(preflight: false, raw: 0), .granted, "TCC lu en direct")
+        XCTAssertEqual(AudioCapturePermission.screenStatus(preflight: false, raw: 1), .denied)
+        XCTAssertEqual(AudioCapturePermission.screenStatus(preflight: false, raw: 2), .unknown)
+        XCTAssertEqual(AudioCapturePermission.screenStatus(preflight: false, raw: nil), .unknown)
     }
 
     func testWelcomeWaitsUntilThePermissionIsGiven() {

@@ -43,8 +43,13 @@
 - Langue du Mac : toute l'app en anglais (`Resources/en.lproj`), français par défaut.
 - Trousseau : un seul élément pour la clé du script et la session du compte (une seule demande d'accès).
 - Autorisations au début (`AccessibilityGuide`) : page Accessibilité seule (ni Finder, ni panneau depuis l'accueil),
-  puis le son de FL (Audio du système) ; « Enregistrement de l'écran » jamais au début (créateur de macros seulement ;
-  icônes de l'Organiser : « Autoriser » ouvre sa page des Réglages). Vidéo du 31/10 : l'accueil revient 0,8 s après la
+  puis le son de FL. 03/11 (« tu as mis Enregistrement audio du système uniquement alors qu'il faut l'écran et l'audio
+  du système, à corriger ») : le son de FL = « Enregistrement de l'écran et audio du système », la liste du HAUT
+  (`AudioCapturePermission.screenAndAudioStatus` : TCC ScreenCapture lu en direct + CGPreflight ; demandée par
+  `ScreenLook.requestOnce` — fenêtre de macOS qui mène aux Réglages — sinon les Réglages, puis « Quitter et
+  rouvrir » ; plus de TCCAccessRequest AudioCapture ni de `tccutil reset`). L'écoute reste un tap Core Audio (FL muet
+  pendant l'écoute). Organiser : même autorisation avant l'écoute, attend tant qu'elle n'est pas donnée. Windows : aucune
+  autorisation de ce genre (rien à changer). L'ancien texte ci-dessous (son seul) n'est plus vrai. Vidéo du 31/10 : l'accueil revient 0,8 s après la
   réponse à la question du son (plus pendant son fondu) ; TCC relu après la réponse (0,5 à 6 s) et à chaque retour de
   l'app, rien conclu pendant la question (« Son de FL » restait « À autoriser ») ; journal `AUDIO` (réponse, état TCC).
   01/11 (« ça écrit pas Autorisé ») : l'accueil relit les deux chaque seconde ; relancée (« Quitter et rouvrir ») avant
@@ -262,7 +267,12 @@
   sous `MacroEditorView.minWidth` tant que le créateur est là (élargie à son ouverture, `makeRoom`) ; triangle
   « attention » du créateur (« La macro est vide. ») en blanc, plus en jaune. Page Macros : numéros 01/02/03 gris,
   celui de la case sous la souris en rouge (`CardNumber` ; plus de 01 rouge d'office) ; une macro s'ouvre sans bloc
-  choisi (`MacroEditorModel.open` : `selection = nil`).
+  choisi (`MacroEditorModel.open` : `selection = nil`). Réglages d'un bloc qui dépassaient à droite (listes trop
+  larges) → les `SwissPicker` se coupent (`…`). « Ajouter un effet » : la liste des plugins lue aussi quand on change
+  d'option (`.task(id: item)`, avant : champ à écrire). Ouvrir un plugin (« Ouvre un VST », vidéo du 03/11 : Analog
+  Lab V jamais trouvé dans « More plugins… ») : d'abord le menu Add de FL s'il y est (favori, sans lire l'écran), sinon
+  « More plugins… » : « Find » cliqué et le nom tapé (`searchPluginList`), lecture tolérante (étoile, ligne d'un seul
+  tenant, `PluginListPick.best`) et format préféré : instrument VST3 puis VST, effet du Mixer AU d'abord.
   Téléchargement Mac : le .pkg seul (le .dmg reste fabriqué pour les essais, jamais publié) + LISEZMOI.html au style
   suisse avec images (Mac et Windows : modèles `docs/telechargement/modele-*.html`, `python3 scripts/lisezmoi.py` y
   colle les images → LISEZMOI-Mac/Windows.html ; exemples validés au fil de ses retours : artefacts privés

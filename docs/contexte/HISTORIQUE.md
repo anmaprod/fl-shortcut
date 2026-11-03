@@ -730,3 +730,9 @@ entrée 1 ≈ 0,5 s.
   « quand on rétrécit trop Macro ça fait chelou » → largeur mini du créateur. « Le logo attention… en noir et
   blanc » (le triangle jaune de « La macro est vide. ») → blanc. Puis : le rouge des numéros 01/02/03 de la page
   Macros suit la souris (aucun rouge au repos) ; une macro s'ouvre sans bloc choisi.
+- 03/11 (2) : autorisation du son de FL dans la mauvaise liste (« audio du système uniquement ») → « Enregistrement de
+  l'écran et audio du système » (liste du haut), Mac ; Windows n'a pas cette autorisation. Panneau des réglages qui
+  dépassait à droite → listes qui se coupent. Effet : champ à écrire au lieu de la liste → liste relue au changement
+  d'option. Vidéo « Analog Lab V ne s'ouvre pas » : la liste « More plugins… » montrait Analog Lab V en haut, jamais
+  reconnu (étoile ou ligne lue d'un bloc) → menu Add d'abord, puis « Find » + nom tapé, lecture tolérante, VST3 puis
+  VST pour un instrument, AU d'abord pour le Mixer (idée du propriétaire).

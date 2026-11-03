@@ -1116,7 +1116,13 @@ private struct PluginField: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
-            if case .loaded(let names) = list.state, !typing {
+            if list.state == nil || list.state == .loading, !typing {
+                // Lecture en cours : la liste arrive (pas de champ à écrire en attendant).
+                HStack(spacing: 8) {
+                    ProgressView().controlSize(.small)
+                    Text("Lecture de la liste des plugins…").font(.system(size: 11)).foregroundStyle(.secondary)
+                }
+            } else if case .loaded(let names) = list.state, !typing {
                 HStack(spacing: 6) {
                     SwissPicker(String(localized: "Plugin"), selection: Binding(get: { value }, set: { choose($0, names: names) }),
                                 current: value.isEmpty ? String(localized: "À choisir")
@@ -1172,7 +1178,9 @@ private struct PluginField: View {
                 .fixedSize(horizontal: false, vertical: true)
             }
         }
-        .onAppear { list.loadIfNeeded() }
+        // À l'arrivée et à chaque changement d'option (instrument → effet) : le réglage reste affiché, la liste change
+        // (03/11 : pour un effet, un champ à écrire au lieu de la liste — celle des effets n'était jamais lue).
+        .task(id: item) { list.loadIfNeeded() }
     }
 
     /// Un favori du menu : tel quel. Un plugin installé : son favori s'il en a un, sinon pris dans « More plugins… »

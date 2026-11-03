@@ -60,8 +60,10 @@ TEXTES = {
     ": clique « Tout autoriser… », coche FL Shortcuts, puis ton mot de passe ou Touch ID.":
         ": click “Allow all…”, turn on FL Shortcuts, then your password or Touch ID.",
     "Son de FL": "FL sound",
-    ": à la question de macOS, réponds": ": when macOS asks, answer",
-    "Autoriser": "Allow",
+    ": coche FL Shortcuts dans": ": turn on FL Shortcuts in",
+    "Enregistrement de l'écran et audio du système": "Screen & System Audio Recording",
+    "(la liste du haut), puis": "(the top list), then",
+    "Quitter et rouvrir": "Quit & Reopen",
     "L'accueil de FL Shortcuts : Clavier autorisé, Son de FL à autoriser":
         "FL Shortcuts' welcome window: Keyboard allowed, FL sound to allow",
     "Autorisé": "Allowed",

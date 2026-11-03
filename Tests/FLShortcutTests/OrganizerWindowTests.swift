@@ -690,7 +690,7 @@ final class OrganizerWindowTests: XCTestCase {
         waitFor(fresh) { if case .failed = $0 { return true } else { return false } }
         XCTAssertEqual(asked.count, 1, "demandée une seule fois")
         fresh.close()
-        XCTAssertTrue(OrganizerError.noSound.message.contains("Audio du système"))
+        XCTAssertTrue(OrganizerError.noSound.message.contains("Enregistrement de l'écran et audio du système"))
     }
 
     /// « Copier le diagnostic » : versions, étape et ce que l'écoute a fait, jamais un nom de son.

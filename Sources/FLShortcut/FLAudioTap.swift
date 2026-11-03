@@ -3,6 +3,7 @@
 // Créée au début de l'écoute, tout est détruit à la fin (tap, appareil agrégé privé, IOProc). La première fois, macOS
 // demande l'autorisation « Audio système » (NSAudioCaptureUsageDescription).
 import CoreAudio
+import CoreGraphics
 import Foundation
 
 enum CaptureError: Error, Equatable {
@@ -13,7 +14,7 @@ enum CaptureError: Error, Equatable {
     var message: String {
         switch self {
         case .processNotFound: return String(localized: "FL Studio n'envoie pas de son pour l'instant : ouvre ton projet dans FL, puis relance Organiser.")
-        case .failed(let step, let status): return String(localized: "Écoute de FL impossible (\(step), erreur \(status)) : vérifie l'autorisation « Audio système » de FL Shortcuts dans Réglages Système › Confidentialité et sécurité.")
+        case .failed(let step, let status): return String(localized: "Écoute de FL impossible (\(step), erreur \(status)) : vérifie l'autorisation « Enregistrement de l'écran et audio du système » de FL Shortcuts dans Réglages Système › Confidentialité et sécurité.")
         case .unsupportedFormat: return String(localized: "Format du son de FL inattendu : écoute impossible.")
         }
     }
@@ -51,41 +52,24 @@ enum AudioCapturePermission: Equatable {
     /// direct (celle de CoreGraphics ne change qu'après une relance) : elle comprend l'audio du système.
     static var screenAndAudio: Bool { raw("kTCCServiceScreenCapture" as CFString) == 0 }
 
+    /// L'autorisation demandée pour le son de FL depuis le 03/11 (« tu as mis Enregistrement audio du système
+    /// uniquement, alors qu'il faut Enregistrement de l'écran et audio du système ») : la liste du haut de la page des
+    /// Réglages. Lue en direct dans TCC, et par CoreGraphics (à jour après une relance).
+    static var screenAndAudioStatus: AudioCapturePermission {
+        screenStatus(preflight: CGPreflightScreenCaptureAccess(), raw: raw("kTCCServiceScreenCapture" as CFString))
+    }
+
+    /// Pur (testé) : donnée si CoreGraphics ou TCC le dit ; refusée si TCC le dit ; sinon pas encore demandée.
+    static func screenStatus(preflight: Bool, raw: Int32?) -> AudioCapturePermission {
+        if preflight || raw == 0 { return .granted }
+        return raw == 1 ? .denied : .unknown
+    }
+
     /// Pour le journal : les deux réponses brutes (son seul, écran et son), des nombres seulement.
     static var rawSummary: String {
         let audio = raw(service).map { "\($0)" } ?? "-"
         let screen = raw("kTCCServiceScreenCapture" as CFString).map { "\($0)" } ?? "-"
         return "audio=\(audio) screen=\(screen)"
-    }
-
-    /// Retour du 01/11 (« n'attend toujours pas… ça ne fait pas l'encoche Autorisé ») : déjà refusé (ou noté pour une
-    /// ancienne version de l'app), macOS ne repose plus la question et il fallait passer par les Réglages (la page
-    /// « Enregistrement de l'écran et de l'audio du système », deux listes, « Quitter et rouvrir »). La réponse de
-    /// macOS pour FL Shortcuts seulement, et seulement pour l'audio du système, est effacée (`tccutil reset`, comme le
-    /// ferait la commande à la main) : la question « Autoriser » revient. Vrai si c'est fait.
-    static func resetDecision() -> Bool {
-        guard Bundle.main.bundleURL.pathExtension == "app", let id = Bundle.main.bundleIdentifier,
-              id.hasPrefix("app.flshortcut") else { return false }
-        let task = Process()
-        task.executableURL = URL(fileURLWithPath: "/usr/bin/tccutil")
-        task.arguments = ["reset", "AudioCapture", id]
-        task.standardOutput = FileHandle.nullDevice
-        task.standardError = FileHandle.nullDevice
-        do { try task.run() } catch { return false }
-        task.waitUntilExit()
-        return task.terminationStatus == 0
-    }
-
-    /// Fenêtre de macOS (une seule fois) ; `done(autorisé)` sur le fil principal. Faux : rien n'a pu être demandé.
-    @discardableResult
-    static func request(_ done: @escaping (Bool) -> Void) -> Bool {
-        typealias Request = @convention(c) (CFString, CFDictionary?, @convention(block) (Bool) -> Void) -> Void
-        guard let tcc, let symbol = dlsym(tcc, "TCCAccessRequest") else { return false }
-        SingleInstance.watchForRelaunch()                // « Quitter et rouvrir » : l'app revient
-        unsafeBitCast(symbol, to: Request.self)(service, nil) { granted in
-            DispatchQueue.main.async { done(granted) }
-        }
-        return true
     }
 }
 

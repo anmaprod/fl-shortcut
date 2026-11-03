@@ -183,6 +183,32 @@ final class MacroPagesTests: XCTestCase {
         XCTAssertEqual(PluginListPick.find("Serum 2", in: items)?.box.minY, 50)
         XCTAssertNil(PluginListPick.find("Serum", in: items))
         XCTAssertNil(PluginListPick.find("", in: items))
+        // Vidéo du 03/11 : « Analog Lab V » derrière l'étoile des favoris, ou lu avec ses colonnes.
+        let rows = [TextLook.Item(text: "☆ Analog Lab V", box: CGRect(x: 10, y: 40, width: 90, height: 14)),
+                    TextLook.Item(text: "Analog Lab V VST3 Apple + Intel", box: CGRect(x: 30, y: 20, width: 200, height: 14))]
+        XCTAssertEqual(PluginListPick.find("Analog Lab V", in: rows)?.box.minY, 20)
+        XCTAssertEqual(PluginListPick.find("Analog Lab V", in: [rows[0]])?.box.minY, 40)
+        XCTAssertNil(PluginListPick.find("Analog Lab", in: rows), "« V » n'est pas un format")
+
+        // Format préféré (03/11) : instrument en VST3 puis VST, effet du Mixer en AU.
+        func row(_ name: String, _ format: String, y: CGFloat) -> [TextLook.Item] {
+            [TextLook.Item(text: name, box: CGRect(x: 30, y: y, width: 90, height: 14)),
+             TextLook.Item(text: format, box: CGRect(x: 300, y: y + 1, width: 30, height: 12))]
+        }
+        let list = row("Analog Lab V", "VST", y: 20) + row("☆ Analog Lab V", "VST3", y: 40) + row("Analog Lab V", "AU", y: 60)
+        XCTAssertEqual(PluginListPick.best("Analog Lab V", prefer: PluginListPick.preferredFormats(item: "Channel"),
+                                           in: list)?.box.minY, 40, "VST3")
+        XCTAssertEqual(PluginListPick.best("Analog Lab V", prefer: PluginListPick.preferredFormats(item: "Effect"),
+                                           in: list)?.box.minY, 60, "AU")
+        XCTAssertEqual(PluginListPick.best("Analog Lab V", prefer: PluginListPick.preferredFormats(item: "Channel"),
+                                           in: row("Analog Lab V", "VST", y: 20) + row("Analog Lab V", "AU", y: 60))?.box.minY,
+                       20, "pas de VST3 : VST")
+        XCTAssertEqual(PluginListPick.best("Analog Lab V", prefer: PluginListPick.preferredFormats(item: "Channel"),
+                                           in: [rows[1]])?.box.minY, 20, "ligne d'un seul tenant")
+        XCTAssertEqual(PluginListPick.findButton(in: [TextLook.Item(text: "Find", box: CGRect(x: 120, y: 580, width: 30, height: 12))],
+                                                 height: 620)?.box.minX, 120)
+        XCTAssertNil(PluginListPick.findButton(in: [TextLook.Item(text: "Find", box: CGRect(x: 120, y: 80, width: 30, height: 12))],
+                                               height: 620), "seulement en bas de la liste")
     }
 
     func testPluginPathsAndGroups() throws {

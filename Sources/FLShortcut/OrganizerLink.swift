@@ -99,8 +99,8 @@ enum OrganizerError: Error, Equatable {
         case .flClosed: return String(localized: "FL Studio n'est pas ouvert.")
         case .noSound:
             return String(localized: """
-                Aucun son reçu de FL pendant l'écoute. Vérifie que FL Shortcuts a l'autorisation « Audio du système » \
-                (Réglages Système › Confidentialité et sécurité › Enregistrement de l'écran et de l'audio du système), \
+                Aucun son reçu de FL pendant l'écoute. Vérifie que FL Shortcuts est coché dans « Enregistrement de \
+                l'écran et audio du système » (Réglages Système › Confidentialité et sécurité, la liste du haut), \
                 et que les sons choisis jouent bien dans FL (Master pas coupé), puis « Réessayer ».
                 """)
         case .projectNotFound:

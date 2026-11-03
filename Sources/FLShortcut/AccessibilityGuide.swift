@@ -23,12 +23,14 @@ final class AccessibilityGuide: ObservableObject {
     private var openedSettings = false
     /// La fenêtre d'accueil est cachée pendant la question du son de macOS.
     private var accueilCache = false
-    /// La question du son de macOS est affichée (jusqu'à la réponse) : rien n'est conclu de TCC pendant ce temps.
-    private var audioQuestionOpen = false
-    /// Le son de FL se donne dans les Réglages (la question n'a pas pu revenir) : on attend qu'il soit coché, tant que
-    /// les Réglages sont ouverts, au lieu de conclure « refusé » à la première seconde.
+    /// Le son de FL se donne dans les Réglages (« Enregistrement de l'écran et audio du système ») : on attend qu'il
+    /// soit coché, tant que les Réglages sont ouverts, au lieu de conclure « refusé » à la première seconde.
     @Published private(set) var audioInSettings = false
     private var settingsGoneSince: Date?
+    /// Réglages déjà vus ouverts pour le son (la fenêtre de macOS y mène quand on clique son bouton), et depuis quand
+    /// on attend : sans Réglages ouverts en 2 minutes, on arrête d'attendre.
+    private var settingsSeen = false
+    private var settingsAskedAt: Date?
     private var timer: Timer?
     /// Montrer le petit panneau (faux depuis l'accueil, qui explique déjà quoi faire).
     private var showsPanel = true
@@ -70,109 +72,50 @@ final class AccessibilityGuide: ObservableObject {
     /// encore « pas demandé » après « Autoriser », ou la case cochée était celle du haut de la page (« Enregistrement de
     /// l'écran et de l'audio du système »). Compte aussi : « Autoriser » choisi à la question de macOS (retenu), et la
     /// case du haut (l'écran et l'audio du système).
+    /// Son de FL : « Enregistrement de l'écran et audio du système » (la liste du haut des Réglages, 03/11).
     static var audioAllowed: Bool {
         guard #available(macOS 14.2, *) else { return true }
-        return allowed(AudioCapturePermission.status, answeredAllow: answeredAllow,
-                       screenAndAudio: AudioCapturePermission.screenAndAudio)
-    }
-
-    /// Pur (testé) : refusé reste refusé, sauf la case de l'écran et de l'audio du système cochée.
-    static func allowed(_ status: AudioCapturePermission, answeredAllow: Bool, screenAndAudio: Bool) -> Bool {
-        switch status {
-        case .granted: return true
-        case .denied: return screenAndAudio
-        case .unknown: return answeredAllow || screenAndAudio
-        }
-    }
-
-    /// « Autoriser » choisi à la question du son (retenu d'une ouverture à l'autre ; seulement pour afficher
-    /// « Autorisé », rien d'autre n'en dépend).
-    static let answeredAllowKey = "audioAnsweredAllow"
-    static var answeredAllow: Bool {
-        get { UserDefaults.standard.bool(forKey: answeredAllowKey) }
-        set { UserDefaults.standard.set(newValue, forKey: answeredAllowKey) }
+        return AudioCapturePermission.screenAndAudioStatus == .granted
     }
 
     /// Son de FL demandable sur ce Mac et pas encore autorisé.
     static var audioMissing: Bool { !audioAllowed }
 
-    /// La fenêtre de macOS pour le son (« Autoriser ») ; déjà refusé : la réponse de macOS est effacée et la question
-    /// revient (retour du 01/11 : par les Réglages, l'app se rouvrait avant « Autoriser » et « Autorisé » ne venait
-    /// pas) ; les Réglages seulement si la question ne peut pas revenir.
+    /// Son de FL (03/11 : « tu as mis Enregistrement audio du système uniquement, alors qu'il faut l'écran et l'audio
+    /// du système ») : la liste du haut, « Enregistrement de l'écran et audio du système ». macOS ne la donne que dans
+    /// les Réglages : sa fenêtre (la première fois) y mène par son bouton, sinon les Réglages s'ouvrent ; FL Shortcuts
+    /// s'y coche, puis « Quitter et rouvrir » (l'app relancée attend cachée, `PermissionRelaunchWait`).
     private func askAudio() {
         stage = .audio
         AppResume.shared.noteAsking("son")
         guard #available(macOS 14.2, *) else { return }
-        switch AudioCapturePermission.status {
-        case .unknown:
-            askAudioQuestion()
-        case .denied:
-            audioQuestionOpen = true                        // rien n'est conclu pendant l'effacement
-            DispatchQueue.global(qos: .userInitiated).async {
-                let reset = AudioCapturePermission.resetDecision()
-                DispatchQueue.main.async { [weak self] in
-                    guard let self else { return }
-                    self.audioQuestionOpen = false
-                    let status = AudioCapturePermission.status
-                    if reset { Self.answeredAllow = false }
-                MacroLog.shared.write("AUDIO", "refused before: answer reset \(reset ? "done" : "failed"), TCC \(status), "
-                                      + AudioCapturePermission.rawSummary)
-                    if status == .granted {
-                        self.audioGranted = true
-                    } else if reset && status == .unknown {
-                        self.askAudioQuestion()
-                    } else {
-                        self.openAudioSettings()
-                    }
-                }
-            }
-        case .granted:
+        if Self.audioAllowed {
             audioGranted = true
+            return
         }
-    }
-
-    /// La question de macOS. Vidéo du 30/10 : la fenêtre d'accueil se retire pendant la question et ne revient
-    /// qu'une fois la réponse donnée (au plus tard au bout de 2 minutes, si la question disparaît sans réponse).
-    @available(macOS 14.2, *)
-    private func askAudioQuestion() {
-        hideWelcome()
-        NSApp.activate(ignoringOtherApps: true)             // la fenêtre de macOS devant, pas derrière les réglages
-        audioQuestionOpen = true
-        let asked = Date()
-        let shown = AudioCapturePermission.request { [weak self] ok in
-            guard let self else { return }
-            self.audioQuestionOpen = false
-            let ms = Int(Date().timeIntervalSince(asked) * 1000)
-            let status = AudioCapturePermission.status
-            MacroLog.shared.write("AUDIO", "question answered after \(ms) ms: \(ok ? "allowed" : "not allowed"), "
-                                  + "TCC \(status), " + AudioCapturePermission.rawSummary)
-            // « Autoriser » : dit par macOS, ou une vraie réponse (le temps de lire) sans refus noté par TCC.
-            if ok || (ms >= 700 && status != .denied) { Self.answeredAllow = true }
-            if ok || Self.audioAllowed {
-                self.audioGranted = true
-            } else if ms < 700 {
-                // Répondu sans attendre personne : macOS n'a pas montré la question (il envoie vers les Réglages).
-                self.openAudioSettings()
-                return
-            }
-            // Vidéo du 31/10 : l'accueil revenait pendant que la question de macOS se refermait (fondu) ; il attend
-            // qu'elle ait disparu.
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) { self.showWelcome() }
-            self.recheckAudioSoon()
-        }
-        if !shown {
-            audioQuestionOpen = false
+        NSApp.activate(ignoringOtherApps: true)             // la fenêtre de macOS devant
+        let window = ScreenLook.requestOnce()
+        MacroLog.shared.write("AUDIO", "screen+audio asked (\(window ? "macOS window" : "settings")) "
+                              + AudioCapturePermission.rawSummary)
+        if window {
+            audioInSettings = true                          // sa fenêtre mène aux Réglages : on attend
+            settingsGoneSince = nil
+            settingsSeen = false
+            settingsAskedAt = Date()
+            SingleInstance.watchForRelaunch()               // « Quitter et rouvrir » : l'app revient
+        } else {
             openAudioSettings()
         }
     }
 
-    /// Dernier recours : la page « Enregistrement de l'écran et de l'audio du système » des Réglages, où FL Shortcuts
-    /// se coche sous « audio du système uniquement » ; l'accueil (dit sur sa ligne) attend qu'il le soit, tant que les
-    /// Réglages restent ouverts. Relancée par « Quitter et rouvrir » avant « Autoriser », l'app attend cachée
-    /// (`PermissionRelaunchWait`, autorisation notée).
+    /// La page « Enregistrement de l'écran et audio du système » des Réglages, où FL Shortcuts se coche dans la liste
+    /// du haut ; l'accueil (dit sur sa ligne) attend qu'il le soit, tant que les Réglages restent ouverts. Relancée
+    /// par « Quitter et rouvrir », l'app attend cachée (`PermissionRelaunchWait`, autorisation notée).
     private func openAudioSettings() {
         audioInSettings = true
         settingsGoneSince = nil
+        settingsSeen = false
+        settingsAskedAt = Date()
         AppResume.shared.noteAsking("son")
         MacroLog.shared.write("AUDIO", "settings opened")
         ScreenLook.openSettings()
@@ -269,9 +212,6 @@ final class AccessibilityGuide: ObservableObject {
                 if Self.audioMissing { withAnimation(Motion.quickMorph) { self.askAudio() } } else { self.close() }
             }
         case .audio:
-            // Pendant la question de macOS, TCC ne dit encore rien de sûr : on attend la réponse (vidéo du 31/10 : la
-            // vérification s'arrêtait là, et « Son de FL » restait « À autoriser » une fois autorisé).
-            guard !audioQuestionOpen else { return }
             if audioGranted || Self.audioAllowed {
                 audioGranted = true
                 MacroLog.shared.write("AUDIO", "given\(audioInSettings ? " in settings" : "")")
@@ -283,18 +223,18 @@ final class AccessibilityGuide: ObservableObject {
                 return
             }
             if audioInSettings {
-                // Dans les Réglages : on attend qu'il soit coché ; Réglages fermés depuis 3 s, on arrête d'attendre.
+                // Dans les Réglages : on attend qu'il soit coché ; Réglages fermés depuis 3 s (après les avoir vus
+                // ouverts), ou jamais ouverts en 2 minutes (fenêtre de macOS refusée), on arrête d'attendre.
                 let open = !NSRunningApplication.runningApplications(
                     withBundleIdentifier: "com.apple.systempreferences").isEmpty
-                if open { settingsGoneSince = nil } else if settingsGoneSince == nil { settingsGoneSince = Date() }
-                if let gone = settingsGoneSince, Date().timeIntervalSince(gone) >= 3 {
+                if open { settingsSeen = true }
+                if open || !settingsSeen { settingsGoneSince = nil } else if settingsGoneSince == nil { settingsGoneSince = Date() }
+                let neverOpened = !settingsSeen && (settingsAskedAt.map { Date().timeIntervalSince($0) >= 120 } ?? true)
+                if neverOpened || settingsGoneSince.map({ Date().timeIntervalSince($0) >= 3 }) == true {
                     MacroLog.shared.write("AUDIO", "settings closed, not given")
                     close()
                 }
                 return
-            }
-            if #available(macOS 14.2, *), !showsPanel, AudioCapturePermission.status == .denied {
-                close()                                     // refusé depuis l'accueil : redemandé à l'Organiser
             }
         }
     }

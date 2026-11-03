@@ -176,10 +176,14 @@ struct OrganizerEnvironment {
                 }
             },
             soundFile: { SampleFiles.liveReader() },
-            audioPermission: { AudioCapturePermission.status },
+            // « Enregistrement de l'écran et audio du système » (03/11) : la fenêtre de macOS (la première fois) mène
+            // aux Réglages par son bouton, sinon les Réglages s'ouvrent ; Organiser attend qu'elle soit donnée.
+            audioPermission: { AudioCapturePermission.screenAndAudioStatus },
             requestAudioPermission: { done in
                 NSApp.activate(ignoringOtherApps: true)        // la fenêtre de macOS devant FL, pas derrière
-                return AudioCapturePermission.request(done)
+                if !ScreenLook.requestOnce() { ScreenLook.openSettings() }
+                DispatchQueue.main.asyncAfter(deadline: .now() + 1) { done(false) }
+                return true
             },
             openAudioSettings: { ScreenLook.openSettings() },
             about: {
@@ -612,7 +616,11 @@ final class OrganizerController: ObservableObject {
                 phase = .waiting(.audioPermission)
                 return
             }
-        default:
+        case .unknown:
+            // Demandée, pas encore donnée (elle se coche dans les Réglages) : Organiser attend.
+            wait(.audioPermission)
+            return
+        case .granted:
             break
         }
         let audio: AudioSource
@@ -2027,11 +2035,11 @@ struct OrganizerView: View {
             return ("stop.fill", String(localized: "Arrête la lecture dans FL"),
                     String(localized: "Organiser écoute chaque son seul : FL doit être à l'arrêt."))
         case .audioPermission:
-            return ("speaker.wave.2.fill", String(localized: "Autorise « Audio du système »"),
+            return ("speaker.wave.2.fill", String(localized: "Autorise « Enregistrement de l'écran et audio du système »"),
                     String(localized: """
                         Organiser écoute seulement le son de FL, sans l'enregistrer. Réglages Système › Confidentialité et \
-                        sécurité › Enregistrement de l'écran et de l'audio du système : active FL Shortcuts dans « Audio \
-                        du système uniquement ».
+                        sécurité › Enregistrement de l'écran et audio du système : active FL Shortcuts dans la liste du \
+                        haut, puis « Quitter et rouvrir ».
                         """))
         }
     }

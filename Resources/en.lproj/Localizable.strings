@@ -302,6 +302,7 @@
 "Aucun résultat" = "No results";
 "Aucun son n'a été écouté : tous ont été rangés d'après leur nom. Change leur nom dans FL." = "No sound was listened to: all were organized by their name. Change their name in FL.";
 "Aucun son reçu de FL pendant l'écoute. Vérifie que FL Shortcuts a l'autorisation « Audio du système » (Réglages Système › Confidentialité et sécurité › Enregistrement de l'écran et de l'audio du système), et que les sons choisis jouent bien dans FL (Master pas coupé), puis « Réessayer »." = "No sound came from FL while listening. Check that FL Shortcuts has the “System Audio” permission (System Settings › Privacy & Security › Screen & System Audio Recording), and that the chosen sounds really play in FL (Master not muted), then “Try again”.";
+"Aucun son reçu de FL pendant l'écoute. Vérifie que FL Shortcuts est coché dans « Enregistrement de l'écran et audio du système » (Réglages Système › Confidentialité et sécurité, la liste du haut), et que les sons choisis jouent bien dans FL (Master pas coupé), puis « Réessayer »." = "No sound came from FL while listening. Check that FL Shortcuts is turned on in “Screen & System Audio Recording” (System Settings › Privacy & Security, the top list), and that the chosen sounds really play in FL (Master not muted), then “Try again”.";
 "Aucun son à organiser dans ce projet." = "No sounds to organize in this project.";
 "Aucun titre ni aucune explication ne contient ce mot : choisis un membre plus haut pour voir ses partages." = "No title or description contains this word: pick a member above to see their posts.";
 "Aucune" = "None";
@@ -328,6 +329,7 @@
 "Autorise le son de FL" = "Allow FL's sound";
 "Autorise le son de FL :" = "Allow FL's sound:";
 "Autorise « Audio du système »" = "Allow “System Audio”";
+"Autorise « Enregistrement de l'écran et audio du système »" = "Allow “Screen & System Audio Recording”";
 "Autorise « Enregistrement de l'écran » :" = "Allow “Screen Recording”:";
 "Autoriser" = "Allow";
 "Autoriser FL Shortcuts" = "Allow FL Shortcuts";
@@ -1165,6 +1167,7 @@
 "Lecture / Pause" = "Play / Pause";
 "Lecture / Stop" = "Play / Stop";
 "Lecture de l'écran impossible : endroit retenu sans image." = "Can't read the screen: spot saved without an image.";
+"Lecture de la liste des plugins…" = "Reading your plugin list…";
 "Lecture du bouton…" = "Reading the button…";
 "Lecture du menu dans FL…" = "Reading the menu in FL…";
 "Lecture du partage…" = "Loading post…";
@@ -1410,6 +1413,7 @@
 "Organiser ton projet" = "Organize your project";
 "Organiser · %lld sons sur %lld" = "Organize · %lld of %lld sounds";
 "Organiser écoute chaque son seul : FL doit être à l'arrêt." = "Organizer listens to each sound alone: FL must be stopped.";
+"Organiser écoute seulement le son de FL, sans l'enregistrer. Réglages Système › Confidentialité et sécurité › Enregistrement de l'écran et audio du système : active FL Shortcuts dans la liste du haut, puis « Quitter et rouvrir »." = "Organize only listens to FL's sound, without recording it. System Settings › Privacy & Security › Screen & System Audio Recording: turn on FL Shortcuts in the top list, then “Quit & Reopen”.";
 "Organiser écoute seulement le son de FL, sans l'enregistrer. Réglages Système › Confidentialité et sécurité › Enregistrement de l'écran et de l'audio du système : active FL Shortcuts dans « Audio du système uniquement »." = "Organizer only listens to FL's sound, without recording it. System Settings › Privacy & Security › Screen & System Audio Recording: turn on FL Shortcuts under “System Audio Recording Only”.";
 "Organiser…" = "Organize…";
 "Orgue" = "Organ";
@@ -2514,6 +2518,7 @@
 "Échec au bloc %lld%@ : %@" = "Failed at block %lld%@: %@";
 "Écoute de FL impossible (%@)." = "Can't listen to FL (%@).";
 "Écoute de FL impossible (%@, erreur %d) : vérifie l'autorisation « Audio système » de FL Shortcuts dans Réglages Système › Confidentialité et sécurité." = "Can't listen to FL (%@, error %d): check the “System Audio” permission for FL Shortcuts in System Settings › Privacy & Security.";
+"Écoute de FL impossible (%@, erreur %d) : vérifie l'autorisation « Enregistrement de l'écran et audio du système » de FL Shortcuts dans Réglages Système › Confidentialité et sécurité." = "Can't listen to FL (%@, error %d): check the “Screen & System Audio Recording” permission for FL Shortcuts in System Settings › Privacy & Security.";
 "Écoute seulement la piste sélectionnée" = "Solos the selected track";
 "Écrire le nom moi-même" = "Type the name myself";
 "Écrire un autre message" = "Write another message";
