@@ -147,12 +147,12 @@ private struct MacroLibraryList: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
-    /// Les trois façons de commencer une macro (style suisse) : trois colonnes numérotées séparées d'un trait, la
-    /// première (la plus simple) au numéro rouge.
+    /// Les trois façons de commencer une macro (style suisse) : trois colonnes numérotées séparées d'un trait ; le
+    /// numéro de celle sous la souris en rouge, les autres en gris (03/11 : « le 01 ne doit pas être rouge de base »).
     private var actionCards: some View {
         HStack(spacing: 0) {
             MacroActionCard(number: "01", title: String(localized: "Enregistrer une macro"), symbol: "record.circle",
-                            tint: Swiss.red, prominent: true) { Self.recordNewMacro(in: library) }
+                            tint: Swiss.red) { Self.recordNewMacro(in: library) }
                 .help("Une nouvelle macro s'ouvre et FL passe devant : clique et tape ta suite, puis « Terminer »")
             Rectangle().fill(Swiss.line).frame(width: 1)
             MacroActionCard(number: "02", title: String(localized: "Macro vide"), symbol: "plus", tint: .blue) { newMacro() }
@@ -279,13 +279,12 @@ private struct MacroActionCard: View {
     let title: String
     let symbol: String
     let tint: Color
-    var prominent = false
     let action: () -> Void
 
     var body: some View {
         Button(action: action) {
             VStack(alignment: .leading, spacing: 22) {
-                Text(verbatim: number).swissLabel(prominent ? Swiss.red : Swiss.gray).hoverTint(prominent ? Swiss.red : Swiss.gray)
+                CardNumber(number: number)
                 Text(title).font(Swiss.font(20)).tracking(-0.4).lineLimit(2)
                     .fixedSize(horizontal: false, vertical: true)
                 Spacer(minLength: 0)
@@ -299,6 +298,16 @@ private struct MacroActionCard: View {
         .buttonStyle(.plain)
         .menuHover(tint: Swiss.text, cornerRadius: 0)
         .accessibilityLabel(title)
+    }
+}
+
+/// Numéro d'une des trois façons de commencer : gris au repos, rouge quand la souris est sur sa case.
+private struct CardNumber: View {
+    let number: String
+    @Environment(\.hoverFilled) private var hovered
+
+    var body: some View {
+        Text(verbatim: number).swissLabel(hovered ? Swiss.red : Swiss.gray)
     }
 }
 

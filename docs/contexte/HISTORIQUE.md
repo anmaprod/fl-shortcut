@@ -728,4 +728,5 @@ entrée 1 ≈ 0,5 s.
 - 03/11 : vidéo « quand je clique sur la recherche, le mot Rechercher se décale sur la loupe… et pareil quand on tape »
   → la zone de frappe d'une recherche de macOS sans cadre partait du bord gauche : posée après la loupe. Capture
   « quand on rétrécit trop Macro ça fait chelou » → largeur mini du créateur. « Le logo attention… en noir et
-  blanc » (le triangle jaune de « La macro est vide. ») → blanc.
+  blanc » (le triangle jaune de « La macro est vide. ») → blanc. Puis : le rouge des numéros 01/02/03 de la page
+  Macros suit la souris (aucun rouge au repos) ; une macro s'ouvre sans bloc choisi.

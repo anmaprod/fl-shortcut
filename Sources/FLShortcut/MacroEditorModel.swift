@@ -162,7 +162,9 @@ final class MacroEditorModel: ObservableObject {
         dirty = false
         learnedInput = MacroSpots.loadPath(.input) != nil
         refresh()
-        selection = rows.first(where: { $0.kind == .block })?.id
+        // Aucun bloc choisi à l'ouverture (03/11 : « quand tu ouvres une macro, le premier bloc est sélectionné… il
+        // faut qu'aucun ne le soit ») : l'inspecteur dit « Aucun bloc choisi ».
+        selection = nil
         trigger = shortcut?.trigger
         triggerIssues = []
         refreshTriggerIssues()

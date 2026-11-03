@@ -260,7 +260,9 @@
   frappe après la loupe (`PlainSearchField`/`PlainSearchFieldCell`, comme le texte au repos) ; créateur de macros
   rétréci (nom disparu, « Commencer l'enregistrement » qui débordait) → étapes jamais sous 430 points, fenêtre jamais
   sous `MacroEditorView.minWidth` tant que le créateur est là (élargie à son ouverture, `makeRoom`) ; triangle
-  « attention » du créateur (« La macro est vide. ») en blanc, plus en jaune.
+  « attention » du créateur (« La macro est vide. ») en blanc, plus en jaune. Page Macros : numéros 01/02/03 gris,
+  celui de la case sous la souris en rouge (`CardNumber` ; plus de 01 rouge d'office) ; une macro s'ouvre sans bloc
+  choisi (`MacroEditorModel.open` : `selection = nil`).
   Téléchargement Mac : le .pkg seul (le .dmg reste fabriqué pour les essais, jamais publié) + LISEZMOI.html au style
   suisse avec images (Mac et Windows : modèles `docs/telechargement/modele-*.html`, `python3 scripts/lisezmoi.py` y
   colle les images → LISEZMOI-Mac/Windows.html ; exemples validés au fil de ses retours : artefacts privés
