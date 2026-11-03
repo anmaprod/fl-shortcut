@@ -1290,6 +1290,7 @@
 "Mes raccourcis" = "Mes raccourcis";
 "Mes raccourcis ne font rien dans FL" = "Mes raccourcis ne font rien dans FL";
 "Message" = "Message";
+"Message envoyé" = "Message envoyé";
 "Mesure précédente (mode Song)" = "Mesure précédente (mode Song)";
 "Mesure suivante (mode Song)" = "Mesure suivante (mode Song)";
 "Met devant une page de FL (Playlist, Channel Rack, Mixer…), seulement si elle n'y est pas déjà. Les options de « Cliquer sur… » juste en dessous sont celles de cette page." = "Met devant une page de FL (Playlist, Channel Rack, Mixer…), seulement si elle n'y est pas déjà. Les options de « Cliquer sur… » juste en dessous sont celles de cette page.";
@@ -1634,6 +1635,7 @@
 "Preset précédent du plugin ouvert" = "Preset précédent du plugin ouvert";
 "Preset suivant" = "Preset suivant";
 "Preset suivant du plugin ouvert" = "Preset suivant du plugin ouvert";
+"Problème signalé" = "Problème signalé";
 "Profil" = "Profil";
 "Profil exporté" = "Profil exporté";
 "Profil illisible : profil recommandé chargé.%@" = "Profil illisible : profil recommandé chargé.%@";
@@ -2324,6 +2326,7 @@
 "le menu « Arrangement » de FL ne s'est pas ouvert" = "le menu « Arrangement » de FL ne s'est pas ouvert";
 "le nom contient un caractère invisible." = "le nom contient un caractère invisible.";
 "le point visé est hors de FL" = "le point visé est hors de FL";
+"le serveur n'a pas répondu." = "le serveur n'a pas répondu.";
 "le sous-menu « %@ » ne s'est pas ouvert" = "le sous-menu « %@ » ne s'est pas ouvert";
 "lecture de l'écran pas autorisée (Réglages Système › Confidentialité et sécurité › Enregistrement de l'écran) : le bouton ne peut pas être cherché" = "lecture de l'écran pas autorisée (Réglages Système › Confidentialité et sécurité › Enregistrement de l'écran) : le bouton ne peut pas être cherché";
 "lecture de l'écran pas autorisée (Réglages Système › Confidentialité et sécurité › Enregistrement de l'écran) : le plugin ne peut pas être cherché dans « More plugins… » de FL" = "lecture de l'écran pas autorisée (Réglages Système › Confidentialité et sécurité › Enregistrement de l'écran) : le plugin ne peut pas être cherché dans « More plugins… » de FL";
@@ -2404,6 +2407,7 @@
 "page de FL illisible" = "page de FL illisible";
 "page de FL à choisir dans la macro" = "page de FL à choisir dans la macro";
 "page à choisir" = "page à choisir";
+"pas de serveur." = "pas de serveur.";
 "pause hors limites." = "pause hors limites.";
 "piste visée" = "piste visée";
 "plugin ajouté à tes favoris de FL : quitte FL et rouvre-le une fois pour qu'il apparaisse dans son menu Add" = "plugin ajouté à tes favoris de FL : quitte FL et rouvre-le une fois pour qu'il apparaisse dans son menu Add";

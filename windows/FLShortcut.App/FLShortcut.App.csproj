@@ -36,6 +36,12 @@
     <SelfContained>true</SelfContained>
   </PropertyGroup>
 
+  <!-- Serveur du compte, de la Communauté et de l'Aide (comme l'Info.plist du Mac, build.sh) : l'adresse et la clé
+       publique viennent des secrets de la CI (variables FLS_SUPABASE_URL, FLS_SUPABASE_ANON_KEY) ; vides ailleurs. -->
+  <ItemGroup>
+    <AssemblyMetadata Include="FLSCommunityURL" Value="$(FLS_SUPABASE_URL)" />
+    <AssemblyMetadata Include="FLSCommunityAnonKey" Value="$(FLS_SUPABASE_ANON_KEY)" />
+  </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.WindowsAppSDK" Version="1.6.241114003" />
     <PackageReference Include="Microsoft.Windows.SDK.BuildTools" Version="10.0.26100.1742" />

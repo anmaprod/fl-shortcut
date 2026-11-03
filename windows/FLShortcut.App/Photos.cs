@@ -61,7 +61,8 @@ internal static class Photos
             // Les pages comme le Mac (29/10) : Général, Playlist, Mes raccourcis, une recherche, Macros et son créateur.
             foreach (var (page, name) in new[] { ("general", "principale"), ("playlist", "principale-playlist"),
                                                  ("custom", "principale-mes-raccourcis"), ("recherche", "principale-recherche"),
-                                                 ("macros", "macros-liste"), ("macros-createur", "macros-createur") })
+                                                 ("macros", "macros-liste"), ("macros-createur", "macros-createur"),
+                                                 ("aide", "aide") })
             {
                 main.ShowPage(page);
                 await Task.Delay(800);

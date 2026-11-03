@@ -1290,6 +1290,7 @@
 "Mes raccourcis" = "My shortcuts";
 "Mes raccourcis ne font rien dans FL" = "My shortcuts don't do anything in FL";
 "Message" = "Message";
+"Message envoyé" = "Message sent";
 "Mesure précédente (mode Song)" = "Previous bar (Song mode)";
 "Mesure suivante (mode Song)" = "Next bar (Song mode)";
 "Met devant une page de FL (Playlist, Channel Rack, Mixer…), seulement si elle n'y est pas déjà. Les options de « Cliquer sur… » juste en dessous sont celles de cette page." = "Brings an FL page to the front (Playlist, Channel Rack, Mixer…), only if it isn't there already. The “Click on…” options just below come from this page.";
@@ -1634,6 +1635,7 @@
 "Preset précédent du plugin ouvert" = "Previous preset of the open plugin";
 "Preset suivant" = "Next preset";
 "Preset suivant du plugin ouvert" = "Next preset of the open plugin";
+"Problème signalé" = "Reported problem";
 "Profil" = "Profile";
 "Profil exporté" = "Profile exported";
 "Profil illisible : profil recommandé chargé.%@" = "Unreadable profile: recommended profile loaded.%@";
@@ -2324,6 +2326,7 @@
 "le menu « Arrangement » de FL ne s'est pas ouvert" = "FL's “Arrangement” menu didn't open";
 "le nom contient un caractère invisible." = "the name contains an invisible character.";
 "le point visé est hors de FL" = "the target point is outside FL";
+"le serveur n'a pas répondu." = "the server didn't answer.";
 "le sous-menu « %@ » ne s'est pas ouvert" = "the “%@” submenu didn't open";
 "lecture de l'écran pas autorisée (Réglages Système › Confidentialité et sécurité › Enregistrement de l'écran) : le bouton ne peut pas être cherché" = "screen reading not allowed (System Settings › Privacy & Security › Screen & System Audio Recording): the button can't be looked for";
 "lecture de l'écran pas autorisée (Réglages Système › Confidentialité et sécurité › Enregistrement de l'écran) : le plugin ne peut pas être cherché dans « More plugins… » de FL" = "screen reading not allowed (System Settings › Privacy & Security › Screen Recording): the plugin can't be looked up in FL's “More plugins…”";
@@ -2404,6 +2407,7 @@
 "page de FL illisible" = "FL page unreadable";
 "page de FL à choisir dans la macro" = "FL page to choose in the macro";
 "page à choisir" = "page to choose";
+"pas de serveur." = "no server.";
 "pause hors limites." = "pause out of range.";
 "piste visée" = "target track";
 "plugin ajouté à tes favoris de FL : quitte FL et rouvre-le une fois pour qu'il apparaisse dans son menu Add" = "plugin added to your FL favorites: quit FL and open it again once so it shows up in its Add menu";

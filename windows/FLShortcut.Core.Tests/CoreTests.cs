@@ -558,3 +558,36 @@ public class SupportTests
         Assert.True(SupportDiagnostic.Report(facts, new string('x', 50_000)).Length <= SupportRules.MaxDiagnostic);
     }
 }
+
+/// Serveur (Supabase) : adresse acceptée en https seulement ; message à l'équipe avec ou sans compte (comme le Mac).
+public class ServerTests
+{
+    [Fact]
+    public void Config_HttpsOnly()
+    {
+        Assert.NotNull(ServerConfig.Resolve("https://exemple.supabase.co", "sb_publishable_abc"));
+        Assert.Null(ServerConfig.Resolve("http://exemple.supabase.co", "k"));
+        Assert.Null(ServerConfig.Resolve("https://user@exemple.supabase.co", "k"));
+        Assert.Null(ServerConfig.Resolve("", "k"));
+        Assert.Null(ServerConfig.Resolve("https://exemple.supabase.co", ""));
+    }
+
+    [Fact]
+    public void Support_WithAndWithoutAccount()
+    {
+        var config = ServerConfig.Resolve("https://exemple.supabase.co", "sb_publishable_abc")!;
+        var message = new SupportMessage { Text = "Ma macro s'arrête au 3e bloc dans le Mixer.", Email = "nina@exemple.fr", Reference = "FLS-3F9A2C" };
+        var r = ServerRequests.Support(config, message, "0.2.0", token: null);
+        Assert.Equal(HttpMethod.Post, r.Method);
+        Assert.Equal("/rest/v1/support_requests", r.RequestUri!.AbsolutePath);
+        Assert.Null(r.Headers.Authorization);
+        Assert.Equal("sb_publishable_abc", r.Headers.GetValues("apikey").Single());
+        var body = System.Text.Json.JsonDocument.Parse(r.Content!.ReadAsStringAsync().Result).RootElement;
+        Assert.Equal("probleme", body.GetProperty("kind").GetString());
+        Assert.Equal("nina@exemple.fr", body.GetProperty("email").GetString());
+        Assert.Equal("FLS-3F9A2C", body.GetProperty("reference").GetString());
+        Assert.Equal("Bearer jeton", ServerRequests.Support(config, message, "0.2.0", "jeton").Headers.Authorization!.ToString());
+        message.Text = "Bug";
+        Assert.Throws<ArgumentException>(() => ServerRequests.Support(config, message, "0.2.0", null));
+    }
+}

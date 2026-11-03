@@ -58,7 +58,7 @@ internal sealed class TrayMenu
     /// Mode photos (CI) : le menu avec des lignes d'exemple ; rien ne s'y passe.
     public static TrayMenu Demo() => new(Loc.T("Relié à FL Studio"), true, new[]
     {
-        new Entry("keyboard", Accent, Loc.T("Modifier les raccourcis…"), () => { }),
+        new Entry("keyboard", Blue, Loc.T("Modifier les raccourcis…"), () => { }),
         new Entry("macros", Purple, Loc.T("Macros…"), () => { }),
         new Entry("organize", Indigo, Loc.T("Organiser…"), () => { }),
     }, () => { }, () => { }, photo: true);

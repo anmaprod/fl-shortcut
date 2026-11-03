@@ -27,7 +27,7 @@ internal sealed partial class MainShell
     /// Largeur de page à partir de laquelle les cartes passent sur deux colonnes (comme le Mac).
     private const double TwoColumnWidth = 660;
 
-    private enum PageKind { Section, Macros, Custom }
+    private enum PageKind { Section, Macros, Custom, Help }
 
     private readonly Window _window;
     private readonly Grid _root;
@@ -59,6 +59,9 @@ internal sealed partial class MainShell
     private readonly StackPanel _notices = new() { Spacing = 8, Margin = new Thickness(26, 0, 26, 0) };
     private readonly ScrollViewer _scroll = new() { HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled };
     private readonly MacrosPage _macros;
+    private readonly HelpPage _help;
+    /// Dernière macro ratée (« Signaler ce problème… » du menu de l'icône, comme le Mac).
+    private string? _lastFailure;
     /// Mode photos : la macro d'exemple ouverte dans le créateur.
     private readonly Guid _demoMacro;
     private readonly Border _titleBar = new() { Height = TitleBarHeight, VerticalAlignment = VerticalAlignment.Top, Background = Brush(Colors.Transparent) };
@@ -137,6 +140,7 @@ internal sealed partial class MainShell
         // Macros : la page de la fenêtre et le créateur, posé au-dessus quand une macro est ouverte (comme le Mac).
         var (macroStore, demoMacro) = photos ? MacrosPage.DemoStore() : (_app.Macros, Guid.Empty);
         _demoMacro = demoMacro;
+        _help = new HelpPage(_app, () => { if (_kind == PageKind.Help) RenderPage(); }, ShowToast);
         _macros = new MacrosPage(_app, macroStore, photos, window,
             listChanged: () => { if (_kind == PageKind.Macros && _query.Trim().Length == 0) RenderPage(); },
             creatorShown: on => _main.Visibility = on || !_app.Onboarded ? Visibility.Collapsed : Visibility.Visible,
@@ -151,7 +155,11 @@ internal sealed partial class MainShell
         if (photos) _app.PreparePages();
         else _app.Start();
         ShowScreen();
-        _app.MacroFinished += (ok, text) => { if (!ok) ShowToast(text); };
+        _app.MacroFinished += (ok, text) =>
+        {
+            _lastFailure = ok ? null : text;
+            if (!ok) ShowToast(text);
+        };
         if (!photos) root.Loaded += (_, _) => CopyApprovalPrompt.Ask(_root.XamlRoot, _app, force: false);
     }
 
@@ -203,10 +211,17 @@ internal sealed partial class MainShell
     /// Le menu de l'icône, noir comme celui du Mac : l'état, les fenêtres de l'appli, « Ouvrir FL Shortcuts », « Quitter ».
     private void ShowTrayMenu()
     {
-        var entries = new List<TrayMenu.Entry>
-        {
-            new("keyboard", Accent, Loc.T("Modifier les raccourcis…"), () => ShowFromTray(ask: false)),
-        };
+        var entries = new List<TrayMenu.Entry>();
+        // Comme le Mac : après une macro ratée, le formulaire de l'Aide prêt avec l'erreur.
+        if (_lastFailure is { } failure)
+            entries.Add(new("warning", Orange, Loc.T("Signaler ce problème…"), () =>
+            {
+                ShowFromTray(ask: false);
+                _help.Report("Macro : " + failure);
+                _lastFailure = null;
+                Choose(PageKind.Help, _section);
+            }));
+        entries.Add(new("keyboard", Blue, Loc.T("Modifier les raccourcis…"), () => ShowFromTray(ask: false)));
         if (_app.Approval.Pending.Count > 0)
             entries.Add(new("check", Green, Loc.T("Valider la version organisée…"), () =>
             {
@@ -288,6 +303,7 @@ internal sealed partial class MainShell
         switch (page)
         {
             case "custom": _kind = PageKind.Custom; break;
+            case "aide": _kind = PageKind.Help; break;
             case "recherche": _query = "Zoom"; _search.Text = _query; break;
             case "macros": _kind = PageKind.Macros; break;
             case "macros-createur":
@@ -431,6 +447,10 @@ internal sealed partial class MainShell
         custom.Children.Add(SidebarRow("custom", Pink, Loc.T("Mes raccourcis"),
             !searching && _kind == PageKind.Custom, () => Choose(PageKind.Custom, _section)));
         _sidebarGroups.Children.Add(custom);
+        var help = Group(Loc.T("Compte et aide"));
+        help.Children.Add(SidebarRow("help", HelpPage.Tint, Loc.T("Aide"),
+            !searching && _kind == PageKind.Help, () => Choose(PageKind.Help, _section)));
+        _sidebarGroups.Children.Add(help);
     }
 
     /// Titre gris d'un groupe de la barre de gauche (« FL Studio », « Automatiser »…) et ses lignes.
@@ -545,7 +565,7 @@ internal sealed partial class MainShell
     {
         _notices.Children.Clear();
         if (_keyListening)
-            _notices.Children.Add(Notice("keyboard", Accent, Loc.T("Appuie sur le raccourci que tu connais : la recherche montre ce qu'il fait."),
+            _notices.Children.Add(Notice("keyboard", Blue, Loc.T("Appuie sur le raccourci que tu connais : la recherche montre ce qu'il fait."),
                 Loc.T("Annuler"), StopKeySearch));
         switch (_app.Status)
         {
@@ -642,6 +662,12 @@ internal sealed partial class MainShell
         {
             _title.Text = Loc.T("Macros");
             _scroll.Content = _macros.ListContent(_columns);
+            return;
+        }
+        else if (_kind == PageKind.Help)
+        {
+            _title.Text = Loc.T("Aide");
+            _scroll.Content = _help.Content(_columns);
             return;
         }
         else if (_kind == PageKind.Custom)

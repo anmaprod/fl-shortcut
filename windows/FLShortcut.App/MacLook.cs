@@ -27,6 +27,8 @@ internal static class MacLook
     public static readonly Color Accent = Rgb(0xFF, 0xFF, 0xFF);
     /// Liens : blancs (soulignés là où ils sont posés).
     public static readonly Color Link = Rgb(0xFF, 0xFF, 0xFF);
+    /// Bleu des repères (Mixer, « Modifier les raccourcis ») : les petits carrés gardent leurs couleurs du Mac.
+    public static readonly Color Blue = Rgb(0x0A, 0x84, 0xFF);
     public static readonly Color Orange = Rgb(0xFF, 0x9F, 0x0A);
     /// Le rouge de ce qui compte : touche changée, avertissement, Désinstaller (#FF3B1F).
     public static readonly Color Red = Rgb(0xFF, 0x3B, 0x1F);
@@ -61,7 +63,7 @@ internal static class MacLook
         FlSection.Playlist => Green,
         FlSection.PianoRoll => Purple,
         FlSection.ChannelRack => Teal,
-        FlSection.Mixer => Accent,
+        FlSection.Mixer => Blue,
         FlSection.Browser => Indigo,
         _ => Gray,
     };

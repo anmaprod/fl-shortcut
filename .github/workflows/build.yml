@@ -70,6 +70,10 @@ jobs:
           persist-credentials: false
       - name: Compilation x64 et ARM64
         shell: pwsh
+        env:
+          # Serveur du compte, de la Communauté et de l'Aide (clé publique seulement, comme le Mac).
+          FLS_SUPABASE_URL: ${{ secrets.FLS_SUPABASE_URL }}
+          FLS_SUPABASE_ANON_KEY: ${{ secrets.FLS_SUPABASE_ANON_KEY }}
         run: |
           $targets = @{ 'x64' = 'x64'; 'arm64' = 'ARM64' }
           foreach ($arch in $targets.Keys) {
