@@ -488,7 +488,7 @@ public class SupportTests
 {
     private static SupportMessage Message() => new()
     {
-        Kind = SupportKind.Probleme, Text = "Ma macro s'arrête au 3e bloc dans le Mixer.", Email = "nina@exemple.fr",
+        Kind = SupportKind.Probleme, Text = "Ma macro s'arrête au 3e bloc dans le Mixer.", Email = "flshortcuts@exemple.fr",
         Error = "Macro : échec au bloc 3 (Clic)", Diagnostic = "FL Shortcuts 0.2.0 · Windows 11", Reference = "FLS-3F9A2C",
     };
 
@@ -509,7 +509,7 @@ public class SupportTests
     [Fact]
     public void PlainText_Subject_Issue()
     {
-        Assert.Equal("Référence : FLS-3F9A2C\nGenre : Un problème\nFL Shortcuts 0.2.0\nPour répondre : nina@exemple.fr\n\n" +
+        Assert.Equal("Référence : FLS-3F9A2C\nGenre : Un problème\nFL Shortcuts 0.2.0\nPour répondre : flshortcuts@exemple.fr\n\n" +
                      "— Message —\nMa macro s'arrête au 3e bloc dans le Mixer.\n\n— Le problème signalé —\nMacro : échec au bloc 3 (Clic)" +
                      "\n\n— État de l'app —\nFL Shortcuts 0.2.0 · Windows 11", SupportRules.PlainText(Message(), "0.2.0"));
         Assert.Equal("[FL Shortcuts] Problème · FLS-3F9A2C · Ma macro s'arrête au 3e bloc dans le Mixer.", SupportRules.Subject(Message()));
@@ -576,7 +576,7 @@ public class ServerTests
     public void Support_WithAndWithoutAccount()
     {
         var config = ServerConfig.Resolve("https://exemple.supabase.co", "sb_publishable_abc")!;
-        var message = new SupportMessage { Text = "Ma macro s'arrête au 3e bloc dans le Mixer.", Email = "nina@exemple.fr", Reference = "FLS-3F9A2C" };
+        var message = new SupportMessage { Text = "Ma macro s'arrête au 3e bloc dans le Mixer.", Email = "flshortcuts@exemple.fr", Reference = "FLS-3F9A2C" };
         var r = ServerRequests.Support(config, message, "0.2.0", token: null);
         Assert.Equal(HttpMethod.Post, r.Method);
         Assert.Equal("/rest/v1/support_requests", r.RequestUri!.AbsolutePath);
@@ -584,10 +584,94 @@ public class ServerTests
         Assert.Equal("sb_publishable_abc", r.Headers.GetValues("apikey").Single());
         var body = System.Text.Json.JsonDocument.Parse(r.Content!.ReadAsStringAsync().Result).RootElement;
         Assert.Equal("probleme", body.GetProperty("kind").GetString());
-        Assert.Equal("nina@exemple.fr", body.GetProperty("email").GetString());
+        Assert.Equal("flshortcuts@exemple.fr", body.GetProperty("email").GetString());
         Assert.Equal("FLS-3F9A2C", body.GetProperty("reference").GetString());
         Assert.Equal("Bearer jeton", ServerRequests.Support(config, message, "0.2.0", "jeton").Headers.Authorization!.ToString());
         message.Text = "Bug";
         Assert.Throws<ArgumentException>(() => ServerRequests.Support(config, message, "0.2.0", null));
+    }
+}
+
+/// Compte (Windows) : mêmes règles et mêmes requêtes que CommunityClient.swift du Mac.
+public class AccountTests
+{
+    private static readonly ServerConfig Config = ServerConfig.Resolve("https://exemple.supabase.co", "sb_publishable_abc")!;
+
+    private static System.Text.Json.JsonElement Body(HttpRequestMessage r) =>
+        System.Text.Json.JsonDocument.Parse(r.Content!.ReadAsStringAsync().Result).RootElement;
+
+    [Fact]
+    public void Rules_LikeTheMac()
+    {
+        Assert.Null(AccountRules.UsernameProblem("flshortcuts"));
+        Assert.Null(AccountRules.UsernameProblem("fl.short-cuts_2"));
+        Assert.NotNull(AccountRules.UsernameProblem("fl"));
+        Assert.NotNull(AccountRules.UsernameProblem("éloïse"));
+        Assert.NotNull(AccountRules.UsernameProblem(new string('a', 25)));
+        Assert.Equal(new[] { "2 caractères", "une majuscule", "un chiffre", "un symbole" }, AccountRules.PasswordMissing("abcdef"));
+        Assert.Equal(new[] { "1 caractère" }, AccountRules.PasswordMissing("Ab1!xyz"));
+        Assert.Empty(AccountRules.PasswordMissing("Ab1!wxyz"));
+        Assert.Null(AccountRules.PasswordProblem("Ab1!wxyz"));
+        Assert.NotNull(AccountRules.PasswordProblem("abcdefgh"));
+        Assert.Equal("123456", AccountRules.Code(" 123 456 "));
+        Assert.Null(AccountRules.Code("12345"));
+        Assert.Null(AccountRules.Code("12345a"));
+        Assert.Null(AccountRules.Code("١٢٣٤٥٦"));
+    }
+
+    [Fact]
+    public void Requests_PathsAndHeaders()
+    {
+        var up = AccountRequests.SignUp(Config, "flshortcuts@exemple.fr", "Ab1!wxyz", "flshortcuts");
+        Assert.Equal("/auth/v1/signup", up.RequestUri!.AbsolutePath);
+        Assert.Null(up.Headers.Authorization);
+        Assert.Equal("flshortcuts", Body(up).GetProperty("data").GetProperty("username").GetString());
+        Assert.Throws<ArgumentException>(() => AccountRequests.SignUp(Config, "flshortcuts@exemple.fr", "faible", "flshortcuts"));
+        Assert.Throws<ArgumentException>(() => AccountRequests.SignUp(Config, "pas-un-mail", "Ab1!wxyz", "flshortcuts"));
+
+        var signIn = AccountRequests.SignIn(Config, "flshortcuts@exemple.fr", "x");
+        Assert.Equal("/auth/v1/token", signIn.RequestUri!.AbsolutePath);
+        Assert.Equal("?grant_type=password", signIn.RequestUri.Query);
+
+        var verify = AccountRequests.VerifyCode(Config, "flshortcuts@exemple.fr", "123 456", CodeKind.Recovery);
+        Assert.Equal("recovery", Body(verify).GetProperty("type").GetString());
+        Assert.Equal("123456", Body(verify).GetProperty("token").GetString());
+        Assert.Throws<ArgumentException>(() => AccountRequests.VerifyCode(Config, "flshortcuts@exemple.fr", "12", CodeKind.Signup));
+
+        var session = new AccountSession("jeton", "suite", DateTimeOffset.UnixEpoch.AddHours(1), Guid.Empty, "flshortcuts@exemple.fr", "flshortcuts");
+        var name = AccountRequests.SetUsername(Config, "flshortcuts2", session);
+        Assert.Equal("/rest/v1/rpc/set_my_username", name.RequestUri!.AbsolutePath);
+        Assert.Equal("Bearer jeton", name.Headers.Authorization!.ToString());
+        Assert.Equal(HttpMethod.Put, AccountRequests.UpdatePassword(Config, "Ab1!wxyz", session).Method);
+        Assert.Equal("suite", Body(AccountRequests.Refresh(Config, session)).GetProperty("refresh_token").GetString());
+        Assert.Equal("/rest/v1/rpc/username_available", AccountRequests.UsernameAvailable(Config, "flshortcuts").RequestUri!.AbsolutePath);
+    }
+
+    [Fact]
+    public void Session_DecodedOrNull()
+    {
+        var now = DateTimeOffset.UnixEpoch;
+        var json = """
+            {"access_token":"a","refresh_token":"r","expires_in":3600,
+             "user":{"id":"6f1d2c1e-0000-4000-8000-000000000001","email":"flshortcuts@exemple.fr","user_metadata":{"username":"flshortcuts"}}}
+            """;
+        var s = AccountRequests.DecodeSession(json, now)!;
+        Assert.Equal("flshortcuts", s.Username);
+        Assert.Equal(now.AddHours(1), s.ExpiresAt);
+        Assert.False(s.Expired(now));
+        Assert.True(s.Expired(now.AddMinutes(59.5)));
+        Assert.Null(AccountRequests.DecodeSession("""{"id":"x","email":"flshortcuts@exemple.fr"}""", now));
+        Assert.Null(AccountRequests.DecodeSession("pas du json", now));
+    }
+
+    [Fact]
+    public void ServerMessage_Translated()
+    {
+        Assert.Equal("Mail ou mot de passe incorrect.",
+            AccountRequests.ServerMessage("""{"error":"invalid_grant","error_description":"Invalid login credentials"}"""));
+        Assert.Equal("Code incorrect ou expiré : vérifie-le, ou demande un nouveau code.",
+            AccountRequests.ServerMessage("""{"code":403,"error_code":"otp_expired","msg":"Token has expired or is invalid"}"""));
+        Assert.Equal("Autre chose", AccountRequests.ServerMessage("""{"msg":"Autre chose"}"""));
+        Assert.Equal("Le serveur n'a pas répondu.", AccountRequests.ServerMessage(""));
     }
 }
