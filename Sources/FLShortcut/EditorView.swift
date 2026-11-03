@@ -407,38 +407,11 @@ struct EditorView: View {
         AppResume.shared.creator = editor
     }
 
-    /// Flèche ← : macro neuve → l'enregistrer ou la supprimer ; macro modifiée → enregistrer ou annuler les
-    /// modifications ; sinon retour direct. « Annuler » / « Rester » : on reste dans le créateur.
+    /// Flèche ← ou « Enregistrer » : retour direct, sans question (03/11 : « pour enregistrer et ré-enregistrer il n'y
+    /// a pas besoin de demande, c'est seulement pour supprimer que ça doit demander ») ; une macro neuve restée vide
+    /// est retirée.
     private func leaveCreator(_ editor: MacroEditorModel) {
-        switch editor.leaveCheck() {
-        case .close:
-            break
-        case .discardEmpty:
-            editor.discardNew()
-        case .askNew(let name):
-            let shown = name.displaySafe(max: 40)
-            switch Dialogs.choose(String(localized: "Enregistrer « \(shown) » ?"),
-                                  String(localized: "Si tu ne l'enregistres pas, cette nouvelle macro est supprimée."),
-                                  [String(localized: "Enregistrer"), String(localized: "Supprimer"), String(localized: "Annuler")],
-                                  destructive: 1) {
-            case 0:
-                editor.saveNow()
-            case 1:
-                editor.discardNew()
-                show(String(localized: "« \(shown) » supprimée"))
-            default:
-                return
-            }
-        case .askChanges(let name):
-            switch Dialogs.choose(String(localized: "Enregistrer les modifications de « \(name.displaySafe(max: 40)) » ?"),
-                                  String(localized: "Sinon, la macro revient telle qu'elle était quand tu l'as ouverte."),
-                                  [String(localized: "Enregistrer"), String(localized: "Annuler les modifications"),
-                                   String(localized: "Rester")], destructive: 1) {
-            case 0: editor.saveNow()
-            case 1: editor.revertChanges()
-            default: return
-            }
-        }
+        if editor.leaveCheck() == .discardEmpty { editor.discardNew() }
         closeCreator()
     }
 

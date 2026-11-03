@@ -111,9 +111,16 @@ private struct BlockInspector: View {
                 .help("Retirer ce bloc de la macro (⌫)")
                 .padding(.top, 14)
             }
-            .padding(16)
+            // En haut, 4 points seulement : la colonne commence sous la barre de titre (MacroCreatorView), le nom du
+            // bloc reste à la hauteur du nom de la macro.
+            .padding(.horizontal, 16)
+            .padding(.top, 4)
+            .padding(.bottom, 16)
             .frame(maxWidth: .infinity, alignment: .leading)
         }
+        // Rien dessiné au-dessus de la colonne quand elle défile (vidéo du 03/11 : les mots passaient sous les
+        // boutons de la fenêtre, à gauche).
+        .clipped()
         .labeledContentStyle(SwissLabeledContentStyle())
     }
 

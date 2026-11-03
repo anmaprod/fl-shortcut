@@ -69,8 +69,8 @@ final class MacroEditorModelTests: XCTestCase {
         model.close()
     }
 
-    /// Flèche ← : macro neuve vide supprimée sans question ; neuve avec des blocs → « Enregistrer / Supprimer » ;
-    /// existante modifiée → « Enregistrer / Annuler les modifications » (retour à l'état de l'ouverture) ; sinon rien.
+    /// Retour aux macros (← ou « Enregistrer ») sans question (03/11) : macro neuve vide retirée ; neuve avec des
+    /// blocs gardée ; existante modifiée gardée avec ses modifications ; « Enregistrer » garde même une neuve vide.
     func testLeavingTheCreator() {
         let store = makeStore()
         let model = MacroEditorModel(store: store)
@@ -84,21 +84,25 @@ final class MacroEditorModelTests: XCTestCase {
         let fresh = try! XCTUnwrap(model.draft)
         let key = PaletteCatalog.items(layout: FakeLayout.qwerty).first { $0.id == "key" }!
         model.insert(key)
-        XCTAssertEqual(model.leaveCheck(), .askNew(name: fresh.name))
-        model.discardNew()
-        XCTAssertNil(store.library.doc(fresh.id))
+        XCTAssertEqual(model.leaveCheck(), .close)
+        model.saveNow()
+        XCTAssertEqual(store.library.doc(fresh.id)?.blocks.count, 1)
+
+        model.newMacro()
+        let saved = try! XCTUnwrap(model.draft)
+        model.commit()
+        XCTAssertEqual(model.leaveCheck(), .close)
+        XCTAssertNotNil(store.library.doc(saved.id))
 
         let doc = store.library.add(MacroDoc(name: "Voix", blocks: [Block(.delay(ms: 100))]))
         model.load(doc.id)
         XCTAssertEqual(model.leaveCheck(), .close)
         model.rename("Voix lead")
         model.insert(key)
-        model.saveNow()
-        XCTAssertEqual(model.leaveCheck(), .askChanges(name: "Voix lead"))
-        model.revertChanges()
-        XCTAssertEqual(store.library.doc(doc.id)?.name, "Voix")
-        XCTAssertEqual(store.library.doc(doc.id)?.blocks, doc.blocks)
+        model.commit()
         XCTAssertEqual(model.leaveCheck(), .close)
+        XCTAssertEqual(store.library.doc(doc.id)?.name, "Voix lead")
+        XCTAssertEqual(store.library.doc(doc.id)?.blocks.count, 2)
         model.close()
     }
 

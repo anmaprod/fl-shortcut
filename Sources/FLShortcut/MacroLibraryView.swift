@@ -258,8 +258,14 @@ private struct MacroLibraryList: View {
         store.upsert(copy)
     }
 
-    /// Supprime la macro et ses raccourcis (annulable depuis la notification).
+    /// Supprime la macro et ses raccourcis, après une question (03/11 : « c'est seulement pour supprimer que ça doit
+    /// demander ») ; encore annulable depuis la notification.
     private func delete(_ doc: MacroDoc) {
+        let shown = doc.name.displaySafe(max: 40)
+        guard Dialogs.choose(String(localized: "Supprimer « \(shown) » ?"),
+                             String(localized: "La macro et son raccourci sont supprimés."),
+                             [String(localized: "Supprimer"), String(localized: "Annuler")], destructive: 0) == 0
+        else { return }
         let shortcuts = store.remaps(forMacro: doc.id)
         guard let removed = library.remove(doc.id) else { return }
         for r in shortcuts { store.delete(r.id) }

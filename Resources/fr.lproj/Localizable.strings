@@ -1110,6 +1110,7 @@
 "La copie rangée ouverte dans FL n'a pas les mêmes sons que l'analyse (%lld au lieu de %lld) : rien d'autre n'a été fait. Ton projet n'a pas bougé." = "La copie rangée ouverte dans FL n'a pas les mêmes sons que l'analyse (%lld au lieu de %lld) : rien d'autre n'a été fait. Ton projet n'a pas bougé.";
 "La macro choisie, avec ses étapes." = "La macro choisie, avec ses étapes.";
 "La macro est vide." = "La macro est vide.";
+"La macro et son raccourci sont supprimés." = "La macro et son raccourci sont supprimés.";
 "La macro ne tourne pas tant qu'il n'est pas montré." = "La macro ne tourne pas tant qu'il n'est pas montré.";
 "La page de FL a changé pendant le rangement : Organiser s'est arrêté. « Revenir comme avant » défait ce qui a été fait." = "La page de FL a changé pendant le rangement : Organiser s'est arrêté. « Revenir comme avant » défait ce qui a été fait.";
 "La piste sélectionnée dans le Mixer prend ce nom, par le lien avec FL. Sans le lien : la fenêtre " = "La piste sélectionnée dans le Mixer prend ce nom, par le lien avec FL. Sans le lien : la fenêtre ";

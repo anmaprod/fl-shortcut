@@ -1110,6 +1110,7 @@
 "La copie rangée ouverte dans FL n'a pas les mêmes sons que l'analyse (%lld au lieu de %lld) : rien d'autre n'a été fait. Ton projet n'a pas bougé." = "The organized copy open in FL doesn't have the same sounds as the analysis (%lld instead of %lld): nothing else was done. Your project hasn't changed.";
 "La macro choisie, avec ses étapes." = "The chosen macro, with its steps.";
 "La macro est vide." = "The macro is empty.";
+"La macro et son raccourci sont supprimés." = "The macro and its shortcut are deleted.";
 "La macro ne tourne pas tant qu'il n'est pas montré." = "The macro won't run until it's shown.";
 "La page de FL a changé pendant le rangement : Organiser s'est arrêté. « Revenir comme avant » défait ce qui a été fait." = "The FL page changed while sorting: Organizer stopped. “Undo changes” reverts what was done.";
 "La piste sélectionnée dans le Mixer prend ce nom, par le lien avec FL. Sans le lien : la fenêtre " = "The track selected in the Mixer gets this name, through the FL link. Without the link: FL's ";

@@ -298,7 +298,11 @@
   par `rendre-tuto.js`) ; Organiser : tuto en 4 images à la 1re ouverture, avant l'écoute (`OrganizerTutorial.swift`,
   « Revoir le tuto » dans Options ; images `Resources/*.lproj/OrganiserTuto*.png` de `docs/images/organiser-tuto.html`).
 - Créateur de macros (30/10, « le bouton enregistrer ne fonctionne plus ») : « Enregistrer » toujours actif (chaque
-  changement s'enregistre seul 0,5 s après) ; il enregistre et revient aux macros (Mac et Windows).
+  changement s'enregistre seul 0,5 s après) ; il enregistre et revient aux macros (Mac et Windows). 03/11 (« pour
+  enregistrer et ré-enregistrer il n'y a pas besoin de demande, c'est seulement pour supprimer que ça doit
+  demander ») : JAMAIS de question au retour (← ou « Enregistrer » ; neuve vide retirée sans bruit) ; « Supprimer »
+  d'une macro demande d'abord. Palette et réglages du créateur sous la barre de titre (`clipped`) : ils défilaient
+  sous les boutons fermer / réduire / agrandir.
 - Pages Macros, Communauté, Mon compte, Aide « pas belles / plus ergonomiques » (30/10) : maquette (artefact privé
   `L3Vuc2e9Tj8mrJAmRPqiQy`) validée (« go change ça ») et faite sur Mac : Macros = 3 grandes cartes (Enregistrer une
   macro, Macro vide, Modèles) + macros en cartes (interrupteur, touches ; sans pastilles de blocs ni ⋯ : clic droit) ;

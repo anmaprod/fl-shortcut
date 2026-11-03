@@ -96,8 +96,9 @@ struct MacroCreatorView: View {
             }
             .frame(minWidth: Self.stepsMinWidth, maxWidth: .infinity, maxHeight: .infinity)
             // Réglages du bloc : largeur fixe, les étapes gardent la place (photo de la CI : lignes coupées).
+            // Sous la barre de titre, comme la palette : une liste qui la touche défilait jusqu'en haut de la fenêtre.
             MacroInspectorView(model: model)
-                .padding(.top, MainWindowChrome.contentTop - 8)
+                .padding(.top, MainWindowChrome.titleBarHeight - 8 + 4)
                 .frame(width: 270)
                 .frame(maxHeight: .infinity)
                 .background(MockPlate(cornerRadius: 19, top: 0.10, bottom: 0.04, border: 0.16))
@@ -588,7 +589,7 @@ private struct MacroHeader: View {
     /// revient à la liste des macros.
     private var saveButton: some View {
         Button {
-            model.saveNow()
+            model.commit()                      // enregistrée, sans question (03/11)
             onBack()
         } label: {
             // Une coche devant (01/11 : « un rectangle blanc, pas très compréhensible ») ; 02/11 : le nom de la macro

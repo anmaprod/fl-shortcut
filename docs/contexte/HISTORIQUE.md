@@ -736,3 +736,12 @@ entrée 1 ≈ 0,5 s.
   d'option. Vidéo « Analog Lab V ne s'ouvre pas » : la liste « More plugins… » montrait Analog Lab V en haut, jamais
   reconnu (étoile ou ligne lue d'un bloc) → menu Add d'abord, puis « Find » + nom tapé, lecture tolérante, VST3 puis
   VST pour un instrument, AU d'abord pour le Mixer (idée du propriétaire).
+- 03/11 (3) : vidéo du créateur de macros, « les mots se superposent avec les 3 options en haut à gauche pour fermer
+  l'app » : la liste des blocs commençait dans la barre de titre (46 points sous le haut, barre de 52) et, en défilant,
+  montait jusqu'en haut de la fenêtre, sous les boutons fermer / réduire / agrandir → palette et réglages commencent
+  sous la barre (56 points) et ne dessinent rien au-dessus d'eux (`clipped`). Capture de la question « Enregistrer les
+  modifications de « VST » ? » à « Enregistrer » : « pour enregistrer et ré-enregistrer il n'y a pas besoin de
+  demande, c'est seulement pour supprimer que ça doit demander » → plus aucune question au retour du créateur (← ou
+  « Enregistrer » : macro gardée telle quelle, une neuve restée vide retirée ; « Enregistrer » garde même une vide) ;
+  « Annuler les modifications » retiré (⌘Z reste) ; « Supprimer » d'une macro (clic droit, page Macros) demande
+  d'abord « Supprimer « … » ? ».

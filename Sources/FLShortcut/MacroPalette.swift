@@ -27,21 +27,23 @@ struct MacroPaletteView: View {
 
     /// La plaque (maquette) : les boutons fermer / réduire / agrandir en haut, puis les catégories, chacune sous son
     /// titre gris ; elle défile si la fenêtre est basse.
+    /// Vidéo du 03/11 (« les mots se superposent avec les 3 options en haut à gauche pour fermer l'app ») : la liste
+    /// commençait dans la barre de titre (46 points sous le haut, barre de 52) ; une liste qui touche la barre de titre
+    /// défile jusqu'en haut de la fenêtre, sous les boutons. Elle commence maintenant sous la barre et ne dessine rien
+    /// au-dessus d'elle (`clipped`).
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            // Place des boutons fermer / réduire / agrandir de la fenêtre.
-            Color.clear.frame(height: 12)
-            ScrollView(.vertical, showsIndicators: false) {
-                VStack(alignment: .leading, spacing: 12) {
-                    ForEach(BlockCategory.paletteOrder, id: \.self) { category in
-                        section(category)
-                    }
+        ScrollView(.vertical, showsIndicators: false) {
+            VStack(alignment: .leading, spacing: 12) {
+                ForEach(BlockCategory.paletteOrder, id: \.self) { category in
+                    section(category)
                 }
-                .padding(.bottom, 4)
             }
+            .padding(.bottom, 4)
         }
+        .clipped()
         .padding(.horizontal, 10)
-        .padding(.top, 14)
+        // Sous la barre de titre (la plaque est à 8 points du haut de la fenêtre), avec 4 points d'air.
+        .padding(.top, MainWindowChrome.titleBarHeight - 8 + 4)
         .padding(.bottom, 16)
     }
 
