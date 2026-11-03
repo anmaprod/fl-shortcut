@@ -62,7 +62,7 @@ internal static class Photos
             foreach (var (page, name) in new[] { ("general", "principale"), ("playlist", "principale-playlist"),
                                                  ("custom", "principale-mes-raccourcis"), ("recherche", "principale-recherche"),
                                                  ("macros", "macros-liste"), ("macros-createur", "macros-createur"),
-                                                 ("aide", "aide") })
+                                                 ("aide", "aide"), ("compte", "compte") })
             {
                 main.ShowPage(page);
                 await Task.Delay(800);

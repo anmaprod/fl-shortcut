@@ -38,6 +38,9 @@ internal sealed class HelpPage
     private SupportMessage _message = new();
     private string? _lastMacro;
 
+    /// Jeton du compte connecté (Mon compte) : le message part avec le compte, comme sur le Mac ; sinon sans.
+    public Func<string?> Token { get; set; } = () => null;
+
     public HelpPage(AppController app, Action render, Action<string, Action?> toast)
     {
         _app = app;
@@ -358,7 +361,7 @@ internal sealed class HelpPage
         _render();
         try
         {
-            using var request = ServerRequests.Support(server, _message, AppVersion, token: null);
+            using var request = ServerRequests.Support(server, _message, AppVersion, token: Token());
             using var response = await Http.SendAsync(request);
             if (!response.IsSuccessStatusCode) throw new HttpRequestException("status");
             AppLog.Write("SUPPORT", "sent");

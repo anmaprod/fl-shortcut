@@ -194,6 +194,26 @@ internal sealed partial class MainShell
                          : Loc.F("« %@ »%@, ton raccourci", c.Title, place);
     }
 
+    /// Une question (Mon compte : se déconnecter, supprimer le compte) ; vrai si l'on choisit `primary`. « Annuler »
+    /// est le choix par défaut.
+    private async Task<bool> ConfirmAsync(string title, string text, string primary, bool destructive)
+    {
+        if (_root.XamlRoot is null) return false;
+        var dialog = NewDialog();
+        dialog.Title = title;
+        dialog.Content = Paragraph(text, 13, Text);
+        dialog.PrimaryButtonText = primary;
+        dialog.CloseButtonText = Loc.T("Annuler");
+        dialog.DefaultButton = ContentDialogButton.Close;
+        if (destructive)
+        {
+            var red = new Style(typeof(Button));
+            red.Setters.Add(new Setter(Control.ForegroundProperty, Brush(Red)));
+            dialog.PrimaryButtonStyle = red;
+        }
+        return await dialog.ShowAsync() == ContentDialogResult.Primary;
+    }
+
     /// Une touche ne sert qu'une fois : ce qui l'utilise est annoncé avant de la reprendre.
     private async Task<bool> ConfirmReplace(KeyCombo? combo, List<KeyClash> clashes)
     {

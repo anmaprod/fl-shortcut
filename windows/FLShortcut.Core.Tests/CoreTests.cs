@@ -612,6 +612,8 @@ public class AccountTests
         Assert.Equal(new[] { "1 caractère" }, AccountRules.PasswordMissing("Ab1!xyz"));
         Assert.Empty(AccountRules.PasswordMissing("Ab1!wxyz"));
         Assert.Null(AccountRules.PasswordProblem("Ab1!wxyz"));
+        Assert.Equal(new[] { false, true, false, true, false }, AccountRules.PasswordChecks("abc1"));
+        Assert.All(AccountRules.PasswordChecks("Ab1!wxyz"), Assert.True);
         Assert.NotNull(AccountRules.PasswordProblem("abcdefgh"));
         Assert.Equal("123456", AccountRules.Code(" 123 456 "));
         Assert.Null(AccountRules.Code("12345"));
@@ -640,8 +642,19 @@ public class AccountTests
 
         var session = new AccountSession("jeton", "suite", DateTimeOffset.UnixEpoch.AddHours(1), Guid.Empty, "flshortcuts@exemple.fr", "flshortcuts");
         var name = AccountRequests.SetUsername(Config, "flshortcuts2", session);
-        Assert.Equal("/rest/v1/rpc/set_my_username", name.RequestUri!.AbsolutePath);
+        Assert.Equal("/rest/v1/rpc/set_username", name.RequestUri!.AbsolutePath);
+        Assert.Equal("flshortcuts2", Body(name).GetProperty("p_name").GetString());
         Assert.Equal("Bearer jeton", name.Headers.Authorization!.ToString());
+        Assert.Equal("/rest/v1/rpc/delete_my_account", AccountRequests.DeleteAccount(Config, session).RequestUri!.AbsolutePath);
+        Assert.Equal("/rest/v1/rpc/remove_avatar", AccountRequests.RemoveAvatar(Config, session).RequestUri!.AbsolutePath);
+        var jpeg = new byte[] { 0xFF, 0xD8, 0xFF, 0xE0, 1, 2, 0xFF, 0xD9 };
+        Assert.Equal(Convert.ToBase64String(jpeg), Body(AccountRequests.SetAvatar(Config, jpeg, session)).GetProperty("p_image").GetString());
+        Assert.Throws<ArgumentException>(() => AccountRequests.SetAvatar(Config, new byte[AccountRules.MaxPhotoBytes + 1], session));
+        var a = Guid.Parse("6f1d2c1e-0000-4000-8000-000000000001");
+        Assert.Equal("in.(" + a + ")", AccountRequests.AvatarFilter(new[] { a, a }));
+        var photos = AccountRequests.DecodeAvatars("[{\"user_id\":\"" + a + "\",\"image\":\"" + Convert.ToBase64String(jpeg) + "\",\"updated_at\":\"x\"},{\"user_id\":\"" + Guid.Empty + "\",\"image\":\"pas une image\"}]");
+        Assert.Equal(jpeg, photos[a]);
+        Assert.Single(photos);
         Assert.Equal(HttpMethod.Put, AccountRequests.UpdatePassword(Config, "Ab1!wxyz", session).Method);
         Assert.Equal("suite", Body(AccountRequests.Refresh(Config, session)).GetProperty("refresh_token").GetString());
         Assert.Equal("/rest/v1/rpc/username_available", AccountRequests.UsernameAvailable(Config, "flshortcuts").RequestUri!.AbsolutePath);
@@ -673,5 +686,24 @@ public class AccountTests
             AccountRequests.ServerMessage("""{"code":403,"error_code":"otp_expired","msg":"Token has expired or is invalid"}"""));
         Assert.Equal("Autre chose", AccountRequests.ServerMessage("""{"msg":"Autre chose"}"""));
         Assert.Equal("Le serveur n'a pas répondu.", AccountRequests.ServerMessage(""));
+        Assert.Equal("Session expirée : reconnecte-toi.", AccountRequests.ServerMessage("{}", 401));
+        Assert.Equal("Ce pseudo est déjà pris.", AccountRequests.ServerMessage("""{"message":"duplicate key value violates unique constraint \"profiles_username_key\""}""", 409));
+        Assert.Equal("Erreur du serveur (500).", AccountRequests.ServerMessage("", 500));
+    }
+
+    [Fact]
+    public void Photo_CroppedLikeTheMac()
+    {
+        Assert.Equal((100, 0, 400), AccountRules.CropRect(600, 400));
+        Assert.Equal((0, 0, 400), AccountRules.CropRect(600, 400, dx: -1));
+        Assert.Equal((200, 0, 400), AccountRules.CropRect(600, 400, dx: 5));
+        Assert.Equal((200, 100, 200), AccountRules.CropRect(600, 400, zoom: 2));
+        Assert.True(AccountRules.PhotoAcceptable(new byte[] { 0xFF, 0xD8, 0xFF, 0xDB }));
+        Assert.Equal("F", AccountRules.Initial("fl.shortcuts"));
+        Assert.Equal("?", AccountRules.Initial("._-"));
+        Assert.Equal(AccountRules.InitialColorIndex("FLShortcuts"), AccountRules.InitialColorIndex("flshortcuts"));
+        // Même calcul que ProfilePhoto.colorIndex du Mac : « ab » → (97 × 31 + 98) % 8 = 3105 % 8 = 1.
+        Assert.Equal(1, AccountRules.InitialColorIndex("ab"));
+        Assert.False(AccountRules.PhotoAcceptable(new byte[] { 0x89, 0x50, 0x4E, 0x47 }));
     }
 }

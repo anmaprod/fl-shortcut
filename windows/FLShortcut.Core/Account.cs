@@ -15,6 +15,7 @@ public sealed record AccountSession(string AccessToken, string RefreshToken, Dat
 public static class AccountRules
 {
     public const int MinPassword = 8;
+    public const int MaxPhotoBytes = 72_000;
     public static string PasswordRule => Loc.T("8 caractères au moins, avec une minuscule, une majuscule, un chiffre et un symbole");
     private static readonly (string Name, string Chars)[] PasswordSets =
     {
@@ -43,8 +44,50 @@ public static class AccountRules
         return missing;
     }
 
+    /// Les 5 règles du mot de passe, dans l'ordre des pastilles du Mac (8 caractères, minuscule, majuscule, chiffre,
+    /// symbole) : vrai quand elle est remplie.
+    public static bool[] PasswordChecks(string s) =>
+        new[] { s.Length >= MinPassword }.Concat(PasswordSets.Select(set => s.Any(set.Chars.Contains))).ToArray();
+
     public static string? PasswordProblem(string s) =>
         PasswordMissing(s).Count == 0 ? null : Loc.F("Mot de passe : %@.", PasswordRule);
+
+    /// Photo du profil envoyée au serveur : un JPEG (commence par FF D8 FF) de 72 Ko au plus, ≈ 96 Ko en base64, la
+    /// limite du serveur (comme ProfilePhoto.isAcceptable du Mac).
+    public static bool PhotoAcceptable(byte[] jpeg) =>
+        jpeg.Length is > 3 and <= MaxPhotoBytes && jpeg[0] == 0xFF && jpeg[1] == 0xD8 && jpeg[2] == 0xFF;
+
+    /// Côté de la photo envoyée (comme le Mac).
+    public const int PhotoSide = 256;
+
+    /// Le carré visible de l'image, en pixels (origine en haut à gauche) : `zoom` ≥ 1 (1 : le plus grand carré centré),
+    /// `dx`, `dy` de -1 à 1 : déplacement dans la marge (comme ProfilePhoto.cropRect du Mac).
+    public static (int X, int Y, int Side) CropRect(int width, int height, double zoom = 1, double dx = 0, double dy = 0)
+    {
+        double w = width, h = height;
+        var visible = Math.Min(w, h) / Math.Clamp(zoom, 1, 8);
+        dx = Math.Clamp(dx, -1, 1);
+        dy = Math.Clamp(dy, -1, 1);
+        return ((int)Math.Round((w - visible) / 2 * (1 + dx)), (int)Math.Round((h - visible) / 2 * (1 + dy)), (int)Math.Round(visible));
+    }
+
+    /// Sans photo : la couleur de l'initiale, tirée du pseudo (la même sur le Mac et sur Windows, ProfilePhoto.colorIndex).
+    public const int InitialColorCount = 8;
+
+    public static int InitialColorIndex(string username)
+    {
+        var sum = 0;
+        foreach (var rune in username.ToLowerInvariant().EnumerateRunes()) sum = unchecked(sum * 31 + rune.Value) & 0x7FFF_FFFF;
+        return sum % InitialColorCount;
+    }
+
+    /// La lettre affichée (« fl.shortcuts » → « F » ; vide → « ? »).
+    public static string Initial(string username)
+    {
+        foreach (var rune in username.EnumerateRunes())
+            if (System.Text.Rune.IsLetterOrDigit(rune)) return System.Text.Rune.ToUpperInvariant(rune).ToString();
+        return "?";
+    }
 
     /// Code reçu par mail : 6 à 10 chiffres, espaces ignorés.
     public static string? Code(string s)
@@ -104,11 +147,52 @@ public static class AccountRequests
         return ServerRequests.Make(c, HttpMethod.Put, "auth/v1/user", s.AccessToken, new { password });
     }
 
-    /// Nouveau pseudo (supabase/profil.sql : set_my_username) ; les partages déjà publiés prennent le nouveau.
+    /// Nouveau pseudo (supabase/profil.sql : set_username, comme le Mac) ; renvoie le pseudo gardé par le serveur.
     public static HttpRequestMessage SetUsername(ServerConfig c, string name, AccountSession s)
     {
         Check(AccountRules.UsernameProblem(name));
-        return ServerRequests.Make(c, HttpMethod.Post, "rest/v1/rpc/set_my_username", s.AccessToken, new { name });
+        return ServerRequests.Make(c, HttpMethod.Post, "rest/v1/rpc/set_username", s.AccessToken, new { p_name = name });
+    }
+
+    /// Pose ou remplace la photo du compte (JPEG carré déjà préparé, 256 × 256 au plus, comme ProfilePhoto du Mac).
+    public static HttpRequestMessage SetAvatar(ServerConfig c, byte[] jpeg, AccountSession s)
+    {
+        if (!AccountRules.PhotoAcceptable(jpeg)) throw new ArgumentException(Loc.T("Photo trop grande ou illisible : choisis-en une autre."));
+        return ServerRequests.Make(c, HttpMethod.Post, "rest/v1/rpc/set_avatar", s.AccessToken, new { p_image = Convert.ToBase64String(jpeg) });
+    }
+
+    public static HttpRequestMessage RemoveAvatar(ServerConfig c, AccountSession s) =>
+        ServerRequests.Make(c, HttpMethod.Post, "rest/v1/rpc/remove_avatar", s.AccessToken, new { });
+
+    /// Supprime le compte, sa sauvegarde et ses partages (supabase : delete_my_account).
+    public static HttpRequestMessage DeleteAccount(ServerConfig c, AccountSession s) =>
+        ServerRequests.Make(c, HttpMethod.Post, "rest/v1/rpc/delete_my_account", s.AccessToken, new { });
+
+    /// Photos de ces membres (une requête pour toutes, 60 au plus, sans doublon ; comme CommunityClient.avatars).
+    public static HttpRequestMessage Avatars(ServerConfig c, IEnumerable<Guid> ids, AccountSession s) =>
+        ServerRequests.Make(c, HttpMethod.Get,
+            "rest/v1/avatars?select=user_id,image,updated_at&user_id=" + Uri.EscapeDataString(AvatarFilter(ids)), s.AccessToken);
+
+    public static string AvatarFilter(IEnumerable<Guid> ids) =>
+        "in.(" + string.Join(",", ids.Distinct().Take(60).Select(g => g.ToString("D").ToLowerInvariant())) + ")";
+
+    /// Photos lues (image illisible ou trop grande ignorée).
+    public static Dictionary<Guid, byte[]> DecodeAvatars(string json)
+    {
+        var photos = new Dictionary<Guid, byte[]>();
+        try
+        {
+            foreach (var row in JsonDocument.Parse(json).RootElement.EnumerateArray())
+            {
+                if (!row.TryGetProperty("user_id", out var id) || !id.TryGetGuid(out var user)) continue;
+                if (!row.TryGetProperty("image", out var image) || image.ValueKind != JsonValueKind.String) continue;
+                byte[] jpeg;
+                try { jpeg = Convert.FromBase64String(image.GetString()!); } catch (FormatException) { continue; }
+                if (AccountRules.PhotoAcceptable(jpeg)) photos.TryAdd(user, jpeg);
+            }
+        }
+        catch (Exception ex) when (ex is JsonException or InvalidOperationException) { }
+        return photos;
     }
 
     private static void Check(string? why)
@@ -140,8 +224,8 @@ public static class AccountRequests
         }
     }
 
-    /// Message du serveur, traduit pour les cas courants (comme le Mac).
-    public static string ServerMessage(string json)
+    /// Message du serveur, traduit pour les cas courants (comme CommunityClient.message du Mac).
+    public static string ServerMessage(string json, int status = 0)
     {
         string raw = "", code = "";
         try
@@ -151,16 +235,27 @@ public static class AccountRequests
                 if (root.TryGetProperty(key, out var v) && v.ValueKind == JsonValueKind.String) { raw = v.GetString()!; break; }
             if (root.TryGetProperty("error_code", out var c) && c.ValueKind == JsonValueKind.String) code = c.GetString()!;
         }
-        catch (JsonException) { }
+        catch (Exception ex) when (ex is JsonException or InvalidOperationException) { }
         var lower = raw.ToLowerInvariant();
         if (lower.Contains("invalid login credentials")) return Loc.T("Mail ou mot de passe incorrect.");
-        if (lower.Contains("email not confirmed") || code == "email_not_confirmed")
-            return Loc.T("Confirme d'abord ton adresse mail avec le code reçu par mail.");
+        if (lower.Contains("email not confirmed") || code == "email_not_confirmed") return Unconfirmed;
         if (lower.Contains("already registered") || lower.Contains("already exists")) return Loc.T("Un compte existe déjà avec ce mail.");
         if (code == "otp_expired" || lower.Contains("token has expired") || lower.Contains("token is invalid") || lower.Contains("otp has expired"))
             return Loc.T("Code incorrect ou expiré : vérifie-le, ou demande un nouveau code.");
         if (code == "same_password" || lower.Contains("should be different")) return Loc.T("Choisis un mot de passe différent de l'ancien.");
         if (code == "weak_password" || lower.Contains("password should")) return Loc.F("Mot de passe trop faible : %@.", AccountRules.PasswordRule);
-        return raw.Length > 0 ? raw : Loc.T("Le serveur n'a pas répondu.");
+        if (lower.Contains("error sending") || lower.Contains("not authorized"))
+            return Loc.T("Le mail de confirmation n'a pas pu partir. Réessaie plus tard, ou écris à l'équipe depuis la page Aide.");
+        if (lower.Contains("trop de partages") || lower.Contains("trop de messages") || lower.StartsWith("attends ")
+            || lower.StartsWith("réservé aux administrateurs")) return raw;
+        if (lower.Contains("pseudo déjà pris") || lower.Contains("profiles_username")) return Loc.T("Ce pseudo est déjà pris.");
+        if (lower.Contains("pseudo invalide")) return AccountRules.UsernameProblem("")!;
+        if (lower.Contains("avatars_image_check")) return Loc.T("Photo trop grande ou illisible : choisis-en une autre.");
+        if (status is 401 or 403) return Loc.T("Session expirée : reconnecte-toi.");
+        if (status == 429) return Loc.T("Trop de tentatives : réessaie dans quelques minutes.");
+        if (raw.Length > 0) return status > 0 ? Loc.F("Erreur du serveur : %@", raw.Length > 200 ? raw[..200] : raw) : raw;
+        return status > 0 ? Loc.F("Erreur du serveur (%lld).", status) : Loc.T("Le serveur n'a pas répondu.");
     }
+
+    public static string Unconfirmed => Loc.T("Confirme d'abord ton adresse mail avec le code reçu par mail.");
 }

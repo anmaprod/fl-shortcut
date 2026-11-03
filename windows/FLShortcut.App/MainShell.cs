@@ -27,7 +27,7 @@ internal sealed partial class MainShell
     /// Largeur de page à partir de laquelle les cartes passent sur deux colonnes (comme le Mac).
     private const double TwoColumnWidth = 660;
 
-    private enum PageKind { Section, Macros, Custom, Help }
+    private enum PageKind { Section, Macros, Custom, Help, Account }
 
     private readonly Window _window;
     private readonly Grid _root;
@@ -60,6 +60,9 @@ internal sealed partial class MainShell
     private readonly ScrollViewer _scroll = new() { HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled };
     private readonly MacrosPage _macros;
     private readonly HelpPage _help;
+    private readonly AccountPage _account;
+    /// Bouton du compte en haut à droite (sa photo, ou l'icône du compte), comme le Mac.
+    private readonly Border _accountSlot = new() { VerticalAlignment = VerticalAlignment.Center };
     /// Dernière macro ratée (« Signaler ce problème… » du menu de l'icône, comme le Mac).
     private string? _lastFailure;
     /// Mode photos : la macro d'exemple ouverte dans le créateur.
@@ -141,6 +144,10 @@ internal sealed partial class MainShell
         var (macroStore, demoMacro) = photos ? MacrosPage.DemoStore() : (_app.Macros, Guid.Empty);
         _demoMacro = demoMacro;
         _help = new HelpPage(_app, () => { if (_kind == PageKind.Help) RenderPage(); }, ShowToast);
+        _account = new AccountPage(() => { if (_kind == PageKind.Account) RenderPage(); }, ConfirmAsync, _hwnd);
+        _account.Changed += UpdateAccountButton;
+        _help.Token = () => _account.Session is { } session && !session.Expired(DateTimeOffset.UtcNow) ? session.AccessToken : null;
+        UpdateAccountButton();
         _macros = new MacrosPage(_app, macroStore, photos, window,
             listChanged: () => { if (_kind == PageKind.Macros && _query.Trim().Length == 0) RenderPage(); },
             creatorShown: on => _main.Visibility = on || !_app.Onboarded ? Visibility.Collapsed : Visibility.Visible,
@@ -304,6 +311,7 @@ internal sealed partial class MainShell
         {
             case "custom": _kind = PageKind.Custom; break;
             case "aide": _kind = PageKind.Help; break;
+            case "compte": _kind = PageKind.Account; break;
             case "recherche": _query = "Zoom"; _search.Text = _query; break;
             case "macros": _kind = PageKind.Macros; break;
             case "macros-createur":
@@ -317,6 +325,7 @@ internal sealed partial class MainShell
         }
         RenderSidebar();
         RenderPage();
+        UpdateAccountButton();
     }
 
     // ---------- Barre de gauche ----------
@@ -406,7 +415,16 @@ internal sealed partial class MainShell
         page.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
         var header = new Grid { Margin = new Thickness(26, TitleBarHeight - 8, 26, 4), MinHeight = 72, Padding = new Thickness(0, 0, 0, 10) };
         header.Children.Add(_title);
-        header.Children.Add(_capsuleBorder);
+        // À droite : la capsule de la page, puis le compte (sa photo, ou l'icône du compte).
+        var right = new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            Spacing = 10,
+            HorizontalAlignment = HorizontalAlignment.Right,
+            VerticalAlignment = VerticalAlignment.Center,
+            Children = { _capsuleBorder, _accountSlot },
+        };
+        header.Children.Add(right);
         var titleRule = Rule(Text);
         titleRule.VerticalAlignment = VerticalAlignment.Bottom;
         titleRule.Margin = new Thickness(0, 0, 0, -10);
@@ -448,6 +466,8 @@ internal sealed partial class MainShell
             !searching && _kind == PageKind.Custom, () => Choose(PageKind.Custom, _section)));
         _sidebarGroups.Children.Add(custom);
         var help = Group(Loc.T("Compte et aide"));
+        help.Children.Add(SidebarRow("account", AccountPage.Tint, Loc.T("Mon compte"),
+            !searching && _kind == PageKind.Account, () => Choose(PageKind.Account, _section)));
         help.Children.Add(SidebarRow("help", HelpPage.Tint, Loc.T("Aide"),
             !searching && _kind == PageKind.Help, () => Choose(PageKind.Help, _section)));
         _sidebarGroups.Children.Add(help);
@@ -486,6 +506,7 @@ internal sealed partial class MainShell
         _search.Text = "";
         RenderSidebar();
         RenderPage();
+        UpdateAccountButton();
         _scroll.ChangeView(null, 0, null, disableAnimation: true);
     }
 
@@ -631,6 +652,48 @@ internal sealed partial class MainShell
         };
     }
 
+    /// Connecté : sa photo (ou son initiale de couleur), qui ouvre « Modifier le profil » sur la page Mon compte ;
+    /// sinon l'icône du compte (comme l'en-tête du Mac).
+    private void UpdateAccountButton()
+    {
+        var session = _account.Session;
+        var help = session is not null && _kind == PageKind.Account ? Loc.T("Modifier le profil") : Loc.T("Mon compte");
+        FrameworkElement Face(bool hovered) => session is not null
+            ? AccountPage.Avatar(_account.MyPhoto, session.Username, 34)
+            : new FontIcon
+            {
+                Glyph = "\uE77B",
+                FontFamily = new FontFamily("Segoe Fluent Icons, Segoe MDL2 Assets"),
+                FontSize = 16,
+                Foreground = Brush(hovered ? Colors.Black : Text),
+            };
+        var button = new Button
+        {
+            Style = PlainButton,
+            Width = 36,
+            Height = 36,
+            Padding = new Thickness(0),
+            HorizontalContentAlignment = HorizontalAlignment.Center,
+            VerticalContentAlignment = VerticalAlignment.Center,
+            Content = Face(false),
+            BorderBrush = Brush(Text),
+            BorderThickness = new Thickness(1),
+        };
+        if (session is null)
+        {
+            button.PointerEntered += (_, _) => { button.Background = Brush(Colors.White); button.Content = Face(true); };
+            button.PointerExited += (_, _) => { button.Background = Brush(Colors.Transparent); button.Content = Face(false); };
+        }
+        button.Click += (_, _) =>
+        {
+            if (_account.Session is not null && _kind == PageKind.Account && _query.Trim().Length == 0) _account.EditProfile();
+            else Choose(PageKind.Account, _section);
+        };
+        ToolTipService.SetToolTip(button, help);
+        AutomationProperties.SetName(button, Loc.T("Mon compte"));
+        _accountSlot.Child = button;
+    }
+
     // ---------- Pages ----------
 
     private sealed record PageCard(string Title, List<FrameworkElement> Rows);
@@ -662,6 +725,12 @@ internal sealed partial class MainShell
         {
             _title.Text = Loc.T("Macros");
             _scroll.Content = _macros.ListContent(_columns);
+            return;
+        }
+        else if (_kind == PageKind.Account)
+        {
+            _title.Text = Loc.T("Mon compte");
+            _scroll.Content = _account.Content(_columns);
             return;
         }
         else if (_kind == PageKind.Help)
