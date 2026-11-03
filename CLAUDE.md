@@ -256,6 +256,11 @@
   dans une boucle modale, leurs boutons ne répondaient pas (« ça ne fonctionnait pas ») ; NE PAS les remettre en
   SwiftUI. Résultats de la recherche : titres des pages en lignes (plus d'en-tête collé en haut sur une bande grise),
   avec le petit carré de couleur de la barre de gauche (plus les anciens logos).
+  03/11 (vidéo + capture) : recherche de la barre de gauche dont le texte restait sous la loupe au clic → zone de
+  frappe après la loupe (`PlainSearchField`/`PlainSearchFieldCell`, comme le texte au repos) ; créateur de macros
+  rétréci (nom disparu, « Commencer l'enregistrement » qui débordait) → étapes jamais sous 430 points, fenêtre jamais
+  sous `MacroEditorView.minWidth` tant que le créateur est là (élargie à son ouverture, `makeRoom`) ; triangle
+  « attention » du créateur (« La macro est vide. ») en blanc, plus en jaune.
   Téléchargement Mac : le .pkg seul (le .dmg reste fabriqué pour les essais, jamais publié) + LISEZMOI.html au style
   suisse avec images (Mac et Windows : modèles `docs/telechargement/modele-*.html`, `python3 scripts/lisezmoi.py` y
   colle les images → LISEZMOI-Mac/Windows.html ; exemples validés au fil de ses retours : artefacts privés

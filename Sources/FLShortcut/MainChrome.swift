@@ -200,7 +200,7 @@ struct SidebarSearchField: NSViewRepresentable {
     func makeCoordinator() -> Coordinator { Coordinator(text: $text) }
 
     func makeNSView(context: Context) -> NSSearchField {
-        let field = NSSearchField()
+        let field = PlainSearchField()
         field.placeholderString = prompt
         field.isBordered = false
         field.isBezeled = false
@@ -235,6 +235,40 @@ struct SidebarSearchField: NSViewRepresentable {
             guard let field = note.object as? NSTextField else { return }
             text.wrappedValue = field.stringValue
         }
+    }
+}
+
+/// Recherche sans cadre dont le texte reste à sa place au clic (vidéo du 03/11 : « quand je clique dessus, le mot
+/// Rechercher se décale sur la loupe ») : sans cadre, macOS posait la zone de frappe au bord gauche, sous la loupe,
+/// alors que le texte au repos est dessiné après elle. La zone de frappe prend la même place que ce texte.
+final class PlainSearchField: NSSearchField {
+    override class var cellClass: AnyClass? {
+        get { PlainSearchFieldCell.self }
+        set { super.cellClass = newValue }
+    }
+}
+
+final class PlainSearchFieldCell: NSSearchFieldCell {
+    /// Entre la loupe et la croix (ou le bord), sur toute la hauteur : comme le texte dessiné au repos.
+    private func typingFrame(_ rect: NSRect) -> NSRect {
+        let drawn = searchTextRect(forBounds: rect)
+        let loupe = searchButtonRect(forBounds: rect)
+        var left = drawn.minX
+        if left < loupe.maxX { left = loupe.width > 0 ? loupe.maxX + 4 : 22 }
+        let cancel = cancelButtonRect(forBounds: rect)
+        let right = min(drawn.maxX > left ? drawn.maxX : rect.maxX, cancel.width > 0 ? cancel.minX - 2 : rect.maxX)
+        return NSRect(x: left, y: rect.minY, width: max(0, right - left), height: rect.height)
+    }
+
+    override func edit(withFrame rect: NSRect, in controlView: NSView, editor textObj: NSText, delegate: Any?,
+                       event: NSEvent?) {
+        super.edit(withFrame: typingFrame(rect), in: controlView, editor: textObj, delegate: delegate, event: event)
+    }
+
+    override func select(withFrame rect: NSRect, in controlView: NSView, editor textObj: NSText, delegate: Any?,
+                         start selStart: Int, length selLength: Int) {
+        super.select(withFrame: typingFrame(rect), in: controlView, editor: textObj, delegate: delegate,
+                     start: selStart, length: selLength)
     }
 }
 

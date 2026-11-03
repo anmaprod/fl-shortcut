@@ -725,3 +725,7 @@ entrée 1 ≈ 0,5 s.
   Précisions du propriétaire : la question « Enregistrer… » « ne fonctionnait pas » (boutons sans effet) et ses
   boutons étaient collés → refaite en AppKit (boutons qui répondent, espacés de 10) ; dans la recherche, les anciens
   logos → les petits carrés de couleur de la barre de gauche.
+- 03/11 : vidéo « quand je clique sur la recherche, le mot Rechercher se décale sur la loupe… et pareil quand on tape »
+  → la zone de frappe d'une recherche de macOS sans cadre partait du bord gauche : posée après la loupe. Capture
+  « quand on rétrécit trop Macro ça fait chelou » → largeur mini du créateur. « Le logo attention… en noir et
+  blanc » (le triangle jaune de « La macro est vide. ») → blanc.

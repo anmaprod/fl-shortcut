@@ -87,13 +87,14 @@ struct MacroCreatorView: View {
                 .frame(maxHeight: .infinity, alignment: .top)
                 .background(MockPlate(cornerRadius: 19, top: 0.10, bottom: 0.04, border: 0.16))
                 .overlay(alignment: .trailing) { Rectangle().fill(Swiss.line).frame(width: 1) }
-            // Colonnes souples : quand la fenêtre se resserre, les étapes puis les réglages rétrécissent (jamais rien
-            // de coupé ; la fenêtre ne descend pas sous 820 points, et 252 + 280 + 240 y tiennent).
+            // Colonne des étapes jamais sous `stepsMinWidth` (03/11, capture « quand on rétrécit trop, ça fait
+            // chelou » : à 280 points, le nom de la macro disparaissait et « Commencer l'enregistrement » débordait) ;
+            // la fenêtre ne descend pas sous `minWidth` tant que le créateur est affiché.
             VStack(spacing: 0) {
                 LibraryProblemBanner(library: store.library)
                 MacroStepsPane(model: model, monitor: model.monitor, paletteItems: model.paletteItems, onBack: onBack)
             }
-            .frame(minWidth: 280, maxWidth: .infinity, maxHeight: .infinity)
+            .frame(minWidth: Self.stepsMinWidth, maxWidth: .infinity, maxHeight: .infinity)
             // Réglages du bloc : largeur fixe, les étapes gardent la place (photo de la CI : lignes coupées).
             MacroInspectorView(model: model)
                 .padding(.top, MainWindowChrome.contentTop - 8)
@@ -103,7 +104,7 @@ struct MacroCreatorView: View {
                 .overlay(alignment: .leading) { Rectangle().fill(Swiss.line).frame(width: 1) }
         }
         .padding(8)
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .frame(minWidth: Self.minWidth, maxWidth: .infinity, maxHeight: .infinity)
         .background(Appearance.windowColor)
         // Sous la barre de titre transparente, comme la page des raccourcis (MainWindowChrome).
         .ignoresSafeArea()
@@ -115,12 +116,32 @@ struct MacroCreatorView: View {
             model.window = window
             CreatorPresence.attach(window)
             MainWindowChrome.keep(window)
+            Self.makeRoom(in: window)
         })
         .onAppear {
             model.undoManager = undoManager
             model.handle(link.request)                  // déjà fait avant l'ouverture : sans effet
         }
         .onChange(of: link.request) { request in model.handle(request) }
+    }
+
+    /// Largeur des étapes au plus serré : la ligne du haut (←, nom, touches, « Enregistrer ») et « Commencer
+    /// l'enregistrement » y tiennent sans rien couper.
+    static let stepsMinWidth: CGFloat = 430
+    /// Palette + étapes + réglages + marges.
+    static var minWidth: CGFloat { EditorView.sidebarWidth + stepsMinWidth + 270 + 16 }
+
+    /// Fenêtre plus étroite que le créateur à son ouverture : élargie tout de suite (sur l'écran), plutôt que de couper
+    /// la colonne des étapes.
+    static func makeRoom(in window: NSWindow) {
+        DispatchQueue.main.async {
+            guard window.frame.width < minWidth else { return }
+            var frame = window.frame
+            let screen = window.screen?.visibleFrame ?? frame
+            frame.size.width = min(minWidth, screen.width)
+            if frame.maxX > screen.maxX { frame.origin.x = max(screen.minX, screen.maxX - frame.width) }
+            window.setFrame(frame, display: true, animate: false)
+        }
     }
 }
 
@@ -543,11 +564,15 @@ private struct MacroHeader: View {
             }
             .frame(minHeight: 52)
             if let problem = model.problem {
-                Label(problem, systemImage: "exclamationmark.triangle.fill")
-                    .font(.system(size: 12))
-                    .foregroundStyle(.secondary)
-                    .symbolRenderingMode(.multicolor)
-                    .fixedSize(horizontal: false, vertical: true)
+                // Triangle en noir et blanc (03/11 : « le logo attention, pas fan… en noir et blanc pour rester dans
+                // le thème »).
+                Label {
+                    Text(problem).foregroundStyle(Swiss.soft)
+                } icon: {
+                    Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(Swiss.text)
+                }
+                .font(.system(size: 12))
+                .fixedSize(horizontal: false, vertical: true)
             }
             if !model.triggerIssues.isEmpty {
                 IssuesView(issues: model.triggerIssues)
