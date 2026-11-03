@@ -7,7 +7,9 @@
   sans demande. Derniers tests Mac verts : commit 1843b87 (502 tests, lancés par le propriétaire sur son Mac) ; CI
   entièrement verte sur 8861883 (plugins par « More plugins… », preset déposé sur Windows, tous les essais PASS ;
   lancée à la main avec `mac_runner=macos-15-intel` à sa demande : le 28/10 GitHub n'a donné aucun Mac arm64 en 15 min,
-  deux fois). La lecture de GitHub (CI, artefacts, images) marche : vérifier chaque push dessus.
+  deux fois). La lecture de GitHub (CI, artefacts, images) marche : vérifier chaque push dessus. Les essais de macro
+  et les photos sont « à relire » (continue-on-error) : un FAIL laisse la CI verte, lire le résumé ou le journal du
+  travail Mac (03/11 : « plugin hors des favoris » et « clics et touches » cassés par 401f2c8 sans CI rouge).
 - Tout texte affiché doit avoir son anglais (la CI échoue sinon) : `python3 scripts/localisation.py generer trad.json`.
 - Historique, décisions et échecs : `docs/contexte/HISTORIQUE.md` ; lien avec FL (script v16) : `PROTOCOL.md`.
 - **Graphify, toujours** (demande du 29/10, pour moins de jetons) : chercher dans le graphe du code AVANT de lire des
@@ -207,6 +209,12 @@
   étapes glissées, interrupteur, réglages à droite, « Retirer ce bloc » ; blocs pas faits sur Windows « à régler sur le
   Mac »), photos `macros-liste.png`/`macros-createur.png` sur la CI ; fiche d'un raccourci : 3e type « Macro ».
   Reste : ces blocs, blocs imbriqués (si/répéter) dans le créateur, enregistrement, compte, Communauté, Aide.
+  03/11 (un ami : « rien ne marche ») : FL n'était JAMAIS reconnu sous Windows (signataire cherché « Image-Line »,
+  le certificat de FL64.exe dit « Image Line ») → plus de crochet clavier, de macro ni d'Organiser ; `FlSigner`
+  (lettres seules, testé), état « FL Studio n'est pas reconnu » si un FL64.exe n'a pas la signature, journal STATUS.
+  App en icône comme le Mac : fenêtre au 1er lancement seulement (`WindowShownAtLaunch`), bulle pour trouver
+  l'icône, `--tray` au démarrage de Windows, 2e lancement → bulle (`ShowSignal`) ; menu : Reprendre, Installer le
+  lien, Désinstaller (unins000.exe). Pas encore sur Windows : Communauté, Mon compte, Aide, style suisse du 01-03/11.
 - **Style suisse validé le 01/11** (« j'aime beaucoup… mettre tout ça en place ») : maquette de TOUTES les pages,
   artefact privé `GHmTowhxy53F6VT3TEAjis` (Organiser, fenêtre, petites fenêtres, 4 idées de logo) : fond noir, texte
   blanc, traits fins (#333/#222), coins carrés, gros titres Helvetica gras, libellés en petites capitales espacées,

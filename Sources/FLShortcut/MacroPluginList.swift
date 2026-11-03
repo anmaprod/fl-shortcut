@@ -84,7 +84,7 @@ extension MacroEffectsMac {
             MacroLog.shared.write("PLUGIN", "taken from the Add menu")
             return .ok
         case .cancelled(let why): return .cancel(why)
-        case .failed: break                                        // pas dans le menu : « More plugins… »
+        case .failed: closeLeftoverMenus(pid: pid)                 // pas dans le menu : « More plugins… »
         }
         guard ScreenLook.available, ScreenLook.allowed else {
             return .fail(String(localized: "lecture de l'écran pas autorisée (Réglages Système › Confidentialité et sécurité › Enregistrement de l'écran) : le plugin ne peut pas être cherché dans « More plugins… » de FL"))
@@ -170,6 +170,19 @@ extension MacroEffectsMac {
         MacroLog.shared.write("PLUGIN", "name typed in Find (\(prompt == nil ? "in the list" : "in its window"))")
         Thread.sleep(forTimeInterval: 0.4)
         return nil
+    }
+
+    /// Menus de FL encore ouverts après la recherche dans le menu Add (essai CI du 03/11 : « More plugins… » était
+    /// ensuite cliqué dans un menu resté ouvert, qui ne se refermait plus) : attendus fermés, sinon Échap, seulement
+    /// tant qu'un menu de FL est là (jamais d'Échap à l'aveugle).
+    func closeLeftoverMenus(pid: Int32) {
+        for _ in 0..<3 {
+            let menus = Set(WinSnapshot.take(pid: pid).fl.filter { $0.layer > 8 && $0.isMenuLike }.map(\.number))
+            if menus.isEmpty { return }
+            if case .success = WindowWait.gone(pid: pid, numbers: menus, timeout: 0.5, stop: { nil }) { return }
+            MacroLog.shared.write("PLUGIN", "\(menus.count) FL menus still open after the Add menu: Escape")
+            postKey(KeyCombo(keyCode: 53), pid: pid)
+        }
     }
 
     /// Échap tant que la liste est encore là (jamais d'Échap à l'aveugle) : elle se referme.
