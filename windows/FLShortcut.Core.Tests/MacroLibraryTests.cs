@@ -95,7 +95,7 @@ public class MacroLibraryTests
 
         var many = MacroLibraryCodec.Encode(Enumerable.Range(0, MacroLibraryCodec.MaxMacros + 1).Select(i => new MacroDoc { Name = $"M{i}" }));
         var tooMany = Assert.Throws<MacroLibraryCodec.Failure>(() => MacroLibraryCodec.Decode(many));
-        Assert.Equal("Trop de macros (500 au plus).", tooMany.Message);
+        Assert.Equal("Trop de macros : 500 au plus.", tooMany.Message);
     }
 
     /// Fichier d'une version plus récente : lu, sa version gardée (l'appli en garde une copie et prévient).
@@ -111,6 +111,6 @@ public class MacroLibraryTests
     public void MessagesHaveTheirEnglish()
     {
         Assert.True(Loc.Has("Format de bibliothèque illisible."));
-        Assert.True(Loc.Has("Trop de macros (%lld au plus)."));
+        Assert.True(Loc.Has("Trop de macros : %lld au plus."));
     }
 }

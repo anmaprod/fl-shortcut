@@ -313,7 +313,7 @@ internal sealed class OrganizerWindow : Window
                 break;
             case OrganizerPhase.Undone u:
                 Ending(u.Error?.UserMessage ?? (_controller.LastApply?.Copy is not null
-                        ? Loc.T("Ton projet d'origine se rouvre dans FL, tel qu'il était. La copie rangée part à la Corbeille dès que FL l'a quittée.")
+                        ? Loc.T("Ton projet d'avant se rouvre. La copie part à la Corbeille.")
                         : Loc.T("FL est revenu comme avant.")),
                     u.Error is null, u.Error?.Is(OrganizerError.Kinds.NoResponse) == true);
                 break;
@@ -388,18 +388,18 @@ internal sealed class OrganizerWindow : Window
         };
         _content.Children.Add(Card(Row(Badge("exclamationmark", Orange), Stack(4,
             Label(Loc.T("Crée d'abord les deux ports MIDI"), 14, Text, semibold: true),
-            Paragraph(Loc.T("Ouvre loopMIDI et crée deux ports nommés exactement « FL Shortcuts » et « FL Shortcuts Retour » (loopMIDI doit rester ouvert). FL Shortcuts les voit tout seul."), 12),
+            Paragraph(Loc.T("Dans loopMIDI : crée « FL Shortcuts » et « FL Shortcuts Retour ». Laisse-le ouvert."), 12),
             link), 14), Orange));
     }
 
     private static (string Icon, string Title, string Detail) WaitText(OrganizerWait reason) => reason switch
     {
         OrganizerWait.RestartFl => ("arrow.clockwise", Loc.T("Quitte et rouvre FL Studio"),
-            Loc.T("Le lien est prêt : FL le lit en démarrant. Dans FL : Options › MIDI Settings, entrée « FL Shortcuts » sur le Controller type « FL Shortcuts », et la sortie « FL Shortcuts Retour » sur le même numéro de Port.")),
+            Loc.T("Lien prêt. Dans FL : MIDI Settings, Controller type « FL Shortcuts », même Port pour « FL Shortcuts Retour ».")),
         OrganizerWait.NoResponse => ("antenna.radiowaves.left.and.right", Loc.T("En attente de FL Studio"),
-            Loc.T("FL ne répond pas encore. Dans FL › Options › MIDI Settings › Output, « FL Shortcuts » doit s'afficher à côté de « FL Shortcuts Retour », seul sur son Port. Sinon : « Ça ne marche toujours pas ? » ci-dessous.")),
+            Loc.T("FL ne répond pas encore. Vérifie MIDI Settings ci-dessous.")),
         OrganizerWait.WrongInput => ("link", Loc.T("Le lien est sur la mauvaise entrée"),
-            Loc.T("Dans FL : Options › MIDI Settings › Input, ta carte son (ou ton clavier) a le Controller type « FL Shortcuts ». Remets-la sur « (generic controller) », puis clique la ligne « FL Shortcuts » et choisis « FL Shortcuts ».")),
+            Loc.T("Ta carte son a le Controller type « FL Shortcuts » : remets-la sur « (generic controller) ».")),
         OrganizerWait.OpenFl => ("macwindow", Loc.T("Ouvre FL Studio"), Loc.T("Organiser commence dès que FL est ouvert, avec ton projet.")),
         _ => ("stop.fill", Loc.T("Arrête la lecture dans FL"), Loc.T("Organiser écoute chaque son seul : FL doit être à l'arrêt.")),
     };
@@ -444,10 +444,10 @@ internal sealed class OrganizerWindow : Window
     /// Les réglages à vérifier, étape par étape, et où est le script.
     private void LinkHelp()
     {
-        _content.Children.Add(Step(1, Loc.T("Dans loopMIDI : deux ports, « FL Shortcuts » et « FL Shortcuts Retour ». loopMIDI doit rester ouvert (il peut se lancer avec Windows).")));
-        _content.Children.Add(Step(2, Loc.T("Dans FL : Options › MIDI Settings › Input, clique d'abord la ligne « FL Shortcuts » (le Controller type, en bas, change la ligne choisie), puis Controller type « FL Shortcuts », Enable, et un numéro de Port (7 par exemple). Ta carte son ou ton clavier MIDI restent sur « (generic controller) ».")));
-        _content.Children.Add(Step(3, Loc.T("Dans Output : « FL Shortcuts Retour » sur ce même Port, et SEUL sur ce numéro. C'est bon quand « FL Shortcuts » s'affiche à côté de « FL Shortcuts Retour ». Puis quitte et rouvre FL.")));
-        _content.Children.Add(Step(4, Loc.T("« FL Shortcuts » absent des Controller types : FL ne lit pas le dossier du script ci-dessous. Compare-le avec Options › File settings › User data folder dans FL ; s'il diffère, « Autre dossier de FL… » et choisis son dossier « Settings\\Hardware ».")));
+        _content.Children.Add(Step(1, Loc.T("Dans loopMIDI : « FL Shortcuts » et « FL Shortcuts Retour ». Laisse-le ouvert.")));
+        _content.Children.Add(Step(2, Loc.T("Input : ligne « FL Shortcuts », Controller type « FL Shortcuts », Enable, un Port.")));
+        _content.Children.Add(Step(3, Loc.T("Output : « FL Shortcuts Retour » seul sur le même Port. Puis relance FL.")));
+        _content.Children.Add(Step(4, Loc.T("« FL Shortcuts » absent : choisis le dossier Hardware de FL.")));
         ScriptCard();
     }
 
@@ -546,7 +546,7 @@ internal sealed class OrganizerWindow : Window
     }
 
     private Button DiagnosticButton() => SoftButton(_controller.Copied ? Loc.T("Copié") : Loc.T("Copier le diagnostic"), _controller.CopyDiagnostic,
-        Loc.T("Copie un court texte technique (versions, autorisations, ce que l'écoute a reçu), sans aucun nom de son ni de piste : colle-le dans ton message pour qu'on trouve ce qui bloque."));
+        Loc.T("Copie un texte technique, sans aucun nom de son."));
 
     // ---------- Le tuto ----------
 
@@ -685,7 +685,7 @@ internal sealed class OrganizerWindow : Window
         menu.Items.Add(new MenuFlyoutSeparator());
         menu.Items.Add(Toggle(Loc.T("Renommer"), options.Rename, (o, on) => o with { Rename = on }));
         menu.Items.Add(Toggle(Loc.T("Un bus par famille"), options.Buses, (o, on) => o with { Buses = on }, options.Mixer));
-        menu.Items.Add(Toggle(_controller.OrganizesCopy ? Loc.T("Supprimer les sons sans note") : Loc.T("Supprimer les sons sans note (définitif)"),
+        menu.Items.Add(Toggle(_controller.OrganizesCopy ? Loc.T("Supprimer les sons sans note") : Loc.T("Supprimer les sons sans note, pour de bon"),
             options.DeleteUnused, (o, on) => o with { DeleteUnused = on }));
         menu.Items.Add(new MenuFlyoutSeparator());
         menu.Items.Add(MenuItem(_controller.Copied ? Loc.T("Copié") : Loc.T("Copier le diagnostic"), _controller.CopyDiagnostic));
@@ -706,7 +706,7 @@ internal sealed class OrganizerWindow : Window
         grip.Child = Icon("line.3.horizontal", 12, Secondary);
         ((FrameworkElement)grip.Child).HorizontalAlignment = HorizontalAlignment.Center;
         ((FrameworkElement)grip.Child).VerticalAlignment = VerticalAlignment.Center;
-        ToolTipService.SetToolTip(grip, Loc.T("Glisse la famille au-dessus ou en dessous d'une autre : le Channel rack, le Mixer et la Playlist suivent cet ordre"));
+        ToolTipService.SetToolTip(grip, Loc.T("Glisse pour changer l'ordre."));
         grip.DragStarting += (_, e) =>
         {
             _dragging = family;
@@ -737,7 +737,7 @@ internal sealed class OrganizerWindow : Window
             mixer.Children.Add(label);
             var box = new SlotBox(style.MixerStart ?? range.First, style.MixerStart is not null, _controller.MixerLast, ColorOf(style.Color),
                 start => _controller.SetMixerStart(family, start));
-            ToolTipService.SetToolTip(box, Loc.T("Première piste du Mixer de la famille (son bus compris ; la 808 avec les drums) : tire vers le haut ou le bas comme dans FL, ou clique pour l'écrire"));
+            ToolTipService.SetToolTip(box, Loc.T("Première piste du Mixer de la famille. Tire ou clique."));
             mixer.Children.Add(box);
             Grid.SetColumn(mixer, 1);
             header.Children.Add(mixer);
@@ -847,7 +847,7 @@ internal sealed class OrganizerWindow : Window
         var grid = new Grid { ColumnSpacing = 8, MinHeight = 38 };
         foreach (var width in new[] { GridLength.Auto, GridLength.Auto, GridLength.Auto, new GridLength(1, GridUnitType.Star), GridLength.Auto })
             grid.ColumnDefinitions.Add(new ColumnDefinition { Width = width });
-        var name = Label(member.Name.Length == 0 ? Loc.T("(sans nom)") : member.Name, 13, Text);
+        var name = Label(member.Name.Length == 0 ? Loc.T("Sans nom") : member.Name, 13, Text);
         name.TextWrapping = TextWrapping.NoWrap;
         name.TextTrimming = TextTrimming.CharacterEllipsis;
         name.MaxWidth = 150;
@@ -888,7 +888,7 @@ internal sealed class OrganizerWindow : Window
         };
         kind.PointerEntered += (_, _) => kind.Background = Brush(Colors.Black);
         kind.PointerExited += (_, _) => kind.Background = Brush(Colors.Black);
-        ToolTipService.SetToolTip(kind, Loc.T("Changer ce qu'est ce son (Kick, 808, Lead…), ou écrire son nom"));
+        ToolTipService.SetToolTip(kind, Loc.T("Changer ce son ou écrire son nom"));
         var menu = new MenuFlyout();
         foreach (var choice in SoundFamilies.Order.Where(f => f.Kinds().Length > 0))
         {
@@ -906,7 +906,7 @@ internal sealed class OrganizerWindow : Window
         if (_controller.Options.Mixer && (member.Slot is not null || member.Pinned))
         {
             var box = new SlotBox(member.Slot, member.Pinned, _controller.MixerLast, ColorOf(color), slot => _controller.SetSlot(member.Id, slot));
-            ToolTipService.SetToolTip(box, Loc.T("Piste du Mixer de ce son : tire vers le haut ou le bas comme dans FL, ou clique pour l'écrire"));
+            ToolTipService.SetToolTip(box, Loc.T("Piste du Mixer de ce son. Tire ou clique."));
             Grid.SetColumn(box, 4);
             grid.Children.Add(box);
         }
@@ -1002,7 +1002,7 @@ internal sealed class OrganizerWindow : Window
             }
             if (feedback.AsksSounds) FeedbackSounds(body, feedback, Build);
             if (feedback.TeamMessage() is not null)
-                body.Children.Add(Note(Loc.T("Sur Windows, ce message ne part pas encore tout seul : après « Envoyer », clique sur « Copier le diagnostic » et colle-le-moi avec ce qui n'allait pas.")));
+                body.Children.Add(Note(Loc.T("Sur Windows, copie le diagnostic et colle-le dans ton message.")));
             dialog.IsPrimaryButtonEnabled = feedback.CanSend;
         }
         Build();
@@ -1045,7 +1045,7 @@ internal sealed class OrganizerWindow : Window
             row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
             row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
             row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-            var name = new TextBlock { Text = item.Name.Length == 0 ? Loc.T("(sans nom)") : item.Name, FontSize = 12, TextTrimming = TextTrimming.CharacterEllipsis, VerticalAlignment = VerticalAlignment.Center };
+            var name = new TextBlock { Text = item.Name.Length == 0 ? Loc.T("Sans nom") : item.Name, FontSize = 12, TextTrimming = TextTrimming.CharacterEllipsis, VerticalAlignment = VerticalAlignment.Center };
             var mark = chosen is null
                 ? (FrameworkElement)new Ellipse { Width = 12, Height = 12, Stroke = Brush(White(0.3)), StrokeThickness = 1.2 }
                 : Icon("check", 12, Green);
@@ -1065,7 +1065,7 @@ internal sealed class OrganizerWindow : Window
     /// « Choisir le fichier… » : le projet ouvert dans FL, montré par la personne.
     private bool ChooseProject()
     {
-        var path = FileDialogs.PickFile(_hwnd, Loc.T("Choisis le fichier du projet ouvert dans FL Studio (.flp)."), "FL Studio (.flp)", "flp");
+        var path = FileDialogs.PickFile(_hwnd, Loc.T("Choisis le fichier du projet ouvert dans FL."), "FL Studio (.flp)", "flp");
         if (path is null) return false;
         ProjectFileWindows.Chosen = path;
         return true;

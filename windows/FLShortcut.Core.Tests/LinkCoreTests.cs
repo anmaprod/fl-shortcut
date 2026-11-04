@@ -272,8 +272,8 @@ public sealed class LinkCoreTests
     {
         var link = new RequestOrganizerLink(_ => new RequestReply.Failed(LinkCore.NoResponse), () => FlWindow.Unknown, _ => { });
         Assert.Equal(OrganizerError.NoResponse, Assert.Throws<OrganizerError>(() => link.Page()));
-        Assert.Contains("generic controller", LinkCore.NoResponse);
-        Assert.Contains("même numéro de Port", LinkCore.NoResponse);
+        Assert.Contains("Controller type", LinkCore.NoResponse);
+        Assert.Contains("même Port", LinkCore.NoResponse);
         Assert.Contains("Réessayer", OrganizerError.NoResponse.UserMessage);
 
         // Pas de HELLO du tout : la même explication, sans rien envoyer d'autre que le réveil.
@@ -393,7 +393,7 @@ public sealed class LinkCoreTests
         Assert.Equal(OrganizerError.OutdatedScript, Assert.Throws<OrganizerError>(() => old.ListPatterns()));
         Assert.Equal(OrganizerError.OutdatedScript, Assert.Throws<OrganizerError>(() => old.PlaySolo(1, 2)));
         Assert.Equal(OrganizerError.Refused(5), Assert.Throws<OrganizerError>(() => old.PlaySolo(1)));
-        Assert.Contains("redémarre FL Studio", OrganizerError.OutdatedScript.UserMessage);
+        Assert.Contains("redémarre FL", OrganizerError.OutdatedScript.UserMessage);
     }
 
     [Fact]

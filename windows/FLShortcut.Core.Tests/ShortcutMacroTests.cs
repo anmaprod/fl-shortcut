@@ -83,7 +83,7 @@ public class ShortcutMacroTests
 
         var issues = ShortcutAnalyzer.Analyze(new[] { good, gone, bad, none }, Ctx(programs));
         Assert.Empty(issues[good.Id]);
-        Assert.Equal("Macro introuvable dans la bibliothèque (supprimée ?).",
+        Assert.Equal("Macro introuvable.",
             Assert.IsType<ShortcutIssue.MacroInvalid>(Assert.Single(issues[gone.Id])).Message);
         Assert.Equal("Nom de macro invalide.", Assert.Single(issues[bad.Id]).Message);
         Assert.Equal("Aucune macro configurée.", Assert.Single(issues[none.Id]).Message);
@@ -138,6 +138,6 @@ public class ShortcutMacroTests
     public void MessagesHaveTheirEnglish()
     {
         Assert.True(Loc.Has("Aucune macro configurée."));
-        Assert.True(Loc.Has("Macro introuvable dans la bibliothèque (supprimée ?)."));
+        Assert.True(Loc.Has("Macro introuvable."));
     }
 }

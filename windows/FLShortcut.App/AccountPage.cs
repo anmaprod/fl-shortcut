@@ -318,7 +318,7 @@ internal sealed class AccountPage
             if (SupportRules.EmailProblem(mail) is { } why) throw new ArgumentException(why);
             await Call(AccountRequests.ResetPassword(Server, mail));
             _pending = (CodeKind.Recovery, mail);
-            _notice = Loc.T("Si un compte existe avec ce mail, un code vient d'y partir : entre-le ici avec ton nouveau mot de passe.");
+            _notice = Loc.T("Code envoyé si ce mail a un compte.");
         });
     }
 
@@ -627,7 +627,7 @@ internal sealed class AccountPage
             link.Children.Add(LinkButton(Loc.T("J'ai cliqué sur le lien"), () =>
             {
                 _creating = false;
-                CancelCode(Loc.T("Si tu as cliqué sur le lien du mail, ton adresse est confirmée : connecte-toi avec ton mot de passe."));
+                CancelCode(Loc.T("Adresse confirmée : connecte-toi."));
             }, 11));
             card.Children.Add(link);
         }
@@ -693,7 +693,7 @@ internal sealed class AccountPage
         Grid.SetColumn(label, 1);
         delete.Children.Add(label);
         var button = DangerButton(Loc.T("Supprimer…"), DeleteAccount);
-        ToolTipService.SetToolTip(button, Loc.T("Efface ton compte, ta sauvegarde en ligne et tes partages. Tes raccourcis et tes macros restent sur ce PC."));
+        ToolTipService.SetToolTip(button, Loc.T("Efface ton compte. Tes raccourcis restent ici."));
         Grid.SetColumn(button, 2);
         delete.Children.Add(button);
         var deleteBox = new StackPanel { Spacing = 8, Children = { delete } };
@@ -751,7 +751,7 @@ internal sealed class AccountPage
     {
         if (_session is null) return;
         if (!await _confirm(Loc.T("Se déconnecter ?"),
-                Loc.T("Tes raccourcis et tes macros seront retirés de ce PC. Ils restent dans ton compte : reconnecte-toi, ici ou sur un autre ordinateur, pour les retrouver."),
+                Loc.T("Tes raccourcis et macros quittent ce PC et restent dans ton compte."),
                 Loc.T("Se déconnecter"), false)) return;
         if (_backup is null)
         {
@@ -788,7 +788,7 @@ internal sealed class AccountPage
     {
         if (_session is null) return;
         if (!await _confirm(Loc.T("Supprimer ton compte ?"),
-                Loc.T("Ton compte, ta sauvegarde en ligne et tes partages dans la Communauté seront effacés pour toujours. Tes raccourcis et tes macros restent sur ce PC."),
+                Loc.T("Compte, sauvegarde et partages effacés pour toujours. Tes raccourcis restent ici."),
                 Loc.T("Supprimer définitivement"), true)) return;
         _deleteError = null;
         try
@@ -873,7 +873,7 @@ internal sealed class AccountPage
         sides.Children.Add(Side(Loc.T("Ce PC"), choice.Here, Loc.T("La sauvegarde de ton compte est remplacée par ce qu'il y a ici."),
                                 Primary(Loc.T("Garder ce PC"), () => _ = backup.Resolve(keepAccount: false))));
         var account = Side(Loc.T("Mon compte"), choice.Account + (When(choice.Remote.UpdatedAt) is { } w ? " · " + w : ""),
-                           Loc.T("Ce PC reprend ta sauvegarde. Ce qu'il y avait ici est copié dans le dossier de FL Shortcuts."),
+                           Loc.T("Ce PC prend ta sauvegarde. L'ancien contenu est copié."),
                            Soft(Loc.T("Garder mon compte"), () => _ = backup.Resolve(keepAccount: true)));
         Grid.SetColumn(account, 1);
         sides.Children.Add(account);
@@ -1063,7 +1063,7 @@ internal sealed class AccountPage
         }
         catch (Exception)
         {
-            _editProblem = Loc.T("Cette image ne se lit pas (ou elle est trop lourde) : choisis-en une autre.");
+            _editProblem = Loc.T("Image illisible : choisis-en une autre.");
             _render();
             return;
         }
@@ -1078,7 +1078,7 @@ internal sealed class AccountPage
         var jpeg = await ProfilePhotoWin.Jpeg(file, _zoom, _dx, _dy);
         if (version != _photoVersion) return;
         _editPhoto = jpeg;
-        _editProblem = jpeg is null ? Loc.T("Cette image ne se lit pas (ou elle est trop lourde) : choisis-en une autre.") : null;
+        _editProblem = jpeg is null ? Loc.T("Image illisible : choisis-en une autre.") : null;
         _render();
     }
 

@@ -119,7 +119,7 @@ internal sealed partial class MainShell
                 title.Children.Add(Label(Loc.T("Déjà utilisée par :"), 11, Text));
                 clashPanel.Children.Add(title);
                 foreach (var c in clashes.Take(4)) clashPanel.Children.Add(Paragraph(Line(c), 11));
-                if (clashes.Count > 4) clashPanel.Children.Add(Paragraph(Loc.F("et %lld autre(s)", clashes.Count - 4), 11));
+                if (clashes.Count > 4) clashPanel.Children.Add(Paragraph(Loc.F("et %lld autres", clashes.Count - 4), 11));
             }
             issuePanel.Children.Clear();
             var issues = combo is { } k && k != native
@@ -239,8 +239,7 @@ internal sealed partial class MainShell
         var dialog = NewDialog();
         dialog.Title = Loc.F("%@ est déjà utilisée", combo?.ToString() ?? Loc.T("Cette touche"));
         dialog.Content = Paragraph(string.Join("\n", clashes.Take(4).Select(Line))
-            + Loc.T("\n\nUn raccourci ne peut servir qu'une fois. Si tu remplaces, tu pourras choisir tout de suite ")
-            + Loc.F("une autre touche pour « %@ ».", clashes.FirstOrDefault()?.Title ?? Loc.T("l'autre raccourci")), 13, Text);
+            + "\n\n" + Loc.F("Une touche ne sert qu'une fois : « %@ » en prendra une autre.", clashes.FirstOrDefault()?.Title ?? Loc.T("l'autre raccourci")), 13, Text);
         dialog.PrimaryButtonText = Loc.T("Remplacer");
         dialog.CloseButtonText = Loc.T("Annuler");
         dialog.DefaultButton = ContentDialogButton.Close;

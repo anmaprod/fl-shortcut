@@ -341,6 +341,16 @@ public sealed class OrganizerControllerTests
         Assert.True(missing.Count == 0, "Textes sans anglais :\n" + string.Join("\n", missing));
     }
 
+    /// Raccourcis déjà pris par Windows ou FL : traduits à l'affichage, donc chacun a son anglais, sans parenthèse.
+    [Fact]
+    public void ConflictNamesHaveTheirEnglish()
+    {
+        var names = ConflictTable.Default.Windows.Values.Concat(ConflictTable.Default.Fl.Values).Distinct().ToList();
+        Assert.NotEmpty(names);
+        Assert.All(names, n => Assert.True(Loc.Has(n), $"« {n} » sans anglais"));
+        Assert.All(names, n => Assert.DoesNotContain("(", n));
+    }
+
     /// Les familles de l'aperçu sur deux colonnes (comme le Mac) : dans l'ordre, coupées là où les colonnes ont la
     /// hauteur la plus proche ; une seule colonne si la fenêtre est étroite ou s'il n'y a qu'une famille.
     [Fact]

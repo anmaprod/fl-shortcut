@@ -25,7 +25,7 @@ public abstract record MacroOutcome
     {
         DoneWithWarning w => Loc.F("Macro terminée, mais %@", w.Why),
         Failed f => Loc.F("Macro arrêtée à l'étape %lld : %@", f.Step, f.Reason),
-        FailedInBlock f => Loc.F("Macro arrêtée au bloc %@ (%@) : %@", f.Path, f.Label, f.Reason),
+        FailedInBlock f => Loc.F("Macro arrêtée au bloc %@, %@ : %@", f.Path, f.Label, f.Reason),
         Stopped { Message: { } m } => Loc.F("Macro arrêtée : %@", m),
         Stopped => Loc.T("Macro arrêtée par son bloc « Arrêter »"),
         Cancelled c => Loc.F("Macro annulée : %@", c.Reason),
@@ -190,9 +190,9 @@ public sealed class MacroInterpreter
             if (!block.Enabled || block.Body is BlockBody.Comment) continue;
             var label = BlockRegistry.Label(block.Body);
             if (state.Executed >= _limits.MaxBlocks)
-                return new Flow.Fail(path, label, Loc.F("trop de blocs exécutés (%lld au plus)", _limits.MaxBlocks));
+                return new Flow.Fail(path, label, Loc.F("trop de blocs : %lld au plus", _limits.MaxBlocks));
             if ((_clock() - state.StartedAt).TotalSeconds > _limits.MaxSeconds)
-                return new Flow.Fail(path, label, Loc.F("macro trop longue (%lld s au plus)", (int)_limits.MaxSeconds));
+                return new Flow.Fail(path, label, Loc.F("macro trop longue : %lld s au plus", (int)_limits.MaxSeconds));
             if (_effects.StopReason() is { } stop) return new Flow.Cancel(stop);
 
             // Actions de FL consécutives (blocs inactifs sautés) : un seul réveil du lien.
@@ -314,7 +314,7 @@ public sealed class MacroInterpreter
                 case StepResult.Fail f:
                     if (block.OnFailure != FailurePolicy.KeepGoing) return new Flow.Fail(path, label, f.Why);
                     state.LastFailed = true;
-                    state.Warnings.Add(Loc.F("étape %@ non faite (%@)", path, f.Why));
+                    state.Warnings.Add(Loc.F("étape %@ non faite : %@", path, f.Why));
                     break;
                 case StepResult.Cancel c:
                     return new Flow.Cancel(c.Why);

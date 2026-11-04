@@ -60,7 +60,7 @@ internal static class PresetFiles
         if (!under)
         {
             AppLog.Write("MACRO", "DROP covered");
-            return Abandon(Loc.T("le glisser du preset n'a pas démarré (une fenêtre couvre la piste ?)"));
+            return Abandon(Loc.T("le glisser du preset n'a pas démarré"));
         }
         if (!inFront()) return Abandon(Loc.T("FL n'est plus au premier plan"));
         Button(true);
@@ -71,7 +71,7 @@ internal static class PresetFiles
         if (!drop.Source.Started.IsSet)
         {
             AppLog.Write("MACRO", $"DROP not started · {Environment.TickCount64 - t0} ms");
-            return Abandon(Loc.T("le glisser du preset n'a pas démarré (une fenêtre couvre la piste ?)"));
+            return Abandon(Loc.T("le glisser du preset n'a pas démarré"));
         }
         // Quelques pixels à droite puis retour : FL voit le fichier entrer sur la piste, puis le reçoit au point visé.
         foreach (var dx in new[] { 4, 8, 12, 8, 4, 0 })

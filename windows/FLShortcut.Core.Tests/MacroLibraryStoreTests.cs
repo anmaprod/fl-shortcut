@@ -76,7 +76,7 @@ public class MacroLibraryStoreTests
         var store = new MacroLibraryStore(storage);
         Assert.Empty(store.Macros);
         Assert.Equal(Utf8("{ cassé"), storage.Backups["macros.illisible.json"]);
-        Assert.StartsWith("Le fichier des macros était illisible", store.LoadWarning);
+        Assert.StartsWith("Fichier des macros illisible : copie gardée", store.LoadWarning);
         Assert.True(store.LoadIncomplete);
         Assert.Equal(0, storage.Writes);                         // rien d'écrit tant que rien ne change
     }
@@ -96,7 +96,7 @@ public class MacroLibraryStoreTests
         var kept = new MacroLibraryStore(second);
         Assert.Single(kept.Macros);
         Assert.Equal(partial, second.Backups["macros.partielle.json"]);
-        Assert.StartsWith("1 macro(s) illisible(s) ignorée(s)", kept.LoadWarning);
+        Assert.StartsWith("Macros illisibles ignorées : 1", kept.LoadWarning);
     }
 
     [Fact]
@@ -108,7 +108,7 @@ public class MacroLibraryStoreTests
         store.Add(Sample());
         store.SaveNow();
         Assert.Equal(0, storage.Writes);
-        Assert.StartsWith("Bibliothèque de macros inaccessible (refusé)", store.Problem);
+        Assert.StartsWith("Macros inaccessibles : refusé", store.Problem);
     }
 
     [Fact]
@@ -124,7 +124,7 @@ public class MacroLibraryStoreTests
         Assert.Equal(0, storage.Writes);                         // jamais remplacé sans copie
         Assert.Equal(original, storage.Data);
         Assert.True(store.WritesDisabled);
-        Assert.StartsWith("Tes macros ne peuvent pas être enregistrées", store.Problem);
+        Assert.StartsWith("Macros non enregistrées", store.Problem);
         store.Add(Sample("Encore"));
         store.SaveNow();
         Assert.Equal(0, storage.Writes);
@@ -137,7 +137,7 @@ public class MacroLibraryStoreTests
         var store = new MacroLibraryStore(storage);
         Assert.Empty(store.Macros);
         Assert.True(store.WritesDisabled);                       // illisible et pas copié : jamais écrasé
-        Assert.StartsWith("Le fichier des macros est illisible", store.Problem);
+        Assert.StartsWith("Fichier des macros illisible : rien ne sera enregistré", store.Problem);
         store.Add(Sample());
         store.SaveNow();
         Assert.Equal(0, storage.Writes);
@@ -152,7 +152,7 @@ public class MacroLibraryStoreTests
         var store = new MacroLibraryStore(storage);
         store.Add(Sample());
         store.SaveNow();
-        Assert.Equal("Tes macros ne peuvent pas être enregistrées : occupé", store.SaveError);
+        Assert.Equal("Macros non enregistrées : occupé.", store.SaveError);
         Assert.True(store.HasUnsavedChanges);
         storage.WriteError = null;
         store.SaveNow();
@@ -218,15 +218,14 @@ public class MacroLibraryStoreTests
     {
         foreach (var key in new[]
                  {
-                     "Bibliothèque de macros inaccessible (%@) : elle n'est pas modifiée.",
-                     "Bibliothèque d'une version plus récente de FL Shortcuts", " (copie : %@).",
+                     "Macros inaccessibles : %@.",
+                     "Bibliothèque d'une version plus récente de FL Shortcuts", " Copie : %@.",
                      ", copie impossible : elle n'est pas modifiée.", ", copie impossible : le fichier n'est pas modifié.",
-                     "%lld macro(s) illisible(s) ignorée(s)",
-                     "Le fichier des macros était illisible : une copie datée a été gardée dans le dossier FL Shortcuts (%@).",
-                     "Le fichier des macros est illisible et n'a pas pu être copié : il n'est pas modifié, tes nouvelles macros ne seront pas enregistrées.",
-                     "Tes macros ne peuvent pas être enregistrées : %@",
-                     "Tes macros ne peuvent pas être enregistrées : la copie de secours du fichier a échoué (%@). Le fichier n'est pas remplacé.",
-                     "Tes macros ne peuvent pas être enregistrées : le fichier n'a pas pu être copié avant d'être remplacé.",
+                     "Macros illisibles ignorées : %lld",
+                     "Fichier des macros illisible : copie gardée, %@.",
+                     "Fichier des macros illisible : rien ne sera enregistré.",
+                     "Macros non enregistrées : %@.",
+                     "Macros non enregistrées : copie du fichier impossible.",
                      "Organiser", "Macro",
                  })
             Assert.True(Loc.Has(key), $"« {key} » sans anglais");

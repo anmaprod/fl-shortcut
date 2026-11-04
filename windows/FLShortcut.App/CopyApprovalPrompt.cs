@@ -128,7 +128,7 @@ internal static class CopyApprovalPrompt
         var dialog = Dialog(root);
         var lines = new StackPanel { Spacing = 4 };
         lines.Children.Add(Centered(Loc.T("Valider : ton projet d'origine part à la Corbeille et la version organisée prend son nom."), 11.5, Secondary));
-        lines.Children.Add(Centered(Loc.T("Retourner en arrière : la version organisée part à la Corbeille et FL rouvre ton projet d'avant."), 11.5, Secondary));
+        lines.Children.Add(Centered(Loc.T("Retourner en arrière : la version organisée part à la Corbeille."), 11.5, Secondary));
         var back = Soft(Loc.T("Retourner en arrière"), () =>
         {
             answer = ContentDialogResult.Secondary;
@@ -147,7 +147,7 @@ internal static class CopyApprovalPrompt
             Centered(Loc.F("« %@ » est ton projet « %@ » rangé par l'Organiser.", System.IO.Path.GetFileName(p.Copy), System.IO.Path.GetFileName(p.Original)), 12, Text),
             lines,
         };
-        if (remaining > 0) parts.Add(Centered(Loc.F("Encore %lld autre(s) projet(s) ensuite.", remaining), 11.5, Secondary));
+        if (remaining > 0) parts.Add(Centered(Loc.F("Encore %lld projets ensuite.", remaining), 11.5, Secondary));
         parts.Add(Pair(back, yes));
         parts.Add(later);
         dialog.Content = Message("square.stack.3d.up", Indigo, Loc.T("Tu valides la version organisée ?"), parts.ToArray());

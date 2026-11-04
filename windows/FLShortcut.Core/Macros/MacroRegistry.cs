@@ -167,7 +167,7 @@ internal static class Specs
         Condition.FlState s => Loc.F("FL : %@ %@ %lld", s.Query, s.Op.Symbol(), s.Value),
         Condition.Variable v => $"{DisplayText.Safe(v.Name, 16)} {v.Op.Symbol()} {v.Value}",
         Condition.LastBlockFailed => Loc.T("le bloc précédent a échoué"),
-        Condition.Not n => Loc.F("non (%@)", Describe(n.Inner)),
+        Condition.Not n => Loc.F("non : %@", Describe(n.Inner)),
         Condition.All a => string.Join(Loc.T(" et "), a.List.Select(Describe)),
         Condition.Any a => string.Join(Loc.T(" ou "), a.List.Select(Describe)),
         _ => "",
@@ -205,7 +205,7 @@ internal static class Specs
     {
         what ??= Loc.T("touche");
         if (MacKeys.ToWindows(key) is not { } combo || !combo.IsValidKey) return ctx.Fail(Loc.F("%@ non prise en charge.", what));
-        if (ForbiddenTargets.Reason(combo) is { } why) return ctx.Fail(Loc.F("%@ interdite (%@).", what, why));
+        if (ForbiddenTargets.Reason(combo) is { } why) return ctx.Fail(Loc.F("%@ interdite : %@.", what, why));
         return null;
     }
 
@@ -279,7 +279,7 @@ internal static class Specs
             Journal = _ => "menuLetters",
             EstimateMs = b => b is BlockBody.MenuLetters m ? 600 * m.Letters.Length + 800 : 0,
             Validate = (b, ctx) => b is not BlockBody.MenuLetters m ? null
-                : m.Letters.Length is < 1 or > 8 || !LettersOk(m.Letters) ? ctx.Fail(Loc.T("lettres de menu invalides (a à z)."))
+                : m.Letters.Length is < 1 or > 8 || !LettersOk(m.Letters) ? ctx.Fail(Loc.T("lettres de menu invalides."))
                 : EnterProblem(m.FinalEnter, ctx),
             Import = new ImportPolicy.Ok(),
         },
@@ -308,7 +308,7 @@ internal static class Specs
             EstimateMs = _ => 300,
             Validate = (b, ctx) => b switch
             {
-                BlockBody.Click { Target: ClickTarget.ToLearn } => ctx.Fail(Loc.T("position à montrer dans FL (« Montrer dans FL… » dans le créateur).")),
+                BlockBody.Click { Target: ClickTarget.ToLearn } => ctx.Fail(Loc.T("position à montrer dans FL.")),
                 BlockBody.Click c when !c.Target.IsFinite => ctx.Fail(Loc.T("position invalide.")),
                 BlockBody.Click { Target: ClickTarget.OpenMenu, Button: MouseButton.Right } => ctx.Fail(Loc.T("clic droit impossible dans un menu ouvert.")),
                 _ => null,
@@ -328,7 +328,7 @@ internal static class Specs
             Validate = (b, ctx) => b switch
             {
                 BlockBody.Drag d when d.From is ClickTarget.ToLearn || d.To is ClickTarget.ToLearn =>
-                    ctx.Fail(Loc.T("glisser à montrer dans FL (« Montrer dans FL… » dans le créateur).")),
+                    ctx.Fail(Loc.T("glisser à montrer dans FL.")),
                 BlockBody.Drag d when !d.From.IsFinite || !d.To.IsFinite => ctx.Fail(Loc.T("position invalide.")),
                 BlockBody.Drag { From: ClickTarget.OpenMenu } => ctx.Fail(Loc.T("glisser impossible depuis un menu ouvert.")),
                 BlockBody.Drag { To: ClickTarget.OpenMenu } => ctx.Fail(Loc.T("glisser impossible vers un menu ouvert.")),
@@ -339,8 +339,8 @@ internal static class Specs
         BlockType.Delay => new BlockSpec
         {
             Type = type, Label = Loc.T("Attendre un temps fixe"), Category = BlockCategory.Windows, Symbol = "hourglass",
-            Help = Loc.T("Fait une pause (5 s au plus)."),
-            Params = new[] { new ParamSpec("wait", Loc.T("Attendre"), new ParamKind.Window()), new ParamSpec("ms", Loc.T("Durée (ms)"), new ParamKind.Ms(0, MacroValidation.MaxDelayMs)) },
+            Help = Loc.T("Fait une pause."),
+            Params = new[] { new ParamSpec("wait", Loc.T("Attendre"), new ParamKind.Window()), new ParamSpec("ms", Loc.T("Durée en ms"), new ParamKind.Ms(0, MacroValidation.MaxDelayMs)) },
             Needs = _ => Base,
             Default = () => new BlockBody.Delay(200),
             Summary = b => b is BlockBody.Delay d ? (d.Ms < 1000 ? Loc.F("%lld ms", d.Ms) : Seconds(d.Ms)) : "",
@@ -353,7 +353,7 @@ internal static class Specs
         {
             Type = type, Label = Loc.T("Attendre une fenêtre"), Category = BlockCategory.Windows, Symbol = "macwindow.badge.plus",
             Help = Loc.T("Attend qu'une boîte ou un menu de FL s'ouvre."),
-            Params = new[] { new ParamSpec("wait", Loc.T("Attendre"), new ParamKind.Window()), new ParamSpec("timeoutMs", Loc.T("Au plus (ms)"), new ParamKind.Ms(100, MacroValidation.MaxWaitMs)) },
+            Params = new[] { new ParamSpec("wait", Loc.T("Attendre"), new ParamKind.Window()), new ParamSpec("timeoutMs", Loc.T("Au plus, en ms"), new ParamKind.Ms(100, MacroValidation.MaxWaitMs)) },
             Needs = _ => Base,
             Default = () => new BlockBody.WaitWindow(WindowKind.Dialog, 4_000),
             Summary = b => b is BlockBody.WaitWindow w ? Loc.F("%@ · %@ au plus", WindowName(w.Window), Seconds(w.TimeoutMs)) : "",
@@ -366,7 +366,7 @@ internal static class Specs
         {
             Type = type, Label = Loc.T("Attendre la fermeture"), Category = BlockCategory.Windows, Symbol = "macwindow",
             Help = Loc.T("Attend qu'une boîte ou un menu de FL se ferme."),
-            Params = new[] { new ParamSpec("wait", Loc.T("Attendre"), new ParamKind.Window()), new ParamSpec("timeoutMs", Loc.T("Au plus (ms)"), new ParamKind.Ms(100, MacroValidation.MaxWaitMs)) },
+            Params = new[] { new ParamSpec("wait", Loc.T("Attendre"), new ParamKind.Window()), new ParamSpec("timeoutMs", Loc.T("Au plus, en ms"), new ParamKind.Ms(100, MacroValidation.MaxWaitMs)) },
             Needs = _ => Base,
             Default = () => new BlockBody.WaitWindowClose(WindowKind.Dialog, 8_000),
             Summary = b => b is BlockBody.WaitWindowClose w ? Loc.F("%@ fermée · %@ au plus", WindowName(w.Window), Seconds(w.TimeoutMs)) : "",
@@ -394,7 +394,7 @@ internal static class Specs
                 // « F O » pour File › Open mixer track state.
                 if (t.Labels.Count > 3 || t.Labels.Any(l => l.Length is 0 or > 160)) return ctx.Fail(Loc.T("titres de menu invalides."));
                 if (t.Letters.Length is < 1 or > 3 || !LettersOk(t.Letters))
-                    return ctx.Fail(Loc.T("choisis l'élément du menu de la piste (ou 1 à 3 lettres soulignées, a à z)."));
+                    return ctx.Fail(Loc.T("choisis l'élément du menu de la piste."));
                 if (t.FinalEnter.Mode == "never") return ctx.Fail(Loc.T("le menu de la piste doit se fermer sur son dernier élément."));
                 return EnterProblem(t.FinalEnter, ctx);
             },
@@ -402,7 +402,7 @@ internal static class Specs
         },
         BlockType.ChooseFile => new BlockSpec
         {
-            Type = type, Label = Loc.T("Ouvrir un preset (boîte Open)"), Category = BlockCategory.Fl, Symbol = "doc.badge.arrow.up",
+            Type = type, Label = Loc.T("Ouvrir un preset par Open"), Category = BlockCategory.Fl, Symbol = "doc.badge.arrow.up",
             Help = Loc.T("Ouvre le preset choisi dans la boîte « Open » de FL."),
             Params = new[] { new ParamSpec("path", Loc.T("Fichier"), new ParamKind.File(new[] { "fst" })) },
             Needs = _ => Base,
@@ -429,7 +429,7 @@ internal static class Specs
         BlockType.FlAction => new BlockSpec
         {
             Type = type, Label = Loc.T("Action de FL"), Category = BlockCategory.Fl, Symbol = "bolt.horizontal",
-            Help = Loc.T("Lance une action de FL (Mixer, Playlist, métronome…)."),
+            Help = Loc.T("Lance une action de FL."),
             Params = new[] { new ParamSpec("action", Loc.T("Action"), new ParamKind.FlAction()), new ParamSpec("fallback", Loc.T("Sans lien"), new ParamKind.Key()) },
             Needs = b =>
             {
@@ -464,7 +464,7 @@ internal static class Specs
         BlockType.FlActionValue => new BlockSpec
         {
             Type = type, Label = Loc.T("Action de FL avec valeur"), Category = BlockCategory.Fl, Symbol = "slider.horizontal.3",
-            Help = Loc.T("Action de FL avec un nombre (piste, pattern…)."),
+            Help = Loc.T("Action de FL avec un nombre."),
             Params = new[] { new ParamSpec("action", Loc.T("Action"), new ParamKind.FlAction()), new ParamSpec("value", Loc.T("Valeur"), new ParamKind.Variable()) },
             InPalette = false,
             Needs = b => b is BlockBody.FlActionValue v ? Base | BlockNeeds.MidiLink | BlockNeeds.MidiExtensions | SourceNeeds(v.Value) : Base,
@@ -525,7 +525,7 @@ internal static class Specs
         BlockType.SoundCard => new BlockSpec
         {
             Type = type, Label = Loc.T("Carte son branchée"), Category = BlockCategory.Fl, Symbol = "hifispeaker.and.homepod",
-            Help = Loc.T("La carte son branchée (USB…) devient la sortie et l'entrée du PC ; FL la suit tout seul s'il est réglé une fois sur « Primary Sound Driver » dans Options › Audio settings."),
+            Help = Loc.T("La carte son branchée devient la sortie et l'entrée du PC."),
             Params = Array.Empty<ParamSpec>(),
             Needs = _ => BlockNeeds.None,
             Default = () => new BlockBody.SoundCard(),
@@ -564,7 +564,7 @@ internal static class Specs
         BlockType.OpenPage => new BlockSpec
         {
             Type = type, Label = Loc.T("Ouvrir une page de FL"), Category = BlockCategory.Fl, Symbol = "macwindow",
-            Help = Loc.T("Met devant une page de FL (Playlist, Mixer…)."),
+            Help = Loc.T("Met devant une page de FL."),
             Params = new[] { new ParamSpec("page", Loc.T("Page"), new ParamKind.Window()) },
             Needs = _ => Base | BlockNeeds.MidiLink,
             Default = () => new BlockBody.OpenPage(FlPage.Mixer),
@@ -618,7 +618,7 @@ internal static class Specs
         BlockType.MenuBar => new BlockSpec
         {
             Type = type, Label = Loc.T("Menu de FL"), Category = BlockCategory.Fl, Symbol = "menubar.rectangle",
-            Help = Loc.T("Choisit un élément des menus de FL (File › Export › …)."),
+            Help = Loc.T("Choisit un élément des menus de FL."),
             Params = Array.Empty<ParamSpec>(),
             Needs = _ => Base,
             Default = () => new BlockBody.MenuBar(Array.Empty<string>()),
@@ -638,7 +638,7 @@ internal static class Specs
         },
         BlockType.MenuAX => new BlockSpec
         {
-            Type = type, Label = Loc.T("Menu (ancien format)"), Category = BlockCategory.Fl, Symbol = "filemenu.and.selection",
+            Type = type, Label = Loc.T("Ancien menu"), Category = BlockCategory.Fl, Symbol = "filemenu.and.selection",
             Help = Loc.T("Choisit un élément de menu par son titre."),
             Params = new[] { new ParamSpec("titles", Loc.T("Titres"), new ParamKind.Text(80)), new ParamSpec("fallback", Loc.T("Clics de secours"), new ParamKind.Target()) },
             InPalette = false,
@@ -677,7 +677,7 @@ internal static class Specs
         BlockType.RepeatCount => new BlockSpec
         {
             Type = type, Label = Loc.T("Répéter"), Category = BlockCategory.Control, Symbol = "repeat",
-            Help = Loc.F("Répète les blocs N fois (%lld au plus).", MacroValidation.MaxRepeat),
+            Help = Loc.F("Répète les blocs, %lld fois au plus.", MacroValidation.MaxRepeat),
             Params = new[] { new ParamSpec("count", Loc.T("Nombre de fois"), new ParamKind.Number(1, MacroValidation.MaxRepeat)), new ParamSpec("blocks", Loc.T("Blocs"), new ParamKind.Blocks()) },
             Container = BlockContainer.Body,
             Needs = _ => Base,
@@ -691,7 +691,7 @@ internal static class Specs
         BlockType.RepeatWhile => new BlockSpec
         {
             Type = type, Label = Loc.T("Tant que"), Category = BlockCategory.Control, Symbol = "arrow.clockwise",
-            Help = Loc.F("Répète les blocs tant que la condition est vraie (%lld tours au plus).", MacroValidation.MaxWhile),
+            Help = Loc.F("Répète les blocs tant que c'est vrai, %lld tours au plus.", MacroValidation.MaxWhile),
             Params = new[]
             {
                 new ParamSpec("condition", Loc.T("Condition"), new ParamKind.Condition()),
@@ -712,8 +712,8 @@ internal static class Specs
         BlockType.WaitUntil => new BlockSpec
         {
             Type = type, Label = Loc.T("Attendre que"), Category = BlockCategory.Control, Symbol = "clock.badge.checkmark",
-            Help = Loc.T("Attend que la condition devienne vraie (vérifiée 4 fois par seconde, 120 s au plus)."),
-            Params = new[] { new ParamSpec("condition", Loc.T("Condition"), new ParamKind.Condition()), new ParamSpec("timeoutMs", Loc.T("Au plus (ms)"), new ParamKind.Ms(100, MacroValidation.MaxWaitMs)) },
+            Help = Loc.T("Attend que la condition soit vraie."),
+            Params = new[] { new ParamSpec("condition", Loc.T("Condition"), new ParamKind.Condition()), new ParamSpec("timeoutMs", Loc.T("Au plus, en ms"), new ParamKind.Ms(100, MacroValidation.MaxWaitMs)) },
             Needs = b => b.CarriedCondition is { } c ? Base | ConditionNeeds(c) : Base,
             Default = () => new BlockBody.WaitUntil(new Condition.WindowOpen(WindowKind.Dialog), 4_000),
             Summary = b => b is BlockBody.WaitUntil u ? Loc.F("Jusqu'à ce que %@ · %@ au plus", Describe(u.Condition), Seconds(u.TimeoutMs)) : "",
@@ -727,7 +727,7 @@ internal static class Specs
         BlockType.SetVariable => new BlockSpec
         {
             Type = type, Label = Loc.T("Régler une variable"), Category = BlockCategory.Control, Symbol = "number",
-            Help = Loc.T("Donne une valeur (nombre entier) à une variable de la macro."),
+            Help = Loc.T("Donne un nombre à une variable."),
             Params = new[] { new ParamSpec("variable", Loc.T("Variable"), new ParamKind.Variable()), new ParamSpec("value", Loc.T("Valeur"), new ParamKind.Variable()) },
             InPalette = false,
             Needs = b => b is BlockBody.SetVariable s ? Base | SourceNeeds(s.Value) : Base,

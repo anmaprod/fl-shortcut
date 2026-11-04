@@ -689,7 +689,7 @@ public class AccountTests
         Assert.Equal("Le serveur n'a pas répondu.", AccountRequests.ServerMessage(""));
         Assert.Equal("Session expirée : reconnecte-toi.", AccountRequests.ServerMessage("{}", 401));
         Assert.Equal("Ce pseudo est déjà pris.", AccountRequests.ServerMessage("""{"message":"duplicate key value violates unique constraint \"profiles_username_key\""}""", 409));
-        Assert.Equal("Erreur du serveur (500).", AccountRequests.ServerMessage("", 500));
+        Assert.Equal("Erreur du serveur 500.", AccountRequests.ServerMessage("", 500));
     }
 
     [Fact]

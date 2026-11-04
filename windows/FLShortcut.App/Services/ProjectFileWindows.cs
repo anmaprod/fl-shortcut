@@ -86,7 +86,7 @@ internal static class ProjectFileWindows
             if (!SendSave(fl.Pid))
             {
                 search.Taken = "premier-plan";
-                throw OrganizerError.Failed(Loc.T("FL Studio doit être au premier plan pour enregistrer ton projet : clique dans sa fenêtre, puis sur « Réessayer »."));
+                throw OrganizerError.Failed(Loc.T("Mets FL devant, puis « Réessayer »."));
             }
             bool Written(string p) => Modified(p) is { } date && date >= start.AddSeconds(-1)
                                       && (before.TryGetValue(p, out var was) ? was is null || date > was : true);

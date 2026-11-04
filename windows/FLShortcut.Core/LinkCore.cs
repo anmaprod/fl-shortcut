@@ -54,7 +54,7 @@ public sealed class LinkCore
 
     /// Script de FL muet : en général le Controller type « (generic controller) » (le script n'est pas chargé), ou des
     /// numéros de Port différents pour l'entrée et la sortie.
-    public static string NoResponse => Loc.T("FL ne répond pas : quitte et rouvre FL Studio. Toujours rien : dans Options › MIDI Settings, entrée « FL Shortcuts », choisis le Controller type « FL Shortcuts » (pas « generic controller »), et donne le même numéro de Port à l'entrée « FL Shortcuts » et à la sortie « FL Shortcuts Retour »");
+    public static string NoResponse => Loc.T("FL ne répond pas : relance FL. Sinon, dans MIDI Settings : Controller type « FL Shortcuts » et le même Port pour l'entrée et la sortie.");
 
     private DateTimeOffset? LastAlive => (_helloAt, _lastBeat) switch
     {
@@ -176,7 +176,7 @@ public sealed class LinkCore
         lock (_gate) _lastAckedId = null;
         foreach (var id in ids)
         {
-            if (!hello.Capabilities.Contains(id)) return Loc.T("action indisponible dans ce FL (mets FL à jour)");
+            if (!hello.Capabilities.Contains(id)) return Loc.T("action indisponible dans ce FL : mets FL à jour");
             switch (SendAction(id))
             {
                 case SendResult.Sent: break;
@@ -191,10 +191,10 @@ public sealed class LinkCore
             int? acked;
             lock (_gate) acked = _lastAckedId;
             if (acked == last) return null;
-            if (acked == 0) return Loc.T("FL a refusé la commande : redémarre FL (le script vient d'être mis à jour)");
+            if (acked == 0) return Loc.T("FL a refusé : redémarre FL");
             Thread.Sleep(10);
         }
-        return Loc.T("FL n'a pas confirmé (armement / REC)");
+        return Loc.T("FL n'a pas confirmé l'armement");
     }
 
     /// Réveille le script si besoin (PING) et attend son HELLO. Script déjà réveillé depuis peu : aucun PING, sauf

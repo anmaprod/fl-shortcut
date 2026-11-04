@@ -15,11 +15,11 @@ public static class MacroTemplates
     /// menu de FL 2026 (les mêmes que le Mac). « Autre » garde les lettres tapées à la main.
     public static IReadOnlyList<TrackMenuChoice> TrackMenuChoices => new[]
     {
-        new TrackMenuChoice("openState", Loc.T("Ouvrir un état de piste (preset de piste)"), new[] { "File", "Open mixer track state" }, "fo",
+        new TrackMenuChoice("openState", Loc.T("Ouvrir un état de piste"), new[] { "File", "Open mixer track state" }, "fo",
             EnterPolicy.Learned(Specs.EnterAfterLetterKey)),
         new TrackMenuChoice("saveState", Loc.T("Enregistrer l'état de la piste"), new[] { "File", "Save mixer track state as" }, "fs", EnterPolicy.IfNeeded),
         new TrackMenuChoice("rename", Loc.T("Renommer, couleur et icône"), new[] { "Rename, color and icon" }, "r", EnterPolicy.IfNeeded),
-        new TrackMenuChoice("assignAudio", Loc.T("Créer sa piste audio (Playlist)"), new[] { "Assign to new Audio track(s)" }, "a", EnterPolicy.IfNeeded),
+        new TrackMenuChoice("assignAudio", Loc.T("Créer sa piste audio"), new[] { "Assign to new Audio track(s)" }, "a", EnterPolicy.IfNeeded),
     };
 
     public static TrackMenuChoice? TrackMenuChoice(string letters) => TrackMenuChoices.FirstOrDefault(c => c.Letters == letters);
@@ -32,7 +32,7 @@ public static class MacroTemplates
     public static IReadOnlyList<MacroTemplate> Gallery => new[]
     {
         new MacroTemplate("threeFour", Loc.T("3/4"),
-            Loc.T("Options › Project general settings, puis deux clics que tu montres une fois dans FL (par exemple la mesure en 3/4)."),
+            Loc.T("Règle la mesure du projet : deux clics à montrer une fois."),
             "metronome", () => new MacroDoc
             {
                 Name = Loc.T("3/4"),
@@ -45,7 +45,7 @@ public static class MacroTemplates
                 Origin = MacroOrigin.FromTemplate("threeFour"),
             }),
         new MacroTemplate("quickDrop", Loc.T("Enregistrement Rapide"),
-            Loc.T("Dépose ton preset de piste sur la dernière piste cliquée du Mixer, sans menu ni boîte « Open ». Choisis le preset une fois dans le créateur."),
+            Loc.T("Dépose ton preset sur la dernière piste cliquée."),
             "record.circle", () => new MacroDoc
             {
                 Name = Loc.T("Enregistrement Rapide"),
@@ -53,7 +53,7 @@ public static class MacroTemplates
                 Origin = MacroOrigin.FromTemplate("quickDrop"),
             }),
         new MacroTemplate("exportStems", Loc.T("Export Stems"),
-            Loc.T("File › Export › All playlist tracks › Time selection, par le menu de FL en haut de sa fenêtre : une piste audio par piste de la Playlist."),
+            Loc.T("Exporte une piste audio par piste de la Playlist."),
             "square.stack.3d.down.right", () => new MacroDoc
             {
                 Name = Loc.T("Export Stems"),
@@ -61,7 +61,7 @@ public static class MacroTemplates
                 Origin = MacroOrigin.FromTemplate("exportStems"),
             }),
         new MacroTemplate("openVST", Loc.T("Ouvre un VST"),
-            Loc.T("Ouvre le Channel rack et y ajoute un instrument (VST, plugin) : choisis-le une fois dans le créateur."),
+            Loc.T("Ajoute un instrument dans le Channel rack."),
             "pianokeys", () => new MacroDoc
             {
                 Name = Loc.T("Ouvre un VST"),
@@ -73,7 +73,7 @@ public static class MacroTemplates
                 Origin = MacroOrigin.FromTemplate("openVST"),
             }),
         new MacroTemplate("purgeAudio", Loc.T("Supprimer les clips audio inutilisés"),
-            Loc.T("Tools › Macros › Purge unused audio clips, par le menu de FL en haut de sa fenêtre : FL retire du projet les clips audio qui ne sont pas dans la Playlist (rien n'est effacé de ton disque)."),
+            Loc.T("Retire du projet les clips audio inutilisés."),
             "trash", () => new MacroDoc
             {
                 Name = "Supprimer les clips audio inutilisés",

@@ -141,14 +141,14 @@ public static class MacProfile
         if (json.Length > ProfileCodec.MaxBytes) throw new FormatException("Fichier trop volumineux pour un profil.");
         JsonNode? root;
         try { root = JsonNode.Parse(json, documentOptions: new JsonDocumentOptions { MaxDepth = 16 }); }
-        catch (JsonException e) { throw new FormatException("Profil illisible.", e); }
+        catch (JsonException e) { throw new FormatException(Loc.T("Profil illisible."), e); }
         var items = root switch
         {
             JsonObject o when o["remaps"] is JsonArray a => a,
             JsonArray a => a,
-            _ => throw new FormatException("Profil illisible."),
+            _ => throw new FormatException(Loc.T("Profil illisible.")),
         };
-        if (items.Count > ProfileCodec.MaxShortcuts) throw new FormatException($"Trop de raccourcis ({ProfileCodec.MaxShortcuts} au maximum).");
+        if (items.Count > ProfileCodec.MaxShortcuts) throw new FormatException(Loc.F("Trop de raccourcis : %lld au plus.", ProfileCodec.MaxShortcuts));
 
         var raws = items.OfType<JsonObject>().ToList();
         var windows = new JsonArray();

@@ -104,14 +104,14 @@ public static class FlCatalog
         N(FlSection.Transport, "cmd-m", "Métronome", Ch('m', 46, cmd: true));
         N(FlSection.Transport, "cmd-p", "Décompte avant l'enregistrement", Ch('p', 35, cmd: true));
         N(FlSection.Transport, "cmd-i", "Attendre une note pour lancer l'enregistrement", Ch('i', 34, cmd: true));
-        N(FlSection.Transport, "cmd-b", "Mélanger les notes enregistrées (blend)", Ch('b', 11, cmd: true));
+        N(FlSection.Transport, "cmd-b", "Mélanger les notes enregistrées", Ch('b', 11, cmd: true));
         N(FlSection.Transport, "cmd-e", "Mode Step Edit", Ch('e', 14, cmd: true));
-        N(FlSection.Transport, "cmd-h", "Couper tous les sons (panique)", Ch('h', 4, cmd: true));
+        N(FlSection.Transport, "cmd-h", "Couper tous les sons", Ch('h', 4, cmd: true));
         N(FlSection.Transport, "cmd-t", "Clavier d'ordinateur → clavier-piano", Ch('t', 17, cmd: true));
         N(FlSection.Transport, "bksp", "Magnétisme : Ligne / Aucun", Kc(51));
         N(FlSection.Transport, "np0", "Avance rapide", Kc(82));
-        N(FlSection.Transport, "npmul", "Mesure suivante (mode Song)", Kc(67));
-        N(FlSection.Transport, "npdiv", "Mesure précédente (mode Song)", Kc(75));
+        N(FlSection.Transport, "npmul", "Mesure suivante en mode Song", Kc(67));
+        N(FlSection.Transport, "npdiv", "Mesure précédente en mode Song", Kc(75));
         N(FlSection.Transport, "opt-np2", "Clavier-piano : octave 2", Kc(84, opt: true));
         N(FlSection.Transport, "opt-np3", "Clavier-piano : octave 3", Kc(85, opt: true));
         N(FlSection.Transport, "opt-np4", "Clavier-piano : octave 4", Kc(86, opt: true));
@@ -131,7 +131,7 @@ public static class FlCatalog
         N(FlSection.Patterns, "npminus", "Pattern précédent", Kc(78));
         N(FlSection.Patterns, "cmd-f4", "Pattern vide suivant", Kc(118, cmd: true));
         N(FlSection.Patterns, "f4", "Pattern vide suivant, avec son nom", Kc(118));
-        N(FlSection.Patterns, "f2", "Renommer le pattern (et changer sa couleur)", Kc(120));
+        N(FlSection.Patterns, "f2", "Renommer le pattern et sa couleur", Kc(120));
         // Playlist
         N(FlSection.Playlist, "p", "Outil crayon", Ch('p', 35));
         N(FlSection.Playlist, "b", "Outil pinceau", Ch('b', 11));
@@ -146,7 +146,7 @@ public static class FlCatalog
         N(FlSection.Playlist, "6", "Zoomer sur les Performance Clips", Kc(22));
         N(FlSection.Playlist, "7", "Transposer vers le bas", Kc(26));
         N(FlSection.Playlist, "8", "Transposer vers le haut", Kc(28));
-        N(FlSection.Playlist, "9", "Inverser (clips audio)", Kc(25));
+        N(FlSection.Playlist, "9", "Inverser les clips audio", Kc(25));
         N(FlSection.Playlist, "bksp", "Magnétisme global", Kc(51));
         N(FlSection.Playlist, "del", "Supprimer la source du clip / pattern", Kc(117));
         N(FlSection.Playlist, "home", "Tête de lecture au début", Kc(115));
@@ -158,8 +158,8 @@ public static class FlCatalog
         N(FlSection.Playlist, "opt-npmul", "Marqueur suivant", Kc(67, opt: true));
         N(FlSection.Playlist, "opt-npdiv", "Marqueur précédent", Kc(75, opt: true));
         N(FlSection.Playlist, "cmd-a", "Tout sélectionner", Ch('a', 0, cmd: true));
-        N(FlSection.Playlist, "cmd-opt-c", "Consolider les clips (depuis le premier)", Ch('c', 8, cmd: true, opt: true));
-        N(FlSection.Playlist, "cmd-opt-shift-c", "Consolider les clips (depuis le début)", Ch('c', 8, cmd: true, opt: true, shift: true));
+        N(FlSection.Playlist, "cmd-opt-c", "Consolider les clips depuis le premier", Ch('c', 8, cmd: true, opt: true));
+        N(FlSection.Playlist, "cmd-opt-shift-c", "Consolider les clips depuis le début", Ch('c', 8, cmd: true, opt: true, shift: true));
         N(FlSection.Playlist, "cmd-opt-g", "Couleur de la grille", Ch('g', 5, cmd: true, opt: true));
         N(FlSection.Playlist, "cmd-opt-home", "Redimensionner par la gauche", Kc(115, cmd: true, opt: true));
         N(FlSection.Playlist, "cmd-b", "Dupliquer la sélection à droite", Ch('b', 11, cmd: true));
@@ -201,7 +201,7 @@ public static class FlCatalog
         N(FlSection.PianoRoll, "e", "Outil sélection", Ch('e', 14));
         N(FlSection.PianoRoll, "y", "Outil lecture", Ch('y', 16));
         N(FlSection.PianoRoll, "z", "Outil zoom", Ch('z', 6));
-        N(FlSection.PianoRoll, "s", "Notes glissées (slide)", Ch('s', 1));
+        N(FlSection.PianoRoll, "s", "Notes glissées", Ch('s', 1));
         N(FlSection.PianoRoll, "o", "Portamento", Ch('o', 31));
         N(FlSection.PianoRoll, "f", "Propriété suivante dans la zone d'événements", Ch('f', 3));
         N(FlSection.PianoRoll, "g", "Instrument au-dessus", Ch('g', 5));
@@ -243,7 +243,7 @@ public static class FlCatalog
         N(FlSection.PianoRoll, "cmd-b", "Dupliquer la sélection à droite", Ch('b', 11, cmd: true));
         N(FlSection.PianoRoll, "cmd-c", "Copier", Ch('c', 8, cmd: true));
         N(FlSection.PianoRoll, "cmd-d", "Désélectionner", Ch('d', 2, cmd: true));
-        N(FlSection.PianoRoll, "cmd-g", "Coller les notes entre elles (glue)", Ch('g', 5, cmd: true));
+        N(FlSection.PianoRoll, "cmd-g", "Coller les notes entre elles", Ch('g', 5, cmd: true));
         N(FlSection.PianoRoll, "cmd-i", "Insérer la valeur du contrôleur", Ch('i', 34, cmd: true));
         N(FlSection.PianoRoll, "cmd-l", "Legato rapide", Ch('l', 37, cmd: true));
         N(FlSection.PianoRoll, "cmd-left", "Sélectionner le temps avant", Kc(123, cmd: true));

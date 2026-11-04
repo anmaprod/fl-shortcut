@@ -316,7 +316,7 @@ internal sealed class AccountBackupWin
         _app.ReplaceAllData(shortcuts, macros);
         OnlineSummary = BackupRules.Summary(shortcuts.Count, macros.Count);
         MarkSynced(account, remote.Revision, remote.UpdatedAt, _changes);
-        Notice = Loc.F("Tes raccourcis et tes macros sont revenus de ton compte (%@).", OnlineSummary);
+        Notice = Loc.F("Ta sauvegarde est revenue : %@.", OnlineSummary);
         AppLog.Write("BACKUP", "reprise du compte");
     }
 

@@ -559,7 +559,7 @@ public sealed class OrganizerController
             if (plan.Deleted.Count > 0)
                 out_.Add(OrganizesCopy
                     ? Loc.F("%lld sons sans aucune note supprimés du Channel rack de la copie rangée", plan.Deleted.Count)
-                    : Loc.F("%lld sons sans aucune note supprimés du Channel rack (on ne peut pas les remettre avec « Revenir comme avant »)", plan.Deleted.Count));
+                    : Loc.F("%lld sons sans note supprimés pour de bon", plan.Deleted.Count));
             if (Options.Rack && !plan.Rack.IsEmpty)
                 out_.Add(Loc.F("Channel rack : %lld sons regroupés et colorés, %lld renommés", plan.Rack.Colors.Count, plan.Rack.Names.Count));
             if (Options.Patterns && !plan.Patterns.IsEmpty)
@@ -569,30 +569,30 @@ public sealed class OrganizerController
                 var buses = plan.Mixer.Buses.Count;
                 var tracks = plan.Mixer.Verdicts.Count - buses;
                 out_.Add(buses > 0
-                    ? Loc.F("Mixer : %lld pistes dans l'ordre du Channel rack, %lld bus (un par famille), %lld renommées", tracks, buses, plan.Mixer.Names.Count)
+                    ? Loc.F("Mixer : %lld pistes rangées, %lld bus, %lld renommées", tracks, buses, plan.Mixer.Names.Count)
                     : Loc.F("Mixer : %lld pistes dans l'ordre du Channel rack, %lld renommées", tracks, plan.Mixer.Names.Count));
                 if (plan.Mixer.Links.Count > 0)
                     out_.Add(Loc.F("%lld sons envoyés au Master reliés chacun à une piste libre du Mixer", plan.Mixer.Links.Count));
                 if (plan.Mixer.Resets.Count > 0)
-                    out_.Add(Loc.F("%lld pistes du Mixer sans son remises comme neuves (nom et couleur de FL)", plan.Mixer.Resets.Count));
+                    out_.Add(Loc.F("%lld pistes vides du Mixer remises à neuf", plan.Mixer.Resets.Count));
             }
             if (plan.Deleted.Count == 0 && Result?.Unused.Count is > 0 and var unused)
-                out_.Add(Loc.F("%lld sons sans aucune note laissés de côté (ni rangés, ni colorés, ni renommés)", unused));
+                out_.Add(Loc.F("%lld sons sans note laissés de côté", unused));
             if (Options.Playlist && !plan.Playlist.IsEmpty)
                 out_.Add(plan.Playlist.Moves.Count == 0
                     ? Loc.F("Playlist : %lld pistes colorées, %lld renommées", plan.Playlist.Colors.Count, plan.Playlist.Names.Count)
                     : Loc.F("Playlist : %lld pistes colorées, %lld renommées, rangées comme le Channel rack", plan.Playlist.Colors.Count, plan.Playlist.Names.Count));
             if (Result?.Project?.SplitPatterns is > 0 and var split)
-                out_.Add(Loc.F("%lld sons sortis des patterns qui en avaient plusieurs : chacun dans son pattern (comme « Split by channel » de FL)", split));
+                out_.Add(Loc.F("%lld sons séparés dans leur propre pattern", split));
             if (Options.Playlist && plan.Layout is { } layout)
             {
-                out_.Add(Loc.F("Playlist rangée dans une copie de ton projet : chaque son sur sa piste, tous les clips des mêmes sons réunis (%lld pistes). Ton projet d'origine ne bouge pas.", layout.Count));
+                out_.Add(Loc.F("Playlist rangée dans une copie : %lld pistes.", layout.Count));
                 if (Result?.Project?.SilentPatterns is > 0 and var silent)
-                    out_.Add(Loc.F("%lld patterns sans aucune note (rien n'y joue) : chacun sur sa piste, en bas de la Playlist", silent));
+                    out_.Add(Loc.F("%lld patterns vides en bas de la Playlist", silent));
             }
             else if (OrganizesCopy && Options.Playlist)
             {
-                out_.Add(Loc.T("Playlist : il faudrait plus de pistes que FL n'en a pour mettre chaque son sur la sienne ; décoche « Playlist » pour ranger le reste."));
+                out_.Add(Loc.T("Pas assez de pistes dans FL : décoche « Playlist »."));
             }
             return out_;
         }
@@ -602,25 +602,25 @@ public sealed class OrganizerController
     {
         get
         {
-            var lines = new List<string> { Loc.T("C'est fait : le projet est rangé, coloré et renommé. « Revenir comme avant » défait tout, sauf les sons supprimés.") };
+            var lines = new List<string> { Loc.T("C'est fait. « Revenir comme avant » défait tout.") };
             if (LastApply?.Copy is { } copy)
             {
                 // Rangé dans une copie : son nom à l'écran (jamais dans le journal).
-                lines = new List<string> { Loc.F("C'est fait : ton projet est rangé, coloré et renommé dans une copie, « %@ », à côté de l'original. L'original n'a pas bougé : « Revenir comme avant » le rouvre et met la copie à la Corbeille.", Path.GetFileName(copy)) };
-                if (LastApply.CopyNotSaved) lines.Add(Loc.T("FL n'a pas enregistré la copie rangée : enregistre-la dans FL (Ctrl+S)."));
-                lines.Add(Loc.T("Une fois l'Organiser fermé, FL Shortcuts te demandera si tu valides cette version : « Valider » met ton projet d'origine à la Corbeille et lui donne son nom, « Retourner en arrière » la supprime et rouvre ton projet d'avant."));
+                lines = new List<string> { Loc.F("C'est fait, dans une copie : « %@ ».", Path.GetFileName(copy)) };
+                if (LastApply.CopyNotSaved) lines.Add(Loc.T("Copie pas enregistrée : Ctrl+S dans FL."));
+                lines.Add(Loc.T("À la fermeture, tu valideras cette version."));
             }
             if (LastApply is { } outcome)
             {
                 if (outcome.Deleted > 0) lines.Add(Loc.F("%lld sons sans aucune note supprimés.", outcome.Deleted));
                 if (outcome.NotDeleted > 0)
-                    lines.Add(Loc.F("FL n'a pas supprimé les %lld sons sans aucune note : ils sont sélectionnés dans le Channel rack, supprime-les avec clic droit › Delete.", outcome.NotDeleted));
+                    lines.Add(Loc.F("%lld sons sans note pas supprimés : supprime-les dans FL.", outcome.NotDeleted));
                 if (outcome.Split > 0) lines.Add(Loc.F("Playlist : %lld sons qui partageaient une piste ont chacun la leur.", outcome.Split));
             }
             if (Learned > 0)
-                lines.Add(Loc.F("L'IA retient %lld sons corrigés sur ce PC : la prochaine fois, ils seront rangés comme tu l'as dit.", Learned));
+                lines.Add(Loc.F("L'IA retient %lld sons corrigés.", Learned));
             if (FeedbackSent)
-                lines.Add(Loc.T("Merci ! Pour ranger ce projet avec tes corrections : « Revenir comme avant », puis relance Organiser."));
+                lines.Add(Loc.T("Merci ! « Revenir comme avant », puis relance Organiser."));
             return string.Join("\n", lines);
         }
     }

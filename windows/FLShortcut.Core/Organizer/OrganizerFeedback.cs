@@ -15,7 +15,7 @@ public sealed class OrganizerFeedback
     {
         Reason.Voice => Loc.T("Une voix n'est pas rangée dans Voix"),
         Reason.Family => Loc.T("Un son est dans la mauvaise famille"),
-        Reason.Kind => Loc.T("Un son a le mauvais nom (Kick, Snare, Pad…)"),
+        Reason.Kind => Loc.T("Un son a le mauvais nom"),
         Reason.Playlist => Loc.T("La Playlist n'est pas bien rangée"),
         Reason.Mixer => Loc.T("Le Mixer n'est pas bien rangé"),
         _ => Loc.T("Les couleurs ou les noms ne me plaisent pas"),

@@ -23,7 +23,7 @@ internal static class OrganizerLive
             Audio = () => FlControl.Process() switch
             {
                 null => (null, OrganizerError.FlClosed),
-                { Elevated: true } => (null, OrganizerError.Failed(Loc.T("FL Studio est lancé en administrateur : Windows empêche FL Shortcuts d'agir dessus. Relance FL Studio normalement, puis « Réessayer »."))),
+                { Elevated: true } => (null, OrganizerError.Failed(Loc.T("FL est lancé en administrateur : relance-le normalement."))),
                 var fl => (new FlAudioCapture(fl.Pid), null),
             },
             Classify = () => OrganizerSession.LiveClassifier(ClasseurSons.Partage(), corrections),

@@ -34,7 +34,7 @@ public static class SupportKinds
     {
         SupportKind.Question => Loc.T("Ta question, le plus précisément possible."),
         SupportKind.Idee => Loc.T("Ce qui te ferait gagner du temps dans FL Studio."),
-        _ => Loc.T("Ce que tu faisais, ce qui devait se passer, ce qui s'est passé. Ex. : « ma macro s'arrête au 3e bloc dans le Mixer »."),
+        _ => Loc.T("Ce que tu faisais et ce qui s'est passé."),
     };
 }
 
@@ -75,7 +75,7 @@ public static class SupportRules
     public static string? Problem(SupportMessage m)
     {
         var n = m.Text.Trim().Length;
-        if (n < MinMessage) return Loc.F("Écris au moins quelques mots (%lld caractères).", MinMessage);
+        if (n < MinMessage) return Loc.F("Écris au moins %lld caractères.", MinMessage);
         if (n > MaxMessage) return Loc.F("%lld caractères au plus.", MaxMessage);
         var mail = m.Email.Trim();
         return mail.Length > 0 ? EmailProblem(mail) : null;
@@ -196,37 +196,37 @@ public static class HelpContent
     public static IReadOnlyList<HelpEntry> Faq => _faq ??= new List<HelpEntry>
     {
         new(1, Loc.T("Mes raccourcis ne font rien dans FL"),
-            Loc.T("Vérifie trois choses. 1. FL Studio est la fenêtre au premier plan : tes raccourcis ne marchent que là. 2. FL Shortcuts n'est pas en pause (Ctrl+Alt+Maj+F, ou le menu de l'icône près de l'horloge). 3. FL Studio n'est pas lancé en administrateur : Windows empêche alors FL Shortcuts d'agir dessus."),
+            Loc.T("Vérifie : 1. FL Studio est devant. 2. FL Shortcuts n'est pas en pause. 3. FL n'est pas lancé en administrateur."),
             "marche pas fonctionne touche inactif rien administrateur"),
         new(14, Loc.T("« FL Studio n'est pas reconnu »"),
-            Loc.T("FL Shortcuts n'agit que sur un FL Studio signé par Image-Line. Réinstalle FL Studio depuis le site d'Image-Line, puis relance-le."),
+            Loc.T("Réinstalle FL Studio depuis le site d'Image-Line."),
             "reconnu signature ouvert ferme detecte"),
         new(13, Loc.T("À quoi sert loopMIDI ?"),
-            Loc.T("loopMIDI crée les deux câbles MIDI virtuels (« FL Shortcuts » et « FL Shortcuts Retour ») par lesquels FL Shortcuts parle à FL Studio. Il le faut pour l'Organiser et les actions de FL ; les raccourcis simples et la plupart des macros marchent sans lui. Sur Mac, il n'y a rien à installer."),
+            Loc.T("loopMIDI relie FL Shortcuts à FL. Il sert à l'Organiser et aux actions de FL."),
             "loopmidi midi port lien organiser actions installer"),
         new(3, Loc.T("Comment créer une macro ?"),
-            Loc.T("Page Macros › « Macro vide » ou « Modèles » : ajoute des blocs depuis la liste de gauche, range-les, choisis un raccourci, puis « Enregistrer »."),
+            Loc.T("Page Macros : « Macro vide » ou « Modèles »."),
             "creer nouvelle blocs createur modele"),
         new(5, Loc.T("Une macro est « À apprendre »"),
-            Loc.T("Un de ses blocs clique à un endroit qu'il faut montrer une fois sur ton PC (les positions ne sont jamais partagées). Ouvre la macro, choisis le bloc marqué, puis « Montrer dans FL… » et clique à l'endroit voulu."),
+            Loc.T("Remontre le clic du bloc marqué : « Montrer dans FL… »."),
             "apprendre position endroit montrer"),
         new(6, Loc.T("Une macro s'arrête ou clique au mauvais endroit"),
-            Loc.T("Le message de la macro dit à quel bloc elle s'est arrêtée. Si FL a changé de taille ou d'écran, remontre l'endroit de ce bloc. Si une fenêtre de FL met du temps à s'ouvrir, ajoute un bloc « Attendre » juste avant."),
+            Loc.T("Le message dit le bloc. Remontre son endroit ou ajoute « Attendre »."),
             "erreur echec arrete bloque mauvais clic bouge bouton"),
         new(7, Loc.T("Mettre en pause ou reprendre"),
-            Loc.T("Ctrl+Alt+Maj+F, n'importe où. « Reprendre » apparaît alors dans le menu de l'icône près de l'horloge."),
+            Loc.T("Ctrl+Alt+Maj+F. « Reprendre » dans le menu de l'icône."),
             "pause reprendre arreter desactiver"),
         new(8, Loc.T("Je n'ai pas reçu le code par mail"),
-            Loc.T("Regarde dans les courriers indésirables. Le code arrive en une minute environ ; sinon, « Renvoyer le code ». Il sert à confirmer ton compte, ou à choisir un nouveau mot de passe (« Mot de passe oublié ? »). Toujours rien ? Écris à l'équipe ci-dessous."),
+            Loc.T("Regarde tes spams, sinon « Renvoyer le code »."),
             "compte inscription confirmation code mail spam connexion mot de passe oublie"),
         new(9, Loc.T("Mes données sont-elles envoyées quelque part ?"),
-            Loc.T("Tes touches ne sont lues que quand FL Studio est devant, et elles ne sont jamais enregistrées ni envoyées. Seul part sur internet ce que tu écris à l'équipe depuis cette page. L'écran n'est lu qu'au moment d'un clic de macro, seulement dans la fenêtre de FL, pour retrouver un menu par son nom ; rien n'est enregistré ni envoyé."),
+            Loc.T("Tes touches ne sont lues que dans FL. Rien n'est gardé ni envoyé."),
             "vie privee donnees confidentialite securite internet"),
         new(11, Loc.T("Signaler un problème"),
-            Loc.T("En bas de cette page, « Écrire à l'équipe ». Quand une macro échoue, « Signaler ce problème… » dans le menu de l'icône près de l'horloge prépare le message avec l'erreur : tu vois tout ce qui est joint avant l'envoi."),
+            Loc.T("En bas : « Écrire à l'équipe »."),
             "bug erreur contact equipe support aide ecrire"),
         new(10, Loc.T("Désinstaller FL Shortcuts"),
-            Loc.T("Menu de l'icône près de l'horloge › « Désinstaller FL Shortcuts… », ou Paramètres de Windows › Applications › FL Shortcuts › Désinstaller."),
+            Loc.T("Menu de l'icône › « Désinstaller FL Shortcuts… »."),
             "supprimer enlever desinstallation"),
     };
 }

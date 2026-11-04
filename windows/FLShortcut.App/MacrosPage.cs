@@ -345,7 +345,7 @@ internal sealed class MacrosPage
     {
         var copy = MacroDrafts.Copy(doc);
         copy.Id = Guid.NewGuid();
-        copy.Name = _store.UniqueName(doc.Name + Loc.T(" (copie)"));
+        copy.Name = _store.UniqueName(doc.Name + Loc.T(" copie"));
         copy.Blocks = MacroTemplates.FreshIds(copy.Blocks);
         var added = _store.Add(copy);
         _toast(Loc.F("« %@ » ajoutée, sans raccourci", DisplayText.Safe(added.Name, 40)), () => _store.Remove(added.Id));
@@ -704,7 +704,7 @@ internal sealed class MacrosPage
     {
         var recording = _capturing == slot;
         UIElement content = recording
-            ? Label(Loc.T("Appuie sur tes touches… (Échap pour annuler)"), 12, Text)
+            ? Label(Loc.T("Appuie sur tes touches… Échap annule"), 12, Text)
             : combo is { } c ? (UIElement)Keys(c) : Label(prompt, 12, Link);
         var button = new Button
         {
@@ -1163,7 +1163,7 @@ internal sealed class MacrosPage
                 break;
             case BlockBody.Delay d:
                 yield return Param(Loc.T("Attendre"), WaitChoice(body, set));
-                yield return Param(Loc.T("Durée (ms)"), Number(d.Ms, 0, MacroValidation.MaxDelayMs, 50, n => set(new BlockBody.Delay(n))));
+                yield return Param(Loc.T("Durée en ms"), Number(d.Ms, 0, MacroValidation.MaxDelayMs, 50, n => set(new BlockBody.Delay(n))));
                 break;
             case BlockBody.MenuLetters m:
                 yield return Param(Loc.T("Lettres"), Field(m.Letters, 8, typed =>
@@ -1182,16 +1182,16 @@ internal sealed class MacrosPage
                 break;
             case BlockBody.WaitWindow w:
                 yield return Param(Loc.T("Attendre"), WaitChoice(body, set));
-                yield return Param(Loc.T("Au plus (ms)"), Number(w.TimeoutMs, 100, MacroValidation.MaxWaitMs, 100, n => set(w with { TimeoutMs = n })));
+                yield return Param(Loc.T("Au plus, en ms"), Number(w.TimeoutMs, 100, MacroValidation.MaxWaitMs, 100, n => set(w with { TimeoutMs = n })));
                 break;
             case BlockBody.WaitWindowClose wc:
                 yield return Param(Loc.T("Attendre"), WaitChoice(body, set));
-                yield return Param(Loc.T("Au plus (ms)"), Number(wc.TimeoutMs, 100, MacroValidation.MaxWaitMs, 100, n => set(wc with { TimeoutMs = n })));
+                yield return Param(Loc.T("Au plus, en ms"), Number(wc.TimeoutMs, 100, MacroValidation.MaxWaitMs, 100, n => set(wc with { TimeoutMs = n })));
                 break;
             case BlockBody.FlAction a:
                 var actions = FlActions.All;
                 var at = actions.ToList().FindIndex(x => x.Key == a.ActionKey);
-                yield return Param(Loc.T("Action"), Choice(actions.Select(x => x.Label).ToList(), at, i =>
+                yield return Param(Loc.T("Action"), Choice(actions.Select(x => Loc.T(x.Label)).ToList(), at, i =>
                 {
                     var info = actions[i];
                     // Sans lien, la touche d'origine de FL quand elle existe (comme les pages).
@@ -1200,7 +1200,7 @@ internal sealed class MacrosPage
                     set(new BlockBody.FlAction(info.Key, fallback));
                 }));
                 yield return Param(Loc.T("Sans lien"), Label(a.Fallback.KeyRef is { } fk && MacKeys.ToWindows(fk) is { } fc
-                    ? fc.ToString() : Loc.T("rien (le bloc échoue)"), 12, Text));
+                    ? fc.ToString() : Loc.T("rien, le bloc échoue"), 12, Text));
                 break;
             case BlockBody.OpenPage p:
                 var pages = Enum.GetValues<FlPage>();
@@ -1262,7 +1262,7 @@ internal sealed class MacrosPage
                         yield return Param(Loc.T("Plugin"), Field(outside ?? po.Name, PageOptions.MaxName, typed =>
                             set(po with { Name = outside is not null && typed.Trim().Length > 0
                                 ? PageOptions.MorePlugins + PageOptions.PathSeparator + typed.Trim() : typed.Trim() })));
-                        var more = new CheckBox { Content = Loc.T("Pas dans mes favoris (pris dans « More plugins… » de FL)"), IsChecked = outside is not null };
+                        var more = new CheckBox { Content = Loc.T("Pas dans mes favoris"), IsChecked = outside is not null };
                         more.Click += (_, _) =>
                         {
                             var name = outside ?? po.Name;
@@ -1348,7 +1348,7 @@ internal sealed class MacrosPage
             var start = new[] { @"Image-Line\FL Studio\Presets\Mixer presets", @"Image-Line\FL Studio\Presets", @"Image-Line\FL Studio", "Image-Line" }
                 .Select(p => System.IO.Path.Combine(documents, p)).FirstOrDefault(Directory.Exists) ?? documents;
             var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(_window);
-            if (Native.FileDialogs.PickFile(hwnd, Loc.T("Choisis un état de piste du Mixer (.fst)"), Loc.T("État de piste du Mixer"), "fst", start)
+            if (Native.FileDialogs.PickFile(hwnd, Loc.T("Choisis un état de piste du Mixer"), Loc.T("État de piste du Mixer"), "fst", start)
                 is { } chosen) set(chosen);
         }));
         return stack;
@@ -1365,7 +1365,7 @@ internal sealed class MacrosPage
             else RenderSoon();
             _window.Activate();
         });
-        _notice = problem ?? Loc.T("Clique dans FL à l'endroit voulu (Échap pour annuler).");
+        _notice = problem ?? Loc.T("Clique dans FL à l'endroit voulu. Échap annule.");
         RenderSoon();
     }
 

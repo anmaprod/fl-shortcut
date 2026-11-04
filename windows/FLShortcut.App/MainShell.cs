@@ -202,7 +202,7 @@ internal sealed partial class MainShell
 
     private void TrayTip(bool alreadyRunning) => _tray?.Notify(
         alreadyRunning ? Loc.T("FL Shortcuts est déjà ouvert") : Loc.T("FL Shortcuts est prêt"),
-        Loc.T("Son icône est près de l'horloge (sous ^ si Windows la cache). Clic : la fenêtre ; clic droit : le menu."));
+        Loc.T("Son icône est près de l'horloge. Clic : la fenêtre. Clic droit : le menu."));
 
     private void OnClosing(AppWindow sender, AppWindowClosingEventArgs args)
     {
@@ -774,7 +774,7 @@ internal sealed partial class MainShell
             if (cards.Count == 0)
             {
                 ShowEmpty("custom", Loc.T("Aucun raccourci changé"),
-                    Loc.T("Chaque raccourci que tu changes arrive ici, avec ceux que tu crées. Les macros ont leur page."));
+                    Loc.T("Tes raccourcis changés et créés."));
                 return;
             }
         }

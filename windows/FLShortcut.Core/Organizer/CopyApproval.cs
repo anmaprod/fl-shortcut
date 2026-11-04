@@ -52,9 +52,9 @@ public static class CopyApprovalRules
     {
         CopyApprovalError.CopyMissing => Loc.T("La version organisée n'est plus à côté de ton projet : rien n'a été touché."),
         CopyApprovalError.CannotTrash => Loc.T("Ton projet d'origine n'a pas pu aller à la Corbeille : rien n'a été touché."),
-        CopyApprovalError.CannotRename => Loc.T("La version organisée n'a pas pu prendre le nom de ton projet : ton projet d'origine est revenu à sa place."),
-        CopyApprovalError.FlNotSaved => Loc.T("FL Studio doit être au premier plan pour enregistrer la version organisée : clique dans sa fenêtre, puis réessaie. Rien n'a été touché."),
-        CopyApprovalError.FlBusy => Loc.T("FL Studio n'a pas changé de projet à temps (une question attend peut-être dans FL) : rien n'a été touché."),
+        CopyApprovalError.CannotRename => Loc.T("Renommage impossible : ton projet d'origine est revenu."),
+        CopyApprovalError.FlNotSaved => Loc.T("Mets FL devant, puis réessaie. Rien n'a été touché."),
+        CopyApprovalError.FlBusy => Loc.T("FL n'a pas changé de projet à temps. Rien n'a été touché."),
         _ => Loc.T("Ton projet d'avant n'est plus à sa place : la version organisée est gardée."),
     };
 

@@ -265,7 +265,7 @@ internal sealed class CommunityPage
         var words = CommunityRules.SearchPattern(_search);
         if (words.Length > 0)
             return Message(Loc.F("Aucun partage pour « %@ »", DisplayText.Safe(words, 30)),
-                Loc.T("Essaie un autre mot : un titre, une fenêtre de FL (Mixer, Playlist…), une action ou le nom d'un membre."),
+                Loc.T("Essaie un autre mot."),
                 Loc.T("Effacer la recherche"), () =>
                 {
                     _search = "";
@@ -284,7 +284,7 @@ internal sealed class CommunityPage
                 _filter == Filter.Macros ? Loc.T("Personne n'a encore partagé de macro.") : Loc.T("Personne n'a encore partagé de raccourcis."),
                 Loc.T("Tout afficher"), () => Choose(Filter.All));
         return Message(Loc.T("Encore aucun partage"),
-            Loc.T("Sois le premier : partage une macro qui te fait gagner du temps, avec une petite explication pour les autres."),
+            Loc.T("Partage la première macro."),
             Loc.T("Partager une macro…"), StartComposing);
     }
 
@@ -442,7 +442,7 @@ internal sealed class CommunityPage
             if (_profilePreview is { } p)
             {
                 var notes = new StackPanel { Spacing = 6 };
-                notes.Children.Add(Paragraph("• " + Loc.T("Tes raccourcis actuels sont remplacés par ceux-ci. Tu peux annuler juste après, depuis la notification en bas de la fenêtre."), 12, Text));
+                notes.Children.Add(Paragraph("• " + Loc.T("Tes raccourcis sont remplacés. Annulable juste après."), 12, Text));
                 if (p.Disabled > 0)
                     notes.Children.Add(Paragraph("• " + Loc.F("%lld raccourcis éteints : leur touche n'existe pas sur ce PC, ou elle est déjà prise.", p.Disabled), 12, Text));
                 if (p.Refused.Count > 0)
@@ -536,7 +536,7 @@ internal sealed class CommunityPage
     /// Une ligne par raccourci : « Ctrl+S → Save · Mixer » (éteints marqués).
     private static IEnumerable<string> ProfileLines(ImportPreview preview) => preview.Shortcuts.Take(120).Select(s =>
         $"{s.Trigger?.ToString() ?? "—"} → {s.Label}{(s.Context == ShortcutContext.Everywhere ? "" : " · " + s.Context.Label())}"
-        + (s.Enabled ? "" : Loc.T(" (désactivé)")));
+        + (s.Enabled ? "" : Loc.T(" · éteint")));
 
     /// « Utiliser ces raccourcis » : ils remplacent ceux de ce PC (ceux des macros restent), annulable.
     private void UseShortcuts(Share share)
@@ -578,7 +578,7 @@ internal sealed class CommunityPage
         var form = new StackPanel { Spacing = 10 };
         form.Children.Add(SwissLabel(Loc.F("Signaler « %@ »", DisplayText.Safe(share.Title, 40)), 11, Text));
         form.Children.Add(Rule(Text));
-        form.Children.Add(Paragraph(Loc.T("Les administrateurs le relisent et le retirent s'il le faut. L'auteur ne sait pas qui l'a signalé."), 12));
+        form.Children.Add(Paragraph(Loc.T("Les administrateurs le relisent. L'auteur ne saura pas qui."), 12));
         var reasons = new StackPanel { Spacing = 2 };
         for (var i = 0; i < Reasons.Length; i++)
         {
@@ -595,7 +595,7 @@ internal sealed class CommunityPage
         var details = new TextBox
         {
             Text = _details,
-            PlaceholderText = Loc.T("Précisions (facultatif)"),
+            PlaceholderText = Loc.T("Précisions facultatives"),
             FontFamily = SwissFont,
             Background = Brush(Colors.Black),
             BorderBrush = Brush(LineColor),
@@ -604,7 +604,7 @@ internal sealed class CommunityPage
             MaxLength = 400,
         };
         details.TextChanged += (_, _) => _details = details.Text;
-        AutomationProperties.SetName(details, Loc.T("Précisions (facultatif)"));
+        AutomationProperties.SetName(details, Loc.T("Précisions facultatives"));
         form.Children.Add(details);
         var buttons = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10, HorizontalAlignment = HorizontalAlignment.Right };
         buttons.Children.Add(Soft(Loc.T("Annuler"), () =>
@@ -729,7 +729,7 @@ internal sealed class CommunityPage
         AutomationProperties.SetName(name, Loc.T("Titre"));
         page.Children.Add(Field(Loc.T("Titre"), name));
 
-        var notes = Input(_composeNotes, Loc.T("À quoi elle sert, où l'utiliser dans FL (Mixer, Playlist…), ce qu'il faut faire avant de la lancer."));
+        var notes = Input(_composeNotes, Loc.T("À quoi elle sert et où l'utiliser."));
         notes.AcceptsReturn = true;
         notes.TextWrapping = TextWrapping.Wrap;
         notes.MinHeight = 120;

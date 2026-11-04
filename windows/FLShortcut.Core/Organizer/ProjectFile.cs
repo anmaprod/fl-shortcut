@@ -135,7 +135,7 @@ public static class ProjectFile
         }
         catch (FlpException)
         {
-            throw OrganizerError.Failed(Loc.F("L'Organiser ne sait pas encore ranger ce projet sans risque (%@) : rien n'a été touché.", "séparation"));
+            throw OrganizerError.Failed(Loc.F("Projet pas encore rangeable sans risque : %@.", "séparation"));
         }
     }
 
@@ -376,8 +376,8 @@ public static class ProjectFile
         {
             why(e.What);
             if (e.What == "arrangements")
-                throw OrganizerError.Failed(Loc.T("Ton projet a plusieurs arrangements avec des clips : l'Organiser ne range pour l'instant qu'un seul arrangement. Rien n'a été touché."));
-            throw OrganizerError.Failed(Loc.F("L'Organiser ne sait pas encore ranger ce projet sans risque (%@) : rien n'a été touché.", e.What));
+                throw OrganizerError.Failed(Loc.T("Un seul arrangement peut être rangé. Rien n'a été touché."));
+            throw OrganizerError.Failed(Loc.F("Projet pas encore rangeable sans risque : %@.", e.What));
         }
         catch (Exception e) when (e is not OrganizerError)
         {
@@ -389,12 +389,12 @@ public static class ProjectFile
         if (Mismatch(project, live, names) is { } what)
         {
             why(what);
-            throw OrganizerError.Failed(Loc.T("Le fichier enregistré ne correspond pas au projet ouvert dans FL : rien n'a été touché. Si le Channel rack ne montre qu'un groupe de sons, choisis « All » en haut du Channel rack. Puis clique sur « Réessayer »."));
+            throw OrganizerError.Failed(Loc.T("Fichier différent du projet ouvert : rien n'a été touché. Choisis « All » dans le Channel rack, puis « Réessayer »."));
         }
         if (project.Clips.Any(c => project.MutedTracks.Contains(c.Track)))
         {
             why("piste coupée");
-            throw OrganizerError.Failed(Loc.T("Une piste de ta Playlist est coupée (mute) : réactive-la dans FL (ou retire ses clips), puis clique sur « Réessayer ». Rien n'a été touché."));
+            throw OrganizerError.Failed(Loc.T("Une piste de ta Playlist est mute : réactive-la, puis « Réessayer »."));
         }
         return (path, file, project);
     }
@@ -403,7 +403,7 @@ public static class ProjectFile
     public static bool Denied(Exception error) => error is UnauthorizedAccessException;
 
     public static OrganizerError DeniedError =>
-        OrganizerError.Failed(Loc.T("Windows n'a pas laissé FL Shortcuts ouvrir le dossier de ton projet (Sécurité Windows › Protection contre les ransomwares › Accès contrôlé aux dossiers : autorise FL Shortcuts), puis clique sur « Réessayer ». Rien n'a été touché."));
+        OrganizerError.Failed(Loc.T("Windows bloque le dossier du projet : autorise FL Shortcuts, puis « Réessayer »."));
 
     private static readonly Regex MarkerName = new("^FL Shortcuts [0-9]+$", RegexOptions.CultureInvariant);
 

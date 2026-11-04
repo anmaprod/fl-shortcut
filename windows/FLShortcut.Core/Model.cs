@@ -144,15 +144,15 @@ public static class ProfileCodec
         if (json.Length > MaxBytes) throw new FormatException("Fichier trop volumineux pour un profil.");
         JsonNode? root;
         try { root = JsonNode.Parse(json, documentOptions: new JsonDocumentOptions { MaxDepth = 16 }); }
-        catch (JsonException e) { throw new FormatException("Profil illisible.", e); }
+        catch (JsonException e) { throw new FormatException(Loc.T("Profil illisible."), e); }
 
         var items = root switch
         {
             JsonArray a => a,
             JsonObject o when o["shortcuts"] is JsonArray a2 => a2,
-            _ => throw new FormatException("Profil illisible."),
+            _ => throw new FormatException(Loc.T("Profil illisible.")),
         };
-        if (items.Count > MaxShortcuts) throw new FormatException($"Trop de raccourcis ({MaxShortcuts} au maximum).");
+        if (items.Count > MaxShortcuts) throw new FormatException(Loc.F("Trop de raccourcis : %lld au plus.", MaxShortcuts));
 
         var list = new List<Shortcut>();
         var skipped = 0;
@@ -344,18 +344,18 @@ public abstract record ShortcutIssue
 
     public string Message => this switch
     {
-        NoTrigger => "Aucun raccourci défini.",
-        NoTarget => "Aucune touche de FL choisie.",
-        InvalidKey => "Touche non prise en charge.",
-        UnknownAction u => $"Action inconnue (« {DisplayText.Safe(u.Raw)} ») : mets à jour FL Shortcuts.",
-        ForbiddenTarget f => $"Cible interdite : {f.Why}.",
-        ForbiddenTrigger f => $"Raccourci impossible : {f.Why}.",
-        ReservedToggle => "Réservé à Ctrl+Alt+Maj+F (mettre FL Shortcuts en pause).",
-        Duplicate => "Déjà utilisé dans ce contexte : seul le premier compte.",
-        BareKey => "Touche seule : elle ne pourra plus servir à taper du texte dans FL ni à jouer des notes.",
-        WindowsConflict w => $"Conflit : {w.What}.",
-        FlConflict f => $"Remplace un raccourci natif — {f.What}.",
-        Loop => "La touche envoyée est aussi un déclencheur : elle sera envoyée telle quelle, sans enchaînement.",
+        NoTrigger => Loc.T("Aucun raccourci défini."),
+        NoTarget => Loc.T("Aucune touche de FL choisie."),
+        InvalidKey => Loc.T("Touche non prise en charge."),
+        UnknownAction u => Loc.F("Action inconnue « %@ » : mets à jour FL Shortcuts.", DisplayText.Safe(u.Raw)),
+        ForbiddenTarget f => Loc.F("Cible interdite : %@.", f.Why),
+        ForbiddenTrigger f => Loc.F("Raccourci impossible : %@.", f.Why),
+        ReservedToggle => Loc.T("Réservé à Ctrl+Alt+Maj+F : pause de FL Shortcuts."),
+        Duplicate => Loc.T("Déjà utilisé ici : seul le premier compte."),
+        BareKey => Loc.T("Touche seule : elle ne tapera plus de texte ni de notes dans FL."),
+        WindowsConflict w => Loc.F("Conflit : %@.", Loc.T(w.What)),
+        FlConflict f => Loc.F("Remplace un raccourci de %@.", Loc.T(f.What)),
+        Loop => Loc.T("La touche envoyée est aussi un raccourci : elle part telle quelle."),
         Unavailable u => u.Why,
         MacroInvalid m => m.Why,
         _ => "",
@@ -389,7 +389,7 @@ public static class ShortcutAnalyzer
             {
                 if (s.MacroRef is not { } r) list.Add(new ShortcutIssue.MacroInvalid(Loc.T("Aucune macro configurée.")));
                 else if (ctx.Programs is null || !ctx.Programs.TryGetValue(r, out var program))
-                    list.Add(new ShortcutIssue.MacroInvalid(Loc.T("Macro introuvable dans la bibliothèque (supprimée ?).")));
+                    list.Add(new ShortcutIssue.MacroInvalid(Loc.T("Macro introuvable.")));
                 else if (program.Problem is { } why) list.Add(new ShortcutIssue.MacroInvalid(why));
             }
             else
@@ -405,8 +405,8 @@ public static class ShortcutAnalyzer
             if (s.Trigger is { } trig)
             {
                 if (!trig.IsValidKey) list.Add(new ShortcutIssue.InvalidKey());
-                if (trig.Win) list.Add(new ShortcutIssue.ForbiddenTrigger("Win+… est réservé à Windows"));
-                if (trig.IsAltGr) list.Add(new ShortcutIssue.ForbiddenTrigger("Ctrl+Alt correspond à AltGr (@, €, {…)"));
+                if (trig.Win) list.Add(new ShortcutIssue.ForbiddenTrigger(Loc.T("Win+… est réservé à Windows")));
+                if (trig.IsAltGr) list.Add(new ShortcutIssue.ForbiddenTrigger(Loc.T("Ctrl+Alt est réservé à AltGr")));
                 if (trig == ctx.Toggle) list.Add(new ShortcutIssue.ReservedToggle());
                 if (!trig.HasModifiers && !Vk.IsFunctionKey(trig.Vk)) list.Add(new ShortcutIssue.BareKey());
                 if (ctx.Conflicts.WindowsConflict(trig) is { } w) list.Add(new ShortcutIssue.WindowsConflict(w));

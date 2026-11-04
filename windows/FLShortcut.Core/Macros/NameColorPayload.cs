@@ -32,7 +32,7 @@ public sealed record NameColorPayload
     {
         if (name.EnumerateRunes().Any(r => r.Value < 32 || r.Value == 127)) return Loc.T("le nom contient un caractère invisible.");
         if (name.EnumerateRunes().Count() > MaxNameScalars || System.Text.Encoding.UTF8.GetByteCount(name) > MaxNameBytes)
-            return Loc.T("nom trop long (64 caractères au plus).");
+            return Loc.T("nom trop long : 64 caractères au plus.");
         return null;
     }
 

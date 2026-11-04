@@ -45,7 +45,7 @@ public static class LightMode
 
     /// Disponibilité d'une action en mode léger : seulement celles qui ont une touche d'origine.
     public static ActionAvailability Availability(int id) =>
-        !FlActions.IsKnown(id) ? new ActionAvailability.Unavailable("Action inconnue")
+        !FlActions.IsKnown(id) ? new ActionAvailability.Unavailable(Loc.T("Action inconnue"))
         : NativeEquivalent(id) is not null ? new ActionAvailability.Available()
-        : new ActionAvailability.Unavailable("Demande le lien MIDI avec FL (désactivé en mode léger)");
+        : new ActionAvailability.Unavailable(Loc.T("Demande le lien avec FL, éteint en mode léger."));
 }

@@ -230,7 +230,10 @@
   « Utiliser ces raccourcis » (annulable), « Tous mes raccourcis » partagés au format du Mac. Sauvegarde en ligne
   sur Windows = LA MÊME que le Mac (`Backup.cs`, `Services/AccountBackupWin.cs`, règles recopiées de
   AccountBackup.swift, copie datée « avant-compte », déconnexion qui vide le PC comme le Mac ; état dans
-  settings.json `BackupAccount/Revision/Dirty`). Pas encore vu sur un vrai PC avec le compte du propriétaire. Compiler le C# de l'app ici (le compilateur XAML est Windows seulement) :
+  settings.json `BackupAccount/Revision/Dirty`). Pas encore vu sur un vrai PC avec le compte du propriétaire.
+  04/11 (« toutes les precisions et les parentheses enleve les, je veux juste des mini descriptions ») : tous les textes
+  de Windows en une phrase courte, sans parenthèse (sauf les noms de FL « (generic controller) », « (none) ») ;
+  avertissements d'un raccourci et conflits Windows/FL traduits (`ShortcutIssue.Message`, essai `ConflictNamesHaveTheirEnglish`). Compiler le C# de l'app ici (le compilateur XAML est Windows seulement) :
   `~/.dotnet/dotnet build windows/FLShortcut.App -c Release -p:Platform=x64 -p:EnableWindowsTargeting=true
   -p:EnableDefaultPageItems=false -p:EnableDefaultApplicationDefinition=false` : seules 4 erreurs attendues
   (InitializeComponent, Root, Main) ; le cœur : `dotnet test windows/FLShortcut.Core.Tests`.

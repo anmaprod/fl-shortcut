@@ -30,7 +30,7 @@ public static class FlActions
         new(6, "loop", "Enregistrement en boucle", ActionCategory.Recording, "20.7"),
         new(7, "wait", "Attendre une note", ActionCategory.Recording, "20.7"),
         new(8, "marker", "Poser un marqueur", ActionCategory.Recording, "20.7"),
-        new(9, "arm", "Armer la piste (Mixer sélectionnée)", ActionCategory.Recording, "20.7"),
+        new(9, "arm", "Armer la piste choisie du Mixer", ActionCategory.Recording, "20.7"),
         new(10, "tap", "Tap tempo", ActionCategory.Composition, "20.7"),
         new(11, "newpat", "Nouveau pattern + Piano Roll", ActionCategory.Composition, "20.7"),
         new(12, "clone", "Cloner le pattern", ActionCategory.Composition, "21.0.3"),
@@ -60,8 +60,8 @@ public static class FlActions
         new(36, "undo", "Annuler", ActionCategory.Navigation, "20.7"),
         new(37, "redo", "Rétablir", ActionCategory.Navigation, "20.7"),
         new(38, "save", "Sauvegarder", ActionCategory.Navigation, "20.7"),
-        new(39, "armon", "Armer la piste (si éteinte)", ActionCategory.Recording, "20.7"),
-        new(40, "recon", "Allumer le REC (si éteint)", ActionCategory.Recording, "20.7"),
+        new(39, "armon", "Armer la piste si éteinte", ActionCategory.Recording, "20.7"),
+        new(40, "recon", "Allumer le REC si éteint", ActionCategory.Recording, "20.7"),
     };
 
     private static readonly Dictionary<int, FlActionInfo> ById = All.ToDictionary(a => a.Id);

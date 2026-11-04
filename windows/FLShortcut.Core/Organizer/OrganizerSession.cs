@@ -163,7 +163,7 @@ public sealed class OrganizerSession
         catch (Exception e)
         {
             Note(d => d.Error = e.GetType().Name);
-            return (null, OrganizerError.Failed(Loc.F("Écoute de FL impossible (%@).", e.GetType().Name)));
+            return (null, OrganizerError.Failed(Loc.F("Écoute de FL impossible : %@.", e.GetType().Name)));
         }
     }
 

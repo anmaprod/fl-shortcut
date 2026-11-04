@@ -245,7 +245,7 @@ public static class AccountRequests
         if (code == "same_password" || lower.Contains("should be different")) return Loc.T("Choisis un mot de passe différent de l'ancien.");
         if (code == "weak_password" || lower.Contains("password should")) return Loc.F("Mot de passe trop faible : %@.", AccountRules.PasswordRule);
         if (lower.Contains("error sending") || lower.Contains("not authorized"))
-            return Loc.T("Le mail de confirmation n'a pas pu partir. Réessaie plus tard, ou écris à l'équipe depuis la page Aide.");
+            return Loc.T("Le mail n'est pas parti. Réessaie plus tard.");
         if (lower.Contains("trop de partages") || lower.Contains("trop de messages") || lower.StartsWith("attends ")
             || lower.StartsWith("réservé aux administrateurs")) return raw;
         if (lower.Contains("pseudo déjà pris") || lower.Contains("profiles_username")) return Loc.T("Ce pseudo est déjà pris.");
@@ -254,7 +254,7 @@ public static class AccountRequests
         if (status is 401 or 403) return Loc.T("Session expirée : reconnecte-toi.");
         if (status == 429) return Loc.T("Trop de tentatives : réessaie dans quelques minutes.");
         if (raw.Length > 0) return status > 0 ? Loc.F("Erreur du serveur : %@", raw.Length > 200 ? raw[..200] : raw) : raw;
-        return status > 0 ? Loc.F("Erreur du serveur (%lld).", status) : Loc.T("Le serveur n'a pas répondu.");
+        return status > 0 ? Loc.F("Erreur du serveur %lld.", status) : Loc.T("Le serveur n'a pas répondu.");
     }
 
     public static string Unconfirmed => Loc.T("Confirme d'abord ton adresse mail avec le code reçu par mail.");

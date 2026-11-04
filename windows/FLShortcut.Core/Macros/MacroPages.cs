@@ -88,23 +88,23 @@ public static class PageOptions
         switch (page)
         {
             case FlPage.ChannelRack:
-                Add("addInstrument", Loc.T("Ajouter un instrument (VST, plugin…)"), new PageOption.OptionKind.AddMenu("Channel"));
-                Add("chMute", Loc.T("Mute d'un canal (son numéro)"), new PageOption.OptionKind.ChannelToggle(false));
-                Add("chSolo", Loc.T("Solo d'un canal (son numéro)"), new PageOption.OptionKind.ChannelToggle(true));
+                Add("addInstrument", Loc.T("Ajouter un instrument"), new PageOption.OptionKind.AddMenu("Channel"));
+                Add("chMute", Loc.T("Mute d'un canal"), new PageOption.OptionKind.ChannelToggle(false));
+                Add("chSolo", Loc.T("Solo d'un canal"), new PageOption.OptionKind.ChannelToggle(true));
                 Add("chnext", Loc.T("Instrument suivant"), new PageOption.OptionKind.Action("chnext"));
                 Add("chprev", Loc.T("Instrument précédent"), new PageOption.OptionKind.Action("chprev"));
                 Add("presetnext", Loc.T("Preset suivant"), new PageOption.OptionKind.Action("presetnext"));
                 Add("presetprev", Loc.T("Preset précédent"), new PageOption.OptionKind.Action("presetprev"));
                 break;
             case FlPage.Mixer:
-                Add("addEffect", Loc.T("Ajouter un effet sur la piste (plugin)"), new PageOption.OptionKind.AddMenu("Effect"));
+                Add("addEffect", Loc.T("Ajouter un effet sur la piste"), new PageOption.OptionKind.AddMenu("Effect"));
                 Add("rename", Loc.T("Renommer la piste"), new PageOption.OptionKind.Rename());
                 Add("armon", Loc.T("Armer la piste"), new PageOption.OptionKind.Action("armon"));
                 Add("arm", Loc.T("Armer ou désarmer la piste"), new PageOption.OptionKind.Action("arm"));
-                Add("mute", Loc.T("Mute de la piste (coupe ou remet le son)"), new PageOption.OptionKind.Action("mute"));
-                Add("solo", Loc.T("Solo de la piste (met ou retire le solo)"), new PageOption.OptionKind.Action("solo"));
+                Add("mute", Loc.T("Mute de la piste"), new PageOption.OptionKind.Action("mute"));
+                Add("solo", Loc.T("Solo de la piste"), new PageOption.OptionKind.Action("solo"));
                 Add("unsolo", Loc.T("Retirer tous les solos"), new PageOption.OptionKind.Action("unsolo"));
-                Add("bypass", Loc.T("Couper les effets de la piste (bypass)"), new PageOption.OptionKind.Action("bypass"));
+                Add("bypass", Loc.T("Couper les effets de la piste"), new PageOption.OptionKind.Action("bypass"));
                 Add("trnext", Loc.T("Piste suivante"), new PageOption.OptionKind.Action("trnext"));
                 Add("trprev", Loc.T("Piste précédente"), new PageOption.OptionKind.Action("trprev"));
                 Add("volup", Loc.T("Monter le volume de la piste"), new PageOption.OptionKind.Action("volup"));
@@ -115,12 +115,12 @@ public static class PageOptions
                 Add("marker", Loc.T("Poser un marqueur"), new PageOption.OptionKind.Action("marker"));
                 Add("snap", Loc.T("Grille suivante"), new PageOption.OptionKind.Action("snap"));
                 // Le menu « Arrangement » de la Playlist.
-                Add("arrangementGo", Loc.T("Arrangement : ouvrir un arrangement (son nom)"), new PageOption.OptionKind.Arrangement(null));
-                Add("arrangementAdd", Loc.T("Arrangement : en ajouter un (Add one)"), new PageOption.OptionKind.Arrangement("Add one"));
-                Add("arrangementClone", Loc.T("Arrangement : le dupliquer (Clone)"), new PageOption.OptionKind.Arrangement("Clone"));
-                Add("arrangementRename", Loc.T("Arrangement : le renommer (Rename)"), new PageOption.OptionKind.Arrangement("Rename"));
-                Add("arrangementDelete", Loc.T("Arrangement : le supprimer (Delete)"), new PageOption.OptionKind.Arrangement("Delete"));
-                Add("arrangementMerge", Loc.T("Arrangement : fusionner avec… (Merge with, sous-menu ouvert)"),
+                Add("arrangementGo", Loc.T("Arrangement : ouvrir"), new PageOption.OptionKind.Arrangement(null));
+                Add("arrangementAdd", Loc.T("Arrangement : ajouter"), new PageOption.OptionKind.Arrangement("Add one"));
+                Add("arrangementClone", Loc.T("Arrangement : dupliquer"), new PageOption.OptionKind.Arrangement("Clone"));
+                Add("arrangementRename", Loc.T("Arrangement : renommer"), new PageOption.OptionKind.Arrangement("Rename"));
+                Add("arrangementDelete", Loc.T("Arrangement : supprimer"), new PageOption.OptionKind.Arrangement("Delete"));
+                Add("arrangementMerge", Loc.T("Arrangement : fusionner avec…"),
                     new PageOption.OptionKind.Arrangement("Merge with"));
                 break;
             case FlPage.PianoRoll:
@@ -222,11 +222,11 @@ public static class PageOptions
             {
                 var path = PluginPath(trimmed);
                 if (trimmed.Length == 0 || trimmed.Length > MaxName || path.Any(p => p.Length == 0) || path.Count > MaxMenuDepth - 2)
-                    return Loc.T("choisis le plugin à ajouter (comme dans le menu Add de FL).");
+                    return Loc.T("choisis le plugin à ajouter.");
                 break;
             }
             case PageField.Channel:
-                if (Channel(trimmed) is null) return Loc.F("écris le numéro du canal (1 à %lld).", MaxChannel);
+                if (Channel(trimmed) is null) return Loc.F("écris le numéro du canal, de 1 à %lld.", MaxChannel);
                 break;
             case PageField.Name:
                 if (trimmed.Length == 0) return Loc.T("écris le nouveau nom de la piste.");
@@ -234,7 +234,7 @@ public static class PageOptions
                 break;
             case PageField.Arrangement:
                 if (trimmed.Length == 0 || trimmed.Length > MaxName)
-                    return Loc.T("écris le nom de l'arrangement, comme dans FL (Arrangement 2…).");
+                    return Loc.T("écris le nom de l'arrangement.");
                 break;
         }
         return null;
@@ -259,6 +259,6 @@ public static class PageOptions
 
     /// Message de la validation pour une option hors de sa page.
     public static string MisplacedMessage((string Path, FlPage? Page) wrong) => wrong.Page is { } page
-        ? Loc.F("Étape %@ : cette option n'est pas dans %@, la page ouverte au-dessus : choisis-en une de cette page.", wrong.Path, page.Title())
-        : Loc.F("Étape %@ : ajoute « Ouvrir une page de FL » juste au-dessus et choisis la page de cette option.", wrong.Path);
+        ? Loc.F("Étape %@ : cette option n'est pas dans %@.", wrong.Path, page.Title())
+        : Loc.F("Étape %@ : ajoute « Ouvrir une page de FL » juste au-dessus.", wrong.Path);
 }

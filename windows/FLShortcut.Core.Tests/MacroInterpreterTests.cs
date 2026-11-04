@@ -291,7 +291,7 @@ public class MacroInterpreterTests
             B(new BlockBody.IfElse(new Condition.LastBlockFailed(), new List<Block> { B(Key) }, new List<Block>())),
             B(new BlockBody.IfElse(new Condition.LastBlockFailed(), new List<Block> { B(new BlockBody.MenuKeyPress(MenuKey.Down)) }, new List<Block>())),
         }, fx);
-        Assert.Equal(new MacroOutcome.DoneWithWarning("étape 1 non faite (boom)"), outcome);
+        Assert.Equal(new MacroOutcome.DoneWithWarning("étape 1 non faite : boom"), outcome);
         Assert.Contains("key", fx.Trace);
         Assert.DoesNotContain("menuKey", fx.Trace);          // le « si » précédent a réussi
     }
@@ -336,7 +336,7 @@ public class MacroInterpreterTests
         }, failing);
         // Le sinon continue la numérotation du alors (vide) : 2.2.
         Assert.Equal(new MacroOutcome.FailedInBlock("2.2", "Touche ou raccourci", "touche interdite"), outcome);
-        Assert.Equal("Macro arrêtée au bloc 2.2 (Touche ou raccourci) : touche interdite", outcome.Text);
+        Assert.Equal("Macro arrêtée au bloc 2.2, Touche ou raccourci : touche interdite", outcome.Text);
         Assert.Contains("2.2/2 key …", failing.StepLines);
     }
 
@@ -429,7 +429,7 @@ public class MacroInterpreterTests
         var slow = new FakeEffects { BlockSeconds = 0.6 };
         var late = Run(new[] { B(new BlockBody.Delay(1)), B(new BlockBody.Delay(1)), B(new BlockBody.Delay(1)) }, slow,
             limits: new RuntimeLimits(MaxBlocks: 100, MaxSeconds: 1));
-        Assert.Equal(new MacroOutcome.Failed(3, "macro trop longue (1 s au plus)"), late);
+        Assert.Equal(new MacroOutcome.Failed(3, "macro trop longue : 1 s au plus"), late);
     }
 
     private sealed class Spy : IRunObserver
@@ -459,12 +459,12 @@ public class MacroInterpreterTests
         foreach (var key in new[]
                  {
                      "Macro terminée", "Macro terminée, mais %@", "Macro arrêtée à l'étape %lld : %@",
-                     "Macro arrêtée au bloc %@ (%@) : %@", "Macro arrêtée : %@", "Macro arrêtée par son bloc « Arrêter »",
+                     "Macro arrêtée au bloc %@, %@ : %@", "Macro arrêtée : %@", "Macro arrêtée par son bloc « Arrêter »",
                      "Macro annulée : %@", "macro invalide", "clique d'abord sur ta piste dans le Mixer de FL, puis refais le raccourci",
-                     "relâche les touches du raccourci", "trop de blocs exécutés (%lld au plus)", "macro trop longue (%lld s au plus)",
+                     "relâche les touches du raccourci", "trop de blocs : %lld au plus", "macro trop longue : %lld s au plus",
                      "condition toujours vraie après %lld tours", "condition toujours fausse après %lld s",
                      "lecture de l'état de FL : demande l'extension du lien avec FL",
-                     "bloc inconnu : macro d'une version plus récente", "étape %@ non faite (%@)",
+                     "bloc inconnu : macro d'une version plus récente", "étape %@ non faite : %@",
                  })
             Assert.True(Loc.Has(key), $"« {key} » sans anglais");
     }

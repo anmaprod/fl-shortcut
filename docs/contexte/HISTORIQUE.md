@@ -762,3 +762,7 @@ entrée 1 ≈ 0,5 s.
   lue par Windows, ⌘ → Ctrl) avec aller-retour sans perte ; Communauté Windows : raccourcis d'un Mac utilisables et
   partage de tous ses raccourcis ; sauvegarde en ligne sur Windows, la même que celle du Mac (mêmes règles, copie
   datée avant remplacement, déconnexion qui vide le PC).
+- 04/11 (« test le win… toutes les precisions et les parentheses enleve les, je veux juste des mini descriptions ») :
+  plus de 200 textes de Windows raccourcis en une phrase, sans parenthèse ; l'essentiel gardé là où il faut agir
+  (MIDI Settings, « Revenir comme avant », « Rien n'a été touché ») ; avertissements d'un raccourci et noms des
+  conflits enfin traduits en anglais ; titres de quelques raccourcis de FL sans parenthèse sur Windows seulement.

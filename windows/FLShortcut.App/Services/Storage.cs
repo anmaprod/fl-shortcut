@@ -48,11 +48,11 @@ internal static class SafeFile
     public static void EnsureNoLinks(string path, int levels = 3)
     {
         var full = Path.GetFullPath(path);
-        if (File.Exists(full) && new FileInfo(full).LinkTarget is not null) throw new IOException($"Fichier refusé (lien) : {full}");
+        if (File.Exists(full) && new FileInfo(full).LinkTarget is not null) throw new IOException(Loc.T("Fichier refusé : lien symbolique."));
         var d = Directory.Exists(full) ? new DirectoryInfo(full) : new FileInfo(full).Directory;
         for (var i = 0; i <= levels && d is not null; i++, d = d.Parent)
         {
-            if (d.Exists && d.LinkTarget is not null) throw new IOException($"Dossier refusé (lien) : {d.FullName}");
+            if (d.Exists && d.LinkTarget is not null) throw new IOException(Loc.T("Dossier refusé : lien symbolique."));
         }
     }
 
@@ -172,14 +172,14 @@ internal static class ProfileStore
         {
             SafeFile.EnsureNoLinks(FilePath);
             var decoded = ProfileCodec.Decode(File.ReadAllText(FilePath));
-            if (decoded.Skipped > 0) warning = $"{decoded.Skipped} raccourci(s) illisible(s) ont été ignorés.";
+            if (decoded.Skipped > 0) warning = Loc.F("Raccourcis illisibles ignorés : %lld.", decoded.Skipped);
             return decoded.Shortcuts;
         }
-        catch (Exception e)
+        catch (Exception)
         {
             try { File.Copy(FilePath, Path.Combine(AppPaths.Roaming, $"profile.illisible-{DateTime.Now:yyyyMMdd-HHmmss}.json")); }
             catch { }
-            warning = $"Ton profil était illisible ({e.Message}). Une copie a été gardée, le profil recommandé est chargé.";
+            warning = Loc.T("Profil illisible : copie gardée, profil recommandé chargé.");
             return null;
         }
     }

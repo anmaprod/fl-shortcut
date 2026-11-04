@@ -341,7 +341,7 @@ public class MacroEffectsWindowsTests
         Assert.IsType<StepResult.Ok>(fx.FlActions(new[] { group[1] }, state));
         Assert.Equal(new KeyCombo(Vk.Letter('R')), Assert.Single(fl.Sent));     // touche REC de FL
 
-        Assert.Equal("ce bloc a besoin du lien avec FL (lien endormi)",
+        Assert.Equal("ce bloc a besoin du lien avec FL : lien endormi",
             Assert.IsType<StepResult.Fail>(fx.FlActions(new[] { group[0] }, state)).Why);
         Assert.StartsWith("armement non fait",
             Assert.IsType<StepResult.Warn>(fx.FlActions(new[] { new FlActionCall("armon", ActionFallback.TrackMenuArm) }, state)).Why);
@@ -426,7 +426,7 @@ public class MacroEffectsWindowsTests
     {
         var (fl, fx, state) = Start();
         var click = new BlockBody.Click(new ClickTarget.FlWindowPoint(Corner.TopLeft, 10, 10, new Size2(500, 400)));
-        Assert.Equal("fenêtre de FL de 500 × 400 introuvable (pas ouverte, ou changée de taille : montre de nouveau le clic)",
+        Assert.Equal("fenêtre de FL de 500 × 400 introuvable : remontre le clic",
             Assert.IsType<StepResult.Fail>(fx.Perform(click, state)).Why);
 
         Assert.Equal("le point visé est hors de FL",
@@ -535,7 +535,7 @@ public class MacroEffectsWindowsTests
             Assert.IsType<StepResult.Ok>(fx.Perform(new BlockBody.DropFile(preset), state));
             Assert.Equal((preset, 700, 500), Assert.Single(fl.Drops));
             Assert.All(fl.Lines, l => Assert.DoesNotContain("essai", l));
-            Assert.StartsWith("preset introuvable (",
+            Assert.StartsWith("preset introuvable : ",
                 Assert.IsType<StepResult.Fail>(fx.Perform(new BlockBody.DropFile(preset + ".absent"), state)).Why);
 
             (fl, fx, state) = Start(f => f.Pointer = (5000, 5000));
@@ -645,7 +645,7 @@ public class MacroEffectsWindowsTests
         Assert.True(fl.Scrolls > 0);
         Assert.All(fl.Lines, l => Assert.DoesNotContain("Fake", l));
 
-        Assert.Equal("plugin introuvable dans « More plugins… » de FL : vérifie son nom, ou choisis-le de nouveau dans « Cliquer sur… »",
+        Assert.Equal("plugin introuvable : vérifie son nom",
             Assert.IsType<StepResult.Fail>(fx.Perform(new BlockBody.PageOption("channelRack.addInstrument", "More plugins... › Massive"), state)).Why);
         Assert.DoesNotContain(fl.Open, w => w.Id == 40);
         Assert.Equal("Massive", PageOptions.FromPluginList("More plugins... › Massive"));
@@ -733,7 +733,7 @@ public class MacroEffectsWindowsTests
         Assert.Equal(1, fl.MenusCancelled);
 
         (fl, fx, state) = Start(MenuFl(done, flRefuses: true));
-        Assert.Equal("le menu de FL est resté ouvert (élément grisé ?)",
+        Assert.Equal("le menu de FL est resté ouvert",
             Assert.IsType<StepResult.Fail>(fx.Perform(new BlockBody.MenuBar(ExportPath), state)).Why);
         Assert.Equal(4, fl.Clicks.Count);
         Assert.DoesNotContain(fl.Open, w => w.Role == FlWindowRole.Menu);
@@ -745,16 +745,16 @@ public class MacroEffectsWindowsTests
     {
         var done = new List<string>();
         var (fl, fx, state) = Start(MenuFl(done));
-        Assert.Equal("élément introuvable dans le menu de FL (renommé, ou FL dans une autre langue ?)",
+        Assert.Equal("élément introuvable dans le menu de FL",
             Assert.IsType<StepResult.Fail>(fx.Perform(new BlockBody.MenuBar(new[] { "File", "Import" }), state)).Why);
         Assert.DoesNotContain(fl.Open, w => w.Role == FlWindowRole.Menu);
-        Assert.Equal("élément introuvable dans le menu de FL (renommé, ou FL dans une autre langue ?)",
+        Assert.Equal("élément introuvable dans le menu de FL",
             Assert.IsType<StepResult.Fail>(fx.Perform(new BlockBody.MenuBar(new[] { "Tools", "Macros" }), state)).Why);
         Assert.Equal("chemin de menu incomplet",
             Assert.IsType<StepResult.Fail>(fx.Perform(new BlockBody.MenuBar(new[] { "File" }), state)).Why);
 
         fl.Bar = null;
-        Assert.Equal("titres du menu de FL illisibles en haut de sa fenêtre (FL est-il bien devant ?)",
+        Assert.Equal("menu de FL illisible : mets FL devant",
             Assert.IsType<StepResult.Fail>(fx.Perform(new BlockBody.MenuBar(ExportPath), state)).Why);
         Assert.Empty(done);
     }
@@ -807,13 +807,13 @@ public class MacroEffectsWindowsTests
                      "bloc « %@ » pas encore pris en charge sur Windows.", "pas encore sur Windows", "FL n'est plus au premier plan",
                      "Échap", "touche interdite", "touche non prise en charge", "aucun menu de FL ouvert par la macro",
                      "le menu de FL n'a pas répondu", "boîte de dialogue introuvable", "la boîte de dialogue ne se ferme pas",
-                     "ce bloc a besoin du lien avec FL (%@)", "armement non fait : %@", "page de FL à choisir dans la macro",
-                     "action de FL inconnue", "élément introuvable dans le menu de FL (renommé, ou FL dans une autre langue ?)",
-                     "titres du menu de FL illisibles en haut de sa fenêtre (FL est-il bien devant ?)",
-                     "le menu de FL est resté ouvert (élément grisé ?)", "élément grisé dans le menu de FL",
-                     "bouton retrouvé à son image : pas encore sur Windows (montre de nouveau le clic sur ce PC).",
+                     "ce bloc a besoin du lien avec FL : %@", "armement non fait : %@", "page de FL à choisir dans la macro",
+                     "action de FL inconnue", "élément introuvable dans le menu de FL",
+                     "menu de FL illisible : mets FL devant",
+                     "le menu de FL est resté ouvert", "élément grisé dans le menu de FL",
+                     "bouton à son image : pas encore sur Windows",
                      "« %@ » couvre FL à cet endroit", "« %@ » couvre le menu de FL", "le point visé est hors de FL",
-                     "icône pas encore posée sous Windows (pose-la dans FL avec F2)",
+                     "icône pas encore posée sous Windows",
                  })
             Assert.True(Loc.Has(key), $"« {key} » sans anglais");
     }

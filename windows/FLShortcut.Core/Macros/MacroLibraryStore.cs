@@ -43,7 +43,7 @@ public sealed class MacroLibraryStore
     public event Action? Changed;
 
     public static string WritesDisabledMessage =>
-        Loc.T("Tes macros ne peuvent pas être enregistrées : le fichier n'a pas pu être copié avant d'être remplacé.");
+        Loc.T("Macros non enregistrées : copie du fichier impossible.");
 
     /// Ce que l'utilisateur doit savoir : jamais de macro perdue sans prévenir.
     public string? Problem => SaveError ?? LoadWarning ?? (WritesDisabled ? WritesDisabledMessage : null);
@@ -65,7 +65,7 @@ public sealed class MacroLibraryStore
         {
             WritesDisabled = true;
             LoadIncomplete = true;
-            LoadWarning = Loc.F("Bibliothèque de macros inaccessible (%@) : elle n'est pas modifiée.", e.Message);
+            LoadWarning = Loc.F("Macros inaccessibles : %@.", e.Message);
             return;
         }
         if (data is null) return;                                  // aucune macro encore
@@ -85,13 +85,13 @@ public sealed class MacroLibraryStore
             {
                 var name = KeepCopy(data, "plus-recente");
                 notes.Add(Loc.T("Bibliothèque d'une version plus récente de FL Shortcuts")
-                          + (name is null ? Loc.T(", copie impossible : elle n'est pas modifiée.") : Loc.F(" (copie : %@).", name)));
+                          + (name is null ? Loc.T(", copie impossible : elle n'est pas modifiée.") : Loc.F(" Copie : %@.", name)));
             }
             if (decoded.Dropped > 0)
             {
                 var name = KeepCopy(data, "partielle");
-                notes.Add(Loc.F("%lld macro(s) illisible(s) ignorée(s)", decoded.Dropped)
-                          + (name is null ? Loc.T(", copie impossible : le fichier n'est pas modifié.") : Loc.F(" (copie : %@).", name)));
+                notes.Add(Loc.F("Macros illisibles ignorées : %lld", decoded.Dropped)
+                          + (name is null ? Loc.T(", copie impossible : le fichier n'est pas modifié.") : Loc.F(" Copie : %@.", name)));
             }
             if (notes.Count > 0) LoadWarning = string.Join(" ", notes);
         }
@@ -99,8 +99,8 @@ public sealed class MacroLibraryStore
         {
             LoadIncomplete = true;
             LoadWarning = KeepCopy(data, "illisible") is { } name
-                ? Loc.F("Le fichier des macros était illisible : une copie datée a été gardée dans le dossier FL Shortcuts (%@).", name)
-                : Loc.T("Le fichier des macros est illisible et n'a pas pu être copié : il n'est pas modifié, tes nouvelles macros ne seront pas enregistrées.");
+                ? Loc.F("Fichier des macros illisible : copie gardée, %@.", name)
+                : Loc.T("Fichier des macros illisible : rien ne sera enregistré.");
         }
     }
 
@@ -231,7 +231,7 @@ public sealed class MacroLibraryStore
             {
                 WritesDisabled = true;
                 HasUnsavedChanges = false;
-                SaveError = Loc.F("Tes macros ne peuvent pas être enregistrées : la copie de secours du fichier a échoué (%@). Le fichier n'est pas remplacé.", e.Message);
+                SaveError = Loc.F("Macros non enregistrées : %@.", e.Message);
                 return;
             }
         }
@@ -243,7 +243,7 @@ public sealed class MacroLibraryStore
         }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException)
         {
-            SaveError = Loc.F("Tes macros ne peuvent pas être enregistrées : %@", e.Message);
+            SaveError = Loc.F("Macros non enregistrées : %@.", e.Message);
         }
     }
 }

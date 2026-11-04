@@ -101,7 +101,7 @@ public sealed partial class MacroEffectsWindows : IMacroEffects
     {
         BlockBody.Click { Target: ClickTarget.Button } or BlockBody.Drag { From: ClickTarget.Button }
             or BlockBody.Drag { To: ClickTarget.Button }
-            => Loc.T("bouton retrouvé à son image : pas encore sur Windows (montre de nouveau le clic sur ce PC)."),
+            => Loc.T("bouton à son image : pas encore sur Windows"),
         BlockBody.PageOption { Option: { } id } when PageOptions.Option(id)?.Kind is Macros.PageOption.OptionKind.Arrangement
             => Loc.T("menu « Arrangement » de la Playlist : pas encore sur Windows."),
         BlockBody.SelectInput or BlockBody.FeedbackCheck or BlockBody.SoundCard or BlockBody.MenuAX
@@ -255,8 +255,8 @@ public sealed partial class MacroEffectsWindows : IMacroEffects
                     var rec = call.Key == "recon";
                     if (MacKeys.ToWindows(key) is not { } combo || ForbiddenTargets.IsForbidden(combo))
                     {
-                        warnings.Add(rec ? Loc.T("REC non lancé (touche interdite)")
-                                         : Loc.F("action « %@ » non faite (touche interdite)", call.Key));
+                        warnings.Add(rec ? Loc.T("REC non lancé : touche interdite")
+                                         : Loc.F("action « %@ » non faite : touche interdite", call.Key));
                         break;
                     }
                     _fl.Sleep(30);
@@ -268,7 +268,7 @@ public sealed partial class MacroEffectsWindows : IMacroEffects
                     warnings.Add(Loc.F("armement non fait : %@", Loc.T("pas encore sur Windows")));
                     break;
                 default:
-                    return new StepResult.Fail(Loc.F("ce bloc a besoin du lien avec FL (%@)", why));
+                    return new StepResult.Fail(Loc.F("ce bloc a besoin du lien avec FL : %@", why));
             }
         }
         return warnings.Count == 0 ? new StepResult.Ok() : new StepResult.Warn(string.Join(" ; ", warnings));
@@ -528,7 +528,7 @@ public sealed partial class MacroEffectsWindows : IMacroEffects
                     return new StepResult.Fail(f.Why);
             }
         }
-        return n.Icon is null ? new StepResult.Ok() : new StepResult.Warn(Loc.T("icône pas encore posée sous Windows (pose-la dans FL avec F2)"));
+        return n.Icon is null ? new StepResult.Ok() : new StepResult.Warn(Loc.T("icône pas encore posée sous Windows"));
     }
 
     // ---------- Menu de la piste, preset ----------
@@ -551,7 +551,7 @@ public sealed partial class MacroEffectsWindows : IMacroEffects
             return opened;
         }
         if (menu is not { } m)
-            return new StepResult.Fail(Loc.T("le menu de la piste ne s'est pas ouvert (clique sur le nom de ta piste dans le Mixer)"));
+            return new StepResult.Fail(Loc.T("menu de la piste pas ouvert : clique sur ta piste"));
         _fl.Log("MENU", $"track menu {m.Width}x{m.Height}");
         // FL place souvent son menu sous le pointeur : son survol ouvrirait un sous-menu tout seul.
         HoverOutside(m);
@@ -571,7 +571,7 @@ public sealed partial class MacroEffectsWindows : IMacroEffects
     private static StepResult? MissingPreset(string path)
     {
         if (path.Length > 0 && File.Exists(path)) return null;
-        return new StepResult.Fail(Loc.F("preset introuvable (%@)", Path.GetFileName(path)));
+        return new StepResult.Fail(Loc.F("preset introuvable : %@", Path.GetFileName(path)));
     }
 
     /// Preset glissé sur la piste visée, comme depuis l'Explorateur : dans une fenêtre de FL que rien ne couvre.
@@ -631,7 +631,7 @@ public sealed partial class MacroEffectsWindows : IMacroEffects
         var result = Perform(body, state);
         // Plugin pas dans le menu Add : le dire comme tel (FL peut le ranger ailleurs, ou il a été désinstallé).
         if (option.Field == PageField.Plugin && result is StepResult.Fail { Why: var why }
-            && why == Loc.T("élément introuvable dans le menu de FL (renommé, ou FL dans une autre langue ?)"))
+            && why == Loc.T("élément introuvable dans le menu de FL"))
             return new StepResult.Fail(Loc.T("plugin introuvable dans le menu Add de FL : choisis-le de nouveau dans « Cliquer sur… »"));
         return result;
     }
@@ -649,11 +649,11 @@ public sealed partial class MacroEffectsWindows : IMacroEffects
                     _fl.Log("FL", $"channel {what} by link");
                     return new StepResult.Ok();
                 case RequestReply.Refused { Reason: 5 } when key is null:
-                    return new StepResult.Fail(Loc.F("canal %lld absent du Channel rack (ou script de FL pas à jour : redémarre FL)", number));
+                    return new StepResult.Fail(Loc.F("canal %lld absent du Channel rack", number));
                 case RequestReply.Refused r when key is null:
-                    return new StepResult.Fail(Loc.F("FL a refusé le %@ du canal (raison %lld)", what, r.Reason));
+                    return new StepResult.Fail(Loc.F("FL a refusé le %@ du canal, raison %lld", what, r.Reason));
                 case RequestReply.Failed f when key is null:
-                    return new StepResult.Fail(f.Why + Loc.T(" (au-delà du canal 10, seul le lien avec FL le fait)"));
+                    return new StepResult.Fail(f.Why + Loc.T(" · au-delà du canal 10 : lien avec FL"));
                 default:
                     _fl.Log("FL", $"channel {what}: link unavailable, FL key");
                     break;

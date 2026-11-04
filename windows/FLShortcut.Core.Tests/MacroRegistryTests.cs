@@ -28,7 +28,7 @@ public class MacroRegistryTests
             Assert.Equal(t, s.Type);
             Assert.False(string.IsNullOrEmpty(s.Label), t.ToString());
             Assert.NotEqual(t.Raw(), s.Label);
-            Assert.True(s.Help.Length > 20, t.ToString());
+            Assert.True(s.Help.Length > 10, t.ToString());
             Assert.False(string.IsNullOrEmpty(s.Symbol), t.ToString());
             Assert.True(Loc.Has(s.Label), $"{t} : « {s.Label} » sans anglais");
             foreach (var p in s.Params) Assert.True(Loc.Has(p.Label), $"{t} : « {p.Label} » sans anglais");
@@ -138,11 +138,11 @@ public class MacroRegistryTests
     [Fact]
     public void ForbiddenKeysAreRefused()
     {
-        Assert.Equal("Étape 1 : touche interdite (Alt+F4 ferme l'application).", Problem(new[] { B(new BlockBody.Key(AltF4, 1)) }));
-        Assert.Equal("Étape 2 : touche REC interdite (Alt+F4 ferme l'application).",
+        Assert.Equal("Étape 1 : touche interdite : Alt+F4 ferme l'application.", Problem(new[] { B(new BlockBody.Key(AltF4, 1)) }));
+        Assert.Equal("Étape 2 : touche REC interdite : Alt+F4 ferme l'application.",
             Problem(new[] { B(new BlockBody.Delay(1)), B(new BlockBody.FlAction("recon", ActionFallback.Key(AltF4))) }));
         // ⌘⌥ (Ctrl+Alt sur Windows) : AltGr, jamais envoyé.
-        Assert.StartsWith("Étape 1 : touche interdite (Ctrl+Alt",
+        Assert.StartsWith("Étape 1 : touche interdite : Ctrl+Alt",
             Problem(new[] { B(new BlockBody.Key(new KeyRef(new MacKey(1, Command: true, Option: true), "s"), 1)) }));
         Assert.Equal("Étape 1 : touche non prise en charge.", Problem(new[] { B(new BlockBody.Key(new KeyRef(new MacKey(56)), 1)) }));
         Assert.Equal("Étape 1 : pause hors limites.", Problem(new[] { B(new BlockBody.Delay(5_001)) }));
@@ -166,12 +166,12 @@ public class MacroRegistryTests
     public void TreeLimits()
     {
         Assert.Null(Problem(Enumerable.Range(0, MacroValidation.MaxBlocks).Select(_ => B(new BlockBody.Delay(1))).ToList()));
-        Assert.Equal("Macro trop longue (200 blocs au plus).",
+        Assert.Equal("Macro trop longue : 200 blocs au plus.",
             Problem(Enumerable.Range(0, MacroValidation.MaxBlocks + 1).Select(_ => B(new BlockBody.Delay(1))).ToList()));
         var nested = new List<Block> { B(new BlockBody.Delay(1)) };
         for (var i = 0; i < MacroValidation.MaxDepth; i++) nested = new List<Block> { B(new BlockBody.RepeatCount(1, nested)) };
         Assert.Null(Problem(nested));
-        Assert.Equal("Blocs trop imbriqués (4 niveaux au plus).", Problem(new[] { B(new BlockBody.RepeatCount(1, nested)) }));
+        Assert.Equal("Blocs trop imbriqués : 4 niveaux au plus.", Problem(new[] { B(new BlockBody.RepeatCount(1, nested)) }));
         Assert.Equal("Étape 1 : nombre de répétitions hors limites.", Problem(new[] { B(new BlockBody.RepeatCount(51, new())) }));
         Assert.Equal("Étape 1 : nombre de tours hors limites.",
             Problem(new[] { B(new BlockBody.RepeatWhile(new Condition.WindowOpen(WindowKind.Menu), 101, new())) }));
@@ -184,7 +184,7 @@ public class MacroRegistryTests
     public void WorstCaseDuration()
     {
         Assert.Null(Problem(new[] { B(new BlockBody.RepeatCount(50, new List<Block> { B(new BlockBody.Delay(5_000)) })) }));
-        Assert.Equal("Macro trop longue (durée totale).",
+        Assert.Equal("Macro trop longue.",
             Problem(new[] { B(new BlockBody.RepeatCount(50, new List<Block> { B(new BlockBody.Delay(5_000)), B(new BlockBody.Delay(2_000)) })) }));
         Assert.Equal(950, MacroValidation.EstimateMs(new[] { B(new BlockBody.IfElse(new Condition.LastBlockFailed(),
             new List<Block> { B(new BlockBody.Delay(300)) }, new List<Block> { B(new BlockBody.Delay(900)) })) }));
@@ -286,7 +286,7 @@ public class MacroRegistryTests
     {
         var unknown = new Block(new BlockBody.Unknown("teleport", null));
         var tree = new[] { B(new BlockBody.Delay(1)), B(new BlockBody.RepeatCount(2, new List<Block> { B(new BlockBody.Delay(1)), unknown })) };
-        Assert.Equal("Étape 2.2 : bloc illisible ou d'une version plus récente de FL Shortcuts (« teleport ») : la macro est bloquée.", Problem(tree));
+        Assert.Equal("Étape 2.2 : bloc illisible « teleport » : la macro est bloquée.", Problem(tree));
     }
 
     [Fact]
@@ -367,7 +367,7 @@ public class MacroRegistryTests
     {
         var blocks = new[] { B(new BlockBody.Key(new KeyRef(new MacKey(1)), 1)), B(new BlockBody.ChooseFile("")) };
         Assert.Equal("Raccourci gardé, mais pas encore actif : règle d'abord le bloc 2 « " + BlockRegistry.Spec(BlockType.ChooseFile).Label
-                     + " » (preset .fst attendu dans ton dossier personnel).",
+                     + " » : preset .fst attendu dans ton dossier personnel.",
             MacroValidation.ShortcutWaiting("Étape 2 : preset .fst attendu dans ton dossier personnel.", blocks));
         Assert.Equal("Raccourci gardé, mais pas encore actif : la macro est vide.", MacroValidation.ShortcutWaiting("La macro est vide.", Array.Empty<Block>()));
     }
@@ -434,12 +434,12 @@ public class MacroRegistryTests
     public void ChannelNumberAndTrackNameAreAskedFor()
     {
         var page = B(new BlockBody.OpenPage(FlPage.ChannelRack));
-        Assert.Equal("Étape 2 : écris le numéro du canal (1 à 999).", Problem(new[] { page, B(new BlockBody.PageOption("channelRack.chMute", "0")) }));
+        Assert.Equal("Étape 2 : écris le numéro du canal, de 1 à 999.", Problem(new[] { page, B(new BlockBody.PageOption("channelRack.chMute", "0")) }));
         Assert.Null(Problem(new[] { page, B(new BlockBody.PageOption("channelRack.chMute", " 12 ")) }));
         var mixer = B(new BlockBody.OpenPage(FlPage.Mixer));
         Assert.Equal("Étape 2 : écris le nouveau nom de la piste.", Problem(new[] { mixer, B(new BlockBody.PageOption("mixer.rename", "  ")) }));
         Assert.Null(Problem(new[] { mixer, B(new BlockBody.PageOption("mixer.rename", "Voix")) }));
-        Assert.Equal("Étape 2 : choisis le plugin à ajouter (comme dans le menu Add de FL).",
+        Assert.Equal("Étape 2 : choisis le plugin à ajouter.",
             Problem(new[] { mixer, B(new BlockBody.PageOption("mixer.addEffect", "A › › B")) }));
         Assert.Null(Problem(new[] { mixer, B(new BlockBody.PageOption("mixer.addEffect", "Fruity Limiter")) }));
         Assert.Equal("Étape 1 : choisis l'option à cliquer.", Problem(new[] { B(new BlockBody.PageOption(null, "")) }));
@@ -455,8 +455,8 @@ public class MacroRegistryTests
             B(new BlockBody.OpenPage(FlPage.Mixer)),
             B(new BlockBody.RepeatCount(2, new List<Block> { B(new BlockBody.PageOption("mixer.armon", "")), B(new BlockBody.PageOption("playlist.marker", "")) })),
         };
-        Assert.Equal("Étape 2.2 : cette option n'est pas dans Mixer, la page ouverte au-dessus : choisis-en une de cette page.", Problem(blocks));
-        Assert.Equal("Étape 1 : ajoute « Ouvrir une page de FL » juste au-dessus et choisis la page de cette option.",
+        Assert.Equal("Étape 2.2 : cette option n'est pas dans Mixer.", Problem(blocks));
+        Assert.Equal("Étape 1 : ajoute « Ouvrir une page de FL » juste au-dessus.",
             Problem(new[] { B(new BlockBody.PageOption("mixer.armon", "")) }));
         Assert.Equal("Étape 1 : choisis la page de FL à ouvrir.", Problem(new[] { B(new BlockBody.OpenPage(null)) }));
     }
@@ -500,13 +500,13 @@ public class MacroTemplateTests
                     Assert.Null(problem);
                     break;
                 case "threeFour":
-                    Assert.Equal("Étape 2 : position à montrer dans FL (« Montrer dans FL… » dans le créateur).", problem);
+                    Assert.Equal("Étape 2 : position à montrer dans FL.", problem);
                     break;
                 case "quickDrop":
                     Assert.Equal("Étape 1 : preset à choisir dans le créateur.", problem);
                     break;
                 case "openVST":
-                    Assert.Equal("Étape 2 : choisis le plugin à ajouter (comme dans le menu Add de FL).", problem);
+                    Assert.Equal("Étape 2 : choisis le plugin à ajouter.", problem);
                     break;
             }
             // Le même JSON après un aller-retour (macro partagée avec un Mac).

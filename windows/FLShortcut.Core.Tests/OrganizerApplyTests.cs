@@ -545,7 +545,7 @@ public class OrganizerApplyTests
         link.DeletesAlso.Add(0);
         var outcome = Applier(link).Apply(Plan(result), result, Initial());
         Assert.NotNull(outcome.Error);
-        Assert.Contains("d'autres sons que ceux sans note", outcome.Error!.UserMessage);
+        Assert.Contains("d'autres sons", outcome.Error!.UserMessage);
         Assert.Contains("suppression prévus=2 avant=5 après=2 partis=3 autres=1", outcome.Trace);
     }
 
@@ -737,7 +737,7 @@ public class OrganizerApplyTests
         var (stuckLink, stuckResult) = FileProject(stuck);
         var blocked = new OrganizerApplier(stuckLink, stuckLink.MoveSelectedUp, wait: _ => { }, listen: 0, files: stuck.Access)
             .Apply(Plan(stuckResult, options: FileOptions), stuckResult, Initial());
-        Assert.Equal(OrganizerError.Failed(Loc.F("La copie rangée ouverte dans FL n'a pas les mêmes sons que l'analyse (%lld au lieu de %lld) : rien d'autre n'a été fait. Ton projet n'a pas bougé.", 2, 5)), blocked.Error);
+        Assert.Equal(OrganizerError.Failed(Loc.F("La copie n'a pas les mêmes sons : %lld au lieu de %lld.", 2, 5)), blocked.Error);
     }
 
     /// Voix enregistrées : les clips d'une même sorte de voix sur une seule piste, ceux qui se chevauchent juste dessous.
@@ -773,7 +773,7 @@ public class OrganizerApplyTests
         var plan = Plan(result, options: FileOptions);
         disk.Files[disk.Original] = FlpSample.Sample(clips: new List<FlpSample.ClipSpec> { FlpSample.P(1, 0, 1) });
         var changed = new OrganizerApplier(link, link.MoveSelectedUp, wait: _ => { }, listen: 0, files: disk.Access).Apply(plan, result, Initial());
-        Assert.Equal(OrganizerError.Failed(Loc.T("Ton projet a changé depuis l'analyse : rien n'a été touché. Ferme l'Organiser, puis relance-le.")), changed.Error);
+        Assert.Equal(OrganizerError.Failed(Loc.T("Ton projet a changé : relance l'Organiser.")), changed.Error);
         Assert.Null(changed.Copy);
         Assert.True(changed.Snapshot.IsEmpty);
         Assert.Empty(disk.Opened);
@@ -783,7 +783,7 @@ public class OrganizerApplyTests
         disk.Files[disk.Original] = FlpSample.Sample();
         disk.Loads = false;
         var stuck = new OrganizerApplier(link, link.MoveSelectedUp, wait: _ => { }, listen: 0, files: disk.Access).Apply(plan, result, Initial());
-        Assert.Equal(OrganizerError.Failed(Loc.T("FL n'a pas ouvert la copie rangée à temps : elle est à côté de ton projet, ouvre-la dans FL, puis relance l'Organiser. Ton projet n'a pas bougé.")), stuck.Error);
+        Assert.Equal(OrganizerError.Failed(Loc.T("FL n'a pas ouvert la copie à temps : ouvre-la, puis relance.")), stuck.Error);
         Assert.Equal(disk.Original, stuck.Snapshot.Original);
         Assert.DoesNotContain(link.Log, l => l.StartsWith("colors") || l.StartsWith("names"));
     }

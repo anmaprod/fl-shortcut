@@ -522,7 +522,7 @@ internal sealed class AppController : INotifyPropertyChanged, IDisposable
         if (s.Kind == ShortcutKind.Keystroke) return Loc.T("Envoie ") + (s.Target?.ToString() ?? Loc.T("une touche"));
         if (s.Kind == ShortcutKind.Macro)
             return Loc.T("Macro : ") + (s.MacroRef is { } r && _macros.Doc(r) is { } doc
-                ? DisplayText.Safe(doc.Name, MacroValidation.MaxNameLength) : Loc.T("introuvable (supprimée ?)"));
+                ? DisplayText.Safe(doc.Name, MacroValidation.MaxNameLength) : Loc.T("introuvable"));
         return s.ActionId is { } id && FlActions.Info(id) is { } info ? Loc.T(info.Label) : Loc.T("Raccourci personnalisé");
     }
 

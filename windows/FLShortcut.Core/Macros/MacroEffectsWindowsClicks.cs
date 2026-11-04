@@ -170,19 +170,19 @@ public sealed partial class MacroEffectsWindows
     private static string Missing(ClickTarget target) => target switch
     {
         ClickTarget.FlWindowPoint { Size: { } size } =>
-            Loc.F("fenêtre de FL de %lld × %lld introuvable (pas ouverte, ou changée de taille : montre de nouveau le clic)",
+            Loc.F("fenêtre de FL de %lld × %lld introuvable : remontre le clic",
                 (long)size.Width, (long)size.Height),
         ClickTarget.Named n =>
-            Loc.F("fenêtre de FL de %lld × %lld introuvable (pas ouverte, ou changée de taille : montre de nouveau le clic)",
+            Loc.F("fenêtre de FL de %lld × %lld introuvable : remontre le clic",
                 (long)n.Spot.Size.Width, (long)n.Spot.Size.Height),
         ClickTarget.OpenMenu => Loc.T("le menu de FL attendu ne s'est pas ouvert"),
-        ClickTarget.ToLearn => Loc.T("position à montrer dans FL (« Montrer dans FL… » dans le créateur)."),
-        _ => Loc.T("position introuvable (fenêtre de FL ?)"),
+        ClickTarget.ToLearn => Loc.T("position à montrer dans FL."),
+        _ => Loc.T("position introuvable"),
     };
 
     private StepResult Click(ClickTarget target, bool right)
     {
-        if (!target.IsFinite) return new StepResult.Fail(Loc.T("position introuvable (fenêtre de FL ?)"));
+        if (!target.IsFinite) return new StepResult.Fail(Loc.T("position introuvable"));
         var found = Locate(target);
         if (AppearTimeout(target) is { } timeout && (found is null || found.Value.Fresh || found.Value.Popup is not null))
         {
@@ -262,9 +262,9 @@ public sealed partial class MacroEffectsWindows
     {
         if (!from.IsFinite || !to.IsFinite) return new StepResult.Fail(Loc.T("position invalide"));
         if (Locate(from) is not { Popup: null } a)
-            return new StepResult.Fail(Loc.T("endroit où attraper introuvable (fenêtre de FL pas ouverte, ou changée de taille : montre de nouveau le glisser)"));
+            return new StepResult.Fail(Loc.T("endroit où attraper introuvable : remontre le glisser"));
         if (Locate(to) is not { Popup: null } b)
-            return new StepResult.Fail(Loc.T("endroit où lâcher introuvable (fenêtre de FL pas ouverte, ou changée de taille : montre de nouveau le glisser)"));
+            return new StepResult.Fail(Loc.T("endroit où lâcher introuvable : remontre le glisser"));
         foreach (var (x, y) in new[] { (a.X, a.Y), (b.X, b.Y) })
         {
             var (window, cover) = _fl.At(x, y);
@@ -296,12 +296,12 @@ public sealed partial class MacroEffectsWindows
         if (bar is not { Count: > 0 })
         {
             _fl.Log("MENU", "menu bar unreadable");
-            return new StepResult.Fail(Loc.T("titres du menu de FL illisibles en haut de sa fenêtre (FL est-il bien devant ?)"));
+            return new StepResult.Fail(Loc.T("menu de FL illisible : mets FL devant"));
         }
         if (MenuText.Find(titles[0], bar) is not { } top)
         {
             _fl.Log("MENU", $"title not found among {bar.Count} item(s)");
-            return new StepResult.Fail(Loc.T("élément introuvable dans le menu de FL (renommé, ou FL dans une autre langue ?)"));
+            return new StepResult.Fail(Loc.T("élément introuvable dans le menu de FL"));
         }
         var before = Ids();
         _beforeLastClick = before;
@@ -341,7 +341,7 @@ public sealed partial class MacroEffectsWindows
             if (entry is not { } item)
             {
                 _fl.Log("MENU", $"item {level + 1} not found among {count}");
-                return Abandon(new StepResult.Fail(Loc.T("élément introuvable dans le menu de FL (renommé, ou FL dans une autre langue ?)")));
+                return Abandon(new StepResult.Fail(Loc.T("élément introuvable dans le menu de FL")));
             }
             if (item.Greyed == true)
             {
@@ -377,7 +377,7 @@ public sealed partial class MacroEffectsWindows
                     _fl.Log("MENU", "menu stayed open after the last item");
                     return Abandon(new StepResult.Fail(item.Greyed == false
                         ? Loc.T("le menu de FL est resté ouvert")
-                        : Loc.T("le menu de FL est resté ouvert (élément grisé ?)")));
+                        : Loc.T("le menu de FL est resté ouvert")));
             }
         }
         return new StepResult.Ok();
@@ -465,7 +465,7 @@ public sealed partial class MacroEffectsWindows
         }
         ClosePluginList(window);
         _fl.Log("PLUGIN", "not found in the list");
-        return new StepResult.Fail(Loc.T("plugin introuvable dans « More plugins… » de FL : vérifie son nom, ou choisis-le de nouveau dans « Cliquer sur… »"));
+        return new StepResult.Fail(Loc.T("plugin introuvable : vérifie son nom"));
     }
 
     /// Échap tant que la liste est encore là (jamais d'Échap à l'aveugle) : elle se referme.

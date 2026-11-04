@@ -77,21 +77,21 @@ public sealed class OrganizerError : Exception, IEquatable<OrganizerError>
     public string UserMessage => Kind switch
     {
         Kinds.Cancelled => Loc.T("Organiser arrêté : FL est remis comme avant."),
-        Kinds.Interrupted => Loc.T("La page de FL a changé pendant le rangement : Organiser s'est arrêté. « Revenir comme avant » défait ce qui a été fait."),
+        Kinds.Interrupted => Loc.T("La page de FL a changé : arrêté. « Revenir comme avant » défait tout."),
         Kinds.Mismatch => Loc.T("FL n'a pas tout pris : vérifie dans FL, ou clique sur « Revenir comme avant »."),
-        Kinds.NoResponse => Loc.T("FL ne répond pas : le script FL Shortcuts n'est pas chargé dans FL. Vérifie ces réglages, puis « Réessayer »."),
+        Kinds.NoResponse => Loc.T("Le script n'est pas chargé dans FL : vérifie ces réglages, puis « Réessayer »."),
         Kinds.FlClosed => Loc.T("FL Studio n'est pas ouvert."),
-        Kinds.NoSound => Loc.T("Aucun son reçu de FL pendant l'écoute. Vérifie que les sons choisis jouent bien dans FL (Master pas coupé, sortie audio de FL vers la carte son de Windows), puis « Réessayer »."),
-        Kinds.ProjectNotFound => Loc.T("Je ne retrouve pas le fichier de ton projet. Clique sur « Choisir le fichier… » et montre-moi le projet ouvert dans FL (le fichier .flp). S'il n'a jamais été enregistré, enregistre-le d'abord dans FL (Fichier › Enregistrer)."),
-        Kinds.OutdatedScript => Loc.T("FL utilise encore l'ancienne version du lien : redémarre FL Studio (il charge la nouvelle au lancement), puis clique sur « Réessayer »."),
+        Kinds.NoSound => Loc.T("Aucun son reçu de FL : vérifie le son, puis « Réessayer »."),
+        Kinds.ProjectNotFound => Loc.T("Projet introuvable : « Choisir le fichier… »."),
+        Kinds.OutdatedScript => Loc.T("Ancienne version du lien : redémarre FL, puis « Réessayer »."),
         Kinds.Refused => Reason switch
         {
-            1 => Loc.T("Ouvre le Channel rack, le Mixer ou la Playlist de FL (clique dedans), puis clique sur « Réessayer »."),
+            1 => Loc.T("Ouvre le Channel rack, le Mixer ou la Playlist, puis « Réessayer »."),
             2 => Loc.T("Sélectionne au moins un élément dans FL."),
             4 => Loc.T("FL joue : appuie sur Stop, puis relance Organiser."),
             6 => Loc.T("Ta version de FL ne permet pas cette étape : mets FL Studio à jour."),
             7 => Loc.T("Sélectionne au moins 2 pistes pour un dégradé."),
-            _ => Loc.F("FL a refusé une étape de l'Organiser (raison %lld). Clique sur « Réessayer » ; si ça recommence, « Copier le diagnostic » et envoie-le-moi : il dit laquelle.", Reason),
+            _ => Loc.F("FL a refusé une étape, raison %lld : « Réessayer ».", Reason),
         },
         _ => Why.Length == 0 ? Why : char.ToUpperInvariant(Why[0]) + Why[1..],
     };

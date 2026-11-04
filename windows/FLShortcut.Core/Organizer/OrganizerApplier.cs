@@ -55,7 +55,7 @@ public sealed class OrganizerApplier
         names.Keys.OrderBy(k => k).Select(k => (k, names[k])).ToList();
 
     private static OrganizerError Failure(Exception error) =>
-        error as OrganizerError ?? OrganizerError.Failed(Loc.F("Organiser : étape impossible (%@).", error.GetType().Name));
+        error as OrganizerError ?? OrganizerError.Failed(Loc.F("Organiser : étape impossible, %@.", error.GetType().Name));
 
     /// Tout le plan, page par page : la copie rangée ouverte (sur le fichier), sons sans note supprimés (puis le plan
     /// refait sur ce qui reste), sons envoyés au Master reliés à leur piste, Channel rack, patterns, Mixer, Playlist.
@@ -178,7 +178,7 @@ public sealed class OrganizerApplier
         var notSounds = result.Channels.Where(c => c.Type == ChannelInfo.AutomationType).Select(c => c.Index).ToHashSet();
         if (!split.Project.Clips.SequenceEqual(project.Clips)
             || !Same.SetMaps(ProjectFile.Sounds(split.Project, notSounds).Patterns, result.PatternSounds))
-            throw OrganizerError.Failed(Loc.T("Ton projet a changé depuis l'analyse : rien n'a été touché. Ferme l'Organiser, puis relance-le."));
+            throw OrganizerError.Failed(Loc.T("Ton projet a changé : relance l'Organiser."));
         FlpFile copy;
         try
         {
@@ -186,10 +186,10 @@ public sealed class OrganizerApplier
         }
         catch (FlpException)
         {
-            throw OrganizerError.Failed(Loc.F("L'Organiser ne sait pas encore ranger ce projet sans risque (%@) : rien n'a été touché.", "clips"));
+            throw OrganizerError.Failed(Loc.F("Projet pas encore rangeable sans risque : %@.", "clips"));
         }
         if (ProjectFile.Marking(copy, _marker) is not { } marked)
-            throw OrganizerError.Failed(Loc.F("L'Organiser ne sait pas encore ranger ce projet sans risque (%@) : rien n'a été touché.", "patterns"));
+            throw OrganizerError.Failed(Loc.F("Projet pas encore rangeable sans risque : %@.", "patterns"));
         var markedFile = marked.File;
         // Un dossier de données qui n'existe plus (projet déplacé, projet du Mac) : FL bloquerait l'ouverture de la
         // copie sur sa question ; la copie ne le garde pas (l'original, lui, ne bouge pas).
@@ -209,7 +209,7 @@ public sealed class OrganizerApplier
                 : OrganizerError.Failed(Loc.T("La copie rangée n'a pas pu être écrite à côté de ton projet : rien n'a été touché."));
         }
         if (!files.Open(path))
-            throw OrganizerError.Failed(Loc.T("FL n'a pas pu ouvrir la copie rangée : elle est à côté de ton projet, ouvre-la dans FL. Ton projet n'a pas bougé."));
+            throw OrganizerError.Failed(Loc.T("FL n'a pas ouvert la copie : ouvre-la dans FL."));
         outcome.Copy = path;
         outcome.Snapshot.Original = read.Path;
         AppLog.Write("ORGANIZE", $"organized copy written ({project.Clips.Count} clips, {layout?.Count ?? 0} tracks), opening");
@@ -230,7 +230,7 @@ public sealed class OrganizerApplier
         outcome.Trace.Add($"ouverture={how} {waited} s");
         AppLog.Write("ORGANIZE", $"copy {(how != "non" ? "open" : "not open")} after {waited} s");
         if (how == "non")
-            throw OrganizerError.Failed(Loc.T("FL n'a pas ouvert la copie rangée à temps : elle est à côté de ton projet, ouvre-la dans FL, puis relance l'Organiser. Ton projet n'a pas bougé."));
+            throw OrganizerError.Failed(Loc.T("FL n'a pas ouvert la copie à temps : ouvre-la, puis relance."));
         _report(Loc.T("FL charge les sons de la copie…"));
         var calmFrom = DateTime.UtcNow;
         WaitUntilCalm(result.Channels.Count, outcome.Trace);
@@ -318,10 +318,10 @@ public sealed class OrganizerApplier
         }
         trace.Add($"réponses={answers} lente={(int)Math.Round(slowest * 10, MidpointRounding.AwayFromZero)}ds");
         if (calm < 2)
-            throw OrganizerError.Failed(Loc.T("FL ne répond plus assez vite depuis l'ouverture de la copie rangée. Elle est ouverte dans FL avec sa Playlist rangée : relance l'Organiser dessus pour finir le reste. Ton projet d'origine n'a pas bougé."));
+            throw OrganizerError.Failed(Loc.T("FL est trop lent : relance l'Organiser sur la copie."));
         // La copie montre tous les sons (« All ») : autant que l'analyse, sinon rien ne serait à sa place.
         if (count != expected)
-            throw OrganizerError.Failed(Loc.F("La copie rangée ouverte dans FL n'a pas les mêmes sons que l'analyse (%lld au lieu de %lld) : rien d'autre n'a été fait. Ton projet n'a pas bougé.", count, expected));
+            throw OrganizerError.Failed(Loc.F("La copie n'a pas les mêmes sons : %lld au lieu de %lld.", count, expected));
     }
 
     /// Une demande à FL réessayée (3 fois, une seconde d'écart) : juste après l'ouverture, FL peut encore être occupé.
@@ -387,9 +387,9 @@ public sealed class OrganizerApplier
         var others = gone?.Count(i => !set.Contains(i)) ?? -1;
         trace.Add($"suppression prévus={set.Count} avant={channels.Count} après={now.Count} partis={gone?.Count ?? -1} autres={others}");
         if (gone is null)
-            throw OrganizerError.Failed(Loc.T("Après la suppression des sons sans note, le Channel rack de la copie rangée ne correspond plus à l'analyse : Organiser s'est arrêté. « Revenir comme avant » rouvre ton projet d'origine, qui n'a pas bougé."));
+            throw OrganizerError.Failed(Loc.T("Channel rack différent : arrêté. « Revenir comme avant » rouvre ton projet."));
         if (others > 0)
-            throw OrganizerError.Failed(Loc.T("FL a supprimé d'autres sons que ceux sans note dans la copie rangée : Organiser s'est arrêté. « Revenir comme avant » rouvre ton projet d'origine, qui n'a pas bougé."));
+            throw OrganizerError.Failed(Loc.T("FL a supprimé d'autres sons : arrêté. « Revenir comme avant » rouvre ton projet."));
         if (gone.Count == 0) return null;
         var shifted = result.Removing(gone);
         return (shifted.Result, shifted.Map, gone.Count);
@@ -667,7 +667,7 @@ public sealed class OrganizerApplier
             if (moved <= 0) break;
             var back = _moveClips(null, -moved);
             if (back != moved || !Heard(split.From, split.KeptAt).Contains(split.Kept))
-                throw OrganizerError.Failed(Loc.T("Des clips de la Playlist n'ont pas pu être remis à leur place : annule dans FL (Edit › Undo), puis réessaie."));
+                throw OrganizerError.Failed(Loc.T("Clips pas remis en place : annule dans FL, puis réessaie."));
             break;
         }
         return done.Count;

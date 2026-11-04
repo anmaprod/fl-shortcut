@@ -51,11 +51,11 @@ public static class MacroValidation
         variables ??= Array.Empty<VariableDecl>();
         if (blocks.Count == 0) return Loc.T("La macro est vide.");
         if (FirstUnknown(blocks) is { } path && BlockAt(path, blocks)?.Body is BlockBody.Unknown unknown)
-            return Loc.F("Étape %@ : bloc illisible ou d'une version plus récente de FL Shortcuts (« %@ ») : la macro est bloquée.",
+            return Loc.F("Étape %@ : bloc illisible « %@ » : la macro est bloquée.",
                 path, DisplayText.Safe(unknown.TypeName, 30));
-        if (Count(blocks) > MaxBlocks) return Loc.F("Macro trop longue (%lld blocs au plus).", MaxBlocks);
-        if (Depth(blocks) > MaxDepth) return Loc.F("Blocs trop imbriqués (%lld niveaux au plus).", MaxDepth);
-        if (variables.Count > MaxVariables) return Loc.F("Trop de variables (%lld au plus).", MaxVariables);
+        if (Count(blocks) > MaxBlocks) return Loc.F("Macro trop longue : %lld blocs au plus.", MaxBlocks);
+        if (Depth(blocks) > MaxDepth) return Loc.F("Blocs trop imbriqués : %lld niveaux au plus.", MaxDepth);
+        if (variables.Count > MaxVariables) return Loc.F("Trop de variables : %lld au plus.", MaxVariables);
         var names = new HashSet<string>();
         foreach (var v in variables)
         {
@@ -64,7 +64,7 @@ public static class MacroValidation
         var ctx = context with { Variables = names };
         if (Check(blocks, "", 0, ctx) is { } why) return why;
         if (PageOptions.Misplaced(blocks) is { } wrong) return PageOptions.MisplacedMessage(wrong);
-        if (EstimateMs(blocks) > MaxEstimateMs) return Loc.T("Macro trop longue (durée totale).");
+        if (EstimateMs(blocks) > MaxEstimateMs) return Loc.T("Macro trop longue.");
         return null;
     }
 
@@ -109,7 +109,7 @@ public static class MacroValidation
     public static string? ConditionProblem(Condition c, ValidationContext ctx)
     {
         if (ConditionDepth(c) > MaxConditionDepth || ConditionTerms(c) > MaxConditionTerms)
-            return ctx.Fail(Loc.F("condition trop compliquée (%lld niveaux, %lld termes au plus).", MaxConditionDepth, MaxConditionTerms));
+            return ctx.Fail(Loc.F("condition trop compliquée : %lld niveaux, %lld termes au plus.", MaxConditionDepth, MaxConditionTerms));
         foreach (var leaf in ConditionLeaves(c))
         {
             switch (leaf)
@@ -213,7 +213,7 @@ public static class MacroValidation
         var reason = step.Text.Trim();
         if (reason.EndsWith('.')) reason = reason[..^1];
         var label = BlockAt(step.Path, blocks)?.Body.Type is { } type ? Loc.F(" « %@ »", BlockRegistry.Spec(type).Label) : "";
-        return Loc.F("%@ : règle d'abord le bloc %@%@ (%@).", lead, step.Path, label, reason);
+        return Loc.F("%@ : règle d'abord le bloc %@%@ : %@.", lead, step.Path, label, reason);
     }
 
     /// Pur (testé) : un message au format « Étape 3.2 : position invalide. » coupé en chemin (« 3.2 ») et texte

@@ -35,7 +35,7 @@ public sealed class BackupFailure : Exception
     private BackupFailure(string message) : base(message) { }
     public static BackupFailure Unreadable => new(Loc.T("La sauvegarde de ton compte est illisible : rien n'a été changé sur ce PC."));
     public static BackupFailure NewerVersion => new(Loc.T("Ta sauvegarde vient d'une version plus récente de FL Shortcuts : mets l'app à jour."));
-    public static BackupFailure CopyFailed => new(Loc.T("Impossible de garder une copie de ce PC avant de reprendre ta sauvegarde : rien n'a été remplacé."));
+    public static BackupFailure CopyFailed => new(Loc.T("Copie de ce PC impossible : rien n'a été remplacé."));
     public static BackupFailure Custom(string message) => new(message);
 }
 

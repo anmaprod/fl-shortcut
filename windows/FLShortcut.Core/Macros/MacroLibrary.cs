@@ -24,7 +24,7 @@ public static class MacroLibraryCodec
         private Failure(string message) : base(message) { }
 
         public static Failure Unreadable() => new(Loc.T("Format de bibliothèque illisible."));
-        public static Failure TooMany() => new(Loc.F("Trop de macros (%lld au plus).", MaxMacros));
+        public static Failure TooMany() => new(Loc.F("Trop de macros : %lld au plus.", MaxMacros));
     }
 
     public static Decoded Decode(byte[] data)

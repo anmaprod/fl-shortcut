@@ -294,12 +294,12 @@ internal sealed class HelpPage
         AutomationProperties.SetName(text, Loc.T("Écrire à l'équipe"));
         form.Children.Add(text);
 
-        var mail = Field(_message.Email, Loc.T("Ton mail, pour qu'on te réponde (facultatif)"));
+        var mail = Field(_message.Email, Loc.T("Ton mail pour la réponse, facultatif"));
         mail.TextChanged += (_, _) => _message.Email = mail.Text;
         AutomationProperties.SetName(mail, Loc.T("Ton mail"));
         form.Children.Add(mail);
 
-        var attach = new CheckBox { Content = Label(Loc.T("Joindre l'état de l'appli (recommandé)"), 12.5), IsChecked = _attach };
+        var attach = new CheckBox { Content = Label(Loc.T("Joindre l'état de l'appli"), 12.5), IsChecked = _attach };
         attach.Checked += (_, _) => _attach = true;
         attach.Unchecked += (_, _) => _attach = false;
         var attachRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 14 };

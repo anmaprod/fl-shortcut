@@ -138,7 +138,7 @@ internal sealed partial class MainShell
         text.Children.Add(Label(Loc.T("Ports MIDI « FL Shortcuts »"), 13, Text, semibold: true));
         text.Children.Add(Paragraph(ok
             ? Loc.T("Prêts : « FL Shortcuts » et « FL Shortcuts Retour ».")
-            : Loc.T("Ouvre loopMIDI et crée deux ports nommés exactement « FL Shortcuts » et « FL Shortcuts Retour »."), 12));
+            : Loc.T("Dans loopMIDI : crée « FL Shortcuts » et « FL Shortcuts Retour »."), 12));
         if (!ok)
         {
             var link = new HyperlinkButton
@@ -158,7 +158,7 @@ internal sealed partial class MainShell
         card.Padding = new Thickness(14, 12, 14, 12);
         _welcomeContent.Children.Add(card);
 
-        var privacy = Paragraph(Loc.T("FL Shortcuts ne regarde tes touches que quand FL Studio est au premier plan. Rien n'est enregistré ni envoyé."), 12);
+        var privacy = Paragraph(Loc.T("Tes touches ne sont lues que dans FL. Rien n'est gardé."), 12);
         privacy.TextAlignment = TextAlignment.Center;
         _welcomeContent.Children.Add(privacy);
 
@@ -188,7 +188,7 @@ internal sealed partial class MainShell
         var steps = new (string Text, bool Done)[]
         {
             (Loc.T("Installe le lien"), installed),
-            (Loc.T("Dans FL : Options › MIDI Settings, entrée « FL Shortcuts » : Enable, Controller type « FL Shortcuts »"), linked),
+            (Loc.T("Dans FL : MIDI Settings, « FL Shortcuts » : Enable et Controller type « FL Shortcuts »"), linked),
             (Loc.T("Sortie « FL Shortcuts Retour » : le même numéro de Port que l'entrée"), linked),
         };
         var list = new StackPanel { Spacing = 10 };

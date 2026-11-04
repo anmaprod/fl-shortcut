@@ -49,7 +49,7 @@ internal sealed class FlAudioCapture : IAudioSource, IDisposable
         }
         catch (COMException e)
         {
-            throw OrganizerError.Failed(Loc.F("Impossible d'écouter le son de FL (erreur %@).", $"0x{e.HResult:X8}"));
+            throw OrganizerError.Failed(Loc.F("Impossible d'écouter le son de FL : %@.", $"0x{e.HResult:X8}"));
         }
         _capture = Service<Wasapi.IAudioCaptureClient>(_client, Wasapi.IID_IAudioCaptureClient);
         _buffer = new CaptureBuffer(Rate, Seconds);

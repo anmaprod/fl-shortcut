@@ -19,8 +19,8 @@ public static class MacroExchange
     public sealed class ImportFailure : Exception
     {
         public ImportFailure(string message) : base(message) { }
-        public static ImportFailure TooLarge => new(Loc.T("Fichier trop volumineux pour une macro (256 Ko au plus)."));
-        public static ImportFailure NotAMacro => new(Loc.T("Ce fichier n'est pas une macro de FL Shortcuts (.flsmacro)."));
+        public static ImportFailure TooLarge => new(Loc.T("Fichier trop gros pour une macro."));
+        public static ImportFailure NotAMacro => new(Loc.T("Ce fichier n'est pas une macro de FL Shortcuts."));
         public static ImportFailure NewerVersion =>
             new(Loc.T("Macro d'une version plus récente de FL Shortcuts : mets l'app à jour pour l'importer."));
     }
@@ -97,9 +97,9 @@ public static class MacroExchange
         if (macro["blocks"] is not JsonArray list) throw ImportFailure.NotAMacro;
         var parsed = list.Select(n => Block.FromJson(n)).ToList();
         if (MacroValidation.Count(parsed) > MacroValidation.MaxBlocks)
-            throw new ImportFailure(Loc.F("Macro trop longue (%lld blocs au plus).", MacroValidation.MaxBlocks));
+            throw new ImportFailure(Loc.F("Macro trop longue : %lld blocs au plus.", MacroValidation.MaxBlocks));
         if (MacroValidation.Depth(parsed) > MacroValidation.MaxDepth)
-            throw new ImportFailure(Loc.F("Blocs trop imbriqués (%lld niveaux au plus).", MacroValidation.MaxDepth));
+            throw new ImportFailure(Loc.F("Blocs trop imbriqués : %lld niveaux au plus.", MacroValidation.MaxDepth));
         var variables = (J.Arr(macro["variables"]) ?? new JsonArray())
             .Select(VariableDecl.FromJson).OfType<VariableDecl>().Take(MacroValidation.MaxVariables).ToList();
         // Nom nettoyé (ni contrôle ni bidi), coupé sans points de suspension.
@@ -149,14 +149,14 @@ public static class MacroExchange
                 {
                     case BlockBody.Click { Target: ClickTarget.ToLearn }:
                         marks.Add(Loc.T("clic : position à montrer dans FL"));
-                        warnings.Add(Loc.T("Montre de nouveau chaque clic dans FL (positions propres à chaque ordinateur)."));
+                        warnings.Add(Loc.T("Remontre chaque clic dans FL."));
                         break;
                     case BlockBody.Click:
                         marks.Add(Loc.T("clic dans FL"));
                         break;
                     case BlockBody.Drag { From: ClickTarget.ToLearn }:
                         marks.Add(Loc.T("glisser : endroits à montrer dans FL"));
-                        warnings.Add(Loc.T("Montre de nouveau chaque glisser-déposer dans FL (positions propres à chaque ordinateur)."));
+                        warnings.Add(Loc.T("Remontre chaque glisser dans FL."));
                         break;
                     case BlockBody.Drag:
                         marks.Add(Loc.T("glisser dans FL"));
@@ -169,8 +169,8 @@ public static class MacroExchange
                 if (BlockRegistry.Needs(b.Body).HasFlag(BlockNeeds.MidiLink)) marks.Add(Loc.T("lien avec FL"));
                 if (!spec.InPalette && type != BlockType.MenuBar)        // « Menu de FL » : créé par l'enregistreur
                 {
-                    marks.Add(Loc.T("bloc caché (ancien format)"));
-                    warnings.Add(Loc.T("Un bloc caché de l'ancien format est inclus : relis-le dans le créateur avant de t'en servir."));
+                    marks.Add(Loc.T("ancien bloc caché"));
+                    warnings.Add(Loc.T("Un ancien bloc caché est inclus : relis-le."));
                 }
                 if (spec.Import is not ImportPolicy.Ok || !spec.InPalette) sensitive++;
                 if (marks.Count > 0) text += " — " + string.Join(", ", marks);
@@ -178,10 +178,10 @@ public static class MacroExchange
             else
             {
                 sensitive++;
-                text = Loc.T("Bloc inconnu (version plus récente) : la macro restera bloquée");
+                text = Loc.T("Bloc inconnu : la macro restera bloquée");
                 warnings.Add(Loc.T("Un bloc vient d'une version plus récente de FL Shortcuts : la macro ne tournera pas."));
             }
-            if (!b.Enabled) text += Loc.T(" (désactivé)");
+            if (!b.Enabled) text += Loc.T(" · éteint");
             lines.Add($"{indent}{path}. {text}");
             foreach (var (start, child) in MacroValidation.ChildLists(b.Body))
                 Describe(child, path, start, depth + 1, lines, warnings, ref sensitive);
@@ -195,7 +195,7 @@ public static class MacroExchange
         if (preview.SensitiveCount == 1)
             notes.Add(Loc.T("1 étape tape des touches, clique ou ouvre un fichier : relis-la dans le créateur."));
         else if (preview.SensitiveCount > 1)
-            notes.Add(Loc.F("%lld étapes tapent des touches, cliquent ou ouvrent des fichiers : relis-les dans le créateur.", preview.SensitiveCount));
+            notes.Add(Loc.F("%lld étapes à relire dans le créateur.", preview.SensitiveCount));
         notes.Add(Loc.T("Elle arrive sans raccourci : rien ne se lance tant que tu ne lui en as pas choisi un."));
         return notes;
     }
