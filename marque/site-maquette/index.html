@@ -91,7 +91,7 @@ button, input { font: inherit; color: inherit; }
 .mot span { display: inline-block; }
 .lettre { display: inline-block; will-change: transform; }
 .m1 { grid-column: 1 / -1; } .m2 { grid-column: 4 / -1; } .m3 { grid-column: 2 / -1; }
-.disque { position: absolute; z-index: 1; right: -7%; top: 313px; width: clamp(230px, 34vw, 480px); aspect-ratio: 1 / 1; border-radius: 50%;
+.disque { position: absolute; z-index: 4; right: -7%; top: 313px; width: clamp(230px, 34vw, 480px); aspect-ratio: 1 / 1; border-radius: 50%;
   background: var(--red); color: var(--ink); display: grid; place-items: center; transform: rotate(-12deg); }
 .disque .in { display: flex; flex-direction: column; align-items: center; gap: 8px; margin-left: -12%; }
 .disque .k { font: 700 clamp(56px, 8vw, 116px)/1 var(--display); letter-spacing: -0.05em; }
@@ -99,7 +99,7 @@ button, input { font: inherit; color: inherit; }
 .anneau { position: absolute; z-index: 1; border-radius: 50%; border: 1.5px solid var(--paper); pointer-events: none; aspect-ratio: 1 / 1; }
 .a1 { width: clamp(300px, 46vw, 660px); right: -14%; top: 203px; }
 .a2 { width: clamp(70px, 9vw, 130px); right: 33%; top: 683px; background: var(--paper); border: 0; }
-.bas { margin-top: 64px; align-items: end; position: relative; z-index: 2; }
+.bas { margin-top: 64px; align-items: end; position: relative; z-index: 5; }
 .bas p { grid-column: 1 / 6; font-size: clamp(20px, 2vw, 26px); line-height: 1.2; letter-spacing: -0.015em; }
 .bas .act { grid-column: 8 / 13; display: flex; justify-content: flex-end; align-items: center; gap: 22px; }
 .bas .act .label { text-align: right; }
