@@ -233,7 +233,14 @@
   settings.json `BackupAccount/Revision/Dirty`). Pas encore vu sur un vrai PC avec le compte du propriétaire.
   04/11 (« toutes les precisions et les parentheses enleve les, je veux juste des mini descriptions ») : tous les textes
   de Windows en une phrase courte, sans parenthèse (sauf les noms de FL « (generic controller) », « (none) ») ;
-  avertissements d'un raccourci et conflits Windows/FL traduits (`ShortcutIssue.Message`, essai `ConflictNamesHaveTheirEnglish`). Compiler le C# de l'app ici (le compilateur XAML est Windows seulement) :
+  avertissements d'un raccourci et conflits Windows/FL traduits (`ShortcutIssue.Message`, essai `ConflictNamesHaveTheirEnglish`).
+  04/11 (« tu valides aussi que la desinstallation fonctionne en passant par l'icone sur win ? ») : désinstallation
+  comme le Mac, plus aucune trace (`UninstallTraces`, « --uninstall-cleanup » lancé par [UninstallRun] après taskkill :
+  %APPDATA%, %LOCALAPPDATA%, script FL noté ou par défaut, seulement s'il ne contient que lui ; Inno : dossier, Run, menu
+  Démarrer) ; essai CI réel (installeur, app en icône, unins000 comme le menu, rapport `desinstallation-essai.txt`).
+  SERVEUR : les secrets FLS_SUPABASE_* sont VIDES sur la CI ; l'app Windows n'avait aucun serveur (compte, Communauté,
+  sauvegarde, message à l'équipe morts) → adresse et clé publique du Mac (Info.plist) dans le .csproj, essai
+  `ServerAddressSameAsMac`. Page Macros Windows : pas encore « Enregistrer une macro » (3e case du Mac). Compiler le C# de l'app ici (le compilateur XAML est Windows seulement) :
   `~/.dotnet/dotnet build windows/FLShortcut.App -c Release -p:Platform=x64 -p:EnableWindowsTargeting=true
   -p:EnableDefaultPageItems=false -p:EnableDefaultApplicationDefinition=false` : seules 4 erreurs attendues
   (InitializeComponent, Root, Main) ; le cœur : `dotnet test windows/FLShortcut.Core.Tests`.

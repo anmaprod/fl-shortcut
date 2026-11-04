@@ -769,3 +769,7 @@ entrée 1 ≈ 0,5 s.
 - 04/11 (« ce fichier est utile ? » puis « enlève le pour mac aussi ») : plus de fichier .sha256 dans les
   téléchargements Mac et Windows ni dans la page des versions ; l'empreinte reste écrite dans le journal de la CI et
   l'attestation de provenance reste publiée.
+- 04/11 (« tu valides aussi que la desinstallation fonctionne en passant par l'icone sur win ? ») : la
+  désinstallation Windows gardait raccourcis, macros, réglages, session du compte et script FL ; elle retire tout
+  comme le Mac, vérifiée sur la CI par une vraie installation puis désinstallation. Trouvé en regardant les photos :
+  l'app Windows n'avait aucune adresse de serveur (secrets vides sur la CI) ; elle prend celle du Mac.

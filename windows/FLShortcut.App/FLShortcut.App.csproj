@@ -36,11 +36,20 @@
     <SelfContained>true</SelfContained>
   </PropertyGroup>
 
-  <!-- Serveur du compte, de la Communauté et de l'Aide (comme l'Info.plist du Mac, build.sh) : l'adresse et la clé
-       publique viennent des secrets de la CI (variables FLS_SUPABASE_URL, FLS_SUPABASE_ANON_KEY) ; vides ailleurs. -->
+  <!-- Serveur du compte, de la Communauté et de l'Aide : le MÊME que le Mac (Resources/Info.plist), adresse et clé
+       publique (publique par conception : les règles de supabase/schema.sql protègent les données ; jamais la clé
+       secrète ici). Les variables FLS_SUPABASE_URL et FLS_SUPABASE_ANON_KEY les remplacent si elles sont données
+       toutes les deux, comme build.sh. 04/11 : sans elles, l'app Windows n'avait aucun serveur (secrets vides sur la
+       CI) : compte, Communauté, sauvegarde et message à l'équipe ne marchaient pas. Essai : ServerAddressSameAsMac. -->
+  <PropertyGroup>
+    <FLSServerURL>https://ulzxunuytsakxrvovxen.supabase.co</FLSServerURL>
+    <FLSServerKey>sb_publishable_uSqh6eUCCeoXMioONoQYIQ_rYlriiw8</FLSServerKey>
+    <FLSServerURL Condition="'$(FLS_SUPABASE_URL)' != '' and '$(FLS_SUPABASE_ANON_KEY)' != ''">$(FLS_SUPABASE_URL)</FLSServerURL>
+    <FLSServerKey Condition="'$(FLS_SUPABASE_URL)' != '' and '$(FLS_SUPABASE_ANON_KEY)' != ''">$(FLS_SUPABASE_ANON_KEY)</FLSServerKey>
+  </PropertyGroup>
   <ItemGroup>
-    <AssemblyMetadata Include="FLSCommunityURL" Value="$(FLS_SUPABASE_URL)" />
-    <AssemblyMetadata Include="FLSCommunityAnonKey" Value="$(FLS_SUPABASE_ANON_KEY)" />
+    <AssemblyMetadata Include="FLSCommunityURL" Value="$(FLSServerURL)" />
+    <AssemblyMetadata Include="FLSCommunityAnonKey" Value="$(FLSServerKey)" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.WindowsAppSDK" Version="1.6.241114003" />

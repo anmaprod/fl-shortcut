@@ -166,6 +166,63 @@ jobs:
             '```' >> $env:GITHUB_STEP_SUMMARY
             if ((Get-Content $rapport -TotalCount 1) -ne 'PASS') { exit 1 }
           } else { "rapport absent"; exit 1 }
+      - name: Essai de la désinstallation (installeur, app lancée en icône, « Désinstaller » du menu de l'icône, plus rien ne doit rester)
+        shell: pwsh
+        run: |
+          # « Désinstaller FL Shortcuts… » du menu de l'icône lance unins000.exe, posé à côté de l'app (MainShell.Uninstaller) :
+          # ici le même désinstalleur, en silencieux (la personne, elle, voit d'abord sa question).
+          $lignes = [System.Collections.Generic.List[string]]::new()
+          function Ecrire([string]$l) { $lignes.Add($l); Write-Output $l }
+          $setup = (Get-Item dist/FLShortcuts-Windows-Setup.exe).FullName
+          $p = Start-Process $setup -ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', '/TASKS=startup' -PassThru -Wait
+          Ecrire "installeur : code $($p.ExitCode)"
+          $cle = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\{6B0C1E3A-7F2D-4C1B-9E55-2F3A8D1C4B70}_is1'
+          $dossier = (Get-ItemProperty $cle -ErrorAction SilentlyContinue).InstallLocation
+          if (-not $dossier) { $dossier = Join-Path $env:LOCALAPPDATA 'Programs\FL Shortcuts' }
+          $dossier = $dossier.TrimEnd('\')
+          $exe = Join-Path $dossier 'FLShortcut.exe'
+          $unins = Join-Path $dossier 'unins000.exe'
+          $run = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run'
+          $menu = Join-Path $env:APPDATA 'Microsoft\Windows\Start Menu\Programs\FL Shortcuts.lnk'
+          $hardware = Join-Path ([Environment]::GetFolderPath('MyDocuments')) 'Image-Line\FL Studio\Settings\Hardware'
+          $scriptFL = Join-Path $hardware 'FL Shortcuts'
+          $autre = Join-Path $hardware 'Autre controleur'
+          $ok = $true
+          function Verifier([string]$quoi, [bool]$vrai) { if ($vrai) { Ecrire "ok : $quoi" } else { Ecrire "MANQUE : $quoi"; $script:ok = $false } }
+          Verifier "app installée ($exe)" (Test-Path $exe)
+          Verifier "désinstalleur à côté de l'app : « Désinstaller » est dans le menu de l'icône" (Test-Path $unins)
+          Verifier "lancement au démarrage de Windows" ($null -ne (Get-ItemProperty $run -Name 'FL Shortcuts' -ErrorAction SilentlyContinue))
+          Verifier "raccourci du menu Démarrer" (Test-Path $menu)
+          # Le lien avec FL installé (script), un autre contrôleur de FL qui doit rester, puis l'app lancée en icône.
+          New-Item -ItemType Directory -Force $scriptFL, $autre | Out-Null
+          Set-Content (Join-Path $scriptFL 'device_FLShortcut.py') '# essai'
+          Set-Content (Join-Path $autre 'device_Autre.py') '# autre'
+          $appli = Start-Process $exe -ArgumentList '--tray' -PassThru
+          Start-Sleep -Seconds 8
+          Verifier "app lancée en icône" (-not $appli.HasExited)
+          Verifier "données de l'app écrites" ((Test-Path (Join-Path $env:LOCALAPPDATA 'FL Shortcuts')) -and (Test-Path (Join-Path $env:APPDATA 'FL Shortcuts')))
+          # « Désinstaller FL Shortcuts… »
+          Start-Process $unins -ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART' | Out-Null
+          $fin = (Get-Date).AddSeconds(120)
+          while ((Test-Path $dossier) -and (Get-Date) -lt $fin) { Start-Sleep -Seconds 1 }
+          Start-Sleep -Seconds 3
+          Verifier "app fermée" ($null -eq (Get-Process FLShortcut -ErrorAction SilentlyContinue))
+          Verifier "dossier de l'app retiré" (-not (Test-Path $dossier))
+          Verifier "lancement au démarrage retiré" ($null -eq (Get-ItemProperty $run -Name 'FL Shortcuts' -ErrorAction SilentlyContinue))
+          Verifier "raccourci du menu Démarrer retiré" (-not (Test-Path $menu))
+          Verifier "inscription dans Paramètres › Applications retirée" (-not (Test-Path $cle))
+          Verifier "raccourcis et macros retirés (%APPDATA%)" (-not (Test-Path (Join-Path $env:APPDATA 'FL Shortcuts')))
+          Verifier "réglages, session du compte et journal retirés (%LOCALAPPDATA%)" (-not (Test-Path (Join-Path $env:LOCALAPPDATA 'FL Shortcuts')))
+          Verifier "script FL Shortcuts retiré de FL Studio" (-not (Test-Path $scriptFL))
+          Verifier "autre contrôleur de FL gardé" (Test-Path (Join-Path $autre 'device_Autre.py'))
+          $rapport = @($(if ($ok) { 'PASS' } else { 'FAIL' })) + $lignes
+          New-Item -ItemType Directory -Force dist/essai-macros | Out-Null
+          $rapport | Set-Content dist/essai-macros/desinstallation-essai.txt
+          "## Essai de la désinstallation Windows" >> $env:GITHUB_STEP_SUMMARY
+          '```' >> $env:GITHUB_STEP_SUMMARY
+          $rapport >> $env:GITHUB_STEP_SUMMARY
+          '```' >> $env:GITHUB_STEP_SUMMARY
+          if (-not $ok) { exit 1 }
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: FLShortcuts-windows-photos

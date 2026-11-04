@@ -3,7 +3,9 @@
 ;   aucune fenêtre UAC, cohérent avec l'appli qui ne s'élève jamais (asInvoker, WIN-05).
 ; - x64 et ARM64 dans le même installeur : la bonne version est copiée selon le PC.
 ; - Raccourci dans le menu Démarrer, lancement au démarrage de Windows (case cochée par défaut, décochable),
-;   désinstallation depuis Paramètres › Applications. Le profil et les réglages de l'utilisateur sont conservés.
+;   désinstallation depuis le menu de l'icône ou Paramètres › Applications : plus aucune trace, comme le Mac
+;   (raccourcis, macros, réglages, session du compte, journal, script dans FL : « --uninstall-cleanup » de l'app,
+;   UninstallTraces). Une mise à jour garde tout.
 ;
 ; Compilation (Windows) : iscc /DAppVersion=0.3.0 /DDistDir=..\..\dist windows\installer\FLShortcut.iss
 ; Le workflow GitHub (.github/workflows/build.yml) le fait à chaque compilation.
@@ -84,5 +86,7 @@ Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: 
 Filename: "{app}\FLShortcut.exe"; Description: "{cm:LaunchNow}"; Flags: nowait postinstall skipifsilent
 
 [UninstallRun]
-; Fermer l'appli (zone de notification) avant de retirer ses fichiers.
-Filename: "{sys}\taskkill.exe"; Parameters: "/f /im FLShortcut.exe"; Flags: runhidden; RunOnceId: "StopFLShortcut"
+; Fermer l'appli (zone de notification) avant de retirer ses fichiers, puis ses traces hors de son dossier
+; (dans cet ordre : l'appli fermée ne réécrit plus ses réglages).
+Filename: "{sys}\taskkill.exe"; Parameters: "/f /im FLShortcut.exe"; Flags: runhidden waituntilterminated; RunOnceId: "StopFLShortcut"
+Filename: "{app}\FLShortcut.exe"; Parameters: "--uninstall-cleanup"; Flags: runhidden waituntilterminated; RunOnceId: "CleanFLShortcut"

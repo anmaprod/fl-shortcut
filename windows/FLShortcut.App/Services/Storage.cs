@@ -310,10 +310,5 @@ internal static class ScriptInstaller
         catch { return false; }
     }
 
-    private static bool OnlyOurScript(string dir) =>
-        Directory.EnumerateFileSystemEntries(dir)
-            .Select(Path.GetFileName)
-            .All(n => string.Equals(n, FileName, StringComparison.OrdinalIgnoreCase)
-                      || string.Equals(n, "__pycache__", StringComparison.OrdinalIgnoreCase)
-                      || string.Equals(n, "desktop.ini", StringComparison.OrdinalIgnoreCase));
+    private static bool OnlyOurScript(string dir) => UninstallTraces.OnlyOurScript(dir);
 }

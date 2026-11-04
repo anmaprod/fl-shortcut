@@ -27,6 +27,17 @@ public partial class App : Application
 
     protected override void OnLaunched(LaunchActivatedEventArgs args)
     {
+        // Désinstallation (installer/FLShortcut.iss, [UninstallRun]) : l'app déjà fermée, on retire ses traces hors de
+        // son dossier, comme le Mac, puis on quitte. Ni fenêtre, ni hook, ni réglage écrit.
+        if (Environment.GetCommandLineArgs().Any(a => string.Equals(a, "--uninstall-cleanup", StringComparison.OrdinalIgnoreCase)))
+        {
+            FLShortcut.Core.UninstallTraces.RemoveAll(
+                Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments));
+            Exit();
+            return;
+        }
         // Essai des macros de la CI : un faux FL dans l'appli et les vrais blocs joués dessus, puis l'appli se ferme.
         if (MacroSelfTest.Folder is { } essai)
         {

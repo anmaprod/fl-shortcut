@@ -70,7 +70,7 @@ Pour désinstaller : menu de l'icône › *Désinstaller FL Shortcuts…* Tout e
 1. Double-clique sur l'installeur, puis **Installer**. Aucun droit administrateur demandé, x64 et ARM dans le même fichier.
 2. FL Shortcuts se lance et se range dans la zone de notification. Il démarre avec Windows (décochable dans l'installeur).
 
-Si Windows affiche « Windows a protégé votre ordinateur » (installeur non signé) : **Informations complémentaires › Exécuter quand même**. Désinstallation : *Paramètres › Applications*. Ne lance pas FL Studio en administrateur.
+Si Windows affiche « Windows a protégé votre ordinateur » (installeur non signé) : **Informations complémentaires › Exécuter quand même**. Désinstallation : menu de l'icône › *Désinstaller FL Shortcuts…* (ou *Paramètres › Applications*) ; plus rien ne reste, réglages compris. Ne lance pas FL Studio en administrateur.
 
 ---
 

@@ -341,6 +341,24 @@ public sealed class OrganizerControllerTests
         Assert.True(missing.Count == 0, "Textes sans anglais :\n" + string.Join("\n", missing));
     }
 
+    /// Le serveur du compte et de la Communauté de Windows est celui du Mac (Info.plist) : sans lui, l'app compilée
+    /// par la CI n'en avait aucun (04/11).
+    [Fact]
+    public void ServerAddressSameAsMac()
+    {
+        var root = Path.GetDirectoryName(typeof(OrganizerControllerTests).Assembly.Location)!;
+        while (!File.Exists(Path.Combine(root, "PROTOCOL.md"))) root = Path.GetDirectoryName(root)!;
+        var plist = File.ReadAllText(Path.Combine(root, "Resources", "Info.plist"));
+        var csproj = File.ReadAllText(Path.Combine(root, "windows", "FLShortcut.App", "FLShortcut.App.csproj"));
+        string Mac(string key) => Regex.Match(plist, $"<key>{key}</key>\\s*<string>([^<]+)</string>").Groups[1].Value;
+        string Win(string prop) => Regex.Match(csproj, $"<{prop}>([^<$]+)</{prop}>").Groups[1].Value;
+        Assert.StartsWith("https://", Mac("FLSCommunityURL"));
+        Assert.Equal(Mac("FLSCommunityURL"), Win("FLSServerURL"));
+        Assert.Equal(Mac("FLSCommunityAnonKey"), Win("FLSServerKey"));
+        Assert.StartsWith("sb_publishable_", Win("FLSServerKey"));
+        Assert.NotNull(ServerConfig.Resolve(Win("FLSServerURL"), Win("FLSServerKey")));
+    }
+
     /// Raccourcis déjà pris par Windows ou FL : traduits à l'affichage, donc chacun a son anglais, sans parenthèse.
     [Fact]
     public void ConflictNamesHaveTheirEnglish()
