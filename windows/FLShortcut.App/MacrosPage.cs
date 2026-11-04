@@ -1285,8 +1285,26 @@ internal sealed class MacrosPage
                 yield return Param(Loc.T("Bouton"), Choice(new[] { Loc.T("Gauche"), Loc.T("Droit") }, c.Button == MouseButton.Right ? 1 : 0,
                     i => set(c with { Button = i == 1 ? MouseButton.Right : MouseButton.Left })));
                 var spot = new StackPanel { Spacing = 6 };
-                spot.Children.Add(Label(c.Target is ClickTarget.ToLearn ? Loc.T("à montrer dans FL") : Loc.T("retenu dans FL"), 12, Text));
-                spot.Children.Add(Soft(Loc.T("Montrer dans FL…"), () => LearnClick(target => set(c with { Target = target }))));
+                spot.Children.Add(Label(TargetText(c.Target), 12, Text));
+                // Bouton suivi à son image : son image est reprise en le montrant de nouveau.
+                spot.Children.Add(Soft(Loc.T("Montrer dans FL…"),
+                    () => LearnClick(target => set(c with { Target = target }), visual: c.Target is ClickTarget.Button)));
+                if (MacroDrafts.CanFollow(c.Target))
+                {
+                    // Comme le Mac : cochée, le bouton est retrouvé par son nom ou son image même s'il bouge (on le montre
+                    // de nouveau) ; décochée, sa place seulement.
+                    var follow = new CheckBox
+                    {
+                        Content = Loc.T("Retrouver ce bouton s'il bouge"),
+                        IsChecked = c.Target is ClickTarget.Named or ClickTarget.Button,
+                    };
+                    follow.Click += (_, _) =>
+                    {
+                        if (follow.IsChecked == true) LearnClick(target => set(c with { Target = target }), visual: true);
+                        else set(c with { Target = MacroDrafts.Place(c.Target) });
+                    };
+                    spot.Children.Add(follow);
+                }
                 yield return Param(Loc.T("Endroit"), spot);
                 break;
             case BlockBody.MenuBar mb:
@@ -1428,8 +1446,19 @@ internal sealed class MacrosPage
         return stack;
     }
 
-    /// « Montrer dans FL… » : la page attend le clic (FL passe devant), puis revient devant avec la position retenue.
-    private void LearnClick(Action<ClickTarget> set)
+    /// Où le clic est retenu, en quelques mots.
+    private static string TargetText(ClickTarget target) => target switch
+    {
+        ClickTarget.ToLearn => Loc.T("à montrer dans FL"),
+        ClickTarget.Named n => Loc.F("bouton retrouvé par son nom « %@ »",
+            n.Spot.Label.Length > 30 ? n.Spot.Label[..30] + "…" : n.Spot.Label),
+        ClickTarget.Button => Loc.T("bouton retrouvé à son image"),
+        _ => Loc.T("retenu dans FL"),
+    };
+
+    /// « Montrer dans FL… » : la page attend le clic (FL passe devant), puis revient devant avec la position retenue :
+    /// le bouton par son nom, sinon son image (`visual`), sinon sa place.
+    private void LearnClick(Action<ClickTarget> set, bool visual = false)
     {
         if (_demo) return;
         var problem = _app.LearnClick((target, why) =>
@@ -1438,7 +1467,7 @@ internal sealed class MacrosPage
             if (target is not null) set(target);
             else RenderSoon();
             _window.Activate();
-        });
+        }, visual);
         _notice = problem ?? Loc.T("Clique dans FL à l'endroit voulu. Échap annule.");
         RenderSoon();
     }

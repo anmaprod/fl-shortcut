@@ -1,5 +1,6 @@
 // Clics des macros sur Windows : clics appris rejoués (coin d'une fenêtre de FL de la même taille, dernier clic,
-// pointeur, menu ouvert, bouton retrouvé à son nom), glisser, et « Menu de FL » (FILE, TOOLS… en haut de sa fenêtre).
+// pointeur, menu ouvert, bouton retrouvé à son nom ou à son image), glisser, et « Menu de FL » (FILE, TOOLS… en haut de
+// sa fenêtre).
 // Miroir de MacroEffectsMac.swift (cibles de clic) et de MenuBarAX (MacroClickSequence.swift) : les menus sont ouverts
 // et choisis comme à la main (vrais clics), chaque élément retrouvé à son nom au moment du clic.
 namespace FLShortcut.Core.Macros;
@@ -86,6 +87,27 @@ public sealed partial class MacroEffectsWindows
         return (false, (item.CenterX + (int)Math.Round(spot.Dx), item.CenterY + (int)Math.Round(spot.Dy)), w);
     }
 
+    /// Bouton retrouvé à son image dans sa fenêtre, lue une fois à ce moment-là (VisualMatch, comme le Mac) ; null :
+    /// fenêtre absente ou illisible, ou bouton pas (encore) affiché. Jamais sa place à l'aveugle.
+    private ((int X, int Y) Point, FlWin Window)? ButtonPoint(VisualSpot spot)
+    {
+        if (TargetWindow(spot.Size) is not { } w) return null;
+        if (_fl.WindowImage(w.Id) is not { Width: > 0, Height: > 0 } image)
+        {
+            _fl.Log("CLICK", "window image unreadable");
+            return null;
+        }
+        var expected = Point(w, spot.Corner, spot.Dx, spot.Dy);
+        var sx = (double)w.Width / image.Width;
+        var sy = (double)w.Height / image.Height;
+        var hintX = (int)Math.Round((expected.X - w.X) / sx);
+        var hintY = (int)Math.Round((expected.Y - w.Y) / sy);
+        if (VisualMatch.Find(spot.Image, image, hintX, hintY) is not { } hit) return null;
+        _fl.Log("CLICK", $"button found by its image (score {hit.Score.ToString("0.00", System.Globalization.CultureInfo.InvariantCulture)}, "
+                         + $"moved {hit.X - hintX},{hit.Y - hintY})");
+        return ((w.X + (int)Math.Round(hit.X * sx), w.Y + (int)Math.Round(hit.Y * sy)), w);
+    }
+
     /// Point visé, et le menu dans lequel il doit tomber (cible « menu ouvert »).
     private ((int X, int Y) Point, FlWin? Popup)? Resolve(ClickTarget target)
     {
@@ -122,8 +144,10 @@ public sealed partial class MacroEffectsWindows
                 var (noWindow, p, _) = NamedPoint(n.Spot);
                 return noWindow ? null : (p, null);
             }
+            case ClickTarget.Button b:
+                return ButtonPoint(b.Spot) is { } seen ? (seen.Point, null) : null;
             default:
-                return null;                    // à montrer dans FL, ou bouton à son image : jamais de clic à l'aveugle
+                return null;                    // à montrer dans FL : jamais de clic à l'aveugle
         }
     }
 
@@ -145,6 +169,11 @@ public sealed partial class MacroEffectsWindows
                 var (noWindow, p, win) = NamedPoint(n.Spot);
                 return noWindow ? null : new Spot(p.X, p.Y, null, !baseline.Contains(win.Id));
             }
+            case ClickTarget.Button b:
+            {
+                if (ButtonPoint(b.Spot) is not { } found) return null;
+                return new Spot(found.Point.X, found.Point.Y, null, !baseline.Contains(found.Window.Id));
+            }
             case ClickTarget.OpenMenu m:
             {
                 var fitting = _fl.Windows()
@@ -162,7 +191,7 @@ public sealed partial class MacroEffectsWindows
     /// Fenêtre (taille retenue) ou menu de FL : attendu s'il n'est pas encore là. Autres cibles : jamais attendues.
     private static int? AppearTimeout(ClickTarget target) => target switch
     {
-        ClickTarget.FlWindowPoint { Size: not null } or ClickTarget.Named => WindowAppearMs,
+        ClickTarget.FlWindowPoint { Size: not null } or ClickTarget.Named or ClickTarget.Button => WindowAppearMs,
         ClickTarget.OpenMenu => MenuAppearMs,
         _ => null,
     };
@@ -175,6 +204,7 @@ public sealed partial class MacroEffectsWindows
         ClickTarget.Named n =>
             Loc.F("fenêtre de FL de %lld × %lld introuvable : remontre le clic",
                 (long)n.Spot.Size.Width, (long)n.Spot.Size.Height),
+        ClickTarget.Button => Loc.T("bouton introuvable dans FL : remontre-le"),
         ClickTarget.OpenMenu => Loc.T("le menu de FL attendu ne s'est pas ouvert"),
         ClickTarget.ToLearn => Loc.T("position à montrer dans FL."),
         _ => Loc.T("position introuvable"),

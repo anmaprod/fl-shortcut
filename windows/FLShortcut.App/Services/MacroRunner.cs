@@ -282,6 +282,8 @@ internal sealed class WindowsFlDriver : IFlDriver
 
     public IReadOnlyList<TextItem>? ReadText(long window) => Owned(window) ? FlScreen.ReadWindow((IntPtr)window) : null;
 
+    public GrayImage? WindowImage(long window) => Owned(window) ? FlScreen.GrayWindow((IntPtr)window) : null;
+
     /// Fenêtre de FL (jamais celle d'un autre programme), visible.
     private bool Owned(long window)
     {

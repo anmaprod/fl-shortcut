@@ -2,7 +2,9 @@
 // chaque touche faits dans FL sont relevés, puis changés en blocs (ClickSequenceCompiler, pur et testé).
 // - Pendant l'enregistrement SEULEMENT, et seulement dans FL : souris et clavier lus toutes les 5 ms (comme « Montrer
 //   dans FL… », ClickLearner : aucun crochet de plus) ; fenêtres de FL relevées toutes les 50 ms (un menu qui se
-//   ferme au clic y est encore). Jamais l'écran. 120 s et 80 clics ou touches au plus.
+//   ferme au clic y est encore). 120 s et 80 clics ou touches au plus.
+// - Bouton qui porte un nom (comme le Mac) : la zone autour du clic, dans la seule fenêtre de FL (pas un menu), est
+//   copiée au moment du clic, lue à la fin de l'enregistrement, puis oubliée : le clic est retenu par ce nom.
 // - Fin : retour dans FL Shortcuts (le bouton « Terminer » du créateur, ou sa fenêtre remise devant), ou une limite.
 // - Clics et touches restent en mémoire : jamais journalisés (le journal dit seulement combien).
 using FLShortcut.App.Native;
@@ -92,6 +94,8 @@ internal static class MacroRecorder
         var leftWas = Down(LeftButton);
         var rightWas = Down(RightButton);
         (int X, int Y, List<FlWin> Windows)? pressed = null;                          // bouton gauche appuyé dans FL
+        FlScreen.Shot? pressedShot = null;
+        var shots = new List<(int Index, FlScreen.Shot Shot, int X, int Y)>();       // lus à la fin (nom du bouton)
         var ignored = 0;
         string? why = null;
         while (!_stop)
@@ -112,7 +116,11 @@ internal static class MacroRecorder
             if (left && !leftWas)
             {
                 Win32.GetCursorPos(out var p);
-                if (isFl(RootAt(p))) pressed = (p.X, p.Y, windows);
+                if (isFl(RootAt(p)))
+                {
+                    pressed = (p.X, p.Y, windows);
+                    pressedShot = ShotAt(p.X, p.Y, windows);
+                }
                 else if (!isUs(RootAt(p))) ignored++;
             }
             else if (!left && leftWas && pressed is { } down)
@@ -121,14 +129,21 @@ internal static class MacroRecorder
                 var release = Math.Abs(p.X - down.X) + Math.Abs(p.Y - down.Y) > ClickSequenceCompiler.DragDistance
                     ? new RecordedRelease(p.X, p.Y, readWindows()) : null;
                 inputs.Add(new RecordedInput.Click(down.X, down.Y, false, down.Windows, release));
+                if (pressedShot is { } shot) shots.Add((inputs.Count - 1, shot, down.X, down.Y));
                 pressed = null;
+                pressedShot = null;
             }
             leftWas = left;
             var right = Down(RightButton);
             if (right && !rightWas)
             {
                 Win32.GetCursorPos(out var p);
-                if (isFl(RootAt(p))) inputs.Add(new RecordedInput.Click(p.X, p.Y, true, windows));
+                if (isFl(RootAt(p)))
+                {
+                    var shot = ShotAt(p.X, p.Y, windows);
+                    inputs.Add(new RecordedInput.Click(p.X, p.Y, true, windows));
+                    if (shot is not null) shots.Add((inputs.Count - 1, shot, p.X, p.Y));
+                }
                 else if (!isUs(RootAt(p))) ignored++;
             }
             rightWas = right;
@@ -148,7 +163,23 @@ internal static class MacroRecorder
             }
             Thread.Sleep(5);
         }
-        AppLog.Write("MACRO", $"record: {inputs.Count} inputs, {ignored} outside FL, {(DateTime.UtcNow - start).TotalSeconds:0} s");
+        // Nom du bouton de chaque clic, lu dans la zone copiée au moment du clic (jamais journalisé).
+        var named = 0;
+        foreach (var (index, shot, x, y) in shots)
+        {
+            if (inputs[index] is not RecordedInput.Click click || FlScreen.NameAt(shot, x, y) is not { } name) continue;
+            inputs[index] = click with { Named = name };
+            named++;
+        }
+        AppLog.Write("MACRO", $"record: {inputs.Count} inputs, {named} named button(s), {ignored} outside FL, "
+                              + $"{(DateTime.UtcNow - start).TotalSeconds:0} s");
         return why;
+    }
+
+    /// Zone autour d'un clic dans une fenêtre de FL (pas un menu), copiée tout de suite ; null : pas une fenêtre de FL.
+    private static FlScreen.Shot? ShotAt(int x, int y, List<FlWin> windows)
+    {
+        var w = windows.FirstOrDefault(w => x >= w.X && x < w.X + w.Width && y >= w.Y && y < w.Y + w.Height);
+        return w.Id == 0 || w.Role == FlWindowRole.Menu ? null : FlScreen.Around((IntPtr)w.Id, x, y);
     }
 }

@@ -379,6 +379,69 @@ struct NoSystemSelection: NSViewRepresentable {
     }
 }
 
+/// Menu du clic droit d'une ligne de liste, sans le contour bleu de macOS (capture du 04/11 : « quand on clique droit
+/// ça fait un truc bleu autour… je veux juste le bouton désactiver et supprimer mais pas de contour »). `.contextMenu`
+/// passe par la NSTableView de la liste, qui entoure la ligne d'un trait bleu tant que son menu est ouvert. Ce calque
+/// prend le seul clic droit (et ⌃ + clic) et ouvre lui-même le menu : la table ne le voit jamais. Tous les autres
+/// clics, le survol et le glisser le traversent (la ligne garde son encoche qui se soulève).
+struct RightClickMenu: NSViewRepresentable {
+    struct Item {
+        let title: String
+        let action: () -> Void
+    }
+
+    /// Les éléments, un `nil` pour un trait de séparation. Lus au clic droit (titres à jour : Activer / Désactiver).
+    let items: () -> [Item?]
+
+    func makeNSView(context: Context) -> Catcher { Catcher() }
+    func updateNSView(_ nsView: Catcher, context: Context) { nsView.items = items }
+
+    final class Catcher: NSView {
+        var items: () -> [Item?] = { [] }
+
+        /// Seulement le clic droit (ou ⌃ + clic) : sinon transparent.
+        override func hitTest(_ point: NSPoint) -> NSView? {
+            guard let event = NSApp.currentEvent else { return nil }
+            let secondary = event.type == .rightMouseDown
+                || (event.type == .leftMouseDown && event.modifierFlags.contains(.control))
+            return secondary ? super.hitTest(point) : nil
+        }
+
+        override func menu(for event: NSEvent) -> NSMenu? {
+            let list = items()
+            guard list.contains(where: { $0 != nil }) else { return nil }
+            let menu = NSMenu()
+            menu.autoenablesItems = false
+            for entry in list {
+                guard let entry else {
+                    menu.addItem(.separator())
+                    continue
+                }
+                let run = Run(entry.action)
+                let item = NSMenuItem(title: entry.title, action: #selector(Run.fire), keyEquivalent: "")
+                item.target = run
+                item.representedObject = run                    // gardé en vie par l'élément
+                menu.addItem(item)
+            }
+            return menu
+        }
+
+        override func rightMouseDown(with event: NSEvent) { pop(event) }
+        override func mouseDown(with event: NSEvent) { pop(event) }
+
+        private func pop(_ event: NSEvent) {
+            guard let menu = menu(for: event) else { return }
+            NSMenu.popUpContextMenu(menu, with: event, for: self)
+        }
+    }
+
+    final class Run: NSObject {
+        let action: () -> Void
+        init(_ action: @escaping () -> Void) { self.action = action }
+        @objc func fire() { action() }
+    }
+}
+
 /// Bouton qui se soulève au survol en laissant voir dessous une encoche de sa couleur, comme les blocs des macros
 /// (cartes de Gumroad, `cardRow(stamp:)`) ; enfoncé, il redescend dans l'encoche. Retour du 02/11 : « À autoriser »
 /// de l'accueil (« qu'ils soient réactifs, comme dans Macro »).

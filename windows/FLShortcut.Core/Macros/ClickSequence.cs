@@ -4,8 +4,10 @@
 //   ailleurs → « Touche » (raccourci compris) ; la même touche répétée → « × n ».
 // - Clic : retenu par rapport à ce qu'il a touché, comme « Montrer dans FL… » (MacroDrafts.LearnedTarget) : un menu de
 //   FL, ou le coin le plus proche d'une fenêtre de FL et sa taille. Bouton gauche relâché loin de l'appui : glisser.
+// - Bouton qui porte un nom (lu dans la fenêtre de FL au moment du clic) : retenu par ce nom, retrouvé même s'il bouge
+//   (MacroDrafts.Named, comme le Mac) ; sa place reste le repli.
 // - Hors de FL : ignoré. Pur et testé ; l'enregistreur de l'app (Services/MacroRecorder.cs) relève les entrées.
-// Pas encore comme le Mac : les clics « intelligents » (menu de FL retrouvé à son nom), lus dans la barre de macOS.
+// Pas encore comme le Mac : un élément de menu de FL enregistré devient « Menu de FL › … » (SmartClicks).
 namespace FLShortcut.Core.Macros;
 
 /// Fin d'un glisser : où le bouton a été relâché, et les fenêtres de FL à ce moment.
@@ -15,8 +17,9 @@ public sealed record RecordedRelease(int X, int Y, IReadOnlyList<FlWin> Windows)
 public abstract record RecordedInput
 {
     /// Clic dans FL (coordonnées de l'écran), avec les fenêtres de FL juste avant lui (un menu qui se ferme au clic y est
-    /// encore), de l'avant vers l'arrière.
-    public sealed record Click(int X, int Y, bool Right, IReadOnlyList<FlWin> Windows, RecordedRelease? Release = null) : RecordedInput;
+    /// encore), de l'avant vers l'arrière. `Named` : nom du bouton cliqué, lu au moment du clic (null : pas de nom).
+    public sealed record Click(int X, int Y, bool Right, IReadOnlyList<FlWin> Windows, RecordedRelease? Release = null,
+                               NamedHit? Named = null) : RecordedInput;
 
     /// Touche tapée dans FL (jamais journalisée) ; `MenuOpen` : un menu de FL était ouvert à ce moment.
     public sealed record Key(KeyCombo Combo, bool MenuOpen) : RecordedInput;
@@ -77,11 +80,12 @@ public static class ClickSequenceCompiler
                     else ignored++;
                     break;
                 case RecordedInput.Click c:
-                    if (MacroDrafts.LearnedTarget(c.X, c.Y, c.Windows) is not { } target)
+                    if (MacroDrafts.LearnedTarget(c.X, c.Y, c.Windows) is not { } place)
                     {
                         ignored++;
                         break;
                     }
+                    var target = MacroDrafts.Named(place, c.Named);
                     if (!c.Right && c.Release is { } r
                         && Math.Abs(r.X - c.X) + Math.Abs(r.Y - c.Y) > DragDistance
                         && MacroDrafts.LearnedTarget(r.X, r.Y, r.Windows) is { } to)

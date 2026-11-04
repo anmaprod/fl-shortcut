@@ -886,6 +886,9 @@ public sealed record VisualSpot(Corner Corner, double Dx, double Dy, Size2 Size,
 
     public ClickTarget Place => new ClickTarget.FlWindowPoint(Corner, Dx, Dy, Size, Title);
 
+    /// L'image du bouton (VisualMatch).
+    public GrayImage Image => new(Side, Side, Pixels);
+
     public bool IsValid =>
         double.IsFinite(Dx) && double.IsFinite(Dy) && Math.Abs(Dx) <= 5000 && Math.Abs(Dy) <= 5000 && Size.IsPlausible
         && Side >= MinSide && Side <= MaxSide && Pixels.Length == Side * Side
@@ -1071,4 +1074,38 @@ public static class TextLook
         return t.Length is >= 2 and <= 40 && t.Any(char.IsLetter) && !t.Any(c => ":•●○◉".Contains(c))
                && !t.Contains(" - ") && !t.Contains(" – ");
     }
+
+    /// Largeur maximale d'un nom de bouton à 96 ppp (au-delà : une ligne de texte, pas un bouton).
+    public const int MaxWidth = 160;
+
+    /// Zone lue autour d'un clic pour trouver le nom du bouton, à 96 ppp (comme le Mac : 360 × 100).
+    public const int AroundWidth = 360, AroundHeight = 100;
+
+    /// Pur (testé, miroir de TextLook.label du Mac) : nom retenu pour un clic en (`x`, `y`), parmi les textes lus dans
+    /// `region`. Le texte sous le clic, puis à 6 points près, étroit : le nom court entier (« Insert 1 »), ou le mot
+    /// cliqué dans une ligne (« FILE » dans « FILE EDIT ADD… »). Jamais une ligne large, ni un texte qui touche le bord
+    /// de la zone lue (il y est coupé). `scale` : pixels par point (écran agrandi).
+    public static TextItem? Label(int x, int y, IReadOnlyList<TextItem> items, (int X, int Y, int Width, int Height)? region = null,
+                                  double scale = 1)
+    {
+        scale = Math.Max(1, scale);
+        var usable = items.Where(i => IsUsable(i.Text) && i.Width <= MaxWidth * scale
+            && !(region is { } r && (i.X <= r.X + 2 || i.X + i.Width >= r.X + r.Width - 2
+                                     || i.Y <= r.Y + 1 || i.Y + i.Height >= r.Y + r.Height - 1))).ToList();
+        foreach (var pad in new[] { 0, (int)Math.Round(6 * scale) })
+        {
+            var near = usable.Where(i => x >= i.X - pad && x < i.X + i.Width + pad && y >= i.Y - pad && y < i.Y + i.Height + pad);
+            if (near.Any()) return near.MaxBy(i => i.Width);
+        }
+        return null;
+    }
+
+    /// Le nom du bouton sous le clic et où tombait le clic par rapport à son centre ; null : pas de nom.
+    public static NamedHit? Hit(int x, int y, IReadOnlyList<TextItem> items, (int X, int Y, int Width, int Height)? region = null,
+                                double scale = 1) =>
+        Label(x, y, items, region, scale) is { } item ? new NamedHit(item.Text.Trim(), x - item.CenterX, y - item.CenterY) : null;
 }
+
+/// Nom du bouton cliqué (« FILE », « Insert 1 »), lu dans la fenêtre de FL au moment du clic, et où tombait le clic par
+/// rapport au centre de ce nom. Jamais journalisé (ce peut être le nom d'une piste).
+public readonly record struct NamedHit(string Label, double Dx, double Dy);

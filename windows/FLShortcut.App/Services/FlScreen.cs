@@ -1,5 +1,5 @@
 // Ce que les macros lisent de FL au moment d'un clic (règle du propriétaire : jamais l'écran, sauf pour retrouver un
-// bouton à son nom dans la seule fenêtre de FL, au moment du clic). D'abord sans l'écran : un menu standard de Windows
+// bouton à son nom ou à son image dans la seule fenêtre de FL, au moment du clic). D'abord sans l'écran : un menu standard de Windows
 // donne ses titres, leur place et leur état grisé. Sinon (menu dessiné par FL, bouton) : l'image de la seule fenêtre
 // de FL visée, lue sur place par la reconnaissance de texte de Windows, jamais enregistrée ni envoyée, et les textes
 // jamais journalisés (seulement leur nombre).
@@ -108,11 +108,59 @@ internal static class FlScreen
         return named > 0 ? output : new List<TextItem>();
     }
 
+    /// Zone de l'écran copiée au moment d'un clic, dans la seule fenêtre de FL, puis lue (nom ou image du bouton) :
+    /// jamais gardée ni envoyée. `Scale` : pixels par point de cette fenêtre.
+    public sealed record Shot(int X, int Y, int Width, int Height, byte[] Pixels, double Scale);
+
+    /// La zone autour d'un clic en (x, y) dans `window` (360 × 100 points, coupée au bord de la fenêtre), copiée tout de
+    /// suite, avant que FL ne change ce qu'il affiche ; null : illisible.
+    public static Shot? Around(IntPtr window, int x, int y)
+    {
+        if (window == IntPtr.Zero || !Win32.GetWindowRect(window, out var r)) return null;
+        var scale = Math.Max(1.0, Win32.GetDpiForWindow(window) / 96.0);
+        var halfW = (int)(TextLook.AroundWidth * scale / 2);
+        var halfH = (int)(TextLook.AroundHeight * scale / 2);
+        int left = Math.Max(r.Left, x - halfW), top = Math.Max(r.Top, y - halfH);
+        int right = Math.Min(r.Right, x + halfW), bottom = Math.Min(r.Bottom, y + halfH);
+        if (right - left < 8 || bottom - top < 8) return null;
+        return Capture(left, top, right - left, bottom - top) is { } pixels
+            ? new Shot(left, top, right - left, bottom - top, pixels, scale) : null;
+    }
+
+    /// Nom du bouton sous le clic (x, y), lu dans la zone copiée (TextLook.Hit) ; null : pas de nom. Jamais journalisé.
+    public static NamedHit? NameAt(Shot shot, int x, int y) =>
+        Recognize(shot.Pixels, shot.X, shot.Y, shot.Width, shot.Height) is { } items
+            ? TextLook.Hit(x, y, items, (shot.X, shot.Y, shot.Width, shot.Height), shot.Scale) : null;
+
+    /// Image du bouton sous le clic : carré centré sur lui (26 points), pris dans la zone copiée ; null : trop près du
+    /// bord de la fenêtre.
+    public static GrayImage? PatchAt(Shot shot, int x, int y)
+    {
+        var side = Math.Clamp((int)Math.Round(VisualSpot.DefaultSide * shot.Scale), VisualSpot.MinSide, VisualSpot.MaxSide);
+        return GrayImage.FromBgra(shot.Pixels, shot.Width, shot.Height).Crop(x - shot.X, y - shot.Y, side);
+    }
+
+    /// Toute une fenêtre de FL telle qu'affichée maintenant, en niveaux de gris (bouton retrouvé à son image). Jamais
+    /// gardée.
+    public static GrayImage? GrayWindow(IntPtr window)
+    {
+        if (window == IntPtr.Zero || !Win32.GetWindowRect(window, out var r)) return null;
+        int width = r.Right - r.Left, height = r.Bottom - r.Top;
+        if (width < 8 || height < 8 || width > 16_000 || height > 16_000) return null;
+        return Capture(r.Left, r.Top, width, height) is { } pixels ? GrayImage.FromBgra(pixels, width, height) : null;
+    }
+
     /// Textes d'une zone de l'écran (pixels), lignes et mots, en pixels de l'écran. L'image n'est jamais gardée.
     private static List<TextItem>? Read(int x, int y, int width, int height)
     {
+        if (Engine.Value is null || width < 8 || height < 8 || width > 16_000 || height > 16_000) return null;
+        return Capture(x, y, width, height) is { } pixels ? Recognize(pixels, x, y, width, height) : null;
+    }
+
+    /// Textes de pixels BGRA copiés de l'écran en (x, y), lignes et mots, en pixels de l'écran.
+    private static List<TextItem>? Recognize(byte[] pixels, int x, int y, int width, int height)
+    {
         if (Engine.Value is not { } engine || width < 8 || height < 8 || width > 16_000 || height > 16_000) return null;
-        if (Capture(x, y, width, height) is not { } pixels) return null;
         // Petits textes de FL : agrandis deux fois si l'image le permet (la reconnaissance a une taille maximale).
         var max = (double)OcrEngine.MaxImageDimension;
         var scale = Math.Min(2.0, Math.Min(max / width, max / height));

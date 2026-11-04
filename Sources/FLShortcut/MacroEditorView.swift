@@ -212,7 +212,8 @@ private struct MacroStepsPane: View {
                     // Pas de sélection bleue de macOS : la ligne choisie est blanche, sur son encoche (02/11).
                     .background(NoSystemSelection().frame(width: 0, height: 0))
                     .moveDisabled(row.kind != .block)          // les lignes de fin suivent leur boucle
-                    .contextMenu { contextMenu(row) }
+                    // Clic droit : Désactiver, Supprimer, sans le contour bleu de macOS (04/11).
+                    .overlay(RightClickMenu(items: { menuItems(row) }))
             }
             .onMove { offsets, to in
                 withAnimation(Self.spring) { model.move(fromOffsets: offsets, toOffset: to) }
@@ -278,17 +279,20 @@ private struct MacroStepsPane: View {
         return monitor.statuses[row.blockID]
     }
 
-    @ViewBuilder private func contextMenu(_ row: MacroStepRow) -> some View {
-        if row.kind == .block {
-            Button(row.ownEnabled ? String(localized: "Désactiver") : String(localized: "Activer")) {
+    /// Menu du clic droit d'un bloc (rien pour une ligne de fin de boucle).
+    private func menuItems(_ row: MacroStepRow) -> [RightClickMenu.Item?] {
+        guard row.kind == .block else { return [] }
+        let model = model
+        return [
+            RightClickMenu.Item(title: row.ownEnabled ? String(localized: "Désactiver") : String(localized: "Activer")) {
                 model.setEnabled(row.blockID, !row.ownEnabled)
-            }
-            Divider()
-            Button("Supprimer", role: .destructive) {
+            },
+            nil,
+            RightClickMenu.Item(title: String(localized: "Supprimer")) {
                 model.selection = row.id
                 withAnimation(Self.spring) { model.deleteSelection() }
-            }
-        }
+            },
+        ]
     }
 
     /// Zone en pointillés sous les étapes (maquette) : un bloc de la palette lâché ici va à la fin.

@@ -153,7 +153,7 @@
 "action indisponible dans ce FL : mets FL à jour" = "action not available in this FL: update FL";
 "FL a refusé : redémarre FL" = "FL refused: restart FL";
 "FL n'a pas confirmé l'armement" = "FL didn't confirm arming";
-"bouton à son image : pas encore sur Windows" = "button found by its image: not on Windows yet";
+"bouton introuvable dans FL : remontre-le" = "button not found in FL: show it again";
 "REC non lancé : touche interdite" = "REC not started: forbidden key";
 "action « %@ » non faite : touche interdite" = "action “%@” not done: forbidden key";
 "ce bloc a besoin du lien avec FL : %@" = "this block needs the link with FL: %@";
@@ -356,3 +356,7 @@
 "Un enregistrement est déjà en cours." = "A recording is already running.";
 "%lld s au plus." = "%lld s at most.";
 "%lld clics ou touches au plus." = "%lld clicks or keys at most.";
+"Bouton retenu par son nom « %@ »." = "Button saved by its name “%@”.";
+"Bouton retenu à son image." = "Button saved by its image.";
+"Rien de reconnaissable ici : endroit retenu." = "Nothing to recognize here: spot saved.";
+"bouton retrouvé par son nom « %@ »" = "button found by its name “%@”";

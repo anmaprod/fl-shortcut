@@ -269,11 +269,12 @@ internal sealed class AppController : INotifyPropertyChanged, IDisposable
         _macros.Programs(MacroContext).TryGetValue(macro, out var program) ? program.Problem : null;
 
     /// « Montrer dans FL… » : FL mis devant, puis le prochain clic de l'utilisateur dans FL, rendu à `done` (sur le fil
-    /// de l'interface). Renvoie ce qui l'empêche (FL fermé, apprentissage déjà en cours), sinon null.
-    public string? LearnClick(Action<ClickTarget?, string?> done)
+    /// de l'interface) : le bouton par son nom, sinon son image (`visual`), sinon sa place. Renvoie ce qui l'empêche (FL
+    /// fermé, apprentissage déjà en cours), sinon null.
+    public string? LearnClick(Action<ClickTarget?, string?> done, bool visual = false)
     {
         if (FlControl.Process() is not { } fl) return Loc.T("Ouvre FL Studio, puis recommence.");
-        return ClickLearner.Start(fl.Pid, OnUi, done) ? null : Loc.T("Un clic est déjà en train d'être appris.");
+        return ClickLearner.Start(fl.Pid, visual, OnUi, done) ? null : Loc.T("Un clic est déjà en train d'être appris.");
     }
 
     /// « Enregistrer une macro » : FL passe devant, ses clics et ses touches sont relevés jusqu'au retour dans FL

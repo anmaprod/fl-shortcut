@@ -204,8 +204,12 @@
   sinon texte lu dans la seule fenêtre de FL, `FlScreen`), menu de la piste (piste visée = dernier clic dans FL, crochet
   souris seulement si une macro la vise), preset déposé (glisser d'OLE comme depuis l'Explorateur) ou écrit dans la
   boîte « Open », « Cliquer sur… » (sauf menu Arrangement), Nom et couleur (sans l'icône) : les 5 modèles peuvent
-  tourner. PAS ENCORE (`MacroEffectsWindows.Unsupported`, macro bloquée, raccourci laissé à FL) : bouton retrouvé à son
-  image, entrée, larsen, carte son, menu Arrangement. Essai CI `--selftest-macros` : faux FL dans l'appli (vraie
+  tourner. PAS ENCORE (`MacroEffectsWindows.Unsupported`, macro bloquée, raccourci laissé à FL) : entrée, larsen,
+  carte son, menu Arrangement. Clic appris « intelligent » comme le Mac (04/11, « si c'est un bouton il va l'apprendre
+  le bouton en lui même ») : « Montrer dans FL… » et l'enregistrement lisent le nom du bouton sous le clic dans la seule
+  fenêtre de FL (`FlScreen.Around/NameAt`, `TextLook.Label`, `MacroDrafts.Named`), sinon, case « Retrouver ce bouton
+  s'il bouge », son image (`FlScreen.PatchAt`, `MacroDrafts.Visual`, rejouée par `VisualMatch` dans
+  `ButtonPoint`) ; essai CI : bouton à son nom puis à son image retrouvés après avoir bougé (`ButtonBySight`). Essai CI `--selftest-macros` : faux FL dans l'appli (vraie
   fenêtre Windows) et les vrais blocs joués dessus (`MacroSelfTest.cs`, rapport `macros-essai.txt`). Journal :
   `%LOCALAPPDATA%\FL Shortcuts\journal.txt` (`AppLogFile`, 512 Ko). Page Macros comme le Mac (29/10, `MacrosPage.cs`
   dans la fenêtre principale, « Macros » de la barre de gauche et de l'icône ; logique dans `MacroDrafts.cs`) : liste
@@ -246,8 +250,8 @@
   3e case de la page Macros + « Enregistrer clics et touches » dans le créateur ; `Services/MacroRecorder.cs` (souris et
   clavier lus toutes les 5 ms, FL devant seulement, fin au retour dans FL Shortcuts ou « Terminer », 120 s / 80 entrées,
   rien journalisé) → `ClickSequenceCompiler` (pur, testé : touche, × n, menu ouvert → Dans le menu / Lettres, clic appris,
-  glisser) ; essai CI sur le faux FL (`MacroSelfTest.Recording` : clic + Ctrl+S, clic rejoué). Pas encore : clics
-  « intelligents » (menu de FL par son nom).
+  glisser) ; essai CI sur le faux FL (`MacroSelfTest.Recording` : clic + Ctrl+S, clic rejoué). Bouton cliqué retenu
+  par son nom (04/11). Pas encore : élément de menu de FL enregistré → « Menu de FL › … » (`SmartClicks` du Mac).
   04/11 (vidéo : « quand on clique dans la barre de recherche, la barre et le mot rechercher se décalent… la barre
   blanche pas bleue » ; « je ne peux pas zoomer dans la photo de mon profil ») : Mac : recherche = simple NSTextField
   sans cadre (`PlainSearchField`, loupe dessinée par SwiftUI à côté, curseur blanc, sélection grise ; NE PAS remettre
@@ -295,6 +299,10 @@
   blanc plein au survol, principal → noir bordé ; `danger` rouge). Questions de l'app au style suisse (`SwissDialog`,
   `Dialogs.confirm/inform/choose` : plus de fenêtre de macOS). « Partir d'un modèle » au style suisse. Liste des blocs :
   plus de sélection ni de contour bleus de macOS (`NoSystemSelection`), la ligne choisie reste blanche sur son encoche.
+  04/11 (capture : « quand on clique droit ça fait un truc bleu autour… juste désactiver et supprimer… on garde l'effet
+  gumroad ») : clic droit d'un bloc par `RightClickMenu` (GlassStyle.swift : calque qui prend le seul clic droit et
+  ouvre le menu lui-même ; `.contextMenu` d'une List fait dessiner à la NSTableView un contour bleu, NE PAS le remettre).
+  Windows : ligne d'un bloc sans focus, pas de contour (rien à changer).
   02/11 (3) (« Fermer » de l'Organiser en verre, « vérifie partout ») : plus AUCUN contrôle de macOS visible (pièces
   dans GlassStyle.swift) : boutons tous `secondaryButton`/`primaryButton`, liens blancs soulignés
   (`SwissLinkButtonStyle`), choix à cases (`SwissSegmented`), listes déroulantes (`SwissPicker` : Menu + Picker en

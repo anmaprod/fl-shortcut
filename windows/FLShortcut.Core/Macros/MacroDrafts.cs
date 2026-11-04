@@ -96,6 +96,37 @@ public static class MacroDrafts
         return target.IsFinite ? target : null;
     }
 
+    /// Pur (testé, miroir de ClickSequenceCompiler.named du Mac) : clic dans une fenêtre de FL sur un bouton qui porte
+    /// un nom → retenu par ce nom (sa place reste le repli si le nom n'est pas lu au moment du clic). Sinon inchangé.
+    public static ClickTarget Named(ClickTarget target, NamedHit? hit)
+    {
+        if (hit is not { } h || target is not ClickTarget.FlWindowPoint { Size: { } size } w) return target;
+        var spot = new NamedSpot(h.Label.Trim(), h.Dx, h.Dy, w.Corner, w.Dx, w.Dy, size, w.Title);
+        return spot.IsValid ? new ClickTarget.Named(spot) : target;
+    }
+
+    /// Pur (testé) : clic dans une fenêtre de FL, « Retrouver ce bouton s'il bouge » → retenu par l'image du bouton
+    /// (carré centré sur le clic, assez contrasté pour être reconnu). Sinon inchangé (sa place).
+    public static ClickTarget Visual(ClickTarget target, GrayImage? patch)
+    {
+        if (patch is null || patch.Width != patch.Height || patch.Width is < VisualSpot.MinSide or > VisualSpot.MaxSide
+            || patch.Contrast < VisualMatch.MinContrast || target is not ClickTarget.FlWindowPoint { Size: { } size } w) return target;
+        var spot = new VisualSpot(w.Corner, w.Dx, w.Dy, size, w.Title, patch.Width, patch.Pixels.ToArray());
+        return spot.IsValid ? new ClickTarget.Button(spot) : target;
+    }
+
+    /// La place d'un bouton retenu par son nom ou son image (« Retrouver ce bouton s'il bouge » décoché).
+    public static ClickTarget Place(ClickTarget target) => target switch
+    {
+        ClickTarget.Named n => n.Spot.Place,
+        ClickTarget.Button b => b.Spot.Place,
+        _ => target,
+    };
+
+    /// Le bouton peut être retrouvé s'il bouge : clic dans une fenêtre de FL (taille retenue), ou déjà suivi.
+    public static bool CanFollow(ClickTarget target) =>
+        target is ClickTarget.FlWindowPoint { Size: not null } or ClickTarget.Named or ClickTarget.Button;
+
     /// Chemin d'un « Menu de FL » tapé (« File › Export › … », « > » accepté) : les titres, sans les vides.
     public static List<string> MenuPath(string typed) =>
         typed.Split(new[] { '›', '>' }).Select(t => t.Trim()).Where(t => t.Length > 0).ToList();

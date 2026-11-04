@@ -1,8 +1,9 @@
 // Essai CI des macros Windows (`--selftest-macros <dossier>`) : un faux FL dans l'appli elle-même (une vraie fenêtre
 // Windows : barre de menus File/Options/Tools, fenêtre de réglages, menu de piste au clic droit, boîte « Open », dépôt
 // de fichiers), et les vrais blocs joués dessus par le vrai pilote (clics, menus lus par Windows, glisser d'OLE, boîte
-// « Open »). Seule cible : ce faux FL (même processus) ; aucun crochet, aucun port MIDI, aucun réglage écrit ; seul
-// « macros-essai.txt » est écrit, dans un dossier qui existe déjà. Le preset d'essai est un fichier temporaire effacé.
+// « Open », boutons retrouvés à leur nom et à leur image). Seule cible : ce faux FL (même processus) ; aucun crochet,
+// aucun port MIDI, aucun réglage écrit ; seul « macros-essai.txt » est écrit, dans un dossier qui existe déjà. Le preset
+// d'essai est un fichier temporaire effacé.
 using System.Runtime.InteropServices;
 using System.Text;
 using FLShortcut.App.Native;
@@ -29,8 +30,10 @@ internal static class MacroSelfTest
 
     private static readonly object Gate = new();
     private static readonly List<string> Events = new();
-    private static IntPtr _main, _settings;
-    private static WndProc? _mainProc, _settingsProc;          // gardés vivants (sinon le GC libère les rappels)
+    private static IntPtr _main, _settings, _label, _picture;
+    private static WndProc? _mainProc, _settingsProc, _pictureProc;    // gardés vivants (sinon le GC libère les rappels)
+    /// Dernier clic reçu par la fenêtre des réglages (dans sa zone cliente).
+    private static (int X, int Y)? _settingsAt;
 
     private static void Note(string e)
     {
@@ -149,6 +152,10 @@ internal static class MacroSelfTest
         // FL) et Ctrl+S tapés dans le faux FL, en fait les blocs, puis le clic enregistré est rejoué.
         Recording(report, pid);
 
+        // 9. Clic appris « intelligent » (04/11) : un bouton retenu par son nom, puis un autre par son image, chacun
+        // retrouvé après avoir bougé dans la fenêtre des réglages.
+        ButtonBySight(report, pid);
+
         report.Add("");
         report.Add("Évènements du faux FL : " + string.Join(" | ", Seen()));
         report.Add("Journal :");
@@ -203,6 +210,70 @@ internal static class MacroSelfTest
             : $"ÉCHEC clic enregistré rejoué : {replayed.GetType().Name}, clics vus {after - before}");
     }
 
+    /// Bouton retrouvé à son nom, puis à son image, comme « Montrer dans FL… » : lu sous le point montré (FlScreen, comme
+    /// ClickLearner), le bouton déplacé, puis le clic rejoué par le vrai pilote.
+    private static void ButtonBySight(List<string> report, uint pid)
+    {
+        if (_settings == IntPtr.Zero || _label == IntPtr.Zero || _picture == IntPtr.Zero)
+        {
+            report.Add("ÉCHEC bouton à son nom ou son image : fenêtre des réglages absente");
+            return;
+        }
+        FlControl.BringForward(pid);
+        Thread.Sleep(300);
+        StepResult Replay(ClickTarget target)
+        {
+            var driver = new WindowsFlDriver(pid, new MidiLink(), new AppSettings(), () => true, () => 0, () => null, a => a(), () => { });
+            var fx = new MacroEffectsWindows(driver);
+            fx.Begin(false);
+            var state = new RunState(DateTime.UtcNow);
+            var result = fx.Perform(new BlockBody.Click(target), state);
+            fx.Cleanup(state);
+            Thread.Sleep(300);
+            return result;
+        }
+        ClickTarget? Learn(IntPtr child, bool visual)
+        {
+            Win32.GetWindowRect(child, out var c);
+            int x = visual ? (c.Left + c.Right) / 2 : c.Left + 20, y = visual ? (c.Top + c.Bottom) / 2 : c.Top + 8;
+            var windows = WindowsFlDriver.Enumerate(pid).Select(w => w.Window).ToList();
+            if (MacroDrafts.LearnedTarget(x, y, windows) is not { } place || FlScreen.Around(_settings, x, y) is not { } shot) return null;
+            return visual ? MacroDrafts.Visual(place, FlScreen.PatchAt(shot, x, y)) : MacroDrafts.Named(place, FlScreen.NameAt(shot, x, y));
+        }
+
+        // Nom : « Time signature 3/4 », montré, puis descendu de 100 pixels.
+        var named = Learn(_label, visual: false);
+        if (named is not ClickTarget.Named)
+            report.Add($"ÉCHEC bouton à son nom : nom pas lu ({named?.GetType().Name ?? "hors de FL"})");
+        else
+        {
+            MoveWindow(_label, 20, 120, 300, 30, true);
+            Thread.Sleep(400);
+            _settingsAt = null;
+            var result = Replay(named);
+            var at = _settingsAt;
+            report.Add(result is StepResult.Ok && at is { Y: >= 118 and < 152 }
+                ? "OK bouton retrouvé à son nom après avoir bougé"
+                : $"ÉCHEC bouton à son nom : {result.GetType().Name}, clic reçu en {at?.ToString() ?? "aucun"}");
+        }
+
+        // Image : le damier, montré, puis déplacé de 80, 150 pixels.
+        var image = Learn(_picture, visual: true);
+        if (image is not ClickTarget.Button)
+            report.Add($"ÉCHEC bouton à son image : image pas retenue ({image?.GetType().Name ?? "hors de FL"})");
+        else
+        {
+            MoveWindow(_picture, 250, 190, 24, 24, true);
+            Thread.Sleep(400);
+            var before = Seen().Count(e => e == "image click");
+            var result = Replay(image);
+            var after = Seen().Count(e => e == "image click");
+            report.Add(result is StepResult.Ok && after > before
+                ? "OK bouton retrouvé à son image après avoir bougé"
+                : $"ÉCHEC bouton à son image : {result.GetType().Name}, clics reçus {after - before}");
+        }
+    }
+
     private static Win32.INPUT Mouse(uint flags) =>
         new() { type = 0, U = new Win32.InputUnion { mi = new Win32.MOUSEINPUT { dwFlags = flags } } };
 
@@ -222,8 +293,10 @@ internal static class MacroSelfTest
         var instance = Win32.GetModuleHandleW(null);
         _mainProc = MainProc;
         _settingsProc = SettingsProc;
+        _pictureProc = PictureProc;
         Register("FLSEssaiPrincipal", _mainProc, instance);
         Register("FLSEssaiReglages", _settingsProc, instance);
+        Register("FLSEssaiBouton", _pictureProc, instance);
         _main = CreateWindowExW(0, "FLSEssaiPrincipal", "FL Studio (essai)", WS_OVERLAPPEDWINDOW | WS_VISIBLE,
             100, 100, 900, 620, IntPtr.Zero, IntPtr.Zero, instance, IntPtr.Zero);
         if (_main != IntPtr.Zero)
@@ -288,7 +361,10 @@ internal static class MacroSelfTest
                 {
                     _settings = CreateWindowExW(0, "FLSEssaiReglages", "Project general settings", WS_POPUP | WS_CAPTION | WS_SYSMENU | WS_VISIBLE,
                         250, 180, 400, 300, hwnd, IntPtr.Zero, Win32.GetModuleHandleW(null), IntPtr.Zero);
-                    CreateWindowExW(0, "STATIC", "Time signature 3/4", WS_CHILD | WS_VISIBLE, 20, 20, 300, 30, _settings, IntPtr.Zero,
+                    _label = CreateWindowExW(0, "STATIC", "Time signature 3/4", WS_CHILD | WS_VISIBLE, 20, 20, 300, 30, _settings,
+                        IntPtr.Zero, Win32.GetModuleHandleW(null), IntPtr.Zero);
+                    // Un bouton sans nom, dessiné (damier noir et blanc) : retrouvé à son image.
+                    _picture = CreateWindowExW(0, "FLSEssaiBouton", "", WS_CHILD | WS_VISIBLE, 330, 40, 24, 24, _settings, IntPtr.Zero,
                         Win32.GetModuleHandleW(null), IntPtr.Zero);
                 }
                 if (id == CmdOpenState) OpenBox(hwnd);
@@ -325,7 +401,31 @@ internal static class MacroSelfTest
 
     private static IntPtr SettingsProc(IntPtr hwnd, uint msg, IntPtr wParam, IntPtr lParam)
     {
-        if (msg == Win32.WM_LBUTTONDOWN) Note("settings click");
+        if (msg == Win32.WM_LBUTTONDOWN)
+        {
+            var l = lParam.ToInt64();
+            _settingsAt = ((short)(l & 0xFFFF), (short)((l >> 16) & 0xFFFF));
+            Note("settings click");
+        }
+        return DefWindowProcW(hwnd, msg, wParam, lParam);
+    }
+
+    /// Le bouton dessiné : damier de 4 × 4 cases de 6 pixels ; un clic dessus est noté.
+    private static IntPtr PictureProc(IntPtr hwnd, uint msg, IntPtr wParam, IntPtr lParam)
+    {
+        if (msg == WM_ERASEBKGND)
+        {
+            var white = GetStockObject(0);
+            var black = GetStockObject(4);
+            for (var row = 0; row < 4; row++)
+                for (var col = 0; col < 4; col++)
+                {
+                    var cell = new Win32.RECT { Left = col * 6, Top = row * 6, Right = col * 6 + 6, Bottom = row * 6 + 6 };
+                    FillRect(wParam, ref cell, (row + col) % 2 == 0 ? white : black);
+                }
+            return new IntPtr(1);
+        }
+        if (msg == Win32.WM_LBUTTONDOWN) Note("image click");
         return DefWindowProcW(hwnd, msg, wParam, lParam);
     }
 
@@ -353,7 +453,8 @@ internal static class MacroSelfTest
 
     private const uint WS_OVERLAPPEDWINDOW = 0x00CF0000, WS_VISIBLE = 0x10000000, WS_POPUP = 0x80000000, WS_CAPTION = 0x00C00000,
         WS_SYSMENU = 0x00080000, WS_CHILD = 0x40000000;
-    private const uint WM_CLOSE = 0x0010, WM_DESTROY = 0x0002, WM_RBUTTONDOWN = 0x0204, WM_DROPFILES = 0x0233;
+    private const uint WM_CLOSE = 0x0010, WM_DESTROY = 0x0002, WM_RBUTTONDOWN = 0x0204, WM_DROPFILES = 0x0233,
+        WM_ERASEBKGND = 0x0014;
 
     private delegate IntPtr WndProc(IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam);
 
@@ -411,6 +512,11 @@ internal static class MacroSelfTest
     [return: MarshalAs(UnmanagedType.Bool)]
     private static extern bool DestroyWindow(IntPtr hWnd);
     [DllImport("user32.dll")] private static extern IntPtr CreateMenu();
+    [DllImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool MoveWindow(IntPtr hWnd, int x, int y, int width, int height, [MarshalAs(UnmanagedType.Bool)] bool repaint);
+    [DllImport("user32.dll")] private static extern int FillRect(IntPtr hdc, ref Win32.RECT rect, IntPtr brush);
+    [DllImport("gdi32.dll")] private static extern IntPtr GetStockObject(int index);
     [DllImport("user32.dll")]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static extern bool SetMenu(IntPtr hWnd, IntPtr hMenu);

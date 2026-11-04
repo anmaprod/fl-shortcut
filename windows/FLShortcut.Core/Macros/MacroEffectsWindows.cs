@@ -62,6 +62,9 @@ public interface IFlDriver
     IReadOnlyList<TextItem>? MenuItems(long window);
     /// Textes lus dans cette fenêtre de FL, maintenant ; null : illisible.
     IReadOnlyList<TextItem>? ReadText(long window);
+    /// Image de cette fenêtre de FL telle qu'affichée maintenant, en niveaux de gris (bouton retrouvé à son image) ; null :
+    /// illisible. Jamais gardée.
+    GrayImage? WindowImage(long window);
     /// Menus de FL refermés sans touche (fin d'un Menu de FL raté : plus rien de surligné en haut de FL).
     void CancelMenus();
     /// Dernier clic de l'utilisateur dans une fenêtre normale de FL, s'il est récent (la piste visée).
@@ -102,9 +105,6 @@ public sealed partial class MacroEffectsWindows : IMacroEffects
     /// Bloc pas encore fait pour Windows : la raison (la macro est bloquée à la validation), sinon null.
     public static string? Unsupported(BlockBody body) => body switch
     {
-        BlockBody.Click { Target: ClickTarget.Button } or BlockBody.Drag { From: ClickTarget.Button }
-            or BlockBody.Drag { To: ClickTarget.Button }
-            => Loc.T("bouton à son image : pas encore sur Windows"),
         BlockBody.PageOption { Option: { } id } when PageOptions.Option(id)?.Kind is Macros.PageOption.OptionKind.Arrangement
             => Loc.T("menu « Arrangement » de la Playlist : pas encore sur Windows."),
         BlockBody.SelectInput or BlockBody.FeedbackCheck or BlockBody.SoundCard or BlockBody.MenuAX

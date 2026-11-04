@@ -136,6 +136,9 @@ internal sealed class FakeFl : IFlDriver
     public IReadOnlyList<TextItem>? MenuBar() => Bar;
     public IReadOnlyList<TextItem>? MenuItems(long window) => MenuTexts.TryGetValue(window, out var items) ? items : null;
     public IReadOnlyList<TextItem>? ReadText(long window) => Texts.TryGetValue(window, out var items) ? items : null;
+    /// Image de chaque fenêtre du faux FL (bouton retrouvé à son image).
+    public Dictionary<long, GrayImage> Images { get; } = new();
+    public GrayImage? WindowImage(long window) => Images.GetValueOrDefault(window);
     public void CancelMenus() => MenusCancelled++;
 
     public void Log(string tag, string text) => Lines.Add($"{tag} {text}");
@@ -402,8 +405,44 @@ public class MacroEffectsWindowsTests
 
         doc.Blocks[1].Enabled = false;
         Assert.True(MacroProgram.Compile(doc, ctx).IsRunnable);
-        Assert.NotNull(MacroEffectsWindows.Unsupported(new BlockBody.Click(
+        // Bouton retrouvé à son image : fait sur Windows (04/11), plus bloqué.
+        Assert.Null(MacroEffectsWindows.Unsupported(new BlockBody.Click(
             new ClickTarget.Button(new VisualSpot(Corner.TopLeft, 1, 1, new Size2(100, 100), null, 12, new byte[144])))));
+    }
+
+    /// Fenêtre unie (gris 40) avec un bouton dessiné : damier noir et blanc de 4 cases de 6 pixels, coin haut gauche en
+    /// (bx, by).
+    internal static GrayImage WindowWithButton(int width, int height, int bx, int by)
+    {
+        var pixels = Enumerable.Repeat((byte)40, width * height).ToArray();
+        for (var y = 0; y < 24; y++)
+            for (var x = 0; x < 24; x++)
+                pixels[(by + y) * width + bx + x] = ((x / 6 + y / 6) % 2 == 0) ? (byte)250 : (byte)10;
+        return new GrayImage(width, height, pixels);
+    }
+
+    /// Bouton retrouvé à son image (« Retrouver ce bouton s'il bouge ») : là où il est maintenant, même déplacé ; absent :
+    /// jamais de clic à l'aveugle.
+    [Fact]
+    public void ButtonIsFoundByItsImageWhereItIsNow()
+    {
+        var (fl, fx, state) = Start(f => f.Show(40, FlWindowRole.Other, 300, 200, 500, 400));
+        // Appris : bouton en (100, 80) dans la fenêtre, clic en son centre (112, 92).
+        var learned = WindowWithButton(500, 400, 100, 80);
+        var patch = Assert.IsType<GrayImage>(learned.Crop(112, 92, VisualSpot.DefaultSide));
+        var place = new ClickTarget.FlWindowPoint(Corner.TopLeft, 112, 92, new Size2(500, 400));
+        var target = Assert.IsType<ClickTarget.Button>(MacroDrafts.Visual(place, patch));
+
+        fl.Images[40] = WindowWithButton(500, 400, 160, 130);                   // le bouton a bougé de 60, 50
+        Assert.IsType<StepResult.Ok>(fx.Perform(new BlockBody.Click(target), state));
+        Assert.Equal((300 + 172, 200 + 142, false), fl.Clicks[^1]);
+        Assert.Contains(fl.Lines, l => l.Contains("button found by its image"));
+
+        fl.Images[40] = new GrayImage(500, 400, Enumerable.Repeat((byte)40, 500 * 400).ToArray());   // plus là
+        var before = fl.Clicks.Count;
+        Assert.Equal("bouton introuvable dans FL : remontre-le",
+            Assert.IsType<StepResult.Fail>(fx.Perform(new BlockBody.Click(target), state)).Why);
+        Assert.Equal(before, fl.Clicks.Count);
     }
 
     // ---------- Clics appris ----------
@@ -815,7 +854,7 @@ public class MacroEffectsWindowsTests
                      "action de FL inconnue", "élément introuvable dans le menu de FL",
                      "menu de FL illisible : mets FL devant",
                      "le menu de FL est resté ouvert", "élément grisé dans le menu de FL",
-                     "bouton à son image : pas encore sur Windows",
+                     "bouton introuvable dans FL : remontre-le",
                      "« %@ » couvre FL à cet endroit", "« %@ » couvre le menu de FL", "le point visé est hors de FL",
                      "icône pas encore posée sous Windows",
                  })

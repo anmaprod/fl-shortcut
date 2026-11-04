@@ -786,3 +786,9 @@ entrée 1 ≈ 0,5 s.
   database › Installed (Generators › VST3, Effects › AudioUnit) déposé ouvre le plugin, pas le .nfo ; sur un son il le
   remplace, ailleurs rien ; sous le dernier son du Channel rack, ou sur la piste du Mixer visée. Fait sur Mac et
   Windows, avec le menu Add en secours.
+- 04/11 (« la macro clic a un endroit appris peut etre intelligent… si c'est un bouton il va l'apprendre le bouton en
+  lui meme ») : déjà le cas sur Mac (nom lu sous le clic, image avec « Retrouver ce bouton s'il bouge ») ; fait sur
+  Windows (« oui stp ») : « Montrer dans FL… » et l'enregistrement retiennent le nom du bouton, sinon son image, et la
+  macro le retrouve même s'il a bougé ; vérifié sur la CI avec le faux FL.
+- 04/11 (capture : clic droit sur un bloc entouré de bleu) : le menu Désactiver / Supprimer s'ouvre sans contour, la
+  ligne garde son encoche ; Windows n'avait pas ce contour.
