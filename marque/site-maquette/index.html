@@ -186,7 +186,7 @@ dialog::backdrop { background: rgba(0, 0, 0, 0.88); }
 .total b { font-size: 36px; letter-spacing: -0.04em; line-height: 1; font-variant-numeric: tabular-nums; }
 .hint { font-size: 13px; color: var(--gray); }
 .merci-titre { font-size: 132px !important; line-height: 0.8 !important; letter-spacing: -0.07em !important; border: 0 !important; padding: 0 !important; }
-.dl { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.dl { display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; }
 .dl .btn { height: 58px; flex-direction: column; gap: 6px; }
 .dl .btn small { font-size: 10px; letter-spacing: 1px; text-transform: none; font-weight: 400; opacity: 0.75; }
 .guide ol { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--paper); }
@@ -332,8 +332,8 @@ dialog::backdrop { background: rgba(0, 0, 0, 0.88); }
     <h2 class="merci-titre" id="merci-titre">merci<span class="point">.</span></h2>
     <p id="merci-mail">Ton lien part aussi sur ton mail.</p>
     <div class="dl">
-      <span class="btn main" id="dl-mac">Télécharger pour Mac<small>FLShortcuts.pkg</small></span>
-      <span class="btn" id="dl-win">Télécharger pour Windows<small>FLShortcuts-Windows-Setup.exe</small></span>
+      <span class="btn main" id="dl-mac">Télécharger pour Mac</span>
+      <span class="btn main" id="dl-win" hidden>Télécharger pour Windows</span>
     </div>
   </div>
 </dialog>
@@ -495,9 +495,10 @@ dialog::backdrop { background: rgba(0, 0, 0, 0.88); }
   document.getElementById('dlg-go').addEventListener('click', function () {
     var mail = document.getElementById('mail').value.trim();
     document.getElementById('merci-mail').textContent = mail ? 'Ton lien part aussi sur ' + mail + '.' : 'Tu peux télécharger tout de suite.';
+    // Seulement le téléchargement du système choisi avant, sans nom de fichier.
     var mac = systeme() === 'mac';
-    document.getElementById('dl-mac').className = 'btn' + (mac ? ' main' : '');
-    document.getElementById('dl-win').className = 'btn' + (mac ? '' : ' main');
+    document.getElementById('dl-mac').hidden = !mac;
+    document.getElementById('dl-win').hidden = mac;
     vForm.hidden = true; vMerci.hidden = false; dlg.scrollTop = 0;
     if (anime) {
       gsap.from('#merci-titre', { yPercent: 40, duration: 0.7, ease: 'expo.out' });
