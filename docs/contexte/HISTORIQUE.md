@@ -779,3 +779,6 @@ entrée 1 ≈ 0,5 s.
 - 04/11 (vidéo) : barre de recherche du Mac qui bougeait au clic et curseur bleu → simple champ de texte, rien ne
   bouge, curseur blanc ; photo de profil : zoom impossible sur la photo déjà enregistrée → réglable tout de suite
   (Mac et Windows, molette sur Windows, pincement sur Mac). Règle : chaque changement aussi sur Windows.
+- 04/11 (« la macro export stems… ne fonctionne pas a part si je clique sur le vrai file ») : FL ne met à jour l'état
+  grisé qu'à l'ouverture de SES menus ; sur Mac, « Menu de FL » clique maintenant FILE dans la fenêtre de FL puis chaque
+  élément lu à son nom, comme sur Windows ; la barre de macOS reste le secours.

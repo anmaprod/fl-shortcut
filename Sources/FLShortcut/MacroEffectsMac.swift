@@ -343,6 +343,14 @@ final class MacroEffectsMac: MacroEffects {
         case .menuBar(let titles):
             numbersBeforeLastClick = WinSnapshot.take(pid: ctx.pid).numbers
             let pid = ctx.pid
+            // D'abord comme à la main, par les menus dans la fenêtre de FL (04/11 : FL ne met à jour ses éléments grisés
+            // qu'à l'ouverture de SES menus) ; sinon la barre des menus de macOS (MacroWindowMenu.swift).
+            switch windowMenu(titles: titles, ctx: ctx) {
+            case .done: return .ok
+            case .cancelled(let why): return .cancel(why)
+            case .greyed: return .fail(String(localized: "élément grisé dans le menu de FL"))
+            case .unavailable: break
+            }
             switch MenuBarAX.press(pid: pid, titles: titles, stop: stopReason,
                                    click: { [self] p in postClick(at: p, right: false, pid: pid, hoverMs: 60) }) {
             case .done: return .ok

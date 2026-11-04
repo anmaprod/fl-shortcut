@@ -472,6 +472,11 @@
   attente de 6 s puis « FL n'a pas répondu »). Les macros choisissent maintenant l'élément comme à la main (menus
   ouverts, vrai clic, `MenuBarAX.press(click:)`), AXPress seulement en secours (élément hors écran), attente 1,5 s.
   À revérifier chez lui (journal `~/Library/Logs/FL Shortcuts/macro.log`, lignes MENU).
+  04/11 (« Export Stems… ne fonctionne pas a part si je clique sur le vrai file… ma solution est de passer directement
+  dans le logiciel ») : « Menu de FL » passe d'abord par les menus DANS la fenêtre de FL (`MacroWindowMenu.swift` :
+  titre FILE lu en haut de la fenêtre, puis chaque élément lu dans son menu et cliqué ; grisé = texte sombre) ; sans
+  « Enregistrement de l'écran » ou au moindre accroc : menus refermés puis la barre de macOS comme avant. Windows le
+  faisait déjà. La CI Mac n'a pas l'autorisation : seules les parties pures sont essayées (`MacroWindowMenuTests`).
 - IA intégrée : voix de ses projets enfin rangées en Voix ? Sortes proposées justes sur ses packs ?
 - Organiser sur le fichier : 1er essai du propriétaire (24/10, ancienne version) : « FL n'a pas enregistré ton
   projet » sur chaque projet, pourtant enregistré. Corrigé sans preuve (titres de toutes les fenêtres de FL, Spotlight
