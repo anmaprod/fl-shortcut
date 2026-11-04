@@ -481,8 +481,8 @@ struct AppIcon: View {
         }
     }
 
-    /// Dessin de secours, à plat, d'après l'icône (logo « A » du 04/11) : tuile noire, grand cercle blanc décalé vers le
-    /// haut à droite, rond rouge devant ; petit, le cercle plus épais. Marge de 10 % comme la grille des icônes macOS.
+    /// Dessin de secours, à plat, d'après l'icône (logo « A » du 04/11) : tuile noire, grand cercle blanc au centre, rond
+    /// rouge devant, en bas à gauche ; petit, le cercle plus épais. Marge de 10 % comme la grille des icônes macOS.
     private var drawn: some View {
         GeometryReader { geo in
             drawing(side: geo.size.width)
@@ -501,11 +501,11 @@ struct AppIcon: View {
             Circle()
                 .stroke(Color.white, lineWidth: max(1, w * k))
                 .frame(width: 2 * r * k, height: 2 * r * k)
-                .offset(x: inset + (590 - r) * k, y: inset + (440 - r) * k)
+                .offset(x: inset + (512 - r) * k, y: inset + (512 - r) * k)
             Circle()
                 .fill(Swiss.red)
                 .frame(width: 580 * k, height: 580 * k)
-                .offset(x: inset + 180 * k, y: inset + 290 * k)
+                .offset(x: inset + 102 * k, y: inset + 362 * k)
         }
         .frame(width: side, height: side, alignment: .topLeading)
     }

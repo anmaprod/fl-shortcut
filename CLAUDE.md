@@ -282,7 +282,8 @@
   piste choisie blanche jusqu'au bord ; changements dans `MixerEdits` (passent par le plan). Couleur choisie dans la
   roue : contour blanc égal (tracé en dernier). Logo : le petit clavier du 02/11 est REMPLACÉ le 04/11 par le
   logo « A » (choisi avec la session du site, fichiers dans `marque/` de sa branche `claude/adoring-johnson-2ig931`) : rond
-  rouge #FF3B1F devant un grand cercle fin décalé vers le haut à droite, formes seules, TOUJOURS en couleurs (« pas en
+  rouge #FF3B1F devant un grand cercle fin, le cercle AU CENTRE (recadré le 04/11 : « pour que le rond blanc soit au
+  centre » ; cercle (512, 512), rond (392, 652) sur 1024), formes seules, TOUJOURS en couleurs (« pas en
   noir et blanc ») : icône = tuile noire « squircle », cercle blanc, rond rouge, cercle épais en 64 px et moins
   (`scripts/icone.py Resources --ico windows/FLShortcut.App/Assets/FLShortcut.ico --tray windows/FLShortcut.App/Assets`,
   puis `python3 scripts/lisezmoi.py` pour les modes d'emploi) ; barre des menus du Mac en couleurs, jamais en image

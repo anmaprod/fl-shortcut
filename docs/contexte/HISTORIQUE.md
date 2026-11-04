@@ -796,3 +796,6 @@ entrée 1 ≈ 0,5 s.
   grand cercle fin, toujours en couleurs ; icône de l'app Mac et Windows, barre des menus du Mac et zone de
   notification de Windows (cercle blanc ou noir selon la barre), accueil Windows, modes d'emploi. Il remplace le petit
   clavier du 02/11.
+- 04/11 (« recadre bien pour que le rond blanc soit au centre ») : le grand cercle blanc du logo au centre de l'icône,
+  le rond rouge devant en bas à gauche ; partout (icônes, barre des menus, zone de notification, accueil Windows,
+  modes d'emploi, maquettes).

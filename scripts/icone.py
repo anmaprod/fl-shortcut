@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 # Icônes de FL Shortcuts : le logo « A » choisi par le propriétaire le 04/11 (marque/ de la session du site : « le A
 # c'est parfait… le logo du rond dans l'icône et le logo du logiciel », « dans les couleurs… pas en noir et blanc ») :
-# un rond rouge plein (#FF3B1F) devant un grand cercle fin décalé vers le haut à droite, formes seules, sans lettre.
-# Il remplace le petit clavier du 02/11.
+# un rond rouge plein (#FF3B1F) devant un grand cercle fin, formes seules, sans lettre. Il remplace le petit clavier
+# du 02/11. Recadré le 04/11 (« pour que le rond blanc soit au centre ») : le cercle au centre, le rond en bas à gauche.
 # - Icône de l'app (Mac et Windows) : tuile noire « squircle » (grille des icônes de macOS, 824 sur 1024), cercle blanc,
 #   rond rouge ; 64 pixels et moins : le cercle plus épais (rond-A-petit), sinon il disparaît.
 # - Zone de notification de Windows (--tray DOSSIER) : sans fond, cercle épais blanc pour une barre sombre
@@ -54,7 +54,7 @@ def over(rgb, a, color, mask):
     return rgb * (1 - m) + color * m, a + mask * (1 - a)
 
 
-def logo(n, circle, dot=(470, 580, 290), tile=True, ring_color=WHITE):
+def logo(n, circle, dot=(392, 652, 290), tile=True, ring_color=WHITE):
     """Le logo dans une image de n pixels. Coordonnées du dessin sur 1024 ; avec la tuile, ramenées dans la grille
     des icônes (824 sur 1024, centrée)."""
     k, o = (824 / 1024, 100) if tile else (1.0, 0)
@@ -77,9 +77,9 @@ def logo(n, circle, dot=(470, 580, 290), tile=True, ring_color=WHITE):
     return Image.fromarray((np.dstack([np.clip(rgb, 0, 1), np.clip(a, 0, 1)]) * 255 + 0.5).astype(np.uint8), mode="RGBA")
 
 
-FINE = (590, 440, 394, 12)                     # rond-A-noir : cercle fin
-THICK = (590, 440, 380, 40)                    # rond-A-petit : 16 à 64 pixels
-BAR = (590, 440, 370, 60)                      # rond-A-barre-* : barre des menus, zone de notification
+FINE = (512, 512, 394, 12)                     # rond-A-noir : cercle fin
+THICK = (512, 512, 380, 40)                    # rond-A-petit : 16 à 64 pixels
+BAR = (512, 512, 370, 60)                      # rond-A-barre-* : barre des menus, zone de notification
 
 
 def icon(size):

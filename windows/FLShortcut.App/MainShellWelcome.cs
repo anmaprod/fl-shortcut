@@ -70,12 +70,13 @@ internal sealed partial class MainShell
         ShowScreen();
     }
 
-    /// Logo de l'appli (le « A » choisi le 04/11, à la place du clavier) : le rond rouge devant le grand cercle blanc,
-    /// sans fond, sur le noir de l'accueil ; petit, le cercle plus épais (marque/rond-A-transparent et rond-A-petit).
+    /// Logo de l'appli (le « A » choisi le 04/11, à la place du clavier) : le grand cercle blanc au centre, le rond
+    /// rouge devant en bas à gauche, sans fond, sur le noir de l'accueil ; petit, le cercle plus épais
+    /// (marque/rond-A-transparent et rond-A-petit).
     private static FrameworkElement AppIcon(double size)
     {
         var k = size / 1024;
-        var (cx, cy, r, w) = size < 128 ? (590.0, 440.0, 380.0, 40.0) : (590.0, 440.0, 394.0, 12.0);
+        var (cx, cy, r, w) = size < 128 ? (512.0, 512.0, 380.0, 40.0) : (512.0, 512.0, 394.0, 12.0);
         var outer = (r + w / 2) * k;                 // le trait d'une ellipse est dessiné à l'intérieur de sa taille
         var ring = new Microsoft.UI.Xaml.Shapes.Ellipse
         {
@@ -84,8 +85,8 @@ internal sealed partial class MainShell
         Canvas.SetLeft(ring, cx * k - outer);
         Canvas.SetTop(ring, cy * k - outer);
         var dot = new Microsoft.UI.Xaml.Shapes.Ellipse { Width = 580 * k, Height = 580 * k, Fill = Brush(Red) };
-        Canvas.SetLeft(dot, 180 * k);
-        Canvas.SetTop(dot, 290 * k);
+        Canvas.SetLeft(dot, 102 * k);
+        Canvas.SetTop(dot, 362 * k);
         var logo = new Canvas { Width = size, Height = size, HorizontalAlignment = HorizontalAlignment.Center };
         AutomationProperties.SetAccessibilityView(logo, Microsoft.UI.Xaml.Automation.Peers.AccessibilityView.Raw);
         logo.Children.Add(ring);

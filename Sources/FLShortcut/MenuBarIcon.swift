@@ -1,10 +1,11 @@
 // Logo de FL Shortcuts dans la barre des menus : le logo « A » (choisi par le propriétaire le 04/11, à la place du petit
-// clavier) : un rond rouge plein devant un grand cercle à trait épais, décalé vers le haut à droite (rond-A-barre-*,
-// marque/ de la session du site). Toujours en couleurs (demande du 04/11 : « dans les couleurs… pas en noir et
-// blanc ») : jamais une image modèle (template), que macOS teindrait d'une seule couleur. Le rond reste rouge ; le
-// cercle est blanc sur une barre sombre et noir sur une barre claire, choisi au moment où la barre dessine l'image
-// (son apparence, qui suit le fond d'écran). L'état ne remplace pas le logo : une pastille en haut à droite, « ! » quand
-// les raccourcis sont inactifs (Accessibilité, saisie sécurisée), deux barres en pause.
+// clavier) : un rond rouge plein devant un grand cercle à trait épais (rond-A-barre-*, marque/ de la session du site),
+// le cercle au centre (recadré le 04/11 : « pour que le rond blanc soit au centre »). Toujours en couleurs (demande
+// du 04/11 : « dans les couleurs… pas en noir et blanc ») : jamais une image modèle (template), que macOS teindrait
+// d'une seule couleur. Le rond reste rouge ; le cercle est blanc sur une barre sombre et noir sur une barre claire,
+// choisi au moment où la barre dessine l'image (son apparence, qui suit le fond d'écran). L'état ne remplace pas le
+// logo : une pastille en haut à droite, « ! » quand les raccourcis sont inactifs (Accessibilité, saisie sécurisée),
+// deux barres en pause.
 // Dessiné une fois par état et par apparence, dans des images à part (1x et 2x) : la barre n'en choisit qu'une.
 import AppKit
 
@@ -76,14 +77,14 @@ enum MenuBarIcon {
     }
 
     private static func draw(_ state: State, ring color: NSColor, in context: NSGraphicsContext) {
-        // Le dessin de rond-A-barre-* sur 1024 : cercle (590, 440) de rayon 370, trait de 60 ; rond (470, 580) de 290.
+        // Le dessin sur 1024 : cercle au centre (512, 512) de rayon 370, trait de 60 ; rond (392, 652) de 290.
         let k = side / 1024
-        let outline = circle(NSPoint(x: 590 * k, y: 440 * k), radius: 370 * k)
+        let outline = circle(NSPoint(x: 512 * k, y: 512 * k), radius: 370 * k)
         outline.lineWidth = 60 * k
         color.setStroke()
         outline.stroke()
         red.setFill()
-        circle(NSPoint(x: 470 * k, y: 580 * k), radius: 290 * k).fill()
+        circle(NSPoint(x: 392 * k, y: 652 * k), radius: 290 * k).fill()
         guard state != .normal else { return }
         // Pastille d'état en haut à droite, détachée du reste par un anneau vide.
         let center = NSPoint(x: 13.8, y: 4.2)
