@@ -37,6 +37,8 @@ button, input { font: inherit; color: inherit; }
 
 /* Les bandes pleines, d'un bord à l'autre */
 .bande { margin-left: calc(50% - 50vw); margin-right: calc(50% - 50vw); padding-left: calc(50vw - 50%); padding-right: calc(50vw - 50%); }
+/* Les pages suivantes passent au-dessus de l'ouverture : les lettres qui tombent glissent derrière elles. */
+.bande { position: relative; z-index: 3; }
 .papier { background: var(--paper); color: var(--ink); }
 .papier .label { color: var(--gray-p); }
 .rouge { background: var(--red); color: var(--ink); }
@@ -380,18 +382,12 @@ dialog::backdrop { background: rgba(0, 0, 0, 0.88); }
       // Au défilement, chaque lettre descend par à-coups, décalée des autres, sans lissage : des pas nets,
       // posés sur une grille de 28 pixels, et des angles de 15 en 15 degrés. Le point rouge tombe le plus bas.
       var marche = gsap.utils.snap(28), angle = gsap.utils.snap(15), n = lettres.length;
-      // Aucune lettre ne descend plus bas que la page noire : chaque chute est bornée par la place qui reste sous elle.
-      var hero = document.querySelector('.hero');
+      // Les lettres continuent de tomber et passent derrière les pages suivantes, posées au-dessus d'elles.
       gsap.timeline({ scrollTrigger: { trigger: '.hero', start: 'top top', end: 'bottom top', scrub: true, invalidateOnRefresh: true } })
         .to(lettres, {
-          y: function (i) {
-            var voulu = marche(60 + i * 10 + gsap.utils.random(0, 140)) + (i === n - 1 ? 160 : 0);
-            var bas = lettres[i].getBoundingClientRect().bottom - gsap.getProperty(lettres[i], 'y');
-            var place = hero.getBoundingClientRect().bottom - bas - 36;
-            return Math.max(0, Math.min(voulu, Math.floor(place / 28) * 28));
-          },
+          y: function (i) { return marche(220 + i * 18 + gsap.utils.random(0, 420)) + (i === n - 1 ? 300 : 0); },
           rotation: function (i) { return i === n - 1 ? 0 : angle(gsap.utils.random(-45, 45)); },
-          ease: 'steps(5)', duration: 1, stagger: { each: 0.035 }
+          ease: 'steps(7)', duration: 1, stagger: { each: 0.035 }
         });
     }
   }
