@@ -63,10 +63,12 @@ public static class PluginDrop
         return t.Length is >= 2 and <= 40 && t.Any(char.IsLetter) && !t.Contains(':');
     }
 
-    /// Point juste sous le dernier son du Channel rack (sur le trait entre deux lignes : jamais SUR un son), d'après les
-    /// textes lus dans la fenêtre de FL : la colonne des noms sous le titre « Channel rack », à pas réguliers (un nom
-    /// illisible laisse un trou d'une ligne). null : titre absent, moins de deux noms, ou pas réguliers (doute).
-    public static (int X, int Y)? ChannelRackPoint(IReadOnlyList<TextItem> items)
+    /// Point où déposer dans le Channel rack, toujours dans l'espace entre deux lignes (jamais SUR un son : il le
+    /// remplacerait) : juste sous le dernier son ; Channel rack coupé (dernier nom lu à moitié, ou dernier son au ras de
+    /// `bottom`, le bas de la fenêtre) : juste au-dessus du premier (vidéo du 04/11 : « ça fonctionne tout autant »).
+    /// D'après les textes lus dans la fenêtre de FL : la colonne des noms sous le titre « Channel rack », à pas
+    /// réguliers (un nom illisible laisse un trou d'une ligne). null : titre absent, moins de deux noms, pas réguliers.
+    public static (int X, int Y)? ChannelRackPoint(IReadOnlyList<TextItem> items, int? bottom = null)
     {
         var titleKey = MenuText.Normalized("Channel rack");
         foreach (var title in items.Where(t => MenuText.Normalized(t.Text) == titleKey).OrderBy(t => t.Y))
@@ -86,14 +88,21 @@ public static class PluginDrop
             foreach (var column in columns.OrderByDescending(c => c.Count))
             {
                 if (column.Count < 2) break;
-                var ys = column.Select(t => t.CenterY).OrderBy(y => y).ToList();
+                // Dernier nom lu à moitié (coupé par le bas du Channel rack) : pas compté dans les lignes.
+                var height = column.Select(t => t.Height).OrderBy(h => h).ElementAt(column.Count / 2);
+                var lastRead = column.OrderBy(t => t.CenterY).Last();
+                var halfRead = lastRead.Height < height * 0.75;
+                var rows = halfRead ? column.Where(t => !t.Equals(lastRead)).ToList() : column;
+                if (rows.Count < 2) continue;
+                var ys = rows.Select(t => t.CenterY).OrderBy(y => y).ToList();
                 if (ys[0] - top > 110) continue;                         // les sons commencent juste sous le titre
                 var diffs = ys.Zip(ys.Skip(1), (a, b) => b - a).ToList();
                 var step = diffs.Min();
                 if (step is < 12 or > 60) continue;
                 if (diffs.Any(d => Math.Abs(d / (double)step - Math.Round(d / (double)step)) > 0.25 || d / (double)step > 6.5)) continue;
-                var x = column.Select(t => t.CenterX).OrderBy(v => v).ElementAt(column.Count / 2);
-                return (x, ys[^1] + step / 2 + 2);
+                var x = rows.Select(t => t.CenterX).OrderBy(v => v).ElementAt(rows.Count / 2);
+                var cut = halfRead || (bottom is { } b && ys[^1] + step > b - 8);
+                return cut ? (x, ys[0] - step / 2) : (x, ys[^1] + step / 2);
             }
         }
         return null;

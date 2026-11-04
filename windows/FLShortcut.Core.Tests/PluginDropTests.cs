@@ -55,15 +55,30 @@ public sealed class PluginDropTests : IDisposable
         };
         var p = Assert.NotNull(PluginDrop.ChannelRackPoint(rack));
         Assert.Equal(390, p.X);
-        // Centre du dernier son (224) + une demi-ligne (13) + 2 : sur le trait sous le dernier son, jamais dessus.
-        Assert.Equal(239, p.Y);
+        // Centre du dernier son (224) + une demi-ligne (13) : dans l'espace sous le dernier son, jamais dessus.
+        Assert.Equal(237, p.Y);
         Assert.True(p.Y > 218 + 12, "sous le dernier son");
         // Un nom illisible (« 808 ») laisse un trou d'une ligne : toujours régulier.
         var withGap = rack.Where(t => t.Text != "Snare").ToList();
-        Assert.Equal(239, Assert.NotNull(PluginDrop.ChannelRackPoint(withGap)).Y);
+        Assert.Equal(237, Assert.NotNull(PluginDrop.ChannelRackPoint(withGap)).Y);
         // Une ligne et ses mots lus à part : un seul son.
         var words = rack.Append(T("Kick", 360, 140, 30)).ToList();
-        Assert.Equal(239, Assert.NotNull(PluginDrop.ChannelRackPoint(words)).Y);
+        Assert.Equal(237, Assert.NotNull(PluginDrop.ChannelRackPoint(words)).Y);
+    }
+
+    /// Channel rack coupé (vidéo du 04/11) : juste au-dessus du premier son, dans l'espace sous le titre.
+    [Fact]
+    public void ACutChannelRackGetsTheDropAboveTheFirstChannel()
+    {
+        var rack = new List<TextItem>
+        {
+            T("Channel rack", 300, 100, 90), T("Kick", 360, 140), T("Snare", 360, 166), T("Hat", 360, 192),
+            new TextItem("Clap", 360, 218, 60, 6),                                     // lu à moitié : coupé
+        };
+        Assert.Equal((390, 133), PluginDrop.ChannelRackPoint(rack));
+        var full = rack.Take(4).ToList();
+        Assert.Equal((390, 211), PluginDrop.ChannelRackPoint(full));
+        Assert.Equal((390, 133), PluginDrop.ChannelRackPoint(full, bottom: 225));   // dernier son au ras du bas
     }
 
     [Fact]
@@ -88,7 +103,7 @@ public sealed class PluginDropTests : IDisposable
         };
         var add = new BlockBody.PageOption("channelRack.addInstrument", "Analog Lab V");
         Assert.IsType<StepResult.Ok>(fx.Perform(add, state));
-        Assert.Equal((@"C:\db\Analog Lab V.fst", 390, 213), Assert.Single(fl.Drops));
+        Assert.Equal((@"C:\db\Analog Lab V.fst", 390, 211), Assert.Single(fl.Drops));
         Assert.All(fl.Lines, l => Assert.DoesNotContain("Analog", l));                       // aucun nom au journal
 
         // Channel rack illisible : pas de dépôt (jamais au hasard), le menu Add comme avant.

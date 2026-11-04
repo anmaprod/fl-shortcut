@@ -479,8 +479,9 @@
   faisait déjà. La CI Mac n'a pas l'autorisation : seules les parties pures sont essayées (`MacroWindowMenuTests`).
   04/11 (« ouvrir un vst… trop lent », essais et vidéos du propriétaire) : « Ajouter un instrument / un effet » DÉPOSE
   le .fst de Plugin database › Installed › Generators (VST3 d'abord) ou Effects (AudioUnit d'abord) ; SEULEMENT .fst
-  (.nfo : rien) ; instrument juste SOUS le dernier son du Channel rack (sur un son il le REMPLACE ; ailleurs rien), point
-  lu dans la fenêtre de FL (`PluginDrop.channelRackPoint`, colonne des noms à pas réguliers) ; effet sur la piste visée
+  (.nfo : rien) ; instrument juste SOUS le dernier son du Channel rack (sur un son il le REMPLACE ; ailleurs rien) ; Channel rack
+  coupé (dernier nom lu à moitié, ou au ras du bas) : juste AU-DESSUS du premier (vidéo : « ça fonctionne tout autant ») ;
+  toujours dans l'espace entre deux lignes ; point lu dans la fenêtre de FL (`PluginDrop.channelRackPoint`, colonne des noms à pas réguliers) ; effet sur la piste visée
   du Mixer (la piste sous la souris le reçoit, sélectionnée ou non). Doute → menu Add comme avant. Mac
   `MacroPluginDrop.swift`, Windows `Macros/PluginDrop.cs` + `IFlDriver.PluginPreset`. Pas encore vu sur son Mac.
 - IA intégrée : voix de ses projets enfin rangées en Voix ? Sortes proposées justes sur ses packs ?

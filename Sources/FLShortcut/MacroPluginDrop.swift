@@ -48,10 +48,12 @@ enum PluginDrop {
         return (2...40).contains(t.count) && t.contains(where: \.isLetter) && !t.contains(":")
     }
 
-    /// Pure (testée) : point juste sous le dernier son du Channel rack (sur le trait entre deux lignes : jamais SUR un
-    /// son), d'après les textes lus dans la fenêtre de FL : la colonne des noms sous le titre « Channel rack », à pas
+    /// Pure (testée) : point où déposer dans le Channel rack, toujours dans l'espace entre deux lignes (jamais SUR un son :
+    /// il le remplacerait) : juste sous le dernier son ; Channel rack coupé (dernier nom lu à moitié, ou dernier son au
+    /// ras de `bottom`, le bas de la fenêtre) : juste au-dessus du premier (vidéo du 04/11 : « ça fonctionne tout
+    /// autant »). D'après les textes lus dans la fenêtre de FL : la colonne des noms sous le titre « Channel rack », à pas
     /// réguliers (un nom illisible laisse un trou d'une ligne). nil : titre absent, moins de deux noms, pas réguliers.
-    static func channelRackPoint(in items: [TextLook.Item]) -> CGPoint? {
+    static func channelRackPoint(in items: [TextLook.Item], bottom: CGFloat? = nil) -> CGPoint? {
         let titleKey = TextLook.normalized("Channel rack")
         for title in items.filter({ TextLook.normalized($0.text) == titleKey }).sorted(by: { $0.box.minY < $1.box.minY }) {
             let top = title.box.maxY
@@ -71,7 +73,13 @@ enum PluginDrop {
             }
             for column in columns.sorted(by: { $0.count > $1.count }) {
                 guard column.count >= 2 else { break }
-                let ys = column.map(\.center.y).sorted()
+                // Dernier nom lu à moitié (coupé par le bas du Channel rack) : pas compté dans les lignes.
+                let heights = column.map(\.box.height).sorted()
+                let lastRead = column.max { $0.center.y < $1.center.y }!
+                let halfRead = lastRead.box.height < heights[heights.count / 2] * 0.75
+                let rows = halfRead ? column.filter { $0 != lastRead } : column
+                guard rows.count >= 2 else { continue }
+                let ys = rows.map(\.center.y).sorted()
                 if ys[0] - top > 110 { continue }                        // les sons commencent juste sous le titre
                 let diffs = zip(ys, ys.dropFirst()).map { $1 - $0 }
                 guard let step = diffs.min(), (12...60).contains(step) else { continue }
@@ -80,8 +88,9 @@ enum PluginDrop {
                     return abs(k - k.rounded()) <= 0.25 && k <= 6.5
                 }
                 guard regular else { continue }
-                let xs = column.map(\.center.x).sorted()
-                return CGPoint(x: xs[xs.count / 2], y: ys[ys.count - 1] + step / 2 + 2)
+                let xs = rows.map(\.center.x).sorted()
+                let cut = halfRead || (bottom.map { ys[ys.count - 1] + step > $0 - 8 } ?? false)
+                return CGPoint(x: xs[xs.count / 2], y: cut ? ys[0] - step / 2 : ys[ys.count - 1] + step / 2)
             }
         }
         return nil
@@ -107,7 +116,8 @@ extension MacroEffectsMac {
             for w in windows {
                 if let stop = stopReason() { return .cancel(stop) }
                 guard let image = ScreenLook.captureImage(windowNumber: w.number, size: w.bounds.size, scale: 2),
-                      let p = PluginDrop.channelRackPoint(in: TextLook.read(image, size: w.bounds.size)) else { continue }
+                      let p = PluginDrop.channelRackPoint(in: TextLook.read(image, size: w.bounds.size), bottom: w.bounds.height)
+                else { continue }
                 target = CGPoint(x: w.bounds.minX + p.x, y: w.bounds.minY + p.y)
                 break
             }

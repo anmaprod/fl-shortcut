@@ -51,10 +51,19 @@ final class MacroPluginDropTests: XCTestCase {
         ]
         let p = try XCTUnwrap(PluginDrop.channelRackPoint(in: rack))
         XCTAssertEqual(p.x, 390, accuracy: 0.5)
-        XCTAssertEqual(p.y, 239, accuracy: 0.5, "sur le trait sous le dernier son")
+        XCTAssertEqual(p.y, 237, accuracy: 0.5, "sur le trait sous le dernier son")
         XCTAssertGreaterThan(p.y, 218 + 12)
         let withGap = rack.filter { $0.text != "Snare" }
-        XCTAssertEqual(try XCTUnwrap(PluginDrop.channelRackPoint(in: withGap)).y, 239, accuracy: 0.5)
+        XCTAssertEqual(try XCTUnwrap(PluginDrop.channelRackPoint(in: withGap)).y, 237, accuracy: 0.5)
+    }
+
+    /// Channel rack coupé (vidéo du 04/11) : juste au-dessus du premier son, dans l'espace sous le titre.
+    func testACutChannelRackGetsTheDropAboveTheFirstChannel() throws {
+        var rack = [item("Channel rack", 300, 100, w: 90), item("Kick", 360, 140), item("Snare", 360, 166), item("Hat", 360, 192)]
+        XCTAssertEqual(try XCTUnwrap(PluginDrop.channelRackPoint(in: rack)).y, 211, accuracy: 0.5)
+        XCTAssertEqual(try XCTUnwrap(PluginDrop.channelRackPoint(in: rack, bottom: 225)).y, 133, accuracy: 0.5)
+        rack.append(TextLook.Item(text: "Clap", box: CGRect(x: 360, y: 218, width: 60, height: 6)))   // lu à moitié
+        XCTAssertEqual(try XCTUnwrap(PluginDrop.channelRackPoint(in: rack)).y, 133, accuracy: 0.5)
     }
 
     func testInDoubtThereIsNoDropPoint() {

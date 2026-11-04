@@ -660,7 +660,7 @@ public sealed partial class MacroEffectsWindows : IMacroEffects
             foreach (var window in _fl.Windows().Where(w => w.Role != FlWindowRole.Menu && w.Width >= 300 && w.Height >= 200)
                          .OrderByDescending(w => w.Width * w.Height))
             {
-                if (_fl.ReadText(window.Id) is { } items && PluginDrop.ChannelRackPoint(items) is { } point)
+                if (_fl.ReadText(window.Id) is { } items && PluginDrop.ChannelRackPoint(items, window.Y + window.Height) is { } point)
                 {
                     target = point;
                     break;
