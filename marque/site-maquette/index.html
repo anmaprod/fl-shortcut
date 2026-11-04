@@ -380,9 +380,16 @@ dialog::backdrop { background: rgba(0, 0, 0, 0.88); }
       // Au défilement, chaque lettre descend par à-coups, décalée des autres, sans lissage : des pas nets,
       // posés sur une grille de 28 pixels, et des angles de 15 en 15 degrés. Le point rouge tombe le plus bas.
       var marche = gsap.utils.snap(28), angle = gsap.utils.snap(15), n = lettres.length;
-      gsap.timeline({ scrollTrigger: { trigger: '.hero', start: 'top top', end: 'bottom top', scrub: true } })
+      // Aucune lettre ne descend plus bas que la page noire : chaque chute est bornée par la place qui reste sous elle.
+      var hero = document.querySelector('.hero');
+      gsap.timeline({ scrollTrigger: { trigger: '.hero', start: 'top top', end: 'bottom top', scrub: true, invalidateOnRefresh: true } })
         .to(lettres, {
-          y: function (i) { return marche(60 + i * 10 + gsap.utils.random(0, 140)) + (i === n - 1 ? 160 : 0); },
+          y: function (i) {
+            var voulu = marche(60 + i * 10 + gsap.utils.random(0, 140)) + (i === n - 1 ? 160 : 0);
+            var bas = lettres[i].getBoundingClientRect().bottom - gsap.getProperty(lettres[i], 'y');
+            var place = hero.getBoundingClientRect().bottom - bas - 36;
+            return Math.max(0, Math.min(voulu, Math.floor(place / 28) * 28));
+          },
           rotation: function (i) { return i === n - 1 ? 0 : angle(gsap.utils.random(-45, 45)); },
           ease: 'steps(5)', duration: 1, stagger: { each: 0.035 }
         });
@@ -452,18 +459,18 @@ dialog::backdrop { background: rgba(0, 0, 0, 0.88); }
   /* ---------- Fenêtre de téléchargement seulement : le rouge du logo suit la souris, mais seulement sur son axe,
      la ligne qui le relie au centre du cercle blanc ---------- */
   if (anime && window.matchMedia('(pointer: fine)').matches) {
+    // Le rouge glisse le long du cercle blanc, comme une bille : son centre reste à la même distance du centre
+    // du cercle, et tourne autour pour se mettre du côté de la souris, par le chemin le plus court.
     var rouge = document.getElementById('rouge-dlg'), logo = rouge.ownerSVGElement;
-    var rqx = gsap.quickTo(rouge, 'x', { duration: 0.5, ease: 'power3.out' }), rqy = gsap.quickTo(rouge, 'y', { duration: 0.5, ease: 'power3.out' });
-    var axe = (function () { var ux = 590 - 470, uy = 440 - 580, l = Math.hypot(ux, uy); return [ux / l, uy / l]; })();
-    var borne = function (v, m) { return Math.max(-m, Math.min(m, v)); };
+    var CX = 590, CY = 440, RX = 470, RY = 580;
+    var rayon = Math.hypot(RX - CX, RY - CY), orbite = { a: Math.atan2(RY - CY, RX - CX) };
+    function placer() { gsap.set(rouge, { x: CX + rayon * Math.cos(orbite.a) - RX, y: CY + rayon * Math.sin(orbite.a) - RY }); }
     window.addEventListener('pointermove', function (e) {
-      if (dlg.open) {
-        // Logo de la fenêtre : en unités du dessin (1024 de côté), au plus 110 de part et d'autre.
-        var b = logo.getBoundingClientRect(), k = 1024 / b.width;
-        var cx = b.left + 470 / k, cy = b.top + 580 / k;
-        var t = borne(((e.clientX - cx) * axe[0] + (e.clientY - cy) * axe[1]) * k * 0.025, 110);
-        rqx(axe[0] * t); rqy(axe[1] * t);
-      }
+      if (!dlg.open) return;
+      var b = logo.getBoundingClientRect(), k = b.width / 1024;
+      var vise = Math.atan2(e.clientY - (b.top + CY * k), e.clientX - (b.left + CX * k));
+      var ecart = Math.atan2(Math.sin(vise - orbite.a), Math.cos(vise - orbite.a));
+      gsap.to(orbite, { a: orbite.a + ecart, duration: 0.6, ease: 'power3.out', overwrite: true, onUpdate: placer });
     }, { passive: true });
   }
 
