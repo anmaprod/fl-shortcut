@@ -23,6 +23,7 @@
 html { background: var(--ink); }
 body { margin: 0; background: var(--ink); color: var(--paper); font: 16px/1.45 var(--text); -webkit-font-smoothing: antialiased; }
 .cadre { overflow-x: clip; }
+[hidden] { display: none !important; }
 h1, h2, h3, h4, h5 { font-family: var(--display); font-weight: 700; margin: 0; }
 p { margin: 0; }
 a { color: inherit; text-decoration: none; }
@@ -174,7 +175,7 @@ dialog::backdrop { background: rgba(0, 0, 0, 0.88); }
 .dlg-head .marque-dlg svg { display: block; flex: none; }
 .close { background: none; border: 0; cursor: pointer; padding: 6px 0; }
 .dlg h2 { font-size: 48px; line-height: 0.9; letter-spacing: -0.05em; padding-bottom: 12px; border-bottom: 1px solid var(--paper); }
-.two { display: grid; grid-template-columns: 1fr 1fr; }
+.two { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
 .two .input + .input { margin-left: -1px; }
 .card-rows .two .input { margin-top: -1px; }
 .total { display: flex; justify-content: space-between; align-items: baseline; padding-top: 14px; border-top: 1px solid var(--line); }
@@ -330,14 +331,6 @@ dialog::backdrop { background: rgba(0, 0, 0, 0.88); }
       <span class="btn main" id="dl-mac">Télécharger pour Mac<small>FLShortcuts.pkg</small></span>
       <span class="btn" id="dl-win">Télécharger pour Windows<small>FLShortcuts-Windows-Setup.exe</small></span>
     </div>
-    <div class="guide">
-      <p class="label" style="padding:6px 0 10px">Le Mac bloque l'app ? C'est normal.</p>
-      <ol>
-        <li><b class="n">01</b><span>Ouvre FLShortcuts.pkg, puis Terminé.</span></li>
-        <li><b class="n">02</b><span>Réglages Système › Confidentialité et sécurité › Ouvrir quand même.</span></li>
-      </ol>
-    </div>
-    <p class="maquette">Maquette : rien n'est payé ni téléchargé.</p>
   </div>
 </dialog>
 
@@ -371,24 +364,40 @@ dialog::backdrop { background: rgba(0, 0, 0, 0.88); }
   if (anime) {
     var titre = document.querySelector('.mots');
     titre.setAttribute('aria-label', 'raccourcis macros organiser.');
-    var lettres = [];
-    document.querySelectorAll('.mot > span').forEach(function (m) { m.setAttribute('aria-hidden', 'true'); lettres = lettres.concat(decouper(m)); });
+    var lignes = [];
+    document.querySelectorAll('.mot > span').forEach(function (m) { m.setAttribute('aria-hidden', 'true'); lignes.push(decouper(m)); });
     gsap.timeline({ defaults: { ease: 'expo.out' } })
       .from('.disque', { scale: 0.4, rotation: -120, duration: 1.3 }, 0.1)
       .from('.a1', { scale: 0.7, duration: 1.4 }, 0.15)
       .from('.a2', { scale: 0, duration: 1 }, 0.4)
       .from('.bas > *', { y: 16, duration: 0.8, stagger: 0.08 }, 0.3);
     if (aST) {
-      // Au défilement, chaque lettre descend par à-coups, décalée des autres, sans lissage : des pas nets,
-      // posés sur une grille de 28 pixels, et des angles de 15 en 15 degrés. Le point rouge tombe le plus bas.
-      var marche = gsap.utils.snap(28), angle = gsap.utils.snap(15), n = lettres.length;
-      // Les lettres continuent de tomber et passent derrière les pages suivantes, posées au-dessus d'elles.
-      gsap.timeline({ scrollTrigger: { trigger: '.hero', start: 'top top', end: 'bottom top', scrub: true, invalidateOnRefresh: true } })
-        .to(lettres, {
-          y: function (i) { return marche(220 + i * 18 + gsap.utils.random(0, 420)) + (i === n - 1 ? 300 : 0); },
-          rotation: function (i) { return i === n - 1 ? 0 : angle(gsap.utils.random(-45, 45)); },
-          ease: 'steps(7)', duration: 1, stagger: { each: 0.035 }
+      // Chute des lettres au défilement, d'après les effets « gravité » les plus réussis :
+      // 1. la lettre se décroche, elle pivote un peu sur un de ses coins du bas ;
+      // 2. puis elle tombe de plus en plus vite, en tournant, et sort de la page noire, derrière la page blanche ;
+      // 3. ça s'effondre par le bas : « organiser. » d'abord, puis « macros », puis « raccourcis ».
+      // Image par image, 12 images par chute : pas fluide, voulu, comme de l'animation image par image.
+      var hero = document.querySelector('.hero'), IMAGES = 12;
+      var graviteSaccadee = function (p) { var q = Math.floor(p * IMAGES) / IMAGES; return q * q; };
+      var decroche = function (p) { return Math.floor(p * 3) / 3; };
+      var chute = gsap.timeline({ scrollTrigger: { trigger: '.hero', start: 'top top', end: 'bottom 25%', scrub: true, invalidateOnRefresh: true } });
+      lignes.slice().reverse().forEach(function (ls, li) {
+        ls.forEach(function (l, j) {
+          var sens = gsap.utils.random([-1, 1]);
+          var debut = li * 0.32 + j * 0.035 + gsap.utils.random(0, 0.04);
+          gsap.set(l, { transformOrigin: sens > 0 ? '100% 100%' : '0% 100%' });
+          chute.to(l, { rotation: sens * gsap.utils.random(6, 14), duration: 0.14, ease: decroche }, debut)
+            .to(l, {
+              y: function () {
+                var haut = l.getBoundingClientRect().top - gsap.getProperty(l, 'y');
+                return hero.getBoundingClientRect().bottom - haut + gsap.utils.random(40, 220);
+              },
+              x: sens * gsap.utils.random(10, 60),
+              rotation: sens * gsap.utils.random(35, 95),
+              duration: 0.7, ease: graviteSaccadee
+            }, debut + 0.14);
         });
+      });
     }
   }
 
@@ -459,14 +468,16 @@ dialog::backdrop { background: rgba(0, 0, 0, 0.88); }
     // du cercle, et tourne autour pour se mettre du côté de la souris, par le chemin le plus court.
     var rouge = document.getElementById('rouge-dlg'), logo = rouge.ownerSVGElement;
     var CX = 590, CY = 440, RX = 470, RY = 580;
-    var rayon = Math.hypot(RX - CX, RY - CY), orbite = { a: Math.atan2(RY - CY, RX - CX) };
-    function placer() { gsap.set(rouge, { x: CX + rayon * Math.cos(orbite.a) - RX, y: CY + rayon * Math.sin(orbite.a) - RY }); }
+    // Quand la souris entre dans le cercle blanc, le rouge se rapproche du centre ; souris au milieu, rouge au milieu.
+    var rayon = Math.hypot(RX - CX, RY - CY), CERCLE = 380, orbite = { a: Math.atan2(RY - CY, RX - CX), r: rayon };
+    function placer() { gsap.set(rouge, { x: CX + orbite.r * Math.cos(orbite.a) - RX, y: CY + orbite.r * Math.sin(orbite.a) - RY }); }
     window.addEventListener('pointermove', function (e) {
       if (!dlg.open) return;
       var b = logo.getBoundingClientRect(), k = b.width / 1024;
-      var vise = Math.atan2(e.clientY - (b.top + CY * k), e.clientX - (b.left + CX * k));
+      var vx = (e.clientX - (b.left + CX * k)) / k, vy = (e.clientY - (b.top + CY * k)) / k;
+      var vise = Math.atan2(vy, vx), loin = Math.hypot(vx, vy);
       var ecart = Math.atan2(Math.sin(vise - orbite.a), Math.cos(vise - orbite.a));
-      gsap.to(orbite, { a: orbite.a + ecart, duration: 0.6, ease: 'power3.out', overwrite: true, onUpdate: placer });
+      gsap.to(orbite, { a: orbite.a + ecart, r: rayon * Math.min(loin / CERCLE, 1), duration: 0.6, ease: 'power3.out', overwrite: true, onUpdate: placer });
     }, { passive: true });
   }
 
