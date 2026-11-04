@@ -384,7 +384,7 @@ dialog::backdrop { background: rgba(0, 0, 0, 0.88); }
       // degrés, et toute la scène n'avance que par 28 images sur la longueur du défilement, comme un vieux film image par image.
       var hero = document.querySelector('.hero'), IMAGES = 6, IMAGES_SCENE = 28, quinze = gsap.utils.snap(15);
       var graviteSaccadee = function (p) { var q = Math.floor(p * IMAGES) / IMAGES; return q * q; };
-      var decroche = function (p) { return p < 0.5 ? 0 : 1; };
+      var decroche = function (p) { return p > 0 ? 1 : 0; };
       var chute = gsap.timeline({ paused: true });
       lignes.slice().reverse().forEach(function (ls, li) {
         ls.forEach(function (l, j) {
@@ -405,9 +405,12 @@ dialog::backdrop { background: rgba(0, 0, 0, 0.88); }
       });
       var image = function (p) { return Math.floor(p * IMAGES_SCENE) / IMAGES_SCENE; };
       ScrollTrigger.create({
-        trigger: '.hero', start: 'top top', end: 'bottom 25%',
+        // La chute commence dès le premier pixel de défilement.
+        trigger: '.hero', start: 0, end: 'bottom 35%',
         onUpdate: function (self) { chute.progress(image(self.progress)); },
-        onRefresh: function (self) { chute.invalidate(); chute.progress(image(self.progress)); }
+        // Avant de recalculer les chutes, les lettres reviennent à leur place : sinon une lettre déjà tombée
+        // prendrait sa position de chute comme nouveau départ et ne reviendrait plus.
+        onRefresh: function (self) { chute.progress(0); chute.invalidate(); chute.progress(image(self.progress)); }
       });
     }
   }
