@@ -449,10 +449,9 @@ dialog::backdrop { background: rgba(0, 0, 0, 0.88); }
   carte.addEventListener('submit', function (e) { e.preventDefault(); ouvrir(); });
   document.querySelectorAll('[data-fermer]').forEach(function (b) { b.addEventListener('click', fermer); });
   dlg.addEventListener('click', function (e) { if (e.target === dlg) fermer(); });
-  /* ---------- Le rouge suit la souris, mais seulement sur son axe : la ligne qui le relie au centre du cercle blanc ---------- */
+  /* ---------- Fenêtre de téléchargement seulement : le rouge du logo suit la souris, mais seulement sur son axe,
+     la ligne qui le relie au centre du cercle blanc ---------- */
   if (anime && window.matchMedia('(pointer: fine)').matches) {
-    var disque = document.querySelector('.disque'), anneau = document.querySelector('.a1');
-    var dqx = gsap.quickTo(disque, 'x', { duration: 0.7, ease: 'power3.out' }), dqy = gsap.quickTo(disque, 'y', { duration: 0.7, ease: 'power3.out' });
     var rouge = document.getElementById('rouge-dlg'), logo = rouge.ownerSVGElement;
     var rqx = gsap.quickTo(rouge, 'x', { duration: 0.5, ease: 'power3.out' }), rqy = gsap.quickTo(rouge, 'y', { duration: 0.5, ease: 'power3.out' });
     var axe = (function () { var ux = 590 - 470, uy = 440 - 580, l = Math.hypot(ux, uy); return [ux / l, uy / l]; })();
@@ -464,15 +463,7 @@ dialog::backdrop { background: rgba(0, 0, 0, 0.88); }
         var cx = b.left + 470 / k, cy = b.top + 580 / k;
         var t = borne(((e.clientX - cx) * axe[0] + (e.clientY - cy) * axe[1]) * k * 0.025, 110);
         rqx(axe[0] * t); rqy(axe[1] * t);
-        return;
       }
-      // Grand rond de l'ouverture : son axe va de son centre au centre du grand cercle blanc, au plus 70 pixels.
-      var d = disque.getBoundingClientRect(), a = anneau.getBoundingClientRect();
-      var dx = d.left + d.width / 2 - gsap.getProperty(disque, 'x'), dy = d.top + d.height / 2 - gsap.getProperty(disque, 'y');
-      var ux = a.left + a.width / 2 - dx, uy = a.top + a.height / 2 - dy, l = Math.hypot(ux, uy) || 1;
-      ux /= l; uy /= l;
-      var s = borne(((e.clientX - dx) * ux + (e.clientY - dy) * uy) * 0.12, 70);
-      dqx(ux * s); dqy(uy * s);
     }, { passive: true });
   }
 
