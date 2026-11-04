@@ -745,3 +745,15 @@ entrée 1 ≈ 0,5 s.
   « Enregistrer » : macro gardée telle quelle, une neuve restée vide retirée ; « Enregistrer » garde même une vide) ;
   « Annuler les modifications » retiré (⌘Z reste) ; « Supprimer » d'une macro (clic droit, page Macros) demande
   d'abord « Supprimer « … » ? ».
+- 03-04/11 (Windows, un ami : « rien ne marche », « pas le même logiciel que le Mac ») : FL reconnu (signataire
+  « Image Line ») ; app en icône près de l'horloge comme le Mac ; puis tout l'aspect et les pages du Mac : style
+  suisse, Aide (FAQ, message à l'équipe), Mon compte (connexion, inscription par code, mot de passe oublié, photo et
+  pseudo, déconnexion, suppression), Communauté (partages, fiche étape par étape, ajouter, signaler, partager une
+  macro ; même fichier .flsmacro que le Mac). Choix : pas de sauvegarde en ligne sur Windows tant qu'elle n'est pas
+  séparée par système (les codes des touches du Mac et de Windows diffèrent : un PC écraserait la sauvegarde du Mac) ;
+  les raccourcis partagés depuis un Mac se lisent sur Windows mais ne s'ajoutent pas. Modes d'emploi : « pour
+  regarder, non » (Communauté) était faux, corrigé (compte nécessaire pour regarder aussi).
+- 04/11 (CI du 03/11 « à relire ») : essais Mac « plugin hors des favoris » et « clics et touches » cassés par
+  401f2c8 : la recherche du plugin dans Add › Channel appuyait par l'Accessibilité sur « Channel », menu Add fermé ;
+  le faux FL restait dans un menu invisible qui avalait le clic sur « More plugins… » puis tous les clics de l'essai
+  suivant. Correctif : menus de FL ouverts seulement depuis la barre, niveau par niveau (`MenuBarAX`).

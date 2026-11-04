@@ -142,6 +142,11 @@ TEXTES = {
     "Partage les tiens avec": "Share yours with",
     "Partager": "Share",
     ": une macro qui te fait gagner du temps sert à tout le monde.": ": a macro that saves you time helps everyone.",
+    "Récupère les macros des autres en un clic :": "Get other people's macros in one click:",
+    "Il faut un compte (Mon compte), pour regarder comme pour partager.":
+        "You need an account (My account), to browse as well as to share.",
+    "Il faut un compte (Mon compte), pour regarder comme pour partager. Les raccourcis partagés depuis un Mac restent sur Mac : leurs touches ne sont pas celles de Windows.":
+        "You need an account (My account), to browse as well as to share. Shortcuts shared from a Mac stay on the Mac: their keys aren't Windows keys.",
     "Pour partager, il faut un compte (Mon compte). Pour regarder, non.":
         "Sharing needs an account (My account). Browsing doesn't.",
     "Pour partager, il faut un compte (Mon compte). Pour regarder, non. Déjà dans l'app Mac ; elle arrive dans l'app Windows.":

@@ -210,13 +210,24 @@
   (Macro vide, Modèles…, ⋯ Dupliquer/Supprimer annulable), créateur en 3 colonnes (palette du Mac `CreatorPalette`,
   étapes glissées, interrupteur, réglages à droite, « Retirer ce bloc » ; blocs pas faits sur Windows « à régler sur le
   Mac »), photos `macros-liste.png`/`macros-createur.png` sur la CI ; fiche d'un raccourci : 3e type « Macro ».
-  Reste : ces blocs, blocs imbriqués (si/répéter) dans le créateur, enregistrement, compte, Communauté, Aide.
+  Reste : ces blocs, blocs imbriqués (si/répéter) dans le créateur, enregistrement.
   03/11 (un ami : « rien ne marche ») : FL n'était JAMAIS reconnu sous Windows (signataire cherché « Image-Line »,
   le certificat de FL64.exe dit « Image Line ») → plus de crochet clavier, de macro ni d'Organiser ; `FlSigner`
   (lettres seules, testé), état « FL Studio n'est pas reconnu » si un FL64.exe n'a pas la signature, journal STATUS.
   App en icône comme le Mac : fenêtre au 1er lancement seulement (`WindowShownAtLaunch`), bulle pour trouver
   l'icône, `--tray` au démarrage de Windows, 2e lancement → bulle (`ShowSignal`) ; menu : Reprendre, Installer le
-  lien, Désinstaller (unins000.exe). Pas encore sur Windows : Communauté, Mon compte, Aide, style suisse du 01-03/11.
+  lien, Désinstaller (unins000.exe). 03-04/11 (« le logiciel n'est pas le même que la dernière version du mac ») :
+  style suisse (`MacLook`), Aide (`HelpPage`, FAQ Windows, message à l'équipe par `support_requests`, avec le compte
+  si connecté), Mon compte (`AccountPage` : connexion, inscription, code, oubli, profil photo + pseudo par
+  `set_username`, déconnexion, suppression ; session DPAPI `AccountStore`), Communauté (`CommunityPage` : liste,
+  filtres, fiche, Ajouter à mes macros, Signaler, Supprimer, Partager une macro ; cœur `Community.cs` et
+  `Macros/MacroExchange.cs`, même .flsmacro que le Mac). Serveur : `FLS_SUPABASE_URL`/`_ANON_KEY` de la CI écrits dans
+  l'app (`HelpPage.Server`). PAS de sauvegarde en ligne sur Windows : les codes des touches diffèrent du Mac, une
+  sauvegarde faite sur Windows abîmerait celle du Mac (à concevoir : une sauvegarde par système) ; raccourcis partagés
+  depuis un Mac lus, pas ajoutés. Compiler le C# de l'app ici (le compilateur XAML est Windows seulement) :
+  `~/.dotnet/dotnet build windows/FLShortcut.App -c Release -p:Platform=x64 -p:EnableWindowsTargeting=true
+  -p:EnableDefaultPageItems=false -p:EnableDefaultApplicationDefinition=false` : seules 4 erreurs attendues
+  (InitializeComponent, Root, Main) ; le cœur : `dotnet test windows/FLShortcut.Core.Tests`.
 - **Style suisse validé le 01/11** (« j'aime beaucoup… mettre tout ça en place ») : maquette de TOUTES les pages,
   artefact privé `GHmTowhxy53F6VT3TEAjis` (Organiser, fenêtre, petites fenêtres, 4 idées de logo) : fond noir, texte
   blanc, traits fins (#333/#222), coins carrés, gros titres Helvetica gras, libellés en petites capitales espacées,
@@ -290,7 +301,7 @@
   (`scripts/lisezmoi_en.py`, mots de l'app anglaise ; un texte oublié arrête le script ; artefacts `RC3C3FweVKURfAqoFXBzoN`,
   `4QJiDL5e3FSpteCXjzj5fs`) : chaque téléchargement contient LISEZMOI.html ET README.html. Plus de .zip Windows ni de
   ligne .sha256 dans les modes d'emploi (« je mettrai juste le .exe et le .pkg ») ; Communauté aussi dans celui de
-  Windows, marquée « bientôt sur Windows » (pas encore dans l'app Windows).
+  Windows (dans l'app depuis le 04/11) ; « pour regarder, non » était faux : compte nécessaire pour regarder aussi.
   MIDISettings.png renumérotée (les deux Port en 1 et 2, Enable 3, Controller type 4 ; `MIDISettingsCrops` suit) ;
   tuto 4 de l'Organiser : « l'ancienne version part à la Corbeille » (plus « ton projet ne bouge pas »).
 - **Aspect validé le 28/10** (maquette, `HISTORIQUE`) : plus de Liquid Glass depuis le 29/10 (plaques dessinées), sans lavis ni lueur ; fond de
@@ -319,7 +330,7 @@
   Communauté = « Partager » bleu en haut, recherche + Tout/Macros/Raccourcis/Les miens, partages en cartes ; Mon
   compte = cartes profil, sauvegarde, choix des versions ; Aide = grande recherche, questions en carte (étapes
   numérotées, `HelpEntry.steps`), Écrire à l'équipe / Revoir le guide à droite (sans tuiles de thèmes : retirées à sa
-  demande). Windows : seule la page Macros existe (pas encore à ce nouvel aspect).
+  demande). Windows (03-04/11) : les quatre pages, au style suisse.
 - **Compte : connexion et profil** (maquette PDF/HTML « Mon compte — connexion et profil » du 30/10, faite par une
   autre session que celle des pages : les deux ont travaillé en même temps sur la branche, toujours `git fetch` avant
   d'envoyer) : cartes Se connecter / Créer un compte / Code en 6 cases (`AccountAuthViews.swift`, `CommunitySignIn`),
