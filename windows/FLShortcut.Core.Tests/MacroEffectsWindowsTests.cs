@@ -50,6 +50,10 @@ internal sealed class FakeFl : IFlDriver
     public List<(string Path, int X, int Y)> Drops { get; } = new();
     public List<(long Dialog, string Path)> Chosen { get; } = new();
 
+    /// Fichiers de la Plugin database du faux FL (nom → chemin du .fst).
+    public Dictionary<string, string> Presets { get; } = new();
+    public string? PluginPreset(string name, bool effect) => Presets.GetValueOrDefault(name);
+
     public string? DropFile(string path, int x, int y)
     {
         Drops.Add((path, x, y));
@@ -179,14 +183,14 @@ public class MacroEffectsWindowsTests
     private static readonly KeyRef MenuOpener = new(new MacKey(45, Control: true, Shift: true), "n");
     private static readonly KeyCombo MenuOpenerCombo = new(Vk.Letter('N'), Ctrl: true, Shift: true);
 
-    private static (FakeFl Fl, MacroEffectsWindows Fx, RunState State) Start(Action<FakeFl>? setup = null)
+    internal static (FakeFl Fl, MacroEffectsWindows Fx, RunState State) Start(Action<FakeFl>? setup = null)
     {
         var fl = new FakeFl();
         setup?.Invoke(fl);
         return Start(fl);
     }
 
-    private static (FakeFl Fl, MacroEffectsWindows Fx, RunState State) Start(FakeFl fl)
+    internal static (FakeFl Fl, MacroEffectsWindows Fx, RunState State) Start(FakeFl fl)
     {
         var fx = new MacroEffectsWindows(fl);
         Assert.Null(fx.Begin(false));

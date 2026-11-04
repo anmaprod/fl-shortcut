@@ -477,6 +477,12 @@
   titre FILE lu en haut de la fenêtre, puis chaque élément lu dans son menu et cliqué ; grisé = texte sombre) ; sans
   « Enregistrement de l'écran » ou au moindre accroc : menus refermés puis la barre de macOS comme avant. Windows le
   faisait déjà. La CI Mac n'a pas l'autorisation : seules les parties pures sont essayées (`MacroWindowMenuTests`).
+  04/11 (« ouvrir un vst… trop lent », essais et vidéos du propriétaire) : « Ajouter un instrument / un effet » DÉPOSE
+  le .fst de Plugin database › Installed › Generators (VST3 d'abord) ou Effects (AudioUnit d'abord) ; SEULEMENT .fst
+  (.nfo : rien) ; instrument juste SOUS le dernier son du Channel rack (sur un son il le REMPLACE ; ailleurs rien), point
+  lu dans la fenêtre de FL (`PluginDrop.channelRackPoint`, colonne des noms à pas réguliers) ; effet sur la piste visée
+  du Mixer (la piste sous la souris le reçoit, sélectionnée ou non). Doute → menu Add comme avant. Mac
+  `MacroPluginDrop.swift`, Windows `Macros/PluginDrop.cs` + `IFlDriver.PluginPreset`. Pas encore vu sur son Mac.
 - IA intégrée : voix de ses projets enfin rangées en Voix ? Sortes proposées justes sur ses packs ?
 - Organiser sur le fichier : 1er essai du propriétaire (24/10, ancienne version) : « FL n'a pas enregistré ton
   projet » sur chaque projet, pourtant enregistré. Corrigé sans preuve (titres de toutes les fenêtres de FL, Spotlight

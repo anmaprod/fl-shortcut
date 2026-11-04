@@ -782,3 +782,7 @@ entrée 1 ≈ 0,5 s.
 - 04/11 (« la macro export stems… ne fonctionne pas a part si je clique sur le vrai file ») : FL ne met à jour l'état
   grisé qu'à l'ouverture de SES menus ; sur Mac, « Menu de FL » clique maintenant FILE dans la fenêtre de FL puis chaque
   élément lu à son nom, comme sur Windows ; la barre de macOS reste le secours.
+- 04/11 (« ouvrir un vst… trop lent… faire comme le drag and drop ») : essais du propriétaire : le .fst de Plugin
+  database › Installed (Generators › VST3, Effects › AudioUnit) déposé ouvre le plugin, pas le .nfo ; sur un son il le
+  remplace, ailleurs rien ; sous le dernier son du Channel rack, ou sur la piste du Mixer visée. Fait sur Mac et
+  Windows, avec le menu Add en secours.

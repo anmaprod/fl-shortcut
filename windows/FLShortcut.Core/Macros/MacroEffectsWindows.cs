@@ -74,6 +74,9 @@ public interface IFlDriver
     bool LinkInstalled { get; }
     /// Fichier glissé depuis l'Explorateur et déposé en ce point de FL ; null si FL l'a pris, sinon la raison.
     string? DropFile(string path, int x, int y);
+    /// Le .fst du plugin dans la Plugin database de FL (Installed › Generators ou Effects), au format préféré ; null :
+    /// absent (PluginDrop.PresetFile).
+    string? PluginPreset(string name, bool effect);
     /// Chemin écrit dans la boîte « Open » de FL (cette fenêtre), puis Ouvrir ; null si elle s'est refermée, sinon la
     /// raison.
     string? ChooseFile(long dialog, string path);
@@ -624,6 +627,11 @@ public sealed partial class MacroEffectsWindows : IMacroEffects
             case Macros.PageOption.OptionKind.Rename:
                 return RenameTrack(p.Name);
         }
+        // D'abord son fichier de la Plugin database déposé dans FL (04/11 : bien plus rapide) ; sinon le menu Add.
+        if (option.Kind is Macros.PageOption.OptionKind.AddMenu adding
+            && PageOptions.PluginPath(p.Name).LastOrDefault(s => s.Length > 0 && s != PageOptions.MorePlugins) is { } named
+            && DropPlugin(named, adding.Item == "Effect") is { } dropped)
+            return dropped;
         // Plugin hors des favoris : pris dans « More plugins… » de FL (rien n'est ajouté à ses listes).
         if (option.Kind is Macros.PageOption.OptionKind.AddMenu add && PageOptions.FromPluginList(p.Name) is { } plugin)
             return AddFromPluginList(plugin, add.Item);
@@ -634,6 +642,47 @@ public sealed partial class MacroEffectsWindows : IMacroEffects
             && why == Loc.T("élément introuvable dans le menu de FL"))
             return new StepResult.Fail(Loc.T("plugin introuvable dans le menu Add de FL : choisis-le de nouveau dans « Cliquer sur… »"));
         return result;
+    }
+
+    /// Instrument ou effet ouvert en déposant son .fst de la Plugin database (PluginDrop) : un instrument juste sous le
+    /// dernier son du Channel rack (jamais SUR un son : il le remplacerait), un effet sur la piste du Mixer visée.
+    /// null : pas de fichier, pas de place sûre, ou le dépôt refusé : le menu Add, comme avant. Jamais de nom au journal.
+    private StepResult? DropPlugin(string name, bool effect)
+    {
+        if (_fl.PluginPreset(name, effect) is not { } file) return null;
+        (int X, int Y)? target = null;
+        if (effect)
+        {
+            if (TargetTrackIsInFl()) target = _track;
+        }
+        else
+        {
+            foreach (var window in _fl.Windows().Where(w => w.Role != FlWindowRole.Menu && w.Width >= 300 && w.Height >= 200)
+                         .OrderByDescending(w => w.Width * w.Height))
+            {
+                if (_fl.ReadText(window.Id) is { } items && PluginDrop.ChannelRackPoint(items) is { } point)
+                {
+                    target = point;
+                    break;
+                }
+            }
+        }
+        if (target is not { } at)
+        {
+            _fl.Log("PLUGIN", effect ? "drop: aimed track outside FL, Add menu used" : "drop: Channel rack not read, Add menu used");
+            return null;
+        }
+        if (_fl.At(at.X, at.Y).Window is null) return null;
+        if (StopReason() is { } stop) return new StepResult.Cancel(stop);
+        _cursorBefore ??= _fl.Cursor();
+        if (_fl.DropFile(file, at.X, at.Y) is not null)
+        {
+            _fl.Log("PLUGIN", "drop refused, Add menu used");
+            return null;
+        }
+        _fl.Log("PLUGIN", effect ? "effect dropped on the aimed track" : "instrument dropped under the last channel");
+        _lastClick = at;
+        return new StepResult.Ok();
     }
 
     /// Mute ou solo d'un canal : par le lien (tous les canaux), sinon la touche 1 à 0 de FL (canaux 1 à 10).

@@ -462,6 +462,11 @@ final class MacroEffectsMac: MacroEffects {
             case .arrangement(let item):
                 return arrangementMenu(item ?? name.trimmingCharacters(in: .whitespaces), ctx: ctx)
             case .addMenu(let item):
+                // D'abord son fichier de la Plugin database déposé dans FL (04/11 : bien plus rapide) ; sinon le menu Add.
+                if let plugin = PageOptions.pluginPath(name).last(where: { !$0.isEmpty && $0 != FLPluginDatabase.morePlugins }),
+                   let dropped = dropPlugin(plugin, item: item, ctx: ctx) {
+                    return dropped
+                }
                 // Plugin hors des favoris : pris dans « More plugins… » de FL (rien n'est ajouté à ses listes).
                 if let plugin = FLPluginDatabase.fromPluginList(PageOptions.pluginPath(name)) {
                     return addFromPluginList(plugin, item: item, ctx: ctx)
