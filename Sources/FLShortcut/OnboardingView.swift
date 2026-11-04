@@ -481,35 +481,32 @@ struct AppIcon: View {
         }
     }
 
-    /// Dessin de secours, à plat, d'après l'icône : dégradé de la marque, touche ⌃ translucide derrière, touche
-    /// blanche avec une forme d'onde devant. Marge de 10 % comme la grille des icônes macOS.
+    /// Dessin de secours, à plat, d'après l'icône (logo « A » du 04/11) : tuile noire, grand cercle blanc décalé vers le
+    /// haut à droite, rond rouge devant ; petit, le cercle plus épais. Marge de 10 % comme la grille des icônes macOS.
     private var drawn: some View {
         GeometryReader { geo in
-            drawing(scale: geo.size.width / 96)
+            drawing(side: geo.size.width)
         }
         .accessibilityHidden(true)
     }
 
-    private func drawing(scale s: CGFloat) -> some View {
-        let brand = LinearGradient(colors: Appearance.brand, startPoint: .topLeading, endPoint: .bottomTrailing)
-        return ZStack {
-            Rectangle()
-                .fill(brand)
-                .padding(9.5 * s)
-            Rectangle()
-                .fill(Color.white.opacity(0.35))
-                .frame(width: 30 * s, height: 30 * s)
-                .overlay(Image(systemName: "chevron.up")
-                    .font(.system(size: 12 * s, weight: .bold))
-                    .foregroundStyle(Color.white))
-                .offset(x: 12 * s, y: -12 * s)
-            Rectangle()
-                .fill(Color.white.opacity(0.94))
-                .frame(width: 36 * s, height: 36 * s)
-                .overlay(Image(systemName: "waveform")
-                    .font(.system(size: 17 * s, weight: .bold))
-                    .foregroundStyle(brand))
-                .offset(x: -7 * s, y: 9 * s)
+    private func drawing(side: CGFloat) -> some View {
+        let k = side * 824 / 1024 / 1024, inset = side * 100 / 1024        // le dessin sur 1024, dans la tuile
+        let (r, w): (CGFloat, CGFloat) = side < 128 ? (380, 40) : (394, 12)
+        return ZStack(alignment: .topLeading) {
+            RoundedRectangle(cornerRadius: side * 0.18, style: .continuous)
+                .fill(Color.black)
+                .frame(width: side * 824 / 1024, height: side * 824 / 1024)
+                .offset(x: inset, y: inset)
+            Circle()
+                .stroke(Color.white, lineWidth: max(1, w * k))
+                .frame(width: 2 * r * k, height: 2 * r * k)
+                .offset(x: inset + (590 - r) * k, y: inset + (440 - r) * k)
+            Circle()
+                .fill(Swiss.red)
+                .frame(width: 580 * k, height: 580 * k)
+                .offset(x: inset + 180 * k, y: inset + 290 * k)
         }
+        .frame(width: side, height: side, alignment: .topLeading)
     }
 }

@@ -1,9 +1,11 @@
-// Logo de FL Shortcuts dans la barre des menus : le petit clavier de l'icône de l'app (choisi par le propriétaire le
-// 02/11 : « le petit clavier, c'est très bien pour l'icône »), une tuile pleine où le clavier est évidé (cadre, quatre
-// touches, barre d'espace), en image modèle (template) : macOS la teinte comme les autres icônes de la barre, en clair
-// ou en sombre. L'état ne remplace pas le logo : une pastille en haut à droite, « ! » quand les raccourcis sont
-// inactifs (Accessibilité, saisie sécurisée), deux barres en pause.
-// Dessiné une fois par état, dans des images à part (1x et 2x) : aucun dessin à chaque rafraîchissement de la barre.
+// Logo de FL Shortcuts dans la barre des menus : le logo « A » (choisi par le propriétaire le 04/11, à la place du petit
+// clavier) : un rond rouge plein devant un grand cercle à trait épais, décalé vers le haut à droite (rond-A-barre-*,
+// marque/ de la session du site). Toujours en couleurs (demande du 04/11 : « dans les couleurs… pas en noir et
+// blanc ») : jamais une image modèle (template), que macOS teindrait d'une seule couleur. Le rond reste rouge ; le
+// cercle est blanc sur une barre sombre et noir sur une barre claire, choisi au moment où la barre dessine l'image
+// (son apparence, qui suit le fond d'écran). L'état ne remplace pas le logo : une pastille en haut à droite, « ! » quand
+// les raccourcis sont inactifs (Accessibilité, saisie sécurisée), deux barres en pause.
+// Dessiné une fois par état et par apparence, dans des images à part (1x et 2x) : la barre n'en choisit qu'une.
 import AppKit
 
 enum MenuBarIcon {
@@ -22,14 +24,18 @@ enum MenuBarIcon {
 
     private static let side: CGFloat = 18
     private static let cache = Locked<[State: NSImage]>([:])
+    /// Le rouge de la marque (#FF3B1F).
+    private static let red = NSColor(srgbRed: 1, green: 0x3B / 255, blue: 0x1F / 255, alpha: 1)
 
     static func image(_ state: State) -> NSImage {
         if let image = cache.value[state] { return image }
-        let image = NSImage(size: NSSize(width: side, height: side))
-        for scale in [1, 2] {
-            if let rep = rep(state, scale: scale) { image.addRepresentation(rep) }
+        let onLight = drawn(state, ring: .black), onDark = drawn(state, ring: .white)
+        let image = NSImage(size: NSSize(width: side, height: side), flipped: false) { rect in
+            let dark = NSAppearance.currentDrawing().bestMatch(from: [.aqua, .darkAqua]) == .darkAqua
+            (dark ? onDark : onLight).draw(in: rect)
+            return true
         }
-        image.isTemplate = true
+        image.isTemplate = false
         switch state {
         case .normal: image.accessibilityDescription = "FL Shortcuts"
         case .warning: image.accessibilityDescription = String(localized: "FL Shortcuts : raccourcis inactifs")
@@ -39,8 +45,17 @@ enum MenuBarIcon {
         return image
     }
 
+    /// Le logo et sa pastille, cercle de la couleur `ring`, en 1x et 2x.
+    private static func drawn(_ state: State, ring: NSColor) -> NSImage {
+        let image = NSImage(size: NSSize(width: side, height: side))
+        for scale in [1, 2] {
+            if let rep = rep(state, ring: ring, scale: scale) { image.addRepresentation(rep) }
+        }
+        return image
+    }
+
     /// Dessin dans une image à part (les effacements ne touchent jamais la barre des menus elle-même).
-    private static func rep(_ state: State, scale: Int) -> NSBitmapImageRep? {
+    private static func rep(_ state: State, ring: NSColor, scale: Int) -> NSBitmapImageRep? {
         let pixels = Int(side) * scale
         guard let rep = NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: pixels, pixelsHigh: pixels,
                                          bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true, isPlanar: false,
@@ -49,36 +64,31 @@ enum MenuBarIcon {
         rep.size = NSSize(width: side, height: side)
         NSGraphicsContext.saveGraphicsState()
         NSGraphicsContext.current = context
-        // Le contexte compte en pixels : on dessine en points (x scale), origine en haut à gauche comme l'icône.
+        // Le contexte compte en pixels : on dessine en points (x scale), origine en haut à gauche comme le logo.
         let flip = NSAffineTransform()
         flip.translateX(by: 0, yBy: CGFloat(pixels))
         flip.scaleX(by: CGFloat(scale), yBy: -CGFloat(scale))
         flip.concat()
-        draw(state, in: context)
+        draw(state, ring: ring, in: context)
         context.flushGraphics()
         NSGraphicsContext.restoreGraphicsState()
         return rep
     }
 
-    private static func draw(_ state: State, in context: NSGraphicsContext) {
-        NSColor.black.set()
-        // La tuile pleine, en paysage.
-        let tile = NSRect(x: 0.5, y: 3, width: 17, height: 12.5)
-        NSBezierPath(rect: tile).fill()
-        // Le clavier évidé, d'après le dessin de 15 × 11 unités (cadre de 1,2, touches de 1,6, espace de 7).
-        let k: CGFloat = 0.78
-        let ox = tile.midX - 7.5 * k, oy = tile.midY - 5.5 * k
-        func unit(_ x: CGFloat, _ y: CGFloat, _ w: CGFloat, _ h: CGFloat) -> NSRect {
-            NSRect(x: ox + x * k, y: oy + y * k, width: w * k, height: h * k)
-        }
-        erase(NSBezierPath(rect: unit(0, 0, 15, 11)), in: context)
-        NSBezierPath(rect: unit(1.2, 1.2, 12.6, 8.6)).fill()
-        for x: CGFloat in [2.5, 5.2, 7.9, 10.6] { erase(NSBezierPath(rect: unit(x, 2.6, 1.6, 1.6)), in: context) }
-        erase(NSBezierPath(rect: unit(4, 6.6, 7, 1.6)), in: context)
+    private static func draw(_ state: State, ring color: NSColor, in context: NSGraphicsContext) {
+        // Le dessin de rond-A-barre-* sur 1024 : cercle (590, 440) de rayon 370, trait de 60 ; rond (470, 580) de 290.
+        let k = side / 1024
+        let outline = circle(NSPoint(x: 590 * k, y: 440 * k), radius: 370 * k)
+        outline.lineWidth = 60 * k
+        color.setStroke()
+        outline.stroke()
+        red.setFill()
+        circle(NSPoint(x: 470 * k, y: 580 * k), radius: 290 * k).fill()
         guard state != .normal else { return }
         // Pastille d'état en haut à droite, détachée du reste par un anneau vide.
         let center = NSPoint(x: 13.8, y: 4.2)
         erase(circle(center, radius: 5.1), in: context)
+        color.setFill()
         circle(center, radius: 3.9).fill()
         switch state {
         case .warning:

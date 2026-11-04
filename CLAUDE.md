@@ -280,9 +280,16 @@
   de câbles courbes : « on n'a pas besoin de savoir où va ensuite ce qu'on envoie » ; NE PAS remettre la chaîne),
   cases sous les pistes = sorties (plusieurs), double-clic nom + couleur, clic droit retirer une piste sans son,
   piste choisie blanche jusqu'au bord ; changements dans `MixerEdits` (passent par le plan). Couleur choisie dans la
-  roue : contour blanc égal (tracé en dernier). Logo CHOISI le 02/11 : le petit clavier (« c'est très bien pour
-  l'icône ») : tuile blanche « squircle », clavier noir à traits pleins (`scripts/icone.py` → AppIcon-1024.png, .icns,
-  .ico Windows ; barre des menus : tuile pleine au clavier évidé, `MenuBarIcon`).
+  roue : contour blanc égal (tracé en dernier). Logo : le petit clavier du 02/11 est REMPLACÉ le 04/11 par le
+  logo « A » (choisi avec la session du site, fichiers dans `marque/` de sa branche `claude/adoring-johnson-2ig931`) : rond
+  rouge #FF3B1F devant un grand cercle fin décalé vers le haut à droite, formes seules, TOUJOURS en couleurs (« pas en
+  noir et blanc ») : icône = tuile noire « squircle », cercle blanc, rond rouge, cercle épais en 64 px et moins
+  (`scripts/icone.py Resources --ico windows/FLShortcut.App/Assets/FLShortcut.ico --tray windows/FLShortcut.App/Assets`,
+  puis `python3 scripts/lisezmoi.py` pour les modes d'emploi) ; barre des menus du Mac en couleurs, jamais en image
+  modèle : cercle blanc sur barre sombre, noir sur barre claire (`MenuBarIcon`, apparence lue au dessin ; pas encore vu
+  sur son Mac, l'app force le sombre : si la barre claire garde un cercle blanc, c'est là) ; zone de notification de
+  Windows : `TraySombre.ico`/`TrayClaire.ico` embarqués, d'après « mode de Windows » (`TrayIcon`, suivi au changement) ;
+  accueil Windows : le A sans fond (`MainShellWelcome.AppIcon`).
   Retours du 01/11 au soir : blocs des macros soulevés avec une encoche de la couleur du bloc dessous au survol et
   choisis (comme les cartes de Gumroad, `cardRow(stamp:)`) ; interrupteur inversé sur une ligne blanche
   (`SwissSwitch` lit `hoverFilled`) ; « Enregistrer » du créateur avec une coche ; retour du créateur carré ; onglets

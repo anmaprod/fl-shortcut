@@ -792,3 +792,7 @@ entrée 1 ≈ 0,5 s.
   macro le retrouve même s'il a bougé ; vérifié sur la CI avec le faux FL.
 - 04/11 (capture : clic droit sur un bloc entouré de bleu) : le menu Désactiver / Supprimer s'ouvre sans contour, la
   ligne garde son encoche ; Windows n'avait pas ce contour.
+- 04/11 (session du site, puis confirmé ici : « Oui, mets le A partout ») : nouveau logo « A », rond rouge devant un
+  grand cercle fin, toujours en couleurs ; icône de l'app Mac et Windows, barre des menus du Mac et zone de
+  notification de Windows (cercle blanc ou noir selon la barre), accueil Windows, modes d'emploi. Il remplace le petit
+  clavier du 02/11.

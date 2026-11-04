@@ -72,6 +72,10 @@
     <!-- Tuto de l'Organiser : les images du Mac (Resources/{fr,en}.lproj/OrganiserTuto1…4.png). -->
     <EmbeddedResource Include="..\..\Resources\fr.lproj\OrganiserTuto*.png" LogicalName="%(Filename)-fr.png" />
     <EmbeddedResource Include="..\..\Resources\en.lproj\OrganiserTuto*.png" LogicalName="%(Filename)-en.png" />
+    <!-- Logo « A » de la zone de notification (04/11, scripts/icone.py, option tray) : cercle blanc sur une barre des
+         tâches sombre, noir sur une claire ; le rond toujours rouge (TrayIcon). -->
+    <EmbeddedResource Include="Assets\TraySombre.ico" LogicalName="TraySombre.ico" />
+    <EmbeddedResource Include="Assets\TrayClaire.ico" LogicalName="TrayClaire.ico" />
   </ItemGroup>
 
 </Project>
