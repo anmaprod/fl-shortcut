@@ -629,6 +629,17 @@ internal sealed class MacrosPage
         var save = SaveButton();
         Grid.SetColumn(save, 3);
         line.Children.Add(save);
+        // Étroit (fenêtre de 1 000 points : « Save and expor » coupé, photo du 04/11) : les touches passent sous le nom,
+        // qui garde toute la ligne.
+        line.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        line.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        line.SizeChanged += (_, e) =>
+        {
+            var narrow = e.NewSize.Width < 620;
+            Grid.SetRow(trigger, narrow ? 1 : 0);
+            Grid.SetColumn(trigger, narrow ? 1 : 2);
+            trigger.HorizontalAlignment = narrow ? HorizontalAlignment.Left : HorizontalAlignment.Stretch;
+        };
         _header.Children.Add(line);
         foreach (var text in new[] { _notice, Issue(doc) })
             if (text is not null) _header.Children.Add(Warning(text));
