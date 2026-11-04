@@ -736,7 +736,10 @@ public class MacroExchangeTests
         var text = json.ToJsonString();
         Assert.DoesNotContain("flshortcuts\\\\Documents", text);
         Assert.Contains("~/Documents/Voix lead.fst", text);
-        Assert.DoesNotContain("940", text);
+        // La taille de la fenêtre apprise (940 × 652) ne part pas ; « 940 » seul pouvait se trouver dans un identifiant
+        // tiré au hasard (CI du 04/11 : « …9940… »), d'où la paire, jamais dans un identifiant.
+        Assert.DoesNotContain("940,652", text);
+        Assert.Contains("\"toLearn\"", text);
         Assert.Equal("~/Documents/a.fst", MacroExchange.Relative(@"c:\users\FLSHORTCUTS\Documents\a.fst", Home));
         Assert.Equal(@"D:\Presets\a.fst", MacroExchange.Relative(@"D:\Presets\a.fst", Home));
         Assert.Equal(@"C:\Users\flshortcuts\Documents\a.fst", MacroExchange.Absolute("~/Documents/a.fst", Home));
