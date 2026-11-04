@@ -309,7 +309,7 @@ dialog::backdrop { background: rgba(0, 0, 0, 0.88); }
 
 <dialog id="achat" aria-labelledby="dlg-titre">
   <div class="dlg" id="vue-form">
-    <div class="dlg-head"><span class="brand marque-dlg"><span>fl shortcuts<span class="point">.</span></span></span><button class="close label" type="button" data-fermer>Fermer ✕</button></div>
+    <div class="dlg-head"><span class="brand marque-dlg" role="img" aria-label="fl shortcuts"><svg viewBox="0 0 1024 1024" width="46" height="46" aria-hidden="true" style="overflow:visible"><circle cx="590" cy="440" r="380" fill="none" stroke="#FFFFFF" stroke-width="40"/><circle id="rouge-dlg" cx="470" cy="580" r="290" fill="#FF3B1F"/></svg></span><button class="close label" type="button" data-fermer>Fermer ✕</button></div>
     <h2 id="dlg-titre">obtenir l'app<span class="point">.</span></h2>
     <div class="field"><label class="label" for="mail">Ton mail</label>
       <div class="input small"><input id="mail" type="email" placeholder="flshortcuts@exemple.fr" autocomplete="off"></div>
@@ -449,6 +449,33 @@ dialog::backdrop { background: rgba(0, 0, 0, 0.88); }
   carte.addEventListener('submit', function (e) { e.preventDefault(); ouvrir(); });
   document.querySelectorAll('[data-fermer]').forEach(function (b) { b.addEventListener('click', fermer); });
   dlg.addEventListener('click', function (e) { if (e.target === dlg) fermer(); });
+  /* ---------- Le rouge suit la souris, mais seulement sur son axe : la ligne qui le relie au centre du cercle blanc ---------- */
+  if (anime && window.matchMedia('(pointer: fine)').matches) {
+    var disque = document.querySelector('.disque'), anneau = document.querySelector('.a1');
+    var dqx = gsap.quickTo(disque, 'x', { duration: 0.7, ease: 'power3.out' }), dqy = gsap.quickTo(disque, 'y', { duration: 0.7, ease: 'power3.out' });
+    var rouge = document.getElementById('rouge-dlg'), logo = rouge.ownerSVGElement;
+    var rqx = gsap.quickTo(rouge, 'x', { duration: 0.5, ease: 'power3.out' }), rqy = gsap.quickTo(rouge, 'y', { duration: 0.5, ease: 'power3.out' });
+    var axe = (function () { var ux = 590 - 470, uy = 440 - 580, l = Math.hypot(ux, uy); return [ux / l, uy / l]; })();
+    var borne = function (v, m) { return Math.max(-m, Math.min(m, v)); };
+    window.addEventListener('pointermove', function (e) {
+      if (dlg.open) {
+        // Logo de la fenêtre : en unités du dessin (1024 de côté), au plus 110 de part et d'autre.
+        var b = logo.getBoundingClientRect(), k = 1024 / b.width;
+        var cx = b.left + 470 / k, cy = b.top + 580 / k;
+        var t = borne(((e.clientX - cx) * axe[0] + (e.clientY - cy) * axe[1]) * k * 0.025, 110);
+        rqx(axe[0] * t); rqy(axe[1] * t);
+        return;
+      }
+      // Grand rond de l'ouverture : son axe va de son centre au centre du grand cercle blanc, au plus 70 pixels.
+      var d = disque.getBoundingClientRect(), a = anneau.getBoundingClientRect();
+      var dx = d.left + d.width / 2 - gsap.getProperty(disque, 'x'), dy = d.top + d.height / 2 - gsap.getProperty(disque, 'y');
+      var ux = a.left + a.width / 2 - dx, uy = a.top + a.height / 2 - dy, l = Math.hypot(ux, uy) || 1;
+      ux /= l; uy /= l;
+      var s = borne(((e.clientX - dx) * ux + (e.clientY - dy) * uy) * 0.12, 70);
+      dqx(ux * s); dqy(uy * s);
+    }, { passive: true });
+  }
+
   document.getElementById('dlg-go').addEventListener('click', function () {
     var mail = document.getElementById('mail').value.trim();
     document.getElementById('merci-mail').textContent = mail ? 'Ton lien part aussi sur ' + mail + '.' : 'Tu peux télécharger tout de suite.';
