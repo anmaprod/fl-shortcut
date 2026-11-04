@@ -446,3 +446,45 @@ internal static class Win32
     [return: MarshalAs(UnmanagedType.Bool)]
     public static extern bool DeleteDC(IntPtr hdc);
 }
+
+/// Disposition du clavier de ce PC (AZERTY, QWERTY…), pour le traducteur des raccourcis du Mac (PlatformKeys) : quelle
+/// touche est à quelle place. Celle de l'app au moment de la traduction ; illisible : le QWERTY américain.
+internal sealed class WindowsKeyLayout : FLShortcut.Core.IKeyLayout
+{
+    private const uint MapvkVkToVsc = 0, MapvkVscToVk = 1;
+
+    [System.Runtime.InteropServices.DllImport("user32.dll")]
+    private static extern uint MapVirtualKeyExW(uint uCode, uint uMapType, IntPtr dwhkl);
+
+    [System.Runtime.InteropServices.DllImport("user32.dll")]
+    private static extern IntPtr GetKeyboardLayout(uint idThread);
+
+    private readonly IntPtr _hkl;
+
+    private WindowsKeyLayout(IntPtr hkl) => _hkl = hkl;
+
+    public static FLShortcut.Core.IKeyLayout Current
+    {
+        get
+        {
+            try
+            {
+                var hkl = GetKeyboardLayout(0);
+                return hkl == IntPtr.Zero ? FLShortcut.Core.UsKeyLayout.Shared : new WindowsKeyLayout(hkl);
+            }
+            catch (Exception) { return FLShortcut.Core.UsKeyLayout.Shared; }
+        }
+    }
+
+    public ushort? VkForScan(ushort scan)
+    {
+        var vk = MapVirtualKeyExW(scan, MapvkVscToVk, _hkl);
+        return vk is > 0 and < 0xFF ? (ushort)vk : FLShortcut.Core.UsKeyLayout.Shared.VkForScan(scan);
+    }
+
+    public ushort? ScanForVk(ushort vk)
+    {
+        var scan = MapVirtualKeyExW(vk, MapvkVkToVsc, _hkl);
+        return scan is > 0 and < 0x80 ? (ushort)scan : FLShortcut.Core.UsKeyLayout.Shared.ScanForVk(vk);
+    }
+}

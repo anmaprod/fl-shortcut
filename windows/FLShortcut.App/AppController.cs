@@ -4,6 +4,7 @@
 //         audit 05 (pause clairement visible, avertissements de conflit).
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
+using FLShortcut.App.Native;
 using FLShortcut.App.Services;
 using FLShortcut.Core;
 using FLShortcut.Core.Macros;
@@ -214,7 +215,32 @@ internal sealed class AppController : INotifyPropertyChanged, IDisposable
         Persist();
     }
 
-    public ImportPreview PrepareImport(string json) => ProfileImporter.Prepare(json);
+    /// Un profil de Windows, ou d'un Mac (touches traduites pour le clavier de ce PC).
+    public ImportPreview PrepareImport(string json) => ProfileImporter.Prepare(json, KeyLayout);
+
+    /// Disposition du clavier de ce PC (traduction des raccourcis du Mac).
+    public IKeyLayout KeyLayout => WindowsKeyLayout.Current;
+
+    /// Raccourcis remplacés par ceux d'un partage (« Utiliser ces raccourcis ») ; ceux des macros de ce PC restent.
+    /// Renvoie les raccourcis d'avant, pour l'annulation.
+    public List<Shortcut> ReplaceShortcuts(IEnumerable<Shortcut> imported)
+    {
+        var before = _shortcuts.ToList();
+        _shortcuts = imported.Where(s => s.Kind != ShortcutKind.Macro)
+            .Concat(before.Where(s => s.Kind == ShortcutKind.Macro)).ToList();
+        Persist();
+        return before;
+    }
+
+    public void RestoreShortcuts(List<Shortcut> before)
+    {
+        _shortcuts = before.ToList();
+        Persist();
+    }
+
+    /// Les raccourcis de ce PC écrits comme sur le Mac (partage « Tous mes raccourcis », sauvegarde du compte).
+    public string MacProfileJson(bool withMacros) =>
+        MacProfile.ToMac(withMacros ? _shortcuts : _shortcuts.Where(s => s.Kind != ShortcutKind.Macro), KeyLayout);
 
     public void ApplyImport(ImportPreview preview)
     {

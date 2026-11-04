@@ -1,7 +1,7 @@
 // Page Communauté (Windows), comme celle du Mac (CommunityView.swift) au style suisse : des macros prêtes à l'emploi,
 // partagées par d'autres, avec l'explication de leur auteur. On ouvre un partage pour lire ce qu'il fait, étape par
 // étape, puis on l'ajoute ; rien ne s'ajoute sans cette fiche, rien ne se lance tout seul (une macro ajoutée n'a pas de
-// raccourci). Les raccourcis partagés depuis un Mac se lisent mais ne s'ajoutent pas (touches du Mac). Compte
+// raccourci). Les raccourcis partagés depuis un Mac sont traduits pour le clavier de ce PC (PlatformKeys). Compte
 // nécessaire : sans compte, la carte de connexion de Mon compte. Tout ajout passe par MacroExchange (même contrôle qu'un
 // fichier reçu). Jamais de titre, de nom ni de texte tapé dans le journal.
 using FLShortcut.App.Services;
@@ -54,6 +54,7 @@ internal sealed class CommunityPage
     // Fiche d'un partage.
     private Share? _opened;
     private MacroExchange.Preview? _preview;
+    private ImportPreview? _profilePreview;
     private string? _previewError;
     private bool _reporting;
     private int _reason;
@@ -61,6 +62,7 @@ internal sealed class CommunityPage
 
     // Partager.
     private bool _composing;
+    private bool _composeProfile;
     private Guid? _composeMacro;
     private string _composeTitle = "";
     private string _composeNotes = "";
@@ -345,18 +347,19 @@ internal sealed class CommunityPage
     {
         _opened = share;
         _preview = null;
+        _profilePreview = null;
         _previewError = null;
         _reporting = false;
         _reason = 0;
         _details = "";
         _render();
-        if (!share.IsMacro) return;
         try
         {
             byte[] payload;
             if (_demo)
             {
-                payload = MacroExchange.Export(DemoMacro(), "0.2.0", Home);
+                payload = share.IsMacro ? MacroExchange.Export(DemoMacro(), "0.2.0", Home)
+                    : System.Text.Encoding.UTF8.GetBytes(MacProfile.ToMac(ProfilePreset.Recommended.Shortcuts().Take(8), UsKeyLayout.Shared));
             }
             else
             {
@@ -364,10 +367,19 @@ internal sealed class CommunityPage
                 var body = await AccountPage.Call(CommunityRequests.Payload(HelpPage.Server!, session, share.Id));
                 payload = CommunityRequests.DecodePayload(body) ?? throw new AccountPage.ServerError(Loc.T("Réponse inattendue du serveur."), 0);
             }
-            var preview = MacroExchange.PrepareImport(payload, Home);
-            if (_opened?.Id == share.Id) _preview = preview;
+            if (share.IsMacro)
+            {
+                var preview = MacroExchange.PrepareImport(payload, Home);
+                if (_opened?.Id == share.Id) _preview = preview;
+            }
+            else
+            {
+                // Raccourcis d'un Mac (ou d'un PC) : traduits pour le clavier de ce PC.
+                var preview = _app.PrepareImport(System.Text.Encoding.UTF8.GetString(payload));
+                if (_opened?.Id == share.Id) _profilePreview = preview;
+            }
         }
-        catch (Exception e) when (e is AccountPage.ServerError or MacroExchange.ImportFailure)
+        catch (Exception e) when (e is AccountPage.ServerError or MacroExchange.ImportFailure or FormatException)
         {
             if (_opened?.Id == share.Id) _previewError = e.Message;
         }
@@ -411,8 +423,32 @@ internal sealed class CommunityPage
 
         if (!share.IsMacro)
         {
-            page.Children.Add(Part(Loc.T("Les raccourcis qu'il contient"),
-                Paragraph(Loc.T("Des raccourcis du Mac : ils ne s'ajoutent pas sur Windows (les touches n'ont pas les mêmes codes)."), 12.5, Orange)));
+            FrameworkElement list;
+            if (_profilePreview is { } shortcuts)
+            {
+                var lines = new StackPanel { Spacing = 5, Padding = new Thickness(12) };
+                foreach (var line in ProfileLines(shortcuts)) lines.Children.Add(Paragraph(line, 12, Text));
+                list = new Border { Child = lines, Background = Brush(Faint) };
+            }
+            else if (_previewError is { } why)
+            {
+                list = Paragraph(Loc.F("Ce partage ne peut pas être ajouté : %@", why), 12, Orange);
+            }
+            else
+            {
+                list = Paragraph(Loc.T("Lecture du partage…"), 12);
+            }
+            page.Children.Add(Part(Loc.T("Les raccourcis qu'il contient"), list));
+            if (_profilePreview is { } p)
+            {
+                var notes = new StackPanel { Spacing = 6 };
+                notes.Children.Add(Paragraph("• " + Loc.T("Tes raccourcis actuels sont remplacés par ceux-ci. Tu peux annuler juste après, depuis la notification en bas de la fenêtre."), 12, Text));
+                if (p.Disabled > 0)
+                    notes.Children.Add(Paragraph("• " + Loc.F("%lld raccourcis éteints : leur touche n'existe pas sur ce PC, ou elle est déjà prise.", p.Disabled), 12, Text));
+                if (p.Refused.Count > 0)
+                    notes.Children.Add(Paragraph("• " + Loc.F("Refusés par sécurité : %@", string.Join(" ; ", p.Refused)), 12, Orange));
+                page.Children.Add(Part(Loc.T("Bon à savoir"), notes));
+            }
         }
         else
         {
@@ -471,13 +507,11 @@ internal sealed class CommunityPage
         });
         Grid.SetColumn(close, 2);
         buttons.Children.Add(close);
-        if (share.IsMacro)
-        {
-            var add = Primary(Loc.T("Ajouter à mes macros"), () => Add());
-            add.IsEnabled = _preview is not null;
-            Grid.SetColumn(add, 3);
-            buttons.Children.Add(add);
-        }
+        var add = share.IsMacro ? Primary(Loc.T("Ajouter à mes macros"), () => Add())
+                                : Primary(Loc.T("Utiliser ces raccourcis"), () => UseShortcuts(share));
+        add.IsEnabled = share.IsMacro ? _preview is not null : _profilePreview is not null;
+        Grid.SetColumn(add, 3);
+        buttons.Children.Add(add);
         page.Children.Add(buttons);
         return page;
     }
@@ -497,6 +531,27 @@ internal sealed class CommunityPage
         AppLog.Write("COMMUNITY", "macro ajoutée depuis un partage");
         _render();
         _toast(Loc.F("« %@ » ajoutée à tes macros : choisis-lui un raccourci dans la page Macros", DisplayText.Safe(doc.Name, 40)), null);
+    }
+
+    /// Une ligne par raccourci : « Ctrl+S → Save · Mixer » (éteints marqués).
+    private static IEnumerable<string> ProfileLines(ImportPreview preview) => preview.Shortcuts.Take(120).Select(s =>
+        $"{s.Trigger?.ToString() ?? "—"} → {s.Label}{(s.Context == ShortcutContext.Everywhere ? "" : " · " + s.Context.Label())}"
+        + (s.Enabled ? "" : Loc.T(" (désactivé)")));
+
+    /// « Utiliser ces raccourcis » : ils remplacent ceux de ce PC (ceux des macros restent), annulable.
+    private void UseShortcuts(Share share)
+    {
+        if (_profilePreview is not { } preview) return;
+        _opened = null;
+        if (_demo)
+        {
+            _render();
+            return;
+        }
+        var before = _app.ReplaceShortcuts(preview.Shortcuts);
+        AppLog.Write("COMMUNITY", $"raccourcis d'un partage en place ({preview.Shortcuts.Count})");
+        _render();
+        _toast(Loc.F("Raccourcis de @%@ en place", DisplayText.Safe(share.AuthorName, 24)), () => _app.RestoreShortcuts(before));
     }
 
     private async void DeleteShare(Share share)
@@ -604,6 +659,7 @@ internal sealed class CommunityPage
     private void StartComposing()
     {
         _composing = true;
+        _composeProfile = false;
         _composeMacro = _app.Macros.Macros.FirstOrDefault()?.Id;
         _composeTitle = "";
         _composeNotes = "";
@@ -621,7 +677,28 @@ internal sealed class CommunityPage
         page.Children.Add(Paragraph(Loc.T("Les autres pourront lire ton explication, voir chaque étape, puis l'ajouter chez eux."), 12.5));
 
         var macros = _app.Macros.Macros;
-        if (macros.Count == 0)
+        var kinds = new StackPanel { Orientation = Orientation.Horizontal };
+        foreach (var (profile, label) in new[] { (false, Loc.T("Une macro")), (true, Loc.T("Tous mes raccourcis")) })
+        {
+            var p = profile;
+            var chip = Option(Label(label, 12.5, bold: true), Tint, 0, () =>
+            {
+                _composeProfile = p;
+                _render();
+            }, _composeProfile == p, minHeight: 32, padding: new Thickness(14, 0, 14, 0));
+            chip.BorderBrush = Brush(Colors.White);
+            chip.BorderThickness = new Thickness(1);
+            kinds.Children.Add(chip);
+        }
+        var quoi = new StackPanel { Spacing = 6, Children = { kinds } };
+        quoi.Children.Add(Paragraph(_composeProfile ? Loc.T("Ton jeu de raccourcis complet : les autres pourront le mettre à la place du leur.")
+                                                    : Loc.T("La macro choisie, avec ses étapes."), 11.5));
+        page.Children.Add(Field(Loc.T("Quoi"), quoi));
+        if (_composeProfile)
+        {
+            // Rien à choisir : tous les raccourcis de ce PC (sans ceux des macros), écrits comme sur le Mac.
+        }
+        else if (macros.Count == 0)
         {
             page.Children.Add(Field(Loc.T("Macro"), Paragraph(Loc.T("Tu n'as pas encore de macro : crée-en une dans la page Macros."), 12.5, Orange)));
         }
@@ -661,7 +738,8 @@ internal sealed class CommunityPage
         AutomationProperties.SetName(notes, Loc.T("Explication"));
         page.Children.Add(Field(Loc.T("Explication"), notes));
 
-        page.Children.Add(Paragraph(Loc.T("Partagé : la macro, le titre, ton explication, ton nom d'utilisateur."), 11.5));
+        page.Children.Add(Paragraph(_composeProfile ? Loc.T("Partagé : tes raccourcis, le titre, ton explication, ton nom d'utilisateur.")
+                                                    : Loc.T("Partagé : la macro, le titre, ton explication, ton nom d'utilisateur."), 11.5));
         page.Children.Add(Paragraph(Loc.T("Jamais partagé : ton mail, tes positions apprises, les chemins de tes fichiers."), 11.5));
         if (_composeProblem is not null) page.Children.Add(Paragraph(_composeProblem, 12, Red));
         if (_busy) page.Children.Add(new ProgressBar { IsIndeterminate = true, Foreground = Brush(Text), Background = Brush(Faint) });
@@ -673,7 +751,7 @@ internal sealed class CommunityPage
             _render();
         }));
         var publish = Primary(Loc.T("Publier"), Publish);
-        publish.IsEnabled = !_busy && macros.Count > 0;
+        publish.IsEnabled = !_busy && (_composeProfile || macros.Count > 0);
         ToolTipService.SetToolTip(publish, Loc.T("Publier pour tous les membres de la Communauté"));
         buttons.Children.Add(publish);
         page.Children.Add(buttons);
@@ -683,7 +761,8 @@ internal sealed class CommunityPage
     private async void Publish()
     {
         if (_busy) return;
-        if (_composeMacro is not { } id || _app.Macros.Doc(id) is not { } doc)
+        MacroDoc? doc = null;
+        if (!_composeProfile && (_composeMacro is not { } id || (doc = _app.Macros.Doc(id)) is null))
         {
             _composeProblem = Loc.T("Choisis la macro à partager.");
             _render();
@@ -694,14 +773,17 @@ internal sealed class CommunityPage
         _render();
         try
         {
-            var payload = MacroExchange.Export(doc, HelpPage.AppVersion, Home);
+            // Raccourcis écrits comme sur le Mac (le format des partages) : un Mac les lit tels quels, un PC les traduit.
+            var payload = doc is not null ? MacroExchange.Export(doc, HelpPage.AppVersion, Home)
+                                          : System.Text.Encoding.UTF8.GetBytes(_app.MacProfileJson(withMacros: false));
+            var kind = doc is not null ? CommunityRules.MacroKind : CommunityRules.ProfileKind;
             if (!_demo)
             {
                 var session = await _account.FreshSession() ?? throw new AccountPage.ServerError(Loc.T("Session expirée : reconnecte-toi."), 401);
-                await AccountPage.Call(CommunityRequests.Publish(HelpPage.Server!, session, CommunityRules.MacroKind,
+                await AccountPage.Call(CommunityRequests.Publish(HelpPage.Server!, session, kind,
                                                                  _composeTitle, _composeNotes, payload, HelpPage.AppVersion));
             }
-            AppLog.Write("COMMUNITY", "macro partagée");
+            AppLog.Write("COMMUNITY", doc is not null ? "macro partagée" : "raccourcis partagés");
             _composing = false;
             _filter = Filter.All;
             _author = null;

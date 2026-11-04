@@ -121,4 +121,4 @@
 "Montre de nouveau chaque clic dans FL (positions propres à chaque ordinateur)." = "Show each click again in FL (positions are specific to each computer).";
 "Montre de nouveau chaque glisser-déposer dans FL (positions propres à chaque ordinateur)." = "Show each drag and drop again in FL (positions are specific to each computer).";
 "Rechoisis le preset : le fichier doit exister sur ce PC." = "Choose the preset again: the file must exist on this PC.";
-"Des raccourcis du Mac : ils ne s'ajoutent pas sur Windows (les touches n'ont pas les mêmes codes)." = "Shortcuts from a Mac: they can't be added on Windows (the keys don't have the same codes).";
+"%lld raccourcis éteints : leur touche n'existe pas sur ce PC, ou elle est déjà prise." = "%lld shortcuts turned off: their key doesn't exist on this PC, or it's already taken.";
