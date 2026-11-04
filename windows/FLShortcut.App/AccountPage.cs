@@ -116,14 +116,14 @@ internal sealed class AccountPage
 
     // ---------- Serveur ----------
 
-    private sealed class ServerError : Exception
+    internal sealed class ServerError : Exception
     {
         public ServerError(string message, int status) : base(message) => Status = status;
         public int Status { get; }
     }
 
     /// La réponse du serveur, ou ServerError avec son message traduit (comme CommunityClient.message du Mac).
-    private static async Task<string> Call(HttpRequestMessage request)
+    internal static async Task<string> Call(HttpRequestMessage request)
     {
         try
         {
@@ -194,6 +194,13 @@ internal sealed class AccountPage
             Set(null);
             throw new ServerError(Loc.T("Session expirée : reconnecte-toi."), 401);
         }
+    }
+
+    /// La session pour une requête de la Communauté (rafraîchie si besoin) ; null : déconnecté ou hors ligne.
+    public async Task<AccountSession?> FreshSession()
+    {
+        try { return await Fresh(); }
+        catch (ServerError) { return null; }
     }
 
     private async Task RefreshAndLoadPhoto()

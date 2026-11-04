@@ -1,4 +1,5 @@
 using FLShortcut.Core;
+using FLShortcut.Core.Macros;
 using Xunit;
 
 namespace FLShortcut.Core.Tests;
@@ -705,5 +706,118 @@ public class AccountTests
         // Même calcul que ProfilePhoto.colorIndex du Mac : « ab » → (97 × 31 + 98) % 8 = 3105 % 8 = 1.
         Assert.Equal(1, AccountRules.InitialColorIndex("ab"));
         Assert.False(AccountRules.PhotoAcceptable(new byte[] { 0x89, 0x50, 0x4E, 0x47 }));
+    }
+}
+
+/// Échange d'une macro (.flsmacro) : le même fichier que le Mac ; positions retirées, chemins relatifs, ids neufs.
+public class MacroExchangeTests
+{
+    private const string Home = @"C:\Users\flshortcuts";
+
+    private static MacroDoc Sample() => new()
+    {
+        Name = "Voix lead",
+        Blocks = new List<FLShortcut.Core.Macros.Block>
+        {
+            new(new BlockBody.Delay(200)),
+            new(new BlockBody.Click(new ClickTarget.FlWindowPoint(Corner.TopLeft, 12, 34, new Size2(940, 652)))),
+            new(new BlockBody.ChooseFile(@"C:\Users\flshortcuts\Documents\Voix lead.fst")),
+            new(new BlockBody.RepeatCount(2, new List<FLShortcut.Core.Macros.Block> { new(new BlockBody.Click(new ClickTarget.LastClick(1, 2))) })),
+        },
+    };
+
+    [Fact]
+    public void Export_StripsPositionsAndHome()
+    {
+        var json = System.Text.Json.Nodes.JsonNode.Parse(MacroExchange.Export(Sample(), "0.2.0", Home))!;
+        Assert.Equal("flsmacro", json["format"]!.GetValue<string>());
+        Assert.Equal(1, json["version"]!.GetValue<int>());
+        Assert.Equal("FL Shortcuts 0.2.0 (Windows)", json["exportedBy"]!.GetValue<string>());
+        var text = json.ToJsonString();
+        Assert.DoesNotContain("flshortcuts\\\\Documents", text);
+        Assert.Contains("~/Documents/Voix lead.fst", text);
+        Assert.DoesNotContain("940", text);
+        Assert.Equal("~/Documents/a.fst", MacroExchange.Relative(@"c:\users\FLSHORTCUTS\Documents\a.fst", Home));
+        Assert.Equal(@"D:\Presets\a.fst", MacroExchange.Relative(@"D:\Presets\a.fst", Home));
+        Assert.Equal(@"C:\Users\flshortcuts\Documents\a.fst", MacroExchange.Absolute("~/Documents/a.fst", Home));
+        Assert.Equal("/Users/flshortcuts/Documents/a.fst", MacroExchange.Absolute("~/Documents/a.fst", "/Users/flshortcuts"));
+    }
+
+    [Fact]
+    public void Import_FreshIdsEveryClickToShowAndNotes()
+    {
+        var original = Sample();
+        var preview = MacroExchange.PrepareImport(MacroExchange.Export(original, "0.2.0", Home), @"C:\Users\autre");
+        var doc = preview.Doc;
+        Assert.Equal("Voix lead", doc.Name);
+        Assert.Equal("imported", doc.Origin!.Kind);
+        Assert.NotEqual(original.Blocks[0].Id, doc.Blocks[0].Id);
+        Assert.IsType<ClickTarget.ToLearn>(((BlockBody.Click)doc.Blocks[1].Body).Target);
+        Assert.Equal(@"C:\Users\autre\Documents\Voix lead.fst", ((BlockBody.ChooseFile)doc.Blocks[2].Body).Path);
+        var inner = ((BlockBody.RepeatCount)doc.Blocks[3].Body).Blocks[0];
+        Assert.IsType<ClickTarget.ToLearn>(((BlockBody.Click)inner.Body).Target);
+        Assert.Equal(5, preview.Lines.Count);
+        Assert.StartsWith("1. ", preview.Lines[0]);
+        Assert.StartsWith("    4.1. ", preview.Lines[4]);
+        Assert.Contains(preview.Warnings, w => w.Contains("chaque clic"));
+        Assert.Contains(MacroExchange.Notes(preview), n => n.Contains("sans raccourci"));
+    }
+
+    [Fact]
+    public void Import_RefusesWhatIsNotAMacro()
+    {
+        Assert.Throws<MacroExchange.ImportFailure>(() => MacroExchange.PrepareImport("pas du json"u8.ToArray(), Home));
+        Assert.Throws<MacroExchange.ImportFailure>(() => MacroExchange.PrepareImport("""{"format":"autre","macro":{"blocks":[]}}"""u8.ToArray(), Home));
+        Assert.Throws<MacroExchange.ImportFailure>(() => MacroExchange.PrepareImport("""{"format":"flsmacro","version":9,"macro":{"blocks":[]}}"""u8.ToArray(), Home));
+        Assert.Throws<MacroExchange.ImportFailure>(() => MacroExchange.PrepareImport(new byte[MacroExchange.MaxBytes + 1], Home));
+        var unnamed = MacroExchange.PrepareImport("""{"format":"flsmacro","macro":{"name":"","blocks":[{"type":"futur"}]}}"""u8.ToArray(), Home);
+        Assert.Equal("Macro importée", unnamed.Doc.Name);
+        Assert.Equal(1, unnamed.SensitiveCount);
+        Assert.Contains("Bloc inconnu", unnamed.Lines[0]);
+    }
+}
+
+/// Communauté : mêmes requêtes et mêmes règles que le Mac.
+public class CommunityTests
+{
+    private static readonly ServerConfig Config = ServerConfig.Resolve("https://exemple.supabase.co", "sb_publishable_abc")!;
+    private static readonly AccountSession Session = new("jeton", "suite", DateTimeOffset.UnixEpoch.AddHours(1),
+        Guid.Parse("6f1d2c1e-0000-4000-8000-000000000001"), "flshortcuts@exemple.fr", "flshortcuts");
+
+    [Fact]
+    public void Requests_LikeTheMac()
+    {
+        var list = CommunityRequests.Shares(Config, Session, "macro", "Voix (lead)*", Session.UserId);
+        var query = Uri.UnescapeDataString(list.RequestUri!.Query);
+        Assert.Equal("/rest/v1/shares", list.RequestUri.AbsolutePath);
+        Assert.Contains("kind=eq.macro", query);
+        Assert.Contains("author_id=eq.6f1d2c1e-0000-4000-8000-000000000001", query);
+        Assert.Contains("or=(title.ilike.*Voix lead*,notes.ilike.*Voix lead*)", query);
+        Assert.Equal("Bearer jeton", list.Headers.Authorization!.ToString());
+        var publish = CommunityRequests.Publish(Config, Session, "macro", "  Voix lead  ", "Explication", "{}"u8.ToArray(), "0.2.0");
+        var body = System.Text.Json.JsonDocument.Parse(publish.Content!.ReadAsStringAsync().Result).RootElement;
+        Assert.Equal("Voix lead", body.GetProperty("title").GetString());
+        Assert.Equal("{}", body.GetProperty("payload").GetString());
+        Assert.Throws<ArgumentException>(() => CommunityRequests.Publish(Config, Session, "macro", "ab", "", "{}"u8.ToArray(), "0.2.0"));
+        Assert.Throws<ArgumentException>(() => CommunityRequests.Report(Config, Session, Guid.Empty, "  x "));
+        Assert.Equal(HttpMethod.Delete, CommunityRequests.Delete(Config, Session, Guid.Empty).Method);
+        Assert.Equal("", CommunityRules.SearchPattern("&|*()"));
+    }
+
+    [Fact]
+    public void Decode_SharesAndPayload()
+    {
+        var shares = CommunityRequests.DecodeShares("""
+            [{"id":"6f1d2c1e-0000-4000-8000-000000000002","author_id":"6f1d2c1e-0000-4000-8000-000000000001","kind":"macro",
+              "title":"Voix lead","notes":"","app_version":"0.2.0","created_at":"2026-10-16T18:02:11+00:00","author":{"username":"flshortcuts"}},
+             {"id":"pas un id","author_id":"x","kind":"macro","title":"?"},
+             {"id":"6f1d2c1e-0000-4000-8000-000000000003","author_id":"6f1d2c1e-0000-4000-8000-000000000001","kind":"autre","title":"Autre"}]
+            """);
+        var share = Assert.Single(shares);
+        Assert.True(share.IsMacro);
+        Assert.Equal("16/10/2026", share.Day);
+        Assert.Equal("Macro · par @flshortcuts · 16/10/2026", share.Byline);
+        Assert.Equal("{}"u8.ToArray(), CommunityRequests.DecodePayload("""[{"payload":"{}"}]"""));
+        Assert.Null(CommunityRequests.DecodePayload("[]"));
     }
 }

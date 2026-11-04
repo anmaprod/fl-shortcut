@@ -118,3 +118,7 @@
 "Tu pourras te reconnecter quand tu veux. Tes raccourcis et tes macros restent sur ce PC." = "You can sign back in whenever you like. Your shortcuts and macros stay on this PC.";
 "Ton compte, ta sauvegarde en ligne et tes partages dans la Communauté seront effacés pour toujours. Tes raccourcis et tes macros restent sur ce PC." = "Your account, your online backup and your Community shares will be erased for good. Your shortcuts and macros stay on this PC.";
 "Ton compte est supprimé. Tes raccourcis et tes macros restent sur ce PC." = "Your account is deleted. Your shortcuts and macros stay on this PC.";
+"Montre de nouveau chaque clic dans FL (positions propres à chaque ordinateur)." = "Show each click again in FL (positions are specific to each computer).";
+"Montre de nouveau chaque glisser-déposer dans FL (positions propres à chaque ordinateur)." = "Show each drag and drop again in FL (positions are specific to each computer).";
+"Rechoisis le preset : le fichier doit exister sur ce PC." = "Choose the preset again: the file must exist on this PC.";
+"Des raccourcis du Mac : ils ne s'ajoutent pas sur Windows (les touches n'ont pas les mêmes codes)." = "Shortcuts from a Mac: they can't be added on Windows (the keys don't have the same codes).";

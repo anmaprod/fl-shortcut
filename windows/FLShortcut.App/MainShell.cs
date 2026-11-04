@@ -27,7 +27,7 @@ internal sealed partial class MainShell
     /// Largeur de page à partir de laquelle les cartes passent sur deux colonnes (comme le Mac).
     private const double TwoColumnWidth = 660;
 
-    private enum PageKind { Section, Macros, Custom, Help, Account }
+    private enum PageKind { Section, Macros, Custom, Help, Account, Community }
 
     private readonly Window _window;
     private readonly Grid _root;
@@ -61,6 +61,7 @@ internal sealed partial class MainShell
     private readonly MacrosPage _macros;
     private readonly HelpPage _help;
     private readonly AccountPage _account;
+    private readonly CommunityPage _community;
     /// Bouton du compte en haut à droite (sa photo, ou l'icône du compte), comme le Mac.
     private readonly Border _accountSlot = new() { VerticalAlignment = VerticalAlignment.Center };
     /// Dernière macro ratée (« Signaler ce problème… » du menu de l'icône, comme le Mac).
@@ -144,7 +145,9 @@ internal sealed partial class MainShell
         var (macroStore, demoMacro) = photos ? MacrosPage.DemoStore() : (_app.Macros, Guid.Empty);
         _demoMacro = demoMacro;
         _help = new HelpPage(_app, () => { if (_kind == PageKind.Help) RenderPage(); }, ShowToast);
-        _account = new AccountPage(() => { if (_kind == PageKind.Account) RenderPage(); }, ConfirmAsync, _hwnd);
+        // La carte de connexion sert aussi à la page Communauté (sans compte).
+        _account = new AccountPage(() => { if (_kind is PageKind.Account or PageKind.Community) RenderPage(); }, ConfirmAsync, _hwnd);
+        _community = new CommunityPage(_app, _account, () => { if (_kind == PageKind.Community) RenderPage(); }, ShowToast, ConfirmAsync);
         _account.Changed += UpdateAccountButton;
         _help.Token = () => _account.Session is { } session && !session.Expired(DateTimeOffset.UtcNow) ? session.AccessToken : null;
         UpdateAccountButton();
@@ -312,6 +315,8 @@ internal sealed partial class MainShell
             case "custom": _kind = PageKind.Custom; break;
             case "aide": _kind = PageKind.Help; break;
             case "compte": _kind = PageKind.Account; break;
+            case "communaute": _kind = PageKind.Community; _community.Demo(detail: false); break;
+            case "communaute-fiche": _kind = PageKind.Community; _community.Demo(detail: true); break;
             case "recherche": _query = "Zoom"; _search.Text = _query; break;
             case "macros": _kind = PageKind.Macros; break;
             case "macros-createur":
@@ -465,6 +470,10 @@ internal sealed partial class MainShell
         custom.Children.Add(SidebarRow("custom", Pink, Loc.T("Mes raccourcis"),
             !searching && _kind == PageKind.Custom, () => Choose(PageKind.Custom, _section)));
         _sidebarGroups.Children.Add(custom);
+        var share = Group(Loc.T("Partager"));
+        share.Children.Add(SidebarRow("community", CommunityPage.Tint, Loc.T("Communauté"),
+            !searching && _kind == PageKind.Community, () => Choose(PageKind.Community, _section)));
+        _sidebarGroups.Children.Add(share);
         var help = Group(Loc.T("Compte et aide"));
         help.Children.Add(SidebarRow("account", AccountPage.Tint, Loc.T("Mon compte"),
             !searching && _kind == PageKind.Account, () => Choose(PageKind.Account, _section)));
@@ -725,6 +734,12 @@ internal sealed partial class MainShell
         {
             _title.Text = Loc.T("Macros");
             _scroll.Content = _macros.ListContent(_columns);
+            return;
+        }
+        else if (_kind == PageKind.Community)
+        {
+            _title.Text = Loc.T("Communauté");
+            _scroll.Content = _community.Content(_columns);
             return;
         }
         else if (_kind == PageKind.Account)
