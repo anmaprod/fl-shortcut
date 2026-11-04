@@ -240,7 +240,12 @@
   Démarrer) ; essai CI réel (installeur, app en icône, unins000 comme le menu, rapport `desinstallation-essai.txt`).
   SERVEUR : les secrets FLS_SUPABASE_* sont VIDES sur la CI ; l'app Windows n'avait aucun serveur (compte, Communauté,
   sauvegarde, message à l'équipe morts) → adresse et clé publique du Mac (Info.plist) dans le .csproj, essai
-  `ServerAddressSameAsMac`. Page Macros Windows : pas encore « Enregistrer une macro » (3e case du Mac). Compiler le C# de l'app ici (le compilateur XAML est Windows seulement) :
+  `ServerAddressSameAsMac`. « Enregistrer une macro » sur Windows (04/11, « dans la capture 5 il manque l'option 3 ? ») :
+  3e case de la page Macros + « Enregistrer clics et touches » dans le créateur ; `Services/MacroRecorder.cs` (souris et
+  clavier lus toutes les 5 ms, FL devant seulement, fin au retour dans FL Shortcuts ou « Terminer », 120 s / 80 entrées,
+  rien journalisé) → `ClickSequenceCompiler` (pur, testé : touche, × n, menu ouvert → Dans le menu / Lettres, clic appris,
+  glisser) ; essai CI sur le faux FL (`MacroSelfTest.Recording` : clic + Ctrl+S, clic rejoué). Pas encore : clics
+  « intelligents » (menu de FL par son nom). Compiler le C# de l'app ici (le compilateur XAML est Windows seulement) :
   `~/.dotnet/dotnet build windows/FLShortcut.App -c Release -p:Platform=x64 -p:EnableWindowsTargeting=true
   -p:EnableDefaultPageItems=false -p:EnableDefaultApplicationDefinition=false` : seules 4 erreurs attendues
   (InitializeComponent, Root, Main) ; le cœur : `dotnet test windows/FLShortcut.Core.Tests`.

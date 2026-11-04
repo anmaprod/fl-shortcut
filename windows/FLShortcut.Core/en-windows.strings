@@ -350,3 +350,9 @@
 "FL : couper" = "FL: cut";
 "FL : mute des clips" = "FL: mute clips";
 "FL : rétablir" = "FL: redo";
+"Rien d'enregistré dans FL." = "Nothing recorded in FL.";
+"Étapes ajoutées : %lld." = "Steps added: %lld.";
+"Fais ta suite dans FL, puis reviens ici." = "Do your sequence in FL, then come back here.";
+"Un enregistrement est déjà en cours." = "A recording is already running.";
+"%lld s au plus." = "%lld s at most.";
+"%lld clics ou touches au plus." = "%lld clicks or keys at most.";

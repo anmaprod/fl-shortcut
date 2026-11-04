@@ -151,6 +151,7 @@ internal sealed class MacrosPage
     {
         if (_editing is null) return;
         StopCapture();
+        if (_recording is not null) Services.MacroRecorder.Stop();
         if (!_demo && _dirty) _app.SaveMacrosNow();
         _editing = null;
         _selected = null;
@@ -190,15 +191,17 @@ internal sealed class MacrosPage
     // ---------- Liste des macros (page de la fenêtre principale) ----------
 
     /// Le contenu de la page Macros au style suisse (comme le Mac du 01/11) : les façons de commencer en colonnes
-    /// numérotées (« 01 Macro vide », « 02 Modèles »), puis « MES MACROS » et une ligne par macro ; vide : « Aucune
-    /// macro ». `columns` ne sert plus (une macro par ligne, comme le Mac).
+    /// numérotées (« 01 Enregistrer une macro », « 02 Macro vide », « 03 Modèles »), puis « MES MACROS » et une ligne
+    /// par macro ; vide : « Aucune macro ». `columns` ne sert plus (une macro par ligne, comme le Mac).
     public FrameworkElement ListContent(int columns)
     {
         if (_store.Macros.Count == 0) return EmptyList();
         var page = new StackPanel { Spacing = 0, Padding = new Thickness(26, 4, 26, 24) };
-        // Pas d'« Enregistrer une macro » ici : l'enregistrement n'est pas encore fait sur Windows.
         var actions = new Grid();
-        var starts = new (string Title, Action Run)[] { (Loc.T("Macro vide"), NewMacro), (Loc.T("Modèles"), ShowTemplates) };
+        var starts = new (string Title, Action Run)[]
+        {
+            (Loc.T("Enregistrer une macro"), RecordNew), (Loc.T("Macro vide"), NewMacro), (Loc.T("Modèles"), ShowTemplates),
+        };
         for (var i = 0; i < starts.Length; i++)
         {
             actions.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
@@ -259,6 +262,59 @@ internal sealed class MacrosPage
     }
 
     private void NewMacro() => Open(_store.Add(MacroDrafts.Empty(_store)).Id);
+
+    /// « Enregistrer une macro » (comme le Mac) : une macro neuve, puis l'enregistrement commence tout de suite.
+    private void RecordNew()
+    {
+        NewMacro();
+        StartRecording();
+    }
+
+    /// Macro en cours d'enregistrement (FL devant), sinon null.
+    private Guid? _recording;
+
+    /// « Enregistrer clics et touches » : FL passe devant ; la suite faite dans FL s'ajoute à la fin de la macro au retour
+    /// ici (« Terminer », ou la fenêtre remise devant).
+    private void StartRecording()
+    {
+        if (_demo || _editing is not { } id || _recording is not null) return;
+        var problem = _app.RecordMacro((result, why) =>
+        {
+            _recording = null;
+            if (_store.Doc(id) is { } doc && result.Blocks.Count > 0)
+                Change(doc, d => d.Blocks.AddRange(result.Blocks.Select(b => new Block(b))));
+            var count = result.Blocks.Count == 0 ? Loc.T("Rien d'enregistré dans FL.") : Loc.F("Étapes ajoutées : %lld.", result.Blocks.Count);
+            _notice = why is null ? count : count + " " + why;
+            _window.Activate();
+            RenderSoon();
+        });
+        _notice = problem;
+        if (problem is null) _recording = id;
+        RenderSoon();
+    }
+
+    /// Pendant l'enregistrement : rouge, une ligne, et « Terminer » (revenir ici le termine aussi).
+    private FrameworkElement RecordingBanner()
+    {
+        var row = new Grid { ColumnSpacing = 12, Padding = new Thickness(14, 10, 10, 10), BorderBrush = Brush(Red), BorderThickness = new Thickness(1) };
+        row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        var dot = new Ellipse { Width = 10, Height = 10, Fill = Brush(Red), VerticalAlignment = VerticalAlignment.Center };
+        row.Children.Add(dot);
+        var text = new StackPanel { Spacing = 2, VerticalAlignment = VerticalAlignment.Center };
+        text.Children.Add(SwissLabel(Loc.T("Enregistrement"), 11, Red));
+        text.Children.Add(Paragraph(Loc.T("Fais ta suite dans FL, puis reviens ici."), 13));
+        Grid.SetColumn(text, 1);
+        row.Children.Add(text);
+        var stop = Primary(Loc.T("Terminer"), MacroRecorderStop);
+        stop.VerticalAlignment = VerticalAlignment.Center;
+        Grid.SetColumn(stop, 2);
+        row.Children.Add(stop);
+        return row;
+    }
+
+    private static void MacroRecorderStop() => Services.MacroRecorder.Stop();
 
     /// Une macro sur une ligne (style suisse, comme le Mac) : nom en gras et « À CORRIGER » en rouge, puis ses touches
     /// (ou « Choisir un raccourci… » souligné) et l'interrupteur de son raccourci ; un trait fin dessous. Un clic l'ouvre
@@ -773,6 +829,7 @@ internal sealed class MacrosPage
     private StackPanel Steps(MacroDoc doc)
     {
         var page = new StackPanel { Spacing = 12, Padding = new Thickness(22, 4, 22, 24) };
+        if (_recording == doc.Id) page.Children.Add(RecordingBanner());
         if (doc.Blocks.Count > 0)
         {
             var list = new StackPanel();
@@ -782,6 +839,12 @@ internal sealed class MacrosPage
             page.Children.Add(plate);
         }
         page.Children.Add(DropZone(doc));
+        if (_recording is null && !_demo)
+        {
+            var record = Soft(Loc.T("Enregistrer clics et touches"), StartRecording);
+            record.HorizontalAlignment = HorizontalAlignment.Center;
+            page.Children.Add(record);
+        }
         return page;
     }
 

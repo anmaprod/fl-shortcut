@@ -145,10 +145,74 @@ internal static class MacroSelfTest
                 : $"INFO texte lu mais « Time signature » absent ({read.Count} textes)");
         else report.Add("INFO lecture du texte indisponible sur cette machine (langue de reconnaissance absente ?)");
 
+        // 8. « Enregistrer une macro » : l'enregistreur relève un vrai clic (dans la fenêtre des réglages, sinon dans le faux
+        // FL) et Ctrl+S tapés dans le faux FL, en fait les blocs, puis le clic enregistré est rejoué.
+        Recording(report, pid);
+
         report.Add("");
         report.Add("Évènements du faux FL : " + string.Join(" | ", Seen()));
         report.Add("Journal :");
         lock (log) report.AddRange(log);
+    }
+
+    /// Essai de l'enregistreur : de vraies entrées (SendInput, comme une main), relevées comme dans l'app.
+    private static void Recording(List<string> report, uint pid)
+    {
+        FlControl.BringForward(pid);
+        var target = _settings != IntPtr.Zero ? _settings : _main;
+        Win32.GetWindowRect(target, out var r);
+        int x = r.Left + 60, y = r.Top + (target == _settings ? 220 : 160);
+        List<RecordedInput>? inputs = null;
+        var finished = new ManualResetEventSlim();
+        var started = Services.MacroRecorder.Start(pid, a => a(), (got, _) => { inputs = got; finished.Set(); },
+            isFl: root => root == _main || (_settings != IntPtr.Zero && root == _settings), isUs: _ => false);
+        if (!started) { report.Add("ÉCHEC enregistrement : déjà en cours"); return; }
+        Thread.Sleep(400);
+        Win32.SetCursorPos(x, y);
+        Thread.Sleep(80);
+        Input(Mouse(0x0002), 80);                    // bouton gauche appuyé…
+        Input(Mouse(0x0004), 120);                   // …puis relâché au même endroit : un clic
+        FlControl.BringForward(pid);
+        Thread.Sleep(150);
+        Input(Key(0x11, false), 30);                 // Ctrl+S
+        Input(Key((ushort)Vk.Letter('S'), false), 60);
+        Input(Key((ushort)Vk.Letter('S'), true), 30);
+        Input(Key(0x11, true), 200);
+        Services.MacroRecorder.Stop();
+        if (!finished.Wait(5_000) || inputs is null) { report.Add("ÉCHEC enregistrement : pas de fin"); return; }
+        var result = ClickSequenceCompiler.Compile(inputs);
+        var kinds = string.Join(", ", result.Blocks.Select(b => b.GetType().Name));
+        var click = result.Blocks.OfType<BlockBody.Click>().FirstOrDefault();
+        var save = result.Blocks.OfType<BlockBody.Key>().FirstOrDefault(k => MacKeys.ToWindows(k.Ref) == new KeyCombo(Vk.Letter('S'), Ctrl: true));
+        report.Add(click is not null && save is not null
+            ? $"OK enregistrement : {result.Blocks.Count} blocs ({kinds})"
+            : $"ÉCHEC enregistrement : {inputs.Count} entrées, blocs : {kinds}");
+        if (click is null || target != _settings) return;
+        // Le clic enregistré, rejoué dans la fenêtre des réglages.
+        var before = Seen().Count(e => e == "settings click");
+        var driver = new WindowsFlDriver(pid, new MidiLink(), new AppSettings(), () => true, () => 0, () => null, a => a(), () => { });
+        var fx = new MacroEffectsWindows(driver);
+        fx.Begin(false);
+        var state = new RunState(DateTime.UtcNow);
+        var replayed = fx.Perform(click, state);
+        fx.Cleanup(state);
+        Thread.Sleep(300);
+        var after = Seen().Count(e => e == "settings click");
+        report.Add(replayed is StepResult.Ok && after > before
+            ? "OK clic enregistré puis rejoué dans la fenêtre des réglages"
+            : $"ÉCHEC clic enregistré rejoué : {replayed.GetType().Name}, clics vus {after - before}");
+    }
+
+    private static Win32.INPUT Mouse(uint flags) =>
+        new() { type = 0, U = new Win32.InputUnion { mi = new Win32.MOUSEINPUT { dwFlags = flags } } };
+
+    private static Win32.INPUT Key(ushort vk, bool up) =>
+        new() { type = 1, U = new Win32.InputUnion { ki = new Win32.KEYBDINPUT { wVk = vk, dwFlags = up ? 2u : 0u } } };
+
+    private static void Input(Win32.INPUT input, int pauseMs)
+    {
+        Win32.SendInput(1, new[] { input }, Marshal.SizeOf<Win32.INPUT>());
+        Thread.Sleep(pauseMs);
     }
 
     // ---------- Le faux FL (fil à part, sa propre boucle de messages) ----------

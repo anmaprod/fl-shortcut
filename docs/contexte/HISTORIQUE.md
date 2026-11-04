@@ -773,3 +773,6 @@ entrée 1 ≈ 0,5 s.
   désinstallation Windows gardait raccourcis, macros, réglages, session du compte et script FL ; elle retire tout
   comme le Mac, vérifiée sur la CI par une vraie installation puis désinstallation. Trouvé en regardant les photos :
   l'app Windows n'avait aucune adresse de serveur (secrets vides sur la CI) ; elle prend celle du Mac.
+- 04/11 (« dans la capture 5 il manque l'option 3 ? ») : « Enregistrer une macro » fait sur Windows, comme le Mac :
+  clics et touches faits dans FL relevés puis changés en blocs ; fin en revenant dans FL Shortcuts. Les clics restent
+  appris par leur place ; le menu de FL retrouvé à son nom n'est pas encore fait sur Windows.

@@ -276,6 +276,15 @@ internal sealed class AppController : INotifyPropertyChanged, IDisposable
         return ClickLearner.Start(fl.Pid, OnUi, done) ? null : Loc.T("Un clic est déjà en train d'être appris.");
     }
 
+    /// « Enregistrer une macro » : FL passe devant, ses clics et ses touches sont relevés jusqu'au retour dans FL
+    /// Shortcuts (MacroRecorder), puis changés en blocs. Renvoie ce qui empêche de commencer, sinon null.
+    public string? RecordMacro(Action<ClickSequenceCompiler.Result, string?> done)
+    {
+        if (FlControl.Process() is not { } fl) return Loc.T("Ouvre FL Studio, puis recommence.");
+        return MacroRecorder.Start(fl.Pid, OnUi, (inputs, why) => done(ClickSequenceCompiler.Compile(inputs), why))
+            ? null : Loc.T("Un enregistrement est déjà en cours.");
+    }
+
     /// Premier raccourci qui lance cette macro.
     public Shortcut? MacroShortcut(Guid macro) => MacroDrafts.ShortcutsOf(macro, _shortcuts).FirstOrDefault();
 
