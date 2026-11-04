@@ -252,9 +252,17 @@ internal static class MacroSelfTest
             _settingsAt = null;
             var result = Replay(named);
             var at = _settingsAt;
-            report.Add(result is StepResult.Ok && at is { Y: >= 118 and < 152 }
+            var good = result is StepResult.Ok && at is { Y: >= 118 and < 152 };
+            report.Add(good
                 ? "OK bouton retrouvé à son nom après avoir bougé"
                 : $"ÉCHEC bouton à son nom : {result.GetType().Name}, clic reçu en {at?.ToString() ?? "aucun"}");
+            if (!good)
+            {
+                // Textes du faux FL seulement (jamais ceux d'un vrai projet) : le nom appris et ce qui est relu.
+                var read = FlScreen.ReadWindow(_settings);
+                report.Add($"INFO nom appris « {((ClickTarget.Named)named).Spot.Label} », relu : "
+                           + (read is null ? "illisible" : string.Join(" | ", read.Select(t => $"{t.Text}@{t.X},{t.Y}"))));
+            }
         }
 
         // Image : le damier, montré, puis déplacé de 80, 150 pixels.

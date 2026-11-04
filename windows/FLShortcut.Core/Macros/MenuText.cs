@@ -81,14 +81,20 @@ public static class MenuText
     }
 
     /// Pur (testé) : le nom d'un bouton parmi les textes lus (même texte, à la forme de comparaison près), le plus
-    /// proche de (`x`, `y`) s'il y est plusieurs fois (miroir de TextLook.find du Mac).
+    /// proche de (`x`, `y`) s'il y est plusieurs fois (miroir de TextLook.find du Mac). Sinon, comme les menus, le même
+    /// nom lu un peu autrement (CI du 04/11 : appris dans une petite zone, relu dans toute la fenêtre) : une lettre près
+    /// pour un nom de 5 lettres ou plus, deux pour un nom de 12 ou plus ; le plus proche.
     public static TextItem? Nearest(string label, IReadOnlyList<TextItem> items, int x, int y)
     {
         var wanted = Normalized(label);
         if (wanted.Length == 0) return null;
-        return items.Where(i => Normalized(i.Text) == wanted)
-            .OrderBy(i => (long)(i.CenterX - x) * (i.CenterX - x) + (long)(i.CenterY - y) * (i.CenterY - y))
-            .Cast<TextItem?>().FirstOrDefault();
+        long Away(TextItem i) => (long)(i.CenterX - x) * (i.CenterX - x) + (long)(i.CenterY - y) * (i.CenterY - y);
+        var exact = items.Where(i => Normalized(i.Text) == wanted).OrderBy(Away).Cast<TextItem?>().FirstOrDefault();
+        if (exact is not null || wanted.Length < 5) return exact;
+        var tolerance = wanted.Length >= 12 ? 2 : 1;
+        return items.Select(i => (Item: i, Form: Normalized(i.Text)))
+            .Where(p => Math.Abs(p.Form.Length - wanted.Length) <= tolerance && Distance(p.Form, wanted) <= tolerance)
+            .OrderBy(p => Away(p.Item)).Select(p => (TextItem?)p.Item).FirstOrDefault();
     }
 
     /// Distance d'édition (insertion, suppression, remplacement), bornée aux textes courts des menus.

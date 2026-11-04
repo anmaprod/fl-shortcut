@@ -27,6 +27,19 @@ public sealed class ButtonByNameOrImageTests
         Assert.Equal(("Insert 1", 5.0, 3.0), (hit.Label, hit.Dx, hit.Dy));
     }
 
+    /// Le nom relu un peu autrement au moment du clic (une lettre, deux pour un nom long) est quand même retrouvé ; un
+    /// nom court doit être lu tel quel.
+    [Fact]
+    public void ANameReadSlightlyDifferentlyIsStillFound()
+    {
+        var items = new List<TextItem> { T("Time signature 3/A", 20, 120, 130), T("Tempo", 20, 200), T("Snare", 300, 120) };
+        Assert.Equal(120, MenuText.Nearest("Time signature 3/4", items, 80, 30)?.Y);       // « 4 » lu « A »
+        Assert.Equal(200, MenuText.Nearest("Tempi", items, 0, 0)?.Y);                       // une lettre
+        Assert.Null(MenuText.Nearest("Kick", items, 0, 0));                                  // court : tel quel
+        Assert.Null(MenuText.Nearest("Snares 2", items, 0, 0));                              // trop différent
+        Assert.Equal(300, MenuText.Nearest("Snare", items, 0, 0)?.X);                        // exact d'abord
+    }
+
     [Fact]
     public void ALearnedClickKeepsTheButtonNameOrItsImage()
     {
