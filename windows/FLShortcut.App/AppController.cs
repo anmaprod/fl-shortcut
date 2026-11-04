@@ -46,6 +46,11 @@ internal sealed class AppController : INotifyPropertyChanged, IDisposable
         LoadWarning = warning;
         _midi.SetKey(SecretStore.Load());
         _midi.Changed += () => OnUi(RefreshAll);
+        // La sauvegarde du compte suit chaque changement d'ici (pas un remplacement par la sauvegarde elle-même).
+        _macros.Changed += () =>
+        {
+            if (!_applying) DataChanged?.Invoke();
+        };
         _macros.Changed += () => OnUi(() =>
         {
             ScheduleMacroSave();
@@ -350,6 +355,44 @@ internal sealed class AppController : INotifyPropertyChanged, IDisposable
         try { ProfileStore.Save(_shortcuts); }
         catch { /* le profil reste en mémoire ; nouvel essai à la prochaine modification */ }
         RefreshAll();
+        if (!_applying) DataChanged?.Invoke();
+    }
+
+    // ---------- Sauvegarde du compte ----------
+
+    /// Raccourcis ou macros changés ici (jamais pendant un remplacement par la sauvegarde du compte).
+    public event Action? DataChanged;
+    private bool _applying;
+
+    /// Fichiers de ce PC pas lus entièrement au lancement : jamais envoyés à la place de la sauvegarde du compte.
+    public bool LocalUnreliable => LoadWarning is not null || _macros.LoadIncomplete || _macros.WritesDisabled;
+
+    public bool Untouched => BackupCodec.Untouched(_shortcuts, _macros.Macros.Count);
+
+    /// « 12 raccourcis · 3 macros » : ce qui est sur ce PC.
+    public string HereSummary => BackupRules.Summary(_shortcuts.Count, _macros.Macros.Count);
+
+    public BackupContent BackupContent() => BackupCodec.Of(_shortcuts, _macros.Macros, KeyLayout);
+
+    public bool SameAs(BackupContent remote) => BackupCodec.Same(remote, _shortcuts, _macros.Macros, KeyLayout);
+
+    /// Copie datée des raccourcis et des macros d'ici (avant de les remplacer).
+    public bool KeepCopies(string label) => ProfileStore.KeepCopy(_shortcuts, label) is not null && _macros.KeepCurrentCopy(label) is not null;
+
+    public bool MacrosWritesDisabled => _macros.WritesDisabled;
+
+    /// Tout remplacé (sauvegarde reprise, déconnexion) : ce n'est pas un changement à envoyer.
+    public void ReplaceAllData(List<Shortcut> shortcuts, List<MacroDoc> macros)
+    {
+        _applying = true;
+        try
+        {
+            _shortcuts = shortcuts.ToList();
+            _macros.ReplaceAll(macros);
+            Persist();
+            SaveMacrosNow();
+        }
+        finally { _applying = false; }
     }
 
     private void OnForeground(FlProcessInfo? fl)

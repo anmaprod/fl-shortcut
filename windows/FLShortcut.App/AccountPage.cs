@@ -1,10 +1,10 @@
 // Page Mon compte (Windows), comme celle du Mac (AccountView.swift, AccountAuthViews.swift, EditProfileSheet.swift) au
 // style suisse : une carte au centre pour se connecter, créer son compte (pseudo vérifié en direct, règles du mot de passe
 // qui passent au vert) ou entrer le code reçu par mail ; connecté, la carte du profil (photo ou initiale de couleur,
-// pseudo, mail, « Modifier le profil », « Se déconnecter ») et « Supprimer mon compte ». Le compte est le même que sur
-// le Mac (même serveur). La sauvegarde en ligne des raccourcis n'est pas encore sur Windows : les touches du Mac et de
-// Windows n'ont pas les mêmes codes, une sauvegarde faite ici abîmerait celle du Mac. Jamais de mot de passe gardé ni
-// écrit dans le journal ; la session est chiffrée par Windows (AccountStore).
+// pseudo, mail, « Modifier le profil », « Se déconnecter »), la sauvegarde en ligne (la même que celle du Mac, raccourcis
+// traduits : AccountBackupWin) avec le choix quand ce PC et le compte ont chacun leurs changements, et « Supprimer mon
+// compte ». Le compte est le même que sur le Mac (même serveur). Jamais de mot de passe gardé ni écrit dans le journal ;
+// la session est chiffrée par Windows (AccountStore).
 using System.Net.Http;
 using FLShortcut.App.Services;
 using FLShortcut.Core;
@@ -88,6 +88,22 @@ internal sealed class AccountPage
     }
 
     public AccountSession? Session => _session;
+
+    private AccountBackupWin? _backup;
+
+    /// Sauvegarde en ligne (créée après la page, par la fenêtre) : la page suit son état.
+    public AccountBackupWin? Backup
+    {
+        get => _backup;
+        set
+        {
+            _backup = value;
+            if (value is not null) value.Changed += _render;
+        }
+    }
+
+    /// Question à trois réponses (0 : premier bouton, 1 : second, 2 : Annuler), fournie par la fenêtre.
+    public Func<string, string, string, string, Task<int>>? Choose { get; set; }
     public byte[]? MyPhoto => _myPhoto;
 
     /// Connexion, déconnexion, pseudo ou photo changés (l'en-tête suit).
@@ -133,6 +149,21 @@ internal sealed class AccountPage
             if (status is >= 200 and < 300) return body;
             AppLog.Write("ACCOUNT", $"{request.Method} {request.RequestUri?.AbsolutePath} → {status}");
             throw new ServerError(AccountRequests.ServerMessage(body, status), status);
+        }
+        catch (Exception e) when (e is HttpRequestException or TaskCanceledException)
+        {
+            AppLog.Write("ACCOUNT", $"{request.Method} {request.RequestUri?.AbsolutePath} → réseau ({e.GetType().Name})");
+            throw new ServerError(Loc.F("Connexion impossible : %@", Loc.T("le serveur n'a pas répondu.")), 0);
+        }
+    }
+
+    /// La réponse brute du serveur (code et texte) ; seule une panne du réseau lève ServerError (code 0).
+    internal static async Task<(int Status, string Body)> Send(HttpRequestMessage request)
+    {
+        try
+        {
+            using var response = await Http.SendAsync(request);
+            return ((int)response.StatusCode, await response.Content.ReadAsStringAsync());
         }
         catch (Exception e) when (e is HttpRequestException or TaskCanceledException)
         {
@@ -641,11 +672,14 @@ internal sealed class AccountPage
         page.Children.Add(_editing ? EditCard(session) : ProfileCard(session));
         if (_notice is not null) page.Children.Add(Paragraph(_notice, 12, Text));
 
-        var backup = new StackPanel { Spacing = 8 };
-        backup.Children.Add(SwissLabel(Loc.T("Sauvegarde"), 11, Text));
-        backup.Children.Add(Rule(LineColor));
-        backup.Children.Add(Paragraph(Loc.T("Bientôt sur Windows : pour l'instant, tes raccourcis et tes macros restent sur ce PC."), 12.5));
-        page.Children.Add(Boxed(backup, new Thickness(20, 16, 20, 16)));
+        if (_backup is { } backup)
+        {
+            if (backup.Notice is { } notice) page.Children.Add(Paragraph(notice, 12, Text));
+            if (backup.Choice is { } choice) page.Children.Add(ConflictCard(backup, choice));
+            page.Children.Add(BackupCard(backup));
+            // Page ouverte : le compte est relu s'il n'a pas été vu depuis 2 minutes (après ce dessin).
+            Microsoft.UI.Dispatching.DispatcherQueue.GetForCurrentThread()?.TryEnqueue(() => _ = backup.RefreshIfStale());
+        }
 
         var delete = new Grid { ColumnSpacing = 12 };
         delete.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
@@ -659,7 +693,7 @@ internal sealed class AccountPage
         Grid.SetColumn(label, 1);
         delete.Children.Add(label);
         var button = DangerButton(Loc.T("Supprimer…"), DeleteAccount);
-        ToolTipService.SetToolTip(button, Loc.T("Efface ton compte et tes partages. Tes raccourcis et tes macros restent sur ce PC."));
+        ToolTipService.SetToolTip(button, Loc.T("Efface ton compte, ta sauvegarde en ligne et tes partages. Tes raccourcis et tes macros restent sur ce PC."));
         Grid.SetColumn(button, 2);
         delete.Children.Add(button);
         var deleteBox = new StackPanel { Spacing = 8, Children = { delete } };
@@ -711,14 +745,39 @@ internal sealed class AccountPage
         return Boxed(grid, new Thickness(20));
     }
 
+    /// « Se déconnecter » : comme le Mac, tout part d'abord en ligne, puis raccourcis et macros quittent ce PC (ils
+    /// restent dans le compte) ; si quelque chose n'a pas pu partir, la question le dit.
     private async void SignOut()
     {
-        if (_session is not { } session) return;
+        if (_session is null) return;
         if (!await _confirm(Loc.T("Se déconnecter ?"),
-                Loc.T("Tu pourras te reconnecter quand tu veux. Tes raccourcis et tes macros restent sur ce PC."),
+                Loc.T("Tes raccourcis et tes macros seront retirés de ce PC. Ils restent dans ton compte : reconnecte-toi, ici ou sur un autre ordinateur, pour les retrouver."),
                 Loc.T("Se déconnecter"), false)) return;
-        try { await Call(AccountRequests.SignOut(Server, session)); }
-        catch (ServerError) { /* hors ligne ou session déjà finie : déconnecté ici quand même */ }
+        if (_backup is null)
+        {
+            await SignOutNow();
+            return;
+        }
+        var outcome = await _backup.SignOut(evenIfNotSaved: false);
+        while (outcome is AccountBackupWin.SignOutOutcome.NotSaved notSaved && Choose is not null)
+        {
+            var answer = await Choose(Loc.T("Tes derniers changements ne sont pas en ligne"),
+                Loc.F("%@ Si tu te déconnectes maintenant, ils seront perdus.", notSaved.Why),
+                Loc.T("Réessayer"), Loc.T("Se déconnecter quand même"));
+            if (answer == 0) outcome = await _backup.SignOut(evenIfNotSaved: false);
+            else if (answer == 1) outcome = await _backup.SignOut(evenIfNotSaved: true);
+            else return;
+        }
+    }
+
+    /// La session se ferme sur le serveur (hors ligne : ici quand même) et sur ce PC.
+    internal async Task SignOutNow()
+    {
+        if (_session is { } session && HelpPage.Server is { } server)
+        {
+            try { await Call(AccountRequests.SignOut(server, session)); }
+            catch (ServerError) { /* hors ligne ou session déjà finie : déconnecté ici quand même */ }
+        }
         _editing = false;
         _notice = null;
         Set(null);
@@ -738,6 +797,7 @@ internal sealed class AccountPage
             await Call(AccountRequests.DeleteAccount(Server, session));
             _editing = false;
             Set(null);
+            _backup?.ForgetSync();
             _notice = Loc.T("Ton compte est supprimé. Tes raccourcis et tes macros restent sur ce PC.");
         }
         catch (ServerError e)
@@ -746,6 +806,103 @@ internal sealed class AccountPage
         }
         _render();
     }
+
+    // ---------- Sauvegarde ----------
+
+    /// État de la sauvegarde (comme AccountBackupStatus du Mac) : ce PC et le compte, « Sauvegarder ».
+    private FrameworkElement BackupCard(AccountBackupWin backup)
+    {
+        var (color, title, detail, busy) = backup.Status switch
+        {
+            AccountBackupWin.State.UpToDate u => (Green, Loc.T("Sauvegarde à jour"), When(u.When) ?? Loc.T("Tout est en ligne."), false),
+            AccountBackupWin.State.Pending => (Blue, Loc.T("Changements à envoyer"), Loc.T("Ils partent dans quelques secondes."), false),
+            AccountBackupWin.State.Saving => (Blue, Loc.T("Enregistrement en ligne…"), Loc.T("Ne quitte pas l'app tout de suite."), true),
+            AccountBackupWin.State.Waiting w => (Orange, Loc.T("Pas encore en ligne"), w.Why, false),
+            AccountBackupWin.State.Choice => (Orange, Loc.T("À toi de choisir"), Loc.T("Ce PC et ton compte ont chacun des changements : choisis la version à garder ci-dessus."), false),
+            AccountBackupWin.State.Blocked b => (Red, Loc.T("Sauvegarde arrêtée"), b.Why, false),
+            _ => (Secondary, Loc.T("Vérification de ta sauvegarde…"), Loc.T("Ce PC et ton compte se comparent."), true),
+        };
+        var card = new StackPanel { Spacing = 10 };
+        card.Children.Add(SwissLabel(Loc.T("Sauvegarde"), 11, Text));
+        card.Children.Add(Rule(LineColor));
+        var head = new Grid { ColumnSpacing = 12 };
+        head.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        head.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        head.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        head.Children.Add(new Border { Width = 10, Height = 10, Background = Brush(color), VerticalAlignment = VerticalAlignment.Top, Margin = new Thickness(0, 5, 0, 0) });
+        var text = new StackPanel { Spacing = 2 };
+        text.Children.Add(Label(title, 15, Text, bold: true));
+        text.Children.Add(Paragraph(detail, 12));
+        Grid.SetColumn(text, 1);
+        head.Children.Add(text);
+        var save = Soft(Loc.T("Sauvegarder"), () => _ = backup.SaveNow());
+        save.IsEnabled = !busy && backup.Status is not AccountBackupWin.State.Choice;
+        ToolTipService.SetToolTip(save, Loc.T("Sauvegarder maintenant"));
+        Grid.SetColumn(save, 2);
+        head.Children.Add(save);
+        card.Children.Add(head);
+        if (busy) card.Children.Add(new ProgressBar { IsIndeterminate = true, Foreground = Brush(Text), Background = Brush(Faint) });
+        var tiles = new Grid { ColumnSpacing = 12 };
+        tiles.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        tiles.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        tiles.Children.Add(Tile(Loc.T("Sur ce PC"), backup.HereSummary));
+        var online = Tile(Loc.T("En ligne"), backup.OnlineSummary ?? "—");
+        Grid.SetColumn(online, 1);
+        tiles.Children.Add(online);
+        card.Children.Add(tiles);
+        return Boxed(card, new Thickness(20, 16, 20, 16));
+
+        static FrameworkElement Tile(string title, string value)
+        {
+            var tile = new StackPanel { Spacing = 3, Padding = new Thickness(12, 10, 12, 10), Background = Brush(Faint) };
+            tile.Children.Add(SwissLabel(title, 10));
+            tile.Children.Add(Label(value, 14, Text, semibold: true));
+            return tile;
+        }
+    }
+
+    /// Ce PC et le compte ont chacun leurs changements : laquelle garder (comme AccountConflictCard du Mac).
+    private FrameworkElement ConflictCard(AccountBackupWin backup, AccountBackupWin.Conflict choice)
+    {
+        var card = new StackPanel { Spacing = 10 };
+        card.Children.Add(Label(Loc.T("Deux versions différentes"), 15, Text, bold: true));
+        card.Children.Add(Paragraph(Loc.T("Laquelle garder ?"), 12));
+        var sides = new Grid { ColumnSpacing = 12 };
+        sides.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        sides.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        sides.Children.Add(Side(Loc.T("Ce PC"), choice.Here, Loc.T("La sauvegarde de ton compte est remplacée par ce qu'il y a ici."),
+                                Primary(Loc.T("Garder ce PC"), () => _ = backup.Resolve(keepAccount: false))));
+        var account = Side(Loc.T("Mon compte"), choice.Account + (When(choice.Remote.UpdatedAt) is { } w ? " · " + w : ""),
+                           Loc.T("Ce PC reprend ta sauvegarde. Ce qu'il y avait ici est copié dans le dossier de FL Shortcuts."),
+                           Soft(Loc.T("Garder mon compte"), () => _ = backup.Resolve(keepAccount: true)));
+        Grid.SetColumn(account, 1);
+        sides.Children.Add(account);
+        card.Children.Add(sides);
+        return new Border
+        {
+            Child = card,
+            Padding = new Thickness(20, 16, 20, 16),
+            Background = Brush(Colors.Black),
+            BorderBrush = Brush(Orange),
+            BorderThickness = new Thickness(2, 1, 1, 1),
+        };
+
+        static FrameworkElement Side(string title, string summary, string effect, Button button)
+        {
+            var side = new StackPanel { Spacing = 6, Padding = new Thickness(12), Background = Brush(Faint) };
+            side.Children.Add(SwissLabel(title, 10));
+            side.Children.Add(Label(summary, 13.5, Text, semibold: true));
+            side.Children.Add(Paragraph(effect, 11.5));
+            ToolTipService.SetToolTip(button, effect);
+            side.Children.Add(button);
+            return side;
+        }
+    }
+
+    /// « 04/11/2026 10:12 » (heure de ce PC) d'une date du serveur ; null si elle ne se lit pas.
+    private static string? When(string? iso) =>
+        DateTimeOffset.TryParse(iso, System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out var d)
+            ? d.ToLocalTime().ToString("g", System.Globalization.CultureInfo.CurrentCulture) : null;
 
     // ---------- Modifier le profil ----------
 

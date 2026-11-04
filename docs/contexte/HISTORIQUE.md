@@ -757,3 +757,8 @@ entrée 1 ≈ 0,5 s.
   401f2c8 : la recherche du plugin dans Add › Channel appuyait par l'Accessibilité sur « Channel », menu Add fermé ;
   le faux FL restait dans un menu invisible qui avalait le clic sur « More plugins… » puis tous les clics de l'essai
   suivant. Correctif : menus de FL ouverts seulement depuis la barre, niveau par niveau (`MenuBarAX`).
+- 04/11 (« donc les raccourcis ne fonctionnent pas sur pc ? » puis « il faudrait une sorte d'interpréteur qui modifie le
+  raccourci selon le type de pc ») : traducteur des raccourcis Mac ↔ PC (même place sur le clavier, disposition du PC
+  lue par Windows, ⌘ → Ctrl) avec aller-retour sans perte ; Communauté Windows : raccourcis d'un Mac utilisables et
+  partage de tous ses raccourcis ; sauvegarde en ligne sur Windows, la même que celle du Mac (mêmes règles, copie
+  datée avant remplacement, déconnexion qui vide le PC).

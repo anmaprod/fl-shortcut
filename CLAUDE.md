@@ -222,9 +222,15 @@
   `set_username`, déconnexion, suppression ; session DPAPI `AccountStore`), Communauté (`CommunityPage` : liste,
   filtres, fiche, Ajouter à mes macros, Signaler, Supprimer, Partager une macro ; cœur `Community.cs` et
   `Macros/MacroExchange.cs`, même .flsmacro que le Mac). Serveur : `FLS_SUPABASE_URL`/`_ANON_KEY` de la CI écrits dans
-  l'app (`HelpPage.Server`). PAS de sauvegarde en ligne sur Windows : les codes des touches diffèrent du Mac, une
-  sauvegarde faite sur Windows abîmerait celle du Mac (à concevoir : une sauvegarde par système) ; raccourcis partagés
-  depuis un Mac lus, pas ajoutés. Compiler le C# de l'app ici (le compilateur XAML est Windows seulement) :
+  l'app (`HelpPage.Server`). 04/11 (« une sorte d'interpréteur qui modifie le raccourci selon le type de pc ») :
+  traducteur `PlatformKeys` (touche gardée à sa PLACE : code du Mac → scan code → touche de la disposition du PC lue par
+  Windows, `WindowsKeyLayout` ; ⌘ et ⌃ → Ctrl, ⌥ → Alt) et `MacProfile` (profil du Mac lu/écrit ; chaque raccourci
+  venu du Mac garde son écriture d'origine `Shortcut.Mac` et repart tel quel s'il n'a pas changé : ⌃, page ; deux
+  devenus la même touche : le second éteint sur le PC seulement, `flsPcOff`). Communauté : raccourcis d'un Mac
+  « Utiliser ces raccourcis » (annulable), « Tous mes raccourcis » partagés au format du Mac. Sauvegarde en ligne
+  sur Windows = LA MÊME que le Mac (`Backup.cs`, `Services/AccountBackupWin.cs`, règles recopiées de
+  AccountBackup.swift, copie datée « avant-compte », déconnexion qui vide le PC comme le Mac ; état dans
+  settings.json `BackupAccount/Revision/Dirty`). Pas encore vu sur un vrai PC avec le compte du propriétaire. Compiler le C# de l'app ici (le compilateur XAML est Windows seulement) :
   `~/.dotnet/dotnet build windows/FLShortcut.App -c Release -p:Platform=x64 -p:EnableWindowsTargeting=true
   -p:EnableDefaultPageItems=false -p:EnableDefaultApplicationDefinition=false` : seules 4 erreurs attendues
   (InitializeComponent, Root, Main) ; le cœur : `dotnet test windows/FLShortcut.Core.Tests`.

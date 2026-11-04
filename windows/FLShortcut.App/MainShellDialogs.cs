@@ -214,6 +214,25 @@ internal sealed partial class MainShell
         return await dialog.ShowAsync() == ContentDialogResult.Primary;
     }
 
+    /// Une question à trois réponses : 0 (`first`), 1 (`second`), 2 (Annuler, le choix par défaut).
+    private async Task<int> ChooseAsync(string title, string text, string first, string second)
+    {
+        if (_root.XamlRoot is null) return 2;
+        var dialog = NewDialog();
+        dialog.Title = title;
+        dialog.Content = Paragraph(text, 13, Text);
+        dialog.PrimaryButtonText = first;
+        dialog.SecondaryButtonText = second;
+        dialog.CloseButtonText = Loc.T("Annuler");
+        dialog.DefaultButton = ContentDialogButton.Close;
+        return await dialog.ShowAsync() switch
+        {
+            ContentDialogResult.Primary => 0,
+            ContentDialogResult.Secondary => 1,
+            _ => 2,
+        };
+    }
+
     /// Une touche ne sert qu'une fois : ce qui l'utilise est annoncé avant de la reprendre.
     private async Task<bool> ConfirmReplace(KeyCombo? combo, List<KeyClash> clashes)
     {

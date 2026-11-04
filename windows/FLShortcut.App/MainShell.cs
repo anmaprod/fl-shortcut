@@ -149,6 +149,9 @@ internal sealed partial class MainShell
         _account = new AccountPage(() => { if (_kind is PageKind.Account or PageKind.Community) RenderPage(); }, ConfirmAsync, _hwnd);
         _community = new CommunityPage(_app, _account, () => { if (_kind == PageKind.Community) RenderPage(); }, ShowToast, ConfirmAsync);
         _account.Changed += UpdateAccountButton;
+        // Sauvegarde en ligne commune avec le Mac (raccourcis traduits), suivie par la page Mon compte.
+        _account.Backup = new Services.AccountBackupWin(_app, _account);
+        _account.Choose = ChooseAsync;
         _help.Token = () => _account.Session is { } session && !session.Expired(DateTimeOffset.UtcNow) ? session.AccessToken : null;
         UpdateAccountButton();
         _macros = new MacrosPage(_app, macroStore, photos, window,

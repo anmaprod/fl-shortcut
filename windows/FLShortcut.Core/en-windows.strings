@@ -113,9 +113,6 @@
 "Tes raccourcis marcheront dès que tu l'ouvres." = "Your shortcuts will work as soon as you open it.";
 "Le serveur n'a pas répondu." = "The server didn't respond.";
 "Tes raccourcis et tes macros restent sur ce PC en attendant." = "Your shortcuts and macros stay on this PC in the meantime.";
-"Bientôt sur Windows : pour l'instant, tes raccourcis et tes macros restent sur ce PC." = "Coming soon on Windows: for now, your shortcuts and macros stay on this PC.";
-"Efface ton compte et tes partages. Tes raccourcis et tes macros restent sur ce PC." = "Deletes your account and your shares. Your shortcuts and macros stay on this PC.";
-"Tu pourras te reconnecter quand tu veux. Tes raccourcis et tes macros restent sur ce PC." = "You can sign back in whenever you like. Your shortcuts and macros stay on this PC.";
 "Ton compte, ta sauvegarde en ligne et tes partages dans la Communauté seront effacés pour toujours. Tes raccourcis et tes macros restent sur ce PC." = "Your account, your online backup and your Community shares will be erased for good. Your shortcuts and macros stay on this PC.";
 "Ton compte est supprimé. Tes raccourcis et tes macros restent sur ce PC." = "Your account is deleted. Your shortcuts and macros stay on this PC.";
 "Montre de nouveau chaque clic dans FL (positions propres à chaque ordinateur)." = "Show each click again in FL (positions are specific to each computer).";
@@ -124,3 +121,12 @@
 "%lld raccourcis éteints : leur touche n'existe pas sur ce PC, ou elle est déjà prise." = "%lld shortcuts turned off: their key doesn't exist on this PC, or it's already taken.";
 "La sauvegarde de ton compte est illisible : rien n'a été changé sur ce PC." = "Your account's backup can't be read: nothing was changed on this PC.";
 "Impossible de garder une copie de ce PC avant de reprendre ta sauvegarde : rien n'a été remplacé." = "Couldn't keep a copy of this PC before restoring your backup: nothing was replaced.";
+"Tes raccourcis et tes macros seront retirés de ce PC. Ils restent dans ton compte : reconnecte-toi, ici ou sur un autre ordinateur, pour les retrouver." = "Your shortcuts and macros will be removed from this PC. They stay in your account: sign back in, here or on another computer, to get them back.";
+"Choisis d'abord quelle version garder : celle de ce PC ou celle de ton compte." = "First choose which version to keep: this PC's or your account's.";
+"Ce PC et ton compte se comparent." = "This PC and your account are being compared.";
+"Ce PC et ton compte ont chacun des changements : choisis la version à garder ci-dessus." = "This PC and your account each have changes: choose the version to keep above.";
+"Sur ce PC" = "On this PC";
+"Ce PC" = "This PC";
+"Garder ce PC" = "Keep this PC";
+"Ce PC reprend ta sauvegarde. Ce qu'il y avait ici est copié dans le dossier de FL Shortcuts." = "This PC takes your backup. What was here is copied to the FL Shortcuts folder.";
+"Efface ton compte, ta sauvegarde en ligne et tes partages. Tes raccourcis et tes macros restent sur ce PC." = "Deletes your account, your online backup and your shares. Your shortcuts and macros stay on this PC.";

@@ -133,6 +133,11 @@ internal sealed class AppSettings
     /// Macros : ce qui a été appris (Entrée après la dernière lettre d'un menu de FL). Clés de la liste blanche
     /// seulement (MacroValidation.LearnedEnterKeys), jamais lues pour autre chose.
     public Dictionary<string, bool>? MacroMemory { get; set; }
+    /// Sauvegarde du compte (comme backup.account / revision / dirty du Mac) : le compte et la dernière révision lue
+    /// ou écrite par ce PC, et s'il reste des changements d'ici à envoyer. Rien de secret.
+    public string? BackupAccount { get; set; }
+    public long? BackupRevision { get; set; }
+    public bool BackupDirty { get; set; }
 
     private static string FilePath => Path.Combine(AppPaths.Local, "settings.json");
 
@@ -181,6 +186,18 @@ internal static class ProfileStore
 
     public static void Save(IEnumerable<Shortcut> shortcuts) =>
         SafeFile.WriteAtomic(FilePath, Encoding.UTF8.GetBytes(ProfileCodec.Encode(shortcuts)));
+
+    /// Copie datée des raccourcis (avant de les remplacer par la sauvegarde du compte) ; null : pas écrite.
+    public static string? KeepCopy(IEnumerable<Shortcut> shortcuts, string label)
+    {
+        try
+        {
+            var name = $"profile.{label}-{DateTimeOffset.UtcNow.ToUnixTimeSeconds()}.json";
+            SafeFile.WriteAtomic(Path.Combine(AppPaths.Roaming, name), Encoding.UTF8.GetBytes(ProfileCodec.Encode(shortcuts)));
+            return name;
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException) { return null; }
+    }
 }
 
 /// Journal de l'appli (AppLog : étapes des macros et de l'Organiser, des mots fixes et des nombres seulement) dans
