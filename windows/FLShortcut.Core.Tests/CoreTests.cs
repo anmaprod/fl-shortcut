@@ -917,3 +917,64 @@ public class PlatformKeysTests
         Assert.Equal(2, preview.Disabled);
     }
 }
+
+/// Sauvegarde en ligne commune au Mac et au PC : mêmes règles que le Mac, contenu au format du Mac.
+public class BackupTests
+{
+    private static readonly int Action = Enumerable.Range(0, 400).First(i => FlActions.IsKnown(i));
+
+    [Fact]
+    public void Rules_LikeTheMac()
+    {
+        Assert.Equal(BackupDecision.Upload, BackupRules.Decide(null, false, false, null, false));
+        Assert.Equal(BackupDecision.InSync, BackupRules.Decide(3, true, false, null, true));
+        Assert.Equal(BackupDecision.Upload, BackupRules.Decide(3, false, false, 3, true));
+        Assert.Equal(BackupDecision.Restore, BackupRules.Decide(4, false, false, 3, false));
+        Assert.Equal(BackupDecision.Ask, BackupRules.Decide(4, false, false, 3, true));
+        Assert.Equal(BackupDecision.Restore, BackupRules.Decide(4, false, true, null, false));
+        Assert.Equal(BackupDecision.Ask, BackupRules.Decide(4, false, false, null, false));
+        Assert.Equal("12 raccourcis · 1 macro", BackupRules.Summary(12, 1));
+    }
+
+    [Fact]
+    public void Content_RoundTripAndSame()
+    {
+        var shortcuts = new List<Shortcut> { Shortcut.Action(new KeyCombo(Vk.Letter('S'), Ctrl: true), Action) };
+        var macros = new List<MacroDoc> { new() { Name = "Voix lead", Blocks = new() { new(new BlockBody.Delay(200)) } } };
+        var content = BackupCodec.Of(shortcuts, macros, UsKeyLayout.Shared);
+        Assert.True(MacProfile.IsMacProfile(content.Profile));
+        var (back, backMacros) = BackupCodec.Decode(content, UsKeyLayout.Shared);
+        Assert.Equal(new KeyCombo(Vk.Letter('S'), Ctrl: true), back.Single().Trigger);
+        Assert.Equal("Voix lead", backMacros.Single().Name);
+        Assert.True(BackupCodec.Same(content, back, backMacros, UsKeyLayout.Shared));
+        Assert.True(BackupCodec.Same(content, shortcuts, macros, UsKeyLayout.Shared));
+        var changed = new List<Shortcut> { shortcuts[0] with { Trigger = new KeyCombo(Vk.Letter('D'), Ctrl: true) } };
+        Assert.False(BackupCodec.Same(content, changed, macros, UsKeyLayout.Shared));
+        Assert.False(BackupCodec.Same(content, shortcuts, new List<MacroDoc>(), UsKeyLayout.Shared));
+        Assert.Equal("1 raccourci · 1 macro", BackupCodec.Summary(content, UsKeyLayout.Shared));
+        Assert.Throws<BackupFailure>(() => BackupCodec.Decode(new BackupContent("pas du json", content.Macros), UsKeyLayout.Shared));
+        Assert.Throws<BackupFailure>(() => BackupCodec.Decode(new BackupContent("""{"version":9,"remaps":[]}""", content.Macros), UsKeyLayout.Shared));
+        Assert.True(BackupCodec.Untouched(ProfilePreset.Recommended.Shortcuts(), 0));
+        Assert.False(BackupCodec.Untouched(shortcuts, 0));
+        Assert.False(BackupCodec.Untouched(ProfilePreset.Recommended.Shortcuts(), 1));
+    }
+
+    [Fact]
+    public void Requests_AndAnswers()
+    {
+        var config = ServerConfig.Resolve("https://exemple.supabase.co", "sb_publishable_abc")!;
+        var session = new AccountSession("jeton", "suite", DateTimeOffset.UnixEpoch.AddHours(1), Guid.Empty, "flshortcuts@exemple.fr", "flshortcuts");
+        var save = BackupRequests.Save(config, session, new BackupContent("{}", "{}"), 7, false, "0.2.0");
+        var body = System.Text.Json.JsonDocument.Parse(save.Content!.ReadAsStringAsync().Result).RootElement;
+        Assert.Equal("/rest/v1/rpc/save_backup", save.RequestUri!.AbsolutePath);
+        Assert.Equal(7, body.GetProperty("p_base").GetInt64());
+        Assert.False(body.GetProperty("p_force").GetBoolean());
+        Assert.Equal("Bearer jeton", save.Headers.Authorization!.ToString());
+        Assert.Null(BackupRequests.DecodeRevision("[]"));
+        Assert.Equal((7L, "2026-11-04T10:12:00+00:00"), BackupRequests.DecodeRevision("""[{"revision":7,"updated_at":"2026-11-04T10:12:00+00:00"}]"""));
+        Assert.Equal(7, BackupRequests.DecodeBackup("""[{"profile":"{}","macros":"{}","revision":7}]""")!.Revision);
+        Assert.Equal(8, BackupRequests.DecodeSaved("8"));
+        Assert.True(BackupRequests.IsConflict("""{"message":"Sauvegarde plus récente sur le serveur"}"""));
+        Assert.False(BackupRequests.IsConflict("""{"message":"autre"}"""));
+    }
+}

@@ -122,3 +122,5 @@
 "Montre de nouveau chaque glisser-déposer dans FL (positions propres à chaque ordinateur)." = "Show each drag and drop again in FL (positions are specific to each computer).";
 "Rechoisis le preset : le fichier doit exister sur ce PC." = "Choose the preset again: the file must exist on this PC.";
 "%lld raccourcis éteints : leur touche n'existe pas sur ce PC, ou elle est déjà prise." = "%lld shortcuts turned off: their key doesn't exist on this PC, or it's already taken.";
+"La sauvegarde de ton compte est illisible : rien n'a été changé sur ce PC." = "Your account's backup can't be read: nothing was changed on this PC.";
+"Impossible de garder une copie de ce PC avant de reprendre ta sauvegarde : rien n'a été remplacé." = "Couldn't keep a copy of this PC before restoring your backup: nothing was replaced.";
