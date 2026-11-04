@@ -46,8 +46,8 @@ enum MenuBarIcon {
         return image
     }
 
-    /// Le logo et sa pastille, cercle de la couleur `ring`, en 1x et 2x.
-    private static func drawn(_ state: State, ring: NSColor) -> NSImage {
+    /// Le logo et sa pastille, cercle de la couleur `ring`, en 1x et 2x (lu aussi par MenuBarIconTests).
+    static func drawn(_ state: State, ring: NSColor) -> NSImage {
         let image = NSImage(size: NSSize(width: side, height: side))
         for scale in [1, 2] {
             if let rep = rep(state, ring: ring, scale: scale) { image.addRepresentation(rep) }
