@@ -38,8 +38,11 @@ button, input { font: inherit; color: inherit; }
 
 /* Les bandes pleines, d'un bord à l'autre */
 .bande { margin-left: calc(50% - 50vw); margin-right: calc(50% - 50vw); padding-left: calc(50vw - 50%); padding-right: calc(50vw - 50%); }
-/* Les pages suivantes passent au-dessus de l'ouverture : les lettres qui tombent glissent derrière elles. */
-.bande { position: relative; z-index: 3; }
+/* Ordre des plans, du fond vers l'avant : lettres qui tombent (2), fond des pages suivantes (3), traits de la page
+   blanche (4), rond rouge (5), contenu des pages suivantes (6), bas de l'ouverture avec « Obtenir » (7).
+   Les lettres glissent derrière les pages ; le rond rouge passe devant le papier et les traits, pas devant le reste. */
+.bande { position: relative; }
+.bande::before { content: ""; position: absolute; inset: 0; z-index: 3; background: inherit; pointer-events: none; }
 .papier { background: var(--paper); color: var(--ink); }
 .papier .label { color: var(--gray-p); }
 .rouge { background: var(--red); color: var(--ink); }
@@ -47,10 +50,10 @@ button, input { font: inherit; color: inherit; }
 
 /* La grille, seulement derrière le papier blanc */
 .idees-in { position: relative; }
-.grille-p { position: absolute; inset: 0; z-index: 0; pointer-events: none; }
+.grille-p { position: absolute; inset: 0; z-index: 4; pointer-events: none; }
 .grille-p .g { height: 100%; }
 .grille-p i { border-left: 1px solid var(--grid-p); border-right: 1px solid var(--grid-p); transform-origin: top; }
-.idees-in > :not(.grille-p) { position: relative; z-index: 1; }
+.idees-in > .tete, .idee > h2, .idee > .dit { position: relative; z-index: 6; }
 
 /* Boutons : l'ombre rouge décalée, qui s'enfonce */
 .btn { display: inline-flex; align-items: center; justify-content: center; gap: 12px; height: 48px; padding: 0 22px;
@@ -91,7 +94,7 @@ button, input { font: inherit; color: inherit; }
 .mot span { display: inline-block; }
 .lettre { display: inline-block; will-change: transform; }
 .m1 { grid-column: 1 / -1; } .m2 { grid-column: 4 / -1; } .m3 { grid-column: 2 / -1; }
-.disque { position: absolute; z-index: 4; right: -7%; top: 313px; width: clamp(230px, 34vw, 480px); aspect-ratio: 1 / 1; border-radius: 50%;
+.disque { position: absolute; z-index: 5; right: -7%; top: 313px; width: clamp(230px, 34vw, 480px); aspect-ratio: 1 / 1; border-radius: 50%;
   background: var(--red); color: var(--ink); display: grid; place-items: center; transform: rotate(-12deg); }
 .disque .in { display: flex; flex-direction: column; align-items: center; gap: 8px; margin-left: -12%; }
 .disque .k { font: 700 clamp(56px, 8vw, 116px)/1 var(--display); letter-spacing: -0.05em; }
@@ -99,7 +102,7 @@ button, input { font: inherit; color: inherit; }
 .anneau { position: absolute; z-index: 1; border-radius: 50%; border: 1.5px solid var(--paper); pointer-events: none; aspect-ratio: 1 / 1; }
 .a1 { width: clamp(300px, 46vw, 660px); right: -14%; top: 203px; }
 .a2 { width: clamp(70px, 9vw, 130px); right: 33%; top: 683px; background: var(--paper); border: 0; }
-.bas { margin-top: 64px; align-items: end; position: relative; z-index: 5; }
+.bas { margin-top: 64px; align-items: end; position: relative; z-index: 7; }
 .bas p { grid-column: 1 / 6; font-size: clamp(20px, 2vw, 26px); line-height: 1.2; letter-spacing: -0.015em; }
 .bas .act { grid-column: 8 / 13; display: flex; justify-content: flex-end; align-items: center; gap: 22px; }
 .bas .act .label { text-align: right; }
@@ -107,8 +110,9 @@ button, input { font: inherit; color: inherit; }
 /* 2. Les idées, sur papier blanc : un grand mot, une phrase */
 .idees { padding-block: 22px 0; }
 .idees .tete { display: flex; justify-content: space-between; padding-bottom: 10px; }
-.idee { align-items: center; padding-block: 52px; border-top: 1px solid var(--line-p); }
-.idee:first-of-type { border-top: 2px solid var(--ink); }
+.idee { position: relative; align-items: center; padding-block: 52px; }
+.idee::before { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 1px; background: var(--line-p); z-index: 4; }
+.idee:first-of-type::before { height: 2px; background: var(--ink); }
 .idee h2 { font: 700 clamp(48px, 9.4vw, 134px)/0.84 var(--display); letter-spacing: -0.06em; white-space: nowrap; }
 .idee h2 span { display: inline-block; transition: transform .25s ease; }
 .idee:hover h2 span { transform: translateX(12px); }
@@ -124,7 +128,7 @@ button, input { font: inherit; color: inherit; }
 
 /* 3. Prix libre, sur rouge plein */
 .prix { padding-block: 104px 96px; }
-.prix .inner { align-items: end; }
+.prix .inner { align-items: end; position: relative; z-index: 6; }
 .prix .grand { grid-column: 1 / 8; display: flex; flex-direction: column; gap: 22px; min-width: 0; }
 .zero { position: relative; font: 700 clamp(150px, 25vw, 360px)/0.76 var(--display); letter-spacing: -0.075em; white-space: nowrap; font-variant-numeric: tabular-nums; }
 .zero .plus2 { position: absolute; color: var(--paper); font-size: 0.42em; top: -0.18em; margin-left: 0.04em; letter-spacing: 0; }
@@ -376,27 +380,34 @@ dialog::backdrop { background: rgba(0, 0, 0, 0.88); }
       // 1. la lettre se décroche, elle pivote un peu sur un de ses coins du bas ;
       // 2. puis elle tombe de plus en plus vite, en tournant, et sort de la page noire, derrière la page blanche ;
       // 3. ça s'effondre par le bas : « organiser. » d'abord, puis « macros », puis « raccourcis ».
-      // Image par image, 12 images par chute : pas fluide, voulu, comme de l'animation image par image.
-      var hero = document.querySelector('.hero'), IMAGES = 12;
+      // Pas fluide, voulu : chaque chute n'a que 6 images, le décrochage se fait d'un coup, les angles vont de 15 en 15
+      // degrés, et toute la scène n'avance que par 28 images sur la longueur du défilement, comme un vieux film image par image.
+      var hero = document.querySelector('.hero'), IMAGES = 6, IMAGES_SCENE = 28, quinze = gsap.utils.snap(15);
       var graviteSaccadee = function (p) { var q = Math.floor(p * IMAGES) / IMAGES; return q * q; };
-      var decroche = function (p) { return Math.floor(p * 3) / 3; };
-      var chute = gsap.timeline({ scrollTrigger: { trigger: '.hero', start: 'top top', end: 'bottom 25%', scrub: true, invalidateOnRefresh: true } });
+      var decroche = function (p) { return p < 0.5 ? 0 : 1; };
+      var chute = gsap.timeline({ paused: true });
       lignes.slice().reverse().forEach(function (ls, li) {
         ls.forEach(function (l, j) {
           var sens = gsap.utils.random([-1, 1]);
           var debut = li * 0.32 + j * 0.035 + gsap.utils.random(0, 0.04);
           gsap.set(l, { transformOrigin: sens > 0 ? '100% 100%' : '0% 100%' });
-          chute.to(l, { rotation: sens * gsap.utils.random(6, 14), duration: 0.14, ease: decroche }, debut)
+          chute.to(l, { rotation: sens * 15, duration: 0.14, ease: decroche }, debut)
             .to(l, {
               y: function () {
                 var haut = l.getBoundingClientRect().top - gsap.getProperty(l, 'y');
                 return hero.getBoundingClientRect().bottom - haut + gsap.utils.random(40, 220);
               },
               x: sens * gsap.utils.random(10, 60),
-              rotation: sens * gsap.utils.random(35, 95),
+              rotation: sens * quinze(gsap.utils.random(45, 90)),
               duration: 0.7, ease: graviteSaccadee
             }, debut + 0.14);
         });
+      });
+      var image = function (p) { return Math.floor(p * IMAGES_SCENE) / IMAGES_SCENE; };
+      ScrollTrigger.create({
+        trigger: '.hero', start: 'top top', end: 'bottom 25%',
+        onUpdate: function (self) { chute.progress(image(self.progress)); },
+        onRefresh: function (self) { chute.invalidate(); chute.progress(image(self.progress)); }
       });
     }
   }
