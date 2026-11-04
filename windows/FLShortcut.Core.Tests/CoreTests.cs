@@ -821,3 +821,99 @@ public class CommunityTests
         Assert.Null(CommunityRequests.DecodePayload("[]"));
     }
 }
+
+/// Traducteur des raccourcis Mac ↔ PC : la même place sur le clavier, ⌘ → Ctrl, aller-retour sans perte.
+public class PlatformKeysTests
+{
+    /// AZERTY : A et Q, Z et W échangés (le reste comme le QWERTY américain).
+    private sealed class Azerty : IKeyLayout
+    {
+        private static ushort Swap(ushort vk) => vk switch
+        {
+            0x41 => 0x51, 0x51 => 0x41, 0x5A => 0x57, 0x57 => 0x5A, _ => vk,
+        };
+        public ushort? VkForScan(ushort scan) => UsKeyLayout.Shared.VkForScan(scan) is { } vk ? Swap(vk) : null;
+        public ushort? ScanForVk(ushort vk) => UsKeyLayout.Shared.ScanForVk(Swap(vk));
+    }
+
+    private static readonly int Action = Enumerable.Range(0, 400).First(i => FlActions.IsKnown(i));
+    private static string ActionKey => FlActions.Info(Action)!.Key;
+
+    [Fact]
+    public void Keys_KeepTheirPlace()
+    {
+        var us = UsKeyLayout.Shared;
+        Assert.Equal(new KeyCombo(Vk.Letter('S'), Ctrl: true), PlatformKeys.MacToPc(new MacKeyCombo(1, Command: true), us));
+        Assert.Equal(new KeyCombo(Vk.F(1), Alt: true, Shift: true), PlatformKeys.MacToPc(new MacKeyCombo(122, Option: true, Shift: true), us));
+        Assert.Equal(new KeyCombo(Vk.Letter('S'), Ctrl: true), PlatformKeys.MacToPc(new MacKeyCombo(1, Control: true), us));
+        // ⌘ + la touche marquée A sur un Mac AZERTY (code 12, place du Q) : Ctrl + A sur un PC AZERTY.
+        Assert.Equal(new KeyCombo(Vk.Letter('A'), Ctrl: true), PlatformKeys.MacToPc(new MacKeyCombo(12, Command: true), new Azerty()));
+        Assert.Equal(new MacKeyCombo(12, Command: true), PlatformKeys.PcToMac(new KeyCombo(Vk.Letter('A'), Ctrl: true), new Azerty()));
+        Assert.Equal(new MacKeyCombo(1, Command: true), PlatformKeys.PcToMac(new KeyCombo(Vk.Letter('S'), Ctrl: true), us));
+        Assert.Equal(new MacKeyCombo(126), PlatformKeys.PcToMac(new KeyCombo(Vk.Up), us));
+        Assert.Null(PlatformKeys.PcToMac(new KeyCombo(Vk.Letter('S'), Win: true), us));
+        Assert.Null(PlatformKeys.MacToPc(new MacKeyCombo(200, Command: true), us));
+    }
+
+    private string MacJson() => $$$"""
+        {"version":2,"remaps":[
+          {"id":"6F1D2C1E-0000-4000-8000-000000000001","enabled":true,"context":"everywhere","kind":"flAction",
+           "action":"{{{ActionKey}}}","actionID":{{{Action}}},"trigger":{"keyCode":1,"command":true,"option":false,"control":false,"shift":false}},
+          {"id":"6F1D2C1E-0000-4000-8000-000000000002","enabled":true,"context":"everywhere","kind":"flAction","page":"mixer",
+           "action":"{{{ActionKey}}}","actionID":{{{Action}}},"trigger":{"keyCode":1,"command":false,"option":false,"control":true,"shift":false}},
+          {"id":"6F1D2C1E-0000-4000-8000-000000000003","enabled":true,"context":"mixer","kind":"keystroke",
+           "trigger":{"keyCode":200,"command":true},"target":{"keyCode":35,"command":false}}
+        ]}
+        """;
+
+    [Fact]
+    public void FromMac_TranslatesAndTurnsOffWhatCannotWork()
+    {
+        Assert.True(MacProfile.IsMacProfile(MacJson()));
+        Assert.False(MacProfile.IsMacProfile(ProfileCodec.Encode(new[] { Shortcut.Action(new KeyCombo(Vk.Letter('S'), Ctrl: true), Action) })));
+        var t = MacProfile.FromMac(MacJson(), UsKeyLayout.Shared);
+        Assert.Equal(3, t.Shortcuts.Count);
+        Assert.Equal(new KeyCombo(Vk.Letter('S'), Ctrl: true), t.Shortcuts[0].Trigger);
+        Assert.True(t.Shortcuts[0].Enabled);
+        Assert.False(t.Shortcuts[1].Enabled);                // ⌃S : la même touche que ⌘S sur le PC
+        Assert.False(t.Shortcuts[2].Enabled);                // touche sans équivalent
+        Assert.Equal(1, t.Duplicates);
+        Assert.Equal(1, t.Untranslatable);
+        Assert.Equal(new KeyCombo(Vk.Letter('P')), t.Shortcuts[2].Target);
+        // Le format de Windows garde l'écriture du Mac.
+        var again = ProfileCodec.Decode(ProfileCodec.Encode(t.Shortcuts)).Shortcuts;
+        Assert.NotNull(again[1].Mac);
+    }
+
+    [Fact]
+    public void ToMac_RoundTripWithoutLoss()
+    {
+        var t = MacProfile.FromMac(MacJson(), UsKeyLayout.Shared);
+        var back = System.Text.Json.Nodes.JsonNode.Parse(MacProfile.ToMac(t.Shortcuts, UsKeyLayout.Shared))!["remaps"]!.AsArray();
+        var original = System.Text.Json.Nodes.JsonNode.Parse(MacJson())!["remaps"]!.AsArray();
+        for (var i = 0; i < original.Count; i++)
+            Assert.True(System.Text.Json.Nodes.JsonNode.DeepEquals(original[i], back[i]), $"raccourci {i + 1} changé : {back[i]}");
+        // Changé sur le PC : traduit (Ctrl → ⌘), la page du Mac gardée.
+        var changed = t.Shortcuts.ToList();
+        changed[1] = changed[1] with { Trigger = new KeyCombo(Vk.Letter('D'), Ctrl: true, Shift: true), Enabled = true };
+        var out1 = System.Text.Json.Nodes.JsonNode.Parse(MacProfile.ToMac(changed, UsKeyLayout.Shared))!["remaps"]![1]!;
+        Assert.Equal(2, out1["trigger"]!["keyCode"]!.GetValue<int>());
+        Assert.True(out1["trigger"]!["command"]!.GetValue<bool>());
+        Assert.True(out1["trigger"]!["shift"]!.GetValue<bool>());
+        Assert.Equal("mixer", out1["page"]!.GetValue<string>());
+        Assert.Null(out1["flsPcOff"]);
+        // Créé sur le PC : écrit comme un raccourci du Mac.
+        var made = MacProfile.ToMac(new[] { Shortcut.Action(new KeyCombo(Vk.F(5), Alt: true), Action) }, UsKeyLayout.Shared);
+        var macBack = MacProfile.FromMac(made, UsKeyLayout.Shared).Shortcuts.Single();
+        Assert.Equal(new KeyCombo(Vk.F(5), Alt: true), macBack.Trigger);
+        Assert.Equal(Action, macBack.ActionId);
+    }
+
+    [Fact]
+    public void Import_AcceptsAMacProfile()
+    {
+        var preview = ProfileImporter.Prepare(MacJson(), UsKeyLayout.Shared);
+        Assert.Equal(3, preview.Shortcuts.Count);
+        Assert.Equal(2, preview.Disabled);
+    }
+}

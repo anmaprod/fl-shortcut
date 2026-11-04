@@ -85,6 +85,10 @@ public sealed record Shortcut
     /// `unknownAction = "macroRef:<uuid>"` (comme le Mac) : retrouvée si la clé `macroRef` a disparu.
     public Guid? MacroRef { get; init; }
 
+    /// Raccourci venu d'un Mac (Communauté, sauvegarde du compte) : son écriture d'origine, renvoyée telle quelle au
+    /// Mac s'il n'a pas changé ici (MacProfile.ToMac).
+    public System.Text.Json.Nodes.JsonObject? Mac { get; init; }
+
     /// Préfixe du lien caché vers la bibliothèque.
     public const string MacroRefPrefix = "macroRef:";
 
@@ -171,6 +175,7 @@ public static class ProfileCodec
         var target = TryCombo(o["target"]);
         var unknown = TryString(o["unknownAction"]);
         var macroRef = TryGuid(o["macroRef"]);
+        var mac = o["mac"] is JsonObject m ? (JsonObject)m.DeepClone() : null;
 
         var context = ShortcutContext.Everywhere;
         if (TryString(o["context"]) is { } rawCtx)
@@ -189,7 +194,7 @@ public static class ProfileCodec
             return new Shortcut
             {
                 Id = id, Enabled = false, Trigger = trigger, Context = context, Kind = ShortcutKind.FlAction,
-                ActionId = null, UnknownAction = "type:" + rawKind, Target = target,
+                ActionId = null, UnknownAction = "type:" + rawKind, Target = target, Mac = mac,
             };
         }
 
@@ -220,7 +225,7 @@ public static class ProfileCodec
         {
             Id = id, Enabled = enabled, Trigger = trigger, Context = context, Kind = kind,
             ActionId = actionId, UnknownAction = unknown, Target = kind == ShortcutKind.Keystroke ? target : null,
-            MacroRef = kind == ShortcutKind.Macro ? macroRef : null,
+            MacroRef = kind == ShortcutKind.Macro ? macroRef : null, Mac = mac,
         };
     }
 
@@ -255,13 +260,14 @@ public static class ProfileCodec
             else if (s.UnknownAction is not null && !s.UnknownAction.StartsWith(Shortcut.MacroRefPrefix, StringComparison.Ordinal))
                 o["unknownAction"] = s.UnknownAction;
             if (s.Target is { } tg) o["target"] = ComboNode(tg);
+            if (s.Mac is { } mac) o["mac"] = mac.DeepClone();
             arr.Add(o);
         }
         var root = new JsonObject { ["version"] = FormatVersion, ["platform"] = "windows", ["shortcuts"] = arr };
         return root.ToJsonString(new JsonSerializerOptions { WriteIndented = true });
     }
 
-    private static JsonObject ComboNode(KeyCombo c) => new()
+    internal static JsonObject ComboNode(KeyCombo c) => new()
     {
         ["vk"] = c.Vk, ["ctrl"] = c.Ctrl, ["alt"] = c.Alt, ["shift"] = c.Shift, ["win"] = c.Win,
     };
@@ -495,13 +501,27 @@ public sealed record ImportPreview(List<Shortcut> Shortcuts, int Skipped, int Di
 
 public static class ProfileImporter
 {
-    public static ImportPreview Prepare(string json)
+    /// Un profil de Windows, ou d'un Mac (touches traduites pour ce PC, `layout` : sa disposition du clavier).
+    public static ImportPreview Prepare(string json, IKeyLayout? layout = null)
     {
-        var decoded = ProfileCodec.Decode(json);
+        List<Shortcut> shortcuts;
+        int skipped;
+        if (MacProfile.IsMacProfile(json))
+        {
+            var translated = MacProfile.FromMac(json, layout ?? UsKeyLayout.Shared);
+            shortcuts = translated.Shortcuts;
+            skipped = 0;
+        }
+        else
+        {
+            var decoded = ProfileCodec.Decode(json);
+            shortcuts = decoded.Shortcuts;
+            skipped = decoded.Skipped;
+        }
         var refused = new List<string>();
         var list = new List<Shortcut>();
         var disabled = 0;
-        foreach (var s in decoded.Shortcuts)
+        foreach (var s in shortcuts)
         {
             var item = s with { Id = Guid.NewGuid() };
             if (item.Kind == ShortcutKind.Keystroke && item.Target is { } t && ForbiddenTargets.Reason(t) is { } why)
@@ -513,7 +533,7 @@ public static class ProfileImporter
             if (!item.Enabled) disabled++;
             list.Add(item);
         }
-        return new ImportPreview(list, decoded.Skipped, disabled, refused);
+        return new ImportPreview(list, skipped, disabled, refused);
     }
 }
 
