@@ -194,7 +194,10 @@ enum MenuBarAX {
                 Thread.sleep(forTimeInterval: 0.1)
                 next = child(of: current, titled: wanted, inMenu: true)
             }
-            guard let found = next else { return nil }
+            guard let found = next else {
+                closeMenus(pid: pid)             // pas là : rien laissé ouvert
+                return nil
+            }
             if level < titles.count - 1 {
                 AXUIElementPerformAction(found, kAXPressAction as CFString)     // ouvre son menu : FL le met à jour
                 Thread.sleep(forTimeInterval: 0.15)
@@ -278,8 +281,11 @@ enum MenuBarAX {
             return menus.isEmpty ? .missing : .entries(menus)
         }
         defer { if open { closeMenus(pid: pid) } }
-        guard let parent = find(pid: pid, titles: path, openIfNeeded: open, stop: { nil }) else { return .missing }
-        guard let menu = open ? filledMenu(parent) : submenu(of: parent) else { return open ? .missing : .needsOpening }
+        guard let menu = readMenu(pid: pid, under: path, open: open) else {
+            // Sans `open` : le menu est là mais pas encore rempli (à lire en l'ouvrant), ou le chemin n'existe pas.
+            if open { return .missing }
+            return find(pid: pid, titles: path, openIfNeeded: false, stop: { nil }) == nil ? .missing : .needsOpening
+        }
         let entries = children(menu).prefix(limit).compactMap { entry -> Entry? in
             guard let t = title(entry), !t.contains("›") else { return nil }    // séparateurs : sans titre
             return Entry(title: t, submenu: submenu(of: entry) != nil,
@@ -292,8 +298,13 @@ enum MenuBarAX {
     /// Menu de `path` (celui de son dernier titre) ; `open` : ouvert s'il est encore vide (FL remplit certains menus à
     /// leur ouverture : Add › Channel…), à refermer par l'appelant. Sans `open`, rien n'est ouvert.
     private static func readMenu(pid: Int32, under path: [String], open: Bool) -> AXUIElement? {
-        guard let parent = find(pid: pid, titles: path, openIfNeeded: open, stop: { nil }) else { return nil }
-        return open ? filledMenu(parent) : submenu(of: parent)
+        let parent = find(pid: pid, titles: path, openIfNeeded: false, stop: { nil })
+        if let parent, let menu = submenu(of: parent), !children(menu).isEmpty { return menu }
+        guard open else { return parent.flatMap { submenu(of: $0) } }
+        // Menu vide tant qu'il n'est pas ouvert : ses menus du dessus ouverts depuis la barre, comme à la main, puis
+        // le sien (jamais un appui sur un élément d'un menu fermé).
+        guard let opened = reopened(pid: pid, titles: path, stop: { nil }) else { return nil }
+        return filledMenu(opened)
     }
 
     private static func filledMenu(_ parent: AXUIElement) -> AXUIElement? {
@@ -345,7 +356,10 @@ enum MenuBarAX {
         for (level, wanted) in titles.enumerated() {
             if stop() != nil { break }
             var next = child(of: current, titled: wanted, inMenu: level > 0)
-            if next == nil, level > 0, openIfNeeded {
+            // Jamais d'appui sur un élément d'un menu fermé (essai CI du 03/11 : « Channel » pressé, menu Add fermé,
+            // laissait le FL simulé dans un menu invisible qui avalait ensuite tous les clics) : seulement un menu de la
+            // barre, ou un sous-menu dont le menu du dessus vient d'être ouvert ici. Plus bas : `reopened`.
+            if next == nil, level > 0, level == 1 || opened, openIfNeeded {
                 AXUIElementPerformAction(current, kAXPressAction as CFString)
                 opened = true
                 for _ in 0..<Self.fillSteps where next == nil && stop() == nil {

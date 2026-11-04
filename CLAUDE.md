@@ -9,7 +9,9 @@
   lancée à la main avec `mac_runner=macos-15-intel` à sa demande : le 28/10 GitHub n'a donné aucun Mac arm64 en 15 min,
   deux fois). La lecture de GitHub (CI, artefacts, images) marche : vérifier chaque push dessus. Les essais de macro
   et les photos sont « à relire » (continue-on-error) : un FAIL laisse la CI verte, lire le résumé ou le journal du
-  travail Mac (03/11 : « plugin hors des favoris » et « clics et touches » cassés par 401f2c8 sans CI rouge).
+  travail Mac (03/11 : « plugin hors des favoris » et « clics et touches » cassés par 401f2c8 sans CI rouge : un appui
+  par l'Accessibilité sur « Channel », menu Add fermé, laissait le faux FL dans un menu invisible qui avalait les clics ;
+  04/11 : menus de FL ouverts seulement depuis la barre, niveau par niveau, `MenuBarAX.find/readMenu`).
 - Tout texte affiché doit avoir son anglais (la CI échoue sinon) : `python3 scripts/localisation.py generer trad.json`.
 - Historique, décisions et échecs : `docs/contexte/HISTORIQUE.md` ; lien avec FL (script v16) : `PROTOCOL.md`.
 - **Graphify, toujours** (demande du 29/10, pour moins de jetons) : chercher dans le graphe du code AVANT de lire des
