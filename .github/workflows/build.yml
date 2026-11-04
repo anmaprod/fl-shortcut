@@ -1,7 +1,8 @@
 # Compilation, tests et publication de FL Shortcuts.
 # Audit : SEC-09 / SUP-xx — actions épinglées par SHA de commit (le tag n'est qu'un commentaire),
 # jeton en lecture seule par défaut, écriture limitée au job de publication, identifiants git non conservés,
-# empreinte SHA-256 et attestation de provenance publiées avec le .pkg (le .dmg n'est plus publié, 02/11).
+# attestation de provenance du .pkg et de l'installeur Windows (le .dmg n'est plus publié, 02/11). Plus de fichiers
+# .sha256 dans les téléchargements (04/11, demande du propriétaire) : l'empreinte est écrite dans le journal.
 # Les SHA ci-dessous ont été relevés le 8 octobre 2026 ; Dependabot (dependabot.yml) les tient à jour.
 name: FL Shortcuts
 
@@ -99,7 +100,7 @@ jobs:
           } else { $iscc = $iscc.Source }
           & $iscc "/DAppVersion=$version" "/DDistDir=$PWD\dist" windows/installer/FLShortcut.iss
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          Get-FileHash dist/FLShortcuts-Windows-Setup.exe -Algorithm SHA256 | ForEach-Object { "$($_.Hash.ToLower())  $(Split-Path $_.Path -Leaf)" } | Out-File -Encoding ascii dist/FLShortcuts-win.sha256
+          Get-FileHash dist/FLShortcuts-Windows-Setup.exe -Algorithm SHA256 | ForEach-Object { "SHA-256 : $($_.Hash.ToLower())  $(Split-Path $_.Path -Leaf)" }
       - name: Photos de l'Organiser (mode photos, sons d'exemple, rien n'est envoyé à FL)
         continue-on-error: true      # photos à relire : n'empêchent jamais la publication
         shell: pwsh
@@ -182,7 +183,6 @@ jobs:
             dist/LISEZMOI.html
             dist/README.html
             dist/FLShortcuts-Windows-Setup.exe
-            dist/FLShortcuts-win.sha256
           if-no-files-found: error
 
   mac:
@@ -361,7 +361,6 @@ jobs:
             dist/LISEZMOI.html
             dist/README.html
             dist/FLShortcuts.pkg
-            dist/FLShortcuts.pkg.sha256
           if-no-files-found: error
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always()
@@ -399,8 +398,6 @@ jobs:
           gh run download "$GITHUB_RUN_ID" --repo "$GITHUB_REPOSITORY" --name FLShortcuts-windows --dir dist
           mv dist/LISEZMOI.html dist/LISEZMOI-Windows.html
           mv dist/README.html dist/README-Windows.html
-      - name: Vérifier les empreintes
-        run: cd dist && sha256sum -c FLShortcuts.pkg.sha256 FLShortcuts-win.sha256
       - uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
         with:
           subject-path: |
@@ -413,8 +410,8 @@ jobs:
         run: |
           # Noms de fichiers fixes : les liens « releases/latest/download/… » de la page de téléchargement
           # et du README pointent toujours vers la dernière version.
-          gh release create "$TAG" dist/FLShortcuts.pkg dist/FLShortcuts.pkg.sha256 dist/FLShortcuts-Windows-Setup.exe \
-            dist/FLShortcuts-win.sha256 dist/LISEZMOI-Mac.html dist/README-Mac.html dist/LISEZMOI-Windows.html \
+          gh release create "$TAG" dist/FLShortcuts.pkg dist/FLShortcuts-Windows-Setup.exe \
+            dist/LISEZMOI-Mac.html dist/README-Mac.html dist/LISEZMOI-Windows.html \
             dist/README-Windows.html \
             --repo "$GITHUB_REPOSITORY" --title "FL Shortcuts $TAG" \
             --notes-file .github/release-notes.md --generate-notes --verify-tag

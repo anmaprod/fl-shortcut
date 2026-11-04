@@ -309,7 +309,8 @@
   `7gTnWMLVFWwXB6zkkK6Ywt` et `6zMYYWb6RTRDh7PZerTddd`) ; même page en anglais (02/11) : README-Mac/Windows.html
   (`scripts/lisezmoi_en.py`, mots de l'app anglaise ; un texte oublié arrête le script ; artefacts `RC3C3FweVKURfAqoFXBzoN`,
   `4QJiDL5e3FSpteCXjzj5fs`) : chaque téléchargement contient LISEZMOI.html ET README.html. Plus de .zip Windows ni de
-  ligne .sha256 dans les modes d'emploi (« je mettrai juste le .exe et le .pkg ») ; Communauté aussi dans celui de
+  ligne .sha256 dans les modes d'emploi (« je mettrai juste le .exe et le .pkg ») ; plus aucun fichier .sha256 dans les
+  téléchargements ni la page des versions (04/11, « enlève le pour mac aussi ») : empreinte dans le journal de la CI ; Communauté aussi dans celui de
   Windows (dans l'app depuis le 04/11) ; « pour regarder, non » était faux : compte nécessaire pour regarder aussi.
   MIDISettings.png renumérotée (les deux Port en 1 et 2, Enable 3, Controller type 4 ; `MIDISettingsCrops` suit) ;
   tuto 4 de l'Organiser : « l'ancienne version part à la Corbeille » (plus « ton projet ne bouge pas »).

@@ -766,3 +766,6 @@ entrée 1 ≈ 0,5 s.
   plus de 200 textes de Windows raccourcis en une phrase, sans parenthèse ; l'essentiel gardé là où il faut agir
   (MIDI Settings, « Revenir comme avant », « Rien n'a été touché ») ; avertissements d'un raccourci et noms des
   conflits enfin traduits en anglais ; titres de quelques raccourcis de FL sans parenthèse sur Windows seulement.
+- 04/11 (« ce fichier est utile ? » puis « enlève le pour mac aussi ») : plus de fichier .sha256 dans les
+  téléchargements Mac et Windows ni dans la page des versions ; l'empreinte reste écrite dans le journal de la CI et
+  l'attestation de provenance reste publiée.

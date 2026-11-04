@@ -122,7 +122,7 @@ Gravité = impact × vraisemblance, en supposant la contre-mesure absente.
 | **SUP-03** | Haute | Jeton en écriture pour tous les déclenchements. | `permissions: contents: read` par défaut ; écriture limitée au job `release` (tags `v*`). | **Corrigé**. |
 | **SUP-04** | Moyenne | Identifiants git conservés dans les jobs. | `persist-credentials: false` partout. | **Corrigé**. |
 | **SUP-05** | Critique | Binaires non signés (Mac ad hoc, Windows rien). | Mac : Developer ID + Hardened Runtime + notarisation (`build.sh`) ; Windows : Authenticode (Azure Artifact Signing si éligible, sinon certificat OV) ou Store. | **Partiel** : Mac prêt (secrets à fournir) ; Windows à faire. |
-| **SUP-06** | Moyenne | Aucune empreinte publiée. | `.sha256` publié avec chaque release, vérifié avant publication. | **Corrigé**. |
+| **SUP-06** | Moyenne | Aucune empreinte publiée. | `.sha256` publié avec chaque release, vérifié avant publication. | **Retiré le 04/11** à la demande du propriétaire (fichier inutile pour les utilisateurs) : l'attestation de provenance (SUP-07) reste, l'empreinte est écrite dans le journal de la CI. |
 | **SUP-07** | Moyenne | Aucune provenance. | `actions/attest-build-provenance` sur le `.dmg`. | **Corrigé** (Mac) ; à ajouter pour les `.zip` Windows. |
 | **SUP-08** | Moyenne | Le README apprend à contourner Gatekeeper. | Retirer cette consigne dès que l'app est notarisée. | **À faire** à la première release signée. |
 | **SUP-09** | Moyenne | Tags et branche principale non protégés. | Règles de protection : `main` (revue obligatoire), tags `v*` réservés aux mainteneurs, releases immuables. | **À faire** dans les réglages GitHub. |

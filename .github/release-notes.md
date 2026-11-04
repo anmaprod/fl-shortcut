@@ -8,4 +8,4 @@
 Rien à installer dans FL Studio : FL Shortcuts envoie les touches d'origine de FL, seulement quand FL est au premier plan.
 Sur Mac, l'appli te demande une seule autorisation (Accessibilité) pour lire le clavier.
 
-Les fichiers `.sha256` permettent de vérifier que ton téléchargement est intact. Mode d'emploi illustré : `LISEZMOI-*.html` (français), `README-*.html` (anglais).
+Mode d'emploi illustré : `LISEZMOI-*.html` (français), `README-*.html` (anglais).

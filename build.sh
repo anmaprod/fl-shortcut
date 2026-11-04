@@ -258,10 +258,8 @@ else
 fi
 rm -rf "$PKG_ROOT" "$PKG_SCRIPTS" "dist/FLShortcuts-component.pkg"
 
-echo "▸ Empreintes"
-(cd dist && shasum -a 256 "$(basename "$DMG")" > "$(basename "$DMG").sha256" \
-  && shasum -a 256 "$(basename "$PKG")" > "$(basename "$PKG").sha256")
-cat "$DMG.sha256" "$PKG.sha256"
+echo "▸ Empreintes SHA-256 (dans le journal seulement : plus de fichier .sha256, 04/11)"
+(cd dist && shasum -a 256 "$(basename "$DMG")" "$(basename "$PKG")")
 
 echo "✅ Terminé : $APP, $DMG et $PKG"
 

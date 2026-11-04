@@ -13,7 +13,7 @@ Le même tuto en page web, à ouvrir dans un navigateur : [site/tuto.html](site/
 ### 1. Installer
 [![Ouvre FLShortcuts.pkg. Si macOS le bloque : Réglages Système › Confidentialité et sécurité › Ouvrir quand même, puis suis l'installation. Son icône, un petit clavier, arrive en haut de l'écran.](docs/images/tuto-1-installer.png)](site/tuto.html#installer)
 
-Télécharge `FLShortcuts.pkg` sur la [page des versions](../../releases/latest) ; le mode d'emploi illustré est à côté (`LISEZMOI-Mac.html` en français, `README-Mac.html` en anglais). « Ouvrir quand même » seulement pour un fichier venu de cette page, dont l'empreinte SHA-256 correspond.
+Télécharge `FLShortcuts.pkg` sur la [page des versions](../../releases/latest) ; le mode d'emploi illustré est à côté (`LISEZMOI-Mac.html` en français, `README-Mac.html` en anglais). « Ouvrir quand même » seulement pour un fichier venu de cette page.
 
 ### 2. Autoriser
 [![Clique Tout autoriser, puis active FL Shortcuts dans Accessibilité. Le son de FL sert à l'Organiser. Rien n'est enregistré : le clavier n'est lu que quand FL est devant.](docs/images/tuto-2-autoriser.png)](site/tuto.html#autoriser)
@@ -144,7 +144,7 @@ Détails, limites et mode d'emploi du diagnostic (`FLShortcut --diag-macro`) : [
 
 **Sans Mac ni PC de développement :** pousse le dépôt sur GitHub. Le workflow [build.yml](.github/workflows/build.yml) :
 - lance tous les tests ;
-- compile le `.pkg` universel (le `.dmg` reste fabriqué pour les essais, il n'est plus publié), l'installeur Windows (`FLShortcuts-Windows-Setup.exe`, x64 + ARM64, seul publié), avec leurs empreintes SHA-256 et une attestation de provenance ;
+- compile le `.pkg` universel (le `.dmg` reste fabriqué pour les essais, il n'est plus publié), l'installeur Windows (`FLShortcuts-Windows-Setup.exe`, x64 + ARM64, seul publié), avec une attestation de provenance ;
 - publie une *Release* à chaque tag `v*` (`git tag v1.0.0 && git push --tags`) ; les liens « latest » de la page de téléchargement suivent tout seuls.
 
 **Page de téléchargement :** `site/index.html`, publiée par [pages.yml](.github/workflows/pages.yml) (à activer une fois : *Settings › Pages › Source : GitHub Actions*). Elle propose le bon fichier selon l'ordinateur du visiteur.
