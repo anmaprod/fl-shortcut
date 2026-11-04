@@ -7,6 +7,8 @@ import XCTest
 final class SearchFocusTests: XCTestCase {
     func testOnlySearchFieldsAreRecognized() {
         XCTAssertTrue(SearchFocusGuard.GuardView.isSearchEditor(NSSearchField()))
+        // La recherche de la barre de gauche (04/11 : un simple champ de texte, qui ne bouge plus au clic).
+        XCTAssertTrue(SearchFocusGuard.GuardView.isSearchEditor(PlainSearchField()))
         XCTAssertFalse(SearchFocusGuard.GuardView.isSearchEditor(NSTextField()))
         XCTAssertFalse(SearchFocusGuard.GuardView.isSearchEditor(nil))
         XCTAssertFalse(SearchFocusGuard.GuardView.isSearchEditor(NSTextView()), "pas un éditeur de champ")

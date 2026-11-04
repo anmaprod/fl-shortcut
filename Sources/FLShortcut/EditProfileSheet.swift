@@ -16,6 +16,11 @@ struct EditProfileSheet: View {
     @State private var zoom = 1.0
     @State private var offset = CGPoint.zero
     @State private var dragStart: CGPoint?
+    /// Zoom au début d'un pincement (pavé tactile).
+    @State private var pinchStart: Double?
+    /// L'image réglée est la photo actuelle du compte (vidéo du 04/11 : « je ne peux pas zoomer dans la photo de mon
+    /// profil » : le zoom ne marchait que sur une photo qu'on vient de choisir). Pas touchée : rien n'est renvoyé.
+    @State private var fromAccount = false
     /// « Retirer » : la photo du compte sera retirée à l'enregistrement.
     @State private var removed = false
     @State private var saving = false
@@ -46,6 +51,7 @@ struct EditProfileSheet: View {
                     .secondaryButton()
                     Button {
                         chosen = nil
+                        fromAccount = false
                         removed = true
                         photoProblem = nil
                     } label: {
@@ -98,10 +104,23 @@ struct EditProfileSheet: View {
         .padding(.top, 24)
         .padding(.bottom, 22)
         .frame(width: 440)
-        .onAppear { community.error = nil }
+        .onAppear {
+            community.error = nil
+            adoptAccountPhoto()
+        }
+        // La photo du compte peut arriver après l'ouverture (chargée du serveur).
+        .onChange(of: community.myPhoto) { _ in adoptAccountPhoto() }
     }
 
     // MARK: Photo
+
+    /// La photo actuelle du compte se règle tout de suite : zoom et place, comme une photo qu'on vient de choisir.
+    private func adoptAccountPhoto() {
+        guard chosen == nil, !removed, let current = community.myPhoto,
+              let image = current.cgImage(forProposedRect: nil, context: nil, hints: nil) else { return }
+        chosen = image
+        fromAccount = true
+    }
 
     /// Il y a une photo à montrer : choisie, ou celle du compte (pas retirée).
     private var hasPhoto: Bool { chosen != nil || (!removed && community.myPhoto != nil) }
@@ -124,6 +143,14 @@ struct EditProfileSheet: View {
         .gesture(DragGesture(minimumDistance: 1)
             .onChanged { drag(by: $0.translation) }
             .onEnded { _ in dragStart = nil })
+        .simultaneousGesture(MagnificationGesture()
+            .onChanged { scale in
+                guard chosen != nil else { return }
+                let start = pinchStart ?? zoom
+                if pinchStart == nil { pinchStart = zoom }
+                zoom = min(max(start * Double(scale), 1), 3)
+            }
+            .onEnded { _ in pinchStart = nil })
         .onTapGesture(count: 2) { choosePhoto() }
         .help(chosen == nil ? String(localized: "Choisis une photo, puis glisse-la pour la placer")
               : String(localized: "Glisse la photo pour la placer"))
@@ -181,6 +208,7 @@ struct EditProfileSheet: View {
             return
         }
         chosen = image
+        fromAccount = false
         zoom = 1
         offset = .zero
         removed = false
@@ -203,7 +231,7 @@ struct EditProfileSheet: View {
         tried = true
         photoProblem = nil
         let change: CommunityStore.PhotoChange
-        if let chosen {
+        if let chosen, !(fromAccount && zoom == 1 && offset == .zero) {
             guard let jpeg = ProfilePhoto.jpeg(from: chosen, zoom: zoom, offset: offset) else {
                 photoProblem = String(localized: "Cette image ne se lit pas (ou elle est trop lourde) : choisis-en une autre.")
                 return

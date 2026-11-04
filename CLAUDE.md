@@ -13,6 +13,8 @@
   par l'Accessibilité sur « Channel », menu Add fermé, laissait le faux FL dans un menu invisible qui avalait les clics ;
   04/11 : menus de FL ouverts seulement depuis la barre, niveau par niveau, `MenuBarAX.find/readMenu`).
 - Tout texte affiché doit avoir son anglais (la CI échoue sinon) : `python3 scripts/localisation.py generer trad.json`.
+- **Chaque changement demandé : sur Mac ET sur Windows** (demande du 04/11 : « a chaque fois que je fais des modifs fais
+  les pour win aussi »), même s'il ne parle que d'un des deux.
 - Historique, décisions et échecs : `docs/contexte/HISTORIQUE.md` ; lien avec FL (script v16) : `PROTOCOL.md`.
 - **Graphify, toujours** (demande du 29/10, pour moins de jetons) : chercher dans le graphe du code AVANT de lire des
   fichiers (`graphify query "…"`, `graphify explain "Nom"`, `graphify path "A" "B"`), puis lire seulement les lignes
@@ -245,7 +247,13 @@
   clavier lus toutes les 5 ms, FL devant seulement, fin au retour dans FL Shortcuts ou « Terminer », 120 s / 80 entrées,
   rien journalisé) → `ClickSequenceCompiler` (pur, testé : touche, × n, menu ouvert → Dans le menu / Lettres, clic appris,
   glisser) ; essai CI sur le faux FL (`MacroSelfTest.Recording` : clic + Ctrl+S, clic rejoué). Pas encore : clics
-  « intelligents » (menu de FL par son nom). Compiler le C# de l'app ici (le compilateur XAML est Windows seulement) :
+  « intelligents » (menu de FL par son nom).
+  04/11 (vidéo : « quand on clique dans la barre de recherche, la barre et le mot rechercher se décalent… la barre
+  blanche pas bleue » ; « je ne peux pas zoomer dans la photo de mon profil ») : Mac : recherche = simple NSTextField
+  sans cadre (`PlainSearchField`, loupe dessinée par SwiftUI à côté, curseur blanc, sélection grise ; NE PAS remettre
+  NSSearchField : placeholder et frappe à deux places) ; photo du compte réglable tout de suite (`fromAccount`, pincement),
+  renvoyée seulement si changée. Windows : recherche sans trait plus épais au clic ni bleu ; photo du compte réglable,
+  molette = zoom, seul le carré redessiné pendant le réglage (le curseur lâchait la souris). Compiler le C# de l'app ici (le compilateur XAML est Windows seulement) :
   `~/.dotnet/dotnet build windows/FLShortcut.App -c Release -p:Platform=x64 -p:EnableWindowsTargeting=true
   -p:EnableDefaultPageItems=false -p:EnableDefaultApplicationDefinition=false` : seules 4 erreurs attendues
   (InitializeComponent, Root, Main) ; le cœur : `dotnet test windows/FLShortcut.Core.Tests`.

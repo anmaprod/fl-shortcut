@@ -189,8 +189,8 @@ struct SidebarLabel: View {
     }
 }
 
-/// Recherche de la barre de gauche : une recherche d'AppKit sans cadre, posée dans la capsule de la maquette. La garde
-/// de la recherche (SearchFocusGuard) la reconnaît : elle n'a la main qu'après un clic dedans ou ⌘F.
+/// Recherche de la barre de gauche : la loupe (dessinée par SwiftUI à côté), puis un champ de texte d'AppKit sans cadre.
+/// La garde de la recherche (SearchFocusGuard) la reconnaît : elle n'a la main qu'après un clic dedans ou ⌘F.
 struct SidebarSearchField: NSViewRepresentable {
     @Binding var text: String
     let prompt: String
@@ -199,24 +199,31 @@ struct SidebarSearchField: NSViewRepresentable {
 
     func makeCoordinator() -> Coordinator { Coordinator(text: $text) }
 
-    func makeNSView(context: Context) -> NSSearchField {
+    func makeNSView(context: Context) -> NSTextField {
         let field = PlainSearchField()
-        field.placeholderString = prompt
+        let font = NSFont.systemFont(ofSize: 13)
+        field.font = font
+        field.textColor = .white
+        field.placeholderAttributedString = NSAttributedString(
+            string: prompt, attributes: [.font: font, .foregroundColor: NSColor(white: 1, alpha: 0.55)])
         field.isBordered = false
         field.isBezeled = false
         field.drawsBackground = false
         field.focusRingType = .none
-        field.font = .systemFont(ofSize: 13)
-        field.sendsSearchStringImmediately = true
+        field.usesSingleLineMode = true
+        field.lineBreakMode = .byClipping
+        field.cell?.isScrollable = true
+        field.cell?.wraps = false
         field.delegate = context.coordinator
         field.setAccessibilityLabel(prompt)
+        field.setAccessibilityRole(.textField)
         field.stringValue = text
         SearchFocusGuard.GuardView.fields.add(field)          // un clic dans sa capsule la choisit
         context.coordinator.serial = focusSerial
         return field
     }
 
-    func updateNSView(_ field: NSSearchField, context: Context) {
+    func updateNSView(_ field: NSTextField, context: Context) {
         context.coordinator.text = $text
         if field.stringValue != text { field.stringValue = text }
         if context.coordinator.serial != focusSerial {
@@ -225,7 +232,7 @@ struct SidebarSearchField: NSViewRepresentable {
         }
     }
 
-    final class Coordinator: NSObject, NSSearchFieldDelegate {
+    final class Coordinator: NSObject, NSTextFieldDelegate {
         var text: Binding<String>
         var serial = 0
 
@@ -235,40 +242,31 @@ struct SidebarSearchField: NSViewRepresentable {
             guard let field = note.object as? NSTextField else { return }
             text.wrappedValue = field.stringValue
         }
+
+        /// Échap vide la recherche, comme avant (recherche de macOS).
+        func control(_ control: NSControl, textView: NSTextView, doCommandBy selector: Selector) -> Bool {
+            guard selector == #selector(NSResponder.cancelOperation(_:)), !textView.string.isEmpty else { return false }
+            textView.string = ""
+            text.wrappedValue = ""
+            return true
+        }
     }
 }
 
-/// Recherche sans cadre dont le texte reste à sa place au clic (vidéo du 03/11 : « quand je clique dessus, le mot
-/// Rechercher se décale sur la loupe ») : sans cadre, macOS posait la zone de frappe au bord gauche, sous la loupe,
-/// alors que le texte au repos est dessiné après elle. La zone de frappe prend la même place que ce texte.
-final class PlainSearchField: NSSearchField {
-    override class var cellClass: AnyClass? {
-        get { PlainSearchFieldCell.self }
-        set { super.cellClass = newValue }
-    }
-}
-
-final class PlainSearchFieldCell: NSSearchFieldCell {
-    /// Entre la loupe et la croix (ou le bord), sur toute la hauteur : comme le texte dessiné au repos.
-    private func typingFrame(_ rect: NSRect) -> NSRect {
-        let drawn = searchTextRect(forBounds: rect)
-        let loupe = searchButtonRect(forBounds: rect)
-        var left = drawn.minX
-        if left < loupe.maxX { left = loupe.width > 0 ? loupe.maxX + 4 : 22 }
-        let cancel = cancelButtonRect(forBounds: rect)
-        let right = min(drawn.maxX > left ? drawn.maxX : rect.maxX, cancel.width > 0 ? cancel.minX - 2 : rect.maxX)
-        return NSRect(x: left, y: rect.minY, width: max(0, right - left), height: rect.height)
-    }
-
-    override func edit(withFrame rect: NSRect, in controlView: NSView, editor textObj: NSText, delegate: Any?,
-                       event: NSEvent?) {
-        super.edit(withFrame: typingFrame(rect), in: controlView, editor: textObj, delegate: delegate, event: event)
-    }
-
-    override func select(withFrame rect: NSRect, in controlView: NSView, editor textObj: NSText, delegate: Any?,
-                         start selStart: Int, length selLength: Int) {
-        super.select(withFrame: typingFrame(rect), in: controlView, editor: textObj, delegate: delegate,
-                     start: selStart, length: selLength)
+/// Champ de recherche dont rien ne bouge au clic. Vidéos du 03/11 puis du 04/11 (« quand on clique dans la barre de
+/// recherche, la barre et le mot rechercher se décalent… j'aimerais que la barre soit blanche pas bleue ») : la recherche
+/// de macOS (NSSearchField) dessinait « Rechercher » au repos et le texte tapé à deux places différentes, et son curseur
+/// prenait la couleur d'accent. Un simple champ de texte sans cadre écrit au même endroit au repos et pendant la frappe ;
+/// la loupe est à côté, dessinée par SwiftUI. Curseur blanc, sélection grise. Le nom de la classe contient
+/// « SearchField » : la garde de la recherche et le relevé de la CI la reconnaissent.
+final class PlainSearchField: NSTextField {
+    override func becomeFirstResponder() -> Bool {
+        let accepted = super.becomeFirstResponder()
+        if accepted, let editor = currentEditor() as? NSTextView {
+            editor.insertionPointColor = .white
+            editor.selectedTextAttributes = [.backgroundColor: NSColor(white: 1, alpha: 0.25), .foregroundColor: NSColor.white]
+        }
+        return accepted
     }
 }
 

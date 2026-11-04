@@ -66,6 +66,14 @@ internal sealed class AccountPage
     private string _editName = "";
     private byte[]? _editFile;
     private byte[]? _editPhoto;
+    /// La photo réglée est celle du compte (vidéo du 04/11 : « je ne peux pas zoomer dans la photo de mon profil ») :
+    /// pas touchée, elle n'est pas renvoyée.
+    private bool _editFromAccount;
+    /// Le carré de la photo et le nom montré dessous : refaits seuls pendant un réglage (zoom, place), sans redessiner
+    /// la carte (le curseur du zoom lâchait la souris à chaque pas).
+    private Border? _previewHost;
+    private string _previewName = "";
+    private Slider? _zoomSlider;
     private bool _removePhoto;
     private double _zoom = 1, _dx, _dy;
     private string? _editProblem;
@@ -910,8 +918,10 @@ internal sealed class AccountPage
     {
         _editing = true;
         _editName = _session?.Username ?? "";
-        _editFile = null;
-        _editPhoto = null;
+        // La photo du compte se règle tout de suite (zoom, place), comme une photo qu'on vient de choisir.
+        _editFile = _myPhoto;
+        _editPhoto = _myPhoto;
+        _editFromAccount = _myPhoto is not null;
         _removePhoto = false;
         _zoom = 1;
         _dx = _dy = 0;
@@ -926,6 +936,7 @@ internal sealed class AccountPage
 
     private FrameworkElement EditCard(AccountSession session)
     {
+        _zoomSlider = null;
         var card = new StackPanel { Spacing = 14 };
         card.Children.Add(SwissLabel(Loc.T("Modifier le profil"), 11, Text));
         card.Children.Add(Rule(Text));
@@ -942,7 +953,21 @@ internal sealed class AccountPage
             VerticalAlignment = VerticalAlignment.Top,
         };
         AutomationProperties.SetName(preview, Loc.T("Ta photo"));
-        if (_editFile is not null) DragToPlace(preview);
+        _previewHost = preview;
+        _previewName = _editName.Trim().Length > 0 ? _editName : session.Username;
+        if (_editFile is not null)
+        {
+            DragToPlace(preview);
+            // Molette (ou pincement du pavé tactile) sur la photo : zoom.
+            preview.PointerWheelChanged += (_, e) =>
+            {
+                var delta = e.GetCurrentPoint(preview).Properties.MouseWheelDelta;
+                _zoom = Math.Clamp(_zoom + delta / 1200.0, 1, 4);
+                if (_zoomSlider is { } slider) slider.Value = _zoom;
+                else PreparePhoto();
+                e.Handled = true;
+            };
+        }
         row.Children.Add(preview);
 
         var right = new StackPanel { Spacing = 10 };
@@ -955,6 +980,7 @@ internal sealed class AccountPage
                 _removePhoto = true;
                 _editFile = null;
                 _editPhoto = null;
+                _editFromAccount = false;
                 _render();
             });
             ToolTipService.SetToolTip(remove, Loc.T("Retirer ta photo : ton initiale de couleur la remplace"));
@@ -965,6 +991,7 @@ internal sealed class AccountPage
         {
             right.Children.Add(SwissLabel(Loc.T("Zoom de la photo"), 10.5));
             var zoom = new Slider { Minimum = 1, Maximum = 4, StepFrequency = 0.05, Value = _zoom, MaxWidth = 260, HorizontalAlignment = HorizontalAlignment.Left };
+            _zoomSlider = zoom;
             AutomationProperties.SetName(zoom, Loc.T("Zoom de la photo"));
             zoom.ValueChanged += (_, e) =>
             {
@@ -1056,6 +1083,7 @@ internal sealed class AccountPage
             var bytes = new byte[buffer.Length];
             using (var reader = DataReader.FromBuffer(buffer)) reader.ReadBytes(bytes);
             _editFile = bytes;
+            _editFromAccount = false;
             _removePhoto = false;
             _zoom = 1;
             _dx = _dy = 0;
@@ -1077,8 +1105,15 @@ internal sealed class AccountPage
         var version = ++_photoVersion;
         var jpeg = await ProfilePhotoWin.Jpeg(file, _zoom, _dx, _dy);
         if (version != _photoVersion) return;
+        var hadPhoto = _editPhoto is not null;
         _editPhoto = jpeg;
         _editProblem = jpeg is null ? Loc.T("Image illisible : choisis-en une autre.") : null;
+        // Pendant un réglage, seul le carré de la photo change : le curseur du zoom garde la souris.
+        if (jpeg is not null && hadPhoto && _previewHost is { } host)
+        {
+            host.Child = Avatar(jpeg, _previewName, 128);
+            return;
+        }
         _render();
     }
 
@@ -1099,7 +1134,7 @@ internal sealed class AccountPage
                 session = session with { Username = kept.Length > 0 ? kept : name };
                 Set(session);
             }
-            if (_editPhoto is { } jpeg)
+            if (_editPhoto is { } jpeg && !(_editFromAccount && _zoom == 1 && _dx == 0 && _dy == 0))
             {
                 await Call(AccountRequests.SetAvatar(Server, jpeg, session));
                 _myPhoto = jpeg;

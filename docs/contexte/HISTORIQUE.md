@@ -776,3 +776,6 @@ entrée 1 ≈ 0,5 s.
 - 04/11 (« dans la capture 5 il manque l'option 3 ? ») : « Enregistrer une macro » fait sur Windows, comme le Mac :
   clics et touches faits dans FL relevés puis changés en blocs ; fin en revenant dans FL Shortcuts. Les clics restent
   appris par leur place ; le menu de FL retrouvé à son nom n'est pas encore fait sur Windows.
+- 04/11 (vidéo) : barre de recherche du Mac qui bougeait au clic et curseur bleu → simple champ de texte, rien ne
+  bouge, curseur blanc ; photo de profil : zoom impossible sur la photo déjà enregistrée → réglable tout de suite
+  (Mac et Windows, molette sur Windows, pincement sur Mac). Règle : chaque changement aussi sur Windows.

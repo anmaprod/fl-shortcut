@@ -351,7 +351,13 @@ internal sealed partial class MainShell
         _search.Resources["TextControlForegroundFocused"] = Brush(Text);
         _search.Resources["TextControlForegroundPointerOver"] = Brush(Text);
         _search.Resources["TextControlPlaceholderForeground"] = Brush(Secondary);
-        _search.Resources["TextControlPlaceholderForegroundFocused"] = Brush(Tertiary);
+        _search.Resources["TextControlPlaceholderForegroundFocused"] = Brush(Secondary);
+        // Vidéo du 04/11 (Mac : « quand on clique dans la barre de recherche, la barre et le mot rechercher se décalent… la
+        // barre blanche pas bleue ») : rien ne bouge au clic (pas de trait plus épais quand le champ a la main), le texte
+        // reste blanc, la sélection grise, jamais de bleu.
+        _search.Resources["TextControlBorderThemeThicknessFocused"] = new Thickness(0);
+        _search.Resources["TextControlBorderThemeThickness"] = new Thickness(0);
+        _search.SelectionHighlightColor = Brush(Rgb(0x55, 0x55, 0x55));
         _search.Resources["TextControlPlaceholderForegroundPointerOver"] = Brush(Secondary);
         _search.BorderThickness = new Thickness(0);
         _search.Background = Brush(Colors.Transparent);

@@ -665,6 +665,10 @@ struct EditorView: View {
     /// connaît plutôt que son nom.
     private var searchBar: some View {
         HStack(spacing: 4) {
+            Image(systemName: "magnifyingglass")
+                .font(.system(size: 13))
+                .foregroundStyle(Swiss.gray)
+                .accessibilityHidden(true)
             SidebarSearchField(text: $query, prompt: String(localized: "Rechercher"), focusSerial: searchFocusSerial)
                 .frame(maxWidth: .infinity)
             keySearchButton
