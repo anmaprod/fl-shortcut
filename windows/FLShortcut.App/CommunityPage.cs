@@ -98,19 +98,28 @@ internal sealed class CommunityPage
         if (_account.Session is null && !_demo) return _account.Content(columns);
         if (_composing) return Compose();
         if (_opened is { } share) return Detail(share);
-        if (_shares is null && !_loading && _error is null) _ = Reload();
+        // Premier passage : la liste est demandée, la page montre le chargement (sans se redessiner pendant sa construction).
+        if (_shares is null && !_loading && _error is null)
+        {
+            _loading = true;
+            _ = Reload(renderFirst: false);
+        }
         return List(columns);
     }
 
     // ---------- Serveur ----------
 
-    private async Task Reload()
+    private async Task Reload(bool renderFirst = true)
     {
-        if (_demo) return;
+        if (_demo)
+        {
+            _loading = false;
+            return;
+        }
         var version = ++_version;
         _loading = true;
         _error = null;
-        _render();
+        if (renderFirst) _render();
         try
         {
             var session = await _account.FreshSession() ?? throw new AccountPage.ServerError(Loc.T("Session expirée : reconnecte-toi."), 401);
