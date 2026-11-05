@@ -103,7 +103,7 @@ internal sealed class TrayMenu
             Background = Brush(MenuColor),
             BorderBrush = Brush(White(0.10)),
             BorderThickness = new Thickness(1),
-            RequestedTheme = ElementTheme.Dark,
+            RequestedTheme = MacLook.SurfaceTheme,
             Width = MenuWidth,
         };
         _source = new DesktopWindowXamlSource();
@@ -171,8 +171,8 @@ internal sealed class TrayMenu
         };
         button.PointerEntered += (_, _) =>
         {
-            button.Background = Brush(Colors.White);              // survol suisse : blanc plein, texte noir
-            if (button.Content is TextBlock t) t.Foreground = Brush(Colors.Black);
+            button.Background = Brush(MacLook.Text);              // survol suisse : blanc plein, texte noir
+            if (button.Content is TextBlock t) t.Foreground = Brush(MacLook.WindowColor);
         };
         button.PointerExited += (_, _) =>
         {

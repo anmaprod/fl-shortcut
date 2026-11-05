@@ -24,7 +24,7 @@ internal sealed partial class MainShell
     {
         XamlRoot = _root.XamlRoot,
         Style = DialogStyle(),                // créé en code, le dialogue garderait sinon l'ancien style
-        RequestedTheme = ElementTheme.Dark,
+        RequestedTheme = MacLook.SurfaceTheme,
         Background = Brush(Rgb(0x1E, 0x1E, 0x21)),
         BorderBrush = Brush(LineColor),
     };
@@ -38,7 +38,7 @@ internal sealed partial class MainShell
         HorizontalContentAlignment = HorizontalAlignment.Left,
         Padding = new Thickness(10, 6, 10, 6),
         CornerRadius = new CornerRadius(0),
-        Background = Brush(Colors.Black),
+        Background = Brush(MacLook.WindowColor),
         BorderBrush = Brush(LineColor),
         BorderThickness = new Thickness(1),
     };

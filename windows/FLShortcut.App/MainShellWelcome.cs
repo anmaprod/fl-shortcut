@@ -80,11 +80,11 @@ internal sealed partial class MainShell
         var outer = (r + w / 2) * k;                 // le trait d'une ellipse est dessiné à l'intérieur de sa taille
         var ring = new Microsoft.UI.Xaml.Shapes.Ellipse
         {
-            Width = 2 * outer, Height = 2 * outer, Stroke = Brush(Colors.White), StrokeThickness = Math.Max(1, w * k),
+            Width = 2 * outer, Height = 2 * outer, Stroke = Brush(LogoRing), StrokeThickness = Math.Max(1, w * k),
         };
         Canvas.SetLeft(ring, cx * k - outer);
         Canvas.SetTop(ring, cy * k - outer);
-        var dot = new Microsoft.UI.Xaml.Shapes.Ellipse { Width = 580 * k, Height = 580 * k, Fill = Brush(Red) };
+        var dot = new Microsoft.UI.Xaml.Shapes.Ellipse { Width = 580 * k, Height = 580 * k, Fill = Brush(BrandRed) };
         Canvas.SetLeft(dot, 102 * k);
         Canvas.SetTop(dot, 362 * k);
         var logo = new Canvas { Width = size, Height = size, HorizontalAlignment = HorizontalAlignment.Center };

@@ -363,7 +363,7 @@ internal sealed class MacrosPage
         }
 
         var button = Option(grid, Purple, 0, () => Open(doc.Id), minHeight: 44, padding: new Thickness(4, 0, 4, 0),
-                            hover: on => { if (choose is not null) choose.Foreground = Brush(on ? Colors.Black : Link); });
+                            hover: on => { if (choose is not null) choose.Foreground = Brush(on ? MacLook.WindowColor : Link); });
         button.HorizontalAlignment = HorizontalAlignment.Stretch;
         button.HorizontalContentAlignment = HorizontalAlignment.Stretch;
         button.ContextFlyout = MacroOptions(doc, shortcut);
@@ -429,7 +429,7 @@ internal sealed class MacrosPage
         {
             XamlRoot = root,
             Style = MainShell.DialogStyle(),
-            RequestedTheme = ElementTheme.Dark,
+            RequestedTheme = MacLook.SurfaceTheme,
             Background = Brush(Rgb(0x1E, 0x1E, 0x21)),
             BorderBrush = Brush(LineColor),
             CloseButtonText = Loc.T("Annuler"),
@@ -548,8 +548,8 @@ internal sealed class MacrosPage
         };
         void Hover(bool on)
         {
-            row.Background = Brush(on ? Colors.White : Colors.Transparent);      // style suisse : blanc plein, texte noir
-            label.Foreground = Brush(on ? Colors.Black : Text);
+            row.Background = Brush(on ? MacLook.Text : Colors.Transparent);      // style suisse : blanc plein, texte noir
+            label.Foreground = Brush(on ? MacLook.WindowColor : Text);
             SetTileHover(tile, entry.Symbol, tint, on);
         }
         row.PointerEntered += (_, _) => Hover(true);
@@ -671,12 +671,12 @@ internal sealed class MacrosPage
             HorizontalContentAlignment = HorizontalAlignment.Center,
             VerticalAlignment = VerticalAlignment.Center,
             Content = Icon("back", 14, Text),
-            Background = Brush(Colors.Black),
+            Background = Brush(MacLook.WindowColor),
             BorderBrush = Brush(LineColor),
             BorderThickness = new Thickness(1),
         };
         button.PointerEntered += (_, _) => button.Background = Brush(Accent);
-        button.PointerExited += (_, _) => button.Background = Brush(Colors.Black);
+        button.PointerExited += (_, _) => button.Background = Brush(MacLook.WindowColor);
         button.Click += (_, _) => Back();
         ToolTipService.SetToolTip(button, Loc.T("Retour"));
         AutomationProperties.SetName(button, Loc.T("Retour"));
@@ -782,7 +782,7 @@ internal sealed class MacrosPage
             CornerRadius = new CornerRadius(0),
             HorizontalAlignment = HorizontalAlignment.Left,
             VerticalAlignment = VerticalAlignment.Center,
-            Background = Brush(Colors.Black),
+            Background = Brush(MacLook.WindowColor),
             BorderBrush = Brush(recording ? Accent : White(0.16)),
             BorderThickness = new Thickness(recording ? 2 : 1),
         };
@@ -790,7 +790,7 @@ internal sealed class MacrosPage
         if (!recording)
         {
             button.PointerEntered += (_, _) => button.Background = Brush(White(0.16));
-            button.PointerExited += (_, _) => button.Background = Brush(Colors.Black);
+            button.PointerExited += (_, _) => button.Background = Brush(MacLook.WindowColor);
             button.Click += (_, _) =>
             {
                 StopCapture();
@@ -892,7 +892,7 @@ internal sealed class MacrosPage
         }
         else
         {
-            var verb = Label(BlockRegistry.Label(body), 14, selected ? Colors.Black : Text);
+            var verb = Label(BlockRegistry.Label(body), 14, selected ? MacLook.WindowColor : Text);
             verb.TextWrapping = TextWrapping.NoWrap;
             verb.VerticalAlignment = VerticalAlignment.Center;
             sentence.Children.Add(verb);
@@ -979,7 +979,7 @@ internal sealed class MacrosPage
             Child = label,
             Padding = new Thickness(9, 3, 9, 3),
             CornerRadius = new CornerRadius(0),
-            Background = Brush(Colors.Black),
+            Background = Brush(MacLook.WindowColor),
             BorderBrush = Brush(White(0.2)),
             BorderThickness = new Thickness(1),
             VerticalAlignment = VerticalAlignment.Center,
@@ -990,12 +990,12 @@ internal sealed class MacrosPage
     /// droite ; éteint, noir et carré blanc à gauche. `help` : son aide (sinon celle d'un bloc).
     private static Button Switch(bool on, Action<bool> set, string? help = null)
     {
-        var knob = new Rectangle { Width = 12, Height = 12, Fill = Brush(on ? Colors.Black : Colors.White),
+        var knob = new Rectangle { Width = 12, Height = 12, Fill = Brush(on ? MacLook.WindowColor : MacLook.Text),
                                    HorizontalAlignment = on ? HorizontalAlignment.Right : HorizontalAlignment.Left,
                                    Margin = new Thickness(3, 0, 3, 0) };
         var track = new Grid { Width = 40, Height = 20 };
-        track.Children.Add(new Border { Background = Brush(on ? Colors.White : Colors.Black),
-                                        BorderBrush = Brush(Colors.White), BorderThickness = new Thickness(1) });
+        track.Children.Add(new Border { Background = Brush(on ? MacLook.Text : MacLook.WindowColor),
+                                        BorderBrush = Brush(MacLook.Text), BorderThickness = new Thickness(1) });
         track.Children.Add(knob);
         var button = new Button { Style = PlainButton, Content = track, VerticalAlignment = VerticalAlignment.Center };
         help ??= on ? Loc.T("Bloc actif : coupe-le pour le sauter sans le supprimer") : Loc.T("Bloc sauté : rallume-le pour le réactiver");

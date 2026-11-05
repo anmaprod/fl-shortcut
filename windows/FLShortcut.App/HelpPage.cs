@@ -116,7 +116,7 @@ internal sealed class HelpPage
             FontSize = 20,
             FontWeight = Microsoft.UI.Text.FontWeights.Bold,
             FontFamily = SwissFont,
-            Background = Brush(Colors.Black),
+            Background = Brush(MacLook.WindowColor),
             BorderBrush = Brush(LineColor),
             BorderThickness = new Thickness(1),
             Padding = new Thickness(14, 10, 14, 10),
@@ -200,7 +200,7 @@ internal sealed class HelpPage
                 Child = new TextBlock
                 {
                     Text = (i + 1).ToString(System.Globalization.CultureInfo.InvariantCulture), FontSize = 11,
-                    FontWeight = Microsoft.UI.Text.FontWeights.Bold, FontFamily = SwissFont, Foreground = Brush(Colors.White),
+                    FontWeight = Microsoft.UI.Text.FontWeights.Bold, FontFamily = SwissFont, Foreground = Brush(MacLook.OnRed),
                     HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center,
                 },
             });
@@ -239,7 +239,7 @@ internal sealed class HelpPage
         Text = text,
         PlaceholderText = placeholder,
         FontFamily = SwissFont,
-        Background = Brush(Colors.Black),
+        Background = Brush(MacLook.WindowColor),
         BorderBrush = Brush(LineColor),
         BorderThickness = new Thickness(1),
     };
@@ -279,7 +279,7 @@ internal sealed class HelpPage
                 _message.Kind = k;
                 _render();
             }, _message.Kind == k, minHeight: 32, padding: new Thickness(14, 0, 14, 0));
-            b.BorderBrush = Brush(Colors.White);
+            b.BorderBrush = Brush(MacLook.Text);
             b.BorderThickness = new Thickness(1);
             kinds.Children.Add(b);
         }

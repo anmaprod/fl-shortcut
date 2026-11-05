@@ -118,9 +118,9 @@ internal sealed class OrganizerWindow : Window
             bar.ButtonForegroundColor = Text;
             bar.ButtonInactiveForegroundColor = Secondary;
             bar.ButtonHoverBackgroundColor = White(0.1);
-            bar.ButtonHoverForegroundColor = Colors.White;
+            bar.ButtonHoverForegroundColor = MacLook.Text;
             bar.ButtonPressedBackgroundColor = White(0.18);
-            bar.ButtonPressedForegroundColor = Colors.White;
+            bar.ButtonPressedForegroundColor = MacLook.Text;
         }
         var scale = Win32.GetDpiForWindow(_hwnd) / 96.0;
         AppWindow.Resize(new Windows.Graphics.SizeInt32((int)(StartWidth * scale), (int)(420 * scale)));
@@ -131,7 +131,7 @@ internal sealed class OrganizerWindow : Window
         }
 
         Photos.Note("fenêtre : taille");
-        var page = new Grid { Background = Brush(WindowColor), RequestedTheme = ElementTheme.Dark };
+        var page = new Grid { Background = Brush(WindowColor), RequestedTheme = MacLook.SurfaceTheme };
         var dragBar = new Border { Height = 32, VerticalAlignment = VerticalAlignment.Top, Background = Brush(Colors.Transparent) };
         _root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
         _root.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
@@ -202,7 +202,7 @@ internal sealed class OrganizerWindow : Window
         Child = child,
         Padding = new Thickness(padding),
         CornerRadius = new CornerRadius(0),
-        Background = Brush(Colors.Black),
+        Background = Brush(MacLook.WindowColor),
         BorderBrush = Brush(WithOpacity(tint ?? Tint, 0.4)),
         BorderThickness = new Thickness(1),
     };
@@ -508,7 +508,7 @@ internal sealed class OrganizerWindow : Window
         var bar = new ProgressBar
         {
             Maximum = Math.Max(total, 1), Value = done, IsIndeterminate = total == 0,
-            Foreground = Brush(Tint), Background = Brush(Colors.Black), MinHeight = 6,
+            Foreground = Brush(Tint), Background = Brush(MacLook.WindowColor), MinHeight = 6,
         };
         _content.Children.Add(Card(Row(Badge("waveform", Tint), Stack(8, head, bar))));
         // Plus d'explication (comme le Mac, 28/10) : la consigne seule.
@@ -562,7 +562,7 @@ internal sealed class OrganizerWindow : Window
             CornerRadius = new CornerRadius(0),
             BorderBrush = Brush(LineColor),
             BorderThickness = new Thickness(1),
-            Background = Brush(Colors.Black),
+            Background = Brush(MacLook.WindowColor),
         };
         if (TutorialImage(index + 1) is { } bitmap)
             picture.Child = new Image { Source = bitmap, Stretch = Stretch.Uniform };
@@ -830,10 +830,10 @@ internal sealed class OrganizerWindow : Window
         var button = new Button
         {
             Style = PlainButton,
-            Content = Label(text, 12, selected ? Colors.Black : Text, semibold: selected),
+            Content = Label(text, 12, selected ? MacLook.WindowColor : Text, semibold: selected),
             Padding = new Thickness(12, 5, 12, 5),
-            Background = Brush(selected ? Colors.White : Colors.Black),
-            BorderBrush = Brush(selected ? Colors.White : LineColor),
+            Background = Brush(selected ? MacLook.Text : MacLook.WindowColor),
+            BorderBrush = Brush(selected ? MacLook.Text : LineColor),
             BorderThickness = new Thickness(1),
         };
         if (!selected) button.Click += (_, _) => click();
@@ -884,10 +884,10 @@ internal sealed class OrganizerWindow : Window
         var kind = new Button
         {
             Style = PlainButton, Content = inside, MinHeight = 26, Padding = new Thickness(8, 0, 8, 0),
-            CornerRadius = new CornerRadius(0), Background = Brush(Colors.Black), VerticalAlignment = VerticalAlignment.Center,
+            CornerRadius = new CornerRadius(0), Background = Brush(MacLook.WindowColor), VerticalAlignment = VerticalAlignment.Center,
         };
-        kind.PointerEntered += (_, _) => kind.Background = Brush(Colors.Black);
-        kind.PointerExited += (_, _) => kind.Background = Brush(Colors.Black);
+        kind.PointerEntered += (_, _) => kind.Background = Brush(MacLook.WindowColor);
+        kind.PointerExited += (_, _) => kind.Background = Brush(MacLook.WindowColor);
         ToolTipService.SetToolTip(kind, Loc.T("Changer ce son ou écrire son nom"));
         var menu = new MenuFlyout();
         foreach (var choice in SoundFamilies.Order.Where(f => f.Kinds().Length > 0))
@@ -959,7 +959,7 @@ internal sealed class OrganizerWindow : Window
         {
             XamlRoot = Content.XamlRoot,
             Style = MainShell.DialogStyle(),
-            RequestedTheme = ElementTheme.Dark,
+            RequestedTheme = MacLook.SurfaceTheme,
             Background = Brush(Rgb(0x1E, 0x1E, 0x21)),
             BorderBrush = Brush(LineColor),
             Title = Loc.T("Qu'est-ce qui n'allait pas ?"),

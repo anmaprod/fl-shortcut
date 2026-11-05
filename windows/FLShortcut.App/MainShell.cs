@@ -78,7 +78,7 @@ internal sealed partial class MainShell
         _hwnd = WinRT.Interop.WindowNative.GetWindowHandle(window);
 
         root.Background = Brush(WindowColor);
-        root.RequestedTheme = ElementTheme.Dark;
+        root.RequestedTheme = MacLook.SurfaceTheme;
         window.Title = "FL Shortcuts";
         window.ExtendsContentIntoTitleBar = true;
         _titleBar.Margin = new Thickness(SidebarWidth + 16, 0, 0, 0);
@@ -92,9 +92,9 @@ internal sealed partial class MainShell
             bar.ButtonForegroundColor = Text;
             bar.ButtonInactiveForegroundColor = Secondary;
             bar.ButtonHoverBackgroundColor = White(0.1);
-            bar.ButtonHoverForegroundColor = Colors.White;
+            bar.ButtonHoverForegroundColor = MacLook.Text;
             bar.ButtonPressedBackgroundColor = White(0.18);
-            bar.ButtonPressedForegroundColor = Colors.White;
+            bar.ButtonPressedForegroundColor = MacLook.Text;
         }
         window.AppWindow.Resize(new Windows.Graphics.SizeInt32(1180, 760));
         window.AppWindow.Closing += OnClosing;
@@ -126,13 +126,14 @@ internal sealed partial class MainShell
         _poll.Start();
 
         // Barre de gauche et page.
-        _keyButton = KeySearchButton();
+        // Barre de gauche : noire sous Orange (MacLook.Inverted), comme le Mac.
+        using (Inverted()) _keyButton = KeySearchButton();
         _capsuleBorder = new Border
         {
             Child = _capsule,
             Padding = new Thickness(3),
             CornerRadius = new CornerRadius(0),
-            Background = Brush(Colors.Black),
+            Background = Brush(MacLook.WindowColor),
             BorderBrush = Brush(Text),
             BorderThickness = new Thickness(1),
             HorizontalAlignment = HorizontalAlignment.Right,
@@ -343,6 +344,8 @@ internal sealed partial class MainShell
         _main.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(SidebarWidth) });
         _main.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
 
+        // La barre de gauche est construite dans ses couleurs : noire sous Orange (maquette du 04/11), comme le Mac.
+        var inverted = Inverted();
         // Recherche : une capsule claire, la loupe, le champ sans cadre, le clavier (chercher avec ses touches).
         foreach (var key in new[] { "TextControlBackground", "TextControlBackgroundPointerOver", "TextControlBackgroundFocused",
                                     "TextControlBorderBrush", "TextControlBorderBrushPointerOver", "TextControlBorderBrushFocused" })
@@ -357,7 +360,7 @@ internal sealed partial class MainShell
         // reste blanc, la sélection grise, jamais de bleu.
         _search.Resources["TextControlBorderThemeThicknessFocused"] = new Thickness(0);
         _search.Resources["TextControlBorderThemeThickness"] = new Thickness(0);
-        _search.SelectionHighlightColor = Brush(Rgb(0x55, 0x55, 0x55));
+        _search.SelectionHighlightColor = Brush(Tertiary);
         _search.Resources["TextControlPlaceholderForegroundPointerOver"] = Brush(Secondary);
         _search.BorderThickness = new Thickness(0);
         _search.Background = Brush(Colors.Transparent);
@@ -415,11 +418,19 @@ internal sealed partial class MainShell
         var sidebar = new Border
         {
             Child = sidebarStack,
-            Background = Brush(Colors.Black),
+            Background = Brush(MacLook.WindowColor),
             BorderBrush = Brush(LineColor),
             BorderThickness = new Thickness(0, 0, 1, 0),
             Padding = new Thickness(10, 14, 10, 16),
+            RequestedTheme = SurfaceTheme,
         };
+        if (Theme == AppTheme.Orange)
+        {
+            // Noire jusqu'aux bords de la fenêtre.
+            sidebar.Margin = new Thickness(-8, -8, 0, -8);
+            sidebar.Padding = new Thickness(18, 22, 10, 24);
+        }
+        inverted.Dispose();
         _main.Children.Add(sidebar);
 
         // Page : en-tête (titre, capsule) sous la barre de titre, bandeaux, puis les cartes qui défilent.
@@ -461,6 +472,7 @@ internal sealed partial class MainShell
 
     private void RenderSidebar()
     {
+        using var inverted = Inverted();                 // noire sous Orange
         _sidebarGroups.Children.Clear();
         var searching = _query.Trim().Length > 0;
         var fl = Group(Loc.T("FL Studio"));
@@ -556,7 +568,7 @@ internal sealed partial class MainShell
     {
         _keyListening = true;
         _app.SetRecording(true);
-        _keyButton.Content = Icon("keyboard", 15, Accent);
+        using (Inverted()) _keyButton.Content = Icon("keyboard", 15, Accent);
         _keyButton.Focus(FocusState.Programmatic);
         RenderNotices();
     }
@@ -565,7 +577,7 @@ internal sealed partial class MainShell
     {
         _keyListening = false;
         _app.SetRecording(false);
-        _keyButton.Content = Icon("keyboard", 15, Secondary);
+        using (Inverted()) _keyButton.Content = Icon("keyboard", 15, Secondary);
         RenderNotices();
     }
 
@@ -664,7 +676,7 @@ internal sealed partial class MainShell
                 BorderBrush = Brush(tint),
                 BorderThickness = new Thickness(2, 0, 0, 0),
             },
-            Background = Brush(Colors.Black),
+            Background = Brush(MacLook.WindowColor),
             BorderBrush = Brush(LineColor),
             BorderThickness = new Thickness(1),
         };
@@ -683,7 +695,7 @@ internal sealed partial class MainShell
                 Glyph = "\uE77B",
                 FontFamily = new FontFamily("Segoe Fluent Icons, Segoe MDL2 Assets"),
                 FontSize = 16,
-                Foreground = Brush(hovered ? Colors.Black : Text),
+                Foreground = Brush(hovered ? MacLook.WindowColor : Text),
             };
         var button = new Button
         {
@@ -699,7 +711,7 @@ internal sealed partial class MainShell
         };
         if (session is null)
         {
-            button.PointerEntered += (_, _) => { button.Background = Brush(Colors.White); button.Content = Face(true); };
+            button.PointerEntered += (_, _) => { button.Background = Brush(MacLook.Text); button.Content = Face(true); };
             button.PointerExited += (_, _) => { button.Background = Brush(Colors.Transparent); button.Content = Face(false); };
         }
         button.Click += (_, _) =>

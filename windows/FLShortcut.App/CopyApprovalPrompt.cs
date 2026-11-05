@@ -76,7 +76,7 @@ internal static class CopyApprovalPrompt
     {
         XamlRoot = root,
         Style = MainShell.DialogStyle(),
-        RequestedTheme = ElementTheme.Dark,
+        RequestedTheme = MacLook.SurfaceTheme,
         Background = Brush(Rgb(0x1E, 0x1E, 0x21)),
         BorderBrush = Brush(LineColor),
     };

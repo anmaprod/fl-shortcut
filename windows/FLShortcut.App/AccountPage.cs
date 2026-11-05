@@ -890,7 +890,7 @@ internal sealed class AccountPage
         {
             Child = card,
             Padding = new Thickness(20, 16, 20, 16),
-            Background = Brush(Colors.Black),
+            Background = Brush(MacLook.WindowColor),
             BorderBrush = Brush(Orange),
             BorderThickness = new Thickness(2, 1, 1, 1),
         };
@@ -1212,7 +1212,7 @@ internal sealed class AccountPage
         Width = 420,
         Padding = new Thickness(30, 28, 30, 28),
         HorizontalAlignment = HorizontalAlignment.Center,
-        Background = Brush(Colors.Black),
+        Background = Brush(MacLook.WindowColor),
         BorderBrush = Brush(LineColor),
         BorderThickness = new Thickness(1),
     };
@@ -1221,7 +1221,7 @@ internal sealed class AccountPage
     {
         Child = content,
         Padding = padding,
-        Background = Brush(Colors.Black),
+        Background = Brush(MacLook.WindowColor),
         BorderBrush = Brush(LineColor),
         BorderThickness = new Thickness(1),
     };
@@ -1263,7 +1263,7 @@ internal sealed class AccountPage
         MinHeight = 38,
         Padding = new Thickness(10, 8, 10, 8),
         CornerRadius = new CornerRadius(0),
-        Background = Brush(Colors.Black),
+        Background = Brush(MacLook.WindowColor),
         BorderBrush = Brush(LineColor),
         BorderThickness = new Thickness(1),
         IsSpellCheckEnabled = false,
@@ -1278,7 +1278,7 @@ internal sealed class AccountPage
         MinHeight = 38,
         Padding = new Thickness(10, 8, 10, 8),
         CornerRadius = new CornerRadius(0),
-        Background = Brush(Colors.Black),
+        Background = Brush(MacLook.WindowColor),
         BorderBrush = Brush(LineColor),
         BorderThickness = new Thickness(1),
         PasswordRevealMode = PasswordRevealMode.Peek,
@@ -1316,7 +1316,7 @@ internal sealed class AccountPage
         void Set(bool on)
         {
             button.Background = Brush(on ? Red : Colors.Transparent);
-            label.Foreground = Brush(on ? Colors.Black : Red);
+            label.Foreground = Brush(on ? MacLook.WindowColor : Red);
         }
         button.PointerEntered += (_, _) => Set(true);
         button.PointerExited += (_, _) => Set(false);

@@ -183,7 +183,7 @@ internal sealed class CommunityPage
             PlaceholderText = Loc.T("Rechercher"),
             FontFamily = SwissFont,
             FontSize = 14,
-            Background = Brush(Colors.Black),
+            Background = Brush(MacLook.WindowColor),
             BorderBrush = Brush(Text),
             BorderThickness = new Thickness(0, 0, 0, 1),
             CornerRadius = new CornerRadius(0),
@@ -209,7 +209,7 @@ internal sealed class CommunityPage
             var f = filter;
             var chip = Option(Label(label, 12.5, bold: true), Tint, 0, () => Choose(f), _filter == f && _author is null,
                               minHeight: 32, padding: new Thickness(14, 0, 14, 0));
-            chip.BorderBrush = Brush(Colors.White);
+            chip.BorderBrush = Brush(MacLook.Text);
             chip.BorderThickness = new Thickness(1);
             filters.Children.Add(chip);
         }
@@ -316,7 +316,7 @@ internal sealed class CommunityPage
         {
             Child = grid,
             Padding = new Thickness(16, 14, 16, 14),
-            Background = Brush(Colors.Black),
+            Background = Brush(MacLook.WindowColor),
             BorderBrush = Brush(LineColor),
             BorderThickness = new Thickness(1),
         };
@@ -597,7 +597,7 @@ internal sealed class CommunityPage
             Text = _details,
             PlaceholderText = Loc.T("Précisions facultatives"),
             FontFamily = SwissFont,
-            Background = Brush(Colors.Black),
+            Background = Brush(MacLook.WindowColor),
             BorderBrush = Brush(LineColor),
             BorderThickness = new Thickness(1),
             CornerRadius = new CornerRadius(0),
@@ -686,7 +686,7 @@ internal sealed class CommunityPage
                 _composeProfile = p;
                 _render();
             }, _composeProfile == p, minHeight: 32, padding: new Thickness(14, 0, 14, 0));
-            chip.BorderBrush = Brush(Colors.White);
+            chip.BorderBrush = Brush(MacLook.Text);
             chip.BorderThickness = new Thickness(1);
             kinds.Children.Add(chip);
         }
@@ -709,7 +709,7 @@ internal sealed class CommunityPage
                 PlaceholderText = Loc.T("Choisir…"),
                 MinWidth = 320,
                 CornerRadius = new CornerRadius(0),
-                Background = Brush(Colors.Black),
+                Background = Brush(MacLook.WindowColor),
                 BorderBrush = Brush(LineColor),
             };
             foreach (var m in macros) picker.Items.Add(DisplayText.Safe(m.Name, 60));
@@ -851,7 +851,7 @@ internal sealed class CommunityPage
         MinHeight = 38,
         Padding = new Thickness(10, 8, 10, 8),
         CornerRadius = new CornerRadius(0),
-        Background = Brush(Colors.Black),
+        Background = Brush(MacLook.WindowColor),
         BorderBrush = Brush(LineColor),
         BorderThickness = new Thickness(1),
     };
