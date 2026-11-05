@@ -1,3 +1,18 @@
+# Icône de l'app : « fl. » (choisie le 05/11)
+
+Choix du propriétaire du 05/11 : l'icône de l'app devient « fl. », minuscules grasses serrées, en blanc sur une
+tuile noire, avec le point rouge carré. Elle suit la grille des icônes du Mac : toile de 1024, tuile de 824
+centrée, coins arrondis de 185, ombre douce dessous.
+
+| Fichier | Pour quoi |
+|---|---|
+| `icone-app-fl.svg`, `png/icone-app-fl-1024.png` | Icône de l'app, de 128 à 1024 pixels. |
+| `icone-app-fl-petit.svg`, `png/icone-app-fl-petit-1024.png` | Même icône, lettres plus grandes, pour 16 à 64 pixels. |
+| `rond-A-barre-blanc.svg`, `png/rond-A-barre-blanc-1024.png` | Barre des menus du Mac : le rond A, tout en blanc, avec un jour entre le rond et le cercle pour qu'on les distingue. |
+
+La barre des menus garde le rond A, mais tout en blanc, demande du propriétaire du 05/11. Ça remplace, pour la
+barre des menus seulement, les versions en couleurs `rond-A-barre-sombre` et `rond-A-barre-claire` ci-dessous.
+
 # Logo de FL Shortcuts : le rond A
 
 Choisi par le propriétaire le 04/11 : le rond rouge plein, avec un grand cercle fin derrière lui, décalé vers le haut
