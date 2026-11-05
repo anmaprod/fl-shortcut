@@ -373,6 +373,23 @@
   (`isValidTrigger`/`IsValidTarget`) ; Mac : tap avec otherMouseDown/Up, enregistreur `Recorder` (keyDown +
   otherMouseDown) ; Windows : crochet souris posé si un raccourci en a besoin (`ShortcutIndex.HasMouseTrigger`,
   `KeyboardHook.MouseTriggers`), champs de raccourci (`PressedMouseButton`). Pas encore vu avec une vraie souris.
+- **Maquettes du 05/11 dans l'app** (« fait tout ce que j'ai dis », artefact `1EFC8zLVn5ATRWAnQMBZrB`, 16 pages) :
+  titres en minuscules + point carré (`SwissPageTitle`, `MacLook.PageTitle`) ; compte en haut à droite encadré, plein
+  (`HeaderAccountLabel`) ; photos rondes ; boutons principaux blancs (Noir, Orange) ou noirs (Papier) sur ombre nette
+  (`Swiss.primaryFill/primaryShadow`, `MacLook.PrimaryFill/HardShadow`), bordés de 2 points et pleins du fond (jamais
+  de trait de la grille de Papier dedans) ; plus de flèche « dernière macro » ; ligne entière d'un raccourci cliquable ;
+  Mes raccourcis = action · page · touche · ↺ ; fiche d'un raccourci existant = sa touche seule (+ « Ouvrir dans le
+  créateur » pour une macro), plus de type ni de logo de couleur ; Macros = 3 grandes cartes + macros en cartes ;
+  Modèles en cartes sur 2 colonnes sans défilement ; créateur : plus de couleur par catégorie, carré creux orange au
+  survol/choisi, encoche orange (`BlockSquare`) ; « Enregistrer » comme les touches (`KeyLikeButtonStyle`) ; bloc
+  « Clic de souris » = une case où l'on appuie sur le bouton (JSON « 4 », « 5 »…, `PointerButton(number:)`) + Simple /
+  Double ; menu de l'icône : rond + « fl shortcuts. », sans « Actif », carrés creux orange au survol ; Aide, Mon compte
+  (Profil + Thème | Sauvegarde ; Se déconnecter, Supprimer mon compte), connexion (`AuthPitch` + formulaire), accueil,
+  Communauté comme les maquettes ; Organiser : PLUS DE TUTO, « Installer le lien » en 3 étapes une consigne à la fois
+  (`LinkSteps`), plus de trait sous la dernière ligne d'une famille, couleurs des familles du 05/11 (anciennes couleurs
+  de départ remplacées au chargement), Options › « Couleurs de base… ». « Ouvre un VST » : noms du Channel rack
+  cherchés jusqu'à 240 points à gauche du titre (FL 2025). LISEZMOI (`scripts/lisezmoi_modeles.py` puis
+  `scripts/lisezmoi.py`) refait en français, à faire valider avant l'anglais (README-*.html encore l'ancien).
 - **Aspect validé le 28/10** (maquette, `HISTORIQUE`) : plus de Liquid Glass depuis le 29/10 (plaques dessinées), sans lavis ni lueur ; fond de
   fenêtre plein (« sans le Liquid Glass derrière »), verre devant : cartes, touches, cartes de l'Organiser
   (`GlassPlate`, dessiné : pas de `glassEffect` par ligne) ; titre de

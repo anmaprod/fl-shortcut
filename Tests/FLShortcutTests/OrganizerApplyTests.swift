@@ -135,8 +135,8 @@ final class OrganizerApplyTests: XCTestCase {
         defaults.removePersistentDomain(forName: suite)
         defer { defaults.removePersistentDomain(forName: suite) }
         XCTAssertEqual(FamilyStyles.load(from: defaults), FamilyStyles.initial)
-        XCTAssertEqual(style(.drums).hex, "E0453A")
-        XCTAssertEqual(style(.unsure).hex, "8A8F98")
+        XCTAssertEqual(style(.drums).hex, "FF3B1F")             // couleurs de départ du 05/11
+        XCTAssertEqual(style(.unsure).hex, "8C8C8C")
 
         var styles = FamilyStyles.initial
         styles[.melody] = FamilyStyle(color: RGBColor(r: 0x3F, g: 0xA7, b: 0xE0), fade: RGBColor(r: 0x1B, g: 0x4F, b: 0x72),

@@ -809,3 +809,16 @@ entrée 1 ≈ 0,5 s.
   double) ; raccourcis et macros lancés par la molette cliquée ou les boutons du côté (souris à macros), sur Mac et
   Windows, codés comme des touches (seulement des déclencheurs).
 
+- 05/11 au soir (vidéo + capture + long message, « fait tout ce que j'ai dis ») : essais du propriétaire : export des
+  stems parfait, raccourci et macro au bouton de souris qui marchent. « Ouvre un VST » cherchait encore dans le menu
+  Add : dans le Channel rack de FL 2025, le titre est ~100 points à droite des noms (centrés) ; ils sont maintenant
+  cherchés jusqu'à 240 points à gauche, le .fst est déposé (essais tirés de la vidéo, Mac et Windows). Puis tout aux
+  maquettes de style suisse : titres en minuscules à point carré, compte encadré, boutons principaux sur ombre nette
+  (rouge sous Papier, noire sous Orange), boutons bordés pleins (plus de traits de la grille dedans), ligne entière
+  d'un raccourci cliquable, Mes raccourcis courts, fiche d'un raccourci sans type ni logo rose, Macros en cartes,
+  Modèles sans défilement, créateur sans couleurs de catégories (carré orange), « Enregistrer » accordé aux touches,
+  bloc « Clic de souris » à capture du bouton, menu de l'icône sans « Actif », Aide, Mon compte et nouvelle page de
+  connexion, accueil, Communauté ; Organiser sans tuto, lien en trois étapes, plus de trait sous chaque famille,
+  couleurs des familles plus franches et « Couleurs de base » dans Options. Maquettes mises à jour (4 pages de plus).
+  LISEZMOI refait en français (remerciement, petits jeux : changer une touche, ranger un projet, changer de thème),
+  envoyé au propriétaire avant l'anglais.
