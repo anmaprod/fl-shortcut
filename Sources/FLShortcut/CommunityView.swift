@@ -833,9 +833,9 @@ struct CommunitySignIn: View {
                 }
             }
             .softSwitch(community.pendingCode == nil ? 0 : 1, quick: true)
-            .frame(maxWidth: .infinity)
-            .padding(.horizontal, 24)
-            .padding(.top, 24)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, 26)
+            .padding(.top, 18)
             .padding(.bottom, 32)
         }
         .glassListBackground()
@@ -847,18 +847,24 @@ struct CommunitySignIn: View {
 
     // MARK: Se connecter / Créer un compte
 
+    /// 05/11 (« faut que tu me fasses la page de avant mon compte… un truc très beau ») : à gauche, ce que donne un
+    /// compte en trois lignes numérotées ; à droite, le formulaire (onglets, champs, bouton principal). L'un sous
+    /// l'autre si la fenêtre est étroite.
     private var signInCard: some View {
-        AuthCard {
-            VStack(spacing: 12) {
-                AuthBadge(symbol: "person", colors: AuthLook.teal)
-                Text("Ton compte FL Shortcuts").font(Swiss.title(25)).tracking(Swiss.titleTracking(25)).multilineTextAlignment(.center)
-                // Les mêmes dans les deux onglets : le haut de la carte ne bouge pas quand on change (vidéo du 30/10).
-                HStack(spacing: 6) {
-                    AuthPill(symbol: "cloud", text: String(localized: "Sauvegarde"), tint: .green)
-                    AuthPill(symbol: "laptopcomputer", text: String(localized: "Tous tes Mac"), tint: .blue)
-                    AuthPill(symbol: "person.2", text: String(localized: "Communauté"), tint: SidebarItem.community.tint)
-                }
+        ViewThatFits(in: .horizontal) {
+            HStack(alignment: .top, spacing: 44) {
+                AuthPitch().frame(minWidth: 280, maxWidth: 400, alignment: .leading)
+                signInForm
             }
+            VStack(alignment: .leading, spacing: 30) {
+                AuthPitch()
+                signInForm
+            }
+        }
+    }
+
+    private var signInForm: some View {
+        AuthCard {
             AuthTabs(creating: $community.creatingAccount)
             VStack(alignment: .leading, spacing: 18) {
                 if creating {
@@ -884,9 +890,10 @@ struct CommunitySignIn: View {
                 }
             CommunityStatus(community: community)
             if creating {
-                Label("Les autres voient ton pseudo et ta photo, jamais ton e-mail.", systemImage: "lock")
+                Text("Les autres voient ton pseudo et ta photo, jamais ton e-mail.")
                     .font(.system(size: 11.5))
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Swiss.gray)
+                    .frame(maxWidth: .infinity, alignment: .leading)
             }
         }
     }
@@ -901,15 +908,14 @@ struct CommunitySignIn: View {
     private func codeCard(_ pending: CommunityStore.PendingCode) -> some View {
         let recovery = pending.kind == .recovery
         return AuthCard {
-            AuthBadge(symbol: "envelope", colors: AuthLook.sky)
-            VStack(spacing: 6) {
-                Text(recovery ? String(localized: "Nouveau mot de passe") : String(localized: "Vérifie tes mails"))
-                    .font(Swiss.title(25)).tracking(Swiss.titleTracking(25))
+            VStack(alignment: .leading, spacing: 8) {
+                SwissPageTitle(text: recovery ? String(localized: "Nouveau mot de passe") : String(localized: "Vérifie tes mails"),
+                               size: 28)
                 Text("Code envoyé à \(Text(pending.email.displaySafe(max: 60)).fontWeight(.semibold))")
                     .font(.system(size: 13))
-                    .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.center)
+                    .foregroundStyle(Swiss.gray)
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
             CodeBoxes(code: $code)
             if recovery {
                 VStack(alignment: .leading, spacing: 10) {

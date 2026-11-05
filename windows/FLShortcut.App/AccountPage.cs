@@ -255,9 +255,22 @@ internal sealed class AccountPage
         _ruleLabels.Clear();
         if (HelpPage.Server is null)
             return Message(Loc.T("Les comptes ne sont pas encore ouverts"), Loc.T("Tes raccourcis et tes macros restent sur ce PC en attendant."));
-        if (_session is { } session) return SignedIn(session);
+        if (_session is { } session) return SignedIn(session, columns);
         var card = _pending is { } pending ? CodeCard(pending.Kind, pending.Email) : SignInCard();
-        return new StackPanel { Children = { card }, Padding = new Thickness(24, 24, 24, 32) };
+        if (_pending is not null) return new StackPanel { Children = { card }, Padding = new Thickness(26, 18, 26, 32) };
+        // 05/11 (comme le Mac) : à gauche ce que donne un compte, à droite le formulaire ; l'un sous l'autre si étroit.
+        var pitch = Pitch();
+        if (columns >= 2)
+        {
+            var grid = new Grid { ColumnSpacing = 44, Padding = new Thickness(26, 18, 26, 32) };
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star), MaxWidth = 400 });
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            grid.Children.Add(pitch);
+            Grid.SetColumn(card, 1);
+            grid.Children.Add(card);
+            return grid;
+        }
+        return new StackPanel { Spacing = 30, Children = { pitch, card }, Padding = new Thickness(26, 18, 26, 32) };
     }
 
     // ---------- Serveur ----------
@@ -574,22 +587,58 @@ internal sealed class AccountPage
     private void UpdateRules(string password)
     {
         var checks = AccountRules.PasswordChecks(password);
-        foreach (var (label, rule) in _ruleLabels) label.Foreground = Brush(checks[rule] ? Green : Secondary);
+        foreach (var (label, rule) in _ruleLabels) label.Foreground = Brush(checks[rule] ? Text : Secondary);
     }
 
     // ---------- Écrans de connexion ----------
 
+    /// Ce que donne un compte (comme AuthPitch du Mac) : « tes raccourcis, tes macros, partout. » en grand, puis trois
+    /// lignes numérotées séparées d'un trait.
+    private static FrameworkElement Pitch()
+    {
+        var panel = new StackPanel { Spacing = 0 };
+        var label = SwissLabel(Loc.T("Un compte, partout"));
+        label.Margin = new Thickness(0, 0, 0, 14);
+        panel.Children.Add(label);
+        foreach (var line in new[] { Loc.T("Tes raccourcis,"), Loc.T("tes macros,") })
+        {
+            var t = SwissTitle(40);
+            t.Text = line.ToLower(System.Globalization.CultureInfo.CurrentCulture);
+            panel.Children.Add(t);
+        }
+        var last = SwissTitle(40);
+        last.Text = Loc.T("partout").ToLower(System.Globalization.CultureInfo.CurrentCulture);
+        var lastLine = PageTitle(last, 40);
+        lastLine.Margin = new Thickness(0, 0, 0, 28);
+        lastLine.HorizontalAlignment = HorizontalAlignment.Left;
+        panel.Children.Add(lastLine);
+        var rows = new[]
+        {
+            ("01", Loc.T("Sauvegarde"), Loc.T("Toujours en ligne, toujours à jour.")),
+            ("02", Loc.T("Tous tes ordis"), Loc.T("Les mêmes sur ton Mac et ton PC.")),
+            ("03", Loc.T("Communauté"), Loc.T("Partage et récupère des macros.")),
+        };
+        foreach (var (number, title, text) in rows)
+        {
+            var grid = new Grid { ColumnSpacing = 16, Padding = new Thickness(0, 14, 0, 14), BorderBrush = Brush(LineColor), BorderThickness = new Thickness(0, 1, 0, 0) };
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            var n = Label(number, 13, Red, bold: true);
+            n.VerticalAlignment = VerticalAlignment.Top;
+            grid.Children.Add(n);
+            var words = new StackPanel { Spacing = 3 };
+            words.Children.Add(Label(title, 16, Text, bold: true));
+            words.Children.Add(Paragraph(text, 13));
+            Grid.SetColumn(words, 1);
+            grid.Children.Add(words);
+            panel.Children.Add(grid);
+        }
+        return panel;
+    }
+
     private FrameworkElement SignInCard()
     {
         var card = new StackPanel { Spacing = 18 };
-        var head = new StackPanel { Spacing = 12, HorizontalAlignment = HorizontalAlignment.Center };
-        head.Children.Add(Badge("", Tint));
-        var title = SwissTitle(25);
-        title.Text = Loc.T("Ton compte FL Shortcuts");
-        title.TextAlignment = TextAlignment.Center;
-        title.CharacterSpacing = -20;
-        head.Children.Add(title);
-        card.Children.Add(head);
         card.Children.Add(Tabs());
 
         var fields = new StackPanel { Spacing = 16 };
@@ -640,39 +689,34 @@ internal sealed class AccountPage
         card.Children.Add(Status());
         if (_creating)
         {
-            var note = Paragraph(Loc.T("Les autres voient ton pseudo et ta photo, jamais ton e-mail."), 11.5);
-            note.TextAlignment = TextAlignment.Center;
-            card.Children.Add(note);
+            card.Children.Add(Paragraph(Loc.T("Les autres voient ton pseudo et ta photo, jamais ton e-mail."), 11.5));
         }
         if (_creating) SetNameCheck(_nameCheck, _nameWhy); else UpdateSubmit();
         return Card(card);
     }
 
+    /// Onglets (05/11, comme le Mac) : deux cases collées, la choisie pleine d'encre.
     private FrameworkElement Tabs()
     {
         var grid = new Grid();
         grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
         grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-        var rule = Rule(LineColor);
-        rule.VerticalAlignment = VerticalAlignment.Bottom;
-        Grid.SetColumnSpan(rule, 2);
-        grid.Children.Add(rule);
         void Tab(string title, bool creating, int column)
         {
             var selected = _creating == creating;
-            var label = SwissLabel(title, 11, selected ? Text : Secondary);
+            var label = SwissLabel(title, 11.5, selected ? MacLook.WindowColor : Text);
             var button = new Button
             {
                 Style = PlainButton,
                 Content = label,
                 HorizontalAlignment = HorizontalAlignment.Stretch,
                 HorizontalContentAlignment = HorizontalAlignment.Center,
-                MinHeight = 34,
-                BorderBrush = Brush(selected ? Text : Colors.Transparent),
-                BorderThickness = new Thickness(0, 0, 0, 2),
+                MinHeight = 40,
+                Background = Brush(selected ? Text : MacLook.WindowColor),
+                BorderBrush = Brush(Text),
+                BorderThickness = new Thickness(2),
+                Margin = new Thickness(column == 1 ? -2 : 0, 0, 0, 0),
             };
-            button.PointerEntered += (_, _) => label.Foreground = Brush(Text);
-            button.PointerExited += (_, _) => label.Foreground = Brush(selected ? Text : Secondary);
             button.Click += (_, _) =>
             {
                 if (_creating == creating) return;
@@ -694,16 +738,13 @@ internal sealed class AccountPage
     {
         var recovery = kind == CodeKind.Recovery;
         var card = new StackPanel { Spacing = 18 };
-        var head = new StackPanel { Spacing = 8, HorizontalAlignment = HorizontalAlignment.Center };
-        head.Children.Add(Badge("", Sky));
-        var title = SwissTitle(25);
-        title.Text = recovery ? Loc.T("Nouveau mot de passe") : Loc.T("Vérifie tes mails");
-        title.TextAlignment = TextAlignment.Center;
-        title.CharacterSpacing = -20;
-        head.Children.Add(title);
-        var sent = Paragraph(Loc.F("Code envoyé à %@", email.Length > 60 ? email[..60] + "…" : email), 13);
-        sent.TextAlignment = TextAlignment.Center;
-        head.Children.Add(sent);
+        var head = new StackPanel { Spacing = 8 };
+        var title = SwissTitle(28);
+        title.Text = (recovery ? Loc.T("Nouveau mot de passe") : Loc.T("Vérifie tes mails")).ToLower(System.Globalization.CultureInfo.CurrentCulture);
+        var titleLine = PageTitle(title, 28);
+        titleLine.HorizontalAlignment = HorizontalAlignment.Left;
+        head.Children.Add(titleLine);
+        head.Children.Add(Paragraph(Loc.F("Code envoyé à %@", email.Length > 60 ? email[..60] + "…" : email), 13));
         card.Children.Add(head);
 
         var code = Input(_code, "000000");
@@ -796,58 +837,64 @@ internal sealed class AccountPage
 
     // ---------- Connecté ----------
 
-    private FrameworkElement SignedIn(AccountSession session)
+    /// Maquette du 05/11 (comme le Mac) : à gauche le profil puis le thème ; à droite la sauvegarde (et le choix quand
+    /// ce PC et le compte ont chacun leurs changements) ; en bas « Se déconnecter » et « Supprimer mon compte » souligné.
+    private FrameworkElement SignedIn(AccountSession session, int columns)
     {
-        var page = new StackPanel { Spacing = 14, Padding = new Thickness(26, 10, 26, 24) };
-        page.Children.Add(_editing ? EditCard(session) : ProfileCard(session));
-        if (ThemeCard is { } theme) page.Children.Add(theme());
-        if (_notice is not null) page.Children.Add(Paragraph(_notice, 12, Text));
-
+        var left = new StackPanel { Spacing = 20 };
+        left.Children.Add(_editing ? EditCard(session) : ProfileCard(session));
+        if (ThemeCard is { } theme) left.Children.Add(theme());
+        var right = new StackPanel { Spacing = 20 };
+        if (_notice is not null) right.Children.Add(Paragraph(_notice, 12, Text));
         if (_backup is { } backup)
         {
-            if (backup.Notice is { } notice) page.Children.Add(Paragraph(notice, 12, Text));
-            if (backup.Choice is { } choice) page.Children.Add(ConflictCard(backup, choice));
-            page.Children.Add(BackupCard(backup));
+            if (backup.Notice is { } notice) right.Children.Add(Paragraph(notice, 12, Text));
+            if (backup.Choice is { } choice) right.Children.Add(ConflictCard(backup, choice));
+            right.Children.Add(BackupCard(backup));
             // Page ouverte : le compte est relu s'il n'a pas été vu depuis 2 minutes (après ce dessin).
             Microsoft.UI.Dispatching.DispatcherQueue.GetForCurrentThread()?.TryEnqueue(() => _ = backup.RefreshIfStale());
         }
-
-        var delete = new Grid { ColumnSpacing = 12 };
-        delete.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-        delete.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-        delete.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-        var trash = Icon("trash", 15, Red);
-        trash.VerticalAlignment = VerticalAlignment.Center;
-        delete.Children.Add(trash);
-        var label = Label(Loc.T("Supprimer mon compte"), 13);
-        label.VerticalAlignment = VerticalAlignment.Center;
-        Grid.SetColumn(label, 1);
-        delete.Children.Add(label);
-        var button = DangerButton(Loc.T("Supprimer…"), DeleteAccount);
-        ToolTipService.SetToolTip(button, Loc.T("Efface ton compte. Tes raccourcis restent ici."));
-        Grid.SetColumn(button, 2);
-        delete.Children.Add(button);
-        var deleteBox = new StackPanel { Spacing = 8, Children = { delete } };
-        if (_deleteError is not null) deleteBox.Children.Add(Paragraph(_deleteError, 12, Orange));
-        var deleteCard = Boxed(deleteBox, new Thickness(20, 14, 20, 14));
-        deleteCard.Margin = new Thickness(0, 10, 0, 0);
-        page.Children.Add(deleteCard);
+        var page = new StackPanel { Spacing = 22, Padding = new Thickness(26, 10, 26, 24) };
+        if (columns >= 2)
+        {
+            var grid = new Grid { ColumnSpacing = 20 };
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            grid.Children.Add(left);
+            Grid.SetColumn(right, 1);
+            grid.Children.Add(right);
+            page.Children.Add(grid);
+        }
+        else
+        {
+            page.Children.Add(left);
+            page.Children.Add(right);
+        }
+        var bottom = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 20 };
+        var signOut = Soft(Loc.T("Se déconnecter"), SignOut);
+        signOut.MinHeight = 40;
+        bottom.Children.Add(signOut);
+        var delete = LinkButton(Loc.T("Supprimer mon compte"), DeleteAccount, 13);
+        delete.VerticalAlignment = VerticalAlignment.Center;
+        ToolTipService.SetToolTip(delete, Loc.T("Efface ton compte. Tes raccourcis restent ici."));
+        bottom.Children.Add(delete);
+        page.Children.Add(bottom);
+        if (_deleteError is not null) page.Children.Add(Paragraph(_deleteError, 12, Red));
         return page;
     }
 
+    /// Carte du profil (maquette du 05/11, comme le Mac) : « PROFIL », la photo ronde, le pseudo, le mail, puis
+    /// « Modifier le profil ».
     private FrameworkElement ProfileCard(AccountSession session)
     {
-        var grid = new Grid { ColumnSpacing = 18 };
+        var grid = new Grid { ColumnSpacing = 16 };
         grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         var avatar = new Button
         {
             Style = PlainButton,
             Content = Avatar(_myPhoto, session.Username, 72),
             Padding = new Thickness(0),
-            BorderBrush = Brush(Text),
-            BorderThickness = new Thickness(1),
             VerticalAlignment = VerticalAlignment.Center,
         };
         avatar.Click += (_, _) => EditProfile();
@@ -855,25 +902,19 @@ internal sealed class AccountPage
         AutomationProperties.SetName(avatar, Loc.T("Changer ta photo"));
         grid.Children.Add(avatar);
         var who = new StackPanel { Spacing = 4, VerticalAlignment = VerticalAlignment.Center };
-        var name = Label(session.Username.Length > 0 ? session.Username : session.Email, 22, Text, bold: true);
+        var name = Label(session.Username.Length > 0 ? session.Username : session.Email, 24, Text, bold: true);
         name.FontFamily = SwissFont;
         name.TextTrimming = TextTrimming.CharacterEllipsis;
         who.Children.Add(name);
-        var mail = Paragraph(session.Email, 12.5);
+        var mail = Paragraph(session.Email, 14);
         mail.TextTrimming = TextTrimming.CharacterEllipsis;
         who.Children.Add(mail);
         Grid.SetColumn(who, 1);
         grid.Children.Add(who);
-        var actions = new StackPanel { Spacing = 8, VerticalAlignment = VerticalAlignment.Center };
-        var edit = Soft(Loc.T("Modifier le profil"), EditProfile);
-        edit.HorizontalAlignment = HorizontalAlignment.Stretch;
-        actions.Children.Add(edit);
-        var signOut = Soft(Loc.T("Se déconnecter"), SignOut);
-        signOut.HorizontalAlignment = HorizontalAlignment.Stretch;
-        actions.Children.Add(signOut);
-        Grid.SetColumn(actions, 2);
-        grid.Children.Add(actions);
-        return Boxed(grid, new Thickness(20));
+        var label = SwissLabel(Loc.T("Profil"));
+        AutomationProperties.SetHeadingLevel(label, Microsoft.UI.Xaml.Automation.Peers.AutomationHeadingLevel.Level2);
+        var card = new StackPanel { Spacing = 16, Children = { label, grid, Soft(Loc.T("Modifier le profil"), EditProfile) } };
+        return Boxed(card, new Thickness(22));
     }
 
     /// « Se déconnecter » : comme le Mac, tout part d'abord en ligne, puis raccourcis et macros quittent ce PC (ils
@@ -953,42 +994,44 @@ internal sealed class AccountPage
             AccountBackupWin.State.Blocked b => (Red, Loc.T("Sauvegarde arrêtée"), b.Why, false),
             _ => (Secondary, Loc.T("Vérification de ta sauvegarde…"), Loc.T("Ce PC et ton compte se comparent."), true),
         };
-        var card = new StackPanel { Spacing = 10 };
-        card.Children.Add(SwissLabel(Loc.T("Sauvegarde"), 11, Text));
-        card.Children.Add(Rule(LineColor));
+        // Maquette du 05/11 (comme le Mac) : « SAUVEGARDE EN LIGNE » et le bouton à droite, l'état en grand, son détail,
+        // puis ce PC et le compte en lignes séparées d'un trait.
+        var card = new StackPanel { Spacing = 12 };
         var head = new Grid { ColumnSpacing = 12 };
-        head.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         head.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
         head.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-        head.Children.Add(new Border { Width = 10, Height = 10, Background = Brush(color), VerticalAlignment = VerticalAlignment.Top, Margin = new Thickness(0, 5, 0, 0) });
-        var text = new StackPanel { Spacing = 2 };
-        text.Children.Add(Label(title, 15, Text, bold: true));
-        text.Children.Add(Paragraph(detail, 12));
-        Grid.SetColumn(text, 1);
-        head.Children.Add(text);
+        var label = SwissLabel(Loc.T("Sauvegarde en ligne"));
+        label.VerticalAlignment = VerticalAlignment.Center;
+        head.Children.Add(label);
         var save = Soft(Loc.T("Sauvegarder"), () => _ = backup.SaveNow());
         save.IsEnabled = !busy && backup.Status is not AccountBackupWin.State.Choice;
         ToolTipService.SetToolTip(save, Loc.T("Sauvegarder maintenant"));
-        Grid.SetColumn(save, 2);
+        Grid.SetColumn(save, 1);
         head.Children.Add(save);
         card.Children.Add(head);
+        var big = Label(title, 22, color == Red || color == Orange ? Red : Text, bold: true);
+        big.FontFamily = SwissFont;
+        big.TextWrapping = TextWrapping.Wrap;
+        card.Children.Add(big);
+        card.Children.Add(Paragraph(detail, 13));
         if (busy) card.Children.Add(new ProgressBar { IsIndeterminate = true, Foreground = Brush(Text), Background = Brush(Faint) });
-        var tiles = new Grid { ColumnSpacing = 12 };
-        tiles.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-        tiles.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-        tiles.Children.Add(Tile(Loc.T("Sur ce PC"), backup.HereSummary));
-        var online = Tile(Loc.T("En ligne"), backup.OnlineSummary ?? "—");
-        Grid.SetColumn(online, 1);
-        tiles.Children.Add(online);
-        card.Children.Add(tiles);
-        return Boxed(card, new Thickness(20, 16, 20, 16));
+        card.Children.Add(Line(Loc.T("Sur ce PC"), backup.HereSummary));
+        card.Children.Add(Line(Loc.T("En ligne"), backup.OnlineSummary ?? "—"));
+        return Boxed(card, new Thickness(22));
 
-        static FrameworkElement Tile(string title, string value)
+        static FrameworkElement Line(string title, string value)
         {
-            var tile = new StackPanel { Spacing = 3, Padding = new Thickness(12, 10, 12, 10), Background = Brush(Faint) };
-            tile.Children.Add(SwissLabel(title, 10));
-            tile.Children.Add(Label(value, 14, Text, semibold: true));
-            return tile;
+            var row = new Grid { MinHeight = 44, BorderBrush = Brush(Faint), BorderThickness = new Thickness(0, 1, 0, 0) };
+            row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            var t = SwissLabel(title);
+            t.VerticalAlignment = VerticalAlignment.Center;
+            row.Children.Add(t);
+            var v = Label(value, 14, Text, semibold: true);
+            v.VerticalAlignment = VerticalAlignment.Center;
+            Grid.SetColumn(v, 1);
+            row.Children.Add(v);
+            return row;
         }
     }
 
@@ -1336,16 +1379,20 @@ internal sealed class AccountPage
         },
     };
 
-    private static Border Card(UIElement content) => new()
+    /// Carte des pages du compte (05/11, comme le Mac) : pleine du fond, trait de 2 points à l'encre, sur l'ombre nette du
+    /// thème.
+    private static FrameworkElement Card(UIElement content)
     {
-        Child = content,
-        Width = 420,
-        Padding = new Thickness(30, 28, 30, 28),
-        HorizontalAlignment = HorizontalAlignment.Center,
-        Background = Brush(MacLook.WindowColor),
-        BorderBrush = Brush(LineColor),
-        BorderThickness = new Thickness(1),
-    };
+        var face = new Border
+        {
+            Child = content,
+            Padding = new Thickness(28, 26, 28, 26),
+            Background = Brush(MacLook.WindowColor),
+            BorderBrush = Brush(Text),
+            BorderThickness = new Thickness(2),
+        };
+        return new Grid { Width = 400, HorizontalAlignment = HorizontalAlignment.Left, VerticalAlignment = VerticalAlignment.Top, Children = { HardShadow(PrimaryShadow, 6), face } };
+    }
 
     private static Border Boxed(UIElement content, Thickness padding) => new()
     {
@@ -1372,7 +1419,7 @@ internal sealed class AccountPage
         var top = new Grid();
         top.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
         top.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-        var label = SwissLabel(title, 10.5);
+        var label = SwissLabel(title, 11);
         label.VerticalAlignment = VerticalAlignment.Bottom;
         top.Children.Add(label);
         if (trailing is not null)
@@ -1390,12 +1437,12 @@ internal sealed class AccountPage
         PlaceholderText = placeholder,
         FontFamily = SwissFont,
         FontSize = 14,
-        MinHeight = 38,
-        Padding = new Thickness(10, 8, 10, 8),
+        MinHeight = 44,
+        Padding = new Thickness(12, 10, 12, 10),
         CornerRadius = new CornerRadius(0),
         Background = Brush(MacLook.WindowColor),
-        BorderBrush = Brush(LineColor),
-        BorderThickness = new Thickness(1),
+        BorderBrush = Brush(Text),
+        BorderThickness = new Thickness(1.5),
         IsSpellCheckEnabled = false,
     };
 
@@ -1405,12 +1452,12 @@ internal sealed class AccountPage
         Password = password,
         PlaceholderText = placeholder,
         FontSize = 14,
-        MinHeight = 38,
-        Padding = new Thickness(10, 8, 10, 8),
+        MinHeight = 44,
+        Padding = new Thickness(12, 10, 12, 10),
         CornerRadius = new CornerRadius(0),
         Background = Brush(MacLook.WindowColor),
-        BorderBrush = Brush(LineColor),
-        BorderThickness = new Thickness(1),
+        BorderBrush = Brush(Text),
+        BorderThickness = new Thickness(1.5),
         PasswordRevealMode = PasswordRevealMode.Peek,
     };
 

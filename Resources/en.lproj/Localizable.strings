@@ -1206,6 +1206,7 @@
 "Les macros" = "Macros";
 "Les macros et les raccourcis des autres, et les tiens." = "Other people's macros and shortcuts, and yours.";
 "Les miens" = "Mine";
+"Les mêmes sur ton Mac et ton PC." = "The same on your Mac and your PC.";
 "Les photos et le changement de pseudo ne sont pas encore ouverts : réessaie plus tard." = "Photos and username changes aren't open yet: try again later.";
 "Les pistes de la Playlist sont remontées par leur menu (« Move up ») : FL Shortcuts lit alors la fenêtre de FL (autorisation « Enregistrement de l'écran »). Les patterns restent à leur place." = "Playlist tracks are moved up through their menu (“Move up”): FL Shortcuts then reads FL's window (“Screen Recording” permission). Patterns stay where they are.";
 "Les raccourcis d'Ableton Live font la même chose dans FL : F9 enregistre, ⌘D duplique, ⌘E découpe, " = "Ableton Live shortcuts do the same thing in FL: F9 records, ⌘D duplicates, ⌘E splits, ";
@@ -1534,6 +1535,7 @@
 "Parcourir les propriétés de note" = "Browse note properties";
 "Pars d'un modèle, puis modifie-le bloc par bloc dans le créateur." = "Start from a template, then edit it block by block in the creator.";
 "Pars d'une macro toute prête." = "Start from a ready-made macro.";
+"Partage et récupère des macros." = "Share and get macros.";
 "Partage les tiennes, avec une explication pour les autres." = "Share yours, with a description for others.";
 "Partage publié." = "Post published.";
 "Partager" = "Share";
@@ -2020,6 +2022,7 @@
 "Tes raccourcis et tes macros sont sauvegardés en ligne, tout seuls, à chaque changement." = "Your shortcuts and macros are backed up online automatically, with every change.";
 "Tes raccourcis marchent dès que FL Studio est au premier plan." = "Your shortcuts work whenever FL Studio is in front.";
 "Tes raccourcis sur cette page" = "Your shortcuts on this page";
+"Tes raccourcis," = "Your shortcuts,";
 "Tes touches ne sont lues que quand FL Studio est au premier plan. Rien n'est enregistré ni envoyé, sauf ce que tu publies toi-même dans la Communauté." = "Your keys are only read when FL Studio is in front. Nothing is saved or sent, except what you post yourself in the Community.";
 "Tes touches ne sont lues que quand FL Studio est devant, et elles ne sont jamais enregistrées ni envoyées. Seul part sur internet ce que tu écris à l'équipe depuis cette page. L'écran n'est lu qu'au moment d'un clic de macro, seulement dans la fenêtre de FL, pour retrouver un menu par son nom ; rien n'est enregistré ni envoyé." = "Your keys are only read while FL Studio is in front, and they're never recorded or sent. The only thing that goes online is what you write to the team from this page. The screen is only read when a macro clicks, only in FL's window, to find a menu by its name; nothing is recorded or sent.";
 "Tes touches ne sont lues que quand FL Studio est devant, et elles ne sont jamais enregistrées ni envoyées. Seuls partent sur internet : tes raccourcis et tes macros si tu es connecté à ton compte (ta sauvegarde, lisible par toi seul), ce que tu publies dans la Communauté, et ce que tu écris à l'équipe depuis cette page. L'écran n'est lu qu'au moment d'un clic de macro, seulement dans la fenêtre de FL, pour retrouver le bouton par son nom ou son image (autorisation « Enregistrement de l'écran ») ; rien n'est enregistré ni envoyé. Le nom ou l'image du bouton restent dans ta macro (et dans ta sauvegarde si tu es connecté), jamais dans un partage." = "Your keys are only read when FL Studio is in front, and they're never saved or sent. The only things that go online: your shortcuts and macros if you're signed in to your account (your backup, readable only by you), what you post in the Community, and what you write to the team from this page. The screen is only read when a macro clicks, only in FL's window, to find the button by its name or image (“Screen Recording” permission); nothing is saved or sent. The button's name or image stays in your macro (and in your backup if you're signed in), never in a share.";
@@ -2068,6 +2071,7 @@
 "Touche seule : laissée à FL quand tu tapes du texte, qu'un menu de FL est ouvert ou que le clavier-piano est actif." = "Single key: left to FL when you type text, when an FL menu is open, or when the typing piano keyboard is on.";
 "Touche utilisée par %@" = "Key used by %@";
 "Toujours" = "Always";
+"Toujours en ligne, toujours à jour." = "Always online, always up to date.";
 "Toujours le même preset" = "Always the same preset";
 "Toujours rien : Options › MIDI Settings, entrée « FL Shortcuts Link », Controller type « FL Shortcuts » (pas « generic controller »), Enable, et le même numéro de Port à l'entrée et à la sortie. Dans Output, « FL Shortcuts Link » seul sur ce numéro : « FL Shortcuts » doit s'afficher à côté de lui, pas de ta carte son." = "Still nothing: Options › MIDI Settings, input “FL Shortcuts Link”, Controller type “FL Shortcuts” (not “generic controller”), Enable, and the same Port number for input and output. In Output, “FL Shortcuts Link” alone on that number: “FL Shortcuts” must show next to it, not next to your sound card.";
 "Toujours rien ?" = "Still nothing?";
@@ -2079,6 +2083,7 @@
 "Tous les raccourcis sont réinitialisés" = "All shortcuts have been reset";
 "Tous mes raccourcis" = "All my shortcuts";
 "Tous tes Mac" = "All your Macs";
+"Tous tes ordis" = "All your computers";
 "Tout" = "All";
 "Tout afficher" = "Show all";
 "Tout autoriser…" = "Allow all…";
@@ -2118,6 +2123,7 @@
 "Un clip de la Playlist n'a pas pu être remis à sa place : annule dans FL (Edit › Undo), puis réessaie." = "A Playlist clip could not be put back in place: undo in FL (Edit › Undo), then try again.";
 "Un code vient de partir à %@ : entre-le ici pour confirmer ton compte." = "A code was just sent to %@: enter it here to confirm your account.";
 "Un compte existe déjà avec ce mail." = "An account already exists with this email.";
+"Un compte, partout" = "One account, everywhere";
 "Un de ses blocs clique à un endroit qu'il faut montrer une fois sur ton Mac (les positions ne sont jamais partagées). Ouvre la macro, choisis le bloc marqué, puis « Montrer dans FL… » et clique à l'endroit voulu." = "One of its blocks clicks a spot you need to show once on your Mac (positions are never shared). Open the macro, pick the marked block, then “Show in FL…” and click the right spot.";
 "Un de ses blocs clique à un endroit qu'il faut montrer une fois sur ton PC (les positions ne sont jamais partagées). Ouvre la macro, choisis le bloc marqué, puis « Montrer dans FL… » et clique à l'endroit voulu." = "One of its blocks clicks a spot you need to show once on your PC (positions are never shared). Open the macro, pick the marked block, then “Show in FL…” and click the spot.";
 "Un endroit ou l'entrée 1 est à montrer dans FL." = "A spot or input 1 needs to be shown in FL.";
@@ -2431,6 +2437,7 @@
 "page de FL illisible" = "FL page unreadable";
 "page de FL à choisir dans la macro" = "FL page to choose in the macro";
 "page à choisir" = "page to choose";
+"partout" = "everywhere";
 "pas de serveur." = "no server.";
 "pause hors limites." = "pause out of range.";
 "piste visée" = "target track";
@@ -2476,6 +2483,7 @@
 "sur le bouton retrouvé à son image" = "on the button found by its image";
 "sur « %@ »" = "on “%@”";
 "sélecteur d'entrée" = "input selector";
+"tes macros," = "your macros,";
 "titres de menu invalides." = "invalid menu titles.";
 "toi@exemple.com" = "you@example.com";
 "toi@exemple.fr" = "you@example.com";

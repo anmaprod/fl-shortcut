@@ -109,7 +109,7 @@ struct HelpPage: View {
     private var searchField: some View {
         HStack(spacing: 12) {
             Image(systemName: "magnifyingglass").font(.system(size: 18, weight: .semibold)).foregroundStyle(Swiss.text)
-            TextField("Rechercher", text: $query, prompt: Text("Pose ta question").foregroundStyle(Swiss.gray))
+            TextField("Rechercher", text: $query, prompt: Text("Pose ta question").foregroundColor(Swiss.gray))
                 .textFieldStyle(.plain)
                 .font(Swiss.font(20))
             if !query.isEmpty {

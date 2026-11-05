@@ -18,17 +18,55 @@ enum AuthLook {
     static let sky = [Color(red: 0.35, green: 0.78, blue: 0.98), blue]
 }
 
-/// Carte centrée des pages du compte : coins arrondis, fond un peu plus clair que la page, fin contour.
+/// Carte des pages du compte (05/11) : pleine du fond, trait de 2 points à l'encre, sur l'ombre nette du thème.
 struct AuthCard<Content: View>: View {
     var spacing: CGFloat = 18
     @ViewBuilder let content: () -> Content
 
     var body: some View {
         VStack(spacing: spacing) { content() }
-            .padding(.horizontal, 30)
-            .padding(.vertical, 28)
-            .frame(width: 420)
-            .background(MockPlate(cornerRadius: 18)).swissCard()
+            .padding(.horizontal, 28)
+            .padding(.vertical, 26)
+            .frame(width: 400)
+            .background(Rectangle().fill(Swiss.background))
+            .overlay(Rectangle().strokeBorder(Swiss.text, lineWidth: 2))
+            .background(Rectangle().fill(Swiss.primaryShadow).offset(x: 6, y: 6))
+    }
+}
+
+/// Ce que donne un compte (05/11) : « tes raccourcis, tes macros, partout. » en grand, puis trois lignes numérotées
+/// séparées d'un trait.
+struct AuthPitch: View {
+    private var rows: [(String, String, String)] {
+        [("01", String(localized: "Sauvegarde"), String(localized: "Toujours en ligne, toujours à jour.")),
+         ("02", String(localized: "Tous tes ordis"), String(localized: "Les mêmes sur ton Mac et ton PC.")),
+         ("03", String(localized: "Communauté"), String(localized: "Partage et récupère des macros."))]
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Text("Un compte, partout").swissLabel().padding(.bottom, 14)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(String(localized: "Tes raccourcis,").lowercased(with: Locale.current)).swissTitle(40)
+                Text(String(localized: "tes macros,").lowercased(with: Locale.current)).swissTitle(40)
+                SwissPageTitle(text: String(localized: "partout"), size: 40)
+            }
+            .padding(.bottom, 28)
+            ForEach(rows.indices, id: \.self) { i in
+                let row = rows[i]
+                HStack(alignment: .firstTextBaseline, spacing: 16) {
+                    Text(verbatim: row.0).font(Swiss.font(13)).foregroundStyle(Swiss.red)
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text(row.1).font(Swiss.font(16)).tracking(-0.3)
+                        Text(row.2).font(.system(size: 13)).foregroundStyle(Swiss.gray)
+                    }
+                }
+                .padding(.vertical, 14)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .overlay(alignment: .top) { Rectangle().fill(Swiss.line).frame(height: 1) }
+            }
+        }
+        .accessibilityElement(children: .combine)
     }
 }
 
@@ -74,24 +112,23 @@ struct AuthTabs: View {
     /// Le mouvement de la carte quand on change d'onglet.
     static let change = Animation.spring(response: 0.42, dampingFraction: 0.9)
 
-    /// Style suisse : deux onglets en petites capitales, celui choisi souligné de blanc.
+    /// 05/11 : deux cases collées (comme les filtres de la Communauté), la choisie pleine d'encre.
     var body: some View {
-        HStack(spacing: 0) {
+        HStack(spacing: -2) {
             tab(String(localized: "Se connecter"), selected: !creating) { choose(false) }
             tab(String(localized: "Créer un compte"), selected: creating) { choose(true) }
         }
-        .swissRule(Swiss.line)
     }
 
     private func tab(_ title: String, selected: Bool, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Text(title)
-                .swissLabel(selected ? Swiss.text : Swiss.gray)
+                .font(Swiss.font(11.5)).tracking(1.2).textCase(.uppercase)
+                .foregroundStyle(selected ? Swiss.background : Swiss.text)
                 .frame(maxWidth: .infinity)
-                .frame(height: 32)
-                .overlay(alignment: .bottom) {
-                    Rectangle().fill(selected ? Swiss.text : Color.clear).frame(height: 2)
-                }
+                .frame(height: 40)
+                .background(Rectangle().fill(selected ? Swiss.text : Swiss.background))
+                .overlay(Rectangle().strokeBorder(Swiss.text, lineWidth: 2))
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
@@ -164,7 +201,7 @@ struct AuthField<Accessory: View>: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 7) {
             HStack {
-                Text(title).font(.system(size: 12, weight: .semibold)).foregroundStyle(.secondary)
+                Text(title).swissLabel()
                 Spacer(minLength: 8)
                 if let link {
                     Button(link.title, action: link.action)
@@ -198,9 +235,9 @@ struct AuthField<Accessory: View>: View {
                 }
             }
             .padding(.horizontal, 12)
-            .frame(height: 42)
-            .background(Rectangle().fill(AuthLook.well(scheme)))
-            .overlay(Rectangle().strokeBorder(AuthLook.wellStroke))
+            .frame(height: 44)
+            .background(Rectangle().fill(Swiss.background))
+            .overlay(Rectangle().strokeBorder(Swiss.text, lineWidth: 1.5))
         }
     }
 }
@@ -223,7 +260,7 @@ struct UsernameStatus: View {
         case .checking:
             ProgressView().controlSize(.small)
         case .free:
-            Label(String(localized: "Libre"), systemImage: "checkmark").foregroundStyle(.green).modifier(StatusFont())
+            Label(String(localized: "Libre"), systemImage: "checkmark").foregroundStyle(Swiss.text).modifier(StatusFont())
         case .mine:
             Label(String(localized: "Ton pseudo"), systemImage: "checkmark").foregroundStyle(.secondary).modifier(StatusFont())
         case .taken:
@@ -287,7 +324,7 @@ struct PasswordRules: View {
                     Text(rule.title)
                 }
                 .font(.system(size: 11.5, weight: .semibold))
-                .foregroundStyle(ok ? Color.green : Color.secondary)
+                .foregroundStyle(ok ? Swiss.text : Swiss.gray)
                 .fixedSize()
             }
         }
@@ -346,9 +383,9 @@ struct CodeBoxes: View {
                     Text(i < digits.count ? String(digits[i]) : "")
                         .font(Swiss.title(30)).tracking(Swiss.titleTracking(30))
                         .frame(width: count > 6 ? 36 : 46, height: 56)
-                        .background(Rectangle().fill(AuthLook.well(scheme)))
+                        .background(Rectangle().fill(Swiss.background))
                         .overlay(Rectangle()
-                            .strokeBorder(current ? Swiss.text : Swiss.line, lineWidth: current ? 2 : 1))
+                            .strokeBorder(current ? Swiss.red : Swiss.text, lineWidth: 2))
                 }
             }
             .contentShape(Rectangle())

@@ -91,49 +91,45 @@ struct AccountPage: View {
         }
     }
 
-    /// Maquettes validées le 30/10 : une carte du profil (photo, pseudo, mail, « Modifier le profil », « Se
-    /// déconnecter »), la sauvegarde en carte (son état, ce Mac, en ligne) et, quand ce Mac et le compte ont chacun
-    /// leurs changements, la carte orange du choix ; « Supprimer mon compte » discret, en bas.
+    /// Maquette du 05/11 (« la page Mon compte, elle est plutôt cool… la page de thème, elle est très bien ») : à
+    /// gauche le profil puis le thème ; à droite la sauvegarde en ligne (et le choix quand ce Mac et le compte ont
+    /// chacun leurs changements) ; en bas « Se déconnecter » et « Supprimer mon compte » souligné.
     private func signedIn(_ session: CommunitySession) -> some View {
         ScrollView(.vertical) {
-            VStack(alignment: .leading, spacing: 14) {
-                AccountProfileCard(community: community, session: session) {
-                    Task { await AccountActions.signOut(backup) }
-                }
-
-                AccountThemeCard()
-
-                LazyVGrid(columns: [GridItem(.adaptive(minimum: 320), spacing: 12, alignment: .top)], spacing: 12) {
-                    AccountBackupStatus(status: backup.status, here: backup.hereSummary, online: backup.onlineSummary,
-                                        notice: backup.notice) { Task { await backup.saveNow() } }
-                    if let conflict = backup.conflict {
-                        AccountConflictCard(conflict: conflict) { keepAccount in
-                            Task { await backup.resolve(keepAccount: keepAccount) }
+            VStack(alignment: .leading, spacing: 22) {
+                LazyVGrid(columns: [GridItem(.adaptive(minimum: 330), spacing: 20, alignment: .top)],
+                          alignment: .leading, spacing: 20) {
+                    VStack(alignment: .leading, spacing: 20) {
+                        AccountProfileCard(community: community, session: session)
+                        AccountThemeCard()
+                    }
+                    VStack(alignment: .leading, spacing: 20) {
+                        AccountBackupStatus(status: backup.status, here: backup.hereSummary, online: backup.onlineSummary,
+                                            notice: backup.notice) { Task { await backup.saveNow() } }
+                        if let conflict = backup.conflict {
+                            AccountConflictCard(conflict: conflict) { keepAccount in
+                                Task { await backup.resolve(keepAccount: keepAccount) }
+                            }
                         }
                     }
                 }
-
-                VStack(alignment: .leading, spacing: 8) {
-                    HStack(spacing: 12) {
-                        Image(systemName: "trash").foregroundStyle(Color.red)
-                        Text("Supprimer mon compte").font(.system(size: 13))
-                        Spacer(minLength: 12)
-                        Button("Supprimer…", role: .destructive) {
-                            Task { deleteError = await AccountActions.deleteAccount(backup) }
-                        }
+                HStack(spacing: 20) {
+                    Button("Se déconnecter") { Task { await AccountActions.signOut(backup) } }
                         .secondaryButton()
-                        .help("Efface ton compte, ta sauvegarde en ligne et tes partages. Tes raccourcis et tes macros restent sur ce Mac.")
+                        .controlSize(.large)
+                        .help("Tes raccourcis et tes macros quittent ce Mac et restent dans ton compte.")
+                    Button("Supprimer mon compte") {
+                        Task { deleteError = await AccountActions.deleteAccount(backup) }
                     }
-                    if let deleteError {
-                        Label(deleteError, systemImage: "exclamationmark.triangle.fill")
-                            .font(.system(size: 12))
-                            .foregroundStyle(.orange)
-                    }
+                    .buttonStyle(SwissLinkButtonStyle())
+                    .font(.system(size: 13))
+                    .help("Efface ton compte, ta sauvegarde en ligne et tes partages. Tes raccourcis et tes macros restent sur ce Mac.")
                 }
-                .padding(.horizontal, 20)
-                .padding(.vertical, 14)
-                .background(MockPlate(cornerRadius: 14)).swissCard()
-                .padding(.top, 10)
+                if let deleteError {
+                    Label(deleteError, systemImage: "exclamationmark.triangle.fill")
+                        .font(.system(size: 12))
+                        .foregroundStyle(Swiss.red)
+                }
             }
             .padding(.horizontal, 26)
             .padding(.top, 10)
@@ -172,12 +168,7 @@ struct AccountThemeCard: View {
             }
             .padding(.trailing, 4)
         }
-        .padding(.horizontal, 22)
-        .padding(.vertical, 20)
-        .frame(maxWidth: 560, alignment: .leading)
-        .background(MockPlate(cornerRadius: 14))
-        .swissCard()
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .swissPanel()
     }
 }
 
@@ -260,61 +251,45 @@ struct ThemePreview: View {
     }
 }
 
-/// Carte du profil (maquette du 30/10) : la photo (clic : la changer), le pseudo, le mail, « Modifier le profil » et
-/// « Se déconnecter ».
+/// Carte du profil (maquette du 05/11) : « PROFIL », la photo ronde (clic : la changer), le pseudo, le mail, puis
+/// « Modifier le profil ».
 private struct AccountProfileCard: View {
     @ObservedObject var community: CommunityStore
     let session: CommunitySession
-    let signOut: () -> Void
 
     var body: some View {
-        HStack(spacing: 18) {
-            Button { community.editingProfile = true } label: {
-                AvatarView(photo: community.myPhoto, username: session.username, size: 76)
-                    .overlay(alignment: .bottomTrailing) {
-                        Image(systemName: "camera")
-                            .font(.system(size: 11, weight: .semibold))
-                            .foregroundStyle(Color(white: 0.96))
-                            .frame(width: 26, height: 26)
-                            .background(Circle().fill(Color(white: 0.17)))                // #2c2c2e
-                            .overlay(Circle().strokeBorder(Color(white: 0.14), lineWidth: 2))
-                            .offset(x: 2, y: 2)
-                    }
+        VStack(alignment: .leading, spacing: 16) {
+            Text("Profil").swissLabel().accessibilityAddTraits(.isHeader)
+            HStack(spacing: 16) {
+                Button { community.editingProfile = true } label: {
+                    AvatarView(photo: community.myPhoto, username: session.username, size: 72)
+                        .overlay(alignment: .bottomTrailing) {
+                            Image(systemName: "camera")
+                                .font(.system(size: 10, weight: .semibold))
+                                .foregroundStyle(Swiss.background)
+                                .frame(width: 24, height: 24)
+                                .background(Circle().fill(Swiss.text))
+                                .offset(x: 2, y: 2)
+                        }
+                }
+                .buttonStyle(.plain)
+                .help("Changer ta photo")
+                .accessibilityLabel("Changer ta photo")
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(verbatim: session.username.displaySafe(max: 24))
+                        .font(Swiss.title(24)).tracking(-0.8)
+                        .lineLimit(1)
+                    Text(verbatim: session.email.displaySafe(max: 60))
+                        .font(.system(size: 14))
+                        .foregroundStyle(Swiss.gray)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                }
             }
-            .buttonStyle(.plain)
-            .help("Changer ta photo")
-            .accessibilityLabel("Changer ta photo")
-            VStack(alignment: .leading, spacing: 3) {
-                Text(verbatim: "@" + session.username.displaySafe(max: 24))
-                    .font(Swiss.title(25)).tracking(Swiss.titleTracking(25))
-                    .lineLimit(1)
-                Text(verbatim: session.email.displaySafe(max: 60))
-                    .font(.system(size: 13))
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-                    .truncationMode(.middle)
-            }
-            Spacer(minLength: 12)
-            ViewThatFits(in: .horizontal) {
-                HStack(spacing: 8) { buttons }
-                VStack(alignment: .trailing, spacing: 8) { buttons }
-            }
+            Button("Modifier le profil") { community.editingProfile = true }
+                .secondaryButton()
         }
-        .padding(.horizontal, 22)
-        .padding(.vertical, 20)
-        .background(MockPlate(cornerRadius: 14)).swissCard()
-    }
-
-    @ViewBuilder private var buttons: some View {
-        Button { community.editingProfile = true } label: {
-            Label("Modifier le profil", systemImage: "pencil")
-        }
-        .secondaryButton()
-        Button(action: signOut) {
-            Label("Se déconnecter", systemImage: "rectangle.portrait.and.arrow.right")
-        }
-        .secondaryButton()
-        .help("Tes raccourcis et tes macros quittent ce Mac et restent dans ton compte.")
+        .swissPanel()
     }
 }
 
@@ -327,55 +302,52 @@ private struct AccountBackupStatus: View {
     let notice: String?
     let saveNow: () -> Void
 
+    /// Maquette du 05/11 : « SAUVEGARDE EN LIGNE » et le bouton à droite, l'état en grand (« À jour. »), son détail,
+    /// puis ce Mac et le compte en lignes séparées d'un trait.
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             HStack(spacing: 12) {
-                SectionIcon(symbol: look.symbol, tint: look.color == .secondary ? .gray : look.color, size: 40)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(look.title).font(.system(size: 15, weight: .bold))
-                    Text(look.detail)
-                        .font(.system(size: 12))
-                        .foregroundStyle(.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
+                Text("Sauvegarde en ligne").swissLabel()
                 Spacer(minLength: 12)
                 if look.busy {
                     ProgressView().controlSize(.small)
                 } else {
                     Button("Sauvegarder", action: saveNow)
                         .secondaryButton()
+                        .controlSize(.small)
                         .disabled(status == .choice)
                         .help("Sauvegarder maintenant")
                 }
             }
-            HStack(spacing: 10) {
-                tile(String(localized: "Sur ce Mac"), symbol: "laptopcomputer", here)
-                tile(String(localized: "En ligne"), symbol: "icloud", online ?? "—")
+            VStack(alignment: .leading, spacing: 4) {
+                Text(look.title).font(Swiss.title(22)).tracking(-0.7)
+                    .foregroundStyle(look.color == .red || look.color == .orange ? Swiss.red : Swiss.text)
+                Text(look.detail)
+                    .font(.system(size: 13))
+                    .foregroundStyle(Swiss.gray)
+                    .fixedSize(horizontal: false, vertical: true)
             }
+            VStack(spacing: 0) {
+                row(String(localized: "Sur ce Mac"), here)
+                row(String(localized: "En ligne"), online ?? "—")
+            }
+            .padding(.top, 4)
             if let notice {
-                Label(notice, systemImage: "info.circle.fill")
-                    .font(.system(size: 12))
-                    .foregroundStyle(.secondary)
+                Text(notice).font(.system(size: 12)).foregroundStyle(Swiss.gray)
             }
         }
-        .padding(.horizontal, 20)
-        .padding(.vertical, 18)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(MockPlate(cornerRadius: 14)).swissCard()
+        .swissPanel()
         .accessibilityElement(children: .contain)
     }
 
-    private func tile(_ title: String, symbol: String, _ value: String) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Label(title, systemImage: symbol)
-                .swissLabel()
+    private func row(_ title: String, _ value: String) -> some View {
+        HStack(spacing: 12) {
+            Text(title).swissLabel()
+            Spacer(minLength: 8)
             Text(value).font(.system(size: 14, weight: .semibold)).lineLimit(1).minimumScaleFactor(0.8)
         }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 12)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Rectangle().fill(Swiss.background))
-        .overlay(Rectangle().strokeBorder(Swiss.faint))
+        .frame(minHeight: 44)
+        .overlay(alignment: .top) { Rectangle().fill(Swiss.faint).frame(height: 1) }
         .accessibilityElement(children: .combine)
     }
 

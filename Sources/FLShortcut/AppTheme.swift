@@ -173,6 +173,15 @@ extension View {
     /// comme la maquette ; `padding` : marge ajoutée autour du contenu (0 s'il en a déjà une). Rien ailleurs.
     func swissCard(padding: CGFloat = 0) -> some View { modifier(SwissCardSurface(padding: padding)) }
 
+    /// Carte des maquettes du 05/11 (Mon compte, Aide…) : marge de 22, pleine du fond, trait fin ; noire sous Orange.
+    func swissPanel() -> some View {
+        padding(22)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(Rectangle().fill(Swiss.background))
+            .overlay(Rectangle().strokeBorder(Swiss.line, lineWidth: 1))
+            .swissCard()
+    }
+
     /// `swissCard()` seulement si `on`.
     @ViewBuilder func swissCard(if on: Bool) -> some View {
         if on { swissCard() } else { self }

@@ -1206,6 +1206,7 @@
 "Les macros" = "Les macros";
 "Les macros et les raccourcis des autres, et les tiens." = "Les macros et les raccourcis des autres, et les tiens.";
 "Les miens" = "Les miens";
+"Les mêmes sur ton Mac et ton PC." = "Les mêmes sur ton Mac et ton PC.";
 "Les photos et le changement de pseudo ne sont pas encore ouverts : réessaie plus tard." = "Les photos et le changement de pseudo ne sont pas encore ouverts : réessaie plus tard.";
 "Les pistes de la Playlist sont remontées par leur menu (« Move up ») : FL Shortcuts lit alors la fenêtre de FL (autorisation « Enregistrement de l'écran »). Les patterns restent à leur place." = "Les pistes de la Playlist sont remontées par leur menu (« Move up ») : FL Shortcuts lit alors la fenêtre de FL (autorisation « Enregistrement de l'écran »). Les patterns restent à leur place.";
 "Les raccourcis d'Ableton Live font la même chose dans FL : F9 enregistre, ⌘D duplique, ⌘E découpe, " = "Les raccourcis d'Ableton Live font la même chose dans FL : F9 enregistre, ⌘D duplique, ⌘E découpe, ";
@@ -1534,6 +1535,7 @@
 "Parcourir les propriétés de note" = "Parcourir les propriétés de note";
 "Pars d'un modèle, puis modifie-le bloc par bloc dans le créateur." = "Pars d'un modèle, puis modifie-le bloc par bloc dans le créateur.";
 "Pars d'une macro toute prête." = "Pars d'une macro toute prête.";
+"Partage et récupère des macros." = "Partage et récupère des macros.";
 "Partage les tiennes, avec une explication pour les autres." = "Partage les tiennes, avec une explication pour les autres.";
 "Partage publié." = "Partage publié.";
 "Partager" = "Partager";
@@ -2020,6 +2022,7 @@
 "Tes raccourcis et tes macros sont sauvegardés en ligne, tout seuls, à chaque changement." = "Tes raccourcis et tes macros sont sauvegardés en ligne, tout seuls, à chaque changement.";
 "Tes raccourcis marchent dès que FL Studio est au premier plan." = "Tes raccourcis marchent dès que FL Studio est au premier plan.";
 "Tes raccourcis sur cette page" = "Tes raccourcis sur cette page";
+"Tes raccourcis," = "Tes raccourcis,";
 "Tes touches ne sont lues que quand FL Studio est au premier plan. Rien n'est enregistré ni envoyé, sauf ce que tu publies toi-même dans la Communauté." = "Tes touches ne sont lues que quand FL Studio est au premier plan. Rien n'est enregistré ni envoyé, sauf ce que tu publies toi-même dans la Communauté.";
 "Tes touches ne sont lues que quand FL Studio est devant, et elles ne sont jamais enregistrées ni envoyées. Seul part sur internet ce que tu écris à l'équipe depuis cette page. L'écran n'est lu qu'au moment d'un clic de macro, seulement dans la fenêtre de FL, pour retrouver un menu par son nom ; rien n'est enregistré ni envoyé." = "Tes touches ne sont lues que quand FL Studio est devant, et elles ne sont jamais enregistrées ni envoyées. Seul part sur internet ce que tu écris à l'équipe depuis cette page. L'écran n'est lu qu'au moment d'un clic de macro, seulement dans la fenêtre de FL, pour retrouver un menu par son nom ; rien n'est enregistré ni envoyé.";
 "Tes touches ne sont lues que quand FL Studio est devant, et elles ne sont jamais enregistrées ni envoyées. Seuls partent sur internet : tes raccourcis et tes macros si tu es connecté à ton compte (ta sauvegarde, lisible par toi seul), ce que tu publies dans la Communauté, et ce que tu écris à l'équipe depuis cette page. L'écran n'est lu qu'au moment d'un clic de macro, seulement dans la fenêtre de FL, pour retrouver le bouton par son nom ou son image (autorisation « Enregistrement de l'écran ») ; rien n'est enregistré ni envoyé. Le nom ou l'image du bouton restent dans ta macro (et dans ta sauvegarde si tu es connecté), jamais dans un partage." = "Tes touches ne sont lues que quand FL Studio est devant, et elles ne sont jamais enregistrées ni envoyées. Seuls partent sur internet : tes raccourcis et tes macros si tu es connecté à ton compte (ta sauvegarde, lisible par toi seul), ce que tu publies dans la Communauté, et ce que tu écris à l'équipe depuis cette page. L'écran n'est lu qu'au moment d'un clic de macro, seulement dans la fenêtre de FL, pour retrouver le bouton par son nom ou son image (autorisation « Enregistrement de l'écran ») ; rien n'est enregistré ni envoyé. Le nom ou l'image du bouton restent dans ta macro (et dans ta sauvegarde si tu es connecté), jamais dans un partage.";
@@ -2068,6 +2071,7 @@
 "Touche seule : laissée à FL quand tu tapes du texte, qu'un menu de FL est ouvert ou que le clavier-piano est actif." = "Touche seule : laissée à FL quand tu tapes du texte, qu'un menu de FL est ouvert ou que le clavier-piano est actif.";
 "Touche utilisée par %@" = "Touche utilisée par %@";
 "Toujours" = "Toujours";
+"Toujours en ligne, toujours à jour." = "Toujours en ligne, toujours à jour.";
 "Toujours le même preset" = "Toujours le même preset";
 "Toujours rien : Options › MIDI Settings, entrée « FL Shortcuts Link », Controller type « FL Shortcuts » (pas « generic controller »), Enable, et le même numéro de Port à l'entrée et à la sortie. Dans Output, « FL Shortcuts Link » seul sur ce numéro : « FL Shortcuts » doit s'afficher à côté de lui, pas de ta carte son." = "Toujours rien : Options › MIDI Settings, entrée « FL Shortcuts Link », Controller type « FL Shortcuts » (pas « generic controller »), Enable, et le même numéro de Port à l'entrée et à la sortie. Dans Output, « FL Shortcuts Link » seul sur ce numéro : « FL Shortcuts » doit s'afficher à côté de lui, pas de ta carte son.";
 "Toujours rien ?" = "Toujours rien ?";
@@ -2079,6 +2083,7 @@
 "Tous les raccourcis sont réinitialisés" = "Tous les raccourcis sont réinitialisés";
 "Tous mes raccourcis" = "Tous mes raccourcis";
 "Tous tes Mac" = "Tous tes Mac";
+"Tous tes ordis" = "Tous tes ordis";
 "Tout" = "Tout";
 "Tout afficher" = "Tout afficher";
 "Tout autoriser…" = "Tout autoriser…";
@@ -2118,6 +2123,7 @@
 "Un clip de la Playlist n'a pas pu être remis à sa place : annule dans FL (Edit › Undo), puis réessaie." = "Un clip de la Playlist n'a pas pu être remis à sa place : annule dans FL (Edit › Undo), puis réessaie.";
 "Un code vient de partir à %@ : entre-le ici pour confirmer ton compte." = "Un code vient de partir à %@ : entre-le ici pour confirmer ton compte.";
 "Un compte existe déjà avec ce mail." = "Un compte existe déjà avec ce mail.";
+"Un compte, partout" = "Un compte, partout";
 "Un de ses blocs clique à un endroit qu'il faut montrer une fois sur ton Mac (les positions ne sont jamais partagées). Ouvre la macro, choisis le bloc marqué, puis « Montrer dans FL… » et clique à l'endroit voulu." = "Un de ses blocs clique à un endroit qu'il faut montrer une fois sur ton Mac (les positions ne sont jamais partagées). Ouvre la macro, choisis le bloc marqué, puis « Montrer dans FL… » et clique à l'endroit voulu.";
 "Un de ses blocs clique à un endroit qu'il faut montrer une fois sur ton PC (les positions ne sont jamais partagées). Ouvre la macro, choisis le bloc marqué, puis « Montrer dans FL… » et clique à l'endroit voulu." = "Un de ses blocs clique à un endroit qu'il faut montrer une fois sur ton PC (les positions ne sont jamais partagées). Ouvre la macro, choisis le bloc marqué, puis « Montrer dans FL… » et clique à l'endroit voulu.";
 "Un endroit ou l'entrée 1 est à montrer dans FL." = "Un endroit ou l'entrée 1 est à montrer dans FL.";
@@ -2431,6 +2437,7 @@
 "page de FL illisible" = "page de FL illisible";
 "page de FL à choisir dans la macro" = "page de FL à choisir dans la macro";
 "page à choisir" = "page à choisir";
+"partout" = "partout";
 "pas de serveur." = "pas de serveur.";
 "pause hors limites." = "pause hors limites.";
 "piste visée" = "piste visée";
@@ -2476,6 +2483,7 @@
 "sur le bouton retrouvé à son image" = "sur le bouton retrouvé à son image";
 "sur « %@ »" = "sur « %@ »";
 "sélecteur d'entrée" = "sélecteur d'entrée";
+"tes macros," = "tes macros,";
 "titres de menu invalides." = "titres de menu invalides.";
 "toi@exemple.com" = "toi@exemple.com";
 "toi@exemple.fr" = "toi@exemple.fr";
