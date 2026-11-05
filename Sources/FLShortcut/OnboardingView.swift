@@ -213,13 +213,13 @@ struct OnboardingView: View {
     /// Ce qui est demandé, d'un coup d'œil : le clavier, puis le son de FL (pour l'Organiser), chacun avec son état.
     private var permissionItems: [PermissionItem] {
         var items = [PermissionItem(id: "clavier", symbol: "keyboard", tint: .blue, title: String(localized: "Clavier"),
-                                    detail: nil,
+                                    detail: String(localized: "Pour tes raccourcis dans FL."),
                                     state: accessOK ? .allowed : askedPermission || permissions.asking ? .waiting : .toAllow)]
         if #available(macOS 14.2, *) {
             items.append(PermissionItem(id: "son", symbol: "waveform", tint: .pink, title: String(localized: "Son de FL"),
                                         // 02/11 : plus de « pour l'Organiser » (demande du propriétaire).
                                         detail: permissions.audioInSettings && !permissions.audioGranted
-                                            ? String(localized: "à cocher dans les Réglages") : nil,
+                                            ? String(localized: "À cocher dans les Réglages.") : String(localized: "Pour écouter tes sons."),
                                         state: permissions.audioGranted ? .allowed
                                             : permissions.asking && permissions.stage == .audio ? .waiting : .toAllow))
         }
@@ -230,23 +230,23 @@ struct OnboardingView: View {
     /// autorisation (numéro, nom en gras, détail gris, état en petites capitales : blanc si autorisé, rouge sinon), le
     /// bouton blanc en bas à droite.
     private var permissionStep: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            Text("FL Shortcuts")
-                .swissTitle(52)
-                .padding(.top, 12)
-                .padding(.bottom, 14)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .swissRule()
-                .morphIn(0)
+        VStack(alignment: .leading, spacing: 22) {
+            // Maquette du 05/11 : l'icône « fl. » et « fl shortcuts » en très grand avec son point carré.
+            HStack(alignment: .bottom, spacing: 18) {
+                AppIcon().frame(width: 76, height: 76)
+                SwissPageTitle(text: "FL Shortcuts", size: 64)
+            }
+            .padding(.top, 8)
+            .morphIn(0)
 
+            // Les autorisations dans une carte : le nom en gras, une phrase dessous, l'état à droite.
             VStack(spacing: 0) {
                 ForEach(Array(permissionItems.enumerated()), id: \.element.id) { index, item in
-                    HStack(spacing: 0) {
-                        Text(verbatim: String(format: "%02d", index + 1)).swissLabel().frame(width: 34, alignment: .leading)
-                        HStack(alignment: .firstTextBaseline, spacing: 10) {
-                            Text(item.title).font(Swiss.font(20)).tracking(-0.4)
+                    HStack(spacing: 14) {
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text(item.title).font(Swiss.font(18)).tracking(-0.3)
                             if let detail = item.detail {
-                                Text(detail).font(.system(size: 12.5)).foregroundStyle(Swiss.gray)
+                                Text(detail).font(.system(size: 13)).foregroundStyle(Swiss.gray)
                             }
                         }
                         Spacer(minLength: 8)
@@ -259,11 +259,18 @@ struct OnboardingView: View {
                             PermissionPill(state: item.state)
                         }
                     }
-                    .frame(height: 58)
-                    .swissRule(Swiss.line)
+                    .frame(minHeight: 64)
+                    .overlay(alignment: .top) {
+                        if index > 0 { Rectangle().fill(Swiss.faint).frame(height: 1) }
+                    }
                     .accessibilityElement(children: .combine)
                 }
             }
+            .padding(.horizontal, 20)
+            .padding(.vertical, 4)
+            .background(Rectangle().fill(Swiss.background))
+            .overlay(Rectangle().strokeBorder(Swiss.line, lineWidth: 1))
+            .swissCard()
             .morphIn(1)
 
             Spacer(minLength: 0)

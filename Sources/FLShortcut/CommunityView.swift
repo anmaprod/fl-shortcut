@@ -247,7 +247,7 @@ private struct CommunityBrowse: View {
                         .frame(maxWidth: .infinity)
                         .background(MockPlate(cornerRadius: 14)).swissCard()
                 } else {
-                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 300), spacing: 28)], spacing: 0) {
+                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 300), spacing: 20, alignment: .top)], spacing: 20) {
                         ForEach(community.shares) { share in
                             CommunityShareCard(share: share, photo: community.photos[share.authorID],
                                                mine: community.isMine(share),
@@ -427,9 +427,11 @@ private struct CommunityFilters: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            HStack(spacing: 8) {
-                Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
-                TextField("Rechercher", text: $community.search, prompt: Text("Un partage ou un membre (@nom)"))
+            HStack(spacing: 10) {
+                Image(systemName: "magnifyingglass").foregroundStyle(Swiss.text)
+                // Texte d'aide à l'encre (05/11 : « sous Orange… que ce soit écrit en noir »).
+                TextField("Rechercher", text: $community.search,
+                          prompt: Text("Chercher une macro, des raccourcis").foregroundColor(Swiss.text.opacity(0.75)))
                     .textFieldStyle(.plain)
                     .onSubmit { Task { await community.reload() } }
                     .onChange(of: community.search) { _ in
@@ -441,12 +443,14 @@ private struct CommunityFilters: View {
                         }
                     }
             }
-            // Style suisse (01/11) : recherche soulignée d'un trait gris, filtres en petites capitales soulignés.
-            .font(.system(size: 13))
-            .padding(.horizontal, 2)
-            .frame(height: 30)
-            .swissRule(Swiss.keyLine)
-            HStack(spacing: 16) {
+            // Maquette du 05/11 : recherche bordée de 2 points, pleine du fond ; filtres en cases collées, le choisi
+            // plein d'encre.
+            .font(.system(size: 14))
+            .padding(.horizontal, 12)
+            .frame(height: 44)
+            .background(Rectangle().fill(Swiss.background))
+            .overlay(Rectangle().strokeBorder(Swiss.text, lineWidth: 2))
+            HStack(spacing: -2) {
                 ForEach(Filter.allCases, id: \.self) { filter in
                     pill(filter)
                 }
@@ -480,12 +484,12 @@ private struct CommunityFilters: View {
             choose(filter)
         } label: {
             Text(title(filter))
-                .swissLabel(on ? Swiss.text : Swiss.gray)
-                .padding(.bottom, 6)
-                .overlay(alignment: .bottom) {
-                    Rectangle().fill(on ? Swiss.text : Color.clear).frame(height: 2)
-                }
-                .frame(height: 28, alignment: .bottom)
+                .font(Swiss.font(11.5)).tracking(1.2).textCase(.uppercase)
+                .foregroundStyle(on ? Swiss.background : Swiss.text)
+                .padding(.horizontal, 14)
+                .frame(height: 44)
+                .background(Rectangle().fill(on ? Swiss.text : Swiss.background))
+                .overlay(Rectangle().strokeBorder(Swiss.text, lineWidth: 2))
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
@@ -551,11 +555,11 @@ private struct CommunityShareCard: View {
                     .fixedSize()
                 Spacer(minLength: 8)
                 Text(share.kind.label)
-                    .swissLabel(share.kind.tint, size: 11)
+                    .swissLabel(Swiss.gray, size: 11)
                     .fixedSize()
             }
             Text(share.title.displaySafe(max: 80))
-                .font(Swiss.font(18)).tracking(-0.3)
+                .font(Swiss.title(24)).tracking(-1)
                 .lineLimit(2)
             Text(share.notes.isEmpty ? " " : share.notes)
                 .font(.system(size: 12.5))
@@ -578,9 +582,13 @@ private struct CommunityShareCard: View {
             }
             .padding(.top, 4)
         }
-        .padding(.vertical, 16)
+        // Maquette du 05/11 : une carte par partage (pleine du fond, trait fin ; noire sous Orange).
+        .padding(.horizontal, 20)
+        .padding(.vertical, 18)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .swissRule(Swiss.line)
+        .background(Rectangle().fill(Swiss.background))
+        .overlay(Rectangle().strokeBorder(Swiss.line, lineWidth: 1))
+        .swissCard()
         .contentShape(Rectangle())
         .onTapGesture(perform: open)
         .contextMenu {

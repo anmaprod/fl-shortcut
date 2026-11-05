@@ -549,6 +549,23 @@ public sealed class OrganizerController
         Raise();
     }
 
+    /// « Couleurs de base » (05/11, comme le Mac) : la couleur d'une famille, gardée tout de suite pour les prochaines
+    /// fois.
+    public void SetBaseColor(SoundFamily family, RgbColor color)
+    {
+        Styles[family] = StyleOf(family) with { Color = color, Fade = null };
+        _env.SaveStyles(Styles);
+        Raise();
+    }
+
+    /// Les couleurs de départ de toutes les familles, gardées.
+    public void ResetBaseColors()
+    {
+        foreach (var (family, initial) in FamilyStyles.Initial) Styles[family] = StyleOf(family) with { Color = initial.Color, Fade = null };
+        _env.SaveStyles(Styles);
+        Raise();
+    }
+
     /// Une ligne par page de FL touchée, pour l'aperçu : combien d'éléments seront rangés, colorés, renommés.
     public List<string> Summary
     {

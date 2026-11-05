@@ -264,12 +264,28 @@ public static class FamilyStyles
 {
     public static readonly IReadOnlyDictionary<SoundFamily, FamilyStyle> Initial = new Dictionary<SoundFamily, FamilyStyle>
     {
-        [SoundFamily.Drums] = new(new RgbColor(0xE0, 0x45, 0x3A)),
-        [SoundFamily.Bass] = new(new RgbColor(0x8E, 0x5B, 0xE8)),
-        [SoundFamily.Melody] = new(new RgbColor(0x3F, 0xA7, 0xE0)),
-        [SoundFamily.Vocals] = new(new RgbColor(0xF2, 0xA9, 0x3B)),
-        [SoundFamily.Fx] = new(new RgbColor(0x4F, 0xC4, 0x8E)),
-        [SoundFamily.Unsure] = new(new RgbColor(0x8A, 0x8F, 0x98)),
+        // Couleurs de départ du 05/11 (comme le Mac) : rouge signal, bleu outremer, jaune, rose, vert d'eau, gris.
+        [SoundFamily.Drums] = new(new RgbColor(0xFF, 0x3B, 0x1F)),
+        [SoundFamily.Bass] = new(new RgbColor(0x2F, 0x55, 0xFF)),
+        [SoundFamily.Melody] = new(new RgbColor(0xFF, 0xC4, 0x00)),
+        [SoundFamily.Vocals] = new(new RgbColor(0xFF, 0x5F, 0xA2)),
+        [SoundFamily.Fx] = new(new RgbColor(0x19, 0xC3, 0xA0)),
+        [SoundFamily.Unsure] = new(new RgbColor(0x8C, 0x8C, 0x8C)),
+    };
+
+    /// Les couleurs de départ d'avant le 05/11 : gardées telles quelles (jamais choisies), elles prennent les nouvelles.
+    public static readonly IReadOnlyDictionary<SoundFamily, RgbColor> Previous = new Dictionary<SoundFamily, RgbColor>
+    {
+        [SoundFamily.Drums] = new(0xE0, 0x45, 0x3A), [SoundFamily.Bass] = new(0x8E, 0x5B, 0xE8),
+        [SoundFamily.Melody] = new(0x3F, 0xA7, 0xE0), [SoundFamily.Vocals] = new(0xF2, 0xA9, 0x3B),
+        [SoundFamily.Fx] = new(0x4F, 0xC4, 0x8E), [SoundFamily.Unsure] = new(0x8A, 0x8F, 0x98),
+    };
+
+    /// Couleurs proposées dans « Couleurs de base » (Options de l'Organiser), comme le Mac.
+    public static readonly IReadOnlyList<RgbColor> Palette = new RgbColor[]
+    {
+        new(0xFF, 0x3B, 0x1F), new(0xFF, 0x8A, 0x00), new(0xFF, 0xC4, 0x00), new(0x19, 0xC3, 0xA0), new(0x00, 0xA6, 0x51),
+        new(0x00, 0xB5, 0xE2), new(0x2F, 0x55, 0xFF), new(0xB4, 0x4B, 0xFF), new(0xFF, 0x5F, 0xA2), new(0x8C, 0x8C, 0x8C),
     };
 
     /// Les réglages gardés (JSON comme sur le Mac : {"drums": {"color": "E0453A", "fade": …, "icon": "3-7"}}) ; une
@@ -288,6 +304,7 @@ public static class FamilyStyles
                 var fade = o["fade"]?.GetValue<string>() is { } f ? RgbColor.FromHex(f) : null;
                 var icon = o["icon"]?.GetValue<string>() is { } i ? FlIcon.FromCode(i) : null;
                 var start = o["mixer"] is JsonValue m && m.TryGetValue<int>(out var n) && n >= 1 && n <= MaxMixerTrack ? n : (int?)null;
+                if (fade is null && Previous.TryGetValue(family, out var old) && old == color) color = Initial[family].Color;
                 out_[family] = new FamilyStyle(color, fade, icon, start);
             }
         }

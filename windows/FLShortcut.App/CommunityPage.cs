@@ -177,17 +177,20 @@ internal sealed class CommunityPage
         var top = new Grid { ColumnSpacing = 14 };
         top.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
         top.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        // Maquette du 05/11 (comme le Mac) : recherche bordée de 2 points, pleine du fond, texte d'aide à l'encre.
         var search = new TextBox
         {
             Text = _search,
-            PlaceholderText = Loc.T("Rechercher"),
+            PlaceholderText = Loc.T("Chercher une macro, des raccourcis"),
+            PlaceholderForeground = Brush(WithOpacity(Text, 0.75)),
             FontFamily = SwissFont,
             FontSize = 14,
+            MinHeight = 44,
             Background = Brush(MacLook.WindowColor),
             BorderBrush = Brush(Text),
-            BorderThickness = new Thickness(0, 0, 0, 1),
+            BorderThickness = new Thickness(2),
             CornerRadius = new CornerRadius(0),
-            Padding = new Thickness(0, 6, 0, 6),
+            Padding = new Thickness(12, 10, 12, 10),
         };
         AutomationProperties.SetName(search, Loc.T("Rechercher"));
         search.TextChanged += (_, _) => _search = search.Text;
@@ -206,11 +209,15 @@ internal sealed class CommunityPage
         foreach (var (filter, label) in new[] { (Filter.All, Loc.T("Tout")), (Filter.Macros, Loc.T("Macros")),
                                                 (Filter.Profiles, Loc.T("Raccourcis")), (Filter.Mine, Loc.T("Les miens")) })
         {
+            // Cases collées (maquette), la choisie pleine d'encre ; les autres pleines du fond.
             var f = filter;
-            var chip = Option(Label(label, 12.5, bold: true), Tint, 0, () => Choose(f), _filter == f && _author is null,
-                              minHeight: 32, padding: new Thickness(14, 0, 14, 0));
+            var on = _filter == f && _author is null;
+            var chip = Option(SwissLabel(label, 11.5, on ? MacLook.WindowColor : Text), Tint, 0, () => Choose(f), on,
+                              minHeight: 44, padding: new Thickness(14, 0, 14, 0));
+            if (!on) chip.Background = Brush(MacLook.WindowColor);
             chip.BorderBrush = Brush(MacLook.Text);
-            chip.BorderThickness = new Thickness(1);
+            chip.BorderThickness = new Thickness(2);
+            chip.Margin = new Thickness(filters.Children.Count > 0 ? -2 : 0, 0, 0, 0);
             filters.Children.Add(chip);
         }
         if (_author is { } author)
@@ -244,7 +251,7 @@ internal sealed class CommunityPage
             page.Children.Add(Empty());
             return page;
         }
-        var grid = new Grid { ColumnSpacing = 14, RowSpacing = 14 };
+        var grid = new Grid { ColumnSpacing = 20, RowSpacing = 20 };
         var cols = Math.Max(1, Math.Min(columns, 2));
         for (var c = 0; c < cols; c++) grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
         for (var i = 0; i < shares.Count; i++)
@@ -288,48 +295,43 @@ internal sealed class CommunityPage
             Loc.T("Partager une macro…"), StartComposing);
     }
 
-    /// Un partage en carte : photo de l'auteur, titre, « Macro · par @… · date », début de l'explication.
+    /// Un partage en carte (maquette du 05/11, comme le Mac) : sa sorte en petites capitales, le titre en grand, deux
+    /// lignes de l'explication, puis la photo ronde et le pseudo de l'auteur ; bordée d'encre au survol.
     private FrameworkElement Card(Share share)
     {
-        var grid = new Grid { ColumnSpacing = 14 };
-        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-        var avatar = AccountPage.Avatar(_photos.GetValueOrDefault(share.AuthorId), share.AuthorName, 40);
-        avatar.VerticalAlignment = VerticalAlignment.Top;
-        grid.Children.Add(avatar);
-        var text = new StackPanel { Spacing = 4 };
-        var title = Label(DisplayText.Safe(share.Title, 80), 15, Text, bold: true);
+        var text = new StackPanel { Spacing = 10 };
+        text.Children.Add(SwissLabel(share.IsMacro ? Loc.T("Macro") : Loc.T("Raccourcis"), 11));
+        var title = Label(DisplayText.Safe(share.Title, 80), 24, Text, bold: true);
         title.FontFamily = SwissFont;
-        title.TextTrimming = TextTrimming.CharacterEllipsis;
+        title.TextWrapping = TextWrapping.Wrap;
+        title.MaxLines = 2;
+        title.CharacterSpacing = -30;
         text.Children.Add(title);
-        text.Children.Add(Paragraph(share.Byline, 11.5));
         if (share.Notes.Trim().Length > 0)
         {
-            var notes = Paragraph(share.Notes.Trim(), 12, Secondary);
+            var notes = Paragraph(share.Notes.Trim(), 13, Secondary);
             notes.MaxLines = 2;
             notes.TextTrimming = TextTrimming.CharacterEllipsis;
             text.Children.Add(notes);
         }
-        Grid.SetColumn(text, 1);
-        grid.Children.Add(text);
+        var author = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10, Margin = new Thickness(0, 4, 0, 0) };
+        author.Children.Add(AccountPage.Avatar(_photos.GetValueOrDefault(share.AuthorId), share.AuthorName, 26));
+        var name = Label("@" + DisplayText.Safe(share.AuthorName, 24), 14, Text, bold: true);
+        name.VerticalAlignment = VerticalAlignment.Center;
+        author.Children.Add(name);
+        text.Children.Add(author);
         var border = new Border
         {
-            Child = grid,
-            Padding = new Thickness(16, 14, 16, 14),
+            Child = text,
+            Padding = new Thickness(20, 18, 20, 18),
             Background = Brush(MacLook.WindowColor),
             BorderBrush = Brush(LineColor),
             BorderThickness = new Thickness(1),
         };
-        var stripe = new Border
-        {
-            Child = border,
-            BorderBrush = Brush(share.IsMacro ? Purple : Blue),
-            BorderThickness = new Thickness(3, 0, 0, 0),
-        };
         var button = new Button
         {
             Style = PlainButton,
-            Content = stripe,
+            Content = border,
             Padding = new Thickness(0),
             HorizontalAlignment = HorizontalAlignment.Stretch,
             HorizontalContentAlignment = HorizontalAlignment.Stretch,

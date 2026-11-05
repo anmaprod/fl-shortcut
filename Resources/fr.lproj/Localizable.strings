@@ -473,6 +473,7 @@
 "Charger le profil « %@ » ?" = "Charger le profil « %@ » ?";
 "Charger un profil" = "Charger un profil";
 "Cherche dans l'aide : raccourcis, macro, pause…" = "Cherche dans l'aide : raccourcis, macro, pause…";
+"Chercher une macro, des raccourcis" = "Chercher une macro, des raccourcis";
 "Cherché par son nom ou son image au moment du clic (autorisation « Enregistrement de l'écran »)." = "Cherché par son nom ou son image au moment du clic (autorisation « Enregistrement de l'écran »).";
 "Chiffre" = "Chiffre";
 "Choisir" = "Choisir";
@@ -649,6 +650,9 @@
 "Couleur" = "Couleur";
 "Couleur de la grille" = "Couleur de la grille";
 "Couleur des notes" = "Couleur des notes";
+"Couleurs d'origine" = "Couleurs d'origine";
+"Couleurs de base" = "Couleurs de base";
+"Couleurs de base…" = "Couleurs de base…";
 "Coupe la piste du Mixer sélectionnée" = "Coupe la piste du Mixer sélectionnée";
 "Coupe le son de la piste choisie dans le Mixer, ou le remet s'il était coupé : par le lien avec FL, tout de suite et sans aucun clic. Sans le lien : un clic sur son bouton mute (piste cliquée juste avant), montré une seule fois." = "Coupe le son de la piste choisie dans le Mixer, ou le remet s'il était coupé : par le lien avec FL, tout de suite et sans aucun clic. Sans le lien : un clic sur son bouton mute (piste cliquée juste avant), montré une seule fois.";
 "Coupe ou remet le son de la piste choisie dans le Mixer." = "Coupe ou remet le son de la piste choisie dans le Mixer.";
@@ -681,6 +685,7 @@
 "Dans FL : clique sur ta piste du Mixer (la souris sera là quand tu utiliseras le raccourci)." = "Dans FL : clique sur ta piste du Mixer (la souris sera là quand tu utiliseras le raccourci).";
 "Dans FL : clique une fois à l'endroit voulu (Échap pour annuler)." = "Dans FL : clique une fois à l'endroit voulu (Échap pour annuler).";
 "Dans FL : reste cliqué sur ce qu'il faut attraper, glisse et lâche à l'endroit voulu (Échap pour annuler)." = "Dans FL : reste cliqué sur ce qu'il faut attraper, glisse et lâche à l'endroit voulu (Échap pour annuler).";
+"Dans FL : ⌘Q, puis rouvre-le." = "Dans FL : ⌘Q, puis rouvre-le.";
 "Dans FL Studio : %@" = "Dans FL Studio : %@";
 "Dans FL, clique le bouton mute (le petit rond en haut) d'une piste, puis reclique-le pour remettre le son." = "Dans FL, clique le bouton mute (le petit rond en haut) d'une piste, puis reclique-le pour remettre le son.";
 "Dans MIDI Settings : Port de la sortie, Enable, Controller type FL Shortcuts et Port de l'entrée, le même numéro." = "Dans MIDI Settings : Port de la sortie, Enable, Controller type FL Shortcuts et Port de l'entrée, le même numéro.";
@@ -988,6 +993,7 @@
 "Fenêtres" = "Fenêtres";
 "Fenêtres de l'application" = "Fenêtres de l'application";
 "Fenêtres et attentes" = "Fenêtres et attentes";
+"Ferme FL, puis rouvre-le." = "Ferme FL, puis rouvre-le.";
 "Fermer" = "Fermer";
 "Fermer la fenêtre" = "Fermer la fenêtre";
 "Fermer le guide : tu le retrouves dans la page Aide ou le menu de la barre des menus" = "Fermer le guide : tu le retrouves dans la page Aide ou le menu de la barre des menus";
@@ -1646,8 +1652,10 @@
 "Positions" = "Positions";
 "Posée par la fenêtre de FL (F2). La première fois, montre une fois le bouton de l'icône." = "Posée par la fenêtre de FL (F2). La première fois, montre une fois le bouton de l'icône.";
 "Pour l'Organiser : il écoute chaque son pour le ranger" = "Pour l'Organiser : il écoute chaque son pour le ranger";
+"Pour tes raccourcis dans FL." = "Pour tes raccourcis dans FL.";
 "Pour toi (facultatif)" = "Pour toi (facultatif)";
 "Pour un bouton qui change de place (une piste du Mixer, le « + » du Channel rack…) : il est " = "Pour un bouton qui change de place (une piste du Mixer, le « + » du Channel rack…) : il est ";
+"Pour écouter tes sons." = "Pour écouter tes sons.";
 "Première piste du Mixer de la famille (son bus compris ; la 808 avec les drums) : tire vers le haut ou le bas comme dans FL, ou clique pour l'écrire" = "Première piste du Mixer de la famille (son bus compris ; la 808 avec les drums) : tire vers le haut ou le bas comme dans FL, ou clique pour l'écrire";
 "Prends la famille et glisse-la au-dessus ou en dessous d'une autre : le Channel rack, le Mixer et la Playlist suivent cet ordre" = "Prends la famille et glisse-la au-dessus ou en dessous d'une autre : le Channel rack, le Mixer et la Playlist suivent cet ordre";
 "Prends la famille par son nom et glisse-la au-dessus ou en dessous d'une autre : le Channel rack, le Mixer et la Playlist suivent cet ordre" = "Prends la famille par son nom et glisse-la au-dessus ou en dessous d'une autre : le Channel rack, le Mixer et la Playlist suivent cet ordre";
@@ -1684,6 +1692,7 @@
 "Publicité ou spam" = "Publicité ou spam";
 "Publier" = "Publier";
 "Publier pour tous les membres de la Communauté" = "Publier pour tous les membres de la Communauté";
+"Puis Options › MIDI Settings : Controller type « FL Shortcuts », même Port pour « FL Shortcuts Retour »." = "Puis Options › MIDI Settings : Controller type « FL Shortcuts », même Port pour « FL Shortcuts Retour ».";
 "Puis menu de l'icône › Organiser…" = "Puis menu de l'icône › Organiser…";
 "Qu'est-ce qui n'allait pas ?" = "Qu'est-ce qui n'allait pas ?";
 "Quand FL a ouvert sa boîte « Open » (preset d'un plugin, d'un canal…) : va au fichier .fst choisi et l'ouvre. À placer après les clics qui ouvrent la boîte et un « Attendre »." = "Quand FL a ouvert sa boîte « Open » (preset d'un plugin, d'un canal…) : va au fichier .fst choisi et l'ouvre. À placer après les clics qui ouvrent la boîte et un « Attendre ».";
@@ -1819,6 +1828,7 @@
 "Routage" = "Routage";
 "Règle la mesure du projet en 3/4." = "Règle la mesure du projet en 3/4.";
 "Règle les 4 cases entourées" = "Règle les 4 cases entourées";
+"Règle les 4 cases, dans l'ordre." = "Règle les 4 cases, dans l'ordre.";
 "Réapprendre l'entrée" = "Réapprendre l'entrée";
 "Réapprendre…" = "Réapprendre…";
 "Récentes" = "Récentes";
@@ -2120,6 +2130,7 @@
 "Un bloc vient d'une version plus récente de FL Shortcuts : la macro ne tournera pas." = "Un bloc vient d'une version plus récente de FL Shortcuts : la macro ne tournera pas.";
 "Un bus par famille" = "Un bus par famille";
 "Un bus par famille dans le Mixer (les 808 avec les drums), chaque son envoyé seulement à son bus" = "Un bus par famille dans le Mixer (les 808 avec les drums), chaque son envoyé seulement à son bus";
+"Un clic, une seule fois." = "Un clic, une seule fois.";
 "Un clip de la Playlist n'a pas pu être remis à sa place : annule dans FL (Edit › Undo), puis réessaie." = "Un clip de la Playlist n'a pas pu être remis à sa place : annule dans FL (Edit › Undo), puis réessaie.";
 "Un code vient de partir à %@ : entre-le ici pour confirmer ton compte." = "Un code vient de partir à %@ : entre-le ici pour confirmer ton compte.";
 "Un compte existe déjà avec ce mail." = "Un compte existe déjà avec ce mail.";
@@ -2555,6 +2566,7 @@
 "À apprendre" = "À apprendre";
 "À autoriser" = "À autoriser";
 "À choisir" = "À choisir";
+"À cocher dans les Réglages." = "À cocher dans les Réglages.";
 "À corriger" = "À corriger";
 "À faire une seule fois." = "À faire une seule fois.";
 "À gauche, choisis une page : Général, Playlist, Mixer… Elle montre les raccourcis de FL qui s'y appliquent." = "À gauche, choisis une page : Général, Playlist, Mixer… Elle montre les raccourcis de FL qui s'y appliquent.";
@@ -2605,6 +2617,7 @@
 "Étape %lld : touche REC non prise en charge." = "Étape %lld : touche REC non prise en charge.";
 "Étape %lld : touche interdite (%@)." = "Étape %lld : touche interdite (%@).";
 "Étape %lld : touche non prise en charge." = "Étape %lld : touche non prise en charge.";
+"Étape %lld sur 3" = "Étape %lld sur 3";
 "Étapes, fenêtres de FL et clics de chaque macro, pour comprendre un échec. Aucune frappe, aucun nom de fichier." = "Étapes, fenêtres de FL et clics de chaque macro, pour comprendre un échec. Aucune frappe, aucun nom de fichier.";
 "Étendre la sélection vers le bas" = "Étendre la sélection vers le bas";
 "Étendre la sélection vers le haut" = "Étendre la sélection vers le haut";

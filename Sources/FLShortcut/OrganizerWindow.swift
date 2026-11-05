@@ -519,6 +519,8 @@ final class OrganizerController: ObservableObject {
     @Published var showLinkHelp = false
     /// Photo de la CI (« couleurs ») : la roue des couleurs de la première famille ouverte sur l'aperçu d'exemple.
     @Published var demoColors = false
+    /// « Couleurs de base » (Options) ouvert.
+    @Published var editingBaseColors = false
 
     /// Appelé une fois, à la fermeture (la fenêtre se ferme et lâche le contrôleur).
     var onClose: (() -> Void)?
@@ -1059,6 +1061,27 @@ final class OrganizerController: ObservableObject {
         styles[family] = updated
     }
 
+    /// « Couleurs de base » (05/11 : « choisir leur couleur de base… dès qu'ils vont organiser… leur couleur
+    /// prédéfinie ») : la couleur d'une famille, gardée tout de suite pour les prochaines fois.
+    func setBaseColor(_ family: SoundFamily, _ color: RGBColor) {
+        updateStyle(family) { style in
+            style.color = color
+            style.fade = nil
+        }
+        env.saveStyles(styles)
+    }
+
+    /// Les couleurs de départ de toutes les familles, gardées.
+    func resetBaseColors() {
+        for (family, initial) in FamilyStyles.initial {
+            updateStyle(family) { style in
+                style.color = initial.color
+                style.fade = nil
+            }
+        }
+        env.saveStyles(styles)
+    }
+
     var doneText: String { doneLines(short: false).joined(separator: "\n") }
 
     /// La fin en court (vidéo du 30/10 : « le message de fin allonge trop le logiciel ») : un titre, une ligne dessous,
@@ -1416,7 +1439,7 @@ enum OrganizerWindow {
         p.center()
         p.orderFrontRegardless()
         // Rien n'est envoyé à FL avant « Démarrer » (retour du 01/11) ; le tuto d'abord à la première ouverture.
-        if start && tutorial && OrganizerTutorial.shouldShow() { controller.showTutorial() }
+        // Plus de tuto (05/11 : « toutes les pages tuto, on va les enlever ») : « Installer le lien » directement.
     }
 
     /// Hauteur demandée par le contenu (`OrganizerView`, à chaque changement : nouvelle étape, fondu fini, aide
@@ -1602,6 +1625,7 @@ struct OrganizerView: View {
         // Nouvelle analyse : les colonnes des familles reviennent à leur coupe automatique.
         .onChange(of: stepKey) { key in if key == "starting" || key == "listening" { leftCount = nil } }
         .sheet(isPresented: $controller.feedbackShown) { OrganizerFeedbackView(controller: controller).swissSheet() }
+        .sheet(isPresented: $controller.editingBaseColors) { BaseColorsSheet(controller: controller).swissSheet() }
     }
 
     /// Le titre seul (maquette validée le 28/10 : ni grande icône, ni phrase dessous).
@@ -1915,17 +1939,12 @@ struct OrganizerView: View {
         }
     }
 
-    /// Lien avec FL pas encore installé : un seul bouton, la suite se fait toute seule.
+    /// Lien avec FL pas encore installé (05/11 : « clair, précis et sans détail… un ordre à la fois ») : étape 1 sur 3,
+    /// un seul bouton ; la suite se fait toute seule.
     private var setup: some View {
         VStack(alignment: .leading, spacing: 14) {
-            HStack(alignment: .center, spacing: 14) {
-                OrganizerBadge(symbol: "link", tint: Self.tint)
-                Text("Un petit lien avec FL, une seule fois").font(.system(size: 14, weight: .semibold))
-                Spacer(minLength: 0)
-            }
-            .padding(14)
-            .organizerCard()
-            .morphIn(1)
+            LinkSteps(current: 1, detail: String(localized: "Un clic, une seule fois."))
+                .morphIn(1)
             HStack {
                 Spacer()
                 Button("Fermer") { controller.close() }
@@ -1946,20 +1965,26 @@ struct OrganizerView: View {
         let text = Self.waitText(reason)
         let tint: Color = reason == .stopPlayback ? .orange : Self.tint
         return VStack(alignment: .leading, spacing: 14) {
-            HStack(alignment: .center, spacing: 16) {
-                WaitingPulse(symbol: text.symbol, tint: tint)
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(text.title).font(.system(size: 14, weight: .semibold))
-                    Text(text.detail)
-                        .font(.system(size: 12))
-                        .foregroundStyle(.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
+            if let step = LinkSteps.step(of: reason) {
+                // Relier FL, une consigne à la fois (05/11) : étape 2 (quitter et rouvrir FL) ou 3 (MIDI Settings).
+                LinkSteps(current: step, detail: text.detail)
+                    .morphIn(1)
+            } else {
+                HStack(alignment: .center, spacing: 16) {
+                    WaitingPulse(symbol: text.symbol, tint: tint)
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(text.title).font(.system(size: 14, weight: .semibold))
+                        Text(text.detail)
+                            .font(.system(size: 12))
+                            .foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    Spacer(minLength: 0)
                 }
-                Spacer(minLength: 0)
+                .padding(14)
+                .organizerCard(tint)
+                .morphIn(1)
             }
-            .padding(14)
-            .organizerCard(tint)
-            .morphIn(1)
             HStack(spacing: 8) {
                 ProgressView().controlSize(.mini)
                 Text("Organiser continue tout seul dès que FL est prêt.")
@@ -2010,11 +2035,11 @@ struct OrganizerView: View {
     static func waitText(_ reason: OrganizerController.Wait) -> (symbol: String, title: String, detail: String) {
         switch reason {
         case .restartFL:
-            return ("arrow.clockwise", String(localized: "Quitte et rouvre FL Studio"),
-                    String(localized: "Le lien est prêt. Dans FL : ⌘Q, puis rouvre-le. Cette fenêtre reste ouverte."))
+            return ("arrow.clockwise", String(localized: "Quitte et rouvre FL"),
+                    String(localized: "Dans FL : ⌘Q, puis rouvre-le."))
         case .midiSettings:
-            return ("slider.horizontal.3", String(localized: "Dans FL : Options › MIDI Settings"),
-                    String(localized: "Suis les étapes : règle les 4 cases entourées, dans l'ordre."))
+            return ("slider.horizontal.3", String(localized: "Options › MIDI Settings"),
+                    String(localized: "Règle les 4 cases, dans l'ordre."))
         case .noResponse:
             return ("antenna.radiowaves.left.and.right", String(localized: "En attente de FL Studio"),
                     String(localized: """
@@ -2408,7 +2433,7 @@ private struct OrganizerOptionsMenu: View {
             Button(controller.copied ? String(localized: "Copié") : String(localized: "Copier le diagnostic")) {
                 controller.copyDiagnostic()
             }
-            Button("Revoir le tuto") { controller.showTutorial() }
+            Button("Couleurs de base…") { controller.editingBaseColors = true }
         } label: {
             Text("Options")
         }
@@ -2424,6 +2449,9 @@ private struct OrganizerOptionsMenu: View {
 /// couleur).
 private struct OrganizerCard: View {
     var tint: Color = OrganizerView.tint
+    /// Traits fins dessus et dessous (style suisse) ; sans eux pour les sons d'une famille (05/11 : « juste en dessous
+    /// il y a un petit trait en plus… à enlever pour chaque famille »).
+    var rules = true
     @Environment(\.colorScheme) private var scheme
     @AppStorage(Appearance.glassKey) private var glassEnabled = true
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
@@ -2434,8 +2462,8 @@ private struct OrganizerCard: View {
         if Swiss.flat {
             // Style suisse (01/11) : pas de voile, un trait fin dessus et dessous.
             shape.fill(Swiss.background)
-                .overlay(alignment: .top) { Rectangle().fill(Swiss.line).frame(height: 1) }
-                .overlay(alignment: .bottom) { Rectangle().fill(Swiss.line).frame(height: 1) }
+                .overlay(alignment: .top) { Rectangle().fill(rules ? Swiss.line : Color.clear).frame(height: 1) }
+                .overlay(alignment: .bottom) { Rectangle().fill(rules ? Swiss.line : Color.clear).frame(height: 1) }
         } else if GlassPlate.on(glass: glassEnabled, reduceTransparency: reduceTransparency,
                          increasedContrast: contrast == .increased) {
             shape.fill(GlassPlate.fill(scheme))
@@ -2448,7 +2476,9 @@ private struct OrganizerCard: View {
 }
 
 private extension View {
-    func organizerCard(_ tint: Color = OrganizerView.tint) -> some View { background(OrganizerCard(tint: tint)) }
+    func organizerCard(_ tint: Color = OrganizerView.tint, rules: Bool = true) -> some View {
+        background(OrganizerCard(tint: tint, rules: rules))
+    }
 }
 
 /// Attente de FL : la pastille de couleur et deux ondes qui s'en éloignent sans fin, comme un appel (rien ne tourne
@@ -2621,7 +2651,7 @@ private struct FamilySection: View {
             }
             .padding(.horizontal, 4)
             .padding(.vertical, 2)
-            .organizerCard(swiftColor(style.color))
+            .organizerCard(swiftColor(style.color), rules: false)
             // Thème Orange : ses sons dans une carte noire (maquette du 04/11).
             .swissCard()
             // Style suisse : un trait de la couleur de la famille au-dessus de ses sons.
@@ -3087,3 +3117,105 @@ final class ReleaseOnce {
         pending?()
     }
 }
+
+/// « Couleurs de base » (Options de l'Organiser, 05/11) : une ligne par famille, ses couleurs proposées ; la choisie
+/// entourée d'encre. Gardée tout de suite : chaque Organiser suivant part de ces couleurs.
+private struct BaseColorsSheet: View {
+    @ObservedObject var controller: OrganizerController
+    @Environment(\.dismiss) private var dismiss
+
+    private let families: [SoundFamily] = [.drums, .bass, .melody, .vocals, .fx]
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            SwissPageTitle(text: String(localized: "Couleurs de base"), size: 32)
+                .padding(.bottom, 10)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .swissRule()
+            VStack(spacing: 0) {
+                ForEach(families, id: \.self) { family in
+                    let current = controller.style(of: family).color
+                    HStack(spacing: 14) {
+                        Text(family.label).font(Swiss.font(15)).frame(width: 90, alignment: .leading)
+                        HStack(spacing: 6) {
+                            ForEach(FamilyStyles.palette, id: \.self) { color in
+                                Button { controller.setBaseColor(family, color) } label: {
+                                    Rectangle().fill(swiftColor(color))
+                                        .frame(width: 24, height: 24)
+                                        .overlay(Rectangle().strokeBorder(Swiss.text, lineWidth: color == current ? 2 : 0))
+                                        .padding(2)
+                                        .overlay(Rectangle().strokeBorder(color == current ? Swiss.text : Color.clear, lineWidth: 1))
+                                }
+                                .buttonStyle(.plain)
+                                .accessibilityLabel(family.label + " #" + color.hex)
+                            }
+                        }
+                    }
+                    .frame(minHeight: 46)
+                    .overlay(alignment: .bottom) { Rectangle().fill(Swiss.faint).frame(height: 1) }
+                }
+            }
+            HStack {
+                Button("Couleurs d'origine") { controller.resetBaseColors() }
+                    .secondaryButton()
+                Spacer()
+                Button("OK") { dismiss() }
+                    .primaryButton()
+                    .keyboardShortcut(.defaultAction)
+            }
+            .padding(.top, 6)
+        }
+        .padding(24)
+        .frame(width: 520)
+    }
+}
+
+/// Relier FL en trois étapes, une consigne à la fois (05/11 : « installer le lien… quitter, réouvrir… options… c'est
+/// un ordre à la fois pour que la personne fasse ») : « ÉTAPE n SUR 3 », la consigne en grand avec son point carré,
+/// une phrase ; dessous, les trois étapes (la faite cochée, celle en cours en rouge).
+private struct LinkSteps: View {
+    let current: Int
+    let detail: String
+
+    static var names: [String] {
+        [String(localized: "Installe le lien"), String(localized: "Quitte et rouvre FL"),
+         String(localized: "Options › MIDI Settings")]
+    }
+
+    /// L'étape d'une attente de FL, nil hors de l'installation du lien.
+    static func step(of reason: OrganizerController.Wait) -> Int? {
+        switch reason {
+        case .restartFL: return 2
+        case .midiSettings: return 3
+        default: return nil
+        }
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 18) {
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Étape \(current) sur 3").swissLabel(Swiss.red)
+                SwissPageTitle(text: Self.names[max(0, min(current, 3) - 1)], size: 30)
+                Text(detail).font(.system(size: 13)).foregroundStyle(Swiss.gray)
+            }
+            VStack(spacing: 0) {
+                ForEach(0..<3, id: \.self) { i in
+                    let n = i + 1
+                    HStack(spacing: 12) {
+                        Text(verbatim: "0\(n)").font(Swiss.font(12)).foregroundStyle(n == current ? Swiss.red : Swiss.gray)
+                        Text(Self.names[i]).font(Swiss.font(14)).foregroundStyle(n == current ? Swiss.text : Swiss.gray)
+                        Spacer(minLength: 8)
+                        if n < current {
+                            Image(systemName: "checkmark").font(.system(size: 11, weight: .bold)).foregroundStyle(Swiss.text)
+                        }
+                    }
+                    .frame(minHeight: 36)
+                    .overlay(alignment: .top) { Rectangle().fill(Swiss.faint).frame(height: 1) }
+                }
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .accessibilityElement(children: .combine)
+    }
+}
+

@@ -63,13 +63,30 @@ struct FamilyStyle: Codable, Equatable {
 enum FamilyStyles {
     static let key = "organize.families"
 
+    /// Couleurs de départ (05/11, « des couleurs un peu plus suisse style ») : rouge signal, bleu outremer, jaune,
+    /// rose, vert d'eau, gris ; franches, et bien lisibles sur le fond sombre de FL.
     static let initial: [SoundFamily: FamilyStyle] = [
-        .drums: FamilyStyle(color: RGBColor(r: 0xE0, g: 0x45, b: 0x3A)),
-        .bass: FamilyStyle(color: RGBColor(r: 0x8E, g: 0x5B, b: 0xE8)),
-        .melody: FamilyStyle(color: RGBColor(r: 0x3F, g: 0xA7, b: 0xE0)),
-        .vocals: FamilyStyle(color: RGBColor(r: 0xF2, g: 0xA9, b: 0x3B)),
-        .fx: FamilyStyle(color: RGBColor(r: 0x4F, g: 0xC4, b: 0x8E)),
-        .unsure: FamilyStyle(color: RGBColor(r: 0x8A, g: 0x8F, b: 0x98)),
+        .drums: FamilyStyle(color: RGBColor(r: 0xFF, g: 0x3B, b: 0x1F)),
+        .bass: FamilyStyle(color: RGBColor(r: 0x2F, g: 0x55, b: 0xFF)),
+        .melody: FamilyStyle(color: RGBColor(r: 0xFF, g: 0xC4, b: 0x00)),
+        .vocals: FamilyStyle(color: RGBColor(r: 0xFF, g: 0x5F, b: 0xA2)),
+        .fx: FamilyStyle(color: RGBColor(r: 0x19, g: 0xC3, b: 0xA0)),
+        .unsure: FamilyStyle(color: RGBColor(r: 0x8C, g: 0x8C, b: 0x8C)),
+    ]
+
+    /// Les couleurs de départ d'avant le 05/11 : gardées telles quelles (jamais choisies), elles prennent les nouvelles.
+    static let previous: [SoundFamily: RGBColor] = [
+        .drums: RGBColor(r: 0xE0, g: 0x45, b: 0x3A), .bass: RGBColor(r: 0x8E, g: 0x5B, b: 0xE8),
+        .melody: RGBColor(r: 0x3F, g: 0xA7, b: 0xE0), .vocals: RGBColor(r: 0xF2, g: 0xA9, b: 0x3B),
+        .fx: RGBColor(r: 0x4F, g: 0xC4, b: 0x8E), .unsure: RGBColor(r: 0x8A, g: 0x8F, b: 0x98),
+    ]
+
+    /// Couleurs proposées dans « Couleurs de base » (Options de l'Organiser) : la palette suisse de l'app.
+    static let palette: [RGBColor] = [
+        RGBColor(r: 0xFF, g: 0x3B, b: 0x1F), RGBColor(r: 0xFF, g: 0x8A, b: 0x00), RGBColor(r: 0xFF, g: 0xC4, b: 0x00),
+        RGBColor(r: 0x19, g: 0xC3, b: 0xA0), RGBColor(r: 0x00, g: 0xA6, b: 0x51), RGBColor(r: 0x00, g: 0xB5, b: 0xE2),
+        RGBColor(r: 0x2F, g: 0x55, b: 0xFF), RGBColor(r: 0xB4, g: 0x4B, b: 0xFF), RGBColor(r: 0xFF, g: 0x5F, b: 0xA2),
+        RGBColor(r: 0x8C, g: 0x8C, b: 0x8C),
     ]
 
     /// Les réglages gardés ; une famille absente prend sa valeur de départ (tout illisible → valeurs de départ).
@@ -78,7 +95,10 @@ enum FamilyStyles {
         guard let data = defaults.data(forKey: key),
               let saved = try? JSONDecoder().decode([String: FamilyStyle].self, from: data) else { return out }
         for (name, style) in saved {
-            if let family = SoundFamily(rawValue: name) { out[family] = style }
+            guard let family = SoundFamily(rawValue: name) else { continue }
+            var kept = style
+            if kept.fade == nil, kept.color == previous[family], let fresh = initial[family] { kept.color = fresh.color }
+            out[family] = kept
         }
         return out
     }

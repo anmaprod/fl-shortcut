@@ -1153,4 +1153,16 @@ final class FakeDisk {
             return "dossier-données"
         })
     }
+
+    /// 05/11 : nouvelles couleurs de départ ; celles d'avant, gardées telles quelles, prennent les nouvelles ; une couleur
+    /// choisie reste (même JSON que Windows).
+    func testOldDefaultColorsTakeTheNewOnes() throws {
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: "fls-styles-\(UUID().uuidString)"))
+        XCTAssertEqual(FamilyStyles.load(from: defaults)[.drums]?.color.hex, "FF3B1F")
+        defaults.set(Data(#"{"drums":{"color":"E0453A"},"bass":{"color":"123456"}}"#.utf8), forKey: FamilyStyles.key)
+        let styles = FamilyStyles.load(from: defaults)
+        XCTAssertEqual(styles[.drums]?.color.hex, "FF3B1F")
+        XCTAssertEqual(styles[.bass]?.color.hex, "123456")
+        XCTAssertEqual(FamilyStyles.palette.count, 10)
+    }
 }

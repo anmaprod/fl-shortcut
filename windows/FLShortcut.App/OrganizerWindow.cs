@@ -178,7 +178,8 @@ internal sealed class OrganizerWindow : Window
             OrganizerClosed?.Invoke();
         };
         // Tuto en images la première fois, avant l'écoute (rien n'est envoyé à FL tant qu'il est là).
-        _tutorial = demo == "tuto" || (demo is null && !app.Settings.OrganizerTutorialSeen);
+        // Plus de tuto (05/11, comme le Mac) : « Installer le lien » directement ; la photo de la CI le montre encore.
+        _tutorial = demo == "tuto";
         _startAfterTutorial = _tutorial && demo is null;
         Render();
         Photos.Note("fenêtre : premier dessin");
@@ -367,10 +368,10 @@ internal sealed class OrganizerWindow : Window
         _content.Children.Add(Card(Row(Spinner(), Label(text, 13, Text))));
     }
 
-    /// Lien avec FL pas encore installé : un seul bouton, la suite se fait toute seule.
+    /// Lien avec FL pas encore installé (05/11 : « un ordre à la fois ») : étape 1 sur 3, un seul bouton.
     private void Setup()
     {
-        _content.Children.Add(Card(Row(Badge("link", Tint), Label(Loc.T("Un petit lien avec FL, une seule fois"), 14, Text, semibold: true), 14)));
+        _content.Children.Add(LinkSteps(1, Loc.T("Un clic, une seule fois.")));
         PortsCard();
         _right.Children.Add(SoftButton(Loc.T("Fermer"), _controller.Close));
         _right.Children.Add(BlueButton(Loc.T("Installer le lien"), _controller.InstallLink));
@@ -394,8 +395,7 @@ internal sealed class OrganizerWindow : Window
 
     private static (string Icon, string Title, string Detail) WaitText(OrganizerWait reason) => reason switch
     {
-        OrganizerWait.RestartFl => ("arrow.clockwise", Loc.T("Quitte et rouvre FL Studio"),
-            Loc.T("Lien prêt. Dans FL : MIDI Settings, Controller type « FL Shortcuts », même Port pour « FL Shortcuts Retour ».")),
+        OrganizerWait.RestartFl => ("arrow.clockwise", Loc.T("Quitte et rouvre FL"), Loc.T("Ferme FL, puis rouvre-le.")),
         OrganizerWait.NoResponse => ("antenna.radiowaves.left.and.right", Loc.T("En attente de FL Studio"),
             Loc.T("FL ne répond pas encore. Vérifie MIDI Settings ci-dessous.")),
         OrganizerWait.WrongInput => ("link", Loc.T("Le lien est sur la mauvaise entrée"),
@@ -410,7 +410,16 @@ internal sealed class OrganizerWindow : Window
     {
         var (icon, title, detail) = WaitText(reason);
         var tint = reason == OrganizerWait.StopPlayback ? Orange : Tint;
-        _content.Children.Add(Card(Row(Badge(icon, tint), Stack(4, Label(title, 14, Text, semibold: true), Paragraph(detail, 12)), 16), tint));
+        if (reason == OrganizerWait.RestartFl)
+        {
+            // Relier FL, une consigne à la fois (05/11, comme le Mac) : étape 2, puis MIDI Settings en étape 3 dessous.
+            _content.Children.Add(LinkSteps(2, detail));
+            _content.Children.Add(Paragraph(Loc.T("Puis Options › MIDI Settings : Controller type « FL Shortcuts », même Port pour « FL Shortcuts Retour »."), 12));
+        }
+        else
+        {
+            _content.Children.Add(Card(Row(Badge(icon, tint), Stack(4, Label(title, 14, Text, semibold: true), Paragraph(detail, 12)), 16), tint));
+        }
         _content.Children.Add(Row(Spinner(14), Note(Loc.T("Organiser continue tout seul dès que FL est prêt.")), 8));
         if (reason is OrganizerWait.NoResponse or OrganizerWait.RestartFl or OrganizerWait.WrongInput)
         {
@@ -689,7 +698,7 @@ internal sealed class OrganizerWindow : Window
             options.DeleteUnused, (o, on) => o with { DeleteUnused = on }));
         menu.Items.Add(new MenuFlyoutSeparator());
         menu.Items.Add(MenuItem(_controller.Copied ? Loc.T("Copié") : Loc.T("Copier le diagnostic"), _controller.CopyDiagnostic));
-        menu.Items.Add(MenuItem(Loc.T("Revoir le tuto"), ShowTutorialAgain));
+        menu.Items.Add(MenuItem(Loc.T("Couleurs de base…"), ShowBaseColors));
         var button = SoftButton(Loc.T("Options"), () => { }, Loc.T("Ce que l'Organiser range, et le diagnostic à copier pour l'équipe"));
         button.Flyout = menu;
         return button;
@@ -755,6 +764,10 @@ internal sealed class OrganizerWindow : Window
         }
         var card = Card(list, ColorOf(style.Color), 0);
         card.Padding = new Thickness(10, 2, 10, 2);
+        // Comme le Mac (05/11, « un petit trait en plus… à enlever pour chaque famille ») : la barre de couleur dessus,
+        // plus aucun trait autour ni dessous.
+        card.BorderBrush = Brush(ColorOf(style.Color));
+        card.BorderThickness = new Thickness(0, 3, 0, 0);
 
         var section = new StackPanel { Spacing = 6, AllowDrop = true, Background = Brush(Colors.Transparent) };
         var mark = new Rectangle { Height = 3, RadiusX = 1.5, RadiusY = 1.5, Fill = Brush(Tint), Margin = new Thickness(10, 0, 10, 0), Visibility = Visibility.Collapsed };
@@ -1175,5 +1188,116 @@ internal sealed class OrganizerWindow : Window
             flyout.Opened += (_, _) => box.Focus(FocusState.Programmatic);
             flyout.ShowAt(this);
         }
+    }
+
+    /// Relier FL en trois étapes, une consigne à la fois (comme le Mac) : « ÉTAPE n SUR 3 », la consigne en grand avec son
+    /// point carré, une phrase ; dessous, les trois étapes (la faite cochée, celle en cours en rouge).
+    private static StackPanel LinkSteps(int current, string detail)
+    {
+        var names = new[] { Loc.T("Installe le lien"), Loc.T("Quitte et rouvre FL"), Loc.T("Options › MIDI Settings") };
+        var panel = new StackPanel { Spacing = 8 };
+        panel.Children.Add(SwissLabel(Loc.F("Étape %lld sur 3", current), 11, Red));
+        var big = SwissTitle(30);
+        big.Text = names[Math.Clamp(current, 1, 3) - 1].ToLower(System.Globalization.CultureInfo.CurrentCulture);
+        var title = PageTitle(big, 30);
+        title.HorizontalAlignment = HorizontalAlignment.Left;
+        panel.Children.Add(title);
+        panel.Children.Add(Paragraph(detail, 13));
+        var list = new StackPanel { Margin = new Thickness(0, 10, 0, 0) };
+        for (var i = 0; i < 3; i++)
+        {
+            var n = i + 1;
+            var row = new Grid { MinHeight = 36, ColumnSpacing = 12, BorderBrush = Brush(Faint), BorderThickness = new Thickness(0, 1, 0, 0) };
+            row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            var number = Label("0" + n, 12, n == current ? Red : Secondary, bold: true);
+            row.Children.Add(number);
+            var name = Label(names[i], 14, n == current ? Text : Secondary, bold: true);
+            Grid.SetColumn(name, 1);
+            row.Children.Add(name);
+            if (n < current)
+            {
+                var check = Icon("check", 11, Text);
+                check.VerticalAlignment = VerticalAlignment.Center;
+                Grid.SetColumn(check, 2);
+                row.Children.Add(check);
+            }
+            list.Children.Add(row);
+        }
+        panel.Children.Add(list);
+        return panel;
+    }
+
+    /// « Couleurs de base » (Options, 05/11, comme le Mac) : une ligne par famille, ses couleurs proposées ; la choisie
+    /// entourée d'encre. Gardée tout de suite pour les prochaines fois.
+    private async void ShowBaseColors()
+    {
+        if (Content?.XamlRoot is not { } root) return;
+        var dialog = new ContentDialog
+        {
+            XamlRoot = root,
+            Style = MainShell.DialogStyle(),
+            RequestedTheme = MacLook.SurfaceTheme,
+            Background = Brush(WindowColor),
+            BorderBrush = Brush(LineColor),
+            PrimaryButtonText = Loc.T("OK"),
+            SecondaryButtonText = Loc.T("Couleurs d'origine"),
+            DefaultButton = ContentDialogButton.Primary,
+        };
+        var rows = new StackPanel();
+        void Fill()
+        {
+            rows.Children.Clear();
+            foreach (var family in new[] { SoundFamily.Drums, SoundFamily.Bass, SoundFamily.Melody, SoundFamily.Vocals, SoundFamily.Fx })
+            {
+                var current = _controller.StyleOf(family).Color;
+                var row = new Grid { MinHeight = 46, ColumnSpacing = 14, BorderBrush = Brush(Faint), BorderThickness = new Thickness(0, 0, 0, 1) };
+                row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(90) });
+                row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+                var name = Label(family.Label(), 15, Text, bold: true);
+                row.Children.Add(name);
+                var swatches = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6, VerticalAlignment = VerticalAlignment.Center };
+                foreach (var color in FamilyStyles.Palette)
+                {
+                    var picked = color;
+                    var chosen = picked == current;
+                    var swatch = new Button
+                    {
+                        Style = PlainButton,
+                        Width = 28,
+                        Height = 28,
+                        Padding = new Thickness(chosen ? 2 : 0),
+                        BorderBrush = Brush(Text),
+                        BorderThickness = new Thickness(chosen ? 1 : 0),
+                        Content = new Border { Background = Brush(ColorOf(picked)), BorderBrush = Brush(Text), BorderThickness = new Thickness(chosen ? 2 : 0) },
+                    };
+                    swatch.Click += (_, _) =>
+                    {
+                        _controller.SetBaseColor(family, picked);
+                        Fill();
+                    };
+                    AutomationProperties.SetName(swatch, family.Label() + " #" + picked.Hex);
+                    swatches.Children.Add(swatch);
+                }
+                Grid.SetColumn(swatches, 1);
+                row.Children.Add(swatches);
+                rows.Children.Add(row);
+            }
+        }
+        Fill();
+        var heading = SwissTitle(32);
+        heading.Text = Loc.T("Couleurs de base").ToLower(System.Globalization.CultureInfo.CurrentCulture);
+        var head = new StackPanel { Padding = new Thickness(0, 0, 0, 10), BorderBrush = Brush(Text), BorderThickness = new Thickness(0, 0, 0, 1) };
+        head.Children.Add(PageTitle(heading, 32));
+        dialog.Content = new StackPanel { Spacing = 14, MinWidth = 480, Children = { head, rows } };
+        dialog.SecondaryButtonClick += (_, e) =>
+        {
+            e.Cancel = true;
+            _controller.ResetBaseColors();
+            Fill();
+        };
+        await dialog.ShowAsync();
+        Render();
     }
 }

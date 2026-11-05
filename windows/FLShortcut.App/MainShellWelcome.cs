@@ -108,23 +108,54 @@ internal sealed partial class MainShell
         return logo;
     }
 
-    private static TextBlock Heading(string text)
+    /// Titre de l'accueil (maquette du 05/11, comme le Mac) : en minuscules, suivi de son point carré, à gauche.
+    private static FrameworkElement Heading(string text, double size = 40)
     {
-        var heading = Label(text, 28, Text, bold: true);
-        heading.HorizontalAlignment = HorizontalAlignment.Center;
-        heading.TextAlignment = TextAlignment.Center;
-        return heading;
+        var heading = SwissTitle(size);
+        heading.Text = text.ToLower(System.Globalization.CultureInfo.CurrentCulture);
+        var line = PageTitle(heading, size);
+        line.HorizontalAlignment = HorizontalAlignment.Left;
+        return line;
     }
 
-    /// Pastille d'état à droite d'une carte (Prêts, En attente…).
-    private static Border State(string text, Color tint) => new()
+    /// En tête de l'accueil (maquette) : l'icône « fl. » et « fl shortcuts » en très grand avec son point carré.
+    private static FrameworkElement WelcomeHead()
     {
-        Padding = new Thickness(10, 3, 10, 4),
-        CornerRadius = new CornerRadius(0),
-        Background = Brush(WithOpacity(tint, 0.18)),
-        VerticalAlignment = VerticalAlignment.Center,
-        Child = Label(text, 12, tint, semibold: true),
+        var head = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 18, HorizontalAlignment = HorizontalAlignment.Left };
+        var icon = AppIcon(76);
+        icon.VerticalAlignment = VerticalAlignment.Bottom;
+        head.Children.Add(icon);
+        head.Children.Add(Heading("FL Shortcuts", 60));
+        return head;
+    }
+
+    /// Carte de l'accueil (maquette) : pleine du fond, un trait fin autour.
+    private static Border WelcomeCard(UIElement child) => new()
+    {
+        Child = child,
+        Padding = new Thickness(20, 12, 20, 12),
+        Background = Brush(MacLook.WindowColor),
+        BorderBrush = Brush(LineColor),
+        BorderThickness = new Thickness(1),
     };
+
+    /// Pastille d'état à droite d'une carte (Prêts, En attente…).
+    /// État au style suisse (maquette) : en petites capitales dans un cadre de 2 points ; fait : à l'encre ; à faire :
+    /// plein de rouge.
+    private static Border State(string text, Color tint)
+    {
+        var done = tint == Green;
+        return new Border
+        {
+            Padding = new Thickness(12, 6, 12, 6),
+            CornerRadius = new CornerRadius(0),
+            Background = Brush(done ? Colors.Transparent : Red),
+            BorderBrush = Brush(done ? Text : Red),
+            BorderThickness = new Thickness(2),
+            VerticalAlignment = VerticalAlignment.Center,
+            Child = SwissLabel(text, 11, done ? Text : MacLook.OnRed),
+        };
+    }
 
     /// Numéro d'étape dans une pastille ; coche verte une fois faite (StepBadge du Mac).
     private static Border StepBadge(int number, bool done) => new()
@@ -133,8 +164,10 @@ internal sealed partial class MainShell
         Height = 24,
         CornerRadius = new CornerRadius(0),
         VerticalAlignment = VerticalAlignment.Top,
-        Background = Brush(done ? Green : White(0.14)),
-        Child = done ? Icon("check", 12, Colors.White) : new TextBlock
+        Background = Brush(done ? Text : Colors.Transparent),
+        BorderBrush = Brush(Text),
+        BorderThickness = new Thickness(done ? 0 : 1),
+        Child = done ? Icon("check", 12, MacLook.WindowColor) : new TextBlock
         {
             Text = number.ToString(),
             FontSize = 12,
@@ -153,16 +186,13 @@ internal sealed partial class MainShell
         var ok = MidiLink.PortsExist();
         _shownPortsOk = ok;
         _welcomeContent.Children.Clear();
-        _welcomeContent.Children.Add(AppIcon(76));
-        _welcomeContent.Children.Add(Heading("FL Shortcuts"));
+        _welcomeContent.Children.Add(WelcomeHead());
 
-        var row = new Grid { ColumnSpacing = 12 };
-        row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        var row = new Grid { ColumnSpacing = 12, MinHeight = 64 };
         row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
         row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-        row.Children.Add(Tile("link", Accent, 32));
-        var text = new StackPanel { Spacing = 2, VerticalAlignment = VerticalAlignment.Center };
-        text.Children.Add(Label(Loc.T("Ports MIDI « FL Shortcuts »"), 13, Text, semibold: true));
+        var text = new StackPanel { Spacing = 3, VerticalAlignment = VerticalAlignment.Center };
+        text.Children.Add(Label(Loc.T("Ports MIDI « FL Shortcuts »"), 18, Text, bold: true));
         text.Children.Add(Paragraph(ok
             ? Loc.T("Prêts : « FL Shortcuts » et « FL Shortcuts Retour ».")
             : Loc.T("Dans loopMIDI : crée « FL Shortcuts » et « FL Shortcuts Retour »."), 12));
@@ -176,18 +206,13 @@ internal sealed partial class MainShell
             };
             text.Children.Add(link);
         }
-        Grid.SetColumn(text, 1);
         row.Children.Add(text);
         var state = State(ok ? Loc.T("Prêts") : Loc.T("En attente…"), ok ? Green : Orange);
-        Grid.SetColumn(state, 2);
+        Grid.SetColumn(state, 1);
         row.Children.Add(state);
-        var card = Plate(row, 16);
-        card.Padding = new Thickness(14, 12, 14, 12);
-        _welcomeContent.Children.Add(card);
+        _welcomeContent.Children.Add(WelcomeCard(row));
 
-        var privacy = Paragraph(Loc.T("Tes touches ne sont lues que dans FL. Rien n'est gardé."), 12);
-        privacy.TextAlignment = TextAlignment.Center;
-        _welcomeContent.Children.Add(privacy);
+        _welcomeContent.Children.Add(Paragraph(Loc.T("Tes touches ne sont lues que dans FL. Rien n'est gardé."), 12));
 
         var next = Primary(ok ? Loc.T("Continuer") : Loc.T("Crée d'abord les deux ports MIDI"), () =>
         {
@@ -197,7 +222,7 @@ internal sealed partial class MainShell
         });
         next.IsEnabled = ok;
         next.Opacity = ok ? 1 : 0.45;
-        next.HorizontalAlignment = HorizontalAlignment.Center;
+        next.HorizontalAlignment = HorizontalAlignment.Right;
         _welcomeContent.Children.Add(next);
         AddBackLink();
     }
@@ -232,8 +257,8 @@ internal sealed partial class MainShell
             AutomationProperties.SetName(line, $"{i + 1}. {steps[i].Text}");
             list.Children.Add(line);
         }
-        var stepsCard = Plate(list, 16);
-        stepsCard.Padding = new Thickness(16, 14, 16, 14);
+        var stepsCard = WelcomeCard(list);
+        stepsCard.Padding = new Thickness(18, 16, 18, 16);
         _welcomeContent.Children.Add(stepsCard);
         _welcomeContent.Children.Add(MidiPreview());
 
@@ -243,7 +268,7 @@ internal sealed partial class MainShell
             : ("link", Secondary, Loc.T("FL Studio pas encore relié"));
         _welcomeContent.Children.Add(Notice(icon, tint, status, null, null));
 
-        var buttons = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, HorizontalAlignment = HorizontalAlignment.Center };
+        var buttons = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, HorizontalAlignment = HorizontalAlignment.Right };
         var primary = Primary(installed ? Loc.T("Terminer") : Loc.T("Installer le lien"), () =>
         {
             if (_linkStep == LinkStep.Idle) Install(null);

@@ -125,8 +125,11 @@ public class OrganizerApplyTests
     public void FamilyStylesSavedAsJson()
     {
         Assert.Equal(FamilyStyles.Initial.OrderBy(kv => kv.Key), FamilyStyles.Decode(null).OrderBy(kv => kv.Key));
-        Assert.Equal("E0453A", Style(SoundFamily.Drums).Hex);
-        Assert.Equal("8A8F98", Style(SoundFamily.Unsure).Hex);
+        Assert.Equal("FF3B1F", Style(SoundFamily.Drums).Hex);
+        Assert.Equal("8C8C8C", Style(SoundFamily.Unsure).Hex);
+        // 05/11 : une couleur de départ d'avant gardée telle quelle prend la nouvelle ; une couleur choisie reste.
+        Assert.Equal("FF3B1F", FamilyStyles.Decode("{\"drums\":{\"color\":\"E0453A\"}}")[SoundFamily.Drums].Color.Hex);
+        Assert.Equal("123456", FamilyStyles.Decode("{\"drums\":{\"color\":\"123456\"}}")[SoundFamily.Drums].Color.Hex);
         var styles = Initial();
         styles[SoundFamily.Melody] = new FamilyStyle(new RgbColor(0x3F, 0xA7, 0xE0), new RgbColor(0x1B, 0x4F, 0x72), FlIcon.FromCode("3-4"));
         var json = FamilyStyles.Encode(styles);
