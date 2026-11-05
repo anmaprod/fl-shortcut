@@ -148,6 +148,7 @@ internal sealed partial class MainShell
         _help = new HelpPage(_app, () => { if (_kind == PageKind.Help) RenderPage(); }, ShowToast);
         // La carte de connexion sert aussi à la page Communauté (sans compte).
         _account = new AccountPage(() => { if (_kind is PageKind.Account or PageKind.Community) RenderPage(); }, ConfirmAsync, _hwnd);
+        _account.ThemeCard = () => AccountPage.ThemeChoice(Theme, ChooseTheme);
         _community = new CommunityPage(_app, _account, () => { if (_kind == PageKind.Community) RenderPage(); }, ShowToast, ConfirmAsync);
         _account.Changed += UpdateAccountButton;
         // Sauvegarde en ligne commune avec le Mac (raccourcis traduits), suivie par la page Mon compte.
@@ -272,6 +273,28 @@ internal sealed partial class MainShell
     {
         var path = System.IO.Path.Combine(AppContext.BaseDirectory, "unins000.exe");
         return System.IO.File.Exists(path) ? path : null;
+    }
+
+    /// Thème choisi dans Mon compte : enregistré, puis l'app relancée sur Mon compte (ses pages sont construites une
+    /// fois, dans leurs couleurs ; la nouvelle copie attend que celle-ci soit partie, App.OnLaunched). Relance
+    /// impossible : le thème est pris au prochain lancement.
+    private void ChooseTheme(AppTheme theme)
+    {
+        if (theme == Theme) return;
+        _app.Settings.Theme = ThemePalette.Key(theme);
+        _app.Settings.Save();
+        if (_photos) return;
+        try
+        {
+            if (Environment.ProcessPath is not { } exe) return;
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(exe, "--theme-relaunch") { UseShellExecute = false });
+        }
+        catch (Exception e) when (e is System.ComponentModel.Win32Exception or InvalidOperationException)
+        {
+            AppLog.Write("THEME", "relance impossible : " + e.GetType().Name);
+            return;
+        }
+        Quit();
     }
 
     private void Quit()
@@ -514,15 +537,28 @@ internal sealed partial class MainShell
         return group;
     }
 
-    /// Une ligne de la barre de gauche (style suisse) : petit carré de sa couleur, puis le nom ; choisie (et au
-    /// survol) : blanc plein, texte noir en gras, comme le Mac.
+    /// Une ligne de la barre de gauche (style suisse) : le carré de la page, puis le nom ; choisie (et au survol) :
+    /// pleine d'encre, texte en gras, comme le Mac. Carré (proposition A choisie le 05/11, « le A est parfait ») :
+    /// creux, d'un trait fin à l'encre ; rouge plein pour la page ouverte ; au survol, du trait de la couleur du fond.
     private static Button SidebarRow(string icon, Color tint, string title, bool selected, Action choose)
     {
-        var tile = Tile(icon, tint, 22);
+        Color ink = Text, paper = WindowColor;          // pris maintenant : la barre a ses couleurs sous Orange
+        var square = new Rectangle
+        {
+            Width = 8,
+            Height = 8,
+            Fill = Brush(selected ? BrandRed : Colors.Transparent),
+            Stroke = selected ? null : Brush(ink),
+            StrokeThickness = selected ? 0 : 1,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            VerticalAlignment = VerticalAlignment.Center,
+        };
+        var tile = new Border { Width = 22, Height = 22, Child = square };
+        AutomationProperties.SetAccessibilityView(tile, Microsoft.UI.Xaml.Automation.Peers.AccessibilityView.Raw);
         var row = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
         row.Children.Add(tile);
         row.Children.Add(Label(title, 13));
-        var button = Option(row, tint, 0, choose, selected, on => SetTileHover(tile, icon, tint, on));
+        var button = Option(row, tint, 0, choose, selected, on => square.Stroke = Brush(on ? paper : ink));
         AutomationProperties.SetName(button, title);
         return button;
     }
@@ -766,7 +802,18 @@ internal sealed partial class MainShell
         else if (_kind == PageKind.Account)
         {
             _title.Text = Loc.T("Mon compte");
-            _scroll.Content = _account.Content(_columns);
+            var account = _account.Content(_columns);
+            if (_account.Session is null)
+            {
+                // Sans compte : le choix du thème reste là, sous la page (connecté : sous le profil).
+                var theme = AccountPage.ThemeChoice(Theme, ChooseTheme);
+                theme.Margin = new Thickness(26, 0, 26, 24);
+                _scroll.Content = new StackPanel { Children = { account, theme } };
+            }
+            else
+            {
+                _scroll.Content = account;
+            }
             return;
         }
         else if (_kind == PageKind.Help)

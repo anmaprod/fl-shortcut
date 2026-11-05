@@ -612,7 +612,8 @@ struct EditorView: View {
                 VStack(alignment: .leading, spacing: 14) {
                     SidebarGroup(Text("FL Studio")) {
                         ForEach(FLSection.allCases) { section in
-                            SidebarLabel(title: Text(section.title), symbol: section.symbol, tint: section.tint)
+                            SidebarLabel(title: Text(section.title), symbol: section.symbol, tint: section.tint,
+                                         selected: isShown(.section(section)))
                                 .sidebarRow(section.tint, selected: isShown(.section(section))) { choose(.section(section)) }
                                 .help(section.subtitle)
                         }
@@ -667,7 +668,7 @@ struct EditorView: View {
     }
 
     private func sidebarItem(_ item: SidebarItem, _ title: Text) -> some View {
-        SidebarLabel(title: title, symbol: item.symbol, tint: item.tint)
+        SidebarLabel(title: title, symbol: item.symbol, tint: item.tint, selected: isShown(item))
             .sidebarRow(item.tint, selected: isShown(item)) { choose(item) }
     }
 
@@ -1402,11 +1403,11 @@ private struct SectionHeader: View {
     let tint: Color
     let title: String
 
-    /// Le petit carré de sa couleur, comme dans la barre de gauche (02/11 : « les anciens logos… je veux les carrés
-    /// colorés comme tu as mis »), puis le nom en petites capitales.
+    /// Le carré de la page, comme dans la barre de gauche (02/11 : « les anciens logos… je veux les carrés » ; creux
+    /// depuis le 05/11, proposition A), puis le nom en petites capitales.
     var body: some View {
         HStack(spacing: 10) {
-            Rectangle().fill(tint).frame(width: 8, height: 8).accessibilityHidden(true)
+            PageSquare()
             Text(title).swissLabel(Swiss.text, size: 11)
         }
     }

@@ -174,18 +174,40 @@ struct SidebarGroup<Content: View>: View {
     }
 }
 
-/// Une ligne de la barre de gauche (style suisse) : un petit carré de sa couleur, puis le nom.
+/// Une ligne de la barre de gauche (style suisse) : le carré de la page (PageSquare), puis le nom.
 struct SidebarLabel: View {
     let title: Text
     let symbol: String
     let tint: Color
+    /// Page ouverte : son carré est rouge.
+    var selected = false
 
     var body: some View {
         HStack(spacing: 10) {
-            Rectangle().fill(tint).frame(width: 8, height: 8).accessibilityHidden(true)
+            PageSquare(selected: selected)
             title.font(.system(size: 13)).lineLimit(1)
             Spacer(minLength: 0)
         }
+    }
+}
+
+/// Carré d'une page (barre de gauche, résultats de la recherche), proposition A choisie le 05/11 (« le A est
+/// parfait ») à la place d'une couleur par page : creux, d'un trait fin à l'encre ; plein du rouge de la marque pour
+/// la page ouverte. Ligne survolée (pleine d'encre) : le trait prend la couleur du fond.
+struct PageSquare: View {
+    var selected = false
+    @Environment(\.hoverFilled) private var filled
+
+    var body: some View {
+        Group {
+            if selected {
+                Rectangle().fill(Swiss.brandRed)
+            } else {
+                Rectangle().strokeBorder(filled ? Swiss.background : Swiss.text, lineWidth: 1)
+            }
+        }
+        .frame(width: 8, height: 8)
+        .accessibilityHidden(true)
     }
 }
 

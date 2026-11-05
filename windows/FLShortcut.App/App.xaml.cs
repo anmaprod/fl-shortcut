@@ -54,7 +54,14 @@ public partial class App : Application
             Photos.Take(folder, () => new AppController(ui));
             return;
         }
-        _single = new Mutex(initiallyOwned: true, @"Local\FLShortcut.SingleInstance", out var created);
+        // Relancée après un changement de thème (MainShell.ChooseTheme) : attend que l'ancienne copie soit partie.
+        var relaunch = Environment.GetCommandLineArgs().Any(a => string.Equals(a, "--theme-relaunch", StringComparison.OrdinalIgnoreCase));
+        _single = new Mutex(initiallyOwned: !relaunch, @"Local\FLShortcut.SingleInstance", out var created);
+        if (relaunch)
+        {
+            try { created = _single.WaitOne(TimeSpan.FromSeconds(15)); }
+            catch (AbandonedMutexException) { created = true; }    // l'ancienne copie est partie : la main est à nous
+        }
         if (!created)
         {
             // Une autre instance tourne déjà : on ne crée ni hook ni port en double ; elle montre où est son icône.
@@ -63,12 +70,17 @@ public partial class App : Application
             return;
         }
         Services.AppLogFile.Install();              // journal des macros et de l'Organiser (mots fixes et nombres)
+        // Le thème choisi (Mon compte), avant la première fenêtre : les pages sont construites dans ses couleurs.
+        MacLook.Theme = FLShortcut.Core.ThemePalette.Parse(Services.AppSettings.Load().Theme);
         _window = new MainWindow();
         // Comme le Mac (03/11) : FL Shortcuts vit dans la zone de notification ; la fenêtre au premier lancement
-        // seulement. « --tray » (démarrage de Windows) : jamais de fenêtre ni de bulle.
-        var startHidden = Environment.GetCommandLineArgs().Any(a => string.Equals(a, "--tray", StringComparison.OrdinalIgnoreCase))
-                          || !_window.ShowAtLaunch;
+        // seulement. « --tray » (démarrage de Windows) : jamais de fenêtre ni de bulle. Relancée pour le thème : sur
+        // Mon compte, là où il a été choisi.
+        var startHidden = !relaunch
+                          && (Environment.GetCommandLineArgs().Any(a => string.Equals(a, "--tray", StringComparison.OrdinalIgnoreCase))
+                              || !_window.ShowAtLaunch);
         if (!startHidden) _window.Activate();
+        if (relaunch) _window.ShowPage("compte");
         _window.Launched(windowShown: !startHidden);
     }
 }

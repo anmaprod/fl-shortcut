@@ -125,6 +125,128 @@ internal sealed class AccountPage
         _render();
     }
 
+    /// Carte « Thème » (MainShell), posée sous le profil quand on est connecté.
+    public Func<FrameworkElement>? ThemeCard { get; set; }
+
+    /// Choix du thème (demande du 04/11, comme le Mac) : trois aperçus, Noir, Papier, Orange ; le choisi entouré et
+    /// soulevé sur son ombre rouge ; un clic le prend (MainShell.ChooseTheme relance l'app dans ce thème).
+    public static FrameworkElement ThemeChoice(AppTheme current, Action<AppTheme> choose)
+    {
+        var tiles = new Grid { ColumnSpacing = 12 };
+        var themes = Enum.GetValues<AppTheme>();
+        for (var i = 0; i < themes.Length; i++)
+        {
+            tiles.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            var tile = ThemeTile(themes[i], themes[i] == current, choose);
+            Grid.SetColumn(tile, i);
+            tiles.Children.Add(tile);
+        }
+        var label = SwissLabel(Loc.T("Thème"));
+        AutomationProperties.SetHeadingLevel(label, Microsoft.UI.Xaml.Automation.Peers.AutomationHeadingLevel.Level2);
+        return new Border
+        {
+            Child = new StackPanel { Spacing = 12, Children = { label, tiles } },
+            MaxWidth = 560,
+            HorizontalAlignment = HorizontalAlignment.Left,
+            Padding = new Thickness(22, 20, 26, 20),
+            Background = Brush(MacLook.WindowColor),
+            BorderBrush = Brush(LineColor),
+            BorderThickness = new Thickness(1),
+        };
+    }
+
+    public static string ThemeTitle(AppTheme theme) => theme switch
+    {
+        AppTheme.Papier => Loc.T("Papier"),
+        AppTheme.Orange => Loc.T("Orange"),
+        _ => Loc.T("Noir"),
+    };
+
+    /// Un thème : son petit aperçu dans ses propres couleurs (barre de gauche, titre, texte, rond de la marque) et son nom.
+    private static FrameworkElement ThemeTile(AppTheme theme, bool selected, Action<AppTheme> choose)
+    {
+        var (page, side, sideLine, sideInk, ink, frame) = theme switch
+        {
+            AppTheme.Papier => (0xFFFFFFu, 0xFFFFFFu, 0xCFCFCFu, 0x000000u, 0x000000u, 0xCFCFCFu),
+            AppTheme.Orange => (ThemePalette.BrandRed, 0x000000u, 0x000000u, 0xFFFFFFu, 0x000000u, 0x000000u),
+            _ => (0x000000u, 0x000000u, 0x333333u, 0xFFFFFFu, 0xFFFFFFu, 0x333333u),
+        };
+        static Color C(uint rgb, double opacity = 1) =>
+            Color.FromArgb((byte)Math.Round(opacity * 255), (byte)(rgb >> 16), (byte)(rgb >> 8), (byte)rgb);
+        static Microsoft.UI.Xaml.Shapes.Rectangle Bar(double width, double height, Color color) =>
+            new() { Width = width, Height = height, Fill = Brush(color), HorizontalAlignment = HorizontalAlignment.Left };
+
+        var preview = new Grid { Height = 62, Background = Brush(C(page)) };
+        preview.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(32, GridUnitType.Star) });
+        preview.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(68, GridUnitType.Star) });
+        preview.Children.Add(new Border
+        {
+            Background = Brush(C(side)),
+            BorderBrush = Brush(C(sideLine)),
+            BorderThickness = new Thickness(0, 0, 1, 0),
+            Padding = new Thickness(5, 8, 5, 8),
+            Child = new StackPanel
+            {
+                Spacing = 5,
+                Children = { Bar(24, 4, C(sideInk)), Bar(18, 4, C(sideInk, 0.45)), Bar(21, 4, C(sideInk, 0.45)) },
+            },
+        });
+        var body = new StackPanel
+        {
+            Spacing = 6,
+            Padding = new Thickness(8),
+            Children =
+            {
+                Bar(46, 9, C(ink)), Bar(66, 4, C(ink, 0.4)),
+                new Microsoft.UI.Xaml.Shapes.Ellipse { Width = 11, Height = 11, Fill = Brush(BrandRed), HorizontalAlignment = HorizontalAlignment.Left },
+            },
+        };
+        Grid.SetColumn(body, 1);
+        preview.Children.Add(body);
+
+        var footer = new Grid { Padding = new Thickness(2, 0, 2, 0) };
+        footer.Children.Add(Label(ThemeTitle(theme), 14, Text, bold: true));
+        if (selected)
+        {
+            var check = Icon("check", 11, Text);
+            check.HorizontalAlignment = HorizontalAlignment.Right;
+            footer.Children.Add(check);
+        }
+        var inner = new StackPanel
+        {
+            Spacing = 8,
+            Padding = new Thickness(6),
+            Background = Brush(MacLook.WindowColor),
+            Children = { new Border { Child = preview, BorderBrush = Brush(C(frame)), BorderThickness = new Thickness(1) }, footer },
+        };
+        var frameBorder = new Border
+        {
+            Child = inner,
+            BorderBrush = Brush(selected ? Text : LineColor),
+            BorderThickness = new Thickness(selected ? 2 : 1),
+        };
+        var holder = new Grid();
+        if (selected)
+        {
+            // Soulevé sur son ombre rouge, comme le Mac.
+            holder.Children.Add(new Border { Background = Brush(BrandRed), Margin = new Thickness(4, 4, -4, -4) });
+            frameBorder.Margin = new Thickness(-3, -3, 3, 3);
+        }
+        holder.Children.Add(frameBorder);
+        var button = new Button
+        {
+            Style = PlainButton,
+            Content = holder,
+            Padding = new Thickness(0),
+            HorizontalAlignment = HorizontalAlignment.Stretch,
+            HorizontalContentAlignment = HorizontalAlignment.Stretch,
+        };
+        button.Click += (_, _) => choose(theme);
+        AutomationProperties.SetName(button, ThemeTitle(theme));
+        ToolTipService.SetToolTip(button, ThemeTitle(theme));
+        return button;
+    }
+
     public FrameworkElement Content(int columns)
     {
         _submit = null;
@@ -678,6 +800,7 @@ internal sealed class AccountPage
     {
         var page = new StackPanel { Spacing = 14, Padding = new Thickness(26, 10, 26, 24) };
         page.Children.Add(_editing ? EditCard(session) : ProfileCard(session));
+        if (ThemeCard is { } theme) page.Children.Add(theme());
         if (_notice is not null) page.Children.Add(Paragraph(_notice, 12, Text));
 
         if (_backup is { } backup)

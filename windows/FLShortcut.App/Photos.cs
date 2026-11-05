@@ -1,7 +1,7 @@
 // Mode photos de la CI (`--photos <dossier>`) : la fenêtre principale (plusieurs pages, dont Macros avec des macros d'exemple
 // en mémoire : liste et créateur), le menu de l'icône, puis chaque écran de l'Organiser avec des sons d'exemple
 // (OrganizerController.ShowDemo) et son tuto, enregistrés en PNG, puis l'appli se ferme. Rien n'est envoyé à FL, aucun hook ni port MIDI n'est ouvert, aucune macro
-// n'est écrite ; seuls des « principale*.png », « menu-icone.png », des « organiser-<écran>.png » et des « macros-<écran>.png » sont écrits, dans
+// n'est écrite ; seuls des « principale*.png », « menu-icone.png », « theme-<thème>-<page>.png », des « organiser-<écran>.png » et des « macros-<écran>.png » sont écrits, dans
 // un dossier qui existe déjà.
 using System.Runtime.InteropServices.WindowsRuntime;
 using Microsoft.UI.Xaml;
@@ -74,6 +74,27 @@ internal static class Photos
                 }
             }
             main.Close();
+            // Thèmes Papier et Orange (04/11) : une page de raccourcis et Mon compte (le choix du thème), puis Noir.
+            foreach (var theme in new[] { FLShortcut.Core.AppTheme.Papier, FLShortcut.Core.AppTheme.Orange })
+            {
+                MacLook.Theme = theme;
+                var key = FLShortcut.Core.ThemePalette.Key(theme);
+                var themed = new MainWindow(photos: true);
+                themed.Activate();
+                await Task.Delay(1500);
+                foreach (var (page, name) in new[] { ("playlist", $"theme-{key}-raccourcis"), ("compte", $"theme-{key}-compte") })
+                {
+                    themed.ShowPage(page);
+                    await Task.Delay(800);
+                    if (themed.Content is UIElement themedContent)
+                    {
+                        await Save(themedContent, Path.Combine(folder, name + ".png"));
+                        Note($"{name} : photo");
+                    }
+                }
+                themed.Close();
+            }
+            MacLook.Theme = FLShortcut.Core.AppTheme.Noir;
             // Le menu de l'icône (noir, comme le Mac).
             Note("menu-icone : création");
             var menu = TrayMenu.Demo();

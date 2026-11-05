@@ -620,7 +620,8 @@ struct MacroSidebarRow: View {
     let choose: () -> Void
 
     var body: some View {
-        SidebarLabel(title: Text("Macros"), symbol: SidebarItem.macros.symbol, tint: SidebarItem.macros.tint)
+        SidebarLabel(title: Text("Macros"), symbol: SidebarItem.macros.symbol, tint: SidebarItem.macros.tint,
+                     selected: selected)
             .sidebarRow(SidebarItem.macros.tint, selected: selected, choose: choose)
             .help(MacroPageText.subtitle)
     }

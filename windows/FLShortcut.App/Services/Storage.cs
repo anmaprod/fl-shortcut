@@ -138,6 +138,8 @@ internal sealed class AppSettings
     public string? BackupAccount { get; set; }
     public long? BackupRevision { get; set; }
     public bool BackupDirty { get; set; }
+    /// Thème de l'app (04/11) : « noir », « papier » ou « orange », comme le Mac (ThemePalette.Parse ; rien : Noir).
+    public string? Theme { get; set; }
 
     private static string FilePath => Path.Combine(AppPaths.Local, "settings.json");
 
