@@ -3119,10 +3119,14 @@ final class ReleaseOnce {
 }
 
 /// « Couleurs de base » (Options de l'Organiser, 05/11) : une ligne par famille, ses couleurs proposées ; la choisie
-/// entourée d'encre. Gardée tout de suite : chaque Organiser suivant part de ces couleurs.
+/// entourée d'encre. Gardée tout de suite : chaque Organiser suivant part de ces couleurs. Au bout de chaque ligne, un
+/// « + » ouvre la roue des couleurs de FL (05/11 : « il faut + la roue de couleur qu'il y a déjà ») ; une couleur prise
+/// dans la roue s'y montre, entourée.
 private struct BaseColorsSheet: View {
     @ObservedObject var controller: OrganizerController
     @Environment(\.dismiss) private var dismiss
+    /// La famille dont la roue est ouverte.
+    @State private var wheelFor: SoundFamily?
 
     private let families: [SoundFamily] = [.drums, .bass, .melody, .vocals, .fx]
 
@@ -3149,6 +3153,7 @@ private struct BaseColorsSheet: View {
                                 .buttonStyle(.plain)
                                 .accessibilityLabel(family.label + " #" + color.hex)
                             }
+                            wheelButton(family, current: current)
                         }
                     }
                     .frame(minHeight: 46)
@@ -3166,7 +3171,37 @@ private struct BaseColorsSheet: View {
             .padding(.top, 6)
         }
         .padding(24)
-        .frame(width: 520)
+        .frame(width: 560)
+    }
+
+    /// Le « + » d'une famille : la roue des couleurs de FL dans une bulle. Si la couleur de la famille vient de la roue,
+    /// la case la montre, entourée comme une couleur choisie.
+    private func wheelButton(_ family: SoundFamily, current: RGBColor) -> some View {
+        let custom = !FamilyStyles.palette.contains(current)
+        let open = Binding(get: { wheelFor == family }, set: { if !$0 { wheelFor = nil } })
+        return Button { wheelFor = family } label: {
+            ZStack {
+                Rectangle().fill(custom ? swiftColor(current) : Swiss.background)
+                if !custom {
+                    Text(verbatim: "+").font(Swiss.font(17)).foregroundColor(Swiss.text)
+                }
+            }
+            .frame(width: 24, height: 24)
+            .overlay(Rectangle().strokeBorder(Swiss.text, lineWidth: custom ? 2 : 1.5))
+            .padding(2)
+            .overlay(Rectangle().strokeBorder(custom || wheelFor == family ? Swiss.text : Color.clear, lineWidth: 1))
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .help(String(localized: "Choisir dans la roue des couleurs de FL"))
+        .accessibilityLabel(family.label + " : " + String(localized: "Choisir dans la roue des couleurs de FL"))
+        .popover(isPresented: open, arrowEdge: .trailing) {
+            FLColorSelector(initial: current) { picked in
+                controller.setBaseColor(family, picked)
+                wheelFor = nil
+            }
+            .background(Swiss.background)
+        }
     }
 }
 

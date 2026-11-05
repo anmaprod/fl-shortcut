@@ -1280,6 +1280,7 @@ internal sealed class OrganizerWindow : Window
                     AutomationProperties.SetName(swatch, family.Label() + " #" + picked.Hex);
                     swatches.Children.Add(swatch);
                 }
+                swatches.Children.Add(WheelButton(family, current, Fill));
                 Grid.SetColumn(swatches, 1);
                 row.Children.Add(swatches);
                 rows.Children.Add(row);
@@ -1299,5 +1300,53 @@ internal sealed class OrganizerWindow : Window
         };
         await dialog.ShowAsync();
         Render();
+    }
+
+    /// Le « + » au bout d'une ligne des couleurs de base (05/11 : « il faut + la roue de couleur qu'il y a déjà ») :
+    /// la roue des couleurs dans une bulle, comme le choix de couleur d'une famille. Une couleur prise dans la roue
+    /// s'y montre, entourée comme une couleur choisie.
+    private Button WheelButton(SoundFamily family, RgbColor current, Action refresh)
+    {
+        var custom = !FamilyStyles.Palette.Contains(current);
+        var face = new Border
+        {
+            Background = Brush(custom ? ColorOf(current) : WindowColor),
+            BorderBrush = Brush(Text),
+            BorderThickness = new Thickness(custom ? 2 : 1.5),
+            Child = custom ? null : new TextBlock
+            {
+                Text = "+", FontSize = 17, FontWeight = Microsoft.UI.Text.FontWeights.Bold, Foreground = Brush(Text),
+                HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(0, -3, 0, 0),
+            },
+        };
+        var button = new Button
+        {
+            Style = PlainButton,
+            Width = 28,
+            Height = 28,
+            Padding = new Thickness(custom ? 2 : 0),
+            BorderBrush = Brush(Text),
+            BorderThickness = new Thickness(custom ? 1 : 0),
+            Content = face,
+        };
+        var picker = new ColorPicker
+        {
+            Color = ColorOf(current), ColorSpectrumShape = ColorSpectrumShape.Ring, IsAlphaEnabled = false,
+            IsMoreButtonVisible = false, IsColorChannelTextInputVisible = false, IsHexInputVisible = true,
+        };
+        var flyout = new Flyout { Content = picker };
+        flyout.Closed += (_, _) =>
+        {
+            var c = picker.Color;
+            var picked = new RgbColor(c.R, c.G, c.B);
+            if (picked == current) return;
+            _controller.SetBaseColor(family, picked);
+            refresh();
+        };
+        button.Flyout = flyout;
+        ToolTipService.SetToolTip(button, Loc.T("Choisir une autre couleur"));
+        AutomationProperties.SetName(button, family.Label() + " : " + Loc.T("Choisir une autre couleur"));
+        return button;
     }
 }

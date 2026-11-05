@@ -70,38 +70,32 @@ internal sealed partial class MainShell
         ShowScreen();
     }
 
-    /// Icône de l'appli (« fl. » choisie le 05/11, marque/icone-app-fl.svg), comme l'accueil du Mac qui montre l'icône
-    /// de l'app : tuile noire aux coins arrondis, « fl » en blanc, le point carré en rouge, en bas à gauche. Les lettres
-    /// sont les tracés de la police (Nimbus Sans Bold), dessinés sur une toile de 1024 ramenée à `size`.
-    private static FrameworkElement AppIcon(double size)
+    /// Le rond de l'accueil (05/11, « je veux que tu remettes le rond », comme le Mac) : le grand cercle décalé à
+    /// l'encre, un jour, le rond rouge ; sous Orange, le rond a un trait noir et son ombre noire décalée, comme les
+    /// boutons. Dessiné sur une toile de 1024 ramenée à `size`.
+    private static FrameworkElement BrandRound(double size)
     {
         var canvas = new Canvas { Width = 1024, Height = 1024 };
-        canvas.Children.Add(new Microsoft.UI.Xaml.Shapes.Rectangle
+        var orange = Theme == AppTheme.Orange;
+        Microsoft.UI.Xaml.Shapes.Ellipse Circle(double cx, double cy, double r)
         {
-            Width = 824, Height = 824, RadiusX = 185, RadiusY = 185, Fill = Brush(Colors.Black),
-        });
-        Canvas.SetLeft(canvas.Children[0], 100);
-        Canvas.SetTop(canvas.Children[0], 100);
-        foreach (var (data, color, x) in new[]
-                 {
-                     ("M313 529H230V582C230 610 242 624 268 624C281 624 294 623 308 621V726C278 728 249 729 228 729C135 729 90 685 90 594V529H14V436H90V0H230V436H313Z", Colors.White, 210.97),
-                     ("M207 729H67V0H207Z", Colors.White, 380.53),
-                     ("M214 146H64V0H214Z", BrandRed, 515.93),
-                 })
+            var e = new Microsoft.UI.Xaml.Shapes.Ellipse { Width = 2 * r, Height = 2 * r };
+            Canvas.SetLeft(e, cx - r);
+            Canvas.SetTop(e, cy - r);
+            canvas.Children.Add(e);
+            return e;
+        }
+        var ring = Circle(590, 440, 365);
+        ring.Stroke = Brush(Text);
+        ring.StrokeThickness = 70;
+        Circle(470, 580, 345).Fill = Brush(WindowColor);
+        if (orange) Circle(510, 620, 290).Fill = Brush(Colors.Black);
+        var dot = Circle(470, 580, 290);
+        dot.Fill = Brush(BrandRed);
+        if (orange)
         {
-            var letter = (Microsoft.UI.Xaml.Shapes.Path)Microsoft.UI.Xaml.Markup.XamlReader.Load(
-                $"<Path xmlns=\"http://schemas.microsoft.com/winfx/2006/xaml/presentation\" Data=\"{data}\"/>");
-            letter.Fill = Brush(color);
-            // Comme le SVG : scale(0,64472 ; −0,64472) puis translate(x, 794).
-            letter.RenderTransform = new TransformGroup
-            {
-                Children =
-                {
-                    new ScaleTransform { ScaleX = 0.64472, ScaleY = -0.64472 },
-                    new TranslateTransform { X = x, Y = 794 },
-                },
-            };
-            canvas.Children.Add(letter);
+            dot.Stroke = Brush(Colors.Black);
+            dot.StrokeThickness = 40;
         }
         var logo = new Viewbox { Width = size, Height = size, Child = canvas, HorizontalAlignment = HorizontalAlignment.Center };
         AutomationProperties.SetAccessibilityView(logo, Microsoft.UI.Xaml.Automation.Peers.AccessibilityView.Raw);
@@ -118,11 +112,11 @@ internal sealed partial class MainShell
         return line;
     }
 
-    /// En tête de l'accueil (maquette) : l'icône « fl. » et « fl shortcuts » en très grand avec son point carré.
+    /// En tête de l'accueil (maquette) : le rond et « fl shortcuts » en très grand avec son point carré.
     private static FrameworkElement WelcomeHead()
     {
         var head = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 18, HorizontalAlignment = HorizontalAlignment.Left };
-        var icon = AppIcon(76);
+        var icon = BrandRound(76);
         icon.VerticalAlignment = VerticalAlignment.Bottom;
         head.Children.Add(icon);
         head.Children.Add(Heading("FL Shortcuts", 60));

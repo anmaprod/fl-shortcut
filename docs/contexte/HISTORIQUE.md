@@ -822,3 +822,9 @@ entrée 1 ≈ 0,5 s.
   couleurs des familles plus franches et « Couleurs de base » dans Options. Maquettes mises à jour (4 pages de plus).
   LISEZMOI refait en français (remerciement, petits jeux : changer une touche, ranger un projet, changer de thème),
   envoyé au propriétaire avant l'anglais.
+
+- 05/11 au soir, commentaires sur les maquettes : « je veux que tu remettes le rond » (accueil) → le rond en couleurs
+  à la place de « fl. » sur l'accueil, maquette et app (Mac `BrandRound`, Windows `MainShellWelcome.BrandRound`) ;
+  « pour cette page il faut + la ronde de couleur qu'il y a déjà » (couleurs de base) → un « + » au bout de chaque
+  ligne ouvre la roue des couleurs (Mac `FLColorSelector`, Windows ColorPicker en anneau) ; une couleur prise dans la
+  roue se montre dans la case, entourée. CI de 67e6181 entièrement verte.

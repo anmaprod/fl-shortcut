@@ -231,9 +231,9 @@ struct OnboardingView: View {
     /// bouton blanc en bas à droite.
     private var permissionStep: some View {
         VStack(alignment: .leading, spacing: 22) {
-            // Maquette du 05/11 : l'icône « fl. » et « fl shortcuts » en très grand avec son point carré.
+            // Maquette du 05/11 : le rond (remis à sa demande) et « fl shortcuts » en très grand avec son point carré.
             HStack(alignment: .bottom, spacing: 18) {
-                AppIcon().frame(width: 76, height: 76)
+                BrandRound().frame(width: 76, height: 76)
                 SwissPageTitle(text: "FL Shortcuts", size: 64)
             }
             .padding(.top, 8)
@@ -468,6 +468,29 @@ private struct StepRow: View {
         .accessibilityElement(children: .combine)
         .accessibilityLabel("Étape \(number) : \(text)")
         .accessibilityValue(done ? String(localized: "fait") : String(localized: "à faire"))
+    }
+}
+
+/// Le rond de l'accueil (05/11 : « je veux que tu remettes le rond ») : le grand cercle décalé à l'encre, un jour, le
+/// rond rouge (le rond de la barre des menus, en couleurs) ; sous Orange, un trait noir autour du rond et son ombre
+/// noire décalée, comme les boutons. Dessiné sur une toile de 1024 ramenée à la taille donnée.
+struct BrandRound: View {
+    var body: some View {
+        let ink = Swiss.text
+        let background = Swiss.background
+        let orange = AppTheme.current == .orange
+        Canvas { ctx, size in
+            let k = min(size.width, size.height) / 1024
+            func circle(_ cx: CGFloat, _ cy: CGFloat, _ r: CGFloat) -> Path {
+                Path(ellipseIn: CGRect(x: (cx - r) * k, y: (cy - r) * k, width: 2 * r * k, height: 2 * r * k))
+            }
+            ctx.stroke(circle(590, 440, 365), with: .color(ink), lineWidth: 70 * k)
+            ctx.fill(circle(470, 580, 345), with: .color(background))
+            if orange { ctx.fill(circle(510, 620, 290), with: .color(.black)) }
+            ctx.fill(circle(470, 580, 290), with: .color(Swiss.brandRed))
+            if orange { ctx.stroke(circle(470, 580, 290), with: .color(.black), lineWidth: 40 * k) }
+        }
+        .accessibilityHidden(true)
     }
 }
 

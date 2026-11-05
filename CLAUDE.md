@@ -284,8 +284,9 @@
   roue : contour blanc égal (tracé en dernier). Icônes (05/11, choix relayé par la session du site
   puis confirmé ici ; fichiers `marque/`) : ICÔNE DE L'APP = « fl. » (lettres blanches grasses serrées, tracés de
   Nimbus Sans Bold, point carré rouge #FF3B1F en bas à gauche, tuile noire 824/1024 coins 185, ombre douce ; 64 px et
-  moins : lettres plus grandes ; Windows .ico : la tuile seule, pleine) ; accueil Windows : le même « fl. » en tracés
-  (`MainShellWelcome.AppIcon`). BARRE DES MENUS DU MAC et zone de notification de Windows : PAS « fl. », le rond A
+  moins : lettres plus grandes ; Windows .ico : la tuile seule, pleine) ; ACCUEIL (Mac et Windows) : le rond en couleurs
+  (« je veux que tu remettes le rond », 05/11 au soir : cercle à l'encre, rond rouge ; Orange : trait et ombre noirs ;
+  `BrandRound`), plus « fl. ». BARRE DES MENUS DU MAC et zone de notification de Windows : PAS « fl. », le rond A
   TOUT BLANC (rond plein + grand cercle décalé en haut à droite, un jour entre eux, `rond-A-barre-blanc.svg`), noir
   sur une barre claire : image modèle de macOS (`MenuBarIcon`, choix du 05/11 « blanc, noir si la barre est claire »),
   `TraySombre.ico`/`TrayClaire.ico` sur Windows (`TrayIcon`). Fabriquées par `scripts/icone.py Resources --ico
@@ -387,7 +388,8 @@
   (Profil + Thème | Sauvegarde ; Se déconnecter, Supprimer mon compte), connexion (`AuthPitch` + formulaire), accueil,
   Communauté comme les maquettes ; Organiser : PLUS DE TUTO, « Installer le lien » en 3 étapes une consigne à la fois
   (`LinkSteps`), plus de trait sous la dernière ligne d'une famille, couleurs des familles du 05/11 (anciennes couleurs
-  de départ remplacées au chargement), Options › « Couleurs de base… ». « Ouvre un VST » : noms du Channel rack
+  de départ remplacées au chargement), Options › « Couleurs de base… » (+ au bout de chaque ligne : la roue des
+  couleurs de FL sur Mac, le ColorPicker en anneau sur Windows). « Ouvre un VST » : noms du Channel rack
   cherchés jusqu'à 240 points à gauche du titre (FL 2025). LISEZMOI (`scripts/lisezmoi_modeles.py` puis
   `scripts/lisezmoi.py`) refait en français, à faire valider avant l'anglais (README-*.html encore l'ancien).
 - **Aspect validé le 28/10** (maquette, `HISTORIQUE`) : plus de Liquid Glass depuis le 29/10 (plaques dessinées), sans lavis ni lueur ; fond de
