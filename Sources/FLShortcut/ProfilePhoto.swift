@@ -121,7 +121,7 @@ struct AvatarView: View {
             }
         }
         .frame(width: size, height: size)
-        .clipShape(Rectangle())
+        .clipShape(Circle())                              // rond, comme les maquettes du 05/11
         .accessibilityHidden(true)
     }
 }

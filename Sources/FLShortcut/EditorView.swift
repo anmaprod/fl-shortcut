@@ -497,40 +497,25 @@ struct EditorView: View {
         }
     }
 
-    /// En-tête de la page (maquette) : le titre en gras à gauche ; à droite, « Partager » en bleu sur la page
-    /// Communauté une fois connecté (maquette du 30/10), puis la capsule : → sur la page Macros (retour dans la
-    /// dernière macro quittée), puis Mon compte. Plus de « + » sur Macros : ses grandes cartes le remplacent.
+    /// En-tête de la page (maquette du 05/11) : le grand titre en minuscules et son point carré à gauche ; à droite,
+    /// « Partager » sur la page Communauté une fois connecté, puis le compte (rond + pseudo dans un cadre plein). Plus
+    /// de flèche « dernière macro » sur Macros (05/11 : « elle est inutile »).
     private var pageHeader: some View {
         HStack(alignment: .bottom, spacing: 12) {
-            // Style suisse (01/11) : grand titre gras, serré, souligné de blanc sur toute la largeur.
-            Text(title)
-                .swissTitle(46)
+            SwissPageTitle(text: title)
                 .accessibilityAddTraits(.isHeader)
             Spacer(minLength: 8)
             if showsShareButton {
                 Button {
                     community.composing = true
                 } label: {
-                    Label("Partager", systemImage: "plus")
+                    Text("Partager")
                 }
                 .primaryButton()
                 .controlSize(.large)
                 .help("Partager une macro ou tes raccourcis")
             }
-            HeaderCapsule {
-                if onMacrosPage, let last = creatorLink.lastClosedID {
-                    HeaderIconButton(symbol: "chevron.forward",
-                                     help: String(localized: "Revenir dans la dernière macro quittée (⌘])")) {
-                        openCreator(last)
-                    }
-                    .keyboardShortcut("]", modifiers: .command)
-                }
-                if let session = community.session {
-                    accountPhotoButton(session)
-                } else {
-                    HeaderIconButton(symbol: "person.crop.circle", help: String(localized: "Mon compte")) { choose(.account) }
-                }
-            }
+            accountCapsule
         }
         .padding(.top, 14)
         .padding(.bottom, 12)
@@ -538,21 +523,20 @@ struct EditorView: View {
         .padding(.horizontal, 26)
     }
 
-    /// Connecté : sa photo (ou son initiale de couleur) à la place de l'icône du compte (maquette du 30/10) ; sur la
-    /// page Mon compte, elle ouvre « Modifier le profil ».
-    private func accountPhotoButton(_ session: CommunitySession) -> some View {
+    /// Le compte en haut à droite (maquette) : un cadre de 2 points à l'encre, plein du fond de la page (aucun trait de
+    /// la grille dedans), le rond de la photo ou de l'initiale, puis le pseudo ; sans compte, « Se connecter ». Sur la
+    /// page Mon compte, connecté : il ouvre « Modifier le profil ».
+    private var accountCapsule: some View {
         let onAccount = isShown(.account)
+        let session = community.session
         return Button {
-            if onAccount { community.editingProfile = true } else { choose(.account) }
+            if onAccount, session != nil { community.editingProfile = true } else { choose(.account) }
         } label: {
-            AvatarView(photo: community.myPhoto, username: session.username, size: 34)
-                .overlay(Rectangle().strokeBorder(Swiss.text, lineWidth: 1))
-                .frame(width: 34, height: 34)
-                .contentShape(Rectangle())
+            HeaderAccountLabel(username: session?.username, photo: community.myPhoto)
         }
         .buttonStyle(.plain)
         .menuHover(tint: Swiss.text, cornerRadius: 0)
-        .help(onAccount ? String(localized: "Modifier le profil") : String(localized: "Mon compte"))
+        .help(onAccount && session != nil ? String(localized: "Modifier le profil") : String(localized: "Mon compte"))
         .accessibilityLabel(String(localized: "Mon compte"))
     }
 
@@ -873,24 +857,52 @@ struct EditorView: View {
         }
     }
 
-    /// « Mes raccourcis » : les raccourcis de FL que tu as changés (une carte par page), puis ceux que tu as créés ou
-    /// importés. Jamais les macros (page Macros) ni les touches de départ.
+    /// « Mes raccourcis » (05/11, « juste action, page, puis raccourci, avec le bouton réinitialiser derrière, pas un
+    /// truc très très grand ») : une seule liste, une ligne courte par raccourci de FL changé puis par raccourci créé
+    /// ou importé. Jamais les macros (page Macros) ni les touches de départ. Toute la ligne ouvre sa fiche.
     private func customList(_ data: CatalogData) -> some View {
         let changed = MyShortcuts.changed(data.rows)
         let created = MyShortcuts.created(data.others, starters: store.freshRemaps())
-        var cards = FLSection.allCases.compactMap { s -> PageCard? in
-            let mine = changed.filter { $0.entry.section == s }
-            return mine.isEmpty ? nil : PageCard(id: "page-" + s.rawValue, title: s.title, lines: .catalog(mine))
-        }
-        if !created.isEmpty {
-            cards.append(PageCard(id: "crees", title: String(localized: "Créés par toi"), lines: .custom(created)))
-        }
         return Group {
-            if cards.isEmpty {
+            if changed.isEmpty && created.isEmpty {
                 EmptyState(symbol: SidebarItem.custom.symbol, title: String(localized: "Aucun raccourci changé"),
                            text: PageSummary.custom)
             } else {
-                cardPage(cards, tint: SidebarItem.custom.tint)
+                ScrollView(.vertical) {
+                    VStack(spacing: 0) {
+                        ForEach(changed) { row in
+                            MineLine(title: row.entry.title, page: row.entry.section.title, combo: row.current,
+                                     issues: row.remap.map { store.issues(for: $0.id) } ?? [],
+                                     onOpen: { editNotice = nil; editingRow = row }) {
+                                ResetButton(enabled: true,
+                                            help: String(localized: "Revenir à : ") + (row.entry.defaultTrigger?.display ?? String(localized: "aucune touche")),
+                                            action: { reset(row) })
+                            }
+                            .mineLineFrame()
+                        }
+                        ForEach(created) { remap in
+                            MineLine(title: remap.title, page: String(localized: "Créé par toi"), combo: remap.trigger,
+                                     issues: store.issues(for: remap.id),
+                                     onOpen: { editingIsNew = false; editing = remap }) {
+                                Button { delete(remap) } label: {
+                                    Image(systemName: "trash").font(.system(size: 12, weight: .medium))
+                                        .frame(width: 28, height: 28).contentShape(Rectangle())
+                                }
+                                .buttonStyle(RowActionStyle())
+                                .help("Supprimer")
+                                .accessibilityLabel(String(localized: "Supprimer"))
+                            }
+                            .opacity(remap.enabled ? 1 : 0.55)
+                            .mineLineFrame()
+                        }
+                    }
+                    .swissCard(padding: 14)
+                    .frame(maxWidth: 760, alignment: .leading)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, 26)
+                    .padding(.top, 10)
+                    .padding(.bottom, 24)
+                }
             }
         }
     }
@@ -958,7 +970,6 @@ struct EditorView: View {
 
     /// Page affichée (pendant une recherche : aucune des pages de la capsule).
     private var page: SidebarItem { trimmedQuery.isEmpty ? (selection ?? .section(.general)) : .custom }
-    private var onMacrosPage: Bool { page == .macros }
 
     /// Bouton clavier dans la recherche : appuie sur un raccourci, la recherche montre ce qu'il fait (pour qui
     /// connaît ses touches mais pas le nom du raccourci). Échap annule.
@@ -1250,10 +1261,52 @@ private struct CatalogRowView: View {
             .accessibilityLabel("Changer la touche de \(row.entry.title)")
             .accessibilityValue(row.current?.spoken ?? String(localized: "aucune"))
         }
+        // Toute la ligne ouvre la fiche (05/11, « si tu cliques sur ce bouton-là, qui est entouré en blanc, ça doit
+        // s'ouvrir ») ; ↺ et la touche gardent leur bouton.
+        .frame(maxWidth: .infinity, minHeight: 32, alignment: .leading)
+        .contentShape(Rectangle())
+        .onTapGesture(perform: onEdit)
         .contextMenu {
             Button("Changer la touche…", action: onEdit)
             Button("Réinitialiser", action: onReset).disabled(row.isDefault)
         }
+    }
+}
+
+/// Une ligne de « Mes raccourcis » : l'action en gras, sa page en gris, la touche, puis le bouton qui suit (↺ ou
+/// Supprimer). Toute la ligne ouvre la fiche.
+private struct MineLine<Trailing: View>: View {
+    let title: String
+    let page: String
+    let combo: KeyCombo?
+    let issues: [ShortcutIssue]
+    let onOpen: () -> Void
+    @ViewBuilder let trailing: () -> Trailing
+
+    var body: some View {
+        HStack(spacing: 12) {
+            Text(title).font(Swiss.font(13.5)).lineLimit(1).layoutPriority(-1)
+            Text(page).font(.system(size: 12)).foregroundStyle(Swiss.gray).lineLimit(1).layoutPriority(-2)
+            Spacer(minLength: 12)
+            if !issues.isEmpty { IssueIcon(issues: issues) }
+            Button(action: onOpen) { KeyLabel(combo: combo, accent: true) }
+                .buttonStyle(.plain)
+                .help("Changer la touche")
+                .accessibilityLabel("Changer la touche de \(title)")
+            trailing()
+        }
+        .frame(maxWidth: .infinity, minHeight: 40, alignment: .leading)
+        .contentShape(Rectangle())
+        .onTapGesture(perform: onOpen)
+    }
+}
+
+private extension View {
+    /// Marges, trait fin dessous et survol plein d'une ligne de « Mes raccourcis ».
+    func mineLineFrame() -> some View {
+        padding(.horizontal, 6)
+            .swissRule(Swiss.faint)
+            .menuHover(tint: Swiss.text, cornerRadius: 0)
     }
 }
 
@@ -1304,6 +1357,9 @@ private struct ShortcutRow: View {
         }
         .padding(.vertical, 4)
         .opacity(remap.enabled ? 1 : 0.55)
+        .frame(maxWidth: .infinity, minHeight: 32, alignment: .leading)
+        .contentShape(Rectangle())
+        .onTapGesture(perform: onOpen)
         .contextMenu {
             Button("Modifier…", action: onOpen)
             Button(remap.enabled ? String(localized: "Désactiver") : String(localized: "Activer"), action: onToggle)
@@ -1470,6 +1526,26 @@ struct EditSheet: View {
         return !store.draftIssues(draft).contains(where: \.isBlocking)
     }
 
+    /// Titre de la fiche : le nom de la macro, de l'action ou du raccourci ; « nouveau raccourci » pour un nouveau.
+    private var headerTitle: String {
+        if isNew { return String(localized: "Nouveau raccourci") }
+        if draft.kind == .macro, let ref = draft.macroRef, let doc = store.library.doc(ref) {
+            return doc.name.displaySafe(max: 40)
+        }
+        if draft.kind == .flAction, let id = draft.actionID, let info = FLActions.info(id) { return info.label }
+        return draft.title
+    }
+
+    /// Rubrique au-dessus du titre : la sorte de raccourci (ou la page d'un nouveau).
+    private var headerLabel: String {
+        if isNew { return draft.page?.title ?? String(localized: "Modifier le raccourci") }
+        switch draft.kind {
+        case .flAction: return String(localized: "Action dans FL")
+        case .keystroke: return String(localized: "Touche de FL")
+        case .macro: return String(localized: "Macro")
+        }
+    }
+
     private var kindSymbol: String {
         switch draft.kind {
         case .flAction: return "bolt"
@@ -1480,40 +1556,55 @@ struct EditSheet: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            SheetHeader(symbol: kindSymbol, tint: SidebarItem.custom.tint,
-                        title: isNew ? String(localized: "Nouveau raccourci") + (draft.page.map { " · " + $0.title } ?? "")
-                                     : String(localized: "Modifier le raccourci"))
+            SheetHeader(symbol: kindSymbol, tint: SidebarItem.custom.tint, title: headerTitle, subtitle: headerLabel)
 
-            Form {
-                LabeledContent("Raccourci") {
-                    VStack(alignment: .leading, spacing: 6) {
-                        CaptureField(id: "\(draft.id)-trigger", role: .trigger, combo: $draft.trigger)
-                        if !issues.isEmpty && recorder.activeID == nil {
-                            IssuesView(issues: issues)
-                        }
+            // 05/11 (« on s'y perd… juste le bouton raccourci et puis c'est fini ») : une fiche ouverte sur un raccourci
+            // qui existe ne montre que sa touche (et le créateur pour une macro) ; le choix du type, seulement pour un
+            // nouveau raccourci.
+            SheetRow(String(localized: "Raccourci")) {
+                CaptureField(id: "\(draft.id)-trigger", role: .trigger, combo: $draft.trigger)
+                if !issues.isEmpty && recorder.activeID == nil {
+                    IssuesView(issues: issues)
+                }
+            }
+            if isNew {
+                Form {
+                    SwissSegmented(selection: $draft.kind, options: [
+                        (value: Remap.Kind.flAction, label: String(localized: "Action dans FL")),
+                        (value: Remap.Kind.keystroke, label: String(localized: "Touche de FL")),
+                        (value: Remap.Kind.macro, label: String(localized: "Macro")),
+                    ], title: String(localized: "Type"))
+                    switch draft.kind {
+                    case .flAction: actionFields
+                    case .keystroke: keystrokeFields
+                    case .macro: MacroFields(macro: macroBinding, customize: { customizeTemplate() })
                     }
                 }
-                SwissSegmented(selection: $draft.kind, options: [
-                    (value: Remap.Kind.flAction, label: String(localized: "Action dans FL")),
-                    (value: Remap.Kind.keystroke, label: String(localized: "Touche de FL")),
-                    (value: Remap.Kind.macro, label: String(localized: "Macro")),
-                ], title: String(localized: "Type"))
-
+                .formStyle(.columns)
+            } else {
                 switch draft.kind {
-                case .flAction: actionFields
-                case .keystroke: keystrokeFields
+                case .flAction:
+                    EmptyView()
+                case .keystroke:
+                    SheetRow(String(localized: "Touche de FL")) {
+                        CaptureField(id: "\(draft.id)-target", role: .target, combo: $draft.target)
+                    }
                 case .macro:
                     if let ref = draft.macroRef {
-                        LibraryMacroFields(library: store.library, ref: ref) {
-                            dismiss()
-                            openCreator(ref)
+                        if let doc = store.library.doc(ref) {
+                            OpenCreatorRow(name: doc.name.displaySafe(max: 60)) {
+                                dismiss()
+                                openCreator(ref)
+                            }
+                        } else {
+                            Text("Macro introuvable (supprimée ?)").font(.system(size: 12)).foregroundStyle(Swiss.gray)
                         }
                     } else {
-                        MacroFields(macro: macroBinding, customize: { customizeTemplate() })
+                        Form { MacroFields(macro: macroBinding, customize: { customizeTemplate() }) }
+                            .formStyle(.columns)
                     }
                 }
             }
-            .formStyle(.columns)
 
             HStack(spacing: 8) {
                 if !isNew {
@@ -1548,7 +1639,7 @@ struct EditSheet: View {
                 .disabled(!canSave)
             }
         }
-        .padding(20)
+        .padding(24)
         .frame(width: 500)
         .onDisappear { recorder.stop() }
     }
@@ -1673,7 +1764,8 @@ struct EditSheet: View {
     }
 }
 
-/// En-tête des fiches : icône colorée et titre gras aligné à gauche (typographie de macOS 26, WWDC25 356).
+/// En-tête des fiches (05/11, « pas avec ce logo-là… le carré ») : la rubrique en petites capitales grises, puis le
+/// titre en minuscules suivi de son point carré. Plus d'icône de couleur. `symbol` et `tint` : gardés pour les appels.
 private struct SheetHeader: View {
     let symbol: String
     let tint: Color
@@ -1681,17 +1773,73 @@ private struct SheetHeader: View {
     var subtitle: String? = nil
 
     var body: some View {
-        HStack(spacing: 12) {
-            SectionIcon(symbol: symbol, tint: tint, size: 34)
-            VStack(alignment: .leading, spacing: 1) {
-                Text(title).font(Swiss.title(22)).tracking(Swiss.titleTracking(22))
-                if let subtitle {
-                    Text(subtitle).font(.system(size: 11)).foregroundStyle(.secondary)
-                }
+        VStack(alignment: .leading, spacing: 6) {
+            if let subtitle {
+                Text(subtitle).swissLabel()
             }
+            SwissPageTitle(text: title, size: 30)
         }
+        .padding(.bottom, 12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .swissRule()
         .accessibilityElement(children: .combine)
         .accessibilityAddTraits(.isHeader)
+    }
+}
+
+/// Ligne d'une fiche (style suisse) : le nom en petites capitales à gauche, le champ à droite, un trait fin dessous.
+private struct SheetRow<Content: View>: View {
+    let title: String
+    @ViewBuilder let content: () -> Content
+
+    init(_ title: String, @ViewBuilder content: @escaping () -> Content) {
+        self.title = title
+        self.content = content
+    }
+
+    var body: some View {
+        HStack(alignment: .firstTextBaseline, spacing: 16) {
+            Text(title).swissLabel().frame(width: 110, alignment: .leading)
+            VStack(alignment: .leading, spacing: 6) { content() }
+                .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .padding(.bottom, 14)
+        .swissRule(Swiss.faint)
+    }
+}
+
+/// « Ouvrir dans le créateur » (05/11, « faire un truc plus beau ») : une grande ligne bordée, le carré creux, le nom
+/// de la macro, la flèche ; au survol, pleine d'encre.
+private struct OpenCreatorRow: View {
+    let name: String
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) { OpenCreatorLabel(name: name) }
+            .buttonStyle(.plain)
+            .menuHover(tint: Swiss.text, cornerRadius: 0)
+            .accessibilityLabel(String(localized: "Ouvrir dans le créateur"))
+    }
+}
+
+private struct OpenCreatorLabel: View {
+    let name: String
+    @Environment(\.hoverFilled) private var filled
+
+    var body: some View {
+        HStack(spacing: 12) {
+            PageSquare()
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Ouvrir dans le créateur").font(Swiss.font(13)).tracking(1.2).textCase(.uppercase)
+                Text(name).font(.system(size: 12)).foregroundStyle(filled ? Swiss.background : Swiss.gray).lineLimit(1)
+            }
+            Spacer(minLength: 8)
+            Image(systemName: "arrow.right").font(.system(size: 14, weight: .bold))
+        }
+        .padding(.horizontal, 14)
+        .frame(maxWidth: .infinity, minHeight: 54, alignment: .leading)
+        .overlay(Rectangle().strokeBorder(Swiss.text, lineWidth: 1.5))
+        .contentShape(Rectangle())
     }
 }
 
@@ -2063,29 +2211,18 @@ struct CatalogEditSheet: View {
                 .font(.system(size: 12))
             }
 
-            Form {
-                LabeledContent("Touche") {
-                    VStack(alignment: .leading, spacing: 6) {
-                        CaptureField(id: "catalog-\(row.id)", role: .trigger, combo: $combo)
-                        if !clashes.isEmpty && recorder.activeID == nil {
-                            clashList
-                        }
-                        if !issues.isEmpty && recorder.activeID == nil {
-                            IssuesView(issues: issues)
-                        }
-                    }
+            SheetRow(String(localized: "Touche")) {
+                CaptureField(id: "catalog-\(row.id)", role: .trigger, combo: $combo)
+                if !clashes.isEmpty && recorder.activeID == nil {
+                    clashList
                 }
-                LabeledContent("D'origine") {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(row.entry.defaultTrigger?.display ?? String(localized: "Aucune"))
-                        if nativeKey != nil {
-                            Text("Elle continue de marcher dans FL : ta touche s'ajoute.")
-                                .font(.system(size: 11)).foregroundStyle(.secondary)
-                        }
-                    }
+                if !issues.isEmpty && recorder.activeID == nil {
+                    IssuesView(issues: issues)
                 }
             }
-            .formStyle(.columns)
+            SheetRow(String(localized: "D'origine")) {
+                Text(row.entry.defaultTrigger?.display ?? String(localized: "Aucune")).font(Swiss.font(13))
+            }
 
             HStack(spacing: 8) {
                 Button {
@@ -2127,7 +2264,7 @@ struct CatalogEditSheet: View {
                 .disabled(!canSave)
             }
         }
-        .padding(20)
+        .padding(24)
         .frame(width: 480)
         .onDisappear { recorder.stop() }
     }

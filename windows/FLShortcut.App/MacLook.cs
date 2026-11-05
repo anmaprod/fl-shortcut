@@ -158,6 +158,29 @@ internal static class MacLook
         return title;
     }
 
+    /// Grand titre suivi de son point carré, rouge (blanc sous Orange), posé sur la ligne du texte (SwissPageTitle du
+    /// Mac, maquette du 05/11). Le texte se met en minuscules à l'appelant.
+    public static StackPanel PageTitle(TextBlock title, double size)
+    {
+        var side = Math.Round(size * 0.19);
+        var dot = new Rectangle
+        {
+            Width = side,
+            Height = side,
+            Fill = Brush(Red),
+            VerticalAlignment = VerticalAlignment.Bottom,
+            Margin = new Thickness(size * 0.09, 0, 0, Math.Round(size * 0.24)),
+        };
+        AutomationProperties.SetAccessibilityView(dot, Microsoft.UI.Xaml.Automation.Peers.AccessibilityView.Raw);
+        title.VerticalAlignment = VerticalAlignment.Bottom;
+        return new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            VerticalAlignment = VerticalAlignment.Bottom,
+            Children = { title, dot },
+        };
+    }
+
     /// Trait d'un point : blanc sous un titre, #333 entre deux blocs, #222 entre deux lignes (swissRule du Mac).
     public static Rectangle Rule(Color color) => new() { Height = 1, Fill = Brush(color), IsHitTestVisible = false };
 

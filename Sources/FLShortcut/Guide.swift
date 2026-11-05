@@ -95,8 +95,7 @@ struct GuideView: View {
         VStack(spacing: 0) {
             // Style suisse (01/11) : grand titre souligné de blanc, une ligne par partie (numéro, carré de couleur,
             // titre, première étape en gris, flèche).
-            Text("Bienvenue")
-                .swissTitle(46)
+            SwissPageTitle(text: String(localized: "Bienvenue"), size: 46)
                 .padding(.bottom, 12)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .swissRule()
@@ -164,8 +163,7 @@ private struct GuidePageView: View {
             HStack(alignment: .lastTextBaseline, spacing: 14) {
                 MorphIcon(page: page, size: 14, morph: morph, id: MorphIcon.id(page))
                     .alignmentGuide(.lastTextBaseline) { d in d[.bottom] - 4 }
-                Text(page.title)
-                    .swissTitle(40)
+                SwissPageTitle(text: page.title, size: 40)
                     .morphIn(0)
                 Spacer(minLength: 0)
             }

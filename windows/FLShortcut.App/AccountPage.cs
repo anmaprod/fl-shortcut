@@ -1286,7 +1286,14 @@ internal sealed class AccountPage
     /// Photo d'un membre dans un carré ; sans photo, l'initiale de son pseudo sur sa couleur (AvatarView du Mac).
     public static FrameworkElement Avatar(byte[]? jpeg, string username, double size)
     {
-        var grid = new Grid { Width = size, Height = size, Background = Brush(InitialColors[AccountRules.InitialColorIndex(username)]) };
+        // Rond, comme le Mac et les maquettes du 05/11 : l'initiale sur sa couleur, la photo dans un cercle par-dessus.
+        var grid = new Grid
+        {
+            Width = size,
+            Height = size,
+            CornerRadius = new CornerRadius(size / 2),
+            Background = Brush(InitialColors[AccountRules.InitialColorIndex(username)]),
+        };
         var initial = Label(AccountRules.Initial(username), size * 0.46, Colors.Black, bold: true);
         initial.FontFamily = SwissFont;
         initial.HorizontalAlignment = HorizontalAlignment.Center;
@@ -1294,21 +1301,21 @@ internal sealed class AccountPage
         grid.Children.Add(initial);
         if (jpeg is not null)
         {
-            var image = new Image { Stretch = Stretch.UniformToFill, Width = size, Height = size };
-            grid.Children.Add(image);
-            _ = Show(image, jpeg);
+            var brush = new ImageBrush { Stretch = Stretch.UniformToFill };
+            grid.Children.Add(new Microsoft.UI.Xaml.Shapes.Ellipse { Width = size, Height = size, Fill = brush });
+            _ = Show(brush, jpeg);
         }
         AutomationProperties.SetAccessibilityView(grid, Microsoft.UI.Xaml.Automation.Peers.AccessibilityView.Raw);
         return grid;
 
-        static async Task Show(Image image, byte[] jpeg)
+        static async Task Show(ImageBrush brush, byte[] jpeg)
         {
             try
             {
                 using var stream = await ProfilePhotoWin.Stream(jpeg);
                 var bitmap = new BitmapImage();
                 await bitmap.SetSourceAsync(stream);
-                image.Source = bitmap;
+                brush.ImageSource = bitmap;
             }
             catch (Exception) { /* image illisible : l'initiale reste */ }
         }

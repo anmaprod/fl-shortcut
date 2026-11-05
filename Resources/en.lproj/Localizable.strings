@@ -332,6 +332,7 @@
 "Autorise « Audio du système »" = "Allow “System Audio”";
 "Autorise « Enregistrement de l'écran et audio du système »" = "Allow “Screen & System Audio Recording”";
 "Autorise « Enregistrement de l'écran » :" = "Allow “Screen Recording”:";
+"Autorise « Enregistrement de l'écran » : les plugins s'ouvriront plus vite." = "Allow “Screen Recording”: plugins will open faster.";
 "Autoriser" = "Allow";
 "Autoriser FL Shortcuts" = "Allow FL Shortcuts";
 "Autoriser…" = "Allow…";
@@ -661,6 +662,7 @@
 "Créer mon compte" = "Create my account";
 "Créer sa piste audio (Playlist)" = "Create your audio track (Playlist)";
 "Créer un compte" = "Create an account";
+"Créé par toi" = "Created by you";
 "Créés par toi" = "Created by you";
 "Ctrl+Alt+Maj+F, n'importe où. « Reprendre » apparaît alors dans le menu de l'icône près de l'horloge." = "Ctrl+Alt+Shift+F, anywhere. “Resume” then appears in the menu of the icon next to the clock.";
 "Cymbal" = "Cymbal";
@@ -1482,6 +1484,7 @@
 "Ouvrir FL Shortcuts" = "Open FL Shortcuts";
 "Ouvrir FL Studio" = "Open FL Studio";
 "Ouvrir Mon compte" = "Open My account";
+"Ouvrir dans le créateur" = "Open in the creator";
 "Ouvrir dans le créateur…" = "Open in the creator…";
 "Ouvrir la Playlist" = "Open Playlist";
 "Ouvrir le Browser" = "Open Browser";

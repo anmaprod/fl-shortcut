@@ -122,4 +122,22 @@ public sealed class PluginDropTests : IDisposable
         Assert.IsType<StepResult.Ok>(fx.Perform(new BlockBody.PageOption("mixer.addEffect", "Pro-Q 3"), state));
         Assert.Equal((@"C:\db\Pro-Q 3.fst", 700, 500), Assert.Single(fl.Drops));
     }
+
+    /// Vidéo du 05/11 (FL 2025) : le titre « Channel rack » est à ~100 points à droite des noms, centrés dans leur
+    /// bouton ; « Unsorted » sur la ligne du titre ; le Browser loin à gauche.
+    [Fact]
+    public void TheNamesLeftOfTheTitleAreFound()
+    {
+        var rack = new[]
+        {
+            T("Unsorted", 244, 46), T("Channel rack", 369, 46, 80), T("bass", 270, 94, 24), T("kick", 272, 124, 20),
+            T("dash38", 20, 100), T("dryykt", 20, 110), T("dyajp", 20, 120), T("icon", 20, 130),
+        };
+        var p = PluginDrop.ChannelRackPoint(rack);
+        Assert.NotNull(p);
+        Assert.InRange(p!.Value.X, 280, 283);
+        Assert.Equal(145, p.Value.Y);
+        var mixed = new[] { T("Channel rack", 369, 46, 80), T("Kick", 271, 94, 20), T("ZENOLOGY Lead", 241, 124, 80), T("Hat", 273, 154, 16) };
+        Assert.Equal(175, PluginDrop.ChannelRackPoint(mixed)!.Value.Y);
+    }
 }

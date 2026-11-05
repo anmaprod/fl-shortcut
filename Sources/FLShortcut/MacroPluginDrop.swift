@@ -53,25 +53,32 @@ enum PluginDrop {
     /// ras de `bottom`, le bas de la fenêtre) : juste au-dessus du premier (vidéo du 04/11 : « ça fonctionne tout
     /// autant »). D'après les textes lus dans la fenêtre de FL : la colonne des noms sous le titre « Channel rack », à pas
     /// réguliers (un nom illisible laisse un trou d'une ligne). nil : titre absent, moins de deux noms, pas réguliers.
+    /// Vidéo du 05/11 : dans le Channel rack de FL 2025, le titre est à droite des noms (centrés dans leur bouton, à
+    /// ~100 points à gauche du titre) : les noms sont cherchés jusqu'à 240 points à gauche du titre, une colonne est
+    /// faite des noms de même bord gauche OU de même centre, et la colonne la plus proche du titre l'emporte.
     static func channelRackPoint(in items: [TextLook.Item], bottom: CGFloat? = nil) -> CGPoint? {
         let titleKey = TextLook.normalized("Channel rack")
         for title in items.filter({ TextLook.normalized($0.text) == titleKey }).sorted(by: { $0.box.minY < $1.box.minY }) {
             let top = title.box.maxY
             let below = items.filter {
-                $0.box.minY > top + 2 && $0.box.minY < top + 1500 && $0.box.minX > title.box.minX - 40
+                $0.box.minY > top + 2 && $0.box.minY < top + 1500 && $0.box.minX > title.box.minX - 240
                     && $0.box.minX < title.box.minX + 520 && (6...40).contains($0.box.height) && $0.box.width <= 220
                     && usable($0.text)
             }.sorted { $0.box.minX < $1.box.minX }
-            // Colonnes : même bord gauche à 8 points près ; une ligne par son (une ligne lue et ses mots : un seul).
+            // Colonnes : même bord gauche ou même centre à 8 points près ; une ligne par son (une ligne lue et ses
+            // mots : un seul).
             var columns: [[TextLook.Item]] = []
             for item in below {
-                if let i = columns.firstIndex(where: { abs($0[0].box.minX - item.box.minX) <= 8 }) {
+                if let i = columns.firstIndex(where: {
+                    abs($0[0].box.minX - item.box.minX) <= 8 || abs($0[0].center.x - item.center.x) <= 8
+                }) {
                     if columns[i].allSatisfy({ abs($0.center.y - item.center.y) > 4 }) { columns[i].append(item) }
                 } else {
                     columns.append([item])
                 }
             }
-            for column in columns.sorted(by: { $0.count > $1.count }) {
+            func distance(_ column: [TextLook.Item]) -> CGFloat { abs(column[0].center.x - title.center.x) }
+            for column in columns.sorted(by: { ($0.count, -distance($0)) > ($1.count, -distance($1)) }) {
                 guard column.count >= 2 else { break }
                 // Dernier nom lu à moitié (coupé par le bas du Channel rack) : pas compté dans les lignes.
                 let heights = column.map(\.box.height).sorted()
@@ -104,6 +111,17 @@ extension MacroEffectsMac {
         let effect = item == "Effect"
         let roots = Array(Set([FLPluginDatabase.root(), FLPluginDatabase.root(script: nil)].map(\.standardizedFileURL)))
         guard let file = roots.lazy.compactMap({ PluginDrop.presetFile(named: name, effect: effect, root: $0) }).first else {
+            MacroLog.shared.write("PLUGIN", "drop: no .fst in the Plugin database (\(roots.count) bases), Add menu used")
+            return nil
+        }
+        if !effect && !Self.canRead {
+            // Sans « Enregistrement de l'écran », le Channel rack ne peut pas être lu : dit (jamais la fenêtre de macOS
+            // au milieu d'une macro, elle passait derrière FL).
+            MacroLog.shared.write("PLUGIN", "drop: screen recording not allowed, Add menu used")
+            DispatchQueue.main.async {
+                HintPanel.shared.flash(String(localized: "Autorise « Enregistrement de l'écran » : les plugins s'ouvriront plus vite."),
+                                       seconds: 3)
+            }
             return nil
         }
         var target: CGPoint?

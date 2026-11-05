@@ -1608,7 +1608,7 @@ struct OrganizerView: View {
     private var header: some View {
         // Style suisse (01/11) : grand titre gras serré, souligné de blanc sur toute la largeur.
         HStack(alignment: .bottom, spacing: 10) {
-            Text(controller.title).swissTitle(34)
+            SwissPageTitle(text: controller.title, size: 40)
             Spacer()
             if isPreview {
                 // Maquette du 28/10 : « Rangement automatique » à droite du titre ; les choix et le diagnostic sont

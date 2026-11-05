@@ -279,6 +279,23 @@ enum Swiss {
     static func titleTracking(_ size: CGFloat) -> CGFloat { -size * 0.039 }
 }
 
+/// Grand titre d'une page ou d'une fenêtre (maquette du 05/11, « les points… c'est ultra important ») : en minuscules,
+/// suivi de son point carré, rouge (blanc sous Orange).
+struct SwissPageTitle: View {
+    let text: String
+    var size: CGFloat = 54
+
+    var body: some View {
+        HStack(alignment: .lastTextBaseline, spacing: size * 0.09) {
+            Text(text.lowercased(with: Locale.current)).swissTitle(size)
+            Rectangle().fill(Swiss.red)
+                .frame(width: (size * 0.19).rounded(), height: (size * 0.19).rounded())
+                .accessibilityHidden(true)
+        }
+        .accessibilityElement(children: .combine)
+    }
+}
+
 extension View {
     /// Libellé en petites capitales espacées (« MES MACROS », « SAUVEGARDE »), gris par défaut.
     func swissLabel(_ color: Color = Swiss.gray, size: CGFloat = 11) -> some View {

@@ -73,4 +73,21 @@ final class MacroPluginDropTests: XCTestCase {
             item("Channel rack", 300, 100, w: 90), item("Kick", 360, 140), item("Snare", 360, 166), item("Hat", 360, 203),
         ]))
     }
+
+    /// Vidéo du 05/11 (FL 2025) : le titre « Channel rack » est à ~100 points à droite des noms, centrés dans leur
+    /// bouton ; « Unsorted » sur la ligne du titre ; le Browser loin à gauche.
+    func testTheNamesLeftOfTheTitleAreFound() throws {
+        let rack = [
+            item("Unsorted", 244, 46, w: 60), item("Channel rack", 369, 46, w: 80),
+            item("bass", 270, 94, w: 23), item("kick", 271.5, 124, w: 20),
+            item("dash38", 20, 100), item("dryykt", 20, 110), item("dyajp", 20, 120), item("icon", 20, 130),
+        ]
+        let p = try XCTUnwrap(PluginDrop.channelRackPoint(in: rack))
+        XCTAssertEqual(p.x, 281.5, accuracy: 1)
+        XCTAssertEqual(p.y, 145, accuracy: 0.5, "dans l'espace sous « kick »")
+        // Noms de longueurs différentes, centrés : une seule colonne.
+        let mixed = [item("Channel rack", 369, 46, w: 80), item("Kick", 271, 94, w: 20), item("ZENOLOGY Lead", 241, 124, w: 80),
+                     item("Hat", 273, 154, w: 16)]
+        XCTAssertEqual(try XCTUnwrap(PluginDrop.channelRackPoint(in: mixed)).y, 175, accuracy: 0.5)
+    }
 }

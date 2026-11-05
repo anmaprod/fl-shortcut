@@ -29,6 +29,74 @@ internal sealed partial class MainShell
         BorderBrush = Brush(LineColor),
     };
 
+    /// En-tête d'une fiche (comme le Mac, 05/11) : la rubrique en petites capitales grises, puis le titre en minuscules
+    /// suivi de son point carré, souligné d'un trait.
+    private static StackPanel SheetHeader(string label, string title)
+    {
+        var big = SwissTitle(30);
+        big.Text = title.ToLower(System.Globalization.CultureInfo.CurrentCulture);
+        var panel = new StackPanel { Spacing = 6, Padding = new Thickness(0, 0, 0, 12), BorderBrush = Brush(Text), BorderThickness = new Thickness(0, 0, 0, 1) };
+        panel.Children.Add(SwissLabel(label, 11, Secondary));
+        panel.Children.Add(PageTitle(big, 30));
+        return panel;
+    }
+
+    /// Ligne d'une fiche : le nom en petites capitales à gauche, le champ à droite, un trait fin dessous.
+    private static Grid SheetRow(string title, FrameworkElement content)
+    {
+        var grid = new Grid { ColumnSpacing = 16, Padding = new Thickness(0, 0, 0, 14), BorderBrush = Brush(Faint), BorderThickness = new Thickness(0, 0, 0, 1) };
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(110) });
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        var label = SwissLabel(title, 11, Secondary);
+        label.VerticalAlignment = VerticalAlignment.Center;
+        grid.Children.Add(label);
+        Grid.SetColumn(content, 1);
+        grid.Children.Add(content);
+        return grid;
+    }
+
+    /// « Ouvrir dans le créateur » (comme le Mac) : grande ligne bordée, carré creux, nom de la macro, flèche ; au survol,
+    /// pleine d'encre.
+    private static Button OpenCreatorRow(string name, Action open)
+    {
+        StackPanel Face(bool hovered)
+        {
+            var ink = hovered ? MacLook.WindowColor : Text;
+            var square = new Border { Width = 8, Height = 8, BorderBrush = Brush(ink), BorderThickness = new Thickness(1), VerticalAlignment = VerticalAlignment.Center };
+            var names = new StackPanel { Spacing = 2, VerticalAlignment = VerticalAlignment.Center };
+            names.Children.Add(SwissLabel(Loc.T("Ouvrir dans le créateur"), 13, ink));
+            names.Children.Add(Label(name, 12, hovered ? ink : Secondary));
+            var grid = new Grid { ColumnSpacing = 12 };
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            grid.Children.Add(square);
+            Grid.SetColumn(names, 1);
+            grid.Children.Add(names);
+            var arrow = Label("→", 16, ink, bold: true);
+            Grid.SetColumn(arrow, 2);
+            grid.Children.Add(arrow);
+            return new StackPanel { Children = { grid } };
+        }
+        var button = new Button
+        {
+            Style = PlainButton,
+            MinHeight = 54,
+            HorizontalAlignment = HorizontalAlignment.Stretch,
+            HorizontalContentAlignment = HorizontalAlignment.Stretch,
+            Padding = new Thickness(14, 0, 14, 0),
+            Background = Brush(MacLook.WindowColor),
+            BorderBrush = Brush(Text),
+            BorderThickness = new Thickness(1.5),
+            Content = Face(false),
+        };
+        button.PointerEntered += (_, _) => { button.Background = Brush(Text); button.Content = Face(true); };
+        button.PointerExited += (_, _) => { button.Background = Brush(MacLook.WindowColor); button.Content = Face(false); };
+        button.Click += (_, _) => open();
+        AutomationProperties.SetName(button, Loc.T("Ouvrir dans le créateur"));
+        return button;
+    }
+
     /// Champ de touche : la touche (ou « Aucune ») ; un clic, puis les touches appuyées la remplacent (Échap annule).
     private static Button CaptureButton() => new()
     {
@@ -67,13 +135,7 @@ internal sealed partial class MainShell
         dialog.DefaultButton = ContentDialogButton.Primary;
 
         var body = new StackPanel { Spacing = 14, MinWidth = 420 };
-        var header = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 12 };
-        header.Children.Add(Tile(IconName(row.Entry.Section), Tint(row.Entry.Section), 34));
-        var names = new StackPanel { VerticalAlignment = VerticalAlignment.Center, Spacing = 1 };
-        names.Children.Add(Label(row.Entry.Title, 17, Text, bold: true));
-        names.Children.Add(Label(row.Entry.Section.Title(), 12, Secondary));
-        header.Children.Add(names);
-        body.Children.Add(header);
+        body.Children.Add(SheetHeader(row.Entry.Section.Title(), row.Entry.Title));
 
         var capture = CaptureButton();
         var clashPanel = new StackPanel { Spacing = 2 };
@@ -263,46 +325,51 @@ internal sealed partial class MainShell
         string? recordingFor = null;              // "trigger" ou "target"
 
         var dialog = NewDialog();
-        dialog.Title = Loc.T("Modifier le raccourci");
         dialog.PrimaryButtonText = Loc.T("Valider");
         dialog.CloseButtonText = Loc.T("Annuler");
         dialog.SecondaryButtonText = Loc.T("Supprimer");
         dialog.DefaultButton = ContentDialogButton.Primary;
 
-        var body = new StackPanel { Spacing = 12, MinWidth = 480 };
+        // 05/11 (« on s'y perd… juste le bouton raccourci et puis c'est fini ») : comme le Mac, la touche seule ; la
+        // touche de FL pour un raccourci « Touche de FL » ; « Ouvrir dans le créateur » pour une macro. Plus de type, ni
+        // de liste d'actions, ni de « Où ? » ici.
+        var body = new StackPanel { Spacing = 14, MinWidth = 480 };
         var triggerButton = CaptureButton();
         var warning = new StackPanel { Spacing = 2 };
         var kinds = new RadioButtons { MaxColumns = 3 };
-        kinds.Items.Add(Loc.T("Action dans FL"));
-        kinds.Items.Add(Loc.T("Touche de FL"));
-        kinds.Items.Add(Loc.T("Macro"));
-        var actionPanel = new StackPanel { Spacing = 8 };
-        var cats = new ComboBox { MinWidth = 220 };
-        foreach (var c in Enum.GetValues<ActionCategory>())
-            cats.Items.Add(new ComboBoxItem { Content = Loc.T(new FlActionInfo(0, "", "", c, "").CategoryLabel), Tag = c });
-        var actions = new ListView { SelectionMode = ListViewSelectionMode.Single, MaxHeight = 220 };
-        var wheres = new ComboBox { MinWidth = 220 };
-        foreach (var w in Enum.GetValues<ShortcutContext>()) wheres.Items.Add(new ComboBoxItem { Content = Loc.T(w.Label()), Tag = w });
-        actionPanel.Children.Add(cats);
-        actionPanel.Children.Add(actions);
+        var actionPanel = new StackPanel();
+        var cats = new ComboBox();
+        var actions = new ListView();
+        var wheres = new ComboBox();
         var keyPanel = new StackPanel { Spacing = 6 };
         var targetButton = CaptureButton();
-        keyPanel.Children.Add(targetButton);
-        var macroPanel = new StackPanel { Spacing = 6 };
-        var macroPicker = new ComboBox { MinWidth = 320 };
-        foreach (var doc in _app.Macros.Macros)
-            macroPicker.Items.Add(new ComboBoxItem { Content = DisplayText.Safe(doc.Name, 60), Tag = doc.Id });
-        macroPanel.Children.Add(macroPicker);
-
-        body.Children.Add(Label(Loc.T("Touche"), 12, Secondary, semibold: true));
-        body.Children.Add(triggerButton);
-        body.Children.Add(warning);
-        body.Children.Add(kinds);
-        body.Children.Add(actionPanel);
-        body.Children.Add(keyPanel);
-        body.Children.Add(macroPanel);
-        body.Children.Add(Label(Loc.T("Où ?"), 12, Secondary, semibold: true));
-        body.Children.Add(wheres);
+        var macroPanel = new StackPanel();
+        var macroPicker = new ComboBox();
+        var kindLabel = draft.Kind switch
+        {
+            ShortcutKind.FlAction => Loc.T("Action dans FL"),
+            ShortcutKind.Keystroke => Loc.T("Touche de FL"),
+            _ => Loc.T("Macro"),
+        };
+        var macroDoc = draft.MacroRef is { } refId ? _app.Macros.Macros.FirstOrDefault(m => m.Id == refId) : null;
+        var headerTitle = macroDoc is not null ? DisplayText.Safe(macroDoc.Name, 40) : _app.TitleOf(draft);
+        body.Children.Add(SheetHeader(kindLabel, headerTitle));
+        body.Children.Add(SheetRow(Loc.T("Raccourci"), new StackPanel { Spacing = 6, Children = { triggerButton, warning } }));
+        if (draft.Kind == ShortcutKind.Keystroke)
+        {
+            keyPanel.Children.Add(targetButton);
+            body.Children.Add(SheetRow(Loc.T("Touche de FL"), keyPanel));
+        }
+        else if (draft.Kind == ShortcutKind.Macro && macroDoc is not null)
+        {
+            var id = macroDoc.Id;
+            body.Children.Add(OpenCreatorRow(DisplayText.Safe(macroDoc.Name, 60), () =>
+            {
+                dialog.Hide();
+                Choose(PageKind.Macros, _section);
+                _macros.Open(id);
+            }));
+        }
         dialog.Content = new ScrollViewer { Content = body, MaxHeight = 600 };
 
         var refreshing = false;

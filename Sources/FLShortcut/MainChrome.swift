@@ -128,6 +128,35 @@ struct HeaderCapsule<Content: View>: View {
     }
 }
 
+/// Le compte en haut à droite (maquette du 05/11) : cadre de 2 points à l'encre, plein du fond de la page (« pas de
+/// traits dessus » : la grille de Papier ne passe pas dedans), le rond de la photo ou de l'initiale, puis le pseudo ;
+/// sans compte, « Se connecter ». Survolé : plein d'encre.
+struct HeaderAccountLabel: View {
+    let username: String?
+    let photo: NSImage?
+    @Environment(\.hoverFilled) private var filled
+
+    var body: some View {
+        HStack(spacing: 10) {
+            if let username {
+                AvatarView(photo: photo, username: username, size: 30)
+                Text(username).font(Swiss.font(14)).lineLimit(1)
+            } else {
+                Circle().strokeBorder(filled ? Swiss.background : Swiss.text, lineWidth: 1.5)
+                    .frame(width: 30, height: 30)
+                    .overlay(Image(systemName: "person.fill").font(.system(size: 13)))
+                Text("Se connecter").font(Swiss.font(14)).lineLimit(1)
+            }
+        }
+        .padding(.leading, 5)
+        .padding(.trailing, 14)
+        .frame(height: 40)
+        .background(Rectangle().fill(filled ? Swiss.text : Swiss.background))
+        .overlay(Rectangle().strokeBorder(Swiss.text, lineWidth: 2))
+        .contentShape(Rectangle())
+    }
+}
+
 /// Bouton rond de l'en-tête (44 points) : une icône seule, son nom en bulle d'aide ; au survol, plein de bleu.
 struct HeaderIconButton: View {
     let symbol: String

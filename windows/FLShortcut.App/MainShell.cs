@@ -462,7 +462,7 @@ internal sealed partial class MainShell
         page.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
         page.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
         var header = new Grid { Margin = new Thickness(26, TitleBarHeight - 8, 26, 4), MinHeight = 72, Padding = new Thickness(0, 0, 0, 10) };
-        header.Children.Add(_title);
+        header.Children.Add(PageTitle(_title, 46));
         // À droite : la capsule de la page, puis le compte (sa photo, ou l'icône du compte).
         var right = new StackPanel
         {
@@ -718,38 +718,54 @@ internal sealed partial class MainShell
         };
     }
 
-    /// Connecté : sa photo (ou son initiale de couleur), qui ouvre « Modifier le profil » sur la page Mon compte ;
-    /// sinon l'icône du compte (comme l'en-tête du Mac).
+    /// Titre de la page en minuscules, suivi de son point carré (maquette du 05/11, comme le Mac).
+    private void SetTitle(string text) => _title.Text = text.ToLower(System.Globalization.CultureInfo.CurrentCulture);
+
+    /// Le compte en haut à droite (maquette du 05/11, comme le Mac) : cadre de 2 points à l'encre, plein du fond de la
+    /// page (la grille de Papier ne passe pas dedans), le rond de la photo ou de l'initiale, puis le pseudo ; sans
+    /// compte, « Se connecter ». Survolé : plein d'encre. Il ouvre « Modifier le profil » sur la page Mon compte.
     private void UpdateAccountButton()
     {
         var session = _account.Session;
         var help = session is not null && _kind == PageKind.Account ? Loc.T("Modifier le profil") : Loc.T("Mon compte");
-        FrameworkElement Face(bool hovered) => session is not null
-            ? AccountPage.Avatar(_account.MyPhoto, session.Username, 34)
-            : new FontIcon
+        FrameworkElement Face(bool hovered)
+        {
+            var ink = hovered ? MacLook.WindowColor : Text;
+            FrameworkElement round = session is not null
+                ? AccountPage.Avatar(_account.MyPhoto, session.Username, 30)
+                : new Border
+                {
+                    Width = 30, Height = 30, CornerRadius = new CornerRadius(15),
+                    BorderBrush = Brush(ink), BorderThickness = new Thickness(1.5),
+                    Child = new FontIcon
+                    {
+                        Glyph = "\uE77B",
+                        FontFamily = new FontFamily("Segoe Fluent Icons, Segoe MDL2 Assets"),
+                        FontSize = 13,
+                        Foreground = Brush(ink),
+                    },
+                };
+            return new StackPanel
             {
-                Glyph = "\uE77B",
-                FontFamily = new FontFamily("Segoe Fluent Icons, Segoe MDL2 Assets"),
-                FontSize = 16,
-                Foreground = Brush(hovered ? MacLook.WindowColor : Text),
+                Orientation = Orientation.Horizontal,
+                Spacing = 10,
+                Children = { round, Label(session?.Username ?? Loc.T("Se connecter"), 14, ink, bold: true) },
             };
+        }
         var button = new Button
         {
             Style = PlainButton,
-            Width = 36,
-            Height = 36,
-            Padding = new Thickness(0),
-            HorizontalContentAlignment = HorizontalAlignment.Center,
+            Height = 40,
+            Padding = new Thickness(5, 0, 14, 0),
+            HorizontalContentAlignment = HorizontalAlignment.Left,
             VerticalContentAlignment = VerticalAlignment.Center,
             Content = Face(false),
+            Background = Brush(MacLook.WindowColor),
             BorderBrush = Brush(Text),
-            BorderThickness = new Thickness(1),
+            BorderThickness = new Thickness(2),
         };
-        if (session is null)
-        {
-            button.PointerEntered += (_, _) => { button.Background = Brush(MacLook.Text); button.Content = Face(true); };
-            button.PointerExited += (_, _) => { button.Background = Brush(Colors.Transparent); button.Content = Face(false); };
-        }
+        button.PointerEntered += (_, _) => { button.Background = Brush(MacLook.Text); button.Content = Face(true); };
+        button.PointerExited += (_, _) => { button.Background = Brush(MacLook.WindowColor); button.Content = Face(false); };
         button.Click += (_, _) =>
         {
             if (_account.Session is not null && _kind == PageKind.Account && _query.Trim().Length == 0) _account.EditProfile();
@@ -775,7 +791,7 @@ internal sealed partial class MainShell
         Color tint;
         if (q.Length > 0)
         {
-            _title.Text = Loc.T("Rechercher");
+            SetTitle(Loc.T("Rechercher"));
             tint = Accent;
             cards = SearchCards(rows, others, q);
             if (cards.Count == 0)
@@ -789,19 +805,19 @@ internal sealed partial class MainShell
         }
         else if (_kind == PageKind.Macros)
         {
-            _title.Text = Loc.T("Macros");
+            SetTitle(Loc.T("Macros"));
             _scroll.Content = _macros.ListContent(_columns);
             return;
         }
         else if (_kind == PageKind.Community)
         {
-            _title.Text = Loc.T("Communauté");
+            SetTitle(Loc.T("Communauté"));
             _scroll.Content = _community.Content(_columns);
             return;
         }
         else if (_kind == PageKind.Account)
         {
-            _title.Text = Loc.T("Mon compte");
+            SetTitle(Loc.T("Mon compte"));
             var account = _account.Content(_columns);
             if (_account.Session is null)
             {
@@ -818,34 +834,41 @@ internal sealed partial class MainShell
         }
         else if (_kind == PageKind.Help)
         {
-            _title.Text = Loc.T("Aide");
+            SetTitle(Loc.T("Aide"));
             _scroll.Content = _help.Content(_columns);
             return;
         }
         else if (_kind == PageKind.Custom)
         {
-            _title.Text = Loc.T("Mes raccourcis");
+            SetTitle(Loc.T("Mes raccourcis"));
             tint = Pink;
-            cards = new List<PageCard>();
+            // 05/11 (« juste action, page, puis raccourci, avec le bouton réinitialiser derrière ») : une seule liste
+            // courte, comme le Mac.
             var changed = MyShortcuts.Changed(rows);
-            foreach (var s in Enum.GetValues<FlSection>())
-            {
-                var mine = changed.Where(r => r.Entry.Section == s).ToList();
-                if (mine.Count > 0) cards.Add(new PageCard(s.Title(), mine.Select(r => CatalogRowView(r, Pink)).ToList()));
-            }
             var created = MyShortcuts.Created(others, _app.Starters);
-            if (created.Count > 0)
-                cards.Add(new PageCard(Loc.T("Créés par toi"), created.Select(s => CustomRowView(s, Pink)).ToList()));
-            if (cards.Count == 0)
+            if (changed.Count == 0 && created.Count == 0)
             {
                 ShowEmpty("custom", Loc.T("Aucun raccourci changé"),
                     Loc.T("Tes raccourcis changés et créés."));
                 return;
             }
+            var list = new StackPanel { Spacing = 0, MaxWidth = 760, HorizontalAlignment = HorizontalAlignment.Left };
+            foreach (var r in changed)
+                list.Children.Add(MineRow(r.Entry.Title, r.Entry.Section.Title(), r.Current, () => EditKey(r),
+                    RoundIcon("reset", Loc.T("Revenir à : ") + (r.Entry.DefaultTrigger?.ToString() ?? Loc.T("aucune touche")), () => Reset(r), 28)));
+            foreach (var c in created)
+            {
+                var line = MineRow(_app.TitleOf(c), Loc.T("Créé par toi"), c.Trigger, async () => await EditCustomAsync(c),
+                    RoundIcon("trash", Loc.T("Supprimer"), () => Delete(c), 28));
+                line.Opacity = c.Enabled ? 1 : 0.5;
+                list.Children.Add(line);
+            }
+            _scroll.Content = new Border { Padding = new Thickness(26, 10, 26, 24), Child = list };
+            return;
         }
         else
         {
-            _title.Text = _section.Title();
+            SetTitle(_section.Title());
             tint = Tint(_section);
             var mine = rows.Where(r => r.Entry.Section == _section).ToList();
             cards = CatalogGroups.Cards(_section, mine.Where(r => r.Entry.IsNative), r => r.Entry)
@@ -979,6 +1002,34 @@ internal sealed partial class MainShell
         menu.Items.Add(resetItem);
         option.ContextFlyout = menu;
         return option;
+    }
+
+    /// Ligne de « Mes raccourcis » (comme MineLine du Mac) : l'action en gras, sa page en gris, la touche, puis le bouton
+    /// qui suit (↺ ou Supprimer) ; toute la ligne ouvre sa fiche ; trait fin dessous.
+    private FrameworkElement MineRow(string title, string page, KeyCombo? combo, Action open, FrameworkElement trailing)
+    {
+        var grid = new Grid { ColumnSpacing = 12 };
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        grid.Children.Add(Label(title, 13.5, null, bold: true));
+        var pageLabel = Label(page, 12, Secondary);
+        Grid.SetColumn(pageLabel, 1);
+        grid.Children.Add(pageLabel);
+        var keys = Keys(combo, changed: true);
+        Grid.SetColumn(keys, 2);
+        grid.Children.Add(keys);
+        Grid.SetColumn(trailing, 3);
+        grid.Children.Add(trailing);
+        var option = Option(grid, Text, 8, open, minHeight: 40);
+        AutomationProperties.SetName(option, $"{title} : {combo?.ToString() ?? Loc.T("aucune")}");
+        var cell = new Grid();
+        cell.Children.Add(option);
+        var line = Rule(Faint);
+        line.VerticalAlignment = VerticalAlignment.Bottom;
+        cell.Children.Add(line);
+        return cell;
     }
 
     /// Ligne d'un raccourci que tu as créé : son nom (et sa fenêtre de FL), sa touche, « Supprimer ».

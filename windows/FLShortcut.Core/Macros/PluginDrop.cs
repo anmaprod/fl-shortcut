@@ -74,18 +74,21 @@ public static class PluginDrop
         foreach (var title in items.Where(t => MenuText.Normalized(t.Text) == titleKey).OrderBy(t => t.Y))
         {
             var top = title.Y + title.Height;
-            var below = items.Where(t => t.Y > top + 2 && t.Y < top + 1500 && t.X > title.X - 40 && t.X < title.X + 520
+            // Vidéo du 05/11 (FL 2025) : le titre est à ~100 points à droite des noms, centrés dans leur bouton : noms
+            // cherchés jusqu'à 240 points à gauche du titre ; colonne = même bord gauche OU même centre ; la plus proche
+            // du titre l'emporte à nombre égal.
+            var below = items.Where(t => t.Y > top + 2 && t.Y < top + 1500 && t.X > title.X - 240 && t.X < title.X + 520
                                          && t.Height is >= 6 and <= 40 && t.Width <= 220 && Usable(t.Text))
                              .OrderBy(t => t.X).ToList();
-            // Colonnes : même bord gauche à 8 points près ; une ligne par son (une ligne lue et ses mots : un seul).
+            // Colonnes : même bord gauche ou même centre à 8 points près ; une ligne par son.
             var columns = new List<List<TextItem>>();
             foreach (var t in below)
             {
-                var column = columns.FirstOrDefault(c => Math.Abs(c[0].X - t.X) <= 8);
+                var column = columns.FirstOrDefault(c => Math.Abs(c[0].X - t.X) <= 8 || Math.Abs(c[0].CenterX - t.CenterX) <= 8);
                 if (column is null) columns.Add(new List<TextItem> { t });
                 else if (column.All(o => Math.Abs(o.CenterY - t.CenterY) > 4)) column.Add(t);
             }
-            foreach (var column in columns.OrderByDescending(c => c.Count))
+            foreach (var column in columns.OrderByDescending(c => c.Count).ThenBy(c => Math.Abs(c[0].CenterX - title.CenterX)))
             {
                 if (column.Count < 2) break;
                 // Dernier nom lu à moitié (coupé par le bas du Channel rack) : pas compté dans les lignes.
