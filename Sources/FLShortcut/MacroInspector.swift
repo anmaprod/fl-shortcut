@@ -126,7 +126,7 @@ private struct BlockInspector: View {
 
     private var header: some View {
         HStack(alignment: .top, spacing: 10) {
-            SectionIcon(symbol: spec?.symbol ?? "questionmark.square.dashed", tint: spec?.category.tint ?? .gray, size: 28)
+            Rectangle().fill(Swiss.brandRed).frame(width: 10, height: 10).padding(.top, 5).accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 3) {
                 Text(spec?.label ?? String(localized: "Bloc inconnu")).font(.system(size: 15, weight: .semibold))
                 if let aide = spec?.aide {
@@ -306,16 +306,22 @@ private struct BlockInspector: View {
         model.updateBlock(block.id, key: key) { b in change(&b.body) }
     }
 
-    /// « Clic de souris » : le bouton (gauche, droit, milieu), puis simple ou double.
+    /// « Clic de souris » (05/11 : « tu fais directement un bouton, appuyez sur le bouton que vous voulez… simple ou
+    /// double, et c'est fini ») : une grande case où l'on appuie sur le bouton de sa souris, puis Simple ou Double. Les
+    /// deux l'un sous l'autre, sur toute la largeur de la colonne (rien ne déborde).
     @ViewBuilder private func mouseClickFields(_ button: PointerButton, double: Bool) -> some View {
-        SwissSegmented(selection: Binding(get: { button }, set: { picked in
-            setBody(key: "button") { if case .mouseClick(_, let d) = $0 { $0 = .mouseClick(button: picked, double: d) } }
-        }), options: PointerButton.allCases.map { (value: $0, label: $0.title) }, title: String(localized: "Bouton"))
-        SwissSegmented(selection: Binding(get: { double }, set: { picked in
-            setBody(key: "double") { if case .mouseClick(let b, _) = $0 { $0 = .mouseClick(button: b, double: picked) } }
-        }), options: [(value: false, label: String(localized: "Simple")),
-                     (value: true, label: String(localized: "Double"))],
-           title: String(localized: "Clic"))
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Bouton").swissLabel()
+            MouseButtonCapture(button: button) { picked in
+                setBody(key: "button") { if case .mouseClick(_, let d) = $0 { $0 = .mouseClick(button: picked, double: d) } }
+            }
+            Text("Clic").swissLabel().padding(.top, 8)
+            SwissSegmented(selection: Binding(get: { double }, set: { picked in
+                setBody(key: "double") { if case .mouseClick(let b, _) = $0 { $0 = .mouseClick(button: b, double: picked) } }
+            }), options: [(value: false, label: String(localized: "Simple")),
+                         (value: true, label: String(localized: "Double"))])
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private func menuKeyPicker(_ label: String, _ current: MenuKey) -> some View {
@@ -1708,3 +1714,60 @@ struct NameColorField: View {
                 .strokeBorder(selected ? Swiss.red : Color.primary.opacity(0.15), lineWidth: selected ? 2 : 1))
     }
 }
+
+/// Case du bloc « Clic de souris » : le bouton choisi en grand ; un clic dessus, puis le bouton de la souris sur lequel
+/// on appuie (gauche, droit, molette, côtés…) devient celui du bloc. Échap annule. Seulement dans la fenêtre de l'app.
+private struct MouseButtonCapture: View {
+    let button: PointerButton
+    let set: (PointerButton) -> Void
+    @State private var listening = false
+    @State private var monitor: Any?
+    @State private var hovering = false
+
+    var body: some View {
+        Button {
+            if listening { stop() } else { start() }
+        } label: {
+            HStack(spacing: 10) {
+                Image(systemName: "computermouse").font(.system(size: 14, weight: .semibold))
+                Text(listening ? String(localized: "Appuie sur un bouton de ta souris…") : button.title)
+                    .font(Swiss.font(listening ? 12 : 15))
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
+                Spacer(minLength: 0)
+            }
+            .foregroundStyle(hovering && !listening ? Swiss.background : (listening ? Swiss.red : Swiss.text))
+            .padding(.horizontal, 12)
+            .frame(maxWidth: .infinity, minHeight: 46, alignment: .leading)
+            .background(Rectangle().fill(hovering && !listening ? Swiss.text : Swiss.background))
+            .overlay(Rectangle().strokeBorder(listening ? Swiss.red : Swiss.text, lineWidth: 2))
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .onHover { hovering = $0 }
+        .onDisappear { stop() }
+        .help("Clique ici, puis appuie sur le bouton de ta souris")
+        .accessibilityLabel(String(localized: "Bouton de la souris : ") + button.title)
+    }
+
+    private func start() {
+        listening = true
+        // Le clic qui arme la case est déjà passé : le prochain appui de la souris est le bon.
+        monitor = NSEvent.addLocalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown, .otherMouseDown, .keyDown]) { event in
+            if event.type == .keyDown {
+                if event.keyCode == 53 { stop() }                // Échap
+                return nil
+            }
+            set(PointerButton(number: event.buttonNumber))
+            stop()
+            return nil
+        }
+    }
+
+    private func stop() {
+        listening = false
+        if let monitor { NSEvent.removeMonitor(monitor) }
+        monitor = nil
+    }
+}
+

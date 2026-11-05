@@ -240,6 +240,26 @@ struct PageSquare: View {
     }
 }
 
+/// Carré d'un bloc (palette et étapes du créateur, 05/11 : « on fait pas compliqué… dès que le curseur va sur un
+/// endroit, le carré devient orange ») : creux à l'encre ; plein d'orange (rouge de la marque) sur une ligne survolée ou
+/// choisie. Plus de couleur par catégorie.
+struct BlockSquare: View {
+    var size: CGFloat = 8
+    @Environment(\.hoverFilled) private var filled
+
+    var body: some View {
+        Group {
+            if filled {
+                Rectangle().fill(Swiss.brandRed)
+            } else {
+                Rectangle().strokeBorder(Swiss.text, lineWidth: 1)
+            }
+        }
+        .frame(width: size, height: size)
+        .accessibilityHidden(true)
+    }
+}
+
 /// Recherche de la barre de gauche : la loupe (dessinée par SwiftUI à côté), puis un champ de texte d'AppKit sans cadre.
 /// La garde de la recherche (SearchFocusGuard) la reconnaît : elle n'a la main qu'après un clic dedans ou ⌘F.
 struct SidebarSearchField: NSViewRepresentable {

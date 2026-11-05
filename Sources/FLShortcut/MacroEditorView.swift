@@ -207,7 +207,7 @@ private struct MacroStepsPane: View {
                     .cardRow(.position(index: index, count: rows.count),
                              hover: row.kind == .block ? Swiss.text : nil,
                              selected: model.selection == row.id,
-                             stamp: row.kind == .block ? (row.category?.tint ?? Swiss.red) : nil)
+                             stamp: row.kind == .block ? Swiss.brandRed : nil)   // l'encoche orange, pour tous (05/11)
                     .tag(row.id)
                     // Pas de sélection bleue de macOS : la ligne choisie est blanche, sur son encoche (02/11).
                     .background(NoSystemSelection().frame(width: 0, height: 0))
@@ -411,7 +411,7 @@ private struct MacroStepRowView: View, Equatable {
                 .font(Swiss.font(12).monospacedDigit())
                 .hoverTint(Swiss.gray)
                 .frame(minWidth: 24, alignment: .trailing)
-            Rectangle().fill(tint).frame(width: 8, height: 8).accessibilityHidden(true)
+            BlockSquare()
             VStack(alignment: .leading, spacing: 2) {
                 sentence
                 if let note = row.note {
@@ -605,8 +605,8 @@ private struct MacroHeader: View {
                 .lineLimit(1)
                 .fixedSize()
         }
-        .primaryButton()
-        .controlSize(.large)
+        // 05/11 : blanc sous Papier, comme sous Orange ; sous Noir, accordé aux touches juste à gauche.
+        .buttonStyle(KeyLikeButtonStyle())
         .fixedSize()
         .layoutPriority(2)
         .keyboardShortcut("s", modifiers: .command)

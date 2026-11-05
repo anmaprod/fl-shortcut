@@ -107,25 +107,43 @@ internal sealed class HelpPage
 
     // ---------- Recherche et questions ----------
 
+    /// Maquette du 05/11 (comme le Mac) : grande recherche bordée de 2 points, la loupe à 18 points du bord, pleine du
+    /// fond (la grille de Papier ne passe pas dedans).
     private FrameworkElement SearchField()
     {
         var box = new TextBox
         {
             Text = _query,
-            PlaceholderText = Loc.T("Cherche dans l'aide : raccourcis, macro, pause…"),
+            PlaceholderText = Loc.T("Pose ta question"),
             FontSize = 20,
             FontWeight = Microsoft.UI.Text.FontWeights.Bold,
             FontFamily = SwissFont,
-            Background = Brush(MacLook.WindowColor),
-            BorderBrush = Brush(LineColor),
-            BorderThickness = new Thickness(1),
-            Padding = new Thickness(14, 10, 14, 10),
+            Background = Brush(Colors.Transparent),
+            BorderThickness = new Thickness(0),
+            Padding = new Thickness(0, 6, 0, 6),
+            VerticalAlignment = VerticalAlignment.Center,
         };
         AutomationProperties.SetName(box, Loc.T("Rechercher"));
         // Le texte cherché filtre à la touche Entrée ou à la sortie du champ (jamais un redessin par lettre).
         box.KeyDown += (_, e) => { if (e.Key == Windows.System.VirtualKey.Enter) Search(box.Text); };
         box.LostFocus += (_, _) => Search(box.Text);
-        return box;
+        var grid = new Grid { ColumnSpacing = 12 };
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        var loupe = Icon("search", 18, Text);
+        loupe.VerticalAlignment = VerticalAlignment.Center;
+        grid.Children.Add(loupe);
+        Grid.SetColumn(box, 1);
+        grid.Children.Add(box);
+        return new Border
+        {
+            Child = grid,
+            Height = 60,
+            Padding = new Thickness(18, 0, 18, 0),
+            Background = Brush(MacLook.WindowColor),
+            BorderBrush = Brush(Text),
+            BorderThickness = new Thickness(2),
+        };
     }
 
     private void Search(string text)
@@ -136,15 +154,14 @@ internal sealed class HelpPage
         _render();
     }
 
+    /// Les questions (maquette du 05/11, comme le Mac) : une carte par question, la réponse en étapes ; un clic l'ouvre.
     private FrameworkElement Faq(List<HelpEntry> entries)
     {
-        var list = new StackPanel();
-        list.Children.Add(Rule(LineColor));
+        var list = new StackPanel { Spacing = 14 };
         if (entries.Count == 0)
         {
             var none = Paragraph(Loc.F("Aucune réponse pour « %@ » : écris-nous juste en dessous, on te répond.", DisplayText.Safe(_query, 30)), 13);
-            none.Margin = new Thickness(4, 14, 4, 14);
-            list.Children.Add(none);
+            list.Children.Add(new Border { Child = none, Padding = new Thickness(18), BorderBrush = Brush(LineColor), BorderThickness = new Thickness(1) });
             return list;
         }
         foreach (var entry in entries) list.Children.Add(Entry(entry));
@@ -157,7 +174,7 @@ internal sealed class HelpPage
         var head = new Grid();
         head.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
         head.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-        var question = Label(entry.Question, 13.5, bold: true);
+        var question = Label(entry.Question, 17, bold: true);
         question.TextWrapping = TextWrapping.Wrap;
         head.Children.Add(question);
         var chevron = Label(open ? "⌄" : "›", 15, Secondary);
@@ -167,21 +184,26 @@ internal sealed class HelpPage
         {
             _open = open ? null : entry.Id;
             _render();
-        }, minHeight: 44, padding: new Thickness(12, 8, 12, 8));
+        }, minHeight: 52, padding: new Thickness(20, 12, 20, 12));
         button.HorizontalAlignment = HorizontalAlignment.Stretch;
         button.HorizontalContentAlignment = HorizontalAlignment.Stretch;
         AutomationProperties.SetName(button, entry.Question + " — " + Loc.T(open ? "ouverte" : "fermée"));
         var cell = new StackPanel();
         cell.Children.Add(button);
         if (open) cell.Children.Add(Answer(entry.Answer));
-        cell.Children.Add(Rule(Faint));
-        return cell;
+        return new Border
+        {
+            Child = cell,
+            Background = Brush(MacLook.WindowColor),
+            BorderBrush = Brush(LineColor),
+            BorderThickness = new Thickness(1),
+        };
     }
 
     /// La réponse : en étapes numérotées (carré rouge, comme le Mac) quand elle en a, sinon en un paragraphe.
     private static FrameworkElement Answer(string answer)
     {
-        var stack = new StackPanel { Spacing = 10, Padding = new Thickness(12, 0, 12, 16) };
+        var stack = new StackPanel { Spacing = 10, Padding = new Thickness(20, 0, 20, 18) };
         var soft = Rgb(0xC8, 0xC8, 0xC8);
         if (HelpEntry.Steps(answer) is not { } parsed)
         {
@@ -194,17 +216,11 @@ internal sealed class HelpPage
             var row = new Grid { ColumnSpacing = 10 };
             row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
             row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-            row.Children.Add(new Border
-            {
-                Width = 20, Height = 20, Background = Brush(Red), VerticalAlignment = VerticalAlignment.Top,
-                Child = new TextBlock
-                {
-                    Text = (i + 1).ToString(System.Globalization.CultureInfo.InvariantCulture), FontSize = 11,
-                    FontWeight = Microsoft.UI.Text.FontWeights.Bold, FontFamily = SwissFont, Foreground = Brush(MacLook.OnRed),
-                    HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center,
-                },
-            });
-            var text = Paragraph(parsed.Steps[i], 12.5, soft);
+            var number = Label((i + 1).ToString(System.Globalization.CultureInfo.InvariantCulture), 14, Text, bold: true);
+            number.Width = 16;
+            number.VerticalAlignment = VerticalAlignment.Top;
+            row.Children.Add(number);
+            var text = Paragraph(parsed.Steps[i], 14, soft);
             Grid.SetColumn(text, 1);
             row.Children.Add(text);
             stack.Children.Add(row);
@@ -214,24 +230,18 @@ internal sealed class HelpPage
 
     // ---------- Écrire à l'équipe ----------
 
+    /// À droite des questions (maquette du 05/11, comme le Mac) : « Écrire à l'équipe », grand bouton principal.
     private FrameworkElement SideCards()
     {
-        var card = new StackPanel { Spacing = 14, Padding = new Thickness(16, 18, 16, 18) };
-        card.Children.Add(Tile("help", Tint, 40));
-        card.Children.Add(Label(Loc.T("Écrire à l'équipe"), 15, bold: true));
-        card.Children.Add(Primary(Loc.T("Écrire un message…"), () =>
+        var write = Primary(Loc.T("Écrire à l'équipe"), () =>
         {
             _writing = true;
             _sent = null;
             _render();
-        }));
-        return new Border
-        {
-            Child = card,
-            BorderBrush = Brush(LineColor),
-            BorderThickness = new Thickness(0, 1, 0, 1),
-            VerticalAlignment = VerticalAlignment.Top,
-        };
+        });
+        write.HorizontalAlignment = HorizontalAlignment.Stretch;
+        write.MinHeight = 48;
+        return new StackPanel { Spacing = 16, VerticalAlignment = VerticalAlignment.Top, Children = { write } };
     }
 
     private static TextBox Field(string text, string placeholder) => new()

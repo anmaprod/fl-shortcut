@@ -625,15 +625,46 @@ enum MenuKey: String, CaseIterable {
 
 enum MouseButton: String { case left, right }
 
-/// Bouton du bloc « Clic de souris » (le bouton du milieu en plus des clics appris).
-enum PointerButton: String, CaseIterable {
-    case left, right, middle
+/// Bouton du bloc « Clic de souris » : n'importe quel bouton de la souris (05/11 : « appuyez sur le bouton que vous
+/// voulez… si la personne a 5 boutons »). `number` : le numéro de macOS (0 gauche, 1 droit, 2 milieu, 3 et plus : les
+/// boutons du côté). JSON comme Windows : « left », « right », « middle », puis « 4 », « 5 »… (le numéro sur la souris).
+struct PointerButton: Hashable, RawRepresentable {
+    let number: Int
+
+    static let left = PointerButton(number: 0)
+    static let right = PointerButton(number: 1)
+    static let middle = PointerButton(number: 2)
+    /// Les numéros que macOS donne aux boutons d'une souris (comme KeyCombo.mouseButton).
+    static let numbers = 0...31
+
+    init(number: Int) { self.number = number }
+
+    init?(rawValue: String) {
+        switch rawValue {
+        case "left": number = 0
+        case "right": number = 1
+        case "middle": number = 2
+        default:
+            guard let n = Int(rawValue), Self.numbers.contains(n - 1), n >= 4 else { return nil }
+            number = n - 1
+        }
+    }
+
+    var rawValue: String {
+        switch number {
+        case 0: return "left"
+        case 1: return "right"
+        case 2: return "middle"
+        default: return String(number + 1)
+        }
+    }
 
     var title: String {
-        switch self {
-        case .left: return String(localized: "Gauche")
-        case .right: return String(localized: "Droit")
-        case .middle: return String(localized: "Milieu")
+        switch number {
+        case 0: return String(localized: "Gauche")
+        case 1: return String(localized: "Droit")
+        case 2: return String(localized: "Milieu")
+        default: return String(localized: "Bouton \(number + 1)")
         }
     }
 }

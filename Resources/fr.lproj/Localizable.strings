@@ -230,6 +230,7 @@
 "Apprise au premier passage" = "Apprise au premier passage";
 "Appuie sur le raccourci que tu connais : la recherche montre ce qu'il fait." = "Appuie sur le raccourci que tu connais : la recherche montre ce qu'il fait.";
 "Appuie sur les touches…" = "Appuie sur les touches…";
+"Appuie sur un bouton de ta souris…" = "Appuie sur un bouton de ta souris…";
 "Appuyer sur" = "Appuyer sur";
 "Après la suppression des sons sans note, le Channel rack de la copie rangée ne correspond plus à l'analyse : Organiser s'est arrêté. « Revenir comme avant » rouvre ton projet d'origine, qui n'a pas bougé." = "Après la suppression des sons sans note, le Channel rack de la copie rangée ne correspond plus à l'analyse : Organiser s'est arrêté. « Revenir comme avant » rouvre ton projet d'origine, qui n'a pas bougé.";
 "Arme la piste sélectionnée, sans jamais la désarmer" = "Arme la piste sélectionnée, sans jamais la désarmer";
@@ -374,6 +375,8 @@
 "Blue" = "Blue";
 "Bon à savoir" = "Bon à savoir";
 "Bouton" = "Bouton";
+"Bouton %lld" = "Bouton %lld";
+"Bouton de la souris : " = "Bouton de la souris : ";
 "Bouton mute montré sur ce Mac" = "Bouton mute montré sur ce Mac";
 "Bouton mute retenu : il sera retrouvé sur chaque piste." = "Bouton mute retenu : il sera retrouvé sur chaque piste.";
 "Bouton mute retenu à sa hauteur (écran non lisible : clique tes pistes au milieu, sur leur nom)." = "Bouton mute retenu à sa hauteur (écran non lisible : clique tes pistes au milieu, sur leur nom).";
@@ -567,6 +570,7 @@
 "Clique dans la fenêtre du Mixer." = "Clique dans la fenêtre du Mixer.";
 "Clique et tape dans FL (flèches, raccourcis…), dans l'ordre." = "Clique et tape dans FL (flèches, raccourcis…), dans l'ordre.";
 "Clique et tape dans FL, puis « Terminer » en haut à droite." = "Clique et tape dans FL, puis « Terminer » en haut à droite.";
+"Clique ici, puis appuie sur le bouton de ta souris" = "Clique ici, puis appuie sur le bouton de ta souris";
 "Clique le bouton mute (le petit rond en haut) d'une piste du Mixer, puis reclique-le pour remettre le son. Échap : annuler." = "Clique le bouton mute (le petit rond en haut) d'une piste du Mixer, puis reclique-le pour remettre le son. Échap : annuler.";
 "Clique sur la première entrée de la liste qui s'est ouverte." = "Clique sur la première entrée de la liste qui s'est ouverte.";
 "Clique sur le bouton d'armement de la piste (enregistrement)." = "Clique sur le bouton d'armement de la piste (enregistrement).";
@@ -971,6 +975,7 @@
 "Fais ta suite dans FL : chaque clic, flèche ou raccourci devient un bloc." = "Fais ta suite dans FL : chaque clic, flèche ou raccourci devient un bloc.";
 "Fais ta suite dans FL une fois : chaque clic, flèche ou raccourci devient un bloc." = "Fais ta suite dans FL une fois : chaque clic, flèche ou raccourci devient un bloc.";
 "Fais un clic gauche." = "Fais un clic gauche.";
+"Fais-le dans FL, l'app le retient." = "Fais-le dans FL, l'app le retient.";
 "Fait" = "Fait";
 "Fait les blocs « alors » si la condition est vraie, sinon les blocs « sinon »." = "Fait les blocs « alors » si la condition est vraie, sinon les blocs « sinon ».";
 "Fait une pause (5 s au plus)." = "Fait une pause (5 s au plus).";
@@ -1528,6 +1533,7 @@
 "Parcourir et charger des sons" = "Parcourir et charger des sons";
 "Parcourir les propriétés de note" = "Parcourir les propriétés de note";
 "Pars d'un modèle, puis modifie-le bloc par bloc dans le créateur." = "Pars d'un modèle, puis modifie-le bloc par bloc dans le créateur.";
+"Pars d'une macro toute prête." = "Pars d'une macro toute prête.";
 "Partage les tiennes, avec une explication pour les autres." = "Partage les tiennes, avec une explication pour les autres.";
 "Partage publié." = "Partage publié.";
 "Partager" = "Partager";
@@ -1630,6 +1636,8 @@
 "Plusieurs actions de FL enchaînées, sur un seul raccourci." = "Plusieurs actions de FL enchaînées, sur un seul raccourci.";
 "Port : le même numéro qu'en 1." = "Port : le même numéro qu'en 1.";
 "Portamento" = "Portamento";
+"Pose les blocs un par un." = "Pose les blocs un par un.";
+"Pose ta question" = "Pose ta question";
 "Poser un marqueur" = "Poser un marqueur";
 "Position à montrer dans FL : choisis le bloc puis « Montrer dans FL… »." = "Position à montrer dans FL : choisis le bloc puis « Montrer dans FL… ».";
 "Position(s) à apprendre : %@." = "Position(s) à apprendre : %@.";

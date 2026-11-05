@@ -262,6 +262,10 @@ enum Swiss {
     static let red = Color(nsColor: SwissPalette.adaptive(.red))
     /// Le rouge de la marque, le même dans tous les thèmes (logo).
     static let brandRed = Color(red: 1.0, green: 0.231, blue: 0.122)
+    /// Bouton et carte principaux (maquettes du 05/11) : fond, texte, ombre nette (voir SwissPalette.primary).
+    static let primaryFill = Color(nsColor: SwissPalette.primary(.fill))
+    static let primaryInk = Color(nsColor: SwissPalette.primary(.ink))
+    static let primaryShadow = Color(nsColor: SwissPalette.primary(.shadow))
     /// Les mêmes couleurs pour AppKit (fenêtres, questions).
     enum NS {
         static let background = SwissPalette.adaptive(.background)
@@ -476,6 +480,45 @@ struct RightClickMenu: NSViewRepresentable {
 /// Bouton qui se soulève au survol en laissant voir dessous une encoche de sa couleur, comme les blocs des macros
 /// (cartes de Gumroad, `cardRow(stamp:)`) ; enfoncé, il redescend dans l'encoche. Retour du 02/11 : « À autoriser »
 /// de l'accueil (« qu'ils soient réactifs, comme dans Macro »).
+/// « Enregistrer » du créateur (05/11) : comme les touches de la maquette. Noir : fond noir, trait clair ; Papier :
+/// fond blanc, trait noir, ombre nette rouge ; Orange : fond blanc, trait noir, ombre nette noire. Au survol, plein
+/// d'encre.
+struct KeyLikeButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        KeyLikeButtonBody(label: configuration.label, pressed: configuration.isPressed)
+    }
+}
+
+private struct KeyLikeButtonBody<Label: View>: View {
+    let label: Label
+    let pressed: Bool
+    @State private var hovering = false
+    @Environment(\.isEnabled) private var enabled
+
+    var body: some View {
+        let theme = AppTheme.current
+        let lit = hovering && enabled
+        let restFill: Color = theme == .noir ? Swiss.background : .white
+        let restInk: Color = theme == .noir ? Swiss.text : .black
+        let edge: Color = theme == .noir ? Swiss.text.opacity(0.87) : .black
+        let shadow: Color = theme == .papier ? Swiss.brandRed : theme == .orange ? .black : .clear
+        return label
+            .font(Swiss.font(12))
+            .tracking(1.2)
+            .textCase(.uppercase)
+            .lineLimit(1)
+            .foregroundStyle(lit ? restFill : restInk)
+            .padding(.horizontal, 18)
+            .frame(minHeight: 38)
+            .background(Rectangle().fill(lit ? restInk : restFill))
+            .overlay(Rectangle().strokeBorder(edge, lineWidth: 2))
+            .background(Rectangle().fill(lit ? Color.clear : shadow).offset(x: 3, y: 3))
+            .opacity(enabled ? (pressed ? 0.7 : 1) : 0.35)
+            .contentShape(Rectangle())
+            .onHover { hovering = $0 }
+    }
+}
+
 struct StampButtonStyle: ButtonStyle {
     var tint: Color = Swiss.red
 
@@ -556,20 +599,29 @@ struct SwissButtonBody<Label: View>: View {
     var body: some View {
         let m = metrics
         let lit = hovering && enabled
-        // Plein : principal au repos, ou bordé survolé.
-        let filled = prominent != lit
+        // Maquettes du 05/11 : le principal est plein (blanc sous Noir et Orange, noir sous Papier) sur son ombre
+        // nette (rouge sous Papier, noire sous Orange) ; survolé, il se vide. Le bordé (trait de 2 points, plein du
+        // fond : la grille de Papier ne passe pas dedans) se remplit d'encre au survol.
+        let primaryAtRest = prominent && !lit && !danger
+        let filled = !prominent && lit
         let edge = danger && !lit ? Swiss.red : Swiss.text
-        let ink = filled ? (danger ? Swiss.red : Swiss.background) : (danger ? Swiss.red : Swiss.text)
+        let ink: Color = primaryAtRest ? Swiss.primaryInk
+            : filled ? (danger ? Swiss.red : Swiss.background) : (danger ? Swiss.red : Swiss.text)
+        // Danger : bordé de rouge ; plein de rouge au survol, ou toujours s'il est principal (Désinstaller).
+        let redFull = danger && (lit || prominent)
+        let fill: Color = redFull ? Swiss.red
+            : primaryAtRest ? Swiss.primaryFill : (filled ? Swiss.text : Swiss.background)
         return label
             .font(Swiss.font(m.font))
             .tracking(m.font * 0.1)
             .textCase(.uppercase)
             .lineLimit(1)
-            .foregroundStyle(danger && lit ? Swiss.background : ink)
+            .foregroundStyle(redFull ? Swiss.background : ink)
             .padding(.horizontal, m.padding)
             .frame(minHeight: m.height)
-            .background(Rectangle().fill(danger && lit ? Swiss.red : (filled ? Swiss.text : Swiss.background)))
-            .overlay(Rectangle().strokeBorder(danger && lit ? Swiss.red : edge, lineWidth: 1))
+            .background(Rectangle().fill(fill))
+            .overlay(Rectangle().strokeBorder(redFull ? Swiss.red : edge, lineWidth: 2))
+            .background(Rectangle().fill(primaryAtRest ? Swiss.primaryShadow : Color.clear).offset(x: 4, y: 4))
             .opacity(enabled ? (pressed ? 0.7 : 1) : 0.35)
             .contentShape(Rectangle())
             .animation(reduceMotion ? nil : .easeOut(duration: 0.12), value: lit)

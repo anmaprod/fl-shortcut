@@ -511,28 +511,62 @@ internal static class MacLook
     /// Bouton secondaire (Annuler, Réparer…) : rectangle bordé de blanc, capitales ; au survol, blanc plein.
     public static Button Soft(string text, Action click) => SwissButton(text, click, primary: false);
 
+    /// Bouton principal et carte principale (maquettes du 05/11, comme le Mac) : plein blanc sous Noir et Orange, noir
+    /// sous Papier ; ombre nette rouge sous Papier, noire sous Orange, aucune sous Noir (et dans les parties sombres).
+    public static Color PrimaryFill => Theme == AppTheme.Papier && !DarkSurface ? Colors.Black : Colors.White;
+    public static Color PrimaryInk => Theme == AppTheme.Papier && !DarkSurface ? Colors.White : Colors.Black;
+    public static Color? PrimaryShadow => DarkSurface ? null : Theme == AppTheme.Papier ? BrandRed : Colors.Black;
+
+    /// Ombre nette décalée de `offset` points sous un élément (comme celle des maquettes) ; null : rien.
+    public static Rectangle HardShadow(Color? color, double offset) => new()
+    {
+        Fill = Brush(color ?? Colors.Transparent),
+        RenderTransform = new TranslateTransform { X = offset, Y = offset },
+        IsHitTestVisible = false,
+        Visibility = color is null ? Visibility.Collapsed : Visibility.Visible,
+    };
+
     private static Button SwissButton(string text, Action click, bool primary)
     {
-        Color ink = Text, paper = WindowColor;
-        var label = Label(text.ToUpper(CultureInfo.CurrentCulture), 12, primary ? paper : ink, bold: true);
+        // Maquettes du 05/11 (comme le Mac) : le principal est plein sur son ombre nette, il se vide au survol ; le
+        // bordé (trait de 2 points, plein du fond : la grille de Papier ne passe pas dedans) se remplit d'encre.
+        Color ink = Text, paper = WindowColor, fill = PrimaryFill, onFill = PrimaryInk;
+        var shadowColor = primary ? PrimaryShadow : null;
+        var label = Label(text.ToUpper(CultureInfo.CurrentCulture), 12, primary ? onFill : ink, bold: true);
         label.CharacterSpacing = 80;
+        label.HorizontalAlignment = HorizontalAlignment.Center;
+        var face = new Border
+        {
+            Background = Brush(primary ? fill : paper),
+            BorderBrush = Brush(ink),
+            BorderThickness = new Thickness(2),
+            Padding = new Thickness(16, 0, 16, 0),
+            MinHeight = 32,
+            Child = label,
+        };
+        var shadow = HardShadow(shadowColor, 4);
         var button = new Button
         {
             Style = PlainButton,
             HorizontalAlignment = HorizontalAlignment.Left,
-            HorizontalContentAlignment = HorizontalAlignment.Center,
-            Content = label,
+            HorizontalContentAlignment = HorizontalAlignment.Stretch,
+            VerticalContentAlignment = VerticalAlignment.Stretch,
+            Content = new Grid { Children = { shadow, face } },
             MinHeight = 32,
-            Padding = new Thickness(16, 0, 16, 0),
-            Background = Brush(primary ? ink : Colors.Transparent),
-            BorderBrush = Brush(ink),
-            BorderThickness = new Thickness(1),
         };
         void Set(bool on)
         {
-            var filled = primary != on;                     // principal : plein au repos ; secondaire : plein au survol
-            button.Background = Brush(filled ? ink : paper);
-            label.Foreground = Brush(filled ? paper : ink);
+            if (primary)
+            {
+                face.Background = Brush(on ? paper : fill);
+                label.Foreground = Brush(on ? ink : onFill);
+                shadow.Visibility = on || shadowColor is null ? Visibility.Collapsed : Visibility.Visible;
+            }
+            else
+            {
+                face.Background = Brush(on ? ink : paper);
+                label.Foreground = Brush(on ? paper : ink);
+            }
         }
         button.PointerEntered += (_, _) => Set(true);
         button.PointerExited += (_, _) => Set(false);

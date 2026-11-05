@@ -633,8 +633,9 @@ public static class MenuKeys
 
 public enum MouseButton { Left, Right }
 
-/// Bouton du bloc « Clic de souris » (le bouton du milieu en plus des clics appris), mêmes noms JSON que le Mac.
-public enum PointerButton { Left, Right, Middle }
+/// Bouton du bloc « Clic de souris » (05/11 : « appuyez sur le bouton que vous voulez »), mêmes noms JSON que le Mac :
+/// « left », « right », « middle », puis « 4 », « 5 » (les deux boutons du côté que Windows sait envoyer).
+public enum PointerButton { Left, Right, Middle, Button4, Button5 }
 
 public static class PointerButtons
 {
@@ -642,14 +643,19 @@ public static class PointerButtons
     {
         PointerButton.Right => "right",
         PointerButton.Middle => "middle",
+        PointerButton.Button4 => "4",
+        PointerButton.Button5 => "5",
         _ => "left",
     };
 
+    /// null : un bouton que Windows ne sait pas envoyer (6 et plus, venu d'un Mac).
     public static PointerButton? FromRaw(string raw) => raw switch
     {
         "left" => PointerButton.Left,
         "right" => PointerButton.Right,
         "middle" => PointerButton.Middle,
+        "4" => PointerButton.Button4,
+        "5" => PointerButton.Button5,
         _ => null,
     };
 
@@ -657,6 +663,8 @@ public static class PointerButtons
     {
         PointerButton.Right => Loc.T("Droit"),
         PointerButton.Middle => Loc.T("Milieu"),
+        PointerButton.Button4 => Loc.F("Bouton %lld", 4),
+        PointerButton.Button5 => Loc.F("Bouton %lld", 5),
         _ => Loc.T("Gauche"),
     };
 }

@@ -729,8 +729,20 @@ struct MenuContent: View {
                     .padding(.bottom, 10)
                 MenuSeparator()
             }
-            // Plus de logo ni de titre en haut (28/10, « enlève prêt, FL Shortcuts, le logo ») : seulement ce qui
-            // cloche (en pause, clavier non autorisé, FL fermé…), rien quand tout va bien.
+            // En tête (maquette du 05/11, « juste… pas actif… le point à la fin ») : le rond de la barre des menus et
+            // « fl shortcuts. », sans état ; dessous, seulement ce qui cloche (en pause, clavier non autorisé…).
+            HStack(spacing: 10) {
+                Image(nsImage: MenuBarIcon.image(.normal))
+                    .renderingMode(.template)
+                    .resizable()
+                    .frame(width: 24, height: 24)
+                    .foregroundStyle(Swiss.text)
+                    .accessibilityHidden(true)
+                SwissPageTitle(text: "FL Shortcuts", size: 17)
+            }
+            .padding(.horizontal, 14)
+            .padding(.top, 6)
+            .padding(.bottom, 12)
             if let line = statusLine {
                 HStack(spacing: 5) {
                     Circle().fill(dotColor).frame(width: 7, height: 7)
@@ -1008,8 +1020,9 @@ private struct PanelItem: View {
         } label: {
             // Style suisse (01/11) : un petit carré de sa couleur, le titre en gras, un trait fin dessous ; survolée,
             // blanc plein et texte noir.
+            // 05/11 : plus de couleur par ligne, le carré creux comme la barre de gauche ; survolée, il devient orange.
             HStack(spacing: 12) {
-                Rectangle().fill(tint).frame(width: 8, height: 8).accessibilityHidden(true)
+                BlockSquare()
                 Text(title)
                 Spacer(minLength: 12)
                 if let shortcut {

@@ -230,6 +230,7 @@
 "Apprise au premier passage" = "Learned on the first run";
 "Appuie sur le raccourci que tu connais : la recherche montre ce qu'il fait." = "Press a shortcut you know: the search shows what it does.";
 "Appuie sur les touches…" = "Press the keys…";
+"Appuie sur un bouton de ta souris…" = "Press a button on your mouse…";
 "Appuyer sur" = "Press";
 "Après la suppression des sons sans note, le Channel rack de la copie rangée ne correspond plus à l'analyse : Organiser s'est arrêté. « Revenir comme avant » rouvre ton projet d'origine, qui n'a pas bougé." = "After deleting the sounds with no notes, the Channel rack of the organized copy no longer matches the analysis: Organize stopped. “Undo changes” reopens your original project, which hasn't changed.";
 "Arme la piste sélectionnée, sans jamais la désarmer" = "Arms the selected track, never disarms it";
@@ -374,6 +375,8 @@
 "Blue" = "Blue";
 "Bon à savoir" = "Good to know";
 "Bouton" = "Button";
+"Bouton %lld" = "Button %lld";
+"Bouton de la souris : " = "Mouse button: ";
 "Bouton mute montré sur ce Mac" = "Mute button shown on this Mac";
 "Bouton mute retenu : il sera retrouvé sur chaque piste." = "Mute button remembered: it will be found on every track.";
 "Bouton mute retenu à sa hauteur (écran non lisible : clique tes pistes au milieu, sur leur nom)." = "Mute button remembered by its height (screen not readable: click your tracks in the middle, on their name).";
@@ -567,6 +570,7 @@
 "Clique dans la fenêtre du Mixer." = "Click in the Mixer window.";
 "Clique et tape dans FL (flèches, raccourcis…), dans l'ordre." = "Click and type in FL (arrows, shortcuts…), in order.";
 "Clique et tape dans FL, puis « Terminer » en haut à droite." = "Click and type in FL, then “Finish” at the top right.";
+"Clique ici, puis appuie sur le bouton de ta souris" = "Click here, then press the button on your mouse";
 "Clique le bouton mute (le petit rond en haut) d'une piste du Mixer, puis reclique-le pour remettre le son. Échap : annuler." = "Click the mute button (the small circle at the top) of a Mixer track, then click it again to unmute. Esc: cancel.";
 "Clique sur la première entrée de la liste qui s'est ouverte." = "Click the first input in the list that opened.";
 "Clique sur le bouton d'armement de la piste (enregistrement)." = "Click the track's arm button (recording).";
@@ -971,6 +975,7 @@
 "Fais ta suite dans FL : chaque clic, flèche ou raccourci devient un bloc." = "Do your steps in FL: each click, arrow or shortcut becomes a block.";
 "Fais ta suite dans FL une fois : chaque clic, flèche ou raccourci devient un bloc." = "Do your sequence in FL once: each click, arrow or shortcut becomes a block.";
 "Fais un clic gauche." = "Left-click.";
+"Fais-le dans FL, l'app le retient." = "Do it in FL, the app remembers it.";
 "Fait" = "Done";
 "Fait les blocs « alors » si la condition est vraie, sinon les blocs « sinon »." = "Runs the “then” blocks if the condition is true, otherwise the “else” blocks.";
 "Fait une pause (5 s au plus)." = "Pauses (5 s max).";
@@ -1528,6 +1533,7 @@
 "Parcourir et charger des sons" = "Browse and load sounds";
 "Parcourir les propriétés de note" = "Browse note properties";
 "Pars d'un modèle, puis modifie-le bloc par bloc dans le créateur." = "Start from a template, then edit it block by block in the creator.";
+"Pars d'une macro toute prête." = "Start from a ready-made macro.";
 "Partage les tiennes, avec une explication pour les autres." = "Share yours, with a description for others.";
 "Partage publié." = "Post published.";
 "Partager" = "Share";
@@ -1630,6 +1636,8 @@
 "Plusieurs actions de FL enchaînées, sur un seul raccourci." = "Several FL actions in a row, on a single shortcut.";
 "Port : le même numéro qu'en 1." = "Port: the same number as in 1.";
 "Portamento" = "Portamento";
+"Pose les blocs un par un." = "Place the blocks one by one.";
+"Pose ta question" = "Ask your question";
 "Poser un marqueur" = "Drop a marker";
 "Position à montrer dans FL : choisis le bloc puis « Montrer dans FL… »." = "Position to show in FL: choose the block, then “Show in FL…”.";
 "Position(s) à apprendre : %@." = "Position(s) to learn: %@.";

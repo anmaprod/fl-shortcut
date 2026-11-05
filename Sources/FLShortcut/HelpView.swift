@@ -104,87 +104,79 @@ struct HelpPage: View {
         }
     }
 
+    /// Maquette du 05/11 : grande recherche bordée de 2 points, la loupe à 18 points du bord (« trop proche du bord »),
+    /// pleine du fond (la grille de Papier ne passe pas dedans).
     private var searchField: some View {
-        HStack(spacing: 10) {
-            Image(systemName: "magnifyingglass").font(.system(size: 18, weight: .semibold)).foregroundStyle(Swiss.gray)
-            TextField("Rechercher", text: $query, prompt: Text("Cherche dans l'aide : raccourcis, macro, pause…"))
+        HStack(spacing: 12) {
+            Image(systemName: "magnifyingglass").font(.system(size: 18, weight: .semibold)).foregroundStyle(Swiss.text)
+            TextField("Rechercher", text: $query, prompt: Text("Pose ta question").foregroundStyle(Swiss.gray))
                 .textFieldStyle(.plain)
                 .font(Swiss.font(20))
             if !query.isEmpty {
                 Button {
                     query = ""
                 } label: {
-                    Image(systemName: "xmark.circle.fill").foregroundStyle(.secondary)
+                    Image(systemName: "xmark").font(.system(size: 13, weight: .bold)).foregroundStyle(Swiss.text)
                 }
                 .buttonStyle(.borderless)
                 .accessibilityLabel("Effacer la recherche")
             }
         }
-        // Style suisse (maquette de l'Aide) : grande recherche soulignée, sans case grise.
-        .padding(.horizontal, 2)
-        .frame(height: 44)
-        .swissRule(Swiss.keyLine)
-        .overlay(Rectangle().strokeBorder(Swiss.line, lineWidth: 1))
+        .padding(.horizontal, 18)
+        .frame(height: 60)
+        .background(Rectangle().fill(Swiss.background))
+        .overlay(Rectangle().strokeBorder(Swiss.text, lineWidth: 2))
     }
 
-    /// Les questions, dans une carte ; un trait fin entre deux.
+    /// Les questions (maquette du 05/11) : une carte par question, la réponse en étapes numérotées ; un clic l'ouvre.
     private var faqCard: some View {
-        VStack(alignment: .leading, spacing: 0) {
+        VStack(alignment: .leading, spacing: 14) {
             if entries.isEmpty {
                 Text("Aucune réponse pour « \(query.displaySafe(max: 30)) » : écris-nous juste en dessous, on te répond.")
-                    .font(.system(size: 12))
-                    .foregroundStyle(.secondary)
-                    .padding(16)
+                    .font(.system(size: 13))
+                    .foregroundStyle(Swiss.gray)
+                    .padding(18)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .overlay(Rectangle().strokeBorder(Swiss.line, lineWidth: 1))
             } else {
-                ForEach(Array(entries.enumerated()), id: \.element.id) { index, entry in
+                ForEach(entries, id: \.id) { entry in
                     HelpEntryRow(entry: entry, open: opened.contains(entry.id)) {
                         withAnimation(Motion.smooth) {
                             if opened.contains(entry.id) { opened.remove(entry.id) } else { opened.insert(entry.id) }
                         }
                     }
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 12)
-                    .overlay(alignment: .top) {
-                        if index > 0 { Rectangle().fill(Swiss.faint).frame(height: 1) }
-                    }
+                    .padding(.horizontal, 20)
+                    .padding(.vertical, 16)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(Rectangle().fill(Swiss.background))
+                    .overlay(Rectangle().strokeBorder(Swiss.line, lineWidth: 1))
+                    .swissCard()
                 }
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(MockPlate(cornerRadius: 14)).swissCard()
     }
 
-    /// À droite des questions : écrire à l'équipe, revoir le guide.
+    /// À droite des questions (maquette du 05/11) : deux grands boutons, « Écrire à l'équipe » (principal) et « Revoir
+    /// le guide » (bordé, plein du fond).
     private var sideCards: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            VStack(alignment: .leading, spacing: 12) {
-                SectionIcon(symbol: "bubble.left", tint: SidebarItem.help.tint, size: 40)
-                Text("Écrire à l'équipe").font(.system(size: 15, weight: .bold))
-                Button("Écrire un message…") {
-                    writing = true
-                    sent = false
-                    scrollToForm += 1
-                }
-                .primaryButton()
+        VStack(alignment: .leading, spacing: 16) {
+            Button {
+                writing = true
+                sent = false
+                scrollToForm += 1
+            } label: {
+                Text("Écrire à l'équipe").frame(maxWidth: .infinity)
             }
-            .padding(16)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(MockPlate(cornerRadius: 14)).swissCard()
+            .primaryButton()
+            .heroControlSize()
             Button {
                 showGuide()
             } label: {
-                HStack(spacing: 12) {
-                    SectionIcon(symbol: "play", tint: .green, size: 32)
-                    Text("Revoir le guide").font(.system(size: 13, weight: .semibold))
-                    Spacer(minLength: 0)
-                }
-                .padding(14)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .background(MockPlate(cornerRadius: 14)).swissCard()
-                .contentShape(Rectangle())
+                Text("Revoir le guide").frame(maxWidth: .infinity)
             }
-            .buttonStyle(.plain)
-            .menuHover(tint: .green, cornerRadius: 14)
+            .secondaryButton()
+            .heroControlSize()
             .help("Revoir le guide de FL Shortcuts")
         }
     }
@@ -442,7 +434,7 @@ private struct HelpEntryRow: View {
             Button(action: toggle) {
                 HStack {
                     Text(entry.question)
-                        .font(.system(size: 13, weight: open ? .bold : .medium))
+                        .font(Swiss.font(17)).tracking(-0.3)
                         .multilineTextAlignment(.leading)
                     Spacer(minLength: 8)
                     Image(systemName: "chevron.right")
@@ -460,11 +452,10 @@ private struct HelpEntryRow: View {
                         ForEach(Array(parsed.steps.enumerated()), id: \.offset) { index, step in
                             HStack(alignment: .top, spacing: 10) {
                                 Text(verbatim: "\(index + 1)")
-                                    .font(.system(size: 11, weight: .bold).monospacedDigit())
-                                    .foregroundStyle(Swiss.background)
-                                    .frame(width: 20, height: 20)
-                                    .background(Rectangle().fill(Swiss.red))
-                                answerText(step).padding(.top, 3)
+                                    .font(Swiss.font(14).monospacedDigit())
+                                    .foregroundStyle(Swiss.text)
+                                    .frame(width: 16, alignment: .leading)
+                                answerText(step)
                             }
                         }
                     }
@@ -477,8 +468,8 @@ private struct HelpEntryRow: View {
 
     private func answerText(_ text: String) -> some View {
         Text(text)
-            .font(.system(size: 12.5))
-            .foregroundStyle(.secondary)
+            .font(.system(size: 14))
+            .foregroundStyle(Swiss.soft)
             .textSelection(.enabled)
             .fixedSize(horizontal: false, vertical: true)
     }

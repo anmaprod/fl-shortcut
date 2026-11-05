@@ -533,6 +533,19 @@ public class MacroEffectsWindowsTests
         Assert.Equal("{\"button\":\"right\",\"double\":true}", block.Body.Params().ToJsonString());
     }
 
+    /// 05/11 : les boutons du côté (4 et 5), mêmes noms JSON que le Mac ; un 6e bouton venu d'un Mac n'est pas lu.
+    [Fact]
+    public void SideButtonsHaveTheMacNames()
+    {
+        Assert.Equal("4", PointerButton.Button4.Raw());
+        Assert.Equal("5", PointerButton.Button5.Raw());
+        Assert.Equal(PointerButton.Button5, PointerButtons.FromRaw("5"));
+        Assert.Null(PointerButtons.FromRaw("6"));
+        var (fl, fx, state) = Start();
+        Assert.IsType<StepResult.Ok>(fx.Perform(new BlockBody.MouseClick(PointerButton.Button4), state));
+        Assert.Equal(PointerButton.Button4, Assert.Single(fl.MouseClicks).Button);
+    }
+
     [Fact]
     public void DragGoesFromOneSpotToTheOther()
     {

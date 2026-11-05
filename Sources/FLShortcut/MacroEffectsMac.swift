@@ -1206,10 +1206,13 @@ final class MacroEffectsMac: MacroEffects {
         let front = WinSnapshot.take(pid: ctx.pid).hit(p)?.pid
         let pid = front.flatMap { $0 == ctx.pid || $0 == helper ? $0 : nil } ?? ctx.pid
         let down: CGEventType, up: CGEventType, cgButton: CGMouseButton
-        switch button {
-        case .left: (down, up, cgButton) = (.leftMouseDown, .leftMouseUp, .left)
-        case .right: (down, up, cgButton) = (.rightMouseDown, .rightMouseUp, .right)
-        case .middle: (down, up, cgButton) = (.otherMouseDown, .otherMouseUp, .center)
+        switch button.number {
+        case 0: (down, up, cgButton) = (.leftMouseDown, .leftMouseUp, .left)
+        case 1: (down, up, cgButton) = (.rightMouseDown, .rightMouseUp, .right)
+        default:
+            // Milieu et boutons du côté : « autre bouton » de macOS, avec son numéro.
+            (down, up) = (.otherMouseDown, .otherMouseUp)
+            cgButton = CGMouseButton(rawValue: UInt32(button.number)) ?? .center
         }
         MacroLog.shared.write("CLICK", "mouse \(button.rawValue)\(double ? " double" : "") \(p.logText)")
         for count in 1...(double ? 2 : 1) {
@@ -1217,6 +1220,7 @@ final class MacroEffectsMac: MacroEffects {
                 guard let e = CGEvent(mouseEventSource: source, mouseType: type, mouseCursorPosition: p,
                                       mouseButton: cgButton) else { continue }
                 e.flags = []
+                if button.number >= 2 { e.setIntegerValueField(.mouseEventButtonNumber, value: Int64(button.number)) }
                 e.setIntegerValueField(.mouseEventClickState, value: Int64(count))
                 e.setIntegerValueField(.eventSourceUserData, value: EventTap.mark)
                 if Self.clicksToPid { e.postToPid(pid) } else { e.post(tap: .cghidEventTap) }

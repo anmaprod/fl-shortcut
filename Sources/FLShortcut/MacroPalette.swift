@@ -88,7 +88,7 @@ struct MacroPaletteView: View {
     private func label(_ item: PaletteItem) -> some View {
         // Style suisse (01/11) : un petit carré de la couleur de la catégorie, puis le nom.
         HStack(spacing: 10) {
-            Rectangle().fill(item.category.tint).frame(width: 8, height: 8).accessibilityHidden(true)
+            BlockSquare()
             Text(item.label).font(.system(size: 13)).lineLimit(1)
             Spacer(minLength: 4)
             if item.soon {

@@ -146,6 +146,25 @@ struct SwissPalette: Equatable, Sendable {
     }
 }
 
+extension SwissPalette {
+    enum PrimaryPart: Sendable { case fill, ink, shadow }
+
+    /// Bouton principal et carte principale (maquettes du 05/11) : plein blanc sous Noir et Orange, noir sous Papier ;
+    /// ombre nette rouge sous Papier, noire sous Orange, aucune sous Noir (et dans les parties sombres).
+    static func primary(_ part: PrimaryPart) -> NSColor {
+        NSColor(name: nil) { appearance in
+            let dark = appearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua
+            let papier = AppTheme.current == .papier && !dark
+            let orange = AppTheme.current == .orange && !dark
+            switch part {
+            case .fill: return nsColor(papier ? 0x000000 : 0xFFFFFF)
+            case .ink: return nsColor(papier ? 0xFFFFFF : 0x000000)
+            case .shadow: return papier ? nsColor(brandRed) : orange ? nsColor(0x000000) : .clear
+            }
+        }
+    }
+}
+
 extension View {
     /// Partie sombre sous Orange (barre de gauche, petite fenêtre) : couleurs inversées ; rien dans les autres thèmes.
     func swissInverted() -> some View { modifier(SwissInvertedSurface()) }
@@ -153,6 +172,11 @@ extension View {
     /// Bloc posé sur la page (carte de raccourcis, du compte, de l'aide) : sous Orange, une carte noire au texte blanc
     /// comme la maquette ; `padding` : marge ajoutée autour du contenu (0 s'il en a déjà une). Rien ailleurs.
     func swissCard(padding: CGFloat = 0) -> some View { modifier(SwissCardSurface(padding: padding)) }
+
+    /// `swissCard()` seulement si `on`.
+    @ViewBuilder func swissCard(if on: Bool) -> some View {
+        if on { swissCard() } else { self }
+    }
 }
 
 private struct SwissInvertedSurface: ViewModifier {

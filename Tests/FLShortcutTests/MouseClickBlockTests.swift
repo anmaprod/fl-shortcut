@@ -13,8 +13,20 @@ final class MouseClickBlockTests: XCTestCase {
     }
 
     func testEveryButtonHasItsName() {
-        XCTAssertEqual(PointerButton.allCases.map(\.rawValue), ["left", "right", "middle"])
-        XCTAssertEqual(Set(PointerButton.allCases.map(\.title)).count, 3)
+        let buttons = [PointerButton.left, .right, .middle, PointerButton(number: 3), PointerButton(number: 4)]
+        XCTAssertEqual(buttons.map(\.rawValue), ["left", "right", "middle", "4", "5"])
+        XCTAssertEqual(Set(buttons.map(\.title)).count, 5)
+        XCTAssertEqual(PointerButton(rawValue: "5"), PointerButton(number: 4))
+        XCTAssertNil(PointerButton(rawValue: "2"), "le 2 s'écrit « right »")
+        XCTAssertNil(PointerButton(rawValue: "33"))
         XCTAssertTrue(BlockRegistry.spec(.mouseClick).plateformes.contains(.windows))
+    }
+
+    /// 05/11 : n'importe quel bouton (« si la personne a 5 boutons ») ; le JSON reste lisible par Windows.
+    func testASideButtonKeepsItsNumber() throws {
+        let block = Block(.mouseClick(button: PointerButton(number: 4), double: false))
+        XCTAssertEqual(block.body.params, ["button": .string("5"), "double": .bool(false)])
+        let back = try JSONDecoder().decode([Block].self, from: JSONEncoder().encode([block]))
+        XCTAssertEqual(back, [block])
     }
 }

@@ -78,11 +78,21 @@ internal sealed class TrayMenu
         Win32.DwmSetWindowAttribute(_hwnd, Win32.DWMWA_WINDOW_CORNER_PREFERENCE, ref corner, sizeof(int));
 
         var stack = new StackPanel { Spacing = 2 };
-        // L'état, en petit, avec son point de couleur.
-        var state = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 7, Margin = new Thickness(12, 8, 12, 8) };
-        state.Children.Add(new Ellipse { Width = 7, Height = 7, Fill = Brush(ok ? Green : Orange), VerticalAlignment = VerticalAlignment.Center });
-        state.Children.Add(Label(status, 11.5, Secondary));
-        stack.Children.Add(state);
+        // En tête (maquette du 05/11, comme le Mac) : le rond de la zone de notification et « fl shortcuts. », sans
+        // état ; dessous, seulement ce qui cloche.
+        var title = SwissTitle(17);
+        title.Text = "fl shortcuts";
+        var head = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10, Margin = new Thickness(12, 8, 12, 10) };
+        head.Children.Add(Round(24, Text, MenuColor));
+        head.Children.Add(PageTitle(title, 17));
+        stack.Children.Add(head);
+        if (!ok)
+        {
+            var state = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 7, Margin = new Thickness(12, 0, 12, 8) };
+            state.Children.Add(new Ellipse { Width = 7, Height = 7, Fill = Brush(Orange), VerticalAlignment = VerticalAlignment.Center });
+            state.Children.Add(Label(status, 11.5, Secondary));
+            stack.Children.Add(state);
+        }
         stack.Children.Add(Separator());
         foreach (var entry in entries) stack.Children.Add(Row(entry));
         stack.Children.Add(Separator());
@@ -144,17 +154,46 @@ internal sealed class TrayMenu
         });
     }
 
-    /// Une ligne : son action après la fermeture du menu (une fenêtre qui s'ouvre passe devant).
+    /// Le rond de la zone de notification (marque/rond-A-barre-blanc.svg) : un grand cercle décalé en haut à droite,
+    /// un jour, puis le rond plein.
+    private static Canvas Round(double size, Color ink, Color background)
+    {
+        var k = size / 1024;
+        var canvas = new Canvas { Width = size, Height = size, VerticalAlignment = VerticalAlignment.Center };
+        Ellipse Circle(double cx, double cy, double r) => new()
+        {
+            Width = 2 * r * k, Height = 2 * r * k, Margin = new Thickness((cx - r) * k, (cy - r) * k, 0, 0),
+        };
+        var ring = Circle(590, 440, 365);
+        ring.Stroke = Brush(ink);
+        ring.StrokeThickness = 70 * k;
+        var gap = Circle(470, 580, 345);
+        gap.Fill = Brush(background);
+        var dot = Circle(470, 580, 290);
+        dot.Fill = Brush(ink);
+        canvas.Children.Add(ring);
+        canvas.Children.Add(gap);
+        canvas.Children.Add(dot);
+        AutomationProperties.SetAccessibilityView(canvas, Microsoft.UI.Xaml.Automation.Peers.AccessibilityView.Raw);
+        return canvas;
+    }
+
+    /// Une ligne : son action après la fermeture du menu (une fenêtre qui s'ouvre passe devant). 05/11 : plus de couleur
+    /// par ligne, le carré creux de la barre de gauche ; survolée, il devient orange.
     private Button Row(Entry entry)
     {
-        var tile = Tile(entry.Icon, entry.Tint, 20);
-        var content = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10 };
-        content.Children.Add(tile);
+        var square = new Border { Width = 8, Height = 8, BorderBrush = Brush(Text), BorderThickness = new Thickness(1), VerticalAlignment = VerticalAlignment.Center };
+        var content = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 12 };
+        content.Children.Add(square);
         var title = Label(entry.Title, 13, bold: true);
         title.VerticalAlignment = VerticalAlignment.Center;
         content.Children.Add(title);
-        var row = Option(content, entry.Tint, 9, () => Run(entry.Run), minHeight: 34, padding: new Thickness(8, 0, 8, 0),
-                         hover: on => SetTileHover(tile, entry.Icon, entry.Tint, on));
+        var row = Option(content, entry.Tint, 9, () => Run(entry.Run), minHeight: 34, padding: new Thickness(10, 0, 8, 0),
+                         hover: on =>
+                         {
+                             square.Background = Brush(on ? BrandRed : Colors.Transparent);
+                             square.BorderBrush = Brush(on ? BrandRed : Text);
+                         });
         AutomationProperties.SetName(row, entry.Title);
         return row;
     }
