@@ -164,6 +164,8 @@ private struct BlockInspector: View {
             }
         case .soundCard:
             SoundCardField()
+        case .mouseClick(let button, let double):
+            mouseClickFields(button, double: double)
         default:
             Text("Rien à régler.").foregroundStyle(.secondary)
         }
@@ -302,6 +304,18 @@ private struct BlockInspector: View {
     /// Modifie le corps du bloc (annulable ; `key` regroupe les frappes d'un même champ).
     private func setBody(key: String = "body", _ change: (inout BlockBody) -> Void) {
         model.updateBlock(block.id, key: key) { b in change(&b.body) }
+    }
+
+    /// « Clic de souris » : le bouton (gauche, droit, milieu), puis simple ou double.
+    @ViewBuilder private func mouseClickFields(_ button: PointerButton, double: Bool) -> some View {
+        SwissSegmented(selection: Binding(get: { button }, set: { picked in
+            setBody(key: "button") { if case .mouseClick(_, let d) = $0 { $0 = .mouseClick(button: picked, double: d) } }
+        }), options: PointerButton.allCases.map { (value: $0, label: $0.title) }, title: String(localized: "Bouton"))
+        SwissSegmented(selection: Binding(get: { double }, set: { picked in
+            setBody(key: "double") { if case .mouseClick(let b, _) = $0 { $0 = .mouseClick(button: b, double: picked) } }
+        }), options: [(value: false, label: String(localized: "Simple")),
+                     (value: true, label: String(localized: "Double"))],
+           title: String(localized: "Clic"))
     }
 
     private func menuKeyPicker(_ label: String, _ current: MenuKey) -> some View {

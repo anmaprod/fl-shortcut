@@ -25,6 +25,7 @@
 " puis Entrée" = " then Return";
 " « %@ »" = " “%@”";
 " · %@ au plus" = " · up to %@";
+" · double" = " · double";
 "!" = "!";
 "#" = "#";
 "#%@" = "#%@";
@@ -545,6 +546,7 @@
 "Clic" = "Click";
 "Clic : voir où va cette piste, puis choisir ses sorties avec les cases. Double-clic : nom et couleur." = "Click: see where this track goes, then choose its outputs with the boxes. Double-click: name and color.";
 "Clic : voir où va cette piste, puis choisir ses sorties avec les cases. Double-clic : nom et couleur. Glisse-la sur une autre famille : le son y passe, relié à son bus." = "Click: see where this track goes, then choose its outputs with the boxes. Double-click: name and color. Drag it onto another family: the sound moves there, linked to its bus.";
+"Clic de souris" = "Mouse click";
 "Clic droit" = "Right-click";
 "Clic droit sur la dernière piste cliquée dans le Mixer, puis l'élément choisi dans la liste (ouvrir un état de piste, renommer…), au clavier : rien à apprendre." = "Right-clicks the last clicked track in the Mixer, then picks the chosen item in the list (open a track state, rename…) with the keyboard: nothing to learn.";
 "Clic droit sur la piste → File → Open mixer track state, preset, armement, entrée 1, REC." = "Right-click the track → File → Open mixer track state, preset, arm, input 1, REC.";
@@ -553,6 +555,7 @@
 "Clic gauche ou droit à un endroit que tu montres une fois dans FL (« Montrer dans FL… »), retrouvé ensuite par rapport à la fenêtre ou au menu de FL ; ou sur la piste visée. Jamais hors de FL ni sous une autre app." = "Left- or right-click on a spot you show once in FL (“Show in FL…”), then found again relative to FL's window or menu; or on the targeted track. Never outside FL or under another app.";
 "Clic gauche ou droit à un endroit que tu montres une fois dans FL." = "Left or right click on a spot you show once in FL.";
 "Clic gauche ou droit à un endroit retrouvé à chaque fois (coin d'une fenêtre de FL, piste visée, menu ouvert, fenêtre d'un plugin comme Serum…). Toujours dans une fenêtre de FL ou de ses plugins, jamais sous une autre app." = "Left or right click on a spot found again each time (corner of an FL window, target track, open menu, a plugin window like Serum…). Always in an FL or plugin window, never over another app.";
+"Clic là où est la souris, dans FL." = "Clicks where the mouse is, in FL.";
 "Clic sur le bouton « Arrangement » de la Playlist, retrouvé à son nom dans la fenêtre de FL " = "Click on the Playlist's “Arrangement” button, found by its name in FL's window ";
 "Clic · " = "Click · ";
 "Clic à un endroit appris" = "Click on a learned spot";
@@ -701,6 +704,7 @@
 "Donne une valeur (nombre entier) à une variable de la macro." = "Sets a macro variable to a value (whole number).";
 "Donne-lui un raccourci." = "Give it a shortcut.";
 "Dossier incorrect" = "Wrong folder";
+"Double" = "Double";
 "Downlifter" = "Downlifter";
 "Droit" = "Right";
 "Drum loop" = "Drum loop";
@@ -1304,6 +1308,7 @@
 "Micro et haut-parleurs de l'ordinateur sans casque : explique comment éviter le larsen. Vérifié dès le début de la macro, affiché à la fin." = "Computer mic and speakers without headphones: explains how to avoid feedback. Checked at the start of the macro, shown at the end.";
 "Micro et sortie de l'ordinateur" = "Computer mic and output";
 "Mieux vaut attendre une boîte ou un menu de FL." = "Better to wait for an FL dialog or menu.";
+"Milieu" = "Middle";
 "Minuscule" = "Lowercase";
 "Mission Control" = "Mission Control";
 "Mix" = "Mix";
@@ -1886,6 +1891,7 @@
 "Signaler un problème" = "Report a problem";
 "Signaler « %@ »" = "Report “%@”";
 "Signaler…" = "Report…";
+"Simple" = "Single";
 "Sinon" = "Else";
 "Sinon, la macro revient telle qu'elle était quand tu l'as ouverte." = "Otherwise, the macro goes back to how it was when you opened it.";
 "Si… sinon" = "If… else";
@@ -2308,6 +2314,7 @@
 "la grille des icônes ne s'est pas ouverte : relance pour montrer de nouveau « Change icon… »" = "the icon grid didn't open: run it again to show “Change icon…” once more";
 "la liste « More plugins… » de FL ne s'est pas ouverte" = "FL's “More plugins…” list didn't open";
 "la piste visée est hors de FL : clique d'abord sur ta piste dans le Mixer" = "the target track is outside FL: first click your track in the Mixer";
+"la souris est hors de FL" = "the mouse is outside FL";
 "le bloc précédent a échoué" = "the previous block failed";
 "le glisser du preset n'a pas démarré (une fenêtre couvre la piste ?)" = "the preset drag didn't start (is a window covering the track?)";
 "le glisser sort de FL" = "the drag goes outside FL";
@@ -2420,6 +2427,7 @@
 "point hors du menu : réapprends les clics" = "point outside the menu: learn the clicks again";
 "ports MIDI « FL Shortcuts Link » indisponibles" = "“FL Shortcuts Link” MIDI ports unavailable";
 "ports MIDI « FL Shortcuts Link » indisponibles : relance FL Shortcuts" = "“FL Shortcuts Link” MIDI ports unavailable: relaunch FL Shortcuts";
+"position de la souris illisible" = "mouse position unreadable";
 "position introuvable (fenêtre de FL ?)" = "position not found (FL window?)";
 "position invalide" = "invalid position";
 "position invalide." = "invalid position.";

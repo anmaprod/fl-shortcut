@@ -226,6 +226,26 @@ internal sealed class WindowsFlDriver : IFlDriver
         return true;
     }
 
+    /// « Clic de souris » : ce bouton là où est déjà la souris (rien n'est déplacé), deux fois rapprochées si `twice`.
+    public bool MouseClick(int x, int y, PointerButton button, bool twice)
+    {
+        var (down, up) = button switch
+        {
+            PointerButton.Right => (Win32.MOUSEEVENTF_RIGHTDOWN, Win32.MOUSEEVENTF_RIGHTUP),
+            PointerButton.Middle => (Win32.MOUSEEVENTF_MIDDLEDOWN, Win32.MOUSEEVENTF_MIDDLEUP),
+            _ => (Win32.MOUSEEVENTF_LEFTDOWN, Win32.MOUSEEVENTF_LEFTUP),
+        };
+        for (var i = 0; i < (twice ? 2 : 1); i++)
+        {
+            if (!InFront()) return false;
+            Mouse(down);
+            Thread.Sleep(twice ? 30 : 50);
+            Mouse(up);
+            if (twice && i == 0) Thread.Sleep(60);
+        }
+        return true;
+    }
+
     /// Double-clic gauche (deux appuis rapprochés, bien sous le délai de double-clic de Windows).
     public bool DoubleClick(int x, int y)
     {

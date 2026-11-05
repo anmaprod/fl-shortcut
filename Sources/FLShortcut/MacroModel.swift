@@ -238,6 +238,9 @@ indirect enum BlockBody: Equatable {
     case click(ClickTarget, button: MouseButton)
     /// Appui à `from`, glissé jusqu'à `to`, relâché (MacroEffectsMac.drag).
     case drag(from: ClickTarget, to: ClickTarget)
+    /// « Clic de souris » (05/11) : un clic là où est la souris au moment du bloc, bouton gauche, droit ou du milieu,
+    /// simple ou double ; seulement dans FL (MacroEffectsMac.mouseClick).
+    case mouseClick(button: PointerButton, double: Bool)
     // Fenêtres et attentes
     case delay(ms: Int)
     case waitWindow(WindowKind, timeoutMs: Int)             // .dialog | .menu
@@ -287,6 +290,7 @@ indirect enum BlockBody: Equatable {
         case .menuKey: return .menuKey
         case .click: return .click
         case .drag: return .drag
+        case .mouseClick: return .mouseClick
         case .delay: return .delay
         case .waitWindow: return .waitWindow
         case .waitWindowClose: return .waitWindowClose
@@ -346,6 +350,8 @@ indirect enum BlockBody: Equatable {
             return ["target": target.json, "button": .string(button.rawValue)]
         case .drag(let from, let to):
             return ["from": from.json, "to": to.json]
+        case .mouseClick(let button, let double):
+            return ["button": .string(button.rawValue), "double": .bool(double)]
         case .delay(let ms):
             return ["ms": .num(ms)]
         case .waitWindow(let kind, let timeout), .waitWindowClose(let kind, let timeout):
@@ -424,6 +430,9 @@ indirect enum BlockBody: Equatable {
         case .drag:
             guard let from = ClickTarget(json: j["from"]), let to = ClickTarget(json: j["to"]) else { return nil }
             return .drag(from: from, to: to)
+        case .mouseClick:
+            guard let button = PointerButton(rawValue: j["button"]?.string ?? "left") else { return nil }
+            return .mouseClick(button: button, double: j["double"]?.bool ?? false)
         case .delay:
             guard let ms = j["ms"]?.int else { return nil }
             return .delay(ms: ms)
@@ -615,6 +624,19 @@ enum MenuKey: String, CaseIterable {
 }
 
 enum MouseButton: String { case left, right }
+
+/// Bouton du bloc « Clic de souris » (le bouton du milieu en plus des clics appris).
+enum PointerButton: String, CaseIterable {
+    case left, right, middle
+
+    var title: String {
+        switch self {
+        case .left: return String(localized: "Gauche")
+        case .right: return String(localized: "Droit")
+        case .middle: return String(localized: "Milieu")
+        }
+    }
+}
 
 enum WindowKind: String { case dialog, menu }
 

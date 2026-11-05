@@ -324,6 +324,9 @@ final class MacroEffectsMac: MacroEffects {
         case .drag(let from, let to):
             return drag(from: from, to: to, ctx: ctx)
 
+        case .mouseClick(let button, let double):
+            return mouseClick(button, double: double, ctx: ctx)
+
         case .menuAX(let titles, let fallback):
             let found = AXMenus.pressPath(pid: ctx.pid, titles: titles, perItemTimeout: 0.9) {
                 shouldStop(ctx.pid) != nil
@@ -1183,6 +1186,44 @@ final class MacroEffectsMac: MacroEffects {
         let front = WinSnapshot.take(pid: ctx.pid).hit(p)?.pid
         postClick(at: p, right: right, pid: front.flatMap { $0 == ctx.pid || $0 == helper ? $0 : nil } ?? ctx.pid,
                   flags: flags)
+        lastClickPoint = p
+        return .ok
+    }
+
+    /// « Clic de souris » (05/11) : un clic là où est la souris, avec les garde-fous d'un clic appris (dans une fenêtre de
+    /// FL ou d'un plugin qu'il fait tourner, rien ne la couvre) ; double : deux clics comptés comme un double clic.
+    func mouseClick(_ button: PointerButton, double: Bool, ctx: Context) -> StepResult {
+        guard let p = CGEvent(source: nil)?.location else { return .fail(String(localized: "position de la souris illisible")) }
+        let helper = FLHelpers.pids(of: ctx.pid).first { FLWindows.contains(p, pid: $0) }
+        guard helper != nil || FLWindows.contains(p, pid: ctx.pid) else {
+            MacroLog.shared.write("CLICK", "mouse click refused \(p.logText): outside every FL window")
+            return .fail(String(localized: "la souris est hors de FL"))
+        }
+        if !Self.clicksToPid, let name = coveringApp(at: p, ctx: ctx) {
+            return .fail(String(localized: "« \(name) » couvre FL à cet endroit"))
+        }
+        if let stop = shouldStop(ctx.pid) { return .cancel(stop) }
+        let front = WinSnapshot.take(pid: ctx.pid).hit(p)?.pid
+        let pid = front.flatMap { $0 == ctx.pid || $0 == helper ? $0 : nil } ?? ctx.pid
+        let down: CGEventType, up: CGEventType, cgButton: CGMouseButton
+        switch button {
+        case .left: (down, up, cgButton) = (.leftMouseDown, .leftMouseUp, .left)
+        case .right: (down, up, cgButton) = (.rightMouseDown, .rightMouseUp, .right)
+        case .middle: (down, up, cgButton) = (.otherMouseDown, .otherMouseUp, .center)
+        }
+        MacroLog.shared.write("CLICK", "mouse \(button.rawValue)\(double ? " double" : "") \(p.logText)")
+        for count in 1...(double ? 2 : 1) {
+            for type in [down, up] {
+                guard let e = CGEvent(mouseEventSource: source, mouseType: type, mouseCursorPosition: p,
+                                      mouseButton: cgButton) else { continue }
+                e.flags = []
+                e.setIntegerValueField(.mouseEventClickState, value: Int64(count))
+                e.setIntegerValueField(.eventSourceUserData, value: EventTap.mark)
+                if Self.clicksToPid { e.postToPid(pid) } else { e.post(tap: .cghidEventTap) }
+                usleep(type == down ? 50_000 : 1_000)
+            }
+            if count == 1 && double { usleep(60_000) }
+        }
         lastClickPoint = p
         return .ok
     }

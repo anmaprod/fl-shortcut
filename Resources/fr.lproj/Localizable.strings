@@ -25,6 +25,7 @@
 " puis Entrée" = " puis Entrée";
 " « %@ »" = " « %@ »";
 " · %@ au plus" = " · %@ au plus";
+" · double" = " · double";
 "!" = "!";
 "#" = "#";
 "#%@" = "#%@";
@@ -545,6 +546,7 @@
 "Clic" = "Clic";
 "Clic : voir où va cette piste, puis choisir ses sorties avec les cases. Double-clic : nom et couleur." = "Clic : voir où va cette piste, puis choisir ses sorties avec les cases. Double-clic : nom et couleur.";
 "Clic : voir où va cette piste, puis choisir ses sorties avec les cases. Double-clic : nom et couleur. Glisse-la sur une autre famille : le son y passe, relié à son bus." = "Clic : voir où va cette piste, puis choisir ses sorties avec les cases. Double-clic : nom et couleur. Glisse-la sur une autre famille : le son y passe, relié à son bus.";
+"Clic de souris" = "Clic de souris";
 "Clic droit" = "Clic droit";
 "Clic droit sur la dernière piste cliquée dans le Mixer, puis l'élément choisi dans la liste (ouvrir un état de piste, renommer…), au clavier : rien à apprendre." = "Clic droit sur la dernière piste cliquée dans le Mixer, puis l'élément choisi dans la liste (ouvrir un état de piste, renommer…), au clavier : rien à apprendre.";
 "Clic droit sur la piste → File → Open mixer track state, preset, armement, entrée 1, REC." = "Clic droit sur la piste → File → Open mixer track state, preset, armement, entrée 1, REC.";
@@ -553,6 +555,7 @@
 "Clic gauche ou droit à un endroit que tu montres une fois dans FL (« Montrer dans FL… »), retrouvé ensuite par rapport à la fenêtre ou au menu de FL ; ou sur la piste visée. Jamais hors de FL ni sous une autre app." = "Clic gauche ou droit à un endroit que tu montres une fois dans FL (« Montrer dans FL… »), retrouvé ensuite par rapport à la fenêtre ou au menu de FL ; ou sur la piste visée. Jamais hors de FL ni sous une autre app.";
 "Clic gauche ou droit à un endroit que tu montres une fois dans FL." = "Clic gauche ou droit à un endroit que tu montres une fois dans FL.";
 "Clic gauche ou droit à un endroit retrouvé à chaque fois (coin d'une fenêtre de FL, piste visée, menu ouvert, fenêtre d'un plugin comme Serum…). Toujours dans une fenêtre de FL ou de ses plugins, jamais sous une autre app." = "Clic gauche ou droit à un endroit retrouvé à chaque fois (coin d'une fenêtre de FL, piste visée, menu ouvert, fenêtre d'un plugin comme Serum…). Toujours dans une fenêtre de FL ou de ses plugins, jamais sous une autre app.";
+"Clic là où est la souris, dans FL." = "Clic là où est la souris, dans FL.";
 "Clic sur le bouton « Arrangement » de la Playlist, retrouvé à son nom dans la fenêtre de FL " = "Clic sur le bouton « Arrangement » de la Playlist, retrouvé à son nom dans la fenêtre de FL ";
 "Clic · " = "Clic · ";
 "Clic à un endroit appris" = "Clic à un endroit appris";
@@ -701,6 +704,7 @@
 "Donne une valeur (nombre entier) à une variable de la macro." = "Donne une valeur (nombre entier) à une variable de la macro.";
 "Donne-lui un raccourci." = "Donne-lui un raccourci.";
 "Dossier incorrect" = "Dossier incorrect";
+"Double" = "Double";
 "Downlifter" = "Downlifter";
 "Droit" = "Droit";
 "Drum loop" = "Drum loop";
@@ -1304,6 +1308,7 @@
 "Micro et haut-parleurs de l'ordinateur sans casque : explique comment éviter le larsen. Vérifié dès le début de la macro, affiché à la fin." = "Micro et haut-parleurs de l'ordinateur sans casque : explique comment éviter le larsen. Vérifié dès le début de la macro, affiché à la fin.";
 "Micro et sortie de l'ordinateur" = "Micro et sortie de l'ordinateur";
 "Mieux vaut attendre une boîte ou un menu de FL." = "Mieux vaut attendre une boîte ou un menu de FL.";
+"Milieu" = "Milieu";
 "Minuscule" = "Minuscule";
 "Mission Control" = "Mission Control";
 "Mix" = "Mix";
@@ -1886,6 +1891,7 @@
 "Signaler un problème" = "Signaler un problème";
 "Signaler « %@ »" = "Signaler « %@ »";
 "Signaler…" = "Signaler…";
+"Simple" = "Simple";
 "Sinon" = "Sinon";
 "Sinon, la macro revient telle qu'elle était quand tu l'as ouverte." = "Sinon, la macro revient telle qu'elle était quand tu l'as ouverte.";
 "Si… sinon" = "Si… sinon";
@@ -2308,6 +2314,7 @@
 "la grille des icônes ne s'est pas ouverte : relance pour montrer de nouveau « Change icon… »" = "la grille des icônes ne s'est pas ouverte : relance pour montrer de nouveau « Change icon… »";
 "la liste « More plugins… » de FL ne s'est pas ouverte" = "la liste « More plugins… » de FL ne s'est pas ouverte";
 "la piste visée est hors de FL : clique d'abord sur ta piste dans le Mixer" = "la piste visée est hors de FL : clique d'abord sur ta piste dans le Mixer";
+"la souris est hors de FL" = "la souris est hors de FL";
 "le bloc précédent a échoué" = "le bloc précédent a échoué";
 "le glisser du preset n'a pas démarré (une fenêtre couvre la piste ?)" = "le glisser du preset n'a pas démarré (une fenêtre couvre la piste ?)";
 "le glisser sort de FL" = "le glisser sort de FL";
@@ -2420,6 +2427,7 @@
 "point hors du menu : réapprends les clics" = "point hors du menu : réapprends les clics";
 "ports MIDI « FL Shortcuts Link » indisponibles" = "ports MIDI « FL Shortcuts Link » indisponibles";
 "ports MIDI « FL Shortcuts Link » indisponibles : relance FL Shortcuts" = "ports MIDI « FL Shortcuts Link » indisponibles : relance FL Shortcuts";
+"position de la souris illisible" = "position de la souris illisible";
 "position introuvable (fenêtre de FL ?)" = "position introuvable (fenêtre de FL ?)";
 "position invalide" = "position invalide";
 "position invalide." = "position invalide.";

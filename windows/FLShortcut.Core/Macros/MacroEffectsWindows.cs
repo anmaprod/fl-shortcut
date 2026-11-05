@@ -56,6 +56,8 @@ public interface IFlDriver
     bool Click(int x, int y, bool right, int hoverMs);
     /// Appui en (ax, ay), glissé, relâché en (bx, by) (le bouton est toujours relâché) ; faux si FL n'est plus devant.
     bool Drag(int ax, int ay, int bx, int by);
+    /// Clic de ce bouton là où est déjà la souris (x, y), deux fois rapprochées si `twice` ; faux si FL n'est plus devant.
+    bool MouseClick(int x, int y, PointerButton button, bool twice);
     /// Titres de la barre des menus de FL (en haut de sa fenêtre principale), lus maintenant ; null : illisibles.
     IReadOnlyList<TextItem>? MenuBar();
     /// Éléments du menu de FL ouvert dans cette fenêtre, lus maintenant ; null : illisibles.
@@ -195,6 +197,8 @@ public sealed partial class MacroEffectsWindows : IMacroEffects
                 return Click(c.Target, c.Button == MouseButton.Right);
             case BlockBody.Drag d:
                 return Drag(d.From, d.To);
+            case BlockBody.MouseClick m:
+                return MouseClick(m);
             case BlockBody.MenuBar m:
                 return MenuBar(m.Titles);
             case BlockBody.Key k:

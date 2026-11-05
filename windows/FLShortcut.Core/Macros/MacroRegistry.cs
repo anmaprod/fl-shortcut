@@ -315,6 +315,19 @@ internal static class Specs
             },
             Import = new ImportPolicy.StripPositions(),
         },
+        BlockType.MouseClick => new BlockSpec
+        {
+            Type = type, Label = Loc.T("Clic de souris"), Category = BlockCategory.Mouse, Symbol = "computermouse",
+            Help = Loc.T("Clic là où est la souris, dans FL."),
+            Params = Array.Empty<ParamSpec>(),
+            Needs = _ => Base | BlockNeeds.Clicks,
+            Default = () => new BlockBody.MouseClick(),
+            Summary = b => b is BlockBody.MouseClick m ? m.Button.Title() + (m.Twice ? Loc.T(" · double") : "") : "",
+            Journal = _ => "mouseClick",
+            EstimateMs = b => b is BlockBody.MouseClick { Twice: true } ? 250 : 150,
+            Validate = (_, _) => null,
+            Import = new ImportPolicy.Ok(),
+        },
         BlockType.Drag => new BlockSpec
         {
             Type = type, Label = Loc.T("Glisser-déposer"), Category = BlockCategory.Mouse, Symbol = "hand.draw",

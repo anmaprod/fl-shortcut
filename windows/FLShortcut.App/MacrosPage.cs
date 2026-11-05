@@ -1307,6 +1307,12 @@ internal sealed class MacrosPage
                 }
                 yield return Param(Loc.T("Endroit"), spot);
                 break;
+            case BlockBody.MouseClick mc:
+                yield return Param(Loc.T("Bouton"), Choice(new[] { Loc.T("Gauche"), Loc.T("Droit"), Loc.T("Milieu") }, (int)mc.Button,
+                    i => set(mc with { Button = (PointerButton)i })));
+                yield return Param(Loc.T("Clic"), Choice(new[] { Loc.T("Simple"), Loc.T("Double") }, mc.Twice ? 1 : 0,
+                    i => set(mc with { Twice = i == 1 })));
+                break;
             case BlockBody.MenuBar mb:
                 yield return Param(Loc.T("Chemin"), Field(string.Join(" › ", mb.Titles), 200, typed =>
                 {

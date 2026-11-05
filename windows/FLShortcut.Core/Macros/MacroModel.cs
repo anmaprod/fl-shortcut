@@ -135,6 +135,8 @@ public enum BlockType
     Key, MenuLetters, MenuKey, Click, Delay, WaitWindow, WaitWindowClose, Drag, TrackMenu, ChooseFile, DropFile, FlAction,
     FlActionValue, SelectInput, FeedbackCheck, NameColor, SoundCard, Organize, OpenPage, PageOption, MenuBar, MenuAX,
     IfElse, RepeatCount, RepeatWhile, WaitUntil, SetVariable, Stop, Comment,
+    /// Clic là où est la souris (05/11), gauche, droit ou milieu, simple ou double.
+    MouseClick,
 }
 
 public static class BlockTypes
@@ -151,6 +153,7 @@ public static class BlockTypes
         [BlockType.MenuBar] = "menuBar", [BlockType.MenuAX] = "menuAX", [BlockType.IfElse] = "if",
         [BlockType.RepeatCount] = "repeat", [BlockType.RepeatWhile] = "while", [BlockType.WaitUntil] = "waitUntil",
         [BlockType.SetVariable] = "setVariable", [BlockType.Stop] = "stop", [BlockType.Comment] = "comment",
+        [BlockType.MouseClick] = "mouseClick",
     };
 
     private static readonly Dictionary<string, BlockType> ByRaw = Raws.ToDictionary(kv => kv.Value, kv => kv.Key);
@@ -253,6 +256,8 @@ public abstract record BlockBody
     public sealed record Click(ClickTarget Target, MouseButton Button = MouseButton.Left) : BlockBody;
     /// Appui à `From`, glissé jusqu'à `To`, relâché.
     public sealed record Drag(ClickTarget From, ClickTarget To) : BlockBody;
+    /// « Clic de souris » (05/11) : un clic là où est la souris au moment du bloc, seulement dans FL.
+    public sealed record MouseClick(PointerButton Button = PointerButton.Left, bool Twice = false) : BlockBody;
     // Fenêtres et attentes
     public sealed record Delay(int Ms) : BlockBody;
     public sealed record WaitWindow(WindowKind Window, int TimeoutMs) : BlockBody;
@@ -300,6 +305,7 @@ public abstract record BlockBody
         MenuKeyPress => BlockType.MenuKey,
         Click => BlockType.Click,
         Drag => BlockType.Drag,
+        MouseClick => BlockType.MouseClick,
         Delay => BlockType.Delay,
         WaitWindow => BlockType.WaitWindow,
         WaitWindowClose => BlockType.WaitWindowClose,
@@ -366,6 +372,7 @@ public abstract record BlockBody
         MenuKeyPress m => new JsonObject { ["menuKey"] = m.MenuKey.Raw(), ["times"] = m.Times },
         Click c => new JsonObject { ["target"] = c.Target.ToJson(), ["button"] = c.Button == MouseButton.Right ? "right" : "left" },
         Drag d => new JsonObject { ["from"] = d.From.ToJson(), ["to"] = d.To.ToJson() },
+        MouseClick m => new JsonObject { ["button"] = m.Button.Raw(), ["double"] = m.Twice },
         Delay d => new JsonObject { ["ms"] = d.Ms },
         WaitWindow w => new JsonObject { ["window"] = w.Window.Raw(), ["timeoutMs"] = w.TimeoutMs },
         WaitWindowClose w => new JsonObject { ["window"] = w.Window.Raw(), ["timeoutMs"] = w.TimeoutMs },
@@ -427,6 +434,8 @@ public abstract record BlockBody
             }
             case BlockType.Drag:
                 return ClickTarget.FromJson(j["from"]) is { } from && ClickTarget.FromJson(j["to"]) is { } to ? new Drag(from, to) : null;
+            case BlockType.MouseClick:
+                return PointerButtons.FromRaw(J.Str(j["button"]) ?? "left") is { } pb ? new MouseClick(pb, J.Bool(j["double"]) ?? false) : null;
             case BlockType.Delay:
                 return J.Int(j["ms"]) is { } ms ? new Delay(ms) : null;
             case BlockType.WaitWindow:
@@ -623,6 +632,34 @@ public static class MenuKeys
 }
 
 public enum MouseButton { Left, Right }
+
+/// Bouton du bloc « Clic de souris » (le bouton du milieu en plus des clics appris), mêmes noms JSON que le Mac.
+public enum PointerButton { Left, Right, Middle }
+
+public static class PointerButtons
+{
+    public static string Raw(this PointerButton b) => b switch
+    {
+        PointerButton.Right => "right",
+        PointerButton.Middle => "middle",
+        _ => "left",
+    };
+
+    public static PointerButton? FromRaw(string raw) => raw switch
+    {
+        "left" => PointerButton.Left,
+        "right" => PointerButton.Right,
+        "middle" => PointerButton.Middle,
+        _ => null,
+    };
+
+    public static string Title(this PointerButton b) => b switch
+    {
+        PointerButton.Right => Loc.T("Droit"),
+        PointerButton.Middle => Loc.T("Milieu"),
+        _ => Loc.T("Gauche"),
+    };
+}
 
 public enum WindowKind { Dialog, Menu }
 

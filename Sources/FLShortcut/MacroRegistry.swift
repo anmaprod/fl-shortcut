@@ -7,6 +7,8 @@ enum BlockType: String, CaseIterable, Codable {
     case key, menuLetters, menuKey, click, delay, waitWindow, waitWindowClose
     /// Glisser-déposer : appui à un endroit de FL, glissé jusqu'à un autre, relâché.
     case drag
+    /// Clic là où est la souris (gauche, droit, milieu ; simple ou double).
+    case mouseClick
     case trackMenu, chooseFile, dropFile, flAction, flActionValue, selectInput, feedbackCheck
     /// Nom et couleur de la piste ou du canal sélectionné (lien avec FL, PROTOCOL.md §7).
     case nameColor
@@ -156,6 +158,7 @@ enum BlockRegistry {
         case .menuKey: return Specs.menuKey
         case .click: return Specs.click
         case .drag: return Specs.drag
+        case .mouseClick: return Specs.mouseClick
         case .delay: return Specs.delay
         case .waitWindow: return Specs.waitWindow
         case .waitWindowClose: return Specs.waitWindowClose
@@ -700,6 +703,25 @@ private enum Specs {
             return nil
         },
         import_: .aRelire("renomme et colore dans FL"), plateformes: .mac)
+
+    static let mouseClick = BlockSpec(
+        type: .mouseClick, label: String(localized: "Clic de souris"), category: .souris, symbol: "computermouse",
+        aide: String(localized: "Clic là où est la souris, dans FL."),
+        params: [],
+        conteneur: .aucun, dansLaPalette: true,
+        needs: { _ in base.union(.cliqueHID) },
+        parDefaut: { .mouseClick(button: .left, double: false) },
+        resume: { body, _ in
+            guard case .mouseClick(let b, let d) = body else { return "" }
+            return b.title + (d ? String(localized: " · double") : "")
+        },
+        journal: { _ in "mouseClick" },
+        estimationMs: { body in
+            if case .mouseClick(_, true) = body { return 250 }
+            return 150
+        },
+        valider: { _, _ in nil },
+        import_: .ok, plateformes: [.mac, .windows])
 
     static let soundCard = BlockSpec(
         type: .soundCard, label: String(localized: "Carte son branchée"), category: .fl, symbol: "hifispeaker.and.homepod",

@@ -250,6 +250,25 @@ public sealed partial class MacroEffectsWindows
         return spot.Popup is { } popup ? ClickInside((spot.X, spot.Y), popup, 35) : ClickAt((spot.X, spot.Y), right, 30);
     }
 
+    /// « Clic de souris » (05/11) : un clic là où est la souris, seulement sur une fenêtre de FL tout devant (aucune autre
+    /// appli ne la couvre), comme un clic appris.
+    private StepResult MouseClick(BlockBody.MouseClick m)
+    {
+        var p = _fl.Cursor();
+        var (window, cover) = _fl.At(p.X, p.Y);
+        if (window is null)
+        {
+            if (cover is not null) return new StepResult.Fail(Loc.F("« %@ » couvre FL à cet endroit", cover));
+            _fl.Log("CLICK", $"mouse click refused ({p.X},{p.Y}): outside every FL window");
+            return new StepResult.Fail(Loc.T("la souris est hors de FL"));
+        }
+        if (StopReason() is { } stop) return new StepResult.Cancel(stop);
+        if (!_fl.MouseClick(p.X, p.Y, m.Button, m.Twice)) return new StepResult.Cancel(Loc.T("FL n'est plus au premier plan"));
+        _fl.Log("CLICK", $"mouse {m.Button.Raw()}{(m.Twice ? " double" : "")} ({p.X},{p.Y})");
+        _lastClick = p;
+        return new StepResult.Ok();
+    }
+
     /// Clic en `p` seulement s'il tombe sur une fenêtre de FL tout devant (aucune autre appli ne la couvre).
     private StepResult ClickAt((int X, int Y) p, bool right, int hoverMs)
     {

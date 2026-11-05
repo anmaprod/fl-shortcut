@@ -380,6 +380,8 @@ enum MacroOutline {
             return (String(localized: "Glisser-déposer"), String(localized: "à montrer dans FL"))
         case .drag:
             return (String(localized: "Glisser-déposer"), String(localized: "de l'endroit appris jusqu'à l'autre"))
+        case .mouseClick(let b, let d):
+            return (String(localized: "Clic de souris"), b.title + (d ? String(localized: " · double") : ""))
         case .delay(let ms):
             return (String(localized: "Pause"), duration(ms))
         case .waitWindow(let k, let ms):
@@ -547,6 +549,8 @@ enum PaletteCatalog {
                 .click(.toLearn, button: .left)
             },
             item("drag", .drag) { .drag(from: .toLearn, to: .toLearn) },
+            // Clic là où est la souris (05/11 : « la possibilité de mettre un clic de souris »).
+            item("mouseClick", .mouseClick) { .mouseClick(button: .left, double: false) },
             // Fenêtres et attentes : un seul « Attendre » (boîte ou menu qui s'ouvre ou se ferme, ou temps fixe), réglé
             // dans l'inspecteur. Les clics appris attendent déjà leur fenêtre tout seuls.
             // Icône : une horloge (28/10, « revois son logo »).

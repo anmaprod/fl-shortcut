@@ -133,6 +133,15 @@ internal sealed class FakeFl : IFlDriver
         return true;
     }
 
+    public List<(int X, int Y, PointerButton Button, bool Twice)> MouseClicks { get; } = new();
+
+    public bool MouseClick(int x, int y, PointerButton button, bool twice)
+    {
+        if (!Front) return false;
+        MouseClicks.Add((x, y, button, twice));
+        return true;
+    }
+
     public IReadOnlyList<TextItem>? MenuBar() => Bar;
     public IReadOnlyList<TextItem>? MenuItems(long window) => MenuTexts.TryGetValue(window, out var items) ? items : null;
     public IReadOnlyList<TextItem>? ReadText(long window) => Texts.TryGetValue(window, out var items) ? items : null;
@@ -508,6 +517,20 @@ public class MacroEffectsWindowsTests
         (fl, fx, state) = Start(f => f.LastAimedClick = new AimedClick(700, 500, FakeFl.Main, 1000, 800, f.Now));
         Assert.IsType<StepResult.Ok>(fx.Perform(new BlockBody.Click(new ClickTarget.Track(0, 0)), state));
         Assert.Equal((600, 400, false), fl.Clicks[^1]);                              // fenêtre changée : le pointeur
+    }
+
+    [Fact]
+    public void MouseClickClicksWhereTheMouseIsInsideFlOnly()
+    {
+        var (fl, fx, state) = Start();
+        Assert.IsType<StepResult.Ok>(fx.Perform(new BlockBody.MouseClick(PointerButton.Middle, Twice: true), state));
+        Assert.Equal((600, 400, PointerButton.Middle, true), Assert.Single(fl.MouseClicks));
+        fl.Pointer = (5000, 5000);
+        Assert.Equal("la souris est hors de FL",
+            Assert.IsType<StepResult.Fail>(fx.Perform(new BlockBody.MouseClick(), state)).Why);
+        Assert.Single(fl.MouseClicks);
+        var block = new Block(new BlockBody.MouseClick(PointerButton.Right, Twice: true));
+        Assert.Equal("{\"button\":\"right\",\"double\":true}", block.Body.Params().ToJsonString());
     }
 
     [Fact]

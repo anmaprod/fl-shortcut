@@ -32,6 +32,7 @@ public static class MacroDrafts
             Item(BlockType.Key), Item(BlockType.MenuKey),
             Item(BlockType.Click, Loc.T("Clic à un endroit appris"), Loc.T("Clic gauche ou droit à un endroit que tu montres une fois dans FL.")),
             Item(BlockType.Drag),
+            Item(BlockType.MouseClick),
             Item(BlockType.WaitWindow, Loc.T("Attendre"), Loc.T("Attend une boîte ou un menu de FL, ou fait une pause."), "clock"),
         };
         var order = new[] { BlockCategory.Fl, BlockCategory.Keyboard, BlockCategory.Mouse, BlockCategory.Windows };
