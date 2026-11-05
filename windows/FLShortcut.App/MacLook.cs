@@ -82,8 +82,6 @@ internal static class MacLook
     public static Color Faint => C(P.Faint);
     /// Cadre d'une touche (#DDDDDD sous Noir).
     public static Color KeyFrame => C(P.KeyFrame);
-    /// Grand cercle du logo « A » : blanc sous Noir et Orange (maquette), noir sous Papier.
-    public static Color LogoRing => Theme == AppTheme.Papier ? Colors.Black : Colors.White;
 
     private static FontFamily? _font;
     /// Helvetica comme le Mac ; Arial (même dessin) sur un PC qui ne l'a pas.

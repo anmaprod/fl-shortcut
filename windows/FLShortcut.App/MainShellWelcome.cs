@@ -70,27 +70,41 @@ internal sealed partial class MainShell
         ShowScreen();
     }
 
-    /// Logo de l'appli (le « A » choisi le 04/11, à la place du clavier) : le grand cercle blanc au centre, le rond
-    /// rouge devant en bas à gauche, sans fond, sur le noir de l'accueil ; petit, le cercle plus épais
-    /// (marque/rond-A-transparent et rond-A-petit).
+    /// Icône de l'appli (« fl. » choisie le 05/11, marque/icone-app-fl.svg), comme l'accueil du Mac qui montre l'icône
+    /// de l'app : tuile noire aux coins arrondis, « fl » en blanc, le point carré en rouge, en bas à gauche. Les lettres
+    /// sont les tracés de la police (Nimbus Sans Bold), dessinés sur une toile de 1024 ramenée à `size`.
     private static FrameworkElement AppIcon(double size)
     {
-        var k = size / 1024;
-        var (cx, cy, r, w) = size < 128 ? (512.0, 512.0, 380.0, 40.0) : (512.0, 512.0, 394.0, 12.0);
-        var outer = (r + w / 2) * k;                 // le trait d'une ellipse est dessiné à l'intérieur de sa taille
-        var ring = new Microsoft.UI.Xaml.Shapes.Ellipse
+        var canvas = new Canvas { Width = 1024, Height = 1024 };
+        canvas.Children.Add(new Microsoft.UI.Xaml.Shapes.Rectangle
         {
-            Width = 2 * outer, Height = 2 * outer, Stroke = Brush(LogoRing), StrokeThickness = Math.Max(1, w * k),
-        };
-        Canvas.SetLeft(ring, cx * k - outer);
-        Canvas.SetTop(ring, cy * k - outer);
-        var dot = new Microsoft.UI.Xaml.Shapes.Ellipse { Width = 580 * k, Height = 580 * k, Fill = Brush(BrandRed) };
-        Canvas.SetLeft(dot, 102 * k);
-        Canvas.SetTop(dot, 362 * k);
-        var logo = new Canvas { Width = size, Height = size, HorizontalAlignment = HorizontalAlignment.Center };
+            Width = 824, Height = 824, RadiusX = 185, RadiusY = 185, Fill = Brush(Colors.Black),
+        });
+        Canvas.SetLeft(canvas.Children[0], 100);
+        Canvas.SetTop(canvas.Children[0], 100);
+        foreach (var (data, color, x) in new[]
+                 {
+                     ("M313 529H230V582C230 610 242 624 268 624C281 624 294 623 308 621V726C278 728 249 729 228 729C135 729 90 685 90 594V529H14V436H90V0H230V436H313Z", Colors.White, 210.97),
+                     ("M207 729H67V0H207Z", Colors.White, 380.53),
+                     ("M214 146H64V0H214Z", BrandRed, 515.93),
+                 })
+        {
+            var letter = (Microsoft.UI.Xaml.Shapes.Path)Microsoft.UI.Xaml.Markup.XamlReader.Load(
+                $"<Path xmlns=\"http://schemas.microsoft.com/winfx/2006/xaml/presentation\" Data=\"{data}\"/>");
+            letter.Fill = Brush(color);
+            // Comme le SVG : scale(0,64472 ; −0,64472) puis translate(x, 794).
+            letter.RenderTransform = new TransformGroup
+            {
+                Children =
+                {
+                    new ScaleTransform { ScaleX = 0.64472, ScaleY = -0.64472 },
+                    new TranslateTransform { X = x, Y = 794 },
+                },
+            };
+            canvas.Children.Add(letter);
+        }
+        var logo = new Viewbox { Width = size, Height = size, Child = canvas, HorizontalAlignment = HorizontalAlignment.Center };
         AutomationProperties.SetAccessibilityView(logo, Microsoft.UI.Xaml.Automation.Peers.AccessibilityView.Raw);
-        logo.Children.Add(ring);
-        logo.Children.Add(dot);
         return logo;
     }
 

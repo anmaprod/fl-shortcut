@@ -1,12 +1,11 @@
-// Logo de FL Shortcuts dans la barre des menus : le logo « A » (choisi par le propriétaire le 04/11, à la place du petit
-// clavier) : un rond rouge plein devant un grand cercle à trait épais (rond-A-barre-*, marque/ de la session du site),
-// le cercle au centre (recadré le 04/11 : « pour que le rond blanc soit au centre »). Toujours en couleurs (demande
-// du 04/11 : « dans les couleurs… pas en noir et blanc ») : jamais une image modèle (template), que macOS teindrait
-// d'une seule couleur. Le rond reste rouge ; le cercle est blanc sur une barre sombre et noir sur une barre claire,
-// choisi au moment où la barre dessine l'image (son apparence, qui suit le fond d'écran). L'état ne remplace pas le
-// logo : une pastille en haut à droite, « ! » quand les raccourcis sont inactifs (Accessibilité, saisie sécurisée),
-// deux barres en pause.
-// Dessiné une fois par état et par apparence, dans des images à part (1x et 2x) : la barre n'en choisit qu'une.
+// Logo de FL Shortcuts dans la barre des menus : le rond A (choisi le 04/11), tout en blanc depuis le 05/11 (session du
+// site, marque/rond-A-barre-blanc.svg : « l'icône qui est en haut à droite dans mac, on gardera le logo qu'il a déjà
+// mais tout en blanc » ; l'icône de l'app, elle, devient « fl. »). Le rond plein et le grand cercle décalé en haut à
+// droite, séparés par un jour pour qu'on les distingue en petit. Image modèle de macOS (choix du 05/11 : « blanc, noir
+// si la barre est claire ») : macOS la peint en blanc sur une barre sombre et en noir sur une barre claire, comme
+// toutes les icônes de la barre. L'état ne remplace pas le logo : une pastille en haut à droite, « ! » quand les
+// raccourcis sont inactifs (Accessibilité, saisie sécurisée), deux barres en pause.
+// Dessiné une fois par état, dans des images à part (1x et 2x) : la barre n'en choisit qu'une.
 import AppKit
 
 enum MenuBarIcon {
@@ -25,18 +24,11 @@ enum MenuBarIcon {
 
     private static let side: CGFloat = 18
     private static let cache = Locked<[State: NSImage]>([:])
-    /// Le rouge de la marque (#FF3B1F).
-    private static let red = NSColor(srgbRed: 1, green: 0x3B / 255, blue: 0x1F / 255, alpha: 1)
 
     static func image(_ state: State) -> NSImage {
         if let image = cache.value[state] { return image }
-        let onLight = drawn(state, ring: .black), onDark = drawn(state, ring: .white)
-        let image = NSImage(size: NSSize(width: side, height: side), flipped: false) { rect in
-            let dark = NSAppearance.currentDrawing().bestMatch(from: [.aqua, .darkAqua]) == .darkAqua
-            (dark ? onDark : onLight).draw(in: rect)
-            return true
-        }
-        image.isTemplate = false
+        let image = drawn(state)
+        image.isTemplate = true
         switch state {
         case .normal: image.accessibilityDescription = "FL Shortcuts"
         case .warning: image.accessibilityDescription = String(localized: "FL Shortcuts : raccourcis inactifs")
@@ -46,17 +38,18 @@ enum MenuBarIcon {
         return image
     }
 
-    /// Le logo et sa pastille, cercle de la couleur `ring`, en 1x et 2x (lu aussi par MenuBarIconTests).
-    static func drawn(_ state: State, ring: NSColor) -> NSImage {
+    /// Le logo et sa pastille, en noir sur transparent (la barre les teinte), en 1x et 2x (lu aussi par
+    /// MenuBarIconTests).
+    static func drawn(_ state: State) -> NSImage {
         let image = NSImage(size: NSSize(width: side, height: side))
         for scale in [1, 2] {
-            if let rep = rep(state, ring: ring, scale: scale) { image.addRepresentation(rep) }
+            if let rep = rep(state, scale: scale) { image.addRepresentation(rep) }
         }
         return image
     }
 
     /// Dessin dans une image à part (les effacements ne touchent jamais la barre des menus elle-même).
-    private static func rep(_ state: State, ring: NSColor, scale: Int) -> NSBitmapImageRep? {
+    private static func rep(_ state: State, scale: Int) -> NSBitmapImageRep? {
         let pixels = Int(side) * scale
         guard let rep = NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: pixels, pixelsHigh: pixels,
                                          bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true, isPlanar: false,
@@ -70,26 +63,28 @@ enum MenuBarIcon {
         flip.translateX(by: 0, yBy: CGFloat(pixels))
         flip.scaleX(by: CGFloat(scale), yBy: -CGFloat(scale))
         flip.concat()
-        draw(state, ring: ring, in: context)
+        draw(state, in: context)
         context.flushGraphics()
         NSGraphicsContext.restoreGraphicsState()
         return rep
     }
 
-    private static func draw(_ state: State, ring color: NSColor, in context: NSGraphicsContext) {
-        // Le dessin sur 1024 : cercle au centre (512, 512) de rayon 370, trait de 60 ; rond (392, 652) de 290.
+    private static func draw(_ state: State, in context: NSGraphicsContext) {
+        // Le dessin sur 1024 (rond-A-barre-blanc.svg) : cercle (590, 440) de rayon 365, trait de 70 ; un jour de
+        // rayon 345 autour du rond ; rond plein (470, 580) de rayon 290.
         let k = side / 1024
-        let outline = circle(NSPoint(x: 512 * k, y: 512 * k), radius: 370 * k)
-        outline.lineWidth = 60 * k
-        color.setStroke()
+        NSColor.black.setStroke()
+        NSColor.black.setFill()
+        let outline = circle(NSPoint(x: 590 * k, y: 440 * k), radius: 365 * k)
+        outline.lineWidth = 70 * k
         outline.stroke()
-        red.setFill()
-        circle(NSPoint(x: 392 * k, y: 652 * k), radius: 290 * k).fill()
+        erase(circle(NSPoint(x: 470 * k, y: 580 * k), radius: 345 * k), in: context)
+        circle(NSPoint(x: 470 * k, y: 580 * k), radius: 290 * k).fill()
         guard state != .normal else { return }
         // Pastille d'état en haut à droite, détachée du reste par un anneau vide.
         let center = NSPoint(x: 13.8, y: 4.2)
         erase(circle(center, radius: 5.1), in: context)
-        color.setFill()
+        NSColor.black.setFill()
         circle(center, radius: 3.9).fill()
         switch state {
         case .warning:

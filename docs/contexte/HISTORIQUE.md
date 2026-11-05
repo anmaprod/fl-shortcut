@@ -799,3 +799,10 @@ entrée 1 ≈ 0,5 s.
 - 04/11 (« recadre bien pour que le rond blanc soit au centre ») : le grand cercle blanc du logo au centre de l'icône,
   le rond rouge devant en bas à gauche ; partout (icônes, barre des menus, zone de notification, accueil Windows,
   modes d'emploi, maquettes).
+- 05/11 : thèmes Noir, Papier et Orange (choix dans Mon compte, Mac et Windows ; maquettes de toutes les pages,
+  puis barre de gauche refaite à l'identique de l'app dans les maquettes). Barre de gauche : les couleurs des pages
+  remplacées par un carré creux à l'encre, rouge plein pour la page ouverte (proposition A sur 3). Icônes : l'icône de
+  l'app devient « fl. » (session du site, confirmé ici) ; la barre des menus du Mac et la zone de notification de
+  Windows gardent le rond A, tout en blanc, noir sur une barre claire (image modèle de macOS) ; l'ancien logo A en
+  couleurs trouvé « pas fou… bof à côté des autres ».
+

@@ -481,8 +481,8 @@ struct AppIcon: View {
         }
     }
 
-    /// Dessin de secours, à plat, d'après l'icône (logo « A » du 04/11) : tuile noire, grand cercle blanc au centre, rond
-    /// rouge devant, en bas à gauche ; petit, le cercle plus épais. Marge de 10 % comme la grille des icônes macOS.
+    /// Dessin de secours, à plat, d'après l'icône (« fl. » du 05/11, marque/icone-app-fl.svg) : tuile noire aux coins
+    /// arrondis, « fl » en blanc, le point carré en rouge, en bas à gauche. Marge de 10 % comme la grille des icônes.
     private var drawn: some View {
         GeometryReader { geo in
             drawing(side: geo.size.width)
@@ -491,21 +491,23 @@ struct AppIcon: View {
     }
 
     private func drawing(side: CGFloat) -> some View {
-        let k = side * 824 / 1024 / 1024, inset = side * 100 / 1024        // le dessin sur 1024, dans la tuile
-        let (r, w): (CGFloat, CGFloat) = side < 128 ? (380, 40) : (394, 12)
+        let k = side / 1024
         return ZStack(alignment: .topLeading) {
-            RoundedRectangle(cornerRadius: side * 0.18, style: .continuous)
+            RoundedRectangle(cornerRadius: 185 * k, style: .continuous)
                 .fill(Color.black)
-                .frame(width: side * 824 / 1024, height: side * 824 / 1024)
-                .offset(x: inset, y: inset)
-            Circle()
-                .stroke(Color.white, lineWidth: max(1, w * k))
-                .frame(width: 2 * r * k, height: 2 * r * k)
-                .offset(x: inset + (512 - r) * k, y: inset + (512 - r) * k)
-            Circle()
+                .frame(width: 824 * k, height: 824 * k)
+                .offset(x: 100 * k, y: 100 * k)
+            Text(verbatim: "fl")
+                .font(Swiss.font(470 * k))
+                .tracking(-470 * k * 0.065)
+                .foregroundStyle(Color.white)
+                .fixedSize()
+                .frame(width: 330 * k, height: 470 * k, alignment: .bottomLeading)
+                .offset(x: 210 * k, y: 324 * k)
+            Rectangle()
                 .fill(Swiss.brandRed)
-                .frame(width: 580 * k, height: 580 * k)
-                .offset(x: inset + 102 * k, y: inset + 362 * k)
+                .frame(width: 97 * k, height: 94 * k)
+                .offset(x: 557 * k, y: 700 * k)
         }
         .frame(width: side, height: side, alignment: .topLeading)
     }

@@ -281,17 +281,17 @@
   de câbles courbes : « on n'a pas besoin de savoir où va ensuite ce qu'on envoie » ; NE PAS remettre la chaîne),
   cases sous les pistes = sorties (plusieurs), double-clic nom + couleur, clic droit retirer une piste sans son,
   piste choisie blanche jusqu'au bord ; changements dans `MixerEdits` (passent par le plan). Couleur choisie dans la
-  roue : contour blanc égal (tracé en dernier). Logo : le petit clavier du 02/11 est REMPLACÉ le 04/11 par le
-  logo « A » (choisi avec la session du site, fichiers dans `marque/` de sa branche `claude/adoring-johnson-2ig931`) : rond
-  rouge #FF3B1F devant un grand cercle fin, le cercle AU CENTRE (recadré le 04/11 : « pour que le rond blanc soit au
-  centre » ; cercle (512, 512), rond (392, 652) sur 1024), formes seules, TOUJOURS en couleurs (« pas en
-  noir et blanc ») : icône = tuile noire « squircle », cercle blanc, rond rouge, cercle épais en 64 px et moins
-  (`scripts/icone.py Resources --ico windows/FLShortcut.App/Assets/FLShortcut.ico --tray windows/FLShortcut.App/Assets`,
-  puis `python3 scripts/lisezmoi.py` pour les modes d'emploi) ; barre des menus du Mac en couleurs, jamais en image
-  modèle : cercle blanc sur barre sombre, noir sur barre claire (`MenuBarIcon`, apparence lue au dessin ; pas encore vu
-  sur son Mac, l'app force le sombre : si la barre claire garde un cercle blanc, c'est là) ; zone de notification de
-  Windows : `TraySombre.ico`/`TrayClaire.ico` embarqués, d'après « mode de Windows » (`TrayIcon`, suivi au changement) ;
-  accueil Windows : le A sans fond (`MainShellWelcome.AppIcon`).
+  roue : contour blanc égal (tracé en dernier). Icônes (05/11, choix relayé par la session du site
+  puis confirmé ici ; fichiers `marque/`) : ICÔNE DE L'APP = « fl. » (lettres blanches grasses serrées, tracés de
+  Nimbus Sans Bold, point carré rouge #FF3B1F en bas à gauche, tuile noire 824/1024 coins 185, ombre douce ; 64 px et
+  moins : lettres plus grandes ; Windows .ico : la tuile seule, pleine) ; accueil Windows : le même « fl. » en tracés
+  (`MainShellWelcome.AppIcon`). BARRE DES MENUS DU MAC et zone de notification de Windows : PAS « fl. », le rond A
+  TOUT BLANC (rond plein + grand cercle décalé en haut à droite, un jour entre eux, `rond-A-barre-blanc.svg`), noir
+  sur une barre claire : image modèle de macOS (`MenuBarIcon`, choix du 05/11 « blanc, noir si la barre est claire »),
+  `TraySombre.ico`/`TrayClaire.ico` sur Windows (`TrayIcon`). Fabriquées par `scripts/icone.py Resources --ico
+  windows/FLShortcut.App/Assets/FLShortcut.ico --tray windows/FLShortcut.App/Assets`, puis `python3 scripts/lisezmoi.py`
+  et `scripts/lisezmoi_en.py`. (Avant : clavier du 02/11, puis logo A en couleurs du 04/11, « pas fou… bof à côté
+  des autres » le 05/11.)
   Retours du 01/11 au soir : blocs des macros soulevés avec une encoche de la couleur du bloc dessous au survol et
   choisis (comme les cartes de Gumroad, `cardRow(stamp:)`) ; interrupteur inversé sur une ligne blanche
   (`SwissSwitch` lit `hoverFilled`) ; « Enregistrer » du créateur avec une coche ; retour du créateur carré ; onglets
@@ -351,6 +351,18 @@
   Windows (dans l'app depuis le 04/11) ; « pour regarder, non » était faux : compte nécessaire pour regarder aussi.
   MIDISettings.png renumérotée (les deux Port en 1 et 2, Enable 3, Controller type 4 ; `MIDISettingsCrops` suit) ;
   tuto 4 de l'Organiser : « l'ancienne version part à la Corbeille » (plus « ton projet ne bouge pas »).
+- **Thèmes** (05/11, « dans mon compte la possibilité de changer de thèmes ») : Noir (d'origine), Papier (blanc,
+  encre noire, grille fine derrière la page), Orange (fond #FF3B1F, encre noire, barre de gauche et cartes noires),
+  maquettes validées (artefact privé `1EFC8zLVn5ATRWAnQMBZrB`). Carte « Thème » dans Mon compte, connecté ou non.
+  Mac : `AppTheme.swift` (réglage `theme`), jetons `Swiss` lus au dessin d'après le thème et l'apparence
+  (`SwissPalette.adaptive` ; NSApp en sombre pour Noir, en clair pour Papier/Orange ; aller-retour d'apparence pour
+  passer de Papier à Orange), parties noires sous Orange par `swissInverted()`/`swissCard()`. Windows : palette
+  `ThemePalette.cs` (cœur, mêmes valeurs, essai qui compare avec le Mac), `MacLook` lu dans le thème, barre de gauche
+  construite dans `MacLook.Inverted()`, réglage `Theme` de settings.json, changement = relance sur Mon compte
+  (`--theme-relaunch`). Photos CI `theme-papier-*.png`, `theme-orange-*.png` (Mac et Windows).
+  Barre de gauche (05/11, proposition A, « le A est parfait ») : plus une couleur par page, un carré creux à l'encre ;
+  la page ouverte : carré rouge plein (`PageSquare` sur Mac, `SidebarRow` sur Windows). Menu de l'icône et palette des
+  blocs gardent leurs couleurs.
 - **Aspect validé le 28/10** (maquette, `HISTORIQUE`) : plus de Liquid Glass depuis le 29/10 (plaques dessinées), sans lavis ni lueur ; fond de
   fenêtre plein (« sans le Liquid Glass derrière »), verre devant : cartes, touches, cartes de l'Organiser
   (`GlassPlate`, dessiné : pas de `glassEffect` par ligne) ; titre de
