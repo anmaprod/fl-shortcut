@@ -980,11 +980,9 @@ struct EditorView: View {
     }
 
     private func startKeySearch() {
-        recorder.start(Self.keySearchID) { event in
-            let combo = KeyCombo(keyCode: event.keyCode,
-                                 modifiers: event.modifierFlags.intersection(.deviceIndependentFlagsMask))
-            if !combo.hasModifiers && event.keyCode == 53 { return }          // Échap : annuler
-            guard combo.isValidKey else { return }
+        recorder.start(Self.keySearchID) { combo in
+            if !combo.hasModifiers && combo.keyCode == 53 { return }          // Échap : annuler
+            guard combo.isValidTrigger else { return }
             keySearch = combo
             query = combo.display
         }
@@ -1724,23 +1722,33 @@ final class Recorder: ObservableObject {
     @Published private(set) var hintID: String? = nil
 
     private var monitor: Any?
-    private var handler: ((NSEvent) -> Void)?
+    private var handler: ((KeyCombo) -> Void)?
     private var timeout: DispatchWorkItem?
     private var resignObserver: NSObjectProtocol?
 
     private init() {}
 
-    func start(_ id: String, handler: @escaping (NSEvent) -> Void) {
+    /// Touches, ou bouton de souris du milieu ou du côté (05/11) : le champ reçoit une combinaison, la touche codée
+    /// comme un bouton de souris le cas échéant (KeyCombo.mouseBase).
+    func start(_ id: String, handler: @escaping (KeyCombo) -> Void) {
         stop()
         hint = nil
         hintID = nil
         activeID = id
         self.handler = handler
         Store.shared.recording = true
-        monitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
+        monitor = NSEvent.addLocalMonitorForEvents(matching: [.keyDown, .otherMouseDown]) { [weak self] event in
             guard let self, let h = self.handler else { return event }
+            let mods = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
+            let combo: KeyCombo
+            if event.type == .otherMouseDown {
+                guard let pressed = KeyCombo(mouseButton: event.buttonNumber, modifiers: mods) else { return event }
+                combo = pressed
+            } else {
+                combo = KeyCombo(keyCode: event.keyCode, modifiers: mods)
+            }
             self.stop()
-            DispatchQueue.main.async { h(event) }
+            DispatchQueue.main.async { h(combo) }
             return nil
         }
         let work = DispatchWorkItem { [weak self] in
@@ -1862,12 +1870,11 @@ struct CaptureField: View {
                                       : (combo?.spoken ?? String(localized: "aucun")))
     }
 
-    private func accept(_ event: NSEvent) {
-        let mods = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
-        let candidate = KeyCombo(keyCode: event.keyCode, modifiers: mods)
-        if !candidate.hasModifiers && event.keyCode == 53 { return }            // Échap : annuler
-        if !candidate.hasModifiers && event.keyCode == 51 { combo = nil; return } // ⌫ : effacer
-        guard candidate.isValidKey else { return }
+    private func accept(_ candidate: KeyCombo) {
+        if !candidate.hasModifiers && candidate.keyCode == 53 { return }            // Échap : annuler
+        if !candidate.hasModifiers && candidate.keyCode == 51 { combo = nil; return } // ⌫ : effacer
+        // Un bouton de souris lance un raccourci, mais n'est jamais envoyé à FL.
+        guard role == .trigger ? candidate.isValidTrigger : candidate.isValidKey else { return }
 
         switch role {
         case .target:

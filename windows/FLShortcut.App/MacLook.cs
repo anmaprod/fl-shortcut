@@ -470,6 +470,17 @@ internal static class MacLook
         return button;
     }
 
+    /// Champ de raccourci : la molette cliquée ou un bouton du côté de la souris (05/11), en « touche » (Vk.MButton…) ;
+    /// null pour un autre bouton. Le champ l'écoute même si le bouton a déjà traité l'appui (handledEventsToo).
+    public static ushort? PressedMouseButton(Microsoft.UI.Xaml.Input.PointerRoutedEventArgs e, UIElement element)
+    {
+        var p = e.GetCurrentPoint(element).Properties;
+        return p.IsMiddleButtonPressed ? global::FLShortcut.Core.Vk.MButton
+             : p.IsXButton1Pressed ? global::FLShortcut.Core.Vk.XButton1
+             : p.IsXButton2Pressed ? global::FLShortcut.Core.Vk.XButton2
+             : null;
+    }
+
     /// Bouton principal (Valider, Organiser…) au style suisse : rectangle blanc plein, texte noir en capitales ; au
     /// survol, noir bordé de blanc (SwissButtonBody du Mac).
     public static Button Primary(string text, Action click) => SwissButton(text, click, primary: true);

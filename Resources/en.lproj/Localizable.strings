@@ -1333,6 +1333,7 @@
 "Modèles de macros" = "Macro templates";
 "Modèles…" = "Templates…";
 "Moins" = "Less";
+"Molette" = "Wheel";
 "Mon compte" = "My account";
 "Mon compte et sauvegarde" = "My account and backup";
 "Monte la piste sélectionnée" = "Turns the selected track up";
@@ -1924,6 +1925,7 @@
 "Source de saisie précédente" = "Previous input source";
 "Source de saisie suivante" = "Next input source";
 "Souris" = "Mouse";
+"Souris %lld" = "Mouse %lld";
 "Spotlight" = "Spotlight";
 "Stop" = "Stop";
 "Strings" = "Strings";

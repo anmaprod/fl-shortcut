@@ -738,7 +738,7 @@ internal sealed class MacrosPage
     private FrameworkElement ShortcutEditor(MacroDoc doc)
     {
         var shortcut = _demo ? null : _app.MacroShortcut(doc.Id);
-        var capture = CaptureButton(-1, shortcut?.Trigger, Loc.T("Choisir un raccourci…"), combo =>
+        var capture = CaptureButton(-1, shortcut?.Trigger, Loc.T("Choisir un raccourci…"), mouse: true, done: combo =>
         {
             if (_demo) return;
             if (_app.SetMacroShortcut(doc.Id, combo) is { } why) _notice = Loc.F("Ce raccourci ne peut pas lancer la macro : %@", why);
@@ -767,7 +767,8 @@ internal sealed class MacrosPage
 
     /// Champ d'une combinaison (raccourci de la macro ou bloc « Touche ») : ses touches en petites plaques ; un clic,
     /// puis les touches appuyées la remplacent (Échap seul annule).
-    private Button CaptureButton(int slot, KeyCombo? combo, string prompt, Action<KeyCombo> done)
+    /// `mouse` : un bouton de souris (molette, côtés) est accepté aussi (raccourci d'une macro, jamais une touche envoyée).
+    private Button CaptureButton(int slot, KeyCombo? combo, string prompt, Action<KeyCombo> done, bool mouse = false)
     {
         var recording = _capturing == slot;
         UIElement content = recording
@@ -814,6 +815,16 @@ internal sealed class MacrosPage
             if (e.Key == VirtualKey.Escape && !pressed.HasModifiers) RenderSoon();
             else done(pressed);
         };
+        if (mouse)
+            button.AddHandler(UIElement.PointerPressedEvent, new Microsoft.UI.Xaml.Input.PointerEventHandler((_, e) =>
+            {
+                if (_capturing != slot || PressedMouseButton(e, button) is not { } pressedButton) return;
+                e.Handled = true;
+                var pressed = new KeyCombo(pressedButton, IsDown(VirtualKey.Control), IsDown(VirtualKey.Menu),
+                    IsDown(VirtualKey.Shift), IsDown(VirtualKey.LeftWindows) || IsDown(VirtualKey.RightWindows));
+                StopCapture();
+                done(pressed);
+            }), true);
         button.LostFocus += (_, _) =>
         {
             if (_capturing != slot) return;

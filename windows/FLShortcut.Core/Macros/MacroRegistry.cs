@@ -204,7 +204,7 @@ internal static class Specs
     public static string? KeyProblem(KeyRef key, ValidationContext ctx, string? what = null)
     {
         what ??= Loc.T("touche");
-        if (MacKeys.ToWindows(key) is not { } combo || !combo.IsValidKey) return ctx.Fail(Loc.F("%@ non prise en charge.", what));
+        if (MacKeys.ToWindows(key) is not { } combo || !combo.IsValidTarget) return ctx.Fail(Loc.F("%@ non prise en charge.", what));
         if (ForbiddenTargets.Reason(combo) is { } why) return ctx.Fail(Loc.F("%@ interdite : %@.", what, why));
         return null;
     }

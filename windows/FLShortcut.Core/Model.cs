@@ -396,7 +396,7 @@ public static class ShortcutAnalyzer
             {
                 if (s.Target is { } t)
                 {
-                    if (!t.IsValidKey) list.Add(new ShortcutIssue.InvalidKey());
+                    if (!t.IsValidTarget) list.Add(new ShortcutIssue.InvalidKey());
                     else if (ForbiddenTargets.Reason(t) is { } why) list.Add(new ShortcutIssue.ForbiddenTarget(why));
                 }
                 else list.Add(new ShortcutIssue.NoTarget());
@@ -408,7 +408,8 @@ public static class ShortcutAnalyzer
                 if (trig.Win) list.Add(new ShortcutIssue.ForbiddenTrigger(Loc.T("Win+… est réservé à Windows")));
                 if (trig.IsAltGr) list.Add(new ShortcutIssue.ForbiddenTrigger(Loc.T("Ctrl+Alt est réservé à AltGr")));
                 if (trig == ctx.Toggle) list.Add(new ShortcutIssue.ReservedToggle());
-                if (!trig.HasModifiers && !Vk.IsFunctionKey(trig.Vk)) list.Add(new ShortcutIssue.BareKey());
+                // Un bouton de souris seul n'écrit rien : pas une « touche seule ».
+                if (!trig.HasModifiers && !trig.IsMouseButton && !Vk.IsFunctionKey(trig.Vk)) list.Add(new ShortcutIssue.BareKey());
                 if (ctx.Conflicts.WindowsConflict(trig) is { } w) list.Add(new ShortcutIssue.WindowsConflict(w));
                 if (ctx.Conflicts.FlConflict(trig) is { } f) list.Add(new ShortcutIssue.FlConflict(f));
                 if (s.Enabled && !list.Any(i => i.IsBlocking))

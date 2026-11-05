@@ -5,7 +5,9 @@
 //         REL-04 / SEC-11 (purge sur changement de fenêtre, état borné), REL-06 (effet impossible → touche rendue).
 // Piste visée des macros : crochet souris WH_MOUSE_LL posé SEULEMENT si FL est devant ET qu'une macro vise la dernière
 // piste cliquée (TrackClicks) ; son rappel ne retient que le point d'un appui gauche de l'utilisateur (rien d'autre),
-// la fenêtre de FL sous ce point est relue ensuite sur ce fil.
+// la fenêtre de FL sous ce point est relue ensuite sur ce fil. Le même crochet, posé aussi quand un raccourci se lance
+// avec un bouton de souris (MouseTriggers, 05/11), passe la molette cliquée et les boutons du côté au routeur, comme
+// une touche (jamais les clics gauche et droit ni les mouvements).
 using System.Runtime.InteropServices;
 using FLShortcut.App.Native;
 using FLShortcut.Core;
@@ -52,6 +54,8 @@ internal sealed class KeyboardHook : IDisposable
     /// Une macro vise la dernière piste cliquée dans FL : le crochet souris est posé quand FL est devant (Refresh après
     /// un changement).
     public volatile bool TrackClicks;
+    /// Un raccourci se lance avec un bouton de souris : le crochet souris est posé quand FL est devant (Refresh).
+    public volatile bool MouseTriggers;
     public volatile LinkRoutingView Link = LinkRoutingView.Offline;
 
     /// <param name="sendAction">Envoie une action FL (trame signée) ; faux si impossible.</param>
@@ -156,7 +160,7 @@ internal sealed class KeyboardHook : IDisposable
         _router.Purge();
         _mods.Clear();
         if (_flPid != 0) Install(); else Uninstall();
-        if (_flPid != 0 && TrackClicks) InstallMouse(); else UninstallMouse();
+        if (_flPid != 0 && (TrackClicks || MouseTriggers)) InstallMouse(); else UninstallMouse();
         if (Equals(fl, _lastFl)) return;          // pas de rafraîchissement complet de l'appli à chaque Alt+Tab
         _lastFl = fl;
         try { _onForegroundChanged(fl); } catch { /* jamais d'exception dans la boucle */ }
@@ -188,22 +192,40 @@ internal sealed class KeyboardHook : IDisposable
         _mouseHook = IntPtr.Zero;
     }
 
-    /// Rappel le plus court possible : seulement le point d'un appui gauche de l'utilisateur (jamais nos clics).
+    /// Rappel le plus court possible : le point d'un appui gauche de l'utilisateur (jamais nos clics) pour la piste visée,
+    /// et la molette cliquée ou un bouton du côté pour un raccourci (avalé s'il en lance un).
     private IntPtr MouseProc(int nCode, IntPtr wParam, IntPtr lParam)
     {
-        if (nCode == Win32.HC_ACTION && (int)wParam == Win32.WM_LBUTTONDOWN)
+        if (nCode == Win32.HC_ACTION)
         {
             try
             {
+                var msg = (int)wParam;
                 var data = Marshal.PtrToStructure<Win32.MSLLHOOKSTRUCT>(lParam);
-                if ((data.flags & Win32.LLMHF_INJECTED) == 0 && data.dwExtraInfo != Magic)
+                var user = (data.flags & Win32.LLMHF_INJECTED) == 0 && data.dwExtraInfo != Magic;
+                if (msg == Win32.WM_LBUTTONDOWN && user && TrackClicks)
                     Win32.PostThreadMessageW(_threadId, MsgClick, UIntPtr.Zero,
                         new IntPtr((long)(uint)data.pt.X | (long)data.pt.Y << 32));
+                if (user && MouseTriggers && MouseButton(msg, data.mouseData) is { } button
+                    && Route(button.Vk, button.Down, isRepeat: false)) return new IntPtr(1);
             }
-            catch { /* jamais d'exception dans le rappel */ }
+            catch
+            {
+                _router.Purge();       // en cas de doute, ne rien avaler
+            }
         }
         return Win32.CallNextHookEx(_mouseHook, nCode, wParam, lParam);
     }
+
+    /// Molette cliquée ou bouton du côté (XBUTTON1, XBUTTON2 dans le mot haut de mouseData) ; null pour le reste.
+    private static (ushort Vk, bool Down)? MouseButton(int msg, uint mouseData) => msg switch
+    {
+        Win32.WM_MBUTTONDOWN => (Vk.MButton, true),
+        Win32.WM_MBUTTONUP => (Vk.MButton, false),
+        Win32.WM_XBUTTONDOWN or Win32.WM_XBUTTONUP when (mouseData >> 16) is 1 or 2 =>
+            ((mouseData >> 16) == 1 ? Vk.XButton1 : Vk.XButton2, msg == Win32.WM_XBUTTONDOWN),
+        _ => null,
+    };
 
     /// Le clic retenu s'il tombe dans une fenêtre de FL qui n'est pas un menu (le nom d'une piste dans le Mixer…).
     private void Remember(int x, int y)
@@ -239,41 +261,47 @@ internal sealed class KeyboardHook : IDisposable
             if (own || injected) return Win32.CallNextHookEx(_kbHook, nCode, wParam, lParam);
             if (isDown && !isRepeat && vk == Vk.Escape) Interlocked.Increment(ref _escapes);
 
-            var input = new RouterInput(isDown ? RouterInput.Kinds.Down : RouterInput.Kinds.Up, _mods.Combo(vk),
-                IsRepeat: isRepeat, IsOwn: false, TargetIsFl: _flPid != 0 && FlPresence.ForegroundPid() == _flPid,
-                AltGr: _mods.AltGr);
-            var decision = _router.Route(input, Config, Link);
-
-            // Alt (ou Win) tenu et déclencheur avalé : FL verrait « Alt seul » et ouvrirait son menu au relâchement.
-            // Une touche neutre, envoyée avant tout effet, l'en empêche (même technique qu'AutoHotkey).
-            if (decision.Swallow && isDown && !isRepeat && (_mods.Alt || _mods.Win))
-                Win32.PostThreadMessageW(_threadId, MsgMask, UIntPtr.Zero, IntPtr.Zero);
-
-            foreach (var effect in decision.Effects)
-            {
-                switch (effect)
-                {
-                    case RouterEffect.SendAction a:
-                        Win32.PostThreadMessageW(_threadId, MsgAction, new UIntPtr((uint)a.Id), new IntPtr(vk));
-                        break;
-                    case RouterEffect.Post p:
-                        Win32.PostThreadMessageW(_threadId, MsgInject, new UIntPtr(Pack(p.Combo)), new IntPtr(vk | (long)_flPid << 16));
-                        break;
-                    case RouterEffect.ToggleEnabled:
-                        try { _onToggle(); } catch { }
-                        break;
-                    case RouterEffect.RunMacro m:
-                        try { _onMacro(m.Program); } catch { }
-                        break;
-                }
-            }
-            if (decision.Swallow) return new IntPtr(1);
+            if (Route(vk, isDown, isRepeat)) return new IntPtr(1);
         }
         catch
         {
             _router.Purge();       // en cas de doute, ne rien avaler
         }
         return Win32.CallNextHookEx(_kbHook, nCode, wParam, lParam);
+    }
+
+    /// Décision du routeur pour cet appui (touche ou bouton de souris) et ses effets ; vrai : l'appui est avalé.
+    private bool Route(ushort vk, bool isDown, bool isRepeat)
+    {
+        var input = new RouterInput(isDown ? RouterInput.Kinds.Down : RouterInput.Kinds.Up, _mods.Combo(vk),
+            IsRepeat: isRepeat, IsOwn: false, TargetIsFl: _flPid != 0 && FlPresence.ForegroundPid() == _flPid,
+            AltGr: _mods.AltGr);
+        var decision = _router.Route(input, Config, Link);
+
+        // Alt (ou Win) tenu et déclencheur avalé : FL verrait « Alt seul » et ouvrirait son menu au relâchement.
+        // Une touche neutre, envoyée avant tout effet, l'en empêche (même technique qu'AutoHotkey).
+        if (decision.Swallow && isDown && !isRepeat && (_mods.Alt || _mods.Win))
+            Win32.PostThreadMessageW(_threadId, MsgMask, UIntPtr.Zero, IntPtr.Zero);
+
+        foreach (var effect in decision.Effects)
+        {
+            switch (effect)
+            {
+                case RouterEffect.SendAction a:
+                    Win32.PostThreadMessageW(_threadId, MsgAction, new UIntPtr((uint)a.Id), new IntPtr(vk));
+                    break;
+                case RouterEffect.Post p:
+                    Win32.PostThreadMessageW(_threadId, MsgInject, new UIntPtr(Pack(p.Combo)), new IntPtr(vk | (long)_flPid << 16));
+                    break;
+                case RouterEffect.ToggleEnabled:
+                    try { _onToggle(); } catch { }
+                    break;
+                case RouterEffect.RunMacro m:
+                    try { _onMacro(m.Program); } catch { }
+                    break;
+            }
+        }
+        return decision.Swallow;
     }
 
     private void DoAction(UIntPtr wParam, IntPtr lParam)

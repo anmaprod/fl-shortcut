@@ -29,7 +29,11 @@ public sealed class ShortcutIndex
             if (!_table.TryGetValue(trigger, out var byCtx)) _table[trigger] = byCtx = new();
             byCtx.TryAdd(s.Context, new Entry(s.Id, action));      // le premier gagne (même règle que l'analyse)
         }
+        HasMouseTrigger = _table.Keys.Any(k => k.IsMouseButton);
     }
+
+    /// Un raccourci se lance avec un bouton de souris : le crochet souris est posé quand FL est devant.
+    public bool HasMouseTrigger { get; }
 
     public int Count => _table.Values.Sum(d => d.Count);
 

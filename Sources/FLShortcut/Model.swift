@@ -23,6 +23,31 @@ struct KeyCombo: Codable, Hashable {
     /// Touches modificatrices elles-mêmes (⌘ ⇧ ⇪ ⌥ ⌃ droite/gauche, Fn) : jamais un déclencheur ni une cible.
     static let modifierKeyCodes: Set<UInt16> = [54, 55, 56, 57, 58, 59, 60, 61, 62, 63]
 
+    /// Boutons de souris en « touches » (05/11 : « lancer avec un bouton de souris », souris à macros) : la molette
+    /// cliquée et les boutons du côté (numéros 2 à 31 de macOS), codés 200 + numéro. Ils passent partout comme une
+    /// touche (raccourcis, macros, conflits, sauvegarde, partage), mais seulement comme déclencheur : jamais envoyés à FL.
+    static let mouseBase: UInt16 = 200
+    static let mouseButtons: ClosedRange<Int> = 2...31
+
+    /// Bouton de souris (numéro de macOS : 2 la molette, 3 et 4 les boutons du côté…) ; nil pour une touche.
+    var mouseButton: Int? {
+        let n = Int(keyCode) - Int(Self.mouseBase)
+        return Self.mouseButtons.contains(n) ? n : nil
+    }
+
+    var isMouseButton: Bool { mouseButton != nil }
+
+    /// Un bouton de souris (2 à 31) et ses modificateurs ; nil pour les boutons gauche et droit (jamais un raccourci).
+    init?(mouseButton: Int, flags: CGEventFlags) {
+        guard Self.mouseButtons.contains(mouseButton) else { return nil }
+        self.init(keyCode: Self.mouseBase + UInt16(mouseButton), flags: flags)
+    }
+
+    init?(mouseButton: Int, modifiers: NSEvent.ModifierFlags) {
+        guard Self.mouseButtons.contains(mouseButton) else { return nil }
+        self.init(keyCode: Self.mouseBase + UInt16(mouseButton), modifiers: modifiers)
+    }
+
     init(keyCode: UInt16, command: Bool = false, option: Bool = false, control: Bool = false, shift: Bool = false) {
         self.keyCode = keyCode
         self.command = command
@@ -63,10 +88,15 @@ struct KeyCombo: Codable, Hashable {
 
     /// Touche qui sert aussi à taper dans FL (texte, lettres d'un menu, clavier-piano) : sans ⌘ ⌃ ⌥ (⇧ compris :
     /// majuscules), hors touches de fonction. Un raccourci de ce genre laisse la touche à FL quand elle y sert.
-    var isTypingKey: Bool { !command && !control && !option && !KeyNames.functionKeys.contains(keyCode) }
+    var isTypingKey: Bool {
+        !command && !control && !option && !KeyNames.functionKeys.contains(keyCode) && !isMouseButton
+    }
 
-    /// keyCode virtuel borné (0…127) et pas une touche modificatrice.
+    /// keyCode virtuel borné (0…127) et pas une touche modificatrice : ce qui peut être envoyé à FL.
     var isValidKey: Bool { keyCode < 128 && !Self.modifierKeyCodes.contains(keyCode) }
+
+    /// Ce qui peut lancer un raccourci ou une macro : une touche, ou un bouton de souris (milieu, côtés).
+    var isValidTrigger: Bool { isValidKey || isMouseButton }
 
     var cgFlags: CGEventFlags {
         var f = CGEventFlags()
@@ -495,9 +525,10 @@ enum ShortcutAnalyzer {
             }
 
             if let t = r.trigger {
-                if !t.isValidKey { list.append(.invalidKey) }
+                if !t.isValidTrigger { list.append(.invalidKey) }
                 if t == context.toggle { list.append(.reservedToggle) }
-                if !t.hasModifiers && !KeyNames.functionKeys.contains(t.keyCode) { list.append(.bareKey) }
+                // Un bouton de souris seul n'écrit rien : pas une « touche seule ».
+                if !t.hasModifiers && !t.isMouseButton && !KeyNames.functionKeys.contains(t.keyCode) { list.append(.bareKey) }
                 if let m = context.conflicts.macOSConflict(t) { list.append(.macOSConflict(m)) }
                 if let f = context.conflicts.flConflict(t) { list.append(.flConflict(f)) }
                 if r.enabled && !list.contains(where: \.isBlocking) {
@@ -704,7 +735,7 @@ enum ProfileImporter {
         for var r in decoded.remaps {
             r.id = UUID()
             let trigger = r.trigger.map { $0.displayName(layout: layout) } ?? String(localized: "(sans raccourci)")
-            if let t = r.trigger, !t.isValidKey {
+            if let t = r.trigger, !t.isValidTrigger {
                 rejected.append(String(localized: "\(trigger) : touche non prise en charge"))
                 continue
             }

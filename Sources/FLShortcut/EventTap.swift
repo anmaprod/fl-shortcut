@@ -147,7 +147,10 @@ final class EventTap {
     }
 
     private func installTap() -> Bool {
+        // Les boutons de souris du milieu et du côté aussi (05/11 : raccourcis lancés par la souris) ; jamais les clics
+        // gauche et droit ni les mouvements.
         let mask = (CGEventMask(1) << CGEventType.keyDown.rawValue) | (CGEventMask(1) << CGEventType.keyUp.rawValue)
+            | (CGEventMask(1) << CGEventType.otherMouseDown.rawValue) | (CGEventMask(1) << CGEventType.otherMouseUp.rawValue)
         guard let tap = CGEvent.tapCreate(tap: .cgAnnotatedSessionEventTap,
                                           place: .headInsertEventTap,
                                           options: .defaultTap,
@@ -176,7 +179,7 @@ final class EventTap {
             purge()                           // des keyUp ont pu être perdus pendant la coupure
             reenableAfterDisable()
             return pass
-        case .keyDown, .keyUp:
+        case .keyDown, .keyUp, .otherMouseDown, .otherMouseUp:
             break
         default:
             return pass
@@ -186,13 +189,24 @@ final class EventTap {
         if isOwn { return pass }
 
         let cfg = config.value
-        let code = UInt16(truncatingIfNeeded: event.getIntegerValueField(.keyboardEventKeycode))
+        let isMouse = type == .otherMouseDown || type == .otherMouseUp
+        let combo: KeyCombo
+        if isMouse {
+            // Bouton du milieu ou du côté : comme une touche (KeyCombo.mouseBase), seulement s'il lance un raccourci.
+            guard let pressed = KeyCombo(mouseButton: Int(event.getIntegerValueField(.mouseEventButtonNumber)),
+                                         flags: event.flags) else { return pass }
+            combo = pressed
+        } else {
+            combo = KeyCombo(keyCode: UInt16(truncatingIfNeeded: event.getIntegerValueField(.keyboardEventKeycode)),
+                             flags: event.flags)
+        }
+        let code = combo.keyCode
         if type == .keyDown, code == 53 { escapeDowns.withLock { $0 &+= 1 } }
         let target = Int32(truncatingIfNeeded: event.getIntegerValueField(.eventTargetUnixProcessID))
         let destination = target != 0 ? target : cfg.frontmostPID
-        var input = RouterInput(kind: type == .keyDown ? .down : .up,
-                                combo: KeyCombo(keyCode: code, flags: event.flags),
-                                isRepeat: event.getIntegerValueField(.keyboardEventAutorepeat) != 0,
+        var input = RouterInput(kind: type == .keyDown || type == .otherMouseDown ? .down : .up,
+                                combo: combo,
+                                isRepeat: !isMouse && event.getIntegerValueField(.keyboardEventAutorepeat) != 0,
                                 isOwn: false,
                                 targetIsFL: destination != 0 && cfg.flPIDs.contains(destination))
         // Touche seule qui lance un raccourci : FL s'en sert-il en ce moment (saisie, menu, clavier-piano) ? Lu

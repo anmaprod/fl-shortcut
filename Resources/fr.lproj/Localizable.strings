@@ -1333,6 +1333,7 @@
 "Modèles de macros" = "Modèles de macros";
 "Modèles…" = "Modèles…";
 "Moins" = "Moins";
+"Molette" = "Molette";
 "Mon compte" = "Mon compte";
 "Mon compte et sauvegarde" = "Mon compte et sauvegarde";
 "Monte la piste sélectionnée" = "Monte la piste sélectionnée";
@@ -1924,6 +1925,7 @@
 "Source de saisie précédente" = "Source de saisie précédente";
 "Source de saisie suivante" = "Source de saisie suivante";
 "Souris" = "Souris";
+"Souris %lld" = "Souris %lld";
 "Spotlight" = "Spotlight";
 "Stop" = "Stop";
 "Strings" = "Strings";

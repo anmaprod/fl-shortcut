@@ -417,10 +417,11 @@ internal sealed class AppController : INotifyPropertyChanged, IDisposable
         if (_flVersion is null && FlPresence.RunningInstance() is { Version: { } v }) _flVersion = v;
         _issues = ShortcutAnalyzer.Analyze(_shortcuts, NewAnalysisContext());
         var blocked = ShortcutAnalyzer.Blocked(_issues);
+        var index = new ShortcutIndex(_shortcuts, blocked, _macros.Programs(MacroContext));
         _hook.Config = _hook.Config with
         {
             Enabled = _settings.Enabled,
-            Index = new ShortcutIndex(_shortcuts, blocked, _macros.Programs(MacroContext)),
+            Index = index,
             Toggle = ProfilePresets.Toggle,
             ActionNatives = LightMode.ActionNatives(Light),
             AnyContext = Light,
@@ -428,9 +429,11 @@ internal sealed class AppController : INotifyPropertyChanged, IDisposable
         _hook.Link = _midi.RoutingView();
         // Crochet souris (piste visée) seulement si une macro prête vise la dernière piste cliquée.
         var tracks = _macros.Programs(MacroContext).Values.Any(p => p.IsRunnable && p.Needs.HasFlag(BlockNeeds.AimedTrack));
-        if (tracks != _hook.TrackClicks)
+        // … ou si un raccourci se lance avec un bouton de souris (05/11).
+        if (tracks != _hook.TrackClicks || index.HasMouseTrigger != _hook.MouseTriggers)
         {
             _hook.TrackClicks = tracks;
+            _hook.MouseTriggers = index.HasMouseTrigger;
             _hook.Refresh();
         }
         UpdateStatus();

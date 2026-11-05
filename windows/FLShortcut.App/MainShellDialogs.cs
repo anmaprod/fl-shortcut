@@ -162,6 +162,14 @@ internal sealed partial class MainShell
             combo = pressed;
             Stop();
         };
+        // Un bouton de souris (molette, côtés) peut aussi lancer ce raccourci (05/11).
+        capture.AddHandler(UIElement.PointerPressedEvent, new Microsoft.UI.Xaml.Input.PointerEventHandler((_, e) =>
+        {
+            if (!recording || PressedMouseButton(e, capture) is not { } mouse) return;
+            e.Handled = true;
+            combo = CurrentCombo(mouse);
+            Stop();
+        }), true);
         capture.LostFocus += (_, _) => { if (recording) Stop(); };
         dialog.SecondaryButtonClick += (_, args) =>
         {
@@ -368,6 +376,14 @@ internal sealed partial class MainShell
         triggerButton.Click += (_, _) => StartRecording("trigger");
         targetButton.Click += (_, _) => StartRecording("target");
         triggerButton.PreviewKeyDown += OnCaptureKey;
+        // Le déclencheur peut être un bouton de souris (molette, côtés) ; la touche envoyée à FL, jamais.
+        triggerButton.AddHandler(UIElement.PointerPressedEvent, new Microsoft.UI.Xaml.Input.PointerEventHandler((_, e) =>
+        {
+            if (recordingFor != "trigger" || PressedMouseButton(e, triggerButton) is not { } mouse) return;
+            e.Handled = true;
+            draft = draft with { Trigger = CurrentCombo(mouse) };
+            StopRecording();
+        }), true);
         targetButton.PreviewKeyDown += OnCaptureKey;
         triggerButton.LostFocus += (_, _) => { if (recordingFor == "trigger") StopRecording(); };
         targetButton.LostFocus += (_, _) => { if (recordingFor == "target") StopRecording(); };

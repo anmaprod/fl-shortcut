@@ -363,6 +363,16 @@
   Barre de gauche (05/11, proposition A, « le A est parfait ») : plus une couleur par page, un carré creux à l'encre ;
   la page ouverte : carré rouge plein (`PageSquare` sur Mac, `SidebarRow` sur Windows). Menu de l'icône et palette des
   blocs gardent leurs couleurs.
+- **Souris** (05/11, « rajouter au macro la possibilité de mettre un clic de souris… macros souris… pour raccourcis
+  aussi ») : (1) bloc « Clic de souris » (palette Souris) : clic là où est la souris, gauche, droit ou milieu, simple
+  ou double, seulement sur une fenêtre de FL que rien ne couvre (JSON `mouseClick` : button, double ; Mac
+  `MacroEffectsMac.mouseClick`, Windows `MacroEffectsWindowsClicks.MouseClick` + `IFlDriver.MouseClick`) ; (2) un
+  raccourci ou une macro se lance aussi avec la molette cliquée ou un bouton du côté (souris à macros), avec ou sans
+  modificateurs, FL devant seulement : codés comme des touches (Mac `KeyCombo.mouseBase` 200 + numéro de macOS, 202
+  molette, 203/204 côtés ; Windows VK 4/5/6, `PlatformKeys` les fait correspondre), jamais envoyés à FL
+  (`isValidTrigger`/`IsValidTarget`) ; Mac : tap avec otherMouseDown/Up, enregistreur `Recorder` (keyDown +
+  otherMouseDown) ; Windows : crochet souris posé si un raccourci en a besoin (`ShortcutIndex.HasMouseTrigger`,
+  `KeyboardHook.MouseTriggers`), champs de raccourci (`PressedMouseButton`). Pas encore vu avec une vraie souris.
 - **Aspect validé le 28/10** (maquette, `HISTORIQUE`) : plus de Liquid Glass depuis le 29/10 (plaques dessinées), sans lavis ni lueur ; fond de
   fenêtre plein (« sans le Liquid Glass derrière »), verre devant : cartes, touches, cartes de l'Organiser
   (`GlassPlate`, dessiné : pas de `glassEffect` par ligne) ; titre de

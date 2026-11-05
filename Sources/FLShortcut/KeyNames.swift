@@ -133,11 +133,19 @@ enum KeyNames {
                                             105, 107, 113, 106, 64, 79, 80, 90]
 
     static func name(for keyCode: UInt16, layout: KeyboardLayout = SystemKeyboardLayout()) -> String {
+        if let mouse = mouseName(keyCode) { return mouse }
         if let s = special[keyCode] { return s }
         if let c = layout.character(for: keyCode), isPrintable(c) {
             return c.uppercased()
         }
         return String(localized: "Touche \(keyCode)")
+    }
+
+    /// Nom d'un bouton de souris codé en touche (KeyCombo.mouseBase) : « Molette », « Souris 4 », « Souris 5 »… ; nil
+    /// pour une touche. Les numéros sont ceux qu'on compte sur la souris (gauche 1, droit 2, molette 3).
+    static func mouseName(_ keyCode: UInt16) -> String? {
+        guard let n = KeyCombo(keyCode: keyCode).mouseButton else { return nil }
+        return n == 2 ? String(localized: "Molette") : String(localized: "Souris \(n + 1)")
     }
 
     /// Code de touche qui produit ce caractère dans la disposition donnée.

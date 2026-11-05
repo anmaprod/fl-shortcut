@@ -805,4 +805,7 @@ entrée 1 ≈ 0,5 s.
   l'app devient « fl. » (session du site, confirmé ici) ; la barre des menus du Mac et la zone de notification de
   Windows gardent le rond A, tout en blanc, noir sur une barre claire (image modèle de macOS) ; l'ancien logo A en
   couleurs trouvé « pas fou… bof à côté des autres ».
+- 05/11 : souris. Bloc « Clic de souris » dans les macros (là où est la souris ; gauche, droit, milieu ; simple ou
+  double) ; raccourcis et macros lancés par la molette cliquée ou les boutons du côté (souris à macros), sur Mac et
+  Windows, codés comme des touches (seulement des déclencheurs).
 

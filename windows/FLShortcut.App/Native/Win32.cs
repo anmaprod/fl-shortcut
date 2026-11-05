@@ -377,7 +377,8 @@ internal static class Win32
     public static extern bool PostMessageW(IntPtr hWnd, uint msg, UIntPtr wParam, IntPtr lParam);
 
     // ---------- Macros : piste visée (dernier clic de l'utilisateur dans FL, crochet souris seulement si besoin) ----------
-    public const int WH_MOUSE_LL = 14, WM_LBUTTONDOWN = 0x0201;
+    public const int WH_MOUSE_LL = 14, WM_LBUTTONDOWN = 0x0201, WM_MBUTTONDOWN = 0x0207, WM_MBUTTONUP = 0x0208,
+        WM_XBUTTONDOWN = 0x020B, WM_XBUTTONUP = 0x020C;
     public const uint LLMHF_INJECTED = 0x01;
 
     [StructLayout(LayoutKind.Sequential)]

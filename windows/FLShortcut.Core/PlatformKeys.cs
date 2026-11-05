@@ -70,6 +70,8 @@ public static class PlatformKeys
         [87] = Vk.Numpad0 + 5, [88] = Vk.Numpad0 + 6, [89] = Vk.Numpad0 + 7, [91] = Vk.Numpad0 + 8,
         [92] = Vk.Numpad0 + 9, [65] = Vk.Decimal, [67] = Vk.Multiply, [69] = Vk.Add, [75] = Vk.Divide,
         [78] = Vk.Subtract,
+        // Boutons de souris (KeyCombo.mouseBase du Mac : 200 + numéro de macOS) : molette, puis les deux du côté.
+        [202] = Vk.MButton, [203] = Vk.XButton1, [204] = Vk.XButton2,
     };
 
     private static readonly Dictionary<ushort, ushort> ScanChar = CharScan.ToDictionary(kv => kv.Value, kv => kv.Key);
