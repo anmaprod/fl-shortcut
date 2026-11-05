@@ -101,8 +101,9 @@ button, input { font: inherit; color: inherit; }
 .disque .s { font: 700 clamp(10px, 1vw, 13px)/1 var(--text); letter-spacing: 1.6px; text-transform: uppercase; }
 .anneau { position: absolute; z-index: 1; border-radius: 50%; border: 1.5px solid var(--paper); pointer-events: none; aspect-ratio: 1 / 1; }
 .a1 { width: clamp(300px, 46vw, 660px); right: -14%; top: 203px; }
-/* La boule blanche est accrochée au bas de la page noire : elle reste visible quelle que soit la largeur de la fenêtre. */
-.a2 { width: clamp(70px, 9vw, 130px); right: 33%; bottom: 36px; background: var(--paper); border: 0; }
+/* La boule blanche à sa place du tout début, 600 pixels sous le haut de la page noire ; si la fenêtre est trop petite
+   pour ça, elle remonte juste assez pour rester entière dans la page noire. */
+.a2 { width: clamp(70px, 9vw, 130px); right: 33%; top: min(600px, calc(100% - clamp(70px, 9vw, 130px) - 36px)); background: var(--paper); border: 0; }
 .bas { margin-top: 64px; align-items: end; position: relative; z-index: 7; }
 .bas p { grid-column: 1 / 6; font-size: clamp(20px, 2vw, 26px); line-height: 1.2; letter-spacing: -0.015em; }
 .bas .act { grid-column: 8 / 13; display: flex; justify-content: flex-end; align-items: center; gap: 22px; }
