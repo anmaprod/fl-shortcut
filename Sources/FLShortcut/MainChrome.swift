@@ -40,7 +40,7 @@ enum MainWindowChrome {
         if window.titleVisibility != .hidden { window.titleVisibility = .hidden }
         if !window.titlebarAppearsTransparent { window.titlebarAppearsTransparent = true }
         if !window.styleMask.contains(.fullSizeContentView) { window.styleMask.insert(.fullSizeContentView) }
-        window.backgroundColor = .black                    // style suisse (01/11) : noir plein
+        window.backgroundColor = Swiss.NS.background       // style suisse (01/11) : fond plein du thème
         if window.titlebarSeparatorStyle != .none { window.titlebarSeparatorStyle = .none }
         if window.toolbar == nil {
             let toolbar = NSToolbar(identifier: "fl.fenetre-principale")
@@ -203,9 +203,9 @@ struct SidebarSearchField: NSViewRepresentable {
         let field = PlainSearchField()
         let font = NSFont.systemFont(ofSize: 13)
         field.font = font
-        field.textColor = .white
+        field.textColor = Swiss.NS.text
         field.placeholderAttributedString = NSAttributedString(
-            string: prompt, attributes: [.font: font, .foregroundColor: NSColor(white: 1, alpha: 0.55)])
+            string: prompt, attributes: [.font: font, .foregroundColor: SwissPalette.adaptive(.text, alpha: 0.55)])
         field.isBordered = false
         field.isBezeled = false
         field.drawsBackground = false
@@ -224,6 +224,9 @@ struct SidebarSearchField: NSViewRepresentable {
     }
 
     func updateNSView(_ field: NSTextField, context: Context) {
+        // Le thème : texte de la couleur de la barre (noire sous Orange, d'après l'apparence de SwiftUI).
+        let appearance: NSAppearance.Name = context.environment.colorScheme == .dark ? .darkAqua : .aqua
+        if field.appearance?.name != appearance { field.appearance = NSAppearance(named: appearance) }
         context.coordinator.text = $text
         if field.stringValue != text { field.stringValue = text }
         if context.coordinator.serial != focusSerial {
@@ -263,8 +266,9 @@ final class PlainSearchField: NSTextField {
     override func becomeFirstResponder() -> Bool {
         let accepted = super.becomeFirstResponder()
         if accepted, let editor = currentEditor() as? NSTextView {
-            editor.insertionPointColor = .white
-            editor.selectedTextAttributes = [.backgroundColor: NSColor(white: 1, alpha: 0.25), .foregroundColor: NSColor.white]
+            editor.insertionPointColor = Swiss.NS.text
+            editor.selectedTextAttributes = [.backgroundColor: SwissPalette.adaptive(.text, alpha: 0.25),
+                                             .foregroundColor: Swiss.NS.text]
         }
         return accepted
     }
@@ -297,6 +301,8 @@ struct TitledCard<Item: Identifiable, Row: View>: View {
                 }
             }
         }
+        // Thème Orange : une carte noire, comme la maquette.
+        .swissCard(padding: 14)
     }
 }
 

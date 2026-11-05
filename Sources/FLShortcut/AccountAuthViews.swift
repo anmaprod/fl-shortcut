@@ -28,7 +28,7 @@ struct AuthCard<Content: View>: View {
             .padding(.horizontal, 30)
             .padding(.vertical, 28)
             .frame(width: 420)
-            .background(MockPlate(cornerRadius: 18))
+            .background(MockPlate(cornerRadius: 18)).swissCard()
     }
 }
 

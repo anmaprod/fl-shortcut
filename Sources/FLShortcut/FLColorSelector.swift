@@ -83,7 +83,6 @@ struct FLColorSelector: View {
         .padding(14)
         .frame(width: 290)
         .background(Swiss.background)
-        .environment(\.colorScheme, .dark)
         .onAppear { recent = RecentColors.list() }
     }
 
@@ -278,7 +277,7 @@ private struct LuminanceSlider: View {
                     .overlay(Rectangle().strokeBorder(Swiss.line, lineWidth: 1))
                 Rectangle()
                     .fill(swiftColor(color))
-                    .overlay(Rectangle().strokeBorder(Color.white, lineWidth: 2))
+                    .overlay(Rectangle().strokeBorder(Swiss.text, lineWidth: 2))
                     .frame(width: 14, height: 14)
                     .offset(y: min(max(y - 7, 0), geo.size.height - 14))
             }

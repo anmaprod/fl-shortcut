@@ -89,7 +89,7 @@ struct OrganizerTutorialView: View {
                     .interpolation(.high)
                     .aspectRatio(16 / 9, contentMode: .fit)
             } else {
-                shape.fill(Color.white.opacity(0.06))
+                shape.fill(Swiss.faint)
                     .aspectRatio(16 / 9, contentMode: .fit)
                     .overlay(Image(systemName: "photo").font(.system(size: 28)).foregroundStyle(.tertiary))
             }

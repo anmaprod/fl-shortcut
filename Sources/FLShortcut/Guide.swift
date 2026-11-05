@@ -276,7 +276,7 @@ private struct GuideDots: View {
                     select(i)
                 } label: {
                     Rectangle()
-                        .fill(i == page ? Swiss.text : Color(white: 0.27))
+                        .fill(i == page ? Swiss.text : Swiss.keyLine)
                         .frame(width: i == page ? 22 : 8, height: 4)
                         .padding(3)
                         .contentShape(Rectangle())

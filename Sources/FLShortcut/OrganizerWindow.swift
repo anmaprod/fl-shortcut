@@ -1393,7 +1393,7 @@ enum OrganizerWindow {
         p.title = String(localized: "Organiser")
         p.titleVisibility = .hidden
         p.titlebarAppearsTransparent = true
-        p.backgroundColor = .black                    // style suisse (01/11) : noir plein, comme la fenêtre principale
+        p.backgroundColor = Swiss.NS.background       // style suisse (01/11) : fond du thème, comme la fenêtre principale
         p.isMovableByWindowBackground = true
         // Jamais la fenêtre active à la place de FL (audit : avec makeKey, FL perdait sa fenêtre active, ne disait plus
         // quelle page était devant, et ⌥↑ / F2 partaient dans le vide) ; un champ de texte la rend active au clic.
@@ -2622,6 +2622,8 @@ private struct FamilySection: View {
             .padding(.horizontal, 4)
             .padding(.vertical, 2)
             .organizerCard(swiftColor(style.color))
+            // Thème Orange : ses sons dans une carte noire (maquette du 04/11).
+            .swissCard()
             // Style suisse : un trait de la couleur de la famille au-dessus de ses sons.
             .overlay(alignment: .top) { Rectangle().fill(swiftColor(style.color)).frame(height: 3) }
         }
@@ -2671,7 +2673,7 @@ private struct FamilySection: View {
             Rectangle()
                 .fill(swiftColor(color))
                 .frame(width: 16, height: 16)
-                .overlay(Rectangle().strokeBorder(Color.white.opacity(0.3), lineWidth: 1))
+                .overlay(Rectangle().strokeBorder(Swiss.keyLine, lineWidth: 1))
         }
         .buttonStyle(.plain)
         .help(String(localized: "#\(color.hex) : choisir dans la roue des couleurs de FL"))
@@ -2713,7 +2715,7 @@ private struct FamilyMemberRow: View {
     var body: some View {
         HStack(spacing: 8) {
             // La poignée du son : on le prend par sa ligne et on le pose dans une autre famille.
-            SixDots(color: Color(white: 0.35))
+            SixDots(color: Swiss.keyLine)
                 .frame(width: 9)
                 .help("Prends le son et pose-le dans une autre famille : il y passe, relié à son bus")
             // Son nom d'origine → le nom qu'il prendra (28/10 : « le nom qui passe d'un nom à un autre ») ; le nouveau
@@ -2921,7 +2923,7 @@ struct MixerSlotBox: View {
             .font(.system(size: 12, weight: chosen ? .semibold : .regular).monospacedDigit())
             .foregroundStyle(chosen ? Color.primary : Color.secondary)
             .frame(width: Self.width, height: 22)
-            .background(Rectangle().fill(Color.black.opacity(0.28)))
+            .background(Rectangle().fill(Swiss.background))
             .overlay(Rectangle()
                 .strokeBorder(chosen ? tint : Color.primary.opacity(hovered ? 0.35 : 0.12), lineWidth: 1))
             .contentShape(Rectangle())

@@ -68,13 +68,19 @@ struct AccountPage: View {
     var body: some View {
         Group {
             if !community.isConfigured {
-                CommunityMessage(symbol: "person.crop.circle.badge.xmark", tint: SidebarItem.account.tint,
-                                 title: String(localized: "Les comptes ne sont pas encore ouverts"),
-                                 text: String(localized: "Tes raccourcis et tes macros restent sur ce Mac en attendant."))
+                VStack(spacing: 0) {
+                    CommunityMessage(symbol: "person.crop.circle.badge.xmark", tint: SidebarItem.account.tint,
+                                     title: String(localized: "Les comptes ne sont pas encore ouverts"),
+                                     text: String(localized: "Tes raccourcis et tes macros restent sur ce Mac en attendant."))
+                    themeBelow
+                }
             } else if let session = community.session {
                 signedIn(session)
             } else {
-                CommunitySignIn(community: community, page: .account)
+                VStack(spacing: 0) {
+                    CommunitySignIn(community: community, page: .account)
+                    themeBelow
+                }
             }
         }
         // Connexion, déconnexion : la page passe de l'une à l'autre en fondu.
@@ -94,6 +100,8 @@ struct AccountPage: View {
                 AccountProfileCard(community: community, session: session) {
                     Task { await AccountActions.signOut(backup) }
                 }
+
+                AccountThemeCard()
 
                 LazyVGrid(columns: [GridItem(.adaptive(minimum: 320), spacing: 12, alignment: .top)], spacing: 12) {
                     AccountBackupStatus(status: backup.status, here: backup.hereSummary, online: backup.onlineSummary,
@@ -124,7 +132,7 @@ struct AccountPage: View {
                 }
                 .padding(.horizontal, 20)
                 .padding(.vertical, 14)
-                .background(MockPlate(cornerRadius: 14))
+                .background(MockPlate(cornerRadius: 14)).swissCard()
                 .padding(.top, 10)
             }
             .padding(.horizontal, 26)
@@ -135,6 +143,120 @@ struct AccountPage: View {
             EditProfileSheet(community: community)
                 .swissSheet()
         }
+    }
+
+    /// Sans compte (ou comptes pas encore ouverts) : le choix du thème reste là, sous la page.
+    private var themeBelow: some View {
+        AccountThemeCard()
+            .padding(.horizontal, 26)
+            .padding(.bottom, 20)
+    }
+}
+
+/// Choix du thème (demande du 04/11, maquette validée) : trois aperçus, Noir, Papier, Orange ; le choisi entouré et
+/// soulevé sur son ombre rouge ; un clic le prend tout de suite, pour toute l'app (AppTheme.choose).
+struct AccountThemeCard: View {
+    @State private var chosen = AppTheme.current
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Thème").swissLabel()
+                .accessibilityAddTraits(.isHeader)
+            HStack(spacing: 12) {
+                ForEach(AppTheme.allCases) { theme in
+                    ThemeTile(theme: theme, selected: theme == chosen) {
+                        chosen = theme
+                        AppTheme.choose(theme)
+                    }
+                }
+            }
+            .padding(.trailing, 4)
+        }
+        .padding(.horizontal, 22)
+        .padding(.vertical, 20)
+        .frame(maxWidth: 560, alignment: .leading)
+        .background(MockPlate(cornerRadius: 14))
+        .swissCard()
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
+/// Un thème : son petit aperçu (barre de gauche, titre, texte, rond de la marque) et son nom.
+private struct ThemeTile: View {
+    let theme: AppTheme
+    let selected: Bool
+    let choose: () -> Void
+
+    var body: some View {
+        Button(action: choose) {
+            VStack(alignment: .leading, spacing: 8) {
+                ThemePreview(theme: theme).frame(height: 62)
+                HStack(spacing: 4) {
+                    Text(verbatim: theme.title).font(Swiss.font(14))
+                    Spacer(minLength: 4)
+                    if selected {
+                        Image(systemName: "checkmark").font(.system(size: 11, weight: .bold)).accessibilityHidden(true)
+                    }
+                }
+                .foregroundStyle(Swiss.text)
+                .padding(.horizontal, 2)
+            }
+            .padding(6)
+            .background(Rectangle().fill(Swiss.background))
+            .overlay(Rectangle().strokeBorder(selected ? Swiss.text : Swiss.line, lineWidth: selected ? 2 : 1))
+            .background(Rectangle().fill(Swiss.brandRed).offset(x: 4, y: 4).opacity(selected ? 1 : 0))
+            .offset(x: selected ? -3 : 0, y: selected ? -3 : 0)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .frame(maxWidth: .infinity)
+        .help(theme.title)
+        .accessibilityLabel(theme.title)
+        .accessibilityAddTraits(selected ? [.isButton, .isSelected] : .isButton)
+    }
+}
+
+/// Aperçu d'un thème, dans ses propres couleurs (pas celles du thème en cours).
+struct ThemePreview: View {
+    let theme: AppTheme
+
+    private struct Colors {
+        let page, side, sideLine, sideInk, ink, frame: UInt32
+    }
+
+    private var colors: Colors {
+        switch theme {
+        case .noir:
+            return Colors(page: 0x000000, side: 0x000000, sideLine: 0x333333, sideInk: 0xFFFFFF, ink: 0xFFFFFF,
+                          frame: 0x333333)
+        case .papier:
+            return Colors(page: 0xFFFFFF, side: 0xFFFFFF, sideLine: 0xCFCFCF, sideInk: 0x000000, ink: 0x000000,
+                          frame: 0xCFCFCF)
+        case .orange:
+            return Colors(page: SwissPalette.brandRed, side: 0x000000, sideLine: 0x000000, sideInk: 0xFFFFFF,
+                          ink: 0x000000, frame: 0x000000)
+        }
+    }
+
+    var body: some View {
+        let c = colors
+        func color(_ rgb: UInt32, _ alpha: Double = 1) -> Color { Color(nsColor: SwissPalette.nsColor(rgb)).opacity(alpha) }
+        return Canvas { context, size in
+            context.fill(Path(CGRect(origin: .zero, size: size)), with: .color(color(c.page)))
+            let side = (size.width * 0.32).rounded()
+            context.fill(Path(CGRect(x: 0, y: 0, width: side, height: size.height)), with: .color(color(c.side)))
+            context.fill(Path(CGRect(x: side - 1, y: 0, width: 1, height: size.height)), with: .color(color(c.sideLine)))
+            for (i, bar) in [(0.8, 1.0), (0.6, 0.45), (0.7, 0.45)].enumerated() {
+                context.fill(Path(CGRect(x: 5, y: 8 + CGFloat(i) * 9, width: (side - 10) * bar.0, height: 4)),
+                             with: .color(color(c.sideInk, bar.1)))
+            }
+            let x = side + 8, width = max(0, size.width - side - 16)
+            context.fill(Path(CGRect(x: x, y: 8, width: width * 0.64, height: 9)), with: .color(color(c.ink)))
+            context.fill(Path(CGRect(x: x, y: 23, width: width * 0.9, height: 4)), with: .color(color(c.ink, 0.4)))
+            context.fill(Path(ellipseIn: CGRect(x: x, y: 33, width: 11, height: 11)), with: .color(Swiss.brandRed))
+        }
+        .overlay(Rectangle().strokeBorder(color(c.frame), lineWidth: 1))
+        .accessibilityHidden(true)
     }
 }
 
@@ -180,7 +302,7 @@ private struct AccountProfileCard: View {
         }
         .padding(.horizontal, 22)
         .padding(.vertical, 20)
-        .background(MockPlate(cornerRadius: 14))
+        .background(MockPlate(cornerRadius: 14)).swissCard()
     }
 
     @ViewBuilder private var buttons: some View {
@@ -239,7 +361,7 @@ private struct AccountBackupStatus: View {
         .padding(.horizontal, 20)
         .padding(.vertical, 18)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(MockPlate(cornerRadius: 14))
+        .background(MockPlate(cornerRadius: 14)).swissCard()
         .accessibilityElement(children: .contain)
     }
 
@@ -252,8 +374,8 @@ private struct AccountBackupStatus: View {
         .padding(.horizontal, 14)
         .padding(.vertical, 12)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Rectangle().fill(Color.black.opacity(0.22)))
-        .overlay(Rectangle().strokeBorder(Color.white.opacity(0.06)))
+        .background(Rectangle().fill(Swiss.background))
+        .overlay(Rectangle().strokeBorder(Swiss.faint))
         .accessibilityElement(children: .combine)
     }
 
@@ -335,7 +457,7 @@ private struct AccountConflictCard: View {
         }
         .padding(12)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Rectangle().fill(Color.black.opacity(0.25)))
+        .background(Rectangle().fill(Swiss.background))
     }
 }
 

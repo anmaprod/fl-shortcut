@@ -455,7 +455,6 @@ struct MacroTemplatesSheet: View {
         .padding(24)
         .frame(width: 560, height: 480)
         .background(Swiss.background)
-        .environment(\.colorScheme, .dark)
     }
 }
 

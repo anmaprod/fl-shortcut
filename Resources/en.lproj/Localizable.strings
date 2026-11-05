@@ -1376,6 +1376,7 @@
 "Ne touche pas à FL jusqu'à la fin." = "Don't touch FL until it's done.";
 "Ne touche pas à FL pendant l'écoute." = "Don't touch FL while it listens.";
 "Ne touche pas à FL." = "Don't touch FL.";
+"Noir" = "Black";
 "Nom" = "Name";
 "Nom automatique" = "Automatic name";
 "Nom d'utilisateur" = "Username";
@@ -1412,6 +1413,7 @@
 "Options de la macro" = "Macro options";
 "Options › MIDI Settings" = "Options › MIDI Settings";
 "Options › Project general settings, puis deux clics que tu montres une fois dans FL (par exemple la mesure en 3/4)." = "Options › Project general settings, then two clicks you show once in FL (for example the 3/4 time signature).";
+"Orange" = "Orange";
 "Organiser" = "Organize";
 "Organiser : macOS le demande une fois, à la première écoute" = "Organizer: macOS asks once, the first time it listens";
 "Organiser : étape impossible (%@)." = "Organizer: step failed (%@).";
@@ -1510,6 +1512,7 @@
 "Page Macros › « Macro vide » ou « Modèles » : ajoute des blocs depuis la liste de gauche, range-les, choisis un raccourci, puis « Enregistrer »." = "Macros page › “Empty macro” or “Templates”: add blocks from the list on the left, arrange them, pick a shortcut, then “Save”.";
 "Page Macros, « Enregistrer une macro » : fais ta suite dans FL (clics, flèches, raccourcis), puis « Terminer ». Chaque geste devient un bloc." = "On the Macros page, “Record a macro”: do your steps in FL (clicks, arrows, shortcuts), then “Finish”. Each action becomes a block.";
 "Page publique : ton mail n'y est pas recopié" = "Public page: your email isn't copied there";
+"Papier" = "Paper";
 "Par le lien avec FL ; sans lien : menu de la piste › Arm selected track(s)." = "Through the FL link; without it: track menu › Arm selected track(s).";
 "Par le lien avec FL ; sans lien : sa touche de FL, si elle existe." = "Through the FL link; without it: its FL key, if there is one.";
 "Par le menu Add › %@ de FL (barre des menus de macOS), sans clic : choisis le plugin ci-dessous." = "Through FL's Add › %@ menu (macOS menu bar), with no clicks: choose the plugin below.";
@@ -2005,6 +2008,7 @@
 "Tester" = "Test";
 "Tester dans FL" = "Test in FL";
 "Texte" = "Text";
+"Thème" = "Theme";
 "Titre" = "Title";
 "Titre : %lld à %lld caractères." = "Title: %lld to %lld characters.";
 "Titres" = "Titles";

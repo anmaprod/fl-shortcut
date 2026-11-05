@@ -406,7 +406,7 @@ final class CopyApprovalWindow: NSObject, NSWindowDelegate {
         w.titlebarAppearsTransparent = true
         w.titleVisibility = .hidden
         w.isMovableByWindowBackground = true
-        w.backgroundColor = .black                                    // style suisse : fond noir plein
+        w.backgroundColor = Swiss.NS.background                       // style suisse : fond plein du thème
         w.title = String(localized: "Version organisée")
         w.level = .floating
         w.hidesOnDeactivate = false
@@ -465,7 +465,6 @@ struct CopyApprovalView: View {
         .padding(.bottom, 18)
         .frame(width: 380)
         .background(Swiss.background)
-        .environment(\.colorScheme, .dark)
     }
 
     private func name(_ url: URL?) -> String { url?.lastPathComponent ?? "" }
@@ -518,7 +517,7 @@ struct CopyApprovalView: View {
         let detail = text.split(separator: ":", maxSplits: 1).last.map { $0.trimmingCharacters(in: .whitespaces) } ?? text
         return HStack(alignment: .firstTextBaseline, spacing: 12) {
             Text(tag).swissLabel(color, size: 10.5).frame(width: 96, alignment: .leading)
-            Text(detail).font(.system(size: 13)).foregroundStyle(Color(white: 0.78))
+            Text(detail).font(.system(size: 13)).foregroundStyle(Swiss.soft)
                 .fixedSize(horizontal: false, vertical: true)
         }
         .padding(.vertical, 10)

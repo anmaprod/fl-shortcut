@@ -329,6 +329,20 @@ run() {   # $1 : libellé, $2 : YES/NO effet verre
       "$POST" app.flshortcut.debug.account "$screen"; sleep 3
       screencapture -x "$OUT/compte-$screen.png" 2>/dev/null || true
     done
+    # Thèmes (04/11) : Papier et Orange montrés sans être enregistrés, photographiés sur une page de raccourcis, Mon
+    # compte (choix du thème) et le menu de l'icône ; puis Noir de nouveau.
+    for theme in papier orange; do
+      "$POST" app.flshortcut.debug.theme "$theme"; sleep 2
+      "$POST" app.flshortcut.debug.select playlist; sleep 2
+      screencapture -x "$OUT/theme-$theme-raccourcis.png" 2>/dev/null || true
+      "$POST" app.flshortcut.debug.select compte; sleep 1
+      "$POST" app.flshortcut.debug.account connecte; sleep 3
+      screencapture -x "$OUT/theme-$theme-compte.png" 2>/dev/null || true
+      "$POST" app.flshortcut.debug.menu ouvrir; sleep 2
+      screencapture -x "$OUT/theme-$theme-menu.png" 2>/dev/null || true
+      "$POST" app.flshortcut.debug.menu fermer; sleep 1
+    done
+    "$POST" app.flshortcut.debug.theme noir; sleep 2
     # Fenêtre de désinstallation en 3 étapes, avec des exemples : rien n'est demandé ni supprimé.
     for screen in confirmer compte fini reste; do
       "$POST" app.flshortcut.debug.uninstall "$screen"; sleep 3

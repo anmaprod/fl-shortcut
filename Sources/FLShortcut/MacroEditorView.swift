@@ -303,7 +303,7 @@ private struct MacroStepsPane: View {
             .multilineTextAlignment(.center)
             .frame(maxWidth: .infinity, minHeight: 52)
             .overlay(Rectangle()
-                .strokeBorder(Color.white.opacity(0.25), style: StrokeStyle(lineWidth: 1, dash: [5, 4])))
+                .strokeBorder(Swiss.keyLine, style: StrokeStyle(lineWidth: 1, dash: [5, 4])))
             .contentShape(Rectangle())
             .onDrop(of: [.plainText], isTargeted: nil) { providers in
                 dropFromPalette(providers, beforeRow: model.rows.count)

@@ -242,19 +242,33 @@ private struct HoverTint: ViewModifier {
 
 /// Style suisse (maquette validée le 01/11, artefact `GHmTowhxy53F6VT3TEAjis`) : noir, blanc, traits fins, coins
 /// carrés, gros titres gras, petites capitales espacées ; le rouge seulement pour ce qui compte.
+/// Thèmes (04/11, AppTheme.swift) : chaque couleur suit le thème choisi au moment du dessin (Noir : les valeurs
+/// ci-dessous ; Papier : fond blanc, encre noire ; Orange : fond rouge de la marque, encre noire).
 enum Swiss {
-    static let background = Color.black
-    static let text = Color.white
-    /// Texte secondaire (#8A8A8A).
-    static let gray = Color(white: 0.541)
-    /// Texte de lecture un peu effacé (#A8A8A8).
-    static let soft = Color(white: 0.66)
-    /// Traits : sous un titre (blanc), entre deux blocs (#333333), entre deux lignes (#222222), cadre d'une touche (#555555).
-    static let line = Color(white: 0.2)
-    static let faint = Color(white: 0.133)
-    static let keyLine = Color(white: 0.333)
-    /// Le rouge de ce qui compte : touche changée, avertissement, Désinstaller, progression (#FF3B1F).
-    static let red = Color(red: 1.0, green: 0.231, blue: 0.122)
+    /// Fond (noir sous Noir).
+    static let background = Color(nsColor: SwissPalette.adaptive(.background))
+    /// Encre (blanc sous Noir).
+    static let text = Color(nsColor: SwissPalette.adaptive(.text))
+    /// Texte secondaire (#8A8A8A sous Noir).
+    static let gray = Color(nsColor: SwissPalette.adaptive(.gray))
+    /// Texte de lecture un peu effacé (#A8A8A8 sous Noir).
+    static let soft = Color(nsColor: SwissPalette.adaptive(.soft))
+    /// Traits : sous un titre (l'encre), entre deux blocs (#333333), entre deux lignes (#222222), cadre d'une touche
+    /// (#555555) ; valeurs sous Noir.
+    static let line = Color(nsColor: SwissPalette.adaptive(.line))
+    static let faint = Color(nsColor: SwissPalette.adaptive(.faint))
+    static let keyLine = Color(nsColor: SwissPalette.adaptive(.keyLine))
+    /// Ce qui compte : touche changée, avertissement, Désinstaller, progression (#FF3B1F ; blanc sur le fond orange).
+    static let red = Color(nsColor: SwissPalette.adaptive(.red))
+    /// Le rouge de la marque, le même dans tous les thèmes (logo).
+    static let brandRed = Color(red: 1.0, green: 0.231, blue: 0.122)
+    /// Les mêmes couleurs pour AppKit (fenêtres, questions).
+    enum NS {
+        static let background = SwissPalette.adaptive(.background)
+        static let text = SwissPalette.adaptive(.text)
+        static let soft = SwissPalette.adaptive(.soft)
+        static let line = SwissPalette.adaptive(.line)
+    }
     static let fontName = "Helvetica Neue"
 
     /// Gros titre (46 pour une page, 30 à 34 pour une petite fenêtre) : gras, serré.
@@ -1222,9 +1236,9 @@ extension View {
             .overlay(Rectangle().strokeBorder(Swiss.line, lineWidth: 1))
     }
 
-    /// Petite fenêtre (feuille) du style suisse : fond noir plein, toujours sombre (au lieu du gris arrondi de macOS).
+    /// Petite fenêtre (feuille) du style suisse : fond plein du thème (au lieu du gris arrondi de macOS).
     @ViewBuilder func swissSheet() -> some View {
-        let base = background(Swiss.background).environment(\.colorScheme, .dark)
+        let base = background(Swiss.background)
         if #available(macOS 13.3, *) {
             base.presentationBackground(Swiss.background)
         } else {

@@ -31,7 +31,7 @@ final class OnboardingWindow {
                          styleMask: [.titled, .closable, .fullSizeContentView],
                          backing: .buffered, defer: false)
         w.titlebarAppearsTransparent = true
-        w.backgroundColor = .black                          // style suisse : noir plein, comme toute l'app
+        w.backgroundColor = Swiss.NS.background             // style suisse : fond plein du thème, comme toute l'app
         w.titleVisibility = .hidden
         w.isMovableByWindowBackground = true
         w.isReleasedWhenClosed = false
@@ -503,7 +503,7 @@ struct AppIcon: View {
                 .frame(width: 2 * r * k, height: 2 * r * k)
                 .offset(x: inset + (512 - r) * k, y: inset + (512 - r) * k)
             Circle()
-                .fill(Swiss.red)
+                .fill(Swiss.brandRed)
                 .frame(width: 580 * k, height: 580 * k)
                 .offset(x: inset + 102 * k, y: inset + 362 * k)
         }

@@ -59,6 +59,9 @@ enum DebugSnapshot {
     /// Menu de l'icône : « ouvrir » (comme un clic sur l'icône), « fermer ».
     static let menu = Notification.Name("app.flshortcut.debug.menu")
     private static var menuObserver: NSObjectProtocol?
+    /// Thème montré sans être enregistré : « noir », « papier », « orange ».
+    static let theme = Notification.Name("app.flshortcut.debug.theme")
+    private static var themeObserver: NSObjectProtocol?
 
     static func publisher(_ name: Notification.Name) -> AnyPublisher<Notification, Never> {
         guard enabled else { return Empty().eraseToAnyPublisher() }
@@ -87,6 +90,10 @@ enum DebugSnapshot {
         menuObserver = DistributedNotificationCenter.default().addObserver(forName: menu, object: nil, queue: .main) { note in
             let command = note.object as? String ?? ""
             MainActor.assumeIsolated { MenuPanel.shared.capture(command) }
+        }
+        themeObserver = DistributedNotificationCenter.default().addObserver(forName: theme, object: nil, queue: .main) { note in
+            guard let chosen = AppTheme(rawValue: note.object as? String ?? "") else { return }
+            MainActor.assumeIsolated { AppTheme.choose(chosen, save: false) }
         }
         observer = DistributedNotificationCenter.default().addObserver(forName: snapshot, object: nil, queue: .main) { note in
             capture(tag: note.object as? String ?? "capture")

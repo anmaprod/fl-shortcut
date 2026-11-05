@@ -76,7 +76,7 @@ struct HelpPage: View {
                             }
                             .padding(16)
                             .frame(maxWidth: .infinity, alignment: .leading)
-                            .background(MockPlate(cornerRadius: 14))
+                            .background(MockPlate(cornerRadius: 14)).swissCard()
                         }
                         .id("form")
                     }
@@ -124,7 +124,7 @@ struct HelpPage: View {
         .padding(.horizontal, 2)
         .frame(height: 44)
         .swissRule(Swiss.keyLine)
-        .overlay(Rectangle().strokeBorder(Color.white.opacity(0.10), lineWidth: 1))
+        .overlay(Rectangle().strokeBorder(Swiss.line, lineWidth: 1))
     }
 
     /// Les questions, dans une carte ; un trait fin entre deux.
@@ -145,13 +145,13 @@ struct HelpPage: View {
                     .padding(.horizontal, 16)
                     .padding(.vertical, 12)
                     .overlay(alignment: .top) {
-                        if index > 0 { Rectangle().fill(Color.white.opacity(0.07)).frame(height: 1) }
+                        if index > 0 { Rectangle().fill(Swiss.faint).frame(height: 1) }
                     }
                 }
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(MockPlate(cornerRadius: 14))
+        .background(MockPlate(cornerRadius: 14)).swissCard()
     }
 
     /// À droite des questions : écrire à l'équipe, revoir le guide.
@@ -169,7 +169,7 @@ struct HelpPage: View {
             }
             .padding(16)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(MockPlate(cornerRadius: 14))
+            .background(MockPlate(cornerRadius: 14)).swissCard()
             Button {
                 showGuide()
             } label: {
@@ -180,7 +180,7 @@ struct HelpPage: View {
                 }
                 .padding(14)
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .background(MockPlate(cornerRadius: 14))
+                .background(MockPlate(cornerRadius: 14)).swissCard()
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)

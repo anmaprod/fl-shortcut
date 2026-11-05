@@ -250,9 +250,10 @@ enum SingleInstance {
 }
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
-    /// Toujours sombre, comme la maquette (29/10 : « fond noir ») : avant la première fenêtre, rien ne s'affiche clair.
+    /// Le thème choisi (Noir par défaut, 04/11 : Papier et Orange en plus) avant la première fenêtre : rien ne s'affiche
+    /// dans un autre.
     func applicationWillFinishLaunching(_ notification: Notification) {
-        NSApp.appearance = NSAppearance(named: .darkAqua)
+        AppTheme.applyAtLaunch()
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -689,7 +690,7 @@ private struct OrganizerMenuCard: View {
                 .font(.system(size: 13, weight: .semibold))
             GeometryReader { proxy in
                 ZStack(alignment: .leading) {
-                    Rectangle().fill(Color.white.opacity(0.12))
+                    Rectangle().fill(Swiss.line)
                     Rectangle().fill(Swiss.red).frame(width: proxy.size.width * fraction)
                 }
             }
@@ -839,7 +840,7 @@ struct MenuContent: View {
         .menuReveal(panel.revealed)
         .background(WindowReader { MenuPanel.shared.attach($0) })
         .modifier(MenuWindowBackground())
-        .environment(\.colorScheme, .dark)                // toujours sombre, comme la maquette
+        // Couleurs du thème (04/11) : plus toujours sombre.
         .onAppear { MenuPanel.shared.appeared() }
     }
 
@@ -938,7 +939,7 @@ private struct PanelPlainRow: View {
         } label: {
             Text(title)
                 .font(.system(size: 12))
-                .hoverTint(Color.white.opacity(0.62))
+                .hoverTint(Swiss.soft)
                 .padding(.horizontal, 10)
                 .frame(maxWidth: .infinity, minHeight: 30, alignment: .leading)
                 .contentShape(Rectangle())
@@ -1018,7 +1019,7 @@ private struct PanelItem: View {
             .font(.system(size: 13.5, weight: .bold))
             .padding(.horizontal, 14)
             .frame(height: 34)
-            .swissRule(Color(white: 0.12))
+            .swissRule(Swiss.faint)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)

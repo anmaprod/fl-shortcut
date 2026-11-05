@@ -23,11 +23,11 @@ enum SwissDialog {
         let panel = KeyPanel(contentRect: NSRect(x: 0, y: 0, width: width, height: 160),
                              styleMask: [.borderless], backing: .buffered, defer: false)
         panel.hasShadow = true
-        panel.backgroundColor = .black
+        panel.backgroundColor = dialogColor(.background)
         panel.isMovableByWindowBackground = true
         panel.level = .modalPanel
         panel.isReleasedWhenClosed = false
-        panel.appearance = NSAppearance(named: .darkAqua)
+        panel.appearance = NSAppearance(named: AppTheme.current.appearanceName)
         panel.onCancel = { answer.stop(cancel) }
 
         let content = makeContent(title: title, text: text, names: names, destructive: destructive,
@@ -61,19 +61,19 @@ enum SwissDialog {
 
         // Le titre, souligné d'un trait blanc sur toute la largeur.
         let heading = label(title, font: NSFont(name: "HelveticaNeue-Bold", size: 22) ?? .boldSystemFont(ofSize: 22),
-                            color: .white, kern: -22 * 0.039)
+                            color: dialogColor(.text), kern: -22 * 0.039)
         stack.addArrangedSubview(heading)
         stack.setCustomSpacing(10, after: heading)
-        stack.addArrangedSubview(rule(.white))
+        stack.addArrangedSubview(rule(dialogColor(.text)))
 
         if !text.isEmpty {
-            stack.addArrangedSubview(label(text, font: .systemFont(ofSize: 13), color: NSColor(white: 0.66, alpha: 1)))
+            stack.addArrangedSubview(label(text, font: .systemFont(ofSize: 13), color: dialogColor(.soft)))
         }
         if let image {
             let view = NSImageView(image: image)
             view.imageScaling = .scaleProportionallyUpOrDown
             view.wantsLayer = true
-            view.layer?.borderColor = NSColor(white: 0.2, alpha: 1).cgColor
+            view.layer?.borderColor = dialogColor(.line).cgColor
             view.layer?.borderWidth = 1
             view.translatesAutoresizingMaskIntoConstraints = false
             let ratio = image.size.height / max(image.size.width, 1)
@@ -105,8 +105,8 @@ enum SwissDialog {
 
         let root = NSView()
         root.wantsLayer = true
-        root.layer?.backgroundColor = NSColor.black.cgColor
-        root.layer?.borderColor = NSColor(white: 0.2, alpha: 1).cgColor     // trait fin #333 tout autour
+        root.layer?.backgroundColor = dialogColor(.background).cgColor
+        root.layer?.borderColor = dialogColor(.line).cgColor                 // trait fin tout autour (#333 sous Noir)
         root.layer?.borderWidth = 1
         root.addSubview(stack)
         NSLayoutConstraint.activate([
@@ -145,16 +145,16 @@ enum SwissDialog {
         let scroll = NSScrollView(frame: NSRect(x: 0, y: 0, width: inner, height: 200))
         scroll.hasVerticalScroller = true
         scroll.drawsBackground = true
-        scroll.backgroundColor = .black
+        scroll.backgroundColor = dialogColor(.background)
         scroll.borderType = .noBorder
         scroll.wantsLayer = true
-        scroll.layer?.borderColor = NSColor(white: 0.2, alpha: 1).cgColor
+        scroll.layer?.borderColor = dialogColor(.line).cgColor
         scroll.layer?.borderWidth = 1
         let textView = NSTextView(frame: NSRect(origin: .zero, size: scroll.contentSize))
         textView.isEditable = false
         textView.drawsBackground = true
-        textView.backgroundColor = .black
-        textView.textColor = .white
+        textView.backgroundColor = dialogColor(.background)
+        textView.textColor = dialogColor(.text)
         textView.font = .systemFont(ofSize: 11)
         textView.textContainerInset = NSSize(width: 8, height: 8)
         textView.isVerticallyResizable = true
@@ -214,8 +214,6 @@ final class SwissButton: NSButton {
 
     required init?(coder: NSCoder) { nil }
 
-    private static let red = NSColor(red: 1.0, green: 0.231, blue: 0.122, alpha: 1)
-
     private func text(_ color: NSColor) -> NSAttributedString {
         NSAttributedString(string: title.uppercased(), attributes: [
             .font: NSFont(name: "HelveticaNeue-Bold", size: 12) ?? .boldSystemFont(ofSize: 12),
@@ -244,14 +242,14 @@ final class SwissButton: NSButton {
         let lit = hovering && isEnabled
         let fill: NSColor, edge: NSColor, ink: NSColor
         if danger {
-            fill = lit ? Self.red : .black
-            edge = Self.red
-            ink = lit ? .black : Self.red
+            fill = lit ? dialogColor(.red) : dialogColor(.background)
+            edge = dialogColor(.red)
+            ink = lit ? dialogColor(.background) : dialogColor(.red)
         } else {
             let filled = prominent != lit
-            fill = filled ? .white : .black
-            edge = .white
-            ink = filled ? .black : .white
+            fill = filled ? dialogColor(.text) : dialogColor(.background)
+            edge = dialogColor(.text)
+            ink = filled ? dialogColor(.background) : dialogColor(.text)
         }
         fill.setFill()
         bounds.fill()
@@ -267,4 +265,11 @@ final class SwissButton: NSButton {
         let size = label.size()
         label.draw(at: NSPoint(x: (bounds.width - size.width) / 2, y: (bounds.height - size.height) / 2))
     }
+}
+
+/// Couleur du thème en cours pour les questions (dessinées à leur ouverture ; elles ne restent pas ouvertes pendant un
+/// changement de thème, qui se fait dans la page Mon compte).
+private func dialogColor(_ token: SwissPalette.Token) -> NSColor {
+    let theme = AppTheme.current
+    return SwissPalette.nsColor(SwissPalette.of(theme, dark: theme == .noir).value(token))
 }

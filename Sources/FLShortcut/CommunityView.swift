@@ -219,7 +219,7 @@ private struct CommunityBrowse: View {
                     CommunityAuthorHeader(community: community, author: author)
                         .padding(.horizontal, 20)
                         .padding(.vertical, 18)
-                        .background(MockPlate(cornerRadius: 14))
+                        .background(MockPlate(cornerRadius: 14)).swissCard()
                 } else if !community.members.isEmpty {
                     VStack(alignment: .leading, spacing: 6) {
                         Text("Membres")
@@ -239,13 +239,13 @@ private struct CommunityBrowse: View {
                             }
                         }
                         .padding(2)
-                        .background(MockPlate(cornerRadius: 14))
+                        .background(MockPlate(cornerRadius: 14)).swissCard()
                     }
                 }
                 if community.shares.isEmpty {
                     empty
                         .frame(maxWidth: .infinity)
-                        .background(MockPlate(cornerRadius: 14))
+                        .background(MockPlate(cornerRadius: 14)).swissCard()
                 } else {
                     LazyVGrid(columns: [GridItem(.adaptive(minimum: 300), spacing: 28)], spacing: 0) {
                         ForEach(community.shares) { share in

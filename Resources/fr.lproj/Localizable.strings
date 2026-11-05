@@ -1376,6 +1376,7 @@
 "Ne touche pas à FL jusqu'à la fin." = "Ne touche pas à FL jusqu'à la fin.";
 "Ne touche pas à FL pendant l'écoute." = "Ne touche pas à FL pendant l'écoute.";
 "Ne touche pas à FL." = "Ne touche pas à FL.";
+"Noir" = "Noir";
 "Nom" = "Nom";
 "Nom automatique" = "Nom automatique";
 "Nom d'utilisateur" = "Nom d'utilisateur";
@@ -1412,6 +1413,7 @@
 "Options de la macro" = "Options de la macro";
 "Options › MIDI Settings" = "Options › MIDI Settings";
 "Options › Project general settings, puis deux clics que tu montres une fois dans FL (par exemple la mesure en 3/4)." = "Options › Project general settings, puis deux clics que tu montres une fois dans FL (par exemple la mesure en 3/4).";
+"Orange" = "Orange";
 "Organiser" = "Organiser";
 "Organiser : macOS le demande une fois, à la première écoute" = "Organiser : macOS le demande une fois, à la première écoute";
 "Organiser : étape impossible (%@)." = "Organiser : étape impossible (%@).";
@@ -1510,6 +1512,7 @@
 "Page Macros › « Macro vide » ou « Modèles » : ajoute des blocs depuis la liste de gauche, range-les, choisis un raccourci, puis « Enregistrer »." = "Page Macros › « Macro vide » ou « Modèles » : ajoute des blocs depuis la liste de gauche, range-les, choisis un raccourci, puis « Enregistrer ».";
 "Page Macros, « Enregistrer une macro » : fais ta suite dans FL (clics, flèches, raccourcis), puis « Terminer ». Chaque geste devient un bloc." = "Page Macros, « Enregistrer une macro » : fais ta suite dans FL (clics, flèches, raccourcis), puis « Terminer ». Chaque geste devient un bloc.";
 "Page publique : ton mail n'y est pas recopié" = "Page publique : ton mail n'y est pas recopié";
+"Papier" = "Papier";
 "Par le lien avec FL ; sans lien : menu de la piste › Arm selected track(s)." = "Par le lien avec FL ; sans lien : menu de la piste › Arm selected track(s).";
 "Par le lien avec FL ; sans lien : sa touche de FL, si elle existe." = "Par le lien avec FL ; sans lien : sa touche de FL, si elle existe.";
 "Par le menu Add › %@ de FL (barre des menus de macOS), sans clic : choisis le plugin ci-dessous." = "Par le menu Add › %@ de FL (barre des menus de macOS), sans clic : choisis le plugin ci-dessous.";
@@ -2005,6 +2008,7 @@
 "Tester" = "Tester";
 "Tester dans FL" = "Tester dans FL";
 "Texte" = "Texte";
+"Thème" = "Thème";
 "Titre" = "Titre";
 "Titre : %lld à %lld caractères." = "Titre : %lld à %lld caractères.";
 "Titres" = "Titres";

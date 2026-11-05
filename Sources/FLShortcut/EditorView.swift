@@ -444,6 +444,8 @@ struct EditorView: View {
             // Sous la barre de titre : elle ne laisse passer aucun clic.
             .padding(.top, MainWindowChrome.contentTop)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
+            // Thème Papier : la grille de douze colonnes derrière la page (maquette).
+            .background(SwissPaperGrid())
         }
         .padding(8)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -654,6 +656,14 @@ struct EditorView: View {
         .frame(maxHeight: .infinity, alignment: .top)
         // Style suisse : un trait fin à droite de la barre, rien d'autre.
         .overlay(alignment: .trailing) { Rectangle().fill(Swiss.line).frame(width: 1) }
+        // Thème Orange (maquette) : la barre en noir jusqu'aux bords de la fenêtre ; ailleurs, le fond de la page.
+        .background {
+            Rectangle().fill(Swiss.background)
+                .padding(.leading, -8)
+                .padding(.vertical, -8)
+                .allowsHitTesting(false)
+        }
+        .swissInverted()
     }
 
     private func sidebarItem(_ item: SidebarItem, _ title: Text) -> some View {
