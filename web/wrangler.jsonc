@@ -1,4 +1,4 @@
-// Site FL Shortcuts sur Cloudflare Workers : pages statiques (public/) + paiement SumUp (src/worker.js).
+// Site FL Shortcuts sur Cloudflare Workers : pages statiques (public/) + paiement SumUp et lien par mail (src/worker.js).
 // Mise en ligne et réglages : voir README.md de ce dossier.
 {
   "name": "fl-shortcuts",
@@ -8,5 +8,9 @@
     "directory": "./public",
     "binding": "ASSETS"
   },
+  // Au plus 3 envois du lien par mail par minute, pour une même adresse IP et pour une même adresse mail.
+  "ratelimits": [
+    { "name": "LIMITE_MAIL", "namespace_id": "1001", "simple": { "limit": 3, "period": 60 } }
+  ],
   "observability": { "enabled": true }
 }

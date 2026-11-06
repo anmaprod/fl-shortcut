@@ -125,3 +125,87 @@ test('les autres adresses servent les pages du site', async () => {
   const r = await worker.fetch(new Request(`${SITE}/`), env());
   assert.equal(await r.text(), 'page');
 });
+
+// ---------- Lien par mail ----------
+const BREVO = { BREVO_API_KEY: 'xkeysib-test', MAIL_EXPEDITEUR: 'bonjour@flshortcuts.example' };
+const demanderLien = (corps, entetes = {}) =>
+  new Request(`${SITE}/api/lien`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Origin: SITE, 'CF-Connecting-IP': '203.0.113.7', ...entetes },
+    body: typeof corps === 'string' ? corps : JSON.stringify(corps),
+  });
+const envoiBrevo = () => appels.find((c) => c.adresse === 'https://api.brevo.com/v3/smtp/email');
+
+test('lien : envoie le lien Mac par Brevo, à la bonne adresse, depuis l’adresse réglée', async () => {
+  globalThis.fetch = async (adresse, options = {}) => {
+    appels.push({ adresse, options });
+    return Response.json({ messageId: '<1@relay>' }, { status: 201 });
+  };
+  const r = await worker.fetch(demanderLien({ mail: ' toi@exemple.fr ', systeme: 'mac' }), env(BREVO));
+  assert.equal(r.status, 200);
+  assert.deepEqual(await r.json(), { envoye: true });
+  const envoi = envoiBrevo();
+  assert.equal(envoi.options.headers['api-key'], 'xkeysib-test');
+  const corps = JSON.parse(envoi.options.body);
+  assert.deepEqual(corps.to, [{ email: 'toi@exemple.fr' }]);
+  assert.deepEqual(corps.sender, { name: 'FL Shortcuts', email: 'bonjour@flshortcuts.example' });
+  assert.equal(corps.subject, 'Ton lien FL Shortcuts pour Mac');
+  assert.match(corps.htmlContent, /releases\/latest\/download\/FLShortcut\.dmg/);
+  assert.match(corps.textContent, /releases\/latest\/download\/FLShortcut\.dmg/);
+  assert.match(corps.textContent, /Merci de soutenir FL Shortcuts/);
+});
+
+test('lien : Windows donne l’installeur Windows', async () => {
+  globalThis.fetch = async (adresse, options = {}) => { appels.push({ adresse, options }); return Response.json({}, { status: 201 }); };
+  await worker.fetch(demanderLien({ mail: 'toi@exemple.fr', systeme: 'windows' }), env(BREVO));
+  const corps = JSON.parse(envoiBrevo().options.body);
+  assert.equal(corps.subject, 'Ton lien FL Shortcuts pour Windows');
+  assert.match(corps.textContent, /FLShortcut-Windows-Setup\.exe/);
+});
+
+test('lien : remercie pour le montant seulement si SumUp dit PAID', async () => {
+  for (const [statut, attendu] of [['PAID', /Merci pour ton soutien de 5 €/], ['PENDING', /Merci de soutenir/]]) {
+    appels = [];
+    globalThis.fetch = async (adresse, options = {}) => {
+      appels.push({ adresse, options });
+      if (adresse.startsWith('https://api.sumup.com')) return Response.json({ id: ID, status: statut, amount: 5 });
+      return Response.json({}, { status: 201 });
+    };
+    await worker.fetch(demanderLien({ mail: 'toi@exemple.fr', paiement: ID }), env(BREVO));
+    assert.match(JSON.parse(envoiBrevo().options.body).textContent, attendu, statut);
+  }
+});
+
+test('lien : sans Brevo réglé, répond envoye: false sans rien envoyer', async () => {
+  const r = await worker.fetch(demanderLien({ mail: 'toi@exemple.fr' }), env());
+  assert.equal(r.status, 200);
+  assert.deepEqual(await r.json(), { envoye: false });
+  assert.equal(appels.length, 0);
+});
+
+test('lien : refuse une adresse invalide, une demande illisible ou venue d’un autre site', async () => {
+  for (const mail of ['', 'pas-un-mail', 'a@b', 'a b@c.fr', '<x>@y.fr', 42, 'x'.repeat(250) + '@y.fr']) {
+    const r = await worker.fetch(demanderLien({ mail }), env(BREVO));
+    assert.equal(r.status, 400, JSON.stringify(mail));
+  }
+  assert.equal((await worker.fetch(demanderLien('pas du json'), env(BREVO))).status, 400);
+  const ailleurs = await worker.fetch(demanderLien({ mail: 'toi@exemple.fr' }, { Origin: 'https://autre.example' }), env(BREVO));
+  assert.equal(ailleurs.status, 403);
+  assert.equal(appels.length, 0);
+});
+
+test('lien : au-delà de la limite, 429 et rien n’est envoyé ; la limite compte l’IP et l’adresse', async () => {
+  const cles = [];
+  const limite = (ok) => ({ limit: async ({ key }) => { cles.push(key); return { success: ok(key) }; } });
+  const r = await worker.fetch(demanderLien({ mail: 'Toi@Exemple.fr' }), env({ ...BREVO, LIMITE_MAIL: limite((k) => !k.startsWith('mail:')) }));
+  assert.equal(r.status, 429);
+  assert.deepEqual(cles, ['ip:203.0.113.7', 'mail:toi@exemple.fr']);
+  assert.equal(appels.length, 0);
+});
+
+test('lien : Brevo refuse, réponse 502 envoye: false', async () => {
+  globalThis.fetch = async () => new Response('{"code":"unauthorized"}', { status: 401 });
+  const r = await worker.fetch(demanderLien({ mail: 'toi@exemple.fr' }), env(BREVO));
+  assert.equal(r.status, 502);
+  assert.deepEqual(await r.json(), { envoye: false });
+});

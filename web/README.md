@@ -7,9 +7,12 @@ Le dossier `site/` reste l'ancienne page de téléchargement (GitHub Pages) tant
 ## Le parcours d'achat
 
 1. On choisit son prix (prix libre, de 0 à 999 €) et son système (Mac ou Windows).
-2. **0 €** : le téléchargement s'affiche tout de suite.
-3. **1 € ou plus** : on coche la case de renonciation au droit de rétractation (obligatoire pour un produit numérique livré tout de suite), puis « Payer X € sur SumUp » envoie sur la **page de paiement de SumUp** (`checkout.sumup.com` : carte, Apple Pay, Google Pay). Le numéro de carte ne passe jamais par le site. La page SumUp reste ouverte 30 minutes.
-4. Après le paiement, le bouton de retour de la page SumUp ramène sur le site. Le serveur demande à SumUp si le paiement est bien reçu, puis la fenêtre « merci » donne le téléchargement et le mode d'emploi du bon système.
+2. La fenêtre « obtenir l'app » montre l'article (FL Shortcuts, système, prix), puis demande **le mail**, pour tout le monde.
+3. **0 €** : « Télécharger gratuitement » affiche le téléchargement tout de suite, et le lien part aussi par mail.
+4. **1 € ou plus** : on coche la case de renonciation au droit de rétractation (obligatoire pour un produit numérique livré tout de suite), puis « Payer X € sur SumUp » envoie sur la **page de paiement de SumUp** (`checkout.sumup.com` : carte, Apple Pay, Google Pay). Le numéro de carte ne passe jamais par le site. La page SumUp reste ouverte 30 minutes.
+5. Après le paiement, le bouton de retour de la page SumUp ramène sur le site. Le serveur demande à SumUp si le paiement est bien reçu, puis la fenêtre « merci » donne le téléchargement et le mode d'emploi du bon système, et le lien part par mail.
+
+Le mail ne sert qu'à envoyer le lien : il n'est enregistré nulle part sur le site. Tant que Brevo n'est pas branché, rien ne part et la fenêtre « merci » ne parle pas de mail. Au plus 3 envois par minute pour une même connexion et une même adresse.
 
 Tant que SumUp n'est pas branché, le site marche en **gratuit seulement** : le bouton « Payer » propose de télécharger gratuitement.
 
@@ -43,11 +46,23 @@ Ensuite, chaque modification fusionnée dans `main` met le site à jour toute se
 3. **Ce que voit l'acheteur sur la page SumUp** : dans le tableau de bord SumUp, page *Branding*, ajoute le logo (`public/img/icone.png`) ; page *Business profile*, mets le nom « FL Shortcuts ». C'est ce qui rassure l'acheteur sur la page de paiement.
 4. **PayPal** : la documentation de SumUp ne dit pas si sa page de paiement le propose. À demander au service client SumUp.
 
+## Envoyer le lien par mail (Brevo)
+
+1. Crée un compte sur [brevo.com](https://www.brevo.com) (société française, plan gratuit : 300 mails par jour).
+2. *Senders, Domains & Dedicated IPs › Domains* : ajoute ton nom de domaine et suis les étapes. Brevo donne des lignes à ajouter dans les réglages DNS du domaine (chez Cloudflare : *DNS › Records*). Sans ça, les mails finissent en indésirables.
+3. *SMTP & API › API keys* : crée une clé (elle commence par `xkeysib-`).
+4. Dans Cloudflare, Worker `fl-shortcuts`, *Settings › Variables and Secrets* :
+
+   | Nom | Type | Valeur |
+   |---|---|---|
+   | `BREVO_API_KEY` | **Secret** | ta clé Brevo |
+   | `MAIL_EXPEDITEUR` | Text | l'adresse d'envoi sur ton domaine, par exemple `bonjour@ton-domaine.fr` |
+
 Fais d'abord tous les essais avec les réglages sandbox, puis remplace-les par la vraie clé et le vrai code marchand.
 
 ## Avant d'encaisser pour de vrai
 
-- Pages **mentions légales**, **conditions de vente** et **confidentialité**, liées en bas du site.
+- Pages **mentions légales**, **conditions de vente** et **confidentialité**, liées en bas du site. La page confidentialité dit que le mail sert seulement à envoyer le lien, et qu'il passe par Brevo et SumUp.
 - Reçus SumUp avec « EI », ton SIRET et « TVA non applicable, art. 293 B du CGI ».
 
 ## Tests
