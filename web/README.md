@@ -46,6 +46,8 @@ Ensuite, chaque modification fusionnée dans `main` met le site à jour toute se
 3. **Ce que voit l'acheteur sur la page SumUp** : dans le tableau de bord SumUp, page *Branding*, ajoute le logo (`public/img/icone.png`) ; page *Business profile*, mets le nom « FL Shortcuts ». C'est ce qui rassure l'acheteur sur la page de paiement.
 4. **PayPal** : la documentation de SumUp ne dit pas si sa page de paiement le propose. À demander au service client SumUp.
 
+Fais d'abord tous les essais avec les réglages sandbox, puis remplace-les par la vraie clé et le vrai code marchand.
+
 ## Envoyer le lien par mail (Brevo)
 
 1. Crée un compte sur [brevo.com](https://www.brevo.com) (société française, plan gratuit : 300 mails par jour).
@@ -57,8 +59,6 @@ Ensuite, chaque modification fusionnée dans `main` met le site à jour toute se
    |---|---|---|
    | `BREVO_API_KEY` | **Secret** | ta clé Brevo |
    | `MAIL_EXPEDITEUR` | Text | l'adresse d'envoi sur ton domaine, par exemple `bonjour@ton-domaine.fr` |
-
-Fais d'abord tous les essais avec les réglages sandbox, puis remplace-les par la vraie clé et le vrai code marchand.
 
 ## Avant d'encaisser pour de vrai
 
