@@ -266,6 +266,8 @@ enum Swiss {
     static let primaryFill = Color(nsColor: SwissPalette.primary(.fill))
     static let primaryInk = Color(nsColor: SwissPalette.primary(.ink))
     static let primaryShadow = Color(nsColor: SwissPalette.primary(.shadow))
+    /// Ombre nette qui apparaît sous un bouton ou une carte qui se soulève au survol (`gumroadLift`).
+    static let primaryLift = Color(nsColor: SwissPalette.primary(.lift))
     /// Les mêmes couleurs pour AppKit (fenêtres, questions).
     enum NS {
         static let background = SwissPalette.adaptive(.background)
@@ -497,25 +499,51 @@ private struct KeyLikeButtonBody<Label: View>: View {
 
     var body: some View {
         let theme = AppTheme.current
-        let lit = hovering && enabled
+        // 06/11 : sa couleur au repos, sans ombre ; au survol, il se soulève sur son ombre nette (effet Gumroad).
+        let lifted = hovering && enabled && !pressed
         let restFill: Color = theme == .noir ? Swiss.background : .white
         let restInk: Color = theme == .noir ? Swiss.text : .black
         let edge: Color = theme == .noir ? Swiss.text.opacity(0.87) : .black
-        let shadow: Color = theme == .papier ? Swiss.brandRed : theme == .orange ? .black : .clear
         return label
             .font(Swiss.font(12))
             .tracking(1.2)
             .textCase(.uppercase)
             .lineLimit(1)
-            .foregroundStyle(lit ? restFill : restInk)
+            .foregroundStyle(restInk)
             .padding(.horizontal, 18)
             .frame(minHeight: 38)
-            .background(Rectangle().fill(lit ? restInk : restFill))
+            .background(Rectangle().fill(restFill))
             .overlay(Rectangle().strokeBorder(edge, lineWidth: 2))
-            .background(Rectangle().fill(lit ? Color.clear : shadow).offset(x: 3, y: 3))
-            .opacity(enabled ? (pressed ? 0.7 : 1) : 0.35)
+            .gumroadLift(lifted, distance: 3)
+            .opacity(enabled ? 1 : 0.35)
             .contentShape(Rectangle())
             .onHover { hovering = $0 }
+    }
+}
+
+/// Effet Gumroad (06/11, « qu'il ne soit pas là quand on ne met pas la souris dessus ; quand on met la souris
+/// dessus, il apparaît ») : soulevé, l'élément monte en haut à gauche et laisse voir dessous son ombre nette
+/// (`Swiss.primaryLift` : rouge, noire sur le fond orange) ; au repos, rien ne dépasse. Même effet dans les trois
+/// thèmes, pour les boutons principaux, « Enregistrer », les grandes cartes de Macros et les touches changées.
+struct GumroadLift: ViewModifier {
+    let lifted: Bool
+    var distance: CGFloat = 4
+    var shadow: Color = Swiss.primaryLift
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    func body(content: Content) -> some View {
+        content
+            .offset(x: lifted ? -distance : 0, y: lifted ? -distance : 0)
+            // L'ombre reste à la place de l'élément : soulevé, on la voit en bas à droite.
+            .background(Rectangle().fill(shadow).opacity(lifted ? 1 : 0).allowsHitTesting(false))
+            .animation(reduceMotion ? nil : Motion.lift, value: lifted)
+    }
+}
+
+extension View {
+    /// Soulève l'élément sur son ombre nette quand `lifted` (effet Gumroad, voir `GumroadLift`).
+    func gumroadLift(_ lifted: Bool, distance: CGFloat = 4, shadow: Color = Swiss.primaryLift) -> some View {
+        modifier(GumroadLift(lifted: lifted, distance: distance, shadow: shadow))
     }
 }
 
@@ -599,10 +627,13 @@ struct SwissButtonBody<Label: View>: View {
     var body: some View {
         let m = metrics
         let lit = hovering && enabled
-        // Maquettes du 05/11 : le principal est plein (blanc sous Noir et Orange, noir sous Papier) sur son ombre
-        // nette (rouge sous Papier, noire sous Orange) ; survolé, il se vide. Le bordé (trait de 2 points, plein du
-        // fond : la grille de Papier ne passe pas dedans) se remplit d'encre au survol.
-        let primaryAtRest = prominent && !lit && !danger
+        // Maquettes du 05/11 : le principal est plein (blanc sous Noir et Orange, noir sous Papier). 06/11 (« qu'ils
+        // prennent d'abord la couleur qu'ils ont… sans l'effet Gumroad, et quand on passe la souris dessus, là il y
+        // ait l'effet ») : au repos, plein, sans ombre ; survolé, il garde ses couleurs et se soulève sur son ombre
+        // nette (`gumroadLift`). Le bordé (trait de 2 points, plein du fond : la grille de Papier ne passe pas
+        // dedans) se remplit d'encre au survol.
+        let primaryAtRest = prominent && !danger
+        let lifted = primaryAtRest && lit && !pressed
         let filled = !prominent && lit
         let edge = danger && !lit ? Swiss.red : Swiss.text
         let ink: Color = primaryAtRest ? Swiss.primaryInk
@@ -621,8 +652,8 @@ struct SwissButtonBody<Label: View>: View {
             .frame(minHeight: m.height)
             .background(Rectangle().fill(fill))
             .overlay(Rectangle().strokeBorder(redFull ? Swiss.red : edge, lineWidth: 2))
-            .background(Rectangle().fill(primaryAtRest ? Swiss.primaryShadow : Color.clear).offset(x: 4, y: 4))
-            .opacity(enabled ? (pressed ? 0.7 : 1) : 0.35)
+            .gumroadLift(lifted)
+            .opacity(enabled ? (pressed && !primaryAtRest ? 0.7 : 1) : 0.35)
             .contentShape(Rectangle())
             .animation(reduceMotion ? nil : .easeOut(duration: 0.12), value: lit)
             .onHover { hovering = $0 }
@@ -803,10 +834,12 @@ struct KeyLabel: View {
 
     private var shape: Rectangle { Rectangle() }
 
-    /// Style suisse (01/11) : touche changée pleine de rouge ; sinon un carré noir bordé de gris.
+    /// Style suisse (01/11) : touche changée pleine de rouge ; sinon un carré du fond bordé de gris.
+    /// 06/11 (« si on change une touche, il y a un relief… l'effet Gumroad, j'aime beaucoup ») : la touche changée est
+    /// en relief, bordée d'encre et soulevée sur son ombre nette d'encre, dans les trois thèmes.
     private var fill: Color { accent ? Swiss.red : Swiss.background }
 
-    private var border: AnyShapeStyle { AnyShapeStyle(accent ? Swiss.red : Swiss.keyLine) }
+    private var border: AnyShapeStyle { AnyShapeStyle(accent ? Swiss.text : Swiss.keyLine) }
 
     var body: some View {
         Group {
@@ -840,7 +873,9 @@ struct KeyLabel: View {
             .padding(.horizontal, 5)
             .frame(minWidth: 20, minHeight: 20)
             .background(shape.fill(fill))
-            .overlay(shape.strokeBorder(border, lineWidth: 1))
+            .overlay(shape.strokeBorder(border, lineWidth: accent ? 1.5 : 1))
+            .gumroadLift(accent, distance: 2, shadow: Swiss.text)
+            .padding(accent ? 1 : 0)                 // l'ombre ne touche pas la touche d'à côté
     }
 }
 

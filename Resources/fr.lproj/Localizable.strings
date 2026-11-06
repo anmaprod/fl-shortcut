@@ -67,6 +67,7 @@
 "%lld macro(s) illisible(s) ignorée(s)" = "%lld macro(s) illisible(s) ignorée(s)";
 "%lld macros" = "%lld macros";
 "%lld macros exportées" = "%lld macros exportées";
+"%lld macros exportées dans Macros › Exporter" = "%lld macros exportées dans Macros › Exporter";
 "%lld macros importées, sans raccourci" = "%lld macros importées, sans raccourci";
 "%lld modifiés" = "%lld modifiés";
 "%lld ms" = "%lld ms";
@@ -195,6 +196,7 @@
 "Ajoute un instrument dans le Channel rack." = "Ajoute un instrument dans le Channel rack.";
 "Ajouter" = "Ajouter";
 "Ajouter des macros reçues (.flsmacro) ; la boîte s'ouvre dans Documents › FL Shortcuts › Macros" = "Ajouter des macros reçues (.flsmacro) ; la boîte s'ouvre dans Documents › FL Shortcuts › Macros";
+"Ajouter des macros reçues (.flsmacro) ; la boîte s'ouvre dans Documents › FL Shortcuts › Macros › Importer" = "Ajouter des macros reçues (.flsmacro) ; la boîte s'ouvre dans Documents › FL Shortcuts › Macros › Importer";
 "Ajouter un bloc sous la ligne choisie (ou dans la boucle si sa ligne de fin est choisie)" = "Ajouter un bloc sous la ligne choisie (ou dans la boucle si sa ligne de fin est choisie)";
 "Ajouter un effet sur la piste (plugin)" = "Ajouter un effet sur la piste (plugin)";
 "Ajouter un instrument (VST, plugin…)" = "Ajouter un instrument (VST, plugin…)";
@@ -437,6 +439,7 @@
 "Ce que tu faisais, ce qui devait se passer, ce qui s'est passé. Ex. : « ma macro s'arrête au 3e bloc dans le Mixer »." = "Ce que tu faisais, ce qui devait se passer, ce qui s'est passé. Ex. : « ma macro s'arrête au 3e bloc dans le Mixer ».";
 "Ce qui te ferait gagner du temps dans FL Studio." = "Ce qui te ferait gagner du temps dans FL Studio.";
 "Ce raccourci lancera ta version ; le modèle d'origine reste dans Macros › Modèles." = "Ce raccourci lancera ta version ; le modèle d'origine reste dans Macros › Modèles.";
+"Ce raccourci ne marchera pas encore" = "Ce raccourci ne marchera pas encore";
 "Centrer sur la tête de lecture" = "Centrer sur la tête de lecture";
 "Ces réponses partent à l'équipe de FL Shortcuts avec le diagnostic (des nombres, aucun nom de son)." = "Ces réponses partent à l'équipe de FL Shortcuts avec le diagnostic (des nombres, aucun nom de son).";
 "Cette image ne se lit pas (ou elle est trop lourde) : choisis-en une autre." = "Cette image ne se lit pas (ou elle est trop lourde) : choisis-en une autre.";
@@ -573,6 +576,7 @@
 "Clique et tape dans FL, puis « Terminer » en haut à droite." = "Clique et tape dans FL, puis « Terminer » en haut à droite.";
 "Clique ici, puis appuie sur le bouton de ta souris" = "Clique ici, puis appuie sur le bouton de ta souris";
 "Clique le bouton mute (le petit rond en haut) d'une piste du Mixer, puis reclique-le pour remettre le son. Échap : annuler." = "Clique le bouton mute (le petit rond en haut) d'une piste du Mixer, puis reclique-le pour remettre le son. Échap : annuler.";
+"Clique pour renommer la macro" = "Clique pour renommer la macro";
 "Clique sur la première entrée de la liste qui s'est ouverte." = "Clique sur la première entrée de la liste qui s'est ouverte.";
 "Clique sur le bouton d'armement de la piste (enregistrement)." = "Clique sur le bouton d'armement de la piste (enregistrement).";
 "Clique sur le sélecteur d'entrée audio (panneau de droite du Mixer)." = "Clique sur le sélecteur d'entrée audio (panneau de droite du Mixer).";
@@ -647,6 +651,7 @@
 "Copier le message, pour le coller où tu veux" = "Copier le message, pour le coller où tu veux";
 "Copier les pas / la partition" = "Copier les pas / la partition";
 "Copié" = "Copié";
+"Corriger" = "Corriger";
 "Couleur" = "Couleur";
 "Couleur de la grille" = "Couleur de la grille";
 "Couleur des notes" = "Couleur des notes";
@@ -824,6 +829,7 @@
 "Enregistrer les modifications de « %@ » ?" = "Enregistrer les modifications de « %@ » ?";
 "Enregistrer maintenant (⌘S) : sinon c'est fait tout seul dans un instant" = "Enregistrer maintenant (⌘S) : sinon c'est fait tout seul dans un instant";
 "Enregistrer puis exporter en WAV" = "Enregistrer puis exporter en WAV";
+"Enregistrer quand même" = "Enregistrer quand même";
 "Enregistrer sous" = "Enregistrer sous";
 "Enregistrer une macro" = "Enregistrer une macro";
 "Enregistrer une nouvelle version" = "Enregistrer une nouvelle version";
@@ -1157,6 +1163,7 @@
 "Le clavier est autorisé : tout est prêt." = "Le clavier est autorisé : tout est prêt.";
 "Le clavier n'est pas, ou plus, autorisé. Ouvre Réglages Système › Confidentialité et sécurité › Accessibilité, retire FL Shortcuts avec « − », puis ajoute-le de nouveau avec « + » (dans Applications). Après une mise à jour de l'app, macOS demande parfois de refaire ce geste." = "Le clavier n'est pas, ou plus, autorisé. Ouvre Réglages Système › Confidentialité et sécurité › Accessibilité, retire FL Shortcuts avec « − », puis ajoute-le de nouveau avec « + » (dans Applications). Après une mise à jour de l'app, macOS demande parfois de refaire ce geste.";
 "Le code fait 6 chiffres : recopie-le depuis le mail." = "Le code fait 6 chiffres : recopie-le depuis le mail.";
+"Le dossier Documents › FL Shortcuts › Macros › Exporter n'a pas pu être créé." = "Le dossier Documents › FL Shortcuts › Macros › Exporter n'a pas pu être créé.";
 "Le début de l'enregistrement, en blocs : menu de la piste, preset, puis armement de la piste. À compléter étape par étape." = "Le début de l'enregistrement, en blocs : menu de la piste, preset, puis armement de la piste. À compléter étape par étape.";
 "Le fichier %@ manque dans l'application." = "Le fichier %@ manque dans l'application.";
 "Le fichier de ton projet n'a pas pu être lu : rien n'a été touché." = "Le fichier de ton projet n'a pas pu être lu : rien n'a été touché.";
@@ -1260,6 +1267,7 @@
 "Macro en blocs de la bibliothèque" = "Macro en blocs de la bibliothèque";
 "Macro en blocs de la bibliothèque (Macros). Ses étapes se modifient dans le créateur." = "Macro en blocs de la bibliothèque (Macros). Ses étapes se modifient dans le créateur.";
 "Macro exportée" = "Macro exportée";
+"Macro exportée dans Macros › Exporter" = "Macro exportée dans Macros › Exporter";
 "Macro importée" = "Macro importée";
 "Macro introuvable (supprimée ?)" = "Macro introuvable (supprimée ?)";
 "Macro introuvable dans la bibliothèque (supprimée ?)." = "Macro introuvable dans la bibliothèque (supprimée ?).";
@@ -2108,6 +2116,7 @@
 "Tout se range dans une nouvelle version de ton projet (« _2 », comme « Save new version » de FL), à côté de l'original : ton projet d'origine ne bouge pas, « Revenir comme avant » le rouvre. Aucune lecture de l'écran." = "Tout se range dans une nouvelle version de ton projet (« _2 », comme « Save new version » de FL), à côté de l'original : ton projet d'origine ne bouge pas, « Revenir comme avant » le rouvre. Aucune lecture de l'écran.";
 "Tout sélectionner" = "Tout sélectionner";
 "Toutes les macros, un fichier chacune, pour les partager (par défaut dans Documents › FL Shortcuts › Macros)" = "Toutes les macros, un fichier chacune, pour les partager (par défaut dans Documents › FL Shortcuts › Macros)";
+"Toutes les macros, un fichier chacune, pour les partager, dans Documents › FL Shortcuts › Macros › Exporter" = "Toutes les macros, un fichier chacune, pour les partager, dans Documents › FL Shortcuts › Macros › Exporter";
 "Transposer d'une octave vers le bas" = "Transposer d'une octave vers le bas";
 "Transposer d'une octave vers le haut" = "Transposer d'une octave vers le haut";
 "Transposer vers le bas" = "Transposer vers le bas";

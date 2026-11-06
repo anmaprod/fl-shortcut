@@ -53,7 +53,10 @@ struct FLShortcutApp: App {
                 .environmentObject(status)
                 .environmentObject(link)
                 .environmentObject(fl)
-                .frame(minWidth: 820, minHeight: 480)
+                // 06/11 (« quand je réduis la page au plus petit, c'est très mal découpé… pour toutes les pages ») :
+                // jamais plus petite que là où chaque page garde sa mise en page (raccourcis sur deux colonnes, les
+                // trois cartes de Macros, l'en-tête entier) ; la même largeur que le créateur de macros.
+                .frame(minWidth: EditorView.minWindowWidth, minHeight: EditorView.minWindowHeight)
         }
         .windowResizability(.contentMinSize)
         // Barre de titre transparente, sans titre (maquette) : SwiftUI la remettait opaque, avec le titre, par-dessus

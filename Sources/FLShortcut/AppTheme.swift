@@ -147,7 +147,7 @@ struct SwissPalette: Equatable, Sendable {
 }
 
 extension SwissPalette {
-    enum PrimaryPart: Sendable { case fill, ink, shadow }
+    enum PrimaryPart: Sendable { case fill, ink, shadow, lift }
 
     /// Bouton principal et carte principale (maquettes du 05/11) : plein blanc sous Noir et Orange, noir sous Papier ;
     /// ombre nette rouge sous Papier, noire sous Orange, aucune sous Noir (et dans les parties sombres).
@@ -160,6 +160,9 @@ extension SwissPalette {
             case .fill: return nsColor(papier ? 0x000000 : 0xFFFFFF)
             case .ink: return nsColor(papier ? 0xFFFFFF : 0x000000)
             case .shadow: return papier ? nsColor(brandRed) : orange ? nsColor(0x000000) : .clear
+            // Ombre du relief au survol (06/11, « l'effet Gumroad… dans tous les thèmes ») : noire sur le fond orange,
+            // rouge partout ailleurs (sous Noir aussi, où le bouton au repos n'a pas d'ombre).
+            case .lift: return orange ? nsColor(0x000000) : nsColor(brandRed)
             }
         }
     }

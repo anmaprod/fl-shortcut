@@ -249,12 +249,9 @@ private struct MorphIcon: View {
 
     var body: some View {
         GeometryReader { g in
-            // Style suisse : petit, un carré de sa couleur (sans symbole, illisible à cette taille).
-            if min(g.size.width, g.size.height) < 18 {
-                Rectangle().fill(page.tint)
-            } else {
-                SectionIcon(symbol: page.symbol, tint: page.tint, size: max(1, min(g.size.width, g.size.height)))
-            }
+            // 06/11 (« enlève les carrés de couleur… juste carré orange, dès que la souris est sur un des 4 titres ») :
+            // un carré creux à l'encre, plein d'orange sur la ligne survolée (comme les blocs des macros).
+            BlockSquare(size: max(1, min(g.size.width, g.size.height)))
         }
         .matchedGeometryEffect(id: id, in: morph)
         .frame(width: size, height: size)

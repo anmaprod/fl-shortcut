@@ -1723,8 +1723,8 @@ struct OrganizerView: View {
     }
 
     private func working(_ text: String) -> some View {
+        // 06/11 : plus de roue qui tourne à gauche (« une petite animation, enlève-la ») : le texte seul.
         HStack(spacing: 12) {
-            ProgressView().controlSize(.small)
             Text(text).font(.system(size: 13))
             Spacer(minLength: 0)
         }
@@ -1986,7 +1986,6 @@ struct OrganizerView: View {
                 .morphIn(1)
             }
             HStack(spacing: 8) {
-                ProgressView().controlSize(.mini)
                 Text("Organiser continue tout seul dès que FL est prêt.")
                     .font(.system(size: 11))
                     .foregroundStyle(.secondary)
@@ -2204,18 +2203,16 @@ struct OrganizerView: View {
             }
             .frame(minHeight: 120)                       // fenêtre rétrécie : la liste défile, jamais écrasée
             if controller.playlistTooBig {
-                Label(String(localized: "Playlist trop grande pour FL : décoche « Playlist »."),
-                      systemImage: "exclamationmark.triangle.fill")
+                Text(String(localized: "Playlist trop grande pour FL : décoche « Playlist »."))
                     .font(.system(size: 11))
-                    .foregroundStyle(.orange)
+                    .foregroundStyle(Swiss.red)
                     .fixedSize(horizontal: false, vertical: true)
             }
             if controller.iconsNeedScreen {
                 HStack(spacing: 8) {
-                    Label(String(localized: "Icônes : autorise « Enregistrement de l'écran »."),
-                          systemImage: "exclamationmark.triangle.fill")
+                    Text(String(localized: "Icônes : autorise « Enregistrement de l'écran »."))
                         .font(.system(size: 11))
-                        .foregroundStyle(.orange)
+                        .foregroundStyle(Swiss.red)
                         .fixedSize(horizontal: false, vertical: true)
                     Spacer(minLength: 0)
                     Button("Autoriser") { controller.askScreen() }
@@ -2389,21 +2386,33 @@ struct OrganizerView: View {
 /// Bouton principal de l'Organiser, toujours bleu : le panneau ne devient jamais la fenêtre active (FL reste devant),
 /// et le bouton du système y paraissait gris, comme désactivé (vidéo du 29/10).
 struct AlwaysBlueButtonStyle: ButtonStyle {
-    @Environment(\.isEnabled) private var enabled
-
     func makeBody(configuration: Configuration) -> some View {
-        // Style suisse (01/11) : le bouton principal, blanc plein, texte noir en capitales (nom gardé : « toujours »
-        // actif d'aspect, le panneau n'étant jamais la fenêtre active).
-        configuration.label
+        OrganizerMainButton(label: configuration.label, pressed: configuration.isPressed)
+    }
+}
+
+/// Le bouton principal de l'Organiser (style suisse, nom gardé : « toujours » actif d'aspect, le panneau n'étant
+/// jamais la fenêtre active) : plein comme les boutons principaux de l'app (blanc sous Noir et Orange, noir sous
+/// Papier), en capitales ; au survol, il se soulève sur son ombre nette (effet Gumroad, 06/11).
+private struct OrganizerMainButton<Label: View>: View {
+    let label: Label
+    let pressed: Bool
+    @Environment(\.isEnabled) private var enabled
+    @State private var hovering = false
+
+    var body: some View {
+        label
             .font(Swiss.font(12))
             .tracking(1.2)
             .textCase(.uppercase)
-            .foregroundStyle(Swiss.background)
+            .foregroundStyle(Swiss.primaryInk)
             .padding(.horizontal, 22)
             .frame(height: 38)
-            .background(Rectangle().fill(Swiss.text))
-            .opacity(enabled ? (configuration.isPressed ? 0.75 : 1) : 0.4)
+            .background(Rectangle().fill(Swiss.primaryFill))
+            .gumroadLift(hovering && enabled && !pressed)
+            .opacity(enabled ? 1 : 0.4)
             .contentShape(Rectangle())
+            .onHover { hovering = $0 }
     }
 }
 
@@ -2490,6 +2499,11 @@ private struct WaitingPulse: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
+        // 06/11 : plus d'animation qui tourne ni de pastille (rien qui détonne dans le style suisse).
+        if OrganizerBadge.shown { pulse }
+    }
+
+    private var pulse: some View {
         ZStack {
             if !reduceMotion {
                 ForEach(0..<2, id: \.self) { i in
@@ -2515,7 +2529,15 @@ private struct OrganizerBadge: View {
     let tint: Color
     var live = false
 
+    /// 06/11 (« une petite baguette magique… ignoble, ça rentre pas du tout dans le thème Suisse style » ; « un petit
+    /// point d'exclamation, enlève-le ») : plus aucune pastille d'icône dans l'Organiser, le texte seul.
+    static let shown = false
+
     var body: some View {
+        if Self.shown { badge }
+    }
+
+    private var badge: some View {
         // Style suisse : un carré plat de sa couleur, symbole noir.
         icon
             .font(.system(size: 15, weight: .bold))

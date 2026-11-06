@@ -42,6 +42,21 @@ enum PluginDrop {
         return nil
     }
 
+    /// Pure (testée) : la première case d'effet vide de la piste choisie du Mixer (06/11, « ça vise la piste qui est
+    /// sélectionnée ») : dans le Mixer de FL, les cases libres de la piste choisie s'appellent « Slot 1 »…« Slot 10 » ;
+    /// on dépose sur la plus petite. Lecture tolérante (« Slot l », « slot 1 »). nil : aucune case libre lue.
+    static func mixerSlotPoint(in items: [TextLook.Item]) -> CGPoint? {
+        var best: (number: Int, point: CGPoint)?
+        for item in items {
+            let words = item.text.lowercased().split(whereSeparator: { $0 == " " })
+            guard words.count == 2, words[0] == "slot" else { continue }
+            let digits = String(words[1]).map { c -> Character in c == "l" || c == "i" || c == "|" ? "1" : c == "o" ? "0" : c }
+            guard let number = Int(String(digits)), (1...10).contains(number) else { continue }
+            if best == nil || number < best!.number { best = (number, item.center) }
+        }
+        return best?.point
+    }
+
     /// Un nom de son qu'on peut lire : 2 à 40 caractères, au moins une lettre.
     private static func usable(_ text: String) -> Bool {
         let t = text.trimmingCharacters(in: .whitespaces)
@@ -105,6 +120,22 @@ enum PluginDrop {
 }
 
 extension MacroEffectsMac {
+    /// Point de dépôt lu dans la plus grande fenêtre de FL qui le montre : sous le dernier son du Channel rack, ou la
+    /// première case libre de la piste choisie du Mixer ; nil : la page n'est pas à l'écran.
+    private func readDropPoint(effect: Bool, ctx: Context) -> CGPoint? {
+        let windows = WinSnapshot.take(pid: ctx.pid).fl
+            .filter { $0.layer == 0 && $0.bounds.width >= 300 && $0.bounds.height >= 200 && $0.number > 0 }
+            .sorted { $0.bounds.width * $0.bounds.height > $1.bounds.width * $1.bounds.height }
+        for w in windows {
+            guard let image = ScreenLook.captureImage(windowNumber: w.number, size: w.bounds.size, scale: 2) else { continue }
+            let items = TextLook.read(image, size: w.bounds.size)
+            let p = effect ? PluginDrop.mixerSlotPoint(in: items)
+                           : PluginDrop.channelRackPoint(in: items, bottom: w.bounds.height)
+            if let p { return CGPoint(x: w.bounds.minX + p.x, y: w.bounds.minY + p.y) }
+        }
+        return nil
+    }
+
     /// Le plugin ouvert en déposant son .fst (PluginDrop) ; nil : pas par là (le menu Add, comme avant). Jamais de nom
     /// au journal.
     func dropPlugin(_ name: String, item: String, ctx: Context) -> StepResult? {
@@ -114,7 +145,25 @@ extension MacroEffectsMac {
             MacroLog.shared.write("PLUGIN", "drop: no .fst in the Plugin database (\(roots.count) bases), Add menu used")
             return nil
         }
-        if !effect && !Self.canRead {
+        // 06/11 (« si la souris n'est pas sur la page Channel rack, ça ne fonctionne pas… que la souris y aille
+        // automatiquement, sélectionne la page ») : la page est lue ; pas trouvée, elle est ouverte (sa touche de FL)
+        // puis relue, avant de déposer. Instrument : sous le dernier son (au-dessus du premier si le Channel rack est
+        // coupé) ; effet : la première case libre de la piste choisie du Mixer.
+        var target: CGPoint?
+        if Self.canRead {
+            for attempt in 0..<3 {
+                if let stop = stopReason() { return .cancel(stop) }
+                target = readDropPoint(effect: effect, ctx: ctx)
+                if target != nil { break }
+                if attempt == 0 {
+                    let page: FLPage = effect ? .mixer : .channelRack
+                    guard let key = page.nativeKey(layout: SystemKeyboardLayout()) else { break }
+                    postKey(key, pid: ctx.pid)
+                    MacroLog.shared.write("PLUGIN", "drop: page \(page.rawValue) not read, opened")
+                }
+                usleep(450_000)
+            }
+        } else if !effect {
             // Sans « Enregistrement de l'écran », le Channel rack ne peut pas être lu : dit (jamais la fenêtre de macOS
             // au milieu d'une macro, elle passait derrière FL).
             MacroLog.shared.write("PLUGIN", "drop: screen recording not allowed, Add menu used")
@@ -124,29 +173,15 @@ extension MacroEffectsMac {
             }
             return nil
         }
-        var target: CGPoint?
-        if effect {
-            if FLWindows.contains(ctx.track, pid: ctx.pid) { target = ctx.track }
-        } else if Self.canRead {
-            let windows = WinSnapshot.take(pid: ctx.pid).fl
-                .filter { $0.layer == 0 && $0.bounds.width >= 300 && $0.bounds.height >= 200 && $0.number > 0 }
-                .sorted { $0.bounds.width * $0.bounds.height > $1.bounds.width * $1.bounds.height }
-            for w in windows {
-                if let stop = stopReason() { return .cancel(stop) }
-                guard let image = ScreenLook.captureImage(windowNumber: w.number, size: w.bounds.size, scale: 2),
-                      let p = PluginDrop.channelRackPoint(in: TextLook.read(image, size: w.bounds.size), bottom: w.bounds.height)
-                else { continue }
-                target = CGPoint(x: w.bounds.minX + p.x, y: w.bounds.minY + p.y)
-                break
-            }
-        }
+        // Effet sans case lue : la piste du dernier clic dans FL, comme avant.
+        if target == nil, effect, FLWindows.contains(ctx.track, pid: ctx.pid) { target = ctx.track }
         guard let at = target else {
-            MacroLog.shared.write("PLUGIN", effect ? "drop: aimed track outside FL, Add menu used" : "drop: Channel rack not read, Add menu used")
+            MacroLog.shared.write("PLUGIN", effect ? "drop: no free slot read and aimed track outside FL, Add menu used" : "drop: Channel rack not read, Add menu used")
             return nil
         }
         switch dropFile(file.path, at: at, ctx: ctx) {
         case .ok:
-            MacroLog.shared.write("PLUGIN", effect ? "effect dropped on the aimed track" : "instrument dropped under the last channel")
+            MacroLog.shared.write("PLUGIN", effect ? "effect dropped on the selected track" : "instrument dropped under the last channel")
             return .ok
         case .cancel(let why):
             return .cancel(why)

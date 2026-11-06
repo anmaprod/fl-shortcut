@@ -238,6 +238,9 @@ struct EditorView: View {
     @State private var twoColumns = false
     /// Largeur de page à partir de laquelle les cartes passent sur deux colonnes (cartes d'au moins 300 points).
     static let twoColumnWidth: CGFloat = 660
+    /// Plus petite fenêtre (06/11) : barre de gauche + deux colonnes de raccourcis, et le créateur de macros entier.
+    static var minWindowWidth: CGFloat { max(980, MacroCreatorView.minWidth) }
+    static let minWindowHeight: CGFloat = 620
 
     private var columnCount: Int { twoColumns ? 2 : 1 }
 

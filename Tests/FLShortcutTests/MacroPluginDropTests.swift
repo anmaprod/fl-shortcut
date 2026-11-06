@@ -90,4 +90,15 @@ final class MacroPluginDropTests: XCTestCase {
                      item("Hat", 273, 154, w: 16)]
         XCTAssertEqual(try XCTUnwrap(PluginDrop.channelRackPoint(in: mixed)).y, 175, accuracy: 0.5)
     }
+
+    /// 06/11 : l'effet va dans la première case libre de la piste choisie du Mixer (« Slot 3 » avant « Slot 7 »),
+    /// même lue de travers (« Slot l ») ; rien si aucune case libre n'est lue.
+    func testTheEffectGoesToTheFirstFreeSlotOfTheSelectedTrack() throws {
+        let mixer = [item("Insert 1", 200, 400), item("Fruity Limiter", 900, 120, w: 90), item("Slot 7", 900, 300),
+                     item("Slot 3", 900, 180), item("Master", 60, 400)]
+        let p = try XCTUnwrap(PluginDrop.mixerSlotPoint(in: mixer))
+        XCTAssertEqual(p.y, 186, accuracy: 0.5)
+        XCTAssertEqual(try XCTUnwrap(PluginDrop.mixerSlotPoint(in: [item("Slot l", 900, 140)])).y, 146, accuracy: 0.5)
+        XCTAssertNil(PluginDrop.mixerSlotPoint(in: [item("Slot machine", 900, 140), item("Insert 2", 300, 400)]))
+    }
 }

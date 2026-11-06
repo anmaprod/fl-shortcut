@@ -555,12 +555,9 @@ private struct MacroHeader: View {
         VStack(alignment: .leading, spacing: 10) {
             HStack(spacing: 10) {
                 CreatorBackButton(action: onBack)
-                TextField("Nom de la macro", text: nameBinding)
-                    .textFieldStyle(.plain)
-                    .font(Swiss.title(24)).tracking(Swiss.titleTracking(24))
-                    .lineLimit(1)
+                // 06/11 : le nom comme le titre des pages de raccourcis (minuscules + point carré) ; un clic le renomme.
+                MacroNameTitle(name: nameBinding)
                     .layoutPriority(1)                         // le nom garde la place, le reste se serre
-                    .accessibilityLabel("Nom de la macro")
                 CaptureField(id: "macro-trigger-\(model.draft?.id.uuidString ?? "")", role: .trigger, combo: triggerBinding,
                              compact: true)
                     .disabled(model.ephemeral)               // exemple de la mesure : jamais enregistré
@@ -568,20 +565,8 @@ private struct MacroHeader: View {
                 saveButton
             }
             .frame(minHeight: 52)
-            if let problem = model.problem {
-                // Triangle en noir et blanc (03/11 : « le logo attention, pas fan… en noir et blanc pour rester dans
-                // le thème »).
-                Label {
-                    Text(problem).foregroundStyle(Swiss.soft)
-                } icon: {
-                    Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(Swiss.text)
-                }
-                .font(.system(size: 12))
-                .fixedSize(horizontal: false, vertical: true)
-            }
-            if !model.triggerIssues.isEmpty {
-                IssuesView(issues: model.triggerIssues)
-            }
+            // 06/11 (« tous ces messages-là, tu peux les enlever… les gens verront bien ») : plus de message au-dessus
+            // d'« Enregistrer clics et touches » ; ce qui cloche est dit à l'enregistrement (`saveButton`).
             if !model.rows.isEmpty {
                 RecordHero(model: model)
             }
@@ -593,7 +578,15 @@ private struct MacroHeader: View {
     /// revient à la liste des macros.
     private var saveButton: some View {
         Button {
-            model.commit()                      // enregistrée, sans question (03/11)
+            // Un raccourci posé sur une macro pas prête : on prévient avant de revenir (06/11, « un message de
+            // prévention »). Sinon, enregistrée sans question (03/11).
+            if model.trigger != nil, let warning = model.saveWarning {
+                let answer = SwissDialog.run(String(localized: "Ce raccourci ne marchera pas encore"), warning,
+                                             buttons: [String(localized: "Enregistrer quand même"),
+                                                       String(localized: "Corriger")])
+                guard answer == 0 else { return }
+            }
+            model.commit()
             onBack()
         } label: {
             // Une coche devant (01/11 : « un rectangle blanc, pas très compréhensible ») ; 02/11 : le nom de la macro
@@ -611,6 +604,38 @@ private struct MacroHeader: View {
         .layoutPriority(2)
         .keyboardShortcut("s", modifiers: .command)
         .help("Enregistrer et revenir aux macros (⌘S)")
+    }
+}
+
+/// Nom de la macro au style des titres de page (06/11) : en minuscules, suivi du point carré ; un clic l'ouvre en
+/// champ (le nom tel qu'il est écrit), Entrée ou un clic ailleurs le referme.
+private struct MacroNameTitle: View {
+    @Binding var name: String
+    @State private var editing = false
+    @FocusState private var focused: Bool
+
+    private static let size: CGFloat = 34
+
+    var body: some View {
+        Group {
+            if editing {
+                TextField("Nom de la macro", text: $name)
+                    .textFieldStyle(.plain)
+                    .font(Swiss.title(Self.size)).tracking(Swiss.titleTracking(Self.size))
+                    .lineLimit(1)
+                    .focused($focused)
+                    .onSubmit { editing = false }
+                    .onChange(of: focused) { inside in if !inside { editing = false } }
+                    .onAppear { focused = true }
+            } else {
+                SwissPageTitle(text: name.isEmpty ? String(localized: "Nom de la macro") : name, size: Self.size)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .contentShape(Rectangle())
+                    .onTapGesture { editing = true }
+                    .help("Clique pour renommer la macro")
+            }
+        }
+        .accessibilityLabel("Nom de la macro")
     }
 }
 

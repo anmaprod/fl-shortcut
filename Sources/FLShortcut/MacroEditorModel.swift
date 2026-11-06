@@ -30,6 +30,14 @@ final class MacroEditorModel: ObservableObject {
     /// Raccourci affiché : celui du raccourci relié, ou celui proposé s'il est refusé (avec ses problèmes).
     @Published private(set) var trigger: KeyCombo?
     @Published private(set) var triggerIssues: [ShortcutIssue] = []
+
+    /// Ce qui empêche le raccourci de marcher (bloc à régler, conflit…), dit à « Enregistrer » ; nil si tout va bien.
+    var saveWarning: String? {
+        var parts: [String] = []
+        if let problem { parts.append(problem) }
+        parts += triggerIssues.map(\.message).filter { !parts.contains($0) }
+        return parts.isEmpty ? nil : parts.joined(separator: "\n\n")
+    }
     /// FL est en train de passer au premier plan avant un essai.
     @Published private(set) var preparingTest = false
 

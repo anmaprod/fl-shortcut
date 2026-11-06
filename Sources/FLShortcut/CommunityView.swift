@@ -156,8 +156,9 @@ struct CommunityMessage: View {
     var action: () -> Void = {}
 
     var body: some View {
+        // 06/11 (« le petit logo d'étoile… ça rentre pas du tout dans le thème ») : plus d'icône de couleur, le titre
+        // et le texte seuls ; `symbol` et `tint` restent pour les appels existants.
         VStack(spacing: 10) {
-            SectionIcon(symbol: symbol, tint: tint, size: 44)
             Text(title).font(Swiss.title(22)).tracking(Swiss.titleTracking(22)).multilineTextAlignment(.center)
             Text(text)
                 .font(.system(size: 12))
@@ -179,12 +180,13 @@ private struct CommunityStatus: View {
     @ObservedObject var community: CommunityStore
 
     var body: some View {
+        // Sans icône (06/11 : rien qui détonne dans le style suisse) : l'erreur en rouge, l'information en gris.
         if let error = community.error {
-            Label(error, systemImage: "exclamationmark.triangle.fill")
-                .foregroundStyle(.orange)
+            Text(error)
+                .foregroundStyle(Swiss.red)
                 .font(.system(size: 12))
         } else if let notice = community.notice {
-            Label(notice, systemImage: "info.circle.fill")
+            Text(notice)
                 .foregroundStyle(.secondary)
                 .font(.system(size: 12))
         }
@@ -638,7 +640,6 @@ private struct CommunityShareDetail: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack(alignment: .top, spacing: 14) {
-                SectionIcon(symbol: share.kind.symbol, tint: share.kind.tint, size: 44)
                 VStack(alignment: .leading, spacing: 3) {
                     Text(share.title.displaySafe(max: 80)).font(Swiss.title(22)).tracking(Swiss.titleTracking(22))
                         .fixedSize(horizontal: false, vertical: true)

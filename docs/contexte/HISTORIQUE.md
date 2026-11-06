@@ -828,3 +828,14 @@ entrée 1 ≈ 0,5 s.
   « pour cette page il faut + la ronde de couleur qu'il y a déjà » (couleurs de base) → un « + » au bout de chaque
   ligne ouvre la roue des couleurs (Mac `FLColorSelector`, Windows ColorPicker en anneau) ; une couleur prise dans la
   roue se montre dans la case, entourée. CI de 67e6181 entièrement verte.
+
+- 06/11 (session reprise après l'autre Claude ; long message + maquette « modèles papier et orange ») : le thème Blanc
+  commencé ici le 03/11 est abandonné (mis de côté dans `git stash`), les thèmes Noir/Papier/Orange de l'autre session
+  le remplacent. Effet Gumroad seulement au survol partout et dans les 3 thèmes (boutons principaux, Enregistrer, cartes
+  de Macros, bouton de l'Organiser) ; les 3 cartes de Macros pareilles au repos ; touche changée en relief ; dossiers
+  Importer / Exporter dans Macros ; créateur sans messages au-dessus d'« Enregistrer clics et touches », question de
+  prévention à « Enregistrer » si un raccourci est posé sur une macro pas prête, nom au style des titres de page ;
+  plugins : page ouverte puis relue avant le dépôt, effet sur la première case libre de la piste choisie ; fenêtre
+  minimum 980 × 620 ; plus d'icônes hors style (étoile de la Communauté, baguette, roue, point d'exclamation de
+  l'Organiser) ; carrés du guide creux, orange au survol. Propositions à la place de la baguette : rien (fait), le point
+  carré orange après le titre, ou le numéro d'étape en gris.

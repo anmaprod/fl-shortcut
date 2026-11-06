@@ -102,7 +102,8 @@ enum DebugSnapshot {
             let parts = (note.object as? String ?? "").split(separator: ",").compactMap { Double($0) }
             guard parts.count == 2, (400...3000).contains(parts[0]), (300...2000).contains(parts[1]),
                   let w = NSApp.windows.first(where: { $0.isVisible && $0.frame.width > 400 }) else { return }
-            w.setContentSize(NSSize(width: parts[0], height: parts[1]))
+            // Jamais sous la taille minimale de la fenêtre (photos « au plus petit » : ramenée au minimum).
+            w.setContentSize(NSSize(width: max(parts[0], w.contentMinSize.width), height: max(parts[1], w.contentMinSize.height)))
         }
         reportObserver = DistributedNotificationCenter.default().addObserver(forName: report, object: nil, queue: .main) { _ in
             writeReport()

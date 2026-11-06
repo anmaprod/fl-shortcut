@@ -392,6 +392,19 @@
   couleurs de FL sur Mac, le ColorPicker en anneau sur Windows). « Ouvre un VST » : noms du Channel rack
   cherchés jusqu'à 240 points à gauche du titre (FL 2025). LISEZMOI (`scripts/lisezmoi_modeles.py` puis
   `scripts/lisezmoi.py`) refait en français, à faire valider avant l'anglais (README-*.html encore l'ancien).
+- **Retours du 06/11** (long message + maquette HTML papier/orange) : effet Gumroad SEULEMENT au survol, dans les 3
+  thèmes (`gumroadLift` : soulevé en haut à gauche sur son ombre nette `Swiss.primaryLift`, rouge, noire sous Orange) :
+  boutons principaux pleins au repos sans ombre (Partager…), « Enregistrer » du créateur, bouton de l'Organiser, 3
+  grandes cartes de Macros (toutes grises au repos, numéro gris ; survolée : pleine, numéro orange) ; touche changée
+  en relief (bordée d'encre, soulevée sur ombre d'encre, `KeyLabel`). Macros : dossiers Documents › FL Shortcuts ›
+  Macros › Importer (boîte d'import) et › Exporter (export direct, Finder montre le fichier). Créateur : nom au style
+  des titres (minuscules + point carré, clic pour renommer, `MacroNameTitle`), plus AUCUN message au-dessus
+  d'« Enregistrer clics et touches » (ni « La macro est vide ») ; raccourci posé sur une macro pas prête → question à
+  « Enregistrer » (`saveWarning`). Ouvrir un plugin : page lue, sinon ouverte (sa touche) et relue ; effet déposé sur
+  la 1re case libre « Slot N » de la piste choisie du Mixer (`PluginDrop.mixerSlotPoint`). Fenêtre jamais sous
+  980 × 620 (`EditorView.minWindowWidth`), photos CI `minimum-*.png`. Communauté sans icône de couleur ; Organiser sans
+  pastilles (baguette, onde, coche, point d'exclamation : `OrganizerBadge.shown = false`) ni roue qui tourne ; guide :
+  carré creux, orange au survol (`BlockSquare`). Windows pas encore suivi pour ces retours.
 - **Aspect validé le 28/10** (maquette, `HISTORIQUE`) : plus de Liquid Glass depuis le 29/10 (plaques dessinées), sans lavis ni lueur ; fond de
   fenêtre plein (« sans le Liquid Glass derrière »), verre devant : cartes, touches, cartes de l'Organiser
   (`GlassPlate`, dessiné : pas de `glassEffect` par ligne) ; titre de

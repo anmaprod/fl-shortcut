@@ -380,6 +380,14 @@ run() {   # $1 : libellé, $2 : YES/NO effet verre
       screencapture -x "$OUT/version-organisee-$screen.png" 2>/dev/null || true
     done
     "$POST" app.flshortcut.debug.approval fermer; sleep 1
+    # Fenêtre au plus petit (06/11, « très mal découpé quand je réduis la page au plus petit ») : chaque page
+    # photographiée à la taille minimale (la demande de 400 × 300 est ramenée au minimum de la fenêtre).
+    "$POST" app.flshortcut.debug.resize "400,300"; sleep 2
+    for page in general mixer custom macros community compte aide; do
+      "$POST" app.flshortcut.debug.select "$page"; sleep 2
+      screencapture -x "$OUT/minimum-$page.png" 2>/dev/null || true
+    done
+    "$POST" app.flshortcut.debug.resize "960,640"; sleep 2
     # Changement de page au ralenti (10 fois) : Général → Mixer, photographié en route (barre au-dessus du titre ?).
     "$POST" app.flshortcut.debug.select general; sleep 2
     "$POST" app.flshortcut.debug.select "mixer lent"

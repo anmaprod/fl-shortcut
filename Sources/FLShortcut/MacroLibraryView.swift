@@ -89,9 +89,9 @@ private struct MacroLibraryList: View {
                             Text(verbatim: "\(library.macros.count)").swissLabel()
                             Spacer(minLength: 8)
                             smallButton(String(localized: "Importer"), symbol: "square.and.arrow.down") { importFile() }
-                                .help("Ajouter des macros reçues (.flsmacro) ; la boîte s'ouvre dans Documents › FL Shortcuts › Macros")
+                                .help("Ajouter des macros reçues (.flsmacro) ; la boîte s'ouvre dans Documents › FL Shortcuts › Macros › Importer")
                             smallButton(String(localized: "Exporter"), symbol: "square.and.arrow.up") { exportAll() }
-                                .help("Toutes les macros, un fichier chacune, pour les partager (par défaut dans Documents › FL Shortcuts › Macros)")
+                                .help("Toutes les macros, un fichier chacune, pour les partager, dans Documents › FL Shortcuts › Macros › Exporter")
                         }
                         .padding(.top, 26)
                         .padding(.bottom, 6)
@@ -151,11 +151,11 @@ private struct MacroLibraryList: View {
     }
 
     /// Les trois façons de commencer une macro (maquette du 05/11) : trois grandes cartes numérotées, le titre en grand
-    /// en bas ; la première est la carte principale (pleine, sur son ombre nette).
+    /// en bas ; toutes pareilles au repos, pleines et soulevées au survol (06/11).
     private var actionCards: some View {
         HStack(alignment: .top, spacing: 20) {
             MacroActionCard(number: "01", title: String(localized: "Enregistrer une macro"),
-                            subtitle: String(localized: "Fais-le dans FL, l'app le retient."), primary: true) {
+                            subtitle: String(localized: "Fais-le dans FL, l'app le retient.")) {
                 Self.recordNewMacro(in: library)
             }
             .help("Une nouvelle macro s'ouvre et FL passe devant : clique et tape ta suite, puis « Terminer »")
@@ -287,16 +287,17 @@ private struct MacroActionCard: View {
     let number: String
     let title: String
     let subtitle: String
-    var primary = false
     let action: () -> Void
     @State private var hovering = false
 
+    /// 06/11 : les trois cartes pareilles au repos (fond de la page, numéro gris, trait fin) ; « Enregistrer une
+    /// macro » n'est plus en blanc d'office. Survolée, une carte se remplit (blanc sous Noir et Orange, noir sous
+    /// Papier), son numéro passe à l'orange et elle se soulève sur son ombre nette (effet Gumroad).
     var body: some View {
         let lit = hovering
-        let fill: Color = primary ? (lit ? Swiss.background : Swiss.primaryFill) : (lit ? Swiss.text : Swiss.background)
-        let ink: Color = primary ? (lit ? Swiss.text : Swiss.primaryInk) : (lit ? Swiss.background : Swiss.text)
-        let numberColor: Color = lit || (primary && AppTheme.current == .papier) ? Swiss.red
-            : (primary ? Swiss.primaryInk : Swiss.gray)
+        let fill: Color = lit ? Swiss.primaryFill : Swiss.background
+        let ink: Color = lit ? Swiss.primaryInk : Swiss.text
+        let numberColor: Color = lit ? Swiss.brandRed : Swiss.gray
         Button(action: action) {
             VStack(alignment: .leading, spacing: 10) {
                 Text(verbatim: number).font(Swiss.font(15)).foregroundStyle(numberColor)
@@ -311,10 +312,10 @@ private struct MacroActionCard: View {
             .padding(20)
             .frame(maxWidth: .infinity, minHeight: 176, alignment: .topLeading)
             .background(Rectangle().fill(fill))
-            .overlay(Rectangle().strokeBorder(primary ? Swiss.text : Swiss.line, lineWidth: primary ? 2 : 1))
-            .background(Rectangle().fill(primary && !lit ? Swiss.primaryShadow : Color.clear).offset(x: 6, y: 6))
+            .overlay(Rectangle().strokeBorder(lit ? Swiss.primaryFill : Swiss.line, lineWidth: lit ? 2 : 1))
+            .swissCard()                                  // noire sous Orange, comme la maquette
+            .gumroadLift(lit, distance: 6)
             .contentShape(Rectangle())
-            .swissCard(if: !primary)                     // noire sous Orange, comme la maquette
         }
         .buttonStyle(.plain)
         .onHover { hovering = $0 }
@@ -495,24 +496,49 @@ private struct TemplateCard: View {
 
 // MARK: - Fichiers .flsmacro
 
-/// Dossiers d'échange, rangés comme les projets de FL : ~/Documents/FL Shortcuts/Macros et …/Raccourcis. Les boîtes
-/// d'export et d'import s'y ouvrent ; créés à la première ouverture d'une de ces boîtes (jamais au lancement).
-/// Un dossier « Documents/FL Shortcut » (ancien nom de l'app) prend alors le nouveau nom, avec ses fichiers.
+/// Dossiers d'échange, rangés comme les projets de FL : ~/Documents/FL Shortcuts/Macros et …/Raccourcis. Dans
+/// Macros (06/11, « un dossier Importer et un dossier Exporter ») : Importer, où l'on pose les macros reçues (la boîte
+/// d'import s'y ouvre), et Exporter, où arrivent les macros exportées. Créés au premier import ou export (jamais au
+/// lancement), les deux ensemble. Un dossier « Documents/FL Shortcut » (ancien nom de l'app) prend alors le nouveau
+/// nom, avec ses fichiers.
 enum ExchangeFolder {
-    case macros, shortcuts
+    case macros, shortcuts, macrosImport, macrosExport
 
     var url: URL {
         let documents = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Documents", isDirectory: true)
-        return AppPaths.renamed(documents.appendingPathComponent(AppPaths.oldName, isDirectory: true),
-                                to: documents.appendingPathComponent("FL Shortcuts", isDirectory: true))
-            .appendingPathComponent(self == .macros ? "Macros" : "Raccourcis", isDirectory: true)
+        let root = AppPaths.renamed(documents.appendingPathComponent(AppPaths.oldName, isDirectory: true),
+                                    to: documents.appendingPathComponent("FL Shortcuts", isDirectory: true))
+        switch self {
+        case .macros: return root.appendingPathComponent("Macros", isDirectory: true)
+        case .shortcuts: return root.appendingPathComponent("Raccourcis", isDirectory: true)
+        case .macrosImport: return Self.macros.url.appendingPathComponent("Importer", isDirectory: true)
+        case .macrosExport: return Self.macros.url.appendingPathComponent("Exporter", isDirectory: true)
+        }
     }
 
-    /// Le dossier, créé s'il manque ; nil si impossible (la boîte s'ouvre alors là où macOS le décide).
+    /// Le dossier, créé s'il manque (avec son voisin pour Importer / Exporter) ; nil si impossible (la boîte s'ouvre
+    /// alors là où macOS le décide).
     func prepared() -> URL? {
-        try? FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
+        if self == .macrosImport || self == .macrosExport {
+            for folder in [Self.macrosImport, Self.macrosExport] {
+                try? FileManager.default.createDirectory(at: folder.url, withIntermediateDirectories: true)
+            }
+        } else {
+            try? FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
+        }
         var isDir: ObjCBool = false
         return FileManager.default.fileExists(atPath: url.path, isDirectory: &isDir) && isDir.boolValue ? url : nil
+    }
+
+    /// Fichier libre dans ce dossier : « Nom.flsmacro », sinon « Nom (2).flsmacro »… (jamais d'écrasement).
+    static func freeFile(in folder: URL, base: String, extension ext: String) -> URL {
+        var url = folder.appendingPathComponent(base).appendingPathExtension(ext)
+        var n = 2
+        while FileManager.default.fileExists(atPath: url.path) {
+            url = folder.appendingPathComponent("\(base) (\(n))").appendingPathExtension(ext)
+            n += 1
+        }
+        return url
     }
 }
 
@@ -523,58 +549,42 @@ enum MacroFileActions {
         Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "?"
     }
 
-    /// Exporte une macro (positions apprises retirées). Renvoie le message à afficher, nil si annulé.
+    /// Exporte une macro (positions apprises retirées) tout droit dans Documents › FL Shortcuts › Macros › Exporter
+    /// (06/11), sans boîte ; le Finder montre le fichier, prêt à envoyer. Renvoie le message à afficher.
     static func export(_ doc: MacroDoc) -> String? {
-        let panel = NSSavePanel()
-        panel.allowedContentTypes = [fileType]
-        panel.directoryURL = ExchangeFolder.macros.prepared()
-        panel.canCreateDirectories = true
-        panel.nameFieldStringValue = MacroExchange.suggestedFileName(doc.name)
-        panel.message = String(localized: "Les endroits appris (clics montrés dans FL) ne sont pas exportés : ils se montrent sur chaque Mac.")
-        guard panel.runModal() == .OK, let url = panel.url else { return nil }
-        do {
-            try MacroExchange.export(doc, appVersion: appVersion).write(to: url, options: .atomic)
-            return String(localized: "Macro exportée")
-        } catch {
-            Dialogs.inform(String(localized: "Export impossible"), error.localizedDescription)
-            return nil
-        }
+        write([doc])
     }
 
-    /// Toutes les macros, un fichier .flsmacro chacune, dans le dossier choisi (par défaut FL Shortcuts › Macros) :
-    /// prêtes à envoyer à un collègue. Un fichier du même nom n'est jamais écrasé (« (2) », « (3) »…).
+    /// Toutes les macros, un fichier .flsmacro chacune, dans Macros › Exporter : prêtes à envoyer à un collègue. Un
+    /// fichier du même nom n'est jamais écrasé (« (2) », « (3) »…).
     static func exportAll(_ docs: [MacroDoc]) -> String? {
+        write(docs)
+    }
+
+    private static func write(_ docs: [MacroDoc]) -> String? {
         guard !docs.isEmpty else { return nil }
-        let panel = NSOpenPanel()
-        panel.canChooseFiles = false
-        panel.canChooseDirectories = true
-        panel.canCreateDirectories = true
-        panel.allowsMultipleSelection = false
-        panel.directoryURL = ExchangeFolder.macros.prepared()
-        panel.prompt = String(localized: "Exporter ici")
-        panel.message = String(localized: "Chaque macro devient un fichier .flsmacro. Les endroits appris (clics montrés dans FL) ne sont pas exportés.")
-        guard panel.runModal() == .OK, let folder = panel.url else { return nil }
-        var written = 0
+        guard let folder = ExchangeFolder.macrosExport.prepared() else {
+            Dialogs.inform(String(localized: "Export impossible"),
+                           String(localized: "Le dossier Documents › FL Shortcuts › Macros › Exporter n'a pas pu être créé."))
+            return nil
+        }
+        var written: [URL] = []
         for doc in docs {
             let base = (MacroExchange.suggestedFileName(doc.name) as NSString).deletingPathExtension
-            var url = folder.appendingPathComponent(base).appendingPathExtension(MacroExchange.fileExtension)
-            var n = 2
-            while FileManager.default.fileExists(atPath: url.path) {
-                url = folder.appendingPathComponent("\(base) (\(n))").appendingPathExtension(MacroExchange.fileExtension)
-                n += 1
-            }
+            let url = ExchangeFolder.freeFile(in: folder, base: base, extension: MacroExchange.fileExtension)
             do {
                 try MacroExchange.export(doc, appVersion: appVersion).write(to: url, options: .withoutOverwriting)
-                written += 1
+                written.append(url)
             } catch {
                 Dialogs.inform(String(localized: "Export impossible"),
                                String(localized: "« \(doc.name.displaySafe(max: 40)) » : \(error.localizedDescription)"))
                 break
             }
         }
-        guard written > 0 else { return nil }
-        let what = written == 1 ? String(localized: "1 macro exportée") : String(localized: "\(written) macros exportées")
-        return what + String(localized: " dans « \(folder.lastPathComponent) »")
+        guard !written.isEmpty else { return nil }
+        NSWorkspace.shared.activateFileViewerSelecting(written)
+        return written.count == 1 ? String(localized: "Macro exportée dans Macros › Exporter")
+            : String(localized: "\(written.count) macros exportées dans Macros › Exporter")
     }
 
     /// Relecture d'un import : décompte en tête, TOUS les blocs dans une liste qui défile, ce qu'il faudra faire.
@@ -592,12 +602,13 @@ enum MacroFileActions {
     }
 
     /// Importe un ou plusieurs .flsmacro (reçus d'un collègue), chacun relu avant d'être accepté : chaque macro
-    /// arrive sans raccourci (inactive), ids neufs. La boîte s'ouvre dans FL Shortcuts › Macros.
+    /// arrive sans raccourci (inactive), ids neufs. La boîte s'ouvre dans FL Shortcuts › Macros › Importer (06/11 :
+    /// c'est là qu'on pose les macros reçues).
     static func importMacros(into library: MacroLibraryStore, layout: KeyboardLayout) -> [MacroDoc] {
         let panel = NSOpenPanel()
         panel.allowedContentTypes = [fileType, .json]
         panel.allowsMultipleSelection = true
-        panel.directoryURL = ExchangeFolder.macros.prepared()
+        panel.directoryURL = ExchangeFolder.macrosImport.prepared()
         guard panel.runModal() == .OK else { return [] }
         var added: [MacroDoc] = []
         for url in panel.urls.prefix(50) {
