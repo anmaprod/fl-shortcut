@@ -6,6 +6,7 @@ import worker from '../src/worker.js';
 
 const SITE = 'https://flshortcuts.example';
 const ID = '4e425463-3e1b-431d-83fa-1e51c2925e99';
+const PAGE = `https://checkout.sumup.com/pay/${ID}`;
 const env = (reglages = {}) => ({
   SUMUP_API_KEY: 'sup_sk_test',
   SUMUP_MERCHANT_CODE: 'MTEST123',
@@ -18,7 +19,7 @@ beforeEach(() => {
   appels = [];
   globalThis.fetch = async (adresse, options = {}) => {
     appels.push({ adresse, options });
-    if (options.method === 'POST') return Response.json({ id: ID, status: 'PENDING' }, { status: 201 });
+    if (options.method === 'POST') return Response.json({ id: ID, status: 'PENDING', hosted_checkout_url: PAGE }, { status: 201 });
     return Response.json({ id: ID, status: 'PAID', amount: 5 });
   };
 });
@@ -30,10 +31,10 @@ const payer = (corps, entetes = {}) =>
     body: typeof corps === 'string' ? corps : JSON.stringify(corps),
   });
 
-test('crée un paiement SumUp du montant choisi, en euros, avec retour sur le site', async () => {
+test('crée un paiement sur la page SumUp, du montant choisi, en euros, avec retour sur le site', async () => {
   const r = await worker.fetch(payer({ montant: 5, systeme: 'windows' }), env());
   assert.equal(r.status, 200);
-  assert.deepEqual(await r.json(), { id: ID, montant: 5, googlePay: null });
+  assert.deepEqual(await r.json(), { id: ID, montant: 5, url: PAGE });
   assert.equal(appels.length, 1);
   assert.equal(appels[0].adresse, 'https://api.sumup.com/v0.1/checkouts');
   assert.equal(appels[0].options.headers.Authorization, 'Bearer sup_sk_test');
@@ -43,7 +44,16 @@ test('crée un paiement SumUp du montant choisi, en euros, avec retour sur le si
   assert.equal(envoye.merchant_code, 'MTEST123');
   assert.equal(envoye.description, 'FL Shortcuts pour Windows, prix libre');
   assert.equal(envoye.redirect_url, `${SITE}/?paiement=retour`);
+  assert.deepEqual(envoye.hosted_checkout, { enabled: true });
   assert.match(envoye.checkout_reference, /^[0-9a-f-]{36}$/);
+});
+
+test('n’envoie le navigateur que vers une page https de SumUp', async () => {
+  for (const adresse of [undefined, 'http://checkout.sumup.com/pay/x', 'https://sumup.com.pirate.example/pay', 'javascript:alert(1)', 'pas une adresse']) {
+    globalThis.fetch = async () => Response.json({ id: ID, status: 'PENDING', hosted_checkout_url: adresse }, { status: 201 });
+    const r = await worker.fetch(payer({ montant: 5 }), env());
+    assert.equal(r.status, 502, String(adresse));
+  }
 });
 
 test('deux paiements ont deux références différentes', async () => {
@@ -51,11 +61,6 @@ test('deux paiements ont deux références différentes', async () => {
   await worker.fetch(payer({ montant: 3 }), env());
   const [a, b] = appels.map((c) => JSON.parse(c.options.body).checkout_reference);
   assert.notEqual(a, b);
-});
-
-test('donne Google Pay seulement quand son identifiant est réglé', async () => {
-  const r = await worker.fetch(payer({ montant: 10 }), env({ GOOGLE_PAY_MERCHANT_ID: 'BCR2DN4T' }));
-  assert.deepEqual((await r.json()).googlePay, { merchantId: 'BCR2DN4T', merchantName: 'FL Shortcuts' });
 });
 
 test('refuse les montants hors de 1 à 999 € ou non entiers, sans appeler SumUp', async () => {

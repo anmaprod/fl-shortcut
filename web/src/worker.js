@@ -1,13 +1,13 @@
 // Site FL Shortcuts sur Cloudflare : les fichiers de public/ et deux adresses pour le paiement SumUp.
 //
-//   POST /api/paiement        { montant, systeme }  crée un paiement SumUp, renvoie son id au navigateur
+//   POST /api/paiement        { montant, systeme }  crée un paiement SumUp et renvoie l'adresse de sa page
+//                                                   de paiement (checkout.sumup.com), où le navigateur part payer
 //   GET  /api/paiement/<id>                          renvoie l'état du paiement chez SumUp (PAID, PENDING…)
 //
 // Réglages du Worker (Cloudflare › Workers › fl-shortcuts › Settings › Variables and Secrets) :
-//   SUMUP_API_KEY           secret : clé API SumUp (sup_sk_…), jamais dans le code ni dans le dépôt
-//   SUMUP_MERCHANT_CODE     code marchand SumUp (commence par M)
-//   GOOGLE_PAY_MERCHANT_ID  facultatif : identifiant Google Pay, pour afficher le bouton Google Pay
-// Tant que les deux premiers manquent, /api/paiement répond 503 et le site propose le téléchargement gratuit.
+//   SUMUP_API_KEY        secret : clé API SumUp (sup_sk_…), jamais dans le code ni dans le dépôt
+//   SUMUP_MERCHANT_CODE  code marchand SumUp (commence par M)
+// Tant que l'un des deux manque, /api/paiement répond 503 et le site propose le téléchargement gratuit.
 
 const SUMUP = 'https://api.sumup.com/v0.1/checkouts';
 export const MIN = 1;
@@ -53,20 +53,36 @@ async function creer(request, env, url) {
       currency: 'EUR',
       merchant_code: env.SUMUP_MERCHANT_CODE,
       description: `FL Shortcuts pour ${systeme}, prix libre`,
-      // Après PayPal ou une validation bancaire, SumUp ramène l'acheteur ici ; la page reprend la vérification.
+      // Page de paiement de SumUp (carte, Apple Pay, Google Pay), ouverte 30 minutes.
+      hosted_checkout: { enabled: true },
+      // Après le paiement, le bouton de retour de SumUp ramène ici ; la page vérifie alors le paiement.
       redirect_url: `${url.origin}/?paiement=retour`,
     }),
   }).catch(() => null);
 
+  const echec = () => json({ erreur: "Le paiement n'a pas pu démarrer. Réessaie dans un instant." }, 502);
   if (!reponse || !reponse.ok) {
     console.error('SumUp, création refusée', reponse?.status, reponse ? await reponse.text() : 'réseau');
-    return json({ erreur: "Le paiement n'a pas pu démarrer. Réessaie dans un instant." }, 502);
+    return echec();
   }
   const paiement = await reponse.json();
-  const googlePay = env.GOOGLE_PAY_MERCHANT_ID
-    ? { merchantId: env.GOOGLE_PAY_MERCHANT_ID, merchantName: 'FL Shortcuts' }
-    : null;
-  return json({ id: paiement.id, montant, googlePay });
+  const page = pageSumup(paiement.hosted_checkout_url);
+  if (!paiement.id || !page) {
+    console.error('SumUp, réponse sans page de paiement');
+    return echec();
+  }
+  return json({ id: paiement.id, montant, url: page });
+}
+
+// Le navigateur ne part que vers une adresse https de SumUp, jamais ailleurs.
+function pageSumup(adresse) {
+  try {
+    const u = new URL(adresse);
+    const chezSumup = u.hostname === 'sumup.com' || u.hostname.endsWith('.sumup.com');
+    return u.protocol === 'https:' && chezSumup ? u.href : null;
+  } catch {
+    return null;
+  }
 }
 
 async function etat(id, env) {

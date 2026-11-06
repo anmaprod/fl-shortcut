@@ -199,10 +199,9 @@ dialog::backdrop { background: rgba(0, 0, 0, 0.88); }
 .guide li b.n { color: var(--red); font-size: 11px; letter-spacing: 1px; padding-top: 3px; }
 .maquette { font-size: 12px; color: var(--gray); border: 1px dashed var(--line); padding: 8px 10px; }
 
-/* Paiement : case de rétractation, formulaire SumUp posé sur une feuille de papier, messages */
+/* Paiement : case de rétractation, messages (le paiement lui-même se fait sur la page de SumUp) */
 .renonce { display: grid; grid-template-columns: 22px minmax(0, 1fr); gap: 12px; align-items: start; font-size: 13.5px; line-height: 1.4; cursor: pointer; }
 .renonce input { width: 20px; height: 20px; margin: 1px 0 0; accent-color: var(--red); cursor: pointer; }
-.sumup-zone { background: var(--paper); color: var(--ink); padding: 14px; box-shadow: 6px 6px 0 var(--red); min-height: 120px; }
 .msg { font-size: 14px; line-height: 1.4; }
 .msg.err { color: var(--red); font-weight: 700; }
 .btn[disabled] { opacity: .45; cursor: not-allowed; transform: none !important; box-shadow: 6px 6px 0 var(--red) !important; }
@@ -334,7 +333,7 @@ a.btn { text-decoration: none; }
     <div class="dlg-head"><span class="brand marque-dlg" role="img" aria-label="fl shortcuts"><svg viewBox="0 0 1024 1024" width="46" height="46" aria-hidden="true" style="overflow:visible"><circle cx="590" cy="440" r="380" fill="none" stroke="#FFFFFF" stroke-width="40"/><circle id="rouge-dlg" cx="470" cy="580" r="290" fill="#FF3B1F"/></svg></span><button class="close label" type="button" data-fermer>Fermer ✕</button></div>
     <h2 id="dlg-titre">obtenir l'app<span class="point">.</span></h2>
     <label class="renonce" for="renonce" id="bloc-renonce" hidden><input type="checkbox" id="renonce"><span>J'accepte que le téléchargement soit disponible dès le paiement et je renonce à mon droit de rétractation de 14 jours.</span></label>
-    <div class="sumup-zone" id="sumup-bloc" hidden><div id="sumup-card"></div></div>
+    <p class="hint" id="dlg-sumup" hidden>Tu paies sur la page sécurisée de SumUp (checkout.sumup.com), par carte, Apple Pay ou Google Pay. Ensuite, tu reviens ici pour télécharger.</p>
     <p class="msg" id="dlg-msg" role="status" aria-live="polite" hidden></p>
     <div class="total"><span class="label">Total · <span id="dlg-sys">Mac</span></span><b id="dlg-total">0 €</b></div>
     <button class="btn main big full" type="button" id="dlg-go">Télécharger gratuitement</button>
@@ -491,19 +490,14 @@ a.btn { text-decoration: none; }
   function systeme() { return document.getElementById('sys-win').checked ? 'windows' : 'mac'; }
   var dlgGo = document.getElementById('dlg-go'), dlgGratuit = document.getElementById('dlg-gratuit');
   var renonce = document.getElementById('renonce'), blocRenonce = document.getElementById('bloc-renonce');
-  var blocSumup = document.getElementById('sumup-bloc'), msg = document.getElementById('dlg-msg');
-  var widget = null;
+  var infoSumup = document.getElementById('dlg-sumup'), msg = document.getElementById('dlg-msg');
 
-  function texteBouton() { return montant > 0 ? 'Payer ' + montant + ' €' : 'Télécharger gratuitement'; }
+  function texteBouton() { return montant > 0 ? 'Payer ' + montant + ' € sur SumUp' : 'Télécharger gratuitement'; }
   function message(texte, erreur) { msg.textContent = texte || ''; msg.hidden = !texte; msg.classList.toggle('err', !!erreur); }
-  function retirerWidget() {
-    if (widget) { try { widget.unmount(); } catch (e) { /* déjà retiré */ } }
-    widget = null; blocSumup.hidden = true;
-  }
   // Remet la fenêtre au début : case de rétractation à cocher (paiement seulement), bouton principal visible.
   function preparer() {
-    retirerWidget(); message('');
-    blocRenonce.hidden = montant === 0; renonce.checked = false;
+    message('');
+    blocRenonce.hidden = infoSumup.hidden = montant === 0; renonce.checked = false;
     dlgGratuit.hidden = true; dlgGo.hidden = false;
     dlgGo.textContent = texteBouton(); dlgGo.disabled = montant > 0;
   }
@@ -515,11 +509,10 @@ a.btn { text-decoration: none; }
     if (!dlg.open) { if (dlg.showModal) dlg.showModal(); else dlg.setAttribute('open', ''); }
     if (anime) gsap.from(dlg, { x: -10, y: -10, duration: 0.4, ease: 'power3.out' });
   }
-  function fermer() { retirerWidget(); if (dlg.close) dlg.close(); else dlg.removeAttribute('open'); }
+  function fermer() { if (dlg.close) dlg.close(); else dlg.removeAttribute('open'); }
   carte.addEventListener('submit', function (e) { e.preventDefault(); ouvrir(); });
   document.querySelectorAll('[data-fermer]').forEach(function (b) { b.addEventListener('click', fermer); });
   dlg.addEventListener('click', function (e) { if (e.target === dlg) fermer(); });
-  dlg.addEventListener('close', retirerWidget);
   renonce.addEventListener('change', function () { dlgGo.disabled = !renonce.checked; });
   /* ---------- Fenêtre de téléchargement seulement : le rouge du logo suit la souris, mais seulement sur son axe,
      la ligne qui le relie au centre du cercle blanc ---------- */
@@ -543,7 +536,6 @@ a.btn { text-decoration: none; }
 
   /* ---------- Merci : seulement le téléchargement et le mode d'emploi du système choisi ---------- */
   function merci(texte) {
-    retirerWidget();
     document.getElementById('merci-texte').textContent = texte;
     var mac = systeme() === 'mac';
     document.getElementById('dl-mac').hidden = !mac;
@@ -557,10 +549,11 @@ a.btn { text-decoration: none; }
     }
   }
 
-  /* ---------- Paiement SumUp ----------
+  /* ---------- Paiement sur la page de SumUp ----------
      1. le serveur (/api/paiement) crée un paiement SumUp du montant choisi ;
-     2. le formulaire de SumUp (carte, Apple Pay, Google Pay, PayPal) s'affiche dans la fenêtre ;
-     3. le serveur confirme auprès de SumUp que le paiement est bien reçu, puis Merci.
+     2. on part sur la page de paiement de SumUp (checkout.sumup.com : carte, Apple Pay, Google Pay) ;
+     3. après le paiement, le bouton de retour de SumUp ramène ici (?paiement=retour) : le serveur confirme
+        auprès de SumUp que le paiement est bien reçu, puis Merci.
      Le numéro de carte ne passe jamais par ce site. Le téléchargement reste gratuit dans tous les cas. */
   var CLE = 'fls-paiement';
   function garder(v) { try { if (v) sessionStorage.setItem(CLE, JSON.stringify(v)); else sessionStorage.removeItem(CLE); } catch (e) { /* stockage bloqué */ } }
@@ -569,17 +562,6 @@ a.btn { text-decoration: none; }
     return fetch(adresse, options).then(function (r) {
       return r.json().catch(function () { return {}; }).then(function (d) { return { ok: r.ok, http: r.status, d: d }; });
     });
-  }
-  var sdk = null;
-  function chargerSdk() {
-    if (window.SumUpCard) return Promise.resolve();
-    if (!sdk) sdk = new Promise(function (ok, ko) {
-      var s = document.createElement('script');
-      s.src = 'https://gateway.sumup.com/gateway/ecom/card/v2/sdk.js';
-      s.onload = ok; s.onerror = function () { sdk = null; ko(new Error('sdk')); };
-      document.head.appendChild(s);
-    });
-    return sdk;
   }
   function echec(texte) { preparer(); message(texte, true); }
 
@@ -594,25 +576,12 @@ a.btn { text-decoration: none; }
           message("Le paiement en ligne n'est pas encore ouvert. Tu peux télécharger gratuitement en attendant.");
           return;
         }
-        if (!r.ok || !r.d.id) { echec(r.d.erreur || "Le paiement n'a pas pu démarrer. Réessaie dans un instant."); return; }
+        if (!r.ok || !r.d.id || !r.d.url) { echec(r.d.erreur || "Le paiement n'a pas pu démarrer. Réessaie dans un instant."); return; }
         garder({ id: r.d.id, montant: montant, systeme: systeme() });
-        return chargerSdk().then(function () { afficherSumup(r.d); });
+        dlgGo.textContent = 'Ouverture de SumUp…';
+        location.assign(r.d.url);
       })
       .catch(function () { echec("Le paiement n'a pas pu démarrer. Vérifie ta connexion et réessaie."); });
-  }
-  function afficherSumup(p) {
-    dlgGo.hidden = true; blocRenonce.hidden = true; blocSumup.hidden = false;
-    var reglages = {
-      id: 'sumup-card', checkoutId: p.id, locale: 'fr-FR', country: 'FR', currency: 'EUR',
-      amount: montant.toFixed(2), showEmail: true,
-      onResponse: function (type) {
-        if (type === 'success') { message('Vérification du paiement…'); verifier(p.id, 0); }
-        else if (type === 'fail') echec('Le paiement a été annulé ou a expiré. Tu peux réessayer.');
-        else if (type === 'error') message("Le paiement n'est pas passé. Vérifie tes informations ou choisis un autre moyen de paiement.", true);
-      }
-    };
-    if (p.googlePay) reglages.googlePay = p.googlePay;
-    widget = window.SumUpCard.mount(reglages);
   }
   // Demande au serveur l'état du paiement chez SumUp. « En attente » : on redemande quelques fois.
   function verifier(id, essai) {
@@ -643,7 +612,18 @@ a.btn { text-decoration: none; }
   });
   dlgGratuit.addEventListener('click', function () { merci('Tu peux télécharger tout de suite.'); });
 
-  // Retour sur le site après PayPal ou une validation bancaire (3-D Secure) : on reprend où on en était.
+  // Bouton « Retour » du navigateur depuis la page de SumUp, sans avoir payé : la page revient telle quelle
+  // (« Ouverture de SumUp… »). On regarde une fois chez SumUp : payé, Merci ; sinon on remet la fenêtre au début.
+  window.addEventListener('pageshow', function (e) {
+    var p = relire();
+    if (!e.persisted || !p || !p.id || !dlg.open) return;
+    appel('/api/paiement/' + encodeURIComponent(p.id)).then(function (r) {
+      if (r.ok && r.d.statut === 'PAID') { garder(null); merci('Paiement reçu. Merci pour ton soutien !'); }
+      else { garder(null); preparer(); message("Le paiement n'a pas été terminé. Tu peux réessayer."); }
+    }).catch(function () { preparer(); });
+  });
+
+  // Retour depuis la page de SumUp après le paiement : on reprend où on en était.
   (function () {
     var params = new URLSearchParams(location.search);
     if (params.get('paiement') !== 'retour') return;
@@ -653,7 +633,7 @@ a.btn { text-decoration: none; }
     document.getElementById(p.systeme === 'windows' ? 'sys-win' : 'sys-mac').checked = true;
     prix(p.montant);
     ouvrir();
-    dlgGo.hidden = true; blocRenonce.hidden = true;
+    dlgGo.hidden = blocRenonce.hidden = infoSumup.hidden = true;
     message('Vérification du paiement…');
     verifier(p.id, 0);
   })();
