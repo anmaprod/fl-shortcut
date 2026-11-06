@@ -21,6 +21,9 @@ namespace FLShortcut.App;
 
 internal sealed partial class MainShell
 {
+    /// Plus petite fenêtre (06/11, comme le Mac `EditorView.minWindowWidth`), en points.
+    internal const double MinWindowWidth = 980, MinWindowHeight = 620;
+
     /// Barre de titre (boutons de Windows) : rien de cliquable dessous ; l'en-tête des pages est posé sous elle.
     private const double TitleBarHeight = 48;
     private const double SidebarWidth = 252;
@@ -98,6 +101,17 @@ internal sealed partial class MainShell
         }
         window.AppWindow.Resize(new Windows.Graphics.SizeInt32(1180, 760));
         window.AppWindow.Closing += OnClosing;
+        // 06/11 (comme le Mac, « quand je réduis la page au plus petit, c'est très mal découpé ») : jamais plus petite
+        // que 980 × 620 points, où chaque page garde sa mise en page.
+        window.AppWindow.Changed += (sender, change) =>
+        {
+            if (!change.DidSizeChange) return;
+            var scale = Native.Win32.GetDpiForWindow(_hwnd) / 96.0;
+            int minWidth = (int)(MinWindowWidth * scale), minHeight = (int)(MinWindowHeight * scale);
+            var size = sender.Size;
+            if (size.Width < minWidth || size.Height < minHeight)
+                sender.Resize(new Windows.Graphics.SizeInt32(Math.Max(size.Width, minWidth), Math.Max(size.Height, minHeight)));
+        };
 
         _app = new AppController(window.DispatcherQueue);
         _app.PropertyChanged += (_, e) =>

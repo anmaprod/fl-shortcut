@@ -221,6 +221,15 @@ internal sealed class MacrosPage
         AutomationProperties.SetHeadingLevel(title, Microsoft.UI.Xaml.Automation.Peers.AutomationHeadingLevel.Level2);
         heading.Children.Add(title);
         heading.Children.Add(SwissLabel(_store.Macros.Count.ToString(System.Globalization.CultureInfo.CurrentCulture)));
+        // Importer / Exporter (06/11, comme le Mac) : Documents › FL Shortcuts › Macros › Importer et › Exporter.
+        var exchange = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Margin = new Thickness(18, 0, 0, 0) };
+        var import = Soft(Loc.T("Importer"), ImportMacros);
+        ToolTipService.SetToolTip(import, Loc.T("Ajouter des macros reçues (.flsmacro) ; la boîte s'ouvre dans Documents › FL Shortcuts › Macros › Importer"));
+        var export = Soft(Loc.T("Exporter"), () => ExportMacros(_store.Macros.ToList()));
+        ToolTipService.SetToolTip(export, Loc.T("Toutes les macros, un fichier chacune, pour les partager, dans Documents › FL Shortcuts › Macros › Exporter"));
+        exchange.Children.Add(import);
+        exchange.Children.Add(export);
+        heading.Children.Add(exchange);
         page.Children.Add(heading);
         page.Children.Add(Rule(Text));
 
@@ -242,8 +251,9 @@ internal sealed class MacrosPage
     }
 
     /// Une façon de commencer (maquette du 05/11, comme le Mac) : son numéro en haut, le titre en grand (minuscules)
-    /// en bas, une phrase dessous. La principale : pleine sur son ombre nette, vide au survol ; les autres : bordées,
-    /// pleines d'encre au survol.
+    /// en bas, une phrase dessous. 06/11 (comme le Mac) : les trois pareilles au repos (fond de la page, numéro gris,
+    /// trait fin) ; survolée, une carte se remplit (blanc sous Noir et Orange, noir sous Papier), son numéro passe à
+    /// l'orange et elle se soulève sur son ombre nette (effet Gumroad). `primary` ne change plus rien.
     private static FrameworkElement StartCard(string number, string title, string text, Action click, bool primary)
     {
         Color ink = Text, paper = WindowColor, fill = PrimaryFill, onFill = PrimaryInk;
@@ -269,19 +279,19 @@ internal sealed class MacrosPage
         {
             Padding = new Thickness(20),
             MinHeight = 176,
-            BorderBrush = Brush(primary ? ink : LineColor),
-            BorderThickness = new Thickness(primary ? 2 : 1),
+            BorderBrush = Brush(LineColor),
+            BorderThickness = new Thickness(1),
             Child = stack,
         };
-        var shadow = HardShadow(primary ? PrimaryShadow : null, 6);
+        var shadow = LiftShadow();
         void Set(bool on)
         {
-            var bg = primary ? (on ? paper : fill) : (on ? ink : paper);
-            var fg = primary ? (on ? ink : onFill) : (on ? paper : ink);
-            face.Background = Brush(bg);
-            big.Foreground = sub.Foreground = Brush(fg);
-            num.Foreground = Brush(on || (primary && Theme == AppTheme.Papier) ? Red : primary ? onFill : Secondary);
-            if (primary) shadow.Visibility = on || PrimaryShadow is null ? Visibility.Collapsed : Visibility.Visible;
+            face.Background = Brush(on ? fill : paper);
+            face.BorderBrush = Brush(on ? fill : LineColor);
+            face.BorderThickness = new Thickness(on ? 2 : 1);
+            big.Foreground = sub.Foreground = Brush(on ? onFill : ink);
+            num.Foreground = Brush(on ? BrandRed : Secondary);
+            SetLift(face, shadow, on, 6);
         }
         Set(false);
         var button = new Button
@@ -457,6 +467,7 @@ internal sealed class MacrosPage
         }
         Add(Loc.T("Modifier…"), () => Open(doc.Id));
         Add(Loc.T("Dupliquer"), () => Duplicate(doc));
+        Add(Loc.T("Exporter…"), () => ExportMacros(new List<MacroDoc> { doc }));
         if (shortcut is { } s)
         {
             menu.Items.Add(new MenuFlyoutSeparator());
@@ -465,6 +476,103 @@ internal sealed class MacrosPage
         menu.Items.Add(new MenuFlyoutSeparator());
         Add(Loc.T("Supprimer"), () => Delete(doc));
         return menu;
+    }
+
+    // ---------- Fichiers .flsmacro (06/11, comme le Mac) ----------
+
+    private static string Home => Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+
+    /// Documents › FL Shortcuts › Macros › Importer (où l'on pose les macros reçues) ou › Exporter (où arrivent les
+    /// macros exportées) ; les deux créés ensemble, au premier import ou export.
+    private static string ExchangeFolder(bool export)
+    {
+        var macros = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "FL Shortcuts", "Macros");
+        foreach (var name in new[] { "Importer", "Exporter" })
+        {
+            try { Directory.CreateDirectory(System.IO.Path.Combine(macros, name)); }
+            catch (Exception e) when (e is IOException or UnauthorizedAccessException) { }
+        }
+        return System.IO.Path.Combine(macros, export ? "Exporter" : "Importer");
+    }
+
+    /// Nom de fichier tiré du nom de la macro (caractères interdits remplacés), jamais un fichier existant écrasé.
+    private static string FreeFile(string folder, string name)
+    {
+        var invalid = System.IO.Path.GetInvalidFileNameChars();
+        var clean = new string(name.Select(c => invalid.Contains(c) ? '-' : c).ToArray()).Trim().TrimEnd('.');
+        if (clean.Length == 0) clean = "Macro";
+        if (clean.Length > 60) clean = clean[..60];
+        var path = System.IO.Path.Combine(folder, clean + "." + MacroExchange.FileExtension);
+        for (var n = 2; File.Exists(path); n++)
+            path = System.IO.Path.Combine(folder, $"{clean} ({n}).{MacroExchange.FileExtension}");
+        return path;
+    }
+
+    /// Exporte tout droit dans Macros › Exporter, sans boîte ; l'Explorateur montre le fichier, prêt à envoyer.
+    private void ExportMacros(List<MacroDoc> docs)
+    {
+        if (_demo || docs.Count == 0) return;
+        var folder = ExchangeFolder(export: true);
+        string? last = null;
+        var written = 0;
+        foreach (var doc in docs)
+        {
+            try
+            {
+                var path = FreeFile(folder, doc.Name);
+                using (var file = new FileStream(path, FileMode.CreateNew, FileAccess.Write))
+                {
+                    var data = MacroExchange.Export(doc, HelpPage.AppVersion, Home);
+                    file.Write(data, 0, data.Length);
+                }
+                last = path;
+                written++;
+            }
+            catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+            {
+                _notice = Loc.T("Export impossible");
+                RenderSoon();
+                break;
+            }
+        }
+        if (last is null) return;
+        try { System.Diagnostics.Process.Start("explorer.exe", $"/select,\"{last}\""); }
+        catch (Exception e) when (e is System.ComponentModel.Win32Exception or InvalidOperationException) { }
+        _toast(written == 1 ? Loc.T("Macro exportée dans Macros › Exporter")
+                            : Loc.F("%lld macros exportées dans Macros › Exporter", written), null);
+    }
+
+    /// Importe un .flsmacro reçu, relu avant d'être accepté (ses blocs et ce qu'il faudra faire) : il arrive sans
+    /// raccourci, sous un nom libre. La boîte s'ouvre dans Macros › Importer.
+    private async void ImportMacros()
+    {
+        if (_demo) return;
+        var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(_window);
+        if (Native.FileDialogs.PickFile(hwnd, Loc.T("Importer"), "FL Shortcuts (.flsmacro)", MacroExchange.FileExtension,
+                                        ExchangeFolder(export: false)) is not { } path)
+            return;
+        MacroExchange.Preview preview;
+        try
+        {
+            if (new FileInfo(path).Length > MacroExchange.MaxBytes) throw MacroExchange.ImportFailure.TooLarge;
+            preview = MacroExchange.PrepareImport(File.ReadAllBytes(path), Home);
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException or MacroExchange.ImportFailure or FormatException)
+        {
+            _notice = Loc.T("Import impossible") + " : " + e.Message;
+            RenderSoon();
+            return;
+        }
+        var notes = MacroExchange.Notes(preview);
+        var text = "« " + DisplayText.Safe(preview.Doc.Name, 60) + " »"
+                   + (notes.Count == 0 ? "" : "\n\n• " + string.Join("\n• ", notes))
+                   + "\n\n" + Loc.T("Elle arrive sans raccourci : relis-la dans le créateur, puis choisis-lui un raccourci.");
+        if (!await AskAsync(Loc.T("Importer cette macro ?"), text, Loc.T("Importer"), Loc.T("Annuler"))) return;
+        var doc = preview.Doc;
+        doc.Name = _store.UniqueName(doc.Name);
+        var added = _store.Add(doc);
+        _toast(Loc.F("« %@ » importée, sans raccourci : relis-la dans le créateur", DisplayText.Safe(added.Name, 40)), null);
+        Open(added.Id);
     }
 
     private void Duplicate(MacroDoc doc)
@@ -477,8 +585,9 @@ internal sealed class MacrosPage
         _toast(Loc.F("« %@ » ajoutée, sans raccourci", DisplayText.Safe(added.Name, 40)), () => _store.Remove(added.Id));
     }
 
-    /// Supprime la macro et son raccourci, « Annuler » dans la notification (comme le Mac).
-    private void Delete(MacroDoc doc)
+    /// Supprime la macro et son raccourci après une question (06/11, comme le Mac : « c'est seulement pour supprimer
+    /// que ça doit demander »), « Annuler » encore dans la notification.
+    private async void Delete(MacroDoc doc)
     {
         var name = DisplayText.Safe(doc.Name, 40);
         if (_demo)
@@ -486,6 +595,9 @@ internal sealed class MacrosPage
             _store.Remove(doc.Id);
             return;
         }
+        if (!await AskAsync(Loc.F("Supprimer « %@ » ?", name), Loc.T("La macro et son raccourci sont supprimés."),
+                            Loc.T("Supprimer"), Loc.T("Annuler"), destructive: true))
+            return;
         var undo = _app.DeleteMacro(doc.Id);
         _toast(Loc.F("« %@ » supprimée", name), undo);
     }
@@ -728,13 +840,13 @@ internal sealed class MacrosPage
         line.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         line.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         line.Children.Add(BackButton());
-        var name = NameField(doc);
+        var name = NameTitle(doc);
         Grid.SetColumn(name, 1);
         line.Children.Add(name);
         var trigger = ShortcutEditor(doc);
         Grid.SetColumn(trigger, 2);
         line.Children.Add(trigger);
-        var save = SaveButton();
+        var save = SaveButton(doc);
         Grid.SetColumn(save, 3);
         line.Children.Add(save);
         // Étroit (fenêtre de 1 000 points : « Save and expor » coupé, photo du 04/11) : les touches passent sous le nom,
@@ -749,23 +861,80 @@ internal sealed class MacrosPage
             trigger.HorizontalAlignment = narrow ? HorizontalAlignment.Left : HorizontalAlignment.Stretch;
         };
         _header.Children.Add(line);
-        foreach (var text in new[] { _notice, Issue(doc) })
-            if (text is not null) _header.Children.Add(Warning(text));
+        // 06/11 (comme le Mac, « tous ces messages-là, tu peux les enlever ») : plus le problème de la macro au-dessus
+        // d'« Enregistrer clics et touches » (il est dit à « Enregistrer ») ; seulement la réponse à ce qu'on vient de
+        // faire (nom refusé, clic à montrer dans FL…), en texte simple.
+        if (_notice is { } notice) _header.Children.Add(Warning(notice));
     }
 
-    private static FrameworkElement Warning(string text)
+    private static FrameworkElement Warning(string text) => Paragraph(text, 12, Secondary);
+
+    /// Nom de la macro au style des titres de page (06/11, comme le Mac) : en minuscules, suivi du point carré ; un clic
+    /// l'ouvre en champ (le nom tel qu'il est écrit), Entrée ou un clic ailleurs le referme.
+    private FrameworkElement NameTitle(MacroDoc doc)
     {
-        var row = new Grid { ColumnSpacing = 8 };
-        row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-        row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-        var icon = Icon("warning", 13, Orange, WindowColor);
-        icon.VerticalAlignment = VerticalAlignment.Top;
-        icon.Margin = new Thickness(0, 2, 0, 0);
-        row.Children.Add(icon);
-        var label = Paragraph(text, 12);
-        Grid.SetColumn(label, 1);
-        row.Children.Add(label);
-        return row;
+        static string Shown(string name) =>
+            (string.IsNullOrWhiteSpace(name) ? Loc.T("Nom de la macro") : name).ToLower(System.Globalization.CultureInfo.CurrentCulture);
+        var box = NameField(doc);
+        box.FontSize = 30;
+        box.Visibility = Visibility.Collapsed;
+        var text = Label(Shown(doc.Name), 30, Text, bold: true);
+        text.CharacterSpacing = -39;
+        text.MaxLines = 1;
+        text.TextTrimming = TextTrimming.CharacterEllipsis;
+        var show = new Button
+        {
+            Style = PlainButton,
+            Content = PageTitle(text, 30),
+            HorizontalAlignment = HorizontalAlignment.Left,
+            VerticalAlignment = VerticalAlignment.Center,
+        };
+        ToolTipService.SetToolTip(show, Loc.T("Clique pour renommer la macro"));
+        AutomationProperties.SetName(show, Loc.T("Nom de la macro"));
+        void Editing(bool on)
+        {
+            show.Visibility = on ? Visibility.Collapsed : Visibility.Visible;
+            box.Visibility = on ? Visibility.Visible : Visibility.Collapsed;
+            if (on)
+            {
+                box.Focus(FocusState.Programmatic);
+                box.SelectAll();
+            }
+            else
+            {
+                text.Text = Shown(box.Text);
+            }
+        }
+        show.Click += (_, _) => Editing(true);
+        box.LostFocus += (_, _) => Editing(false);
+        box.KeyDown += (_, e) => { if (e.Key == VirtualKey.Enter) Editing(false); };
+        return new Grid { VerticalAlignment = VerticalAlignment.Center, Children = { show, box } };
+    }
+
+    /// Question au style de l'app (comme `SwissDialog` du Mac) ; vrai si l'on choisit `primary`.
+    private async Task<bool> AskAsync(string title, string text, string primary, string close, bool destructive = false)
+    {
+        if (_window.Content?.XamlRoot is not { } root) return false;
+        var dialog = new ContentDialog
+        {
+            XamlRoot = root,
+            Style = MainShell.DialogStyle(),
+            RequestedTheme = MacLook.SurfaceTheme,
+            Background = Brush(WindowColor),
+            BorderBrush = Brush(LineColor),
+            Title = title,
+            Content = Paragraph(text, 13, Text),
+            PrimaryButtonText = primary,
+            CloseButtonText = close,
+            DefaultButton = ContentDialogButton.Close,
+        };
+        if (destructive)
+        {
+            var red = new Style(typeof(Button));
+            red.Setters.Add(new Setter(Control.ForegroundProperty, Brush(Red)));
+            dialog.PrimaryButtonStyle = red;
+        }
+        return await dialog.ShowAsync() == ContentDialogResult.Primary;
     }
 
     private Button BackButton()
@@ -831,10 +1000,15 @@ internal sealed class MacrosPage
 
     /// Toujours « Enregistrer » (30/10, « le bouton enregistrer ne fonctionne plus » : chaque changement s'enregistre
     /// seul juste après, le bouton restait sur « Enregistrée » sans rien faire) : enregistre et revient aux macros.
-    private Button SaveButton()
+    private Button SaveButton(MacroDoc doc)
     {
-        var save = Primary(Loc.T("Enregistrer"), () =>
+        var save = Primary(Loc.T("Enregistrer"), async () =>
         {
+            // Un raccourci posé sur une macro pas prête : on prévient avant de revenir (06/11, comme le Mac).
+            if (!_demo && _app.MacroShortcut(doc.Id) is not null && Issue(doc) is { } problem
+                && !await AskAsync(Loc.T("Ce raccourci ne marchera pas encore"), problem,
+                                   Loc.T("Enregistrer quand même"), Loc.T("Corriger")))
+                return;
             if (!_demo) _app.SaveMacrosNow();
             _dirty = false;
             Back();

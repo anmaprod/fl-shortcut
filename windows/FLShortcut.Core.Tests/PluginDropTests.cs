@@ -140,4 +140,15 @@ public sealed class PluginDropTests : IDisposable
         var mixed = new[] { T("Channel rack", 369, 46, 80), T("Kick", 271, 94, 20), T("ZENOLOGY Lead", 241, 124, 80), T("Hat", 273, 154, 16) };
         Assert.Equal(175, PluginDrop.ChannelRackPoint(mixed)!.Value.Y);
     }
+
+    /// 06/11 (comme le Mac) : l'effet va dans la première case libre de la piste choisie du Mixer, même lue de travers ;
+    /// rien si aucune case libre n'est lue.
+    [Fact]
+    public void TheEffectGoesToTheFirstFreeSlotOfTheSelectedTrack()
+    {
+        var mixer = new[] { T("Insert 1", 200, 400), T("Fruity Limiter", 900, 120, 90), T("Slot 7", 900, 300), T("Slot 3", 900, 180) };
+        Assert.Equal(186, PluginDrop.MixerSlotPoint(mixer)!.Value.Y);
+        Assert.Equal(146, PluginDrop.MixerSlotPoint(new[] { T("Slot l", 900, 140) })!.Value.Y);
+        Assert.Null(PluginDrop.MixerSlotPoint(new[] { T("Slot machine", 900, 140), T("Insert 2", 300, 400) }));
+    }
 }

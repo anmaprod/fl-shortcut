@@ -208,9 +208,14 @@ internal sealed class OrganizerWindow : Window
         BorderThickness = new Thickness(1),
     };
 
-    /// Pastille ronde de couleur avec son dessin blanc (résultat, écoute, attente).
+    /// 06/11 (comme le Mac : « une petite baguette magique… ignoble », « un petit point d'exclamation, enlève-le ») :
+    /// plus aucune pastille d'icône dans l'Organiser, le texte seul.
+    private static readonly bool BadgesShown = false;
+
+    /// Pastille de couleur avec son dessin blanc (résultat, écoute, attente) ; cachée (BadgesShown).
     private static Grid Badge(string icon, Color tint, double size = 34)
     {
+        if (!BadgesShown) return new Grid { Visibility = Visibility.Collapsed };
         var grid = new Grid { Width = size, Height = size, VerticalAlignment = VerticalAlignment.Center };
         grid.Children.Add(new Rectangle { Fill = Brush(tint) });
         var glyph = Icon(icon, size * 0.46, Colors.White, tint);
@@ -223,7 +228,8 @@ internal sealed class OrganizerWindow : Window
     /// Une ligne : une pastille (ou une icône), puis le texte qui prend la place.
     private static Grid Row(UIElement first, UIElement rest, double spacing = 12)
     {
-        var grid = new Grid { ColumnSpacing = spacing };
+        // Rien à gauche (pastille ou roue retirées) : pas d'écart non plus.
+        var grid = new Grid { ColumnSpacing = first.Visibility == Visibility.Collapsed ? 0 : spacing };
         grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
         if (first is FrameworkElement f) f.VerticalAlignment = VerticalAlignment.Center;
@@ -259,9 +265,10 @@ internal sealed class OrganizerWindow : Window
         return button;
     }
 
+    /// 06/11 (comme le Mac : « ça me fait tourner un petit truc à gauche… enlève-le ») : plus de roue qui tourne.
     private static ProgressRing Spinner(double size = 18) => new()
     {
-        IsActive = true, Width = size, Height = size, Foreground = Brush(Tint), VerticalAlignment = VerticalAlignment.Center,
+        IsActive = false, Width = size, Height = size, Visibility = Visibility.Collapsed, VerticalAlignment = VerticalAlignment.Center,
     };
 
     private static TextBlock Note(string text, Color? color = null) => Paragraph(text, 11, color ?? Secondary);
@@ -669,8 +676,7 @@ internal sealed class OrganizerWindow : Window
         _content.Children.Add(grid);
         if (_controller.PlaylistTooBig)
         {
-            var warn = Icon("warning", 12, Orange, WindowColor);
-            _content.Children.Add(Row(warn, Note(Loc.T("Playlist trop grande pour FL : décoche « Playlist »."), Orange), 6));
+            _content.Children.Add(Note(Loc.T("Playlist trop grande pour FL : décoche « Playlist »."), Red));
         }
         _right.Children.Add(SoftButton(Loc.T("Annuler"), _controller.Close));
         _right.Children.Add(BlueButton(Loc.T("Organiser"), _controller.Apply));

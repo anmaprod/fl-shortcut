@@ -63,6 +63,24 @@ public static class PluginDrop
         return t.Length is >= 2 and <= 40 && t.Any(char.IsLetter) && !t.Contains(':');
     }
 
+    /// La première case d'effet vide de la piste choisie du Mixer (06/11, comme le Mac, « ça vise la piste qui est
+    /// sélectionnée ») : dans le Mixer de FL, les cases libres de la piste choisie s'appellent « Slot 1 »…« Slot 10 » ;
+    /// on dépose sur la plus petite. Lecture tolérante (« Slot l », « slot 1 »). null : aucune case libre lue.
+    public static (int X, int Y)? MixerSlotPoint(IReadOnlyList<TextItem> items)
+    {
+        (int Number, int X, int Y)? best = null;
+        foreach (var item in items)
+        {
+            var words = item.Text.ToLowerInvariant().Split(' ', StringSplitOptions.RemoveEmptyEntries);
+            if (words.Length != 2 || words[0] != "slot") continue;
+            var digits = new string(words[1].Select(c => c is 'l' or 'i' or '|' ? '1' : c == 'o' ? '0' : c).ToArray());
+            if (!int.TryParse(digits, System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out var number)
+                || number is < 1 or > 10) continue;
+            if (best is null || number < best.Value.Number) best = (number, item.CenterX, item.CenterY);
+        }
+        return best is { } b ? (b.X, b.Y) : null;
+    }
+
     /// Point où déposer dans le Channel rack, toujours dans l'espace entre deux lignes (jamais SUR un son : il le
     /// remplacerait) : juste sous le dernier son ; Channel rack coupé (dernier nom lu à moitié, ou dernier son au ras de
     /// `bottom`, le bas de la fenêtre) : juste au-dessus du premier (vidéo du 04/11 : « ça fonctionne tout autant »).

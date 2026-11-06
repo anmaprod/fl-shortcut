@@ -649,31 +649,32 @@ public sealed partial class MacroEffectsWindows : IMacroEffects
     }
 
     /// Instrument ou effet ouvert en déposant son .fst de la Plugin database (PluginDrop) : un instrument juste sous le
-    /// dernier son du Channel rack (jamais SUR un son : il le remplacerait), un effet sur la piste du Mixer visée.
+    /// dernier son du Channel rack (jamais SUR un son : il le remplacerait), un effet dans la première case libre de la
+    /// piste choisie du Mixer (06/11, comme le Mac), sinon sur la piste visée. La page est lue ; pas trouvée, elle est
+    /// ouverte (sa touche de FL) puis relue (06/11 : « que la souris y aille automatiquement, sélectionne la page »).
     /// null : pas de fichier, pas de place sûre, ou le dépôt refusé : le menu Add, comme avant. Jamais de nom au journal.
     private StepResult? DropPlugin(string name, bool effect)
     {
         if (_fl.PluginPreset(name, effect) is not { } file) return null;
         (int X, int Y)? target = null;
-        if (effect)
+        for (var attempt = 0; attempt < 3; attempt++)
         {
-            if (TargetTrackIsInFl()) target = _track;
-        }
-        else
-        {
-            foreach (var window in _fl.Windows().Where(w => w.Role != FlWindowRole.Menu && w.Width >= 300 && w.Height >= 200)
-                         .OrderByDescending(w => w.Width * w.Height))
+            if (StopReason() is { } halted) return new StepResult.Cancel(halted);
+            target = ReadDropPoint(effect);
+            if (target is not null) break;
+            if (attempt == 0)
             {
-                if (_fl.ReadText(window.Id) is { } items && PluginDrop.ChannelRackPoint(items, window.Y + window.Height) is { } point)
-                {
-                    target = point;
-                    break;
-                }
+                var page = effect ? FlPage.Mixer : FlPage.ChannelRack;
+                if (page.NativeKey() is not { } key || MacKeys.ToWindows(key) is not { } combo || !_fl.Send(combo)) break;
+                _fl.Log("PLUGIN", $"drop: page {page.Raw()} not read, opened");
             }
+            _fl.Sleep(450);
         }
+        // Effet sans case libre lue : la piste du dernier clic dans FL, comme avant.
+        if (target is null && effect && TargetTrackIsInFl()) target = _track;
         if (target is not { } at)
         {
-            _fl.Log("PLUGIN", effect ? "drop: aimed track outside FL, Add menu used" : "drop: Channel rack not read, Add menu used");
+            _fl.Log("PLUGIN", effect ? "drop: no free slot read and aimed track outside FL, Add menu used" : "drop: Channel rack not read, Add menu used");
             return null;
         }
         if (_fl.At(at.X, at.Y).Window is null) return null;
@@ -684,9 +685,23 @@ public sealed partial class MacroEffectsWindows : IMacroEffects
             _fl.Log("PLUGIN", "drop refused, Add menu used");
             return null;
         }
-        _fl.Log("PLUGIN", effect ? "effect dropped on the aimed track" : "instrument dropped under the last channel");
+        _fl.Log("PLUGIN", effect ? "effect dropped on the selected track" : "instrument dropped under the last channel");
         _lastClick = at;
         return new StepResult.Ok();
+    }
+
+    /// Point de dépôt lu dans la plus grande fenêtre de FL qui le montre : sous le dernier son du Channel rack, ou la
+    /// première case libre de la piste choisie du Mixer ; null : la page n'est pas à l'écran.
+    private (int X, int Y)? ReadDropPoint(bool effect)
+    {
+        foreach (var window in _fl.Windows().Where(w => w.Role != FlWindowRole.Menu && w.Width >= 300 && w.Height >= 200)
+                     .OrderByDescending(w => w.Width * w.Height))
+        {
+            if (_fl.ReadText(window.Id) is not { } items) continue;
+            var point = effect ? PluginDrop.MixerSlotPoint(items) : PluginDrop.ChannelRackPoint(items, window.Y + window.Height);
+            if (point is not null) return point;
+        }
+        return null;
     }
 
     /// Mute ou solo d'un canal : par le lien (tous les canaux), sinon la touche 1 à 0 de FL (canaux 1 à 10).

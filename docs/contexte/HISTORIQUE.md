@@ -839,3 +839,7 @@ entrée 1 ≈ 0,5 s.
   minimum 980 × 620 ; plus d'icônes hors style (étoile de la Communauté, baguette, roue, point d'exclamation de
   l'Organiser) ; carrés du guide creux, orange au survol. Propositions à la place de la baguette : rien (fait), le point
   carré orange après le titre, ou le numéro d'étape en gris.
+- 06/11 (2) : « fait tous les changements pour win aussi » → mêmes retours sur Windows (effet Gumroad au survol,
+  touches en relief, Importer/Exporter — l'import/export de fichiers n'existait pas encore sur Windows —, créateur,
+  question avant Supprimer, plugins sur la page ouverte et case libre du Mixer, taille minimale, Organiser sans
+  pastilles). 395 essais du cœur Windows verts ici (.NET 8 installé dans la session).

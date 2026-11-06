@@ -427,8 +427,23 @@ internal static class MacLook
             row.Children.Add(Cap(Loc.T("Aucune"), muted: true));
             return row;
         }
-        foreach (var name in c.Caps) row.Children.Add(Cap(Loc.T(name), changed));
+        foreach (var name in c.Caps) row.Children.Add(changed ? ChangedCap(Loc.T(name)) : Cap(Loc.T(name)));
         return row;
+    }
+
+    /// Touche changée (06/11, comme le Mac : « si on change une touche, il y a un relief ») : pleine de rouge, bordée
+    /// d'encre, soulevée sur son ombre nette d'encre (effet Gumroad), dans les trois thèmes.
+    public static Grid ChangedCap(string text)
+    {
+        var face = Cap(text);
+        face.Background = Brush(Red);
+        face.BorderBrush = Brush(Text);
+        face.BorderThickness = new Thickness(1.5);
+        if (face.Child is TextBlock label) label.Foreground = Brush(Text);
+        var shadow = new Rectangle { Fill = Brush(Text), IsHitTestVisible = false };
+        var host = new Grid { Margin = new Thickness(2, 2, 0, 0), Children = { shadow, face } };
+        SetLift(face, shadow, true, 2);
+        return host;
     }
 
     // ---------- Boutons et survol ----------
@@ -517,6 +532,27 @@ internal static class MacLook
     public static Color PrimaryInk => Theme == AppTheme.Papier && !DarkSurface ? Colors.White : Colors.Black;
     public static Color? PrimaryShadow => DarkSurface ? null : Theme == AppTheme.Papier ? BrandRed : Colors.Black;
 
+    /// Ombre de l'effet Gumroad au survol (06/11, comme le Mac `Swiss.primaryLift`) : noire sur le fond orange, rouge
+    /// partout ailleurs (sous Noir aussi).
+    public static Color LiftColor => Theme == AppTheme.Orange && !DarkSurface ? Colors.Black : BrandRed;
+
+    /// Ombre de l'effet Gumroad, cachée au repos (voir SetLift).
+    public static Rectangle LiftShadow(Color? color = null) => new()
+    {
+        Fill = Brush(color ?? LiftColor),
+        IsHitTestVisible = false,
+        Visibility = Visibility.Collapsed,
+    };
+
+    /// Effet Gumroad (06/11, « qu'il ne soit pas là quand on ne met pas la souris dessus ; quand on met la souris
+    /// dessus, il apparaît ») : soulevée, la face monte en haut à gauche de `distance` et laisse voir son ombre nette
+    /// à sa place ; au repos, rien ne dépasse. La face et l'ombre sont dans la même grille.
+    public static void SetLift(FrameworkElement face, Rectangle shadow, bool on, double distance = 4)
+    {
+        face.RenderTransform = new TranslateTransform { X = on ? -distance : 0, Y = on ? -distance : 0 };
+        shadow.Visibility = on ? Visibility.Visible : Visibility.Collapsed;
+    }
+
     /// Ombre nette décalée de `offset` points sous un élément (comme celle des maquettes) ; null : rien.
     public static Rectangle HardShadow(Color? color, double offset) => new()
     {
@@ -528,10 +564,10 @@ internal static class MacLook
 
     private static Button SwissButton(string text, Action click, bool primary)
     {
-        // Maquettes du 05/11 (comme le Mac) : le principal est plein sur son ombre nette, il se vide au survol ; le
-        // bordé (trait de 2 points, plein du fond : la grille de Papier ne passe pas dedans) se remplit d'encre.
+        // Maquettes du 05/11 (comme le Mac) : le principal est plein. 06/11 : sans ombre au repos ; au survol, il garde
+        // ses couleurs et se soulève sur son ombre nette (effet Gumroad). Le bordé (trait de 2 points, plein du fond :
+        // la grille de Papier ne passe pas dedans) se remplit d'encre au survol.
         Color ink = Text, paper = WindowColor, fill = PrimaryFill, onFill = PrimaryInk;
-        var shadowColor = primary ? PrimaryShadow : null;
         var label = Label(text.ToUpper(CultureInfo.CurrentCulture), 12, primary ? onFill : ink, bold: true);
         label.CharacterSpacing = 80;
         label.HorizontalAlignment = HorizontalAlignment.Center;
@@ -544,7 +580,7 @@ internal static class MacLook
             MinHeight = 32,
             Child = label,
         };
-        var shadow = HardShadow(shadowColor, 4);
+        var shadow = LiftShadow();
         var button = new Button
         {
             Style = PlainButton,
@@ -558,9 +594,7 @@ internal static class MacLook
         {
             if (primary)
             {
-                face.Background = Brush(on ? paper : fill);
-                label.Foreground = Brush(on ? ink : onFill);
-                shadow.Visibility = on || shadowColor is null ? Visibility.Collapsed : Visibility.Visible;
+                SetLift(face, shadow, on);
             }
             else
             {

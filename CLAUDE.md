@@ -404,7 +404,12 @@
   la 1re case libre « Slot N » de la piste choisie du Mixer (`PluginDrop.mixerSlotPoint`). Fenêtre jamais sous
   980 × 620 (`EditorView.minWindowWidth`), photos CI `minimum-*.png`. Communauté sans icône de couleur ; Organiser sans
   pastilles (baguette, onde, coche, point d'exclamation : `OrganizerBadge.shown = false`) ni roue qui tourne ; guide :
-  carré creux, orange au survol (`BlockSquare`). Windows pas encore suivi pour ces retours.
+  carré creux, orange au survol (`BlockSquare`). Windows (même jour, « fait tous les changements pour win aussi ») :
+  `MacLook.SetLift`/`LiftShadow`/`LiftColor` (boutons principaux, cartes de Macros), `ChangedCap` (touche changée),
+  `MacrosPage.NameTitle`/`AskAsync` (prévention à Enregistrer, question avant Supprimer), Importer/Exporter ajoutés à la
+  page Macros (+ « Exporter… » d'une macro), `PluginDrop.MixerSlotPoint` + page ouverte puis relue
+  (`MacroEffectsWindows.ReadDropPoint`), fenêtre ≥ 980 × 620 (`MainShell.MinWindowWidth`), Organiser sans pastilles ni
+  roue (`BadgesShown`). Pas de guide ni d'étoile côté Windows.
 - **Aspect validé le 28/10** (maquette, `HISTORIQUE`) : plus de Liquid Glass depuis le 29/10 (plaques dessinées), sans lavis ni lueur ; fond de
   fenêtre plein (« sans le Liquid Glass derrière »), verre devant : cartes, touches, cartes de l'Organiser
   (`GlassPlate`, dessiné : pas de `glassEffect` par ligne) ; titre de
