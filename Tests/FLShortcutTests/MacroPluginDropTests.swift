@@ -39,6 +39,25 @@ final class MacroPluginDropTests: XCTestCase {
         XCTAssertEqual(PluginDrop.formatKey("VST2"), "vst")
     }
 
+    /// 06/11 (« il n'y a que pour Analog Lab que ça fonctionne ») : le .fst trouvé partout dans la base (sous-dossiers,
+    /// favoris de FL), même au nom un peu différent (marque, format), jamais un autre numéro.
+    func testEveryPluginIsFoundInTheWholeDatabase() throws {
+        try put("Installed/Generators/VST3/Arturia/Pigments.fst")                  // un sous-dossier de plus
+        try put("Generators/Synth classic/Sytrus.fst")                             // seulement dans les favoris
+        try put("Installed/Generators/Fruity/Sytrus.nfo")
+        try put("Installed/Effects/VST3/FabFilter Pro-Q 3.fst")                    // la marque devant
+        try put("Installed/Generators/VST/Kontakt 7 (VST3).fst")                   // le format derrière
+        try put("Installed/Generators/VST3/Serum 2.fst")                           // un autre plugin
+        try put("Generators/FL Shortcuts/Vital.fst")                               // ancienne catégorie : ignorée
+        XCTAssertEqual(PluginDrop.presetFile(named: "Pigments", effect: false, root: root)?.lastPathComponent, "Pigments.fst")
+        XCTAssertEqual(PluginDrop.presetFile(named: "Sytrus", effect: false, root: root)?.lastPathComponent, "Sytrus.fst")
+        XCTAssertEqual(PluginDrop.presetFile(named: "Pro-Q 3", effect: true, root: root)?.lastPathComponent, "FabFilter Pro-Q 3.fst")
+        XCTAssertEqual(PluginDrop.presetFile(named: "Kontakt 7", effect: false, root: root)?.lastPathComponent, "Kontakt 7 (VST3).fst")
+        XCTAssertNil(PluginDrop.presetFile(named: "Serum", effect: false, root: root), "Serum n'ouvre pas Serum 2")
+        XCTAssertNil(PluginDrop.presetFile(named: "Vital", effect: false, root: root))
+        XCTAssertNil(PluginDrop.presetFile(named: "Pro-Q 4", effect: true, root: root))
+    }
+
     private func item(_ text: String, _ x: CGFloat, _ y: CGFloat, w: CGFloat = 60) -> TextLook.Item {
         TextLook.Item(text: text, box: CGRect(x: x, y: y, width: w, height: 12))
     }

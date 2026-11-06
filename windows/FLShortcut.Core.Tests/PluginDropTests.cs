@@ -151,4 +151,39 @@ public sealed class PluginDropTests : IDisposable
         Assert.Equal(146, PluginDrop.MixerSlotPoint(new[] { T("Slot l", 900, 140) })!.Value.Y);
         Assert.Null(PluginDrop.MixerSlotPoint(new[] { T("Slot machine", 900, 140), T("Insert 2", 300, 400) }));
     }
+
+    /// 06/11 (comme le Mac) : le .fst trouvé partout dans la base (sous-dossiers, favoris de FL), même au nom un peu
+    /// différent (marque, format), jamais un autre numéro.
+    [Fact]
+    public void EveryPluginIsFoundInTheWholeDatabase()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "fls-db-" + Guid.NewGuid().ToString("N"));
+        void Put(string relative)
+        {
+            var path = Path.Combine(new[] { root }.Concat(relative.Split('/')).ToArray());
+            Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+            File.WriteAllBytes(path, new byte[] { 1 });
+        }
+        try
+        {
+            Put("Installed/Generators/VST3/Arturia/Pigments.fst");
+            Put("Generators/Synth classic/Sytrus.fst");
+            Put("Installed/Generators/Fruity/Sytrus.nfo");
+            Put("Installed/Effects/VST3/FabFilter Pro-Q 3.fst");
+            Put("Installed/Generators/VST/Kontakt 7 (VST3).fst");
+            Put("Installed/Generators/VST3/Serum 2.fst");
+            Put("Generators/FL Shortcuts/Vital.fst");
+            Assert.Equal("Pigments.fst", Path.GetFileName(PluginDrop.PresetFile(root, "Pigments", false)));
+            Assert.Equal("Sytrus.fst", Path.GetFileName(PluginDrop.PresetFile(root, "Sytrus", false)));
+            Assert.Equal("FabFilter Pro-Q 3.fst", Path.GetFileName(PluginDrop.PresetFile(root, "Pro-Q 3", true)));
+            Assert.Equal("Kontakt 7 (VST3).fst", Path.GetFileName(PluginDrop.PresetFile(root, "Kontakt 7", false)));
+            Assert.Null(PluginDrop.PresetFile(root, "Serum", false));
+            Assert.Null(PluginDrop.PresetFile(root, "Vital", false));
+            Assert.Null(PluginDrop.PresetFile(root, "Pro-Q 4", true));
+        }
+        finally
+        {
+            try { Directory.Delete(root, true); } catch (IOException) { }
+        }
+    }
 }

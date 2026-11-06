@@ -843,3 +843,7 @@ entrée 1 ≈ 0,5 s.
   touches en relief, Importer/Exporter — l'import/export de fichiers n'existait pas encore sur Windows —, créateur,
   question avant Supprimer, plugins sur la page ouverte et case libre du Mixer, taille minimale, Organiser sans
   pastilles). 395 essais du cœur Windows verts ici (.NET 8 installé dans la session).
+- 06/11 (3) : « dans l'importation de VST et de plugins, il n'y a que pour Analog Lab que ça fonctionne, le drag and
+  drop » → le fichier .fst du plugin n'était cherché qu'au premier niveau d'Installed › <format>, au nom exact. Il est
+  maintenant cherché dans toute la base (sous-dossiers, catégories de favoris de FL), avec un nom toléré (marque devant,
+  « (VST3) » derrière), jamais un autre numéro. Mac et Windows (396 essais Windows verts ici).

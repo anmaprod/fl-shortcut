@@ -27,19 +27,86 @@ enum PluginDrop {
         effect ? ["au", "vst3", "vst", "clap", "fl"] : ["vst3", "vst", "au", "clap", "fl"]
     }
 
-    /// Pure sur le disque (testée) : le .fst du plugin `name` dans la base `root`, au format préféré ; nil : absent.
+    /// Pure sur le disque (testée) : le .fst du plugin `name` dans la base `root` ; nil : absent.
+    /// 06/11 (« il n'y a que pour Analog Lab que ça fonctionne… mets ça pour tout ») : cherché dans TOUTE la base,
+    /// sous-dossiers compris : d'abord Installed › Generators ou Effects (format préféré), puis les catégories de
+    /// favoris de FL (Generators › Synth classic › …). Le nom : identique, sinon sans la marque ni le format
+    /// (« FabFilter Pro-Q 3 », « Analog Lab V (VST3) »), jamais un autre numéro (« Serum » n'ouvre pas « Serum 2 »).
+    /// Seulement des .fst (les .nfo ne marchent pas) ; jamais un lien ; rien n'est écrit dans la base.
     static func presetFile(named name: String, effect: Bool, root: URL) -> URL? {
         let wanted = TextLook.normalized(name)
-        guard !wanted.isEmpty else { return nil }
+        let wantedKey = looseKey(name)
+        guard !wanted.isEmpty, !wantedKey.isEmpty else { return nil }
         let prefer = preferredFormats(effect: effect)
-        func rank(_ format: String) -> Int { prefer.firstIndex(of: formatKey(format)) ?? prefer.count }
-        let plugins = FLPluginDatabase.installed(effect ? .effects : .generators, root: root)
-            .filter { TextLook.normalized($0.name) == wanted }
-            .sorted { (rank($0.format), $0.format) < (rank($1.format), $1.format) }
-        for plugin in plugins {
-            if let fst = plugin.files.first(where: { $0.pathExtension.lowercased() == "fst" }) { return fst }
+        let kind = effect ? FLPluginDatabase.Kind.effects : .generators
+        var best: (rank: [Int], path: String, url: URL)?
+        for (source, base) in [root.appendingPathComponent("Installed/\(kind.rawValue)", isDirectory: true),
+                               root.appendingPathComponent(kind.rawValue, isDirectory: true)].enumerated() {
+            for file in fstFiles(under: base, skipping: source == 1 ? FLPluginDatabase.folderName : nil) {
+                let stem = file.url.deletingPathExtension().lastPathComponent
+                guard let level = matchLevel(stem, wanted: wanted, wantedKey: wantedKey) else { continue }
+                let format = source == 0 ? (prefer.firstIndex(of: formatKey(file.top)) ?? prefer.count) : prefer.count
+                let rank = [level, source, format, abs(looseKey(stem).count - wantedKey.count)]
+                if best == nil || rank.lexicographicallyPrecedes(best!.rank)
+                    || (rank == best!.rank && file.url.path < best!.path) {
+                    best = (rank, file.url.path, file.url)
+                }
+            }
         }
-        return nil
+        return best?.url
+    }
+
+    /// Pure (testée) : 0 nom identique, 1 identique sans la marque ni le format, 2 contenu l'un dans l'autre sans autre
+    /// chiffre (« FabFilter Pro-Q 3 » pour « Pro-Q 3 ») ; nil : un autre plugin.
+    static func matchLevel(_ stem: String, wanted: String, wantedKey: String) -> Int? {
+        if TextLook.normalized(stem) == wanted { return 0 }
+        let key = looseKey(stem)
+        if key == wantedKey { return 1 }
+        guard wantedKey.count >= 4, key.count >= 4 else { return nil }
+        let (long, short) = key.count > wantedKey.count ? (key, wantedKey) : (wantedKey, key)
+        guard let range = long.range(of: short) else { return nil }
+        let rest = long.replacingCharacters(in: range, with: "")
+        return rest.contains(where: \.isNumber) ? nil : 2
+    }
+
+    /// Pure (testée) : le nom en lettres et chiffres seuls, minuscules, sans les mots de format (« vst3 », « au »,
+    /// « x64 »…).
+    static func looseKey(_ name: String) -> String {
+        let formats: Set<String> = ["vst", "vst2", "vst3", "au", "aax", "clap", "x64", "x86", "64bit", "32bit", "aufx", "aumu"]
+        let folded = name.folding(options: [.caseInsensitive, .diacriticInsensitive], locale: nil)
+        return folded.split(whereSeparator: { !$0.isLetter && !$0.isNumber })
+            .map(String.init)
+            .filter { !formats.contains($0) }
+            .joined()
+    }
+
+    /// Les .fst sous `base` (sous-dossiers compris, ni lien ni fichier caché), avec leur premier dossier (le format
+    /// sous Installed) ; `skipping` : un dossier du premier niveau laissé de côté. 50 000 entrées au plus.
+    private static func fstFiles(under base: URL, skipping: String?) -> [(url: URL, top: String)] {
+        let keys: [URLResourceKey] = [.isRegularFileKey, .isSymbolicLinkKey]
+        guard SecureFile.kind(at: base.path) == .directory,
+              let walker = FileManager.default.enumerator(at: base, includingPropertiesForKeys: keys,
+                                                          options: [.skipsHiddenFiles, .skipsPackageDescendants])
+        else { return [] }
+        // Chemins comparés liens résolus (/var et /private/var sur macOS).
+        let basePath = base.resolvingSymlinksInPath().path
+        var out: [(URL, String)] = []
+        var seen = 0
+        for case let url as URL in walker {
+            seen += 1
+            if seen > 50_000 { break }
+            let full = url.path.hasPrefix(basePath) ? url.path : url.resolvingSymlinksInPath().path
+            let relative = full.dropFirst(basePath.count).split(separator: "/").map(String.init)
+            if let skipping, relative.first == skipping {
+                walker.skipDescendants()
+                continue
+            }
+            guard url.pathExtension.lowercased() == "fst",
+                  let values = try? url.resourceValues(forKeys: Set(keys)),
+                  values.isRegularFile == true, values.isSymbolicLink != true else { continue }
+            out.append((url, relative.count > 1 ? relative[0] : ""))
+        }
+        return out
     }
 
     /// Pure (testée) : la première case d'effet vide de la piste choisie du Mixer (06/11, « ça vise la piste qui est

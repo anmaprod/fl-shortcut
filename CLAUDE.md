@@ -409,7 +409,10 @@
   `MacrosPage.NameTitle`/`AskAsync` (prévention à Enregistrer, question avant Supprimer), Importer/Exporter ajoutés à la
   page Macros (+ « Exporter… » d'une macro), `PluginDrop.MixerSlotPoint` + page ouverte puis relue
   (`MacroEffectsWindows.ReadDropPoint`), fenêtre ≥ 980 × 620 (`MainShell.MinWindowWidth`), Organiser sans pastilles ni
-  roue (`BadgesShown`). Pas de guide ni d'étoile côté Windows.
+  roue (`BadgesShown`). Pas de guide ni d'étoile côté Windows. Puis (« il n'y a que pour Analog Lab que ça
+  fonctionne… mets ça pour tout ») : le .fst cherché dans TOUTE la Plugin database (sous-dossiers d'Installed, puis
+  catégories de favoris, jamais « FL Shortcuts »), nom identique sinon sans marque ni format, jamais un autre numéro
+  (`PluginDrop.presetFile`/`looseKey`/`matchLevel`, Mac et Windows, essais `EveryPluginIsFoundInTheWholeDatabase`).
 - **Aspect validé le 28/10** (maquette, `HISTORIQUE`) : plus de Liquid Glass depuis le 29/10 (plaques dessinées), sans lavis ni lueur ; fond de
   fenêtre plein (« sans le Liquid Glass derrière »), verre devant : cartes, touches, cartes de l'Organiser
   (`GlassPlate`, dessiné : pas de `glassEffect` par ligne) ; titre de
